@@ -4,7 +4,7 @@
   </div>
 </template>
 
-<style lang="scss">
+<style lang="less">
 #app {
    background-color: #222d32;
 }

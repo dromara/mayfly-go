@@ -1,11 +1,12 @@
 package scheduler
 
 import (
-	"github.com/siddontang/go/log"
-	"mayfly-go/base"
+	"mayfly-go/base/model"
 	"mayfly-go/base/utils"
 	"mayfly-go/machine"
 	"mayfly-go/models"
+
+	"github.com/siddontang/go/log"
 )
 
 func init() {
@@ -17,11 +18,16 @@ func SaveMachineMonitor() {
 		for _, m := range *models.GetNeedMonitorMachine() {
 			m := m
 			go func() {
-				mm := machine.GetMonitorInfo(machine.GetCli(uint64(utils.GetInt4Map(m, "id"))))
+				cli, err := machine.GetCli(uint64(utils.GetInt4Map(m, "id")))
+				if err != nil {
+					log.Error("获取客户端失败：", err.Error())
+					return
+				}
+				mm := cli.GetMonitorInfo()
 				if mm != nil {
-					err := base.Insert(mm)
+					_, err := model.Insert(mm)
 					if err != nil {
-						log.Error("保存机器监控信息失败: %s", err.Error())
+						log.Error("保存机器监控信息失败: ", err.Error())
 					}
 				}
 			}()

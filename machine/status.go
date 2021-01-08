@@ -1,7 +1,7 @@
 package machine
 
 import (
-	"mayfly-go/base"
+	"mayfly-go/base/model"
 	"mayfly-go/base/utils"
 	"strconv"
 	"strings"
@@ -11,10 +11,10 @@ type SystemVersion struct {
 	Version string
 }
 
-func GetSystemVersion(cli *Cli) *SystemVersion {
-	res := cli.Run("cat /etc/redhat-release")
+func (c *Cli) GetSystemVersion() *SystemVersion {
+	res, _ := c.Run("cat /etc/redhat-release")
 	return &SystemVersion{
-		Version: res,
+		Version: *res,
 	}
 }
 
@@ -68,15 +68,15 @@ type Top struct {
 	AvailMem  int `json:"availMem"`
 }
 
-func GetTop(cli *Cli) *Top {
-	res := cli.Run("top -b -n 1 | head -5")
+func (c *Cli) GetTop() *Top {
+	res, _ := c.Run("top -b -n 1 | head -5")
 	topTemp := "top - {upAndUsers},  load average: {loadavg}\n" +
 		"Tasks:{totalTask} total,{runningTask} running,{sleepingTask} sleeping,{stoppedTask} stopped,{zombieTask} zombie\n" +
 		"%Cpu(s):{cpuUs} us,{cpuSy} sy,{cpuNi} ni,{cpuId} id,{cpuWa} wa,{cpuHi} hi,{cpuSi} si,{cpuSt} st\n" +
 		"KiB Mem :{totalMem} total,{freeMem} free,{usedMem} used,{cacheMem} buff/cache\n" +
 		"KiB Swap:{totalSwap} total,{freeSwap} free,{usedSwap} used. {availMem} avail Mem \n"
 	resMap := make(map[string]interface{})
-	utils.ReverStrTemplate(topTemp, res, resMap)
+	utils.ReverStrTemplate(topTemp, *res, resMap)
 
 	//17:14:07 up 5 days,  6:30,  2
 	timeUpAndUserStr := resMap["upAndUsers"].(string)
@@ -93,7 +93,7 @@ func GetTop(cli *Cli) *Top {
 
 	top := &Top{Time: time, Up: up, NowUsers: users, OneMinLoadavg: float32(oneMinLa), FiveMinLoadavg: float32(fiveMinLa), FifteenMinLoadavg: float32(fifMinLa)}
 	err := utils.Map2Struct(resMap, top)
-	base.BizErrIsNil(err, "解析top出错")
+	model.BizErrIsNil(err, "解析top出错")
 	return top
 }
 

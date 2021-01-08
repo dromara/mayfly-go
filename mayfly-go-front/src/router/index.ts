@@ -30,6 +30,24 @@ const routes: Array<RouteConfig> = [
         keepAlive: false
       },
       component: () => import('@/views/machine')
+    },
+    {
+      path: 'db-select-data',
+      name: 'dbs',
+      meta: {
+        title: 'DBMS',
+        keepAlive: false
+      },
+      component: () => import('@/views/db/SelectData.vue')
+      // children: [{
+      //   path: 'select',
+      //   name: 'select-data',
+      //   meta: {
+      //     title: 'DBMS',
+      //     keepAlive: false
+      //   },
+      //   component: () => import('@/views/db/SelectData.vue')
+      // }]
     }]
   },
 ]

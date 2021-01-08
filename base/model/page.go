@@ -1,4 +1,4 @@
-package base
+package model
 
 // 分页参数
 type PageParam struct {

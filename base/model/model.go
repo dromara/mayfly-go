@@ -1,29 +1,121 @@
-package base
+package model
 
 import (
 	"errors"
-	"github.com/astaxie/beego/orm"
-	"github.com/siddontang/go/log"
+	"mayfly-go/base/ctx"
 	"mayfly-go/base/utils"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/beego/beego/v2/client/orm"
+	"github.com/siddontang/go/log"
 )
 
 type Model struct {
-	Id         uint64    `orm:"column(id);auto" json:"id"`
-	CreateTime time.Time `orm:"column(create_time);type(datetime);null" json:"createTime"`
-	CreatorId  uint64    `orm:"column(creator_id)" json:"creatorId"`
-	Creator    string    `orm:"column(creator)" json:"creator"`
-	UpdateTime time.Time `orm:"column(update_time);type(datetime);null" json:"updateTime"`
-	ModifierId uint64    `orm:"column(modifier_id)" json:"modifierId"`
-	Modifier   string    `orm:"column(modifier)" json:"modifier"`
+	Id         uint64     `orm:"column(id);auto" json:"id"`
+	CreateTime *time.Time `orm:"column(create_time);type(datetime);null" json:"createTime"`
+	CreatorId  uint64     `orm:"column(creator_id)" json:"creatorId"`
+	Creator    string     `orm:"column(creator)" json:"creator"`
+	UpdateTime *time.Time `orm:"column(update_time);type(datetime);null" json:"updateTime"`
+	ModifierId uint64     `orm:"column(modifier_id)" json:"modifierId"`
+	Modifier   string     `orm:"column(modifier)" json:"modifier"`
+}
+
+// 设置基础信息. 如创建时间，修改时间，创建者，修改者信息
+func (m *Model) SetBaseInfo(account *ctx.LoginAccount) {
+	nowTime := time.Now()
+	isCreate := m.Id == 0
+	if isCreate {
+		m.CreateTime = &nowTime
+	}
+	m.UpdateTime = &nowTime
+
+	if account == nil {
+		return
+	}
+	id := account.Id
+	name := account.Username
+	if isCreate {
+		m.CreatorId = id
+		m.Creator = name
+	}
+	m.Modifier = name
+	m.ModifierId = id
 }
 
 // 获取orm querySeter
 func QuerySetter(table interface{}) orm.QuerySeter {
 	return getOrm().QueryTable(table)
+}
+
+// 根据id获取实体对象。model需为指针类型（需要将查询出来的值赋值给model）
+//
+// 若error不为nil则为不存在该记录
+func GetById(model interface{}, id uint64, cols ...string) error {
+	return QuerySetter(model).Filter("Id", id).One(model, cols...)
+}
+
+// 根据id更新model，更新字段为model中不为空的值，即int类型不为0，ptr类型不为nil这类字段值
+func UpdateById(model interface{}) (int64, error) {
+	var id uint64
+	params := orm.Params{}
+	err := utils.DoWithFields(model, func(ft reflect.StructField, fv reflect.Value) error {
+		if utils.IsBlank(fv) {
+			return nil
+		}
+		if ft.Name == "Id" {
+			if id = fv.Uint(); id == 0 {
+				return errors.New("根据id更新model时Id不能为0")
+			}
+			return nil
+		}
+		params[ft.Name] = fv.Interface()
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return QuerySetter(model).Filter("Id", id).Update(params)
+}
+
+// 根据id删除model
+func DeleteById(model interface{}, id uint64) (int64, error) {
+	return QuerySetter(model).Filter("Id", id).Delete()
+}
+
+// 插入model
+func Insert(model interface{}) (int64, error) {
+	return getOrm().Insert(model)
+}
+
+// 获取满足model中不为空的字段值条件的所有数据.
+//
+// @param list为数组类型 如 var users []*User
+func ListByCondition(model interface{}, list interface{}) {
+	qs := QuerySetter(model)
+	utils.DoWithFields(model, func(ft reflect.StructField, fv reflect.Value) error {
+		if !utils.IsBlank(fv) {
+			qs = qs.Filter(ft.Name, fv.Interface())
+		}
+		return nil
+	})
+	qs.All(list)
+}
+
+// 获取满足model中不为空的字段值条件的单个对象。model需为指针类型（需要将查询出来的值赋值给model）
+//
+// 若 error不为nil，则为不存在该记录
+func GetByCondition(model interface{}, cols ...string) error {
+	qs := QuerySetter(model)
+	utils.DoWithFields(model, func(ft reflect.StructField, fv reflect.Value) error {
+		if !utils.IsBlank(fv) {
+			qs = qs.Filter(ft.Name, fv.Interface())
+		}
+		return nil
+	})
+	return qs.One(model, cols...)
 }
 
 // 获取分页结果
@@ -80,6 +172,7 @@ func GetListBySql(sql string, params ...interface{}) *[]orm.Params {
 }
 
 // 获取所有列表数据
+// model为数组类型 如 var users []*User
 func GetList(seter orm.QuerySeter, model interface{}, toModel interface{}) {
 	_, _ = seter.All(model, getFieldNames(toModel)...)
 	err := utils.Copy(toModel, model)
@@ -106,14 +199,6 @@ func GetBy(model interface{}, fs ...string) error {
 		} else {
 			return errors.New("查询失败")
 		}
-	}
-	return nil
-}
-
-func Insert(model interface{}) error {
-	_, err := getOrm().Insert(model)
-	if err != nil {
-		return errors.New("数据插入失败")
 	}
 	return nil
 }

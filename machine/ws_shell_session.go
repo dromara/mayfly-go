@@ -3,51 +3,14 @@ package machine
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/astaxie/beego/logs"
-	"github.com/gorilla/websocket"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"sync"
 	"time"
-)
 
-//func WsSsh(c *controllers.MachineController) {
-//	wsConn, err := upGrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
-//	if err != nil {
-//		panic(base.NewBizErr("获取requst responsewirte错误"))
-//	}
-//
-//	cols, _ := c.GetInt("col", 80)
-//	rows, _ := c.GetInt("rows", 40)
-//
-//	sws, err := NewLogicSshWsSession(cols, rows, true, GetCli(c.GetMachineId()).client, wsConn)
-//	if sws == nil {
-//		panic(base.NewBizErr("连接失败"))
-//	}
-//	//if wshandleError(wsConn, err) {
-//	//	return
-//	//}
-//	defer sws.Close()
-//
-//	quitChan := make(chan bool, 3)
-//	sws.Start(quitChan)
-//	go sws.Wait(quitChan)
-//
-//	<-quitChan
-//	//保存日志
-//
-//	////write logs
-//	//xtermLog := model.SshLog{
-//	//	StartedAt: startTime,
-//	//	UserId:    userM.Id,
-//	//	Log:       sws.LogString(),
-//	//	MachineId: idx,
-//	//	ClientIp:  cIp,
-//	//}
-//	//err = xtermLog.Create()
-//	//if wshandleError(wsConn, err) {
-//	//	return
-//}
+	"github.com/beego/beego/v2/core/logs"
+	"github.com/gorilla/websocket"
+	"golang.org/x/crypto/ssh"
+)
 
 type safeBuffer struct {
 	buffer bytes.Buffer
@@ -75,9 +38,9 @@ const (
 	wsMsgResize = "resize"
 )
 
-type wsMsg struct {
+type WsMsg struct {
 	Type string `json:"type"`
-	Cmd  string `json:"cmd"`
+	Msg  string `json:"msg"`
 	Cols int    `json:"cols"`
 	Rows int    `json:"rows"`
 }
@@ -89,11 +52,9 @@ type LogicSshWsSession struct {
 	inputFilterBuff *safeBuffer //用来过滤输入的命令和ssh_filter配置对比的
 	session         *ssh.Session
 	wsConn          *websocket.Conn
-	isAdmin         bool
-	IsFlagged       bool `comment:"当前session是否包含禁止命令"`
 }
 
-func NewLogicSshWsSession(cols, rows int, isAdmin bool, cli *Cli, wsConn *websocket.Conn) (*LogicSshWsSession, error) {
+func NewLogicSshWsSession(cols, rows int, cli *Cli, wsConn *websocket.Conn) (*LogicSshWsSession, error) {
 	sshSession, err := cli.GetSession()
 	if err != nil {
 		return nil, err
@@ -132,8 +93,6 @@ func NewLogicSshWsSession(cols, rows int, isAdmin bool, cli *Cli, wsConn *websoc
 		inputFilterBuff: inputBuf,
 		session:         sshSession,
 		wsConn:          wsConn,
-		isAdmin:         isAdmin,
-		IsFlagged:       false,
 	}, nil
 }
 
@@ -167,15 +126,13 @@ func (sws *LogicSshWsSession) receiveWsMsg(exitCh chan bool) {
 			//read websocket msg
 			_, wsData, err := wsConn.ReadMessage()
 			if err != nil {
-				logs.Error("reading webSocket message failed")
-				//panic(base.NewBizErr("reading webSocket message failed"))
+				logs.Error("reading webSocket message failed: ", err)
 				return
 			}
 			//unmashal bytes into struct
-			msgObj := wsMsg{}
+			msgObj := WsMsg{}
 			if err := json.Unmarshal(wsData, &msgObj); err != nil {
-				logs.Error("unmarshal websocket message failed")
-				//panic(base.NewBizErr("unmarshal websocket message failed"))
+				logs.Error("unmarshal websocket message failed：", err)
 			}
 			switch msgObj.Type {
 			case wsMsgResize:
@@ -183,7 +140,6 @@ func (sws *LogicSshWsSession) receiveWsMsg(exitCh chan bool) {
 				if msgObj.Cols > 0 && msgObj.Rows > 0 {
 					if err := sws.session.WindowChange(msgObj.Rows, msgObj.Cols); err != nil {
 						logs.Error("ssh pty change windows size failed")
-						//panic(base.NewBizErr("ssh pty change windows size failed"))
 					}
 				}
 			case wsMsgCmd:
@@ -193,7 +149,7 @@ func (sws *LogicSshWsSession) receiveWsMsg(exitCh chan bool) {
 				//	logs.Error("websock cmd string base64 decoding failed")
 				//	//panic(base.NewBizErr("websock cmd string base64 decoding failed"))
 				//}
-				sws.sendWebsocketInputCommandToSshSessionStdinPipe([]byte(msgObj.Cmd))
+				sws.sendWebsocketInputCommandToSshSessionStdinPipe([]byte(msgObj.Msg))
 			}
 		}
 	}
@@ -203,7 +159,6 @@ func (sws *LogicSshWsSession) receiveWsMsg(exitCh chan bool) {
 func (sws *LogicSshWsSession) sendWebsocketInputCommandToSshSessionStdinPipe(cmdBytes []byte) {
 	if _, err := sws.stdinPipe.Write(cmdBytes); err != nil {
 		logs.Error("ws cmd bytes write to ssh.stdin pipe failed")
-		//panic(base.NewBizErr("ws cmd bytes write to ssh.stdin pipe failed"))
 	}
 }
 
@@ -228,12 +183,10 @@ func (sws *LogicSshWsSession) sendComboOutput(exitCh chan bool) {
 				err := wsConn.WriteMessage(websocket.TextMessage, bs)
 				if err != nil {
 					logs.Error("ssh sending combo output to webSocket failed")
-					//panic(base.NewBizErr("ssh sending combo output to webSocket failed"))
 				}
 				_, err = sws.logBuff.Write(bs)
 				if err != nil {
 					logs.Error("combo output to log buffer failed")
-					//panic(base.NewBizErr("combo output to log buffer failed"))
 				}
 				sws.comboOutput.buffer.Reset()
 			}
@@ -246,8 +199,7 @@ func (sws *LogicSshWsSession) sendComboOutput(exitCh chan bool) {
 
 func (sws *LogicSshWsSession) Wait(quitChan chan bool) {
 	if err := sws.session.Wait(); err != nil {
-		logs.Error("ssh session wait failed")
-		//panic(base.NewBizErr("ssh session wait failed"))
+		logs.Error("ssh session wait failed: ", err)
 		setQuit(quitChan)
 	}
 }

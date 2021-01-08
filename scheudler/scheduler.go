@@ -1,8 +1,9 @@
 package scheduler
 
 import (
+	"mayfly-go/base/model"
+
 	"github.com/robfig/cron/v3"
-	"mayfly-go/base"
 )
 
 var c = cron.New()
@@ -22,7 +23,7 @@ func GetCron() *cron.Cron {
 func AddFun(spec string, cmd func()) cron.EntryID {
 	id, err := c.AddFunc(spec, cmd)
 	if err != nil {
-		panic(base.NewBizErr("添加任务失败：" + err.Error()))
+		panic(model.NewBizErr("添加任务失败：" + err.Error()))
 	}
 	return id
 }

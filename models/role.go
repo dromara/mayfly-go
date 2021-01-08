@@ -1,12 +1,13 @@
 package models
 
 import (
-	"github.com/astaxie/beego/orm"
-	"mayfly-go/base"
+	"mayfly-go/base/model"
+
+	"github.com/beego/beego/v2/client/orm"
 )
 
 type Role struct {
-	base.Model
+	model.Model
 
 	Name string `orm:"column(name)" json:"username"`
 	//AccountId int64  `orm:"column(account_id)`

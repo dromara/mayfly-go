@@ -1,4 +1,4 @@
-package base
+package model
 
 // 业务错误
 type BizError struct {

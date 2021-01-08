@@ -8,7 +8,8 @@
           size="mini"
           @click="openFormDialog(false)"
           plain
-        >添加</el-button>
+          >添加</el-button
+        >
         <el-button
           type="primary"
           icon="el-icon-edit"
@@ -16,38 +17,51 @@
           :disabled="currentId == null"
           @click="openFormDialog(currentData)"
           plain
-        >编辑</el-button>
+          >编辑</el-button
+        >
         <el-button
           :disabled="currentId == null"
           @click="deleteMachine(currentId)"
           type="danger"
           icon="el-icon-delete"
           size="mini"
-        >删除</el-button>
+          >删除</el-button
+        >
         <el-button
           type="success"
           :disabled="currentId == null"
           @click="fileManage(currentData)"
           size="mini"
           plain
-        >文件管理</el-button>
+          >文件管理</el-button
+        >
       </div>
 
-      <div style="float: right;">
+      <div style="float: right">
         <el-input
           placeholder="host"
           size="mini"
-          style="width: 140px;"
+          style="width: 140px"
           v-model="params.host"
           @clear="search"
           plain
           clearable
         ></el-input>
-        <el-button @click="search" type="success" icon="el-icon-search" size="mini"></el-button>
+        <el-button
+          @click="search"
+          type="success"
+          icon="el-icon-search"
+          size="mini"
+        ></el-button>
       </div>
     </div>
 
-    <el-table :data="data.list" stripe style="width: 100%" @current-change="choose">
+    <el-table
+      :data="data.list"
+      stripe
+      style="width: 100%"
+      @current-change="choose"
+    >
       <el-table-column label="选择" width="55px">
         <template slot-scope="scope">
           <el-radio v-model="currentId" :label="scope.row.id">
@@ -70,7 +84,8 @@
             icom="el-icon-tickets"
             size="mini"
             plain
-          >基本信息</el-button>
+            >基本信息</el-button
+          >
           <el-button
             type="primary"
             @click="monitor(scope.row.id)"
@@ -78,14 +93,24 @@
             icom="el-icon-tickets"
             size="mini"
             plain
-          >监控</el-button>
+            >监控</el-button
+          >
           <el-button
             type="success"
             @click="serviceManager(scope.row)"
             :ref="scope.row"
             size="mini"
             plain
-          >服务管理</el-button>
+            >服务管理</el-button
+          >
+          <el-button
+            type="success"
+            @click="showTerminal(scope.row)"
+            :ref="scope.row"
+            size="mini"
+            plain
+            >终端</el-button
+          >
         </template>
       </el-table-column>
     </el-table>
@@ -100,15 +125,30 @@
     />
 
     <el-dialog title="基本信息" :visible.sync="infoDialog.visible" width="30%">
-      <div style="white-space: pre-line;">{{infoDialog.info}}</div>
+      <div style="white-space: pre-line">{{ infoDialog.info }}</div>
       <!-- <span slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">取 消</el-button>
         <el-button type="primary" @click="dialogVisible = false">确 定</el-button>
       </span>-->
     </el-dialog>
 
-    <el-dialog @close="closeMonitor" title="监控信息" :visible.sync="monitorDialog.visible" width="60%">
+    <el-dialog
+      @close="closeMonitor"
+      title="监控信息"
+      :visible.sync="monitorDialog.visible"
+      width="60%"
+    >
       <monitor ref="monitorDialog" :machineId="monitorDialog.machineId" />
+    </el-dialog>
+
+    <el-dialog
+      title="终端"
+      :visible.sync="terminalDialog.visible"
+      width="70%"
+      :close-on-click-modal="false"
+      @close="closeTermnial"
+    >
+      <ssh-terminal ref="terminal" :socketURI="terminalDialog.socketUri" />
     </el-dialog>
 
     <!-- <FileManage
@@ -132,12 +172,14 @@ import { Component, Vue } from 'vue-property-decorator'
 import { DynamicFormDialog } from '@/components/dynamic-form'
 import Monitor from './Monitor.vue'
 import { machineApi } from './api'
+import SshTerminal from './SshTerminal.vue'
 
 @Component({
   name: 'MachineList',
   components: {
     DynamicFormDialog,
     Monitor,
+    SshTerminal,
   },
 })
 export default class MachineList extends Vue {
@@ -165,6 +207,10 @@ export default class MachineList extends Vue {
     machineId: null,
     visible: false,
     title: '',
+  }
+  terminalDialog = {
+    visible: false,
+    socketUri: '',
   }
   formDialog = {
     visible: false,
@@ -291,6 +337,18 @@ export default class MachineList extends Vue {
     md.cancelInterval()
   }
 
+  showTerminal(row: any) {
+    this.terminalDialog.visible = true
+    this.terminalDialog.socketUri = `ws://localhost:8888/api/machines/${row.id}/terminal`
+  }
+
+  closeTermnial() {
+    this.terminalDialog.visible = false
+    this.terminalDialog.socketUri = ''
+    const t: any = this.$refs['terminal']
+    t.closeAll()
+  }
+
   openFormDialog(redis: any) {
     let dialogTitle
     if (redis) {
@@ -330,4 +388,7 @@ export default class MachineList extends Vue {
 </script>
 
 <style>
+.el-dialog__body {
+  padding: 2px 2px;
+}
 </style>

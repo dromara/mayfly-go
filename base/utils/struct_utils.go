@@ -132,6 +132,31 @@ func Copy(toValue interface{}, fromValue interface{}) (err error) {
 	return
 }
 
+// 对结构体的每个字段以及字段值执行doWith回调函数, 包括匿名属性的字段
+func DoWithFields(str interface{}, doWith func(fType reflect.StructField, fValue reflect.Value) error) error {
+	t := IndirectType(reflect.TypeOf(str))
+	if t.Kind() != reflect.Struct {
+		return errors.New("非结构体")
+	}
+
+	fieldNum := t.NumField()
+	v := Indirect(reflect.ValueOf(str))
+	for i := 0; i < fieldNum; i++ {
+		ft := t.Field(i)
+		fv := v.Field(i)
+		// 如果是匿名属性，则递归调用该方法
+		if ft.Anonymous {
+			DoWithFields(fv.Interface(), doWith)
+			continue
+		}
+		err := doWith(ft, fv)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func deepFields(reflectType reflect.Type) []reflect.StructField {
 	var fields []reflect.StructField
 
@@ -610,7 +635,7 @@ func Case2Camel(name string) string {
 	return strings.Replace(name, " ", "", -1)
 }
 
-func isBlank(value reflect.Value) bool {
+func IsBlank(value reflect.Value) bool {
 	switch value.Kind() {
 	case reflect.String:
 		return value.Len() == 0

@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"github.com/mitchellh/mapstructure"
 	"reflect"
 	"strings"
 	"testing"
@@ -144,9 +143,9 @@ func TestMap2Struct(t *testing.T) {
 	//
 	//fmt.Println(name, b)
 	//将 map 转换为指定的结构体
-	if err := mapstructure.Decode(mapInstance, &s); err != nil {
-		fmt.Println(err)
-	}
+	// if err := decode(mapInstance, &s); err != nil {
+	// 	fmt.Println(err)
+	// }
 	fmt.Printf("map2struct后得到的 struct 内容为:%v", s)
 }
 

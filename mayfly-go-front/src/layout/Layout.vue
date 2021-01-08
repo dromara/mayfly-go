@@ -167,11 +167,28 @@ export default class App extends Vue {
         icon: 'el-icon-menu',
         children: [
           {
+            id: 11,
             type: 1,
             name: '机器列表',
             url: '/machines',
             icon: 'el-icon-menu',
-            code: 'index',
+            code: 'machines',
+          },
+        ],
+      },
+      {
+        id: 2,
+        type: 1,
+        name: 'DBMS',
+        icon: 'el-icon-menu',
+        children: [
+          {
+            id: 21,
+            type: 1,
+            name: '数据查询',
+            url: '/db-select-data',
+            icon: 'el-icon-menu',
+            code: 'db-select',
           },
         ],
       },
@@ -290,7 +307,7 @@ export default class App extends Vue {
 .menu {
   border-right: none;
   // 禁止选择
-  moz-user-select: -moz-none;
+  -moz-user-select: -moz-none;
   -moz-user-select: none;
   -o-user-select: none;
   -khtml-user-select: none;

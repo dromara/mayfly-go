@@ -36,6 +36,26 @@ func SubString(str string, begin, end int) (substr string) {
 	return string(rs[begin:end])
 }
 
+func Camel2Underline(name string) string {
+	if name == "" {
+		return ""
+	}
+
+	temp := strings.Split(name, "_")
+	var s string
+	for _, v := range temp {
+		vv := []rune(v)
+		if len(vv) > 0 {
+			if bool(vv[0] >= 'a' && vv[0] <= 'z') { //首字母大写
+				vv[0] -= 32
+			}
+			s += string(vv)
+		}
+	}
+
+	return s
+}
+
 func UnicodeIndex(str, substr string) int {
 	// 子串在字符串的字节位置
 	result := strings.Index(str, substr)

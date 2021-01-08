@@ -1,12 +1,13 @@
-package base
+package model
 
 import (
+	"fmt"
 	"reflect"
 )
 
-func BizErrIsNil(err error, msg string) {
+func BizErrIsNil(err error, msg string, params ...interface{}) {
 	if err != nil {
-		panic(NewBizErr(msg))
+		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
 }
 
@@ -16,15 +17,15 @@ func ErrIsNil(err error, msg string) {
 	}
 }
 
-func IsTrue(exp bool, msg string) {
+func IsTrue(exp bool, msg string, params ...interface{}) {
 	if !exp {
-		panic(NewBizErr(msg))
+		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
 }
 
-func NotEmpty(str string, msg string) {
+func NotEmpty(str string, msg string, params ...interface{}) {
 	if str == "" {
-		panic(NewBizErr(msg))
+		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
 }
 

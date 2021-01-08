@@ -3,16 +3,17 @@ package machine
 import (
 	"errors"
 	"fmt"
-	"github.com/pkg/sftp"
-	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/terminal"
 	"io"
-	"mayfly-go/base"
+	"mayfly-go/base/model"
 	"mayfly-go/models"
 	"net"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/pkg/sftp"
+	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 // 客户端信息
@@ -27,20 +28,20 @@ var clientCache sync.Map
 var mutex sync.Mutex
 
 // 从缓存中获取客户端信息，不存在则查库，并新建
-func GetCli(machineId uint64) *Cli {
+func GetCli(machineId uint64) (*Cli, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 	load, ok := clientCache.Load(machineId)
 	if ok {
-		return load.(*Cli)
+		return load.(*Cli), nil
 	}
 
 	cli, err := newClient(models.GetMachineById(machineId))
 	if err != nil {
-		panic(base.NewBizErr(err.Error()))
+		return nil, err
 	}
 	clientCache.LoadOrStore(machineId, cli)
-	return cli
+	return cli, nil
 }
 
 //根据机器信息创建客户端对象
@@ -53,7 +54,7 @@ func newClient(machine *models.Machine) (*Cli, error) {
 	cli.machine = machine
 	err := cli.connect()
 	if err != nil {
-		return nil, errors.New("获取机器client失败：" + err.Error())
+		return nil, err
 	}
 	return cli, nil
 }
@@ -114,12 +115,12 @@ func (c *Cli) Close() {
 func (c *Cli) GetSftpCli() *sftp.Client {
 	if c.client == nil {
 		if err := c.connect(); err != nil {
-			panic(base.NewBizErr("连接ssh失败：" + err.Error()))
+			panic(model.NewBizErr("连接ssh失败：" + err.Error()))
 		}
 	}
 	client, serr := sftp.NewClient(c.client, sftp.MaxPacket(1<<15))
 	if serr != nil {
-		panic(base.NewBizErr("获取sftp client失败：" + serr.Error()))
+		panic(model.NewBizErr("获取sftp client失败：" + serr.Error()))
 	}
 	return client
 }
@@ -136,17 +137,19 @@ func (c *Cli) GetSession() (*ssh.Session, error) {
 
 //执行shell
 //@param shell shell脚本命令
-func (c *Cli) Run(shell string) string {
+func (c *Cli) Run(shell string) (*string, error) {
 	session, err := c.GetSession()
 	if err != nil {
-		panic(base.NewBizErr("获取ssh session失败：" + err.Error()))
+		c.Close()
+		return nil, err
 	}
 	defer session.Close()
 	buf, rerr := session.CombinedOutput(shell)
 	if rerr != nil {
-		panic(base.NewBizErr("执行命令失败：" + rerr.Error()))
+		return nil, rerr
 	}
-	return string(buf)
+	res := string(buf)
+	return &res, nil
 }
 
 //执行带交互的命令

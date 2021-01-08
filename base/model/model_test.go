@@ -1,14 +1,15 @@
-package base
+package model
 
 import (
 	"fmt"
-	"github.com/astaxie/beego/orm"
-	_ "github.com/go-sql-driver/mysql"
 	"mayfly-go/base/utils"
 	"mayfly-go/controllers/vo"
 	"mayfly-go/models"
 	"strings"
 	"testing"
+
+	"github.com/beego/beego/v2/client/orm"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type AccountDetailVO struct {

@@ -15,8 +15,17 @@ import './assets/css/style.css'
 Vue.config.productionTip = false
 // 注册组件后即可使用
 // Vue.component('v-chart', ECharts)
-
 Vue.use(ElementUI)
+
+// 全局error处理
+Vue.config.errorHandler = function(err, vm ,info) {
+  // 如果是断言错误，则进行提示即可
+  if (err.name == 'AssertError') {
+    ElementUI.Message.error(err.message)
+  } else {
+    console.error(err, info)
+  }
+}
 
 new Vue({
   router,

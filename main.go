@@ -1,15 +1,16 @@
 package main
 
 import (
-	"github.com/astaxie/beego"
-	"github.com/astaxie/beego/context"
-	"github.com/astaxie/beego/orm"
-	"github.com/astaxie/beego/plugins/cors"
-	_ "github.com/go-sql-driver/mysql"
 	_ "mayfly-go/routers"
 	scheduler "mayfly-go/scheudler"
 	"net/http"
 	"strings"
+
+	"github.com/beego/beego/v2/client/orm"
+	"github.com/beego/beego/v2/server/web"
+	"github.com/beego/beego/v2/server/web/context"
+	"github.com/beego/beego/v2/server/web/filter/cors"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 func init() {
@@ -21,7 +22,7 @@ func init() {
 func main() {
 	orm.Debug = true
 	// 跨域配置
-	beego.InsertFilter("/**", beego.BeforeRouter, cors.Allow(&cors.Options{
+	web.InsertFilter("/**", web.BeforeRouter, cors.Allow(&cors.Options{
 		AllowAllOrigins:  true,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Authorization", "Access-Control-Allow-Origin", "Access-Control-Allow-Headers", "Content-Type"},
@@ -30,7 +31,7 @@ func main() {
 	}))
 	scheduler.Start()
 	defer scheduler.Stop()
-	beego.Run()
+	web.Run()
 }
 
 // 解决beego无法访问根目录静态文件

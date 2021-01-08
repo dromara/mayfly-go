@@ -1,20 +1,18 @@
-package base
+package token
 
 import (
 	"errors"
-	"github.com/dgrijalva/jwt-go"
+	"mayfly-go/base/ctx"
+	"mayfly-go/base/model"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 const (
 	JwtKey  = "mykey"
 	ExpTime = time.Hour * 24 * 7
 )
-
-type LoginAccount struct {
-	Id       uint64
-	Username string
-}
 
 // 创建用户token
 func CreateToken(userId uint64, username string) string {
@@ -28,12 +26,12 @@ func CreateToken(userId uint64, username string) string {
 
 	// 使用自定义字符串加密 and get the complete encoded token as a string
 	tokenString, err := token.SignedString([]byte(JwtKey))
-	BizErrIsNil(err, "token创建失败")
+	model.BizErrIsNil(err, "token创建失败")
 	return tokenString
 }
 
 // 解析token，并返回登录者账号信息
-func ParseToken(tokenStr string) (*LoginAccount, error) {
+func ParseToken(tokenStr string) (*ctx.LoginAccount, error) {
 	if tokenStr == "" {
 		return nil, errors.New("token error")
 	}
@@ -45,5 +43,5 @@ func ParseToken(tokenStr string) (*LoginAccount, error) {
 		return nil, err
 	}
 	i := token.Claims.(jwt.MapClaims)
-	return &LoginAccount{Id: uint64(i["id"].(float64)), Username: i["username"].(string)}, nil
+	return &ctx.LoginAccount{Id: uint64(i["id"].(float64)), Username: i["username"].(string)}, nil
 }
