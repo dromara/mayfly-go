@@ -149,6 +149,7 @@ import 'codemirror/addon/hint/sql-hint.js'
 
 import sqlFormatter from 'sql-formatter'
 import { notEmpty } from '@/common/assert'
+import { Message } from 'element-ui'
 
 
 @Component({
@@ -239,7 +240,7 @@ export default class SelectData extends Vue {
     notEmpty(this.sql, 'sql内容不能为空')
     notEmpty(this.dbId, '请先选择数据库')
     await dbApi.saveSql.request({ id: this.dbId, sql: this.sql, type: 1 })
-    this.$message.success('保存成功')
+    Message.success('保存成功')
   }
 
   // 更改数据库事件

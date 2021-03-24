@@ -2,12 +2,11 @@ package base
 
 import (
 	"encoding/json"
-	"fmt"
+	"mayfly-go/base/biz"
 	"mayfly-go/base/ctx"
+	"mayfly-go/base/mlog"
 	"mayfly-go/base/model"
-	"mayfly-go/base/token"
 
-	"github.com/beego/beego/v2/core/logs"
 	"github.com/beego/beego/v2/core/validation"
 	"github.com/beego/beego/v2/server/web"
 )
@@ -25,7 +24,7 @@ type operationFunc func(loginAccount *ctx.LoginAccount)
 // 将请求体的json赋值给指定的结构体
 func (c *Controller) UnmarshalBody(data interface{}) {
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, data)
-	model.BizErrIsNil(err, "request body解析错误")
+	biz.BizErrIsNil(err, "request body解析错误")
 }
 
 // 校验表单数据
@@ -37,7 +36,7 @@ func (c *Controller) validForm(form interface{}) {
 	}
 	if !b {
 		e := valid.Errors[0]
-		panic(model.NewBizErr(e.Field + " " + e.Message))
+		panic(biz.NewBizErr(e.Field + " " + e.Message))
 	}
 }
 
@@ -48,72 +47,61 @@ func (c *Controller) UnmarshalBodyAndValid(data interface{}) {
 }
 
 // 返回数据
-// @param checkToken  是否校验token
+// @param reqCtx  请求上下文
 // @param getData  获取数据的回调函数
-func (c *Controller) ReturnData(checkToken bool, getData getDataFunc) {
+func (c *Controller) ReturnData(reqCtx *ctx.ReqCtx, getData getDataFunc) {
 	defer func() {
 		if err := recover(); err != nil {
+			ctx.ApplyAfterHandler(reqCtx, err.(error))
 			c.parseErr(err)
+		} else {
+			// 应用所有请求后置处理器
+			ctx.ApplyAfterHandler(reqCtx, nil)
 		}
 	}()
-	var loginAccount *ctx.LoginAccount
-	if checkToken {
-		loginAccount = c.CheckToken()
+	reqCtx.Req = c.Ctx.Request
+	// 调用请求前所有处理器
+	err := ctx.ApplyBeforeHandler(reqCtx)
+	if err != nil {
+		panic(err)
 	}
-	c.Success(getData(loginAccount))
-}
 
-// 返回数据
-// @param checkToken  是否校验token
-// @param getData  获取数据的回调函数
-func (c *Controller) ReturnDataWithPermisison(permission ctx.Permission, getData getDataFunc) {
-	defer func() {
-		if err := recover(); err != nil {
-			c.parseErr(err)
-		}
-	}()
-	var logMsg string
-	var loginAccount *ctx.LoginAccount
-	if permission.CheckToken {
-		loginAccount = c.CheckToken()
-		logMsg = fmt.Sprintf("[uid=%d, uname=%s]\n", loginAccount.Id, loginAccount.Username)
-	}
-	c.Success(getData(loginAccount))
-	logs.Info(logMsg)
+	resp := getData(reqCtx.LoginAccount)
+	c.Success(resp)
+	reqCtx.RespObj = resp
 }
 
 // 无返回数据的操作，如新增修改等无需返回数据的操作
-// @param checkToken  是否校验token
-func (c *Controller) Operation(checkToken bool, operation operationFunc) {
+// @param reqCtx  请求上下文
+func (c *Controller) Operation(reqCtx *ctx.ReqCtx, operation operationFunc) {
 	defer func() {
 		if err := recover(); err != nil {
+			ctx.ApplyAfterHandler(reqCtx, err.(error))
 			c.parseErr(err)
+		} else {
+			ctx.ApplyAfterHandler(reqCtx, nil)
 		}
 	}()
-	var loginAccount *ctx.LoginAccount
-	if checkToken {
-		loginAccount = c.CheckToken()
+	reqCtx.Req = c.Ctx.Request
+	// 调用请求前所有处理器
+	err := ctx.ApplyBeforeHandler(reqCtx)
+	if err != nil {
+		panic(err)
 	}
-	operation(loginAccount)
-	c.SuccessNoData()
-}
 
-// 校验token，并返回登录者账号信息
-func (c *Controller) CheckToken() *ctx.LoginAccount {
-	tokenStr := c.Ctx.Input.Header("Authorization")
-	loginAccount, err := token.ParseToken(tokenStr)
-	if err != nil || loginAccount == nil {
-		panic(model.NewBizErrCode(model.TokenErrorCode, model.TokenErrorMsg))
-	}
-	return loginAccount
+	operation(reqCtx.LoginAccount)
+	c.SuccessNoData()
+
+	// 不记录返回结果
+	reqCtx.RespObj = 0
 }
 
 // 获取分页参数
 func (c *Controller) GetPageParam() *model.PageParam {
 	pn, err := c.GetInt("pageNum", 1)
-	model.BizErrIsNil(err, "pageNum参数错误")
+	biz.BizErrIsNil(err, "pageNum参数错误")
 	ps, serr := c.GetInt("pageSize", 10)
-	model.BizErrIsNil(serr, "pageSize参数错误")
+	biz.BizErrIsNil(serr, "pageSize参数错误")
 	return &model.PageParam{PageNum: pn, PageSize: ps}
 }
 
@@ -134,7 +122,7 @@ func (c *Controller) SuccessNoData() {
 }
 
 // 返回业务错误
-func (c *Controller) BizError(bizError model.BizError) {
+func (c *Controller) BizError(bizError *biz.BizError) {
 	c.Result(model.Error(bizError.Code(), bizError.Error()))
 }
 
@@ -146,20 +134,20 @@ func (c *Controller) ServerError() {
 // 解析error，并对不同error返回不同result
 func (c *Controller) parseErr(err interface{}) {
 	switch t := err.(type) {
-	case model.BizError:
+	case *biz.BizError:
 		c.BizError(t)
 		break
 	case error:
 		c.ServerError()
-		logs.Error(t)
+		mlog.Log.Error(t)
 		panic(err)
 		//break
 	case string:
 		c.ServerError()
-		logs.Error(t)
+		mlog.Log.Error(t)
 		panic(err)
 		//break
 	default:
-		logs.Error(t)
+		mlog.Log.Error(t)
 	}
 }

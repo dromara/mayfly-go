@@ -67,6 +67,7 @@
 
 <script lang="ts">
 import { Component, Vue, Prop, Watch } from 'vue-property-decorator'
+import { Message } from 'element-ui'
 @Component({
   name: 'DynamicForm'
 })
@@ -99,7 +100,7 @@ export default class DynamicForm extends Vue {
           this.submitDisabled = true
           operation.request(this.form).then(
             (res: any) => {
-              this.$message.success('保存成功')
+              Message.success('保存成功')
               this.$emit('submitSuccess', subform)
               this.submitDisabled = false
               // this.cancel()
@@ -109,7 +110,7 @@ export default class DynamicForm extends Vue {
             }
           )
         } else {
-          this.$message.error('表单未设置对应的提交权限')
+          Message.error('表单未设置对应的提交权限')
         }
       } else {
         return false

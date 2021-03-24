@@ -146,16 +146,17 @@
       :visible.sync="terminalDialog.visible"
       width="70%"
       :close-on-click-modal="false"
+      :modal="false"
       @close="closeTermnial"
     >
       <ssh-terminal ref="terminal" :socketURI="terminalDialog.socketUri" />
     </el-dialog>
 
-    <!-- <FileManage
-      :title="dialog.title"
-      :visible.sync="dialog.visible"
-      :machineId.sync="dialog.machineId"
-    />-->
+    <service-manage
+      :title="serviceDialog.title"
+      :visible.sync="serviceDialog.visible"
+      :machineId.sync="serviceDialog.machineId"
+    />
 
     <dynamic-form-dialog
       :visible.sync="formDialog.visible"
@@ -173,6 +174,7 @@ import { DynamicFormDialog } from '@/components/dynamic-form'
 import Monitor from './Monitor.vue'
 import { machineApi } from './api'
 import SshTerminal from './SshTerminal.vue'
+import ServiceManage from './ServiceManage.vue';
 
 @Component({
   name: 'MachineList',
@@ -180,6 +182,7 @@ import SshTerminal from './SshTerminal.vue'
     DynamicFormDialog,
     Monitor,
     SshTerminal,
+    ServiceManage
   },
 })
 export default class MachineList extends Vue {
@@ -190,6 +193,11 @@ export default class MachineList extends Vue {
   infoDialog = {
     visible: false,
     info: '',
+  }
+  serviceDialog = {
+    visible: false,
+    machineId: 0,
+    title: ''
   }
   monitorDialog = {
     visible: false,
@@ -369,10 +377,10 @@ export default class MachineList extends Vue {
     this.search()
   }
 
-  fileManage(row: any) {
-    this.dialog.machineId = row.id
-    this.dialog.visible = true
-    this.dialog.title = `${row.name} => ${row.ip}`
+  serviceManager(row: any) {
+    this.serviceDialog.machineId = row.id
+    this.serviceDialog.visible = true
+    this.serviceDialog.title = `${row.name} => ${row.ip}`
   }
 
   submitSuccess() {

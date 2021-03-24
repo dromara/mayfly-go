@@ -2,7 +2,7 @@
   <div class="main">
     <div class="header">
       <div class="logo">
-        <span class="big">Mayfly-Go</span>
+        <span class="big">Mock-Server.go</span>
       </div>
       <div class="right">
         <span class="header-btn">
@@ -173,6 +173,22 @@ export default class App extends Vue {
             url: '/machines',
             icon: 'el-icon-menu',
             code: 'machines',
+          },
+        ],
+      },
+      {
+        id: 3,
+        type: 1,
+        name: 'Mock数据',
+        icon: 'el-icon-menu',
+        children: [
+          {
+            id: 31,
+            type: 1,
+            name: '数据列表',
+            url: '/mock-data',
+            icon: 'el-icon-menu',
+            code: 'mock-data',
           },
         ],
       },

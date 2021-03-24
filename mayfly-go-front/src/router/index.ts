@@ -48,7 +48,16 @@ const routes: Array<RouteConfig> = [
       //   },
       //   component: () => import('@/views/db/SelectData.vue')
       // }]
-    }]
+    },
+    {
+      path: 'mock-data',
+      name: 'mock-data',
+      meta: {
+        title: '数据列表',
+        keepAlive: false
+      },
+      component: () => import('@/views/mock-server')
+    },]
   },
 ]
 
@@ -65,11 +74,13 @@ router.beforeEach((to: any, from: any, next: any) => {
     next()
     return
   }
-  if (!AuthUtils.getToken() && toPath != '/login') {
-    next({ path: '/login' });
-  } else {
-    next();
-  }
+  // if (!AuthUtils.getToken() && toPath != '/login') {
+  //   next({ path: '/login' });
+  // } else {
+  //   next();
+  // }
+
+  next();
 });
 
 export default router

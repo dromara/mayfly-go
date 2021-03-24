@@ -14,6 +14,7 @@ export default {
       type: String,
       default: '',
     },
+    cmd: String
   },
   watch: {
     socketURI(val) {
@@ -38,11 +39,11 @@ export default {
         // cursorStyle: 'underline', //光标样式
         disableStdin: false,
         theme: {
-        foreground: "#7e9192", //字体
-        background: "#002833", //背景色
-        cursor: "help", //设置光标
-        lineHeight: 16
-      }
+          foreground: '#7e9192', //字体
+          background: '#002833', //背景色
+          cursor: 'help', //设置光标
+          lineHeight: 16,
+        },
       })
       const fitAddon = new FitAddon()
       term.loadAddon(fitAddon)
@@ -66,11 +67,7 @@ export default {
       //  * /
       // 支持输入与粘贴方法
       term.onData((key) => {
-        const cmd = {
-          type: 'cmd',
-          msg: key,
-        }
-        this.send(cmd)
+        this.sendCmd(key)
       })
       // 为解决窗体resize方法才会向后端发送列数和行数，所以页面加载时也要触发此方法
       this.send({
@@ -78,6 +75,10 @@ export default {
         Cols: parseInt(term.cols),
         Rows: parseInt(term.rows),
       })
+      // 如果有初始要执行的命令，则发送执行命令
+      if (this.cmd) {
+        this.sendCmd(this.cmd + " \r")
+      }
     },
     initSocket() {
       this.socket = new WebSocket(this.socketURI)
@@ -108,7 +109,7 @@ export default {
       //   this.reconnect()
     },
     getMessage: function (msg) {
-    //   console.log(msg)
+      //   console.log(msg)
       this.term.write(msg['data'])
       //msg是返回的数据
       //   msg = JSON.parse(msg.data);
@@ -125,8 +126,15 @@ export default {
       //   this.reset();
     },
     send: function (msg) {
-        // console.log(msg)
+      // console.log(msg)
       this.socket.send(JSON.stringify(msg))
+    },
+
+    sendCmd(key) {
+      this.send({
+        type: 'cmd',
+        msg: key,
+      })
     },
     closeAll() {
       this.close()

@@ -4,7 +4,7 @@ import { ResultEnum } from './enums'
 import Api from './Api';
 import { AuthUtils } from './AuthUtils'
 import config from './config';
-import ElementUI from 'element-ui';
+import { Message } from 'element-ui';
 
 export interface Result {
   /**
@@ -29,7 +29,7 @@ const baseUrl = config.baseApiUrl
  */
 function notifyErrorMsg(msg: string) {
   // 危险通知
-  ElementUI.Message.error(msg);
+  Message.error(msg);
 }
 
 // create an axios instance

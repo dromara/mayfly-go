@@ -108,8 +108,7 @@ export default class Monitor extends Vue {
       icon: 'md-chatbubbles',
       count: 12,
       color: '#91AFC8',
-    },
-    { title: '新增页面', icon: 'md-map', count: 14, color: '#91AFC8' },
+    }
   ]
   taskData = [
     { value: 0, name: '运行中', color: '#3AA1FFB' },
@@ -280,7 +279,7 @@ export default class Monitor extends Vue {
 
   startInterval() {
     if (!this.timer) {
-      this.timer = setInterval(this.getTop, 3000)
+      // this.timer = setInterval(this.getTop, 3000)
     }
   }
 

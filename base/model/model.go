@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"mayfly-go/base/biz"
 	"mayfly-go/base/ctx"
 	"mayfly-go/base/utils"
 	"reflect"
@@ -125,9 +126,9 @@ func GetPage(seter orm.QuerySeter, pageParam *PageParam, models interface{}, toM
 		return PageResult{Total: 0, List: nil}
 	}
 	_, qerr := seter.Limit(pageParam.PageSize, pageParam.PageNum-1).All(models, getFieldNames(toModels)...)
-	BizErrIsNil(qerr, "查询错误")
+	biz.BizErrIsNil(qerr, "查询错误")
 	err := utils.Copy(toModels, models)
-	BizErrIsNil(err, "实体转换错误")
+	biz.BizErrIsNil(err, "实体转换错误")
 	return PageResult{Total: count, List: toModels}
 }
 
@@ -176,7 +177,7 @@ func GetListBySql(sql string, params ...interface{}) *[]orm.Params {
 func GetList(seter orm.QuerySeter, model interface{}, toModel interface{}) {
 	_, _ = seter.All(model, getFieldNames(toModel)...)
 	err := utils.Copy(toModel, model)
-	BizErrIsNil(err, "实体转换错误")
+	biz.BizErrIsNil(err, "实体转换错误")
 }
 
 // 根据toModel结构体字段查询单条记录，并将值赋值给toModel
@@ -186,7 +187,7 @@ func GetOne(seter orm.QuerySeter, model interface{}, toModel interface{}) error 
 		return err
 	}
 	cerr := utils.Copy(toModel, model)
-	BizErrIsNil(cerr, "实体转换错误")
+	biz.BizErrIsNil(cerr, "实体转换错误")
 	return nil
 }
 
