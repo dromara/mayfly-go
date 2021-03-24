@@ -10,7 +10,7 @@ import (
 	"mayfly-go/mock-server/controllers/form"
 )
 
-const key = "ccbscf:mock:data"
+const key = "mock:data"
 
 type MockController struct {
 	base.Controller
