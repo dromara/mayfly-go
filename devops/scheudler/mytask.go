@@ -14,7 +14,7 @@ func init() {
 
 func SaveMachineMonitor() {
 	AddFun("@every 60s", func() {
-		for _, m := range *models.GetNeedMonitorMachine() {
+		for _, m := range models.GetNeedMonitorMachine() {
 			m := m
 			go func() {
 				cli, err := machine.GetCli(uint64(utils.GetInt4Map(m, "id")))
@@ -24,7 +24,7 @@ func SaveMachineMonitor() {
 				}
 				mm := cli.GetMonitorInfo()
 				if mm != nil {
-					_, err := model.Insert(mm)
+					err := model.Insert(mm)
 					if err != nil {
 						mlog.Log.Error("保存机器监控信息失败: ", err.Error())
 					}

@@ -2,8 +2,6 @@ package models
 
 import (
 	"mayfly-go/base/model"
-
-	"github.com/beego/beego/v2/client/orm"
 )
 
 type Db struct {
@@ -15,12 +13,8 @@ type Db struct {
 	Port     int    `orm:"column(port)" json:"port"`
 	Network  string `orm:"column(network)" json:"network"`
 	Username string `orm:"column(username)" json:"username"`
-	Passowrd string `orm:"column(password)" json:"-"`
+	Password string `orm:"column(password)" json:"-"`
 	Database string `orm:"column(database)" json:"database"`
-}
-
-func init() {
-	orm.RegisterModelWithPrefix("t_", new(Db))
 }
 
 func GetDbById(id uint64) *Db {

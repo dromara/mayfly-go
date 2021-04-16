@@ -3,24 +3,18 @@ package models
 import (
 	"mayfly-go/base/model"
 	"mayfly-go/devops/controllers/vo"
-
-	"github.com/beego/beego/v2/client/orm"
 )
 
 type Machine struct {
 	model.Model
-	Name string `orm:"column(name)"`
+	Name string `json:"name"`
 	// IP地址
-	Ip string `orm:"column(ip)" json:"ip"`
+	Ip string `json:"ip"`
 	// 用户名
-	Username string `orm:"column(username)" json:"username"`
-	Password string `orm:"column(password)" json:"-"`
+	Username string `json:"username"`
+	Password string `json:"-"`
 	// 端口号
-	Port int `orm:"column(port)" json:"port"`
-}
-
-func init() {
-	orm.RegisterModelWithPrefix("t_", new(Machine))
+	Port int `json:"port"`
 }
 
 func GetMachineById(id uint64) *Machine {
@@ -35,12 +29,10 @@ func GetMachineById(id uint64) *Machine {
 
 // 分页获取机器信息列表
 func GetMachineList(pageParam *model.PageParam) model.PageResult {
-	m := new([]Machine)
-	querySetter := model.QuerySetter(new(Machine)).OrderBy("-Id")
-	return model.GetPage(querySetter, pageParam, m, new([]vo.MachineVO))
+	return model.GetPage(pageParam, new(Machine), new([]vo.MachineVO), "Id desc")
 }
 
 // 获取所有需要监控的机器信息列表
-func GetNeedMonitorMachine() *[]orm.Params {
+func GetNeedMonitorMachine() []map[string]interface{} {
 	return model.GetListBySql("SELECT id FROM t_machine WHERE need_monitor = 1")
 }

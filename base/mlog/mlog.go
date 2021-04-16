@@ -2,6 +2,7 @@ package mlog
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -26,8 +27,14 @@ func (l *LogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	level := entry.Level
 	logMsg := fmt.Sprintf("%s [%s]", timestamp, strings.ToUpper(level.String()))
 	// 如果存在调用信息，且为error级别以上记录文件及行号
-	if caller := entry.Caller; caller != nil && level <= logrus.ErrorLevel {
-		logMsg = logMsg + fmt.Sprintf(" [%s:%d]", caller.File, caller.Line)
+	if caller := entry.Caller; caller != nil {
+		var fp string
+		if level <= logrus.ErrorLevel {
+			fp = caller.File
+		} else {
+			fp = filepath.Base(caller.File)
+		}
+		logMsg = logMsg + fmt.Sprintf(" [%s:%d]", fp, caller.Line)
 	}
 	for k, v := range entry.Data {
 		logMsg = logMsg + fmt.Sprintf(" [%s=%v]", k, v)

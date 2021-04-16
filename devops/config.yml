@@ -1,0 +1,29 @@
+app:
+  name: devops
+  version: 1.0.0
+server:
+  # debug release test
+  model: release
+  port: 8888
+  cors: true
+  # 静态资源
+  static:
+    - relative-path: /static
+      root: ./static/static
+  # 静态文件
+  static-file:
+    - relative-path: /
+      filepath: ./static/index.html
+    - relative-path: /favicon.ico
+      filepath: ./static/favicon.ico
+
+redis:
+  host: 127.0.0.1
+  port: 6379
+
+mysql:
+  host: localhost:3306
+  username: root
+  password: 111049
+  db-name: mayfly-job
+  config: charset=utf8&loc=Local&parseTime=true

@@ -337,7 +337,7 @@ export default class ServiceManage extends Vue {
             fileTree.remove(node)
           })
       })
-      .catch(() => {})
+      .catch(() => this.$message.error('删除失败'))
   }
 }
 </script>

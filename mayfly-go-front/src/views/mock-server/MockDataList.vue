@@ -74,6 +74,7 @@
         prop="method"
         label="方法名"
         :min-width="50"
+        show-overflow-tooltip
       ></el-table-column>
       <el-table-column
         prop="description"
@@ -187,7 +188,7 @@ export default class MockDataList extends Vue {
     mockApi.update
       .request(row)
       .then((res) => {
-        this.$message.success('操作成功')
+        this.$message.success(enable ? '启用成功' : '禁用成功')
       })
       .catch((e) => {
         row.enable = enable
@@ -203,9 +204,17 @@ export default class MockDataList extends Vue {
   }
 
   deleteData() {
-    mockApi.delete.request({ method: this.currentMethod }).then((res) => {
-      this.$message.success('删除成功')
-      this.search()
+    this.$confirm('确定删除该数据？', '删除提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }).then(() => {
+      mockApi.delete.request({ method: this.currentMethod }).then((res) => {
+        this.$message.success('删除成功')
+        this.search()
+      })
+    }).catch(() => {
+      //
     })
   }
 

@@ -2,144 +2,131 @@ package controllers
 
 import (
 	"fmt"
-	"mayfly-go/base"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/ctx"
+	"mayfly-go/base/ginx"
 	"mayfly-go/base/model"
 	"mayfly-go/devops/controllers/form"
 	"mayfly-go/devops/controllers/vo"
 	"mayfly-go/devops/db"
 	"mayfly-go/devops/models"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
-type DbController struct {
-	base.Controller
-}
-
 // @router /api/dbs [get]
-func (c *DbController) Dbs() {
-	c.ReturnData(ctx.NewNoLogReqCtx(true), func(account *ctx.LoginAccount) interface{} {
-		m := new([]models.Db)
-		querySetter := model.QuerySetter(new(models.Db))
-		return model.GetPage(querySetter, c.GetPageParam(), m, new([]vo.SelectDataDbVO))
-	})
+func Dbs(rc *ctx.ReqCtx) {
+	m := new([]models.Db)
+	// querySetter := model.QuerySetter(new(models.Db))
+	rc.ResData = model.GetPage(ginx.GetPageParam(rc.GinCtx), m, new([]vo.SelectDataDbVO))
 }
 
 // @router /api/db/:dbId/select [get]
-func (c *DbController) SelectData() {
-	rc := ctx.NewReqCtx(true, "执行数据库查询语句")
-	c.ReturnData(rc, func(account *ctx.LoginAccount) interface{} {
-		selectSql := c.GetString("selectSql")
-		rc.ReqParam = selectSql
-		biz.NotEmpty(selectSql, "selectSql不能为空")
-		res, err := db.GetDbInstance(c.GetDbId()).SelectData(selectSql)
-		if err != nil {
-			panic(biz.NewBizErr(fmt.Sprintf("查询失败: %s", err.Error())))
-		}
-		return res
-	})
+func SelectData(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	selectSql := g.Query("selectSql")
+	rc.ReqParam = selectSql
+	biz.NotEmpty(selectSql, "selectSql不能为空")
+	res, err := db.GetDbInstance(GetDbId(g)).SelectData(selectSql)
+	if err != nil {
+		panic(biz.NewBizErr(fmt.Sprintf("查询失败: %s", err.Error())))
+	}
+	rc.ResData = res
 }
 
 // @router /api/db/:dbId/exec-sql [post]
-func (c *DbController) ExecSql() {
-	c.ReturnData(ctx.NewReqCtx(true, "sql执行"), func(account *ctx.LoginAccount) interface{} {
-		selectSql := c.GetString("sql")
+func ExecSql(g *gin.Context) {
+	rc := ctx.NewReqCtxWithGin(g).WithLog(ctx.NewLogInfo("sql执行"))
+	rc.Handle(func(rc *ctx.ReqCtx) {
+		selectSql := g.Query("sql")
 		biz.NotEmpty(selectSql, "sql不能为空")
-		num, err := db.GetDbInstance(c.GetDbId()).Exec(selectSql)
+		num, err := db.GetDbInstance(GetDbId(g)).Exec(selectSql)
 		if err != nil {
 			panic(biz.NewBizErr(fmt.Sprintf("执行失败: %s", err.Error())))
 		}
-		return num
+		rc.ResData = num
 	})
 }
 
 // @router /api/db/:dbId/t-metadata [get]
-func (c *DbController) TableMA() {
-	c.ReturnData(ctx.NewNoLogReqCtx(true), func(account *ctx.LoginAccount) interface{} {
-		return db.GetDbInstance(c.GetDbId()).GetTableMetedatas()
-	})
+func TableMA(rc *ctx.ReqCtx) {
+	rc.ResData = db.GetDbInstance(GetDbId(rc.GinCtx)).GetTableMetedatas()
 }
 
 // @router /api/db/:dbId/c-metadata [get]
-func (c *DbController) ColumnMA() {
-	c.ReturnData(ctx.NewNoLogReqCtx(true), func(account *ctx.LoginAccount) interface{} {
-		tn := c.GetString("tableName")
-		biz.NotEmpty(tn, "tableName不能为空")
-		return db.GetDbInstance(c.GetDbId()).GetColumnMetadatas(tn)
-	})
+func ColumnMA(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	tn := g.Query("tableName")
+	biz.NotEmpty(tn, "tableName不能为空")
+	rc.ResData = db.GetDbInstance(GetDbId(g)).GetColumnMetadatas(tn)
 }
 
 // @router /api/db/:dbId/hint-tables [get]
-// 数据表及字段前端提示接口
-func (c *DbController) HintTables() {
-	c.ReturnData(ctx.NewNoLogReqCtx(true), func(account *ctx.LoginAccount) interface{} {
-		dbi := db.GetDbInstance(c.GetDbId())
-		tables := dbi.GetTableMetedatas()
-		res := make(map[string][]string)
-		for _, v := range tables {
-			tableName := v["tableName"]
-			columnMds := dbi.GetColumnMetadatas(tableName)
-			columnNames := make([]string, len(columnMds))
-			for i, v := range columnMds {
-				comment := v["columnComment"]
-				if comment != "" {
-					columnNames[i] = v["columnName"] + " [" + comment + "]"
-				} else {
-					columnNames[i] = v["columnName"]
-				}
+func HintTables(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	dbi := db.GetDbInstance(GetDbId(g))
+	tables := dbi.GetTableMetedatas()
+	res := make(map[string][]string)
+	for _, v := range tables {
+		tableName := v["tableName"]
+		columnMds := dbi.GetColumnMetadatas(tableName)
+		columnNames := make([]string, len(columnMds))
+		for i, v := range columnMds {
+			comment := v["columnComment"]
+			if comment != "" {
+				columnNames[i] = v["columnName"] + " [" + comment + "]"
+			} else {
+				columnNames[i] = v["columnName"]
 			}
-			res[tableName] = columnNames
 		}
-		return res
-	})
+		res[tableName] = columnNames
+	}
+	rc.ResData = res
 }
 
 // @router /api/db/:dbId/sql [post]
-func (c *DbController) SaveSql() {
-	rc := ctx.NewReqCtx(true, "保存sql内容")
-	c.Operation(rc, func(account *ctx.LoginAccount) {
-		dbSqlForm := &form.DbSqlSaveForm{}
-		c.UnmarshalBodyAndValid(dbSqlForm)
-		rc.ReqParam = dbSqlForm
+func SaveSql(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	account := rc.LoginAccount
+	dbSqlForm := &form.DbSqlSaveForm{}
+	ginx.BindJsonAndValid(g, dbSqlForm)
+	rc.ReqParam = dbSqlForm
 
-		dbId := c.GetDbId()
-		// 判断dbId是否存在
-		err := model.GetById(new(models.Db), dbId)
-		biz.BizErrIsNil(err, "该数据库信息不存在")
+	dbId := GetDbId(g)
+	// 判断dbId是否存在
+	err := model.GetById(new(models.Db), dbId)
+	biz.BizErrIsNil(err, "该数据库信息不存在")
 
-		// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-		dbSql := &models.DbSql{Type: dbSqlForm.Type, DbId: dbId}
-		dbSql.CreatorId = account.Id
-		e := model.GetByCondition(dbSql)
+	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
+	dbSql := &models.DbSql{Type: dbSqlForm.Type, DbId: dbId}
+	dbSql.CreatorId = account.Id
+	e := model.GetBy(dbSql)
 
-		dbSql.SetBaseInfo(account)
-		// 更新sql信息
-		dbSql.Sql = dbSqlForm.Sql
-		if e == nil {
-			model.UpdateById(dbSql)
-		} else {
-			model.Insert(dbSql)
-		}
-	})
+	dbSql.SetBaseInfo(account)
+	// 更新sql信息
+	dbSql.Sql = dbSqlForm.Sql
+	if e == nil {
+		model.UpdateById(dbSql)
+	} else {
+		model.Insert(dbSql)
+	}
 }
 
 // @router /api/db/:dbId/sql [get]
-func (c *DbController) GetSql() {
-	c.ReturnData(ctx.NewNoLogReqCtx(true), func(account *ctx.LoginAccount) interface{} {
-		// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-		dbSql := &models.DbSql{Type: 1, DbId: c.GetDbId()}
-		dbSql.CreatorId = account.Id
-		e := model.GetByCondition(dbSql)
-		if e != nil {
-			return nil
-		}
-		return dbSql
-	})
+func GetSql(rc *ctx.ReqCtx) {
+	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
+	dbSql := &models.DbSql{Type: 1, DbId: GetDbId(rc.GinCtx)}
+	dbSql.CreatorId = rc.LoginAccount.Id
+	e := model.GetBy(dbSql)
+	if e != nil {
+		return
+	}
+	rc.ResData = dbSql
 }
 
-func (c *DbController) GetDbId() uint64 {
-	dbId, _ := strconv.Atoi(c.Ctx.Input.Param(":dbId"))
+func GetDbId(g *gin.Context) uint64 {
+	dbId, _ := strconv.Atoi(g.Param("dbId"))
 	biz.IsTrue(dbId > 0, "dbId错误")
 	return uint64(dbId)
 }

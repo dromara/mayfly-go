@@ -2,6 +2,7 @@ package biz
 
 import (
 	"fmt"
+	"mayfly-go/base/utils"
 
 	"reflect"
 )
@@ -38,6 +39,18 @@ func NotEmpty(str string, msg string, params ...interface{}) {
 
 func NotNil(data interface{}, msg string) {
 	if reflect.ValueOf(data).IsNil() {
+		panic(NewBizErr(msg))
+	}
+}
+
+func NotBlank(data interface{}, msg string) {
+	if utils.IsBlank(reflect.ValueOf(data)) {
+		panic(NewBizErr(msg))
+	}
+}
+
+func IsEquals(data interface{}, data1 interface{}, msg string) {
+	if data != data1 {
 		panic(NewBizErr(msg))
 	}
 }

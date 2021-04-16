@@ -29,9 +29,9 @@
             filterable
             allow-create
             default-first-option
-            style="width:100%"
-            placeholder="请选择或创建生效用户，空为所有用户都生效"
-          > 
+            style="width: 100%"
+            placeholder="请创建并选择生效用户，空为所有用户都生效"
+          >
           </el-select>
         </el-form-item>
 
@@ -41,6 +41,7 @@
             ref="cmEditor"
             v-model="form.data"
             :options="cmOptions"
+            @inputRead="inputRead"
           />
         </el-form-item>
       </el-form>
@@ -122,7 +123,7 @@ export default class MockDataEdit extends Vue {
     foldGutter: true, // 块槽
     hintOptions: {
       // 当匹配只有一项的时候是否自动补全
-      completeSingle: false,
+      completeSingle: true,
     },
   }
 
@@ -132,7 +133,7 @@ export default class MockDataEdit extends Vue {
     method: '',
     description: '',
     data: '',
-    effectiveUser: null
+    effectiveUser: null,
   }
 
   btnLoading = false
@@ -213,9 +214,36 @@ export default class MockDataEdit extends Vue {
     // }, 200)
   }
 
+  // 输入字符给提示
+  inputRead(instance: any, changeObj: any) {
+    // if (/^[a-zA-Z]/.test(changeObj.text[0])) {
+    //   this.showHint()
+    // }
+    // const oldCuror = this.codemirror.getCursor()
+    let otherChar
+    const inputChar = changeObj.text[0]
+    switch (inputChar) {
+      case "'":
+        otherChar = "'"
+        break
+      case '"':
+        otherChar = '"'
+        break
+      case '{':
+        otherChar = '}'
+        break
+      case '[':
+        otherChar = ']'
+        break
+      default:
+        return
+    }
+    this.codemirror.replaceRange(otherChar, this.codemirror.getCursor())
+  }
+
   resetForm() {
     const mockDataForm: any = this.$refs['mockDataForm']
-    if (mockDataForm) {                                       
+    if (mockDataForm) {
       mockDataForm.clearValidate()
     }
   }

@@ -9,7 +9,7 @@ type AccountVO struct {
 	CreateTime *string `json:"createTime"`
 	Creator    *string `json:"creator"`
 	CreatorId  *int64  `json:"creatorId"`
-	Role       *RoleVO `json:"roles"`
+	// Role       *RoleVO `json:"roles"`
 	//Status   int8   `json:"status"`
 }
 

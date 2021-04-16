@@ -1,20 +1,17 @@
 package controllers
 
 import (
-	"mayfly-go/base"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/ctx"
+	"mayfly-go/base/ginx"
 	"mayfly-go/devops/machine"
 	"mayfly-go/devops/models"
 	"net/http"
 	"strconv"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
-
-type MachineController struct {
-	base.Controller
-}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -24,62 +21,53 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func (c *MachineController) Machines() {
-	c.ReturnData(ctx.NewNoLogReqCtx(true), func(account *ctx.LoginAccount) interface{} {
-		return models.GetMachineList(c.GetPageParam())
-	})
+func Machines(rc *ctx.ReqCtx) {
+	rc.ResData = models.GetMachineList(ginx.GetPageParam(rc.GinCtx))
 }
 
-func (c *MachineController) Run() {
-	rc := ctx.NewReqCtx(true, "执行机器命令")
-	c.ReturnData(rc, func(account *ctx.LoginAccount) interface{} {
-		cmd := c.GetString("cmd")
-		biz.NotEmpty(cmd, "cmd不能为空")
+func Run(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	cmd := g.Query("cmd")
+	biz.NotEmpty(cmd, "cmd不能为空")
 
-		rc.ReqParam = cmd
+	rc.ReqParam = cmd
 
-		res, err := c.getCli().Run(cmd)
-		biz.BizErrIsNil(err, "执行命令失败")
-		return res
-	})
+	res, err := getCli(g).Run(cmd)
+	biz.BizErrIsNil(err, "执行命令失败")
+	rc.ResData = res
 }
 
 // 系统基本信息
-func (c *MachineController) SysInfo() {
-	c.ReturnData(ctx.NewNoLogReqCtx(true), func(account *ctx.LoginAccount) interface{} {
-		res, err := c.getCli().GetSystemInfo()
-		biz.BizErrIsNil(err, "获取系统基本信息失败")
-		return res
-	})
+func SysInfo(rc *ctx.ReqCtx) {
+	res, err := getCli(rc.GinCtx).GetSystemInfo()
+	biz.BizErrIsNil(err, "获取系统基本信息失败")
+	rc.ResData = res
 }
 
 // top命令信息
-func (c *MachineController) Top() {
-	c.ReturnData(ctx.NewNoLogReqCtx(true), func(account *ctx.LoginAccount) interface{} {
-		return c.getCli().GetTop()
-	})
+func Top(rc *ctx.ReqCtx) {
+	rc.ResData = getCli(rc.GinCtx).GetTop()
 }
 
-func (c *MachineController) GetProcessByName() {
-	c.ReturnData(ctx.NewNoLogReqCtx(true), func(account *ctx.LoginAccount) interface{} {
-		name := c.GetString("name")
-		biz.NotEmpty(name, "name不能为空")
-		res, err := c.getCli().GetProcessByName(name)
-		biz.BizErrIsNil(err, "获取失败")
-		return res
-	})
+func GetProcessByName(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	name := g.Query("name")
+	biz.NotEmpty(name, "name不能为空")
+	res, err := getCli(g).GetProcessByName(name)
+	biz.BizErrIsNil(err, "获取失败")
+	rc.ResData = res
 }
 
-func (c *MachineController) WsSSH() {
-	wsConn, err := upgrader.Upgrade(c.Ctx.ResponseWriter, c.Ctx.Request, nil)
+func WsSSH(g *gin.Context) {
+	wsConn, err := upgrader.Upgrade(g.Writer, g.Request, nil)
 	if err != nil {
 		panic(biz.NewBizErr("获取requst responsewirte错误"))
 	}
 
-	cols, _ := c.GetInt("cols", 80)
-	rows, _ := c.GetInt("rows", 40)
+	cols := ginx.QueryInt(g, "cols", 80)
+	rows := ginx.QueryInt(g, "rows", 40)
 
-	sws, err := machine.NewLogicSshWsSession(cols, rows, c.getCli(), wsConn)
+	sws, err := machine.NewLogicSshWsSession(cols, rows, getCli(g), wsConn)
 	if sws == nil {
 		panic(biz.NewBizErr("连接失败"))
 	}
@@ -95,14 +83,14 @@ func (c *MachineController) WsSSH() {
 	<-quitChan
 }
 
-func (c *MachineController) GetMachineId() uint64 {
-	machineId, _ := strconv.Atoi(c.Ctx.Input.Param(":machineId"))
+func GetMachineId(g *gin.Context) uint64 {
+	machineId, _ := strconv.Atoi(g.Param("machineId"))
 	biz.IsTrue(machineId > 0, "machineId错误")
 	return uint64(machineId)
 }
 
-func (c *MachineController) getCli() *machine.Cli {
-	cli, err := machine.GetCli(c.GetMachineId())
+func getCli(g *gin.Context) *machine.Cli {
+	cli, err := machine.GetCli(GetMachineId(g))
 	biz.BizErrIsNil(err, "获取客户端错误")
 	return cli
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"mayfly-go/base/biz"
+	"mayfly-go/base/model"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -31,7 +32,7 @@ func CreateToken(userId uint64, username string) string {
 }
 
 // 解析token，并返回登录者账号信息
-func ParseToken(tokenStr string) (*LoginAccount, error) {
+func ParseToken(tokenStr string) (*model.LoginAccount, error) {
 	if tokenStr == "" {
 		return nil, errors.New("token error")
 	}
@@ -43,5 +44,5 @@ func ParseToken(tokenStr string) (*LoginAccount, error) {
 		return nil, err
 	}
 	i := token.Claims.(jwt.MapClaims)
-	return &LoginAccount{Id: uint64(i["id"].(float64)), Username: i["username"].(string)}, nil
+	return &model.LoginAccount{Id: uint64(i["id"].(float64)), Username: i["username"].(string)}, nil
 }

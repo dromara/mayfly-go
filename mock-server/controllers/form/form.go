@@ -1,7 +1,7 @@
 package form
 
 type MockData struct {
-	Method        string   `valid:"Required" json:"method"`
+	Method        string   `json:"method" binding:"required"`
 	Enable        uint     `json:"enable"`
 	Description   string   `valid:"Required" json:"description"`
 	Data          string   `valid:"Required" json:"data"`

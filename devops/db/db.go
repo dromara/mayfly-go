@@ -89,7 +89,7 @@ func (d *DbInstance) Close() {
 // 获取dataSourceName
 func getDsn(d *models.Db) string {
 	if d.Type == "mysql" {
-		return fmt.Sprintf("%s:%s@%s(%s:%d)/%s", d.Username, d.Passowrd, d.Network, d.Host, d.Port, d.Database)
+		return fmt.Sprintf("%s:%s@%s(%s:%d)/%s", d.Username, d.Password, d.Network, d.Host, d.Port, d.Database)
 	}
 	return ""
 }
