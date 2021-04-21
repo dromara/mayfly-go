@@ -11,6 +11,7 @@ import (
 	"mayfly-go/devops/db"
 	"mayfly-go/devops/models"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -18,15 +19,19 @@ import (
 // @router /api/dbs [get]
 func Dbs(rc *ctx.ReqCtx) {
 	m := new([]models.Db)
-	// querySetter := model.QuerySetter(new(models.Db))
 	rc.ResData = model.GetPage(ginx.GetPageParam(rc.GinCtx), m, new([]vo.SelectDataDbVO))
 }
 
 // @router /api/db/:dbId/select [get]
 func SelectData(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
-	selectSql := g.Query("selectSql")
+	// 去除前后空格及换行符
+	selectSql := strings.TrimFunc(g.Query("selectSql"), func(r rune) bool {
+		s := string(r)
+		return s == " " || s == "\n"
+	})
 	rc.ReqParam = selectSql
+
 	biz.NotEmpty(selectSql, "selectSql不能为空")
 	res, err := db.GetDbInstance(GetDbId(g)).SelectData(selectSql)
 	if err != nil {

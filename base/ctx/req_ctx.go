@@ -4,15 +4,10 @@ import (
 	"mayfly-go/base/ginx"
 	"mayfly-go/base/model"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
-
-// // 获取数据函数
-// type getDataFunc func(*ReqCtx) interface{}
-
-// // 操作函数，无返回数据
-// type operationFunc func(*ReqCtx)
 
 // 处理函数
 type HandlerFunc func(*ReqCtx)
@@ -28,6 +23,7 @@ type ReqCtx struct {
 	ReqParam interface{} // 请求参数，主要用于记录日志
 	ResData  interface{} // 响应结果
 	err      interface{} // 请求错误
+	timed    int64       // 执行时间
 }
 
 func (rc *ReqCtx) Handle(handler HandlerFunc) {
@@ -56,7 +52,9 @@ func (rc *ReqCtx) Handle(handler HandlerFunc) {
 		panic(err)
 	}
 
+	begin := time.Now()
 	handler(rc)
+	rc.timed = time.Now().Sub(begin).Milliseconds()
 	ginx.SuccessRes(ginCtx, rc.ResData)
 }
 

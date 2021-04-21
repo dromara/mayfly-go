@@ -1,6 +1,7 @@
 app:
   name: devops
   version: 1.0.0
+  
 server:
   # debug release test
   model: release

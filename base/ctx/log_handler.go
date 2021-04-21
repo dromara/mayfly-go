@@ -23,13 +23,12 @@ func init() {
 }
 
 type LogInfo struct {
-	NeedLog     bool   // 是否需要记录日志
 	LogResp     bool   // 是否记录返回结果
 	Description string // 请求描述
 }
 
 func NewLogInfo(description string) *LogInfo {
-	return &LogInfo{NeedLog: true, Description: description, LogResp: false}
+	return &LogInfo{Description: description, LogResp: false}
 }
 
 func (i *LogInfo) WithLogResp(logResp bool) *LogInfo {
@@ -39,7 +38,7 @@ func (i *LogInfo) WithLogResp(logResp bool) *LogInfo {
 
 func (l *LogInfo) AfterHandle(rc *ReqCtx) {
 	li := rc.LogInfo
-	if li == nil || !li.NeedLog {
+	if li == nil {
 		return
 	}
 
@@ -60,7 +59,7 @@ func (l *LogInfo) AfterHandle(rc *ReqCtx) {
 }
 
 func getLogMsg(rc *ReqCtx) string {
-	msg := rc.LogInfo.Description
+	msg := rc.LogInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
 	if !utils.IsBlank(reflect.ValueOf(rc.ReqParam)) {
 		rb, _ := json.Marshal(rc.ReqParam)
 		msg = msg + fmt.Sprintf("\n--> %s", string(rb))
