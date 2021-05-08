@@ -7,6 +7,10 @@
 - 前端：typescript、vue、element-ui
 - 后端：golang、gin、gorm
 
+#### 系统功能
+
+记录操作记录
+![记录操作记录](https://images.gitee.com/uploads/images/2021/0508/204608_83ef7c33_1240250.png "屏幕截图.png")
 
 #### 数据库操作
 
