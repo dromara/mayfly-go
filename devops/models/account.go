@@ -2,7 +2,7 @@ package models
 
 import (
 	"mayfly-go/base/model"
-	"mayfly-go/devops/controllers/vo"
+	"mayfly-go/devops/apis/vo"
 )
 
 type Account struct {

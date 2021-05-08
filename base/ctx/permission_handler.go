@@ -4,19 +4,21 @@ import (
 	"mayfly-go/base/biz"
 )
 
-func init() {
-	BeforeHandlers = append(BeforeHandlers, new(PermissionHandler))
+type Permission struct {
+	Code        string // 权限code
+	Description string // 请求描述
 }
 
-var permissionError = biz.NewBizErrCode(501, "token error")
+var permissionError = biz.NewBizErrCode(biz.TokenErrorCode, biz.TokenErrorMsg)
 
-type PermissionHandler struct{}
-
-func (p *PermissionHandler) BeforeHandle(rc *ReqCtx) error {
+func PermissionHandler(rc *ReqCtx) error {
 	if !rc.NeedToken {
 		return nil
 	}
-	tokenStr := rc.Req.Header.Get("Authorization")
+	tokenStr := rc.GinCtx.Request.Header.Get("Authorization")
+	if tokenStr == "" {
+		tokenStr = rc.GinCtx.Query("token")
+	}
 	if tokenStr == "" {
 		return permissionError
 	}

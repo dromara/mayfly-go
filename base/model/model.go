@@ -54,8 +54,7 @@ func UpdateById(model interface{}) error {
 
 // 根据id删除model
 func DeleteById(model interface{}, id uint64) error {
-	// return QuerySetter(model).Filter("Id", id).Delete()
-	return global.Db.Delete(model).Error
+	return global.Db.Delete(model, "id = ?", id).Error
 }
 
 // 插入model

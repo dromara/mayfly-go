@@ -73,11 +73,13 @@
       <el-table-column prop="ip" label="IP" width></el-table-column>
       <el-table-column prop="port" label="端口" width></el-table-column>
       <el-table-column prop="username" label="用户名"></el-table-column>
-      <el-table-column prop="createTime" label="创建时间"></el-table-column>
+      <el-table-column prop="createTime" label="创建时间">
+        
+      </el-table-column>
       <el-table-column prop="updateTime" label="更新时间"></el-table-column>
       <el-table-column label="操作" min-width="200px">
         <template slot-scope="scope">
-          <el-button
+          <!-- <el-button
             type="primary"
             @click="info(scope.row.id)"
             :ref="scope.row"
@@ -85,7 +87,7 @@
             size="mini"
             plain
             >基本信息</el-button
-          >
+          > -->
           <el-button
             type="primary"
             @click="monitor(scope.row.id)"
@@ -101,7 +103,7 @@
             :ref="scope.row"
             size="mini"
             plain
-            >服务管理</el-button
+            >脚本管理</el-button
           >
           <el-button
             type="success"
@@ -144,18 +146,25 @@
     <el-dialog
       title="终端"
       :visible.sync="terminalDialog.visible"
+      v-if="terminalDialog.visible"
       width="70%"
       :close-on-click-modal="false"
       :modal="false"
       @close="closeTermnial"
     >
-      <ssh-terminal ref="terminal" :socketURI="terminalDialog.socketUri" />
+      <ssh-terminal ref="terminal" :machineId="terminalDialog.machineId" />
     </el-dialog>
 
     <service-manage
       :title="serviceDialog.title"
       :visible.sync="serviceDialog.visible"
       :machineId.sync="serviceDialog.machineId"
+    />
+
+    <file-manage
+      :title="fileDialog.title"
+      :visible.sync="fileDialog.visible"
+      :machineId.sync="fileDialog.machineId"
     />
 
     <dynamic-form-dialog
@@ -174,7 +183,8 @@ import { DynamicFormDialog } from '@/components/dynamic-form'
 import Monitor from './Monitor.vue'
 import { machineApi } from './api'
 import SshTerminal from './SshTerminal.vue'
-import ServiceManage from './ServiceManage.vue';
+import ServiceManage from './ServiceManage.vue'
+import FileManage from './FileManage.vue'
 
 @Component({
   name: 'MachineList',
@@ -182,7 +192,8 @@ import ServiceManage from './ServiceManage.vue';
     DynamicFormDialog,
     Monitor,
     SshTerminal,
-    ServiceManage
+    ServiceManage,
+    FileManage,
   },
 })
 export default class MachineList extends Vue {
@@ -197,7 +208,12 @@ export default class MachineList extends Vue {
   serviceDialog = {
     visible: false,
     machineId: 0,
-    title: ''
+    title: '',
+  }
+  fileDialog = {
+    visible: false,
+    machineId: 0,
+    title: '',
   }
   monitorDialog = {
     visible: false,
@@ -218,14 +234,14 @@ export default class MachineList extends Vue {
   }
   terminalDialog = {
     visible: false,
-    socketUri: '',
+    machineId: 0,
   }
   formDialog = {
     visible: false,
     title: '',
     formInfo: {
       createApi: machineApi.save,
-      updateApi: machineApi.update,
+      updateApi: machineApi.save,
       formRows: [
         [
           {
@@ -314,21 +330,6 @@ export default class MachineList extends Vue {
     this.currentData = item
   }
 
-  async info(id: number) {
-    const res = await machineApi.info.request({ id })
-    this.infoDialog.info = res
-    this.infoDialog.visible = true
-    // res.data
-    // this.$alert(res, '机器基本信息', {
-    //   type: 'info',
-    //   dangerouslyUseHTMLString: false,
-    //   closeOnClickModal: true,
-    //   showConfirmButton: false,
-    // }).catch((r) => {
-    //   console.log(r)
-    // })
-  }
-
   monitor(id: number) {
     this.monitorDialog.machineId = id
     this.monitorDialog.visible = true
@@ -346,15 +347,21 @@ export default class MachineList extends Vue {
   }
 
   showTerminal(row: any) {
-    this.terminalDialog.visible = true
-    this.terminalDialog.socketUri = `ws://localhost:8888/api/machines/${row.id}/terminal`
+    // this.terminalDialog.machineId = row.id
+    // this.terminalDialog.visible = true
+    // this.$router.push(`/machines/terminal`)
+
+    const { href } = this.$router.resolve({
+      path: `machines/${row.id}/terminal`,
+    })
+    window.open(href, '_blank')
   }
 
   closeTermnial() {
     this.terminalDialog.visible = false
-    this.terminalDialog.socketUri = ''
-    const t: any = this.$refs['terminal']
-    t.closeAll()
+    this.terminalDialog.machineId = 0
+    // const t: any = this.$refs['terminal']
+    // t.closeAll()
   }
 
   openFormDialog(redis: any) {
@@ -386,6 +393,12 @@ export default class MachineList extends Vue {
   submitSuccess() {
     this.currentId = null
     ;(this.currentData = null), this.search()
+  }
+
+  fileManage(currentData: any) {
+    this.fileDialog.visible = true
+    this.fileDialog.machineId = currentData.id
+    this.fileDialog.title = `${currentData.name} => ${currentData.ip}`
   }
 
   async search() {

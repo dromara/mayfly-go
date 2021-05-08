@@ -10,23 +10,25 @@ import (
 	"mayfly-go/mock-server/controllers/form"
 )
 
-const key = "mock:data"
+const key = "ccbscf:mock:data"
 
 // @router /api/mock-datas/:method [get]
 func GetMockData(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	method := g.Param("method")
 	params := utils.MapBuilder("method", method).ToMap()
-	// 该mock数据需要指定的生效用户才可访问
+	// 调用该mock数据的用户，若该数据指定了生效用户，则需要校验是否可访问
 	username := g.Query("username")
 	if username != "" {
 		params["username"] = username
 	}
+	// 记录日志使用
 	rc.ReqParam = params
 
-	val := rediscli.HGet(key, method)
 	mockData := &form.MockData{}
-	json.Unmarshal([]byte(val), mockData)
+	// 从redis中获取key为 ‘ccbscf:mock:data’，field为‘method’的hash值
+	json.Unmarshal([]byte(rediscli.HGet(key, method)), mockData)
+	// 数据不存在或者状态为禁用
 	biz.IsTrue(mockData.Enable == 1, "无该mock数据")
 
 	eu := mockData.EffectiveUser
@@ -36,6 +38,7 @@ func GetMockData(rc *ctx.ReqCtx) {
 		return
 	}
 	biz.IsTrue(utils.StrLen(username) != 0, "该用户无法访问该mock数据")
+	// 判断该用户是否在该数据指定的生效用户中
 	for _, e := range eu {
 		if username == e {
 			rc.ResData = mockData.Data

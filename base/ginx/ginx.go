@@ -12,8 +12,14 @@ import (
 
 // 绑定并校验请求结构体参数
 func BindJsonAndValid(g *gin.Context, data interface{}) {
-	err := g.BindJSON(data)
-	if err != nil {
+	if err := g.BindJSON(data); err != nil {
+		panic(biz.NewBizErr(err.Error()))
+	}
+}
+
+// 绑定查询字符串到
+func BindQuery(g *gin.Context, data interface{}) {
+	if err := g.BindQuery(data); err != nil {
 		panic(biz.NewBizErr(err.Error()))
 	}
 }
@@ -30,8 +36,15 @@ func QueryInt(g *gin.Context, qm string, defaultInt int) int {
 		return defaultInt
 	}
 	qvi, err := strconv.Atoi(qv)
-	biz.BizErrIsNil(err, "query param not int")
+	biz.ErrIsNil(err, "query param not int")
 	return qvi
+}
+
+// 文件下载
+func Download(g *gin.Context, data []byte, filename string) {
+	g.Header("Content-Type", "application/octet-stream")
+	g.Header("Content-Disposition", "attachment; filename="+filename)
+	g.Data(http.StatusOK, "application/octet-stream", data)
 }
 
 // 返回统一成功结果

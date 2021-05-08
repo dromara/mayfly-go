@@ -1,14 +1,15 @@
 package main
 
 import (
+	"mayfly-go/base/ctx"
 	"mayfly-go/base/global"
 	"mayfly-go/base/starter"
 	"mayfly-go/devops/initialize"
-
-	_ "github.com/go-sql-driver/mysql"
 )
 
 func main() {
+	ctx.UseBeforeHandlerInterceptor(ctx.PermissionHandler)
+	ctx.UseAfterHandlerInterceptor(ctx.LogHandler)
 	global.Db = starter.GormMysql()
 	starter.RunWebServer(initialize.InitRouter())
 }

@@ -2,20 +2,32 @@ package biz
 
 import (
 	"fmt"
+	"mayfly-go/base/global"
 	"mayfly-go/base/utils"
 
 	"reflect"
 )
 
-func BizErrIsNil(err error, msg string, params ...interface{}) {
+func ErrIsNil(err error, msg string, params ...interface{}) {
 	if err != nil {
+		global.Log.Error(msg + ": " + err.Error())
 		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
 }
 
-func ErrIsNil(err error, msg string) {
+func ErrIsNilAppendErr(err error, msg string) {
 	if err != nil {
-		panic(err)
+		panic(NewBizErr(fmt.Sprintf(msg, err.Error())))
+	}
+}
+
+func IsNil(err error) {
+	switch t := err.(type) {
+	case *BizError:
+		panic(t)
+	case error:
+		global.Log.Error("非业务异常: " + err.Error())
+		panic(NewBizErr(fmt.Sprintf("非业务异常: %s", err.Error())))
 	}
 }
 

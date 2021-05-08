@@ -14,6 +14,7 @@ func InitRouter() *gin.Engine {
 	gin.SetMode(serverConfig.Model)
 
 	var router = gin.New()
+	router.MaxMultipartMemory = 8 << 20
 	// 设置静态资源
 	if staticConfs := serverConfig.Static; staticConfs != nil {
 		for _, scs := range *staticConfs {
@@ -38,6 +39,8 @@ func InitRouter() *gin.Engine {
 		routers.InitAccountRouter(api) // 注册account路由
 		routers.InitDbRouter(api)
 		routers.InitMachineRouter(api)
+		routers.InitMachineScriptRouter(api)
+		routers.InitMachineFileRouter(api)
 	}
 
 	return router

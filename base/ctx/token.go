@@ -27,7 +27,7 @@ func CreateToken(userId uint64, username string) string {
 
 	// 使用自定义字符串加密 and get the complete encoded token as a string
 	tokenString, err := token.SignedString([]byte(JwtKey))
-	biz.BizErrIsNil(err, "token创建失败")
+	biz.ErrIsNil(err, "token创建失败")
 	return tokenString
 }
 

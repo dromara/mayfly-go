@@ -16,13 +16,3 @@ type Db struct {
 	Password string `orm:"column(password)" json:"-"`
 	Database string `orm:"column(database)" json:"database"`
 }
-
-func GetDbById(id uint64) *Db {
-	db := new(Db)
-	db.Id = id
-	err := model.GetBy(db)
-	if err != nil {
-		return nil
-	}
-	return db
-}

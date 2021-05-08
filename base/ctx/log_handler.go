@@ -13,13 +13,8 @@ import (
 )
 
 func init() {
-	// customFormatter := new(log.TextFormatter)
-	// customFormatter.TimestampFormat = "2006-01-02 15:04:05.000"
-	// customFormatter.FullTimestamp = true
 	log.SetFormatter(new(mlog.LogFormatter))
 	log.SetReportCaller(true)
-
-	AfterHandlers = append(AfterHandlers, new(LogInfo))
 }
 
 type LogInfo struct {
@@ -36,10 +31,10 @@ func (i *LogInfo) WithLogResp(logResp bool) *LogInfo {
 	return i
 }
 
-func (l *LogInfo) AfterHandle(rc *ReqCtx) {
+func LogHandler(rc *ReqCtx) error {
 	li := rc.LogInfo
 	if li == nil {
-		return
+		return nil
 	}
 
 	lfs := log.Fields{}
@@ -48,14 +43,15 @@ func (l *LogInfo) AfterHandle(rc *ReqCtx) {
 		lfs["uname"] = la.Username
 	}
 
-	req := rc.Req
+	req := rc.GinCtx.Request
 	lfs[req.Method] = req.URL.Path
 
-	if err := rc.err; err != nil {
+	if err := rc.Err; err != nil {
 		log.WithFields(lfs).Error(getErrMsg(rc, err))
-		return
+		return nil
 	}
 	log.WithFields(lfs).Info(getLogMsg(rc))
+	return nil
 }
 
 func getLogMsg(rc *ReqCtx) string {

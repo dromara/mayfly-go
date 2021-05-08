@@ -1,5 +1,5 @@
 <template>
-  <div style="height: 600px" id="xterm" class="xterm" />
+  <div :style="{height: height}" id="xterm" class="xterm" />
 </template>
 
 <script>
@@ -10,14 +10,12 @@ import { FitAddon } from 'xterm-addon-fit'
 export default {
   name: 'Xterm',
   props: {
-    socketURI: {
-      type: String,
-      default: '',
-    },
-    cmd: String
+    machineId: Number,
+    cmd: String,
+    height: String
   },
   watch: {
-    socketURI(val) {
+    machineId(val) {
       if (val !== '') {
         this.initSocket()
       }
@@ -29,18 +27,20 @@ export default {
   },
   beforeDestroy() {
     this.socket.close()
-    this.term.dispose()
+    if (this.term) {
+      this.term.dispose()
+    }
   },
   methods: {
     initXterm() {
       const term = new Terminal({
-        fontSize: 14,
+        fontSize: 15,
         cursorBlink: true,
         // cursorStyle: 'underline', //光标样式
         disableStdin: false,
         theme: {
-          foreground: '#7e9192', //字体
-          background: '#002833', //背景色
+          foreground: '#000000', //字体
+          background: '#c7edcc', //背景色
           cursor: 'help', //设置光标
           lineHeight: 16,
         },
@@ -77,11 +77,13 @@ export default {
       })
       // 如果有初始要执行的命令，则发送执行命令
       if (this.cmd) {
-        this.sendCmd(this.cmd + " \r")
+        this.sendCmd(this.cmd + ' \r')
       }
     },
     initSocket() {
-      this.socket = new WebSocket(this.socketURI)
+      this.socket = new WebSocket(
+        `ws://localhost:8888/api/machines/${this.machineId}/terminal?token=${sessionStorage.getItem("token")}`
+      )
       // 监听socket连接
       this.socket.onopen = this.open
       // 监听socket错误信息
@@ -104,7 +106,7 @@ export default {
     },
     close: function () {
       this.socket.close()
-      console.log('socket已经关闭')
+      console.log('socket关闭')
       //重连
       //   this.reconnect()
     },
@@ -138,8 +140,10 @@ export default {
     },
     closeAll() {
       this.close()
-      this.term.dispose()
-      this.term = null
+      if (this.term) {
+        this.term.dispose()
+        this.term = null
+      }
     },
   },
 }

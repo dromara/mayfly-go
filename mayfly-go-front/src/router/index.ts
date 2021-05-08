@@ -57,12 +57,24 @@ const routes: Array<RouteConfig> = [
         keepAlive: false
       },
       component: () => import('@/views/mock-server')
-    },]
+    },
+    ]
   },
+  {
+    path: '/machines/:id/terminal',
+    name: 'machine-terminal',
+    meta: {
+      title: '终端',
+      keepAlive: false
+    },
+    component: () => import('@/views/machine/SshTerminalPage.vue')
+  },
+  
 ]
 
 const router = new VueRouter({
-  mode: 'history',
+  // hash模式可解决部署服务器后，刷新页面404问题
+  mode: 'hash',
   base: process.env.BASE_URL,
   routes
 })

@@ -114,6 +114,7 @@
         :key="item"
         :prop="item"
         :label="item"
+        show-overflow-tooltip
       >
       </el-table-column>
     </el-table>

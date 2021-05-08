@@ -5,57 +5,85 @@
       :visible.sync="visible"
       :show-close="true"
       :before-close="handleClose"
-      width="800px"
+      width="60%"
     >
-      <div style="float: right;">
-        <el-button
-          type="primary"
-          @click="add"
-          icon="el-icon-plus"
-          size="mini"
-          plain
-        >添加</el-button>
+      <div class="toolbar">
+        <div style="float: left">
+          <el-select
+            v-model="type"
+            @change="getScripts"
+            size="mini"
+            placeholder="请选择"
+          >
+            <el-option :key="0" label="私有" :value="0"> </el-option>
+            <el-option :key="1" label="公共" :value="1"> </el-option>
+          </el-select>
+        </div>
+        <div style="float: right">
+          <el-button
+            @click="editScript(currentData)"
+            :disabled="currentId == null"
+            type="primary"
+            :ref="currentData"
+            icon="el-icon-tickets"
+            size="mini"
+            plain
+            >查看</el-button
+          >
+          <el-button
+            type="primary"
+            @click="editScript(null)"
+            icon="el-icon-plus"
+            size="mini"
+            plain
+            >添加</el-button
+          >
+          <el-button
+            :disabled="currentId == null"
+            type="danger"
+            :ref="currentData"
+            @click="deleteRow(currentData)"
+            icon="el-icon-delete"
+            size="mini"
+            plain
+            >删除</el-button
+          >
+        </div>
       </div>
-      <el-table :data="fileTable" stripe style="width: 100%">
-        <el-table-column prop="name" label="名称" width>
+
+      <!-- <el-tabs type="border-card">
+        <el-tab-pane label="私有"></el-tab-pane>
+        <el-tab-pane label="公共"></el-tab-pane>
+      </el-tabs> -->
+      <el-table
+        :data="scriptTable"
+        @current-change="choose"
+        stripe
+        border
+        size="mini"
+        style="width: 100%"
+      >
+        <el-table-column label="选择" width="55px">
           <template slot-scope="scope">
-            <el-input
-              v-model="scope.row.name"
-              size="mini"
-              :disabled="scope.row.id != null"
-              clearable
-            ></el-input>
+            <el-radio v-model="currentId" :label="scope.row.id">
+              <i></i>
+            </el-radio>
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="类型" width>
+        <el-table-column prop="name" label="名称" :min-width="50">
+        </el-table-column>
+        <el-table-column
+          prop="description"
+          label="描述"
+          :min-width="100"
+          show-overflow-tooltip
+        ></el-table-column>
+        <el-table-column prop="name" label="类型" :min-width="50">
           <template slot-scope="scope">
-            <el-select
-              :disabled="scope.row.id != null"
-              size="mini"
-              v-model="scope.row.type"
-              style="width: 100px"
-              placeholder="请选择"
-            >
-              <el-option
-                v-for="item in enums.FileTypeEnum"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              ></el-option>
-            </el-select>
+            {{ enums.scriptTypeEnum.getLabelByValue(scope.row.type) }}
           </template>
         </el-table-column>
-        <el-table-column prop="path" label="路径" width>
-          <template slot-scope="scope">
-            <el-input
-              v-model="scope.row.path"
-              :disabled="scope.row.id != null"
-              size="mini"
-              clearable
-            ></el-input>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width>
+        <el-table-column label="操作">
           <template slot-scope="scope">
             <el-button
               v-if="scope.row.id == null"
@@ -65,200 +93,191 @@
               icon="el-icon-success"
               size="mini"
               plain
-            >确定</el-button>
+              >确定</el-button
+            >
+
             <el-button
               v-if="scope.row.id != null"
-              @click="getConf(scope.row)"
+              @click="runScript(scope.row)"
               type="primary"
               :ref="scope.row"
               icon="el-icon-tickets"
               size="mini"
               plain
-            >查看</el-button>
-            <el-button
-              type="danger"
-              :ref="scope.row"
-              @click="deleteRow(scope.$index, scope.row)"
-              icon="el-icon-delete"
-              size="mini"
-              plain
-            >删除</el-button>
+              >执行</el-button
+            >
           </template>
         </el-table-column>
       </el-table>
     </el-dialog>
 
     <el-dialog
-      :title="fileContent.dialogTitle"
-      :visible.sync="fileContent.contentVisible"
-      width="850px"
+      title="执行结果"
+      :visible.sync="resultDialog.visible"
+      width="40%"
     >
-      <el-form :model="form">
-        <el-form-item>
-          <el-input
-            v-model="fileContent.content"
-            type="textarea"
-            :autosize="{ minRows: 18, maxRows:25}"
-            autocomplete="off"
-          ></el-input>
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button @click="fileContent.contentVisible = false" size="mini">取 消</el-button>
-        <el-button
-          v-permission="permission.updateFileContent.code"
-          type="primary"
-          @click="updateContent"
-          size="mini"
-        >确 定</el-button>
+      <div style="white-space: pre-line; padding: 10px; color: #000000">
+        {{ resultDialog.result }}
       </div>
     </el-dialog>
+
+    <el-dialog
+      v-if="terminalDialog.visible"
+      title="终端"
+      :visible.sync="terminalDialog.visible"
+      width="70%"
+      :close-on-click-modal="false"
+      :modal="false"
+      @close="closeTermnial"
+    >
+      <ssh-terminal
+        ref="terminal"
+        :cmd="terminalDialog.cmd"
+        :machineId="terminalDialog.machineId"
+        height="600px"
+      />
+    </el-dialog>
+
+    <script-edit
+      :visible.sync="editDialog.visible"
+      :data.sync="editDialog.data"
+      :title="editDialog.title"
+      :machineId="editDialog.machineId"
+      :isCommon="type == 1"
+      @submitSuccess="submitSuccess"
+    />
   </div>
 </template>
 
 <script lang="ts">
 import { Component, Vue, Prop, Watch } from 'vue-property-decorator'
+import SshTerminal from './SshTerminal.vue'
 import { machineApi } from './api'
+import enums from './enums'
+import ScriptEdit from './ScriptEdit.vue'
 
 @Component({
   name: 'ServiceManage',
+  components: {
+    SshTerminal,
+    ScriptEdit,
+  },
 })
 export default class ServiceManage extends Vue {
   @Prop()
   visible: boolean
   @Prop()
-  machineId: [number]
+  machineId: number
   @Prop()
   title: string
 
-  addFile = machineApi.addConf
-  delFile = machineApi.delConf
-  updateFileContent = machineApi.updateFileContent
-  uploadFile = machineApi.uploadFile
-  files = machineApi.files
-  activeName = 'conf-file'
-  token = sessionStorage.getItem('token')
-  form = {
-    id: null,
-    type: null,
-    name: '',
-    remark: '',
-  }
-  fileTable: any[] = []
-  btnLoading = false
-  fileContent = {
-    fileId: 0,
-    content: '',
-    contentVisible: false,
-    dialogTitle: '',
-    path: '',
-  }
-  tree = {
-    title: '',
+  enums = enums
+  type = 0
+  currentId = null
+  currentData = null
+  editDialog = {
     visible: false,
-    folder: { id: 0 },
-    node: {
-      childNodes: [],
-    },
-    resolve: {},
+    data: null,
+    title: '',
+    machineId: 9999999,
   }
-  props = {
-    label: 'name',
-    children: 'zones',
-    isLeaf: 'leaf',
+  scriptTable: any[] = []
+  resultDialog = {
+    visible: false,
+    result: '',
+  }
+  terminalDialog = {
+    visible: false,
+    cmd: '',
+    machineId: 0,
   }
 
   @Watch('machineId', { deep: true })
   onDataChange() {
     if (this.machineId) {
-      this.getFiles()
+      this.getScripts()
     }
   }
 
-  async getFiles() {
-    const res = await this.files.request({ id: this.machineId })
-    this.fileTable = res
+  async getScripts() {
+    this.currentId = null
+    this.currentData = null
+    const machineId = this.type == 0 ? this.machineId : 9999999
+    const res = await machineApi.scripts.request({ machineId: machineId })
+    this.scriptTable = res.list
+  }
+
+  async runScript(script: any) {
+    const noResult = script.type == enums.scriptTypeEnum['NO_RESULT'].value
+    // 如果脚本类型为有结果类型，则显示结果信息
+    if (script.type == enums.scriptTypeEnum['RESULT'].value || noResult) {
+      const res = await machineApi.runScript.request({
+        machineId: this.machineId,
+        scriptId: script.id,
+      })
+      if (noResult) {
+        this.$message.success('执行完成')
+        return
+      }
+      this.resultDialog.result = res
+      this.resultDialog.visible = true
+      return
+    }
+
+    if (script.type == enums.scriptTypeEnum['REAL_TIME'].value) {
+      this.terminalDialog.cmd = script.script
+      this.terminalDialog.visible = true
+      this.terminalDialog.machineId = this.machineId
+      return
+    }
+  }
+
+  closeTermnial() {
+    this.terminalDialog.visible = false
+    this.terminalDialog.machineId = 0
+    // const t: any = this.$refs['terminal']
+    // t.closeAll()
   }
 
   /**
-   * tab切换触发事件
-   * @param {Object} tab
-   * @param {Object} event
+   * 选择数据
    */
-  // handleClick(tab, event) {
-  //   // if (tab.name == 'file-manage') {
-  //   //   this.fileManage.node.childNodes = [];
-  //   //   this.loadNode(this.fileManage.node, this.fileManage.resolve);
-  //   // }
-  // }
-
-  add() {
-    // 往数组头部添加元素
-    this.fileTable = [{}].concat(this.fileTable)
-  }
-
-  async addFiles(row: any) {
-    row.machineId = this.machineId
-    await this.addFile.request(row)
-    this.$message.success('添加成功')
-    this.getFiles()
-  }
-
-  deleteRow(idx: any, row: any) {
-    if (row.id) {
-      this.$confirm(`此操作将删除 [${row.name}], 是否继续?`, '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }).then(() => {
-        // 删除配置文件
-        this.delFile
-          .request({
-            machineId: this.machineId,
-            id: row.id,
-          })
-          .then((res) => {
-            this.fileTable.splice(idx, 1)
-          })
-      })
-    } else {
-      this.fileTable.splice(idx, 1)
-    }
-  }
-
-  getConf(row: any) {
-    if (row.type == 1) {
-      this.tree.folder = row
-      this.tree.title = row.name
-      const treeNode = (this.tree.node.childNodes = [])
-      this.loadNode(this.tree.node, this.tree.resolve)
-      this.tree.visible = true
+  choose(item: any) {
+    if (!item) {
       return
     }
-    this.getFileContent(row.id, row.path)
+    this.currentId = item.id
+    this.currentData = item
   }
 
-  async getFileContent(fileId: number, path: string) {
-    const res = await machineApi.fileContent.request({
-      fileId,
-      path,
-    })
-    this.fileContent.content = res
-    this.fileContent.fileId = fileId
-    this.fileContent.dialogTitle = path
-    this.fileContent.path = path
-    this.fileContent.contentVisible = true
+  editScript(data: any) {
+    this.editDialog.visible = true
+    this.editDialog.machineId = this.machineId
+    this.editDialog.data = data
   }
 
-  async updateContent() {
-    await this.updateFileContent.request({
-      content: this.fileContent.content,
-      id: this.fileContent.fileId,
-      path: this.fileContent.path,
+  submitSuccess() {
+    // this.delChoose()
+    // this.search()
+    this.getScripts()
+  }
+
+  deleteRow(row: any) {
+    this.$confirm(`此操作将删除 [${row.name}], 是否继续?`, '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }).then(() => {
+      machineApi.deleteScript
+        .request({
+          machineId: this.machineId,
+          scriptId: row.id,
+        })
+        .then((res) => {
+          this.getScripts()
+        })
+      // 删除配置文件
     })
-    this.$message.success('修改成功')
-    this.fileContent.contentVisible = false
-    this.fileContent.content = ''
   }
 
   /**
@@ -268,76 +287,7 @@ export default class ServiceManage extends Vue {
     this.$emit('update:visible', false)
     this.$emit('update:machineId', null)
     this.$emit('cancel')
-    this.activeName = 'conf-file'
-    this.fileTable = []
-    this.tree.folder = { id: 0 }
-  }
-
-  /**
-   * 加载文件树节点
-   * @param {Object} node
-   * @param {Object} resolve
-   */
-  async loadNode(node: any, resolve: any) {
-    if (typeof resolve !== 'function') {
-      return
-    }
-
-    const folder: any = this.tree.folder
-    if (node.level === 0) {
-      this.tree.node = node
-      this.tree.resolve = resolve
-
-      // let folder: any = this.tree.folder
-      const path = folder ? folder.path : '/'
-      return resolve([
-        {
-          name: path,
-          type: 'd',
-          path: path,
-        },
-      ])
-    }
-
-    let path
-    const data = node.data
-    // 只有在第一级节点时，name==path，即上述level==0时设置的
-    if (!data || data.name == data.path) {
-      path = folder.path
-    } else {
-      path = data.path
-    }
-
-    const res = await machineApi.lsFile.request({
-      fileId: folder.id,
-      path,
-    })
-    for (const file of res) {
-      const type = file.type
-      if (type != 'd') {
-        file.leaf = true
-      }
-    }
-    return resolve(res)
-  }
-
-  deleteFile(node: any, data: any) {
-    const file = data.path
-    this.$confirm(`此操作将删除 [${file}], 是否继续?`, '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-      .then(() => {
-        machineApi.rmFile
-          .request({ fileId: this.tree.folder.id, path: file })
-          .then((res) => {
-            this.$message.success('删除成功')
-            const fileTree: any = this.$refs.fileTree
-            fileTree.remove(node)
-          })
-      })
-      .catch(() => this.$message.error('删除失败'))
+    this.scriptTable = []
   }
 }
 </script>

@@ -3,7 +3,6 @@ package ctx
 import (
 	"mayfly-go/base/ginx"
 	"mayfly-go/base/model"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,41 +12,40 @@ import (
 type HandlerFunc func(*ReqCtx)
 
 type ReqCtx struct {
-	Req    *http.Request // http request
-	GinCtx *gin.Context  // gin context
+	GinCtx *gin.Context // gin context
 
 	NeedToken    bool                // 是否需要token
-	LoginAccount *model.LoginAccount // 登录账号信息
+	LoginAccount *model.LoginAccount // 登录账号信息，只有校验token后才会有值
 
 	LogInfo  *LogInfo    // 日志相关信息
 	ReqParam interface{} // 请求参数，主要用于记录日志
 	ResData  interface{} // 响应结果
-	err      interface{} // 请求错误
+	Err      interface{} // 请求错误
 	timed    int64       // 执行时间
+	noRes    bool        // 无需返回结果，即文件下载等
 }
 
 func (rc *ReqCtx) Handle(handler HandlerFunc) {
 	ginCtx := rc.GinCtx
 	defer func() {
 		if err := recover(); err != nil {
-			rc.err = err
+			rc.Err = err
 			ginx.ErrorRes(ginCtx, err)
 		}
 		// 应用所有请求后置处理器
-		ApplyAfterHandler(rc)
+		ApplyHandlerInterceptor(afterHandlers, rc)
 	}()
 	if ginCtx == nil {
 		panic("ginContext == nil")
 	}
 
-	rc.Req = ginCtx.Request
 	// 默认为不记录请求参数，可在handler回调函数中覆盖赋值
 	rc.ReqParam = 0
 	// 默认响应结果为nil，可在handler中赋值
 	rc.ResData = nil
 
 	// 调用请求前所有处理器
-	err := ApplyBeforeHandler(rc)
+	err := ApplyHandlerInterceptor(beforeHandlers, rc)
 	if err != nil {
 		panic(err)
 	}
@@ -55,39 +53,14 @@ func (rc *ReqCtx) Handle(handler HandlerFunc) {
 	begin := time.Now()
 	handler(rc)
 	rc.timed = time.Now().Sub(begin).Milliseconds()
-	ginx.SuccessRes(ginCtx, rc.ResData)
-}
-
-// 请求前置处理器，返回error则停止后续逻辑
-type BeforeHandler interface {
-	BeforeHandle(rc *ReqCtx) error
-}
-
-// 请求后置处理器
-type AfterHandler interface {
-	AfterHandle(rc *ReqCtx)
-}
-
-var (
-	BeforeHandlers []BeforeHandler
-	AfterHandlers  []AfterHandler
-)
-
-// 应用所有请求前置处理器
-func ApplyBeforeHandler(rc *ReqCtx) error {
-	for _, e := range BeforeHandlers {
-		if err := e.BeforeHandle(rc); err != nil {
-			return err
-		}
+	if !rc.noRes {
+		ginx.SuccessRes(ginCtx, rc.ResData)
 	}
-	return nil
 }
 
-// 应用所有后置处理器
-func ApplyAfterHandler(rc *ReqCtx) {
-	for _, e := range AfterHandlers {
-		e.AfterHandle(rc)
-	}
+func (rc *ReqCtx) Download(data []byte, filename string) {
+	rc.noRes = true
+	ginx.Download(rc.GinCtx, data, filename)
 }
 
 // 新建请求上下文，默认需要校验token
@@ -109,4 +82,33 @@ func (r *ReqCtx) WithLog(li *LogInfo) *ReqCtx {
 func (r *ReqCtx) WithNeedToken(needToken bool) *ReqCtx {
 	r.NeedToken = needToken
 	return r
+}
+
+// 处理器拦截器函数
+type HandlerInterceptorFunc func(*ReqCtx) error
+type HandlerInterceptors []HandlerInterceptorFunc
+
+var (
+	beforeHandlers HandlerInterceptors
+	afterHandlers  HandlerInterceptors
+)
+
+// 使用前置处理器函数
+func UseBeforeHandlerInterceptor(b HandlerInterceptorFunc) {
+	beforeHandlers = append(beforeHandlers, b)
+}
+
+// 使用后置处理器函数
+func UseAfterHandlerInterceptor(b HandlerInterceptorFunc) {
+	afterHandlers = append(afterHandlers, b)
+}
+
+// 应用指定处理器拦截器，如果有一个错误则直接返回错误
+func ApplyHandlerInterceptor(his HandlerInterceptors, rc *ReqCtx) interface{} {
+	for _, handler := range his {
+		if err := handler(rc); err != nil {
+			return err
+		}
+	}
+	return nil
 }
