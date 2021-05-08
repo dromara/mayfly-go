@@ -38,6 +38,7 @@ func (m *machineApp) GetMachineList(condition *entity.Machine, pageParam *model.
 
 // 根据条件获取机器信息
 func (m *machineApp) Save(entity *entity.Machine) {
+	biz.ErrIsNil(machine.TestConn(entity), "该机器无法连接")
 	if entity.Id != 0 {
 		m.machineRepo.UpdateById(entity)
 	} else {

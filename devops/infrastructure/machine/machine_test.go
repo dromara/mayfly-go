@@ -9,7 +9,7 @@ import (
 
 func TestSSH(t *testing.T) {
 	//ssh.ListenAndServe("148.70.36.197")
-	//cli := New("148.70.36.197", "root", "gea&630_..91mn#", 22)
+	//cli := New("148.70.36.197", "root", "g..91mn#", 22)
 	////output, err := cli.Run("free -h")
 	////fmt.Printf("%v\n%v", output, err)
 	//err := cli.RunTerminal("tail -f /usr/local/java/logs/eatlife-info.log", os.Stdout, os.Stdin)

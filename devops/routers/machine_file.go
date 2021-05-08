@@ -32,7 +32,7 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 
 		getContent := ctx.NewLogInfo("读取机器文件内容")
 		machineFile.GET(":machineId/files/:fileId/read", func(c *gin.Context) {
-			rc := ctx.NewReqCtxWithGin(c).WithNeedToken(false).WithLog(getContent)
+			rc := ctx.NewReqCtxWithGin(c).WithLog(getContent)
 			rc.Handle(mf.ReadFileContent)
 		})
 

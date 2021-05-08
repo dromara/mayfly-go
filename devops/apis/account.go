@@ -7,7 +7,6 @@ import (
 	"mayfly-go/devops/apis/form"
 	"mayfly-go/devops/application"
 	"mayfly-go/devops/domain/entity"
-	"mayfly-go/devops/models"
 )
 
 type Account struct {
@@ -30,5 +29,5 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 
 // @router /accounts [get]
 func (a *Account) Accounts(rc *ctx.ReqCtx) {
-	rc.ResData = models.ListAccount(ginx.GetPageParam(rc.GinCtx))
+	// rc.ResData = models.ListAccount(ginx.GetPageParam(rc.GinCtx))
 }

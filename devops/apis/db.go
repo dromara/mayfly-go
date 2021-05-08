@@ -10,7 +10,6 @@ import (
 	"mayfly-go/devops/apis/vo"
 	"mayfly-go/devops/application"
 	"mayfly-go/devops/domain/entity"
-	"mayfly-go/devops/models"
 	"strconv"
 	"strings"
 
@@ -104,11 +103,11 @@ func (d *Db) SaveSql(rc *ctx.ReqCtx) {
 
 	dbId := GetDbId(g)
 	// 判断dbId是否存在
-	err := model.GetById(new(models.Db), dbId)
+	err := model.GetById(new(entity.Db), dbId)
 	biz.ErrIsNil(err, "该数据库信息不存在")
 
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-	dbSql := &models.DbSql{Type: dbSqlForm.Type, DbId: dbId}
+	dbSql := &entity.DbSql{Type: dbSqlForm.Type, DbId: dbId}
 	dbSql.CreatorId = account.Id
 	e := model.GetBy(dbSql)
 
@@ -125,7 +124,7 @@ func (d *Db) SaveSql(rc *ctx.ReqCtx) {
 // @router /api/db/:dbId/sql [get]
 func (d *Db) GetSql(rc *ctx.ReqCtx) {
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-	dbSql := &models.DbSql{Type: 1, DbId: GetDbId(rc.GinCtx)}
+	dbSql := &entity.DbSql{Type: 1, DbId: GetDbId(rc.GinCtx)}
 	dbSql.CreatorId = rc.LoginAccount.Id
 	e := model.GetBy(dbSql)
 	if e != nil {

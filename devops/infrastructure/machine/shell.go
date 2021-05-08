@@ -5,7 +5,7 @@ import (
 	"mayfly-go/base/biz"
 	"mayfly-go/base/global"
 	"mayfly-go/base/utils"
-	"mayfly-go/devops/models"
+	"mayfly-go/devops/domain/entity"
 	"time"
 )
 
@@ -24,8 +24,8 @@ func (c *Cli) GetSystemInfo() (*string, error) {
 	return c.Run(getShellContent("system_info"))
 }
 
-func (c *Cli) GetMonitorInfo() *models.MachineMonitor {
-	mm := new(models.MachineMonitor)
+func (c *Cli) GetMonitorInfo() *entity.MachineMonitor {
+	mm := new(entity.MachineMonitor)
 	res, _ := c.Run(getShellContent("monitor"))
 	if res == nil {
 		return nil

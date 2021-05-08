@@ -40,7 +40,6 @@ func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
 
 	entity := new(entity.Machine)
 	utils.Copy(entity, machineForm)
-	biz.ErrIsNil(machine.TestConn(entity), "无法连接")
 
 	entity.SetBaseInfo(rc.LoginAccount)
 	m.MachineApp.Save(entity)
