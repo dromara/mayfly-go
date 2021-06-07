@@ -1,0 +1,28 @@
+/* wangeditor富文本编辑器
+------------------------------- */
+.w-e-toolbar {
+	border: 1px solid #ebeef5 !important;
+	border-bottom: 1px solid #ebeef5 !important;
+	border-top-left-radius: 3px;
+	border-top-right-radius: 3px;
+	z-index: 2 !important;
+}
+.w-e-text-container {
+	border: 1px solid #ebeef5 !important;
+	border-top: none !important;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 3px;
+	z-index: 1 !important;
+}
+
+/* web端自定义截屏
+------------------------------- */
+#screenShotContainer {
+	z-index: 9998 !important;
+}
+#toolPanel {
+	height: 42px !important;
+}
+#optionPanel {
+	height: 37px !important;
+}

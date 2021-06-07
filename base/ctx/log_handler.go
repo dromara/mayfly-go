@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mayfly-go/base/biz"
-	"mayfly-go/base/mlog"
+	"mayfly-go/base/logger"
 	"mayfly-go/base/utils"
 	"reflect"
 	"runtime/debug"
@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	log.SetFormatter(new(mlog.LogFormatter))
+	log.SetFormatter(new(logger.LogFormatter))
 	log.SetReportCaller(true)
 }
 

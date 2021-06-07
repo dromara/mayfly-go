@@ -1,0 +1,34 @@
+/* Button 按钮
+------------------------------- */
+@mixin Button($main, $c1, $c2) {
+	color: set-color($main);
+	background: set-color($c1);
+	border-color: set-color($c2);
+}
+
+/* Radio 单选框、Checkbox 多选框
+------------------------------- */
+@mixin RadioCheckbox($name) {
+	background-color: set-color($name);
+	border-color: set-color($name);
+}
+
+/* Tag 标签
+------------------------------- */
+@mixin Tag($main, $c1, $c2) {
+	color: set-color($main);
+	background-color: set-color($c1);
+	border-color: set-color($c2);
+}
+@mixin TagDark($main, $c1) {
+	color: set-color($main);
+	background-color: set-color($c1);
+}
+
+/* Alert 警告
+------------------------------- */
+@mixin Alert($main, $c1, $c2) {
+	color: set-color($main);
+	background: set-color($c1);
+	border: 1px solid set-color($c2);
+}

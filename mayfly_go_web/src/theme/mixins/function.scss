@@ -1,0 +1,5 @@
+/* 颜色调用函数
+------------------------------- */
+@function set-color($key) {
+	@return var(--color-#{$key});
+}

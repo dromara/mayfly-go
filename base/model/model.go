@@ -1,11 +1,14 @@
 package model
 
 import (
+	"fmt"
 	"mayfly-go/base/global"
 	"strconv"
 
 	"strings"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Model struct {
@@ -40,11 +43,57 @@ func (m *Model) SetBaseInfo(account *LoginAccount) {
 	m.ModifierId = id
 }
 
+func Tx(funcs ...func(db *gorm.DB) error) (err error) {
+	tx := global.Db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			err = fmt.Errorf("%v", err)
+		}
+	}()
+	for _, f := range funcs {
+		err = f(tx)
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+	}
+	err = tx.Commit().Error
+	return
+}
+
 // 根据id获取实体对象。model需为指针类型（需要将查询出来的值赋值给model）
 //
 // 若error不为nil则为不存在该记录
 func GetById(model interface{}, id uint64, cols ...string) error {
 	return global.Db.Select(cols).Where("id = ?", id).First(model).Error
+}
+
+// 根据id列表查询
+func GetByIdIn(model interface{}, list interface{}, ids []uint64, orderBy ...string) {
+	var idsStr string
+	for i, v := range ids {
+		idStr := strconv.Itoa(int(v))
+		if i == 0 {
+			idsStr += idStr
+		} else {
+			idsStr += ("," + idStr)
+		}
+	}
+	var orderByStr string
+	if orderBy == nil {
+		orderByStr = "id desc"
+	} else {
+		orderByStr = strings.Join(orderBy, ",")
+	}
+	global.Db.Model(model).Where("id in (?)", idsStr).Order(orderByStr).Find(list)
+}
+
+// 根据id列表查询
+func CountBy(model interface{}) int64 {
+	var count int64
+	global.Db.Model(model).Where(model).Count(&count)
+	return count
 }
 
 // 根据id更新model，更新字段为model中不为空的值，即int类型不为0，ptr类型不为nil这类字段值
@@ -57,6 +106,11 @@ func DeleteById(model interface{}, id uint64) error {
 	return global.Db.Delete(model, "id = ?", id).Error
 }
 
+// 根据条件删除
+func DeleteByCondition(model interface{}) error {
+	return global.Db.Where(model).Delete(model).Error
+}
+
 // 插入model
 func Insert(model interface{}) error {
 	return global.Db.Create(model).Error
@@ -64,9 +118,22 @@ func Insert(model interface{}) error {
 
 // 获取满足model中不为空的字段值条件的所有数据.
 //
-// @param list为数组类型 如 var users []*User，可指定为非model结构体，即只包含需要返回的字段结构体
+// @param list为数组类型 如 var users *[]User，可指定为非model结构体，即只包含需要返回的字段结构体
 func ListBy(model interface{}, list interface{}, cols ...string) {
 	global.Db.Model(model).Select(cols).Where(model).Find(list)
+}
+
+// 获取满足model中不为空的字段值条件的所有数据.
+//
+// @param list为数组类型 如 var users *[]User，可指定为非model结构体
+func ListByOrder(model interface{}, list interface{}, order ...string) {
+	var orderByStr string
+	if order == nil {
+		orderByStr = "id desc"
+	} else {
+		orderByStr = strings.Join(order, ",")
+	}
+	global.Db.Model(model).Where(model).Order(orderByStr).Find(list)
 }
 
 // 获取满足model中不为空的字段值条件的单个对象。model需为指针类型（需要将查询出来的值赋值给model）
@@ -125,4 +192,8 @@ func GetListBySql(sql string, params ...interface{}) []map[string]interface{} {
 	var maps []map[string]interface{}
 	global.Db.Raw(sql, params).Scan(&maps)
 	return maps
+}
+
+func GetListBySql2Model(sql string, toEntity interface{}, params ...interface{}) {
+	global.Db.Raw(sql, params).Find(toEntity)
 }

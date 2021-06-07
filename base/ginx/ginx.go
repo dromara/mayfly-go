@@ -1,8 +1,9 @@
 package ginx
 
 import (
+	"fmt"
 	"mayfly-go/base/biz"
-	"mayfly-go/base/mlog"
+	"mayfly-go/base/global"
 	"mayfly-go/base/model"
 	"net/http"
 	"strconv"
@@ -40,6 +41,13 @@ func QueryInt(g *gin.Context, qm string, defaultInt int) int {
 	return qvi
 }
 
+// 获取路径参数
+func PathParamInt(g *gin.Context, pm string) int {
+	value, _ := strconv.Atoi(g.Param(pm))
+	biz.IsTrue(value != 0, fmt.Sprintf("%s不存在", pm))
+	return value
+}
+
 // 文件下载
 func Download(g *gin.Context, data []byte, filename string) {
 	g.Header("Content-Type", "application/octet-stream")
@@ -60,15 +68,15 @@ func ErrorRes(g *gin.Context, err interface{}) {
 		break
 	case error:
 		g.JSON(http.StatusOK, model.ServerError())
-		mlog.Log.Error(t)
+		global.Log.Error(t)
 		// panic(err)
 		break
 	case string:
 		g.JSON(http.StatusOK, model.ServerError())
-		mlog.Log.Error(t)
+		global.Log.Error(t)
 		// panic(err)
 		break
 	default:
-		mlog.Log.Error(t)
+		global.Log.Error(t)
 	}
 }

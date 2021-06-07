@@ -1,0 +1,21 @@
+@import './index.scss';
+
+/* 页面宽度小于576px
+------------------------------- */
+@media screen and (max-width: $xs) {
+	.login-container {
+		.login-content {
+			width: 90% !important;
+			padding: 20px 0 !important;
+		}
+		.login-content-form-btn {
+			width: 100% !important;
+			padding: 12px 0 !important;
+		}
+		.login-copyright {
+			.login-copyright-msg {
+				white-space: unset !important;
+			}
+		}
+	}
+}

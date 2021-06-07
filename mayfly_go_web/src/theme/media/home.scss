@@ -1,0 +1,10 @@
+@import './index.scss';
+
+/* 页面宽度小于768px
+------------------------------- */
+@media screen and (max-width: $sm) {
+	.home-warning-media,
+	.home-dynamic-media {
+		margin-top: 15px;
+	}
+}

@@ -2,13 +2,13 @@ package global
 
 import (
 	"mayfly-go/base/config"
-	"mayfly-go/base/mlog"
+	"mayfly-go/base/logger"
 
 	"gorm.io/gorm"
 )
 
 // 日志
-var Log = mlog.Log
+var Log = logger.Log
 
 // config.yml配置文件映射对象
 var Config = config.Conf

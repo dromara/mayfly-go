@@ -1,0 +1,56 @@
+{
+  "name": "mayfly",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint-fix": "eslint --fix --ext .js --ext .jsx --ext .vue src/"
+  },
+  "dependencies": {
+    "core-js": "^3.6.5",
+    "axios": "^0.21.1",
+    "codemirror": "^5.61.0",
+    "countup.js": "^2.0.7",
+    "cropperjs": "^1.5.11",
+    "echarts": "^5.1.1",
+    "echarts-wordcloud": "^2.0.0",
+    "element-plus": "^1.0.2-beta.44",
+    "jsonlint": "^1.6.3",
+    "mitt": "^2.1.0",
+    "nprogress": "^0.2.0",
+    "screenfull": "^5.1.0",
+    "sortablejs": "^1.13.0",
+    "sql-formatter": "^2.3.3",
+    "vue": "^3.0.5",
+    "vue-class-component": "^8.0.0-0",
+    "vue-router": "^4.0.2",
+    "vuex": "^4.0.0-rc.2",
+    "xterm": "^4.9.0",
+    "xterm-addon-fit": "^0.4.0"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.14.0",
+    "@types/clipboard": "^2.0.1",
+    "@types/node": "^15.6.0",
+    "@types/nprogress": "^0.2.0",
+    "@types/sortablejs": "^1.10.6",
+    "@typescript-eslint/eslint-plugin": "^4.23.0",
+    "@typescript-eslint/parser": "^4.23.0",
+    "@vitejs/plugin-vue": "^1.2.2",
+    "@vue/compiler-sfc": "^3.0.11",
+    "dotenv": "^10.0.0",
+    "eslint": "^7.27.0",
+    "eslint-plugin-vue": "^7.9.0",
+    "prettier": "^2.3.0",
+    "sass": "^1.34.0",
+    "sass-loader": "^11.1.1",
+    "typescript": "^4.2.4",
+    "vite": "^2.3.2",
+    "vue-eslint-parser": "^7.6.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}
