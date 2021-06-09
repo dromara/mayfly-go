@@ -3,7 +3,7 @@
         <el-dialog :title="title" v-model="visible" :show-close="true" :before-close="handleClose" width="800px">
             <div class="toolbar">
                 <div style="float: right">
-                    <el-button type="primary" @click="add" icon="el-icon-plus" size="mini" plain>添加</el-button>
+                    <el-button v-auth="'machine:file:add'" type="primary" @click="add" icon="el-icon-plus" size="mini" plain>添加</el-button>
                 </div>
             </div>
             <!-- <div style="float: right;">
@@ -35,7 +35,15 @@
                         <el-button v-if="scope.row.id != null" @click="getConf(scope.row)" type="primary" icon="el-icon-tickets" size="mini" plain
                             >查看</el-button
                         >
-                        <el-button type="danger" @click="deleteRow(scope.$index, scope.row)" icon="el-icon-delete" size="mini" plain>删除</el-button>
+                        <el-button
+                            v-auth="'machine:file:del'"
+                            type="danger"
+                            @click="deleteRow(scope.$index, scope.row)"
+                            icon="el-icon-delete"
+                            size="mini"
+                            plain
+                            >删除</el-button
+                        >
                     </template>
                 </el-table-column>
             </el-table>
@@ -85,10 +93,17 @@
                                     :limit="100"
                                     style="display: inline-block; margin-left: 2px"
                                 >
-                                    <el-link v-if="data.type == 'd'" @click.prevent icon="el-icon-upload" :underline="false" />
+                                    <el-link
+                                        v-auth="'machine:file:upload'"
+                                        v-if="data.type == 'd'"
+                                        @click.prevent
+                                        icon="el-icon-upload"
+                                        :underline="false"
+                                    />
                                 </el-upload>
 
                                 <el-link
+                                    v-auth="'machine:file:write'"
                                     v-if="data.type == '-'"
                                     @click.prevent="downloadFile(node, data)"
                                     type="danger"
@@ -98,6 +113,7 @@
                                 />
 
                                 <el-link
+                                    v-auth="'machine:file:rm'"
                                     v-if="!dontOperate(data)"
                                     @click.prevent="deleteFile(node, data)"
                                     type="danger"
@@ -126,7 +142,7 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button type="primary" @click="updateContent" size="mini">保 存</el-button>
+                    <el-button  v-auth="'machine:file:write'" type="primary" @click="updateContent" size="mini">保 存</el-button>
                     <el-button @click="fileContent.contentVisible = false" size="mini">关 闭</el-button>
                 </div>
             </template>

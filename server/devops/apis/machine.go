@@ -63,7 +63,8 @@ func (m *Machine) WsSSH(g *gin.Context) {
 		panic(biz.NewBizErr("升级websocket失败"))
 	}
 	// 权限校验
-	if err = ctx.PermissionHandler(ctx.NewReqCtxWithGin(g)); err != nil {
+	rc := ctx.NewReqCtxWithGin(g).WithRequiredPermission(ctx.NewPermission("machine:terminal"))
+	if err = ctx.PermissionHandler(rc); err != nil {
 		panic(biz.NewBizErr("没有权限"))
 	}
 

@@ -22,14 +22,20 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 
 		// 新增修改机器文件
 		addFileConf := ctx.NewLogInfo("新增机器文件配置")
+		afcP := ctx.NewPermission("machine:file:add")
 		machineFile.POST(":machineId/files", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(addFileConf).Handle(mf.SaveMachineFiles)
+			ctx.NewReqCtxWithGin(c).WithLog(addFileConf).
+				WithRequiredPermission(afcP).
+				Handle(mf.SaveMachineFiles)
 		})
 
 		// 删除机器文件
-		delFileConf := ctx.NewLogInfo("新增机器文件配置")
+		delFileConf := ctx.NewLogInfo("删除机器文件配置")
+		dfcP := ctx.NewPermission("machine:file:del")
 		machineFile.DELETE(":machineId/files/:fileId", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(delFileConf).Handle(mf.DeleteFile)
+			ctx.NewReqCtxWithGin(c).WithLog(delFileConf).
+				WithRequiredPermission(dfcP).
+				Handle(mf.DeleteFile)
 		})
 
 		getContent := ctx.NewLogInfo("读取机器文件内容")
@@ -45,21 +51,27 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 		})
 
 		writeFile := ctx.NewLogInfo("写入or下载文件内容")
+		wfP := ctx.NewPermission("machine:file:write")
 		machineFile.POST(":machineId/files/:fileId/write", func(c *gin.Context) {
-			rc := ctx.NewReqCtxWithGin(c).WithLog(writeFile)
-			rc.Handle(mf.WriteFileContent)
+			ctx.NewReqCtxWithGin(c).WithLog(writeFile).
+				WithRequiredPermission(wfP).
+				Handle(mf.WriteFileContent)
 		})
 
 		uploadFile := ctx.NewLogInfo("文件上传")
+		ufP := ctx.NewPermission("machine:file:upload")
 		machineFile.POST(":machineId/files/:fileId/upload", func(c *gin.Context) {
-			rc := ctx.NewReqCtxWithGin(c).WithLog(uploadFile)
-			rc.Handle(mf.UploadFile)
+			ctx.NewReqCtxWithGin(c).WithLog(uploadFile).
+				WithRequiredPermission(ufP).
+				Handle(mf.UploadFile)
 		})
 
 		removeFile := ctx.NewLogInfo("删除文件or文件夹")
+		rfP := ctx.NewPermission("machine:file:rm")
 		machineFile.DELETE(":machineId/files/:fileId/remove", func(c *gin.Context) {
-			rc := ctx.NewReqCtxWithGin(c).WithLog(removeFile)
-			rc.Handle(mf.RemoveFile)
+			ctx.NewReqCtxWithGin(c).WithLog(removeFile).
+				WithRequiredPermission(rfP).
+				Handle(mf.RemoveFile)
 		})
 	}
 }

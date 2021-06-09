@@ -26,7 +26,7 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 	ginx.BindJsonAndValid(rc.GinCtx, loginForm)
 	rc.ReqParam = loginForm.Username
 
-	account := &entity.Account{Username: loginForm.Username, Password: loginForm.Password}
+	account := &entity.Account{Username: loginForm.Username, Password: utils.Md5(loginForm.Password)}
 	biz.ErrIsNil(a.AccountApp.GetAccount(account, "Id", "Username", "Password", "Status"), "用户名或密码错误")
 	biz.IsTrue(account.IsEnable(), "该账号不可用")
 
@@ -43,6 +43,8 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 			permissions = append(permissions, *v.Code)
 		}
 	}
+	// 保存该账号的权限codes
+	ctx.SavePermissionCodes(account.Id, permissions)
 
 	rc.ResData = map[string]interface{}{
 		"token":       ctx.CreateToken(account.Id, account.Username),

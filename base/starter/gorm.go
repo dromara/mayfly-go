@@ -29,7 +29,7 @@ func GormMysql() *gorm.DB {
 		SingularTable: true,
 	}, Logger: logger.Default.LogMode(logger.Silent)}
 	if db, err := gorm.Open(mysql.New(mysqlConfig), ormConfig); err != nil {
-		global.Log.Panic("连接mysql失败! [%s]")
+		global.Log.Panicf("连接mysql失败! [%s]", err.Error())
 		return nil
 	} else {
 		sqlDB, _ := db.DB()

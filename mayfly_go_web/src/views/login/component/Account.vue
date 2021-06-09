@@ -26,6 +26,7 @@
                         v-model="loginForm.code"
                         clearable
                         autocomplete="off"
+                        @keyup.enter="onSignIn"
                     ></el-input>
                 </el-col>
                 <el-col :span="8">
@@ -61,7 +62,7 @@ export default defineComponent({
         const router = useRouter();
         const state = reactive({
             loginForm: {
-                username: 'admin',
+                username: 'test',
                 password: '123456',
                 code: '1234',
             },

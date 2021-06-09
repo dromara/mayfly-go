@@ -33,9 +33,12 @@ func InitAccountRouter(router *gin.RouterGroup) {
 		})
 
 		saveAccountRole := ctx.NewLogInfo("保存用户角色")
+		sarPermission := ctx.NewPermission("account:saveRoles")
 		// 保存用户角色
 		account.POST("/roles", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(saveAccountRole).Handle(a.SaveRoles)
+			ctx.NewReqCtxWithGin(c).WithLog(saveAccountRole).
+				WithRequiredPermission(sarPermission).
+				Handle(a.SaveRoles)
 		})
 
 		// 获取用户角色

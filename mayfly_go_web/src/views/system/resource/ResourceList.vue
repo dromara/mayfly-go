@@ -202,6 +202,7 @@ export default defineComponent({
                         id: data.id,
                     })
                     .then((res) => {
+                        console.log(res)
                         ElMessage.success('删除成功！');
                         search();
                     });

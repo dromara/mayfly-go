@@ -71,6 +71,12 @@ func (c *timedcache) Add(k string, x interface{}, d time.Duration) error {
 	return nil
 }
 
+func (c *timedcache) Put(k string, x interface{}) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.set(k, x, c.defaultExpiration)
+}
+
 func (c *timedcache) AddIfAbsent(k string, x interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -409,7 +415,7 @@ func NewTimedCache(defaultExpiration, cleanupInterval time.Duration) *TimedCache
 }
 
 // 调用删除函数时，会回调该剔除函数
-func (c *timedcache) OnEvicted(f func(string, interface{})) *timedcache {
+func (c *TimedCache) OnEvicted(f func(string, interface{})) *TimedCache {
 	c.mu.Lock()
 	c.onEvicted = f
 	c.mu.Unlock()
@@ -418,7 +424,7 @@ func (c *timedcache) OnEvicted(f func(string, interface{})) *timedcache {
 
 // 是否更新最后访问时间，是则会更新最后访问时间
 // 即只要在指定缓存时间内都没有访问该缓存，则会失效，反之失效开始时间点为最后访问时间
-func (c *timedcache) WithUpdateAccessTime(update bool) *timedcache {
+func (c *TimedCache) WithUpdateAccessTime(update bool) *TimedCache {
 	c.mu.Lock()
 	c.updateAccessTime = update
 	c.mu.Unlock()

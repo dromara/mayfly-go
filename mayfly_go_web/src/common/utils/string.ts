@@ -16,57 +16,7 @@ export function templateResolve(template: string, param: any) {
     });
 }
 
-// export function textToImg(str: string) {
-//     var name, fsize;
-//     if (str.length < 2) {
-//         name = str;
-//         fsize = 60
-//     } else {
-//         if (str.length == 2) {
-//             name = str.substring(0, str.length);
-//             fsize = 45
-//         } else {
-//             if (str.length == 3) {
-//                 name = str.substring(0, str.length);
-//                 fsize = 30
-//             } else {
-//                 if (str.length == 4) {
-//                     name = str.substring(0, str.length);
-//                     fsize = 25
-//                 } else {
-//                     if (str.length > 4) {
-//                         name = str.substring(0, 2);
-//                         fsize = 45
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//     var fontSize = 60;
-//     var fontWeight = "bold";
-//     var canvas: any = document.getElementById("head_canvas_default");
-//     var img1 = document.getElementById("head_canvas_default");
-//     canvas.width = 120;
-//     canvas.height = 120;
-//     var context = canvas.getContext("2d");
-//     context.fillStyle = getBG();
-//     context.fillRect(0, 0, canvas.width, canvas.height);
-//     context.fillStyle = "#FFF";
-//     context.font = fontWeight + " " + fsize + "px sans-serif";
-//     context.textAlign = "center";
-//     context.textBaseline = "middle";
-//     context.fillText(name, fontSize, fontSize);
-//     return canvas.toDataURL("image/png")
-// }
-// function getBG() {
-//     var bgArray = ["#1abc9c", "#2ecc71", "#3498db", "#9b59b6", "#34495e",
-//         "#16a085", "#27ae60", "#2980b9", "#8e44ad", "#2c3e50", "#f1c40f",
-//         "#e67e22", "#e74c3c", "#eca0f1", "#95a5a6", "#f39c12", "#d35400",
-//         "#c0392b", "#bdc3c7", "#7f8c8d"];
-//     var color = bgArray[Math.floor(Math.random() * bgArray.length)];
-//     return color
-// };
-
+// 首字符头像
 export function letterAvatar(name: string, size = 60, color = '') {
     name = name || '';
     size = size || 60;
@@ -76,6 +26,7 @@ export function letterAvatar(name: string, size = 60, color = '') {
     ],
         nameSplit = String(name).split(' '),
         initials, charIndex, colourIndex, canvas, context, dataURI;
+
     if (nameSplit.length == 1) {
         initials = nameSplit[0] ? nameSplit[0].charAt(0) : '?';
     } else {

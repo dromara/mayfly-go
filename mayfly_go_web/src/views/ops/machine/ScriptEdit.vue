@@ -31,7 +31,7 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk" size="mini" :disabled="submitDisabled">保 存</el-button>
+                    <el-button  v-auth="'machine:script:save'" type="primary" :loading="btnLoading" @click="btnOk" size="mini" :disabled="submitDisabled">保 存</el-button>
                     <el-button @click="cancel()" :disabled="submitDisabled" size="mini">关 闭</el-button>
                 </div>
             </template>

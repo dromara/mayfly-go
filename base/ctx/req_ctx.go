@@ -14,15 +14,17 @@ type HandlerFunc func(*ReqCtx)
 type ReqCtx struct {
 	GinCtx *gin.Context // gin context
 
-	NeedToken    bool                // 是否需要token
-	LoginAccount *model.LoginAccount // 登录账号信息，只有校验token后才会有值
+	// NeedToken          bool                // 是否需要token
+	RequiredPermission *Permission         // 需要的权限信息，默认为nil，需要校验token
+	LoginAccount       *model.LoginAccount // 登录账号信息，只有校验token后才会有值
 
 	LogInfo  *LogInfo    // 日志相关信息
 	ReqParam interface{} // 请求参数，主要用于记录日志
 	ResData  interface{} // 响应结果
 	Err      interface{} // 请求错误
-	timed    int64       // 执行时间
-	noRes    bool        // 无需返回结果，即文件下载等
+
+	timed int64 // 执行时间
+	noRes bool  // 无需返回结果，即文件下载等
 }
 
 func (rc *ReqCtx) Handle(handler HandlerFunc) {
@@ -65,11 +67,11 @@ func (rc *ReqCtx) Download(data []byte, filename string) {
 
 // 新建请求上下文，默认需要校验token
 func NewReqCtx() *ReqCtx {
-	return &ReqCtx{NeedToken: true}
+	return &ReqCtx{}
 }
 
 func NewReqCtxWithGin(g *gin.Context) *ReqCtx {
-	return &ReqCtx{NeedToken: true, GinCtx: g}
+	return &ReqCtx{GinCtx: g}
 }
 
 // 调用该方法设置请求描述，则默认记录日志，并不记录响应结果
@@ -78,9 +80,15 @@ func (r *ReqCtx) WithLog(li *LogInfo) *ReqCtx {
 	return r
 }
 
+// 设置请求上下文需要的权限信息
+func (r *ReqCtx) WithRequiredPermission(permission *Permission) *ReqCtx {
+	r.RequiredPermission = permission
+	return r
+}
+
 // 是否需要token
 func (r *ReqCtx) WithNeedToken(needToken bool) *ReqCtx {
-	r.NeedToken = needToken
+	r.RequiredPermission = &Permission{NeedToken: false}
 	return r
 }
 

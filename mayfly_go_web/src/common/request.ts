@@ -62,14 +62,9 @@ service.interceptors.response.use(
         const data: Result = response.data;
         // 如果提示没有权限，则移除token，使其重新登录
         if (data.code === ResultEnum.NO_PERMISSION) {
-            removeSession('token')
-            notifyErrorMsg('登录超时')
-            setTimeout(() => {
-                router.push({
-                    path: '/login',
-                });
-            }, 1000)
-            return;
+            router.push({
+                path: '/401',
+            });
         }
         if (data.code === ResultEnum.SUCCESS) {
             return data.data;

@@ -12,8 +12,17 @@
                     <el-button @click="editScript(currentData)" :disabled="currentId == null" type="primary" icon="el-icon-tickets" size="mini" plain
                         >查看</el-button
                     >
-                    <el-button type="primary" @click="editScript(null)" icon="el-icon-plus" size="mini" plain>添加</el-button>
-                    <el-button :disabled="currentId == null" type="danger" @click="deleteRow(currentData)" icon="el-icon-delete" size="mini" plain
+                    <el-button v-auth="'machine:script:save'" type="primary" @click="editScript(null)" icon="el-icon-plus" size="mini" plain
+                        >添加</el-button
+                    >
+                    <el-button
+                        v-auth="'machine:script:del'"
+                        :disabled="currentId == null"
+                        type="danger"
+                        @click="deleteRow(currentData)"
+                        icon="el-icon-delete"
+                        size="mini"
+                        plain
                         >删除</el-button
                     >
                 </div>
@@ -40,7 +49,14 @@
                             >确定</el-button
                         >
 
-                        <el-button v-if="scope.row.id != null" @click="runScript(scope.row)" type="primary" icon="el-icon-tickets" size="mini" plain
+                        <el-button
+                            v-auth="'machine:script:run'"
+                            v-if="scope.row.id != null"
+                            @click="runScript(scope.row)"
+                            type="primary"
+                            icon="el-icon-tickets"
+                            size="mini"
+                            plain
                             >执行</el-button
                         >
                     </template>
@@ -78,7 +94,7 @@
 </template>
 
 <script lang="ts">
-import { ref, toRefs, reactive, watch, onMounted, defineComponent } from 'vue';
+import { toRefs, reactive, watch, defineComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SshTerminal from './SshTerminal.vue';
 import { machineApi } from './api';
