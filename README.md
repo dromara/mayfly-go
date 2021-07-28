@@ -12,12 +12,19 @@
 记录操作记录
 ![记录操作记录](https://images.gitee.com/uploads/images/2021/0508/204608_83ef7c33_1240250.png "屏幕截图.png")
 
-#### 数据库操作
+#### 项目管理
 
-![数据库操作](https://images.gitee.com/uploads/images/2021/0607/173807_62a07cda_1240250.png "屏幕截图.png")
+项目信息、项目环境及项目成员管理
+![项目管理](https://images.gitee.com/uploads/images/2021/0728/184742_f4913537_1240250.png "屏幕截图.png")
+
+
+#### 数据库操作
+![数据操作](https://images.gitee.com/uploads/images/2021/0728/184856_e7ec69c2_1240250.png "屏幕截图.png")
+
 
 #### 机器ssh终端
 ![ssh终端](https://images.gitee.com/uploads/images/2021/0607/173245_e2e1e89a_1240250.png "屏幕截图.png")
+
 
 #### 机器文件管理
 
@@ -30,6 +37,7 @@
 文件内容查看与修改
 ![文件内容查看与修改](https://images.gitee.com/uploads/images/2021/0607/173408_98728e08_1240250.png "屏幕截图.png")
 
+
 #### 机器脚本管理
 脚本管理
 ![脚本管理](https://images.gitee.com/uploads/images/2021/0508/174647_94e5d88b_1240250.png "屏幕截图.png")
@@ -40,8 +48,19 @@
 脚本执行
 ![脚本执行](https://images.gitee.com/uploads/images/2021/0508/174846_728de79b_1240250.png "屏幕截图.png")
 
+
 #### 机器监控
 ![监控](https://images.gitee.com/uploads/images/2021/0508/175506_111cfb68_1240250.png "屏幕截图.png")
+
+
+#### redis操作
+
+redis info信息查看
+![redis info信息查看](https://images.gitee.com/uploads/images/2021/0728/184423_50cb5711_1240250.png "info信息查看.png")
+
+redis key操作
+![redis key查看及查询](https://images.gitee.com/uploads/images/2021/0728/184540_1fc607eb_1240250.png "key操作.png")
+
 
 #### 系统管理
 账号管理
