@@ -3,6 +3,7 @@ package ctx
 import (
 	"mayfly-go/base/ginx"
 	"mayfly-go/base/model"
+	"mayfly-go/base/utils/assert"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -37,9 +38,7 @@ func (rc *ReqCtx) Handle(handler HandlerFunc) {
 		// 应用所有请求后置处理器
 		ApplyHandlerInterceptor(afterHandlers, rc)
 	}()
-	if ginCtx == nil {
-		panic("ginContext == nil")
-	}
+	assert.IsTrue(ginCtx != nil, "ginContext == nil")
 
 	// 默认为不记录请求参数，可在handler回调函数中覆盖赋值
 	rc.ReqParam = 0

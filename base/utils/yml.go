@@ -20,3 +20,8 @@ func LoadYml(path string, out interface{}) error {
 	}
 	return nil
 }
+
+func LoadYmlByString(yamlStr string, out interface{}) error {
+	// yaml解析
+	return yaml.Unmarshal([]byte(yamlStr), out)
+}

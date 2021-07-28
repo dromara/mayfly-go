@@ -3,20 +3,12 @@ package model
 import (
 	"encoding/json"
 	"fmt"
+	"mayfly-go/base/biz"
 )
 
 const (
 	SuccessCode = 200
 	SuccessMsg  = "success"
-
-	BizErrorCode = 400
-	BizErrorMsg  = "error"
-
-	ServerErrorCode = 500
-	ServerErrorMsg  = "server error"
-
-	TokenErrorCode = 501
-	TokenErrorMsg  = "token error"
 )
 
 // 统一返回结果结构体
@@ -52,15 +44,19 @@ func SuccessNoData() *Result {
 	return &Result{Code: SuccessCode, Msg: SuccessMsg}
 }
 
-// 返回服务器错误Result
-func ServerError() *Result {
-	return &Result{Code: ServerErrorCode, Msg: ServerErrorMsg}
+func Error(bizerr *biz.BizError) *Result {
+	return &Result{Code: bizerr.Code(), Msg: bizerr.Error()}
 }
 
-func Error(code int16, msg string) *Result {
-	return &Result{Code: code, Msg: msg}
+// 返回服务器错误Result
+func ServerError() *Result {
+	return Error(biz.ServerError)
 }
 
 func TokenError() *Result {
-	return &Result{Code: TokenErrorCode, Msg: TokenErrorMsg}
+	return Error(biz.PermissionErr)
+}
+
+func ErrorBy(code int16, msg string) *Result {
+	return &Result{Code: code, Msg: msg}
 }

@@ -34,6 +34,7 @@ type MachineScriptVO struct {
 	Script      *string `json:"script"`
 	Type        *int    `json:"type"`
 	Description *string `json:"description"`
+	Params      *string `json:"params"`
 	MachineId   *uint64 `json:"machineId"`
 }
 

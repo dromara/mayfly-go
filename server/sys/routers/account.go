@@ -11,9 +11,9 @@ import (
 func InitAccountRouter(router *gin.RouterGroup) {
 	account := router.Group("sys/accounts")
 	a := &apis.Account{
-		AccountApp:  application.Account,
-		ResourceApp: application.Resource,
-		RoleApp:     application.Role,
+		AccountApp:  application.AccountApp,
+		ResourceApp: application.ResourceApp,
+		RoleApp:     application.RoleApp,
 	}
 	{
 		// 用户登录
@@ -27,14 +27,39 @@ func InitAccountRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(a.Accounts)
 		})
 
+		createAccount := ctx.NewLogInfo("创建账号")
+		addAccountPermission := ctx.NewPermission("account:add")
+		account.POST("", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).
+				WithRequiredPermission(addAccountPermission).
+				WithLog(createAccount).
+				Handle(a.CreateAccount)
+		})
+
+		changeStatus := ctx.NewLogInfo("修改账号状态")
+		account.PUT("change-status/:id/:status", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).
+				WithLog(changeStatus).
+				Handle(a.ChangeStatus)
+		})
+
+		delAccount := ctx.NewLogInfo("删除账号")
+		delAccountPermission := ctx.NewPermission("account:del")
+		account.DELETE(":id", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).
+				WithRequiredPermission(delAccountPermission).
+				WithLog(delAccount).
+				Handle(a.DeleteAccount)
+		})
+
 		// 获取所有用户角色id列表
 		account.GET(":id/roleIds", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(a.AccountRoleIds)
 		})
 
+		// 保存用户角色
 		saveAccountRole := ctx.NewLogInfo("保存用户角色")
 		sarPermission := ctx.NewPermission("account:saveRoles")
-		// 保存用户角色
 		account.POST("/roles", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(saveAccountRole).
 				WithRequiredPermission(sarPermission).

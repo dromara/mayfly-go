@@ -3,11 +3,13 @@ import Api from '@/common/Api';
 export const dbApi = {
     // 获取权限列表
     dbs: Api.create("/dbs", 'get'),
+    saveDb: Api.create("/dbs", 'post'),
+    deleteDb: Api.create("/dbs/{id}", 'delete'),
     tableMetadata: Api.create("/dbs/{id}/t-metadata", 'get'),
     columnMetadata: Api.create("/dbs/{id}/c-metadata", 'get'),
     // 获取表即列提示
     hintTables: Api.create("/dbs/{id}/hint-tables", 'get'),
-    selectData: Api.create("/dbs/{id}/select", 'get'),
+    sqlExec: Api.create("/dbs/{id}/exec-sql", 'get'),
     // 保存sql
     saveSql: Api.create("/dbs/{id}/sql", 'post'),
     // 获取保存的sql

@@ -7,8 +7,8 @@
                         <img :src="getUserInfos.photo" />
                         <div class="home-card-first-right ml15">
                             <div class="flex-margin">
-                                <div class="home-card-first-right-title">{{ currentTime }}，admin！</div>
-                                <div class="home-card-first-right-msg mt5">超级管理</div>
+                                <div class="home-card-first-right-title">{{ `${currentTime}, ${getUserInfos.username}` }}</div>
+                                <!-- <div class="home-card-first-right-msg mt5">超级管理</div> -->
                             </div>
                         </div>
                     </div>

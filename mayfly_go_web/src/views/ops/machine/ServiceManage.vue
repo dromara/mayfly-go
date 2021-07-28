@@ -36,7 +36,7 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="name" label="名称" :min-width="50"> </el-table-column>
+                <el-table-column prop="name" label="名称" :min-width="70"> </el-table-column>
                 <el-table-column prop="description" label="描述" :min-width="100" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="name" label="类型" :min-width="50">
                     <template #default="scope">
@@ -62,6 +62,19 @@
                     </template>
                 </el-table-column>
             </el-table>
+        </el-dialog>
+
+        <el-dialog title="脚本参数" v-model="scriptParamsDialog.visible" width="400px">
+            <el-form ref="paramsForm" :model="scriptParamsDialog.params" label-width="70px" size="mini">
+                <el-form-item v-for="item in scriptParamsDialog.paramsFormItem" :key="item.name" :prop="item.model" :label="item.name" required>
+                    <el-input v-model="scriptParamsDialog.params[item.model]" :placeholder="item.placeholder" autocomplete="off"></el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button type="primary" @click="hasParamsRun(currentData)" size="mini">确 定</el-button>
+                </span>
+            </template>
         </el-dialog>
 
         <el-dialog title="执行结果" v-model="resultDialog.visible" width="40%">
@@ -94,7 +107,7 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, watch, defineComponent } from 'vue';
+import { ref, toRefs, reactive, watch, defineComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import SshTerminal from './SshTerminal.vue';
 import { machineApi } from './api';
@@ -113,6 +126,7 @@ export default defineComponent({
         title: { type: String },
     },
     setup(props: any, context) {
+        const paramsForm: any = ref(null);
         const state = reactive({
             visible: false,
             type: 0,
@@ -125,6 +139,11 @@ export default defineComponent({
                 machineId: 9999999,
             },
             scriptTable: [],
+            scriptParamsDialog: {
+                visible: false,
+                params: {},
+                paramsFormItem: [],
+            },
             resultDialog: {
                 visible: false,
                 result: '',
@@ -152,13 +171,43 @@ export default defineComponent({
         };
 
         const runScript = async (script: any) => {
+            // 如果存在参数，则弹窗输入参数后执行
+            if (script.params) {
+                state.scriptParamsDialog.paramsFormItem = JSON.parse(script.params);
+                state.scriptParamsDialog.visible = true;
+                return;
+            }
+
+            run(script);
+        };
+
+        // 有参数的脚本执行函数
+        const hasParamsRun = async (script: any) => {
+            // 如果脚本参数弹窗显示，则校验参数表单数据通过后执行
+            if (state.scriptParamsDialog.visible) {
+                paramsForm.value.validate((valid: any) => {
+                    if (valid) {
+                        run(script);
+                        state.scriptParamsDialog.params = {};
+                        state.scriptParamsDialog.visible = false;
+                        paramsForm.value.resetFields();
+                    } else {
+                        return false;
+                    }
+                });
+            }
+        };
+
+        const run = async (script: any) => {
             const noResult = script.type == enums.scriptTypeEnum['NO_RESULT'].value;
             // 如果脚本类型为有结果类型，则显示结果信息
             if (script.type == enums.scriptTypeEnum['RESULT'].value || noResult) {
                 const res = await machineApi.runScript.request({
                     machineId: props.machineId,
                     scriptId: script.id,
+                    params: state.scriptParamsDialog.params,
                 });
+
                 if (noResult) {
                     ElMessage.success('执行完成');
                     return;
@@ -241,9 +290,11 @@ export default defineComponent({
 
         return {
             ...toRefs(state),
+            paramsForm,
             enums,
             getScripts,
             runScript,
+            hasParamsRun,
             closeTermnial,
             choose,
             editScript,

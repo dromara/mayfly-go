@@ -2,6 +2,9 @@ package logger
 
 import (
 	"fmt"
+	"mayfly-go/base/config"
+	"mayfly-go/base/global"
+	"os"
 	"strings"
 	"time"
 
@@ -11,12 +14,38 @@ import (
 var Log = logrus.New()
 
 func init() {
-	// customFormatter := new(logrus.TextFormatter)
-	// customFormatter.TimestampFormat = "2006-01-02 15:04:05.000"
-	// customFormatter.FullTimestamp = true
 	Log.SetFormatter(new(LogFormatter))
 	Log.SetReportCaller(true)
-	Log.SetLevel(logrus.DebugLevel)
+
+	logConf := config.Conf.Log
+	// 如果不存在日志配置信息，则默认debug级别
+	if logConf == nil {
+		Log.SetLevel(logrus.DebugLevel)
+		return
+	}
+
+	// 根据配置文件设置日志级别
+	if level := logConf.Level; level != "" {
+		l, err := logrus.ParseLevel(level)
+		if err != nil {
+			panic(fmt.Sprintf("日志级别不存在: %s", level))
+		}
+		Log.SetLevel(l)
+	} else {
+		Log.SetLevel(logrus.DebugLevel)
+	}
+
+	if logFile := logConf.File; logFile != nil {
+		//写入文件
+		file, err := os.OpenFile(logFile.GetFilename(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModeAppend|0666)
+		if err != nil {
+			panic(fmt.Sprintf("创建日志文件失败: %s", err.Error()))
+		}
+
+		Log.Out = file
+	}
+
+	global.Log = Log
 }
 
 type LogFormatter struct{}

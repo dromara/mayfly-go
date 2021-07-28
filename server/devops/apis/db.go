@@ -6,6 +6,7 @@ import (
 	"mayfly-go/base/ctx"
 	"mayfly-go/base/ginx"
 	"mayfly-go/base/model"
+	"mayfly-go/base/utils"
 	"mayfly-go/server/devops/apis/form"
 	"mayfly-go/server/devops/apis/vo"
 	"mayfly-go/server/devops/application"
@@ -17,45 +18,73 @@ import (
 )
 
 type Db struct {
-	DbApp application.IDb
+	DbApp application.Db
 }
 
 // @router /api/dbs [get]
 func (d *Db) Dbs(rc *ctx.ReqCtx) {
-	m := new(entity.Db)
+	g := rc.GinCtx
+	m := &entity.Db{EnvId: uint64(ginx.QueryInt(g, "envId", 0)),
+		ProjectId: uint64(ginx.QueryInt(g, "projectId", 0)),
+		Database:  g.Query("database"),
+	}
+	ginx.BindQuery(g, m)
 	rc.ResData = d.DbApp.GetPageList(m, ginx.GetPageParam(rc.GinCtx), new([]vo.SelectDataDbVO))
 }
 
-// @router /api/db/:dbId/select [get]
-func (d *Db) SelectData(rc *ctx.ReqCtx) {
+func (d *Db) Save(rc *ctx.ReqCtx) {
+	form := &form.DbForm{}
+	ginx.BindJsonAndValid(rc.GinCtx, form)
+
+	rc.ReqParam = form
+
+	db := new(entity.Db)
+	utils.Copy(db, form)
+	db.SetBaseInfo(rc.LoginAccount)
+	d.DbApp.Save(db)
+}
+
+func (d *Db) DeleteDb(rc *ctx.ReqCtx) {
+	d.DbApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+}
+
+// @router /api/db/:dbId/exec-sql [get]
+func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	// 去除前后空格及换行符
-	selectSql := strings.TrimFunc(g.Query("selectSql"), func(r rune) bool {
+	sql := strings.TrimFunc(g.Query("sql"), func(r rune) bool {
 		s := string(r)
 		return s == " " || s == "\n"
 	})
-	rc.ReqParam = selectSql
+	rc.ReqParam = sql
 
-	biz.NotEmpty(selectSql, "selectSql不能为空")
-	res, err := d.DbApp.GetDbInstance(GetDbId(g)).SelectData(selectSql)
-	if err != nil {
-		panic(biz.NewBizErr(fmt.Sprintf("查询失败: %s", err.Error())))
-	}
-	rc.ResData = res
-}
-
-// @router /api/db/:dbId/exec-sql [post]
-func (d *Db) ExecSql(g *gin.Context) {
-	rc := ctx.NewReqCtxWithGin(g).WithLog(ctx.NewLogInfo("sql执行"))
-	rc.Handle(func(rc *ctx.ReqCtx) {
-		selectSql := g.Query("sql")
-		biz.NotEmpty(selectSql, "sql不能为空")
-		num, err := d.DbApp.GetDbInstance(GetDbId(rc.GinCtx)).Exec(selectSql)
+	biz.NotEmpty(sql, "sql不能为空")
+	if strings.HasPrefix(sql, "SELECT") || strings.HasPrefix(sql, "select") {
+		colNames, res, err := d.DbApp.GetDbInstance(GetDbId(g)).SelectData(sql)
+		if err != nil {
+			panic(biz.NewBizErr(fmt.Sprintf("查询失败: %s", err.Error())))
+		}
+		colAndRes := make(map[string]interface{})
+		colAndRes["colNames"] = colNames
+		colAndRes["res"] = res
+		rc.ResData = colAndRes
+	} else {
+		rowsAffected, err := d.DbApp.GetDbInstance(GetDbId(g)).Exec(sql)
 		if err != nil {
 			panic(biz.NewBizErr(fmt.Sprintf("执行失败: %s", err.Error())))
 		}
-		rc.ResData = num
-	})
+		res := make([]map[string]string, 0)
+		resData := make(map[string]string)
+		resData["影响条数"] = fmt.Sprintf("%d", rowsAffected)
+		res = append(res, resData)
+
+		colAndRes := make(map[string]interface{})
+		colAndRes["colNames"] = []string{"影响条数"}
+		colAndRes["res"] = res
+
+		rc.ResData = colAndRes
+	}
+
 }
 
 // @router /api/db/:dbId/t-metadata [get]
@@ -74,21 +103,32 @@ func (d *Db) ColumnMA(rc *ctx.ReqCtx) {
 // @router /api/db/:dbId/hint-tables [get]
 func (d *Db) HintTables(rc *ctx.ReqCtx) {
 	dbi := d.DbApp.GetDbInstance(GetDbId(rc.GinCtx))
+	// 获取所有表
 	tables := dbi.GetTableMetedatas()
-	res := make(map[string][]string)
+
+	tableNames := make([]string, 0)
 	for _, v := range tables {
-		tableName := v["tableName"]
-		columnMds := dbi.GetColumnMetadatas(tableName)
-		columnNames := make([]string, len(columnMds))
-		for i, v := range columnMds {
-			comment := v["columnComment"]
-			if comment != "" {
-				columnNames[i] = v["columnName"] + " [" + comment + "]"
-			} else {
-				columnNames[i] = v["columnName"]
-			}
+		tableNames = append(tableNames, v["tableName"])
+	}
+	// 获取所有表下的所有列信息
+	columnMds := dbi.GetColumnMetadatas(tableNames...)
+	// key = 表名，value = 列名数组
+	res := make(map[string][]string)
+
+	for _, v := range columnMds {
+		tName := v["tableName"]
+		if res[tName] == nil {
+			res[tName] = make([]string, 0)
 		}
-		res[tableName] = columnNames
+
+		columnName := fmt.Sprintf("%s  [%s]", v["columnName"], v["columnType"])
+		comment := v["columnComment"]
+		// 如果字段备注不为空，则加上备注信息
+		if comment != "" {
+			columnName = fmt.Sprintf("%s[%s]", columnName, comment)
+		}
+
+		res[tName] = append(res[tName], columnName)
 	}
 	rc.ResData = res
 }

@@ -14,8 +14,8 @@ body,
 	padding: 0;
 	width: 100%;
 	height: 100%;
-	font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, SimSun, sans-serif;
-	font-weight: 500;
+	font-family: Microsoft YaHei, Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, SimSun, sans-serif;
+	font-weight: 450;
 	-webkit-font-smoothing: antialiased;
 	-webkit-tap-highlight-color: transparent;
 	background-color: #f8f8f8;
@@ -274,7 +274,7 @@ body,
 
 .toolbar {
     width: 100%;
-    padding: 8px;
+    padding: 6px;
     background-color: #ffffff;
     overflow: hidden;
     line-height: 32px;
@@ -283,4 +283,10 @@ body,
 
 .fl {
     float: left;
+}
+
+.search-form {
+    .el-form-item {
+        margin-bottom: 3px;
+    }
 }

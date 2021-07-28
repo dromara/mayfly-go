@@ -12,7 +12,7 @@ type machineScriptRepo struct{}
 var MachineScriptDao repository.MachineScript = &machineScriptRepo{}
 
 // 分页获取机器信息列表
-func (m *machineScriptRepo) GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) model.PageResult {
+func (m *machineScriptRepo) GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, toEntity, orderBy...)
 }
 

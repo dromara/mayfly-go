@@ -4,10 +4,10 @@
             <div class="left">
                 <div class="left-item">
                     <div class="left-item-animation left-item-num">401</div>
-                    <div class="left-item-animation left-item-title">您未被授权，没有操作权限</div>
+                    <div class="left-item-animation left-item-title">您未被授权或登录超时，没有操作权限</div>
                     <div class="left-item-animation left-item-msg"></div>
                     <div class="left-item-animation left-item-btn">
-                        <el-button type="primary" round @click="onSetAuth">重新授权</el-button>
+                        <el-button type="primary" round @click="onSetAuth">重新登录</el-button>
                     </div>
                 </div>
             </div>

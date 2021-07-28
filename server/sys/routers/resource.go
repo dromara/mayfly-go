@@ -9,7 +9,7 @@ import (
 )
 
 func InitResourceRouter(router *gin.RouterGroup) {
-	r := &apis.Resource{ResourceApp: application.Resource}
+	r := &apis.Resource{ResourceApp: application.ResourceApp}
 	db := router.Group("sys/resources")
 	{
 		// db.GET("/account", func(c *gin.Context) {

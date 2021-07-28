@@ -12,8 +12,8 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 	machineFile := router.Group("machines")
 	{
 		mf := &apis.MachineFile{
-			MachineFileApp: application.MachineFile,
-			MachineApp:     application.Machine}
+			MachineFileApp: application.MachineFileApp,
+			MachineApp:     application.MachineApp}
 
 		// 获取指定机器文件列表
 		machineFile.GET(":machineId/files", func(c *gin.Context) {

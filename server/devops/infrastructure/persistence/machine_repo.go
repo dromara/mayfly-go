@@ -11,7 +11,7 @@ type machineRepo struct{}
 var MachineDao repository.Machine = &machineRepo{}
 
 // 分页获取机器信息列表
-func (m *machineRepo) GetMachineList(condition *entity.Machine, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) model.PageResult {
+func (m *machineRepo) GetMachineList(condition *entity.Machine, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, toEntity, orderBy...)
 }
 

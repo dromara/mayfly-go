@@ -13,6 +13,10 @@ type Resource struct {
 	Meta   string `json:"meta"`
 }
 
+func (a *Resource) TableName() string {
+	return "t_sys_resource"
+}
+
 const (
 	ResourceStatusEnable  int8 = 1  // 启用状态
 	ResourceStatusDisable int8 = -1 // 禁用状态

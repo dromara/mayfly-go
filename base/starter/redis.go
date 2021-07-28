@@ -2,6 +2,7 @@ package starter
 
 import (
 	"fmt"
+	"mayfly-go/base/config"
 	"mayfly-go/base/global"
 
 	"github.com/go-redis/redis"
@@ -9,7 +10,7 @@ import (
 
 func ConnRedis() *redis.Client {
 	// 设置redis客户端
-	redisConf := global.Config.Redis
+	redisConf := config.Conf.Redis
 	if redisConf == nil {
 		global.Log.Panic("未找到redis配置信息")
 	}

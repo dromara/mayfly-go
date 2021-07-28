@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-type IResource interface {
+type Resource interface {
 	GetResourceList(condition *entity.Resource, toEntity interface{}, orderBy ...string)
 
 	GetById(id uint64, cols ...string) *entity.Resource
@@ -23,28 +23,28 @@ type IResource interface {
 	GetAccountResources(accountId uint64, toEntity interface{})
 }
 
-type resourceApp struct {
+type resourceAppImpl struct {
 	resourceRepo repository.Resource
 }
 
 // 实现类单例
-var Resource IResource = &resourceApp{
+var ResourceApp Resource = &resourceAppImpl{
 	resourceRepo: persistence.ResourceDao,
 }
 
-func (r *resourceApp) GetResourceList(condition *entity.Resource, toEntity interface{}, orderBy ...string) {
+func (r *resourceAppImpl) GetResourceList(condition *entity.Resource, toEntity interface{}, orderBy ...string) {
 	r.resourceRepo.GetResourceList(condition, toEntity, orderBy...)
 }
 
-func (r *resourceApp) GetById(id uint64, cols ...string) *entity.Resource {
+func (r *resourceAppImpl) GetById(id uint64, cols ...string) *entity.Resource {
 	return r.resourceRepo.GetById(id, cols...)
 }
 
-func (r *resourceApp) GetByIdIn(ids []uint64, toEntity interface{}, orderBy ...string) {
+func (r *resourceAppImpl) GetByIdIn(ids []uint64, toEntity interface{}, orderBy ...string) {
 	r.resourceRepo.GetByIdIn(ids, toEntity, orderBy...)
 }
 
-func (r *resourceApp) Save(resource *entity.Resource) {
+func (r *resourceAppImpl) Save(resource *entity.Resource) {
 	if resource.Id != 0 {
 		if resource.Code != "" {
 			oldRes := r.GetById(resource.Id, "Code")
@@ -67,12 +67,12 @@ func (r *resourceApp) Save(resource *entity.Resource) {
 	}
 }
 
-func (r *resourceApp) checkCode(code string) {
+func (r *resourceAppImpl) checkCode(code string) {
 	biz.IsTrue(!strings.Contains(code, ","), "code不能包含','")
 	biz.IsEquals(model.CountBy(&entity.Resource{Code: code}), int64(0), "该code已存在")
 }
 
-func (r *resourceApp) Delete(id uint64) {
+func (r *resourceAppImpl) Delete(id uint64) {
 	// 查找pid == id的资源
 	condition := &entity.Resource{Pid: int(id)}
 	var resources resourceList
@@ -84,7 +84,7 @@ func (r *resourceApp) Delete(id uint64) {
 	model.DeleteByCondition(&entity.RoleResource{ResourceId: id})
 }
 
-func (r *resourceApp) GetAccountResources(accountId uint64, toEntity interface{}) {
+func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity interface{}) {
 	r.resourceRepo.GetAccountResources(accountId, toEntity)
 }
 

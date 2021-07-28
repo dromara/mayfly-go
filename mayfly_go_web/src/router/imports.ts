@@ -8,5 +8,9 @@ export const imports = {
     "ResourceList": () => import('@/views/system/resource'),
     "RoleList": () => import('@/views/system/role'),
     "AccountList": () => import('@/views/system/account'),
-    "SelectData": () => import('@/views/ops/db'),
+    "ProjectList": () => import('@/views/ops/project/ProjectList.vue'),
+    "DbList": () => import('@/views/ops/db/DbList.vue'),
+    "SqlExec": () => import('@/views/ops/db'),
+    "RedisList": () => import('@/views/ops/redis'),
+    "DataOperation": () => import('@/views/ops/redis/DataOperation.vue'),
 }

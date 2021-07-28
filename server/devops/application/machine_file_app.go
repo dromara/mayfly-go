@@ -15,9 +15,9 @@ import (
 	"github.com/pkg/sftp"
 )
 
-type IMachineFile interface {
+type MachineFile interface {
 	// 分页获取机器文件信息列表
-	GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) model.PageResult
+	GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
 	// 根据条件获取
 	GetMachineFile(condition *entity.MachineFile, cols ...string) error
@@ -47,34 +47,34 @@ type IMachineFile interface {
 	RemoveFile(fileId uint64, path string)
 }
 
-type machineFileApp struct {
+type machineFileAppImpl struct {
 	machineFileRepo repository.MachineFile
 	machineRepo     repository.Machine
 }
 
 // 实现类单例
-var MachineFile IMachineFile = &machineFileApp{
+var MachineFileApp MachineFile = &machineFileAppImpl{
 	machineRepo:     persistence.MachineDao,
 	machineFileRepo: persistence.MachineFileDao,
 }
 
 // 分页获取机器脚本信息列表
-func (m *machineFileApp) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) model.PageResult {
+func (m *machineFileAppImpl) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return m.machineFileRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 // 根据条件获取
-func (m *machineFileApp) GetMachineFile(condition *entity.MachineFile, cols ...string) error {
+func (m *machineFileAppImpl) GetMachineFile(condition *entity.MachineFile, cols ...string) error {
 	return m.machineFileRepo.GetMachineFile(condition, cols...)
 }
 
 // 根据id获取
-func (m *machineFileApp) GetById(id uint64, cols ...string) *entity.MachineFile {
+func (m *machineFileAppImpl) GetById(id uint64, cols ...string) *entity.MachineFile {
 	return m.machineFileRepo.GetById(id, cols...)
 }
 
 // 保存机器文件配置
-func (m *machineFileApp) Save(entity *entity.MachineFile) {
+func (m *machineFileAppImpl) Save(entity *entity.MachineFile) {
 	biz.NotNil(m.machineRepo.GetById(entity.MachineId, "Name"), "该机器不存在")
 
 	if entity.Id != 0 {
@@ -85,11 +85,11 @@ func (m *machineFileApp) Save(entity *entity.MachineFile) {
 }
 
 // 根据id删除
-func (m *machineFileApp) Delete(id uint64) {
+func (m *machineFileAppImpl) Delete(id uint64) {
 	m.machineFileRepo.Delete(id)
 }
 
-func (m *machineFileApp) ReadDir(fid uint64, path string) []fs.FileInfo {
+func (m *machineFileAppImpl) ReadDir(fid uint64, path string) []fs.FileInfo {
 	path, machineId := m.checkAndReturnPathMid(fid, path)
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
@@ -101,7 +101,7 @@ func (m *machineFileApp) ReadDir(fid uint64, path string) []fs.FileInfo {
 	return fis
 }
 
-func (m *machineFileApp) ReadFile(fileId uint64, path string) ([]byte, fs.FileInfo) {
+func (m *machineFileAppImpl) ReadFile(fileId uint64, path string) ([]byte, fs.FileInfo) {
 	path, machineId := m.checkAndReturnPathMid(fileId, path)
 	sftpCli := m.getSftpCli(machineId)
 	// 读取文件内容
@@ -119,7 +119,7 @@ func (m *machineFileApp) ReadFile(fileId uint64, path string) ([]byte, fs.FileIn
 }
 
 // 写文件内容
-func (m *machineFileApp) WriteFileContent(fileId uint64, path string, content []byte) {
+func (m *machineFileAppImpl) WriteFileContent(fileId uint64, path string, content []byte) {
 	_, machineId := m.checkAndReturnPathMid(fileId, path)
 
 	sftpCli := m.getSftpCli(machineId)
@@ -133,7 +133,7 @@ func (m *machineFileApp) WriteFileContent(fileId uint64, path string, content []
 }
 
 // 上传文件
-func (m *machineFileApp) UploadFile(fileId uint64, path, filename string, content []byte) {
+func (m *machineFileAppImpl) UploadFile(fileId uint64, path, filename string, content []byte) {
 	path, machineId := m.checkAndReturnPathMid(fileId, path)
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
@@ -148,7 +148,7 @@ func (m *machineFileApp) UploadFile(fileId uint64, path, filename string, conten
 }
 
 // 删除文件
-func (m *machineFileApp) RemoveFile(fileId uint64, path string) {
+func (m *machineFileAppImpl) RemoveFile(fileId uint64, path string) {
 	path, machineId := m.checkAndReturnPathMid(fileId, path)
 
 	sftpCli := m.getSftpCli(machineId)
@@ -164,12 +164,12 @@ func (m *machineFileApp) RemoveFile(fileId uint64, path string) {
 }
 
 // 获取sftp client
-func (m *machineFileApp) getSftpCli(machineId uint64) *sftp.Client {
-	return Machine.GetCli(machineId).GetSftpCli()
+func (m *machineFileAppImpl) getSftpCli(machineId uint64) *sftp.Client {
+	return MachineApp.GetCli(machineId).GetSftpCli()
 }
 
 // 校验并返回实际可访问的文件path
-func (m *machineFileApp) checkAndReturnPathMid(fid uint64, inputPath string) (string, uint64) {
+func (m *machineFileAppImpl) checkAndReturnPathMid(fid uint64, inputPath string) (string, uint64) {
 	biz.IsTrue(fid != 0, "文件id不能为空")
 	mf := m.GetById(uint64(fid))
 	biz.NotNil(mf, "文件不存在")

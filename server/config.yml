@@ -1,5 +1,5 @@
 app:
-  name: devops
+  name: mayfly-go
   version: 1.0.0
   
 server:
@@ -7,6 +7,10 @@ server:
   model: release
   port: 8888
   cors: true
+  tls:
+    enable: false
+    key-file: ./default.key
+    cert-file: ./default.pem
   # 静态资源
   static:
     - relative-path: /assets
@@ -18,6 +22,11 @@ server:
     - relative-path: /favicon.ico
       filepath: ./static/favicon.ico
 
+jwt:
+  key: mykey
+  # 过期时间单位分钟
+  expire-time: 1440
+
 redis:
   host: 127.0.0.1
   port: 6379
@@ -28,3 +37,10 @@ mysql:
   password: 111049
   db-name: mayfly-job
   config: charset=utf8&loc=Local&parseTime=true
+
+log:
+   # 日志等级, trace, debug, info, warn, error, fatal
+  level: info
+  # file:
+  #   path: ./
+  #   name: mayfly.log

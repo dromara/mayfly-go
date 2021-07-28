@@ -24,6 +24,10 @@
                     </el-select>
                 </el-form-item>
 
+                <el-form-item prop="params" label="参数">
+                    <el-input v-model.trim="form.params" placeholder="参数数组json，若无可不填"></el-input>
+                </el-form-item>
+
                 <el-form-item prop="script" label="内容" id="content">
                     <codemirror ref="cmEditor" v-model="form.script" language="shell" />
                 </el-form-item>
@@ -31,7 +35,15 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button  v-auth="'machine:script:save'" type="primary" :loading="btnLoading" @click="btnOk" size="mini" :disabled="submitDisabled">保 存</el-button>
+                    <el-button
+                        v-auth="'machine:script:save'"
+                        type="primary"
+                        :loading="btnLoading"
+                        @click="btnOk"
+                        size="mini"
+                        :disabled="submitDisabled"
+                        >保 存</el-button
+                    >
                     <el-button @click="cancel()" :disabled="submitDisabled" size="mini">关 闭</el-button>
                 </div>
             </template>
@@ -83,6 +95,7 @@ export default defineComponent({
                 machineId: 0,
                 description: '',
                 script: '',
+                params: null,
                 type: null,
             },
             btnLoading: false,

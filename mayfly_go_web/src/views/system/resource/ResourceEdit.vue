@@ -13,7 +13,7 @@
                 </el-form-item>
 
                 <el-form-item prop="code" label="path|code">
-                    <el-input v-model.trim="form.code" placeholder="菜单为路由path"></el-input>
+                    <el-input v-model.trim="form.code" placeholder="菜单不带/自动拼接父路径"></el-input>
                 </el-form-item>
 
                 <el-form-item label="序号" prop="weight" required>

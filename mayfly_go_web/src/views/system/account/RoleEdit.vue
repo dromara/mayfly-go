@@ -13,8 +13,9 @@
                 </div>
             </div>
             <el-table :data="allRole" border ref="roleTable" @select="select" style="width: 100%">
-                <el-table-column type="selection" width="40"></el-table-column>
+                <el-table-column :selectable="selectable" type="selection" width="40"></el-table-column>
                 <el-table-column prop="name" label="角色名称"></el-table-column>
+                 <el-table-column prop="code" label="角色code"></el-table-column>
                 <el-table-column prop="remark" label="角色描述">
                     <template #default="scope">
                         {{ scope.row.remark ? scope.row.remark : '暂无描述' }}
@@ -92,6 +93,11 @@ export default defineComponent({
             search();
         };
 
+        const selectable = (row: any) => {
+            // 角色code不以COMMON开头才可勾选
+            return row.code.indexOf('COMMON') != 0;
+        };
+
         const select = (val: any, row: any) => {
             let roles = state.roles;
             // 如果账号的角色id存在则为取消该角色(删除角色id列表中的该记录id)，否则为新增角色
@@ -164,6 +170,7 @@ export default defineComponent({
             roleTable,
             search,
             handlePageChange,
+            selectable,
             select,
             btnOk,
             cancel,

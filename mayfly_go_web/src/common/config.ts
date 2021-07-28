@@ -1,5 +1,5 @@
 const config = {
-    baseApiUrl: import.meta.env.VITE_API_URL
+    baseApiUrl:  (window as any).globalConfig.BaseApiUrl
 }
 
 export default config

@@ -19,8 +19,8 @@ import (
 )
 
 type MachineFile struct {
-	MachineFileApp application.IMachineFile
-	MachineApp     application.IMachine
+	MachineFileApp application.MachineFile
+	MachineApp     application.Machine
 }
 
 const (

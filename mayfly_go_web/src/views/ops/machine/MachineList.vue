@@ -42,16 +42,19 @@
                 </template>
             </el-table-column>
             <el-table-column prop="name" label="名称" width></el-table-column>
-            <el-table-column prop="ip" label="IP" width></el-table-column>
-            <el-table-column prop="port" label="端口" :min-width="40"></el-table-column>
-            <el-table-column prop="username" label="用户名" :min-width="40"></el-table-column>
-            <el-table-column prop="createTime" label="创建时间" :min-width="100">
+            <el-table-column prop="ip" label="ip:port" min-width="160">
+                <template #default="scope">
+                    {{ `${scope.row.ip}:${scope.row.port}` }}
+                </template>
+            </el-table-column>
+            <el-table-column prop="username" label="用户名" :min-width="45"></el-table-column>
+            <el-table-column prop="createTime" label="创建时间" min-width="160">
                 <template #default="scope">
                     {{ $filters.dateFormat(scope.row.createTime) }}
                 </template>
             </el-table-column>
-            <el-table-column prop="creator" label="创建者" :min-width="50"></el-table-column>
-            <el-table-column prop="updateTime" label="更新时间" :min-width="100">
+            <el-table-column prop="creator" label="创建者" min-width="50"></el-table-column>
+            <el-table-column prop="updateTime" label="更新时间" min-width="160">
                 <template #default="scope">
                     {{ $filters.dateFormat(scope.row.updateTime) }}
                 </template>
@@ -59,7 +62,7 @@
             <el-table-column prop="modifier" label="修改者" :min-width="50"></el-table-column>
             <el-table-column label="操作" min-width="200px">
                 <template #default="scope">
-                    <el-button type="primary" @click="monitor(scope.row.id)" icom="el-icon-tickets" size="mini" plain>监控</el-button>
+                    <!-- <el-button type="primary" @click="monitor(scope.row.id)" icom="el-icon-tickets" size="mini" plain>监控</el-button> -->
                     <el-button type="success" @click="serviceManager(scope.row)" size="mini" plain>脚本管理</el-button>
                     <el-button v-auth="'machine:terminal'" type="success" @click="showTerminal(scope.row)" size="mini" plain>终端</el-button>
                 </template>
@@ -75,6 +78,12 @@
             :page-size="params.pageSize"
         />
 
+        <machine-edit
+            :title="machineEditDialog.title"
+            v-model:visible="machineEditDialog.visible"
+            v-model:machine="machineEditDialog.data"
+        ></machine-edit>
+
         <!-- <el-dialog @close="closeMonitor" title="监控信息" v-model="monitorDialog.visible" width="60%">
 			<monitor ref="monitorDialogRef" :machineId="monitorDialog.machineId" />
 		</el-dialog> -->
@@ -82,40 +91,32 @@
         <service-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible" v-model:machineId="serviceDialog.machineId" />
 
         <file-manage :title="fileDialog.title" v-model:visible="fileDialog.visible" v-model:machineId="fileDialog.machineId" />
-
-        <dynamic-form-dialog
-            v-model:visible="formDialog.visible"
-            :title="formDialog.title"
-            :formInfo="formDialog.formInfo"
-            v-model:formData="formDialog.formData"
-            @submitSuccess="submitSuccess"
-        ></dynamic-form-dialog>
     </div>
 </template>
 
 <script lang="ts">
 import { toRefs, reactive, onMounted, defineComponent } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { DynamicFormDialog } from '@/components/dynamic-form';
 // import Monitor from './Monitor.vue';
 import { machineApi } from './api';
 import SshTerminal from './SshTerminal.vue';
 import ServiceManage from './ServiceManage.vue';
 import FileManage from './FileManage.vue';
+import MachineEdit from './MachineEdit.vue';
 
 export default defineComponent({
     name: 'MachineList',
     components: {
-        // Monitor,
         SshTerminal,
         ServiceManage,
         FileManage,
         DynamicFormDialog,
+        MachineEdit,
     },
     setup() {
         const router = useRouter();
-        // const monitorDialogRef = ref();
         const state = reactive({
             params: {
                 pageNum: 1,
@@ -149,86 +150,10 @@ export default defineComponent({
                 visible: false,
                 machineId: 0,
             },
-            formDialog: {
+            machineEditDialog: {
                 visible: false,
-                title: '',
-                formInfo: {
-                    createApi: machineApi.save,
-                    updateApi: machineApi.save,
-                    formRows: [
-                        [
-                            {
-                                type: 'input',
-                                label: '名称：',
-                                name: 'name',
-                                placeholder: '请输入名称',
-                                rules: [
-                                    {
-                                        required: true,
-                                        message: '请输入名称',
-                                        trigger: ['blur', 'change'],
-                                    },
-                                ],
-                            },
-                        ],
-                        [
-                            {
-                                type: 'input',
-                                label: 'ip：',
-                                name: 'ip',
-                                placeholder: '请输入ip',
-                                rules: [
-                                    {
-                                        required: true,
-                                        message: '请输入ip',
-                                        trigger: ['blur', 'change'],
-                                    },
-                                ],
-                            },
-                        ],
-                        [
-                            {
-                                type: 'input',
-                                label: '端口号：',
-                                name: 'port',
-                                placeholder: '请输入端口号',
-                                inputType: 'number',
-                                rules: [
-                                    {
-                                        required: true,
-                                        message: '请输入ip',
-                                        trigger: ['blur', 'change'],
-                                    },
-                                ],
-                            },
-                        ],
-                        [
-                            {
-                                type: 'input',
-                                label: '用户名：',
-                                name: 'username',
-                                placeholder: '请输入用户名',
-                                rules: [
-                                    {
-                                        required: true,
-                                        message: '请输入用户名',
-                                        trigger: ['blur', 'change'],
-                                    },
-                                ],
-                            },
-                        ],
-                        [
-                            {
-                                type: 'input',
-                                label: '密码：',
-                                name: 'password',
-                                placeholder: '请输入密码',
-                                inputType: 'password',
-                            },
-                        ],
-                    ],
-                },
-                formData: { port: 22 },
+                data: null,
+                title: '新增机器',
             },
         });
 
@@ -261,7 +186,6 @@ export default defineComponent({
         // };
 
         const showTerminal = (row: any) => {
-            // router.push(`/machine/${row.id}/terminal?id=${row.id}&name=${row.name}&time=${new Date().getTime()}`);
             const { href } = router.resolve({
                 path: `/machine/terminal`,
                 query: {
@@ -275,21 +199,30 @@ export default defineComponent({
         const openFormDialog = (redis: any) => {
             let dialogTitle;
             if (redis) {
-                state.formDialog.formData = state.currentData as any;
+                state.machineEditDialog.data = state.currentData as any;
                 dialogTitle = '编辑机器';
             } else {
-                state.formDialog.formData = { port: 22 };
+                state.machineEditDialog.data = { port: 22 } as any;
                 dialogTitle = '添加机器';
             }
 
-            state.formDialog.title = dialogTitle;
-            state.formDialog.visible = true;
+            state.machineEditDialog.title = dialogTitle;
+            state.machineEditDialog.visible = true;
         };
 
         const deleteMachine = async (id: number) => {
-            await machineApi.del.request({ id });
-            ElMessage.success('操作成功');
-            search();
+            try {
+                await ElMessageBox.confirm(`确定删除该机器信息? 该操作将同时删除脚本及文件配置信息`, '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning',
+                });
+                await machineApi.del.request({ id });
+                ElMessage.success('操作成功');
+                state.currentId = null;
+                state.currentData = null;
+                search();
+            } catch (err) {}
         };
 
         const serviceManager = (row: any) => {

@@ -8,9 +8,9 @@ import (
 	"mayfly-go/server/devops/infrastructure/persistence"
 )
 
-type IMachineScript interface {
+type MachineScript interface {
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) model.PageResult
+	GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
 	// 根据条件获取
 	GetMachineScript(condition *entity.MachineScript, cols ...string) error
@@ -23,7 +23,7 @@ type IMachineScript interface {
 	Delete(id uint64)
 }
 
-type machineScriptApp struct {
+type machineScriptAppImpl struct {
 	machineScriptRepo repository.MachineScript
 	machineRepo       repository.Machine
 }
@@ -31,27 +31,27 @@ type machineScriptApp struct {
 const Common_Script_Machine_Id = 9999999
 
 // 实现类单例
-var MachineScript IMachineScript = &machineScriptApp{
+var MachineScriptApp MachineScript = &machineScriptAppImpl{
 	machineRepo:       persistence.MachineDao,
 	machineScriptRepo: persistence.MachineScriptDao}
 
 // 分页获取机器脚本信息列表
-func (m *machineScriptApp) GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) model.PageResult {
+func (m *machineScriptAppImpl) GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return m.machineScriptRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 // 根据条件获取
-func (m *machineScriptApp) GetMachineScript(condition *entity.MachineScript, cols ...string) error {
+func (m *machineScriptAppImpl) GetMachineScript(condition *entity.MachineScript, cols ...string) error {
 	return m.machineScriptRepo.GetMachineScript(condition, cols...)
 }
 
 // 根据id获取
-func (m *machineScriptApp) GetById(id uint64, cols ...string) *entity.MachineScript {
+func (m *machineScriptAppImpl) GetById(id uint64, cols ...string) *entity.MachineScript {
 	return m.machineScriptRepo.GetById(id, cols...)
 }
 
 // 保存机器脚本
-func (m *machineScriptApp) Save(entity *entity.MachineScript) {
+func (m *machineScriptAppImpl) Save(entity *entity.MachineScript) {
 	// 如果机器id不为公共脚本id，则校验机器是否存在
 	if machineId := entity.MachineId; machineId != Common_Script_Machine_Id {
 		biz.NotNil(m.machineRepo.GetById(machineId, "Name"), "该机器不存在")
@@ -65,6 +65,6 @@ func (m *machineScriptApp) Save(entity *entity.MachineScript) {
 }
 
 // 根据id删除
-func (m *machineScriptApp) Delete(id uint64) {
+func (m *machineScriptAppImpl) Delete(id uint64) {
 	m.machineScriptRepo.Delete(id)
 }

@@ -11,16 +11,31 @@ import (
 func InitDbRouter(router *gin.RouterGroup) {
 	db := router.Group("dbs")
 	{
-		d := &apis.Db{DbApp: application.Db}
+		d := &apis.Db{DbApp: application.DbApp}
 		// 获取所有数据库列表
 		db.GET("", func(c *gin.Context) {
 			rc := ctx.NewReqCtxWithGin(c)
 			rc.Handle(d.Dbs)
 		})
-		// db.GET(":dbId/select", controllers.SelectData)
-		db.GET(":dbId/select", func(g *gin.Context) {
-			rc := ctx.NewReqCtxWithGin(g).WithLog(ctx.NewLogInfo("执行数据库查询语句"))
-			rc.Handle(d.SelectData)
+
+		saveDb := ctx.NewLogInfo("保存数据库信息")
+		db.POST("", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).
+				WithLog(saveDb).
+				Handle(d.Save)
+		})
+
+		deleteDb := ctx.NewLogInfo("删除数据库信息")
+		db.DELETE(":id", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).
+				WithLog(deleteDb).
+				Handle(d.DeleteDb)
+		})
+
+		// db.GET(":dbId/exec-sql", controllers.SelectData)
+		db.GET(":dbId/exec-sql", func(g *gin.Context) {
+			rc := ctx.NewReqCtxWithGin(g).WithLog(ctx.NewLogInfo("执行Sql语句"))
+			rc.Handle(d.ExecSql)
 		})
 
 		db.GET(":dbId/t-metadata", func(c *gin.Context) {
@@ -35,7 +50,7 @@ func InitDbRouter(router *gin.RouterGroup) {
 		})
 
 		db.POST(":dbId/sql", func(c *gin.Context) {
-			rc := ctx.NewReqCtxWithGin(c).WithLog(ctx.NewLogInfo("保存sql内容"))
+			rc := ctx.NewReqCtxWithGin(c)
 			rc.Handle(d.SaveSql)
 		})
 

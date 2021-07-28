@@ -2,45 +2,46 @@ package form
 
 type MachineForm struct {
 	Id   uint64 `json:"id"`
-	Name string `json:"name" valid:"Required"`
+	Name string `json:"name" binding:"required"`
 	// IP地址
-	Ip string `json:"ip" valid:"Required"`
+	Ip string `json:"ip" binding:"required"`
 	// 用户名
-	Username string `json:"username" valid:"Required"`
-	Password string `json:"password" valid:"Required"`
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
 	// 端口号
-	Port int `json:"port" valid:"Required"`
+	Port int `json:"port" binding:"required"`
 }
 
 type MachineRunForm struct {
-	MachineId int64  `valid:"Required"`
-	Cmd       string `valid:"Required"`
+	MachineId int64  `binding:"required"`
+	Cmd       string `binding:"required"`
 }
 
 type MachineFileForm struct {
 	Id        uint64
-	Name      string `valid:"Required"`
-	MachineId uint64 `valid:"Required"`
-	Type      int    `valid:"Required"`
-	Path      string `valid:"Required"`
+	Name      string `binding:"required"`
+	MachineId uint64 `binding:"required"`
+	Type      int    `binding:"required"`
+	Path      string `binding:"required"`
 }
 
 type MachineScriptForm struct {
 	Id          uint64
-	Name        string `valid:"Required"`
-	MachineId   uint64 `valid:"Required"`
-	Type        int    `valid:"Required"`
-	Description string `valid:"Required"`
-	Script      string `valid:"Required"`
+	Name        string `binding:"required"`
+	MachineId   uint64 `binding:"required"`
+	Type        int    `binding:"required"`
+	Description string `binding:"required"`
+	Params      string
+	Script      string `binding:"required"`
 }
 
 type DbSqlSaveForm struct {
-	Sql  string `valid:"Required"`
-	Type int    `valid:"Required"`
+	Sql  string `binding:"required"`
+	Type int    `binding:"required"`
 }
 
 type MachineFileUpdateForm struct {
-	Content string `valid:"Required"`
-	Id      uint64 `valid:"Required"`
-	Path    string `valid:"Required"`
+	Content string `binding:"required"`
+	Id      uint64 `binding:"required"`
+	Path    string `binding:"required"`
 }

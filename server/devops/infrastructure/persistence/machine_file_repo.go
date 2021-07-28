@@ -12,7 +12,7 @@ type machineFileRepo struct{}
 var MachineFileDao repository.MachineFile = &machineFileRepo{}
 
 // 分页获取机器文件信息列表
-func (m *machineFileRepo) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) model.PageResult {
+func (m *machineFileRepo) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, toEntity, orderBy...)
 }
 

@@ -12,7 +12,7 @@ import (
 )
 
 type Resource struct {
-	ResourceApp application.IResource
+	ResourceApp application.Resource
 }
 
 func (r *Resource) GetAllResourceTree(rc *ctx.ReqCtx) {

@@ -4,15 +4,16 @@ import (
 	"errors"
 
 	"mayfly-go/base/biz"
+	"mayfly-go/base/config"
 	"mayfly-go/base/model"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
 )
 
-const (
-	JwtKey  = "mykey"
-	ExpTime = time.Hour * 24 * 7
+var (
+	JwtKey  = config.Conf.Jwt.Key
+	ExpTime = config.Conf.Jwt.ExpireTime
 )
 
 // 创建用户token
@@ -22,7 +23,7 @@ func CreateToken(userId uint64, username string) string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":       userId,
 		"username": username,
-		"exp":      time.Now().Add(ExpTime).Unix(),
+		"exp":      time.Now().Add(time.Minute * time.Duration(ExpTime)).Unix(),
 	})
 
 	// 使用自定义字符串加密 and get the complete encoded token as a string

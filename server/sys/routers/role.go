@@ -10,8 +10,8 @@ import (
 
 func InitRoleRouter(router *gin.RouterGroup) {
 	r := &apis.Role{
-		RoleApp:     application.Role,
-		ResourceApp: application.Resource,
+		RoleApp:     application.RoleApp,
+		ResourceApp: application.ResourceApp,
 	}
 	db := router.Group("sys/roles")
 	{
@@ -21,7 +21,7 @@ func InitRoleRouter(router *gin.RouterGroup) {
 		})
 
 		saveRole := ctx.NewLogInfo("保存角色")
-		sPermission := ctx.NewPermission("role:save")
+		sPermission := ctx.NewPermission("role:add")
 		db.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(saveRole).
 				WithRequiredPermission(sPermission).

@@ -25,7 +25,7 @@ export const accountApi = {
     save: Api.create("/sys/accounts", 'post'),
     update: Api.create("/sys/accounts/{id}", 'put'),
     del: Api.create("/sys/accounts/{id}", 'delete'),
-    changeStatus: Api.create("/sys/accounts/{id}/{status}", 'put'),
+    changeStatus: Api.create("/sys/accounts/change-status/{id}/{status}", 'put'),
     roleIds: Api.create("/sys/accounts/{id}/roleIds", 'get'),
     roles: Api.create("/sys/accounts/{id}/roles", 'get'),
     resources: Api.create("/sys/accounts/{id}/resources", 'get'),

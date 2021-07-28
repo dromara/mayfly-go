@@ -5,6 +5,9 @@
                 <el-form-item label="角色名称:" required>
                     <el-input v-model="form.name" auto-complete="off"></el-input>
                 </el-form-item>
+                <el-form-item label="角色code:" required>
+                    <el-input :disabled="form.id" v-model="form.code" placeholder="COMMON开头则为所有账号共有角色" auto-complete="off"></el-input>
+                </el-form-item>
                 <el-form-item label="角色描述:">
                     <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入角色描述"></el-input>
                 </el-form-item>

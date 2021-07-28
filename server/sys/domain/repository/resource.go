@@ -10,7 +10,7 @@ type Resource interface {
 
 	GetById(id uint64, cols ...string) *entity.Resource
 
-	GetByIdIn(ids []uint64, toEntity interface{}, cols ...string)
+	GetByIdIn(ids []uint64, toEntity interface{}, orderBy ...string)
 
 	Delete(id uint64)
 

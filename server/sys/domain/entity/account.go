@@ -2,14 +2,20 @@ package entity
 
 import (
 	"mayfly-go/base/model"
+	"time"
 )
 
 type Account struct {
 	model.Model
 
-	Username string `json:"username"`
-	Password string `json:"-"`
-	Status   int8   `json:"status"`
+	Username      string     `json:"username"`
+	Password      string     `json:"-"`
+	Status        int8       `json:"status"`
+	LastLoginTime *time.Time `json:"lastLoginTime"`
+}
+
+func (a *Account) TableName() string {
+	return "t_sys_account"
 }
 
 // 是否可用

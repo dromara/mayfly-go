@@ -4,8 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"mayfly-go/base/utils"
+	"mayfly-go/base/utils/assert"
 	"path/filepath"
 )
+
+// 配置文件映射对象
+var Conf *Config
 
 func init() {
 	configFilePath := flag.String("e", "./config.yml", "配置文件路径，默认为可执行文件目录")
@@ -18,6 +22,8 @@ func init() {
 	if err := utils.LoadYml(startConfigParam.ConfigFilePath, yc); err != nil {
 		panic(fmt.Sprintf("读取配置文件[%s]失败: %s", startConfigParam.ConfigFilePath, err.Error()))
 	}
+	// 校验配置文件内容信息
+	yc.Valid()
 	Conf = yc
 }
 
@@ -33,12 +39,17 @@ var startConfigParam *CmdConfigParam
 type Config struct {
 	App    *App    `yaml:"app"`
 	Server *Server `yaml:"server"`
+	Jwt    *Jwt    `yaml:"jwt"`
 	Redis  *Redis  `yaml:"redis"`
 	Mysql  *Mysql  `yaml:"mysql"`
+	Log    *Log    `yaml:"log"`
 }
 
-// 配置文件映射对象
-var Conf *Config
+// 配置文件内容校验
+func (c *Config) Valid() {
+	assert.IsTrue(c.Jwt != nil, "配置文件的[jwt]信息不能为空")
+	c.Jwt.Valid()
+}
 
 // 获取执行可执行文件时，指定的启动参数
 func getStartConfig() *CmdConfigParam {

@@ -3,7 +3,7 @@
  */
 class AssertError extends Error {
     constructor(message: string) {
-        super(message); // (1)
+        super(message);
         // 错误类名
         this.name = "AssertError";
     }

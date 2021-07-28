@@ -6,18 +6,11 @@ type BizError struct {
 	err  string
 }
 
-const (
-	SuccessCode = 200
-	SuccessMsg  = "success"
-
-	BizErrorCode = 400
-	BizErrorMsg  = "error"
-
-	ServerErrorCode = 500
-	ServerErrorMsg  = "server error"
-
-	TokenErrorCode = 501
-	TokenErrorMsg  = "token error"
+var (
+	Success       *BizError = NewBizErrCode(200, "success")
+	BizErr        *BizError = NewBizErrCode(400, "biz error")
+	ServerError   *BizError = NewBizErrCode(500, "server error")
+	PermissionErr *BizError = NewBizErrCode(501, "token error")
 )
 
 // 错误消息
@@ -32,7 +25,7 @@ func (e *BizError) Code() int16 {
 
 // 创建业务逻辑错误结构体，默认为业务逻辑错误
 func NewBizErr(msg string) *BizError {
-	return &BizError{code: BizErrorCode, err: msg}
+	return &BizError{code: BizErr.code, err: msg}
 }
 
 // 创建业务逻辑错误结构体，可设置指定错误code

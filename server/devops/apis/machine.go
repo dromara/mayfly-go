@@ -26,7 +26,7 @@ var WsUpgrader = websocket.Upgrader{
 }
 
 type Machine struct {
-	MachineApp application.IMachine
+	MachineApp application.Machine
 }
 
 func (m *Machine) Machines(rc *ctx.ReqCtx) {
@@ -43,6 +43,12 @@ func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
 
 	entity.SetBaseInfo(rc.LoginAccount)
 	m.MachineApp.Save(entity)
+}
+
+func (m *Machine) DeleteMachine(rc *ctx.ReqCtx) {
+	id := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
+	rc.ReqParam = id
+	m.MachineApp.Delete(id)
 }
 
 // top命令信息

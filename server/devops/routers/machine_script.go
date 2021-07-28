@@ -12,12 +12,12 @@ func InitMachineScriptRouter(router *gin.RouterGroup) {
 	machines := router.Group("machines")
 	{
 		ms := &apis.MachineScript{
-			MachineScriptApp: application.MachineScript,
-			MachineApp:       application.Machine}
+			MachineScriptApp: application.MachineScriptApp,
+			MachineApp:       application.MachineApp}
 
 		// 获取指定机器脚本列表
 		machines.GET(":machineId/scripts", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithNeedToken(false).Handle(ms.MachineScripts)
+			ctx.NewReqCtxWithGin(c).Handle(ms.MachineScripts)
 		})
 
 		saveMachienScriptLog := ctx.NewLogInfo("保存脚本")

@@ -1,6 +1,7 @@
 package starter
 
 import (
+	"mayfly-go/base/config"
 	"mayfly-go/base/global"
 
 	"gorm.io/driver/mysql"
@@ -10,7 +11,7 @@ import (
 )
 
 func GormMysql() *gorm.DB {
-	m := global.Config.Mysql
+	m := config.Conf.Mysql
 	if m == nil || m.Dbname == "" {
 		global.Log.Panic("未找到数据库配置信息")
 		return nil

@@ -1,7 +1,7 @@
 package initialize
 
 import (
-	"mayfly-go/base/global"
+	"mayfly-go/base/config"
 	"mayfly-go/base/middleware"
 	"mayfly-go/mock-server/routers"
 
@@ -10,7 +10,7 @@ import (
 
 func InitRouter() *gin.Engine {
 	// server配置
-	serverConfig := global.Config.Server
+	serverConfig := config.Conf.Server
 	gin.SetMode(serverConfig.Model)
 
 	var router = gin.New()

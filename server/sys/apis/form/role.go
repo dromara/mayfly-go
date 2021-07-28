@@ -10,12 +10,13 @@ type RoleResourceForm struct {
 type RoleForm struct {
 	Id     int
 	Status int    `json:"status"` // 1：可用；-1：不可用
-	Name   string `json:"name"`
+	Name   string `binding:"required"`
+	Code   string `binding:"required"`
 	Remark string `json:"remark"`
 }
 
 // 账号分配角色表单
 type AccountRoleForm struct {
-	Id      int
+	Id      int `binding:"required"`
 	RoleIds string
 }

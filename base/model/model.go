@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"mayfly-go/base/biz"
 	"mayfly-go/base/global"
 	"strconv"
 
@@ -71,22 +72,13 @@ func GetById(model interface{}, id uint64, cols ...string) error {
 
 // 根据id列表查询
 func GetByIdIn(model interface{}, list interface{}, ids []uint64, orderBy ...string) {
-	var idsStr string
-	for i, v := range ids {
-		idStr := strconv.Itoa(int(v))
-		if i == 0 {
-			idsStr += idStr
-		} else {
-			idsStr += ("," + idStr)
-		}
-	}
 	var orderByStr string
 	if orderBy == nil {
 		orderByStr = "id desc"
 	} else {
 		orderByStr = strings.Join(orderBy, ",")
 	}
-	global.Db.Model(model).Where("id in (?)", idsStr).Order(orderByStr).Find(list)
+	global.Db.Model(model).Where("id in (?)", ids).Order(orderByStr).Find(list)
 }
 
 // 根据id列表查询
@@ -151,11 +143,11 @@ func GetByConditionTo(conditionModel interface{}, toModel interface{}) error {
 }
 
 // 获取分页结果
-func GetPage(pageParam *PageParam, conditionModel interface{}, toModels interface{}, orderBy ...string) PageResult {
+func GetPage(pageParam *PageParam, conditionModel interface{}, toModels interface{}, orderBy ...string) *PageResult {
 	var count int64
 	global.Db.Model(conditionModel).Where(conditionModel).Count(&count)
 	if count == 0 {
-		return PageResult{Total: 0, List: []string{}}
+		return &PageResult{Total: 0, List: []string{}}
 	}
 	page := pageParam.PageNum
 	pageSize := pageParam.PageSize
@@ -165,12 +157,13 @@ func GetPage(pageParam *PageParam, conditionModel interface{}, toModels interfac
 	} else {
 		orderByStr = strings.Join(orderBy, ",")
 	}
-	global.Db.Model(conditionModel).Where(conditionModel).Order(orderByStr).Limit(pageSize).Offset((page - 1) * pageSize).Find(toModels)
-	return PageResult{Total: count, List: toModels}
+	err := global.Db.Model(conditionModel).Where(conditionModel).Order(orderByStr).Limit(pageSize).Offset((page - 1) * pageSize).Find(toModels).Error
+	biz.ErrIsNil(err, "查询失败")
+	return &PageResult{Total: count, List: toModels}
 }
 
 // 根据sql获取分页对象
-func GetPageBySql(sql string, param *PageParam, toModel interface{}, args ...interface{}) PageResult {
+func GetPageBySql(sql string, param *PageParam, toModel interface{}, args ...interface{}) *PageResult {
 	db := global.Db
 	selectIndex := strings.Index(sql, "SELECT ") + 7
 	fromIndex := strings.Index(sql, " FROM")
@@ -180,12 +173,13 @@ func GetPageBySql(sql string, param *PageParam, toModel interface{}, args ...int
 	var count int
 	db.Raw(countSql, args...).Scan(&count)
 	if count == 0 {
-		return PageResult{Total: 0, List: []string{}}
+		return &PageResult{Total: 0, List: []string{}}
 	}
 	// 分页查询
 	limitSql := sql + " LIMIT " + strconv.Itoa(param.PageNum-1) + ", " + strconv.Itoa(param.PageSize)
-	db.Raw(limitSql).Scan(toModel)
-	return PageResult{Total: int64(count), List: toModel}
+	err := db.Raw(limitSql).Scan(toModel).Error
+	biz.ErrIsNil(err, "查询失败")
+	return &PageResult{Total: int64(count), List: toModel}
 }
 
 func GetListBySql(sql string, params ...interface{}) []map[string]interface{} {
@@ -194,6 +188,6 @@ func GetListBySql(sql string, params ...interface{}) []map[string]interface{} {
 	return maps
 }
 
-func GetListBySql2Model(sql string, toEntity interface{}, params ...interface{}) {
-	global.Db.Raw(sql, params).Find(toEntity)
+func GetListBySql2Model(sql string, toEntity interface{}, params ...interface{}) error {
+	return global.Db.Raw(sql, params).Find(toEntity).Error
 }

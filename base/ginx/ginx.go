@@ -1,7 +1,6 @@
 package ginx
 
 import (
-	"fmt"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/global"
 	"mayfly-go/base/model"
@@ -13,14 +12,14 @@ import (
 
 // 绑定并校验请求结构体参数
 func BindJsonAndValid(g *gin.Context, data interface{}) {
-	if err := g.BindJSON(data); err != nil {
+	if err := g.ShouldBindJSON(data); err != nil {
 		panic(biz.NewBizErr(err.Error()))
 	}
 }
 
 // 绑定查询字符串到
 func BindQuery(g *gin.Context, data interface{}) {
-	if err := g.BindQuery(data); err != nil {
+	if err := g.ShouldBindQuery(data); err != nil {
 		panic(biz.NewBizErr(err.Error()))
 	}
 }
@@ -44,7 +43,6 @@ func QueryInt(g *gin.Context, qm string, defaultInt int) int {
 // 获取路径参数
 func PathParamInt(g *gin.Context, pm string) int {
 	value, _ := strconv.Atoi(g.Param(pm))
-	biz.IsTrue(value != 0, fmt.Sprintf("%s不存在", pm))
 	return value
 }
 
@@ -64,7 +62,7 @@ func SuccessRes(g *gin.Context, data interface{}) {
 func ErrorRes(g *gin.Context, err interface{}) {
 	switch t := err.(type) {
 	case *biz.BizError:
-		g.JSON(http.StatusOK, model.Error(t.Code(), t.Error()))
+		g.JSON(http.StatusOK, model.Error(t))
 		break
 	case error:
 		g.JSON(http.StatusOK, model.ServerError())

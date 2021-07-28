@@ -16,8 +16,8 @@ import (
 )
 
 type MachineScript struct {
-	MachineScriptApp application.IMachineScript
-	MachineApp       application.IMachine
+	MachineScriptApp application.MachineScript
+	MachineApp       application.Machine
 }
 
 func (m *MachineScript) MachineScripts(rc *ctx.ReqCtx) {
@@ -57,8 +57,12 @@ func (m *MachineScript) RunMachineScript(rc *ctx.ReqCtx) {
 	biz.NotNil(ms, "该脚本不存在")
 	biz.IsTrue(ms.MachineId == application.Common_Script_Machine_Id || ms.MachineId == machineId, "该脚本不属于该机器")
 
-	vars := g.QueryMap("params")
-	res, err := m.MachineApp.GetCli(machineId).Run(utils.TemplateParse(ms.Script, vars))
+	script := ms.Script
+	// 如果有脚本参数，则用脚本参数替换脚本中的模板占位符参数
+	if params := g.Query("params"); params != "" {
+		script = utils.TemplateParse(ms.Script, utils.Json2Map(params))
+	}
+	res, err := m.MachineApp.GetCli(machineId).Run(script)
 	// 记录请求参数
 	rc.ReqParam = fmt.Sprintf("[machineId: %d, scriptId: %d, name: %s]", machineId, scriptId, ms.Name)
 	if err != nil {

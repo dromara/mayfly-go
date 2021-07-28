@@ -53,6 +53,14 @@ export default defineComponent({
             type: String,
             default: null,
         },
+        height: {
+            type: String,
+            default: "500px",
+        },
+        width: {
+            type: String,
+            default: "auto",
+        },
         canChangeMode: {
             type: Boolean,
             default: false,
@@ -165,15 +173,14 @@ export default defineComponent({
             }
         );
 
-        watch(
-            () => props.options,
-            (newValue, oldValue) => {
-                console.log('options change', newValue);
-                for (const key in newValue) {
-                    coder.setOption(key, newValue[key]);
-                }
-            }
-        );
+        // watch(
+        //     () => props.options,
+        //     (newValue, oldValue) => {
+        //         for (const key in newValue) {
+        //             coder.setOption(key, newValue[key]);
+        //         }
+        //     }
+        // );
 
         const init = () => {
             if (props.options) {
@@ -194,6 +201,9 @@ export default defineComponent({
                     instance.showHint();
                 }
             });
+
+            coder.setSize(props.width, props.height);
+            // editor.setSize('width','height');
 
             // 修改编辑器的语法配置
             setMode(language.value);
@@ -285,6 +295,7 @@ export default defineComponent({
                 coder.setValue(newVal);
                 state.content = newVal;
                 coder.scrollTo(scrollInfo.left, scrollInfo.top);
+                refresh()
             }
         };
 
@@ -292,6 +303,7 @@ export default defineComponent({
             ...toRefs(state),
             textarea,
             changeMode,
+            refresh,
         };
     },
 });

@@ -7,9 +7,9 @@
     "lint-fix": "eslint --fix --ext .js --ext .jsx --ext .vue src/"
   },
   "dependencies": {
-    "core-js": "^3.6.5",
     "axios": "^0.21.1",
     "codemirror": "^5.61.0",
+    "core-js": "^3.6.5",
     "countup.js": "^2.0.7",
     "cropperjs": "^1.5.11",
     "echarts": "^5.1.1",

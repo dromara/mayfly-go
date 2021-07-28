@@ -3,14 +3,14 @@
         <el-dialog :title="title" v-model="visible" :show-close="false" width="35%">
             <el-form :model="form" ref="accountForm" :rules="rules" label-width="85px" size="small">
                 <el-form-item prop="username" label="用户名:" required>
-                    <el-input :disabled="edit" v-model.trim="form.username" placeholder="请输入用户名" auto-complete="off"></el-input>
+                    <el-input :disabled="edit" v-model.trim="form.username" placeholder="请输入账号用户名" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item prop="password" label="密码:" required>
+                <!-- <el-form-item prop="password" label="密码:" required>
                     <el-input type="password" v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password"></el-input>
                 </el-form-item>
                 <el-form-item v-if="!edit" label="确认密码:" required>
                     <el-input type="password" v-model.trim="form.repassword" placeholder="请输入确认密码" autocomplete="new-password"></el-input>
-                </el-form-item>
+                </el-form-item> -->
             </el-form>
 
             <template #footer>
@@ -61,13 +61,13 @@ export default defineComponent({
                         trigger: ['change', 'blur'],
                     },
                 ],
-                password: [
-                    {
-                        required: true,
-                        message: '请输入密码',
-                        trigger: ['change', 'blur'],
-                    },
-                ],
+                // password: [
+                //     {
+                //         required: true,
+                //         message: '请输入密码',
+                //         trigger: ['change', 'blur'],
+                //     },
+                // ],
             },
         });
 

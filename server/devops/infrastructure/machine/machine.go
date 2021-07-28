@@ -42,7 +42,10 @@ func GetCli(machineId uint64, getMachine func(uint64) *entity.Machine) (*Cli, er
 		}
 		return c, nil
 	})
-	return cli.(*Cli), err
+	if cli != nil {
+		return cli.(*Cli), err
+	}
+	return nil, err
 }
 
 //根据机器信息创建客户端对象
@@ -203,4 +206,11 @@ func (c *Cli) RunTerminal(shell string, stdout, stderr io.Writer) error {
 	// writer.Write([]byte(shell))
 	session.Run(shell)
 	return nil
+}
+
+// 关闭指定机器的连接
+func Close(id uint64) {
+	if cli, ok := cliCache.Get(fmt.Sprint(id)); ok {
+		cli.(*Cli).Close()
+	}
 }

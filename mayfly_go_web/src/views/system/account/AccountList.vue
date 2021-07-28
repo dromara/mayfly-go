@@ -19,6 +19,7 @@
             >
             <div style="float: right">
                 <el-input
+                    class="mr2"
                     placeholder="请输入账号名"
                     size="small"
                     style="width: 140px"
@@ -45,8 +46,13 @@
                     <el-tag v-if="scope.row.status == -1" type="danger" size="mini">禁用</el-tag>
                 </template>
             </el-table-column>
+            <el-table-column min-width="160" prop="lastLoginTime" label="最后登录时间">
+                <template #default="scope">
+                    {{ $filters.dateFormat(scope.row.lastLoginTime) }}
+                </template>
+            </el-table-column>
 
-            <!-- <el-table-column min-width="115" prop="creator" label="创建账号"></el-table-column> -->
+            <el-table-column min-width="115" prop="creator" label="创建账号"></el-table-column>
             <el-table-column min-width="160" prop="createTime" label="创建时间">
                 <template #default="scope">
                     {{ $filters.dateFormat(scope.row.createTime) }}
@@ -58,8 +64,8 @@
 					{{ $filters.dateFormat(scope.row.updateTime) }}
 				</template>
 			</el-table-column> -->
-            <el-table-column min-width="160" prop="lastLoginTime" label="最后登录时间"></el-table-column>
-            <el-table-column min-width="120" prop="remark" label="备注" show-overflow-tooltip></el-table-column>
+
+            <!-- <el-table-column min-width="120" prop="remark" label="备注" show-overflow-tooltip></el-table-column> -->
             <el-table-column label="查看更多" min-width="150">
                 <template #default="scope">
                     <el-link @click.prevent="showRoles(scope.row)" type="success">角色</el-link>
@@ -70,14 +76,21 @@
 
             <el-table-column label="操作" min-width="200px">
                 <template #default="scope">
-                    <el-button v-auth="'account:changeStatus'" v-if="scope.row.status == 1" type="danger" icom="el-icon-tickets" size="mini" plain
+                    <el-button
+                        v-auth="'account:changeStatus'"
+                        @click="changeStatus(scope.row)"
+                        v-if="scope.row.status == 1"
+                        type="danger"
+                        icom="el-icon-tickets"
+                        size="mini"
+                        plain
                         >禁用</el-button
                     >
                     <el-button
                         v-auth="'account:changeStatus'"
                         v-if="scope.row.status == -1"
                         type="success"
-                        @click="serviceManager(scope.row)"
+                        @click="changeStatus(scope.row)"
                         size="mini"
                         plain
                         >启用</el-button
@@ -136,7 +149,7 @@ import RoleEdit from './RoleEdit.vue';
 import AccountEdit from './AccountEdit.vue';
 import enums from '../enums';
 import { accountApi } from '../api';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 export default defineComponent({
     name: 'AccountList',
     components: {
@@ -223,13 +236,13 @@ export default defineComponent({
 
         const changeStatus = async (row: any) => {
             let id = row.id;
-            let status = row.status ? 1 : -1;
-            // await accountApi.changeStatus.request({
-            // 	id,
-            // 	status,
-            // });
-            // ElMessage.success('操作成功');
-            // search();
+            let status = row.status == -1 ? 1 : -1;
+            await accountApi.changeStatus.request({
+                id,
+                status,
+            });
+            ElMessage.success('操作成功');
+            search();
         };
 
         const handlePageChange = (curPage: number) => {
@@ -267,12 +280,17 @@ export default defineComponent({
 
         const deleteAccount = async () => {
             try {
+                await ElMessageBox.confirm(`确定删除该账号?`, '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning',
+                });
                 await accountApi.del.request({ id: state.chooseId });
                 ElMessage.success('删除成功');
+                state.chooseData = null;
+                state.chooseId = null;
                 search();
-            } catch (error) {
-                ElMessage.error('刪除失败');
-            }
+            } catch (err) {}
         };
 
         return {

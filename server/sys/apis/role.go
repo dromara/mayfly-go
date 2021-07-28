@@ -14,8 +14,8 @@ import (
 )
 
 type Role struct {
-	RoleApp     application.IRole
-	ResourceApp application.IResource
+	RoleApp     application.Role
+	ResourceApp application.Resource
 }
 
 func (r *Role) Roles(rc *ctx.ReqCtx) {

@@ -6,7 +6,7 @@ import (
 )
 
 type Role interface {
-	GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) model.PageResult
+	GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
 	Delete(id uint64)
 

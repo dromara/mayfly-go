@@ -85,7 +85,7 @@ export default defineComponent({
 		});
 
 		const submit = () => {
-			dynamicForm.validate((valid: boolean) => {
+			dynamicForm.value.validate((valid: boolean) => {
 				if (valid) {
 					// 提交的表单数据
 					const subform = { ...state.form };

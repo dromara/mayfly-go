@@ -9,13 +9,8 @@ import (
 	"reflect"
 	"runtime/debug"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
-
-func init() {
-	log.SetFormatter(new(logger.LogFormatter))
-	log.SetReportCaller(true)
-}
 
 type LogInfo struct {
 	LogResp     bool   // 是否记录返回结果
@@ -37,7 +32,7 @@ func LogHandler(rc *ReqCtx) error {
 		return nil
 	}
 
-	lfs := log.Fields{}
+	lfs := logrus.Fields{}
 	if la := rc.LoginAccount; la != nil {
 		lfs["uid"] = la.Id
 		lfs["uname"] = la.Username
@@ -47,10 +42,10 @@ func LogHandler(rc *ReqCtx) error {
 	lfs[req.Method] = req.URL.Path
 
 	if err := rc.Err; err != nil {
-		log.WithFields(lfs).Error(getErrMsg(rc, err))
+		logger.Log.WithFields(lfs).Error(getErrMsg(rc, err))
 		return nil
 	}
-	log.WithFields(lfs).Info(getLogMsg(rc))
+	logger.Log.WithFields(lfs).Info(getLogMsg(rc))
 	return nil
 }
 

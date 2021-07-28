@@ -7,7 +7,7 @@ import (
 
 type Machine interface {
 	// 分页获取机器信息列表
-	GetMachineList(condition *entity.Machine, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) model.PageResult
+	GetMachineList(condition *entity.Machine, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
 	// 根据条件获取账号信息
 	GetMachine(condition *entity.Machine, cols ...string) error

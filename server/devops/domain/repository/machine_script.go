@@ -7,7 +7,7 @@ import (
 
 type MachineScript interface {
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) model.PageResult
+	GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
 	// 根据条件获取
 	GetMachineScript(condition *entity.MachineScript, cols ...string) error

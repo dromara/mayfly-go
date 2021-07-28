@@ -11,7 +11,7 @@ type roleRepo struct{}
 
 var RoleDao repository.Role = &roleRepo{}
 
-func (m *roleRepo) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) model.PageResult {
+func (m *roleRepo) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, toEntity, orderBy...)
 }
 
@@ -36,7 +36,7 @@ func (m *roleRepo) GetRoleResourceIds(roleId uint64) []uint64 {
 func (m *roleRepo) GetRoleResources(roleId uint64, toEntity interface{}) {
 	sql := "select rr.creator AS creator, rr.create_time AS CreateTime, rr.resource_id AS id, r.pid AS pid, " +
 		"r.name AS name, r.type AS type, r.status AS status " +
-		"FROM t_role_resource rr JOIN t_resource r ON rr.resource_id = r.id " +
+		"FROM t_sys_role_resource rr JOIN t_sys_resource r ON rr.resource_id = r.id " +
 		"WHERE rr.role_id = ? " +
 		"ORDER BY r.pid ASC, r.weight ASC"
 	model.GetListBySql2Model(sql, toEntity, roleId)
@@ -74,7 +74,7 @@ func (m *roleRepo) DeleteAccountRole(accountId, roleId uint64) {
 // 获取账号角色信息列表
 func (m *roleRepo) GetAccountRoles(accountId uint64, toEntity interface{}) {
 	sql := "SELECT r.status, r.name, ar.create_time AS CreateTime, ar.creator AS creator " +
-		"FROM t_role r JOIN t_account_role ar ON r.id = ar.role_id AND ar.account_id = ? " +
+		"FROM t_sys_role r JOIN t_sys_account_role ar ON r.id = ar.role_id AND ar.account_id = ? " +
 		"ORDER BY ar.create_time DESC"
 	model.GetListBySql2Model(sql, toEntity, accountId)
 }

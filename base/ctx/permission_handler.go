@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/cache"
+	"mayfly-go/base/config"
 	"time"
 )
 
@@ -37,7 +38,7 @@ type DefaultPermissionCodeRegistry struct {
 
 func (r *DefaultPermissionCodeRegistry) SaveCodes(userId uint64, codes []string) {
 	if r.cache == nil {
-		r.cache = cache.NewTimedCache(30*time.Minute, 5*time.Second).WithUpdateAccessTime(true)
+		r.cache = cache.NewTimedCache(time.Minute*time.Duration(config.Conf.Jwt.ExpireTime), 5*time.Second)
 	}
 	r.cache.Put(fmt.Sprintf("%v", userId), codes)
 }
@@ -79,7 +80,7 @@ func SetPermissionCodeRegistery(pcr PermissionCodeRegistry) {
 
 var (
 	permissionCodeRegistry PermissionCodeRegistry = &DefaultPermissionCodeRegistry{}
-	permissionError                               = biz.NewBizErrCode(biz.TokenErrorCode, biz.TokenErrorMsg)
+	// permissionError                               = biz.NewBizErrCode(biz.TokenErrorCode, biz.TokenErrorMsg)
 )
 
 func PermissionHandler(rc *ReqCtx) error {
@@ -94,16 +95,16 @@ func PermissionHandler(rc *ReqCtx) error {
 		tokenStr = rc.GinCtx.Query("token")
 	}
 	if tokenStr == "" {
-		return permissionError
+		return biz.PermissionErr
 	}
 	loginAccount, err := ParseToken(tokenStr)
 	if err != nil || loginAccount == nil {
-		return permissionError
+		return biz.PermissionErr
 	}
 	// 权限不为nil，并且permission code不为空，则校验是否有权限code
 	if permission != nil && permission.Code != "" {
 		if !permissionCodeRegistry.HasCode(loginAccount.Id, permission.Code) {
-			return permissionError
+			return biz.PermissionErr
 		}
 	}
 

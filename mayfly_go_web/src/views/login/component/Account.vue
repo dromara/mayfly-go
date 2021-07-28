@@ -1,10 +1,10 @@
 <template>
-    <el-form class="login-content-form">
-        <el-form-item>
+    <el-form ref="loginFormRef" :model="loginForm" :rules="rules" class="login-content-form">
+        <el-form-item prop="username">
             <el-input type="text" placeholder="请输入用户名" prefix-icon="el-icon-user" v-model="loginForm.username" clearable autocomplete="off">
             </el-input>
         </el-form-item>
-        <el-form-item>
+        <el-form-item prop="password">
             <el-input
                 type="password"
                 placeholder="请输入密码"
@@ -15,29 +15,36 @@
             >
             </el-input>
         </el-form-item>
-        <el-form-item>
+        <el-form-item prop="captcha">
             <el-row :gutter="15">
                 <el-col :span="16">
                     <el-input
                         type="text"
-                        maxlength="4"
+                        maxlength="6"
                         placeholder="请输入验证码"
                         prefix-icon="el-icon-position"
-                        v-model="loginForm.code"
+                        v-model="loginForm.captcha"
                         clearable
                         autocomplete="off"
-                        @keyup.enter="onSignIn"
+                        @keyup.enter="login"
                     ></el-input>
                 </el-col>
                 <el-col :span="8">
                     <div class="login-content-code">
-                        <span class="login-content-code-img">1234</span>
+                        <img
+                            class="login-content-code-img"
+                            @click="getCaptcha"
+                            width="130px"
+                            height="40px"
+                            :src="captchaImage"
+                            style="cursor: pointer"
+                        />
                     </div>
                 </el-col>
             </el-row>
         </el-form-item>
         <el-form-item>
-            <el-button type="primary" class="login-content-submit" round @click="onSignIn" :loading="loading.signIn">
+            <el-button type="primary" class="login-content-submit" round @click="login" :loading="loading.signIn">
                 <span>登 录</span>
             </el-button>
         </el-form-item>
@@ -45,7 +52,7 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, defineComponent, computed } from 'vue';
+import { onMounted, ref, toRefs, reactive, defineComponent, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { initAllFun, initBackEndControlRoutesFun } from '@/router/index.ts';
@@ -60,21 +67,50 @@ export default defineComponent({
         const store = useStore();
         const route = useRoute();
         const router = useRouter();
+        const loginFormRef: any = ref(null);
         const state = reactive({
+            captchaImage: '',
             loginForm: {
                 username: 'test',
                 password: '123456',
-                code: '1234',
+                captcha: '',
+                cid: '',
+            },
+            rules: {
+                username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+                password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+                captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
             },
             loading: {
                 signIn: false,
             },
         });
 
+        onMounted(() => {
+            getCaptcha();
+        });
+
+        const getCaptcha = async () => {
+            let res: any = await openApi.captcha();
+            state.captchaImage = res.base64Captcha;
+            state.loginForm.cid = res.cid;
+        };
+
         // 时间获取
         const currentTime = computed(() => {
             return formatAxis(new Date());
         });
+
+        // 校验登录表单并登录
+        const login = () => {
+            loginFormRef.value.validate((valid: boolean) => {
+                if (valid) {
+                    onSignIn();
+                } else {
+                    return false;
+                }
+            });
+        };
 
         // 登录
         const onSignIn = async () => {
@@ -87,6 +123,8 @@ export default defineComponent({
                 setSession('menus', loginRes.menus);
             } catch (e) {
                 state.loading.signIn = false;
+                state.loginForm.captcha = '';
+                getCaptcha();
                 return;
             }
             // 用户信息模拟数据
@@ -132,9 +170,12 @@ export default defineComponent({
                 ElMessage.success(`${currentTimeInfo}，欢迎回来！`);
             }, 300);
         };
+
         return {
+            getCaptcha,
             currentTime,
-            onSignIn,
+            loginFormRef,
+            login,
             ...toRefs(state),
         };
     },
