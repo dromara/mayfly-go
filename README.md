@@ -1,7 +1,7 @@
 # mayfly-go
 
 #### 介绍
-简单基于DDD(领域驱动设计)分层架构实现在线linux运维操作等
+简单基于DDD(领域驱动设计)分层架构实现在线mysql,redis,linux运维操作等
 
 ### 系统环境及框架
 - 前端：typescript、vue3、element-plus
@@ -19,7 +19,13 @@
 
 
 #### 数据库操作
+数据操作
 ![数据操作](https://images.gitee.com/uploads/images/2021/0728/184856_e7ec69c2_1240250.png "屏幕截图.png")
+
+数据库表信息查看
+![表信息查看](https://images.gitee.com/uploads/images/2021/0818/112648_22a7b98f_1240250.png "屏幕截图.png")
+![字段查看](https://images.gitee.com/uploads/images/2021/0818/112724_41afb7ac_1240250.png "屏幕截图.png")
+![索引查看](https://images.gitee.com/uploads/images/2021/0818/112757_980f1cf1_1240250.png "屏幕截图.png")
 
 
 #### 机器ssh终端
