@@ -19,14 +19,14 @@
 
 
 #### 数据库操作
-数据操作
+数据操作-可提示字段备注信息
 ![数据操作](https://images.gitee.com/uploads/images/2021/0728/184856_e7ec69c2_1240250.png "屏幕截图.png")
 
 数据库表信息查看
-![表信息查看](https://images.gitee.com/uploads/images/2021/0818/112648_22a7b98f_1240250.png "屏幕截图.png")
-![字段查看](https://images.gitee.com/uploads/images/2021/0818/112724_41afb7ac_1240250.png "屏幕截图.png")
+![表信息查看](https://images.gitee.com/uploads/images/2021/0818/174724_ba2114b3_1240250.png "屏幕截图.png")
+![字段查看](https://images.gitee.com/uploads/images/2021/0818/174803_7043ba70_1240250.png "屏幕截图.png")
 ![索引查看](https://images.gitee.com/uploads/images/2021/0818/112757_980f1cf1_1240250.png "屏幕截图.png")
-
+![建表sql](https://images.gitee.com/uploads/images/2021/0818/174612_17caeb95_1240250.png "屏幕截图.png")
 
 #### 机器ssh终端
 ![ssh终端](https://images.gitee.com/uploads/images/2021/0607/173245_e2e1e89a_1240250.png "屏幕截图.png")
@@ -64,8 +64,11 @@
 redis info信息查看
 ![redis info信息查看](https://images.gitee.com/uploads/images/2021/0728/184423_50cb5711_1240250.png "info信息查看.png")
 
-redis key操作
+key列表查询
 ![redis key查看及查询](https://images.gitee.com/uploads/images/2021/0728/184540_1fc607eb_1240250.png "key操作.png")
+
+value查看
+![查看value](https://images.gitee.com/uploads/images/2021/0818/175018_dc0e043e_1240250.png "屏幕截图.png")
 
 
 #### 系统管理
