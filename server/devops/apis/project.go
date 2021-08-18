@@ -49,6 +49,10 @@ func (p *Project) SaveProject(rc *ctx.ReqCtx) {
 	p.ProjectApp.SaveProject(project)
 }
 
+func (p *Project) DelProject(rc *ctx.ReqCtx) {
+	p.ProjectApp.DelProject(uint64(ginx.QueryInt(rc.GinCtx, "id", 0)))
+}
+
 // 获取项目下的环境信息
 func (p *Project) GetProjectEnvs(rc *ctx.ReqCtx) {
 	projectEnvs := &[]entity.ProjectEnv{}

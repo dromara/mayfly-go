@@ -5,6 +5,7 @@ export const projectApi = {
     accountProjects: Api.create("/accounts/projects", 'get'),
     projects: Api.create("/projects", 'get'),
     saveProject: Api.create("/projects", 'post'),
+    delProject: Api.create("/projects", 'delete'),
     // 获取项目下的环境信息
     projectEnvs:  Api.create("/projects/{projectId}/envs", 'get'),
     saveProjectEnv:  Api.create("/projects/{projectId}/envs", 'post'),

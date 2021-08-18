@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"mayfly-go/base/biz"
+	"mayfly-go/base/cache"
+	"mayfly-go/base/global"
 	"mayfly-go/base/model"
 	"mayfly-go/server/devops/domain/entity"
 	"mayfly-go/server/devops/domain/repository"
@@ -90,17 +92,24 @@ func (d *dbAppImpl) Delete(id uint64) {
 	d.dbSqlRepo.DeleteBy(&entity.DbSql{DbId: id})
 }
 
+var mutex sync.Mutex
+
 func (da *dbAppImpl) GetDbInstance(id uint64) *DbInstance {
+	mutex.Lock()
+	defer mutex.Unlock()
 	// Id不为0，则为需要缓存
 	needCache := id != 0
 	if needCache {
-		load, ok := dbCache.Load(id)
+		load, ok := dbCache.Get(id)
 		if ok {
 			return load.(*DbInstance)
 		}
 	}
+
 	d := da.GetById(id)
 	biz.NotNil(d, "数据库信息不存在")
+	global.Log.Infof("连接db: %s:%d/%s", d.Host, d.Port, d.Database)
+
 	DB, err := sql.Open(d.Type, getDsn(d))
 	biz.ErrIsNil(err, fmt.Sprintf("Open %s failed, err:%v\n", d.Type, err))
 	perr := DB.Ping()
@@ -117,17 +126,23 @@ func (da *dbAppImpl) GetDbInstance(id uint64) *DbInstance {
 
 	dbi := &DbInstance{Id: id, Type: d.Type, db: DB}
 	if needCache {
-		dbCache.LoadOrStore(d.Id, dbi)
+		dbCache.Put(id, dbi)
 	}
 	return dbi
 }
 
 //------------------------------------------------------------------------------
 
-var dbCache sync.Map
+// 客户端连接缓存，30分钟内没有访问则会被关闭
+var dbCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
+	WithUpdateAccessTime(true).
+	OnEvicted(func(key interface{}, value interface{}) {
+		global.Log.Info(fmt.Sprintf("删除db连接缓存 id: %d", key))
+		value.(*DbInstance).Close()
+	})
 
 func GetDbInstanceByCache(id uint64) *DbInstance {
-	if load, ok := dbCache.Load(id); ok {
+	if load, ok := dbCache.Get(fmt.Sprint(id)); ok {
 		return load.(*DbInstance)
 	}
 	return nil
@@ -153,13 +168,17 @@ type DbInstance struct {
 // 依次返回 列名数组，结果map，错误
 func (d *DbInstance) SelectData(sql string) ([]string, []map[string]string, error) {
 	sql = strings.Trim(sql, " ")
-	if !strings.HasPrefix(sql, "SELECT") && !strings.HasPrefix(sql, "select") {
+	isSelect := strings.HasPrefix(sql, "SELECT") || strings.HasPrefix(sql, "select")
+	isShow := strings.HasPrefix(sql, "show")
+
+	if !isSelect && !isShow {
 		return nil, nil, errors.New("该sql非查询语句")
 	}
 	// 没加limit，则默认限制50条
-	if !strings.Contains(sql, "limit") && !strings.Contains(sql, "LIMIT") {
+	if isSelect && !strings.Contains(sql, "limit") && !strings.Contains(sql, "LIMIT") {
 		sql = sql + " LIMIT 50"
 	}
+
 	rows, err := d.db.Query(sql)
 	if err != nil {
 		return nil, nil, err
@@ -224,10 +243,9 @@ func (d *DbInstance) Exec(sql string) (int64, error) {
 	return res.RowsAffected()
 }
 
-// 关闭连接，并从缓存中移除
+// 关闭连接
 func (d *DbInstance) Close() {
 	d.db.Close()
-	dbCache.Delete(d.Id)
 }
 
 // 获取dataSourceName
@@ -241,6 +259,7 @@ func getDsn(d *entity.Db) string {
 func CloseDb(id uint64) {
 	if di := GetDbInstanceByCache(id); di != nil {
 		di.Close()
+		dbCache.Delete(id)
 	}
 }
 
@@ -252,10 +271,22 @@ const (
 	create_time createTime from information_schema.tables
 	WHERE table_schema = (SELECT database())`
 
+	// mysql 表信息
+	MYSQL_TABLE_INFO = `SELECT table_name tableName, table_comment tableComment, table_rows tableRows,
+	data_length dataLength, index_length indexLength, create_time createTime 
+	FROM information_schema.tables 
+    WHERE table_schema = (SELECT database())`
+
+	// mysql 索引信息
+	MYSQL_INDEX_INFO = `SELECT index_name indexName, column_name columnName, index_type indexType,
+	SEQ_IN_INDEX seqInIndex, INDEX_COMMENT indexComment
+	FROM information_schema.STATISTICS 
+    WHERE table_schema = (SELECT database()) AND table_name = '%s'`
+
 	// mysql 列信息元数据
 	MYSQL_COLOUMN_MA = `SELECT table_name tableName, column_name columnName, column_type columnType,
 	column_comment columnComment, column_key columnKey, extra from information_schema.columns
-	WHERE table_name in (%s) AND table_schema = (SELECT database()) ORDER BY ordinal_position limit 15000`
+	WHERE table_name in (%s) AND table_schema = (SELECT database()) ORDER BY ordinal_position limit 18000`
 )
 
 func (d *DbInstance) GetTableMetedatas() []map[string]string {
@@ -281,5 +312,32 @@ func (d *DbInstance) GetColumnMetadatas(tableNames ...string) []map[string]strin
 
 	_, res, err := d.SelectData(sql)
 	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
+	return res
+}
+
+func (d *DbInstance) GetTableInfos() []map[string]string {
+	var sql string
+	if d.Type == "mysql" {
+		sql = MYSQL_TABLE_INFO
+	}
+	_, res, _ := d.SelectData(sql)
+	return res
+}
+
+func (d *DbInstance) GetTableIndex(tableName string) []map[string]string {
+	var sql string
+	if d.Type == "mysql" {
+		sql = fmt.Sprintf(MYSQL_INDEX_INFO, tableName)
+	}
+	_, res, _ := d.SelectData(sql)
+	return res
+}
+
+func (d *DbInstance) GetCreateTableDdl(tableName string) []map[string]string {
+	var sql string
+	if d.Type == "mysql" {
+		sql = fmt.Sprintf("show create table %s ", tableName)
+	}
+	_, res, _ := d.SelectData(sql)
 	return res
 }

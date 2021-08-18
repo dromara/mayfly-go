@@ -91,7 +91,6 @@
 <script lang="ts">
 import { toRefs, reactive, onMounted, defineComponent } from 'vue';
 import RoleEdit from './RoleEdit.vue';
-import { rolePermission } from '../permissions';
 import ResourceEdit from './ResourceEdit.vue';
 import ShowResource from './ShowResource.vue';
 import { roleApi, resourceApi } from '../api';
@@ -157,7 +156,7 @@ export default defineComponent({
             state.chooseData = item;
         };
 
-        const roleEditChange = (data: any) => {
+        const roleEditChange = () => {
             ElMessage.success('修改成功！');
             search();
         };

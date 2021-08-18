@@ -52,15 +52,15 @@ type TimedCache struct {
 type timedcache struct {
 	defaultExpiration time.Duration
 	updateAccessTime  bool // 是否更新最后访问时间
-	items             map[string]*Item
+	items             map[interface{}]*Item
 	mu                sync.RWMutex
-	onEvicted         func(string, interface{}) // 移除时回调函数
+	onEvicted         func(interface{}, interface{}) // 移除时回调函数
 	janitor           *janitor
 }
 
 // Add an item to the cache only if an item doesn't already exist for the given
 // key, or if the existing item has expired. Returns an error otherwise.
-func (c *timedcache) Add(k string, x interface{}, d time.Duration) error {
+func (c *timedcache) Add(k interface{}, x interface{}, d time.Duration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	_, found := c.get(k)
@@ -71,13 +71,13 @@ func (c *timedcache) Add(k string, x interface{}, d time.Duration) error {
 	return nil
 }
 
-func (c *timedcache) Put(k string, x interface{}) {
+func (c *timedcache) Put(k interface{}, x interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.set(k, x, c.defaultExpiration)
 }
 
-func (c *timedcache) AddIfAbsent(k string, x interface{}) {
+func (c *timedcache) AddIfAbsent(k interface{}, x interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	_, found := c.get(k)
@@ -87,7 +87,7 @@ func (c *timedcache) AddIfAbsent(k string, x interface{}) {
 	c.set(k, x, c.defaultExpiration)
 }
 
-func (c *timedcache) ComputeIfAbsent(k string, getValueFunc func(string) (interface{}, error)) (interface{}, error) {
+func (c *timedcache) ComputeIfAbsent(k interface{}, getValueFunc func(interface{}) (interface{}, error)) (interface{}, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	value, found := c.get(k)
@@ -103,7 +103,7 @@ func (c *timedcache) ComputeIfAbsent(k string, getValueFunc func(string) (interf
 	return value, nil
 }
 
-func (c *timedcache) set(k string, x interface{}, d time.Duration) {
+func (c *timedcache) set(k interface{}, x interface{}, d time.Duration) {
 	var e int64
 	if d == DefaultExpiration {
 		d = c.defaultExpiration
@@ -120,13 +120,13 @@ func (c *timedcache) set(k string, x interface{}, d time.Duration) {
 
 // Get an item from the cache. Returns the item or nil, and a bool indicating
 // whether the key was found.
-func (c *timedcache) Get(k string) (interface{}, bool) {
+func (c *timedcache) Get(k interface{}) (interface{}, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.get(k)
 }
 
-func (c *timedcache) get(k string) (interface{}, bool) {
+func (c *timedcache) get(k interface{}) (interface{}, bool) {
 	item, found := c.items[k]
 	if !found {
 		return nil, false
@@ -145,7 +145,7 @@ func (c *timedcache) get(k string) (interface{}, bool) {
 // item's value is not an integer, if it was not found, or if it is not
 // possible to increment it by n. To retrieve the incremented value, use one
 // of the specialized methods, e.g. IncrementInt64.
-func (c *timedcache) Increment(k string, n int64) error {
+func (c *timedcache) Increment(k interface{}, n int64) error {
 	c.mu.Lock()
 	v, found := c.items[k]
 	if !found || v.Expired() {
@@ -198,10 +198,10 @@ func (c *timedcache) Count() int {
 }
 
 // Copies all unexpired items in the cache into a new map and returns it.
-func (c *timedcache) Items() map[string]*Item {
+func (c *timedcache) Items() map[interface{}]*Item {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	m := make(map[string]*Item, len(c.items))
+	m := make(map[interface{}]*Item, len(c.items))
 	now := time.Now().UnixNano()
 	for k, v := range c.items {
 		// "Inlining" of Expired
@@ -216,7 +216,7 @@ func (c *timedcache) Items() map[string]*Item {
 }
 
 // 删除指定key的数据
-func (c *timedcache) Delete(k string) {
+func (c *timedcache) Delete(k interface{}) {
 	c.mu.Lock()
 	v, evicted := c.delete(k)
 	c.mu.Unlock()
@@ -225,7 +225,7 @@ func (c *timedcache) Delete(k string) {
 	}
 }
 
-func (c *timedcache) delete(k string) (interface{}, bool) {
+func (c *timedcache) delete(k interface{}) (interface{}, bool) {
 	// 如果有移除回调函数，则返回值及是否有删除回调函数用于进行回调处理
 	if c.onEvicted != nil {
 		if v, found := c.items[k]; found {
@@ -238,7 +238,7 @@ func (c *timedcache) delete(k string) (interface{}, bool) {
 }
 
 type keyAndValue struct {
-	key   string
+	key   interface{}
 	value interface{}
 }
 
@@ -265,7 +265,7 @@ func (c *timedcache) DeleteExpired() {
 // 清空所有缓存
 func (c *timedcache) Clear() {
 	c.mu.Lock()
-	c.items = map[string]*Item{}
+	c.items = map[interface{}]*Item{}
 	c.mu.Unlock()
 }
 
@@ -378,7 +378,7 @@ func runJanitor(c *timedcache, ci time.Duration) {
 	go j.Run(c)
 }
 
-func newCache(de time.Duration, m map[string]*Item) *timedcache {
+func newCache(de time.Duration, m map[interface{}]*Item) *timedcache {
 	if de == 0 {
 		de = -1
 	}
@@ -389,7 +389,7 @@ func newCache(de time.Duration, m map[string]*Item) *timedcache {
 	return c
 }
 
-func newCacheWithJanitor(de time.Duration, ci time.Duration, m map[string]*Item) *TimedCache {
+func newCacheWithJanitor(de time.Duration, ci time.Duration, m map[interface{}]*Item) *TimedCache {
 	c := newCache(de, m)
 	// This trick ensures that the janitor goroutine (which--granted it
 	// was enabled--is running DeleteExpired on c forever) does not keep
@@ -410,12 +410,12 @@ func newCacheWithJanitor(de time.Duration, ci time.Duration, m map[string]*Item)
 // manually. If the cleanup interval is less than one, expired items are not
 // deleted from the cache before calling c.DeleteExpired().
 func NewTimedCache(defaultExpiration, cleanupInterval time.Duration) *TimedCache {
-	items := make(map[string]*Item)
+	items := make(map[interface{}]*Item)
 	return newCacheWithJanitor(defaultExpiration, cleanupInterval, items)
 }
 
 // 调用删除函数时，会回调该剔除函数
-func (c *TimedCache) OnEvicted(f func(string, interface{})) *TimedCache {
+func (c *TimedCache) OnEvicted(f func(interface{}, interface{})) *TimedCache {
 	c.mu.Lock()
 	c.onEvicted = f
 	c.mu.Unlock()

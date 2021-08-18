@@ -17,7 +17,15 @@
 
             <el-button @click="showEnv(chooseData)" :disabled="chooseId == null" type="info" icon="el-icon-setting" size="mini">环境管理</el-button>
 
-            <el-button v-auth="'role:del'" :disabled="chooseId == null" type="danger" icon="el-icon-delete" size="mini">删除</el-button>
+            <el-button
+                v-auth="permissions.delProject"
+                @click="delProject"
+                :disabled="chooseId == null"
+                type="danger"
+                icon="el-icon-delete"
+                size="mini"
+                >删除</el-button
+            >
 
             <div style="float: right">
                 <el-input
@@ -69,7 +77,7 @@
         <el-dialog width="400px" title="项目编辑" :before-close="cancelAddProject" v-model="addProjectDialog.visible">
             <el-form :model="addProjectDialog.form" size="small" label-width="70px">
                 <el-form-item label="项目名:" required>
-                    <el-input :disabled="addProjectDialog.form.id" v-model="addProjectDialog.form.name" auto-complete="off"></el-input>
+                    <el-input :disabled="addProjectDialog.form.id ? true : false" v-model="addProjectDialog.form.name" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item label="描述:">
                     <el-input v-model="addProjectDialog.form.remark" auto-complete="off"></el-input>
@@ -160,7 +168,14 @@
             <el-dialog width="400px" title="添加成员" :before-close="cancelAddMember" v-model="showMemDialog.addVisible">
                 <el-form :model="showMemDialog.memForm" size="small" label-width="70px">
                     <el-form-item label="账号:">
-                        <el-select style="width: 100%" remote :remote-method="getAccount" v-model="showMemDialog.memForm.accountId" filterable placeholder="请选择">
+                        <el-select
+                            style="width: 100%"
+                            remote
+                            :remote-method="getAccount"
+                            v-model="showMemDialog.memForm.accountId"
+                            filterable
+                            placeholder="请选择"
+                        >
                             <el-option v-for="item in showMemDialog.accounts" :key="item.id" :label="item.username" :value="item.id"> </el-option>
                         </el-select>
                     </el-form-item>
@@ -187,7 +202,6 @@ import { projectApi } from './api';
 import { accountApi } from '../../system/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { notEmpty, notNull } from '@/common/assert';
-import { auth } from '../../../common/utils/authFunction';
 export default defineComponent({
     name: 'ProjectList',
     components: {},
@@ -195,6 +209,7 @@ export default defineComponent({
         const state = reactive({
             permissions: {
                 saveProject: 'project:save',
+                delProject: 'project:del',
                 saveMember: 'project:member:add',
                 delMember: 'project:member:del',
                 saveEnv: 'project:env:add',
@@ -262,7 +277,7 @@ export default defineComponent({
 
         const showAddProjectDialog = (data: any) => {
             if (data) {
-                state.addProjectDialog.form = data;
+                state.addProjectDialog.form = { ...data };
             } else {
                 state.addProjectDialog.form = {} as any;
             }
@@ -283,6 +298,21 @@ export default defineComponent({
             ElMessage.success('保存成功');
             search();
             cancelAddProject();
+        };
+
+        const delProject = async () => {
+            try {
+                await ElMessageBox.confirm(`确定删除该项目?`, '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning',
+                });
+                await projectApi.delProject.request({ id: state.chooseId });
+                ElMessage.success('删除成功');
+                state.chooseData = null;
+                state.chooseId = null;
+                search();
+            } catch (err) {}
         };
 
         const choose = (item: any) => {
@@ -380,11 +410,6 @@ export default defineComponent({
             state.showEnvDialog.addVisible = false;
         };
 
-        const roleEditChange = (data: any) => {
-            ElMessage.success('修改成功！');
-            search();
-        };
-
         return {
             ...toRefs(state),
             search,
@@ -392,6 +417,7 @@ export default defineComponent({
             choose,
             showAddProjectDialog,
             addProject,
+            delProject,
             cancelAddProject,
             showMembers,
             setMemebers,

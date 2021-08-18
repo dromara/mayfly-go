@@ -131,11 +131,9 @@ func (r *RequestWrapper) PostMulipart(files []MultipartFile, reqParams map[strin
 		_, err = io.Copy(part, reader)
 	}
 	// 如果有其他参数，则写入body
-	if reqParams != nil {
-		for k, v := range reqParams {
-			if err := writer.WriteField(k, v); err != nil {
-				return createRequestError(err)
-			}
+	for k, v := range reqParams {
+		if err := writer.WriteField(k, v); err != nil {
+			return createRequestError(err)
 		}
 	}
 	if err := writer.Close(); err != nil {
@@ -219,7 +217,7 @@ func request(rw *RequestWrapper) *ResponseWrapper {
 }
 
 func setRequestHeader(req *http.Request, header map[string]string) {
-	req.Header.Set("User-Agent", "golang/mayflyjob")
+	req.Header.Set("User-Agent", "golang/mayfly")
 	for k, v := range header {
 		req.Header.Set(k, v)
 	}

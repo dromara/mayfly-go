@@ -26,3 +26,7 @@ func (p *projectRepo) Save(project *entity.Project) {
 func (p *projectRepo) Update(project *entity.Project) {
 	biz.ErrIsNil(model.UpdateById(project), "更新项目信息")
 }
+
+func (p *projectRepo) Delete(id uint64) {
+	model.DeleteById(new(entity.Project), id)
+}

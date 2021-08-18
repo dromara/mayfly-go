@@ -26,3 +26,7 @@ func (p *projectMemeberRepo) GetPageList(condition *entity.ProjectMember, pagePa
 func (p *projectMemeberRepo) DeleteByPidMid(projectId, accountId uint64) {
 	model.DeleteByCondition(&entity.ProjectMember{ProjectId: projectId, AccountId: accountId})
 }
+
+func (p *projectMemeberRepo) DeleteMems(projectId uint64) {
+	model.DeleteByCondition(&entity.ProjectMember{ProjectId: projectId})
+}

@@ -16,6 +16,8 @@ type Project interface {
 
 	SaveProject(project *entity.Project)
 
+	DelProject(id uint64)
+
 	// 根据项目id获取所有该项目下的环境信息列表
 	ListEnvByProjectId(projectId uint64, listPtr interface{})
 
@@ -62,6 +64,12 @@ func (p *projectAppImpl) SaveProject(project *entity.Project) {
 		project.Name = ""
 		p.projectRepo.Update(project)
 	}
+}
+
+func (p *projectAppImpl) DelProject(id uint64) {
+	p.projectRepo.Delete(id)
+	p.projectEnvRepo.DeleteEnvs(id)
+	p.projectMemberRepo.DeleteMems(id)
 }
 
 // 根据项目id获取所有该项目下的环境信息列表

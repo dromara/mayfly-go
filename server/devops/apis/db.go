@@ -48,6 +48,22 @@ func (d *Db) DeleteDb(rc *ctx.ReqCtx) {
 	d.DbApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
 }
 
+func (d *Db) TableInfos(rc *ctx.ReqCtx) {
+	rc.ResData = d.DbApp.GetDbInstance(GetDbId(rc.GinCtx)).GetTableInfos()
+}
+
+func (d *Db) TableIndex(rc *ctx.ReqCtx) {
+	tn := rc.GinCtx.Query("tableName")
+	biz.NotEmpty(tn, "tableName不能为空")
+	rc.ResData = d.DbApp.GetDbInstance(GetDbId(rc.GinCtx)).GetTableIndex(tn)
+}
+
+func (d *Db) GetCreateTableDdl(rc *ctx.ReqCtx) {
+	tn := rc.GinCtx.Query("tableName")
+	biz.NotEmpty(tn, "tableName不能为空")
+	rc.ResData = d.DbApp.GetDbInstance(GetDbId(rc.GinCtx)).GetCreateTableDdl(tn)
+}
+
 // @router /api/db/:dbId/exec-sql [get]
 func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
@@ -84,7 +100,6 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 
 		rc.ResData = colAndRes
 	}
-
 }
 
 // @router /api/db/:dbId/t-metadata [get]

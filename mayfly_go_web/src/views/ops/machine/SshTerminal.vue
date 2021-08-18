@@ -7,6 +7,7 @@ import 'xterm/css/xterm.css';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { getSession } from '@/common/utils/storage.ts';
+import config from '@/common/config'
 
 export default {
     name: 'Xterm',
@@ -82,7 +83,7 @@ export default {
             }
         },
         initSocket() {
-            this.socket = new WebSocket(`ws://localhost:8888/api/machines/${this.machineId}/terminal?token=${getSession('token')}`);
+            this.socket = new WebSocket(`${config.baseWsUrl}/machines/${this.machineId}/terminal?token=${getSession('token')}`);
             // 监听socket连接
             this.socket.onopen = this.open;
             // 监听socket错误信息

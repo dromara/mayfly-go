@@ -7,4 +7,6 @@ type ProjectEnv interface {
 	ListEnv(condition *entity.ProjectEnv, toEntity interface{}, orderBy ...string)
 
 	Save(entity *entity.ProjectEnv)
+
+	DeleteEnvs(projectId uint64)
 }

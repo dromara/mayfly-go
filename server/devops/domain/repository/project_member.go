@@ -16,4 +16,6 @@ type ProjectMemeber interface {
 
 	// 根据成员id和项目id删除关联关系
 	DeleteByPidMid(projectId, accountId uint64)
+
+	DeleteMems(projectId uint64)
 }

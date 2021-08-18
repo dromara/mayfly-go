@@ -18,3 +18,7 @@ func (p *projectEnvRepo) ListEnv(condition *entity.ProjectEnv, toEntity interfac
 func (p *projectEnvRepo) Save(entity *entity.ProjectEnv) {
 	biz.ErrIsNilAppendErr(model.Insert(entity), "保存环境失败：%s")
 }
+
+func (p *projectEnvRepo) DeleteEnvs(projectId uint64) {
+	model.DeleteByCondition(&entity.ProjectEnv{ProjectId: projectId})
+}

@@ -28,14 +28,14 @@ type Cli struct {
 // 机器客户端连接缓存，30分钟内没有访问则会被关闭
 var cliCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
 	WithUpdateAccessTime(true).
-	OnEvicted(func(key string, value interface{}) {
-		global.Log.Info(fmt.Sprintf("删除机器连接缓存 id: %s", key))
+	OnEvicted(func(key interface{}, value interface{}) {
+		global.Log.Info(fmt.Sprintf("删除机器连接缓存 id: %d", key))
 		value.(*Cli).Close()
 	})
 
 // 从缓存中获取客户端信息，不存在则回调获取机器信息函数，并新建
 func GetCli(machineId uint64, getMachine func(uint64) *entity.Machine) (*Cli, error) {
-	cli, err := cliCache.ComputeIfAbsent(fmt.Sprint(machineId), func(key string) (interface{}, error) {
+	cli, err := cliCache.ComputeIfAbsent(machineId, func(key interface{}) (interface{}, error) {
 		c, err := newClient(getMachine(machineId))
 		if err != nil {
 			return nil, err
@@ -210,7 +210,7 @@ func (c *Cli) RunTerminal(shell string, stdout, stderr io.Writer) error {
 
 // 关闭指定机器的连接
 func Close(id uint64) {
-	if cli, ok := cliCache.Get(fmt.Sprint(id)); ok {
+	if cli, ok := cliCache.Get(id); ok {
 		cli.(*Cli).Close()
 	}
 }

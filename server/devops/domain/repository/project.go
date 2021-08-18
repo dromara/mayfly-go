@@ -13,4 +13,6 @@ type Project interface {
 	Save(p *entity.Project)
 
 	Update(project *entity.Project)
+
+	Delete(id uint64)
 }

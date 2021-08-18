@@ -32,7 +32,7 @@
                         >编辑</el-button
                     >
                     <el-button
-                       v-auth="permissions.delDb"
+                        v-auth="permissions.delDb"
                         :disabled="chooseId == null"
                         @click="deleteDb(chooseId)"
                         type="danger"
@@ -69,6 +69,12 @@
                     {{ $filters.dateFormat(scope.row.createTime) }}
                 </template>
             </el-table-column>
+
+            <el-table-column label="更多信息" min-width="100">
+                <template #default="scope">
+                    <el-link @click.prevent="tableInfo(scope.row)" type="success">表信息</el-link>
+                </template>
+            </el-table-column>
         </el-table>
         <el-pagination
             @current-change="handlePageChange"
@@ -80,26 +86,99 @@
             :page-size="query.pageSize"
         />
 
-        <db-edit @val-change="valChange" :projects="projects" :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible" v-model:db="dbEditDialog.data"></db-edit>
+        <el-dialog
+            width="75%"
+            :title="`${chooseData ? chooseData.database : ''} 表信息`"
+            :before-close="closeTableInfo"
+            v-model="tableInfoDialog.visible"
+        >
+            <el-table border :data="tableInfoDialog.infos" size="small">
+                <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip></el-table-column>
+                <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip></el-table-column>
+                <el-table-column
+                    prop="tableRows"
+                    label="Rows"
+                    min-width="70"
+                    sortable
+                    :sort-method="(a, b) => parseInt(a.tableRows) - parseInt(b.tableRows)"
+                ></el-table-column>
+                <el-table-column
+                    property="dataLength"
+                    label="数据大小"
+                    sortable
+                    :sort-method="(a, b) => parseInt(a.dataLength) - parseInt(b.dataLength)"
+                >
+                    <template #default="scope">
+                        {{ formatByteSize(scope.row.dataLength) }}
+                    </template>
+                </el-table-column>
+                <el-table-column
+                    property="indexLength"
+                    label="索引大小"
+                    sortable
+                    :sort-method="(a, b) => parseInt(a.indexLength) - parseInt(b.indexLength)"
+                >
+                    <template #default="scope">
+                        {{ formatByteSize(scope.row.indexLength) }}
+                    </template>
+                </el-table-column>
+                <el-table-column property="createTime" label="创建时间" min-width="150"> </el-table-column>
+                <el-table-column label="更多信息" min-width="100">
+                    <template #default="scope">
+                        <el-link @click.prevent="showColumns(scope.row)" type="primary">字段</el-link>
+                        <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">索引</el-link>
+                        <el-link class="ml5" @click.prevent="showCreateDdl(scope.row)" type="info">SQL</el-link>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-dialog>
+
+        <el-dialog width="40%" :title="`${chooseTableName} 字段信息`" v-model="columnDialog.visible">
+            <el-table border :data="columnDialog.columns" size="mini">
+                <el-table-column prop="columnName" label="名称" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
+                <el-table-column width="120" prop="columnType" label="类型" show-overflow-tooltip> </el-table-column>
+            </el-table>
+        </el-dialog>
+
+        <el-dialog width="40%" :title="`${chooseTableName} 索引信息`" v-model="indexDialog.visible">
+            <el-table border :data="indexDialog.indexs" size="mini">
+                <el-table-column prop="indexName" label="索引名" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="columnName" label="列名" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="seqInIndex" label="列序列号" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="indexType" label="类型"> </el-table-column>
+            </el-table>
+        </el-dialog>
+
+        <el-dialog width="55%" :title="`${chooseTableName} Create-DDL`" v-model="ddlDialog.visible">
+            <el-input disabled type="textarea" :autosize="{ minRows: 15, maxRows: 30 }" v-model="ddlDialog.ddl"> </el-input>
+        </el-dialog>
+
+        <db-edit
+            @val-change="valChange"
+            :projects="projects"
+            :title="dbEditDialog.title"
+            v-model:visible="dbEditDialog.visible"
+            v-model:db="dbEditDialog.data"
+        ></db-edit>
     </div>
 </template>
 
 <script lang='ts'>
 import { toRefs, reactive, onMounted, defineComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
+import { formatByteSize } from '@/common/utils/format';
 import DbEdit from './DbEdit.vue';
 import { dbApi } from './api';
 import { projectApi } from '../project/api.ts';
 export default defineComponent({
     name: 'DbList',
     components: {
-        ProjectEnvSelect,
         DbEdit,
     },
     setup() {
         const state = reactive({
-             permissions: {
+            permissions: {
                 saveDb: 'db:save',
                 delDb: 'db:del',
             },
@@ -118,6 +197,24 @@ export default defineComponent({
             },
             datas: [],
             total: 0,
+
+            chooseTableName: '',
+            tableInfoDialog: {
+                visible: false,
+                infos: [],
+            },
+            columnDialog: {
+                visible: false,
+                columns: [],
+            },
+            indexDialog: {
+                visible: false,
+                indexs: [],
+            },
+            ddlDialog: {
+                visible: false,
+                ddl: '',
+            },
             dbEditDialog: {
                 visible: false,
                 data: null,
@@ -179,6 +276,47 @@ export default defineComponent({
             } catch (err) {}
         };
 
+        const tableInfo = async (row: any) => {
+            state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: row.id });
+            state.tableInfoDialog.visible = true;
+        };
+
+        const closeTableInfo = () => {
+            state.tableInfoDialog.visible = false;
+            state.tableInfoDialog.infos = [];
+        };
+
+        const showColumns = async (row: any) => {
+            state.chooseTableName = row.tableName;
+            state.columnDialog.columns = await dbApi.columnMetadata.request({
+                id: state.chooseId,
+                tableName: row.tableName,
+            });
+
+            state.columnDialog.visible = true;
+        };
+
+        const showTableIndex = async (row: any) => {
+            state.chooseTableName = row.tableName;
+            state.indexDialog.indexs = await dbApi.tableIndex.request({
+                id: state.chooseId,
+                tableName: row.tableName,
+            });
+
+            state.indexDialog.visible = true;
+        };
+
+        const showCreateDdl = async (row: any) => {
+            state.chooseTableName = row.tableName;
+            const res = await dbApi.tableDdl.request({
+                id: state.chooseId,
+                tableName: row.tableName,
+            });
+            state.ddlDialog.ddl = res[0]['Create Table'];
+            console.log(state.ddlDialog);
+            state.ddlDialog.visible = true;
+        };
+
         return {
             ...toRefs(state),
             // enums,
@@ -188,6 +326,12 @@ export default defineComponent({
             editDb,
             valChange,
             deleteDb,
+            tableInfo,
+            closeTableInfo,
+            showColumns,
+            showTableIndex,
+            showCreateDdl,
+            formatByteSize,
         };
     },
 });

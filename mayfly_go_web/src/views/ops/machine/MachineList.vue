@@ -98,10 +98,8 @@
 import { toRefs, reactive, onMounted, defineComponent } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { DynamicFormDialog } from '@/components/dynamic-form';
 // import Monitor from './Monitor.vue';
 import { machineApi } from './api';
-import SshTerminal from './SshTerminal.vue';
 import ServiceManage from './ServiceManage.vue';
 import FileManage from './FileManage.vue';
 import MachineEdit from './MachineEdit.vue';
@@ -109,10 +107,8 @@ import MachineEdit from './MachineEdit.vue';
 export default defineComponent({
     name: 'MachineList',
     components: {
-        SshTerminal,
         ServiceManage,
         FileManage,
-        DynamicFormDialog,
         MachineEdit,
     },
     setup() {

@@ -5,6 +5,9 @@ export const dbApi = {
     dbs: Api.create("/dbs", 'get'),
     saveDb: Api.create("/dbs", 'post'),
     deleteDb: Api.create("/dbs/{id}", 'delete'),
+    tableInfos: Api.create("/dbs/{id}/t-infos", 'get'),
+    tableIndex: Api.create("/dbs/{id}/t-index", 'get'),
+    tableDdl: Api.create("/dbs/{id}/t-create-ddl", 'get'),
     tableMetadata: Api.create("/dbs/{id}/t-metadata", 'get'),
     columnMetadata: Api.create("/dbs/{id}/c-metadata", 'get'),
     // 获取表即列提示

@@ -32,6 +32,18 @@ func InitDbRouter(router *gin.RouterGroup) {
 				Handle(d.DeleteDb)
 		})
 
+		db.GET(":dbId/t-infos", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(d.TableInfos)
+		})
+
+		db.GET(":dbId/t-index", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(d.TableIndex)
+		})
+
+		db.GET(":dbId/t-create-ddl", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).WithNeedToken(false).Handle(d.GetCreateTableDdl)
+		})
+
 		// db.GET(":dbId/exec-sql", controllers.SelectData)
 		db.GET(":dbId/exec-sql", func(g *gin.Context) {
 			rc := ctx.NewReqCtxWithGin(g).WithLog(ctx.NewLogInfo("执行Sql语句"))

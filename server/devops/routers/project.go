@@ -34,6 +34,15 @@ func InitProjectRouter(router *gin.RouterGroup) {
 				Handle(m.SaveProject)
 		})
 
+		delProjectLog := ctx.NewLogInfo("删除项目信息")
+		delPP := ctx.NewPermission("project:del")
+		// 删除项目
+		project.DELETE("", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).WithLog(delProjectLog).
+				WithRequiredPermission(delPP).
+				Handle(m.DelProject)
+		})
+
 		// 获取项目下的环境信息列表
 		project.GET("/:projectId/envs", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(m.GetProjectEnvs)

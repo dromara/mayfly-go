@@ -145,10 +145,12 @@ func GetByConditionTo(conditionModel interface{}, toModel interface{}) error {
 // 获取分页结果
 func GetPage(pageParam *PageParam, conditionModel interface{}, toModels interface{}, orderBy ...string) *PageResult {
 	var count int64
-	global.Db.Model(conditionModel).Where(conditionModel).Count(&count)
+	err := global.Db.Model(conditionModel).Where(conditionModel).Count(&count).Error
+	biz.ErrIsNilAppendErr(err, " 查询错误：%s")
 	if count == 0 {
 		return &PageResult{Total: 0, List: []string{}}
 	}
+
 	page := pageParam.PageNum
 	pageSize := pageParam.PageSize
 	var orderByStr string
@@ -157,7 +159,7 @@ func GetPage(pageParam *PageParam, conditionModel interface{}, toModels interfac
 	} else {
 		orderByStr = strings.Join(orderBy, ",")
 	}
-	err := global.Db.Model(conditionModel).Where(conditionModel).Order(orderByStr).Limit(pageSize).Offset((page - 1) * pageSize).Find(toModels).Error
+	err = global.Db.Model(conditionModel).Where(conditionModel).Order(orderByStr).Limit(pageSize).Offset((page - 1) * pageSize).Find(toModels).Error
 	biz.ErrIsNil(err, "查询失败")
 	return &PageResult{Total: count, List: toModels}
 }

@@ -1,12 +1,15 @@
 package application
 
 import (
+	"fmt"
 	"mayfly-go/base/biz"
+	"mayfly-go/base/cache"
+	"mayfly-go/base/global"
 	"mayfly-go/base/model"
 	"mayfly-go/server/devops/domain/entity"
 	"mayfly-go/server/devops/domain/repository"
 	"mayfly-go/server/devops/infrastructure/persistence"
-	"sync"
+	"time"
 
 	"github.com/go-redis/redis"
 )
@@ -85,7 +88,7 @@ func (r *redisAppImpl) GetRedisInstance(id uint64) *RedisInstance {
 	// Id不为0，则为需要缓存
 	needCache := id != 0
 	if needCache {
-		load, ok := redisCache.Load(id)
+		load, ok := redisCache.Get(id)
 		if ok {
 			return load.(*RedisInstance)
 		}
@@ -93,6 +96,8 @@ func (r *redisAppImpl) GetRedisInstance(id uint64) *RedisInstance {
 	// 缓存不存在，则回调获取redis信息
 	re := r.GetById(id)
 	biz.NotNil(re, "redis信息不存在")
+	global.Log.Infof("连接redis: %s", re.Host)
+
 	rcli := redis.NewClient(&redis.Options{
 		Addr:     re.Host,
 		Password: re.Password, // no password set
@@ -104,14 +109,20 @@ func (r *redisAppImpl) GetRedisInstance(id uint64) *RedisInstance {
 
 	ri := &RedisInstance{Id: id, Cli: rcli}
 	if needCache {
-		redisCache.LoadOrStore(re.Id, ri)
+		redisCache.Put(re.Id, ri)
 	}
 	return ri
 }
 
 //------------------------------------------------------------------------------
 
-var redisCache sync.Map
+// redis客户端连接缓存，30分钟内没有访问则会被关闭
+var redisCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
+	WithUpdateAccessTime(true).
+	OnEvicted(func(key interface{}, value interface{}) {
+		global.Log.Info(fmt.Sprintf("删除redis连接缓存 id: %d", key))
+		value.(*RedisInstance).Cli.Close()
+	})
 
 // redis实例
 type RedisInstance struct {
@@ -121,7 +132,7 @@ type RedisInstance struct {
 
 // 关闭redis连接
 func CloseRedis(id uint64) {
-	if load, ok := redisCache.Load(id); ok {
+	if load, ok := redisCache.Get(id); ok {
 		load.(*RedisInstance).Cli.Close()
 		redisCache.Delete(id)
 	}
