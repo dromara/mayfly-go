@@ -7,6 +7,11 @@
 - 前端：typescript、vue3、element-plus
 - 后端：golang、gin、gorm
 
+
+#### 学习交流及问题反馈加 QQ 群
+<a target="_blank" href="https://qm.qq.com/cgi-bin/qm/qr?k=RdUY97Vx0T0vZ_1OOu-X1yFNkWgDwbjC&jump_from=webapi">119699946</a>
+
+
 #### 系统功能
 
 记录操作记录
