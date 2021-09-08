@@ -140,7 +140,6 @@
 import { toRefs, reactive, onMounted, defineComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceEdit from './ResourceEdit.vue';
-import { resourcePermission } from '../permissions';
 import enums from '../enums';
 import { resourceApi } from '../api';
 
@@ -261,7 +260,7 @@ export default defineComponent({
             state.dialogForm.title = '修改“' + data.name + '”菜单';
         };
 
-        const valChange = (data: any) => {
+        const valChange = () => {
             search();
             state.dialogForm.visible = false;
         };

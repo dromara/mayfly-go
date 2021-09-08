@@ -22,8 +22,15 @@
                     size="mini"
                     >删除</el-button
                 >
-                <el-button v-auth="'machine:file'" type="success" :disabled="currentId == null" @click="fileManage(currentData)" size="mini" plain
-                    >文件管理</el-button
+                <el-button
+                    v-auth="'machine:file'"
+                    type="success"
+                    icon="el-icon-files"
+                    :disabled="currentId == null"
+                    @click="fileManage(currentData)"
+                    size="mini"
+                    plain
+                    >文件</el-button
                 >
             </div>
 
@@ -47,24 +54,30 @@
                     {{ `${scope.row.ip}:${scope.row.port}` }}
                 </template>
             </el-table-column>
-            <el-table-column prop="username" label="用户名" :min-width="45"></el-table-column>
+            <el-table-column prop="ip" label="hasCli" min-width="60">
+                <template #default="scope">
+                    {{ `${scope.row.hasCli ? '是' : '否'}` }}
+                </template>
+            </el-table-column>
+            <el-table-column prop="username" label="用户名" :min-width="55"></el-table-column>
             <el-table-column prop="createTime" label="创建时间" min-width="160">
                 <template #default="scope">
                     {{ $filters.dateFormat(scope.row.createTime) }}
                 </template>
             </el-table-column>
-            <el-table-column prop="creator" label="创建者" min-width="50"></el-table-column>
-            <el-table-column prop="updateTime" label="更新时间" min-width="160">
+            <el-table-column prop="creator" label="创建者" min-width="55"></el-table-column>
+            <!-- <el-table-column prop="updateTime" label="更新时间" min-width="160">
                 <template #default="scope">
                     {{ $filters.dateFormat(scope.row.updateTime) }}
                 </template>
             </el-table-column>
-            <el-table-column prop="modifier" label="修改者" :min-width="50"></el-table-column>
-            <el-table-column label="操作" min-width="200px">
+            <el-table-column prop="modifier" label="修改者" :min-width="55"></el-table-column> -->
+            <el-table-column label="操作" min-width="260">
                 <template #default="scope">
                     <!-- <el-button type="primary" @click="monitor(scope.row.id)" icom="el-icon-tickets" size="mini" plain>监控</el-button> -->
-                    <el-button type="success" @click="serviceManager(scope.row)" size="mini" plain>脚本管理</el-button>
-                    <el-button v-auth="'machine:terminal'" type="success" @click="showTerminal(scope.row)" size="mini" plain>终端</el-button>
+                    <el-button type="success" @click="serviceManager(scope.row)" size="mini" plain>脚本</el-button>
+                    <el-button v-auth="'machine:terminal'" type="primary" @click="showTerminal(scope.row)" size="mini" plain>终端</el-button>
+                    <el-button :disabled="!scope.row.hasCli" type="danger" @click="closeCli(scope.row)" size="mini" plain>关闭连接</el-button>
                 </template>
             </el-table-column>
         </el-table>
@@ -192,6 +205,12 @@ export default defineComponent({
             window.open(href, '_blank');
         };
 
+        const closeCli = async (row: any) => {
+            await machineApi.closeCli.request({ id: row.id });
+            ElMessage.success('关闭成功');
+            search();
+        };
+
         const openFormDialog = (redis: any) => {
             let dialogTitle;
             if (redis) {
@@ -252,6 +271,7 @@ export default defineComponent({
             showTerminal,
             openFormDialog,
             deleteMachine,
+            closeCli,
             serviceManager,
             submitSuccess,
             fileManage,

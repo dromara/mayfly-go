@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="'分配“' + role.name + '”菜单&权限'" v-model="visible" :before-close="cancel" :show-close="false" width="400px">
+        <el-dialog :title="'分配“' + role.name + '”菜单&权限'" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="400px">
             <el-tree
                 style="height: 50vh; overflow: auto"
                 ref="menuTree"
@@ -58,7 +58,7 @@ export default defineComponent({
         const menuTree: any = ref(null);
 
         const state = reactive({
-            visible: false,
+            dialogVisible: false,
             defaultProps: {
                 children: 'children',
                 label: 'name',
@@ -67,8 +67,8 @@ export default defineComponent({
 
         watch(
             () => props.visible,
-            (newValue, oldValue) => {
-                state.visible = newValue;
+            (newValue) => {
+                state.dialogVisible = newValue;
             }
         );
 

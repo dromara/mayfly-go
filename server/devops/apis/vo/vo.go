@@ -15,7 +15,7 @@ type AccountVO struct {
 
 type MachineVO struct {
 	//models.BaseModel
-	Id         *int64     `json:"id"`
+	Id         *uint64    `json:"id"`
 	Name       *string    `json:"name"`
 	Username   *string    `json:"username"`
 	Ip         *string    `json:"ip"`
@@ -26,6 +26,7 @@ type MachineVO struct {
 	UpdateTime *time.Time `json:"updateTime"`
 	Modifier   *string    `json:"modifier"`
 	ModifierId *int64     `json:"modifierId"`
+	HasCli     bool       `json:"hasCli" gorm:"-"`
 }
 
 type MachineScriptVO struct {

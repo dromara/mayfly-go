@@ -51,7 +51,7 @@ export default defineComponent({
             btnLoading: false,
         });
 
-        watch(props, (newValue, oldValue) => {
+        watch(props, (newValue) => {
             state.visible = newValue.visible;
             if (newValue.data) {
                 state.form = { ...newValue.data };

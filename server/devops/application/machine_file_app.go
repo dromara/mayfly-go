@@ -154,7 +154,7 @@ func (m *machineFileAppImpl) RemoveFile(fileId uint64, path string) {
 	sftpCli := m.getSftpCli(machineId)
 	file, err := sftpCli.Open(path)
 	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
-	fi, err := file.Stat()
+	fi, _ := file.Stat()
 	if fi.IsDir() {
 		err = sftpCli.RemoveDirectory(path)
 	} else {

@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="visible" :show-close="false" :before-close="cancel" width="35%">
+        <el-dialog :title="title" v-model="dialogVisible" :show-close="false" :before-close="cancel" width="35%">
             <el-form :model="form" ref="machineForm" :rules="rules" label-width="85px" size="small">
                 <!-- <el-form-item prop="projectId" label="项目:" required>
                     <el-select style="width: 100%" v-model="form.projectId" placeholder="请选择项目" @change="changeProject" filterable>
@@ -47,9 +47,8 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, watch, onMounted, defineComponent, ref } from 'vue';
+import { toRefs, reactive, watch, defineComponent, ref } from 'vue';
 import { machineApi } from './api';
-import { projectApi } from '../project/api.ts';
 import { ElMessage } from 'element-plus';
 
 export default defineComponent({
@@ -68,7 +67,7 @@ export default defineComponent({
     setup(props: any, { emit }) {
         const machineForm: any = ref(null);
         const state = reactive({
-            visible: false,
+            dialogVisible: false,
             form: {
                 id: null,
                 name: null,
@@ -130,8 +129,8 @@ export default defineComponent({
             },
         });
 
-        watch(props, async (newValue, oldValue) => {
-            state.visible = newValue.visible;
+        watch(props, async (newValue) => {
+            state.dialogVisible = newValue.visible;
             if (newValue.machine) {
                 state.form = { ...newValue.machine };
             } else {
@@ -142,7 +141,7 @@ export default defineComponent({
         const btnOk = async () => {
             machineForm.value.validate((valid: boolean) => {
                 if (valid) {
-                    machineApi.saveMachine.request(state.form).then((res: any) => {
+                    machineApi.saveMachine.request(state.form).then(() => {
                         ElMessage.success('保存成功');
                         emit('val-change', state.form);
                         state.btnLoading = true;

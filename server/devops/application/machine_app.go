@@ -53,7 +53,7 @@ func (m *machineAppImpl) Save(me *entity.Machine) {
 			biz.IsTrue(oldMachine.Id == me.Id, "该机器信息已存在")
 		}
 		// 关闭连接
-		machine.Close(me.Id)
+		machine.DeleteCli(me.Id)
 		m.machineRepo.UpdateById(me)
 	} else {
 		biz.IsTrue(err != nil, "该机器信息已存在")
@@ -64,7 +64,7 @@ func (m *machineAppImpl) Save(me *entity.Machine) {
 // 根据条件获取机器信息
 func (m *machineAppImpl) Delete(id uint64) {
 	// 关闭连接
-	machine.Close(id)
+	machine.DeleteCli(id)
 	model.Tx(
 		func(db *gorm.DB) error {
 			// 删除machine表信息

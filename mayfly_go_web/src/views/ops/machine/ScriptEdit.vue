@@ -2,7 +2,7 @@
     <div class="mock-data-dialog">
         <el-dialog
             :title="title"
-            v-model="visible"
+            v-model="dialogVisible"
             :close-on-click-modal="false"
             :before-close="cancel"
             :show-close="true"
@@ -87,7 +87,7 @@ export default defineComponent({
         const mockDataForm: any = ref(null);
 
         const state = reactive({
-            visible: false,
+            dialogVisible: false,
             submitDisabled: false,
             form: {
                 id: null,
@@ -101,14 +101,14 @@ export default defineComponent({
             btnLoading: false,
         });
 
-        watch(props, (newValue, oldValue) => {
+        watch(props, (newValue) => {
             if (newValue.data) {
                 state.form = { ...newValue.data };
             } else {
                 state.form = {} as any;
                 state.form.script = '';
             }
-            state.visible = newValue.visible;
+            state.dialogVisible = newValue.visible;
         });
 
         const btnOk = () => {
@@ -120,13 +120,13 @@ export default defineComponent({
                     notEmpty(state.form.description, '描述不能为空');
                     notEmpty(state.form.script, '内容不能为空');
                     machineApi.saveScript.request(state.form).then(
-                        (res: any) => {
+                        () => {
                             ElMessage.success('保存成功');
                             emit('submitSuccess');
                             state.submitDisabled = false;
                             cancel();
                         },
-                        (e: any) => {
+                        () => {
                             state.submitDisabled = false;
                         }
                     );

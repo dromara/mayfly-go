@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog @close="closeDialog" :title="title" :before-close="closeDialog" v-model="visible" width="400px">
+        <el-dialog @close="closeDialog" :title="title" :before-close="closeDialog" v-model="dialogVisible" width="400px">
             <el-tree style="height: 50vh; overflow: auto" :data="resources" node-key="id" :props="defaultProps" :expand-on-click-node="false">
                 <template #default="{ node, data }">
                     <span class="custom-tree-node">
@@ -36,7 +36,7 @@ export default defineComponent({
     setup(props: any, { emit }) {
         const { proxy } = getCurrentInstance() as any;
         const state = reactive({
-            visible: false,
+            dialogVisible: false,
             defaultProps: {
                 children: 'children',
                 label: 'name',
@@ -45,8 +45,8 @@ export default defineComponent({
 
         watch(
             () => props.visible,
-            (newValue, oldValue) => {
-                state.visible = newValue;
+            (newValue) => {
+                state.dialogVisible = newValue;
             }
         );
 
@@ -66,7 +66,7 @@ export default defineComponent({
                     closeOnClickModal: true,
                     showConfirmButton: false,
                 }
-            ).catch((r) => {});
+            ).catch(() => {});
             return;
         };
 

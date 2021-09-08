@@ -1,6 +1,6 @@
 <template>
     <div class="file-manage">
-        <el-dialog :title="title" v-model="visible" :show-close="true" :before-close="handleClose" width="800px">
+        <el-dialog :title="title" v-model="dialogVisible" :show-close="true" :before-close="handleClose" width="800px">
             <div class="toolbar">
                 <div style="float: right">
                     <el-button v-auth="'machine:file:add'" type="primary" @click="add" icon="el-icon-plus" size="mini" plain>添加</el-button>
@@ -51,7 +51,7 @@
 
         <el-dialog :title="tree.title" v-model="tree.visible" :close-on-click-modal="false" width="680px">
             <div style="height: 45vh; overflow: auto">
-                <el-tree ref="fileTree" :load="loadNode" :props="props" lazy node-key="id" :expand-on-click-node="false">
+                <el-tree v-if="tree.visible" ref="fileTree" :load="loadNode" :props="props" lazy node-key="id" :expand-on-click-node="false">
                     <template #default="{ node, data }">
                         <span class="custom-tree-node">
                             <span v-if="data.type == 'd' && !node.expanded">
@@ -142,7 +142,7 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button  v-auth="'machine:file:write'" type="primary" @click="updateContent" size="mini">保 存</el-button>
+                    <el-button v-auth="'machine:file:write'" type="primary" @click="updateContent" size="mini">保 存</el-button>
                     <el-button @click="fileContent.contentVisible = false" size="mini">关 闭</el-button>
                 </div>
             </template>
@@ -175,7 +175,6 @@ export default defineComponent({
         const addFile = machineApi.addConf;
         const delFile = machineApi.delConf;
         const updateFileContent = machineApi.updateFileContent;
-        const uploadFile = machineApi.uploadFile;
         const files = machineApi.files;
         const fileTree: any = ref(null);
         const token = getSession('token');
@@ -202,7 +201,7 @@ export default defineComponent({
         };
 
         const state = reactive({
-            visible: false,
+            dialogVisible: false,
             form: {
                 id: null,
                 type: null,
@@ -235,11 +234,11 @@ export default defineComponent({
             },
         });
 
-        watch(props, (newValue, oldValue) => {
+        watch(props, (newValue) => {
             if (newValue.machineId) {
                 getFiles();
             }
-            state.visible = newValue.visible;
+            state.dialogVisible = newValue.visible;
         });
 
         const getFiles = async () => {
@@ -284,7 +283,7 @@ export default defineComponent({
                             machineId: props.machineId,
                             id: row.id,
                         })
-                        .then((res) => {
+                        .then(() => {
                             state.fileTable.splice(idx, 1);
                         });
                 });
@@ -297,7 +296,6 @@ export default defineComponent({
             if (row.type == 1) {
                 state.tree.folder = row;
                 state.tree.title = row.name;
-                const treeNode = (state.tree.node.childNodes = []);
                 loadNode(state.tree.node, state.tree.resolve);
                 state.tree.visible = true;
                 return;
@@ -428,7 +426,7 @@ export default defineComponent({
                             path: file,
                             machineId: props.machineId,
                         })
-                        .then((res) => {
+                        .then(() => {
                             ElMessage.success('删除成功');
                             fileTree.value.remove(node);
                         });
@@ -448,7 +446,7 @@ export default defineComponent({
             a.click();
         };
 
-        const getUploadFile = (data: any) => {
+        const getUploadFile = () => {
             return `${config.baseApiUrl}/machines/${props.machineId}/files/${state.tree.folder.id}/upload?token=${token}`;
         };
 

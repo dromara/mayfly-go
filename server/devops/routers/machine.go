@@ -24,14 +24,15 @@ func InitMachineRouter(router *gin.RouterGroup) {
 		})
 
 		delMachine := ctx.NewLogInfo("删除机器")
-		db.DELETE("/delete/:id", func(c *gin.Context) {
+		db.DELETE(":machineId", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(delMachine).
 				Handle(m.DeleteMachine)
 		})
 
-		db.GET(":machineId/top", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(m.Top)
+		closeCli := ctx.NewLogInfo("关闭机器客户端")
+		db.DELETE(":machineId/close-cli", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).WithLog(closeCli).Handle(m.CloseCli)
 		})
 
 		db.GET(":machineId/terminal", m.WsSSH)

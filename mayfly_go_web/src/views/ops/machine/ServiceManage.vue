@@ -1,6 +1,6 @@
 <template>
     <div class="file-manage">
-        <el-dialog :title="title" v-model="visible" :destroy-on-close="true" :show-close="true" :before-close="handleClose" width="60%">
+        <el-dialog :title="title" v-model="dialogVisible" :destroy-on-close="true" :show-close="true" :before-close="handleClose" width="60%">
             <div class="toolbar">
                 <div style="float: left">
                     <el-select v-model="type" @change="getScripts" size="mini" placeholder="请选择">
@@ -128,7 +128,7 @@ export default defineComponent({
     setup(props: any, context) {
         const paramsForm: any = ref(null);
         const state = reactive({
-            visible: false,
+            dialogVisible: false,
             type: 0,
             currentId: null,
             currentData: null,
@@ -155,11 +155,11 @@ export default defineComponent({
             },
         });
 
-        watch(props, (newValue, oldValue) => {
+        watch(props, (newValue) => {
             if (props.machineId) {
                 getScripts();
             }
-            state.visible = newValue.visible;
+            state.dialogVisible = newValue.visible;
         });
 
         const getScripts = async () => {
@@ -271,7 +271,7 @@ export default defineComponent({
                         machineId: props.machineId,
                         scriptId: row.id,
                     })
-                    .then((res) => {
+                    .then(() => {
                         getScripts();
                     });
                 // 删除配置文件

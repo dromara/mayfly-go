@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="visible" :show-close="true" width="35%" @close="close()">
+        <el-dialog :title="title" v-model="dialogVisible" :show-close="true" width="35%" @close="close()">
             <el-collapse>
                 <el-collapse-item title="Server(Redis服务器的一般信息)" name="server">
                     <div class="row">
@@ -163,13 +163,13 @@ export default defineComponent({
     },
     setup(props: any, { emit }) {
         const state = reactive({
-            visible: false,
+            dialogVisible: false,
         });
 
         watch(
             () => props.visible,
             (val) => {
-                state.visible = val;
+                state.dialogVisible = val;
             }
         );
         

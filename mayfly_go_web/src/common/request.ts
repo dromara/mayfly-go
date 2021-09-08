@@ -3,7 +3,7 @@ import Axios from 'axios';
 import { ResultEnum } from './enums'
 import Api from './Api';
 import config from './config';
-import { getSession, removeSession } from './utils/storage';
+import { getSession } from './utils/storage';
 import { templateResolve } from './utils/string';
 import { ElMessage } from 'element-plus';
 

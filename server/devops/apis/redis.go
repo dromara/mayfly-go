@@ -50,7 +50,7 @@ func (r *Redis) RedisInfo(rc *ctx.ReqCtx) {
 	i := 0
 	length := len(datas)
 
-	parseMap := make(map[string]map[string]string, 0)
+	parseMap := make(map[string]map[string]string)
 	for {
 		if i >= length {
 			break
@@ -60,7 +60,7 @@ func (r *Redis) RedisInfo(rc *ctx.ReqCtx) {
 			i++
 			key = strings.Trim(key, " ")
 
-			sectionMap := make(map[string]string, 0)
+			sectionMap := make(map[string]string)
 			for {
 				if i >= length || !strings.Contains(datas[i], ":") {
 					break
@@ -154,41 +154,6 @@ func (r *Redis) GetSetValue(rc *ctx.ReqCtx) {
 	res, err := ri.Cli.SMembers(key).Result()
 	biz.ErrIsNilAppendErr(err, "获取set值失败: %s")
 	rc.ResData = res
-}
-
-func (r *Redis) Test(rc *ctx.ReqCtx) {
-	schema := `{
-		"$schema": "http://json-schema.org/draft-04/schema#",
-		"title": "Product",
-		"description": "A product from Acme's catalog",
-		"type": "object",
-		"properties": {
-			"id": {
-				"description": "The unique identifier for a product",
-				"type": "integer"
-			},
-			"name": {
-				"description": "Name of the product",
-				"type": "string"
-			},
-			"price": {
-				"type": "number",
-				"minimum": 0,
-				"exclusiveMinimum": true
-			}
-		},
-		"required": ["id", "name", "price"]
-	}
-	`
-	// 获取请求报文的内容长度
-	len := rc.GinCtx.Request.ContentLength
-	// 新建一个字节切片，长度与请求报文的内容长度相同
-	body := make([]byte, len)
-
-	// 读取 r 的请求主体，并将具体内容读入 body 中
-	rc.GinCtx.Request.Body.Read(body)
-	err := utils.ValidJsonString(schema, string(body))
-	biz.ErrIsNilAppendErr(err, "%s")
 }
 
 func (r *Redis) SetStringValue(rc *ctx.ReqCtx) {

@@ -3,7 +3,6 @@ package machine
 import (
 	"errors"
 	"fmt"
-	"io"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/cache"
 	"mayfly-go/base/global"
@@ -29,9 +28,21 @@ type Cli struct {
 var cliCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key interface{}, value interface{}) {
-		global.Log.Info(fmt.Sprintf("删除机器连接缓存 id: %d", key))
 		value.(*Cli).Close()
 	})
+
+// 是否存在指定id的客户端连接
+func HasCli(machineId uint64) bool {
+	if _, ok := cliCache.Get(machineId); ok {
+		return true
+	}
+	return false
+}
+
+// 删除指定机器客户端，并关闭客户端连接
+func DeleteCli(id uint64) {
+	cliCache.Delete(id)
+}
 
 // 从缓存中获取客户端信息，不存在则回调获取机器信息函数，并新建
 func GetCli(machineId uint64, getMachine func(uint64) *entity.Machine) (*Cli, error) {
@@ -42,6 +53,7 @@ func GetCli(machineId uint64, getMachine func(uint64) *entity.Machine) (*Cli, er
 		}
 		return c, nil
 	})
+
 	if cli != nil {
 		return cli.(*Cli), err
 	}
@@ -54,7 +66,7 @@ func newClient(machine *entity.Machine) (*Cli, error) {
 		return nil, errors.New("机器不存在")
 	}
 
-	global.Log.Infof("机器连接：%s:%d", machine.Ip, machine.Port)
+	global.Log.Infof("[%s]机器连接：%s:%d", machine.Name, machine.Ip, machine.Port)
 	cli := new(Cli)
 	cli.machine = machine
 	err := cli.connect()
@@ -109,11 +121,15 @@ func TestConn(m *entity.Machine) error {
 
 // 关闭client和并从缓存中移除
 func (c *Cli) Close() {
+	m := c.machine
+	global.Log.Info(fmt.Sprintf("关闭机器客户端连接-> id: %d, name: %s, ip: %s", m.Id, m.Name, m.Ip))
 	if c.client != nil {
 		c.client.Close()
+		c.client = nil
 	}
 	if c.sftpClient != nil {
 		c.sftpClient.Close()
+		c.sftpClient = nil
 	}
 }
 
@@ -163,54 +179,4 @@ func (c *Cli) Run(shell string) (*string, error) {
 	}
 	res := string(buf)
 	return &res, nil
-}
-
-//执行带交互的命令
-func (c *Cli) RunTerminal(shell string, stdout, stderr io.Writer) error {
-	session, err := c.GetSession()
-	if err != nil {
-		return err
-	}
-	//defer session.Close()
-
-	// fd := int(os.Stdin.Fd())
-	// oldState, err := terminal.MakeRaw(fd)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer terminal.Restore(fd, oldState)
-
-	// writer, err := session.StdinPipe()
-	biz.ErrIsNilAppendErr(err, "获取session stdin 错误：%s")
-	session.Stdout = stdout
-	session.Stderr = stderr
-
-	// termWidth, termHeight, err := terminal.GetSize(fd)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// Set up terminal modes
-	// modes := ssh.TerminalModes{
-	// 	ssh.ECHO:          1,     // enable echoing
-	// 	ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
-	// 	ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
-	// }
-
-	// // Request pseudo terminal
-	// if err := session.RequestPty("xterm-256color", 400, 800, modes); err != nil {
-	// 	return err
-	// }
-
-	session.Shell()
-	session.Wait()
-	// writer.Write([]byte(shell))
-	session.Run(shell)
-	return nil
-}
-
-// 关闭指定机器的连接
-func Close(id uint64) {
-	if cli, ok := cliCache.Get(id); ok {
-		cli.(*Cli).Close()
-	}
 }

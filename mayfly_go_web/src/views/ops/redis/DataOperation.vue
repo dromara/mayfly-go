@@ -120,7 +120,7 @@ export default defineComponent({
             }
         };
 
-        const changeRedis = (redisId: any) => {
+        const changeRedis = () => {
             resetScanParam();
             state.keys = [];
             state.dbsize = 0;
@@ -201,7 +201,7 @@ export default defineComponent({
         //   this.valueDialog.value = {}
         // }
 
-        const update = (key: string) => {};
+        // const update = (key: string) => {};
 
         const del = (key: string) => {
             ElMessageBox.confirm(`此操作将删除对应的key , 是否继续?`, '提示', {
@@ -217,12 +217,12 @@ export default defineComponent({
                             key,
                             id,
                         })
-                        .then((res) => {
+                        .then(() => {
                             ElMessage.success('删除成功！');
                             scan();
                         });
                 })
-                .catch((err) => {});
+                .catch(() => {});
         };
 
         const ttlConveter = (ttl: any) => {

@@ -4,11 +4,11 @@ export const machineApi = {
     // 获取权限列表
     list: Api.create("/machines", 'get'),
     info: Api.create("/machines/{id}/sysinfo", 'get'),
-    top: Api.create("/machines/{id}/top", 'get'),
+    closeCli: Api.create("/machines/{id}/close-cli", 'delete'),
     // 保存按钮
     saveMachine: Api.create("/machines", 'post'),
     // 删除机器
-    del: Api.create("/machines/delete/{id}", 'delete'),
+    del: Api.create("/machines/{id}", 'delete'),
     scripts: Api.create("/machines/{machineId}/scripts", 'get'),
     runScript: Api.create("/machines/{machineId}/scripts/{scriptId}/run", 'get'),
     saveScript: Api.create("/machines/{machineId}/scripts", 'post'),

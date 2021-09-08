@@ -70,10 +70,5 @@ func InitRedisRouter(router *gin.RouterGroup) {
 		redis.POST(":id/hash-value", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(rs.SetStringValue)
 		})
-
-		// 设置hash类型值
-		redis.POST("test", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithNeedToken(false).Handle(rs.Test)
-		})
 	}
 }

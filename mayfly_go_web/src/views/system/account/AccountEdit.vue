@@ -1,6 +1,6 @@
 <template>
     <div class="account-dialog">
-        <el-dialog :title="title" v-model="visible" :show-close="false" width="35%">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="35%">
             <el-form :model="form" ref="accountForm" :rules="rules" label-width="85px" size="small">
                 <el-form-item prop="username" label="用户名:" required>
                     <el-input :disabled="edit" v-model.trim="form.username" placeholder="请输入账号用户名" auto-complete="off"></el-input>
@@ -26,7 +26,6 @@
 <script lang="ts">
 import { toRefs, reactive, watch, defineComponent, ref } from 'vue';
 import { accountApi } from '../api';
-import enums from '../enums';
 import { ElMessage } from 'element-plus';
 
 export default defineComponent({
@@ -45,6 +44,7 @@ export default defineComponent({
     setup(props: any, { emit }) {
         const accountForm: any = ref(null);
         const state = reactive({
+            dialogVisible: false,
             edit: false,
             form: {
                 id: null,
@@ -71,12 +71,13 @@ export default defineComponent({
             },
         });
 
-        watch(props, (newValue, oldValue) => {
+        watch(props, (newValue) => {
             if (newValue.account) {
                 state.form = { ...newValue.account };
             } else {
                 state.form = {} as any;
             }
+            state.dialogVisible = newValue.visible;
         });
 
         const btnOk = async () => {
@@ -84,7 +85,7 @@ export default defineComponent({
 
             accountForm.value.validate((valid: boolean) => {
                 if (valid) {
-                    p.request(state.form).then((res: any) => {
+                    p.request(state.form).then(() => {
                         ElMessage.success('操作成功');
                         emit('val-change', state.form);
                         state.btnLoading = true;

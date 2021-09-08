@@ -1,6 +1,6 @@
 <template>
     <div class="menu-dialog">
-        <el-dialog :title="title" :destroy-on-close="true" v-model="visible" width="700px">
+        <el-dialog :title="title" :destroy-on-close="true" v-model="dialogVisible" width="700px">
             <el-form :model="form" :inline="true" ref="menuForm" :rules="rules" label-width="95px" size="small">
                 <el-form-item prop="type" label="类型" required>
                     <el-select v-model="form.type" :disabled="typeDisabled" placeholder="请选择" width="50px">
@@ -121,7 +121,7 @@ export default defineComponent({
                     value: false,
                 },
             ],
-            visible: false,
+            dialogVisible: false,
             //弹出框对象
             dialogForm: {
                 title: '',
@@ -172,8 +172,8 @@ export default defineComponent({
             },
         });
 
-        watch(props, (newValue, oldValue) => {
-            state.visible = newValue.visible;
+        watch(props, (newValue) => {
+            state.dialogVisible = newValue.visible;
             if (newValue.data) {
                 state.form = { ...newValue.data };
             } else {
@@ -210,7 +210,7 @@ export default defineComponent({
             submitForm.weight = parseInt(submitForm.weight as any);
             menuForm.value.validate((valid: any) => {
                 if (valid) {
-                    resourceApi.save.request(submitForm).then((res) => {
+                    resourceApi.save.request(submitForm).then(() => {
                         emit('val-change', submitForm);
                         state.btnLoading = true;
                         ElMessage.success('保存成功');

@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="visible" :show-close="false" :before-close="cancel" width="35%">
+        <el-dialog :title="title" v-model="dialogVisible" :show-close="false" :before-close="cancel" width="35%">
             <el-form :model="form" ref="redisForm" :rules="rules" label-width="85px" size="small">
                 <el-form-item prop="projectId" label="项目:" required>
                     <el-select style="width: 100%" v-model="form.projectId" placeholder="请选择项目" @change="changeProject" filterable>
@@ -65,7 +65,7 @@ export default defineComponent({
     setup(props: any, { emit }) {
         const redisForm: any = ref(null);
         const state = reactive({
-            visible: false,
+            dialogVisible: false,
             projects: [],
             envs: [],
             form: {
@@ -111,8 +111,8 @@ export default defineComponent({
             },
         });
 
-        watch(props, async (newValue, oldValue) => {
-            state.visible = newValue.visible;
+        watch(props, async (newValue) => {
+            state.dialogVisible = newValue.visible;
             state.projects = newValue.projects;
             if (newValue.redis) {
                 getEnvs(newValue.redis.projectId);
@@ -148,7 +148,7 @@ export default defineComponent({
         const btnOk = async () => {
             redisForm.value.validate((valid: boolean) => {
                 if (valid) {
-                    redisApi.saveRedis.request(state.form).then((res: any) => {
+                    redisApi.saveRedis.request(state.form).then(() => {
                         ElMessage.success('保存成功');
                         emit('val-change', state.form);
                         state.btnLoading = true;

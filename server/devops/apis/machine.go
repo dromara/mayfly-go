@@ -30,7 +30,12 @@ type Machine struct {
 }
 
 func (m *Machine) Machines(rc *ctx.ReqCtx) {
-	rc.ResData = m.MachineApp.GetMachineList(new(entity.Machine), ginx.GetPageParam(rc.GinCtx), new([]vo.MachineVO))
+	res := m.MachineApp.GetMachineList(new(entity.Machine), ginx.GetPageParam(rc.GinCtx), new([]*vo.MachineVO))
+	list := res.List.(*[]*vo.MachineVO)
+	for _, mv := range *list {
+		mv.HasCli = machine.HasCli(*mv.Id)
+	}
+	rc.ResData = res
 }
 
 func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
@@ -46,14 +51,14 @@ func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
 }
 
 func (m *Machine) DeleteMachine(rc *ctx.ReqCtx) {
-	id := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
+	id := uint64(ginx.PathParamInt(rc.GinCtx, "machineId"))
 	rc.ReqParam = id
 	m.MachineApp.Delete(id)
 }
 
-// top命令信息
-func (m *Machine) Top(rc *ctx.ReqCtx) {
-	rc.ResData = m.MachineApp.GetCli(GetMachineId(rc.GinCtx)).GetTop()
+// 关闭机器客户端
+func (m *Machine) CloseCli(rc *ctx.ReqCtx) {
+	machine.DeleteCli(GetMachineId(rc.GinCtx))
 }
 
 func (m *Machine) WsSSH(g *gin.Context) {
@@ -78,9 +83,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	rows := ginx.QueryInt(g, "rows", 40)
 
 	sws, err := machine.NewLogicSshWsSession(cols, rows, m.MachineApp.GetCli(GetMachineId(g)), wsConn)
-	if sws == nil {
-		panic(biz.NewBizErr("连接失败"))
-	}
+	biz.ErrIsNilAppendErr(err, "连接失败：%s")
 	defer sws.Close()
 
 	quitChan := make(chan bool, 3)
