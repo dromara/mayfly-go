@@ -1,11 +1,16 @@
 # mayfly-go
 
 #### 介绍
-简单基于DDD(领域驱动设计)分层架构实现在线mysql,redis,linux运维操作等
+简单基于DDD(领域驱动设计)分层架构实现在线mysql,redis,linux操作管理等
 
 ### 系统环境及框架
 - 前端：typescript、vue3、element-plus
 - 后端：golang、gin、gorm
+
+
+#### 交流及问题反馈加 QQ 群
+<a target="_blank" href="https://qm.qq.com/cgi-bin/qm/qr?jump_from=webapi">119699946</a>
+
 
 #### 系统功能
 
