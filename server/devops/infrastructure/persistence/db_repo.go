@@ -16,6 +16,10 @@ func (d *dbRepo) GetDbList(condition *entity.Db, pageParam *model.PageParam, toE
 	return model.GetPage(pageParam, condition, toEntity, orderBy...)
 }
 
+func (d *dbRepo) Count(condition *entity.Db) int64 {
+	return model.CountBy(condition)
+}
+
 // 根据条件获取账号信息
 func (d *dbRepo) GetDb(condition *entity.Db, cols ...string) error {
 	return model.GetBy(condition, cols...)

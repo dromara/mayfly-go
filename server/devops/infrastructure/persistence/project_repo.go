@@ -15,6 +15,10 @@ func (p *projectRepo) GetPageList(condition *entity.Project, pageParam *model.Pa
 	return model.GetPage(pageParam, condition, toEntity, orderBy...)
 }
 
+func (p *projectRepo) Count(condition *entity.Project) int64 {
+	return model.CountBy(condition)
+}
+
 func (p *projectRepo) GetByIdIn(ids []uint64, toEntity interface{}, orderBy ...string) {
 	model.GetByIdIn(new(entity.Project), toEntity, ids, orderBy...)
 }

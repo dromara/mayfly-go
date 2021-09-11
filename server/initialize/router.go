@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"mayfly-go/base/config"
 	"mayfly-go/base/middleware"
-	devops_routers "mayfly-go/server/devops/routers"
-	sys_routers "mayfly-go/server/sys/routers"
+	common_index_router "mayfly-go/server/common/router"
+	devops_router "mayfly-go/server/devops/router"
+	gw_router "mayfly-go/server/gateway/router"
+	sys_router "mayfly-go/server/sys/router"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -45,18 +47,21 @@ func InitRouter() *gin.Engine {
 	// 设置路由组
 	api := router.Group("/api")
 	{
-		sys_routers.InitCaptchaRouter(api)
+		common_index_router.InitIndexRouter(api)
 
-		sys_routers.InitAccountRouter(api) // 注册account路由
-		sys_routers.InitResourceRouter(api)
-		sys_routers.InitRoleRouter(api)
+		sys_router.InitCaptchaRouter(api)
+		sys_router.InitAccountRouter(api) // 注册account路由
+		sys_router.InitResourceRouter(api)
+		sys_router.InitRoleRouter(api)
 
-		devops_routers.InitProjectRouter(api)
-		devops_routers.InitDbRouter(api)
-		devops_routers.InitRedisRouter(api)
-		devops_routers.InitMachineRouter(api)
-		devops_routers.InitMachineScriptRouter(api)
-		devops_routers.InitMachineFileRouter(api)
+		devops_router.InitProjectRouter(api)
+		devops_router.InitDbRouter(api)
+		devops_router.InitRedisRouter(api)
+		devops_router.InitMachineRouter(api)
+		devops_router.InitMachineScriptRouter(api)
+		devops_router.InitMachineFileRouter(api)
+
+		gw_router.InitServiceRouter(api)
 	}
 
 	return router

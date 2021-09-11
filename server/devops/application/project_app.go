@@ -12,6 +12,8 @@ type Project interface {
 	// 分页获取项目信息列表
 	GetPageList(condition *entity.Project, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
+	Count(condition *entity.Project) int64
+
 	ListProjectByIds(ids []uint64, toEntity interface{}, orderBy ...string)
 
 	SaveProject(project *entity.Project)
@@ -50,6 +52,10 @@ var ProjectApp Project = &projectAppImpl{
 // 分页获取项目信息列表
 func (p *projectAppImpl) GetPageList(condition *entity.Project, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return p.projectRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+}
+
+func (p *projectAppImpl) Count(condition *entity.Project) int64 {
+	return p.projectRepo.Count(condition)
 }
 
 func (p *projectAppImpl) ListProjectByIds(ids []uint64, toEntity interface{}, orderBy ...string) {

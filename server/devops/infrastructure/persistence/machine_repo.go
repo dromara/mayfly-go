@@ -15,6 +15,10 @@ func (m *machineRepo) GetMachineList(condition *entity.Machine, pageParam *model
 	return model.GetPage(pageParam, condition, toEntity, orderBy...)
 }
 
+func (m *machineRepo) Count(condition *entity.Machine) int64 {
+	return model.CountBy(condition)
+}
+
 // 根据条件获取账号信息
 func (m *machineRepo) GetMachine(condition *entity.Machine, cols ...string) error {
 	return model.GetBy(condition, cols...)

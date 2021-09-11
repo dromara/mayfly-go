@@ -127,14 +127,17 @@ export default defineComponent({
                 getCaptcha();
                 return;
             }
-            // 用户信息模拟数据
+            // 用户信息
             const userInfos = {
                 username: state.loginForm.username,
+                // 头像
                 photo: letterAvatar(state.loginForm.username),
                 time: new Date().getTime(),
                 // // 菜单资源code数组
                 // menus: loginRes.menus,
                 permissions: loginRes.permissions,
+                lastLoginTime: loginRes.lastLoginTime,
+                lastLoginIp: loginRes.lastLoginIp,
             };
 
             // 存储用户信息到浏览器缓存

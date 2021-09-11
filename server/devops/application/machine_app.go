@@ -17,6 +17,8 @@ type Machine interface {
 
 	Save(entity *entity.Machine)
 
+	Count(condition *entity.Machine) int64
+
 	Delete(id uint64)
 
 	// 根据id获取
@@ -38,6 +40,10 @@ var MachineApp Machine = &machineAppImpl{machineRepo: persistence.MachineDao}
 // 分页获取机器信息列表
 func (m *machineAppImpl) GetMachineList(condition *entity.Machine, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return m.machineRepo.GetMachineList(condition, pageParam, toEntity, orderBy...)
+}
+
+func (m *machineAppImpl) Count(condition *entity.Machine) int64 {
+	return m.machineRepo.Count(condition)
 }
 
 // 根据条件获取机器信息

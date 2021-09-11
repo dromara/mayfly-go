@@ -8,25 +8,24 @@
                         <div class="home-card-first-right ml15">
                             <div class="flex-margin">
                                 <div class="home-card-first-right-title">{{ `${currentTime}, ${getUserInfos.username}` }}</div>
-                                <!-- <div class="home-card-first-right-msg mt5">超级管理</div> -->
                             </div>
                         </div>
                     </div>
                 </div>
             </el-col>
-            <el-col :sm="6" class="mb15" v-for="(v, k) in topCardItemList" :key="k">
+            <el-col :sm="3" class="mb15" v-for="(v, k) in topCardItemList" :key="k">
                 <div class="home-card-item home-card-item-box" :style="{ background: v.color }">
                     <div class="home-card-item-flex">
                         <div class="home-card-item-title pb3">{{ v.title }}</div>
-                        <div class="home-card-item-title-num pb6" :id="`titleNum${k + 1}`"></div>
-                        <div class="home-card-item-tip pb3">{{ v.tip }}</div>
-                        <div class="home-card-item-tip-num" :id="`tipNum${k + 1}`"></div>
+                        <div class="home-card-item-title-num pb6" :id="v.id"></div>
+                        <!-- <div class="home-card-item-tip pb3">{{ v.tip }}</div>
+                        <div class="home-card-item-tip-num" :id="`tipNum${k + 1}`"></div> -->
                     </div>
                     <i :class="v.icon" :style="{ color: v.iconColor }"></i>
                 </div>
             </el-col>
         </el-row>
-        <el-row :gutter="15">
+        <!-- <el-row :gutter="15">
             <el-col :xs="24" :sm="14" :md="14" :lg="16" :xl="16" class="mb15">
                 <el-card shadow="hover" header="商品销售情况">
                     <div style="height: 200px" ref="homeLaboratoryRef"></div>
@@ -89,7 +88,7 @@
                     <div style="height: 200px" ref="homeOvertimeRef"></div>
                 </el-card>
             </el-col>
-        </el-row>
+        </el-row> -->
     </div>
 </template>
 
@@ -99,6 +98,7 @@ import { useStore } from '@/store/index.ts';
 import * as echarts from 'echarts';
 import { CountUp } from 'countup.js';
 import { formatAxis } from '@/common/utils/formatTime.ts';
+import { indexApi } from './api';
 import { topCardItemList, environmentList, activitiesList } from './mock.ts';
 export default {
     name: 'Home',
@@ -129,21 +129,23 @@ export default {
                 ],
             },
         });
+
         // 当前时间提示语
         const currentTime = computed(() => {
             return formatAxis(new Date());
         });
+
         // 初始化数字滚动
-        const initNumCountUp = () => {
+        const initNumCountUp = async () => {
+            const res: any = await indexApi.getIndexCount.request()
             nextTick(() => {
-                new CountUp('titleNum1', Math.random() * 10000).start();
-                new CountUp('titleNum2', Math.random() * 10000).start();
-                new CountUp('titleNum3', Math.random() * 10000).start();
-                new CountUp('tipNum1', Math.random() * 1000).start();
-                new CountUp('tipNum2', Math.random() * 1000).start();
-                new CountUp('tipNum3', Math.random() * 1000).start();
+                new CountUp('projectNum', res.projectNum).start();
+                new CountUp('machineNum', res.machineNum).start();
+                new CountUp('dbNum', res.dbNum).start();
+                new CountUp('redisNum', res.redisNum).start();
             });
         };
+
         // 实验室使用情况
         const initHomeLaboratory = () => {
             const myChart = echarts.init(proxy.$refs.homeLaboratoryRef);
@@ -245,8 +247,8 @@ export default {
         // 页面加载时
         onMounted(() => {
             initNumCountUp();
-            initHomeLaboratory();
-            initHomeOvertime();
+            // initHomeLaboratory();
+            // initHomeOvertime();
         });
 
         // 获取用户信息 vuex

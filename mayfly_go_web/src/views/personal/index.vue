@@ -6,41 +6,36 @@
                 <el-card shadow="hover" header="个人信息">
                     <div class="personal-user">
                         <div class="personal-user-left">
-                            <el-upload
-                                class="h100 personal-user-left-upload"
-                                action="https://jsonplaceholder.typicode.com/posts/"
-                                multiple
-                                :limit="1"
-                            >
+                            <el-upload class="h100 personal-user-left-upload" action="" multiple :limit="1">
                                 <img :src="getUserInfos.photo" />
                             </el-upload>
                         </div>
                         <div class="personal-user-right">
                             <el-row>
                                 <el-col :span="24" class="personal-title mb18"
-                                    >{{ currentTime }}，admin，生活变的再糟糕，也不妨碍我变得更好！
+                                    >{{ currentTime }}，{{ getUserInfos.username }}，生活变的再糟糕，也不妨碍我变得更好！
                                 </el-col>
                                 <el-col :span="24">
                                     <el-row>
                                         <el-col :xs="24" :sm="8" class="personal-item mb6">
-                                            <div class="personal-item-label">昵称：</div>
-                                            <div class="personal-item-value">小柒</div>
+                                            <div class="personal-item-label">用户名：</div>
+                                            <div class="personal-item-value">{{ getUserInfos.username }}</div>
                                         </el-col>
                                         <el-col :xs="24" :sm="16" class="personal-item mb6">
-                                            <div class="personal-item-label">身份：</div>
-                                            <div class="personal-item-value">超级管理</div>
+                                            <div class="personal-item-label">角色：</div>
+                                            <div class="personal-item-value">{{ roleInfo }}</div>
                                         </el-col>
                                     </el-row>
                                 </el-col>
                                 <el-col :span="24">
                                     <el-row>
                                         <el-col :xs="24" :sm="8" class="personal-item mb6">
-                                            <div class="personal-item-label">登录IP：</div>
-                                            <div class="personal-item-value">192.168.1.1</div>
+                                            <div class="personal-item-label">上次登录IP：</div>
+                                            <div class="personal-item-value">{{ getUserInfos.lastLoginIp }}</div>
                                         </el-col>
                                         <el-col :xs="24" :sm="16" class="personal-item mb6">
-                                            <div class="personal-item-label">登录时间：</div>
-                                            <div class="personal-item-value">2021-02-05 18:47:26</div>
+                                            <div class="personal-item-label">上次登录时间：</div>
+                                            <div class="personal-item-value">{{ $filters.dateFormat(getUserInfos.lastLoginTime) }}</div>
                                         </el-col>
                                     </el-row>
                                 </el-col>
@@ -59,8 +54,8 @@
                     </template>
                     <div class="personal-info-box">
                         <ul class="personal-info-ul">
-                            <li v-for="(v, k) in newsInfoList" :key="k" class="personal-info-li">
-                                <a :href="v.link" target="_block" class="personal-info-li-title">{{ v.title }}</a>
+                            <li v-for="(v, k) in msgs" :key="k" class="personal-info-li">
+                                <a class="personal-info-li-title">{{ `[${getMsgTypeDesc(v.type)}] ${v.msg}` }}</a>
                             </li>
                         </ul>
                     </div>
@@ -68,7 +63,7 @@
             </el-col>
 
             <!-- 营销推荐 -->
-            <el-col :span="24">
+            <!-- <el-col :span="24">
                 <el-card shadow="hover" class="mt15" header="营销推荐">
                     <el-row :gutter="15" class="personal-recommend-row">
                         <el-col :sm="6" v-for="(v, k) in recommendList" :key="k" class="personal-recommend-col">
@@ -82,59 +77,35 @@
                         </el-col>
                     </el-row>
                 </el-card>
-            </el-col>
+            </el-col> -->
 
             <!-- 更新信息 -->
             <el-col :span="24">
                 <el-card shadow="hover" class="mt15 personal-edit" header="更新信息">
                     <div class="personal-edit-title">基本信息</div>
-                    <el-form :model="personalForm" size="small" label-width="40px" class="mt35 mb35">
+                    <el-form :model="accountForm" size="small" label-width="40px" class="mt35 mb35">
                         <el-row :gutter="35">
                             <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="mb20">
-                                <el-form-item label="昵称">
-                                    <el-input v-model="personalForm.name" placeholder="请输入昵称" clearable></el-input>
+                                <el-form-item label="密码">
+                                    <el-input
+                                        type="password"
+                                        show-password
+                                        v-model="accountForm.password"
+                                        placeholder="请输入新密码"
+                                        clearable
+                                    ></el-input>
                                 </el-form-item>
                             </el-col>
-                            <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="mb20">
-                                <el-form-item label="邮箱">
-                                    <el-input v-model="personalForm.email" placeholder="请输入邮箱" clearable></el-input>
-                                </el-form-item>
-                            </el-col>
-                            <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="mb20">
-                                <el-form-item label="签名">
-                                    <el-input v-model="personalForm.autograph" placeholder="请输入签名" clearable></el-input>
-                                </el-form-item>
-                            </el-col>
-                            <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="mb20">
-                                <el-form-item label="职业">
-                                    <el-select v-model="personalForm.occupation" placeholder="请选择职业" clearable class="w100">
-                                        <el-option label="计算机 / 互联网 / 通信" value="1"></el-option>
-                                        <el-option label="生产 / 工艺 / 制造" value="2"></el-option>
-                                        <el-option label="医疗 / 护理 / 制药" value="3"></el-option>
-                                    </el-select>
-                                </el-form-item>
-                            </el-col>
-                            <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="mb20">
-                                <el-form-item label="手机">
-                                    <el-input v-model="personalForm.phone" placeholder="请输入手机" clearable></el-input>
-                                </el-form-item>
-                            </el-col>
-                            <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="mb20">
-                                <el-form-item label="性别">
-                                    <el-select v-model="personalForm.sex" placeholder="请选择性别" clearable class="w100">
-                                        <el-option label="男" value="1"></el-option>
-                                        <el-option label="女" value="2"></el-option>
-                                    </el-select>
-                                </el-form-item>
-                            </el-col>
+                            <!--  -->
                             <el-col :xs="24" :sm="24" :md="24" :lg="24" :xl="24">
                                 <el-form-item>
-                                    <el-button type="primary" icon="el-icon-position">更新个人信息</el-button>
+                                    <el-button @click="updateAccount" type="primary" icon="el-icon-position">更新个人信息</el-button>
                                 </el-form-item>
                             </el-col>
                         </el-row>
                     </el-form>
-                    <div class="personal-edit-title mb15">账号安全</div>
+
+                    <!-- <div class="personal-edit-title mb15">账号安全</div>
                     <div class="personal-edit-safe-box">
                         <div class="personal-edit-safe-item">
                             <div class="personal-edit-safe-item-left">
@@ -178,7 +149,7 @@
                                 <el-button type="text">立即设置</el-button>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
                 </el-card>
             </el-col>
         </el-row>
@@ -186,26 +157,24 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, computed } from 'vue';
+import { toRefs, reactive, computed, onMounted } from 'vue';
+import { ElMessage } from 'element-plus';
 import { formatAxis } from '@/common/utils/formatTime.ts';
-import { newsInfoList, recommendList } from './mock.ts';
+import { recommendList } from './mock.ts';
 import { useStore } from '@/store/index.ts';
-import { useRouter } from 'vue-router';
+import { personApi } from './api';
 export default {
     name: 'personal',
     setup() {
         const store = useStore();
-        const router = useRouter();
         const state = reactive({
-            newsInfoList,
+            accountInfo: {
+                roles: [],
+            },
+            msgs: [],
             recommendList,
-            personalForm: {
-                name: '',
-                email: '',
-                autograph: '',
-                occupation: '',
-                phone: '',
-                sex: '',
+            accountForm: {
+                password: '',
             },
         });
         // 当前时间提示语
@@ -218,9 +187,46 @@ export default {
             return store.state.userInfos.userInfos;
         });
 
+        const roleInfo = computed(() => {
+            if (state.accountInfo.roles.length == 0) {
+                return '';
+            }
+            return state.accountInfo.roles.map((val: any) => val.name).join('、');
+        });
+
+        onMounted(() => {
+            getAccountInfo();
+            getMsgs();
+        });
+
+        const getAccountInfo = async () => {
+            state.accountInfo = await personApi.accountInfo.request();
+        };
+
+        const updateAccount = async () => {
+            await personApi.updateAccount.request(state.accountForm);
+            ElMessage.success('更新成功');
+        };
+
+        const getMsgs = async () => {
+            const res = await personApi.getMsgs.request();
+            state.msgs = res.list;
+        };
+
+        const getMsgTypeDesc = (type: number) => {
+            if (type == 1) {
+                return '登录';
+            }
+        };
+
         return {
             getUserInfos,
             currentTime,
+            roleInfo,
+            getAccountInfo,
+            getMsgs,
+            getMsgTypeDesc,
+            updateAccount,
             ...toRefs(state),
         };
     },

@@ -12,6 +12,7 @@ type Account struct {
 	Password      string     `json:"-"`
 	Status        int8       `json:"status"`
 	LastLoginTime *time.Time `json:"lastLoginTime"`
+	LastLoginIp   string     `json:"lastLoginIp"`
 }
 
 func (a *Account) TableName() string {

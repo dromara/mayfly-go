@@ -16,6 +16,10 @@ func (r *redisRepo) GetRedisList(condition *entity.Redis, pageParam *model.PageP
 	return model.GetPage(pageParam, condition, toEntity, orderBy...)
 }
 
+func (r *redisRepo) Count(condition *entity.Redis) int64 {
+	return model.CountBy(condition)
+}
+
 // 根据id获取
 func (r *redisRepo) GetById(id uint64, cols ...string) *entity.Redis {
 	rd := new(entity.Redis)

@@ -20,6 +20,8 @@ type Db interface {
 	// 分页获取机器脚本信息列表
 	GetPageList(condition *entity.Db, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
+	Count(condition *entity.Db) int64
+
 	// 根据条件获取
 	GetDbBy(condition *entity.Db, cols ...string) error
 
@@ -48,6 +50,10 @@ var DbApp Db = &dbAppImpl{
 // 分页获取数据库信息列表
 func (d *dbAppImpl) GetPageList(condition *entity.Db, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return d.dbRepo.GetDbList(condition, pageParam, toEntity, orderBy...)
+}
+
+func (d *dbAppImpl) Count(condition *entity.Db) int64 {
+	return d.dbRepo.Count(condition)
 }
 
 // 根据条件获取

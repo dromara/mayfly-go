@@ -144,7 +144,6 @@
 
 <script lang='ts'>
 import { toRefs, reactive, onMounted, defineComponent } from 'vue';
-import { accountPermission } from '../permissions';
 import RoleEdit from './RoleEdit.vue';
 import AccountEdit from './AccountEdit.vue';
 import enums from '../enums';

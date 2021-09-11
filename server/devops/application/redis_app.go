@@ -18,6 +18,8 @@ type Redis interface {
 	// 分页获取机器脚本信息列表
 	GetPageList(condition *entity.Redis, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
+	Count(condition *entity.Redis) int64
+
 	// 根据id获取
 	GetById(id uint64, cols ...string) *entity.Redis
 
@@ -44,6 +46,10 @@ var RedisApp Redis = &redisAppImpl{
 // 分页获取机器脚本信息列表
 func (r *redisAppImpl) GetPageList(condition *entity.Redis, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return r.redisRepo.GetRedisList(condition, pageParam, toEntity, orderBy...)
+}
+
+func (r *redisAppImpl) Count(condition *entity.Redis) int64 {
+	return r.redisRepo.Count(condition)
 }
 
 // 根据id获取
