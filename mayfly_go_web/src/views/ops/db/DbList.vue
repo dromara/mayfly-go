@@ -14,7 +14,7 @@
                         <el-form-item label="数据库">
                             <el-input v-model="query.database" auto-complete="off" clearable></el-input>
                         </el-form-item>
-                        <el-button type="primary" icon="el-icon-search" size="mini" @click="search()">查询</el-button>
+                        <el-button v-waves type="primary" icon="el-icon-search" size="mini" @click="search()">查询</el-button>
                     </el-form>
                 </el-col>
             </el-row>
@@ -70,7 +70,7 @@
                 </template>
             </el-table-column>
 
-            <el-table-column label="更多信息" min-width="100">
+            <el-table-column fixed="right" label="更多信息" min-width="100">
                 <template #default="scope">
                     <el-link @click.prevent="tableInfo(scope.row)" type="success">表信息</el-link>
                 </template>

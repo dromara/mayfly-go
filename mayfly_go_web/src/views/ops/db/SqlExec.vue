@@ -21,15 +21,15 @@
             </el-row>
         </div>
 
-        <el-container style="border: 1px solid #eee; margin-top: 1px">
+        <el-container style="border: 1px solid #eee; margin-top: 1px; height: 549px">
             <el-aside id="sqlcontent" width="65%" style="background-color: rgb(238, 241, 246)">
                 <div class="toolbar">
                     <div class="fl">
-                        <el-button @click="runSql" type="success" icon="el-icon-video-play" size="mini" plain>执行</el-button>
+                        <el-button v-waves @click="runSql" type="success" icon="el-icon-video-play" size="mini" plain>执行</el-button>
 
-                        <el-button @click="formatSql" type="primary" icon="el-icon-magic-stick" size="mini" plain>格式化</el-button>
+                        <el-button v-waves @click="formatSql" type="primary" icon="el-icon-magic-stick" size="mini" plain>格式化</el-button>
 
-                        <el-button @click="saveSql" type="primary" icon="el-icon-document-add" size="mini" plain>保存</el-button>
+                        <el-button v-waves @click="saveSql" type="primary" icon="el-icon-document-add" size="mini" plain>保存</el-button>
                     </div>
                 </div>
                 <codemirror @beforeChange="onBeforeChange" class="codesql" ref="cmEditor" language="sql" v-model="sql" :options="cmOptions" />
