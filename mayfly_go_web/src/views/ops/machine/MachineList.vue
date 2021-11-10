@@ -95,6 +95,7 @@
             :title="machineEditDialog.title"
             v-model:visible="machineEditDialog.visible"
             v-model:machine="machineEditDialog.data"
+            @valChange="submitSuccess"
         ></machine-edit>
 
         <!-- <el-dialog @close="closeMonitor" title="监控信息" v-model="monitorDialog.visible" width="60%">
