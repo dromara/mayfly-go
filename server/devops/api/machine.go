@@ -5,25 +5,17 @@ import (
 	"mayfly-go/base/ctx"
 	"mayfly-go/base/ginx"
 	"mayfly-go/base/utils"
+	"mayfly-go/base/ws"
 	"mayfly-go/server/devops/api/form"
 	"mayfly-go/server/devops/api/vo"
 	"mayfly-go/server/devops/application"
 	"mayfly-go/server/devops/domain/entity"
 	"mayfly-go/server/devops/infrastructure/machine"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
-
-var WsUpgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024 * 1024 * 10,
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
 
 type Machine struct {
 	MachineApp application.Machine
@@ -62,7 +54,7 @@ func (m *Machine) CloseCli(rc *ctx.ReqCtx) {
 }
 
 func (m *Machine) WsSSH(g *gin.Context) {
-	wsConn, err := WsUpgrader.Upgrade(g.Writer, g.Request, nil)
+	wsConn, err := ws.Upgrader.Upgrade(g.Writer, g.Request, nil)
 	defer func() {
 		if err := recover(); err != nil {
 			wsConn.WriteMessage(websocket.TextMessage, []byte(err.(error).Error()))
@@ -79,9 +71,9 @@ func (m *Machine) WsSSH(g *gin.Context) {
 		panic(biz.NewBizErr("没有权限"))
 	}
 	// 演示环境禁止非admin用户执行
-	if rc.LoginAccount.Username != "admin" {
-		panic(biz.NewBizErrCode(401, "非admin用户无权该操作"))
-	}
+	// if rc.LoginAccount.Username != "admin" {
+	// 	panic(biz.NewBizErrCode(401, "非admin用户无权该操作"))
+	// }
 
 	cols := ginx.QueryInt(g, "cols", 80)
 	rows := ginx.QueryInt(g, "rows", 40)

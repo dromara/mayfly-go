@@ -6,8 +6,6 @@ import (
 	"mayfly-go/base/captcha"
 	"mayfly-go/base/ctx"
 	"mayfly-go/base/ginx"
-	"mayfly-go/base/global"
-	"mayfly-go/base/httpclient"
 	"mayfly-go/base/utils"
 	"mayfly-go/server/sys/api/form"
 	"mayfly-go/server/sys/api/vo"
@@ -89,16 +87,16 @@ func (a *Account) saveLogin(account *entity.Account, ip string) {
 	loginMsg.CreatorId = account.Id
 	a.MsgApp.Create(loginMsg)
 
-	bodyMap, err := httpclient.NewRequest(fmt.Sprintf("http://ip-api.com/json/%s?lang=zh-CN", ip)).Get().BodyToMap()
-	if err != nil {
-		global.Log.Errorf("获取客户端ip地址信息失败：%s", err.Error())
-		return
-	}
-	if bodyMap["status"].(string) == "fail" {
-		return
-	}
-	msg := fmt.Sprintf("%s于%s-%s登录", account.Username, bodyMap["regionName"], bodyMap["city"])
-	global.Log.Info(msg)
+	// bodyMap, err := httpclient.NewRequest(fmt.Sprintf("http://ip-api.com/json/%s?lang=zh-CN", ip)).Get().BodyToMap()
+	// if err != nil {
+	// 	global.Log.Errorf("获取客户端ip地址信息失败：%s", err.Error())
+	// 	return
+	// }
+	// if bodyMap["status"].(string) == "fail" {
+	// 	return
+	// }
+	// msg := fmt.Sprintf("%s于%s-%s登录", account.Username, bodyMap["regionName"], bodyMap["city"])
+	// global.Log.Info(msg)
 }
 
 // 获取个人账号信息

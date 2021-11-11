@@ -93,9 +93,9 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, onMounted, nextTick, computed, getCurrentInstance } from 'vue';
+import { toRefs, reactive, onMounted, nextTick, computed } from 'vue';
 import { useStore } from '@/store/index.ts';
-import * as echarts from 'echarts';
+// import * as echarts from 'echarts';
 import { CountUp } from 'countup.js';
 import { formatAxis } from '@/common/utils/formatTime.ts';
 import { indexApi } from './api';
@@ -103,7 +103,7 @@ import { topCardItemList, environmentList, activitiesList } from './mock.ts';
 export default {
     name: 'Home',
     setup() {
-        const { proxy } = getCurrentInstance() as any;
+        // const { proxy } = getCurrentInstance() as any;
         const store = useStore();
         const state = reactive({
             topCardItemList,
@@ -146,104 +146,104 @@ export default {
             });
         };
 
-        // 实验室使用情况
-        const initHomeLaboratory = () => {
-            const myChart = echarts.init(proxy.$refs.homeLaboratoryRef);
-            const option = {
-                grid: {
-                    top: 50,
-                    right: 20,
-                    bottom: 30,
-                    left: 30,
-                },
-                tooltip: {
-                    trigger: 'axis',
-                },
-                legend: {
-                    data: ['预购队列', '最新成交价'],
-                    right: 13,
-                },
-                xAxis: {
-                    data: ['衬衫', '羊毛衫', '雪纺衫', '裤子', '高跟鞋', '袜子'],
-                },
-                yAxis: [
-                    {
-                        type: 'value',
-                        name: '价格',
-                    },
-                ],
-                series: [
-                    {
-                        name: '预购队列',
-                        type: 'bar',
-                        data: [5, 20, 36, 10, 10, 20],
-                    },
-                    {
-                        name: '最新成交价',
-                        type: 'line',
-                        data: [15, 20, 16, 20, 30, 8],
-                    },
-                ],
-            };
-            myChart.setOption(option);
-            window.addEventListener('resize', () => {
-                myChart.resize();
-            });
-        };
-        // 履约超时预警
-        const initHomeOvertime = () => {
-            const myChart = echarts.init(proxy.$refs.homeOvertimeRef);
-            const option = {
-                grid: {
-                    top: 50,
-                    right: 20,
-                    bottom: 30,
-                    left: 30,
-                },
-                tooltip: {
-                    trigger: 'axis',
-                },
-                legend: {
-                    data: ['订单数量', '超时数量', '在线数量', '预警数量'],
-                    right: 13,
-                },
-                xAxis: {
-                    data: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
-                },
-                yAxis: [
-                    {
-                        type: 'value',
-                        name: '数量',
-                    },
-                ],
-                series: [
-                    {
-                        name: '订单数量',
-                        type: 'bar',
-                        data: [5, 20, 36, 10, 10, 20, 11, 13, 10, 9, 17, 19],
-                    },
-                    {
-                        name: '超时数量',
-                        type: 'bar',
-                        data: [15, 12, 26, 15, 11, 16, 31, 13, 5, 16, 13, 15],
-                    },
-                    {
-                        name: '在线数量',
-                        type: 'line',
-                        data: [15, 20, 16, 20, 30, 8, 16, 19, 12, 18, 19, 14],
-                    },
-                    {
-                        name: '预警数量',
-                        type: 'line',
-                        data: [10, 10, 13, 12, 15, 18, 19, 10, 12, 15, 11, 17],
-                    },
-                ],
-            };
-            myChart.setOption(option);
-            window.addEventListener('resize', () => {
-                myChart.resize();
-            });
-        };
+        // // 实验室使用情况
+        // const initHomeLaboratory = () => {
+        //     const myChart = echarts.init(proxy.$refs.homeLaboratoryRef);
+        //     const option = {
+        //         grid: {
+        //             top: 50,
+        //             right: 20,
+        //             bottom: 30,
+        //             left: 30,
+        //         },
+        //         tooltip: {
+        //             trigger: 'axis',
+        //         },
+        //         legend: {
+        //             data: ['预购队列', '最新成交价'],
+        //             right: 13,
+        //         },
+        //         xAxis: {
+        //             data: ['衬衫', '羊毛衫', '雪纺衫', '裤子', '高跟鞋', '袜子'],
+        //         },
+        //         yAxis: [
+        //             {
+        //                 type: 'value',
+        //                 name: '价格',
+        //             },
+        //         ],
+        //         series: [
+        //             {
+        //                 name: '预购队列',
+        //                 type: 'bar',
+        //                 data: [5, 20, 36, 10, 10, 20],
+        //             },
+        //             {
+        //                 name: '最新成交价',
+        //                 type: 'line',
+        //                 data: [15, 20, 16, 20, 30, 8],
+        //             },
+        //         ],
+        //     };
+        //     myChart.setOption(option);
+        //     window.addEventListener('resize', () => {
+        //         myChart.resize();
+        //     });
+        // };
+        // // 履约超时预警
+        // const initHomeOvertime = () => {
+        //     const myChart = echarts.init(proxy.$refs.homeOvertimeRef);
+        //     const option = {
+        //         grid: {
+        //             top: 50,
+        //             right: 20,
+        //             bottom: 30,
+        //             left: 30,
+        //         },
+        //         tooltip: {
+        //             trigger: 'axis',
+        //         },
+        //         legend: {
+        //             data: ['订单数量', '超时数量', '在线数量', '预警数量'],
+        //             right: 13,
+        //         },
+        //         xAxis: {
+        //             data: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+        //         },
+        //         yAxis: [
+        //             {
+        //                 type: 'value',
+        //                 name: '数量',
+        //             },
+        //         ],
+        //         series: [
+        //             {
+        //                 name: '订单数量',
+        //                 type: 'bar',
+        //                 data: [5, 20, 36, 10, 10, 20, 11, 13, 10, 9, 17, 19],
+        //             },
+        //             {
+        //                 name: '超时数量',
+        //                 type: 'bar',
+        //                 data: [15, 12, 26, 15, 11, 16, 31, 13, 5, 16, 13, 15],
+        //             },
+        //             {
+        //                 name: '在线数量',
+        //                 type: 'line',
+        //                 data: [15, 20, 16, 20, 30, 8, 16, 19, 12, 18, 19, 14],
+        //             },
+        //             {
+        //                 name: '预警数量',
+        //                 type: 'line',
+        //                 data: [10, 10, 13, 12, 15, 18, 19, 10, 12, 15, 11, 17],
+        //             },
+        //         ],
+        //     };
+        //     myChart.setOption(option);
+        //     window.addEventListener('resize', () => {
+        //         myChart.resize();
+        //     });
+        // };
         // 页面加载时
         onMounted(() => {
             initNumCountUp();

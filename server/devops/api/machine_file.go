@@ -8,6 +8,7 @@ import (
 	"mayfly-go/base/ctx"
 	"mayfly-go/base/ginx"
 	"mayfly-go/base/utils"
+	"mayfly-go/base/ws"
 	"mayfly-go/server/devops/api/form"
 	"mayfly-go/server/devops/api/vo"
 	"mayfly-go/server/devops/application"
@@ -121,10 +122,12 @@ func (m *MachineFile) UploadFile(rc *ctx.ReqCtx) {
 	path := g.PostForm("path")
 	fileheader, err := g.FormFile("file")
 	biz.ErrIsNilAppendErr(err, "读取文件失败: %s")
+	// 通知正在上传
+	ws.SendMsg(rc.LoginAccount.Id, ws.NewMsg("文件上传", "文件上传中..."))
 
 	file, _ := fileheader.Open()
-	bytes, err := ioutil.ReadAll(file)
-	go m.MachineFileApp.UploadFile(fid, path, fileheader.Filename, bytes)
+	bytes, _ := ioutil.ReadAll(file)
+	go m.MachineFileApp.UploadFile(rc.LoginAccount, fid, path, fileheader.Filename, bytes)
 
 	rc.ReqParam = fmt.Sprintf("path: %s", path)
 }

@@ -1,4 +1,4 @@
-package routers
+package router
 
 import (
 	"mayfly-go/base/ctx"

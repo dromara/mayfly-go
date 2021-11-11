@@ -217,6 +217,9 @@ export default {
             if (type == 1) {
                 return '登录';
             }
+            if (type == 2) {
+                return '通知';
+            }
         };
 
         return {

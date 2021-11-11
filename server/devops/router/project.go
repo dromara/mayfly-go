@@ -1,4 +1,4 @@
-package routers
+package router
 
 import (
 	"mayfly-go/base/ctx"
@@ -49,7 +49,7 @@ func InitProjectRouter(router *gin.RouterGroup) {
 		})
 
 		saveProjectEnvLog := ctx.NewLogInfo("新增项目环境信息")
-		savePeP := ctx.NewPermission("project:env:save")
+		savePeP := ctx.NewPermission("project:env:add")
 		// 保存项目下的环境信息
 		project.POST("/:projectId/envs", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(saveProjectEnvLog).

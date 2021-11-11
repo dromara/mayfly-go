@@ -8,6 +8,7 @@ import { NextLoading } from '@/common/utils/loading.ts';
 import { dynamicRoutes, staticRoutes, pathMatch } from './route.ts'
 import { imports } from './imports';
 import openApi from '@/common/openApi';
+import sockets from '@/common/sockets';
 
 // 添加静态路由
 const router = createRouter({
@@ -203,6 +204,9 @@ if (!isRequestRoutes) {
     initBackEndControlRoutesFun();
 }
 
+
+let SysWs: any;
+
 // 路由加载前
 router.beforeEach((to, from, next) => {
     NProgress.configure({ showSpinner: false });
@@ -223,10 +227,18 @@ router.beforeEach((to, from, next) => {
             clearSession();
             resetRoute();
             NProgress.done();
+
+            if (SysWs) {
+                SysWs.close();
+                SysWs = null;
+            }
         } else if (token && to.path === '/login') {
             next('/');
             NProgress.done();
         } else {
+            if (!SysWs) {
+                SysWs = sockets.sysMsgSocket();
+            }
             if (store.state.routesList.routesList.length > 0) next();
         }
     }

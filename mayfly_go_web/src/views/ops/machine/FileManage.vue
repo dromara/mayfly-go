@@ -451,9 +451,7 @@ export default defineComponent({
         };
 
         const uploadSuccess = (res: any) => {
-            if (res.code == 200) {
-                ElMessage.success('文件上传中...');
-            } else {
+            if (res.code !== 200) {
                 ElMessage.error(res.msg);
             }
         };
