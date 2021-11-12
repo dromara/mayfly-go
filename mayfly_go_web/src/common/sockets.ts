@@ -34,6 +34,7 @@ export default {
                     return;
                 }
                 ElNotification({
+                    duration: 0,
                     title: message.title,
                     message: message.msg,
                     type: mtype as any,

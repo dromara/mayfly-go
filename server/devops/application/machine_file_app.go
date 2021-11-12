@@ -151,7 +151,7 @@ func (m *machineFileAppImpl) UploadFile(la *model.LoginAccount, fileId uint64, p
 
 	createfile.Write(content)
 	// 保存消息并发送文件上传成功通知
-	m.msgApp.CreateAndSend(la, ws.SuccessMsg("文件上传", fmt.Sprintf("[%s]文件已成功上传至[%s]", filename, path)))
+	m.msgApp.CreateAndSend(la, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件已成功上传至[%s]", filename, path)))
 
 }
 

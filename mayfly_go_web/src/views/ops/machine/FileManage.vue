@@ -79,6 +79,7 @@
                                 />
 
                                 <el-upload
+                                :before-upload="beforeUpload"
                                     :on-success="uploadSuccess"
                                     :headers="{ token }"
                                     :data="{
@@ -456,6 +457,10 @@ export default defineComponent({
             }
         };
 
+        const beforeUpload = (file: File) => {
+            ElMessage.success(`'${file.name}' 上传中,请关注结果通知`)
+        }
+
         const dontOperate = (data: any) => {
             const path = data.path;
             const ls = [
@@ -518,6 +523,7 @@ export default defineComponent({
             deleteFile,
             downloadFile,
             getUploadFile,
+            beforeUpload,
             uploadSuccess,
             dontOperate,
             formatFileSize,

@@ -30,6 +30,7 @@ func (s *System) ConnectWs(g *gin.Context) {
 	if err = ctx.PermissionHandler(rc); err != nil {
 		panic(biz.NewBizErr("没有权限"))
 	}
+
 	// 登录账号信息
 	la := rc.LoginAccount
 	ws.Put(la.Id, wsConn)
