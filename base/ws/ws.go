@@ -25,12 +25,20 @@ func init() {
 
 // 放置ws连接
 func Put(userId uint64, conn *websocket.Conn) {
-	Delete(userId)
+	existConn := conns[userId]
+	if existConn != nil {
+		Delete(userId)
+	}
+
+	conn.SetCloseHandler(func(code int, text string) error {
+		Delete(userId)
+		return nil
+	})
 	conns[userId] = conn
 }
 
 func checkConn() {
-	heartbeat := time.Duration(20) * time.Second
+	heartbeat := time.Duration(60) * time.Second
 	tick := time.NewTicker(heartbeat)
 	go func() {
 		for range tick.C {
@@ -38,7 +46,6 @@ func checkConn() {
 			for uid, conn := range conns {
 				err := conn.WriteControl(websocket.PingMessage, []byte("ping"), time.Now().Add(heartbeat/2))
 				if err != nil {
-					global.Log.Info("删除ping失败的websocket连接：uid = ", uid)
 					Delete(uid)
 					return
 				}
@@ -49,6 +56,7 @@ func checkConn() {
 
 // 删除ws连接
 func Delete(userid uint64) {
+	global.Log.Info("移除websocket连接：uid = ", userid)
 	conn := conns[userid]
 	if conn != nil {
 		conn.Close()

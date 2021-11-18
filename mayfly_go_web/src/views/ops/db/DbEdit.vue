@@ -198,6 +198,7 @@ export default defineComponent({
         const btnOk = async () => {
             dbForm.value.validate((valid: boolean) => {
                 if (valid) {
+                    state.form.port = Number.parseInt(state.form.port as any)
                     dbApi.saveDb.request(state.form).then(() => {
                         ElMessage.success('保存成功');
                         emit('val-change', state.form);

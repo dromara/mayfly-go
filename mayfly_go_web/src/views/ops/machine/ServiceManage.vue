@@ -77,9 +77,10 @@
             </template>
         </el-dialog>
 
-        <el-dialog title="执行结果" v-model="resultDialog.visible" width="40%">
+        <el-dialog title="执行结果" v-model="resultDialog.visible" width="50%">
             <div style="white-space: pre-line; padding: 10px; color: #000000">
-                {{ resultDialog.result }}
+                <!-- {{ resultDialog.result }} -->
+                <el-input v-model="resultDialog.result" :rows="20" type="textarea" />
             </div>
         </el-dialog>
 

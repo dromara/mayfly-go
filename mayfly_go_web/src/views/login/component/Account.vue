@@ -55,7 +55,7 @@
 import { onMounted, ref, toRefs, reactive, defineComponent, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { initAllFun, initBackEndControlRoutesFun } from '@/router/index.ts';
+import { initBackEndControlRoutesFun } from '@/router/index.ts';
 import { useStore } from '@/store/index.ts';
 import { setSession } from '@/common/utils/storage.ts';
 import { formatAxis } from '@/common/utils/formatTime.ts';
