@@ -21,6 +21,8 @@ server:
       filepath: ./static/index.html
     - relative-path: /favicon.ico
       filepath: ./static/favicon.ico
+    - relative-path: /config.js
+      filepath: ./static/config.js
 
 jwt:
   key: mykey
@@ -37,6 +39,7 @@ mysql:
   password: 111049
   db-name: mayfly-job
   config: charset=utf8&loc=Local&parseTime=true
+  max-idle-conns: 5
 
 log:
    # 日志等级, trace, debug, info, warn, error, fatal

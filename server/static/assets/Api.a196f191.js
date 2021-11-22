@@ -1,1 +1,0 @@
-import{r}from"./index.99723322.js";class s{constructor(t,e){this.url=t,this.method=e}setUrl(t){return this.url=t,this}setMethod(t){return this.method=t,this}getUrl(){return r.getApiUrl(this.url)}request(t){return r.send(this,t)}requestWithHeaders(t,e){return r.sendWithHeaders(this,t,e)}static create(t,e){return new s(t,e)}}export{s as A};
