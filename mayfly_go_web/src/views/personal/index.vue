@@ -50,17 +50,42 @@
                 <el-card shadow="hover">
                     <template #header>
                         <span>消息通知</span>
-                        <span class="personal-info-more">更多</span>
+                        <span @click="showMsgs" class="personal-info-more">更多</span>
                     </template>
                     <div class="personal-info-box">
                         <ul class="personal-info-ul">
-                            <li v-for="(v, k) in msgs" :key="k" class="personal-info-li">
+                            <li v-for="(v, k) in msgDialog.msgs.list" :key="k" class="personal-info-li">
                                 <a class="personal-info-li-title">{{ `[${getMsgTypeDesc(v.type)}] ${v.msg}` }}</a>
                             </li>
                         </ul>
                     </div>
                 </el-card>
             </el-col>
+
+            <el-dialog width="900px" title="消息" v-model="msgDialog.visible">
+                <el-table border :data="msgDialog.msgs.list" size="small">
+                    <el-table-column property="type" label="类型" width="60">
+                        <template #default="scope">
+                            {{ getMsgTypeDesc(scope.row.type) }}
+                        </template>
+                    </el-table-column>
+                    <el-table-column property="msg" label="消息"></el-table-column>
+                    <el-table-column property="createTime" label="时间" width="150">
+                        <template #default="scope">
+                            {{ $filters.dateFormat(scope.row.createTime) }}
+                        </template>
+                    </el-table-column>
+                </el-table>
+                <el-pagination
+                    @current-change="getMsgs"
+                    style="text-align: center"
+                    background
+                    layout="prev, pager, next, total, jumper"
+                    :total="msgDialog.msgs.total"
+                    v-model:current-page="msgDialog.query.pageNum"
+                    :page-size="msgDialog.query.pageSize"
+                />
+            </el-dialog>
 
             <!-- 营销推荐 -->
             <!-- <el-col :span="24">
@@ -172,6 +197,17 @@ export default {
                 roles: [],
             },
             msgs: [],
+            msgDialog: {
+                visible: false,
+                query: {
+                    pageSize: 10,
+                    pageNum: 1,
+                },
+                msgs: {
+                    list: [],
+                    total: null,
+                },
+            },
             recommendList,
             accountForm: {
                 password: '',
@@ -186,6 +222,10 @@ export default {
         const getUserInfos = computed(() => {
             return store.state.userInfos.userInfos;
         });
+
+        const showMsgs = () => {
+            state.msgDialog.visible = true;
+        };
 
         const roleInfo = computed(() => {
             if (state.accountInfo.roles.length == 0) {
@@ -209,8 +249,8 @@ export default {
         };
 
         const getMsgs = async () => {
-            const res = await personApi.getMsgs.request();
-            state.msgs = res.list;
+            const res = await personApi.getMsgs.request(state.msgDialog.query);
+            state.msgDialog.msgs = res;
         };
 
         const getMsgTypeDesc = (type: number) => {
@@ -226,6 +266,7 @@ export default {
             getUserInfos,
             currentTime,
             roleInfo,
+            showMsgs,
             getAccountInfo,
             getMsgs,
             getMsgTypeDesc,

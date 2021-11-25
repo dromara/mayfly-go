@@ -219,12 +219,30 @@ export default defineComponent({
             }
 
             if (script.type == enums.scriptTypeEnum['REAL_TIME'].value) {
-                state.terminalDialog.cmd = script.script;
+                script = script.script
+                if (state.scriptParamsDialog.params) {
+                    script = templateResolve(script, state.scriptParamsDialog.params)
+                }
+                state.terminalDialog.cmd = script;
                 state.terminalDialog.visible = true;
                 state.terminalDialog.machineId = props.machineId;
                 return;
             }
         };
+
+        /**
+         * 解析 {{.param}} 形式模板字符串
+         */
+        function templateResolve(template: string, param: any) {
+            return template.replace(/\{{.\w+\}}/g, (word) => {
+                const key = word.substring(3, word.length - 2);
+                const value = param[key];
+                if (value != null || value != undefined) {
+                    return value;
+                }
+                return '';
+            });
+        }
 
         const closeTermnial = () => {
             state.terminalDialog.visible = false;

@@ -2,15 +2,18 @@ package api
 
 import (
 	"fmt"
+	"io/ioutil"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/ctx"
 	"mayfly-go/base/ginx"
 	"mayfly-go/base/model"
 	"mayfly-go/base/utils"
+	"mayfly-go/base/ws"
 	"mayfly-go/server/devops/api/form"
 	"mayfly-go/server/devops/api/vo"
 	"mayfly-go/server/devops/application"
 	"mayfly-go/server/devops/domain/entity"
+	sysApplication "mayfly-go/server/sys/application"
 	"strconv"
 	"strings"
 
@@ -18,7 +21,8 @@ import (
 )
 
 type Db struct {
-	DbApp application.Db
+	DbApp  application.Db
+	MsgApp sysApplication.Msg
 }
 
 // @router /api/dbs [get]
@@ -77,18 +81,14 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	biz.NotEmpty(sql, "sql不能为空")
 	if strings.HasPrefix(sql, "SELECT") || strings.HasPrefix(sql, "select") {
 		colNames, res, err := d.DbApp.GetDbInstance(GetDbId(g)).SelectData(sql)
-		if err != nil {
-			panic(biz.NewBizErr(fmt.Sprintf("查询失败: %s", err.Error())))
-		}
+		biz.ErrIsNilAppendErr(err, "查询失败: %s")
 		colAndRes := make(map[string]interface{})
 		colAndRes["colNames"] = colNames
 		colAndRes["res"] = res
 		rc.ResData = colAndRes
 	} else {
 		rowsAffected, err := d.DbApp.GetDbInstance(GetDbId(g)).Exec(sql)
-		if err != nil {
-			panic(biz.NewBizErr(fmt.Sprintf("执行失败: %s", err.Error())))
-		}
+		biz.ErrIsNilAppendErr(err, "执行失败: %s")
 		res := make([]map[string]string, 0)
 		resData := make(map[string]string)
 		resData["影响条数"] = fmt.Sprintf("%d", rowsAffected)
@@ -100,6 +100,37 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 
 		rc.ResData = colAndRes
 	}
+}
+
+// 执行sql文件
+func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	fileheader, err := g.FormFile("file")
+	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
+
+	// 读取sql文件并根据;切割sql语句
+	file, _ := fileheader.Open()
+	filename := fileheader.Filename
+	bytes, _ := ioutil.ReadAll(file)
+	sqlContent := string(bytes)
+	sqls := strings.Split(sqlContent, ";")
+	dbId := GetDbId(g)
+
+	go func() {
+		db := d.DbApp.GetDbInstance(dbId)
+		for _, sql := range sqls {
+			sql = strings.Trim(sql, " ")
+			if sql == "" || sql == "\n" {
+				continue
+			}
+			_, err := db.Exec(sql)
+			if err != nil {
+				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]执行失败: [%s]", filename, err.Error())))
+				return
+			}
+		}
+		d.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessMsg("sql脚本执行成功", fmt.Sprintf("[%s]执行完成", filename)))
+	}()
 }
 
 // @router /api/db/:dbId/t-metadata [get]

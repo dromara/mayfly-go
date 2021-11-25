@@ -71,8 +71,8 @@ export default defineComponent({
         const state = reactive({
             captchaImage: '',
             loginForm: {
-                username: 'test',
-                password: '123456',
+                username: '',
+                password: '',
                 captcha: '',
                 cid: '',
             },

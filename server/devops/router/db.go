@@ -4,6 +4,7 @@ import (
 	"mayfly-go/base/ctx"
 	"mayfly-go/server/devops/api"
 	"mayfly-go/server/devops/application"
+	sysApplication "mayfly-go/server/sys/application"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,7 +12,9 @@ import (
 func InitDbRouter(router *gin.RouterGroup) {
 	db := router.Group("dbs")
 	{
-		d := &api.Db{DbApp: application.DbApp}
+		d := &api.Db{DbApp: application.DbApp,
+			MsgApp: sysApplication.MsgApp,
+		}
 		// 获取所有数据库列表
 		db.GET("", func(c *gin.Context) {
 			rc := ctx.NewReqCtxWithGin(c)
@@ -48,6 +51,11 @@ func InitDbRouter(router *gin.RouterGroup) {
 		db.GET(":dbId/exec-sql", func(g *gin.Context) {
 			rc := ctx.NewReqCtxWithGin(g).WithLog(ctx.NewLogInfo("执行Sql语句"))
 			rc.Handle(d.ExecSql)
+		})
+
+		db.POST(":dbId/exec-sql-file", func(g *gin.Context) {
+			rc := ctx.NewReqCtxWithGin(g).WithLog(ctx.NewLogInfo("执行Sql文件"))
+			rc.Handle(d.ExecSqlFile)
 		})
 
 		db.GET(":dbId/t-metadata", func(c *gin.Context) {

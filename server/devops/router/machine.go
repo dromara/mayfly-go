@@ -16,6 +16,10 @@ func InitMachineRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(m.Machines)
 		})
 
+		machines.GET(":machineId/stats", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(m.MachineStats)
+		})
+
 		saveMachine := ctx.NewLogInfo("保存机器信息")
 		machines.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).

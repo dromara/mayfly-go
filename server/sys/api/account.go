@@ -126,7 +126,7 @@ func (a Account) UpdateAccount(rc *ctx.ReqCtx) {
 	a.AccountApp.Update(updateAccount)
 }
 
-// 获取账号接受的消息列表
+// 获取账号接收的消息列表
 func (a Account) GetMsgs(rc *ctx.ReqCtx) {
 	condition := &entity.Msg{
 		RecipientId: int64(rc.LoginAccount.Id),

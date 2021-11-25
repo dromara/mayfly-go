@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/ctx"
 	"mayfly-go/base/ginx"
@@ -28,6 +29,13 @@ func (m *Machine) Machines(rc *ctx.ReqCtx) {
 		mv.HasCli = machine.HasCli(*mv.Id)
 	}
 	rc.ResData = res
+}
+
+func (m *Machine) MachineStats(rc *ctx.ReqCtx) {
+	writer := bytes.NewBufferString("")
+	stats := m.MachineApp.GetCli(GetMachineId(rc.GinCtx)).GetAllStats()
+	machine.ShowStats(writer, stats)
+	rc.ResData = writer.String()
 }
 
 func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {

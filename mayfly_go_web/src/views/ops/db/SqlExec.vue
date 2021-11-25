@@ -31,6 +31,24 @@
 
                         <el-button v-waves @click="saveSql" type="primary" icon="el-icon-document-add" size="mini" plain>保存</el-button>
                     </div>
+
+                    <div style="float: right" class="fl">
+                        <el-upload
+                            :before-upload="beforeUpload"
+                            :on-success="execSqlFileSuccess"
+                            :headers="{ Authorization: token }"
+                            :data="{
+                                dbId: 1,
+                            }"
+                            :action="getUploadSqlFileUrl()"
+                            :show-file-list="false"
+                            name="file"
+                            multiple
+                            :limit="100"
+                        >
+                            <el-button class="fr" v-waves type="success" icon="el-icon-video-play" size="mini" plain>sql脚本执行</el-button>
+                        </el-upload>
+                    </div>
                 </div>
                 <codemirror @beforeChange="onBeforeChange" class="codesql" ref="cmEditor" language="sql" v-model="sql" :options="cmOptions" />
             </el-aside>
@@ -95,6 +113,8 @@ import sqlFormatter from 'sql-formatter';
 import { notNull, notEmpty } from '@/common/assert';
 import { ElMessage } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
+import config from '@/common/config';
+import { getSession } from '@/common/utils/storage';
 
 export default defineComponent({
     name: 'SqlExec',
@@ -104,7 +124,10 @@ export default defineComponent({
     },
     setup() {
         const cmEditor: any = ref(null);
+        const token = getSession('token');
+
         const state = reactive({
+            token: token,
             dbs: [],
             tables: [],
             dbId: null,
@@ -201,6 +224,26 @@ export default defineComponent({
             state.execRes.data = res.res;
         };
 
+        const beforeUpload = (file: File) => {
+            if (!state.dbId) {
+                ElMessage.error('请先选择数据库');
+                return false;
+            }
+            ElMessage.success(`'${file.name}' 正在上传执行, 请关注结果通知`);
+        };
+
+        // 执行sql成功
+        const execSqlFileSuccess = (res: any) => {
+            if (res.code !== 200) {
+                ElMessage.error(res.msg);
+            }
+        };
+
+        // 获取sql文件上传执行url
+        const getUploadSqlFileUrl = () => {
+            return `${config.baseApiUrl}/dbs/${state.dbId}/exec-sql-file`;
+        };
+
         const flexColumnWidth = (str: any, tableData: any, flag = 'equal') => {
             // str为该列的字段名(传字符串);tableData为该表格的数据源(传变量);
             // flag为可选值，可不传该参数,传参时可选'max'或'equal',默认为'max'
@@ -244,10 +287,10 @@ export default defineComponent({
                     flexWidth += 8;
                 } else if (char >= '\u4e00' && char <= '\u9fa5') {
                     // 如果是中文字符，为字符分配15个单位宽度
-                    flexWidth += 15;
+                    flexWidth += 16;
                 } else {
-                    // 其他种类字符，为字符分配8个单位宽度
-                    flexWidth += 8;
+                    // 其他种类字符，为字符分配10个单位宽度
+                    flexWidth += 10;
                 }
             }
             if (flexWidth < 80) {
@@ -367,6 +410,9 @@ export default defineComponent({
             inputRead,
             changeTable,
             runSql,
+            beforeUpload,
+            getUploadSqlFileUrl,
+            execSqlFileSuccess,
             flexColumnWidth,
             saveSql,
             changeDb,
