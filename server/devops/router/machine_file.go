@@ -4,6 +4,7 @@ import (
 	"mayfly-go/base/ctx"
 	"mayfly-go/server/devops/api"
 	"mayfly-go/server/devops/application"
+	sysApplication "mayfly-go/server/sys/application"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,7 +14,9 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 	{
 		mf := &api.MachineFile{
 			MachineFileApp: application.MachineFileApp,
-			MachineApp:     application.MachineApp}
+			MachineApp:     application.MachineApp,
+			MsgApp:         sysApplication.MsgApp,
+		}
 
 		// 获取指定机器文件列表
 		machineFile.GET(":machineId/files", func(c *gin.Context) {

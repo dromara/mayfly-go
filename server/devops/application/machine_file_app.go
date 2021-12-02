@@ -1,17 +1,14 @@
 package application
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 	"io/ioutil"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/model"
-	"mayfly-go/base/ws"
 	"mayfly-go/server/devops/domain/entity"
 	"mayfly-go/server/devops/domain/repository"
 	"mayfly-go/server/devops/infrastructure/persistence"
-	sysApplication "mayfly-go/server/sys/application"
 	"os"
 	"strings"
 
@@ -44,7 +41,7 @@ type MachineFile interface {
 	WriteFileContent(fileId uint64, path string, content []byte)
 
 	// 文件上传
-	UploadFile(la *model.LoginAccount, fileId uint64, path, filename string, content []byte)
+	UploadFile(fileId uint64, path, filename string, content []byte)
 
 	// 移除文件
 	RemoveFile(fileId uint64, path string)
@@ -53,14 +50,12 @@ type MachineFile interface {
 type machineFileAppImpl struct {
 	machineFileRepo repository.MachineFile
 	machineRepo     repository.Machine
-	msgApp          sysApplication.Msg
 }
 
 // 实现类单例
 var MachineFileApp MachineFile = &machineFileAppImpl{
 	machineRepo:     persistence.MachineDao,
 	machineFileRepo: persistence.MachineFileDao,
-	msgApp:          sysApplication.MsgApp,
 }
 
 // 分页获取机器脚本信息列表
@@ -138,7 +133,7 @@ func (m *machineFileAppImpl) WriteFileContent(fileId uint64, path string, conten
 }
 
 // 上传文件
-func (m *machineFileAppImpl) UploadFile(la *model.LoginAccount, fileId uint64, path, filename string, content []byte) {
+func (m *machineFileAppImpl) UploadFile(fileId uint64, path, filename string, content []byte) {
 	path, machineId := m.checkAndReturnPathMid(fileId, path)
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
@@ -150,10 +145,6 @@ func (m *machineFileAppImpl) UploadFile(la *model.LoginAccount, fileId uint64, p
 	defer createfile.Close()
 
 	createfile.Write(content)
-	// 保存消息并发送文件上传成功通知
-	machine := m.machineRepo.GetById(machineId)
-	m.msgApp.CreateAndSend(la, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件已成功上传至 %s[%s:%s]", filename, machine.Name, machine.Ip, path)))
-
 }
 
 // 删除文件

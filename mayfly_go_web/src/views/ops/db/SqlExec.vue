@@ -96,7 +96,6 @@
 import { toRefs, reactive, computed, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
 
-import 'codemirror/theme/ambiance.css';
 import 'codemirror/addon/hint/show-hint.css';
 // import base style
 import 'codemirror/lib/codemirror.css';
@@ -210,7 +209,13 @@ export default defineComponent({
             // 没有选中的文本，则为全部文本
             let sql = getSql();
             notNull(sql, '内容不能为空');
+            runSqlStr(sql);
+        };
 
+        /**
+         * 执行sql str
+         */
+        const runSqlStr = async (sql: string) => {
             state.execRes.tableColumn = [];
             state.execRes.data = [];
             state.execRes.emptyResText = '查询中...';
@@ -336,7 +341,7 @@ export default defineComponent({
                 // 赋值第一个表信息
                 if (state.tableMetadata.length > 0) {
                     state.tableName = state.tableMetadata[0]['tableName'];
-                    changeTable(state.tableName);
+                    changeTable(state.tableName, false);
                 }
             });
 
@@ -367,14 +372,22 @@ export default defineComponent({
         };
 
         // 选择表事件
-        const changeTable = async (tableName: string) => {
+        const changeTable = (tableName: string, execSelectSql: boolean = true) => {
             if (tableName == '') {
                 return;
             }
-            state.columnMetadata = await dbApi.columnMetadata.request({
-                id: state.dbId,
-                tableName: tableName,
-            });
+            dbApi.columnMetadata
+                .request({
+                    id: state.dbId,
+                    tableName: tableName,
+                })
+                .then((res) => {
+                    state.columnMetadata = res;
+                });
+
+            if (execSelectSql) {
+                runSqlStr(`SELECT * FROM ${tableName} ORDER BY create_time DESC LIMIT 25`);
+            }
         };
 
         /**

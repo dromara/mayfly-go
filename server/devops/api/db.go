@@ -117,6 +117,15 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 	dbId := GetDbId(g)
 
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				switch t := err.(type) {
+				case *biz.BizError:
+					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]执行失败: [%s]", filename, t.Error())))
+				}
+			}
+		}()
+
 		db := d.DbApp.GetDbInstance(dbId)
 		for _, sql := range sqls {
 			sql = strings.Trim(sql, " ")

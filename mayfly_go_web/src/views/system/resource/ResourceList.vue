@@ -2,7 +2,7 @@
     <div class="menu">
         <div class="toolbar">
             <div>
-                <span style="font-size: 14px"> <i class="el-icon-info"></i>红色字体表示禁用状态 </span>
+                <span style="font-size: 14px"> <i class="el-icon-info"></i>红色字体表示禁用状态,右击鼠标显示操作 </span>
             </div>
             <el-button v-auth="'resource:add'" type="primary" icon="el-icon-plus" size="mini" @click="addResource(false)">添加</el-button>
         </div>
@@ -15,74 +15,93 @@
             @node-expand="handleNodeExpand"
             @node-collapse="handleNodeCollapse"
             :default-expanded-keys="defaultExpandedKeys"
-            :expand-on-click-node="false"
+            :expand-on-click-node="true"
         >
             <template #default="{ data }">
                 <span class="custom-tree-node">
-                    <span style="font-size: 13px" v-if="data.type === enums.ResourceTypeEnum.MENU.value">
-                        <span style="color: #3c8dbc">【</span>
-                        {{ data.name }}
-                        <span style="color: #3c8dbc">】</span>
-                        <el-tag v-if="data.children !== null" size="mini">{{ data.children.length }}</el-tag>
-                    </span>
-                    <span style="font-size: 13px" v-if="data.type === enums.ResourceTypeEnum.PERMISSION.value">
-                        <span style="color: #3c8dbc">【</span>
-                        <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">{{ data.name }}</span>
-                        <span style="color: #3c8dbc">】</span>
-                    </span>
-
-                    <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="el-icon-view" type="info" :underline="false" />
-
-                    <el-link
-                        v-auth="'resource:update'"
-                        @click.prevent="editResource(data)"
-                        class="ml5"
-                        type="primary"
-                        icon="el-icon-edit"
-                        :underline="false"
-                    />
-
-                    <el-link
-                        v-auth="'resource:add'"
-                        @click.prevent="addResource(data)"
-                        v-if="data.type === enums.ResourceTypeEnum.MENU.value"
-                        icon="el-icon-circle-plus-outline"
-                        :underline="false"
-                        type="success"
-                        class="ml5"
-                    />
-
-                    <el-link
-                        v-auth="'resource:changeStatus'"
-                        @click.prevent="changeStatus(data, -1)"
-                        v-if="data.status === 1 && data.type === enums.ResourceTypeEnum.PERMISSION.value"
-                        icon="el-icon-circle-close"
-                        :underline="false"
-                        type="warning"
-                        class="ml5"
-                    />
-
-                    <el-link
-                        v-auth="'resource:changeStatus'"
-                        @click.prevent="changeStatus(data, 1)"
-                        v-if="data.status === -1 && data.type === enums.ResourceTypeEnum.PERMISSION.value"
-                        type="success"
-                        icon="el-icon-circle-check"
-                        :underline="false"
-                        plain
-                        class="ml5"
-                    />
-
-                    <el-link
-                        v-auth="'resource:del'"
-                        v-if="data.children == null && data.name !== '首页'"
-                        @click.prevent="deleteMenu(data)"
-                        type="danger"
-                        icon="el-icon-remove-outline"
-                        :underline="false"
-                        plain
-                        class="ml5"
-                    />
+                    <el-dropdown size="mini" trigger="contextmenu">
+                        <span class="el-dropdown-link">
+                            <span style="font-size: 13px" v-if="data.type === enums.ResourceTypeEnum.MENU.value">
+                                <span style="color: #3c8dbc">【</span>
+                                {{ data.name }}
+                                <span style="color: #3c8dbc">】</span>
+                                <el-tag v-if="data.children !== null" size="mini">{{ data.children.length }}</el-tag>
+                            </span>
+                            <span style="font-size: 13px" v-if="data.type === enums.ResourceTypeEnum.PERMISSION.value">
+                                <span style="color: #3c8dbc">【</span>
+                                <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">{{ data.name }}</span>
+                                <span style="color: #3c8dbc">】</span>
+                            </span>
+                        </span>
+                        <template #dropdown>
+                            <el-dropdown-menu>
+                                <el-dropdown-item>
+                                    <el-link @click.prevent="info(data)" icon="el-icon-view" type="info" :underline="false">查看</el-link>
+                                </el-dropdown-item>
+                                <el-dropdown-item>
+                                    <el-link
+                                        v-auth="'resource:update'"
+                                        @click.prevent="editResource(data)"
+                                        type="primary"
+                                        icon="el-icon-edit"
+                                        :underline="false"
+                                    >
+                                        修改
+                                    </el-link>
+                                </el-dropdown-item>
+                                <el-dropdown-item>
+                                    <el-link
+                                        v-auth="'resource:add'"
+                                        @click.prevent="addResource(data)"
+                                        v-if="data.type === enums.ResourceTypeEnum.MENU.value"
+                                        icon="el-icon-circle-plus-outline"
+                                        :underline="false"
+                                        type="success"
+                                    >
+                                        新增
+                                    </el-link></el-dropdown-item
+                                >
+                                <el-dropdown-item>
+                                    <el-link
+                                        v-auth="'resource:changeStatus'"
+                                        @click.prevent="changeStatus(data, -1)"
+                                        v-if="data.status === 1 && data.type === enums.ResourceTypeEnum.PERMISSION.value"
+                                        icon="el-icon-circle-close"
+                                        :underline="false"
+                                        type="warning"
+                                    >
+                                        禁用
+                                    </el-link>
+                                </el-dropdown-item>
+                                <el-dropdown-item>
+                                    <el-link
+                                        v-auth="'resource:changeStatus'"
+                                        @click.prevent="changeStatus(data, 1)"
+                                        v-if="data.status === -1 && data.type === enums.ResourceTypeEnum.PERMISSION.value"
+                                        type="success"
+                                        icon="el-icon-circle-check"
+                                        :underline="false"
+                                        plain
+                                    >
+                                        启用
+                                    </el-link>
+                                </el-dropdown-item>
+                                <el-dropdown-item>
+                                    <el-link
+                                        v-auth="'resource:del'"
+                                        v-if="data.children == null && data.name !== '首页'"
+                                        @click.prevent="deleteMenu(data)"
+                                        type="danger"
+                                        icon="el-icon-remove-outline"
+                                        :underline="false"
+                                        plain
+                                    >
+                                        删除
+                                    </el-link>
+                                </el-dropdown-item>
+                            </el-dropdown-menu>
+                        </template>
+                    </el-dropdown>
                 </span>
             </template>
         </el-tree>
@@ -201,7 +220,7 @@ export default defineComponent({
                         id: data.id,
                     })
                     .then((res) => {
-                        console.log(res)
+                        console.log(res);
                         ElMessage.success('删除成功！');
                         search();
                     });

@@ -4,6 +4,7 @@ export const machineApi = {
     // 获取权限列表
     list: Api.create("/machines", 'get'),
     info: Api.create("/machines/{id}/sysinfo", 'get'),
+    stats: Api.create("/machines/{id}/stats", 'get'),
     closeCli: Api.create("/machines/{id}/close-cli", 'delete'),
     // 保存按钮
     saveMachine: Api.create("/machines", 'post'),

@@ -126,7 +126,7 @@
                 :data="showResourceDialog.resources"
                 node-key="id"
                 :props="showResourceDialog.defaultProps"
-                :expand-on-click-node="false"
+                :expand-on-click-node="true"
             >
                 <template #default="{ node, data }">
                     <span class="custom-tree-node">

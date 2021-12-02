@@ -48,19 +48,19 @@
                     </el-radio>
                 </template>
             </el-table-column>
-            <el-table-column prop="name" label="名称" width></el-table-column>
-            <el-table-column prop="ip" label="ip:port" min-width="160">
+            <el-table-column prop="name" label="名称" min-width="130"></el-table-column>
+            <el-table-column prop="ip" label="ip:port" min-width="130">
                 <template #default="scope">
                     {{ `${scope.row.ip}:${scope.row.port}` }}
                 </template>
             </el-table-column>
-            <el-table-column prop="ip" label="hasCli" min-width="60">
+            <el-table-column prop="ip" label="hasCli" width="70">
                 <template #default="scope">
                     {{ `${scope.row.hasCli ? '是' : '否'}` }}
                 </template>
             </el-table-column>
-            <el-table-column prop="username" label="用户名" :min-width="55"></el-table-column>
-            <el-table-column prop="createTime" label="创建时间" min-width="160">
+            <el-table-column prop="username" label="用户名" min-width="75"></el-table-column>
+            <el-table-column prop="createTime" label="创建时间" width="160">
                 <template #default="scope">
                     {{ $filters.dateFormat(scope.row.createTime) }}
                 </template>
@@ -72,9 +72,8 @@
                 </template>
             </el-table-column>
             <el-table-column prop="modifier" label="修改者" :min-width="55"></el-table-column> -->
-            <el-table-column label="操作" min-width="260">
+            <el-table-column label="操作" min-width="260" fixed="right">
                 <template #default="scope">
-                    <!-- <el-button type="primary" @click="monitor(scope.row.id)" icom="el-icon-tickets" size="mini" plain>监控</el-button> -->
                     <el-button type="success" @click="serviceManager(scope.row)" size="mini" plain>脚本</el-button>
                     <el-button v-auth="'machine:terminal'" type="primary" @click="showTerminal(scope.row)" size="mini" plain>终端</el-button>
                     <el-button :disabled="!scope.row.hasCli" type="danger" @click="closeCli(scope.row)" size="mini" plain>关闭连接</el-button>

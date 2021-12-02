@@ -51,78 +51,89 @@
 
         <el-dialog :title="tree.title" v-model="tree.visible" :close-on-click-modal="false" width="680px">
             <div style="height: 45vh; overflow: auto">
-                <el-tree v-if="tree.visible" ref="fileTree" :load="loadNode" :props="props" lazy node-key="id" :expand-on-click-node="false">
+                <el-tree v-if="tree.visible" ref="fileTree" :load="loadNode" :props="props" lazy node-key="id" :expand-on-click-node="true">
                     <template #default="{ node, data }">
                         <span class="custom-tree-node">
-                            <span v-if="data.type == 'd' && !node.expanded">
-                                <i class="el-icon-folder"></i>
-                            </span>
-                            <span v-if="data.type == 'd' && node.expanded">
-                                <i class="el-icon-folder-opened"></i>
-                            </span>
-                            <span v-if="data.type == '-'">
-                                <i class="el-icon-document"></i>
-                            </span>
+                            <el-dropdown size="small" trigger="contextmenu">
+                                <span class="el-dropdown-link">
+                                    <span v-if="data.type == 'd' && !node.expanded">
+                                        <i class="el-icon-folder"></i>
+                                    </span>
+                                    <span v-if="data.type == 'd' && node.expanded">
+                                        <i class="el-icon-folder-opened"></i>
+                                    </span>
+                                    <span v-if="data.type == '-'">
+                                        <i class="el-icon-document"></i>
+                                    </span>
 
-                            <span style="display: inline-block; width: 430px">
-                                {{ node.label }}
-                                <span style="color: #67c23a" v-if="data.type == '-'">&nbsp;&nbsp;[{{ formatFileSize(data.size) }}]</span>
-                            </span>
+                                    <span style="display: inline-block">
+                                        {{ node.label }}
+                                        <span style="color: #67c23a" v-if="data.type == '-'">&nbsp;&nbsp;[{{ formatFileSize(data.size) }}]</span>
+                                    </span>
+                                </span>
 
-                            <span>
-                                <el-link
-                                    @click.prevent="getFileContent(tree.folder.id, data.path)"
-                                    v-if="data.type == '-' && data.size < 1 * 1024 * 1024"
-                                    type="info"
-                                    icon="el-icon-view"
-                                    :underline="false"
-                                />
-
-                                <el-upload
-                                :before-upload="beforeUpload"
-                                    :on-success="uploadSuccess"
-                                    :headers="{ token }"
-                                    :data="{
-                                        fileId: tree.folder.id,
-                                        path: data.path,
-                                        machineId: machineId,
-                                    }"
-                                    :action="getUploadFile({ path: data.path })"
-                                    :show-file-list="false"
-                                    name="file"
-                                    multiple
-                                    :limit="100"
-                                    style="display: inline-block; margin-left: 2px"
-                                >
-                                    <el-link
-                                        v-auth="'machine:file:upload'"
-                                        v-if="data.type == 'd'"
-                                        @click.prevent
-                                        icon="el-icon-upload"
-                                        :underline="false"
-                                    />
-                                </el-upload>
-
-                                <el-link
-                                    v-auth="'machine:file:write'"
-                                    v-if="data.type == '-'"
-                                    @click.prevent="downloadFile(node, data)"
-                                    type="danger"
-                                    icon="el-icon-download"
-                                    :underline="false"
-                                    style="margin-left: 2px"
-                                />
-
-                                <el-link
-                                    v-auth="'machine:file:rm'"
-                                    v-if="!dontOperate(data)"
-                                    @click.prevent="deleteFile(node, data)"
-                                    type="danger"
-                                    icon="el-icon-delete"
-                                    :underline="false"
-                                    style="margin-left: 2px"
-                                />
-                            </span>
+                                <template #dropdown>
+                                    <el-dropdown-menu>
+                                        <el-dropdown-item>
+                                            <el-link
+                                                @click.prevent="getFileContent(tree.folder.id, data.path)"
+                                                v-if="data.type == '-' && data.size < 1 * 1024 * 1024"
+                                                type="info"
+                                                icon="el-icon-view"
+                                                :underline="false"
+                                            >
+                                                查看
+                                            </el-link>
+                                        </el-dropdown-item>
+                                        <el-dropdown-item v-if="data.type == 'd'">
+                                            <el-upload
+                                                :before-upload="beforeUpload"
+                                                :on-success="uploadSuccess"
+                                                :headers="{ token }"
+                                                :data="{
+                                                    fileId: tree.folder.id,
+                                                    path: data.path,
+                                                    machineId: machineId,
+                                                }"
+                                                :action="getUploadFile({ path: data.path })"
+                                                :show-file-list="false"
+                                                name="file"
+                                                multiple
+                                                :limit="100"
+                                                style="display: inline-block; margin-left: 2px"
+                                            >
+                                                <el-link v-auth="'machine:file:upload'" @click.prevent icon="el-icon-upload" :underline="false">
+                                                    上传
+                                                </el-link>
+                                            </el-upload>
+                                        </el-dropdown-item>
+                                        <el-dropdown-item>
+                                            <el-link
+                                                v-auth="'machine:file:write'"
+                                                v-if="data.type == '-'"
+                                                @click.prevent="downloadFile(node, data)"
+                                                type="primary"
+                                                icon="el-icon-download"
+                                                :underline="false"
+                                                style="margin-left: 2px"
+                                                >下载</el-link
+                                            >
+                                        </el-dropdown-item>
+                                        <el-dropdown-item>
+                                            <el-link
+                                                v-auth="'machine:file:rm'"
+                                                v-if="!dontOperate(data)"
+                                                @click.prevent="deleteFile(node, data)"
+                                                type="danger"
+                                                icon="el-icon-delete"
+                                                :underline="false"
+                                                style="margin-left: 2px"
+                                                >删除
+                                            </el-link>
+                                        </el-dropdown-item>
+                                    </el-dropdown-menu>
+                                </template>
+                            </el-dropdown>
                         </span>
                     </template>
                 </el-tree>
@@ -458,8 +469,8 @@ export default defineComponent({
         };
 
         const beforeUpload = (file: File) => {
-            ElMessage.success(`'${file.name}' 上传中,请关注结果通知`)
-        }
+            ElMessage.success(`'${file.name}' 上传中,请关注结果通知`);
+        };
 
         const dontOperate = (data: any) => {
             const path = data.path;
