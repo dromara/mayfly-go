@@ -35,8 +35,20 @@
             </div>
 
             <div style="float: right">
-                <el-input placeholder="host" size="mini" style="width: 140px" v-model="params.host" @clear="search" plain clearable></el-input>
-                <el-button @click="search" type="success" icon="el-icon-search" size="mini"></el-button>
+                <el-select size="mini" v-model="params.projectId" placeholder="请选择项目" @clear="search" filterable clearable>
+                    <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
+                </el-select>
+                <el-input
+                    class="ml5"
+                    placeholder="ip"
+                    size="mini"
+                    style="width: 140px"
+                    v-model="params.ip"
+                    @clear="search"
+                    plain
+                    clearable
+                ></el-input>
+                <el-button class="ml5" @click="search" type="success" icon="el-icon-search" size="mini"></el-button>
             </div>
         </div>
 
@@ -54,12 +66,13 @@
                     {{ `${scope.row.ip}:${scope.row.port}` }}
                 </template>
             </el-table-column>
+            <el-table-column prop="username" label="用户名" min-width="75"></el-table-column>
+            <el-table-column prop="projectName" label="项目" min-width="120"></el-table-column>
             <el-table-column prop="ip" label="hasCli" width="70">
                 <template #default="scope">
                     {{ `${scope.row.hasCli ? '是' : '否'}` }}
                 </template>
             </el-table-column>
-            <el-table-column prop="username" label="用户名" min-width="75"></el-table-column>
             <el-table-column prop="createTime" label="创建时间" width="160">
                 <template #default="scope">
                     {{ $filters.dateFormat(scope.row.createTime) }}
@@ -92,6 +105,7 @@
 
         <machine-edit
             :title="machineEditDialog.title"
+            :projects="projects"
             v-model:visible="machineEditDialog.visible"
             v-model:machine="machineEditDialog.data"
             @valChange="submitSuccess"
@@ -113,6 +127,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 // import Monitor from './Monitor.vue';
 import { machineApi } from './api';
+import { projectApi } from '../project/api.ts';
 import ServiceManage from './ServiceManage.vue';
 import FileManage from './FileManage.vue';
 import MachineEdit from './MachineEdit.vue';
@@ -127,6 +142,7 @@ export default defineComponent({
     setup() {
         const router = useRouter();
         const state = reactive({
+            projects: [],
             params: {
                 pageNum: 1,
                 pageSize: 10,
@@ -166,8 +182,9 @@ export default defineComponent({
             },
         });
 
-        onMounted(() => {
+        onMounted(async () => {
             search();
+            state.projects = (await projectApi.projects.request({ pageNum: 1, pageSize: 100 })).list;
         });
 
         const choose = (item: any) => {

@@ -1,8 +1,10 @@
 package form
 
 type MachineForm struct {
-	Id   uint64 `json:"id"`
-	Name string `json:"name" binding:"required"`
+	Id          uint64 `json:"id"`
+	ProjectId   uint64 `json:"projectId"`
+	ProjectName string `json:"projectName"`
+	Name        string `json:"name" binding:"required"`
 	// IP地址
 	Ip string `json:"ip" binding:"required"`
 	// 用户名

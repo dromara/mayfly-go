@@ -1,6 +1,7 @@
 package persistence
 
 import (
+	"fmt"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/model"
 	"mayfly-go/server/devops/domain/entity"
@@ -13,7 +14,19 @@ var RedisDao repository.Redis = &redisRepo{}
 
 // 分页获取机器信息列表
 func (r *redisRepo) GetRedisList(condition *entity.Redis, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
-	return model.GetPage(pageParam, condition, toEntity, orderBy...)
+	sql := "SELECT d.* FROM t_redis d JOIN t_project_member pm ON d.project_id = pm.project_id WHERE 1 = 1 "
+	if condition.CreatorId != 0 {
+		// 使用创建者id模拟项目成员id
+		sql = fmt.Sprintf("%s AND pm.account_id = %d", sql, condition.CreatorId)
+	}
+	if condition.ProjectId != 0 {
+		sql = fmt.Sprintf("%s AND d.project_id = %d", sql, condition.ProjectId)
+	}
+	if condition.Host != "" {
+		sql = sql + " AND d.host LIKE '%" + condition.Host + "%'"
+	}
+	sql = sql + " ORDER BY d.create_time DESC"
+	return model.GetPageBySql(sql, pageParam, toEntity)
 }
 
 func (r *redisRepo) Count(condition *entity.Redis) int64 {

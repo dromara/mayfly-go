@@ -1,12 +1,10 @@
 <template>
-    <el-dialog :title="keyValue.key" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="800px">
+    <el-dialog :title="keyValue.key" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="900px">
         <el-form>
             <el-form-item>
-                <!-- <el-input v-model="keyValue.value" type="textarea" :autosize="{ minRows: 10, maxRows: 20 }" autocomplete="off"></el-input> -->
-
-                
+                <el-input  class="json-text" v-model="keyValue2.jsonValue" type="textarea" :autosize="{ minRows: 10, maxRows: 20 }"></el-input>
             </el-form-item>
-            <vue3-json-editor v-model="keyValue2.jsonValue" @json-change="valueChange" :show-btns="false" :expandedOnStart="true" />
+            <!-- <vue3-json-editor v-model="keyValue2.jsonValue" @json-change="valueChange" :show-btns="false" :expandedOnStart="true" /> -->
         </el-form>
         <template #footer>
             <div class="dialog-footer">
@@ -21,13 +19,11 @@ import { defineComponent, reactive, watch, toRefs } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import { isTrue } from '@/common/assert';
-import { Vue3JsonEditor } from 'vue3-json-editor';
+
 
 export default defineComponent({
     name: 'ValueDialog',
-    components: {
-        Vue3JsonEditor,
-    },
+    components: {},
     props: {
         visible: {
             type: Boolean,
@@ -61,9 +57,9 @@ export default defineComponent({
             (val) => {
                 state.keyValue2 = val;
                 if (typeof val.value == 'string') {
-                    state.keyValue2.jsonValue = JSON.parse(val.value)
+                    state.keyValue2.jsonValue = JSON.stringify(JSON.parse(val.value), null, 2);
                 } else {
-                    state.keyValue2.jsonValue = val.value;
+                    state.keyValue2.jsonValue = JSON.stringify(val.value, null, 2);
                 }
             }
         );
@@ -71,6 +67,7 @@ export default defineComponent({
         const saveValue = async () => {
             isTrue(state.keyValue2.type == 'string', '暂不支持除string外其他类型修改');
 
+            state.keyValue2.value = state.keyValue2.jsonValue;
             await redisApi.saveStringValue.request(state.keyValue2);
             ElMessage.success('保存成功');
             cancel();

@@ -23,7 +23,18 @@ type Machine struct {
 }
 
 func (m *Machine) Machines(rc *ctx.ReqCtx) {
-	res := m.MachineApp.GetMachineList(new(entity.Machine), ginx.GetPageParam(rc.GinCtx), new([]*vo.MachineVO))
+	condition := new(entity.Machine)
+	// 使用创建者id模拟账号成员id
+	condition.CreatorId = rc.LoginAccount.Id
+	condition.Ip = rc.GinCtx.Query("ip")
+	condition.ProjectId = uint64(ginx.QueryInt(rc.GinCtx, "projectId", 0))
+
+	res := m.MachineApp.GetMachineList(condition, ginx.GetPageParam(rc.GinCtx), new([]*vo.MachineVO))
+	if res.Total == 0 {
+		rc.ResData = res
+		return
+	}
+
 	list := res.List.(*[]*vo.MachineVO)
 	for _, mv := range *list {
 		mv.HasCli = machine.HasCli(*mv.Id)

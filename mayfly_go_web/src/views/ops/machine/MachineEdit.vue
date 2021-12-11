@@ -2,17 +2,11 @@
     <div>
         <el-dialog :title="title" v-model="dialogVisible" :show-close="false" :before-close="cancel" width="35%">
             <el-form :model="form" ref="machineForm" :rules="rules" label-width="85px" size="small">
-                <!-- <el-form-item prop="projectId" label="项目:" required>
+                <el-form-item prop="projectId" label="项目:" required>
                     <el-select style="width: 100%" v-model="form.projectId" placeholder="请选择项目" @change="changeProject" filterable>
                         <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
                     </el-select>
                 </el-form-item>
-
-                <el-form-item prop="envId" label="环境:" required>
-                    <el-select @change="changeEnv" style="width: 100%" v-model="form.envId" placeholder="请选择环境">
-                        <el-option v-for="item in envs" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
-                    </el-select>
-                </el-form-item> -->
                 <el-form-item prop="name" label="名称:" required>
                     <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
                 </el-form-item>
@@ -57,6 +51,9 @@ export default defineComponent({
         visible: {
             type: Boolean,
         },
+        projects: {
+            type: Array,
+        },
         machine: {
             type: [Boolean, Object],
         },
@@ -68,8 +65,11 @@ export default defineComponent({
         const machineForm: any = ref(null);
         const state = reactive({
             dialogVisible: false,
+            projects: [],
             form: {
                 id: null,
+                projectId: null,
+                projectName: null,
                 name: null,
                 port: 22,
                 username: null,
@@ -131,12 +131,21 @@ export default defineComponent({
 
         watch(props, async (newValue) => {
             state.dialogVisible = newValue.visible;
+            state.projects = newValue.projects;
             if (newValue.machine) {
                 state.form = { ...newValue.machine };
             } else {
                 state.form = { port: 22 } as any;
             }
         });
+
+        const changeProject = (projectId: number) => {
+            for (let p of state.projects as any) {
+                if (p.id == projectId) {
+                    state.form.projectName = p.name;
+                }
+            }
+        };
 
         const btnOk = async () => {
             machineForm.value.validate((valid: boolean) => {
@@ -148,7 +157,7 @@ export default defineComponent({
                         setTimeout(() => {
                             state.btnLoading = false;
                         }, 1000);
-                            
+
                         cancel();
                     });
                 } else {
@@ -171,6 +180,7 @@ export default defineComponent({
         return {
             ...toRefs(state),
             machineForm,
+            changeProject,
             btnOk,
             cancel,
         };

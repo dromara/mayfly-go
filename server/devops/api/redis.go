@@ -23,7 +23,7 @@ func (r *Redis) RedisList(rc *ctx.ReqCtx) {
 	m := &entity.Redis{EnvId: uint64(ginx.QueryInt(g, "envId", 0)),
 		ProjectId: uint64(ginx.QueryInt(g, "projectId", 0)),
 	}
-	ginx.BindQuery(g, m)
+	m.CreatorId = rc.LoginAccount.Id
 	rc.ResData = r.RedisApp.GetPageList(m, ginx.GetPageParam(rc.GinCtx), new([]vo.Redis))
 }
 

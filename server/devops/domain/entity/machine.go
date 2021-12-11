@@ -6,7 +6,9 @@ import (
 
 type Machine struct {
 	model.Model
-	Name string `json:"name"`
+	ProjectId   uint64 `json:"projectId"`
+	ProjectName string `json:"projectName"`
+	Name        string `json:"name"`
 	// IP地址
 	Ip string `json:"ip"`
 	// 用户名

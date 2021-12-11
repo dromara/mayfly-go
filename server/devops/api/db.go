@@ -32,7 +32,7 @@ func (d *Db) Dbs(rc *ctx.ReqCtx) {
 		ProjectId: uint64(ginx.QueryInt(g, "projectId", 0)),
 		Database:  g.Query("database"),
 	}
-	ginx.BindQuery(g, m)
+	m.CreatorId = rc.LoginAccount.Id
 	rc.ResData = d.DbApp.GetPageList(m, ginx.GetPageParam(rc.GinCtx), new([]vo.SelectDataDbVO))
 }
 
