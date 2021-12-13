@@ -22,8 +22,14 @@ func (d *dbRepo) GetDbList(condition *entity.Db, pageParam *model.PageParam, toE
 	if condition.ProjectId != 0 {
 		sql = fmt.Sprintf("%s AND d.project_id = %d", sql, condition.ProjectId)
 	}
+	if condition.EnvId != 0 {
+		sql = fmt.Sprintf("%s AND d.env_id = %d", sql, condition.EnvId)
+	}
 	if condition.Host != "" {
 		sql = sql + " AND d.host LIKE '%" + condition.Host + "%'"
+	}
+	if condition.Database != "" {
+		sql = sql + " AND d.database LIKE '%" + condition.Database + "%'"
 	}
 	sql = sql + " ORDER BY d.create_time DESC"
 	return model.GetPageBySql(sql, pageParam, toEntity)

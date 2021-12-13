@@ -41,12 +41,18 @@ type projectAppImpl struct {
 	projectRepo       repository.Project
 	projectEnvRepo    repository.ProjectEnv
 	projectMemberRepo repository.ProjectMemeber
+	machineRepo       repository.Machine
+	redisRepo         repository.Redis
+	dbRepo            repository.Db
 }
 
 var ProjectApp Project = &projectAppImpl{
 	projectRepo:       persistence.ProjectRepo,
 	projectEnvRepo:    persistence.ProjectEnvRepo,
 	projectMemberRepo: persistence.ProjectMemberRepo,
+	machineRepo:       persistence.MachineDao,
+	redisRepo:         persistence.RedisDao,
+	dbRepo:            persistence.DbDao,
 }
 
 // 分页获取项目信息列表
@@ -73,6 +79,9 @@ func (p *projectAppImpl) SaveProject(project *entity.Project) {
 }
 
 func (p *projectAppImpl) DelProject(id uint64) {
+	biz.IsTrue(p.machineRepo.Count(&entity.Machine{ProjectId: id}) == 0, "请先删除该项目关联的机器信息")
+	biz.IsTrue(p.redisRepo.Count(&entity.Redis{ProjectId: id}) == 0, "请先删除该项目关联的redis信息")
+	biz.IsTrue(p.dbRepo.Count(&entity.Db{ProjectId: id}) == 0, "请先删除该项目关联的数据库信息")
 	p.projectRepo.Delete(id)
 	p.projectEnvRepo.DeleteEnvs(id)
 	p.projectMemberRepo.DeleteMems(id)

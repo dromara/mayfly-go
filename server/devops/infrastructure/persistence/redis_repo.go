@@ -22,6 +22,9 @@ func (r *redisRepo) GetRedisList(condition *entity.Redis, pageParam *model.PageP
 	if condition.ProjectId != 0 {
 		sql = fmt.Sprintf("%s AND d.project_id = %d", sql, condition.ProjectId)
 	}
+	if condition.EnvId != 0 {
+		sql = fmt.Sprintf("%s AND d.env_id = %d", sql, condition.EnvId)
+	}
 	if condition.Host != "" {
 		sql = sql + " AND d.host LIKE '%" + condition.Host + "%'"
 	}
