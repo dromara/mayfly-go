@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div class="toolbar">
+        <el-card>
             <el-button type="primary" icon="el-icon-plus" size="mini" @click="editRedis(true)" plain>添加</el-button>
             <el-button type="primary" icon="el-icon-edit" :disabled="currentId == null" size="mini" @click="editRedis(false)" plain>编辑</el-button>
             <el-button type="danger" icon="el-icon-delete" :disabled="currentId == null" size="mini" @click="deleteRedis" plain>删除</el-button>
@@ -12,42 +12,43 @@
                 <el-select v-model="query.projectId" placeholder="请选择项目" filterable clearable size="small">
                     <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
                 </el-select>
-                <el-button class="ml5" @click="search" type="success" icon="el-icon-search" size="mini"></el-button>
+                <el-button class="ml5" @click="search" type="success" icon="el-icon-search" size="small"></el-button>
             </div>
-        </div>
-        <el-table :data="redisTable" stripe style="width: 100%" @current-change="choose">
-            <el-table-column label="选择" width="50px">
-                <template #default="scope">
-                    <el-radio v-model="currentId" :label="scope.row.id">
-                        <i></i>
-                    </el-radio>
-                </template>
-            </el-table-column>
-            <el-table-column prop="project" label="项目" width></el-table-column>
-            <el-table-column prop="env" label="环境" width></el-table-column>
-            <el-table-column prop="host" label="host:port" width></el-table-column>
-            <el-table-column prop="createTime" label="创建时间">
-                <template #default="scope">
-                    {{ $filters.dateFormat(scope.row.createTime) }}
-                </template>
-            </el-table-column>
-            <el-table-column prop="creator" label="创建人"></el-table-column>
-            <el-table-column label="操作" width>
-                <template #default="scope">
-                    <el-button type="primary" @click="info(scope.row)" icon="el-icon-tickets" size="mini" plain>info</el-button>
-                    <!-- <el-button type="success" @click="manage(scope.row)" :ref="scope.row" size="mini" plain>数据管理</el-button> -->
-                </template>
-            </el-table-column>
-        </el-table>
-        <el-pagination
-            @current-change="handlePageChange"
-            style="text-align: center"
-            background
-            layout="prev, pager, next, total, jumper"
-            :total="total"
-            v-model:current-page="query.pageNum"
-            :page-size="query.pageSize"
-        />
+            <el-table :data="redisTable" style="width: 100%" @current-change="choose">
+                <el-table-column label="选择" width="50px">
+                    <template #default="scope">
+                        <el-radio v-model="currentId" :label="scope.row.id">
+                            <i></i>
+                        </el-radio>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="project" label="项目" width></el-table-column>
+                <el-table-column prop="env" label="环境" width></el-table-column>
+                <el-table-column prop="host" label="host:port" width></el-table-column>
+                <el-table-column prop="createTime" label="创建时间">
+                    <template #default="scope">
+                        {{ $filters.dateFormat(scope.row.createTime) }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="creator" label="创建人"></el-table-column>
+                <el-table-column label="操作" width>
+                    <template #default="scope">
+                        <el-button type="primary" @click="info(scope.row)" icon="el-icon-tickets" size="mini" plain>info</el-button>
+                        <!-- <el-button type="success" @click="manage(scope.row)" :ref="scope.row" size="mini" plain>数据管理</el-button> -->
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-row style="margin-top: 20px" type="flex" justify="end">
+                <el-pagination
+                    style="text-align: right"
+                    @current-change="handlePageChange"
+                    :total="total"
+                    layout="prev, pager, next, total, jumper"
+                    v-model:current-page="query.pageNum"
+                    :page-size="query.pageSize"
+                ></el-pagination>
+            </el-row>
+        </el-card>
 
         <info v-model:visible="infoDialog.visible" :title="infoDialog.title" :info="infoDialog.info"></info>
 
