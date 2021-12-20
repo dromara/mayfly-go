@@ -29,7 +29,7 @@ func InitDbRouter(router *gin.RouterGroup) {
 		})
 
 		deleteDb := ctx.NewLogInfo("删除数据库信息")
-		db.DELETE(":id", func(c *gin.Context) {
+		db.DELETE(":dbId", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(deleteDb).
 				Handle(d.DeleteDb)
@@ -65,9 +65,12 @@ func InitDbRouter(router *gin.RouterGroup) {
 		db.GET(":dbId/c-metadata", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(d.ColumnMA)
 		})
+
 		db.GET(":dbId/hint-tables", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(d.HintTables)
 		})
+
+		/**  db sql相关接口  */
 
 		db.POST(":dbId/sql", func(c *gin.Context) {
 			rc := ctx.NewReqCtxWithGin(c)
@@ -76,6 +79,14 @@ func InitDbRouter(router *gin.RouterGroup) {
 
 		db.GET(":dbId/sql", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(d.GetSql)
+		})
+
+		db.DELETE(":dbId/sql", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(d.DeleteSql)
+		})
+
+		db.GET(":dbId/sql-names", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(d.GetSqlNames)
 		})
 	}
 }

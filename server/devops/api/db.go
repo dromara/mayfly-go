@@ -49,7 +49,7 @@ func (d *Db) Save(rc *ctx.ReqCtx) {
 }
 
 func (d *Db) DeleteDb(rc *ctx.ReqCtx) {
-	d.DbApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	d.DbApp.Delete(GetDbId(rc.GinCtx))
 }
 
 func (d *Db) TableInfos(rc *ctx.ReqCtx) {
@@ -202,7 +202,7 @@ func (d *Db) SaveSql(rc *ctx.ReqCtx) {
 	biz.ErrIsNil(err, "该数据库信息不存在")
 
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-	dbSql := &entity.DbSql{Type: dbSqlForm.Type, DbId: dbId}
+	dbSql := &entity.DbSql{Type: dbSqlForm.Type, DbId: dbId, Name: dbSqlForm.Name}
 	dbSql.CreatorId = account.Id
 	e := model.GetBy(dbSql)
 
@@ -216,11 +216,34 @@ func (d *Db) SaveSql(rc *ctx.ReqCtx) {
 	}
 }
 
-// @router /api/db/:dbId/sql [get]
-func (d *Db) GetSql(rc *ctx.ReqCtx) {
+// 获取所有保存的sql names
+func (d *Db) GetSqlNames(rc *ctx.ReqCtx) {
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
 	dbSql := &entity.DbSql{Type: 1, DbId: GetDbId(rc.GinCtx)}
 	dbSql.CreatorId = rc.LoginAccount.Id
+	var sqls []entity.DbSql
+	model.ListBy(dbSql, &sqls, "id", "name")
+
+	rc.ResData = sqls
+}
+
+// 删除保存的sql
+func (d *Db) DeleteSql(rc *ctx.ReqCtx) {
+	dbSql := &entity.DbSql{Type: 1, DbId: GetDbId(rc.GinCtx)}
+	dbSql.CreatorId = rc.LoginAccount.Id
+	dbSql.Name = rc.GinCtx.Query("name")
+
+	model.DeleteByCondition(dbSql)
+
+}
+
+// @router /api/db/:dbId/sql [get]
+func (d *Db) GetSql(rc *ctx.ReqCtx) {
+	// 根据创建者id， 数据库id，以及sql模板名称查询保存的sql信息
+	dbSql := &entity.DbSql{Type: 1, DbId: GetDbId(rc.GinCtx)}
+	dbSql.CreatorId = rc.LoginAccount.Id
+	dbSql.Name = rc.GinCtx.Query("name")
+
 	e := model.GetBy(dbSql)
 	if e != nil {
 		return

@@ -25,11 +25,28 @@
             <el-aside id="sqlcontent" width="65%" style="background-color: rgb(238, 241, 246)">
                 <div class="toolbar">
                     <div class="fl">
+                        <el-select
+                            v-model="sqlName"
+                            placeholder="选择or输入SQL模板名"
+                            @change="changeSqlTemplate"
+                            filterable
+                            allow-create
+                            default-first-option
+                            size="mini"
+                            class="mr5"
+                        >
+                            <el-option v-for="item in sqlNames" :key="item" :label="item.database" :value="item">
+                                {{ item }}
+                            </el-option>
+                        </el-select>
+
                         <el-button v-waves @click="runSql" type="success" icon="el-icon-video-play" size="mini" plain>执行</el-button>
 
                         <el-button v-waves @click="formatSql" type="primary" icon="el-icon-magic-stick" size="mini" plain>格式化</el-button>
 
                         <el-button v-waves @click="saveSql" type="primary" icon="el-icon-document-add" size="mini" plain>保存</el-button>
+
+                        <el-button v-waves @click="deleteSql" type="danger" icon="el-icon-delete" size="mini" plain>删除</el-button>
                     </div>
 
                     <div style="float: right" class="fl">
@@ -110,7 +127,7 @@ import 'codemirror/addon/hint/sql-hint.js';
 
 import sqlFormatter from 'sql-formatter';
 import { notNull, notEmpty } from '@/common/assert';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
@@ -133,6 +150,8 @@ export default defineComponent({
             tableName: '',
             tableMetadata: [],
             columnMetadata: [],
+            sqlName: '',
+            sqlNames: [],
             sql: '',
             sqlTabs: {
                 tabs: [] as any,
@@ -302,9 +321,9 @@ export default defineComponent({
                 // 设置最小宽度
                 flexWidth = 80;
             }
-            if (flexWidth > 350) {
+            if (flexWidth > 500) {
                 // 设置最大宽度
-                flexWidth = 350;
+                flexWidth = 500;
             }
             return flexWidth + 'px';
         };
@@ -319,13 +338,6 @@ export default defineComponent({
                 selectSql = state.sql;
             }
             return selectSql;
-        };
-
-        const saveSql = async () => {
-            notEmpty(state.sql, 'sql内容不能为空');
-            notNull(state.dbId, '请先选择数据库');
-            await dbApi.saveSql.request({ id: state.dbId, sql: state.sql, type: 1 });
-            ElMessage.success('保存成功');
         };
 
         /**
@@ -353,11 +365,70 @@ export default defineComponent({
                     state.cmOptions.hintOptions.tables = res;
                 });
 
-            dbApi.getSql.request({ id, type: 1 }).then((res) => {
+            getSqlNames();
+        };
+
+        const changeSqlTemplate = () => {
+            getUserSql();
+        };
+
+        const getUserSql = () => {
+            notNull(state.dbId, '请先选择数据库');
+            dbApi.getSql.request({ id: state.dbId, type: 1, name: state.sqlName }).then((res) => {
                 if (res) {
                     state.sql = res.sql;
+                } else {
+                    state.sql = '';
                 }
             });
+        };
+
+        const getSqlNames = () => {
+            dbApi.getSqlNames
+                .request({
+                    id: state.dbId,
+                })
+                .then((res) => {
+                    if (res && res.length > 0) {
+                        state.sqlNames = res.map((r: any) => r.name);
+                        state.sqlName = state.sqlNames[0];
+                    } else {
+                        state.sqlNames = ['default'] as any;
+                        state.sqlName = 'default';
+                    }
+
+                    getUserSql();
+                });
+        };
+
+        const saveSql = async () => {
+            notEmpty(state.sql, 'sql内容不能为空');
+            notNull(state.dbId, '请先选择数据库');
+            await dbApi.saveSql.request({ id: state.dbId, sql: state.sql, type: 1, name: state.sqlName });
+            ElMessage.success('保存成功');
+
+            dbApi.getSqlNames
+                .request({
+                    id: state.dbId,
+                })
+                .then((res) => {
+                    if (res) {
+                        state.sqlNames = res.map((r: any) => r.name);
+                    }
+                });
+        };
+
+        const deleteSql = async () => {
+            try {
+                await ElMessageBox.confirm(`确定删除【${state.sqlName}】该SQL模板?`, '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning',
+                });
+                await dbApi.deleteDbSql.request({ id: state.dbId, name: state.sqlName });
+                ElMessage.success('删除成功');
+                getSqlNames();
+            } catch (err) {}
         };
 
         // 清空数据库事件
@@ -427,6 +498,8 @@ export default defineComponent({
             getUploadSqlFileUrl,
             execSqlFileSuccess,
             flexColumnWidth,
+            changeSqlTemplate,
+            deleteSql,
             saveSql,
             changeDb,
             clearDb,
