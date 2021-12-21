@@ -25,32 +25,12 @@
             <el-aside id="sqlcontent" width="65%" style="background-color: rgb(238, 241, 246)">
                 <div class="toolbar">
                     <div class="fl">
-                        <el-select
-                            v-model="sqlName"
-                            placeholder="选择or输入SQL模板名"
-                            @change="changeSqlTemplate"
-                            filterable
-                            allow-create
-                            default-first-option
-                            size="mini"
-                            class="mr5"
-                        >
-                            <el-option v-for="item in sqlNames" :key="item" :label="item.database" :value="item">
-                                {{ item }}
-                            </el-option>
-                        </el-select>
-
                         <el-button v-waves @click="runSql" type="success" icon="el-icon-video-play" size="mini" plain>执行</el-button>
 
                         <el-button v-waves @click="formatSql" type="primary" icon="el-icon-magic-stick" size="mini" plain>格式化</el-button>
 
-                        <el-button v-waves @click="saveSql" type="primary" icon="el-icon-document-add" size="mini" plain>保存</el-button>
-
-                        <el-button v-waves @click="deleteSql" type="danger" icon="el-icon-delete" size="mini" plain>删除</el-button>
-                    </div>
-
-                    <div style="float: right" class="fl">
                         <el-upload
+                            style="display: inline-block; margin-left: 10px"
                             :before-upload="beforeUpload"
                             :on-success="execSqlFileSuccess"
                             :headers="{ Authorization: token }"
@@ -63,8 +43,28 @@
                             multiple
                             :limit="100"
                         >
-                            <el-button class="fr" v-waves type="success" icon="el-icon-video-play" size="mini" plain>sql脚本执行</el-button>
+                            <el-button v-waves type="success" icon="el-icon-video-play" size="mini" plain>sql脚本执行</el-button>
                         </el-upload>
+                    </div>
+
+                    <div style="float: right" class="fl">
+                        <el-select
+                            v-model="sqlName"
+                            placeholder="选择or输入SQL模板名"
+                            @change="changeSqlTemplate"
+                            filterable
+                            allow-create
+                            default-first-option
+                            size="mini"
+                            class="mr10"
+                        >
+                            <el-option v-for="item in sqlNames" :key="item" :label="item.database" :value="item">
+                                {{ item }}
+                            </el-option>
+                        </el-select>
+
+                        <el-button v-waves @click="saveSql" type="primary" icon="el-icon-document-add" size="mini" plain>保存</el-button>
+                        <el-button v-waves @click="deleteSql" type="danger" icon="el-icon-delete" size="mini" plain>删除</el-button>
                     </div>
                 </div>
                 <codemirror @beforeChange="onBeforeChange" class="codesql" ref="cmEditor" language="sql" v-model="sql" :options="cmOptions" />
