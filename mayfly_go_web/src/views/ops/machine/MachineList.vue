@@ -1,7 +1,7 @@
 <template>
     <div>
-        <div class="toolbar">
-            <div style="float: left">
+        <el-card>
+            <div>
                 <el-button v-auth="'machine:add'" type="primary" icon="el-icon-plus" size="mini" @click="openFormDialog(false)" plain>添加</el-button>
                 <el-button
                     v-auth="'machine:update'"
@@ -32,76 +32,75 @@
                     plain
                     >文件</el-button
                 >
+                <div style="float: right">
+                    <el-select size="small" v-model="params.projectId" placeholder="请选择项目" @clear="search" filterable clearable>
+                        <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
+                    </el-select>
+                    <el-input
+                        class="ml5"
+                        placeholder="请输入ip"
+                        size="small"
+                        style="width: 300px"
+                        v-model="params.ip"
+                        @clear="search"
+                        plain
+                        clearable
+                    ></el-input>
+                    <el-button class="ml5" @click="search" type="success" icon="el-icon-search" size="small"></el-button>
+                </div>
             </div>
 
-            <div style="float: right">
-                <el-select size="mini" v-model="params.projectId" placeholder="请选择项目" @clear="search" filterable clearable>
-                    <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
-                </el-select>
-                <el-input
-                    class="ml5"
-                    placeholder="ip"
-                    size="mini"
-                    style="width: 140px"
-                    v-model="params.ip"
-                    @clear="search"
-                    plain
-                    clearable
-                ></el-input>
-                <el-button class="ml5" @click="search" type="success" icon="el-icon-search" size="mini"></el-button>
-            </div>
-        </div>
-
-        <el-table :data="data.list" border stripe style="width: 100%" @current-change="choose">
-            <el-table-column label="选择" width="55px">
-                <template #default="scope">
-                    <el-radio v-model="currentId" :label="scope.row.id">
-                        <i></i>
-                    </el-radio>
-                </template>
-            </el-table-column>
-            <el-table-column prop="name" label="名称" min-width="130"></el-table-column>
-            <el-table-column prop="ip" label="ip:port" min-width="130">
-                <template #default="scope">
-                    {{ `${scope.row.ip}:${scope.row.port}` }}
-                </template>
-            </el-table-column>
-            <el-table-column prop="username" label="用户名" min-width="75"></el-table-column>
-            <el-table-column prop="projectName" label="项目" min-width="120"></el-table-column>
-            <el-table-column prop="ip" label="hasCli" width="70">
-                <template #default="scope">
-                    {{ `${scope.row.hasCli ? '是' : '否'}` }}
-                </template>
-            </el-table-column>
-            <el-table-column prop="createTime" label="创建时间" width="160">
-                <template #default="scope">
-                    {{ $filters.dateFormat(scope.row.createTime) }}
-                </template>
-            </el-table-column>
-            <el-table-column prop="creator" label="创建者" min-width="55"></el-table-column>
-            <!-- <el-table-column prop="updateTime" label="更新时间" min-width="160">
+            <el-table :data="data.list" stripe style="width: 100%" @current-change="choose">
+                <el-table-column label="选择" width="55px">
+                    <template #default="scope">
+                        <el-radio v-model="currentId" :label="scope.row.id">
+                            <i></i>
+                        </el-radio>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="name" label="名称" min-width="130"></el-table-column>
+                <el-table-column prop="ip" label="ip:port" min-width="130">
+                    <template #default="scope">
+                        {{ `${scope.row.ip}:${scope.row.port}` }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="username" label="用户名" min-width="75"></el-table-column>
+                <el-table-column prop="projectName" label="项目" min-width="120"></el-table-column>
+                <el-table-column prop="ip" label="hasCli" width="70">
+                    <template #default="scope">
+                        {{ `${scope.row.hasCli ? '是' : '否'}` }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="createTime" label="创建时间" width="160">
+                    <template #default="scope">
+                        {{ $filters.dateFormat(scope.row.createTime) }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="creator" label="创建者" min-width="55"></el-table-column>
+                <!-- <el-table-column prop="updateTime" label="更新时间" min-width="160">
                 <template #default="scope">
                     {{ $filters.dateFormat(scope.row.updateTime) }}
                 </template>
             </el-table-column>
             <el-table-column prop="modifier" label="修改者" :min-width="55"></el-table-column> -->
-            <el-table-column label="操作" min-width="260" fixed="right">
-                <template #default="scope">
-                    <el-button type="success" @click="serviceManager(scope.row)" size="mini" plain>脚本</el-button>
-                    <el-button v-auth="'machine:terminal'" type="primary" @click="showTerminal(scope.row)" size="mini" plain>终端</el-button>
-                    <el-button :disabled="!scope.row.hasCli" type="danger" @click="closeCli(scope.row)" size="mini" plain>关闭连接</el-button>
-                </template>
-            </el-table-column>
-        </el-table>
-
-        <el-pagination
-            style="text-align: center"
-            background
-            layout="prev, pager, next, total, jumper"
-            :total="data.total"
-            v-model:current-page="params.pageNum"
-            :page-size="params.pageSize"
-        />
+                <el-table-column label="操作" min-width="260" fixed="right">
+                    <template #default="scope">
+                        <el-button type="success" @click="serviceManager(scope.row)" size="mini" plain>脚本</el-button>
+                        <el-button v-auth="'machine:terminal'" type="primary" @click="showTerminal(scope.row)" size="mini" plain>终端</el-button>
+                        <el-button :disabled="!scope.row.hasCli" type="danger" @click="closeCli(scope.row)" size="mini" plain>关闭连接</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-row style="margin-top: 20px" type="flex" justify="end">
+                <el-pagination
+                    style="text-align: right"
+                    :total="data.total"
+                    layout="prev, pager, next, total, jumper"
+                    v-model:current-page="params.pageNum"
+                    :page-size="params.pageSize"
+                ></el-pagination>
+            </el-row>
+        </el-card>
 
         <machine-edit
             :title="machineEditDialog.title"

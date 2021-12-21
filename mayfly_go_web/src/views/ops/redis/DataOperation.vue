@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div class="toolbar">
+        <el-card>
             <div style="float: left">
                 <el-row type="flex" justify="space-between">
                     <el-col :span="24">
@@ -41,22 +41,23 @@
                 <!-- <el-button @click="scan()" icon="el-icon-refresh" size="small" plain>刷新</el-button> -->
                 <span>keys: {{ dbsize }}</span>
             </div>
-        </div>
-        <el-table v-loading="loading" :data="keys" border stripe :highlight-current-row="true" style="cursor: pointer">
-            <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
-            <el-table-column prop="type" label="type" width="80"> </el-table-column>
-            <el-table-column prop="ttl" label="ttl(过期时间)" width="120">
-                <template #default="scope">
-                    {{ ttlConveter(scope.row.ttl) }}
-                </template>
-            </el-table-column>
-            <el-table-column label="操作">
-                <template #default="scope">
-                    <el-button @click="getValue(scope.row)" type="success" icon="el-icon-search" size="mini" plain>查看</el-button>
-                    <el-button @click="del(scope.row.key)" type="danger" size="mini" icon="el-icon-delete" plain>删除</el-button>
-                </template>
-            </el-table-column>
-        </el-table>
+            <el-table v-loading="loading" :data="keys" stripe :highlight-current-row="true" style="cursor: pointer">
+                <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
+                <el-table-column prop="type" label="type" width="80"> </el-table-column>
+                <el-table-column prop="ttl" label="ttl(过期时间)" width="120">
+                    <template #default="scope">
+                        {{ ttlConveter(scope.row.ttl) }}
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作">
+                    <template #default="scope">
+                        <el-button @click="getValue(scope.row)" type="success" icon="el-icon-search" size="mini" plain>查看</el-button>
+                        <el-button @click="del(scope.row.key)" type="danger" size="mini" icon="el-icon-delete" plain>删除</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-card>
+
         <div style="text-align: center; margin-top: 10px"></div>
 
         <value-dialog v-model:visible="valueDialog.visible" :keyValue="valueDialog.value" />

@@ -1,6 +1,6 @@
 <template>
     <div class="role-list">
-        <div class="toolbar">
+        <el-card>
             <el-button v-auth="'role:add'" type="primary" icon="el-icon-plus" size="mini" @click="editRole(false)">添加</el-button>
             <el-button
                 v-auth="'role:update'"
@@ -31,46 +31,55 @@
             >
 
             <div style="float: right">
-                <el-input placeholder="请输入角色名称！" size="small" style="width: 140px" v-model="query.name" @clear="search" clearable></el-input>
-                <el-button @click="search" type="success" icon="el-icon-search" size="mini"></el-button>
+                <el-input
+                    placeholder="请输入角色名称！"
+                    class="mr2"
+                    size="small"
+                    style="width: 300px"
+                    v-model="query.name"
+                    @clear="search"
+                    clearable
+                ></el-input>
+                <el-button @click="search" type="success" icon="el-icon-search" size="small"></el-button>
             </div>
-        </div>
-        <el-table :data="roles" @current-change="choose" border ref="table" style="width: 100%">
-            <el-table-column label="选择" width="50px">
-                <template #default="scope">
-                    <el-radio v-model="chooseId" :label="scope.row.id">
-                        <i></i>
-                    </el-radio>
-                </template>
-            </el-table-column>
-            <el-table-column prop="name" label="角色名称"></el-table-column>
-            <el-table-column prop="code" label="角色code"></el-table-column>
-            <el-table-column prop="remark" label="描述" min-width="180px" show-overflow-tooltip></el-table-column>
-            <el-table-column prop="createTime" label="创建时间">
-                <template #default="scope">
-                    {{ $filters.dateFormat(scope.row.createTime) }}
-                </template>
-            </el-table-column>
-            <el-table-column prop="updateTime" label="修改时间">
-                <template #default="scope">
-                    {{ $filters.dateFormat(scope.row.updateTime) }}
-                </template>
-            </el-table-column>
-            <el-table-column label="查看更多" min-width="80px">
-                <template #default="scope">
-                    <el-link @click.prevent="showResources(scope.row)" type="info">菜单&权限</el-link>
-                </template>
-            </el-table-column>
-        </el-table>
-        <el-pagination
-            @current-change="handlePageChange"
-            style="text-align: center"
-            background
-            layout="prev, pager, next, total, jumper"
-            :total="total"
-            v-model:current-page="query.pageNum"
-            :page-size="query.pageSize"
-        />
+            <el-table :data="roles" @current-change="choose" ref="table" style="width: 100%">
+                <el-table-column label="选择" width="50px">
+                    <template #default="scope">
+                        <el-radio v-model="chooseId" :label="scope.row.id">
+                            <i></i>
+                        </el-radio>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="name" label="角色名称"></el-table-column>
+                <el-table-column prop="code" label="角色code"></el-table-column>
+                <el-table-column prop="remark" label="描述" min-width="180px" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="createTime" label="创建时间">
+                    <template #default="scope">
+                        {{ $filters.dateFormat(scope.row.createTime) }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="updateTime" label="修改时间">
+                    <template #default="scope">
+                        {{ $filters.dateFormat(scope.row.updateTime) }}
+                    </template>
+                </el-table-column>
+                <el-table-column label="查看更多" min-width="80px">
+                    <template #default="scope">
+                        <el-link @click.prevent="showResources(scope.row)" type="info">菜单&权限</el-link>
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-row style="margin-top: 20px" type="flex" justify="end">
+                <el-pagination
+                    style="text-align: right"
+                    @current-change="handlePageChange"
+                    :total="total"
+                    layout="prev, pager, next, total, jumper"
+                    v-model:current-page="query.pageNum"
+                    :page-size="query.pageSize"
+                ></el-pagination>
+            </el-row>
+        </el-card>
 
         <role-edit :title="roleEdit.title" v-model:visible="roleEdit.visible" :data="roleEdit.role" @val-change="roleEditChange" />
         <resource-edit

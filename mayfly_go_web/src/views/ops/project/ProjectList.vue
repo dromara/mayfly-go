@@ -1,78 +1,85 @@
 <template>
     <div class="project-list">
-        <div class="toolbar">
-            <el-button @click="showAddProjectDialog" v-auth="permissions.saveProject" type="primary" icon="el-icon-plus" size="mini">添加</el-button>
-            <el-button
-                @click="showAddProjectDialog(chooseData)"
-                v-auth="permissions.saveProject"
-                :disabled="chooseId == null"
-                type="primary"
-                icon="el-icon-edit"
-                size="mini"
-                >编辑</el-button
-            >
-            <el-button @click="showMembers(chooseData)" :disabled="chooseId == null" type="success" icon="el-icon-setting" size="mini"
-                >成员管理</el-button
-            >
+        <el-card>
+            <div>
+                <el-button @click="showAddProjectDialog" v-auth="permissions.saveProject" type="primary" icon="el-icon-plus" size="mini"
+                    >添加</el-button
+                >
+                <el-button
+                    @click="showAddProjectDialog(chooseData)"
+                    v-auth="permissions.saveProject"
+                    :disabled="chooseId == null"
+                    type="primary"
+                    icon="el-icon-edit"
+                    size="mini"
+                    >编辑</el-button
+                >
+                <el-button @click="showMembers(chooseData)" :disabled="chooseId == null" type="success" icon="el-icon-setting" size="mini"
+                    >成员管理</el-button
+                >
 
-            <el-button @click="showEnv(chooseData)" :disabled="chooseId == null" type="info" icon="el-icon-setting" size="mini">环境管理</el-button>
+                <el-button @click="showEnv(chooseData)" :disabled="chooseId == null" type="info" icon="el-icon-setting" size="mini"
+                    >环境管理</el-button
+                >
 
-            <el-button
-                v-auth="permissions.delProject"
-                @click="delProject"
-                :disabled="chooseId == null"
-                type="danger"
-                icon="el-icon-delete"
-                size="mini"
-                >删除</el-button
-            >
+                <el-button
+                    v-auth="permissions.delProject"
+                    @click="delProject"
+                    :disabled="chooseId == null"
+                    type="danger"
+                    icon="el-icon-delete"
+                    size="mini"
+                    >删除</el-button
+                >
 
-            <div style="float: right">
-                <el-input
-                    class="mr2"
-                    placeholder="请输入项目名！"
-                    size="small"
-                    style="width: 140px"
-                    v-model="query.name"
-                    @clear="search"
-                    clearable
-                ></el-input>
-                <el-button @click="search" type="success" icon="el-icon-search" size="mini"></el-button>
+                <div style="float: right">
+                    <el-input
+                        class="mr2"
+                        placeholder="请输入项目名！"
+                        size="small"
+                        style="width: 300px"
+                        v-model="query.name"
+                        @clear="search"
+                        clearable
+                    ></el-input>
+                    <el-button @click="search" type="success" icon="el-icon-search" size="small"></el-button>
+                </div>
             </div>
-        </div>
-        <el-table :data="projects" @current-change="choose" border ref="table" style="width: 100%">
-            <el-table-column label="选择" width="50px">
-                <template #default="scope">
-                    <el-radio v-model="chooseId" :label="scope.row.id">
-                        <i></i>
-                    </el-radio>
-                </template>
-            </el-table-column>
-            <el-table-column prop="name" label="项目名"></el-table-column>
-            <el-table-column prop="remark" label="描述" min-width="180px" show-overflow-tooltip></el-table-column>
-            <el-table-column prop="createTime" label="创建时间">
-                <template #default="scope">
-                    {{ $filters.dateFormat(scope.row.createTime) }}
-                </template>
-            </el-table-column>
-            <el-table-column prop="creator" label="创建者"> </el-table-column>
-            <!-- <el-table-column label="查看更多" min-width="80px">
+            <el-table :data="projects" @current-change="choose" ref="table" style="width: 100%">
+                <el-table-column label="选择" width="50px">
+                    <template #default="scope">
+                        <el-radio v-model="chooseId" :label="scope.row.id">
+                            <i></i>
+                        </el-radio>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="name" label="项目名"></el-table-column>
+                <el-table-column prop="remark" label="描述" min-width="180px" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="createTime" label="创建时间">
+                    <template #default="scope">
+                        {{ $filters.dateFormat(scope.row.createTime) }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="creator" label="创建者"> </el-table-column>
+                <!-- <el-table-column label="查看更多" min-width="80px">
                 <template #default="scope">
                     <el-link @click.prevent="showMembers(scope.row)" type="success">成员</el-link>
 
                     <el-link class="ml5" @click.prevent="showEnv(scope.row)" type="info">环境</el-link>
                 </template>
             </el-table-column> -->
-        </el-table>
-        <el-pagination
-            @current-change="handlePageChange"
-            style="text-align: center"
-            background
-            layout="prev, pager, next, total, jumper"
-            :total="total"
-            v-model:current-page="query.pageNum"
-            :page-size="query.pageSize"
-        />
+            </el-table>
+            <el-row style="margin-top: 20px" type="flex" justify="end">
+                <el-pagination
+                    style="text-align: right"
+                    @current-change="handlePageChange"
+                    :total="total"
+                    layout="prev, pager, next, total, jumper"
+                    v-model:current-page="query.pageNum"
+                    :page-size="query.pageSize"
+                ></el-pagination>
+            </el-row>
+        </el-card>
 
         <el-dialog width="400px" title="项目编辑" :before-close="cancelAddProject" v-model="addProjectDialog.visible">
             <el-form :model="addProjectDialog.form" size="small" label-width="70px">

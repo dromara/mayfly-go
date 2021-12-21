@@ -1,6 +1,6 @@
 <template>
     <div class="role-list">
-        <div class="toolbar">
+        <el-card>
             <el-button v-auth="'account:add'" type="primary" icon="el-icon-plus" size="mini" @click="editAccount(true)">添加</el-button>
             <el-button
                 v-auth="'account:update'"
@@ -22,91 +22,92 @@
                     class="mr2"
                     placeholder="请输入账号名"
                     size="small"
-                    style="width: 140px"
+                    style="width: 300px"
                     v-model="query.username"
                     @clear="search()"
                     clearable
                 ></el-input>
-                <el-button @click="search()" type="success" icon="el-icon-search" size="mini"></el-button>
+                <el-button @click="search()" type="success" icon="el-icon-search" size="small"></el-button>
             </div>
-        </div>
-        <el-table :data="datas" border ref="table" @current-change="choose" show-overflow-tooltip>
-            <el-table-column label="选择" width="50px">
-                <template #default="scope">
-                    <el-radio v-model="chooseId" :label="scope.row.id">
-                        <i></i>
-                    </el-radio>
-                </template>
-            </el-table-column>
-            <el-table-column prop="username" label="用户名" min-width="115"></el-table-column>
+            <el-table :data="datas" ref="table" @current-change="choose" show-overflow-tooltip>
+                <el-table-column label="选择" width="50px">
+                    <template #default="scope">
+                        <el-radio v-model="chooseId" :label="scope.row.id">
+                            <i></i>
+                        </el-radio>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="username" label="用户名" min-width="115"></el-table-column>
 
-            <el-table-column align="center" prop="status" label="状态" min-width="63">
-                <template #default="scope">
-                    <el-tag v-if="scope.row.status == 1" type="success" size="mini">正常</el-tag>
-                    <el-tag v-if="scope.row.status == -1" type="danger" size="mini">禁用</el-tag>
-                </template>
-            </el-table-column>
-            <el-table-column min-width="160" prop="lastLoginTime" label="最后登录时间">
-                <template #default="scope">
-                    {{ $filters.dateFormat(scope.row.lastLoginTime) }}
-                </template>
-            </el-table-column>
+                <el-table-column align="center" prop="status" label="状态" min-width="63">
+                    <template #default="scope">
+                        <el-tag v-if="scope.row.status == 1" type="success" size="mini">正常</el-tag>
+                        <el-tag v-if="scope.row.status == -1" type="danger" size="mini">禁用</el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column min-width="160" prop="lastLoginTime" label="最后登录时间">
+                    <template #default="scope">
+                        {{ $filters.dateFormat(scope.row.lastLoginTime) }}
+                    </template>
+                </el-table-column>
 
-            <el-table-column min-width="115" prop="creator" label="创建账号"></el-table-column>
-            <el-table-column min-width="160" prop="createTime" label="创建时间">
-                <template #default="scope">
-                    {{ $filters.dateFormat(scope.row.createTime) }}
-                </template>
-            </el-table-column>
-            <!-- <el-table-column min-width="115" prop="modifier" label="更新账号"></el-table-column>
+                <el-table-column min-width="115" prop="creator" label="创建账号"></el-table-column>
+                <el-table-column min-width="160" prop="createTime" label="创建时间">
+                    <template #default="scope">
+                        {{ $filters.dateFormat(scope.row.createTime) }}
+                    </template>
+                </el-table-column>
+                <!-- <el-table-column min-width="115" prop="modifier" label="更新账号"></el-table-column>
 			<el-table-column min-width="160" prop="updateTime" label="修改时间">
 				<template #default="scope">
 					{{ $filters.dateFormat(scope.row.updateTime) }}
 				</template>
 			</el-table-column> -->
 
-            <!-- <el-table-column min-width="120" prop="remark" label="备注" show-overflow-tooltip></el-table-column> -->
-            <el-table-column label="查看更多" min-width="150">
-                <template #default="scope">
-                    <el-link @click.prevent="showRoles(scope.row)" type="success">角色</el-link>
+                <!-- <el-table-column min-width="120" prop="remark" label="备注" show-overflow-tooltip></el-table-column> -->
+                <el-table-column label="查看更多" min-width="150">
+                    <template #default="scope">
+                        <el-link @click.prevent="showRoles(scope.row)" type="success">角色</el-link>
 
-                    <el-link class="ml5" @click.prevent="showResources(scope.row)" type="info">菜单&权限</el-link>
-                </template>
-            </el-table-column>
+                        <el-link class="ml5" @click.prevent="showResources(scope.row)" type="info">菜单&权限</el-link>
+                    </template>
+                </el-table-column>
 
-            <el-table-column label="操作" min-width="200px">
-                <template #default="scope">
-                    <el-button
-                        v-auth="'account:changeStatus'"
-                        @click="changeStatus(scope.row)"
-                        v-if="scope.row.status == 1"
-                        type="danger"
-                        icom="el-icon-tickets"
-                        size="mini"
-                        plain
-                        >禁用</el-button
-                    >
-                    <el-button
-                        v-auth="'account:changeStatus'"
-                        v-if="scope.row.status == -1"
-                        type="success"
-                        @click="changeStatus(scope.row)"
-                        size="mini"
-                        plain
-                        >启用</el-button
-                    >
-                </template>
-            </el-table-column>
-        </el-table>
-        <el-pagination
-            @current-change="handlePageChange"
-            style="text-align: center"
-            background
-            layout="prev, pager, next, total, jumper"
-            :total="total"
-            v-model:current-page="query.pageNum"
-            :page-size="query.pageSize"
-        />
+                <el-table-column label="操作" min-width="200px">
+                    <template #default="scope">
+                        <el-button
+                            v-auth="'account:changeStatus'"
+                            @click="changeStatus(scope.row)"
+                            v-if="scope.row.status == 1"
+                            type="danger"
+                            icom="el-icon-tickets"
+                            size="mini"
+                            plain
+                            >禁用</el-button
+                        >
+                        <el-button
+                            v-auth="'account:changeStatus'"
+                            v-if="scope.row.status == -1"
+                            type="success"
+                            @click="changeStatus(scope.row)"
+                            size="mini"
+                            plain
+                            >启用</el-button
+                        >
+                    </template>
+                </el-table-column>
+            </el-table>
+            <el-row style="margin-top: 20px" type="flex" justify="end">
+                <el-pagination
+                    style="text-align: right"
+                    @current-change="handlePageChange"
+                    :total="total"
+                    layout="prev, pager, next, total, jumper"
+                    v-model:current-page="query.pageNum"
+                    :page-size="query.pageSize"
+                ></el-pagination>
+            </el-row>
+        </el-card>
 
         <el-dialog width="500px" :title="showRoleDialog.title" v-model="showRoleDialog.visible">
             <el-table border :data="showRoleDialog.accountRoles">
