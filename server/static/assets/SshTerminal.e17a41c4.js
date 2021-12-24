@@ -1,4 +1,4 @@
-import{c as ne,g as oe}from"./index.01696ebf.js";import{f as se,h as ae}from"./vendor.c08e96cf.js";var ue=`/**
+import{c as ne,g as oe}from"./index.ef81b75e.js";import{f as se,h as ae}from"./vendor.c08e96cf.js";var ue=`/**
  * Copyright (c) 2014 The xterm.js authors. All rights reserved.
  * Copyright (c) 2012-2013, Christopher Jeffrey (MIT License)
  * https://github.com/chjj/term.js
