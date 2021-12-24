@@ -80,6 +80,8 @@ CREATE TABLE `t_db_sql` (
 DROP TABLE IF EXISTS `t_machine`;
 CREATE TABLE `t_machine` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `project_id` bigint(20) DEFAULT NULL,
+  `project_name` varchar(36) COLLATE utf8mb4_bin DEFAULT NULL,
   `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
   `ip` varchar(18) COLLATE utf8mb4_bin NOT NULL,
   `port` int(12) NOT NULL,
