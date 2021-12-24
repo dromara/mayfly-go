@@ -25,9 +25,9 @@
             <el-aside id="sqlcontent" width="65%" style="background-color: rgb(238, 241, 246)">
                 <div class="toolbar">
                     <div class="fl">
-                        <el-button v-waves @click="runSql" type="success" icon="el-icon-video-play" size="mini" plain>执行</el-button>
+                        <!-- <el-button v-waves @click="runSql" type="success" icon="el-icon-video-play" size="mini" plain>执行</el-button>
 
-                        <el-button v-waves @click="formatSql" type="primary" icon="el-icon-magic-stick" size="mini" plain>格式化</el-button>
+                        <el-button v-waves @click="formatSql" type="primary" icon="el-icon-magic-stick" size="mini" plain>格式化</el-button> -->
 
                         <el-button v-waves @click="saveSql" type="primary" icon="el-icon-document-add" size="mini" plain>保存</el-button>
                     </div>
@@ -50,7 +50,19 @@
                         </el-upload>
                     </div>
                 </div>
-                <codemirror @beforeChange="onBeforeChange" class="codesql" ref="cmEditor" language="sql" v-model="sql" :options="cmOptions" />
+                <codemirror
+                    @mousemove="listenMouse"
+                    @beforeChange="onBeforeChange"
+                    class="codesql"
+                    ref="cmEditor"
+                    language="sql"
+                    v-model="sql"
+                    :options="cmOptions"
+                />
+                <el-button-group :style="btnStyle">
+                    <el-button v-waves @click="runSql" type="success" icon="el-icon-video-play" size="small" plain>执行</el-button>
+                    <el-button v-waves @click="formatSql" type="primary" icon="el-icon-magic-stick" size="small" plain>格式化</el-button>
+                </el-button-group>
             </el-aside>
 
             <el-container style="margin-left: 2px">
@@ -95,6 +107,7 @@
 <script lang="ts">
 import { toRefs, reactive, computed, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
+import _ from 'lodash';
 
 import 'codemirror/addon/hint/show-hint.css';
 // import base style
@@ -148,6 +161,13 @@ export default defineComponent({
                 pageNum: 1,
                 pageSize: 10,
                 envId: null,
+            },
+            btnStyle: {
+                position: 'absolute',
+                zIndex: 1000,
+                display: 'none',
+                left: '',
+                top: '',
             },
             cmOptions: {
                 tabSize: 4,
@@ -415,7 +435,26 @@ export default defineComponent({
             const res = await dbApi.dbs.request(state.params);
             state.dbs = res.list;
         };
-
+        /**
+         * 获取选择文字，显示隐藏按钮，防抖
+         */
+        const getSelection = _.debounce((e) => {
+            let temp = codemirror.value.getSelection();
+            if (temp) {
+                state.btnStyle.display = 'block';
+                if (!state.btnStyle.left) {
+                    state.btnStyle.left = e.target.getBoundingClientRect().left - 100 + 'px';
+                    state.btnStyle.top = e.target.getBoundingClientRect().top - 20 + 'px';
+                }
+            } else {
+                state.btnStyle.display = 'none';
+                state.btnStyle.left = '';
+                state.btnStyle.top = '';
+            }
+        }, 100);
+        const listenMouse = (e: any) => {
+            getSelection(e);
+        };
         return {
             ...toRefs(state),
             cmEditor,
@@ -432,6 +471,7 @@ export default defineComponent({
             clearDb,
             formatSql,
             onBeforeChange,
+            listenMouse,
         };
     },
 });

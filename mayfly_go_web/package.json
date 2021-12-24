@@ -7,6 +7,7 @@
     "lint-fix": "eslint --fix --ext .js --ext .jsx --ext .vue src/"
   },
   "dependencies": {
+    "@types/lodash": "^4.14.178",
     "axios": "^0.21.1",
     "codemirror": "^5.61.0",
     "core-js": "^3.6.5",
@@ -16,6 +17,7 @@
     "echarts-wordcloud": "^2.0.0",
     "element-plus": "^1.0.2-beta.44",
     "jsonlint": "^1.6.3",
+    "lodash": "^4.17.21",
     "mitt": "^2.1.0",
     "nprogress": "^0.2.0",
     "screenfull": "^5.1.0",
