@@ -18,7 +18,7 @@ const router = createRouter({
 
 // 前端控制路由：初始化方法，防止刷新时丢失
 export function initAllFun() {
-    // NextLoading.start(); // 界面 loading 动画开始执行
+    NextLoading.start(); // 界面 loading 动画开始执行
     const token = getSession('token'); // 获取浏览器缓存 token 值
     if (!token) {
         // 无 token 停止执行下一步
@@ -37,7 +37,7 @@ export function initAllFun() {
 
 // 后端控制路由：模拟执行路由数据初始化
 export function initBackEndControlRoutesFun() {
-    // NextLoading.start(); // 界面 loading 动画开始执行
+    NextLoading.start(); // 界面 loading 动画开始执行
     const token = getSession('token'); // 获取浏览器缓存 token 值
     if (!token) {
         // 无 token 停止执行下一步
