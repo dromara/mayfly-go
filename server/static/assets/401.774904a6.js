@@ -1,4 +1,4 @@
-import{J as s,p as l,d as c,e as d,f as m,h as f,i as e,q as _,k as p}from"./vendor.c08e96cf.js";import{a as h}from"./index.01696ebf.js";var t={name:"401",setup(){const n=s();return{onSetAuth:()=>{h(),n.push("/login")}}}},v="assets/401.4efb7617.png",V=`.error[data-v-6ec92039] {
+import{J as s,p as l,d as c,e as d,f as m,h as f,i as e,q as _,k as p}from"./vendor.c08e96cf.js";import{a as h}from"./index.ef81b75e.js";var t={name:"401",setup(){const n=s();return{onSetAuth:()=>{h(),n.push("/login")}}}},v="assets/401.4efb7617.png",V=`.error[data-v-6ec92039] {
   height: 100%;
   background-color: white;
   display: flex;

@@ -58,6 +58,7 @@ DROP TABLE IF EXISTS `t_db_sql`;
 CREATE TABLE `t_db_sql` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `db_id` bigint(20) NOT NULL COMMENT '数据库id',
+  `name` varchar(60) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'sql模板名',
   `sql` text COLLATE utf8mb4_bin,
   `type` tinyint(8) NOT NULL,
   `creator_id` bigint(20) NOT NULL,
@@ -80,6 +81,8 @@ CREATE TABLE `t_db_sql` (
 DROP TABLE IF EXISTS `t_machine`;
 CREATE TABLE `t_machine` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `project_id` bigint(20) DEFAULT NULL,
+  `project_name` varchar(36) COLLATE utf8mb4_bin DEFAULT NULL,
   `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
   `ip` varchar(18) COLLATE utf8mb4_bin NOT NULL,
   `port` int(12) NOT NULL,
