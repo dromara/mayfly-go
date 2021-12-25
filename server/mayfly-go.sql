@@ -58,6 +58,7 @@ DROP TABLE IF EXISTS `t_db_sql`;
 CREATE TABLE `t_db_sql` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `db_id` bigint(20) NOT NULL COMMENT '数据库id',
+  `name` varchar(60) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'sql模板名',
   `sql` text COLLATE utf8mb4_bin,
   `type` tinyint(8) NOT NULL,
   `creator_id` bigint(20) NOT NULL,
