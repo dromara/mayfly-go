@@ -6,7 +6,6 @@ import (
 	"mayfly-go/base/middleware"
 	common_index_router "mayfly-go/server/common/router"
 	devops_router "mayfly-go/server/devops/router"
-	gw_router "mayfly-go/server/gateway/router"
 	sys_router "mayfly-go/server/sys/router"
 	"net/http"
 
@@ -61,8 +60,6 @@ func InitRouter() *gin.Engine {
 		devops_router.InitMachineRouter(api)
 		devops_router.InitMachineScriptRouter(api)
 		devops_router.InitMachineFileRouter(api)
-
-		gw_router.InitServiceRouter(api)
 	}
 
 	return router
