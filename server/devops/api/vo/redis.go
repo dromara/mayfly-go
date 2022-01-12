@@ -24,6 +24,6 @@ type Keys struct {
 
 type KeyInfo struct {
 	Key  string `json:"key"`
-	Ttl  uint64 `json:"ttl"`
+	Ttl  int64  `json:"ttl"`
 	Type string `json:"type"`
 }

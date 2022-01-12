@@ -3,7 +3,7 @@
         <el-dialog :title="title" v-model="dialogVisible" :show-close="true" :before-close="handleClose" width="800px">
             <div class="toolbar">
                 <div style="float: right">
-                    <el-button v-auth="'machine:file:add'" type="primary" @click="add" icon="el-icon-plus" size="mini" plain>添加</el-button>
+                    <el-button v-auth="'machine:file:add'" type="primary" @click="add" icon="plus" size="small" plain>添加</el-button>
                 </div>
             </div>
             <!-- <div style="float: right;">
@@ -12,35 +12,35 @@
             <el-table :data="fileTable" stripe style="width: 100%">
                 <el-table-column prop="name" label="名称" width>
                     <template #default="scope">
-                        <el-input v-model="scope.row.name" size="mini" :disabled="scope.row.id != null" clearable></el-input>
+                        <el-input v-model="scope.row.name" size="small" :disabled="scope.row.id != null" clearable></el-input>
                     </template>
                 </el-table-column>
                 <el-table-column prop="name" label="类型" min-width="50px">
                     <template #default="scope">
-                        <el-select :disabled="scope.row.id != null" size="mini" v-model="scope.row.type" style="width: 100px" placeholder="请选择">
+                        <el-select :disabled="scope.row.id != null" size="small" v-model="scope.row.type" style="width: 100px" placeholder="请选择">
                             <el-option v-for="item in enums.FileTypeEnum" :key="item.value" :label="item.label" :value="item.value"></el-option>
                         </el-select>
                     </template>
                 </el-table-column>
                 <el-table-column prop="path" label="路径" width>
                     <template #default="scope">
-                        <el-input v-model="scope.row.path" :disabled="scope.row.id != null" size="mini" clearable></el-input>
+                        <el-input v-model="scope.row.path" :disabled="scope.row.id != null" size="small" clearable></el-input>
                     </template>
                 </el-table-column>
                 <el-table-column label="操作" width>
                     <template #default="scope">
-                        <el-button v-if="scope.row.id == null" @click="addFiles(scope.row)" type="success" icon="el-icon-success" size="mini" plain
+                        <el-button v-if="scope.row.id == null" @click="addFiles(scope.row)" type="success" icon="success" size="small" plain
                             >确定</el-button
                         >
-                        <el-button v-if="scope.row.id != null" @click="getConf(scope.row)" type="primary" icon="el-icon-tickets" size="mini" plain
+                        <el-button v-if="scope.row.id != null" @click="getConf(scope.row)" type="primary" icon="tickets" size="small" plain
                             >查看</el-button
                         >
                         <el-button
                             v-auth="'machine:file:del'"
                             type="danger"
                             @click="deleteRow(scope.$index, scope.row)"
-                            icon="el-icon-delete"
-                            size="mini"
+                            icon="delete"
+                            size="small"
                             plain
                             >删除</el-button
                         >
@@ -57,13 +57,13 @@
                             <el-dropdown size="small" trigger="contextmenu">
                                 <span class="el-dropdown-link">
                                     <span v-if="data.type == 'd' && !node.expanded">
-                                        <i class="el-icon-folder"></i>
+                                        <SvgIcon name="folder"/>
                                     </span>
                                     <span v-if="data.type == 'd' && node.expanded">
-                                        <i class="el-icon-folder-opened"></i>
+                                        <SvgIcon name="folder-opened"/>
                                     </span>
                                     <span v-if="data.type == '-'">
-                                        <i class="el-icon-document"></i>
+                                        <SvgIcon name="document"/>
                                     </span>
 
                                     <span style="display: inline-block">
@@ -79,7 +79,7 @@
                                                 @click.prevent="getFileContent(tree.folder.id, data.path)"
                                                 v-if="data.type == '-' && data.size < 1 * 1024 * 1024"
                                                 type="info"
-                                                icon="el-icon-view"
+                                                icon="view"
                                                 :underline="false"
                                             >
                                                 查看
@@ -102,7 +102,7 @@
                                                 :limit="100"
                                                 style="display: inline-block; margin-left: 2px"
                                             >
-                                                <el-link v-auth="'machine:file:upload'" @click.prevent icon="el-icon-upload" :underline="false">
+                                                <el-link v-auth="'machine:file:upload'" @click.prevent icon="upload" :underline="false">
                                                     上传
                                                 </el-link>
                                             </el-upload>
@@ -113,7 +113,7 @@
                                                 v-if="data.type == '-'"
                                                 @click.prevent="downloadFile(node, data)"
                                                 type="primary"
-                                                icon="el-icon-download"
+                                                icon="download"
                                                 :underline="false"
                                                 style="margin-left: 2px"
                                                 >下载</el-link
@@ -125,7 +125,7 @@
                                                 v-if="!dontOperate(data)"
                                                 @click.prevent="deleteFile(node, data)"
                                                 type="danger"
-                                                icon="el-icon-delete"
+                                                icon="delete"
                                                 :underline="false"
                                                 style="margin-left: 2px"
                                                 >删除
@@ -154,8 +154,8 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button v-auth="'machine:file:write'" type="primary" @click="updateContent" size="mini">保 存</el-button>
-                    <el-button @click="fileContent.contentVisible = false" size="mini">关 闭</el-button>
+                    <el-button v-auth="'machine:file:write'" type="primary" @click="updateContent">保 存</el-button>
+                    <el-button @click="fileContent.contentVisible = false">关 闭</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -171,6 +171,7 @@ import { codemirror } from '@/components/codemirror';
 import { getSession } from '@/common/utils/storage';
 import enums from './enums';
 import config from '@/common/config';
+import SvgIcon from '@/components/svgIcon/index.vue';
 
 export default defineComponent({
     name: 'FileManage',

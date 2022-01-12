@@ -117,16 +117,20 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 	dbId := GetDbId(g)
 
 	go func() {
+		db := d.DbApp.GetDbInstance(dbId)
+
+		dbEntity := d.DbApp.GetById(dbId)
+		dbInfo := fmt.Sprintf("于%s的%s环境", dbEntity.Name, dbEntity.Env)
+
 		defer func() {
 			if err := recover(); err != nil {
 				switch t := err.(type) {
 				case *biz.BizError:
-					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]执行失败: [%s]", filename, t.Error())))
+					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbInfo, t.Error())))
 				}
 			}
 		}()
 
-		db := d.DbApp.GetDbInstance(dbId)
 		for _, sql := range sqls {
 			sql = strings.Trim(sql, " ")
 			if sql == "" || sql == "\n" {
@@ -134,11 +138,11 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 			}
 			_, err := db.Exec(sql)
 			if err != nil {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]执行失败: [%s]", filename, err.Error())))
+				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbInfo, err.Error())))
 				return
 			}
 		}
-		d.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessMsg("sql脚本执行成功", fmt.Sprintf("[%s]执行完成", filename)))
+		d.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessMsg("sql脚本执行成功", fmt.Sprintf("[%s]%s执行完成", filename, dbInfo)))
 	}()
 }
 

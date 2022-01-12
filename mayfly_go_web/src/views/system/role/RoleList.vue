@@ -1,34 +1,12 @@
 <template>
     <div class="role-list">
         <el-card>
-            <el-button v-auth="'role:add'" type="primary" icon="el-icon-plus" size="mini" @click="editRole(false)">添加</el-button>
-            <el-button
-                v-auth="'role:update'"
-                :disabled="chooseId == null"
-                @click="editRole(chooseData)"
-                type="primary"
-                icon="el-icon-edit"
-                size="mini"
-                >编辑</el-button
-            >
-            <el-button
-                v-auth="'role:saveResources'"
-                :disabled="chooseId == null"
-                @click="editResource(chooseData)"
-                type="success"
-                icon="el-icon-setting"
-                size="mini"
+            <el-button v-auth="'role:add'" type="primary" icon="plus" @click="editRole(false)">添加</el-button>
+            <el-button v-auth="'role:update'" :disabled="chooseId == null" @click="editRole(chooseData)" type="primary" icon="edit">编辑</el-button>
+            <el-button v-auth="'role:saveResources'" :disabled="chooseId == null" @click="editResource(chooseData)" type="success" icon="setting"
                 >分配菜单&权限</el-button
             >
-            <el-button
-                v-auth="'role:del'"
-                :disabled="chooseId == null"
-                @click="deleteRole(chooseData)"
-                type="danger"
-                icon="el-icon-delete"
-                size="mini"
-                >删除</el-button
-            >
+            <el-button v-auth="'role:del'" :disabled="chooseId == null" @click="deleteRole(chooseData)" type="danger" icon="delete">删除</el-button>
 
             <div style="float: right">
                 <el-input
@@ -40,7 +18,7 @@
                     @clear="search"
                     clearable
                 ></el-input>
-                <el-button @click="search" type="success" icon="el-icon-search" size="small"></el-button>
+                <el-button @click="search" type="success" icon="search" size="small"></el-button>
             </div>
             <el-table :data="roles" @current-change="choose" ref="table" style="width: 100%">
                 <el-table-column label="选择" width="50px">

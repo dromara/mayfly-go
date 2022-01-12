@@ -9,7 +9,7 @@
             :destroy-on-close="true"
             width="800px"
         >
-            <el-form :model="form" ref="mockDataForm" label-width="70px" size="small">
+            <el-form :model="form" ref="mockDataForm" label-width="70px">
                 <el-form-item prop="method" label="名称">
                     <el-input v-model.trim="form.name" placeholder="请输入名称"></el-input>
                 </el-form-item>

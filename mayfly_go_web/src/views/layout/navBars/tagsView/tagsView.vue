@@ -17,21 +17,31 @@
                     "
                 >
                     <i class="iconfont icon-webicon318 layout-navbars-tagsview-ul-li-iconfont font14" v-if="isActive(v)"></i>
-                    <i class="layout-navbars-tagsview-ul-li-iconfont" :class="v.meta.icon" v-if="!isActive(v) && getThemeConfig.isTagsviewIcon"></i>
+                    <SvgIcon
+                        :name="v.meta.icon"
+                        class="layout-navbars-tagsview-ul-li-iconfont"
+                        v-if="!isActive(v) && getThemeConfig.isTagsviewIcon"
+                    />
                     <span>{{ v.meta.title }}</span>
                     <template v-if="isActive(v)">
-                        <i class="el-icon-refresh-right ml5" @click.stop="refreshCurrentTagsView(v.fullPath)"></i>
-                        <i
-                            class="el-icon-close layout-navbars-tagsview-ul-li-icon layout-icon-active"
+                        <SvgIcon
+                            name="RefreshRight"
+                            class="ml5 layout-navbars-tagsview-ul-li-refresh"
+                            @click.stop="refreshCurrentTagsView($route.fullPath)"
+                        />
+                        <SvgIcon
+                            name="Close"
+                            class="layout-navbars-tagsview-ul-li-icon layout-icon-active"
                             v-if="!v.meta.isAffix"
-                            @click.stop="closeCurrentTagsView(v.fullPath)"
-                        ></i>
+                            @click.stop="closeCurrentTagsView(getThemeConfig.isShareTagsView ? v.path : v.url)"
+                        />
                     </template>
-                    <i
-                        class="el-icon-close layout-navbars-tagsview-ul-li-icon layout-icon-three"
+                    <SvgIcon
+                        name="Close"
+                        class="layout-navbars-tagsview-ul-li-icon layout-icon-three"
                         v-if="!v.meta.isAffix"
-                        @click.stop="closeCurrentTagsView(v.fullPath)"
-                    ></i>
+                        @click.stop="closeCurrentTagsView(getThemeConfig.isShareTagsView ? v.path : v.url)"
+                    />
                 </li>
             </ul>
         </el-scrollbar>
@@ -240,7 +250,7 @@ export default {
                 // 最后 li
                 let liLast: any = tagsRefs.value[tagsRefs.value.length - 1];
                 // 当前滚动条的值
-                let scrollRefs = proxy.$refs.scrollbarRef.$refs.wrap;
+                let scrollRefs = proxy.$refs.scrollbarRef.$refs.wrap$;
                 // 当前滚动条滚动宽度
                 let scrollS = scrollRefs.scrollWidth;
                 // 当前滚动条偏移宽度

@@ -1,14 +1,14 @@
 <template>
-    <el-form ref="loginFormRef" :model="loginForm" :rules="rules" class="login-content-form">
+    <el-form ref="loginFormRef" :model="loginForm" :rules="rules" class="login-content-form" size="large">
         <el-form-item prop="username">
-            <el-input type="text" placeholder="请输入用户名" prefix-icon="el-icon-user" v-model="loginForm.username" clearable autocomplete="off">
+            <el-input type="text" placeholder="请输入用户名" prefix-icon="user" v-model="loginForm.username" clearable autocomplete="off">
             </el-input>
         </el-form-item>
         <el-form-item prop="password">
             <el-input
                 type="password"
                 placeholder="请输入密码"
-                prefix-icon="el-icon-lock"
+                prefix-icon="lock"
                 v-model="loginForm.password"
                 autocomplete="off"
                 show-password
@@ -22,7 +22,7 @@
                         type="text"
                         maxlength="6"
                         placeholder="请输入验证码"
-                        prefix-icon="el-icon-position"
+                        prefix-icon="position"
                         v-model="loginForm.captcha"
                         clearable
                         autocomplete="off"

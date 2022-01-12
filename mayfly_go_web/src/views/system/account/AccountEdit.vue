@@ -1,7 +1,7 @@
 <template>
     <div class="account-dialog">
         <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="35%">
-            <el-form :model="form" ref="accountForm" :rules="rules" label-width="85px" size="small">
+            <el-form :model="form" ref="accountForm" :rules="rules" label-width="85px">
                 <el-form-item prop="username" label="用户名:" required>
                     <el-input :disabled="edit" v-model.trim="form.username" placeholder="请输入账号用户名" auto-complete="off"></el-input>
                 </el-form-item>
@@ -15,8 +15,8 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancel()" size="mini">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk" size="small">确 定</el-button>
+                    <el-button @click="cancel()">取 消</el-button>
+                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>

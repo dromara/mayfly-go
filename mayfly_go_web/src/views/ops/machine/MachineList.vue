@@ -2,51 +2,28 @@
     <div>
         <el-card>
             <div>
-                <el-button v-auth="'machine:add'" type="primary" icon="el-icon-plus" size="mini" @click="openFormDialog(false)" plain>添加</el-button>
+                <el-button v-auth="'machine:add'" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加</el-button>
                 <el-button
                     v-auth="'machine:update'"
                     type="primary"
-                    icon="el-icon-edit"
-                    size="mini"
+                    icon="edit"
                     :disabled="currentId == null"
                     @click="openFormDialog(currentData)"
                     plain
                     >编辑</el-button
                 >
-                <el-button
-                    v-auth="'machine:del'"
-                    :disabled="currentId == null"
-                    @click="deleteMachine(currentId)"
-                    type="danger"
-                    icon="el-icon-delete"
-                    size="mini"
+                <el-button v-auth="'machine:del'" :disabled="currentId == null" @click="deleteMachine(currentId)" type="danger" icon="delete"
                     >删除</el-button
                 >
-                <el-button
-                    v-auth="'machine:file'"
-                    type="success"
-                    icon="el-icon-files"
-                    :disabled="currentId == null"
-                    @click="fileManage(currentData)"
-                    size="mini"
-                    plain
+                <el-button v-auth="'machine:file'" type="success" icon="files" :disabled="currentId == null" @click="fileManage(currentData)" plain
                     >文件</el-button
                 >
                 <div style="float: right">
-                    <el-select size="small" v-model="params.projectId" placeholder="请选择项目" @clear="search" filterable clearable>
+                    <el-select v-model="params.projectId" placeholder="请选择项目" @clear="search" filterable clearable>
                         <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
                     </el-select>
-                    <el-input
-                        class="ml5"
-                        placeholder="请输入ip"
-                        size="small"
-                        style="width: 300px"
-                        v-model="params.ip"
-                        @clear="search"
-                        plain
-                        clearable
-                    ></el-input>
-                    <el-button class="ml5" @click="search" type="success" icon="el-icon-search" size="small"></el-button>
+                    <el-input class="ml5" placeholder="请输入ip" style="width: 200px" v-model="params.ip" @clear="search" plain clearable></el-input>
+                    <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
                 </div>
             </div>
 
@@ -85,9 +62,9 @@
             <el-table-column prop="modifier" label="修改者" :min-width="55"></el-table-column> -->
                 <el-table-column label="操作" min-width="260" fixed="right">
                     <template #default="scope">
-                        <el-button type="success" @click="serviceManager(scope.row)" size="mini" plain>脚本</el-button>
-                        <el-button v-auth="'machine:terminal'" type="primary" @click="showTerminal(scope.row)" size="mini" plain>终端</el-button>
-                        <el-button :disabled="!scope.row.hasCli" type="danger" @click="closeCli(scope.row)" size="mini" plain>关闭连接</el-button>
+                        <el-button type="success" @click="serviceManager(scope.row)" plain size="small">脚本</el-button>
+                        <el-button v-auth="'machine:terminal'" type="primary" @click="showTerminal(scope.row)" plain size="small">终端</el-button>
+                        <el-button :disabled="!scope.row.hasCli" type="danger" @click="closeCli(scope.row)" plain size="small">关闭连接</el-button>
                     </template>
                 </el-table-column>
             </el-table>

@@ -109,7 +109,7 @@ func (r *Redis) Scan(rc *ctx.ReqCtx) {
 	for i, k := range keys {
 		ttlType := strings.Split(keyInfoSplit[i], ",")
 		ttl, _ := strconv.Atoi(ttlType[0])
-		ki := &vo.KeyInfo{Key: k, Type: ttlType[1], Ttl: uint64(ttl)}
+		ki := &vo.KeyInfo{Key: k, Type: ttlType[1], Ttl: int64(ttl)}
 		kis = append(kis, ki)
 	}
 
@@ -149,6 +149,35 @@ func (r *Redis) GetHashValue(rc *ctx.ReqCtx) {
 	rc.ResData = res
 }
 
+func (r *Redis) SetStringValue(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	keyValue := new(form.StringValue)
+	ginx.BindJsonAndValid(g, keyValue)
+
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	str, err := ri.Cli.Set(keyValue.Key, keyValue.Value, time.Second*time.Duration(keyValue.Timed)).Result()
+	biz.ErrIsNilAppendErr(err, "保存字符串值失败: %s")
+	rc.ResData = str
+}
+
+func (r *Redis) SetHashValue(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	hashValue := new(form.HashValue)
+	ginx.BindJsonAndValid(g, hashValue)
+
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	key := hashValue.Key
+	// 简单处理->先删除，后新增
+	ri.Cli.Del(key)
+	for _, v := range hashValue.Value {
+		res := ri.Cli.HSet(key, v["key"].(string), v["value"])
+		biz.ErrIsNilAppendErr(res.Err(), "保存hash值失败")
+	}
+	if hashValue.Timed != -1 {
+		ri.Cli.Expire(key, time.Second*time.Duration(hashValue.Timed))
+	}
+}
+
 func (r *Redis) GetSetValue(rc *ctx.ReqCtx) {
 	ri, key := r.checkKey(rc)
 	res, err := ri.Cli.SMembers(key).Result()
@@ -156,13 +185,18 @@ func (r *Redis) GetSetValue(rc *ctx.ReqCtx) {
 	rc.ResData = res
 }
 
-func (r *Redis) SetStringValue(rc *ctx.ReqCtx) {
+func (r *Redis) SetSetValue(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
-	keyValue := new(form.KeyValue)
-	ginx.BindJsonAndValid(g, keyValue)
+	keyvalue := new(form.SetValue)
+	ginx.BindJsonAndValid(g, keyvalue)
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
-	str, err := ri.Cli.Set(keyValue.Key, keyValue.Value, time.Second*time.Duration(keyValue.Timed)).Result()
-	biz.ErrIsNilAppendErr(err, "保存字符串值失败: %s")
-	rc.ResData = str
+	key := keyvalue.Key
+	// 简单处理->先删除，后新增
+	ri.Cli.Del(key)
+	ri.Cli.SAdd(key, keyvalue.Value...)
+
+	if keyvalue.Timed != -1 {
+		ri.Cli.Expire(key, time.Second*time.Duration(keyvalue.Timed))
+	}
 }

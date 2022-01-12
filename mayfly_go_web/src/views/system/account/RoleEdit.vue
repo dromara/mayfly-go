@@ -8,8 +8,8 @@
         >
             <div class="toolbar">
                 <div style="float: left">
-                    <el-input placeholder="请输入角色名" size="small" style="width: 150px" v-model="query.name" @clear="clear()" clearable></el-input>
-                    <el-button @click="search" type="success" icon="el-icon-search" size="small"></el-button>
+                    <el-input placeholder="请输入角色名" style="width: 150px" v-model="query.name" @clear="clear()" clearable></el-input>
+                    <el-button @click="search" type="success" icon="search"></el-button>
                 </div>
             </div>
             <el-table :data="allRole" border ref="roleTable" @select="select" style="width: 100%">
@@ -34,8 +34,8 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancel()" size="small">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk" size="small">确 定</el-button>
+                    <el-button @click="cancel()">取 消</el-button>
+                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>

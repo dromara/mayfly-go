@@ -1,18 +1,18 @@
 <template>
     <div>
         <el-card>
-            <el-button type="primary" icon="el-icon-plus" size="mini" @click="editRedis(true)" plain>添加</el-button>
-            <el-button type="primary" icon="el-icon-edit" :disabled="currentId == null" size="mini" @click="editRedis(false)" plain>编辑</el-button>
-            <el-button type="danger" icon="el-icon-delete" :disabled="currentId == null" size="mini" @click="deleteRedis" plain>删除</el-button>
+            <el-button type="primary" icon="plus" @click="editRedis(true)" plain>添加</el-button>
+            <el-button type="primary" icon="edit" :disabled="currentId == null" @click="editRedis(false)" plain>编辑</el-button>
+            <el-button type="danger" icon="delete" :disabled="currentId == null" @click="deleteRedis" plain>删除</el-button>
             <div style="float: right">
-                <!-- <el-input placeholder="host" size="mini" style="width: 140px" v-model="query.host" @clear="search" plain clearable></el-input>
-                <el-select v-model="params.clusterId" size="mini" clearable placeholder="集群选择">
+                <!-- <el-input placeholder="host"  style="width: 140px" v-model="query.host" @clear="search" plain clearable></el-input>
+                <el-select v-model="params.clusterId"  clearable placeholder="集群选择">
                     <el-option v-for="item in clusters" :key="item.id" :value="item.id" :label="item.name"></el-option>
                 </el-select> -->
-                <el-select v-model="query.projectId" placeholder="请选择项目" filterable clearable size="small">
+                <el-select v-model="query.projectId" placeholder="请选择项目" filterable clearable>
                     <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
                 </el-select>
-                <el-button class="ml5" @click="search" type="success" icon="el-icon-search" size="small"></el-button>
+                <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
             </div>
             <el-table :data="redisTable" style="width: 100%" @current-change="choose">
                 <el-table-column label="选择" width="50px">
@@ -33,8 +33,8 @@
                 <el-table-column prop="creator" label="创建人"></el-table-column>
                 <el-table-column label="操作" width>
                     <template #default="scope">
-                        <el-button type="primary" @click="info(scope.row)" icon="el-icon-tickets" size="mini" plain>info</el-button>
-                        <!-- <el-button type="success" @click="manage(scope.row)" :ref="scope.row" size="mini" plain>数据管理</el-button> -->
+                        <el-button type="primary" @click="info(scope.row)" icon="tickets" plain size="small">info</el-button>
+                        <!-- <el-button type="success" @click="manage(scope.row)" :ref="scope.row"  plain>数据管理</el-button> -->
                     </template>
                 </el-table-column>
             </el-table>

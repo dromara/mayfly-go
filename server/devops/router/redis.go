@@ -61,14 +61,19 @@ func InitRedisRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(rs.GetHashValue)
 		})
 
+		// 设置hash类型值
+		redis.POST(":id/hash-value", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(rs.SetHashValue)
+		})
+
 		// 获取set类型值
 		redis.GET(":id/set-value", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(rs.GetSetValue)
 		})
 
-		// 设置hash类型值
-		redis.POST(":id/hash-value", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.SetStringValue)
+		// 设置set类型值
+		redis.POST(":id/set-value", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(rs.SetSetValue)
 		})
 	}
 }

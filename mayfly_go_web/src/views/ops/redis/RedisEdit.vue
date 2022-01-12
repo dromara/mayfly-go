@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-dialog :title="title" v-model="dialogVisible" :show-close="false" :before-close="cancel" width="35%">
-            <el-form :model="form" ref="redisForm" :rules="rules" label-width="85px" size="small">
+            <el-form :model="form" ref="redisForm" :rules="rules" label-width="85px">
                 <el-form-item prop="projectId" label="项目:" required>
                     <el-select style="width: 100%" v-model="form.projectId" placeholder="请选择项目" @change="changeProject" filterable>
                         <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
@@ -32,8 +32,8 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk" size="mini">确 定</el-button>
-                    <el-button @click="cancel()" size="mini">取 消</el-button>
+                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button @click="cancel()">取 消</el-button>
                 </div>
             </template>
         </el-dialog>
