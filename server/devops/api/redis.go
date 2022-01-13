@@ -171,7 +171,7 @@ func (r *Redis) SetHashValue(rc *ctx.ReqCtx) {
 	ri.Cli.Del(key)
 	for _, v := range hashValue.Value {
 		res := ri.Cli.HSet(key, v["key"].(string), v["value"])
-		biz.ErrIsNilAppendErr(res.Err(), "保存hash值失败")
+		biz.ErrIsNilAppendErr(res.Err(), "保存hash值失败: %s")
 	}
 	if hashValue.Timed != -1 {
 		ri.Cli.Expire(key, time.Second*time.Duration(hashValue.Timed))

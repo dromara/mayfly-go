@@ -1,13 +1,21 @@
 package starter
 
 import (
+	"mayfly-go/base/biz"
 	"mayfly-go/base/config"
+	"mayfly-go/base/ctx"
 	"mayfly-go/base/global"
-
-	"github.com/gin-gonic/gin"
+	"mayfly-go/server/initialize"
 )
 
-func RunWebServer(web *gin.Engine) {
+func RunWebServer() {
+	// 权限处理器
+	ctx.UseBeforeHandlerInterceptor(ctx.PermissionHandler)
+	// 日志处理器
+	ctx.UseAfterHandlerInterceptor(ctx.LogHandler)
+	// 注册路由
+	web := initialize.InitRouter()
+
 	server := config.Conf.Server
 	port := server.GetPort()
 	if app := config.Conf.App; app != nil {
@@ -16,9 +24,11 @@ func RunWebServer(web *gin.Engine) {
 		global.Log.Infof("Listening and serving HTTP on %s", port)
 	}
 
+	var err error
 	if server.Tls != nil && server.Tls.Enable {
-		web.RunTLS(port, server.Tls.CertFile, server.Tls.KeyFile)
+		err = web.RunTLS(port, server.Tls.CertFile, server.Tls.KeyFile)
 	} else {
-		web.Run(port)
+		err = web.Run(port)
 	}
+	biz.ErrIsNilAppendErr(err, "服务启动失败: %s")
 }

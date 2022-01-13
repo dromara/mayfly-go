@@ -90,7 +90,6 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import DataEdit from './DataEdit.vue';
 import { isTrue, notNull } from '@/common/assert';
-import { key } from '../../../store/index';
 
 export default defineComponent({
     name: 'DataOperation',

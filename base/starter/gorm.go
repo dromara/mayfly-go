@@ -10,6 +10,10 @@ import (
 	"gorm.io/gorm/schema"
 )
 
+func InitDb() {
+	global.Db = GormMysql()
+}
+
 func GormMysql() *gorm.DB {
 	m := config.Conf.Mysql
 	if m == nil || m.Dbname == "" {

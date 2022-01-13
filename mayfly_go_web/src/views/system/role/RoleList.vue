@@ -30,7 +30,7 @@
                 </el-table-column>
                 <el-table-column prop="name" label="角色名称"></el-table-column>
                 <el-table-column prop="code" label="角色code"></el-table-column>
-                <el-table-column prop="remark" label="描述" min-width="180px" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="remark" label="描述" min-width="160px" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="createTime" label="创建时间">
                     <template #default="scope">
                         {{ $filters.dateFormat(scope.row.createTime) }}

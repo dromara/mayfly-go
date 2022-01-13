@@ -15,7 +15,7 @@
                 <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
             </div>
             <el-table :data="redisTable" style="width: 100%" @current-change="choose">
-                <el-table-column label="选择" width="50px">
+                <el-table-column label="选择" width="60px">
                     <template #default="scope">
                         <el-radio v-model="currentId" :label="scope.row.id">
                             <i></i>
