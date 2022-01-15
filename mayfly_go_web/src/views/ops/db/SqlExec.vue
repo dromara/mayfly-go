@@ -22,7 +22,28 @@
         </div>
 
         <el-container style="border: 1px solid #eee; margin-top: 1px; height: 549px">
-            <el-aside id="sqlcontent" width="65%" style="background-color: rgb(238, 241, 246)">
+            <el-container style="margin-left: 2px">
+                <el-header style="text-align: left; height: 45px; font-size: 12px; padding: 0px">
+                    <el-select v-model="tableName" placeholder="请选择表" @change="changeTable" filterable style="width: 99%">
+                        <el-option
+                            v-for="item in tableMetadata"
+                            :key="item.tableName"
+                            :label="item.tableName + (item.tableComment != '' ? `【${item.tableComment}】` : '')"
+                            :value="item.tableName"
+                        >
+                        </el-option>
+                    </el-select>
+                </el-header>
+
+                <el-main style="padding: 0px; overflow: hidden">
+                    <el-table :data="columnMetadata" height="100%" size="mini">
+                        <el-table-column prop="columnName" label="名称" show-overflow-tooltip> </el-table-column>
+                        <el-table-column prop="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
+                        <el-table-column width="120" prop="columnType" label="类型" show-overflow-tooltip> </el-table-column>
+                    </el-table>
+                </el-main>
+            </el-container>
+            <el-aside id="sqlcontent" width="75%" style="background-color: rgb(238, 241, 246)">
                 <div class="toolbar">
                     <div class="fl">
                         <!-- <el-button v-waves @click="runSql" type="success" icon="el-icon-video-play" size="mini" plain>执行</el-button>
@@ -81,31 +102,17 @@
                     <el-button v-waves @click="formatSql" type="primary" icon="el-icon-magic-stick" size="small" plain>格式化</el-button>
                 </el-button-group>
             </el-aside>
-
-            <el-container style="margin-left: 2px">
-                <el-header style="text-align: left; height: 45px; font-size: 12px; padding: 0px">
-                    <el-select v-model="tableName" placeholder="请选择表" @change="changeTable" filterable style="width: 99%">
-                        <el-option
-                            v-for="item in tableMetadata"
-                            :key="item.tableName"
-                            :label="item.tableName + (item.tableComment != '' ? `【${item.tableComment}】` : '')"
-                            :value="item.tableName"
-                        >
-                        </el-option>
-                    </el-select>
-                </el-header>
-
-                <el-main style="padding: 0px; overflow: hidden">
-                    <el-table :data="columnMetadata" height="100%" size="mini">
-                        <el-table-column prop="columnName" label="名称" show-overflow-tooltip> </el-table-column>
-                        <el-table-column prop="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
-                        <el-table-column width="120" prop="columnType" label="类型" show-overflow-tooltip> </el-table-column>
-                    </el-table>
-                </el-main>
-            </el-container>
         </el-container>
-
-        <el-table style="margin-top: 1px" :data="execRes.data" size="mini" max-height="300" :empty-text="execRes.emptyResText" stripe border>
+        <el-table
+            @cell-dblclick="cellClick"
+            style="margin-top: 1px"
+            :data="execRes.data"
+            size="mini"
+            max-height="300"
+            :empty-text="execRes.emptyResText"
+            stripe
+            border
+        >
             <el-table-column
                 min-width="100"
                 :width="flexColumnWidth(item, execRes.data)"
@@ -118,6 +125,9 @@
             >
             </el-table-column>
         </el-table>
+        <!-- <el-row v-if="dbId">
+            <el-button @click="addRow" type="text" icon="el-icon-plus"></el-button>
+        </el-row> -->
     </div>
 </template>
 
@@ -258,7 +268,7 @@ export default defineComponent({
             state.execRes.tableColumn = [];
             state.execRes.data = [];
             state.execRes.emptyResText = '查询中...';
-
+            console.log(sql);
             const res = await dbApi.sqlExec.request({
                 id: state.dbId,
                 sql: sql,
@@ -373,7 +383,7 @@ export default defineComponent({
                 // 赋值第一个表信息
                 if (state.tableMetadata.length > 0) {
                     state.tableName = state.tableMetadata[0]['tableName'];
-                    changeTable(state.tableName, false);
+                    changeTable(state.tableName, true);
                 }
             });
 
@@ -480,6 +490,44 @@ export default defineComponent({
                 runSqlStr(`SELECT * FROM ${tableName} ORDER BY create_time DESC LIMIT 25`);
             }
         };
+        // 监听单元格点击事件
+        const cellClick = (row: any, column: any, cell: any, event: any) => {
+            console.log(cell.children[0].tagName);
+            let isDiv = cell.children[0].tagName === 'DIV';
+            let text = cell.children[0].innerText;
+            let div = cell.children[0];
+            if (isDiv) {
+                let input = document.createElement('input');
+                input.setAttribute('value', text);
+                input.setAttribute('style', 'height:30px');
+                cell.replaceChildren(input);
+                input.focus();
+                input.addEventListener('blur', () => {
+                    div.innerText = input.value;
+                    cell.replaceChildren(div);
+                    console.log(input.value, column.rawColumnKey, text, 42242);
+                    if (input.value !== text) {
+                        dbApi.sqlExec.request({
+                            id: state.dbId,
+                            sql: `UPDATE ${state.tableName} SET ${column.rawColumnKey} = '${input.value}' WHERE ${column.rawColumnKey} = '${text}'`,
+                        });
+                    }
+                });
+            }
+        };
+        // 添加新数据行
+        // const addRow = () => {
+        //     let obj: any = {};
+        //     (state.execRes.tableColumn as any) = state.columnMetadata.map((i) => (i as any).columnName);
+        //     state.execRes.tableColumn.forEach((item) => {
+        //         obj[item] = 'NULL';
+        //     });
+        //     (state.execRes.data as any).push(obj);
+        //     let values = Object.values(obj).join(',');
+        //     console.log(values, 4343);
+        //     let sql = `INSERT INTO \`${state.tableName}\` VALUES (${values});`;
+        //     // runSqlStr(sql);
+        // };
 
         /**
          * 自动提示功能
@@ -532,6 +580,7 @@ export default defineComponent({
             changeProjectEnv,
             inputRead,
             changeTable,
+            cellClick,
             runSql,
             beforeUpload,
             getUploadSqlFileUrl,
