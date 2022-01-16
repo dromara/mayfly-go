@@ -13,7 +13,7 @@
                             <el-input style="width: 80%" v-model="tableData.tableComment" size="mini"></el-input>
                         </el-form-item>
                     </el-col>
-                    <el-col :span="8">
+                    <el-col style="margin-top: 20px" :span="12">
                         <el-form-item prop="characterSet" label="字符集">
                             <el-select filterable style="width: 80%" v-model="tableData.characterSet" size="mini">
                                 <el-option v-for="item in characterSetNameList" :key="item" :label="item" :value="item"> </el-option>
@@ -69,7 +69,7 @@
                             </el-table-column>
                         </el-table>
                         <el-row style="margin-top: 20px">
-                            <el-button @click="addRow()" type="text" icon="el-icon-plus"></el-button>
+                            <el-button @click="addRow()" type="text" icon="plus"></el-button>
                         </el-row>
                     </el-tab-pane>
                 </el-tabs>
@@ -84,7 +84,7 @@
 
 <script lang="ts">
 import { watch, toRefs, reactive, defineComponent, ref, getCurrentInstance } from 'vue';
-import { TYPE_LIST, CHARACTER_SET_NAME_LIST } from './service';
+import { TYPE_LIST, CHARACTER_SET_NAME_LIST } from './service.ts';
 import { dbApi } from '../../db/api';
 import { ElMessage } from 'element-plus';
 export default defineComponent({

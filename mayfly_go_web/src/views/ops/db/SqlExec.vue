@@ -15,13 +15,24 @@
                                     </el-option>
                                 </el-select>
                             </el-form-item>
+                            <el-form-item>
+                                <el-button
+                                    type="success"
+                                    size="mini"
+                                    @click="
+                                        newQueryShow = true;
+                                        activeName = 'second';
+                                    "
+                                    >新建查询</el-button
+                                >
+                            </el-form-item>
                         </template>
                     </project-env-select>
                 </el-col>
             </el-row>
         </div>
 
-        <el-container style="border: 1px solid #eee; margin-top: 1px; height: 549px">
+        <el-container style="border: 1px solid #eee; margin-top: 1px; height: 600px">
             <el-container style="margin-left: 2px">
                 <el-header style="text-align: left; height: 45px; font-size: 12px; padding: 0px">
                     <el-select v-model="tableName" placeholder="请选择表" @change="changeTable" filterable style="width: 99%">
@@ -43,87 +54,95 @@
                     </el-table>
                 </el-main>
             </el-container>
-            <el-aside id="sqlcontent" width="75%" style="background-color: rgb(238, 241, 246)">
-                <div class="toolbar">
-                    <div class="fl">
-                        <!-- <el-button v-waves @click="runSql" type="success" icon="video-play"  plain>执行</el-button>
+            <el-tabs style="width: 70%; margin-left: 20px" v-model="activeName" @tab-click="handleClick">
+                <el-tab-pane label="数据信息" name="first">
+                    <el-table
+                        @cell-dblclick="cellClick"
+                        style="margin-top: 1px"
+                        :data="execRes.data"
+                        size="mini"
+                        max-height="500"
+                        :empty-text="execRes.emptyResText"
+                        stripe
+                        border
+                    >
+                        <el-table-column
+                            min-width="100"
+                            :width="flexColumnWidth(item, execRes.data)"
+                            align="center"
+                            v-for="item in execRes.tableColumn"
+                            :key="item"
+                            :prop="item"
+                            :label="item"
+                            show-overflow-tooltip
+                        >
+                        </el-table-column>
+                    </el-table>
+                </el-tab-pane>
+
+                <el-tab-pane label="新建查询" v-if="newQueryShow" name="second">
+                    <el-aside id="sqlcontent" width="75%" style="background-color: rgb(238, 241, 246)">
+                        <div class="toolbar">
+                            <div class="fl">
+                                <!-- <el-button v-waves @click="runSql" type="success" icon="video-play"  plain>执行</el-button>
 
                         <el-button v-waves @click="formatSql" type="primary" icon="magic-stick"  plain>格式化</el-button> -->
 
-                        <el-upload
-                            style="display: inline-block; margin-left: 10px"
-                            :before-upload="beforeUpload"
-                            :on-success="execSqlFileSuccess"
-                            :headers="{ Authorization: token }"
-                            :data="{
-                                dbId: 1,
-                            }"
-                            :action="getUploadSqlFileUrl()"
-                            :show-file-list="false"
-                            name="file"
-                            multiple
-                            :limit="100"
-                        >
-                            <el-button v-waves type="success" icon="video-play" plain>sql脚本执行</el-button>
-                        </el-upload>
-                    </div>
+                                <el-upload
+                                    style="display: inline-block; margin-left: 10px"
+                                    :before-upload="beforeUpload"
+                                    :on-success="execSqlFileSuccess"
+                                    :headers="{ Authorization: token }"
+                                    :data="{
+                                        dbId: 1,
+                                    }"
+                                    :action="getUploadSqlFileUrl()"
+                                    :show-file-list="false"
+                                    name="file"
+                                    multiple
+                                    :limit="100"
+                                >
+                                    <el-button v-waves type="success" icon="video-play" plain>sql脚本执行</el-button>
+                                </el-upload>
+                            </div>
 
-                    <div style="float: right" class="fl">
-                        <el-select
-                            v-model="sqlName"
-                            placeholder="选择or输入SQL模板名"
-                            @change="changeSqlTemplate"
-                            filterable
-                            allow-create
-                            default-first-option
-                            class="mr10"
-                        >
-                            <el-option v-for="item in sqlNames" :key="item" :label="item.database" :value="item">
-                                {{ item }}
-                            </el-option>
-                        </el-select>
+                            <div style="float: right" class="fl">
+                                <el-select
+                                    v-model="sqlName"
+                                    placeholder="选择or输入SQL模板名"
+                                    @change="changeSqlTemplate"
+                                    filterable
+                                    allow-create
+                                    default-first-option
+                                    class="mr10"
+                                >
+                                    <el-option v-for="item in sqlNames" :key="item" :label="item.database" :value="item">
+                                        {{ item }}
+                                    </el-option>
+                                </el-select>
 
-                        <el-button v-waves @click="saveSql" type="primary" icon="document-add" plain>保存</el-button>
-                        <el-button v-waves @click="deleteSql" type="danger" icon="delete" plain>删除</el-button>
-                    </div>
-                </div>
-                <codemirror
-                    @mousemove="listenMouse"
-                    @beforeChange="onBeforeChange"
-                    class="codesql"
-                    ref="cmEditor"
-                    language="sql"
-                    v-model="sql"
-                    :options="cmOptions"
-                />
-                <el-button-group :style="btnStyle">
-                    <el-button v-waves @click="runSql" type="success" icon="video-play" size="small" plain>执行</el-button>
-                    <el-button v-waves @click="formatSql" type="primary" icon="magic-stick" size="small" plain>格式化</el-button>
-                </el-button-group>
-            </el-aside>
+                                <el-button v-waves @click="saveSql" type="primary" icon="document-add" plain>保存</el-button>
+                                <el-button v-waves @click="deleteSql" type="danger" icon="delete" plain>删除</el-button>
+                            </div>
+                        </div>
+                        <codemirror
+                            @mousemove="listenMouse"
+                            @beforeChange="onBeforeChange"
+                            class="codesql"
+                            ref="cmEditor"
+                            language="sql"
+                            v-model="sql"
+                            :options="cmOptions"
+                        />
+                        <el-button-group :style="btnStyle">
+                            <el-button v-waves @click="runSql" type="success" icon="video-play" size="small" plain>执行</el-button>
+                            <el-button v-waves @click="formatSql" type="primary" icon="magic-stick" size="small" plain>格式化</el-button>
+                        </el-button-group>
+                    </el-aside>
+                </el-tab-pane>
+            </el-tabs>
         </el-container>
-        <el-table
-            @cell-dblclick="cellClick"
-            style="margin-top: 1px"
-            :data="execRes.data"
-            size="mini"
-            max-height="300"
-            :empty-text="execRes.emptyResText"
-            stripe
-            border
-        >
-            <el-table-column
-                min-width="100"
-                :width="flexColumnWidth(item, execRes.data)"
-                align="center"
-                v-for="item in execRes.tableColumn"
-                :key="item"
-                :prop="item"
-                :label="item"
-                show-overflow-tooltip
-            >
-            </el-table-column>
-        </el-table>
+
         <!-- <el-row v-if="dbId">
             <el-button @click="addRow" type="text" icon="el-icon-plus"></el-button>
         </el-row> -->
@@ -175,6 +194,8 @@ export default defineComponent({
             sqlName: '',
             sqlNames: [],
             sql: '',
+            newQueryShow: false,
+            activeName: 'first',
             sqlTabs: {
                 tabs: [] as any,
                 active: '',
@@ -275,6 +296,7 @@ export default defineComponent({
             state.execRes.emptyResText = '没有数据';
             state.execRes.tableColumn = res.colNames;
             state.execRes.data = res.res;
+            state.activeName = 'first';
         };
 
         const beforeUpload = (file: File) => {
@@ -561,8 +583,8 @@ export default defineComponent({
             if (temp) {
                 state.btnStyle.display = 'block';
                 if (!state.btnStyle.left) {
-                    state.btnStyle.left = e.target.getBoundingClientRect().left - 150 + 'px';
-                    state.btnStyle.top = e.target.getBoundingClientRect().top - 60 + 'px';
+                    state.btnStyle.left = e.target.getBoundingClientRect().left - 550 + 'px';
+                    state.btnStyle.top = e.target.getBoundingClientRect().top - 160 + 'px';
                 }
             } else {
                 state.btnStyle.display = 'none';
@@ -608,5 +630,9 @@ export default defineComponent({
     .CodeMirror {
         height: 300px !important;
     }
+}
+.el-tabs__header {
+    padding: 0 20px;
+    background-color: #fff;
 }
 </style>
