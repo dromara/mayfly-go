@@ -19,8 +19,8 @@
             </el-tree>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button type="primary" @click="btnOk" size="small">确 定</el-button>
-                    <el-button @click="cancel" size="small">取 消</el-button>
+                    <el-button type="primary" @click="btnOk">确 定</el-button>
+                    <el-button @click="cancel">取 消</el-button>
                 </div>
             </template>
         </el-dialog>

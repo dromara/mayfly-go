@@ -7,13 +7,32 @@ import { globalComponentSize } from '@/common/utils/componentSize.ts';
 import { dateStrFormat } from '@/common/utils/date.ts'
 
 import ElementPlus from 'element-plus';
-import 'element-plus/lib/theme-chalk/index.css';
+import 'element-plus/dist/index.css';
 import '@/theme/index.scss';
 import mitt from 'mitt';
 import { ElMessage } from 'element-plus';
 import locale from 'element-plus/lib/locale/lang/zh-cn'
 
+import * as svg from '@element-plus/icons-vue';
+import SvgIcon from '@/components/svgIcon/index.vue';
+
 const app = createApp(App);
+
+/**
+ * 导出全局注册 element plus svg 图标
+ * @param app vue 实例
+ * @description 使用：https://element-plus.gitee.io/zh-CN/component/icon.html
+ */
+ function elSvg(app: any) {
+    const icons = svg as any;
+    for (const i in icons) {
+        app.component(`${icons[i].name}`, icons[i]);
+    }
+    app.component('SvgIcon', SvgIcon);
+}
+
+elSvg(app)
+directive(app);
 
 app.use(router)
     .use(store, key)
@@ -42,5 +61,3 @@ app.config.errorHandler = function (err: any, vm, info) {
 }
 
 app.config.globalProperties.mittBus = mitt();
-
-directive(app);

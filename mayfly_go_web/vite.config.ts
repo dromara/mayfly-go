@@ -38,12 +38,36 @@ const viteConfig: UserConfig = {
 		outDir: 'dist',
 		minify: 'esbuild',
 		sourcemap: false,
+        chunkSizeWarningLimit: 1500,
+		rollupOptions: {
+			output: {
+				entryFileNames: `assets/[name].${new Date().getTime()}.js`,
+				chunkFileNames: `assets/[name].${new Date().getTime()}.js`,
+				assetFileNames: `assets/[name].${new Date().getTime()}.[ext]`,
+			},
+		},
 	},
 	define: {
 		__VUE_I18N_LEGACY_API__: JSON.stringify(false),
 		__VUE_I18N_FULL_INSTALL__: JSON.stringify(false),
 		__INTLIFY_PROD_DEVTOOLS__: JSON.stringify(false),
 	},
+    css: {
+        postcss: {
+          plugins: [
+            {
+              postcssPlugin: 'internal:charset-removal',
+              AtRule: {
+                charset: (atRule) => {
+                  if (atRule.name === 'charset') {
+                    atRule.remove();
+                  }
+                }
+              }
+            }
+          ]
+        }
+    },
 };
 
 export default viteConfig;

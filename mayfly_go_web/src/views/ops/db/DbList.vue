@@ -1,21 +1,13 @@
 <template>
     <div class="db-list">
         <el-card>
-            <el-button v-auth="permissions.saveDb" type="primary" icon="el-icon-plus" size="mini" @click="editDb(true)">添加</el-button>
-            <el-button v-auth="permissions.saveDb" :disabled="chooseId == null" @click="editDb(false)" type="primary" icon="el-icon-edit" size="mini"
-                >编辑</el-button
-            >
-            <el-button
-                v-auth="permissions.delDb"
-                :disabled="chooseId == null"
-                @click="deleteDb(chooseId)"
-                type="danger"
-                icon="el-icon-delete"
-                size="mini"
+            <el-button v-auth="permissions.saveDb" type="primary" icon="plus" @click="editDb(true)">添加</el-button>
+            <el-button v-auth="permissions.saveDb" :disabled="chooseId == null" @click="editDb(false)" type="primary" icon="edit">编辑</el-button>
+            <el-button v-auth="permissions.delDb" :disabled="chooseId == null" @click="deleteDb(chooseId)" type="danger" icon="delete"
                 >删除</el-button
             >
             <div style="float: right">
-                <el-form class="search-form" label-position="right" :inline="true" label-width="60px" size="small">
+                <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
                     <el-form-item prop="project">
                         <el-select v-model="query.projectId" placeholder="请选择项目" filterable clearable>
                             <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
@@ -25,11 +17,13 @@
                     <el-form-item>
                         <el-input v-model="query.database" placeholder="请输入数据库" auto-complete="off" clearable></el-input>
                     </el-form-item>
-                    <el-button v-waves type="primary" icon="el-icon-search" size="mini" @click="search()">查询</el-button>
+                    <el-form-item>
+                        <el-button v-waves type="primary" icon="search" @click="search()">查询</el-button>
+                    </el-form-item>
                 </el-form>
             </div>
             <el-table :data="datas" ref="table" @current-change="choose" show-overflow-tooltip>
-                <el-table-column label="选择" width="50px">
+                <el-table-column label="选择" width="60px">
                     <template #default="scope">
                         <el-radio v-model="chooseId" :label="scope.row.id">
                             <i></i>
@@ -124,7 +118,7 @@
         </el-dialog>
 
         <el-dialog width="40%" :title="`${chooseTableName} 字段信息`" v-model="columnDialog.visible">
-            <el-table border :data="columnDialog.columns" size="mini">
+            <el-table border :data="columnDialog.columns">
                 <el-table-column prop="columnName" label="名称" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
                 <el-table-column width="120" prop="columnType" label="类型" show-overflow-tooltip> </el-table-column>
@@ -132,7 +126,7 @@
         </el-dialog>
 
         <el-dialog width="40%" :title="`${chooseTableName} 索引信息`" v-model="indexDialog.visible">
-            <el-table border :data="indexDialog.indexs" size="mini">
+            <el-table border :data="indexDialog.indexs">
                 <el-table-column prop="indexName" label="索引名" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="columnName" label="列名" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="seqInIndex" label="列序列号" show-overflow-tooltip> </el-table-column>

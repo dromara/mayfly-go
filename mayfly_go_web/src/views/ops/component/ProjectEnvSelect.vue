@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-form class="search-form" label-position="right" :inline="true" label-width="60px" size="small">
+        <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
             <el-form-item prop="project" label="项目" label-width="40px">
                 <el-select v-model="projectId" placeholder="请选择项目" @change="changeProject" filterable>
                     <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"></el-option>

@@ -44,7 +44,7 @@ func InitDbRouter(router *gin.RouterGroup) {
 		})
 
 		db.GET(":dbId/t-create-ddl", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithNeedToken(false).Handle(d.GetCreateTableDdl)
+			ctx.NewReqCtxWithGin(c).Handle(d.GetCreateTableDdl)
 		})
 
 		// db.GET(":dbId/exec-sql", controllers.SelectData)

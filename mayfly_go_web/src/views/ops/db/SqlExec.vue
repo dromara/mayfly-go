@@ -46,9 +46,9 @@
             <el-aside id="sqlcontent" width="75%" style="background-color: rgb(238, 241, 246)">
                 <div class="toolbar">
                     <div class="fl">
-                        <!-- <el-button v-waves @click="runSql" type="success" icon="el-icon-video-play" size="mini" plain>执行</el-button>
+                        <!-- <el-button v-waves @click="runSql" type="success" icon="video-play"  plain>执行</el-button>
 
-                        <el-button v-waves @click="formatSql" type="primary" icon="el-icon-magic-stick" size="mini" plain>格式化</el-button> -->
+                        <el-button v-waves @click="formatSql" type="primary" icon="magic-stick"  plain>格式化</el-button> -->
 
                         <el-upload
                             style="display: inline-block; margin-left: 10px"
@@ -64,7 +64,7 @@
                             multiple
                             :limit="100"
                         >
-                            <el-button v-waves type="success" icon="el-icon-video-play" size="mini" plain>sql脚本执行</el-button>
+                            <el-button v-waves type="success" icon="video-play" plain>sql脚本执行</el-button>
                         </el-upload>
                     </div>
 
@@ -76,7 +76,6 @@
                             filterable
                             allow-create
                             default-first-option
-                            size="mini"
                             class="mr10"
                         >
                             <el-option v-for="item in sqlNames" :key="item" :label="item.database" :value="item">
@@ -84,8 +83,8 @@
                             </el-option>
                         </el-select>
 
-                        <el-button v-waves @click="saveSql" type="primary" icon="el-icon-document-add" size="mini" plain>保存</el-button>
-                        <el-button v-waves @click="deleteSql" type="danger" icon="el-icon-delete" size="mini" plain>删除</el-button>
+                        <el-button v-waves @click="saveSql" type="primary" icon="document-add" plain>保存</el-button>
+                        <el-button v-waves @click="deleteSql" type="danger" icon="delete" plain>删除</el-button>
                     </div>
                 </div>
                 <codemirror
@@ -98,8 +97,8 @@
                     :options="cmOptions"
                 />
                 <el-button-group :style="btnStyle">
-                    <el-button v-waves @click="runSql" type="success" icon="el-icon-video-play" size="small" plain>执行</el-button>
-                    <el-button v-waves @click="formatSql" type="primary" icon="el-icon-magic-stick" size="small" plain>格式化</el-button>
+                    <el-button v-waves @click="runSql" type="success" icon="video-play" size="small" plain>执行</el-button>
+                    <el-button v-waves @click="formatSql" type="primary" icon="magic-stick" size="small" plain>格式化</el-button>
                 </el-button-group>
             </el-aside>
         </el-container>
@@ -562,8 +561,8 @@ export default defineComponent({
             if (temp) {
                 state.btnStyle.display = 'block';
                 if (!state.btnStyle.left) {
-                    state.btnStyle.left = e.target.getBoundingClientRect().left - 100 + 'px';
-                    state.btnStyle.top = e.target.getBoundingClientRect().top - 20 + 'px';
+                    state.btnStyle.left = e.target.getBoundingClientRect().left - 150 + 'px';
+                    state.btnStyle.top = e.target.getBoundingClientRect().top - 60 + 'px';
                 }
             } else {
                 state.btnStyle.display = 'none';
@@ -602,6 +601,7 @@ export default defineComponent({
 <style scoped lang="scss">
 .codesql {
     font-size: 10pt;
+    font-weight: 600;
     font-family: Consolas, Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
 }
 #sqlcontent {

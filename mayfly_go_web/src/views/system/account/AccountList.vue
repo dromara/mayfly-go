@@ -1,22 +1,12 @@
 <template>
     <div class="role-list">
         <el-card>
-            <el-button v-auth="'account:add'" type="primary" icon="el-icon-plus" size="mini" @click="editAccount(true)">添加</el-button>
-            <el-button
-                v-auth="'account:update'"
-                :disabled="chooseId == null"
-                @click="editAccount(false)"
-                type="primary"
-                icon="el-icon-edit"
-                size="mini"
-                >编辑</el-button
-            >
-            <el-button v-auth="'account:saveRoles'" :disabled="chooseId == null" @click="roleEdit()" type="success" icon="el-icon-setting" size="mini"
+            <el-button v-auth="'account:add'" type="primary" icon="plus" @click="editAccount(true)">添加</el-button>
+            <el-button v-auth="'account:update'" :disabled="chooseId == null" @click="editAccount(false)" type="primary" icon="edit">编辑</el-button>
+            <el-button v-auth="'account:saveRoles'" :disabled="chooseId == null" @click="roleEdit()" type="success" icon="setting"
                 >角色分配</el-button
             >
-            <el-button v-auth="'account:del'" :disabled="chooseId == null" @click="deleteAccount()" type="danger" icon="el-icon-delete" size="mini"
-                >删除</el-button
-            >
+            <el-button v-auth="'account:del'" :disabled="chooseId == null" @click="deleteAccount()" type="danger" icon="delete">删除</el-button>
             <div style="float: right">
                 <el-input
                     class="mr2"
@@ -27,7 +17,7 @@
                     @clear="search()"
                     clearable
                 ></el-input>
-                <el-button @click="search()" type="success" icon="el-icon-search" size="small"></el-button>
+                <el-button @click="search()" type="success" icon="search" size="small"></el-button>
             </div>
             <el-table :data="datas" ref="table" @current-change="choose" show-overflow-tooltip>
                 <el-table-column label="选择" width="50px">
@@ -41,8 +31,8 @@
 
                 <el-table-column align="center" prop="status" label="状态" min-width="63">
                     <template #default="scope">
-                        <el-tag v-if="scope.row.status == 1" type="success" size="mini">正常</el-tag>
-                        <el-tag v-if="scope.row.status == -1" type="danger" size="mini">禁用</el-tag>
+                        <el-tag v-if="scope.row.status == 1" type="success">正常</el-tag>
+                        <el-tag v-if="scope.row.status == -1" type="danger">禁用</el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column min-width="160" prop="lastLoginTime" label="最后登录时间">
@@ -80,8 +70,8 @@
                             @click="changeStatus(scope.row)"
                             v-if="scope.row.status == 1"
                             type="danger"
-                            icom="el-icon-tickets"
-                            size="mini"
+                            icom="tickets"
+                            size="small"
                             plain
                             >禁用</el-button
                         >
@@ -90,7 +80,7 @@
                             v-if="scope.row.status == -1"
                             type="success"
                             @click="changeStatus(scope.row)"
-                            size="mini"
+                            size="small"
                             plain
                             >启用</el-button
                         >

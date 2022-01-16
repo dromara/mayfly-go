@@ -16,31 +16,36 @@
                                         </el-option>
                                     </el-select>
                                 </el-form-item>
-                                <el-form-item label="key" label-width="40px">
-                                    <el-input
-                                        placeholder="支持*模糊key"
-                                        style="width: 180px"
-                                        v-model="scanParam.match"
-                                        size="mini"
-                                        @clear="clear()"
-                                        clearable
-                                    ></el-input>
-                                </el-form-item>
-                                <el-form-item label-width="40px">
-                                    <el-input placeholder="count" style="width: 62px" v-model="scanParam.count" size="mini"></el-input>
-                                </el-form-item>
-                                <el-button @click="searchKey()" type="success" icon="el-icon-search" size="mini" plain></el-button>
-                                <el-button @click="scan()" icon="el-icon-bottom" size="mini" plain>scan</el-button>
-                                <el-button type="primary" icon="el-icon-plus" size="mini" @click="save(false)" plain></el-button>
                             </template>
                         </project-env-select>
                     </el-col>
+                    <el-col class="mt10">
+                        <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
+                            <el-form-item label="key" label-width="40px">
+                                <el-input
+                                    placeholder="支持*模糊key"
+                                    style="width: 180px"
+                                    v-model="scanParam.match"
+                                    @clear="clear()"
+                                    clearable
+                                ></el-input>
+                            </el-form-item>
+                            <el-form-item label="count" label-width="60px">
+                                <el-input placeholder="count" style="width: 62px" v-model="scanParam.count"></el-input>
+                            </el-form-item>
+                            <el-form-item>
+                                <el-button @click="searchKey()" type="success" icon="search" plain></el-button>
+                                <el-button @click="scan()" icon="bottom" plain>scan</el-button>
+                                <el-button type="primary" icon="plus" @click="onAddData(false)" plain></el-button>
+                            </el-form-item>
+                            <div style="float: right">
+                                <span>keys: {{ dbsize }}</span>
+                            </div>
+                        </el-form>
+                    </el-col>
                 </el-row>
             </div>
-            <div style="float: right">
-                <!-- <el-button @click="scan()" icon="el-icon-refresh" size="small" plain>刷新</el-button> -->
-                <span>keys: {{ dbsize }}</span>
-            </div>
+
             <el-table v-loading="loading" :data="keys" stripe :highlight-current-row="true" style="cursor: pointer">
                 <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
                 <el-table-column prop="type" label="type" width="80"> </el-table-column>
@@ -51,8 +56,8 @@
                 </el-table-column>
                 <el-table-column label="操作">
                     <template #default="scope">
-                        <el-button @click="getValue(scope.row)" type="success" icon="el-icon-search" size="mini" plain>查看</el-button>
-                        <el-button @click="del(scope.row.key)" type="danger" size="mini" icon="el-icon-delete" plain>删除</el-button>
+                        <el-button @click="getValue(scope.row)" type="success" icon="search" plain size="small">查看</el-button>
+                        <el-button @click="del(scope.row.key)" type="danger" icon="delete" plain size="small">删除</el-button>
                     </template>
                 </el-table-column>
             </el-table>
@@ -60,7 +65,20 @@
 
         <div style="text-align: center; margin-top: 10px"></div>
 
-        <value-dialog v-model:visible="valueDialog.visible" :keyValue="valueDialog.value" />
+        <!-- <value-dialog v-model:visible="valueDialog.visible" :keyValue="valueDialog.value" /> -->
+
+        <data-edit
+            v-model:visible="dataEdit.visible"
+            :title="dataEdit.title"
+            :keyInfo="dataEdit.keyInfo"
+            :redisId="scanParam.id"
+            :operationType="dataEdit.operationType"
+            :stringValue="dataEdit.stringValue"
+            :setValue="dataEdit.setValue"
+            :hashValue="dataEdit.hashValue"
+            @valChange="searchKey"
+            @cancel="onCancelDataEdit"
+        />
     </div>
 </template>
 
@@ -70,12 +88,14 @@ import { redisApi } from './api';
 import { toRefs, reactive, defineComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
+import DataEdit from './DataEdit.vue';
 import { isTrue, notNull } from '@/common/assert';
 
 export default defineComponent({
     name: 'DataOperation',
     components: {
         ValueDialog,
+        DataEdit,
         ProjectEnvSelect,
     },
     setup() {
@@ -102,6 +122,19 @@ export default defineComponent({
             valueDialog: {
                 visible: false,
                 value: {},
+            },
+            dataEdit: {
+                visible: false,
+                title: '新增数据',
+                operationType: 1,
+                keyInfo: {
+                    type: 'string',
+                    timed: -1,
+                    key: '',
+                },
+                stringValue: '',
+                hashValue: [{ key: '', value: '' }],
+                setValue: [{ value: '' }],
             },
             keys: [],
             dbsize: 0,
@@ -170,39 +203,64 @@ export default defineComponent({
         };
 
         const getValue = async (row: any) => {
-            let api: any;
-            switch (row.type) {
-                case 'string':
-                    api = redisApi.getStringValue;
-                    break;
-                case 'hash':
-                    api = redisApi.getHashValue;
-                    break;
-                case 'set':
-                    api = redisApi.getSetValue;
-                    break;
-                default:
-                    api = redisApi.getStringValue;
-                    break;
-            }
+            const type = row.type;
+            const key = row.key;
+
+            let res: any;
             const id = state.cluster == 0 ? state.scanParam.id : state.cluster;
-            const res = await api.request({
+            const reqParam = {
                 cluster: state.cluster,
                 key: row.key,
                 id,
-            });
+            };
+            switch (type) {
+                case 'string':
+                    res = await redisApi.getStringValue.request(reqParam);
+                    break;
+                case 'hash':
+                    res = await redisApi.getHashValue.request(reqParam);
+                    break;
+                case 'set':
+                    res = await redisApi.getSetValue.request(reqParam);
+                    break;
+                default:
+                    res = null;
+                    break;
+            }
+            notNull(res, '暂不支持该类型数据查看');
 
-            let timed = row.ttl == 18446744073709552000 ? 0 : row.ttl;
-            state.valueDialog.value = { id: state.scanParam.id, key: row.key, value: res, timed: timed, type: row.type };
-            state.valueDialog.visible = true;
+            if (type == 'string') {
+                state.dataEdit.stringValue = res;
+            }
+            if (type == 'set') {
+                state.dataEdit.setValue = res.map((x: any) => {
+                    return {
+                        value: x,
+                    };
+                });
+            }
+            if (type == 'hash') {
+                const hash = [];
+                //遍历key和value
+                const keys = Object.keys(res);
+                for (let i = 0; i < keys.length; i++) {
+                    const key = keys[i];
+                    const value = res[key];
+                    hash.push({
+                        key,
+                        value,
+                    });
+                }
+                state.dataEdit.hashValue = hash;
+            }
+
+            state.dataEdit.keyInfo.type = type;
+            state.dataEdit.keyInfo.timed = row.ttl;
+            state.dataEdit.keyInfo.key = key;
+            state.dataEdit.operationType = 2;
+            state.dataEdit.title = '修改数据';
+            state.dataEdit.visible = true;
         };
-
-        // closeValueDialog() {
-        //   this.valueDialog.visible = false
-        //   this.valueDialog.value = {}
-        // }
-
-        // const update = (key: string) => {};
 
         const del = (key: string) => {
             ElMessageBox.confirm(`此操作将删除对应的key , 是否继续?`, '提示', {
@@ -227,7 +285,7 @@ export default defineComponent({
         };
 
         const ttlConveter = (ttl: any) => {
-            if (ttl == 18446744073709552000) {
+            if (ttl == -1) {
                 return '永久';
             }
             if (!ttl) {
@@ -262,6 +320,20 @@ export default defineComponent({
             return result;
         };
 
+        const onAddData = () => {
+            notNull(state.scanParam.id, '请先选择redis');
+            state.dataEdit.operationType = 1;
+            state.dataEdit.title = '新增数据';
+            state.dataEdit.visible = true;
+        };
+
+        const onCancelDataEdit = () => {
+            state.dataEdit.keyInfo = {} as any;
+            state.dataEdit.stringValue = '';
+            state.dataEdit.setValue = [];
+            state.dataEdit.hashValue = [];
+        };
+
         return {
             ...toRefs(state),
             changeProjectEnv,
@@ -273,6 +345,8 @@ export default defineComponent({
             getValue,
             del,
             ttlConveter,
+            onAddData,
+            onCancelDataEdit,
         };
     },
 });

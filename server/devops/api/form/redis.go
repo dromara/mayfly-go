@@ -11,8 +11,22 @@ type Redis struct {
 	EnvId     uint64 `binding:"required" json:"envId"`
 }
 
-type KeyValue struct {
-	Key   string      `binding:"required" json:"key"`
+type KeyInfo struct {
+	Key   string `binding:"required" json:"key"`
+	Timed int64
+}
+
+type StringValue struct {
+	KeyInfo
 	Value interface{} `binding:"required" json:"value"`
-	Timed uint64
+}
+
+type HashValue struct {
+	KeyInfo
+	Value []map[string]interface{} `binding:"required" json:"value"`
+}
+
+type SetValue struct {
+	KeyInfo
+	Value []interface{} `binding:"required" json:"value"`
 }

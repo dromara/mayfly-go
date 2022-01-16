@@ -2,47 +2,26 @@
     <div class="project-list">
         <el-card>
             <div>
-                <el-button @click="showAddProjectDialog" v-auth="permissions.saveProject" type="primary" icon="el-icon-plus" size="mini"
-                    >添加</el-button
-                >
+                <el-button @click="showAddProjectDialog" v-auth="permissions.saveProject" type="primary" icon="plus">添加</el-button>
                 <el-button
                     @click="showAddProjectDialog(chooseData)"
                     v-auth="permissions.saveProject"
                     :disabled="chooseId == null"
                     type="primary"
-                    icon="el-icon-edit"
-                    size="mini"
+                    icon="edit"
                     >编辑</el-button
                 >
-                <el-button @click="showMembers(chooseData)" :disabled="chooseId == null" type="success" icon="el-icon-setting" size="mini"
-                    >成员管理</el-button
-                >
+                <el-button @click="showMembers(chooseData)" :disabled="chooseId == null" type="success" icon="setting">成员管理</el-button>
 
-                <el-button @click="showEnv(chooseData)" :disabled="chooseId == null" type="info" icon="el-icon-setting" size="mini"
-                    >环境管理</el-button
-                >
+                <el-button @click="showEnv(chooseData)" :disabled="chooseId == null" type="info" icon="setting">环境管理</el-button>
 
-                <el-button
-                    v-auth="permissions.delProject"
-                    @click="delProject"
-                    :disabled="chooseId == null"
-                    type="danger"
-                    icon="el-icon-delete"
-                    size="mini"
+                <el-button v-auth="permissions.delProject" @click="delProject" :disabled="chooseId == null" type="danger" icon="delete"
                     >删除</el-button
                 >
 
                 <div style="float: right">
-                    <el-input
-                        class="mr2"
-                        placeholder="请输入项目名！"
-                        size="small"
-                        style="width: 300px"
-                        v-model="query.name"
-                        @clear="search"
-                        clearable
-                    ></el-input>
-                    <el-button @click="search" type="success" icon="el-icon-search" size="small"></el-button>
+                    <el-input class="mr2" placeholder="请输入项目名！" style="width: 200px" v-model="query.name" @clear="search" clearable></el-input>
+                    <el-button @click="search" type="success" icon="search"></el-button>
                 </div>
             </div>
             <el-table :data="projects" @current-change="choose" ref="table" style="width: 100%">
@@ -82,7 +61,7 @@
         </el-card>
 
         <el-dialog width="400px" title="项目编辑" :before-close="cancelAddProject" v-model="addProjectDialog.visible">
-            <el-form :model="addProjectDialog.form" size="small" label-width="70px">
+            <el-form :model="addProjectDialog.form" label-width="70px">
                 <el-form-item label="项目名:" required>
                     <el-input :disabled="addProjectDialog.form.id ? true : false" v-model="addProjectDialog.form.name" auto-complete="off"></el-input>
                 </el-form-item>
@@ -92,18 +71,18 @@
             </el-form>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="addProject" type="primary" size="small">确 定</el-button>
-                    <el-button @click="cancelAddProject()" size="small">取 消</el-button>
+                    <el-button @click="addProject" type="primary">确 定</el-button>
+                    <el-button @click="cancelAddProject()">取 消</el-button>
                 </div>
             </template>
         </el-dialog>
 
         <el-dialog width="500px" :title="showEnvDialog.title" v-model="showEnvDialog.visible">
             <div class="toolbar">
-                <el-button @click="showAddEnvDialog" v-auth="permissions.saveMember" type="primary" icon="el-icon-plus" size="mini">添加</el-button>
-                <!-- <el-button v-auth="'role:update'" :disabled="chooseId == null" type="danger" icon="el-icon-delete" size="mini">删除</el-button> -->
+                <el-button @click="showAddEnvDialog" v-auth="permissions.saveMember" type="primary" icon="plus">添加</el-button>
+                <!-- <el-button v-auth="'role:update'" :disabled="chooseId == null" type="danger" icon="delete">删除</el-button> -->
             </div>
-            <el-table border :data="showEnvDialog.envs" size="small">
+            <el-table border :data="showEnvDialog.envs">
                 <el-table-column property="name" label="环境名" width="125"></el-table-column>
                 <el-table-column property="remark" label="描述" width="125"></el-table-column>
                 <el-table-column property="createTime" label="创建时间">
@@ -114,7 +93,7 @@
             </el-table>
 
             <el-dialog width="400px" title="添加环境" :before-close="cancelAddEnv" v-model="showEnvDialog.addVisible">
-                <el-form :model="showEnvDialog.envForm" size="small" label-width="70px">
+                <el-form :model="showEnvDialog.envForm" label-width="70px">
                     <el-form-item label="环境名:" required>
                         <el-input v-model="showEnvDialog.envForm.name" auto-complete="off"></el-input>
                     </el-form-item>
@@ -124,8 +103,8 @@
                 </el-form>
                 <template #footer>
                     <div class="dialog-footer">
-                        <el-button v-auth="permissions.saveEnv" @click="addEnv" type="primary" :loading="btnLoading" size="small">确 定</el-button>
-                        <el-button @click="cancelAddEnv()" size="small">取 消</el-button>
+                        <el-button v-auth="permissions.saveEnv" @click="addEnv" type="primary" :loading="btnLoading">确 定</el-button>
+                        <el-button @click="cancelAddEnv()">取 消</el-button>
                     </div>
                 </template>
             </el-dialog>
@@ -133,20 +112,12 @@
 
         <el-dialog width="500px" :title="showMemDialog.title" v-model="showMemDialog.visible">
             <div class="toolbar">
-                <el-button v-auth="permissions.saveMember" @click="showAddMemberDialog()" type="primary" icon="el-icon-plus" size="mini"
-                    >添加</el-button
-                >
-                <el-button
-                    v-auth="permissions.delMember"
-                    @click="deleteMember"
-                    :disabled="showMemDialog.chooseId == null"
-                    type="danger"
-                    icon="el-icon-delete"
-                    size="mini"
+                <el-button v-auth="permissions.saveMember" @click="showAddMemberDialog()" type="primary" icon="plus">添加</el-button>
+                <el-button v-auth="permissions.delMember" @click="deleteMember" :disabled="showMemDialog.chooseId == null" type="danger" icon="delete"
                     >移除</el-button
                 >
             </div>
-            <el-table @current-change="chooseMember" border :data="showMemDialog.members.list" size="small">
+            <el-table @current-change="chooseMember" border :data="showMemDialog.members.list">
                 <el-table-column label="选择" width="50px">
                     <template #default="scope">
                         <el-radio v-model="showMemDialog.chooseId" :label="scope.row.id">
@@ -173,7 +144,7 @@
             />
 
             <el-dialog width="400px" title="添加成员" :before-close="cancelAddMember" v-model="showMemDialog.addVisible">
-                <el-form :model="showMemDialog.memForm" size="small" label-width="70px">
+                <el-form :model="showMemDialog.memForm" label-width="70px">
                     <el-form-item label="账号:">
                         <el-select
                             style="width: 100%"
@@ -192,10 +163,8 @@
                 </el-form>
                 <template #footer>
                     <div class="dialog-footer">
-                        <el-button v-auth="permissions.saveMember" @click="addMember" type="primary" :loading="btnLoading" size="small"
-                            >确 定</el-button
-                        >
-                        <el-button @click="cancelAddMember()" size="small">取 消</el-button>
+                        <el-button v-auth="permissions.saveMember" @click="addMember" type="primary" :loading="btnLoading">确 定</el-button>
+                        <el-button @click="cancelAddMember()">取 消</el-button>
                     </div>
                 </template>
             </el-dialog>

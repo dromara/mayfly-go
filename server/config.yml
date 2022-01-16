@@ -37,7 +37,7 @@ mysql:
   host: localhost:3306
   username: root
   password: 111049
-  db-name: mayfly-job
+  db-name: mayfly-go
   config: charset=utf8&loc=Local&parseTime=true
   max-idle-conns: 5
 

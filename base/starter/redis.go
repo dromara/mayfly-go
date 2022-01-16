@@ -8,11 +8,16 @@ import (
 	"github.com/go-redis/redis"
 )
 
+func InitRedis() {
+	global.RedisCli = ConnRedis()
+}
+
 func ConnRedis() *redis.Client {
 	// 设置redis客户端
 	redisConf := config.Conf.Redis
 	if redisConf == nil {
 		global.Log.Panic("未找到redis配置信息")
+		return nil
 	}
 	global.Log.Infof("连接redis [%s:%d]", redisConf.Host, redisConf.Port)
 	rdb := redis.NewClient(&redis.Options{
