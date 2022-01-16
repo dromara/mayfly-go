@@ -73,6 +73,9 @@
             :before-close="closeTableInfo"
             v-model="tableInfoDialog.visible"
         >
+            <el-row class="mb10">
+                <el-button type="primary" size="mini" @click="tableCreateDialog.visible = true">创建表</el-button>
+            </el-row>
             <el-table border :data="tableInfoDialog.infos" size="small">
                 <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip></el-table-column>
                 <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip></el-table-column>
@@ -142,6 +145,7 @@
             v-model:visible="dbEditDialog.visible"
             v-model:db="dbEditDialog.data"
         ></db-edit>
+        <create-table :dbId="dbId" v-model:visible="tableCreateDialog.visible"></create-table>
     </div>
 </template>
 
@@ -150,15 +154,18 @@ import { toRefs, reactive, onMounted, defineComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import DbEdit from './DbEdit.vue';
+import CreateTable from '../component/Table/CreateTable.vue';
 import { dbApi } from './api';
 import { projectApi } from '../project/api.ts';
 export default defineComponent({
     name: 'DbList',
     components: {
         DbEdit,
+        CreateTable,
     },
     setup() {
         const state = reactive({
+            dbId: 0,
             permissions: {
                 saveDb: 'db:save',
                 delDb: 'db:del',
@@ -200,6 +207,9 @@ export default defineComponent({
                 visible: false,
                 data: null,
                 title: '新增数据库',
+            },
+            tableCreateDialog: {
+                visible: false,
             },
         });
 
@@ -259,6 +269,7 @@ export default defineComponent({
 
         const tableInfo = async (row: any) => {
             state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: row.id });
+            state.dbId = row.id;
             state.tableInfoDialog.visible = true;
         };
 
