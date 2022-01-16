@@ -53,17 +53,12 @@
                         {{ $filters.dateFormat(scope.row.createTime) }}
                     </template>
                 </el-table-column>
-                <el-table-column prop="creator" label="创建者" min-width="55"></el-table-column>
-                <!-- <el-table-column prop="updateTime" label="更新时间" min-width="160">
-                <template #default="scope">
-                    {{ $filters.dateFormat(scope.row.updateTime) }}
-                </template>
-            </el-table-column>
-            <el-table-column prop="modifier" label="修改者" :min-width="55"></el-table-column> -->
+                <el-table-column prop="creator" label="创建者" min-width="60"></el-table-column>
                 <el-table-column label="操作" min-width="260" fixed="right">
                     <template #default="scope">
                         <el-button type="success" @click="serviceManager(scope.row)" plain size="small">脚本</el-button>
                         <el-button v-auth="'machine:terminal'" type="primary" @click="showTerminal(scope.row)" plain size="small">终端</el-button>
+                        <el-button @click="showProcess(scope.row)" plain size="small">进程</el-button>
                         <el-button :disabled="!scope.row.hasCli" type="danger" @click="closeCli(scope.row)" plain size="small">关闭连接</el-button>
                     </template>
                 </el-table-column>
@@ -91,6 +86,8 @@
 			<monitor ref="monitorDialogRef" :machineId="monitorDialog.machineId" />
 		</el-dialog> -->
 
+        <process-list v-model:visible="processDialog.visible" v-model:machineId="processDialog.machineId" />
+
         <service-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible" v-model:machineId="serviceDialog.machineId" />
 
         <file-manage :title="fileDialog.title" v-model:visible="fileDialog.visible" v-model:machineId="fileDialog.machineId" />
@@ -107,11 +104,13 @@ import { projectApi } from '../project/api.ts';
 import ServiceManage from './ServiceManage.vue';
 import FileManage from './FileManage.vue';
 import MachineEdit from './MachineEdit.vue';
+import ProcessList from './ProcessList.vue';
 
 export default defineComponent({
     name: 'MachineList',
     components: {
         ServiceManage,
+        ProcessList,
         FileManage,
         MachineEdit,
     },
@@ -141,6 +140,10 @@ export default defineComponent({
                 visible: false,
                 machineId: 0,
                 title: '',
+            },
+            processDialog: {
+                visible: false,
+                machineId: 0,
             },
             fileDialog: {
                 visible: false,
@@ -256,6 +259,11 @@ export default defineComponent({
             state.data = res;
         };
 
+        const showProcess = (row: any) => {
+            state.processDialog.machineId = row.id;
+            state.processDialog.visible = true;
+        };
+
         return {
             ...toRefs(state),
             choose,
@@ -266,6 +274,7 @@ export default defineComponent({
             deleteMachine,
             closeCli,
             serviceManager,
+            showProcess,
             submitSuccess,
             fileManage,
             search,

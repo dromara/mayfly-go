@@ -171,7 +171,6 @@ import { codemirror } from '@/components/codemirror';
 import { getSession } from '@/common/utils/storage';
 import enums from './enums';
 import config from '@/common/config';
-import SvgIcon from '@/components/svgIcon/index.vue';
 
 export default defineComponent({
     name: 'FileManage',

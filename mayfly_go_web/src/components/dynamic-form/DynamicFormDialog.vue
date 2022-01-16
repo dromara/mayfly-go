@@ -4,8 +4,8 @@
 			<dynamic-form ref="df" :form-info="formInfo" :form-data="formData" @submitSuccess="submitSuccess">
 				<template #btns="props">
 					<slot name="btns">
-						<el-button :disabled="props.submitDisabled" type="primary" @click="props.submit" size="mini">保 存</el-button>
-						<el-button :disabled="props.submitDisabled" @click="close()" size="mini">取 消</el-button>
+						<el-button :disabled="props.submitDisabled" type="primary" @click="props.submit" size="small">保 存</el-button>
+						<el-button :disabled="props.submitDisabled" @click="close()" size="small">取 消</el-button>
 					</slot>
 				</template>
 			</dynamic-form>

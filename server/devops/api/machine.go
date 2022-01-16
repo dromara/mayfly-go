@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"fmt"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/ctx"
 	"mayfly-go/base/ginx"
@@ -70,6 +71,41 @@ func (m *Machine) DeleteMachine(rc *ctx.ReqCtx) {
 // 关闭机器客户端
 func (m *Machine) CloseCli(rc *ctx.ReqCtx) {
 	machine.DeleteCli(GetMachineId(rc.GinCtx))
+}
+
+// 获取进程列表信息
+func (m *Machine) GetProcess(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	cmd := "ps -aux "
+	sortType := g.Query("sortType")
+	if sortType == "2" {
+		cmd += "--sort -pmem "
+	} else {
+		cmd += "--sort -pcpu "
+	}
+
+	pname := g.Query("name")
+	if pname != "" {
+		cmd += fmt.Sprintf("| grep %s ", pname)
+	}
+
+	count := g.Query("count")
+	if count == "" {
+		count = "10"
+	}
+
+	cmd += "| head -n " + count
+	res, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx)).Run(cmd)
+	biz.ErrIsNilAppendErr(err, "获取进程信息失败: %s")
+	rc.ResData = res
+}
+
+// 终止进程
+func (m *Machine) KillProcess(rc *ctx.ReqCtx) {
+	pid := rc.GinCtx.Query("pid")
+	biz.NotEmpty(pid, "进程id不能为空")
+	_, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx)).Run("kill -9 " + pid)
+	biz.ErrIsNilAppendErr(err, "终止进程失败: %s")
 }
 
 func (m *Machine) WsSSH(g *gin.Context) {

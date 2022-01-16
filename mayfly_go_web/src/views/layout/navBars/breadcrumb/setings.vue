@@ -152,7 +152,7 @@
                             :min="0"
                             :max="9999"
                             @change="setLocalThemeConfig"
-                            size="mini"
+                            size="small"
                             style="width: 90px"
                         >
                         </el-input-number>
@@ -236,7 +236,7 @@
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-input
                             v-model="getThemeConfig.wartermarkText"
-                            size="mini"
+                            size="small"
                             style="width: 90px"
                             @input="onWartermarkTextInput($event)"
                         ></el-input>
@@ -251,7 +251,7 @@
                         <el-select
                             v-model="getThemeConfig.tagsStyle"
                             placeholder="请选择"
-                            size="mini"
+                            size="small"
                             style="width: 90px"
                             @change="setLocalThemeConfig"
                         >
@@ -268,7 +268,7 @@
                         <el-select
                             v-model="getThemeConfig.animation"
                             placeholder="请选择"
-                            size="mini"
+                            size="small"
                             style="width: 90px"
                             @change="setLocalThemeConfig"
                         >
@@ -284,7 +284,7 @@
                         <el-select
                             v-model="getThemeConfig.columnsAsideStyle"
                             placeholder="请选择"
-                            size="mini"
+                            size="small"
                             style="width: 90px"
                             @change="setLocalThemeConfig"
                         >

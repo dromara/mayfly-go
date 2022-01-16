@@ -5,6 +5,9 @@ export const machineApi = {
     list: Api.create("/machines", 'get'),
     info: Api.create("/machines/{id}/sysinfo", 'get'),
     stats: Api.create("/machines/{id}/stats", 'get'),
+    process: Api.create("/machines/{id}/process", 'get'),
+    // 终止进程
+    killProcess: Api.create("/machines/{id}/process", 'delete'),
     closeCli: Api.create("/machines/{id}/close-cli", 'delete'),
     // 保存按钮
     saveMachine: Api.create("/machines", 'post'),

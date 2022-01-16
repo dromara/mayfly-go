@@ -40,11 +40,11 @@
                         type="primary"
                         :loading="btnLoading"
                         @click="btnOk"
-                        size="mini"
+                        size="small"
                         :disabled="submitDisabled"
                         >保 存</el-button
                     >
-                    <el-button @click="cancel()" :disabled="submitDisabled" size="mini">关 闭</el-button>
+                    <el-button @click="cancel()" :disabled="submitDisabled" size="small">关 闭</el-button>
                 </div>
             </template>
         </el-dialog>

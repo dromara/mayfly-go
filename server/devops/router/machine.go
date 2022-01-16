@@ -20,6 +20,20 @@ func InitMachineRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(m.MachineStats)
 		})
 
+		machines.GET(":machineId/process", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(m.GetProcess)
+		})
+
+		// 终止进程
+		killProcessL := ctx.NewLogInfo("终止进程")
+		killProcessP := ctx.NewPermission("machine:killprocess")
+		machines.DELETE(":machineId/process", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).
+				WithLog(killProcessL).
+				WithRequiredPermission(killProcessP).
+				Handle(m.KillProcess)
+		})
+
 		saveMachine := ctx.NewLogInfo("保存机器信息")
 		machines.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).

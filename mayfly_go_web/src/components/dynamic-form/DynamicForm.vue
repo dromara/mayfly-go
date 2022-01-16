@@ -51,8 +51,8 @@
 
 			<el-row type="flex" justify="center">
 				<slot name="btns" :submitDisabled="submitDisabled" :data="form" :submit="submit">
-					<el-button @click="reset" size="mini">重 置</el-button>
-					<el-button type="primary" @click="submit" size="mini">保 存</el-button>
+					<el-button @click="reset" size="small">重 置</el-button>
+					<el-button type="primary" @click="submit" size="small">保 存</el-button>
 				</slot>
 			</el-row>
 		</el-form>
