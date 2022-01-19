@@ -74,7 +74,7 @@
             v-model="tableInfoDialog.visible"
         >
             <el-row class="mb10">
-                <el-button type="primary" size="mini" @click="tableCreateDialog.visible = true">创建表</el-button>
+                <el-button type="primary" size="small" @click="tableCreateDialog.visible = true">创建表</el-button>
             </el-row>
             <el-table border :data="tableInfoDialog.infos" size="small">
                 <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip></el-table-column>
