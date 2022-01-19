@@ -5,17 +5,17 @@
                 <el-row>
                     <el-col :span="12">
                         <el-form-item prop="tableName" label="表名">
-                            <el-input style="width: 80%" v-model="tableData.tableName" size="mini"></el-input>
+                            <el-input style="width: 80%" v-model="tableData.tableName" size="small"></el-input>
                         </el-form-item>
                     </el-col>
                     <el-col :span="12">
                         <el-form-item prop="tableComment" label="备注">
-                            <el-input style="width: 80%" v-model="tableData.tableComment" size="mini"></el-input>
+                            <el-input style="width: 80%" v-model="tableData.tableComment" size="small"></el-input>
                         </el-form-item>
                     </el-col>
                     <el-col style="margin-top: 20px" :span="12">
                         <el-form-item prop="characterSet" label="字符集">
-                            <el-select filterable style="width: 80%" v-model="tableData.characterSet" size="mini">
+                            <el-select filterable style="width: 80%" v-model="tableData.characterSet" size="small">
                                 <el-option v-for="item in characterSetNameList" :key="item" :label="item" :value="item"> </el-option>
                             </el-select>
                         </el-form-item>
@@ -27,40 +27,40 @@
                         <el-table :data="tableData.fields.res">
                             <el-table-column :prop="item.prop" :label="item.label" v-for="item in tableData.fields.colNames" :key="item.prop">
                                 <template v-if="item.prop === 'name'" #default="scope">
-                                    <el-input size="mini" v-model="scope.row.name"></el-input>
+                                    <el-input size="small" v-model="scope.row.name"></el-input>
                                 </template>
                                 <!--eslint-disable-next-line-->
                                 <template v-if="item.prop === 'type'" #default="scope">
-                                    <el-select filterable size="mini" v-model="scope.row.type">
+                                    <el-select filterable size="small" v-model="scope.row.type">
                                         <el-option v-for="typeValue in typeList" :key="typeValue" :value="typeValue">{{ typeValue }}</el-option>
                                     </el-select>
                                 </template>
                                 <!--eslint-disable-next-line-->
                                 <template v-if="item.prop === 'value'" #default="scope">
-                                    <el-input size="mini" v-model="scope.row.value"> </el-input>
+                                    <el-input size="small" v-model="scope.row.value"> </el-input>
                                 </template>
                                 <!--eslint-disable-next-line-->
                                 <template v-if="item.prop === 'length'" #default="scope">
-                                    <el-input size="mini" v-model="scope.row.length"> </el-input>
+                                    <el-input size="small" v-model="scope.row.length"> </el-input>
                                 </template>
                                 <!--eslint-disable-next-line-->
                                 <template v-if="item.prop === 'notNull'" #default="scope">
-                                    <el-checkbox size="mini" v-model="scope.row.notNull"> </el-checkbox>
+                                    <el-checkbox size="small" v-model="scope.row.notNull"> </el-checkbox>
                                 </template>
                                 <!--eslint-disable-next-line-->
                                 <template v-if="item.prop === 'pri'" #default="scope">
-                                    <el-checkbox size="mini" v-model="scope.row.pri"> </el-checkbox>
+                                    <el-checkbox size="small" v-model="scope.row.pri"> </el-checkbox>
                                 </template>
                                 <!--eslint-disable-next-line-->
                                 <template v-if="item.prop === 'auto_increment'" #default="scope">
-                                    <el-checkbox size="mini" v-model="scope.row.auto_increment"> </el-checkbox>
+                                    <el-checkbox size="small" v-model="scope.row.auto_increment"> </el-checkbox>
                                 </template>
                                 <!-- <template v-if="item.prop === 'un_signed'" #default="scope">
-                                    <el-checkbox :disabled="scope.row.type === 'int'" size="mini" v-model="scope.row.un_signed"> </el-checkbox>
+                                    <el-checkbox :disabled="scope.row.type === 'int'" size="small" v-model="scope.row.un_signed"> </el-checkbox>
                                 </template> -->
                                 <!--eslint-disable-next-line-->
                                 <template v-if="item.prop === 'remark'" #default="scope">
-                                    <el-input size="mini" v-model="scope.row.remark"> </el-input>
+                                    <el-input size="small" v-model="scope.row.remark"> </el-input>
                                 </template>
                                 <!--eslint-disable-next-line-->
                                 <template v-if="item.prop === 'action'" #default="scope">

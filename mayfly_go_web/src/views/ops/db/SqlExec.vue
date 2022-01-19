@@ -136,6 +136,7 @@
                 <el-tab-pane closable v-for="dt in dataTabs" :key="dt.name" :label="dt.label" :name="dt.name">
                     <el-table
                         @cell-dblclick="cellClick"
+                        @row-contextmenu="contextmenu"
                         @sort-change="onTableSortChange"
                         style="margin-top: 1px"
                         :data="dt.execRes.data"
@@ -158,18 +159,17 @@
                         >
                         </el-table-column>
                     </el-table>
+                    <el-row v-if="dbId">
+                        <el-button @click="addRow" type="text" icon="plus"></el-button>
+                    </el-row>
                 </el-tab-pane>
             </el-tabs>
         </el-container>
-
-        <!-- <el-row v-if="dbId">
-            <el-button @click="addRow" type="text" icon="el-icon-plus"></el-button>
-        </el-row> -->
     </div>
 </template>
 
 <script lang="ts">
-import { h, toRefs, reactive, computed, defineComponent, ref } from 'vue';
+import { h, toRefs, reactive, computed, defineComponent, ref, createApp } from 'vue';
 import { dbApi } from './api';
 import _ from 'lodash';
 
@@ -187,7 +187,7 @@ import 'codemirror/addon/hint/sql-hint.js';
 
 import { format as sqlFormatter } from 'sql-formatter';
 import { notNull, notEmpty } from '@/common/assert';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox, ElMenu, ElMenuItem } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
@@ -616,7 +616,77 @@ export default defineComponent({
             state.execRes.tableColumn = [];
             state.cmOptions.hintOptions.tables = [];
         };
-
+        // 某一行鼠标右击
+        const contextmenu = (row: any, column: any, event: any) => {
+            event.preventDefault();
+            let pagex = event.pageX;
+            let pagey = event.pageY;
+            let child = document.getElementById('contextmenu');
+            if (child) {
+                document.body.removeChild(child);
+            }
+            let div = document.createElement('div');
+            div.setAttribute('id', 'contextmenu');
+            div.setAttribute(
+                'style',
+                `overflow:hidden;border-radius:10px;border:1px solid #bababa;width:100px;position:absolute;left:${pagex}px;top:${pagey}px;z-index:1000`
+            );
+            document.body.appendChild(div);
+            document.body.addEventListener('click', (e: any) => {
+                if (!e.target.className.includes('el-menu-item')) {
+                    let child = document.getElementById('contextmenu');
+                    if (child) {
+                        document.body.removeChild(child);
+                    }
+                }
+            });
+            const menu = {
+                render() {
+                    return h(
+                        ElMenu,
+                        {
+                            activeTextColor: '#413F41',
+                            textColor: '#413F41',
+                            backgroundColor: '#eae4e9',
+                            style: {
+                                width: '100%',
+                            },
+                        },
+                        {
+                            default: () => [
+                                h(
+                                    ElMenuItem,
+                                    {
+                                        onClick: () => {
+                                            ElMessageBox({
+                                                title: '删除记录',
+                                                message: '确定删除这条记录？',
+                                                showCancelButton: true,
+                                                confirmButtonText: '确定',
+                                                cancelButtonText: '取消',
+                                            })
+                                                .then(async (action) => {
+                                                    let sql = `DELETE FROM ${state.tableName} WHERE id=${row.id};`;
+                                                    await dbApi.sqlExec.request({
+                                                        id: state.dbId,
+                                                        sql: sql,
+                                                    });
+                                                    changeTable(state.tableName, true);
+                                                })
+                                                .catch(() => {});
+                                        },
+                                    },
+                                    {
+                                        default: () => ['删除记录'],
+                                    }
+                                ),
+                            ],
+                        }
+                    );
+                },
+            };
+            createApp(menu).mount('#contextmenu');
+        };
         // 监听单元格点击事件
         const cellClick = (row: any, column: any, cell: any, event: any) => {
             // 如果当前操作的表名不存在，则不允许修改表格内容
@@ -658,29 +728,26 @@ export default defineComponent({
         /**
          * 弹框提示是否执行sql
          */
-        const promptExeSql = (sql: string, cancelFunc: any = null) => {
+        const promptExeSql = (sql: string, cancelFunc: any = null, successFunc: any = null) => {
             ElMessageBox({
                 title: '执行SQL',
                 message: h(
                     'div',
                     {
-                        attrs: {
-                            class: 'el-textarea',
-                        },
+                        class: 'el-textarea',
                     },
                     [
                         h('textarea', {
-                            attrs: {
-                                class: 'el-textarea__inner',
-                                autocomplete: 'off',
-                                rows: 8,
-                            },
+                            class: 'el-textarea__inner',
+                            autocomplete: 'off',
+                            rows: 8,
                             style: {
                                 height: '150px',
                                 width: '100%',
                                 fontWeight: '600',
                             },
                             value: sqlFormatter(sql),
+                            onInput: ($event: any) => (sql = $event.target.value),
                         }),
                     ]
                 ),
@@ -704,6 +771,7 @@ export default defineComponent({
             })
                 .then((action) => {
                     runSql(sql);
+                    successFunc();
                 })
                 .catch(() => {
                     if (cancelFunc) {
@@ -713,18 +781,18 @@ export default defineComponent({
         };
 
         // 添加新数据行
-        // const addRow = () => {
-        //     let obj: any = {};
-        //     (state.execRes.tableColumn as any) = state.columnMetadata.map((i) => (i as any).columnName);
-        //     state.execRes.tableColumn.forEach((item) => {
-        //         obj[item] = 'NULL';
-        //     });
-        //     (state.execRes.data as any).push(obj);
-        //     let values = Object.values(obj).join(',');
-        //     console.log(values, 4343);
-        //     let sql = `INSERT INTO \`${state.tableName}\` VALUES (${values});`;
-        //     // runSql(sql);
-        // };
+        const addRow = () => {
+            let obj: any = {};
+            (state.execRes.tableColumn as any) = state.columnMetadata.map((i) => (i as any).columnName);
+            state.execRes.tableColumn.forEach((item) => {
+                obj[item] = 'NULL';
+            });
+            let values = Object.values(obj).join(',');
+            let sql = `INSERT INTO ${state.tableName} VALUES (${values});`;
+            promptExeSql(sql, null, () => {
+                changeTable(state.tableName, true);
+            });
+        };
 
         /**
          * 自动提示功能
@@ -796,6 +864,8 @@ export default defineComponent({
             formatSql,
             onBeforeChange,
             listenMouse,
+            addRow,
+            contextmenu,
             onTableSortChange,
         };
     },
