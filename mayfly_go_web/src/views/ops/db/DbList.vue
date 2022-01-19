@@ -74,7 +74,7 @@
             v-model="tableInfoDialog.visible"
         >
             <el-row class="mb10">
-                <el-button type="primary" size="mini" @click="tableCreateDialog.visible = true">创建表</el-button>
+                <el-button type="primary" size="small" @click="tableCreateDialog.visible = true">创建表</el-button>
             </el-row>
             <el-table border :data="tableInfoDialog.infos" size="small">
                 <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip></el-table-column>
@@ -118,15 +118,16 @@
         </el-dialog>
 
         <el-dialog width="40%" :title="`${chooseTableName} 字段信息`" v-model="columnDialog.visible">
-            <el-table border :data="columnDialog.columns">
+            <el-table border :data="columnDialog.columns" size="small">
                 <el-table-column prop="columnName" label="名称" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
                 <el-table-column width="120" prop="columnType" label="类型" show-overflow-tooltip> </el-table-column>
+                <el-table-column width="80" prop="nullable" label="是否可为空" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
             </el-table>
         </el-dialog>
 
         <el-dialog width="40%" :title="`${chooseTableName} 索引信息`" v-model="indexDialog.visible">
-            <el-table border :data="indexDialog.indexs">
+            <el-table border :data="indexDialog.indexs" size="small">
                 <el-table-column prop="indexName" label="索引名" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="columnName" label="列名" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="seqInIndex" label="列序列号" show-overflow-tooltip> </el-table-column>
@@ -135,7 +136,7 @@
         </el-dialog>
 
         <el-dialog width="55%" :title="`${chooseTableName} Create-DDL`" v-model="ddlDialog.visible">
-            <el-input disabled type="textarea" :autosize="{ minRows: 15, maxRows: 30 }" v-model="ddlDialog.ddl"> </el-input>
+            <el-input disabled type="textarea" :autosize="{ minRows: 15, maxRows: 30 }" v-model="ddlDialog.ddl" size="small"> </el-input>
         </el-dialog>
 
         <db-edit

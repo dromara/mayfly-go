@@ -310,9 +310,6 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-.CodeMirror {
-    height: 500px;
-}
 .in-coder-panel {
     flex-grow: 1;
     display: flex;

@@ -15,23 +15,13 @@
                                     </el-option>
                                 </el-select>
                             </el-form-item>
-                            <el-form-item>
-                                <el-button
-                                    type="success"
-                                    @click="
-                                        newQueryShow = true;
-                                        activeName = 'second';
-                                    "
-                                    >新建查询</el-button
-                                >
-                            </el-form-item>
                         </template>
                     </project-env-select>
                 </el-col>
             </el-row>
         </div>
 
-        <el-container style="border: 1px solid #eee; margin-top: 1px; height: 630px">
+        <el-container style="border: 1px solid #eee; margin-top: 1px; height: 640px">
             <el-container style="margin-left: 2px">
                 <el-header style="text-align: left; height: 35px; font-size: 12px; padding: 0px">
                     <el-select v-model="tableName" placeholder="请选择表" @change="changeTable" filterable style="width: 99%">
@@ -53,24 +43,113 @@
                     </el-table>
                 </el-main>
             </el-container>
-            <el-tabs style="width: 70%; margin-left: 10px" v-model="activeName">
-                <el-tab-pane label="数据信息" name="first">
+
+            <el-tabs @tab-remove="removeDataTab" @tab-click="onDataTabClick" style="width: 70%; margin-left: 10px" v-model="activeName">
+                <el-tab-pane label="查询" :name="queryTabName">
+                    <div>
+                        <div>
+                            <div class="toolbar">
+                                <div class="fl">
+                                    <el-upload
+                                        style="display: inline-block; margin-left: 10px"
+                                        :before-upload="beforeUpload"
+                                        :on-success="execSqlFileSuccess"
+                                        :headers="{ Authorization: token }"
+                                        :data="{
+                                            dbId: 1,
+                                        }"
+                                        :action="getUploadSqlFileUrl()"
+                                        :show-file-list="false"
+                                        name="file"
+                                        multiple
+                                        :limit="100"
+                                    >
+                                        <el-button type="success" icon="video-play" plain size="small">sql脚本执行</el-button>
+                                    </el-upload>
+                                </div>
+
+                                <div style="float: right" class="fl">
+                                    <el-select
+                                        v-model="sqlName"
+                                        placeholder="选择or输入SQL模板名"
+                                        @change="changeSqlTemplate"
+                                        filterable
+                                        allow-create
+                                        default-first-option
+                                        class="mr10"
+                                    >
+                                        <el-option v-for="item in sqlNames" :key="item" :label="item.database" :value="item">
+                                            {{ item }}
+                                        </el-option>
+                                    </el-select>
+
+                                    <el-button @click="saveSql" type="primary" icon="document-add" plain size="small">保存</el-button>
+                                    <el-button @click="deleteSql" type="danger" icon="delete" plain size="small">删除</el-button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt10">
+                            <codemirror
+                                @mousemove="listenMouse"
+                                @beforeChange="onBeforeChange"
+                                height="300px"
+                                class="codesql"
+                                ref="cmEditor"
+                                language="sql"
+                                v-model="sql"
+                                :options="cmOptions"
+                            />
+                            <el-button-group :style="btnStyle">
+                                <el-button @click="onRunSql" type="success" icon="video-play" size="small" plain>执行</el-button>
+                                <el-button @click="formatSql" type="primary" icon="magic-stick" size="small" plain>格式化</el-button>
+                            </el-button-group>
+                        </div>
+
+                        <div class="mt10">
+                            <el-table
+                                @cell-dblclick="cellClick"
+                                style="margin-top: 1px"
+                                :data="execRes.data"
+                                size="small"
+                                max-height="220"
+                                empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
+                                stripe
+                                border
+                            >
+                                <el-table-column
+                                    min-width="100"
+                                    :width="flexColumnWidth(item, execRes.data)"
+                                    align="center"
+                                    v-for="item in execRes.tableColumn"
+                                    :key="item"
+                                    :prop="item"
+                                    :label="item"
+                                    show-overflow-tooltip
+                                >
+                                </el-table-column>
+                            </el-table>
+                        </div>
+                    </div>
+                </el-tab-pane>
+
+                <el-tab-pane closable v-for="dt in dataTabs" :key="dt.name" :label="dt.label" :name="dt.name">
                     <el-table
                         @cell-dblclick="cellClick"
-                        @sort-change="tableSortChange"
+                        @sort-change="onTableSortChange"
                         style="margin-top: 1px"
-                        :data="execRes.data"
+                        :data="dt.execRes.data"
                         size="small"
                         max-height="580"
-                        :empty-text="execRes.emptyResText"
+                        :empty-text="dt.execRes.emptyResText"
                         stripe
                         border
                     >
                         <el-table-column
                             min-width="100"
-                            :width="flexColumnWidth(item, execRes.data)"
+                            :width="flexColumnWidth(item, dt.execRes.data)"
                             align="center"
-                            v-for="item in execRes.tableColumn"
+                            v-for="item in dt.execRes.tableColumn"
                             :key="item"
                             :prop="item"
                             :label="item"
@@ -79,63 +158,6 @@
                         >
                         </el-table-column>
                     </el-table>
-                </el-tab-pane>
-
-                <el-tab-pane label="新建查询" v-if="newQueryShow" name="second">
-                    <el-aside id="sqlcontent" width="100%" style="background-color: rgb(238, 241, 246)">
-                        <div class="toolbar">
-                            <div class="fl">
-                                <el-upload
-                                    style="display: inline-block; margin-left: 10px"
-                                    :before-upload="beforeUpload"
-                                    :on-success="execSqlFileSuccess"
-                                    :headers="{ Authorization: token }"
-                                    :data="{
-                                        dbId: 1,
-                                    }"
-                                    :action="getUploadSqlFileUrl()"
-                                    :show-file-list="false"
-                                    name="file"
-                                    multiple
-                                    :limit="100"
-                                >
-                                    <el-button type="success" icon="video-play" plain size="small">sql脚本执行</el-button>
-                                </el-upload>
-                            </div>
-
-                            <div style="float: right" class="fl">
-                                <el-select
-                                    v-model="sqlName"
-                                    placeholder="选择or输入SQL模板名"
-                                    @change="changeSqlTemplate"
-                                    filterable
-                                    allow-create
-                                    default-first-option
-                                    class="mr10"
-                                >
-                                    <el-option v-for="item in sqlNames" :key="item" :label="item.database" :value="item">
-                                        {{ item }}
-                                    </el-option>
-                                </el-select>
-
-                                <el-button @click="saveSql" type="primary" icon="document-add" plain size="small">保存</el-button>
-                                <el-button @click="deleteSql" type="danger" icon="delete" plain size="small">删除</el-button>
-                            </div>
-                        </div>
-                        <codemirror
-                            @mousemove="listenMouse"
-                            @beforeChange="onBeforeChange"
-                            class="codesql"
-                            ref="cmEditor"
-                            language="sql"
-                            v-model="sql"
-                            :options="cmOptions"
-                        />
-                        <el-button-group :style="btnStyle">
-                            <el-button @click="runSql" type="success" icon="video-play" size="small" plain>执行</el-button>
-                            <el-button @click="formatSql" type="primary" icon="magic-stick" size="small" plain>格式化</el-button>
-                        </el-button-group>
-                    </el-aside>
                 </el-tab-pane>
             </el-tabs>
         </el-container>
@@ -190,20 +212,21 @@ export default defineComponent({
             nowTableName: '', // 当前表格数据操作的数据库表名，用于双击编辑表内容使用
             tableMetadata: [],
             columnMetadata: [],
-            sqlName: '',
-            sqlNames: [],
+            sqlName: '', // 当前sql模板名
+            sqlNames: [], // 所有sql模板名
             sql: '',
-            newQueryShow: false,
-            activeName: 'first',
+            activeName: 'Query',
+            queryTabName: 'Query',
             sqlTabs: {
                 tabs: [] as any,
                 active: '',
                 index: 1,
             },
+            dataTabs: {}, // 点击表信息后执行结果数据展示tabs
+            // 点击执行按钮执行结果信息
             execRes: {
-                tableColumn: [],
                 data: [],
-                emptyResText: '没有数据',
+                tableColumn: [],
             },
             params: {
                 pageNum: 1,
@@ -272,46 +295,64 @@ export default defineComponent({
         /**
          * 执行sql
          */
-        const runSql = async () => {
+        const onRunSql = async () => {
             notNull(state.dbId, '请先选择数据库');
             // 没有选中的文本，则为全部文本
             let sql = getSql();
             notNull(sql, '内容不能为空');
-            runSqlStr(sql);
-        };
 
-        /**
-         * 执行sql str
-         *
-         * @param sql 执行的sql
-         * @param replaceColumn 是否替换列名，如点击排序时，不需要替换表头，否则排序icon无法回显
-         */
-        const runSqlStr = async (sql: string, replaceColumn: boolean = true) => {
-            state.activeName = 'first';
-            sql = sql.trim();
-            if (replaceColumn) {
-                state.execRes.tableColumn = [];
-            }
-            state.execRes.data = [];
-            state.execRes.emptyResText = '查询中...';
-            const res = await dbApi.sqlExec.request({
-                id: state.dbId,
-                sql: sql,
-            });
-            state.execRes.emptyResText = '没有数据';
-            if (replaceColumn) {
-                state.execRes.tableColumn = res.colNames;
-            }
-            state.execRes.data = res.res;
-
-            // 设置当前可双击修改表数据内容的表名，即只有以该字符串开头的sql才可修改表数据内容
-            if (sql.startsWith('SELECT *') || sql.startsWith('select *')) {
+            // 即只有以该字符串开头的sql才可修改表数据内容
+            if (sql.startsWith('SELECT *') || sql.startsWith('select *') || sql.startsWith('SELECT\n  *')) {
                 const tableName = sql.split(/from/i)[1];
                 if (tableName) {
                     state.nowTableName = tableName.trim().split(' ')[0];
                 } else {
                     state.nowTableName = '';
                 }
+            } else {
+                state.nowTableName = '';
+            }
+
+            const colAndData: any = await runSql(sql);
+            state.execRes.data = colAndData.res;
+            state.execRes.tableColumn = colAndData.colNames;
+        };
+
+        /**
+         * 执行sql str
+         *
+         * @param sql 执行的sql
+         */
+        const runSql = (sql: string) => {
+            return dbApi.sqlExec.request({
+                id: state.dbId,
+                sql: sql.trim(),
+            });
+        };
+
+        const removeDataTab = (targetName: string) => {
+            const tabNames = Object.keys(state.dataTabs);
+            let activeName = state.activeName;
+            tabNames.forEach((name, index) => {
+                if (name === targetName) {
+                    const nextTab = tabNames[index + 1] || tabNames[index - 1] || state.queryTabName;
+                    if (nextTab) {
+                        activeName = nextTab;
+                    }
+                }
+            });
+            state.activeName = activeName;
+            delete state.dataTabs[targetName];
+        };
+
+        /**
+         * 数据tab点击
+         */
+        const onDataTabClick = (tab: any) => {
+            const name = tab.props.name;
+            // 不是查询tab，则为表数据tab，同时赋值当前表名，用于在线修改表数据等
+            if (name != state.queryTabName) {
+                state.nowTableName = name;
             } else {
                 state.nowTableName = '';
             }
@@ -422,7 +463,7 @@ export default defineComponent({
                 // 赋值第一个表信息
                 if (state.tableMetadata.length > 0) {
                     state.tableName = state.tableMetadata[0]['tableName'];
-                    changeTable(state.tableName, true);
+                    changeTable(state.tableName, false);
                 }
             });
 
@@ -437,8 +478,64 @@ export default defineComponent({
             getSqlNames();
         };
 
+        // 选择表事件
+        const changeTable = async (tableName: string, execSelectSql: boolean = true) => {
+            if (tableName == '') {
+                return;
+            }
+            dbApi.columnMetadata
+                .request({
+                    id: state.dbId,
+                    tableName: tableName,
+                })
+                .then((res) => {
+                    state.columnMetadata = res;
+                });
+
+            if (!execSelectSql) {
+                return;
+            }
+
+            // 执行sql，并新增tab
+            state.nowTableName = tableName;
+            state.activeName = tableName;
+
+            let tab = state.dataTabs[tableName];
+            if (!tab) {
+                tab = {
+                    label: tableName,
+                    name: tableName,
+                    execRes: {
+                        tableColumn: [],
+                        data: [],
+                        emptyResText: '执行中...',
+                    },
+                };
+            }
+            state.dataTabs[tableName] = tab;
+            state.dataTabs[tableName].execRes.tableColumn = [];
+            state.dataTabs[tableName].execRes.data = [];
+
+            const colAndData: any = await runSql(`SELECT * FROM ${tableName} LIMIT ${state.defalutLimit}`);
+            state.dataTabs[tableName].execRes.emptyResText = '没有数据';
+            state.dataTabs[tableName].execRes.tableColumn = colAndData.colNames;
+            state.dataTabs[tableName].execRes.data = colAndData.res;
+        };
+
         const changeSqlTemplate = () => {
             getUserSql();
+        };
+
+        /**
+         * 表排序字段变更
+         */
+        const onTableSortChange = async (sort: any) => {
+            if (!state.nowTableName) {
+                return;
+            }
+            const sortType = sort.order == 'descending' ? 'DESC' : 'ASC';
+            const colAndData: any = await runSql(`SELECT * FROM ${state.nowTableName} ORDER BY ${sort.prop} ${sortType} LIMIT ${state.defalutLimit}`);
+            state.dataTabs[state.activeName].execRes.data = colAndData.res;
         };
 
         /**
@@ -511,29 +608,13 @@ export default defineComponent({
             state.tableName = '';
             state.tableMetadata = [];
             state.columnMetadata = [];
+            state.dataTabs = {};
+            state.sql = '';
+            state.sqlNames = [];
+            state.activeName = state.queryTabName;
             state.execRes.data = [];
             state.execRes.tableColumn = [];
-            state.sql = '';
             state.cmOptions.hintOptions.tables = [];
-        };
-
-        // 选择表事件
-        const changeTable = (tableName: string, execSelectSql: boolean = true) => {
-            if (tableName == '') {
-                return;
-            }
-            dbApi.columnMetadata
-                .request({
-                    id: state.dbId,
-                    tableName: tableName,
-                })
-                .then((res) => {
-                    state.columnMetadata = res;
-                });
-
-            if (execSelectSql) {
-                runSqlStr(`SELECT * FROM ${tableName} LIMIT ${state.defalutLimit}`);
-            }
         };
 
         // 监听单元格点击事件
@@ -622,10 +703,7 @@ export default defineComponent({
                 },
             })
                 .then((action) => {
-                    dbApi.sqlExec.request({
-                        id: state.dbId,
-                        sql: sql,
-                    });
+                    runSql(sql);
                 })
                 .catch(() => {
                     if (cancelFunc) {
@@ -645,7 +723,7 @@ export default defineComponent({
         //     let values = Object.values(obj).join(',');
         //     console.log(values, 4343);
         //     let sql = `INSERT INTO \`${state.tableName}\` VALUES (${values});`;
-        //     // runSqlStr(sql);
+        //     // runSql(sql);
         // };
 
         /**
@@ -696,17 +774,6 @@ export default defineComponent({
             getSelection(e);
         };
 
-        /**
-         * 表排序字段变更
-         */
-        const tableSortChange = (sort: any) => {
-            if (!state.nowTableName) {
-                return;
-            }
-            const sortType = sort.order == 'descending' ? 'DESC' : 'ASC';
-            runSqlStr(`SELECT * FROM ${state.nowTableName} ORDER BY ${sort.prop} ${sortType} LIMIT ${state.defalutLimit}`, false);
-        };
-
         return {
             ...toRefs(state),
             cmEditor,
@@ -714,7 +781,9 @@ export default defineComponent({
             inputRead,
             changeTable,
             cellClick,
-            runSql,
+            onRunSql,
+            removeDataTab,
+            onDataTabClick,
             beforeUpload,
             getUploadSqlFileUrl,
             execSqlFileSuccess,
@@ -727,7 +796,7 @@ export default defineComponent({
             formatSql,
             onBeforeChange,
             listenMouse,
-            tableSortChange,
+            onTableSortChange,
         };
     },
 });
@@ -739,13 +808,8 @@ export default defineComponent({
     font-weight: 600;
     font-family: Consolas, Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
 }
-#sqlcontent {
-    .CodeMirror {
-        height: 300px !important;
-    }
-}
 .el-tabs__header {
-    padding: 0 20px;
+    padding: 0 10px;
     background-color: #fff;
 }
 </style>
