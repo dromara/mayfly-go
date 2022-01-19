@@ -9,7 +9,6 @@ class SocketBuilder {
       if (!url) {
         throw new Error('websocket url不能为空');
       }
-      console.log(url)
       this.websocket = new WebSocket(url);
     }
   

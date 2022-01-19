@@ -29,7 +29,7 @@
                 </el-table-column>
                 <el-table-column label="操作" width>
                     <template #default="scope">
-                        <el-button v-if="scope.row.id == null" @click="addFiles(scope.row)" type="success" icon="success" size="small" plain
+                        <el-button v-if="scope.row.id == null" @click="addFiles(scope.row)" type="success" icon="success-filled" size="small" plain
                             >确定</el-button
                         >
                         <el-button v-if="scope.row.id != null" @click="getConf(scope.row)" type="primary" icon="tickets" size="small" plain

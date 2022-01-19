@@ -291,7 +291,7 @@ const (
 
 	// mysql 列信息元数据
 	MYSQL_COLOUMN_MA = `SELECT table_name tableName, column_name columnName, column_type columnType,
-	column_comment columnComment, column_key columnKey, extra from information_schema.columns
+	column_comment columnComment, column_key columnKey, extra, is_nullable nullable from information_schema.columns
 	WHERE table_name in (%s) AND table_schema = (SELECT database()) ORDER BY ordinal_position limit 18000`
 )
 

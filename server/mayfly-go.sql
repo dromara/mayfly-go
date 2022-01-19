@@ -396,6 +396,8 @@ INSERT INTO `t_sys_resource` VALUES (62, 61, 2, 1, '基本权限', 'redis:data',
 INSERT INTO `t_sys_resource` VALUES (63, 60, 1, 1, 'redis管理', 'manage', 2, '{\"component\":\"RedisList\",\"icon\":\"Menu\",\"isKeepAlive\":true,\"routeName\":\"RedisList\"}', 1, 'admin', 1, 'admin', '2021-07-20 10:48:04', '2021-07-20 10:48:04');
 INSERT INTO `t_sys_resource` VALUES (64, 63, 2, 1, '基本权限', 'redis:manage', 1, 'null', 1, 'admin', 1, 'admin', '2021-07-20 10:48:26', '2021-07-20 10:48:26');
 INSERT INTO `t_sys_resource` VALUES (70, 48, 2, 1, '项目删除', 'project:del', 6, 'null', 1, 'admin', 1, 'admin', '2021-08-17 11:20:37', '2021-08-17 11:20:37');
+INSERT INTO `t_sys_resource` VALUES (71, 61, 2, 1, '数据保存', 'redis:data:save', 6, 'null', 1, 'admin', 1, 'admin', '2021-08-17 11:20:37', '2021-08-17 11:20:37');
+INSERT INTO `t_sys_resource` VALUES (72, 3, 2, 1, '终止进程', 'machine:killprocess', 6, 'null', 1, 'admin', 1, 'admin', '2021-08-17 11:20:37', '2021-08-17 11:20:37');
 COMMIT;
 
 -- ----------------------------

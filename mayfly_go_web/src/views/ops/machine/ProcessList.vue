@@ -128,7 +128,9 @@ export default defineComponent({
             // root         1  0.0  0.0 125632  3352 ?        Ss    2019 154:04 /usr/lib/systemd/systemd --system --deserialize 22
             const psStrings = res.split('\n');
             const ps = [];
-            for (let i = 1; i < psStrings.length; i++) {
+            // 如果有根据名称查进程，则第一行没有表头
+            const index = state.params.name == '' ? 1 : 0;
+            for (let i = index; i < psStrings.length; i++) {
                 const psStr = psStrings[i];
                 const process = psStr.split(/\s+/);
                 if (process.length < 2) {
