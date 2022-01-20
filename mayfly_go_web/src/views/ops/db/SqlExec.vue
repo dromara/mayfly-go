@@ -45,7 +45,7 @@
             </el-container>
 
             <el-tabs @tab-remove="removeDataTab" @tab-click="onDataTabClick" style="width: 70%; margin-left: 10px" v-model="activeName">
-                <el-tab-pane label="查询" :name="queryTabName">
+                <el-tab-pane :label="queryTab.label" :name="queryTab.name">
                     <div>
                         <div>
                             <div class="toolbar">
@@ -66,6 +66,7 @@
                                     >
                                         <el-button type="success" icon="video-play" plain size="small">sql脚本执行</el-button>
                                     </el-upload>
+                                    <el-button @click="onCommit" class="ml5" type="success" icon="CircleCheck" plain size="small">commit</el-button>
                                 </div>
 
                                 <div style="float: right" class="fl">
@@ -107,10 +108,14 @@
                         </div>
 
                         <div class="mt10">
+                            <el-row v-if="queryTab.nowTableName">
+                                <el-link @click="onDeleteData" class="ml5" type="danger" icon="delete" :underline="false"></el-link>
+                            </el-row>
                             <el-table
                                 @cell-dblclick="cellClick"
+                                @selection-change="onDataSelectionChange"
                                 style="margin-top: 1px"
-                                :data="execRes.data"
+                                :data="queryTab.execRes.data"
                                 size="small"
                                 max-height="220"
                                 empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
@@ -118,10 +123,15 @@
                                 border
                             >
                                 <el-table-column
+                                    v-if="queryTab.execRes.tableColumn.length > 0 && queryTab.nowTableName"
+                                    type="selection"
+                                    width="35"
+                                />
+                                <el-table-column
                                     min-width="100"
-                                    :width="flexColumnWidth(item, execRes.data)"
+                                    :width="flexColumnWidth(item, queryTab.execRes.data)"
                                     align="center"
-                                    v-for="item in execRes.tableColumn"
+                                    v-for="item in queryTab.execRes.tableColumn"
                                     :key="item"
                                     :prop="item"
                                     :label="item"
@@ -134,10 +144,19 @@
                 </el-tab-pane>
 
                 <el-tab-pane closable v-for="dt in dataTabs" :key="dt.name" :label="dt.label" :name="dt.name">
+                    <el-row v-if="dbId">
+                        <el-link @click="onRefresh(dt.name)" icon="refresh" :underline="false"></el-link>
+                        <el-link @click="addRow" class="ml5" type="primary" icon="plus" :underline="false"></el-link>
+                        <el-link @click="onDeleteData" class="ml5" type="danger" icon="delete" :underline="false"></el-link>
+
+                        <el-tooltip class="box-item" effect="dark" content="commit" placement="top">
+                            <el-link @click="onCommit" class="ml5" type="success" icon="check" :underline="false"></el-link>
+                        </el-tooltip>
+                    </el-row>
                     <el-table
                         @cell-dblclick="cellClick"
-                        @row-contextmenu="contextmenu"
                         @sort-change="onTableSortChange"
+                        @selection-change="onDataSelectionChange"
                         style="margin-top: 1px"
                         :data="dt.execRes.data"
                         size="small"
@@ -146,6 +165,7 @@
                         stripe
                         border
                     >
+                        <el-table-column v-if="dt.execRes.tableColumn.length > 0" type="selection" width="35" />
                         <el-table-column
                             min-width="100"
                             :width="flexColumnWidth(item, dt.execRes.data)"
@@ -159,9 +179,6 @@
                         >
                         </el-table-column>
                     </el-table>
-                    <el-row v-if="dbId">
-                        <el-button @click="addRow" type="text" icon="plus"></el-button>
-                    </el-row>
                 </el-tab-pane>
             </el-tabs>
         </el-container>
@@ -169,7 +186,7 @@
 </template>
 
 <script lang="ts">
-import { h, toRefs, reactive, computed, defineComponent, ref, createApp } from 'vue';
+import { h, toRefs, reactive, computed, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
 import _ from 'lodash';
 
@@ -186,11 +203,12 @@ import 'codemirror/addon/hint/show-hint.js';
 import 'codemirror/addon/hint/sql-hint.js';
 
 import { format as sqlFormatter } from 'sql-formatter';
-import { notNull, notEmpty } from '@/common/assert';
-import { ElMessage, ElMessageBox, ElMenu, ElMenuItem } from 'element-plus';
+import { notNull, notEmpty, isTrue } from '@/common/assert';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
+import { key } from '../../../store/index';
 
 export default defineComponent({
     name: 'SqlExec',
@@ -209,7 +227,6 @@ export default defineComponent({
             tables: [],
             dbId: null,
             tableName: '',
-            nowTableName: '', // 当前表格数据操作的数据库表名，用于双击编辑表内容使用
             tableMetadata: [],
             columnMetadata: [],
             sqlName: '', // 当前sql模板名
@@ -217,16 +234,19 @@ export default defineComponent({
             sql: '',
             activeName: 'Query',
             queryTabName: 'Query',
-            sqlTabs: {
-                tabs: [] as any,
-                active: '',
-                index: 1,
-            },
+            nowTableName: '', // 当前表格数据操作的数据库表名，用于双击编辑表内容使用
             dataTabs: {}, // 点击表信息后执行结果数据展示tabs
-            // 点击执行按钮执行结果信息
-            execRes: {
-                data: [],
-                tableColumn: [],
+            // 查询tab
+            queryTab: {
+                label: '查询',
+                name: 'Query',
+                // 点击执行按钮执行结果信息
+                execRes: {
+                    data: [],
+                    tableColumn: [],
+                },
+                nowTableName: '', //当前表格数据操作的数据库表名，用于双击编辑表内容使用
+                selectionDatas: [],
             },
             params: {
                 pageNum: 1,
@@ -259,6 +279,8 @@ export default defineComponent({
                 // more CodeMirror options...
             },
         });
+
+        const tableMap = new Map();
 
         const codemirror: any = computed(() => {
             return cmEditor.value.coder;
@@ -303,19 +325,24 @@ export default defineComponent({
 
             // 即只有以该字符串开头的sql才可修改表数据内容
             if (sql.startsWith('SELECT *') || sql.startsWith('select *') || sql.startsWith('SELECT\n  *')) {
+                state.queryTab.selectionDatas = [];
                 const tableName = sql.split(/from/i)[1];
                 if (tableName) {
-                    state.nowTableName = tableName.trim().split(' ')[0];
+                    const tn = tableName.trim().split(' ')[0];
+                    state.queryTab.nowTableName = tn;
+                    state.nowTableName = tn;
                 } else {
+                    state.queryTab.nowTableName = '';
                     state.nowTableName = '';
                 }
             } else {
+                state.queryTab.nowTableName = '';
                 state.nowTableName = '';
             }
 
             const colAndData: any = await runSql(sql);
-            state.execRes.data = colAndData.res;
-            state.execRes.tableColumn = colAndData.colNames;
+            state.queryTab.execRes.data = colAndData.res;
+            state.queryTab.execRes.tableColumn = colAndData.colNames;
         };
 
         /**
@@ -335,7 +362,7 @@ export default defineComponent({
             let activeName = state.activeName;
             tabNames.forEach((name, index) => {
                 if (name === targetName) {
-                    const nextTab = tabNames[index + 1] || tabNames[index - 1] || state.queryTabName;
+                    const nextTab = tabNames[index + 1] || tabNames[index - 1] || state.queryTab.name;
                     if (nextTab) {
                         activeName = nextTab;
                     }
@@ -351,10 +378,10 @@ export default defineComponent({
         const onDataTabClick = (tab: any) => {
             const name = tab.props.name;
             // 不是查询tab，则为表数据tab，同时赋值当前表名，用于在线修改表数据等
-            if (name != state.queryTabName) {
+            if (name != state.queryTab.name) {
                 state.nowTableName = name;
             } else {
-                state.nowTableName = '';
+                state.nowTableName = state.queryTab.nowTableName;
             }
         };
 
@@ -483,14 +510,7 @@ export default defineComponent({
             if (tableName == '') {
                 return;
             }
-            dbApi.columnMetadata
-                .request({
-                    id: state.dbId,
-                    tableName: tableName,
-                })
-                .then((res) => {
-                    state.columnMetadata = res;
-                });
+            state.columnMetadata = (await getColumns(tableName)) as any;
 
             if (!execSelectSql) {
                 return;
@@ -499,31 +519,60 @@ export default defineComponent({
             // 执行sql，并新增tab
             state.nowTableName = tableName;
             state.activeName = tableName;
-
             let tab = state.dataTabs[tableName];
-            if (!tab) {
-                tab = {
-                    label: tableName,
-                    name: tableName,
-                    execRes: {
-                        tableColumn: [],
-                        data: [],
-                        emptyResText: '执行中...',
-                    },
-                };
+            // 如果存在该表tab，则直接返回
+            if (tab) {
+                return;
             }
+
+            tab = {
+                label: tableName,
+                name: tableName,
+                execRes: {
+                    tableColumn: [],
+                    data: [],
+                    emptyResText: '执行中...',
+                },
+                querySql: `SELECT * FROM ${tableName} LIMIT ${state.defalutLimit}`,
+            };
             state.dataTabs[tableName] = tab;
+
             state.dataTabs[tableName].execRes.tableColumn = [];
             state.dataTabs[tableName].execRes.data = [];
 
-            const colAndData: any = await runSql(`SELECT * FROM ${tableName} LIMIT ${state.defalutLimit}`);
+            onRefresh(tableName);
+        };
+
+        /**
+         * 获取表的所有列信息
+         */
+        const getColumns = async (tableName: string) => {
+            // 优先从 table map中获取
+            let columns = tableMap.get(tableName);
+            if (columns) {
+                return columns;
+            }
+            columns = await dbApi.columnMetadata.request({
+                id: state.dbId,
+                tableName: tableName,
+            });
+            tableMap.set(tableName, columns);
+            return columns;
+        };
+
+        const onRefresh = async (tableName: string) => {
+            const colAndData: any = await runSql(state.dataTabs[tableName].querySql);
             state.dataTabs[tableName].execRes.emptyResText = '没有数据';
             state.dataTabs[tableName].execRes.tableColumn = colAndData.colNames;
             state.dataTabs[tableName].execRes.data = colAndData.res;
         };
 
-        const changeSqlTemplate = () => {
-            getUserSql();
+        /**
+         * 提交事务，用于没有开启自动提交事务
+         */
+        const onCommit = () => {
+            runSql('COMMIT;');
+            ElMessage.success('COMMIT success');
         };
 
         /**
@@ -533,9 +582,15 @@ export default defineComponent({
             if (!state.nowTableName) {
                 return;
             }
+            const tableName = state.activeName;
             const sortType = sort.order == 'descending' ? 'DESC' : 'ASC';
-            const colAndData: any = await runSql(`SELECT * FROM ${state.nowTableName} ORDER BY ${sort.prop} ${sortType} LIMIT ${state.defalutLimit}`);
-            state.dataTabs[state.activeName].execRes.data = colAndData.res;
+
+            state.dataTabs[state.activeName].querySql = `SELECT * FROM ${tableName} ORDER BY ${sort.prop} ${sortType} LIMIT ${state.defalutLimit}`;
+            onRefresh(tableName);
+        };
+
+        const changeSqlTemplate = () => {
+            getUserSql();
         };
 
         /**
@@ -606,91 +661,64 @@ export default defineComponent({
         // 清空数据库事件
         const clearDb = () => {
             state.tableName = '';
+            state.nowTableName = '';
             state.tableMetadata = [];
             state.columnMetadata = [];
             state.dataTabs = {};
             state.sql = '';
             state.sqlNames = [];
-            state.activeName = state.queryTabName;
-            state.execRes.data = [];
-            state.execRes.tableColumn = [];
+            state.activeName = state.queryTab.name;
+            state.queryTab.execRes.data = [];
+            state.queryTab.execRes.tableColumn = [];
             state.cmOptions.hintOptions.tables = [];
+            tableMap.clear();
         };
-        // 某一行鼠标右击
-        const contextmenu = (row: any, column: any, event: any) => {
-            event.preventDefault();
-            let pagex = event.pageX;
-            let pagey = event.pageY;
-            let child = document.getElementById('contextmenu');
-            if (child) {
-                document.body.removeChild(child);
+
+        const onDataSelectionChange = (datas: []) => {
+            if (isQueryTab()) {
+                state.queryTab.selectionDatas = datas;
+            } else {
+                state.dataTabs[state.activeName].selectionDatas = datas;
             }
-            let div = document.createElement('div');
-            div.setAttribute('id', 'contextmenu');
-            div.setAttribute(
-                'style',
-                `overflow:hidden;border-radius:10px;border:1px solid #bababa;width:100px;position:absolute;left:${pagex}px;top:${pagey}px;z-index:1000`
-            );
-            document.body.appendChild(div);
-            document.body.addEventListener('click', (e: any) => {
-                if (!e.target.className.includes('el-menu-item')) {
-                    let child = document.getElementById('contextmenu');
-                    if (child) {
-                        document.body.removeChild(child);
-                    }
+        };
+
+        /**
+         * 执行删除数据事件
+         */
+        const onDeleteData = async () => {
+            const queryTab = isQueryTab();
+            const deleteDatas = queryTab ? state.queryTab.selectionDatas : state.dataTabs[state.activeName].selectionDatas;
+            isTrue(deleteDatas && deleteDatas.length > 0, '请先选择要删除的数据');
+            const primaryKey = await getTablePrimaryKeyColume(state.nowTableName);
+            const ids = deleteDatas.map((d: any) => `'${d[primaryKey]}'`).join(',');
+            const sql = `DELETE FROM ${state.nowTableName} WHERE ${primaryKey} IN (${ids})`;
+
+            promptExeSql(sql, null, () => {
+                if (!queryTab) {
+                    state.dataTabs[state.activeName].execRes.data = state.dataTabs[state.activeName].execRes.data.filter(
+                        (d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKey] == d[primaryKey]) != -1)
+                    );
+                    state.dataTabs[state.activeName].selectionDatas = [];
+                } else {
+                    state.queryTab.execRes.data = state.queryTab.execRes.data.filter(
+                        (d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKey] == d[primaryKey]) != -1)
+                    );
+                    state.queryTab.selectionDatas = [];
                 }
             });
-            const menu = {
-                render() {
-                    return h(
-                        ElMenu,
-                        {
-                            activeTextColor: '#413F41',
-                            textColor: '#413F41',
-                            backgroundColor: '#eae4e9',
-                            style: {
-                                width: '100%',
-                            },
-                        },
-                        {
-                            default: () => [
-                                h(
-                                    ElMenuItem,
-                                    {
-                                        onClick: () => {
-                                            ElMessageBox({
-                                                title: '删除记录',
-                                                message: '确定删除这条记录？',
-                                                showCancelButton: true,
-                                                confirmButtonText: '确定',
-                                                cancelButtonText: '取消',
-                                            })
-                                                .then(async (action) => {
-                                                    let sql = `DELETE FROM ${state.tableName} WHERE id=${row.id};`;
-                                                    await dbApi.sqlExec.request({
-                                                        id: state.dbId,
-                                                        sql: sql,
-                                                    });
-                                                    changeTable(state.tableName, true);
-                                                })
-                                                .catch(() => {});
-                                        },
-                                    },
-                                    {
-                                        default: () => ['删除记录'],
-                                    }
-                                ),
-                            ],
-                        }
-                    );
-                },
-            };
-            createApp(menu).mount('#contextmenu');
         };
+
+        /**
+         * 是否为查询tab
+         */
+        const isQueryTab = () => {
+            return state.activeName == state.queryTab.name;
+        };
+
         // 监听单元格点击事件
         const cellClick = (row: any, column: any, cell: any, event: any) => {
-            // 如果当前操作的表名不存在，则不允许修改表格内容
-            if (!state.nowTableName) {
+            // 如果当前操作的表名不存在 或者 当前列的property不存在(如多选框)，则不允许修改当前单元格内容
+            if (!state.nowTableName || !column.property) {
                 return;
             }
             let isDiv = cell.children[0].tagName === 'DIV';
@@ -703,11 +731,11 @@ export default defineComponent({
                 input.setAttribute('style', 'height:30px;' + div.getAttribute('style'));
                 cell.replaceChildren(input);
                 input.focus();
-                input.addEventListener('blur', () => {
+                input.addEventListener('blur', async () => {
                     div.innerText = input.value;
                     cell.replaceChildren(div);
                     if (input.value !== text) {
-                        const primaryKey = getTablePrimaryKeyColume(state.nowTableName);
+                        const primaryKey = await getTablePrimaryKeyColume(state.nowTableName);
                         const sql = `UPDATE ${state.nowTableName} SET ${column.rawColumnKey} = '${input.value}' WHERE ${primaryKey} = '${row[primaryKey]}'`;
                         promptExeSql(sql, () => {
                             div.innerText = text;
@@ -720,9 +748,9 @@ export default defineComponent({
         /**
          * 获取表主键列名，目前先以默认表字段第一个字段
          */
-        const getTablePrimaryKeyColume = (tableName: string) => {
-            // 'id  [bigint(20) unsigned]'
-            return state.cmOptions.hintOptions.tables[tableName][0].split('  ')[0];
+        const getTablePrimaryKeyColume = async (tableName: string) => {
+            const cols = await getColumns(tableName);
+            return cols[0].columnName;
         };
 
         /**
@@ -730,7 +758,7 @@ export default defineComponent({
          */
         const promptExeSql = (sql: string, cancelFunc: any = null, successFunc: any = null) => {
             ElMessageBox({
-                title: '执行SQL',
+                title: '待执行SQL',
                 message: h(
                     'div',
                     {
@@ -742,7 +770,7 @@ export default defineComponent({
                             autocomplete: 'off',
                             rows: 8,
                             style: {
-                                height: '150px',
+                                height: '300px',
                                 width: '100%',
                                 fontWeight: '600',
                             },
@@ -769,9 +797,11 @@ export default defineComponent({
                     }
                 },
             })
-                .then((action) => {
-                    runSql(sql);
-                    successFunc();
+                .then(async (action) => {
+                    await runSql(sql);
+                    if (successFunc) {
+                        successFunc();
+                    }
                 })
                 .catch(() => {
                     if (cancelFunc) {
@@ -781,16 +811,20 @@ export default defineComponent({
         };
 
         // 添加新数据行
-        const addRow = () => {
+        const addRow = async () => {
+            const tableNmae = state.nowTableName;
+            const columns = await getColumns(tableNmae);
+
+            // key: 字段名，value: 字段名提示
             let obj: any = {};
-            (state.execRes.tableColumn as any) = state.columnMetadata.map((i) => (i as any).columnName);
-            state.execRes.tableColumn.forEach((item) => {
-                obj[item] = 'NULL';
+            columns.forEach((item: any) => {
+                obj[item.columnName] = `'${item.columnName}[${item.columnType}]${item.nullable == 'YES' ? '' : '[not null]'}'`;
             });
+            let columnNames = Object.keys(obj).join(',');
             let values = Object.values(obj).join(',');
-            let sql = `INSERT INTO ${state.tableName} VALUES (${values});`;
+            let sql = `INSERT INTO ${state.nowTableName} (${columnNames}) VALUES (${values});`;
             promptExeSql(sql, null, () => {
-                changeTable(state.tableName, true);
+                onRefresh(tableNmae);
             });
         };
 
@@ -864,8 +898,11 @@ export default defineComponent({
             formatSql,
             onBeforeChange,
             listenMouse,
+            onRefresh,
+            onCommit,
             addRow,
-            contextmenu,
+            onDataSelectionChange,
+            onDeleteData,
             onTableSortChange,
         };
     },
