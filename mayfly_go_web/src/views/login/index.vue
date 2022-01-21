@@ -12,16 +12,16 @@
                             <Account v-show="isTabPaneShow" />
                         </transition>
                     </el-tab-pane>
-                    <el-tab-pane label="手机号登录" name="mobile" :disabled="tabsActiveName === 'mobile'">
+                    <!-- <el-tab-pane label="手机号登录" name="mobile" :disabled="tabsActiveName === 'mobile'">
                         <transition name="el-zoom-in-center">
                             <Mobile v-show="!isTabPaneShow" />
                         </transition>
-                    </el-tab-pane>
+                    </el-tab-pane> -->
                 </el-tabs>
-                <div class="mt10">
+                <!-- <div class="mt10">
                     <el-button type="text" size="small">第三方登录</el-button>
                     <el-button type="text" size="small">友情链接</el-button>
-                </div>
+                </div> -->
             </div>
         </div>
         <div class="login-copyright">

@@ -2,57 +2,83 @@
     <div :style="{ height: height }" id="xterm" class="xterm" />
 </template>
 
-<script>
+<script lang="ts">
 import 'xterm/css/xterm.css';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { getSession } from '@/common/utils/storage.ts';
-import config from '@/common/config'
+import config from '@/common/config';
+import { useStore } from '@/store/index.ts';
+import { toRefs, watch, computed, reactive, defineComponent, onMounted, onBeforeUnmount } from 'vue';
 
-export default {
-    name: 'Xterm',
+export default defineComponent({
+    name: 'SshTerminal',
     props: {
-        machineId: Number,
-        cmd: String,
-        height: String,
+        machineId: { type: Number },
+        cmd: { type: String },
+        height: { type: String },
     },
-    watch: {
-        machineId(val) {
-            if (val !== '') {
-                this.initSocket();
+    setup(props: any) {
+        const state = reactive({
+            machineId: 0,
+            cmd: '',
+            height: '',
+            term: null as any,
+            socket: null as any,
+        });
+
+        watch(props, (newValue) => {
+            console.log(newValue);
+            state.machineId = newValue.machineId;
+            state.cmd = newValue.cmd;
+            state.height = newValue.height;
+            if (state.machineId) {
+                initSocket();
             }
-        },
-    },
-    mounted() {
-        this.initSocket();
-        // this.initTerm()
-    },
-    beforeUnmount() {
-        this.socket.close();
-        if (this.term) {
-            this.term.dispose();
-        }
-    },
-    methods: {
-        initXterm() {
-            const term = new Terminal({
-                fontSize: 15,
+        });
+
+        onMounted(() => {
+            state.machineId = props.machineId;
+            state.height = props.height;
+            state.cmd = props.cmd;
+            if (state.machineId) {
+                initSocket();
+            }
+        });
+
+        onBeforeUnmount(() => {
+            closeAll();
+        });
+
+        const store = useStore();
+
+        // 获取布局配置信息
+        const getThemeConfig: any = computed(() => {
+            return store.state.themeConfig.themeConfig;
+        });
+
+        function initXterm() {
+            const term: any = new Terminal({
+                fontSize: getThemeConfig.value.terminalFontSize,
                 cursorBlink: true,
                 // cursorStyle: 'underline', //光标样式
                 disableStdin: false,
                 theme: {
-                    foreground: '#7e9192', //字体
-                    background: '#002833', //背景色
-                    cursor: '#268F81', //设置光标
+                    // foreground: '#7e9192', //字体
+                    // background: '#002833', //背景色
+                    // cursor: '#268F81', //设置光标
                     lineHeight: 16,
-                },
+                    foreground: getThemeConfig.value.terminalForeground, //字体
+                    background: getThemeConfig.value.terminalBackground, //背景色
+                    cursor: getThemeConfig.value.terminalCursor, //设置光标
+                } as any,
             });
             const fitAddon = new FitAddon();
             term.loadAddon(fitAddon);
             term.open(document.getElementById('xterm'));
             fitAddon.fit();
             term.focus();
-            this.term = term;
+            state.term = term;
 
             // / **
             //     *添加事件监听器，用于按下键时的事件。事件值包含
@@ -68,51 +94,59 @@ export default {
             //  * @返回一个IDisposable停止监听。
             //  * /
             // 支持输入与粘贴方法
-            term.onData((key) => {
-                this.sendCmd(key);
+            term.onData((key: any) => {
+                sendCmd(key);
             });
             // 为解决窗体resize方法才会向后端发送列数和行数，所以页面加载时也要触发此方法
-            this.send({
+            send({
                 type: 'resize',
                 Cols: parseInt(term.cols),
                 Rows: parseInt(term.rows),
             });
             // 如果有初始要执行的命令，则发送执行命令
-            if (this.cmd) {
-                this.sendCmd(this.cmd + ' \r');
+            if (state.cmd) {
+                sendCmd(state.cmd + ' \r');
             }
-        },
-        initSocket() {
-            this.socket = new WebSocket(`${config.baseWsUrl}/machines/${this.machineId}/terminal?token=${getSession('token')}`);
+        }
+
+        function initSocket() {
+            state.socket = new WebSocket(`${config.baseWsUrl}/machines/${state.machineId}/terminal?token=${getSession('token')}`);
             // 监听socket连接
-            this.socket.onopen = this.open;
+            state.socket.onopen = open;
             // 监听socket错误信息
-            this.socket.onerror = this.error;
+            state.socket.onerror = error;
             // 监听socket消息
-            this.socket.onmessage = this.getMessage;
+            state.socket.onmessage = getMessage;
             // 发送socket消息
-            this.socket.onsend = this.send;
-        },
-        open: function () {
+            state.socket.onsend = send;
+        }
+
+        function open() {
             console.log('socket连接成功');
-            this.initXterm();
+            initXterm();
             //开启心跳
             //   this.start();
-        },
-        error: function () {
+        }
+
+        function error() {
             console.log('连接错误');
             //重连
-            this.reconnect();
-        },
-        close: function () {
-            this.socket.close();
-            console.log('socket关闭');
+            // reconnect();
+        }
+
+        function close() {
+            if (state.socket) {
+                state.socket.close();
+                console.log('socket关闭');
+            }
+
             //重连
             //   this.reconnect()
-        },
-        getMessage: function (msg) {
+        }
+
+        function getMessage(msg: string) {
             //   console.log(msg)
-            this.term.write(msg['data']);
+            state.term.write(msg['data']);
             //msg是返回的数据
             //   msg = JSON.parse(msg.data);
             //   this.socket.send("ping");//有事没事ping一下，看看ws还活着没
@@ -126,24 +160,30 @@ export default {
             //   }
             //收到服务器信息，心跳重置
             //   this.reset();
-        },
-        send: function (msg) {
-            this.socket.send(JSON.stringify(msg));
-        },
+        }
 
-        sendCmd(key) {
-            this.send({
+        function send(msg: any) {
+            state.socket.send(JSON.stringify(msg));
+        }
+
+        function sendCmd(key: any) {
+            send({
                 type: 'cmd',
                 msg: key,
             });
-        },
-        closeAll() {
-            this.close();
-            if (this.term) {
-                this.term.dispose();
-                this.term = null;
+        }
+
+        function closeAll() {
+            close();
+            if (state.term) {
+                state.term.dispose();
+                state.term = null;
             }
-        },
+        }
+
+        return {
+            ...toRefs(state),
+        };
     },
-};
+});
 </script>

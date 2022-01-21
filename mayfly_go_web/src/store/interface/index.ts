@@ -48,6 +48,10 @@ export interface ThemeConfigState {
         globalViceTitle: string;
         globalI18n: string;
         globalComponentSize: string;
+        terminalForeground: string;
+        terminalBackground: string;
+        terminalCursor: string;
+        terminalFontSize: number;
     };
 }
 

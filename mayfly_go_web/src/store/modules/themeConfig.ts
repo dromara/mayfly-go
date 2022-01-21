@@ -106,6 +106,15 @@ const themeConfigModule: Module<ThemeConfigState, RootStateTypes> = {
             // 默认布局，可选 1、默认 defaults 2、经典 classic 3、横向 transverse 4、分栏 columns
             layout: 'classic',
 
+            // ssh终端字体颜色
+            terminalForeground: '#7e9192',
+            // ssh终端背景色
+            terminalBackground: '#002833',
+            // ssh终端cursor色
+            terminalCursor: '#268F81',
+            terminalFontSize: 15,
+
+
             /* 后端控制路由
             ------------------------------- */
             // 是否开启后端控制路由

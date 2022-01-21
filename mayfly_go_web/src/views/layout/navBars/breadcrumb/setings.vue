@@ -2,6 +2,42 @@
     <div class="layout-breadcrumb-seting">
         <el-drawer title="布局设置" v-model="getThemeConfig.isDrawer" direction="rtl" destroy-on-close size="240px" @close="onDrawerClose">
             <el-scrollbar class="layout-breadcrumb-seting-bar">
+                <!-- ssh终端主题 -->
+                <el-divider content-position="left">终端主题</el-divider>
+                <div class="layout-breadcrumb-seting-bar-flex">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">字体颜色</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-color-picker v-model="getThemeConfig.terminalForeground" size="small" @change="onColorPickerChange('terminalForeground')"> </el-color-picker>
+                    </div>
+                </div>
+                <div class="layout-breadcrumb-seting-bar-flex">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">背景颜色</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-color-picker v-model="getThemeConfig.terminalBackground" size="small" @change="onColorPickerChange('terminalBackground')"> </el-color-picker>
+                    </div>
+                </div>
+                <div class="layout-breadcrumb-seting-bar-flex">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">cursor颜色</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-color-picker v-model="getThemeConfig.terminalCursor" size="small" @change="onColorPickerChange('terminalCursor')"> </el-color-picker>
+                    </div>
+                </div>
+                <div class="layout-breadcrumb-seting-bar-flex">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">字体大小</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-input-number
+                            v-model="getThemeConfig.terminalFontSize"
+                            controls-position="right"
+                            :min="12"
+                            :max="24"
+                            @change="setLocalThemeConfig"
+                            size="small"
+                            style="width: 90px"
+                        >
+                        </el-input-number>
+                    </div>
+                </div>
+
                 <!-- 全局主题 -->
                 <el-divider content-position="left">全局主题</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex">
