@@ -49,7 +49,7 @@
             <el-table v-loading="loading" :data="keys" stripe :highlight-current-row="true" style="cursor: pointer">
                 <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
                 <el-table-column prop="type" label="type" width="80"> </el-table-column>
-                <el-table-column prop="ttl" label="ttl(过期时间)" width="120">
+                <el-table-column prop="ttl" label="ttl(过期时间)" width="130">
                     <template #default="scope">
                         {{ ttlConveter(scope.row.ttl) }}
                     </template>
@@ -163,7 +163,7 @@ export default defineComponent({
 
         const scan = () => {
             isTrue(state.scanParam.id != null, '请先选择redis');
-            isTrue(state.scanParam.count < 2001, 'count不能超过2000');
+            isTrue(state.scanParam.count < 20001, 'count不能超过20000');
 
             state.loading = true;
             state.scanParam.cluster = state.cluster == 0 ? 0 : 1;

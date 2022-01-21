@@ -35,7 +35,7 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="name" label="名称" min-width="130"></el-table-column>
+                <el-table-column prop="name" label="名称" min-width="130" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="ip" label="ip:port" min-width="130">
                     <template #default="scope">
                         {{ `${scope.row.ip}:${scope.row.port}` }}
@@ -48,7 +48,7 @@
                         {{ `${scope.row.hasCli ? '是' : '否'}` }}
                     </template>
                 </el-table-column>
-                <el-table-column prop="createTime" label="创建时间" width="160">
+                <el-table-column prop="createTime" label="创建时间" width="165">
                     <template #default="scope">
                         {{ $filters.dateFormat(scope.row.createTime) }}
                     </template>
@@ -70,6 +70,7 @@
                     layout="prev, pager, next, total, jumper"
                     v-model:current-page="params.pageNum"
                     :page-size="params.pageSize"
+                    @current-change="handlePageChange"
                 ></el-pagination>
             </el-row>
         </el-card>
@@ -259,6 +260,11 @@ export default defineComponent({
             state.data = res;
         };
 
+        const handlePageChange = (curPage: number) => {
+            state.params.pageNum = curPage;
+            search();
+        };
+
         const showProcess = (row: any) => {
             state.processDialog.machineId = row.id;
             state.processDialog.visible = true;
@@ -278,6 +284,7 @@ export default defineComponent({
             submitSuccess,
             fileManage,
             search,
+            handlePageChange,
         };
     },
 });
