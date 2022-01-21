@@ -25,39 +25,22 @@
 
 #### 数据库操作
 数据操作-可提示字段备注信息
-![数据操作](https://images.gitee.com/uploads/images/2021/0728/184856_e7ec69c2_1240250.png "屏幕截图.png")
+![数据操作](%E7%B3%BB%E7%BB%9F%E6%BC%94%E7%A4%BA/dbms-%E6%95%B0%E6%8D%AE%E6%93%8D%E4%BD%9C.gif)
 
 数据库表信息查看
-![表信息查看](https://images.gitee.com/uploads/images/2021/0818/174724_ba2114b3_1240250.png "屏幕截图.png")
-![字段查看](https://images.gitee.com/uploads/images/2021/0818/174803_7043ba70_1240250.png "屏幕截图.png")
-![索引查看](https://images.gitee.com/uploads/images/2021/0818/112757_980f1cf1_1240250.png "屏幕截图.png")
-![建表sql](https://images.gitee.com/uploads/images/2021/0818/174612_17caeb95_1240250.png "屏幕截图.png")
+![数据库管理](%E7%B3%BB%E7%BB%9F%E6%BC%94%E7%A4%BA/dbms-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%AE%A1%E7%90%86.gif)
 
 #### 机器ssh终端
 ![ssh终端](https://images.gitee.com/uploads/images/2021/0607/173245_e2e1e89a_1240250.png "屏幕截图.png")
 
-
 #### 机器文件管理
-
-可操作文件列表或目录
-![可操作文件列表或目录](https://images.gitee.com/uploads/images/2021/0508/174420_ce98f847_1240250.png "屏幕截图.png")
-
-文件目录操作
-![文件目录操作](https://images.gitee.com/uploads/images/2021/0508/174510_a54d6914_1240250.png "屏幕截图.png")
-
-文件内容查看与修改
-![文件内容查看与修改](https://images.gitee.com/uploads/images/2021/0607/173408_98728e08_1240250.png "屏幕截图.png")
-
+![文件操作](%E7%B3%BB%E7%BB%9F%E6%BC%94%E7%A4%BA/linux-%E6%96%87%E4%BB%B6%E6%93%8D%E4%BD%9C.gif)
 
 #### 机器脚本管理
-脚本管理
-![脚本管理](https://images.gitee.com/uploads/images/2021/0508/174647_94e5d88b_1240250.png "屏幕截图.png")
+![脚本管理](%E7%B3%BB%E7%BB%9F%E6%BC%94%E7%A4%BA/linux-%E8%84%9A%E6%9C%AC%E7%AE%A1%E7%90%86.gif)
 
-脚本编辑修改
-![脚本编辑修改](https://images.gitee.com/uploads/images/2021/0607/173634_27df37d2_1240250.png "屏幕截图.png")
-
-脚本执行
-![脚本执行](https://images.gitee.com/uploads/images/2021/0508/174846_728de79b_1240250.png "屏幕截图.png")
+#### 进程管理
+![进程管理](%E7%B3%BB%E7%BB%9F%E6%BC%94%E7%A4%BA/linux-%E8%BF%9B%E7%A8%8B%E7%AE%A1%E7%90%86.gif)
 
 
 #### 机器监控
@@ -69,11 +52,8 @@
 redis info信息查看
 ![redis info信息查看](https://images.gitee.com/uploads/images/2021/0728/184423_50cb5711_1240250.png "info信息查看.png")
 
-key列表查询
-![redis key查看及查询](https://images.gitee.com/uploads/images/2021/0728/184540_1fc607eb_1240250.png "key操作.png")
-
-value查看
-![查看value](https://images.gitee.com/uploads/images/2021/0818/175018_dc0e043e_1240250.png "屏幕截图.png")
+数据操作
+![redis-数据操作](%E7%B3%BB%E7%BB%9F%E6%BC%94%E7%A4%BA/redis-%E6%95%B0%E6%8D%AE%E6%93%8D%E4%BD%9C.gif)
 
 
 #### 系统管理
