@@ -3,7 +3,6 @@ package application
 import (
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/model"
 	"mayfly-go/server/devops/domain/entity"
@@ -35,13 +34,13 @@ type MachineFile interface {
 	ReadDir(fid uint64, path string) []fs.FileInfo
 
 	// 读取文件内容
-	ReadFile(fileId uint64, path string) ([]byte, fs.FileInfo)
+	ReadFile(fileId uint64, path string) *sftp.File
 
 	// 写文件
 	WriteFileContent(fileId uint64, path string, content []byte)
 
 	// 文件上传
-	UploadFile(fileId uint64, path, filename string, content []byte)
+	UploadFile(fileId uint64, path, filename string, reader io.Reader)
 
 	// 移除文件
 	RemoveFile(fileId uint64, path string)
@@ -101,21 +100,13 @@ func (m *machineFileAppImpl) ReadDir(fid uint64, path string) []fs.FileInfo {
 	return fis
 }
 
-func (m *machineFileAppImpl) ReadFile(fileId uint64, path string) ([]byte, fs.FileInfo) {
+func (m *machineFileAppImpl) ReadFile(fileId uint64, path string) *sftp.File {
 	path, machineId := m.checkAndReturnPathMid(fileId, path)
 	sftpCli := m.getSftpCli(machineId)
 	// 读取文件内容
 	fc, err := sftpCli.Open(path)
-	biz.ErrIsNilAppendErr(err, "打开文件失败：%s")
-	defer fc.Close()
-
-	fileInfo, _ := fc.Stat()
-	biz.IsTrue(!fileInfo.IsDir(), "该文件为目录")
-	dataByte, err := ioutil.ReadAll(fc)
-	if err != nil && err != io.EOF {
-		panic(biz.NewBizErr("读取文件内容失败"))
-	}
-	return dataByte, fileInfo
+	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
+	return fc
 }
 
 // 写文件内容
@@ -133,7 +124,7 @@ func (m *machineFileAppImpl) WriteFileContent(fileId uint64, path string, conten
 }
 
 // 上传文件
-func (m *machineFileAppImpl) UploadFile(fileId uint64, path, filename string, content []byte) {
+func (m *machineFileAppImpl) UploadFile(fileId uint64, path, filename string, reader io.Reader) {
 	path, machineId := m.checkAndReturnPathMid(fileId, path)
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
@@ -144,7 +135,7 @@ func (m *machineFileAppImpl) UploadFile(fileId uint64, path, filename string, co
 	biz.ErrIsNilAppendErr(err, "创建文件失败: %s")
 	defer createfile.Close()
 
-	createfile.Write(content)
+	io.Copy(createfile, reader)
 }
 
 // 删除文件

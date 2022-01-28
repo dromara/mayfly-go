@@ -28,7 +28,6 @@ export default defineComponent({
         });
 
         watch(props, (newValue) => {
-            console.log(newValue);
             state.machineId = newValue.machineId;
             state.cmd = newValue.cmd;
             state.height = newValue.height;
@@ -59,18 +58,17 @@ export default defineComponent({
 
         function initXterm() {
             const term: any = new Terminal({
-                fontSize: getThemeConfig.value.terminalFontSize,
+                fontSize: getThemeConfig.value.terminalFontSize || 15,
+                // fontWeight: getThemeConfig.value.terminalFontWeight || 'normal',
+                fontFamily: 'JetBrainsMono, Consolas, Menlo, Monaco',
                 cursorBlink: true,
+                // letterSpacing: 1,
                 // cursorStyle: 'underline', //光标样式
                 disableStdin: false,
                 theme: {
-                    // foreground: '#7e9192', //字体
-                    // background: '#002833', //背景色
-                    // cursor: '#268F81', //设置光标
-                    lineHeight: 16,
-                    foreground: getThemeConfig.value.terminalForeground, //字体
-                    background: getThemeConfig.value.terminalBackground, //背景色
-                    cursor: getThemeConfig.value.terminalCursor, //设置光标
+                    foreground: getThemeConfig.value.terminalForeground || '#7e9192', //字体
+                    background: getThemeConfig.value.terminalBackground || '#002833', //背景色
+                    cursor: getThemeConfig.value.terminalCursor || '#268F81', //设置光标
                 } as any,
             });
             const fitAddon = new FitAddon();
@@ -79,6 +77,23 @@ export default defineComponent({
             fitAddon.fit();
             term.focus();
             state.term = term;
+
+            // term.onResize((columns: number, rows: number) => {
+            //     send({
+            //         type: 'resize',
+            //         Cols: columns,
+            //         Rows: rows,
+            //     });
+            // });
+            // 监听窗口resize
+            window.addEventListener('resize', () => {
+                try {
+                    // 窗口大小改变时，触发xterm的resize方法使自适应
+                    fitAddon.fit();
+                } catch (e) {
+                    console.log(e);
+                }
+            });
 
             // / **
             //     *添加事件监听器，用于按下键时的事件。事件值包含

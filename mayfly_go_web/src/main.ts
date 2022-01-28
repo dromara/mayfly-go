@@ -15,6 +15,7 @@ import locale from 'element-plus/lib/locale/lang/zh-cn'
 
 import * as svg from '@element-plus/icons-vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
+import '@/assets/font/font.css'
 
 const app = createApp(App);
 
@@ -31,7 +32,7 @@ const app = createApp(App);
     app.component('SvgIcon', SvgIcon);
 }
 
-elSvg(app)
+elSvg(app);
 directive(app);
 
 app.use(router)

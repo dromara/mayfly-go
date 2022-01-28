@@ -320,6 +320,7 @@ export default defineComponent({
         .CodeMirror-code {
             line-height: 19px;
         }
+        font-family: 'JetBrainsMono';
     }
 
     .code-mode-select {

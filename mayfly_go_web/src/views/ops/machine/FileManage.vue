@@ -57,13 +57,13 @@
                             <el-dropdown size="small" trigger="contextmenu">
                                 <span class="el-dropdown-link">
                                     <span v-if="data.type == 'd' && !node.expanded">
-                                        <SvgIcon name="folder"/>
+                                        <SvgIcon name="folder" />
                                     </span>
                                     <span v-if="data.type == 'd' && node.expanded">
-                                        <SvgIcon name="folder-opened"/>
+                                        <SvgIcon name="folder-opened" />
                                     </span>
                                     <span v-if="data.type == '-'">
-                                        <SvgIcon name="document"/>
+                                        <SvgIcon name="document" />
                                     </span>
 
                                     <span style="display: inline-block">
@@ -74,10 +74,9 @@
 
                                 <template #dropdown>
                                     <el-dropdown-menu>
-                                        <el-dropdown-item>
+                                        <el-dropdown-item v-if="data.type == '-' && data.size < 1 * 1024 * 1024">
                                             <el-link
                                                 @click.prevent="getFileContent(tree.folder.id, data.path)"
-                                                v-if="data.type == '-' && data.size < 1 * 1024 * 1024"
                                                 type="info"
                                                 icon="view"
                                                 :underline="false"
@@ -85,52 +84,55 @@
                                                 查看
                                             </el-link>
                                         </el-dropdown-item>
-                                        <el-dropdown-item v-if="data.type == 'd'">
-                                            <el-upload
-                                                :before-upload="beforeUpload"
-                                                :on-success="uploadSuccess"
-                                                :headers="{ token }"
-                                                :data="{
-                                                    fileId: tree.folder.id,
-                                                    path: data.path,
-                                                    machineId: machineId,
-                                                }"
-                                                :action="getUploadFile({ path: data.path })"
-                                                :show-file-list="false"
-                                                name="file"
-                                                multiple
-                                                :limit="100"
-                                                style="display: inline-block; margin-left: 2px"
-                                            >
-                                                <el-link v-auth="'machine:file:upload'" @click.prevent icon="upload" :underline="false">
-                                                    上传
+                                        
+                                        <span v-auth="'machine:file:upload'">
+                                            <el-dropdown-item v-if="data.type == 'd'">
+                                                <el-upload
+                                                    :before-upload="beforeUpload"
+                                                    :on-success="uploadSuccess"
+                                                    :headers="{ token }"
+                                                    :data="{
+                                                        fileId: tree.folder.id,
+                                                        path: data.path,
+                                                        machineId: machineId,
+                                                    }"
+                                                    :action="getUploadFile({ path: data.path })"
+                                                    :show-file-list="false"
+                                                    name="file"
+                                                    multiple
+                                                    :limit="100"
+                                                    style="display: inline-block; margin-left: 2px"
+                                                >
+                                                    <el-link @click.prevent icon="upload" :underline="false"> 上传 </el-link>
+                                                </el-upload>
+                                            </el-dropdown-item>
+                                        </span>
+
+                                        <span v-auth="'machine:file:write'">
+                                            <el-dropdown-item v-if="data.type == '-'">
+                                                <el-link
+                                                    @click.prevent="downloadFile(node, data)"
+                                                    type="primary"
+                                                    icon="download"
+                                                    :underline="false"
+                                                    style="margin-left: 2px"
+                                                    >下载</el-link
+                                                >
+                                            </el-dropdown-item>
+                                        </span>
+
+                                        <span v-auth="'machine:file:rm'">
+                                            <el-dropdown-item v-if="!dontOperate(data)">
+                                                <el-link
+                                                    @click.prevent="deleteFile(node, data)"
+                                                    type="danger"
+                                                    icon="delete"
+                                                    :underline="false"
+                                                    style="margin-left: 2px"
+                                                    >删除
                                                 </el-link>
-                                            </el-upload>
-                                        </el-dropdown-item>
-                                        <el-dropdown-item>
-                                            <el-link
-                                                v-auth="'machine:file:write'"
-                                                v-if="data.type == '-'"
-                                                @click.prevent="downloadFile(node, data)"
-                                                type="primary"
-                                                icon="download"
-                                                :underline="false"
-                                                style="margin-left: 2px"
-                                                >下载</el-link
-                                            >
-                                        </el-dropdown-item>
-                                        <el-dropdown-item>
-                                            <el-link
-                                                v-auth="'machine:file:rm'"
-                                                v-if="!dontOperate(data)"
-                                                @click.prevent="deleteFile(node, data)"
-                                                type="danger"
-                                                icon="delete"
-                                                :underline="false"
-                                                style="margin-left: 2px"
-                                                >删除
-                                            </el-link>
-                                        </el-dropdown-item>
+                                            </el-dropdown-item>
+                                        </span>
                                     </el-dropdown-menu>
                                 </template>
                             </el-dropdown>

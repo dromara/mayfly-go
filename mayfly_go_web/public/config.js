@@ -1,4 +1,4 @@
 window.globalConfig = {
-    "BaseApiUrl": "/api",
+    "BaseApiUrl": "http://localhost:8888",
     "BaseWsUrl": "ws://localhost:8888"
 }

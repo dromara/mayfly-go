@@ -911,9 +911,8 @@ export default defineComponent({
 
 <style scoped lang="scss">
 .codesql {
-    font-size: 10pt;
+    font-size: 9pt;
     font-weight: 600;
-    font-family: Consolas, Menlo, Monaco, Lucida Console, Liberation Mono, DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace, serif;
 }
 .el-tabs__header {
     padding: 0 10px;

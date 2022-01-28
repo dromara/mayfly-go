@@ -12,7 +12,7 @@ module.exports = {
 		sourceType: 'module',
 	},
 	extends: ['plugin:vue/essential'],
-	plugins: ['vue', '@typescript-eslint'],
+	// plugins: ['vue', '@typescript-eslint'],
 	rules: {
 		// http://eslint.cn/docs/rules/
 		// https://eslint.vuejs.org/rules/

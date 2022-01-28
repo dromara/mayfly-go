@@ -66,7 +66,10 @@ func (m *MachineFile) ReadFileContent(rc *ctx.ReqCtx) {
 	readPath := g.Query("path")
 	readType := g.Query("type")
 
-	dataByte, fileInfo := m.MachineFileApp.ReadFile(fid, readPath)
+	sftpFile := m.MachineFileApp.ReadFile(fid, readPath)
+	defer sftpFile.Close()
+
+	fileInfo, _ := sftpFile.Stat()
 	// 如果是读取文件内容，则校验文件大小
 	if readType != "1" {
 		biz.IsTrue(fileInfo.Size() < max_read_size, "文件超过1m，请使用下载查看")
@@ -77,9 +80,11 @@ func (m *MachineFile) ReadFileContent(rc *ctx.ReqCtx) {
 	if readType == "1" {
 		// 截取文件名，如/usr/local/test.java -》 test.java
 		path := strings.Split(readPath, "/")
-		rc.Download(dataByte, path[len(path)-1])
+		rc.Download(sftpFile, path[len(path)-1])
 	} else {
-		rc.ResData = string(dataByte)
+		datas, err := ioutil.ReadAll(sftpFile)
+		biz.ErrIsNilAppendErr(err, "读取文件内容失败: %s")
+		rc.ResData = string(datas)
 	}
 }
 
@@ -127,7 +132,6 @@ func (m *MachineFile) UploadFile(rc *ctx.ReqCtx) {
 	biz.ErrIsNilAppendErr(err, "读取文件失败: %s")
 
 	file, _ := fileheader.Open()
-	bytes, _ := ioutil.ReadAll(file)
 	rc.ReqParam = fmt.Sprintf("path: %s", path)
 
 	la := rc.LoginAccount
@@ -140,8 +144,8 @@ func (m *MachineFile) UploadFile(rc *ctx.ReqCtx) {
 				}
 			}
 		}()
-
-		m.MachineFileApp.UploadFile(fid, path, fileheader.Filename, bytes)
+		defer file.Close()
+		m.MachineFileApp.UploadFile(fid, path, fileheader.Filename, file)
 		// 保存消息并发送文件上传成功通知
 		machine := m.MachineApp.GetById(m.MachineFileApp.GetById(fid).MachineId)
 		m.MsgApp.CreateAndSend(la, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件已成功上传至 %s[%s:%s]", fileheader.Filename, machine.Name, machine.Ip, path)))

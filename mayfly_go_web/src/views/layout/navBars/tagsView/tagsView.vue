@@ -33,14 +33,14 @@
                             name="Close"
                             class="layout-navbars-tagsview-ul-li-icon layout-icon-active"
                             v-if="!v.meta.isAffix"
-                            @click.stop="closeCurrentTagsView(getThemeConfig.isShareTagsView ? v.path : v.url)"
+                            @click.stop="closeCurrentTagsView(getThemeConfig.isShareTagsView ? v.path : v.path)"
                         />
                     </template>
                     <SvgIcon
                         name="Close"
                         class="layout-navbars-tagsview-ul-li-icon layout-icon-three"
                         v-if="!v.meta.isAffix"
-                        @click.stop="closeCurrentTagsView(getThemeConfig.isShareTagsView ? v.path : v.url)"
+                        @click.stop="closeCurrentTagsView(getThemeConfig.isShareTagsView ? v.path : v.path)"
                     />
                 </li>
             </ul>
@@ -136,6 +136,7 @@ export default {
         // 3、关闭当前 tagsView：如果是设置了固定的（isAffix），不可以关闭
         // path为fullPath
         const closeCurrentTagsView = (path: string) => {
+            console.log(path)
             state.tagsViewList.map((v: any, k: number, arr: any) => {
                 if (!v.meta.isAffix) {
                     if (v.fullPath === path) {

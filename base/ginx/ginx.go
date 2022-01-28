@@ -1,6 +1,7 @@
 package ginx
 
 import (
+	"io"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/global"
 	"mayfly-go/base/model"
@@ -47,10 +48,10 @@ func PathParamInt(g *gin.Context, pm string) int {
 }
 
 // 文件下载
-func Download(g *gin.Context, data []byte, filename string) {
+func Download(g *gin.Context, reader io.Reader, filename string) {
 	g.Header("Content-Type", "application/octet-stream")
 	g.Header("Content-Disposition", "attachment; filename="+filename)
-	g.Data(http.StatusOK, "application/octet-stream", data)
+	io.Copy(g.Writer, reader)
 }
 
 // 返回统一成功结果
@@ -63,17 +64,14 @@ func ErrorRes(g *gin.Context, err interface{}) {
 	switch t := err.(type) {
 	case *biz.BizError:
 		g.JSON(http.StatusOK, model.Error(t))
-		break
 	case error:
 		g.JSON(http.StatusOK, model.ServerError())
 		global.Log.Error(t)
 		// panic(err)
-		break
 	case string:
 		g.JSON(http.StatusOK, model.ServerError())
 		global.Log.Error(t)
 		// panic(err)
-		break
 	default:
 		global.Log.Error(t)
 	}

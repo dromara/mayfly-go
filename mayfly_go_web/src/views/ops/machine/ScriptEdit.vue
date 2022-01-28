@@ -29,7 +29,7 @@
                 </el-form-item>
 
                 <el-form-item prop="script" label="内容" id="content">
-                    <codemirror ref="cmEditor" v-model="form.script" language="shell" />
+                    <codemirror ref="cmEditor" v-model="form.script" language="shell" width="700px" />
                 </el-form-item>
             </el-form>
 

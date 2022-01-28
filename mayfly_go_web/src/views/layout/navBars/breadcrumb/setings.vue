@@ -7,22 +7,25 @@
                 <div class="layout-breadcrumb-seting-bar-flex">
                     <div class="layout-breadcrumb-seting-bar-flex-label">字体颜色</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-color-picker v-model="getThemeConfig.terminalForeground" size="small" @change="onColorPickerChange('terminalForeground')"> </el-color-picker>
+                        <el-color-picker v-model="getThemeConfig.terminalForeground" size="small" @change="onColorPickerChange('terminalForeground')">
+                        </el-color-picker>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex">
                     <div class="layout-breadcrumb-seting-bar-flex-label">背景颜色</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-color-picker v-model="getThemeConfig.terminalBackground" size="small" @change="onColorPickerChange('terminalBackground')"> </el-color-picker>
+                        <el-color-picker v-model="getThemeConfig.terminalBackground" size="small" @change="onColorPickerChange('terminalBackground')">
+                        </el-color-picker>
                     </div>
                 </div>
                 <div class="layout-breadcrumb-seting-bar-flex">
                     <div class="layout-breadcrumb-seting-bar-flex-label">cursor颜色</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-color-picker v-model="getThemeConfig.terminalCursor" size="small" @change="onColorPickerChange('terminalCursor')"> </el-color-picker>
+                        <el-color-picker v-model="getThemeConfig.terminalCursor" size="small" @change="onColorPickerChange('terminalCursor')">
+                        </el-color-picker>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex">
+                <div class="layout-breadcrumb-seting-bar-flex mt15">
                     <div class="layout-breadcrumb-seting-bar-flex-label">字体大小</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-input-number
@@ -37,6 +40,15 @@
                         </el-input-number>
                     </div>
                 </div>
+                <!-- <div class="layout-breadcrumb-seting-bar-flex mt15">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">字体粗细</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-select @change="setLocalThemeConfig" v-model="getThemeConfig.terminalFontWeight" size="small" style="width: 90px">
+                            <el-option label="normal" value="normal"> </el-option>
+                            <el-option label="bold" value="bold"> </el-option>
+                        </el-select>
+                    </div>
+                </div> -->
 
                 <!-- 全局主题 -->
                 <el-divider content-position="left">全局主题</el-divider>

@@ -24,8 +24,8 @@ type Cli struct {
 	sftpClient *sftp.Client
 }
 
-// 机器客户端连接缓存，30分钟内没有访问则会被关闭
-var cliCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
+// 机器客户端连接缓存，45分钟内没有访问则会被关闭
+var cliCache = cache.NewTimedCache(45*time.Minute, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key interface{}, value interface{}) {
 		value.(*Cli).Close()
@@ -143,7 +143,7 @@ func (c *Cli) GetSftpCli() *sftp.Client {
 	sftpclient := c.sftpClient
 	// 如果sftpClient为nil，则连接
 	if sftpclient == nil {
-		sc, serr := sftp.NewClient(c.client, sftp.MaxPacket(1<<15))
+		sc, serr := sftp.NewClient(c.client)
 		if serr != nil {
 			panic(biz.NewBizErr("获取sftp client失败：" + serr.Error()))
 		}

@@ -1,6 +1,7 @@
 package ctx
 
 import (
+	"io"
 	"mayfly-go/base/ginx"
 	"mayfly-go/base/model"
 	"mayfly-go/base/utils/assert"
@@ -59,9 +60,9 @@ func (rc *ReqCtx) Handle(handler HandlerFunc) {
 	}
 }
 
-func (rc *ReqCtx) Download(data []byte, filename string) {
+func (rc *ReqCtx) Download(reader io.Reader, filename string) {
 	rc.noRes = true
-	ginx.Download(rc.GinCtx, data, filename)
+	ginx.Download(rc.GinCtx, reader, filename)
 }
 
 // 新建请求上下文，默认需要校验token
