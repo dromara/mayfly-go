@@ -1018,10 +1018,6 @@
 .el-scrollbar__bar {
 	z-index: 4;
 }
-.el-scrollbar__wrap {
-	overflow-x: hidden !important;
-	max-height: 100%; /*防止页面切换时，滚动条高度不变的问题（滚动条高度非滚动条滚动高度）*/
-}
 .el-select-dropdown .el-scrollbar__wrap {
 	overflow-x: scroll !important;
 }

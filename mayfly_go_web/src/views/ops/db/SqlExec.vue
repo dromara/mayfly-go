@@ -21,7 +21,7 @@
             </el-row>
         </div>
 
-        <el-container style="border: 1px solid #eee; margin-top: 1px; height: 640px">
+        <el-container id="data-exec" style="border: 1px solid #eee; margin-top: 1px">
             <el-container style="margin-left: 2px">
                 <el-header style="text-align: left; height: 35px; font-size: 12px; padding: 0px">
                     <el-select v-model="tableName" placeholder="请选择表" @change="changeTable" filterable style="width: 99%">
@@ -116,8 +116,10 @@
                                 @selection-change="onDataSelectionChange"
                                 style="margin-top: 1px"
                                 :data="queryTab.execRes.data"
+                                v-loading="queryTab.loading"
+                                element-loading-text="查询中..."
                                 size="small"
-                                max-height="220"
+                                max-height="250"
                                 empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
                                 stripe
                                 border
@@ -153,6 +155,13 @@
                             <el-link @click="onCommit" class="ml5" type="success" icon="check" :underline="false"></el-link>
                         </el-tooltip>
                     </el-row>
+                    <el-row class="mt5">
+                        <el-input v-model="dt.condition" placeholder="若需条件过滤，输入WHERE之后查询条件点击查询按钮即可" clearable size="small">
+                            <template #prepend>
+                                <el-button @click="selectByCondition(dt.name, dt.condition)" icon="search"></el-button>
+                            </template>
+                        </el-input>
+                    </el-row>
                     <el-table
                         @cell-dblclick="cellClick"
                         @sort-change="onTableSortChange"
@@ -160,8 +169,9 @@
                         style="margin-top: 1px"
                         :data="dt.execRes.data"
                         size="small"
-                        max-height="580"
-                        :empty-text="dt.execRes.emptyResText"
+                        max-height="600"
+                        v-loading="dt.loading"
+                        element-loading-text="查询中..."
                         stripe
                         border
                     >
@@ -188,7 +198,7 @@
 <script lang="ts">
 import { h, toRefs, reactive, computed, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
-import _ from 'lodash';
+import _, { isNumber } from 'lodash';
 
 import 'codemirror/addon/hint/show-hint.css';
 // import base style
@@ -203,12 +213,11 @@ import 'codemirror/addon/hint/show-hint.js';
 import 'codemirror/addon/hint/sql-hint.js';
 
 import { format as sqlFormatter } from 'sql-formatter';
-import { notNull, notEmpty, isTrue } from '@/common/assert';
+import { notBlank, notEmpty, isTrue } from '@/common/assert';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
-import { key } from '../../../store/index';
 
 export default defineComponent({
     name: 'SqlExec',
@@ -245,6 +254,7 @@ export default defineComponent({
                     data: [],
                     tableColumn: [],
                 },
+                loading: false,
                 nowTableName: '', //当前表格数据操作的数据库表名，用于双击编辑表内容使用
                 selectionDatas: [],
             },
@@ -318,11 +328,12 @@ export default defineComponent({
          * 执行sql
          */
         const onRunSql = async () => {
-            notNull(state.dbId, '请先选择数据库');
+            notBlank(state.dbId, '请先选择数据库');
             // 没有选中的文本，则为全部文本
             let sql = getSql();
-            notNull(sql, '内容不能为空');
+            notBlank(sql, '内容不能为空');
 
+            state.queryTab.loading = true;
             // 即只有以该字符串开头的sql才可修改表数据内容
             if (sql.startsWith('SELECT *') || sql.startsWith('select *') || sql.startsWith('SELECT\n  *')) {
                 state.queryTab.selectionDatas = [];
@@ -343,6 +354,7 @@ export default defineComponent({
             const colAndData: any = await runSql(sql);
             state.queryTab.execRes.data = colAndData.res;
             state.queryTab.execRes.tableColumn = colAndData.colNames;
+            state.queryTab.loading = false;
         };
 
         /**
@@ -531,9 +543,8 @@ export default defineComponent({
                 execRes: {
                     tableColumn: [],
                     data: [],
-                    emptyResText: '执行中...',
                 },
-                querySql: `SELECT * FROM ${tableName} LIMIT ${state.defalutLimit}`,
+                querySql: getDefaultSelectSql(tableName),
             };
             state.dataTabs[tableName] = tab;
 
@@ -541,6 +552,22 @@ export default defineComponent({
             state.dataTabs[tableName].execRes.data = [];
 
             onRefresh(tableName);
+        };
+
+        /**
+         * 获取默认查询语句
+         */
+        const getDefaultSelectSql = (tableName: string, where: string = '', orderBy: string = '') => {
+            return `SELECT * FROM \`${tableName}\` ${where ? 'WHERE ' + where : ''} ${orderBy ? orderBy : ''} LIMIT ${state.defalutLimit}`;
+        };
+
+        const selectByCondition = async (tableName: string, condition: string) => {
+            notEmpty(condition, '条件不能为空');
+            state.dataTabs[tableName].loading = true;
+            const colAndData: any = await runSql(getDefaultSelectSql(tableName, condition));
+            state.dataTabs[tableName].execRes.tableColumn = colAndData.colNames;
+            state.dataTabs[tableName].execRes.data = colAndData.res;
+            state.dataTabs[tableName].loading = false;
         };
 
         /**
@@ -561,16 +588,20 @@ export default defineComponent({
         };
 
         const onRefresh = async (tableName: string) => {
+            // 查询条件置空
+            state.dataTabs[tableName].condition = '';
+            state.dataTabs[tableName].loading = true;
             const colAndData: any = await runSql(state.dataTabs[tableName].querySql);
-            state.dataTabs[tableName].execRes.emptyResText = '没有数据';
             state.dataTabs[tableName].execRes.tableColumn = colAndData.colNames;
             state.dataTabs[tableName].execRes.data = colAndData.res;
+            state.dataTabs[tableName].loading = false;
         };
 
         /**
          * 提交事务，用于没有开启自动提交事务
          */
         const onCommit = () => {
+            notBlank(state.dbId, '请先选择数据库');
             runSql('COMMIT;');
             ElMessage.success('COMMIT success');
         };
@@ -579,13 +610,14 @@ export default defineComponent({
          * 表排序字段变更
          */
         const onTableSortChange = async (sort: any) => {
-            if (!state.nowTableName) {
+            if (!state.nowTableName || !sort.prop) {
                 return;
             }
             const tableName = state.activeName;
             const sortType = sort.order == 'descending' ? 'DESC' : 'ASC';
 
-            state.dataTabs[state.activeName].querySql = `SELECT * FROM ${tableName} ORDER BY ${sort.prop} ${sortType} LIMIT ${state.defalutLimit}`;
+            state.dataTabs[state.activeName].querySql = getDefaultSelectSql(tableName, '', `ORDER BY \`${sort.prop}\` ${sortType}`);
+
             onRefresh(tableName);
         };
 
@@ -597,7 +629,7 @@ export default defineComponent({
          * 获取用户保存的sql模板内容
          */
         const getUserSql = () => {
-            notNull(state.dbId, '请先选择数据库');
+            notBlank(state.dbId, '请先选择数据库');
             dbApi.getSql.request({ id: state.dbId, type: 1, name: state.sqlName }).then((res) => {
                 if (res) {
                     state.sql = res.sql;
@@ -630,7 +662,7 @@ export default defineComponent({
 
         const saveSql = async () => {
             notEmpty(state.sql, 'sql内容不能为空');
-            notNull(state.dbId, '请先选择数据库');
+            notBlank(state.dbId, '请先选择数据库');
             await dbApi.saveSql.request({ id: state.dbId, sql: state.sql, type: 1, name: state.sqlName });
             ElMessage.success('保存成功');
 
@@ -646,6 +678,7 @@ export default defineComponent({
         };
 
         const deleteSql = async () => {
+            notBlank(state.dbId, '请先选择数据库');
             try {
                 await ElMessageBox.confirm(`确定删除【${state.sqlName}】该SQL模板?`, '提示', {
                     confirmButtonText: '确定',
@@ -667,6 +700,7 @@ export default defineComponent({
             state.dataTabs = {};
             state.sql = '';
             state.sqlNames = [];
+            state.sqlName = '';
             state.activeName = state.queryTab.name;
             state.queryTab.execRes.data = [];
             state.queryTab.execRes.tableColumn = [];
@@ -689,9 +723,10 @@ export default defineComponent({
             const queryTab = isQueryTab();
             const deleteDatas = queryTab ? state.queryTab.selectionDatas : state.dataTabs[state.activeName].selectionDatas;
             isTrue(deleteDatas && deleteDatas.length > 0, '请先选择要删除的数据');
-            const primaryKey = await getTablePrimaryKeyColume(state.nowTableName);
-            const ids = deleteDatas.map((d: any) => `'${d[primaryKey]}'`).join(',');
-            const sql = `DELETE FROM ${state.nowTableName} WHERE ${primaryKey} IN (${ids})`;
+            const primaryKey = await getColumn(state.nowTableName);
+            const primaryKeyColumnName = primaryKey.columnName;
+            const ids = deleteDatas.map((d: any) => `${wrapColumnValue(primaryKey, d[primaryKeyColumnName])}`).join(',');
+            const sql = `DELETE FROM \`${state.nowTableName}\` WHERE \`${primaryKeyColumnName}\` IN (${ids})`;
 
             promptExeSql(sql, null, () => {
                 if (!queryTab) {
@@ -716,7 +751,7 @@ export default defineComponent({
         };
 
         // 监听单元格点击事件
-        const cellClick = (row: any, column: any, cell: any, event: any) => {
+        const cellClick = (row: any, column: any, cell: any) => {
             // 如果当前操作的表名不存在 或者 当前列的property不存在(如多选框)，则不允许修改当前单元格内容
             if (!state.nowTableName || !column.property) {
                 return;
@@ -735,8 +770,12 @@ export default defineComponent({
                     div.innerText = input.value;
                     cell.replaceChildren(div);
                     if (input.value !== text) {
-                        const primaryKey = await getTablePrimaryKeyColume(state.nowTableName);
-                        const sql = `UPDATE ${state.nowTableName} SET ${column.rawColumnKey} = '${input.value}' WHERE ${primaryKey} = '${row[primaryKey]}'`;
+                        const primaryKey = await getColumn(state.nowTableName);
+                        const primaryKeyColumnName = primaryKey.columnName;
+                        // 更新字段列信息
+                        const updateColumn = await getColumn(state.nowTableName, column.rawColumnKey);
+                        const sql = `UPDATE \`${state.nowTableName}\` SET \`${column.rawColumnKey}\` = ${wrapColumnValue(updateColumn, input.value)} 
+                                        WHERE \`${primaryKeyColumnName}\` = ${wrapColumnValue(primaryKey, row[primaryKeyColumnName])}`;
                         promptExeSql(sql, () => {
                             div.innerText = text;
                         });
@@ -745,12 +784,44 @@ export default defineComponent({
             }
         };
 
+        // /**
+        //  * 获取表主键列名，目前先以默认表字段第一个字段
+        //  * {
+        //  *  columnName,columnType等
+        //  * }
+        //  */
+        // const getTablePrimaryKeyColume = async (tableName: string) => {
+        //     const cols = await getColumns(tableName);
+        //     return cols[0];
+        // };
+
         /**
-         * 获取表主键列名，目前先以默认表字段第一个字段
+         * 根据字段列名获取字段列信息。
+         * 若字段列名为空，则返回第一个字段列信息（用于获取主键等，目前先以默认表字段第一个字段）
          */
-        const getTablePrimaryKeyColume = async (tableName: string) => {
+        const getColumn = async (tableName: string, columnName: string = '') => {
             const cols = await getColumns(tableName);
-            return cols[0].columnName;
+            if (!columnName) {
+                return cols[0];
+            }
+            return cols.find((c: any) => c.columnName == columnName);
+        };
+
+        /**
+         * 根据字段信息包装字段值，如为字符串等则添加‘’
+         */
+        const wrapColumnValue = (column: any, value: any) => {
+            if (isNumber(column.columnType)) {
+                return value;
+            }
+            return `'${value}'`;
+        };
+
+        /**
+         * 判断字段类型是否为数字类型
+         */
+        const isNumber = (columnType: string) => {
+            return columnType.match(/int|double|float|nubmer|decimal/gi);
         };
 
         /**
@@ -797,7 +868,7 @@ export default defineComponent({
                     }
                 },
             })
-                .then(async (action) => {
+                .then(async () => {
                     await runSql(sql);
                     if (successFunc) {
                         successFunc();
@@ -818,11 +889,11 @@ export default defineComponent({
             // key: 字段名，value: 字段名提示
             let obj: any = {};
             columns.forEach((item: any) => {
-                obj[item.columnName] = `'${item.columnName}[${item.columnType}]${item.nullable == 'YES' ? '' : '[not null]'}'`;
+                obj[`\`${item.columnName}\``] = `'${item.columnName}[${item.columnType}]${item.nullable == 'YES' ? '' : '[not null]'}'`;
             });
             let columnNames = Object.keys(obj).join(',');
             let values = Object.values(obj).join(',');
-            let sql = `INSERT INTO ${state.nowTableName} (${columnNames}) VALUES (${values});`;
+            let sql = `INSERT INTO \`${state.nowTableName}\` (${columnNames}) VALUES (${values});`;
             promptExeSql(sql, null, () => {
                 onRefresh(tableNmae);
             });
@@ -899,6 +970,7 @@ export default defineComponent({
             onBeforeChange,
             listenMouse,
             onRefresh,
+            selectByCondition,
             onCommit,
             addRow,
             onDataSelectionChange,
@@ -917,5 +989,9 @@ export default defineComponent({
 .el-tabs__header {
     padding: 0 10px;
     background-color: #fff;
+}
+
+#data-exec {
+    min-height: calc(100vh - 155px);
 }
 </style>
