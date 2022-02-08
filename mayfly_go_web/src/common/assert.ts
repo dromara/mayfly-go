@@ -47,6 +47,19 @@ export function isEquals(obj1: any, obj2: any, msg: string) {
 }
 
 /**
+ * 断言不能为空值，即null,0,''等
+ * 
+ * @param obj1 对象1
+ * @param obj2 对象2
+ * @param msg 错误消息
+ */
+ export function notBlank(obj1: any, msg: string) {
+    if (!obj1) {
+        throw new AssertError(msg);
+    }
+}
+
+/**
  * 断言表达式为true
  * 
  * @param obj1 对象1

@@ -26,7 +26,7 @@
                 </el-row>
             </div>
 
-            <el-table :data="processList" size="small" style="width: 100%" empty-text="获取进程中...">
+            <el-table :data="processList" size="small" style="width: 100%">
                 <el-table-column prop="user" label="USER" :min-width="50"> </el-table-column>
                 <el-table-column prop="pid" label="PID" :min-width="50" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="cpu" label="%CPU" :min-width="40"> </el-table-column>
@@ -89,8 +89,8 @@
 </template>
 
 <script lang="ts">
-import { ref, toRefs, reactive, watch, defineComponent } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { toRefs, reactive, watch, defineComponent } from 'vue';
+import { ElMessage } from 'element-plus';
 import { machineApi } from './api';
 import enums from './enums';
 export default defineComponent({
