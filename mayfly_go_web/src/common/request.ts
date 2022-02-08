@@ -99,7 +99,7 @@ service.interceptors.response.use(
  * @param {Object} uri    uri
  * @param {Object} params 参数
  */
-function request(method: string, url: string, params: any, headers: any): Promise<any> {
+function request(method: string, url: string, params: any, headers: any, options: any): Promise<any> {
     if (!url)
         throw new Error('请求url不能为空');
     // 简单判断该url是否是restful风格
@@ -109,6 +109,7 @@ function request(method: string, url: string, params: any, headers: any): Promis
     const query: any = {
         method,
         url: url,
+        ...options
     };
     if (headers) {
         query.headers = headers
@@ -121,7 +122,6 @@ function request(method: string, url: string, params: any, headers: any): Promis
     } else {
         query.params = params;
     }
-
     return service.request(query).then(res => res)
         .catch(e => {
             // 如果返回的code不为成功，则会返回对应的错误msg，则直接统一通知即可
@@ -137,8 +137,8 @@ function request(method: string, url: string, params: any, headers: any): Promis
  * @param api Api实例
  * @param params 请求参数
  */
-function send(api: Api, params: any): Promise<any> {
-    return request(api.method, api.url, params, null);
+function send(api: Api, params: any, options: any): Promise<any> {
+    return request(api.method, api.url, params, null, options);
 }
 
 /**
@@ -147,7 +147,7 @@ function send(api: Api, params: any): Promise<any> {
  * @param params 请求参数
  */
 function sendWithHeaders(api: Api, params: any, headers: any): Promise<any> {
-    return request(api.method, api.url, params, headers);
+    return request(api.method, api.url, params, headers, null);
 }
 
 function getApiUrl(url: string) {

@@ -51,10 +51,17 @@
 
         <el-dialog :title="tree.title" v-model="tree.visible" :close-on-click-modal="false" width="680px">
             <div style="height: 45vh; overflow: auto">
+                <el-progress
+                    v-if="uploadProgressShow"
+                    style="width: 90%; margin-left: 20px"
+                    :text-inside="true"
+                    :stroke-width="20"
+                    :percentage="progressNum"
+                />
                 <el-tree v-if="tree.visible" ref="fileTree" :load="loadNode" :props="props" lazy node-key="id" :expand-on-click-node="true">
                     <template #default="{ node, data }">
                         <span class="custom-tree-node">
-                            <el-dropdown size="small" trigger="contextmenu">
+                            <el-dropdown size="small" @visible-change="getFilePath(data, $event)" trigger="contextmenu">
                                 <span class="el-dropdown-link">
                                     <span v-if="data.type == 'd' && !node.expanded">
                                         <SvgIcon name="folder" />
@@ -84,19 +91,15 @@
                                                 查看
                                             </el-link>
                                         </el-dropdown-item>
-                                        
+
                                         <span v-auth="'machine:file:upload'">
                                             <el-dropdown-item v-if="data.type == 'd'">
                                                 <el-upload
                                                     :before-upload="beforeUpload"
                                                     :on-success="uploadSuccess"
+                                                    action=""
+                                                    :http-request="getUploadFile"
                                                     :headers="{ token }"
-                                                    :data="{
-                                                        fileId: tree.folder.id,
-                                                        path: data.path,
-                                                        machineId: machineId,
-                                                    }"
-                                                    :action="getUploadFile({ path: data.path })"
                                                     :show-file-list="false"
                                                     name="file"
                                                     multiple
@@ -246,6 +249,14 @@ export default defineComponent({
                 children: 'zones',
                 isLeaf: 'leaf',
             },
+            progressNum: 0,
+            uploadProgressShow: false,
+            dataObj: {
+                name: '',
+                path: '',
+                type: '',
+            },
+            file: null as any,
         });
 
         watch(props, (newValue) => {
@@ -460,8 +471,35 @@ export default defineComponent({
             a.click();
         };
 
-        const getUploadFile = () => {
-            return `${config.baseApiUrl}/machines/${props.machineId}/files/${state.tree.folder.id}/upload?token=${token}`;
+        const onUploadProgress = (progressEvent: any) => {
+            state.uploadProgressShow = true;
+            let complete = ((progressEvent.loaded / progressEvent.total) * 100) | 0;
+            state.progressNum = complete;
+        };
+
+        const getUploadFile = (content: any) => {
+            const params = new FormData();
+            params.append('file', content.file);
+            params.append('path', state.dataObj.path);
+            params.append('machineId', props.machineId);
+            params.append('fileId', state.tree.folder.id as any);
+            params.append('token', token);
+            machineApi.uploadFile
+                .request(params, {
+                    url: `${config.baseApiUrl}/machines/${props.machineId}/files/${state.tree.folder.id}/upload?token=${token}`,
+                    headers: { 'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundaryF1uyUD0tWdqmJqpl' },
+                    onUploadProgress: onUploadProgress,
+                    baseURL: '',
+                })
+                .then(() => {
+                    ElMessage.success('上传成功');
+                    setTimeout(() => {
+                        state.uploadProgressShow = false;
+                    }, 3000);
+                })
+                .catch(() => {
+                    state.uploadProgressShow = false;
+                });
         };
 
         const uploadSuccess = (res: any) => {
@@ -471,9 +509,14 @@ export default defineComponent({
         };
 
         const beforeUpload = (file: File) => {
-            ElMessage.success(`'${file.name}' 上传中,请关注结果通知`);
+            state.file = file;
+            // ElMessage.success(`'${file.name}' 上传中,请关注结果通知`);
         };
-
+        const getFilePath = (data: object, visible: boolean) => {
+            if (visible) {
+                state.dataObj = data as any;
+            }
+        };
         const dontOperate = (data: any) => {
             const path = data.path;
             const ls = [
@@ -537,6 +580,7 @@ export default defineComponent({
             downloadFile,
             getUploadFile,
             beforeUpload,
+            getFilePath,
             uploadSuccess,
             dontOperate,
             formatFileSize,

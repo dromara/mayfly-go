@@ -48,8 +48,8 @@ class Api {
      * 操作该权限，即请求对应的url
      * @param {Object} param 请求该权限的参数
      */
-    request(param: any = null): Promise<any> {
-        return request.send(this, param);
+    request(param: any = null, options: any = null): Promise<any> {
+        return request.send(this, param, options);
     }
 
     /**

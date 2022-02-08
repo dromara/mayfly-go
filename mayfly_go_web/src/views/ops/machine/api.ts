@@ -21,7 +21,7 @@ export const machineApi = {
     files: Api.create("/machines/{id}/files", 'get'),
     lsFile: Api.create("/machines/{machineId}/files/{fileId}/read-dir", 'get'),
     rmFile: Api.create("/machines/{machineId}/files/{fileId}/remove", 'delete'),
-    uploadFile: Api.create("/machines/files/upload", 'post'),
+    uploadFile: Api.create("/machines/{machineId}/files/{fileId}/upload?token={token}", 'post'),
     fileContent: Api.create("/machines/{machineId}/files/{fileId}/read", 'get'),
     // 修改文件内容
     updateFileContent: Api.create("/machines/{machineId}/files/{id}/write", 'post'),
