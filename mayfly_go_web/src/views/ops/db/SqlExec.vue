@@ -198,7 +198,7 @@
 <script lang="ts">
 import { h, toRefs, reactive, computed, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
-import _, { isNumber } from 'lodash';
+import _ from 'lodash';
 
 import 'codemirror/addon/hint/show-hint.css';
 // import base style
@@ -218,6 +218,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
+import SqlExecBox from './SqlExecBox';
 
 export default defineComponent({
     name: 'SqlExec',
@@ -726,17 +727,17 @@ export default defineComponent({
             const primaryKey = await getColumn(state.nowTableName);
             const primaryKeyColumnName = primaryKey.columnName;
             const ids = deleteDatas.map((d: any) => `${wrapColumnValue(primaryKey, d[primaryKeyColumnName])}`).join(',');
-            const sql = `DELETE FROM \`${state.nowTableName}\` WHERE \`${primaryKeyColumnName}\` IN (${ids})`;
+            const sql = `DELETE FROM ${state.nowTableName} WHERE ${primaryKeyColumnName} IN (${ids})`;
 
             promptExeSql(sql, null, () => {
                 if (!queryTab) {
                     state.dataTabs[state.activeName].execRes.data = state.dataTabs[state.activeName].execRes.data.filter(
-                        (d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKey] == d[primaryKey]) != -1)
+                        (d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKeyColumnName] == d[primaryKeyColumnName]) != -1)
                     );
                     state.dataTabs[state.activeName].selectionDatas = [];
                 } else {
                     state.queryTab.execRes.data = state.queryTab.execRes.data.filter(
-                        (d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKey] == d[primaryKey]) != -1)
+                        (d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKeyColumnName] == d[primaryKeyColumnName]) != -1)
                     );
                     state.queryTab.selectionDatas = [];
                 }
@@ -774,8 +775,8 @@ export default defineComponent({
                         const primaryKeyColumnName = primaryKey.columnName;
                         // 更新字段列信息
                         const updateColumn = await getColumn(state.nowTableName, column.rawColumnKey);
-                        const sql = `UPDATE \`${state.nowTableName}\` SET \`${column.rawColumnKey}\` = ${wrapColumnValue(updateColumn, input.value)} 
-                                        WHERE \`${primaryKeyColumnName}\` = ${wrapColumnValue(primaryKey, row[primaryKeyColumnName])}`;
+                        const sql = `UPDATE ${state.nowTableName} SET ${column.rawColumnKey} = ${wrapColumnValue(updateColumn, input.value)} 
+                                        WHERE ${primaryKeyColumnName} = ${wrapColumnValue(primaryKey, row[primaryKeyColumnName])}`;
                         promptExeSql(sql, () => {
                             div.innerText = text;
                         });
@@ -783,17 +784,6 @@ export default defineComponent({
                 });
             }
         };
-
-        // /**
-        //  * 获取表主键列名，目前先以默认表字段第一个字段
-        //  * {
-        //  *  columnName,columnType等
-        //  * }
-        //  */
-        // const getTablePrimaryKeyColume = async (tableName: string) => {
-        //     const cols = await getColumns(tableName);
-        //     return cols[0];
-        // };
 
         /**
          * 根据字段列名获取字段列信息。
@@ -828,57 +818,12 @@ export default defineComponent({
          * 弹框提示是否执行sql
          */
         const promptExeSql = (sql: string, cancelFunc: any = null, successFunc: any = null) => {
-            ElMessageBox({
-                title: '待执行SQL',
-                message: h(
-                    'div',
-                    {
-                        class: 'el-textarea',
-                    },
-                    [
-                        h('textarea', {
-                            class: 'el-textarea__inner',
-                            autocomplete: 'off',
-                            rows: 8,
-                            style: {
-                                height: '300px',
-                                width: '100%',
-                                fontWeight: '600',
-                            },
-                            value: sqlFormatter(sql),
-                            onInput: ($event: any) => (sql = $event.target.value),
-                        }),
-                    ]
-                ),
-                showCancelButton: true,
-                confirmButtonText: '执行',
-                cancelButtonText: '取消',
-                beforeClose: (action, instance, done) => {
-                    if (action === 'confirm') {
-                        instance.confirmButtonLoading = true;
-                        instance.confirmButtonText = '执行中...';
-                        setTimeout(() => {
-                            done();
-                            setTimeout(() => {
-                                instance.confirmButtonLoading = false;
-                            }, 200);
-                        }, 200);
-                    } else {
-                        done();
-                    }
-                },
-            })
-                .then(async () => {
-                    await runSql(sql);
-                    if (successFunc) {
-                        successFunc();
-                    }
-                })
-                .catch(() => {
-                    if (cancelFunc) {
-                        cancelFunc();
-                    }
-                });
+            SqlExecBox({
+                sql: sql,
+                dbId: state.dbId as any,
+                runSuccessCallback: successFunc,
+                cancelCallback: cancelFunc,
+            });
         };
 
         // 添加新数据行
@@ -889,11 +834,11 @@ export default defineComponent({
             // key: 字段名，value: 字段名提示
             let obj: any = {};
             columns.forEach((item: any) => {
-                obj[`\`${item.columnName}\``] = `'${item.columnName}[${item.columnType}]${item.nullable == 'YES' ? '' : '[not null]'}'`;
+                obj[`${item.columnName}`] = `'${item.columnName}[${item.columnType}]${item.nullable == 'YES' ? '' : '[not null]'}'`;
             });
             let columnNames = Object.keys(obj).join(',');
             let values = Object.values(obj).join(',');
-            let sql = `INSERT INTO \`${state.nowTableName}\` (${columnNames}) VALUES (${values});`;
+            let sql = `INSERT INTO ${state.nowTableName} (${columnNames}) VALUES (${values});`;
             promptExeSql(sql, null, () => {
                 onRefresh(tableNmae);
             });

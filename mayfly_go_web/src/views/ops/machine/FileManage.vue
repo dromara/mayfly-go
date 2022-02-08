@@ -99,11 +99,9 @@
                                                     :action="getUploadFile({ path: data.path })"
                                                     :show-file-list="false"
                                                     name="file"
-                                                    multiple
-                                                    :limit="100"
                                                     style="display: inline-block; margin-left: 2px"
                                                 >
-                                                    <el-link @click.prevent icon="upload" :underline="false"> 上传 </el-link>
+                                                    <el-link icon="upload" :underline="false"> 上传 </el-link>
                                                 </el-upload>
                                             </el-dropdown-item>
                                         </span>

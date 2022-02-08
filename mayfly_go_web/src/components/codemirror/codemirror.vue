@@ -40,11 +40,17 @@ import 'codemirror/mode/textile/textile.js';
 import 'codemirror/addon/hint/show-hint.css';
 import 'codemirror/addon/hint/show-hint.js';
 
+import { ElOption, ElSelect } from 'element-plus';
+
 // 尝试获取全局实例
 const CodeMirror = (window as any).CodeMirror || _CodeMirror;
 
 export default defineComponent({
     name: 'codemirror',
+     components: {
+        ElOption,
+        ElSelect,
+    },
     props: {
         modelValue: {
             type: String,
@@ -70,7 +76,6 @@ export default defineComponent({
             default: null,
         },
     },
-
     setup(props: any, { emit }) {
         let { modelValue, language } = toRefs(props);
         const textarea: any = ref(null);
