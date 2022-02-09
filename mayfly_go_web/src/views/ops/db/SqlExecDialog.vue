@@ -2,7 +2,7 @@
     <div>
         <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px">
             <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sql" :options="cmOptions" />
-            <div class="dialog-footer mt10">
+            <div class="footer mt10">
                 <el-button @click="runSql" type="primary" :loading="btnLoading">执 行</el-button>
                 <el-button @click="cancel">取 消</el-button>
             </div>
@@ -122,7 +122,7 @@ export default defineComponent({
     font-size: 9pt;
     font-weight: 600;
 }
-.dialog-footer {
+.footer {
     float: right;
 }
 </style>

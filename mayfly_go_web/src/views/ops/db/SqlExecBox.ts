@@ -33,7 +33,7 @@ const SqlExecBox = (props: SqlExecProps): void => {
     if (boxInstance) {
         const boxVue = boxInstance.component
         // 调用open方法显示弹框
-        boxVue.ctx.open(props);
+        boxVue.proxy.open(props);
     } else {
         boxInstance = renderBox()
         SqlExecBox(props)

@@ -50,14 +50,14 @@
         </el-dialog>
 
         <el-dialog :title="tree.title" v-model="tree.visible" :close-on-click-modal="false" width="680px">
+            <el-progress
+                v-if="uploadProgressShow"
+                style="width: 90%; margin-left: 20px"
+                :text-inside="true"
+                :stroke-width="20"
+                :percentage="progressNum"
+            />
             <div style="height: 45vh; overflow: auto">
-                <el-progress
-                    v-if="uploadProgressShow"
-                    style="width: 90%; margin-left: 20px"
-                    :text-inside="true"
-                    :stroke-width="20"
-                    :percentage="progressNum"
-                />
                 <el-tree v-if="tree.visible" ref="fileTree" :load="loadNode" :props="props" lazy node-key="id" :expand-on-click-node="true">
                     <template #default="{ node, data }">
                         <span class="custom-tree-node">
