@@ -196,7 +196,7 @@
 </template>
 
 <script lang="ts">
-import { h, toRefs, reactive, computed, defineComponent, ref } from 'vue';
+import { toRefs, reactive, computed, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
 import _ from 'lodash';
 
@@ -218,7 +218,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
-import SqlExecBox from './SqlExecBox';
+import SqlExecBox from './component/SqlExecBox';
 
 export default defineComponent({
     name: 'SqlExec',
@@ -828,8 +828,8 @@ export default defineComponent({
 
         // 添加新数据行
         const addRow = async () => {
-            const tableNmae = state.nowTableName;
-            const columns = await getColumns(tableNmae);
+            const tableName = state.nowTableName;
+            const columns = await getColumns(tableName);
 
             // key: 字段名，value: 字段名提示
             let obj: any = {};
@@ -840,7 +840,7 @@ export default defineComponent({
             let values = Object.values(obj).join(',');
             let sql = `INSERT INTO ${state.nowTableName} (${columnNames}) VALUES (${values});`;
             promptExeSql(sql, null, () => {
-                onRefresh(tableNmae);
+                onRefresh(tableName);
             });
         };
 

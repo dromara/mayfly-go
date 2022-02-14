@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import SshTerminal from './SshTerminal.vue';
-import { reactive, toRefs, onBeforeMount, defineComponent, onMounted } from 'vue';
+import { reactive, toRefs, defineComponent, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 
 export default defineComponent({

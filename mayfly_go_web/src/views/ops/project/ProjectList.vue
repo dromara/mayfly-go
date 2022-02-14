@@ -11,7 +11,7 @@
                     icon="edit"
                     >编辑</el-button
                 >
-                <el-button @click="showMembers(chooseData)" :disabled="chooseId == null" type="success" icon="setting">成员管理</el-button>
+                <el-button @click="showMembers(chooseData)" :disabled="chooseId == null" type="success" icon="user">成员管理</el-button>
 
                 <el-button @click="showEnv(chooseData)" :disabled="chooseId == null" type="info" icon="setting">环境管理</el-button>
 

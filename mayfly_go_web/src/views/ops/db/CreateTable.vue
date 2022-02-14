@@ -26,45 +26,26 @@
                     <el-tab-pane label="字段" name="1">
                         <el-table :data="tableData.fields.res">
                             <el-table-column :prop="item.prop" :label="item.label" v-for="item in tableData.fields.colNames" :key="item.prop">
-                                <template v-if="item.prop === 'name'" #default="scope">
-                                    <el-input size="small" v-model="scope.row.name"></el-input>
-                                </template>
-                                <!--eslint-disable-next-line-->
-                                <template v-if="item.prop === 'type'" #default="scope">
-                                    <el-select filterable size="small" v-model="scope.row.type">
+                                <template #default="scope">
+                                    <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name"></el-input>
+
+                                    <el-select v-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type">
                                         <el-option v-for="typeValue in typeList" :key="typeValue" :value="typeValue">{{ typeValue }}</el-option>
                                     </el-select>
-                                </template>
-                                <!--eslint-disable-next-line-->
-                                <template v-if="item.prop === 'value'" #default="scope">
-                                    <el-input size="small" v-model="scope.row.value"> </el-input>
-                                </template>
-                                <!--eslint-disable-next-line-->
-                                <template v-if="item.prop === 'length'" #default="scope">
-                                    <el-input size="small" v-model="scope.row.length"> </el-input>
-                                </template>
-                                <!--eslint-disable-next-line-->
-                                <template v-if="item.prop === 'notNull'" #default="scope">
-                                    <el-checkbox size="small" v-model="scope.row.notNull"> </el-checkbox>
-                                </template>
-                                <!--eslint-disable-next-line-->
-                                <template v-if="item.prop === 'pri'" #default="scope">
-                                    <el-checkbox size="small" v-model="scope.row.pri"> </el-checkbox>
-                                </template>
-                                <!--eslint-disable-next-line-->
-                                <template v-if="item.prop === 'auto_increment'" #default="scope">
-                                    <el-checkbox size="small" v-model="scope.row.auto_increment"> </el-checkbox>
-                                </template>
-                                <!-- <template v-if="item.prop === 'un_signed'" #default="scope">
-                                    <el-checkbox :disabled="scope.row.type === 'int'" size="small" v-model="scope.row.un_signed"> </el-checkbox>
-                                </template> -->
-                                <!--eslint-disable-next-line-->
-                                <template v-if="item.prop === 'remark'" #default="scope">
-                                    <el-input size="small" v-model="scope.row.remark"> </el-input>
-                                </template>
-                                <!--eslint-disable-next-line-->
-                                <template v-if="item.prop === 'action'" #default="scope">
-                                    <el-button type="text" size="small" @click.prevent="deleteRow(scope.$index)">删除</el-button>
+
+                                    <el-input v-if="item.prop === 'value'" size="small" v-model="scope.row.value"> </el-input>
+
+                                    <el-input v-if="item.prop === 'length'" size="small" v-model="scope.row.length"> </el-input>
+
+                                    <el-checkbox v-if="item.prop === 'notNull'" size="small" v-model="scope.row.notNull"> </el-checkbox>
+
+                                    <el-checkbox v-if="item.prop === 'pri'" size="small" v-model="scope.row.pri"> </el-checkbox>
+
+                                     <el-checkbox v-if="item.prop === 'auto_increment'" size="small" v-model="scope.row.auto_increment"> </el-checkbox>
+
+                                     <el-input v-if="item.prop === 'remark'" size="small" v-model="scope.row.remark"> </el-input>
+
+                                     <el-button v-if="item.prop === 'action'" type="text" size="small" @click.prevent="deleteRow(scope.$index)">删除</el-button>
                                 </template>
                             </el-table-column>
                         </el-table>
@@ -85,8 +66,8 @@
 <script lang="ts">
 import { watch, toRefs, reactive, defineComponent, ref, getCurrentInstance } from 'vue';
 import { TYPE_LIST, CHARACTER_SET_NAME_LIST } from './service.ts';
-import { dbApi } from '../../db/api';
 import { ElMessage } from 'element-plus';
+import SqlExecBox from './component/SqlExecBox.ts';
 export default defineComponent({
     name: 'createTable',
     props: {
@@ -178,6 +159,7 @@ export default defineComponent({
         });
         const cancel = () => {
             emit('update:visible', false);
+            reset();
         };
         const addRow = () => {
             state.tableData.fields.res.push({
@@ -196,39 +178,36 @@ export default defineComponent({
         };
         const submit = async () => {
             let data = state.tableData;
-            let str = '';
             let primary_key = '';
+            let fields: string[] = [];
             data.fields.res.forEach((item) => {
-                str += `\`${item.name}\` ${item.type}${+item.length > 0 ? `(${item.length})` : ''} ${item.notNull ? 'NOT NULL' : ''} ${
-                    item.auto_increment ? 'AUTO_INCREMENT' : ''
-                } ${item.value ? 'DEFAULT ' + item.value : item.notNull ? '' : 'DEFAULT NULL'} ${item.remark ? `COMMENT '${item.remark}'` : ''},\n`;
+                fields.push(
+                    `${item.name} ${item.type}${+item.length > 0 ? `(${item.length})` : ''} ${item.notNull ? 'NOT NULL' : ''} ${
+                        item.auto_increment ? 'AUTO_INCREMENT' : ''
+                    } ${item.value ? 'DEFAULT ' + item.value : item.notNull ? '' : 'DEFAULT NULL'} ${
+                        item.remark ? `COMMENT '${item.remark}'` : ''
+                    } \n`
+                );
                 if (item.pri) {
-                    primary_key += `\`${item.name}\`,`;
+                    primary_key += `${item.name},`;
                 }
             });
 
             let sql = `
-                CREATE TABLE \`${data.tableName}\` (
-                ${str}
-                PRIMARY KEY (${primary_key.slice(0, -1)})
+                CREATE TABLE ${data.tableName} (
+                ${fields.join(',')}
+                ${primary_key ? `, PRIMARY KEY (${primary_key.slice(0, -1)})` : ''}
                 ) ENGINE=InnoDB DEFAULT CHARSET=${data.characterSet} COLLATE=utf8mb4_bin COMMENT='${data.tableComment}';`;
 
-            try {
-                state.btnloading = true;
-                const res = await dbApi.sqlExec.request({
-                    id: props.dbId,
-                    sql: sql,
-                });
-                state.btnloading = false;
-                ElMessage.success('创建成功');
-                proxy.$parent.tableInfo({ id: props.dbId });
-                reset();
-                cancel();
-            } catch (err) {
-                console.error(err);
-                state.btnloading = false;
-                ElMessage.error('创建失败');
-            }
+            SqlExecBox({
+                sql: sql,
+                dbId: props.dbId as any,
+                runSuccessCallback: () => {
+                    ElMessage.success('创建成功');
+                    proxy.$parent.tableInfo({ id: props.dbId });
+                    cancel();
+                },
+            });
         };
         const reset = () => {
             formRef.value.resetFields();

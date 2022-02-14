@@ -2,13 +2,13 @@
     <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="750px" :destroy-on-close="true">
         <el-form label-width="85px">
             <el-form-item prop="key" label="key:">
-                <el-input :disabled="operationType == 2" v-model="keyInfo.key"></el-input>
+                <el-input :disabled="operationType == 2" v-model="key.key"></el-input>
             </el-form-item>
             <el-form-item prop="timed" label="过期时间:">
-                <el-input v-model.number="keyInfo.timed" type="number"></el-input>
+                <el-input v-model.number="key.timed" type="number"></el-input>
             </el-form-item>
             <el-form-item prop="dataType" label="数据类型:">
-                <el-select :disabled="operationType == 2" style="width: 100%" v-model="keyInfo.type" placeholder="请选择数据类型">
+                <el-select :disabled="operationType == 2" style="width: 100%" v-model="key.type" placeholder="请选择数据类型">
                     <el-option key="string" label="string" value="string"> </el-option>
                     <el-option key="hash" label="hash" value="hash"> </el-option>
                     <el-option key="set" label="set" value="set"> </el-option>
@@ -16,7 +16,13 @@
             </el-form-item>
 
             <el-form-item v-if="keyInfo.type == 'string'" prop="value" label="内容:">
-                <el-input class="json-text" v-model="stringValue" type="textarea" :autosize="{ minRows: 10, maxRows: 20 }"></el-input>
+                <div id="string-value-text" style="width: 100%">
+                    <el-input class="json-text" v-model="string.value" type="textarea" :autosize="{ minRows: 10, maxRows: 20 }"></el-input>
+                    <el-select class="text-type-select" @change="onChangeTextType" v-model="string.type">
+                        <el-option key="text" label="text" value="text"> </el-option>
+                        <el-option key="json" label="json" value="json"> </el-option>
+                    </el-select>
+                </div>
             </el-form-item>
 
             <span v-if="keyInfo.type == 'hash'">
@@ -40,7 +46,7 @@
                     </el-table-column>
                     <el-table-column label="操作" width="90">
                         <template #default="scope">
-                            <el-button type="danger" @click="hashValue.splice(scope.$index, 1)" icon="delete" size="small" plain>删除</el-button>
+                            <el-button type="danger" @click="hash.value.splice(scope.$index, 1)" icon="delete" size="small" plain>删除</el-button>
                         </template>
                     </el-table-column>
                 </el-table>
@@ -49,8 +55,8 @@
             <span v-if="keyInfo.type == 'set'">
                 <el-button @click="onAddSetValue" icon="plus" size="small" plain class="mt10">添加</el-button>
                 <el-table :data="setValue" stripe style="width: 100%">
-                    <el-table-column prop="value" label="value" width>
-                        <template #default="scope" min-width="200">
+                    <el-table-column prop="value" label="value" min-width="200">
+                        <template #default="scope">
                             <el-input
                                 v-model="scope.row.value"
                                 clearable
@@ -62,7 +68,7 @@
                     </el-table-column>
                     <el-table-column label="操作" width="90">
                         <template #default="scope">
-                            <el-button type="danger" @click="setValue.splice(scope.$index, 1)" icon="delete" size="small" plain>删除</el-button>
+                            <el-button type="danger" @click="set.value.splice(scope.$index, 1)" icon="delete" size="small" plain>删除</el-button>
                         </template>
                     </el-table-column>
                 </el-table>
@@ -81,6 +87,7 @@ import { defineComponent, reactive, watch, toRefs } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import { isTrue, notEmpty } from '@/common/assert';
+import { formatJsonString } from '@/common/utils/format';
 
 export default defineComponent({
     name: 'DateEdit',
@@ -119,32 +126,40 @@ export default defineComponent({
             dialogVisible: false,
             operationType: 1,
             redisId: '',
-            keyInfo: {
+            key: {
                 key: '',
                 type: 'string',
                 timed: -1,
             },
-            stringValue: '',
-            hashValue: [
-                {
-                    key: '',
-                    value: '',
-                },
-            ],
-            setValue: [{ value: '' }],
+            string: {
+                type: 'text',
+                value: '',
+            },
+            hash: {
+                value: [
+                    {
+                        key: '',
+                        value: '',
+                    },
+                ],
+            },
+            set: {
+                value: [{ value: '' }],
+            },
         });
 
         const cancel = () => {
             emit('update:visible', false);
             emit('cancel');
             setTimeout(() => {
-                state.keyInfo = {
+                state.key = {
                     key: '',
                     type: 'string',
                     timed: -1,
                 };
-                state.stringValue = '';
-                state.hashValue = [
+                state.string.value = '';
+                state.string.type = 'text';
+                state.hash.value = [
                     {
                         key: '',
                         value: '',
@@ -178,7 +193,7 @@ export default defineComponent({
             () => props.keyInfo,
             (val) => {
                 if (val) {
-                    state.keyInfo = { ...val };
+                    state.key = { ...val };
                 }
             },
             {
@@ -190,7 +205,7 @@ export default defineComponent({
             () => props.stringValue,
             (val) => {
                 if (val) {
-                    state.stringValue = val;
+                    state.string.value = val;
                 }
             },
             {
@@ -202,7 +217,7 @@ export default defineComponent({
             () => props.setValue,
             (val) => {
                 if (val) {
-                    state.setValue = val;
+                    state.set.value = val;
                 }
             },
             {
@@ -214,7 +229,7 @@ export default defineComponent({
             () => props.hashValue,
             (val) => {
                 if (val) {
-                    state.hashValue = val;
+                    state.hash.value = val;
                 }
             },
             {
@@ -223,26 +238,26 @@ export default defineComponent({
         );
 
         const saveValue = async () => {
-            notEmpty(state.keyInfo.key, 'key不能为空');
+            notEmpty(state.key.key, 'key不能为空');
 
-            if (state.keyInfo.type == 'string') {
-                notEmpty(state.stringValue, 'value不能为空');
-                const sv = { value: state.stringValue, id: state.redisId };
-                Object.assign(sv, state.keyInfo);
+            if (state.key.type == 'string') {
+                notEmpty(state.string.value, 'value不能为空');
+                const sv = { value: formatJsonString(state.string.value, true), id: state.redisId };
+                Object.assign(sv, state.key);
                 await redisApi.saveStringValue.request(sv);
             }
 
-            if (state.keyInfo.type == 'hash') {
-                isTrue(state.hashValue.length > 0, 'hash内容不能为空');
-                const sv = { value: state.hashValue, id: state.redisId };
-                Object.assign(sv, state.keyInfo);
+            if (state.key.type == 'hash') {
+                isTrue(state.hash.value.length > 0, 'hash内容不能为空');
+                const sv = { value: state.hash.value, id: state.redisId };
+                Object.assign(sv, state.key);
                 await redisApi.saveHashValue.request(sv);
             }
 
-            if (state.keyInfo.type == 'set') {
-                isTrue(state.setValue.length > 0, 'set内容不能为空');
-                const sv = { value: state.setValue.map((x) => x.value), id: state.redisId };
-                Object.assign(sv, state.keyInfo);
+            if (state.key.type == 'set') {
+                isTrue(state.set.value.length > 0, 'set内容不能为空');
+                const sv = { value: state.set.value.map((x) => x.value), id: state.redisId };
+                Object.assign(sv, state.key);
                 await redisApi.saveSetValue.request(sv);
             }
 
@@ -252,11 +267,22 @@ export default defineComponent({
         };
 
         const onAddHashValue = () => {
-            state.hashValue.push({ key: '', value: '' });
+            state.hash.value.push({ key: '', value: '' });
         };
 
         const onAddSetValue = () => {
-            state.setValue.push({ value: '' });
+            state.set.value.push({ value: '' });
+        };
+
+        // 更改文本类型
+        const onChangeTextType = (val: string) => {
+            if (val == 'json') {
+                state.string.value = formatJsonString(state.string.value, false);
+                return;
+            }
+            if (val == 'text') {
+                state.string.value = formatJsonString(state.string.value, true);
+            }
         };
 
         return {
@@ -265,7 +291,23 @@ export default defineComponent({
             cancel,
             onAddHashValue,
             onAddSetValue,
+            onChangeTextType,
         };
     },
 });
 </script>
+<style lang="scss">
+#string-value-text {
+    flex-grow: 1;
+    display: flex;
+    position: relative;
+
+    .text-type-select {
+        position: absolute;
+        z-index: 2;
+        right: 10px;
+        top: 10px;
+        max-width: 70px;
+    }
+}
+</style>

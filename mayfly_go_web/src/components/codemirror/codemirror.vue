@@ -46,7 +46,7 @@ import { ElOption, ElSelect } from 'element-plus';
 const CodeMirror = (window as any).CodeMirror || _CodeMirror;
 
 export default defineComponent({
-    name: 'codemirror',
+    name: 'CodeMirror',
      components: {
         ElOption,
         ElSelect,
@@ -173,7 +173,7 @@ export default defineComponent({
 
         watch(
             () => props.modelValue,
-            (newValue, oldValue) => {
+            (newValue) => {
                 handerCodeChange(newValue);
             }
         );

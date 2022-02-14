@@ -114,6 +114,11 @@
                         <el-link class="ml5" @click.prevent="showCreateDdl(scope.row)" type="info">SQL</el-link>
                     </template>
                 </el-table-column>
+                <el-table-column label="操作" min-width="80">
+                    <template #default="scope">
+                        <el-link @click.prevent="dropTable(scope.row)" type="danger">删除</el-link>
+                    </template>
+                </el-table-column>
             </el-table>
         </el-dialog>
 
@@ -155,9 +160,10 @@ import { toRefs, reactive, onMounted, defineComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import DbEdit from './DbEdit.vue';
-import CreateTable from '../component/Table/CreateTable.vue';
+import CreateTable from './CreateTable.vue';
 import { dbApi } from './api';
 import { projectApi } from '../project/api.ts';
+import SqlExecBox from './component/SqlExecBox.ts';
 export default defineComponent({
     name: 'DbList',
     components: {
@@ -306,8 +312,28 @@ export default defineComponent({
                 tableName: row.tableName,
             });
             state.ddlDialog.ddl = res[0]['Create Table'];
-            console.log(state.ddlDialog);
             state.ddlDialog.visible = true;
+        };
+
+        /**
+         * 删除表
+         */
+        const dropTable = async (row: any) => {
+            try {
+                const tableName = row.tableName;
+                await ElMessageBox.confirm(`确定删除'${tableName}'表?`, '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning',
+                });
+                SqlExecBox({
+                    sql: `DROP TABLE ${tableName}`,
+                    dbId: state.chooseId,
+                    runSuccessCallback: async () => {
+                        state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.chooseId });
+                    },
+                });
+            } catch (err) {}
         };
 
         return {
@@ -324,6 +350,7 @@ export default defineComponent({
             showColumns,
             showTableIndex,
             showCreateDdl,
+            dropTable,
             formatByteSize,
         };
     },

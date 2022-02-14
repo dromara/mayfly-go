@@ -12,7 +12,7 @@
 
 <script lang="ts">
 import { toRefs, reactive, defineComponent } from 'vue';
-import { dbApi } from './api';
+import { dbApi } from '../api';
 import { ElDialog, ElButton } from 'element-plus';
 // import base style
 import 'codemirror/lib/codemirror.css';
@@ -71,6 +71,7 @@ export default defineComponent({
          */
         const runSql = async () => {
             try {
+                state.btnLoading = true;
                 await dbApi.sqlExec.request({
                     id: state.dbId,
                     sql: state.sql.trim(),
@@ -79,9 +80,10 @@ export default defineComponent({
             } catch (e) {
                 runSuccess = false;
             }
-            if (runSuccessCallback) {
+            if (runSuccess && runSuccessCallback) {
                 runSuccessCallback();
             }
+            state.btnLoading = false;
             cancel();
         };
 

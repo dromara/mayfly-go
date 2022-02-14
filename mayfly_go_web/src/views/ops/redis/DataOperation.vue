@@ -24,7 +24,7 @@
                             <el-form-item label="key" label-width="40px">
                                 <el-input
                                     placeholder="支持*模糊key"
-                                    style="width: 180px"
+                                    style="width: 240px"
                                     v-model="scanParam.match"
                                     @clear="clear()"
                                     clearable
@@ -83,7 +83,6 @@
 </template>
 
 <script lang="ts">
-import ValueDialog from './ValueDialog.vue';
 import { redisApi } from './api';
 import { toRefs, reactive, defineComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -94,7 +93,6 @@ import { isTrue, notNull } from '@/common/assert';
 export default defineComponent({
     name: 'DataOperation',
     components: {
-        ValueDialog,
         DataEdit,
         ProjectEnvSelect,
     },
@@ -106,11 +104,6 @@ export default defineComponent({
             query: {
                 envId: 0,
             },
-            // redis: {
-            //     id: 0,
-            //     info: '',
-            //     conf: '',
-            // },
             scanParam: {
                 id: null,
                 cluster: 0,

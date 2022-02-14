@@ -8,7 +8,7 @@ export type SqlExecProps = {
     cancelCallback?: Function
 }
 
-const boxId = 'Sql-Exec-ID'
+const boxId = 'sql-exec-id'
 
 const renderBox = (): VNode => {
     const props: SqlExecProps = {
@@ -32,7 +32,7 @@ let boxInstance: any
 const SqlExecBox = (props: SqlExecProps): void => {
     if (boxInstance) {
         const boxVue = boxInstance.component
-        // 调用open方法显示弹框
+        // 调用open方法显示弹框，注意不能使用boxVue.ctx来调用组件函数（build打包后ctx会获取不到）
         boxVue.proxy.open(props);
     } else {
         boxInstance = renderBox()

@@ -22,9 +22,7 @@
 </template>
 
 <script lang="ts">
-import { ref, toRefs, reactive, watch, defineComponent, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
-import { notEmpty } from '@/common/assert';
+import { toRefs, reactive, watch, defineComponent, onMounted } from 'vue';
 import { projectApi } from '../project/api';
 
 export default defineComponent({
