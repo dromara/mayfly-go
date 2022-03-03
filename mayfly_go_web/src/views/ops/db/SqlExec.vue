@@ -15,6 +15,18 @@
                                     </el-option>
                                 </el-select>
                             </el-form-item>
+
+                            <el-form-item label-width="40" label="表">
+                                <el-select v-model="tableName" placeholder="选择表查看表数据" @change="changeTable" filterable style="width: 250px">
+                                    <el-option
+                                        v-for="item in tableMetadata"
+                                        :key="item.tableName"
+                                        :label="item.tableName + (item.tableComment != '' ? `【${item.tableComment}】` : '')"
+                                        :value="item.tableName"
+                                    >
+                                    </el-option>
+                                </el-select>
+                            </el-form-item>
                         </template>
                     </project-env-select>
                 </el-col>
@@ -22,29 +34,7 @@
         </div>
 
         <el-container id="data-exec" style="border: 1px solid #eee; margin-top: 1px">
-            <el-container style="margin-left: 2px">
-                <el-header style="text-align: left; height: 35px; font-size: 12px; padding: 0px">
-                    <el-select v-model="tableName" placeholder="请选择表" @change="changeTable" filterable style="width: 99%">
-                        <el-option
-                            v-for="item in tableMetadata"
-                            :key="item.tableName"
-                            :label="item.tableName + (item.tableComment != '' ? `【${item.tableComment}】` : '')"
-                            :value="item.tableName"
-                        >
-                        </el-option>
-                    </el-select>
-                </el-header>
-
-                <el-main style="padding: 0px; overflow: hidden">
-                    <el-table :data="columnMetadata" height="100%" size="small">
-                        <el-table-column prop="columnName" label="名称" show-overflow-tooltip> </el-table-column>
-                        <el-table-column prop="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
-                        <el-table-column width="120" prop="columnType" label="类型" show-overflow-tooltip> </el-table-column>
-                    </el-table>
-                </el-main>
-            </el-container>
-
-            <el-tabs @tab-remove="removeDataTab" @tab-click="onDataTabClick" style="width: 70%; margin-left: 10px" v-model="activeName">
+            <el-tabs @tab-remove="removeDataTab" @tab-click="onDataTabClick" style="width: 100%; margin-left: 10px" v-model="activeName">
                 <el-tab-pane :label="queryTab.label" :name="queryTab.name">
                     <div>
                         <div>
@@ -158,7 +148,7 @@
                     <el-row class="mt5">
                         <el-input v-model="dt.condition" placeholder="若需条件过滤，输入WHERE之后查询条件点击查询按钮即可" clearable size="small">
                             <template #prepend>
-                                <el-button @click="selectByCondition(dt.name, dt.condition)" icon="search"></el-button>
+                                <el-button @click="selectByCondition(dt.name, dt.condition)" icon="search" size="small"></el-button>
                             </template>
                         </el-input>
                     </el-row>
@@ -187,6 +177,13 @@
                             show-overflow-tooltip
                             :sortable="nowTableName != '' ? 'custom' : false"
                         >
+                            <template #header>
+                                <el-tooltip raw-content effect="dark" placement="top">
+                                    <template #content> {{ getColumnTip(dt.name, item) }} </template>
+                                    <el-icon><question-filled /></el-icon>
+                                </el-tooltip>
+                                {{ item }}
+                            </template>
                         </el-table-column>
                     </el-table>
                 </el-tab-pane>
@@ -332,7 +329,7 @@ export default defineComponent({
             notBlank(state.dbId, '请先选择数据库');
             // 没有选中的文本，则为全部文本
             let sql = getSql();
-            notBlank(sql, '内容不能为空');
+            notBlank(sql.trim(), 'sql内容不能为空');
 
             state.queryTab.loading = true;
             // 即只有以该字符串开头的sql才可修改表数据内容
@@ -478,6 +475,17 @@ export default defineComponent({
             return flexWidth + 'px';
         };
 
+        const getColumnTip = (tableName: string, columnName: string) => {
+            // 优先从 table map中获取
+            let columns = tableMap.get(tableName);
+            if (!columns) {
+                return '';
+            }
+            const column = columns.find((c: any) => c.columnName == columnName);
+            const comment = column.columnComment;
+            return `${column.columnType} ${comment ? ' |  ' + comment : ''}`;
+        };
+
         /**
          * 获取sql，如果有鼠标选中，则返回选中内容，否则返回输入框内所有内容
          */
@@ -500,11 +508,6 @@ export default defineComponent({
             clearDb();
             dbApi.tableMetadata.request({ id }).then((res) => {
                 state.tableMetadata = res;
-                // 赋值第一个表信息
-                if (state.tableMetadata.length > 0) {
-                    state.tableName = state.tableMetadata[0]['tableName'];
-                    changeTable(state.tableName, false);
-                }
             });
 
             dbApi.hintTables
@@ -602,7 +605,7 @@ export default defineComponent({
          * 提交事务，用于没有开启自动提交事务
          */
         const onCommit = () => {
-            notBlank(state.dbId, '请先选择数据库');
+            notBlank(state.dbId, "请先选择数据库");
             runSql('COMMIT;');
             ElMessage.success('COMMIT success');
         };
@@ -878,7 +881,7 @@ export default defineComponent({
             if (temp) {
                 state.btnStyle.display = 'block';
                 if (!state.btnStyle.left) {
-                    state.btnStyle.left = e.target.getBoundingClientRect().left - 550 + 'px';
+                    state.btnStyle.left = e.target.getBoundingClientRect().left;
                     state.btnStyle.top = e.target.getBoundingClientRect().top - 160 + 'px';
                 }
             } else {
@@ -906,6 +909,7 @@ export default defineComponent({
             getUploadSqlFileUrl,
             execSqlFileSuccess,
             flexColumnWidth,
+            getColumnTip,
             changeSqlTemplate,
             deleteSql,
             saveSql,

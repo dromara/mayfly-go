@@ -2,10 +2,12 @@
     <div>
         <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px">
             <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sql" :options="cmOptions" />
-            <div class="footer mt10">
-                <el-button @click="runSql" type="primary" :loading="btnLoading">执 行</el-button>
-                <el-button @click="cancel">取 消</el-button>
-            </div>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="runSql" type="primary" :loading="btnLoading">执 行</el-button>
+                    <el-button @click="cancel">取 消</el-button>
+                </span>
+            </template>
         </el-dialog>
     </div>
 </template>
