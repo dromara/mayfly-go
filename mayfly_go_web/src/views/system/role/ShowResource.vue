@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-dialog @close="closeDialog" :title="title" :before-close="closeDialog" v-model="dialogVisible" width="400px">
-            <el-tree style="height: 50vh; overflow: auto" :data="resources" node-key="id" :props="defaultProps" :expand-on-click-node="false">
+            <el-tree style="height: 50vh; overflow: auto" :data="resources" node-key="id" :props="defaultProps">
                 <template #default="{ node, data }">
                     <span class="custom-tree-node">
                         <span v-if="data.type == enums.ResourceTypeEnum.MENU.value">{{ node.label }}</span>

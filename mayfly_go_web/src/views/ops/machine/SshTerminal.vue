@@ -62,7 +62,6 @@ export default defineComponent({
                 // fontWeight: getThemeConfig.value.terminalFontWeight || 'normal',
                 fontFamily: 'JetBrainsMono, Consolas, Menlo, Monaco',
                 cursorBlink: true,
-                // letterSpacing: 1,
                 // cursorStyle: 'underline', //光标样式
                 disableStdin: false,
                 theme: {
@@ -78,13 +77,6 @@ export default defineComponent({
             term.focus();
             state.term = term;
 
-            // term.onResize((columns: number, rows: number) => {
-            //     send({
-            //         type: 'resize',
-            //         Cols: columns,
-            //         Rows: rows,
-            //     });
-            // });
             // 监听窗口resize
             window.addEventListener('resize', () => {
                 try {

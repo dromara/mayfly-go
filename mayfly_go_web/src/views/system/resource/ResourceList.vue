@@ -142,7 +142,6 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceEdit from './ResourceEdit.vue';
 import enums from '../enums';
 import { resourceApi } from '../api';
-import SvgIcon from '@/components/svgIcon/index.vue';
 
 export default defineComponent({
     name: 'ResourceList',

@@ -15,7 +15,7 @@
                 </el-select>
             </el-form-item>
 
-            <el-form-item v-if="keyInfo.type == 'string'" prop="value" label="内容:">
+            <el-form-item v-if="key.type == 'string'" prop="value" label="内容:">
                 <div id="string-value-text" style="width: 100%">
                     <el-input class="json-text" v-model="string.value" type="textarea" :autosize="{ minRows: 10, maxRows: 20 }"></el-input>
                     <el-select class="text-type-select" @change="onChangeTextType" v-model="string.type">
@@ -25,9 +25,9 @@
                 </div>
             </el-form-item>
 
-            <span v-if="keyInfo.type == 'hash'">
+            <span v-if="key.type == 'hash'">
                 <el-button @click="onAddHashValue" icon="plus" size="small" plain class="mt10">添加</el-button>
-                <el-table :data="hashValue" stripe style="width: 100%">
+                <el-table :data="hash.value" stripe style="width: 100%">
                     <el-table-column prop="key" label="key" width>
                         <template #default="scope">
                             <el-input v-model="scope.row.key" clearable size="small"></el-input>
@@ -52,9 +52,9 @@
                 </el-table>
             </span>
 
-            <span v-if="keyInfo.type == 'set'">
+            <span v-if="key.type == 'set'">
                 <el-button @click="onAddSetValue" icon="plus" size="small" plain class="mt10">添加</el-button>
-                <el-table :data="setValue" stripe style="width: 100%">
+                <el-table :data="set.value" stripe style="width: 100%">
                     <el-table-column prop="value" label="value" min-width="200">
                         <template #default="scope">
                             <el-input

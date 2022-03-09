@@ -25,7 +25,7 @@ export default defineComponent({
         });
 
         onMounted(() => {
-            state.height = window.innerHeight;
+            state.height = window.innerHeight + 5;
             state.machineId = Number.parseInt(route.query.id as string);
         });
 

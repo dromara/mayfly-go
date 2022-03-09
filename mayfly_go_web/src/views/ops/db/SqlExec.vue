@@ -145,7 +145,7 @@
                             <el-link @click="onCommit" class="ml5" type="success" icon="check" :underline="false"></el-link>
                         </el-tooltip>
                     </el-row>
-                    <el-row class="mt5">
+                    <el-row>
                         <el-input v-model="dt.condition" placeholder="若需条件过滤，输入WHERE之后查询条件点击查询按钮即可" clearable size="small">
                             <template #prepend>
                                 <el-button @click="selectByCondition(dt.name, dt.condition)" icon="search" size="small"></el-button>
@@ -568,10 +568,14 @@ export default defineComponent({
         const selectByCondition = async (tableName: string, condition: string) => {
             notEmpty(condition, '条件不能为空');
             state.dataTabs[tableName].loading = true;
-            const colAndData: any = await runSql(getDefaultSelectSql(tableName, condition));
-            state.dataTabs[tableName].execRes.tableColumn = colAndData.colNames;
-            state.dataTabs[tableName].execRes.data = colAndData.res;
-            state.dataTabs[tableName].loading = false;
+            try {
+                const colAndData: any = await runSql(getDefaultSelectSql(tableName, condition));
+                state.dataTabs[tableName].execRes.tableColumn = colAndData.colNames;
+                state.dataTabs[tableName].execRes.data = colAndData.res;
+                state.dataTabs[tableName].loading = false;
+            } catch (err) {
+                state.dataTabs[tableName].loading = false;
+            }
         };
 
         /**
@@ -605,7 +609,7 @@ export default defineComponent({
          * 提交事务，用于没有开启自动提交事务
          */
         const onCommit = () => {
-            notBlank(state.dbId, "请先选择数据库");
+            notBlank(state.dbId, '请先选择数据库');
             runSql('COMMIT;');
             ElMessage.success('COMMIT success');
         };
