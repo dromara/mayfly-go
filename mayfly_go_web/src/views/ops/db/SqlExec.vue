@@ -760,14 +760,14 @@ export default defineComponent({
 
         // 监听单元格点击事件
         const cellClick = (row: any, column: any, cell: any) => {
+            const property = column.property;
             // 如果当前操作的表名不存在 或者 当前列的property不存在(如多选框)，则不允许修改当前单元格内容
-            if (!state.nowTableName || !column.property) {
+            if (!state.nowTableName || !property) {
                 return;
             }
-            let isDiv = cell.children[0].tagName === 'DIV';
-            let text = cell.children[0].innerText;
+            let text = row[property];
             let div = cell.children[0];
-            if (isDiv) {
+            if (div) {
                 let input = document.createElement('input');
                 input.setAttribute('value', text);
                 // 将表格width也赋值于输入框，避免输入框长度超过表格长度
@@ -775,7 +775,7 @@ export default defineComponent({
                 cell.replaceChildren(input);
                 input.focus();
                 input.addEventListener('blur', async () => {
-                    div.innerText = input.value;
+                    row[property] = input.value;
                     cell.replaceChildren(div);
                     if (input.value !== text) {
                         const primaryKey = await getColumn(state.nowTableName);
@@ -785,7 +785,7 @@ export default defineComponent({
                         const sql = `UPDATE ${state.nowTableName} SET ${column.rawColumnKey} = ${wrapColumnValue(updateColumn, input.value)} 
                                         WHERE ${primaryKeyColumnName} = ${wrapColumnValue(primaryKey, row[primaryKeyColumnName])}`;
                         promptExeSql(sql, () => {
-                            div.innerText = text;
+                            row[property] = text;
                         });
                     }
                 });
