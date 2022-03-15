@@ -34,14 +34,14 @@
         </div>
 
         <el-container id="data-exec" style="border: 1px solid #eee; margin-top: 1px">
-            <el-tabs @tab-remove="removeDataTab" @tab-click="onDataTabClick" style="width: 100%; margin-left: 10px" v-model="activeName">
+            <el-tabs @tab-remove="removeDataTab" @tab-click="onDataTabClick" style="width: 100%" v-model="activeName">
                 <el-tab-pane :label="queryTab.label" :name="queryTab.name">
                     <div>
                         <div>
                             <div class="toolbar">
                                 <div class="fl">
                                     <el-upload
-                                        style="display: inline-block; margin-left: 10px"
+                                        style="display: inline-block"
                                         :before-upload="beforeUpload"
                                         :on-success="execSqlFileSuccess"
                                         :headers="{ Authorization: token }"
@@ -56,7 +56,9 @@
                                     >
                                         <el-button type="success" icon="video-play" plain size="small">sql脚本执行</el-button>
                                     </el-upload>
-                                    <el-button @click="onCommit" class="ml5" type="success" icon="CircleCheck" plain size="small">commit</el-button>
+                                    <el-button @click="onCommit" class="ml5 mb5" type="success" icon="CircleCheck" plain size="small"
+                                        >commit</el-button
+                                    >
                                 </div>
 
                                 <div style="float: right" class="fl">
@@ -80,8 +82,9 @@
                             </div>
                         </div>
 
-                        <div class="mt10">
+                        <div class="mt5">
                             <codemirror
+                                style="border: 1px solid #ccc"
                                 @mousemove="listenMouse"
                                 @beforeChange="onBeforeChange"
                                 height="300px"
@@ -97,14 +100,13 @@
                             </el-button-group>
                         </div>
 
-                        <div class="mt10">
+                        <div class="mt5">
                             <el-row v-if="queryTab.nowTableName">
                                 <el-link @click="onDeleteData" class="ml5" type="danger" icon="delete" :underline="false"></el-link>
                             </el-row>
                             <el-table
                                 @cell-dblclick="cellClick"
                                 @selection-change="onDataSelectionChange"
-                                style="margin-top: 1px"
                                 :data="queryTab.execRes.data"
                                 v-loading="queryTab.loading"
                                 element-loading-text="查询中..."
@@ -113,6 +115,7 @@
                                 empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
                                 stripe
                                 border
+                                class="mt5"
                             >
                                 <el-table-column
                                     v-if="queryTab.execRes.tableColumn.length > 0 && queryTab.nowTableName"
@@ -137,7 +140,7 @@
 
                 <el-tab-pane closable v-for="dt in dataTabs" :key="dt.name" :label="dt.label" :name="dt.name">
                     <el-row v-if="dbId">
-                        <el-link @click="onRefresh(dt.name)" icon="refresh" :underline="false"></el-link>
+                        <el-link @click="onRefresh(dt.name)" icon="refresh" :underline="false" class="ml5"></el-link>
                         <el-link @click="addRow" class="ml5" type="primary" icon="plus" :underline="false"></el-link>
                         <el-link @click="onDeleteData" class="ml5" type="danger" icon="delete" :underline="false"></el-link>
 
@@ -145,7 +148,7 @@
                             <el-link @click="onCommit" class="ml5" type="success" icon="check" :underline="false"></el-link>
                         </el-tooltip>
                     </el-row>
-                    <el-row>
+                    <el-row class="mt5">
                         <el-input v-model="dt.condition" placeholder="若需条件过滤，输入WHERE之后查询条件点击查询按钮即可" clearable size="small">
                             <template #prepend>
                                 <el-button @click="selectByCondition(dt.name, dt.condition)" icon="search" size="small"></el-button>
@@ -156,14 +159,15 @@
                         @cell-dblclick="cellClick"
                         @sort-change="onTableSortChange"
                         @selection-change="onDataSelectionChange"
-                        style="margin-top: 1px"
                         :data="dt.execRes.data"
                         size="small"
                         max-height="600"
                         v-loading="dt.loading"
                         element-loading-text="查询中..."
+                        empty-text="暂无数据"
                         stripe
                         border
+                        class="mt5"
                     >
                         <el-table-column v-if="dt.execRes.tableColumn.length > 0" type="selection" width="35" />
                         <el-table-column
@@ -934,7 +938,7 @@ export default defineComponent({
 });
 </script>
 
-<style scoped lang="scss">
+<style lang="scss">
 .codesql {
     font-size: 9pt;
     font-weight: 600;
@@ -946,5 +950,10 @@ export default defineComponent({
 
 #data-exec {
     min-height: calc(100vh - 155px);
+
+    .el-table__empty-text {
+        width: 100%;
+        margin-left: 50px;
+    }
 }
 </style>

@@ -14,7 +14,7 @@
                     <el-input v-model.trim="form.ip" placeholder="请输入主机ip" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item prop="port" label="port:" required>
-                    <el-input type="number" v-model.trim="form.port" placeholder="请输入端口"></el-input>
+                    <el-input type="number" v-model.number="form.port" placeholder="请输入端口"></el-input>
                 </el-form-item>
                 <el-form-item prop="username" label="用户名:" required>
                     <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>

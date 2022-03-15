@@ -1,9 +1,11 @@
 package starter
 
-import "fmt"
+import (
+	"mayfly-go/base/global"
+)
 
 func PrintBanner() {
-	fmt.Print(`
+	global.Log.Print(`
                          __ _                         
   _ __ ___   __ _ _   _ / _| |_   _        __ _  ___  
  | '_ ' _ \ / _' | | | | |_| | | | |_____ / _' |/ _ \ 

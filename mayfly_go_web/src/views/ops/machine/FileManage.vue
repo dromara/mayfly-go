@@ -488,6 +488,7 @@ export default defineComponent({
                     headers: { 'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundaryF1uyUD0tWdqmJqpl' },
                     onUploadProgress: onUploadProgress,
                     baseURL: '',
+                    timeout: 60*60*1000,
                 })
                 .then(() => {
                     ElMessage.success('上传成功');

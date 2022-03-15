@@ -26,7 +26,7 @@
                     ></el-input>
                 </el-form-item>
                 <el-form-item prop="db" label="库号:" required>
-                    <el-input v-model.trim="form.db" placeholder="请输入库号"></el-input>
+                    <el-input v-model.number="form.db" placeholder="请输入库号"></el-input>
                 </el-form-item>
             </el-form>
 
