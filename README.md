@@ -11,6 +11,9 @@
 #### 交流及问题反馈加 QQ 群
 <a target="_blank" href="https://qm.qq.com/cgi-bin/qm/qr?jump_from=webapi">119699946</a>
 
+#### 系统相关操作视频
+- 系统操作视频: https://space.bilibili.com/484091081/channel/seriesdetail?sid=2064467
+
 
 #### 系统功能
 
