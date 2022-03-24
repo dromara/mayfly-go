@@ -48,7 +48,11 @@
 
             <el-table v-loading="loading" :data="keys" stripe :highlight-current-row="true" style="cursor: pointer">
                 <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
-                <el-table-column prop="type" label="type" width="80"> </el-table-column>
+                <el-table-column prop="type" label="type" width="80">
+                    <template #default="scope">
+                        <el-tag :color="getTypeColor(scope.row.type)" size="small">{{ scope.row.type }}</el-tag>
+                    </template>
+                </el-table-column>
                 <el-table-column prop="ttl" label="ttl(过期时间)" width="130">
                     <template #default="scope">
                         {{ ttlConveter(scope.row.ttl) }}
@@ -313,6 +317,18 @@ export default defineComponent({
             return result;
         };
 
+        const getTypeColor = (type: string) => {
+            if (type == 'string') {
+                return '#E4F5EB';
+            }
+            if (type == 'hash') {
+                return '#F9E2AE';
+            }
+            if (type == 'set') {
+                return '#A8DEE0';
+            }
+        };
+
         const onAddData = () => {
             notNull(state.scanParam.id, '请先选择redis');
             state.dataEdit.operationType = 1;
@@ -338,6 +354,7 @@ export default defineComponent({
             getValue,
             del,
             ttlConveter,
+            getTypeColor,
             onAddData,
             onCancelDataEdit,
         };

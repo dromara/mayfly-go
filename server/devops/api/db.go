@@ -169,11 +169,17 @@ func (d *Db) HintTables(rc *ctx.ReqCtx) {
 	for _, v := range tables {
 		tableNames = append(tableNames, v["tableName"])
 	}
-	// 获取所有表下的所有列信息
-	columnMds := dbi.GetColumnMetadatas(tableNames...)
 	// key = 表名，value = 列名数组
 	res := make(map[string][]string)
 
+	// 表为空，则直接返回
+	if len(tableNames) == 0 {
+		rc.ResData = res
+		return
+	}
+
+	// 获取所有表下的所有列信息
+	columnMds := dbi.GetColumnMetadatas(tableNames...)
 	for _, v := range columnMds {
 		tName := v["tableName"]
 		if res[tName] == nil {

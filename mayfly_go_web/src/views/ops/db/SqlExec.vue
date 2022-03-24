@@ -950,10 +950,5 @@ export default defineComponent({
 
 #data-exec {
     min-height: calc(100vh - 155px);
-
-    .el-table__empty-text {
-        width: 100%;
-        margin-left: 50px;
-    }
 }
 </style>

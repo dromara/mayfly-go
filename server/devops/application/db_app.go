@@ -11,6 +11,7 @@ import (
 	"mayfly-go/server/devops/domain/entity"
 	"mayfly-go/server/devops/domain/repository"
 	"mayfly-go/server/devops/infrastructure/persistence"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -289,10 +290,17 @@ const (
 	FROM information_schema.STATISTICS 
     WHERE table_schema = (SELECT database()) AND table_name = '%s'`
 
+	// 默认每次查询列元信息数量
+	DEFAULT_COLUMN_SIZE = 2000
+
 	// mysql 列信息元数据
 	MYSQL_COLOUMN_MA = `SELECT table_name tableName, column_name columnName, column_type columnType,
 	column_comment columnComment, column_key columnKey, extra, is_nullable nullable from information_schema.columns
-	WHERE table_name in (%s) AND table_schema = (SELECT database()) ORDER BY ordinal_position limit 18000`
+	WHERE table_name in (%s) AND table_schema = (SELECT database()) ORDER BY tableName, ordinal_position limit %d, %d`
+
+	// mysql 列信息元数据总数
+	MYSQL_COLOUMN_MA_COUNT = `SELECT COUNT(*) maNum from information_schema.columns
+	WHERE table_name in (%s) AND table_schema = (SELECT database())`
 )
 
 func (d *DbInstance) GetTableMetedatas() []map[string]string {
@@ -312,12 +320,31 @@ func (d *DbInstance) GetColumnMetadatas(tableNames ...string) []map[string]strin
 		}
 		tableName = tableName + "'" + tableNames[i] + "'"
 	}
+
+	var countSqlTmp string
+	var sqlTmp string
 	if d.Type == "mysql" {
-		sql = fmt.Sprintf(MYSQL_COLOUMN_MA, tableName)
+		countSqlTmp = MYSQL_COLOUMN_MA_COUNT
+		sqlTmp = MYSQL_COLOUMN_MA
 	}
 
-	_, res, err := d.SelectData(sql)
-	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
+	countSql := fmt.Sprintf(countSqlTmp, tableName)
+	_, countRes, _ := d.SelectData(countSql)
+	// 查询出所有列信息总数，手动分页获取所有数据
+	maCount, _ := strconv.Atoi(countRes[0]["maNum"])
+	// 计算需要查询的页数
+	pageNum := maCount / DEFAULT_COLUMN_SIZE
+	if maCount%DEFAULT_COLUMN_SIZE > 0 {
+		pageNum++
+	}
+
+	res := make([]map[string]string, 0)
+	for index := 0; index < pageNum; index++ {
+		sql = fmt.Sprintf(sqlTmp, tableName, index*DEFAULT_COLUMN_SIZE, DEFAULT_COLUMN_SIZE)
+		_, result, err := d.SelectData(sql)
+		biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
+		res = append(res, result...)
+	}
 	return res
 }
 
