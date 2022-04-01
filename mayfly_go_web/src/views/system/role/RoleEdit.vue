@@ -1,11 +1,11 @@
 <template>
     <div class="role-dialog">
-        <el-dialog :title="title" v-model="visible" :show-close="false" :before-close="cancel" width="500px">
+        <el-dialog :title="title" v-model="_visible" :show-close="false" :before-close="cancel" width="500px">
             <el-form :model="form" label-width="90px">
-                <el-form-item label="角色名称:" required>
+                <el-form-item prop="name" label="角色名称:" required>
                     <el-input v-model="form.name" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item label="角色code:" required>
+                <el-form-item prop="code" label="角色code:" required>
                     <el-input :disabled="form.id != null" v-model="form.code" placeholder="COMMON开头则为所有账号共有角色" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item label="角色描述:">
@@ -41,7 +41,7 @@ export default defineComponent({
     },
     setup(props: any, { emit }) {
         const state = reactive({
-            visible: false,
+            _visible: false,
             form: {
                 id: null,
                 name: '',
@@ -52,7 +52,7 @@ export default defineComponent({
         });
 
         watch(props, (newValue) => {
-            state.visible = newValue.visible;
+            state._visible = newValue.visible;
             if (newValue.data) {
                 state.form = { ...newValue.data };
             } else {

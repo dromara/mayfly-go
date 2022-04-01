@@ -75,7 +75,7 @@ func (r *redisAppImpl) Save(re *entity.Redis) {
 	} else {
 		// 如果存在该库，则校验修改的库是否为该库
 		if err == nil {
-			biz.IsTrue(re.Id == re.Id, "该库已存在")
+			biz.IsTrue(oldRedis.Id == re.Id, "该库已存在")
 		}
 		// 先关闭数据库连接
 		CloseRedis(re.Id)

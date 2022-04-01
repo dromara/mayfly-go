@@ -74,7 +74,7 @@
                     />
 
                     <el-link
-                        v-auth="'resource:del'"
+                        v-auth="'resource:delete'"
                         v-if="data.children == null && data.name !== '首页'"
                         @click.prevent="deleteMenu(data)"
                         type="danger"
