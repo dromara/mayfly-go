@@ -187,10 +187,10 @@ func GetPageBySql(sql string, param *PageParam, toModel interface{}, args ...int
 
 func GetListBySql(sql string, params ...interface{}) []map[string]interface{} {
 	var maps []map[string]interface{}
-	global.Db.Raw(sql, params).Scan(&maps)
+	global.Db.Raw(sql, params...).Scan(&maps)
 	return maps
 }
 
 func GetListBySql2Model(sql string, toEntity interface{}, params ...interface{}) error {
-	return global.Db.Raw(sql, params).Find(toEntity).Error
+	return global.Db.Raw(sql, params...).Find(toEntity).Error
 }

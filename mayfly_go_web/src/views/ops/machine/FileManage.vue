@@ -353,6 +353,9 @@ export default defineComponent({
             if (path.endsWith('nginx.conf')) {
                 return 'nginx';
             }
+            if (path.endsWith('sql')) {
+                return 'sql';
+            }
             if (path.endsWith('yaml') || path.endsWith('yml')) {
                 return 'yaml';
             }
@@ -488,7 +491,7 @@ export default defineComponent({
                     headers: { 'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundaryF1uyUD0tWdqmJqpl' },
                     onUploadProgress: onUploadProgress,
                     baseURL: '',
-                    timeout: 60*60*1000,
+                    timeout: 60 * 60 * 1000,
                 })
                 .then(() => {
                     ElMessage.success('上传成功');

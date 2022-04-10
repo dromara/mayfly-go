@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px">
-            <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sql" :options="cmOptions" />
+            <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sqlValue" :options="cmOptions" />
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="runSql" type="primary" :loading="btnLoading">执 行</el-button>
@@ -47,7 +47,7 @@ export default defineComponent({
     setup(props: any) {
         const state = reactive({
             dialogVisible: false,
-            sql: '',
+            sqlValue: '',
             dbId: 0,
             btnLoading: false,
             cmOptions: {
@@ -63,6 +63,7 @@ export default defineComponent({
                 extraKeys: { Tab: 'autocomplete' }, // 自定义快捷键
             },
         });
+        state.sqlValue = props.sql;
 
         let runSuccessCallback: any;
         let cancelCallback: any;
@@ -76,7 +77,7 @@ export default defineComponent({
                 state.btnLoading = true;
                 await dbApi.sqlExec.request({
                     id: state.dbId,
-                    sql: state.sql.trim(),
+                    sql: state.sqlValue.trim(),
                 });
                 runSuccess = true;
             } catch (e) {
@@ -97,7 +98,7 @@ export default defineComponent({
             }
             setTimeout(() => {
                 state.dbId = 0;
-                state.sql = '';
+                state.sqlValue = '';
                 runSuccessCallback = null;
                 cancelCallback = null;
                 runSuccess = false;
@@ -107,7 +108,7 @@ export default defineComponent({
         const open = (props: SqlExecProps) => {
             runSuccessCallback = props.runSuccessCallback;
             cancelCallback = props.cancelCallback;
-            state.sql = sqlFormatter(props.sql);
+            state.sqlValue = sqlFormatter(props.sql);
             state.dbId = props.dbId;
             state.dialogVisible = true;
         };

@@ -82,18 +82,8 @@
                             </div>
                         </div>
 
-                        <div class="mt5">
-                            <codemirror
-                                style="border: 1px solid #ccc"
-                                @mousemove="listenMouse"
-                                @beforeChange="onBeforeChange"
-                                height="300px"
-                                class="codesql"
-                                ref="cmEditor"
-                                language="sql"
-                                v-model="sql"
-                                :options="cmOptions"
-                            />
+                        <div class="mt5 sqlEditor" @mousemove="listenMouse">
+                            <textarea ref="codeTextarea"></textarea>
                             <el-button-group :style="btnStyle">
                                 <el-button @click="onRunSql" type="success" icon="video-play" size="small" plain>执行</el-button>
                                 <el-button @click="formatSql" type="primary" icon="magic-stick" size="small" plain>格式化</el-button>
@@ -161,7 +151,7 @@
                         @selection-change="onDataSelectionChange"
                         :data="dt.execRes.data"
                         size="small"
-                        max-height="600"
+                        :max-height="dataTabsTableHeight"
                         v-loading="dt.loading"
                         element-loading-text="查询中..."
                         empty-text="暂无数据"
@@ -197,7 +187,7 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, computed, defineComponent, ref } from 'vue';
+import { onMounted, toRefs, reactive, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
 import _ from 'lodash';
 
@@ -208,7 +198,7 @@ import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/base16-light.css';
 
 import 'codemirror/addon/selection/active-line';
-import { codemirror } from '@/components/codemirror';
+import _CodeMirror from 'codemirror';
 // import 'codemirror/mode/sql/sql.js';
 import 'codemirror/addon/hint/show-hint.js';
 import 'codemirror/addon/hint/sql-hint.js';
@@ -224,12 +214,13 @@ import SqlExecBox from './component/SqlExecBox';
 export default defineComponent({
     name: 'SqlExec',
     components: {
-        codemirror,
         ProjectEnvSelect,
     },
     setup() {
-        const cmEditor: any = ref(null);
+        const codeTextarea: any = ref(null);
         const token = getSession('token');
+        let codemirror = null as any;
+        const tableMap = new Map();
 
         const state = reactive({
             token: token,
@@ -242,11 +233,11 @@ export default defineComponent({
             columnMetadata: [],
             sqlName: '', // 当前sql模板名
             sqlNames: [], // 所有sql模板名
-            sql: '',
             activeName: 'Query',
             queryTabName: 'Query',
             nowTableName: '', // 当前表格数据操作的数据库表名，用于双击编辑表内容使用
             dataTabs: {}, // 点击表信息后执行结果数据展示tabs
+            dataTabsTableHeight: 600,
             // 查询tab
             queryTab: {
                 label: '查询',
@@ -292,10 +283,27 @@ export default defineComponent({
             },
         });
 
-        const tableMap = new Map();
+        const initCodemirror = () => {
+            // 初始化编辑器实例，传入需要被实例化的文本域对象和默认配置
+            codemirror = _CodeMirror.fromTextArea(codeTextarea.value, state.cmOptions);
+            codemirror.on('inputRead', (instance: any, changeObj: any) => {
+                if (/^[a-zA-Z]/.test(changeObj.text[0])) {
+                    instance.showHint();
+                }
+            });
 
-        const codemirror: any = computed(() => {
-            return cmEditor.value.coder;
+            codemirror.on('beforeChange', (instance: any, changeObj: any) => {
+                var text = changeObj.text[0];
+                // 将sql提示去除
+                changeObj.text[0] = text.split('  ')[0];
+            });
+            // 默认300px
+            codemirror.setSize('auto', `${window.innerHeight - 538}px`);
+        };
+
+        onMounted(() => {
+            initCodemirror();
+            state.dataTabsTableHeight = window.innerHeight - 258;
         });
 
         /**
@@ -308,15 +316,6 @@ export default defineComponent({
             if (envId != null) {
                 state.params.envId = envId;
                 search();
-            }
-        };
-
-        /**
-         * 输入字符给提示
-         */
-        const inputRead = (instance: any, changeObj: any) => {
-            if (/^[a-zA-Z]/.test(changeObj.text[0])) {
-                showHint();
             }
         };
 
@@ -353,10 +352,14 @@ export default defineComponent({
                 state.nowTableName = '';
             }
 
-            const colAndData: any = await runSql(sql);
-            state.queryTab.execRes.data = colAndData.res;
-            state.queryTab.execRes.tableColumn = colAndData.colNames;
-            state.queryTab.loading = false;
+            try {
+                const colAndData: any = await runSql(sql);
+                state.queryTab.execRes.data = colAndData.res;
+                state.queryTab.execRes.tableColumn = colAndData.colNames;
+                state.queryTab.loading = false;
+            } catch (e: any) {
+                state.queryTab.loading = false;
+            }
         };
 
         /**
@@ -495,9 +498,9 @@ export default defineComponent({
          */
         const getSql = () => {
             // 没有选中的文本，则为全部文本
-            let selectSql = codemirror.value.getSelection();
+            let selectSql = codemirror.getSelection();
             if (selectSql == '') {
-                selectSql = state.sql;
+                selectSql = getCodermirrorValue();
             }
             return selectSql;
         };
@@ -644,11 +647,19 @@ export default defineComponent({
             notBlank(state.dbId, '请先选择数据库');
             dbApi.getSql.request({ id: state.dbId, type: 1, name: state.sqlName }).then((res) => {
                 if (res) {
-                    state.sql = res.sql;
+                    setCodermirrorValue(res.sql);
                 } else {
-                    state.sql = '';
+                     setCodermirrorValue('');
                 }
             });
+        };
+
+        const setCodermirrorValue = (value: string) => {
+            codemirror.setValue(value);
+        };
+
+        const getCodermirrorValue = () => {
+            codemirror.getValue();
         };
 
         /**
@@ -673,9 +684,10 @@ export default defineComponent({
         };
 
         const saveSql = async () => {
-            notEmpty(state.sql, 'sql内容不能为空');
+            const sql = codemirror.getValue();
+            notEmpty(sql, 'sql内容不能为空');
             notBlank(state.dbId, '请先选择数据库');
-            await dbApi.saveSql.request({ id: state.dbId, sql: state.sql, type: 1, name: state.sqlName });
+            await dbApi.saveSql.request({ id: state.dbId, sql: sql, type: 1, name: state.sqlName });
             ElMessage.success('保存成功');
 
             dbApi.getSqlNames
@@ -710,7 +722,7 @@ export default defineComponent({
             state.tableMetadata = [];
             state.columnMetadata = [];
             state.dataTabs = {};
-            state.sql = '';
+            setCodermirrorValue('');
             state.sqlNames = [];
             state.sqlName = '';
             state.activeName = state.queryTab.name;
@@ -856,23 +868,16 @@ export default defineComponent({
         };
 
         /**
-         * 自动提示功能
-         */
-        const showHint = () => {
-            codemirror.value.showHint();
-        };
-
-        /**
          * 格式化sql
          */
         const formatSql = () => {
-            let selectSql = codemirror.value.getSelection();
+            let selectSql = codemirror.getSelection();
             // 有选中sql则只格式化选中部分，否则格式化全部
             if (selectSql != '') {
-                codemirror.value.replaceSelection(sqlFormatter(selectSql));
+                codemirror.replaceSelection(sqlFormatter(selectSql));
             } else {
                 /* 将sql内容进行格式后放入编辑器中*/
-                state.sql = sqlFormatter(state.sql);
+                setCodermirrorValue(sqlFormatter(getCodermirrorValue()));
             }
         };
 
@@ -885,7 +890,7 @@ export default defineComponent({
          * 获取选择文字，显示隐藏按钮，防抖
          */
         const getSelection = _.debounce((e: any) => {
-            let temp = codemirror.value.getSelection();
+            let temp = codemirror.getSelection();
             if (temp) {
                 state.btnStyle.display = 'block';
                 if (!state.btnStyle.left) {
@@ -905,9 +910,8 @@ export default defineComponent({
 
         return {
             ...toRefs(state),
-            cmEditor,
+            codeTextarea,
             changeProjectEnv,
-            inputRead,
             changeTable,
             cellClick,
             onRunSql,
@@ -939,9 +943,18 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-.codesql {
-    font-size: 9pt;
+.sqlEditor {
+    font-size: 8pt;
     font-weight: 600;
+    border: 1px solid #ccc;
+    .CodeMirror {
+        flex-grow: 1;
+        z-index: 1;
+        .CodeMirror-code {
+            line-height: 19px;
+        }
+        font-family: 'JetBrainsMono';
+    }
 }
 .el-tabs__header {
     padding: 0 10px;
