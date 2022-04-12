@@ -41,7 +41,7 @@ const service = Axios.create({
 
 // request interceptor
 service.interceptors.request.use(
-    config => {
+    (config: any) => {
         // do something before request is sent
         const token = getSession("token")
         if (token) {
@@ -99,7 +99,7 @@ service.interceptors.response.use(
  * @param {Object} uri    uri
  * @param {Object} params 参数
  */
-function request(method: string, url: string, params: any, headers: any, options: any): Promise<any> {
+function request(method: string, url: string, params: any = null, headers: any = null, options: any = null): Promise<any> {
     if (!url)
         throw new Error('请求url不能为空');
     // 简单判断该url是否是restful风格

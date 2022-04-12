@@ -189,7 +189,7 @@ import { recommendList } from './mock.ts';
 import { useStore } from '@/store/index.ts';
 import { personApi } from './api';
 export default {
-    name: 'personal',
+    name: 'PersonalPage',
     setup() {
         const store = useStore();
         const state = reactive({

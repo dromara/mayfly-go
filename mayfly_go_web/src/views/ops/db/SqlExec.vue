@@ -1,5 +1,9 @@
 <template>
     <div>
+        <el-button-group :style="btnStyle">
+            <el-button @click="onRunSql" type="success" icon="video-play" size="small" plain>执行</el-button>
+            <el-button @click="formatSql" type="primary" icon="magic-stick" size="small" plain>格式化</el-button>
+        </el-button-group>
         <div class="toolbar">
             <el-row type="flex" justify="space-between">
                 <el-col :span="24">
@@ -82,12 +86,8 @@
                             </div>
                         </div>
 
-                        <div class="mt5 sqlEditor" @mousemove="listenMouse">
+                        <div @click="closeExecBtns" class="mt5 sqlEditor" @contextmenu="showExecBtns">
                             <textarea ref="codeTextarea"></textarea>
-                            <el-button-group :style="btnStyle">
-                                <el-button @click="onRunSql" type="success" icon="video-play" size="small" plain>执行</el-button>
-                                <el-button @click="formatSql" type="primary" icon="magic-stick" size="small" plain>格式化</el-button>
-                            </el-button-group>
                         </div>
 
                         <div class="mt5">
@@ -189,7 +189,6 @@
 <script lang="ts">
 import { onMounted, toRefs, reactive, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
-import _ from 'lodash';
 
 import 'codemirror/addon/hint/show-hint.css';
 // import base style
@@ -297,14 +296,26 @@ export default defineComponent({
                 // 将sql提示去除
                 changeObj.text[0] = text.split('  ')[0];
             });
-            // 默认300px
-            codemirror.setSize('auto', `${window.innerHeight - 538}px`);
+            
         };
 
         onMounted(() => {
             initCodemirror();
-            state.dataTabsTableHeight = window.innerHeight - 258;
+            setHeight();
+            // 监听浏览器窗口大小变化,更新对应组件高度
+            window.onresize = () => (() => {
+                setHeight();
+            })();
         });
+
+        /**
+         * 设置codemirror高度和数据表高度
+         */
+        const setHeight = () => {
+            // 默认300px
+            codemirror.setSize('auto', `${window.innerHeight - 538}px`);
+            state.dataTabsTableHeight = window.innerHeight - 258;
+        }
 
         /**
          * 项目及环境更改后的回调事件
@@ -332,7 +343,7 @@ export default defineComponent({
             notBlank(state.dbId, '请先选择数据库');
             // 没有选中的文本，则为全部文本
             let sql = getSql();
-            notBlank(sql.trim(), 'sql内容不能为空');
+            isTrue(sql && sql.trim(), '请选中需要执行的sql');
 
             state.queryTab.loading = true;
             // 即只有以该字符串开头的sql才可修改表数据内容
@@ -360,6 +371,7 @@ export default defineComponent({
             } catch (e: any) {
                 state.queryTab.loading = false;
             }
+            closeExecBtns();
         };
 
         /**
@@ -499,7 +511,7 @@ export default defineComponent({
         const getSql = () => {
             // 没有选中的文本，则为全部文本
             let selectSql = codemirror.getSelection();
-            if (selectSql == '') {
+            if (!selectSql) {
                 selectSql = getCodermirrorValue();
             }
             return selectSql;
@@ -649,7 +661,7 @@ export default defineComponent({
                 if (res) {
                     setCodermirrorValue(res.sql);
                 } else {
-                     setCodermirrorValue('');
+                    setCodermirrorValue('');
                 }
             });
         };
@@ -730,6 +742,7 @@ export default defineComponent({
             state.queryTab.execRes.tableColumn = [];
             state.cmOptions.hintOptions.tables = [];
             tableMap.clear();
+            closeExecBtns();
         };
 
         const onDataSelectionChange = (datas: []) => {
@@ -872,13 +885,9 @@ export default defineComponent({
          */
         const formatSql = () => {
             let selectSql = codemirror.getSelection();
-            // 有选中sql则只格式化选中部分，否则格式化全部
-            if (selectSql != '') {
-                codemirror.replaceSelection(sqlFormatter(selectSql));
-            } else {
-                /* 将sql内容进行格式后放入编辑器中*/
-                setCodermirrorValue(sqlFormatter(getCodermirrorValue()));
-            }
+            isTrue(selectSql, '请选中需要格式化的sql');
+            codemirror.replaceSelection(sqlFormatter(selectSql));
+            closeExecBtns();
         };
 
         const search = async () => {
@@ -887,25 +896,28 @@ export default defineComponent({
         };
 
         /**
-         * 获取选择文字，显示隐藏按钮，防抖
+         * 显示执行sql和格式化按钮
          */
-        const getSelection = _.debounce((e: any) => {
-            let temp = codemirror.getSelection();
-            if (temp) {
-                state.btnStyle.display = 'block';
-                if (!state.btnStyle.left) {
-                    state.btnStyle.left = e.target.getBoundingClientRect().left;
-                    state.btnStyle.top = e.target.getBoundingClientRect().top - 160 + 'px';
-                }
+        const showExecBtns = (event: any) => {
+            if (event.preventDefault) {
+                event.preventDefault();
             } else {
+                event.returnValue = false;
+            }
+            state.btnStyle.display = 'inline';
+            state.btnStyle.left = event.offsetX + 15 + 'px';
+            state.btnStyle.top = event.clientY - 80 + 'px';
+        };
+
+        /**
+         * 关闭执行sql和格式化按钮
+         */
+        const closeExecBtns = () => {
+            if (state.btnStyle.left) {
                 state.btnStyle.display = 'none';
                 state.btnStyle.left = '';
                 state.btnStyle.top = '';
             }
-        }, 100);
-
-        const listenMouse = (e: any) => {
-            getSelection(e);
         };
 
         return {
@@ -929,7 +941,6 @@ export default defineComponent({
             clearDb,
             formatSql,
             onBeforeChange,
-            listenMouse,
             onRefresh,
             selectByCondition,
             onCommit,
@@ -937,6 +948,8 @@ export default defineComponent({
             onDataSelectionChange,
             onDeleteData,
             onTableSortChange,
+            showExecBtns,
+            closeExecBtns,
         };
     },
 });
