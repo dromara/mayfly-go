@@ -180,3 +180,7 @@ func (c *Cli) Run(shell string) (*string, error) {
 	res := string(buf)
 	return &res, nil
 }
+
+func (c *Cli) GetMachine() *entity.Machine {
+	return c.machine
+}

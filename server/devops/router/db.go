@@ -12,8 +12,10 @@ import (
 func InitDbRouter(router *gin.RouterGroup) {
 	db := router.Group("dbs")
 	{
-		d := &api.Db{DbApp: application.DbApp,
-			MsgApp: sysApplication.MsgApp,
+		d := &api.Db{
+			DbApp:      application.DbApp,
+			MsgApp:     sysApplication.MsgApp,
+			ProjectApp: application.ProjectApp,
 		}
 		// 获取所有数据库列表
 		db.GET("", func(c *gin.Context) {

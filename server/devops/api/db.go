@@ -21,8 +21,9 @@ import (
 )
 
 type Db struct {
-	DbApp  application.Db
-	MsgApp sysApplication.Msg
+	DbApp      application.Db
+	MsgApp     sysApplication.Msg
+	ProjectApp application.Project
 }
 
 // @router /api/dbs [get]
@@ -71,6 +72,10 @@ func (d *Db) GetCreateTableDdl(rc *ctx.ReqCtx) {
 // @router /api/db/:dbId/exec-sql [get]
 func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
+
+	dbInstance := d.DbApp.GetDbInstance(GetDbId(g))
+	biz.IsTrue(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbInstance.ProjectId), "您无权操作该资源")
+
 	// 去除前后空格及换行符
 	sql := strings.TrimFunc(g.Query("sql"), func(r rune) bool {
 		s := string(r)
@@ -80,14 +85,14 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 
 	biz.NotEmpty(sql, "sql不能为空")
 	if strings.HasPrefix(sql, "SELECT") || strings.HasPrefix(sql, "select") {
-		colNames, res, err := d.DbApp.GetDbInstance(GetDbId(g)).SelectData(sql)
+		colNames, res, err := dbInstance.SelectData(sql)
 		biz.ErrIsNilAppendErr(err, "查询失败: %s")
 		colAndRes := make(map[string]interface{})
 		colAndRes["colNames"] = colNames
 		colAndRes["res"] = res
 		rc.ResData = colAndRes
 	} else {
-		rowsAffected, err := d.DbApp.GetDbInstance(GetDbId(g)).Exec(sql)
+		rowsAffected, err := dbInstance.Exec(sql)
 		biz.ErrIsNilAppendErr(err, "执行失败: %s")
 		res := make([]map[string]string, 0)
 		resData := make(map[string]string)
@@ -131,6 +136,8 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 			}
 		}()
 
+		biz.IsTrue(d.ProjectApp.CanAccess(rc.LoginAccount.Id, db.ProjectId), "您无权操作该资源")
+
 		for _, sql := range sqls {
 			sql = strings.Trim(sql, " ")
 			if sql == "" || sql == "\n" {
@@ -148,7 +155,9 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 
 // @router /api/db/:dbId/t-metadata [get]
 func (d *Db) TableMA(rc *ctx.ReqCtx) {
-	rc.ResData = d.DbApp.GetDbInstance(GetDbId(rc.GinCtx)).GetTableMetedatas()
+	dbi := d.DbApp.GetDbInstance(GetDbId(rc.GinCtx))
+	biz.IsTrue(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "您无权操作该资源")
+	rc.ResData = dbi.GetTableMetedatas()
 }
 
 // @router /api/db/:dbId/c-metadata [get]
@@ -156,12 +165,16 @@ func (d *Db) ColumnMA(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	tn := g.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	rc.ResData = d.DbApp.GetDbInstance(GetDbId(rc.GinCtx)).GetColumnMetadatas(tn)
+
+	dbi := d.DbApp.GetDbInstance(GetDbId(rc.GinCtx))
+	biz.IsTrue(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "您无权操作该资源")
+	rc.ResData = dbi.GetColumnMetadatas(tn)
 }
 
 // @router /api/db/:dbId/hint-tables [get]
 func (d *Db) HintTables(rc *ctx.ReqCtx) {
 	dbi := d.DbApp.GetDbInstance(GetDbId(rc.GinCtx))
+	biz.IsTrue(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "您无权操作该资源")
 	// 获取所有表
 	tables := dbi.GetTableMetedatas()
 

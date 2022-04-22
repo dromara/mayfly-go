@@ -13,7 +13,9 @@ func InitMachineScriptRouter(router *gin.RouterGroup) {
 	{
 		ms := &api.MachineScript{
 			MachineScriptApp: application.MachineScriptApp,
-			MachineApp:       application.MachineApp}
+			MachineApp:       application.MachineApp,
+			ProjectApp:       application.ProjectApp,
+		}
 
 		// 获取指定机器脚本列表
 		machines.GET(":machineId/scripts", func(c *gin.Context) {

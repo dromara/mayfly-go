@@ -21,7 +21,7 @@
                             </el-form-item>
 
                             <el-form-item label-width="40" label="表">
-                                <el-select v-model="tableName" placeholder="选择表查看表数据" @change="changeTable" filterable style="width: 250px">
+                                <el-select v-model="tableName" placeholder="选择表查看表数据" @change="changeTable" filterable style="width: 300px">
                                     <el-option
                                         v-for="item in tableMetadata"
                                         :key="item.tableName"
@@ -408,6 +408,8 @@ export default defineComponent({
             const name = tab.props.name;
             // 不是查询tab，则为表数据tab，同时赋值当前表名，用于在线修改表数据等
             if (name != state.queryTab.name) {
+                // 修改选择框绑定的表信息
+                state.tableName = name;
                 state.nowTableName = name;
             } else {
                 state.nowTableName = state.queryTab.nowTableName;

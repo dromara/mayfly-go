@@ -113,7 +113,7 @@ func (r *redisAppImpl) GetRedisInstance(id uint64) *RedisInstance {
 	_, e := rcli.Ping().Result()
 	biz.ErrIsNilAppendErr(e, "redis连接失败: %s")
 
-	ri := &RedisInstance{Id: id, Cli: rcli}
+	ri := &RedisInstance{Id: id, ProjectId: re.ProjectId, Cli: rcli}
 	if needCache {
 		redisCache.Put(re.Id, ri)
 	}
@@ -132,8 +132,9 @@ var redisCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
 
 // redis实例
 type RedisInstance struct {
-	Id  uint64
-	Cli *redis.Client
+	Id        uint64
+	ProjectId uint64
+	Cli       *redis.Client
 }
 
 // 关闭redis连接

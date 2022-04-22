@@ -18,4 +18,7 @@ type ProjectMemeber interface {
 	DeleteByPidMid(projectId, accountId uint64)
 
 	DeleteMems(projectId uint64)
+
+	// 是否存在指定的项目成员关联信息
+	IsExist(projectId, accountId uint64) bool
 }

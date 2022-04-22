@@ -18,6 +18,7 @@ import (
 type MachineScript struct {
 	MachineScriptApp application.MachineScript
 	MachineApp       application.Machine
+	ProjectApp       application.Project
 }
 
 func (m *MachineScript) MachineScripts(rc *ctx.ReqCtx) {
@@ -62,7 +63,10 @@ func (m *MachineScript) RunMachineScript(rc *ctx.ReqCtx) {
 	if params := g.Query("params"); params != "" {
 		script = utils.TemplateParse(ms.Script, utils.Json2Map(params))
 	}
-	res, err := m.MachineApp.GetCli(machineId).Run(script)
+	cli := m.MachineApp.GetCli(machineId)
+	biz.IsTrue(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "您无权操作该资源")
+
+	res, err := cli.Run(script)
 	// 记录请求参数
 	rc.ReqParam = fmt.Sprintf("[machineId: %d, scriptId: %d, name: %s]", machineId, scriptId, ms.Name)
 	if err != nil {

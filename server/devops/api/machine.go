@@ -21,6 +21,7 @@ import (
 
 type Machine struct {
 	MachineApp application.Machine
+	ProjectApp application.Project
 }
 
 func (m *Machine) Machines(rc *ctx.ReqCtx) {
@@ -95,7 +96,11 @@ func (m *Machine) GetProcess(rc *ctx.ReqCtx) {
 	}
 
 	cmd += "| head -n " + count
-	res, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx)).Run(cmd)
+
+	cli := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
+	biz.IsTrue(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "您无权操作该资源")
+
+	res, err := cli.Run(cmd)
 	biz.ErrIsNilAppendErr(err, "获取进程信息失败: %s")
 	rc.ResData = res
 }
@@ -104,7 +109,11 @@ func (m *Machine) GetProcess(rc *ctx.ReqCtx) {
 func (m *Machine) KillProcess(rc *ctx.ReqCtx) {
 	pid := rc.GinCtx.Query("pid")
 	biz.NotEmpty(pid, "进程id不能为空")
-	_, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx)).Run("kill -9 " + pid)
+
+	cli := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
+	biz.IsTrue(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "您无权操作该资源")
+
+	_, err := cli.Run("kill -9 " + pid)
 	biz.ErrIsNilAppendErr(err, "终止进程失败: %s")
 }
 
@@ -125,15 +134,14 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	if err = ctx.PermissionHandler(rc); err != nil {
 		panic(biz.NewBizErr("没有权限"))
 	}
-	// 演示环境禁止非admin用户执行
-	// if rc.LoginAccount.Username != "admin" {
-	// 	panic(biz.NewBizErrCode(401, "非admin用户无权该操作"))
-	// }
 
 	cols := ginx.QueryInt(g, "cols", 80)
 	rows := ginx.QueryInt(g, "rows", 40)
 
-	sws, err := machine.NewLogicSshWsSession(cols, rows, m.MachineApp.GetCli(GetMachineId(g)), wsConn)
+	cli := m.MachineApp.GetCli(GetMachineId(g))
+	biz.IsTrue(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "您无权操作该资源")
+
+	sws, err := machine.NewLogicSshWsSession(cols, rows, cli, wsConn)
 	biz.ErrIsNilAppendErr(err, "连接失败：%s")
 	defer sws.Close()
 

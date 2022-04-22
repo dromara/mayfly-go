@@ -35,6 +35,9 @@ type Project interface {
 	GetMemberPage(condition *entity.ProjectMember, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
 	DeleteMember(projectId, accountId uint64)
+
+	// 账号是否有权限访问该项目关联的资源信息
+	CanAccess(accountId, projectId uint64) bool
 }
 
 type projectAppImpl struct {
@@ -115,4 +118,8 @@ func (p *projectAppImpl) GetMemberPage(condition *entity.ProjectMember, pagePara
 
 func (p *projectAppImpl) DeleteMember(projectId, accountId uint64) {
 	p.projectMemberRepo.DeleteByPidMid(projectId, accountId)
+}
+
+func (p *projectAppImpl) CanAccess(accountId, projectId uint64) bool {
+	return p.projectMemberRepo.IsExist(projectId, accountId)
 }

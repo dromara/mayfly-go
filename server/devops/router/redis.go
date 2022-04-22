@@ -12,7 +12,8 @@ func InitRedisRouter(router *gin.RouterGroup) {
 	redis := router.Group("redis")
 	{
 		rs := &api.Redis{
-			RedisApp: application.RedisApp,
+			RedisApp:   application.RedisApp,
+			ProjectApp: application.ProjectApp,
 		}
 
 		// 获取redis list

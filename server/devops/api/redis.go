@@ -15,7 +15,8 @@ import (
 )
 
 type Redis struct {
-	RedisApp application.Redis
+	RedisApp   application.Redis
+	ProjectApp application.Project
 }
 
 func (r *Redis) RedisList(rc *ctx.ReqCtx) {
@@ -85,6 +86,8 @@ func (r *Redis) Scan(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	biz.IsTrue(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "您无权操作该资源")
+
 	keys, cursor := ri.Scan(uint64(ginx.PathParamInt(g, "cursor")), g.Query("match"), int64(ginx.PathParamInt(g, "count")))
 
 	var keyInfoSplit []string
@@ -123,6 +126,8 @@ func (r *Redis) DeleteKey(rc *ctx.ReqCtx) {
 	biz.NotEmpty(key, "key不能为空")
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	biz.IsTrue(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "您无权操作该资源")
+
 	rc.ReqParam = key
 	ri.Cli.Del(key)
 }
@@ -132,7 +137,10 @@ func (r *Redis) checkKey(rc *ctx.ReqCtx) (*application.RedisInstance, string) {
 	key := g.Query("key")
 	biz.NotEmpty(key, "key不能为空")
 
-	return r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id"))), key
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	biz.IsTrue(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "您无权操作该资源")
+
+	return ri, key
 }
 
 func (r *Redis) GetStringValue(rc *ctx.ReqCtx) {
@@ -155,6 +163,8 @@ func (r *Redis) SetStringValue(rc *ctx.ReqCtx) {
 	ginx.BindJsonAndValid(g, keyValue)
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	biz.IsTrue(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "您无权操作该资源")
+
 	str, err := ri.Cli.Set(keyValue.Key, keyValue.Value, time.Second*time.Duration(keyValue.Timed)).Result()
 	biz.ErrIsNilAppendErr(err, "保存字符串值失败: %s")
 	rc.ResData = str
@@ -166,6 +176,8 @@ func (r *Redis) SetHashValue(rc *ctx.ReqCtx) {
 	ginx.BindJsonAndValid(g, hashValue)
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	biz.IsTrue(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "您无权操作该资源")
+
 	key := hashValue.Key
 	// 简单处理->先删除，后新增
 	ri.Cli.Del(key)
@@ -191,6 +203,8 @@ func (r *Redis) SetSetValue(rc *ctx.ReqCtx) {
 	ginx.BindJsonAndValid(g, keyvalue)
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	biz.IsTrue(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "您无权操作该资源")
+
 	key := keyvalue.Key
 	// 简单处理->先删除，后新增
 	ri.Cli.Del(key)

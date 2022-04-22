@@ -9,7 +9,11 @@ import (
 )
 
 func InitMachineRouter(router *gin.RouterGroup) {
-	m := &api.Machine{MachineApp: application.MachineApp}
+	m := &api.Machine{
+		MachineApp: application.MachineApp,
+		ProjectApp: application.ProjectApp,
+	}
+
 	machines := router.Group("machines")
 	{
 		machines.GET("", func(c *gin.Context) {

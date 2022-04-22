@@ -131,7 +131,7 @@ func (da *dbAppImpl) GetDbInstance(id uint64) *DbInstance {
 	// 设置闲置连接数
 	DB.SetMaxIdleConns(1)
 
-	dbi := &DbInstance{Id: id, Type: d.Type, db: DB}
+	dbi := &DbInstance{Id: id, Type: d.Type, ProjectId: d.ProjectId, db: DB}
 	if needCache {
 		dbCache.Put(id, dbi)
 	}
@@ -166,9 +166,10 @@ func TestConnection(d *entity.Db) {
 
 // db实例
 type DbInstance struct {
-	Id   uint64
-	Type string
-	db   *sql.DB
+	Id        uint64
+	Type      string
+	ProjectId uint64
+	db        *sql.DB
 }
 
 // 执行查询语句

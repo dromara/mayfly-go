@@ -30,3 +30,7 @@ func (p *projectMemeberRepo) DeleteByPidMid(projectId, accountId uint64) {
 func (p *projectMemeberRepo) DeleteMems(projectId uint64) {
 	model.DeleteByCondition(&entity.ProjectMember{ProjectId: projectId})
 }
+
+func (p *projectMemeberRepo) IsExist(projectId, accountId uint64) bool {
+	return model.CountBy(&entity.ProjectMember{ProjectId: projectId, AccountId: accountId}) > 0
+}

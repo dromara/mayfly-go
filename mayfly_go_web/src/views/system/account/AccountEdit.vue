@@ -93,7 +93,7 @@ export default defineComponent({
                             state.btnLoading = false;
                         }, 1000);
                         //重置表单域
-                        accountForm.resetFields();
+                        accountForm.value.resetFields();
                         state.form = {} as any;
                     });
                 } else {
