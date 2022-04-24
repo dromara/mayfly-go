@@ -29,6 +29,7 @@ func (m *Machine) Machines(rc *ctx.ReqCtx) {
 	// 使用创建者id模拟账号成员id
 	condition.CreatorId = rc.LoginAccount.Id
 	condition.Ip = rc.GinCtx.Query("ip")
+	condition.Name = rc.GinCtx.Query("name")
 	condition.ProjectId = uint64(ginx.QueryInt(rc.GinCtx, "projectId", 0))
 
 	res := m.MachineApp.GetMachineList(condition, ginx.GetPageParam(rc.GinCtx), new([]*vo.MachineVO))

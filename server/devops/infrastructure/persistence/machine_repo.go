@@ -24,7 +24,10 @@ func (m *machineRepo) GetMachineList(condition *entity.Machine, pageParam *model
 	if condition.Ip != "" {
 		sql = sql + " AND m.ip LIKE '%" + condition.Ip + "%'"
 	}
-	sql = sql + " ORDER BY m.create_time DESC"
+	if condition.Name != "" {
+		sql = sql + " AND m.name LIKE '%" + condition.Name + "%'"
+	}
+	sql = sql + " ORDER BY m.project_id, m.create_time DESC"
 	return model.GetPageBySql(sql, pageParam, toEntity)
 }
 

@@ -22,7 +22,8 @@
                     <el-select v-model="params.projectId" placeholder="请选择项目" @clear="search" filterable clearable>
                         <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
                     </el-select>
-                    <el-input class="ml5" placeholder="请输入ip" style="width: 200px" v-model="params.ip" @clear="search" plain clearable></el-input>
+                    <el-input class="ml5" placeholder="请输入名称" style="width: 150px" v-model="params.name" @clear="search" plain clearable></el-input>
+                    <el-input class="ml5" placeholder="请输入ip" style="width: 150px" v-model="params.ip" @clear="search" plain clearable></el-input>
                     <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
                 </div>
             </div>
@@ -122,8 +123,8 @@ export default defineComponent({
             params: {
                 pageNum: 1,
                 pageSize: 10,
-                host: null,
-                clusterId: null,
+                ip: null,
+                name: null,
             },
             // 列表数据
             data: {

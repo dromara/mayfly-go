@@ -179,7 +179,7 @@ func GetPageBySql(sql string, param *PageParam, toModel interface{}, args ...int
 		return &PageResult{Total: 0, List: []string{}}
 	}
 	// 分页查询
-	limitSql := sql + " LIMIT " + strconv.Itoa(param.PageNum-1) + ", " + strconv.Itoa(param.PageSize)
+	limitSql := sql + " LIMIT " + strconv.Itoa((param.PageNum-1)*param.PageSize) + ", " + strconv.Itoa(param.PageSize)
 	err = db.Raw(limitSql).Scan(toModel).Error
 	biz.ErrIsNil(err, "查询失败: %s")
 	return &PageResult{Total: int64(count), List: toModel}

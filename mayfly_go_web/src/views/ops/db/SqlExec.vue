@@ -139,8 +139,29 @@
                         </el-tooltip>
                     </el-row>
                     <el-row class="mt5">
-                        <el-input v-model="dt.condition" placeholder="若需条件过滤，输入WHERE之后查询条件点击查询按钮即可" clearable size="small">
+                        <el-input v-model="dt.condition" placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可" clearable size="small">
                             <template #prepend>
+                                <el-popover trigger="click" :width="270" placement="right">
+                                    <template #reference>
+                                        <el-link type="success" :underline="false">选择列</el-link>
+                                    </template>
+                                    <el-table
+                                        :data="getColumns4Map(dt.name)"
+                                        max-height="500"
+                                        size="small"
+                                        @row-click="
+                                            (...event) => {
+                                                onConditionRowClick(event, dt);
+                                            }
+                                        "
+                                    >
+                                        <el-table-column property="columnName" label="列名" show-overflow-tooltip> </el-table-column>
+                                        <el-table-column property="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
+                                    </el-table>
+                                </el-popover>
+                            </template>
+
+                            <template #append>
                                 <el-button @click="selectByCondition(dt.name, dt.condition)" icon="search" size="small"></el-button>
                             </template>
                         </el-input>
@@ -296,16 +317,16 @@ export default defineComponent({
                 // 将sql提示去除
                 changeObj.text[0] = text.split('  ')[0];
             });
-            
         };
 
         onMounted(() => {
             initCodemirror();
             setHeight();
             // 监听浏览器窗口大小变化,更新对应组件高度
-            window.onresize = () => (() => {
-                setHeight();
-            })();
+            window.onresize = () =>
+                (() => {
+                    setHeight();
+                })();
         });
 
         /**
@@ -315,7 +336,7 @@ export default defineComponent({
             // 默认300px
             codemirror.setSize('auto', `${window.innerHeight - 538}px`);
             state.dataTabsTableHeight = window.innerHeight - 258;
-        }
+        };
 
         /**
          * 项目及环境更改后的回调事件
@@ -498,7 +519,7 @@ export default defineComponent({
 
         const getColumnTip = (tableName: string, columnName: string) => {
             // 优先从 table map中获取
-            let columns = tableMap.get(tableName);
+            let columns = getColumns4Map(tableName);
             if (!columns) {
                 return '';
             }
@@ -604,7 +625,7 @@ export default defineComponent({
          */
         const getColumns = async (tableName: string) => {
             // 优先从 table map中获取
-            let columns = tableMap.get(tableName);
+            let columns = getColumns4Map(tableName);
             if (columns) {
                 return columns;
             }
@@ -614,6 +635,35 @@ export default defineComponent({
             });
             tableMap.set(tableName, columns);
             return columns;
+        };
+
+        // 从缓存map获取列信息
+        const getColumns4Map = (tableName: string) => {
+            return tableMap.get(tableName);
+        };
+
+        /**
+         * 条件查询，点击列信息后显示输入对应的值
+         */
+        const onConditionRowClick = (event: any, dataTab: any) => {
+            const row = event[0];
+            ElMessageBox.prompt(`请输入 [${row.columnName}] 的值`, '查询条件', {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                inputPlaceholder: `${row.columnType}  ${row.columnComment}`,
+            })
+                .then(({ value }) => {
+                    if (!value) {
+                        value = '';
+                    }
+                    let condition = dataTab.condition;
+                    if (condition) {
+                        condition += ` AND `;
+                    }
+                    condition += `${row.columnName} = `;
+                    dataTab.condition = condition + wrapColumnValue(row, value);
+                })
+                .catch(() => {});
         };
 
         const onRefresh = async (tableName: string) => {
@@ -936,6 +986,8 @@ export default defineComponent({
             execSqlFileSuccess,
             flexColumnWidth,
             getColumnTip,
+            getColumns4Map,
+            onConditionRowClick,
             changeSqlTemplate,
             deleteSql,
             saveSql,
