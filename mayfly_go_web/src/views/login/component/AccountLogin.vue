@@ -62,7 +62,7 @@ import { formatAxis } from '@/common/utils/formatTime.ts';
 import openApi from '@/common/openApi';
 import { letterAvatar } from '@/common/utils/string';
 export default defineComponent({
-    name: 'Account',
+    name: 'AccountLogin',
     setup() {
         const store = useStore();
         const route = useRoute();

@@ -33,7 +33,7 @@
 <script lang="ts">
 import { toRefs, reactive, defineComponent } from 'vue';
 export default defineComponent({
-    name: 'login',
+    name: 'MobileLogin',
     setup() {
         const state = reactive({
             ruleForm: {

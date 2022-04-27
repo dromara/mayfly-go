@@ -1,6 +1,6 @@
 <template>
     <div class="role-dialog">
-        <el-dialog :title="title" v-model="_visible" :show-close="false" :before-close="cancel" width="500px">
+        <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="500px">
             <el-form :model="form" label-width="90px">
                 <el-form-item prop="name" label="角色名称:" required>
                     <el-input v-model="form.name" auto-complete="off"></el-input>
@@ -41,7 +41,7 @@ export default defineComponent({
     },
     setup(props: any, { emit }) {
         const state = reactive({
-            _visible: false,
+            dvisible: false,
             form: {
                 id: null,
                 name: '',
@@ -52,7 +52,7 @@ export default defineComponent({
         });
 
         watch(props, (newValue) => {
-            state._visible = newValue.visible;
+            state.dvisible = newValue.visible;
             if (newValue.data) {
                 state.form = { ...newValue.data };
             } else {

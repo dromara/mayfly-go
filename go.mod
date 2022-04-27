@@ -14,8 +14,6 @@ require (
 	// 定时任务
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/sirupsen/logrus v1.8.1
-	// jsonschemal校验
-	github.com/xeipuuv/gojsonschema v1.2.0
 	// ssh
 	golang.org/x/crypto v0.0.0-20220314234724-5d542ad81a58
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
@@ -43,8 +41,6 @@ require (
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.18.1 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
-	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
-	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	golang.org/x/image v0.0.0-20220302094943-723b81ca9867 // indirect
 	golang.org/x/sys v0.0.0-20220310020820-b874c991c1a5 // indirect
 	golang.org/x/text v0.3.7 // indirect

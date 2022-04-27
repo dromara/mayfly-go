@@ -2,7 +2,7 @@
     <div class="home-container">
         <el-row :gutter="15">
             <el-col :sm="6" class="mb15">
-                <div class="home-card-item home-card-first">
+                <div @click="toPage({ id: 'personal' })" class="home-card-item home-card-first">
                     <div class="flex-margin flex">
                         <img :src="getUserInfos.photo" />
                         <div class="home-card-first-right ml15">
@@ -14,81 +14,15 @@
                 </div>
             </el-col>
             <el-col :sm="3" class="mb15" v-for="(v, k) in topCardItemList" :key="k">
-                <div class="home-card-item home-card-item-box" :style="{ background: v.color }">
+                <div @click="toPage(v)" class="home-card-item home-card-item-box" :style="{ background: v.color }">
                     <div class="home-card-item-flex">
                         <div class="home-card-item-title pb3">{{ v.title }}</div>
                         <div class="home-card-item-title-num pb6" :id="v.id"></div>
-                        <!-- <div class="home-card-item-tip pb3">{{ v.tip }}</div>
-                        <div class="home-card-item-tip-num" :id="`tipNum${k + 1}`"></div> -->
                     </div>
                     <i :class="v.icon" :style="{ color: v.iconColor }"></i>
                 </div>
             </el-col>
         </el-row>
-        <!-- <el-row :gutter="15">
-            <el-col :xs="24" :sm="14" :md="14" :lg="16" :xl="16" class="mb15">
-                <el-card shadow="hover" header="商品销售情况">
-                    <div style="height: 200px" ref="homeLaboratoryRef"></div>
-                </el-card>
-            </el-col>
-            <el-col :xs="24" :sm="10" :md="10" :lg="8" :xl="8">
-                <el-card shadow="hover" header="环境监测">
-                    <div class="home-monitor">
-                        <div class="flex-warp">
-                            <div class="flex-warp-item" v-for="(v, k) in environmentList" :key="k">
-                                <div class="flex-warp-item-box">
-                                    <i :class="v.icon" :style="{ color: v.iconColor }"></i>
-                                    <span class="pl5">{{ v.label }}</span>
-                                    <div class="mt10">{{ v.value }}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </el-card>
-            </el-col>
-        </el-row>
-        <el-row :gutter="15">
-            <el-col :xs="24" :sm="14" :md="14" :lg="16" :xl="16" class="home-warning-media">
-                <el-card shadow="hover" header="布局配置" class="home-warning-card">
-                    <el-table :data="tableData.data" style="width: 100%" stripe>
-                        <el-table-column prop="date" label="时间"></el-table-column>
-                        <el-table-column prop="name" label="实验室名称"></el-table-column>
-                        <el-table-column prop="address" label="报警内容"></el-table-column>
-                    </el-table>
-                </el-card>
-            </el-col>
-            <el-col :xs="24" :sm="10" :md="10" :lg="8" :xl="8" class="home-dynamic-media">
-                <el-card shadow="hover" header="动态信息">
-                    <div class="home-dynamic">
-                        <el-scrollbar>
-                            <div class="home-dynamic-item" v-for="(v, k) in activitiesList" :key="k">
-                                <div class="home-dynamic-item-left">
-                                    <div class="home-dynamic-item-left-time1 mb5">{{ v.time1 }}</div>
-                                    <div class="home-dynamic-item-left-time2">{{ v.time2 }}</div>
-                                </div>
-                                <div class="home-dynamic-item-line">
-                                    <i class="iconfont icon-fangkuang"></i>
-                                </div>
-                                <div class="home-dynamic-item-right">
-                                    <div class="home-dynamic-item-right-title mb5">
-                                        <i class="el-icon-s-comment"></i>
-                                        <span>{{ v.title }}</span>
-                                    </div>
-                                    <div class="home-dynamic-item-right-label">{{ v.label }}</div>
-                                </div>
-                            </div>
-                        </el-scrollbar>
-                    </div>
-                </el-card>
-            </el-col>
-        </el-row>
-        <el-row>
-            <el-col :xs="24" :sm="24" :md="24" :lg="24" :xl="24" class="mt15">
-                <el-card shadow="hover" header="履约超时预警">
-                    <div style="height: 200px" ref="homeOvertimeRef"></div>
-                </el-card>
-            </el-col>
-        </el-row> -->
     </div>
 </template>
 
@@ -99,35 +33,36 @@ import { useStore } from '@/store/index.ts';
 import { CountUp } from 'countup.js';
 import { formatAxis } from '@/common/utils/formatTime.ts';
 import { indexApi } from './api';
-import { topCardItemList, environmentList, activitiesList } from './mock.ts';
+import { useRouter } from 'vue-router';
 export default {
-    name: 'Home',
+    name: 'HomePage',
     setup() {
         // const { proxy } = getCurrentInstance() as any;
+        const router = useRouter();
         const store = useStore();
         const state = reactive({
-            topCardItemList,
-            environmentList,
-            activitiesList,
-            tableData: {
-                data: [
-                    {
-                        date: '2016-05-02',
-                        name: '1号实验室',
-                        address: '烟感2.1%OBS/M',
-                    },
-                    {
-                        date: '2016-05-04',
-                        name: '2号实验室',
-                        address: '温度30℃',
-                    },
-                    {
-                        date: '2016-05-01',
-                        name: '3号实验室',
-                        address: '湿度57%RH',
-                    },
-                ],
-            },
+            topCardItemList: [
+                {
+                    title: '项目数',
+                    id: 'projectNum',
+                    color: '#FEBB50',
+                },
+                {
+                    title: 'Linux机器数',
+                    id: 'machineNum',
+                    color: '#F95959',
+                },
+                {
+                    title: '数据库总数',
+                    id: 'dbNum',
+                    color: '#8595F4',
+                },
+                {
+                    title: 'redis总数',
+                    id: 'redisNum',
+                    color: '#1abc9c',
+                },
+            ],
         });
 
         // 当前时间提示语
@@ -137,7 +72,7 @@ export default {
 
         // 初始化数字滚动
         const initNumCountUp = async () => {
-            const res: any = await indexApi.getIndexCount.request()
+            const res: any = await indexApi.getIndexCount.request();
             nextTick(() => {
                 new CountUp('projectNum', res.projectNum).start();
                 new CountUp('machineNum', res.machineNum).start();
@@ -146,104 +81,31 @@ export default {
             });
         };
 
-        // // 实验室使用情况
-        // const initHomeLaboratory = () => {
-        //     const myChart = echarts.init(proxy.$refs.homeLaboratoryRef);
-        //     const option = {
-        //         grid: {
-        //             top: 50,
-        //             right: 20,
-        //             bottom: 30,
-        //             left: 30,
-        //         },
-        //         tooltip: {
-        //             trigger: 'axis',
-        //         },
-        //         legend: {
-        //             data: ['预购队列', '最新成交价'],
-        //             right: 13,
-        //         },
-        //         xAxis: {
-        //             data: ['衬衫', '羊毛衫', '雪纺衫', '裤子', '高跟鞋', '袜子'],
-        //         },
-        //         yAxis: [
-        //             {
-        //                 type: 'value',
-        //                 name: '价格',
-        //             },
-        //         ],
-        //         series: [
-        //             {
-        //                 name: '预购队列',
-        //                 type: 'bar',
-        //                 data: [5, 20, 36, 10, 10, 20],
-        //             },
-        //             {
-        //                 name: '最新成交价',
-        //                 type: 'line',
-        //                 data: [15, 20, 16, 20, 30, 8],
-        //             },
-        //         ],
-        //     };
-        //     myChart.setOption(option);
-        //     window.addEventListener('resize', () => {
-        //         myChart.resize();
-        //     });
-        // };
-        // // 履约超时预警
-        // const initHomeOvertime = () => {
-        //     const myChart = echarts.init(proxy.$refs.homeOvertimeRef);
-        //     const option = {
-        //         grid: {
-        //             top: 50,
-        //             right: 20,
-        //             bottom: 30,
-        //             left: 30,
-        //         },
-        //         tooltip: {
-        //             trigger: 'axis',
-        //         },
-        //         legend: {
-        //             data: ['订单数量', '超时数量', '在线数量', '预警数量'],
-        //             right: 13,
-        //         },
-        //         xAxis: {
-        //             data: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
-        //         },
-        //         yAxis: [
-        //             {
-        //                 type: 'value',
-        //                 name: '数量',
-        //             },
-        //         ],
-        //         series: [
-        //             {
-        //                 name: '订单数量',
-        //                 type: 'bar',
-        //                 data: [5, 20, 36, 10, 10, 20, 11, 13, 10, 9, 17, 19],
-        //             },
-        //             {
-        //                 name: '超时数量',
-        //                 type: 'bar',
-        //                 data: [15, 12, 26, 15, 11, 16, 31, 13, 5, 16, 13, 15],
-        //             },
-        //             {
-        //                 name: '在线数量',
-        //                 type: 'line',
-        //                 data: [15, 20, 16, 20, 30, 8, 16, 19, 12, 18, 19, 14],
-        //             },
-        //             {
-        //                 name: '预警数量',
-        //                 type: 'line',
-        //                 data: [10, 10, 13, 12, 15, 18, 19, 10, 12, 15, 11, 17],
-        //             },
-        //         ],
-        //     };
-        //     myChart.setOption(option);
-        //     window.addEventListener('resize', () => {
-        //         myChart.resize();
-        //     });
-        // };
+        const toPage = (item: any) => {
+            switch (item.id) {
+                case 'personal': {
+                    router.push('/personal');
+                    break;
+                }
+                case 'projectNum': {
+                    router.push('/ops/projects');
+                    break;
+                }
+                case 'machineNum': {
+                    router.push('/ops/machines');
+                    break;
+                }
+                case 'dbNum': {
+                    router.push('/ops/dbms/dbs');
+                    break;
+                }
+                case 'redisNum': {
+                    router.push('/ops/redis/manage');
+                    break;
+                }
+            }
+        };
+
         // 页面加载时
         onMounted(() => {
             initNumCountUp();
@@ -255,9 +117,11 @@ export default {
         const getUserInfos = computed(() => {
             return store.state.userInfos.userInfos;
         });
+
         return {
             getUserInfos,
             currentTime,
+            toPage,
             ...toRefs(state),
         };
     },
@@ -273,6 +137,7 @@ export default {
         background: gray;
         border-radius: 4px;
         transition: all ease 0.3s;
+        cursor: pointer;
         &:hover {
             box-shadow: 0 2px 12px 0 rgb(0 0 0 / 10%);
             transition: all ease 0.3s;

@@ -15,14 +15,28 @@
                 <el-button v-auth="'machine:del'" :disabled="currentId == null" @click="deleteMachine(currentId)" type="danger" icon="delete"
                     >删除</el-button
                 >
-                <el-button v-auth="'machine:file'" type="success" icon="files" :disabled="currentId == null" @click="fileManage(currentData)" plain
+                <el-button
+                    v-auth="'machine:file'"
+                    type="success"
+                    icon="files"
+                    :disabled="currentId == null || currentData.status == -1"
+                    @click="fileManage(currentData)"
+                    plain
                     >文件</el-button
                 >
                 <div style="float: right">
                     <el-select v-model="params.projectId" placeholder="请选择项目" @clear="search" filterable clearable>
                         <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
                     </el-select>
-                    <el-input class="ml5" placeholder="请输入名称" style="width: 150px" v-model="params.name" @clear="search" plain clearable></el-input>
+                    <el-input
+                        class="ml5"
+                        placeholder="请输入名称"
+                        style="width: 150px"
+                        v-model="params.name"
+                        @clear="search"
+                        plain
+                        clearable
+                    ></el-input>
                     <el-input class="ml5" placeholder="请输入ip" style="width: 150px" v-model="params.ip" @clear="search" plain clearable></el-input>
                     <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
                 </div>
@@ -37,30 +51,66 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="name" label="名称" min-width="130" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="ip" label="ip:port" min-width="130">
+                <el-table-column prop="ip" label="ip:port" min-width="140">
                     <template #default="scope">
-                        {{ `${scope.row.ip}:${scope.row.port}` }}
+                        <el-link :disabled="scope.row.status == -1" @click="showMachineStats(scope.row)" type="primary" :underline="false">{{
+                            `${scope.row.ip}:${scope.row.port}`
+                        }}</el-link>
                     </template>
                 </el-table-column>
-                <el-table-column prop="username" label="用户名" min-width="75"></el-table-column>
+                <el-table-column prop="status" label="状态" min-width="60">
+                    <template #default="scope">
+                        <el-switch
+                            v-auth:disabled="'machine:update'"
+                            :width="47"
+                            v-model="scope.row.status"
+                            :active-value="1"
+                            :inactive-value="-1"
+                            active-color="#13ce66"
+                            inactive-color="#ff4949"
+                            inline-prompt
+                            active-text="启用"
+                            inactive-text="停用"
+                            @change="changeStatus(scope.row)"
+                        ></el-switch>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="username" label="用户名" min-width="90"></el-table-column>
                 <el-table-column prop="projectName" label="项目" min-width="120"></el-table-column>
                 <el-table-column prop="ip" label="hasCli" width="70">
                     <template #default="scope">
                         {{ `${scope.row.hasCli ? '是' : '否'}` }}
                     </template>
                 </el-table-column>
-                <el-table-column prop="createTime" label="创建时间" width="165">
+                <el-table-column prop="createTime" label="创建时间" min-width="165">
                     <template #default="scope">
                         {{ $filters.dateFormat(scope.row.createTime) }}
                     </template>
                 </el-table-column>
-                <el-table-column prop="creator" label="创建者" min-width="60"></el-table-column>
-                <el-table-column label="操作" min-width="260" fixed="right">
+                <el-table-column prop="creator" label="创建者" min-width="80"></el-table-column>
+                <el-table-column label="操作" min-width="280" fixed="right">
                     <template #default="scope">
-                        <el-button type="success" @click="serviceManager(scope.row)" plain size="small">脚本</el-button>
-                        <el-button v-auth="'machine:terminal'" type="primary" @click="showTerminal(scope.row)" plain size="small">终端</el-button>
-                        <el-button @click="showProcess(scope.row)" plain size="small">进程</el-button>
-                        <el-button :disabled="!scope.row.hasCli" type="danger" @click="closeCli(scope.row)" plain size="small">关闭连接</el-button>
+                        <el-button :disabled="scope.row.status == -1" type="success" @click="serviceManager(scope.row)" plain size="small"
+                            >脚本</el-button
+                        >
+                        <el-button
+                            v-auth="'machine:terminal'"
+                            :disabled="scope.row.status == -1"
+                            type="primary"
+                            @click="showTerminal(scope.row)"
+                            plain
+                            size="small"
+                            >终端</el-button
+                        >
+                        <el-button @click="showProcess(scope.row)" :disabled="scope.row.status == -1" plain size="small">进程</el-button>
+                        <el-button
+                            :disabled="!scope.row.hasCli || scope.row.status == -1"
+                            type="danger"
+                            @click="closeCli(scope.row)"
+                            plain
+                            size="small"
+                            >关闭连接</el-button
+                        >
                     </template>
                 </el-table-column>
             </el-table>
@@ -84,15 +134,17 @@
             @valChange="submitSuccess"
         ></machine-edit>
 
-        <!-- <el-dialog @close="closeMonitor" title="监控信息" v-model="monitorDialog.visible" width="60%">
-			<monitor ref="monitorDialogRef" :machineId="monitorDialog.machineId" />
-		</el-dialog> -->
-
         <process-list v-model:visible="processDialog.visible" v-model:machineId="processDialog.machineId" />
 
         <service-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible" v-model:machineId="serviceDialog.machineId" />
 
         <file-manage :title="fileDialog.title" v-model:visible="fileDialog.visible" v-model:machineId="fileDialog.machineId" />
+
+        <machine-stats
+            v-model:visible="machineStatsDialog.visible"
+            :machineId="machineStatsDialog.machineId"
+            :title="machineStatsDialog.title"
+        ></machine-stats>
     </div>
 </template>
 
@@ -100,13 +152,13 @@
 import { toRefs, reactive, onMounted, defineComponent } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-// import Monitor from './Monitor.vue';
 import { machineApi } from './api';
 import { projectApi } from '../project/api.ts';
 import ServiceManage from './ServiceManage.vue';
 import FileManage from './FileManage.vue';
 import MachineEdit from './MachineEdit.vue';
 import ProcessList from './ProcessList.vue';
+import MachineStats from './MachineStats.vue';
 
 export default defineComponent({
     name: 'MachineList',
@@ -115,11 +167,13 @@ export default defineComponent({
         ProcessList,
         FileManage,
         MachineEdit,
+        MachineStats,
     },
     setup() {
         const router = useRouter();
         const state = reactive({
             projects: [],
+            stats: '',
             params: {
                 pageNum: 1,
                 pageSize: 10,
@@ -152,8 +206,10 @@ export default defineComponent({
                 machineId: 0,
                 title: '',
             },
-            monitorDialog: {
+            machineStatsDialog: {
                 visible: false,
+                stats: null,
+                title: '',
                 machineId: 0,
             },
             machineEditDialog: {
@@ -175,22 +231,6 @@ export default defineComponent({
             state.currentId = item.id;
             state.currentData = item;
         };
-
-        // const monitor = (id: number) => {
-        // 	state.monitorDialog.machineId = id;
-        // 	state.monitorDialog.visible = true;
-        // 	// 如果重复打开同一个则开启定时任务
-        // 	const md: any = monitorDialogRef;
-        // 	if (md) {
-        // 		md.startInterval();
-        // 	}
-        // };
-
-        // const closeMonitor = () => {
-        // 	// 关闭窗口，取消定时任务
-        // 	const md: any = monitorDialogRef;
-        // 	md.cancelInterval();
-        // };
 
         const showTerminal = (row: any) => {
             const { href } = router.resolve({
@@ -244,6 +284,22 @@ export default defineComponent({
             state.serviceDialog.title = `${row.name} => ${row.ip}`;
         };
 
+        /**
+         * 调整机器状态
+         */
+        const changeStatus = async (row: any) => {
+            await machineApi.changeStatus.request({ id: row.id, status: row.status });
+        };
+
+        /**
+         * 显示机器状态统计信息
+         */
+        const showMachineStats = async (machine: any) => {
+            state.machineStatsDialog.machineId = machine.id;
+            state.machineStatsDialog.title = `机器状态: ${machine.name} => ${machine.ip}`;
+            state.machineStatsDialog.visible = true;
+        };
+
         const submitSuccess = () => {
             state.currentId = null;
             state.currentData = null;
@@ -281,7 +337,9 @@ export default defineComponent({
             deleteMachine,
             closeCli,
             serviceManager,
+            showMachineStats,
             showProcess,
+            changeStatus,
             submitSuccess,
             fileManage,
             search,

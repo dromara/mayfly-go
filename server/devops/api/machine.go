@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"fmt"
 	"mayfly-go/base/biz"
 	"mayfly-go/base/ctx"
@@ -46,10 +45,8 @@ func (m *Machine) Machines(rc *ctx.ReqCtx) {
 }
 
 func (m *Machine) MachineStats(rc *ctx.ReqCtx) {
-	writer := bytes.NewBufferString("")
 	stats := m.MachineApp.GetCli(GetMachineId(rc.GinCtx)).GetAllStats()
-	machine.ShowStats(writer, stats)
-	rc.ResData = writer.String()
+	rc.ResData = stats
 }
 
 func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
@@ -62,6 +59,14 @@ func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
 
 	entity.SetBaseInfo(rc.LoginAccount)
 	m.MachineApp.Save(entity)
+}
+
+func (m *Machine) ChangeStatus(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	id := uint64(ginx.PathParamInt(g, "machineId"))
+	status := int8(ginx.PathParamInt(g, "status"))
+	rc.ReqParam = fmt.Sprintf("id: %d -- status: %d", id, status)
+	m.MachineApp.ChangeStatus(id, status)
 }
 
 func (m *Machine) DeleteMachine(rc *ctx.ReqCtx) {

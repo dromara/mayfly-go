@@ -11,6 +11,8 @@ export const machineApi = {
     closeCli: Api.create("/machines/{id}/close-cli", 'delete'),
     // 保存按钮
     saveMachine: Api.create("/machines", 'post'),
+    // 调整状态
+    changeStatus: Api.create("/machines/{id}/{status}", 'put'),
     // 删除机器
     del: Api.create("/machines/{id}", 'delete'),
     scripts: Api.create("/machines/{machineId}/scripts", 'get'),

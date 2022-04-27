@@ -86,6 +86,7 @@ CREATE TABLE `t_machine` (
   `port` int(12) NOT NULL,
   `username` varchar(12) COLLATE utf8mb4_bin NOT NULL,
   `password` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
+  `status` tinyint(2) NOT NULL COMMENT '状态: 1:启用; -1:禁用',
   `need_monitor` tinyint(2) DEFAULT NULL,
   `create_time` datetime NOT NULL,
   `creator` varchar(16) COLLATE utf8mb4_bin DEFAULT NULL,

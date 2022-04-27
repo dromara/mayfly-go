@@ -17,6 +17,9 @@ type Machine interface {
 
 	Save(entity *entity.Machine)
 
+	// 调整机器状态
+	ChangeStatus(id uint64, status int8)
+
 	Count(condition *entity.Machine) int64
 
 	Delete(id uint64)
@@ -63,8 +66,21 @@ func (m *machineAppImpl) Save(me *entity.Machine) {
 		m.machineRepo.UpdateById(me)
 	} else {
 		biz.IsTrue(err != nil, "该机器信息已存在")
+		// 新增机器，默认启用状态
+		me.Status = entity.MachineStatusEnable
 		m.machineRepo.Create(me)
 	}
+}
+
+func (m *machineAppImpl) ChangeStatus(id uint64, status int8) {
+	if status == entity.MachineStatusDisable {
+		// 关闭连接
+		machine.DeleteCli(id)
+	}
+	machine := new(entity.Machine)
+	machine.Id = id
+	machine.Status = status
+	m.machineRepo.UpdateById(machine)
 }
 
 // 根据条件获取机器信息
@@ -100,7 +116,9 @@ func (m *machineAppImpl) GetById(id uint64, cols ...string) *entity.Machine {
 
 func (m *machineAppImpl) GetCli(id uint64) *machine.Cli {
 	cli, err := machine.GetCli(id, func(machineId uint64) *entity.Machine {
-		return m.GetById(machineId)
+		machine := m.GetById(machineId)
+		biz.IsTrue(machine.Status == entity.MachineStatusEnable, "该机器已被停用")
+		return machine
 	})
 	biz.ErrIsNilAppendErr(err, "获取客户端错误: %s")
 	return cli

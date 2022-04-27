@@ -12,4 +12,4 @@ echo '-----'
 echo '-----'
 /bin/cat /proc/net/dev
 echo '-----'
-cat /proc/stat
+top -b -n 1 | grep Cpu

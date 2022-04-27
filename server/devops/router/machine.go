@@ -45,6 +45,13 @@ func InitMachineRouter(router *gin.RouterGroup) {
 				Handle(m.SaveMachine)
 		})
 
+		changeStatus := ctx.NewLogInfo("调整机器状态")
+		machines.PUT(":machineId/:status", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).
+				WithLog(changeStatus).
+				Handle(m.ChangeStatus)
+		})
+
 		delMachine := ctx.NewLogInfo("删除机器")
 		machines.DELETE(":machineId", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).

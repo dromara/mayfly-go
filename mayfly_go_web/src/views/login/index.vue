@@ -33,12 +33,11 @@
 
 <script lang="ts">
 import { toRefs, reactive, computed } from 'vue';
-import Account from '@/views/login/component/Account.vue';
-import Mobile from '@/views/login/component/mobile.vue';
+import Account from '@/views/login/component/AccountLogin.vue';
 import { useStore } from '@/store/index.ts';
 export default {
-    name: 'login',
-    components: { Account, Mobile },
+    name: 'LoginPage',
+    components: { Account },
     setup() {
         const store = useStore();
         const state = reactive({

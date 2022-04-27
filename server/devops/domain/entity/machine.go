@@ -9,11 +9,14 @@ type Machine struct {
 	ProjectId   uint64 `json:"projectId"`
 	ProjectName string `json:"projectName"`
 	Name        string `json:"name"`
-	// IP地址
-	Ip string `json:"ip"`
-	// 用户名
-	Username string `json:"username"`
-	Password string `json:"-"`
-	// 端口号
-	Port int `json:"port"`
+	Ip          string `json:"ip"`       // IP地址
+	Username    string `json:"username"` // 用户名
+	Password    string `json:"-"`
+	Port        int    `json:"port"`   // 端口号
+	Status      int8   `json:"status"` // 状态 1:启用；2:停用
 }
+
+const (
+	MachineStatusEnable  int8 = 1  // 启用状态
+	MachineStatusDisable int8 = -1 // 禁用状态
+)
