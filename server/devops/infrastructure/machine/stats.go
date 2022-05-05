@@ -54,7 +54,7 @@ type Stats struct {
 }
 
 func (c *Cli) GetAllStats() *Stats {
-	res, _ := c.Run(getShellContent("stats"))
+	res, _ := c.Run(StatsShell)
 	infos := strings.Split(*res, "-----")
 	stats := new(Stats)
 	getUptime(infos[0], stats)

@@ -11,5 +11,8 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+*.lock
+*.sum
+
 */node_modules/
 **/vendor/

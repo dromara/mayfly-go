@@ -50,7 +50,7 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="name" label="名称" min-width="130" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="ip" label="ip:port" min-width="140">
                     <template #default="scope">
                         <el-link :disabled="scope.row.status == -1" @click="showMachineStats(scope.row)" type="primary" :underline="false">{{
@@ -58,7 +58,7 @@
                         }}</el-link>
                     </template>
                 </el-table-column>
-                <el-table-column prop="status" label="状态" min-width="60">
+                <el-table-column prop="status" label="状态" min-width="75">
                     <template #default="scope">
                         <el-switch
                             v-auth:disabled="'machine:update'"

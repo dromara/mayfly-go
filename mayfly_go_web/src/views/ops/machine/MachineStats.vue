@@ -1,8 +1,8 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="true" :destroy-on-close="true" :before-close="cancel" width="980px">
+        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="true" :destroy-on-close="true" :before-close="cancel" width="1050px">
             <el-row :gutter="20">
-                <el-col :lg="10" :md="10">
+                <el-col :lg="12" :md="12">
                     <el-descriptions size="small" title="基础信息" :column="2" border>
                         <template #extra>
                             <el-link @click="onRefresh" icon="refresh" :underline="false" type="success"></el-link>
@@ -23,11 +23,11 @@
                     </el-descriptions>
                 </el-col>
 
-                <el-col :lg="7" :md="7">
+                <el-col :lg="6" :md="6">
                     <div class="card-item-chart" ref="memRef"></div>
                 </el-col>
 
-                <el-col :lg="7" :md="7">
+                <el-col :lg="6" :md="6">
                     <div class="card-item-chart" ref="cpuRef"></div>
                 </el-col>
             </el-row>
