@@ -285,7 +285,6 @@ export default defineComponent({
             const keys = Object.keys(netInter);
             const values = Object.values(netInter);
             for (let i = 0; i < values.length; i++) {
-                // 需要使用属性拷贝，否则会再次触发watch
                 let value: any = values[i];
                 // 将网卡名称赋值新属性值name
                 value.name = keys[i];

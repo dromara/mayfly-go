@@ -188,10 +188,6 @@ export default defineComponent({
             // 当前选中数据id
             currentId: null,
             currentData: null,
-            infoDialog: {
-                visible: false,
-                info: '',
-            },
             serviceDialog: {
                 visible: false,
                 machineId: 0,
