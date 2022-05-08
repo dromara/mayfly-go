@@ -4,6 +4,7 @@ import SqlExecDialog from './SqlExecDialog.vue'
 export type SqlExecProps = {
     sql: string
     dbId: number,
+    db: string,
     runSuccessCallback?: Function,
     cancelCallback?: Function
 }

@@ -14,8 +14,8 @@
             </el-form>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
                     <el-button @click="cancel()">取 消</el-button>
+                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>

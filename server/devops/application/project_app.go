@@ -37,7 +37,7 @@ type Project interface {
 	DeleteMember(projectId, accountId uint64)
 
 	// 账号是否有权限访问该项目关联的资源信息
-	CanAccess(accountId, projectId uint64) bool
+	CanAccess(accountId, projectId uint64) error
 }
 
 type projectAppImpl struct {
@@ -120,6 +120,9 @@ func (p *projectAppImpl) DeleteMember(projectId, accountId uint64) {
 	p.projectMemberRepo.DeleteByPidMid(projectId, accountId)
 }
 
-func (p *projectAppImpl) CanAccess(accountId, projectId uint64) bool {
-	return p.projectMemberRepo.IsExist(projectId, accountId)
+func (p *projectAppImpl) CanAccess(accountId, projectId uint64) error {
+	if p.projectMemberRepo.IsExist(projectId, accountId) {
+		return nil
+	}
+	return biz.NewBizErr("您无权操作该资源")
 }

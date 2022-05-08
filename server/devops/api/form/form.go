@@ -41,6 +41,7 @@ type DbSqlSaveForm struct {
 	Name string
 	Sql  string `binding:"required"`
 	Type int    `binding:"required"`
+	Db   string `binding:"required"`
 }
 
 type MachineFileUpdateForm struct {

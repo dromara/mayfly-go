@@ -326,8 +326,6 @@ export default defineComponent({
         return {
             ...toRefs(state),
             choose,
-            // monitor,
-            // closeMonitor,
             showTerminal,
             openFormDialog,
             deleteMachine,

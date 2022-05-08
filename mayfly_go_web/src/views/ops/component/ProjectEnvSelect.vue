@@ -1,14 +1,14 @@
 <template>
     <div>
-        <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
+        <el-form class="search-form" label-position="right" :inline="true">
             <el-form-item prop="project" label="项目" label-width="40px">
                 <el-select v-model="projectId" placeholder="请选择项目" @change="changeProject" filterable>
                     <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"></el-option>
                 </el-select>
             </el-form-item>
 
-            <el-form-item prop="env" label="环境" label-width="40px">
-                <el-select style="width: 100px" v-model="envId" placeholder="环境" @change="changeEnv" filterable>
+            <el-form-item prop="env" label="env" label-width="33px">
+                <el-select style="width: 80px" v-model="envId" placeholder="环境" @change="changeEnv" filterable>
                     <el-option v-for="item in envs" :key="item.id" :label="item.name" :value="item.id">
                         <span style="float: left">{{ item.name }}</span>
                         <span style="float: right; color: #8492a6; font-size: 13px">{{ item.remark }}</span>
@@ -22,7 +22,7 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, watch, defineComponent, onMounted } from 'vue';
+import { toRefs, reactive, defineComponent, onMounted } from 'vue';
 import { projectApi } from '../project/api';
 
 export default defineComponent({
@@ -51,8 +51,6 @@ export default defineComponent({
             projectId: null,
             envId: null,
         });
-
-        watch(props, (newValue, oldValue) => {});
 
         onMounted(async () => {
             state.projects = await projectApi.accountProjects.request(null);

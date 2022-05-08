@@ -31,7 +31,6 @@ func (d *Db) Dbs(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	m := &entity.Db{EnvId: uint64(ginx.QueryInt(g, "envId", 0)),
 		ProjectId: uint64(ginx.QueryInt(g, "projectId", 0)),
-		Database:  g.Query("database"),
 	}
 	m.CreatorId = rc.LoginAccount.Id
 	rc.ResData = d.DbApp.GetPageList(m, ginx.GetPageParam(rc.GinCtx), new([]vo.SelectDataDbVO))
@@ -54,37 +53,38 @@ func (d *Db) DeleteDb(rc *ctx.ReqCtx) {
 }
 
 func (d *Db) TableInfos(rc *ctx.ReqCtx) {
-	rc.ResData = d.DbApp.GetDbInstance(GetDbId(rc.GinCtx)).GetTableInfos()
+	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetTableInfos()
 }
 
 func (d *Db) TableIndex(rc *ctx.ReqCtx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	rc.ResData = d.DbApp.GetDbInstance(GetDbId(rc.GinCtx)).GetTableIndex(tn)
+	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetTableIndex(tn)
 }
 
 func (d *Db) GetCreateTableDdl(rc *ctx.ReqCtx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	rc.ResData = d.DbApp.GetDbInstance(GetDbId(rc.GinCtx)).GetCreateTableDdl(tn)
+	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetCreateTableDdl(tn)
 }
 
 // @router /api/db/:dbId/exec-sql [get]
 func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 
-	dbInstance := d.DbApp.GetDbInstance(GetDbId(g))
-	biz.IsTrue(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbInstance.ProjectId), "您无权操作该资源")
+	id, db := GetIdAndDb(g)
+	dbInstance := d.DbApp.GetDbInstance(id, db)
+	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbInstance.ProjectId), "%s")
 
 	// 去除前后空格及换行符
 	sql := strings.TrimFunc(g.Query("sql"), func(r rune) bool {
 		s := string(r)
 		return s == " " || s == "\n"
 	})
-	rc.ReqParam = sql
+	rc.ReqParam = fmt.Sprintf("db: %d:%s | sql: %s", id, db, sql)
 
 	biz.NotEmpty(sql, "sql不能为空")
-	if strings.HasPrefix(sql, "SELECT") || strings.HasPrefix(sql, "select") {
+	if strings.HasPrefix(sql, "SELECT") || strings.HasPrefix(sql, "select") || strings.HasPrefix(sql, "show") {
 		colNames, res, err := dbInstance.SelectData(sql)
 		biz.ErrIsNilAppendErr(err, "查询失败: %s")
 		colAndRes := make(map[string]interface{})
@@ -119,10 +119,10 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 	bytes, _ := ioutil.ReadAll(file)
 	sqlContent := string(bytes)
 	sqls := strings.Split(sqlContent, ";")
-	dbId := GetDbId(g)
+	dbId, db := GetIdAndDb(g)
 
 	go func() {
-		db := d.DbApp.GetDbInstance(dbId)
+		db := d.DbApp.GetDbInstance(dbId, db)
 
 		dbEntity := d.DbApp.GetById(dbId)
 		dbInfo := fmt.Sprintf("于%s的%s环境", dbEntity.Name, dbEntity.Env)
@@ -136,7 +136,7 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 			}
 		}()
 
-		biz.IsTrue(d.ProjectApp.CanAccess(rc.LoginAccount.Id, db.ProjectId), "您无权操作该资源")
+		biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, db.ProjectId), "%s")
 
 		for _, sql := range sqls {
 			sql = strings.Trim(sql, " ")
@@ -155,8 +155,8 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 
 // @router /api/db/:dbId/t-metadata [get]
 func (d *Db) TableMA(rc *ctx.ReqCtx) {
-	dbi := d.DbApp.GetDbInstance(GetDbId(rc.GinCtx))
-	biz.IsTrue(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "您无权操作该资源")
+	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
+	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "%s")
 	rc.ResData = dbi.GetTableMetedatas()
 }
 
@@ -166,15 +166,15 @@ func (d *Db) ColumnMA(rc *ctx.ReqCtx) {
 	tn := g.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
 
-	dbi := d.DbApp.GetDbInstance(GetDbId(rc.GinCtx))
-	biz.IsTrue(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "您无权操作该资源")
+	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
+	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "%s")
 	rc.ResData = dbi.GetColumnMetadatas(tn)
 }
 
 // @router /api/db/:dbId/hint-tables [get]
 func (d *Db) HintTables(rc *ctx.ReqCtx) {
-	dbi := d.DbApp.GetDbInstance(GetDbId(rc.GinCtx))
-	biz.IsTrue(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "您无权操作该资源")
+	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
+	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "%s")
 	// 获取所有表
 	tables := dbi.GetTableMetedatas()
 
@@ -225,7 +225,7 @@ func (d *Db) SaveSql(rc *ctx.ReqCtx) {
 	biz.ErrIsNil(err, "该数据库信息不存在")
 
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-	dbSql := &entity.DbSql{Type: dbSqlForm.Type, DbId: dbId, Name: dbSqlForm.Name}
+	dbSql := &entity.DbSql{Type: dbSqlForm.Type, DbId: dbId, Name: dbSqlForm.Name, Db: dbSqlForm.Db}
 	dbSql.CreatorId = account.Id
 	e := model.GetBy(dbSql)
 
@@ -241,8 +241,9 @@ func (d *Db) SaveSql(rc *ctx.ReqCtx) {
 
 // 获取所有保存的sql names
 func (d *Db) GetSqlNames(rc *ctx.ReqCtx) {
+	id, db := GetIdAndDb(rc.GinCtx)
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-	dbSql := &entity.DbSql{Type: 1, DbId: GetDbId(rc.GinCtx)}
+	dbSql := &entity.DbSql{Type: 1, DbId: id, Db: db}
 	dbSql.CreatorId = rc.LoginAccount.Id
 	var sqls []entity.DbSql
 	model.ListBy(dbSql, &sqls, "id", "name")
@@ -262,8 +263,9 @@ func (d *Db) DeleteSql(rc *ctx.ReqCtx) {
 
 // @router /api/db/:dbId/sql [get]
 func (d *Db) GetSql(rc *ctx.ReqCtx) {
+	id, db := GetIdAndDb(rc.GinCtx)
 	// 根据创建者id， 数据库id，以及sql模板名称查询保存的sql信息
-	dbSql := &entity.DbSql{Type: 1, DbId: GetDbId(rc.GinCtx)}
+	dbSql := &entity.DbSql{Type: 1, DbId: id, Db: db}
 	dbSql.CreatorId = rc.LoginAccount.Id
 	dbSql.Name = rc.GinCtx.Query("name")
 
@@ -278,4 +280,10 @@ func GetDbId(g *gin.Context) uint64 {
 	dbId, _ := strconv.Atoi(g.Param("dbId"))
 	biz.IsTrue(dbId > 0, "dbId错误")
 	return uint64(dbId)
+}
+
+func GetIdAndDb(g *gin.Context) (uint64, string) {
+	db := g.Query("db")
+	biz.NotEmpty(db, "db不能为空")
+	return GetDbId(g), db
 }

@@ -104,7 +104,7 @@ func (m *Machine) GetProcess(rc *ctx.ReqCtx) {
 	cmd += "| head -n " + count
 
 	cli := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
-	biz.IsTrue(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "您无权操作该资源")
+	biz.ErrIsNilAppendErr(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "%s")
 
 	res, err := cli.Run(cmd)
 	biz.ErrIsNilAppendErr(err, "获取进程信息失败: %s")
@@ -117,7 +117,7 @@ func (m *Machine) KillProcess(rc *ctx.ReqCtx) {
 	biz.NotEmpty(pid, "进程id不能为空")
 
 	cli := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
-	biz.IsTrue(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "您无权操作该资源")
+	biz.ErrIsNilAppendErr(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "%s")
 
 	_, err := cli.Run("kill -9 " + pid)
 	biz.ErrIsNilAppendErr(err, "终止进程失败: %s")
@@ -145,7 +145,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	rows := ginx.QueryInt(g, "rows", 40)
 
 	cli := m.MachineApp.GetCli(GetMachineId(g))
-	biz.IsTrue(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "您无权操作该资源")
+	biz.ErrIsNilAppendErr(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "%s")
 
 	sws, err := machine.NewLogicSshWsSession(cols, rows, cli, wsConn)
 	biz.ErrIsNilAppendErr(err, "连接失败：%s")

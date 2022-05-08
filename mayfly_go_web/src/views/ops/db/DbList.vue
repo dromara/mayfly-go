@@ -15,9 +15,6 @@
                     </el-form-item>
 
                     <el-form-item>
-                        <el-input v-model="query.database" placeholder="请输入数据库" auto-complete="off" clearable></el-input>
-                    </el-form-item>
-                    <el-form-item>
                         <el-button v-waves type="primary" icon="search" @click="search()">查询</el-button>
                     </el-form-item>
                 </el-form>
@@ -39,7 +36,20 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="type" label="类型" min-width="80"></el-table-column>
-                <el-table-column prop="database" label="数据库" min-width="120"></el-table-column>
+                <el-table-column prop="database" label="数据库" min-width="120">
+                    <template #default="scope">
+                        <el-tag
+                            @click="showTableInfo(scope.row, db)"
+                            effect="plain"
+                            type="success"
+                            size="small"
+                            v-for="db in scope.row.dbs"
+                            :key="db"
+                            style="cursor: pointer"
+                            >{{ db }}</el-tag
+                        >
+                    </template>
+                </el-table-column>
                 <el-table-column prop="username" label="用户名" min-width="100"></el-table-column>
 
                 <el-table-column min-width="115" prop="creator" label="创建账号"></el-table-column>
@@ -49,11 +59,8 @@
                     </template>
                 </el-table-column>
 
-                <el-table-column fixed="right" label="更多信息" min-width="100">
-                    <template #default="scope">
-                        <el-link @click.prevent="tableInfo(scope.row)" type="success">表信息</el-link>
-                    </template>
-                </el-table-column>
+                <!-- <el-table-column fixed="right" label="更多信息" min-width="100">
+                </el-table-column> -->
             </el-table>
             <el-row style="margin-top: 20px" type="flex" justify="end">
                 <el-pagination
@@ -67,12 +74,7 @@
             </el-row>
         </el-card>
 
-        <el-dialog
-            width="75%"
-            :title="`${chooseData ? chooseData.database : ''} 表信息`"
-            :before-close="closeTableInfo"
-            v-model="tableInfoDialog.visible"
-        >
+        <el-dialog width="75%" :title="`${db} 表信息`" :before-close="closeTableInfo" v-model="tableInfoDialog.visible">
             <el-row class="mb10">
                 <el-button type="primary" size="small" @click="tableCreateDialog.visible = true">创建表</el-button>
             </el-row>
@@ -173,6 +175,7 @@ export default defineComponent({
     setup() {
         const state = reactive({
             dbId: 0,
+            db: '',
             permissions: {
                 saveDb: 'db:save',
                 delDb: 'db:del',
@@ -235,6 +238,11 @@ export default defineComponent({
 
         const search = async () => {
             let res: any = await dbApi.dbs.request(state.query);
+            // 切割数据库
+            res.list.forEach((e: any) => {
+                e.popoverSelectDbVisible = false;
+                e.dbs = e.database.split(' ');
+            });
             state.datas = res.list;
             state.total = res.total;
         };
@@ -247,10 +255,10 @@ export default defineComponent({
         const editDb = (isAdd = false) => {
             if (isAdd) {
                 state.dbEditDialog.data = null;
-                state.dbEditDialog.title = '新增数据库';
+                state.dbEditDialog.title = '新增数据库资源';
             } else {
                 state.dbEditDialog.data = state.chooseData;
-                state.dbEditDialog.title = '修改数据库';
+                state.dbEditDialog.title = '修改数据库资源';
             }
             state.dbEditDialog.visible = true;
         };
@@ -274,9 +282,10 @@ export default defineComponent({
             } catch (err) {}
         };
 
-        const tableInfo = async (row: any) => {
-            state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: row.id });
+        const showTableInfo = async (row: any, db: string) => {
+            state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: row.id, db });
             state.dbId = row.id;
+            state.db = db;
             state.tableInfoDialog.visible = true;
         };
 
@@ -289,6 +298,7 @@ export default defineComponent({
             state.chooseTableName = row.tableName;
             state.columnDialog.columns = await dbApi.columnMetadata.request({
                 id: state.chooseId,
+                db: state.db,
                 tableName: row.tableName,
             });
 
@@ -299,6 +309,7 @@ export default defineComponent({
             state.chooseTableName = row.tableName;
             state.indexDialog.indexs = await dbApi.tableIndex.request({
                 id: state.chooseId,
+                db: state.db,
                 tableName: row.tableName,
             });
 
@@ -309,6 +320,7 @@ export default defineComponent({
             state.chooseTableName = row.tableName;
             const res = await dbApi.tableDdl.request({
                 id: state.chooseId,
+                db: state.db,
                 tableName: row.tableName,
             });
             state.ddlDialog.ddl = res[0]['Create Table'];
@@ -329,8 +341,9 @@ export default defineComponent({
                 SqlExecBox({
                     sql: `DROP TABLE ${tableName}`,
                     dbId: state.chooseId,
+                    db: state.db,
                     runSuccessCallback: async () => {
-                        state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.chooseId });
+                        state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.chooseId, db: state.db });
                     },
                 });
             } catch (err) {}
@@ -345,7 +358,7 @@ export default defineComponent({
             editDb,
             valChange,
             deleteDb,
-            tableInfo,
+            showTableInfo,
             closeTableInfo,
             showColumns,
             showTableIndex,

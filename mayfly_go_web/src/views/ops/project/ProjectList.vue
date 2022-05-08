@@ -71,8 +71,8 @@
             </el-form>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="addProject" type="primary">确 定</el-button>
                     <el-button @click="cancelAddProject()">取 消</el-button>
+                    <el-button @click="addProject" type="primary">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -103,8 +103,8 @@
                 </el-form>
                 <template #footer>
                     <div class="dialog-footer">
-                        <el-button v-auth="permissions.saveEnv" @click="addEnv" type="primary" :loading="btnLoading">确 定</el-button>
                         <el-button @click="cancelAddEnv()">取 消</el-button>
+                        <el-button v-auth="permissions.saveEnv" @click="addEnv" type="primary" :loading="btnLoading">确 定</el-button>
                     </div>
                 </template>
             </el-dialog>
@@ -163,8 +163,8 @@
                 </el-form>
                 <template #footer>
                     <div class="dialog-footer">
-                        <el-button v-auth="permissions.saveMember" @click="addMember" type="primary" :loading="btnLoading">确 定</el-button>
                         <el-button @click="cancelAddMember()">取 消</el-button>
+                        <el-button v-auth="permissions.saveMember" @click="addMember" type="primary" :loading="btnLoading">确 定</el-button>
                     </div>
                 </template>
             </el-dialog>

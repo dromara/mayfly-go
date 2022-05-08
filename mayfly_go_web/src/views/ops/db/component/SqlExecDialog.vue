@@ -40,6 +40,9 @@ export default defineComponent({
         dbId: {
             type: [Number],
         },
+        db: {
+            type: String,
+        },
         sql: {
             type: String,
         },
@@ -49,6 +52,7 @@ export default defineComponent({
             dialogVisible: false,
             sqlValue: '',
             dbId: 0,
+            db: '',
             btnLoading: false,
             cmOptions: {
                 tabSize: 4,
@@ -77,6 +81,7 @@ export default defineComponent({
                 state.btnLoading = true;
                 await dbApi.sqlExec.request({
                     id: state.dbId,
+                    db: state.db,
                     sql: state.sqlValue.trim(),
                 });
                 runSuccess = true;
@@ -110,6 +115,7 @@ export default defineComponent({
             cancelCallback = props.cancelCallback;
             state.sqlValue = sqlFormatter(props.sql);
             state.dbId = props.dbId;
+            state.db = props.db;
             state.dialogVisible = true;
         };
 

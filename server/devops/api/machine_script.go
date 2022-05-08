@@ -64,7 +64,7 @@ func (m *MachineScript) RunMachineScript(rc *ctx.ReqCtx) {
 		script = utils.TemplateParse(ms.Script, utils.Json2Map(params))
 	}
 	cli := m.MachineApp.GetCli(machineId)
-	biz.IsTrue(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "您无权操作该资源")
+	biz.ErrIsNilAppendErr(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "%s")
 
 	res, err := cli.Run(script)
 	// 记录请求参数

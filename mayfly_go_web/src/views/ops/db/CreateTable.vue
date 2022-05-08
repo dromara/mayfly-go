@@ -83,6 +83,9 @@ export default defineComponent({
         dbId: {
             type: Number,
         },
+        db: {
+            type: String,
+        }
     },
     setup(props: any, { emit }) {
         const formRef: any = ref();
@@ -202,6 +205,7 @@ export default defineComponent({
             SqlExecBox({
                 sql: sql,
                 dbId: props.dbId as any,
+                db: props.db,
                 runSuccessCallback: () => {
                     ElMessage.success('创建成功');
                     proxy.$parent.tableInfo({ id: props.dbId });

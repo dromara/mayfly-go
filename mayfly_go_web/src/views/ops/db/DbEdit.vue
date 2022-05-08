@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" width="35%">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" :destroy-on-close="true" width="35%">
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="85px">
                 <el-form-item prop="projectId" label="项目:" required>
                     <el-select style="width: 100%" v-model="form.projectId" placeholder="请选择项目" @change="changeProject" filterable>
@@ -30,24 +30,45 @@
                 <el-form-item prop="username" label="用户名:" required>
                     <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
                 </el-form-item>
-                <el-form-item prop="password" label="密码:" required>
+                <el-form-item prop="password" label="密码:">
                     <el-input
                         type="password"
                         show-password
                         v-model.trim="form.password"
-                        placeholder="请输入密码"
+                        placeholder="请输入密码，新增为必填项"
                         autocomplete="new-password"
                     ></el-input>
                 </el-form-item>
                 <el-form-item prop="database" label="数据库名:" required>
-                    <el-input v-model.trim="form.database" placeholder="请输入数据库名"></el-input>
+                    <el-tag
+                        v-for="db in databaseList"
+                        :key="db"
+                        class="ml5 mt5"
+                        type="success"
+                        effect="plain"
+                        closable
+                        :disable-transitions="false"
+                        @close="handleClose(db)"
+                    >
+                        {{ db }}
+                    </el-tag>
+                    <el-input
+                        v-if="inputDbVisible"
+                        ref="InputDbRef"
+                        v-model="inputDbValue"
+                        style="width: 120px; margin-left: 5px; margin-top: 5px"
+                        size="small"
+                        @keyup.enter="handleInputDbConfirm"
+                        @blur="handleInputDbConfirm"
+                    />
+                    <el-button v-else class="ml5 mt5" size="small" @click="showInputDb"> + 添加数据库 </el-button>
                 </el-form-item>
             </el-form>
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
                     <el-button @click="cancel()">取 消</el-button>
+                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -55,10 +76,11 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, watch, defineComponent, ref } from 'vue';
+import { toRefs, reactive, nextTick, watch, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
 import { projectApi } from '../project/api.ts';
 import { ElMessage } from 'element-plus';
+import type { ElInput } from 'element-plus';
 
 export default defineComponent({
     name: 'DbEdit',
@@ -78,16 +100,22 @@ export default defineComponent({
     },
     setup(props: any, { emit }) {
         const dbForm: any = ref(null);
+        const InputDbRef = ref<InstanceType<typeof ElInput>>();
+
         const state = reactive({
             dialogVisible: false,
             projects: [],
             envs: [],
+            databaseList: [] as any,
+            inputDbVisible: false,
+            inputDbValue: '',
             form: {
                 id: null,
                 name: null,
                 port: 3306,
                 username: null,
                 password: null,
+                database: '',
                 project: null,
                 projectId: null,
                 envId: null,
@@ -144,17 +172,17 @@ export default defineComponent({
                         trigger: ['change', 'blur'],
                     },
                 ],
-                password: [
-                    {
-                        required: true,
-                        message: '请输入密码',
-                        trigger: ['change', 'blur'],
-                    },
-                ],
+                // password: [
+                //     {
+                //         required: true,
+                //         message: '请输入密码',
+                //         trigger: ['change', 'blur'],
+                //     },
+                // ],
                 database: [
                     {
                         required: true,
-                        message: '请输入数据库名',
+                        message: '请添加数据库',
                         trigger: ['change', 'blur'],
                     },
                 ],
@@ -162,16 +190,46 @@ export default defineComponent({
         });
 
         watch(props, async (newValue) => {
-            state.dialogVisible = newValue.visible;
             state.projects = newValue.projects;
             if (newValue.db) {
                 getEnvs(newValue.db.projectId);
                 state.form = { ...newValue.db };
+                // 将数据库名使用空格切割，获取所有数据库列表
+                state.databaseList = newValue.db.database.split(' ');
             } else {
                 state.envs = [];
                 state.form = { port: 3306 } as any;
             }
+            state.dialogVisible = newValue.visible;
         });
+
+        const handleClose = (db: string) => {
+            state.databaseList.splice(state.databaseList.indexOf(db), 1);
+            changeDatabase();
+        };
+
+        const showInputDb = () => {
+            state.inputDbVisible = true;
+            nextTick(() => {
+                InputDbRef.value!.input!.focus();
+            });
+        };
+
+        const handleInputDbConfirm = () => {
+            if (state.inputDbValue) {
+                state.databaseList.push(state.inputDbValue);
+                changeDatabase();
+            }
+            state.inputDbVisible = false;
+            state.inputDbValue = '';
+        };
+
+        /**
+         * 改变表单中的数据库字段，方便表单错误提示。如全部删光，可提示请添加数据库
+         */
+        const changeDatabase = () => {
+            state.form.database = state.databaseList.length == 0 ? '' : state.databaseList.join(' ');
+        };
 
         const getEnvs = async (projectId: any) => {
             state.envs = await projectApi.projectEnvs.request({ projectId });
@@ -216,10 +274,17 @@ export default defineComponent({
             });
         };
 
+        const resetInputDb = () => {
+            state.inputDbVisible = false;
+            state.databaseList = [];
+            state.inputDbValue = '';
+        };
+
         const cancel = () => {
             emit('update:visible', false);
             emit('cancel');
             setTimeout(() => {
+                resetInputDb();
                 dbForm.value.resetFields();
                 //  重置对象属性为null
                 state.form = {} as any;
@@ -229,6 +294,10 @@ export default defineComponent({
         return {
             ...toRefs(state),
             dbForm,
+            InputDbRef,
+            handleClose,
+            showInputDb,
+            handleInputDbConfirm,
             changeProject,
             changeEnv,
             btnOk,

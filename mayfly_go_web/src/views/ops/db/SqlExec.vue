@@ -7,21 +7,33 @@
         <div class="toolbar">
             <el-row type="flex" justify="space-between">
                 <el-col :span="24">
-                    <project-env-select @changeProjectEnv="changeProjectEnv" @clear="clearDb">
+                    <project-env-select @changeProjectEnv="changeProjectEnv">
                         <template #default>
-                            <el-form-item label="数据库">
-                                <el-select v-model="dbId" placeholder="请选择数据库" @change="changeDb" @clear="clearDb" clearable filterable>
-                                    <el-option v-for="item in dbs" :key="item.id" :label="item.database" :value="item.id">
-                                        <span style="float: left">{{ item.database }}</span>
+                            <el-form-item label="资源">
+                                <el-select
+                                    v-model="dbId"
+                                    placeholder="请选择资源实例"
+                                    @change="changeDbInstance"
+                                    filterable
+                                    style="width: 150px"
+                                >
+                                    <el-option v-for="item in dbs" :key="item.id" :label="item.name" :value="item.id">
+                                        <span style="float: left">{{ item.name }}</span>
                                         <span style="float: right; color: #8492a6; margin-left: 6px; font-size: 13px">{{
-                                            `${item.name}  [${item.type}]`
+                                            `${item.host}:${item.port} ${item.type}`
                                         }}</span>
                                     </el-option>
                                 </el-select>
                             </el-form-item>
 
-                            <el-form-item label-width="40" label="表">
-                                <el-select v-model="tableName" placeholder="选择表查看表数据" @change="changeTable" filterable style="width: 300px">
+                            <el-form-item label="数据库">
+                                <el-select v-model="db" placeholder="请选择数据库" @change="changeDb" @clear="clearDb" clearable filterable style="width: 150px">
+                                    <el-option v-for="item in databaseList" :key="item" :label="item" :value="item"> </el-option>
+                                </el-select>
+                            </el-form-item>
+
+                            <el-form-item label-width="20" label="表">
+                                <el-select v-model="tableName" placeholder="选择表查看表数据" @change="changeTable" filterable style="width: 250px">
                                     <el-option
                                         v-for="item in tableMetadata"
                                         :key="item.tableName"
@@ -139,7 +151,12 @@
                         </el-tooltip>
                     </el-row>
                     <el-row class="mt5">
-                        <el-input v-model="dt.condition" placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可" clearable size="small">
+                        <el-input
+                            v-model="dt.condition"
+                            placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可"
+                            clearable
+                            size="small"
+                        >
                             <template #prepend>
                                 <el-popover trigger="click" :width="270" placement="right">
                                     <template #reference>
@@ -245,9 +262,11 @@ export default defineComponent({
         const state = reactive({
             token: token,
             defalutLimit: 25, // 默认查询数量
-            dbs: [],
+            dbs: [], // 数据库实例列表
+            databaseList: [], // 数据库实例拥有的数据库列表，1数据库实例  -> 多数据库
+            db: '', // 当前操作的数据库
             tables: [],
-            dbId: null,
+            dbId: null, // 当前选中操作的数据库实例
             tableName: '',
             tableMetadata: [],
             columnMetadata: [],
@@ -344,6 +363,8 @@ export default defineComponent({
         const changeProjectEnv = (projectId: any, envId: any) => {
             state.dbs = [];
             state.dbId = null;
+            state.db = '';
+            state.databaseList = [];
             clearDb();
             if (envId != null) {
                 state.params.envId = envId;
@@ -403,6 +424,7 @@ export default defineComponent({
         const runSql = (sql: string) => {
             return dbApi.sqlExec.request({
                 id: state.dbId,
+                db: state.db,
                 sql: sql.trim(),
             });
         };
@@ -541,25 +563,34 @@ export default defineComponent({
         };
 
         /**
+         * 选择数据库实例事件
+         */
+        const changeDbInstance = (dbId: any) => {
+            state.db = '';
+            state.databaseList = (state.dbs.find((e: any) => e.id == dbId) as any).database.split(' ');
+            clearDb();
+        };
+
+        /**
          * 更改数据库事件
          */
-        const changeDb = (id: number) => {
-            if (!id) {
+        const changeDb = (db: string) => {
+            if (!db) {
                 return;
             }
             clearDb();
-            dbApi.tableMetadata.request({ id }).then((res) => {
+            dbApi.tableMetadata.request({ id: state.dbId, db }).then((res) => {
                 state.tableMetadata = res;
             });
 
             dbApi.hintTables
                 .request({
                     id: state.dbId,
+                    db,
                 })
                 .then((res) => {
                     state.cmOptions.hintOptions.tables = res;
                 });
-
             getSqlNames();
         };
 
@@ -631,6 +662,7 @@ export default defineComponent({
             }
             columns = await dbApi.columnMetadata.request({
                 id: state.dbId,
+                db: state.db,
                 tableName: tableName,
             });
             tableMap.set(tableName, columns);
@@ -709,7 +741,7 @@ export default defineComponent({
          */
         const getUserSql = () => {
             notBlank(state.dbId, '请先选择数据库');
-            dbApi.getSql.request({ id: state.dbId, type: 1, name: state.sqlName }).then((res) => {
+            dbApi.getSql.request({ id: state.dbId, type: 1, name: state.sqlName, db: state.db }).then((res) => {
                 if (res) {
                     setCodermirrorValue(res.sql);
                 } else {
@@ -733,6 +765,7 @@ export default defineComponent({
             dbApi.getSqlNames
                 .request({
                     id: state.dbId,
+                    db: state.db,
                 })
                 .then((res) => {
                     if (res && res.length > 0) {
@@ -750,13 +783,14 @@ export default defineComponent({
         const saveSql = async () => {
             const sql = codemirror.getValue();
             notEmpty(sql, 'sql内容不能为空');
-            notBlank(state.dbId, '请先选择数据库');
-            await dbApi.saveSql.request({ id: state.dbId, sql: sql, type: 1, name: state.sqlName });
+            notBlank(state.dbId, '请先选择数据库实例');
+            await dbApi.saveSql.request({ id: state.dbId, db: state.db, sql: sql, type: 1, name: state.sqlName });
             ElMessage.success('保存成功');
 
             dbApi.getSqlNames
                 .request({
                     id: state.dbId,
+                    db: state.db,
                 })
                 .then((res) => {
                     if (res) {
@@ -773,7 +807,7 @@ export default defineComponent({
                     cancelButtonText: '取消',
                     type: 'warning',
                 });
-                await dbApi.deleteDbSql.request({ id: state.dbId, name: state.sqlName });
+                await dbApi.deleteDbSql.request({ id: state.dbId, name: state.sqlName, db: state.db });
                 ElMessage.success('删除成功');
                 getSqlNames();
             } catch (err) {}
@@ -909,6 +943,7 @@ export default defineComponent({
             SqlExecBox({
                 sql: sql,
                 dbId: state.dbId as any,
+                db: state.db,
                 runSuccessCallback: successFunc,
                 cancelCallback: cancelFunc,
             });
@@ -991,6 +1026,7 @@ export default defineComponent({
             changeSqlTemplate,
             deleteSql,
             saveSql,
+            changeDbInstance,
             changeDb,
             clearDb,
             formatSql,

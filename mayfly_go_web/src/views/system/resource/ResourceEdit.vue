@@ -82,10 +82,12 @@
                 </el-row>
             </el-form>
 
-            <div style="text-align: center" class="dialog-footer mt10">
-                <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
-                <el-button @click="cancel()">取 消</el-button>
-            </div>
+            <template #footer>
+                <div class="dialog-footer mt10">
+                    <el-button @click="cancel()">取 消</el-button>
+                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                </div>
+            </template>
         </el-dialog>
     </div>
 </template>

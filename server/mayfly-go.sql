@@ -21,13 +21,13 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `t_db`;
 CREATE TABLE `t_db` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库名称',
+  `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
   `host` varchar(20) COLLATE utf8mb4_bin NOT NULL,
   `port` int(8) NOT NULL,
   `username` varchar(255) COLLATE utf8mb4_bin NOT NULL,
   `password` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
-  `type` varchar(20) COLLATE utf8mb4_bin NOT NULL COMMENT '数据库类型(mysql...)',
-  `database` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
+  `type` varchar(20) COLLATE utf8mb4_bin NOT NULL COMMENT '数据库实例类型(mysql...)',
+  `database` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
   `network` varchar(8) COLLATE utf8mb4_bin DEFAULT NULL,
   `project_id` bigint(20) DEFAULT NULL,
   `project` varchar(64) COLLATE utf8mb4_bin DEFAULT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE `t_db` (
   `modifier_id` bigint(20) DEFAULT NULL,
   `modifier` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库信息表';
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库资源信息表';
 
 -- ----------------------------
 -- Records of t_db
@@ -55,7 +55,8 @@ COMMIT;
 DROP TABLE IF EXISTS `t_db_sql`;
 CREATE TABLE `t_db_sql` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `db_id` bigint(20) NOT NULL COMMENT '数据库id',
+  `db_id` bigint(20) NOT NULL COMMENT '数据库实例id',
+  `db` varchar(125) NOT NULL COMMENT '数据库',
   `name` varchar(60) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'sql模板名',
   `sql` text COLLATE utf8mb4_bin,
   `type` tinyint(8) NOT NULL,

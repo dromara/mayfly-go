@@ -35,6 +35,7 @@
 
             <template #footer>
                 <div class="dialog-footer">
+                    <el-button @click="cancel()" :disabled="submitDisabled" size="small">关 闭</el-button>
                     <el-button
                         v-auth="'machine:script:save'"
                         type="primary"
@@ -44,7 +45,6 @@
                         :disabled="submitDisabled"
                         >保 存</el-button
                     >
-                    <el-button @click="cancel()" :disabled="submitDisabled" size="small">关 闭</el-button>
                 </div>
             </template>
         </el-dialog>
