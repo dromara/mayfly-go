@@ -30,6 +30,7 @@ type MachineVO struct {
 	Modifier    *string    `json:"modifier"`
 	ModifierId  *int64     `json:"modifierId"`
 	HasCli      bool       `json:"hasCli" gorm:"-"`
+	Remark      *string    `json:"remark"`
 }
 
 type MachineScriptVO struct {

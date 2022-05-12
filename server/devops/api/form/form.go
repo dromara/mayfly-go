@@ -9,9 +9,10 @@ type MachineForm struct {
 	Ip string `json:"ip" binding:"required"`
 	// 用户名
 	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Password string `json:"password"`
 	// 端口号
-	Port int `json:"port" binding:"required"`
+	Port   int    `json:"port" binding:"required"`
+	Remark string `json:"remark"`
 }
 
 type MachineRunForm struct {

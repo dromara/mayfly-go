@@ -19,7 +19,7 @@
                     </el-form-item>
                 </el-form>
             </div>
-            <el-table :data="datas" ref="table" @current-change="choose" show-overflow-tooltip>
+            <el-table :data="datas" ref="table" @current-change="choose" show-overflow-tooltip stripe>
                 <el-table-column label="选择" width="60px">
                     <template #default="scope">
                         <el-radio v-model="chooseId" :label="scope.row.id">
@@ -36,7 +36,7 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="type" label="类型" min-width="80"></el-table-column>
-                <el-table-column prop="database" label="数据库" min-width="120">
+                <el-table-column prop="database" label="数据库" min-width="160">
                     <template #default="scope">
                         <el-tag
                             @click="showTableInfo(scope.row, db)"
@@ -45,7 +45,7 @@
                             size="small"
                             v-for="db in scope.row.dbs"
                             :key="db"
-                            style="cursor: pointer"
+                            style="cursor: pointer; margin-left: 3px"
                             >{{ db }}</el-tag
                         >
                     </template>
@@ -78,7 +78,7 @@
             <el-row class="mb10">
                 <el-button type="primary" size="small" @click="tableCreateDialog.visible = true">创建表</el-button>
             </el-row>
-            <el-table border :data="tableInfoDialog.infos" size="small">
+            <el-table border stripe :data="tableInfoDialog.infos" size="small">
                 <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip></el-table-column>
                 <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip></el-table-column>
                 <el-table-column
@@ -125,7 +125,7 @@
         </el-dialog>
 
         <el-dialog width="40%" :title="`${chooseTableName} 字段信息`" v-model="columnDialog.visible">
-            <el-table border :data="columnDialog.columns" size="small">
+            <el-table border stripe :data="columnDialog.columns" size="small">
                 <el-table-column prop="columnName" label="名称" show-overflow-tooltip> </el-table-column>
                 <el-table-column width="120" prop="columnType" label="类型" show-overflow-tooltip> </el-table-column>
                 <el-table-column width="80" prop="nullable" label="是否可为空" show-overflow-tooltip> </el-table-column>
@@ -134,7 +134,7 @@
         </el-dialog>
 
         <el-dialog width="40%" :title="`${chooseTableName} 索引信息`" v-model="indexDialog.visible">
-            <el-table border :data="indexDialog.indexs" size="small">
+            <el-table border stripe :data="indexDialog.indexs" size="small">
                 <el-table-column prop="indexName" label="索引名" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="columnName" label="列名" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="seqInIndex" label="列序列号" show-overflow-tooltip> </el-table-column>
@@ -264,6 +264,8 @@ export default defineComponent({
         };
 
         const valChange = () => {
+            state.chooseData = null;
+            state.chooseId = null;
             search();
         };
 

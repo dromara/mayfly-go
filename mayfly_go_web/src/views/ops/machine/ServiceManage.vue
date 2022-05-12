@@ -12,9 +12,7 @@
                     <el-button @click="editScript(currentData)" :disabled="currentId == null" type="primary" icon="tickets" size="small" plain
                         >查看</el-button
                     >
-                    <el-button v-auth="'machine:script:save'" type="primary" @click="editScript(null)" icon="plus" size="small" plain
-                        >添加</el-button
-                    >
+                    <el-button v-auth="'machine:script:save'" type="primary" @click="editScript(null)" icon="plus" size="small" plain>添加</el-button>
                     <el-button
                         v-auth="'machine:script:del'"
                         :disabled="currentId == null"
@@ -62,6 +60,17 @@
                     </template>
                 </el-table-column>
             </el-table>
+            <el-row style="margin-top: 10px" type="flex" justify="end">
+                <el-pagination
+                    small
+                    style="text-align: center"
+                    :total="total"
+                    layout="prev, pager, next, total, jumper"
+                    v-model:current-page="query.pageNum"
+                    :page-size="query.pageSize"
+                    @current-change="handlePageChange"
+                ></el-pagination>
+            </el-row>
         </el-dialog>
 
         <el-dialog title="脚本参数" v-model="scriptParamsDialog.visible" width="400px">
@@ -133,12 +142,18 @@ export default defineComponent({
             type: 0,
             currentId: null,
             currentData: null,
+            query: {
+                machineId: 0,
+                pageNum: 1,
+                pageSize: 8,
+            },
             editDialog: {
                 visible: false,
                 data: null,
                 title: '',
                 machineId: 9999999,
             },
+            total: 0,
             scriptTable: [],
             scriptParamsDialog: {
                 visible: false,
@@ -166,9 +181,15 @@ export default defineComponent({
         const getScripts = async () => {
             state.currentId = null;
             state.currentData = null;
-            const machineId = state.type == 0 ? props.machineId : 9999999;
-            const res = await machineApi.scripts.request({ machineId: machineId });
+            state.query.machineId = state.type == 0 ? props.machineId : 9999999;
+            const res = await machineApi.scripts.request(state.query);
             state.scriptTable = res.list;
+            state.total = res.total;
+        };
+
+        const handlePageChange = (curPage: number) => {
+            state.query.pageNum = curPage;
+            getScripts();
         };
 
         const runScript = async (script: any) => {
@@ -219,9 +240,9 @@ export default defineComponent({
             }
 
             if (script.type == enums.scriptTypeEnum['REAL_TIME'].value) {
-                script = script.script
+                script = script.script;
                 if (state.scriptParamsDialog.params) {
-                    script = templateResolve(script, state.scriptParamsDialog.params)
+                    script = templateResolve(script, state.scriptParamsDialog.params);
                 }
                 state.terminalDialog.cmd = script;
                 state.terminalDialog.visible = true;
@@ -312,6 +333,7 @@ export default defineComponent({
             paramsForm,
             enums,
             getScripts,
+            handlePageChange,
             runScript,
             hasParamsRun,
             closeTermnial,

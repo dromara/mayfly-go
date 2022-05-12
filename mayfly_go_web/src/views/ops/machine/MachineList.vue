@@ -15,15 +15,6 @@
                 <el-button v-auth="'machine:del'" :disabled="currentId == null" @click="deleteMachine(currentId)" type="danger" icon="delete"
                     >删除</el-button
                 >
-                <el-button
-                    v-auth="'machine:file'"
-                    type="success"
-                    icon="files"
-                    :disabled="currentId == null || currentData.status == -1"
-                    @click="fileManage(currentData)"
-                    plain
-                    >文件</el-button
-                >
                 <div style="float: right">
                     <el-select v-model="params.projectId" placeholder="请选择项目" @clear="search" filterable clearable>
                         <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
@@ -77,6 +68,7 @@
                 </el-table-column>
                 <el-table-column prop="username" label="用户名" min-width="90"></el-table-column>
                 <el-table-column prop="projectName" label="项目" min-width="120"></el-table-column>
+                <el-table-column prop="remark" label="备注" min-width="250" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="ip" label="hasCli" width="70">
                     <template #default="scope">
                         {{ `${scope.row.hasCli ? '是' : '否'}` }}
@@ -90,26 +82,50 @@
                 <el-table-column prop="creator" label="创建者" min-width="80"></el-table-column>
                 <el-table-column label="操作" min-width="280" fixed="right">
                     <template #default="scope">
-                        <el-button :disabled="scope.row.status == -1" type="success" @click="serviceManager(scope.row)" plain size="small"
-                            >脚本</el-button
-                        >
-                        <el-button
+                        <el-link
                             v-auth="'machine:terminal'"
                             :disabled="scope.row.status == -1"
                             type="primary"
                             @click="showTerminal(scope.row)"
                             plain
                             size="small"
-                            >终端</el-button
+                            :underline="false"
+                            >终端</el-link
                         >
-                        <el-button @click="showProcess(scope.row)" :disabled="scope.row.status == -1" plain size="small">进程</el-button>
-                        <el-button
+                        <el-divider v-auth="'machine:terminal'" direction="vertical" border-style="dashed" />
+                        <el-link
+                            v-auth="'machine:file'"
+                            type="success"
+                            :disabled="scope.row.status == -1"
+                            @click="fileManage(scope.row)"
+                            plain
+                            size="small"
+                            :underline="false"
+                            >文件</el-link
+                        >
+                        <el-divider v-auth="'machine:file'" direction="vertical" border-style="dashed" />
+                        <el-link
+                            :disabled="scope.row.status == -1"
+                            type="warning"
+                            @click="serviceManager(scope.row)"
+                            plain
+                            size="small"
+                            :underline="false"
+                            >脚本</el-link
+                        >
+                        <el-divider direction="vertical" border-style="dashed" />
+                        <el-link @click="showProcess(scope.row)" :disabled="scope.row.status == -1" plain :underline="false" size="small"
+                            >进程</el-link
+                        >
+                        <el-divider direction="vertical" border-style="dashed" />
+                        <el-link
                             :disabled="!scope.row.hasCli || scope.row.status == -1"
                             type="danger"
                             @click="closeCli(scope.row)"
                             plain
                             size="small"
-                            >关闭连接</el-button
+                            :underline="false"
+                            >关闭连接</el-link
                         >
                     </template>
                 </el-table-column>

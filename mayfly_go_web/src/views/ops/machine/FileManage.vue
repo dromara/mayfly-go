@@ -6,9 +6,6 @@
                     <el-button v-auth="'machine:file:add'" type="primary" @click="add" icon="plus" size="small" plain>添加</el-button>
                 </div>
             </div>
-            <!-- <div style="float: right;">
-       
-      </div> -->
             <el-table :data="fileTable" stripe style="width: 100%">
                 <el-table-column prop="name" label="名称" width>
                     <template #default="scope">
@@ -47,6 +44,17 @@
                     </template>
                 </el-table-column>
             </el-table>
+            <el-row style="margin-top: 10px" type="flex" justify="end">
+                <el-pagination
+                    small
+                    style="text-align: center"
+                    :total="total"
+                    layout="prev, pager, next, total, jumper"
+                    v-model:current-page="query.pageNum"
+                    :page-size="query.pageSize"
+                    @current-change="handlePageChange"
+                ></el-pagination>
+            </el-row>
         </el-dialog>
 
         <el-dialog :title="tree.title" v-model="tree.visible" :close-on-click-modal="false" width="680px">
@@ -157,8 +165,8 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button v-auth="'machine:file:write'" type="primary" @click="updateContent">保 存</el-button>
                     <el-button @click="fileContent.contentVisible = false">关 闭</el-button>
+                    <el-button v-auth="'machine:file:write'" type="primary" @click="updateContent">保 存</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -217,12 +225,18 @@ export default defineComponent({
 
         const state = reactive({
             dialogVisible: false,
+            query: {
+                id: 0,
+                pageNum: 1,
+                pageSize: 8,
+            },
             form: {
                 id: null,
                 type: null,
                 name: '',
                 remark: '',
             },
+            total: 0,
             fileTable: [] as any,
             btnLoading: false,
             fileContent: {
@@ -265,8 +279,15 @@ export default defineComponent({
         });
 
         const getFiles = async () => {
-            const res = await files.request({ id: props.machineId });
+            state.query.id = props.machineId;
+            const res = await files.request(state.query);
             state.fileTable = res.list;
+            state.total = res.total;
+        };
+
+        const handlePageChange = (curPage: number) => {
+            state.query.pageNum = curPage;
+            getFiles();
         };
 
         /**
@@ -307,7 +328,8 @@ export default defineComponent({
                             id: row.id,
                         })
                         .then(() => {
-                            state.fileTable.splice(idx, 1);
+                            getFiles();
+                            // state.fileTable.splice(idx, 1);
                         });
                 });
             } else {
@@ -571,6 +593,7 @@ export default defineComponent({
             cmOptions,
             add,
             getFiles,
+            handlePageChange,
             addFiles,
             deleteRow,
             getConf,

@@ -85,6 +85,7 @@
                                         filterable
                                         allow-create
                                         default-first-option
+                                        size="small"
                                         class="mr10"
                                     >
                                         <el-option v-for="item in sqlNames" :key="item" :label="item.database" :value="item">

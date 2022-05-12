@@ -162,7 +162,7 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	}
 
 	// 最大连接周期，超过时间的连接就close
-	DB.SetConnMaxLifetime(100 * time.Second)
+	// DB.SetConnMaxLifetime(100 * time.Second)
 	// 设置最大连接数
 	DB.SetMaxOpenConns(2)
 	// 设置闲置连接数
@@ -182,7 +182,7 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 var dbCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key interface{}, value interface{}) {
-		global.Log.Info(fmt.Sprintf("删除db连接缓存 id: %s", key))
+		global.Log.Info(fmt.Sprintf("删除db连接缓存 id = %s", key))
 		value.(*DbInstance).Close()
 	})
 
@@ -307,13 +307,9 @@ func getDsn(d *entity.Db) string {
 	return ""
 }
 
-// 关闭该数据库所有连接
+// 删除db缓存并关闭该数据库所有连接
 func CloseDb(dbId uint64, db string) {
-	id := GetDbCacheKey(dbId, db)
-	if di := GetDbInstanceByCache(id); di != nil {
-		di.Close()
-		dbCache.Delete(id)
-	}
+	dbCache.Delete(GetDbCacheKey(dbId, db))
 }
 
 //-----------------------------------元数据-------------------------------------------

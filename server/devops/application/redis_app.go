@@ -126,7 +126,7 @@ func (r *redisAppImpl) GetRedisInstance(id uint64) *RedisInstance {
 var redisCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key interface{}, value interface{}) {
-		global.Log.Info(fmt.Sprintf("删除redis连接缓存 id: %d", key))
+		global.Log.Info(fmt.Sprintf("删除redis连接缓存 id = %d", key))
 		value.(*RedisInstance).Cli.Close()
 	})
 
@@ -137,12 +137,9 @@ type RedisInstance struct {
 	Cli       *redis.Client
 }
 
-// 关闭redis连接
+// 移除redis连接缓存并关闭redis连接
 func CloseRedis(id uint64) {
-	if load, ok := redisCache.Get(id); ok {
-		load.(*RedisInstance).Cli.Close()
-		redisCache.Delete(id)
-	}
+	redisCache.Delete(id)
 }
 
 func TestRedisConnection(re *entity.Redis) {

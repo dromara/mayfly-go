@@ -12,8 +12,8 @@
 <a target="_blank" href="https://qm.qq.com/cgi-bin/qm/qr?jump_from=webapi">119699946</a>
 
 ### 系统相关资料
-- 在线文档: https://objs.gitee.io/mayfly-go-docs
-- 系统操作视频: https://space.bilibili.com/484091081/channel/seriesdetail?sid=2064467 
+- 项目文档: https://objs.gitee.io/mayfly-go-docs
+- 系统操作视频: https://space.bilibili.com/484091081/channel/collectiondetail?sid=392854
 
 ### 系统功能
 

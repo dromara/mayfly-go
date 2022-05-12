@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :destroy-on-close="true" :before-close="cancel" width="35%">
-            <el-form :model="form" ref="machineForm" :rules="rules" label-width="85px" >
+            <el-form :model="form" ref="machineForm" :rules="rules" label-width="85px">
                 <el-form-item prop="projectId" label="项目:" required>
                     <el-select style="width: 100%" v-model="form.projectId" placeholder="请选择项目" @change="changeProject" filterable>
                         <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
@@ -19,19 +19,22 @@
                 <el-form-item prop="username" label="用户名:" required>
                     <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
                 </el-form-item>
-                <el-form-item prop="password" label="密码:" required>
+                <el-form-item prop="password" label="密码:">
                     <el-input
                         type="password"
                         show-password
                         v-model.trim="form.password"
-                        placeholder="请输入密码"
+                        placeholder="请输入密码，修改操作可不填"
                         autocomplete="new-password"
                     ></el-input>
+                </el-form-item>
+                <el-form-item prop="remark" label="备注:">
+                    <el-input type="textarea" v-model="form.remark"></el-input>
                 </el-form-item>
             </el-form>
 
             <template #footer>
-                <div class="dialog-footer">
+                <div>
                     <el-button @click="cancel()">取 消</el-button>
                     <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
                 </div>
@@ -44,6 +47,7 @@
 import { toRefs, reactive, watch, defineComponent, ref } from 'vue';
 import { machineApi } from './api';
 import { ElMessage } from 'element-plus';
+import { notBlank } from '@/common/assert';
 
 export default defineComponent({
     name: 'MachineEdit',
@@ -74,6 +78,7 @@ export default defineComponent({
                 port: 22,
                 username: null,
                 password: null,
+                remark: '',
             },
             btnLoading: false,
             rules: {
@@ -119,13 +124,6 @@ export default defineComponent({
                         trigger: ['change', 'blur'],
                     },
                 ],
-                password: [
-                    {
-                        required: true,
-                        message: '请输入密码',
-                        trigger: ['change', 'blur'],
-                    },
-                ],
             },
         });
 
@@ -148,6 +146,9 @@ export default defineComponent({
         };
 
         const btnOk = async () => {
+            if (!state.form.id) {
+                notBlank(state.form.password, '新增操作，密码不可为空');
+            }
             machineForm.value.validate((valid: boolean) => {
                 if (valid) {
                     machineApi.saveMachine.request(state.form).then(() => {

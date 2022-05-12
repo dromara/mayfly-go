@@ -4,8 +4,8 @@
             <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sqlValue" :options="cmOptions" />
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button @click="runSql" type="primary" :loading="btnLoading">执 行</el-button>
                     <el-button @click="cancel">取 消</el-button>
+                    <el-button @click="runSql" type="primary" :loading="btnLoading">执 行</el-button>
                 </span>
             </template>
         </el-dialog>

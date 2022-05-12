@@ -51,7 +51,10 @@ func (m *machineAppImpl) Count(condition *entity.Machine) int64 {
 
 // 根据条件获取机器信息
 func (m *machineAppImpl) Save(me *entity.Machine) {
-	biz.ErrIsNilAppendErr(machine.TestConn(me), "该机器无法连接: %s")
+	// ’修改机器信息且密码不为空‘ or ‘新增’需要测试是否可连接
+	if (me.Id != 0 && me.Password != "") || me.Id == 0 {
+		biz.ErrIsNilAppendErr(machine.TestConn(me), "该机器无法连接: %s")
+	}
 
 	oldMachine := &entity.Machine{Ip: me.Ip, Port: me.Port, Username: me.Username}
 	err := m.GetMachine(oldMachine)

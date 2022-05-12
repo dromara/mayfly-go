@@ -14,6 +14,7 @@ type Machine struct {
 	Password    string `json:"-"`
 	Port        int    `json:"port"`   // 端口号
 	Status      int8   `json:"status"` // 状态 1:启用；2:停用
+	Remark      string `json:"remark"` // 备注
 }
 
 const (

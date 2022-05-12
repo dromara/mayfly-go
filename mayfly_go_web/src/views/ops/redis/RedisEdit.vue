@@ -133,6 +133,8 @@ export default defineComponent({
                     state.form.project = p.name;
                 }
             }
+            state.form.envId = null;
+            state.form.env = null;
             state.envs = [];
             getEnvs(projectId);
         };

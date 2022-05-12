@@ -35,7 +35,7 @@
                         type="password"
                         show-password
                         v-model.trim="form.password"
-                        placeholder="请输入密码，新增为必填项"
+                        placeholder="请输入密码，修改操作可不填"
                         autocomplete="new-password"
                     ></el-input>
                 </el-form-item>
@@ -81,6 +81,7 @@ import { dbApi } from './api';
 import { projectApi } from '../project/api.ts';
 import { ElMessage } from 'element-plus';
 import type { ElInput } from 'element-plus';
+import { notBlank } from '@/common/assert';
 
 export default defineComponent({
     name: 'DbEdit',
@@ -189,7 +190,7 @@ export default defineComponent({
             },
         });
 
-        watch(props, async (newValue) => {
+        watch(props, (newValue) => {
             state.projects = newValue.projects;
             if (newValue.db) {
                 getEnvs(newValue.db.projectId);
@@ -199,6 +200,7 @@ export default defineComponent({
             } else {
                 state.envs = [];
                 state.form = { port: 3306 } as any;
+                state.databaseList = [];
             }
             state.dialogVisible = newValue.visible;
         });
@@ -241,6 +243,8 @@ export default defineComponent({
                     state.form.project = p.name;
                 }
             }
+            state.form.envId = null;
+            state.form.env = null;
             state.envs = [];
             getEnvs(projectId);
         };
@@ -254,6 +258,9 @@ export default defineComponent({
         };
 
         const btnOk = async () => {
+            if (!state.form.id) {
+                notBlank(state.form.password, '新增操作，密码不可为空');
+            }
             dbForm.value.validate((valid: boolean) => {
                 if (valid) {
                     state.form.port = Number.parseInt(state.form.port as any);
