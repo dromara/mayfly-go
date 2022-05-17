@@ -221,26 +221,32 @@ router.beforeEach((to, from, next) => {
     if (to.path === '/login' && !token) {
         next();
         NProgress.done();
-    } else {
-        if (!token) {
-            next(`/login?redirect=${to.path}`);
-            clearSession();
-            resetRoute();
-            NProgress.done();
+        return;
+    }
+    if (!token) {
+        next(`/login?redirect=${to.path}`);
+        clearSession();
+        resetRoute();
+        NProgress.done();
 
-            if (SysWs) {
-                SysWs.close();
-                SysWs = null;
-            }
-        } else if (token && to.path === '/login') {
-            next('/');
-            NProgress.done();
-        } else {
-            if (!SysWs) {
-                SysWs = sockets.sysMsgSocket();
-            }
-            if (store.state.routesList.routesList.length > 0) next();
+        if (SysWs) {
+            SysWs.close();
+            SysWs = null;
         }
+        return;
+    }
+    if (token && to.path === '/login') {
+        next('/');
+        NProgress.done();
+        return;
+    }
+
+    // 终端不需要连接系统websocket消息
+    if (!SysWs && to.path != '/machine/terminal') {
+        SysWs = sockets.sysMsgSocket();
+    }
+    if (store.state.routesList.routesList.length > 0) {
+        next();
     }
 });
 

@@ -401,6 +401,11 @@ INSERT INTO `t_sys_resource` VALUES (64, 63, 2, 1, '基本权限', 'redis:manage
 INSERT INTO `t_sys_resource` VALUES (70, 48, 2, 1, '项目删除', 'project:del', 6, 'null', 1, 'admin', 1, 'admin', '2021-08-17 11:20:37', '2021-08-17 11:20:37');
 INSERT INTO `t_sys_resource` VALUES (71, 61, 2, 1, '数据保存', 'redis:data:save', 6, 'null', 1, 'admin', 1, 'admin', '2021-08-17 11:20:37', '2021-08-17 11:20:37');
 INSERT INTO `t_sys_resource` VALUES (72, 3, 2, 1, '终止进程', 'machine:killprocess', 6, 'null', 1, 'admin', 1, 'admin', '2021-08-17 11:20:37', '2021-08-17 11:20:37');
+INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (79, 2, 1, 1, 'Mongo', 'mongo', 5, '{\"icon\":\"Document\",\"isKeepAlive\":true,\"routeName\":\"Mongo\"}', 1, 'admin', 1, 'admin', '2022-05-13 14:00:41', '2022-05-13 14:00:52');
+INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (80, 79, 1, 1, '数据操作', 'mongo-data-operation', 1, '{\"component\":\"MongoDataOp\",\"icon\":\"Document\",\"isKeepAlive\":true,\"routeName\":\"MongoDataOp\"}', 1, 'admin', 1, 'admin', '2022-05-13 14:03:58', '2022-05-14 20:16:07');
+INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (81, 80, 2, 1, '基本权限', 'mongo:base', 1, 'null', 1, 'admin', 1, 'admin', '2022-05-13 14:04:16', '2022-05-13 14:04:16');
+INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (82, 79, 1, 1, 'Mongo管理', 'mongo-manage', 2, '{\"component\":\"MongoList\",\"icon\":\"Menu\",\"isKeepAlive\":true,\"routeName\":\"MongoList\"}', 1, 'admin', 1, 'admin', '2022-05-16 18:13:06', '2022-05-16 18:13:06');
+INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (83, 82, 2, 1, '基本权限', 'mongo:manage:base', 1, 'null', 1, 'admin', 1, 'admin', '2022-05-16 18:13:25', '2022-05-16 18:13:25');
 COMMIT;
 
 -- ----------------------------
@@ -598,5 +603,28 @@ INSERT INTO `t_sys_role_resource` VALUES (497, 8, 62, 1, 'admin', '2021-11-05 15
 INSERT INTO `t_sys_role_resource` VALUES (498, 8, 63, 1, 'admin', '2021-11-05 15:59:16');
 INSERT INTO `t_sys_role_resource` VALUES (499, 8, 64, 1, 'admin', '2021-11-05 15:59:16');
 COMMIT;
+
+
+-- ----------------------------
+-- Table structure for t_mongo
+-- ----------------------------
+DROP TABLE IF EXISTS `t_mongo`;
+CREATE TABLE `t_mongo` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(36) COLLATE utf8mb4_bin NOT NULL COMMENT '名称',
+  `uri` varchar(255) COLLATE utf8mb4_bin NOT NULL COMMENT '连接uri',
+  `project_id` bigint(20) NOT NULL,
+  `project` varchar(36) COLLATE utf8mb4_bin DEFAULT NULL,
+  `env_id` bigint(20) DEFAULT NULL,
+  `env` varchar(36) COLLATE utf8mb4_bin DEFAULT NULL,
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint(20) DEFAULT NULL,
+  `creator` varchar(36) COLLATE utf8mb4_bin DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  `modifier_id` bigint(20) DEFAULT NULL,
+  `modifier` varchar(36) COLLATE utf8mb4_bin DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
 
 SET FOREIGN_KEY_CHECKS = 1;

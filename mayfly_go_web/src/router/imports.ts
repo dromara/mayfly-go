@@ -18,4 +18,8 @@ export const imports = {
     // redis
     "RedisList": () => import('@/views/ops/redis'),
     "DataOperation": () => import('@/views/ops/redis/DataOperation.vue'),
+    // mongo
+    "MongoDataOp": () => import('@/views/ops/mongo/MongoDataOp.vue'),
+    // redis
+    "MongoList": () => import('@/views/ops/mongo/MongoList.vue'),
 }

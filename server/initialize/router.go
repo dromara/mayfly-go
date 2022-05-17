@@ -60,6 +60,7 @@ func InitRouter() *gin.Engine {
 		devops_router.InitMachineRouter(api)
 		devops_router.InitMachineScriptRouter(api)
 		devops_router.InitMachineFileRouter(api)
+		devops_router.InitMongoRouter(api)
 	}
 
 	return router
