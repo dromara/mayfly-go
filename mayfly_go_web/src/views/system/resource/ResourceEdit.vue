@@ -5,7 +5,7 @@
                 <el-row :gutter="10">
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
                         <el-form-item prop="type" label="类型" required>
-                            <el-select v-model="form.type" :disabled="typeDisabled" placeholder="请选择" width="w100">
+                            <el-select v-model="form.type" :disabled="typeDisabled" placeholder="请选择" >
                                 <el-option v-for="item in enums.ResourceTypeEnum" :key="item.value" :label="item.label" :value="item.value">
                                 </el-option>
                             </el-select>
@@ -83,7 +83,7 @@
             </el-form>
 
             <template #footer>
-                <div class="dialog-footer mt10">
+                <div>
                     <el-button @click="cancel()">取 消</el-button>
                     <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
                 </div>

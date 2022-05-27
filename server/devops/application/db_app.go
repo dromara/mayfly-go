@@ -158,6 +158,7 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	biz.ErrIsNil(err, fmt.Sprintf("Open %s failed, err:%v\n", d.Type, err))
 	perr := DB.Ping()
 	if perr != nil {
+		global.Log.Errorf("连接db失败: %s:%d/%s", d.Host, d.Port, db)
 		panic(biz.NewBizErr(fmt.Sprintf("数据库连接失败: %s", perr.Error())))
 	}
 
@@ -302,7 +303,7 @@ func (d *DbInstance) Close() {
 // 获取dataSourceName
 func getDsn(d *entity.Db) string {
 	if d.Type == "mysql" {
-		return fmt.Sprintf("%s:%s@%s(%s:%d)/%s", d.Username, d.Password, d.Network, d.Host, d.Port, d.Database)
+		return fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, d.Database)
 	}
 	return ""
 }

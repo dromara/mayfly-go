@@ -139,7 +139,7 @@
                         {{ collectionsDialog.statsDialog.data.count }}
                     </el-descriptions-item>
                     <el-descriptions-item label="avgObjSize" label-align="right" align="center">
-                        {{ collectionsDialog.statsDialog.data.avgObjSize }}
+                        {{ formatByteSize(collectionsDialog.statsDialog.data.avgObjSize) }}
                     </el-descriptions-item>
                     <el-descriptions-item label="nindexes" label-align="right" align="center">
                         {{ collectionsDialog.statsDialog.data.nindexes }}

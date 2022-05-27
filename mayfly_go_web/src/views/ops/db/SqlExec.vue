@@ -10,13 +10,7 @@
                     <project-env-select @changeProjectEnv="changeProjectEnv">
                         <template #default>
                             <el-form-item label="资源">
-                                <el-select
-                                    v-model="dbId"
-                                    placeholder="请选择资源实例"
-                                    @change="changeDbInstance"
-                                    filterable
-                                    style="width: 150px"
-                                >
+                                <el-select v-model="dbId" placeholder="请选择资源实例" @change="changeDbInstance" filterable style="width: 150px">
                                     <el-option v-for="item in dbs" :key="item.id" :label="item.name" :value="item.id">
                                         <span style="float: left">{{ item.name }}</span>
                                         <span style="float: right; color: #8492a6; margin-left: 6px; font-size: 13px">{{
@@ -27,7 +21,15 @@
                             </el-form-item>
 
                             <el-form-item label="数据库">
-                                <el-select v-model="db" placeholder="请选择数据库" @change="changeDb" @clear="clearDb" clearable filterable style="width: 150px">
+                                <el-select
+                                    v-model="db"
+                                    placeholder="请选择数据库"
+                                    @change="changeDb"
+                                    @clear="clearDb"
+                                    clearable
+                                    filterable
+                                    style="width: 150px"
+                                >
                                     <el-option v-for="item in databaseList" :key="item" :label="item" :value="item"> </el-option>
                                 </el-select>
                             </el-form-item>
@@ -211,11 +213,11 @@
                             :sortable="nowTableName != '' ? 'custom' : false"
                         >
                             <template #header>
-                                <el-tooltip raw-content effect="dark" placement="top">
+                                <el-tooltip raw-content placement="top" effect="customized">
                                     <template #content> {{ getColumnTip(dt.name, item) }} </template>
-                                    <el-icon><question-filled /></el-icon>
+                                    <!-- <el-icon><question-filled /></el-icon> -->
+                                    {{ item }}
                                 </el-tooltip>
-                                {{ item }}
                             </template>
                         </el-table-column>
                     </el-table>
@@ -515,29 +517,45 @@ export default defineComponent({
                 }
                 columnContent = tableData[index][str];
             }
+            const contentWidth: number = getContentWidth(columnContent);
+            // 获取列名称的长度 加上排序图标长度
+            const columnWidth: number = getContentWidth(str) + 43;
+            const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
+            return flexWidth + 'px';
+        };
+
+        /**
+         * 获取内容所需要占用的宽度
+         */
+        const getContentWidth = (content: any): number => {
             // 以下分配的单位长度可根据实际需求进行调整
             let flexWidth = 0;
-            for (const char of columnContent) {
-                if ((char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z')) {
-                    // 如果是英文字符，为字符分配8个单位宽度
+            for (const char of content) {
+                if (flexWidth > 500) {
+                    break;
+                }
+                if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'z')) {
+                    // 如果是小写字母、数字字符，分配8个单位宽度
                     flexWidth += 8;
-                } else if (char >= '\u4e00' && char <= '\u9fa5') {
-                    // 如果是中文字符，为字符分配15个单位宽度
+                    continue;
+                }
+                if (char >= 'A' && char <= 'Z') {
+                    flexWidth += 8.5;
+                    continue;
+                }
+                if (char >= '\u4e00' && char <= '\u9fa5') {
+                    // 如果是中文字符，为字符分配16个单位宽度
                     flexWidth += 16;
                 } else {
-                    // 其他种类字符，为字符分配10个单位宽度
-                    flexWidth += 10;
+                    // 其他种类字符，为字符分配9个单位宽度
+                    flexWidth += 9;
                 }
-            }
-            if (flexWidth < 80) {
-                // 设置最小宽度
-                flexWidth = 80;
             }
             if (flexWidth > 500) {
                 // 设置最大宽度
                 flexWidth = 500;
             }
-            return flexWidth + 'px';
+            return flexWidth;
         };
 
         const getColumnTip = (tableName: string, columnName: string) => {
