@@ -1,7 +1,7 @@
 package main
 
 import (
-	"mayfly-go/base/starter"
+	"mayfly-go/pkg/starter"
 )
 
 func main() {

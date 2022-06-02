@@ -536,11 +536,11 @@ export default defineComponent({
                 }
                 if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'z')) {
                     // 如果是小写字母、数字字符，分配8个单位宽度
-                    flexWidth += 8;
+                    flexWidth += 8.5;
                     continue;
                 }
                 if (char >= 'A' && char <= 'Z') {
-                    flexWidth += 8.5;
+                    flexWidth += 9;
                     continue;
                 }
                 if (char >= '\u4e00' && char <= '\u9fa5') {
@@ -548,7 +548,7 @@ export default defineComponent({
                     flexWidth += 16;
                 } else {
                     // 其他种类字符，为字符分配9个单位宽度
-                    flexWidth += 9;
+                    flexWidth += 8;
                 }
             }
             if (flexWidth > 500) {

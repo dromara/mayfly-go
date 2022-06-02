@@ -2,11 +2,11 @@ package initialize
 
 import (
 	"fmt"
-	"mayfly-go/base/config"
-	"mayfly-go/base/middleware"
-	common_index_router "mayfly-go/server/common/router"
-	devops_router "mayfly-go/server/devops/router"
-	sys_router "mayfly-go/server/sys/router"
+	common_index_router "mayfly-go/internal/common/router"
+	devops_router "mayfly-go/internal/devops/router"
+	sys_router "mayfly-go/internal/sys/router"
+	"mayfly-go/pkg/config"
+	"mayfly-go/pkg/middleware"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
