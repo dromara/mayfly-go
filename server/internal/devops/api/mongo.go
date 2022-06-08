@@ -93,6 +93,17 @@ func (m *Mongo) FindCommand(rc *ctx.ReqCtx) {
 		SetSkip(commandForm.Skip).
 		SetLimit(limit)
 	ctx := context.TODO()
+
+	filter := commandForm.Filter
+	// 处理_id查询字段,使用ObjectId函数包装
+	id, ok := filter["_id"].(string)
+	if ok && id != "" {
+		objId, err := primitive.ObjectIDFromHex(id)
+		if err == nil {
+			filter["_id"] = objId
+		}
+	}
+
 	cur, err := cli.Database(commandForm.Database).Collection(commandForm.Collection).Find(ctx, commandForm.Filter, opts)
 	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
 

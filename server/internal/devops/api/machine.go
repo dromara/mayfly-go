@@ -138,7 +138,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	// 权限校验
 	rc := ctx.NewReqCtxWithGin(g).WithRequiredPermission(ctx.NewPermission("machine:terminal"))
 	if err = ctx.PermissionHandler(rc); err != nil {
-		panic(biz.NewBizErr("没有权限"))
+		panic(biz.NewBizErr("\033[1;31m您没有权限操作该机器终端,请重新登录后再试~\033[0m"))
 	}
 
 	cols := ginx.QueryInt(g, "cols", 80)
@@ -148,7 +148,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	biz.ErrIsNilAppendErr(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "%s")
 
 	sws, err := machine.NewLogicSshWsSession(cols, rows, cli, wsConn)
-	biz.ErrIsNilAppendErr(err, "连接失败：%s")
+	biz.ErrIsNilAppendErr(err, "\033[1;31m连接失败：%s\033[0m")
 	defer sws.Close()
 
 	quitChan := make(chan bool, 3)

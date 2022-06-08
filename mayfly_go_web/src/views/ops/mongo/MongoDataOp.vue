@@ -64,10 +64,22 @@
                                 <el-input type="textarea" v-model="item.value" :rows="12" />
                                 <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
                                     <div>
-                                        <el-button @click="onSaveDoc(item.value)" type="warning" plain size="small">保存</el-button>
+                                        <el-link @click="onJsonEditor(item)" :underline="false" type="success" icon="MagicStick"></el-link>
+
+                                        <el-divider direction="vertical" border-style="dashed" />
+
+                                        <el-link
+                                            @click="onSaveDoc(item.value)"
+                                            :underline="false"
+                                            type="warning"
+                                            icon="DocumentChecked"
+                                        ></el-link>
+
+                                        <el-divider direction="vertical" border-style="dashed" />
+
                                         <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?">
                                             <template #reference>
-                                                <el-button type="danger" plain size="small">删除</el-button>
+                                                <el-link :underline="false" type="danger" icon="DocumentDelete"></el-link>
                                             </template>
                                         </el-popconfirm>
                                     </div>
@@ -79,7 +91,7 @@
             </el-tabs>
         </el-container>
 
-        <el-dialog width="400px" title="find参数" v-model="findDialog.visible">
+        <el-dialog width="600px" title="find参数" v-model="findDialog.visible">
             <el-form label-width="70px">
                 <el-form-item label="filter">
                     <el-input v-model="findDialog.findParam.filter" type="textarea" :rows="6" clearable auto-complete="off"></el-input>
@@ -102,14 +114,18 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="600px" :title="`新增'${activeName}'集合文档`" v-model="insertDocDialog.visible" :close-on-click-modal="false">
-            <el-input v-model="insertDocDialog.doc" type="textarea" :rows="12" clearable auto-complete="off"></el-input>
+        <el-dialog width="800px" :title="`新增'${activeName}'集合文档`" v-model="insertDocDialog.visible" :close-on-click-modal="false">
+            <json-edit currentMode="code" v-model="insertDocDialog.doc" />
             <template #footer>
                 <div>
                     <el-button @click="insertDocDialog.visible = false">取 消</el-button>
                     <el-button @click="onInsertDoc" type="primary">确 定</el-button>
                 </div>
             </template>
+        </el-dialog>
+
+        <el-dialog width="800px" title="json编辑器" v-model="jsoneditorDialog.visible" @close="onCloseJsonEditDialog" :close-on-click-modal="false">
+            <json-edit v-model="jsoneditorDialog.doc" />
         </el-dialog>
 
         <div style="text-align: center; margin-top: 10px"></div>
@@ -123,12 +139,14 @@ import { ElMessage } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 
 import { isTrue, notBlank, notNull } from '@/common/assert';
-import { formatByteSize, formatJsonString } from '@/common/utils/format';
+import { formatByteSize } from '@/common/utils/format';
+import JsonEdit from '@/components/jsonedit/index.vue';
 
 export default defineComponent({
     name: 'MongoDataOp',
     components: {
         ProjectEnvSelect,
+        JsonEdit,
     },
     setup() {
         const findParamInputRef: any = ref(null);
@@ -155,6 +173,11 @@ export default defineComponent({
             insertDocDialog: {
                 visible: false,
                 doc: '',
+            },
+            jsoneditorDialog: {
+                visible: false,
+                doc: '',
+                item: {} as any,
             },
         });
 
@@ -275,7 +298,7 @@ export default defineComponent({
                 return wrapDatas;
             }
             for (let data of datas) {
-                wrapDatas.push({ value: formatJsonString(JSON.stringify(data), false) });
+                wrapDatas.push({ value: JSON.stringify(data, null, 4) });
             }
             return wrapDatas;
         };
@@ -288,7 +311,7 @@ export default defineComponent({
                 // 移除_id字段，因为新增无需该字段
                 const docObj = JSON.parse(datasFirstDoc.value);
                 delete docObj['_id'];
-                doc = formatJsonString(JSON.stringify(docObj), false);
+                doc = JSON.stringify(docObj, null, 4);
             }
             state.insertDocDialog.doc = doc;
             state.insertDocDialog.visible = true;
@@ -311,6 +334,16 @@ export default defineComponent({
             ElMessage.success('新增成功');
             findCommand(state.activeName);
             state.insertDocDialog.visible = false;
+        };
+
+        const onJsonEditor = (item: any) => {
+            state.jsoneditorDialog.item = item;
+            state.jsoneditorDialog.doc = item.value;
+            state.jsoneditorDialog.visible = true;
+        };
+
+        const onCloseJsonEditDialog = () => {
+            state.jsoneditorDialog.item.value = JSON.stringify(JSON.parse(state.jsoneditorDialog.doc), null, 4);
         };
 
         const onSaveDoc = async (doc: string) => {
@@ -403,6 +436,8 @@ export default defineComponent({
             onInsertDoc,
             onSaveDoc,
             onDeleteDoc,
+            onJsonEditor,
+            onCloseJsonEditDialog,
             formatByteSize,
         };
     },
@@ -415,6 +450,6 @@ export default defineComponent({
     z-index: 2;
     right: 3px;
     top: 2px;
-    max-width: 130px;
+    max-width: 120px;
 }
 </style>

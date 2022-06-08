@@ -26,11 +26,14 @@ function echo_yellow() {
 
 function buildWeb() {
     cd ${web_folder}
+    copy2Server=$1
+
     echo_yellow "-------------------打包前端开始-------------------"
     yarn run build
-    echo_green '将打包后的静态文件拷贝至server/static'
-    rm -rf ${server_folder}/static
-    mkdir -p ${server_folder}/static && cp -r ${web_folder}/dist/* ${server_folder}/static
+    if [ "${copy2Server}" == "1" ] ; then
+        echo_green '将打包后的静态文件拷贝至server/static'
+        rm -rf ${server_folder}/static && mkdir -p ${server_folder}/static && cp -r ${web_folder}/dist/* ${server_folder}/static
+    fi
     echo_yellow ">>>>>>>>>>>>>>>>>>>打包前端结束<<<<<<<<<<<<<<<<<<<<\n"
 }
 
@@ -46,7 +49,13 @@ function build() {
 
     cd ${server_folder}
     echo_green "打包构建可执行文件..."
-    CGO_ENABLE=0 GOOS=${os} GOARCH=${arch} go build -o ${exec_file_name} main.go
+
+    execFileName=${exec_file_name}
+    # 如果是windows系统,可执行文件需要添加.exe结尾
+    if [ "${os}" == "windows" ];then
+        execFileName="${execFileName}.exe"
+    fi
+    CGO_ENABLE=0 GOOS=${os} GOARCH=${arch} go build -o ${execFileName} main.go
 
     if [ -d ${toFolder} ] ; then
         echo_green "目标文件夹已存在,清空文件夹"
@@ -56,7 +65,7 @@ function build() {
     mkdir ${toFolder}
 
     echo_green "移动二进制文件至'${toFolder}'"
-    mv ${server_folder}/${exec_file_name} ${toFolder}
+    mv ${server_folder}/${execFileName} ${toFolder}
 
     echo_green "拷贝前端静态页面至'${toFolder}/static'"
     mkdir -p ${toFolder}/static && cp -r ${web_folder}/dist/* ${toFolder}/static
@@ -94,11 +103,14 @@ function runBuild() {
     cd ${toPath}
     toPath=`pwd`
 
-    read -p "是否构建前端[0|其他->否 1->是]: " runBuildWeb
+    read -p "是否构建前端[0|其他->否 1->是 2->构建并拷贝至server/static]: " runBuildWeb
     read -p "请选择构建版本[0|其他->全部 1->linux-amd64 2->linux-arm64 3->windows]: " buildType
     
     if [ "${runBuildWeb}" == "1" ];then
         buildWeb
+    fi
+    if [ "${runBuildWeb}" == "2" ];then
+        buildWeb 1
     fi
 
     if [ "${buildType}" == "1" ];then
