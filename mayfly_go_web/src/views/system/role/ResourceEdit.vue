@@ -109,9 +109,7 @@ export default defineComponent({
         const cancel = () => {
             // 更新父组件visible prop对应的值为false
             emit('update:visible', false);
-            setTimeout(() => {
-                emit('cancel');
-            }, 700);
+            emit('cancel');
         };
 
         return {

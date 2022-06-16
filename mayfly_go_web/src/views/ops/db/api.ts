@@ -12,7 +12,7 @@ export const dbApi = {
     columnMetadata: Api.create("/dbs/{id}/c-metadata", 'get'),
     // 获取表即列提示
     hintTables: Api.create("/dbs/{id}/hint-tables", 'get'),
-    sqlExec: Api.create("/dbs/{id}/exec-sql", 'get'),
+    sqlExec: Api.create("/dbs/{id}/exec-sql", 'post'),
     // 保存sql
     saveSql: Api.create("/dbs/{id}/sql", 'post'),
     // 获取保存的sql
@@ -20,4 +20,6 @@ export const dbApi = {
     // 获取保存的sql names
     getSqlNames: Api.create("/dbs/{id}/sql-names", 'get'),
     deleteDbSql: Api.create("/dbs/{id}/sql", 'delete'),
+    // 获取数据库sql执行记录
+    getSqlExecs: Api.create("/dbs/{id}/sql-execs", 'get'),
 }

@@ -46,8 +46,28 @@ CREATE TABLE `t_db` (
 -- ----------------------------
 -- Records of t_db
 -- ----------------------------
-BEGIN;
-COMMIT;
+
+-- ----------------------------
+-- Table structure for t_db_sql_exec
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_sql_exec`;
+CREATE TABLE `t_db_sql_exec` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `db_id` bigint(20) NOT NULL COMMENT '数据库id',
+  `db` varchar(128) COLLATE utf8mb4_bin NOT NULL COMMENT '数据库',
+  `table` varchar(128) COLLATE utf8mb4_bin NOT NULL COMMENT '表名',
+  `type` varchar(255) COLLATE utf8mb4_bin NOT NULL COMMENT 'sql类型',
+  `sql` varchar(5000) COLLATE utf8mb4_bin NOT NULL COMMENT '执行sql',
+  `old_value` varchar(5000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '操作前旧值',
+  `remark` varchar(128) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注',
+  `create_time` datetime NOT NULL,
+  `creator` varchar(36) COLLATE utf8mb4_bin NOT NULL,
+  `creator_id` bigint(20) NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier` varchar(36) COLLATE utf8mb4_bin NOT NULL,
+  `modifier_id` bigint(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库sql执行记录表';
 
 -- ----------------------------
 -- Table structure for t_db_sql

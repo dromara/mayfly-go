@@ -12,6 +12,7 @@ import (
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -19,7 +20,7 @@ import (
 )
 
 type Db interface {
-	// 分页获取机器脚本信息列表
+	// 分页获取
 	GetPageList(condition *entity.Db, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
 	Count(condition *entity.Db) int64
@@ -218,20 +219,20 @@ type DbInstance struct {
 
 // 执行查询语句
 // 依次返回 列名数组，结果map，错误
-func (d *DbInstance) SelectData(sql string) ([]string, []map[string]string, error) {
-	sql = strings.Trim(sql, " ")
-	isSelect := strings.HasPrefix(sql, "SELECT") || strings.HasPrefix(sql, "select")
-	isShow := strings.HasPrefix(sql, "show")
+func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]interface{}, error) {
+	execSql = strings.Trim(execSql, " ")
+	isSelect := strings.HasPrefix(execSql, "SELECT") || strings.HasPrefix(execSql, "select")
+	isShow := strings.HasPrefix(execSql, "show")
 
 	if !isSelect && !isShow {
 		return nil, nil, errors.New("该sql非查询语句")
 	}
 	// 没加limit，则默认限制50条
-	if isSelect && !strings.Contains(sql, "limit") && !strings.Contains(sql, "LIMIT") {
-		sql = sql + " LIMIT 50"
+	if isSelect && !strings.Contains(execSql, "limit") && !strings.Contains(execSql, "LIMIT") {
+		execSql = execSql + " LIMIT 50"
 	}
 
-	rows, err := d.db.Query(sql)
+	rows, err := d.db.Query(execSql)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -242,18 +243,18 @@ func (d *DbInstance) SelectData(sql string) ([]string, []map[string]string, erro
 			rows.Close()
 		}
 	}()
-	cols, _ := rows.Columns()
+	colTypes, _ := rows.ColumnTypes()
 	// 这里表示一行填充数据
-	scans := make([]interface{}, len(cols))
+	scans := make([]interface{}, len(colTypes))
 	// 这里表示一行所有列的值，用[]byte表示
-	vals := make([][]byte, len(cols))
+	vals := make([][]byte, len(colTypes))
 	// 这里scans引用vals，把数据填充到[]byte里
 	for k := range vals {
 		scans[k] = &vals[k]
 	}
 
-	result := make([]map[string]string, 0)
-	// 列名
+	result := make([]map[string]interface{}, 0)
+	// 列名用于前端表头名称按照数据库与查询字段顺序显示
 	colNames := make([]string, 0)
 	// 是否第一次遍历，列名数组只需第一次遍历时加入
 	isFirst := true
@@ -264,21 +265,53 @@ func (d *DbInstance) SelectData(sql string) ([]string, []map[string]string, erro
 			return nil, nil, err
 		}
 		// 每行数据
-		rowData := make(map[string]string)
+		rowData := make(map[string]interface{})
 		// 把vals中的数据复制到row中
-		for k, v := range vals {
-			key := cols[k]
+		for i, v := range vals {
+			colType := colTypes[i]
+			colName := colType.Name()
+			// 字段类型名
+			colScanType := colType.ScanType().Name()
+
 			// 如果是密码字段，则脱敏显示
-			if key == "password" {
+			if colName == "password" {
 				v = []byte("******")
 			}
 			if isFirst {
-				colNames = append(colNames, key)
+				colNames = append(colNames, colName)
 			}
 			// 这里把[]byte数据转成string
-			rowData[key] = string(v)
+			stringV := string(v)
+			if stringV == "" {
+				rowData[colName] = stringV
+				continue
+			}
+			if strings.Contains(colScanType, "int") || strings.Contains(colScanType, "Int") {
+				intV, _ := strconv.Atoi(stringV)
+				switch colType.ScanType().Kind() {
+				case reflect.Int8:
+					rowData[colName] = int8(intV)
+				case reflect.Uint8:
+					rowData[colName] = uint8(intV)
+				case reflect.Int64:
+					rowData[colName] = int64(intV)
+				case reflect.Uint64:
+					rowData[colName] = uint64(intV)
+				case reflect.Uint:
+					rowData[colName] = uint(intV)
+				default:
+					rowData[colName] = intV
+				}
+				continue
+			}
+			if strings.Contains(colScanType, "float") || strings.Contains(colScanType, "Float") {
+				floatV, _ := strconv.ParseFloat(stringV, 64)
+				rowData[colName] = floatV
+			} else {
+				rowData[colName] = stringV
+			}
 		}
-		//放入结果集
+		// 放入结果集
 		result = append(result, rowData)
 		isFirst = false
 	}
@@ -346,7 +379,7 @@ const (
 	WHERE table_name in (%s) AND table_schema = (SELECT database())`
 )
 
-func (d *DbInstance) GetTableMetedatas() []map[string]string {
+func (d *DbInstance) GetTableMetedatas() []map[string]interface{} {
 	var sql string
 	if d.Type == "mysql" {
 		sql = MYSQL_TABLE_MA
@@ -355,7 +388,7 @@ func (d *DbInstance) GetTableMetedatas() []map[string]string {
 	return res
 }
 
-func (d *DbInstance) GetColumnMetadatas(tableNames ...string) []map[string]string {
+func (d *DbInstance) GetColumnMetadatas(tableNames ...string) []map[string]interface{} {
 	var sql, tableName string
 	for i := 0; i < len(tableNames); i++ {
 		if i != 0 {
@@ -374,14 +407,15 @@ func (d *DbInstance) GetColumnMetadatas(tableNames ...string) []map[string]strin
 	countSql := fmt.Sprintf(countSqlTmp, tableName)
 	_, countRes, _ := d.SelectData(countSql)
 	// 查询出所有列信息总数，手动分页获取所有数据
-	maCount, _ := strconv.Atoi(countRes[0]["maNum"])
+	// maCount, _ := strconv.Atoi(countRes[0]["maNum"].(string))
+	maCount := int(countRes[0]["maNum"].(int64))
 	// 计算需要查询的页数
 	pageNum := maCount / DEFAULT_COLUMN_SIZE
 	if maCount%DEFAULT_COLUMN_SIZE > 0 {
 		pageNum++
 	}
 
-	res := make([]map[string]string, 0)
+	res := make([]map[string]interface{}, 0)
 	for index := 0; index < pageNum; index++ {
 		sql = fmt.Sprintf(sqlTmp, tableName, index*DEFAULT_COLUMN_SIZE, DEFAULT_COLUMN_SIZE)
 		_, result, err := d.SelectData(sql)
@@ -391,7 +425,12 @@ func (d *DbInstance) GetColumnMetadatas(tableNames ...string) []map[string]strin
 	return res
 }
 
-func (d *DbInstance) GetTableInfos() []map[string]string {
+// 获取表的主键，目前默认第一列为主键
+func (d *DbInstance) GetPrimaryKey(tablename string) string {
+	return d.GetColumnMetadatas(tablename)[0]["columnName"].(string)
+}
+
+func (d *DbInstance) GetTableInfos() []map[string]interface{} {
 	var sql string
 	if d.Type == "mysql" {
 		sql = MYSQL_TABLE_INFO
@@ -400,7 +439,7 @@ func (d *DbInstance) GetTableInfos() []map[string]string {
 	return res
 }
 
-func (d *DbInstance) GetTableIndex(tableName string) []map[string]string {
+func (d *DbInstance) GetTableIndex(tableName string) []map[string]interface{} {
 	var sql string
 	if d.Type == "mysql" {
 		sql = fmt.Sprintf(MYSQL_INDEX_INFO, tableName)
@@ -409,7 +448,7 @@ func (d *DbInstance) GetTableIndex(tableName string) []map[string]string {
 	return res
 }
 
-func (d *DbInstance) GetCreateTableDdl(tableName string) []map[string]string {
+func (d *DbInstance) GetCreateTableDdl(tableName string) []map[string]interface{} {
 	var sql string
 	if d.Type == "mysql" {
 		sql = fmt.Sprintf("show create table %s ", tableName)

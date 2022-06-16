@@ -21,9 +21,10 @@ import (
 )
 
 type Db struct {
-	DbApp      application.Db
-	MsgApp     sysApplication.Msg
-	ProjectApp application.Project
+	DbApp        application.Db
+	DbSqlExecApp application.DbSqlExec
+	MsgApp       sysApplication.Msg
+	ProjectApp   application.Project
 }
 
 // @router /api/dbs [get]
@@ -49,7 +50,10 @@ func (d *Db) Save(rc *ctx.ReqCtx) {
 }
 
 func (d *Db) DeleteDb(rc *ctx.ReqCtx) {
-	d.DbApp.Delete(GetDbId(rc.GinCtx))
+	dbId := GetDbId(rc.GinCtx)
+	d.DbApp.Delete(dbId)
+	// 删除该库的sql执行记录
+	d.DbSqlExecApp.DeleteBy(&entity.DbSqlExec{DbId: dbId})
 }
 
 func (d *Db) TableInfos(rc *ctx.ReqCtx) {
@@ -68,19 +72,22 @@ func (d *Db) GetCreateTableDdl(rc *ctx.ReqCtx) {
 	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetCreateTableDdl(tn)
 }
 
-// @router /api/db/:dbId/exec-sql [get]
 func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
+	form := &form.DbSqlExecForm{}
+	ginx.BindJsonAndValid(g, form)
 
-	id, db := GetIdAndDb(g)
+	id := GetDbId(g)
+	db := form.Db
 	dbInstance := d.DbApp.GetDbInstance(id, db)
 	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbInstance.ProjectId), "%s")
 
 	// 去除前后空格及换行符
-	sql := strings.TrimFunc(g.Query("sql"), func(r rune) bool {
+	sql := strings.TrimFunc(form.Sql, func(r rune) bool {
 		s := string(r)
 		return s == " " || s == "\n"
 	})
+
 	rc.ReqParam = fmt.Sprintf("db: %d:%s | sql: %s", id, db, sql)
 
 	biz.NotEmpty(sql, "sql不能为空")
@@ -92,6 +99,9 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 		colAndRes["res"] = res
 		rc.ResData = colAndRes
 	} else {
+		// 根据执行sql，生成执行记录
+		execRecord := d.DbSqlExecApp.GenExecLog(rc.LoginAccount, id, db, sql, dbInstance)
+
 		rowsAffected, err := dbInstance.Exec(sql)
 		biz.ErrIsNilAppendErr(err, "执行失败: %s")
 		res := make([]map[string]string, 0)
@@ -104,6 +114,11 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 		colAndRes["res"] = res
 
 		rc.ResData = colAndRes
+		// 保存sql执行记录
+		if res[0]["影响条数"] > "0" {
+			execRecord.Remark = form.Remark
+			d.DbSqlExecApp.Save(execRecord)
+		}
 	}
 }
 
@@ -180,7 +195,7 @@ func (d *Db) HintTables(rc *ctx.ReqCtx) {
 
 	tableNames := make([]string, 0)
 	for _, v := range tables {
-		tableNames = append(tableNames, v["tableName"])
+		tableNames = append(tableNames, v["tableName"].(string))
 	}
 	// key = 表名，value = 列名数组
 	res := make(map[string][]string)
@@ -194,7 +209,7 @@ func (d *Db) HintTables(rc *ctx.ReqCtx) {
 	// 获取所有表下的所有列信息
 	columnMds := dbi.GetColumnMetadatas(tableNames...)
 	for _, v := range columnMds {
-		tName := v["tableName"]
+		tName := v["tableName"].(string)
 		if res[tName] == nil {
 			res[tName] = make([]string, 0)
 		}

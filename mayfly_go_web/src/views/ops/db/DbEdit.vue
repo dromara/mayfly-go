@@ -292,10 +292,7 @@ export default defineComponent({
             emit('cancel');
             setTimeout(() => {
                 resetInputDb();
-                dbForm.value.resetFields();
-                //  重置对象属性为null
-                state.form = {} as any;
-            }, 200);
+            }, 500);
         };
 
         return {

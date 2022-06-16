@@ -1,6 +1,6 @@
 <template>
     <div class="account-dialog">
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="35%">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="35%" :destroy-on-close="true">
             <el-form :model="form" ref="accountForm" :rules="rules" label-width="85px">
                 <el-form-item prop="username" label="用户名:" required>
                     <el-input :disabled="edit" v-model.trim="form.username" placeholder="请输入账号用户名" auto-complete="off"></el-input>
@@ -105,15 +105,7 @@ export default defineComponent({
 
         const cancel = () => {
             emit('update:visible', false);
-            setTimeout(() => {
-                emit('update:account', null);
-            }, 800);
             emit('cancel');
-            setTimeout(() => {
-                accountForm.value.resetFields();
-                //  重置对象属性为null
-                state.form = {} as any;
-            }, 200);
         };
 
         return {

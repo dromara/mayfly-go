@@ -14,3 +14,10 @@ type DbForm struct {
 	Env       string `json:"env"`
 	EnvId     uint64 `binding:"required" json:"envId"`
 }
+
+// 数据库SQL执行表单
+type DbSqlExecForm struct {
+	Db     string `binding:"required" json:"db"`  //数据库名
+	Sql    string `binding:"required" json:"sql"` // 执行sql
+	Remark string `json:"remark"`                 // 执行备注
+}

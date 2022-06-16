@@ -239,7 +239,6 @@ import 'codemirror/theme/base16-light.css';
 
 import 'codemirror/addon/selection/active-line';
 import _CodeMirror from 'codemirror';
-// import 'codemirror/mode/sql/sql.js';
 import 'codemirror/addon/hint/show-hint.js';
 import 'codemirror/addon/hint/sql-hint.js';
 
@@ -390,7 +389,44 @@ export default defineComponent({
             let sql = getSql();
             isTrue(sql && sql.trim(), '请选中需要执行的sql');
 
-            state.queryTab.loading = true;
+            // 去除字符串前的空格、换行等
+            sql = sql.replace(/(^\s*)/g, '');
+            let execRemark = '';
+            let canRun = true;
+            if (
+                sql.startsWith('update') ||
+                sql.startsWith('UPDATE') ||
+                sql.startsWith('INSERT') ||
+                sql.startsWith('insert') ||
+                sql.startsWith('DELETE') ||
+                sql.startsWith('delete')
+            ) {
+                const res: any = await ElMessageBox.prompt('请输入备注', 'Tip', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    inputPattern: /^[\s\S]*.*[^\s][\s\S]*$/,
+                    inputErrorMessage: '请输入执行该sql的备注信息',
+                });
+                execRemark = res.value;
+                if (!execRemark) {
+                    canRun = false;
+                }
+            }
+            if (!canRun) {
+                return;
+            }
+
+            try {
+                state.queryTab.loading = true;
+                const colAndData: any = await runSql(sql, execRemark);
+                state.queryTab.execRes.data = colAndData.res;
+                state.queryTab.execRes.tableColumn = colAndData.colNames;
+                state.queryTab.loading = false;
+            } catch (e: any) {
+                state.queryTab.loading = false;
+            }
+            closeExecBtns();
+
             // 即只有以该字符串开头的sql才可修改表数据内容
             if (sql.startsWith('SELECT *') || sql.startsWith('select *') || sql.startsWith('SELECT\n  *')) {
                 state.queryTab.selectionDatas = [];
@@ -407,16 +443,6 @@ export default defineComponent({
                 state.queryTab.nowTableName = '';
                 state.nowTableName = '';
             }
-
-            try {
-                const colAndData: any = await runSql(sql);
-                state.queryTab.execRes.data = colAndData.res;
-                state.queryTab.execRes.tableColumn = colAndData.colNames;
-                state.queryTab.loading = false;
-            } catch (e: any) {
-                state.queryTab.loading = false;
-            }
-            closeExecBtns();
         };
 
         /**
@@ -424,12 +450,40 @@ export default defineComponent({
          *
          * @param sql 执行的sql
          */
-        const runSql = (sql: string) => {
-            return dbApi.sqlExec.request({
+        const runSql = async (sql: string, remark: string = '') => {
+            return await dbApi.sqlExec.request({
                 id: state.dbId,
                 db: state.db,
                 sql: sql.trim(),
+                remark,
             });
+            // const sqlTrim = sql.trim();
+            // let remark = '';
+            // let canRun = true;
+            // const needRemark = ['update', 'UPDATE', 'delete', 'DELETE', 'INSERT', 'insert'].indexOf(sqlTrim.split(' ')[0]);
+            // if (needRemark) {
+            //     const res: any = await ElMessageBox.prompt('请输入备注', 'Tip', {
+            //         confirmButtonText: '确定',
+            //         cancelButtonText: '取消',
+            //     });
+            //     remark = res.value;
+            //     if (!remark) {
+            //         canRun = false;
+            //     }
+            // }
+
+            // if (!canRun) {
+            //     return;
+            // }
+            // try {
+            //     state.queryTab.loading = true;
+            //     return await dbApi.sqlExec.request({
+            //         id: state.dbId,
+            //         db: state.db,
+            //         sql: sqlTrim,
+            //         remark,
+            //     });
+            // } catch (e: any) {}
         };
 
         const removeDataTab = (targetName: string) => {
@@ -497,8 +551,9 @@ export default defineComponent({
             if (flag === 'equal') {
                 // 获取该列中第一个不为空的数据(内容)
                 for (let i = 0; i < tableData.length; i++) {
-                    if (tableData[i][str].length > 0) {
-                        columnContent = tableData[i][str];
+                    // 转为字符串后比较
+                    if ((tableData[i][str] + '').length > 0) {
+                        columnContent = tableData[i][str] + '';
                         break;
                     }
                 }
@@ -515,7 +570,7 @@ export default defineComponent({
                         index = i;
                     }
                 }
-                columnContent = tableData[index][str];
+                columnContent = tableData[index][str] + '';
             }
             const contentWidth: number = getContentWidth(columnContent);
             // 获取列名称的长度 加上排序图标长度
@@ -899,7 +954,8 @@ export default defineComponent({
             if (!state.nowTableName || !property) {
                 return;
             }
-            let text = row[property];
+            // 转为字符串比较,可能存在数字等
+            let text = row[property] + '';
             let div = cell.children[0];
             if (div) {
                 let input = document.createElement('input');

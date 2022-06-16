@@ -56,6 +56,7 @@ func InitRouter() *gin.Engine {
 
 		devops_router.InitProjectRouter(api)
 		devops_router.InitDbRouter(api)
+		devops_router.InitDbSqlExecRouter(api)
 		devops_router.InitRedisRouter(api)
 		devops_router.InitMachineRouter(api)
 		devops_router.InitMachineScriptRouter(api)

@@ -1,6 +1,7 @@
 <template>
     <div>
         <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px">
+            <el-input v-model="remark" placeholder="请输入执行备注" class="mb5" />
             <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sqlValue" :options="cmOptions" />
             <template #footer>
                 <span class="dialog-footer">
@@ -15,7 +16,7 @@
 <script lang="ts">
 import { toRefs, reactive, defineComponent } from 'vue';
 import { dbApi } from '../api';
-import { ElDialog, ElButton } from 'element-plus';
+import { ElDialog, ElButton, ElInput, ElMessage } from 'element-plus';
 // import base style
 import 'codemirror/lib/codemirror.css';
 // 引入主题后还需要在 options 中指定主题才会生效
@@ -32,6 +33,7 @@ export default defineComponent({
         codemirror,
         ElButton,
         ElDialog,
+        ElInput,
     },
     props: {
         visible: {
@@ -53,6 +55,7 @@ export default defineComponent({
             sqlValue: '',
             dbId: 0,
             db: '',
+            remark: '',
             btnLoading: false,
             cmOptions: {
                 tabSize: 4,
@@ -77,11 +80,17 @@ export default defineComponent({
          * 执行sql
          */
         const runSql = async () => {
+            if (!state.remark) {
+                ElMessage.error('请输入执行的备注信息');
+                return;
+            }
+            
             try {
                 state.btnLoading = true;
                 await dbApi.sqlExec.request({
                     id: state.dbId,
                     db: state.db,
+                    remark: state.remark,
                     sql: state.sqlValue.trim(),
                 });
                 runSuccess = true;
@@ -104,6 +113,7 @@ export default defineComponent({
             setTimeout(() => {
                 state.dbId = 0;
                 state.sqlValue = '';
+                state.remark = '';
                 runSuccessCallback = null;
                 cancelCallback = null;
                 runSuccess = false;
@@ -132,8 +142,5 @@ export default defineComponent({
 .codesql {
     font-size: 9pt;
     font-weight: 600;
-}
-.footer {
-    float: right;
 }
 </style>

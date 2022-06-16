@@ -13,9 +13,10 @@ func InitDbRouter(router *gin.RouterGroup) {
 	db := router.Group("dbs")
 	{
 		d := &api.Db{
-			DbApp:      application.DbApp,
-			MsgApp:     sysApplication.MsgApp,
-			ProjectApp: application.ProjectApp,
+			DbApp:        application.DbApp,
+			DbSqlExecApp: application.DbSqlExecApp,
+			MsgApp:       sysApplication.MsgApp,
+			ProjectApp:   application.ProjectApp,
 		}
 		// 获取所有数据库列表
 		db.GET("", func(c *gin.Context) {
@@ -50,7 +51,7 @@ func InitDbRouter(router *gin.RouterGroup) {
 		})
 
 		// db.GET(":dbId/exec-sql", controllers.SelectData)
-		db.GET(":dbId/exec-sql", func(g *gin.Context) {
+		db.POST(":dbId/exec-sql", func(g *gin.Context) {
 			rc := ctx.NewReqCtxWithGin(g).WithLog(ctx.NewLogInfo("执行Sql语句"))
 			rc.Handle(d.ExecSql)
 		})

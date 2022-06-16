@@ -59,8 +59,11 @@
                     </template>
                 </el-table-column>
 
-                <!-- <el-table-column fixed="right" label="更多信息" min-width="100">
-                </el-table-column> -->
+                <el-table-column label="操作" min-width="120" fixed="right">
+                    <template #default="scope">
+                        <el-link type="primary" plain size="small" :underline="false" @click="onShowSqlExec(scope.row)">SQL执行记录</el-link>
+                    </template>
+                </el-table-column>
             </el-table>
             <el-row style="margin-top: 20px" type="flex" justify="end">
                 <el-pagination
@@ -122,6 +125,54 @@
                     </template>
                 </el-table-column>
             </el-table>
+        </el-dialog>
+
+        <el-dialog
+            width="90%"
+            :title="`${sqlExecLogDialog.title} - SQL执行记录`"
+            :before-close="onBeforeCloseSqlExecDialog"
+            v-model="sqlExecLogDialog.visible"
+        >
+            <div class="toolbar">
+                <el-input v-model="sqlExecLogDialog.query.db" placeholder="请输入数据库名" clearable style="width: 150px" />
+                <el-input v-model="sqlExecLogDialog.query.table" placeholder="请输入表名" clearable class="ml5" style="width: 150px" />
+                <el-select v-model="sqlExecLogDialog.query.type" placeholder="请选择操作类型" clearable class="ml5">
+                    <el-option label="UPDATE" :value="1"> </el-option>
+                    <el-option label="DELETE" :value="2"> </el-option>
+                    <el-option label="INSERT" :value="3"> </el-option>
+                </el-select>
+                <el-button class="ml5" @click="searchSqlExecLog" type="success" icon="search"></el-button>
+            </div>
+            <el-table border stripe :data="sqlExecLogDialog.data" size="small">
+                <el-table-column prop="db" label="数据库" min-width="60" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="table" label="表" min-width="60" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="type" label="类型" width="85" show-overflow-tooltip>
+                    <template #default="scope">
+                        <el-tag v-if="scope.row.type == 1" color="#E4F5EB" size="small">UPDATE</el-tag>
+                        <el-tag v-if="scope.row.type == 2" color="#F9E2AE" size="small">DELETE</el-tag>
+                        <el-tag v-if="scope.row.type == 3" color="#A8DEE0" size="small">INSERT</el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="sql" label="SQL" min-width="230" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="oldValue" label="原值" min-width="150" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="creator" label="执行人" min-width="60" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="createTime" label="执行时间" show-overflow-tooltip>
+                    <template #default="scope">
+                        {{ $filters.dateFormat(scope.row.createTime) }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="remark" label="备注" min-width="60" show-overflow-tooltip> </el-table-column>
+            </el-table>
+            <el-row style="margin-top: 20px" type="flex" justify="end">
+                <el-pagination
+                    style="text-align: right"
+                    @current-change="handleSqlExecPageChange"
+                    :total="sqlExecLogDialog.total"
+                    layout="prev, pager, next, total, jumper"
+                    v-model:current-page="sqlExecLogDialog.query.pageNum"
+                    :page-size="sqlExecLogDialog.query.pageSize"
+                ></el-pagination>
+            </el-row>
         </el-dialog>
 
         <el-dialog width="40%" :title="`${chooseTableName} 字段信息`" v-model="columnDialog.visible">
@@ -195,7 +246,18 @@ export default defineComponent({
             },
             datas: [],
             total: 0,
-
+            // sql执行记录弹框
+            sqlExecLogDialog: {
+                title: '',
+                visible: false,
+                data: [],
+                total: 0,
+                query: {
+                    dbId: 0,
+                    pageNum: 1,
+                    pageSize: 12,
+                },
+            },
             chooseTableName: '',
             tableInfoDialog: {
                 visible: false,
@@ -284,6 +346,32 @@ export default defineComponent({
             } catch (err) {}
         };
 
+        const onShowSqlExec = async (row: any) => {
+            state.sqlExecLogDialog.title = `${row.name}[${row.host}:${row.port}]`;
+            state.sqlExecLogDialog.query.dbId = row.id;
+            searchSqlExecLog();
+            state.sqlExecLogDialog.visible = true;
+        };
+
+        const onBeforeCloseSqlExecDialog = () => {
+            state.sqlExecLogDialog.visible = false;
+            state.sqlExecLogDialog.data = [];
+            state.sqlExecLogDialog.total = 0;
+            state.sqlExecLogDialog.query.dbId = 0;
+            state.sqlExecLogDialog.query.pageNum = 1;
+        };
+
+        const searchSqlExecLog = async () => {
+            const res = await dbApi.getSqlExecs.request(state.sqlExecLogDialog.query);
+            state.sqlExecLogDialog.data = res.list;
+            state.sqlExecLogDialog.total = res.total;
+        };
+
+        const handleSqlExecPageChange = (curPage: number) => {
+            state.sqlExecLogDialog.query.pageNum = curPage;
+            searchSqlExecLog();
+        };
+
         const showTableInfo = async (row: any, db: string) => {
             state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: row.id, db });
             state.dbId = row.id;
@@ -360,6 +448,10 @@ export default defineComponent({
             editDb,
             valChange,
             deleteDb,
+            onShowSqlExec,
+            onBeforeCloseSqlExecDialog,
+            handleSqlExecPageChange,
+            searchSqlExecLog,
             showTableInfo,
             closeTableInfo,
             showColumns,

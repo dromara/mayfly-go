@@ -2,7 +2,7 @@
     <div class="account-dialog">
         <el-dialog
             :title="account == null ? '' : '分配“' + account.username + '”的角色'"
-            v-model="visible"
+            v-model="dialogVisible"
             :before-close="cancel"
             :show-close="false"
         >
@@ -15,7 +15,7 @@
             <el-table :data="allRole" border ref="roleTable" @select="select" style="width: 100%">
                 <el-table-column :selectable="selectable" type="selection" width="40"></el-table-column>
                 <el-table-column prop="name" label="角色名称"></el-table-column>
-                 <el-table-column prop="code" label="角色code"></el-table-column>
+                <el-table-column prop="code" label="角色code"></el-table-column>
                 <el-table-column prop="remark" label="角色描述">
                     <template #default="scope">
                         {{ scope.row.remark ? scope.row.remark : '暂无描述' }}
@@ -59,7 +59,7 @@ export default defineComponent({
     setup(props: any, { emit }) {
         const roleTable: any = ref(null);
         const state = reactive({
-            visible: false,
+            dialogVisible: false,
             btnLoading: false,
             // 所有角色
             allRole: [] as any,
@@ -73,8 +73,8 @@ export default defineComponent({
             total: 0,
         });
 
-        watch(props, (newValue, oldValue) => {
-            state.visible = newValue.visible;
+        watch(props, (newValue) => {
+            state.dialogVisible = newValue.visible;
             if (newValue.account && newValue.account.id != 0) {
                 accountApi.roleIds
                     .request({

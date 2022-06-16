@@ -166,11 +166,6 @@ export default defineComponent({
         const cancel = () => {
             emit('update:visible', false);
             emit('cancel');
-            setTimeout(() => {
-                mongoForm.value.resetFields();
-                //  重置对象属性为null
-                state.form = {} as any;
-            }, 200);
         };
 
         return {
