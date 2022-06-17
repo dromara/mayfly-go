@@ -7,17 +7,10 @@
                 >删除</el-button
             >
             <div style="float: right">
-                <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
-                    <el-form-item prop="project">
-                        <el-select v-model="query.projectId" placeholder="请选择项目" filterable clearable>
-                            <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
-                        </el-select>
-                    </el-form-item>
-
-                    <el-form-item>
-                        <el-button v-waves type="primary" icon="search" @click="search()">查询</el-button>
-                    </el-form-item>
-                </el-form>
+                <el-select v-model="query.projectId" placeholder="请选择项目" filterable clearable>
+                    <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
+                </el-select>
+                <el-button v-waves type="primary" icon="search" @click="search()" class="ml5">查询</el-button>
             </div>
             <el-table :data="datas" ref="table" @current-change="choose" show-overflow-tooltip stripe>
                 <el-table-column label="选择" width="60px">
@@ -137,9 +130,7 @@
                 <el-input v-model="sqlExecLogDialog.query.db" placeholder="请输入数据库名" clearable style="width: 150px" />
                 <el-input v-model="sqlExecLogDialog.query.table" placeholder="请输入表名" clearable class="ml5" style="width: 150px" />
                 <el-select v-model="sqlExecLogDialog.query.type" placeholder="请选择操作类型" clearable class="ml5">
-                    <el-option label="UPDATE" :value="1"> </el-option>
-                    <el-option label="DELETE" :value="2"> </el-option>
-                    <el-option label="INSERT" :value="3"> </el-option>
+                    <el-option v-for="item in enums.DbSqlExecTypeEnum" :key="item.value" :label="item.label" :value="item.value"> </el-option>
                 </el-select>
                 <el-button class="ml5" @click="searchSqlExecLog" type="success" icon="search"></el-button>
             </div>
@@ -148,9 +139,9 @@
                 <el-table-column prop="table" label="表" min-width="60" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="type" label="类型" width="85" show-overflow-tooltip>
                     <template #default="scope">
-                        <el-tag v-if="scope.row.type == 1" color="#E4F5EB" size="small">UPDATE</el-tag>
-                        <el-tag v-if="scope.row.type == 2" color="#F9E2AE" size="small">DELETE</el-tag>
-                        <el-tag v-if="scope.row.type == 3" color="#A8DEE0" size="small">INSERT</el-tag>
+                        <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum.UPDATE.value" color="#E4F5EB" size="small">UPDATE</el-tag>
+                        <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum.DELETE.value" color="#F9E2AE" size="small">DELETE</el-tag>
+                        <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum.INSERT.value" color="#A8DEE0" size="small">INSERT</el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column prop="sql" label="SQL" min-width="230" show-overflow-tooltip> </el-table-column>
@@ -162,6 +153,19 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="60" show-overflow-tooltip> </el-table-column>
+                <el-table-column label="操作" min-width="50" fixed="right">
+                    <template #default="scope">
+                        <el-link
+                            v-if="scope.row.type == enums.DbSqlExecTypeEnum.UPDATE.value || scope.row.type == enums.DbSqlExecTypeEnum.DELETE.value"
+                            type="primary"
+                            plain
+                            size="small"
+                            :underline="false"
+                            @click="onShowRollbackSql(scope.row)"
+                            >还原SQL</el-link
+                        >
+                    </template>
+                </el-table-column>
             </el-table>
             <el-row style="margin-top: 20px" type="flex" justify="end">
                 <el-pagination
@@ -173,6 +177,10 @@
                     :page-size="sqlExecLogDialog.query.pageSize"
                 ></el-pagination>
             </el-row>
+        </el-dialog>
+
+        <el-dialog width="55%" :title="`还原SQL`" v-model="rollbackSqlDialog.visible">
+            <el-input type="textarea" :autosize="{ minRows: 15, maxRows: 30 }" v-model="rollbackSqlDialog.sql" size="small"> </el-input>
         </el-dialog>
 
         <el-dialog width="40%" :title="`${chooseTableName} 字段信息`" v-model="columnDialog.visible">
@@ -215,6 +223,7 @@ import { formatByteSize } from '@/common/utils/format';
 import DbEdit from './DbEdit.vue';
 import CreateTable from './CreateTable.vue';
 import { dbApi } from './api';
+import enums from './enums';
 import { projectApi } from '../project/api.ts';
 import SqlExecBox from './component/SqlExecBox.ts';
 export default defineComponent({
@@ -254,9 +263,16 @@ export default defineComponent({
                 total: 0,
                 query: {
                     dbId: 0,
+                    db: '',
+                    table: '',
+                    type: null,
                     pageNum: 1,
                     pageSize: 12,
                 },
+            },
+            rollbackSqlDialog: {
+                visible: false,
+                sql: '',
             },
             chooseTableName: '',
             tableInfoDialog: {
@@ -359,6 +375,9 @@ export default defineComponent({
             state.sqlExecLogDialog.total = 0;
             state.sqlExecLogDialog.query.dbId = 0;
             state.sqlExecLogDialog.query.pageNum = 1;
+            state.sqlExecLogDialog.query.table = '';
+            state.sqlExecLogDialog.query.db = '';
+            state.sqlExecLogDialog.query.type = null;
         };
 
         const searchSqlExecLog = async () => {
@@ -370,6 +389,48 @@ export default defineComponent({
         const handleSqlExecPageChange = (curPage: number) => {
             state.sqlExecLogDialog.query.pageNum = curPage;
             searchSqlExecLog();
+        };
+
+        const onShowRollbackSql = async (sqlExecLog: any) => {
+            const columns = await dbApi.columnMetadata.request({ id: sqlExecLog.dbId, db: sqlExecLog.db, tableName: sqlExecLog.table });
+            const primaryKey = columns[0].columnName;
+            const oldValue = JSON.parse(sqlExecLog.oldValue);
+
+            const rollbackSqls = [];
+            if (sqlExecLog.type == enums.DbSqlExecTypeEnum['UPDATE'].value) {
+                for (let ov of oldValue) {
+                    const setItems = [];
+                    for (let key in ov) {
+                        if (key == primaryKey) {
+                            continue;
+                        }
+                        setItems.push(`${key} = ${wrapValue(ov[key])}`);
+                    }
+                    rollbackSqls.push(`UPDATE ${sqlExecLog.table} SET ${setItems.join(', ')} WHERE ${primaryKey} = ${wrapValue(ov[primaryKey])};`);
+                }
+            } else if (sqlExecLog.type == enums.DbSqlExecTypeEnum['DELETE'].value) {
+                const columnNames = columns.map((c: any) => c.columnName);
+                for (let ov of oldValue) {
+                    const values = [];
+                    for (let column of columnNames) {
+                        values.push(wrapValue(ov[column]));
+                    }
+                    rollbackSqls.push(`INSERT INTO ${sqlExecLog.table} (${columnNames.join(', ')}) VALUES (${values.join(', ')});`);
+                }
+            }
+
+            state.rollbackSqlDialog.sql = rollbackSqls.join('\n');
+            state.rollbackSqlDialog.visible = true;
+        };
+
+        /**
+         * 包装值，如果值类型为number则直接返回，其他则需要使用''包装
+         */
+        const wrapValue = (val: any) => {
+            if (typeof val == 'number') {
+                return val;
+            }
+            return `'${val}'`;
         };
 
         const showTableInfo = async (row: any, db: string) => {
@@ -441,7 +502,7 @@ export default defineComponent({
 
         return {
             ...toRefs(state),
-            // enums,
+            enums,
             search,
             choose,
             handlePageChange,
@@ -452,6 +513,7 @@ export default defineComponent({
             onBeforeCloseSqlExecDialog,
             handleSqlExecPageChange,
             searchSqlExecLog,
+            onShowRollbackSql,
             showTableInfo,
             closeTableInfo,
             showColumns,

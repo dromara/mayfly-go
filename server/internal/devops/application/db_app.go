@@ -407,7 +407,6 @@ func (d *DbInstance) GetColumnMetadatas(tableNames ...string) []map[string]inter
 	countSql := fmt.Sprintf(countSqlTmp, tableName)
 	_, countRes, _ := d.SelectData(countSql)
 	// 查询出所有列信息总数，手动分页获取所有数据
-	// maCount, _ := strconv.Atoi(countRes[0]["maNum"].(string))
 	maCount := int(countRes[0]["maNum"].(int64))
 	// 计算需要查询的页数
 	pageNum := maCount / DEFAULT_COLUMN_SIZE

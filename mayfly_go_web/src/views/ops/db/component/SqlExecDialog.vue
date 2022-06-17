@@ -1,8 +1,8 @@
 <template>
     <div>
         <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px">
-            <el-input v-model="remark" placeholder="请输入执行备注" class="mb5" />
             <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sqlValue" :options="cmOptions" />
+            <el-input v-model="remark" placeholder="请输入执行备注" class="mt5" />
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="cancel">取 消</el-button>
