@@ -457,33 +457,6 @@ export default defineComponent({
                 sql: sql.trim(),
                 remark,
             });
-            // const sqlTrim = sql.trim();
-            // let remark = '';
-            // let canRun = true;
-            // const needRemark = ['update', 'UPDATE', 'delete', 'DELETE', 'INSERT', 'insert'].indexOf(sqlTrim.split(' ')[0]);
-            // if (needRemark) {
-            //     const res: any = await ElMessageBox.prompt('请输入备注', 'Tip', {
-            //         confirmButtonText: '确定',
-            //         cancelButtonText: '取消',
-            //     });
-            //     remark = res.value;
-            //     if (!remark) {
-            //         canRun = false;
-            //     }
-            // }
-
-            // if (!canRun) {
-            //     return;
-            // }
-            // try {
-            //     state.queryTab.loading = true;
-            //     return await dbApi.sqlExec.request({
-            //         id: state.dbId,
-            //         db: state.db,
-            //         sql: sqlTrim,
-            //         remark,
-            //     });
-            // } catch (e: any) {}
         };
 
         const removeDataTab = (targetName: string) => {
@@ -533,7 +506,7 @@ export default defineComponent({
 
         // 获取sql文件上传执行url
         const getUploadSqlFileUrl = () => {
-            return `${config.baseApiUrl}/dbs/${state.dbId}/exec-sql-file`;
+            return `${config.baseApiUrl}/dbs/${state.dbId}/exec-sql-file?db=${state.db}`;
         };
 
         const flexColumnWidth = (str: any, tableData: any, flag = 'equal') => {
