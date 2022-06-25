@@ -89,15 +89,11 @@
 
                                 <template #dropdown>
                                     <el-dropdown-menu>
-                                        <el-dropdown-item v-if="data.type == '-' && data.size < 1 * 1024 * 1024">
-                                            <el-link
-                                                @click.prevent="getFileContent(tree.folder.id, data.path)"
-                                                type="info"
-                                                icon="view"
-                                                :underline="false"
-                                            >
-                                                查看
-                                            </el-link>
+                                        <el-dropdown-item
+                                            @click="getFileContent(tree.folder.id, data.path)"
+                                            v-if="data.type == '-' && data.size < 1 * 1024 * 1024"
+                                        >
+                                            <el-link type="info" icon="view" :underline="false">查看</el-link>
                                         </el-dropdown-item>
 
                                         <span v-auth="'machine:file:upload'">
@@ -112,34 +108,20 @@
                                                     name="file"
                                                     style="display: inline-block; margin-left: 2px"
                                                 >
-                                                    <el-link icon="upload" :underline="false"> 上传 </el-link>
+                                                    <el-link icon="upload" :underline="false">上传</el-link>
                                                 </el-upload>
                                             </el-dropdown-item>
                                         </span>
 
                                         <span v-auth="'machine:file:write'">
-                                            <el-dropdown-item v-if="data.type == '-'">
-                                                <el-link
-                                                    @click.prevent="downloadFile(node, data)"
-                                                    type="primary"
-                                                    icon="download"
-                                                    :underline="false"
-                                                    style="margin-left: 2px"
-                                                    >下载</el-link
-                                                >
+                                            <el-dropdown-item @click="downloadFile(node, data)" v-if="data.type == '-'">
+                                                <el-link type="primary" icon="download" :underline="false" style="margin-left: 2px">下载</el-link>
                                             </el-dropdown-item>
                                         </span>
 
                                         <span v-auth="'machine:file:rm'">
-                                            <el-dropdown-item v-if="!dontOperate(data)">
-                                                <el-link
-                                                    @click.prevent="deleteFile(node, data)"
-                                                    type="danger"
-                                                    icon="delete"
-                                                    :underline="false"
-                                                    style="margin-left: 2px"
-                                                    >删除
-                                                </el-link>
+                                            <el-dropdown-item @click="deleteFile(node, data)" v-if="!dontOperate(data)">
+                                                <el-link type="danger" icon="delete" :underline="false" style="margin-left: 2px">删除</el-link>
                                             </el-dropdown-item>
                                         </span>
                                     </el-dropdown-menu>

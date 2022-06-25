@@ -352,19 +352,19 @@ const (
 	// mysql 表信息元数据
 	MYSQL_TABLE_MA = `SELECT table_name tableName, engine, table_comment tableComment, 
 	create_time createTime from information_schema.tables
-	WHERE table_schema = (SELECT database())`
+	WHERE table_schema = (SELECT database()) LIMIT 2000`
 
 	// mysql 表信息
 	MYSQL_TABLE_INFO = `SELECT table_name tableName, table_comment tableComment, table_rows tableRows,
 	data_length dataLength, index_length indexLength, create_time createTime 
 	FROM information_schema.tables 
-    WHERE table_schema = (SELECT database())`
+    WHERE table_schema = (SELECT database()) LIMIT 2000`
 
 	// mysql 索引信息
 	MYSQL_INDEX_INFO = `SELECT index_name indexName, column_name columnName, index_type indexType,
 	SEQ_IN_INDEX seqInIndex, INDEX_COMMENT indexComment
 	FROM information_schema.STATISTICS 
-    WHERE table_schema = (SELECT database()) AND table_name = '%s'`
+    WHERE table_schema = (SELECT database()) AND table_name = '%s' LIMIT 500`
 
 	// 默认每次查询列元信息数量
 	DEFAULT_COLUMN_SIZE = 2000
@@ -372,7 +372,7 @@ const (
 	// mysql 列信息元数据
 	MYSQL_COLOUMN_MA = `SELECT table_name tableName, column_name columnName, column_type columnType,
 	column_comment columnComment, column_key columnKey, extra, is_nullable nullable from information_schema.columns
-	WHERE table_name in (%s) AND table_schema = (SELECT database()) ORDER BY tableName, ordinal_position limit %d, %d`
+	WHERE table_name in (%s) AND table_schema = (SELECT database()) ORDER BY tableName, ordinal_position LIMIT %d, %d`
 
 	// mysql 列信息元数据总数
 	MYSQL_COLOUMN_MA_COUNT = `SELECT COUNT(*) maNum from information_schema.columns

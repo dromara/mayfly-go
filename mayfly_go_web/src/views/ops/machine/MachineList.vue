@@ -57,11 +57,10 @@
                             v-model="scope.row.status"
                             :active-value="1"
                             :inactive-value="-1"
-                            active-color="#13ce66"
-                            inactive-color="#ff4949"
                             inline-prompt
                             active-text="启用"
                             inactive-text="停用"
+                            style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
                             @change="changeStatus(scope.row)"
                         ></el-switch>
                     </template>

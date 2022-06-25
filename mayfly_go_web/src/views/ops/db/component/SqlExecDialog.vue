@@ -84,16 +84,22 @@ export default defineComponent({
                 ElMessage.error('请输入执行的备注信息');
                 return;
             }
-            
+
             try {
                 state.btnLoading = true;
-                await dbApi.sqlExec.request({
+                const res = await dbApi.sqlExec.request({
                     id: state.dbId,
                     db: state.db,
                     remark: state.remark,
                     sql: state.sqlValue.trim(),
                 });
-                runSuccess = true;
+                if (parseInt(res.res[0].影响条数) >= 1) {
+                    ElMessage.success('执行成功');
+                    runSuccess = true;
+                } else {
+                    ElMessage.error('执行失败');
+                    runSuccess = false;
+                }
             } catch (e) {
                 runSuccess = false;
             }

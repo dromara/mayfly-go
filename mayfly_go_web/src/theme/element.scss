@@ -239,16 +239,6 @@
 	color: set-color(primary);
 }
 
-/* Switch 开关
-------------------------------- */
-.el-switch.is-checked .el-switch__core {
-	border-color: set-color(primary);
-	background-color: set-color(primary);
-}
-.el-switch__label.is-active {
-	color: set-color(primary);
-}
-
 /* Slider 滑块
 ------------------------------- */
 .el-slider__bar {

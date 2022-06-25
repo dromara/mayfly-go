@@ -215,7 +215,6 @@
                             <template #header>
                                 <el-tooltip raw-content placement="top" effect="customized">
                                     <template #content> {{ getColumnTip(dt.name, item) }} </template>
-                                    <!-- <el-icon><question-filled /></el-icon> -->
                                     {{ item }}
                                 </el-tooltip>
                             </template>

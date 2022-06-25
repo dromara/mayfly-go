@@ -74,7 +74,7 @@
             <el-row class="mb10">
                 <el-button type="primary" size="small" @click="tableCreateDialog.visible = true">创建表</el-button>
             </el-row>
-            <el-table border stripe :data="tableInfoDialog.infos" size="small">
+            <el-table v-loading="tableInfoDialog.loading" border stripe :data="tableInfoDialog.infos" size="small">
                 <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip></el-table-column>
                 <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip></el-table-column>
                 <el-table-column
@@ -276,6 +276,7 @@ export default defineComponent({
             },
             chooseTableName: '',
             tableInfoDialog: {
+                loading: false,
                 visible: false,
                 infos: [],
             },
@@ -434,10 +435,15 @@ export default defineComponent({
         };
 
         const showTableInfo = async (row: any, db: string) => {
-            state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: row.id, db });
-            state.dbId = row.id;
-            state.db = db;
+            state.tableInfoDialog.loading = true;
             state.tableInfoDialog.visible = true;
+            try {
+                state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: row.id, db });
+                state.dbId = row.id;
+                state.db = db;
+            } finally {
+                state.tableInfoDialog.loading = false;
+            }
         };
 
         const closeTableInfo = () => {
