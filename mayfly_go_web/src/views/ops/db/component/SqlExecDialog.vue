@@ -2,7 +2,7 @@
     <div>
         <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px">
             <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sqlValue" :options="cmOptions" />
-            <el-input v-model="remark" placeholder="请输入执行备注" class="mt5" />
+            <el-input ref="remarkInputRef" v-model="remark" placeholder="请输入执行备注" class="mt5" />
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="cancel">取 消</el-button>
@@ -14,9 +14,9 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, defineComponent } from 'vue';
+import { toRefs, ref, nextTick, reactive, defineComponent } from 'vue';
 import { dbApi } from '../api';
-import { ElDialog, ElButton, ElInput, ElMessage } from 'element-plus';
+import { ElDialog, ElButton, ElInput, ElMessage, InputInstance } from 'element-plus';
 // import base style
 import 'codemirror/lib/codemirror.css';
 // 引入主题后还需要在 options 中指定主题才会生效
@@ -50,6 +50,7 @@ export default defineComponent({
         },
     },
     setup(props: any) {
+        const remarkInputRef = ref<InputInstance>();
         const state = reactive({
             dialogVisible: false,
             sqlValue: '',
@@ -133,10 +134,14 @@ export default defineComponent({
             state.dbId = props.dbId;
             state.db = props.db;
             state.dialogVisible = true;
+            nextTick(() => {
+                remarkInputRef.value?.focus();
+            });
         };
 
         return {
             ...toRefs(state),
+            remarkInputRef,
             open,
             runSql,
             cancel,

@@ -223,8 +223,9 @@ func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]interfac
 	execSql = strings.Trim(execSql, " ")
 	isSelect := strings.HasPrefix(execSql, "SELECT") || strings.HasPrefix(execSql, "select")
 	isShow := strings.HasPrefix(execSql, "show")
+	isExplain := strings.HasPrefix(execSql, "explain")
 
-	if !isSelect && !isShow {
+	if !isSelect && !isShow && !isExplain {
 		return nil, nil, errors.New("该sql非查询语句")
 	}
 	// 没加limit，则默认限制50条
@@ -272,13 +273,12 @@ func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]interfac
 			colName := colType.Name()
 			// 字段类型名
 			colScanType := colType.ScanType().Name()
-
-			// 如果是密码字段，则脱敏显示
-			if colName == "password" {
-				v = []byte("******")
-			}
 			if isFirst {
 				colNames = append(colNames, colName)
+			}
+			if v == nil {
+				rowData[colName] = nil
+				continue
 			}
 			// 这里把[]byte数据转成string
 			stringV := string(v)

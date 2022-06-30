@@ -927,7 +927,7 @@ export default defineComponent({
                 return;
             }
             // 转为字符串比较,可能存在数字等
-            let text = row[property] + '';
+            let text = (row[property] ? row[property] : '') + '';
             let div = cell.children[0];
             if (div) {
                 let input = document.createElement('input');

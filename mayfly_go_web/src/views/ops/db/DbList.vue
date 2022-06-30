@@ -72,6 +72,32 @@
 
         <el-dialog width="75%" :title="`${db} 表信息`" :before-close="closeTableInfo" v-model="tableInfoDialog.visible">
             <el-row class="mb10">
+                <el-popover v-model:visible="showDumpInfo" :width="470" placement="right">
+                    <template #reference>
+                        <el-button class="ml5" type="success" size="small" @click="showDumpInfo = !showDumpInfo">导出</el-button>
+                    </template>
+                    <el-form-item label="导出内容: ">
+                        <el-radio-group v-model="dumpInfo.type">
+                            <el-radio :label="1" size="small">结构</el-radio>
+                            <el-radio :label="2" size="small">数据</el-radio>
+                            <el-radio :label="3" size="small">结构＋数据</el-radio>
+                        </el-radio-group>
+                    </el-form-item>
+
+                    <el-form-item label="导出表: ">
+                        <el-table @selection-change="handleDumpTableSelectionChange" max-height="300" size="small" :data="tableInfoDialog.infos">
+                            <el-table-column type="selection" width="45" />
+                            <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip> </el-table-column>
+                            <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip></el-table-column>
+                        </el-table>
+                    </el-form-item>
+
+                    <div style="text-align: right">
+                        <el-button @click="showDumpInfo = false" size="small">取消</el-button>
+                        <el-button @click="dump(db)" type="success" size="small">确定</el-button>
+                    </div>
+                </el-popover>
+
                 <el-button type="primary" size="small" @click="tableCreateDialog.visible = true">创建表</el-button>
             </el-row>
             <el-table v-loading="tableInfoDialog.loading" border stripe :data="tableInfoDialog.infos" size="small">
@@ -226,6 +252,10 @@ import { dbApi } from './api';
 import enums from './enums';
 import { projectApi } from '../project/api.ts';
 import SqlExecBox from './component/SqlExecBox.ts';
+import config from '@/common/config';
+import { getSession } from '@/common/utils/storage';
+import { isTrue } from '@/common/assert';
+
 export default defineComponent({
     name: 'DbList',
     components: {
@@ -255,6 +285,13 @@ export default defineComponent({
             },
             datas: [],
             total: 0,
+            showDumpInfo: false,
+            dumpInfo: {
+                id: 0,
+                db: '',
+                type: 3,
+                tables: [],
+            },
             // sql执行记录弹框
             sqlExecLogDialog: {
                 title: '',
@@ -392,6 +429,29 @@ export default defineComponent({
             searchSqlExecLog();
         };
 
+        /**
+         * 选择导出数据库表
+         */
+        const handleDumpTableSelectionChange = (vals: any) => {
+            state.dumpInfo.tables = vals.map((x: any) => x.tableName);
+        };
+
+        /**
+         * 数据库信息导出
+         */
+        const dump = (db: string) => {
+            isTrue(state.dumpInfo.tables.length > 0, '请选择要导出的表');
+            const a = document.createElement('a');
+            a.setAttribute(
+                'href',
+                `${config.baseApiUrl}/dbs/${state.dbId}/dump?db=${db}&type=${state.dumpInfo.type}&tables=${state.dumpInfo.tables.join(
+                    ','
+                )}&token=${getSession('token')}`
+            );
+            a.click();
+            state.showDumpInfo = false;
+        };
+
         const onShowRollbackSql = async (sqlExecLog: any) => {
             const columns = await dbApi.columnMetadata.request({ id: sqlExecLog.dbId, db: sqlExecLog.db, tableName: sqlExecLog.table });
             const primaryKey = columns[0].columnName;
@@ -447,6 +507,7 @@ export default defineComponent({
         };
 
         const closeTableInfo = () => {
+            state.showDumpInfo = false;
             state.tableInfoDialog.visible = false;
             state.tableInfoDialog.infos = [];
         };
@@ -516,6 +577,8 @@ export default defineComponent({
             valChange,
             deleteDb,
             onShowSqlExec,
+            handleDumpTableSelectionChange,
+            dump,
             onBeforeCloseSqlExecDialog,
             handleSqlExecPageChange,
             searchSqlExecLog,

@@ -30,7 +30,7 @@ import { useStore } from '@/store/index.ts';
 export default defineComponent({
     name: 'layoutBreadcrumbSearch',
     setup() {
-        const layoutMenuAutocompleteRef = ref();
+        const layoutMenuAutocompleteRef: any = ref(null);
         const store = useStore();
         const router = useRouter();
         const state: any = reactive({
@@ -68,7 +68,6 @@ export default defineComponent({
         // 初始化菜单数据
         const initTageView = () => {
             if (state.tagsViewList.length > 0) return false;
-            console.log(getRoutes(store.state.routesList.routesList));
             getRoutes(store.state.routesList.routesList).map((v: any) => {
                 if (!v.meta.isHide) {
                     state.tagsViewList.push({ ...v });

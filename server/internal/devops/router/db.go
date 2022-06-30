@@ -61,6 +61,12 @@ func InitDbRouter(router *gin.RouterGroup) {
 			rc.Handle(d.ExecSqlFile)
 		})
 
+		db.GET(":dbId/dump", func(g *gin.Context) {
+			ctx.NewReqCtxWithGin(g).
+				WithLog(ctx.NewLogInfo("Sql文件dump")).
+				Handle(d.DumpSql)
+		})
+
 		db.GET(":dbId/t-metadata", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(d.TableMA)
 		})

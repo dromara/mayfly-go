@@ -5,6 +5,7 @@ export const dbApi = {
     dbs: Api.create("/dbs", 'get'),
     saveDb: Api.create("/dbs", 'post'),
     deleteDb: Api.create("/dbs/{id}", 'delete'),
+    dumpDb: Api.create("/dbs/{id}/dump", 'post'),
     tableInfos: Api.create("/dbs/{id}/t-infos", 'get'),
     tableIndex: Api.create("/dbs/{id}/t-index", 'get'),
     tableDdl: Api.create("/dbs/{id}/t-create-ddl", 'get'),

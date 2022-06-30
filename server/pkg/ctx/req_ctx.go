@@ -16,7 +16,6 @@ type HandlerFunc func(*ReqCtx)
 type ReqCtx struct {
 	GinCtx *gin.Context // gin context
 
-	// NeedToken          bool                // 是否需要token
 	RequiredPermission *Permission         // 需要的权限信息，默认为nil，需要校验token
 	LoginAccount       *model.LoginAccount // 登录账号信息，只有校验token后才会有值
 
@@ -26,7 +25,7 @@ type ReqCtx struct {
 	Err      interface{} // 请求错误
 
 	timed int64 // 执行时间
-	noRes bool  // 无需返回结果，即文件下载等
+	NoRes bool  // 无需返回结果，即文件下载等
 }
 
 func (rc *ReqCtx) Handle(handler HandlerFunc) {
@@ -55,13 +54,13 @@ func (rc *ReqCtx) Handle(handler HandlerFunc) {
 	begin := time.Now()
 	handler(rc)
 	rc.timed = time.Now().Sub(begin).Milliseconds()
-	if !rc.noRes {
+	if !rc.NoRes {
 		ginx.SuccessRes(ginCtx, rc.ResData)
 	}
 }
 
 func (rc *ReqCtx) Download(reader io.Reader, filename string) {
-	rc.noRes = true
+	rc.NoRes = true
 	ginx.Download(rc.GinCtx, reader, filename)
 }
 
