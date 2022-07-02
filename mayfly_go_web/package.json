@@ -7,25 +7,25 @@
     "lint-fix": "eslint --fix --ext .js --ext .jsx --ext .vue src/"
   },
   "dependencies": {
-    "@element-plus/icons-vue": "^2.0.4",
+    "@element-plus/icons-vue": "^2.0.6",
     "axios": "^0.27.2",
     "codemirror": "^5.65.5",
     "countup.js": "^2.0.7",
     "cropperjs": "^1.5.11",
-    "echarts": "^5.3.2",
-    "element-plus": "^2.2.6",
-    "jsoneditor": "^9.8.0",
+    "echarts": "^5.3.3",
+    "element-plus": "^2.2.8",
+    "jsoneditor": "^9.9.0",
     "lodash": "^4.17.21",
     "mitt": "^3.0.0",
     "nprogress": "^0.2.0",
     "screenfull": "^5.1.0",
     "sortablejs": "^1.13.0",
-    "sql-formatter": "^6.1.2",
+    "sql-formatter": "^7.0.3",
     "vue": "^3.2.37",
     "vue-clipboard3": "^1.0.1",
-    "vue-router": "^4.0.15",
+    "vue-router": "^4.0.16",
     "vuex": "^4.0.2",
-    "xterm": "^4.18.0",
+    "xterm": "^4.19.0",
     "xterm-addon-fit": "^0.5.0"
   },
   "devDependencies": {
@@ -43,8 +43,8 @@
     "prettier": "^2.3.0",
     "sass": "^1.45.1",
     "sass-loader": "^12.4.0",
-    "typescript": "^4.2.4",
-    "vite": "^2.9.10",
+    "typescript": "^4.7.4",
+    "vite": "^2.9.13",
     "vue-eslint-parser": "^8.0.1"
   },
   "browserslist": [

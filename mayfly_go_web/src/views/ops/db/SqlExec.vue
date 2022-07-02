@@ -190,7 +190,7 @@
                         @cell-dblclick="cellClick"
                         @sort-change="onTableSortChange"
                         @selection-change="onDataSelectionChange"
-                        :data="dt.execRes.data"
+                        :data="dt.datas"
                         size="small"
                         :max-height="dataTabsTableHeight"
                         v-loading="dt.loading"
@@ -200,12 +200,12 @@
                         border
                         class="mt5"
                     >
-                        <el-table-column v-if="dt.execRes.tableColumn.length > 0" type="selection" width="35" />
+                        <el-table-column v-if="dt.datas.length > 0" type="selection" width="35" />
                         <el-table-column
                             min-width="100"
-                            :width="flexColumnWidth(item, dt.execRes.data)"
+                            :width="flexColumnWidth(item, dt.datas)"
                             align="center"
-                            v-for="item in dt.execRes.tableColumn"
+                            v-for="item in dt.columnNames"
                             :key="item"
                             :prop="item"
                             :label="item"
@@ -220,6 +220,16 @@
                             </template>
                         </el-table-column>
                     </el-table>
+                    <el-row type="flex" class="mt5" justify="center">
+                        <el-pagination
+                            small
+                            :total="dt.count"
+                            @current-change="handlePageChange(dt)"
+                            layout="prev, pager, next, total, jumper"
+                            v-model:current-page="dt.pageNum"
+                            :page-size="defalutLimit"
+                        ></el-pagination>
+                    </el-row>
                 </el-tab-pane>
             </el-tabs>
         </el-container>
@@ -262,7 +272,7 @@ export default defineComponent({
 
         const state = reactive({
             token: token,
-            defalutLimit: 25, // 默认查询数量
+            defalutLimit: 20, // 默认查询数量
             dbs: [], // 数据库实例列表
             databaseList: [], // 数据库实例拥有的数据库列表，1数据库实例  -> 多数据库
             db: '', // 当前操作的数据库
@@ -270,7 +280,6 @@ export default defineComponent({
             dbId: null, // 当前选中操作的数据库实例
             tableName: '',
             tableMetadata: [],
-            columnMetadata: [],
             sqlName: '', // 当前sql模板名
             sqlNames: [], // 所有sql模板名
             activeName: 'Query',
@@ -355,7 +364,7 @@ export default defineComponent({
         const setHeight = () => {
             // 默认300px
             codemirror.setSize('auto', `${window.innerHeight - 538}px`);
-            state.dataTabsTableHeight = window.innerHeight - 258;
+            state.dataTabsTableHeight = window.innerHeight - 258 - 33;
         };
 
         /**
@@ -645,8 +654,6 @@ export default defineComponent({
             if (tableName == '') {
                 return;
             }
-            state.columnMetadata = (await getColumns(tableName)) as any;
-
             if (!execSelectSql) {
                 return;
             }
@@ -663,38 +670,15 @@ export default defineComponent({
             tab = {
                 label: tableName,
                 name: tableName,
-                execRes: {
-                    tableColumn: [],
-                    data: [],
-                },
-                querySql: getDefaultSelectSql(tableName),
+                datas: [],
+                columnNames: [],
+                pageNum: 1,
+                count: 0,
             };
+            tab.columnNames = await getColumnNames(tableName);
             state.dataTabs[tableName] = tab;
 
-            state.dataTabs[tableName].execRes.tableColumn = [];
-            state.dataTabs[tableName].execRes.data = [];
-
             onRefresh(tableName);
-        };
-
-        /**
-         * 获取默认查询语句
-         */
-        const getDefaultSelectSql = (tableName: string, where: string = '', orderBy: string = '') => {
-            return `SELECT * FROM \`${tableName}\` ${where ? 'WHERE ' + where : ''} ${orderBy ? orderBy : ''} LIMIT ${state.defalutLimit}`;
-        };
-
-        const selectByCondition = async (tableName: string, condition: string) => {
-            notEmpty(condition, '条件不能为空');
-            state.dataTabs[tableName].loading = true;
-            try {
-                const colAndData: any = await runSql(getDefaultSelectSql(tableName, condition));
-                state.dataTabs[tableName].execRes.tableColumn = colAndData.colNames;
-                state.dataTabs[tableName].execRes.data = colAndData.res;
-                state.dataTabs[tableName].loading = false;
-            } catch (err) {
-                state.dataTabs[tableName].loading = false;
-            }
         };
 
         /**
@@ -718,6 +702,11 @@ export default defineComponent({
         // 从缓存map获取列信息
         const getColumns4Map = (tableName: string) => {
             return tableMap.get(tableName);
+        };
+
+        const getColumnNames = async (tableName: string) => {
+            const columns = await getColumns(tableName);
+            return columns.map((t: any) => t.columnName);
         };
 
         /**
@@ -745,13 +734,70 @@ export default defineComponent({
         };
 
         const onRefresh = async (tableName: string) => {
+            const dataTab = state.dataTabs[tableName];
             // 查询条件置空
-            state.dataTabs[tableName].condition = '';
-            state.dataTabs[tableName].loading = true;
-            const colAndData: any = await runSql(state.dataTabs[tableName].querySql);
-            state.dataTabs[tableName].execRes.tableColumn = colAndData.colNames;
-            state.dataTabs[tableName].execRes.data = colAndData.res;
-            state.dataTabs[tableName].loading = false;
+            dataTab.condition = '';
+            dataTab.pageNum = 1;
+            setDataTabDatas(dataTab);
+        };
+
+        /**
+         * 数据tab修改页数
+         */
+        const handlePageChange = async (dataTab: any) => {
+            setDataTabDatas(dataTab);
+        };
+
+        /**
+         * 根据条件查询数据
+         */
+        const selectByCondition = async (tableName: string, condition: string) => {
+            notEmpty(condition, '条件不能为空');
+            const dataTab = state.dataTabs[tableName];
+            dataTab.pageNum = 1;
+            setDataTabDatas(dataTab);
+        };
+
+        /**
+         * 设置data tab的表数据
+         */
+        const setDataTabDatas = async (dataTab: any) => {
+            dataTab.loading = true;
+            try {
+                dataTab.count = await getTableCount(dataTab.name, dataTab.condition);
+                if (dataTab.count > 0) {
+                    const colAndData: any = await runSql(getDefaultSelectSql(dataTab.name, dataTab.condition, dataTab.orderBy, dataTab.pageNum));
+                    dataTab.datas = colAndData.res;
+                } else {
+                    dataTab.datas = [];
+                }
+            } finally {
+                dataTab.loading = false;
+            }
+        };
+
+        /**
+         * 获取表的统计数量
+         */
+        const getTableCount = async (tableName: string, condition: string = '') => {
+            const countRes = await runSql(getDefaultCountSql(tableName, condition));
+            return countRes.res[0].count;
+        };
+
+        /**
+         * 获取默认查询语句
+         */
+        const getDefaultSelectSql = (tableName: string, where: string = '', orderBy: string = '', pageNum: number = 1) => {
+            return `SELECT * FROM \`${tableName}\` ${where ? 'WHERE ' + where : ''} ${orderBy ? orderBy : ''} LIMIT ${
+                (pageNum - 1) * state.defalutLimit
+            }, ${state.defalutLimit}`;
+        };
+
+        /**
+         * 获取默认查询统计语句
+         */
+        const getDefaultCountSql = (tableName: string, where: string = '') => {
+            return `SELECT COUNT(*) count FROM \`${tableName}\` ${where ? 'WHERE ' + where : ''}`;
         };
 
         /**
@@ -773,7 +819,8 @@ export default defineComponent({
             const tableName = state.activeName;
             const sortType = sort.order == 'descending' ? 'DESC' : 'ASC';
 
-            state.dataTabs[state.activeName].querySql = getDefaultSelectSql(tableName, '', `ORDER BY \`${sort.prop}\` ${sortType}`);
+            const orderBy = `ORDER BY \`${sort.prop}\` ${sortType}`;
+            state.dataTabs[state.activeName].orderBy = orderBy;
 
             onRefresh(tableName);
         };
@@ -864,7 +911,6 @@ export default defineComponent({
             state.tableName = '';
             state.nowTableName = '';
             state.tableMetadata = [];
-            state.columnMetadata = [];
             state.dataTabs = {};
             setCodermirrorValue('');
             state.sqlNames = [];
@@ -899,10 +945,7 @@ export default defineComponent({
 
             promptExeSql(sql, null, () => {
                 if (!queryTab) {
-                    state.dataTabs[state.activeName].execRes.data = state.dataTabs[state.activeName].execRes.data.filter(
-                        (d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKeyColumnName] == d[primaryKeyColumnName]) != -1)
-                    );
-                    state.dataTabs[state.activeName].selectionDatas = [];
+                    onRefresh(state.activeName);
                 } else {
                     state.queryTab.execRes.data = state.queryTab.execRes.data.filter(
                         (d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKeyColumnName] == d[primaryKeyColumnName]) != -1)
@@ -1079,6 +1122,7 @@ export default defineComponent({
             formatSql,
             onBeforeChange,
             onRefresh,
+            handlePageChange,
             selectByCondition,
             onCommit,
             addRow,
