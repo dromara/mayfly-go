@@ -118,7 +118,7 @@ export default defineComponent({
 
         onMounted(async () => {
             search();
-            state.projects = (await projectApi.projects.request({ pageNum: 1, pageSize: 100 })).list;
+            state.projects = await projectApi.accountProjects.request(null);
         });
 
         const handlePageChange = (curPage: number) => {

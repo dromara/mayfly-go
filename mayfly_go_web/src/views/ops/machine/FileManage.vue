@@ -96,6 +96,12 @@
                                             <el-link type="info" icon="view" :underline="false">查看</el-link>
                                         </el-dropdown-item>
 
+                                        <span v-auth="'machine:file:write'">
+                                            <el-dropdown-item @click="showCreateFileDialog(node, data)" v-if="data.type == 'd'">
+                                                <el-link type="primary" icon="document" :underline="false" style="margin-left: 2px">新建</el-link>
+                                            </el-dropdown-item>
+                                        </span>
+
                                         <span v-auth="'machine:file:upload'">
                                             <el-dropdown-item v-if="data.type == 'd'">
                                                 <el-upload
@@ -135,6 +141,35 @@
 
         <el-dialog
             :destroy-on-close="true"
+            title="新建文件"
+            v-model="createFileDialog.visible"
+            :before-close="closeCreateFileDialog"
+            :close-on-click-modal="false"
+            top="5vh"
+            width="400px"
+        >
+            <div>
+                <el-form-item prop="name" label="名称:">
+                    <el-input v-model.trim="createFileDialog.name" placeholder="请输入名称" auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item prop="type" label="类型:">
+                    <el-radio-group v-model="createFileDialog.type">
+                        <el-radio label="d" size="small">文件夹</el-radio>
+                        <el-radio label="-" size="small">文件</el-radio>
+                    </el-radio-group>
+                </el-form-item>
+            </div>
+
+            <template #footer>
+                <div class="dialog-footer">
+                    <el-button @click="closeCreateFileDialog">关闭</el-button>
+                    <el-button v-auth="'machine:file:write'" type="primary" @click="createFile">确定</el-button>
+                </div>
+            </template>
+        </el-dialog>
+
+        <el-dialog
+            :destroy-on-close="true"
             :title="fileContent.dialogTitle"
             v-model="fileContent.contentVisible"
             :close-on-click-modal="false"
@@ -164,6 +199,7 @@ import { codemirror } from '@/components/codemirror';
 import { getSession } from '@/common/utils/storage';
 import enums from './enums';
 import config from '@/common/config';
+import { isTrue } from '@/common/assert';
 
 export default defineComponent({
     name: 'FileManage',
@@ -184,26 +220,8 @@ export default defineComponent({
         const fileTree: any = ref(null);
         const token = getSession('token');
 
-        const cmOptions = {
-            tabSize: 2,
-            mode: 'text/x-sh',
-            theme: 'panda-syntax',
-            line: true,
-            // 开启校验
-            lint: true,
-            gutters: ['CodeMirror-lint-markers'],
-            indentWithTabs: true,
-            smartIndent: true,
-            matchBrackets: true,
-            autofocus: true,
-            styleSelectedText: true,
-            styleActiveLine: true, // 高亮选中行
-            foldGutter: true, // 块槽
-            hintOptions: {
-                // 当匹配只有一项的时候是否自动补全
-                completeSingle: true,
-            },
-        };
+        const folderType = 'd';
+        const fileType = '-';
 
         const state = reactive({
             dialogVisible: false,
@@ -250,6 +268,12 @@ export default defineComponent({
                 path: '',
                 type: '',
             },
+            createFileDialog: {
+                visible: false,
+                name: '',
+                type: folderType,
+                node: null as any,
+            },
             file: null as any,
         });
 
@@ -271,18 +295,6 @@ export default defineComponent({
             state.query.pageNum = curPage;
             getFiles();
         };
-
-        /**
-         * tab切换触发事件
-         * @param {Object} tab
-         * @param {Object} event
-         */
-        // handleClick(tab, event) {
-        //   // if (tab.name == 'file-manage') {
-        //   //   this.fileManage.node.childNodes = [];
-        //   //   this.loadNode(this.fileManage.node, this.fileManage.resolve);
-        //   // }
-        // }
 
         const add = () => {
             // 往数组头部添加元素
@@ -311,7 +323,6 @@ export default defineComponent({
                         })
                         .then(() => {
                             getFiles();
-                            // state.fileTable.splice(idx, 1);
                         });
                 });
             } else {
@@ -388,7 +399,6 @@ export default defineComponent({
             emit('update:visible', false);
             emit('update:machineId', null);
             emit('cancel');
-            // state.activeName = 'conf-file'
             state.fileTable = [];
             state.tree.folder = { id: 0 };
         };
@@ -413,7 +423,7 @@ export default defineComponent({
                 return resolve([
                     {
                         name: path,
-                        type: 'd',
+                        type: folderType,
                         path: path,
                     },
                 ]);
@@ -435,11 +445,40 @@ export default defineComponent({
             });
             for (const file of res) {
                 const type = file.type;
-                if (type != 'd') {
+                if (type == fileType) {
                     file.leaf = true;
                 }
             }
             return resolve(res);
+        };
+
+        const showCreateFileDialog = (node: any) => {
+            isTrue(node.expanded, '请先点击展开该节点后再创建');
+            state.createFileDialog.node = node;
+            state.createFileDialog.visible = true;
+        };
+
+        const createFile = async () => {
+            const node = state.createFileDialog.node;
+            console.log(node.data);
+            const name = state.createFileDialog.name;
+            const type = state.createFileDialog.type;
+            const path = node.data.path + '/' + name;
+            await machineApi.createFile.request({
+                machineId: props.machineId,
+                id: state.tree.folder.id,
+                path,
+                type,
+            });
+            fileTree.value.append({ name: name, path: path, type: type, leaf: type === fileType, size: 0 }, node);
+            closeCreateFileDialog();
+        };
+
+        const closeCreateFileDialog = () => {
+            state.createFileDialog.visible = false;
+            state.createFileDialog.node = null;
+            state.createFileDialog.name = '';
+            state.createFileDialog.type = folderType;
         };
 
         const deleteFile = (node: any, data: any) => {
@@ -468,7 +507,6 @@ export default defineComponent({
 
         const downloadFile = (node: any, data: any) => {
             const a = document.createElement('a');
-            // a.setAttribute('target', '_blank')
             a.setAttribute(
                 'href',
                 `${config.baseApiUrl}/machines/${props.machineId}/files/${state.tree.folder.id}/read?type=1&path=${data.path}&token=${token}`
@@ -516,7 +554,6 @@ export default defineComponent({
 
         const beforeUpload = (file: File) => {
             state.file = file;
-            // ElMessage.success(`'${file.name}' 上传中,请关注结果通知`);
         };
         const getFilePath = (data: object, visible: boolean) => {
             if (visible) {
@@ -572,7 +609,6 @@ export default defineComponent({
             fileTree,
             enums,
             token,
-            cmOptions,
             add,
             getFiles,
             handlePageChange,
@@ -583,6 +619,9 @@ export default defineComponent({
             updateContent,
             handleClose,
             loadNode,
+            showCreateFileDialog,
+            closeCreateFileDialog,
+            createFile,
             deleteFile,
             downloadFile,
             getUploadFile,

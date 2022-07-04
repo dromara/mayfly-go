@@ -15,6 +15,13 @@ type DbForm struct {
 	EnvId     uint64 `binding:"required" json:"envId"`
 }
 
+type DbSqlSaveForm struct {
+	Name string
+	Sql  string `binding:"required"`
+	Type int    `binding:"required"`
+	Db   string `binding:"required"`
+}
+
 // 数据库SQL执行表单
 type DbSqlExecForm struct {
 	Db     string `binding:"required" json:"db"`  //数据库名

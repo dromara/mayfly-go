@@ -44,7 +44,9 @@ export default defineComponent({
             state.isShowSearch = true;
             initTageView();
             nextTick(() => {
-                layoutMenuAutocompleteRef.value.focus();
+                setTimeout(() => {
+                    layoutMenuAutocompleteRef.value.focus();
+                });
             });
         };
         // 搜索弹窗关闭

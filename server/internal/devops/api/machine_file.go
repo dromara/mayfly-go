@@ -60,6 +60,22 @@ func (m *MachineFile) DeleteFile(rc *ctx.ReqCtx) {
 
 /***      sftp相关操作      */
 
+func (m *MachineFile) CreateFile(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	fid := GetMachineFileId(g)
+
+	form := new(form.MachineCreateFileForm)
+	ginx.BindJsonAndValid(g, form)
+	path := form.Path
+
+	if form.Type == dir {
+		m.MachineFileApp.MkDir(fid, form.Path)
+	} else {
+		m.MachineFileApp.CreateFile(fid, form.Path)
+	}
+	rc.ReqParam = fmt.Sprintf("path: %s, type: %s", path, form.Type)
+}
+
 func (m *MachineFile) ReadFileContent(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
@@ -104,6 +120,7 @@ func (m *MachineFile) GetDirEntry(rc *ctx.ReqCtx) {
 			Size: fi.Size(),
 			Path: readPath + fi.Name(),
 			Type: getFileType(fi.Mode()),
+			Mode: fi.Mode().String(),
 		})
 	}
 	rc.ResData = fisVO
@@ -155,7 +172,6 @@ func (m *MachineFile) UploadFile(rc *ctx.ReqCtx) {
 func (m *MachineFile) RemoveFile(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
-	// mid := GetMachineId(g)
 	path := g.Query("path")
 
 	m.MachineFileApp.RemoveFile(fid, path)
@@ -167,7 +183,10 @@ func getFileType(fm fs.FileMode) string {
 	if fm.IsDir() {
 		return dir
 	}
-	return file
+	if fm.IsRegular() {
+		return file
+	}
+	return dir
 }
 
 func GetMachineFileId(g *gin.Context) uint64 {

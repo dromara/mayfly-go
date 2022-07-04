@@ -250,7 +250,7 @@ export default defineComponent({
 
         onMounted(async () => {
             search();
-            state.projects = (await projectApi.projects.request({ pageNum: 1, pageSize: 100 })).list;
+            state.projects = await projectApi.accountProjects.request(null);
         });
 
         const handlePageChange = (curPage: number) => {
@@ -265,12 +265,6 @@ export default defineComponent({
             state.currentId = item.id;
             state.currentData = item;
         };
-
-        // connect() {
-        //   Req.post('/open/redis/connect', this.form, res => {
-        //     this.redisInfo = res
-        //   })
-        // }
 
         const showDatabases = async (id: number) => {
             state.databaseDialog.data = (await mongoApi.databases.request({ id })).Databases;
@@ -370,14 +364,6 @@ export default defineComponent({
                 search();
             } catch (err) {}
         };
-
-        // const info = (redis: any) => {
-        //     redisApi.redisInfo.request({ id: redis.id }).then((res: any) => {
-        //         state.infoDialog.info = res;
-        //         state.infoDialog.title = `'${redis.host}' info`;
-        //         state.infoDialog.visible = true;
-        //     });
-        // };
 
         const search = async () => {
             const res = await mongoApi.mongoList.request(state.query);

@@ -43,14 +43,14 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 
 		getContent := ctx.NewLogInfo("读取机器文件内容")
 		machineFile.GET(":machineId/files/:fileId/read", func(c *gin.Context) {
-			rc := ctx.NewReqCtxWithGin(c).WithLog(getContent)
-			rc.Handle(mf.ReadFileContent)
+			ctx.NewReqCtxWithGin(c).WithLog(getContent).
+				Handle(mf.ReadFileContent)
 		})
 
 		getDir := ctx.NewLogInfo("读取机器目录")
 		machineFile.GET(":machineId/files/:fileId/read-dir", func(c *gin.Context) {
-			rc := ctx.NewReqCtxWithGin(c).WithLog(getDir)
-			rc.Handle(mf.GetDirEntry)
+			ctx.NewReqCtxWithGin(c).WithLog(getDir).
+				Handle(mf.GetDirEntry)
 		})
 
 		writeFile := ctx.NewLogInfo("写入or下载文件内容")
@@ -59,6 +59,13 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).WithLog(writeFile).
 				WithRequiredPermission(wfP).
 				Handle(mf.WriteFileContent)
+		})
+
+		createFile := ctx.NewLogInfo("创建机器文件or目录")
+		machineFile.POST(":machineId/files/:fileId/create-file", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).WithLog(createFile).
+				WithRequiredPermission(wfP).
+				Handle(mf.CreateFile)
 		})
 
 		uploadFile := ctx.NewLogInfo("文件上传")

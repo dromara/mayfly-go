@@ -25,6 +25,7 @@ export const machineApi = {
     rmFile: Api.create("/machines/{machineId}/files/{fileId}/remove", 'delete'),
     uploadFile: Api.create("/machines/{machineId}/files/{fileId}/upload?token={token}", 'post'),
     fileContent: Api.create("/machines/{machineId}/files/{fileId}/read", 'get'),
+    createFile: Api.create("/machines/{machineId}/files/{id}/create-file", 'post'),
     // 修改文件内容
     updateFileContent: Api.create("/machines/{machineId}/files/{id}/write", 'post'),
     // 添加文件or目录

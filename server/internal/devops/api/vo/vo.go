@@ -56,6 +56,7 @@ type MachineFileInfo struct {
 	Path string `json:"path"`
 	Size int64  `json:"size"`
 	Type string `json:"type"`
+	Mode string `json:"mode"`
 }
 
 type RoleVO struct {

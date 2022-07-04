@@ -38,11 +38,9 @@ type MachineScriptForm struct {
 	Script      string `binding:"required"`
 }
 
-type DbSqlSaveForm struct {
-	Name string
-	Sql  string `binding:"required"`
-	Type int    `binding:"required"`
-	Db   string `binding:"required"`
+type MachineCreateFileForm struct {
+	Path string `binding:"required"`
+	Type string `binding:"required"`
 }
 
 type MachineFileUpdateForm struct {

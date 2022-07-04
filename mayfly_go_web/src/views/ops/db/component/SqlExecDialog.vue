@@ -135,7 +135,9 @@ export default defineComponent({
             state.db = props.db;
             state.dialogVisible = true;
             nextTick(() => {
-                remarkInputRef.value?.focus();
+                setTimeout(() => {
+                    remarkInputRef.value?.focus();
+                });
             });
         };
 

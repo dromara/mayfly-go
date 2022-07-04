@@ -1,6 +1,7 @@
 package application
 
 import (
+	"fmt"
 	"io"
 	"io/fs"
 	"mayfly-go/internal/devops/domain/entity"
@@ -29,6 +30,12 @@ type MachineFile interface {
 	Delete(id uint64)
 
 	/**  sftp 相关操作 **/
+
+	// 创建目录
+	MkDir(fid uint64, path string)
+
+	// 创建文件
+	CreateFile(fid uint64, path string)
 
 	// 读取目录
 	ReadDir(fid uint64, path string) []fs.FileInfo
@@ -100,6 +107,25 @@ func (m *machineFileAppImpl) ReadDir(fid uint64, path string) []fs.FileInfo {
 	return fis
 }
 
+func (m *machineFileAppImpl) MkDir(fid uint64, path string) {
+	path, machineId := m.checkAndReturnPathMid(fid, path)
+	if !strings.HasSuffix(path, "/") {
+		path = path + "/"
+	}
+
+	sftpCli := m.getSftpCli(machineId)
+	err := sftpCli.Mkdir(path)
+	biz.ErrIsNilAppendErr(err, "创建目录失败: %s")
+}
+
+func (m *machineFileAppImpl) CreateFile(fid uint64, path string) {
+	path, machineId := m.checkAndReturnPathMid(fid, path)
+	sftpCli := m.getSftpCli(machineId)
+	file, err := sftpCli.Create(path)
+	biz.ErrIsNilAppendErr(err, "创建文件失败: %s")
+	defer file.Close()
+}
+
 func (m *machineFileAppImpl) ReadFile(fileId uint64, path string) *sftp.File {
 	path, machineId := m.checkAndReturnPathMid(fileId, path)
 	sftpCli := m.getSftpCli(machineId)
@@ -148,6 +174,11 @@ func (m *machineFileAppImpl) RemoveFile(fileId uint64, path string) {
 	fi, _ := file.Stat()
 	if fi.IsDir() {
 		err = sftpCli.RemoveDirectory(path)
+		// 如果文件夹有内容会删除失败，则使用rm -rf命令删除
+		if err != nil {
+			MachineApp.GetCli(machineId).Run(fmt.Sprintf("rm -rf %s", path))
+			err = nil
+		}
 	} else {
 		err = sftpCli.Remove(path)
 	}
