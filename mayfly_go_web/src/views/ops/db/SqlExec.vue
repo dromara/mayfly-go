@@ -276,6 +276,7 @@ export default defineComponent({
             dbs: [], // 数据库实例列表
             databaseList: [], // 数据库实例拥有的数据库列表，1数据库实例  -> 多数据库
             db: '', // 当前操作的数据库
+            dbType: '',
             tables: [],
             dbId: null, // 当前选中操作的数据库实例
             tableName: '',
@@ -622,7 +623,9 @@ export default defineComponent({
          */
         const changeDbInstance = (dbId: any) => {
             state.db = '';
-            state.databaseList = (state.dbs.find((e: any) => e.id == dbId) as any).database.split(' ');
+            const dbInfo = state.dbs.find((e: any) => e.id == dbId) as any;
+            state.dbType = dbInfo.type;
+            state.databaseList = dbInfo.database.split(' ');
             clearDb();
         };
 
@@ -788,16 +791,21 @@ export default defineComponent({
          * 获取默认查询语句
          */
         const getDefaultSelectSql = (tableName: string, where: string = '', orderBy: string = '', pageNum: number = 1) => {
-            return `SELECT * FROM \`${tableName}\` ${where ? 'WHERE ' + where : ''} ${orderBy ? orderBy : ''} LIMIT ${
-                (pageNum - 1) * state.defalutLimit
-            }, ${state.defalutLimit}`;
+            const baseSql = `SELECT * FROM ${tableName} ${where ? 'WHERE ' + where : ''} ${orderBy ? orderBy : ''}`;
+            if (state.dbType == 'mysql') {
+                 return `${baseSql} LIMIT ${(pageNum - 1) * state.defalutLimit}, ${state.defalutLimit};`
+            }
+            if (state.dbType == 'postgres') {
+                return `${baseSql} OFFSET ${(pageNum - 1) * state.defalutLimit} LIMIT ${state.defalutLimit};`
+            }
+            return baseSql;
         };
 
         /**
          * 获取默认查询统计语句
          */
         const getDefaultCountSql = (tableName: string, where: string = '') => {
-            return `SELECT COUNT(*) count FROM \`${tableName}\` ${where ? 'WHERE ' + where : ''}`;
+            return `SELECT COUNT(*) count FROM ${tableName} ${where ? 'WHERE ' + where : ''}`;
         };
 
         /**
@@ -819,7 +827,7 @@ export default defineComponent({
             const tableName = state.activeName;
             const sortType = sort.order == 'descending' ? 'DESC' : 'ASC';
 
-            const orderBy = `ORDER BY \`${sort.prop}\` ${sortType}`;
+            const orderBy = `ORDER BY ${sort.prop} ${sortType}`;
             state.dataTabs[state.activeName].orderBy = orderBy;
 
             onRefresh(tableName);

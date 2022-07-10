@@ -1,7 +1,7 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" :destroy-on-close="true" width="35%">
-            <el-form :model="form" ref="dbForm" :rules="rules" label-width="85px">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" :destroy-on-close="true" width="38%">
+            <el-form :model="form" ref="dbForm" :rules="rules" label-width="95px">
                 <el-form-item prop="projectId" label="项目:" required>
                     <el-select style="width: 100%" v-model="form.projectId" placeholder="请选择项目" @change="changeProject" filterable>
                         <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
@@ -19,6 +19,7 @@
                 <el-form-item prop="type" label="类型:" required>
                     <el-select style="width: 100%" v-model="form.type" placeholder="请选择数据库类型">
                         <el-option key="item.id" label="mysql" value="mysql"> </el-option>
+                        <el-option key="item.id" label="postgres" value="postgres"> </el-option>
                     </el-select>
                 </el-form-item>
                 <el-form-item prop="host" label="host:" required>
@@ -38,6 +39,9 @@
                         placeholder="请输入密码，修改操作可不填"
                         autocomplete="new-password"
                     ></el-input>
+                </el-form-item>
+                <el-form-item prop="params" label="连接参数:">
+                    <el-input v-model="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2"></el-input>
                 </el-form-item>
                 <el-form-item prop="database" label="数据库名:" required>
                     <el-tag
@@ -116,6 +120,7 @@ export default defineComponent({
                 port: 3306,
                 username: null,
                 password: null,
+                params: null,
                 database: '',
                 project: null,
                 projectId: null,
@@ -173,13 +178,6 @@ export default defineComponent({
                         trigger: ['change', 'blur'],
                     },
                 ],
-                // password: [
-                //     {
-                //         required: true,
-                //         message: '请输入密码',
-                //         trigger: ['change', 'blur'],
-                //     },
-                // ],
                 database: [
                     {
                         required: true,

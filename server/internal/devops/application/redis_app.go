@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"fmt"
 	"mayfly-go/internal/devops/domain/entity"
 	"mayfly-go/internal/devops/domain/repository"
@@ -9,9 +10,10 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
+	"strings"
 	"time"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 )
 
 type Redis interface {
@@ -102,22 +104,51 @@ func (r *redisAppImpl) GetRedisInstance(id uint64) *RedisInstance {
 	// 缓存不存在，则回调获取redis信息
 	re := r.GetById(id)
 	biz.NotNil(re, "redis信息不存在")
+
+	redisMode := re.Mode
+	ri := &RedisInstance{Id: id, ProjectId: re.ProjectId, Mode: redisMode}
+	if redisMode == "" || redisMode == entity.RedisModeStandalone {
+		rcli := getRedisCient(re)
+		// 测试连接
+		_, e := rcli.Ping(context.Background()).Result()
+		if e != nil {
+			rcli.Close()
+			panic(biz.NewBizErr(fmt.Sprintf("redis连接失败: %s", e.Error())))
+		}
+		ri.Cli = rcli
+	} else if redisMode == entity.RedisModeCluster {
+		ccli := getRedisClusterClient(re)
+		// 测试连接
+		_, e := ccli.Ping(context.Background()).Result()
+		if e != nil {
+			ccli.Close()
+			panic(biz.NewBizErr(fmt.Sprintf("redis集群连接失败: %s", e.Error())))
+		}
+		ri.ClusterCli = ccli
+	}
+
 	global.Log.Infof("连接redis: %s", re.Host)
-
-	rcli := redis.NewClient(&redis.Options{
-		Addr:     re.Host,
-		Password: re.Password, // no password set
-		DB:       re.Db,       // use default DB
-	})
-	// 测试连接
-	_, e := rcli.Ping().Result()
-	biz.ErrIsNilAppendErr(e, "redis连接失败: %s")
-
-	ri := &RedisInstance{Id: id, ProjectId: re.ProjectId, Cli: rcli}
 	if needCache {
 		redisCache.Put(re.Id, ri)
 	}
 	return ri
+}
+
+func getRedisCient(re *entity.Redis) *redis.Client {
+	return redis.NewClient(&redis.Options{
+		Addr:        re.Host,
+		Password:    re.Password, // no password set
+		DB:          re.Db,       // use default DB
+		DialTimeout: 8 * time.Second,
+	})
+}
+
+func getRedisClusterClient(re *entity.Redis) *redis.ClusterClient {
+	return redis.NewClusterClient(&redis.ClusterOptions{
+		Addrs:       strings.Split(re.Host, ","),
+		Password:    re.Password,
+		DialTimeout: 8 * time.Second,
+	})
 }
 
 //------------------------------------------------------------------------------
@@ -127,15 +158,8 @@ var redisCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key interface{}, value interface{}) {
 		global.Log.Info(fmt.Sprintf("删除redis连接缓存 id = %d", key))
-		value.(*RedisInstance).Cli.Close()
+		value.(*RedisInstance).Close()
 	})
-
-// redis实例
-type RedisInstance struct {
-	Id        uint64
-	ProjectId uint64
-	Cli       *redis.Client
-}
 
 // 移除redis连接缓存并关闭redis连接
 func CloseRedis(id uint64) {
@@ -143,19 +167,55 @@ func CloseRedis(id uint64) {
 }
 
 func TestRedisConnection(re *entity.Redis) {
-	rcli := redis.NewClient(&redis.Options{
-		Addr:     re.Host,
-		Password: re.Password, // no password set
-		DB:       re.Db,       // use default DB
-	})
-	defer rcli.Close()
+	var cmd redis.Cmdable
+	if re.Mode == "" || re.Mode == entity.RedisModeStandalone {
+		rcli := getRedisCient(re)
+		defer rcli.Close()
+		cmd = rcli
+	} else if re.Mode == entity.RedisModeCluster {
+		ccli := getRedisClusterClient(re)
+		defer ccli.Close()
+		cmd = ccli
+	}
+
 	// 测试连接
-	_, e := rcli.Ping().Result()
+	_, e := cmd.Ping(context.Background()).Result()
 	biz.ErrIsNilAppendErr(e, "Redis连接失败: %s")
 }
 
+// redis实例
+type RedisInstance struct {
+	Id         uint64
+	ProjectId  uint64
+	Mode       string
+	Cli        *redis.Client
+	ClusterCli *redis.ClusterClient
+}
+
+// 获取命令执行接口的具体实现
+func (r *RedisInstance) GetCmdable() redis.Cmdable {
+	redisMode := r.Mode
+	if redisMode == "" || redisMode == entity.RedisModeStandalone {
+		return r.Cli
+	}
+	if r.Mode == entity.RedisModeCluster {
+		return r.ClusterCli
+	}
+	return nil
+}
+
 func (r *RedisInstance) Scan(cursor uint64, match string, count int64) ([]string, uint64) {
-	keys, newcursor, err := r.Cli.Scan(cursor, match, count).Result()
+	keys, newcursor, err := r.GetCmdable().Scan(context.Background(), cursor, match, count).Result()
 	biz.ErrIsNilAppendErr(err, "scan失败: %s")
 	return keys, newcursor
+}
+
+func (r *RedisInstance) Close() {
+	if r.Mode == entity.RedisModeStandalone {
+		r.Cli.Close()
+		return
+	}
+	if r.Mode == entity.RedisModeCluster {
+		r.ClusterCli.Close()
+	}
 }

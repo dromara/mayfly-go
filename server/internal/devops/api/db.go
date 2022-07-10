@@ -184,13 +184,15 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 	// 是否需要导出数据
 	needData := dumpType == "2" || dumpType == "3"
 
+	dbInstance := d.DbApp.GetDbInstance(dbId, db)
+	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbInstance.ProjectId), "%s")
+
 	now := time.Now()
 	filename := fmt.Sprintf("%s.%s.sql", db, now.Format("200601021504"))
 	g.Header("Content-Type", "application/octet-stream")
 	g.Header("Content-Disposition", "attachment; filename="+filename)
 
 	rc.ReqParam = fmt.Sprintf("数据库id: %d -- %s", dbId, db)
-	dbInstance := d.DbApp.GetDbInstance(dbId, db)
 	writer := g.Writer
 	writer.WriteString("-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
@@ -222,7 +224,13 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 			pageNum++
 		}
 
-		sqlTmp := "SELECT * FROM %s LIMIT %d, %d"
+		var sqlTmp string
+		switch dbInstance.Type {
+		case "mysql":
+			sqlTmp = "SELECT * FROM %s LIMIT %d, %d"
+		case "postgres":
+			sqlTmp = "SELECT * FROM %s OFFSET %d LIMIT %d"
+		}
 		for index := 0; index < pageNum; index++ {
 			sql := fmt.Sprintf(sqlTmp, table, index*DEFAULT_COLUMN_SIZE, DEFAULT_COLUMN_SIZE)
 			columns, result, _ := dbInstance.SelectData(sql)
@@ -301,7 +309,7 @@ func (d *Db) HintTables(rc *ctx.ReqCtx) {
 		columnName := fmt.Sprintf("%s  [%s]", v["columnName"], v["columnType"])
 		comment := v["columnComment"]
 		// 如果字段备注不为空，则加上备注信息
-		if comment != "" {
+		if comment != nil && comment != "" {
 			columnName = fmt.Sprintf("%s[%s]", columnName, comment)
 		}
 

@@ -9,6 +9,7 @@ type SelectDataDbVO struct {
 	Host       *string    `json:"host"`
 	Port       *int       `json:"port"`
 	Type       *string    `json:"type"`
+	Params     *string    `json:"params"`
 	Database   *string    `json:"database"`
 	Username   *string    `json:"username"`
 	ProjectId  *int64     `json:"projectId"`

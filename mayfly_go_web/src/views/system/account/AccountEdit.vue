@@ -3,7 +3,7 @@
         <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="35%" :destroy-on-close="true">
             <el-form :model="form" ref="accountForm" :rules="rules" label-width="85px">
                 <el-form-item prop="username" label="用户名:" required>
-                    <el-input :disabled="edit" v-model.trim="form.username" placeholder="请输入账号用户名" auto-complete="off"></el-input>
+                    <el-input :disabled="edit" v-model.trim="form.username" placeholder="请输入账号用户名，密码默认与账号名一致" auto-complete="off"></el-input>
                 </el-form-item>
                 <!-- <el-form-item prop="password" label="密码:" required>
                     <el-input type="password" v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password"></el-input>

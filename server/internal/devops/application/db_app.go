@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	_ "github.com/lib/pq"
 )
 
 type Db interface {
@@ -228,10 +230,6 @@ func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]interfac
 	if !isSelect && !isShow && !isExplain {
 		return nil, nil, errors.New("该sql非查询语句")
 	}
-	// 没加limit，则默认限制50条
-	if isSelect && !strings.Contains(execSql, "limit") && !strings.Contains(execSql, "LIMIT") {
-		execSql = execSql + " LIMIT 50"
-	}
 
 	rows, err := d.db.Query(execSql)
 	if err != nil {
@@ -335,8 +333,21 @@ func (d *DbInstance) Close() {
 
 // 获取dataSourceName
 func getDsn(d *entity.Db) string {
+	var dsn string
 	if d.Type == "mysql" {
-		return fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, d.Database)
+		dsn = fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, d.Database)
+		if d.Params != "" {
+			dsn = fmt.Sprintf("%s&%s", dsn, d.Params)
+		}
+		return dsn
+	}
+
+	if d.Type == "postgres" {
+		dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", d.Host, d.Port, d.Username, d.Password, d.Database)
+		if d.Params != "" {
+			dsn = fmt.Sprintf("%s %s", dsn, strings.Join(strings.Split(d.Params, "&"), " "))
+		}
+		return dsn
 	}
 	return ""
 }
@@ -370,7 +381,7 @@ const (
 	DEFAULT_COLUMN_SIZE = 2000
 
 	// mysql 列信息元数据
-	MYSQL_COLOUMN_MA = `SELECT table_name tableName, column_name columnName, column_type columnType,
+	MYSQL_COLUMN_MA = `SELECT table_name tableName, column_name columnName, column_type columnType,
 	column_comment columnComment, column_key columnKey, extra, is_nullable nullable from information_schema.columns
 	WHERE table_name in (%s) AND table_schema = (SELECT database()) ORDER BY tableName, ordinal_position LIMIT %d, %d`
 
@@ -379,10 +390,58 @@ const (
 	WHERE table_name in (%s) AND table_schema = (SELECT database())`
 )
 
+const (
+	// postgres 表信息元数据
+	PGSQL_TABLE_MA = `SELECT obj_description(c.oid) AS "tableComment", c.relname AS "tableName" FROM pg_class c 
+	JOIN pg_namespace n ON c.relnamespace = n.oid WHERE n.nspname = (select current_schema()) AND c.reltype > 0`
+
+	PGSQL_TABLE_INFO = `SELECT obj_description(c.oid) AS "tableComment", c.relname AS "tableName" FROM pg_class c 
+	JOIN pg_namespace n ON c.relnamespace = n.oid WHERE n.nspname = (select current_schema()) AND c.reltype > 0`
+
+	PGSQL_INDEX_INFO = `SELECT indexname AS "indexName", indexdef AS "indexComment"
+	FROM pg_indexes WHERE schemaname =  (select current_schema()) AND tablename = '%s'`
+
+	PGSQL_COLUMN_MA = `SELECT
+		C.relname AS "tableName",
+		A.attname AS "columnName",
+		concat_ws ( '', t.typname, SUBSTRING ( format_type ( a.atttypid, a.atttypmod ) FROM '\(.*\)' ) ) AS "columnType",
+		d.description AS "columnComment" 
+	FROM
+		pg_attribute a LEFT JOIN pg_description d ON d.objoid = a.attrelid 
+		AND d.objsubid = A.attnum
+		LEFT JOIN pg_class c ON A.attrelid = c.oid
+		LEFT JOIN pg_namespace pn ON c.relnamespace = pn.oid
+		LEFT JOIN pg_type t ON a.atttypid = t.oid 
+	WHERE
+		A.attnum >= 0 
+		AND pn.nspname = (select current_schema())
+		AND C.relname in (%s)
+	ORDER BY
+		C.relname DESC,
+		A.attnum ASC
+	OFFSET %d LIMIT %d	
+	`
+
+	PGSQL_COLUMN_MA_COUNT = `SELECT COUNT(*) "maNum"
+	FROM
+		pg_attribute a LEFT JOIN pg_description d ON d.objoid = a.attrelid 
+		AND d.objsubid = A.attnum
+		LEFT JOIN pg_class c ON A.attrelid = c.oid
+		LEFT JOIN pg_namespace pn ON c.relnamespace = pn.oid
+		LEFT JOIN pg_type t ON a.atttypid = t.oid 
+	WHERE
+		A.attnum >= 0 
+		AND pn.nspname = (select current_schema())
+		AND C.relname in (%s)
+	`
+)
+
 func (d *DbInstance) GetTableMetedatas() []map[string]interface{} {
 	var sql string
 	if d.Type == "mysql" {
 		sql = MYSQL_TABLE_MA
+	} else if d.Type == "postgres" {
+		sql = PGSQL_TABLE_MA
 	}
 	_, res, _ := d.SelectData(sql)
 	return res
@@ -401,7 +460,10 @@ func (d *DbInstance) GetColumnMetadatas(tableNames ...string) []map[string]inter
 	var sqlTmp string
 	if d.Type == "mysql" {
 		countSqlTmp = MYSQL_COLOUMN_MA_COUNT
-		sqlTmp = MYSQL_COLOUMN_MA
+		sqlTmp = MYSQL_COLUMN_MA
+	} else if d.Type == "postgres" {
+		countSqlTmp = PGSQL_COLUMN_MA_COUNT
+		sqlTmp = PGSQL_COLUMN_MA
 	}
 
 	countSql := fmt.Sprintf(countSqlTmp, tableName)
@@ -433,6 +495,8 @@ func (d *DbInstance) GetTableInfos() []map[string]interface{} {
 	var sql string
 	if d.Type == "mysql" {
 		sql = MYSQL_TABLE_INFO
+	} else if d.Type == "postgres" {
+		sql = PGSQL_TABLE_INFO
 	}
 	_, res, _ := d.SelectData(sql)
 	return res
@@ -442,6 +506,8 @@ func (d *DbInstance) GetTableIndex(tableName string) []map[string]interface{} {
 	var sql string
 	if d.Type == "mysql" {
 		sql = fmt.Sprintf(MYSQL_INDEX_INFO, tableName)
+	} else if d.Type == "postgres" {
+		sql = fmt.Sprintf(PGSQL_INDEX_INFO, tableName)
 	}
 	_, res, _ := d.SelectData(sql)
 	return res

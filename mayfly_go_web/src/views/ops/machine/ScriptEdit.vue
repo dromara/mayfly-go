@@ -25,7 +25,7 @@
                 </el-form-item>
 
                 <el-form-item prop="params" label="参数">
-                    <el-input v-model.trim="form.params" placeholder="参数数组json，若无可不填"></el-input>
+                    <el-input v-model="form.params" placeholder="参数数组json，若无可不填"></el-input>
                 </el-form-item>
 
                 <el-form-item prop="script" label="内容" id="content">

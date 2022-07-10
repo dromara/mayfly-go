@@ -20,15 +20,15 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="project" label="项目" min-width="100"></el-table-column>
+                <el-table-column prop="project" label="项目" min-width="100" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="env" label="环境" min-width="100"></el-table-column>
-                <el-table-column prop="name" label="名称" min-width="200"></el-table-column>
-                <el-table-column min-width="160" label="host:port">
+                <el-table-column prop="name" label="名称" min-width="160" show-overflow-tooltip></el-table-column>
+                <el-table-column min-width="170" label="host:port" show-overflow-tooltip>
                     <template #default="scope">
                         {{ `${scope.row.host}:${scope.row.port}` }}
                     </template>
                 </el-table-column>
-                <el-table-column prop="type" label="类型" min-width="80"></el-table-column>
+                <el-table-column prop="type" label="类型" min-width="90"></el-table-column>
                 <el-table-column prop="database" label="数据库" min-width="160">
                     <template #default="scope">
                         <el-tag
@@ -224,6 +224,7 @@
                 <el-table-column prop="columnName" label="列名" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="seqInIndex" label="列序列号" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="indexType" label="类型"> </el-table-column>
+                <el-table-column prop="indexComment" label="备注" min-width="230" show-overflow-tooltip> </el-table-column>
             </el-table>
         </el-dialog>
 

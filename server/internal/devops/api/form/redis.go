@@ -4,6 +4,7 @@ type Redis struct {
 	Id        uint64
 	Host      string `binding:"required" json:"host"`
 	Password  string `json:"password"`
+	Mode      string `json:"mode"`
 	Db        int    `json:"db"`
 	ProjectId uint64 `binding:"required" json:"projectId"`
 	Project   string `json:"project"`
@@ -29,4 +30,10 @@ type HashValue struct {
 type SetValue struct {
 	KeyInfo
 	Value []interface{} `binding:"required" json:"value"`
+}
+
+type RedisScanForm struct {
+	Cursor map[string]uint64 `json:"cursor"`
+	Match  string            `json:"match"`
+	Count  int64             `json:"count"`
 }

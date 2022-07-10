@@ -13,8 +13,14 @@
                         <el-option v-for="item in envs" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
                     </el-select>
                 </el-form-item>
+                <el-form-item prop="mode" label="mode:" required>
+                    <el-select style="width: 100%" v-model="form.mode" placeholder="请选择模式">
+                        <el-option label="standalone" value="standalone"> </el-option>
+                        <el-option label="cluster" value="cluster"> </el-option>
+                    </el-select>
+                </el-form-item>
                 <el-form-item prop="host" label="host:" required>
-                    <el-input v-model.trim="form.host" placeholder="请输入host:port" auto-complete="off"></el-input>
+                    <el-input v-model.trim="form.host" placeholder="请输入host:port，集群模式用','分割" auto-complete="off" type="textarea"></el-input>
                 </el-form-item>
                 <el-form-item prop="password" label="密码:">
                     <el-input
@@ -27,6 +33,9 @@
                 </el-form-item>
                 <el-form-item prop="db" label="库号:" required>
                     <el-input v-model.number="form.db" placeholder="请输入库号"></el-input>
+                </el-form-item>
+                <el-form-item prop="remark" label="备注:">
+                    <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
                 </el-form-item>
             </el-form>
 
@@ -71,12 +80,14 @@ export default defineComponent({
             form: {
                 id: null,
                 name: null,
+                mode: "standalone",
                 host: null,
                 password: null,
                 project: null,
                 projectId: null,
                 envId: null,
                 env: null,
+                remark: "",
             },
             btnLoading: false,
             rules: {
@@ -105,6 +116,13 @@ export default defineComponent({
                     {
                         required: true,
                         message: '请输入库号',
+                        trigger: ['change', 'blur'],
+                    },
+                ],
+                mode: [
+                    {
+                        required: true,
+                        message: '请输入模式',
                         trigger: ['change', 'blur'],
                     },
                 ],

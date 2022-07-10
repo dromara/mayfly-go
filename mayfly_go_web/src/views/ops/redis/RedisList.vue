@@ -5,16 +5,12 @@
             <el-button type="primary" icon="edit" :disabled="currentId == null" @click="editRedis(false)" plain>编辑</el-button>
             <el-button type="danger" icon="delete" :disabled="currentId == null" @click="deleteRedis" plain>删除</el-button>
             <div style="float: right">
-                <!-- <el-input placeholder="host"  style="width: 140px" v-model="query.host" @clear="search" plain clearable></el-input>
-                <el-select v-model="params.clusterId"  clearable placeholder="集群选择">
-                    <el-option v-for="item in clusters" :key="item.id" :value="item.id" :label="item.name"></el-option>
-                </el-select> -->
                 <el-select v-model="query.projectId" placeholder="请选择项目" filterable clearable>
                     <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
                 </el-select>
                 <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
             </div>
-            <el-table :data="redisTable" style="width: 100%" @current-change="choose" stripe>
+            <el-table :data="redisTable" @current-change="choose" stripe>
                 <el-table-column label="选择" width="60px">
                     <template #default="scope">
                         <el-radio v-model="currentId" :label="scope.row.id">
@@ -22,19 +18,23 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="project" label="项目" width></el-table-column>
-                <el-table-column prop="env" label="环境" width></el-table-column>
-                <el-table-column prop="host" label="host:port" width></el-table-column>
-                <el-table-column prop="createTime" label="创建时间">
+                <el-table-column prop="project" label="项目" min-width="100"></el-table-column>
+                <el-table-column prop="env" label="环境" min-width="100"></el-table-column>
+                <el-table-column prop="host" label="host:port" min-width="150" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="mode" label="mode" min-width="100"></el-table-column>
+                <el-table-column prop="remark" label="备注" min-width="100"></el-table-column>
+                <el-table-column prop="createTime" label="创建时间" min-width="160">
                     <template #default="scope">
                         {{ $filters.dateFormat(scope.row.createTime) }}
                     </template>
                 </el-table-column>
-                <el-table-column prop="creator" label="创建人"></el-table-column>
-                <el-table-column label="操作" width>
+                <el-table-column prop="creator" label="创建人" min-width="100"></el-table-column>
+                <el-table-column label="更多" min-width="130" fixed="right">
                     <template #default="scope">
-                        <el-button type="primary" @click="info(scope.row)" icon="tickets" plain size="small">info</el-button>
-                        <!-- <el-button type="success" @click="manage(scope.row)" :ref="scope.row"  plain>数据管理</el-button> -->
+                        <el-link v-if="scope.row.mode == 'standalone'" type="primary" @click="info(scope.row)" :underline="false">单机信息</el-link>
+                        <el-link @click="onShowClusterInfo(scope.row)" v-if="scope.row.mode == 'cluster'" type="success" :underline="false"
+                            >集群信息</el-link
+                        >
                     </template>
                 </el-table-column>
             </el-table>
@@ -51,6 +51,84 @@
         </el-card>
 
         <info v-model:visible="infoDialog.visible" :title="infoDialog.title" :info="infoDialog.info"></info>
+
+        <el-dialog width="1000px" title="集群信息" v-model="clusterInfoDialog.visible">
+            <el-input type="textarea" :autosize="{ minRows: 12, maxRows: 12 }" v-model="clusterInfoDialog.info"> </el-input>
+
+            <el-divider content-position="left">节点信息</el-divider>
+            <el-table :data="clusterInfoDialog.nodes" stripe size="small" border>
+                <el-table-column prop="nodeId" label="nodeId" min-width="300">
+                    <template #header>
+                        nodeId
+                        <el-tooltip class="box-item" effect="dark" content="节点id" placement="top">
+                            <el-icon><question-filled /></el-icon>
+                        </el-tooltip>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="ip" label="ip" min-width="180">
+                    <template #header>
+                        ip
+                        <el-tooltip
+                            class="box-item"
+                            effect="dark"
+                            content="ip:port1@port2：port1指redis服务器与客户端通信的端口，port2则是集群内部节点间通信的端口"
+                            placement="top"
+                        >
+                            <el-icon><question-filled /></el-icon>
+                        </el-tooltip>
+                    </template>
+                    <template #default="scope">
+                        <el-tag
+                            @click="info({ id: clusterInfoDialog.redisId, ip: scope.row.ip })"
+                            effect="plain"
+                            type="success"
+                            size="small"
+                            style="cursor: pointer"
+                            >{{ scope.row.ip }}</el-tag
+                        >
+                    </template>
+                </el-table-column>
+                <el-table-column prop="flags" label="flags" min-width="110"></el-table-column>
+                <el-table-column prop="masterSlaveRelation" label="masterSlaveRelation" min-width="300">
+                    <template #header>
+                        masterSlaveRelation
+                        <el-tooltip
+                            class="box-item"
+                            effect="dark"
+                            content="如果节点是slave，并且已知master节点，则为master节点ID；否则为符号'-'"
+                            placement="top"
+                        >
+                            <el-icon><question-filled /></el-icon>
+                        </el-tooltip>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="pingSent" label="pingSent" min-width="130" show-overflow-tooltip>
+                    <template #default="scope">
+                        {{ scope.row.pingSent == 0 ? 0 : new Date(parseInt(scope.row.pingSent)).toLocaleString() }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="pongRecv" label="pongRecv" min-width="130" show-overflow-tooltip>
+                    <template #default="scope">
+                        {{ scope.row.pongRecv == 0 ? 0 : new Date(parseInt(scope.row.pongRecv)).toLocaleString() }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="configEpoch" label="configEpoch" min-width="130">
+                    <template #header>
+                        configEpoch
+                        <el-tooltip
+                            class="box-item"
+                            effect="dark"
+                            content="节点的epoch值（如果该节点是从节点，则为其主节点的epoch值）。每当节点发生失败切换时，都会创建一个新的，独特的，递增的epoch。"
+                            placement="top"
+                        >
+                            <el-icon><question-filled /></el-icon>
+                        </el-tooltip>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="linkState" label="linkState" min-width="100"></el-table-column>
+                <el-table-column prop="slot" label="slot" min-width="100"></el-table-column>
+            </el-table>
+        </el-dialog>
 
         <redis-edit
             @val-change="valChange"
@@ -91,6 +169,12 @@ export default defineComponent({
             },
             redisInfo: {
                 url: '',
+            },
+            clusterInfoDialog: {
+                visible: false,
+                redisId: 0,
+                info: '',
+                nodes: [],
             },
             clusters: [
                 {
@@ -134,12 +218,6 @@ export default defineComponent({
             state.currentData = item;
         };
 
-        // connect() {
-        //   Req.post('/open/redis/connect', this.form, res => {
-        //     this.redisInfo = res
-        //   })
-        // }
-
         const deleteRedis = async () => {
             try {
                 await ElMessageBox.confirm(`确定删除该redis?`, '提示', {
@@ -155,12 +233,23 @@ export default defineComponent({
             } catch (err) {}
         };
 
-        const info = (redis: any) => {
-            redisApi.redisInfo.request({ id: redis.id }).then((res: any) => {
-                state.infoDialog.info = res;
-                state.infoDialog.title = `'${redis.host}' info`;
-                state.infoDialog.visible = true;
-            });
+        const info = async (redis: any) => {
+            var host = redis.host;
+            if (redis.ip) {
+                host = redis.ip.split('@')[0];
+            }
+            const res = await redisApi.redisInfo.request({ id: redis.id, host });
+            state.infoDialog.info = res;
+            state.infoDialog.title = `'${host}' info`;
+            state.infoDialog.visible = true;
+        };
+
+        const onShowClusterInfo = async (redis: any) => {
+            const ci = await redisApi.clusterInfo.request({ id: redis.id });
+            state.clusterInfoDialog.info = ci.clusterInfo;
+            state.clusterInfoDialog.nodes = ci.clusterNodes;
+            state.clusterInfoDialog.redisId = redis.id;
+            state.clusterInfoDialog.visible = true;
         };
 
         const search = async () => {
@@ -192,6 +281,7 @@ export default defineComponent({
             handlePageChange,
             choose,
             info,
+            onShowClusterInfo,
             deleteRedis,
             editRedis,
             valChange,

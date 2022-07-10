@@ -1,7 +1,7 @@
 # 🌈mayfly-go
 
 ### 介绍
-简单基于DDD(领域驱动设计)分层架构实现的web版 **linux、数据库（mysql）、redis、mongo统一管理操作平台**
+简单基于DDD(领域驱动设计)分层架构实现的web版 **linux、数据库（mysql postgres）、redis(单机 集群)、mongo统一管理操作平台**
 
 
 ### 开发语言与主要框架

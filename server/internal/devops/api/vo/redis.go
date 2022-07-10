@@ -9,6 +9,8 @@ type Redis struct {
 	Db         int        `json:"db"`
 	ProjectId  *int64     `json:"projectId"`
 	Project    *string    `json:"project"`
+	Mode       *string    `json:"mode"`
+	Remark     *string    `json:"remark"`
 	Env        *string    `json:"env"`
 	EnvId      *int64     `json:"envId"`
 	CreateTime *time.Time `json:"createTime"`
@@ -17,9 +19,9 @@ type Redis struct {
 }
 
 type Keys struct {
-	Cursor uint64     `json:"cursor"`
-	Keys   []*KeyInfo `json:"keys"`
-	DbSize int64      `json:"dbSize"`
+	Cursor map[string]uint64 `json:"cursor"`
+	Keys   []*KeyInfo        `json:"keys"`
+	DbSize int64             `json:"dbSize"`
 }
 
 type KeyInfo struct {

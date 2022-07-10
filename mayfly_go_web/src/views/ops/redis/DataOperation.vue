@@ -31,7 +31,7 @@
                                 ></el-input>
                             </el-form-item>
                             <el-form-item label="count" label-width="60px">
-                                <el-input placeholder="count" style="width: 62px" v-model="scanParam.count"></el-input>
+                                <el-input placeholder="count" style="width: 62px" v-model.number="scanParam.count"></el-input>
                             </el-form-item>
                             <el-form-item>
                                 <el-button @click="searchKey()" type="success" icon="search" plain></el-button>
@@ -92,7 +92,7 @@ import { toRefs, reactive, defineComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import DataEdit from './DataEdit.vue';
-import { isTrue, notNull } from '@/common/assert';
+import { isTrue, notBlank, notNull } from '@/common/assert';
 
 export default defineComponent({
     name: 'DataOperation',
@@ -103,18 +103,15 @@ export default defineComponent({
     setup() {
         const state = reactive({
             loading: false,
-            cluster: 0,
             redisList: [],
             query: {
                 envId: 0,
             },
             scanParam: {
                 id: null,
-                cluster: 0,
                 match: null,
                 count: 10,
-                cursor: 0,
-                prevCursor: null,
+                cursor: {},
             },
             valueDialog: {
                 visible: false,
@@ -151,31 +148,33 @@ export default defineComponent({
             }
         };
 
-        const changeRedis = () => {
-            resetScanParam();
+        const changeRedis = (id: number) => {
+            resetScanParam(id);
             state.keys = [];
             state.dbsize = 0;
             searchKey();
         };
 
-        const scan = () => {
+        const scan = async () => {
             isTrue(state.scanParam.id != null, '请先选择redis');
+            notBlank(state.scanParam.count, 'count不能为空');
             isTrue(state.scanParam.count < 20001, 'count不能超过20000');
 
             state.loading = true;
-            state.scanParam.cluster = state.cluster == 0 ? 0 : 1;
 
-            redisApi.scan.request(state.scanParam).then((res) => {
+            try {
+                const res = await redisApi.scan.request(state.scanParam);
                 state.keys = res.keys;
                 state.dbsize = res.dbSize;
                 state.scanParam.cursor = res.cursor;
+            } finally {
                 state.loading = false;
-            });
+            }
         };
 
-        const searchKey = () => {
-            state.scanParam.cursor = 0;
-            scan();
+        const searchKey = async () => {
+            state.scanParam.cursor = {};
+            await scan();
         };
 
         const clearRedis = () => {
@@ -193,10 +192,17 @@ export default defineComponent({
             }
         };
 
-        const resetScanParam = () => {
-            state.scanParam.match = null;
-            state.scanParam.cursor = 0;
+        const resetScanParam = (id: number = 0) => {
             state.scanParam.count = 10;
+            if (id != 0) {
+                const redis: any = state.redisList.find((x: any) => x.id == id);
+                // 集群模式count设小点，因为后端会从所有master节点scan一遍然后合并结果
+                if (redis && redis.mode == 'cluster') {
+                    state.scanParam.count = 5;
+                }
+            }
+            state.scanParam.match = null;
+            state.scanParam.cursor = {};
         };
 
         const getValue = async (row: any) => {
@@ -204,11 +210,9 @@ export default defineComponent({
             const key = row.key;
 
             let res: any;
-            const id = state.cluster == 0 ? state.scanParam.id : state.cluster;
             const reqParam = {
-                cluster: state.cluster,
                 key: row.key,
-                id,
+                id: state.scanParam.id,
             };
             switch (type) {
                 case 'string':
@@ -260,29 +264,27 @@ export default defineComponent({
         };
 
         const del = (key: string) => {
-            ElMessageBox.confirm(`此操作将删除对应的key , 是否继续?`, '提示', {
+            ElMessageBox.confirm(`确定删除[ ${key} ] 该key?`, '提示', {
                 confirmButtonText: '确定',
                 cancelButtonText: '取消',
                 type: 'warning',
             })
                 .then(() => {
-                    let id = state.cluster == 0 ? state.scanParam.id : state.cluster;
                     redisApi.delKey
                         .request({
-                            cluster: state.cluster,
                             key,
-                            id,
+                            id: state.scanParam.id,
                         })
                         .then(() => {
                             ElMessage.success('删除成功！');
-                            scan();
+                            searchKey();
                         });
                 })
                 .catch(() => {});
         };
 
         const ttlConveter = (ttl: any) => {
-            if (ttl == -1) {
+            if (ttl == -1 || ttl == 0) {
                 return '永久';
             }
             if (!ttl) {

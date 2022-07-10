@@ -1,11 +1,12 @@
 package starter
 
 import (
+	"context"
 	"fmt"
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/global"
 
-	"github.com/go-redis/redis"
+	"github.com/go-redis/redis/v8"
 )
 
 func InitRedis() {
@@ -26,7 +27,7 @@ func ConnRedis() *redis.Client {
 		DB:       redisConf.Db,       // use default DB
 	})
 	// 测试连接
-	_, e := rdb.Ping().Result()
+	_, e := rdb.Ping(context.TODO()).Result()
 	if e != nil {
 		global.Log.Panic(fmt.Sprintf("连接redis失败! [%s:%d]", redisConf.Host, redisConf.Port))
 	}

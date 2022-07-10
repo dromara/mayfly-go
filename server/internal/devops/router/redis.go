@@ -35,8 +35,12 @@ func InitRedisRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(rs.RedisInfo)
 		})
 
+		redis.GET(":id/cluster-info", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(rs.ClusterInfo)
+		})
+
 		// 获取指定redis keys
-		redis.GET(":id/scan/:cursor/:count", func(c *gin.Context) {
+		redis.POST(":id/scan", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(rs.Scan)
 		})
 

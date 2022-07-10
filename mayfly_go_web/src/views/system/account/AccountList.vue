@@ -2,7 +2,7 @@
     <div class="role-list">
         <el-card>
             <el-button v-auth="'account:add'" type="primary" icon="plus" @click="editAccount(true)">添加</el-button>
-            <el-button v-auth="'account:update'" :disabled="chooseId == null" @click="editAccount(false)" type="primary" icon="edit">编辑</el-button>
+            <!-- <el-button v-auth="'account:update'" :disabled="chooseId == null" @click="editAccount(false)" type="primary" icon="edit">编辑</el-button> -->
             <el-button v-auth="'account:saveRoles'" :disabled="chooseId == null" @click="roleEdit()" type="success" icon="setting"
                 >角色分配</el-button
             >

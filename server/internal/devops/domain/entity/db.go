@@ -15,6 +15,7 @@ type Db struct {
 	Username  string `orm:"column(username)" json:"username"`
 	Password  string `orm:"column(password)" json:"-"`
 	Database  string `orm:"column(database)" json:"database"`
+	Params    string `json:"params"`
 	ProjectId uint64
 	Project   string
 	EnvId     uint64
