@@ -10,15 +10,14 @@
 
             <div style="float: right">
                 <el-input
-                    placeholder="请输入角色名称！"
+                    placeholder="请输入角色名称"
                     class="mr2"
-                    size="small"
-                    style="width: 300px"
+                    style="width: 200px"
                     v-model="query.name"
                     @clear="search"
                     clearable
                 ></el-input>
-                <el-button @click="search" type="success" icon="search" size="small"></el-button>
+                <el-button @click="search" type="success" icon="search"></el-button>
             </div>
             <el-table :data="roles" @current-change="choose" ref="table" style="width: 100%">
                 <el-table-column label="选择" width="50px">

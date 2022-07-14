@@ -29,6 +29,7 @@ func (r *Role) SaveRole(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	form := &form.RoleForm{}
 	ginx.BindJsonAndValid(g, form)
+	rc.ReqParam = form
 
 	role := new(entity.Role)
 	utils.Copy(role, form)

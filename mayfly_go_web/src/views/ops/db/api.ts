@@ -22,5 +22,5 @@ export const dbApi = {
     getSqlNames: Api.create("/dbs/{id}/sql-names", 'get'),
     deleteDbSql: Api.create("/dbs/{id}/sql", 'delete'),
     // 获取数据库sql执行记录
-    getSqlExecs: Api.create("/dbs/{id}/sql-execs", 'get'),
+    getSqlExecs: Api.create("/dbs/{dbId}/sql-execs", 'get'),
 }

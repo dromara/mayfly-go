@@ -36,10 +36,12 @@ func (r *Redis) Save(rc *ctx.ReqCtx) {
 	form := &form.Redis{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
-	rc.ReqParam = form
-
 	redis := new(entity.Redis)
 	utils.Copy(redis, form)
+	// 密码脱敏记录日志
+	form.Password = "****"
+	rc.ReqParam = form
+
 	redis.SetBaseInfo(rc.LoginAccount)
 	r.RedisApp.Save(redis)
 }

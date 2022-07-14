@@ -53,7 +53,7 @@ func (rc *ReqCtx) Handle(handler HandlerFunc) {
 
 	begin := time.Now()
 	handler(rc)
-	rc.timed = time.Now().Sub(begin).Milliseconds()
+	rc.timed = time.Since(begin).Milliseconds()
 	if !rc.NoRes {
 		ginx.SuccessRes(ginCtx, rc.ResData)
 	}

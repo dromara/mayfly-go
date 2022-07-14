@@ -12,17 +12,35 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type SaveLogFunc func(*ReqCtx)
+
+var saveLog SaveLogFunc
+
+// 设置保存日志处理函数
+func SetSaveLogFunc(sl SaveLogFunc) {
+	saveLog = sl
+}
+
 type LogInfo struct {
 	LogResp     bool   // 是否记录返回结果
 	Description string // 请求描述
+	Save        bool   // 是否保存日志
 }
 
+// 新建日志信息
 func NewLogInfo(description string) *LogInfo {
 	return &LogInfo{Description: description, LogResp: false}
 }
 
+// 是否记录返回结果
 func (i *LogInfo) WithLogResp(logResp bool) *LogInfo {
 	i.LogResp = logResp
+	return i
+}
+
+// 是否保存日志
+func (i *LogInfo) WithSave(saveLog bool) *LogInfo {
+	i.Save = saveLog
 	return i
 }
 
@@ -41,6 +59,10 @@ func LogHandler(rc *ReqCtx) error {
 	req := rc.GinCtx.Request
 	lfs[req.Method] = req.URL.Path
 
+	// 如果需要保存日志，并且保存日志处理函数存在则执行保存日志函数
+	if li.Save && saveLog != nil {
+		go saveLog(rc)
+	}
 	if err := rc.Err; err != nil {
 		logger.Log.WithFields(lfs).Error(getErrMsg(rc, err))
 		return nil

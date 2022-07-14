@@ -10,6 +10,7 @@ export const imports = {
     "ResourceList": () => import('@/views/system/resource'),
     "RoleList": () => import('@/views/system/role'),
     "AccountList": () => import('@/views/system/account'),
+    "SyslogList": () => import('@/views/system/syslog/SyslogList.vue'),
     // project
     "ProjectList": () => import('@/views/ops/project/ProjectList.vue'),
     // db

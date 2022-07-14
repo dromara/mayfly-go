@@ -363,12 +363,11 @@ CREATE TABLE `t_sys_resource` (
 -- Records of t_sys_resource
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_sys_resource` VALUES (1, 0, 1, 1, '首页', '/home', 1, '{\"component\":\"Home\",\"icon\":\"Home\",\"isAffix\":true,\"isKeepAlive\":true,\"routeName\":\"Home\"}', 1, 'admin', 1, 'admin', '2021-05-25 16:44:41', '2021-05-27 09:12:56');
+INSERT INTO `t_sys_resource` VALUES (1, 0, 1, 1, '首页', '/home', 1, '{\"component\":\"Home\",\"icon\":\"HomeFilled\",\"isAffix\":true,\"isKeepAlive\":true,\"routeName\":\"Home\"}', 1, 'admin', 1, 'admin', '2021-05-25 16:44:41', '2021-05-27 09:12:56');
 INSERT INTO `t_sys_resource` VALUES (2, 0, 1, 1, '运维', '/ops', 3, '{\"icon\":\"Monitor\",\"isKeepAlive\":true,\"redirect\":\"machine/list\",\"routeName\":\"Ops\"}', 1, 'admin', 1, 'admin', '2021-05-25 16:48:16', '2021-06-08 14:20:24');
 INSERT INTO `t_sys_resource` VALUES (3, 2, 1, 1, '机器列表', 'machines', 2, '{\"component\":\"MachineList\",\"icon\":\"Menu\",\"isKeepAlive\":true,\"routeName\":\"MachineList\"}', 2, 'admin', 1, 'admin', '2021-05-25 16:50:04', '2021-06-30 16:20:08');
 INSERT INTO `t_sys_resource` VALUES (4, 0, 1, 1, '系统管理', '/sys', 5, '{\"icon\":\"Setting\",\"isKeepAlive\":true,\"redirect\":\"/sys/resources\",\"routeName\":\"sys\"}', 1, 'admin', 1, 'admin', '2021-05-26 15:20:20', '2021-07-29 18:03:06');
 INSERT INTO `t_sys_resource` VALUES (5, 4, 1, 1, '资源管理', 'resources', 3, '{\"component\":\"ResourceList\",\"icon\":\"Menu\",\"isKeepAlive\":true,\"routeName\":\"ResourceList\"}', 1, 'admin', 1, 'admin', '2021-05-26 15:23:07', '2021-06-08 11:27:55');
-INSERT INTO `t_sys_resource` VALUES (9, 0, 1, 1, 'iframes', '/iframes', 6, '{\"component\":\"RouterParent\",\"icon\":\"Menu\",\"isIframe\":true,\"isKeepAlive\":true,\"link\":\"https://www.baidu.com\",\"routeName\":\"Iframe\"}', 1, 'admin', 1, 'admin', '2021-05-27 09:58:37', '2021-07-29 18:03:13');
 INSERT INTO `t_sys_resource` VALUES (11, 4, 1, 1, '角色管理', 'roles', 2, '{\"component\":\"RoleList\",\"icon\":\"Menu\",\"isKeepAlive\":true,\"routeName\":\"RoleList\"}', 1, 'admin', 1, 'admin', '2021-05-27 11:15:35', '2021-06-03 09:59:41');
 INSERT INTO `t_sys_resource` VALUES (12, 3, 2, 1, '机器终端按钮', 'machine:terminal', 4, '', 1, 'admin', 1, 'admin', '2021-05-28 14:06:02', '2021-05-31 17:47:59');
 INSERT INTO `t_sys_resource` VALUES (14, 4, 1, 1, '账号管理', 'accounts', 1, '{\"component\":\"AccountList\",\"icon\":\"Menu\",\"isKeepAlive\":true,\"routeName\":\"AccountList\"}', 1, 'admin', 1, 'admin', '2021-05-28 14:56:25', '2021-06-03 09:39:22');
@@ -383,7 +382,7 @@ INSERT INTO `t_sys_resource` VALUES (22, 11, 2, 1, '角色删除按钮', 'role:d
 INSERT INTO `t_sys_resource` VALUES (23, 11, 2, 1, '角色新增按钮', 'role:add', 3, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:02:44', '2021-05-31 19:33:39');
 INSERT INTO `t_sys_resource` VALUES (24, 11, 2, 1, '角色编辑按钮', 'role:update', 4, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:02:57', '2021-05-31 19:33:40');
 INSERT INTO `t_sys_resource` VALUES (25, 5, 2, 1, '资源新增按钮', 'resource:add', 1, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:03:33', '2021-05-31 19:31:47');
-INSERT INTO `t_sys_resource` VALUES (26, 5, 2, 1, '资源删除按钮', 'resource:del', 2, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:03:47', '2021-05-31 19:29:40');
+INSERT INTO `t_sys_resource` VALUES (26, 5, 2, 1, '资源删除按钮', 'resource:delete', 2, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:03:47', '2021-05-31 19:29:40');
 INSERT INTO `t_sys_resource` VALUES (27, 5, 2, 1, '资源编辑按钮', 'resource:update', 3, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:04:03', '2021-05-31 19:29:40');
 INSERT INTO `t_sys_resource` VALUES (28, 5, 2, 1, '资源禁用启用按钮', 'resource:changeStatus', 4, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:04:33', '2021-05-31 18:04:33');
 INSERT INTO `t_sys_resource` VALUES (29, 14, 2, 1, '账号添加按钮', 'account:add', 3, NULL, 1, 'admin', 1, 'admin', '2021-05-31 19:23:42', '2021-05-31 19:23:42');
@@ -429,6 +428,8 @@ INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `wei
 INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (81, 80, 2, 1, '基本权限', 'mongo:base', 1, 'null', 1, 'admin', 1, 'admin', '2022-05-13 14:04:16', '2022-05-13 14:04:16');
 INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (82, 79, 1, 1, 'Mongo管理', 'mongo-manage', 2, '{\"component\":\"MongoList\",\"icon\":\"Menu\",\"isKeepAlive\":true,\"routeName\":\"MongoList\"}', 1, 'admin', 1, 'admin', '2022-05-16 18:13:06', '2022-05-16 18:13:06');
 INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (83, 82, 2, 1, '基本权限', 'mongo:manage:base', 1, 'null', 1, 'admin', 1, 'admin', '2022-05-16 18:13:25', '2022-05-16 18:13:25');
+INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (84, 4, 1, 1, '操作日志', 'syslogs', 4, '{\"component\":\"SyslogList\",\"icon\":\"Tickets\",\"routeName\":\"SyslogList\"}', 1, 'admin', 1, 'admin', '2022-07-13 19:57:07', '2022-07-13 22:58:19');
+INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (85, 84, 2, 1, '操作日志基本权限', 'syslog', 1, 'null', 1, 'admin', 1, 'admin', '2022-07-13 19:57:55', '2022-07-13 19:57:55');
 COMMIT;
 
 -- ----------------------------
@@ -625,7 +626,33 @@ INSERT INTO `t_sys_role_resource` VALUES (496, 8, 61, 1, 'admin', '2021-11-05 15
 INSERT INTO `t_sys_role_resource` VALUES (497, 8, 62, 1, 'admin', '2021-11-05 15:59:16');
 INSERT INTO `t_sys_role_resource` VALUES (498, 8, 63, 1, 'admin', '2021-11-05 15:59:16');
 INSERT INTO `t_sys_role_resource` VALUES (499, 8, 64, 1, 'admin', '2021-11-05 15:59:16');
+INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (500, 1, 72, 1, 'admin', '2022-07-14 11:03:09');
+INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (501, 1, 71, 1, 'admin', '2022-07-14 11:03:09');
+INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (502, 1, 79, 1, 'admin', '2022-07-14 11:03:09');
+INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (503, 1, 80, 1, 'admin', '2022-07-14 11:03:09');
+INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (504, 1, 81, 1, 'admin', '2022-07-14 11:03:09');
+INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (505, 1, 82, 1, 'admin', '2022-07-14 11:03:09');
+INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (506, 1, 83, 1, 'admin', '2022-07-14 11:03:09');
+INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (507, 1, 84, 1, 'admin', '2022-07-14 11:10:11');
+INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (508, 1, 85, 1, 'admin', '2022-07-14 11:10:11');
 COMMIT;
+
+-- ----------------------------
+-- 表结构: t_sys_log 
+-- ----------------------------
+DROP TABLE IF EXISTS `t_sys_log`;
+CREATE TABLE `t_sys_log` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `type` tinyint(4) NOT NULL COMMENT '类型',
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '描述',
+  `req_param` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '请求信息',
+  `resp` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '响应信息',
+  `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '调用者',
+  `creator_id` bigint(20) NOT NULL COMMENT '调用者id',
+  `create_time` datetime NOT NULL COMMENT '操作时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_creator_id` (`creator_id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统操作日志';
 
 
 -- ----------------------------

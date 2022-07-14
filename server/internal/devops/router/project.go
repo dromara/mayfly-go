@@ -25,7 +25,7 @@ func InitProjectRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(m.GetProjects)
 		})
 
-		saveProjectLog := ctx.NewLogInfo("保存项目信息")
+		saveProjectLog := ctx.NewLogInfo("保存项目信息").WithSave(true)
 		savePP := ctx.NewPermission("project:save")
 		// 保存项目下的环境信息
 		project.POST("", func(c *gin.Context) {
@@ -34,7 +34,7 @@ func InitProjectRouter(router *gin.RouterGroup) {
 				Handle(m.SaveProject)
 		})
 
-		delProjectLog := ctx.NewLogInfo("删除项目信息")
+		delProjectLog := ctx.NewLogInfo("删除项目信息").WithSave(true)
 		delPP := ctx.NewPermission("project:del")
 		// 删除项目
 		project.DELETE("", func(c *gin.Context) {
@@ -48,7 +48,7 @@ func InitProjectRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(m.GetProjectEnvs)
 		})
 
-		saveProjectEnvLog := ctx.NewLogInfo("新增项目环境信息")
+		saveProjectEnvLog := ctx.NewLogInfo("新增项目环境信息").WithSave(true)
 		savePeP := ctx.NewPermission("project:env:add")
 		// 保存项目下的环境信息
 		project.POST("/:projectId/envs", func(c *gin.Context) {
@@ -63,7 +63,7 @@ func InitProjectRouter(router *gin.RouterGroup) {
 		})
 
 		// 保存项目成员
-		saveProjectMemLog := ctx.NewLogInfo("新增项目成员")
+		saveProjectMemLog := ctx.NewLogInfo("新增项目成员").WithSave(true)
 		savePmP := ctx.NewPermission("project:member:add")
 		project.POST("/:projectId/members", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(saveProjectMemLog).
@@ -72,7 +72,7 @@ func InitProjectRouter(router *gin.RouterGroup) {
 		})
 
 		// 删除项目成员
-		delProjectMemLog := ctx.NewLogInfo("删除项目成员")
+		delProjectMemLog := ctx.NewLogInfo("删除项目成员").WithSave(true)
 		savePmdP := ctx.NewPermission("project:member:del")
 		project.DELETE("/:projectId/members/:accountId", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(delProjectMemLog).

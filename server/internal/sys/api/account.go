@@ -10,6 +10,7 @@ import (
 	"mayfly-go/pkg/captcha"
 	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
 	"strconv"
 	"strings"
@@ -29,7 +30,6 @@ type Account struct {
 func (a *Account) Login(rc *ctx.ReqCtx) {
 	loginForm := &form.LoginForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, loginForm)
-	rc.ReqParam = loginForm.Username
 
 	// 校验验证码
 	biz.IsTrue(captcha.Verify(loginForm.Cid, loginForm.Captcha), "验证码错误")
@@ -54,8 +54,13 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 	// 保存该账号的权限codes
 	ctx.SavePermissionCodes(account.Id, permissions)
 
+	clientIp := rc.GinCtx.ClientIP()
 	// 保存登录消息
-	go a.saveLogin(account, rc.GinCtx.ClientIP())
+	go a.saveLogin(account, clientIp)
+
+	rc.ReqParam = fmt.Sprintln("登录ip: ", clientIp)
+	// 赋值loginAccount 主要用于记录操作日志，因为操作日志保存请求上下文没有该信息不保存日志
+	rc.LoginAccount = &model.LoginAccount{Id: account.Id, Username: account.Username}
 
 	rc.ResData = map[string]interface{}{
 		"token":         ctx.CreateToken(account.Id, account.Username),

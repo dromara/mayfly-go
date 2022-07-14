@@ -30,7 +30,6 @@ const viteConfig: UserConfig = {
 				target: 'http://localhost:8888',
 				ws: true,
 				changeOrigin: true,
-				rewrite: (path) => path.replace(/^\/api/, '/'),
 			},
 		},
 	},

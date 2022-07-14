@@ -29,7 +29,7 @@ func InitMachineRouter(router *gin.RouterGroup) {
 		})
 
 		// 终止进程
-		killProcessL := ctx.NewLogInfo("终止进程")
+		killProcessL := ctx.NewLogInfo("终止进程").WithSave(true)
 		killProcessP := ctx.NewPermission("machine:killprocess")
 		machines.DELETE(":machineId/process", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
@@ -38,28 +38,28 @@ func InitMachineRouter(router *gin.RouterGroup) {
 				Handle(m.KillProcess)
 		})
 
-		saveMachine := ctx.NewLogInfo("保存机器信息")
+		saveMachine := ctx.NewLogInfo("保存机器信息").WithSave(true)
 		machines.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(saveMachine).
 				Handle(m.SaveMachine)
 		})
 
-		changeStatus := ctx.NewLogInfo("调整机器状态")
+		changeStatus := ctx.NewLogInfo("调整机器状态").WithSave(true)
 		machines.PUT(":machineId/:status", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(changeStatus).
 				Handle(m.ChangeStatus)
 		})
 
-		delMachine := ctx.NewLogInfo("删除机器")
+		delMachine := ctx.NewLogInfo("删除机器").WithSave(true)
 		machines.DELETE(":machineId", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(delMachine).
 				Handle(m.DeleteMachine)
 		})
 
-		closeCli := ctx.NewLogInfo("关闭机器客户端")
+		closeCli := ctx.NewLogInfo("关闭机器客户端").WithSave(true)
 		machines.DELETE(":machineId/close-cli", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(closeCli).Handle(m.CloseCli)
 		})

@@ -33,5 +33,5 @@ export const accountApi = {
 }
 
 export const logApi = {
-    list: Api.create("/sys/logs", "get")
+    list: Api.create("/syslogs", "get")
 }

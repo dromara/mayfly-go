@@ -45,10 +45,12 @@ func (d *Db) Save(rc *ctx.ReqCtx) {
 	form := &form.DbForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
-	rc.ReqParam = form
-
 	db := new(entity.Db)
 	utils.Copy(db, form)
+	// 密码脱敏记录日志
+	form.Password = "****"
+	rc.ReqParam = form
+
 	db.SetBaseInfo(rc.LoginAccount)
 	d.DbApp.Save(db)
 }
@@ -136,6 +138,8 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 	filename := fileheader.Filename
 	dbId, db := GetIdAndDb(g)
 
+	rc.ReqParam = fmt.Sprintf("dbId: %d, db: %s, filename: %s", dbId, db, filename)
+
 	go func() {
 		db := d.DbApp.GetDbInstance(dbId, db)
 
@@ -192,7 +196,6 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 	g.Header("Content-Type", "application/octet-stream")
 	g.Header("Content-Disposition", "attachment; filename="+filename)
 
-	rc.ReqParam = fmt.Sprintf("数据库id: %d -- %s", dbId, db)
 	writer := g.Writer
 	writer.WriteString("-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
@@ -258,6 +261,8 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 		writer.WriteString("COMMIT;\n")
 	}
 	rc.NoRes = true
+
+	rc.ReqParam = fmt.Sprintf("dbId: %d, db: %s, tables: %s, dumpType: %s", dbId, db, tablesStr, dumpType)
 }
 
 // @router /api/db/:dbId/t-metadata [get]

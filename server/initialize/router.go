@@ -53,6 +53,7 @@ func InitRouter() *gin.Engine {
 		sys_router.InitResourceRouter(api)
 		sys_router.InitRoleRouter(api)
 		sys_router.InitSystemRouter(api)
+		sys_router.InitSyslogRouter(api)
 
 		devops_router.InitProjectRouter(api)
 		devops_router.InitDbRouter(api)

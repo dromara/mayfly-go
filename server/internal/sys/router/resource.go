@@ -12,10 +12,6 @@ func InitResourceRouter(router *gin.RouterGroup) {
 	r := &api.Resource{ResourceApp: application.ResourceApp}
 	db := router.Group("sys/resources")
 	{
-		// db.GET("/account", func(c *gin.Context) {
-		// 	ctx.NewReqCtxWithGin(c).Handle(r.ResourceTree)
-		// })
-
 		db.GET("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(r.GetAllResourceTree)
 		})
@@ -24,7 +20,7 @@ func InitResourceRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(r.GetById)
 		})
 
-		saveResource := ctx.NewLogInfo("保存资源")
+		saveResource := ctx.NewLogInfo("保存资源").WithSave(true)
 		srPermission := ctx.NewPermission("resource:add")
 		db.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
@@ -33,7 +29,7 @@ func InitResourceRouter(router *gin.RouterGroup) {
 				Handle(r.SaveResource)
 		})
 
-		changeStatus := ctx.NewLogInfo("修改资源状态")
+		changeStatus := ctx.NewLogInfo("修改资源状态").WithSave(true)
 		csPermission := ctx.NewPermission("resource:changeStatus")
 		db.PUT(":id/:status", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
@@ -42,7 +38,7 @@ func InitResourceRouter(router *gin.RouterGroup) {
 				Handle(r.ChangeStatus)
 		})
 
-		delResource := ctx.NewLogInfo("删除资源")
+		delResource := ctx.NewLogInfo("删除资源").WithSave(true)
 		dePermission := ctx.NewPermission("resource:delete")
 		db.DELETE(":id", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).

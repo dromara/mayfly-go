@@ -57,6 +57,10 @@ func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
 	entity := new(entity.Machine)
 	utils.Copy(entity, machineForm)
 
+	// 密码脱敏记录日志
+	machineForm.Password = "****"
+	rc.ReqParam = machineForm
+
 	entity.SetBaseInfo(rc.LoginAccount)
 	m.MachineApp.Save(entity)
 }

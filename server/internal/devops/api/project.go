@@ -43,7 +43,8 @@ func (p *Project) GetProjects(rc *ctx.ReqCtx) {
 func (p *Project) SaveProject(rc *ctx.ReqCtx) {
 	project := &entity.Project{}
 	ginx.BindJsonAndValid(rc.GinCtx, project)
-	rc.ReqParam = project
+
+	rc.ReqParam = fmt.Sprintf("projectId: %d, projectName: %s, remark: %s", project.Id, project.Name, project.Remark)
 
 	project.SetBaseInfo(rc.LoginAccount)
 	p.ProjectApp.SaveProject(project)
@@ -81,7 +82,8 @@ func (p *Project) GetProjectMembers(rc *ctx.ReqCtx) {
 func (p *Project) SaveProjectMember(rc *ctx.ReqCtx) {
 	projectMem := &entity.ProjectMember{}
 	ginx.BindJsonAndValid(rc.GinCtx, projectMem)
-	rc.ReqParam = projectMem
+
+	rc.ReqParam = fmt.Sprintf("projectId: %d, username: %s", projectMem.ProjectId, projectMem.Username)
 
 	// 校验账号，并赋值username
 	account := &sys_entity.Account{}

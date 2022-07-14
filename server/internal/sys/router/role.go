@@ -20,7 +20,7 @@ func InitRoleRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(r.Roles)
 		})
 
-		saveRole := ctx.NewLogInfo("保存角色")
+		saveRole := ctx.NewLogInfo("保存角色").WithSave(true)
 		sPermission := ctx.NewPermission("role:add")
 		db.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(saveRole).
@@ -28,7 +28,7 @@ func InitRoleRouter(router *gin.RouterGroup) {
 				Handle(r.SaveRole)
 		})
 
-		delRole := ctx.NewLogInfo("删除角色")
+		delRole := ctx.NewLogInfo("删除角色").WithSave(true)
 		drPermission := ctx.NewPermission("role:del")
 		db.DELETE(":id", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(delRole).
@@ -44,7 +44,7 @@ func InitRoleRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(r.RoleResource)
 		})
 
-		saveResource := ctx.NewLogInfo("保存角色资源")
+		saveResource := ctx.NewLogInfo("保存角色资源").WithSave(true)
 		srPermission := ctx.NewPermission("role:saveResources")
 		db.POST(":id/resources", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(saveResource).

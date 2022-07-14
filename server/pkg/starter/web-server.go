@@ -13,6 +13,9 @@ func RunWebServer() {
 	ctx.UseBeforeHandlerInterceptor(ctx.PermissionHandler)
 	// 日志处理器
 	ctx.UseAfterHandlerInterceptor(ctx.LogHandler)
+	// 设置日志保存函数
+	ctx.SetSaveLogFunc(initialize.InitSaveLogFunc())
+
 	// 注册路由
 	web := initialize.InitRouter()
 

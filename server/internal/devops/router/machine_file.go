@@ -24,7 +24,7 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 		})
 
 		// 新增修改机器文件
-		addFileConf := ctx.NewLogInfo("新增机器文件配置")
+		addFileConf := ctx.NewLogInfo("新增机器文件配置").WithSave(true)
 		afcP := ctx.NewPermission("machine:file:add")
 		machineFile.POST(":machineId/files", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(addFileConf).
@@ -33,7 +33,7 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 		})
 
 		// 删除机器文件
-		delFileConf := ctx.NewLogInfo("删除机器文件配置")
+		delFileConf := ctx.NewLogInfo("删除机器文件配置").WithSave(true)
 		dfcP := ctx.NewPermission("machine:file:del")
 		machineFile.DELETE(":machineId/files/:fileId", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(delFileConf).
@@ -41,7 +41,7 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 				Handle(mf.DeleteFile)
 		})
 
-		getContent := ctx.NewLogInfo("读取机器文件内容")
+		getContent := ctx.NewLogInfo("读取机器文件内容").WithSave(true)
 		machineFile.GET(":machineId/files/:fileId/read", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(getContent).
 				Handle(mf.ReadFileContent)
@@ -53,7 +53,7 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 				Handle(mf.GetDirEntry)
 		})
 
-		writeFile := ctx.NewLogInfo("写入or下载文件内容")
+		writeFile := ctx.NewLogInfo("写入or下载文件内容").WithSave(true)
 		wfP := ctx.NewPermission("machine:file:write")
 		machineFile.POST(":machineId/files/:fileId/write", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(writeFile).
@@ -61,14 +61,14 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 				Handle(mf.WriteFileContent)
 		})
 
-		createFile := ctx.NewLogInfo("创建机器文件or目录")
+		createFile := ctx.NewLogInfo("创建机器文件or目录").WithSave(true)
 		machineFile.POST(":machineId/files/:fileId/create-file", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(createFile).
 				WithRequiredPermission(wfP).
 				Handle(mf.CreateFile)
 		})
 
-		uploadFile := ctx.NewLogInfo("文件上传")
+		uploadFile := ctx.NewLogInfo("文件上传").WithSave(true)
 		ufP := ctx.NewPermission("machine:file:upload")
 		machineFile.POST(":machineId/files/:fileId/upload", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(uploadFile).
@@ -76,7 +76,7 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 				Handle(mf.UploadFile)
 		})
 
-		removeFile := ctx.NewLogInfo("删除文件or文件夹")
+		removeFile := ctx.NewLogInfo("删除文件or文件夹").WithSave(true)
 		rfP := ctx.NewPermission("machine:file:rm")
 		machineFile.DELETE(":machineId/files/:fileId/remove", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(removeFile).

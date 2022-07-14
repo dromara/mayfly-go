@@ -18,9 +18,12 @@ func InitAccountRouter(router *gin.RouterGroup) {
 	}
 	{
 		// 用户登录
+		loginLog := ctx.NewLogInfo("用户登录").WithSave(true)
 		account.POST("login", func(g *gin.Context) {
-			rc := ctx.NewReqCtxWithGin(g).WithNeedToken(false).WithLog(ctx.NewLogInfo("用户登录"))
-			rc.Handle(a.Login)
+			ctx.NewReqCtxWithGin(g).
+				WithNeedToken(false).
+				WithLog(loginLog).
+				Handle(a.Login)
 		})
 
 		// 获取个人账号信息
@@ -44,7 +47,7 @@ func InitAccountRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(a.Accounts)
 		})
 
-		createAccount := ctx.NewLogInfo("创建账号")
+		createAccount := ctx.NewLogInfo("创建账号").WithSave(true)
 		addAccountPermission := ctx.NewPermission("account:add")
 		account.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
@@ -53,14 +56,14 @@ func InitAccountRouter(router *gin.RouterGroup) {
 				Handle(a.CreateAccount)
 		})
 
-		changeStatus := ctx.NewLogInfo("修改账号状态")
+		changeStatus := ctx.NewLogInfo("修改账号状态").WithSave(true)
 		account.PUT("change-status/:id/:status", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(changeStatus).
 				Handle(a.ChangeStatus)
 		})
 
-		delAccount := ctx.NewLogInfo("删除账号")
+		delAccount := ctx.NewLogInfo("删除账号").WithSave(true)
 		delAccountPermission := ctx.NewPermission("account:del")
 		account.DELETE(":id", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
@@ -75,7 +78,7 @@ func InitAccountRouter(router *gin.RouterGroup) {
 		})
 
 		// 保存用户角色
-		saveAccountRole := ctx.NewLogInfo("保存用户角色")
+		saveAccountRole := ctx.NewLogInfo("保存用户角色").WithSave(true)
 		sarPermission := ctx.NewPermission("account:saveRoles")
 		account.POST("/roles", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(saveAccountRole).
