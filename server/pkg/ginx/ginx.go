@@ -62,7 +62,7 @@ func SuccessRes(g *gin.Context, data interface{}) {
 // 返回失败结果集
 func ErrorRes(g *gin.Context, err interface{}) {
 	switch t := err.(type) {
-	case *biz.BizError:
+	case biz.BizError:
 		g.JSON(http.StatusOK, model.Error(t))
 	case error:
 		g.JSON(http.StatusOK, model.ServerError())

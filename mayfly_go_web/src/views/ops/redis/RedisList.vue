@@ -22,7 +22,7 @@
                 <el-table-column prop="env" label="环境" min-width="100"></el-table-column>
                 <el-table-column prop="host" label="host:port" min-width="150" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="mode" label="mode" min-width="100"></el-table-column>
-                <el-table-column prop="remark" label="备注" min-width="100"></el-table-column>
+                <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="createTime" label="创建时间" min-width="160">
                     <template #default="scope">
                         {{ $filters.dateFormat(scope.row.createTime) }}

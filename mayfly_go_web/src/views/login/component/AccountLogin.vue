@@ -1,54 +1,75 @@
 <template>
-    <el-form ref="loginFormRef" :model="loginForm" :rules="rules" class="login-content-form" size="large">
-        <el-form-item prop="username">
-            <el-input type="text" placeholder="请输入用户名" prefix-icon="user" v-model="loginForm.username" clearable autocomplete="off">
-            </el-input>
-        </el-form-item>
-        <el-form-item prop="password">
-            <el-input
-                type="password"
-                placeholder="请输入密码"
-                prefix-icon="lock"
-                v-model="loginForm.password"
-                autocomplete="off"
-                show-password
-            >
-            </el-input>
-        </el-form-item>
-        <el-form-item prop="captcha">
-            <el-row :gutter="15">
-                <el-col :span="16">
+    <div>
+        <el-form ref="loginFormRef" :model="loginForm" :rules="rules" class="login-content-form" size="large">
+            <el-form-item prop="username">
+                <el-input type="text" placeholder="请输入用户名" prefix-icon="user" v-model="loginForm.username" clearable autocomplete="off">
+                </el-input>
+            </el-form-item>
+            <el-form-item prop="password">
+                <el-input type="password" placeholder="请输入密码" prefix-icon="lock" v-model="loginForm.password" autocomplete="off" show-password>
+                </el-input>
+            </el-form-item>
+            <el-form-item prop="captcha">
+                <el-row :gutter="15">
+                    <el-col :span="16">
+                        <el-input
+                            type="text"
+                            maxlength="6"
+                            placeholder="请输入验证码"
+                            prefix-icon="position"
+                            v-model="loginForm.captcha"
+                            clearable
+                            autocomplete="off"
+                            @keyup.enter="login"
+                        ></el-input>
+                    </el-col>
+                    <el-col :span="8">
+                        <div class="login-content-code">
+                            <img
+                                class="login-content-code-img"
+                                @click="getCaptcha"
+                                width="130px"
+                                height="40px"
+                                :src="captchaImage"
+                                style="cursor: pointer"
+                            />
+                        </div>
+                    </el-col>
+                </el-row>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" class="login-content-submit" round @click="login" :loading="loading.signIn">
+                    <span>登 录</span>
+                </el-button>
+            </el-form-item>
+        </el-form>
+
+        <el-dialog title="修改密码" v-model="changePwdDialog.visible" :close-on-click-modal="false" width="450px" :destroy-on-close="true">
+            <el-form :model="changePwdDialog.form" :rules="changePwdDialog.rules" ref="changePwdFormRef" label-width="65px">
+                <el-form-item prop="username" label="用户名" required>
+                    <el-input v-model.trim="changePwdDialog.form.username" disabled></el-input>
+                </el-form-item>
+                <el-form-item prop="oldPassword" label="旧密码" required>
+                    <el-input v-model.trim="changePwdDialog.form.oldPassword" autocomplete="new-password" type="password"></el-input>
+                </el-form-item>
+                <el-form-item prop="newPassword" label="新密码" required>
                     <el-input
-                        type="text"
-                        maxlength="6"
-                        placeholder="请输入验证码"
-                        prefix-icon="position"
-                        v-model="loginForm.captcha"
-                        clearable
-                        autocomplete="off"
-                        @keyup.enter="login"
+                        v-model.trim="changePwdDialog.form.newPassword"
+                        placeholder="须为8位以上且包含字⺟⼤⼩写+数字+特殊符号"
+                        type="password"
+                        autocomplete="new-password"
                     ></el-input>
-                </el-col>
-                <el-col :span="8">
-                    <div class="login-content-code">
-                        <img
-                            class="login-content-code-img"
-                            @click="getCaptcha"
-                            width="130px"
-                            height="40px"
-                            :src="captchaImage"
-                            style="cursor: pointer"
-                        />
-                    </div>
-                </el-col>
-            </el-row>
-        </el-form-item>
-        <el-form-item>
-            <el-button type="primary" class="login-content-submit" round @click="login" :loading="loading.signIn">
-                <span>登 录</span>
-            </el-button>
-        </el-form-item>
-    </el-form>
+                </el-form-item>
+            </el-form>
+
+            <template #footer>
+                <div class="dialog-footer">
+                    <el-button @click="cancelChangePwd">取 消</el-button>
+                    <el-button @click="changePwd" type="primary" :loading="loading.changePwd">确 定</el-button>
+                </div>
+            </template>
+        </el-dialog>
+    </div>
 </template>
 
 <script lang="ts">
@@ -60,7 +81,9 @@ import { useStore } from '@/store/index.ts';
 import { setSession } from '@/common/utils/storage.ts';
 import { formatAxis } from '@/common/utils/formatTime.ts';
 import openApi from '@/common/openApi';
+import { RsaEncrypt } from '@/common/rsa';
 import { letterAvatar } from '@/common/utils/string';
+
 export default defineComponent({
     name: 'AccountLogin',
     setup() {
@@ -68,6 +91,8 @@ export default defineComponent({
         const route = useRoute();
         const router = useRouter();
         const loginFormRef: any = ref(null);
+        const changePwdFormRef: any = ref(null);
+
         const state = reactive({
             captchaImage: '',
             loginForm: {
@@ -76,6 +101,24 @@ export default defineComponent({
                 captcha: '',
                 cid: '',
             },
+            changePwdDialog: {
+                visible: false,
+                form: {
+                    username: '',
+                    oldPassword: '',
+                    newPassword: '',
+                },
+                rules: {
+                    newPassword: [
+                        { required: true, message: '请输入新密码', trigger: 'blur' },
+                        {
+                            pattern: /^(?=.*[A-Za-z])(?=.*\d)(?=.*[`~!@#$%^&*()_+<>?:"{},.\/\\;'[\]])[A-Za-z\d`~!@#$%^&*()_+<>?:"{},.\/\\;'[\]]{8,}$/,
+                            message: '须为8位以上且包含字⺟⼤⼩写+数字+特殊符号',
+                            trigger: 'blur',
+                        },
+                    ],
+                },
+            },
             rules: {
                 username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
                 password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
@@ -83,6 +126,7 @@ export default defineComponent({
             },
             loading: {
                 signIn: false,
+                changePwd: false,
             },
         });
 
@@ -116,15 +160,26 @@ export default defineComponent({
         const onSignIn = async () => {
             state.loading.signIn = true;
             let loginRes;
+            const originPwd = state.loginForm.password;
             try {
-                loginRes = await openApi.login(state.loginForm);
-                // // 存储 token 到浏览器缓存
+                const loginReq = { ...state.loginForm };
+                loginReq.password = await RsaEncrypt(originPwd);
+                loginRes = await openApi.login(loginReq);
+                // 存储 token 到浏览器缓存
                 setSession('token', loginRes.token);
                 setSession('menus', loginRes.menus);
-            } catch (e) {
+            } catch (e: any) {
                 state.loading.signIn = false;
                 state.loginForm.captcha = '';
-                getCaptcha();
+                // 密码强度不足
+                if (e.code && e.code == 401) {
+                    state.changePwdDialog.form.username = state.loginForm.username;
+                    state.changePwdDialog.form.oldPassword = originPwd;
+                    state.changePwdDialog.form.newPassword = '';
+                    state.changePwdDialog.visible = true;
+                } else {
+                    getCaptcha();
+                }
                 return;
             }
             // 用户信息
@@ -174,11 +229,44 @@ export default defineComponent({
             }, 300);
         };
 
+        const changePwd = () => {
+            changePwdFormRef.value.validate(async (valid: boolean) => {
+                if (!valid) {
+                    return false;
+                }
+                try {
+                    state.loading.changePwd = true;
+                    const form = state.changePwdDialog.form;
+                    const changePwdReq: any = { ...form };
+                    changePwdReq.oldPassword = await RsaEncrypt(form.oldPassword);
+                    changePwdReq.newPassword = await RsaEncrypt(form.newPassword);
+                    await openApi.changePwd(changePwdReq);
+                    ElMessage.success('密码修改成功, 新密码已填充至登录密码框');
+                    state.loginForm.password = state.changePwdDialog.form.newPassword;
+                    state.changePwdDialog.visible = false;
+                    getCaptcha();
+                } finally {
+                    state.loading.changePwd = false;
+                }
+            });
+        };
+
+        const cancelChangePwd = () => {
+            state.changePwdDialog.visible = false;
+            state.changePwdDialog.form.newPassword = '';
+            state.changePwdDialog.form.oldPassword = '';
+            state.changePwdDialog.form.username = '';
+            getCaptcha();
+        };
+
         return {
             getCaptcha,
             currentTime,
             loginFormRef,
+            changePwdFormRef,
             login,
+            changePwd,
+            cancelChangePwd,
             ...toRefs(state),
         };
     },

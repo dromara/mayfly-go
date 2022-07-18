@@ -12,6 +12,7 @@ import (
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -34,9 +35,15 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 	// 校验验证码
 	biz.IsTrue(captcha.Verify(loginForm.Cid, loginForm.Captcha), "验证码错误")
 
-	account := &entity.Account{Username: loginForm.Username, Password: utils.Md5(loginForm.Password)}
+	originPwd, err := utils.DefaultRsaDecrypt(loginForm.Password, true)
+	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
+
+	account := &entity.Account{Username: loginForm.Username, Password: utils.Md5(originPwd)}
 	biz.ErrIsNil(a.AccountApp.GetAccount(account, "Id", "Username", "Status", "LastLoginTime", "LastLoginIp"), "用户名或密码错误")
 	biz.IsTrue(account.IsEnable(), "该账号不可用")
+
+	// 校验密码强度是否符合
+	biz.IsTrueBy(CheckPasswordLever(originPwd), biz.NewBizErrCode(401, "您的密码安全等级较低，请修改后重新登录"))
 
 	var resources vo.AccountResourceVOList
 	// 获取账号菜单资源
@@ -72,6 +79,48 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 	}
 }
 
+func (a *Account) ChangePassword(rc *ctx.ReqCtx) {
+	form := new(form.AccountChangePasswordForm)
+	ginx.BindJsonAndValid(rc.GinCtx, form)
+
+	originOldPwd, err := utils.DefaultRsaDecrypt(form.OldPassword, true)
+	biz.ErrIsNilAppendErr(err, "解密旧密码错误: %s")
+
+	account := &entity.Account{Username: form.Username, Password: utils.Md5(originOldPwd)}
+	biz.ErrIsNil(a.AccountApp.GetAccount(account, "Id", "Username", "Status"), "旧密码不正确")
+
+	originNewPwd, err := utils.DefaultRsaDecrypt(form.NewPassword, true)
+	biz.ErrIsNilAppendErr(err, "解密新密码错误: %s")
+	biz.IsTrue(CheckPasswordLever(originNewPwd), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
+
+	updateAccount := new(entity.Account)
+	updateAccount.Id = account.Id
+	updateAccount.Password = utils.Md5(originNewPwd)
+	a.AccountApp.Update(updateAccount)
+
+	// 赋值loginAccount 主要用于记录操作日志，因为操作日志保存请求上下文没有该信息不保存日志
+	rc.LoginAccount = &model.LoginAccount{Id: account.Id, Username: account.Username}
+}
+
+func CheckPasswordLever(ps string) bool {
+	if len(ps) < 8 {
+		return false
+	}
+	num := `[0-9]{1}`
+	a_z := `[a-zA-Z]{1}`
+	symbol := `[!@#~$%^&*()+|_.,]{1}`
+	if b, err := regexp.MatchString(num, ps); !b || err != nil {
+		return false
+	}
+	if b, err := regexp.MatchString(a_z, ps); !b || err != nil {
+		return false
+	}
+	if b, err := regexp.MatchString(symbol, ps); !b || err != nil {
+		return false
+	}
+	return true
+}
+
 // 保存更新账号登录信息
 func (a *Account) saveLogin(account *entity.Account, ip string) {
 	// 更新账号最后登录时间
@@ -105,7 +154,7 @@ func (a *Account) saveLogin(account *entity.Account, ip string) {
 }
 
 // 获取个人账号信息
-func (a Account) AccountInfo(rc *ctx.ReqCtx) {
+func (a *Account) AccountInfo(rc *ctx.ReqCtx) {
 	ap := new(vo.AccountPersonVO)
 	// 角色信息
 	roles := new([]vo.AccountRoleVO)
@@ -116,7 +165,7 @@ func (a Account) AccountInfo(rc *ctx.ReqCtx) {
 }
 
 // 更新个人账号信息
-func (a Account) UpdateAccount(rc *ctx.ReqCtx) {
+func (a *Account) UpdateAccount(rc *ctx.ReqCtx) {
 	updateForm := &form.AccountUpdateForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, updateForm)
 
@@ -126,13 +175,14 @@ func (a Account) UpdateAccount(rc *ctx.ReqCtx) {
 	updateAccount.Id = rc.LoginAccount.Id
 
 	if updateAccount.Password != "" {
+		biz.IsTrue(CheckPasswordLever(updateAccount.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
 		updateAccount.Password = utils.Md5(updateAccount.Password)
 	}
 	a.AccountApp.Update(updateAccount)
 }
 
 // 获取账号接收的消息列表
-func (a Account) GetMsgs(rc *ctx.ReqCtx) {
+func (a *Account) GetMsgs(rc *ctx.ReqCtx) {
 	condition := &entity.Msg{
 		RecipientId: int64(rc.LoginAccount.Id),
 	}

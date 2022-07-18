@@ -65,7 +65,10 @@ func (r *redisAppImpl) GetRedisBy(condition *entity.Redis, cols ...string) error
 }
 
 func (r *redisAppImpl) Save(re *entity.Redis) {
-	TestRedisConnection(re)
+	// ’修改信息且密码不为空‘ or ‘新增’需要测试是否可连接
+	if (re.Id != 0 && re.Password != "") || re.Id == 0 {
+		TestRedisConnection(re)
+	}
 
 	// 查找是否存在该库
 	oldRedis := &entity.Redis{Host: re.Host, Db: re.Db}

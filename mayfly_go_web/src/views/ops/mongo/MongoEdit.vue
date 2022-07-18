@@ -42,6 +42,7 @@ import { toRefs, reactive, watch, defineComponent, ref } from 'vue';
 import { mongoApi } from './api';
 import { projectApi } from '../project/api.ts';
 import { ElMessage } from 'element-plus';
+import { RsaEncrypt } from '@/common/rsa';
 
 export default defineComponent({
     name: 'MongoEdit',
@@ -144,9 +145,11 @@ export default defineComponent({
         };
 
         const btnOk = async () => {
-            mongoForm.value.validate((valid: boolean) => {
+            mongoForm.value.validate(async (valid: boolean) => {
                 if (valid) {
-                    mongoApi.saveMongo.request(state.form).then(() => {
+                    const reqForm = { ...state.form };
+                    reqForm.uri = await RsaEncrypt(reqForm.uri);
+                    mongoApi.saveMongo.request(reqForm).then(() => {
                         ElMessage.success('保存成功');
                         emit('val-change', state.form);
                         state.btnLoading = true;

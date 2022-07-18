@@ -15,7 +15,7 @@
                             </el-form-item>
 
                             <el-form-item label="库" label-width="20px">
-                                <el-select v-model="database" placeholder="请选择库" @change="changeDatabase">
+                                <el-select v-model="database" placeholder="请选择库" @change="changeDatabase" filterable>
                                     <el-option v-for="item in databases" :key="item.Name" :label="item.Name" :value="item.Name">
                                         <span style="float: left">{{ item.Name }}</span>
                                         <span style="float: right; color: #8492a6; margin-left: 4px; font-size: 13px">{{
@@ -26,12 +26,8 @@
                             </el-form-item>
 
                             <el-form-item label="集合" label-width="40px">
-                                <el-select v-model="collection" placeholder="请选择集合" @change="changeCollection">
+                                <el-select v-model="collection" placeholder="请选择集合" @change="changeCollection" filterable>
                                     <el-option v-for="item in collections" :key="item" :label="item" :value="item">
-                                        <!-- <span style="float: left">{{ item.uri }}</span>
-                                            <span style="float: right; color: #8492a6; margin-left: 6px; font-size: 13px">{{
-                                                ` [${item.name}]`
-                                            }}</span> -->
                                     </el-option>
                                 </el-select>
                             </el-form-item>

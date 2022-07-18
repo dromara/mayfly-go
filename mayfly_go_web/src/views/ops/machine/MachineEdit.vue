@@ -48,6 +48,7 @@ import { toRefs, reactive, watch, defineComponent, ref } from 'vue';
 import { machineApi } from './api';
 import { ElMessage } from 'element-plus';
 import { notBlank } from '@/common/assert';
+import { RsaEncrypt } from '@/common/rsa';
 
 export default defineComponent({
     name: 'MachineEdit',
@@ -76,8 +77,8 @@ export default defineComponent({
                 projectName: null,
                 name: null,
                 port: 22,
-                username: null,
-                password: null,
+                username: "",
+                password: "",
                 remark: '',
             },
             btnLoading: false,
@@ -149,9 +150,11 @@ export default defineComponent({
             if (!state.form.id) {
                 notBlank(state.form.password, '新增操作，密码不可为空');
             }
-            machineForm.value.validate((valid: boolean) => {
+            machineForm.value.validate(async (valid: boolean) => {
                 if (valid) {
-                    machineApi.saveMachine.request(state.form).then(() => {
+                    const reqForm = { ...state.form };
+                    reqForm.password = await RsaEncrypt(state.form.password);
+                    machineApi.saveMachine.request(reqForm).then(() => {
                         ElMessage.success('保存成功');
                         emit('val-change', state.form);
                         state.btnLoading = true;

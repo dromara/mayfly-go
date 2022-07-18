@@ -26,6 +26,14 @@ func InitAccountRouter(router *gin.RouterGroup) {
 				Handle(a.Login)
 		})
 
+		changePwdLog := ctx.NewLogInfo("用户修改密码").WithSave(true)
+		account.POST("change-pwd", func(g *gin.Context) {
+			ctx.NewReqCtxWithGin(g).
+				WithNeedToken(false).
+				WithLog(changePwdLog).
+				Handle(a.ChangePassword)
+		})
+
 		// 获取个人账号信息
 		account.GET("/self", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(a.AccountInfo)

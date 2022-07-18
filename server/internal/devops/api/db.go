@@ -47,6 +47,12 @@ func (d *Db) Save(rc *ctx.ReqCtx) {
 
 	db := new(entity.Db)
 	utils.Copy(db, form)
+
+	// 密码解密，并使用解密后的赋值
+	originPwd, err := utils.DefaultRsaDecrypt(form.Password, true)
+	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
+	db.Password = originPwd
+
 	// 密码脱敏记录日志
 	form.Password = "****"
 	rc.ReqParam = form

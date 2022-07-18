@@ -2,7 +2,7 @@ package initialize
 
 import (
 	"fmt"
-	common_index_router "mayfly-go/internal/common/router"
+	common_router "mayfly-go/internal/common/router"
 	devops_router "mayfly-go/internal/devops/router"
 	sys_router "mayfly-go/internal/sys/router"
 	"mayfly-go/pkg/config"
@@ -46,7 +46,8 @@ func InitRouter() *gin.Engine {
 	// 设置路由组
 	api := router.Group("/api")
 	{
-		common_index_router.InitIndexRouter(api)
+		common_router.InitIndexRouter(api)
+		common_router.InitCommonRouter(api)
 
 		sys_router.InitCaptchaRouter(api)
 		sys_router.InitAccountRouter(api) // 注册account路由

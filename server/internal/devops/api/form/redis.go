@@ -10,6 +10,7 @@ type Redis struct {
 	Project   string `json:"project"`
 	Env       string `json:"env"`
 	EnvId     uint64 `binding:"required" json:"envId"`
+	Remark    string `json:"remark"`
 }
 
 type KeyInfo struct {

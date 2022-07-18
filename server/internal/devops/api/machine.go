@@ -57,6 +57,11 @@ func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
 	entity := new(entity.Machine)
 	utils.Copy(entity, machineForm)
 
+	// 密码解密，并使用解密后的赋值
+	originPwd, err := utils.DefaultRsaDecrypt(machineForm.Password, true)
+	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
+	entity.Password = originPwd
+
 	// 密码脱敏记录日志
 	machineForm.Password = "****"
 	rc.ReqParam = machineForm

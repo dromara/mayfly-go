@@ -44,7 +44,7 @@ func SuccessNoData() *Result {
 	return &Result{Code: SuccessCode, Msg: SuccessMsg}
 }
 
-func Error(bizerr *biz.BizError) *Result {
+func Error(bizerr biz.BizError) *Result {
 	return &Result{Code: bizerr.Code(), Msg: bizerr.Error()}
 }
 

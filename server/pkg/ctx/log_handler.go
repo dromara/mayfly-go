@@ -95,7 +95,7 @@ func getErrMsg(rc *ReqCtx, err interface{}) string {
 
 	var errMsg string
 	switch t := err.(type) {
-	case *biz.BizError:
+	case biz.BizError:
 		errMsg = fmt.Sprintf("\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())
 	case error:
 		errMsg = fmt.Sprintf("\n<-e errMsg: %s\n%s", t.Error(), string(debug.Stack()))

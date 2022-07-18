@@ -9,12 +9,12 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/lib/pq v1.10.6
 	github.com/mojocn/base64Captcha v1.3.5 // 验证码
-	github.com/pkg/sftp v1.13.4
+	github.com/pkg/sftp v1.13.5
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务
 	github.com/sirupsen/logrus v1.8.1
 	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
 	go.mongodb.org/mongo-driver v1.9.1 // mongo
-	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // ssh
+	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // ssh
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 	// gorm
 	gorm.io/driver/mysql v1.3.4

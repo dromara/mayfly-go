@@ -26,7 +26,7 @@
                     <el-input v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item prop="port" label="port:" required>
-                    <el-input type="number" v-model.trim="form.port" placeholder="请输入端口"></el-input>
+                    <el-input type="number" v-model.number="form.port" placeholder="请输入端口"></el-input>
                 </el-form-item>
                 <el-form-item prop="username" label="用户名:" required>
                     <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
@@ -86,6 +86,7 @@ import { projectApi } from '../project/api.ts';
 import { ElMessage } from 'element-plus';
 import type { ElInput } from 'element-plus';
 import { notBlank } from '@/common/assert';
+import { RsaEncrypt } from '@/common/rsa';
 
 export default defineComponent({
     name: 'DbEdit',
@@ -259,10 +260,11 @@ export default defineComponent({
             if (!state.form.id) {
                 notBlank(state.form.password, '新增操作，密码不可为空');
             }
-            dbForm.value.validate((valid: boolean) => {
+            dbForm.value.validate(async (valid: boolean) => {
                 if (valid) {
-                    state.form.port = Number.parseInt(state.form.port as any);
-                    dbApi.saveDb.request(state.form).then(() => {
+                    const reqForm = { ...state.form };
+                    reqForm.password = await RsaEncrypt(reqForm.password);
+                    dbApi.saveDb.request(reqForm).then(() => {
                         ElMessage.success('保存成功');
                         emit('val-change', state.form);
                         state.btnLoading = true;
