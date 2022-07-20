@@ -67,6 +67,28 @@
                     />
                     <el-button v-else class="ml5 mt5" size="small" @click="showInputDb"> + 添加数据库 </el-button>
                 </el-form-item>
+
+                <el-form-item prop="enable_ssh" label="SSH:" v-if="form.type === 'mysql'">
+                    <el-checkbox v-model="form.enable_ssh" :true-label=1 :false-label=0></el-checkbox>
+                </el-form-item>
+                <el-form-item prop="ssh_host" label="SSH Host:" v-if="form.enable_ssh === 1 && form.type === 'mysql'">
+                    <el-input v-model.trim="form.ssh_host" placeholder="请输入主机ip" auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item prop="ssh_user" label="SSH User:" v-if="form.enable_ssh === 1 && form.type === 'mysql'">
+                    <el-input v-model.trim="form.ssh_user" placeholder="请输入用户名"></el-input>
+                </el-form-item>
+                <el-form-item prop="ssh_pass" label="SSH Pass:" v-if="form.enable_ssh === 1 && form.type === 'mysql'">
+                    <el-input
+                        type="password"
+                        show-password
+                        v-model.trim="form.ssh_pass"
+                        placeholder="请输入密码，修改操作可不填"
+                        autocomplete="new-password"
+                    ></el-input>
+                </el-form-item>
+                <el-form-item prop="ssh_port" label="SSH Port:" v-if="form.enable_ssh === 1 && form.type === 'mysql'">
+                    <el-input type="number" v-model.number="form.ssh_port" placeholder="请输入端口"></el-input>
+                </el-form-item>
             </el-form>
 
             <template #footer>
@@ -127,6 +149,11 @@ export default defineComponent({
                 projectId: null,
                 envId: null,
                 env: null,
+                enable_ssh: null,
+                ssh_host: null,
+                ssh_user: null,
+                ssh_pass: null,
+                ssh_port: 22,
             },
             btnLoading: false,
             rules: {
@@ -264,6 +291,7 @@ export default defineComponent({
                 if (valid) {
                     const reqForm = { ...state.form };
                     reqForm.password = await RsaEncrypt(reqForm.password);
+                    reqForm.ssh_pass = await RsaEncrypt(reqForm.ssh_pass);
                     dbApi.saveDb.request(reqForm).then(() => {
                         ElMessage.success('保存成功');
                         emit('val-change', state.form);

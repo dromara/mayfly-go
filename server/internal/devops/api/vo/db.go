@@ -19,4 +19,9 @@ type SelectDataDbVO struct {
 	CreateTime *time.Time `json:"createTime"`
 	Creator    *string    `json:"creator"`
 	CreatorId  *int64     `json:"creatorId"`
+
+	EnableSSH *int    `json:"enable_ssh"`
+	SSHHost   *string `json:"ssh_host"`
+	SSHPort   *int    `json:"ssh_port"`
+	SSHUser   *string `json:"ssh_user"`
 }

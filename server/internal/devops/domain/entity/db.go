@@ -20,4 +20,10 @@ type Db struct {
 	Project   string
 	EnvId     uint64
 	Env       string
+
+	EnableSSH int    `orm:"column(enable_ssh)" json:"enable_ssh"`
+	SSHHost   string `orm:"column(ssh_host)" json:"ssh_host"`
+	SSHPort   int    `orm:"column(ssh_port)" json:"ssh_port"`
+	SSHUser   string `orm:"column(ssh_user)" json:"ssh_user"`
+	SSHPass   string `orm:"column(ssh_pass)" json:"-"`
 }
