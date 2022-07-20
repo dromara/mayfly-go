@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"fmt"
 	"mayfly-go/pkg/model"
 )
 
@@ -21,9 +22,24 @@ type Db struct {
 	EnvId     uint64
 	Env       string
 
-	EnableSSH int    `orm:"column(enable_ssh)" json:"enable_ssh"`
-	SSHHost   string `orm:"column(ssh_host)" json:"ssh_host"`
-	SSHPort   int    `orm:"column(ssh_port)" json:"ssh_port"`
-	SSHUser   string `orm:"column(ssh_user)" json:"ssh_user"`
-	SSHPass   string `orm:"column(ssh_pass)" json:"-"`
+	EnableSshTunnel    int8   `orm:"column(enable_ssh_tunnel)" json:"enableSshTunnel"`        // 是否启用ssh隧道
+	SshTunnelMachineId uint64 `orm:"column(ssh_tunnel_machine_id)" json:"sshTunnelMachineId"` // ssh隧道机器id
 }
+
+// 获取数据库连接网络, 若没有使用ssh隧道，则直接返回。否则返回拼接的网络需要注册至指定dial
+func (d Db) GetNetwork() string {
+	network := d.Network
+	if d.EnableSshTunnel == -1 {
+		if network == "" {
+			return "tcp"
+		} else {
+			return network
+		}
+	}
+	return fmt.Sprintf("%s+ssh:%d", d.Type, d.SshTunnelMachineId)
+}
+
+const (
+	DbTypeMysql    = "mysql"
+	DbTypePostgres = "postgres"
+)

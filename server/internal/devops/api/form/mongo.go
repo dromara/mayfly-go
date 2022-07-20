@@ -1,13 +1,15 @@
 package form
 
 type Mongo struct {
-	Id        uint64
-	Uri       string `binding:"required" json:"uri"`
-	Name      string `binding:"required" json:"name"`
-	ProjectId uint64 `binding:"required" json:"projectId"`
-	Project   string `json:"project"`
-	Env       string `json:"env"`
-	EnvId     uint64 `binding:"required" json:"envId"`
+	Id                 uint64
+	Uri                string `binding:"required" json:"uri"`
+	EnableSshTunnel    int8   `json:"enableSshTunnel"`    // 是否启用ssh隧道
+	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"` // ssh隧道机器id
+	Name               string `binding:"required" json:"name"`
+	ProjectId          uint64 `binding:"required" json:"projectId"`
+	Project            string `json:"project"`
+	Env                string `json:"env"`
+	EnvId              uint64 `binding:"required" json:"envId"`
 }
 
 type MongoCommand struct {

@@ -1,6 +1,6 @@
 app:
   name: mayfly-go
-  version: 1.2.0
+  version: 1.2.3
   
 server:
   # debug release test

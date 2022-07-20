@@ -1,16 +1,18 @@
 package form
 
 type Redis struct {
-	Id        uint64
-	Host      string `binding:"required" json:"host"`
-	Password  string `json:"password"`
-	Mode      string `json:"mode"`
-	Db        int    `json:"db"`
-	ProjectId uint64 `binding:"required" json:"projectId"`
-	Project   string `json:"project"`
-	Env       string `json:"env"`
-	EnvId     uint64 `binding:"required" json:"envId"`
-	Remark    string `json:"remark"`
+	Id                 uint64
+	Host               string `binding:"required" json:"host"`
+	Password           string `json:"password"`
+	Mode               string `json:"mode"`
+	Db                 int    `json:"db"`
+	EnableSshTunnel    int8   `json:"enableSshTunnel"`    // 是否启用ssh隧道
+	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"` // ssh隧道机器id
+	ProjectId          uint64 `binding:"required" json:"projectId"`
+	Project            string `json:"project"`
+	Env                string `json:"env"`
+	EnvId              uint64 `binding:"required" json:"envId"`
+	Remark             string `json:"remark"`
 }
 
 type KeyInfo struct {

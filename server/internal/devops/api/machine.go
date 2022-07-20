@@ -54,20 +54,22 @@ func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
 	machineForm := new(form.MachineForm)
 	ginx.BindJsonAndValid(g, machineForm)
 
-	entity := new(entity.Machine)
-	utils.Copy(entity, machineForm)
+	me := new(entity.Machine)
+	utils.Copy(me, machineForm)
 
-	// 密码解密，并使用解密后的赋值
-	originPwd, err := utils.DefaultRsaDecrypt(machineForm.Password, true)
-	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
-	entity.Password = originPwd
+	if me.AuthMethod == entity.MachineAuthMethodPassword {
+		// 密码解密，并使用解密后的赋值
+		originPwd, err := utils.DefaultRsaDecrypt(machineForm.Password, true)
+		biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
+		me.Password = originPwd
+	}
 
 	// 密码脱敏记录日志
 	machineForm.Password = "****"
 	rc.ReqParam = machineForm
 
-	entity.SetBaseInfo(rc.LoginAccount)
-	m.MachineApp.Save(entity)
+	me.SetBaseInfo(rc.LoginAccount)
+	m.MachineApp.Save(me)
 }
 
 func (m *Machine) ChangeStatus(rc *ctx.ReqCtx) {

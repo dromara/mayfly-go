@@ -23,10 +23,13 @@
                     </el-select>
                 </el-form-item>
                 <el-form-item prop="host" label="host:" required>
-                    <el-input v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
-                </el-form-item>
-                <el-form-item prop="port" label="port:" required>
-                    <el-input type="number" v-model.number="form.port" placeholder="请输入端口"></el-input>
+                    <el-col :span="18">
+                        <el-input v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
+                    </el-col>
+                    <el-col style="text-align: center" :span="1">:</el-col>
+                    <el-col :span="5">
+                        <el-input type="number" v-model.number="form.port" placeholder="请输入端口"></el-input>
+                    </el-col>
                 </el-form-item>
                 <el-form-item prop="username" label="用户名:" required>
                     <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
@@ -68,26 +71,22 @@
                     <el-button v-else class="ml5 mt5" size="small" @click="showInputDb"> + 添加数据库 </el-button>
                 </el-form-item>
 
-                <el-form-item prop="enable_ssh" label="SSH:" v-if="form.type === 'mysql'">
-                    <el-checkbox v-model="form.enable_ssh" :true-label=1 :false-label=0></el-checkbox>
-                </el-form-item>
-                <el-form-item prop="ssh_host" label="SSH Host:" v-if="form.enable_ssh === 1 && form.type === 'mysql'">
-                    <el-input v-model.trim="form.ssh_host" placeholder="请输入主机ip" auto-complete="off"></el-input>
-                </el-form-item>
-                <el-form-item prop="ssh_user" label="SSH User:" v-if="form.enable_ssh === 1 && form.type === 'mysql'">
-                    <el-input v-model.trim="form.ssh_user" placeholder="请输入用户名"></el-input>
-                </el-form-item>
-                <el-form-item prop="ssh_pass" label="SSH Pass:" v-if="form.enable_ssh === 1 && form.type === 'mysql'">
-                    <el-input
-                        type="password"
-                        show-password
-                        v-model.trim="form.ssh_pass"
-                        placeholder="请输入密码，修改操作可不填"
-                        autocomplete="new-password"
-                    ></el-input>
-                </el-form-item>
-                <el-form-item prop="ssh_port" label="SSH Port:" v-if="form.enable_ssh === 1 && form.type === 'mysql'">
-                    <el-input type="number" v-model.number="form.ssh_port" placeholder="请输入端口"></el-input>
+                <el-form-item prop="enableSshTunnel" label="SSH隧道:">
+                    <el-col :span="3">
+                        <el-checkbox @change="getSshTunnelMachines" v-model="form.enableSshTunnel" :true-label="1" :false-label="-1"></el-checkbox>
+                    </el-col>
+                    <el-col :span="2" v-if="form.enableSshTunnel == 1"> 机器: </el-col>
+                    <el-col :span="19" v-if="form.enableSshTunnel == 1">
+                        <el-select style="width: 100%" v-model="form.sshTunnelMachineId" placeholder="请选择SSH隧道机器">
+                            <el-option
+                                v-for="item in sshTunnelMachineList"
+                                :key="item.id"
+                                :label="`${item.ip}:${item.port} [${item.name}]`"
+                                :value="item.id"
+                            >
+                            </el-option>
+                        </el-select>
+                    </el-col>
                 </el-form-item>
             </el-form>
 
@@ -105,6 +104,7 @@
 import { toRefs, reactive, nextTick, watch, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
 import { projectApi } from '../project/api.ts';
+import { machineApi } from '../machine/api.ts';
 import { ElMessage } from 'element-plus';
 import type { ElInput } from 'element-plus';
 import { notBlank } from '@/common/assert';
@@ -135,6 +135,7 @@ export default defineComponent({
             projects: [],
             envs: [],
             databaseList: [] as any,
+            sshTunnelMachineList: [],
             inputDbVisible: false,
             inputDbValue: '',
             form: {
@@ -149,11 +150,8 @@ export default defineComponent({
                 projectId: null,
                 envId: null,
                 env: null,
-                enable_ssh: null,
-                ssh_host: null,
-                ssh_user: null,
-                ssh_pass: null,
-                ssh_port: 22,
+                enableSshTunnel: null,
+                sshTunnelMachineId: null,
             },
             btnLoading: false,
             rules: {
@@ -188,14 +186,7 @@ export default defineComponent({
                 host: [
                     {
                         required: true,
-                        message: '请输入主机ip',
-                        trigger: ['change', 'blur'],
-                    },
-                ],
-                port: [
-                    {
-                        required: true,
-                        message: '请输入端口',
+                        message: '请输入主机ip和port',
                         trigger: ['change', 'blur'],
                     },
                 ],
@@ -217,6 +208,10 @@ export default defineComponent({
         });
 
         watch(props, (newValue) => {
+            state.dialogVisible = newValue.visible;
+            if (!state.dialogVisible) {
+                return;
+            }
             state.projects = newValue.projects;
             if (newValue.db) {
                 getEnvs(newValue.db.projectId);
@@ -225,10 +220,10 @@ export default defineComponent({
                 state.databaseList = newValue.db.database.split(' ');
             } else {
                 state.envs = [];
-                state.form = { port: 3306 } as any;
+                state.form = { port: 3306, enableSshTunnel: -1 } as any;
                 state.databaseList = [];
             }
-            state.dialogVisible = newValue.visible;
+            getSshTunnelMachines();
         });
 
         const handleClose = (db: string) => {
@@ -257,6 +252,13 @@ export default defineComponent({
          */
         const changeDatabase = () => {
             state.form.database = state.databaseList.length == 0 ? '' : state.databaseList.join(' ');
+        };
+
+        const getSshTunnelMachines = async () => {
+            if (state.form.enableSshTunnel == 1 && state.sshTunnelMachineList.length == 0) {
+                const res = await machineApi.list.request({ pageNum: 1, pageSize: 100 });
+                state.sshTunnelMachineList = res.list;
+            }
         };
 
         const getEnvs = async (projectId: any) => {
@@ -291,7 +293,7 @@ export default defineComponent({
                 if (valid) {
                     const reqForm = { ...state.form };
                     reqForm.password = await RsaEncrypt(reqForm.password);
-                    reqForm.ssh_pass = await RsaEncrypt(reqForm.ssh_pass);
+                    // reqForm.ssh_pass = await RsaEncrypt(reqForm.ssh_pass);
                     dbApi.saveDb.request(reqForm).then(() => {
                         ElMessage.success('保存成功');
                         emit('val-change', state.form);
@@ -330,6 +332,7 @@ export default defineComponent({
             handleClose,
             showInputDb,
             handleInputDbConfirm,
+            getSshTunnelMachines,
             changeProject,
             changeEnv,
             btnOk,

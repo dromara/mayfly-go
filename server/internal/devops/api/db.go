@@ -56,13 +56,13 @@ func (d *Db) Save(rc *ctx.ReqCtx) {
 	// 密码脱敏记录日志
 	form.Password = "****"
 
-	if form.Type == "mysql" && form.EnableSSH == 1 {
-		originSSHPwd, err := utils.DefaultRsaDecrypt(form.SSHPass, true)
-		biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
-		db.SSHPass = originSSHPwd
-		// 密码脱敏记录日志
-		form.SSHPass = "****"
-	}
+	// if form.Type == "mysql" && form.EnableSSH == 1 {
+	// 	// originSSHPwd, err := utils.DefaultRsaDecrypt(form.SSHPass, true)
+	// 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
+	// 	// db.SSHPass = originSSHPwd
+	// 	// 密码脱敏记录日志
+	// 	form.SSHPass = "****"
+	// }
 
 	rc.ReqParam = form
 

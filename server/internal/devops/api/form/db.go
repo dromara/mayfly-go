@@ -15,11 +15,8 @@ type DbForm struct {
 	Env       string `json:"env"`
 	EnvId     uint64 `binding:"required" json:"envId"`
 
-	EnableSSH int    `json:"enable_ssh"`
-	SSHHost   string `json:"ssh_host"`
-	SSHPort   int    `json:"ssh_port"`
-	SSHUser   string `json:"ssh_user"`
-	SSHPass   string `json:"ssh_pass"`
+	EnableSshTunnel    int8   `json:"enableSshTunnel"`
+	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"`
 }
 
 type DbSqlSaveForm struct {

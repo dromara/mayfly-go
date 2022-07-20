@@ -260,13 +260,13 @@ export default defineComponent({
             search();
         };
 
-        const openFormDialog = (redis: any) => {
+        const openFormDialog = (machine: any) => {
             let dialogTitle;
-            if (redis) {
+            if (machine) {
                 state.machineEditDialog.data = state.currentData as any;
                 dialogTitle = '编辑机器';
             } else {
-                state.machineEditDialog.data = { port: 22 } as any;
+                state.machineEditDialog.data = null;
                 dialogTitle = '添加机器';
             }
 

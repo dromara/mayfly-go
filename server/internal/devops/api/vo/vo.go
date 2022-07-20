@@ -22,6 +22,7 @@ type MachineVO struct {
 	Username    *string    `json:"username"`
 	Ip          *string    `json:"ip"`
 	Port        *int       `json:"port"`
+	AuthMethod  *int8      `json:"authMethod"`
 	Status      *int8      `json:"status"`
 	CreateTime  *time.Time `json:"createTime"`
 	Creator     *string    `json:"creator"`

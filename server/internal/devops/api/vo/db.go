@@ -20,8 +20,6 @@ type SelectDataDbVO struct {
 	Creator    *string    `json:"creator"`
 	CreatorId  *int64     `json:"creatorId"`
 
-	EnableSSH *int    `json:"enable_ssh"`
-	SSHHost   *string `json:"ssh_host"`
-	SSHPort   *int    `json:"ssh_port"`
-	SSHUser   *string `json:"ssh_user"`
+	EnableSshTunnel    *int8   `json:"enableSshTunnel"`
+	SshTunnelMachineId *uint64 `json:"sshTunnelMachineId"`
 }

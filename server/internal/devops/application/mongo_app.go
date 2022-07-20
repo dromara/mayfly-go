@@ -4,15 +4,19 @@ import (
 	"context"
 	"mayfly-go/internal/devops/domain/entity"
 	"mayfly-go/internal/devops/domain/repository"
+	"mayfly-go/internal/devops/infrastructure/machine"
 	"mayfly-go/internal/devops/infrastructure/persistence"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils"
+	"net"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/ssh"
 )
 
 type Mongo interface {
@@ -80,13 +84,13 @@ func (d *mongoAppImpl) Save(m *entity.Mongo) {
 }
 
 func (d *mongoAppImpl) GetMongoCli(id uint64) *mongo.Client {
-	cli, err := GetMongoCli(id, func(u uint64) string {
-		mongo := d.GetById(id)
+	mongoInstance, err := GetMongoInstance(id, func(u uint64) *entity.Mongo {
+		mongo := d.GetById(u)
 		biz.NotNil(mongo, "mongo信息不存在")
-		return mongo.Uri
+		return mongo
 	})
 	biz.ErrIsNilAppendErr(err, "连接mongo失败: %s")
-	return cli
+	return mongoInstance.Cli
 }
 
 // -----------------------------------------------------------
@@ -95,21 +99,22 @@ func (d *mongoAppImpl) GetMongoCli(id uint64) *mongo.Client {
 var mongoCliCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key interface{}, value interface{}) {
-		global.Log.Info("关闭mongo连接: id = ", key)
-		value.(*mongo.Client).Disconnect(context.TODO())
+		global.Log.Info("删除mongo连接缓存: id = ", key)
+		value.(*MongoInstance).Close()
 	})
 
-func GetMongoCli(mongoId uint64, getMongoUri func(uint64) string) (*mongo.Client, error) {
-	cli, err := mongoCliCache.ComputeIfAbsent(mongoId, func(key interface{}) (interface{}, error) {
-		c, err := connect(getMongoUri(mongoId))
+// 获取mongo的连接实例
+func GetMongoInstance(mongoId uint64, getMongoEntity func(uint64) *entity.Mongo) (*MongoInstance, error) {
+	mi, err := mongoCliCache.ComputeIfAbsent(mongoId, func(_ interface{}) (interface{}, error) {
+		c, err := connect(getMongoEntity(mongoId))
 		if err != nil {
 			return nil, err
 		}
 		return c, nil
 	})
 
-	if cli != nil {
-		return cli.(*mongo.Client), err
+	if mi != nil {
+		return mi.(*MongoInstance), err
 	}
 	return nil, err
 }
@@ -118,16 +123,67 @@ func DeleteMongoCache(mongoId uint64) {
 	mongoCliCache.Delete(mongoId)
 }
 
+type MongoInstance struct {
+	Id        uint64
+	ProjectId uint64
+	Cli       *mongo.Client
+	sshTunnel *ssh.Client
+}
+
+func (mi *MongoInstance) Close() {
+	if mi.Cli != nil {
+		if err := mi.Cli.Disconnect(context.Background()); err != nil {
+			global.Log.Errorf("关闭mongo实例[%d]连接失败: %s", mi.Id, err)
+		}
+	}
+	if mi.sshTunnel != nil {
+		if err := mi.sshTunnel.Close(); err != nil {
+			global.Log.Errorf("关闭mongo实例[%d]的ssh隧道失败: %s", mi.Id, err.Error())
+		}
+	}
+}
+
 // 连接mongo，并返回client
-func connect(uri string) (*mongo.Client, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+func connect(me *entity.Mongo) (*MongoInstance, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri).SetMaxPoolSize(2))
+
+	mongoInstance := &MongoInstance{Id: me.Id, ProjectId: me.ProjectId}
+
+	mongoOptions := options.Client().ApplyURI(me.Uri).
+		SetMaxPoolSize(1)
+	// 启用ssh隧道则连接隧道机器
+	if me.EnableSshTunnel == 1 {
+		machineEntity := MachineApp.GetById(4)
+		sshClient, err := machine.GetSshClient(machineEntity)
+		biz.ErrIsNilAppendErr(err, "ssh隧道连接失败: %s")
+		mongoInstance.sshTunnel = sshClient
+
+		mongoOptions.SetDialer(&MongoSshDialer{sshTunnel: sshClient})
+	}
+
+	client, err := mongo.Connect(ctx, mongoOptions)
 	if err != nil {
 		return nil, err
 	}
 	if err = client.Ping(context.TODO(), nil); err != nil {
 		return nil, err
 	}
-	return client, err
+
+	global.Log.Infof("连接mongo: %s", me.Uri)
+	mongoInstance.Cli = client
+	return mongoInstance, err
+}
+
+type MongoSshDialer struct {
+	sshTunnel *ssh.Client
+}
+
+func (sd *MongoSshDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	if sshConn, err := sd.sshTunnel.Dial(network, address); err == nil {
+		// 将ssh conn包装，否则内部部设置超时会报错,ssh conn不支持设置超时会返回错误: ssh: tcpChan: deadline not supported
+		return &utils.WrapSshConn{Conn: sshConn}, nil
+	} else {
+		return nil, err
+	}
 }

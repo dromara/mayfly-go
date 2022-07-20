@@ -5,14 +5,12 @@ type MachineForm struct {
 	ProjectId   uint64 `json:"projectId"`
 	ProjectName string `json:"projectName"`
 	Name        string `json:"name" binding:"required"`
-	// IP地址
-	Ip string `json:"ip" binding:"required"`
-	// 用户名
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password"`
-	// 端口号
-	Port   int    `json:"port" binding:"required"`
-	Remark string `json:"remark"`
+	Ip          string `json:"ip" binding:"required"`       // IP地址
+	Username    string `json:"username" binding:"required"` // 用户名
+	AuthMethod  int8   `json:"authMethod" binding:"required"`
+	Password    string `json:"password"`
+	Port        int    `json:"port" binding:"required"` // 端口号
+	Remark      string `json:"remark"`
 }
 
 type MachineRunForm struct {

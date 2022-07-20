@@ -11,15 +11,24 @@
                     <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item prop="ip" label="ip:" required>
-                    <el-input v-model.trim="form.ip" placeholder="请输入主机ip" auto-complete="off"></el-input>
-                </el-form-item>
-                <el-form-item prop="port" label="port:" required>
-                    <el-input type="number" v-model.number="form.port" placeholder="请输入端口"></el-input>
+                    <el-col :span="18">
+                        <el-input v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"></el-input>
+                    </el-col>
+                    <el-col style="text-align: center" :span="1">:</el-col>
+                    <el-col :span="5">
+                        <el-input type="number" v-model.number="form.port" placeholder="端口"></el-input>
+                    </el-col>
                 </el-form-item>
                 <el-form-item prop="username" label="用户名:" required>
                     <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
                 </el-form-item>
-                <el-form-item prop="password" label="密码:">
+                <el-form-item prop="authMethod" label="认证方式:" required>
+                    <el-select style="width: 100%" v-model="form.authMethod" placeholder="请选择认证方式">
+                        <el-option key="1" label="Password" :value="1"> </el-option>
+                        <el-option key="2" label="PublicKey" :value="2"> </el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item v-if="form.authMethod == 1" prop="password" label="密码:">
                     <el-input
                         type="password"
                         show-password
@@ -27,6 +36,9 @@
                         placeholder="请输入密码，修改操作可不填"
                         autocomplete="new-password"
                     ></el-input>
+                </el-form-item>
+                <el-form-item v-if="form.authMethod == 2" prop="password" label="秘钥:">
+                    <el-input type="textarea" :rows="3" v-model="form.password" placeholder="请将私钥文件内容拷贝至此，修改操作可不填"></el-input>
                 </el-form-item>
                 <el-form-item prop="remark" label="备注:">
                     <el-input type="textarea" v-model="form.remark"></el-input>
@@ -76,9 +88,10 @@ export default defineComponent({
                 projectId: null,
                 projectName: null,
                 name: null,
+                authMethod: 1,
                 port: 22,
-                username: "",
-                password: "",
+                username: '',
+                password: '',
                 remark: '',
             },
             btnLoading: false,
@@ -107,14 +120,7 @@ export default defineComponent({
                 ip: [
                     {
                         required: true,
-                        message: '请输入主机ip',
-                        trigger: ['change', 'blur'],
-                    },
-                ],
-                port: [
-                    {
-                        required: true,
-                        message: '请输入端口',
+                        message: '请输入主机ip和端口',
                         trigger: ['change', 'blur'],
                     },
                 ],
@@ -125,16 +131,26 @@ export default defineComponent({
                         trigger: ['change', 'blur'],
                     },
                 ],
+                authMethod: [
+                    {
+                        required: true,
+                        message: '请选择认证方式',
+                        trigger: ['change', 'blur'],
+                    },
+                ],
             },
         });
 
         watch(props, async (newValue) => {
             state.dialogVisible = newValue.visible;
+            if (!state.dialogVisible) {
+                return;
+            }
             state.projects = newValue.projects;
             if (newValue.machine) {
                 state.form = { ...newValue.machine };
             } else {
-                state.form = { port: 22 } as any;
+                state.form = { port: 22, authMethod: 1 } as any;
             }
         });
 
@@ -153,17 +169,18 @@ export default defineComponent({
             machineForm.value.validate(async (valid: boolean) => {
                 if (valid) {
                     const reqForm = { ...state.form };
-                    reqForm.password = await RsaEncrypt(state.form.password);
-                    machineApi.saveMachine.request(reqForm).then(() => {
+                    if (reqForm.authMethod == 1) {
+                        reqForm.password = await RsaEncrypt(state.form.password);
+                    }
+                    state.btnLoading = true;
+                    try {
+                        await machineApi.saveMachine.request(reqForm);
                         ElMessage.success('保存成功');
                         emit('val-change', state.form);
-                        state.btnLoading = true;
-                        setTimeout(() => {
-                            state.btnLoading = false;
-                        }, 1000);
-
                         cancel();
-                    });
+                    } finally {
+                        state.btnLoading = false;
+                    }
                 } else {
                     ElMessage.error('请正确填写信息');
                     return false;

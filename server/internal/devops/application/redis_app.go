@@ -5,15 +5,19 @@ import (
 	"fmt"
 	"mayfly-go/internal/devops/domain/entity"
 	"mayfly-go/internal/devops/domain/repository"
+	"mayfly-go/internal/devops/infrastructure/machine"
 	"mayfly-go/internal/devops/infrastructure/persistence"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils"
+	"net"
 	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"golang.org/x/crypto/ssh"
 )
 
 type Redis interface {
@@ -109,25 +113,23 @@ func (r *redisAppImpl) GetRedisInstance(id uint64) *RedisInstance {
 	biz.NotNil(re, "redis信息不存在")
 
 	redisMode := re.Mode
-	ri := &RedisInstance{Id: id, ProjectId: re.ProjectId, Mode: redisMode}
+	var ri *RedisInstance
 	if redisMode == "" || redisMode == entity.RedisModeStandalone {
-		rcli := getRedisCient(re)
+		ri = getRedisCient(re)
 		// 测试连接
-		_, e := rcli.Ping(context.Background()).Result()
+		_, e := ri.Cli.Ping(context.Background()).Result()
 		if e != nil {
-			rcli.Close()
+			ri.Close()
 			panic(biz.NewBizErr(fmt.Sprintf("redis连接失败: %s", e.Error())))
 		}
-		ri.Cli = rcli
 	} else if redisMode == entity.RedisModeCluster {
-		ccli := getRedisClusterClient(re)
+		ri = getRedisClusterClient(re)
 		// 测试连接
-		_, e := ccli.Ping(context.Background()).Result()
+		_, e := ri.ClusterCli.Ping(context.Background()).Result()
 		if e != nil {
-			ccli.Close()
+			ri.Close()
 			panic(biz.NewBizErr(fmt.Sprintf("redis集群连接失败: %s", e.Error())))
 		}
-		ri.ClusterCli = ccli
 	}
 
 	global.Log.Infof("连接redis: %s", re.Host)
@@ -137,21 +139,56 @@ func (r *redisAppImpl) GetRedisInstance(id uint64) *RedisInstance {
 	return ri
 }
 
-func getRedisCient(re *entity.Redis) *redis.Client {
-	return redis.NewClient(&redis.Options{
-		Addr:        re.Host,
-		Password:    re.Password, // no password set
-		DB:          re.Db,       // use default DB
-		DialTimeout: 8 * time.Second,
-	})
+func getRedisCient(re *entity.Redis) *RedisInstance {
+	ri := &RedisInstance{Id: re.Id, ProjectId: re.ProjectId, Mode: re.Mode}
+
+	redisOptions := &redis.Options{
+		Addr:         re.Host,
+		Password:     re.Password, // no password set
+		DB:           re.Db,       // use default DB
+		DialTimeout:  8 * time.Second,
+		ReadTimeout:  -1, // Disable timeouts, because SSH does not support deadlines.
+		WriteTimeout: -1,
+	}
+	if re.EnableSshTunnel == 1 {
+		sshClient, dialerFunc := getRedisDialer(re.SshTunnelMachineId)
+		ri.sshTunnel = sshClient
+		redisOptions.Dialer = dialerFunc
+	}
+	ri.Cli = redis.NewClient(redisOptions)
+	return ri
 }
 
-func getRedisClusterClient(re *entity.Redis) *redis.ClusterClient {
-	return redis.NewClusterClient(&redis.ClusterOptions{
+func getRedisClusterClient(re *entity.Redis) *RedisInstance {
+	ri := &RedisInstance{Id: re.Id, ProjectId: re.ProjectId, Mode: re.Mode}
+
+	redisClusterOptions := &redis.ClusterOptions{
 		Addrs:       strings.Split(re.Host, ","),
 		Password:    re.Password,
 		DialTimeout: 8 * time.Second,
-	})
+	}
+	if re.EnableSshTunnel == 1 {
+		sshClient, dialerFunc := getRedisDialer(re.SshTunnelMachineId)
+		ri.sshTunnel = sshClient
+		redisClusterOptions.Dialer = dialerFunc
+	}
+	ri.ClusterCli = redis.NewClusterClient(redisClusterOptions)
+	return ri
+}
+
+func getRedisDialer(machineId uint64) (*ssh.Client, func(ctx context.Context, network, addr string) (net.Conn, error)) {
+	me := MachineApp.GetById(machineId)
+	sshClient, err := machine.GetSshClient(me)
+	biz.ErrIsNilAppendErr(err, "ssh隧道连接失败: %s")
+
+	return sshClient, func(_ context.Context, network, addr string) (net.Conn, error) {
+		if sshConn, err := sshClient.Dial(network, addr); err == nil {
+			// 将ssh conn包装，否则redis内部设置超时会报错,ssh conn不支持设置超时会返回错误: ssh: tcpChan: deadline not supported
+			return &utils.WrapSshConn{Conn: sshConn}, nil
+		} else {
+			return nil, err
+		}
+	}
 }
 
 //------------------------------------------------------------------------------
@@ -174,11 +211,11 @@ func TestRedisConnection(re *entity.Redis) {
 	if re.Mode == "" || re.Mode == entity.RedisModeStandalone {
 		rcli := getRedisCient(re)
 		defer rcli.Close()
-		cmd = rcli
+		cmd = rcli.Cli
 	} else if re.Mode == entity.RedisModeCluster {
 		ccli := getRedisClusterClient(re)
 		defer ccli.Close()
-		cmd = ccli
+		cmd = ccli.ClusterCli
 	}
 
 	// 测试连接
@@ -193,6 +230,7 @@ type RedisInstance struct {
 	Mode       string
 	Cli        *redis.Client
 	ClusterCli *redis.ClusterClient
+	sshTunnel  *ssh.Client
 }
 
 // 获取命令执行接口的具体实现
@@ -215,10 +253,18 @@ func (r *RedisInstance) Scan(cursor uint64, match string, count int64) ([]string
 
 func (r *RedisInstance) Close() {
 	if r.Mode == entity.RedisModeStandalone {
-		r.Cli.Close()
-		return
+		if err := r.Cli.Close(); err != nil {
+			global.Log.Errorf("关闭redis单机实例[%d]连接失败: %s", r.Id, err.Error())
+		}
 	}
 	if r.Mode == entity.RedisModeCluster {
-		r.ClusterCli.Close()
+		if err := r.ClusterCli.Close(); err != nil {
+			global.Log.Errorf("关闭redis集群实例[%d]连接失败: %s", r.Id, err.Error())
+		}
+	}
+	if r.sshTunnel != nil {
+		if err := r.sshTunnel.Close(); err != nil {
+			global.Log.Errorf("关闭redis实例[%d]的ssh隧道失败: %s", r.Id, err.Error())
+		}
 	}
 }
