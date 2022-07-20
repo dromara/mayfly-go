@@ -29,7 +29,7 @@ CREATE TABLE `t_db` (
   `type` varchar(20) COLLATE utf8mb4_bin NOT NULL COMMENT '数据库实例类型(mysql...)',
   `database` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
   `params` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '其他连接参数',
-  `network` varchar(8) COLLATE utf8mb4_bin DEFAULT NULL,
+  `network` varchar(20) COLLATE utf8mb4_bin DEFAULT NULL,
   `project_id` bigint(20) DEFAULT NULL,
   `project` varchar(64) COLLATE utf8mb4_bin DEFAULT NULL,
   `env_id` bigint(20) DEFAULT NULL COMMENT '环境id',
@@ -41,6 +41,11 @@ CREATE TABLE `t_db` (
   `update_time` datetime DEFAULT NULL,
   `modifier_id` bigint(20) DEFAULT NULL,
   `modifier` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
+  `enable_ssh` tinyint(1) unsigned NOT NULL DEFAULT '0',
+  `ssh_host` varchar(50) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
+  `ssh_port` int(8) NOT NULL,
+  `ssh_user` varchar(255) COLLATE utf8mb4_bin NOT NULL DEFAULT '',
+  `ssh_pass` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库资源信息表';
 

@@ -12,12 +12,14 @@ import (
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 )
 
@@ -75,7 +77,12 @@ func (d *dbAppImpl) GetById(id uint64, cols ...string) *entity.Db {
 
 func (d *dbAppImpl) Save(dbEntity *entity.Db) {
 	// 默认tcp连接
-	dbEntity.Network = "tcp"
+	if dbEntity.Type == "mysql" && dbEntity.EnableSSH == 1 {
+		dbEntity.Network = "mysql+ssh"
+	} else {
+		dbEntity.Network = "tcp"
+	}
+
 	// 测试连接
 	if dbEntity.Password != "" {
 		TestConnection(*dbEntity)
@@ -155,6 +162,18 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	biz.IsTrue(strings.Contains(d.Database, db), "未配置该库的操作权限")
 	global.Log.Infof("连接db: %s:%d/%s", d.Host, d.Port, db)
 
+	//SSH Conect
+	if d.Type == "mysql" && d.EnableSSH == 1 {
+		sshClient, err := utils.SSHConnect(d.SSHUser, d.SSHPass, d.SSHHost, "", d.SSHPort)
+		if err != nil {
+			global.Log.Errorf("ssh连接失败: %s@%s:%d", d.SSHUser, d.SSHHost, d.SSHPort)
+			panic(biz.NewBizErr(fmt.Sprintf("ssh连接失败: %s", err.Error())))
+		}
+		mysql.RegisterDial("mysql+ssh", func(addr string) (net.Conn, error) {
+			return sshClient.Dial("tcp", addr)
+		})
+	}
+
 	// 将数据库替换为要访问的数据库，原本数据库为空格拼接的所有库
 	d.Database = db
 	DB, err := sql.Open(d.Type, getDsn(d))
@@ -202,6 +221,18 @@ func GetDbInstanceByCache(id string) *DbInstance {
 }
 
 func TestConnection(d entity.Db) {
+	//SSH Conect
+	if d.Type == "mysql" && d.EnableSSH == 1 {
+		sshClient, err := utils.SSHConnect(d.SSHUser, d.SSHPass, d.SSHHost, "", d.SSHPort)
+		if err != nil {
+			global.Log.Errorf("ssh连接失败: %s@%s:%d", d.SSHUser, d.SSHHost, d.SSHPort)
+			panic(biz.NewBizErr(fmt.Sprintf("ssh连接失败: %s", err.Error())))
+		}
+		mysql.RegisterDial("mysql+ssh", func(addr string) (net.Conn, error) {
+			return sshClient.Dial("tcp", addr)
+		})
+	}
+
 	// 验证第一个库是否可以连接即可
 	d.Database = strings.Split(d.Database, " ")[0]
 	DB, err := sql.Open(d.Type, getDsn(&d))

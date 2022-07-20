@@ -14,6 +14,12 @@ type DbForm struct {
 	Project   string `json:"project"`
 	Env       string `json:"env"`
 	EnvId     uint64 `binding:"required" json:"envId"`
+
+	EnableSSH int    `json:"enable_ssh"`
+	SSHHost   string `json:"ssh_host"`
+	SSHPort   int    `json:"ssh_port"`
+	SSHUser   string `json:"ssh_user"`
+	SSHPass   string `json:"ssh_pass"`
 }
 
 type DbSqlSaveForm struct {
