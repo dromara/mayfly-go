@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/constant"
 	"mayfly-go/internal/devops/domain/entity"
 	"mayfly-go/internal/devops/domain/repository"
 	"mayfly-go/internal/devops/infrastructure/machine"
@@ -17,7 +18,6 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"golang.org/x/crypto/ssh"
 )
 
 type Redis interface {
@@ -151,9 +151,8 @@ func getRedisCient(re *entity.Redis) *RedisInstance {
 		WriteTimeout: -1,
 	}
 	if re.EnableSshTunnel == 1 {
-		sshClient, dialerFunc := getRedisDialer(re.SshTunnelMachineId)
-		ri.sshTunnel = sshClient
-		redisOptions.Dialer = dialerFunc
+		ri.sshTunnelMachineId = re.SshTunnelMachineId
+		redisOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)
 	}
 	ri.Cli = redis.NewClient(redisOptions)
 	return ri
@@ -168,21 +167,17 @@ func getRedisClusterClient(re *entity.Redis) *RedisInstance {
 		DialTimeout: 8 * time.Second,
 	}
 	if re.EnableSshTunnel == 1 {
-		sshClient, dialerFunc := getRedisDialer(re.SshTunnelMachineId)
-		ri.sshTunnel = sshClient
-		redisClusterOptions.Dialer = dialerFunc
+		ri.sshTunnelMachineId = re.SshTunnelMachineId
+		redisClusterOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)
 	}
 	ri.ClusterCli = redis.NewClusterClient(redisClusterOptions)
 	return ri
 }
 
-func getRedisDialer(machineId uint64) (*ssh.Client, func(ctx context.Context, network, addr string) (net.Conn, error)) {
-	me := MachineApp.GetById(machineId)
-	sshClient, err := machine.GetSshClient(me)
-	biz.ErrIsNilAppendErr(err, "ssh隧道连接失败: %s")
-
-	return sshClient, func(_ context.Context, network, addr string) (net.Conn, error) {
-		if sshConn, err := sshClient.Dial(network, addr); err == nil {
+func getRedisDialer(machineId uint64) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	sshTunnel := MachineApp.GetSshTunnelMachine(machineId)
+	return func(_ context.Context, network, addr string) (net.Conn, error) {
+		if sshConn, err := sshTunnel.GetDialConn(network, addr); err == nil {
 			// 将ssh conn包装，否则redis内部设置超时会报错,ssh conn不支持设置超时会返回错误: ssh: tcpChan: deadline not supported
 			return &utils.WrapSshConn{Conn: sshConn}, nil
 		} else {
@@ -193,8 +188,8 @@ func getRedisDialer(machineId uint64) (*ssh.Client, func(ctx context.Context, ne
 
 //------------------------------------------------------------------------------
 
-// redis客户端连接缓存，30分钟内没有访问则会被关闭
-var redisCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
+// redis客户端连接缓存，指定时间内没有访问则会被关闭
+var redisCache = cache.NewTimedCache(constant.RedisConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key interface{}, value interface{}) {
 		global.Log.Info(fmt.Sprintf("删除redis连接缓存 id = %d", key))
@@ -204,6 +199,19 @@ var redisCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
 // 移除redis连接缓存并关闭redis连接
 func CloseRedis(id uint64) {
 	redisCache.Delete(id)
+}
+
+func init() {
+	machine.AddCheckSshTunnelMachineUseFunc(func(machineId uint64) bool {
+		// 遍历所有redis连接实例，若存在redis实例使用该ssh隧道机器，则返回true，表示还在使用中...
+		items := redisCache.Items()
+		for _, v := range items {
+			if v.Value.(*RedisInstance).sshTunnelMachineId == machineId {
+				return true
+			}
+		}
+		return false
+	})
 }
 
 func TestRedisConnection(re *entity.Redis) {
@@ -225,12 +233,12 @@ func TestRedisConnection(re *entity.Redis) {
 
 // redis实例
 type RedisInstance struct {
-	Id         uint64
-	ProjectId  uint64
-	Mode       string
-	Cli        *redis.Client
-	ClusterCli *redis.ClusterClient
-	sshTunnel  *ssh.Client
+	Id                 uint64
+	ProjectId          uint64
+	Mode               string
+	Cli                *redis.Client
+	ClusterCli         *redis.ClusterClient
+	sshTunnelMachineId uint64
 }
 
 // 获取命令执行接口的具体实现
@@ -256,15 +264,12 @@ func (r *RedisInstance) Close() {
 		if err := r.Cli.Close(); err != nil {
 			global.Log.Errorf("关闭redis单机实例[%d]连接失败: %s", r.Id, err.Error())
 		}
+		r.Cli = nil
 	}
 	if r.Mode == entity.RedisModeCluster {
 		if err := r.ClusterCli.Close(); err != nil {
 			global.Log.Errorf("关闭redis集群实例[%d]连接失败: %s", r.Id, err.Error())
 		}
-	}
-	if r.sshTunnel != nil {
-		if err := r.sshTunnel.Close(); err != nil {
-			global.Log.Errorf("关闭redis实例[%d]的ssh隧道失败: %s", r.Id, err.Error())
-		}
+		r.ClusterCli = nil
 	}
 }

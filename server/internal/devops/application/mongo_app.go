@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/constant"
 	"mayfly-go/internal/devops/domain/entity"
 	"mayfly-go/internal/devops/domain/repository"
 	"mayfly-go/internal/devops/infrastructure/machine"
@@ -16,7 +17,6 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"golang.org/x/crypto/ssh"
 )
 
 type Mongo interface {
@@ -95,13 +95,26 @@ func (d *mongoAppImpl) GetMongoCli(id uint64) *mongo.Client {
 
 // -----------------------------------------------------------
 
-//mongo客户端连接缓存，30分钟内没有访问则会被关闭
-var mongoCliCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
+//mongo客户端连接缓存，指定时间内没有访问则会被关闭
+var mongoCliCache = cache.NewTimedCache(constant.MongoConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key interface{}, value interface{}) {
 		global.Log.Info("删除mongo连接缓存: id = ", key)
 		value.(*MongoInstance).Close()
 	})
+
+func init() {
+	machine.AddCheckSshTunnelMachineUseFunc(func(machineId uint64) bool {
+		// 遍历所有mongo连接实例，若存在redis实例使用该ssh隧道机器，则返回true，表示还在使用中...
+		items := mongoCliCache.Items()
+		for _, v := range items {
+			if v.Value.(*MongoInstance).sshTunnelMachineId == machineId {
+				return true
+			}
+		}
+		return false
+	})
+}
 
 // 获取mongo的连接实例
 func GetMongoInstance(mongoId uint64, getMongoEntity func(uint64) *entity.Mongo) (*MongoInstance, error) {
@@ -124,10 +137,10 @@ func DeleteMongoCache(mongoId uint64) {
 }
 
 type MongoInstance struct {
-	Id        uint64
-	ProjectId uint64
-	Cli       *mongo.Client
-	sshTunnel *ssh.Client
+	Id                 uint64
+	ProjectId          uint64
+	Cli                *mongo.Client
+	sshTunnelMachineId uint64
 }
 
 func (mi *MongoInstance) Close() {
@@ -135,11 +148,7 @@ func (mi *MongoInstance) Close() {
 		if err := mi.Cli.Disconnect(context.Background()); err != nil {
 			global.Log.Errorf("关闭mongo实例[%d]连接失败: %s", mi.Id, err)
 		}
-	}
-	if mi.sshTunnel != nil {
-		if err := mi.sshTunnel.Close(); err != nil {
-			global.Log.Errorf("关闭mongo实例[%d]的ssh隧道失败: %s", mi.Id, err.Error())
-		}
+		mi.Cli = nil
 	}
 }
 
@@ -154,19 +163,17 @@ func connect(me *entity.Mongo) (*MongoInstance, error) {
 		SetMaxPoolSize(1)
 	// 启用ssh隧道则连接隧道机器
 	if me.EnableSshTunnel == 1 {
-		machineEntity := MachineApp.GetById(4)
-		sshClient, err := machine.GetSshClient(machineEntity)
-		biz.ErrIsNilAppendErr(err, "ssh隧道连接失败: %s")
-		mongoInstance.sshTunnel = sshClient
-
-		mongoOptions.SetDialer(&MongoSshDialer{sshTunnel: sshClient})
+		mongoInstance.sshTunnelMachineId = me.SshTunnelMachineId
+		mongoOptions.SetDialer(&MongoSshDialer{machineId: me.SshTunnelMachineId})
 	}
 
 	client, err := mongo.Connect(ctx, mongoOptions)
 	if err != nil {
+		mongoInstance.Close()
 		return nil, err
 	}
 	if err = client.Ping(context.TODO(), nil); err != nil {
+		mongoInstance.Close()
 		return nil, err
 	}
 
@@ -176,11 +183,11 @@ func connect(me *entity.Mongo) (*MongoInstance, error) {
 }
 
 type MongoSshDialer struct {
-	sshTunnel *ssh.Client
+	machineId uint64
 }
 
 func (sd *MongoSshDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	if sshConn, err := sd.sshTunnel.Dial(network, address); err == nil {
+	if sshConn, err := MachineApp.GetSshTunnelMachine(sd.machineId).GetDialConn(network, address); err == nil {
 		// 将ssh conn包装，否则内部部设置超时会报错,ssh conn不支持设置超时会返回错误: ssh: tcpChan: deadline not supported
 		return &utils.WrapSshConn{Conn: sshConn}, nil
 	} else {

@@ -4,6 +4,7 @@ export const dbApi = {
     // 获取权限列表
     dbs: Api.create("/dbs", 'get'),
     saveDb: Api.create("/dbs", 'post'),
+    getAllDatabase: Api.create("/dbs/databases", 'post'),
     deleteDb: Api.create("/dbs/{id}", 'delete'),
     dumpDb: Api.create("/dbs/{id}/dump", 'post'),
     tableInfos: Api.create("/dbs/{id}/t-infos", 'get'),

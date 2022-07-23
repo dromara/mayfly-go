@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/devops/domain/entity"
 	"mayfly-go/internal/devops/domain/repository"
+	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
 )
 
@@ -51,9 +52,9 @@ func (m *machineRepo) GetById(id uint64, cols ...string) *entity.Machine {
 }
 
 func (m *machineRepo) Create(entity *entity.Machine) {
-	model.Insert(entity)
+	biz.ErrIsNilAppendErr(model.Insert(entity), "创建机器信息失败: %s")
 }
 
 func (m *machineRepo) UpdateById(entity *entity.Machine) {
-	model.UpdateById(entity)
+	biz.ErrIsNilAppendErr(model.UpdateById(entity), "更新机器信息失败: %s")
 }

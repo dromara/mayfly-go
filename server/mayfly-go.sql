@@ -111,6 +111,8 @@ CREATE TABLE `t_machine` (
   `username` varchar(12) COLLATE utf8mb4_bin NOT NULL,
   `auth_method` tinyint(2) NULL DEFAULT NULL COMMENT '1.密码登录2.publickey登录',
   `password` varchar(3200) COLLATE utf8mb4_bin DEFAULT NULL,
+  `enableSshTunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',
+  `sshTunnelMachineId` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
   `status` tinyint(2) NOT NULL COMMENT '状态: 1:启用; -1:禁用',
   `remark` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
   `need_monitor` tinyint(2) DEFAULT NULL,

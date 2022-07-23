@@ -31,6 +31,11 @@ func InitDbRouter(router *gin.RouterGroup) {
 				Handle(d.Save)
 		})
 
+		db.POST("databases", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).
+				Handle(d.GetDatabaseNames)
+		})
+
 		deleteDb := ctx.NewLogInfo("删除数据库信息").WithSave(true)
 		db.DELETE(":dbId", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).

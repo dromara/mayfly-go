@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"mayfly-go/internal/constant"
 	"mayfly-go/internal/devops/domain/entity"
 	"mayfly-go/internal/devops/domain/repository"
 	"mayfly-go/internal/devops/infrastructure/machine"
@@ -23,7 +24,6 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/lib/pq"
-	"golang.org/x/crypto/ssh"
 )
 
 type Db interface {
@@ -47,6 +47,9 @@ type Db interface {
 	// @param id 数据库实例id
 	// @param db 数据库
 	GetDbInstance(id uint64, db string) *DbInstance
+
+	// 获取数据库实例的所有数据库列表
+	GetDatabases(entity *entity.Db) []string
 }
 
 type dbAppImpl struct {
@@ -141,11 +144,34 @@ func (d *dbAppImpl) Delete(id uint64) {
 	d.dbSqlRepo.DeleteBy(&entity.DbSql{DbId: id})
 }
 
+func (d *dbAppImpl) GetDatabases(ed *entity.Db) []string {
+	databases := make([]string, 0)
+	var dbConn *sql.DB
+	var metaDb string
+	var getDatabasesSql string
+	if ed.Type == entity.DbTypeMysql {
+		metaDb = "information_schema"
+		getDatabasesSql = "SELECT SCHEMA_NAME AS dbname FROM SCHEMATA"
+	} else {
+		metaDb = "postgres"
+		getDatabasesSql = "SELECT datname AS dbname FROM pg_database"
+	}
+
+	dbConn, err := GetDbConn(ed, metaDb)
+	biz.ErrIsNilAppendErr(err, "数据库连接失败: %s")
+	defer dbConn.Close()
+
+	_, res, err := SelectDataByDb(dbConn, getDatabasesSql)
+	biz.ErrIsNilAppendErr(err, "获取数据库列表失败")
+	for _, re := range res {
+		databases = append(databases, re["dbname"].(string))
+	}
+	return databases
+}
+
 var mutex sync.Mutex
 
 func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
-	mutex.Lock()
-	defer mutex.Unlock()
 	// Id不为0，则为需要缓存
 	needCache := id != 0
 	if needCache {
@@ -154,43 +180,17 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 			return load.(*DbInstance)
 		}
 	}
+	biz.IsTrue(mutex.TryLock(), "有数据库实例在连接中...请稍后重试")
+	defer mutex.Unlock()
 
 	d := da.GetById(id)
 	biz.NotNil(d, "数据库信息不存在")
 	biz.IsTrue(strings.Contains(d.Database, db), "未配置该库的操作权限")
 
 	cacheKey := GetDbCacheKey(id, db)
-	dbi := &DbInstance{Id: cacheKey, Type: d.Type, ProjectId: d.ProjectId}
+	dbi := &DbInstance{Id: cacheKey, Type: d.Type, ProjectId: d.ProjectId, sshTunnelMachineId: d.SshTunnelMachineId}
 
-	//SSH Conect
-	if d.EnableSshTunnel == 1 && d.SshTunnelMachineId != 0 {
-		me := MachineApp.GetById(d.SshTunnelMachineId)
-		biz.NotNil(me, "隧道机器信息不存在")
-		sshClient, err := machine.GetSshClient(me)
-		biz.ErrIsNilAppendErr(err, "ssh隧道连接失败: %s")
-		dbi.sshTunnel = sshClient
-
-		if d.Type == entity.DbTypeMysql {
-			mysql.RegisterDialContext(d.Network, func(ctx context.Context, addr string) (net.Conn, error) {
-				return sshClient.Dial("tcp", addr)
-			})
-		} else if d.Type == entity.DbTypePostgres {
-			_, err := pq.DialOpen(&PqSqlDialer{sshTunnel: sshClient}, getDsn(d))
-			if err != nil {
-				dbi.Close()
-				panic(biz.NewBizErr(fmt.Sprintf("postgres隧道连接失败: %s", err.Error())))
-			}
-		}
-	}
-
-	// 将数据库替换为要访问的数据库，原本数据库为空格拼接的所有库
-	d.Database = db
-	DB, err := sql.Open(d.Type, getDsn(d))
-	if err != nil {
-		dbi.Close()
-		panic(biz.NewBizErr(fmt.Sprintf("Open %s failed, err:%v\n", d.Type, err)))
-	}
-	err = DB.Ping()
+	DB, err := GetDbConn(d, db)
 	if err != nil {
 		dbi.Close()
 		global.Log.Errorf("连接db失败: %s:%d/%s", d.Host, d.Port, db)
@@ -212,31 +212,28 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	return dbi
 }
 
-type PqSqlDialer struct {
-	sshTunnel *ssh.Client
-}
-
-func (pd *PqSqlDialer) Dial(network, address string) (net.Conn, error) {
-	if sshConn, err := pd.sshTunnel.Dial(network, address); err == nil {
-		// 将ssh conn包装，否则redis内部设置超时会报错,ssh conn不支持设置超时会返回错误: ssh: tcpChan: deadline not supported
-		return &utils.WrapSshConn{Conn: sshConn}, nil
-	} else {
-		return nil, err
-	}
-}
-func (pd *PqSqlDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
-	return pd.Dial(network, address)
-}
-
 //------------------------------------------------------------------------------
 
-// 客户端连接缓存，30分钟内没有访问则会被关闭, key为数据库实例id:数据库
-var dbCache = cache.NewTimedCache(30*time.Minute, 5*time.Second).
+// 客户端连接缓存，指定时间内没有访问则会被关闭, key为数据库实例id:数据库
+var dbCache = cache.NewTimedCache(constant.DbConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key interface{}, value interface{}) {
 		global.Log.Info(fmt.Sprintf("删除db连接缓存 id = %s", key))
 		value.(*DbInstance).Close()
 	})
+
+func init() {
+	machine.AddCheckSshTunnelMachineUseFunc(func(machineId uint64) bool {
+		// 遍历所有db连接实例，若存在redis实例使用该ssh隧道机器，则返回true，表示还在使用中...
+		items := dbCache.Items()
+		for _, v := range items {
+			if v.Value.(*DbInstance).sshTunnelMachineId == machineId {
+				return true
+			}
+		}
+		return false
+	})
+}
 
 func GetDbCacheKey(dbId uint64, db string) string {
 	return fmt.Sprintf("%d:%s", dbId, db)
@@ -250,55 +247,45 @@ func GetDbInstanceByCache(id string) *DbInstance {
 }
 
 func TestConnection(d *entity.Db) {
-	//SSH Conect
+	// 验证第一个库是否可以连接即可
+	DB, err := GetDbConn(d, strings.Split(d.Database, " ")[0])
+	biz.ErrIsNilAppendErr(err, "数据库连接失败: %s")
+	defer DB.Close()
+}
+
+// 获取数据库连接
+func GetDbConn(d *entity.Db, db string) (*sql.DB, error) {
+	// SSH Conect
 	if d.EnableSshTunnel == 1 && d.SshTunnelMachineId != 0 {
-		me := MachineApp.GetById(d.SshTunnelMachineId)
-		sshClient, err := machine.GetSshClient(me)
-		biz.ErrIsNilAppendErr(err, "ssh隧道连接失败: %s")
-		defer sshClient.Close()
+		sshTunnelMachine := MachineApp.GetSshTunnelMachine(d.SshTunnelMachineId)
+		defer machine.CloseSshTunnelMachine(d.SshTunnelMachineId, 0)
 		if d.Type == entity.DbTypeMysql {
 			mysql.RegisterDialContext(d.Network, func(ctx context.Context, addr string) (net.Conn, error) {
-				return sshClient.Dial("tcp", addr)
+				return MachineApp.GetSshTunnelMachine(d.SshTunnelMachineId).GetDialConn("tcp", addr)
 			})
 		} else if d.Type == entity.DbTypePostgres {
-			_, err := pq.DialOpen(&PqSqlDialer{sshTunnel: sshClient}, getDsn(d))
+			_, err := pq.DialOpen(&PqSqlDialer{sshTunnelMachine: sshTunnelMachine}, getDsn(d, db))
 			if err != nil {
 				panic(biz.NewBizErr(fmt.Sprintf("postgres隧道连接失败: %s", err.Error())))
 			}
 		}
 	}
 
-	// 验证第一个库是否可以连接即可
-	d.Database = strings.Split(d.Database, " ")[0]
-	DB, err := sql.Open(d.Type, getDsn(d))
-	biz.ErrIsNil(err, "Open %s failed, err:%v\n", d.Type, err)
-	defer DB.Close()
-	perr := DB.Ping()
-	biz.ErrIsNilAppendErr(perr, "数据库连接失败: %s")
-}
-
-// db实例
-type DbInstance struct {
-	Id        string
-	Type      string
-	ProjectId uint64
-	db        *sql.DB
-	sshTunnel *ssh.Client
-}
-
-// 执行查询语句
-// 依次返回 列名数组，结果map，错误
-func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]interface{}, error) {
-	execSql = strings.Trim(execSql, " ")
-	isSelect := strings.HasPrefix(execSql, "SELECT") || strings.HasPrefix(execSql, "select")
-	isShow := strings.HasPrefix(execSql, "show")
-	isExplain := strings.HasPrefix(execSql, "explain")
-
-	if !isSelect && !isShow && !isExplain {
-		return nil, nil, errors.New("该sql非查询语句")
+	DB, err := sql.Open(d.Type, getDsn(d, db))
+	if err != nil {
+		return nil, err
+	}
+	err = DB.Ping()
+	if err != nil {
+		DB.Close()
+		return nil, err
 	}
 
-	rows, err := d.db.Query(execSql)
+	return DB, nil
+}
+
+func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]interface{}, error) {
+	rows, err := db.Query(selectSql)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -383,6 +370,45 @@ func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]interfac
 	return colNames, result, nil
 }
 
+type PqSqlDialer struct {
+	sshTunnelMachine *machine.SshTunnelMachine
+}
+
+func (pd *PqSqlDialer) Dial(network, address string) (net.Conn, error) {
+	if sshConn, err := pd.sshTunnelMachine.GetDialConn("tcp", address); err == nil {
+		// 将ssh conn包装，否则redis内部设置超时会报错,ssh conn不支持设置超时会返回错误: ssh: tcpChan: deadline not supported
+		return &utils.WrapSshConn{Conn: sshConn}, nil
+	} else {
+		return nil, err
+	}
+}
+func (pd *PqSqlDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
+	return pd.Dial(network, address)
+}
+
+// db实例
+type DbInstance struct {
+	Id                 string
+	Type               string
+	ProjectId          uint64
+	db                 *sql.DB
+	sshTunnelMachineId uint64
+}
+
+// 执行查询语句
+// 依次返回 列名数组，结果map，错误
+func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]interface{}, error) {
+	execSql = strings.Trim(execSql, " ")
+	isSelect := strings.HasPrefix(execSql, "SELECT") || strings.HasPrefix(execSql, "select")
+	isShow := strings.HasPrefix(execSql, "show")
+	isExplain := strings.HasPrefix(execSql, "explain")
+
+	if !isSelect && !isShow && !isExplain {
+		return nil, nil, errors.New("该sql非查询语句")
+	}
+	return SelectDataByDb(d.db, execSql)
+}
+
 // 执行 update, insert, delete，建表等sql
 // 返回影响条数和错误
 func (d *DbInstance) Exec(sql string) (int64, error) {
@@ -399,19 +425,15 @@ func (d *DbInstance) Close() {
 		if err := d.db.Close(); err != nil {
 			global.Log.Errorf("关闭数据库实例[%s]连接失败: %s", d.Id, err.Error())
 		}
-	}
-	if d.sshTunnel != nil {
-		if err := d.sshTunnel.Close(); err != nil {
-			global.Log.Errorf("关闭数据库实例[%s]的ssh隧道失败: %s", d.Id, err.Error())
-		}
+		d.db = nil
 	}
 }
 
 // 获取dataSourceName
-func getDsn(d *entity.Db) string {
+func getDsn(d *entity.Db, db string) string {
 	var dsn string
 	if d.Type == entity.DbTypeMysql {
-		dsn = fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, d.Database)
+		dsn = fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, db)
 		if d.Params != "" {
 			dsn = fmt.Sprintf("%s&%s", dsn, d.Params)
 		}
@@ -419,7 +441,7 @@ func getDsn(d *entity.Db) string {
 	}
 
 	if d.Type == entity.DbTypePostgres {
-		dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", d.Host, d.Port, d.Username, d.Password, d.Database)
+		dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", d.Host, d.Port, d.Username, d.Password, db)
 		if d.Params != "" {
 			dsn = fmt.Sprintf("%s %s", dsn, strings.Join(strings.Split(d.Params, "&"), " "))
 		}

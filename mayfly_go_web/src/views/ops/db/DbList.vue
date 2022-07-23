@@ -502,6 +502,8 @@ export default defineComponent({
                 state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: row.id, db });
                 state.dbId = row.id;
                 state.db = db;
+            } catch (e) {
+                state.tableInfoDialog.visible = false;
             } finally {
                 state.tableInfoDialog.loading = false;
             }

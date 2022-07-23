@@ -32,6 +32,9 @@ type Machine interface {
 
 	// 获取机器连接
 	GetCli(id uint64) *machine.Cli
+
+	// 获取ssh隧道机器连接
+	GetSshTunnelMachine(id uint64) *machine.SshTunnelMachine
 }
 
 type machineAppImpl struct {
@@ -53,7 +56,7 @@ func (m *machineAppImpl) Count(condition *entity.Machine) int64 {
 func (m *machineAppImpl) Save(me *entity.Machine) {
 	// ’修改机器信息且密码不为空‘ or ‘新增’需要测试是否可连接
 	if (me.Id != 0 && me.Password != "") || me.Id == 0 {
-		biz.ErrIsNilAppendErr(machine.TestConn(me), "该机器无法连接: %s")
+		biz.ErrIsNilAppendErr(machine.TestConn(*me, func(u uint64) *entity.Machine { return m.GetById(u) }), "该机器无法连接: %s")
 	}
 
 	oldMachine := &entity.Machine{Ip: me.Ip, Port: me.Port, Username: me.Username}
@@ -125,4 +128,14 @@ func (m *machineAppImpl) GetCli(id uint64) *machine.Cli {
 	})
 	biz.ErrIsNilAppendErr(err, "获取客户端错误: %s")
 	return cli
+}
+
+func (m *machineAppImpl) GetSshTunnelMachine(id uint64) *machine.SshTunnelMachine {
+	sshTunnel, err := machine.GetSshTunnelMachine(id, func(machineId uint64) *entity.Machine {
+		machine := m.GetById(machineId)
+		biz.IsTrue(machine.Status == entity.MachineStatusEnable, "该机器已被停用")
+		return machine
+	})
+	biz.ErrIsNilAppendErr(err, "获取ssh隧道连接失败: %s")
+	return sshTunnel
 }

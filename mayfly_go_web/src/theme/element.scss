@@ -947,12 +947,6 @@
 .el-select-dropdown .el-scrollbar__wrap {
 	overflow-x: scroll !important;
 }
-.el-select-dropdown__wrap {
-	max-height: 274px !important; /*修复Select 选择器高度问题*/
-}
-.el-cascader-menu__wrap.el-scrollbar__wrap {
-	height: 204px !important; /*修复Cascader 级联选择器高度问题*/
-}
 
 /* Drawer 抽屉
 ------------------------------- */

@@ -47,28 +47,20 @@
                     <el-input v-model="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2"></el-input>
                 </el-form-item>
                 <el-form-item prop="database" label="数据库名:" required>
-                    <el-tag
-                        v-for="db in databaseList"
-                        :key="db"
-                        class="ml5 mt5"
-                        type="success"
-                        effect="plain"
-                        closable
-                        :disable-transitions="false"
-                        @close="handleClose(db)"
+                    <el-select
+                        @change="changeDatabase"
+                        @focus="getAllDatabase"
+                        v-model="databaseList"
+                        multiple
+                        collapse-tags
+                        collapse-tags-tooltip
+                        filterable
+                        allow-create
+                        placeholder="请确保数据库实例信息填写完整后选择数据库"
+                        style="width: 100%"
                     >
-                        {{ db }}
-                    </el-tag>
-                    <el-input
-                        v-if="inputDbVisible"
-                        ref="InputDbRef"
-                        v-model="inputDbValue"
-                        style="width: 120px; margin-left: 5px; margin-top: 5px"
-                        size="small"
-                        @keyup.enter="handleInputDbConfirm"
-                        @blur="handleInputDbConfirm"
-                    />
-                    <el-button v-else class="ml5 mt5" size="small" @click="showInputDb"> + 添加数据库 </el-button>
+                        <el-option v-for="db in allDatabases" :key="db" :label="db" :value="db" />
+                    </el-select>
                 </el-form-item>
 
                 <el-form-item prop="enableSshTunnel" label="SSH隧道:">
@@ -101,12 +93,11 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, nextTick, watch, defineComponent, ref } from 'vue';
+import { toRefs, reactive, watch, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
 import { projectApi } from '../project/api.ts';
 import { machineApi } from '../machine/api.ts';
 import { ElMessage } from 'element-plus';
-import type { ElInput } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import { RsaEncrypt } from '@/common/rsa';
 
@@ -128,16 +119,14 @@ export default defineComponent({
     },
     setup(props: any, { emit }) {
         const dbForm: any = ref(null);
-        const InputDbRef = ref<InstanceType<typeof ElInput>>();
 
         const state = reactive({
             dialogVisible: false,
             projects: [],
             envs: [],
+            allDatabases: [] as any,
             databaseList: [] as any,
             sshTunnelMachineList: [],
-            inputDbVisible: false,
-            inputDbValue: '',
             form: {
                 id: null,
                 name: null,
@@ -226,27 +215,6 @@ export default defineComponent({
             getSshTunnelMachines();
         });
 
-        const handleClose = (db: string) => {
-            state.databaseList.splice(state.databaseList.indexOf(db), 1);
-            changeDatabase();
-        };
-
-        const showInputDb = () => {
-            state.inputDbVisible = true;
-            nextTick(() => {
-                InputDbRef.value!.input!.focus();
-            });
-        };
-
-        const handleInputDbConfirm = () => {
-            if (state.inputDbValue) {
-                state.databaseList.push(state.inputDbValue);
-                changeDatabase();
-            }
-            state.inputDbVisible = false;
-            state.inputDbValue = '';
-        };
-
         /**
          * 改变表单中的数据库字段，方便表单错误提示。如全部删光，可提示请添加数据库
          */
@@ -285,6 +253,15 @@ export default defineComponent({
             }
         };
 
+        const getAllDatabase = async () => {
+            if (state.allDatabases.length != 0) {
+                return;
+            }
+            const reqForm = { ...state.form };
+            reqForm.password = await RsaEncrypt(reqForm.password);
+            state.allDatabases = await dbApi.getAllDatabase.request(reqForm);
+        };
+
         const btnOk = async () => {
             if (!state.form.id) {
                 notBlank(state.form.password, '新增操作，密码不可为空');
@@ -293,7 +270,6 @@ export default defineComponent({
                 if (valid) {
                     const reqForm = { ...state.form };
                     reqForm.password = await RsaEncrypt(reqForm.password);
-                    // reqForm.ssh_pass = await RsaEncrypt(reqForm.ssh_pass);
                     dbApi.saveDb.request(reqForm).then(() => {
                         ElMessage.success('保存成功');
                         emit('val-change', state.form);
@@ -312,9 +288,8 @@ export default defineComponent({
         };
 
         const resetInputDb = () => {
-            state.inputDbVisible = false;
             state.databaseList = [];
-            state.inputDbValue = '';
+            state.allDatabases = [];
         };
 
         const cancel = () => {
@@ -328,10 +303,8 @@ export default defineComponent({
         return {
             ...toRefs(state),
             dbForm,
-            InputDbRef,
-            handleClose,
-            showInputDb,
-            handleInputDbConfirm,
+            getAllDatabase,
+            changeDatabase,
             getSshTunnelMachines,
             changeProject,
             changeEnv,

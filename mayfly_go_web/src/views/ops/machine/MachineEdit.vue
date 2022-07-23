@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :destroy-on-close="true" :before-close="cancel" width="35%">
+        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :destroy-on-close="true" :before-close="cancel" width="38%">
             <el-form :model="form" ref="machineForm" :rules="rules" label-width="85px">
                 <el-form-item prop="projectId" label="项目:" required>
                     <el-select style="width: 100%" v-model="form.projectId" placeholder="请选择项目" @change="changeProject" filterable>
@@ -43,6 +43,24 @@
                 <el-form-item prop="remark" label="备注:">
                     <el-input type="textarea" v-model="form.remark"></el-input>
                 </el-form-item>
+
+                <el-form-item prop="enableSshTunnel" label="SSH隧道:">
+                    <el-col :span="3">
+                        <el-checkbox @change="getSshTunnelMachines" v-model="form.enableSshTunnel" :true-label="1" :false-label="-1"></el-checkbox>
+                    </el-col>
+                    <el-col :span="2" v-if="form.enableSshTunnel == 1"> 机器: </el-col>
+                    <el-col :span="19" v-if="form.enableSshTunnel == 1">
+                        <el-select style="width: 100%" v-model="form.sshTunnelMachineId" placeholder="请选择SSH隧道机器">
+                            <el-option
+                                v-for="item in sshTunnelMachineList"
+                                :key="item.id"
+                                :label="`${item.ip}:${item.port} [${item.name}]`"
+                                :value="item.id"
+                            >
+                            </el-option>
+                        </el-select>
+                    </el-col>
+                </el-form-item>
             </el-form>
 
             <template #footer>
@@ -83,6 +101,7 @@ export default defineComponent({
         const state = reactive({
             dialogVisible: false,
             projects: [],
+            sshTunnelMachineList: [],
             form: {
                 id: null,
                 projectId: null,
@@ -93,6 +112,8 @@ export default defineComponent({
                 username: '',
                 password: '',
                 remark: '',
+                enableSshTunnel: null,
+                sshTunnelMachineId: null,
             },
             btnLoading: false,
             rules: {
@@ -152,7 +173,19 @@ export default defineComponent({
             } else {
                 state.form = { port: 22, authMethod: 1 } as any;
             }
+            getSshTunnelMachines();
         });
+
+        const getSshTunnelMachines = async () => {
+            if (state.form.enableSshTunnel == 1 && state.sshTunnelMachineList.length == 0) {
+                const res = await machineApi.list.request({ pageNum: 1, pageSize: 100 });
+                state.sshTunnelMachineList = res.list;
+            }
+        };
+
+        const getSshTunnelMachine = (machineId: any) => {
+            return state.sshTunnelMachineList.find((x: any) => x.id == machineId);
+        };
 
         const changeProject = (projectId: number) => {
             for (let p of state.projects as any) {
@@ -168,7 +201,15 @@ export default defineComponent({
             }
             machineForm.value.validate(async (valid: boolean) => {
                 if (valid) {
-                    const reqForm = { ...state.form };
+                    const form: any = state.form;
+                    if (form.enableSshTunnel == 1) {
+                        const tunnelMachine: any = getSshTunnelMachine(form.sshTunnelMachineId);
+                        if (tunnelMachine.ip == form.ip && tunnelMachine.port == form.port) {
+                            ElMessage.error('隧道机器不能与本机器一致');
+                            return;
+                        }
+                    }
+                    const reqForm: any = { ...form };
                     if (reqForm.authMethod == 1) {
                         reqForm.password = await RsaEncrypt(state.form.password);
                     }
@@ -196,6 +237,7 @@ export default defineComponent({
         return {
             ...toRefs(state),
             machineForm,
+            getSshTunnelMachines,
             changeProject,
             btnOk,
             cancel,

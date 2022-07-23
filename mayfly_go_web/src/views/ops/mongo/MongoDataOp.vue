@@ -120,7 +120,7 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="800px" title="json编辑器" v-model="jsoneditorDialog.visible" @close="onCloseJsonEditDialog" :close-on-click-modal="false">
+        <el-dialog width="70%" title="json编辑器" v-model="jsoneditorDialog.visible" @close="onCloseJsonEditDialog" :close-on-click-modal="false">
             <json-edit v-model="jsoneditorDialog.doc" />
         </el-dialog>
 

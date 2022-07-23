@@ -10,8 +10,8 @@ type Redis struct {
 	ProjectId          *int64     `json:"projectId"`
 	Project            *string    `json:"project"`
 	Mode               *string    `json:"mode"`
-	EnableSshTunnel    *int8      `orm:"column(enable_ssh_tunnel)" json:"enableSshTunnel"`        // 是否启用ssh隧道
-	SshTunnelMachineId *uint64    `orm:"column(ssh_tunnel_machine_id)" json:"sshTunnelMachineId"` // ssh隧道机器id
+	EnableSshTunnel    *int8      `json:"enableSshTunnel"`    // 是否启用ssh隧道
+	SshTunnelMachineId *uint64    `json:"sshTunnelMachineId"` // ssh隧道机器id
 	Remark             *string    `json:"remark"`
 	Env                *string    `json:"env"`
 	EnvId              *int64     `json:"envId"`

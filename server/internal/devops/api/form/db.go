@@ -9,7 +9,7 @@ type DbForm struct {
 	Username  string `binding:"required" json:"username"`
 	Password  string `json:"password"`
 	Params    string `json:"params"`
-	Database  string `binding:"required" json:"database"`
+	Database  string `json:"database"`
 	ProjectId uint64 `binding:"required" json:"projectId"`
 	Project   string `json:"project"`
 	Env       string `json:"env"`

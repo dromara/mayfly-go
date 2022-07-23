@@ -1,16 +1,18 @@
 package form
 
 type MachineForm struct {
-	Id          uint64 `json:"id"`
-	ProjectId   uint64 `json:"projectId"`
-	ProjectName string `json:"projectName"`
-	Name        string `json:"name" binding:"required"`
-	Ip          string `json:"ip" binding:"required"`       // IP地址
-	Username    string `json:"username" binding:"required"` // 用户名
-	AuthMethod  int8   `json:"authMethod" binding:"required"`
-	Password    string `json:"password"`
-	Port        int    `json:"port" binding:"required"` // 端口号
-	Remark      string `json:"remark"`
+	Id                 uint64 `json:"id"`
+	ProjectId          uint64 `json:"projectId"`
+	ProjectName        string `json:"projectName"`
+	Name               string `json:"name" binding:"required"`
+	Ip                 string `json:"ip" binding:"required"`       // IP地址
+	Username           string `json:"username" binding:"required"` // 用户名
+	AuthMethod         int8   `json:"authMethod" binding:"required"`
+	Password           string `json:"password"`
+	Port               int    `json:"port" binding:"required"` // 端口号
+	Remark             string `json:"remark"`
+	EnableSshTunnel    int8   `json:"enableSshTunnel"`    // 是否启用ssh隧道
+	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"` // ssh隧道机器id
 }
 
 type MachineRunForm struct {

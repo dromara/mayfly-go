@@ -3,6 +3,7 @@ package machine
 import (
 	"errors"
 	"fmt"
+	"mayfly-go/internal/constant"
 	"mayfly-go/internal/devops/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
@@ -18,10 +19,12 @@ import (
 // 客户端信息
 type Cli struct {
 	machine *entity.Machine
-	// ssh客户端
-	client *ssh.Client
 
-	sftpClient *sftp.Client
+	client     *ssh.Client  // ssh客户端
+	sftpClient *sftp.Client // sftp客户端
+
+	enableSshTunnel    int8
+	sshTunnelMachineId uint64
 }
 
 //连接
@@ -39,7 +42,7 @@ func (c *Cli) connect() error {
 	return nil
 }
 
-// 关闭client和并从缓存中移除
+// 关闭client并从缓存中移除，如果使用隧道则也关闭
 func (c *Cli) Close() {
 	m := c.machine
 	global.Log.Info(fmt.Sprintf("关闭机器客户端连接-> id: %d, name: %s, ip: %s", m.Id, m.Name, m.Ip))
@@ -50,6 +53,9 @@ func (c *Cli) Close() {
 	if c.sftpClient != nil {
 		c.sftpClient.Close()
 		c.sftpClient = nil
+	}
+	if c.enableSshTunnel == 1 {
+		CloseSshTunnelMachine(c.sshTunnelMachineId, c.machine.Id)
 	}
 }
 
@@ -105,12 +111,25 @@ func (c *Cli) GetMachine() *entity.Machine {
 	return c.machine
 }
 
-// 机器客户端连接缓存，45分钟内没有访问则会被关闭
-var cliCache = cache.NewTimedCache(45*time.Minute, 5*time.Second).
+// 机器客户端连接缓存，指定时间内没有访问则会被关闭
+var cliCache = cache.NewTimedCache(constant.MachineConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(_, value interface{}) {
 		value.(*Cli).Close()
 	})
+
+func init() {
+	AddCheckSshTunnelMachineUseFunc(func(machineId uint64) bool {
+		// 遍历所有机器连接实例，若存在机器连接实例使用该ssh隧道机器，则返回true，表示还在使用中...
+		items := cliCache.Items()
+		for _, v := range items {
+			if v.Value.(*Cli).sshTunnelMachineId == machineId {
+				return true
+			}
+		}
+		return false
+	})
+}
 
 // 是否存在指定id的客户端连接
 func HasCli(machineId uint64) bool {
@@ -128,10 +147,18 @@ func DeleteCli(id uint64) {
 // 从缓存中获取客户端信息，不存在则回调获取机器信息函数，并新建
 func GetCli(machineId uint64, getMachine func(uint64) *entity.Machine) (*Cli, error) {
 	cli, err := cliCache.ComputeIfAbsent(machineId, func(_ interface{}) (interface{}, error) {
-		c, err := newClient(getMachine(machineId))
+		me := getMachine(machineId)
+		err := IfUseSshTunnelChangeIpPort(me, getMachine)
 		if err != nil {
+			return nil, fmt.Errorf("ssh隧道连接失败: %s", err.Error())
+		}
+		c, err := newClient(me)
+		if err != nil {
+			CloseSshTunnelMachine(me.SshTunnelMachineId, me.Id)
 			return nil, err
 		}
+		c.enableSshTunnel = me.EnableSshTunnel
+		c.sshTunnelMachineId = me.SshTunnelMachineId
 		return c, nil
 	})
 
@@ -141,13 +168,45 @@ func GetCli(machineId uint64, getMachine func(uint64) *entity.Machine) (*Cli, er
 	return nil, err
 }
 
-// 测试连接
-func TestConn(m *entity.Machine) error {
-	sshClient, err := GetSshClient(m)
+// 测试连接，使用传值的方式，而非引用。因为如果使用了ssh隧道，则ip和端口会变为本地映射地址与端口
+func TestConn(me entity.Machine, getSshTunnelMachine func(uint64) *entity.Machine) error {
+	originId := me.Id
+	if originId == 0 {
+		// 随机设置一个ip，如果使用了隧道则用于临时保存隧道
+		me.Id = uint64(time.Now().Nanosecond())
+	}
+
+	err := IfUseSshTunnelChangeIpPort(&me, getSshTunnelMachine)
+	biz.ErrIsNilAppendErr(err, "ssh隧道连接失败: %s")
+	if me.EnableSshTunnel == 1 {
+		defer CloseSshTunnelMachine(me.SshTunnelMachineId, me.Id)
+	}
+	sshClient, err := GetSshClient(&me)
 	if err != nil {
 		return err
 	}
 	defer sshClient.Close()
+	return nil
+}
+
+// 如果使用了ssh隧道，则修改机器ip port为暴露的ip port
+func IfUseSshTunnelChangeIpPort(me *entity.Machine, getMachine func(uint64) *entity.Machine) error {
+	if me.EnableSshTunnel != 1 {
+		return nil
+	}
+	sshTunnelMachine, err := GetSshTunnelMachine(me.SshTunnelMachineId, func(u uint64) *entity.Machine {
+		return getMachine(u)
+	})
+	if err != nil {
+		return err
+	}
+	exposeIp, exposePort, err := sshTunnelMachine.OpenSshTunnel(me.Id, me.Ip, me.Port)
+	if err != nil {
+		return err
+	}
+	// 修改机器ip地址
+	me.Ip = exposeIp
+	me.Port = exposePort
 	return nil
 }
 
