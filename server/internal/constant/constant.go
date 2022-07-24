@@ -9,8 +9,8 @@ const (
 	MongoConnExpireTime   = 30 * time.Minute
 
 /****  开发测试使用   ****/
-// MachineConnExpireTime = 20 * time.Second
-// DbConnExpireTime      = 20 * time.Second
-// RedisConnExpireTime   = 20 * time.Second
-// MongoConnExpireTime   = 20 * time.Second
+// MachineConnExpireTime = 4 * time.Minute
+// DbConnExpireTime      = 2 * time.Minute
+// RedisConnExpireTime   = 2 * time.Minute
+// MongoConnExpireTime   = 2 * time.Minute
 )

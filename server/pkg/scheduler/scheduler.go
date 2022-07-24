@@ -6,6 +6,10 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
+func init() {
+	Start()
+}
+
 var cronService = cron.New()
 
 func Start() {

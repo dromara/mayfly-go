@@ -5,11 +5,11 @@ import (
 	"io"
 	"mayfly-go/internal/devops/domain/entity"
 	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils"
 	"net"
 	"os"
 	"sync"
-	"time"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -31,30 +31,29 @@ type CheckSshTunnelMachineHasUseFunc func(uint64) bool
 
 func startCheckUse() {
 	global.Log.Info("开启定时检测ssh隧道机器是否还有被使用")
-	heartbeat := time.Duration(10) * time.Minute
-	tick := time.NewTicker(heartbeat)
-	go func() {
-		for range tick.C {
-			func() {
-				if !mutex.TryLock() {
-					return
-				}
-				defer mutex.Unlock()
-				// 遍历隧道机器，都未被使用将会被关闭
-				for mid, sshTunnelMachine := range sshTunnelMachines {
-					global.Log.Debugf("开始定时检查ssh隧道机器[%d]是否还有被使用...", mid)
-					for _, checkUseFunc := range checkSshTunnelMachineHasUseFuncs {
-						// 如果一个在使用则返回不关闭，不继续后续检查
-						if checkUseFunc(mid) {
-							return
-						}
-					}
-					// 都未被使用，则关闭
-					sshTunnelMachine.Close()
-				}
-			}()
+	// 每十分钟检查一次隧道机器是否还有被使用
+	scheduler.AddFun("@every 10m", func() {
+		if !mutex.TryLock() {
+			return
 		}
-	}()
+		defer mutex.Unlock()
+		// 遍历隧道机器，都未被使用将会被关闭
+		for mid, sshTunnelMachine := range sshTunnelMachines {
+			global.Log.Debugf("开始定时检查ssh隧道机器[%d]是否还有被使用...", mid)
+			hasUse := false
+			for _, checkUseFunc := range checkSshTunnelMachineHasUseFuncs {
+				// 如果一个在使用则返回不关闭，不继续后续检查
+				if checkUseFunc(mid) {
+					hasUse = true
+					break
+				}
+			}
+			if !hasUse {
+				// 都未被使用，则关闭
+				sshTunnelMachine.Close()
+			}
+		}
+	})
 }
 
 // 添加ssh隧道机器检测是否使用函数
@@ -129,7 +128,10 @@ func (stm *SshTunnelMachine) Close() {
 
 	if stm.SshClient != nil {
 		global.Log.Infof("ssh隧道机器[%d]未被使用, 关闭隧道...", stm.machineId)
-		stm.SshClient.Close()
+		err := stm.SshClient.Close()
+		if err != nil {
+			global.Log.Errorf("关闭ssh隧道机器[%s]发生错误: %s", stm.machineId, err.Error())
+		}
 	}
 	delete(sshTunnelMachines, stm.machineId)
 }
