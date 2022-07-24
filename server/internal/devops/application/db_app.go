@@ -258,10 +258,9 @@ func GetDbConn(d *entity.Db, db string) (*sql.DB, error) {
 	// SSH Conect
 	if d.EnableSshTunnel == 1 && d.SshTunnelMachineId != 0 {
 		sshTunnelMachine := MachineApp.GetSshTunnelMachine(d.SshTunnelMachineId)
-		defer machine.CloseSshTunnelMachine(d.SshTunnelMachineId, 0)
 		if d.Type == entity.DbTypeMysql {
 			mysql.RegisterDialContext(d.Network, func(ctx context.Context, addr string) (net.Conn, error) {
-				return MachineApp.GetSshTunnelMachine(d.SshTunnelMachineId).GetDialConn("tcp", addr)
+				return sshTunnelMachine.GetDialConn("tcp", addr)
 			})
 		} else if d.Type == entity.DbTypePostgres {
 			_, err := pq.DialOpen(&PqSqlDialer{sshTunnelMachine: sshTunnelMachine}, getDsn(d, db))

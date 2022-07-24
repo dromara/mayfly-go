@@ -130,7 +130,7 @@ func (stm *SshTunnelMachine) Close() {
 		global.Log.Infof("ssh隧道机器[%d]未被使用, 关闭隧道...", stm.machineId)
 		err := stm.SshClient.Close()
 		if err != nil {
-			global.Log.Errorf("关闭ssh隧道机器[%s]发生错误: %s", stm.machineId, err.Error())
+			global.Log.Errorf("关闭ssh隧道机器[%d]发生错误: %s", stm.machineId, err.Error())
 		}
 	}
 	delete(sshTunnelMachines, stm.machineId)
