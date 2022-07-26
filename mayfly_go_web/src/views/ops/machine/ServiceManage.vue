@@ -196,8 +196,11 @@ export default defineComponent({
             // 如果存在参数，则弹窗输入参数后执行
             if (script.params) {
                 state.scriptParamsDialog.paramsFormItem = JSON.parse(script.params);
-                state.scriptParamsDialog.visible = true;
-                return;
+                console.log(state.scriptParamsDialog.paramsFormItem);
+                if (state.scriptParamsDialog.paramsFormItem && state.scriptParamsDialog.paramsFormItem.length > 0) {
+                    state.scriptParamsDialog.visible = true;
+                    return;
+                }
             }
 
             run(script);

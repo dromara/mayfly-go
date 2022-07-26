@@ -9,7 +9,7 @@
             :destroy-on-close="true"
             width="800px"
         >
-            <el-form :model="form" ref="mockDataForm" label-width="70px">
+            <el-form :model="form" ref="scriptForm" label-width="70px">
                 <el-form-item prop="method" label="名称">
                     <el-input v-model.trim="form.name" placeholder="请输入名称"></el-input>
                 </el-form-item>
@@ -24,8 +24,19 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item prop="params" label="参数">
-                    <el-input v-model="form.params" placeholder="参数数组json，若无可不填"></el-input>
+                <el-row style="margin-left: 30px; margin-bottom: 5px">
+                    <el-button @click="onAddParam" size="small" type="success">新增占位符参数</el-button>
+                </el-row>
+                <el-form-item :key="param" v-for="(param, index) in params" prop="params" :label="`参数${index + 1}`">
+                    <el-row>
+                        <el-col :span="6"><el-input v-model="param.model" placeholder="内容中用{{.model}}替换"></el-input></el-col>
+                        <el-divider :span="1" direction="vertical" border-style="dashed" />
+                        <el-col :span="6"><el-input v-model="param.name" placeholder="字段名"></el-input></el-col>
+                        <el-divider :span="1" direction="vertical" border-style="dashed" />
+                        <el-col :span="6"><el-input v-model="param.placeholder" placeholder="字段说明"></el-input></el-col>
+                        <el-divider :span="1" direction="vertical" border-style="dashed" />
+                        <el-col :span="3"><el-button @click="onDeleteParam(index)" size="small" type="danger">删除</el-button></el-col>
+                    </el-row>
                 </el-form-item>
 
                 <el-form-item prop="script" label="内容" id="content">
@@ -84,41 +95,59 @@ export default defineComponent({
     },
     setup(props: any, { emit }) {
         const { isCommon, machineId } = toRefs(props);
-        const mockDataForm: any = ref(null);
+        const scriptForm: any = ref(null);
 
         const state = reactive({
             dialogVisible: false,
             submitDisabled: false,
+            params: [] as any,
             form: {
                 id: null,
                 name: '',
                 machineId: 0,
                 description: '',
                 script: '',
-                params: null,
+                params: '',
                 type: null,
             },
             btnLoading: false,
         });
 
         watch(props, (newValue) => {
+            state.dialogVisible = newValue.visible;
+            if (!newValue.visible) {
+                return;
+            }
             if (newValue.data) {
                 state.form = { ...newValue.data };
+                if (state.form.params) {
+                    state.params = JSON.parse(state.form.params);
+                }
             } else {
                 state.form = {} as any;
                 state.form.script = '';
             }
-            state.dialogVisible = newValue.visible;
         });
+
+        const onAddParam = () => {
+            state.params.push({ name: '', model: '', placeholder: '' });
+        };
+
+        const onDeleteParam = (idx: number) => {
+            state.params.splice(idx, 1);
+        };
 
         const btnOk = () => {
             state.form.machineId = isCommon.value ? 9999999 : (machineId.value as any);
             console.log('machineid:', machineId);
-            mockDataForm.value.validate((valid: any) => {
+            scriptForm.value.validate((valid: any) => {
                 if (valid) {
                     notEmpty(state.form.name, '名称不能为空');
                     notEmpty(state.form.description, '描述不能为空');
                     notEmpty(state.form.script, '内容不能为空');
+                    if (state.params) {
+                        state.form.params = JSON.stringify(state.params);
+                    }
                     machineApi.saveScript.request(state.form).then(
                         () => {
                             ElMessage.success('保存成功');
@@ -139,12 +168,15 @@ export default defineComponent({
         const cancel = () => {
             emit('update:visible', false);
             emit('cancel');
+            state.params = [];
         };
 
         return {
             ...toRefs(state),
             enums,
-            mockDataForm,
+            onAddParam,
+            onDeleteParam,
+            scriptForm,
             btnOk,
             cancel,
         };

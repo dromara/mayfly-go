@@ -61,7 +61,6 @@ import { mongoApi } from './api';
 import { projectApi } from '../project/api.ts';
 import { machineApi } from '../machine/api.ts';
 import { ElMessage } from 'element-plus';
-import { RsaEncrypt } from '@/common/rsa';
 
 export default defineComponent({
     name: 'MongoEdit',
@@ -181,7 +180,7 @@ export default defineComponent({
             mongoForm.value.validate(async (valid: boolean) => {
                 if (valid) {
                     const reqForm = { ...state.form };
-                    reqForm.uri = await RsaEncrypt(reqForm.uri);
+                    // reqForm.uri = await RsaEncrypt(reqForm.uri);
                     mongoApi.saveMongo.request(reqForm).then(() => {
                         ElMessage.success('保存成功');
                         emit('val-change', state.form);

@@ -161,9 +161,14 @@
                             size="small"
                         >
                             <template #prepend>
-                                <el-popover trigger="click" :width="270" placement="right">
+                                <el-popover v-model:visible="dt.selectColumnPopoverVisible" :width="320" placement="right">
                                     <template #reference>
-                                        <el-link type="success" :underline="false">选择列</el-link>
+                                        <el-link
+                                            @click="dt.selectColumnPopoverVisible = !dt.selectColumnPopoverVisible"
+                                            type="success"
+                                            :underline="false"
+                                            >选择列</el-link
+                                        >
                                     </template>
                                     <el-table
                                         :data="getColumns4Map(dt.name)"
@@ -174,6 +179,7 @@
                                                 onConditionRowClick(event, dt);
                                             }
                                         "
+                                        style="cursor: pointer"
                                     >
                                         <el-table-column property="columnName" label="列名" show-overflow-tooltip> </el-table-column>
                                         <el-table-column property="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
@@ -233,6 +239,30 @@
                 </el-tab-pane>
             </el-tabs>
         </el-container>
+
+        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
+            <el-row>
+                <el-col :span="5">
+                    <el-select v-model="conditionDialog.condition">
+                        <el-option label="=" value="="> </el-option>
+                        <el-option label="LIKE" value="LIKE"> </el-option>
+                        <el-option label=">" value=">"> </el-option>
+                        <el-option label=">=" value=">="> </el-option>
+                        <el-option label="<" value="<"> </el-option>
+                        <el-option label="<=" value="<="> </el-option>
+                    </el-select>
+                </el-col>
+                <el-col :span="19">
+                    <el-input v-model="conditionDialog.value" :placeholder="conditionDialog.placeholder" />
+                </el-col>
+            </el-row>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="onCancelCondition">取消</el-button>
+                    <el-button type="primary" @click="onConfirmCondition">确定</el-button>
+                </span>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -312,6 +342,16 @@ export default defineComponent({
                 display: 'none',
                 left: '',
                 top: '',
+            },
+            selectColumnPopoverVisible: false,
+            conditionDialog: {
+                title: '',
+                placeholder: '',
+                columnRow: null,
+                dataTab: null,
+                visible: false,
+                condition: '=',
+                value: null,
             },
             cmOptions: {
                 tabSize: 4,
@@ -677,6 +717,7 @@ export default defineComponent({
                 columnNames: [],
                 pageNum: 1,
                 count: 0,
+                selectColumnPopoverVisible: false,
             };
             tab.columnNames = await getColumnNames(tableName);
             state.dataTabs[tableName] = tab;
@@ -716,24 +757,36 @@ export default defineComponent({
          * 条件查询，点击列信息后显示输入对应的值
          */
         const onConditionRowClick = (event: any, dataTab: any) => {
+            dataTab.selectColumnPopoverVisible = false;
             const row = event[0];
-            ElMessageBox.prompt(`请输入 [${row.columnName}] 的值`, '查询条件', {
-                confirmButtonText: '确定',
-                cancelButtonText: '取消',
-                inputPlaceholder: `${row.columnType}  ${row.columnComment}`,
-            })
-                .then(({ value }) => {
-                    if (!value) {
-                        value = '';
-                    }
-                    let condition = dataTab.condition;
-                    if (condition) {
-                        condition += ` AND `;
-                    }
-                    condition += `${row.columnName} = `;
-                    dataTab.condition = condition + wrapColumnValue(row, value);
-                })
-                .catch(() => {});
+            state.conditionDialog.title = `请输入 [${row.columnName}] 的值`;
+            state.conditionDialog.placeholder = `${row.columnType}  ${row.columnComment}`;
+            state.conditionDialog.columnRow = row;
+            state.conditionDialog.dataTab = dataTab;
+            state.conditionDialog.visible = true;
+        };
+
+        // 确认条件
+        const onConfirmCondition = () => {
+            const conditionDialog = state.conditionDialog;
+            const dataTab = state.conditionDialog.dataTab as any;
+            let condition = dataTab.condition;
+            if (condition) {
+                condition += ` AND `;
+            }
+            const row = conditionDialog.columnRow as any;
+            condition += `${row.columnName} ${conditionDialog.condition} `;
+            dataTab.condition = condition + wrapColumnValue(row, conditionDialog.value);
+            onCancelCondition();
+        };
+
+        const onCancelCondition = () => {
+            state.conditionDialog.visible = false;
+            state.conditionDialog.title = ``;
+            state.conditionDialog.placeholder = ``;
+            state.conditionDialog.value = null;
+            state.conditionDialog.columnRow = null;
+            state.conditionDialog.dataTab = null;
         };
 
         const onRefresh = async (tableName: string) => {
@@ -793,10 +846,10 @@ export default defineComponent({
         const getDefaultSelectSql = (tableName: string, where: string = '', orderBy: string = '', pageNum: number = 1) => {
             const baseSql = `SELECT * FROM ${tableName} ${where ? 'WHERE ' + where : ''} ${orderBy ? orderBy : ''}`;
             if (state.dbType == 'mysql') {
-                 return `${baseSql} LIMIT ${(pageNum - 1) * state.defalutLimit}, ${state.defalutLimit};`
+                return `${baseSql} LIMIT ${(pageNum - 1) * state.defalutLimit}, ${state.defalutLimit};`;
             }
             if (state.dbType == 'postgres') {
-                return `${baseSql} OFFSET ${(pageNum - 1) * state.defalutLimit} LIMIT ${state.defalutLimit};`
+                return `${baseSql} OFFSET ${(pageNum - 1) * state.defalutLimit} LIMIT ${state.defalutLimit};`;
             }
             return baseSql;
         };
@@ -1121,6 +1174,8 @@ export default defineComponent({
             getColumnTip,
             getColumns4Map,
             onConditionRowClick,
+            onConfirmCondition,
+            onCancelCondition,
             changeSqlTemplate,
             deleteSql,
             saveSql,

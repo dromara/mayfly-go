@@ -38,10 +38,6 @@ func (m *Mongo) Save(rc *ctx.ReqCtx) {
 
 	mongo := new(entity.Mongo)
 	utils.Copy(mongo, form)
-	// 解密uri，并使用解密后的赋值
-	originUri, err := utils.DefaultRsaDecrypt(form.Uri, true)
-	biz.ErrIsNilAppendErr(err, "解密uri错误: %s")
-	mongo.Uri = originUri
 
 	mongo.SetBaseInfo(rc.LoginAccount)
 	m.MongoApp.Save(mongo)

@@ -180,7 +180,7 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 			return load.(*DbInstance)
 		}
 	}
-	biz.IsTrue(mutex.TryLock(), "有数据库实例在连接中...请稍后重试")
+	mutex.Lock()
 	defer mutex.Unlock()
 
 	d := da.GetById(id)
