@@ -8,6 +8,5 @@ type Jwt struct {
 }
 
 func (j *Jwt) Valid() {
-	assert.IsTrue(j.Key != "", "config.yml之 [jwt.key] 不能为空")
 	assert.IsTrue(j.ExpireTime != 0, "config.yml之 [jwt.expire-time] 不能为空")
 }

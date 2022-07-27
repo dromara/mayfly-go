@@ -5,7 +5,9 @@ import (
 
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/config"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -25,7 +27,11 @@ func CreateToken(userId uint64, username string) string {
 		"username": username,
 		"exp":      time.Now().Add(time.Minute * time.Duration(ExpTime)).Unix(),
 	})
-
+	// 如果jwt key为空，则随机生成字符串
+	if JwtKey == "" {
+		JwtKey = utils.RandString(32)
+		global.Log.Infof("config.yml未配置jwt.key, 随机生成key为: %s", JwtKey)
+	}
 	// 使用自定义字符串加密 and get the complete encoded token as a string
 	tokenString, err := token.SignedString([]byte(JwtKey))
 	biz.ErrIsNil(err, "token创建失败")

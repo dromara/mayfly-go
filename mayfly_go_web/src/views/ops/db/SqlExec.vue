@@ -152,6 +152,10 @@
                         <el-tooltip class="box-item" effect="dark" content="commit" placement="top">
                             <el-link @click="onCommit" class="ml5" type="success" icon="check" :underline="false"></el-link>
                         </el-tooltip>
+
+                        <el-tooltip class="box-item" effect="dark" content="生成insert sql" placement="top">
+                            <el-link @click="onGenerateInsertSql" type="success" class="ml20" :underline="false">gi</el-link>
+                        </el-tooltip>
                     </el-row>
                     <el-row class="mt5">
                         <el-input
@@ -263,6 +267,10 @@
                 </span>
             </template>
         </el-dialog>
+
+        <el-dialog @close="genSqlDialog.visible = false" v-model="genSqlDialog.visible" title="SQL" width="1000px">
+            <el-input v-model="genSqlDialog.sql" type="textarea" rows="20" />
+        </el-dialog>
     </div>
 </template>
 
@@ -352,6 +360,10 @@ export default defineComponent({
                 visible: false,
                 condition: '=',
                 value: null,
+            },
+            genSqlDialog: {
+                visible: false,
+                sql: '',
             },
             cmOptions: {
                 tabSize: 4,
@@ -1016,6 +1028,38 @@ export default defineComponent({
             });
         };
 
+        const onGenerateInsertSql = async () => {
+            const queryTab = isQueryTab();
+            const datas = queryTab ? state.queryTab.selectionDatas : state.dataTabs[state.activeName].selectionDatas;
+            isTrue(datas && datas.length > 0, '请先选择要生成insert语句的数据');
+            const tableName = state.nowTableName;
+            const columns: any = await getColumns(tableName);
+
+            const sqls = [];
+            for (let data of datas) {
+                let colNames = [];
+                let values = [];
+                for (let column of columns) {
+                    const colName = column.columnName;
+                    colNames.push(colName);
+                    values.push(wrapValueByType(data[colName]));
+                }
+                sqls.push(`INSERT INTO ${tableName} (${colNames.join(', ')}) VALUES(${values.join(', ')})`);
+            }
+            state.genSqlDialog.sql = sqls.join(';\n') + ';';
+            state.genSqlDialog.visible = true;
+        };
+
+        const wrapValueByType = (val: any) => {
+            if (val == null) {
+                return 'NULL';
+            }
+            if (typeof val == 'number') {
+                return val;
+            }
+            return `'${val}'`;
+        };
+
         /**
          * 是否为查询tab
          */
@@ -1192,6 +1236,7 @@ export default defineComponent({
             onDataSelectionChange,
             onDeleteData,
             onTableSortChange,
+            onGenerateInsertSql,
             showExecBtns,
             closeExecBtns,
         };

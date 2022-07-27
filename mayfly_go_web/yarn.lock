@@ -633,10 +633,10 @@ echarts@^5.3.3:
     tslib "2.3.0"
     zrender "5.3.2"
 
-element-plus@^2.2.10:
-  version "2.2.10"
-  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.2.10.tgz#0b06a006b67b7ad3d5f071545a910782f9ba471b"
-  integrity sha512-hJ+LlbRN3POu4Idl1LXB+SHSWdi+wwmdsoDXdQT2ynGuwzZsMYiusOooYXyEsPlrizeLibdnNGNDx4TIjXQvUg==
+element-plus@2.2.9:
+  version "2.2.9"
+  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.2.9.tgz#f0366dfb2048d614813926274cb443f17e5fdef2"
+  integrity sha512-jYbL0JkCdv95rkT6trZJjCAizLPySa0qcd2cgq+57SKQnCZAcNDDq4GbTuFRnNavdoeCJnuM3HIficTIUpsMOQ==
   dependencies:
     "@ctrl/tinycolor" "^3.4.1"
     "@element-plus/icons-vue" "^2.0.6"

@@ -25,7 +25,8 @@ server:
       filepath: ./static/config.js
 
 jwt:
-  key: mykey
+  # jwt key，不设置默认使用随机字符串
+  key: 
   # 过期时间单位分钟
   expire-time: 1440
 

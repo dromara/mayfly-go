@@ -57,7 +57,7 @@
             </el-row>
         </el-dialog>
 
-        <el-dialog :title="tree.title" v-model="tree.visible" :close-on-click-modal="false" width="680px">
+        <el-dialog :title="tree.title" v-model="tree.visible" :close-on-click-modal="false" width="50%">
             <el-progress
                 v-if="uploadProgressShow"
                 style="width: 90%; margin-left: 20px"
