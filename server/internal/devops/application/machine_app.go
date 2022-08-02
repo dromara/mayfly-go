@@ -69,11 +69,13 @@ func (m *machineAppImpl) Save(me *entity.Machine) {
 		}
 		// 关闭连接
 		machine.DeleteCli(me.Id)
+		me.PwdEncrypt()
 		m.machineRepo.UpdateById(me)
 	} else {
 		biz.IsTrue(err != nil, "该机器信息已存在")
 		// 新增机器，默认启用状态
 		me.Status = entity.MachineStatusEnable
+		me.PwdEncrypt()
 		m.machineRepo.Create(me)
 	}
 }
@@ -123,6 +125,7 @@ func (m *machineAppImpl) GetById(id uint64, cols ...string) *entity.Machine {
 func (m *machineAppImpl) GetCli(id uint64) *machine.Cli {
 	cli, err := machine.GetCli(id, func(machineId uint64) *entity.Machine {
 		machine := m.GetById(machineId)
+		machine.PwdDecrypt()
 		biz.IsTrue(machine.Status == entity.MachineStatusEnable, "该机器已被停用")
 		return machine
 	})
@@ -133,6 +136,7 @@ func (m *machineAppImpl) GetCli(id uint64) *machine.Cli {
 func (m *machineAppImpl) GetSshTunnelMachine(id uint64) *machine.SshTunnelMachine {
 	sshTunnel, err := machine.GetSshTunnelMachine(id, func(machineId uint64) *entity.Machine {
 		machine := m.GetById(machineId)
+		machine.PwdDecrypt()
 		biz.IsTrue(machine.Status == entity.MachineStatusEnable, "该机器已被停用")
 		return machine
 	})

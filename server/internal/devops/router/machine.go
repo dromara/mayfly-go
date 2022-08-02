@@ -20,6 +20,10 @@ func InitMachineRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(m.Machines)
 		})
 
+		machines.GET(":machineId/pwd", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(m.GetMachinePwd)
+		})
+
 		machines.GET(":machineId/stats", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(m.MachineStats)
 		})

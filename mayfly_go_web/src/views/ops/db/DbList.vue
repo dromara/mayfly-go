@@ -46,7 +46,7 @@
                 <el-table-column prop="username" label="用户名" min-width="100"></el-table-column>
 
                 <el-table-column min-width="115" prop="creator" label="创建账号"></el-table-column>
-                <el-table-column min-width="160" prop="createTime" label="创建时间">
+                <el-table-column min-width="160" prop="createTime" label="创建时间" show-overflow-tooltip>
                     <template #default="scope">
                         {{ $filters.dateFormat(scope.row.createTime) }}
                     </template>

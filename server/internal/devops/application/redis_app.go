@@ -80,6 +80,7 @@ func (r *redisAppImpl) Save(re *entity.Redis) {
 
 	if re.Id == 0 {
 		biz.IsTrue(err != nil, "该库已存在")
+		re.PwdEncrypt()
 		r.redisRepo.Insert(re)
 	} else {
 		// 如果存在该库，则校验修改的库是否为该库
@@ -88,6 +89,7 @@ func (r *redisAppImpl) Save(re *entity.Redis) {
 		}
 		// 先关闭数据库连接
 		CloseRedis(re.Id)
+		re.PwdEncrypt()
 		r.redisRepo.Update(re)
 	}
 }
@@ -110,6 +112,7 @@ func (r *redisAppImpl) GetRedisInstance(id uint64) *RedisInstance {
 	}
 	// 缓存不存在，则回调获取redis信息
 	re := r.GetById(id)
+	re.PwdDecrypt()
 	biz.NotNil(re, "redis信息不存在")
 
 	redisMode := re.Mode

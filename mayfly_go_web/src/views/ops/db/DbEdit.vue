@@ -41,7 +41,15 @@
                         v-model.trim="form.password"
                         placeholder="请输入密码，修改操作可不填"
                         autocomplete="new-password"
-                    ></el-input>
+                    >
+                        <template v-if="form.id && form.id != 0" #suffix>
+                            <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click" :content="pwd">
+                                <template #reference>
+                                    <el-link @click="getDbPwd" :underline="false" type="primary" class="mr5">原密码</el-link>
+                                </template>
+                            </el-popover>
+                        </template>
+                    </el-input>
                 </el-form-item>
                 <el-form-item prop="params" label="连接参数:">
                     <el-input v-model="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2"></el-input>
@@ -142,6 +150,8 @@ export default defineComponent({
                 enableSshTunnel: null,
                 sshTunnelMachineId: null,
             },
+            // 原密码
+            pwd: '',
             btnLoading: false,
             rules: {
                 projectId: [
@@ -262,6 +272,10 @@ export default defineComponent({
             state.allDatabases = await dbApi.getAllDatabase.request(reqForm);
         };
 
+        const getDbPwd = async () => {
+            state.pwd = await dbApi.getDbPwd.request({ id: state.form.id });
+        };
+
         const btnOk = async () => {
             if (!state.form.id) {
                 notBlank(state.form.password, '新增操作，密码不可为空');
@@ -304,6 +318,7 @@ export default defineComponent({
             ...toRefs(state),
             dbForm,
             getAllDatabase,
+            getDbPwd,
             changeDatabase,
             getSshTunnelMachines,
             changeProject,

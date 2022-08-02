@@ -20,8 +20,7 @@ func InitDbRouter(router *gin.RouterGroup) {
 		}
 		// 获取所有数据库列表
 		db.GET("", func(c *gin.Context) {
-			rc := ctx.NewReqCtxWithGin(c)
-			rc.Handle(d.Dbs)
+			ctx.NewReqCtxWithGin(c).Handle(d.Dbs)
 		})
 
 		saveDb := ctx.NewLogInfo("保存数据库信息").WithSave(true)
@@ -31,9 +30,14 @@ func InitDbRouter(router *gin.RouterGroup) {
 				Handle(d.Save)
 		})
 
+		// 获取数据库实例的所有数据库名
 		db.POST("databases", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				Handle(d.GetDatabaseNames)
+		})
+
+		db.GET(":dbId/pwd", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(d.GetDbPwd)
 		})
 
 		deleteDb := ctx.NewLogInfo("删除数据库信息").WithSave(true)

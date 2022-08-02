@@ -3,6 +3,7 @@ import Api from '@/common/Api';
 export const machineApi = {
     // 获取权限列表
     list: Api.create("/machines", 'get'),
+    getMachinePwd: Api.create("/machines/{id}/pwd", 'get'),
     info: Api.create("/machines/{id}/sysinfo", 'get'),
     stats: Api.create("/machines/{id}/stats", 'get'),
     process: Api.create("/machines/{id}/process", 'get'),

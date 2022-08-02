@@ -97,6 +97,7 @@ func (d *dbAppImpl) Save(dbEntity *entity.Db) {
 	if dbEntity.Id == 0 {
 		biz.NotEmpty(dbEntity.Password, "密码不能为空")
 		biz.IsTrue(err != nil, "该数据库实例已存在")
+		dbEntity.PwdEncrypt()
 		d.dbRepo.Insert(dbEntity)
 		return
 	}
@@ -129,6 +130,7 @@ func (d *dbAppImpl) Save(dbEntity *entity.Db) {
 		d.dbSqlRepo.DeleteBy(&entity.DbSql{DbId: dbId, Db: v.(string)})
 	}
 
+	dbEntity.PwdEncrypt()
 	d.dbRepo.Update(dbEntity)
 }
 
@@ -184,6 +186,8 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	defer mutex.Unlock()
 
 	d := da.GetById(id)
+	// 密码解密
+	d.PwdDecrypt()
 	biz.NotNil(d, "数据库信息不存在")
 	biz.IsTrue(strings.Contains(d.Database, db), "未配置该库的操作权限")
 

@@ -2,6 +2,7 @@ package entity
 
 import (
 	"fmt"
+	"mayfly-go/internal/common/utils"
 	"mayfly-go/pkg/model"
 )
 
@@ -27,9 +28,9 @@ type Db struct {
 }
 
 // 获取数据库连接网络, 若没有使用ssh隧道，则直接返回。否则返回拼接的网络需要注册至指定dial
-func (d Db) GetNetwork() string {
+func (d *Db) GetNetwork() string {
 	network := d.Network
-	if d.EnableSshTunnel == -1 {
+	if d.EnableSshTunnel == 0 || d.EnableSshTunnel == -1 {
 		if network == "" {
 			return "tcp"
 		} else {
@@ -37,6 +38,16 @@ func (d Db) GetNetwork() string {
 		}
 	}
 	return fmt.Sprintf("%s+ssh:%d", d.Type, d.SshTunnelMachineId)
+}
+
+func (d *Db) PwdEncrypt() {
+	// 密码替换为加密后的密码
+	d.Password = utils.PwdAesEncrypt(d.Password)
+}
+
+func (d *Db) PwdDecrypt() {
+	// 密码替换为解密后的密码
+	d.Password = utils.PwdAesDecrypt(d.Password)
 }
 
 const (

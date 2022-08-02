@@ -72,6 +72,14 @@ func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
 	m.MachineApp.Save(me)
 }
 
+// 获取机器实例密码，由于数据库是加密存储，故提供该接口展示原文密码
+func (m *Machine) GetMachinePwd(rc *ctx.ReqCtx) {
+	mid := GetMachineId(rc.GinCtx)
+	me := m.MachineApp.GetById(mid, "Password")
+	me.PwdDecrypt()
+	rc.ResData = me.Password
+}
+
 func (m *Machine) ChangeStatus(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	id := uint64(ginx.PathParamInt(g, "machineId"))

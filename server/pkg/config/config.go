@@ -40,6 +40,7 @@ type Config struct {
 	App    *App    `yaml:"app"`
 	Server *Server `yaml:"server"`
 	Jwt    *Jwt    `yaml:"jwt"`
+	Aes    *Aes    `yaml:"aes"`
 	Redis  *Redis  `yaml:"redis"`
 	Mysql  *Mysql  `yaml:"mysql"`
 	Log    *Log    `yaml:"log"`
@@ -49,14 +50,7 @@ type Config struct {
 func (c *Config) Valid() {
 	assert.IsTrue(c.Jwt != nil, "配置文件的[jwt]信息不能为空")
 	c.Jwt.Valid()
-}
-
-// 获取执行可执行文件时，指定的启动参数
-func getStartConfig() *CmdConfigParam {
-	configFilePath := flag.String("e", "./config.yml", "配置文件路径，默认为可执行文件目录")
-	flag.Parse()
-	// 获取配置文件绝对路径
-	path, _ := filepath.Abs(*configFilePath)
-	sc := &CmdConfigParam{ConfigFilePath: path}
-	return sc
+	if c.Aes != nil {
+		c.Aes.Valid()
+	}
 }

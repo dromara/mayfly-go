@@ -43,7 +43,7 @@ func (a *accountAppImpl) GetPageList(condition *entity.Account, pageParam *model
 func (a *accountAppImpl) Create(account *entity.Account) {
 	biz.IsTrue(a.GetAccount(&entity.Account{Username: account.Username}) != nil, "该账号用户名已存在")
 	// 默认密码为账号用户名
-	account.Password = utils.Md5(account.Username)
+	account.Password = utils.PwdHash(account.Username)
 	account.Status = entity.AccountEnableStatus
 	a.accountRepo.Insert(account)
 }

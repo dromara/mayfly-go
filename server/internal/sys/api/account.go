@@ -38,8 +38,10 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 	originPwd, err := utils.DefaultRsaDecrypt(loginForm.Password, true)
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
 
-	account := &entity.Account{Username: loginForm.Username, Password: utils.Md5(originPwd)}
-	biz.ErrIsNil(a.AccountApp.GetAccount(account, "Id", "Username", "Status", "LastLoginTime", "LastLoginIp"), "用户名或密码错误")
+	account := &entity.Account{Username: loginForm.Username}
+	err = a.AccountApp.GetAccount(account, "Id", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp")
+	biz.ErrIsNil(err, "用户名或密码错误")
+	biz.IsTrue(utils.CheckPwdHash(originPwd, account.Password), "用户名或密码错误")
 	biz.IsTrue(account.IsEnable(), "该账号不可用")
 
 	// 校验密码强度是否符合
@@ -86,8 +88,11 @@ func (a *Account) ChangePassword(rc *ctx.ReqCtx) {
 	originOldPwd, err := utils.DefaultRsaDecrypt(form.OldPassword, true)
 	biz.ErrIsNilAppendErr(err, "解密旧密码错误: %s")
 
-	account := &entity.Account{Username: form.Username, Password: utils.Md5(originOldPwd)}
-	biz.ErrIsNil(a.AccountApp.GetAccount(account, "Id", "Username", "Status"), "旧密码不正确")
+	account := &entity.Account{Username: form.Username}
+	err = a.AccountApp.GetAccount(account, "Id", "Username", "Password", "Status")
+	biz.ErrIsNil(err, "旧密码错误")
+	biz.IsTrue(utils.CheckPwdHash(originOldPwd, account.Password), "旧密码错误")
+	biz.IsTrue(account.IsEnable(), "该账号不可用")
 
 	originNewPwd, err := utils.DefaultRsaDecrypt(form.NewPassword, true)
 	biz.ErrIsNilAppendErr(err, "解密新密码错误: %s")
@@ -95,7 +100,7 @@ func (a *Account) ChangePassword(rc *ctx.ReqCtx) {
 
 	updateAccount := new(entity.Account)
 	updateAccount.Id = account.Id
-	updateAccount.Password = utils.Md5(originNewPwd)
+	updateAccount.Password = utils.PwdHash(originNewPwd)
 	a.AccountApp.Update(updateAccount)
 
 	// 赋值loginAccount 主要用于记录操作日志，因为操作日志保存请求上下文没有该信息不保存日志
@@ -176,7 +181,7 @@ func (a *Account) UpdateAccount(rc *ctx.ReqCtx) {
 
 	if updateAccount.Password != "" {
 		biz.IsTrue(CheckPasswordLever(updateAccount.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
-		updateAccount.Password = utils.Md5(updateAccount.Password)
+		updateAccount.Password = utils.PwdHash(updateAccount.Password)
 	}
 	a.AccountApp.Update(updateAccount)
 }

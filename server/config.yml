@@ -29,7 +29,9 @@ jwt:
   key: 
   # 过期时间单位分钟
   expire-time: 1440
-
+# 资源密码aes加密key
+aes:
+  key: 1111111111111111
 mysql:
   host: localhost:3306
   username: root

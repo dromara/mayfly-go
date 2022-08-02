@@ -35,7 +35,15 @@
                         v-model.trim="form.password"
                         placeholder="请输入密码，修改操作可不填"
                         autocomplete="new-password"
-                    ></el-input>
+                    >
+                        <template v-if="form.id && form.id != 0" #suffix>
+                            <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click" :content="pwd">
+                                <template #reference>
+                                    <el-link @click="getPwd" :underline="false" type="primary" class="mr5">原密码</el-link>
+                                </template>
+                            </el-popover>
+                        </template>
+                    </el-input>
                 </el-form-item>
                 <el-form-item v-if="form.authMethod == 2" prop="password" label="秘钥:">
                     <el-input type="textarea" :rows="3" v-model="form.password" placeholder="请将私钥文件内容拷贝至此，修改操作可不填"></el-input>
@@ -115,6 +123,7 @@ export default defineComponent({
                 enableSshTunnel: null,
                 sshTunnelMachineId: null,
             },
+            pwd: '',
             btnLoading: false,
             rules: {
                 projectId: [
@@ -187,6 +196,10 @@ export default defineComponent({
             return state.sshTunnelMachineList.find((x: any) => x.id == machineId);
         };
 
+        const getPwd = async () => {
+            state.pwd = await machineApi.getMachinePwd.request({ id: state.form.id });
+        };
+
         const changeProject = (projectId: number) => {
             for (let p of state.projects as any) {
                 if (p.id == projectId) {
@@ -238,6 +251,7 @@ export default defineComponent({
             ...toRefs(state),
             machineForm,
             getSshTunnelMachines,
+            getPwd,
             changeProject,
             btnOk,
             cancel,

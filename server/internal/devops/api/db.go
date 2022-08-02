@@ -61,6 +61,14 @@ func (d *Db) Save(rc *ctx.ReqCtx) {
 	d.DbApp.Save(db)
 }
 
+// 获取数据库实例密码，由于数据库是加密存储，故提供该接口展示原文密码
+func (d *Db) GetDbPwd(rc *ctx.ReqCtx) {
+	dbId := GetDbId(rc.GinCtx)
+	dbEntity := d.DbApp.GetById(dbId, "Password")
+	dbEntity.PwdDecrypt()
+	rc.ResData = dbEntity.Password
+}
+
 // 获取数据库实例的所有数据库名
 func (d *Db) GetDatabaseNames(rc *ctx.ReqCtx) {
 	form := &form.DbForm{}

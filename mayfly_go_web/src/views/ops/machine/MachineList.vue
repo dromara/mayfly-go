@@ -42,7 +42,7 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="ip" label="ip:port" min-width="140">
+                <el-table-column prop="ip" label="ip:port" min-width="150">
                     <template #default="scope">
                         <el-link :disabled="scope.row.status == -1" @click="showMachineStats(scope.row)" type="primary" :underline="false">{{
                             `${scope.row.ip}:${scope.row.port}`

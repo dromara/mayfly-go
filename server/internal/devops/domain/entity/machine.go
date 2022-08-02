@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"mayfly-go/internal/common/utils"
 	"mayfly-go/pkg/model"
 )
 
@@ -26,3 +27,13 @@ const (
 	MachineAuthMethodPassword  int8 = 1  // 密码登录
 	MachineAuthMethodPublicKey int8 = 2  // 公钥免密登录
 )
+
+func (m *Machine) PwdEncrypt() {
+	// 密码替换为加密后的密码
+	m.Password = utils.PwdAesEncrypt(m.Password)
+}
+
+func (m *Machine) PwdDecrypt() {
+	// 密码替换为解密后的密码
+	m.Password = utils.PwdAesDecrypt(m.Password)
+}

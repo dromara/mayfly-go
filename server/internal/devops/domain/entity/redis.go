@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"mayfly-go/internal/common/utils"
 	"mayfly-go/pkg/model"
 )
 
@@ -24,3 +25,13 @@ const (
 	RedisModeStandalone = "standalone"
 	RedisModeCluster    = "cluster"
 )
+
+func (r *Redis) PwdEncrypt() {
+	// 密码替换为加密后的密码
+	r.Password = utils.PwdAesEncrypt(r.Password)
+}
+
+func (r *Redis) PwdDecrypt() {
+	// 密码替换为解密后的密码
+	r.Password = utils.PwdAesDecrypt(r.Password)
+}

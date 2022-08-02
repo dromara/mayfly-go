@@ -52,6 +52,14 @@ func (r *Redis) Save(rc *ctx.ReqCtx) {
 	r.RedisApp.Save(redis)
 }
 
+// 获取redis实例密码，由于数据库是加密存储，故提供该接口展示原文密码
+func (r *Redis) GetRedisPwd(rc *ctx.ReqCtx) {
+	rid := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
+	re := r.RedisApp.GetById(rid, "Password")
+	re.PwdDecrypt()
+	rc.ResData = re.Password
+}
+
 func (r *Redis) DeleteRedis(rc *ctx.ReqCtx) {
 	r.RedisApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
 }
