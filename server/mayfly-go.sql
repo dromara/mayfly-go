@@ -260,7 +260,7 @@ DROP TABLE IF EXISTS `t_redis`;
 CREATE TABLE `t_redis` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `host` varchar(255) COLLATE utf8mb4_bin NOT NULL,
-  `password` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
+  `password` varchar(100) COLLATE utf8mb4_bin DEFAULT NULL,
   `db` int(32) DEFAULT NULL,
   `mode` varchar(32) DEFAULT NULL,
   `enable_ssh_tunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',
@@ -304,7 +304,7 @@ CREATE TABLE `t_sys_account` (
 -- Records of t_sys_account
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_sys_account` VALUES (1, 'admin', 'e10adc3949ba59abbe56e057f20f883e', 1, '2021-11-17 16:30:02', '12.0.216.228', '2020-01-01 19:00:00', 1, 'admin', '2020-01-01 19:00:00', 1, 'admin');
+INSERT INTO `t_sys_account` VALUES (1, 'admin', '$2a$10$w3Wky2U.tinvR7c/s0aKPuwZsIu6pM1/DMJalwBDMbE6niHIxVrrm', 1, '2021-11-17 16:30:02', '12.0.216.228', '2020-01-01 19:00:00', 1, 'admin', '2020-01-01 19:00:00', 1, 'admin');
 COMMIT;
 
 -- ----------------------------

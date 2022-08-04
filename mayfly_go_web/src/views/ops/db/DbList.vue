@@ -100,9 +100,17 @@
 
                 <el-button type="primary" size="small" @click="tableCreateDialog.visible = true">创建表</el-button>
             </el-row>
-            <el-table v-loading="tableInfoDialog.loading" border stripe :data="tableInfoDialog.infos" size="small">
-                <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip></el-table-column>
-                <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip></el-table-column>
+            <el-table v-loading="tableInfoDialog.loading" border stripe :data="filterTableInfos" size="small">
+                <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip>
+                    <template #header>
+                        <el-input v-model="tableInfoDialog.tableNameSearch" size="small" placeholder="表名: 输入可过滤" clearable />
+                    </template>
+                </el-table-column>
+                <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip>
+                    <template #header>
+                        <el-input v-model="tableInfoDialog.tableCommentSearch" size="small" placeholder="备注: 输入可过滤" clearable />
+                    </template>
+                </el-table-column>
                 <el-table-column
                     prop="tableRows"
                     label="Rows"
@@ -244,7 +252,7 @@
 </template>
 
 <script lang='ts'>
-import { toRefs, reactive, onMounted, defineComponent } from 'vue';
+import { toRefs, reactive, computed, onMounted, defineComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import DbEdit from './DbEdit.vue';
@@ -317,6 +325,8 @@ export default defineComponent({
                 loading: false,
                 visible: false,
                 infos: [],
+                tableNameSearch: '',
+                tableCommentSearch: '',
             },
             columnDialog: {
                 visible: false,
@@ -343,6 +353,26 @@ export default defineComponent({
         onMounted(async () => {
             search();
             state.projects = await projectApi.accountProjects.request(null);
+        });
+
+        const filterTableInfos = computed(() => {
+            const infos = state.tableInfoDialog.infos;
+            const tableNameSearch = state.tableInfoDialog.tableNameSearch;
+            const tableCommentSearch = state.tableInfoDialog.tableCommentSearch;
+            if (!tableNameSearch && !tableCommentSearch) {
+                return infos;
+            }
+            return infos.filter((data: any) => {
+                let tnMatch = true;
+                let tcMatch = true;
+                if (tableNameSearch) {
+                    tnMatch = data.tableName.toLowerCase().includes(tableNameSearch.toLowerCase());
+                }
+                if (tableCommentSearch) {
+                    tcMatch = data.tableComment.includes(tableCommentSearch);
+                }
+                return tnMatch && tcMatch;
+            });
         });
 
         const choose = (item: any) => {
@@ -572,6 +602,7 @@ export default defineComponent({
 
         return {
             ...toRefs(state),
+            filterTableInfos,
             enums,
             search,
             choose,

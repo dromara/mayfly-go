@@ -21,6 +21,9 @@ func PwdAesEncrypt(password string) string {
 
 // 使用config.yml的aes.key进行密码解密
 func PwdAesDecrypt(encryptPwd string) string {
+	if encryptPwd == "" {
+		return ""
+	}
 	aes := config.Conf.Aes
 	if aes == nil {
 		return encryptPwd

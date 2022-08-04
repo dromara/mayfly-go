@@ -10,4 +10,4 @@
 服务关闭：./shutdown.sh
 
 直接通过 host:ip即可访问项目
-初始账号 admin/123456
+初始账号 admin/admin123.
