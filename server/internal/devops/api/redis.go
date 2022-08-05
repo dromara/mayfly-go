@@ -285,13 +285,6 @@ func (r *Redis) GetStringValue(rc *ctx.ReqCtx) {
 	rc.ResData = str
 }
 
-func (r *Redis) GetHashValue(rc *ctx.ReqCtx) {
-	ri, key := r.checkKey(rc)
-	res, err := ri.GetCmdable().HGetAll(context.TODO(), key).Result()
-	biz.ErrIsNilAppendErr(err, "获取hash值失败: %s")
-	rc.ResData = res
-}
-
 func (r *Redis) SetStringValue(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	keyValue := new(form.StringValue)
@@ -305,6 +298,45 @@ func (r *Redis) SetStringValue(rc *ctx.ReqCtx) {
 	rc.ResData = str
 }
 
+func (r *Redis) Hscan(rc *ctx.ReqCtx) {
+	ri, key := r.checkKey(rc)
+	g := rc.GinCtx
+	count := ginx.QueryInt(g, "count", 10)
+	match := g.Query("match")
+	cursor := ginx.QueryInt(g, "cursor", 0)
+	contextTodo := context.TODO()
+
+	cmdable := ri.GetCmdable()
+	keys, nextCursor, err := cmdable.HScan(contextTodo, key, uint64(cursor), match, int64(count)).Result()
+	biz.ErrIsNilAppendErr(err, "hcan err: %s")
+	keySize, err := cmdable.HLen(contextTodo, key).Result()
+	biz.ErrIsNilAppendErr(err, "hlen err: %s")
+
+	rc.ResData = map[string]interface{}{
+		"keys":    keys,
+		"cursor":  nextCursor,
+		"keySize": keySize,
+	}
+}
+
+func (r *Redis) Hdel(rc *ctx.ReqCtx) {
+	ri, key := r.checkKey(rc)
+	field := rc.GinCtx.Query("field")
+
+	delRes, err := ri.GetCmdable().HDel(context.TODO(), key, field).Result()
+	biz.ErrIsNilAppendErr(err, "hdel err: %s")
+	rc.ResData = delRes
+}
+
+func (r *Redis) Hget(rc *ctx.ReqCtx) {
+	ri, key := r.checkKey(rc)
+	field := rc.GinCtx.Query("field")
+
+	res, err := ri.GetCmdable().HGet(context.TODO(), key, field).Result()
+	biz.ErrIsNilAppendErr(err, "hget err: %s")
+	rc.ResData = res
+}
+
 func (r *Redis) SetHashValue(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	hashValue := new(form.HashValue)
@@ -315,13 +347,12 @@ func (r *Redis) SetHashValue(rc *ctx.ReqCtx) {
 
 	cmd := ri.GetCmdable()
 	key := hashValue.Key
-	// 简单处理->先删除，后新增
-	cmd.Del(context.TODO(), key)
+	contextTodo := context.TODO()
 	for _, v := range hashValue.Value {
-		res := cmd.HSet(context.TODO(), key, v["key"].(string), v["value"])
+		res := cmd.HSet(contextTodo, key, v["field"].(string), v["value"])
 		biz.ErrIsNilAppendErr(res.Err(), "保存hash值失败: %s")
 	}
-	if hashValue.Timed != -1 {
+	if hashValue.Timed != 0 && hashValue.Timed != -1 {
 		cmd.Expire(context.TODO(), key, time.Second*time.Duration(hashValue.Timed))
 	}
 }

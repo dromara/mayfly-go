@@ -23,7 +23,7 @@
                         <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
                             <el-form-item label="key" label-width="40px">
                                 <el-input
-                                    placeholder="支持*模糊key"
+                                    placeholder="match 支持*模糊key"
                                     style="width: 240px"
                                     v-model="scanParam.match"
                                     @clear="clear()"
@@ -36,7 +36,14 @@
                             <el-form-item>
                                 <el-button @click="searchKey()" type="success" icon="search" plain></el-button>
                                 <el-button @click="scan()" icon="bottom" plain>scan</el-button>
-                                <el-button type="primary" icon="plus" @click="onAddData(false)" plain></el-button>
+                                <el-popover placement="right" :width="200" trigger="click">
+                                    <template #reference>
+                                        <el-button type="primary" icon="plus" plain></el-button>
+                                    </template>
+                                    <el-tag @click="onAddData('string')" :color="getTypeColor('string')" style="cursor: pointer">string</el-tag>
+                                    <el-tag @click="onAddData('hash')" :color="getTypeColor('hash')" class="ml5" style="cursor: pointer">hash</el-tag>
+                                    <el-tag @click="onAddData('set')" :color="getTypeColor('set')" class="ml5" style="cursor: pointer">set</el-tag>
+                                </el-popover>
                             </el-form-item>
                             <div style="float: right">
                                 <span>keys: {{ dbsize }}</span>
@@ -69,17 +76,32 @@
 
         <div style="text-align: center; margin-top: 10px"></div>
 
-        <!-- <value-dialog v-model:visible="valueDialog.visible" :keyValue="valueDialog.value" /> -->
+        <hash-value
+            v-model:visible="hashValueDialog.visible"
+            :operationType="dataEdit.operationType"
+            :title="dataEdit.title"
+            :keyInfo="dataEdit.keyInfo"
+            :redisId="scanParam.id"
+            @cancel="onCancelDataEdit"
+            @valChange="searchKey"
+        />
 
-        <data-edit
-            v-model:visible="dataEdit.visible"
+        <string-value
+            v-model:visible="stringValueDialog.visible"
+            :operationType="dataEdit.operationType"
+            :title="dataEdit.title"
+            :keyInfo="dataEdit.keyInfo"
+            :redisId="scanParam.id"
+            @cancel="onCancelDataEdit"
+            @valChange="searchKey"
+        />
+
+        <set-value
+            v-model:visible="setValueDialog.visible"
             :title="dataEdit.title"
             :keyInfo="dataEdit.keyInfo"
             :redisId="scanParam.id"
             :operationType="dataEdit.operationType"
-            :stringValue="dataEdit.stringValue"
-            :setValue="dataEdit.setValue"
-            :hashValue="dataEdit.hashValue"
             @valChange="searchKey"
             @cancel="onCancelDataEdit"
         />
@@ -91,13 +113,17 @@ import { redisApi } from './api';
 import { toRefs, reactive, defineComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
-import DataEdit from './DataEdit.vue';
+import HashValue from './HashValue.vue';
+import StringValue from './StringValue.vue';
+import SetValue from './SetValue.vue';
 import { isTrue, notBlank, notNull } from '@/common/assert';
 
 export default defineComponent({
     name: 'DataOperation',
     components: {
-        DataEdit,
+        StringValue,
+        HashValue,
+        SetValue,
         ProjectEnvSelect,
     },
     setup() {
@@ -113,10 +139,6 @@ export default defineComponent({
                 count: 10,
                 cursor: {},
             },
-            valueDialog: {
-                visible: false,
-                value: {},
-            },
             dataEdit: {
                 visible: false,
                 title: '新增数据',
@@ -126,9 +148,15 @@ export default defineComponent({
                     timed: -1,
                     key: '',
                 },
-                stringValue: '',
-                hashValue: [{ key: '', value: '' }],
-                setValue: [{ value: '' }],
+            },
+            hashValueDialog: {
+                visible: false,
+            },
+            stringValueDialog: {
+                visible: false,
+            },
+            setValueDialog: {
+                visible: false,
             },
             keys: [],
             dbsize: 0,
@@ -158,10 +186,15 @@ export default defineComponent({
         const scan = async () => {
             isTrue(state.scanParam.id != null, '请先选择redis');
             notBlank(state.scanParam.count, 'count不能为空');
-            isTrue(state.scanParam.count < 20001, 'count不能超过20000');
+
+            const match = state.scanParam.match;
+            if (!match || match == '*') {
+                isTrue(state.scanParam.count <= 200, 'match为空或者*时, count不能超过200');
+            } else {
+                isTrue(state.scanParam.count <= 20000, 'count不能超过20000');
+            }
 
             state.loading = true;
-
             try {
                 const res = await redisApi.scan.request(state.scanParam);
                 state.keys = res.keys;
@@ -207,60 +240,43 @@ export default defineComponent({
 
         const getValue = async (row: any) => {
             const type = row.type;
-            const key = row.key;
-
-            let res: any;
-            const reqParam = {
-                key: row.key,
-                id: state.scanParam.id,
-            };
-            switch (type) {
-                case 'string':
-                    res = await redisApi.getStringValue.request(reqParam);
-                    break;
-                case 'hash':
-                    res = await redisApi.getHashValue.request(reqParam);
-                    break;
-                case 'set':
-                    res = await redisApi.getSetValue.request(reqParam);
-                    break;
-                default:
-                    res = null;
-                    break;
-            }
-            notNull(res, '暂不支持该类型数据查看');
-
-            if (type == 'string') {
-                state.dataEdit.stringValue = res;
-            }
-            if (type == 'set') {
-                state.dataEdit.setValue = res.map((x: any) => {
-                    return {
-                        value: x,
-                    };
-                });
-            }
-            if (type == 'hash') {
-                const hash = [];
-                //遍历key和value
-                const keys = Object.keys(res);
-                for (let i = 0; i < keys.length; i++) {
-                    const key = keys[i];
-                    const value = res[key];
-                    hash.push({
-                        key,
-                        value,
-                    });
-                }
-                state.dataEdit.hashValue = hash;
-            }
 
             state.dataEdit.keyInfo.type = type;
             state.dataEdit.keyInfo.timed = row.ttl;
-            state.dataEdit.keyInfo.key = key;
+            state.dataEdit.keyInfo.key = row.key;
             state.dataEdit.operationType = 2;
-            state.dataEdit.title = '修改数据';
-            state.dataEdit.visible = true;
+            state.dataEdit.title = '查看数据';
+
+            if (type == 'hash') {
+                state.hashValueDialog.visible = true;
+            } else if (type == 'string') {
+                state.stringValueDialog.visible = true;
+            } else if (type == 'set') {
+                state.setValueDialog.visible = true;
+            } else {
+                ElMessage.warning('暂不支持该类型');
+            }
+        };
+
+        const onAddData = (type: string) => {
+            notNull(state.scanParam.id, '请先选择redis');
+            state.dataEdit.operationType = 1;
+            state.dataEdit.title = '新增数据';
+            state.dataEdit.keyInfo.type = type;
+            state.dataEdit.keyInfo.timed = -1;
+            if (type == 'hash') {
+                state.hashValueDialog.visible = true;
+            } else if (type == 'string') {
+                state.stringValueDialog.visible = true;
+            } else if (type == 'set') {
+                state.setValueDialog.visible = true;
+            } else {
+                ElMessage.warning('暂不支持该类型');
+            }
+        };
+
+        const onCancelDataEdit = () => {
+            state.dataEdit.keyInfo = {} as any;
         };
 
         const del = (key: string) => {
@@ -329,20 +345,6 @@ export default defineComponent({
             if (type == 'set') {
                 return '#A8DEE0';
             }
-        };
-
-        const onAddData = () => {
-            notNull(state.scanParam.id, '请先选择redis');
-            state.dataEdit.operationType = 1;
-            state.dataEdit.title = '新增数据';
-            state.dataEdit.visible = true;
-        };
-
-        const onCancelDataEdit = () => {
-            state.dataEdit.keyInfo = {} as any;
-            state.dataEdit.stringValue = '';
-            state.dataEdit.setValue = [];
-            state.dataEdit.hashValue = [];
         };
 
         return {

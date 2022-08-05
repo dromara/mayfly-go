@@ -65,9 +65,9 @@ export default defineComponent({
                 // cursorStyle: 'underline', //光标样式
                 disableStdin: false,
                 theme: {
-                    foreground: getThemeConfig.value.terminalForeground || '#d0d0d0', //字体
-                    background: getThemeConfig.value.terminalBackground || '#1c1c1c', //背景色
-                    cursor: getThemeConfig.value.terminalCursor || '#e4c9af', //设置光标
+                    foreground: getThemeConfig.value.terminalForeground || '#c5c8c6', //字体
+                    background: getThemeConfig.value.terminalBackground || '#121212', //背景色
+                    cursor: getThemeConfig.value.terminalCursor || '#f0cc09', //设置光标
                 } as any,
             });
             const fitAddon = new FitAddon();
