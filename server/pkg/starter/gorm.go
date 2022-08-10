@@ -10,11 +10,11 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-func InitDb() {
-	global.Db = GormMysql()
+func initDb() {
+	global.Db = gormMysql()
 }
 
-func GormMysql() *gorm.DB {
+func gormMysql() *gorm.DB {
 	m := config.Conf.Mysql
 	if m == nil || m.Dbname == "" {
 		global.Log.Panic("未找到数据库配置信息")

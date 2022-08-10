@@ -3,6 +3,7 @@ package application
 import (
 	"encoding/json"
 	"fmt"
+
 	"mayfly-go/internal/devops/domain/entity"
 	"mayfly-go/internal/devops/domain/repository"
 	"mayfly-go/internal/devops/infrastructure/persistence"
@@ -89,7 +90,7 @@ func doUpdate(update *sqlparser.Update, dbInstance *DbInstance, dbSqlExec *entit
 	}
 
 	// 获取表主键列名,排除使用别名
-	primaryKey := dbInstance.GetPrimaryKey(tableName)
+	primaryKey := dbInstance.GetMeta().GetPrimaryKey(tableName)
 
 	updateColumnsAndPrimaryKey := strings.Join(updateColumns, ",") + "," + primaryKey
 	// 查询要更新字段数据的旧值，以及主键值

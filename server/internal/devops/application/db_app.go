@@ -147,6 +147,7 @@ func (d *dbAppImpl) Delete(id uint64) {
 }
 
 func (d *dbAppImpl) GetDatabases(ed *entity.Db) []string {
+	ed.Network = ed.GetNetwork()
 	databases := make([]string, 0)
 	var dbConn *sql.DB
 	var metaDb string
@@ -422,6 +423,18 @@ func (d *DbInstance) Exec(sql string) (int64, error) {
 	return res.RowsAffected()
 }
 
+// 获取数据库元信息实现接口
+func (di *DbInstance) GetMeta() DbMetadata {
+	dbType := di.Type
+	if dbType == entity.DbTypeMysql {
+		return &MysqlMetadata{di: di}
+	}
+	if dbType == entity.DbTypePostgres {
+		return &PgsqlMetadata{di: di}
+	}
+	return nil
+}
+
 // 关闭连接
 func (d *DbInstance) Close() {
 	if d.db != nil {
@@ -458,8 +471,32 @@ func CloseDb(dbId uint64, db string) {
 	dbCache.Delete(GetDbCacheKey(dbId, db))
 }
 
-//-----------------------------------元数据-------------------------------------------
+// -----------------------------------元数据-------------------------------------------
+// 数据库元信息接口（表、列等元信息）
+type DbMetadata interface {
+	// 获取表基础元信息, 如表名等
+	GetTables() []map[string]interface{}
 
+	// 获取列元信息, 如列名等
+	GetColumns(tableNames ...string) []map[string]interface{}
+
+	// 获取表主键字段名，默认第一个字段
+	GetPrimaryKey(tablename string) string
+
+	// 获取表信息，比GetTables获取更详细的表信息
+	GetTableInfos() []map[string]interface{}
+
+	// 获取表索引信息
+	GetTableIndex(tableName string) []map[string]interface{}
+
+	// 获取建表ddl
+	GetCreateTableDdl(tableName string) []map[string]interface{}
+}
+
+// 默认每次查询列元信息数量
+const DEFAULT_COLUMN_SIZE = 2000
+
+// ---------------------------------- mysql元数据 -----------------------------------
 const (
 	// mysql 表信息元数据
 	MYSQL_TABLE_MA = `SELECT table_name tableName, engine, table_comment tableComment, 
@@ -478,9 +515,6 @@ const (
 	FROM information_schema.STATISTICS 
     WHERE table_schema = (SELECT database()) AND table_name = '%s' LIMIT 500`
 
-	// 默认每次查询列元信息数量
-	DEFAULT_COLUMN_SIZE = 2000
-
 	// mysql 列信息元数据
 	MYSQL_COLUMN_MA = `SELECT table_name tableName, column_name columnName, column_type columnType,
 	column_comment columnComment, column_key columnKey, extra, is_nullable nullable from information_schema.columns
@@ -491,6 +525,74 @@ const (
 	WHERE table_name in (%s) AND table_schema = (SELECT database())`
 )
 
+type MysqlMetadata struct {
+	di *DbInstance
+}
+
+// 获取表基础元信息, 如表名等
+func (mm *MysqlMetadata) GetTables() []map[string]interface{} {
+	_, res, _ := mm.di.SelectData(MYSQL_TABLE_MA)
+	return res
+}
+
+// 获取列元信息, 如列名等
+func (mm *MysqlMetadata) GetColumns(tableNames ...string) []map[string]interface{} {
+	var sql, tableName string
+	for i := 0; i < len(tableNames); i++ {
+		if i != 0 {
+			tableName = tableName + ", "
+		}
+		tableName = tableName + "'" + tableNames[i] + "'"
+	}
+
+	pageNum := 1
+	// 如果大于一个表，则统计列数并分页获取
+	if len(tableNames) > 1 {
+		countSql := fmt.Sprintf(MYSQL_COLOUMN_MA_COUNT, tableName)
+		_, countRes, _ := mm.di.SelectData(countSql)
+		// 查询出所有列信息总数，手动分页获取所有数据
+		maCount := int(countRes[0]["maNum"].(int64))
+		// 计算需要查询的页数
+		pageNum = maCount / DEFAULT_COLUMN_SIZE
+		if maCount%DEFAULT_COLUMN_SIZE > 0 {
+			pageNum++
+		}
+	}
+
+	res := make([]map[string]interface{}, 0)
+	for index := 0; index < pageNum; index++ {
+		sql = fmt.Sprintf(MYSQL_COLUMN_MA, tableName, index*DEFAULT_COLUMN_SIZE, DEFAULT_COLUMN_SIZE)
+		_, result, err := mm.di.SelectData(sql)
+		biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
+		res = append(res, result...)
+	}
+	return res
+}
+
+// 获取表主键字段名，默认第一个字段
+func (mm *MysqlMetadata) GetPrimaryKey(tablename string) string {
+	return mm.GetColumns(tablename)[0]["columnName"].(string)
+}
+
+// 获取表信息，比GetTableMetedatas获取更详细的表信息
+func (mm *MysqlMetadata) GetTableInfos() []map[string]interface{} {
+	_, res, _ := mm.di.SelectData(MYSQL_TABLE_INFO)
+	return res
+}
+
+// 获取表索引信息
+func (mm *MysqlMetadata) GetTableIndex(tableName string) []map[string]interface{} {
+	_, res, _ := mm.di.SelectData(MYSQL_INDEX_INFO)
+	return res
+}
+
+// 获取建表ddl
+func (mm *MysqlMetadata) GetCreateTableDdl(tableName string) []map[string]interface{} {
+	_, res, _ := mm.di.SelectData(fmt.Sprintf("show create table %s ", tableName))
+	return res
+}
+
+// ---------------------------------- pgsql元数据 -----------------------------------
 const (
 	// postgres 表信息元数据
 	PGSQL_TABLE_MA = `SELECT obj_description(c.oid) AS "tableComment", c.relname AS "tableName" FROM pg_class c 
@@ -537,18 +639,18 @@ const (
 	`
 )
 
-func (d *DbInstance) GetTableMetedatas() []map[string]interface{} {
-	var sql string
-	if d.Type == entity.DbTypeMysql {
-		sql = MYSQL_TABLE_MA
-	} else if d.Type == "postgres" {
-		sql = PGSQL_TABLE_MA
-	}
-	_, res, _ := d.SelectData(sql)
+type PgsqlMetadata struct {
+	di *DbInstance
+}
+
+// 获取表基础元信息, 如表名等
+func (pm *PgsqlMetadata) GetTables() []map[string]interface{} {
+	_, res, _ := pm.di.SelectData(PGSQL_TABLE_MA)
 	return res
 }
 
-func (d *DbInstance) GetColumnMetadatas(tableNames ...string) []map[string]interface{} {
+// 获取列元信息, 如列名等
+func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []map[string]interface{} {
 	var sql, tableName string
 	for i := 0; i < len(tableNames); i++ {
 		if i != 0 {
@@ -557,68 +659,48 @@ func (d *DbInstance) GetColumnMetadatas(tableNames ...string) []map[string]inter
 		tableName = tableName + "'" + tableNames[i] + "'"
 	}
 
-	var countSqlTmp string
-	var sqlTmp string
-	if d.Type == entity.DbTypeMysql {
-		countSqlTmp = MYSQL_COLOUMN_MA_COUNT
-		sqlTmp = MYSQL_COLUMN_MA
-	} else if d.Type == entity.DbTypePostgres {
-		countSqlTmp = PGSQL_COLUMN_MA_COUNT
-		sqlTmp = PGSQL_COLUMN_MA
-	}
-
-	countSql := fmt.Sprintf(countSqlTmp, tableName)
-	_, countRes, _ := d.SelectData(countSql)
-	// 查询出所有列信息总数，手动分页获取所有数据
-	maCount := int(countRes[0]["maNum"].(int64))
-	// 计算需要查询的页数
-	pageNum := maCount / DEFAULT_COLUMN_SIZE
-	if maCount%DEFAULT_COLUMN_SIZE > 0 {
-		pageNum++
+	pageNum := 1
+	// 如果大于一个表，则统计列数并分页获取
+	if len(tableNames) > 1 {
+		countSql := fmt.Sprintf(PGSQL_COLUMN_MA_COUNT, tableName)
+		_, countRes, _ := pm.di.SelectData(countSql)
+		// 查询出所有列信息总数，手动分页获取所有数据
+		maCount := int(countRes[0]["maNum"].(int64))
+		// 计算需要查询的页数
+		pageNum = maCount / DEFAULT_COLUMN_SIZE
+		if maCount%DEFAULT_COLUMN_SIZE > 0 {
+			pageNum++
+		}
 	}
 
 	res := make([]map[string]interface{}, 0)
 	for index := 0; index < pageNum; index++ {
-		sql = fmt.Sprintf(sqlTmp, tableName, index*DEFAULT_COLUMN_SIZE, DEFAULT_COLUMN_SIZE)
-		_, result, err := d.SelectData(sql)
+		sql = fmt.Sprintf(PGSQL_COLUMN_MA, tableName, index*DEFAULT_COLUMN_SIZE, DEFAULT_COLUMN_SIZE)
+		_, result, err := pm.di.SelectData(sql)
 		biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
 		res = append(res, result...)
 	}
 	return res
 }
 
-// 获取表的主键，目前默认第一列为主键
-func (d *DbInstance) GetPrimaryKey(tablename string) string {
-	return d.GetColumnMetadatas(tablename)[0]["columnName"].(string)
+// 获取表主键字段名，默认第一个字段
+func (pm *PgsqlMetadata) GetPrimaryKey(tablename string) string {
+	return pm.GetColumns(tablename)[0]["columnName"].(string)
 }
 
-func (d *DbInstance) GetTableInfos() []map[string]interface{} {
-	var sql string
-	if d.Type == entity.DbTypeMysql {
-		sql = MYSQL_TABLE_INFO
-	} else if d.Type == entity.DbTypePostgres {
-		sql = PGSQL_TABLE_INFO
-	}
-	_, res, _ := d.SelectData(sql)
+// 获取表信息，比GetTables获取更详细的表信息
+func (pm *PgsqlMetadata) GetTableInfos() []map[string]interface{} {
+	_, res, _ := pm.di.SelectData(PGSQL_TABLE_INFO)
 	return res
 }
 
-func (d *DbInstance) GetTableIndex(tableName string) []map[string]interface{} {
-	var sql string
-	if d.Type == entity.DbTypeMysql {
-		sql = fmt.Sprintf(MYSQL_INDEX_INFO, tableName)
-	} else if d.Type == entity.DbTypePostgres {
-		sql = fmt.Sprintf(PGSQL_INDEX_INFO, tableName)
-	}
-	_, res, _ := d.SelectData(sql)
+// 获取表索引信息
+func (pm *PgsqlMetadata) GetTableIndex(tableName string) []map[string]interface{} {
+	_, res, _ := pm.di.SelectData(PGSQL_INDEX_INFO)
 	return res
 }
 
-func (d *DbInstance) GetCreateTableDdl(tableName string) []map[string]interface{} {
-	var sql string
-	if d.Type == entity.DbTypeMysql {
-		sql = fmt.Sprintf("show create table %s ", tableName)
-	}
-	_, res, _ := d.SelectData(sql)
-	return res
+// 获取建表ddl
+func (mm *PgsqlMetadata) GetCreateTableDdl(tableName string) []map[string]interface{} {
+	return nil
 }

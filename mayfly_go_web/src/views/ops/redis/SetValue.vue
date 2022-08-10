@@ -128,7 +128,7 @@ export default defineComponent({
         };
 
         const onAddSetValue = () => {
-            state.value.push({ value: '' });
+            state.value.unshift({ value: '' });
         };
 
         return {

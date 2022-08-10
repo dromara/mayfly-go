@@ -97,19 +97,19 @@ func (d *Db) DeleteDb(rc *ctx.ReqCtx) {
 }
 
 func (d *Db) TableInfos(rc *ctx.ReqCtx) {
-	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetTableInfos()
+	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetMeta().GetTableInfos()
 }
 
 func (d *Db) TableIndex(rc *ctx.ReqCtx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetTableIndex(tn)
+	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetMeta().GetTableIndex(tn)
 }
 
 func (d *Db) GetCreateTableDdl(rc *ctx.ReqCtx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetCreateTableDdl(tn)
+	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetMeta().GetCreateTableDdl(tn)
 }
 
 func (d *Db) ExecSql(rc *ctx.ReqCtx) {
@@ -237,11 +237,12 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", db))
 	writer.WriteString("\n-- ----------------------------\n")
 
+	dbmeta := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetMeta()
 	for _, table := range tables {
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
 			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS `%s`;\n", table))
-			writer.WriteString(dbInstance.GetCreateTableDdl(table)[0]["Create Table"].(string) + ";\n")
+			writer.WriteString(dbmeta.GetCreateTableDdl(table)[0]["Create Table"].(string) + ";\n")
 		}
 
 		if !needData {
@@ -303,7 +304,7 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 func (d *Db) TableMA(rc *ctx.ReqCtx) {
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
 	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "%s")
-	rc.ResData = dbi.GetTableMetedatas()
+	rc.ResData = dbi.GetMeta().GetTables()
 }
 
 // @router /api/db/:dbId/c-metadata [get]
@@ -314,16 +315,17 @@ func (d *Db) ColumnMA(rc *ctx.ReqCtx) {
 
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
 	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "%s")
-	rc.ResData = dbi.GetColumnMetadatas(tn)
+	rc.ResData = dbi.GetMeta().GetColumns(tn)
 }
 
 // @router /api/db/:dbId/hint-tables [get]
 func (d *Db) HintTables(rc *ctx.ReqCtx) {
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
 	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "%s")
-	// 获取所有表
-	tables := dbi.GetTableMetedatas()
 
+	dm := dbi.GetMeta()
+	// 获取所有表
+	tables := dm.GetTables()
 	tableNames := make([]string, 0)
 	for _, v := range tables {
 		tableNames = append(tableNames, v["tableName"].(string))
@@ -338,7 +340,7 @@ func (d *Db) HintTables(rc *ctx.ReqCtx) {
 	}
 
 	// 获取所有表下的所有列信息
-	columnMds := dbi.GetColumnMetadatas(tableNames...)
+	columnMds := dm.GetColumns(tableNames...)
 	for _, v := range columnMds {
 		tName := v["tableName"].(string)
 		if res[tName] == nil {

@@ -209,7 +209,7 @@ export default defineComponent({
         };
 
         const onAddHashValue = () => {
-            state.hashValues.push({ field: '', value: '' });
+            state.hashValues.unshift({ field: '', value: '' });
         };
 
         const saveValue = async () => {

@@ -8,7 +8,7 @@ import (
 	"mayfly-go/pkg/global"
 )
 
-func RunWebServer() {
+func runWebServer() {
 	// 权限处理器
 	ctx.UseBeforeHandlerInterceptor(ctx.PermissionHandler)
 	// 日志处理器
@@ -21,11 +21,7 @@ func RunWebServer() {
 
 	server := config.Conf.Server
 	port := server.GetPort()
-	if app := config.Conf.App; app != nil {
-		global.Log.Infof("%s- Listening and serving HTTP on %s", app.GetAppInfo(), port)
-	} else {
-		global.Log.Infof("Listening and serving HTTP on %s", port)
-	}
+	global.Log.Infof("Listening and serving HTTP on %s", port)
 
 	var err error
 	if server.Tls != nil && server.Tls.Enable {

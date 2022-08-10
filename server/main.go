@@ -5,7 +5,5 @@ import (
 )
 
 func main() {
-	starter.PrintBanner()
-	starter.InitDb()
 	starter.RunWebServer()
 }

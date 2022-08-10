@@ -13,9 +13,14 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-var (
-	JwtKey  = config.Conf.Jwt.Key
+func InitTokenConfig() {
+	JwtKey = config.Conf.Jwt.Key
 	ExpTime = config.Conf.Jwt.ExpireTime
+}
+
+var (
+	JwtKey  string
+	ExpTime uint64
 )
 
 // 创建用户token
@@ -27,7 +32,8 @@ func CreateToken(userId uint64, username string) string {
 		"username": username,
 		"exp":      time.Now().Add(time.Minute * time.Duration(ExpTime)).Unix(),
 	})
-	// 如果jwt key为空，则随机生成字符串
+
+	// 如果配置文件中的jwt key为空，则随机生成字符串
 	if JwtKey == "" {
 		JwtKey = utils.RandString(32)
 		global.Log.Infof("config.yml未配置jwt.key, 随机生成key为: %s", JwtKey)

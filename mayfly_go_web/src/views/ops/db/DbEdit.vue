@@ -55,20 +55,25 @@
                     <el-input v-model="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2"></el-input>
                 </el-form-item>
                 <el-form-item prop="database" label="数据库名:" required>
-                    <el-select
-                        @change="changeDatabase"
-                        @focus="getAllDatabase"
-                        v-model="databaseList"
-                        multiple
-                        collapse-tags
-                        collapse-tags-tooltip
-                        filterable
-                        allow-create
-                        placeholder="请确保数据库实例信息填写完整后选择数据库"
-                        style="width: 100%"
-                    >
-                        <el-option v-for="db in allDatabases" :key="db" :label="db" :value="db" />
-                    </el-select>
+                    <el-col :span="19">
+                        <el-select
+                            @change="changeDatabase"
+                            v-model="databaseList"
+                            multiple
+                            collapse-tags
+                            collapse-tags-tooltip
+                            filterable
+                            allow-create
+                            placeholder="请确保数据库实例信息填写完整后获取库名"
+                            style="width: 100%"
+                        >
+                            <el-option v-for="db in allDatabases" :key="db" :label="db" :value="db" />
+                        </el-select>
+                    </el-col>
+                    <el-col style="text-align: center" :span="1"><el-divider direction="vertical" border-style="dashed" /></el-col>
+                    <el-col :span="4">
+                        <el-link @click="getAllDatabase" :underline="false" type="success">获取库名</el-link>
+                    </el-col>
                 </el-form-item>
 
                 <el-form-item prop="enableSshTunnel" label="SSH隧道:">
@@ -264,12 +269,10 @@ export default defineComponent({
         };
 
         const getAllDatabase = async () => {
-            if (state.allDatabases.length != 0) {
-                return;
-            }
             const reqForm = { ...state.form };
             reqForm.password = await RsaEncrypt(reqForm.password);
             state.allDatabases = await dbApi.getAllDatabase.request(reqForm);
+            ElMessage.success('获取成功, 请选择需要管理操作的数据库')
         };
 
         const getDbPwd = async () => {
