@@ -10,7 +10,7 @@
     <img src="https://img.shields.io/github/forks/may-fly/mayfly-go.svg?style=social" alt="github fork"/>
   </a>
   <a href="https://github.com/golang/go" target="_blank">
-    <img src="https://img.shields.io/badge/Golang-1.8%2B-yellow.svg" alt="golang"/>
+    <img src="https://img.shields.io/badge/Golang-1.18%2B-yellow.svg" alt="golang"/>
   </a>
   <a href="https://cn.vuejs.org" target="_blank">
     <img src="https://img.shields.io/badge/Vue-3.x-green.svg" alt="vue">
@@ -19,7 +19,7 @@
 
 
 ### 介绍
-简单基于DDD(领域驱动设计)分层架构实现的web版 **linux、数据库（mysql postgres）、redis(单机 集群)、mongo统一管理操作平台**
+基于DDD分层实现的web版 **linux(终端 文件 脚本 进程)、数据库（mysql postgres）、redis(单机 集群)、mongo统一管理操作平台**
 
 
 ### 开发语言与主要框架
@@ -28,7 +28,7 @@
 
 
 ### 交流及问题反馈加 QQ 群
-<a target="_blank" href="https://qm.qq.com/cgi-bin/qm/qr?jump_from=webapi">119699946</a>
+<a target="_blank" href="https://qm.qq.com/cgi-bin/qm/qr?k=IdJSHW0jTMhmWFHBUS9a83wxtrxDDhFj&jump_from=webapi">119699946</a>
 
 
 ### 系统相关资料
