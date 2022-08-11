@@ -1,5 +1,23 @@
 # 🌈mayfly-go
 
+<p align="center">
+  <a href="https://gitee.com/objs/mayfly-go" target="_blank">
+    <img src="https://gitee.com/objs/mayfly-go/badge/star.svg?theme=white" alt="star"/>
+    <img src="https://gitee.com/objs/mayfly-go/badge/fork.svg" alt="fork"/>
+  </a>
+  <a href="https://github.com/may-fly/mayfly-go" target="_blank">
+    <img src="https://img.shields.io/github/stars/may-fly/mayfly-go.svg?style=social" alt="github star"/>
+    <img src="https://img.shields.io/github/forks/may-fly/mayfly-go.svg?style=social" alt="github fork"/>
+  </a>
+  <a href="https://github.com/golang/go" target="_blank">
+    <img src="https://img.shields.io/badge/Golang-1.8%2B-yellow.svg" alt="golang"/>
+  </a>
+  <a href="https://cn.vuejs.org" target="_blank">
+    <img src="https://img.shields.io/badge/Vue-3.x-green.svg" alt="vue">
+  </a>
+</p>
+
+
 ### 介绍
 简单基于DDD(领域驱动设计)分层架构实现的web版 **linux、数据库（mysql postgres）、redis(单机 集群)、mongo统一管理操作平台**
 
