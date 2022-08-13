@@ -53,6 +53,24 @@ type Stats struct {
 	CPU          CPUInfo // or []CPUInfo to get all the cpu-core's stats?
 }
 
+const StatsShell = `
+cat /proc/uptime
+echo '-----'
+/bin/hostname -f
+echo '-----'
+cat /proc/loadavg
+echo '-----'
+cat /proc/meminfo
+echo '-----'
+df -B1
+echo '-----'
+/sbin/ip -o addr
+echo '-----'
+/bin/cat /proc/net/dev
+echo '-----'
+top -b -n 1 | grep Cpu
+`
+
 func (c *Cli) GetAllStats() *Stats {
 	res, _ := c.Run(StatsShell)
 	infos := strings.Split(*res, "-----")

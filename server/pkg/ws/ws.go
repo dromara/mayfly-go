@@ -56,7 +56,7 @@ func checkConn() {
 
 // 删除ws连接
 func Delete(userid uint64) {
-	global.Log.Info("移除websocket连接：uid = ", userid)
+	global.Log.Debug("移除websocket连接：uid = ", userid)
 	conn := conns[userid]
 	if conn != nil {
 		conn.Close()

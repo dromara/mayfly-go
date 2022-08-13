@@ -9,7 +9,7 @@ import { FitAddon } from 'xterm-addon-fit';
 import { getSession } from '@/common/utils/storage.ts';
 import config from '@/common/config';
 import { useStore } from '@/store/index.ts';
-import { toRefs, watch, computed, reactive, defineComponent, onMounted, onBeforeUnmount } from 'vue';
+import { nextTick, toRefs, watch, computed, reactive, defineComponent, onMounted, onBeforeUnmount } from 'vue';
 
 export default defineComponent({
     name: 'SshTerminal',
@@ -27,22 +27,19 @@ export default defineComponent({
             socket: null as any,
         });
 
+        const resize = 1;
+        const data = 2;
+
         watch(props, (newValue) => {
             state.machineId = newValue.machineId;
             state.cmd = newValue.cmd;
             state.height = newValue.height;
-            if (state.machineId) {
-                initSocket();
-            }
         });
 
         onMounted(() => {
             state.machineId = props.machineId;
             state.height = props.height;
             state.cmd = props.cmd;
-            if (state.machineId) {
-                initSocket();
-            }
         });
 
         onBeforeUnmount(() => {
@@ -56,14 +53,19 @@ export default defineComponent({
             return store.state.themeConfig.themeConfig;
         });
 
+        nextTick(() => {
+            initXterm();
+            initSocket();
+        });
+
         function initXterm() {
             const term: any = new Terminal({
                 fontSize: getThemeConfig.value.terminalFontSize || 15,
-                // fontWeight: getThemeConfig.value.terminalFontWeight || 'normal',
-                fontFamily: 'JetBrainsMono, Consolas, Menlo, Monaco',
+                fontWeight: getThemeConfig.value.terminalFontWeight || 'normal',
+                fontFamily: 'JetBrainsMono, monaco, Consolas, Lucida Console, monospace',
                 cursorBlink: true,
-                // cursorStyle: 'underline', //光标样式
                 disableStdin: false,
+                letterSpacing: -1,
                 theme: {
                     foreground: getThemeConfig.value.terminalForeground || '#c5c8c6', //字体
                     background: getThemeConfig.value.terminalBackground || '#121212', //背景色
@@ -82,6 +84,14 @@ export default defineComponent({
                 try {
                     // 窗口大小改变时，触发xterm的resize方法使自适应
                     fitAddon.fit();
+                    if (state.term) {
+                        state.term.focus();
+                        send({
+                            type: resize,
+                            Cols: parseInt(state.term.cols),
+                            Rows: parseInt(state.term.rows),
+                        });
+                    }
                 } catch (e) {
                     console.log(e);
                 }
@@ -104,20 +114,14 @@ export default defineComponent({
             term.onData((key: any) => {
                 sendCmd(key);
             });
-            // 为解决窗体resize方法才会向后端发送列数和行数，所以页面加载时也要触发此方法
-            send({
-                type: 'resize',
-                Cols: parseInt(term.cols),
-                Rows: parseInt(term.rows),
-            });
-            // 如果有初始要执行的命令，则发送执行命令
-            if (state.cmd) {
-                sendCmd(state.cmd + ' \r');
-            }
         }
 
         function initSocket() {
-            state.socket = new WebSocket(`${config.baseWsUrl}/machines/${state.machineId}/terminal?token=${getSession('token')}`);
+            state.socket = new WebSocket(
+                `${config.baseWsUrl}/machines/${state.machineId}/terminal?token=${getSession('token')}&cols=${state.term.cols}&rows=${
+                    state.term.rows
+                }`
+            );
             // 监听socket连接
             state.socket.onopen = open;
             // 监听socket错误信息
@@ -129,8 +133,10 @@ export default defineComponent({
         }
 
         function open() {
-            console.log('socket连接成功');
-            initXterm();
+            // 如果有初始要执行的命令，则发送执行命令
+            if (state.cmd) {
+                sendCmd(state.cmd + ' \r');
+            }
             //开启心跳
             //   this.start();
         }
@@ -151,20 +157,9 @@ export default defineComponent({
             //   this.reconnect()
         }
 
-        function getMessage(msg: string) {
-            //   console.log(msg)
-            state.term.write(msg['data']);
-            //msg是返回的数据
-            //   msg = JSON.parse(msg.data);
-            //   this.socket.send("ping");//有事没事ping一下，看看ws还活着没
-            //   //switch用于处理返回的数据，根据返回数据的格式去判断
-            //   switch (msg["operation"]) {
-            //     case "stdout":
-            //       this.term.write(msg["data"]);//这里write也许不是固定的，失败后找后端看一下该怎么往term里面write
-            //       break;
-            //     default:
-            //       console.error("Unexpected message type:", msg);//但是错误是固定的。。。。
-            //   }
+        function getMessage(msg: any) {
+            // msg.data是真正后端返回的数据
+            state.term.write(msg.data);
             //收到服务器信息，心跳重置
             //   this.reset();
         }
@@ -175,7 +170,7 @@ export default defineComponent({
 
         function sendCmd(key: any) {
             send({
-                type: 'cmd',
+                type: data,
                 msg: key,
             });
         }

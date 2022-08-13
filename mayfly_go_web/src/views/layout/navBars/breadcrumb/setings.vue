@@ -40,7 +40,7 @@
                         </el-input-number>
                     </div>
                 </div>
-                <!-- <div class="layout-breadcrumb-seting-bar-flex mt15">
+                <div class="layout-breadcrumb-seting-bar-flex mt15">
                     <div class="layout-breadcrumb-seting-bar-flex-label">字体粗细</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-select @change="setLocalThemeConfig" v-model="getThemeConfig.terminalFontWeight" size="small" style="width: 90px">
@@ -48,7 +48,7 @@
                             <el-option label="bold" value="bold"> </el-option>
                         </el-select>
                     </div>
-                </div> -->
+                </div>
 
                 <!-- 全局主题 -->
                 <el-divider content-position="left">全局主题</el-divider>

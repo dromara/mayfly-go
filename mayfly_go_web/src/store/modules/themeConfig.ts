@@ -113,6 +113,7 @@ const themeConfigModule: Module<ThemeConfigState, RootStateTypes> = {
             // ssh终端cursor色
             terminalCursor: '#f0cc09',
             terminalFontSize: 15,
+            terminalFontWeight: 'normal',
 
 
             /* 后端控制路由

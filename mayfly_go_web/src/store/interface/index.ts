@@ -52,6 +52,7 @@ export interface ThemeConfigState {
         terminalBackground: string;
         terminalCursor: string;
         terminalFontSize: number;
+        terminalFontWeight: string;
     };
 }
 

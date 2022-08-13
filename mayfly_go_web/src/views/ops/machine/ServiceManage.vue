@@ -97,12 +97,12 @@
             v-if="terminalDialog.visible"
             title="终端"
             v-model="terminalDialog.visible"
-            width="70%"
+            width="80%"
             :close-on-click-modal="false"
             :modal="false"
             @close="closeTermnial"
         >
-            <ssh-terminal ref="terminal" :cmd="terminalDialog.cmd" :machineId="terminalDialog.machineId" height="600px" />
+            <ssh-terminal ref="terminal" :cmd="terminalDialog.cmd" :machineId="terminalDialog.machineId" height="560px" />
         </el-dialog>
 
         <script-edit
