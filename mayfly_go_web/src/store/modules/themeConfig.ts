@@ -107,11 +107,11 @@ const themeConfigModule: Module<ThemeConfigState, RootStateTypes> = {
             layout: 'classic',
 
             // ssh终端字体颜色
-            terminalForeground: '#c5c8c6',
+            terminalForeground: '#7e9192',
             // ssh终端背景色
-            terminalBackground: '#121212',
+            terminalBackground: '#002833',
             // ssh终端cursor色
-            terminalCursor: '#f0cc09',
+            terminalCursor: '#268F81',
             terminalFontSize: 15,
             terminalFontWeight: 'normal',
 

@@ -65,11 +65,10 @@ export default defineComponent({
                 fontFamily: 'JetBrainsMono, monaco, Consolas, Lucida Console, monospace',
                 cursorBlink: true,
                 disableStdin: false,
-                letterSpacing: -1,
                 theme: {
-                    foreground: getThemeConfig.value.terminalForeground || '#c5c8c6', //字体
-                    background: getThemeConfig.value.terminalBackground || '#121212', //背景色
-                    cursor: getThemeConfig.value.terminalCursor || '#f0cc09', //设置光标
+                    foreground: getThemeConfig.value.terminalForeground || '#7e9192', //字体
+                    background: getThemeConfig.value.terminalBackground || '#002833', //背景色
+                    cursor: getThemeConfig.value.terminalCursor || '#268F81', //设置光标
                 } as any,
             });
             const fitAddon = new FitAddon();

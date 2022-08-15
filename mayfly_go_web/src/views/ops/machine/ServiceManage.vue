@@ -76,7 +76,24 @@
         <el-dialog title="脚本参数" v-model="scriptParamsDialog.visible" width="400px">
             <el-form ref="paramsForm" :model="scriptParamsDialog.params" label-width="70px" size="small">
                 <el-form-item v-for="item in scriptParamsDialog.paramsFormItem" :key="item.name" :prop="item.model" :label="item.name" required>
-                    <el-input v-model="scriptParamsDialog.params[item.model]" :placeholder="item.placeholder" autocomplete="off"></el-input>
+                    <el-input
+                        v-if="!item.options"
+                        v-model="scriptParamsDialog.params[item.model]"
+                        :placeholder="item.placeholder"
+                        autocomplete="off"
+                        clearable
+                    ></el-input>
+                    <el-select
+                        v-else
+                        v-model="scriptParamsDialog.params[item.model]"
+                        :placeholder="item.placeholder"
+                        filterable
+                        autocomplete="off"
+                        clearable
+                        style="width: 100%"
+                    >
+                        <el-option v-for="option in item.options.split(',')" :key="option" :label="option" :value="option" />
+                    </el-select>
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -88,7 +105,6 @@
 
         <el-dialog title="执行结果" v-model="resultDialog.visible" width="50%">
             <div style="white-space: pre-line; padding: 10px; color: #000000">
-                <!-- {{ resultDialog.result }} -->
                 <el-input v-model="resultDialog.result" :rows="20" type="textarea" />
             </div>
         </el-dialog>
@@ -196,7 +212,6 @@ export default defineComponent({
             // 如果存在参数，则弹窗输入参数后执行
             if (script.params) {
                 state.scriptParamsDialog.paramsFormItem = JSON.parse(script.params);
-                console.log(state.scriptParamsDialog.paramsFormItem);
                 if (state.scriptParamsDialog.paramsFormItem && state.scriptParamsDialog.paramsFormItem.length > 0) {
                     state.scriptParamsDialog.visible = true;
                     return;
@@ -271,8 +286,6 @@ export default defineComponent({
         const closeTermnial = () => {
             state.terminalDialog.visible = false;
             state.terminalDialog.machineId = 0;
-            // const t: any = this.$refs['terminal']
-            // t.closeAll()
         };
 
         /**
@@ -298,8 +311,6 @@ export default defineComponent({
         };
 
         const submitSuccess = () => {
-            // this.delChoose()
-            // this.search()
             getScripts();
         };
 
@@ -329,6 +340,7 @@ export default defineComponent({
             context.emit('update:machineId', null);
             context.emit('cancel');
             state.scriptTable = [];
+            state.scriptParamsDialog.paramsFormItem = [];
         };
 
         return {

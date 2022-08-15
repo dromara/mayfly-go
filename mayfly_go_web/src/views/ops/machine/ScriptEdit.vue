@@ -7,9 +7,9 @@
             :before-close="cancel"
             :show-close="true"
             :destroy-on-close="true"
-            width="800px"
+            width="900px"
         >
-            <el-form :model="form" ref="scriptForm" label-width="70px">
+            <el-form :model="form" ref="scriptForm" label-width="70px" size="small">
                 <el-form-item prop="method" label="名称">
                     <el-input v-model.trim="form.name" placeholder="请输入名称"></el-input>
                 </el-form-item>
@@ -29,13 +29,17 @@
                 </el-row>
                 <el-form-item :key="param" v-for="(param, index) in params" prop="params" :label="`参数${index + 1}`">
                     <el-row>
-                        <el-col :span="6"><el-input v-model="param.model" placeholder="内容中用{{.model}}替换"></el-input></el-col>
+                        <el-col :span="5"><el-input v-model="param.model" placeholder="内容中用{{.model}}替换"></el-input></el-col>
                         <el-divider :span="1" direction="vertical" border-style="dashed" />
-                        <el-col :span="6"><el-input v-model="param.name" placeholder="字段名"></el-input></el-col>
+                        <el-col :span="4"><el-input v-model="param.name" placeholder="字段名"></el-input></el-col>
                         <el-divider :span="1" direction="vertical" border-style="dashed" />
-                        <el-col :span="6"><el-input v-model="param.placeholder" placeholder="字段说明"></el-input></el-col>
+                        <el-col :span="4"><el-input v-model="param.placeholder" placeholder="字段说明"></el-input></el-col>
                         <el-divider :span="1" direction="vertical" border-style="dashed" />
-                        <el-col :span="3"><el-button @click="onDeleteParam(index)" size="small" type="danger">删除</el-button></el-col>
+                        <el-col :span="4">
+                            <el-input v-model="param.options" placeholder="可选值 ,分割"></el-input>
+                        </el-col>
+                        <el-divider :span="1" direction="vertical" border-style="dashed" />
+                        <el-col :span="2"><el-button @click="onDeleteParam(index)" size="small" type="danger">删除</el-button></el-col>
                     </el-row>
                 </el-form-item>
 
@@ -46,13 +50,12 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancel()" :disabled="submitDisabled" size="small">关 闭</el-button>
+                    <el-button @click="cancel()" :disabled="submitDisabled">关 闭</el-button>
                     <el-button
                         v-auth="'machine:script:save'"
                         type="primary"
                         :loading="btnLoading"
                         @click="btnOk"
-                        size="small"
                         :disabled="submitDisabled"
                         >保 存</el-button
                     >

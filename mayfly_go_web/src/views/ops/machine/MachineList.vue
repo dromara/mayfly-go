@@ -68,11 +68,6 @@
                 <el-table-column prop="username" label="用户名" min-width="90"></el-table-column>
                 <el-table-column prop="projectName" label="项目" min-width="120"></el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="250" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="ip" label="hasCli" width="70">
-                    <template #default="scope">
-                        {{ `${scope.row.hasCli ? '是' : '否'}` }}
-                    </template>
-                </el-table-column>
                 <el-table-column prop="createTime" label="创建时间" min-width="165">
                     <template #default="scope">
                         {{ $filters.dateFormat(scope.row.createTime) }}
@@ -255,6 +250,11 @@ export default defineComponent({
         };
 
         const closeCli = async (row: any) => {
+            await ElMessageBox.confirm(`确定关闭该机器客户端连接?`, '提示', {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning',
+            });
             await machineApi.closeCli.request({ id: row.id });
             ElMessage.success('关闭成功');
             search();
