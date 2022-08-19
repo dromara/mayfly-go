@@ -28,7 +28,6 @@ export async function RsaEncrypt(value: any) {
     if (encryptor != null) {
         return encryptor.encrypt(value)
     }
-    console.log(value)
     encryptor = new JSEncrypt()
     const publicKey = await getRsaPublicKey() as string;
     notBlank(publicKey, "获取公钥失败")

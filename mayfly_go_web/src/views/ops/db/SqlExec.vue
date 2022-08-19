@@ -165,7 +165,7 @@
                             size="small"
                         >
                             <template #prepend>
-                                <el-popover v-model:visible="dt.selectColumnPopoverVisible" :width="320" placement="right">
+                                <el-popover :visible="dt.selectColumnPopoverVisible" :width="320" placement="right">
                                     <template #reference>
                                         <el-link
                                             @click="dt.selectColumnPopoverVisible = !dt.selectColumnPopoverVisible"

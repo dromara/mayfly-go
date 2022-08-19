@@ -14,6 +14,7 @@ import (
 const (
 	Resize = 1
 	Data   = 2
+	Ping   = 3
 )
 
 type TerminalSession struct {
@@ -64,6 +65,9 @@ func (r TerminalSession) Stop() {
 	global.Log.Debug("close machine ssh terminal session")
 	r.tick.Stop()
 	r.cancel()
+	if r.wsConn != nil {
+		r.wsConn.Close()
+	}
 	if r.terminal != nil {
 		if err := r.terminal.Close(); err != nil {
 			global.Log.Errorf("关闭机器ssh终端失败: %s", err.Error())
@@ -154,6 +158,12 @@ func (ts *TerminalSession) receiveWsMsg() {
 				_, err := ts.terminal.Write([]byte(msgObj.Msg))
 				if err != nil {
 					global.Log.Debug("机器ssh终端写入消息失败: %s", err)
+				}
+			case Ping:
+				_, err := ts.terminal.SshSession.SendRequest("ping", true, nil)
+				if err != nil {
+					WriteMessage(wsConn, "\r\n\033[1;31m提示: 终端连接已断开...\033[0m")
+					return
 				}
 			}
 		}

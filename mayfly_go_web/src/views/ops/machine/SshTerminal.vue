@@ -29,6 +29,7 @@ export default defineComponent({
 
         const resize = 1;
         const data = 2;
+        const ping = 3;
 
         watch(props, (newValue) => {
             state.machineId = newValue.machineId;
@@ -115,52 +116,50 @@ export default defineComponent({
             });
         }
 
+        let pingInterval: any;
         function initSocket() {
             state.socket = new WebSocket(
                 `${config.baseWsUrl}/machines/${state.machineId}/terminal?token=${getSession('token')}&cols=${state.term.cols}&rows=${
                     state.term.rows
                 }`
             );
+
             // 监听socket连接
-            state.socket.onopen = open;
+            state.socket.onopen = () => {
+                // 如果有初始要执行的命令，则发送执行命令
+                if (state.cmd) {
+                    sendCmd(state.cmd + ' \r');
+                }
+                // 开启心跳
+                pingInterval = setInterval(() => {
+                    send({ type: ping, msg: 'ping' });
+                }, 8000);
+            };
+
             // 监听socket错误信息
-            state.socket.onerror = error;
-            // 监听socket消息
-            state.socket.onmessage = getMessage;
+            state.socket.onerror = (e: any) => {
+                console.log('连接错误', e);
+            };
+
+            state.socket.onclose = () => {
+                if (state.term) {
+                    state.term.writeln('\r\n\x1b[31m提示: 连接已关闭...');
+                }
+                if (pingInterval) {
+                    clearInterval(pingInterval);
+                }
+            };
+
             // 发送socket消息
             state.socket.onsend = send;
-        }
 
-        function open() {
-            // 如果有初始要执行的命令，则发送执行命令
-            if (state.cmd) {
-                sendCmd(state.cmd + ' \r');
-            }
-            //开启心跳
-            //   this.start();
-        }
-
-        function error() {
-            console.log('连接错误');
-            //重连
-            // reconnect();
-        }
-
-        function close() {
-            if (state.socket) {
-                state.socket.close();
-                console.log('socket关闭');
-            }
-
-            //重连
-            //   this.reconnect()
+            // 监听socket消息
+            state.socket.onmessage = getMessage;
         }
 
         function getMessage(msg: any) {
             // msg.data是真正后端返回的数据
             state.term.write(msg.data);
-            //收到服务器信息，心跳重置
-            //   this.reset();
         }
 
         function send(msg: any) {
@@ -172,6 +171,13 @@ export default defineComponent({
                 type: data,
                 msg: key,
             });
+        }
+
+        function close() {
+            if (state.socket) {
+                state.socket.close();
+                console.log('socket关闭');
+            }
         }
 
         function closeAll() {
