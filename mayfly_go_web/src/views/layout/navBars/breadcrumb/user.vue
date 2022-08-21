@@ -14,11 +14,11 @@
                 </el-dropdown-menu>
             </template>
         </el-dropdown>
-        <div class="layout-navbars-breadcrumb-user-icon" @click="onSearchClick">
+        <!-- <div class="layout-navbars-breadcrumb-user-icon" @click="onSearchClick">
             <el-icon title="菜单搜索">
                 <search />
             </el-icon>
-        </div>
+        </div> -->
         <div class="layout-navbars-breadcrumb-user-icon" @click="onLayoutSetingClick">
             <el-icon title="布局设置">
                 <setting />
@@ -28,7 +28,7 @@
             <el-popover
                 placement="bottom"
                 trigger="click"
-                v-model:visible="isShowUserNewsPopover"
+                :visible="isShowUserNewsPopover"
                 :width="300"
                 popper-class="el-popover-pupop-user-news"
             >

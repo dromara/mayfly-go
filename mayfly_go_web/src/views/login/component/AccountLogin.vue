@@ -131,6 +131,8 @@ export default defineComponent({
         });
 
         onMounted(() => {
+            // 移除公钥, 方便后续重新获取
+            sessionStorage.removeItem('RsaPublicKey')
             getCaptcha();
         });
 

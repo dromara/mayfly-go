@@ -219,6 +219,9 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 
 //------------------------------------------------------------------------------
 
+// 单次最大查询数据集
+const Max_Rows = 2000
+
 // 客户端连接缓存，指定时间内没有访问则会被关闭, key为数据库实例id:数据库
 var dbCache = cache.NewTimedCache(constant.DbConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
@@ -315,7 +318,11 @@ func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]interf
 	colNames := make([]string, 0)
 	// 是否第一次遍历，列名数组只需第一次遍历时加入
 	isFirst := true
+	rowNum := 0
 	for rows.Next() {
+		rowNum++
+		biz.IsTrue(rowNum <= Max_Rows, "结果集 > 2000, 请完善条件或分页信息")
+
 		// 不Scan也会导致等待，该链接实际处于未工作的状态，然后也会导致连接数迅速达到最大
 		err := rows.Scan(scans...)
 		if err != nil {
@@ -329,6 +336,7 @@ func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]interf
 			colName := colType.Name()
 			// 字段类型名
 			colScanType := colType.ScanType().Name()
+			// 如果是第一行，则将列名加入到列信息中，由于map是无序的，所有需要返回列名的有序数组
 			if isFirst {
 				colNames = append(colNames, colName)
 			}
