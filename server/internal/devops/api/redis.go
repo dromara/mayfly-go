@@ -193,7 +193,7 @@ func (r *Redis) Scan(rc *ctx.ReqCtx) {
 	kis := make([]*vo.KeyInfo, 0)
 	var cursorRes map[string]uint64 = make(map[string]uint64)
 
-	if ri.Mode == "" || ri.Mode == entity.RedisModeStandalone {
+	if ri.Mode == "" || ri.Mode == entity.RedisModeStandalone || ri.Mode == entity.RedisModeSentinel {
 		redisAddr := ri.Cli.Options().Addr
 		keys, cursor := ri.Scan(form.Cursor[redisAddr], form.Match, form.Count)
 		cursorRes[redisAddr] = cursor

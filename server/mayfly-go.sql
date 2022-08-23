@@ -286,7 +286,7 @@ CREATE TABLE `t_redis` (
 DROP TABLE IF EXISTS `t_sys_account`;
 CREATE TABLE `t_sys_account` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `username` varchar(12) COLLATE utf8mb4_bin NOT NULL,
+  `username` varchar(30) COLLATE utf8mb4_bin NOT NULL,
   `password` varchar(64) COLLATE utf8mb4_bin NOT NULL,
   `status` tinyint(4) DEFAULT NULL,
   `last_login_time` datetime DEFAULT NULL COMMENT '最后登录时间',

@@ -17,12 +17,13 @@
                     <el-select style="width: 100%" v-model="form.mode" placeholder="请选择模式">
                         <el-option label="standalone" value="standalone"> </el-option>
                         <el-option label="cluster" value="cluster"> </el-option>
+                        <el-option label="sentinel" value="sentinel"> </el-option>
                     </el-select>
                 </el-form-item>
                 <el-form-item prop="host" label="host:" required>
                     <el-input
                         v-model.trim="form.host"
-                        placeholder="请输入host:port，集群模式用','分割"
+                        placeholder="请输入host:port；sentinel模式为: mastername=sentinelhost:port，若集群或哨兵需设多个节点可使用','分割"
                         auto-complete="off"
                         type="textarea"
                     ></el-input>
@@ -113,7 +114,7 @@ export default defineComponent({
                 id: null,
                 name: null,
                 mode: 'standalone',
-                host: null,
+                host: '',
                 password: null,
                 project: null,
                 projectId: null,
@@ -219,6 +220,10 @@ export default defineComponent({
             redisForm.value.validate(async (valid: boolean) => {
                 if (valid) {
                     const reqForm = { ...state.form };
+                    if (reqForm.mode == 'sentinel' && reqForm.host.split('=').length != 2) {
+                        ElMessage.error('sentinel模式host需为: mastername=sentinelhost:sentinelport模式');
+                        return;
+                    }
                     reqForm.password = await RsaEncrypt(reqForm.password);
                     redisApi.saveRedis.request(reqForm).then(() => {
                         ElMessage.success('保存成功');

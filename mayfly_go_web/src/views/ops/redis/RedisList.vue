@@ -31,7 +31,7 @@
                 <el-table-column prop="creator" label="创建人" min-width="100"></el-table-column>
                 <el-table-column label="更多" min-width="130" fixed="right">
                     <template #default="scope">
-                        <el-link v-if="scope.row.mode == 'standalone'" type="primary" @click="info(scope.row)" :underline="false">单机信息</el-link>
+                        <el-link v-if="scope.row.mode == 'standalone' || scope.row.mode == 'sentinel'" type="primary" @click="info(scope.row)" :underline="false">单机信息</el-link>
                         <el-link @click="onShowClusterInfo(scope.row)" v-if="scope.row.mode == 'cluster'" type="success" :underline="false"
                             >集群信息</el-link
                         >

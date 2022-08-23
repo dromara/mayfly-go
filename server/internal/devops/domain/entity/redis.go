@@ -24,6 +24,7 @@ type Redis struct {
 const (
 	RedisModeStandalone = "standalone"
 	RedisModeCluster    = "cluster"
+	RedisModeSentinel   = "sentinel"
 )
 
 func (r *Redis) PwdEncrypt() {

@@ -25,7 +25,7 @@
                 </div>
             </div>
             <el-table :data="projects" @current-change="choose" ref="table" style="width: 100%">
-                <el-table-column label="选择" width="50px">
+                <el-table-column label="选择" width="55px">
                     <template #default="scope">
                         <el-radio v-model="chooseId" :label="scope.row.id">
                             <i></i>
