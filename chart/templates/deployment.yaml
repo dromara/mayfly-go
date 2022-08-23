@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mayfly.fullname" . }}-deployment
+  labels:
+    app: mayfly
+  {{- include "mayfly.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.deployment.replicas }}
+  selector:
+    matchLabels:
+      app: mayfly
+    {{- include "mayfly.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: mayfly
+      {{- include "mayfly.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - env:
+        - name: KUBERNETES_CLUSTER_DOMAIN
+          value: {{ .Values.kubernetesClusterDomain }}
+        image: {{ .Values.deployment.mayfly.image.repository }}:{{ .Values.deployment.mayfly.image.tag }}
+        name: mayfly
+        ports:
+        - containerPort: 8888
+          name: http
+          protocol: TCP
+        resources: {{- toYaml .Values.deployment.mayfly.resources | nindent 10 }}
+        volumeMounts:
+        - mountPath: /mayfly/config.yml
+          name: config
+          subPath: config.yml
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: {{ include "mayfly.fullname" . }}-config
+        name: config

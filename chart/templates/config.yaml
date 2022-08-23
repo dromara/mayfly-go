@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mayfly.fullname" . }}-config
+  labels:
+  {{- include "mayfly.labels" . | nindent 4 }}
+data:
+  config.yml: |
+    aes:
+      key: {{ .Values.config.configYml.aes.key | quote }}
+    jwt:
+      expire-time: {{ .Values.config.configYml.jwt.expireTime }}
+      key: null
+    log:
+      level: {{ .Values.config.configYml.log.level | quote }}
+    mysql:
+      config: {{ .Values.config.configYml.mysql.config | quote }}
+      db-name: {{ .Values.config.configYml.mysql.dbName | quote }}
+      host: {{ .Values.config.configYml.mysql.host | quote }}
+      max-idle-conns: {{ .Values.config.configYml.mysql.maxIdleConns }}
+      password: {{ .Values.config.configYml.mysql.password | quote }}
+      username: {{ .Values.config.configYml.mysql.username | quote }}
+    server:
+      cors: {{ .Values.config.configYml.server.cors }}
+      model: {{ .Values.config.configYml.server.model | quote }}
+      port: {{ .Values.config.configYml.server.port }}
+      static:
+      - relative-path: /assets
+        root: ./static/assets
+      static-file:
+      - filepath: ./static/index.html
+        relative-path: /
+      - filepath: ./static/favicon.ico
+        relative-path: /favicon.ico
+      - filepath: ./static/config.js
+        relative-path: /config.js
+      tls:
+        cert-file: {{ .Values.config.configYml.server.tls.certFile | quote }}
+        enable: {{ .Values.config.configYml.server.tls.enable }}
+        key-file: {{ .Values.config.configYml.server.tls.keyFile | quote }}
