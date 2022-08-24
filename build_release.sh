@@ -30,9 +30,9 @@ function buildWeb() {
 
     echo_yellow "-------------------打包前端开始-------------------"
     yarn run build
-    if [ "${copy2Server}" == "1" ] ; then
-        echo_green '将打包后的静态文件拷贝至server/static'
-        rm -rf ${server_folder}/static && mkdir -p ${server_folder}/static && cp -r ${web_folder}/dist/* ${server_folder}/static
+    if [ "${copy2Server}" == "2" ] ; then
+        echo_green '将打包后的静态文件拷贝至server/static/static'
+        rm -rf ${server_folder}/static/static && mkdir -p ${server_folder}/static/static && cp -r ${web_folder}/dist/* ${server_folder}/static/static
     fi
     echo_yellow ">>>>>>>>>>>>>>>>>>>打包前端结束<<<<<<<<<<<<<<<<<<<<\n"
 }
@@ -44,6 +44,7 @@ function build() {
     toFolder=$1
     os=$2
     arch=$3
+    copyStatic=$4
 
     echo_yellow "-------------------${os}-${arch}打包构建开始-------------------"
 
@@ -67,8 +68,10 @@ function build() {
     echo_green "移动二进制文件至'${toFolder}'"
     mv ${server_folder}/${execFileName} ${toFolder}
 
-    echo_green "拷贝前端静态页面至'${toFolder}/static'"
-    mkdir -p ${toFolder}/static && cp -r ${web_folder}/dist/* ${toFolder}/static
+    if [ "${copy2Server}" == "1" ] ; then
+        echo_green "拷贝前端静态页面至'${toFolder}/static'"
+        mkdir -p ${toFolder}/static && cp -r ${web_folder}/dist/* ${toFolder}/static
+    fi
 
     echo_green "拷贝脚本等资源文件[config.yml、mayfly-go.sql、readme.txt、startup.sh、shutdown.sh]"
     cp ${server_folder}/config.yml ${toFolder}
@@ -81,15 +84,15 @@ function build() {
 }
 
 function buildLinuxAmd64() {
-    build "$1/mayfly-go-linux-amd64" "linux" "amd64"
+    build "$1/mayfly-go-linux-amd64" "linux" "amd64" $2
 }
 
 function buildLinuxArm64() {
-    build "$1/mayfly-go-linux-arm64" "linux" "arm64"
+    build "$1/mayfly-go-linux-arm64" "linux" "arm64" $2
 }
 
 function buildWindows() {
-    build "$1/mayfly-go-windows" "windows" "amd64"
+    build "$1/mayfly-go-windows" "windows" "amd64" $2
 }
 
 function runBuild() {
@@ -103,28 +106,23 @@ function runBuild() {
     cd ${toPath}
     toPath=`pwd`
 
-    read -p "是否构建前端[0|其他->否 1->是 2->构建并拷贝至server/static]: " runBuildWeb
+    read -p "是否构建前端[0|其他->否 1->是 2->构建并拷贝至server/static/static]: " runBuildWeb
     read -p "请选择构建版本[0|其他->全部 1->linux-amd64 2->linux-arm64 3->windows]: " buildType
     
-    if [ "${runBuildWeb}" == "1" ];then
-        buildWeb
-    fi
-    if [ "${runBuildWeb}" == "2" ];then
-        buildWeb 1
-    fi
+    buildWeb ${runBuildWeb}
 
     if [ "${buildType}" == "1" ];then
-        buildLinuxAmd64 ${toPath}
+        buildLinuxAmd64 ${toPath} ${runBuildWeb}
         exit;
     fi
 
     if [ "${buildType}" == "2" ];then
-        buildLinuxArm64 ${toPath}
+        buildLinuxArm64 ${toPath} ${runBuildWeb}
         exit;
     fi
 
     if [ "${buildType}" == "3" ];then
-        buildWindows ${toPath}
+        buildWindows ${toPath} ${runBuildWeb}
         exit;
     fi
 

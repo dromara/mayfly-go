@@ -152,7 +152,7 @@
                             :remote-method="getAccount"
                             v-model="showMemDialog.memForm.accountId"
                             filterable
-                            placeholder="请选择"
+                            placeholder="请输入账号模糊搜索并选择"
                         >
                             <el-option v-for="item in showMemDialog.accounts" :key="item.id" :label="item.username" :value="item.id"> </el-option>
                         </el-select>

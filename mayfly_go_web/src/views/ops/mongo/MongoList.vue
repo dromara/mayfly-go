@@ -250,7 +250,6 @@ export default defineComponent({
 
         onMounted(async () => {
             search();
-            state.projects = await projectApi.accountProjects.request(null);
         });
 
         const handlePageChange = (curPage: number) => {
@@ -371,7 +370,8 @@ export default defineComponent({
             state.total = res.total;
         };
 
-        const editMongo = (isAdd = false) => {
+        const editMongo = async (isAdd = false) => {
+            state.projects = await projectApi.accountProjects.request(null);
             if (isAdd) {
                 state.mongoEditDialog.data = null;
                 state.mongoEditDialog.title = '新增mongo';

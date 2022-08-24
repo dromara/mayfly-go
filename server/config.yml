@@ -7,19 +7,6 @@ server:
     enable: false
     key-file: ./default.key
     cert-file: ./default.pem
-  # 静态资源
-  static:
-    - relative-path: /assets
-      root: ./static/assets
-  # 静态文件
-  static-file:
-    - relative-path: /
-      filepath: ./static/index.html
-    - relative-path: /favicon.ico
-      filepath: ./static/favicon.ico
-    - relative-path: /config.js
-      filepath: ./static/config.js
-
 jwt:
   # jwt key，不设置默认使用随机字符串
   key: 
@@ -35,7 +22,6 @@ mysql:
   db-name: mayfly-go
   config: charset=utf8&loc=Local&parseTime=true
   max-idle-conns: 5
-
 log:
    # 日志等级, trace, debug, info, warn, error, fatal
   level: info

@@ -352,7 +352,6 @@ export default defineComponent({
 
         onMounted(async () => {
             search();
-            state.projects = await projectApi.accountProjects.request(null);
         });
 
         const filterTableInfos = computed(() => {
@@ -399,7 +398,8 @@ export default defineComponent({
             search();
         };
 
-        const editDb = (isAdd = false) => {
+        const editDb = async (isAdd = false) => {
+            state.projects = await projectApi.accountProjects.request(null);
             if (isAdd) {
                 state.dbEditDialog.data = null;
                 state.dbEditDialog.title = '新增数据库资源';

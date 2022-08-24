@@ -227,7 +227,6 @@ export default defineComponent({
 
         onMounted(async () => {
             search();
-            state.projects = await projectApi.accountProjects.request(null);
         });
 
         const choose = (item: any) => {
@@ -260,7 +259,8 @@ export default defineComponent({
             search();
         };
 
-        const openFormDialog = (machine: any) => {
+        const openFormDialog = async (machine: any) => {
+            state.projects = await projectApi.accountProjects.request(null);
             let dialogTitle;
             if (machine) {
                 state.machineEditDialog.data = state.currentData as any;

@@ -2,15 +2,24 @@ package initialize
 
 import (
 	"fmt"
+	"io/fs"
 	common_router "mayfly-go/internal/common/router"
 	devops_router "mayfly-go/internal/devops/router"
 	sys_router "mayfly-go/internal/sys/router"
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/middleware"
+	"mayfly-go/static"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
+
+func WrapStaticHandler(h http.Handler) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Writer.Header().Set("Cache-Control", `public, max-age=31536000`)
+		h.ServeHTTP(c.Writer, c.Request)
+	}
+}
 
 func InitRouter() *gin.Engine {
 	// server配置
@@ -25,12 +34,21 @@ func InitRouter() *gin.Engine {
 		g.JSON(http.StatusNotFound, gin.H{"code": 404, "msg": fmt.Sprintf("not found '%s:%s'", g.Request.Method, g.Request.URL.Path)})
 	})
 
+	// 使用embed打包静态资源至二进制文件中
+	fsys, _ := fs.Sub(static.Static, "static")
+	fileServer := http.FileServer(http.FS(fsys))
+	handler := WrapStaticHandler(fileServer)
+	router.GET("/", handler)
+	router.GET("/favicon.ico", handler)
+	router.GET("/config.js", handler)
+	// 所有/assets/**开头的都是静态资源文件
+	router.GET("/assets/*file", handler)
+
 	// 设置静态资源
 	if staticConfs := serverConfig.Static; staticConfs != nil {
 		for _, scs := range *staticConfs {
 			router.Static(scs.RelativePath, scs.Root)
 		}
-
 	}
 	// 设置静态文件
 	if staticFileConfs := serverConfig.StaticFile; staticFileConfs != nil {
@@ -38,6 +56,7 @@ func InitRouter() *gin.Engine {
 			router.StaticFile(sfs.RelativePath, sfs.Filepath)
 		}
 	}
+
 	// 是否允许跨域
 	if serverConfig.Cors {
 		router.Use(middleware.Cors())
