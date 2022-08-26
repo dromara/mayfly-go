@@ -1,9 +1,5 @@
 <template>
     <div>
-        <el-button-group :style="btnStyle">
-            <el-button @click="onRunSql" type="success" icon="video-play" size="small" plain>执行</el-button>
-            <el-button @click="formatSql" type="primary" icon="magic-stick" size="small" plain>格式化</el-button>
-        </el-button-group>
         <div class="toolbar">
             <el-row type="flex" justify="space-between">
                 <el-col :span="24">
@@ -58,6 +54,19 @@
                         <div>
                             <div class="toolbar">
                                 <div class="fl">
+                                    <el-link @click="onRunSql" :underline="false" class="ml15" icon="VideoPlay"></el-link>
+                                    <el-divider direction="vertical" border-style="dashed" />
+
+                                    <el-tooltip class="box-item" effect="dark" content="format sql" placement="top">
+                                        <el-link @click="formatSql" type="primary" :underline="false" icon="MagicStick"></el-link>
+                                    </el-tooltip>
+                                    <el-divider direction="vertical" border-style="dashed" />
+
+                                    <el-tooltip class="box-item" effect="dark" content="commit" placement="top">
+                                        <el-link @click="onCommit" type="success" :underline="false" icon="CircleCheck"></el-link>
+                                    </el-tooltip>
+                                    <el-divider direction="vertical" border-style="dashed" />
+
                                     <el-upload
                                         style="display: inline-block"
                                         :before-upload="beforeUpload"
@@ -72,11 +81,10 @@
                                         multiple
                                         :limit="100"
                                     >
-                                        <el-button type="success" icon="video-play" plain size="small">sql脚本执行</el-button>
+                                        <el-tooltip class="box-item" effect="dark" content="SQL脚本执行" placement="top">
+                                            <el-link type="success" :underline="false" icon="Document"></el-link>
+                                        </el-tooltip>
                                     </el-upload>
-                                    <el-button @click="onCommit" class="ml5 mb5" type="success" icon="CircleCheck" plain size="small"
-                                        >commit</el-button
-                                    >
                                 </div>
 
                                 <div style="float: right" class="fl">
@@ -101,7 +109,7 @@
                             </div>
                         </div>
 
-                        <div @click="closeExecBtns" class="mt5 sqlEditor" @contextmenu="showExecBtns">
+                        <div class="mt5 sqlEditor">
                             <textarea ref="codeTextarea"></textarea>
                         </div>
 
@@ -145,56 +153,64 @@
 
                 <el-tab-pane closable v-for="dt in dataTabs" :key="dt.name" :label="dt.label" :name="dt.name">
                     <el-row v-if="dbId">
-                        <el-link @click="onRefresh(dt.name)" icon="refresh" :underline="false" class="ml5"></el-link>
-                        <el-link @click="addRow" class="ml5" type="primary" icon="plus" :underline="false"></el-link>
-                        <el-link @click="onDeleteData" class="ml5" type="danger" icon="delete" :underline="false"></el-link>
+                        <el-col :span="8">
+                            <el-link @click="onRefresh(dt.name)" icon="refresh" :underline="false" class="ml5"></el-link>
+                            <el-divider direction="vertical" border-style="dashed" />
 
-                        <el-tooltip class="box-item" effect="dark" content="commit" placement="top">
-                            <el-link @click="onCommit" class="ml5" type="success" icon="check" :underline="false"></el-link>
-                        </el-tooltip>
+                            <el-link @click="addRow" type="primary" icon="plus" :underline="false"></el-link>
+                            <el-divider direction="vertical" border-style="dashed" />
 
-                        <el-tooltip class="box-item" effect="dark" content="生成insert sql" placement="top">
-                            <el-link @click="onGenerateInsertSql" type="success" class="ml20" :underline="false">gi</el-link>
-                        </el-tooltip>
-                    </el-row>
-                    <el-row class="mt5">
-                        <el-input
-                            v-model="dt.condition"
-                            placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可"
-                            clearable
-                            size="small"
-                        >
-                            <template #prepend>
-                                <el-popover :visible="dt.selectColumnPopoverVisible" :width="320" placement="right">
-                                    <template #reference>
-                                        <el-link
-                                            @click="dt.selectColumnPopoverVisible = !dt.selectColumnPopoverVisible"
-                                            type="success"
-                                            :underline="false"
-                                            >选择列</el-link
+                            <el-link @click="onDeleteData" type="danger" icon="delete" :underline="false"></el-link>
+                            <el-divider direction="vertical" border-style="dashed" />
+
+                            <el-tooltip class="box-item" effect="dark" content="commit" placement="top">
+                                <el-link @click="onCommit" type="success" icon="CircleCheck" :underline="false"></el-link>
+                            </el-tooltip>
+                            <el-divider direction="vertical" border-style="dashed" />
+
+                            <el-tooltip class="box-item" effect="dark" content="生成insert sql" placement="top">
+                                <el-link @click="onGenerateInsertSql" type="success" :underline="false">gi</el-link>
+                            </el-tooltip>
+                        </el-col>
+                        <el-col :span="16">
+                            <el-input
+                                v-model="dt.condition"
+                                placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可"
+                                clearable
+                                size="small"
+                                style="width: 100%"
+                            >
+                                <template #prepend>
+                                    <el-popover trigger="click" :width="320" placement="right">
+                                        <template #reference>
+                                            <el-link
+                                                type="success"
+                                                :underline="false"
+                                                >选择列</el-link
+                                            >
+                                        </template>
+                                        <el-table
+                                            :data="getColumns4Map(dt.name)"
+                                            max-height="500"
+                                            size="small"
+                                            @row-click="
+                                                (...event) => {
+                                                    onConditionRowClick(event, dt);
+                                                }
+                                            "
+                                            style="cursor: pointer"
                                         >
-                                    </template>
-                                    <el-table
-                                        :data="getColumns4Map(dt.name)"
-                                        max-height="500"
-                                        size="small"
-                                        @row-click="
-                                            (...event) => {
-                                                onConditionRowClick(event, dt);
-                                            }
-                                        "
-                                        style="cursor: pointer"
-                                    >
-                                        <el-table-column property="columnName" label="列名" show-overflow-tooltip> </el-table-column>
-                                        <el-table-column property="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
-                                    </el-table>
-                                </el-popover>
-                            </template>
+                                            <el-table-column property="columnName" label="列名" show-overflow-tooltip> </el-table-column>
+                                            <el-table-column property="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
+                                        </el-table>
+                                    </el-popover>
+                                </template>
 
-                            <template #append>
-                                <el-button @click="selectByCondition(dt.name, dt.condition)" icon="search" size="small"></el-button>
-                            </template>
-                        </el-input>
+                                <template #append>
+                                    <el-button @click="selectByCondition(dt.name, dt.condition)" icon="search" size="small"></el-button>
+                                </template>
+                            </el-input>
+                        </el-col>
                     </el-row>
                     <el-table
                         @cell-dblclick="cellClick"
@@ -344,14 +360,6 @@ export default defineComponent({
                 pageSize: 10,
                 envId: null,
             },
-            btnStyle: {
-                position: 'absolute',
-                zIndex: 1000,
-                display: 'none',
-                left: '',
-                top: '',
-            },
-            selectColumnPopoverVisible: false,
             conditionDialog: {
                 title: '',
                 placeholder: '',
@@ -417,7 +425,7 @@ export default defineComponent({
         const setHeight = () => {
             // 默认300px
             codemirror.setSize('auto', `${window.innerHeight - 538}px`);
-            state.dataTabsTableHeight = window.innerHeight - 258 - 33;
+            state.dataTabsTableHeight = window.innerHeight - 274;
         };
 
         /**
@@ -486,7 +494,6 @@ export default defineComponent({
             } catch (e: any) {
                 state.queryTab.loading = false;
             }
-            closeExecBtns();
 
             // 即只有以该字符串开头的sql才可修改表数据内容
             if (sql.startsWith('SELECT *') || sql.startsWith('select *') || sql.startsWith('SELECT\n  *')) {
@@ -729,7 +736,6 @@ export default defineComponent({
                 columnNames: [],
                 pageNum: 1,
                 count: 0,
-                selectColumnPopoverVisible: false,
             };
             tab.columnNames = await getColumnNames(tableName);
             state.dataTabs[tableName] = tab;
@@ -769,7 +775,6 @@ export default defineComponent({
          * 条件查询，点击列信息后显示输入对应的值
          */
         const onConditionRowClick = (event: any, dataTab: any) => {
-            dataTab.selectColumnPopoverVisible = false;
             const row = event[0];
             state.conditionDialog.title = `请输入 [${row.columnName}] 的值`;
             state.conditionDialog.placeholder = `${row.columnType}  ${row.columnComment}`;
@@ -993,7 +998,6 @@ export default defineComponent({
             state.queryTab.execRes.tableColumn = [];
             state.cmOptions.hintOptions.tables = [];
             tableMap.clear();
-            closeExecBtns();
         };
 
         const onDataSelectionChange = (datas: []) => {
@@ -1169,37 +1173,11 @@ export default defineComponent({
             let selectSql = codemirror.getSelection();
             isTrue(selectSql, '请选中需要格式化的sql');
             codemirror.replaceSelection(sqlFormatter(selectSql));
-            closeExecBtns();
         };
 
         const search = async () => {
             const res = await dbApi.dbs.request(state.params);
             state.dbs = res.list;
-        };
-
-        /**
-         * 显示执行sql和格式化按钮
-         */
-        const showExecBtns = (event: any) => {
-            if (event.preventDefault) {
-                event.preventDefault();
-            } else {
-                event.returnValue = false;
-            }
-            state.btnStyle.display = 'inline';
-            state.btnStyle.left = event.offsetX + 15 + 'px';
-            state.btnStyle.top = event.clientY - 80 + 'px';
-        };
-
-        /**
-         * 关闭执行sql和格式化按钮
-         */
-        const closeExecBtns = () => {
-            if (state.btnStyle.left) {
-                state.btnStyle.display = 'none';
-                state.btnStyle.left = '';
-                state.btnStyle.top = '';
-            }
         };
 
         return {
@@ -1237,8 +1215,6 @@ export default defineComponent({
             onDeleteData,
             onTableSortChange,
             onGenerateInsertSql,
-            showExecBtns,
-            closeExecBtns,
         };
     },
 });

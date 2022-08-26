@@ -23,6 +23,7 @@ type Account struct {
 	ResourceApp application.Resource
 	RoleApp     application.Role
 	MsgApp      application.Msg
+	ConfigApp   application.Config
 }
 
 /**   登录者个人相关操作   **/
@@ -32,8 +33,11 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 	loginForm := &form.LoginForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, loginForm)
 
-	// 校验验证码
-	biz.IsTrue(captcha.Verify(loginForm.Cid, loginForm.Captcha), "验证码错误")
+	// 判断是否有开启登录验证码校验
+	if a.ConfigApp.GetConfig(entity.ConfigKeyUseLoginCaptcha).BoolValue(true) {
+		// 校验验证码
+		biz.IsTrue(captcha.Verify(loginForm.Cid, loginForm.Captcha), "验证码错误")
+	}
 
 	originPwd, err := utils.DefaultRsaDecrypt(loginForm.Password, true)
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
@@ -145,17 +149,6 @@ func (a *Account) saveLogin(account *entity.Account, ip string) {
 	loginMsg.Creator = account.Username
 	loginMsg.CreatorId = account.Id
 	a.MsgApp.Create(loginMsg)
-
-	// bodyMap, err := httpclient.NewRequest(fmt.Sprintf("http://ip-api.com/json/%s?lang=zh-CN", ip)).Get().BodyToMap()
-	// if err != nil {
-	// 	global.Log.Errorf("获取客户端ip地址信息失败：%s", err.Error())
-	// 	return
-	// }
-	// if bodyMap["status"].(string) == "fail" {
-	// 	return
-	// }
-	// msg := fmt.Sprintf("%s于%s-%s登录", account.Username, bodyMap["regionName"], bodyMap["city"])
-	// global.Log.Info(msg)
 }
 
 // 获取个人账号信息
@@ -203,8 +196,8 @@ func (a *Account) Accounts(rc *ctx.ReqCtx) {
 	rc.ResData = a.AccountApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.AccountManageVO))
 }
 
-// @router /accounts [get]
-func (a *Account) CreateAccount(rc *ctx.ReqCtx) {
+// @router /accounts
+func (a *Account) SaveAccount(rc *ctx.ReqCtx) {
 	form := &form.AccountCreateForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 	rc.ReqParam = form
@@ -212,7 +205,16 @@ func (a *Account) CreateAccount(rc *ctx.ReqCtx) {
 	account := &entity.Account{}
 	utils.Copy(account, form)
 	account.SetBaseInfo(rc.LoginAccount)
-	a.AccountApp.Create(account)
+
+	if account.Id == 0 {
+		a.AccountApp.Create(account)
+	} else {
+		if account.Password != "" {
+			biz.IsTrue(CheckPasswordLever(account.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
+			account.Password = utils.PwdHash(account.Password)
+		}
+		a.AccountApp.Update(account)
+	}
 }
 
 func (a *Account) ChangeStatus(rc *ctx.ReqCtx) {

@@ -15,6 +15,7 @@ func InitAccountRouter(router *gin.RouterGroup) {
 		ResourceApp: application.ResourceApp,
 		RoleApp:     application.RoleApp,
 		MsgApp:      application.MsgApp,
+		ConfigApp:   application.ConfigApp,
 	}
 	{
 		// 用户登录
@@ -61,7 +62,7 @@ func InitAccountRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).
 				WithRequiredPermission(addAccountPermission).
 				WithLog(createAccount).
-				Handle(a.CreateAccount)
+				Handle(a.SaveAccount)
 		})
 
 		changeStatus := ctx.NewLogInfo("修改账号状态").WithSave(true)

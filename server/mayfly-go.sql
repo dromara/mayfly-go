@@ -437,6 +437,8 @@ INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `wei
 INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (83, 82, 2, 1, '基本权限', 'mongo:manage:base', 1, 'null', 1, 'admin', 1, 'admin', '2022-05-16 18:13:25', '2022-05-16 18:13:25');
 INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (84, 4, 1, 1, '操作日志', 'syslogs', 4, '{\"component\":\"SyslogList\",\"icon\":\"Tickets\",\"routeName\":\"SyslogList\"}', 1, 'admin', 1, 'admin', '2022-07-13 19:57:07', '2022-07-13 22:58:19');
 INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (85, 84, 2, 1, '操作日志基本权限', 'syslog', 1, 'null', 1, 'admin', 1, 'admin', '2022-07-13 19:57:55', '2022-07-13 19:57:55');
+INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (86, 4, 1, 1, '系统配置', 'configs', 5, '{\"component\":\"ConfigList\",\"icon\":\"Setting\",\"isKeepAlive\":true,\"routeName\":\"ConfigList\"}', 1, 'admin', 1, 'admin', '2022-08-25 22:18:55', '2022-08-25 22:19:18');
+INSERT INTO `t_sys_resource`(`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`) VALUES (87, 86, 2, 1, '基本权限', 'config:base', 1, 'null', 1, 'admin', 1, 'admin', '2022-08-25 22:19:35', '2022-08-25 22:19:35');
 COMMIT;
 
 -- ----------------------------
@@ -642,6 +644,8 @@ INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, 
 INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (506, 1, 83, 1, 'admin', '2022-07-14 11:03:09');
 INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (507, 1, 84, 1, 'admin', '2022-07-14 11:10:11');
 INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (508, 1, 85, 1, 'admin', '2022-07-14 11:10:11');
+INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (509, 1, 86, 1, 'admin', '2022-07-14 11:10:11');
+INSERT INTO `t_sys_role_resource`(`id`, `role_id`, `resource_id`, `creator_id`, `creator`, `create_time`) VALUES (510, 1, 87, 1, 'admin', '2022-07-14 11:10:11');
 COMMIT;
 
 -- ----------------------------
@@ -684,6 +688,33 @@ CREATE TABLE `t_mongo` (
   `modifier` varchar(36) COLLATE utf8mb4_bin DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+-- ----------------------------
+-- Table structure for t_sys_config
+-- ----------------------------
+DROP TABLE IF EXISTS `t_sys_config`;
+CREATE TABLE `t_sys_config` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(60) COLLATE utf8mb4_bin NOT NULL COMMENT '配置名',
+  `key` varchar(120) COLLATE utf8mb4_bin NOT NULL COMMENT '配置key',
+  `value` varchar(500) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '配置value',
+  `remark` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注',
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint(20) NOT NULL,
+  `creator` varchar(36) COLLATE utf8mb4_bin NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier_id` bigint(20) NOT NULL,
+  `modifier` varchar(36) COLLATE utf8mb4_bin NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+-- ----------------------------
+-- Records of t_sys_config
+-- ----------------------------
+BEGIN;
+INSERT INTO `t_sys_config` VALUES (1, '是否启用登录验证码', 'UseLoginCaptcha', '1', '1: 启用、0: 不启用', '2022-08-25 22:27:17', 1, 'admin', '2022-08-26 10:26:56', 1, 'admin');
+INSERT INTO `t_sys_config` VALUES (2, '是否启用水印', 'UseWartermark', '1', '1: 启用、0: 不启用', '2022-08-25 23:36:35', 1, 'admin', '2022-08-26 10:02:52', 1, 'admin');
+COMMIT;
 
 
 SET FOREIGN_KEY_CHECKS = 1;

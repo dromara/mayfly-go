@@ -138,7 +138,7 @@ func (m *Machine) KillProcess(rc *ctx.ReqCtx) {
 	cli := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
 	biz.ErrIsNilAppendErr(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "%s")
 
-	_, err := cli.Run("kill -9 " + pid)
+	_, err := cli.Run("sudo kill -9 " + pid)
 	biz.ErrIsNilAppendErr(err, "终止进程失败: %s")
 }
 

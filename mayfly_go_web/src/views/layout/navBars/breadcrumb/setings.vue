@@ -273,23 +273,6 @@
                         <el-switch v-model="getThemeConfig.isInvert" @change="onAddFilterChange('invert')"></el-switch>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex mt15">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">开启水印</div>
-                    <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-switch v-model="getThemeConfig.isWartermark" @change="onWartermarkChange"></el-switch>
-                    </div>
-                </div>
-                <div class="layout-breadcrumb-seting-bar-flex mt14">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">水印文案</div>
-                    <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-input
-                            v-model="getThemeConfig.wartermarkText"
-                            size="small"
-                            style="width: 90px"
-                            @input="onWartermarkTextInput($event)"
-                        ></el-input>
-                    </div>
-                </div>
 
                 <!-- 其它设置 -->
                 <el-divider content-position="left">其他设置</el-divider>
@@ -440,8 +423,6 @@ import { ElMessage } from 'element-plus';
 import ClipboardJS from 'clipboard';
 import { useStore } from '@/store/index.ts';
 import { getLightColor } from '@/common/utils/theme.ts';
-import Watermark from '@/common/utils/wartermark.ts';
-import { verifyAndSpace } from '@/common/utils/toolsValidate.ts';
 import { setLocal, getLocal, removeLocal } from '@/common/utils/storage.ts';
 export default defineComponent({
     name: 'layoutBreadcrumbSeting',
@@ -571,18 +552,6 @@ export default defineComponent({
             appEle.setAttribute('style', `filter: ${cssAttr}`);
             setLocalThemeConfig();
             setLocal('appFilterStyle', appEle.style.cssText);
-        };
-        // 4、界面显示 --> 开启水印
-        const onWartermarkChange = () => {
-            getThemeConfig.value.isWartermark ? Watermark.set(getThemeConfig.value.wartermarkText) : Watermark.del();
-            setLocalThemeConfig();
-        };
-        // 4、界面显示 --> 水印文案
-        const onWartermarkTextInput = (val: string) => {
-            getThemeConfig.value.wartermarkText = verifyAndSpace(val);
-            if (getThemeConfig.value.wartermarkText === '') return false;
-            if (getThemeConfig.value.isWartermark) Watermark.set(getThemeConfig.value.wartermarkText);
-            setLocalThemeConfig();
         };
         // 5、布局切换
         const onSetLayout = (layout: string) => {
@@ -735,8 +704,6 @@ export default defineComponent({
                             const appEl: any = document.querySelector('#app');
                             appEl.style.cssText = getLocal('appFilterStyle');
                         }
-                        // 开启水印
-                        onWartermarkChange();
                         // // 语言国际化
                         // if (getLocal('themeConfig')) proxy.$i18n.locale = getLocal('themeConfig').globalI18n;
                     }, 1100);
@@ -762,8 +729,6 @@ export default defineComponent({
             getThemeConfig,
             onDrawerClose,
             onAddFilterChange,
-            onWartermarkChange,
-            onWartermarkTextInput,
             onSetLayout,
             setLocalThemeConfig,
             onClassicSplitMenuChange,

@@ -1,0 +1,1 @@
+class r extends Error{constructor(o){super(o),this.name="AssertError"}}function t(n,o){if(!n)throw new r(o)}function s(n,o){t(n,o)}function i(n,o){if(n==null||n==null)throw new r(o)}function e(n,o){if(n==null||n==null||n=="")throw new r(o)}export{s as a,i as b,t as i,e as n};

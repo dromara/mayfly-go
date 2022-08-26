@@ -20,7 +20,7 @@
                 <el-button @click="search" type="success" icon="search"></el-button>
             </div>
             <el-table :data="roles" @current-change="choose" ref="table" style="width: 100%">
-                <el-table-column label="选择" width="50px">
+                <el-table-column label="选择" width="55px">
                     <template #default="scope">
                         <el-radio v-model="chooseId" :label="scope.row.id">
                             <i></i>

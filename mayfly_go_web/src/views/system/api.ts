@@ -32,6 +32,12 @@ export const accountApi = {
     saveRoles: Api.create("/sys/accounts/roles", 'post')
 }
 
+export const configApi = {
+    list: Api.create("/sys/configs", 'get'),
+    save: Api.create("/sys/configs", 'post'),
+    getValue: Api.create("/sys/configs/value", 'get'),
+}
+
 export const logApi = {
     list: Api.create("/syslogs", "get")
 }

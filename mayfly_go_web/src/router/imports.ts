@@ -2,6 +2,7 @@ import RouterParent from '@/views/layout/routerView/parent.vue';
 
 export const imports = {
     'RouterParent': RouterParent,
+    
     "Home": () => import('@/views/home/index.vue'),
     'Personal': () => import('@/views/personal/index.vue'),
     // machine
@@ -11,6 +12,8 @@ export const imports = {
     "RoleList": () => import('@/views/system/role'),
     "AccountList": () => import('@/views/system/account'),
     "SyslogList": () => import('@/views/system/syslog/SyslogList.vue'),
+    "ConfigList": () => import('@/views/system/config/ConfigList.vue'),
+
     // project
     "ProjectList": () => import('@/views/ops/project/ProjectList.vue'),
     // db

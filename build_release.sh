@@ -95,14 +95,6 @@ function buildWindows() {
     build "$1/mayfly-go-windows" "windows" "amd64" $2
 }
 
-function rmServerStatic() {
-    runBuildWebType=$1
-    if [ "${runBuildWebType}" == "2" ];then
-        echo_green "移除server/static/static内容"
-        rm -rf ${server_folder}/static/static/*
-    fi
-}
-
 function runBuild() {
     # 构建结果的目的路径
     read -p "请输入构建产物输出目录: " toPath
@@ -117,7 +109,10 @@ function runBuild() {
     read -p "是否构建前端[0|其他->否 1->是 2->构建并拷贝至server/static/static]: " runBuildWeb
     read -p "请选择构建版本[0|其他->全部 1->linux-amd64 2->linux-arm64 3->windows]: " buildType
     
-    buildWeb ${runBuildWeb}
+    
+    if [ "${runBuildWeb}" == "1" ] || [ "${runBuildWeb}" == "2" ] ; then
+        buildWeb ${runBuildWeb}
+    fi
 
     case ${buildType} in
          "1")

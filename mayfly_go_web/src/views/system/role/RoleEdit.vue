@@ -1,7 +1,7 @@
 <template>
     <div class="role-dialog">
         <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="500px" :destroy-on-close="true">
-            <el-form :model="form" label-width="90px">
+            <el-form ref="roleForm" :model="form" label-width="90px">
                 <el-form-item prop="name" label="角色名称:" required>
                     <el-input v-model="form.name" auto-complete="off"></el-input>
                 </el-form-item>
@@ -28,7 +28,7 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, watch, defineComponent } from 'vue';
+import { ref, toRefs, reactive, watch, defineComponent } from 'vue';
 import { roleApi } from '../api';
 
 export default defineComponent({
@@ -45,6 +45,7 @@ export default defineComponent({
         },
     },
     setup(props: any, { emit }) {
+        const roleForm: any = ref(null);
         const state = reactive({
             dvisible: false,
             form: {
@@ -73,18 +74,22 @@ export default defineComponent({
         };
 
         const btnOk = async () => {
-            // let p = state.form.id ? roleApi.update : roleApi.save;
-            await roleApi.save.request(state.form);
-            emit('val-change', state.form);
-            cancel();
-            state.btnLoading = true;
-            setTimeout(() => {
-                state.btnLoading = false;
-            }, 1000);
+            roleForm.value.validate(async (valid: boolean) => {
+                if (valid) {
+                    await roleApi.save.request(state.form);
+                    emit('val-change', state.form);
+                    cancel();
+                    state.btnLoading = true;
+                    setTimeout(() => {
+                        state.btnLoading = false;
+                    }, 1000);
+                }
+            });
         };
 
         return {
             ...toRefs(state),
+            roleForm,
             btnOk,
             cancel,
         };

@@ -9,7 +9,7 @@
                 <el-input type="password" placeholder="请输入密码" prefix-icon="lock" v-model="loginForm.password" autocomplete="off" show-password>
                 </el-input>
             </el-form-item>
-            <el-form-item prop="captcha">
+            <el-form-item v-if="useLoginCaptcha" prop="captcha">
                 <el-row :gutter="15">
                     <el-col :span="16">
                         <el-input
@@ -78,10 +78,11 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { initBackEndControlRoutesFun } from '@/router/index.ts';
 import { useStore } from '@/store/index.ts';
-import { setSession } from '@/common/utils/storage.ts';
+import { setSession, setUserInfo2Session, setUseWatermark2Session } from '@/common/utils/storage.ts';
 import { formatAxis } from '@/common/utils/formatTime.ts';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';
+import { useLoginCaptcha, useWartermark } from '@/common/sysconfig';
 import { letterAvatar } from '@/common/utils/string';
 
 export default defineComponent({
@@ -94,6 +95,7 @@ export default defineComponent({
         const changePwdFormRef: any = ref(null);
 
         const state = reactive({
+            useLoginCaptcha: true,
             captchaImage: '',
             loginForm: {
                 username: '',
@@ -130,13 +132,17 @@ export default defineComponent({
             },
         });
 
-        onMounted(() => {
+        onMounted(async () => {
             // 移除公钥, 方便后续重新获取
-            sessionStorage.removeItem('RsaPublicKey')
+            sessionStorage.removeItem('RsaPublicKey');
+            state.useLoginCaptcha = await useLoginCaptcha();
             getCaptcha();
         });
 
         const getCaptcha = async () => {
+            if (!state.useLoginCaptcha) {
+                return;
+            }
             let res: any = await openApi.captcha();
             state.captchaImage = res.base64Captcha;
             state.loginForm.cid = res.cid;
@@ -198,7 +204,7 @@ export default defineComponent({
             };
 
             // 存储用户信息到浏览器缓存
-            setSession('userInfo', userInfos);
+            setUserInfo2Session(userInfos);
             // 1、请注意执行顺序(存储用户信息到vuex)
             store.dispatch('userInfos/setUserInfos', userInfos);
             if (!store.state.themeConfig.themeConfig.isRequestRoutes) {
@@ -224,10 +230,13 @@ export default defineComponent({
             // 如果是复制粘贴的路径，非首页/登录页，那么登录成功后重定向到对应的路径中
             route.query?.redirect ? router.push(route.query.redirect as string) : router.push('/');
             // 登录成功提示
-            setTimeout(() => {
+            setTimeout(async () => {
                 // 关闭 loading
                 state.loading.signIn = true;
                 ElMessage.success(`${currentTimeInfo}，欢迎回来！`);
+                if (await useWartermark()) {
+                    setUseWatermark2Session(true);
+                }
             }, 300);
         };
 

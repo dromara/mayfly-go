@@ -5,12 +5,9 @@
                 <el-form-item prop="username" label="用户名:" required>
                     <el-input :disabled="edit" v-model.trim="form.username" placeholder="请输入账号用户名，密码默认与账号名一致" auto-complete="off"></el-input>
                 </el-form-item>
-                <!-- <el-form-item prop="password" label="密码:" required>
+                <el-form-item v-if="edit" prop="password" label="密码:" required>
                     <el-input type="password" v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password"></el-input>
                 </el-form-item>
-                <el-form-item v-if="!edit" label="确认密码:" required>
-                    <el-input type="password" v-model.trim="form.repassword" placeholder="请输入确认密码" autocomplete="new-password"></el-input>
-                </el-form-item> -->
             </el-form>
 
             <template #footer>
@@ -74,6 +71,7 @@ export default defineComponent({
         watch(props, (newValue) => {
             if (newValue.account) {
                 state.form = { ...newValue.account };
+                state.edit = true;
             } else {
                 state.form = {} as any;
             }
@@ -81,11 +79,9 @@ export default defineComponent({
         });
 
         const btnOk = async () => {
-            let p = state.form.id ? accountApi.update : accountApi.save;
-
             accountForm.value.validate((valid: boolean) => {
                 if (valid) {
-                    p.request(state.form).then(() => {
+                    accountApi.save.request(state.form).then(() => {
                         ElMessage.success('操作成功');
                         emit('val-change', state.form);
                         state.btnLoading = true;

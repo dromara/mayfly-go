@@ -2,7 +2,7 @@
     <div class="role-list">
         <el-card>
             <el-button v-auth="'account:add'" type="primary" icon="plus" @click="editAccount(true)">添加</el-button>
-            <!-- <el-button v-auth="'account:update'" :disabled="chooseId == null" @click="editAccount(false)" type="primary" icon="edit">编辑</el-button> -->
+            <el-button v-auth="'account:add'" :disabled="chooseId == null" @click="editAccount(false)" type="primary" icon="edit">编辑</el-button>
             <el-button v-auth="'account:saveRoles'" :disabled="chooseId == null" @click="roleEdit()" type="success" icon="setting"
                 >角色分配</el-button
             >
@@ -20,7 +20,7 @@
                 <el-button @click="search()" type="success" icon="search" size="small"></el-button>
             </div>
             <el-table :data="datas" ref="table" @current-change="choose" show-overflow-tooltip>
-                <el-table-column label="选择" width="50px">
+                <el-table-column label="选择" width="55px">
                     <template #default="scope">
                         <el-radio v-model="chooseId" :label="scope.row.id">
                             <i></i>
@@ -29,20 +29,20 @@
                 </el-table-column>
                 <el-table-column prop="username" label="用户名" min-width="115"></el-table-column>
 
-                <el-table-column align="center" prop="status" label="状态" min-width="63">
+                <el-table-column align="center" prop="status" label="状态" min-width="65">
                     <template #default="scope">
                         <el-tag v-if="scope.row.status == 1" type="success">正常</el-tag>
                         <el-tag v-if="scope.row.status == -1" type="danger">禁用</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column min-width="160" prop="lastLoginTime" label="最后登录时间">
+                <el-table-column min-width="160" prop="lastLoginTime" label="最后登录时间" show-overflow-tooltip>
                     <template #default="scope">
                         {{ $filters.dateFormat(scope.row.lastLoginTime) }}
                     </template>
                 </el-table-column>
 
                 <el-table-column min-width="115" prop="creator" label="创建账号"></el-table-column>
-                <el-table-column min-width="160" prop="createTime" label="创建时间">
+                <el-table-column min-width="160" prop="createTime" label="创建时间" show-overflow-tooltip>
                     <template #default="scope">
                         {{ $filters.dateFormat(scope.row.createTime) }}
                     </template>

@@ -11,6 +11,8 @@ import { useStore } from '@/store/index.ts';
 import { getLocal } from '@/common/utils/storage.ts';
 import LockScreen from '@/views/layout/lockScreen/index.vue';
 import Setings from '@/views/layout/navBars/breadcrumb/setings.vue';
+import Watermark from '@/common/utils/wartermark.ts';
+
 export default defineComponent({
     name: 'app',
     components: { LockScreen, Setings },
@@ -57,6 +59,8 @@ export default defineComponent({
             () => route.path,
             () => {
                 nextTick(() => {
+                    // 路由变化更新水印
+                    Watermark.use();
                     document.title = `${route.meta.title} - ${getThemeConfig.value.globalTitle}` || getThemeConfig.value.globalTitle;
                 });
             }
