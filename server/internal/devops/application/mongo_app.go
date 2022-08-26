@@ -13,6 +13,7 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
 	"net"
+	"regexp"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -95,7 +96,7 @@ func (d *mongoAppImpl) GetMongoCli(id uint64) *mongo.Client {
 
 // -----------------------------------------------------------
 
-//mongo客户端连接缓存，指定时间内没有访问则会被关闭
+// mongo客户端连接缓存，指定时间内没有访问则会被关闭
 var mongoCliCache = cache.NewTimedCache(constant.MongoConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key interface{}, value interface{}) {
@@ -177,7 +178,10 @@ func connect(me *entity.Mongo) (*MongoInstance, error) {
 		return nil, err
 	}
 
-	global.Log.Infof("连接mongo: %s", me.Uri)
+	global.Log.Infof("连接mongo: %s", func(str string) string {
+		reg := regexp.MustCompile(`(^mongodb://.+?:)(.+)(@.+$)`)
+		return reg.ReplaceAllString(str, `${1}****${3}`)
+	}(me.Uri))
 	mongoInstance.Cli = client
 	return mongoInstance, err
 }
