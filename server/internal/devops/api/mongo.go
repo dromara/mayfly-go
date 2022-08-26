@@ -9,6 +9,7 @@ import (
 	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/utils"
+	"regexp"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -34,15 +35,15 @@ func (m *Mongo) Save(rc *ctx.ReqCtx) {
 	form := &form.Mongo{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
+	mongo := new(entity.Mongo)
+	utils.Copy(mongo, form)
+
 	// 密码脱敏记录日志
 	form.Uri = func(str string) string {
 		reg := regexp.MustCompile(`(^mongodb://.+?:)(.+)(@.+$)`)
 		return reg.ReplaceAllString(str, `${1}****${3}`)
 	}(form.Uri)
 	rc.ReqParam = form
-
-	mongo := new(entity.Mongo)
-	utils.Copy(mongo, form)
 
 	mongo.SetBaseInfo(rc.LoginAccount)
 	m.MongoApp.Save(mongo)
