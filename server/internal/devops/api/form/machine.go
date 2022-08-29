@@ -13,6 +13,7 @@ type MachineForm struct {
 	Remark             string `json:"remark"`
 	EnableSshTunnel    int8   `json:"enableSshTunnel"`    // 是否启用ssh隧道
 	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"` // ssh隧道机器id
+	EnableRecorder     int8   `json:"enableRecorder"`     // 是否启用终端回放记录
 }
 
 type MachineRunForm struct {

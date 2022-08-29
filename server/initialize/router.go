@@ -47,7 +47,7 @@ func InitRouter() *gin.Engine {
 	// 设置静态资源
 	if staticConfs := serverConfig.Static; staticConfs != nil {
 		for _, scs := range *staticConfs {
-			router.Static(scs.RelativePath, scs.Root)
+			router.StaticFS(scs.RelativePath, http.Dir(scs.Root))
 		}
 	}
 	// 设置静态文件

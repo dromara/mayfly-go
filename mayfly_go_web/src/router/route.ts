@@ -163,7 +163,17 @@ export const staticRoutes: Array<RouteRecordRaw> = [
             title: '终端 | {name}',
             // 是否根据query对标题名进行参数替换，即最终显示为‘终端_机器名’
             titleRename: true,
-            icon: 'iconfont icon-caidan',
+        },
+    },
+    {
+        path: '/machine/terminal-rec',
+        name: 'machineTerminalRec',
+        component: () => import('@/views/ops/machine/MachineRec.vue'),
+        meta: {
+            // 将路径 'xxx?name=名字' 里的name字段值替换到title里
+            title: '终端回放 | {name}',
+            // 是否根据query对标题名进行参数替换，即最终显示为‘终端_机器名’
+            titleRename: true,
         },
     },
 ];

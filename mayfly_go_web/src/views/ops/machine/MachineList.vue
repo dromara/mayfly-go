@@ -74,30 +74,39 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="creator" label="创建者" min-width="80"></el-table-column>
-                <el-table-column label="操作" min-width="280" fixed="right">
+                <el-table-column label="操作" min-width="335" fixed="right">
                     <template #default="scope">
-                        <el-link
-                            v-auth="'machine:terminal'"
-                            :disabled="scope.row.status == -1"
-                            type="primary"
-                            @click="showTerminal(scope.row)"
-                            plain
-                            size="small"
-                            :underline="false"
-                            >终端</el-link
-                        >
-                        <el-divider v-auth="'machine:terminal'" direction="vertical" border-style="dashed" />
-                        <el-link
-                            v-auth="'machine:file'"
-                            type="success"
-                            :disabled="scope.row.status == -1"
-                            @click="fileManage(scope.row)"
-                            plain
-                            size="small"
-                            :underline="false"
-                            >文件</el-link
-                        >
-                        <el-divider v-auth="'machine:file'" direction="vertical" border-style="dashed" />
+                        <span v-auth="'machine:terminal'">
+                            <el-link
+                                :disabled="scope.row.status == -1"
+                                type="primary"
+                                @click="showTerminal(scope.row)"
+                                plain
+                                size="small"
+                                :underline="false"
+                                >终端</el-link
+                            >
+                            <el-divider direction="vertical" border-style="dashed" />
+                        </span>
+
+                        <span v-auth="'machine:update'" v-if="scope.row.enableRecorder == 1">
+                            <el-link @click="showRec(scope.row)" plain :underline="false" size="small">终端回放</el-link>
+                            <el-divider direction="vertical" border-style="dashed" />
+                        </span>
+
+                        <span v-auth="'machine:file'">
+                            <el-link
+                                type="success"
+                                :disabled="scope.row.status == -1"
+                                @click="fileManage(scope.row)"
+                                plain
+                                size="small"
+                                :underline="false"
+                                >文件</el-link
+                            >
+                            <el-divider direction="vertical" border-style="dashed" />
+                        </span>
+
                         <el-link
                             :disabled="scope.row.status == -1"
                             type="warning"
@@ -108,10 +117,12 @@
                             >脚本</el-link
                         >
                         <el-divider direction="vertical" border-style="dashed" />
+
                         <el-link @click="showProcess(scope.row)" :disabled="scope.row.status == -1" plain :underline="false" size="small"
                             >进程</el-link
                         >
                         <el-divider direction="vertical" border-style="dashed" />
+
                         <el-link
                             :disabled="!scope.row.hasCli || scope.row.status == -1"
                             type="danger"
@@ -155,6 +166,8 @@
             :machineId="machineStatsDialog.machineId"
             :title="machineStatsDialog.title"
         ></machine-stats>
+
+        <!-- <machine-rec v-model:visible="machineRecDialog.visible" :title="machineRecDialog.title" :machine-id="machineRecDialog.machineId" /> -->
     </div>
 </template>
 
@@ -169,6 +182,7 @@ import FileManage from './FileManage.vue';
 import MachineEdit from './MachineEdit.vue';
 import ProcessList from './ProcessList.vue';
 import MachineStats from './MachineStats.vue';
+// import MachineRec from './MachineRec.vue';
 
 export default defineComponent({
     name: 'MachineList',
@@ -178,6 +192,7 @@ export default defineComponent({
         FileManage,
         MachineEdit,
         MachineStats,
+        // MachineRec,
     },
     setup() {
         const router = useRouter();
@@ -222,6 +237,11 @@ export default defineComponent({
                 visible: false,
                 data: null,
                 title: '新增机器',
+            },
+            machineRecDialog: {
+                visible: false,
+                machineId: 0,
+                title: '',
             },
         });
 
@@ -338,6 +358,17 @@ export default defineComponent({
             state.processDialog.visible = true;
         };
 
+        const showRec = (row: any) => {
+            const { href } = router.resolve({
+                path: `/machine/terminal-rec`,
+                query: {
+                    id: row.id,
+                    name: `${row.name}[${row.ip}]-终端回放记录`,
+                },
+            });
+            window.open(href, '_blank');
+        };
+
         return {
             ...toRefs(state),
             choose,
@@ -352,6 +383,7 @@ export default defineComponent({
             submitSuccess,
             fileManage,
             search,
+            showRec,
             handlePageChange,
         };
     },

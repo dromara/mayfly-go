@@ -2,14 +2,14 @@ package utils
 
 import (
 	"errors"
-	"io/ioutil"
+	"os"
 
 	"gopkg.in/yaml.v3"
 )
 
 // 从指定路径加载yaml文件
 func LoadYml(path string, out interface{}) error {
-	yamlFileBytes, readErr := ioutil.ReadFile(path)
+	yamlFileBytes, readErr := os.ReadFile(path)
 	if readErr != nil {
 		return readErr
 	}

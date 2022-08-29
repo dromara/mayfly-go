@@ -21,13 +21,14 @@ type TerminalSession struct {
 	ID       string
 	wsConn   *websocket.Conn
 	terminal *Terminal
+	recorder *Recorder
 	ctx      context.Context
 	cancel   context.CancelFunc
 	dataChan chan rune
 	tick     *time.Ticker
 }
 
-func NewTerminalSession(sessionId string, ws *websocket.Conn, cli *Cli, rows, cols int) (*TerminalSession, error) {
+func NewTerminalSession(sessionId string, ws *websocket.Conn, cli *Cli, rows, cols int, recorder *Recorder) (*TerminalSession, error) {
 	terminal, err := NewTerminal(cli)
 	if err != nil {
 		return nil, err
@@ -41,12 +42,17 @@ func NewTerminalSession(sessionId string, ws *websocket.Conn, cli *Cli, rows, co
 		return nil, err
 	}
 
+	if recorder != nil {
+		recorder.WriteHeader(rows-5, cols)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	tick := time.NewTicker(time.Millisecond * time.Duration(60))
 	ts := &TerminalSession{
 		ID:       sessionId,
 		wsConn:   ws,
 		terminal: terminal,
+		recorder: recorder,
 		ctx:      ctx,
 		cancel:   cancel,
 		dataChan: make(chan rune),
@@ -65,9 +71,6 @@ func (r TerminalSession) Stop() {
 	global.Log.Debug("close machine ssh terminal session")
 	r.tick.Stop()
 	r.cancel()
-	if r.wsConn != nil {
-		r.wsConn.Close()
-	}
 	if r.terminal != nil {
 		if err := r.terminal.Close(); err != nil {
 			global.Log.Errorf("关闭机器ssh终端失败: %s", err.Error())
@@ -107,6 +110,12 @@ func (ts TerminalSession) writeToWebsocket() {
 				if err := WriteMessage(ts.wsConn, s); err != nil {
 					global.Log.Error("机器ssh终端发送消息至websocket失败: ", err)
 					return
+				}
+				// 如果记录器存在，则记录操作回放信息
+				if ts.recorder != nil {
+					ts.recorder.Lock()
+					ts.recorder.WriteData(OutPutType, s)
+					ts.recorder.Unlock()
 				}
 				buf = []byte{}
 			}

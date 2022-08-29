@@ -7,6 +7,8 @@ server:
     enable: false
     key-file: ./default.key
     cert-file: ./default.pem
+  # 机器终端操作回放文件存储路径
+  machine-rec-path: ./rec
 jwt:
   # jwt key，不设置默认使用随机字符串
   key: 

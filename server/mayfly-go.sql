@@ -113,6 +113,7 @@ CREATE TABLE `t_machine` (
   `password` varchar(3200) COLLATE utf8mb4_bin DEFAULT NULL,
   `enable_ssh_tunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
+  `enable_recorder` tinyint(2) DEFAULT NULL COMMENT '是否启用终端回放记录',
   `status` tinyint(2) NOT NULL COMMENT '状态: 1:启用; -1:禁用',
   `remark` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
   `need_monitor` tinyint(2) DEFAULT NULL,

@@ -2,8 +2,8 @@ package api
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
-	"io/ioutil"
 	"mayfly-go/internal/devops/api/form"
 	"mayfly-go/internal/devops/api/vo"
 	"mayfly-go/internal/devops/application"
@@ -98,7 +98,7 @@ func (m *MachineFile) ReadFileContent(rc *ctx.ReqCtx) {
 		path := strings.Split(readPath, "/")
 		rc.Download(sftpFile, path[len(path)-1])
 	} else {
-		datas, err := ioutil.ReadAll(sftpFile)
+		datas, err := io.ReadAll(sftpFile)
 		biz.ErrIsNilAppendErr(err, "读取文件内容失败: %s")
 		rc.ResData = string(datas)
 	}

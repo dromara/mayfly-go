@@ -43,9 +43,11 @@ func InitMachineRouter(router *gin.RouterGroup) {
 		})
 
 		saveMachine := ctx.NewLogInfo("保存机器信息").WithSave(true)
+		saveMachineP := ctx.NewPermission("machine:update")
 		machines.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(saveMachine).
+				WithRequiredPermission(saveMachineP).
 				Handle(m.SaveMachine)
 		})
 
@@ -69,5 +71,12 @@ func InitMachineRouter(router *gin.RouterGroup) {
 		})
 
 		machines.GET(":machineId/terminal", m.WsSSH)
+
+		// 获取机器终端回放记录的相应文件夹名或文件名,目前具有保存机器信息的权限标识才有权限查看终端回放
+		machines.GET("rec/names", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).
+				WithRequiredPermission(saveMachineP).
+				Handle(m.MachineRecDirNames)
+		})
 	}
 }

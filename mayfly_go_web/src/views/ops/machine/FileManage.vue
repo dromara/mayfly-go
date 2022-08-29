@@ -66,7 +66,7 @@
                 :percentage="progressNum"
             />
             <div style="height: 45vh; overflow: auto">
-                <el-tree v-if="tree.visible" ref="fileTree" :load="loadNode" :props="props" lazy node-key="id" :expand-on-click-node="true">
+                <el-tree v-if="tree.visible" ref="fileTree" :highlight-current="true" :load="loadNode" :props="props" lazy node-key="id" :expand-on-click-node="true">
                     <template #default="{ node, data }">
                         <span class="custom-tree-node">
                             <el-dropdown size="small" @visible-change="getFilePath(data, $event)" trigger="contextmenu">

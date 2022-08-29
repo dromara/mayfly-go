@@ -24,7 +24,7 @@
                 </el-form-item>
                 <el-form-item prop="host" label="host:" required>
                     <el-col :span="18">
-                        <el-input v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
+                        <el-input :disabled="form.id" v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
                     </el-col>
                     <el-col style="text-align: center" :span="1">:</el-col>
                     <el-col :span="5">

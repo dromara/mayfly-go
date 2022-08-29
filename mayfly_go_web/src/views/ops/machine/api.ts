@@ -33,5 +33,6 @@ export const machineApi = {
     addConf: Api.create("/machines/{machineId}/files", 'post'),
     // 删除配置的文件or目录
     delConf: Api.create("/machines/{machineId}/files/{id}", 'delete'),
-    terminal: Api.create("/api/machines/{id}/terminal", 'get')
+    terminal: Api.create("/api/machines/{id}/terminal", 'get'),
+    recDirNames: Api.create("/machines/rec/names", 'get')
 }

@@ -7,3 +7,4 @@ declare module '*.vue' {
 declare module 'codemirror';
 declare module 'sql-formatter';
 declare module 'jsoneditor';
+declare module 'asciinema-player';

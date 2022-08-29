@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -204,7 +203,7 @@ func request(rw *RequestWrapper) *ResponseWrapper {
 		return wrapper
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		wrapper.Body = []byte(fmt.Sprintf("读取HTTP请求返回值失败-%s", err.Error()))
 		return wrapper

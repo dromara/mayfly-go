@@ -34,6 +34,7 @@ type MachineVO struct {
 	ModifierId         *int64     `json:"modifierId"`
 	HasCli             bool       `json:"hasCli" gorm:"-"`
 	Remark             *string    `json:"remark"`
+	EnableRecorder     int8       `json:"enableRecorder"`
 }
 
 type MachineScriptVO struct {

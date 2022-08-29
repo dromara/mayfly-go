@@ -12,7 +12,7 @@
                 </el-form-item>
                 <el-form-item prop="ip" label="ip:" required>
                     <el-col :span="18">
-                        <el-input v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"></el-input>
+                        <el-input :disabled="form.id" v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"></el-input>
                     </el-col>
                     <el-col style="text-align: center" :span="1">:</el-col>
                     <el-col :span="5">
@@ -50,6 +50,10 @@
                 </el-form-item>
                 <el-form-item prop="remark" label="备注:">
                     <el-input type="textarea" v-model="form.remark"></el-input>
+                </el-form-item>
+
+                <el-form-item prop="enableRecorder" label="终端回放:">
+                    <el-checkbox v-model="form.enableRecorder" :true-label="1" :false-label="-1"></el-checkbox>
                 </el-form-item>
 
                 <el-form-item prop="enableSshTunnel" label="SSH隧道:">
@@ -122,6 +126,7 @@ export default defineComponent({
                 remark: '',
                 enableSshTunnel: null,
                 sshTunnelMachineId: null,
+                enableRecorder: -1,
             },
             pwd: '',
             btnLoading: false,
