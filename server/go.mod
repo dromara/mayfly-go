@@ -1,6 +1,6 @@
 module mayfly-go
 
-go 1.18
+go 1.19
 
 require (
 	github.com/gin-gonic/gin v1.8.1
@@ -15,7 +15,8 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
 	go.mongodb.org/mongo-driver v1.9.1 // mongo
-	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // ssh
+	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
+	// ssh
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
 	gorm.io/driver/mysql v1.3.5
