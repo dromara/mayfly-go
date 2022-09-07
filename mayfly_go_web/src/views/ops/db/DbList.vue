@@ -7,7 +7,7 @@
                 >删除</el-button
             >
             <div style="float: right">
-                <el-select v-model="query.projectId" placeholder="请选择项目" filterable clearable>
+                <el-select @focus="getProjects" v-model="query.projectId" placeholder="请选择项目" filterable clearable>
                     <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
                 </el-select>
                 <el-button v-waves type="primary" icon="search" @click="search()" class="ml5">查询</el-button>
@@ -398,8 +398,12 @@ export default defineComponent({
             search();
         };
 
-        const editDb = async (isAdd = false) => {
+        const getProjects = async () => {
             state.projects = await projectApi.accountProjects.request(null);
+        };
+
+        const editDb = async (isAdd = false) => {
+            await getProjects();
             if (isAdd) {
                 state.dbEditDialog.data = null;
                 state.dbEditDialog.title = '新增数据库资源';
@@ -602,6 +606,7 @@ export default defineComponent({
 
         return {
             ...toRefs(state),
+            getProjects,
             filterTableInfos,
             enums,
             search,

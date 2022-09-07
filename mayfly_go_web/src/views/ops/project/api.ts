@@ -8,6 +8,7 @@ export const projectApi = {
     delProject: Api.create("/projects", 'delete'),
     // 获取项目下的环境信息
     projectEnvs:  Api.create("/projects/{projectId}/envs", 'get'),
+    delProjectEnvs:  Api.create("/projects/envs", 'delete'),
     saveProjectEnv:  Api.create("/projects/{projectId}/envs", 'post'),
     // 获取项目下的成员信息
     projectMems:  Api.create("/projects/{projectId}/members", 'get'),

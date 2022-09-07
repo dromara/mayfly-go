@@ -16,7 +16,7 @@
                     >删除</el-button
                 >
                 <div style="float: right">
-                    <el-select v-model="params.projectId" placeholder="请选择项目" @clear="search" filterable clearable>
+                    <el-select @focus="getProjects" v-model="params.projectId" placeholder="请选择项目" @clear="search" filterable clearable>
                         <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
                     </el-select>
                     <el-input
@@ -166,8 +166,6 @@
             :machineId="machineStatsDialog.machineId"
             :title="machineStatsDialog.title"
         ></machine-stats>
-
-        <!-- <machine-rec v-model:visible="machineRecDialog.visible" :title="machineRecDialog.title" :machine-id="machineRecDialog.machineId" /> -->
     </div>
 </template>
 
@@ -182,7 +180,6 @@ import FileManage from './FileManage.vue';
 import MachineEdit from './MachineEdit.vue';
 import ProcessList from './ProcessList.vue';
 import MachineStats from './MachineStats.vue';
-// import MachineRec from './MachineRec.vue';
 
 export default defineComponent({
     name: 'MachineList',
@@ -192,7 +189,6 @@ export default defineComponent({
         FileManage,
         MachineEdit,
         MachineStats,
-        // MachineRec,
     },
     setup() {
         const router = useRouter();
@@ -279,8 +275,12 @@ export default defineComponent({
             search();
         };
 
-        const openFormDialog = async (machine: any) => {
+        const getProjects = async () => {
             state.projects = await projectApi.accountProjects.request(null);
+        };
+
+        const openFormDialog = async (machine: any) => {
+            await getProjects();
             let dialogTitle;
             if (machine) {
                 state.machineEditDialog.data = state.currentData as any;
@@ -372,6 +372,7 @@ export default defineComponent({
         return {
             ...toRefs(state),
             choose,
+            getProjects,
             showTerminal,
             openFormDialog,
             deleteMachine,

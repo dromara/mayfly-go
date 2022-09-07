@@ -116,11 +116,12 @@ func (m *MachineFile) GetDirEntry(rc *ctx.ReqCtx) {
 	fisVO := make([]vo.MachineFileInfo, 0)
 	for _, fi := range fis {
 		fisVO = append(fisVO, vo.MachineFileInfo{
-			Name: fi.Name(),
-			Size: fi.Size(),
-			Path: readPath + fi.Name(),
-			Type: getFileType(fi.Mode()),
-			Mode: fi.Mode().String(),
+			Name:    fi.Name(),
+			Size:    fi.Size(),
+			Path:    readPath + fi.Name(),
+			Type:    getFileType(fi.Mode()),
+			Mode:    fi.Mode().String(),
+			ModTime: fi.ModTime().Format("2006-01-02 15:04:05"),
 		})
 	}
 	rc.ResData = fisVO

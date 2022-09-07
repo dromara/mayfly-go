@@ -54,6 +54,10 @@ func (p *Project) DelProject(rc *ctx.ReqCtx) {
 	p.ProjectApp.DelProject(uint64(ginx.QueryInt(rc.GinCtx, "id", 0)))
 }
 
+func (p *Project) DelProjectEnv(rc *ctx.ReqCtx) {
+	p.ProjectApp.DelProjectEnv(uint64(ginx.QueryInt(rc.GinCtx, "id", 0)))
+}
+
 // 获取项目下的环境信息
 func (p *Project) GetProjectEnvs(rc *ctx.ReqCtx) {
 	projectEnvs := &[]entity.ProjectEnv{}
@@ -61,7 +65,7 @@ func (p *Project) GetProjectEnvs(rc *ctx.ReqCtx) {
 	rc.ResData = projectEnvs
 }
 
-//保存项目下的环境信息
+// 保存项目下的环境信息
 func (p *Project) SaveProjectEnvs(rc *ctx.ReqCtx) {
 	projectEnv := &entity.ProjectEnv{}
 	ginx.BindJsonAndValid(rc.GinCtx, projectEnv)
@@ -78,7 +82,7 @@ func (p *Project) GetProjectMembers(rc *ctx.ReqCtx) {
 		ginx.GetPageParam(rc.GinCtx), projectMems)
 }
 
-//保存项目的成员信息
+// 保存项目的成员信息
 func (p *Project) SaveProjectMember(rc *ctx.ReqCtx) {
 	projectMem := &entity.ProjectMember{}
 	ginx.BindJsonAndValid(rc.GinCtx, projectMem)
@@ -95,7 +99,7 @@ func (p *Project) SaveProjectMember(rc *ctx.ReqCtx) {
 	p.ProjectApp.SaveProjectMember(projectMem)
 }
 
-//删除项目成员
+// 删除项目成员
 func (p *Project) DelProjectMember(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	pid := ginx.PathParamInt(g, "projectId")

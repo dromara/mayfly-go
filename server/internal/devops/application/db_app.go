@@ -558,8 +558,14 @@ func (mm *MysqlMetadata) GetColumns(tableNames ...string) []map[string]interface
 	if len(tableNames) > 1 {
 		countSql := fmt.Sprintf(MYSQL_COLOUMN_MA_COUNT, tableName)
 		_, countRes, _ := mm.di.SelectData(countSql)
+		maCount := 0
 		// 查询出所有列信息总数，手动分页获取所有数据
-		maCount := int(countRes[0]["maNum"].(int64))
+		if count64, is64 := countRes[0]["maNum"].(int64); is64 {
+			maCount = int(count64)
+		} else {
+			maCount = countRes[0]["maNum"].(int)
+		}
+
 		// 计算需要查询的页数
 		pageNum = maCount / DEFAULT_COLUMN_SIZE
 		if maCount%DEFAULT_COLUMN_SIZE > 0 {
@@ -672,8 +678,13 @@ func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []map[string]interface
 	if len(tableNames) > 1 {
 		countSql := fmt.Sprintf(PGSQL_COLUMN_MA_COUNT, tableName)
 		_, countRes, _ := pm.di.SelectData(countSql)
+		maCount := 0
 		// 查询出所有列信息总数，手动分页获取所有数据
-		maCount := int(countRes[0]["maNum"].(int64))
+		if count64, is64 := countRes[0]["maNum"].(int64); is64 {
+			maCount = int(count64)
+		} else {
+			maCount = countRes[0]["maNum"].(int)
+		}
 		// 计算需要查询的页数
 		pageNum = maCount / DEFAULT_COLUMN_SIZE
 		if maCount%DEFAULT_COLUMN_SIZE > 0 {

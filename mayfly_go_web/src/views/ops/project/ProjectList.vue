@@ -80,9 +80,18 @@
         <el-dialog width="500px" :title="showEnvDialog.title" v-model="showEnvDialog.visible">
             <div class="toolbar">
                 <el-button @click="showAddEnvDialog" v-auth="permissions.saveMember" type="primary" icon="plus">添加</el-button>
-                <!-- <el-button v-auth="'role:update'" :disabled="chooseId == null" type="danger" icon="delete">删除</el-button> -->
+                <el-button @click="deleteEnv" v-auth="permissions.delProject" :disabled="showEnvDialog.chooseId == null" type="danger" icon="delete"
+                    >删除</el-button
+                >
             </div>
-            <el-table border :data="showEnvDialog.envs">
+            <el-table @current-change="chooseEnv" border :data="showEnvDialog.envs">
+                <el-table-column label="选择" width="50px">
+                    <template #default="scope">
+                        <el-radio v-model="showEnvDialog.chooseId" :label="scope.row.id">
+                            <i></i>
+                        </el-radio>
+                    </template>
+                </el-table-column>
                 <el-table-column property="name" label="环境名" width="125"></el-table-column>
                 <el-table-column property="remark" label="描述" width="125"></el-table-column>
                 <el-table-column property="createTime" label="创建时间">
@@ -207,6 +216,8 @@ export default defineComponent({
             },
             showEnvDialog: {
                 visible: false,
+                chooseId: null,
+                chooseData: null,
                 envs: [],
                 title: '',
                 addVisible: false,
@@ -340,6 +351,21 @@ export default defineComponent({
             state.showEnvDialog.visible = true;
         };
 
+        const chooseEnv = (item: any) => {
+            if (!item) {
+                return;
+            }
+            state.showEnvDialog.chooseData = item;
+            state.showEnvDialog.chooseId = item.id;
+        };
+
+        const deleteEnv = async () => {
+            notNull(state.showEnvDialog.chooseData, '请选选择环境');
+            await projectApi.delProjectEnvs.request({ id: state.showEnvDialog.chooseId });
+            ElMessage.success('删除成功');
+            state.showEnvDialog.envs = await projectApi.projectEnvs.request({ projectId: state.chooseId });
+        };
+
         const showAddMemberDialog = () => {
             state.showMemDialog.addVisible = true;
         };
@@ -398,12 +424,14 @@ export default defineComponent({
             showMembers,
             setMemebers,
             showEnv,
+            deleteEnv,
             showAddMemberDialog,
             addMember,
             chooseMember,
             deleteMember,
             cancelAddMember,
             showAddEnvDialog,
+            chooseEnv,
             addEnv,
             cancelAddEnv,
             getAccount,

@@ -22,3 +22,7 @@ func (p *projectEnvRepo) Save(entity *entity.ProjectEnv) {
 func (p *projectEnvRepo) DeleteEnvs(projectId uint64) {
 	model.DeleteByCondition(&entity.ProjectEnv{ProjectId: projectId})
 }
+
+func (p *projectEnvRepo) DeleteEnv(envId uint64) {
+	model.DeleteById(new(entity.ProjectEnv), envId)
+}

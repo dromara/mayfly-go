@@ -9,4 +9,6 @@ type ProjectEnv interface {
 	Save(entity *entity.ProjectEnv)
 
 	DeleteEnvs(projectId uint64)
+
+	DeleteEnv(envId uint64)
 }

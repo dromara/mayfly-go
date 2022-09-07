@@ -255,7 +255,13 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 		countSql := fmt.Sprintf("SELECT COUNT(*) count FROM %s", table)
 		_, countRes, _ := dbInstance.SelectData(countSql)
 		// 查询出所有列信息总数，手动分页获取所有数据
-		maCount := int(countRes[0]["count"].(int64))
+		maCount := 0
+		// 查询出所有列信息总数，手动分页获取所有数据
+		if count64, is64 := countRes[0]["maNum"].(int64); is64 {
+			maCount = int(count64)
+		} else {
+			maCount = countRes[0]["maNum"].(int)
+		}
 		// 计算需要查询的页数
 		pageNum := maCount / DEFAULT_COLUMN_SIZE
 		if maCount%DEFAULT_COLUMN_SIZE > 0 {

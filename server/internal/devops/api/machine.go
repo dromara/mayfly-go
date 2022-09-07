@@ -18,7 +18,6 @@ import (
 	"path"
 	"sort"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -175,8 +174,6 @@ func (m *Machine) WsSSH(g *gin.Context) {
 
 	var recorder *machine.Recorder
 	if cli.GetMachine().EnableRecorder == 1 {
-		mask := syscall.Umask(0)
-		defer syscall.Umask(mask)
 		now := time.Now()
 		// 回放文件路径为: 基础配置路径/机器id/操作日期/操作者账号/操作时间.cast
 		recPath := fmt.Sprintf("%s/%d/%s/%s", config.Conf.Server.GetMachineRecPath(), cli.GetMachine().Id, now.Format("20060102"), rc.LoginAccount.Username)

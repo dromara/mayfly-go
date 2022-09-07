@@ -57,7 +57,7 @@
             </el-row>
         </el-dialog>
 
-        <el-dialog :title="tree.title" v-model="tree.visible" :close-on-click-modal="false" width="50%">
+        <el-dialog :title="tree.title" v-model="tree.visible" :close-on-click-modal="false" width="70%">
             <el-progress
                 v-if="uploadProgressShow"
                 style="width: 90%; margin-left: 20px"
@@ -84,6 +84,10 @@
                                     <span style="display: inline-block">
                                         {{ node.label }}
                                         <span style="color: #67c23a" v-if="data.type == '-'">&nbsp;&nbsp;[{{ formatFileSize(data.size) }}]</span>
+                                    </span>
+
+                                     <span style="display: inline-block">
+                                        <span v-if="data.mode" style="color: #67c23a">&nbsp;&nbsp;[{{ data.mode }} {{ data.modTime }}]</span>
                                     </span>
                                 </span>
 

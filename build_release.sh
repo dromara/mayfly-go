@@ -95,6 +95,10 @@ function buildWindows() {
     build "$1/mayfly-go-windows" "windows" "amd64" $2
 }
 
+function buildMac() {
+    build "$1/mayfly-go-mac" "darwin" "amd64" $2
+}
+
 function runBuild() {
     # 构建结果的目的路径
     read -p "请输入构建产物输出目录: " toPath
@@ -107,7 +111,7 @@ function runBuild() {
     toPath=`pwd`
 
     read -p "是否构建前端[0|其他->否 1->是 2->构建并拷贝至server/static/static]: " runBuildWeb
-    read -p "请选择构建版本[0|其他->全部 1->linux-amd64 2->linux-arm64 3->windows]: " buildType
+    read -p "请选择构建版本[0|其他->全部 1->linux-amd64 2->linux-arm64 3->windows 4->mac]: " buildType
     
     
     if [ "${runBuildWeb}" == "1" ] || [ "${runBuildWeb}" == "2" ] ; then
@@ -124,10 +128,14 @@ function runBuild() {
         "3")
             buildWindows ${toPath} ${runBuildWeb}
         ;;
+        "4")
+            buildMac ${toPath} ${runBuildWeb}
+        ;;
         *)
             buildLinuxAmd64 ${toPath} ${runBuildWeb}
             buildLinuxArm64 ${toPath} ${runBuildWeb}
             buildWindows ${toPath} ${runBuildWeb}
+            buildMac ${toPath} ${runBuildWeb}
         ;;
     esac
 }

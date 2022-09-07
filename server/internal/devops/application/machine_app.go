@@ -56,7 +56,11 @@ func (m *machineAppImpl) Count(condition *entity.Machine) int64 {
 func (m *machineAppImpl) Save(me *entity.Machine) {
 	// ’修改机器信息且密码不为空‘ or ‘新增’需要测试是否可连接
 	if (me.Id != 0 && me.Password != "") || me.Id == 0 {
-		biz.ErrIsNilAppendErr(machine.TestConn(*me, func(u uint64) *entity.Machine { return m.GetById(u) }), "该机器无法连接: %s")
+		biz.ErrIsNilAppendErr(machine.TestConn(*me, func(u uint64) *entity.Machine {
+			me := m.GetById(u)
+			me.PwdDecrypt()
+			return me
+		}), "该机器无法连接: %s")
 	}
 
 	oldMachine := &entity.Machine{Ip: me.Ip, Port: me.Port, Username: me.Username}

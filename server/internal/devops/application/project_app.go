@@ -20,6 +20,8 @@ type Project interface {
 
 	DelProject(id uint64)
 
+	DelProjectEnv(id uint64)
+
 	// 根据项目id获取所有该项目下的环境信息列表
 	ListEnvByProjectId(projectId uint64, listPtr interface{})
 
@@ -98,6 +100,13 @@ func (p *projectAppImpl) ListEnvByProjectId(projectId uint64, listPtr interface{
 // 保存项目环境信息
 func (p *projectAppImpl) SaveProjectEnv(projectEnv *entity.ProjectEnv) {
 	p.projectEnvRepo.Save(projectEnv)
+}
+
+// 删除项目环境信息
+func (p *projectAppImpl) DelProjectEnv(id uint64) {
+	biz.IsTrue(p.redisRepo.Count(&entity.Redis{EnvId: id}) == 0, "请先删除该项目环境关联的redis信息")
+	biz.IsTrue(p.dbRepo.Count(&entity.Db{EnvId: id}) == 0, "请先删除该项目环境关联的数据库信息")
+	p.projectEnvRepo.DeleteEnv(id)
 }
 
 // 根据条件获取项目成员信息

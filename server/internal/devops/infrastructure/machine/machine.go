@@ -27,7 +27,7 @@ type Cli struct {
 	sshTunnelMachineId uint64
 }
 
-//连接
+// 连接
 func (c *Cli) connect() error {
 	// 如果已经有client则直接返回
 	if c.client != nil {
@@ -90,8 +90,8 @@ func (c *Cli) GetSession() (*ssh.Session, error) {
 	return c.client.NewSession()
 }
 
-//执行shell
-//@param shell shell脚本命令
+// 执行shell
+// @param shell shell脚本命令
 func (c *Cli) Run(shell string) (*string, error) {
 	session, err := c.GetSession()
 	if err != nil {
@@ -236,7 +236,7 @@ func GetSshClient(m *entity.Machine) (*ssh.Client, error) {
 	return sshClient, nil
 }
 
-//根据机器信息创建客户端对象
+// 根据机器信息创建客户端对象
 func newClient(machine *entity.Machine) (*Cli, error) {
 	if machine == nil {
 		return nil, errors.New("机器不存在")

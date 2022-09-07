@@ -5,7 +5,7 @@
             <el-button type="primary" icon="edit" :disabled="currentId == null" @click="editMongo(false)" plain>编辑</el-button>
             <el-button type="danger" icon="delete" :disabled="currentId == null" @click="deleteMongo" plain>删除</el-button>
             <div style="float: right">
-                <el-select v-model="query.projectId" placeholder="请选择项目" filterable clearable>
+                <el-select @focus="getProjects" v-model="query.projectId" placeholder="请选择项目" filterable clearable>
                     <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
                 </el-select>
                 <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
@@ -370,8 +370,12 @@ export default defineComponent({
             state.total = res.total;
         };
 
-        const editMongo = async (isAdd = false) => {
+        const getProjects = async () => {
             state.projects = await projectApi.accountProjects.request(null);
+        };
+
+        const editMongo = async (isAdd = false) => {
+            await getProjects();
             if (isAdd) {
                 state.mongoEditDialog.data = null;
                 state.mongoEditDialog.title = '新增mongo';
@@ -390,6 +394,7 @@ export default defineComponent({
 
         return {
             ...toRefs(state),
+            getProjects,
             search,
             handlePageChange,
             choose,
