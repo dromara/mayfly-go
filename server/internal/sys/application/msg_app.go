@@ -3,7 +3,6 @@ package application
 import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
-	"mayfly-go/internal/sys/infrastructure/persistence"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/ws"
 	"time"
@@ -18,12 +17,14 @@ type Msg interface {
 	CreateAndSend(la *model.LoginAccount, msg *ws.Msg)
 }
 
-type msgAppImpl struct {
-	msgRepo repository.Msg
+func newMsgApp(msgRepo repository.Msg) Msg {
+	return &msgAppImpl{
+		msgRepo: msgRepo,
+	}
 }
 
-var MsgApp Msg = &msgAppImpl{
-	msgRepo: persistence.MsgDao,
+type msgAppImpl struct {
+	msgRepo repository.Msg
 }
 
 func (a *msgAppImpl) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {

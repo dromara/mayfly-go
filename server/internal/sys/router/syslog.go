@@ -10,7 +10,7 @@ import (
 
 func InitSyslogRouter(router *gin.RouterGroup) {
 	s := &api.Syslog{
-		SyslogApp: application.SyslogApp,
+		SyslogApp: application.GetSyslogApp(),
 	}
 	sys := router.Group("syslogs")
 	{

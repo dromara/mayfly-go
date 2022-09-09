@@ -3,7 +3,6 @@ package application
 import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
-	"mayfly-go/internal/sys/infrastructure/persistence"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 )
@@ -17,12 +16,14 @@ type Config interface {
 	GetConfig(key string) *entity.Config
 }
 
-type configAppImpl struct {
-	configRepo repository.Config
+func newConfigApp(configRepo repository.Config) Config {
+	return &configAppImpl{
+		configRepo: configRepo,
+	}
 }
 
-var ConfigApp Config = &configAppImpl{
-	configRepo: persistence.ConfigDao,
+type configAppImpl struct {
+	configRepo repository.Config
 }
 
 func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {

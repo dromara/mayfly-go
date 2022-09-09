@@ -29,10 +29,12 @@ func gormMysql() *gorm.DB {
 		DontSupportRenameColumn:   true,    // 用 `change` 重命名列，MySQL 8 之前的数据库和 MariaDB 不支持重命名列
 		SkipInitializeWithVersion: false,   // 根据版本自动配置
 	}
+
 	ormConfig := &gorm.Config{NamingStrategy: schema.NamingStrategy{
 		TablePrefix:   "t_",
 		SingularTable: true,
-	}, Logger: logger.Default.LogMode(logger.Silent)}
+	}, Logger: logger.Default.LogMode(logger.Error)} // 改为logger.Info即可显示sql语句
+
 	if db, err := gorm.Open(mysql.New(mysqlConfig), ormConfig); err != nil {
 		global.Log.Panicf("连接mysql失败! [%s]", err.Error())
 		return nil

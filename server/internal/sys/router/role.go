@@ -10,8 +10,8 @@ import (
 
 func InitRoleRouter(router *gin.RouterGroup) {
 	r := &api.Role{
-		RoleApp:     application.RoleApp,
-		ResourceApp: application.ResourceApp,
+		RoleApp:     application.GetRoleApp(),
+		ResourceApp: application.GetResourceApp(),
 	}
 	db := router.Group("sys/roles")
 	{

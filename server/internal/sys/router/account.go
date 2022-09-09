@@ -11,11 +11,11 @@ import (
 func InitAccountRouter(router *gin.RouterGroup) {
 	account := router.Group("sys/accounts")
 	a := &api.Account{
-		AccountApp:  application.AccountApp,
-		ResourceApp: application.ResourceApp,
-		RoleApp:     application.RoleApp,
-		MsgApp:      application.MsgApp,
-		ConfigApp:   application.ConfigApp,
+		AccountApp:  application.GetAccountApp(),
+		ResourceApp: application.GetResourceApp(),
+		RoleApp:     application.GetRoleApp(),
+		MsgApp:      application.GetMsgApp(),
+		ConfigApp:   application.GetConfigApp(),
 	}
 	{
 		// 用户登录

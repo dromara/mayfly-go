@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
-	"mayfly-go/internal/sys/infrastructure/persistence"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/model"
@@ -21,13 +20,14 @@ type Syslog interface {
 	SaveFromReq(req *ctx.ReqCtx)
 }
 
-type syslogAppImpl struct {
-	syslogRepo repository.Syslog
+func newSyslogApp(syslogRepo repository.Syslog) Syslog {
+	return &syslogAppImpl{
+		syslogRepo: syslogRepo,
+	}
 }
 
-// 实现类单例
-var SyslogApp Syslog = &syslogAppImpl{
-	syslogRepo: persistence.SyslogDao,
+type syslogAppImpl struct {
+	syslogRepo repository.Syslog
 }
 
 func (m *syslogAppImpl) GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {

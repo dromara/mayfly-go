@@ -7,15 +7,17 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-type accountRepo struct{}
+type accountRepoImpl struct{}
 
-var AccountDao repository.Account = &accountRepo{}
+func newAccountRepo() repository.Account {
+	return new(accountRepoImpl)
+}
 
-func (a *accountRepo) GetAccount(condition *entity.Account, cols ...string) error {
+func (a *accountRepoImpl) GetAccount(condition *entity.Account, cols ...string) error {
 	return model.GetBy(condition, cols...)
 }
 
-func (m *accountRepo) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *accountRepoImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	sql := "SELECT * FROM t_sys_account "
 	username := condition.Username
 	if username != "" {
@@ -25,10 +27,10 @@ func (m *accountRepo) GetPageList(condition *entity.Account, pageParam *model.Pa
 	// return model.GetPage(pageParam, condition, toEntity, orderBy...)
 }
 
-func (m *accountRepo) Insert(account *entity.Account) {
+func (m *accountRepoImpl) Insert(account *entity.Account) {
 	biz.ErrIsNil(model.Insert(account), "新增账号信息失败")
 }
 
-func (m *accountRepo) Update(account *entity.Account) {
+func (m *accountRepoImpl) Update(account *entity.Account) {
 	biz.ErrIsNil(model.UpdateById(account), "更新账号信息失败")
 }

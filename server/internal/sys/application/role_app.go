@@ -3,7 +3,6 @@ package application
 import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
-	"mayfly-go/internal/sys/infrastructure/persistence"
 	"mayfly-go/pkg/model"
 	"strings"
 )
@@ -36,13 +35,14 @@ type Role interface {
 	GetAccountRoles(accountId uint64, toEntity interface{})
 }
 
-type roleAppImpl struct {
-	roleRepo repository.Role
+func newRoleApp(roleRepo repository.Role) Role {
+	return &roleAppImpl{
+		roleRepo: roleRepo,
+	}
 }
 
-// 实现类单例
-var RoleApp Role = &roleAppImpl{
-	roleRepo: persistence.RoleDao,
+type roleAppImpl struct {
+	roleRepo repository.Role
 }
 
 func (m *roleAppImpl) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {

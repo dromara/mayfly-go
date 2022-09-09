@@ -2,7 +2,10 @@ package router
 
 import (
 	"mayfly-go/internal/common/api"
-	devops_app "mayfly-go/internal/devops/application"
+	dbapp "mayfly-go/internal/db/application"
+	machineapp "mayfly-go/internal/machine/application"
+	projectapp "mayfly-go/internal/project/application"
+	redisapp "mayfly-go/internal/redis/application"
 	"mayfly-go/pkg/ctx"
 
 	"github.com/gin-gonic/gin"
@@ -11,10 +14,10 @@ import (
 func InitIndexRouter(router *gin.RouterGroup) {
 	index := router.Group("common/index")
 	i := &api.Index{
-		ProjectApp: devops_app.ProjectApp,
-		MachineApp: devops_app.MachineApp,
-		DbApp:      devops_app.DbApp,
-		RedisApp:   devops_app.RedisApp,
+		ProjectApp: projectapp.GetProjectApp(),
+		MachineApp: machineapp.GetMachineApp(),
+		DbApp:      dbapp.GetDbApp(),
+		RedisApp:   redisapp.GetRedisApp(),
 	}
 	{
 		// 首页基本信息统计

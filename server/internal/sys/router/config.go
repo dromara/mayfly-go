@@ -9,7 +9,7 @@ import (
 )
 
 func InitSysConfigRouter(router *gin.RouterGroup) {
-	r := &api.Config{ConfigApp: application.ConfigApp}
+	r := &api.Config{ConfigApp: application.GetConfigApp()}
 	db := router.Group("sys/configs")
 	{
 		db.GET("", func(c *gin.Context) {

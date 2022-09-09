@@ -7,20 +7,22 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-type roleRepo struct{}
+type roleRepoImpl struct{}
 
-var RoleDao repository.Role = &roleRepo{}
+func newRoleRepo() repository.Role {
+	return new(roleRepoImpl)
+}
 
-func (m *roleRepo) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *roleRepoImpl) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, toEntity, orderBy...)
 }
 
-func (m *roleRepo) Delete(id uint64) {
+func (m *roleRepoImpl) Delete(id uint64) {
 	biz.ErrIsNil(model.DeleteById(new(entity.Role), id), "删除角色失败")
 }
 
 // 获取角色拥有的资源id数组，从role_resource表获取
-func (m *roleRepo) GetRoleResourceIds(roleId uint64) []uint64 {
+func (m *roleRepoImpl) GetRoleResourceIds(roleId uint64) []uint64 {
 	var rrs []entity.RoleResource
 
 	condtion := &entity.RoleResource{RoleId: roleId}
@@ -33,7 +35,7 @@ func (m *roleRepo) GetRoleResourceIds(roleId uint64) []uint64 {
 	return rids
 }
 
-func (m *roleRepo) GetRoleResources(roleId uint64, toEntity interface{}) {
+func (m *roleRepoImpl) GetRoleResources(roleId uint64, toEntity interface{}) {
 	sql := "select rr.creator AS creator, rr.create_time AS CreateTime, rr.resource_id AS id, r.pid AS pid, " +
 		"r.name AS name, r.type AS type, r.status AS status " +
 		"FROM t_sys_role_resource rr JOIN t_sys_resource r ON rr.resource_id = r.id " +
@@ -42,15 +44,15 @@ func (m *roleRepo) GetRoleResources(roleId uint64, toEntity interface{}) {
 	model.GetListBySql2Model(sql, toEntity, roleId)
 }
 
-func (m *roleRepo) SaveRoleResource(rr *entity.RoleResource) {
+func (m *roleRepoImpl) SaveRoleResource(rr *entity.RoleResource) {
 	model.Insert(rr)
 }
 
-func (m *roleRepo) DeleteRoleResource(roleId uint64, resourceId uint64) {
+func (m *roleRepoImpl) DeleteRoleResource(roleId uint64, resourceId uint64) {
 	model.DeleteByCondition(&entity.RoleResource{RoleId: roleId, ResourceId: resourceId})
 }
 
-func (m *roleRepo) GetAccountRoleIds(accountId uint64) []uint64 {
+func (m *roleRepoImpl) GetAccountRoleIds(accountId uint64) []uint64 {
 	var rrs []entity.AccountRole
 
 	condtion := &entity.AccountRole{AccountId: accountId}
@@ -63,16 +65,16 @@ func (m *roleRepo) GetAccountRoleIds(accountId uint64) []uint64 {
 	return rids
 }
 
-func (m *roleRepo) SaveAccountRole(ar *entity.AccountRole) {
+func (m *roleRepoImpl) SaveAccountRole(ar *entity.AccountRole) {
 	model.Insert(ar)
 }
 
-func (m *roleRepo) DeleteAccountRole(accountId, roleId uint64) {
+func (m *roleRepoImpl) DeleteAccountRole(accountId, roleId uint64) {
 	model.DeleteByCondition(&entity.AccountRole{RoleId: roleId, AccountId: accountId})
 }
 
 // 获取账号角色信息列表
-func (m *roleRepo) GetAccountRoles(accountId uint64, toEntity interface{}) {
+func (m *roleRepoImpl) GetAccountRoles(accountId uint64, toEntity interface{}) {
 	sql := "SELECT r.status, r.name, ar.create_time AS CreateTime, ar.creator AS creator " +
 		"FROM t_sys_role r JOIN t_sys_account_role ar ON r.id = ar.role_id AND ar.account_id = ? " +
 		"ORDER BY ar.create_time DESC"

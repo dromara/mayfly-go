@@ -6,14 +6,16 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-type syslogRepo struct{}
+type syslogRepoImpl struct{}
 
-var SyslogDao repository.Syslog = &syslogRepo{}
+func newSyslogRepo() repository.Syslog {
+	return new(syslogRepoImpl)
+}
 
-func (m *syslogRepo) GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *syslogRepoImpl) GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, toEntity, orderBy...)
 }
 
-func (m *syslogRepo) Insert(syslog *entity.Syslog) {
+func (m *syslogRepoImpl) Insert(syslog *entity.Syslog) {
 	model.Insert(syslog)
 }

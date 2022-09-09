@@ -4,12 +4,17 @@ import (
 	"fmt"
 	"io/fs"
 	common_router "mayfly-go/internal/common/router"
-	devops_router "mayfly-go/internal/devops/router"
+	db_router "mayfly-go/internal/db/router"
+	machine_router "mayfly-go/internal/machine/router"
+	mongo_router "mayfly-go/internal/mongo/router"
+	project_router "mayfly-go/internal/project/router"
+	redis_router "mayfly-go/internal/redis/router"
 	sys_router "mayfly-go/internal/sys/router"
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/middleware"
 	"mayfly-go/static"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,6 +22,7 @@ import (
 func WrapStaticHandler(h http.Handler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Cache-Control", `public, max-age=31536000`)
+		c.Request.URL.Path = strings.Split(c.Request.RequestURI, "/mayfly")[1]
 		h.ServeHTTP(c.Writer, c.Request)
 	}
 }
@@ -68,22 +74,13 @@ func InitRouter() *gin.Engine {
 		common_router.InitIndexRouter(api)
 		common_router.InitCommonRouter(api)
 
-		sys_router.InitCaptchaRouter(api)
-		sys_router.InitAccountRouter(api) // 注册account路由
-		sys_router.InitResourceRouter(api)
-		sys_router.InitRoleRouter(api)
-		sys_router.InitSystemRouter(api)
-		sys_router.InitSyslogRouter(api)
-		sys_router.InitSysConfigRouter(api)
+		sys_router.Init(api)
 
-		devops_router.InitProjectRouter(api)
-		devops_router.InitDbRouter(api)
-		devops_router.InitDbSqlExecRouter(api)
-		devops_router.InitRedisRouter(api)
-		devops_router.InitMachineRouter(api)
-		devops_router.InitMachineScriptRouter(api)
-		devops_router.InitMachineFileRouter(api)
-		devops_router.InitMongoRouter(api)
+		project_router.Init(api)
+		machine_router.Init(api)
+		db_router.Init(api)
+		redis_router.Init(api)
+		mongo_router.Init(api)
 	}
 
 	return router

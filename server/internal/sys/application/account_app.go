@@ -3,7 +3,6 @@ package application
 import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
-	"mayfly-go/internal/sys/infrastructure/persistence"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
@@ -23,12 +22,14 @@ type Account interface {
 	Delete(id uint64)
 }
 
-type accountAppImpl struct {
-	accountRepo repository.Account
+func newAccountApp(accountRepo repository.Account) Account {
+	return &accountAppImpl{
+		accountRepo: accountRepo,
+	}
 }
 
-var AccountApp Account = &accountAppImpl{
-	accountRepo: persistence.AccountDao,
+type accountAppImpl struct {
+	accountRepo repository.Account
 }
 
 // 根据条件获取账号信息

@@ -7,14 +7,16 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-type msgRepo struct{}
+type msgRepoImpl struct{}
 
-var MsgDao repository.Msg = &msgRepo{}
+func newMsgRepo() repository.Msg {
+	return new(msgRepoImpl)
+}
 
-func (m *msgRepo) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *msgRepoImpl) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, toEntity)
 }
 
-func (m *msgRepo) Insert(account *entity.Msg) {
+func (m *msgRepoImpl) Insert(account *entity.Msg) {
 	biz.ErrIsNil(model.Insert(account), "新增消息记录失败")
 }

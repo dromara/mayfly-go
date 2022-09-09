@@ -3,7 +3,6 @@ package application
 import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
-	"mayfly-go/internal/sys/infrastructure/persistence"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
 	"strings"
@@ -23,13 +22,14 @@ type Resource interface {
 	GetAccountResources(accountId uint64, toEntity interface{})
 }
 
-type resourceAppImpl struct {
-	resourceRepo repository.Resource
+func newResourceApp(resourceRepo repository.Resource) Resource {
+	return &resourceAppImpl{
+		resourceRepo: resourceRepo,
+	}
 }
 
-// 实现类单例
-var ResourceApp Resource = &resourceAppImpl{
-	resourceRepo: persistence.ResourceDao,
+type resourceAppImpl struct {
+	resourceRepo repository.Resource
 }
 
 func (r *resourceAppImpl) GetResourceList(condition *entity.Resource, toEntity interface{}, orderBy ...string) {

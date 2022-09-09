@@ -7,15 +7,17 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-type resourceRepo struct{}
+type resourceRepoImpl struct{}
 
-var ResourceDao repository.Resource = &resourceRepo{}
+func newResourceRepo() repository.Resource {
+	return new(resourceRepoImpl)
+}
 
-func (r *resourceRepo) GetResourceList(condition *entity.Resource, toEntity interface{}, orderBy ...string) {
+func (r *resourceRepoImpl) GetResourceList(condition *entity.Resource, toEntity interface{}, orderBy ...string) {
 	model.ListByOrder(condition, toEntity, orderBy...)
 }
 
-func (r *resourceRepo) GetById(id uint64, cols ...string) *entity.Resource {
+func (r *resourceRepoImpl) GetById(id uint64, cols ...string) *entity.Resource {
 	res := new(entity.Resource)
 	if err := model.GetById(res, id, cols...); err != nil {
 		return nil
@@ -24,19 +26,19 @@ func (r *resourceRepo) GetById(id uint64, cols ...string) *entity.Resource {
 	return res
 }
 
-func (r *resourceRepo) GetByIdIn(ids []uint64, toEntity interface{}, orderBy ...string) {
+func (r *resourceRepoImpl) GetByIdIn(ids []uint64, toEntity interface{}, orderBy ...string) {
 	model.GetByIdIn(new(entity.Resource), toEntity, ids, orderBy...)
 }
 
-func (r *resourceRepo) Delete(id uint64) {
+func (r *resourceRepoImpl) Delete(id uint64) {
 	biz.ErrIsNil(model.DeleteById(new(entity.Resource), id), "删除失败")
 }
 
-func (r *resourceRepo) GetByCondition(condition *entity.Resource, cols ...string) error {
+func (r *resourceRepoImpl) GetByCondition(condition *entity.Resource, cols ...string) error {
 	return model.GetBy(condition, cols...)
 }
 
-func (r *resourceRepo) GetAccountResources(accountId uint64, toEntity interface{}) {
+func (r *resourceRepoImpl) GetAccountResources(accountId uint64, toEntity interface{}) {
 	sql := `SELECT
 	           m.id,
 	           m.pid,
