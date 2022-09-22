@@ -43,6 +43,7 @@
                                     <el-tag @click="onAddData('string')" :color="getTypeColor('string')" style="cursor: pointer">string</el-tag>
                                     <el-tag @click="onAddData('hash')" :color="getTypeColor('hash')" class="ml5" style="cursor: pointer">hash</el-tag>
                                     <el-tag @click="onAddData('set')" :color="getTypeColor('set')" class="ml5" style="cursor: pointer">set</el-tag>
+                                    <!-- <el-tag @click="onAddData('list')" :color="getTypeColor('list')" class="ml5" style="cursor: pointer">list</el-tag> -->
                                 </el-popover>
                             </el-form-item>
                             <div style="float: right">
@@ -105,6 +106,16 @@
             @valChange="searchKey"
             @cancel="onCancelDataEdit"
         />
+
+        <list-value
+            v-model:visible="listValueDialog.visible"
+            :title="dataEdit.title"
+            :keyInfo="dataEdit.keyInfo"
+            :redisId="scanParam.id"
+            :operationType="dataEdit.operationType"
+            @valChange="searchKey"
+            @cancel="onCancelDataEdit"
+        />
     </div>
 </template>
 
@@ -116,6 +127,7 @@ import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import HashValue from './HashValue.vue';
 import StringValue from './StringValue.vue';
 import SetValue from './SetValue.vue';
+import ListValue from './ListValue.vue';
 import { isTrue, notBlank, notNull } from '@/common/assert';
 
 export default defineComponent({
@@ -124,6 +136,7 @@ export default defineComponent({
         StringValue,
         HashValue,
         SetValue,
+        ListValue,
         ProjectEnvSelect,
     },
     setup() {
@@ -156,6 +169,9 @@ export default defineComponent({
                 visible: false,
             },
             setValueDialog: {
+                visible: false,
+            },
+            listValueDialog: {
                 visible: false,
             },
             keys: [],
@@ -253,6 +269,8 @@ export default defineComponent({
                 state.stringValueDialog.visible = true;
             } else if (type == 'set') {
                 state.setValueDialog.visible = true;
+            } else if (type == 'list') {
+                state.listValueDialog.visible = true;
             } else {
                 ElMessage.warning('暂不支持该类型');
             }
@@ -270,6 +288,8 @@ export default defineComponent({
                 state.stringValueDialog.visible = true;
             } else if (type == 'set') {
                 state.setValueDialog.visible = true;
+            } else if (type == 'list') {
+                state.listValueDialog.visible = true;
             } else {
                 ElMessage.warning('暂不支持该类型');
             }

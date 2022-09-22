@@ -20,4 +20,7 @@ export const redisApi = {
     saveSetValue: Api.create("/redis/{id}/set-value", 'post'),
     del: Api.create("/redis/{id}/scan/{cursor}/{count}", 'delete'),
     delKey: Api.create("/redis/{id}/key", 'delete'),
+    getListValue: Api.create("/redis/{id}/list-value", 'get'),
+    saveListValue: Api.create("/redis/{id}/list-value", 'post'),
+    setListValue: Api.create("/redis/{id}/list-value/lset", 'post'),
 }

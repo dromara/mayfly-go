@@ -92,5 +92,18 @@ func InitRedisRouter(router *gin.RouterGroup) {
 		redis.POST(":id/set-value", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).Handle(rs.SetSetValue)
 		})
+
+		// 获取list类型值
+		redis.GET(":id/list-value", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(rs.GetListValue)
+		})
+
+		redis.POST(":id/list-value", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(rs.SaveListValue)
+		})
+
+		redis.POST(":id/list-value/lset", func(c *gin.Context) {
+			ctx.NewReqCtxWithGin(c).Handle(rs.SetListValue)
+		})
 	}
 }

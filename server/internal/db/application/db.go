@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"mayfly-go/internal/constant"
 	"mayfly-go/internal/db/domain/entity"
@@ -234,7 +233,7 @@ var dbCache = cache.NewTimedCache(constant.DbConnExpireTime, 5*time.Second).
 
 func init() {
 	machine.AddCheckSshTunnelMachineUseFunc(func(machineId uint64) bool {
-		// 遍历所有db连接实例，若存在redis实例使用该ssh隧道机器，则返回true，表示还在使用中...
+		// 遍历所有db连接实例，若存在db实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := dbCache.Items()
 		for _, v := range items {
 			if v.Value.(*DbInstance).sshTunnelMachineId == machineId {
@@ -412,14 +411,6 @@ type DbInstance struct {
 // 执行查询语句
 // 依次返回 列名数组，结果map，错误
 func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]interface{}, error) {
-	execSql = strings.Trim(execSql, " ")
-	isSelect := strings.HasPrefix(execSql, "SELECT") || strings.HasPrefix(execSql, "select")
-	isShow := strings.HasPrefix(execSql, "show")
-	isExplain := strings.HasPrefix(execSql, "explain")
-
-	if !isSelect && !isShow && !isExplain {
-		return nil, nil, errors.New("该sql非查询语句")
-	}
 	return SelectDataByDb(d.db, execSql)
 }
 

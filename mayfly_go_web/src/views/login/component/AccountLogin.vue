@@ -73,7 +73,7 @@
 </template>
 
 <script lang="ts">
-import { onMounted, ref, toRefs, reactive, defineComponent, computed } from 'vue';
+import { nextTick, onMounted, ref, toRefs, reactive, defineComponent, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { initBackEndControlRoutesFun } from '@/router/index.ts';
@@ -95,7 +95,7 @@ export default defineComponent({
         const changePwdFormRef: any = ref(null);
 
         const state = reactive({
-            useLoginCaptcha: true,
+            useLoginCaptcha: false,
             captchaImage: '',
             loginForm: {
                 username: '',
@@ -133,10 +133,12 @@ export default defineComponent({
         });
 
         onMounted(async () => {
+            nextTick(async () => {
+                state.useLoginCaptcha = await useLoginCaptcha();
+                getCaptcha();
+            });
             // 移除公钥, 方便后续重新获取
             sessionStorage.removeItem('RsaPublicKey');
-            state.useLoginCaptcha = await useLoginCaptcha();
-            getCaptcha();
         });
 
         const getCaptcha = async () => {

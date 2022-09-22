@@ -130,37 +130,21 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	})
 
 	rc.ReqParam = fmt.Sprintf("db: %d:%s | sql: %s", id, db, sql)
-
 	biz.NotEmpty(sql, "sql不能为空")
-	if strings.HasPrefix(sql, "SELECT") || strings.HasPrefix(sql, "select") || strings.HasPrefix(sql, "show") || strings.HasPrefix(sql, "explain") {
-		colNames, res, err := dbInstance.SelectData(sql)
-		biz.ErrIsNilAppendErr(err, "查询失败: %s")
-		colAndRes := make(map[string]interface{})
-		colAndRes["colNames"] = colNames
-		colAndRes["res"] = res
-		rc.ResData = colAndRes
-	} else {
-		// 根据执行sql，生成执行记录
-		execRecord := d.DbSqlExecApp.GenExecLog(rc.LoginAccount, id, db, sql, dbInstance)
 
-		rowsAffected, err := dbInstance.Exec(sql)
-		biz.ErrIsNilAppendErr(err, "执行失败: %s")
-		res := make([]map[string]string, 0)
-		resData := make(map[string]string)
-		resData["影响条数"] = fmt.Sprintf("%d", rowsAffected)
-		res = append(res, resData)
-
-		colAndRes := make(map[string]interface{})
-		colAndRes["colNames"] = []string{"影响条数"}
-		colAndRes["res"] = res
-
-		rc.ResData = colAndRes
-		// 保存sql执行记录
-		if res[0]["影响条数"] > "0" {
-			execRecord.Remark = form.Remark
-			d.DbSqlExecApp.Save(execRecord)
-		}
-	}
+	execRes, err := d.DbSqlExecApp.Exec(&application.DbSqlExecReq{
+		DbId:         id,
+		Db:           db,
+		Sql:          sql,
+		Remark:       form.Remark,
+		DbInstance:   dbInstance,
+		LoginAccount: rc.LoginAccount,
+	})
+	biz.ErrIsNilAppendErr(err, "执行失败: %s")
+	colAndRes := make(map[string]interface{})
+	colAndRes["colNames"] = execRes.ColNames
+	colAndRes["res"] = execRes.Res
+	rc.ResData = colAndRes
 }
 
 // 执行sql文件
@@ -271,9 +255,9 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 
 		var sqlTmp string
 		switch dbInstance.Type {
-		case "mysql":
+		case entity.DbTypeMysql:
 			sqlTmp = "SELECT * FROM %s LIMIT %d, %d"
-		case "postgres":
+		case entity.DbTypePostgres:
 			sqlTmp = "SELECT * FROM %s OFFSET %d LIMIT %d"
 		}
 		for index := 0; index < pageNum; index++ {

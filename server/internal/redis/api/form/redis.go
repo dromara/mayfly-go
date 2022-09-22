@@ -35,6 +35,18 @@ type SetValue struct {
 	Value []interface{} `binding:"required" json:"value"`
 }
 
+type ListValue struct {
+	KeyInfo
+	Value []interface{} `binding:"required" json:"value"`
+}
+
+// list lset命令参数入参
+type ListSetValue struct {
+	Key   string `binding:"required" json:"key"`
+	Index int64
+	Value interface{} `binding:"required" json:"value"`
+}
+
 type RedisScanForm struct {
 	Cursor map[string]uint64 `json:"cursor"`
 	Match  string            `json:"match"`

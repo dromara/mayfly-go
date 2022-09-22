@@ -27,7 +27,7 @@ CREATE TABLE `t_db` (
   `username` varchar(255) COLLATE utf8mb4_bin NOT NULL,
   `password` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
   `type` varchar(20) COLLATE utf8mb4_bin NOT NULL COMMENT '数据库实例类型(mysql...)',
-  `database` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
+  `database` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
   `params` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '其他连接参数',
   `network` varchar(20) COLLATE utf8mb4_bin DEFAULT NULL,
   `enable_ssh_tunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',

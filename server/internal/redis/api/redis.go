@@ -383,3 +383,55 @@ func (r *Redis) SetSetValue(rc *ctx.ReqCtx) {
 		cmd.Expire(context.TODO(), key, time.Second*time.Duration(keyvalue.Timed))
 	}
 }
+
+func (r *Redis) GetListValue(rc *ctx.ReqCtx) {
+	ri, key := r.checkKey(rc)
+	ctx := context.TODO()
+	cmdable := ri.GetCmdable()
+
+	len, err := cmdable.LLen(ctx, key).Result()
+	biz.ErrIsNilAppendErr(err, "获取list长度失败: %s")
+
+	g := rc.GinCtx
+	start := ginx.QueryInt(g, "start", 0)
+	stop := ginx.QueryInt(g, "stop", 10)
+	res, err := cmdable.LRange(ctx, key, int64(start), int64(stop)).Result()
+	biz.ErrIsNilAppendErr(err, "获取list值失败: %s")
+
+	rc.ResData = map[string]interface{}{
+		"len":  len,
+		"list": res,
+	}
+}
+
+func (r *Redis) SaveListValue(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	listValue := new(form.ListValue)
+	ginx.BindJsonAndValid(g, listValue)
+
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	biz.ErrIsNilAppendErr(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "%s")
+	cmd := ri.GetCmdable()
+
+	key := listValue.Key
+	ctx := context.TODO()
+	for _, v := range listValue.Value {
+		cmd.RPush(ctx, key, v)
+	}
+
+	if listValue.Timed != -1 {
+		cmd.Expire(context.TODO(), key, time.Second*time.Duration(listValue.Timed))
+	}
+}
+
+func (r *Redis) SetListValue(rc *ctx.ReqCtx) {
+	g := rc.GinCtx
+	listSetValue := new(form.ListSetValue)
+	ginx.BindJsonAndValid(g, listSetValue)
+
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	biz.ErrIsNilAppendErr(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "%s")
+
+	_, err := ri.GetCmdable().LSet(context.TODO(), listSetValue.Key, listSetValue.Index, listSetValue.Value).Result()
+	biz.ErrIsNilAppendErr(err, "list set失败: %s")
+}

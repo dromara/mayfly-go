@@ -29,18 +29,23 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="type" label="类型" min-width="90"></el-table-column>
-                <el-table-column prop="database" label="数据库" min-width="160">
+                <el-table-column prop="database" label="数据库" min-width="80">
                     <template #default="scope">
-                        <el-tag
-                            @click="showTableInfo(scope.row, db)"
-                            effect="plain"
-                            type="success"
-                            size="small"
-                            v-for="db in scope.row.dbs"
-                            :key="db"
-                            style="cursor: pointer; margin-left: 3px"
-                            >{{ db }}</el-tag
-                        >
+                        <el-popover :width="250" placement="right" trigger="click">
+                            <template #reference>
+                                <el-link type="primary" :underline="false" plain>查看</el-link>
+                            </template>
+                            <el-tag
+                                @click="showTableInfo(scope.row, db)"
+                                effect="plain"
+                                type="success"
+                                size="small"
+                                v-for="db in scope.row.dbs"
+                                :key="db"
+                                style="cursor: pointer; margin-left: 3px; margin-bottom: 3px;"
+                                >{{ db }}</el-tag
+                            >
+                        </el-popover>
                     </template>
                 </el-table-column>
                 <el-table-column prop="username" label="用户名" min-width="100"></el-table-column>
@@ -161,8 +166,10 @@
             v-model="sqlExecLogDialog.visible"
         >
             <div class="toolbar">
-                <el-input v-model="sqlExecLogDialog.query.db" placeholder="请输入数据库名" clearable style="width: 150px" />
-                <el-input v-model="sqlExecLogDialog.query.table" placeholder="请输入表名" clearable class="ml5" style="width: 150px" />
+                <el-select v-model="sqlExecLogDialog.query.db" placeholder="请选择数据库" filterable clearable>
+                    <el-option v-for="item in sqlExecLogDialog.dbs" :key="item" :label="`${item}`" :value="item"> </el-option>
+                </el-select>
+                <el-input v-model="sqlExecLogDialog.query.table" placeholder="请输入表名" clearable class="ml5" style="width: 180px" />
                 <el-select v-model="sqlExecLogDialog.query.type" placeholder="请选择操作类型" clearable class="ml5">
                     <el-option v-for="item in enums.DbSqlExecTypeEnum" :key="item.value" :label="item.label" :value="item.value"> </el-option>
                 </el-select>
@@ -307,6 +314,7 @@ export default defineComponent({
                 visible: false,
                 data: [],
                 total: 0,
+                dbs: [],
                 query: {
                     dbId: 0,
                     db: '',
@@ -438,6 +446,7 @@ export default defineComponent({
         const onShowSqlExec = async (row: any) => {
             state.sqlExecLogDialog.title = `${row.name}[${row.host}:${row.port}]`;
             state.sqlExecLogDialog.query.dbId = row.id;
+            state.sqlExecLogDialog.dbs = row.database.split(' ');
             searchSqlExecLog();
             state.sqlExecLogDialog.visible = true;
         };
@@ -445,6 +454,7 @@ export default defineComponent({
         const onBeforeCloseSqlExecDialog = () => {
             state.sqlExecLogDialog.visible = false;
             state.sqlExecLogDialog.data = [];
+            state.sqlExecLogDialog.dbs = [];
             state.sqlExecLogDialog.total = 0;
             state.sqlExecLogDialog.query.dbId = 0;
             state.sqlExecLogDialog.query.pageNum = 1;
