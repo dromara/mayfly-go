@@ -14,7 +14,6 @@ import (
 	"mayfly-go/pkg/middleware"
 	"mayfly-go/static"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,7 +21,6 @@ import (
 func WrapStaticHandler(h http.Handler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Writer.Header().Set("Cache-Control", `public, max-age=31536000`)
-		c.Request.URL.Path = strings.Split(c.Request.RequestURI, "/mayfly")[1]
 		h.ServeHTTP(c.Writer, c.Request)
 	}
 }

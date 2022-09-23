@@ -114,8 +114,20 @@
                         </div>
 
                         <div class="mt5">
-                            <el-row v-if="queryTab.nowTableName">
-                                <el-link @click="onDeleteData" class="ml5" type="danger" icon="delete" :underline="false"></el-link>
+                            <el-row>
+                                <el-link
+                                    v-if="queryTab.nowTableName"
+                                    @click="onDeleteData"
+                                    class="ml5"
+                                    type="danger"
+                                    icon="delete"
+                                    :underline="false"
+                                ></el-link>
+
+                                <span v-if="queryTab.execRes.data.length > 0">
+                                    <el-divider direction="vertical" border-style="dashed" />
+                                    <el-link type="success" :underline="false" @click="exportData"><span style="font-size: 12px">导出</span></el-link>
+                                </span>
                             </el-row>
                             <el-table
                                 @cell-dblclick="cellClick"
@@ -183,11 +195,7 @@
                                 <template #prepend>
                                     <el-popover trigger="click" :width="320" placement="right">
                                         <template #reference>
-                                            <el-link
-                                                type="success"
-                                                :underline="false"
-                                                >选择列</el-link
-                                            >
+                                            <el-link type="success" :underline="false">选择列</el-link>
                                         </template>
                                         <el-table
                                             :data="getColumns4Map(dt.name)"
@@ -312,6 +320,7 @@ import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
 import SqlExecBox from './component/SqlExecBox';
+import { dateStrFormat } from '@/common/utils/date.ts';
 
 export default defineComponent({
     name: 'SqlExec',
@@ -511,6 +520,36 @@ export default defineComponent({
                 state.queryTab.nowTableName = '';
                 state.nowTableName = '';
             }
+        };
+
+        const exportData = () => {
+            const dataList = state.queryTab.execRes.data;
+            isTrue(dataList.length > 0, '没有数据可导出');
+
+            const tableColumn = state.queryTab.execRes.tableColumn;
+            // 二维数组
+            const cvsData = [tableColumn];
+            for (let data of dataList) {
+                // 数据值组成的一维数组
+                let dataValueArr: any = [];
+                for (let column of tableColumn) {
+                    dataValueArr.push(data[column]);
+                }
+                cvsData.push(dataValueArr);
+            }
+            const csvString = cvsData.map((e) => e.join(',')).join('\n');
+
+            // 导出
+            let link = document.createElement('a');
+            let exportContent = '\uFEFF';
+            let blob = new Blob([exportContent + csvString], {
+                type: 'text/plain;charset=utrf-8',
+            });
+            link.id = 'download-csv';
+            link.setAttribute('href', URL.createObjectURL(blob));
+            link.setAttribute('download', `查询数据导出-${dateStrFormat('yyyyMMddHHmmss', new Date())}.csv`);
+            document.body.appendChild(link);
+            link.click();
         };
 
         /**
@@ -1187,6 +1226,7 @@ export default defineComponent({
             changeTable,
             cellClick,
             onRunSql,
+            exportData,
             removeDataTab,
             onDataTabClick,
             beforeUpload,

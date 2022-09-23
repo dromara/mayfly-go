@@ -66,7 +66,16 @@
                 :percentage="progressNum"
             />
             <div style="height: 45vh; overflow: auto">
-                <el-tree v-if="tree.visible" ref="fileTree" :highlight-current="true" :load="loadNode" :props="props" lazy node-key="id" :expand-on-click-node="true">
+                <el-tree
+                    v-if="tree.visible"
+                    ref="fileTree"
+                    :highlight-current="true"
+                    :load="loadNode"
+                    :props="props"
+                    lazy
+                    node-key="id"
+                    :expand-on-click-node="true"
+                >
                     <template #default="{ node, data }">
                         <span class="custom-tree-node">
                             <el-dropdown size="small" @visible-change="getFilePath(data, $event)" trigger="contextmenu">
@@ -86,7 +95,7 @@
                                         <span style="color: #67c23a" v-if="data.type == '-'">&nbsp;&nbsp;[{{ formatFileSize(data.size) }}]</span>
                                     </span>
 
-                                     <span style="display: inline-block">
+                                    <span style="display: inline-block">
                                         <span v-if="data.mode" style="color: #67c23a">&nbsp;&nbsp;[{{ data.mode }} {{ data.modTime }}]</span>
                                     </span>
                                 </span>
@@ -281,9 +290,9 @@ export default defineComponent({
             file: null as any,
         });
 
-        watch(props, (newValue) => {
-            if (newValue.machineId) {
-                getFiles();
+        watch(props, async (newValue) => {
+            if (newValue.machineId && newValue.visible) {
+                await getFiles();
             }
             state.dialogVisible = newValue.visible;
         });

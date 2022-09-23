@@ -589,7 +589,7 @@ func (mm *MysqlMetadata) GetTableInfos() []map[string]interface{} {
 
 // 获取表索引信息
 func (mm *MysqlMetadata) GetTableIndex(tableName string) []map[string]interface{} {
-	_, res, _ := mm.di.SelectData(MYSQL_INDEX_INFO)
+	_, res, _ := mm.di.SelectData(fmt.Sprintf(MYSQL_INDEX_INFO, tableName))
 	return res
 }
 
@@ -708,7 +708,7 @@ func (pm *PgsqlMetadata) GetTableInfos() []map[string]interface{} {
 
 // 获取表索引信息
 func (pm *PgsqlMetadata) GetTableIndex(tableName string) []map[string]interface{} {
-	_, res, _ := pm.di.SelectData(PGSQL_INDEX_INFO)
+	_, res, _ := pm.di.SelectData(fmt.Sprintf(PGSQL_INDEX_INFO, tableName))
 	return res
 }
 

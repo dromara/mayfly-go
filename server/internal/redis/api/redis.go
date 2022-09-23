@@ -72,7 +72,7 @@ func (r *Redis) RedisInfo(rc *ctx.ReqCtx) {
 	var err error
 
 	ctx := context.Background()
-	if ri.Mode == "" || ri.Mode == entity.RedisModeStandalone {
+	if ri.Mode == "" || ri.Mode == entity.RedisModeStandalone || ri.Mode == entity.RedisModeSentinel {
 		res, err = ri.Cli.Info(ctx).Result()
 	} else if ri.Mode == entity.RedisModeCluster {
 		host := rc.GinCtx.Query("host")

@@ -63,6 +63,7 @@ func newProjectApp(projectRepo repository.Project,
 		machineApp:        machineApp,
 		redisApp:          redisApp,
 		dbApp:             dbApp,
+		mongoApp:          mongoApp,
 	}
 }
 

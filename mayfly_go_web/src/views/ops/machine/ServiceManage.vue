@@ -187,9 +187,9 @@ export default defineComponent({
             },
         });
 
-        watch(props, (newValue) => {
-            if (props.machineId) {
-                getScripts();
+        watch(props, async (newValue) => {
+            if (props.machineId && newValue.visible) {
+                await getScripts();
             }
             state.dialogVisible = newValue.visible;
         });
