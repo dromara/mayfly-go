@@ -70,6 +70,7 @@ export default defineComponent({
                     foreground: getThemeConfig.value.terminalForeground || '#7e9192', //字体
                     background: getThemeConfig.value.terminalBackground || '#002833', //背景色
                     cursor: getThemeConfig.value.terminalCursor || '#268F81', //设置光标
+                    // cursorAccent: "red",  // 光标停止颜色
                 } as any,
             });
             const fitAddon = new FitAddon();

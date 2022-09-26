@@ -64,7 +64,15 @@ type MachineFileInfo struct {
 	ModTime string `json:"modTime"`
 }
 
-type RoleVO struct {
-	Id   *int64
-	Name *string
+type MachineFileInfos []MachineFileInfo
+
+func (s MachineFileInfos) Len() int { return len(s) }
+
+func (s MachineFileInfos) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+func (s MachineFileInfos) Less(i, j int) bool {
+	if s[i].Type != s[j].Type {
+		return s[i].Type > s[j].Type
+	}
+	return s[i].Name < s[j].Name
 }

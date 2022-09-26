@@ -14,6 +14,7 @@ import (
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/utils"
 	"mayfly-go/pkg/ws"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -124,6 +125,7 @@ func (m *MachineFile) GetDirEntry(rc *ctx.ReqCtx) {
 			ModTime: fi.ModTime().Format("2006-01-02 15:04:05"),
 		})
 	}
+	sort.Sort(vo.MachineFileInfos(fisVO))
 	rc.ResData = fisVO
 	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
 }

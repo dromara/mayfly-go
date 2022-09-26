@@ -204,8 +204,8 @@ export default defineComponent({
             notBlank(state.scanParam.count, 'count不能为空');
 
             const match = state.scanParam.match;
-            if (!match || match == '*') {
-                isTrue(state.scanParam.count <= 200, 'match为空或者*时, count不能超过200');
+            if (!match || (match as string).length < 4) {
+                isTrue(state.scanParam.count <= 200, 'key为空或小于4字符时, count不能超过200');
             } else {
                 isTrue(state.scanParam.count <= 20000, 'count不能超过20000');
             }

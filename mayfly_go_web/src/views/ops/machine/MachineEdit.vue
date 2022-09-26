@@ -198,6 +198,7 @@ export default defineComponent({
         };
 
         const getSshTunnelMachine = (machineId: any) => {
+            notBlank(machineId, '请选择或先创建一台隧道机器');
             return state.sshTunnelMachineList.find((x: any) => x.id == machineId);
         };
 

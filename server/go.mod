@@ -15,12 +15,11 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
 	go.mongodb.org/mongo-driver v1.9.1 // mongo
-	golang.org/x/crypto v0.0.0-20220919173607-35f4265a4bc0
-	// ssh
+	golang.org/x/crypto v0.0.0-20220924013350-4ba4fb4dd9e7 // ssh
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
-	gorm.io/driver/mysql v1.3.5
-	gorm.io/gorm v1.23.8
+	gorm.io/driver/mysql v1.3.6
+	gorm.io/gorm v1.23.10
 )
 
 require (
