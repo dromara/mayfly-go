@@ -242,10 +242,10 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 		// 查询出所有列信息总数，手动分页获取所有数据
 		maCount := 0
 		// 查询出所有列信息总数，手动分页获取所有数据
-		if count64, is64 := countRes[0]["maNum"].(int64); is64 {
+		if count64, is64 := countRes[0]["count"].(int64); is64 {
 			maCount = int(count64)
 		} else {
-			maCount = countRes[0]["maNum"].(int)
+			maCount = countRes[0]["count"].(int)
 		}
 		// 计算需要查询的页数
 		pageNum := maCount / DEFAULT_COLUMN_SIZE

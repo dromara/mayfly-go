@@ -335,52 +335,66 @@ func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]interf
 		for i, v := range vals {
 			colType := colTypes[i]
 			colName := colType.Name()
-			// 字段类型名
-			colScanType := colType.ScanType().Name()
 			// 如果是第一行，则将列名加入到列信息中，由于map是无序的，所有需要返回列名的有序数组
 			if isFirst {
 				colNames = append(colNames, colName)
 			}
-			if v == nil {
-				rowData[colName] = nil
-				continue
-			}
-			// 这里把[]byte数据转成string
-			stringV := string(v)
-			if stringV == "" {
-				rowData[colName] = stringV
-				continue
-			}
-			if strings.Contains(colScanType, "int") || strings.Contains(colScanType, "Int") {
-				intV, _ := strconv.Atoi(stringV)
-				switch colType.ScanType().Kind() {
-				case reflect.Int8:
-					rowData[colName] = int8(intV)
-				case reflect.Uint8:
-					rowData[colName] = uint8(intV)
-				case reflect.Int64:
-					rowData[colName] = int64(intV)
-				case reflect.Uint64:
-					rowData[colName] = uint64(intV)
-				case reflect.Uint:
-					rowData[colName] = uint(intV)
-				default:
-					rowData[colName] = intV
-				}
-				continue
-			}
-			if strings.Contains(colScanType, "float") || strings.Contains(colScanType, "Float") {
-				floatV, _ := strconv.ParseFloat(stringV, 64)
-				rowData[colName] = floatV
-			} else {
-				rowData[colName] = stringV
-			}
+			rowData[colName] = valueConvert(v, colType)
 		}
 		// 放入结果集
 		result = append(result, rowData)
 		isFirst = false
 	}
 	return colNames, result, nil
+}
+
+// 将查询的值转为对应列类型的实际值，不全部转为字符串
+func valueConvert(data []byte, colType *sql.ColumnType) interface{} {
+	if data == nil {
+		return nil
+	}
+	// 列的数据库类型名
+	colDatabaseTypeName := strings.ToLower(colType.DatabaseTypeName())
+
+	// 如果类型是bit，则直接返回第一个字节即可
+	if strings.Contains(colDatabaseTypeName, "bit") {
+		return data[0]
+	}
+
+	// 这里把[]byte数据转成string
+	stringV := string(data)
+	if stringV == "" {
+		return ""
+	}
+	colScanType := strings.ToLower(colType.ScanType().Name())
+
+	if strings.Contains(colScanType, "int") {
+		// 如果长度超过16位，则返回字符串，因为前端js长度大于16会丢失精度
+		if len(stringV) > 16 {
+			return stringV
+		}
+		intV, _ := strconv.Atoi(stringV)
+		switch colType.ScanType().Kind() {
+		case reflect.Int8:
+			return int8(intV)
+		case reflect.Uint8:
+			return uint8(intV)
+		case reflect.Int64:
+			return int64(intV)
+		case reflect.Uint64:
+			return uint64(intV)
+		case reflect.Uint:
+			return uint(intV)
+		default:
+			return intV
+		}
+	}
+	if strings.Contains(colScanType, "float") {
+		floatV, _ := strconv.ParseFloat(stringV, 64)
+		return floatV
+	}
+
+	return stringV
 }
 
 type PqSqlDialer struct {

@@ -90,13 +90,8 @@
                                         <SvgIcon name="document" />
                                     </span>
 
-                                    <span style="display: inline-block">
+                                    <span>
                                         {{ node.label }}
-                                        <span style="color: #67c23a" v-if="data.type == '-'">&nbsp;&nbsp;[{{ formatFileSize(data.size) }}]</span>
-                                    </span>
-
-                                    <span style="display: inline-block">
-                                        <span v-if="data.mode" style="color: #67c23a">&nbsp;&nbsp;[{{ data.mode }} {{ data.modTime }}]</span>
                                     </span>
                                 </span>
 
@@ -146,6 +141,10 @@
                                     </el-dropdown-menu>
                                 </template>
                             </el-dropdown>
+                            <span style="display: inline-block" class="ml15">
+                                <span style="color: #67c23a" v-if="data.type == '-'">[{{ formatFileSize(data.size) }}]</span>
+                                <span v-if="data.mode" style="color: #67c23a">&nbsp;[{{ data.mode }} {{ data.modTime }}]</span>
+                            </span>
                         </span>
                     </template>
                 </el-tree>
@@ -174,7 +173,7 @@
             </div>
 
             <template #footer>
-                <div class="dialog-footer">
+                <div>
                     <el-button @click="closeCreateFileDialog">关闭</el-button>
                     <el-button v-auth="'machine:file:write'" type="primary" @click="createFile">确定</el-button>
                 </div>
