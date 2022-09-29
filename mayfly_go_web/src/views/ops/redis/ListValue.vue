@@ -74,6 +74,10 @@ export default defineComponent({
             type: [Number],
             require: true,
         },
+        db: {
+            type: [Number],
+            require: true,
+        },
         keyInfo: {
             type: [Object],
         },
@@ -91,6 +95,7 @@ export default defineComponent({
             dialogVisible: false,
             operationType: 1,
             redisId: '',
+            db: 0,
             key: {
                 key: '',
                 type: 'string',
@@ -121,6 +126,7 @@ export default defineComponent({
             state.dialogVisible = newValue.visible;
             state.key = newValue.key;
             state.redisId = newValue.redisId;
+            state.db = newValue.db;
             state.key = newValue.keyInfo;
             state.operationType = newValue.operationType;
             // 如果是查看编辑操作，则获取值
@@ -134,6 +140,7 @@ export default defineComponent({
             const pageSize = state.pageSize;
             const res = await redisApi.getListValue.request({
                 id: state.redisId,
+                db: state.db,
                 key: state.key.key,
                 start: (pageNum - 1) * pageSize,
                 stop: pageNum * pageSize - 1,
@@ -149,6 +156,7 @@ export default defineComponent({
         const lset = async (row: any, rowIndex: number) => {
             await redisApi.setListValue.request({
                 id: state.redisId,
+                db: state.db,
                 key: state.key.key,
                 index: (state.pageNum - 1) * state.pageSize + rowIndex,
                 value: row.value,

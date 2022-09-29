@@ -81,6 +81,10 @@ export default defineComponent({
             type: [Number],
             require: true,
         },
+        db: {
+            type: [Number],
+            require: true,
+        },
         keyInfo: {
             type: [Object],
         },
@@ -94,6 +98,7 @@ export default defineComponent({
             dialogVisible: false,
             operationType: 1,
             redisId: 0,
+            db: 0,
             key: {
                 key: '',
                 type: 'hash',
@@ -102,6 +107,7 @@ export default defineComponent({
             scanParam: {
                 key: '',
                 id: 0,
+                db: 0,
                 cursor: 0,
                 match: '',
                 count: 10,
@@ -127,6 +133,7 @@ export default defineComponent({
         watch(props, async (newValue) => {
             const visible = newValue.visible;
             state.redisId = newValue.redisId;
+            state.db = newValue.db;
             state.key = newValue.keyInfo;
             state.operationType = newValue.operationType;
 
@@ -141,6 +148,7 @@ export default defineComponent({
 
         const reHscan = async () => {
             state.scanParam.id = state.redisId;
+            state.scanParam.db = state.db;
             state.scanParam.cursor = 0;
             hscan();
         };
@@ -186,6 +194,7 @@ export default defineComponent({
             });
             await redisApi.hdel.request({
                 id: state.redisId,
+                db: state.db,
                 key: state.key.key,
                 field,
             });
@@ -196,6 +205,7 @@ export default defineComponent({
         const hset = async (row: any) => {
             await redisApi.saveHashValue.request({
                 id: state.redisId,
+                db: state.db,
                 key: state.key.key,
                 timed: state.key.timed,
                 value: [
@@ -215,7 +225,7 @@ export default defineComponent({
         const saveValue = async () => {
             notEmpty(state.key.key, 'key不能为空');
             isTrue(state.hashValues.length > 0, 'hash内容不能为空');
-            const sv = { value: state.hashValues, id: state.redisId };
+            const sv = { value: state.hashValues, id: state.redisId, db: state.db };
             Object.assign(sv, state.key);
             await redisApi.saveHashValue.request(sv);
             ElMessage.success('保存成功');

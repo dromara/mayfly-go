@@ -8,12 +8,12 @@
                             <template #default>
                                 <el-form-item label="redis" label-width="40px">
                                     <el-select v-model="scanParam.id" placeholder="请选择redis" @change="changeRedis" @clear="clearRedis" clearable>
-                                        <el-option v-for="item in redisList" :key="item.id" :label="item.host" :value="item.id">
-                                            <span style="float: left">{{ item.host }}</span>
-                                            <span style="float: right; color: #8492a6; margin-left: 6px; font-size: 13px">{{
-                                                `库: [${item.db}]`
-                                            }}</span>
-                                        </el-option>
+                                        <el-option v-for="item in redisList" :key="item.id" :label="item.host" :value="item.id"> </el-option>
+                                    </el-select>
+                                </el-form-item>
+                                <el-form-item label="库" label-width="20px">
+                                    <el-select v-model="scanParam.db" @change="changeDb" placeholder="库"  style="width: 70px">
+                                        <el-option v-for="db in dbList" :key="db" :label="db" :value="db"> </el-option>
                                     </el-select>
                                 </el-form-item>
                             </template>
@@ -61,7 +61,7 @@
                         <el-tag :color="getTypeColor(scope.row.type)" size="small">{{ scope.row.type }}</el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column prop="ttl" label="ttl(过期时间)" width="130">
+                <el-table-column prop="ttl" label="ttl(过期时间)" width="140">
                     <template #default="scope">
                         {{ ttlConveter(scope.row.ttl) }}
                     </template>
@@ -83,6 +83,7 @@
             :title="dataEdit.title"
             :keyInfo="dataEdit.keyInfo"
             :redisId="scanParam.id"
+            :db="scanParam.db"
             @cancel="onCancelDataEdit"
             @valChange="searchKey"
         />
@@ -93,6 +94,7 @@
             :title="dataEdit.title"
             :keyInfo="dataEdit.keyInfo"
             :redisId="scanParam.id"
+            :db="scanParam.db"
             @cancel="onCancelDataEdit"
             @valChange="searchKey"
         />
@@ -102,6 +104,7 @@
             :title="dataEdit.title"
             :keyInfo="dataEdit.keyInfo"
             :redisId="scanParam.id"
+            :db="scanParam.db"
             :operationType="dataEdit.operationType"
             @valChange="searchKey"
             @cancel="onCancelDataEdit"
@@ -112,6 +115,7 @@
             :title="dataEdit.title"
             :keyInfo="dataEdit.keyInfo"
             :redisId="scanParam.id"
+            :db="scanParam.db"
             :operationType="dataEdit.operationType"
             @valChange="searchKey"
             @cancel="onCancelDataEdit"
@@ -143,11 +147,13 @@ export default defineComponent({
         const state = reactive({
             loading: false,
             redisList: [],
+            dbList: [],
             query: {
                 envId: 0,
             },
             scanParam: {
                 id: null,
+                db: null,
                 match: null,
                 count: 10,
                 cursor: {},
@@ -194,6 +200,14 @@ export default defineComponent({
 
         const changeRedis = (id: number) => {
             resetScanParam(id);
+            state.scanParam.db = null;
+            state.dbList = (state.redisList.find((x: any) => x.id == id) as any).db.split(',');
+            state.keys = [];
+            state.dbsize = 0;
+        };
+
+        const changeDb = () => {
+            resetScanParam(state.scanParam.id as any);
             state.keys = [];
             state.dbsize = 0;
             searchKey();
@@ -230,6 +244,7 @@ export default defineComponent({
             state.redisList = [];
             state.scanParam.id = null;
             resetScanParam();
+            state.scanParam.db = null;
             state.keys = [];
             state.dbsize = 0;
         };
@@ -247,7 +262,7 @@ export default defineComponent({
                 const redis: any = state.redisList.find((x: any) => x.id == id);
                 // 集群模式count设小点，因为后端会从所有master节点scan一遍然后合并结果
                 if (redis && redis.mode == 'cluster') {
-                    state.scanParam.count = 5;
+                    state.scanParam.count = 4;
                 }
             }
             state.scanParam.match = null;
@@ -310,6 +325,7 @@ export default defineComponent({
                         .request({
                             key,
                             id: state.scanParam.id,
+                            db: state.scanParam.db,
                         })
                         .then(() => {
                             ElMessage.success('删除成功！');
@@ -371,6 +387,7 @@ export default defineComponent({
             ...toRefs(state),
             changeProjectEnv,
             changeRedis,
+            changeDb,
             clearRedis,
             searchKey,
             scan,

@@ -45,7 +45,9 @@
                     >
                 </el-form-item>
                 <el-form-item prop="db" label="库号:" required>
-                    <el-input v-model.number="form.db" placeholder="请输入库号"></el-input>
+                    <el-select @change="changeDb" v-model="dbList" multiple placeholder="请选择可操作库号" style="width: 100%">
+                        <el-option v-for="db in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]" :key="db" :label="db" :value="db" />
+                    </el-select>
                 </el-form-item>
                 <el-form-item prop="remark" label="备注:">
                     <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
@@ -116,6 +118,7 @@ export default defineComponent({
                 mode: 'standalone',
                 host: '',
                 password: null,
+                db: '',
                 project: null,
                 projectId: null,
                 envId: null,
@@ -124,6 +127,7 @@ export default defineComponent({
                 enableSshTunnel: null,
                 sshTunnelMachineId: null,
             },
+            dbList: [0],
             pwd: '',
             btnLoading: false,
             rules: {
@@ -151,14 +155,14 @@ export default defineComponent({
                 db: [
                     {
                         required: true,
-                        message: '请输入库号',
+                        message: '请选择库号',
                         trigger: ['change', 'blur'],
                     },
                 ],
                 mode: [
                     {
                         required: true,
-                        message: '请输入模式',
+                        message: '请选择模式',
                         trigger: ['change', 'blur'],
                     },
                 ],
@@ -174,12 +178,25 @@ export default defineComponent({
             if (newValue.redis) {
                 getEnvs(newValue.redis.projectId);
                 state.form = { ...newValue.redis };
+                convertDb(state.form.db);
             } else {
                 state.envs = [];
-                state.form = { db: 0, enableSshTunnel: -1 } as any;
+                state.form = { db: '0', enableSshTunnel: -1 } as any;
+                state.dbList = [];
             }
             getSshTunnelMachines();
         });
+
+        const convertDb = (db: string) => {
+            state.dbList = db.split(',').map((x) => Number.parseInt(x));
+        };
+
+        /**
+         * 改变表单中的数据库字段，方便表单错误提示。如全部删光，可提示请添加库号
+         */
+        const changeDb = () => {
+            state.form.db = state.dbList.length == 0 ? '' : state.dbList.join(',');
+        };
 
         const getSshTunnelMachines = async () => {
             if (state.form.enableSshTunnel == 1 && state.sshTunnelMachineList.length == 0) {
@@ -250,6 +267,7 @@ export default defineComponent({
         return {
             ...toRefs(state),
             redisForm,
+            changeDb,
             getSshTunnelMachines,
             getPwd,
             changeProject,

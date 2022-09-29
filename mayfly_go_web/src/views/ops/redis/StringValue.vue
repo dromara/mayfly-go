@@ -48,6 +48,10 @@ export default defineComponent({
             type: [Number],
             require: true,
         },
+        db: {
+            type: [Number],
+            require: true,
+        },
         keyInfo: {
             type: [Object],
         },
@@ -62,6 +66,7 @@ export default defineComponent({
             dialogVisible: false,
             operationType: 1,
             redisId: '',
+            db: 0,
             key: {
                 key: '',
                 type: 'string',
@@ -101,12 +106,20 @@ export default defineComponent({
             }
         );
 
+        watch(
+            () => props.db,
+            (val) => {
+                state.db = val;
+            }
+        );
+
         watch(props, async (newValue) => {
             state.dialogVisible = newValue.visible;
             state.key = newValue.key;
             state.redisId = newValue.redisId;
+            state.db = newValue.db;
             state.key = newValue.keyInfo;
-            state.operationType = newValue.operationType
+            state.operationType = newValue.operationType;
             // 如果是查看编辑操作，则获取值
             if (state.dialogVisible && state.operationType == 2) {
                 getStringValue();
@@ -116,6 +129,7 @@ export default defineComponent({
         const getStringValue = async () => {
             state.string.value = await redisApi.getStringValue.request({
                 id: state.redisId,
+                db: state.db,
                 key: state.key.key,
             });
         };
@@ -124,7 +138,7 @@ export default defineComponent({
             notEmpty(state.key.key, 'key不能为空');
 
             notEmpty(state.string.value, 'value不能为空');
-            const sv = { value: formatJsonString(state.string.value, true), id: state.redisId };
+            const sv = { value: formatJsonString(state.string.value, true), id: state.redisId, db: state.db };
             Object.assign(sv, state.key);
             await redisApi.saveStringValue.request(sv);
             ElMessage.success('数据保存成功');

@@ -66,7 +66,8 @@ func (r *Redis) DeleteRedis(rc *ctx.ReqCtx) {
 }
 
 func (r *Redis) RedisInfo(rc *ctx.ReqCtx) {
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	g := rc.GinCtx
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
 
 	var res string
 	var err error
@@ -137,7 +138,7 @@ func (r *Redis) RedisInfo(rc *ctx.ReqCtx) {
 
 func (r *Redis) ClusterInfo(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
 	biz.IsEquals(ri.Mode, entity.RedisModeCluster, "非集群模式")
 	info, _ := ri.ClusterCli.ClusterInfo(context.Background()).Result()
 	nodesStr, _ := ri.ClusterCli.ClusterNodes(context.Background()).Result()
@@ -182,7 +183,7 @@ func (r *Redis) ClusterInfo(rc *ctx.ReqCtx) {
 // scan获取redis的key列表信息
 func (r *Redis) Scan(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
 	biz.ErrIsNilAppendErr(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "%s")
 
 	form := &form.RedisScanForm{}
@@ -261,7 +262,7 @@ func (r *Redis) DeleteKey(rc *ctx.ReqCtx) {
 	key := g.Query("key")
 	biz.NotEmpty(key, "key不能为空")
 
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
 	biz.ErrIsNilAppendErr(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "%s")
 
 	rc.ReqParam = key
@@ -273,7 +274,7 @@ func (r *Redis) checkKey(rc *ctx.ReqCtx) (*application.RedisInstance, string) {
 	key := g.Query("key")
 	biz.NotEmpty(key, "key不能为空")
 
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
 	biz.ErrIsNilAppendErr(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "%s")
 
 	return ri, key
@@ -291,7 +292,7 @@ func (r *Redis) SetStringValue(rc *ctx.ReqCtx) {
 	keyValue := new(form.StringValue)
 	ginx.BindJsonAndValid(g, keyValue)
 
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
 	biz.ErrIsNilAppendErr(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "%s")
 
 	str, err := ri.GetCmdable().Set(context.TODO(), keyValue.Key, keyValue.Value, time.Second*time.Duration(keyValue.Timed)).Result()
@@ -343,7 +344,7 @@ func (r *Redis) SetHashValue(rc *ctx.ReqCtx) {
 	hashValue := new(form.HashValue)
 	ginx.BindJsonAndValid(g, hashValue)
 
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
 	biz.ErrIsNilAppendErr(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "%s")
 
 	cmd := ri.GetCmdable()
@@ -370,7 +371,7 @@ func (r *Redis) SetSetValue(rc *ctx.ReqCtx) {
 	keyvalue := new(form.SetValue)
 	ginx.BindJsonAndValid(g, keyvalue)
 
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
 	biz.ErrIsNilAppendErr(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "%s")
 	cmd := ri.GetCmdable()
 
@@ -409,7 +410,7 @@ func (r *Redis) SaveListValue(rc *ctx.ReqCtx) {
 	listValue := new(form.ListValue)
 	ginx.BindJsonAndValid(g, listValue)
 
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
 	biz.ErrIsNilAppendErr(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "%s")
 	cmd := ri.GetCmdable()
 
@@ -429,7 +430,7 @@ func (r *Redis) SetListValue(rc *ctx.ReqCtx) {
 	listSetValue := new(form.ListSetValue)
 	ginx.BindJsonAndValid(g, listSetValue)
 
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")))
+	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
 	biz.ErrIsNilAppendErr(r.ProjectApp.CanAccess(rc.LoginAccount.Id, ri.ProjectId), "%s")
 
 	_, err := ri.GetCmdable().LSet(context.TODO(), listSetValue.Key, listSetValue.Index, listSetValue.Value).Result()

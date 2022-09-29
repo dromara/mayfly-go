@@ -6,7 +6,7 @@ type Redis struct {
 	Id *int64 `json:"id"`
 	// Name       *string    `json:"name"`
 	Host               *string    `json:"host"`
-	Db                 int        `json:"db"`
+	Db                 string     `json:"db"`
 	ProjectId          *int64     `json:"projectId"`
 	Project            *string    `json:"project"`
 	Mode               *string    `json:"mode"`

@@ -262,7 +262,7 @@ CREATE TABLE `t_redis` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `host` varchar(255) COLLATE utf8mb4_bin NOT NULL,
   `password` varchar(100) COLLATE utf8mb4_bin DEFAULT NULL,
-  `db` int(32) DEFAULT NULL,
+  `db` varchar(64) DEFAULT NULL COMMENT '库号: 多个库用,分割',
   `mode` varchar(32) DEFAULT NULL,
   `enable_ssh_tunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',

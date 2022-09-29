@@ -20,7 +20,7 @@
                 </el-table-column>
                 <el-table-column label="操作" width="90">
                     <template #default="scope">
-                        <el-button type="danger" @click="set.value.splice(scope.$index, 1)" icon="delete" size="small" plain>删除</el-button>
+                        <el-button type="danger" @click="value.splice(scope.$index, 1)" icon="delete" size="small" plain>删除</el-button>
                     </template>
                 </el-table-column>
             </el-table>
@@ -53,6 +53,10 @@ export default defineComponent({
             type: [Number],
             require: true,
         },
+        db: {
+            type: [Number],
+            require: true,
+        },
         keyInfo: {
             type: [Object],
         },
@@ -70,6 +74,7 @@ export default defineComponent({
             dialogVisible: false,
             operationType: 1,
             redisId: '',
+            db: 0,
             key: {
                 key: '',
                 type: 'string',
@@ -95,6 +100,7 @@ export default defineComponent({
             state.dialogVisible = newValue.visible;
             state.key = newValue.key;
             state.redisId = newValue.redisId;
+            state.db = newValue.db;
             state.key = newValue.keyInfo;
             state.operationType = newValue.operationType;
             // 如果是查看编辑操作，则获取值
@@ -106,6 +112,7 @@ export default defineComponent({
         const getSetValue = async () => {
             const res = await redisApi.getSetValue.request({
                 id: state.redisId,
+                db: state.db,
                 key: state.key.key,
             });
             state.value = res.map((x: any) => {
@@ -118,7 +125,7 @@ export default defineComponent({
         const saveValue = async () => {
             notEmpty(state.key.key, 'key不能为空');
             isTrue(state.value.length > 0, 'set内容不能为空');
-            const sv = { value: state.value.map((x) => x.value), id: state.redisId };
+            const sv = { value: state.value.map((x) => x.value), id: state.redisId, db: state.db };
             Object.assign(sv, state.key);
             await redisApi.saveSetValue.request(sv);
 
