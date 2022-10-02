@@ -20,9 +20,9 @@ aes:
 mysql:
   # 自动升级数据库
   auto-migration: false
-  host: mysql:3306
+  host: localhost:3366
   username: root
-  password: 111049
+  password: root
   db-name: mayfly-go
   config: charset=utf8&loc=Local&parseTime=true
   max-idle-conns: 5

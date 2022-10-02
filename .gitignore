@@ -24,3 +24,7 @@ server/docs/docker-compose
 server/config.yml
 server/ip2region.xdb
 mayfly-go.log
+
+mysql*
+deploy*
+pkg*
