@@ -8,7 +8,7 @@
             </el-form-item>
 
             <el-form-item prop="env" label="env" label-width="33px">
-                <el-select style="width: 80px" v-model="envId" placeholder="环境" @change="changeEnv" filterable>
+                <el-select style="width: 85px" v-model="envId" placeholder="环境" @change="changeEnv" filterable>
                     <el-option v-for="item in envs" :key="item.id" :label="item.name" :value="item.id">
                         <span style="float: left">{{ item.name }}</span>
                         <span style="float: right; color: #8492a6; font-size: 13px">{{ item.remark }}</span>

@@ -74,7 +74,7 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="creator" label="创建者" min-width="80"></el-table-column>
-                <el-table-column label="操作" min-width="335" fixed="right">
+                <el-table-column label="操作" min-width="235" fixed="right">
                     <template #default="scope">
                         <span v-auth="'machine:terminal'">
                             <el-link
@@ -86,11 +86,6 @@
                                 :underline="false"
                                 >终端</el-link
                             >
-                            <el-divider direction="vertical" border-style="dashed" />
-                        </span>
-
-                        <span v-auth="'machine:update'" v-if="scope.row.enableRecorder == 1">
-                            <el-link @click="showRec(scope.row)" plain :underline="false" size="small">终端回放</el-link>
                             <el-divider direction="vertical" border-style="dashed" />
                         </span>
 
@@ -118,20 +113,46 @@
                         >
                         <el-divider direction="vertical" border-style="dashed" />
 
-                        <el-link @click="showProcess(scope.row)" :disabled="scope.row.status == -1" plain :underline="false" size="small"
-                            >进程</el-link
-                        >
-                        <el-divider direction="vertical" border-style="dashed" />
+                        <el-dropdown>
+                            <span class="el-dropdown-link-machine-list">
+                                更多
+                                <el-icon class="el-icon--right">
+                                    <arrow-down />
+                                </el-icon>
+                            </span>
+                            <template #dropdown>
+                                <el-dropdown-menu>
+                                    <el-dropdown-item
+                                        ><el-link
+                                            @click="showProcess(scope.row)"
+                                            :disabled="scope.row.status == -1"
+                                            plain
+                                            :underline="false"
+                                            size="small"
+                                            >进程</el-link
+                                        ></el-dropdown-item
+                                    >
 
-                        <el-link
-                            :disabled="!scope.row.hasCli || scope.row.status == -1"
-                            type="danger"
-                            @click="closeCli(scope.row)"
-                            plain
-                            size="small"
-                            :underline="false"
-                            >关闭连接</el-link
-                        >
+                                    <el-dropdown-item v-if="scope.row.enableRecorder == 1"
+                                        ><el-link v-auth="'machine:update'" @click="showRec(scope.row)" plain :underline="false" size="small"
+                                            >终端回放</el-link
+                                        ></el-dropdown-item
+                                    >
+
+                                    <el-dropdown-item
+                                        ><el-link
+                                            :disabled="!scope.row.hasCli || scope.row.status == -1"
+                                            type="danger"
+                                            @click="closeCli(scope.row)"
+                                            plain
+                                            size="small"
+                                            :underline="false"
+                                            >关闭连接</el-link
+                                        ></el-dropdown-item
+                                    >
+                                </el-dropdown-menu>
+                            </template>
+                        </el-dropdown>
                     </template>
                 </el-table-column>
             </el-table>
@@ -394,5 +415,12 @@ export default defineComponent({
 <style>
 .el-dialog__body {
     padding: 2px 2px;
+}
+.el-dropdown-link-machine-list {
+    cursor: pointer;
+    color: var(--el-color-primary);
+    display: flex;
+    align-items: center;
+    margin-top: 6px;
 }
 </style>

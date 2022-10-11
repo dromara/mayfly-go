@@ -88,19 +88,19 @@ export default {
                     break;
                 }
                 case 'projectNum': {
-                    router.push('/ops/projects');
+                    router.push('/project/projects');
                     break;
                 }
                 case 'machineNum': {
-                    router.push('/ops/machines');
+                    router.push('/machine/machines');
                     break;
                 }
                 case 'dbNum': {
-                    router.push('/ops/dbms/dbs');
+                    router.push('/dbms/sql-exec');
                     break;
                 }
                 case 'redisNum': {
-                    router.push('/ops/redis/manage');
+                    router.push('/redis/data-operation');
                     break;
                 }
             }

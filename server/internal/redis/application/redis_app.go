@@ -245,7 +245,7 @@ func getRedisDialer(machineId uint64) func(ctx context.Context, network, addr st
 var redisCache = cache.NewTimedCache(constant.RedisConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key interface{}, value interface{}) {
-		global.Log.Info(fmt.Sprintf("删除redis连接缓存 id = %d", key))
+		global.Log.Info(fmt.Sprintf("删除redis连接缓存 id = %s", key))
 		value.(*RedisInstance).Close()
 	})
 

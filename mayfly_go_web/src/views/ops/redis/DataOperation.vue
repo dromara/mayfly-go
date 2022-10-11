@@ -12,7 +12,7 @@
                                     </el-select>
                                 </el-form-item>
                                 <el-form-item label="库" label-width="20px">
-                                    <el-select v-model="scanParam.db" @change="changeDb" placeholder="库"  style="width: 70px">
+                                    <el-select v-model="scanParam.db" @change="changeDb" placeholder="库"  style="width: 85px">
                                         <el-option v-for="db in dbList" :key="db" :label="db" :value="db"> </el-option>
                                     </el-select>
                                 </el-form-item>

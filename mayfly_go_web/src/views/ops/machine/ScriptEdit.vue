@@ -9,7 +9,7 @@
             :destroy-on-close="true"
             width="900px"
         >
-            <el-form :model="form" ref="scriptForm" label-width="70px" size="small">
+            <el-form :model="form" ref="scriptForm" label-width="50px" size="small">
                 <el-form-item prop="method" label="名称">
                     <el-input v-model.trim="form.name" placeholder="请输入名称"></el-input>
                 </el-form-item>
@@ -187,11 +187,6 @@ export default defineComponent({
 });
 </script>
 <style lang="scss">
-// 	.m-dialog {
-// 		.el-cascader {
-// 			width: 100%;
-// 		}
-// 	}
 #content {
     .CodeMirror {
         height: 300px !important;

@@ -47,7 +47,7 @@ const CodeMirror = (window as any).CodeMirror || _CodeMirror;
 
 export default defineComponent({
     name: 'CodeMirror',
-     components: {
+    components: {
         ElOption,
         ElSelect,
     },
@@ -61,11 +61,11 @@ export default defineComponent({
         },
         height: {
             type: String,
-            default: "500px",
+            default: '500px',
         },
         width: {
             type: String,
-            default: "auto",
+            default: 'auto',
         },
         canChangeMode: {
             type: Boolean,
@@ -300,7 +300,7 @@ export default defineComponent({
                 coder.setValue(newVal);
                 state.content = newVal;
                 coder.scrollTo(scrollInfo.left, scrollInfo.top);
-                refresh()
+                refresh();
             }
         };
 
@@ -327,7 +327,6 @@ export default defineComponent({
         }
         font-family: 'JetBrainsMono';
     }
-
     .code-mode-select {
         position: absolute;
         z-index: 2;
@@ -335,5 +334,27 @@ export default defineComponent({
         top: 10px;
         max-width: 130px;
     }
+}
+.CodeMirror-hints {
+    position: absolute;
+    z-index: 10000;
+    overflow: hidden;
+    list-style: none;
+
+    margin: 0;
+    padding: 2px;
+
+    -webkit-box-shadow: 2px 3px 5px rgba(0, 0, 0, 0.2);
+    -moz-box-shadow: 2px 3px 5px rgba(0, 0, 0, 0.2);
+    box-shadow: 2px 3px 5px rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    border: 1px solid silver;
+
+    background: white;
+    font-size: 90%;
+    font-family: 'JetBrainsMono';
+
+    max-height: 20em;
+    overflow-y: auto;
 }
 </style>
