@@ -88,27 +88,24 @@ export default defineComponent({
 
             try {
                 state.btnLoading = true;
-                const res = await dbApi.sqlExec.request({
+                await dbApi.sqlExec.request({
                     id: state.dbId,
                     db: state.db,
                     remark: state.remark,
                     sql: state.sqlValue.trim(),
                 });
-                if (parseInt(res.res[0].影响条数) >= 1) {
-                    ElMessage.success('执行成功');
-                    runSuccess = true;
-                } else {
-                    ElMessage.error('执行失败');
-                    runSuccess = false;
-                }
+                ElMessage.success('执行成功');
+                runSuccess = true;
             } catch (e) {
                 runSuccess = false;
             }
-            if (runSuccess && runSuccessCallback) {
-                runSuccessCallback();
+            if (runSuccess) {
+                if (runSuccessCallback) {
+                    runSuccessCallback();
+                }
+                cancel();
             }
             state.btnLoading = false;
-            cancel();
         };
 
         const cancel = () => {

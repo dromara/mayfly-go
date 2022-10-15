@@ -254,7 +254,7 @@
             v-model:visible="dbEditDialog.visible"
             v-model:db="dbEditDialog.data"
         ></db-edit>
-        <create-table :dbId="dbId" v-model:visible="tableCreateDialog.visible"></create-table>
+        <create-table :dbId="dbId" :db="db" v-model:visible="tableCreateDialog.visible"></create-table>
     </div>
 </template>
 
