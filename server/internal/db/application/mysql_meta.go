@@ -36,7 +36,8 @@ type MysqlMetadata struct {
 
 // 获取表基础元信息, 如表名等
 func (mm *MysqlMetadata) GetTables() []map[string]interface{} {
-	_, res, _ := mm.di.SelectData(MYSQL_TABLE_MA)
+	res, err := mm.di.innerSelect(MYSQL_TABLE_MA)
+	biz.ErrIsNilAppendErr(err, "获取表基本信息失败: %s")
 	return res
 }
 

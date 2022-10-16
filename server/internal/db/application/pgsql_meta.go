@@ -44,7 +44,8 @@ type PgsqlMetadata struct {
 
 // 获取表基础元信息, 如表名等
 func (pm *PgsqlMetadata) GetTables() []map[string]interface{} {
-	_, res, _ := pm.di.SelectData(PGSQL_TABLE_MA)
+	res, err := pm.di.innerSelect(PGSQL_TABLE_MA)
+	biz.ErrIsNilAppendErr(err, "获取表基本信息失败: %s")
 	return res
 }
 
@@ -73,13 +74,15 @@ func (pm *PgsqlMetadata) GetPrimaryKey(tablename string) string {
 
 // 获取表信息，比GetTables获取更详细的表信息
 func (pm *PgsqlMetadata) GetTableInfos() []map[string]interface{} {
-	_, res, _ := pm.di.SelectData(PGSQL_TABLE_INFO)
+	res, err := pm.di.innerSelect(PGSQL_TABLE_INFO)
+	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
 	return res
 }
 
 // 获取表索引信息
 func (pm *PgsqlMetadata) GetTableIndex(tableName string) []map[string]interface{} {
-	_, res, _ := pm.di.SelectData(fmt.Sprintf(PGSQL_INDEX_INFO, tableName))
+	res, err := pm.di.innerSelect(fmt.Sprintf(PGSQL_INDEX_INFO, tableName))
+	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
 	return res
 }
 
