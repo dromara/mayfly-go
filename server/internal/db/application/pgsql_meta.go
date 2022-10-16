@@ -34,21 +34,7 @@ const (
 		AND C.relname in (%s)
 	ORDER BY
 		C.relname DESC,
-		A.attnum ASC
-	OFFSET %d LIMIT %d	
-	`
-
-	PGSQL_COLUMN_MA_COUNT = `SELECT COUNT(*) "maNum"
-	FROM
-		pg_attribute a LEFT JOIN pg_description d ON d.objoid = a.attrelid 
-		AND d.objsubid = A.attnum
-		LEFT JOIN pg_class c ON A.attrelid = c.oid
-		LEFT JOIN pg_namespace pn ON c.relnamespace = pn.oid
-		LEFT JOIN pg_type t ON a.atttypid = t.oid 
-	WHERE
-		A.attnum >= 0 
-		AND pn.nspname = (select current_schema())
-		AND C.relname in (%s)
+		A.attnum ASC	
 	`
 )
 
@@ -64,41 +50,16 @@ func (pm *PgsqlMetadata) GetTables() []map[string]interface{} {
 
 // 获取列元信息, 如列名等
 func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []map[string]interface{} {
-	var sql, tableName string
+	tableName := ""
 	for i := 0; i < len(tableNames); i++ {
 		if i != 0 {
 			tableName = tableName + ", "
 		}
 		tableName = tableName + "'" + tableNames[i] + "'"
 	}
-
-	pageNum := 1
-	// 如果大于一个表，则统计列数并分页获取
-	if len(tableNames) > 1 {
-		countSql := fmt.Sprintf(PGSQL_COLUMN_MA_COUNT, tableName)
-		_, countRes, _ := pm.di.SelectData(countSql)
-		maCount := 0
-		// 查询出所有列信息总数，手动分页获取所有数据
-		if count64, is64 := countRes[0]["maNum"].(int64); is64 {
-			maCount = int(count64)
-		} else {
-			maCount = countRes[0]["maNum"].(int)
-		}
-		// 计算需要查询的页数
-		pageNum = maCount / DEFAULT_COLUMN_SIZE
-		if maCount%DEFAULT_COLUMN_SIZE > 0 {
-			pageNum++
-		}
-	}
-
-	res := make([]map[string]interface{}, 0)
-	for index := 0; index < pageNum; index++ {
-		sql = fmt.Sprintf(PGSQL_COLUMN_MA, tableName, index*DEFAULT_COLUMN_SIZE, DEFAULT_COLUMN_SIZE)
-		_, result, err := pm.di.SelectData(sql)
-		biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
-		res = append(res, result...)
-	}
-	return res
+	result, err := pm.di.innerSelect(fmt.Sprintf(PGSQL_COLUMN_MA, tableName))
+	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
+	return result
 }
 
 // 获取表主键字段名，默认第一个字段

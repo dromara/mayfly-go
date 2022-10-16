@@ -30,7 +30,7 @@ type Db struct {
 	ProjectApp   projectapp.Project
 }
 
-const DEFAULT_COLUMN_SIZE = 500
+const DEFAULT_ROW_SIZE = 1800
 
 // @router /api/dbs [get]
 func (d *Db) Dbs(rc *ctx.ReqCtx) {
@@ -248,8 +248,8 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 			maCount = countRes[0]["count"].(int)
 		}
 		// 计算需要查询的页数
-		pageNum := maCount / DEFAULT_COLUMN_SIZE
-		if maCount%DEFAULT_COLUMN_SIZE > 0 {
+		pageNum := maCount / DEFAULT_ROW_SIZE
+		if maCount%DEFAULT_ROW_SIZE > 0 {
 			pageNum++
 		}
 
@@ -261,7 +261,7 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 			sqlTmp = "SELECT * FROM %s OFFSET %d LIMIT %d"
 		}
 		for index := 0; index < pageNum; index++ {
-			sql := fmt.Sprintf(sqlTmp, table, index*DEFAULT_COLUMN_SIZE, DEFAULT_COLUMN_SIZE)
+			sql := fmt.Sprintf(sqlTmp, table, index*DEFAULT_ROW_SIZE, DEFAULT_ROW_SIZE)
 			columns, result, _ := dbInstance.SelectData(sql)
 
 			insertSql := "INSERT INTO `%s` VALUES (%s);\n"

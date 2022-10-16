@@ -397,6 +397,49 @@ func valueConvert(data []byte, colType *sql.ColumnType) interface{} {
 	return stringV
 }
 
+func innerSelectByDb(db *sql.DB, selectSql string) ([]map[string]interface{}, error) {
+	rows, err := db.Query(selectSql)
+	if err != nil {
+		return nil, err
+	}
+	// rows对象一定要close掉，如果出错，不关掉则会很迅速的达到设置最大连接数，
+	// 后面的链接过来直接报错或拒绝，实际上也没有起效果
+	defer func() {
+		if rows != nil {
+			rows.Close()
+		}
+	}()
+	colTypes, _ := rows.ColumnTypes()
+	// 这里表示一行填充数据
+	scans := make([]interface{}, len(colTypes))
+	// 这里表示一行所有列的值，用[]byte表示
+	vals := make([][]byte, len(colTypes))
+	// 这里scans引用vals，把数据填充到[]byte里
+	for k := range vals {
+		scans[k] = &vals[k]
+	}
+
+	result := make([]map[string]interface{}, 0)
+	for rows.Next() {
+		// 不Scan也会导致等待，该链接实际处于未工作的状态，然后也会导致连接数迅速达到最大
+		err := rows.Scan(scans...)
+		if err != nil {
+			return nil, err
+		}
+		// 每行数据
+		rowData := make(map[string]interface{})
+		// 把vals中的数据复制到row中
+		for i, v := range vals {
+			colType := colTypes[i]
+			colName := colType.Name()
+			rowData[colName] = valueConvert(v, colType)
+		}
+		// 放入结果集
+		result = append(result, rowData)
+	}
+	return result, nil
+}
+
 type PqSqlDialer struct {
 	sshTunnelMachine *machine.SshTunnelMachine
 }
@@ -426,6 +469,12 @@ type DbInstance struct {
 // 依次返回 列名数组，结果map，错误
 func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]interface{}, error) {
 	return SelectDataByDb(d.db, execSql)
+}
+
+// 执行内部查询语句，不返回列名以及不限制行数
+// 依次返回 结果map，错误
+func (d *DbInstance) innerSelect(execSql string) ([]map[string]interface{}, error) {
+	return innerSelectByDb(d.db, execSql)
 }
 
 // 执行 update, insert, delete，建表等sql
