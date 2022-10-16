@@ -88,5 +88,6 @@ func (pm *PgsqlMetadata) GetTableIndex(tableName string) []map[string]interface{
 
 // 获取建表ddl
 func (mm *PgsqlMetadata) GetCreateTableDdl(tableName string) []map[string]interface{} {
+	biz.IsTrue(tableName == "", "暂不支持获取pgsql建表DDL")
 	return nil
 }

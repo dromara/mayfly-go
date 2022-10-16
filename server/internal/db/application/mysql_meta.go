@@ -8,9 +8,7 @@ import (
 // ---------------------------------- mysql元数据 -----------------------------------
 const (
 	// mysql 表信息元数据
-	MYSQL_TABLE_MA = `SELECT table_name tableName, engine, table_comment tableComment, 
-	create_time createTime from information_schema.tables
-	WHERE table_schema = (SELECT database())`
+	MYSQL_TABLE_MA = `SELECT table_name tableName, table_comment tableComment from information_schema.tables WHERE table_schema = (SELECT database())`
 
 	// mysql 表信息
 	MYSQL_TABLE_INFO = `SELECT table_name tableName, table_comment tableComment, table_rows tableRows,

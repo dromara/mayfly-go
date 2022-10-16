@@ -1,9 +1,11 @@
 package application
 
-// -----------------------------------元数据-------------------------------------------
+// -----------------------------------元数据接口定义------------------------------------------
 // 数据库元信息接口（表、列等元信息）
-// 所有数据查出来直接用map接收，注意map的key需要统一
+// 所有数据查出来直接用map接收，注意不同数据库实现该接口返回的map中的key需要统一.
+// 即: 使用别名统一即可。如table_name AS tableName
 type DbMetadata interface {
+
 	// 获取表基础元信息
 	// 表名: tableName, 备注: tableComment
 	GetTables() []map[string]interface{}
@@ -24,6 +26,3 @@ type DbMetadata interface {
 	// 获取建表ddl
 	GetCreateTableDdl(tableName string) []map[string]interface{}
 }
-
-// 默认每次查询列元信息数量
-const DEFAULT_COLUMN_SIZE = 2000
