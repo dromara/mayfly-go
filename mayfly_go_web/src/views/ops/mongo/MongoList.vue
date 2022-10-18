@@ -35,7 +35,7 @@
 
                 <el-table-column label="操作" width>
                     <template #default="scope">
-                        <el-link type="primary" @click="showDatabases(scope.row.id)" plain size="small" :underline="false">数据库</el-link>
+                        <el-link type="primary" @click="showDatabases(scope.row.id, scope.row)" plain size="small" :underline="false">数据库</el-link>
                     </template>
                 </el-table-column>
             </el-table>
@@ -61,11 +61,13 @@
                 </el-table-column>
                 <el-table-column min-width="80" property="Empty" label="是否为空" />
 
-                <el-table-column min-width="80" label="操作">
+                <el-table-column min-width="150" label="操作">
                     <template #default="scope">
                         <el-link type="success" @click="showDatabaseStats(scope.row.Name)" plain size="small" :underline="false">stats</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
                         <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small" :underline="false">集合</el-link>
+                        <el-divider direction="vertical" border-style="dashed" />
+                        <el-link type="primary" @click="openDataOps(scope.row)" plain size="small" :underline="false">数据操作</el-link>
                     </template>
                 </el-table-column>
             </el-table>
@@ -195,6 +197,8 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { projectApi } from '../project/api.ts';
 import MongoEdit from './MongoEdit.vue';
 import { formatByteSize } from '@/common/utils/format';
+import {store} from '@/store';
+import router from '@/router';
 
 export default defineComponent({
     name: 'MongoList',
@@ -203,6 +207,12 @@ export default defineComponent({
     },
     setup() {
         const state = reactive({
+            dbOps: { 
+              projectId: null,
+              envId: null,
+              dbId: 0,
+              db: '',
+            },
             projects: [],
             list: [],
             total: 0,
@@ -265,7 +275,12 @@ export default defineComponent({
             state.currentData = item;
         };
 
-        const showDatabases = async (id: number) => {
+        const showDatabases = async (id: number, row: any) => {
+            const {projectId, envId} = row;
+            state.dbOps.projectId = projectId
+            state.dbOps.envId = envId
+            state.dbOps.dbId = id
+          
             state.databaseDialog.data = (await mongoApi.databases.request({ id })).Databases;
             state.databaseDialog.title = `数据库列表`;
             state.databaseDialog.visible = true;
@@ -391,6 +406,24 @@ export default defineComponent({
             state.currentData = null;
             search();
         };
+        
+        const openDataOps = ( row: any) => {
+          state.dbOps.db = row.Name
+          
+          let data = {
+            projectId: state.dbOps.projectId,
+            envId: state.dbOps.envId,
+            dbId: state.dbOps.dbId,
+            db: state.dbOps.db,
+          }
+          console.log(data)
+          // 判断db是否发生改变
+          let oldDb = store.state.mongoDbOptInfo.dbOptInfo.db;
+          if(oldDb !== row.Name){
+            store.dispatch('mongoDbOptInfo/setMongoDbOptInfo', data);
+          }
+          router.push({name: 'MongoDataOp'});
+        }
 
         return {
             ...toRefs(state),
@@ -409,6 +442,7 @@ export default defineComponent({
             deleteMongo,
             editMongo,
             valChange,
+            openDataOps,
         };
     },
 });

@@ -31,20 +31,22 @@
                 <el-table-column prop="type" label="类型" min-width="90"></el-table-column>
                 <el-table-column prop="database" label="数据库" min-width="80">
                     <template #default="scope">
-                        <el-popover :width="250" placement="right" trigger="click">
+                        <el-popover placement="right" trigger="click" :width="300">
                             <template #reference>
-                                <el-link type="primary" :underline="false" plain>查看</el-link>
+                                <el-link type="primary" :underline="false" plain @click="selectDb(scope.row.dbs)">查看</el-link>
                             </template>
-                            <el-tag
-                                @click="showTableInfo(scope.row, db)"
-                                effect="plain"
-                                type="success"
-                                size="small"
-                                v-for="db in scope.row.dbs"
-                                :key="db"
-                                style="cursor: pointer; margin-left: 3px; margin-bottom: 3px;"
-                                >{{ db }}</el-tag
+                            <el-input v-model="filterDb.param" @keyup="filterSchema" class="w-50 m-2" placeholder="搜索" size="small" >
+                              <template #prefix>
+                                <el-icon class="el-input__icon"><search-icon /></el-icon>
+                              </template>
+                            </el-input>
+                            <div class="el-tag--plain el-tag--success" 
+                                 v-for="db in filterDb.list" :key="db"
+                                 style="border:1px var(--color-success-light-3) solid; margin-top: 3px;border-radius: 5px; padding: 2px;position: relative"
                             >
+                              <el-link type="success" plain size="small" :underline="false" @click="showTableInfo(scope.row, db)">{{ db }}</el-link>
+                              <el-link type="primary" plain size="small" :underline="false" @click="openSqlExec(scope.row, db)" style="position: absolute; right: 4px">数据操作</el-link>
+                            </div>
                         </el-popover>
                     </template>
                 </el-table-column>
@@ -271,15 +273,20 @@ import SqlExecBox from './component/SqlExecBox.ts';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
 import { isTrue } from '@/common/assert';
+import { Search as SearchIcon } from '@element-plus/icons-vue'
+import router from '@/router';
+import {store} from '@/store';
 
 export default defineComponent({
     name: 'DbList',
     components: {
         DbEdit,
         CreateTable,
+        SearchIcon,
     },
     setup() {
         const state = reactive({
+            row: {},
             dbId: 0,
             db: '',
             permissions: {
@@ -296,6 +303,7 @@ export default defineComponent({
              * 查询条件
              */
             query: {
+                projectId:null,
                 pageNum: 1,
                 pageSize: 10,
             },
@@ -356,6 +364,11 @@ export default defineComponent({
             tableCreateDialog: {
                 visible: false,
             },
+            filterDb:{
+              param:'',
+              cache:[],
+              list:[],
+            }
         });
 
         onMounted(async () => {
@@ -545,6 +558,7 @@ export default defineComponent({
             try {
                 state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: row.id, db });
                 state.dbId = row.id;
+                state.row = row;
                 state.db = db;
             } catch (e) {
                 state.tableInfoDialog.visible = false;
@@ -613,6 +627,37 @@ export default defineComponent({
                 });
             } catch (err) {}
         };
+        const openSqlExec = (row: any, db: any) => {
+          // 判断db是否发生改变
+          let oldDb = store.state.sqlExecInfo.dbOptInfo.db;
+          if(db && oldDb !== db){
+            const {projectId, envId, id} = row;
+            let params = {
+              projectId,
+              envId,
+              dbId: id,
+              db
+            }
+            store.dispatch('sqlExecInfo/setSqlExecInfo', params);
+          }
+          router.push({name: 'SqlExec'});
+        }
+
+        // 点击查看时初始化数据
+        const selectDb = (row: any) => {
+          state.filterDb.param = ''
+          state.filterDb.cache = row;
+          state.filterDb.list = row;
+        }
+
+        // 输入字符过滤schema
+        const filterSchema = () => {
+          if(state.filterDb.param){
+            state.filterDb.list = state.filterDb.cache.filter((a)=>{return String(a).toLowerCase().indexOf(state.filterDb.param) > -1 })
+          }else{
+            state.filterDb.list = state.filterDb.cache;
+          }
+        }
 
         return {
             ...toRefs(state),
@@ -639,6 +684,9 @@ export default defineComponent({
             showCreateDdl,
             dropTable,
             formatByteSize,
+            openSqlExec,
+            selectDb,
+            filterSchema,
         };
     },
 });

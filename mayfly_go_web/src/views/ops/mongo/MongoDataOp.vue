@@ -3,7 +3,7 @@
         <div class="toolbar">
             <el-row type="flex" justify="space-between">
                 <el-col :span="24">
-                    <project-env-select @changeProjectEnv="changeProjectEnv">
+                    <project-env-select @changeProjectEnv="changeProjectEnv" :data="{ projectId, envId:query.envId }">
                         <template #default>
                             <el-form-item label="实例" label-width="40px">
                                 <el-select v-model="mongoId" placeholder="请选择mongo" @change="changeMongo">
@@ -130,13 +130,14 @@
 
 <script lang="ts">
 import { mongoApi } from './api';
-import { toRefs, ref, reactive, defineComponent } from 'vue';
+import {toRefs, ref, reactive, defineComponent, watch} from 'vue';
 import { ElMessage } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 
 import { isTrue, notBlank, notNull } from '@/common/assert';
 import { formatByteSize } from '@/common/utils/format';
 import JsonEdit from '@/components/jsonedit/index.vue';
+import { useStore } from '@/store/index.ts';
 
 export default defineComponent({
     name: 'MongoDataOp',
@@ -145,8 +146,10 @@ export default defineComponent({
         JsonEdit,
     },
     setup() {
+        const store = useStore();
         const findParamInputRef: any = ref(null);
         const state = reactive({
+            projectId: null,
             loading: false,
             mongoList: [],
             query: {
@@ -416,6 +419,34 @@ export default defineComponent({
             delete state.dataTabs[targetName];
         };
 
+      // 加载选中的db
+      const setSelects = async (mongoDbOptInfo: any) =>{
+        // 设置项目id和环境id
+        const { projectId, envId, dbId, db} = mongoDbOptInfo.dbOptInfo;
+        state.projectId = projectId;
+        state.query.envId = envId
+        await searchMongo();
+        state.mongoId = dbId
+        await getDatabases();
+        state.database = db
+        await getCollections();
+        if(state.collection){
+          state.collection = ''
+          state.dataTabs = {}
+        }
+      }
+
+      // 判断如果有数据则加载下拉选项
+      let mongoDbOptInfo = store.state.mongoDbOptInfo
+      if(mongoDbOptInfo.dbOptInfo.envId){
+        setSelects(mongoDbOptInfo)
+      }
+
+      // 监听选中操作的db变化，并加载下拉选项
+      watch(store.state.mongoDbOptInfo,async (newValue) => {
+        await setSelects(newValue)
+      })
+        
         return {
             ...toRefs(state),
             findParamInputRef,

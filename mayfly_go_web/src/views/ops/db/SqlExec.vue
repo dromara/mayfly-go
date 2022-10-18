@@ -3,7 +3,7 @@
         <div class="toolbar">
             <el-row type="flex" justify="space-between">
                 <el-col :span="24">
-                    <project-env-select @changeProjectEnv="changeProjectEnv">
+                    <project-env-select @changeProjectEnv="changeProjectEnv" :data="{ projectId, envId:params.envId }">
                         <template #default>
                             <el-form-item label="资源">
                                 <el-select v-model="dbId" placeholder="请选择资源实例" @change="changeDbInstance" filterable style="width: 150px">
@@ -299,7 +299,7 @@
 </template>
 
 <script lang="ts">
-import { onMounted, toRefs, reactive, defineComponent, ref } from 'vue';
+import { onMounted, toRefs, reactive, defineComponent, ref, watch } from 'vue';
 import { dbApi } from './api';
 
 import 'codemirror/addon/hint/show-hint.css';
@@ -321,6 +321,7 @@ import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
 import SqlExecBox from './component/SqlExecBox';
 import { dateStrFormat } from '@/common/utils/date.ts';
+import { useStore } from '@/store/index.ts';
 
 export default defineComponent({
     name: 'SqlExec',
@@ -328,12 +329,14 @@ export default defineComponent({
         ProjectEnvSelect,
     },
     setup() {
+        const store = useStore();
         const codeTextarea: any = ref(null);
         const token = getSession('token');
         let codemirror = null as any;
         const tableMap = new Map();
 
         const state = reactive({
+            projectId: null,
             token: token,
             defalutLimit: 20, // 默认查询数量
             dbs: [], // 数据库实例列表
@@ -1218,7 +1221,39 @@ export default defineComponent({
             const res = await dbApi.dbs.request(state.params);
             state.dbs = res.list;
         };
+        
+        // 加载选中的db
+        const setSelects = async (sqlExecInfo: any) =>{
+          // 保存sql
+          let sql = codemirror?.getValue()
+          if( sql && sql.length > 0 && state.dbId){
+            await saveSql();
+          }
+          // 设置项目id和环境id
+          const { projectId, envId, dbId, db} = sqlExecInfo.dbOptInfo;
+          state.projectId = projectId;
+          state.params.envId = envId
+          // 查询有哪些数据库实例
+          await search()
+          // 加载数据库所有schema
+          changeDbInstance(dbId);
+          state.dbId = dbId
+          state.db = db
+          // 加载schema下所有表
+          changeDb(db)
+        }
 
+        // 判断如果有数据则加载下拉选项
+        let sqlExecInfo = store.state.sqlExecInfo
+        if(sqlExecInfo.dbOptInfo.envId){
+          setSelects(sqlExecInfo)
+        }
+      
+        // 监听选中操作的db变化，并加载下拉选项
+        watch(store.state.sqlExecInfo,async (newValue) => {
+          await setSelects(newValue)
+        })
+      
         return {
             ...toRefs(state),
             codeTextarea,

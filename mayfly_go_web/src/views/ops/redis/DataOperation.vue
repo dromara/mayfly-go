@@ -4,11 +4,16 @@
             <div style="float: left">
                 <el-row type="flex" justify="space-between">
                     <el-col :span="24">
-                        <project-env-select @changeProjectEnv="changeProjectEnv" @clear="clearRedis">
+                        <project-env-select @changeProjectEnv="changeProjectEnv" @clear="clearRedis" :data="{ projectId, envId:query.envId }" >
                             <template #default>
                                 <el-form-item label="redis" label-width="40px">
                                     <el-select v-model="scanParam.id" placeholder="请选择redis" @change="changeRedis" @clear="clearRedis" clearable>
-                                        <el-option v-for="item in redisList" :key="item.id" :label="item.host" :value="item.id"> </el-option>
+                                        <el-option v-for="item in redisList" :key="item.id"  :value="item.id" :label=" item.remark ">
+                                          <span style="float: left">{{ item.remark }}</span>
+                                          <span style="float: right; color: #8492a6; margin-left: 6px; font-size: 13px">{{
+                                              `${item.host}`
+                                            }}</span>
+                                        </el-option>
                                     </el-select>
                                 </el-form-item>
                                 <el-form-item label="库" label-width="20px">
@@ -125,7 +130,7 @@
 
 <script lang="ts">
 import { redisApi } from './api';
-import { toRefs, reactive, defineComponent } from 'vue';
+import {toRefs, reactive, defineComponent, watch} from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import HashValue from './HashValue.vue';
@@ -133,6 +138,7 @@ import StringValue from './StringValue.vue';
 import SetValue from './SetValue.vue';
 import ListValue from './ListValue.vue';
 import { isTrue, notBlank, notNull } from '@/common/assert';
+import { useStore } from '@/store/index.ts';
 
 export default defineComponent({
     name: 'DataOperation',
@@ -144,7 +150,9 @@ export default defineComponent({
         ProjectEnvSelect,
     },
     setup() {
+        let store = useStore();
         const state = reactive({
+            projectId: null,
             loading: false,
             redisList: [],
             dbList: [],
@@ -153,7 +161,7 @@ export default defineComponent({
             },
             scanParam: {
                 id: null,
-                db: null,
+                db: '',
                 match: null,
                 count: 10,
                 cursor: {},
@@ -200,7 +208,7 @@ export default defineComponent({
 
         const changeRedis = (id: number) => {
             resetScanParam(id);
-            state.scanParam.db = null;
+            state.scanParam.db = '';
             state.dbList = (state.redisList.find((x: any) => x.id == id) as any).db.split(',');
             state.keys = [];
             state.dbsize = 0;
@@ -244,7 +252,7 @@ export default defineComponent({
             state.redisList = [];
             state.scanParam.id = null;
             resetScanParam();
-            state.scanParam.db = null;
+            state.scanParam.db = '';
             state.keys = [];
             state.dbsize = 0;
         };
@@ -383,7 +391,33 @@ export default defineComponent({
             }
         };
 
-        return {
+      // 加载选中的db
+      const setSelects = async (redisDbOptInfo: any) =>{
+        // 设置项目id和环境id
+        const { projectId, envId, dbId} = redisDbOptInfo.dbOptInfo;
+        state.projectId = projectId;
+        state.query.envId = envId
+        await searchRedis()
+        state.scanParam.id = dbId
+        changeRedis(dbId)
+        if(!state.scanParam.db){
+          state.scanParam.db = '0'
+        }
+        changeDb()
+      }
+
+      // 判断如果有数据则加载下拉选项
+      let redisDbOptInfo = store.state.redisDbOptInfo
+      if(redisDbOptInfo.dbOptInfo.envId){
+        setSelects(redisDbOptInfo)
+      }
+
+      // 监听选中操作的db变化，并加载下拉选项
+      watch(store.state.redisDbOptInfo,async (newValue) => {
+        await setSelects(newValue)
+      })
+
+      return {
             ...toRefs(state),
             changeProjectEnv,
             changeRedis,

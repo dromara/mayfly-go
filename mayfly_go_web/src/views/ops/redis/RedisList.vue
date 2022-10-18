@@ -29,18 +29,17 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="creator" label="创建人" min-width="100"></el-table-column>
-                <el-table-column label="更多" min-width="130" fixed="right">
+                <el-table-column label="更多" min-width="155" fixed="right">
                     <template #default="scope">
                         <el-link
                             v-if="scope.row.mode == 'standalone' || scope.row.mode == 'sentinel'"
                             type="primary"
                             @click="info(scope.row)"
                             :underline="false"
-                            >单机信息</el-link
-                        >
-                        <el-link @click="onShowClusterInfo(scope.row)" v-if="scope.row.mode == 'cluster'" type="success" :underline="false"
-                            >集群信息</el-link
-                        >
+                            >单机信息</el-link>
+                        <el-link @click="onShowClusterInfo(scope.row)" v-if="scope.row.mode == 'cluster'" type="success" :underline="false">集群信息</el-link>
+                        <el-divider direction="vertical" border-style="dashed" />
+                        <el-link @click="openDataOpt(scope.row)" type="success" :underline="false">数据操作</el-link>
                     </template>
                 </el-table-column>
             </el-table>
@@ -153,6 +152,8 @@ import { toRefs, reactive, defineComponent, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { projectApi } from '../project/api.ts';
 import RedisEdit from './RedisEdit.vue';
+import {store} from '@/store';
+import router from '@/router';
 
 export default defineComponent({
     name: 'RedisList',
@@ -284,6 +285,22 @@ export default defineComponent({
             state.currentData = null;
             search();
         };
+        // 打开redis数据操作页
+        const openDataOpt = (row : any) => {
+          const {projectId, envId, id, db} = row;
+          // 判断db是否发生改变
+          let oldDbId = store.state.redisDbOptInfo.dbOptInfo.dbId;
+          if(oldDbId !== id){
+            let params = {
+              projectId,
+              envId,
+              dbId: id,
+              db
+            }
+            store.dispatch('redisDbOptInfo/setRedisDbOptInfo', params);
+          }
+          router.push({name: 'DataOperation'});
+        }
 
         return {
             ...toRefs(state),
@@ -296,6 +313,7 @@ export default defineComponent({
             deleteRedis,
             editRedis,
             valChange,
+          openDataOpt,
         };
     },
 });

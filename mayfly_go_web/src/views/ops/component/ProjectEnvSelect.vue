@@ -22,7 +22,7 @@
 </template>
 
 <script lang="ts">
-import { toRefs, reactive, defineComponent, onMounted } from 'vue';
+import {toRefs, reactive, defineComponent, onMounted, watch} from 'vue';
 import { projectApi } from '../project/api';
 
 export default defineComponent({
@@ -52,8 +52,27 @@ export default defineComponent({
             envId: null,
         });
 
+        // 动态选中项目和环境
+        const setData = async (projectId: null, envId: null) => {
+          if (projectId) {
+            state.projectId = projectId;
+            if (envId) {
+              state.envs = await projectApi.projectEnvs.request({projectId});
+              state.envId = envId;
+            }
+          }
+        }
+        
+        watch(() => props.data, (newValue)=>{
+          setData(newValue.projectId, newValue.envId)
+        })
+
         onMounted(async () => {
             state.projects = await projectApi.accountProjects.request(null);
+            // 初始化容器时可能会选中项目和环境
+            if(props.data?.projectId && props.data?.envId){
+              await setData(props.data.projectId, props.data.envId)
+            }
         });
 
         const changeProject = async (projectId: any) => {
@@ -72,6 +91,7 @@ export default defineComponent({
             ...toRefs(state),
             changeProject,
             changeEnv,
+            setData,
         };
     },
 });
