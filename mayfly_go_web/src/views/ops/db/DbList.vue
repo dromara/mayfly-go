@@ -3,9 +3,7 @@
         <el-card>
             <el-button v-auth="permissions.saveDb" type="primary" icon="plus" @click="editDb(true)">添加</el-button>
             <el-button v-auth="permissions.saveDb" :disabled="chooseId == null" @click="editDb(false)" type="primary" icon="edit">编辑</el-button>
-            <el-button v-auth="permissions.delDb" :disabled="chooseId == null" @click="deleteDb(chooseId)" type="danger" icon="delete"
-                >删除</el-button
-            >
+            <el-button v-auth="permissions.delDb" :disabled="chooseId == null" @click="deleteDb(chooseId)" type="danger" icon="delete">删除</el-button>
             <div style="float: right">
                 <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable>
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
@@ -79,9 +77,9 @@
 
         <el-dialog width="75%" :title="`${db} 表信息`" :before-close="closeTableInfo" v-model="tableInfoDialog.visible">
             <el-row class="mb10">
-                <el-popover v-model:visible="showDumpInfo" :width="470" placement="right">
+                <el-popover v-model:visible="showDumpInfo" :width="470" placement="right" trigger="click">
                     <template #reference>
-                        <el-button class="ml5" type="success" size="small" @click="showDumpInfo = !showDumpInfo">导出</el-button>
+                        <el-button class="ml5" type="success" size="small" >导出</el-button>
                     </template>
                     <el-form-item label="导出内容: ">
                         <el-radio-group v-model="dumpInfo.type">
@@ -105,9 +103,9 @@
                     </div>
                 </el-popover>
 
-                <el-button type="primary" size="small" @click="tableCreateDialog.visible = true">创建表</el-button>
+                <el-button type="primary" size="small" @click="openEditTable(false)">创建表</el-button>
             </el-row>
-            <el-table v-loading="tableInfoDialog.loading" border stripe :data="filterTableInfos" size="small">
+            <el-table v-loading="tableInfoDialog.loading" border stripe :data="filterTableInfos" size="small" max-height="680">
                 <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip>
                     <template #header>
                         <el-input v-model="tableInfoDialog.tableNameSearch" size="small" placeholder="表名: 输入可过滤" clearable />
@@ -150,7 +148,8 @@
                     <template #default="scope">
                         <el-link @click.prevent="showColumns(scope.row)" type="primary">字段</el-link>
                         <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">索引</el-link>
-                        <el-link class="ml5" @click.prevent="showCreateDdl(scope.row)" type="info">SQL</el-link>
+                        <el-link class="ml5" @click.prevent="openEditTable(scope.row)" type="warning">编辑表</el-link>
+                        <el-link class="ml5" @click.prevent="showCreateDdl(scope.row)" type="info">DDL</el-link>
                     </template>
                 </el-table-column>
                 <el-table-column label="操作" min-width="80">
@@ -255,7 +254,7 @@
             v-model:visible="dbEditDialog.visible"
             v-model:db="dbEditDialog.data"
         ></db-edit>
-        <create-table :dbId="dbId" :db="db" v-model:visible="tableCreateDialog.visible"></create-table>
+        <create-table :title="tableCreateDialog.title" :active-name="tableCreateDialog.activeName" :dbId="dbId" :db="db" :data="tableCreateDialog.data" v-model:visible="tableCreateDialog.visible"></create-table>
     </div>
 </template>
 
@@ -363,7 +362,17 @@ export default defineComponent({
                 title: '新增数据库',
             },
             tableCreateDialog: {
+                title:'创建表',
                 visible: false,
+                columns: [],
+                indexs: [],
+                activeName: '1',
+                data: {  // 修改表时，传递修改数据
+                  edit: false,
+                  row: {},
+                  indexs: [],
+                  columns: []
+                },
             },
             filterDb:{
               param:'',
@@ -657,6 +666,33 @@ export default defineComponent({
             state.filterDb.list = state.filterDb.cache;
           }
         }
+        
+        // 打开编辑表
+        const openEditTable = async (row: any) => {
+
+          state.tableCreateDialog.visible = true
+          state.tableCreateDialog.activeName = '1'
+
+          if(row === false){
+            state.tableCreateDialog.data = {edit: false, row: {}, indexs: [], columns: []}
+            state.tableCreateDialog.title = '创建表'
+          }
+          
+          if (row.tableName) {
+            state.tableCreateDialog.title = '修改表'
+            let indexs = await dbApi.tableIndex.request({
+              id: state.chooseId,
+              db: state.db,
+              tableName: row.tableName,
+            });
+            let columns = await dbApi.columnMetadata.request({
+              id: state.chooseId,
+              db: state.db,
+              tableName: row.tableName,
+            });
+            state.tableCreateDialog.data = {edit: true, row, indexs, columns}
+          }
+        }
 
         return {
             ...toRefs(state),
@@ -687,6 +723,7 @@ export default defineComponent({
             openSqlExec,
             selectDb,
             filterSchema,
+            openEditTable,
         };
     },
 });

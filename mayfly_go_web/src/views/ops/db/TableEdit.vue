@@ -40,7 +40,6 @@ export default defineComponent({
             state.data.colNames = newValue.data.colNames;
         });
         const cellClick = (row: any, column: any, cell: any, event: any) => {
-            console.log(cell.children[0].tagName);
             let isDiv = cell.children[0].tagName === 'DIV';
             let text = cell.children[0].innerText;
             let div = cell.children[0];

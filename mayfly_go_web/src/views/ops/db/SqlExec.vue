@@ -146,7 +146,7 @@
                                 v-loading="queryTab.loading"
                                 element-loading-text="查询中..."
                                 size="small"
-                                max-height="250"
+                                max-height="800px"
                                 empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
                                 stripe
                                 border
