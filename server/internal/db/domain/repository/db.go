@@ -7,9 +7,9 @@ import (
 
 type Db interface {
 	// 分页获取机器信息列表
-	GetDbList(condition *entity.Db, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetDbList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
-	Count(condition *entity.Db) int64
+	Count(condition *entity.DbQuery) int64
 
 	// 根据条件获取账号信息
 	GetDb(condition *entity.Db, cols ...string) error

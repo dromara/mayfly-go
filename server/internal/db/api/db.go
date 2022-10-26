@@ -7,8 +7,8 @@ import (
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/domain/entity"
-	projectapp "mayfly-go/internal/project/application"
 	sysapp "mayfly-go/internal/sys/application"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
@@ -27,19 +27,24 @@ type Db struct {
 	DbApp        application.Db
 	DbSqlExecApp application.DbSqlExec
 	MsgApp       sysapp.Msg
-	ProjectApp   projectapp.Project
+	TagApp       tagapp.TagTree
 }
 
 const DEFAULT_ROW_SIZE = 1800
 
 // @router /api/dbs [get]
 func (d *Db) Dbs(rc *ctx.ReqCtx) {
-	g := rc.GinCtx
-	m := &entity.Db{EnvId: uint64(ginx.QueryInt(g, "envId", 0)),
-		ProjectId: uint64(ginx.QueryInt(g, "projectId", 0)),
+	condition := new(entity.DbQuery)
+	condition.TagPathLike = rc.GinCtx.Query("tagPath")
+
+	// 不存在可访问标签id，即没有可操作数据
+	tagIds := d.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
+	if len(tagIds) == 0 {
+		rc.ResData = model.EmptyPageResult()
+		return
 	}
-	m.CreatorId = rc.LoginAccount.Id
-	rc.ResData = d.DbApp.GetPageList(m, ginx.GetPageParam(rc.GinCtx), new([]vo.SelectDataDbVO))
+	condition.TagIds = tagIds
+	rc.ResData = d.DbApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.SelectDataDbVO))
 }
 
 func (d *Db) Save(rc *ctx.ReqCtx) {
@@ -121,7 +126,7 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	id := GetDbId(g)
 	db := form.Db
 	dbInstance := d.DbApp.GetDbInstance(id, db)
-	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbInstance.ProjectId), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.TagPath), "%s")
 
 	// 去除前后空格及换行符
 	sql := strings.TrimFunc(form.Sql, func(r rune) bool {
@@ -163,7 +168,7 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 		db := d.DbApp.GetDbInstance(dbId, db)
 
 		dbEntity := d.DbApp.GetById(dbId)
-		dbInfo := fmt.Sprintf("于%s的%s环境", dbEntity.Name, dbEntity.Env)
+		dbInfo := fmt.Sprintf("于%s的%s环境", dbEntity.Name, dbEntity.TagPath)
 
 		defer func() {
 			if err := recover(); err != nil {
@@ -174,7 +179,7 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 			}
 		}()
 
-		biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, db.ProjectId), "%s")
+		biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, db.TagPath), "%s")
 
 		tokens := sqlparser.NewTokenizer(file)
 		for {
@@ -208,7 +213,7 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 	needData := dumpType == "2" || dumpType == "3"
 
 	dbInstance := d.DbApp.GetDbInstance(dbId, db)
-	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbInstance.ProjectId), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.TagPath), "%s")
 
 	now := time.Now()
 	filename := fmt.Sprintf("%s.%s.sql", db, now.Format("200601021504"))
@@ -294,7 +299,7 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 // @router /api/db/:dbId/t-metadata [get]
 func (d *Db) TableMA(rc *ctx.ReqCtx) {
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
-	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbi.TagPath), "%s")
 	rc.ResData = dbi.GetMeta().GetTables()
 }
 
@@ -305,14 +310,14 @@ func (d *Db) ColumnMA(rc *ctx.ReqCtx) {
 	biz.NotEmpty(tn, "tableName不能为空")
 
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
-	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "%s")
+	// biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.TagPath), "%s")
 	rc.ResData = dbi.GetMeta().GetColumns(tn)
 }
 
 // @router /api/db/:dbId/hint-tables [get]
 func (d *Db) HintTables(rc *ctx.ReqCtx) {
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
-	biz.ErrIsNilAppendErr(d.ProjectApp.CanAccess(rc.LoginAccount.Id, dbi.ProjectId), "%s")
+	// biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.TagPath), "%s")
 
 	dm := dbi.GetMeta()
 	// 获取所有表

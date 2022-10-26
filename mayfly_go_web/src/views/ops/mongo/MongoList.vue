@@ -5,8 +5,8 @@
             <el-button type="primary" icon="edit" :disabled="currentId == null" @click="editMongo(false)" plain>编辑</el-button>
             <el-button type="danger" icon="delete" :disabled="currentId == null" @click="deleteMongo" plain>删除</el-button>
             <div style="float: right">
-                <el-select @focus="getProjects" v-model="query.projectId" placeholder="请选择项目" filterable clearable>
-                    <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
+                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable>
+                    <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
                 <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
             </div>
@@ -18,8 +18,7 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="project" label="项目" width></el-table-column>
-                <el-table-column prop="env" label="环境" width></el-table-column>
+                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="name" label="名称" width></el-table-column>
                 <el-table-column prop="uri" label="连接uri" min-width="150" show-overflow-tooltip>
                     <template #default="scope">
@@ -28,7 +27,7 @@
                 </el-table-column>
                 <el-table-column prop="createTime" label="创建时间" min-width="150">
                     <template #default="scope">
-                        {{ $filters.dateFormat(scope.row.createTime) }}
+                        {{ dateFormat(scope.row.createTime) }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="creator" label="创建人"></el-table-column>
@@ -180,7 +179,6 @@
 
         <mongo-edit
             @val-change="valChange"
-            :projects="projects"
             :title="mongoEditDialog.title"
             v-model:visible="mongoEditDialog.visible"
             v-model:mongo="mongoEditDialog.data"
@@ -192,9 +190,10 @@
 import { mongoApi } from './api';
 import { toRefs, reactive, defineComponent, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { projectApi } from '../project/api.ts';
+import { tagApi } from '../tag/api.ts';
 import MongoEdit from './MongoEdit.vue';
 import { formatByteSize } from '@/common/utils/format';
+import { dateFormat } from '@/common/utils/date';
 
 export default defineComponent({
     name: 'MongoList',
@@ -203,7 +202,7 @@ export default defineComponent({
     },
     setup() {
         const state = reactive({
-            projects: [],
+            tags: [],
             list: [],
             total: 0,
             currentId: null,
@@ -211,12 +210,11 @@ export default defineComponent({
             query: {
                 pageNum: 1,
                 pageSize: 10,
-                prjectId: null,
-                clusterId: null,
+                tagPath: null,
             },
             mongoEditDialog: {
                 visible: false,
-                data: null,
+                data: null as any,
                 title: '新增mongo',
             },
             databaseDialog: {
@@ -225,7 +223,7 @@ export default defineComponent({
                 title: '',
                 statsDialog: {
                     visible: false,
-                    data: {},
+                    data: {} as any,
                     title: '',
                 },
             },
@@ -236,7 +234,7 @@ export default defineComponent({
                 title: '',
                 statsDialog: {
                     visible: false,
-                    data: {},
+                    data: {} as any,
                     title: '',
                 },
             },
@@ -370,12 +368,11 @@ export default defineComponent({
             state.total = res.total;
         };
 
-        const getProjects = async () => {
-            state.projects = await projectApi.accountProjects.request(null);
+        const getTags = async () => {
+            state.tags = await tagApi.getAccountTags.request(null);
         };
 
         const editMongo = async (isAdd = false) => {
-            await getProjects();
             if (isAdd) {
                 state.mongoEditDialog.data = null;
                 state.mongoEditDialog.title = '新增mongo';
@@ -394,7 +391,8 @@ export default defineComponent({
 
         return {
             ...toRefs(state),
-            getProjects,
+            dateFormat,
+            getTags,
             search,
             handlePageChange,
             choose,

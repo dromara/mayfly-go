@@ -3,36 +3,45 @@
         <div class="toolbar">
             <el-row type="flex" justify="space-between">
                 <el-col :span="24">
-                    <project-env-select @changeProjectEnv="changeProjectEnv">
-                        <template #default>
-                            <el-form-item label="实例" label-width="40px">
-                                <el-select v-model="mongoId" placeholder="请选择mongo" @change="changeMongo">
-                                    <el-option v-for="item in mongoList" :key="item.id" :label="item.name" :value="item.id">
-                                        <span style="float: left">{{ item.name }}</span>
-                                        <span style="float: right; color: #8492a6; margin-left: 6px; font-size: 13px">{{ ` [${item.uri}]` }}</span>
-                                    </el-option>
-                                </el-select>
-                            </el-form-item>
+                    <el-form class="search-form" label-position="right" :inline="true">
+                        <el-form-item label="标签">
+                            <el-select
+                                @change="changeTag"
+                                @focus="getTags"
+                                v-model="query.tagPath"
+                                placeholder="请选择标签"
+                                filterable
+                                style="width: 250px"
+                            >
+                                <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="实例" label-width="40px">
+                            <el-select v-model="mongoId" placeholder="请选择mongo" @change="changeMongo">
+                                <el-option v-for="item in mongoList" :key="item.id" :label="item.name" :value="item.id">
+                                    <span style="float: left">{{ item.name }}</span>
+                                    <span style="float: right; color: #8492a6; margin-left: 6px; font-size: 13px">{{ ` [${item.uri}]` }}</span>
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
 
-                            <el-form-item label="库" label-width="20px">
-                                <el-select v-model="database" placeholder="请选择库" @change="changeDatabase" filterable>
-                                    <el-option v-for="item in databases" :key="item.Name" :label="item.Name" :value="item.Name">
-                                        <span style="float: left">{{ item.Name }}</span>
-                                        <span style="float: right; color: #8492a6; margin-left: 4px; font-size: 13px">{{
-                                            ` [${formatByteSize(item.SizeOnDisk)}]`
-                                        }}</span>
-                                    </el-option>
-                                </el-select>
-                            </el-form-item>
+                        <el-form-item label="库" label-width="20px">
+                            <el-select v-model="database" placeholder="请选择库" @change="changeDatabase" filterable>
+                                <el-option v-for="item in databases" :key="item.Name" :label="item.Name" :value="item.Name">
+                                    <span style="float: left">{{ item.Name }}</span>
+                                    <span style="float: right; color: #8492a6; margin-left: 4px; font-size: 13px">{{
+                                        ` [${formatByteSize(item.SizeOnDisk)}]`
+                                    }}</span>
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
 
-                            <el-form-item label="集合" label-width="40px">
-                                <el-select v-model="collection" placeholder="请选择集合" @change="changeCollection" filterable>
-                                    <el-option v-for="item in collections" :key="item" :label="item" :value="item">
-                                    </el-option>
-                                </el-select>
-                            </el-form-item>
-                        </template>
-                    </project-env-select>
+                        <el-form-item label="集合" label-width="40px">
+                            <el-select v-model="collection" placeholder="请选择集合" @change="changeCollection" filterable>
+                                <el-option v-for="item in collections" :key="item" :label="item" :value="item"> </el-option>
+                            </el-select>
+                        </el-form-item>
+                    </el-form>
                 </el-col>
             </el-row>
         </div>
@@ -64,12 +73,7 @@
 
                                         <el-divider direction="vertical" border-style="dashed" />
 
-                                        <el-link
-                                            @click="onSaveDoc(item.value)"
-                                            :underline="false"
-                                            type="warning"
-                                            icon="DocumentChecked"
-                                        ></el-link>
+                                        <el-link @click="onSaveDoc(item.value)" :underline="false" type="warning" icon="DocumentChecked"></el-link>
 
                                         <el-divider direction="vertical" border-style="dashed" />
 
@@ -132,36 +136,38 @@
 import { mongoApi } from './api';
 import { toRefs, ref, reactive, defineComponent } from 'vue';
 import { ElMessage } from 'element-plus';
-import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 
 import { isTrue, notBlank, notNull } from '@/common/assert';
 import { formatByteSize } from '@/common/utils/format';
 import JsonEdit from '@/components/jsonedit/index.vue';
+import { tagApi } from '../tag/api.ts';
 
 export default defineComponent({
     name: 'MongoDataOp',
     components: {
-        ProjectEnvSelect,
         JsonEdit,
     },
     setup() {
         const findParamInputRef: any = ref(null);
         const state = reactive({
             loading: false,
-            mongoList: [],
+            tags: [],
+            mongoList: [] as any,
             query: {
-                envId: 0,
+                tagPath: null,
             },
             mongoId: null, // 当前选择操作的mongo
             database: '', // 当前选择操作的库
             collection: '', //当前选中的collection
             activeName: '', // 当前操作的tab
-            databases: [],
-            collections: [],
-            dataTabs: {}, // 数据tabs
+            databases: [] as any,
+            collections: [] as any,
+            dataTabs: {} as any, // 数据tabs
             findDialog: {
                 visible: false,
                 findParam: {
+                    limit: 0,
+                    skip: 0,
                     filter: '',
                     sort: '',
                 },
@@ -178,22 +184,25 @@ export default defineComponent({
         });
 
         const searchMongo = async () => {
-            notNull(state.query.envId, '请先选择项目环境');
+            notNull(state.query.tagPath, '请先选择标签');
             const res = await mongoApi.mongoList.request(state.query);
             state.mongoList = res.list;
         };
 
-        const changeProjectEnv = (projectId: any, envId: any) => {
+        const changeTag = (tagPath: string) => {
             state.databases = [];
             state.collections = [];
             state.mongoId = null;
             state.collection = '';
             state.database = '';
             state.dataTabs = {};
-            if (envId != null) {
-                state.query.envId = envId;
+            if (tagPath != null) {
                 searchMongo();
             }
+        };
+
+        const getTags = async () => {
+            state.tags = await tagApi.getAccountTags.request(null);
         };
 
         const changeMongo = () => {
@@ -419,7 +428,8 @@ export default defineComponent({
         return {
             ...toRefs(state),
             findParamInputRef,
-            changeProjectEnv,
+            getTags,
+            changeTag,
             changeMongo,
             changeDatabase,
             changeCollection,

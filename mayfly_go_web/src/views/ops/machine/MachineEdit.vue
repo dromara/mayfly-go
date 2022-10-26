@@ -2,17 +2,15 @@
     <div>
         <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :destroy-on-close="true" :before-close="cancel" width="38%">
             <el-form :model="form" ref="machineForm" :rules="rules" label-width="85px">
-                <el-form-item prop="projectId" label="项目:" required>
-                    <el-select style="width: 100%" v-model="form.projectId" placeholder="请选择项目" @change="changeProject" filterable>
-                        <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
-                    </el-select>
+                <el-form-item prop="tagId" label="标签:" required>
+                    <tag-select v-model:tag-id="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
                 </el-form-item>
                 <el-form-item prop="name" label="名称:" required>
                     <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item prop="ip" label="ip:" required>
                     <el-col :span="18">
-                        <el-input :disabled="form.id" v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"></el-input>
+                        <el-input :disabled="form.id != 0" v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"></el-input>
                     </el-col>
                     <el-col style="text-align: center" :span="1">:</el-col>
                     <el-col :span="5">
@@ -91,9 +89,13 @@ import { machineApi } from './api';
 import { ElMessage } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import { RsaEncrypt } from '@/common/rsa';
+import TagSelect from '../component/TagSelect.vue';
 
 export default defineComponent({
     name: 'MachineEdit',
+    components: {
+        TagSelect,
+    },
     props: {
         visible: {
             type: Boolean,
@@ -112,12 +114,15 @@ export default defineComponent({
         const machineForm: any = ref(null);
         const state = reactive({
             dialogVisible: false,
-            projects: [],
-            sshTunnelMachineList: [],
+            projects: [] as any,
+            sshTunnelMachineList: [] as any,
+            tags: [],
+            selectTags: [],
             form: {
                 id: null,
-                projectId: null,
-                projectName: null,
+                tagId: null as any,
+                tagPath: '',
+                ip: null,
                 name: null,
                 authMethod: 1,
                 port: 22,
@@ -131,17 +136,10 @@ export default defineComponent({
             pwd: '',
             btnLoading: false,
             rules: {
-                projectId: [
+                tagId: [
                     {
                         required: true,
-                        message: '请选择项目',
-                        trigger: ['change', 'blur'],
-                    },
-                ],
-                envId: [
-                    {
-                        required: true,
-                        message: '请选择环境',
+                        message: '请选择标签',
                         trigger: ['change', 'blur'],
                     },
                 ],
@@ -206,14 +204,6 @@ export default defineComponent({
             state.pwd = await machineApi.getMachinePwd.request({ id: state.form.id });
         };
 
-        const changeProject = (projectId: number) => {
-            for (let p of state.projects as any) {
-                if (p.id == projectId) {
-                    state.form.projectName = p.name;
-                }
-            }
-        };
-
         const btnOk = async () => {
             if (!state.form.id) {
                 notBlank(state.form.password, '新增操作，密码不可为空');
@@ -258,7 +248,6 @@ export default defineComponent({
             machineForm,
             getSshTunnelMachines,
             getPwd,
-            changeProject,
             btnOk,
             cancel,
         };

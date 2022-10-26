@@ -11,3 +11,8 @@ type PageResult struct {
 	Total int64       `json:"total"`
 	List  interface{} `json:"list"`
 }
+
+// 空分页结果日志
+func EmptyPageResult() *PageResult {
+	return &PageResult{Total: 0, List: make([]interface{}, 0)}
+}

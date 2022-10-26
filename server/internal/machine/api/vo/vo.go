@@ -2,22 +2,8 @@ package vo
 
 import "time"
 
-type AccountVO struct {
-	//models.BaseModel
-	Id         *int64  `json:"id"`
-	Username   *string `json:"username"`
-	CreateTime *string `json:"createTime"`
-	Creator    *string `json:"creator"`
-	CreatorId  *int64  `json:"creatorId"`
-	// Role       *RoleVO `json:"roles"`
-	//Status   int8   `json:"status"`
-}
-
 type MachineVO struct {
-	//models.BaseModel
 	Id                 *uint64    `json:"id"`
-	ProjectId          uint64     `json:"projectId"`
-	ProjectName        string     `json:"projectName"`
 	Name               *string    `json:"name"`
 	Username           *string    `json:"username"`
 	Ip                 *string    `json:"ip"`
@@ -35,6 +21,8 @@ type MachineVO struct {
 	HasCli             bool       `json:"hasCli" gorm:"-"`
 	Remark             *string    `json:"remark"`
 	EnableRecorder     int8       `json:"enableRecorder"`
+	TagId              uint64     `json:"tagId"`
+	TagPath            string     `json:"tagPath"`
 }
 
 type MachineScriptVO struct {

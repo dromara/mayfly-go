@@ -23,5 +23,5 @@ func (d *dbSqlExecRepoImpl) DeleteBy(condition *entity.DbSqlExec) {
 
 // 分页获取
 func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
-	return model.GetPage(pageParam, condition, toEntity, orderBy...)
+	return model.GetPage(pageParam, condition, condition, toEntity, orderBy...)
 }

@@ -2,8 +2,9 @@ package form
 
 type ConfigForm struct {
 	Id     int
-	Name   string `binding:"required"`
-	Key    string `binding:"required"`
+	Name   string
+	Key    string
+	Params string
 	Value  string
 	Remark string `json:"remark"`
 }

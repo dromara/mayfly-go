@@ -6,6 +6,8 @@ import (
 	"mayfly-go/internal/mongo/domain/repository"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils"
+	"strings"
 )
 
 type mongoRepoImpl struct{}
@@ -15,24 +17,28 @@ func newMongoRepo() repository.Mongo {
 }
 
 // 分页获取数据库信息列表
-func (d *mongoRepoImpl) GetList(condition *entity.Mongo, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
-	sql := "SELECT d.* FROM t_mongo d JOIN t_project_member pm ON d.project_id = pm.project_id WHERE 1 = 1 "
-	if condition.CreatorId != 0 {
-		// 使用创建者id模拟项目成员id
-		sql = fmt.Sprintf("%s AND pm.account_id = %d", sql, condition.CreatorId)
+func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+	sql := "SELECT d.* FROM t_mongo d WHERE 1=1  "
+
+	if len(condition.TagIds) > 0 {
+		sql = sql + " AND d.tag_id IN " + fmt.Sprintf("(%s)", strings.Join(utils.NumberArr2StrArr(condition.TagIds), ","))
 	}
-	if condition.ProjectId != 0 {
-		sql = fmt.Sprintf("%s AND d.project_id = %d", sql, condition.ProjectId)
-	}
-	if condition.EnvId != 0 {
-		sql = fmt.Sprintf("%s AND d.env_id = %d", sql, condition.EnvId)
+	if condition.TagPathLike != "" {
+		sql = sql + " AND d.tag_path LIKE '" + condition.TagPathLike + "%'"
 	}
 	sql = sql + " ORDER BY d.create_time DESC"
 	return model.GetPageBySql(sql, pageParam, toEntity)
 }
 
-func (d *mongoRepoImpl) Count(condition *entity.Mongo) int64 {
-	return model.CountBy(condition)
+func (d *mongoRepoImpl) Count(condition *entity.MongoQuery) int64 {
+	where := make(map[string]interface{})
+	if len(condition.TagIds) > 0 {
+		where["tag_id"] = condition.TagIds
+	}
+	if condition.TagId != 0 {
+		where["tag_id"] = condition.TagId
+	}
+	return model.CountByMap(new(entity.Mongo), where)
 }
 
 // 根据条件获取

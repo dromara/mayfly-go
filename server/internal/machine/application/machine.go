@@ -19,7 +19,7 @@ type Machine interface {
 	// 调整机器状态
 	ChangeStatus(id uint64, status int8)
 
-	Count(condition *entity.Machine) int64
+	Count(condition *entity.MachineQuery) int64
 
 	Delete(id uint64)
 
@@ -27,7 +27,7 @@ type Machine interface {
 	GetById(id uint64, cols ...string) *entity.Machine
 
 	// 分页获取机器信息列表
-	GetMachineList(condition *entity.Machine, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
 	// 获取机器连接
 	GetCli(id uint64) *machine.Cli
@@ -46,11 +46,11 @@ type machineAppImpl struct {
 }
 
 // 分页获取机器信息列表
-func (m *machineAppImpl) GetMachineList(condition *entity.Machine, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return m.machineRepo.GetMachineList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (m *machineAppImpl) Count(condition *entity.Machine) int64 {
+func (m *machineAppImpl) Count(condition *entity.MachineQuery) int64 {
 	return m.machineRepo.Count(condition)
 }
 

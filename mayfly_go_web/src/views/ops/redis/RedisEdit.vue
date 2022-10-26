@@ -2,16 +2,11 @@
     <div>
         <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" :destroy-on-close="true" width="38%">
             <el-form :model="form" ref="redisForm" :rules="rules" label-width="85px">
-                <el-form-item prop="projectId" label="项目:" required>
-                    <el-select style="width: 100%" v-model="form.projectId" placeholder="请选择项目" @change="changeProject" filterable>
-                        <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
-                    </el-select>
+                <el-form-item prop="tagId" label="标签:" required>
+                    <tag-select v-model:tag-id="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
                 </el-form-item>
-
-                <el-form-item prop="envId" label="环境:" required>
-                    <el-select @change="changeEnv" style="width: 100%" v-model="form.envId" placeholder="请选择环境">
-                        <el-option v-for="item in envs" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
-                    </el-select>
+                <el-form-item prop="name" label="名称:" required>
+                    <el-input v-model.trim="form.name" placeholder="请输入redis名称" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item prop="mode" label="mode:" required>
                     <el-select style="width: 100%" v-model="form.mode" placeholder="请选择模式">
@@ -88,9 +83,13 @@ import { projectApi } from '../project/api.ts';
 import { machineApi } from '../machine/api.ts';
 import { ElMessage } from 'element-plus';
 import { RsaEncrypt } from '@/common/rsa';
+import TagSelect from '../component/TagSelect.vue';
 
 export default defineComponent({
     name: 'RedisEdit',
+    components: {
+        TagSelect,
+    },
     props: {
         visible: {
             type: Boolean,
@@ -114,6 +113,8 @@ export default defineComponent({
             sshTunnelMachineList: [],
             form: {
                 id: null,
+                tagId: null as any,
+                tatPath: null as any,
                 name: null,
                 mode: 'standalone',
                 host: '',
@@ -176,7 +177,6 @@ export default defineComponent({
             }
             state.projects = newValue.projects;
             if (newValue.redis) {
-                getEnvs(newValue.redis.projectId);
                 state.form = { ...newValue.redis };
                 convertDb(state.form.db);
             } else {
@@ -205,32 +205,8 @@ export default defineComponent({
             }
         };
 
-        const getEnvs = async (projectId: any) => {
-            state.envs = await projectApi.projectEnvs.request({ projectId });
-        };
-
         const getPwd = async () => {
             state.pwd = await redisApi.getRedisPwd.request({ id: state.form.id });
-        };
-
-        const changeProject = (projectId: number) => {
-            for (let p of state.projects as any) {
-                if (p.id == projectId) {
-                    state.form.project = p.name;
-                }
-            }
-            state.form.envId = null;
-            state.form.env = null;
-            state.envs = [];
-            getEnvs(projectId);
-        };
-
-        const changeEnv = (envId: number) => {
-            for (let p of state.envs as any) {
-                if (p.id == envId) {
-                    state.form.env = p.name;
-                }
-            }
         };
 
         const btnOk = async () => {
@@ -270,8 +246,6 @@ export default defineComponent({
             changeDb,
             getSshTunnelMachines,
             getPwd,
-            changeProject,
-            changeEnv,
             btnOk,
             cancel,
         };

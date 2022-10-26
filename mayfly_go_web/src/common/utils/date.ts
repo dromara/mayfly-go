@@ -1,4 +1,4 @@
-export function dateFormat(fmt: string, date: Date) {
+export function dateFormat2(fmt: string, date: Date) {
     let ret;
     const opt = {
         "y+": date.getFullYear().toString(),        // 年
@@ -19,5 +19,9 @@ export function dateFormat(fmt: string, date: Date) {
 }
 
 export function dateStrFormat(fmt: string, dateStr: string) {
-    return dateFormat(fmt, new Date(dateStr))
+    return dateFormat2(fmt, new Date(dateStr))
+}
+
+export function dateFormat(dateStr: string) {
+    return dateFormat2('yyyy-MM-dd HH:mm:ss',new Date(dateStr))
 }

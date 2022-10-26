@@ -2,17 +2,10 @@
     <div>
         <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" :destroy-on-close="true" width="38%">
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="95px">
-                <el-form-item prop="projectId" label="项目:" required>
-                    <el-select style="width: 100%" v-model="form.projectId" placeholder="请选择项目" @change="changeProject" filterable>
-                        <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
-                    </el-select>
+                <el-form-item prop="tagId" label="标签:" required>
+                    <tag-select v-model:tag-id="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
                 </el-form-item>
 
-                <el-form-item prop="envId" label="环境:" required>
-                    <el-select @change="changeEnv" style="width: 100%" v-model="form.envId" placeholder="请选择环境">
-                        <el-option v-for="item in envs" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
-                    </el-select>
-                </el-form-item>
                 <el-form-item prop="name" label="别名:" required>
                     <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
                 </el-form-item>
@@ -76,6 +69,10 @@
                     </el-col>
                 </el-form-item>
 
+                <el-form-item prop="remark" label="备注:">
+                    <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
+                </el-form-item>
+
                 <el-form-item prop="enableSshTunnel" label="SSH隧道:">
                     <el-col :span="3">
                         <el-checkbox @change="getSshTunnelMachines" v-model="form.enableSshTunnel" :true-label="1" :false-label="-1"></el-checkbox>
@@ -108,14 +105,17 @@
 <script lang="ts">
 import { toRefs, reactive, watch, defineComponent, ref } from 'vue';
 import { dbApi } from './api';
-import { projectApi } from '../project/api.ts';
 import { machineApi } from '../machine/api.ts';
 import { ElMessage } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import { RsaEncrypt } from '@/common/rsa';
+import TagSelect from '../component/TagSelect.vue';
 
 export default defineComponent({
     name: 'DbEdit',
+    components: {
+        TagSelect,
+    },
     props: {
         visible: {
             type: Boolean,
@@ -139,10 +139,14 @@ export default defineComponent({
             envs: [],
             allDatabases: [] as any,
             databaseList: [] as any,
-            sshTunnelMachineList: [],
+            sshTunnelMachineList: [] as any,
             form: {
                 id: null,
+                tagId: null as any,
+                tagPath: null as any,
+                type: null,
                 name: null,
+                host: '',
                 port: 3306,
                 username: null,
                 password: null,
@@ -152,6 +156,7 @@ export default defineComponent({
                 projectId: null,
                 envId: null,
                 env: null,
+                remark: '',
                 enableSshTunnel: null,
                 sshTunnelMachineId: null,
             },
@@ -218,7 +223,6 @@ export default defineComponent({
             }
             state.projects = newValue.projects;
             if (newValue.db) {
-                getEnvs(newValue.db.projectId);
                 state.form = { ...newValue.db };
                 // 将数据库名使用空格切割，获取所有数据库列表
                 state.databaseList = newValue.db.database.split(' ');
@@ -244,22 +248,6 @@ export default defineComponent({
             }
         };
 
-        const getEnvs = async (projectId: any) => {
-            state.envs = await projectApi.projectEnvs.request({ projectId });
-        };
-
-        const changeProject = (projectId: number) => {
-            for (let p of state.projects as any) {
-                if (p.id == projectId) {
-                    state.form.project = p.name;
-                }
-            }
-            state.form.envId = null;
-            state.form.env = null;
-            state.envs = [];
-            getEnvs(projectId);
-        };
-
         const changeEnv = (envId: number) => {
             for (let p of state.envs as any) {
                 if (p.id == envId) {
@@ -272,7 +260,7 @@ export default defineComponent({
             const reqForm = { ...state.form };
             reqForm.password = await RsaEncrypt(reqForm.password);
             state.allDatabases = await dbApi.getAllDatabase.request(reqForm);
-            ElMessage.success('获取成功, 请选择需要管理操作的数据库')
+            ElMessage.success('获取成功, 请选择需要管理操作的数据库');
         };
 
         const getDbPwd = async () => {
@@ -324,7 +312,6 @@ export default defineComponent({
             getDbPwd,
             changeDatabase,
             getSshTunnelMachines,
-            changeProject,
             changeEnv,
             btnOk,
             cancel,

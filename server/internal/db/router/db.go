@@ -3,8 +3,8 @@ package router
 import (
 	"mayfly-go/internal/db/api"
 	"mayfly-go/internal/db/application"
-	projectapp "mayfly-go/internal/project/application"
 	sysapp "mayfly-go/internal/sys/application"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/ctx"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +17,7 @@ func InitDbRouter(router *gin.RouterGroup) {
 			DbApp:        application.GetDbApp(),
 			DbSqlExecApp: application.GetDbSqlExecApp(),
 			MsgApp:       sysapp.GetMsgApp(),
-			ProjectApp:   projectapp.GetProjectApp(),
+			TagApp:       tagapp.GetTagTreeApp(),
 		}
 		// 获取所有数据库列表
 		db.GET("", func(c *gin.Context) {

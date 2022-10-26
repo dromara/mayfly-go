@@ -16,12 +16,25 @@
                 <el-table-column prop="key" label="配置key"></el-table-column>
                 <el-table-column prop="value" label="配置值" min-width="100px" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="100px" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="updateTime" label="更新时间">
+                <el-table-column prop="updateTime" label="更新时间" min-width="100px">
                     <template #default="scope">
                         {{ $filters.dateFormat(scope.row.createTime) }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="modifier" label="修改者" show-overflow-tooltip></el-table-column>
+                <el-table-column label="操作" min-width="50" fixed="right">
+                    <template #default="scope">
+                        <el-link
+                            :disabled="scope.row.status == -1"
+                            type="warning"
+                            @click="showSetConfigDialog(scope.row)"
+                            plain
+                            size="small"
+                            :underline="false"
+                            >配置</el-link
+                        >
+                    </template>
+                </el-table-column>
             </el-table>
             <el-row style="margin-top: 20px" type="flex" justify="end">
                 <el-pagination
@@ -34,6 +47,42 @@
                 ></el-pagination>
             </el-row>
         </el-card>
+
+        <el-dialog :before-close="closeSetConfigDialog" title="配置项设置" v-model="paramsDialog.visible" width="500px">
+            <el-form v-if="paramsDialog.paramsFormItem.length > 0" ref="paramsForm" :model="paramsDialog.params" label-width="90px">
+                <el-form-item v-for="item in paramsDialog.paramsFormItem" :key="item.name" :prop="item.model" :label="item.name" required>
+                    <el-input
+                        v-if="!item.options"
+                        v-model="paramsDialog.params[item.model]"
+                        :placeholder="item.placeholder"
+                        autocomplete="off"
+                        clearable
+                    ></el-input>
+                    <el-select
+                        v-else
+                        v-model="paramsDialog.params[item.model]"
+                        :placeholder="item.placeholder"
+                        filterable
+                        autocomplete="off"
+                        clearable
+                        style="width: 100%"
+                    >
+                        <el-option v-for="option in item.options.split(',')" :key="option" :label="option" :value="option" />
+                    </el-select>
+                </el-form-item>
+            </el-form>
+            <el-form v-else ref="paramsForm" label-width="90px">
+                <el-form-item label="配置值" required>
+                    <el-input v-model="paramsDialog.params" :placeholder="paramsDialog.config.remark" autocomplete="off" clearable></el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="closeSetConfigDialog()">取 消</el-button>
+                    <el-button type="primary" @click="setConfig()">确 定</el-button>
+                </span>
+            </template>
+        </el-dialog>
 
         <config-edit :title="configEdit.title" v-model:visible="configEdit.visible" :data="configEdit.config" @val-change="configEditChange" />
     </div>
@@ -62,6 +111,12 @@ export default defineComponent({
             configs: [],
             chooseId: null,
             chooseData: null,
+            paramsDialog: {
+                visible: false,
+                config: null as any,
+                params: {},
+                paramsFormItem: [] as any,
+            },
             configEdit: {
                 title: '配置修改',
                 visible: false,
@@ -84,6 +139,62 @@ export default defineComponent({
             search();
         };
 
+        const showSetConfigDialog = (row: any) => {
+            state.paramsDialog.config = row;
+            // 存在配置项则弹窗提示输入对应的配置项
+            if (row.params) {
+                state.paramsDialog.paramsFormItem = JSON.parse(row.params);
+                if (state.paramsDialog.paramsFormItem && state.paramsDialog.paramsFormItem.length > 0) {
+                    if (row.value) {
+                        state.paramsDialog.params = JSON.parse(row.value);
+                    }
+                }
+            } else {
+                state.paramsDialog.params = row.value;
+            }
+            state.paramsDialog.visible = true;
+        };
+
+        const closeSetConfigDialog = () => {
+            state.paramsDialog.visible = false;
+            setTimeout(() => {
+                state.paramsDialog.config = {};
+                state.paramsDialog.params = {};
+                state.paramsDialog.paramsFormItem = [];
+            }, 300);
+        };
+
+        const setConfig = async () => {
+            let paramsValue = state.paramsDialog.params;
+            if (state.paramsDialog.paramsFormItem.length > 0) {
+                // 如果配置项删除，则需要将value中对应的字段移除
+                for (let paramKey in paramsValue) {
+                    if (!hasParam(paramKey, state.paramsDialog.paramsFormItem)) {
+                        delete paramsValue[paramKey];
+                    }
+                }
+                paramsValue = JSON.stringify(paramsValue);
+            }
+            await configApi.save.request({
+                id: state.paramsDialog.config.id,
+                key: state.paramsDialog.config.key,
+                name: state.paramsDialog.config.name,
+                value: paramsValue,
+            });
+            ElMessage.success('保存成功');
+            closeSetConfigDialog();
+            search();
+        };
+
+        const hasParam = (paramKey: string, paramItems: any) => {
+            for (let paramItem of paramItems) {
+                if (paramItem.model == paramKey) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
         const choose = (item: any) => {
             if (!item) {
                 return;
@@ -93,7 +204,7 @@ export default defineComponent({
         };
 
         const configEditChange = () => {
-            ElMessage.success('修改成功！');
+            ElMessage.success('保存成功');
             state.chooseId = null;
             state.chooseData = null;
             search();
@@ -111,6 +222,9 @@ export default defineComponent({
 
         return {
             ...toRefs(state),
+            showSetConfigDialog,
+            closeSetConfigDialog,
+            setConfig,
             search,
             handlePageChange,
             choose,

@@ -66,11 +66,13 @@ func Tx(funcs ...func(db *gorm.DB) error) (err error) {
 // 根据id获取实体对象。model需为指针类型（需要将查询出来的值赋值给model）
 //
 // 若error不为nil则为不存在该记录
+// @param model  数据库映射实体模型
 func GetById(model interface{}, id uint64, cols ...string) error {
 	return global.Db.Select(cols).Where("id = ?", id).First(model).Error
 }
 
-// 根据id列表查询
+// 根据map条件查询列表，map中的值如果为数组，则使用in查询
+// @param model  数据库映射实体模型
 func GetByIdIn(model interface{}, list interface{}, ids []uint64, orderBy ...string) {
 	var orderByStr string
 	if orderBy == nil {
@@ -82,28 +84,59 @@ func GetByIdIn(model interface{}, list interface{}, ids []uint64, orderBy ...str
 }
 
 // 根据id列表查询
+func SelectByMap(model interface{}, list interface{}, where map[string]interface{}, orderBy ...string) {
+	var orderByStr string
+	if orderBy == nil {
+		orderByStr = "id desc"
+	} else {
+		orderByStr = strings.Join(orderBy, ",")
+	}
+	global.Db.Model(model).Where(where).Order(orderByStr).Find(list)
+}
+
+// 根据id列表查询
 func CountBy(model interface{}) int64 {
 	var count int64
 	global.Db.Model(model).Where(model).Count(&count)
 	return count
 }
 
+// 根据map为条件统计数量，map中的值如果为数组，则使用in查询
+// @param model  数据库映射实体模型
+// @param where  条件map
+func CountByMap(model interface{}, where map[string]interface{}) int64 {
+	var count int64
+	global.Db.Model(model).Where(where).Count(&count)
+	return count
+}
+
+// 根据统计sql返回统计数量
+func CountBySql(sql string) int64 {
+	var count int64
+	global.Db.Raw(sql).Scan(&count)
+	return count
+}
+
 // 根据id更新model，更新字段为model中不为空的值，即int类型不为0，ptr类型不为nil这类字段值
+// @param model  数据库映射实体模型
 func UpdateById(model interface{}) error {
 	return global.Db.Model(model).Updates(model).Error
 }
 
 // 根据id删除model
+// @param model  数据库映射实体模型
 func DeleteById(model interface{}, id uint64) error {
 	return global.Db.Delete(model, "id = ?", id).Error
 }
 
 // 根据条件删除
+// @param model  数据库映射实体模型
 func DeleteByCondition(model interface{}) error {
 	return global.Db.Where(model).Delete(model).Error
 }
 
 // 插入model
+// @param model  数据库映射实体模型
 func Insert(model interface{}) error {
 	return global.Db.Create(model).Error
 }
@@ -118,6 +151,7 @@ func ListBy(model interface{}, list interface{}, cols ...string) {
 // 获取满足model中不为空的字段值条件的所有数据.
 //
 // @param list为数组类型 如 var users *[]User，可指定为非model结构体
+// @param model  数据库映射实体模型
 func ListByOrder(model interface{}, list interface{}, order ...string) {
 	var orderByStr string
 	if order == nil {
@@ -131,21 +165,24 @@ func ListByOrder(model interface{}, list interface{}, order ...string) {
 // 获取满足model中不为空的字段值条件的单个对象。model需为指针类型（需要将查询出来的值赋值给model）
 //
 // 若 error不为nil，则为不存在该记录
+// @param model  数据库映射实体模型
 func GetBy(model interface{}, cols ...string) error {
 	return global.Db.Select(cols).Where(model).First(model).Error
 }
 
 // 获取满足conditionModel中不为空的字段值条件的单个对象。model需为指针类型（需要将查询出来的值赋值给model）
+//
 //	@param toModel  需要查询的字段
+//
 // 若 error不为nil，则为不存在该记录
 func GetByConditionTo(conditionModel interface{}, toModel interface{}) error {
 	return global.Db.Model(conditionModel).Where(conditionModel).First(toModel).Error
 }
 
 // 获取分页结果
-func GetPage(pageParam *PageParam, conditionModel interface{}, toModels interface{}, orderBy ...string) *PageResult {
+func GetPage(pageParam *PageParam, model interface{}, conditionModel interface{}, toModels interface{}, orderBy ...string) *PageResult {
 	var count int64
-	err := global.Db.Model(conditionModel).Where(conditionModel).Count(&count).Error
+	err := global.Db.Model(model).Where(conditionModel).Count(&count).Error
 	biz.ErrIsNilAppendErr(err, " 查询错误：%s")
 	if count == 0 {
 		return &PageResult{Total: 0, List: []string{}}
@@ -159,7 +196,7 @@ func GetPage(pageParam *PageParam, conditionModel interface{}, toModels interfac
 	} else {
 		orderByStr = strings.Join(orderBy, ",")
 	}
-	err = global.Db.Model(conditionModel).Where(conditionModel).Order(orderByStr).Limit(pageSize).Offset((page - 1) * pageSize).Find(toModels).Error
+	err = global.Db.Model(model).Where(conditionModel).Order(orderByStr).Limit(pageSize).Offset((page - 1) * pageSize).Find(toModels).Error
 	biz.ErrIsNil(err, "查询失败")
 	return &PageResult{Total: count, List: toModels}
 }

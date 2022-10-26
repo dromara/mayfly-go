@@ -23,9 +23,9 @@ import (
 
 type Redis interface {
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.Redis, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
-	Count(condition *entity.Redis) int64
+	Count(condition *entity.RedisQuery) int64
 
 	// 根据id获取
 	GetById(id uint64, cols ...string) *entity.Redis
@@ -55,11 +55,11 @@ type redisAppImpl struct {
 }
 
 // 分页获取机器脚本信息列表
-func (r *redisAppImpl) GetPageList(condition *entity.Redis, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return r.redisRepo.GetRedisList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (r *redisAppImpl) Count(condition *entity.Redis) int64 {
+func (r *redisAppImpl) Count(condition *entity.RedisQuery) int64 {
 	return r.redisRepo.Count(condition)
 }
 
@@ -172,7 +172,7 @@ func getRedisCacheKey(id uint64, db int) string {
 }
 
 func getRedisCient(re *entity.Redis, db int) *RedisInstance {
-	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, db), ProjectId: re.ProjectId, Mode: re.Mode}
+	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, db), TagPath: re.TagPath, Mode: re.Mode}
 
 	redisOptions := &redis.Options{
 		Addr:         re.Host,
@@ -191,7 +191,7 @@ func getRedisCient(re *entity.Redis, db int) *RedisInstance {
 }
 
 func getRedisClusterClient(re *entity.Redis) *RedisInstance {
-	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, 0), ProjectId: re.ProjectId, Mode: re.Mode}
+	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, 0), TagPath: re.TagPath, Mode: re.Mode}
 
 	redisClusterOptions := &redis.ClusterOptions{
 		Addrs:       strings.Split(re.Host, ","),
@@ -207,7 +207,7 @@ func getRedisClusterClient(re *entity.Redis) *RedisInstance {
 }
 
 func getRedisSentinelCient(re *entity.Redis, db int) *RedisInstance {
-	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, db), ProjectId: re.ProjectId, Mode: re.Mode}
+	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, db), TagPath: re.TagPath, Mode: re.Mode}
 	// sentinel模式host为 masterName=host:port,host:port
 	masterNameAndHosts := strings.Split(re.Host, "=")
 	sentinelOptions := &redis.FailoverOptions{
@@ -294,7 +294,7 @@ func TestRedisConnection(re *entity.Redis) {
 // redis实例
 type RedisInstance struct {
 	Id                 string
-	ProjectId          uint64
+	TagPath            string
 	Mode               string
 	Cli                *redis.Client
 	ClusterCli         *redis.ClusterClient

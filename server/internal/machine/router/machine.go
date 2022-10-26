@@ -3,7 +3,7 @@ package router
 import (
 	"mayfly-go/internal/machine/api"
 	"mayfly-go/internal/machine/application"
-	projectapp "mayfly-go/internal/project/application"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/ctx"
 
 	"github.com/gin-gonic/gin"
@@ -12,7 +12,7 @@ import (
 func InitMachineRouter(router *gin.RouterGroup) {
 	m := &api.Machine{
 		MachineApp: application.GetMachineApp(),
-		ProjectApp: projectapp.GetProjectApp(),
+		TagApp:     tagapp.GetTagTreeApp(),
 	}
 
 	machines := router.Group("machines")
