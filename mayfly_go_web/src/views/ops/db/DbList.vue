@@ -75,7 +75,7 @@
             </el-row>
         </el-card>
 
-        <el-dialog width="75%" :title="`${db} 表信息`" :before-close="closeTableInfo" v-model="tableInfoDialog.visible">
+        <el-dialog width="80%" :title="`${db} 表信息`" :before-close="closeTableInfo" v-model="tableInfoDialog.visible">
             <el-row class="mb10">
                 <el-popover v-model:visible="showDumpInfo" :width="470" placement="right" trigger="click">
                     <template #reference>
@@ -144,7 +144,7 @@
                     </template>
                 </el-table-column>
                 <el-table-column property="createTime" label="创建时间" min-width="150"> </el-table-column>
-                <el-table-column label="更多信息" min-width="100">
+                <el-table-column label="更多信息" min-width="140">
                     <template #default="scope">
                         <el-link @click.prevent="showColumns(scope.row)" type="primary">字段</el-link>
                         <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">索引</el-link>

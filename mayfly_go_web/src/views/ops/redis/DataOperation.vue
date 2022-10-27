@@ -148,7 +148,7 @@
 
 <script lang="ts">
 import { redisApi } from './api';
-import {toRefs, reactive, defineComponent, watch} from 'vue';
+import { toRefs, reactive, defineComponent, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import HashValue from './HashValue.vue';
 import StringValue from './StringValue.vue';
@@ -230,8 +230,9 @@ export default defineComponent({
 
         const changeRedis = (id: number) => {
             resetScanParam(id);
-            state.scanParam.db = '';
             state.dbList = (state.redisList.find((x: any) => x.id == id) as any).db.split(',');
+            // 默认选中配置的第一个库
+            state.scanParam.db = state.dbList[0];
             state.keys = [];
             state.dbsize = 0;
         };
@@ -413,32 +414,29 @@ export default defineComponent({
             }
         };
 
-      // 加载选中的db
-      const setSelects = async (redisDbOptInfo: any) =>{
-        // 设置项目id和环境id
-        const { tagPath, dbId} = redisDbOptInfo.dbOptInfo;
-        state.query.tagPath = tagPath;
-        await searchRedis()
-        state.scanParam.id = dbId
-        changeRedis(dbId)
-        if(!state.scanParam.db){
-          state.scanParam.db = '0'
+        // 加载选中的db
+        const setSelects = async (redisDbOptInfo: any) => {
+            // 设置标签路径等
+            const { tagPath, dbId } = redisDbOptInfo.dbOptInfo;
+            state.query.tagPath = tagPath;
+            await searchRedis();
+            state.scanParam.id = dbId;
+            changeRedis(dbId);
+            changeDb();
+        };
+
+        // 判断如果有数据则加载下拉选项
+        let redisDbOptInfo = store.state.redisDbOptInfo;
+        if (redisDbOptInfo.dbOptInfo.tagPath) {
+            setSelects(redisDbOptInfo);
         }
-        changeDb()
-      }
 
-      // 判断如果有数据则加载下拉选项
-      let redisDbOptInfo = store.state.redisDbOptInfo
-      if(redisDbOptInfo.dbOptInfo.tagPath){
-        setSelects(redisDbOptInfo)
-      }
+        // 监听选中操作的db变化，并加载下拉选项
+        watch(store.state.redisDbOptInfo, async (newValue) => {
+            await setSelects(newValue);
+        });
 
-      // 监听选中操作的db变化，并加载下拉选项
-      watch(store.state.redisDbOptInfo,async (newValue) => {
-        await setSelects(newValue)
-      })
-
-      return {
+        return {
             ...toRefs(state),
             getTags,
             changeTag,

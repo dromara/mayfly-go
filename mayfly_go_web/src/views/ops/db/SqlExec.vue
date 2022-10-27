@@ -5,7 +5,14 @@
                 <el-col :span="24">
                     <el-form class="search-form" label-position="right" :inline="true">
                         <el-form-item label="标签">
-                            <el-select @change="changeTag" @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" filterable style="width: 220px">
+                            <el-select
+                                @change="changeTag"
+                                @focus="getTags"
+                                v-model="params.tagPath"
+                                placeholder="请选择标签"
+                                filterable
+                                style="width: 220px"
+                            >
                                 <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                             </el-select>
                         </el-form-item>
@@ -146,7 +153,7 @@
                                 v-loading="queryTab.loading"
                                 element-loading-text="查询中..."
                                 size="small"
-                                max-height="800px"
+                                max-height="250"
                                 empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
                                 stripe
                                 border
@@ -1232,35 +1239,35 @@ export default defineComponent({
         };
 
         // 加载选中的db
-        const setSelects = async (sqlExecInfo: any) =>{
-          // 保存sql
-          let sql = codemirror?.getValue()
-          if( sql && sql.length > 0 && state.dbId){
-            await saveSql();
-          }
-          // 设置项目id和环境id
-          const { tagPath, dbId, db} = sqlExecInfo.dbOptInfo;
-          state.params.tagPath = tagPath
-          // 查询有哪些数据库实例
-          await search()
-          // 加载数据库所有schema
-          changeDbInstance(dbId);
-          state.dbId = dbId
-          state.db = db
-          // 加载schema下所有表
-          changeDb(db)
-        }
+        const setSelects = async (sqlExecInfo: any) => {
+            // 保存sql
+            let sql = codemirror?.getValue();
+            if (sql && sql.length > 0 && state.dbId) {
+                await saveSql();
+            }
+            // 设置项目id和环境id
+            const { tagPath, dbId, db } = sqlExecInfo.dbOptInfo;
+            state.params.tagPath = tagPath;
+            // 查询有哪些数据库实例
+            await search();
+            // 加载数据库所有schema
+            changeDbInstance(dbId);
+            state.dbId = dbId;
+            state.db = db;
+            // 加载schema下所有表
+            changeDb(db);
+        };
 
         // 判断如果有数据则加载下拉选项
-        let sqlExecInfo = store.state.sqlExecInfo
-        if(sqlExecInfo.dbOptInfo.tagPath){
-          setSelects(sqlExecInfo)
+        let sqlExecInfo = store.state.sqlExecInfo;
+        if (sqlExecInfo.dbOptInfo.tagPath) {
+            setSelects(sqlExecInfo);
         }
 
         // 监听选中操作的db变化，并加载下拉选项
-        watch(store.state.sqlExecInfo,async (newValue) => {
-          await setSelects(newValue)
-        })
+        watch(store.state.sqlExecInfo, async (newValue) => {
+            await setSelects(newValue);
+        });
 
         return {
             ...toRefs(state),
