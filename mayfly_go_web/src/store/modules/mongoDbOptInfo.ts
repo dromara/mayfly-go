@@ -6,8 +6,7 @@ const mongoDbOptInfoModule: Module<DbOptInfoState, RootStateTypes> = {
     namespaced: true,
     state: {
         dbOptInfo: {
-            projectId: 0,
-            envId: 0,
+            tagPath: '',
             dbId: 0,
             db: '0',
         },

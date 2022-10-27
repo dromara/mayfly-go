@@ -74,8 +74,7 @@ export interface UserInfosState {
 // 数据操作信息
 export interface DbOptInfoState {
     dbOptInfo: {
-        projectId?: number,
-        envId?: number,
+        tagPath?: string,
         dbId?: number,
         db?: string,
     }

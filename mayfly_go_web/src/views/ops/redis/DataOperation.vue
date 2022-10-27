@@ -156,6 +156,9 @@ import SetValue from './SetValue.vue';
 import ListValue from './ListValue.vue';
 import { isTrue, notBlank, notNull } from '@/common/assert';
 
+import { useStore } from '@/store/index.ts';
+import { tagApi } from '../tag/api.ts';
+
 export default defineComponent({
     name: 'DataOperation',
     components: {
@@ -413,9 +416,8 @@ export default defineComponent({
       // 加载选中的db
       const setSelects = async (redisDbOptInfo: any) =>{
         // 设置项目id和环境id
-        const { projectId, envId, dbId} = redisDbOptInfo.dbOptInfo;
-        state.projectId = projectId;
-        state.query.envId = envId
+        const { tagPath, dbId} = redisDbOptInfo.dbOptInfo;
+        state.query.tagPath = tagPath;
         await searchRedis()
         state.scanParam.id = dbId
         changeRedis(dbId)
@@ -427,7 +429,7 @@ export default defineComponent({
 
       // 判断如果有数据则加载下拉选项
       let redisDbOptInfo = store.state.redisDbOptInfo
-      if(redisDbOptInfo.dbOptInfo.envId){
+      if(redisDbOptInfo.dbOptInfo.tagPath){
         setSelects(redisDbOptInfo)
       }
 

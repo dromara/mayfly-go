@@ -208,8 +208,6 @@ export default defineComponent({
         const state = reactive({
             tags: [],
             dbOps: {
-              projectId: null,
-              envId: null,
               dbId: 0,
               db: '',
             },
@@ -275,9 +273,8 @@ export default defineComponent({
         };
 
         const showDatabases = async (id: number, row: any) => {
-            const {projectId, envId} = row;
-            state.dbOps.projectId = projectId
-            state.dbOps.envId = envId
+          console.log(row)
+            state.query.tagPath = row.tagPath
             state.dbOps.dbId = id
 
             state.databaseDialog.data = (await mongoApi.databases.request({ id })).Databases;
@@ -408,13 +405,12 @@ export default defineComponent({
         const openDataOps = ( row: any) => {
           state.dbOps.db = row.Name
 
+          debugger
           let data = {
-            projectId: state.dbOps.projectId,
-            envId: state.dbOps.envId,
+            tagPath: state.query.tagPath,
             dbId: state.dbOps.dbId,
             db: state.dbOps.db,
           }
-          console.log(data)
           // 判断db是否发生改变
           let oldDb = store.state.mongoDbOptInfo.dbOptInfo.db;
           if(oldDb !== row.Name){

@@ -344,7 +344,6 @@ export default defineComponent({
         const tableMap = new Map();
 
         const state = reactive({
-            projectId: null,
             token: token,
             defalutLimit: 20, // 默认查询数量
             tags: [],
@@ -1240,9 +1239,8 @@ export default defineComponent({
             await saveSql();
           }
           // 设置项目id和环境id
-          const { projectId, envId, dbId, db} = sqlExecInfo.dbOptInfo;
-          state.projectId = projectId;
-          state.params.envId = envId
+          const { tagPath, dbId, db} = sqlExecInfo.dbOptInfo;
+          state.params.tagPath = tagPath
           // 查询有哪些数据库实例
           await search()
           // 加载数据库所有schema
@@ -1255,7 +1253,7 @@ export default defineComponent({
 
         // 判断如果有数据则加载下拉选项
         let sqlExecInfo = store.state.sqlExecInfo
-        if(sqlExecInfo.dbOptInfo.envId){
+        if(sqlExecInfo.dbOptInfo.tagPath){
           setSelects(sqlExecInfo)
         }
 

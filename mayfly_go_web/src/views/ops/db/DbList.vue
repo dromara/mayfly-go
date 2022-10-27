@@ -39,18 +39,13 @@
                                 <el-icon class="el-input__icon"><search-icon /></el-icon>
                               </template>
                             </el-input>
-                            <el-tag
-                                @click="showTableInfo(scope.row, db)"
-                                effect="plain"
-                                type="success"
-                                size="small"
-                                v-for="db in filterDb.list"
-                                :key="db"
-                                style="cursor: pointer; margin-left: 3px; margin-bottom: 3px;"
-                                >{{ db }}</el-tag
-                            >
-                              <el-link type="primary" plain size="small" :underline="false" @click="openSqlExec(scope.row, db)" style="position: absolute; right: 4px">数据操作</el-link>
-                            </div>
+                          <div class="el-tag--plain el-tag--success"
+                               v-for="db in filterDb.list" :key="db"
+                               style="border:1px var(--color-success-light-3) solid; margin-top: 3px;border-radius: 5px; padding: 2px;position: relative"
+                          >
+                            <el-link type="success" plain size="small" :underline="false" @click="showTableInfo(scope.row, db)">{{ db }}</el-link>
+                            <el-link type="primary" plain size="small" :underline="false" @click="openSqlExec(scope.row, db)" style="position: absolute; right: 4px">数据操作</el-link>
+                          </div>
                         </el-popover>
                     </template>
                 </el-table-column>
@@ -636,10 +631,9 @@ export default defineComponent({
           // 判断db是否发生改变
           let oldDb = store.state.sqlExecInfo.dbOptInfo.db;
           if(db && oldDb !== db){
-            const {projectId, envId, id} = row;
+            const {tagPath, id} = row;
             let params = {
-              projectId,
-              envId,
+              tagPath,
               dbId: id,
               db
             }
