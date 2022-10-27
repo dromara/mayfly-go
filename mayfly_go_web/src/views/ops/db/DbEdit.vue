@@ -17,7 +17,7 @@
                 </el-form-item>
                 <el-form-item prop="host" label="host:" required>
                     <el-col :span="18">
-                        <el-input :disabled="form.id" v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
+                        <el-input :disabled="form.id!==undefined" v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
                     </el-col>
                     <el-col style="text-align: center" :span="1">:</el-col>
                     <el-col :span="5">
@@ -45,7 +45,11 @@
                     </el-input>
                 </el-form-item>
                 <el-form-item prop="params" label="连接参数:">
-                    <el-input v-model="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2"></el-input>
+                    <el-input v-model.trim="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2">
+                      <template v-if="form.id && form.id != 0" #suffix>
+                          <el-link target="_blank" href="https://github.com/go-sql-driver/mysql#dsn-data-source-name" :underline="false" type="primary" class="mr5">参数参考</el-link>
+                      </template>
+                    </el-input>
                 </el-form-item>
                 <el-form-item prop="database" label="数据库名:" required>
                     <el-col :span="19">
@@ -53,6 +57,7 @@
                             @change="changeDatabase"
                             v-model="databaseList"
                             multiple
+                            clearable
                             collapse-tags
                             collapse-tags-tooltip
                             filterable
@@ -77,8 +82,8 @@
                     <el-col :span="3">
                         <el-checkbox @change="getSshTunnelMachines" v-model="form.enableSshTunnel" :true-label="1" :false-label="-1"></el-checkbox>
                     </el-col>
-                    <el-col :span="2" v-if="form.enableSshTunnel == 1"> 机器: </el-col>
-                    <el-col :span="19" v-if="form.enableSshTunnel == 1">
+                    <el-col :span="5" v-if="form.enableSshTunnel == 1"> 机器: </el-col>
+                    <el-col :span="16" v-if="form.enableSshTunnel == 1">
                         <el-select style="width: 100%" v-model="form.sshTunnelMachineId" placeholder="请选择SSH隧道机器">
                             <el-option
                                 v-for="item in sshTunnelMachineList"

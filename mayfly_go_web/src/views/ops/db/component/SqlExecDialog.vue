@@ -1,6 +1,7 @@
 <template>
     <div>
         <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px">
+            如需执行多条sql，需要在【数据库管理】配置连接参数：multiStatements=true
             <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sqlValue" :options="cmOptions" />
             <el-input ref="remarkInputRef" v-model="remark" placeholder="请输入执行备注" class="mt5" />
             <template #footer>

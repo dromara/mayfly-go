@@ -17,13 +17,13 @@ const (
     WHERE table_schema = (SELECT database())`
 
 	// mysql 索引信息
-	MYSQL_INDEX_INFO = `SELECT index_name indexName, column_name columnName, index_type indexType,
+	MYSQL_INDEX_INFO = `SELECT index_name indexName, group_concat(column_name) columnName, index_type indexType, non_unique nonUnique, 
 	SEQ_IN_INDEX seqInIndex, INDEX_COMMENT indexComment
 	FROM information_schema.STATISTICS 
-    WHERE table_schema = (SELECT database()) AND table_name = '%s'`
+    WHERE table_schema = (SELECT database()) AND table_name = '%s' GROUP by index_name`
 
 	// mysql 列信息元数据
-	MYSQL_COLUMN_MA = `SELECT table_name tableName, column_name columnName, column_type columnType,
+	MYSQL_COLUMN_MA = `SELECT table_name tableName, column_name columnName, column_type columnType, column_default columnDefault,
 	column_comment columnComment, column_key columnKey, extra, is_nullable nullable from information_schema.columns
 	WHERE table_schema = (SELECT database()) AND table_name in (%s) ORDER BY tableName, ordinal_position`
 )
