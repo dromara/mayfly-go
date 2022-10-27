@@ -10,7 +10,7 @@
                 </el-form-item>
                 <el-form-item prop="ip" label="ip:" required>
                     <el-col :span="18">
-                        <el-input :disabled="form.id != 0" v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"></el-input>
+                        <el-input :disabled="form.id" v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"></el-input>
                     </el-col>
                     <el-col style="text-align: center" :span="1">:</el-col>
                     <el-col :span="5">

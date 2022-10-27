@@ -357,7 +357,7 @@ export default defineComponent({
         const showTags = async (team: any) => {
             state.showTagDialog.tags = await tagApi.getTagTrees.request(null);
             state.showTagDialog.tagTreeTeams = await tagApi.getTeamTagIds.request({ teamId: team.id });
-            state.showTagDialog.title = `[${team.name}] 项目信息`;
+            state.showTagDialog.title = `[${team.name}] 团队标签信息`;
             state.showTagDialog.teamId = team.id;
             state.showTagDialog.visible = true;
         };
