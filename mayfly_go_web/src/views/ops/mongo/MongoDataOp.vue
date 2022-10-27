@@ -134,13 +134,14 @@
 
 <script lang="ts">
 import { mongoApi } from './api';
-import { toRefs, ref, reactive, defineComponent } from 'vue';
+import {toRefs, ref, reactive, defineComponent, watch} from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { isTrue, notBlank, notNull } from '@/common/assert';
 import { formatByteSize } from '@/common/utils/format';
 import JsonEdit from '@/components/jsonedit/index.vue';
 import { tagApi } from '../tag/api.ts';
+import { useStore } from '@/store/index.ts';
 
 export default defineComponent({
     name: 'MongoDataOp',
@@ -148,6 +149,7 @@ export default defineComponent({
         JsonEdit,
     },
     setup() {
+        const store = useStore();
         const findParamInputRef: any = ref(null);
         const state = reactive({
             loading: false,
@@ -424,6 +426,32 @@ export default defineComponent({
 
             delete state.dataTabs[targetName];
         };
+
+        // 加载选中的tagPath
+        const setSelects = async (mongoDbOptInfo: any) =>{
+          const { tagPath, dbId, db} = mongoDbOptInfo.dbOptInfo;
+          state.query.tagPath = tagPath
+          await searchMongo();
+          state.mongoId = dbId
+          await getDatabases();
+          state.database = db
+          await getCollections();
+          if(state.collection){
+            state.collection = ''
+            state.dataTabs = {}
+          }
+        }
+  
+        // 判断如果有数据则加载下拉选项
+        let mongoDbOptInfo = store.state.mongoDbOptInfo
+        if(mongoDbOptInfo.dbOptInfo.tagPath){
+          setSelects(mongoDbOptInfo)
+        }
+  
+        // 监听选中操作的db变化，并加载下拉选项
+        watch(store.state.mongoDbOptInfo,async (newValue) => {
+          await setSelects(newValue)
+        })
 
         return {
             ...toRefs(state),

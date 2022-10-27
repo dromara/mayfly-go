@@ -50,7 +50,7 @@
 
                     <!-- <project-env-select @changeTag="changeTag">
                         <template #default>
-                            
+
                         </template>
                     </project-env-select> -->
                 </el-col>
@@ -309,7 +309,7 @@
 </template>
 
 <script lang="ts">
-import { onMounted, toRefs, reactive, defineComponent, ref } from 'vue';
+import { onMounted, toRefs, reactive, defineComponent, ref, watch } from 'vue';
 import { dbApi } from './api';
 
 import 'codemirror/addon/hint/show-hint.css';
@@ -330,12 +330,14 @@ import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
 import SqlExecBox from './component/SqlExecBox';
 import { dateStrFormat } from '@/common/utils/date.ts';
+import { useStore } from '@/store/index.ts';
 import { tagApi } from '../tag/api.ts';
 
 export default defineComponent({
     name: 'SqlExec',
     components: {},
     setup() {
+        const store = useStore();
         const codeTextarea: any = ref(null);
         const token = getSession('token');
         let codemirror = null as any;
@@ -449,7 +451,7 @@ export default defineComponent({
         /**
          * 项目及环境更改后的回调事件
          */
-        const changeTag = () => {
+        const changeTag = (projectId: any, envId: any) => {
             state.dbs = [];
             state.dbId = null;
             state.db = '';
@@ -1228,6 +1230,37 @@ export default defineComponent({
             const res = await dbApi.dbs.request(state.params);
             state.dbs = res.list;
         };
+
+        // 加载选中的db
+        const setSelects = async (sqlExecInfo: any) =>{
+          // 保存sql
+          let sql = codemirror?.getValue()
+          if( sql && sql.length > 0 && state.dbId){
+            await saveSql();
+          }
+          // 设置项目id和环境id
+          const { tagPath, dbId, db} = sqlExecInfo.dbOptInfo;
+          state.params.tagPath = tagPath
+          // 查询有哪些数据库实例
+          await search()
+          // 加载数据库所有schema
+          changeDbInstance(dbId);
+          state.dbId = dbId
+          state.db = db
+          // 加载schema下所有表
+          changeDb(db)
+        }
+
+        // 判断如果有数据则加载下拉选项
+        let sqlExecInfo = store.state.sqlExecInfo
+        if(sqlExecInfo.dbOptInfo.tagPath){
+          setSelects(sqlExecInfo)
+        }
+
+        // 监听选中操作的db变化，并加载下拉选项
+        watch(store.state.sqlExecInfo,async (newValue) => {
+          await setSelects(newValue)
+        })
 
         return {
             ...toRefs(state),

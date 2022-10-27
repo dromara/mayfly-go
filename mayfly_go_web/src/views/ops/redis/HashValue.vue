@@ -82,7 +82,7 @@ export default defineComponent({
             require: true,
         },
         db: {
-            type: [Number],
+            type: [String],
             require: true,
         },
         keyInfo: {
@@ -98,7 +98,7 @@ export default defineComponent({
             dialogVisible: false,
             operationType: 1,
             redisId: 0,
-            db: 0,
+            db: '0',
             key: {
                 key: '',
                 type: 'hash',
@@ -107,7 +107,7 @@ export default defineComponent({
             scanParam: {
                 key: '',
                 id: 0,
-                db: 0,
+                db: '0',
                 cursor: 0,
                 match: '',
                 count: 10,

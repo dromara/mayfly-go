@@ -148,13 +148,15 @@
 
 <script lang="ts">
 import { redisApi } from './api';
-import { toRefs, reactive, defineComponent } from 'vue';
+import {toRefs, reactive, defineComponent, watch} from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import HashValue from './HashValue.vue';
 import StringValue from './StringValue.vue';
 import SetValue from './SetValue.vue';
 import ListValue from './ListValue.vue';
 import { isTrue, notBlank, notNull } from '@/common/assert';
+
+import { useStore } from '@/store/index.ts';
 import { tagApi } from '../tag/api.ts';
 
 export default defineComponent({
@@ -166,7 +168,9 @@ export default defineComponent({
         ListValue,
     },
     setup() {
+        let store = useStore();
         const state = reactive({
+            projectId: null,
             loading: false,
             tags: [],
             redisList: [] as any,
@@ -176,7 +180,7 @@ export default defineComponent({
             },
             scanParam: {
                 id: null,
-                db: null,
+                db: '',
                 match: null,
                 count: 10,
                 cursor: {},
@@ -226,7 +230,7 @@ export default defineComponent({
 
         const changeRedis = (id: number) => {
             resetScanParam(id);
-            state.scanParam.db = null;
+            state.scanParam.db = '';
             state.dbList = (state.redisList.find((x: any) => x.id == id) as any).db.split(',');
             state.keys = [];
             state.dbsize = 0;
@@ -270,7 +274,7 @@ export default defineComponent({
             state.redisList = [];
             state.scanParam.id = null;
             resetScanParam();
-            state.scanParam.db = null;
+            state.scanParam.db = '';
             state.keys = [];
             state.dbsize = 0;
         };
@@ -409,7 +413,32 @@ export default defineComponent({
             }
         };
 
-        return {
+      // 加载选中的db
+      const setSelects = async (redisDbOptInfo: any) =>{
+        // 设置项目id和环境id
+        const { tagPath, dbId} = redisDbOptInfo.dbOptInfo;
+        state.query.tagPath = tagPath;
+        await searchRedis()
+        state.scanParam.id = dbId
+        changeRedis(dbId)
+        if(!state.scanParam.db){
+          state.scanParam.db = '0'
+        }
+        changeDb()
+      }
+
+      // 判断如果有数据则加载下拉选项
+      let redisDbOptInfo = store.state.redisDbOptInfo
+      if(redisDbOptInfo.dbOptInfo.tagPath){
+        setSelects(redisDbOptInfo)
+      }
+
+      // 监听选中操作的db变化，并加载下拉选项
+      watch(store.state.redisDbOptInfo,async (newValue) => {
+        await setSelects(newValue)
+      })
+
+      return {
             ...toRefs(state),
             getTags,
             changeTag,

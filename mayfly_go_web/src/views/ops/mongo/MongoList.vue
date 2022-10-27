@@ -34,7 +34,7 @@
 
                 <el-table-column label="操作" width>
                     <template #default="scope">
-                        <el-link type="primary" @click="showDatabases(scope.row.id)" plain size="small" :underline="false">数据库</el-link>
+                        <el-link type="primary" @click="showDatabases(scope.row.id, scope.row)" plain size="small" :underline="false">数据库</el-link>
                     </template>
                 </el-table-column>
             </el-table>
@@ -60,11 +60,13 @@
                 </el-table-column>
                 <el-table-column min-width="80" property="Empty" label="是否为空" />
 
-                <el-table-column min-width="80" label="操作">
+                <el-table-column min-width="150" label="操作">
                     <template #default="scope">
                         <el-link type="success" @click="showDatabaseStats(scope.row.Name)" plain size="small" :underline="false">stats</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
                         <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small" :underline="false">集合</el-link>
+                        <el-divider direction="vertical" border-style="dashed" />
+                        <el-link type="primary" @click="openDataOps(scope.row)" plain size="small" :underline="false">数据操作</el-link>
                     </template>
                 </el-table-column>
             </el-table>
@@ -193,6 +195,8 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from '../tag/api.ts';
 import MongoEdit from './MongoEdit.vue';
 import { formatByteSize } from '@/common/utils/format';
+import {store} from '@/store';
+import router from '@/router';
 import { dateFormat } from '@/common/utils/date';
 
 export default defineComponent({
@@ -203,6 +207,11 @@ export default defineComponent({
     setup() {
         const state = reactive({
             tags: [],
+            dbOps: {
+              dbId: 0,
+              db: '',
+            },
+            projects: [],
             list: [],
             total: 0,
             currentId: null,
@@ -263,7 +272,11 @@ export default defineComponent({
             state.currentData = item;
         };
 
-        const showDatabases = async (id: number) => {
+        const showDatabases = async (id: number, row: any) => {
+          console.log(row)
+            state.query.tagPath = row.tagPath
+            state.dbOps.dbId = id
+
             state.databaseDialog.data = (await mongoApi.databases.request({ id })).Databases;
             state.databaseDialog.title = `数据库列表`;
             state.databaseDialog.visible = true;
@@ -389,6 +402,23 @@ export default defineComponent({
             search();
         };
 
+        const openDataOps = ( row: any) => {
+          state.dbOps.db = row.Name
+
+          debugger
+          let data = {
+            tagPath: state.query.tagPath,
+            dbId: state.dbOps.dbId,
+            db: state.dbOps.db,
+          }
+          // 判断db是否发生改变
+          let oldDb = store.state.mongoDbOptInfo.dbOptInfo.db;
+          if(oldDb !== row.Name){
+            store.dispatch('mongoDbOptInfo/setMongoDbOptInfo', data);
+          }
+          router.push({name: 'MongoDataOp'});
+        }
+
         return {
             ...toRefs(state),
             dateFormat,
@@ -407,6 +437,7 @@ export default defineComponent({
             deleteMongo,
             editMongo,
             valChange,
+            openDataOps,
         };
     },
 });

@@ -75,7 +75,7 @@ export default defineComponent({
             require: true,
         },
         db: {
-            type: [Number],
+            type: [String],
             require: true,
         },
         keyInfo: {
@@ -95,7 +95,7 @@ export default defineComponent({
             dialogVisible: false,
             operationType: 1,
             redisId: '',
-            db: 0,
+            db: '0',
             key: {
                 key: '',
                 type: 'string',
