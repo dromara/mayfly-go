@@ -43,24 +43,24 @@ export default {
         const state = reactive({
             topCardItemList: [
                 {
-                    title: '项目数',
-                    id: 'projectNum',
-                    color: '#FEBB50',
-                },
-                {
-                    title: 'Linux机器数',
+                    title: 'Linux机器',
                     id: 'machineNum',
                     color: '#F95959',
                 },
                 {
-                    title: '数据库总数',
+                    title: '数据库',
                     id: 'dbNum',
                     color: '#8595F4',
                 },
                 {
-                    title: 'redis总数',
+                    title: 'redis',
                     id: 'redisNum',
                     color: '#1abc9c',
+                },
+                {
+                    title: 'Mongo',
+                    id: 'mongoNum',
+                    color: '#FEBB50',
                 },
             ],
         });
@@ -74,7 +74,7 @@ export default {
         const initNumCountUp = async () => {
             const res: any = await indexApi.getIndexCount.request();
             nextTick(() => {
-                new CountUp('projectNum', res.projectNum).start();
+                new CountUp('mongoNum', res.mongoNum).start();
                 new CountUp('machineNum', res.machineNum).start();
                 new CountUp('dbNum', res.dbNum).start();
                 new CountUp('redisNum', res.redisNum).start();
@@ -87,8 +87,8 @@ export default {
                     router.push('/personal');
                     break;
                 }
-                case 'projectNum': {
-                    router.push('/project/projects');
+                case 'mongoNum': {
+                    router.push('/mongo/mongo-data-operation');
                     break;
                 }
                 case 'machineNum': {

@@ -3,7 +3,7 @@ package router
 import (
 	"mayfly-go/internal/machine/api"
 	"mayfly-go/internal/machine/application"
-	projectapp "mayfly-go/internal/project/application"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/ctx"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +15,7 @@ func InitMachineScriptRouter(router *gin.RouterGroup) {
 		ms := &api.MachineScript{
 			MachineScriptApp: application.GetMachineScriptApp(),
 			MachineApp:       application.GetMachineApp(),
-			ProjectApp:       projectapp.GetProjectApp(),
+			TagApp:           tagapp.GetTagTreeApp(),
 		}
 
 		// 获取指定机器脚本列表

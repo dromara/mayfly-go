@@ -6,6 +6,8 @@ import (
 	"mayfly-go/internal/redis/domain/repository"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils"
+	"strings"
 )
 
 type redisRepoImpl struct{}
@@ -15,27 +17,32 @@ func newRedisRepo() repository.Redis {
 }
 
 // 分页获取机器信息列表
-func (r *redisRepoImpl) GetRedisList(condition *entity.Redis, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
-	sql := "SELECT d.* FROM t_redis d JOIN t_project_member pm ON d.project_id = pm.project_id WHERE 1 = 1 "
-	if condition.CreatorId != 0 {
-		// 使用创建者id模拟项目成员id
-		sql = fmt.Sprintf("%s AND pm.account_id = %d", sql, condition.CreatorId)
-	}
-	if condition.ProjectId != 0 {
-		sql = fmt.Sprintf("%s AND d.project_id = %d", sql, condition.ProjectId)
-	}
-	if condition.EnvId != 0 {
-		sql = fmt.Sprintf("%s AND d.env_id = %d", sql, condition.EnvId)
-	}
+func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+	sql := "SELECT d.* FROM t_redis d WHERE 1=1  "
+
 	if condition.Host != "" {
 		sql = sql + " AND d.host LIKE '%" + condition.Host + "%'"
+	}
+	if len(condition.TagIds) > 0 {
+		sql = sql + " AND d.tag_id IN " + fmt.Sprintf("(%s)", strings.Join(utils.NumberArr2StrArr(condition.TagIds), ","))
+	}
+	if condition.TagPathLike != "" {
+		sql = sql + " AND d.tag_path LIKE '" + condition.TagPathLike + "%'"
 	}
 	sql = sql + " ORDER BY d.create_time DESC"
 	return model.GetPageBySql(sql, pageParam, toEntity)
 }
 
-func (r *redisRepoImpl) Count(condition *entity.Redis) int64 {
-	return model.CountBy(condition)
+func (r *redisRepoImpl) Count(condition *entity.RedisQuery) int64 {
+	where := make(map[string]interface{})
+	if len(condition.TagIds) > 0 {
+		where["tag_id"] = condition.TagIds
+	}
+	if condition.TagId != 0 {
+		where["tag_id"] = condition.TagId
+	}
+
+	return model.CountByMap(new(entity.Redis), where)
 }
 
 // 根据id获取

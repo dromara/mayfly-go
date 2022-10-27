@@ -73,6 +73,7 @@ export default defineComponent({
                 state.form = { ...newValue.account };
                 state.edit = true;
             } else {
+                state.edit = false;
                 state.form = {} as any;
             }
             state.dialogVisible = newValue.visible;

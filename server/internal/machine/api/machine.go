@@ -8,11 +8,12 @@ import (
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/infrastructure/machine"
-	projectapp "mayfly-go/internal/project/application"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
 	"mayfly-go/pkg/ws"
 	"os"
@@ -27,16 +28,22 @@ import (
 
 type Machine struct {
 	MachineApp application.Machine
-	ProjectApp projectapp.Project
+	TagApp     tagapp.TagTree
 }
 
 func (m *Machine) Machines(rc *ctx.ReqCtx) {
-	condition := new(entity.Machine)
-	// 使用创建者id模拟账号成员id
-	condition.CreatorId = rc.LoginAccount.Id
+	condition := new(entity.MachineQuery)
 	condition.Ip = rc.GinCtx.Query("ip")
 	condition.Name = rc.GinCtx.Query("name")
-	condition.ProjectId = uint64(ginx.QueryInt(rc.GinCtx, "projectId", 0))
+	condition.TagPathLike = rc.GinCtx.Query("tagPath")
+
+	// 不存在可访问标签id，即没有可操作数据
+	tagIds := m.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
+	if len(tagIds) == 0 {
+		rc.ResData = model.EmptyPageResult()
+		return
+	}
+	condition.TagIds = tagIds
 
 	res := m.MachineApp.GetMachineList(condition, ginx.GetPageParam(rc.GinCtx), new([]*vo.MachineVO))
 	if res.Total == 0 {
@@ -130,7 +137,7 @@ func (m *Machine) GetProcess(rc *ctx.ReqCtx) {
 	cmd += "| head -n " + count
 
 	cli := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
-	biz.ErrIsNilAppendErr(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
 
 	res, err := cli.Run(cmd)
 	biz.ErrIsNilAppendErr(err, "获取进程信息失败: %s")
@@ -143,7 +150,7 @@ func (m *Machine) KillProcess(rc *ctx.ReqCtx) {
 	biz.NotEmpty(pid, "进程id不能为空")
 
 	cli := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
-	biz.ErrIsNilAppendErr(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
 
 	_, err := cli.Run("sudo kill -9 " + pid)
 	biz.ErrIsNilAppendErr(err, "终止进程失败: %s")
@@ -168,7 +175,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	}
 
 	cli := m.MachineApp.GetCli(GetMachineId(g))
-	biz.ErrIsNilAppendErr(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
 
 	cols := ginx.QueryInt(g, "cols", 80)
 	rows := ginx.QueryInt(g, "rows", 40)

@@ -13,7 +13,7 @@ func newSyslogRepo() repository.Syslog {
 }
 
 func (m *syslogRepoImpl) GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
-	return model.GetPage(pageParam, condition, toEntity, orderBy...)
+	return model.GetPage(pageParam, condition, condition, toEntity, orderBy...)
 }
 
 func (m *syslogRepoImpl) Insert(syslog *entity.Syslog) {

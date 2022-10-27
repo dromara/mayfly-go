@@ -1,9 +1,9 @@
 package router
 
 import (
-	projectapp "mayfly-go/internal/project/application"
 	"mayfly-go/internal/redis/api"
 	"mayfly-go/internal/redis/application"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/ctx"
 
 	"github.com/gin-gonic/gin"
@@ -13,8 +13,8 @@ func InitRedisRouter(router *gin.RouterGroup) {
 	redis := router.Group("redis")
 	{
 		rs := &api.Redis{
-			RedisApp:   application.GetRedisApp(),
-			ProjectApp: projectapp.GetProjectApp(),
+			RedisApp: application.GetRedisApp(),
+			TagApp:   tagapp.GetTagTreeApp(),
 		}
 
 		// 获取redis list

@@ -14,7 +14,7 @@ func newRoleRepo() repository.Role {
 }
 
 func (m *roleRepoImpl) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
-	return model.GetPage(pageParam, condition, toEntity, orderBy...)
+	return model.GetPage(pageParam, condition, condition, toEntity, orderBy...)
 }
 
 func (m *roleRepoImpl) Delete(id uint64) {

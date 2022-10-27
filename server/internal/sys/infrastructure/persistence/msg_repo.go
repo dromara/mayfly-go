@@ -14,7 +14,7 @@ func newMsgRepo() repository.Msg {
 }
 
 func (m *msgRepoImpl) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
-	return model.GetPage(pageParam, condition, toEntity)
+	return model.GetPage(pageParam, condition, condition, toEntity)
 }
 
 func (m *msgRepoImpl) Insert(account *entity.Msg) {

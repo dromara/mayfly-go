@@ -7,8 +7,8 @@
                 >删除</el-button
             >
             <div style="float: right">
-                <el-select @focus="getProjects" v-model="query.projectId" placeholder="请选择项目" filterable clearable>
-                    <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
+                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable>
+                    <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
                 <el-button v-waves type="primary" icon="search" @click="search()" class="ml5">查询</el-button>
             </div>
@@ -20,8 +20,7 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="project" label="项目" min-width="100" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="env" label="环境" min-width="100"></el-table-column>
+                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="name" label="名称" min-width="160" show-overflow-tooltip></el-table-column>
                 <el-table-column min-width="170" label="host:port" show-overflow-tooltip>
                     <template #default="scope">
@@ -40,17 +39,23 @@
                                 <el-icon class="el-input__icon"><search-icon /></el-icon>
                               </template>
                             </el-input>
-                            <div class="el-tag--plain el-tag--success" 
-                                 v-for="db in filterDb.list" :key="db"
-                                 style="border:1px var(--color-success-light-3) solid; margin-top: 3px;border-radius: 5px; padding: 2px;position: relative"
+                            <el-tag
+                                @click="showTableInfo(scope.row, db)"
+                                effect="plain"
+                                type="success"
+                                size="small"
+                                v-for="db in filterDb.list"
+                                :key="db"
+                                style="cursor: pointer; margin-left: 3px; margin-bottom: 3px;"
+                                >{{ db }}</el-tag
                             >
-                              <el-link type="success" plain size="small" :underline="false" @click="showTableInfo(scope.row, db)">{{ db }}</el-link>
                               <el-link type="primary" plain size="small" :underline="false" @click="openSqlExec(scope.row, db)" style="position: absolute; right: 4px">数据操作</el-link>
                             </div>
                         </el-popover>
                     </template>
                 </el-table-column>
                 <el-table-column prop="username" label="用户名" min-width="100"></el-table-column>
+                <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip></el-table-column>
 
                 <el-table-column min-width="115" prop="creator" label="创建账号"></el-table-column>
                 <el-table-column min-width="160" prop="createTime" label="创建时间" show-overflow-tooltip>
@@ -192,7 +197,7 @@
                 <el-table-column prop="creator" label="执行人" min-width="60" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="createTime" label="执行时间" show-overflow-tooltip>
                     <template #default="scope">
-                        {{ $filters.dateFormat(scope.row.createTime) }}
+                        {{ dateFormat(scope.row.createTime) }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="60" show-overflow-tooltip> </el-table-column>
@@ -251,7 +256,6 @@
 
         <db-edit
             @val-change="valChange"
-            :projects="projects"
             :title="dbEditDialog.title"
             v-model:visible="dbEditDialog.visible"
             v-model:db="dbEditDialog.data"
@@ -268,7 +272,6 @@ import DbEdit from './DbEdit.vue';
 import CreateTable from './CreateTable.vue';
 import { dbApi } from './api';
 import enums from './enums';
-import { projectApi } from '../project/api.ts';
 import SqlExecBox from './component/SqlExecBox.ts';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
@@ -276,6 +279,8 @@ import { isTrue } from '@/common/assert';
 import { Search as SearchIcon } from '@element-plus/icons-vue'
 import router from '@/router';
 import {store} from '@/store';
+import { tagApi } from '../tag/api.ts';
+import { dateFormat } from '@/common/utils/date';
 
 export default defineComponent({
     name: 'DbList',
@@ -293,7 +298,7 @@ export default defineComponent({
                 saveDb: 'db:save',
                 delDb: 'db:del',
             },
-            projects: [],
+            tags: [],
             chooseId: null,
             /**
              * 选中的数据
@@ -303,6 +308,7 @@ export default defineComponent({
              * 查询条件
              */
             query: {
+                tagPath: null,
                 projectId:null,
                 pageNum: 1,
                 pageSize: 10,
@@ -419,12 +425,11 @@ export default defineComponent({
             search();
         };
 
-        const getProjects = async () => {
-            state.projects = await projectApi.accountProjects.request(null);
+        const getTags = async () => {
+            state.tags = await tagApi.getAccountTags.request(null);
         };
 
         const editDb = async (isAdd = false) => {
-            await getProjects();
             if (isAdd) {
                 state.dbEditDialog.data = null;
                 state.dbEditDialog.title = '新增数据库资源';
@@ -661,7 +666,8 @@ export default defineComponent({
 
         return {
             ...toRefs(state),
-            getProjects,
+            dateFormat,
+            getTags,
             filterTableInfos,
             enums,
             search,

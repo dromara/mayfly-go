@@ -6,10 +6,8 @@ type Mongo struct {
 	EnableSshTunnel    int8   `json:"enableSshTunnel"`    // 是否启用ssh隧道
 	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"` // ssh隧道机器id
 	Name               string `binding:"required" json:"name"`
-	ProjectId          uint64 `binding:"required" json:"projectId"`
-	Project            string `json:"project"`
-	Env                string `json:"env"`
-	EnvId              uint64 `binding:"required" json:"envId"`
+	TagId              uint64 `binding:"required" json:"tagId"`
+	TagPath            string `json:"tagPath"`
 }
 
 type MongoCommand struct {

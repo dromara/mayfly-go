@@ -7,8 +7,7 @@ import (
 
 type Machine struct {
 	model.Model
-	ProjectId          uint64 `json:"projectId"`
-	ProjectName        string `json:"projectName"`
+
 	Name               string `json:"name"`
 	Ip                 string `json:"ip"`         // IP地址
 	Username           string `json:"username"`   // 用户名
@@ -20,6 +19,8 @@ type Machine struct {
 	EnableSshTunnel    int8   `json:"enableSshTunnel"`    // 是否启用ssh隧道
 	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"` // ssh隧道机器id
 	EnableRecorder     int8   `json:"enableRecorder"`     // 是否启用终端回放记录
+	TagId              uint64 `json:"tagId"`
+	TagPath            string `json:"tagPath"`
 }
 
 const (

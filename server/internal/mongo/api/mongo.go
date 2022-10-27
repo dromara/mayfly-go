@@ -5,9 +5,11 @@ import (
 	"mayfly-go/internal/mongo/api/form"
 	"mayfly-go/internal/mongo/application"
 	"mayfly-go/internal/mongo/domain/entity"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
 	"regexp"
 	"strconv"
@@ -20,15 +22,21 @@ import (
 
 type Mongo struct {
 	MongoApp application.Mongo
+	TagApp   tagapp.TagTree
 }
 
 func (m *Mongo) Mongos(rc *ctx.ReqCtx) {
-	g := rc.GinCtx
-	mc := &entity.Mongo{EnvId: uint64(ginx.QueryInt(g, "envId", 0)),
-		ProjectId: uint64(ginx.QueryInt(g, "projectId", 0)),
+	condition := new(entity.MongoQuery)
+	condition.TagPathLike = rc.GinCtx.Query("tagPath")
+
+	// 不存在可访问标签id，即没有可操作数据
+	tagIds := m.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
+	if len(tagIds) == 0 {
+		rc.ResData = model.EmptyPageResult()
+		return
 	}
-	mc.CreatorId = rc.LoginAccount.Id
-	rc.ResData = m.MongoApp.GetPageList(mc, ginx.GetPageParam(rc.GinCtx), new([]entity.Mongo))
+	condition.TagIds = tagIds
+	rc.ResData = m.MongoApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]entity.Mongo))
 }
 
 func (m *Mongo) Save(rc *ctx.ReqCtx) {

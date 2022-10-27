@@ -5,8 +5,8 @@
             <el-button type="primary" icon="edit" :disabled="currentId == null" @click="editRedis(false)" plain>编辑</el-button>
             <el-button type="danger" icon="delete" :disabled="currentId == null" @click="deleteRedis" plain>删除</el-button>
             <div style="float: right">
-                <el-select @focus="getProjects" v-model="query.projectId" placeholder="请选择项目" filterable clearable>
-                    <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
+                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable>
+                    <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
                 <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
             </div>
@@ -18,14 +18,14 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="project" label="项目" min-width="100"></el-table-column>
-                <el-table-column prop="env" label="环境" min-width="100"></el-table-column>
+                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="name" label="名称" min-width="100"></el-table-column>
                 <el-table-column prop="host" label="host:port" min-width="150" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="mode" label="mode" min-width="100"></el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="createTime" label="创建时间" min-width="160">
                     <template #default="scope">
-                        {{ $filters.dateFormat(scope.row.createTime) }}
+                        {{ dateFormat(scope.row.createTime) }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="creator" label="创建人" min-width="100"></el-table-column>
@@ -137,7 +137,7 @@
 
         <redis-edit
             @val-change="valChange"
-            :projects="projects"
+            :tags="tags"
             :title="redisEditDialog.title"
             v-model:visible="redisEditDialog.visible"
             v-model:redis="redisEditDialog.data"
@@ -150,8 +150,9 @@ import Info from './Info.vue';
 import { redisApi } from './api';
 import { toRefs, reactive, defineComponent, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { projectApi } from '../project/api.ts';
+import { tagApi } from '../tag/api.ts';
 import RedisEdit from './RedisEdit.vue';
+import { dateFormat } from '@/common/utils/date';
 import {store} from '@/store';
 import router from '@/router';
 
@@ -163,15 +164,15 @@ export default defineComponent({
     },
     setup() {
         const state = reactive({
-            projects: [],
+            tags: [],
             redisTable: [],
             total: 0,
             currentId: null,
             currentData: null,
             query: {
+                tagPath: null,
                 pageNum: 1,
                 pageSize: 10,
-                prjectId: null,
                 clusterId: null,
             },
             redisInfo: {
@@ -264,12 +265,11 @@ export default defineComponent({
             state.total = res.total;
         };
 
-        const getProjects = async () => {
-            state.projects = await projectApi.accountProjects.request(null);
+        const getTags = async () => {
+            state.tags = await tagApi.getAccountTags.request(null);
         };
 
         const editRedis = async (isAdd = false) => {
-            await getProjects();
             if (isAdd) {
                 state.redisEditDialog.data = null;
                 state.redisEditDialog.title = '新增redis';
@@ -304,7 +304,8 @@ export default defineComponent({
 
         return {
             ...toRefs(state),
-            getProjects,
+            dateFormat,
+            getTags,
             search,
             handlePageChange,
             choose,

@@ -2,16 +2,15 @@ package form
 
 type Redis struct {
 	Id                 uint64
+	Name               string `json:"name"`
 	Host               string `binding:"required" json:"host"`
 	Password           string `json:"password"`
 	Mode               string `json:"mode"`
 	Db                 string `json:"db"`
 	EnableSshTunnel    int8   `json:"enableSshTunnel"`    // 是否启用ssh隧道
 	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"` // ssh隧道机器id
-	ProjectId          uint64 `binding:"required" json:"projectId"`
-	Project            string `json:"project"`
-	Env                string `json:"env"`
-	EnvId              uint64 `binding:"required" json:"envId"`
+	TagId              uint64 `binding:"required" json:"tagId"`
+	TagPath            string `json:"tagPath"`
 	Remark             string `json:"remark"`
 }
 

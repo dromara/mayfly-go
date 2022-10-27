@@ -20,6 +20,7 @@ const (
 	PGSQL_COLUMN_MA = `SELECT
 		C.relname AS "tableName",
 		A.attname AS "columnName",
+		tc.is_nullable AS "nullable",
 		concat_ws ( '', t.typname, SUBSTRING ( format_type ( a.atttypid, a.atttypmod ) FROM '\(.*\)' ) ) AS "columnType",
 		d.description AS "columnComment" 
 	FROM
@@ -28,6 +29,7 @@ const (
 		LEFT JOIN pg_class c ON A.attrelid = c.oid
 		LEFT JOIN pg_namespace pn ON c.relnamespace = pn.oid
 		LEFT JOIN pg_type t ON a.atttypid = t.oid 
+		JOIN information_schema.columns tc ON tc.column_name = a.attname AND tc.table_name = C.relname AND tc.table_schema = pn.nspname
 	WHERE
 		A.attnum >= 0 
 		AND pn.nspname = (select current_schema())

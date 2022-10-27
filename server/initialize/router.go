@@ -7,9 +7,9 @@ import (
 	db_router "mayfly-go/internal/db/router"
 	machine_router "mayfly-go/internal/machine/router"
 	mongo_router "mayfly-go/internal/mongo/router"
-	project_router "mayfly-go/internal/project/router"
 	redis_router "mayfly-go/internal/redis/router"
 	sys_router "mayfly-go/internal/sys/router"
+	tag_router "mayfly-go/internal/tag/router"
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/middleware"
 	"mayfly-go/static"
@@ -74,7 +74,8 @@ func InitRouter() *gin.Engine {
 
 		sys_router.Init(api)
 
-		project_router.Init(api)
+		// project_router.Init(api)
+		tag_router.Init(api)
 		machine_router.Init(api)
 		db_router.Init(api)
 		redis_router.Init(api)

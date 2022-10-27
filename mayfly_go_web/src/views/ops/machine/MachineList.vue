@@ -3,21 +3,15 @@
         <el-card>
             <div>
                 <el-button v-auth="'machine:add'" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加</el-button>
-                <el-button
-                    v-auth="'machine:update'"
-                    type="primary"
-                    icon="edit"
-                    :disabled="currentId == null"
-                    @click="openFormDialog(currentData)"
-                    plain
+                <el-button v-auth="'machine:update'" type="primary" icon="edit" :disabled="!currentId" @click="openFormDialog(currentData)" plain
                     >编辑</el-button
                 >
-                <el-button v-auth="'machine:del'" :disabled="currentId == null" @click="deleteMachine(currentId)" type="danger" icon="delete"
+                <el-button v-auth="'machine:del'" :disabled="!currentId" @click="deleteMachine(currentId)" type="danger" icon="delete"
                     >删除</el-button
                 >
                 <div style="float: right">
-                    <el-select @focus="getProjects" v-model="params.projectId" placeholder="请选择项目" @clear="search" filterable clearable>
-                        <el-option v-for="item in projects" :key="item.id" :label="`${item.name} [${item.remark}]`" :value="item.id"> </el-option>
+                    <el-select @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" @clear="search" filterable clearable>
+                        <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                     </el-select>
                     <el-input
                         class="ml5"
@@ -66,11 +60,11 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="username" label="用户名" min-width="90"></el-table-column>
-                <el-table-column prop="projectName" label="项目" min-width="120"></el-table-column>
+                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="250" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="createTime" label="创建时间" min-width="165">
                     <template #default="scope">
-                        {{ $filters.dateFormat(scope.row.createTime) }}
+                        {{ dateFormat(scope.row.createTime) }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="creator" label="创建者" min-width="80"></el-table-column>
@@ -170,7 +164,6 @@
 
         <machine-edit
             :title="machineEditDialog.title"
-            :projects="projects"
             v-model:visible="machineEditDialog.visible"
             v-model:machine="machineEditDialog.data"
             @valChange="submitSuccess"
@@ -187,6 +180,8 @@
             :machineId="machineStatsDialog.machineId"
             :title="machineStatsDialog.title"
         ></machine-stats>
+
+        <machine-rec v-model:visible="machineRecDialog.visible" :machineId="machineRecDialog.machineId" :title="machineRecDialog.title"></machine-rec>
     </div>
 </template>
 
@@ -195,12 +190,14 @@ import { toRefs, reactive, onMounted, defineComponent } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi } from './api';
-import { projectApi } from '../project/api.ts';
+import { tagApi } from '../tag/api.ts';
 import ServiceManage from './ServiceManage.vue';
 import FileManage from './FileManage.vue';
 import MachineEdit from './MachineEdit.vue';
 import ProcessList from './ProcessList.vue';
 import MachineStats from './MachineStats.vue';
+import MachineRec from './MachineRec.vue';
+import { dateFormat } from '@/common/utils/date';
 
 export default defineComponent({
     name: 'MachineList',
@@ -210,17 +207,19 @@ export default defineComponent({
         FileManage,
         MachineEdit,
         MachineStats,
+        MachineRec,
     },
     setup() {
         const router = useRouter();
         const state = reactive({
-            projects: [],
+            tags: [] as any,
             stats: '',
             params: {
                 pageNum: 1,
                 pageSize: 10,
                 ip: null,
                 name: null,
+                tagPath: null,
             },
             // 列表数据
             data: {
@@ -228,7 +227,7 @@ export default defineComponent({
                 total: 10,
             },
             // 当前选中数据id
-            currentId: null,
+            currentId: 0,
             currentData: null,
             serviceDialog: {
                 visible: false,
@@ -252,7 +251,7 @@ export default defineComponent({
             },
             machineEditDialog: {
                 visible: false,
-                data: null,
+                data: null as any,
                 title: '新增机器',
             },
             machineRecDialog: {
@@ -296,12 +295,11 @@ export default defineComponent({
             search();
         };
 
-        const getProjects = async () => {
-            state.projects = await projectApi.accountProjects.request(null);
+        const getTags = async () => {
+            state.tags = await tagApi.getAccountTags.request(null);
         };
 
         const openFormDialog = async (machine: any) => {
-            await getProjects();
             let dialogTitle;
             if (machine) {
                 state.machineEditDialog.data = state.currentData as any;
@@ -324,7 +322,7 @@ export default defineComponent({
                 });
                 await machineApi.del.request({ id });
                 ElMessage.success('操作成功');
-                state.currentId = null;
+                state.currentId = 0;
                 state.currentData = null;
                 search();
             } catch (err) {}
@@ -353,7 +351,7 @@ export default defineComponent({
         };
 
         const submitSuccess = () => {
-            state.currentId = null;
+            state.currentId = 0;
             state.currentData = null;
             search();
         };
@@ -380,20 +378,16 @@ export default defineComponent({
         };
 
         const showRec = (row: any) => {
-            const { href } = router.resolve({
-                path: `/machine/terminal-rec`,
-                query: {
-                    id: row.id,
-                    name: `${row.name}[${row.ip}]-终端回放记录`,
-                },
-            });
-            window.open(href, '_blank');
+            state.machineRecDialog.title = `${row.name}[${row.ip}]-终端回放记录`;
+            state.machineRecDialog.machineId = row.id;
+            state.machineRecDialog.visible = true;
         };
 
         return {
             ...toRefs(state),
+            dateFormat,
             choose,
-            getProjects,
+            getTags,
             showTerminal,
             openFormDialog,
             deleteMachine,

@@ -7,9 +7,9 @@ import (
 
 type Mongo interface {
 	// 分页获取列表
-	GetList(condition *entity.Mongo, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
-	Count(condition *entity.Mongo) int64
+	Count(condition *entity.MongoQuery) int64
 
 	// 根据条件获取
 	Get(condition *entity.Mongo, cols ...string) error

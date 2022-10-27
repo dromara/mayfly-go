@@ -1,30 +1,37 @@
 <template>
-    <div>
-        <div class="toolbar">
-            <span style="dispaly: inline-block" class="ml10">{{ title }}</span>
-            <el-divider direction="vertical" border-style="dashed" />
-            <el-select @change="getUsers" v-model="operateDate" placeholder="操作日期" filterable>
-                <el-option v-for="item in operateDates" :key="item" :label="item" :value="item"> </el-option>
-            </el-select>
-            <el-select class="ml10" @change="getRecs" filterable v-model="user" placeholder="请选择操作人">
-                <el-option v-for="item in users" :key="item" :label="item" :value="item"> </el-option>
-            </el-select>
-            <el-select class="ml10" @change="playRec" filterable v-model="rec" placeholder="请选择操作记录">
-                <el-option v-for="item in recs" :key="item" :label="item" :value="item"> </el-option>
-            </el-select>
-            <el-divider direction="vertical" border-style="dashed" />
-            快捷键-> space[空格键]: 暂停/播放  |  f: 全屏/取消全屏
-        </div>
-        <div ref="playerRef" id="rc-player"></div>
+    <div id="terminalRecDialog">
+        <el-dialog
+            :title="title"
+            v-model="dialogVisible"
+            :before-close="handleClose"
+            :close-on-click-modal="false"
+            :destroy-on-close="true"
+            width="70%"
+        >
+            <div class="toolbar">
+                <el-select @change="getUsers" v-model="operateDate" placeholder="操作日期" filterable>
+                    <el-option v-for="item in operateDates" :key="item" :label="item" :value="item"> </el-option>
+                </el-select>
+                <el-select class="ml10" @change="getRecs" filterable v-model="user" placeholder="请选择操作人">
+                    <el-option v-for="item in users" :key="item" :label="item" :value="item"> </el-option>
+                </el-select>
+                <el-select class="ml10" @change="playRec" filterable v-model="rec" placeholder="请选择操作记录">
+                    <el-option v-for="item in recs" :key="item" :label="item" :value="item"> </el-option>
+                </el-select>
+                <el-divider direction="vertical" border-style="dashed" />
+                快捷键-> space[空格键]: 暂停/播放
+            </div>
+            <div ref="playerRef" id="rc-player"></div>
+        </el-dialog>
     </div>
 </template>
 
 <script lang="ts">
-import { toRefs, onMounted, ref, reactive, defineComponent } from 'vue';
+import { toRefs, watch, ref, reactive, defineComponent } from 'vue';
 import { machineApi } from './api';
 import * as AsciinemaPlayer from 'asciinema-player';
 import 'asciinema-player/dist/bundle/asciinema-player.css';
-import { useRoute } from 'vue-router';
+
 export default defineComponent({
     name: 'MachineRec',
     components: {},
@@ -34,7 +41,6 @@ export default defineComponent({
         title: { type: String },
     },
     setup(props: any, context) {
-        const route = useRoute();
         const playerRef = ref(null);
         const state = reactive({
             dialogVisible: false,
@@ -48,10 +54,14 @@ export default defineComponent({
             rec: '',
         });
 
-        onMounted(() => {
-            state.machineId = Number.parseInt(route.query.id as string);
-            state.title = route.query.name as string;
-            getOperateDate();
+        watch(props, async (newValue) => {
+            const visible = newValue.visible;
+            if (visible) {
+                state.machineId = newValue.machineId;
+                state.title = newValue.title;
+                await getOperateDate();
+            }
+            state.dialogVisible = visible;
         });
 
         const getOperateDate = async () => {
@@ -118,3 +128,10 @@ export default defineComponent({
     },
 });
 </script>
+<style lang="scss">
+#terminalRecDialog {
+    .el-overlay .el-overlay-dialog .el-dialog .el-dialog__body {
+        padding: 0px !important;
+    }
+}
+</style>

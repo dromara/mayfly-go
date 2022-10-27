@@ -22,9 +22,9 @@ import (
 
 type Mongo interface {
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.Mongo, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
-	Count(condition *entity.Mongo) int64
+	Count(condition *entity.MongoQuery) int64
 
 	// 根据条件获取
 	GetBy(condition *entity.Mongo, cols ...string) error
@@ -53,11 +53,11 @@ type mongoAppImpl struct {
 }
 
 // 分页获取数据库信息列表
-func (d *mongoAppImpl) GetPageList(condition *entity.Mongo, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return d.mongoRepo.GetList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (d *mongoAppImpl) Count(condition *entity.Mongo) int64 {
+func (d *mongoAppImpl) Count(condition *entity.MongoQuery) int64 {
 	return d.mongoRepo.Count(condition)
 }
 
@@ -141,7 +141,7 @@ func DeleteMongoCache(mongoId uint64) {
 
 type MongoInstance struct {
 	Id                 uint64
-	ProjectId          uint64
+	TagPath            string
 	Cli                *mongo.Client
 	sshTunnelMachineId uint64
 }
@@ -160,7 +160,7 @@ func connect(me *entity.Mongo) (*MongoInstance, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	mongoInstance := &MongoInstance{Id: me.Id, ProjectId: me.ProjectId}
+	mongoInstance := &MongoInstance{Id: me.Id, TagPath: me.TagPath}
 
 	mongoOptions := options.Client().ApplyURI(me.Uri).
 		SetMaxPoolSize(1)

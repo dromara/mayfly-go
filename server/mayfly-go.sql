@@ -32,18 +32,17 @@ CREATE TABLE `t_db` (
   `network` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `enable_ssh_tunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
-  `project_id` bigint(20) DEFAULT NULL,
-  `project` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `env_id` bigint(20) DEFAULT NULL COMMENT '环境id',
-  `env` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '环境描述',
   `remark` varchar(125) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注，描述等',
+  `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
+  `tag_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '标签路径',
   `create_time` datetime DEFAULT NULL,
   `creator_id` bigint(20) DEFAULT NULL,
   `creator` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `update_time` datetime DEFAULT NULL,
   `modifier_id` bigint(20) DEFAULT NULL,
   `modifier` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_path` (`tag_path`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库资源信息表';
 
 -- ----------------------------
@@ -112,10 +111,8 @@ COMMIT;
 DROP TABLE IF EXISTS `t_machine`;
 CREATE TABLE `t_machine` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `project_id` bigint(20) DEFAULT NULL,
-  `project_name` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `name` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `ip` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `ip` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `port` int(12) NOT NULL,
   `username` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `auth_method` tinyint(2) DEFAULT NULL COMMENT '1.密码登录2.publickey登录',
@@ -125,6 +122,8 @@ CREATE TABLE `t_machine` (
   `enable_recorder` tinyint(2) DEFAULT NULL COMMENT '是否启用终端回放记录',
   `status` tinyint(2) NOT NULL COMMENT '状态: 1:启用; -1:禁用',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
+  `tag_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '标签路径',
   `need_monitor` tinyint(2) DEFAULT NULL,
   `create_time` datetime NOT NULL,
   `creator` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
@@ -132,7 +131,8 @@ CREATE TABLE `t_machine` (
   `update_time` datetime NOT NULL,
   `modifier` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `modifier_id` bigint(32) DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_path` (`tag_path`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器信息';
 
 -- ----------------------------
@@ -228,10 +228,8 @@ CREATE TABLE `t_mongo` (
   `uri` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '连接uri',
   `enable_ssh_tunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
-  `project_id` bigint(20) NOT NULL,
-  `project` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `env_id` bigint(20) DEFAULT NULL,
-  `env` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
+  `tag_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '标签路径',
   `create_time` datetime NOT NULL,
   `creator_id` bigint(20) DEFAULT NULL,
   `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
@@ -248,82 +246,12 @@ BEGIN;
 COMMIT;
 
 -- ----------------------------
--- Table structure for t_project
--- ----------------------------
-DROP TABLE IF EXISTS `t_project`;
-CREATE TABLE `t_project` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '项目名',
-  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注说明',
-  `create_time` datetime DEFAULT NULL,
-  `creator_id` bigint(20) DEFAULT NULL,
-  `creator` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `update_time` datetime DEFAULT NULL,
-  `modifier_id` bigint(20) DEFAULT NULL,
-  `modifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='项目信息表';
-
--- ----------------------------
--- Records of t_project
--- ----------------------------
-BEGIN;
-COMMIT;
-
--- ----------------------------
--- Table structure for t_project_env
--- ----------------------------
-DROP TABLE IF EXISTS `t_project_env`;
-CREATE TABLE `t_project_env` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `project_id` bigint(20) NOT NULL COMMENT '关联的项目id',
-  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '环境名',
-  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '说明备注',
-  `create_time` datetime DEFAULT NULL,
-  `creator_id` bigint(20) DEFAULT NULL,
-  `creator` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `update_time` datetime DEFAULT NULL,
-  `modifier_id` bigint(20) DEFAULT NULL,
-  `modifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='项目环境';
-
--- ----------------------------
--- Records of t_project_env
--- ----------------------------
-BEGIN;
-COMMIT;
-
--- ----------------------------
--- Table structure for t_project_member
--- ----------------------------
-DROP TABLE IF EXISTS `t_project_member`;
-CREATE TABLE `t_project_member` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `project_id` bigint(20) NOT NULL COMMENT '项目id',
-  `account_id` bigint(20) NOT NULL COMMENT '账号id',
-  `username` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '账号用户名冗余',
-  `create_time` datetime DEFAULT NULL,
-  `creator_id` bigint(20) DEFAULT NULL,
-  `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `update_time` datetime DEFAULT NULL,
-  `modifier_id` bigint(20) DEFAULT NULL,
-  `modifier` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='项目成员关联表';
-
--- ----------------------------
--- Records of t_project_member
--- ----------------------------
-BEGIN;
-COMMIT;
-
--- ----------------------------
 -- Table structure for t_redis
 -- ----------------------------
 DROP TABLE IF EXISTS `t_redis`;
 CREATE TABLE `t_redis` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '名称',
   `host` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `password` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `db` varchar(64) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '库号: 多个库用,分割',
@@ -331,17 +259,16 @@ CREATE TABLE `t_redis` (
   `enable_ssh_tunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
   `remark` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL,
-  `project_id` bigint(20) DEFAULT NULL,
-  `project` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `env_id` bigint(20) DEFAULT NULL,
-  `env` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
+  `tag_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '标签路径',
   `creator` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `creator_id` bigint(32) DEFAULT NULL,
   `create_time` datetime DEFAULT NULL,
   `modifier` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `modifier_id` bigint(20) DEFAULT NULL,
   `update_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_tag_path` (`tag_path`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='redis信息';
 
 -- ----------------------------
@@ -374,7 +301,7 @@ CREATE TABLE `t_sys_account` (
 -- Records of t_sys_account
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_sys_account` VALUES (1, 'admin', '$2a$10$w3Wky2U.tinvR7c/s0aKPuwZsIu6pM1/DMJalwBDMbE6niHIxVrrm', 1, '2022-10-08 10:53:04', '::1', '2020-01-01 19:00:00', 1, 'admin', '2020-01-01 19:00:00', 1, 'admin');
+INSERT INTO `t_sys_account` VALUES (1, 'admin', '$2a$10$w3Wky2U.tinvR7c/s0aKPuwZsIu6pM1/DMJalwBDMbE6niHIxVrrm', 1, '2022-10-26 20:03:48', '::1', '2020-01-01 19:00:00', 1, 'admin', '2020-01-01 19:00:00', 1, 'admin');
 COMMIT;
 
 -- ----------------------------
@@ -406,6 +333,7 @@ CREATE TABLE `t_sys_config` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '配置名',
   `key` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '配置key',
+  `params` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '配置key',
   `value` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '配置value',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注',
   `create_time` datetime NOT NULL,
@@ -440,11 +368,13 @@ CREATE TABLE `t_sys_log` (
   `create_time` datetime NOT NULL COMMENT '操作时间',
   PRIMARY KEY (`id`),
   KEY `idx_creator_id` (`creator_id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=44 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统操作日志';
+) ENGINE=InnoDB AUTO_INCREMENT=58 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统操作日志';
 
 -- ----------------------------
 -- Records of t_sys_log
 -- ----------------------------
+BEGIN;
+COMMIT;
 
 -- ----------------------------
 -- Table structure for t_sys_msg
@@ -459,11 +389,13 @@ CREATE TABLE `t_sys_msg` (
   `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `create_time` datetime NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=89 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统消息表';
+) ENGINE=InnoDB AUTO_INCREMENT=91 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统消息表';
 
 -- ----------------------------
 -- Records of t_sys_msg
 -- ----------------------------
+BEGIN;
+COMMIT;
 
 -- ----------------------------
 -- Table structure for t_sys_resource
@@ -485,7 +417,7 @@ CREATE TABLE `t_sys_resource` (
   `create_time` datetime NOT NULL,
   `update_time` datetime NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=89 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='资源表';
+) ENGINE=InnoDB AUTO_INCREMENT=103 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='资源表';
 
 -- ----------------------------
 -- Records of t_sys_resource
@@ -531,15 +463,9 @@ INSERT INTO `t_sys_resource` VALUES (44, 3, 2, 1, '文件管理-删除文件按�
 INSERT INTO `t_sys_resource` VALUES (45, 3, 2, 1, '脚本管理-保存脚本按钮', 'machine:script:save', 12, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:09:01', '2021-06-08 11:09:01');
 INSERT INTO `t_sys_resource` VALUES (46, 3, 2, 1, '脚本管理-删除按钮', 'machine:script:del', 13, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:09:27', '2021-06-08 11:09:27');
 INSERT INTO `t_sys_resource` VALUES (47, 3, 2, 1, '脚本管理-执行按钮', 'machine:script:run', 14, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:09:50', '2021-06-08 11:09:50');
-INSERT INTO `t_sys_resource` VALUES (48, 86, 1, 1, '项目列表', 'projects', 1, '{\"component\":\"ProjectList\",\"icon\":\"Menu\",\"isKeepAlive\":true,\"routeName\":\"ProjectList\"}', 1, 'admin', 1, 'admin', '2021-06-30 16:19:49', '2021-06-30 16:20:12');
 INSERT INTO `t_sys_resource` VALUES (49, 36, 1, 1, '数据库管理', 'dbs', 2, '{\"component\":\"DbList\",\"icon\":\"Menu\",\"isKeepAlive\":true,\"routeName\":\"DbList\"}', 1, 'admin', 1, 'admin', '2021-07-07 15:13:55', '2021-07-07 15:13:55');
-INSERT INTO `t_sys_resource` VALUES (50, 48, 2, 1, '项目保存', 'project:save', 1, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:27:28', '2021-07-08 17:35:07');
-INSERT INTO `t_sys_resource` VALUES (51, 48, 2, 1, '成员分配', 'project:member:add', 2, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:29:25', '2021-07-08 17:29:25');
-INSERT INTO `t_sys_resource` VALUES (52, 48, 2, 1, '成员移除', 'project:member:del', 3, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:30:01', '2021-07-08 17:30:01');
-INSERT INTO `t_sys_resource` VALUES (53, 48, 2, 1, '环境新增', 'project:env:add', 4, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:30:17', '2021-07-08 17:30:17');
 INSERT INTO `t_sys_resource` VALUES (54, 49, 2, 1, '数据库保存', 'db:save', 1, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:30:36', '2021-07-08 17:31:05');
 INSERT INTO `t_sys_resource` VALUES (55, 49, 2, 1, '数据库删除', 'db:del', 2, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:30:48', '2021-07-08 17:30:48');
-INSERT INTO `t_sys_resource` VALUES (56, 48, 2, 1, '项目基本权限', 'project', 1, 'null', 1, 'admin', 1, 'admin', '2021-07-09 10:47:19', '2021-07-09 11:09:20');
 INSERT INTO `t_sys_resource` VALUES (57, 3, 2, 1, '基本权限', 'machine', 0, 'null', 1, 'admin', 1, 'admin', '2021-07-09 10:48:02', '2021-07-09 10:48:02');
 INSERT INTO `t_sys_resource` VALUES (58, 49, 2, 1, '基本权限', 'db', 0, 'null', 1, 'admin', 1, 'admin', '2021-07-09 10:48:22', '2021-07-09 10:48:22');
 INSERT INTO `t_sys_resource` VALUES (59, 38, 2, 1, '基本权限', 'db:exec', 1, 'null', 1, 'admin', 1, 'admin', '2021-07-09 10:50:13', '2021-07-09 10:50:13');
@@ -548,7 +474,6 @@ INSERT INTO `t_sys_resource` VALUES (61, 60, 1, 1, '数据操作', 'data-operati
 INSERT INTO `t_sys_resource` VALUES (62, 61, 2, 1, '基本权限', 'redis:data', 1, 'null', 1, 'admin', 1, 'admin', '2021-07-19 20:18:54', '2021-07-19 20:18:54');
 INSERT INTO `t_sys_resource` VALUES (63, 60, 1, 1, 'redis管理', 'manage', 2, '{\"component\":\"RedisList\",\"icon\":\"Menu\",\"isKeepAlive\":true,\"routeName\":\"RedisList\"}', 1, 'admin', 1, 'admin', '2021-07-20 10:48:04', '2021-07-20 10:48:04');
 INSERT INTO `t_sys_resource` VALUES (64, 63, 2, 1, '基本权限', 'redis:manage', 1, 'null', 1, 'admin', 1, 'admin', '2021-07-20 10:48:26', '2021-07-20 10:48:26');
-INSERT INTO `t_sys_resource` VALUES (70, 48, 2, 1, '项目删除', 'project:del', 6, 'null', 1, 'admin', 1, 'admin', '2021-08-17 11:20:37', '2021-08-17 11:20:37');
 INSERT INTO `t_sys_resource` VALUES (71, 61, 2, 1, '数据保存', 'redis:data:save', 6, 'null', 1, 'admin', 1, 'admin', '2021-08-17 11:20:37', '2021-08-17 11:20:37');
 INSERT INTO `t_sys_resource` VALUES (72, 3, 2, 1, '终止进程', 'machine:killprocess', 6, 'null', 1, 'admin', 1, 'admin', '2021-08-17 11:20:37', '2021-08-17 11:20:37');
 INSERT INTO `t_sys_resource` VALUES (79, 0, 1, 1, 'Mongo', '/mongo', 7, '{\"icon\":\"Document\",\"isKeepAlive\":true,\"routeName\":\"Mongo\"}', 1, 'admin', 1, 'admin', '2022-05-13 14:00:41', '2022-10-06 15:01:34');
@@ -558,9 +483,18 @@ INSERT INTO `t_sys_resource` VALUES (82, 79, 1, 1, 'Mongo管理', 'mongo-manage'
 INSERT INTO `t_sys_resource` VALUES (83, 82, 2, 1, '基本权限', 'mongo:manage:base', 1, 'null', 1, 'admin', 1, 'admin', '2022-05-16 18:13:25', '2022-05-16 18:13:25');
 INSERT INTO `t_sys_resource` VALUES (84, 4, 1, 1, '操作日志', 'syslogs', 4, '{\"component\":\"SyslogList\",\"icon\":\"Tickets\",\"routeName\":\"SyslogList\"}', 1, 'admin', 1, 'admin', '2022-07-13 19:57:07', '2022-07-13 22:58:19');
 INSERT INTO `t_sys_resource` VALUES (85, 84, 2, 1, '操作日志基本权限', 'syslog', 1, 'null', 1, 'admin', 1, 'admin', '2022-07-13 19:57:55', '2022-07-13 19:57:55');
-INSERT INTO `t_sys_resource` VALUES (86, 0, 1, 1, '项目管理', '/project', 3, '{\"icon\":\"Menu\",\"isKeepAlive\":true,\"routeName\":\"Project\"}', 1, 'admin', 1, 'admin', '2022-10-06 14:48:05', '2022-10-06 14:59:00');
 INSERT INTO `t_sys_resource` VALUES (87, 4, 1, 1, '系统配置', 'configs', 5, '{\"component\":\"ConfigList\",\"icon\":\"Setting\",\"isKeepAlive\":true,\"routeName\":\"ConfigList\"}', 1, 'admin', 1, 'admin', '2022-08-25 22:18:55', '2022-08-25 22:19:18');
 INSERT INTO `t_sys_resource` VALUES (88, 87, 2, 1, '基本权限', 'config:base', 1, 'null', 1, 'admin', 1, 'admin', '2022-08-25 22:19:35', '2022-08-25 22:19:35');
+INSERT INTO `t_sys_resource` VALUES (93, 0, 1, 1, '标签管理', '/tag', 3, '{\"icon\":\"CollectionTag\",\"isKeepAlive\":true,\"routeName\":\"Tag\"}', 1, 'admin', 1, 'admin', '2022-10-24 15:18:40', '2022-10-24 15:24:29');
+INSERT INTO `t_sys_resource` VALUES (94, 93, 1, 1, '标签树', 'tag-trees', 1, '{\"component\":\"TagTreeList\",\"icon\":\"CollectionTag\",\"isKeepAlive\":true,\"routeName\":\"TagTreeList\"}', 1, 'admin', 1, 'admin', '2022-10-24 15:19:40', '2022-10-24 15:28:07');
+INSERT INTO `t_sys_resource` VALUES (95, 93, 1, 1, '团队管理', 'teams', 2, '{\"component\":\"TeamList\",\"icon\":\"UserFilled\",\"isKeepAlive\":true,\"routeName\":\"TeamList\"}', 1, 'admin', 1, 'admin', '2022-10-24 15:20:09', '2022-10-24 15:24:01');
+INSERT INTO `t_sys_resource` VALUES (96, 94, 2, 1, '保存标签', 'tag:save', 1, 'null', 1, 'admin', 1, 'admin', '2022-10-24 15:20:40', '2022-10-26 13:58:36');
+INSERT INTO `t_sys_resource` VALUES (97, 95, 2, 1, '保存团队', 'team:save', 1, 'null', 1, 'admin', 1, 'admin', '2022-10-24 15:20:57', '2022-10-26 13:58:56');
+INSERT INTO `t_sys_resource` VALUES (98, 94, 2, 1, '删除标签', 'tag:del', 2, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:58:47', '2022-10-26 13:58:47');
+INSERT INTO `t_sys_resource` VALUES (99, 95, 2, 1, '删除团队', 'team:del', 2, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:06', '2022-10-26 13:59:06');
+INSERT INTO `t_sys_resource` VALUES (100, 95, 2, 1, '新增团队成员', 'team:member:save', 3, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:27', '2022-10-26 13:59:27');
+INSERT INTO `t_sys_resource` VALUES (101, 95, 2, 1, '移除团队成员', 'team:member:del', 4, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:43', '2022-10-26 13:59:43');
+INSERT INTO `t_sys_resource` VALUES (102, 95, 2, 1, '保存团队标签', 'team:tag:save', 5, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:57', '2022-10-26 13:59:57');
 COMMIT;
 
 -- ----------------------------
@@ -605,7 +539,7 @@ CREATE TABLE `t_sys_role_resource` (
   `creator` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `create_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=516 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='角色资源关联表';
+) ENGINE=InnoDB AUTO_INCREMENT=526 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='角色资源关联表';
 
 -- ----------------------------
 -- Records of t_sys_role_resource
@@ -670,48 +604,32 @@ INSERT INTO `t_sys_role_resource` VALUES (398, 6, 4, 1, 'admin', '2021-06-08 15:
 INSERT INTO `t_sys_role_resource` VALUES (399, 6, 14, 1, 'admin', '2021-06-08 15:10:58');
 INSERT INTO `t_sys_role_resource` VALUES (400, 6, 11, 1, 'admin', '2021-06-08 15:10:58');
 INSERT INTO `t_sys_role_resource` VALUES (401, 6, 5, 1, 'admin', '2021-06-08 15:10:58');
-INSERT INTO `t_sys_role_resource` VALUES (402, 1, 48, 1, 'admin', '2021-06-30 16:22:35');
 INSERT INTO `t_sys_role_resource` VALUES (403, 7, 1, 1, 'admin', '2021-07-06 15:07:09');
 INSERT INTO `t_sys_role_resource` VALUES (405, 1, 49, 1, 'admin', '2021-07-07 15:14:17');
-INSERT INTO `t_sys_role_resource` VALUES (406, 1, 50, 1, 'admin', '2021-07-08 17:32:19');
-INSERT INTO `t_sys_role_resource` VALUES (407, 1, 51, 1, 'admin', '2021-07-08 17:32:19');
-INSERT INTO `t_sys_role_resource` VALUES (408, 1, 52, 1, 'admin', '2021-07-08 17:32:19');
-INSERT INTO `t_sys_role_resource` VALUES (409, 1, 53, 1, 'admin', '2021-07-08 17:32:19');
 INSERT INTO `t_sys_role_resource` VALUES (410, 1, 54, 1, 'admin', '2021-07-08 17:32:19');
 INSERT INTO `t_sys_role_resource` VALUES (411, 1, 55, 1, 'admin', '2021-07-08 17:32:19');
-INSERT INTO `t_sys_role_resource` VALUES (412, 1, 56, 1, 'admin', '2021-07-09 10:48:50');
 INSERT INTO `t_sys_role_resource` VALUES (413, 1, 57, 1, 'admin', '2021-07-09 10:48:50');
 INSERT INTO `t_sys_role_resource` VALUES (414, 1, 58, 1, 'admin', '2021-07-09 10:48:50');
 INSERT INTO `t_sys_role_resource` VALUES (415, 8, 1, 1, 'admin', '2021-07-09 10:49:46');
 INSERT INTO `t_sys_role_resource` VALUES (416, 8, 39, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (417, 8, 56, 1, 'admin', '2021-07-09 10:49:46');
 INSERT INTO `t_sys_role_resource` VALUES (418, 8, 57, 1, 'admin', '2021-07-09 10:49:46');
 INSERT INTO `t_sys_role_resource` VALUES (419, 8, 12, 1, 'admin', '2021-07-09 10:49:46');
 INSERT INTO `t_sys_role_resource` VALUES (420, 8, 15, 1, 'admin', '2021-07-09 10:49:46');
 INSERT INTO `t_sys_role_resource` VALUES (421, 8, 38, 1, 'admin', '2021-07-09 10:49:46');
 INSERT INTO `t_sys_role_resource` VALUES (422, 8, 58, 1, 'admin', '2021-07-09 10:49:46');
 INSERT INTO `t_sys_role_resource` VALUES (423, 8, 2, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (424, 8, 48, 1, 'admin', '2021-07-09 10:49:46');
 INSERT INTO `t_sys_role_resource` VALUES (425, 8, 3, 1, 'admin', '2021-07-09 10:49:46');
 INSERT INTO `t_sys_role_resource` VALUES (426, 8, 36, 1, 'admin', '2021-07-09 10:49:46');
 INSERT INTO `t_sys_role_resource` VALUES (427, 8, 49, 1, 'admin', '2021-07-09 10:49:46');
 INSERT INTO `t_sys_role_resource` VALUES (428, 1, 59, 1, 'admin', '2021-07-09 10:50:20');
 INSERT INTO `t_sys_role_resource` VALUES (429, 8, 59, 1, 'admin', '2021-07-09 10:50:32');
-INSERT INTO `t_sys_role_resource` VALUES (430, 6, 56, 1, 'admin', '2021-07-12 16:44:12');
 INSERT INTO `t_sys_role_resource` VALUES (431, 6, 57, 1, 'admin', '2021-07-12 16:44:12');
-INSERT INTO `t_sys_role_resource` VALUES (432, 6, 48, 1, 'admin', '2021-07-12 16:44:12');
 INSERT INTO `t_sys_role_resource` VALUES (433, 1, 60, 1, 'admin', '2021-07-19 20:19:29');
 INSERT INTO `t_sys_role_resource` VALUES (434, 1, 61, 1, 'admin', '2021-07-19 20:19:29');
 INSERT INTO `t_sys_role_resource` VALUES (435, 1, 62, 1, 'admin', '2021-07-19 20:19:29');
 INSERT INTO `t_sys_role_resource` VALUES (436, 1, 63, 1, 'admin', '2021-07-20 10:48:39');
 INSERT INTO `t_sys_role_resource` VALUES (437, 1, 64, 1, 'admin', '2021-07-20 10:48:39');
-INSERT INTO `t_sys_role_resource` VALUES (443, 1, 70, 1, 'admin', '2021-08-17 11:20:51');
 INSERT INTO `t_sys_role_resource` VALUES (444, 7, 39, 1, 'admin', '2021-09-09 10:10:30');
-INSERT INTO `t_sys_role_resource` VALUES (445, 6, 50, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (446, 6, 51, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (447, 6, 52, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (448, 6, 53, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (449, 6, 70, 1, 'admin', '2021-09-09 15:52:38');
 INSERT INTO `t_sys_role_resource` VALUES (450, 6, 16, 1, 'admin', '2021-09-09 15:52:38');
 INSERT INTO `t_sys_role_resource` VALUES (451, 6, 17, 1, 'admin', '2021-09-09 15:52:38');
 INSERT INTO `t_sys_role_resource` VALUES (452, 6, 18, 1, 'admin', '2021-09-09 15:52:38');
@@ -766,13 +684,124 @@ INSERT INTO `t_sys_role_resource` VALUES (505, 1, 82, 1, 'admin', '2022-07-14 11
 INSERT INTO `t_sys_role_resource` VALUES (506, 1, 83, 1, 'admin', '2022-07-14 11:03:09');
 INSERT INTO `t_sys_role_resource` VALUES (507, 1, 84, 1, 'admin', '2022-07-14 11:10:11');
 INSERT INTO `t_sys_role_resource` VALUES (508, 1, 85, 1, 'admin', '2022-07-14 11:10:11');
-INSERT INTO `t_sys_role_resource` VALUES (509, 1, 86, 1, 'admin', '2022-07-14 11:10:11');
 INSERT INTO `t_sys_role_resource` VALUES (510, 1, 87, 1, 'admin', '2022-07-14 11:10:11');
 INSERT INTO `t_sys_role_resource` VALUES (511, 1, 88, 1, 'admin', '2022-10-08 10:54:06');
 INSERT INTO `t_sys_role_resource` VALUES (512, 8, 80, 1, 'admin', '2022-10-08 10:54:34');
 INSERT INTO `t_sys_role_resource` VALUES (513, 8, 81, 1, 'admin', '2022-10-08 10:54:34');
-INSERT INTO `t_sys_role_resource` VALUES (514, 8, 86, 1, 'admin', '2022-10-08 10:54:34');
 INSERT INTO `t_sys_role_resource` VALUES (515, 8, 79, 1, 'admin', '2022-10-08 10:54:34');
+INSERT INTO `t_sys_role_resource` VALUES (516, 1, 93, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (517, 1, 94, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (518, 1, 96, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (519, 1, 98, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (520, 1, 95, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (521, 1, 97, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (522, 1, 99, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (523, 1, 100, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (524, 1, 101, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (525, 1, 102, 1, 'admin', '2022-10-26 20:03:14');
+COMMIT;
+
+-- ----------------------------
+-- Table structure for t_tag_tree
+-- ----------------------------
+DROP TABLE IF EXISTS `t_tag_tree`;
+CREATE TABLE `t_tag_tree` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `pid` bigint(20) NOT NULL DEFAULT '0',
+  `code` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '标识符',
+  `code_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '标识符路径',
+  `name` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '名称',
+  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint(20) NOT NULL,
+  `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier_id` bigint(20) NOT NULL,
+  `modifier` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_code_path` (`code_path`(100)) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签树';
+
+-- ----------------------------
+-- Records of t_tag_tree
+-- ----------------------------
+BEGIN;
+INSERT INTO `t_tag_tree` VALUES (33, 0, 'default', 'default', '默认', '默认标签', '2022-10-26 20:04:19', 1, 'admin', '2022-10-26 20:04:19', 1, 'admin');
+COMMIT;
+
+-- ----------------------------
+-- Table structure for t_tag_tree_team
+-- ----------------------------
+DROP TABLE IF EXISTS `t_tag_tree_team`;
+CREATE TABLE `t_tag_tree_team` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `tag_id` bigint(20) NOT NULL COMMENT '项目树id',
+  `tag_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `team_id` bigint(20) NOT NULL COMMENT '团队id',
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint(20) NOT NULL,
+  `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier_id` bigint(20) NOT NULL,
+  `modifier` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_tag_id` (`tag_id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签树团队关联信息';
+
+-- ----------------------------
+-- Records of t_tag_tree_team
+-- ----------------------------
+BEGIN;
+INSERT INTO `t_tag_tree_team` VALUES (31, 33, 'default', 3, '2022-10-26 20:04:45', 1, 'admin', '2022-10-26 20:04:45', 1, 'admin');
+COMMIT;
+
+-- ----------------------------
+-- Table structure for t_team
+-- ----------------------------
+DROP TABLE IF EXISTS `t_team`;
+CREATE TABLE `t_team` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '名称',
+  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注',
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint(20) NOT NULL,
+  `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  `modifier_id` bigint(20) DEFAULT NULL,
+  `modifier` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='团队信息';
+
+-- ----------------------------
+-- Records of t_team
+-- ----------------------------
+BEGIN;
+INSERT INTO `t_team` VALUES (3, '默认团队', '默认团队', '2022-10-26 20:04:36', 1, 'admin', '2022-10-26 20:04:36', 1, 'admin');
+COMMIT;
+
+-- ----------------------------
+-- Table structure for t_team_member
+-- ----------------------------
+DROP TABLE IF EXISTS `t_team_member`;
+CREATE TABLE `t_team_member` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `team_id` bigint(20) NOT NULL COMMENT '项目团队id',
+  `account_id` bigint(20) NOT NULL COMMENT '成员id',
+  `username` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint(20) NOT NULL,
+  `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier_id` bigint(20) NOT NULL,
+  `modifier` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='团队成员表';
+
+-- ----------------------------
+-- Records of t_team_member
+-- ----------------------------
+BEGIN;
+INSERT INTO `t_team_member` VALUES (7, 3, 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', '2022-10-26 20:04:36', 1, 'admin');
 COMMIT;
 
 SET FOREIGN_KEY_CHECKS = 1;

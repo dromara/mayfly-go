@@ -14,7 +14,7 @@ func newConfigRepo() repository.Config {
 }
 
 func (m *configRepoImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
-	return model.GetPage(pageParam, condition, toEntity)
+	return model.GetPage(pageParam, condition, condition, toEntity)
 }
 
 func (m *configRepoImpl) Insert(config *entity.Config) {

@@ -14,8 +14,9 @@ export const imports = {
     "SyslogList": () => import('@/views/system/syslog/SyslogList.vue'),
     "ConfigList": () => import('@/views/system/config/ConfigList.vue'),
 
-    // project
-    "ProjectList": () => import('@/views/ops/project/ProjectList.vue'),
+    // tag
+    "TagTreeList": () => import('@/views/ops/tag/TagTreeList.vue'),
+    "TeamList": () => import('@/views/ops/tag/TeamList.vue'),
     // db
     "DbList": () => import('@/views/ops/db/DbList.vue'),
     "SqlExec": () => import('@/views/ops/db'),

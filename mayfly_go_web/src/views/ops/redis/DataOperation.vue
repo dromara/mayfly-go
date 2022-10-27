@@ -4,39 +4,57 @@
             <div style="float: left">
                 <el-row type="flex" justify="space-between">
                     <el-col :span="24">
-                        <project-env-select @changeProjectEnv="changeProjectEnv" @clear="clearRedis" :data="{ projectId, envId:query.envId }" >
-                            <template #default>
-                                <el-form-item label="redis" label-width="40px">
-                                    <el-select v-model="scanParam.id" placeholder="请选择redis" @change="changeRedis" @clear="clearRedis" clearable>
-                                        <el-option v-for="item in redisList" :key="item.id"  :value="item.id" :label=" item.remark ">
-                                          <span style="float: left">{{ item.remark }}</span>
-                                          <span style="float: right; color: #8492a6; margin-left: 6px; font-size: 13px">{{
-                                              `${item.host}`
-                                            }}</span>
-                                        </el-option>
-                                    </el-select>
-                                </el-form-item>
-                                <el-form-item label="库" label-width="20px">
-                                    <el-select v-model="scanParam.db" @change="changeDb" placeholder="库"  style="width: 85px">
-                                        <el-option v-for="db in dbList" :key="db" :label="db" :value="db"> </el-option>
-                                    </el-select>
-                                </el-form-item>
-                            </template>
-                        </project-env-select>
+                        <el-form class="search-form" label-position="right" :inline="true">
+                            <el-form-item label="标签">
+                                <el-select
+                                    @change="changeTag"
+                                    @focus="getTags"
+                                    v-model="query.tagPath"
+                                    placeholder="请选择标签"
+                                    filterable
+                                    style="width: 250px"
+                                >
+                                    <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item label="redis" label-width="40px">
+                                <el-select
+                                    v-model="scanParam.id"
+                                    placeholder="请选择redis"
+                                    @change="changeRedis"
+                                    @clear="clearRedis"
+                                    clearable
+                                    style="width: 250px"
+                                >
+                                    <el-option
+                                        v-for="item in redisList"
+                                        :key="item.id"
+                                        :label="`${item.name ? item.name : ''} [${item.host}]`"
+                                        :value="item.id"
+                                    >
+                                    </el-option>
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item label="库" label-width="20px">
+                                <el-select v-model="scanParam.db" @change="changeDb" placeholder="库" style="width: 85px">
+                                    <el-option v-for="db in dbList" :key="db" :label="db" :value="db"> </el-option>
+                                </el-select>
+                            </el-form-item>
+                        </el-form>
                     </el-col>
                     <el-col class="mt10">
                         <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
                             <el-form-item label="key" label-width="40px">
                                 <el-input
                                     placeholder="match 支持*模糊key"
-                                    style="width: 240px"
+                                    style="width: 250px"
                                     v-model="scanParam.match"
                                     @clear="clear()"
                                     clearable
                                 ></el-input>
                             </el-form-item>
-                            <el-form-item label="count" label-width="60px">
-                                <el-input placeholder="count" style="width: 62px" v-model.number="scanParam.count"></el-input>
+                            <el-form-item label="count" label-width="40px">
+                                <el-input placeholder="count" style="width: 70px" v-model.number="scanParam.count"></el-input>
                             </el-form-item>
                             <el-form-item>
                                 <el-button @click="searchKey()" type="success" icon="search" plain></el-button>
@@ -132,13 +150,11 @@
 import { redisApi } from './api';
 import {toRefs, reactive, defineComponent, watch} from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import HashValue from './HashValue.vue';
 import StringValue from './StringValue.vue';
 import SetValue from './SetValue.vue';
 import ListValue from './ListValue.vue';
 import { isTrue, notBlank, notNull } from '@/common/assert';
-import { useStore } from '@/store/index.ts';
 
 export default defineComponent({
     name: 'DataOperation',
@@ -147,17 +163,17 @@ export default defineComponent({
         HashValue,
         SetValue,
         ListValue,
-        ProjectEnvSelect,
     },
     setup() {
         let store = useStore();
         const state = reactive({
             projectId: null,
             loading: false,
-            redisList: [],
+            tags: [],
+            redisList: [] as any,
             dbList: [],
             query: {
-                envId: 0,
+                tagPath: null,
             },
             scanParam: {
                 id: null,
@@ -193,17 +209,20 @@ export default defineComponent({
         });
 
         const searchRedis = async () => {
-            notNull(state.query.envId, '请先选择项目环境');
+            notBlank(state.query.tagPath, '请先选择标签');
             const res = await redisApi.redisList.request(state.query);
             state.redisList = res.list;
         };
 
-        const changeProjectEnv = (projectId: any, envId: any) => {
+        const changeTag = (tagPath: string) => {
             clearRedis();
-            if (envId != null) {
-                state.query.envId = envId;
+            if (tagPath != null) {
                 searchRedis();
             }
+        };
+
+        const getTags = async () => {
+            state.tags = await tagApi.getAccountTags.request(null);
         };
 
         const changeRedis = (id: number) => {
@@ -419,7 +438,8 @@ export default defineComponent({
 
       return {
             ...toRefs(state),
-            changeProjectEnv,
+            getTags,
+            changeTag,
             changeRedis,
             changeDb,
             clearRedis,

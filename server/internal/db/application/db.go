@@ -27,9 +27,9 @@ import (
 
 type Db interface {
 	// 分页获取
-	GetPageList(condition *entity.Db, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
-	Count(condition *entity.Db) int64
+	Count(condition *entity.DbQuery) int64
 
 	// 根据条件获取
 	GetDbBy(condition *entity.Db, cols ...string) error
@@ -64,11 +64,11 @@ type dbAppImpl struct {
 }
 
 // 分页获取数据库信息列表
-func (d *dbAppImpl) GetPageList(condition *entity.Db, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	return d.dbRepo.GetDbList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (d *dbAppImpl) Count(condition *entity.Db) int64 {
+func (d *dbAppImpl) Count(condition *entity.DbQuery) int64 {
 	return d.dbRepo.Count(condition)
 }
 
@@ -92,7 +92,7 @@ func (d *dbAppImpl) Save(dbEntity *entity.Db) {
 	}
 
 	// 查找是否存在该库
-	oldDb := &entity.Db{Host: dbEntity.Host, Port: dbEntity.Port, EnvId: dbEntity.EnvId}
+	oldDb := &entity.Db{Host: dbEntity.Host, Port: dbEntity.Port, TagId: dbEntity.TagId}
 	err := d.GetDbBy(oldDb)
 
 	if dbEntity.Id == 0 {
@@ -194,7 +194,7 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	biz.IsTrue(strings.Contains(d.Database, db), "未配置该库的操作权限")
 
 	cacheKey := GetDbCacheKey(id, db)
-	dbi := &DbInstance{Id: cacheKey, Type: d.Type, ProjectId: d.ProjectId, sshTunnelMachineId: d.SshTunnelMachineId}
+	dbi := &DbInstance{Id: cacheKey, Type: d.Type, TagPath: d.TagPath, sshTunnelMachineId: d.SshTunnelMachineId}
 
 	DB, err := GetDbConn(d, db)
 	if err != nil {
@@ -206,7 +206,7 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	// 最大连接周期，超过时间的连接就close
 	// DB.SetConnMaxLifetime(100 * time.Second)
 	// 设置最大连接数
-	DB.SetMaxOpenConns(2)
+	DB.SetMaxOpenConns(5)
 	// 设置闲置连接数
 	DB.SetMaxIdleConns(1)
 
@@ -224,7 +224,7 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 type DbInstance struct {
 	Id                 string
 	Type               string
-	ProjectId          uint64
+	TagPath            string
 	db                 *sql.DB
 	sshTunnelMachineId uint64
 }

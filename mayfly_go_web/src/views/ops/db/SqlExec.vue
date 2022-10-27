@@ -3,46 +3,56 @@
         <div class="toolbar">
             <el-row type="flex" justify="space-between">
                 <el-col :span="24">
-                    <project-env-select @changeProjectEnv="changeProjectEnv" :data="{ projectId, envId:params.envId }">
-                        <template #default>
-                            <el-form-item label="资源">
-                                <el-select v-model="dbId" placeholder="请选择资源实例" @change="changeDbInstance" filterable style="width: 150px">
-                                    <el-option v-for="item in dbs" :key="item.id" :label="item.name" :value="item.id">
-                                        <span style="float: left">{{ item.name }}</span>
-                                        <span style="float: right; color: #8492a6; margin-left: 6px; font-size: 13px">{{
-                                            `${item.host}:${item.port} ${item.type}`
-                                        }}</span>
-                                    </el-option>
-                                </el-select>
-                            </el-form-item>
+                    <el-form class="search-form" label-position="right" :inline="true">
+                        <el-form-item label="标签">
+                            <el-select @change="changeTag" @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" filterable style="width: 220px">
+                                <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
+                            </el-select>
+                        </el-form-item>
 
-                            <el-form-item label="数据库">
-                                <el-select
-                                    v-model="db"
-                                    placeholder="请选择数据库"
-                                    @change="changeDb"
-                                    @clear="clearDb"
-                                    clearable
-                                    filterable
-                                    style="width: 150px"
+                        <el-form-item label="资源">
+                            <el-select v-model="dbId" placeholder="请选择资源实例" @change="changeDbInstance" filterable style="width: 220px">
+                                <el-option v-for="item in dbs" :key="item.id" :label="`${item.name} [${item.tagPath}]`" :value="item.id">
+                                    <span style="float: left">{{ `${item.name} [${item.tagPath}]` }}</span>
+                                    <span style="float: rignt; color: #8492a6; margin-left: 10px; font-size: 13px">{{
+                                        `${item.host}:${item.port} ${item.type}`
+                                    }}</span>
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+
+                        <el-form-item label="数据库">
+                            <el-select
+                                v-model="db"
+                                placeholder="请选择数据库"
+                                @change="changeDb"
+                                @clear="clearDb"
+                                clearable
+                                filterable
+                                style="width: 150px"
+                            >
+                                <el-option v-for="item in databaseList" :key="item" :label="item" :value="item"> </el-option>
+                            </el-select>
+                        </el-form-item>
+
+                        <el-form-item label-width="20" label="表">
+                            <el-select v-model="tableName" placeholder="选择表查看表数据" @change="changeTable" filterable style="width: 250px">
+                                <el-option
+                                    v-for="item in tableMetadata"
+                                    :key="item.tableName"
+                                    :label="item.tableName + (item.tableComment != '' ? `【${item.tableComment}】` : '')"
+                                    :value="item.tableName"
                                 >
-                                    <el-option v-for="item in databaseList" :key="item" :label="item" :value="item"> </el-option>
-                                </el-select>
-                            </el-form-item>
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                    </el-form>
 
-                            <el-form-item label-width="20" label="表">
-                                <el-select v-model="tableName" placeholder="选择表查看表数据" @change="changeTable" filterable style="width: 250px">
-                                    <el-option
-                                        v-for="item in tableMetadata"
-                                        :key="item.tableName"
-                                        :label="item.tableName + (item.tableComment != '' ? `【${item.tableComment}】` : '')"
-                                        :value="item.tableName"
-                                    >
-                                    </el-option>
-                                </el-select>
-                            </el-form-item>
+                    <!-- <project-env-select @changeTag="changeTag">
+                        <template #default>
+
                         </template>
-                    </project-env-select>
+                    </project-env-select> -->
                 </el-col>
             </el-row>
         </div>
@@ -316,18 +326,16 @@ import 'codemirror/addon/hint/sql-hint.js';
 import { format as sqlFormatter } from 'sql-formatter';
 import { notBlank, notEmpty, isTrue } from '@/common/assert';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import ProjectEnvSelect from '../component/ProjectEnvSelect.vue';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
 import SqlExecBox from './component/SqlExecBox';
 import { dateStrFormat } from '@/common/utils/date.ts';
 import { useStore } from '@/store/index.ts';
+import { tagApi } from '../tag/api.ts';
 
 export default defineComponent({
     name: 'SqlExec',
-    components: {
-        ProjectEnvSelect,
-    },
+    components: {},
     setup() {
         const store = useStore();
         const codeTextarea: any = ref(null);
@@ -339,11 +347,12 @@ export default defineComponent({
             projectId: null,
             token: token,
             defalutLimit: 20, // 默认查询数量
-            dbs: [], // 数据库实例列表
+            tags: [],
+            dbs: [] as any, // 数据库实例列表
             databaseList: [], // 数据库实例拥有的数据库列表，1数据库实例  -> 多数据库
             db: '', // 当前操作的数据库
             dbType: '',
-            tables: [],
+            tables: [] as any,
             dbId: null, // 当前选中操作的数据库实例
             tableName: '',
             tableMetadata: [],
@@ -352,7 +361,7 @@ export default defineComponent({
             activeName: 'Query',
             queryTabName: 'Query',
             nowTableName: '', // 当前表格数据操作的数据库表名，用于双击编辑表内容使用
-            dataTabs: {}, // 点击表信息后执行结果数据展示tabs
+            dataTabs: {} as any, // 点击表信息后执行结果数据展示tabs
             dataTabsTableHeight: 600,
             // 查询tab
             queryTab: {
@@ -369,8 +378,8 @@ export default defineComponent({
             },
             params: {
                 pageNum: 1,
-                pageSize: 10,
-                envId: null,
+                pageSize: 100,
+                tagPath: null,
             },
             conditionDialog: {
                 title: '',
@@ -443,16 +452,17 @@ export default defineComponent({
         /**
          * 项目及环境更改后的回调事件
          */
-        const changeProjectEnv = (projectId: any, envId: any) => {
+        const changeTag = (projectId: any, envId: any) => {
             state.dbs = [];
             state.dbId = null;
             state.db = '';
             state.databaseList = [];
             clearDb();
-            if (envId != null) {
-                state.params.envId = envId;
-                search();
-            }
+            search();
+        };
+
+        const getTags = async () => {
+            state.tags = await tagApi.getAccountTags.request(null);
         };
 
         const onBeforeChange = (instance: any, changeObj: any) => {
@@ -1221,7 +1231,7 @@ export default defineComponent({
             const res = await dbApi.dbs.request(state.params);
             state.dbs = res.list;
         };
-        
+
         // 加载选中的db
         const setSelects = async (sqlExecInfo: any) =>{
           // 保存sql
@@ -1248,16 +1258,17 @@ export default defineComponent({
         if(sqlExecInfo.dbOptInfo.envId){
           setSelects(sqlExecInfo)
         }
-      
+
         // 监听选中操作的db变化，并加载下拉选项
         watch(store.state.sqlExecInfo,async (newValue) => {
           await setSelects(newValue)
         })
-      
+
         return {
             ...toRefs(state),
+            getTags,
             codeTextarea,
-            changeProjectEnv,
+            changeTag,
             changeTable,
             cellClick,
             onRunSql,

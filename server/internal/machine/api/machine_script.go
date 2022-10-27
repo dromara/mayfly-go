@@ -6,7 +6,7 @@ import (
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/domain/entity"
-	projectapp "mayfly-go/internal/project/application"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
@@ -19,7 +19,7 @@ import (
 type MachineScript struct {
 	MachineScriptApp application.MachineScript
 	MachineApp       application.Machine
-	ProjectApp       projectapp.Project
+	TagApp           tagapp.TagTree
 }
 
 func (m *MachineScript) MachineScripts(rc *ctx.ReqCtx) {
@@ -65,7 +65,7 @@ func (m *MachineScript) RunMachineScript(rc *ctx.ReqCtx) {
 		script = utils.TemplateParse(ms.Script, utils.Json2Map(params))
 	}
 	cli := m.MachineApp.GetCli(machineId)
-	biz.ErrIsNilAppendErr(m.ProjectApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().ProjectId), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
 
 	res, err := cli.Run(script)
 	// 记录请求参数

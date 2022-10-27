@@ -2,8 +2,6 @@ package form
 
 type MachineForm struct {
 	Id                 uint64 `json:"id"`
-	ProjectId          uint64 `json:"projectId"`
-	ProjectName        string `json:"projectName"`
 	Name               string `json:"name" binding:"required"`
 	Ip                 string `json:"ip" binding:"required"`       // IP地址
 	Username           string `json:"username" binding:"required"` // 用户名
@@ -14,6 +12,8 @@ type MachineForm struct {
 	EnableSshTunnel    int8   `json:"enableSshTunnel"`    // 是否启用ssh隧道
 	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"` // ssh隧道机器id
 	EnableRecorder     int8   `json:"enableRecorder"`     // 是否启用终端回放记录
+	TagId              uint64 `json:"tagId"`
+	TagPath            string `json:"tagPath"`
 }
 
 type MachineRunForm struct {

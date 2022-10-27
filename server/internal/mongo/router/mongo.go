@@ -3,6 +3,7 @@ package router
 import (
 	"mayfly-go/internal/mongo/api"
 	"mayfly-go/internal/mongo/application"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/ctx"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,7 @@ func InitMongoRouter(router *gin.RouterGroup) {
 	{
 		ma := &api.Mongo{
 			MongoApp: application.GetMongoApp(),
+			TagApp:   tagapp.GetTagTreeApp(),
 		}
 
 		// 获取所有mongo列表
@@ -60,7 +62,7 @@ func InitMongoRouter(router *gin.RouterGroup) {
 		})
 
 		// 执行mongo update by id命令
-		updateDocById := ctx.NewLogInfo("mongo-更新文档")
+		updateDocById := ctx.NewLogInfo("mongo-更新文档").WithSave(true)
 		m.POST(":id/command/update-by-id", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(updateDocById).
@@ -68,7 +70,7 @@ func InitMongoRouter(router *gin.RouterGroup) {
 		})
 
 		// 执行mongo delete by id命令
-		deleteDoc := ctx.NewLogInfo("mongo-删除文档")
+		deleteDoc := ctx.NewLogInfo("mongo-删除文档").WithSave(true)
 		m.POST(":id/command/delete-by-id", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(deleteDoc).
@@ -76,7 +78,7 @@ func InitMongoRouter(router *gin.RouterGroup) {
 		})
 
 		// 执行mongo insert 命令
-		insertDoc := ctx.NewLogInfo("mongo-新增文档")
+		insertDoc := ctx.NewLogInfo("mongo-新增文档").WithSave(true)
 		m.POST(":id/command/insert", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(insertDoc).

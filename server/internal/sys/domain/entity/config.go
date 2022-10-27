@@ -1,6 +1,9 @@
 package entity
 
-import "mayfly-go/pkg/model"
+import (
+	"encoding/json"
+	"mayfly-go/pkg/model"
+)
 
 const (
 	ConfigKeyUseLoginCaptcha string = "UseLoginCaptcha" // 是否使用登录验证码
@@ -10,6 +13,7 @@ type Config struct {
 	model.Model
 	Name   string `json:"name"` // 配置名
 	Key    string `json:"key"`  // 配置key
+	Params string `json:"params"`
 	Value  string `json:"value"`
 	Remark string `json:"remark"`
 }
@@ -26,4 +30,14 @@ func (c *Config) BoolValue(defaultValue bool) bool {
 		return defaultValue
 	}
 	return c.Value == "1"
+}
+
+// 值返回json map
+func (c *Config) GetJsonMap() map[string]string {
+	var res map[string]string
+	if c.Id == 0 || c.Value == "" {
+		return res
+	}
+	_ = json.Unmarshal([]byte(c.Value), &res)
+	return res
 }
