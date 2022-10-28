@@ -21,7 +21,7 @@
                             <el-select v-model="dbId" placeholder="请选择资源实例" @change="changeDbInstance" filterable style="width: 220px">
                                 <el-option v-for="item in dbs" :key="item.id" :label="`${item.name} [${item.tagPath}]`" :value="item.id">
                                     <span style="float: left">{{ `${item.name} [${item.tagPath}]` }}</span>
-                                    <span style="float: rignt; color: #8492a6; margin-left: 10px; font-size: 13px">{{
+                                    <span style="float: right; color: #8492a6; margin-left: 10px; font-size: 13px">{{
                                         `${item.host}:${item.port} ${item.type}`
                                     }}</span>
                                 </el-option>
@@ -129,7 +129,9 @@
                         <div class="mt5 sqlEditor">
                             <textarea ref="codeTextarea"></textarea>
                         </div>
-
+                        <div class="mt5 sqlEditor">
+                          <div ref="monacoTextarea" style="height: 200px;"></div>
+                        </div>
                         <div class="mt5">
                             <el-row>
                                 <el-link
@@ -153,7 +155,7 @@
                                 v-loading="queryTab.loading"
                                 element-loading-text="查询中..."
                                 size="small"
-                                max-height="250"
+                                max-height="800"
                                 empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
                                 stripe
                                 border
@@ -177,6 +179,7 @@
                                 </el-table-column>
                             </el-table>
                         </div>
+                        
                     </div>
                 </el-tab-pane>
 
@@ -339,6 +342,13 @@ import SqlExecBox from './component/SqlExecBox';
 import { dateStrFormat } from '@/common/utils/date.ts';
 import { useStore } from '@/store/index.ts';
 import { tagApi } from '../tag/api.ts';
+import * as EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js';
+import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
+
+import * as monaco from "monaco-editor";
+import { editor, languages, Position} from 'monaco-editor';
+import ITextModel = editor.ITextModel;
+import CompletionItem = languages.CompletionItem;
 
 export default defineComponent({
     name: 'SqlExec',
@@ -346,6 +356,7 @@ export default defineComponent({
     setup() {
         const store = useStore();
         const codeTextarea: any = ref(null);
+        const monacoTextarea: any = ref(null);
         const token = getSession('token');
         let codemirror = null as any;
         const tableMap = new Map();
@@ -376,16 +387,16 @@ export default defineComponent({
                 // 点击执行按钮执行结果信息
                 execRes: {
                     data: [],
-                    tableColumn: [],
+                    tableColumn: []
                 },
                 loading: false,
                 nowTableName: '', //当前表格数据操作的数据库表名，用于双击编辑表内容使用
-                selectionDatas: [],
+                selectionDatas: []
             },
             params: {
                 pageNum: 1,
                 pageSize: 100,
-                tagPath: null,
+                tagPath: null
             },
             conditionDialog: {
                 title: '',
@@ -394,30 +405,19 @@ export default defineComponent({
                 dataTab: null,
                 visible: false,
                 condition: '=',
-                value: null,
+                value: null
             },
             genSqlDialog: {
                 visible: false,
-                sql: '',
+                sql: ''
             },
-            cmOptions: {
-                tabSize: 4,
-                mode: 'text/x-sql',
-                lineNumbers: true,
-                line: true,
-                indentWithTabs: true,
-                smartIndent: true,
-                matchBrackets: true,
-                theme: 'base16-light',
-                autofocus: true,
-                extraKeys: { Tab: 'autocomplete' }, // 自定义快捷键
-                hintOptions: {
-                    completeSingle: false,
-                    // 自定义提示选项
-                    tables: {},
-                },
-                // more CodeMirror options...
-            },
+            monacoOptions: {
+                defaultSuggestions: [] as any[], // 默认的mysql提示
+                customSuggestions: {
+                    tableCache: [] as any[], // 表名提示
+                    columns: [] as any[], // 列名提示
+                }
+            }
         });
 
         const initCodemirror = () => {
@@ -436,15 +436,222 @@ export default defineComponent({
             });
         };
 
-        onMounted(() => {
-            initCodemirror();
+self.MonacoEnvironment = {
+    getWorker(_: string, label: string) {
+        return new EditorWorker();
+    }
+};
+
+const initMonacoEditor = () => {
+    console.log('初始化编辑器')
+    // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
+    let editor = monaco.editor.create(monacoTextarea.value, {
+        value: '// some comment',
+        language: 'sql',
+        theme: 'vs-dark'
+    });
+
+    // 参考 https://microsoft.github.io/monaco-editor/playground.html#extending-language-services-completion-provider-example
+    monaco.languages.registerCompletionItemProvider('sql', {
+        provideCompletionItems: (model: ITextModel, position: Position) : languages.ProviderResult<languages.CompletionList> => {
+            // const { lineNumber, column } = position
+            // // 光标前文本
+            // const textBeforePointer = model.getValueInRange({
+            //     startLineNumber: lineNumber,
+            //     startColumn: 0,
+            //     endLineNumber: lineNumber,
+            //     endColumn: column
+            // })
+            // const textBeforePointerMulti = model.getValueInRange({
+            //     startLineNumber: 1,
+            //     startColumn: 0,
+            //     endLineNumber: lineNumber,
+            //     endColumn: column
+            // })
+            // // 光标后文本
+            // const textAfterPointerMulti = model.getValueInRange({
+            //     startLineNumber: lineNumber,
+            //     startColumn: column,
+            //     endLineNumber: model.getLineCount(),
+            //     endColumn: model.getLineMaxColumn(model.getLineCount())
+            // })
+            // // const nextTokens = textAfterPointer.trim().split(/\s+/)
+            // // const nextToken = nextTokens[0].toLowerCase()
+            // const tokens = textBeforePointer.trim().split(/\s+/)
+            // const lastToken = tokens[tokens.length - 1].toLowerCase()
+            //
+            // console.log(lastToken)
+            // console.log("光标前文本"+textBeforePointerMulti)
+            // console.log("光标后文本"+textAfterPointerMulti)
+            //
+            // // 表名联想
+            //
+            // // 字段名联想
+            //
+            let word = model.getWordUntilPosition(position);
+            let range = {
+                startLineNumber: position.lineNumber,
+                endLineNumber: position.lineNumber,
+                startColumn: word.startColumn,
+                endColumn: word.endColumn
+            };
+
+            let suggestions: CompletionItem[] = []
+            sqlLanguage.keywords.forEach((item: any) => {
+                suggestions.push({
+                    label: item,
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: item,
+                    range
+                });
+            })
+            sqlLanguage.operators.forEach((item: any) => {
+                suggestions.push({
+                    label: item,
+                    kind: monaco.languages.CompletionItemKind.Operator,
+                    insertText: item,
+                    range
+                });
+            })
+            sqlLanguage.builtinFunctions.forEach((item: any) => {
+                suggestions.push({
+                    label: item,
+                    kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: item,
+                    range
+                });
+            })
+            sqlLanguage.builtinVariables.forEach((item: any) => {
+                suggestions.push({
+                    label: item,
+                    kind: monaco.languages.CompletionItemKind.Variable,
+                    insertText: item,
+                    range
+                });
+            })
+           
+            // 默认提示
+            return {
+                suggestions: suggestions
+            };
+        },
+    });
+
+    // monaco.languages.registerCompletionItemProvider('sql', {
+    //     provideCompletionItems: (model: ITextModel, position: Position) : languages.ProviderResult<languages.CompletionList> => provideCompletionItems(model, position)
+    // })
+
+};
+
+
+const provideCompletionItems= async (model: editor.ITextModel, position: monaco.Position) => {
+    const { lineNumber, column } = position
+    // 光标前文本
+    const textBeforePointer = model.getValueInRange({
+        startLineNumber: lineNumber,
+        startColumn: 0,
+        endLineNumber: lineNumber,
+        endColumn: column
+    })
+    const textBeforePointerMulti = model.getValueInRange({
+        startLineNumber: 1,
+        startColumn: 0,
+        endLineNumber: lineNumber,
+        endColumn: column
+    })
+    // 光标后文本
+    const textAfterPointerMulti = model.getValueInRange({
+        startLineNumber: lineNumber,
+        startColumn: column,
+        endLineNumber: model.getLineCount(),
+        endColumn: model.getLineMaxColumn(model.getLineCount())
+    })
+    // const nextTokens = textAfterPointer.trim().split(/\s+/)
+    // const nextToken = nextTokens[0].toLowerCase()
+    const tokens = textBeforePointer.trim().split(/\s+/)
+    const lastToken = tokens[tokens.length - 1].toLowerCase()
+    
+    console.log(lastToken)
+    console.log(textBeforePointerMulti)
+    console.log(textAfterPointerMulti)
+
+    return {
+        suggestions: [{
+            label:'test',
+            kind: 9,
+            insertText:'test',
+            documentation: 'test',
+            range: {
+                startLineNumber: 1,
+                startColumn: 1,
+                endLineNumber: 10,
+                endColumn: 10,
+            }
+        }]
+    }
+    
+    // if (lastToken.endsWith('.')) {
+    //     // 去掉点后的字符串
+    //     const tokenNoDot = lastToken.slice(0, lastToken.length - 1)
+    //     // if (this.dbSchema.find(db => db.dbName === tokenNoDot.replace(/^.*,/g, ''))) {
+    //     //     // <库名>.<表名>联想
+    //     //     return {
+    //     //         suggestions: [...this.getTableSuggestByDbName(tokenNoDot.replace(/^.*,/g, ''))]
+    //     //     }
+    //     // } else 
+    //     if (this.getTableNameAndTableAlia(textBeforePointerMulti.split(';')[textBeforePointerMulti.split(';').length - 1] + textAfterPointerMulti.split(';')[0])) {
+    //         const tableInfoList = this.getTableNameAndTableAlia(textBeforePointerMulti.split(';')[textBeforePointerMulti.split(';').length - 1] + textAfterPointerMulti.split(';')[0])
+    //         const currentTable = tableInfoList.find(item => item.tableAlia === tokenNoDot.replace(/^.*,/g, ''))
+    //         // <别名>.<字段>联想
+    //         if (currentTable && currentTable.tableName) {
+    //             return {
+    //                 suggestions: await this.getTableColumnSuggestByTableAlia(currentTable.tableName)
+    //             }
+    //         } else {
+    //             return {
+    //                 suggestions: []
+    //             }
+    //         }
+    //     } else {
+    //         return {
+    //             suggestions: []
+    //         }
+    //     }
+    //     // 库名联想
+    // } else if (lastToken === 'from' || lastToken === 'join' || /(from|join)\s+.*?\s?,\s*$/.test(textBeforePointer.replace(/.*?\(/gm, '').toLowerCase())) {
+    //     // const tables = this.getTableSuggest()
+    //     const databases = this.getDataBaseSuggest()
+    //     return {
+    //         suggestions: databases
+    //     }
+    //     // 字段联想
+    // } else if (['select', 'where', 'order by', 'group by', 'by', 'and', 'or', 'having', 'distinct', 'on'].includes(lastToken.replace(/.*?\(/g, '')) || (lastToken.endsWith('.') && !this.dbSchema.find(db => `${db.dbName}.` === lastToken)) || /(select|where|order by|group by|by|and|or|having|distinct|on)\s+.*?\s?,\s*$/.test(textBeforePointer.toLowerCase())) {
+    //     return {
+    //         suggestions: await this.getTableColumnSuggest()
+    //     }
+    //     // 自定义字段联想
+    // } else if (this.customKeywords.toString().includes(lastToken)) {
+    //     return {
+    //         suggestions: this.getCustomSuggest(lastToken.startsWith('$'))
+    //     }
+    //     // 默认联想
+    // } else {
+    //     return {
+    //         suggestions: [...this.getDataBaseSuggest(), ...this.getTableSuggest(), ...this.getKeywordSuggest()]
+    //     }
+    // }
+}
+
+onMounted(() => {
+    initCodemirror();
+    initMonacoEditor();
+    setHeight();
+    // 监听浏览器窗口大小变化,更新对应组件高度
+    window.onresize = () =>
+        (() => {
             setHeight();
-            // 监听浏览器窗口大小变化,更新对应组件高度
-            window.onresize = () =>
-                (() => {
-                    setHeight();
-                })();
-        });
+        })();
+});
 
         /**
          * 设置codemirror高度和数据表高度
@@ -458,7 +665,7 @@ export default defineComponent({
         /**
          * 项目及环境更改后的回调事件
          */
-        const changeTag = (projectId: any, envId: any) => {
+        const changeTag = () => {
             state.dbs = [];
             state.dbId = null;
             state.db = '';
@@ -727,12 +934,7 @@ export default defineComponent({
          * 获取sql，如果有鼠标选中，则返回选中内容，否则返回输入框内所有内容
          */
         const getSql = () => {
-            // 没有选中的文本，则为全部文本
-            let selectSql = codemirror.getSelection();
-            if (!selectSql) {
-                selectSql = getCodermirrorValue();
-            }
-            return selectSql;
+    return codemirror.getSelection() || codemirror.getValue();
         };
 
         /**
@@ -768,6 +970,11 @@ export default defineComponent({
                 });
             getSqlNames();
         };
+
+const addTableSuggestions = (tables: any[]) => {
+    
+    
+}
 
         // 选择表事件
         const changeTable = async (tableName: string, execSelectSql: boolean = true) => {
@@ -983,10 +1190,6 @@ export default defineComponent({
             codemirror.setValue(value);
         };
 
-        const getCodermirrorValue = () => {
-            codemirror.getValue();
-        };
-
         /**
          * 获取用户保存的sql模板名称
          */
@@ -1154,7 +1357,7 @@ export default defineComponent({
                         const primaryKeyColumnName = primaryKey.columnName;
                         // 更新字段列信息
                         const updateColumn = await getColumn(state.nowTableName, column.rawColumnKey);
-                        const sql = `UPDATE ${state.nowTableName} SET ${column.rawColumnKey} = ${wrapColumnValue(updateColumn, input.value)} 
+                        const sql = `UPDATE ${state.nowTableName} SET ${column.rawColumnKey} = ${wrapColumnValue(updateColumn, input.value)}
                                         WHERE ${primaryKeyColumnName} = ${wrapColumnValue(primaryKey, row[primaryKeyColumnName])}`;
                         promptExeSql(sql, () => {
                             row[property] = text;
@@ -1273,6 +1476,7 @@ export default defineComponent({
             ...toRefs(state),
             getTags,
             codeTextarea,
+            monacoTextarea,
             changeTag,
             changeTable,
             cellClick,

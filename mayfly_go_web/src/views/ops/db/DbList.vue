@@ -364,8 +364,6 @@ export default defineComponent({
             tableCreateDialog: {
                 title:'创建表',
                 visible: false,
-                columns: [],
-                indexs: [],
                 activeName: '1',
                 data: {  // 修改表时，传递修改数据
                   edit: false,
