@@ -31,7 +31,7 @@ func (d *dbRepoImpl) GetDbList(condition *entity.DbQuery, pageParam *model.PageP
 	if condition.TagPathLike != "" {
 		sql = sql + " AND d.tag_path LIKE '" + condition.TagPathLike + "%'"
 	}
-	sql = sql + " ORDER BY d.create_time DESC"
+	sql = sql + " ORDER BY d.tag_path"
 	return model.GetPageBySql(sql, pageParam, toEntity)
 }
 

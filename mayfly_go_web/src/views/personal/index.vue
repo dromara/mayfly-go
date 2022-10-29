@@ -12,8 +12,9 @@
                         </div>
                         <div class="personal-user-right">
                             <el-row>
-                                <el-col :span="24" class="personal-title mb18"
-                                    >{{ currentTime }}，{{ getUserInfos.username }}，生活变的再糟糕，也不妨碍我变得更好！
+                                <el-col :span="24" class="personal-title mb18">{{ currentTime }}，{{
+                                        getUserInfos.username
+                                }}，生活变的再糟糕，也不妨碍我变得更好！
                                 </el-col>
                                 <el-col :span="24">
                                     <el-row>
@@ -35,7 +36,9 @@
                                         </el-col>
                                         <el-col :xs="24" :sm="16" class="personal-item mb6">
                                             <div class="personal-item-label">上次登录时间：</div>
-                                            <div class="personal-item-value">{{ $filters.dateFormat(getUserInfos.lastLoginTime) }}</div>
+                                            <div class="personal-item-value">{{
+                                                    dateFormat(getUserInfos.lastLoginTime)
+                                            }}</div>
                                         </el-col>
                                     </el-row>
                                 </el-col>
@@ -54,7 +57,7 @@
                     </template>
                     <div class="personal-info-box">
                         <ul class="personal-info-ul">
-                            <li v-for="(v, k) in msgDialog.msgs.list" :key="k" class="personal-info-li">
+                            <li v-for="(v, k) in msgDialog.msgs.list as any" :key="k" class="personal-info-li">
                                 <a class="personal-info-li-title">{{ `[${getMsgTypeDesc(v.type)}] ${v.msg}` }}</a>
                             </li>
                         </ul>
@@ -72,19 +75,13 @@
                     <el-table-column property="msg" label="消息"></el-table-column>
                     <el-table-column property="createTime" label="时间" width="150">
                         <template #default="scope">
-                            {{ $filters.dateFormat(scope.row.createTime) }}
+                            {{ dateFormat(scope.row.createTime) }}
                         </template>
                     </el-table-column>
                 </el-table>
-                <el-pagination
-                    @current-change="getMsgs"
-                    style="text-align: center"
-                    background
-                    layout="prev, pager, next, total, jumper"
-                    :total="msgDialog.msgs.total"
-                    v-model:current-page="msgDialog.query.pageNum"
-                    :page-size="msgDialog.query.pageSize"
-                />
+                <el-pagination @current-change="getMsgs" style="text-align: center" background
+                    layout="prev, pager, next, total, jumper" :total="msgDialog.msgs.total"
+                    v-model:current-page="msgDialog.query.pageNum" :page-size="msgDialog.query.pageSize" />
             </el-dialog>
 
             <!-- 营销推荐 -->
@@ -112,13 +109,8 @@
                         <el-row :gutter="35">
                             <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="mb20">
                                 <el-form-item label="密码">
-                                    <el-input
-                                        type="password"
-                                        show-password
-                                        v-model="accountForm.password"
-                                        placeholder="请输入新密码"
-                                        clearable
-                                    ></el-input>
+                                    <el-input type="password" show-password v-model="accountForm.password"
+                                        placeholder="请输入新密码" clearable></el-input>
                                 </el-form-item>
                             </el-col>
                             <!--  -->
@@ -181,122 +173,118 @@
     </div>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
 import { toRefs, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { formatAxis } from '@/common/utils/formatTime.ts';
-import { recommendList } from './mock.ts';
 import { useStore } from '@/store/index.ts';
 import { personApi } from './api';
-export default {
-    name: 'PersonalPage',
-    setup() {
-        const store = useStore();
-        const state = reactive({
-            accountInfo: {
-                roles: [],
-            },
-            msgs: [],
-            msgDialog: {
-                visible: false,
-                query: {
-                    pageSize: 10,
-                    pageNum: 1,
-                },
-                msgs: {
-                    list: [],
-                    total: null,
-                },
-            },
-            recommendList,
-            accountForm: {
-                password: '',
-            },
-        });
-        // 当前时间提示语
-        const currentTime = computed(() => {
-            return formatAxis(new Date());
-        });
+import { dateFormat } from '@/common/utils/date';
 
-        // 获取用户信息 vuex
-        const getUserInfos = computed(() => {
-            return store.state.userInfos.userInfos;
-        });
+const store = useStore();
 
-        const showMsgs = () => {
-            state.msgDialog.visible = true;
-        };
-
-        const roleInfo = computed(() => {
-            if (state.accountInfo.roles.length == 0) {
-                return '';
-            }
-            return state.accountInfo.roles.map((val: any) => val.name).join('、');
-        });
-
-        onMounted(() => {
-            getAccountInfo();
-            getMsgs();
-        });
-
-        const getAccountInfo = async () => {
-            state.accountInfo = await personApi.accountInfo.request();
-        };
-
-        const updateAccount = async () => {
-            await personApi.updateAccount.request(state.accountForm);
-            ElMessage.success('更新成功');
-        };
-
-        const getMsgs = async () => {
-            const res = await personApi.getMsgs.request(state.msgDialog.query);
-            state.msgDialog.msgs = res;
-        };
-
-        const getMsgTypeDesc = (type: number) => {
-            if (type == 1) {
-                return '登录';
-            }
-            if (type == 2) {
-                return '通知';
-            }
-        };
-
-        return {
-            getUserInfos,
-            currentTime,
-            roleInfo,
-            showMsgs,
-            getAccountInfo,
-            getMsgs,
-            getMsgTypeDesc,
-            updateAccount,
-            ...toRefs(state),
-        };
+const state = reactive({
+    accountInfo: {
+        roles: [],
     },
+    msgs: [],
+    msgDialog: {
+        visible: false,
+        query: {
+            pageSize: 10,
+            pageNum: 1,
+        },
+        msgs: {
+            list: [],
+            total: null,
+        },
+    },
+    recommendList: [],
+    accountForm: {
+        password: '',
+    },
+});
+
+const {
+    msgDialog,
+    accountForm,
+} = toRefs(state)
+
+// 当前时间提示语
+const currentTime = computed(() => {
+    return formatAxis(new Date());
+});
+
+// 获取用户信息 vuex
+const getUserInfos = computed(() => {
+    return store.state.userInfos.userInfos;
+});
+
+const showMsgs = () => {
+    state.msgDialog.visible = true;
+};
+
+const roleInfo = computed(() => {
+    if (state.accountInfo.roles.length == 0) {
+        return '';
+    }
+    return state.accountInfo.roles.map((val: any) => val.name).join('、');
+});
+
+onMounted(() => {
+    getAccountInfo();
+    getMsgs();
+});
+
+const getAccountInfo = async () => {
+    state.accountInfo = await personApi.accountInfo.request();
+};
+
+const updateAccount = async () => {
+    await personApi.updateAccount.request(state.accountForm);
+    ElMessage.success('更新成功');
+};
+
+const getMsgs = async () => {
+    const res = await personApi.getMsgs.request(state.msgDialog.query);
+    state.msgDialog.msgs = res;
+};
+
+const getMsgTypeDesc = (type: number) => {
+    if (type == 1) {
+        return '登录';
+    }
+    if (type == 2) {
+        return '通知';
+    }
 };
 </script>
 
 <style scoped lang="scss">
 @import '../../theme/mixins/mixins.scss';
+
 .personal {
     .personal-user {
         height: 130px;
         display: flex;
         align-items: center;
+
         .personal-user-left {
             width: 100px;
             height: 130px;
             border-radius: 3px;
+
             ::v-deep(.el-upload) {
                 height: 100%;
             }
+
             .personal-user-left-upload {
                 img {
                     width: 100%;
                     height: 100%;
                     border-radius: 3px;
                 }
+
                 &:hover {
                     img {
                         animation: logoAnimation 0.3s ease-in-out;
@@ -304,51 +292,63 @@ export default {
                 }
             }
         }
+
         .personal-user-right {
             flex: 1;
             padding: 0 15px;
+
             .personal-title {
                 font-size: 18px;
                 @include text-ellipsis(1);
             }
+
             .personal-item {
                 display: flex;
                 align-items: center;
                 font-size: 13px;
+
                 .personal-item-label {
                     color: gray;
                     @include text-ellipsis(1);
                 }
+
                 .personal-item-value {
                     @include text-ellipsis(1);
                 }
             }
         }
     }
+
     .personal-info {
         .personal-info-more {
             float: right;
             color: gray;
             font-size: 13px;
+
             &:hover {
                 color: var(--color-primary);
                 cursor: pointer;
             }
         }
+
         .personal-info-box {
             height: 130px;
             overflow: hidden;
+
             .personal-info-ul {
                 list-style: none;
+
                 .personal-info-li {
                     font-size: 13px;
                     padding-bottom: 10px;
+
                     .personal-info-li-title {
                         display: inline-block;
                         @include text-ellipsis(1);
                         color: grey;
                         text-decoration: none;
                     }
+
                     & a:hover {
                         color: var(--color-primary);
                         cursor: pointer;
@@ -357,6 +357,7 @@ export default {
             }
         }
     }
+
     .personal-recommend-row {
         .personal-recommend-col {
             .personal-recommend {
@@ -366,6 +367,7 @@ export default {
                 border-radius: 3px;
                 overflow: hidden;
                 cursor: pointer;
+
                 &:hover {
                     i {
                         right: 0px !important;
@@ -373,6 +375,7 @@ export default {
                         transition: all ease 0.3s;
                     }
                 }
+
                 i {
                     position: absolute;
                     right: -10px;
@@ -381,11 +384,13 @@ export default {
                     transform: rotate(-30deg);
                     transition: all ease 0.3s;
                 }
+
                 .personal-recommend-auto {
                     padding: 15px;
                     position: absolute;
                     left: 0;
                     top: 5%;
+
                     .personal-recommend-msg {
                         font-size: 12px;
                         margin-top: 10px;
@@ -394,11 +399,13 @@ export default {
             }
         }
     }
+
     .personal-edit {
         .personal-edit-title {
             position: relative;
             padding-left: 10px;
             color: #606266;
+
             &::after {
                 content: '';
                 width: 2px;
@@ -410,21 +417,26 @@ export default {
                 background: var(--color-primary);
             }
         }
+
         .personal-edit-safe-box {
             border-bottom: 1px solid #ebeef5;
             padding: 15px 0;
+
             .personal-edit-safe-item {
                 width: 100%;
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+
                 .personal-edit-safe-item-left {
                     flex: 1;
                     overflow: hidden;
+
                     .personal-edit-safe-item-left-label {
                         color: #606266;
                         margin-bottom: 5px;
                     }
+
                     .personal-edit-safe-item-left-value {
                         color: gray;
                         @include text-ellipsis(1);
@@ -432,6 +444,7 @@ export default {
                     }
                 }
             }
+
             &:last-of-type {
                 padding-bottom: 0;
                 border-bottom: none;

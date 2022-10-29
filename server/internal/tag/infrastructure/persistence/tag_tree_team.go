@@ -27,6 +27,6 @@ func (p *tagTreeTeamRepoImpl) DeleteBy(condition *entity.TagTreeTeam) {
 
 func (p *tagTreeTeamRepoImpl) SelectTagPathsByAccountId(accountId uint64) []string {
 	var res []string
-	model.GetListBySql2Model("SELECT DISTINCT(t1.tag_path) FROM t_tag_tree_team t1 JOIN t_team_member t2 ON t1.team_id = t2.team_id WHERE t2.account_id = ?", &res, accountId)
+	model.GetListBySql2Model("SELECT DISTINCT(t1.tag_path) FROM t_tag_tree_team t1 JOIN t_team_member t2 ON t1.team_id = t2.team_id WHERE t2.account_id = ? ORDER BY t1.tag_path", &res, accountId)
 	return res
 }

@@ -17,11 +17,13 @@ type Team interface {
 
 	//--------------- 团队成员相关接口 ---------------
 
-	GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity interface{}) *model.PageResult
 
 	SaveMember(projectTeamMember *entity.TeamMember)
 
 	DeleteMember(teamId, accountId uint64)
+
+	IsExistMember(teamId, accounId uint64) bool
 
 	// 账号是否有权限访问该项目关联的资源信息
 	// CanAccess(accountId, projectId uint64) error
@@ -71,8 +73,8 @@ func (p *projectTeamAppImpl) Delete(id uint64) {
 
 // --------------- 团队成员相关接口 ---------------
 
-func (p *projectTeamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
-	return p.projectTeamMemberRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+func (p *projectTeamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity interface{}) *model.PageResult {
+	return p.projectTeamMemberRepo.GetPageList(condition, pageParam, toEntity)
 }
 
 // 保存团队成员信息
@@ -85,6 +87,10 @@ func (p *projectTeamAppImpl) SaveMember(projectTeamMember *entity.TeamMember) {
 // 删除团队成员信息
 func (p *projectTeamAppImpl) DeleteMember(teamId, accountId uint64) {
 	p.projectTeamMemberRepo.DeleteBy(&entity.TeamMember{TeamId: teamId, AccountId: accountId})
+}
+
+func (p *projectTeamAppImpl) IsExistMember(teamId, accounId uint64) bool {
+	return p.projectTeamMemberRepo.IsExist(teamId, accounId)
 }
 
 //--------------- 关联项目相关接口 ---------------

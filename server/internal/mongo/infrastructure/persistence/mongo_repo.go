@@ -26,7 +26,7 @@ func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, pageParam *model.P
 	if condition.TagPathLike != "" {
 		sql = sql + " AND d.tag_path LIKE '" + condition.TagPathLike + "%'"
 	}
-	sql = sql + " ORDER BY d.create_time DESC"
+	sql = sql + " ORDER BY d.tag_path"
 	return model.GetPageBySql(sql, pageParam, toEntity)
 }
 

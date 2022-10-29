@@ -2,8 +2,9 @@ package form
 
 type AccountCreateForm struct {
 	Id       uint64
-	Username *string `json:"username" binding:"required,min=4,max=16"`
-	Password *string `json:"password"`
+	Name     string `json:"name" binding:"required"`
+	Username string `json:"username" binding:"required,min=4,max=16"`
+	Password string `json:"password"`
 }
 
 type AccountUpdateForm struct {

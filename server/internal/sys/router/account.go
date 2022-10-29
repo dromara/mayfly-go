@@ -56,7 +56,7 @@ func InitAccountRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(a.Accounts)
 		})
 
-		createAccount := ctx.NewLogInfo("创建账号").WithSave(true)
+		createAccount := ctx.NewLogInfo("保存账号信息").WithSave(true)
 		addAccountPermission := ctx.NewPermission("account:add")
 		account.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).

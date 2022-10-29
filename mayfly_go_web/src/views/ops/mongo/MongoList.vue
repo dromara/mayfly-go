@@ -2,8 +2,10 @@
     <div>
         <el-card>
             <el-button type="primary" icon="plus" @click="editMongo(true)" plain>添加</el-button>
-            <el-button type="primary" icon="edit" :disabled="currentId == null" @click="editMongo(false)" plain>编辑</el-button>
-            <el-button type="danger" icon="delete" :disabled="currentId == null" @click="deleteMongo" plain>删除</el-button>
+            <el-button type="primary" icon="edit" :disabled="currentId == null" @click="editMongo(false)" plain>编辑
+            </el-button>
+            <el-button type="danger" icon="delete" :disabled="currentId == null" @click="deleteMongo" plain>删除
+            </el-button>
             <div style="float: right">
                 <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable>
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
@@ -34,19 +36,15 @@
 
                 <el-table-column label="操作" width>
                     <template #default="scope">
-                        <el-link type="primary" @click="showDatabases(scope.row.id, scope.row)" plain size="small" :underline="false">数据库</el-link>
+                        <el-link type="primary" @click="showDatabases(scope.row.id, scope.row)" plain size="small"
+                            :underline="false">数据库</el-link>
                     </template>
                 </el-table-column>
             </el-table>
             <el-row style="margin-top: 20px" type="flex" justify="end">
-                <el-pagination
-                    style="text-align: right"
-                    @current-change="handlePageChange"
-                    :total="total"
-                    layout="prev, pager, next, total, jumper"
-                    v-model:current-page="query.pageNum"
-                    :page-size="query.pageSize"
-                ></el-pagination>
+                <el-pagination style="text-align: right" @current-change="handlePageChange" :total="total"
+                    layout="prev, pager, next, total, jumper" v-model:current-page="query.pageNum"
+                    :page-size="query.pageSize"></el-pagination>
             </el-row>
         </el-card>
 
@@ -62,16 +60,20 @@
 
                 <el-table-column min-width="150" label="操作">
                     <template #default="scope">
-                        <el-link type="success" @click="showDatabaseStats(scope.row.Name)" plain size="small" :underline="false">stats</el-link>
+                        <el-link type="success" @click="showDatabaseStats(scope.row.Name)" plain size="small"
+                            :underline="false">stats</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
-                        <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small" :underline="false">集合</el-link>
+                        <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small"
+                            :underline="false">集合</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
-                        <el-link type="primary" @click="openDataOps(scope.row)" plain size="small" :underline="false">数据操作</el-link>
+                        <el-link type="primary" @click="openDataOps(scope.row)" plain size="small" :underline="false">
+                            数据操作</el-link>
                     </template>
                 </el-table-column>
             </el-table>
 
-            <el-dialog width="700px" :title="databaseDialog.statsDialog.title" v-model="databaseDialog.statsDialog.visible">
+            <el-dialog width="700px" :title="databaseDialog.statsDialog.title"
+                v-model="databaseDialog.statsDialog.visible">
                 <el-descriptions title="库状态信息" :column="3" border size="small">
                     <el-descriptions-item label="db" label-align="right" align="center">
                         {{ databaseDialog.statsDialog.data.db }}
@@ -120,7 +122,8 @@
                 <el-table-column prop="name" label="名称" show-overflow-tooltip> </el-table-column>
                 <el-table-column min-width="80" label="操作">
                     <template #default="scope">
-                        <el-link type="success" @click="showCollectionStats(scope.row.name)" plain size="small" :underline="false">stats</el-link>
+                        <el-link type="success" @click="showCollectionStats(scope.row.name)" plain size="small"
+                            :underline="false">stats</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
                         <el-popconfirm @confirm="onDeleteCollection(scope.row.name)" title="确定删除该集合?">
                             <template #reference>
@@ -131,7 +134,8 @@
                 </el-table-column>
             </el-table>
 
-            <el-dialog width="700px" :title="collectionsDialog.statsDialog.title" v-model="collectionsDialog.statsDialog.visible">
+            <el-dialog width="700px" :title="collectionsDialog.statsDialog.title"
+                v-model="collectionsDialog.statsDialog.visible">
                 <el-descriptions title="集合状态信息" :column="3" border size="small">
                     <el-descriptions-item label="ns" label-align="right" :span="2" align="center">
                         {{ collectionsDialog.statsDialog.data.ns }}
@@ -179,269 +183,249 @@
             </template>
         </el-dialog>
 
-        <mongo-edit
-            @val-change="valChange"
-            :title="mongoEditDialog.title"
-            v-model:visible="mongoEditDialog.visible"
-            v-model:mongo="mongoEditDialog.data"
-        ></mongo-edit>
+        <mongo-edit @val-change="valChange" :title="mongoEditDialog.title" v-model:visible="mongoEditDialog.visible"
+            v-model:mongo="mongoEditDialog.data"></mongo-edit>
     </div>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
 import { mongoApi } from './api';
-import { toRefs, reactive, defineComponent, onMounted } from 'vue';
+import { toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from '../tag/api.ts';
 import MongoEdit from './MongoEdit.vue';
 import { formatByteSize } from '@/common/utils/format';
-import {store} from '@/store';
+import { store } from '@/store';
 import router from '@/router';
 import { dateFormat } from '@/common/utils/date';
 
-export default defineComponent({
-    name: 'MongoList',
-    components: {
-        MongoEdit,
+const state = reactive({
+    tags: [],
+    dbOps: {
+        dbId: 0,
+        db: '',
     },
-    setup() {
-        const state = reactive({
-            tags: [],
-            dbOps: {
-              dbId: 0,
-              db: '',
-            },
-            projects: [],
-            list: [],
-            total: 0,
-            currentId: null,
-            currentData: null,
-            query: {
-                pageNum: 1,
-                pageSize: 10,
-                tagPath: null,
-            },
-            mongoEditDialog: {
-                visible: false,
-                data: null as any,
-                title: '新增mongo',
-            },
-            databaseDialog: {
-                visible: false,
-                data: [],
-                title: '',
-                statsDialog: {
-                    visible: false,
-                    data: {} as any,
-                    title: '',
-                },
-            },
-            collectionsDialog: {
-                database: '',
-                visible: false,
-                data: [],
-                title: '',
-                statsDialog: {
-                    visible: false,
-                    data: {} as any,
-                    title: '',
-                },
-            },
-            createCollectionDialog: {
-                visible: false,
-                form: {
-                    name: '',
-                },
-            },
-        });
-
-        onMounted(async () => {
-            search();
-        });
-
-        const handlePageChange = (curPage: number) => {
-            state.query.pageNum = curPage;
-            search();
-        };
-
-        const choose = (item: any) => {
-            if (!item) {
-                return;
-            }
-            state.currentId = item.id;
-            state.currentData = item;
-        };
-
-        const showDatabases = async (id: number, row: any) => {
-          console.log(row)
-            state.query.tagPath = row.tagPath
-            state.dbOps.dbId = id
-
-            state.databaseDialog.data = (await mongoApi.databases.request({ id })).Databases;
-            state.databaseDialog.title = `数据库列表`;
-            state.databaseDialog.visible = true;
-        };
-
-        const showDatabaseStats = async (dbName: string) => {
-            state.databaseDialog.statsDialog.data = await mongoApi.runCommand.request({
-                id: state.currentId,
-                database: dbName,
-                command: {
-                    dbStats: 1,
-                },
-            });
-            state.databaseDialog.statsDialog.title = `'${dbName}' stats`;
-            state.databaseDialog.statsDialog.visible = true;
-        };
-
-        const showCollections = async (database: string) => {
-            state.collectionsDialog.database = database;
-            state.collectionsDialog.data = [];
-            setCollections(database);
-            state.collectionsDialog.title = `'${database}' 集合`;
-            state.collectionsDialog.visible = true;
-        };
-
-        const setCollections = async (database: string) => {
-            const res = await mongoApi.collections.request({ id: state.currentId, database });
-            const collections = [] as any;
-            for (let r of res) {
-                collections.push({ name: r });
-            }
-            state.collectionsDialog.data = collections;
-        };
-
-        /**
-         * 显示集合状态
-         */
-        const showCollectionStats = async (collection: string) => {
-            state.collectionsDialog.statsDialog.data = await mongoApi.runCommand.request({
-                id: state.currentId,
-                database: state.collectionsDialog.database,
-                command: {
-                    collStats: collection,
-                },
-            });
-            state.collectionsDialog.statsDialog.title = `'${collection}' stats`;
-            state.collectionsDialog.statsDialog.visible = true;
-        };
-
-        /**
-         * 删除集合
-         */
-        const onDeleteCollection = async (collection: string) => {
-            await mongoApi.runCommand.request({
-                id: state.currentId,
-                database: state.collectionsDialog.database,
-                command: {
-                    drop: collection,
-                },
-            });
-            ElMessage.success('集合删除成功');
-            setCollections(state.collectionsDialog.database);
-        };
-
-        const showCreateCollectionDialog = () => {
-            state.createCollectionDialog.visible = true;
-        };
-
-        const onCreateCollection = async () => {
-            const form = state.createCollectionDialog.form;
-            await mongoApi.runCommand.request({
-                id: state.currentId,
-                database: state.collectionsDialog.database,
-                command: {
-                    create: form.name,
-                },
-            });
-            ElMessage.success('集合创建成功');
-            state.createCollectionDialog.visible = false;
-            state.createCollectionDialog.form = {} as any;
-            setCollections(state.collectionsDialog.database);
-        };
-
-        const deleteMongo = async () => {
-            try {
-                await ElMessageBox.confirm(`确定删除该mongo?`, '提示', {
-                    confirmButtonText: '确定',
-                    cancelButtonText: '取消',
-                    type: 'warning',
-                });
-                await mongoApi.deleteMongo.request({ id: state.currentId });
-                ElMessage.success('删除成功');
-                state.currentData = null;
-                state.currentId = null;
-                search();
-            } catch (err) {}
-        };
-
-        const search = async () => {
-            const res = await mongoApi.mongoList.request(state.query);
-            state.list = res.list;
-            state.total = res.total;
-        };
-
-        const getTags = async () => {
-            state.tags = await tagApi.getAccountTags.request(null);
-        };
-
-        const editMongo = async (isAdd = false) => {
-            if (isAdd) {
-                state.mongoEditDialog.data = null;
-                state.mongoEditDialog.title = '新增mongo';
-            } else {
-                state.mongoEditDialog.data = state.currentData;
-                state.mongoEditDialog.title = '修改mongo';
-            }
-            state.mongoEditDialog.visible = true;
-        };
-
-        const valChange = () => {
-            state.currentId = null;
-            state.currentData = null;
-            search();
-        };
-
-        const openDataOps = ( row: any) => {
-          state.dbOps.db = row.Name
-
-          debugger
-          let data = {
-            tagPath: state.query.tagPath,
-            dbId: state.dbOps.dbId,
-            db: state.dbOps.db,
-          }
-          // 判断db是否发生改变
-          let oldDb = store.state.mongoDbOptInfo.dbOptInfo.db;
-          if(oldDb !== row.Name){
-            store.dispatch('mongoDbOptInfo/setMongoDbOptInfo', data);
-          }
-          router.push({name: 'MongoDataOp'});
-        }
-
-        return {
-            ...toRefs(state),
-            dateFormat,
-            getTags,
-            search,
-            handlePageChange,
-            choose,
-            showDatabases,
-            showDatabaseStats,
-            showCollections,
-            showCollectionStats,
-            onDeleteCollection,
-            showCreateCollectionDialog,
-            onCreateCollection,
-            formatByteSize,
-            deleteMongo,
-            editMongo,
-            valChange,
-            openDataOps,
-        };
+    list: [],
+    total: 0,
+    currentId: null,
+    currentData: null,
+    query: {
+        pageNum: 1,
+        pageSize: 10,
+        tagPath: null,
+    },
+    mongoEditDialog: {
+        visible: false,
+        data: null as any,
+        title: '新增mongo',
+    },
+    databaseDialog: {
+        visible: false,
+        data: [],
+        title: '',
+        statsDialog: {
+            visible: false,
+            data: {} as any,
+            title: '',
+        },
+    },
+    collectionsDialog: {
+        database: '',
+        visible: false,
+        data: [],
+        title: '',
+        statsDialog: {
+            visible: false,
+            data: {} as any,
+            title: '',
+        },
+    },
+    createCollectionDialog: {
+        visible: false,
+        form: {
+            name: '',
+        },
     },
 });
+
+const {
+    tags,
+    list,
+    total,
+    currentId,
+    query,
+    mongoEditDialog,
+    databaseDialog,
+    collectionsDialog,
+    createCollectionDialog,
+} = toRefs(state)
+
+onMounted(async () => {
+    search();
+});
+
+const handlePageChange = (curPage: number) => {
+    state.query.pageNum = curPage;
+    search();
+};
+
+const choose = (item: any) => {
+    if (!item) {
+        return;
+    }
+    state.currentId = item.id;
+    state.currentData = item;
+};
+
+const showDatabases = async (id: number, row: any) => {
+    console.log(row)
+    state.query.tagPath = row.tagPath
+    state.dbOps.dbId = id
+
+    state.databaseDialog.data = (await mongoApi.databases.request({ id })).Databases;
+    state.databaseDialog.title = `数据库列表`;
+    state.databaseDialog.visible = true;
+};
+
+const showDatabaseStats = async (dbName: string) => {
+    state.databaseDialog.statsDialog.data = await mongoApi.runCommand.request({
+        id: state.currentId,
+        database: dbName,
+        command: {
+            dbStats: 1,
+        },
+    });
+    state.databaseDialog.statsDialog.title = `'${dbName}' stats`;
+    state.databaseDialog.statsDialog.visible = true;
+};
+
+const showCollections = async (database: string) => {
+    state.collectionsDialog.database = database;
+    state.collectionsDialog.data = [];
+    setCollections(database);
+    state.collectionsDialog.title = `'${database}' 集合`;
+    state.collectionsDialog.visible = true;
+};
+
+const setCollections = async (database: string) => {
+    const res = await mongoApi.collections.request({ id: state.currentId, database });
+    const collections = [] as any;
+    for (let r of res) {
+        collections.push({ name: r });
+    }
+    state.collectionsDialog.data = collections;
+};
+
+/**
+ * 显示集合状态
+ */
+const showCollectionStats = async (collection: string) => {
+    state.collectionsDialog.statsDialog.data = await mongoApi.runCommand.request({
+        id: state.currentId,
+        database: state.collectionsDialog.database,
+        command: {
+            collStats: collection,
+        },
+    });
+    state.collectionsDialog.statsDialog.title = `'${collection}' stats`;
+    state.collectionsDialog.statsDialog.visible = true;
+};
+
+/**
+ * 删除集合
+ */
+const onDeleteCollection = async (collection: string) => {
+    await mongoApi.runCommand.request({
+        id: state.currentId,
+        database: state.collectionsDialog.database,
+        command: {
+            drop: collection,
+        },
+    });
+    ElMessage.success('集合删除成功');
+    setCollections(state.collectionsDialog.database);
+};
+
+const showCreateCollectionDialog = () => {
+    state.createCollectionDialog.visible = true;
+};
+
+const onCreateCollection = async () => {
+    const form = state.createCollectionDialog.form;
+    await mongoApi.runCommand.request({
+        id: state.currentId,
+        database: state.collectionsDialog.database,
+        command: {
+            create: form.name,
+        },
+    });
+    ElMessage.success('集合创建成功');
+    state.createCollectionDialog.visible = false;
+    state.createCollectionDialog.form = {} as any;
+    setCollections(state.collectionsDialog.database);
+};
+
+const deleteMongo = async () => {
+    try {
+        await ElMessageBox.confirm(`确定删除该mongo?`, '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
+        });
+        await mongoApi.deleteMongo.request({ id: state.currentId });
+        ElMessage.success('删除成功');
+        state.currentData = null;
+        state.currentId = null;
+        search();
+    } catch (err) { }
+};
+
+const search = async () => {
+    const res = await mongoApi.mongoList.request(state.query);
+    state.list = res.list;
+    state.total = res.total;
+};
+
+const getTags = async () => {
+    state.tags = await tagApi.getAccountTags.request(null);
+};
+
+const editMongo = async (isAdd = false) => {
+    if (isAdd) {
+        state.mongoEditDialog.data = null;
+        state.mongoEditDialog.title = '新增mongo';
+    } else {
+        state.mongoEditDialog.data = state.currentData;
+        state.mongoEditDialog.title = '修改mongo';
+    }
+    state.mongoEditDialog.visible = true;
+};
+
+const valChange = () => {
+    state.currentId = null;
+    state.currentData = null;
+    search();
+};
+
+const openDataOps = (row: any) => {
+    state.dbOps.db = row.Name
+
+    debugger
+    let data = {
+        tagPath: state.query.tagPath,
+        dbId: state.dbOps.dbId,
+        db: state.dbOps.db,
+    }
+    // 判断db是否发生改变
+    let oldDb = store.state.mongoDbOptInfo.dbOptInfo.db;
+    if (oldDb !== row.Name) {
+        store.dispatch('mongoDbOptInfo/setMongoDbOptInfo', data);
+    }
+    router.push({ name: 'MongoDataOp' });
+}
+
 </script>
 
 <style>
+
 </style>

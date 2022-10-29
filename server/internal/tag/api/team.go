@@ -5,6 +5,7 @@ import (
 	sys_applicaiton "mayfly-go/internal/sys/application"
 	sys_entity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/tag/api/form"
+	"mayfly-go/internal/tag/api/vo"
 	"mayfly-go/internal/tag/application"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -52,26 +53,38 @@ func (p *Team) DelTeam(rc *ctx.ReqCtx) {
 
 // 获取团队的成员信息
 func (p *Team) GetTeamMembers(rc *ctx.ReqCtx) {
-	teamMems := &[]entity.TeamMember{}
-	rc.ResData = p.TeamApp.GetMemberPage(&entity.TeamMember{TeamId: uint64(ginx.PathParamInt(rc.GinCtx, "id"))},
-		ginx.GetPageParam(rc.GinCtx), teamMems)
+	condition := &entity.TeamMember{TeamId: uint64(ginx.PathParamInt(rc.GinCtx, "id"))}
+	condition.Username = rc.GinCtx.Query("username")
+
+	rc.ResData = p.TeamApp.GetMemberPage(condition, ginx.GetPageParam(rc.GinCtx), &[]vo.TeamMember{})
 }
 
 // 保存团队信息
 func (p *Team) SaveTeamMember(rc *ctx.ReqCtx) {
-	projectMem := &entity.TeamMember{}
-	ginx.BindJsonAndValid(rc.GinCtx, projectMem)
+	teamMems := &form.TeamMember{}
+	ginx.BindJsonAndValid(rc.GinCtx, teamMems)
 
-	rc.ReqParam = fmt.Sprintf("projectId: %d, username: %s", projectMem.TeamId, projectMem.Username)
+	teamId := teamMems.TeamId
 
-	// 校验账号，并赋值username
-	account := &sys_entity.Account{}
-	account.Id = projectMem.AccountId
-	biz.ErrIsNil(p.AccountApp.GetAccount(account, "Id", "Username"), "账号不存在")
-	projectMem.Username = account.Username
+	for _, accountId := range teamMems.AccountIds {
+		if p.TeamApp.IsExistMember(teamId, accountId) {
+			continue
+		}
 
-	projectMem.SetBaseInfo(rc.LoginAccount)
-	p.TeamApp.SaveMember(projectMem)
+		// 校验账号，并赋值username
+		account := &sys_entity.Account{}
+		account.Id = accountId
+		biz.ErrIsNil(p.AccountApp.GetAccount(account, "Id", "Username"), "账号不存在")
+
+		teamMember := new(entity.TeamMember)
+		teamMember.TeamId = teamId
+		teamMember.AccountId = accountId
+		teamMember.Username = account.Username
+		teamMember.SetBaseInfo(rc.LoginAccount)
+		p.TeamApp.SaveMember(teamMember)
+	}
+
+	rc.ReqParam = teamMems
 }
 
 // 删除团队成员

@@ -145,45 +145,42 @@
     </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, reactive, watch, toRefs } from 'vue';
+<script lang="ts" setup>
+import { reactive, watch, toRefs } from 'vue';
 
-export default defineComponent({
-    name: 'Info',
-    props: {
-        visible: {
-            type: Boolean,
-        },
-        title: {
-            type: String,
-        },
-        info: {
-            type: [Boolean, Object],
-        },
+const props = defineProps({
+    visible: {
+        type: Boolean,
     },
-    setup(props: any, { emit }) {
-        const state = reactive({
-            dialogVisible: false,
-        });
-
-        watch(
-            () => props.visible,
-            (val) => {
-                state.dialogVisible = val;
-            }
-        );
-        
-        const close = () => {
-            emit('update:visible', false);
-            emit('close');
-        };
-
-        return {
-            ...toRefs(state),
-            close,
-        };
+    title: {
+        type: String,
     },
+    info: {
+        type: [Boolean, Object],
+    },
+})
+
+const emit = defineEmits(['update:visible', 'close'])
+
+const state = reactive({
+    dialogVisible: false,
 });
+
+const {
+    dialogVisible,
+} = toRefs(state)
+
+watch(
+    () => props.visible,
+    (val) => {
+        state.dialogVisible = val;
+    }
+);
+
+const close = () => {
+    emit('update:visible', false);
+    emit('close');
+};
 </script>
 
 <style>
