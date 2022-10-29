@@ -251,8 +251,8 @@
 </template>
 
 <script lang="ts" setup>
-import {onMounted, reactive, ref, toRefs, watch} from 'vue';
-import {dbApi} from './api';
+import { onMounted, toRefs, reactive, ref, watch } from 'vue';
+import { dbApi } from './api';
 
 import {format as sqlFormatter} from 'sql-formatter';
 import {isTrue, notBlank, notEmpty} from '@/common/assert';
@@ -358,8 +358,8 @@ const state = reactive({
     },
     genSqlDialog: {
         visible: false,
-            sql: ''
-        },
+        sql: '',
+    },
     monacoOptions: {
         editor: {} as  editor.IStandaloneCodeEditor,
         height: '',
@@ -1010,10 +1010,10 @@ const changeDb = async (db: string) => {
     
     // 加载数据库下所有表
     state.tableMetadata = await loadTableMetadata(db)
-
+    
     // 加载数据库下所有表字段信息
     state.monacoOptions.dbTables[db] = cmOptions.hintOptions.tables = await loadHintTables(db)
-    
+
     getSqlNames();
 };
 

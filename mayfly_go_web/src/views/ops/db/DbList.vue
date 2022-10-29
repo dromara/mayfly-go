@@ -690,7 +690,7 @@ const openEditTable = async (row: any) => {
     state.tableCreateDialog.activeName = '1'
 
     if(row === false){
-        state.tableCreateDialog.data = {edit: false, row: {}, indexs: [], columns: [] }
+        state.tableCreateDialog.data = { edit: false, row: {}, indexs: [], columns: [] }
         state.tableCreateDialog.title = '创建表'
     }
 
