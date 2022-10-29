@@ -12,7 +12,7 @@ type TeamMember interface {
 
 	Save(mp *entity.TeamMember)
 
-	GetPageList(condition *entity.TeamMember, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.TeamMember, pageParam *model.PageParam, toEntity interface{}) *model.PageResult
 
 	DeleteBy(condition *entity.TeamMember)
 

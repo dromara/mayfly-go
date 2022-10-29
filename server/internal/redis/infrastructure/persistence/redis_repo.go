@@ -29,7 +29,7 @@ func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *mo
 	if condition.TagPathLike != "" {
 		sql = sql + " AND d.tag_path LIKE '" + condition.TagPathLike + "%'"
 	}
-	sql = sql + " ORDER BY d.create_time DESC"
+	sql = sql + " ORDER BY d.tag_path"
 	return model.GetPageBySql(sql, pageParam, toEntity)
 }
 

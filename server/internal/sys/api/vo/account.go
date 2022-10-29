@@ -7,7 +7,8 @@ import (
 
 type AccountManageVO struct {
 	model.Model
-	Username      *string    `json:"username"`
+	Name          string     `json:"name"`
+	Username      string     `json:"username"`
 	Status        int        `json:"status"`
 	LastLoginTime *time.Time `json:"lastLoginTime"`
 }

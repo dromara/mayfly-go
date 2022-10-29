@@ -31,7 +31,7 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 	if condition.TagPathLike != "" {
 		sql = sql + " AND m.tag_path LIKE '" + condition.TagPathLike + "%'"
 	}
-	sql = sql + " ORDER BY m.tag_id, m.create_time DESC"
+	sql = sql + " ORDER BY m.tag_path"
 	return model.GetPageBySql(sql, pageParam, toEntity)
 }
 

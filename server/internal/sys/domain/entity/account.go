@@ -8,6 +8,7 @@ import (
 type Account struct {
 	model.Model
 
+	Name          string     `json:"name"`
 	Username      string     `json:"username"`
 	Password      string     `json:"-"`
 	Status        int8       `json:"status"`

@@ -31,33 +31,30 @@
     </div>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup>
 import { toRefs, reactive, computed } from 'vue';
 import Account from '@/views/login/component/AccountLogin.vue';
 import { useStore } from '@/store/index.ts';
-export default {
-    name: 'LoginPage',
-    components: { Account },
-    setup() {
-        const store = useStore();
-        const state = reactive({
-            tabsActiveName: 'account',
-            isTabPaneShow: true,
-        });
-        // 获取布局配置信息
-        const getThemeConfig = computed(() => {
-            return store.state.themeConfig.themeConfig;
-        });
-        // 切换密码、手机登录
-        const onTabsClick = () => {
-            state.isTabPaneShow = !state.isTabPaneShow;
-        };
-        return {
-            onTabsClick,
-            getThemeConfig,
-            ...toRefs(state),
-        };
-    },
+
+const store = useStore();
+const state = reactive({
+    tabsActiveName: 'account',
+    isTabPaneShow: true,
+});
+
+const {
+    isTabPaneShow,
+    tabsActiveName,
+} = toRefs(state)
+
+// 获取布局配置信息
+const getThemeConfig = computed(() => {
+    return store.state.themeConfig.themeConfig;
+});
+
+// 切换密码、手机登录
+const onTabsClick = () => {
+    state.isTabPaneShow = !state.isTabPaneShow;
 };
 </script>
 
@@ -67,6 +64,7 @@ export default {
     height: 100%;
     background: url('@/assets/image/bg-login.png') no-repeat;
     background-size: 100% 100%;
+
     .login-logo {
         position: absolute;
         top: 30px;
@@ -80,6 +78,7 @@ export default {
         width: 90%;
         transform: translateX(-50%);
     }
+
     .login-content {
         width: 500px;
         padding: 20px;
@@ -94,9 +93,11 @@ export default {
         height: 480px;
         overflow: hidden;
         z-index: 1;
+
         .login-content-main {
             margin: 0 auto;
             width: 80%;
+
             .login-content-title {
                 color: #333;
                 font-weight: 500;
@@ -108,9 +109,11 @@ export default {
             }
         }
     }
+
     .login-content-mobile {
         height: 418px;
     }
+
     .login-copyright {
         position: absolute;
         left: 50%;
@@ -120,9 +123,11 @@ export default {
         color: white;
         font-size: 12px;
         opacity: 0.8;
+
         .login-copyright-company {
             white-space: nowrap;
         }
+
         .login-copyright-msg {
             @extend .login-copyright-company;
         }

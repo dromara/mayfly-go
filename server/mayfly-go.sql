@@ -283,6 +283,7 @@ COMMIT;
 DROP TABLE IF EXISTS `t_sys_account`;
 CREATE TABLE `t_sys_account` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `username` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `password` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `status` tinyint(4) DEFAULT NULL,
