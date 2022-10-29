@@ -573,6 +573,10 @@ export default defineComponent({
                 state.tableInfoDialog.loading = false;
             }
         };
+        
+        const refreshTableInfo = async () => {
+          state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.dbId, db: state.db });
+        }
 
         const closeTableInfo = () => {
             state.showDumpInfo = false;
@@ -712,6 +716,7 @@ export default defineComponent({
             searchSqlExecLog,
             onShowRollbackSql,
             showTableInfo,
+            refreshTableInfo,
             closeTableInfo,
             showColumns,
             showTableIndex,

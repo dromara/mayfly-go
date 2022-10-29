@@ -17,10 +17,10 @@ const (
     WHERE table_schema = (SELECT database())`
 
 	// mysql 索引信息
-	MYSQL_INDEX_INFO = `SELECT index_name indexName, group_concat(column_name) columnName, index_type indexType, non_unique nonUnique, 
+	MYSQL_INDEX_INFO = `SELECT INDEX_NAME indexName, COLUMN_NAME columnName, INDEX_TYPE indexType, NON_UNIQUE nonUnique,
 	SEQ_IN_INDEX seqInIndex, INDEX_COMMENT indexComment
 	FROM information_schema.STATISTICS 
-    WHERE table_schema = (SELECT database()) AND table_name = '%s' GROUP by index_name`
+    WHERE table_schema = (SELECT database()) AND table_name = '%s' ORDER BY index_name asc , SEQ_IN_INDEX asc`
 
 	// mysql 列信息元数据
 	MYSQL_COLUMN_MA = `SELECT table_name tableName, column_name columnName, column_type columnType, column_default columnDefault,
@@ -73,7 +73,27 @@ func (mm *MysqlMetadata) GetTableInfos() []map[string]interface{} {
 func (mm *MysqlMetadata) GetTableIndex(tableName string) []map[string]interface{} {
 	res, err := mm.di.innerSelect(fmt.Sprintf(MYSQL_INDEX_INFO, tableName))
 	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
-	return res
+
+	// 把查询结果以索引名分组，索引字段以逗号连接
+	result := make([]map[string]interface{}, 0)
+	key := ""
+	i := 0
+	for k, v := range res {
+		// 当前的索引名
+		in := fmt.Sprintf("%v", v["indexName"])
+		cl := fmt.Sprintf("%v", v["columnName"])
+
+		if key == in {
+			// 同索引字段以逗号连接
+			cl1 := fmt.Sprintf("%v", result[i]["columnName"])
+			result[i]["columnName"] = cl1 + "," + cl
+		} else {
+			i = k
+			key = in
+			result = append(result, v)
+		}
+	}
+	return result
 }
 
 // 获取建表ddl
