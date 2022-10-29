@@ -144,7 +144,9 @@
                     <template #default="scope">
                         <el-link @click.prevent="showColumns(scope.row)" type="primary">字段</el-link>
                         <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">索引</el-link>
-                        <el-link class="ml5" @click.prevent="openEditTable(scope.row)" type="warning">编辑表</el-link>
+                        <el-link class="ml5" 
+                                 v-if="tableCreateDialog.enableEditTypes.indexOf(tableCreateDialog.type) > -1" 
+                                 @click.prevent="openEditTable(scope.row)" type="warning">编辑表</el-link>
                         <el-link class="ml5" @click.prevent="showCreateDdl(scope.row)" type="info">DDL</el-link>
                     </template>
                 </el-table-column>
@@ -347,11 +349,13 @@ const state = reactive({
         title: '创建表',
         visible: false,
         activeName: '1',
+        type: '',
+        enableEditTypes:['mysql'], // 支持"编辑表"的数据库类型
         data: {  // 修改表时，传递修改数据
             edit: false,
             row: {},
             indexs: [],
-            columns: []
+            columns: [],
         },
     },
     filterDb: {
@@ -569,6 +573,7 @@ const showTableInfo = async (row: any, db: string) => {
     state.tableInfoDialog.visible = true;
     try {
         state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: row.id, db });
+        state.tableCreateDialog.type = row.type
         state.dbId = row.id;
         state.row = row;
         state.db = db;
@@ -579,9 +584,11 @@ const showTableInfo = async (row: any, db: string) => {
     }
 };
 
-        const refreshTableInfo = async () => {
-          state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.dbId, db: state.db });
-        }
+// 给子组件调用，勿删
+// eslint-disable-next-line no-unused-vars
+const refreshTableInfo = async () => {
+  state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.dbId, db: state.db });
+}
 
 const closeTableInfo = () => {
     state.showDumpInfo = false;
@@ -680,8 +687,8 @@ const openEditTable = async (row: any) => {
     state.tableCreateDialog.visible = true
     state.tableCreateDialog.activeName = '1'
 
-    if (row === false) {
-        state.tableCreateDialog.data = { edit: false, row: {}, indexs: [], columns: [] }
+    if(row === false){
+        state.tableCreateDialog.data = {edit: false, row: {}, indexs: [], columns: [] }
         state.tableCreateDialog.title = '创建表'
     }
 

@@ -340,7 +340,7 @@ const submit = async () => {
         db: props.db,
         runSuccessCallback: () => {
             proxy.$parent.openEditTable({ tableName: state.tableData.tableName });
-                    proxy.$parent.refreshTableInfo();
+            proxy.$parent.refreshTableInfo();
             // cancel();
         },
     });
@@ -507,12 +507,12 @@ const genSql = () => {
                     sql = sql.substring(0, sql.length - 1)
                 }
 
-                if(addIndexs.length > 0){
-                  if(dropIndexNames.length > 0){
-                    sql +=','
-                  }
-                  addIndexs.forEach(a=>{
-                    sql += ` ADD ${a.unique?'UNIQUE':''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${a.indexComment}',`;
+                if (addIndexs.length > 0) {
+                    if (dropIndexNames.length > 0){
+                        sql += ','
+                    }
+                    addIndexs.forEach(a => {
+                        sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${a.indexComment}',`;
                     })
                     sql = sql.substring(0, sql.length - 1)
                 }
