@@ -187,6 +187,7 @@ const onSignIn = async () => {
     }
     // 用户信息
     const userInfos = {
+        name: loginRes.name,
         username: state.loginForm.username,
         // 头像
         photo: letterAvatar(state.loginForm.username),

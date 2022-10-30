@@ -13,7 +13,7 @@
                         <div class="personal-user-right">
                             <el-row>
                                 <el-col :span="24" class="personal-title mb18">{{ currentTime }}，{{
-                                        getUserInfos.username
+                                        getUserInfos.name
                                 }}，生活变的再糟糕，也不妨碍我变得更好！
                                 </el-col>
                                 <el-col :span="24">
