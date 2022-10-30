@@ -43,7 +43,7 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
 
 	account := &entity.Account{Username: loginForm.Username}
-	err = a.AccountApp.GetAccount(account, "Id", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp")
+	err = a.AccountApp.GetAccount(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp")
 	biz.ErrIsNil(err, "用户名或密码错误")
 	biz.IsTrue(utils.CheckPwdHash(originPwd, account.Password), "用户名或密码错误")
 	biz.IsTrue(account.IsEnable(), "该账号不可用")
@@ -77,6 +77,7 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 
 	rc.ResData = map[string]interface{}{
 		"token":         ctx.CreateToken(account.Id, account.Username),
+		"name":          account.Name,
 		"username":      account.Username,
 		"lastLoginTime": account.LastLoginTime,
 		"lastLoginIp":   account.LastLoginIp,
