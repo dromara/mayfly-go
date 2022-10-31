@@ -15,7 +15,7 @@ func newTagTreeRepo() repository.TagTree {
 }
 
 func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEntity interface{}, orderBy ...string) {
-	sql := "SELECT p.* FROM t_tag_tree p WHERE 1 = 1 "
+	sql := "SELECT DISTINCT(p.id), p.pid, p.code, p.code_path, p.name, p.remark, p.create_time, p.creator, p.update_time, p.modifier FROM t_tag_tree p WHERE 1 = 1 "
 	if condition.Name != "" {
 		sql = sql + " AND p.name LIKE '%" + condition.Name + "%'"
 	}
@@ -39,7 +39,7 @@ func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEn
 		}
 		sql = sql + ")"
 	}
-	sql = sql + " ORDER BY p.pid DESC"
+	sql = sql + " ORDER BY p.code_path"
 	model.GetListBySql2Model(sql, toEntity)
 }
 
@@ -56,11 +56,11 @@ func (a *tagTreeRepoImpl) GetBy(condition *entity.TagTree, cols ...string) error
 }
 
 func (p *tagTreeRepoImpl) Insert(project *entity.TagTree) {
-	biz.ErrIsNil(model.Insert(project), "新增项目失败")
+	biz.ErrIsNil(model.Insert(project), "新增标签失败")
 }
 
 func (p *tagTreeRepoImpl) UpdateById(project *entity.TagTree) {
-	biz.ErrIsNil(model.UpdateById(project), "更新项目失败")
+	biz.ErrIsNil(model.UpdateById(project), "更新标签失败")
 }
 
 func (p *tagTreeRepoImpl) Delete(id uint64) {
