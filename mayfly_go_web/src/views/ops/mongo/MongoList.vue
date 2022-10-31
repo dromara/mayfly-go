@@ -208,7 +208,7 @@ const state = reactive({
     list: [],
     total: 0,
     currentId: null,
-    currentData: null,
+    currentData: null as any,
     query: {
         pageNum: 1,
         pageSize: 10,
@@ -277,9 +277,8 @@ const choose = (item: any) => {
     state.currentData = item;
 };
 
-const showDatabases = async (id: number, row: any) => {
-    console.log(row)
-    state.query.tagPath = row.tagPath
+const showDatabases = async (id: number) => {
+    // state.query.tagPath = row.tagPath
     state.dbOps.dbId = id
 
     state.databaseDialog.data = (await mongoApi.databases.request({ id })).Databases;
@@ -412,10 +411,11 @@ const openDataOps = (row: any) => {
 
     debugger
     let data = {
-        tagPath: state.query.tagPath,
+        tagPath: state.currentData.tagPath,
         dbId: state.dbOps.dbId,
         db: state.dbOps.db,
     }
+    state.databaseDialog.visible = false;
     // 判断db是否发生改变
     let oldDb = store.state.mongoDbOptInfo.dbOptInfo.db;
     if (oldDb !== row.Name) {

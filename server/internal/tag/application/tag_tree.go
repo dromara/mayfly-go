@@ -31,6 +31,9 @@ type TagTree interface {
 	// 获取以指定tagPath数组开头的所有标签id
 	ListTagIdByPath(tagPath ...string) []uint64
 
+	// 根据tagPath获取自身及其所有子标签信息
+	ListTagByPath(tagPath ...string) []entity.TagTree
+
 	// 根据账号id获取其可访问标签信息
 	ListTagByAccountId(accountId uint64) []string
 
@@ -109,14 +112,19 @@ func (p *tagTreeAppImpl) ListTagIdByAccountId(accountId uint64) []uint64 {
 	return p.ListTagIdByPath(p.ListTagByAccountId(accountId)...)
 }
 
+func (p *tagTreeAppImpl) ListTagByPath(tagPaths ...string) []entity.TagTree {
+	var tags []entity.TagTree
+	p.tagTreeRepo.SelectByCondition(&entity.TagTreeQuery{CodePathLikes: tagPaths}, &tags)
+	return tags
+}
+
 func (p *tagTreeAppImpl) ListTagIdByPath(tagPaths ...string) []uint64 {
 	tagIds := make([]uint64, 0)
 	if len(tagPaths) == 0 {
 		return tagIds
 	}
 
-	var tags []entity.TagTree
-	p.tagTreeRepo.SelectByCondition(&entity.TagTreeQuery{CodePathLikes: tagPaths}, &tags)
+	tags := p.ListTagByPath(tagPaths...)
 	for _, v := range tags {
 		tagIds = append(tagIds, v.Id)
 	}

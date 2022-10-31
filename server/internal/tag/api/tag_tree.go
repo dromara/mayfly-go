@@ -14,7 +14,15 @@ type TagTree struct {
 }
 
 func (p *TagTree) GetAccountTags(rc *ctx.ReqCtx) {
-	rc.ResData = p.TagTreeApp.ListTagByAccountId(rc.LoginAccount.Id)
+	tagPaths := p.TagTreeApp.ListTagByAccountId(rc.LoginAccount.Id)
+	allTagPath := make([]string, 0)
+	if len(tagPaths) > 0 {
+		tags := p.TagTreeApp.ListTagByPath(tagPaths...)
+		for _, v := range tags {
+			allTagPath = append(allTagPath, v.CodePath)
+		}
+	}
+	rc.ResData = allTagPath
 }
 
 func (p *TagTree) GetTagTree(rc *ctx.ReqCtx) {
