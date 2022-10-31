@@ -1242,6 +1242,9 @@ const setSqlEditorValue = (value: string) => {
     monacoEditor.getModel()?.setValue(value);
 };
 
+const getCodermirrorValue = () => {
+    return codemirror.getValue();
+};
 
 /**
  * 获取用户保存的sql模板名称
