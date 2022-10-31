@@ -23,11 +23,14 @@ func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, pageParam *model.P
 	if len(condition.TagIds) > 0 {
 		sql = sql + " AND d.tag_id IN " + fmt.Sprintf("(%s)", strings.Join(utils.NumberArr2StrArr(condition.TagIds), ","))
 	}
+
+	values := make([]interface{}, 0)
 	if condition.TagPathLike != "" {
-		sql = sql + " AND d.tag_path LIKE '" + condition.TagPathLike + "%'"
+		values = append(values, condition.TagPathLike+"%")
+		sql = sql + " AND d.tag_path LIKE ?"
 	}
 	sql = sql + " ORDER BY d.tag_path"
-	return model.GetPageBySql(sql, pageParam, toEntity)
+	return model.GetPageBySql(sql, pageParam, toEntity, values...)
 }
 
 func (d *mongoRepoImpl) Count(condition *entity.MongoQuery) int64 {

@@ -20,11 +20,12 @@ func (a *accountRepoImpl) GetAccount(condition *entity.Account, cols ...string) 
 func (m *accountRepoImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	sql := "SELECT * FROM t_sys_account "
 	username := condition.Username
+	values := make([]interface{}, 0)
 	if username != "" {
-		sql = sql + " WHERE username LIKE '%" + username + "%'"
+		sql = sql + " WHERE username LIKE ?"
+		values = append(values, "%"+username+"%")
 	}
-	return model.GetPageBySql(sql, pageParam, toEntity)
-	// return model.GetPage(pageParam, condition, toEntity, orderBy...)
+	return model.GetPageBySql(sql, pageParam, toEntity, values...)
 }
 
 func (m *accountRepoImpl) Insert(account *entity.Account) {

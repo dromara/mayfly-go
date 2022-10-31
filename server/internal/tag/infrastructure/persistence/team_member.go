@@ -31,11 +31,14 @@ func (p *teamMemberRepoImpl) GetPageList(condition *entity.TeamMember, pageParam
 	if condition.TeamId != 0 {
 		sql = fmt.Sprintf("%s AND d.team_id = %d", sql, condition.TeamId)
 	}
+
+	values := make([]interface{}, 0)
 	if condition.Username != "" {
-		sql = sql + " AND d.Username LIKE '%" + condition.Username + "%'"
+		sql = sql + " AND d.Username LIKE ?"
+		values = append(values, "%"+condition.Username+"%")
 	}
 	sql = sql + " ORDER BY d.id DESC"
-	return model.GetPageBySql(sql, pageParam, toEntity)
+	return model.GetPageBySql(sql, pageParam, toEntity, values...)
 }
 
 func (p *teamMemberRepoImpl) DeleteBy(condition *entity.TeamMember) {
