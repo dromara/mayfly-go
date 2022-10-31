@@ -19,20 +19,25 @@ func newDbRepo() repository.Db {
 // 分页获取数据库信息列表
 func (d *dbRepoImpl) GetDbList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	sql := "SELECT d.* FROM t_db d WHERE 1 = 1 "
+
+	values := make([]interface{}, 0)
 	if condition.Host != "" {
-		sql = sql + " AND d.host LIKE '%" + condition.Host + "%'"
+		sql = sql + " AND d.host LIKE ?"
+		values = append(values, "%"+condition.Host+"%")
 	}
 	if condition.Database != "" {
-		sql = sql + " AND d.database LIKE '%" + condition.Database + "%'"
+		sql = sql + " AND d.database LIKE ?"
+		values = append(values, "%"+condition.Database+"%")
 	}
 	if len(condition.TagIds) > 0 {
 		sql = sql + " AND d.tag_id IN " + fmt.Sprintf("(%s)", strings.Join(utils.NumberArr2StrArr(condition.TagIds), ","))
 	}
 	if condition.TagPathLike != "" {
-		sql = sql + " AND d.tag_path LIKE '" + condition.TagPathLike + "%'"
+		sql = sql + " AND d.tag_path LIKE ?"
+		values = append(values, "%"+condition.TagPathLike+"%")
 	}
 	sql = sql + " ORDER BY d.tag_path"
-	return model.GetPageBySql(sql, pageParam, toEntity)
+	return model.GetPageBySql(sql, pageParam, toEntity, values...)
 }
 
 func (d *dbRepoImpl) Count(condition *entity.DbQuery) int64 {

@@ -19,18 +19,20 @@ func newRedisRepo() repository.Redis {
 // 分页获取机器信息列表
 func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	sql := "SELECT d.* FROM t_redis d WHERE 1=1  "
-
+	values := make([]interface{}, 0)
 	if condition.Host != "" {
-		sql = sql + " AND d.host LIKE '%" + condition.Host + "%'"
+		sql = sql + " AND d.host LIKE ?"
+		values = append(values, "%"+condition.Host+"%")
 	}
 	if len(condition.TagIds) > 0 {
 		sql = sql + " AND d.tag_id IN " + fmt.Sprintf("(%s)", strings.Join(utils.NumberArr2StrArr(condition.TagIds), ","))
 	}
 	if condition.TagPathLike != "" {
-		sql = sql + " AND d.tag_path LIKE '" + condition.TagPathLike + "%'"
+		sql = sql + " AND d.tag_path LIKE ?"
+		values = append(values, condition.TagPathLike+"%")
 	}
 	sql = sql + " ORDER BY d.tag_path"
-	return model.GetPageBySql(sql, pageParam, toEntity)
+	return model.GetPageBySql(sql, pageParam, toEntity, values...)
 }
 
 func (r *redisRepoImpl) Count(condition *entity.RedisQuery) int64 {

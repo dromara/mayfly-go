@@ -19,20 +19,25 @@ func newMachineRepo() repository.Machine {
 // 分页获取机器信息列表
 func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
 	sql := "SELECT m.* FROM t_machine m WHERE 1 = 1 "
+
+	values := make([]interface{}, 0)
 	if condition.Ip != "" {
-		sql = sql + " AND m.ip LIKE '%" + condition.Ip + "%'"
+		sql = sql + " AND m.ip LIKE ?"
+		values = append(values, "%"+condition.Ip+"%")
 	}
 	if condition.Name != "" {
-		sql = sql + " AND m.name LIKE '%" + condition.Name + "%'"
+		sql = sql + " AND m.name LIKE ?"
+		values = append(values, "%"+condition.Name+"%")
 	}
 	if len(condition.TagIds) > 0 {
 		sql = fmt.Sprintf("%s AND m.tag_id IN (%s) ", sql, strings.Join(utils.NumberArr2StrArr(condition.TagIds), ","))
 	}
 	if condition.TagPathLike != "" {
-		sql = sql + " AND m.tag_path LIKE '" + condition.TagPathLike + "%'"
+		sql = sql + " AND m.tag_path LIKE ?"
+		values = append(values, condition.TagPathLike+"%")
 	}
 	sql = sql + " ORDER BY m.tag_path"
-	return model.GetPageBySql(sql, pageParam, toEntity)
+	return model.GetPageBySql(sql, pageParam, toEntity, values...)
 }
 
 func (m *machineRepoImpl) Count(condition *entity.MachineQuery) int64 {
