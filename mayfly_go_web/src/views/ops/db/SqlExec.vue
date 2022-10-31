@@ -931,11 +931,6 @@ const changeDb = (db: string) => {
     getSqlNames();
 };
 
-const addTableSuggestions = (tables: any[]) => {
-    
-    
-}
-
 // 选择表事件
 const changeTable = async (tableName: string, execSelectSql: boolean = true) => {
     if (tableName == '') {
@@ -1149,6 +1144,7 @@ const getUserSql = () => {
 const setCodermirrorValue = (value: string) => {
     codemirror.setValue(value);
 };
+
 
 /**
  * 获取用户保存的sql模板名称
