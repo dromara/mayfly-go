@@ -17,7 +17,7 @@
                                 <el-option v-for="item in dbs" :key="item.id" :label="`${item.name} [${item.tagPath}]`"
                                     :value="item.id">
                                     <span style="float: left">{{ `${item.name} [${item.tagPath}]` }}</span>
-                                    <span style="float: rignt; color: #8492a6; margin-left: 10px; font-size: 13px">{{
+                                    <span style="float: right; color: #8492a6; margin-left: 10px; font-size: 13px">{{
                                             `${item.host}:${item.port} ${item.type}`
                                     }}</span>
                                 </el-option>
@@ -926,7 +926,7 @@ const setCodermirrorValue = (value: string) => {
 };
 
 const getCodermirrorValue = () => {
-    codemirror.getValue();
+    return codemirror.getValue();
 };
 
 /**
