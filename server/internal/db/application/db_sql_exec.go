@@ -3,10 +3,8 @@ package application
 import (
 	"encoding/json"
 	"fmt"
-
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
-	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 	"strings"
 
@@ -48,40 +46,44 @@ type dbSqlExecAppImpl struct {
 	dbSqlExecRepo repository.DbSqlExec
 }
 
-func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
-	sql := execSqlReq.Sql
-	loginAccount := execSqlReq.LoginAccount
-
-	// 如果是pgsql并且为查询语句，则直接返回，sqlparser不支持解析pgsql select语句
-	if execSqlReq.DbInstance.Type == entity.DbTypePostgres && (strings.HasPrefix(sql, "SELECT") || strings.HasPrefix(sql, "select")) {
-		return doSelect(nil, execSqlReq, nil)
-	}
-
-	stmt, err := sqlparser.Parse(sql)
-	if err != nil {
-		global.Log.Error("sql解析失败: ", err)
-		return nil, err
-	}
-
+func createSqlExecRecord(execSqlReq *DbSqlExecReq) *entity.DbSqlExec {
 	dbSqlExecRecord := new(entity.DbSqlExec)
 	dbSqlExecRecord.DbId = execSqlReq.DbId
 	dbSqlExecRecord.Db = execSqlReq.Db
-	dbSqlExecRecord.Sql = sql
+	dbSqlExecRecord.Sql = execSqlReq.Sql
 	dbSqlExecRecord.Remark = execSqlReq.Remark
-	dbSqlExecRecord.SetBaseInfo(loginAccount)
+	dbSqlExecRecord.SetBaseInfo(execSqlReq.LoginAccount)
+	return dbSqlExecRecord
+}
 
+func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
+	sql := execSqlReq.Sql
+	stmt, err := sqlparser.Parse(sql)
+	if err != nil {
+		// 就算解析失败也执行sql，让数据库来判断错误
+		//global.Log.Error("sql解析失败: ", err)
+		if strings.HasPrefix(strings.ToLower(execSqlReq.Sql), "select") ||
+			strings.HasPrefix(strings.ToLower(execSqlReq.Sql), "show") {
+			return doSelect(execSqlReq)
+		}
+		// 保存执行记录
+		d.dbSqlExecRepo.Insert(createSqlExecRecord(execSqlReq))
+		return doExec(execSqlReq.Sql, execSqlReq.DbInstance)
+	}
+
+	dbSqlExecRecord := createSqlExecRecord(execSqlReq)
 	var execRes *DbSqlExecRes
 	isSelect := false
 	switch stmt := stmt.(type) {
 	case *sqlparser.Select:
 		isSelect = true
-		execRes, err = doSelect(stmt, execSqlReq, dbSqlExecRecord)
+		execRes, err = doSelect(execSqlReq)
 	case *sqlparser.Show:
 		isSelect = true
-		execRes, err = doSelect(nil, execSqlReq, dbSqlExecRecord)
+		execRes, err = doSelect(execSqlReq)
 	case *sqlparser.OtherRead:
 		isSelect = true
-		execRes, err = doSelect(nil, execSqlReq, dbSqlExecRecord)
+		execRes, err = doSelect(execSqlReq)
 	case *sqlparser.Update:
 		execRes, err = doUpdate(stmt, execSqlReq, dbSqlExecRecord)
 	case *sqlparser.Delete:
@@ -110,7 +112,7 @@ func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExec, pageParam *m
 	return d.dbSqlExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func doSelect(selectStmt *sqlparser.Select, execSqlReq *DbSqlExecReq, dbSqlExec *entity.DbSqlExec) (*DbSqlExecRes, error) {
+func doSelect(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
 	dbInstance := execSqlReq.DbInstance
 	sql := execSqlReq.Sql
 	colNames, res, err := dbInstance.SelectData(sql)
