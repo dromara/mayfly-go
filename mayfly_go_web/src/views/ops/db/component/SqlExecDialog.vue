@@ -1,7 +1,6 @@
 <template>
     <div>
-        <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px">
-            如需执行多条sql，需要在【数据库管理】配置连接参数：multiStatements=true
+        <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px" @close="cancel">
             <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sqlValue"
                 :options="cmOptions" />
             <el-input ref="remarkInputRef" v-model="remark" placeholder="请输入执行备注" class="mt5" />
@@ -90,14 +89,22 @@ const runSql = async () => {
 
     try {
         state.btnLoading = true;
-        await dbApi.sqlExec.request({
+        const res = await dbApi.sqlExec.request({
             id: state.dbId,
             db: state.db,
             remark: state.remark,
             sql: state.sqlValue.trim(),
         });
-        ElMessage.success('执行成功');
+
+        for (let re of res.res) {
+            if (re.result !== 'success') {
+                ElMessage.error(`${re.sql} \n执行失败: ${re.result}`);
+                throw new Error(re.result)
+            }
+        }
+
         runSuccess = true;
+        ElMessage.success('执行成功');
     } catch (e) {
         runSuccess = false;
     }
@@ -139,6 +146,8 @@ const open = (props: SqlExecProps) => {
         });
     });
 };
+
+defineExpose({ open })
 </script>
 <style lang="scss">
 .codesql {

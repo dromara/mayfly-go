@@ -21,6 +21,7 @@
     "mitt": "^3.0.0",
     "monaco-editor": "^0.34.1",
     "monaco-sql-languages": "^0.9.5",
+    "monaco-themes": "^0.4.2",
     "nprogress": "^0.2.0",
     "screenfull": "^6.0.2",
     "sortablejs": "^1.13.0",
