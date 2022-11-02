@@ -245,7 +245,10 @@
         <db-edit @val-change="valChange" :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible"
             v-model:db="dbEditDialog.data"></db-edit>
         <create-table :title="tableCreateDialog.title" :active-name="tableCreateDialog.activeName" :dbId="dbId" :db="db"
-            :data="tableCreateDialog.data" v-model:visible="tableCreateDialog.visible"></create-table>
+            :data="tableCreateDialog.data" v-model:visible="tableCreateDialog.visible"
+                      @submit-sql="onSubmitSql"
+        
+        ></create-table>
     </div>
 </template>
 
@@ -584,10 +587,9 @@ const showTableInfo = async (row: any, db: string) => {
     }
 };
 
-// 给子组件调用，勿删
-// eslint-disable-next-line no-unused-vars
-const refreshTableInfo = async () => {
-  state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.dbId, db: state.db });
+const onSubmitSql = async (row: {tableName: string}) => {
+    await openEditTable(row)
+    state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.dbId, db: state.db });
 }
 
 const closeTableInfo = () => {
