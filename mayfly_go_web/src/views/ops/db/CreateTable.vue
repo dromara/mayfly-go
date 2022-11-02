@@ -128,7 +128,7 @@
 
 
 <script lang="ts" setup>
-import { watch, toRefs, reactive, ref, getCurrentInstance } from 'vue';
+import { watch, toRefs, reactive, ref } from 'vue';
 import { TYPE_LIST, CHARACTER_SET_NAME_LIST, COLLATION_SUFFIX_LIST } from './service.ts';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from './component/SqlExecBox.ts';
@@ -152,11 +152,9 @@ const props = defineProps({
 })
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change'])
+const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'submit-sql'])
 
 const formRef: any = ref();
-const { proxy } = getCurrentInstance() as any;
-
 const state = reactive({
     dialogVisible: false,
     btnloading: false,
@@ -339,8 +337,7 @@ const submit = async () => {
         dbId: props.dbId as any,
         db: props.db,
         runSuccessCallback: () => {
-            proxy.$parent.openEditTable({ tableName: state.tableData.tableName });
-            proxy.$parent.refreshTableInfo();
+            emit('submit-sql', {tableName: state.tableData.tableName });
             // cancel();
         },
     });
