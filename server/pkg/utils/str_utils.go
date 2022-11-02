@@ -18,6 +18,14 @@ func StrTrim(str string) string {
 	return strings.Trim(str, " ")
 }
 
+// 去除字符串左右空字符与\n换行
+func StrTrimSpaceAndBr(str string) string {
+	return strings.TrimFunc(str, func(r rune) bool {
+		s := string(r)
+		return s == " " || s == "\n"
+	})
+}
+
 func SubString(str string, begin, end int) (substr string) {
 	// 将字符串的转换成[]rune
 	rs := []rune(str)
