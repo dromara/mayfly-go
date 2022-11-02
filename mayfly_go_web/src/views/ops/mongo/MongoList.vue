@@ -36,7 +36,7 @@
 
                 <el-table-column label="操作" width>
                     <template #default="scope">
-                        <el-link type="primary" @click="showDatabases(scope.row.id, scope.row)" plain size="small"
+                        <el-link type="primary" @click="showDatabases(scope.row.id)" plain size="small"
                             :underline="false">数据库</el-link>
                     </template>
                 </el-table-column>

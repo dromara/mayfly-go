@@ -25,6 +25,21 @@ type DbSqlExecRes struct {
 	Res      []map[string]interface{}
 }
 
+// 合并执行结果，主要用于执行多条sql使用
+func (d *DbSqlExecRes) Merge(execRes *DbSqlExecRes) {
+	canMerge := len(d.ColNames) == len(execRes.ColNames)
+	if !canMerge {
+		return
+	}
+	// 列名不一致，则不合并
+	for i, colName := range d.ColNames {
+		if execRes.ColNames[i] != colName {
+			return
+		}
+	}
+	d.Res = append(d.Res, execRes.Res...)
+}
+
 type DbSqlExec interface {
 	// 执行sql
 	Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error)
@@ -187,16 +202,19 @@ func doInsert(insert *sqlparser.Insert, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 
 func doExec(sql string, dbInstance *DbInstance) (*DbSqlExecRes, error) {
 	rowsAffected, err := dbInstance.Exec(sql)
+	execRes := "success"
 	if err != nil {
-		return nil, err
+		execRes = err.Error()
 	}
 	res := make([]map[string]interface{}, 0)
 	resData := make(map[string]interface{})
-	resData["影响条数"] = rowsAffected
+	resData["rowsAffected"] = rowsAffected
+	resData["sql"] = sql
+	resData["result"] = execRes
 	res = append(res, resData)
 
 	return &DbSqlExecRes{
-		ColNames: []string{"影响条数"},
+		ColNames: []string{"sql", "rowsAffected", "result"},
 		Res:      res,
 	}, nil
 }

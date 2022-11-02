@@ -128,27 +128,43 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	dbInstance := d.DbApp.GetDbInstance(id, db)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.TagPath), "%s")
 
+	rc.ReqParam = fmt.Sprintf("db: %d:%s | sql: %s", id, db, form.Sql)
+	biz.NotEmpty(form.Sql, "sql不能为空")
+
 	// 去除前后空格及换行符
-	sql := strings.TrimFunc(form.Sql, func(r rune) bool {
-		s := string(r)
-		return s == " " || s == "\n"
-	})
+	sql := utils.StrTrimSpaceAndBr(form.Sql)
 
-	rc.ReqParam = fmt.Sprintf("db: %d:%s | sql: %s", id, db, sql)
-	biz.NotEmpty(sql, "sql不能为空")
-
-	execRes, err := d.DbSqlExecApp.Exec(&application.DbSqlExecReq{
+	execReq := &application.DbSqlExecReq{
 		DbId:         id,
 		Db:           db,
-		Sql:          sql,
 		Remark:       form.Remark,
 		DbInstance:   dbInstance,
 		LoginAccount: rc.LoginAccount,
-	})
-	biz.ErrIsNilAppendErr(err, "执行失败: %s")
+	}
+
+	sqls := strings.Split(sql, ";\n")
+	isMulti := len(sqls) > 1
+	var execResAll *application.DbSqlExecRes
+	for _, s := range sqls {
+		s = utils.StrTrimSpaceAndBr(s)
+		// 多条执行，如果有查询语句，则跳过
+		if isMulti && strings.HasPrefix(strings.ToLower(s), "select") {
+			continue
+		}
+		execReq.Sql = s
+		execRes, err := d.DbSqlExecApp.Exec(execReq)
+		biz.ErrIsNilAppendErr(err, "执行失败: %s")
+
+		if execResAll == nil {
+			execResAll = execRes
+		} else {
+			execResAll.Merge(execRes)
+		}
+	}
+
 	colAndRes := make(map[string]interface{})
-	colAndRes["colNames"] = execRes.ColNames
-	colAndRes["res"] = execRes.Res
+	colAndRes["colNames"] = execResAll.ColNames
+	colAndRes["res"] = execResAll.Res
 	rc.ResData = colAndRes
 }
 

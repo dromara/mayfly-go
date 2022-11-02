@@ -358,7 +358,7 @@ func getDsn(d *entity.Db, db string) string {
 	var dsn string
 	if d.Type == entity.DbTypeMysql {
 		// 更多参数参考：https://github.com/go-sql-driver/mysql#dsn-data-source-name
-		dsn = fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s&multiStatements=true", d.Username, d.Password, d.Network, d.Host, d.Port, db)
+		dsn = fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, db)
 		if d.Params != "" {
 			dsn = fmt.Sprintf("%s&%s", dsn, d.Params)
 		}
