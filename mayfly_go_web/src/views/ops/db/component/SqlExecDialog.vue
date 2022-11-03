@@ -70,7 +70,7 @@ const {
     dialogVisible,
     sqlValue,
     remark,
-    btnLoading
+    btnLoading,
 } = toRefs(state)
 
 state.sqlValue = props.sql as any;
@@ -146,6 +146,9 @@ const open = (props: SqlExecProps) => {
         });
     });
 };
+
+defineExpose({ open })
+
 </script>
 <style lang="scss">
 .codesql {

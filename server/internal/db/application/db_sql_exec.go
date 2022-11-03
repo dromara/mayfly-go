@@ -160,10 +160,14 @@ func doUpdate(update *sqlparser.Update, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 	updateColumnsAndPrimaryKey := strings.Join(updateColumns, ",") + "," + primaryKey
 	// 查询要更新字段数据的旧值，以及主键值
 	selectSql := fmt.Sprintf("SELECT %s FROM %s %s LIMIT 200", updateColumnsAndPrimaryKey, tableStr, where)
-	_, res, _ := dbInstance.SelectData(selectSql)
+	_, res, err := dbInstance.SelectData(selectSql)
+	if err == nil {
+		bytes, _ := json.Marshal(res)
+		dbSqlExec.OldValue = string(bytes)
+	} else {
+		dbSqlExec.OldValue = err.Error()
+	}
 
-	bytes, _ := json.Marshal(res)
-	dbSqlExec.OldValue = string(bytes)
 	dbSqlExec.Table = tableName
 	dbSqlExec.Type = entity.DbSqlExecTypeUpdate
 
