@@ -353,8 +353,6 @@ const state = reactive({
     tableCreateDialog: {
         title: '创建表',
         visible: false,
-        columns: [],
-        indexs: [],
         activeName: '1',
         type: '',
         enableEditTypes:['mysql'], // 支持"编辑表"的数据库类型
@@ -693,8 +691,8 @@ const openEditTable = async (row: any) => {
     state.tableCreateDialog.visible = true
     state.tableCreateDialog.activeName = '1'
 
-    if(row === false){
-        state.tableCreateDialog.data = {edit: false, row: {}, indexs: [], columns: [] }
+    if (row === false) {
+        state.tableCreateDialog.data = { edit: false, row: {}, indexs: [], columns: [] }
         state.tableCreateDialog.title = '创建表'
     }
 
