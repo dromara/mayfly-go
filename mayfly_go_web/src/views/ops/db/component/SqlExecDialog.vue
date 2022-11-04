@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px">
+        <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px" @close="cancel">
             <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sqlValue"
                 :options="cmOptions" />
             <el-input ref="remarkInputRef" v-model="remark" placeholder="请输入执行备注" class="mt5" />
@@ -70,7 +70,7 @@ const {
     dialogVisible,
     sqlValue,
     remark,
-    btnLoading,
+    btnLoading
 } = toRefs(state)
 
 state.sqlValue = props.sql as any;
@@ -148,7 +148,6 @@ const open = (props: SqlExecProps) => {
 };
 
 defineExpose({ open })
-
 </script>
 <style lang="scss">
 .codesql {
