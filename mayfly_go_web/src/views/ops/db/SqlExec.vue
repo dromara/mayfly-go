@@ -383,13 +383,7 @@ const initMonacoEditor = () => {
     console.log('初始化编辑器')
     // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
     
-    let defVal = `-- monaco editor
-select * from database.Outvisit l
-left join patient p on l.patid=p.patientid
-join patstatic c on   l.patid=c.patid inner join patphone  ph  on l.patid=ph.patid
-where l.name='kevin' and exsits(select 1 from pharmacywestpas pw where p.outvisitid=l.outvisitid)
-unit all
-select * from invisit v where`;
+    let defVal = `-- monaco editor`;
 
     monacoEditor = monaco.editor.create(monacoTextarea.value, {
         value: defVal,
@@ -1294,7 +1288,6 @@ const clearDb = () => {
     state.activeName = state.queryTab.name;
     state.queryTab.execRes.data = [];
     state.queryTab.execRes.tableColumn = [];
-    cmOptions.hintOptions.tables = [];
     tableMap.clear();
 };
 
