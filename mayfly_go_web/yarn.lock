@@ -96,6 +96,11 @@
   resolved "https://registry.npmmirror.com/@sphinxxxx/color-conversion/-/color-conversion-2.2.2.tgz"
   integrity sha512-XExJS3cLqgrmNBIP3bBw6+1oQ1ksGjFh0+oClDKFYpCCqx/hlqwWO5KO/S63fzUo67SxI9dMrF0y5T/Ey7h8Zw==
 
+"@types/antlr4@4.7.0":
+  version "4.7.0"
+  resolved "https://registry.npmmirror.com/@types/antlr4/-/antlr4-4.7.0.tgz#e6300119bddff6e23f5bbd299f5cf3c722a6249b"
+  integrity sha512-WdyHH4PHxBQkeWoRTbuC/dvf0QErJpJE4UpESQSRmKoMER15DCLFHAHQjkwevMKQie0kqawS/eTY563GGMbz/g==
+
 "@types/json-schema@^7.0.7":
   version "7.0.9"
   resolved "https://registry.npmmirror.com/@types/json-schema/download/@types/json-schema-7.0.9.tgz?cache=0&sync_timestamp=1637266073261&other_urls=https%3A%2F%2Fregistry.npmmirror.com%2F%40types%2Fjson-schema%2Fdownload%2F%40types%2Fjson-schema-7.0.9.tgz"
@@ -435,6 +440,11 @@ ansi-styles@^4.1.0:
   dependencies:
     color-convert "^2.0.1"
 
+antlr4@4.7.2:
+  version "4.7.2"
+  resolved "https://registry.npmmirror.com/antlr4/-/antlr4-4.7.2.tgz#9d0b5987bb63660de658055ee9149141b4d9b462"
+  integrity sha512-vZA1xYufXLe3LX+ja9rIVxjRmILb1x3k7KYZHltRbfJtXjJ1DlFIqt+CbPYmghx0EuzY9DajiDw+MdyEt1qAsQ==
+
 anymatch@~3.1.2:
   version "3.1.2"
   resolved "https://registry.nlark.com/anymatch/download/anymatch-3.1.2.tgz"
@@ -542,11 +552,6 @@ clipboard@^2.0.6:
     select "^1.1.2"
     tiny-emitter "^2.0.0"
 
-codemirror@^5.65.5:
-  version "5.65.5"
-  resolved "https://registry.npmmirror.com/codemirror/-/codemirror-5.65.5.tgz"
-  integrity sha512-HNyhvGLnYz5c+kIsB9QKVitiZUevha3ovbIYaQiGzKo7ECSL/elWD9RXt3JgNr0NdnyqE9/Rc/7uLfkJQL638w==
-
 color-convert@^2.0.1:
   version "2.0.1"
   resolved "https://registry.nlark.com/color-convert/download/color-convert-2.0.1.tgz"
@@ -645,6 +650,14 @@ dotenv@^10.0.0:
   version "10.0.0"
   resolved "https://registry.nlark.com/dotenv/download/dotenv-10.0.0.tgz"
   integrity sha1-PUInuPuV+BCWzdK2ZlP7LHCFuoE=
+
+dt-sql-parser@^4.0.0-beta.2.2:
+  version "4.0.0-beta.2.2"
+  resolved "https://registry.npmmirror.com/dt-sql-parser/-/dt-sql-parser-4.0.0-beta.2.2.tgz#84fbed385afc19ca6464cd266889e3f52e73083a"
+  integrity sha512-LLAE659zgizdokkDniHFPk0PsLPV3cXFOQPW+QT+3W1/TQJ2h8yzKCBBufXmKAHMpAr+KjTRTa71VJRzWJx8Zg==
+  dependencies:
+    "@types/antlr4" "4.7.0"
+    antlr4 "4.7.2"
 
 echarts@^5.3.3:
   version "5.3.3"
@@ -981,6 +994,11 @@ fast-levenshtein@^2.0.6:
   version "2.0.6"
   resolved "https://registry.nlark.com/fast-levenshtein/download/fast-levenshtein-2.0.6.tgz"
   integrity sha1-PYpcZog6FqMMqGQ+hR8Zuqd5eRc=
+
+fast-plist@^0.1.2:
+  version "0.1.2"
+  resolved "https://registry.npmmirror.com/fast-plist/-/fast-plist-0.1.2.tgz#a45aff345196006d406ca6cdcd05f69051ef35b8"
+  integrity sha512-2HxzrqJhmMoxVzARjYFvkzkL2dCBB8sogU5sD8gqcZWv5UCivK9/cXM9KIPDRwU+eD3mbRDN/GhW8bO/4dtMfg==
 
 fastq@^1.6.0:
   version "1.13.0"
@@ -1341,6 +1359,25 @@ mobius1-selectr@^2.4.13:
   version "2.4.13"
   resolved "https://registry.npmmirror.com/mobius1-selectr/-/mobius1-selectr-2.4.13.tgz"
   integrity sha512-Mk9qDrvU44UUL0EBhbAA1phfQZ7aMZPjwtL7wkpiBzGh8dETGqfsh50mWoX9EkjDlkONlErWXArHCKfoxVg0Bw==
+
+monaco-editor@^0.34.1:
+  version "0.34.1"
+  resolved "https://registry.npmmirror.com/monaco-editor/-/monaco-editor-0.34.1.tgz#1b75c4ad6bc4c1f9da656d740d98e0b850a22f87"
+  integrity sha512-FKc80TyiMaruhJKKPz5SpJPIjL+dflGvz4CpuThaPMc94AyN7SeC9HQ8hrvaxX7EyHdJcUY5i4D0gNyJj1vSZQ==
+
+monaco-sql-languages@^0.9.5:
+  version "0.9.5"
+  resolved "https://registry.npmmirror.com/monaco-sql-languages/-/monaco-sql-languages-0.9.5.tgz#075ffe947e66f0dc7a53f92cb99c2d4649632a34"
+  integrity sha512-IBIKQVIoW1Q90pJ/0Qi0sWMgbvho5ug17wx64hVid/XCr+L7ngJaTdaRnveOMPwg9qj+PQqOt1Ga0q0AwG85wA==
+  dependencies:
+    dt-sql-parser "^4.0.0-beta.2.2"
+
+monaco-themes@^0.4.2:
+  version "0.4.2"
+  resolved "https://registry.npmmirror.com/monaco-themes/-/monaco-themes-0.4.2.tgz#6939339cb2f0bfb743f6e454de4136971834f16a"
+  integrity sha512-T3kp6SC5MPJvwYGXZENCd0UOIKVgUVV5SjsiXLBhgEZBnScY+6gEbwNRK1oYmfwbf+dGVqF1bSLN5YcrFu3HmA==
+  dependencies:
+    fast-plist "^0.1.2"
 
 ms@2.1.2:
   version "2.1.2"

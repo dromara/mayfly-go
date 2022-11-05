@@ -148,11 +148,10 @@
             </template>
         </el-dialog>
 
-        <el-dialog :destroy-on-close="true" :title="fileContent.dialogTitle" v-model="fileContent.contentVisible"
-            :close-on-click-modal="false" top="5vh" width="70%">
+        <el-dialog :destroy-on-close="true" :title="fileContent.dialogTitle" v-model="fileContent.contentVisible" :close-on-click-modal="false"
+            top="5vh" width="70%">
             <div>
-                <codemirror :can-change-mode="true" ref="cmEditor" v-model="fileContent.content"
-                    :language="fileContent.type" />
+                <monaco-editor :can-change-mode="true" v-model="fileContent.content" :language="fileContent.type" />
             </div>
 
             <template #footer>
@@ -170,7 +169,7 @@ import { ref, toRefs, reactive, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi } from './api';
 
-import { codemirror } from '@/components/codemirror';
+import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { getSession } from '@/common/utils/storage';
 import enums from './enums';
 import config from '@/common/config';
@@ -343,14 +342,17 @@ const getFileType = (path: string) => {
     if (path.endsWith('.sh')) {
         return 'shell';
     }
-    if (path.endsWith('js') || path.endsWith('json')) {
+    if (path.endsWith('js')) {
         return 'javascript';
+    }
+    if (path.endsWith('json')) {
+        return 'json';
     }
     if (path.endsWith('Dockerfile')) {
         return 'dockerfile';
     }
     if (path.endsWith('nginx.conf')) {
-        return 'nginx';
+        return 'shell';
     }
     if (path.endsWith('sql')) {
         return 'sql';

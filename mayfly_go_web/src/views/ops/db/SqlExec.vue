@@ -87,10 +87,11 @@
                                 </div>
 
                                 <div style="float: right" class="fl">
-                                    <el-select v-model="monacoOptions.theme" placeholder="切换编辑器主题" @change="changeEditorTheme"
-                                               filterable allow-create default-first-option size="small" class="mr10">
-                                        <el-option v-for="item in monacoOptions.defaultThemes as string" :key="item" :label="item"
-                                                   :value="item">
+                                    <el-select v-model="monacoOptions.theme" placeholder="切换编辑器主题"
+                                        @change="changeEditorTheme" filterable allow-create default-first-option
+                                        size="small" class="mr10">
+                                        <el-option v-for="item in monacoOptions.defaultThemes as string" :key="item"
+                                            :label="item" :value="item">
                                             {{ item }}
                                         </el-option>
                                     </el-select>
@@ -111,10 +112,12 @@
                         </div>
 
                         <div class="mt5 sqlEditor">
-                          <div ref="monacoTextarea" :style="{height: monacoOptions.height}"></div>
+                            <div ref="monacoTextarea" :style="{ height: monacoOptions.height }"></div>
                         </div>
                         <div class="editor-move-resize" @mousedown="onDragSetHeight">
-                            <el-icon><Minus /></el-icon>
+                            <el-icon>
+                                <Minus />
+                            </el-icon>
                         </div>
                         <div class="mt5">
                             <el-row>
@@ -129,8 +132,8 @@
                             </el-row>
                             <el-table @cell-dblclick="cellClick" @selection-change="onDataSelectionChange"
                                 :data="queryTab.execRes.data" v-loading="queryTab.loading" element-loading-text="查询中..."
-                                size="small" :max-height="monacoOptions.tableMaxHeight" empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
-                                stripe border class="mt5">
+                                size="small" :max-height="monacoOptions.tableMaxHeight"
+                                empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改" stripe border class="mt5">
                                 <el-table-column v-if="queryTab.execRes.tableColumn.length > 0 && queryTab.nowTableName"
                                     type="selection" width="35" />
                                 <el-table-column min-width="100" :width="flexColumnWidth(item, queryTab.execRes.data)"
@@ -139,7 +142,7 @@
                                 </el-table-column>
                             </el-table>
                         </div>
-                        
+
                     </div>
                 </el-tab-pane>
 
@@ -254,44 +257,44 @@
 import { onMounted, toRefs, reactive, ref, watch } from 'vue';
 import { dbApi } from './api';
 
-import {format as sqlFormatter} from 'sql-formatter';
-import {isTrue, notBlank, notEmpty} from '@/common/assert';
-import {ElMessage, ElMessageBox} from 'element-plus';
+import { format as sqlFormatter } from 'sql-formatter';
+import { isTrue, notBlank, notEmpty } from '@/common/assert';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import config from '@/common/config';
-import {getSession} from '@/common/utils/storage';
+import { getSession } from '@/common/utils/storage';
 import SqlExecBox from './component/SqlExecBox';
-import {dateStrFormat} from '@/common/utils/date.ts';
-import {useStore} from '@/store/index.ts';
-import {tagApi} from '../tag/api.ts';
+import { dateStrFormat } from '@/common/utils/date.ts';
+import { useStore } from '@/store/index.ts';
+import { tagApi } from '../tag/api.ts';
 
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
-import {language as sqlLanguage} from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
+import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
 import * as monaco from 'monaco-editor';
-import {editor, languages, Position} from 'monaco-editor';
+import { editor, languages, Position } from 'monaco-editor';
 
 // 主题仓库 https://github.com/brijeshb42/monaco-themes 
 // 主题例子 https://editor.bitwiser.in/
-import Monokai from 'monaco-themes/themes/Monokai.json'
-import Active4D from 'monaco-themes/themes/Active4D.json'
-import ahe from 'monaco-themes/themes/All Hallows Eve.json'
-import bop from 'monaco-themes/themes/Birds of Paradise.json'
-import krTheme from 'monaco-themes/themes/krTheme.json'
-import Dracula from 'monaco-themes/themes/Dracula.json'
-import TextmateMac from 'monaco-themes/themes/Textmate (Mac Classic).json'
+// import Monokai from 'monaco-themes/themes/Monokai.json'
+// import Active4D from 'monaco-themes/themes/Active4D.json'
+// import ahe from 'monaco-themes/themes/All Hallows Eve.json'
+// import bop from 'monaco-themes/themes/Birds of Paradise.json'
+// import krTheme from 'monaco-themes/themes/krTheme.json'
+// import Dracula from 'monaco-themes/themes/Dracula.json'
+import SolarizedLight from 'monaco-themes/themes/Solarized-light.json'
+// import TextmateMac from 'monaco-themes/themes/Textmate (Mac Classic).json'
 import { Minus } from '@element-plus/icons-vue';
 
 const store = useStore();
 const monacoTextarea: any = ref(null);
 const token = getSession('token');
 const tableMap = new Map();
-
 const defalutLimit = 20
 
-export type TableMeta = {
+type TableMeta = {
     // 表名
-    tableName:string,
+    tableName: string,
     // 表注释
-    tableComment:string
+    tableComment: string
 }
 const state = reactive({
     token: token,
@@ -317,16 +320,16 @@ const state = reactive({
         // 点击执行按钮执行结果信息
         execRes: {
             data: [],
-                    tableColumn: []
+            tableColumn: []
         },
         loading: false,
         nowTableName: '', //当前表格数据操作的数据库表名，用于双击编辑表内容使用
-                selectionDatas: []
+        selectionDatas: []
     },
     params: {
         pageNum: 1,
         pageSize: 100,
-                tagPath: null
+        tagPath: null
     },
     conditionDialog: {
         title: '',
@@ -335,19 +338,19 @@ const state = reactive({
         dataTab: null,
         visible: false,
         condition: '=',
-                value: null
+        value: null
     },
     genSqlDialog: {
         visible: false,
         sql: '',
     },
     monacoOptions: {
-        editor: {} as  editor.IStandaloneCodeEditor,
+        editor: {} as editor.IStandaloneCodeEditor,
         height: '',
-        tableMaxHeight:250,
-        dbTables:{},
-        theme:'',
-        defaultThemes:[ 'vs' ,'vs-dark', 'hc-black', 'hc-light', 'Monokai', 'Active4D', 'ahe', 'bop', 'krTheme', 'Dracula', 'TextmateMac'],
+        tableMaxHeight: 250,
+        dbTables: {},
+        theme: 'SolarizedLight',
+        defaultThemes: ['SolarizedLight', 'vs', 'vs-dark'],
     }
 });
 const {
@@ -382,23 +385,32 @@ self.MonacoEnvironment = {
 const initMonacoEditor = () => {
     console.log('初始化编辑器')
     // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
-    
-    let defVal = `-- monaco editor`;
+
+    // 初始化一些主题
+
+    monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
+    // monaco.editor.defineTheme('Monokai', Monokai);
+    // monaco.editor.defineTheme('Active4D', Active4D);
+    // monaco.editor.defineTheme('ahe', ahe);
+    // monaco.editor.defineTheme('bop', bop);
+    // monaco.editor.defineTheme('krTheme', krTheme);
+    // monaco.editor.defineTheme('Dracula', Dracula);
+    // monaco.editor.defineTheme('TextmateMac', TextmateMac);
 
     monacoEditor = monaco.editor.create(monacoTextarea.value, {
-        value: defVal,
         language: 'sql',
-        theme: 'vs',
+        theme: state.monacoOptions.theme,
         automaticLayout: true, //自适应宽高布局
         foldingStrategy: 'indentation',//代码可分小段折叠
         roundedSelection: false, // 禁用选择文本背景的圆角
         matchBrackets: 'near',
-        linkedEditing:true,
+        linkedEditing: true,
         cursorBlinking: 'smooth',// 光标闪烁样式
         mouseWheelZoom: true, // 在按住Ctrl键的同时使用鼠标滚轮时，在编辑器中缩放字体
         overviewRulerBorder: false, // 不要滚动条的边框
         tabSize: 2, // tab 缩进长度
-        // fontFamily:'consolas', // 字体 暂时不要设置，否则光标容易错位
+        fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
+        fontWeight: 'bold',
         // letterSpacing: 1, 字符间距
         // quickSuggestions:false, // 禁用代码提示
         minimap: {
@@ -406,41 +418,32 @@ const initMonacoEditor = () => {
         },
     });
 
-    // 初始化一些主题
-    monaco.editor.defineTheme('Monokai', Monokai);
-    monaco.editor.defineTheme('Active4D', Active4D);
-    monaco.editor.defineTheme('ahe', ahe);
-    monaco.editor.defineTheme('bop', bop);
-    monaco.editor.defineTheme('krTheme', krTheme);
-    monaco.editor.defineTheme('Dracula', Dracula);
-    monaco.editor.defineTheme('TextmateMac', TextmateMac);
-    
     // 动态设置主题
     // monaco.editor.setTheme('hc-black');
 
     // 参考 https://microsoft.github.io/monaco-editor/playground.html#extending-language-services-completion-provider-example
     monaco.languages.registerCompletionItemProvider('sql', {
-        triggerCharacters:['.'],
+        triggerCharacters: ['.'],
         provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
 
             let word = model.getWordUntilPosition(position);
-            const {lineNumber, column} = position
-            const {startColumn, endColumn} = word
+            const { lineNumber, column } = position
+            const { startColumn, endColumn } = word
 
             // 当前行文本
             let lineContent = model.getLineContent(lineNumber);
             // 注释行不需要代码提示
-            if(lineContent.startsWith('--')){
-                return {suggestions: []}
+            if (lineContent.startsWith('--')) {
+                return { suggestions: [] }
             }
-            
+
             let range = {
                 startLineNumber: lineNumber,
                 endLineNumber: lineNumber,
                 startColumn,
                 endColumn,
             };
-            
+
             //  光标前文本
             const textBeforePointer = model.getValueInRange({
                 startLineNumber: lineNumber,
@@ -466,9 +469,9 @@ const initMonacoEditor = () => {
             const tokens = textBeforePointer.trim().split(/\s+/)
             const lastToken = tokens[tokens.length - 1].toLowerCase()
 
-            console.log("光标前文本：=>" + textBeforePointerMulti)
+            // console.log("光标前文本：=>" + textBeforePointerMulti)
 
-            console.log("最后输入的：=>" + lastToken)
+            // console.log("最后输入的：=>" + lastToken)
             if (lastToken.endsWith('.')) {
                 // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
                 let str = lastToken.substring(0, lastToken.lastIndexOf('.'))
@@ -476,52 +479,50 @@ const initMonacoEditor = () => {
                 if (state.databaseList.indexOf(str) > -1) {
                     let tables = await loadTableMetadata(str)
                     let suggestions: languages.CompletionItem[] = []
-                    for(let item of tables){
-                        const {tableName, tableComment} = item
+                    for (let item of tables) {
+                        const { tableName, tableComment } = item
                         suggestions.push({
-                            label: tableName + ( tableComment?' - ' + tableComment :'' ),
+                            label: tableName + (tableComment ? ' - ' + tableComment : ''),
                             kind: monaco.languages.CompletionItemKind.File,
                             insertText: tableName,
                             range
-});
+                        });
                     }
                     return { suggestions }
                 }
 
                 let sql = textBeforePointerMulti.split(';')[textBeforePointerMulti.split(';').length - 1] + textAfterPointerMulti.split(';')[0];
                 // 表别名.表字段联想
-                let tableInfo = getTableByAlias(sql,state.db, str)
-                if(tableInfo.tableName){
+                let tableInfo = getTableByAlias(sql, state.db, str)
+                if (tableInfo.tableName) {
                     let table = tableInfo.tableName
                     let db = tableInfo.dbName
                     // 取出表名并提示
                     let dbs = state.monacoOptions.dbTables[db]
-                    let tables = dbs ? (dbs[table] || []) : [];
-                    if((!tables || tables.length === 0) && db){
+                    let columns = dbs ? (dbs[table] || []) : [];
+                    if ((!columns || columns.length === 0) && db) {
                         state.monacoOptions.dbTables[db] = await loadHintTables(db)
                         dbs = state.monacoOptions.dbTables[db]
-                        tables = dbs ? (dbs[table] || []) : [];
+                        columns = dbs ? (dbs[table] || []) : [];
                     }
-                    tables.sort()
                     let suggestions: languages.CompletionItem[] = []
-                    tables.forEach((a:string)=>{
+                    columns.forEach((a: string, index: any) => {
                         // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
-                        let fieldName = a.substring(0,a.indexOf(" "))
-                        let comment = a.replace(eval(`/${fieldName}\\s+/`), '')
-                        let detail = fieldName + ( comment?' - ' + comment :'' )
+                        const nameAndComment = a.split("  ")
+                        const fieldName = nameAndComment[0]
                         suggestions.push({
-                            label: detail,
+                            label: a,  // [datetime][创建时间]
                             kind: monaco.languages.CompletionItemKind.Property,
-                            detail: detail,
-                            insertText: fieldName,
-                            range
+                            detail: '', // 不显示detail, 否则选中时备注等会被遮挡
+                            insertText: fieldName + ' ', // create_time 
+                            range,
+                            sortText: 100 + index + '' // 使用表字段声明顺序排序
                         });
                     })
                     return { suggestions }
-                    // 
                 }
-                return { suggestions:[] }
-        }
+                return { suggestions: [] }
+            }
 
             // 库名联想
 
@@ -570,28 +571,27 @@ const initMonacoEditor = () => {
                     kind: monaco.languages.CompletionItemKind.Folder,
                     insertText: a,
                     range
-    });
+                });
             })
 
             // 表名联想
             state.tableMetadata.forEach((tableMeta: TableMeta) => {
-                const {tableName, tableComment} = tableMeta
+                const { tableName, tableComment } = tableMeta
                 suggestions.push({
                     label: tableName + ' - ' + tableComment,
                     kind: monaco.languages.CompletionItemKind.File,
                     detail: tableComment,
-                    insertText: tableName,
+                    insertText: tableName + ' ',
                     range
-    });
+                });
             })
 
             // 默认提示
             return {
                 suggestions: suggestions
-};
+            };
         },
     });
-
 };
 
 /**
@@ -600,8 +600,8 @@ const initMonacoEditor = () => {
  * @param db 默认数据库
  * @param alias 别名
  */
-const getTableByAlias = (sql: string, db: string, alias: string):{dbName: string, tableName: string} => {
-    
+const getTableByAlias = (sql: string, db: string, alias: string): { dbName: string, tableName: string } => {
+
     // 表别名：表名
     let result = {};
     let defName = '';
@@ -617,10 +617,10 @@ where l.name='kevin' and exsits(select 1 from pharmacywestpas pw where p.outvisi
 unit all
 select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(\w*)/gi)
      */
-    
+
     let match = sql.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(\w*)/gi)
-    if(match && match.length>0){
-        match.forEach(a=>{
+    if (match && match.length > 0) {
+        match.forEach(a => {
             // 去掉前缀，取出
             let t = a.substring(5, a.length)
                 .replaceAll(/\s+as\s+/g, ' ')
@@ -628,11 +628,11 @@ select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(
             let withDb = t[0].split('.');
             // 表名是 db名.表名
             let tName = withDb.length > 1 ? withDb[1] : withDb[0]
-            let dbName = withDb.length > 1 ? withDb[0] :(db||'')
-            if(t.length == 2){
+            let dbName = withDb.length > 1 ? withDb[0] : (db || '')
+            if (t.length == 2) {
                 // 表别名：表名
-                result[t[1]]= {tableName: tName, dbName}
-            }else{
+                result[t[1]] = { tableName: tName, dbName }
+            } else {
                 // 只有表名无别名 取第一个无别名的表为默认表
                 !defName && (defResult = { tableName: tName, dbName: db })
             }
@@ -652,18 +652,18 @@ onMounted(() => {
 });
 
 /**
- * 设置codemirror高度和数据表高度
+ * 设置editor高度和数据表高度
  */
 const setHeight = () => {
     // 默认300px
     state.monacoOptions.height = window.innerHeight - 550 + 'px'
-    state.dataTabsTableHeight = window.innerHeight - 274 ;
+    state.dataTabsTableHeight = window.innerHeight - 274;
 };
 
 /**
  * 拖拽改变sql编辑区和查询结果区高度
  */
-const onDragSetHeight = (e: any) => {
+const onDragSetHeight = () => {
     document.onmousemove = (e) => {
         e.preventDefault();
         //得到鼠标拖动的宽高距离：取绝对值
@@ -948,16 +948,16 @@ const getColumnTip = (tableName: string, columnName: string) => {
 const getSql = () => {
     let res = '' as string | undefined;
     // 编辑器还没初始化
-    if(!monacoEditor.getModel){
+    if (!monacoEditor.getModel) {
         return res;
     }
     // 选择选中的sql
     let selection = monacoEditor.getSelection()
-    if (selection){
+    if (selection) {
         res = monacoEditor.getModel()?.getValueInRange(selection)
     }
     // 整个编辑器的sql
-    if(!res){
+    if (!res) {
         return monacoEditor.getModel()?.getValue()
     }
     return res
@@ -982,22 +982,22 @@ const changeDb = async (db: string) => {
         return;
     }
     clearDb();
-    
+
     // 加载数据库下所有表
     state.tableMetadata = await loadTableMetadata(db)
-    
+
     // 加载数据库下所有表字段信息
     state.monacoOptions.dbTables[db] = await loadHintTables(db)
 
     getSqlNames();
 };
 
-const loadTableMetadata = async (db: string) =>{
-    return await dbApi.tableMetadata.request({id: state.dbId, db})
+const loadTableMetadata = async (db: string) => {
+    return await dbApi.tableMetadata.request({ id: state.dbId, db })
 }
 
-const loadHintTables = async (db: string) =>{
-    return await dbApi.hintTables.request({id: state.dbId, db,})
+const loadHintTables = async (db: string) => {
+    return await dbApi.hintTables.request({ id: state.dbId, db, })
 }
 
 // 选择表事件
@@ -1195,6 +1195,7 @@ const onTableSortChange = async (sort: any) => {
 const changeSqlTemplate = () => {
     getUserSql();
 };
+
 const changeEditorTheme = () => {
     monaco.editor.setTheme(state.monacoOptions.theme);
 };
@@ -1215,10 +1216,6 @@ const getUserSql = () => {
 
 const setSqlEditorValue = (value: string) => {
     monacoEditor.getModel()?.setValue(value);
-};
-
-const getCodermirrorValue = () => {
-    return codemirror.getValue();
 };
 
 /**
@@ -1370,7 +1367,7 @@ const cellClick = (row: any, column: any, cell: any) => {
         return;
     }
     // 转为字符串比较,可能存在数字等
-    let text = (row[property] || row[property]==0 ? row[property] : '') + '';
+    let text = (row[property] || row[property] == 0 ? row[property] : '') + '';
     let div = cell.children[0];
     if (div) {
         let input = document.createElement('input');
@@ -1466,12 +1463,48 @@ const addRow = async () => {
  * 格式化sql
  */
 const formatSql = () => {
-    let selectSql = getSql();
-    if(selectSql){
-        monacoEditor.getModel()?.setValue(sqlFormatter(selectSql))
+    let selection = monacoEditor.getSelection()
+    let sql = monacoEditor.getModel()?.getValueInRange(selection)
+    // 有选中sql则格式化并替换选中sql, 否则格式化编辑器所有内容
+    if (sql) {
+        replaceSelection(sqlFormatter(sql), selection)
+        return;
     }
-    
+    monacoEditor.getModel()?.setValue(sqlFormatter(monacoEditor.getValue()));
 };
+
+/**
+ * 替换选中的内容
+ */
+const replaceSelection = (str: string, selection: any) => {
+    if (!selection) {
+        monacoEditor.getModel().setValue(str);
+        return;
+    }
+    const { startLineNumber, endLineNumber, startColumn, endColumn } = selection
+    const model = monacoEditor.getModel();
+
+    const textBeforeSelection = model.getValueInRange({
+        startLineNumber: 1,
+        startColumn: 0,
+        endLineNumber: startLineNumber,
+        endColumn: startColumn,
+    })
+
+    const textAfterSelection = model.getValueInRange({
+        startLineNumber: endLineNumber,
+        startColumn: endColumn,
+        endLineNumber: model.getLineCount(),
+        endColumn: model.getLineMaxColumn(model.getLineCount()),
+    })
+
+    monacoEditor.setValue(textBeforeSelection + str + textAfterSelection)
+    monacoEditor.focus()
+    monacoEditor.setPosition({
+        lineNumber: startLineNumber,
+        column: 0,
+    })
+}
 
 const search = async () => {
     const res = await dbApi.dbs.request(state.params);
@@ -1515,17 +1548,6 @@ watch(store.state.sqlExecInfo, async (newValue) => {
     font-size: 8pt;
     font-weight: 600;
     border: 1px solid #ccc;
-
-    .CodeMirror {
-        flex-grow: 1;
-        z-index: 1;
-
-        .CodeMirror-code {
-            line-height: 19px;
-        }
-
-        font-family: 'JetBrainsMono';
-    }
 }
 
 .editor-move-resize {

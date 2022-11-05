@@ -54,7 +54,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, watch, defineComponent } from 'vue';
+import { ref, toRefs, reactive, watch } from 'vue';
 import { configApi } from '../api';
 
 const props = defineProps({

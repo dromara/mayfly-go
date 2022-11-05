@@ -3,6 +3,7 @@ package api
 import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ctx"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/ws"
 
 	"github.com/gin-gonic/gin"
@@ -17,8 +18,11 @@ func (s *System) ConnectWs(g *gin.Context) {
 	wsConn, err := ws.Upgrader.Upgrade(g.Writer, g.Request, nil)
 	defer func() {
 		if err := recover(); err != nil {
-			wsConn.WriteMessage(websocket.TextMessage, []byte(err.(error).Error()))
-			wsConn.Close()
+			global.Log.Error(err.(error).Error())
+			if wsConn != nil {
+				wsConn.WriteMessage(websocket.TextMessage, []byte(err.(error).Error()))
+				wsConn.Close()
+			}
 		}
 	}()
 

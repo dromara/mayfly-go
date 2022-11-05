@@ -10,7 +10,6 @@
     "@element-plus/icons-vue": "^2.0.9",
     "asciinema-player": "^3.0.1",
     "axios": "^1.1.2",
-    "codemirror": "^5.65.5",
     "countup.js": "^2.0.7",
     "cropperjs": "^1.5.11",
     "echarts": "^5.3.3",

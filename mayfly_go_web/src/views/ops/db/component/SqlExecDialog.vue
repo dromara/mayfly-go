@@ -1,8 +1,7 @@
 <template>
     <div>
-        <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px" @close="cancel">
-            <codemirror height="350px" class="codesql" ref="cmEditor" language="sql" v-model="sqlValue"
-                :options="cmOptions" />
+        <el-dialog :destroy-on-close="true" title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px" @close="cancel">
+            <monaco-editor height="300px" class="codesql" language="sql" v-model="sqlValue" />
             <el-input ref="remarkInputRef" v-model="remark" placeholder="请输入执行备注" class="mt5" />
             <template #footer>
                 <span class="dialog-footer">
@@ -19,11 +18,7 @@ import { toRefs, ref, nextTick, reactive } from 'vue';
 import { dbApi } from '../api';
 import { ElDialog, ElButton, ElInput, ElMessage, InputInstance } from 'element-plus';
 // import base style
-import 'codemirror/lib/codemirror.css';
-// 引入主题后还需要在 options 中指定主题才会生效
-import 'codemirror/theme/base16-light.css';
-import 'codemirror/addon/selection/active-line';
-import { codemirror } from '@/components/codemirror';
+import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { format as sqlFormatter } from 'sql-formatter';
 
 import { SqlExecProps } from './SqlExecBox';
@@ -42,19 +37,6 @@ const props = defineProps({
         type: String,
     },
 })
-
-const cmOptions = {
-    tabSize: 4,
-    mode: 'text/x-sql',
-    lineNumbers: true,
-    line: true,
-    indentWithTabs: true,
-    smartIndent: true,
-    matchBrackets: true,
-    theme: 'base16-light',
-    autofocus: true,
-    extraKeys: { Tab: 'autocomplete' }, // 自定义快捷键
-}
 
 const remarkInputRef = ref<InputInstance>();
 const state = reactive({

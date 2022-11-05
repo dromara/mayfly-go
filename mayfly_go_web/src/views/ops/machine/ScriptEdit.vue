@@ -45,9 +45,7 @@
                     </el-row>
                 </el-form-item>
 
-                <el-form-item prop="script" label="内容" id="content">
-                    <codemirror ref="cmEditor" v-model="form.script" language="shell" width="700px" />
-                </el-form-item>
+                <monaco-editor v-model="form.script" language="shell" height="300px" />
             </el-form>
 
             <template #footer>
@@ -67,8 +65,7 @@ import { ElMessage } from 'element-plus';
 import { machineApi } from './api';
 import enums from './enums';
 import { notEmpty } from '@/common/assert';
-
-import { codemirror } from '@/components/codemirror';
+import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 
 const props = defineProps({
     visible: {
@@ -176,9 +173,5 @@ const cancel = () => {
 };
 </script>
 <style lang="scss">
-#content {
-    .CodeMirror {
-        height: 300px !important;
-    }
-}
+
 </style>
