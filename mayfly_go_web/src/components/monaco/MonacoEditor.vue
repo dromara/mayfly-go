@@ -1,5 +1,5 @@
 <template>
-    <div class="monaco-editor">
+    <div class="monaco-editor" style="border: 1px solid #ccc;">
         <div ref="monacoTextarea" :style="{ height: height }"></div>
         <el-select v-if="canChangeMode" class="code-mode-select" v-model="languageMode" @change="changeLanguage">
             <el-option v-for="mode in languages" :key="mode.value" :label="mode.label" :value="mode.value"> </el-option>
@@ -23,7 +23,6 @@ import { editor } from 'monaco-editor';
 // import Dracula from 'monaco-themes/themes/Dracula.json'
 import SolarizedLight from 'monaco-themes/themes/Solarized-light.json'
 import { language as shellLan } from 'monaco-editor/esm/vs/basic-languages/shell/shell.js';
-
 import { ElOption, ElSelect } from 'element-plus';
 
 const props = defineProps({
@@ -138,14 +137,14 @@ const {
 
 onMounted(() => {
     state.languageMode = props.language;
-    initMonacoEditor();
+    initMonacoEditorIns();
     setEditorValue(props.modelValue);
     registerCompletionItemProvider();
 });
 
 onBeforeUnmount(() => {
-    if (monacoEditor) {
-        monacoEditor.dispose();
+    if (monacoEditorIns) {
+        monacoEditorIns.dispose();
     }
     if (completionItemProvider) {
         completionItemProvider.dispose();
@@ -153,9 +152,9 @@ onBeforeUnmount(() => {
 })
 
 watch(() => props.modelValue, (newValue: any) => {
-    if (!monacoEditor.hasTextFocus()) {
+    if (!monacoEditorIns.hasTextFocus()) {
         state.languageMode = props.language
-        monacoEditor?.setValue(newValue)
+        monacoEditorIns?.setValue(newValue)
         changeLanguage(state.languageMode)
     }
 })
@@ -163,7 +162,7 @@ watch(() => props.modelValue, (newValue: any) => {
 
 const monacoTextarea: any = ref(null);
 
-let monacoEditor: editor.IStandaloneCodeEditor = null;
+let monacoEditorIns: editor.IStandaloneCodeEditor = null;
 let completionItemProvider: any = null;
 
 self.MonacoEnvironment = {
@@ -172,17 +171,19 @@ self.MonacoEnvironment = {
     }
 };
 
-const initMonacoEditor = () => {
+const initMonacoEditorIns = () => {
     console.log('初始化monaco编辑器')
     // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
     // 初始化一些主题
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
     options.language = state.languageMode;
-    monacoEditor = monaco.editor.create(monacoTextarea.value, Object.assign(options, props.options));
+    // 从localStorage中获取，通过store可能存在父子组件都使用store报错
+    options.theme = JSON.parse(localStorage.getItem('themeConfig') as string).editorTheme || 'vs';
+    monacoEditorIns = monaco.editor.create(monacoTextarea.value, Object.assign(options, props.options));
 
     // 监听内容改变,双向绑定
-    monacoEditor.onDidChangeModelContent(() => {
-        emit('update:modelValue', monacoEditor.getModel().getValue());
+    monacoEditorIns.onDidChangeModelContent(() => {
+        emit('update:modelValue', monacoEditorIns.getModel().getValue());
     })
 
     // 动态设置主题
@@ -192,11 +193,11 @@ const initMonacoEditor = () => {
 const changeLanguage = (value: any) => {
     console.log('change lan');
     // 获取当前的文档模型
-    let oldModel = monacoEditor.getModel()
+    let oldModel = monacoEditorIns.getModel()
     // 创建一个新的文档模型
     let newModel = monaco.editor.createModel(oldModel.getValue(), value)
     // 设置成新的
-    monacoEditor.setModel(newModel)
+    monacoEditorIns.setModel(newModel)
     // 销毁旧的模型
     if (oldModel) {
         oldModel.dispose()
@@ -206,7 +207,7 @@ const changeLanguage = (value: any) => {
 }
 
 const setEditorValue = (value: any) => {
-    monacoEditor.getModel().setValue(value)
+    monacoEditorIns.getModel().setValue(value)
 }
 
 /**

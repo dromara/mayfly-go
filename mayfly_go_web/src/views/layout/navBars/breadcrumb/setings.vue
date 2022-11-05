@@ -50,6 +50,18 @@
                     </div>
                 </div>
 
+                <el-divider content-position="left">monaco editor</el-divider>
+                <div class="layout-breadcrumb-seting-bar-flex">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">主题</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-select @change="setLocalThemeConfig" v-model="getThemeConfig.editorTheme" size="small" style="width: 130px">
+                            <el-option label="vs" value="vs"> </el-option>
+                            <el-option label="vs-dark" value="vs-dark"> </el-option>
+                            <el-option label="SolarizedLight" value="SolarizedLight"> </el-option>
+                        </el-select>
+                    </div>
+                </div>
+
                 <!-- 全局主题 -->
                 <el-divider content-position="left">全局主题</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex">

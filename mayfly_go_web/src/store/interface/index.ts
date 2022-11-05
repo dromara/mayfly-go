@@ -53,6 +53,7 @@ export interface ThemeConfigState {
         terminalCursor: string;
         terminalFontSize: number;
         terminalFontWeight: string;
+        editorTheme: string;
     };
 }
 

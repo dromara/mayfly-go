@@ -115,6 +115,9 @@ const themeConfigModule: Module<ThemeConfigState, RootStateTypes> = {
             terminalFontSize: 15,
             terminalFontWeight: 'normal',
 
+            // 编辑器主题
+            editorTheme: 'vs',
+
 
             /* 后端控制路由
             ------------------------------- */

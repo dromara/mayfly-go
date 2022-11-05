@@ -87,14 +87,6 @@
                                 </div>
 
                                 <div style="float: right" class="fl">
-                                    <el-select v-model="monacoOptions.theme" placeholder="切换编辑器主题"
-                                        @change="changeEditorTheme" filterable allow-create default-first-option
-                                        size="small" class="mr10">
-                                        <el-option v-for="item in monacoOptions.defaultThemes as string" :key="item"
-                                            :label="item" :value="item">
-                                            {{ item }}
-                                        </el-option>
-                                    </el-select>
                                     <el-select v-model="sqlName" placeholder="选择or输入SQL模板名" @change="changeSqlTemplate"
                                         filterable allow-create default-first-option size="small" class="mr10">
                                         <el-option v-for="item in sqlNames as any" :key="item" :label="item.database"
@@ -254,7 +246,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, toRefs, reactive, ref, watch } from 'vue';
+import { onMounted, computed, toRefs, reactive, ref, watch } from 'vue';
 import { dbApi } from './api';
 
 import { format as sqlFormatter } from 'sql-formatter';
@@ -342,8 +334,6 @@ const state = reactive({
         height: '',
         tableMaxHeight: 250,
         dbTables: {},
-        theme: 'vs',
-        defaultThemes: ['SolarizedLight', 'vs', 'vs-dark'],
     }
 });
 const {
@@ -367,6 +357,11 @@ const {
     monacoOptions
 } = toRefs(state)
 
+// 获取布局配置信息
+const getThemeConfig: any = computed(() => {
+    return store.state.themeConfig.themeConfig;
+});
+
 let monacoEditor = {} as editor.IStandaloneCodeEditor;
 let completionItemProvider: any = null;
 
@@ -382,7 +377,7 @@ const initMonacoEditor = () => {
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
     monacoEditor = monaco.editor.create(monacoTextarea.value, {
         language: 'sql',
-        theme: state.monacoOptions.theme,
+        theme: getThemeConfig.value.editorTheme,
         automaticLayout: true, //自适应宽高布局
         folding: false,
         roundedSelection: false, // 禁用选择文本背景的圆角
@@ -1177,10 +1172,6 @@ const onTableSortChange = async (sort: any) => {
 
 const changeSqlTemplate = () => {
     getUserSql();
-};
-
-const changeEditorTheme = () => {
-    monaco.editor.setTheme(state.monacoOptions.theme);
 };
 
 /**
