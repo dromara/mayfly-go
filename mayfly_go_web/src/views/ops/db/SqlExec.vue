@@ -274,14 +274,7 @@ import { editor, languages, Position } from 'monaco-editor';
 
 // 主题仓库 https://github.com/brijeshb42/monaco-themes 
 // 主题例子 https://editor.bitwiser.in/
-// import Monokai from 'monaco-themes/themes/Monokai.json'
-// import Active4D from 'monaco-themes/themes/Active4D.json'
-// import ahe from 'monaco-themes/themes/All Hallows Eve.json'
-// import bop from 'monaco-themes/themes/Birds of Paradise.json'
-// import krTheme from 'monaco-themes/themes/krTheme.json'
-// import Dracula from 'monaco-themes/themes/Dracula.json'
 import SolarizedLight from 'monaco-themes/themes/Solarized-light.json'
-// import TextmateMac from 'monaco-themes/themes/Textmate (Mac Classic).json'
 import { Minus } from '@element-plus/icons-vue';
 
 const store = useStore();
@@ -349,7 +342,7 @@ const state = reactive({
         height: '',
         tableMaxHeight: 250,
         dbTables: {},
-        theme: 'SolarizedLight',
+        theme: 'vs',
         defaultThemes: ['SolarizedLight', 'vs', 'vs-dark'],
     }
 });
@@ -375,6 +368,7 @@ const {
 } = toRefs(state)
 
 let monacoEditor = {} as editor.IStandaloneCodeEditor;
+let completionItemProvider: any = null;
 
 self.MonacoEnvironment = {
     getWorker() {
@@ -383,25 +377,14 @@ self.MonacoEnvironment = {
 };
 
 const initMonacoEditor = () => {
-    console.log('初始化编辑器')
     // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
-
     // 初始化一些主题
-
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
-    // monaco.editor.defineTheme('Monokai', Monokai);
-    // monaco.editor.defineTheme('Active4D', Active4D);
-    // monaco.editor.defineTheme('ahe', ahe);
-    // monaco.editor.defineTheme('bop', bop);
-    // monaco.editor.defineTheme('krTheme', krTheme);
-    // monaco.editor.defineTheme('Dracula', Dracula);
-    // monaco.editor.defineTheme('TextmateMac', TextmateMac);
-
     monacoEditor = monaco.editor.create(monacoTextarea.value, {
         language: 'sql',
         theme: state.monacoOptions.theme,
         automaticLayout: true, //自适应宽高布局
-        foldingStrategy: 'indentation',//代码可分小段折叠
+        folding: false,
         roundedSelection: false, // 禁用选择文本背景的圆角
         matchBrackets: 'near',
         linkedEditing: true,
@@ -422,7 +405,7 @@ const initMonacoEditor = () => {
     // monaco.editor.setTheme('hc-black');
 
     // 参考 https://microsoft.github.io/monaco-editor/playground.html#extending-language-services-completion-provider-example
-    monaco.languages.registerCompletionItemProvider('sql', {
+    completionItemProvider = monaco.languages.registerCompletionItemProvider('sql', {
         triggerCharacters: ['.'],
         provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
 
@@ -516,7 +499,7 @@ const initMonacoEditor = () => {
                             detail: '', // 不显示detail, 否则选中时备注等会被遮挡
                             insertText: fieldName + ' ', // create_time 
                             range,
-                            sortText: 100 + index + '' // 使用表字段声明顺序排序
+                            sortText: 100 + index + '' // 使用表字段声明顺序排序,排序需为字符串类型
                         });
                     })
                     return { suggestions }

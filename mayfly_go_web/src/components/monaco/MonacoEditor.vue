@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { ref, watch, toRefs, reactive, onMounted, onBeforeUnmount } from 'vue';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
 import * as monaco from 'monaco-editor';
 import { editor } from 'monaco-editor';
@@ -22,6 +22,7 @@ import { editor } from 'monaco-editor';
 // import krTheme from 'monaco-themes/themes/krTheme.json'
 // import Dracula from 'monaco-themes/themes/Dracula.json'
 import SolarizedLight from 'monaco-themes/themes/Solarized-light.json'
+import { language as shellLan } from 'monaco-editor/esm/vs/basic-languages/shell/shell.js';
 
 import { ElOption, ElSelect } from 'element-plus';
 
@@ -68,10 +69,6 @@ const languages = [
         label: 'Dockerfile',
     },
     {
-        value: 'x-nginx-conf',
-        label: 'Nginx',
-    },
-    {
         value: 'html',
         label: 'XML/HTML',
     },
@@ -93,7 +90,7 @@ const languages = [
     },
     {
         value: 'json',
-        label: 'Json',
+        label: 'JSON',
     },
     {
         value: 'java',
@@ -109,6 +106,28 @@ const languages = [
     },
 ];
 
+const options = {
+    language: 'shell',
+    theme: 'SolarizedLight',
+    automaticLayout: true, //自适应宽高布局
+    foldingStrategy: 'indentation',//代码可分小段折叠
+    roundedSelection: false, // 禁用选择文本背景的圆角
+    matchBrackets: 'near',
+    linkedEditing: true,
+    cursorBlinking: 'smooth',// 光标闪烁样式
+    mouseWheelZoom: true, // 在按住Ctrl键的同时使用鼠标滚轮时，在编辑器中缩放字体
+    overviewRulerBorder: false, // 不要滚动条的边框
+    tabSize: 2, // tab 缩进长度
+    fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
+    fontWeight: 'bold',
+    // fontSize: 12,
+    // letterSpacing: 1, 字符间距
+    // quickSuggestions:false, // 禁用代码提示
+    minimap: {
+        enabled: false, // 不要小地图
+    },
+}
+
 const state = reactive({
     languageMode: 'shell',
 })
@@ -118,13 +137,34 @@ const {
 } = toRefs(state)
 
 onMounted(() => {
-    state.languageMode = props.language
+    state.languageMode = props.language;
     initMonacoEditor();
-    setEditorValue(props.modelValue)
+    setEditorValue(props.modelValue);
+    registerCompletionItemProvider();
 });
 
+onBeforeUnmount(() => {
+    if (monacoEditor) {
+        monacoEditor.dispose();
+    }
+    if (completionItemProvider) {
+        completionItemProvider.dispose();
+    }
+})
+
+watch(() => props.modelValue, (newValue: any) => {
+    if (!monacoEditor.hasTextFocus()) {
+        state.languageMode = props.language
+        monacoEditor?.setValue(newValue)
+        changeLanguage(state.languageMode)
+    }
+})
+
+
 const monacoTextarea: any = ref(null);
+
 let monacoEditor: editor.IStandaloneCodeEditor = null;
+let completionItemProvider: any = null;
 
 self.MonacoEnvironment = {
     getWorker() {
@@ -137,35 +177,8 @@ const initMonacoEditor = () => {
     // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
     // 初始化一些主题
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
-    // monaco.editor.defineTheme('Monokai', Monokai);
-    // monaco.editor.defineTheme('Active4D', Active4D);
-    // monaco.editor.defineTheme('ahe', ahe);
-    // monaco.editor.defineTheme('bop', bop);
-    // monaco.editor.defineTheme('krTheme', krTheme);
-    // monaco.editor.defineTheme('Dracula', Dracula);
-    // monaco.editor.defineTheme('TextmateMac', TextmateMac);
-
-    monacoEditor = monaco.editor.create(monacoTextarea.value, {
-        language: state.languageMode,
-        theme: 'SolarizedLight',
-        automaticLayout: true, //自适应宽高布局
-        foldingStrategy: 'indentation',//代码可分小段折叠
-        roundedSelection: false, // 禁用选择文本背景的圆角
-        matchBrackets: 'near',
-        linkedEditing: true,
-        cursorBlinking: 'smooth',// 光标闪烁样式
-        mouseWheelZoom: true, // 在按住Ctrl键的同时使用鼠标滚轮时，在编辑器中缩放字体
-        overviewRulerBorder: false, // 不要滚动条的边框
-        tabSize: 2, // tab 缩进长度
-        fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
-        fontWeight: 'bold',
-        // fontSize: 12,
-        // letterSpacing: 1, 字符间距
-        // quickSuggestions:false, // 禁用代码提示
-        minimap: {
-            enabled: false, // 不要小地图
-        },
-    });
+    options.language = state.languageMode;
+    monacoEditor = monaco.editor.create(monacoTextarea.value, Object.assign(options, props.options));
 
     // 监听内容改变,双向绑定
     monacoEditor.onDidChangeModelContent(() => {
@@ -188,12 +201,50 @@ const changeLanguage = (value: any) => {
     if (oldModel) {
         oldModel.dispose()
     }
+
+    registerCompletionItemProvider();
 }
 
 const setEditorValue = (value: any) => {
     monacoEditor.getModel().setValue(value)
 }
 
+/**
+ * 注册联想补全提示
+ */
+const registerCompletionItemProvider = () => {
+    if (completionItemProvider) {
+        completionItemProvider.dispose();
+    }
+    if (state.languageMode == 'shell') {
+        registeShell()
+    }
+}
+
+const registeShell = () => {
+    completionItemProvider = monaco.languages.registerCompletionItemProvider('shell', {
+        provideCompletionItems: async () => {
+            let suggestions: languages.CompletionItem[] = []
+            shellLan.keywords.forEach((item: any) => {
+                suggestions.push({
+                    label: item,
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: item,
+                });
+            })
+            shellLan.builtins.forEach((item: any) => {
+                suggestions.push({
+                    label: item,
+                    kind: monaco.languages.CompletionItemKind.Property,
+                    insertText: item,
+                });
+            })
+            return {
+                suggestions: suggestions
+            };
+        }
+    })
+};
 </script>
 
 <style lang="scss">
