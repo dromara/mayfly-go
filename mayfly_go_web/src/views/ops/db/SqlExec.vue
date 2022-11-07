@@ -396,6 +396,62 @@ const initMonacoEditor = () => {
         },
     });
 
+    monacoEditor.addAction({
+        // An unique identifier of the contributed action.
+        id: 'run-sql-action',
+        // A label of the action that will be presented to the user.
+        label: '执行SQL',
+        // A precondition for this action.
+        precondition: null,
+        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
+        keybindingContext: null,
+        keybindings: [
+            // chord
+            monaco.KeyMod.chord(
+                monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyR
+            )
+        ],
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 1.5,
+        // Method that will be executed when the action is triggered.
+        // @param editor The editor instance is passed in as a convenience
+        run: async function () {
+            try {
+                await onRunSql();
+            } catch (e: any) {
+                e.message && ElMessage.error(e.message)
+            }
+        }
+    });
+
+    monacoEditor.addAction({
+        // An unique identifier of the contributed action.
+        id: 'format-sql-action',
+        // A label of the action that will be presented to the user.
+        label: '格式化SQL',
+        // A precondition for this action.
+        precondition: null,
+        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
+        keybindingContext: null,
+        keybindings: [
+            // chord
+            monaco.KeyMod.chord(
+                monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF
+            )
+        ],
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 2,
+        // Method that will be executed when the action is triggered.
+        // @param editor The editor instance is passed in as a convenience
+        run: async function () {
+            try {
+                await formatSql();
+            } catch (e: any) {
+                e.message && ElMessage.error(e.message)
+            }
+        }
+    });
+
     // 动态设置主题
     // monaco.editor.setTheme('hc-black');
 
@@ -668,12 +724,6 @@ const changeTag = () => {
 const getTags = async () => {
     state.tags = await tagApi.getAccountTags.request(null);
 };
-
-// const onBeforeChange = (instance: any, changeObj: any) => {
-//     var text = changeObj.text[0];
-//     // 将sql提示去除
-//     changeObj.text[0] = text.split('  ')[0];
-// };
 
 /**
  * 执行sql

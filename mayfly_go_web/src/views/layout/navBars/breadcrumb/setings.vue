@@ -50,7 +50,7 @@
                     </div>
                 </div>
 
-                <el-divider content-position="left">monaco editor</el-divider>
+                <el-divider content-position="left">editor 设置</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex">
                     <div class="layout-breadcrumb-seting-bar-flex-label">主题</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
