@@ -387,7 +387,7 @@ const initMonacoEditor = () => {
         mouseWheelZoom: true, // 在按住Ctrl键的同时使用鼠标滚轮时，在编辑器中缩放字体
         overviewRulerBorder: false, // 不要滚动条的边框
         tabSize: 2, // tab 缩进长度
-        fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
+        // fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
         fontWeight: 'bold',
         // letterSpacing: 1, 字符间距
         // quickSuggestions:false, // 禁用代码提示
@@ -516,7 +516,10 @@ const initMonacoEditor = () => {
                     for (let item of tables) {
                         const { tableName, tableComment } = item
                         suggestions.push({
-                            label: tableName + (tableComment ? ' - ' + tableComment : ''),
+                            label: {
+                                label: tableName + ( tableComment ? ' - ' + tableComment :'' ),
+                                description: 'table'
+                            },
                             kind: monaco.languages.CompletionItemKind.File,
                             insertText: tableName,
                             range
@@ -545,7 +548,10 @@ const initMonacoEditor = () => {
                         const nameAndComment = a.split("  ")
                         const fieldName = nameAndComment[0]
                         suggestions.push({
-                            label: a,  // [datetime][创建时间]
+                            label: {
+                                label: a,
+                                description: 'column'
+                            },
                             kind: monaco.languages.CompletionItemKind.Property,
                             detail: '', // 不显示detail, 否则选中时备注等会被遮挡
                             insertText: fieldName + ' ', // create_time 
@@ -564,7 +570,10 @@ const initMonacoEditor = () => {
             // mysql关键字
             sqlLanguage.keywords.forEach((item: any) => {
                 suggestions.push({
-                    label: item,
+                    label: {
+                        label:item,
+                        description: 'keyword'
+                    },
                     kind: monaco.languages.CompletionItemKind.Keyword,
                     insertText: item,
                     range
@@ -573,7 +582,10 @@ const initMonacoEditor = () => {
             // 操作符 
             sqlLanguage.operators.forEach((item: any) => {
                 suggestions.push({
-                    label: item,
+                    label: {
+                        label:item,
+                        description: 'opt'
+                    },
                     kind: monaco.languages.CompletionItemKind.Operator,
                     insertText: item,
                     range
@@ -582,7 +594,10 @@ const initMonacoEditor = () => {
             // 内置函数
             sqlLanguage.builtinFunctions.forEach((item: any) => {
                 suggestions.push({
-                    label: item,
+                    label: {
+                        label:item,
+                        description: 'func'
+                    },
                     kind: monaco.languages.CompletionItemKind.Function,
                     insertText: item,
                     range
@@ -591,7 +606,10 @@ const initMonacoEditor = () => {
             // 内置变量
             sqlLanguage.builtinVariables.forEach((item: string) => {
                 suggestions.push({
-                    label: item,
+                    label: {
+                        label:item,
+                        description: 'var'
+                    },
                     kind: monaco.languages.CompletionItemKind.Variable,
                     insertText: item,
                     range
@@ -601,7 +619,10 @@ const initMonacoEditor = () => {
             // 库名提示
             state.databaseList.forEach(a => {
                 suggestions.push({
-                    label: a + ' - schema',
+                    label: {
+                        label: a,
+                        description: 'schema'
+                    },
                     kind: monaco.languages.CompletionItemKind.Folder,
                     insertText: a,
                     range
@@ -612,7 +633,10 @@ const initMonacoEditor = () => {
             state.tableMetadata.forEach((tableMeta: TableMeta) => {
                 const { tableName, tableComment } = tableMeta
                 suggestions.push({
+                    label: {
                     label: tableName + ' - ' + tableComment,
+                        description: 'table'
+                    },
                     kind: monaco.languages.CompletionItemKind.File,
                     detail: tableComment,
                     insertText: tableName + ' ',
@@ -651,13 +675,14 @@ where l.name='kevin' and exsits(select 1 from pharmacywestpas pw where p.outvisi
 unit all
 select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(\w*)/gi)
      */
-
-    let match = sql.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(\w*)/gi)
+    let match = sql.match(/(join|from)\n*\s+\n*(\w*-?\w*\.?\w+)\s*(as)?\s*(\w*)\n*/gi)
     if (match && match.length > 0) {
         match.forEach(a => {
             // 去掉前缀，取出
             let t = a.substring(5, a.length)
-                .replaceAll(/\s+as\s+/g, ' ')
+                .replaceAll(/\s+/g, ' ')
+                .replaceAll(/\s+as\s+/gi, ' ')
+                .replaceAll(/\r\n/g, ' ').trim()
                 .split(/\s+/);
             let withDb = t[0].split('.');
             // 表名是 db名.表名
