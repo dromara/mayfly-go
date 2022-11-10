@@ -39,9 +39,9 @@
                             }}</el-link>
                     </template>
                 </el-table-column>
-                <el-table-column prop="status" label="状态" min-width="75">
+                <el-table-column prop="status" label="状态" min-width="80">
                     <template #default="scope">
-                        <el-switch v-auth:disabled="'machine:update'" :width="47" v-model="scope.row.status"
+                        <el-switch v-auth:disabled="'machine:update'" :width="52" v-model="scope.row.status"
                             :active-value="1" :inactive-value="-1" inline-prompt active-text="启用" inactive-text="停用"
                             style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
                             @change="changeStatus(scope.row)"></el-switch>

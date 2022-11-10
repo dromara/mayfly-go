@@ -116,9 +116,9 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="800px" :title="`新增'${activeName}'集合文档`" v-model="insertDocDialog.visible"
+        <el-dialog width="60%" :title="`新增'${activeName}'集合文档`" v-model="insertDocDialog.visible"
             :close-on-click-modal="false">
-            <json-edit currentMode="code" v-model="insertDocDialog.doc" />
+            <monaco-editor v-model="insertDocDialog.doc" language="json" />
             <template #footer>
                 <div>
                     <el-button @click="insertDocDialog.visible = false">取 消</el-button>
@@ -127,9 +127,9 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="70%" title="json编辑器" v-model="jsoneditorDialog.visible" @close="onCloseJsonEditDialog"
+        <el-dialog width="60%" title="json编辑器" v-model="jsoneditorDialog.visible" @close="onCloseJsonEditDialog"
             :close-on-click-modal="false">
-            <json-edit v-model="jsoneditorDialog.doc" />
+            <monaco-editor v-model="jsoneditorDialog.doc" language="json" />
         </el-dialog>
 
         <div style="text-align: center; margin-top: 10px"></div>
@@ -143,9 +143,9 @@ import { ElMessage } from 'element-plus';
 
 import { isTrue, notBlank, notNull } from '@/common/assert';
 import { formatByteSize } from '@/common/utils/format';
-import JsonEdit from '@/components/jsonedit/index.vue';
 import { tagApi } from '../tag/api.ts';
 import { useStore } from '@/store/index.ts';
+import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 
 const store = useStore();
 const findParamInputRef: any = ref(null);

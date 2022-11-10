@@ -12,7 +12,7 @@ import { ref, watch, toRefs, reactive, onMounted, onBeforeUnmount } from 'vue';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
 import * as monaco from 'monaco-editor';
 import { editor } from 'monaco-editor';
-
+import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 // 主题仓库 https://github.com/brijeshb42/monaco-themes 
 // 主题例子 https://editor.bitwiser.in/
 // import Monokai from 'monaco-themes/themes/Monokai.json'
@@ -153,10 +153,13 @@ onBeforeUnmount(() => {
 
 watch(() => props.modelValue, (newValue: any) => {
     if (!monacoEditorIns.hasTextFocus()) {
-        state.languageMode = props.language
-        monacoEditorIns?.setValue(newValue)
-        changeLanguage(state.languageMode)
+        state.languageMode = props.language;
+        monacoEditorIns?.setValue(newValue);
     }
+})
+
+watch(() => props.language, (newValue: any) => {
+    changeLanguage(newValue);
 })
 
 
@@ -166,7 +169,10 @@ let monacoEditorIns: editor.IStandaloneCodeEditor = null;
 let completionItemProvider: any = null;
 
 self.MonacoEnvironment = {
-    getWorker() {
+    getWorker(_: any, label: string) {
+        if (label === 'json') {
+            return new JsonWorker()
+        }
         return new EditorWorker();
     }
 };
