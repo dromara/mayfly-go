@@ -33,7 +33,7 @@
                 popper-class="el-popover-pupop-user-news"
             >
                 <template #reference>
-                    <el-badge :is-dot="true" @click="isShowUserNewsPopover = !isShowUserNewsPopover">
+                    <el-badge :is-dot="false" @click="isShowUserNewsPopover = !isShowUserNewsPopover">
                         <el-icon title="消息">
                             <bell />
                         </el-icon>

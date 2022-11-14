@@ -387,7 +387,7 @@ const initMonacoEditor = () => {
         mouseWheelZoom: true, // 在按住Ctrl键的同时使用鼠标滚轮时，在编辑器中缩放字体
         overviewRulerBorder: false, // 不要滚动条的边框
         tabSize: 2, // tab 缩进长度
-        // fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
+        fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
         fontWeight: 'bold',
         // letterSpacing: 1, 字符间距
         // quickSuggestions:false, // 禁用代码提示
@@ -1450,12 +1450,13 @@ const cellClick = (row: any, column: any, cell: any) => {
 
 /**
  * 根据字段列名获取字段列信息。
- * 若字段列名为空，则返回第一个字段列信息（用于获取主键等，目前先以默认表字段第一个字段）
+ * 若字段列名为空，则返回主键列，若无主键列返回第一个字段列信息（用于获取主键等）
  */
 const getColumn = async (tableName: string, columnName: string = '') => {
     const cols = await getColumns(tableName);
     if (!columnName) {
-        return cols[0];
+        const col = cols.find((c: any) => c.columnKey == 'PRI');
+        return col || cols[0];
     }
     return cols.find((c: any) => c.columnName == columnName);
 };

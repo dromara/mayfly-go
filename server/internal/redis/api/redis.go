@@ -297,6 +297,7 @@ func (r *Redis) SetStringValue(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	keyValue := new(form.StringValue)
 	ginx.BindJsonAndValid(g, keyValue)
+	rc.ReqParam = keyValue
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
 	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.TagPath), "%s")

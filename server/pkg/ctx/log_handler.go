@@ -74,14 +74,12 @@ func LogHandler(rc *ReqCtx) error {
 func getLogMsg(rc *ReqCtx) string {
 	msg := rc.LogInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
 	if !utils.IsBlank(reflect.ValueOf(rc.ReqParam)) {
-		rb, _ := json.Marshal(rc.ReqParam)
-		msg = msg + fmt.Sprintf("\n--> %s", string(rb))
+		msg = msg + fmt.Sprintf("\n--> %s", getDesc(rc.ReqParam))
 	}
 
 	// 返回结果不为空，则记录返回结果
 	if rc.LogInfo.LogResp && !utils.IsBlank(reflect.ValueOf(rc.ResData)) {
-		respB, _ := json.Marshal(rc.ResData)
-		msg = msg + fmt.Sprintf("\n<-- %s", string(respB))
+		msg = msg + fmt.Sprintf("\n<-- %s", getDesc(rc.ResData))
 	}
 	return msg
 }
@@ -89,8 +87,7 @@ func getLogMsg(rc *ReqCtx) string {
 func getErrMsg(rc *ReqCtx, err interface{}) string {
 	msg := rc.LogInfo.Description
 	if !utils.IsBlank(reflect.ValueOf(rc.ReqParam)) {
-		rb, _ := json.Marshal(rc.ReqParam)
-		msg = msg + fmt.Sprintf("\n--> %s", string(rb))
+		msg = msg + fmt.Sprintf("\n--> %s", getDesc(rc.ReqParam))
 	}
 
 	var errMsg string
@@ -103,4 +100,14 @@ func getErrMsg(rc *ReqCtx, err interface{}) string {
 		errMsg = fmt.Sprintf("\n<-e errMsg: %s\n%s", t, string(debug.Stack()))
 	}
 	return (msg + errMsg)
+}
+
+// 获取参数的日志描述
+func getDesc(param any) string {
+	if paramStr, ok := param.(string); ok {
+		return paramStr
+	}
+
+	rb, _ := json.Marshal(param)
+	return string(rb)
 }

@@ -116,7 +116,7 @@ const options = {
     cursorBlinking: 'smooth',// 光标闪烁样式
     mouseWheelZoom: true, // 在按住Ctrl键的同时使用鼠标滚轮时，在编辑器中缩放字体
     overviewRulerBorder: false, // 不要滚动条的边框
-    tabSize: 2, // tab 缩进长度
+    tabSize: 4, // tab 缩进长度
     fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
     fontWeight: 'bold',
     // fontSize: 12,

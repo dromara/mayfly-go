@@ -50,7 +50,7 @@ func InitRedisRouter(router *gin.RouterGroup) {
 		})
 
 		// 删除key
-		deleteKeyL := ctx.NewLogInfo("redis删除key").WithSave(true)
+		deleteKeyL := ctx.NewLogInfo("redis-删除key").WithSave(true)
 		redis.DELETE(":id/:db/key", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(deleteKeyL).Handle(rs.DeleteKey)
 		})
@@ -61,8 +61,9 @@ func InitRedisRouter(router *gin.RouterGroup) {
 		})
 
 		// 设置string类型值
+		setStringL := ctx.NewLogInfo("redis-setString").WithSave(true)
 		redis.POST(":id/:db/string-value", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.SetStringValue)
+			ctx.NewReqCtxWithGin(c).WithLog(setStringL).Handle(rs.SetStringValue)
 		})
 
 		// hscan
@@ -74,13 +75,15 @@ func InitRedisRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(rs.Hget)
 		})
 
+		hdelL := ctx.NewLogInfo("redis-hdel").WithSave(true)
 		redis.DELETE(":id/:db/hdel", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.Hdel)
+			ctx.NewReqCtxWithGin(c).WithLog(hdelL).Handle(rs.Hdel)
 		})
 
 		// 设置hash类型值
+		setHashValueL := ctx.NewLogInfo("redis-setHashValue").WithSave(true)
 		redis.POST(":id/:db/hash-value", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.SetHashValue)
+			ctx.NewReqCtxWithGin(c).WithLog(setHashValueL).Handle(rs.SetHashValue)
 		})
 
 		// 获取set类型值
