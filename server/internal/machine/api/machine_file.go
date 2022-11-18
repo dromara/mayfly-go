@@ -23,7 +23,6 @@ import (
 
 type MachineFile struct {
 	MachineFileApp application.MachineFile
-	MachineApp     application.Machine
 	MsgApp         sysApplication.Msg
 }
 
@@ -69,12 +68,15 @@ func (m *MachineFile) CreateFile(rc *ctx.ReqCtx) {
 	ginx.BindJsonAndValid(g, form)
 	path := form.Path
 
+	mi := m.MachineFileApp.GetMachine(fid)
 	if form.Type == dir {
 		m.MachineFileApp.MkDir(fid, form.Path)
+		rc.ReqParam = fmt.Sprintf("%s -> 创建目录: %s", mi.GetLogDesc(), path)
 	} else {
 		m.MachineFileApp.CreateFile(fid, form.Path)
+		rc.ReqParam = fmt.Sprintf("%s -> 创建文件: %s", mi.GetLogDesc(), path)
 	}
-	rc.ReqParam = fmt.Sprintf("path: %s, type: %s", path, form.Type)
+
 }
 
 func (m *MachineFile) ReadFileContent(rc *ctx.ReqCtx) {
@@ -92,16 +94,18 @@ func (m *MachineFile) ReadFileContent(rc *ctx.ReqCtx) {
 		biz.IsTrue(fileInfo.Size() < max_read_size, "文件超过1m，请使用下载查看")
 	}
 
-	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
+	mi := m.MachineFileApp.GetMachine(fid)
 	// 如果读取类型为下载，则下载文件，否则获取文件内容
 	if readType == "1" {
 		// 截取文件名，如/usr/local/test.java -》 test.java
 		path := strings.Split(readPath, "/")
 		rc.Download(sftpFile, path[len(path)-1])
+		rc.ReqParam = fmt.Sprintf("%s -> 下载文件: %s", mi.GetLogDesc(), readPath)
 	} else {
 		datas, err := io.ReadAll(sftpFile)
 		biz.ErrIsNilAppendErr(err, "读取文件内容失败: %s")
 		rc.ResData = string(datas)
+		rc.ReqParam = fmt.Sprintf("%s -> 查看文件: %s", mi.GetLogDesc(), readPath)
 	}
 }
 
@@ -140,7 +144,8 @@ func (m *MachineFile) WriteFileContent(rc *ctx.ReqCtx) {
 
 	m.MachineFileApp.WriteFileContent(fid, path, []byte(form.Content))
 
-	rc.ReqParam = fmt.Sprintf("path: %s", path)
+	mi := m.MachineFileApp.GetMachine(fid)
+	rc.ReqParam = fmt.Sprintf("%s -> 修改文件内容: %s", mi.GetLogDesc(), path)
 }
 
 func (m *MachineFile) UploadFile(rc *ctx.ReqCtx) {
@@ -153,6 +158,9 @@ func (m *MachineFile) UploadFile(rc *ctx.ReqCtx) {
 
 	file, _ := fileheader.Open()
 	rc.ReqParam = fmt.Sprintf("path: %s", path)
+
+	mi := m.MachineFileApp.GetMachine(fid)
+	rc.ReqParam = fmt.Sprintf("%s -> 上传文件: %s/%s", mi.GetLogDesc(), path, fileheader.Filename)
 
 	la := rc.LoginAccount
 	go func() {
@@ -167,8 +175,7 @@ func (m *MachineFile) UploadFile(rc *ctx.ReqCtx) {
 		defer file.Close()
 		m.MachineFileApp.UploadFile(fid, path, fileheader.Filename, file)
 		// 保存消息并发送文件上传成功通知
-		machine := m.MachineApp.GetById(m.MachineFileApp.GetById(fid).MachineId)
-		m.MsgApp.CreateAndSend(la, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件已成功上传至 %s[%s:%s]", fileheader.Filename, machine.Name, machine.Ip, path)))
+		m.MsgApp.CreateAndSend(la, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件已成功上传至 %s[%s:%s]", fileheader.Filename, mi.Name, mi.Ip, path)))
 	}()
 }
 
@@ -179,7 +186,8 @@ func (m *MachineFile) RemoveFile(rc *ctx.ReqCtx) {
 
 	m.MachineFileApp.RemoveFile(fid, path)
 
-	rc.ReqParam = fmt.Sprintf("path: %s", path)
+	mi := m.MachineFileApp.GetMachine(fid)
+	rc.ReqParam = fmt.Sprintf("%s -> 删除文件: %s", mi.GetLogDesc(), path)
 }
 
 func getFileType(fm fs.FileMode) string {

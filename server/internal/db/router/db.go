@@ -24,7 +24,7 @@ func InitDbRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(d.Dbs)
 		})
 
-		saveDb := ctx.NewLogInfo("保存数据库信息").WithSave(true)
+		saveDb := ctx.NewLogInfo("db-保存数据库信息").WithSave(true)
 		db.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(saveDb).
@@ -41,7 +41,7 @@ func InitDbRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(d.GetDbPwd)
 		})
 
-		deleteDb := ctx.NewLogInfo("删除数据库信息").WithSave(true)
+		deleteDb := ctx.NewLogInfo("db-删除数据库信息").WithSave(true)
 		db.DELETE(":dbId", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(deleteDb).
@@ -60,20 +60,20 @@ func InitDbRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(d.GetCreateTableDdl)
 		})
 
-		execSqlLog := ctx.NewLogInfo("执行Sql语句")
+		execSqlLog := ctx.NewLogInfo("db-执行Sql")
 		db.POST(":dbId/exec-sql", func(g *gin.Context) {
 			rc := ctx.NewReqCtxWithGin(g).WithLog(execSqlLog)
 			rc.Handle(d.ExecSql)
 		})
 
-		execSqlFileLog := ctx.NewLogInfo("执行Sql文件").WithSave(true)
+		execSqlFileLog := ctx.NewLogInfo("db-执行Sql文件").WithSave(true)
 		db.POST(":dbId/exec-sql-file", func(g *gin.Context) {
 			ctx.NewReqCtxWithGin(g).
 				WithLog(execSqlFileLog).
 				Handle(d.ExecSqlFile)
 		})
 
-		dumpLog := ctx.NewLogInfo("导出sql文件").WithSave(true)
+		dumpLog := ctx.NewLogInfo("db-导出sql文件").WithSave(true)
 		db.GET(":dbId/dump", func(g *gin.Context) {
 			ctx.NewReqCtxWithGin(g).
 				WithLog(dumpLog).

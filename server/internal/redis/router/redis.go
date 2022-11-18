@@ -22,7 +22,7 @@ func InitRedisRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(rs.RedisList)
 		})
 
-		save := ctx.NewLogInfo("保存redis信息").WithSave(true)
+		save := ctx.NewLogInfo("redis-保存信息").WithSave(true)
 		redis.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(save).Handle(rs.Save)
 		})
@@ -31,7 +31,7 @@ func InitRedisRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(rs.GetRedisPwd)
 		})
 
-		delRedis := ctx.NewLogInfo("删除redis信息").WithSave(true)
+		delRedis := ctx.NewLogInfo("redis-删除信息").WithSave(true)
 		redis.DELETE(":id", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(delRedis).Handle(rs.DeleteRedis)
 		})

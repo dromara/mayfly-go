@@ -195,6 +195,12 @@ func (m *Machine) WsSSH(g *gin.Context) {
 
 	mts, err := machine.NewTerminalSession(utils.RandString(16), wsConn, cli, rows, cols, recorder)
 	biz.ErrIsNilAppendErr(err, "\033[1;31m连接失败: %s\033[0m")
+
+	// 记录系统操作日志
+	rc.WithLog(ctx.NewLogInfo("机器-终端操作").WithSave(true))
+	rc.ReqParam = cli.GetMachine().GetLogDesc()
+	ctx.LogHandler(rc)
+
 	mts.Start()
 	defer mts.Stop()
 }

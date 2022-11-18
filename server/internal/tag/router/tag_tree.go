@@ -25,7 +25,7 @@ func InitTagTreeRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(m.GetAccountTags)
 		})
 
-		saveProjectTreeLog := ctx.NewLogInfo("保存标签树信息").WithSave(true)
+		saveProjectTreeLog := ctx.NewLogInfo("标签树-保存信息").WithSave(true)
 		savePP := ctx.NewPermission("tag:save")
 		// 保存项目树下的环境信息
 		project.POST("", func(c *gin.Context) {
@@ -34,7 +34,7 @@ func InitTagTreeRouter(router *gin.RouterGroup) {
 				Handle(m.SaveTagTree)
 		})
 
-		delProjectLog := ctx.NewLogInfo("删除标签树信息").WithSave(true)
+		delProjectLog := ctx.NewLogInfo("标签树-删除信息").WithSave(true)
 		delPP := ctx.NewPermission("tag:del")
 		// 删除标签
 		project.DELETE(":id", func(c *gin.Context) {

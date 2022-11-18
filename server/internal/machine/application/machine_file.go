@@ -28,6 +28,9 @@ type MachineFile interface {
 
 	Delete(id uint64)
 
+	// 获取文件关联的机器信息，主要用于记录日志使用
+	GetMachine(fileId uint64) *entity.Machine
+
 	/**  sftp 相关操作 **/
 
 	// 创建目录
@@ -188,10 +191,14 @@ func (m *machineFileAppImpl) getSftpCli(machineId uint64) *sftp.Client {
 	return GetMachineApp().GetCli(machineId).GetSftpCli()
 }
 
+func (m *machineFileAppImpl) GetMachine(fileId uint64) *entity.Machine {
+	return GetMachineApp().GetCli(m.GetById(fileId).MachineId).GetMachine()
+}
+
 // 校验并返回实际可访问的文件path
 func (m *machineFileAppImpl) checkAndReturnPathMid(fid uint64, inputPath string) (string, uint64) {
 	biz.IsTrue(fid != 0, "文件id不能为空")
-	mf := m.GetById(uint64(fid))
+	mf := m.GetById(fid)
 	biz.NotNil(mf, "文件不存在")
 	if inputPath != "" {
 		// 接口传入的地址需为配置路径的子路径

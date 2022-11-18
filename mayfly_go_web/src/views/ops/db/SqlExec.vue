@@ -362,7 +362,7 @@ const getThemeConfig: any = computed(() => {
     return store.state.themeConfig.themeConfig;
 });
 
-let monacoEditor = {} as editor.IStandaloneCodeEditor;
+let monacoEditor: editor.IStandaloneCodeEditor = null;
 let completionItemProvider: any = null;
 
 self.MonacoEnvironment = {

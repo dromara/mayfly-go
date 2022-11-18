@@ -23,14 +23,14 @@ func InitMongoRouter(router *gin.RouterGroup) {
 				Handle(ma.Mongos)
 		})
 
-		saveMongo := ctx.NewLogInfo("保存mongo信息")
+		saveMongo := ctx.NewLogInfo("mongo-保存信息")
 		m.POST("", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(saveMongo).
 				Handle(ma.Save)
 		})
 
-		deleteMongo := ctx.NewLogInfo("删除mongo信息")
+		deleteMongo := ctx.NewLogInfo("mongo-删除信息")
 		m.DELETE(":id", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).
 				WithLog(deleteMongo).

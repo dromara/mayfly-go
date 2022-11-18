@@ -23,7 +23,7 @@ func InitMachineScriptRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(ms.MachineScripts)
 		})
 
-		saveMachienScriptLog := ctx.NewLogInfo("保存脚本").WithSave(true)
+		saveMachienScriptLog := ctx.NewLogInfo("机器-保存脚本").WithSave(true)
 		smsP := ctx.NewPermission("machine:script:save")
 		// 保存脚本
 		machines.POST(":machineId/scripts", func(c *gin.Context) {
@@ -32,7 +32,7 @@ func InitMachineScriptRouter(router *gin.RouterGroup) {
 				Handle(ms.SaveMachineScript)
 		})
 
-		deleteLog := ctx.NewLogInfo("删除脚本").WithSave(true)
+		deleteLog := ctx.NewLogInfo("机器-删除脚本").WithSave(true)
 		dP := ctx.NewPermission("machine:script:del")
 		// 保存脚本
 		machines.DELETE(":machineId/scripts/:scriptId", func(c *gin.Context) {
@@ -41,7 +41,7 @@ func InitMachineScriptRouter(router *gin.RouterGroup) {
 				Handle(ms.DeleteMachineScript)
 		})
 
-		runLog := ctx.NewLogInfo("执行机器脚本").WithSave(true)
+		runLog := ctx.NewLogInfo("机器-执行脚本").WithSave(true)
 		rP := ctx.NewPermission("machine:script:run")
 		// 运行脚本
 		machines.GET(":machineId/scripts/:scriptId/run", func(c *gin.Context) {

@@ -93,7 +93,7 @@ func (r *redisAppImpl) Save(re *entity.Redis) {
 			biz.IsTrue(oldRedis.Id == re.Id, "该实例已存在")
 		}
 		// 如果修改了redis实例的库信息，则关闭旧库的连接
-		if oldRedis.Db != re.Db {
+		if oldRedis.Db != re.Db || oldRedis.SshTunnelMachineId != re.SshTunnelMachineId {
 			for _, dbStr := range strings.Split(oldRedis.Db, ",") {
 				db, _ := strconv.Atoi(dbStr)
 				CloseRedis(re.Id, db)
@@ -171,8 +171,15 @@ func getRedisCacheKey(id uint64, db int) string {
 	return fmt.Sprintf("%d/%d", id, db)
 }
 
+func toRedisInfo(re *entity.Redis, db int) *RedisInfo {
+	redisInfo := new(RedisInfo)
+	utils.Copy(redisInfo, re)
+	redisInfo.Db = db
+	return redisInfo
+}
+
 func getRedisCient(re *entity.Redis, db int) *RedisInstance {
-	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, db), TagPath: re.TagPath, Mode: re.Mode}
+	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, db), Info: toRedisInfo(re, db)}
 
 	redisOptions := &redis.Options{
 		Addr:         re.Host,
@@ -183,7 +190,6 @@ func getRedisCient(re *entity.Redis, db int) *RedisInstance {
 		WriteTimeout: -1,
 	}
 	if re.EnableSshTunnel == 1 {
-		ri.sshTunnelMachineId = re.SshTunnelMachineId
 		redisOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)
 	}
 	ri.Cli = redis.NewClient(redisOptions)
@@ -191,7 +197,7 @@ func getRedisCient(re *entity.Redis, db int) *RedisInstance {
 }
 
 func getRedisClusterClient(re *entity.Redis) *RedisInstance {
-	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, 0), TagPath: re.TagPath, Mode: re.Mode}
+	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, 0), Info: toRedisInfo(re, 0)}
 
 	redisClusterOptions := &redis.ClusterOptions{
 		Addrs:       strings.Split(re.Host, ","),
@@ -199,7 +205,6 @@ func getRedisClusterClient(re *entity.Redis) *RedisInstance {
 		DialTimeout: 8 * time.Second,
 	}
 	if re.EnableSshTunnel == 1 {
-		ri.sshTunnelMachineId = re.SshTunnelMachineId
 		redisClusterOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)
 	}
 	ri.ClusterCli = redis.NewClusterClient(redisClusterOptions)
@@ -207,7 +212,7 @@ func getRedisClusterClient(re *entity.Redis) *RedisInstance {
 }
 
 func getRedisSentinelCient(re *entity.Redis, db int) *RedisInstance {
-	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, db), TagPath: re.TagPath, Mode: re.Mode}
+	ri := &RedisInstance{Id: getRedisCacheKey(re.Id, db), Info: toRedisInfo(re, db)}
 	// sentinel模式host为 masterName=host:port,host:port
 	masterNameAndHosts := strings.Split(re.Host, "=")
 	sentinelOptions := &redis.FailoverOptions{
@@ -220,7 +225,6 @@ func getRedisSentinelCient(re *entity.Redis, db int) *RedisInstance {
 		WriteTimeout:  -1,
 	}
 	if re.EnableSshTunnel == 1 {
-		ri.sshTunnelMachineId = re.SshTunnelMachineId
 		sentinelOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)
 	}
 	ri.Cli = redis.NewFailoverClient(sentinelOptions)
@@ -259,7 +263,7 @@ func init() {
 		// 遍历所有redis连接实例，若存在redis实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := redisCache.Items()
 		for _, v := range items {
-			if v.Value.(*RedisInstance).sshTunnelMachineId == machineId {
+			if v.Value.(*RedisInstance).Info.SshTunnelMachineId == machineId {
 				return true
 			}
 		}
@@ -291,20 +295,35 @@ func TestRedisConnection(re *entity.Redis) {
 	biz.ErrIsNilAppendErr(e, "Redis连接失败: %s")
 }
 
+type RedisInfo struct {
+	Id      uint64
+	Host    string
+	Db      int // 库号
+	TagPath string
+	Mode    string
+	Name    string
+
+	SshTunnelMachineId uint64
+}
+
+// 获取记录日志的描述
+func (r *RedisInfo) GetLogDesc() string {
+	return fmt.Sprintf("Redis[id=%d, tag=%s, host=%s, db=%d]", r.Id, r.TagPath, r.Host, r.Db)
+}
+
 // redis实例
 type RedisInstance struct {
-	Id                 string
-	TagPath            string
-	Mode               string
-	Cli                *redis.Client
-	ClusterCli         *redis.ClusterClient
-	sshTunnelMachineId uint64
+	Id   string
+	Info *RedisInfo
+
+	Cli        *redis.Client
+	ClusterCli *redis.ClusterClient
 }
 
 // 获取命令执行接口的具体实现
 func (r *RedisInstance) GetCmdable() redis.Cmdable {
-	redisMode := r.Mode
-	if redisMode == "" || redisMode == entity.RedisModeStandalone || r.Mode == entity.RedisModeSentinel {
+	redisMode := r.Info.Mode
+	if redisMode == "" || redisMode == entity.RedisModeStandalone || r.Info.Mode == entity.RedisModeSentinel {
 		return r.Cli
 	}
 	if redisMode == entity.RedisModeCluster {
@@ -320,13 +339,14 @@ func (r *RedisInstance) Scan(cursor uint64, match string, count int64) ([]string
 }
 
 func (r *RedisInstance) Close() {
-	if r.Mode == entity.RedisModeStandalone || r.Mode == entity.RedisModeSentinel {
+	mode := r.Info.Mode
+	if mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
 		if err := r.Cli.Close(); err != nil {
 			global.Log.Errorf("关闭redis单机实例[%d]连接失败: %s", r.Id, err.Error())
 		}
 		r.Cli = nil
 	}
-	if r.Mode == entity.RedisModeCluster {
+	if mode == entity.RedisModeCluster {
 		if err := r.ClusterCli.Close(); err != nil {
 			global.Log.Errorf("关闭redis集群实例[%d]连接失败: %s", r.Id, err.Error())
 		}

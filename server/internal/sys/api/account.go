@@ -71,7 +71,7 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 	// 保存登录消息
 	go a.saveLogin(account, clientIp)
 
-	rc.ReqParam = fmt.Sprintln("登录ip: ", clientIp)
+	rc.ReqParam = fmt.Sprintf("登录ip: %s", clientIp)
 	// 赋值loginAccount 主要用于记录操作日志，因为操作日志保存请求上下文没有该信息不保存日志
 	rc.LoginAccount = &model.LoginAccount{Id: account.Id, Username: account.Username}
 

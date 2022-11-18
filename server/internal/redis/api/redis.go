@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/api/vo"
 	"mayfly-go/internal/redis/application"
@@ -78,10 +79,11 @@ func (r *Redis) RedisInfo(rc *ctx.ReqCtx) {
 	var res string
 	var err error
 
+	mode := ri.Info.Mode
 	ctx := context.Background()
-	if ri.Mode == "" || ri.Mode == entity.RedisModeStandalone || ri.Mode == entity.RedisModeSentinel {
+	if mode == "" || mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
 		res, err = ri.Cli.Info(ctx).Result()
-	} else if ri.Mode == entity.RedisModeCluster {
+	} else if mode == entity.RedisModeCluster {
 		host := rc.GinCtx.Query("host")
 		biz.NotEmpty(host, "集群模式host信息不能为空")
 		clusterClient := ri.ClusterCli
@@ -145,7 +147,7 @@ func (r *Redis) RedisInfo(rc *ctx.ReqCtx) {
 func (r *Redis) ClusterInfo(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
-	biz.IsEquals(ri.Mode, entity.RedisModeCluster, "非集群模式")
+	biz.IsEquals(ri.Info.Mode, entity.RedisModeCluster, "非集群模式")
 	info, _ := ri.ClusterCli.ClusterInfo(context.Background()).Result()
 	nodesStr, _ := ri.ClusterCli.ClusterNodes(context.Background()).Result()
 
@@ -190,7 +192,7 @@ func (r *Redis) ClusterInfo(rc *ctx.ReqCtx) {
 func (r *Redis) Scan(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.TagPath), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
 
 	form := &form.RedisScanForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
@@ -201,7 +203,8 @@ func (r *Redis) Scan(rc *ctx.ReqCtx) {
 	kis := make([]*vo.KeyInfo, 0)
 	var cursorRes map[string]uint64 = make(map[string]uint64)
 
-	if ri.Mode == "" || ri.Mode == entity.RedisModeStandalone || ri.Mode == entity.RedisModeSentinel {
+	mode := ri.Info.Mode
+	if mode == "" || ri.Info.Mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
 		redisAddr := ri.Cli.Options().Addr
 		keys, cursor := ri.Scan(form.Cursor[redisAddr], form.Match, form.Count)
 		cursorRes[redisAddr] = cursor
@@ -228,7 +231,7 @@ func (r *Redis) Scan(rc *ctx.ReqCtx) {
 			ki := &vo.KeyInfo{Key: k, Type: ttlType[1], Ttl: int64(ttl)}
 			kis = append(kis, ki)
 		}
-	} else if ri.Mode == entity.RedisModeCluster {
+	} else if mode == entity.RedisModeCluster {
 		var keys []string
 
 		mu := &sync.Mutex{}
@@ -269,9 +272,9 @@ func (r *Redis) DeleteKey(rc *ctx.ReqCtx) {
 	biz.NotEmpty(key, "key不能为空")
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.TagPath), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
 
-	rc.ReqParam = key
+	rc.ReqParam = fmt.Sprintf("%s -> 删除key: %s", ri.Info.GetLogDesc(), key)
 	ri.GetCmdable().Del(context.Background(), key)
 }
 
@@ -281,7 +284,7 @@ func (r *Redis) checkKey(rc *ctx.ReqCtx) (*application.RedisInstance, string) {
 	biz.NotEmpty(key, "key不能为空")
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.TagPath), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
 
 	return ri, key
 }
@@ -297,10 +300,11 @@ func (r *Redis) SetStringValue(rc *ctx.ReqCtx) {
 	g := rc.GinCtx
 	keyValue := new(form.StringValue)
 	ginx.BindJsonAndValid(g, keyValue)
-	rc.ReqParam = keyValue
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.TagPath), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
+
+	rc.ReqParam = fmt.Sprintf("%s -> %s", ri.Info.GetLogDesc(), utils.ToString(keyValue))
 
 	str, err := ri.GetCmdable().Set(context.TODO(), keyValue.Key, keyValue.Value, time.Second*time.Duration(keyValue.Timed)).Result()
 	biz.ErrIsNilAppendErr(err, "保存字符串值失败: %s")
@@ -352,7 +356,7 @@ func (r *Redis) SetHashValue(rc *ctx.ReqCtx) {
 	ginx.BindJsonAndValid(g, hashValue)
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.TagPath), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
 
 	cmd := ri.GetCmdable()
 	key := hashValue.Key
@@ -379,7 +383,7 @@ func (r *Redis) SetSetValue(rc *ctx.ReqCtx) {
 	ginx.BindJsonAndValid(g, keyvalue)
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.TagPath), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
 	cmd := ri.GetCmdable()
 
 	key := keyvalue.Key
@@ -418,7 +422,7 @@ func (r *Redis) SaveListValue(rc *ctx.ReqCtx) {
 	ginx.BindJsonAndValid(g, listValue)
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.TagPath), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
 	cmd := ri.GetCmdable()
 
 	key := listValue.Key
@@ -438,7 +442,7 @@ func (r *Redis) SetListValue(rc *ctx.ReqCtx) {
 	ginx.BindJsonAndValid(g, listSetValue)
 
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.TagPath), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
 
 	_, err := ri.GetCmdable().LSet(context.TODO(), listSetValue.Key, listSetValue.Index, listSetValue.Value).Result()
 	biz.ErrIsNilAppendErr(err, "list set失败: %s")

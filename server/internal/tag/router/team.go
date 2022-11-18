@@ -23,7 +23,7 @@ func InitTeamRouter(router *gin.RouterGroup) {
 			ctx.NewReqCtxWithGin(c).Handle(m.GetTeams)
 		})
 
-		saveProjectTeamLog := ctx.NewLogInfo("保存项目团队信息").WithSave(true)
+		saveProjectTeamLog := ctx.NewLogInfo("团队-保存信息").WithSave(true)
 		savePP := ctx.NewPermission("team:save")
 		// 保存项目团队信息
 		project.POST("", func(c *gin.Context) {
@@ -32,7 +32,7 @@ func InitTeamRouter(router *gin.RouterGroup) {
 				Handle(m.SaveTeam)
 		})
 
-		delProjectTeamLog := ctx.NewLogInfo("删除项目团队信息").WithSave(true)
+		delProjectTeamLog := ctx.NewLogInfo("团队-删除信息").WithSave(true)
 		delPP := ctx.NewPermission("team:del")
 		project.DELETE(":id", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(delProjectTeamLog).
@@ -46,7 +46,7 @@ func InitTeamRouter(router *gin.RouterGroup) {
 		})
 
 		// 保存团队成员
-		saveProjectTeamMemLog := ctx.NewLogInfo("新增团队成员").WithSave(true)
+		saveProjectTeamMemLog := ctx.NewLogInfo("团队-新增成员").WithSave(true)
 		savePmP := ctx.NewPermission("team:member:save")
 		project.POST("/:id/members", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(saveProjectTeamMemLog).
@@ -55,7 +55,7 @@ func InitTeamRouter(router *gin.RouterGroup) {
 		})
 
 		// 删除团队成员
-		delProjectTeamMemLog := ctx.NewLogInfo("删除团队成员").WithSave(true)
+		delProjectTeamMemLog := ctx.NewLogInfo("团队-删除成员").WithSave(true)
 		savePmdP := ctx.NewPermission("team:member:del")
 		project.DELETE("/:id/members/:accountId", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).WithLog(delProjectTeamMemLog).
@@ -69,7 +69,7 @@ func InitTeamRouter(router *gin.RouterGroup) {
 		})
 
 		// 保存团队标签关联信息
-		saveTeamTagLog := ctx.NewLogInfo("保存团队标签关联信息").WithSave(true)
+		saveTeamTagLog := ctx.NewLogInfo("团队-保存标签关联信息").WithSave(true)
 		saveTeamTagP := ctx.NewPermission("team:tag:save")
 		project.POST("/:id/tags", func(c *gin.Context) {
 			ctx.NewReqCtxWithGin(c).

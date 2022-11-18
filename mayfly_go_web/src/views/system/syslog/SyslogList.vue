@@ -28,7 +28,7 @@
                 </el-table-column>
                 <el-table-column prop="description" label="描述" min-width="160" show-overflow-tooltip></el-table-column>
 
-                <el-table-column prop="reqParam" label="请求信息" min-width="300" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="reqParam" label="操作信息" min-width="300" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="resp" label="响应信息" min-width="200" show-overflow-tooltip></el-table-column>
             </el-table>
             <el-row style="margin-top: 20px" type="flex" justify="end">

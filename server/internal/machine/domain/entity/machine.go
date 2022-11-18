@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"fmt"
 	"mayfly-go/internal/common/utils"
 	"mayfly-go/pkg/model"
 )
@@ -38,4 +39,9 @@ func (m *Machine) PwdEncrypt() {
 func (m *Machine) PwdDecrypt() {
 	// 密码替换为解密后的密码
 	m.Password = utils.PwdAesDecrypt(m.Password)
+}
+
+// 获取记录日志的描述
+func (m *Machine) GetLogDesc() string {
+	return fmt.Sprintf("Machine[id=%d, tag=%s, name=%s, ip=%s:%d]", m.Id, m.TagPath, m.Name, m.Ip, m.Port)
 }

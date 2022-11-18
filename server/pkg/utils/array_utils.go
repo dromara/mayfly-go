@@ -48,5 +48,4 @@ func NumberArr2StrArr[T NumT](numberArr []T) []string {
 		strArr = append(strArr, fmt.Sprintf("%d", v))
 	}
 	return strArr
-
 }

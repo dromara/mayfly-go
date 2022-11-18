@@ -176,10 +176,12 @@ func (d *dbAppImpl) GetDatabases(ed *entity.Db) []string {
 var mutex sync.Mutex
 
 func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
+	cacheKey := GetDbCacheKey(id, db)
+
 	// Id不为0，则为需要缓存
 	needCache := id != 0
 	if needCache {
-		load, ok := dbCache.Get(GetDbCacheKey(id, db))
+		load, ok := dbCache.Get(cacheKey)
 		if ok {
 			return load.(*DbInstance)
 		}
@@ -193,8 +195,10 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	biz.NotNil(d, "数据库信息不存在")
 	biz.IsTrue(strings.Contains(d.Database, db), "未配置该库的操作权限")
 
-	cacheKey := GetDbCacheKey(id, db)
-	dbi := &DbInstance{Id: cacheKey, Type: d.Type, TagPath: d.TagPath, sshTunnelMachineId: d.SshTunnelMachineId}
+	dbInfo := new(DbInfo)
+	utils.Copy(dbInfo, d)
+	dbInfo.Database = db
+	dbi := &DbInstance{Id: cacheKey, Info: dbInfo}
 
 	DB, err := GetDbConn(d, db)
 	if err != nil {
@@ -220,13 +224,31 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 
 //----------------------------------------  db instance  ------------------------------------
 
+type DbInfo struct {
+	Id                 uint64
+	Name               string
+	Type               string // 类型，mysql oracle等
+	Host               string
+	Port               int
+	Network            string
+	Username           string
+	TagPath            string
+	Database           string
+	EnableSshTunnel    int8 // 是否启用ssh隧道
+	SshTunnelMachineId uint64
+}
+
+// 获取记录日志的描述
+func (d *DbInfo) GetLogDesc() string {
+	return fmt.Sprintf("DB[id=%d, tag=%s, name=%s, ip=%s:%d, database=%s]", d.Id, d.TagPath, d.Name, d.Host, d.Port, d.Database)
+}
+
 // db实例
 type DbInstance struct {
-	Id                 string
-	Type               string
-	TagPath            string
-	db                 *sql.DB
-	sshTunnelMachineId uint64
+	Id   string
+	Info *DbInfo
+
+	db *sql.DB
 }
 
 // 执行查询语句
@@ -259,7 +281,7 @@ func (d *DbInstance) Exec(sql string) (int64, error) {
 
 // 获取数据库元信息实现接口
 func (di *DbInstance) GetMeta() DbMetadata {
-	dbType := di.Type
+	dbType := di.Info.Type
 	if dbType == entity.DbTypeMysql {
 		return &MysqlMetadata{di: di}
 	}
@@ -297,7 +319,7 @@ func init() {
 		// 遍历所有db连接实例，若存在db实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := dbCache.Items()
 		for _, v := range items {
-			if v.Value.(*DbInstance).sshTunnelMachineId == machineId {
+			if v.Value.(*DbInstance).Info.SshTunnelMachineId == machineId {
 				return true
 			}
 		}

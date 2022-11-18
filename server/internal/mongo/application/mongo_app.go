@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"mayfly-go/internal/constant"
 	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/infrastructure/machine"
@@ -111,7 +112,7 @@ func init() {
 		// 遍历所有mongo连接实例，若存在redis实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := mongoCliCache.Items()
 		for _, v := range items {
-			if v.Value.(*MongoInstance).sshTunnelMachineId == machineId {
+			if v.Value.(*MongoInstance).Info.SshTunnelMachineId == machineId {
 				return true
 			}
 		}
@@ -139,11 +140,22 @@ func DeleteMongoCache(mongoId uint64) {
 	mongoCliCache.Delete(mongoId)
 }
 
-type MongoInstance struct {
+type MongoInfo struct {
 	Id                 uint64
+	Name               string
 	TagPath            string
-	Cli                *mongo.Client
-	sshTunnelMachineId uint64
+	SshTunnelMachineId uint64 // ssh隧道机器id
+}
+
+func (m *MongoInfo) GetLogDesc() string {
+	return fmt.Sprintf("Mongo[id=%d, tag=%s, name=%s]", m.Id, m.TagPath, m.Name)
+}
+
+type MongoInstance struct {
+	Id   uint64
+	Info *MongoInfo
+
+	Cli *mongo.Client
 }
 
 func (mi *MongoInstance) Close() {
@@ -160,13 +172,12 @@ func connect(me *entity.Mongo) (*MongoInstance, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	mongoInstance := &MongoInstance{Id: me.Id, TagPath: me.TagPath}
+	mongoInstance := &MongoInstance{Id: me.Id, Info: toMongiInfo(me)}
 
 	mongoOptions := options.Client().ApplyURI(me.Uri).
 		SetMaxPoolSize(1)
 	// 启用ssh隧道则连接隧道机器
 	if me.EnableSshTunnel == 1 {
-		mongoInstance.sshTunnelMachineId = me.SshTunnelMachineId
 		mongoOptions.SetDialer(&MongoSshDialer{machineId: me.SshTunnelMachineId})
 	}
 
@@ -186,6 +197,12 @@ func connect(me *entity.Mongo) (*MongoInstance, error) {
 	}(me.Uri))
 	mongoInstance.Cli = client
 	return mongoInstance, err
+}
+
+func toMongiInfo(me *entity.Mongo) *MongoInfo {
+	mi := new(MongoInfo)
+	utils.Copy(mi, me)
+	return mi
 }
 
 type MongoSshDialer struct {

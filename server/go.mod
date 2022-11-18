@@ -15,7 +15,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
 	go.mongodb.org/mongo-driver v1.9.1 // mongo
-	golang.org/x/crypto v0.2.0 // ssh
+	golang.org/x/crypto v0.3.0 // ssh
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
 	gorm.io/driver/mysql v1.4.1

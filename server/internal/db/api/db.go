@@ -126,9 +126,9 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	id := GetDbId(g)
 	db := form.Db
 	dbInstance := d.DbApp.GetDbInstance(id, db)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.TagPath), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
 
-	rc.ReqParam = fmt.Sprintf("db: %d:%s | sql: %s", id, db, form.Sql)
+	rc.ReqParam = fmt.Sprintf("%s -> sql: %s", dbInstance.Info.GetLogDesc(), form.Sql)
 	biz.NotEmpty(form.Sql, "sql不能为空")
 
 	// 去除前后空格及换行符
@@ -195,7 +195,7 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 			}
 		}()
 
-		biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, db.TagPath), "%s")
+		biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, db.Info.TagPath), "%s")
 
 		tokens := sqlparser.NewTokenizer(file)
 		for {
@@ -229,7 +229,7 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 	needData := dumpType == "2" || dumpType == "3"
 
 	dbInstance := d.DbApp.GetDbInstance(dbId, db)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.TagPath), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
 
 	now := time.Now()
 	filename := fmt.Sprintf("%s.%s.sql", db, now.Format("200601021504"))
@@ -275,7 +275,7 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 		}
 
 		var sqlTmp string
-		switch dbInstance.Type {
+		switch dbInstance.Info.Type {
 		case entity.DbTypeMysql:
 			sqlTmp = "SELECT * FROM %s LIMIT %d, %d"
 		case entity.DbTypePostgres:
@@ -315,7 +315,7 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 // @router /api/db/:dbId/t-metadata [get]
 func (d *Db) TableMA(rc *ctx.ReqCtx) {
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbi.TagPath), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbi.Info.TagPath), "%s")
 	rc.ResData = dbi.GetMeta().GetTables()
 }
 
