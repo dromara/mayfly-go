@@ -246,7 +246,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, computed, toRefs, reactive, ref, watch } from 'vue';
+import {onMounted, computed, toRefs, reactive, ref, watch} from 'vue';
 import { dbApi } from './api';
 
 import { format as sqlFormatter } from 'sql-formatter';
@@ -264,7 +264,7 @@ import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/my
 import * as monaco from 'monaco-editor';
 import { editor, languages, Position } from 'monaco-editor';
 
-// 主题仓库 https://github.com/brijeshb42/monaco-themes 
+// 主题仓库 https://github.com/brijeshb42/monaco-themes
 // 主题例子 https://editor.bitwiser.in/
 import SolarizedLight from 'monaco-themes/themes/Solarized-light.json'
 import { Minus } from '@element-plus/icons-vue';
@@ -362,8 +362,7 @@ const getThemeConfig: any = computed(() => {
     return store.state.themeConfig.themeConfig;
 });
 
-let monacoEditor: editor.IStandaloneCodeEditor = null;
-let completionItemProvider: any = null;
+let monacoEditor = {} as editor.IStandaloneCodeEditor;
 
 self.MonacoEnvironment = {
     getWorker() {
@@ -387,7 +386,7 @@ const initMonacoEditor = () => {
         mouseWheelZoom: true, // 在按住Ctrl键的同时使用鼠标滚轮时，在编辑器中缩放字体
         overviewRulerBorder: false, // 不要滚动条的边框
         tabSize: 2, // tab 缩进长度
-        fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
+        // fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
         fontWeight: 'bold',
         // letterSpacing: 1, 字符间距
         // quickSuggestions:false, // 禁用代码提示
@@ -402,14 +401,14 @@ const initMonacoEditor = () => {
         // A label of the action that will be presented to the user.
         label: '执行SQL',
         // A precondition for this action.
-        precondition: null,
+        precondition: undefined,
         // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
-        keybindingContext: null,
+        keybindingContext: undefined,
         keybindings: [
             // chord
             monaco.KeyMod.chord(
                 monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyR
-            )
+            , 0)
         ],
         contextMenuGroupId: 'navigation',
         contextMenuOrder: 1.5,
@@ -430,14 +429,14 @@ const initMonacoEditor = () => {
         // A label of the action that will be presented to the user.
         label: '格式化SQL',
         // A precondition for this action.
-        precondition: null,
+        precondition: undefined,
         // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
-        keybindingContext: null,
+        keybindingContext: undefined,
         keybindings: [
             // chord
             monaco.KeyMod.chord(
                 monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF
-            )
+            ,0)
         ],
         contextMenuGroupId: 'navigation',
         contextMenuOrder: 2,
@@ -456,10 +455,9 @@ const initMonacoEditor = () => {
     // monaco.editor.setTheme('hc-black');
 
     // 参考 https://microsoft.github.io/monaco-editor/playground.html#extending-language-services-completion-provider-example
-    completionItemProvider = monaco.languages.registerCompletionItemProvider('sql', {
+    self.completionItemProvider = monaco.languages.registerCompletionItemProvider('sql', {
         triggerCharacters: ['.'],
         provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
-
             let word = model.getWordUntilPosition(position);
             const { lineNumber, column } = position
             const { startColumn, endColumn } = word
@@ -554,7 +552,7 @@ const initMonacoEditor = () => {
                             },
                             kind: monaco.languages.CompletionItemKind.Property,
                             detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                            insertText: fieldName + ' ', // create_time 
+                            insertText: fieldName + ' ', // create_time
                             range,
                             sortText: 100 + index + '' // 使用表字段声明顺序排序,排序需为字符串类型
                         });
@@ -579,7 +577,7 @@ const initMonacoEditor = () => {
                     range
                 });
             })
-            // 操作符 
+            // 操作符
             sqlLanguage.operators.forEach((item: any) => {
                 suggestions.push({
                     label: {
@@ -667,7 +665,7 @@ const getTableByAlias = (sql: string, db: string, alias: string): { dbName: stri
     // 正则匹配取出表名和表别名
     // 测试sql
     /*
-    
+
     `select * from database.Outvisit l
 left join patient p on l.patid=p.patientid
 join patstatic c on   l.patid=c.patid inner join patphone  ph  on l.patid=ph.patid
@@ -701,6 +699,7 @@ select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(
 }
 
 onMounted(() => {
+  self.completionItemProvider?.dispose()
     setHeight();
     initMonacoEditor();
     // 监听浏览器窗口大小变化,更新对应组件高度
@@ -1001,7 +1000,7 @@ const getColumnTip = (tableName: string, columnName: string) => {
 const getSql = () => {
     let res = '' as string | undefined;
     // 编辑器还没初始化
-    if (!monacoEditor.getModel) {
+    if (!monacoEditor?.getModel) {
         return res;
     }
     // 选择选中的sql
@@ -1435,7 +1434,7 @@ const cellClick = (row: any, column: any, cell: any) => {
                 const primaryKeyColumnName = primaryKey.columnName;
                 // 更新字段列信息
                 const updateColumn = await getColumn(state.nowTableName, column.rawColumnKey);
-                const sql = `UPDATE ${state.nowTableName} SET ${column.rawColumnKey} = ${wrapColumnValue(updateColumn, input.value)} 
+                const sql = `UPDATE ${state.nowTableName} SET ${column.rawColumnKey} = ${wrapColumnValue(updateColumn, input.value)}
                                         WHERE ${primaryKeyColumnName} = ${wrapColumnValue(primaryKey, row[primaryKeyColumnName])}`;
                 promptExeSql(sql, () => {
                     // 还原值
@@ -1514,6 +1513,9 @@ const addRow = async () => {
  */
 const formatSql = () => {
     let selection = monacoEditor.getSelection()
+    if(!selection){
+      return;
+    }
     let sql = monacoEditor.getModel()?.getValueInRange(selection)
     // 有选中sql则格式化并替换选中sql, 否则格式化编辑器所有内容
     if (sql) {
@@ -1527,12 +1529,15 @@ const formatSql = () => {
  * 替换选中的内容
  */
 const replaceSelection = (str: string, selection: any) => {
+    const model = monacoEditor.getModel();
+    if(!model){
+      return;
+    }
     if (!selection) {
-        monacoEditor.getModel().setValue(str);
+        model.setValue(str);
         return;
     }
     const { startLineNumber, endLineNumber, startColumn, endColumn } = selection
-    const model = monacoEditor.getModel();
 
     const textBeforeSelection = model.getValueInRange({
         startLineNumber: 1,
