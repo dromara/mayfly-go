@@ -128,7 +128,7 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	dbInstance := d.DbApp.GetDbInstance(id, db)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
 
-	rc.ReqParam = fmt.Sprintf("%s -> sql: %s", dbInstance.Info.GetLogDesc(), form.Sql)
+	rc.ReqParam = fmt.Sprintf("%s -> %s", dbInstance.Info.GetLogDesc(), form.Sql)
 	biz.NotEmpty(form.Sql, "sql不能为空")
 
 	// 去除前后空格及换行符

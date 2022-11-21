@@ -83,7 +83,7 @@ export default defineComponent({
             () => route.path,
             () => {
                 initCurrentRouteMeta(route.meta);
-                proxy.$refs.layoutScrollbarRef.wrap$.scrollTop = 0;
+                proxy.$refs.layoutScrollbarRef.wrapRef.scrollTop = 0;
             }
         );
         return {

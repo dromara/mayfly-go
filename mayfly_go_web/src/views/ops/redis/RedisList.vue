@@ -25,19 +25,18 @@
                 <el-table-column prop="host" label="host:port" min-width="150" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="mode" label="mode" min-width="100"></el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="createTime" label="创建时间" min-width="160">
-                    <template #default="scope">
-                        {{ dateFormat(scope.row.createTime) }}
-                    </template>
-                </el-table-column>
-                <el-table-column prop="creator" label="创建人" min-width="100"></el-table-column>
+
                 <el-table-column label="更多" min-width="155" fixed="right">
                     <template #default="scope">
+                        <el-link @click="showDetail(scope.row)" :underline="false">详情</el-link>
+                        <el-divider direction="vertical" border-style="dashed" />
+
                         <el-link v-if="scope.row.mode === 'standalone' || scope.row.mode === 'sentinel'" type="primary"
                             @click="showInfoDialog(scope.row)" :underline="false">单机信息</el-link>
                         <el-link @click="onShowClusterInfo(scope.row)" v-if="scope.row.mode === 'cluster'"
-                            type="success" :underline="false">集群信息</el-link>
+                            type="primary" :underline="false">集群信息</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
+
                         <el-link @click="openDataOpt(scope.row)" type="success" :underline="false">数据操作</el-link>
                     </template>
                 </el-table-column>
@@ -78,8 +77,9 @@
                         </el-tooltip>
                     </template>
                     <template #default="scope">
-                        <el-tag @click="showInfoDialog({ id: clusterInfoDialog.redisId, ip: scope.row.ip })" effect="plain"
-                            type="success" size="small" style="cursor: pointer">{{ scope.row.ip }}</el-tag>
+                        <el-tag @click="showInfoDialog({ id: clusterInfoDialog.redisId, ip: scope.row.ip })"
+                            effect="plain" type="success" size="small" style="cursor: pointer">{{ scope.row.ip }}
+                        </el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column prop="flags" label="flags" min-width="110"></el-table-column>
@@ -121,6 +121,31 @@
             </el-table>
         </el-dialog>
 
+        <el-dialog v-model="detailDialog.visible">
+            <el-descriptions title="详情" :column="3" border>
+                <el-descriptions-item :span="1.5" label="id">{{ detailDialog.data.id }}</el-descriptions-item>
+                <el-descriptions-item :span="1.5" label="名称">{{ detailDialog.data.name }}</el-descriptions-item>
+
+                <el-descriptions-item :span="3" label="标签路径">{{ detailDialog.data.tagPath }}</el-descriptions-item>
+
+                <el-descriptions-item :span="3" label="主机">{{ detailDialog.data.host }}</el-descriptions-item>
+
+                <el-descriptions-item :span="3" label="库">{{ detailDialog.data.db }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="备注">{{ detailDialog.data.remark }}</el-descriptions-item>
+
+                <el-descriptions-item :span="3" label="SSH隧道">{{ detailDialog.data.enableSshTunnel == 1 ? '是' : '否' }}
+                </el-descriptions-item>
+
+                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(detailDialog.data.createTime) }}
+                </el-descriptions-item>
+                <el-descriptions-item :span="1" label="创建者">{{ detailDialog.data.creator }}</el-descriptions-item>
+
+                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(detailDialog.data.updateTime) }}
+                </el-descriptions-item>
+                <el-descriptions-item :span="1" label="修改者">{{ detailDialog.data.modifier }}</el-descriptions-item>
+            </el-descriptions>
+        </el-dialog>
+
         <redis-edit @val-change="valChange" :tags="tags" :title="redisEditDialog.title"
             v-model:visible="redisEditDialog.visible" v-model:redis="redisEditDialog.data"></redis-edit>
     </div>
@@ -148,6 +173,10 @@ const state = reactive({
         pageNum: 1,
         pageSize: 10,
         clusterId: null,
+    },
+    detailDialog: {
+        visible: false,
+        data: null as any,
     },
     clusterInfoDialog: {
         visible: false,
@@ -179,6 +208,7 @@ const {
     total,
     currentId,
     query,
+    detailDialog,
     clusterInfoDialog,
     infoDialog,
     redisEditDialog,
@@ -192,6 +222,11 @@ const handlePageChange = (curPage: number) => {
     state.query.pageNum = curPage;
     search();
 };
+
+const showDetail = (detail: any) => {
+    state.detailDialog.data = detail;
+    state.detailDialog.visible = true;
+}
 
 const choose = (item: any) => {
     if (!item) {

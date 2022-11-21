@@ -18,6 +18,9 @@ type Redis struct {
 	CreateTime         *time.Time `json:"createTime"`
 	Creator            *string    `json:"creator"`
 	CreatorId          *int64     `json:"creatorId"`
+	UpdateTime         *time.Time `json:"updateTime"`
+	Modifier           *string    `json:"modifier"`
+	ModifierId         *int64     `json:"modifierId"`
 }
 
 type Keys struct {

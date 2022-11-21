@@ -49,12 +49,7 @@
                 </el-table-column>
                 <el-table-column prop="username" label="用户名" min-width="90"></el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="250" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="createTime" label="创建时间" min-width="165">
-                    <template #default="scope">
-                        {{ dateFormat(scope.row.createTime) }}
-                    </template>
-                </el-table-column>
-                <el-table-column prop="creator" label="创建者" min-width="80"></el-table-column>
+
                 <el-table-column label="操作" min-width="235" fixed="right">
                     <template #default="scope">
                         <span v-auth="'machine:terminal'">
@@ -83,6 +78,11 @@
                             <template #dropdown>
                                 <el-dropdown-menu>
                                     <el-dropdown-item>
+                                        <el-link @click="showInfo(scope.row)" plain :underline="false" size="small">详情
+                                        </el-link>
+                                    </el-dropdown-item>
+
+                                    <el-dropdown-item>
                                         <el-link @click="showProcess(scope.row)" :disabled="scope.row.status == -1"
                                             plain :underline="false" size="small">进程</el-link>
                                     </el-dropdown-item>
@@ -109,6 +109,40 @@
                     @current-change="handlePageChange"></el-pagination>
             </el-row>
         </el-card>
+
+        <el-dialog v-model="infoDialog.visible">
+            <el-descriptions title="详情" :column="3" border>
+                <el-descriptions-item :span="1.5" label="机器id">{{ infoDialog.data.id }}</el-descriptions-item>
+                <el-descriptions-item :span="1.5" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
+
+                <el-descriptions-item :span="3" label="标签路径">{{ infoDialog.data.tagPath }}</el-descriptions-item>
+
+                <el-descriptions-item :span="2" label="IP">{{ infoDialog.data.ip }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
+
+                <el-descriptions-item :span="2" label="用户名">{{ infoDialog.data.username }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="认证方式">{{ infoDialog.data.authMethod == 1 ? 'Password' :
+                        'PublicKey'
+                }}</el-descriptions-item>
+
+                <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
+
+                <el-descriptions-item :span="1.5" label="SSH隧道">{{ infoDialog.data.enableSshTunnel == 1 ? '是' : '否' }}
+                </el-descriptions-item>
+                <el-descriptions-item :span="1.5" label="终端回放">{{ infoDialog.data.enableRecorder == 1 ? '是' : '否' }}
+                </el-descriptions-item>
+
+                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data.createTime) }}
+                </el-descriptions-item>
+                <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data.creator }}</el-descriptions-item>
+
+
+                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }}
+                </el-descriptions-item>
+                <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data.modifier }}</el-descriptions-item>
+
+            </el-descriptions>
+        </el-dialog>
 
         <machine-edit :title="machineEditDialog.title" v-model:visible="machineEditDialog.visible"
             v-model:machine="machineEditDialog.data" @valChange="submitSuccess"></machine-edit>
@@ -158,6 +192,10 @@ const state = reactive({
         list: [],
         total: 10,
     },
+    infoDialog: {
+        visible: false,
+        data: null as any,
+    },
     // 当前选中数据id
     currentId: 0,
     currentData: null,
@@ -197,6 +235,7 @@ const {
     tags,
     params,
     data,
+    infoDialog,
     currentId,
     currentData,
     serviceDialog,
@@ -317,6 +356,11 @@ const handlePageChange = (curPage: number) => {
     state.params.pageNum = curPage;
     search();
 };
+
+const showInfo = (info: any) => {
+    state.infoDialog.data = info;
+    state.infoDialog.visible = true;
+}
 
 const showProcess = (row: any) => {
     state.processDialog.machineId = row.id;

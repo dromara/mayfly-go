@@ -246,7 +246,7 @@
 </template>
 
 <script lang="ts" setup>
-import {onMounted, computed, toRefs, reactive, ref, watch} from 'vue';
+import { onMounted, computed, toRefs, reactive, ref, watch } from 'vue';
 import { dbApi } from './api';
 
 import { format as sqlFormatter } from 'sql-formatter';
@@ -408,7 +408,7 @@ const initMonacoEditor = () => {
             // chord
             monaco.KeyMod.chord(
                 monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyR
-            , 0)
+                , 0)
         ],
         contextMenuGroupId: 'navigation',
         contextMenuOrder: 1.5,
@@ -436,7 +436,7 @@ const initMonacoEditor = () => {
             // chord
             monaco.KeyMod.chord(
                 monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF
-            ,0)
+                , 0)
         ],
         contextMenuGroupId: 'navigation',
         contextMenuOrder: 2,
@@ -515,7 +515,7 @@ const initMonacoEditor = () => {
                         const { tableName, tableComment } = item
                         suggestions.push({
                             label: {
-                                label: tableName + ( tableComment ? ' - ' + tableComment :'' ),
+                                label: tableName + (tableComment ? ' - ' + tableComment : ''),
                                 description: 'table'
                             },
                             kind: monaco.languages.CompletionItemKind.File,
@@ -569,7 +569,7 @@ const initMonacoEditor = () => {
             sqlLanguage.keywords.forEach((item: any) => {
                 suggestions.push({
                     label: {
-                        label:item,
+                        label: item,
                         description: 'keyword'
                     },
                     kind: monaco.languages.CompletionItemKind.Keyword,
@@ -581,7 +581,7 @@ const initMonacoEditor = () => {
             sqlLanguage.operators.forEach((item: any) => {
                 suggestions.push({
                     label: {
-                        label:item,
+                        label: item,
                         description: 'opt'
                     },
                     kind: monaco.languages.CompletionItemKind.Operator,
@@ -593,7 +593,7 @@ const initMonacoEditor = () => {
             sqlLanguage.builtinFunctions.forEach((item: any) => {
                 suggestions.push({
                     label: {
-                        label:item,
+                        label: item,
                         description: 'func'
                     },
                     kind: monaco.languages.CompletionItemKind.Function,
@@ -605,7 +605,7 @@ const initMonacoEditor = () => {
             sqlLanguage.builtinVariables.forEach((item: string) => {
                 suggestions.push({
                     label: {
-                        label:item,
+                        label: item,
                         description: 'var'
                     },
                     kind: monaco.languages.CompletionItemKind.Variable,
@@ -632,7 +632,7 @@ const initMonacoEditor = () => {
                 const { tableName, tableComment } = tableMeta
                 suggestions.push({
                     label: {
-                    label: tableName + ' - ' + tableComment,
+                        label: tableName + ' - ' + tableComment,
                         description: 'table'
                     },
                     kind: monaco.languages.CompletionItemKind.File,
@@ -699,7 +699,7 @@ select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(
 }
 
 onMounted(() => {
-  self.completionItemProvider?.dispose()
+    self.completionItemProvider?.dispose()
     setHeight();
     initMonacoEditor();
     // 监听浏览器窗口大小变化,更新对应组件高度
@@ -1513,8 +1513,8 @@ const addRow = async () => {
  */
 const formatSql = () => {
     let selection = monacoEditor.getSelection()
-    if(!selection){
-      return;
+    if (!selection) {
+        return;
     }
     let sql = monacoEditor.getModel()?.getValueInRange(selection)
     // 有选中sql则格式化并替换选中sql, 否则格式化编辑器所有内容
@@ -1530,8 +1530,8 @@ const formatSql = () => {
  */
 const replaceSelection = (str: string, selection: any) => {
     const model = monacoEditor.getModel();
-    if(!model){
-      return;
+    if (!model) {
+        return;
     }
     if (!selection) {
         model.setValue(str);

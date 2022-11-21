@@ -19,6 +19,10 @@ type SelectDataDbVO struct {
 	Creator    *string    `json:"creator"`
 	CreatorId  *int64     `json:"creatorId"`
 
+	UpdateTime *time.Time `json:"updateTime"`
+	Modifier   *string    `json:"modifier"`
+	ModifierId *int64     `json:"modifierId"`
+
 	EnableSshTunnel    *int8   `json:"enableSshTunnel"`
 	SshTunnelMachineId *uint64 `json:"sshTunnelMachineId"`
 }

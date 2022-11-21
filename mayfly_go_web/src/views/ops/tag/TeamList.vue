@@ -372,23 +372,23 @@ const saveTags = async () => {
     closeTagDialog();
 };
 
-const tagTreeNodeCheck = (data: any, checkInfo: any) => {
-    const node = tagTreeRef.value.getNode(data.id);
-    console.log(node);
-    // state.showTagDialog.tagTreeTeams = [16]
-    if (node.checked) {
-        if (node.parent) {
-            console.log(node.parent);
-            // removeCheckedTagId(node.parent.key);
-            tagTreeRef.value.setChecked(node.parent, false, false);
-        }
-        // // parentNode = node.parent
-        // for (let parentNode of node.parent) {
-        //     parentNode.setChecked(false);
-        // }
-    }
-    console.log(data);
-    console.log(checkInfo);
+const tagTreeNodeCheck = () => {
+    // const node = tagTreeRef.value.getNode(data.id);
+    // console.log(node);
+    // // state.showTagDialog.tagTreeTeams = [16]
+    // if (node.checked) {
+    //     if (node.parent) {
+    //         console.log(node.parent);
+    //         // removeCheckedTagId(node.parent.key);
+    //         tagTreeRef.value.setChecked(node.parent, false, false);
+    //     }
+    //     // // parentNode = node.parent
+    //     // for (let parentNode of node.parent) {
+    //     //     parentNode.setChecked(false);
+    //     // }
+    // }
+    // console.log(data);
+    // console.log(checkInfo);
 };
 
         // function removeCheckedTagId(id: any) {

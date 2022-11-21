@@ -57,16 +57,13 @@
                 <el-table-column prop="username" label="用户名" min-width="100"></el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip></el-table-column>
 
-                <el-table-column min-width="115" prop="creator" label="创建账号"></el-table-column>
-                <el-table-column min-width="160" prop="createTime" label="创建时间" show-overflow-tooltip>
+                <el-table-column label="操作" min-width="160" fixed="right">
                     <template #default="scope">
-                        {{ dateFormat(scope.row.createTime) }}
-                    </template>
-                </el-table-column>
-
-                <el-table-column label="操作" min-width="120" fixed="right">
-                    <template #default="scope">
-                        <el-link type="primary" plain size="small" :underline="false" @click="onShowSqlExec(scope.row)">
+                        <el-link plain size="small" :underline="false" @click="showInfo(scope.row)">
+                            详情</el-link>
+                        <el-divider direction="vertical" border-style="dashed" />
+                        <el-link class="ml5" type="primary" plain size="small" :underline="false"
+                            @click="onShowSqlExec(scope.row)">
                             SQL执行记录</el-link>
                     </template>
                 </el-table-column>
@@ -144,9 +141,9 @@
                     <template #default="scope">
                         <el-link @click.prevent="showColumns(scope.row)" type="primary">字段</el-link>
                         <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">索引</el-link>
-                        <el-link class="ml5" 
-                                 v-if="tableCreateDialog.enableEditTypes.indexOf(tableCreateDialog.type) > -1" 
-                                 @click.prevent="openEditTable(scope.row)" type="warning">编辑表</el-link>
+                        <el-link class="ml5"
+                            v-if="tableCreateDialog.enableEditTypes.indexOf(tableCreateDialog.type) > -1"
+                            @click.prevent="openEditTable(scope.row)" type="warning">编辑表</el-link>
                         <el-link class="ml5" @click.prevent="showCreateDdl(scope.row)" type="info">DDL</el-link>
                     </template>
                 </el-table-column>
@@ -242,15 +239,41 @@
                 size="small"> </el-input>
         </el-dialog>
 
+        <el-dialog v-model="infoDialog.visible">
+            <el-descriptions title="详情" :column="3" border>
+                <el-descriptions-item :span="1.5" label="id">{{ infoDialog.data.id }}</el-descriptions-item>
+                <el-descriptions-item :span="1.5" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
+
+                <el-descriptions-item :span="3" label="标签路径">{{ infoDialog.data.tagPath }}</el-descriptions-item>
+
+                <el-descriptions-item :span="2" label="主机">{{ infoDialog.data.host }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
+
+                <el-descriptions-item :span="2" label="用户名">{{ infoDialog.data.username }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="类型">{{ infoDialog.data.type }}</el-descriptions-item>
+
+                <el-descriptions-item :span="3" label="连接参数">{{ infoDialog.data.params }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="数据库">{{ infoDialog.data.database }}</el-descriptions-item>
+
+                <el-descriptions-item :span="3" label="SSH隧道">{{ infoDialog.data.enableSshTunnel == 1 ? '是' : '否' }}
+                </el-descriptions-item>
+
+                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data.createTime) }}
+                </el-descriptions-item>
+                <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data.creator }}</el-descriptions-item>
+
+                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }}
+                </el-descriptions-item>
+                <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data.modifier }}</el-descriptions-item>
+            </el-descriptions>
+        </el-dialog>
+
         <db-edit @val-change="valChange" :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible"
             v-model:db="dbEditDialog.data"></db-edit>
-        <create-table :title="tableCreateDialog.title" 
-                      :active-name="tableCreateDialog.activeName" 
-                      :dbId="dbId" :db="db" 
-                      :data="tableCreateDialog.data" 
-                      v-model:visible="tableCreateDialog.visible"
-                      @submit-sql="onSubmitSql"
-        ></create-table>
+        <create-table :title="tableCreateDialog.title" :active-name="tableCreateDialog.activeName" :dbId="dbId" :db="db"
+            :data="tableCreateDialog.data" v-model:visible="tableCreateDialog.visible" @submit-sql="onSubmitSql">
+        </create-table>
     </div>
 </template>
 
@@ -298,6 +321,10 @@ const state = reactive({
     },
     datas: [],
     total: 0,
+    infoDialog: {
+        visible: false,
+        data: null as any,
+    },
     showDumpInfo: false,
     dumpInfo: {
         id: 0,
@@ -355,7 +382,7 @@ const state = reactive({
         visible: false,
         activeName: '1',
         type: '',
-        enableEditTypes:['mysql'], // 支持"编辑表"的数据库类型
+        enableEditTypes: ['mysql'], // 支持"编辑表"的数据库类型
         data: {  // 修改表时，传递修改数据
             edit: false,
             row: {},
@@ -378,6 +405,7 @@ const {
     query,
     datas,
     total,
+    infoDialog,
     showDumpInfo,
     dumpInfo,
     sqlExecLogDialog,
@@ -440,6 +468,11 @@ const handlePageChange = (curPage: number) => {
     state.query.pageNum = curPage;
     search();
 };
+
+const showInfo = (info: any) => {
+    state.infoDialog.data = info;
+    state.infoDialog.visible = true;
+}
 
 const getTags = async () => {
     state.tags = await tagApi.getAccountTags.request(null);
@@ -589,7 +622,7 @@ const showTableInfo = async (row: any, db: string) => {
     }
 };
 
-const onSubmitSql = async (row: {tableName: string}) => {
+const onSubmitSql = async (row: { tableName: string }) => {
     await openEditTable(row)
     state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.dbId, db: state.db });
 }
