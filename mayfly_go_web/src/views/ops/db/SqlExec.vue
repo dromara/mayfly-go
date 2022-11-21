@@ -75,7 +75,7 @@
                                     </el-tooltip>
                                     <el-divider direction="vertical" border-style="dashed" />
 
-                                    <el-upload style="display: inline-block" :before-upload="beforeUpload"
+                                    <el-upload class="sql-file-exec" :before-upload="beforeUpload"
                                         :on-success="execSqlFileSuccess" :headers="{ Authorization: token }" :data="{
                                             dbId: 1,
                                         }" :action="getUploadSqlFileUrl()" :show-file-list="false" name="file" multiple
@@ -121,6 +121,11 @@
                                     <el-link type="success" :underline="false" @click="exportData"><span
                                             style="font-size: 12px">导出</span></el-link>
                                 </span>
+                                <span v-if="queryTab.updatedFields.length > 0">
+                                    <el-divider direction="vertical" border-style="dashed" />
+                                    <el-link type="success" :underline="false" @click="submitUpdateFields"><span
+                                            style="font-size: 12px">提交</span></el-link>
+                                </span>
                             </el-row>
                             <el-table @cell-dblclick="cellClick" @selection-change="onDataSelectionChange"
                                 :data="queryTab.execRes.data" v-loading="queryTab.loading" element-loading-text="查询中..."
@@ -159,6 +164,11 @@
 
                             <el-tooltip class="box-item" effect="dark" content="生成insert sql" placement="top">
                                 <el-link @click="onGenerateInsertSql" type="success" :underline="false">gi</el-link>
+                            </el-tooltip>
+                            <el-divider direction="vertical" border-style="dashed" />
+
+                            <el-tooltip v-if="state.updatedFields.length > 0" class="box-item" effect="dark" content="提交修改" placement="top">
+                              <el-link @click="submitUpdateFields" type="success" :underline="false">提交</el-link>
                             </el-tooltip>
                         </el-col>
                         <el-col :span="16">
@@ -281,6 +291,29 @@ type TableMeta = {
     // 表注释
     tableComment: string
 }
+/** 修改表字段所需数据 */
+type UpdateFieldsMeta = {
+    // 主键值
+    primaryKey: string
+    // 主键名
+    primaryKeyName: string
+    // 主键类型
+    primaryKeyType: string
+    // 新值
+    fields: FieldsMeta[]
+}
+type FieldsMeta = {
+    // 字段所在div
+    div: any
+    // 字段名
+    fieldName: string
+    // 字段类型
+    fieldType: string
+    // 原值
+    oldValue: string
+    // 新值
+    newValue: string
+}
 const state = reactive({
     token: token,
     tags: [],
@@ -300,6 +333,7 @@ const state = reactive({
     dataTabsTableHeight: 600,
     // 查询tab
     queryTab: {
+        sql : '',
         label: '查询',
         name: 'Query',
         // 点击执行按钮执行结果信息
@@ -309,7 +343,8 @@ const state = reactive({
         },
         loading: false,
         nowTableName: '', //当前表格数据操作的数据库表名，用于双击编辑表内容使用
-        selectionDatas: []
+        selectionDatas: [],
+        updatedFields: [] as UpdateFieldsMeta[]
     },
     params: {
         pageNum: 1,
@@ -334,7 +369,8 @@ const state = reactive({
         height: '',
         tableMaxHeight: 250,
         dbTables: {},
-    }
+    },
+    updatedFields:[] as UpdateFieldsMeta[]// 被修改的字段信息
 });
 const {
     tags,
@@ -784,15 +820,7 @@ const onRunSql = async () => {
         return;
     }
 
-    try {
-        state.queryTab.loading = true;
-        const colAndData: any = await runSql(sql, execRemark);
-        state.queryTab.execRes.data = colAndData.res;
-        state.queryTab.execRes.tableColumn = colAndData.colNames;
-        state.queryTab.loading = false;
-    } catch (e: any) {
-        state.queryTab.loading = false;
-    }
+    await doRunSql(sql, execRemark)
 
     // 即只有以该字符串开头的sql才可修改表数据内容
     if (sql.startsWith('SELECT *') || sql.startsWith('select *') || sql.startsWith('SELECT\n  *')) {
@@ -811,6 +839,21 @@ const onRunSql = async () => {
         state.nowTableName = '';
     }
 };
+
+const doRunSql = async (sql:string, execRemark?:string) => {
+  try {
+    state.queryTab.sql = sql;
+    state.queryTab.loading = true;
+    const colAndData: any = await runSql(sql, execRemark);
+    state.queryTab.updatedFields = [];
+    state.queryTab.execRes.data = colAndData.res;
+    state.queryTab.execRes.tableColumn = colAndData.colNames;
+    state.queryTab.loading = false;
+  } catch (e: any) {
+    state.queryTab.loading = false;
+  }
+}
+
 
 const exportData = () => {
     const dataList = state.queryTab.execRes.data;
@@ -846,6 +889,7 @@ const exportData = () => {
  * 执行sql str
  *
  * @param sql 执行的sql
+ * @param remark sql备注
  */
 const runSql = async (sql: string, remark: string = '') => {
     return await dbApi.sqlExec.request({
@@ -1134,7 +1178,7 @@ const onConfirmCondition = () => {
     }
     const row = conditionDialog.columnRow as any;
     condition += `${row.columnName} ${conditionDialog.condition} `;
-    dataTab.condition = condition + wrapColumnValue(row, conditionDialog.value);
+    dataTab.condition = condition + wrapColumnValue(row.columnType, conditionDialog.value);
     onCancelCondition();
 };
 
@@ -1353,7 +1397,7 @@ const onDeleteData = async () => {
     isTrue(deleteDatas && deleteDatas.length > 0, '请先选择要删除的数据');
     const primaryKey = await getColumn(state.nowTableName);
     const primaryKeyColumnName = primaryKey.columnName;
-    const ids = deleteDatas.map((d: any) => `${wrapColumnValue(primaryKey, d[primaryKeyColumnName])}`).join(',');
+    const ids = deleteDatas.map((d: any) => `${wrapColumnValue(primaryKey.columnType, d[primaryKeyColumnName])}`).join(',');
     const sql = `DELETE FROM ${state.nowTableName} WHERE ${primaryKeyColumnName} IN (${ids})`;
 
     promptExeSql(sql, null, () => {
@@ -1416,7 +1460,7 @@ const cellClick = (row: any, column: any, cell: any) => {
     }
     // 转为字符串比较,可能存在数字等
     let text = (row[property] || row[property] == 0 ? row[property] : '') + '';
-    let div = cell.children[0];
+    let div:HTMLElement = cell.children[0];
     if (div) {
         let input = document.createElement('input');
         input.setAttribute('value', text);
@@ -1428,24 +1472,124 @@ const cellClick = (row: any, column: any, cell: any) => {
             row[property] = input.value;
             cell.replaceChildren(div);
             if (input.value !== text) {
-                // 设置修改了的字段 背景色
-                // div.setAttribute('style', (div.getAttribute('style')||'')+';background-color:var(--el-color-success)')
+                let currentUpdatedFields: UpdateFieldsMeta[]
+                if (state.activeName === 'Query'){
+                  currentUpdatedFields = state.queryTab.updatedFields
+                } else {
+                  currentUpdatedFields = state.updatedFields;
+                }
+                // 主键
                 const primaryKey = await getColumn(state.nowTableName);
-                const primaryKeyColumnName = primaryKey.columnName;
+                const primaryKeyValue = row[primaryKey.columnName];
                 // 更新字段列信息
-                const updateColumn = await getColumn(state.nowTableName, column.rawColumnKey);
-                const sql = `UPDATE ${state.nowTableName} SET ${column.rawColumnKey} = ${wrapColumnValue(updateColumn, input.value)}
-                                        WHERE ${primaryKeyColumnName} = ${wrapColumnValue(primaryKey, row[primaryKeyColumnName])}`;
-                promptExeSql(sql, () => {
-                    // 还原值
-                    row[property] = text;
-                    // 还原背景色
-                    // div.setAttribute('style', (div.getAttribute('style')||'')+';background-color:inherit')
-                });
+                const updateColumn = await getColumn(state.nowTableName, property);
+                const newField = {div, fieldName: column.rawColumnKey, fieldType: updateColumn.columnType, oldValue: text, newValue: input.value} as FieldsMeta;
+
+                // 被修改的字段
+                const primaryKeyFields = currentUpdatedFields.filter((meta)=>meta.primaryKey === primaryKeyValue)
+                let hasKey = false;
+                if (primaryKeyFields.length<=0){
+                  primaryKeyFields[0] = {primaryKey: primaryKeyValue, primaryKeyName: primaryKey.columnName, primaryKeyType: primaryKey.columnType, fields:[newField]}
+                }else {
+                  hasKey = true
+                  let hasField = primaryKeyFields[0].fields.some(a=>{
+                    if(a.fieldName === newField.fieldName){
+                      a.newValue = newField.newValue
+                    }
+                    return a.fieldName === newField.fieldName
+                  })
+                  if(!hasField){
+                    primaryKeyFields[0].fields.push(newField)
+                  }
+                }
+                let fields = primaryKeyFields[0].fields
+
+                const fieldsParam = fields.filter((a)=> {
+                  if(a.fieldName === column.rawColumnKey){
+                    a.newValue = input.value
+                  }
+                  return a.fieldName === column.rawColumnKey
+                })
+
+                const field = fieldsParam.length > 0 && fieldsParam[0] || {} as FieldsMeta
+                if (field.oldValue === input.value){ // 新值=旧值
+                    // 删除数据
+                    div.classList.remove('update_field_active')
+                    let delIndex: number[] = [];
+                    currentUpdatedFields.forEach((a,i) => {
+                      if(a.primaryKey === primaryKeyValue) {
+                        a.fields = a.fields && a.fields.length > 0 ? a.fields.filter(f => f.fieldName !== column.rawColumnKey) : [];
+                        a.fields.length <= 0 && delIndex.push(i)
+                      }
+                    });
+                    delIndex.forEach(i=>delete currentUpdatedFields[i])
+                    currentUpdatedFields = currentUpdatedFields.filter(a=>a)
+                }else {
+                   // 新增数据
+                  div.classList.add('update_field_active')
+                  if (hasKey){
+                      currentUpdatedFields.forEach((value, index, array) =>{
+                        if(value.primaryKey === primaryKeyValue) {
+                          array[index].fields = fields
+                        }
+                      })
+                  }else {
+                      currentUpdatedFields.push({primaryKey: primaryKeyValue, primaryKeyName: primaryKey.columnName, primaryKeyType: primaryKey.columnType, fields})
+                  }
+                }
+                if (state.activeName === 'Query'){
+                  state.queryTab.updatedFields = currentUpdatedFields
+                } else {
+                  state.updatedFields = currentUpdatedFields
+                }
             }
         });
     }
 };
+
+const submitUpdateFields = () =>{
+  let currentUpdatedFields:UpdateFieldsMeta[];
+  let isQuery = false;
+  if (state.activeName === 'Query'){
+    isQuery = true;
+    currentUpdatedFields = state.queryTab.updatedFields
+  } else {
+    currentUpdatedFields = state.updatedFields
+  }
+  if(currentUpdatedFields.length <= 0){
+    return;
+  }
+  let res='';
+  let divs:HTMLElement[] = [];
+  currentUpdatedFields.forEach(a=>{
+    let sql = `UPDATE ${state.nowTableName} SET `;
+    let primaryKey = a.primaryKey;
+    let primaryKeyType = a.primaryKeyType;
+    let primaryKeyName = a.primaryKeyName;
+    a.fields.forEach(f => {
+      sql += ` ${f.fieldName} = ${wrapColumnValue(f.fieldType, f.newValue)},`
+      divs.push(f.div)
+    })
+    sql = sql.substring(0, sql.length - 1)
+    sql += ` WHERE ${primaryKeyName} = ${wrapColumnValue(primaryKeyType, primaryKey)} ;`
+    res += sql;
+  })
+
+  promptExeSql(res, ()=>{}, ()=>{
+    currentUpdatedFields = [];
+    divs.forEach(a=>{
+      a.classList.remove('update_field_active')
+    })
+    if(isQuery){
+      state.queryTab.updatedFields = []
+      doRunSql(state.queryTab.sql)
+    }else{
+      state.updatedFields = []
+      onRefresh(state.nowTableName)
+    }
+  });
+
+}
 
 /**
  * 根据字段列名获取字段列信息。
@@ -1463,8 +1607,8 @@ const getColumn = async (tableName: string, columnName: string = '') => {
 /**
  * 根据字段信息包装字段值，如为字符串等则添加‘’
  */
-const wrapColumnValue = (column: any, value: any) => {
-    if (isNumber(column.columnType)) {
+const wrapColumnValue = (columnType: string, value: any) => {
+    if (isNumber(columnType)) {
         return value;
     }
     return `'${value}'`;
@@ -1599,6 +1743,15 @@ watch(store.state.sqlExecInfo, async (newValue) => {
 </script>
 
 <style lang="scss">
+.sql-file-exec {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  position: relative;
+  text-decoration: none;
+}
 .sqlEditor {
     font-size: 8pt;
     font-weight: 600;
@@ -1618,5 +1771,8 @@ watch(store.state.sqlExecInfo, async (newValue) => {
 
 #data-exec {
     min-height: calc(100vh - 155px);
+}
+.update_field_active{
+  background-color:var(--el-color-success)
 }
 </style>

@@ -13,7 +13,7 @@ import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
 import * as monaco from 'monaco-editor';
 import { editor } from 'monaco-editor';
 import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
-// 主题仓库 https://github.com/brijeshb42/monaco-themes 
+// 主题仓库 https://github.com/brijeshb42/monaco-themes
 // 主题例子 https://editor.bitwiser.in/
 // import Monokai from 'monaco-themes/themes/Monokai.json'
 // import Active4D from 'monaco-themes/themes/Active4D.json'
@@ -117,7 +117,7 @@ const options = {
     mouseWheelZoom: true, // 在按住Ctrl键的同时使用鼠标滚轮时，在编辑器中缩放字体
     overviewRulerBorder: false, // 不要滚动条的边框
     tabSize: 4, // tab 缩进长度
-    fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
+    // fontFamily: 'JetBrainsMono', // 字体 暂时不要设置，否则光标容易错位
     fontWeight: 'bold',
     // fontSize: 12,
     // letterSpacing: 1, 字符间距
