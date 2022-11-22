@@ -2,8 +2,8 @@
     <div class="role-list">
         <el-card>
             <el-button v-auth="'team:save'" type="primary" icon="plus" @click="showSaveTeamDialog(false)">添加</el-button>
-            <el-button v-auth="'team:save'" :disabled="!chooseId" @click="showSaveTeamDialog(chooseData)"
-                type="primary" icon="edit">编辑</el-button>
+            <el-button v-auth="'team:save'" :disabled="!chooseId" @click="showSaveTeamDialog(chooseData)" type="primary"
+                icon="edit">编辑</el-button>
             <el-button v-auth="'team:del'" :disabled="!chooseId" @click="deleteTeam(chooseData)" type="danger"
                 icon="delete">删除</el-button>
 
@@ -292,9 +292,11 @@ const showMembers = async (team: any) => {
 };
 
 const getAccount = (username: any) => {
-    accountApi.list.request({ username }).then((res) => {
-        state.showMemDialog.accounts = res.list;
-    });
+    if (username) {
+        accountApi.list.request({ username }).then((res) => {
+            state.showMemDialog.accounts = res.list;
+        });
+    }
 };
 
 /**

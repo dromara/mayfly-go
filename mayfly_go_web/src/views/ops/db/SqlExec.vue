@@ -172,12 +172,15 @@
                             </el-tooltip>
                             <el-divider direction="vertical" border-style="dashed" />
 
-                            <el-tooltip v-if="state.updatedFields[state.nowTableName]?.length > 0" class="box-item" effect="dark" content="提交修改" placement="top">
-                              <el-link @click="submitUpdateFields" type="success" :underline="false">提交</el-link>
+                            <el-tooltip v-if="state.updatedFields[state.nowTableName]?.length > 0" class="box-item"
+                                effect="dark" content="提交修改" placement="top">
+                                <el-link @click="submitUpdateFields" type="success" :underline="false">提交</el-link>
                             </el-tooltip>
-                            <el-divider v-if="state.updatedFields[state.nowTableName]?.length > 0" direction="vertical" border-style="dashed" />
-                            <el-tooltip v-if="state.updatedFields[state.nowTableName]?.length > 0" class="box-item" effect="dark" content="取消修改" placement="top">
-                              <el-link @click="cancelUpdateFields" type="warning" :underline="false">取消</el-link>
+                            <el-divider v-if="state.updatedFields[state.nowTableName]?.length > 0" direction="vertical"
+                                border-style="dashed" />
+                            <el-tooltip v-if="state.updatedFields[state.nowTableName]?.length > 0" class="box-item"
+                                effect="dark" content="取消修改" placement="top">
+                                <el-link @click="cancelUpdateFields" type="warning" :underline="false">取消</el-link>
                             </el-tooltip>
                         </el-col>
                         <el-col :span="16">
@@ -344,7 +347,7 @@ const state = reactive({
     dataTabsTableHeight: 600,
     // 查询tab
     queryTab: {
-        sql : '',
+        sql: '',
         label: '查询',
         name: 'Query',
         // 点击执行按钮执行结果信息
@@ -851,18 +854,18 @@ const onRunSql = async () => {
     }
 };
 
-const doRunSql = async (sql:string, execRemark?:string) => {
-  try {
-    state.queryTab.sql = sql;
-    state.queryTab.loading = true;
-    const colAndData: any = await runSql(sql, execRemark);
-    state.queryTab.execRes.data = colAndData.res;
-    state.queryTab.execRes.tableColumn = colAndData.colNames;
-    state.queryTab.loading = false;
-    cancelUpdateFields()
-  } catch (e: any) {
-    state.queryTab.loading = false;
-  }
+const doRunSql = async (sql: string, execRemark?: string) => {
+    try {
+        state.queryTab.sql = sql;
+        state.queryTab.loading = true;
+        const colAndData: any = await runSql(sql, execRemark);
+        state.queryTab.execRes.data = colAndData.res;
+        state.queryTab.execRes.tableColumn = colAndData.colNames;
+        state.queryTab.loading = false;
+        cancelUpdateFields()
+    } catch (e: any) {
+        state.queryTab.loading = false;
+    }
 }
 
 
@@ -1207,8 +1210,8 @@ const onRefresh = async (tableName: string) => {
     // 查询条件置空
     dataTab.condition = '';
     dataTab.pageNum = 1;
-    setDataTabDatas(dataTab).then(()=>{
-      cancelUpdateFields()
+    setDataTabDatas(dataTab).then(() => {
+        cancelUpdateFields()
     });
 };
 
@@ -1474,7 +1477,7 @@ const cellClick = (row: any, column: any, cell: any) => {
     }
     // 转为字符串比较,可能存在数字等
     let text = (row[property] || row[property] == 0 ? row[property] : '') + '';
-    let div:HTMLElement = cell.children[0];
+    let div: HTMLElement = cell.children[0];
     if (div) {
         let input = document.createElement('input');
         input.setAttribute('value', text);
@@ -1487,142 +1490,142 @@ const cellClick = (row: any, column: any, cell: any) => {
             cell.replaceChildren(div);
             if (input.value !== text) {
                 let currentUpdatedFields: UpdateFieldsMeta[]
-                if (state.activeName === 'Query'){
-                  currentUpdatedFields = state.queryTab.updatedFields
+                if (state.activeName === 'Query') {
+                    currentUpdatedFields = state.queryTab.updatedFields
                 } else {
-                  currentUpdatedFields = state.updatedFields[state.nowTableName];
+                    currentUpdatedFields = state.updatedFields[state.nowTableName];
                 }
                 // 主键
                 const primaryKey = await getColumn(state.nowTableName);
                 const primaryKeyValue = row[primaryKey.columnName];
                 // 更新字段列信息
                 const updateColumn = await getColumn(state.nowTableName, property);
-                const newField = {div, fieldName: column.rawColumnKey, row, fieldType: updateColumn.columnType, oldValue: text, newValue: input.value} as FieldsMeta;
+                const newField = { div, fieldName: column.rawColumnKey, row, fieldType: updateColumn.columnType, oldValue: text, newValue: input.value } as FieldsMeta;
 
                 // 被修改的字段
-                const primaryKeyFields = currentUpdatedFields.filter((meta)=>meta.primaryKey === primaryKeyValue)
+                const primaryKeyFields = currentUpdatedFields.filter((meta) => meta.primaryKey === primaryKeyValue)
                 let hasKey = false;
-                if (primaryKeyFields.length<=0){
-                  primaryKeyFields[0] = {primaryKey: primaryKeyValue, primaryKeyName: primaryKey.columnName, primaryKeyType: primaryKey.columnType, fields:[newField]}
-                }else {
-                  hasKey = true
-                  let hasField = primaryKeyFields[0].fields.some(a=>{
-                    if(a.fieldName === newField.fieldName){
-                      a.newValue = newField.newValue
+                if (primaryKeyFields.length <= 0) {
+                    primaryKeyFields[0] = { primaryKey: primaryKeyValue, primaryKeyName: primaryKey.columnName, primaryKeyType: primaryKey.columnType, fields: [newField] }
+                } else {
+                    hasKey = true
+                    let hasField = primaryKeyFields[0].fields.some(a => {
+                        if (a.fieldName === newField.fieldName) {
+                            a.newValue = newField.newValue
+                        }
+                        return a.fieldName === newField.fieldName
+                    })
+                    if (!hasField) {
+                        primaryKeyFields[0].fields.push(newField)
                     }
-                    return a.fieldName === newField.fieldName
-                  })
-                  if(!hasField){
-                    primaryKeyFields[0].fields.push(newField)
-                  }
                 }
                 let fields = primaryKeyFields[0].fields
 
-                const fieldsParam = fields.filter((a)=> {
-                  if(a.fieldName === column.rawColumnKey){
-                    a.newValue = input.value
-                  }
-                  return a.fieldName === column.rawColumnKey
+                const fieldsParam = fields.filter((a) => {
+                    if (a.fieldName === column.rawColumnKey) {
+                        a.newValue = input.value
+                    }
+                    return a.fieldName === column.rawColumnKey
                 })
 
                 const field = fieldsParam.length > 0 && fieldsParam[0] || {} as FieldsMeta
-                if (field.oldValue === input.value){ // 新值=旧值
+                if (field.oldValue === input.value) { // 新值=旧值
                     // 删除数据
                     div.classList.remove('update_field_active')
                     let delIndex: number[] = [];
-                    currentUpdatedFields.forEach((a,i) => {
-                      if(a.primaryKey === primaryKeyValue) {
-                        a.fields = a.fields && a.fields.length > 0 ? a.fields.filter(f => f.fieldName !== column.rawColumnKey) : [];
-                        a.fields.length <= 0 && delIndex.push(i)
-                      }
-                    });
-                    delIndex.forEach(i=>delete currentUpdatedFields[i])
-                    currentUpdatedFields = currentUpdatedFields.filter(a=>a)
-                }else {
-                   // 新增数据
-                  div.classList.add('update_field_active')
-                  if (hasKey){
-                      currentUpdatedFields.forEach((value, index, array) =>{
-                        if(value.primaryKey === primaryKeyValue) {
-                          array[index].fields = fields
+                    currentUpdatedFields.forEach((a, i) => {
+                        if (a.primaryKey === primaryKeyValue) {
+                            a.fields = a.fields && a.fields.length > 0 ? a.fields.filter(f => f.fieldName !== column.rawColumnKey) : [];
+                            a.fields.length <= 0 && delIndex.push(i)
                         }
-                      })
-                  }else {
-                      currentUpdatedFields.push({primaryKey: primaryKeyValue, primaryKeyName: primaryKey.columnName, primaryKeyType: primaryKey.columnType, fields})
-                  }
-                }
-                if (state.activeName === 'Query'){
-                  state.queryTab.updatedFields = currentUpdatedFields
+                    });
+                    delIndex.forEach(i => delete currentUpdatedFields[i])
+                    currentUpdatedFields = currentUpdatedFields.filter(a => a)
                 } else {
-                  state.updatedFields[state.nowTableName] = currentUpdatedFields
+                    // 新增数据
+                    div.classList.add('update_field_active')
+                    if (hasKey) {
+                        currentUpdatedFields.forEach((value, index, array) => {
+                            if (value.primaryKey === primaryKeyValue) {
+                                array[index].fields = fields
+                            }
+                        })
+                    } else {
+                        currentUpdatedFields.push({ primaryKey: primaryKeyValue, primaryKeyName: primaryKey.columnName, primaryKeyType: primaryKey.columnType, fields })
+                    }
+                }
+                if (state.activeName === 'Query') {
+                    state.queryTab.updatedFields = currentUpdatedFields
+                } else {
+                    state.updatedFields[state.nowTableName] = currentUpdatedFields
                 }
             }
         });
     }
 };
 
-const submitUpdateFields = () =>{
-  let currentUpdatedFields:UpdateFieldsMeta[];
-  let isQuery = false;
-  if (state.activeName === 'Query'){
-    isQuery = true;
-    currentUpdatedFields = state.queryTab.updatedFields
-  } else {
-    currentUpdatedFields = state.updatedFields[state.nowTableName]
-  }
-  if(currentUpdatedFields.length <= 0){
-    return;
-  }
-  let res='';
-  let divs:HTMLElement[] = [];
-  currentUpdatedFields.forEach(a=>{
-    let sql = `UPDATE ${state.nowTableName} SET `;
-    let primaryKey = a.primaryKey;
-    let primaryKeyType = a.primaryKeyType;
-    let primaryKeyName = a.primaryKeyName;
-    a.fields.forEach(f => {
-      sql += ` ${f.fieldName} = ${wrapColumnValue(f.fieldType, f.newValue)},`
-      divs.push(f.div)
-    })
-    sql = sql.substring(0, sql.length - 1)
-    sql += ` WHERE ${primaryKeyName} = ${wrapColumnValue(primaryKeyType, primaryKey)} ;`
-    res += sql;
-  })
-
-  promptExeSql(res, ()=>{}, ()=>{
-    currentUpdatedFields = [];
-    divs.forEach(a=>{
-      a.classList.remove('update_field_active')
-    })
-    if(isQuery){
-      state.queryTab.updatedFields = []
-      doRunSql(state.queryTab.sql)
-    }else{
-      state.updatedFields[state.nowTableName] = []
-      onRefresh(state.nowTableName)
+const submitUpdateFields = () => {
+    let currentUpdatedFields: UpdateFieldsMeta[];
+    let isQuery = false;
+    if (state.activeName === 'Query') {
+        isQuery = true;
+        currentUpdatedFields = state.queryTab.updatedFields
+    } else {
+        currentUpdatedFields = state.updatedFields[state.nowTableName]
     }
-  });
+    if (currentUpdatedFields.length <= 0) {
+        return;
+    }
+    let res = '';
+    let divs: HTMLElement[] = [];
+    currentUpdatedFields.forEach(a => {
+        let sql = `UPDATE ${state.nowTableName} SET `;
+        let primaryKey = a.primaryKey;
+        let primaryKeyType = a.primaryKeyType;
+        let primaryKeyName = a.primaryKeyName;
+        a.fields.forEach(f => {
+            sql += ` ${f.fieldName} = ${wrapColumnValue(f.fieldType, f.newValue)},`
+            divs.push(f.div)
+        })
+        sql = sql.substring(0, sql.length - 1)
+        sql += ` WHERE ${primaryKeyName} = ${wrapColumnValue(primaryKeyType, primaryKey)} ;`
+        res += sql;
+    })
+
+    promptExeSql(res, () => { }, () => {
+        currentUpdatedFields = [];
+        divs.forEach(a => {
+            a.classList.remove('update_field_active')
+        })
+        if (isQuery) {
+            state.queryTab.updatedFields = []
+            doRunSql(state.queryTab.sql)
+        } else {
+            state.updatedFields[state.nowTableName] = []
+            onRefresh(state.nowTableName)
+        }
+    });
 
 }
 
 const cancelUpdateFields = () => {
-  if (state.activeName === 'Query'){
-    state.queryTab.updatedFields.forEach(a=>{
-      a.fields.forEach(b=>{
-        b.div.classList.remove('update_field_active')
-        b.row[b.fieldName] = b.oldValue
-      })
-    })
-    state.queryTab.updatedFields = []
-  } else {
-    state.updatedFields[state.nowTableName]?.forEach(a=>{
-      a.fields.forEach(b=>{
-        b.div.classList.remove('update_field_active')
-        b.row[b.fieldName] = b.oldValue
-      })
-    })
-    state.updatedFields[state.nowTableName] = []
-  }
+    if (state.activeName === 'Query') {
+        state.queryTab.updatedFields.forEach(a => {
+            a.fields.forEach(b => {
+                b.div.classList.remove('update_field_active')
+                b.row[b.fieldName] = b.oldValue
+            })
+        })
+        state.queryTab.updatedFields = []
+    } else {
+        state.updatedFields[state.nowTableName]?.forEach(a => {
+            a.fields.forEach(b => {
+                b.div.classList.remove('update_field_active')
+                b.row[b.fieldName] = b.oldValue
+            })
+        })
+        state.updatedFields[state.nowTableName] = []
+    }
 }
 
 /**
@@ -1778,14 +1781,15 @@ watch(store.state.sqlExecInfo, async (newValue) => {
 
 <style lang="scss">
 .sql-file-exec {
-  display: inline-flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  vertical-align: middle;
-  position: relative;
-  text-decoration: none;
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    position: relative;
+    text-decoration: none;
 }
+
 .sqlEditor {
     font-size: 8pt;
     font-weight: 600;
@@ -1806,7 +1810,8 @@ watch(store.state.sqlExecInfo, async (newValue) => {
 #data-exec {
     min-height: calc(100vh - 155px);
 }
-.update_field_active{
-  background-color:var(--el-color-success)
+
+.update_field_active {
+    background-color: var(--el-color-success)
 }
 </style>
