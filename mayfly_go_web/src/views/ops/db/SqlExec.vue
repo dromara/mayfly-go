@@ -126,6 +126,11 @@
                                     <el-link type="success" :underline="false" @click="submitUpdateFields"><span
                                             style="font-size: 12px">提交</span></el-link>
                                 </span>
+                                <span v-if="queryTab.updatedFields.length > 0">
+                                    <el-divider direction="vertical" border-style="dashed" />
+                                    <el-link type="warning" :underline="false" @click="cancelUpdateFields"><span
+                                            style="font-size: 12px">取消</span></el-link>
+                                </span>
                             </el-row>
                             <el-table @cell-dblclick="cellClick" @selection-change="onDataSelectionChange"
                                 :data="queryTab.execRes.data" v-loading="queryTab.loading" element-loading-text="查询中..."
@@ -167,8 +172,12 @@
                             </el-tooltip>
                             <el-divider direction="vertical" border-style="dashed" />
 
-                            <el-tooltip v-if="state.updatedFields.length > 0" class="box-item" effect="dark" content="提交修改" placement="top">
+                            <el-tooltip v-if="state.updatedFields[state.nowTableName]?.length > 0" class="box-item" effect="dark" content="提交修改" placement="top">
                               <el-link @click="submitUpdateFields" type="success" :underline="false">提交</el-link>
+                            </el-tooltip>
+                            <el-divider v-if="state.updatedFields[state.nowTableName]?.length > 0" direction="vertical" border-style="dashed" />
+                            <el-tooltip v-if="state.updatedFields[state.nowTableName]?.length > 0" class="box-item" effect="dark" content="取消修改" placement="top">
+                              <el-link @click="cancelUpdateFields" type="warning" :underline="false">取消</el-link>
                             </el-tooltip>
                         </el-col>
                         <el-col :span="16">
@@ -304,9 +313,11 @@ type UpdateFieldsMeta = {
 }
 type FieldsMeta = {
     // 字段所在div
-    div: any
+    div: HTMLElement
     // 字段名
     fieldName: string
+    // 字段所在的表格行数据
+    row: any
     // 字段类型
     fieldType: string
     // 原值
@@ -370,7 +381,7 @@ const state = reactive({
         tableMaxHeight: 250,
         dbTables: {},
     },
-    updatedFields:[] as UpdateFieldsMeta[]// 被修改的字段信息
+    updatedFields: {} as { [tableName: string]: UpdateFieldsMeta[] }// 各个tab表被修改的字段信息
 });
 const {
     tags,
@@ -845,10 +856,10 @@ const doRunSql = async (sql:string, execRemark?:string) => {
     state.queryTab.sql = sql;
     state.queryTab.loading = true;
     const colAndData: any = await runSql(sql, execRemark);
-    state.queryTab.updatedFields = [];
     state.queryTab.execRes.data = colAndData.res;
     state.queryTab.execRes.tableColumn = colAndData.colNames;
     state.queryTab.loading = false;
+    cancelUpdateFields()
   } catch (e: any) {
     state.queryTab.loading = false;
   }
@@ -1196,8 +1207,11 @@ const onRefresh = async (tableName: string) => {
     // 查询条件置空
     dataTab.condition = '';
     dataTab.pageNum = 1;
-    setDataTabDatas(dataTab);
+    setDataTabDatas(dataTab).then(()=>{
+      cancelUpdateFields()
+    });
 };
+
 
 /**
  * 数据tab修改页数
@@ -1476,14 +1490,14 @@ const cellClick = (row: any, column: any, cell: any) => {
                 if (state.activeName === 'Query'){
                   currentUpdatedFields = state.queryTab.updatedFields
                 } else {
-                  currentUpdatedFields = state.updatedFields;
+                  currentUpdatedFields = state.updatedFields[state.nowTableName];
                 }
                 // 主键
                 const primaryKey = await getColumn(state.nowTableName);
                 const primaryKeyValue = row[primaryKey.columnName];
                 // 更新字段列信息
                 const updateColumn = await getColumn(state.nowTableName, property);
-                const newField = {div, fieldName: column.rawColumnKey, fieldType: updateColumn.columnType, oldValue: text, newValue: input.value} as FieldsMeta;
+                const newField = {div, fieldName: column.rawColumnKey, row, fieldType: updateColumn.columnType, oldValue: text, newValue: input.value} as FieldsMeta;
 
                 // 被修改的字段
                 const primaryKeyFields = currentUpdatedFields.filter((meta)=>meta.primaryKey === primaryKeyValue)
@@ -1540,7 +1554,7 @@ const cellClick = (row: any, column: any, cell: any) => {
                 if (state.activeName === 'Query'){
                   state.queryTab.updatedFields = currentUpdatedFields
                 } else {
-                  state.updatedFields = currentUpdatedFields
+                  state.updatedFields[state.nowTableName] = currentUpdatedFields
                 }
             }
         });
@@ -1554,7 +1568,7 @@ const submitUpdateFields = () =>{
     isQuery = true;
     currentUpdatedFields = state.queryTab.updatedFields
   } else {
-    currentUpdatedFields = state.updatedFields
+    currentUpdatedFields = state.updatedFields[state.nowTableName]
   }
   if(currentUpdatedFields.length <= 0){
     return;
@@ -1584,11 +1598,31 @@ const submitUpdateFields = () =>{
       state.queryTab.updatedFields = []
       doRunSql(state.queryTab.sql)
     }else{
-      state.updatedFields = []
+      state.updatedFields[state.nowTableName] = []
       onRefresh(state.nowTableName)
     }
   });
 
+}
+
+const cancelUpdateFields = () => {
+  if (state.activeName === 'Query'){
+    state.queryTab.updatedFields.forEach(a=>{
+      a.fields.forEach(b=>{
+        b.div.classList.remove('update_field_active')
+        b.row[b.fieldName] = b.oldValue
+      })
+    })
+    state.queryTab.updatedFields = []
+  } else {
+    state.updatedFields[state.nowTableName]?.forEach(a=>{
+      a.fields.forEach(b=>{
+        b.div.classList.remove('update_field_active')
+        b.row[b.fieldName] = b.oldValue
+      })
+    })
+    state.updatedFields[state.nowTableName] = []
+  }
 }
 
 /**
