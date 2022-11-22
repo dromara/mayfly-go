@@ -45,8 +45,8 @@
                 </el-form-item>
                 <el-form-item prop="params" label="连接参数:">
                     <el-input v-model.trim="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2">
-                        <template v-if="form.id && form.id != 0" #suffix>
-                            <el-link target="_blank" href="https://github.com/go-sql-driver/mysql#dsn-data-source-name"
+                        <template #suffix>
+                            <el-link target="_blank" href="https://github.com/go-sql-driver/mysql#parameters"
                                 :underline="false" type="primary" class="mr5">参数参考</el-link>
                         </template>
                     </el-input>
