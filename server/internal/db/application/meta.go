@@ -14,7 +14,7 @@ type DbMetadata interface {
 	// 表名: tableName, 列名: columnName, 列类型: columnType, 备注: columnComment, 是否可为null: nullable, 其他信息: extra
 	GetColumns(tableNames ...string) []map[string]interface{}
 
-	// 获取表主键字段名，目前默认第一个字段
+	// 获取表主键字段名，没有主键标识则默认第一个字段
 	GetPrimaryKey(tablename string) string
 
 	// 获取表信息，比GetTables获取更详细的表信息

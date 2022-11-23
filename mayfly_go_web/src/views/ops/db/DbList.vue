@@ -566,7 +566,7 @@ const dump = (db: string) => {
 
 const onShowRollbackSql = async (sqlExecLog: any) => {
     const columns = await dbApi.columnMetadata.request({ id: sqlExecLog.dbId, db: sqlExecLog.db, tableName: sqlExecLog.table });
-    const primaryKey = columns[0].columnName;
+    const primaryKey = getPrimaryKey(columns);
     const oldValue = JSON.parse(sqlExecLog.oldValue);
 
     const rollbackSqls = [];
@@ -595,6 +595,14 @@ const onShowRollbackSql = async (sqlExecLog: any) => {
     state.rollbackSqlDialog.sql = rollbackSqls.join('\n');
     state.rollbackSqlDialog.visible = true;
 };
+
+const getPrimaryKey = (columns: any) => {
+    const col = columns.find((c: any) => c.columnKey == 'PRI');
+    if (col) {
+        return col.columnName;
+    }
+    return columns[0].columnName;
+}
 
 /**
  * 包装值，如果值类型为number则直接返回，其他则需要使用''包装
