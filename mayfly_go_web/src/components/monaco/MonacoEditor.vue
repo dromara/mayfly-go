@@ -11,7 +11,7 @@
 import { ref, watch, toRefs, reactive, onMounted, onBeforeUnmount } from 'vue';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
 import * as monaco from 'monaco-editor';
-import { editor } from 'monaco-editor';
+import { editor, languages } from 'monaco-editor';
 import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
 // 主题仓库 https://github.com/brijeshb42/monaco-themes
 // 主题例子 https://editor.bitwiser.in/
@@ -60,6 +60,10 @@ const languages = [
         label: 'Shell',
     },
     {
+        value: 'json',
+        label: 'JSON',
+    },
+    {
         value: 'yaml',
         label: 'Yaml',
     },
@@ -86,10 +90,6 @@ const languages = [
     {
         value: 'javascript',
         label: 'Javascript',
-    },
-    {
-        value: 'json',
-        label: 'JSON',
     },
     {
         value: 'java',
@@ -165,7 +165,7 @@ watch(() => props.language, (newValue: any) => {
 
 const monacoTextarea: any = ref(null);
 
-let monacoEditorIns: editor.IStandaloneCodeEditor = null;
+let monacoEditorIns: editor.IStandaloneCodeEditor = null as any;
 let completionItemProvider: any = null;
 
 self.MonacoEnvironment = {
@@ -185,11 +185,11 @@ const initMonacoEditorIns = () => {
     options.language = state.languageMode;
     // 从localStorage中获取，通过store可能存在父子组件都使用store报错
     options.theme = JSON.parse(localStorage.getItem('themeConfig') as string).editorTheme || 'vs';
-    monacoEditorIns = monaco.editor.create(monacoTextarea.value, Object.assign(options, props.options));
+    monacoEditorIns = monaco.editor.create(monacoTextarea.value, Object.assign(options, props.options as any));
 
     // 监听内容改变,双向绑定
     monacoEditorIns.onDidChangeModelContent(() => {
-        emit('update:modelValue', monacoEditorIns.getModel().getValue());
+        emit('update:modelValue', monacoEditorIns.getModel()?.getValue());
     })
 
     // 动态设置主题
@@ -200,6 +200,9 @@ const changeLanguage = (value: any) => {
     console.log('change lan');
     // 获取当前的文档模型
     let oldModel = monacoEditorIns.getModel()
+    if (!oldModel) {
+        return;
+    }
     // 创建一个新的文档模型
     let newModel = monaco.editor.createModel(oldModel.getValue(), value)
     // 设置成新的
@@ -213,7 +216,7 @@ const changeLanguage = (value: any) => {
 }
 
 const setEditorValue = (value: any) => {
-    monacoEditorIns.getModel().setValue(value)
+    monacoEditorIns.getModel()?.setValue(value)
 }
 
 /**
@@ -237,14 +240,14 @@ const registeShell = () => {
                     label: item,
                     kind: monaco.languages.CompletionItemKind.Keyword,
                     insertText: item,
-                });
+                } as any);
             })
             shellLan.builtins.forEach((item: any) => {
                 suggestions.push({
                     label: item,
                     kind: monaco.languages.CompletionItemKind.Property,
                     insertText: item,
-                });
+                } as any);
             })
             return {
                 suggestions: suggestions
@@ -252,6 +255,16 @@ const registeShell = () => {
         }
     })
 };
+
+const format = () => {
+    /*
+    触发自动格式化;
+   */
+    monacoEditorIns.trigger('', 'editor.action.formatDocument', '')
+}
+
+defineExpose({ format })
+
 </script>
 
 <style lang="scss">

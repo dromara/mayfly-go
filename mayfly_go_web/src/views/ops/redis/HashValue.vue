@@ -1,5 +1,5 @@
 <template>
-    <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" width="800px" :destroy-on-close="true">
+    <el-dialog class="el-table-z-index-inherit" :title="title" v-model="dialogVisible" :before-close="cancel" width="800px" :destroy-on-close="true">
         <el-form label-width="85px">
             <el-form-item prop="key" label="key:">
                 <el-input :disabled="operationType == 2" v-model="key.key"></el-input>
@@ -33,7 +33,7 @@
                     </div>
                 </el-form>
             </el-row>
-            <el-table :data="hashValues" stripe style="width: 100%">
+            <el-table :data="hashValues" stripe style="width: 100%;">
                 <el-table-column prop="field" label="field" width>
                     <template #default="scope">
                         <el-input v-model="scope.row.field" clearable size="small"></el-input>
@@ -41,8 +41,8 @@
                 </el-table-column>
                 <el-table-column prop="value" label="value" min-width="200">
                     <template #default="scope">
-                        <el-input v-model="scope.row.value" clearable type="textarea"
-                            :autosize="{ minRows: 2, maxRows: 10 }" size="small"></el-input>
+                        <format-input :title="`type:【${key.type}】key:【${key.key}】field:【${scope.row.field}】`" v-model="scope.row.value"
+                            :autosize="{ minRows: 2, maxRows: 10 }" size="small"></format-input>
                     </template>
                 </el-table-column>
                 <el-table-column label="操作" width="120">
@@ -68,6 +68,7 @@ import { reactive, watch, toRefs } from 'vue';
 import { redisApi } from './api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { isTrue, notEmpty } from '@/common/assert';
+import FormatInput from './FormatInput.vue';
 
 const props = defineProps({
     visible: {
