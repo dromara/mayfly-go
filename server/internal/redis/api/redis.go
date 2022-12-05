@@ -204,10 +204,33 @@ func (r *Redis) Scan(rc *ctx.ReqCtx) {
 	var cursorRes map[string]uint64 = make(map[string]uint64)
 
 	mode := ri.Info.Mode
-	if mode == "" || ri.Info.Mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
+	if mode == "" || mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
 		redisAddr := ri.Cli.Options().Addr
-		keys, cursor := ri.Scan(form.Cursor[redisAddr], form.Match, form.Count)
-		cursorRes[redisAddr] = cursor
+		// 汇总所有的查询出来的键值
+		var keys []string
+		// 有通配符或空时使用scan，非模糊匹配直接匹配key
+		if form.Match == "" || strings.ContainsAny(form.Match, "*") {
+			cursorRes[redisAddr] = form.Cursor[redisAddr]
+			for {
+				ks, cursor := ri.Scan(cursorRes[redisAddr], form.Match, form.Count)
+				cursorRes[redisAddr] = cursor
+				if len(ks) > 0 {
+					// 返回了数据则追加总集合中
+					keys = append(keys, ks...)
+				}
+				// 匹配的数量满足用户需求退出
+				if int32(len(keys)) >= int32(form.Count) {
+					break
+				}
+				// 匹配到最后退出
+				if cursor == 0 {
+					break
+				}
+			}
+		} else {
+			// 精确匹配
+			keys = append(keys, form.Match)
+		}
 
 		var keyInfoSplit []string
 		if len(keys) > 0 {
@@ -228,24 +251,49 @@ func (r *Redis) Scan(rc *ctx.ReqCtx) {
 		for i, k := range keys {
 			ttlType := strings.Split(keyInfoSplit[i], ",")
 			ttl, _ := strconv.Atoi(ttlType[0])
+			// 没有存在该key,则跳过
+			if ttl == -2 {
+				continue
+			}
 			ki := &vo.KeyInfo{Key: k, Type: ttlType[1], Ttl: int64(ttl)}
 			kis = append(kis, ki)
 		}
 	} else if mode == entity.RedisModeCluster {
 		var keys []string
+		// 有通配符或空时使用scan，非模糊匹配直接匹配key
+		if form.Match == "" || strings.ContainsAny(form.Match, "*") {
+			mu := &sync.Mutex{}
+			// 遍历所有master节点，并执行scan命令，合并keys
+			ri.ClusterCli.ForEachMaster(ctx, func(ctx context.Context, client *redis.Client) error {
+				redisAddr := client.Options().Addr
+				nowCursor := form.Cursor[redisAddr]
+				for {
+					ks, cursor, _ := client.Scan(ctx, nowCursor, form.Match, form.Count).Result()
+					// 遍历节点的内部回调函数使用异步调用，如不加锁会导致集合并发错误
+					mu.Lock()
+					cursorRes[redisAddr] = cursor
+					nowCursor = cursor
+					if len(ks) > 0 {
+						// 返回了数据则追加总集合中
+						keys = append(keys, ks...)
+					}
+					mu.Unlock()
+					// 匹配的数量满足用户需求退出
+					if int32(len(keys)) >= int32(form.Count) {
+						break
+					}
+					// 匹配到最后退出
+					if cursor == 0 {
+						break
+					}
+				}
+				return nil
+			})
 
-		mu := &sync.Mutex{}
-		// 遍历所有master节点，并执行scan命令，合并keys
-		ri.ClusterCli.ForEachMaster(ctx, func(ctx context.Context, client *redis.Client) error {
-			redisAddr := client.Options().Addr
-			ks, cursor, _ := client.Scan(ctx, form.Cursor[redisAddr], form.Match, form.Count).Result()
-			// 遍历节点的内部回调函数使用异步调用，如不加锁会导致集合并发错误
-			mu.Lock()
-			cursorRes[redisAddr] = cursor
-			keys = append(keys, ks...)
-			mu.Unlock()
-			return nil
-		})
+		} else {
+			// 精确匹配
+			keys = append(keys, form.Match)
+		}
 
 		// 因为redis集群模式执行lua脚本key必须位于同一slot中，故单机获取的方式不适合
 		// 使用lua获取key的ttl以及类型，减少网络调用
@@ -257,6 +305,10 @@ func (r *Redis) Scan(rc *ctx.ReqCtx) {
 			biz.ErrIsNilAppendErr(err, "执行lua脚本获取key信息失败: %s")
 			ttlType := strings.Split(keyInfo.(string), ",")
 			ttl, _ := strconv.Atoi(ttlType[0])
+			// 没有存在该key,则跳过
+			if ttl == -2 {
+				continue
+			}
 			ki := &vo.KeyInfo{Key: k, Type: ttlType[1], Ttl: int64(ttl)}
 			kis = append(kis, ki)
 		}

@@ -77,6 +77,20 @@ func GenerateRSAKey(bits int) (string, string, error) {
 	return privateKeyStr, publicKeyStr, nil
 }
 
+// rsa加密
+func RsaEncrypt(publicKeyStr string, data []byte) ([]byte, error) {
+	block, _ := pem.Decode([]byte(publicKeyStr))
+	if block == nil {
+		return nil, errors.New("private key error")
+	}
+
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	return rsa.EncryptPKCS1v15(rand.Reader, pub.(*rsa.PublicKey), data)
+}
+
 // rsa解密
 func RsaDecrypt(privateKeyStr string, data []byte) ([]byte, error) {
 	block, _ := pem.Decode([]byte(privateKeyStr))
@@ -146,7 +160,7 @@ func GetRsaPrivateKey() (string, error) {
 	return privateKey, nil
 }
 
-//AesEncrypt 加密
+// AesEncrypt 加密
 func AesEncrypt(data []byte, key []byte) ([]byte, error) {
 	//创建加密实例
 	block, err := aes.NewCipher(key)
@@ -166,7 +180,7 @@ func AesEncrypt(data []byte, key []byte) ([]byte, error) {
 	return crypted, nil
 }
 
-//AesDecrypt 解密
+// AesDecrypt 解密
 func AesDecrypt(data []byte, key []byte) ([]byte, error) {
 	//创建实例
 	block, err := aes.NewCipher(key)
@@ -207,7 +221,7 @@ func AesDecryptBase64(data string, key []byte) ([]byte, error) {
 	return AesDecrypt(dataByte, key)
 }
 
-//pkcs7Padding 填充
+// pkcs7Padding 填充
 func pkcs7Padding(data []byte, blockSize int) []byte {
 	//判断缺少几位长度。最少1，最多 blockSize
 	padding := blockSize - len(data)%blockSize
@@ -216,7 +230,7 @@ func pkcs7Padding(data []byte, blockSize int) []byte {
 	return append(data, padText...)
 }
 
-//pkcs7UnPadding 填充的反向操作
+// pkcs7UnPadding 填充的反向操作
 func pkcs7UnPadding(data []byte) ([]byte, error) {
 	length := len(data)
 	if length == 0 {
