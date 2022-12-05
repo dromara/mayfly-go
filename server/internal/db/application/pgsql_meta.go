@@ -22,6 +22,7 @@ const (
 		A.attname AS "columnName",
 		tc.is_nullable AS "nullable",
 		concat_ws ( '', t.typname, SUBSTRING ( format_type ( a.atttypid, a.atttypmod ) FROM '\(.*\)' ) ) AS "columnType",
+		(CASE WHEN ( SELECT COUNT(*) FROM pg_constraint WHERE conrelid = a.attrelid AND conkey[1]= attnum AND contype = 'p' ) > 0 THEN 'PRI' ELSE '' END ) AS columnKey,
 		d.description AS "columnComment" 
 	FROM
 		pg_attribute a LEFT JOIN pg_description d ON d.objoid = a.attrelid 
@@ -65,12 +66,17 @@ func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []map[string]interface
 	return result
 }
 
-// 获取表主键字段名，默认第一个字段
 func (pm *PgsqlMetadata) GetPrimaryKey(tablename string) string {
 	columns := pm.GetColumns(tablename)
 	if len(columns) == 0 {
 		panic(biz.NewBizErr(fmt.Sprintf("[%s] 表不存在", tablename)))
 	}
+	for _, v := range columns {
+		if v["columnKey"].(string) == "PRI" {
+			return v["columnName"].(string)
+		}
+	}
+
 	return columns[0]["columnName"].(string)
 }
 

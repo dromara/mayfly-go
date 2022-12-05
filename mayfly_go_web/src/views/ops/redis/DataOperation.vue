@@ -129,6 +129,7 @@ const state = reactive({
     },
     scanParam: {
         id: null as any,
+        mode: '',
         db: '',
         match: null,
         count: 10,
@@ -194,8 +195,15 @@ const getTags = async () => {
 };
 
 const changeRedis = (id: number) => {
-    resetScanParam(id);
-    state.dbList = (state.redisList.find((x: any) => x.id == id) as any).db.split(',');
+    resetScanParam();
+    if (id != 0) {
+        const redis: any = state.redisList.find((x: any) => x.id == id);
+        if (redis) {
+            state.dbList = (state.redisList.find((x: any) => x.id == id) as any).db.split(',');
+            state.scanParam.mode = redis.mode;
+        }
+    }
+
     // 默认选中配置的第一个库
     state.scanParam.db = state.dbList[0];
     state.keys = [];
@@ -203,7 +211,7 @@ const changeRedis = (id: number) => {
 };
 
 const changeDb = () => {
-    resetScanParam(state.scanParam.id as any);
+    resetScanParam();
     state.keys = [];
     state.dbsize = 0;
     searchKey();
@@ -213,16 +221,28 @@ const scan = async () => {
     isTrue(state.scanParam.id != null, '请先选择redis');
     notBlank(state.scanParam.count, 'count不能为空');
 
-    const match = state.scanParam.match;
-    if (!match || (match as string).length < 4) {
-        isTrue(state.scanParam.count <= 200, 'key为空或小于4字符时, count不能超过200');
-    } else {
-        isTrue(state.scanParam.count <= 20000, 'count不能超过20000');
+    const match: string = state.scanParam.match || '';
+    if (!match) {
+        isTrue(state.scanParam.count <= 100, "key搜索条件为空时, count不能大于100")
+    } else if (match.indexOf('*') != -1) {
+        const dbsize = state.dbsize;
+        // 如果为模糊搜索，并且搜索的key模式大于指定字符数，则将count设大点scan
+        if (match.length > 10) {
+            state.scanParam.count = dbsize > 100000 ? Math.floor(dbsize / 10) : 1000;
+        } else {
+            state.scanParam.count = 100;
+        }
+    }
+
+    const scanParam = { ...state.scanParam }
+    // 集群模式count设小点，因为后端会从所有master节点scan一遍然后合并结果,默认假设redis集群有3个master
+    if (scanParam.mode == 'cluster') {
+        scanParam.count = Math.floor(state.scanParam.count / 3)
     }
 
     state.loading = true;
     try {
-        const res = await redisApi.scan.request(state.scanParam);
+        const res = await redisApi.scan.request(scanParam);
         state.keys = res.keys;
         state.dbsize = res.dbSize;
         state.scanParam.cursor = res.cursor;
@@ -252,15 +272,8 @@ const clear = () => {
     }
 };
 
-const resetScanParam = (id: number = 0) => {
+const resetScanParam = () => {
     state.scanParam.count = 10;
-    if (id != 0) {
-        const redis: any = state.redisList.find((x: any) => x.id == id);
-        // 集群模式count设小点，因为后端会从所有master节点scan一遍然后合并结果
-        if (redis && redis.mode == 'cluster') {
-            state.scanParam.count = 4;
-        }
-    }
     state.scanParam.match = null;
     state.scanParam.cursor = {};
 };

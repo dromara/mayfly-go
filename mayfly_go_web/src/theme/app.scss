@@ -290,3 +290,7 @@ body,
         margin-bottom: 3px;
     }
 }
+
+.el-table-z-index-inherit .el-table .el-table__cell {
+    z-index: inherit !important;
+}

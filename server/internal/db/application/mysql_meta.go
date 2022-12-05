@@ -53,12 +53,18 @@ func (mm *MysqlMetadata) GetColumns(tableNames ...string) []map[string]interface
 	return result
 }
 
-// 获取表主键字段名，默认第一个字段
+// 获取表主键字段名，不存在主键标识则默认第一个字段
 func (mm *MysqlMetadata) GetPrimaryKey(tablename string) string {
 	columns := mm.GetColumns(tablename)
 	if len(columns) == 0 {
 		panic(biz.NewBizErr(fmt.Sprintf("[%s] 表不存在", tablename)))
 	}
+	for _, v := range columns {
+		if v["columnKey"].(string) == "PRI" {
+			return v["columnName"].(string)
+		}
+	}
+
 	return columns[0]["columnName"].(string)
 }
 

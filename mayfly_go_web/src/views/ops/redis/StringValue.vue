@@ -12,12 +12,11 @@
             </el-form-item>
 
             <div id="string-value-text" style="width: 100%">
-                <el-input class="json-text" v-model="string.value" type="textarea"
-                    :autosize="{ minRows: 10, maxRows: 20 }"></el-input>
-                <el-select class="text-type-select" @change="onChangeTextType" v-model="string.type">
+                <format-input :title="`type:【${key.type}】key:【${key.key}】`" v-model="string.value" :autosize="{ minRows: 10, maxRows: 20 }"></format-input>
+                <!-- <el-select class="text-type-select" @change="onChangeTextType" v-model="string.type">
                     <el-option key="text" label="text" value="text"> </el-option>
                     <el-option key="json" label="json" value="json"> </el-option>
-                </el-select>
+                </el-select> -->
             </div>
         </el-form>
         <template #footer>
@@ -33,7 +32,7 @@ import { reactive, watch, toRefs } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import { notEmpty } from '@/common/assert';
-import { formatJsonString } from '@/common/utils/format';
+import FormatInput from './FormatInput.vue';
 
 const props = defineProps({
     visible: {
@@ -144,23 +143,12 @@ const saveValue = async () => {
     notEmpty(state.key.key, 'key不能为空');
 
     notEmpty(state.string.value, 'value不能为空');
-    const sv = { value: formatJsonString(state.string.value, true), id: state.redisId, db: state.db };
+    const sv = { value: state.string.value, id: state.redisId, db: state.db };
     Object.assign(sv, state.key);
     await redisApi.saveStringValue.request(sv);
     ElMessage.success('数据保存成功');
     cancel();
     emit('valChange');
-};
-
-// 更改文本类型
-const onChangeTextType = (val: string) => {
-    if (val == 'json') {
-        state.string.value = formatJsonString(state.string.value, false);
-        return;
-    }
-    if (val == 'text') {
-        state.string.value = formatJsonString(state.string.value, true);
-    }
 };
 </script>
 <style lang="scss">
