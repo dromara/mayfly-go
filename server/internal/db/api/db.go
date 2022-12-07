@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	b64 "encoding/base64"
 	"github.com/gin-gonic/gin"
 	"github.com/xwb1989/sqlparser"
 )
@@ -132,9 +133,9 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	biz.NotEmpty(form.Sql, "sql不能为空")
 
 	// 去除前后空格及换行符
-	sql, err := utils.DefaultRsaDecrypt(form.Sql, true)
-	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
-	sql = utils.StrTrimSpaceAndBr(sql)
+	sqlBytes, err := b64.StdEncoding.DecodeString(strings.Replace(form.Sql, "MAGIC", "", 1))
+	biz.ErrIsNilAppendErr(err, "sql base64解码错误: %s")
+	sql := utils.StrTrimSpaceAndBr(string(sqlBytes))
 
 	execReq := &application.DbSqlExecReq{
 		DbId:         id,
