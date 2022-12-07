@@ -18,10 +18,10 @@ jwt:
 aes:
   key: Zh7kWgfk6qbGnk3T
 mysql:
-  host:
-  username:
-  password:
-  db-name:
+  host: 200.200.200.46
+  username: copote_admin
+  password: copote185!*%
+  db-name: mayfly-db
   config: charset=utf8&loc=Local&parseTime=true
   max-idle-conns: 5
 log:

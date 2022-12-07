@@ -1,5 +1,1 @@
-<<<<<<<< HEAD:server/static/static/assets/SshTerminalPage.c61ef9e2.js
-import{_ as s}from"./SshTerminal.c042ed19.js";import{d as o,a as r,c,t as h,e as m,j as d,k as u,l as t,i as l}from"./index.fc8fd637.js";const k=o({__name:"SshTerminalPage",setup(_){const a=r(),e=c({machineId:0,height:700}),{machineId:n,height:i}=h(e);return m(()=>{e.height=window.innerHeight+5,e.machineId=Number.parseInt(a.query.id)}),(p,f)=>(l(),d("div",null,[u(s,{ref:"terminal",machineId:t(n),height:t(i)+"px"},null,8,["machineId","height"])]))}});export{k as default};
-========
 import{_ as s}from"./SshTerminal.1f66adff.js";import{d as o,a as r,c,t as h,e as m,j as d,k as u,l as t,i as l}from"./index.db2b5b0c.js";const k=o({__name:"SshTerminalPage",setup(_){const a=r(),e=c({machineId:0,height:700}),{machineId:n,height:i}=h(e);return m(()=>{e.height=window.innerHeight+5,e.machineId=Number.parseInt(a.query.id)}),(p,f)=>(l(),d("div",null,[u(s,{ref:"terminal",machineId:t(n),height:t(i)+"px"},null,8,["machineId","height"])]))}});export{k as default};
->>>>>>>> 804fd3b (1.加密sql传输):server/static/static/assets/SshTerminalPage.769a6808.js
