@@ -11,17 +11,17 @@ server:
   machine-rec-path: ./rec
 jwt:
   # jwt key，不设置默认使用随机字符串
-  key: 
+  key: CkLeo9RdCKdcL9FBqesGgsw9T2YHkiJN
   # 过期时间单位分钟
   expire-time: 1440
 # 资源密码aes加密key
 aes:
-  key: 1111111111111111
+  key: Zh7kWgfk6qbGnk3T
 mysql:
-  host: localhost:3306
-  username: root
-  password: 111049
-  db-name: mayfly-go
+  host:
+  username:
+  password:
+  db-name:
   config: charset=utf8&loc=Local&parseTime=true
   max-idle-conns: 5
 log:

@@ -22,6 +22,7 @@ import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { format as sqlFormatter } from 'sql-formatter';
 
 import { SqlExecProps } from './SqlExecBox';
+import { RsaEncrypt } from '@/common/rsa';
 
 const props = defineProps({
     visible: {
@@ -75,7 +76,7 @@ const runSql = async () => {
             id: state.dbId,
             db: state.db,
             remark: state.remark,
-            sql: state.sqlValue.trim(),
+            sql: await RsaEncrypt(state.sqlValue.trim()),
         });
 
         for (let re of res.res) {

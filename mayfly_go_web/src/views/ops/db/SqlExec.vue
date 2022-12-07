@@ -290,6 +290,7 @@ import { editor, languages, Position } from 'monaco-editor';
 // 主题例子 https://editor.bitwiser.in/
 import SolarizedLight from 'monaco-themes/themes/Solarized-light.json'
 import { Minus } from '@element-plus/icons-vue';
+import { RsaEncrypt } from '@/common/rsa';
 
 const store = useStore();
 const monacoTextarea: any = ref(null);
@@ -909,7 +910,7 @@ const runSql = async (sql: string, remark: string = '') => {
     return await dbApi.sqlExec.request({
         id: state.dbId,
         db: state.db,
-        sql: sql.trim(),
+        sql: await RsaEncrypt(sql.trim()),
         remark,
     });
 };

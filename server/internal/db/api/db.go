@@ -132,7 +132,9 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	biz.NotEmpty(form.Sql, "sql不能为空")
 
 	// 去除前后空格及换行符
-	sql := utils.StrTrimSpaceAndBr(form.Sql)
+	sql, err := utils.DefaultRsaDecrypt(form.Sql, true)
+	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
+	sql = utils.StrTrimSpaceAndBr(sql)
 
 	execReq := &application.DbSqlExecReq{
 		DbId:         id,

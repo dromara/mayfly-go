@@ -67,7 +67,7 @@ func InitRouter() *gin.Engine {
 	}
 
 	// 设置路由组
-	api := router.Group("/api")
+	api := router.Group("/tsu63gHksdMSbsunMxSueSVRwnRqZVsu/api")
 	{
 		common_router.InitIndexRouter(api)
 		common_router.InitCommonRouter(api)
