@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mayfly-go/pkg/utils"
 	"mayfly-go/pkg/utils/assert"
+	"os"
 	"path/filepath"
 )
 
@@ -24,6 +25,8 @@ func Init() {
 	}
 	// 校验配置文件内容信息
 	yc.Valid()
+	// 尝试使用系统环境变量替换配置信息
+	yc.ReplaceOsEnv()
 	Conf = yc
 }
 
@@ -48,5 +51,38 @@ func (c *Config) Valid() {
 	c.Jwt.Valid()
 	if c.Aes != nil {
 		c.Aes.Valid()
+	}
+}
+
+// 替换系统环境变量，如果环境变量中存在该值，则优秀使用环境变量设定的值
+func (c *Config) ReplaceOsEnv() {
+	dbHost := os.Getenv("MAYFLY_DB_HOST")
+	if dbHost != "" {
+		c.Mysql.Host = dbHost
+	}
+
+	dbName := os.Getenv("MAYFLY_DB_NAME")
+	if dbName != "" {
+		c.Mysql.Dbname = dbName
+	}
+
+	dbUser := os.Getenv("MAYFLY_DB_USER")
+	if dbUser != "" {
+		c.Mysql.Username = dbUser
+	}
+
+	dbPwd := os.Getenv("MAYFLY_DB_PASS")
+	if dbPwd != "" {
+		c.Mysql.Password = dbPwd
+	}
+
+	aesKey := os.Getenv("MAYFLY_AES_KEY")
+	if aesKey != "" {
+		c.Aes.Key = aesKey
+	}
+
+	jwtKey := os.Getenv("MAYFLY_JWT_KEY")
+	if jwtKey != "" {
+		c.Jwt.Key = jwtKey
 	}
 }

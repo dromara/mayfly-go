@@ -18,7 +18,7 @@ jwt:
 aes:
   key: 1111111111111111
 mysql:
-  host: mysql:3306
+  host: localhost:3306
   username: root
   password: 111049
   db-name: mayfly-go
@@ -27,6 +27,6 @@ mysql:
 log:
    # 日志等级, trace, debug, info, warn, error, fatal
   level: info
-  # file:
-  #   path: ./
-  #   name: mayfly.log
+  file:
+    path: ./
+    name: mayfly-go.log
