@@ -1475,10 +1475,10 @@ const cellClick = (row: any, column: any, cell: any) => {
     if (!state.nowTableName || !property) {
         return;
     }
-    // 转为字符串比较,可能存在数字等
-    let text = (row[property] || row[property] == 0 ? row[property] : '') + '';
     let div: HTMLElement = cell.children[0];
-    if (div) {
+    if (div && div.tagName === 'DIV') {
+        // 转为字符串比较,可能存在数字等
+        let text = (row[property] || row[property] == 0 ? row[property] : '') + '';
         let input = document.createElement('input');
         input.setAttribute('value', text);
         // 将表格width也赋值于输入框，避免输入框长度超过表格长度
