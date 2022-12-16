@@ -185,8 +185,9 @@ const initCharts = () => {
 }
 
 const initMemStats = () => {
+  let maxMem = state.memInfo.maxmemory === '0' ? state.memInfo.total_system_memory : state.memInfo.maxmemory
   const data = [
-    { name: '可用内存：', value: state.memInfo.maxmemory - state.memInfo.used_memory },
+    { name: '可用内存：', value: maxMem - state.memInfo.used_memory },
     {
       name: '已用内存：',
       value: state.memInfo.used_memory,
