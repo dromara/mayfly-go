@@ -1,152 +1,123 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :show-close="true" width="35%" @close="close()">
-            <el-collapse>
-                <el-collapse-item title="Server(Redis服务器的一般信息)" name="server">
-                    <div class="row">
-                        <span class="title">redis_version(版本):</span>
-                        <span class="value">{{ info.Server.redis_version }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">tcp_port(端口):</span>
-                        <span class="value">{{ info.Server.tcp_port }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">redis_mode(模式):</span>
-                        <span class="value">{{ info.Server.redis_mode }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">os(宿主操作系统):</span>
-                        <span class="value">{{ info.Server.os }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">uptime_in_days(运行天数):</span>
-                        <span class="value">{{ info.Server.uptime_in_days }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">executable(可执行文件路径):</span>
-                        <span class="value">{{ info.Server.executable }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">config_file(配置文件路径):</span>
-                        <span class="value">{{ info.Server.config_file }}</span>
-                    </div>
-                </el-collapse-item>
+        <el-dialog :title="title" v-model="dialogVisible" :show-close="true" width="80%" @close="close()">
 
-                <el-collapse-item title="Clients(客户端连接)" name="client">
-                    <div class="row">
-                        <span class="title">connected_clients(已连接客户端数):</span>
-                        <span class="value">{{ info.Clients.connected_clients }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">blocked_clients(正在等待阻塞命令客户端数):</span>
-                        <span class="value">{{ info.Clients.blocked_clients }}</span>
-                    </div>
-                </el-collapse-item>
-                <el-collapse-item title="Keyspace(key信息)" name="keyspace">
-                    <div class="row" v-for="(value, key) in info.Keyspace" :key="key">
-                        <span class="title">{{ key }}: </span>
-                        <span class="value">{{ value }}</span>
-                    </div>
-                </el-collapse-item>
+          <el-row :gutter="20">
+            <el-col :lg="12" :md="12">
+              <el-descriptions
+                  class="redis-info info-server"
+                  title="Redis服务器信息"
+                  :column="3"
+                  size="small"
+                  border
+              >
+                <el-descriptions-item label="版本">{{ info.Server.redis_version }}</el-descriptions-item>
+                <el-descriptions-item label="端口">{{ info.Server.tcp_port }}</el-descriptions-item>
+                <el-descriptions-item label="PID">{{ info.Server.process_id }}</el-descriptions-item>
+                <el-descriptions-item label="模式">{{ info.Server.redis_mode }}</el-descriptions-item>
+                <el-descriptions-item label="操作系统">{{ info.Server.os }}</el-descriptions-item>
+                <el-descriptions-item label="运行天数">{{ info.Server.uptime_in_days }}</el-descriptions-item>
+                <el-descriptions-item label="可执行文件路径">{{ info.Server.executable }}</el-descriptions-item>
+                <el-descriptions-item label="配置文件路径">{{ info.Server.config_file }}</el-descriptions-item>
+              </el-descriptions>
+            </el-col>
+            <el-col :lg="12" :md="12" class="redis-info">
+              <div class="info-memory-chart" ref="memRef"></div>
+            </el-col>
+          </el-row>
 
-                <el-collapse-item title="Stats(统计)" name="state">
-                    <div class="row">
-                        <span class="title">total_commands_processed(总处理命令数):</span>
-                        <span class="value">{{ info.Stats.total_commands_processed }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">instantaneous_ops_per_sec(当前qps):</span>
-                        <span class="value">{{ info.Stats.instantaneous_ops_per_sec }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">total_net_input_bytes(网络入口流量字节数):</span>
-                        <span class="value">{{ info.Stats.total_net_input_bytes }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">total_net_output_bytes(网络出口流量字节数):</span>
-                        <span class="value">{{ info.Stats.total_net_output_bytes }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">expired_keys(过期key的总数量):</span>
-                        <span class="value">{{ info.Stats.expired_keys }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">instantaneous_ops_per_sec(当前qps):</span>
-                        <span class="value">{{ info.Stats.instantaneous_ops_per_sec }}</span>
-                    </div>
-                </el-collapse-item>
+          <el-row :gutter="20">
+            <el-col :lg="12" :md="12">
+              <el-descriptions
+                  class="redis-info info-cluster"
+                  title="节点信息"
+                  :column="3"
+                  size="small"
+                  border
+              >
+                <el-descriptions-item label="是否启用集群模式">{{ info.Cluster.cluster_enabled }}</el-descriptions-item>
+                <el-descriptions-item label="DB总数">{{ info.Cluster.databases }}</el-descriptions-item>
+                <el-descriptions-item label="节点总数">{{ info.Cluster.nodecount }}</el-descriptions-item>
+              </el-descriptions>
+            </el-col>
+  
+            <el-col :lg="12" :md="12">
+              <el-descriptions
+                  class="redis-info info-client"
+                  title="客户端连接"
+                  :column="3"
+                  size="small"
+                  border
+              >
+                <el-descriptions-item label="已连接客户端数">{{ info.Clients.connected_clients }}</el-descriptions-item>
+                <el-descriptions-item label="正在等待阻塞命令客户端数">{{ info.Clients.blocked_clients }}</el-descriptions-item>
+              </el-descriptions>
+            </el-col>
+          </el-row>
 
-                <el-collapse-item title="Persistence(持久化)" name="persistence">
-                    <div class="row">
-                        <span class="title">aof_enabled(是否启用aof):</span>
-                        <span class="value">{{ info.Persistence.aof_enabled }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">loading(是否正在载入持久化文件):</span>
-                        <span class="value">{{ info.Persistence.loading }}</span>
-                    </div>
-                </el-collapse-item>
+          <el-descriptions
+              class="redis-info info-memory"
+              title="CPU"
+              :column="2"
+              size="small"
+              border
+          >
+            <el-descriptions-item label="系统CPU">{{ info.CPU.used_cpu_sys }}</el-descriptions-item>
+            <el-descriptions-item label="用户CPU">{{ info.CPU.used_cpu_user }}</el-descriptions-item>
+            <el-descriptions-item label="后台系统CPU">{{ info.CPU.used_cpu_sys_children }}</el-descriptions-item>
+            <el-descriptions-item label="后台用户CPU">{{ info.CPU.used_cpu_user_children }}</el-descriptions-item>
+          </el-descriptions>
 
-                <el-collapse-item title="Cluster(集群)" name="cluster">
-                    <div class="row">
-                        <span class="title">cluster_enabled(是否启用集群模式):</span>
-                        <span class="value">{{ info.Cluster.cluster_enabled }}</span>
-                    </div>
-                </el-collapse-item>
+          <el-row  :gutter="20" class="redis-info">
+            <el-col :lg="24" :md="24">
+              <span style="font-size: 14px; font-weight: 700">键值统计</span>
+              <el-table :data="Keyspace" stripe max-height="250" style="width: 100%" border>
+                <el-table-column prop="db" label="数据库" min-width="100" show-overflow-tooltip>
+                </el-table-column>
+                <el-table-column prop="keys" label="keys" min-width="70" show-overflow-tooltip>
+                </el-table-column>
+                <el-table-column prop="expires" label="expires" min-width="70" show-overflow-tooltip>
+                </el-table-column>
+                <el-table-column prop="avg_ttl" label="avg_ttl" min-width="70" show-overflow-tooltip>
+                </el-table-column>
+              </el-table>
+            </el-col>
+          </el-row>
 
-                <el-collapse-item title="Memory(内存消耗相关信息)" name="memory">
-                    <div class="row">
-                        <span class="title">used_memory(分配内存总量):</span>
-                        <span class="value">{{ info.Memory.used_memory_human }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">maxmemory(最大内存配置):</span>
-                        <span class="value">{{ info.Memory.maxmemory }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">used_memory_rss(已分配的内存总量，操作系统角度):</span>
-                        <span class="value">{{ info.Memory.used_memory_rss_human }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">mem_fragmentation_ratio(used_memory_rss和used_memory 之间的比率):</span>
-                        <span class="value">{{ info.Memory.mem_fragmentation_ratio }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">used_memory_peak(内存消耗峰值):</span>
-                        <span class="value">{{ info.Memory.used_memory_peak_human }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">total_system_memory(主机总内存):</span>
-                        <span class="value">{{ info.Memory.total_system_memory_human }}</span>
-                    </div>
-                </el-collapse-item>
+          <el-descriptions
+              class="redis-info info-state"
+              title="统计信息"
+              :column="3"
+              size="small"
+              border
+          >
+            <el-descriptions-item label="总处理命令数">{{ info.Stats.total_commands_processed }}</el-descriptions-item>
+            <el-descriptions-item label="当前qps">{{ info.Stats.instantaneous_ops_per_sec }}</el-descriptions-item>
+            <el-descriptions-item label="过期key的总数量">{{ info.Stats.expired_keys }}</el-descriptions-item>
+            <el-descriptions-item label="网络入口流量字节数">{{ info.Stats.total_net_input_bytes }}</el-descriptions-item>
+            <el-descriptions-item label="网络出口流量字节数">{{ info.Stats.total_net_output_bytes }}</el-descriptions-item>
+          </el-descriptions>
 
-                <el-collapse-item title="CPU" name="cpu">
-                    <div class="row">
-                        <span class="title">used_cpu_sys(由Redis服务器消耗的系统CPU):</span>
-                        <span class="value">{{ info.CPU.used_cpu_sys }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">used_cpu_user(由Redis服务器消耗的用户CPU):</span>
-                        <span class="value">{{ info.CPU.used_cpu_user }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">used_cpu_sys_children(由后台进程消耗的系统CPU):</span>
-                        <span class="value">{{ info.CPU.used_cpu_sys_children }}</span>
-                    </div>
-                    <div class="row">
-                        <span class="title">used_cpu_user_children(由后台进程消耗的用户CPU):</span>
-                        <span class="value">{{ info.CPU.used_cpu_user_children }}</span>
-                    </div>
-                </el-collapse-item>
-            </el-collapse>
+          <el-descriptions
+              class="redis-info info-persistence"
+              title="持久化"
+              :column="3"
+              size="small"
+              border
+          >
+            <el-descriptions-item label="是否启用aof">{{ info.Persistence?.aof_enabled || false }}</el-descriptions-item>
+            <el-descriptions-item label="是否正在载入持久化文件">{{ info.Persistence?.loading || false }}</el-descriptions-item>
+          </el-descriptions>
+          
         </el-dialog>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { reactive, watch, toRefs } from 'vue';
+import {reactive, watch, toRefs, ref, nextTick} from 'vue';
+import {formatByteSize} from '@/common/utils/format';
+import useEcharts from '@/common/echarts/useEcharts';
+import tdTheme from '@/common/echarts/theme.json';
 
 const props = defineProps({
     visible: {
@@ -164,10 +135,17 @@ const emit = defineEmits(['update:visible', 'close'])
 
 const state = reactive({
     dialogVisible: false,
+    memInfo: {} as any,
+    Keyspace: [] as any[],
+    
 });
+
+let memChart: any = null;
+let memRef = ref(null);
 
 const {
     dialogVisible,
+    Keyspace,
 } = toRefs(state)
 
 watch(
@@ -176,6 +154,90 @@ watch(
         state.dialogVisible = val;
     }
 );
+watch(
+    () => props.info,
+    (info: any) => {
+        state.memInfo = info['Memory'];
+        if (state.memInfo) {
+          initCharts();
+        }
+        if(info['Keyspace']){
+          let arr = [];
+          for(let k in info['Keyspace']){
+            let data = {db:k}
+            let d = info['Keyspace'][k].split(',')
+            debugger
+            for(let f of d){
+              let v = f.split('=')
+              data[v[0]] = v[1] 
+            }
+            arr.push(data)
+          }
+          state.Keyspace = arr
+        }
+    }
+);
+
+const initCharts = () => {
+  nextTick(() => {
+    initMemStats();
+  });
+}
+
+const initMemStats = () => {
+  const data = [
+    { name: '可用内存：', value: state.memInfo.maxmemory - state.memInfo.used_memory },
+    {
+      name: '已用内存：',
+      value: state.memInfo.used_memory,
+    },
+  ];
+  const option = {
+    title: {
+      text: '内存',
+      x: 'left',
+      textStyle: { fontSize: 14 },
+    },
+    tooltip: {
+      trigger: 'item',
+      valueFormatter: formatByteSize,
+    },
+    legend: {
+      top: '15%',
+      orient: 'vertical',
+      left: 'left',
+      textStyle: { fontSize: 12 },
+    },
+    series: [
+      {
+        name: '内存',
+        type: 'pie',
+        radius: ['30%', '60%'], // 饼图内圈和外圈大小
+        center: ['70%', '50%'], // 饼图位置，0: 左右；1: 上下
+        avoidLabelOverlap: false,
+        label: {
+          show: false,
+          position: 'center',
+        },
+        emphasis: {
+          label: {
+            fontSize: '15',
+            fontWeight: 'bold',
+          },
+        },
+        labelLine: {
+          show: false,
+        },
+        data: data,
+      },
+    ],
+  };
+  if (memChart) {
+    memChart.setOption(option, true);
+    return;
+  }
+  memChart = useEcharts(memRef.value, tdTheme, option);
+}
 
 const close = () => {
     emit('update:visible', false);
@@ -183,7 +245,16 @@ const close = () => {
 };
 </script>
 
-<style>
+<style lang="scss">
+
+.redis-info{
+  margin-top: 12px;
+  .info-memory-chart{
+    width: 360px;
+    height: 150px;
+  }
+}
+
 .row .title {
     font-size: 12px;
     color: #8492a6;
@@ -192,6 +263,6 @@ const close = () => {
 
 .row .value {
     font-size: 12px;
-    color: black;
+    color: var(--el-color-success);
 }
 </style>

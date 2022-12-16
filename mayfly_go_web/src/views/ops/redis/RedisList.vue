@@ -258,7 +258,7 @@ const showInfoDialog = async (redis: any) => {
     }
     const res = await redisApi.redisInfo.request({ id: redis.id, host });
     state.infoDialog.info = res;
-    state.infoDialog.title = `'${host}' info`;
+    state.infoDialog.title = `[${redis.name || host}] redis信息`;
     state.infoDialog.visible = true;
 };
 
