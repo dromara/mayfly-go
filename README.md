@@ -34,7 +34,7 @@ web版 **linux(终端[终端回放] 文件 脚本 进程)、数据库（mysql po
 ### 系统相关资料
 - 项目文档: https://objs.gitee.io/mayfly-go-docs
 - 系统操作视频: https://space.bilibili.com/484091081/channel/collectiondetail?sid=392854
-- 安装包下载：https://gitee.com/objs/mayfly-go/releases
+- 部署文档：https://objs.gitee.io/mayfly-go-docs/download
 
 
 ### 系统核心功能截图

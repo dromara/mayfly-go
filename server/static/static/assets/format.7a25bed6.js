@@ -1,1 +1,0 @@
-function r(e){const B=Number(e);if(e&&!isNaN(B)){const n=["B","KB","MB","GB","TB","PB","EB","ZB","YB","BB"];let i=0,t=B;if(B>=1024)for(;t>1024;)t=t/1024,i++;return`${t.toFixed(2)}${n[i]}`}return"-"}export{r as f};
