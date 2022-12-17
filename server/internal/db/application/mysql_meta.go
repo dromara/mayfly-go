@@ -103,3 +103,7 @@ func (mm *MysqlMetadata) GetCreateTableDdl(tableName string) []map[string]interf
 	res, _ := mm.di.innerSelect(fmt.Sprintf("show create table %s ", tableName))
 	return res
 }
+
+func (mm *MysqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]interface{}, error) {
+	return mm.di.SelectData(fmt.Sprintf("SELECT * FROM %s LIMIT %d, %d", tableName, (pageNum-1)*pageSize, pageSize))
+}

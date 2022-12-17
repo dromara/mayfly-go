@@ -220,5 +220,5 @@ func doExec(sql string, dbInstance *DbInstance) (*DbSqlExecRes, error) {
 	return &DbSqlExecRes{
 		ColNames: []string{"sql", "rowsAffected", "result"},
 		Res:      res,
-	}, nil
+	}, err
 }

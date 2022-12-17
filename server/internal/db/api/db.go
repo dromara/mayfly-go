@@ -128,7 +128,7 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	dbInstance := d.DbApp.GetDbInstance(id, db)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
 
-	rc.ReqParam = fmt.Sprintf("%s -> %s", dbInstance.Info.GetLogDesc(), form.Sql)
+	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbInstance.Info.GetLogDesc(), form.Sql)
 	biz.NotEmpty(form.Sql, "sql不能为空")
 
 	// 去除前后空格及换行符
@@ -153,7 +153,9 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 		}
 		execReq.Sql = s
 		execRes, err := d.DbSqlExecApp.Exec(execReq)
-		biz.ErrIsNilAppendErr(err, "执行失败: %s")
+		if err != nil {
+			biz.ErrIsNilAppendErr(err, fmt.Sprintf("[%s] -> 执行失败: ", s)+"%s")
+		}
 
 		if execResAll == nil {
 			execResAll = execRes
@@ -178,24 +180,33 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 	filename := fileheader.Filename
 	dbId, db := GetIdAndDb(g)
 
-	rc.ReqParam = fmt.Sprintf("dbId: %d, db: %s, filename: %s", dbId, db, filename)
+	dbInstance := d.DbApp.GetDbInstance(dbId, db)
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
+	rc.ReqParam = fmt.Sprintf("%s -> filename: %s", dbInstance.Info.GetLogDesc(), filename)
+
+	logExecRecord := true
+	// 如果执行sql文件大于该值则不记录sql执行记录
+	if fileheader.Size > 500*1024 {
+		logExecRecord = false
+	}
 
 	go func() {
-		db := d.DbApp.GetDbInstance(dbId, db)
-
-		dbEntity := d.DbApp.GetById(dbId)
-		dbInfo := fmt.Sprintf("于%s的%s环境", dbEntity.Name, dbEntity.TagPath)
-
 		defer func() {
 			if err := recover(); err != nil {
 				switch t := err.(type) {
 				case *biz.BizError:
-					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbInfo, t.Error())))
+					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbInstance.Info.GetLogDesc(), t.Error())))
 				}
 			}
 		}()
 
-		biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, db.Info.TagPath), "%s")
+		execReq := &application.DbSqlExecReq{
+			DbId:         dbId,
+			Db:           db,
+			Remark:       fileheader.Filename,
+			DbInstance:   dbInstance,
+			LoginAccount: rc.LoginAccount,
+		}
 
 		tokens := sqlparser.NewTokenizer(file)
 		for {
@@ -204,13 +215,20 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 				break
 			}
 			sql := sqlparser.String(stmt)
-			_, err = db.Exec(sql)
+			execReq.Sql = sql
+			// 需要记录执行记录
+			if logExecRecord {
+				_, err = d.DbSqlExecApp.Exec(execReq)
+			} else {
+				_, err = dbInstance.Exec(sql)
+			}
+
 			if err != nil {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbInfo, err.Error())))
+				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] -> sql=[%s] 执行失败: [%s]", filename, dbInstance.Info.GetLogDesc(), sql, err.Error())))
 				return
 			}
 		}
-		d.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessMsg("sql脚本执行成功", fmt.Sprintf("[%s]%s执行完成", filename, dbInfo)))
+		d.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessMsg("sql脚本执行成功", fmt.Sprintf("[%s]执行完成 -> %s", filename, dbInstance.Info.GetLogDesc())))
 	}()
 }
 
@@ -258,33 +276,13 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 		writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", table))
 		writer.WriteString("BEGIN;\n")
 
-		countSql := fmt.Sprintf("SELECT COUNT(*) count FROM %s", table)
-		_, countRes, _ := dbInstance.SelectData(countSql)
-		// 查询出所有列信息总数，手动分页获取所有数据
-		maCount := 0
-		// 查询出所有列信息总数，手动分页获取所有数据
-		if count64, is64 := countRes[0]["count"].(int64); is64 {
-			maCount = int(count64)
-		} else {
-			maCount = countRes[0]["count"].(int)
-		}
-		// 计算需要查询的页数
-		pageNum := maCount / DEFAULT_ROW_SIZE
-		if maCount%DEFAULT_ROW_SIZE > 0 {
-			pageNum++
-		}
-
-		var sqlTmp string
-		switch dbInstance.Info.Type {
-		case entity.DbTypeMysql:
-			sqlTmp = "SELECT * FROM %s LIMIT %d, %d"
-		case entity.DbTypePostgres:
-			sqlTmp = "SELECT * FROM %s OFFSET %d LIMIT %d"
-		}
-		for index := 0; index < pageNum; index++ {
-			sql := fmt.Sprintf(sqlTmp, table, index*DEFAULT_ROW_SIZE, DEFAULT_ROW_SIZE)
-			columns, result, _ := dbInstance.SelectData(sql)
-
+		pageNum := 1
+		for {
+			columns, result, _ := dbmeta.GetTableRecord(table, pageNum, DEFAULT_ROW_SIZE)
+			resultLen := len(result)
+			if resultLen == 0 {
+				break
+			}
 			insertSql := "INSERT INTO `%s` VALUES (%s);\n"
 			for _, res := range result {
 				var values []string
@@ -303,19 +301,22 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 				}
 				writer.WriteString(fmt.Sprintf(insertSql, table, strings.Join(values, ", ")))
 			}
+			if resultLen < DEFAULT_ROW_SIZE {
+				break
+			}
+			pageNum++
 		}
 
 		writer.WriteString("COMMIT;\n")
 	}
 	rc.NoRes = true
 
-	rc.ReqParam = fmt.Sprintf("dbId: %d, db: %s, tables: %s, dumpType: %s", dbId, db, tablesStr, dumpType)
+	rc.ReqParam = fmt.Sprintf("%s, tables: %s, dumpType: %s", dbInstance.Info.GetLogDesc(), tablesStr, dumpType)
 }
 
 // @router /api/db/:dbId/t-metadata [get]
 func (d *Db) TableMA(rc *ctx.ReqCtx) {
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbi.Info.TagPath), "%s")
 	rc.ResData = dbi.GetMeta().GetTables()
 }
 
@@ -326,14 +327,12 @@ func (d *Db) ColumnMA(rc *ctx.ReqCtx) {
 	biz.NotEmpty(tn, "tableName不能为空")
 
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
-	// biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.TagPath), "%s")
 	rc.ResData = dbi.GetMeta().GetColumns(tn)
 }
 
 // @router /api/db/:dbId/hint-tables [get]
 func (d *Db) HintTables(rc *ctx.ReqCtx) {
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
-	// biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.TagPath), "%s")
 
 	dm := dbi.GetMeta()
 	// 获取所有表

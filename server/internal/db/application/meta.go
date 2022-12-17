@@ -1,7 +1,7 @@
 package application
 
 // -----------------------------------元数据接口定义------------------------------------------
-// 数据库元信息接口（表、列等元信息）
+// 数据库元信息接口（表、列、获取表数据等元信息）
 // 所有数据查出来直接用map接收，注意不同数据库实现该接口返回的map中的key需要统一.
 // 即: 使用别名统一即可。如table_name AS tableName
 type DbMetadata interface {
@@ -25,4 +25,8 @@ type DbMetadata interface {
 
 	// 获取建表ddl
 	GetCreateTableDdl(tableName string) []map[string]interface{}
+
+	// 获取指定表的数据-分页查询
+	// @return columns: 列字段名；result: 结果集；error: 错误
+	GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]interface{}, error)
 }

@@ -79,9 +79,11 @@
                         </template>
                     </el-table-column>
                 </el-table>
-                <el-pagination @current-change="getMsgs" style="text-align: center" background
-                    layout="prev, pager, next, total, jumper" :total="msgDialog.msgs.total"
-                    v-model:current-page="msgDialog.query.pageNum" :page-size="msgDialog.query.pageSize" />
+                <el-row type="flex" class="mt5" justify="center">
+                    <el-pagination small @current-change="getMsgs" style="text-align: center" background
+                        layout="prev, pager, next, total, jumper" :total="msgDialog.msgs.total"
+                        v-model:current-page="msgDialog.query.pageNum" :page-size="msgDialog.query.pageSize" />
+                </el-row>
             </el-dialog>
 
             <!-- 营销推荐 -->

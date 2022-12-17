@@ -95,7 +95,11 @@ func (pm *PgsqlMetadata) GetTableIndex(tableName string) []map[string]interface{
 }
 
 // 获取建表ddl
-func (mm *PgsqlMetadata) GetCreateTableDdl(tableName string) []map[string]interface{} {
+func (pm *PgsqlMetadata) GetCreateTableDdl(tableName string) []map[string]interface{} {
 	biz.IsTrue(tableName == "", "暂不支持获取pgsql建表DDL")
 	return nil
+}
+
+func (pm *PgsqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]interface{}, error) {
+	return pm.di.SelectData(fmt.Sprintf("SELECT * FROM %s OFFSET %d LIMIT %d", tableName, (pageNum-1)*pageSize, pageSize))
 }
