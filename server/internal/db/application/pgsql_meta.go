@@ -1,9 +1,59 @@
 package application
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"fmt"
+	"mayfly-go/internal/db/domain/entity"
+	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/utils"
+	"net"
+	"strings"
+	"time"
+
+	"github.com/lib/pq"
 )
+
+func getPgsqlDB(d *entity.Db, db string) (*sql.DB, error) {
+	driverName := d.Type
+	// SSH Conect
+	if d.EnableSshTunnel == 1 && d.SshTunnelMachineId != 0 {
+		// 如果使用了隧道，则使用`postgres:ssh:隧道机器id`注册名
+		driverName = fmt.Sprintf("postgres:ssh:%d", d.SshTunnelMachineId)
+		if !utils.ArrContains(sql.Drivers(), driverName) {
+			sql.Register(driverName, &PqSqlDialer{sshTunnelMachineId: d.SshTunnelMachineId})
+		}
+		sql.Drivers()
+	}
+
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", d.Host, d.Port, d.Username, d.Password, db)
+	if d.Params != "" {
+		dsn = fmt.Sprintf("%s %s", dsn, strings.Join(strings.Split(d.Params, "&"), " "))
+	}
+	return sql.Open(driverName, dsn)
+}
+
+// pgsql dialer
+type PqSqlDialer struct {
+	sshTunnelMachineId uint64
+}
+
+func (d *PqSqlDialer) Open(name string) (driver.Conn, error) {
+	return pq.DialOpen(d, name)
+}
+
+func (pd *PqSqlDialer) Dial(network, address string) (net.Conn, error) {
+	if sshConn, err := machineapp.GetMachineApp().GetSshTunnelMachine(pd.sshTunnelMachineId).GetDialConn("tcp", address); err == nil {
+		return sshConn, nil
+	} else {
+		return nil, err
+	}
+}
+
+func (pd *PqSqlDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
+	return pd.Dial(network, address)
+}
 
 // ---------------------------------- pgsql元数据 -----------------------------------
 const (

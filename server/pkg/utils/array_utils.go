@@ -1,6 +1,8 @@
 package utils
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // 数组比较
 // 依次返回，新增值，删除值，以及不变值
@@ -48,4 +50,14 @@ func NumberArr2StrArr[T NumT](numberArr []T) []string {
 		strArr = append(strArr, fmt.Sprintf("%d", v))
 	}
 	return strArr
+}
+
+// 判断数组中是否含有指定元素
+func ArrContains[T comparable](arr []T, el T) bool {
+	for _, v := range arr {
+		if v == el {
+			return true
+		}
+	}
+	return false
 }

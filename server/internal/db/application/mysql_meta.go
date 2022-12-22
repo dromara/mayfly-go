@@ -1,9 +1,32 @@
 package application
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
+	"mayfly-go/internal/db/domain/entity"
+	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/biz"
+	"net"
+
+	"github.com/go-sql-driver/mysql"
 )
+
+func getMysqlDB(d *entity.Db, db string) (*sql.DB, error) {
+	// SSH Conect
+	if d.EnableSshTunnel == 1 && d.SshTunnelMachineId != 0 {
+		sshTunnelMachine := machineapp.GetMachineApp().GetSshTunnelMachine(d.SshTunnelMachineId)
+		mysql.RegisterDialContext(d.Network, func(ctx context.Context, addr string) (net.Conn, error) {
+			return sshTunnelMachine.GetDialConn("tcp", addr)
+		})
+	}
+	// 设置dataSourceName  -> 更多参数参考：https://github.com/go-sql-driver/mysql#dsn-data-source-name
+	dsn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, db)
+	if d.Params != "" {
+		dsn = fmt.Sprintf("%s&%s", dsn, d.Params)
+	}
+	return sql.Open(d.Type, dsn)
+}
 
 // ---------------------------------- mysql元数据 -----------------------------------
 const (

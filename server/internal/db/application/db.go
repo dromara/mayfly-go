@@ -1,28 +1,22 @@
 package application
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/constant"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
-	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/infrastructure/machine"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
-	"net"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/go-sql-driver/mysql"
-	"github.com/lib/pq"
 )
 
 type Db interface {
@@ -190,10 +184,10 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	defer mutex.Unlock()
 
 	d := da.GetById(id)
-	// 密码解密
-	d.PwdDecrypt()
 	biz.NotNil(d, "数据库信息不存在")
 	biz.IsTrue(strings.Contains(d.Database, db), "未配置该库的操作权限")
+	// 密码解密
+	d.PwdDecrypt()
 
 	dbInfo := new(DbInfo)
 	utils.Copy(dbInfo, d)
@@ -347,22 +341,14 @@ func TestConnection(d *entity.Db) {
 
 // 获取数据库连接
 func GetDbConn(d *entity.Db, db string) (*sql.DB, error) {
-	// SSH Conect
-	if d.EnableSshTunnel == 1 && d.SshTunnelMachineId != 0 {
-		sshTunnelMachine := machineapp.GetMachineApp().GetSshTunnelMachine(d.SshTunnelMachineId)
-		if d.Type == entity.DbTypeMysql {
-			mysql.RegisterDialContext(d.Network, func(ctx context.Context, addr string) (net.Conn, error) {
-				return sshTunnelMachine.GetDialConn("tcp", addr)
-			})
-		} else if d.Type == entity.DbTypePostgres {
-			_, err := pq.DialOpen(&PqSqlDialer{sshTunnelMachine: sshTunnelMachine}, getDsn(d, db))
-			if err != nil {
-				panic(biz.NewBizErr(fmt.Sprintf("postgres隧道连接失败: %s", err.Error())))
-			}
-		}
+	var DB *sql.DB
+	var err error
+	if d.Type == entity.DbTypeMysql {
+		DB, err = getMysqlDB(d, db)
+	} else if d.Type == entity.DbTypePostgres {
+		DB, err = getPgsqlDB(d, db)
 	}
 
-	DB, err := sql.Open(d.Type, getDsn(d, db))
 	if err != nil {
 		return nil, err
 	}
@@ -373,28 +359,6 @@ func GetDbConn(d *entity.Db, db string) (*sql.DB, error) {
 	}
 
 	return DB, nil
-}
-
-// 获取dataSourceName
-func getDsn(d *entity.Db, db string) string {
-	var dsn string
-	if d.Type == entity.DbTypeMysql {
-		// 更多参数参考：https://github.com/go-sql-driver/mysql#dsn-data-source-name
-		dsn = fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, db)
-		if d.Params != "" {
-			dsn = fmt.Sprintf("%s&%s", dsn, d.Params)
-		}
-		return dsn
-	}
-
-	if d.Type == entity.DbTypePostgres {
-		dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", d.Host, d.Port, d.Username, d.Password, db)
-		if d.Params != "" {
-			dsn = fmt.Sprintf("%s %s", dsn, strings.Join(strings.Split(d.Params, "&"), " "))
-		}
-		return dsn
-	}
-	return ""
 }
 
 func SelectDataByDb(db *sql.DB, selectSql string, isInner bool) ([]string, []map[string]interface{}, error) {
@@ -524,21 +488,4 @@ func Select2StructByDb(db *sql.DB, selectSql string, dest interface{}) error {
 // 删除db缓存并关闭该数据库所有连接
 func CloseDb(dbId uint64, db string) {
 	dbCache.Delete(GetDbCacheKey(dbId, db))
-}
-
-type PqSqlDialer struct {
-	sshTunnelMachine *machine.SshTunnelMachine
-}
-
-func (pd *PqSqlDialer) Dial(network, address string) (net.Conn, error) {
-	if sshConn, err := pd.sshTunnelMachine.GetDialConn("tcp", address); err == nil {
-		// 将ssh conn包装，否则redis内部设置超时会报错,ssh conn不支持设置超时会返回错误: ssh: tcpChan: deadline not supported
-		return &utils.WrapSshConn{Conn: sshConn}, nil
-	} else {
-		return nil, err
-	}
-}
-
-func (pd *PqSqlDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
-	return pd.Dial(network, address)
 }
