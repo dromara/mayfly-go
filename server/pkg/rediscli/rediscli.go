@@ -2,7 +2,6 @@ package rediscli
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -19,22 +18,17 @@ func GetCli() *redis.Client {
 }
 
 // get key value
-func Get(key string) string {
-	val, err := cli.Get(context.TODO(), key).Result()
-	switch {
-	case err == redis.Nil:
-		fmt.Println("key does not exist")
-	case err != nil:
-		fmt.Println("Get failed", err)
-	case val == "":
-		fmt.Println("value is empty")
-	}
-	return val
+func Get(key string) (string, error) {
+	return cli.Get(context.TODO(), key).Result()
 }
 
 // set key value
 func Set(key string, val string, expiration time.Duration) {
 	cli.Set(context.TODO(), key, val, expiration)
+}
+
+func Del(key string) {
+	cli.Del(context.TODO(), key)
 }
 
 func HSet(key string, field string, val interface{}) {

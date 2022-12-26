@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
+	"mayfly-go/pkg/cache"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -33,9 +34,6 @@ func PwdHash(password string) string {
 func CheckPwdHash(password, hash string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
-
-// 系统统一RSA秘钥对
-var RsaPair []string
 
 // 生成RSA私钥和公钥字符串
 // bits 证书大小
@@ -130,33 +128,36 @@ func DefaultRsaDecrypt(data string, useBase64 bool) (string, error) {
 	return string(val), nil
 }
 
+const publicKeyK = "mayfly:public-key"
+const privateKeyK = "mayfly:private-key"
+
 // 获取系统的RSA公钥
 func GetRsaPublicKey() (string, error) {
-	if len(RsaPair) == 2 {
-		return RsaPair[1], nil
+	publicKey := cache.GetStr(publicKeyK)
+	if publicKey != "" {
+		return publicKey, nil
 	}
-
 	privateKey, publicKey, err := GenerateRSAKey(1024)
 	if err != nil {
 		return "", err
 	}
-	RsaPair = append(RsaPair, privateKey)
-	RsaPair = append(RsaPair, publicKey)
+	cache.SetStr(publicKeyK, publicKey)
+	cache.SetStr(privateKeyK, privateKey)
 	return publicKey, nil
 }
 
 // 获取系统私钥
 func GetRsaPrivateKey() (string, error) {
-	if len(RsaPair) == 2 {
-		return RsaPair[0], nil
+	privateKey := cache.GetStr(privateKeyK)
+	if privateKey != "" {
+		return privateKey, nil
 	}
-
 	privateKey, publicKey, err := GenerateRSAKey(1024)
 	if err != nil {
 		return "", err
 	}
-	RsaPair = append(RsaPair, privateKey)
-	RsaPair = append(RsaPair, publicKey)
+	cache.SetStr(publicKeyK, publicKey)
+	cache.SetStr(privateKeyK, privateKey)
 	return privateKey, nil
 }
 

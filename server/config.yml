@@ -24,9 +24,15 @@ mysql:
   db-name: mayfly-go
   config: charset=utf8&loc=Local&parseTime=true
   max-idle-conns: 5
+# 若同时部署多台机器，则需要配置redis信息用于缓存权限码、验证码、公私钥等
+# redis:
+#   host: localhost
+#   port: 6379
+#   passsord: 
+#   db: 0
 log:
    # 日志等级, trace, debug, info, warn, error, fatal
   level: info
-  file:
-    path: ./
-    name: mayfly-go.log
+  # file:
+  #   path: ./
+  #   name: mayfly-go.log

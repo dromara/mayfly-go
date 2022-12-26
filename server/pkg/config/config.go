@@ -40,8 +40,8 @@ type Config struct {
 	Server *Server `yaml:"server"`
 	Jwt    *Jwt    `yaml:"jwt"`
 	Aes    *Aes    `yaml:"aes"`
-	Redis  *Redis  `yaml:"redis"`
 	Mysql  *Mysql  `yaml:"mysql"`
+	Redis  *Redis  `yaml:"redis"`
 	Log    *Log    `yaml:"log"`
 }
 

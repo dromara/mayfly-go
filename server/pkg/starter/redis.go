@@ -5,19 +5,20 @@ import (
 	"fmt"
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/rediscli"
 
 	"github.com/go-redis/redis/v8"
 )
 
-func InitRedis() {
-	global.RedisCli = ConnRedis()
+func initRedis() {
+	rediscli.SetCli(connRedis())
 }
 
-func ConnRedis() *redis.Client {
+func connRedis() *redis.Client {
 	// 设置redis客户端
 	redisConf := config.Conf.Redis
 	if redisConf == nil {
-		global.Log.Panic("未找到redis配置信息")
+		// global.Log.Panic("未找到redis配置信息")
 		return nil
 	}
 	global.Log.Infof("连接redis [%s:%d]", redisConf.Host, redisConf.Port)
