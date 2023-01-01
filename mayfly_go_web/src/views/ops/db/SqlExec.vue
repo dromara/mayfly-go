@@ -859,6 +859,9 @@ const doRunSql = async (sql: string, execRemark?: string) => {
         state.queryTab.sql = sql;
         state.queryTab.loading = true;
         const colAndData: any = await runSql(sql, execRemark);
+        if(!colAndData.res || colAndData.res.length===0){
+          ElMessage.warning('暂无数据')
+        }
         state.queryTab.execRes.data = colAndData.res;
         state.queryTab.execRes.tableColumn = colAndData.colNames;
         state.queryTab.loading = false;
