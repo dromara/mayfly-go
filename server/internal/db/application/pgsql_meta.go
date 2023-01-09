@@ -72,7 +72,7 @@ const (
 		A.attname AS "columnName",
 		tc.is_nullable AS "nullable",
 		concat_ws ( '', t.typname, SUBSTRING ( format_type ( a.atttypid, a.atttypmod ) FROM '\(.*\)' ) ) AS "columnType",
-		(CASE WHEN ( SELECT COUNT(*) FROM pg_constraint WHERE conrelid = a.attrelid AND conkey[1]= attnum AND contype = 'p' ) > 0 THEN 'PRI' ELSE '' END ) AS columnKey,
+		(CASE WHEN ( SELECT COUNT(*) FROM pg_constraint WHERE conrelid = a.attrelid AND conkey[1]= attnum AND contype = 'p' ) > 0 THEN 'PRI' ELSE '' END ) AS "columnKey",
 		d.description AS "columnComment" 
 	FROM
 		pg_attribute a LEFT JOIN pg_description d ON d.objoid = a.attrelid 
