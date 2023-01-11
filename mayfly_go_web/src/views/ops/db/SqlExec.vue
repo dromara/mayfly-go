@@ -910,7 +910,7 @@ const runSql = async (sql: string, remark: string = '') => {
     return await dbApi.sqlExec.request({
         id: state.dbId,
         db: state.db,
-        sql: "MAGIC"+btoa(sql.trim()),
+        sql: "MAGIC"+btoa(encodeURIComponent(sql.trim())),
         remark,
     });
 };

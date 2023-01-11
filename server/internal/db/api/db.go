@@ -15,6 +15,7 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
 	"mayfly-go/pkg/ws"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -135,7 +136,8 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 	// 去除前后空格及换行符
 	sqlBytes, err := b64.StdEncoding.DecodeString(strings.Replace(form.Sql, "MAGIC", "", 1))
 	biz.ErrIsNilAppendErr(err, "sql base64解码错误: %s")
-	sql := utils.StrTrimSpaceAndBr(string(sqlBytes))
+	unescape, err := url.QueryUnescape(string(sqlBytes))
+	sql := utils.StrTrimSpaceAndBr(unescape)
 
 	execReq := &application.DbSqlExecReq{
 		DbId:         id,
