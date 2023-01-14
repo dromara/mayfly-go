@@ -7,7 +7,7 @@ import (
 	mongoapp "mayfly-go/internal/mongo/application"
 	redisapp "mayfly-go/internal/redis/application"
 	tagapp "mayfly-go/internal/tag/application"
-	"mayfly-go/pkg/ctx"
+	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,7 +24,7 @@ func InitIndexRouter(router *gin.RouterGroup) {
 	{
 		// 首页基本信息统计
 		index.GET("count", func(g *gin.Context) {
-			ctx.NewReqCtxWithGin(g).
+			req.NewCtxWithGin(g).
 				Handle(i.Count)
 		})
 	}

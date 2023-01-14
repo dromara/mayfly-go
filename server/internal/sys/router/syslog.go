@@ -3,7 +3,7 @@ package router
 import (
 	"mayfly-go/internal/sys/api"
 	"mayfly-go/internal/sys/application"
-	"mayfly-go/pkg/ctx"
+	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +15,7 @@ func InitSyslogRouter(router *gin.RouterGroup) {
 	sys := router.Group("syslogs")
 	{
 		sys.GET("", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(s.Syslogs)
+			req.NewCtxWithGin(c).Handle(s.Syslogs)
 		})
 	}
 }

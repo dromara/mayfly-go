@@ -1,4 +1,4 @@
-package ctx
+package req
 
 import (
 	"io"
@@ -11,24 +11,24 @@ import (
 )
 
 // 处理函数
-type HandlerFunc func(*ReqCtx)
+type HandlerFunc func(*Ctx)
 
-type ReqCtx struct {
+type Ctx struct {
 	GinCtx *gin.Context // gin context
 
 	RequiredPermission *Permission         // 需要的权限信息，默认为nil，需要校验token
 	LoginAccount       *model.LoginAccount // 登录账号信息，只有校验token后才会有值
 
-	LogInfo  *LogInfo    // 日志相关信息
-	ReqParam interface{} // 请求参数，主要用于记录日志
-	ResData  interface{} // 响应结果
-	Err      interface{} // 请求错误
+	LogInfo  *LogInfo // 日志相关信息
+	ReqParam any      // 请求参数，主要用于记录日志
+	ResData  any      // 响应结果
+	Err      any      // 请求错误
 
 	timed int64 // 执行时间
 	NoRes bool  // 无需返回结果，即文件下载等
 }
 
-func (rc *ReqCtx) Handle(handler HandlerFunc) {
+func (rc *Ctx) Handle(handler HandlerFunc) {
 	ginCtx := rc.GinCtx
 	defer func() {
 		if err := recover(); err != nil {
@@ -41,7 +41,7 @@ func (rc *ReqCtx) Handle(handler HandlerFunc) {
 	assert.IsTrue(ginCtx != nil, "ginContext == nil")
 
 	// 默认为不记录请求参数，可在handler回调函数中覆盖赋值
-	rc.ReqParam = 0
+	rc.ReqParam = nil
 	// 默认响应结果为nil，可在handler中赋值
 	rc.ResData = nil
 
@@ -59,40 +59,35 @@ func (rc *ReqCtx) Handle(handler HandlerFunc) {
 	}
 }
 
-func (rc *ReqCtx) Download(reader io.Reader, filename string) {
+func (rc *Ctx) Download(reader io.Reader, filename string) {
 	rc.NoRes = true
 	ginx.Download(rc.GinCtx, reader, filename)
 }
 
-// 新建请求上下文，默认需要校验token
-func NewReqCtx() *ReqCtx {
-	return &ReqCtx{}
-}
-
-func NewReqCtxWithGin(g *gin.Context) *ReqCtx {
-	return &ReqCtx{GinCtx: g}
+func NewCtxWithGin(g *gin.Context) *Ctx {
+	return &Ctx{GinCtx: g}
 }
 
 // 调用该方法设置请求描述，则默认记录日志，并不记录响应结果
-func (r *ReqCtx) WithLog(li *LogInfo) *ReqCtx {
+func (r *Ctx) WithLog(li *LogInfo) *Ctx {
 	r.LogInfo = li
 	return r
 }
 
 // 设置请求上下文需要的权限信息
-func (r *ReqCtx) WithRequiredPermission(permission *Permission) *ReqCtx {
+func (r *Ctx) WithRequiredPermission(permission *Permission) *Ctx {
 	r.RequiredPermission = permission
 	return r
 }
 
 // 是否需要token
-func (r *ReqCtx) WithNeedToken(needToken bool) *ReqCtx {
+func (r *Ctx) WithNeedToken(needToken bool) *Ctx {
 	r.RequiredPermission = &Permission{NeedToken: false}
 	return r
 }
 
 // 处理器拦截器函数
-type HandlerInterceptorFunc func(*ReqCtx) error
+type HandlerInterceptorFunc func(*Ctx) error
 type HandlerInterceptors []HandlerInterceptorFunc
 
 var (
@@ -111,7 +106,7 @@ func UseAfterHandlerInterceptor(b HandlerInterceptorFunc) {
 }
 
 // 应用指定处理器拦截器，如果有一个错误则直接返回错误
-func ApplyHandlerInterceptor(his HandlerInterceptors, rc *ReqCtx) interface{} {
+func ApplyHandlerInterceptor(his HandlerInterceptors, rc *Ctx) interface{} {
 	for _, handler := range his {
 		if err := handler(rc); err != nil {
 			return err

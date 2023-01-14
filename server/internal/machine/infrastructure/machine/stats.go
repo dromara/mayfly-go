@@ -73,7 +73,7 @@ top -b -n 1 | grep Cpu
 
 func (c *Cli) GetAllStats() *Stats {
 	res, _ := c.Run(StatsShell)
-	infos := strings.Split(*res, "-----")
+	infos := strings.Split(res, "-----")
 	stats := new(Stats)
 	getUptime(infos[0], stats)
 	getHostname(infos[1], stats)

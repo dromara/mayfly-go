@@ -9,9 +9,9 @@ import (
 	"mayfly-go/internal/redis/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"strconv"
 	"strings"
@@ -26,7 +26,7 @@ type Redis struct {
 	TagApp   tagapp.TagTree
 }
 
-func (r *Redis) RedisList(rc *ctx.ReqCtx) {
+func (r *Redis) RedisList(rc *req.Ctx) {
 	condition := new(entity.RedisQuery)
 	condition.TagPathLike = rc.GinCtx.Query("tagPath")
 
@@ -40,7 +40,7 @@ func (r *Redis) RedisList(rc *ctx.ReqCtx) {
 	rc.ResData = r.RedisApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.Redis))
 }
 
-func (r *Redis) Save(rc *ctx.ReqCtx) {
+func (r *Redis) Save(rc *req.Ctx) {
 	form := &form.Redis{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
@@ -61,18 +61,18 @@ func (r *Redis) Save(rc *ctx.ReqCtx) {
 }
 
 // 获取redis实例密码，由于数据库是加密存储，故提供该接口展示原文密码
-func (r *Redis) GetRedisPwd(rc *ctx.ReqCtx) {
+func (r *Redis) GetRedisPwd(rc *req.Ctx) {
 	rid := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
 	re := r.RedisApp.GetById(rid, "Password")
 	re.PwdDecrypt()
 	rc.ResData = re.Password
 }
 
-func (r *Redis) DeleteRedis(rc *ctx.ReqCtx) {
+func (r *Redis) DeleteRedis(rc *req.Ctx) {
 	r.RedisApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
 }
 
-func (r *Redis) RedisInfo(rc *ctx.ReqCtx) {
+func (r *Redis) RedisInfo(rc *req.Ctx) {
 	g := rc.GinCtx
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
 
@@ -144,7 +144,7 @@ func (r *Redis) RedisInfo(rc *ctx.ReqCtx) {
 	rc.ResData = parseMap
 }
 
-func (r *Redis) ClusterInfo(rc *ctx.ReqCtx) {
+func (r *Redis) ClusterInfo(rc *req.Ctx) {
 	g := rc.GinCtx
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
 	biz.IsEquals(ri.Info.Mode, entity.RedisModeCluster, "非集群模式")
@@ -189,7 +189,7 @@ func (r *Redis) ClusterInfo(rc *ctx.ReqCtx) {
 }
 
 // scan获取redis的key列表信息
-func (r *Redis) Scan(rc *ctx.ReqCtx) {
+func (r *Redis) Scan(rc *req.Ctx) {
 	g := rc.GinCtx
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
 	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
@@ -318,7 +318,7 @@ func (r *Redis) Scan(rc *ctx.ReqCtx) {
 	rc.ResData = &vo.Keys{Cursor: cursorRes, Keys: kis, DbSize: size}
 }
 
-func (r *Redis) DeleteKey(rc *ctx.ReqCtx) {
+func (r *Redis) DeleteKey(rc *req.Ctx) {
 	g := rc.GinCtx
 	key := g.Query("key")
 	biz.NotEmpty(key, "key不能为空")
@@ -330,7 +330,7 @@ func (r *Redis) DeleteKey(rc *ctx.ReqCtx) {
 	ri.GetCmdable().Del(context.Background(), key)
 }
 
-func (r *Redis) checkKey(rc *ctx.ReqCtx) (*application.RedisInstance, string) {
+func (r *Redis) checkKey(rc *req.Ctx) (*application.RedisInstance, string) {
 	g := rc.GinCtx
 	key := g.Query("key")
 	biz.NotEmpty(key, "key不能为空")
@@ -341,14 +341,14 @@ func (r *Redis) checkKey(rc *ctx.ReqCtx) (*application.RedisInstance, string) {
 	return ri, key
 }
 
-func (r *Redis) GetStringValue(rc *ctx.ReqCtx) {
+func (r *Redis) GetStringValue(rc *req.Ctx) {
 	ri, key := r.checkKey(rc)
 	str, err := ri.GetCmdable().Get(context.TODO(), key).Result()
 	biz.ErrIsNilAppendErr(err, "获取字符串值失败: %s")
 	rc.ResData = str
 }
 
-func (r *Redis) SetStringValue(rc *ctx.ReqCtx) {
+func (r *Redis) SetStringValue(rc *req.Ctx) {
 	g := rc.GinCtx
 	keyValue := new(form.StringValue)
 	ginx.BindJsonAndValid(g, keyValue)
@@ -363,7 +363,7 @@ func (r *Redis) SetStringValue(rc *ctx.ReqCtx) {
 	rc.ResData = str
 }
 
-func (r *Redis) Hscan(rc *ctx.ReqCtx) {
+func (r *Redis) Hscan(rc *req.Ctx) {
 	ri, key := r.checkKey(rc)
 	g := rc.GinCtx
 	count := ginx.QueryInt(g, "count", 10)
@@ -384,7 +384,7 @@ func (r *Redis) Hscan(rc *ctx.ReqCtx) {
 	}
 }
 
-func (r *Redis) Hdel(rc *ctx.ReqCtx) {
+func (r *Redis) Hdel(rc *req.Ctx) {
 	ri, key := r.checkKey(rc)
 	field := rc.GinCtx.Query("field")
 
@@ -393,7 +393,7 @@ func (r *Redis) Hdel(rc *ctx.ReqCtx) {
 	rc.ResData = delRes
 }
 
-func (r *Redis) Hget(rc *ctx.ReqCtx) {
+func (r *Redis) Hget(rc *req.Ctx) {
 	ri, key := r.checkKey(rc)
 	field := rc.GinCtx.Query("field")
 
@@ -402,7 +402,7 @@ func (r *Redis) Hget(rc *ctx.ReqCtx) {
 	rc.ResData = res
 }
 
-func (r *Redis) SetHashValue(rc *ctx.ReqCtx) {
+func (r *Redis) SetHashValue(rc *req.Ctx) {
 	g := rc.GinCtx
 	hashValue := new(form.HashValue)
 	ginx.BindJsonAndValid(g, hashValue)
@@ -422,14 +422,14 @@ func (r *Redis) SetHashValue(rc *ctx.ReqCtx) {
 	}
 }
 
-func (r *Redis) GetSetValue(rc *ctx.ReqCtx) {
+func (r *Redis) GetSetValue(rc *req.Ctx) {
 	ri, key := r.checkKey(rc)
 	res, err := ri.GetCmdable().SMembers(context.TODO(), key).Result()
 	biz.ErrIsNilAppendErr(err, "获取set值失败: %s")
 	rc.ResData = res
 }
 
-func (r *Redis) SetSetValue(rc *ctx.ReqCtx) {
+func (r *Redis) SetSetValue(rc *req.Ctx) {
 	g := rc.GinCtx
 	keyvalue := new(form.SetValue)
 	ginx.BindJsonAndValid(g, keyvalue)
@@ -448,7 +448,7 @@ func (r *Redis) SetSetValue(rc *ctx.ReqCtx) {
 	}
 }
 
-func (r *Redis) GetListValue(rc *ctx.ReqCtx) {
+func (r *Redis) GetListValue(rc *req.Ctx) {
 	ri, key := r.checkKey(rc)
 	ctx := context.TODO()
 	cmdable := ri.GetCmdable()
@@ -468,7 +468,7 @@ func (r *Redis) GetListValue(rc *ctx.ReqCtx) {
 	}
 }
 
-func (r *Redis) SaveListValue(rc *ctx.ReqCtx) {
+func (r *Redis) SaveListValue(rc *req.Ctx) {
 	g := rc.GinCtx
 	listValue := new(form.ListValue)
 	ginx.BindJsonAndValid(g, listValue)
@@ -488,7 +488,7 @@ func (r *Redis) SaveListValue(rc *ctx.ReqCtx) {
 	}
 }
 
-func (r *Redis) SetListValue(rc *ctx.ReqCtx) {
+func (r *Redis) SetListValue(rc *req.Ctx) {
 	g := rc.GinCtx
 	listSetValue := new(form.ListSetValue)
 	ginx.BindJsonAndValid(g, listSetValue)

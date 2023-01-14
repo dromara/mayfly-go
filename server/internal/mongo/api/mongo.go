@@ -7,9 +7,9 @@ import (
 	"mayfly-go/internal/mongo/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"regexp"
 	"strconv"
@@ -25,7 +25,7 @@ type Mongo struct {
 	TagApp   tagapp.TagTree
 }
 
-func (m *Mongo) Mongos(rc *ctx.ReqCtx) {
+func (m *Mongo) Mongos(rc *req.Ctx) {
 	condition := new(entity.MongoQuery)
 	condition.TagPathLike = rc.GinCtx.Query("tagPath")
 
@@ -39,7 +39,7 @@ func (m *Mongo) Mongos(rc *ctx.ReqCtx) {
 	rc.ResData = m.MongoApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]entity.Mongo))
 }
 
-func (m *Mongo) Save(rc *ctx.ReqCtx) {
+func (m *Mongo) Save(rc *req.Ctx) {
 	form := &form.Mongo{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
@@ -57,18 +57,18 @@ func (m *Mongo) Save(rc *ctx.ReqCtx) {
 	m.MongoApp.Save(mongo)
 }
 
-func (m *Mongo) DeleteMongo(rc *ctx.ReqCtx) {
+func (m *Mongo) DeleteMongo(rc *req.Ctx) {
 	m.MongoApp.Delete(m.GetMongoId(rc.GinCtx))
 }
 
-func (m *Mongo) Databases(rc *ctx.ReqCtx) {
+func (m *Mongo) Databases(rc *req.Ctx) {
 	cli := m.MongoApp.GetMongoCli(m.GetMongoId(rc.GinCtx))
 	res, err := cli.ListDatabases(context.TODO(), bson.D{})
 	biz.ErrIsNilAppendErr(err, "获取mongo所有库信息失败: %s")
 	rc.ResData = res
 }
 
-func (m *Mongo) Collections(rc *ctx.ReqCtx) {
+func (m *Mongo) Collections(rc *req.Ctx) {
 	cli := m.MongoApp.GetMongoCli(m.GetMongoId(rc.GinCtx))
 	db := rc.GinCtx.Query("database")
 	biz.NotEmpty(db, "database不能为空")
@@ -78,7 +78,7 @@ func (m *Mongo) Collections(rc *ctx.ReqCtx) {
 	rc.ResData = res
 }
 
-func (m *Mongo) RunCommand(rc *ctx.ReqCtx) {
+func (m *Mongo) RunCommand(rc *req.Ctx) {
 	commandForm := new(form.MongoRunCommand)
 	ginx.BindJsonAndValid(rc.GinCtx, commandForm)
 	cli := m.MongoApp.GetMongoCli(m.GetMongoId(rc.GinCtx))
@@ -94,7 +94,7 @@ func (m *Mongo) RunCommand(rc *ctx.ReqCtx) {
 	rc.ResData = bm
 }
 
-func (m *Mongo) FindCommand(rc *ctx.ReqCtx) {
+func (m *Mongo) FindCommand(rc *req.Ctx) {
 	g := rc.GinCtx
 	cli := m.MongoApp.GetMongoCli(m.GetMongoId(g))
 	commandForm := new(form.MongoFindCommand)
@@ -127,7 +127,7 @@ func (m *Mongo) FindCommand(rc *ctx.ReqCtx) {
 	rc.ResData = res
 }
 
-func (m *Mongo) UpdateByIdCommand(rc *ctx.ReqCtx) {
+func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 	g := rc.GinCtx
 	cli := m.MongoApp.GetMongoCli(m.GetMongoId(g))
 	commandForm := new(form.MongoUpdateByIdCommand)
@@ -150,7 +150,7 @@ func (m *Mongo) UpdateByIdCommand(rc *ctx.ReqCtx) {
 	rc.ResData = res
 }
 
-func (m *Mongo) DeleteByIdCommand(rc *ctx.ReqCtx) {
+func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 	g := rc.GinCtx
 	cli := m.MongoApp.GetMongoCli(m.GetMongoId(g))
 	commandForm := new(form.MongoUpdateByIdCommand)
@@ -173,7 +173,7 @@ func (m *Mongo) DeleteByIdCommand(rc *ctx.ReqCtx) {
 	rc.ResData = res
 }
 
-func (m *Mongo) InsertOneCommand(rc *ctx.ReqCtx) {
+func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
 	g := rc.GinCtx
 	cli := m.MongoApp.GetMongoCli(m.GetMongoId(g))
 	commandForm := new(form.MongoInsertCommand)

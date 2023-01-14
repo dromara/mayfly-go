@@ -1,4 +1,4 @@
-package ctx
+package req
 
 import (
 	"encoding/json"
@@ -29,7 +29,7 @@ var (
 	permissionCodeRegistry PermissionCodeRegistry
 )
 
-func PermissionHandler(rc *ReqCtx) error {
+func PermissionHandler(rc *Ctx) error {
 	if permissionCodeRegistry == nil {
 		if rediscli.GetCli() == nil {
 			permissionCodeRegistry = new(DefaultPermissionCodeRegistry)

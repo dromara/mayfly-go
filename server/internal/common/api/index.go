@@ -10,7 +10,7 @@ import (
 	redisapp "mayfly-go/internal/redis/application"
 	redisentity "mayfly-go/internal/redis/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
-	"mayfly-go/pkg/ctx"
+	"mayfly-go/pkg/req"
 )
 
 type Index struct {
@@ -21,7 +21,7 @@ type Index struct {
 	MongoApp   mongoapp.Mongo
 }
 
-func (i *Index) Count(rc *ctx.ReqCtx) {
+func (i *Index) Count(rc *req.Ctx) {
 	accountId := rc.LoginAccount.Id
 	tagIds := i.TagApp.ListTagIdByAccountId(accountId)
 

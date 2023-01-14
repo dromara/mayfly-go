@@ -5,8 +5,8 @@ import (
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"strconv"
 	"strings"
@@ -18,14 +18,14 @@ type Role struct {
 	ResourceApp application.Resource
 }
 
-func (r *Role) Roles(rc *ctx.ReqCtx) {
+func (r *Role) Roles(rc *req.Ctx) {
 	g := rc.GinCtx
 	condition := &entity.Role{}
 	rc.ResData = r.RoleApp.GetPageList(condition, ginx.GetPageParam(g), new([]entity.Role))
 }
 
 // 保存角色信息
-func (r *Role) SaveRole(rc *ctx.ReqCtx) {
+func (r *Role) SaveRole(rc *req.Ctx) {
 	g := rc.GinCtx
 	form := &form.RoleForm{}
 	ginx.BindJsonAndValid(g, form)
@@ -39,17 +39,17 @@ func (r *Role) SaveRole(rc *ctx.ReqCtx) {
 }
 
 // 删除角色及其资源关联关系
-func (r *Role) DelRole(rc *ctx.ReqCtx) {
+func (r *Role) DelRole(rc *req.Ctx) {
 	r.RoleApp.DeleteRole(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
 }
 
 // 获取角色关联的资源id数组，用于分配资源时回显已拥有的资源
-func (r *Role) RoleResourceIds(rc *ctx.ReqCtx) {
+func (r *Role) RoleResourceIds(rc *req.Ctx) {
 	rc.ResData = r.RoleApp.GetRoleResourceIds(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
 }
 
 // 查看角色关联的资源树信息
-func (r *Role) RoleResource(rc *ctx.ReqCtx) {
+func (r *Role) RoleResource(rc *req.Ctx) {
 	g := rc.GinCtx
 
 	var resources vo.ResourceManageVOList
@@ -59,7 +59,7 @@ func (r *Role) RoleResource(rc *ctx.ReqCtx) {
 }
 
 // 保存角色资源
-func (r *Role) SaveResource(rc *ctx.ReqCtx) {
+func (r *Role) SaveResource(rc *req.Ctx) {
 	g := rc.GinCtx
 
 	var form form.RoleResourceForm

@@ -1,4 +1,4 @@
-package ctx
+package req
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type SaveLogFunc func(*ReqCtx)
+type SaveLogFunc func(*Ctx)
 
 var saveLog SaveLogFunc
 
@@ -43,7 +43,7 @@ func (i *LogInfo) WithSave(saveLog bool) *LogInfo {
 	return i
 }
 
-func LogHandler(rc *ReqCtx) error {
+func LogHandler(rc *Ctx) error {
 	li := rc.LogInfo
 	if li == nil {
 		return nil
@@ -70,7 +70,7 @@ func LogHandler(rc *ReqCtx) error {
 	return nil
 }
 
-func getLogMsg(rc *ReqCtx) string {
+func getLogMsg(rc *Ctx) string {
 	msg := rc.LogInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
 	if !utils.IsBlank(reflect.ValueOf(rc.ReqParam)) {
 		msg = msg + fmt.Sprintf("\n--> %s", utils.ToString(rc.ReqParam))
@@ -83,7 +83,7 @@ func getLogMsg(rc *ReqCtx) string {
 	return msg
 }
 
-func getErrMsg(rc *ReqCtx, err interface{}) string {
+func getErrMsg(rc *Ctx, err interface{}) string {
 	msg := rc.LogInfo.Description
 	if !utils.IsBlank(reflect.ValueOf(rc.ReqParam)) {
 		msg = msg + fmt.Sprintf("\n--> %s", utils.ToString(rc.ReqParam))

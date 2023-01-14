@@ -4,7 +4,7 @@ import (
 	"mayfly-go/internal/redis/api"
 	"mayfly-go/internal/redis/application"
 	tagapp "mayfly-go/internal/tag/application"
-	"mayfly-go/pkg/ctx"
+	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,94 +19,94 @@ func InitRedisRouter(router *gin.RouterGroup) {
 
 		// 获取redis list
 		redis.GET("", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.RedisList)
+			req.NewCtxWithGin(c).Handle(rs.RedisList)
 		})
 
-		save := ctx.NewLogInfo("redis-保存信息").WithSave(true)
+		save := req.NewLogInfo("redis-保存信息").WithSave(true)
 		redis.POST("", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(save).Handle(rs.Save)
+			req.NewCtxWithGin(c).WithLog(save).Handle(rs.Save)
 		})
 
 		redis.GET(":id/pwd", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.GetRedisPwd)
+			req.NewCtxWithGin(c).Handle(rs.GetRedisPwd)
 		})
 
-		delRedis := ctx.NewLogInfo("redis-删除信息").WithSave(true)
+		delRedis := req.NewLogInfo("redis-删除信息").WithSave(true)
 		redis.DELETE(":id", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(delRedis).Handle(rs.DeleteRedis)
+			req.NewCtxWithGin(c).WithLog(delRedis).Handle(rs.DeleteRedis)
 		})
 
 		redis.GET(":id/info", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.RedisInfo)
+			req.NewCtxWithGin(c).Handle(rs.RedisInfo)
 		})
 
 		redis.GET(":id/cluster-info", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.ClusterInfo)
+			req.NewCtxWithGin(c).Handle(rs.ClusterInfo)
 		})
 
 		// 获取指定redis keys
 		redis.POST(":id/:db/scan", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.Scan)
+			req.NewCtxWithGin(c).Handle(rs.Scan)
 		})
 
 		// 删除key
-		deleteKeyL := ctx.NewLogInfo("redis-删除key").WithSave(true)
+		deleteKeyL := req.NewLogInfo("redis-删除key").WithSave(true)
 		redis.DELETE(":id/:db/key", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(deleteKeyL).Handle(rs.DeleteKey)
+			req.NewCtxWithGin(c).WithLog(deleteKeyL).Handle(rs.DeleteKey)
 		})
 
 		// 获取string类型值
 		redis.GET(":id/:db/string-value", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.GetStringValue)
+			req.NewCtxWithGin(c).Handle(rs.GetStringValue)
 		})
 
 		// 设置string类型值
-		setStringL := ctx.NewLogInfo("redis-setString").WithSave(true)
+		setStringL := req.NewLogInfo("redis-setString").WithSave(true)
 		redis.POST(":id/:db/string-value", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(setStringL).Handle(rs.SetStringValue)
+			req.NewCtxWithGin(c).WithLog(setStringL).Handle(rs.SetStringValue)
 		})
 
 		// hscan
 		redis.GET(":id/:db/hscan", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.Hscan)
+			req.NewCtxWithGin(c).Handle(rs.Hscan)
 		})
 
 		redis.GET(":id/:db/hget", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.Hget)
+			req.NewCtxWithGin(c).Handle(rs.Hget)
 		})
 
-		hdelL := ctx.NewLogInfo("redis-hdel").WithSave(true)
+		hdelL := req.NewLogInfo("redis-hdel").WithSave(true)
 		redis.DELETE(":id/:db/hdel", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(hdelL).Handle(rs.Hdel)
+			req.NewCtxWithGin(c).WithLog(hdelL).Handle(rs.Hdel)
 		})
 
 		// 设置hash类型值
-		setHashValueL := ctx.NewLogInfo("redis-setHashValue").WithSave(true)
+		setHashValueL := req.NewLogInfo("redis-setHashValue").WithSave(true)
 		redis.POST(":id/:db/hash-value", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(setHashValueL).Handle(rs.SetHashValue)
+			req.NewCtxWithGin(c).WithLog(setHashValueL).Handle(rs.SetHashValue)
 		})
 
 		// 获取set类型值
 		redis.GET(":id/:db/set-value", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.GetSetValue)
+			req.NewCtxWithGin(c).Handle(rs.GetSetValue)
 		})
 
 		// 设置set类型值
 		redis.POST(":id/:db/set-value", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.SetSetValue)
+			req.NewCtxWithGin(c).Handle(rs.SetSetValue)
 		})
 
 		// 获取list类型值
 		redis.GET(":id/:db/list-value", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.GetListValue)
+			req.NewCtxWithGin(c).Handle(rs.GetListValue)
 		})
 
 		redis.POST(":id/:db/list-value", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.SaveListValue)
+			req.NewCtxWithGin(c).Handle(rs.SaveListValue)
 		})
 
 		redis.POST(":id/:db/list-value/lset", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(rs.SetListValue)
+			req.NewCtxWithGin(c).Handle(rs.SetListValue)
 		})
 	}
 }

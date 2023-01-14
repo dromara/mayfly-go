@@ -2,8 +2,8 @@ package api
 
 import (
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/ws"
 
 	"github.com/gin-gonic/gin"
@@ -30,8 +30,8 @@ func (s *System) ConnectWs(g *gin.Context) {
 		panic(biz.NewBizErr("升级websocket失败"))
 	}
 	// 权限校验
-	rc := ctx.NewReqCtxWithGin(g)
-	if err = ctx.PermissionHandler(rc); err != nil {
+	rc := req.NewCtxWithGin(g)
+	if err = req.PermissionHandler(rc); err != nil {
 		panic(biz.NewBizErr("没有权限"))
 	}
 

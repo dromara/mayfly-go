@@ -10,9 +10,9 @@ import (
 	sysapp "mayfly-go/internal/sys/application"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"mayfly-go/pkg/ws"
 	"strconv"
@@ -33,7 +33,7 @@ type Db struct {
 const DEFAULT_ROW_SIZE = 1800
 
 // @router /api/dbs [get]
-func (d *Db) Dbs(rc *ctx.ReqCtx) {
+func (d *Db) Dbs(rc *req.Ctx) {
 	condition := new(entity.DbQuery)
 	condition.TagPathLike = rc.GinCtx.Query("tagPath")
 
@@ -47,7 +47,7 @@ func (d *Db) Dbs(rc *ctx.ReqCtx) {
 	rc.ResData = d.DbApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.SelectDataDbVO))
 }
 
-func (d *Db) Save(rc *ctx.ReqCtx) {
+func (d *Db) Save(rc *req.Ctx) {
 	form := &form.DbForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
@@ -68,7 +68,7 @@ func (d *Db) Save(rc *ctx.ReqCtx) {
 }
 
 // 获取数据库实例密码，由于数据库是加密存储，故提供该接口展示原文密码
-func (d *Db) GetDbPwd(rc *ctx.ReqCtx) {
+func (d *Db) GetDbPwd(rc *req.Ctx) {
 	dbId := GetDbId(rc.GinCtx)
 	dbEntity := d.DbApp.GetById(dbId, "Password")
 	dbEntity.PwdDecrypt()
@@ -76,7 +76,7 @@ func (d *Db) GetDbPwd(rc *ctx.ReqCtx) {
 }
 
 // 获取数据库实例的所有数据库名
-func (d *Db) GetDatabaseNames(rc *ctx.ReqCtx) {
+func (d *Db) GetDatabaseNames(rc *req.Ctx) {
 	form := &form.DbForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
@@ -95,30 +95,30 @@ func (d *Db) GetDatabaseNames(rc *ctx.ReqCtx) {
 	rc.ResData = d.DbApp.GetDatabases(db)
 }
 
-func (d *Db) DeleteDb(rc *ctx.ReqCtx) {
+func (d *Db) DeleteDb(rc *req.Ctx) {
 	dbId := GetDbId(rc.GinCtx)
 	d.DbApp.Delete(dbId)
 	// 删除该库的sql执行记录
 	d.DbSqlExecApp.DeleteBy(&entity.DbSqlExec{DbId: dbId})
 }
 
-func (d *Db) TableInfos(rc *ctx.ReqCtx) {
+func (d *Db) TableInfos(rc *req.Ctx) {
 	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetMeta().GetTableInfos()
 }
 
-func (d *Db) TableIndex(rc *ctx.ReqCtx) {
+func (d *Db) TableIndex(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
 	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetMeta().GetTableIndex(tn)
 }
 
-func (d *Db) GetCreateTableDdl(rc *ctx.ReqCtx) {
+func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
 	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetMeta().GetCreateTableDdl(tn)
 }
 
-func (d *Db) ExecSql(rc *ctx.ReqCtx) {
+func (d *Db) ExecSql(rc *req.Ctx) {
 	g := rc.GinCtx
 	form := &form.DbSqlExecForm{}
 	ginx.BindJsonAndValid(g, form)
@@ -171,7 +171,7 @@ func (d *Db) ExecSql(rc *ctx.ReqCtx) {
 }
 
 // 执行sql文件
-func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
+func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	g := rc.GinCtx
 	fileheader, err := g.FormFile("file")
 	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
@@ -233,7 +233,7 @@ func (d *Db) ExecSqlFile(rc *ctx.ReqCtx) {
 }
 
 // 数据库dump
-func (d *Db) DumpSql(rc *ctx.ReqCtx) {
+func (d *Db) DumpSql(rc *req.Ctx) {
 	g := rc.GinCtx
 	dbId, db := GetIdAndDb(g)
 	dumpType := g.Query("type")
@@ -315,13 +315,13 @@ func (d *Db) DumpSql(rc *ctx.ReqCtx) {
 }
 
 // @router /api/db/:dbId/t-metadata [get]
-func (d *Db) TableMA(rc *ctx.ReqCtx) {
+func (d *Db) TableMA(rc *req.Ctx) {
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
 	rc.ResData = dbi.GetMeta().GetTables()
 }
 
 // @router /api/db/:dbId/c-metadata [get]
-func (d *Db) ColumnMA(rc *ctx.ReqCtx) {
+func (d *Db) ColumnMA(rc *req.Ctx) {
 	g := rc.GinCtx
 	tn := g.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
@@ -331,7 +331,7 @@ func (d *Db) ColumnMA(rc *ctx.ReqCtx) {
 }
 
 // @router /api/db/:dbId/hint-tables [get]
-func (d *Db) HintTables(rc *ctx.ReqCtx) {
+func (d *Db) HintTables(rc *req.Ctx) {
 	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
 
 	dm := dbi.GetMeta()
@@ -371,7 +371,7 @@ func (d *Db) HintTables(rc *ctx.ReqCtx) {
 }
 
 // @router /api/db/:dbId/sql [post]
-func (d *Db) SaveSql(rc *ctx.ReqCtx) {
+func (d *Db) SaveSql(rc *req.Ctx) {
 	g := rc.GinCtx
 	account := rc.LoginAccount
 	dbSqlForm := &form.DbSqlSaveForm{}
@@ -399,7 +399,7 @@ func (d *Db) SaveSql(rc *ctx.ReqCtx) {
 }
 
 // 获取所有保存的sql names
-func (d *Db) GetSqlNames(rc *ctx.ReqCtx) {
+func (d *Db) GetSqlNames(rc *req.Ctx) {
 	id, db := GetIdAndDb(rc.GinCtx)
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
 	dbSql := &entity.DbSql{Type: 1, DbId: id, Db: db}
@@ -411,7 +411,7 @@ func (d *Db) GetSqlNames(rc *ctx.ReqCtx) {
 }
 
 // 删除保存的sql
-func (d *Db) DeleteSql(rc *ctx.ReqCtx) {
+func (d *Db) DeleteSql(rc *req.Ctx) {
 	dbSql := &entity.DbSql{Type: 1, DbId: GetDbId(rc.GinCtx)}
 	dbSql.CreatorId = rc.LoginAccount.Id
 	dbSql.Name = rc.GinCtx.Query("name")
@@ -421,7 +421,7 @@ func (d *Db) DeleteSql(rc *ctx.ReqCtx) {
 }
 
 // @router /api/db/:dbId/sql [get]
-func (d *Db) GetSql(rc *ctx.ReqCtx) {
+func (d *Db) GetSql(rc *req.Ctx) {
 	id, db := GetIdAndDb(rc.GinCtx)
 	// 根据创建者id， 数据库id，以及sql模板名称查询保存的sql信息
 	dbSql := &entity.DbSql{Type: 1, DbId: id, Db: db}

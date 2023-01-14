@@ -8,8 +8,8 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"strconv"
 
@@ -22,13 +22,13 @@ type MachineScript struct {
 	TagApp           tagapp.TagTree
 }
 
-func (m *MachineScript) MachineScripts(rc *ctx.ReqCtx) {
+func (m *MachineScript) MachineScripts(rc *req.Ctx) {
 	g := rc.GinCtx
 	condition := &entity.MachineScript{MachineId: GetMachineId(g)}
 	rc.ResData = m.MachineScriptApp.GetPageList(condition, ginx.GetPageParam(g), new([]vo.MachineScriptVO))
 }
 
-func (m *MachineScript) SaveMachineScript(rc *ctx.ReqCtx) {
+func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {
 	form := new(form.MachineScriptForm)
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 	rc.ReqParam = form
@@ -41,7 +41,7 @@ func (m *MachineScript) SaveMachineScript(rc *ctx.ReqCtx) {
 	m.MachineScriptApp.Save(machineScript)
 }
 
-func (m *MachineScript) DeleteMachineScript(rc *ctx.ReqCtx) {
+func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
 	msa := m.MachineScriptApp
 	sid := GetMachineScriptId(rc.GinCtx)
 	ms := msa.GetById(sid)
@@ -50,7 +50,7 @@ func (m *MachineScript) DeleteMachineScript(rc *ctx.ReqCtx) {
 	msa.Delete(sid)
 }
 
-func (m *MachineScript) RunMachineScript(rc *ctx.ReqCtx) {
+func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	g := rc.GinCtx
 
 	scriptId := GetMachineScriptId(g)

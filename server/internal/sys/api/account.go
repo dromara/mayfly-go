@@ -8,9 +8,9 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/captcha"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"regexp"
 	"strconv"
@@ -29,7 +29,7 @@ type Account struct {
 /**   登录者个人相关操作   **/
 
 // @router /accounts/login [post]
-func (a *Account) Login(rc *ctx.ReqCtx) {
+func (a *Account) Login(rc *req.Ctx) {
 	loginForm := &form.LoginForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, loginForm)
 
@@ -65,7 +65,7 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 		}
 	}
 	// 保存该账号的权限codes
-	ctx.SavePermissionCodes(account.Id, permissions)
+	req.SavePermissionCodes(account.Id, permissions)
 
 	clientIp := rc.GinCtx.ClientIP()
 	// 保存登录消息
@@ -76,7 +76,7 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 	rc.LoginAccount = &model.LoginAccount{Id: account.Id, Username: account.Username}
 
 	rc.ResData = map[string]interface{}{
-		"token":         ctx.CreateToken(account.Id, account.Username),
+		"token":         req.CreateToken(account.Id, account.Username),
 		"name":          account.Name,
 		"username":      account.Username,
 		"lastLoginTime": account.LastLoginTime,
@@ -86,7 +86,7 @@ func (a *Account) Login(rc *ctx.ReqCtx) {
 	}
 }
 
-func (a *Account) ChangePassword(rc *ctx.ReqCtx) {
+func (a *Account) ChangePassword(rc *req.Ctx) {
 	form := new(form.AccountChangePasswordForm)
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
@@ -153,7 +153,7 @@ func (a *Account) saveLogin(account *entity.Account, ip string) {
 }
 
 // 获取个人账号信息
-func (a *Account) AccountInfo(rc *ctx.ReqCtx) {
+func (a *Account) AccountInfo(rc *req.Ctx) {
 	ap := new(vo.AccountPersonVO)
 	// 角色信息
 	roles := new([]vo.AccountRoleVO)
@@ -164,7 +164,7 @@ func (a *Account) AccountInfo(rc *ctx.ReqCtx) {
 }
 
 // 更新个人账号信息
-func (a *Account) UpdateAccount(rc *ctx.ReqCtx) {
+func (a *Account) UpdateAccount(rc *req.Ctx) {
 	updateForm := &form.AccountUpdateForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, updateForm)
 
@@ -181,7 +181,7 @@ func (a *Account) UpdateAccount(rc *ctx.ReqCtx) {
 }
 
 // 获取账号接收的消息列表
-func (a *Account) GetMsgs(rc *ctx.ReqCtx) {
+func (a *Account) GetMsgs(rc *req.Ctx) {
 	condition := &entity.Msg{
 		RecipientId: int64(rc.LoginAccount.Id),
 	}
@@ -191,14 +191,14 @@ func (a *Account) GetMsgs(rc *ctx.ReqCtx) {
 /**    后台账号操作    **/
 
 // @router /accounts [get]
-func (a *Account) Accounts(rc *ctx.ReqCtx) {
+func (a *Account) Accounts(rc *req.Ctx) {
 	condition := &entity.Account{}
 	condition.Username = rc.GinCtx.Query("username")
 	rc.ResData = a.AccountApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.AccountManageVO))
 }
 
 // @router /accounts
-func (a *Account) SaveAccount(rc *ctx.ReqCtx) {
+func (a *Account) SaveAccount(rc *req.Ctx) {
 	form := &form.AccountCreateForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 	rc.ReqParam = form
@@ -218,7 +218,7 @@ func (a *Account) SaveAccount(rc *ctx.ReqCtx) {
 	}
 }
 
-func (a *Account) ChangeStatus(rc *ctx.ReqCtx) {
+func (a *Account) ChangeStatus(rc *req.Ctx) {
 	g := rc.GinCtx
 
 	account := &entity.Account{}
@@ -228,25 +228,25 @@ func (a *Account) ChangeStatus(rc *ctx.ReqCtx) {
 	a.AccountApp.Update(account)
 }
 
-func (a *Account) DeleteAccount(rc *ctx.ReqCtx) {
+func (a *Account) DeleteAccount(rc *req.Ctx) {
 	id := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
 	rc.ReqParam = id
 	a.AccountApp.Delete(id)
 }
 
 // 获取账号角色id列表，用户回显角色分配
-func (a *Account) AccountRoleIds(rc *ctx.ReqCtx) {
+func (a *Account) AccountRoleIds(rc *req.Ctx) {
 	rc.ResData = a.RoleApp.GetAccountRoleIds(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
 }
 
 // 获取账号角色id列表，用户回显角色分配
-func (a *Account) AccountRoles(rc *ctx.ReqCtx) {
+func (a *Account) AccountRoles(rc *req.Ctx) {
 	vos := new([]vo.AccountRoleVO)
 	a.RoleApp.GetAccountRoles(uint64(ginx.PathParamInt(rc.GinCtx, "id")), vos)
 	rc.ResData = vos
 }
 
-func (a *Account) AccountResources(rc *ctx.ReqCtx) {
+func (a *Account) AccountResources(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
 	// 获取账号菜单资源
 	a.ResourceApp.GetAccountResources(uint64(ginx.PathParamInt(rc.GinCtx, "id")), &resources)
@@ -254,7 +254,7 @@ func (a *Account) AccountResources(rc *ctx.ReqCtx) {
 }
 
 // 保存账号角色信息
-func (a *Account) SaveRoles(rc *ctx.ReqCtx) {
+func (a *Account) SaveRoles(rc *req.Ctx) {
 	g := rc.GinCtx
 
 	var form form.AccountRoleForm

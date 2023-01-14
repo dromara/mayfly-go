@@ -2,7 +2,7 @@ package router
 
 import (
 	"mayfly-go/internal/common/api"
-	"mayfly-go/pkg/ctx"
+	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,7 +13,7 @@ func InitCommonRouter(router *gin.RouterGroup) {
 	{
 		// 获取公钥
 		common.GET("public-key", func(g *gin.Context) {
-			ctx.NewReqCtxWithGin(g).
+			req.NewCtxWithGin(g).
 				WithNeedToken(false).
 				Handle(c.RasPublicKey)
 		})

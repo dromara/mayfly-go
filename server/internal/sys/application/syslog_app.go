@@ -6,8 +6,8 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"reflect"
 	"time"
@@ -17,7 +17,7 @@ type Syslog interface {
 	GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
 	// 从请求上下文的参数保存系统日志
-	SaveFromReq(req *ctx.ReqCtx)
+	SaveFromReq(req *req.Ctx)
 }
 
 func newSyslogApp(syslogRepo repository.Syslog) Syslog {
@@ -34,7 +34,7 @@ func (m *syslogAppImpl) GetPageList(condition *entity.Syslog, pageParam *model.P
 	return m.syslogRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (m *syslogAppImpl) SaveFromReq(req *ctx.ReqCtx) {
+func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 	lg := req.LoginAccount
 	if lg == nil {
 		return

@@ -92,19 +92,18 @@ func (c *Cli) GetSession() (*ssh.Session, error) {
 
 // 执行shell
 // @param shell shell脚本命令
-func (c *Cli) Run(shell string) (*string, error) {
+func (c *Cli) Run(shell string) (string, error) {
 	session, err := c.GetSession()
 	if err != nil {
 		c.Close()
-		return nil, err
+		return "", err
 	}
 	defer session.Close()
-	buf, rerr := session.CombinedOutput(shell)
-	if rerr != nil {
-		return nil, rerr
+	buf, err := session.CombinedOutput(shell)
+	if err != nil {
+		return "", err
 	}
-	res := string(buf)
-	return &res, nil
+	return string(buf), nil
 }
 
 func (c *Cli) GetMachine() *entity.Machine {

@@ -3,15 +3,15 @@ package api
 import (
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/req"
 )
 
 type Syslog struct {
 	SyslogApp application.Syslog
 }
 
-func (r *Syslog) Syslogs(rc *ctx.ReqCtx) {
+func (r *Syslog) Syslogs(rc *req.Ctx) {
 	g := rc.GinCtx
 	condition := &entity.Syslog{
 		Type:      int8(ginx.QueryInt(g, "type", 0)),

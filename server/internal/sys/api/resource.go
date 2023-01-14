@@ -6,8 +6,8 @@ import (
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 )
 
@@ -15,17 +15,17 @@ type Resource struct {
 	ResourceApp application.Resource
 }
 
-func (r *Resource) GetAllResourceTree(rc *ctx.ReqCtx) {
+func (r *Resource) GetAllResourceTree(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
 	r.ResourceApp.GetResourceList(new(entity.Resource), &resources, "weight asc")
 	rc.ResData = resources.ToTrees(0)
 }
 
-func (r *Resource) GetById(rc *ctx.ReqCtx) {
+func (r *Resource) GetById(rc *req.Ctx) {
 	rc.ResData = r.ResourceApp.GetById(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
 }
 
-func (r *Resource) SaveResource(rc *ctx.ReqCtx) {
+func (r *Resource) SaveResource(rc *req.Ctx) {
 	g := rc.GinCtx
 	form := new(form.ResourceForm)
 	ginx.BindJsonAndValid(g, form)
@@ -41,11 +41,11 @@ func (r *Resource) SaveResource(rc *ctx.ReqCtx) {
 	r.ResourceApp.Save(entity)
 }
 
-func (r *Resource) DelResource(rc *ctx.ReqCtx) {
+func (r *Resource) DelResource(rc *req.Ctx) {
 	r.ResourceApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
 }
 
-func (r *Resource) ChangeStatus(rc *ctx.ReqCtx) {
+func (r *Resource) ChangeStatus(rc *req.Ctx) {
 	re := &entity.Resource{}
 	re.Id = uint64(ginx.PathParamInt(rc.GinCtx, "id"))
 	re.Status = int8(ginx.PathParamInt(rc.GinCtx, "status"))

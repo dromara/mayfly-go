@@ -11,9 +11,9 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/config"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"mayfly-go/pkg/ws"
 	"os"
@@ -31,7 +31,7 @@ type Machine struct {
 	TagApp     tagapp.TagTree
 }
 
-func (m *Machine) Machines(rc *ctx.ReqCtx) {
+func (m *Machine) Machines(rc *req.Ctx) {
 	condition := new(entity.MachineQuery)
 	condition.Ip = rc.GinCtx.Query("ip")
 	condition.Name = rc.GinCtx.Query("name")
@@ -58,12 +58,12 @@ func (m *Machine) Machines(rc *ctx.ReqCtx) {
 	rc.ResData = res
 }
 
-func (m *Machine) MachineStats(rc *ctx.ReqCtx) {
+func (m *Machine) MachineStats(rc *req.Ctx) {
 	stats := m.MachineApp.GetCli(GetMachineId(rc.GinCtx)).GetAllStats()
 	rc.ResData = stats
 }
 
-func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
+func (m *Machine) SaveMachine(rc *req.Ctx) {
 	g := rc.GinCtx
 	machineForm := new(form.MachineForm)
 	ginx.BindJsonAndValid(g, machineForm)
@@ -87,14 +87,14 @@ func (m *Machine) SaveMachine(rc *ctx.ReqCtx) {
 }
 
 // 获取机器实例密码，由于数据库是加密存储，故提供该接口展示原文密码
-func (m *Machine) GetMachinePwd(rc *ctx.ReqCtx) {
+func (m *Machine) GetMachinePwd(rc *req.Ctx) {
 	mid := GetMachineId(rc.GinCtx)
 	me := m.MachineApp.GetById(mid, "Password")
 	me.PwdDecrypt()
 	rc.ResData = me.Password
 }
 
-func (m *Machine) ChangeStatus(rc *ctx.ReqCtx) {
+func (m *Machine) ChangeStatus(rc *req.Ctx) {
 	g := rc.GinCtx
 	id := uint64(ginx.PathParamInt(g, "machineId"))
 	status := int8(ginx.PathParamInt(g, "status"))
@@ -102,19 +102,19 @@ func (m *Machine) ChangeStatus(rc *ctx.ReqCtx) {
 	m.MachineApp.ChangeStatus(id, status)
 }
 
-func (m *Machine) DeleteMachine(rc *ctx.ReqCtx) {
+func (m *Machine) DeleteMachine(rc *req.Ctx) {
 	id := uint64(ginx.PathParamInt(rc.GinCtx, "machineId"))
 	rc.ReqParam = id
 	m.MachineApp.Delete(id)
 }
 
 // 关闭机器客户端
-func (m *Machine) CloseCli(rc *ctx.ReqCtx) {
+func (m *Machine) CloseCli(rc *req.Ctx) {
 	machine.DeleteCli(GetMachineId(rc.GinCtx))
 }
 
 // 获取进程列表信息
-func (m *Machine) GetProcess(rc *ctx.ReqCtx) {
+func (m *Machine) GetProcess(rc *req.Ctx) {
 	g := rc.GinCtx
 	cmd := "ps -aux "
 	sortType := g.Query("sortType")
@@ -145,7 +145,7 @@ func (m *Machine) GetProcess(rc *ctx.ReqCtx) {
 }
 
 // 终止进程
-func (m *Machine) KillProcess(rc *ctx.ReqCtx) {
+func (m *Machine) KillProcess(rc *req.Ctx) {
 	pid := rc.GinCtx.Query("pid")
 	biz.NotEmpty(pid, "进程id不能为空")
 
@@ -169,8 +169,8 @@ func (m *Machine) WsSSH(g *gin.Context) {
 
 	biz.ErrIsNilAppendErr(err, "升级websocket失败: %s")
 	// 权限校验
-	rc := ctx.NewReqCtxWithGin(g).WithRequiredPermission(ctx.NewPermission("machine:terminal"))
-	if err = ctx.PermissionHandler(rc); err != nil {
+	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
+	if err = req.PermissionHandler(rc); err != nil {
 		panic(biz.NewBizErr("\033[1;31m您没有权限操作该机器终端,请重新登录后再试~\033[0m"))
 	}
 
@@ -197,16 +197,16 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	biz.ErrIsNilAppendErr(err, "\033[1;31m连接失败: %s\033[0m")
 
 	// 记录系统操作日志
-	rc.WithLog(ctx.NewLogInfo("机器-终端操作").WithSave(true))
+	rc.WithLog(req.NewLogInfo("机器-终端操作").WithSave(true))
 	rc.ReqParam = cli.GetMachine().GetLogDesc()
-	ctx.LogHandler(rc)
+	req.LogHandler(rc)
 
 	mts.Start()
 	defer mts.Stop()
 }
 
 // 获取机器终端回放记录的相应文件夹名或文件内容
-func (m *Machine) MachineRecDirNames(rc *ctx.ReqCtx) {
+func (m *Machine) MachineRecDirNames(rc *req.Ctx) {
 	readPath := rc.GinCtx.Query("path")
 	biz.NotEmpty(readPath, "path不能为空")
 	path_ := path.Join(config.Conf.Server.GetMachineRecPath(), readPath)

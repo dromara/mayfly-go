@@ -4,17 +4,17 @@ import (
 	"mayfly-go/initialize"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/config"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/req"
 )
 
 func runWebServer() {
 	// 权限处理器
-	ctx.UseBeforeHandlerInterceptor(ctx.PermissionHandler)
+	req.UseBeforeHandlerInterceptor(req.PermissionHandler)
 	// 日志处理器
-	ctx.UseAfterHandlerInterceptor(ctx.LogHandler)
+	req.UseAfterHandlerInterceptor(req.LogHandler)
 	// 设置日志保存函数
-	ctx.SetSaveLogFunc(initialize.InitSaveLogFunc())
+	req.SetSaveLogFunc(initialize.InitSaveLogFunc())
 
 	// 注册路由
 	web := initialize.InitRouter()

@@ -3,7 +3,7 @@ package router
 import (
 	"mayfly-go/internal/sys/api"
 	"mayfly-go/internal/sys/application"
-	"mayfly-go/pkg/ctx"
+	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,37 +17,37 @@ func InitRoleRouter(router *gin.RouterGroup) {
 	{
 
 		db.GET("", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(r.Roles)
+			req.NewCtxWithGin(c).Handle(r.Roles)
 		})
 
-		saveRole := ctx.NewLogInfo("保存角色").WithSave(true)
-		sPermission := ctx.NewPermission("role:add")
+		saveRole := req.NewLogInfo("保存角色").WithSave(true)
+		sPermission := req.NewPermission("role:add")
 		db.POST("", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(saveRole).
+			req.NewCtxWithGin(c).WithLog(saveRole).
 				WithRequiredPermission(sPermission).
 				Handle(r.SaveRole)
 		})
 
-		delRole := ctx.NewLogInfo("删除角色").WithSave(true)
-		drPermission := ctx.NewPermission("role:del")
+		delRole := req.NewLogInfo("删除角色").WithSave(true)
+		drPermission := req.NewPermission("role:del")
 		db.DELETE(":id", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(delRole).
+			req.NewCtxWithGin(c).WithLog(delRole).
 				WithRequiredPermission(drPermission).
 				Handle(r.DelRole)
 		})
 
 		db.GET(":id/resourceIds", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(r.RoleResourceIds)
+			req.NewCtxWithGin(c).Handle(r.RoleResourceIds)
 		})
 
 		db.GET(":id/resources", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).Handle(r.RoleResource)
+			req.NewCtxWithGin(c).Handle(r.RoleResource)
 		})
 
-		saveResource := ctx.NewLogInfo("保存角色资源").WithSave(true)
-		srPermission := ctx.NewPermission("role:saveResources")
+		saveResource := req.NewLogInfo("保存角色资源").WithSave(true)
+		srPermission := req.NewPermission("role:saveResources")
 		db.POST(":id/resources", func(c *gin.Context) {
-			ctx.NewReqCtxWithGin(c).WithLog(saveResource).
+			req.NewCtxWithGin(c).WithLog(saveResource).
 				WithRequiredPermission(srPermission).
 				Handle(r.SaveResource)
 		})

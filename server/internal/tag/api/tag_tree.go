@@ -5,15 +5,15 @@ import (
 	"mayfly-go/internal/tag/api/vo"
 	"mayfly-go/internal/tag/application"
 	"mayfly-go/internal/tag/domain/entity"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/req"
 )
 
 type TagTree struct {
 	TagTreeApp application.TagTree
 }
 
-func (p *TagTree) GetAccountTags(rc *ctx.ReqCtx) {
+func (p *TagTree) GetAccountTags(rc *req.Ctx) {
 	tagPaths := p.TagTreeApp.ListTagByAccountId(rc.LoginAccount.Id)
 	allTagPath := make([]string, 0)
 	if len(tagPaths) > 0 {
@@ -25,13 +25,13 @@ func (p *TagTree) GetAccountTags(rc *ctx.ReqCtx) {
 	rc.ResData = allTagPath
 }
 
-func (p *TagTree) GetTagTree(rc *ctx.ReqCtx) {
+func (p *TagTree) GetTagTree(rc *req.Ctx) {
 	var tagTrees vo.TagTreeVOS
 	p.TagTreeApp.ListByQuery(new(entity.TagTreeQuery), &tagTrees)
 	rc.ResData = tagTrees.ToTrees(0)
 }
 
-func (p *TagTree) SaveTagTree(rc *ctx.ReqCtx) {
+func (p *TagTree) SaveTagTree(rc *req.Ctx) {
 	projectTree := &entity.TagTree{}
 	ginx.BindJsonAndValid(rc.GinCtx, projectTree)
 
@@ -42,6 +42,6 @@ func (p *TagTree) SaveTagTree(rc *ctx.ReqCtx) {
 	rc.ReqParam = fmt.Sprintf("tagTreeId: %d, tagName: %s, codePath: %s", projectTree.Id, projectTree.Name, projectTree.CodePath)
 }
 
-func (p *TagTree) DelTagTree(rc *ctx.ReqCtx) {
+func (p *TagTree) DelTagTree(rc *req.Ctx) {
 	p.TagTreeApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
 }

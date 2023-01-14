@@ -3,15 +3,15 @@ package api
 import (
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/domain/entity"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/req"
 )
 
 type DbSqlExec struct {
 	DbSqlExecApp application.DbSqlExec
 }
 
-func (d *DbSqlExec) DbSqlExecs(rc *ctx.ReqCtx) {
+func (d *DbSqlExec) DbSqlExecs(rc *req.Ctx) {
 	g := rc.GinCtx
 	m := &entity.DbSqlExec{DbId: uint64(ginx.QueryInt(g, "dbId", 0)),
 		Db:    g.Query("db"),

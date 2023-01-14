@@ -10,8 +10,8 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	sysApplication "mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"mayfly-go/pkg/ws"
 	"sort"
@@ -33,13 +33,13 @@ const (
 	max_read_size = 1 * 1024 * 1024
 )
 
-func (m *MachineFile) MachineFiles(rc *ctx.ReqCtx) {
+func (m *MachineFile) MachineFiles(rc *req.Ctx) {
 	g := rc.GinCtx
 	condition := &entity.MachineFile{MachineId: GetMachineId(g)}
 	rc.ResData = m.MachineFileApp.GetPageList(condition, ginx.GetPageParam(g), new([]vo.MachineFileVO))
 }
 
-func (m *MachineFile) SaveMachineFiles(rc *ctx.ReqCtx) {
+func (m *MachineFile) SaveMachineFiles(rc *req.Ctx) {
 	g := rc.GinCtx
 	fileForm := new(form.MachineFileForm)
 	ginx.BindJsonAndValid(g, fileForm)
@@ -52,7 +52,7 @@ func (m *MachineFile) SaveMachineFiles(rc *ctx.ReqCtx) {
 	m.MachineFileApp.Save(entity)
 }
 
-func (m *MachineFile) DeleteFile(rc *ctx.ReqCtx) {
+func (m *MachineFile) DeleteFile(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
 	m.MachineFileApp.Delete(fid)
@@ -60,7 +60,7 @@ func (m *MachineFile) DeleteFile(rc *ctx.ReqCtx) {
 
 /***      sftp相关操作      */
 
-func (m *MachineFile) CreateFile(rc *ctx.ReqCtx) {
+func (m *MachineFile) CreateFile(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
 
@@ -79,7 +79,7 @@ func (m *MachineFile) CreateFile(rc *ctx.ReqCtx) {
 
 }
 
-func (m *MachineFile) ReadFileContent(rc *ctx.ReqCtx) {
+func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
 	readPath := g.Query("path")
@@ -109,7 +109,7 @@ func (m *MachineFile) ReadFileContent(rc *ctx.ReqCtx) {
 	}
 }
 
-func (m *MachineFile) GetDirEntry(rc *ctx.ReqCtx) {
+func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
 	readPath := g.Query("path")
@@ -134,7 +134,7 @@ func (m *MachineFile) GetDirEntry(rc *ctx.ReqCtx) {
 	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
 }
 
-func (m *MachineFile) WriteFileContent(rc *ctx.ReqCtx) {
+func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
 
@@ -148,7 +148,7 @@ func (m *MachineFile) WriteFileContent(rc *ctx.ReqCtx) {
 	rc.ReqParam = fmt.Sprintf("%s -> 修改文件内容: %s", mi.GetLogDesc(), path)
 }
 
-func (m *MachineFile) UploadFile(rc *ctx.ReqCtx) {
+func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
 	path := g.PostForm("path")
@@ -179,7 +179,7 @@ func (m *MachineFile) UploadFile(rc *ctx.ReqCtx) {
 	}()
 }
 
-func (m *MachineFile) RemoveFile(rc *ctx.ReqCtx) {
+func (m *MachineFile) RemoveFile(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
 	path := g.Query("path")

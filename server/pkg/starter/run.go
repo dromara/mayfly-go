@@ -2,8 +2,8 @@ package starter
 
 import (
 	"mayfly-go/pkg/config"
-	"mayfly-go/pkg/ctx"
 	"mayfly-go/pkg/logger"
+	"mayfly-go/pkg/req"
 )
 
 func RunWebServer() {
@@ -12,7 +12,7 @@ func RunWebServer() {
 	// 初始化日志配置信息
 	logger.Init()
 	// 初始化jwt key与expire time等
-	ctx.InitTokenConfig()
+	req.InitTokenConfig()
 
 	// 打印banner
 	printBanner()
