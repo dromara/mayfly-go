@@ -56,7 +56,7 @@ func NotNil(data interface{}, msg string) {
 }
 
 func NotBlank(data interface{}, msg string) {
-	if utils.IsBlank(reflect.ValueOf(data)) {
+	if utils.IsBlank(data) {
 		panic(NewBizErr(msg))
 	}
 }

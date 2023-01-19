@@ -5,7 +5,6 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/logger"
 	"mayfly-go/pkg/utils"
-	"reflect"
 	"runtime/debug"
 
 	"github.com/sirupsen/logrus"
@@ -72,12 +71,12 @@ func LogHandler(rc *Ctx) error {
 
 func getLogMsg(rc *Ctx) string {
 	msg := rc.LogInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
-	if !utils.IsBlank(reflect.ValueOf(rc.ReqParam)) {
+	if !utils.IsBlank(rc.ReqParam) {
 		msg = msg + fmt.Sprintf("\n--> %s", utils.ToString(rc.ReqParam))
 	}
 
 	// 返回结果不为空，则记录返回结果
-	if rc.LogInfo.LogResp && !utils.IsBlank(reflect.ValueOf(rc.ResData)) {
+	if rc.LogInfo.LogResp && !utils.IsBlank(rc.ResData) {
 		msg = msg + fmt.Sprintf("\n<-- %s", utils.ToString(rc.ResData))
 	}
 	return msg
@@ -85,7 +84,7 @@ func getLogMsg(rc *Ctx) string {
 
 func getErrMsg(rc *Ctx, err interface{}) string {
 	msg := rc.LogInfo.Description
-	if !utils.IsBlank(reflect.ValueOf(rc.ReqParam)) {
+	if !utils.IsBlank(rc.ReqParam) {
 		msg = msg + fmt.Sprintf("\n--> %s", utils.ToString(rc.ReqParam))
 	}
 

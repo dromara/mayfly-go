@@ -28,7 +28,7 @@ func (p *Team) GetTeams(rc *req.Ctx) {
 func (p *Team) SaveTeam(rc *req.Ctx) {
 	team := &entity.Team{}
 	ginx.BindJsonAndValid(rc.GinCtx, team)
-
+	rc.ReqParam = team
 	isAdd := team.Id == 0
 
 	loginAccount := rc.LoginAccount

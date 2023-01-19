@@ -9,7 +9,6 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
-	"reflect"
 	"time"
 )
 
@@ -51,7 +50,7 @@ func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 	}
 
 	reqParam := req.ReqParam
-	if !utils.IsBlank(reflect.ValueOf(reqParam)) {
+	if !utils.IsBlank(reqParam) {
 		// 如果是字符串类型，则不使用json序列化
 		if reqStr, ok := reqParam.(string); ok {
 			syslog.ReqParam = reqStr
