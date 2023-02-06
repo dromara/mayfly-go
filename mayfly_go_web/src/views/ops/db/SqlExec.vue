@@ -1,84 +1,44 @@
 <template>
     <div>
-        <div class="toolbar">
-            <el-row type="flex" justify="space-between">
-                <el-col :span="24">
-                    <el-form class="search-form" label-position="right" :inline="true">
-                        <el-form-item label="标签">
-                            <el-select @change="changeTag" @focus="getTags" v-model="params.tagPath" placeholder="请选择标签"
-                                filterable style="width: 220px">
-                                <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
-                            </el-select>
-                        </el-form-item>
-
-                        <el-form-item label="资源">
-                            <el-select v-model="dbId" placeholder="请选择资源实例" @change="changeDbInstance" filterable
-                                style="width: 220px">
-                                <el-option v-for="item in dbs" :key="item.id" :label="`${item.name} [${item.tagPath}]`"
-                                    :value="item.id">
-                                    <span style="float: left">{{ `${item.name} [${item.tagPath}]` }}</span>
-                                    <span style="float: right; color: #8492a6; margin-left: 10px; font-size: 13px">{{
-                                            `${item.host}:${item.port} ${item.type}`
-                                    }}</span>
-                                </el-option>
-                            </el-select>
-                        </el-form-item>
-
-                        <el-form-item label="数据库">
-                            <el-select v-model="db" placeholder="请选择数据库" @change="changeDb" @clear="clearDb" clearable
-                                filterable style="width: 150px">
-                                <el-option v-for="item in databaseList" :key="item" :label="item" :value="item">
-                                </el-option>
-                            </el-select>
-                        </el-form-item>
-
-                        <el-form-item label-width="20" label="表">
-                            <el-select v-model="tableName" placeholder="选择表查看表数据" @change="changeTable" filterable
-                                style="width: 250px">
-                                <el-option v-for="item in tableMetadata as any" :key="item.tableName"
-                                    :label="item.tableName + (item.tableComment != '' ? `【${item.tableComment}】` : '')"
-                                    :value="item.tableName">
-                                </el-option>
-                            </el-select>
-                        </el-form-item>
-                    </el-form>
-
-                    <!-- <project-env-select @changeTag="changeTag">
-                        <template #default>
-
-                        </template>
-                    </project-env-select> -->
-                </el-col>
-            </el-row>
-        </div>
-
+      <el-row type="flex">
+        <el-col :span="3"  >
+          <el-button type="primary" icon="plus" @click="addQueryTab" size="small">新建查询</el-button>
+          <InstanceTree
+              :instance-menu-max-height="state.instanceMenuMaxHeight"
+              :instances="state.instances"
+              @init-load-instances="loadInstances"
+              @change-instance="changeInstance"
+              @change-schema="changeSchema"
+              @load-table-names="loadSchemaTables"
+              @load-table-data="loadTableData"
+          />
+        </el-col>
+        <el-col :span="21">
         <el-container id="data-exec" style="border: 1px solid #eee; margin-top: 1px">
-            <el-tabs @tab-remove="removeDataTab" @tab-click="onDataTabClick" style="width: 100%" v-model="activeName">
-                <el-tab-pane :label="queryTab.label" :name="queryTab.name">
+            <el-tabs @tab-remove="removeDataTab" @tab-click="onDataTabClick" style="width: 100%" v-model="state.activeName">
+                <el-tab-pane closable v-for="q in state.queryTabs" :key="q.id" :label="q.label" :name="q.name" >
                     <div>
                         <div>
                             <div class="toolbar">
                                 <div class="fl">
-                                    <el-link @click="onRunSql" :underline="false" class="ml15" icon="VideoPlay">
+                                    <el-link @click="onRunSql(q.dbId, q.db)" :underline="false" class="ml15" icon="VideoPlay">
                                     </el-link>
                                     <el-divider direction="vertical" border-style="dashed" />
 
                                     <el-tooltip class="box-item" effect="dark" content="format sql" placement="top">
-                                        <el-link @click="formatSql" type="primary" :underline="false" icon="MagicStick">
+                                        <el-link @click="formatSql(q.dbId, q.db)" type="primary" :underline="false" icon="MagicStick">
                                         </el-link>
                                     </el-tooltip>
                                     <el-divider direction="vertical" border-style="dashed" />
 
                                     <el-tooltip class="box-item" effect="dark" content="commit" placement="top">
-                                        <el-link @click="onCommit" type="success" :underline="false" icon="CircleCheck">
+                                        <el-link @click="onCommit(q.dbId, q.db)" type="success" :underline="false" icon="CircleCheck">
                                         </el-link>
                                     </el-tooltip>
                                     <el-divider direction="vertical" border-style="dashed" />
 
                                     <el-upload class="sql-file-exec" :before-upload="beforeUpload"
-                                        :on-success="execSqlFileSuccess" :headers="{ Authorization: token }" :data="{
-                                            dbId: 1,
-                                        }" :action="getUploadSqlFileUrl()" :show-file-list="false" name="file" multiple
+                                        :on-success="execSqlFileSuccess" :headers="{ Authorization: token }" :data="{ dbId: q.dbId }" :action="getUploadSqlFileUrl(q.dbId, q.db)" :show-file-list="false" name="file" multiple
                                         :limit="100">
                                         <el-tooltip class="box-item" effect="dark" content="SQL脚本执行" placement="top">
                                             <el-link type="success" :underline="false" icon="Document"></el-link>
@@ -87,94 +47,99 @@
                                 </div>
 
                                 <div style="float: right" class="fl">
-                                    <el-select v-model="sqlName" placeholder="选择or输入SQL模板名" @change="changeSqlTemplate"
+                                    <el-select v-model="state.sqlName[q.dbId+q.db]" placeholder="选择or输入SQL模板名" @change="changeSqlTemplate(q.dbId, q.db)"
                                         filterable allow-create default-first-option size="small" class="mr10">
-                                        <el-option v-for="item in sqlNames as any" :key="item" :label="item.database"
+                                        <el-option v-for="item in state.sqlNames[q.dbId+q.db]" :key="item" :label="item.database"
                                             :value="item">
                                             {{ item }}
                                         </el-option>
                                     </el-select>
 
-                                    <el-button @click="saveSql" type="primary" icon="document-add" plain size="small">保存
+                                    <el-button @click="saveSql(q.dbId, q.db)" type="primary" icon="document-add" plain size="small">保存
                                     </el-button>
-                                    <el-button @click="deleteSql" type="danger" icon="delete" plain size="small">删除
+                                    <el-button @click="deleteSql(q.dbId, q.db)" type="danger" icon="delete" plain size="small">删除
                                     </el-button>
                                 </div>
                             </div>
                         </div>
 
                         <div class="mt5 sqlEditor">
-                            <div ref="monacoTextarea" :style="{ height: monacoOptions.height }"></div>
-                        </div>
-                        <div class="editor-move-resize" @mousedown="onDragSetHeight">
-                            <el-icon>
-                                <Minus />
-                            </el-icon>
+                            <div :id="'MonacoTextarea-'+ q.id" :style="{ height: state.monacoOptions.height }"></div>
                         </div>
                         <div class="mt5">
                             <el-row>
-                                <el-link v-if="queryTab.nowTableName" @click="onDeleteData" class="ml5" type="danger"
+                                <el-link v-if="q.nowTableName" @click="onDeleteData(q.dbId, q.db, q.nowTableName)" class="ml5" type="danger"
                                     icon="delete" :underline="false"></el-link>
 
-                                <span v-if="queryTab.execRes.data.length > 0">
+                                <span v-if="q.execRes.data.length > 0">
                                     <el-divider direction="vertical" border-style="dashed" />
                                     <el-link type="success" :underline="false" @click="exportData"><span
                                             style="font-size: 12px">导出</span></el-link>
                                 </span>
-                                <span v-if="queryTab.updatedFields.length > 0">
+                                <span v-if="q.updatedFields.length > 0">
                                     <el-divider direction="vertical" border-style="dashed" />
-                                    <el-link type="success" :underline="false" @click="submitUpdateFields"><span
+                                    <el-link type="success" :underline="false" @click="submitUpdateFields(q.dbId, q.db, q.nowTableName)"><span
                                             style="font-size: 12px">提交</span></el-link>
                                 </span>
-                                <span v-if="queryTab.updatedFields.length > 0">
+                                <span v-if="q.updatedFields.length > 0">
                                     <el-divider direction="vertical" border-style="dashed" />
                                     <el-link type="warning" :underline="false" @click="cancelUpdateFields"><span
                                             style="font-size: 12px">取消</span></el-link>
                                 </span>
                             </el-row>
-                            <el-table @cell-dblclick="cellClick" @selection-change="onDataSelectionChange"
-                                :data="queryTab.execRes.data" v-loading="queryTab.loading" element-loading-text="查询中..."
-                                size="small" :max-height="monacoOptions.tableMaxHeight"
-                                empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改" stripe border class="mt5">
-                                <el-table-column v-if="queryTab.execRes.tableColumn.length > 0 && queryTab.nowTableName"
+                            <el-table @cell-dblclick="(row, column, cell, event) => cellClick(row, column, cell, event, {dbId: q.dbId, db: q.db, tableName: q.nowTableName})"
+                                      @selection-change="onDataSelectionChange" size="small"
+                                      :data="q.execRes.data" v-loading="q.loading" element-loading-text="查询中..."
+                                      empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改" stripe border class="mt5">
+                                <el-table-column v-if="q.execRes.tableColumn.length > 0 && q.nowTableName"
                                     type="selection" width="35" />
-                                <el-table-column min-width="100" :width="flexColumnWidth(item, queryTab.execRes.data)"
-                                    align="center" v-for="item in queryTab.execRes.tableColumn" :key="item" :prop="item"
+                                <el-table-column min-width="100" :width="flexColumnWidth(item, q.execRes.data)"
+                                    align="center" v-for="item in q.execRes.tableColumn" :key="item" :prop="item"
                                     :label="item" show-overflow-tooltip>
                                 </el-table-column>
                             </el-table>
+                            <el-row type="flex" class="mt5" justify="center">
+                              <el-pagination
+                                  v-show="q.execRes.showPage" small 
+                                  :total="q.execRes.total"
+                                  @current-change="doRunSql(q.dbId,q.db,q.sql)"
+                                  layout="prev,pager,next,total,jumper"
+                                  v-model:current-page="q.execRes.pageNum"
+                                  :page-size="defalutLimit">
+                              </el-pagination>
+                            </el-row>
                         </div>
 
                     </div>
                 </el-tab-pane>
 
-                <el-tab-pane closable v-for="dt in dataTabs" :key="dt.name" :label="dt.label" :name="dt.name">
-                    <el-row v-if="dbId">
+                <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
+                    <el-row>
                         <el-col :span="8">
-                            <el-link @click="onRefresh(dt.name)" icon="refresh" :underline="false" class="ml5">
+                            <el-link @click="onRefresh(dt.dbId, dt.db,dt.name)" icon="refresh" :underline="false" class="ml5">
                             </el-link>
                             <el-divider direction="vertical" border-style="dashed" />
 
-                            <el-link @click="addRow" type="primary" icon="plus" :underline="false"></el-link>
+                            <el-link @click="addRow(dt.dbId, dt.db, dt.name)" type="primary" icon="plus" :underline="false"></el-link>
                             <el-divider direction="vertical" border-style="dashed" />
 
-                            <el-link @click="onDeleteData" type="danger" icon="delete" :underline="false"></el-link>
+                            <el-link @click="onDeleteData(dt.dbId, dt.db, dt.name)" type="danger" icon="delete" :underline="false"></el-link>
                             <el-divider direction="vertical" border-style="dashed" />
 
                             <el-tooltip class="box-item" effect="dark" content="commit" placement="top">
-                                <el-link @click="onCommit" type="success" icon="CircleCheck" :underline="false">
+                                <el-link @click="onCommit(dt.dbId, dt.db)" type="success" icon="CircleCheck" :underline="false">
                                 </el-link>
                             </el-tooltip>
                             <el-divider direction="vertical" border-style="dashed" />
 
                             <el-tooltip class="box-item" effect="dark" content="生成insert sql" placement="top">
-                                <el-link @click="onGenerateInsertSql" type="success" :underline="false">gi</el-link>
+                                <el-link @click="onGenerateInsertSql(dt.dbId, dt.db, dt.name)" type="success" :underline="false">gi</el-link>
                             </el-tooltip>
                             <el-divider direction="vertical" border-style="dashed" />
 
                             <el-tooltip v-if="state.updatedFields[state.nowTableName]?.length > 0" class="box-item"
                                 effect="dark" content="提交修改" placement="top">
-                                <el-link @click="submitUpdateFields" type="success" :underline="false">提交</el-link>
+                                <el-link @click="submitUpdateFields(dt.dbId, dt.db, dt.name)" type="success" :underline="false">提交</el-link>
                             </el-tooltip>
                             <el-divider v-if="state.updatedFields[state.nowTableName]?.length > 0" direction="vertical"
                                 border-style="dashed" />
@@ -212,14 +177,15 @@
                             </el-input>
                         </el-col>
                     </el-row>
-                    <el-table @cell-dblclick="cellClick" @sort-change="onTableSortChange"
-                        @selection-change="onDataSelectionChange" :data="dt.datas" size="small"
-                        :max-height="dataTabsTableHeight" v-loading="dt.loading" element-loading-text="查询中..."
-                        empty-text="暂无数据" stripe border class="mt5">
+                    <el-table @cell-dblclick="(row, column, cell, event) => cellClick(row, column, cell, event, {dbId: dt.dbId, db: dt.db, tableName: dt.name})"
+                              @sort-change="sort => onTableSortChange(dt.dbId, dt.db, sort, dt.name)"
+                              @selection-change="onDataSelectionChange" :data="dt.datas" size="small"
+                              :max-height="state.dataTabsTableHeight" v-loading="dt.loading" element-loading-text="查询中..."
+                              empty-text="暂无数据" stripe border class="mt5">
                         <el-table-column v-if="dt.datas.length > 0" type="selection" width="35" />
                         <el-table-column min-width="100" :width="flexColumnWidth(item, dt.datas)" align="center"
                             v-for="item in dt.columnNames" :key="item" :prop="item" :label="item" show-overflow-tooltip
-                            :sortable="nowTableName != '' ? 'custom' : false">
+                            :sortable="state.nowTableName !== '' ? 'custom' : false">
                             <template #header>
                                 <el-tooltip raw-content placement="top" effect="customized">
                                     <template #content> {{ getColumnTip(dt.name, item) }} </template>
@@ -233,14 +199,17 @@
                             layout="prev, pager, next, total, jumper" v-model:current-page="dt.pageNum"
                             :page-size="defalutLimit"></el-pagination>
                     </el-row>
+                  <div style="height: 20px; font-size: 12px; padding: 0 10px;line-height: 20px; color: #606266"><span>{{dt.sql}}</span></div>
                 </el-tab-pane>
             </el-tabs>
         </el-container>
-
-        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
+        </el-col>
+      </el-row>
+      
+        <el-dialog v-model="state.conditionDialog.visible" :title="state.conditionDialog.title" width="420px">
             <el-row>
                 <el-col :span="5">
-                    <el-select v-model="conditionDialog.condition">
+                    <el-select v-model="state.conditionDialog.condition">
                         <el-option label="=" value="="> </el-option>
                         <el-option label="LIKE" value="LIKE"> </el-option>
                         <el-option label=">" value=">"> </el-option>
@@ -250,7 +219,7 @@
                     </el-select>
                 </el-col>
                 <el-col :span="19">
-                    <el-input v-model="conditionDialog.value" :placeholder="conditionDialog.placeholder" />
+                    <el-input v-model="state.conditionDialog.value" :placeholder="state.conditionDialog.placeholder" />
                 </el-col>
             </el-row>
             <template #footer>
@@ -261,38 +230,36 @@
             </template>
         </el-dialog>
 
-        <el-dialog @close="genSqlDialog.visible = false" v-model="genSqlDialog.visible" title="SQL" width="1000px">
-            <el-input v-model="genSqlDialog.sql" type="textarea" rows="20" />
+        <el-dialog @close="state.genSqlDialog.visible = false" v-model="state.genSqlDialog.visible" title="SQL" width="1000px">
+            <el-input v-model="state.genSqlDialog.sql" type="textarea" rows="20" />
         </el-dialog>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, computed, toRefs, reactive, ref, watch } from 'vue';
-import { dbApi } from './api';
+import {computed, nextTick, onMounted, reactive, watch} from 'vue';
+import {dbApi} from './api';
 
-import { format as sqlFormatter } from 'sql-formatter';
-import { isTrue, notBlank, notEmpty } from '@/common/assert';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import {format as sqlFormatter} from 'sql-formatter';
+import {isTrue, notBlank, notEmpty} from '@/common/assert';
+import {ElMessage, ElMessageBox} from 'element-plus';
 import config from '@/common/config';
-import { getSession } from '@/common/utils/storage';
+import {getSession} from '@/common/utils/storage';
 import SqlExecBox from './component/SqlExecBox';
-import { dateStrFormat } from '@/common/utils/date.ts';
-import { useStore } from '@/store/index.ts';
-import { tagApi } from '../tag/api.ts';
+import {dateStrFormat} from '@/common/utils/date.ts';
+import {useStore} from '@/store/index.ts';
 
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
-import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
+import {language as sqlLanguage} from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
 import * as monaco from 'monaco-editor';
-import { editor, languages, Position } from 'monaco-editor';
+import {editor, languages, Position} from 'monaco-editor';
 
 // 主题仓库 https://github.com/brijeshb42/monaco-themes
 // 主题例子 https://editor.bitwiser.in/
-import SolarizedLight from 'monaco-themes/themes/Solarized-light.json'
-import { Minus } from '@element-plus/icons-vue';
+import SolarizedLight from 'monaco-themes/themes/Solarized-light.json';
+import InstanceTree from '@/views/ops/db/component/InstanceTree.vue';
 
 const store = useStore();
-const monacoTextarea: any = ref(null);
 const token = getSession('token');
 const tableMap = new Map();
 const defalutLimit = 20
@@ -328,38 +295,45 @@ type FieldsMeta = {
     // 新值
     newValue: string
 }
+
+// 使用全局变量缓存实例对应的
+const queryTabMonacoEditors = {}
 const state = reactive({
     token: token,
     tags: [],
     dbs: [] as any, // 数据库实例列表
-    databaseList: [] as string[], // 数据库实例拥有的数据库列表，1数据库实例  -> 多数据库
+    databaseList: {}, // 数据库实例拥有的数据库列表，1数据库实例  -> 多数据库
     db: '', // 当前操作的数据库
     dbType: '',
     tables: [] as any,
     dbId: null, // 当前选中操作的数据库实例
-    tableName: '',
-    tableMetadata: [] as TableMeta[],
-    sqlName: '', // 当前sql模板名
-    sqlNames: [], // 所有sql模板名
+    sqlName: {}, // 当前sql模板名
+    sqlNames: {}, // 所有sql模板名
+    sqlMap: {}, // 所有sql名对应的sql
     activeName: 'Query',
+    activeNameMap: {},// 缓存活跃tab对应的dbId和db
     nowTableName: '', // 当前表格数据操作的数据库表名，用于双击编辑表内容使用
     dataTabs: {} as any, // 点击表信息后执行结果数据展示tabs
+    queryTabs: {} as any, // 查询tab
+  //  queryTab: {
+  //     id: '', // 唯一id
+  //     sql: '',
+  //     label: '查询',
+  //     name: 'Query',
+  //     // 点击执行按钮执行结果信息
+  //     execRes: {
+  //       total: 0,
+  //       pageNum: 1,
+  //       showPage: false,
+  //       data: [],
+  //       tableColumn: []
+  //     },
+  //     loading: false,
+  //     nowTableName: '', //当前表格数据操作的数据库表名，用于双击编辑表内容使用
+  //     selectionDatas: [],
+  //     updatedFields: [] as UpdateFieldsMeta[]
+  //   },
     dataTabsTableHeight: 600,
-    // 查询tab
-    queryTab: {
-        sql: '',
-        label: '查询',
-        name: 'Query',
-        // 点击执行按钮执行结果信息
-        execRes: {
-            data: [],
-            tableColumn: []
-        },
-        loading: false,
-        nowTableName: '', //当前表格数据操作的数据库表名，用于双击编辑表内容使用
-        selectionDatas: [],
-        updatedFields: [] as UpdateFieldsMeta[]
-    },
     params: {
         pageNum: 1,
         pageSize: 100,
@@ -381,38 +355,23 @@ const state = reactive({
     monacoOptions: {
         editor: {} as editor.IStandaloneCodeEditor,
         height: '',
-        tableMaxHeight: 250,
         dbTables: {},
     },
-    updatedFields: {} as { [tableName: string]: UpdateFieldsMeta[] }// 各个tab表被修改的字段信息
+    updatedFields: {} as { [tableName: string]: UpdateFieldsMeta[] },// 各个tab表被修改的字段信息
+    instances:{
+      tags:{},
+      tree:{},
+      dbs:{},
+      tables:{},
+      sqls:{},
+    },
+    instanceMenuMaxHeight:'850px'
 });
-const {
-    tags,
-    dbs,
-    databaseList,
-    db,
-    dbId,
-    tableName,
-    tableMetadata,
-    sqlName,
-    sqlNames,
-    activeName,
-    nowTableName,
-    dataTabs,
-    dataTabsTableHeight,
-    queryTab,
-    params,
-    conditionDialog,
-    genSqlDialog,
-    monacoOptions
-} = toRefs(state)
 
 // 获取布局配置信息
 const getThemeConfig: any = computed(() => {
     return store.state.themeConfig.themeConfig;
 });
-
-let monacoEditor = {} as editor.IStandaloneCodeEditor;
 
 self.MonacoEnvironment = {
     getWorker() {
@@ -420,11 +379,12 @@ self.MonacoEnvironment = {
     }
 };
 
-const initMonacoEditor = () => {
+const initMonacoEditor = (queryTab: any) => {
+    let monacoTextarea = document.getElementById(queryTab.editorId) as HTMLElement
     // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
     // 初始化一些主题
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
-    monacoEditor = monaco.editor.create(monacoTextarea.value, {
+    queryTab.monacoEditor = monaco.editor.create(monacoTextarea, {
         language: 'sql',
         theme: getThemeConfig.value.editorTheme,
         automaticLayout: true, //自适应宽高布局
@@ -444,10 +404,13 @@ const initMonacoEditor = () => {
             enabled: false, // 不要小地图
         },
     });
+    
+    queryTabMonacoEditors[queryTab.name] = queryTab.monacoEditor
 
-    monacoEditor.addAction({
+    // 注册快捷键：ctrl + R 运行选中的sql
+    queryTab.monacoEditor.addAction({
         // An unique identifier of the contributed action.
-        id: 'run-sql-action',
+        id: 'run-sql-action' + queryTab.dbId + queryTab.db,
         // A label of the action that will be presented to the user.
         label: '执行SQL',
         // A precondition for this action.
@@ -456,9 +419,7 @@ const initMonacoEditor = () => {
         keybindingContext: undefined,
         keybindings: [
             // chord
-            monaco.KeyMod.chord(
-                monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyR
-                , 0)
+            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyR, 0)
         ],
         contextMenuGroupId: 'navigation',
         contextMenuOrder: 1.5,
@@ -466,16 +427,17 @@ const initMonacoEditor = () => {
         // @param editor The editor instance is passed in as a convenience
         run: async function () {
             try {
-                await onRunSql();
+                await onRunSql(queryTab.dbId, queryTab.db);
             } catch (e: any) {
                 e.message && ElMessage.error(e.message)
             }
         }
     });
 
-    monacoEditor.addAction({
+    // 注册快捷键：ctrl + shift + f 格式化sql
+    queryTab.monacoEditor.addAction({
         // An unique identifier of the contributed action.
-        id: 'format-sql-action',
+        id: 'format-sql-action' + queryTab.dbId + queryTab.db,
         // A label of the action that will be presented to the user.
         label: '格式化SQL',
         // A precondition for this action.
@@ -484,9 +446,7 @@ const initMonacoEditor = () => {
         keybindingContext: undefined,
         keybindings: [
             // chord
-            monaco.KeyMod.chord(
-                monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF
-                , 0)
+            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, 0)
         ],
         contextMenuGroupId: 'navigation',
         contextMenuOrder: 2,
@@ -494,7 +454,7 @@ const initMonacoEditor = () => {
         // @param editor The editor instance is passed in as a convenience
         run: async function () {
             try {
-                await formatSql();
+                await formatSql(queryTab.dbId, queryTab.db);
             } catch (e: any) {
                 e.message && ElMessage.error(e.message)
             }
@@ -505,10 +465,11 @@ const initMonacoEditor = () => {
     // monaco.editor.setTheme('hc-black');
 
     // 参考 https://microsoft.github.io/monaco-editor/playground.html#extending-language-services-completion-provider-example
-    self.completionItemProvider = monaco.languages.registerCompletionItemProvider('sql', {
+    self.completionItemProvider = self.completionItemProvider || monaco.languages.registerCompletionItemProvider('sql', {
         triggerCharacters: ['.'],
         provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
             let word = model.getWordUntilPosition(position);
+            let {dbId, db} = state.activeNameMap[state.activeName]
             const { lineNumber, column } = position
             const { startColumn, endColumn } = word
 
@@ -558,8 +519,8 @@ const initMonacoEditor = () => {
                 // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
                 let str = lastToken.substring(0, lastToken.lastIndexOf('.'))
                 // 库.表名联想
-                if (state.databaseList.indexOf(str) > -1) {
-                    let tables = await loadTableMetadata(str)
+                if (state.instances.dbs[dbId].indexOf(str) > -1) {
+                    let tables = await loadTableMetadata(dbId, str)
                     let suggestions: languages.CompletionItem[] = []
                     for (let item of tables) {
                         const { tableName, tableComment } = item
@@ -578,16 +539,16 @@ const initMonacoEditor = () => {
 
                 let sql = textBeforePointerMulti.split(';')[textBeforePointerMulti.split(';').length - 1] + textAfterPointerMulti.split(';')[0];
                 // 表别名.表字段联想
-                let tableInfo = getTableByAlias(sql, state.db, str)
+                let tableInfo = getTableByAlias(sql, db, str)
                 if (tableInfo.tableName) {
                     let table = tableInfo.tableName
                     let db = tableInfo.dbName
                     // 取出表名并提示
-                    let dbs = state.monacoOptions.dbTables[db]
+                    let dbs = state.monacoOptions.dbTables[dbId+db]
                     let columns = dbs ? (dbs[table] || []) : [];
                     if ((!columns || columns.length === 0) && db) {
-                        state.monacoOptions.dbTables[db] = await loadHintTables(db)
-                        dbs = state.monacoOptions.dbTables[db]
+                        state.monacoOptions.dbTables[dbId+db] = await loadHintTables(dbId, db)
+                        dbs = state.monacoOptions.dbTables[dbId+db]
                         columns = dbs ? (dbs[table] || []) : [];
                     }
                     let suggestions: languages.CompletionItem[] = []
@@ -665,7 +626,7 @@ const initMonacoEditor = () => {
             })
 
             // 库名提示
-            state.databaseList.forEach(a => {
+            state.instances.dbs[dbId].forEach((a: string) => {
                 suggestions.push({
                     label: {
                         label: a,
@@ -678,7 +639,7 @@ const initMonacoEditor = () => {
             })
 
             // 表名联想
-            state.tableMetadata.forEach((tableMeta: TableMeta) => {
+            state.instances.tables[dbId + db]?.forEach((tableMeta: TableMeta) => {
                 const { tableName, tableComment } = tableMeta
                 suggestions.push({
                     label: {
@@ -751,12 +712,9 @@ select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(
 onMounted(() => {
     self.completionItemProvider?.dispose()
     setHeight();
-    initMonacoEditor();
+    instManage.loadSelectScheme()
     // 监听浏览器窗口大小变化,更新对应组件高度
-    window.onresize = () =>
-        (() => {
-            setHeight();
-        })();
+    window.onresize = () => setHeight();
 });
 
 /**
@@ -765,45 +723,14 @@ onMounted(() => {
 const setHeight = () => {
     // 默认300px
     state.monacoOptions.height = window.innerHeight - 550 + 'px'
-    state.dataTabsTableHeight = window.innerHeight - 274;
-};
-
-/**
- * 拖拽改变sql编辑区和查询结果区高度
- */
-const onDragSetHeight = () => {
-    document.onmousemove = (e) => {
-        e.preventDefault();
-        //得到鼠标拖动的宽高距离：取绝对值
-        state.monacoOptions.height = `${monacoTextarea.value.offsetHeight + e.movementY}px`
-        state.monacoOptions.tableMaxHeight -= e.movementY
-    }
-    document.onmouseup = () => {
-        document.onmousemove = null;
-    }
-}
-
-/**
- * 标签更改后的回调事件
- */
-const changeTag = () => {
-    state.dbs = [];
-    state.dbId = null;
-    state.db = '';
-    state.databaseList = [];
-    clearDb();
-    search();
-};
-
-const getTags = async () => {
-    state.tags = await tagApi.getAccountTags.request(null);
+    state.dataTabsTableHeight = window.innerHeight - 219;
+    state.instanceMenuMaxHeight = window.innerHeight - 130 + 'px';
 };
 
 /**
  * 执行sql
  */
-const onRunSql = async () => {
-    notBlank(state.dbId, '请先选择数据库');
+const onRunSql = async (dbId: any, db: string) => {
     // 没有选中的文本，则为全部文本
     let sql = getSql() as string;
     notBlank(sql && sql.trim(), '请选中需要执行的sql');
@@ -834,49 +761,85 @@ const onRunSql = async () => {
         return;
     }
 
-    await doRunSql(sql, execRemark)
+    await doRunSql(dbId, db, sql, execRemark)
 
+    let key = state.activeName;
     // 即只有以该字符串开头的sql才可修改表数据内容
     if (sql.startsWith('SELECT *') || sql.startsWith('select *') || sql.startsWith('SELECT\n  *')) {
-        state.queryTab.selectionDatas = [];
+        state.queryTabs[key].selectionDatas = [];
         const tableName = sql.split(/from/i)[1];
         if (tableName) {
             const tn = tableName.trim().split(' ')[0];
-            state.queryTab.nowTableName = tn;
+            state.queryTabs[key].nowTableName = tn;
             state.nowTableName = tn;
         } else {
-            state.queryTab.nowTableName = '';
+            state.queryTabs[key].nowTableName = '';
             state.nowTableName = '';
         }
     } else {
-        state.queryTab.nowTableName = '';
+        state.queryTabs[key].nowTableName = '';
         state.nowTableName = '';
     }
 };
 
-const doRunSql = async (sql: string, execRemark?: string) => {
+const doRunSql = async (dbId: any, db: string, sql: string, execRemark?: string) => {
+    let key = state.activeName;
     try {
-        state.queryTab.sql = sql;
-        state.queryTab.loading = true;
-        const colAndData: any = await runSql(sql, execRemark);
+        state.queryTabs[key].loading = true;
+        
+        // 执行新sql，还原分页信息
+        if(state.queryTabs[key].sql !== sql){
+          state.queryTabs[key].execRes.total = 0
+          state.queryTabs[key].execRes.pageNum = 1
+          state.queryTabs[key].sql = sql;
+        }
+        
+        // 干掉sql最后的分号
+        if(sql.endsWith(';')){
+            sql = sql.substring(0, sql.length -1)
+        }
+        // 给sql添加limit (pageNum-1)*pageSize, pageSize
+        sql = sql.trim().toLowerCase();
+        let countSql = `select count(*) ct from (${sql}) a`
+        if (sql.startsWith('select') && sql.indexOf('limit') < 0){
+            state.queryTabs[key].execRes.showPage = true
+            switch (state.dbType) {
+                case 'mysql':
+                    sql += ` limit  ${(state.queryTabs[key].execRes.pageNum-1)*defalutLimit}, ${defalutLimit} `
+                    break;
+                case 'postgres':
+                    sql += ` OFFSET ${(state.queryTabs[key].execRes.pageNum-1)*defalutLimit} LIMIT ${defalutLimit} `
+                    break;
+            }
+        } else {
+            state.queryTabs[key].execRes.showPage = false
+        }
+        
+        const colAndData: any = await runSql(dbId, db, sql, execRemark);
         if(!colAndData.res || colAndData.res.length===0){
           ElMessage.warning('暂无数据')
         }
-        state.queryTab.execRes.data = colAndData.res;
-        state.queryTab.execRes.tableColumn = colAndData.colNames;
-        state.queryTab.loading = false;
+        state.queryTabs[key].execRes.data = colAndData.res;
+        if(colAndData.res && colAndData.res.length == defalutLimit){
+            const countRes = await runSql(dbId, db, countSql);
+            state.queryTabs[key].execRes.total = countRes.res[0].ct
+        }else{
+            state.queryTabs[key].execRes.total = (state.queryTabs[key].execRes.pageNum-1)*defalutLimit + colAndData.res.length
+        }
+        state.queryTabs[key].execRes.tableColumn = colAndData.colNames;
+        state.queryTabs[key].loading = false;
         cancelUpdateFields()
     } catch (e: any) {
-        state.queryTab.loading = false;
+        state.queryTabs[key].loading = false;
     }
 }
 
 
 const exportData = () => {
-    const dataList = state.queryTab.execRes.data;
+    const dataList = state.queryTabs[state.activeName].execRes.data;
     isTrue(dataList.length > 0, '没有数据可导出');
 
-    const tableColumn = state.queryTab.execRes.tableColumn;
+    const tableColumn = state.queryTabs[state.activeName].execRes.tableColumn;
     // 二维数组
     const cvsData = [tableColumn];
     for (let data of dataList) {
@@ -905,31 +868,52 @@ const exportData = () => {
 /**
  * 执行sql str
  *
+ * @param dbId 数据库实例id
+ * @param db 数据库schema
  * @param sql 执行的sql
  * @param remark sql备注
  */
-const runSql = async (sql: string, remark: string = '') => {
+const runSql = async (dbId: any, db: string, sql: string, remark: string = '') => {
     return await dbApi.sqlExec.request({
-        id: state.dbId,
-        db: state.db,
+        id: dbId,
+        db: db,
         sql: sql.trim(),
         remark,
     });
 };
 
 const removeDataTab = (targetName: string) => {
-    const tabNames = Object.keys(state.dataTabs);
     let activeName = state.activeName;
-    tabNames.forEach((name, index) => {
+    // 计算下一个tab
+    const dataTabNames = Object.keys(state.dataTabs);
+    let matched = false;
+    dataTabNames.forEach((name, index) => {
         if (name === targetName) {
-            const nextTab = tabNames[index + 1] || tabNames[index - 1] || state.queryTab.name;
+            const nextTab = dataTabNames[index + 1] || dataTabNames[index - 1];
             if (nextTab) {
                 activeName = nextTab;
+                matched = true
             }
+            delete state.dataTabs[targetName];
         }
     });
+    
+    if(!matched){
+        const queryTabNames = Object.keys(state.queryTabs);
+        queryTabNames.forEach((name: string, index: number) => {
+        if (name === targetName) {
+          const nextTab = queryTabNames[index + 1] || queryTabNames[index - 1];
+          if (nextTab) {
+            activeName = nextTab;
+          }
+          delete state.queryTabs[targetName];
+          return;
+        }
+      });
+    }
+    
     state.activeName = activeName;
-    delete state.dataTabs[targetName];
+    
 };
 
 /**
@@ -937,21 +921,13 @@ const removeDataTab = (targetName: string) => {
  */
 const onDataTabClick = (tab: any) => {
     const name = tab.props.name;
-    // 不是查询tab，则为表数据tab，同时赋值当前表名，用于在线修改表数据等
-    if (name != state.queryTab.name) {
-        // 修改选择框绑定的表信息
-        state.tableName = name;
+    // 表数据tab，赋值当前表名，用于在线修改表数据
+    if (!name.startsWith('查询')) {
         state.nowTableName = name;
-    } else {
-        state.nowTableName = state.queryTab.nowTableName;
     }
 };
 
 const beforeUpload = (file: File) => {
-    if (!state.dbId) {
-        ElMessage.error('请先选择数据库');
-        return false;
-    }
     ElMessage.success(`'${file.name}' 正在上传执行, 请关注结果通知`);
 };
 
@@ -963,8 +939,8 @@ const execSqlFileSuccess = (res: any) => {
 };
 
 // 获取sql文件上传执行url
-const getUploadSqlFileUrl = () => {
-    return `${config.baseApiUrl}/dbs/${state.dbId}/exec-sql-file?db=${state.db}`;
+const getUploadSqlFileUrl = (dbId: any, db: string) => {
+    return `${config.baseApiUrl}/dbs/${dbId}/exec-sql-file?db=${db}`;
 };
 
 const flexColumnWidth = (str: any, tableData: any, flag = 'equal') => {
@@ -1059,6 +1035,7 @@ const getColumnTip = (tableName: string, columnName: string) => {
  * 获取sql，如果有鼠标选中，则返回选中内容，否则返回输入框内所有内容
  */
 const getSql = () => {
+    let monacoEditor = queryTabMonacoEditors[state.activeName]
     let res = '' as string | undefined;
     // 编辑器还没初始化
     if (!monacoEditor?.getModel) {
@@ -1076,41 +1053,20 @@ const getSql = () => {
     return res
 };
 
-/**
- * 选择数据库实例事件
- */
-const changeDbInstance = (dbId: any) => {
-    state.db = '';
-    const dbInfo = state.dbs.find((e: any) => e.id == dbId) as any;
-    state.dbType = dbInfo.type;
-    state.databaseList = dbInfo.database.split(' ');
-    clearDb();
-};
+const loadSchemaMeta = async (dbId: any, db: string)=>{
+  // 加载数据库下所有表
+  state.instances.tables[dbId+db] = state.instances.tables[dbId+db] || await loadTableMetadata(dbId, db)
 
-/**
- * 更改数据库事件
- */
-const changeDb = async (db: string) => {
-    if (!db) {
-        return;
-    }
-    clearDb();
-
-    // 加载数据库下所有表
-    state.tableMetadata = await loadTableMetadata(db)
-
-    // 加载数据库下所有表字段信息
-    state.monacoOptions.dbTables[db] = await loadHintTables(db)
-
-    getSqlNames();
-};
-
-const loadTableMetadata = async (db: string) => {
-    return await dbApi.tableMetadata.request({ id: state.dbId, db })
+  // 加载数据库下所有表字段信息
+  state.monacoOptions.dbTables[dbId+db] = state.monacoOptions.dbTables[dbId+db] || await loadHintTables(dbId, db)
 }
 
-const loadHintTables = async (db: string) => {
-    return await dbApi.hintTables.request({ id: state.dbId, db, })
+const loadTableMetadata = async (dbId: any, db: string) => {
+    return await dbApi.tableMetadata.request({ id: dbId, db })
+}
+
+const loadHintTables = async (dbId: any, db: string) => {
+    return await dbApi.hintTables.request({ id: dbId, db, })
 }
 
 // 选择表事件
@@ -1123,26 +1079,29 @@ const changeTable = async (tableName: string, execSelectSql: boolean = true) => 
     }
 
     // 执行sql，并新增tab
-    state.nowTableName = tableName;
-    state.activeName = tableName;
-    let tab = state.dataTabs[tableName];
+    state.activeName = state.dbId + state.db + tableName;
+    state.nowTableName = state.activeName;
+    let tab = state.dataTabs[state.dbId + state.db +tableName];
     // 如果存在该表tab，则直接返回
     if (tab) {
         return;
     }
 
     tab = {
-        label: tableName,
+        label: '`' + state.db+ '`.'+ tableName,
+        key : state.dbId + state.db +tableName,
         name: tableName,
         datas: [],
         columnNames: [],
         pageNum: 1,
         count: 0,
+        dbId: state.dbId, // 数据库id跟着tab走
+        db: state.db,
     };
     tab.columnNames = await getColumnNames(tableName);
-    state.dataTabs[tableName] = tab;
+    state.dataTabs[state.dbId + state.db +tableName] = tab;
 
-    onRefresh(tableName);
+    await onRefresh(state.dbId, state.db, tableName);
 };
 
 /**
@@ -1208,8 +1167,8 @@ const onCancelCondition = () => {
     state.conditionDialog.dataTab = null;
 };
 
-const onRefresh = async (tableName: string) => {
-    const dataTab = state.dataTabs[tableName];
+const onRefresh = async (dbId:any, db: string, tableName: string) => {
+    const dataTab = state.dataTabs[state.dbId + state.db + tableName];
     // 查询条件置空
     dataTab.condition = '';
     dataTab.pageNum = 1;
@@ -1223,7 +1182,7 @@ const onRefresh = async (tableName: string) => {
  * 数据tab修改页数
  */
 const handlePageChange = async (dataTab: any) => {
-    setDataTabDatas(dataTab);
+    await setDataTabDatas(dataTab);
 };
 
 /**
@@ -1231,9 +1190,9 @@ const handlePageChange = async (dataTab: any) => {
  */
 const selectByCondition = async (tableName: string, condition: string) => {
     notEmpty(condition, '条件不能为空');
-    const dataTab = state.dataTabs[tableName];
+    const dataTab = state.dataTabs[state.dbId + state.db +tableName];
     dataTab.pageNum = 1;
-    setDataTabDatas(dataTab);
+    await setDataTabDatas(dataTab);
 };
 
 /**
@@ -1242,9 +1201,11 @@ const selectByCondition = async (tableName: string, condition: string) => {
 const setDataTabDatas = async (dataTab: any) => {
     dataTab.loading = true;
     try {
-        dataTab.count = await getTableCount(dataTab.name, dataTab.condition);
+        dataTab.count = await getTableCount(dataTab.dbId, dataTab.db, dataTab.name, dataTab.condition);
+        let sql = getDefaultSelectSql(dataTab.name, dataTab.condition, dataTab.orderBy, dataTab.pageNum)
+        state.dataTabs[state.dbId + state.db + dataTab.name].sql = sql;
         if (dataTab.count > 0) {
-            const colAndData: any = await runSql(getDefaultSelectSql(dataTab.name, dataTab.condition, dataTab.orderBy, dataTab.pageNum));
+            const colAndData: any = await runSql(dataTab.dbId, dataTab.db, sql);
             dataTab.datas = colAndData.res;
         } else {
             dataTab.datas = [];
@@ -1257,8 +1218,8 @@ const setDataTabDatas = async (dataTab: any) => {
 /**
  * 获取表的统计数量
  */
-const getTableCount = async (tableName: string, condition: string = '') => {
-    const countRes = await runSql(getDefaultCountSql(tableName, condition));
+const getTableCount = async (dbId: any, db: string, tableName: string, condition: string = '') => {
+    const countRes = await runSql(dbId, db, getDefaultCountSql(tableName, condition));
     return countRes.res[0].count;
 };
 
@@ -1286,77 +1247,74 @@ const getDefaultCountSql = (tableName: string, where: string = '') => {
 /**
  * 提交事务，用于没有开启自动提交事务
  */
-const onCommit = () => {
-    notBlank(state.dbId, '请先选择数据库');
-    runSql('COMMIT;');
+const onCommit = (dbId: any, db: string) => {
+    runSql(dbId, db, 'COMMIT;');
     ElMessage.success('COMMIT success');
 };
 
 /**
  * 表排序字段变更
  */
-const onTableSortChange = async (sort: any) => {
+const onTableSortChange = async (dbId: any, db: string, sort: any, tableName: string) => {
+  
     if (!state.nowTableName || !sort.prop) {
         return;
     }
-    const tableName = state.activeName;
     const sortType = sort.order == 'descending' ? 'DESC' : 'ASC';
 
-    const orderBy = `ORDER BY ${sort.prop} ${sortType}`;
-    state.dataTabs[state.activeName].orderBy = orderBy;
+    state.dataTabs[state.activeName].orderBy = `ORDER BY ${sort.prop} ${sortType}`;
 
-    onRefresh(tableName);
+    await onRefresh(dbId, db, tableName);
 };
 
-const changeSqlTemplate = () => {
-    getUserSql();
+const changeSqlTemplate = (dbId: any, db: string) => {
+    getUserSql(dbId, db, '');
 };
 
 /**
  * 获取用户保存的sql模板内容
  */
-const getUserSql = () => {
-    notBlank(state.dbId, '请先选择数据库');
-    dbApi.getSql.request({ id: state.dbId, type: 1, name: state.sqlName, db: state.db }).then((res) => {
+const getUserSql = (dbId: any, db: string, sql: string) => {
+    notBlank(dbId, '请先选择数据库');
+    sql && setSqlEditorValue(dbId, db, sql) || 
+    dbApi.getSql.request({ id: dbId, type: 1, name: state.sqlName[dbId+db], db: db }).then((res: any) => {
         if (res) {
-            setSqlEditorValue(res.sql);
+            setSqlEditorValue(dbId, db, res.sql);
+            state.sqlMap[dbId+db+state.sqlName[dbId+db]] = res.sql
         } else {
-            setSqlEditorValue('');
+            setSqlEditorValue(dbId, db, '');
         }
     });
 };
 
-const setSqlEditorValue = (value: string) => {
-    monacoEditor.getModel()?.setValue(value);
+const setSqlEditorValue = (dbId: any, db: string, value: string) => {
+  let monacoEditor = queryTabMonacoEditors[state.activeName]
+  monacoEditor?.getModel()?.setValue(value);
 };
 
 /**
  * 获取用户保存的sql模板名称
  */
-const getSqlNames = () => {
-    dbApi.getSqlNames
-        .request({
-            id: state.dbId,
-            db: state.db,
-        })
-        .then((res) => {
-            if (res && res.length > 0) {
-                state.sqlNames = res.map((r: any) => r.name);
-                state.sqlName = state.sqlNames[0];
-            } else {
-                state.sqlNames = ['default'] as any;
-                state.sqlName = 'default';
-            }
-
-            getUserSql();
-        });
-};
-
-const saveSql = async () => {
+const getSqlNames = (dbId: any, db: string) => {
+  !state.sqlNames[dbId + db] &&
+  dbApi.getSqlNames.request({id: dbId, db: db,})
+      .then((res: any) => {
+        if (res && res.length > 0) {
+          state.sqlNames[dbId + db] = res.map((r: any) => r.name);
+          state.sqlName[dbId + db] = state.sqlNames[0];
+        } else {
+          state.sqlNames[dbId + db] = ['default'] as any;
+          state.sqlName[dbId + db] = 'default';
+        }
+        getUserSql(dbId, db, '');
+      })
+}
+const saveSql = async (dbId: any, db: string) => {
+    let monacoEditor = queryTabMonacoEditors[state.activeName]
     const sql = monacoEditor.getModel()?.getValue();
     notBlank(sql, 'sql内容不能为空');
     notBlank(state.dbId, '请先选择数据库实例');
-    await dbApi.saveSql.request({ id: state.dbId, db: state.db, sql: sql, type: 1, name: state.sqlName });
+    await dbApi.saveSql.request({ id: dbId, db: db, sql: sql, type: 1, name: state.sqlName[dbId+db] });
     ElMessage.success('保存成功');
 
     dbApi.getSqlNames
@@ -1366,43 +1324,27 @@ const saveSql = async () => {
         })
         .then((res) => {
             if (res) {
-                state.sqlNames = res.map((r: any) => r.name);
+                state.sqlNames[dbId+db] = res.map((r: any) => r.name);
             }
         });
 };
 
-const deleteSql = async () => {
-    notBlank(state.dbId, '请先选择数据库');
+const deleteSql = async (dbId: any, db: string) => {
     try {
-        await ElMessageBox.confirm(`确定删除【${state.sqlName}】该SQL模板?`, '提示', {
+        await ElMessageBox.confirm(`确定删除【${state.sqlName[dbId+db]}】该SQL模板?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await dbApi.deleteDbSql.request({ id: state.dbId, name: state.sqlName, db: state.db });
+        await dbApi.deleteDbSql.request({ id: dbId, db: db, name: state.sqlName[dbId+db]});
         ElMessage.success('删除成功');
-        getSqlNames();
+        getSqlNames(dbId, db);
     } catch (err) { }
-};
-
-// 清空数据库事件
-const clearDb = () => {
-    state.tableName = '';
-    state.nowTableName = '';
-    state.tableMetadata = [];
-    state.dataTabs = {};
-    setSqlEditorValue('');
-    state.sqlNames = [];
-    state.sqlName = '';
-    state.activeName = state.queryTab.name;
-    state.queryTab.execRes.data = [];
-    state.queryTab.execRes.tableColumn = [];
-    tableMap.clear();
 };
 
 const onDataSelectionChange = (datas: []) => {
     if (isQueryTab()) {
-        state.queryTab.selectionDatas = datas;
+        state.queryTabs[state.activeName].selectionDatas = datas;
     } else {
         state.dataTabs[state.activeName].selectionDatas = datas;
     }
@@ -1411,32 +1353,31 @@ const onDataSelectionChange = (datas: []) => {
 /**
  * 执行删除数据事件
  */
-const onDeleteData = async () => {
-    const queryTab = isQueryTab();
-    const deleteDatas = queryTab ? state.queryTab.selectionDatas : state.dataTabs[state.activeName].selectionDatas;
+const onDeleteData = async (dbId:any, db: string, tableName: string) => {
+    const isQuery = isQueryTab();
+    const queryTab = state.queryTabs[state.activeName];
+    const deleteDatas = isQuery ? queryTab.selectionDatas : state.dataTabs[state.activeName].selectionDatas;
     isTrue(deleteDatas && deleteDatas.length > 0, '请先选择要删除的数据');
-    const primaryKey = await getColumn(state.nowTableName);
+    const primaryKey = await getColumn(tableName);
     const primaryKeyColumnName = primaryKey.columnName;
     const ids = deleteDatas.map((d: any) => `${wrapColumnValue(primaryKey.columnType, d[primaryKeyColumnName])}`).join(',');
-    const sql = `DELETE FROM ${state.nowTableName} WHERE ${primaryKeyColumnName} IN (${ids})`;
+    const sql = `DELETE FROM ${tableName} WHERE ${primaryKeyColumnName} IN (${ids})`;
 
-    promptExeSql(sql, null, () => {
-        if (!queryTab) {
-            onRefresh(state.activeName);
+    promptExeSql(dbId, db, sql, null, () => {
+        if (!isQuery) {
+            onRefresh(dbId, db, tableName);
         } else {
-            state.queryTab.execRes.data = state.queryTab.execRes.data.filter(
+            queryTab.execRes.data = queryTab.execRes.data.filter(
                 (d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKeyColumnName] == d[primaryKeyColumnName]) != -1)
             );
-            state.queryTab.selectionDatas = [];
+            queryTab.selectionDatas = [];
         }
     });
 };
 
-const onGenerateInsertSql = async () => {
-    const queryTab = isQueryTab();
-    const datas = queryTab ? state.queryTab.selectionDatas : state.dataTabs[state.activeName].selectionDatas;
+const onGenerateInsertSql = async (dbId: any, db: string, tableName: string) => {
+    const datas = isQueryTab() ? state.queryTabs[state.activeName].selectionDatas : state.dataTabs[state.activeName].selectionDatas;
     isTrue(datas && datas.length > 0, '请先选择要生成insert语句的数据');
-    const tableName = state.nowTableName;
     const columns: any = await getColumns(tableName);
 
     const sqls = [];
@@ -1468,11 +1409,11 @@ const wrapValueByType = (val: any) => {
  * 是否为查询tab
  */
 const isQueryTab = () => {
-    return state.activeName == state.queryTab.name;
+    return state.activeName.startsWith('查询');
 };
 
 // 监听单元格点击事件
-const cellClick = (row: any, column: any, cell: any) => {
+const cellClick = (row: any, column: any, cell: any, event: Event, tabInfo: {dbId: number, db: string, tableName: string}) => {
     const property = column.property;
     // 如果当前操作的表名不存在 或者 当前列的property不存在(如多选框)，则不允许修改当前单元格内容
     if (!state.nowTableName || !property) {
@@ -1493,23 +1434,32 @@ const cellClick = (row: any, column: any, cell: any) => {
             cell.replaceChildren(div);
             if (input.value !== text) {
                 let currentUpdatedFields: UpdateFieldsMeta[]
-                if (state.activeName === 'Query') {
-                    currentUpdatedFields = state.queryTab.updatedFields
+                if (isQueryTab()) {
+                    currentUpdatedFields = state.queryTabs[state.activeName].updatedFields
                 } else {
                     currentUpdatedFields = state.updatedFields[state.nowTableName];
                 }
                 // 主键
-                const primaryKey = await getColumn(state.nowTableName);
+                const primaryKey = await getColumn(tabInfo.tableName);
                 const primaryKeyValue = row[primaryKey.columnName];
                 // 更新字段列信息
-                const updateColumn = await getColumn(state.nowTableName, property);
-                const newField = { div, fieldName: column.rawColumnKey, row, fieldType: updateColumn.columnType, oldValue: text, newValue: input.value } as FieldsMeta;
+                const updateColumn = await getColumn(tabInfo.tableName, property);
+                const newField = { div, row,
+                  fieldName: column.rawColumnKey, 
+                  fieldType: updateColumn.columnType, 
+                  oldValue: text, 
+                  newValue: input.value
+                } as FieldsMeta;
 
                 // 被修改的字段
                 const primaryKeyFields = currentUpdatedFields.filter((meta) => meta.primaryKey === primaryKeyValue)
                 let hasKey = false;
                 if (primaryKeyFields.length <= 0) {
-                    primaryKeyFields[0] = { primaryKey: primaryKeyValue, primaryKeyName: primaryKey.columnName, primaryKeyType: primaryKey.columnType, fields: [newField] }
+                    primaryKeyFields[0] = { 
+                      primaryKey: primaryKeyValue,
+                      primaryKeyName: primaryKey.columnName,
+                      primaryKeyType: primaryKey.columnType,
+                      fields: [newField] }
                 } else {
                     hasKey = true
                     let hasField = primaryKeyFields[0].fields.some(a => {
@@ -1554,11 +1504,16 @@ const cellClick = (row: any, column: any, cell: any) => {
                             }
                         })
                     } else {
-                        currentUpdatedFields.push({ primaryKey: primaryKeyValue, primaryKeyName: primaryKey.columnName, primaryKeyType: primaryKey.columnType, fields })
+                        currentUpdatedFields.push({
+                          primaryKey: primaryKeyValue,
+                          primaryKeyName: primaryKey.columnName,
+                          primaryKeyType: primaryKey.columnType,
+                          fields 
+                        })
                     }
                 }
-                if (state.activeName === 'Query') {
-                    state.queryTab.updatedFields = currentUpdatedFields
+                if (isQueryTab()) {
+                    state.queryTabs[state.activeName].updatedFields = currentUpdatedFields
                 } else {
                     state.updatedFields[state.nowTableName] = currentUpdatedFields
                 }
@@ -1567,12 +1522,12 @@ const cellClick = (row: any, column: any, cell: any) => {
     }
 };
 
-const submitUpdateFields = () => {
+const submitUpdateFields = (dbId:any, db: string, tableName: string) => {
     let currentUpdatedFields: UpdateFieldsMeta[];
     let isQuery = false;
-    if (state.activeName === 'Query') {
+    if (isQueryTab()) {
         isQuery = true;
-        currentUpdatedFields = state.queryTab.updatedFields
+        currentUpdatedFields = state.queryTabs[state.activeName].updatedFields
     } else {
         currentUpdatedFields = state.updatedFields[state.nowTableName]
     }
@@ -1582,7 +1537,7 @@ const submitUpdateFields = () => {
     let res = '';
     let divs: HTMLElement[] = [];
     currentUpdatedFields.forEach(a => {
-        let sql = `UPDATE ${state.nowTableName} SET `;
+        let sql = `UPDATE ${tableName} SET `;
         let primaryKey = a.primaryKey;
         let primaryKeyType = a.primaryKeyType;
         let primaryKeyName = a.primaryKeyName;
@@ -1595,31 +1550,31 @@ const submitUpdateFields = () => {
         res += sql;
     })
 
-    promptExeSql(res, () => { }, () => {
+    promptExeSql(dbId, db, res, () => { }, () => {
         currentUpdatedFields = [];
         divs.forEach(a => {
             a.classList.remove('update_field_active')
         })
         if (isQuery) {
-            state.queryTab.updatedFields = []
-            doRunSql(state.queryTab.sql)
+            state.queryTabs[state.activeName].updatedFields = []
+            doRunSql(dbId, db, state.queryTabs[state.activeName].sql)
         } else {
             state.updatedFields[state.nowTableName] = []
-            onRefresh(state.nowTableName)
+            onRefresh(dbId, db, tableName)
         }
     });
 
 }
 
 const cancelUpdateFields = () => {
-    if (state.activeName === 'Query') {
-        state.queryTab.updatedFields.forEach(a => {
-            a.fields.forEach(b => {
+    if (isQueryTab()) {
+        state.queryTabs[state.activeName].updatedFields.forEach((a: any) => {
+            a.fields.forEach((b: any) => {
                 b.div.classList.remove('update_field_active')
                 b.row[b.fieldName] = b.oldValue
             })
         })
-        state.queryTab.updatedFields = []
+        state.queryTabs[state.activeName].updatedFields = []
     } else {
         state.updatedFields[state.nowTableName]?.forEach(a => {
             a.fields.forEach(b => {
@@ -1664,38 +1619,35 @@ const isNumber = (columnType: string) => {
 /**
  * 弹框提示是否执行sql
  */
-const promptExeSql = (sql: string, cancelFunc: any = null, successFunc: any = null) => {
+const promptExeSql = (dbId:any, db: string, sql: string, cancelFunc: any = null, successFunc: any = null) => {
     SqlExecBox({
-        sql: sql,
-        dbId: state.dbId as any,
-        db: state.db,
+        sql, dbId, db,
         runSuccessCallback: successFunc,
         cancelCallback: cancelFunc,
     });
 };
 
 // 添加新数据行
-const addRow = async () => {
-    const tableName = state.nowTableName;
+const addRow = async (dbId:any, db: string, tableName: string) => {
     const columns = await getColumns(tableName);
-
     // key: 字段名，value: 字段名提示
     let obj: any = {};
     columns.forEach((item: any) => {
-        obj[`${item.columnName}`] = `'${item.columnName}[${item.columnType}]${item.nullable == 'YES' ? '' : '[not null]'}'`;
+        obj[`${item.columnName}`] = `'${item.columnComment||''} ${item.columnName}[${item.columnType}]${item.nullable == 'YES' ? '' : '[not null]'}'`;
     });
     let columnNames = Object.keys(obj).join(',');
     let values = Object.values(obj).join(',');
-    let sql = `INSERT INTO ${state.nowTableName} (${columnNames}) VALUES (${values});`;
-    promptExeSql(sql, null, () => {
-        onRefresh(tableName);
+    let sql = `INSERT INTO ${tableName} (${columnNames}) VALUES (${values});`;
+    promptExeSql(dbId, db, sql, null, () => {
+        onRefresh(dbId, db, tableName);
     });
 };
 
 /**
  * 格式化sql
  */
-const formatSql = () => {
+const formatSql = (dbId: any, db: string) => {
+    let monacoEditor = queryTabMonacoEditors[state.activeName]
     let selection = monacoEditor.getSelection()
     if (!selection) {
         return;
@@ -1703,7 +1655,7 @@ const formatSql = () => {
     let sql = monacoEditor.getModel()?.getValueInRange(selection)
     // 有选中sql则格式化并替换选中sql, 否则格式化编辑器所有内容
     if (sql) {
-        replaceSelection(sqlFormatter(sql), selection)
+        replaceSelection(dbId, db, sqlFormatter(sql), selection)
         return;
     }
     monacoEditor.getModel()?.setValue(sqlFormatter(monacoEditor.getValue()));
@@ -1712,7 +1664,8 @@ const formatSql = () => {
 /**
  * 替换选中的内容
  */
-const replaceSelection = (str: string, selection: any) => {
+const replaceSelection = (dbId: any, db: string, str: string, selection: any) => {
+  let monacoEditor = queryTabMonacoEditors[state.activeName]
     const model = monacoEditor.getModel();
     if (!model) {
         return;
@@ -1745,41 +1698,122 @@ const replaceSelection = (str: string, selection: any) => {
     })
 }
 
-const search = async () => {
-    const res = await dbApi.dbs.request(state.params);
-    state.dbs = res.list;
-};
-
-// 加载选中的db
-const setSelects = async (sqlExecInfo: any) => {
-    // 保存sql
-    let sql = getSql();
-    if (sql && sql.length > 0 && state.dbId) {
-        await saveSql();
-    }
-    // 设置项目id和环境id
-    const { tagPath, dbId, db } = sqlExecInfo.dbOptInfo;
-    state.params.tagPath = tagPath;
-    // 查询有哪些数据库实例
-    await search();
-    // 加载数据库所有schema
-    changeDbInstance(dbId);
-    state.dbId = dbId;
-    state.db = db;
-    // 加载schema下所有表
-    await changeDb(db);
-};
-
-// 判断如果有数据则加载下拉选项
-let sqlExecInfo = store.state.sqlExecInfo;
-if (sqlExecInfo.dbOptInfo.tagPath) {
-    setSelects(sqlExecInfo);
+// 加载实例数据
+const loadInstances = async () => {
+  const res = await dbApi.dbs.request({pageNum: 1, pageSize: 1000,})
+  if(!res.total) return
+  
+  state.instances = {tags:{}, tree:{}, dbs:{}, tables:{}, sqls:{}} ; // 初始化变量
+  for (const db of res.list) {
+    let arr = state.instances.tree[db.tagId] || []
+    const {tagId, tagPath} = db
+    // tags
+    state.instances.tags[db.tagId]={tagId, tagPath}
+    
+    // tree
+    arr.push(db)
+    state.instances.tree[db.tagId] = arr;
+    
+    // dbs
+    state.instances.dbs[db.id] = db.database.split(' ')
+    
+  }
 }
 
-// 监听选中操作的db变化，并加载下拉选项
-watch(store.state.sqlExecInfo, async (newValue) => {
-    await setSelects(newValue);
-});
+// 加载实例对应的所有表名
+const loadSchemaTables = async (inst: any, schema: string) => {
+  changeSchema(inst, schema)
+  let {id} = inst
+  let tables = state.instances.tables[id+schema];
+  if(!tables){
+    let tables = await dbApi.tableMetadata.request({ id, db: schema })
+    tables && tables.forEach((a:any)=>a.show=true)
+    state.instances.tables[id+schema] = tables;
+  }else {
+    tables.forEach((a:any)=>a.show=true)
+  }
+}
+
+// 选择数据库实例
+const changeInstance = (inst: any) => {
+  state.dbId = inst.id
+  state.dbType = inst.type
+}
+// 选择数据库
+const changeSchema = (inst: any, schema: string) => {
+  changeInstance(inst)
+  state.db = schema
+}
+
+// 加载选中的表数据
+const loadTableData = async (inst: any, schema: string, tableName: string) => {
+  changeSchema(inst, schema)
+  await changeTable(tableName)
+}
+
+// 新建查询panel
+const addQueryTab = async () => {
+  let {dbId, db} = state
+  
+  if(!db){
+    ElMessage.warning('请选择schema')
+    return
+  }
+  const index = Object.keys(state.queryTabs).length;
+  const id = dbId + db + index;
+  const name = '查询-' + dbId + db + index
+  const queryTab = {
+    id: id,
+    sql: '',
+    label: '查询:' + db,
+    name: name,
+    // 点击执行按钮执行结果信息
+    execRes: {
+      total: 0,
+      pageNum: 1,
+      showPage: false,
+      data: [],
+      tableColumn: []
+    },
+    loading: false,
+    nowTableName: '', //当前表格数据操作的数据库表名，用于双击编辑表内容使用
+    selectionDatas: [],
+    updatedFields: [] as UpdateFieldsMeta[],
+    editorId: 'MonacoTextarea-'+id,
+    dbId:dbId,
+    db:db
+  }
+  state.queryTabs[name]=queryTab
+  
+  state.activeName = name;
+  state.activeNameMap[name] = {dbId, db}
+
+  getSqlNames(dbId, db)
+
+  await nextTick(()=>{
+    loadSchemaMeta(dbId, db)
+    setTimeout(()=>initMonacoEditor(queryTab), 500)
+  })
+  
+}
+
+const instManage = {
+  loadSelectScheme: ()=>{
+    let {tagPath, dbId, db} = store.state.sqlExecInfo.dbOptInfo;
+    if(dbId){
+      state.dbId = dbId;
+      state.db = db;
+      addQueryTab()
+      // fixme 差展开菜单树至对应的db
+    }
+    
+  }
+}
+
+watch(()=>store.state.sqlExecInfo.dbOptInfo, () => {
+  instManage.loadSelectScheme()
+})
+
 </script>
 
 <style lang="scss">
@@ -1812,6 +1846,12 @@ watch(store.state.sqlExecInfo, async (newValue) => {
 
 #data-exec {
     min-height: calc(100vh - 155px);
+  .el-tabs__header{
+    margin: 0 0 5px;
+    .el-tabs__item{
+      padding: 0 5px;
+    }
+  }
 }
 
 .update_field_active {

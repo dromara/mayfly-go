@@ -2,8 +2,6 @@
     <div class="role-list">
         <el-card>
             <el-button v-auth="'team:save'" type="primary" icon="plus" @click="showSaveTeamDialog(false)">添加</el-button>
-            <el-button v-auth="'team:save'" :disabled="!chooseId" @click="showSaveTeamDialog(chooseData)" type="primary"
-                icon="edit">编辑</el-button>
             <el-button v-auth="'team:del'" :disabled="!chooseId" @click="deleteTeam(chooseData)" type="danger"
                 icon="delete">删除</el-button>
 
@@ -33,6 +31,8 @@
                         <el-link @click.prevent="showMembers(scope.row)" :underline="false" type="primary">成员</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
                         <el-link @click.prevent="showTags(scope.row)" :underline="false" type="success">标签</el-link>
+                        <el-divider v-auth="'team:save'" direction="vertical" border-style="dashed" />
+                        <el-link v-auth="'team:save'" @click.prevent="showSaveTeamDialog(scope.row)" :underline="false" type="warning">编辑</el-link>
                     </template>
                 </el-table-column>
             </el-table>
