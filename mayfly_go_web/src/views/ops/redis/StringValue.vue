@@ -120,7 +120,6 @@ watch(
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
-    state.key = newValue.key;
     state.redisId = newValue.redisId;
     state.db = newValue.db;
     state.key = newValue.keyInfo;

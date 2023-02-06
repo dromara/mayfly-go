@@ -461,7 +461,7 @@ func valueConvert(data []byte, colType *sql.ColumnType) interface{} {
 			return intV
 		}
 	}
-	if strings.Contains(colScanType, "float") {
+	if strings.Contains(colScanType, "float") || strings.Contains(colDatabaseTypeName, "decimal") {
 		floatV, _ := strconv.ParseFloat(stringV, 64)
 		return floatV
 	}
