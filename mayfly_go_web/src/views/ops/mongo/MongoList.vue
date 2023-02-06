@@ -408,8 +408,6 @@ const valChange = () => {
 
 const openDataOps = (row: any) => {
     state.dbOps.db = row.Name
-
-    debugger
     let data = {
         tagPath: state.currentData.tagPath,
         dbId: state.dbOps.dbId,

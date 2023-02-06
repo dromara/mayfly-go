@@ -1,96 +1,69 @@
 <template>
     <div>
-        <div class="toolbar">
-            <el-row type="flex" justify="space-between">
-                <el-col :span="24">
-                    <el-form class="search-form" label-position="right" :inline="true">
-                        <el-form-item label="标签">
-                            <el-select @change="changeTag" @focus="getTags" v-model="query.tagPath" placeholder="请选择标签"
-                                filterable style="width: 250px">
-                                <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
-                            </el-select>
-                        </el-form-item>
-                        <el-form-item label="实例" label-width="40px">
-                            <el-select v-model="mongoId" placeholder="请选择mongo" @change="changeMongo">
-                                <el-option v-for="item in mongoList" :key="item.id" :label="item.name" :value="item.id">
-                                    <span style="float: left">{{ item.name }}</span>
-                                    <span style="float: right; color: #8492a6; margin-left: 6px; font-size: 13px">{{ `
-                                                                            [${item.uri}]`
-                                    }}</span>
-                                </el-option>
-                            </el-select>
-                        </el-form-item>
-
-                        <el-form-item label="库" label-width="20px">
-                            <el-select v-model="database" placeholder="请选择库" @change="changeDatabase" filterable>
-                                <el-option v-for="item in databases" :key="item.Name" :label="item.Name"
-                                    :value="item.Name">
-                                    <span style="float: left">{{ item.Name }}</span>
-                                    <span style="float: right; color: #8492a6; margin-left: 4px; font-size: 13px">{{
-                                            ` [${formatByteSize(item.SizeOnDisk)}]`
-                                    }}</span>
-                                </el-option>
-                            </el-select>
-                        </el-form-item>
-
-                        <el-form-item label="集合" label-width="40px">
-                            <el-select v-model="collection" placeholder="请选择集合" @change="changeCollection" filterable>
-                                <el-option v-for="item in collections" :key="item" :label="item" :value="item">
-                                </el-option>
-                            </el-select>
-                        </el-form-item>
-                    </el-form>
-                </el-col>
-            </el-row>
-        </div>
-
-        <el-container id="data-exec" style="border: 1px solid #eee; margin-top: 1px">
+      <el-row>
+        <el-col :span="4">
+          <mongo-instance-tree
+              @init-load-instances="loadInstances"
+              @change-instance="changeInstance"
+              @change-schema="changeDatabase"
+              @load-table-names="loadTableNames"
+              @load-table-data="changeCollection"
+              :instances="state.instances"/>
+        </el-col>
+        <el-col :span="20">
+          <el-container id="data-exec" style="border: 1px solid #eee; margin-top: 1px">
             <el-tabs @tab-remove="removeDataTab" @tab-click="onDataTabClick" style="width: 100%; margin-left: 5px"
-                v-model="activeName">
-                <el-tab-pane closable v-for="dt in dataTabs" :key="dt.name" :label="dt.name" :name="dt.name">
-                    <el-row v-if="mongoId">
-                        <el-link @click="findCommand(activeName)" icon="refresh" :underline="false" class="ml5">
-                        </el-link>
-                        <el-link @click="showInsertDocDialog" class="ml5" type="primary" icon="plus" :underline="false">
-                        </el-link>
-                    </el-row>
-                    <el-row class="mt5 mb5">
-                        <el-input ref="findParamInputRef" v-model="dt.findParamStr" placeholder="点击输入相应查询条件"
-                            @focus="showFindDialog(dt.name)">
-                            <template #prepend>查询参数</template>
-                        </el-input>
-                    </el-row>
-                    <el-row>
-                        <el-col :span="6" v-for="item in dt.datas" :key="item">
-                            <el-card :body-style="{ padding: '0px', position: 'relative' }">
-                                <el-input type="textarea" v-model="item.value" :rows="12" />
-                                <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
-                                    <div>
-                                        <el-link @click="onJsonEditor(item)" :underline="false" type="success"
-                                            icon="MagicStick"></el-link>
+                     v-model="state.activeName">
+              <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
+                
+                <el-row class="mt5 mb5">
+                  <el-col :span="2">
+                  <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false" class="">
+                  </el-link>
+                  <el-link @click="showInsertDocDialog" class="" type="primary" icon="plus" :underline="false">
+                  </el-link>
+                  </el-col>
+                  <el-col :span="22">
+                  <el-input ref="findParamInputRef" v-model="dt.findParamStr" placeholder="点击输入相应查询条件"
+                            @focus="showFindDialog(dt.key)">
+                    <template #prepend>查询参数</template>
+                  </el-input>
+                  </el-col>
+                </el-row>
+                <el-row>
+                  <el-col :span="6" v-for="item in dt.datas" :key="item">
+                    <el-card :body-style="{ padding: '0px', position: 'relative' }">
+                      <el-input type="textarea" v-model="item.value" :rows="10" />
+                      <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
+                        <div>
+                          <el-link @click="onJsonEditor(item)" :underline="false" type="success"
+                                   icon="MagicStick"></el-link>
 
-                                        <el-divider direction="vertical" border-style="dashed" />
+                          <el-divider direction="vertical" border-style="dashed" />
 
-                                        <el-link @click="onSaveDoc(item.value)" :underline="false" type="warning"
-                                            icon="DocumentChecked"></el-link>
+                          <el-link @click="onSaveDoc(item.value)" :underline="false" type="warning"
+                                   icon="DocumentChecked"></el-link>
 
-                                        <el-divider direction="vertical" border-style="dashed" />
+                          <el-divider direction="vertical" border-style="dashed" />
 
-                                        <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?">
-                                            <template #reference>
-                                                <el-link :underline="false" type="danger" icon="DocumentDelete">
-                                                </el-link>
-                                            </template>
-                                        </el-popconfirm>
-                                    </div>
-                                </div>
-                            </el-card>
-                        </el-col>
-                    </el-row>
-                </el-tab-pane>
+                          <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?">
+                            <template #reference>
+                              <el-link :underline="false" type="danger" icon="DocumentDelete">
+                              </el-link>
+                            </template>
+                          </el-popconfirm>
+                        </div>
+                      </div>
+                    </el-card>
+                  </el-col>
+                </el-row>
+              </el-tab-pane>
             </el-tabs>
-        </el-container>
+          </el-container>
+        </el-col>
 
+      </el-row>
+        
         <el-dialog width="600px" title="find参数" v-model="findDialog.visible">
             <el-form label-width="70px">
                 <el-form-item label="filter">
@@ -116,7 +89,7 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="60%" :title="`新增'${activeName}'集合文档`" v-model="insertDocDialog.visible"
+        <el-dialog width="60%" :title="`新增'${state.activeName}'集合文档`" v-model="insertDocDialog.visible"
             :close-on-click-modal="false">
             <monaco-editor v-model="insertDocDialog.doc" language="json" />
             <template #footer>
@@ -127,9 +100,9 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="60%" title="json编辑器" v-model="jsoneditorDialog.visible" @close="onCloseJsonEditDialog"
-            :close-on-click-modal="false">
-            <monaco-editor v-model="jsoneditorDialog.doc" language="json" />
+        <el-dialog width="60%" title="json编辑器" v-model="jsonEditorDialog.visible" @close="onCloseJsonEditDialog"
+                   :close-on-click-modal="false">
+            <monaco-editor v-model="jsonEditorDialog.doc" language="json" />
         </el-dialog>
 
         <div style="text-align: center; margin-top: 10px"></div>
@@ -137,15 +110,14 @@
 </template>
 
 <script lang="ts" setup>
-import { mongoApi } from './api';
-import { toRefs, ref, reactive, watch } from 'vue';
-import { ElMessage } from 'element-plus';
+import {mongoApi} from './api';
+import {reactive, ref, toRefs} from 'vue';
+import {ElMessage} from 'element-plus';
 
-import { isTrue, notBlank, notNull } from '@/common/assert';
-import { formatByteSize } from '@/common/utils/format';
-import { tagApi } from '../tag/api.ts';
-import { useStore } from '@/store/index.ts';
+import {isTrue, notBlank} from '@/common/assert';
+import {useStore} from '@/store/index.ts';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import MongoInstanceTree from '@/views/ops/mongo/MongoInstanceTree.vue';
 
 const store = useStore();
 const findParamInputRef: any = ref(null);
@@ -159,8 +131,6 @@ const state = reactive({
     database: '', // 当前选择操作的库
     collection: '', //当前选中的collection
     activeName: '', // 当前操作的tab
-    databases: [] as any,
-    collections: [] as any,
     dataTabs: {} as any, // 数据tabs
     findDialog: {
         visible: false,
@@ -175,107 +145,80 @@ const state = reactive({
         visible: false,
         doc: '',
     },
-    jsoneditorDialog: {
+    jsonEditorDialog: {
         visible: false,
         doc: '',
         item: {} as any,
     },
+    instances:{tags:{}, tree:{}, dbs:{}, tables:{}}
 });
 
 const {
-    tags,
-    mongoList,
-    query,
-    mongoId,
-    database,
-    collection,
-    activeName,
-    databases,
-    collections,
-    dataTabs,
     findDialog,
     insertDocDialog,
-    jsoneditorDialog,
+    jsonEditorDialog,
 } = toRefs(state)
 
-const searchMongo = async () => {
-    notNull(state.query.tagPath, '请先选择标签');
-    const res = await mongoApi.mongoList.request(state.query);
-    state.mongoList = res.list;
-};
-
-const changeTag = (tagPath: string) => {
-    state.databases = [];
-    state.collections = [];
-    state.mongoId = null;
-    state.collection = '';
-    state.database = '';
-    state.dataTabs = {};
-    if (tagPath != null) {
-        searchMongo();
+const changeInstance = async (inst: any) => {
+  if (inst) {
+    if (!state.instances.dbs[inst.id]) {
+      const res = await mongoApi.databases.request({id: inst.id});
+      state.instances.dbs[inst.id] = res.Databases;
+      console.log(res.Databases)
     }
+  }
+}
+
+const changeDatabase = async (inst: any, database: string) => {
 };
 
-const getTags = async () => {
-    state.tags = await tagApi.getAccountTags.request(null);
+const loadTableNames = async (inst: any, database: string, fn:Function) => {
+  let tbs = await mongoApi.collections.request({ id: inst.id, database });
+  let tables = [];
+  for(let tb of tbs){
+    tables.push({tableName: tb, show: true})
+  }
+  state.instances.tables[inst.id+database] = tables
+  fn()
+}
+
+const changeCollection = (inst: any, schema: string, collection: string) => {
+  state.collection = collection
+  state.mongoId = inst.id
+  state.database = schema
+  let key = inst.id + schema +collection
+  let dataTab = state.dataTabs[key];
+  if (!dataTab) {
+    // 默认查询参数
+    const findParam = {
+      filter: '{}',
+      sort: '{"_id": -1}',
+      skip: 0,
+      limit: 12,
+    };
+    state.dataTabs[key] = {
+      key: key,
+      label: schema+'.'+collection,
+      name: inst.id+schema+collection,
+      datas: [],
+      findParamStr: JSON.stringify(findParam),
+      findParam,
+    };
+  }
+  state.activeName = key;
+  findCommand(key);
 };
 
-const changeMongo = () => {
-    state.databases = [];
-    state.collections = [];
-    state.dataTabs = {};
-    getDatabases();
-};
-
-const getDatabases = async () => {
-    const res = await mongoApi.databases.request({ id: state.mongoId });
-    state.databases = res.Databases;
-};
-
-const changeDatabase = () => {
-    state.collections = [];
-    state.collection = '';
-    state.dataTabs = {};
-    getCollections();
-};
-
-const getCollections = async () => {
-    state.collections = await mongoApi.collections.request({ id: state.mongoId, database: state.database });
-};
-
-const changeCollection = () => {
-    const collection = state.collection;
-    let dataTab = state.dataTabs[collection];
-    if (!dataTab) {
-        // 默认查询参数
-        const findParam = {
-            filter: '{}',
-            sort: '{"_id": -1}',
-            skip: 0,
-            limit: 12,
-        },
-            dataTab = {
-                name: collection,
-                datas: [],
-                findParamStr: JSON.stringify(findParam),
-                findParam,
-            };
-        state.dataTabs[collection] = dataTab;
-    }
-    state.activeName = collection;
-    findCommand(collection);
-};
-
-const showFindDialog = (collection: string) => {
+const showFindDialog = (key: string) => {
     // 获取当前tab的索引位置，将其输入框失去焦点，防止输入以及重复获取焦点
     const dataTabNames = Object.keys(state.dataTabs);
     for (let i = 0; i < dataTabNames.length; i++) {
-        if (collection == dataTabNames[i]) {
+        if (key == dataTabNames[i]) {
             findParamInputRef.value[i].blur();
         }
     }
 
-    state.findDialog.findParam = state.dataTabs[collection].findParam;
+    state.findDialog.findParam = state.dataTabs[key].findParam;
     state.findDialog.visible = true;
 };
 
@@ -286,8 +229,8 @@ const confirmFindDialog = () => {
     findCommand(state.activeName);
 };
 
-const findCommand = async (collection: string) => {
-    const dataTab = state.dataTabs[collection];
+const findCommand = async (key: string) => {
+    const dataTab = state.dataTabs[key];
     const findParma = dataTab.findParam;
     let filter, sort;
     try {
@@ -300,13 +243,13 @@ const findCommand = async (collection: string) => {
     const datas = await mongoApi.findCommand.request({
         id: state.mongoId,
         database: state.database,
-        collection,
+        collection: state.collection,
         filter,
         sort,
         limit: findParma.limit || 12,
         skip: findParma.skip || 0,
     });
-    state.dataTabs[collection].datas = wrapDatas(datas);
+    state.dataTabs[key].datas = wrapDatas(datas);
 };
 
 /**
@@ -357,13 +300,13 @@ const onInsertDoc = async () => {
 };
 
 const onJsonEditor = (item: any) => {
-    state.jsoneditorDialog.item = item;
-    state.jsoneditorDialog.doc = item.value;
-    state.jsoneditorDialog.visible = true;
+    state.jsonEditorDialog.item = item;
+    state.jsonEditorDialog.doc = item.value;
+    state.jsonEditorDialog.visible = true;
 };
 
 const onCloseJsonEditDialog = () => {
-    state.jsoneditorDialog.item.value = JSON.stringify(JSON.parse(state.jsoneditorDialog.doc), null, 4);
+    state.jsonEditorDialog.item.value = JSON.stringify(JSON.parse(state.jsonEditorDialog.doc), null, 4);
 };
 
 const onSaveDoc = async (doc: string) => {
@@ -440,31 +383,21 @@ const removeDataTab = (targetName: string) => {
     delete state.dataTabs[targetName];
 };
 
-// 加载选中的tagPath
-const setSelects = async (mongoDbOptInfo: any) => {
-    const { tagPath, dbId, db } = mongoDbOptInfo.dbOptInfo;
-    state.query.tagPath = tagPath
-    await searchMongo();
-    state.mongoId = dbId
-    await getDatabases();
-    state.database = db
-    await getCollections();
-    if (state.collection) {
-        state.collection = ''
-        state.dataTabs = {}
-    }
+const loadInstances = async () => {
+  const res = await mongoApi.mongoList.request({pageNum: 1, pageSize: 1000,});
+  if(!res.total) return
+  state.instances = {tags:{}, tree:{}, dbs:{}, tables:{}} ; // 初始化变量
+  for (const db of res.list) {
+    let arr = state.instances.tree[db.tagId] || []
+    const {tagId, tagPath} = db
+    // tags
+    state.instances.tags[db.tagId]={tagId, tagPath}
+    // 实例
+    arr.push(db)
+    state.instances.tree[db.tagId] = arr;
+  }
 }
 
-// 判断如果有数据则加载下拉选项
-let mongoDbOptInfo = store.state.mongoDbOptInfo
-if (mongoDbOptInfo.dbOptInfo.tagPath) {
-    setSelects(mongoDbOptInfo)
-}
-
-// 监听选中操作的db变化，并加载下拉选项
-watch(store.state.mongoDbOptInfo, async (newValue) => {
-    await setSelects(newValue)
-})
 </script>
 
 <style>
