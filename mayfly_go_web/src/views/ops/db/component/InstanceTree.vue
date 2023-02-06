@@ -1,8 +1,8 @@
 <template>
   <div class="instances-box layout-aside">
     <el-row type="flex" justify="space-between">
-      <el-col :span="24" :style="{maxHeight: instanceMenuMaxHeight, overflow:'auto'}" class="el-scrollbar flex-auto">
-        <el-menu background-color="transparent">
+      <el-col :span="24" :style="{maxHeight: instanceMenuMaxHeight,height: instanceMenuMaxHeight, overflow:'auto'}" class="el-scrollbar flex-auto">
+        <el-menu background-color="transparent" :collapse-transition="false">
           <!-- 第一级：tag -->
           <el-sub-menu v-for="tag of instances.tags" :index="tag.tagPath" :key="tag.tagPath">
             <template #title>
@@ -20,7 +20,7 @@
                     placement="right-start"
                     title="数据库实例信息"
                     trigger="hover"
-                    :width="180"
+                    :width="210"
                 >
                   <template #reference>
                     <span>&nbsp;&nbsp;<el-icon><MostlyCloudy color="#409eff"/></el-icon>{{ inst.name }}</span>
@@ -52,6 +52,7 @@
                     <div style="width: 100%" @click="loadTableNames(inst, schema)">
                       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon><Calendar color="#409eff"/></el-icon>
                       <span>表</span>
+                      <el-icon v-show="state.loading[inst.id + schema]" class="is-loading"><Loading /></el-icon>
                     </div>
                   </template>
                   <el-menu-item :index="inst.id + schema + '-tableSearch'"
@@ -130,8 +131,9 @@ onBeforeMount(async ()=>{
 })
 
 const state = reactive({
-  nowSchema:'',
-  filterParam: {}
+  nowSchema: '',
+  filterParam: {},
+  loading: {}
 })
 
 /**
@@ -162,8 +164,11 @@ const changeSchema = (inst : any, schema: string) => {
  * @param inst 数据库实例
  * @param schema database名
  */
-const loadTableNames = (inst: any, schema: string) => {
-  emits('loadTableNames', inst, schema)
+const loadTableNames = async (inst: any, schema: string) => {
+  state.loading[inst.id+schema] = true
+  await emits('loadTableNames', inst, schema, ()=>{
+    state.loading[inst.id+schema] = false
+  })
 }
 /**
  * 加载选中表数据
@@ -192,7 +197,7 @@ const filterTableName = (instId: number, schema: string, event?: any) => {
 <style lang="scss">
 .instances-box {
   .el-menu{
-    width: 210px;
+    width: 275px;
   }
   .el-sub-menu{
     .checked{

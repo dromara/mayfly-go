@@ -1,8 +1,10 @@
 <template>
     <div>
       <el-row type="flex">
-        <el-col :span="3"  >
+        <el-col :span="24">
           <el-button type="primary" icon="plus" @click="addQueryTab" size="small">新建查询</el-button>
+        </el-col>
+        <el-col :span="4" style="border-left: 1px solid #eee; margin-top: 10px" >
           <InstanceTree
               :instance-menu-max-height="state.instanceMenuMaxHeight"
               :instances="state.instances"
@@ -13,8 +15,8 @@
               @load-table-data="loadTableData"
           />
         </el-col>
-        <el-col :span="21">
-        <el-container id="data-exec" style="border: 1px solid #eee; margin-top: 1px">
+        <el-col :span="20">
+        <el-container id="data-exec" style="border-left: 1px solid #eee; margin-top: 10px">
             <el-tabs @tab-remove="removeDataTab" @tab-click="onDataTabClick" style="width: 100%" v-model="state.activeName">
                 <el-tab-pane closable v-for="q in state.queryTabs" :key="q.id" :label="q.label" :name="q.name" >
                     <div>
@@ -199,7 +201,7 @@
                             layout="prev, pager, next, total, jumper" v-model:current-page="dt.pageNum"
                             :page-size="defalutLimit"></el-pagination>
                     </el-row>
-                  <div style="height: 20px; font-size: 12px; padding: 0 10px;line-height: 20px; color: #606266"><span>{{dt.sql}}</span></div>
+                  <div style=" font-size: 12px; padding: 0 10px; color: #606266"><span>{{dt.sql}}</span></div>
                 </el-tab-pane>
             </el-tabs>
         </el-container>
@@ -724,7 +726,7 @@ const setHeight = () => {
     // 默认300px
     state.monacoOptions.height = window.innerHeight - 550 + 'px'
     state.dataTabsTableHeight = window.innerHeight - 219;
-    state.instanceMenuMaxHeight = window.innerHeight - 130 + 'px';
+    state.instanceMenuMaxHeight = window.innerHeight - 140 + 'px';
 };
 
 /**
@@ -1721,7 +1723,7 @@ const loadInstances = async () => {
 }
 
 // 加载实例对应的所有表名
-const loadSchemaTables = async (inst: any, schema: string) => {
+const loadSchemaTables = async (inst: any, schema: string, fn: Function) => {
   changeSchema(inst, schema)
   let {id} = inst
   let tables = state.instances.tables[id+schema];
@@ -1732,6 +1734,7 @@ const loadSchemaTables = async (inst: any, schema: string) => {
   }else {
     tables.forEach((a:any)=>a.show=true)
   }
+  fn()
 }
 
 // 选择数据库实例
