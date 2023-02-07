@@ -1,5 +1,5 @@
 <template>
-    <tag-menu :instanceMenuMaxHeight="state.instanceMenuMaxHeight" :tags="instances.tags">
+    <tag-menu :instanceMenuMaxHeight="state.instanceMenuMaxHeight" :tags="instances.tags" ref="menuRef">
         <template #submenu="props">
             <el-sub-menu v-for="inst in instances.tree[props.tag.tagId]" :index="'redis-instance-' + inst.id"
                 :key="'redis-instance-' + inst.id" @click.stop="changeInstance(inst)">

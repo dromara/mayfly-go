@@ -4,7 +4,7 @@
             <el-col :span="24"
                 :style="{ maxHeight: instanceMenuMaxHeight, height: instanceMenuMaxHeight, overflow: 'auto' }"
                 class="el-scrollbar flex-auto">
-                <el-menu background-color="transparent" :collapse-transition="false">
+                <el-menu background-color="transparent" :collapse-transition="false" ref="menuRef">
                     <!-- 第一级：tag -->
                     <el-sub-menu v-for="tag of tags" :index="tag.tagPath" :key="tag.tagPath"
                         @click.stop="clickTag(tag.tagPath)">
@@ -24,7 +24,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, toRefs } from 'vue';
+import {reactive, ref, Ref, toRefs} from 'vue';
 
 const props = defineProps({
     instanceMenuMaxHeight: {
@@ -35,6 +35,7 @@ const props = defineProps({
     },
 })
 
+const menuRef = ref(null) as Ref
 
 const state = reactive({
     instanceMenuMaxHeight: props.instanceMenuMaxHeight,
@@ -54,6 +55,14 @@ const clickTag = (tagPath: string) => {
     const opend = state.opend[tagPath]
     state.opend[tagPath] = !opend
 }
+
+const open = (index: string) => {
+  menuRef.value.open(index)
+}
+
+defineExpose({
+  open
+})
 
 </script>
 

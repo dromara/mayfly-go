@@ -1,5 +1,5 @@
 <template>
-    <tag-menu :instanceMenuMaxHeight="instanceMenuMaxHeight" :tags="instances.tags">
+    <tag-menu :instanceMenuMaxHeight="instanceMenuMaxHeight" :tags="instances.tags" ref="menuRef">
         <template #submenu="props">
             <!-- 第二级：数据库实例 -->
             <el-sub-menu v-for="inst in instances.tree[props.tag.tagId]" :index="'instance-' + inst.id"
@@ -122,7 +122,8 @@ const props = defineProps({
 const emits = defineEmits(['initLoadInstances', 'changeInstance', 'loadTableNames', 'loadTableData', 'changeSchema'])
 
 onBeforeMount(async () => {
-    await initLoadInstances()
+    await initLoadInstances() 
+    await nextTick(()=>selectDb())
 })
 
 const menuRef = ref(null) as Ref
@@ -208,7 +209,6 @@ const selectDb = async (val?: any) => {
                     await loadTableNames({ id: dbId }, db, (res: any[]) => {
                         // 展开集合列表
                         menuRef.value.open(dbId + db + '-table')
-                        console.log(res)
                     })
                 })
             })
@@ -216,14 +216,9 @@ const selectDb = async (val?: any) => {
     }
 }
 
-onMounted(() => {
-    selectDb();
-})
-
 watch(() => store.state.sqlExecInfo.dbOptInfo, async newValue => {
     await selectDb(newValue)
 })
-
 
 </script>
 
