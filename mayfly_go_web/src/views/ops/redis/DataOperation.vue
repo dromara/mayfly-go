@@ -1,88 +1,71 @@
 <template>
     <div>
         <el-card>
-            <div style="float: left">
-                <el-row type="flex" justify="space-between">
-                    <el-col :span="24">
-                        <el-form class="search-form" label-position="right" :inline="true">
-                            <el-form-item label="标签">
-                                <el-select @change="changeTag" @focus="getTags" v-model="query.tagPath"
-                                    placeholder="请选择标签" filterable style="width: 250px">
-                                    <el-option v-for="item in tags" :key="item" :label="item" :value="item">
-                                    </el-option>
-                                </el-select>
-                            </el-form-item>
-                            <el-form-item label="redis" label-width="40px">
-                                <el-select v-model="scanParam.id" placeholder="请选择redis" @change="changeRedis"
-                                    @clear="clearRedis" clearable style="width: 250px">
-                                    <el-option v-for="item in redisList" :key="item.id"
-                                        :label="`${item.name ? item.name : ''} [${item.host}]`" :value="item.id">
-                                    </el-option>
-                                </el-select>
-                            </el-form-item>
-                            <el-form-item label="库" label-width="20px">
-                                <el-select v-model="scanParam.db" @change="changeDb" placeholder="库"
-                                    style="width: 85px">
-                                    <el-option v-for="db in dbList" :key="db" :label="db" :value="db"> </el-option>
-                                </el-select>
-                            </el-form-item>
-                        </el-form>
-                    </el-col>
-                    <el-col class="mt10">
-                        <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
-                            <el-form-item label="key" label-width="40px">
-                                <el-input placeholder="match 支持*模糊key" style="width: 250px" v-model="scanParam.match"
-                                    @clear="clear()" clearable></el-input>
-                            </el-form-item>
-                            <el-form-item label="count" label-width="40px">
-                                <el-input placeholder="count" style="width: 70px" v-model.number="scanParam.count">
-                                </el-input>
-                            </el-form-item>
-                            <el-form-item>
-                                <el-button @click="searchKey()" type="success" icon="search" plain></el-button>
-                                <el-button @click="scan()" icon="bottom" plain>scan</el-button>
-                                <el-popover placement="right" :width="200" trigger="click">
-                                    <template #reference>
-                                        <el-button type="primary" icon="plus" plain></el-button>
-                                    </template>
-                                    <el-tag @click="onAddData('string')" :color="getTypeColor('string')"
-                                        style="cursor: pointer">string</el-tag>
-                                    <el-tag @click="onAddData('hash')" :color="getTypeColor('hash')" class="ml5"
-                                        style="cursor: pointer">hash</el-tag>
-                                    <el-tag @click="onAddData('set')" :color="getTypeColor('set')" class="ml5"
-                                        style="cursor: pointer">set</el-tag>
-                                    <!-- <el-tag @click="onAddData('list')" :color="getTypeColor('list')" class="ml5" style="cursor: pointer">list</el-tag> -->
-                                </el-popover>
-                            </el-form-item>
-                            <div style="float: right">
-                                <span>keys: {{ dbsize }}</span>
-                            </div>
-                        </el-form>
-                    </el-col>
-                </el-row>
-            </div>
-
-            <el-table v-loading="loading" :data="keys" stripe :highlight-current-row="true" style="cursor: pointer">
+          <el-row>
+            <el-col :span="3">
+              <redis-instance-tree 
+                  @init-load-instances="initLoadInstances"
+                  @change-instance="changeInstance"
+                  @change-schema="loadInitSchema"
+                  :instances="state.instances"
+              />
+            </el-col>
+            <el-col :span="19" style="border-left: 1px solid var(--el-card-border-color)">
+              <el-col class="mt10">
+                <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
+                  <el-form-item label="key" label-width="40px">
+                    <el-input placeholder="match 支持*模糊key" style="width: 250px" v-model="scanParam.match"
+                              @clear="clear()" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item label="count" label-width="40px">
+                    <el-input placeholder="count" style="width: 70px" v-model.number="scanParam.count">
+                    </el-input>
+                  </el-form-item>
+                  <el-form-item>
+                    <el-button @click="searchKey()" type="success" icon="search" plain></el-button>
+                    <el-button @click="scan()" icon="bottom" plain>scan</el-button>
+                    <el-popover placement="right" :width="200" trigger="click">
+                      <template #reference>
+                        <el-button type="primary" icon="plus" plain></el-button>
+                      </template>
+                      <el-tag @click="onAddData('string')" :color="getTypeColor('string')"
+                              style="cursor: pointer">string</el-tag>
+                      <el-tag @click="onAddData('hash')" :color="getTypeColor('hash')" class="ml5"
+                              style="cursor: pointer">hash</el-tag>
+                      <el-tag @click="onAddData('set')" :color="getTypeColor('set')" class="ml5"
+                              style="cursor: pointer">set</el-tag>
+                      <!-- <el-tag @click="onAddData('list')" :color="getTypeColor('list')" class="ml5" style="cursor: pointer">list</el-tag> -->
+                    </el-popover>
+                  </el-form-item>
+                  <div style="float: right">
+                    <span>keys: {{ state.dbsize }}</span>
+                  </div>
+                </el-form>
+              </el-col>
+              <el-table v-loading="state.loading" :data="state.keys" stripe :highlight-current-row="true" style="cursor: pointer">
                 <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
                 <el-table-column prop="type" label="type" width="80">
-                    <template #default="scope">
-                        <el-tag :color="getTypeColor(scope.row.type)" size="small">{{ scope.row.type }}</el-tag>
-                    </template>
+                  <template #default="scope">
+                    <el-tag :color="getTypeColor(scope.row.type)" size="small">{{ scope.row.type }}</el-tag>
+                  </template>
                 </el-table-column>
                 <el-table-column prop="ttl" label="ttl(过期时间)" width="140">
-                    <template #default="scope">
-                        {{ ttlConveter(scope.row.ttl) }}
-                    </template>
+                  <template #default="scope">
+                    {{ ttlConveter(scope.row.ttl) }}
+                  </template>
                 </el-table-column>
                 <el-table-column label="操作">
-                    <template #default="scope">
-                        <el-button @click="getValue(scope.row)" type="success" icon="search" plain size="small">查看
-                        </el-button>
-                        <el-button @click="del(scope.row.key)" type="danger" icon="delete" plain size="small">删除
-                        </el-button>
-                    </template>
+                  <template #default="scope">
+                    <el-button @click="getValue(scope.row)" type="success" icon="search" plain size="small">查看
+                    </el-button>
+                    <el-button @click="del(scope.row.key)" type="danger" icon="delete" plain size="small">删除
+                    </el-button>
+                  </template>
                 </el-table-column>
-            </el-table>
+              </el-table>
+            </el-col>
+          </el-row>
+            
         </el-card>
 
         <div style="text-align: center; margin-top: 10px"></div>
@@ -107,7 +90,7 @@
 
 <script lang="ts" setup>
 import { redisApi } from './api';
-import { toRefs, reactive, watch } from 'vue';
+import { toRefs, reactive } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import HashValue from './HashValue.vue';
 import StringValue from './StringValue.vue';
@@ -116,7 +99,7 @@ import ListValue from './ListValue.vue';
 import { isTrue, notBlank, notNull } from '@/common/assert';
 
 import { useStore } from '@/store/index.ts';
-import { tagApi } from '../tag/api.ts';
+import RedisInstanceTree from '@/views/ops/redis/RedisInstanceTree.vue';
 
 let store = useStore();
 const state = reactive({
@@ -159,63 +142,17 @@ const state = reactive({
     },
     keys: [],
     dbsize: 0,
+    instances:{tags:{}, tree:{}, dbs:{}, tables:{}}
 });
 
 const {
-    loading,
-    tags,
-    redisList,
-    dbList,
-    query,
     scanParam,
     dataEdit,
     hashValueDialog,
     stringValueDialog,
     setValueDialog,
     listValueDialog,
-    keys,
-    dbsize,
 } = toRefs(state)
-
-const searchRedis = async () => {
-    notBlank(state.query.tagPath, '请先选择标签');
-    const res = await redisApi.redisList.request(state.query);
-    state.redisList = res.list;
-};
-
-const changeTag = (tagPath: string) => {
-    clearRedis();
-    if (tagPath != null) {
-        searchRedis();
-    }
-};
-
-const getTags = async () => {
-    state.tags = await tagApi.getAccountTags.request(null);
-};
-
-const changeRedis = (id: number) => {
-    resetScanParam();
-    if (id != 0) {
-        const redis: any = state.redisList.find((x: any) => x.id == id);
-        if (redis) {
-            state.dbList = (state.redisList.find((x: any) => x.id == id) as any).db.split(',');
-            state.scanParam.mode = redis.mode;
-        }
-    }
-
-    // 默认选中配置的第一个库
-    state.scanParam.db = state.dbList[0];
-    state.keys = [];
-    state.dbsize = 0;
-};
-
-const changeDb = () => {
-    resetScanParam();
-    state.keys = [];
-    state.dbsize = 0;
-    searchKey();
-};
 
 const scan = async () => {
     isTrue(state.scanParam.id != null, '请先选择redis');
@@ -254,15 +191,6 @@ const scan = async () => {
 const searchKey = async () => {
     state.scanParam.cursor = {};
     await scan();
-};
-
-const clearRedis = () => {
-    state.redisList = [];
-    state.scanParam.id = null;
-    resetScanParam();
-    state.scanParam.db = '';
-    state.keys = [];
-    state.dbsize = 0;
 };
 
 const clear = () => {
@@ -328,20 +256,18 @@ const del = (key: string) => {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning',
-    })
-        .then(() => {
-            redisApi.delKey
-                .request({
-                    key,
-                    id: state.scanParam.id,
-                    db: state.scanParam.db,
-                })
-                .then(() => {
-                    ElMessage.success('删除成功！');
-                    searchKey();
-                });
-        })
-        .catch(() => { });
+    }).then(() => {
+      redisApi.delKey
+          .request({
+            key,
+            id: state.scanParam.id,
+            db: state.scanParam.db,
+          })
+          .then(() => {
+            ElMessage.success('删除成功！');
+            searchKey();
+          });
+    }).catch(() => { });
 };
 
 const ttlConveter = (ttl: any) => {
@@ -392,27 +318,45 @@ const getTypeColor = (type: string) => {
     }
 };
 
-// 加载选中的db
-const setSelects = async (redisDbOptInfo: any) => {
-    // 设置标签路径等
-    const { tagPath, dbId } = redisDbOptInfo.dbOptInfo;
-    state.query.tagPath = tagPath;
-    await searchRedis();
-    state.scanParam.id = dbId;
-    changeRedis(dbId);
-    changeDb();
-};
 
-// 判断如果有数据则加载下拉选项
-let redisDbOptInfo = store.state.redisDbOptInfo;
-if (redisDbOptInfo.dbOptInfo.tagPath) {
-    setSelects(redisDbOptInfo);
+const initLoadInstances = async ()=>{
+  const res = await redisApi.redisList.request({});
+  if(!res.total) return
+  state.instances = {tags:{}, tree:{}, dbs:{}, tables:{}} ; // 初始化变量
+  for (const db of res.list) {
+    let arr = state.instances.tree[db.tagId] || []
+    const {tagId, tagPath} = db
+    // tags
+    state.instances.tags[db.tagId]={tagId, tagPath}
+    // 实例
+    arr.push(db)
+    state.instances.tree[db.tagId] = arr;
+   
+  }
 }
 
-// 监听选中操作的db变化，并加载下拉选项
-watch(store.state.redisDbOptInfo, async (newValue) => {
-    await setSelects(newValue);
-});
+const changeInstance = async (inst: any, fn: Function) => {
+  let dbs = state.instances.dbs[inst.id] || []
+  if(dbs.length <=0 ){
+    const res = await redisApi.redisInfo.request({ id: inst.id, host:inst.host });
+    for (let db in res.Keyspace){
+      dbs.push({
+        name: db,
+        keys: res.Keyspace[db]?.split(',')[0]?.split('=')[1] || 0
+      })
+    }
+  }
+
+  state.instances.dbs[inst.id] = dbs
+  fn && fn(dbs)
+}
+
+/** 初始化加载db数据 */
+const loadInitSchema = (inst: any, schema: string)=>{
+  state.scanParam.id = inst.id
+  state.scanParam.db = schema.replace('db','')
+  scan()
+}
 
 </script>
 

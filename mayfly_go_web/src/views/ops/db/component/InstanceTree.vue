@@ -1,10 +1,8 @@
 <template>
     <div class="instances-box layout-aside">
         <el-row type="flex" justify="space-between">
-            <el-col :span="24"
-                :style="{ maxHeight: instanceMenuMaxHeight, height: instanceMenuMaxHeight, overflow: 'auto' }"
-                class="el-scrollbar flex-auto">
-                <el-menu background-color="transparent" :collapse-transition="false">
+            <el-col :span="24" :style="{maxHeight: instanceMenuMaxHeight,height: instanceMenuMaxHeight, overflow:'auto'}" class="el-scrollbar flex-auto">
+                <el-menu background-color="transparent" ref="menuRef">
                     <!-- 第一级：tag -->
                     <el-sub-menu v-for="tag of instances.tags" :index="tag.tagPath" :key="tag.tagPath">
                         <template #title>
@@ -15,7 +13,7 @@
                         </template>
                         <!-- 第二级：数据库实例 -->
                         <el-sub-menu v-for="inst in instances.tree[tag.tagId]" :index="'instance-' + inst.id"
-                            :key="'instance-' + inst.id" @click="changeInstance(inst)">
+                            :key="'instance-' + inst.id" @click="changeInstance(inst, ()=>{})">
                             <template #title>
                                 <el-popover placement="right-start" title="数据库实例信息" trigger="hover" :width="210">
                                     <template #reference>
@@ -48,9 +46,9 @@
                                 <!-- 第四级 01：表 -->
                                 <el-sub-menu :index="inst.id + schema + '-table'">
                                     <template #title>
-                                        <div style="width: 100%" @click="loadTableNames(inst, schema)">
-                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
-                                                <Calendar color="#409eff" />
+                                        <div style="width: 100%" @click="loadTableNames(inst, schema, ()=>{})">
+                                          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
+                                              <Calendar color="#409eff"/>
                                             </el-icon>
                                             <span>表</span>
                                             <el-icon v-show="state.loading[inst.id + schema]" class="is-loading">
@@ -122,7 +120,8 @@
 </template>
 
 <script lang="ts" setup>
-import { onBeforeMount, reactive } from 'vue';
+import {nextTick, onBeforeMount, onMounted, reactive, ref, Ref, watch} from 'vue';
+import {store} from '@/store';
 
 const props = defineProps({
     instanceMenuMaxHeight: {
@@ -138,6 +137,8 @@ const emits = defineEmits(['initLoadInstances', 'changeInstance', 'loadTableName
 onBeforeMount(async () => {
     await initLoadInstances()
 })
+
+const menuRef = ref(null) as Ref
 
 const state = reactive({
     nowSchema: '',
@@ -155,9 +156,10 @@ const initLoadInstances = () => {
 /**
  * 改变选中的数据库实例
  * @param inst 选中的实例对象
+ * @param fn 选中的实例对象后的回调函数
  */
-const changeInstance = (inst: any) => {
-    emits('changeInstance', inst)
+const changeInstance = (inst : any, fn: Function) => {
+  emits('changeInstance', inst, fn)
 }
 /**
  * 改变选中的数据库schema
@@ -172,11 +174,13 @@ const changeSchema = (inst: any, schema: string) => {
  * 加载schema下所有表
  * @param inst 数据库实例
  * @param schema database名
+ * @param fn 加载表集合后的回调函数，参数：res 表集合
  */
-const loadTableNames = async (inst: any, schema: string) => {
+const loadTableNames = async (inst: any, schema: string, fn: Function) => {
     state.loading[inst.id + schema] = true
-    await emits('loadTableNames', inst, schema, () => {
+  await emits('loadTableNames', inst, schema, (res: any[])=>{
         state.loading[inst.id + schema] = false
+    fn && fn(res)
     })
 }
 /**
@@ -200,6 +204,39 @@ const filterTableName = (instId: number, schema: string, event?: any) => {
         a.show = param ? eval('/' + param.split('').join('[_\w]*') + '[_\w]*/ig').test(a.tableName) : true
     })
 }
+
+const selectDb = async (val?: any) => {
+  let info = val || store.state.sqlExecInfo.dbOptInfo;
+  if (info && info.dbId) {
+    const {tagPath, dbId, db} = info
+    menuRef.value.open(tagPath);
+    menuRef.value.open('instance-' + dbId);
+    await changeInstance({id: dbId}, () => {
+      // 加载数据库
+      nextTick(async () => {
+        menuRef.value.open(dbId + db)
+        state.nowSchema = (dbId+db)
+        // 加载集合列表
+        await nextTick(async () => {
+          await loadTableNames({id: dbId}, db, (res: any[]) => {
+            // 展开集合列表
+            menuRef.value.open(dbId + db + '-table')
+            console.log(res)
+          })
+        })
+      })
+    })
+  }
+}
+
+onMounted(()=>{
+  selectDb();
+})
+
+watch(()=>store.state.sqlExecInfo.dbOptInfo, async newValue => {
+  await selectDb(newValue)
+})
+
 
 </script>
 

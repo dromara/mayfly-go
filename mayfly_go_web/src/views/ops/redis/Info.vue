@@ -134,7 +134,6 @@ watch(
             for (let k in info['Keyspace']) {
                 let data = { db: k }
                 let d = info['Keyspace'][k].split(',')
-                debugger
                 for (let f of d) {
                     let v = f.split('=')
                     data[v[0]] = v[1]
