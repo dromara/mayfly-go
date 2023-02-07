@@ -76,36 +76,42 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 	g := rc.GinCtx
 	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
 
-	var res string
-	var err error
-
+	section := rc.GinCtx.Query("section")
 	mode := ri.Info.Mode
 	ctx := context.Background()
+	var redisCli *redis.Client
+
 	if mode == "" || mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
-		res, err = ri.Cli.Info(ctx).Result()
+		redisCli = ri.Cli
 	} else if mode == entity.RedisModeCluster {
 		host := rc.GinCtx.Query("host")
 		biz.NotEmpty(host, "集群模式host信息不能为空")
 		clusterClient := ri.ClusterCli
-		var redisClient *redis.Client
 		// 遍历集群的master节点找到该redis client
 		clusterClient.ForEachMaster(ctx, func(ctx context.Context, client *redis.Client) error {
 			if host == client.Options().Addr {
-				redisClient = client
+				redisCli = client
 			}
 			return nil
 		})
-		if redisClient == nil {
+		if redisCli == nil {
 			// 遍历集群的slave节点找到该redis client
 			clusterClient.ForEachSlave(ctx, func(ctx context.Context, client *redis.Client) error {
 				if host == client.Options().Addr {
-					redisClient = client
+					redisCli = client
 				}
 				return nil
 			})
 		}
-		biz.NotNil(redisClient, "该实例不在该集群中")
-		res, err = redisClient.Info(ctx).Result()
+		biz.NotNil(redisCli, "该实例不在该集群中")
+	}
+
+	var res string
+	var err error
+	if section == "" {
+		res, err = ri.Cli.Info(ctx).Result()
+	} else {
+		res, err = ri.Cli.Info(ctx, section).Result()
 	}
 
 	biz.ErrIsNilAppendErr(err, "获取redis info失败: %s")

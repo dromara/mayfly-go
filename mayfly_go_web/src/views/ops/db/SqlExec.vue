@@ -219,7 +219,8 @@
                                     layout="prev, pager, next, total, jumper" v-model:current-page="dt.pageNum"
                                     :page-size="defalutLimit"></el-pagination>
                             </el-row>
-                            <div style=" font-size: 12px; padding: 0 10px; color: #606266"><span>{{ dt.sql }}</span></div>
+                            <div style=" font-size: 12px; padding: 0 10px; color: #606266"><span>{{ dt.sql }}</span>
+                            </div>
                         </el-tab-pane>
                     </el-tabs>
                 </el-container>
@@ -258,7 +259,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onMounted, reactive, watch } from 'vue';
+import { computed, nextTick, onMounted, reactive } from 'vue';
 import { dbApi } from './api';
 
 import { format as sqlFormatter } from 'sql-formatter';
@@ -1754,14 +1755,14 @@ const loadSchemaTables = async (inst: any, schema: string, fn: Function) => {
     } else {
         tables.forEach((a: any) => a.show = true)
     }
-  fn(state.instances.tables[id+schema])
+    fn(state.instances.tables[id + schema])
 }
 
 // 选择数据库实例
 const changeInstance = (inst: any, fn?: Function) => {
     state.dbId = inst.id
     state.dbType = inst.type
-  fn && fn()
+    fn && fn()
 }
 // 选择数据库
 const changeSchema = (inst: any, schema: string) => {

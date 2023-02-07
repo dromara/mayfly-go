@@ -1,109 +1,88 @@
 <template>
-    <div class="instances-box layout-aside">
-        <el-row type="flex" justify="space-between">
-            <el-col :span="24" :style="{
-                maxHeight: state.instanceMenuMaxHeight,
-                height: state.instanceMenuMaxHeight,
-                overflow: 'auto'
-            }" class="el-scrollbar flex-auto">
-
-        <el-menu background-color="transparent" ref="menuRef">
-                    <!-- 第一级：tag -->
-                    <el-sub-menu v-for="tag of instances.tags" :index="tag.tagPath" :key="tag.tagPath">
-                        <template #title>
-                            <el-icon>
-                                <FolderOpened color="#e6a23c" />
-                            </el-icon>
-                            <span>{{ tag.tagPath }}</span>
+    <tag-menu :instanceMenuMaxHeight="state.instanceMenuMaxHeight" :tags="instances.tags">
+        <template #submenu="props">
+            <el-sub-menu v-for="inst in instances.tree[props.tag.tagId]" :index="'mongo-instance-' + inst.id"
+                :key="'mongo-instance-' + inst.id" @click.stop="changeInstance(inst, () => { })">
+                <template #title>
+                    <el-popover placement="right-start" title="mongo数据库实例信息" trigger="hover" :width="210">
+                        <template #reference>
+                            <span>&nbsp;&nbsp;<el-icon>
+                                    <MostlyCloudy color="#409eff" />
+                                </el-icon>{{ inst.name }}</span>
                         </template>
-                        <!-- 第二级：数据库实例 -->
-                        <el-sub-menu v-for="inst in instances.tree[tag.tagId]"
-                                     :index="'mongo-instance-' + inst.id"
-                                     :key="'mongo-instance-' + inst.id"
-                                     @click.prevent="changeInstance(inst, ()=>{})"
-                        >
+                        <template #default>
+                            <el-form class="instances-pop-form" label-width="55px" :size="'small'">
+                                <el-form-item label="名称:">{{ inst.name }}</el-form-item>
+                                <el-form-item label="链接:">{{ inst.uri }}</el-form-item>
+                            </el-form>
+                        </template>
+                    </el-popover>
+                </template>
+                <!-- 第三级：数据库 -->
+                <el-sub-menu v-for="db in instances.dbs[inst.id]" :index="inst.id + db.Name" :key="inst.id + db.Name"
+                    :class="state.nowSchema === (inst.id + db.Name) && 'checked'"
+                    @click.stop="changeSchema(inst, db.Name)">
+                    <template #title>
+                        &nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
+                            <Coin color="#67c23a" />
+                        </el-icon>
+                        <span class="checked-schema">
+                            {{ db.Name }}
+                            <span style="color: #8492a6;font-size: 13px">[{{
+                                formatByteSize(db.SizeOnDisk)
+                            }}]</span>
+                        </span>
+                    </template>
+                    <!-- 第四级 01：表 -->
+                    <el-sub-menu :index="inst.id + db.Name + '-table'">
+                        <template #title>
+                            <div style="width: 100%" @click="loadTableNames(inst, db.Name, () => { })">
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
+                                    <Calendar color="#409eff" />
+                                </el-icon>
+                                <span>集合</span>
+                                <el-icon v-show="state.loading[inst.id + db.Name]" class="is-loading">
+                                    <Loading />
+                                </el-icon>
+                            </div>
+                        </template>
+                        <el-menu-item :index="inst.id + db.Name + '-tableSearch'"
+                            :key="inst.id + db.Name + '-tableSearch'">
                             <template #title>
-                                <el-popover placement="right-start" title="mongo数据库实例信息" trigger="hover" :width="210">
-                                    <template #reference>
-                                        <span>&nbsp;&nbsp;<el-icon>
-                                                <MostlyCloudy color="#409eff" />
-                                            </el-icon>{{ inst.name }}</span>
-                                    </template>
-                                    <template #default>
-                                        <el-form class="instances-pop-form" label-width="55px" :size="'small'">
-                                            <el-form-item label="名称:">{{ inst.name }}</el-form-item>
-                                            <el-form-item label="链接:">{{ inst.uri }}</el-form-item>
-                                        </el-form>
-                                    </template>
-                                </el-popover>
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                                <el-input size="small" placeholder="过滤" clearable
+                                    @change="filterTableName(inst.id, db.Name)"
+                                    @keyup="(e: any) => filterTableName(inst.id, db.Name, e)"
+                                    v-model="state.filterParam[inst.id + db.Name]" />
                             </template>
-                            <!-- 第三级：数据库 -->
-                            <el-sub-menu v-for="db in instances.dbs[inst.id]" :index="inst.id + db.Name"
-                                :key="inst.id + db.Name" :class="state.nowSchema === (inst.id + db.Name) && 'checked'"
-                                @click.prevent="changeSchema(inst, db.Name)">
-                                <template #title>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
-                                        <Coin color="#67c23a" />
-                                    </el-icon>
-                                    <span class="checked-schema">
-                                        {{ db.Name }}
-                                        <span style="color: #8492a6;font-size: 13px">[{{
-                                            formatByteSize(db.SizeOnDisk)
-                                        }}]</span>
-                                    </span>
-                                </template>
-                                <!-- 第四级 01：表 -->
-                                <el-sub-menu :index="inst.id + db.Name + '-table'">
-                                    <template #title>
-                                        <div style="width: 100%" @click="loadTableNames(inst, db.Name, ()=>{})">
-                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
-                                                <Calendar color="#409eff"/>
-                                            </el-icon>
-                                            <span>集合</span>
-                                            <el-icon v-show="state.loading[inst.id + db.Name]" class="is-loading">
-                                                <Loading />
-                                            </el-icon>
-                                        </div>
-                                    </template>
-                                    <el-menu-item :index="inst.id + db.Name + '-tableSearch'"
-                                        :key="inst.id + db.Name + '-tableSearch'">
-                                        <template #title>
-                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                                            <el-input size="small" placeholder="过滤" clearable
-                                                @change="filterTableName(inst.id, db.Name)"
-                                                @keyup="(e: any) => filterTableName(inst.id, db.Name, e)"
-                                                v-model="state.filterParam[inst.id + db.Name]" />
-                                        </template>
-                                    </el-menu-item>
+                        </el-menu-item>
 
-                                    <template v-for="tb in instances.tables[inst.id + db.Name]">
-                                        <el-menu-item :index="inst.id + db.Name + tb.tableName"
-                                            :key="inst.id + db.Name + tb.tableName" v-if="tb.show"
-                                            @click="loadTableData(inst, db.Name, tb.tableName)">
-                                            <template #title>
-                                                <div style="width: 100%">
-                                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
-                                                        <Calendar color="#409eff" />
-                                                    </el-icon>
-                                                    <span :title="tb.tableComment || ''">{{ tb.tableName }}</span>
-                                                </div>
-                                            </template>
-                                        </el-menu-item>
-                                    </template>
-                                </el-sub-menu>
-                            </el-sub-menu>
-                        </el-sub-menu>
+                        <template v-for="tb in instances.tables[inst.id + db.Name]">
+                            <el-menu-item :index="inst.id + db.Name + tb.tableName"
+                                :key="inst.id + db.Name + tb.tableName" v-if="tb.show"
+                                @click="loadTableData(inst, db.Name, tb.tableName)">
+                                <template #title>
+                                    <div style="width: 100%">
+                                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
+                                            <Calendar color="#409eff" />
+                                        </el-icon>
+                                        <span :title="tb.tableComment || ''">{{ tb.tableName }}</span>
+                                    </div>
+                                </template>
+                            </el-menu-item>
+                        </template>
                     </el-sub-menu>
-                </el-menu>
-            </el-col>
-        </el-row>
-    </div>
+                </el-sub-menu>
+            </el-sub-menu>
+        </template>
+    </tag-menu>
 </template>
 
 <script lang="ts" setup>
-import {nextTick, onBeforeMount, onMounted, reactive, ref, Ref, watch} from 'vue';
+import { nextTick, onBeforeMount, onMounted, reactive, ref, Ref, watch } from 'vue';
 import { formatByteSize } from '@/common/utils/format';
-import {store} from '@/store';
+import { store } from '@/store';
+import TagMenu from '../component/TagMenu.vue';
 
 const props = defineProps({
     instances: {
@@ -119,7 +98,7 @@ onBeforeMount(async () => {
 })
 
 const setHeight = () => {
-    state.instanceMenuMaxHeight = window.innerHeight - 140 + 'px';
+    state.instanceMenuMaxHeight = window.innerHeight - 115 + 'px';
 }
 
 const menuRef = ref(null) as Ref
@@ -144,8 +123,8 @@ const initLoadInstances = () => {
  * @param inst 选中的实例对象
  * @param fn 选中的实例对象后的回调事件
  */
-const changeInstance = (inst : any, fn: Function) => {
-  emits('changeInstance', inst, fn)
+const changeInstance = (inst: any, fn: Function) => {
+    emits('changeInstance', inst, fn)
 }
 /**
  * 改变选中的数据库schema
@@ -164,7 +143,7 @@ const changeSchema = (inst: any, schema: string) => {
  */
 const loadTableNames = async (inst: any, schema: string, fn: Function) => {
     state.loading[inst.id + schema] = true
-    await emits('loadTableNames', inst, schema, (res: any)=>{
+    await emits('loadTableNames', inst, schema, (res: any) => {
         state.loading[inst.id + schema] = false
         fn && fn(res)
     })
@@ -192,80 +171,40 @@ const filterTableName = (instId: number, schema: string, event?: any) => {
 }
 
 const selectDb = async (val?: any) => {
-  let info = val || store.state.mongoDbOptInfo.dbOptInfo;
-  if (info && info.dbId) {
-    const {tagPath, dbId, db} = info
-    menuRef.value.open(tagPath);
-    menuRef.value.open('mongo-instance-' + dbId);
-    await changeInstance({id: dbId}, () => {
-      // 加载数据库
-      nextTick(async () => {
-        menuRef.value.open(dbId + db)
-        // 加载集合列表
-        await nextTick(async () => {
-          await loadTableNames({id: dbId}, db, (res: any[]) => {
-            // 展开集合列表
-            menuRef.value.open(dbId + db + '-table')
-            // 加载第一张集合数据
-            loadTableData({id: dbId}, db, res[0].tableName)
-          })
+    let info = val || store.state.mongoDbOptInfo.dbOptInfo;
+    if (info && info.dbId) {
+        const { tagPath, dbId, db } = info
+        menuRef.value.open(tagPath);
+        menuRef.value.open('mongo-instance-' + dbId);
+        await changeInstance({ id: dbId }, () => {
+            // 加载数据库
+            nextTick(async () => {
+                menuRef.value.open(dbId + db)
+                // 加载集合列表
+                await nextTick(async () => {
+                    await loadTableNames({ id: dbId }, db, (res: any[]) => {
+                        // 展开集合列表
+                        menuRef.value.open(dbId + db + '-table')
+                        // 加载第一张集合数据
+                        loadTableData({ id: dbId }, db, res[0].tableName)
+                    })
+                })
+            })
         })
-      })
-    })
-  }
+    }
 }
 
-onMounted(()=>{
-  selectDb();
+onMounted(() => {
+    selectDb();
 })
 
-watch(()=>store.state.mongoDbOptInfo.dbOptInfo, async newValue => {
-  await selectDb(newValue)
+watch(() => store.state.mongoDbOptInfo.dbOptInfo, async newValue => {
+    await selectDb(newValue)
 })
 
 </script>
 
 <style lang="scss">
-.instances-box {
-    .el-menu {
-        width: 100%;
-    }
-
-    .el-sub-menu {
-        .checked {
-            .checked-schema {
-                color: var(--el-color-primary);
-            }
-        }
-    }
-
-    .el-sub-menu__title {
-        padding-left: 0 !important;
-        height: 30px !important;
-        line-height: 30px !important;
-    }
-
-    .el-menu--vertical:not(.el-menu--collapse):not(.el-menu--popup-container) .el-sub-menu__title {
-        padding-right: 10px;
-    }
-
-    .el-menu-item {
-        padding-left: 0 !important;
-        height: 20px !important;
-        line-height: 20px !important;
-    }
-
-    .el-icon {
-        margin: 0;
-    }
-
-    .el-sub-menu__icon-arrow {
-        top: inherit;
-        right: 10px;
-    }
-
-}
-
 .instances-pop-form {
     .el-form-item {
         margin-bottom: unset;
