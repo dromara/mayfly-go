@@ -1759,7 +1759,6 @@ const loadSchemaTables = async (inst: any, schema: string, fn: Function) => {
 
 // 选择数据库实例
 const changeInstance = (inst: any, fn?: Function) => {
-  debugger
     state.dbId = inst.id
     state.dbType = inst.type
   fn && fn()
