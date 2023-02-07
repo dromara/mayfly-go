@@ -714,7 +714,6 @@ select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(
 onMounted(() => {
     self.completionItemProvider?.dispose()
     setHeight();
-    instManage.loadSelectScheme()
     // 监听浏览器窗口大小变化,更新对应组件高度
     window.onresize = () => setHeight();
 });
@@ -1734,13 +1733,15 @@ const loadSchemaTables = async (inst: any, schema: string, fn: Function) => {
   }else {
     tables.forEach((a:any)=>a.show=true)
   }
-  fn()
+  fn(state.instances.tables[id+schema])
 }
 
 // 选择数据库实例
-const changeInstance = (inst: any) => {
+const changeInstance = (inst: any, fn?: Function) => {
+  debugger
   state.dbId = inst.id
   state.dbType = inst.type
+  fn && fn()
 }
 // 选择数据库
 const changeSchema = (inst: any, schema: string) => {
@@ -1799,23 +1800,6 @@ const addQueryTab = async () => {
   })
   
 }
-
-const instManage = {
-  loadSelectScheme: ()=>{
-    let {tagPath, dbId, db} = store.state.sqlExecInfo.dbOptInfo;
-    if(dbId){
-      state.dbId = dbId;
-      state.db = db;
-      addQueryTab()
-      // fixme 差展开菜单树至对应的db
-    }
-    
-  }
-}
-
-watch(()=>store.state.sqlExecInfo.dbOptInfo, () => {
-  instManage.loadSelectScheme()
-})
 
 </script>
 

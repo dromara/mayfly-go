@@ -159,12 +159,12 @@ const {
     jsonEditorDialog,
 } = toRefs(state)
 
-const changeInstance = async (inst: any) => {
+const changeInstance = async (inst: any, fn: Function) => {
   if (inst) {
     if (!state.instances.dbs[inst.id]) {
       const res = await mongoApi.databases.request({id: inst.id});
       state.instances.dbs[inst.id] = res.Databases;
-      console.log(res.Databases)
+      fn && fn(res.Databases)
     }
   }
 }
@@ -179,7 +179,7 @@ const loadTableNames = async (inst: any, database: string, fn:Function) => {
     tables.push({tableName: tb, show: true})
   }
   state.instances.tables[inst.id+database] = tables
-  fn()
+  fn(tables)
 }
 
 const changeCollection = (inst: any, schema: string, collection: string) => {

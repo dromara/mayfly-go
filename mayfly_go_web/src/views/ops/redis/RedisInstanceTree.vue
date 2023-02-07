@@ -7,7 +7,7 @@
         overflow:'auto'
       }" class="el-scrollbar flex-auto">
         
-        <el-menu background-color="transparent" :collapse-transition="false">
+        <el-menu background-color="transparent" ref="menuRef">
           <!-- 第一级：tag -->
           <el-sub-menu v-for="tag of instances.tags" :index="tag.tagPath" :key="tag.tagPath">
             <template #title>
@@ -16,8 +16,8 @@
             </template>
             <!-- 第二级：数据库实例 -->
             <el-sub-menu v-for="inst in instances.tree[tag.tagId]"
-                         :index="'mongo-instance-' + inst.id"
-                         :key="'mongo-instance-' + inst.id"
+                         :index="'redis-instance-' + inst.id"
+                         :key="'redis-instance-' + inst.id"
                          @click.prevent="changeInstance(inst)"
             >
               <template #title>
@@ -61,7 +61,8 @@
 </template>
 
 <script lang="ts" setup>
-import {onBeforeMount, reactive} from 'vue';
+import {onBeforeMount, onMounted, reactive, Ref, ref, watch} from 'vue';
+import {store} from '@/store';
 
 defineProps({
   instances: {
@@ -80,12 +81,13 @@ const setHeight = () => {
   state.instanceMenuMaxHeight = window.innerHeight - 140 + 'px';
 }
 
+const menuRef = ref(null) as Ref;
+
 const state = reactive({
   instanceMenuMaxHeight: '800px',
   nowSchema: '',
   filterParam: {},
   loading: {},
-  
 })
 
 /**
@@ -98,9 +100,10 @@ const initLoadInstances = () => {
 /**
  * 改变选中的数据库实例
  * @param inst 选中的实例对象
+ * @param fn 选中的实例后的回调函数
  */
-const changeInstance = (inst : any) => {
-  emits('changeInstance', inst)
+const changeInstance = (inst : any, fn?:Function) => {
+  emits('changeInstance', inst, fn)
 }
 /**
  * 改变选中的数据库schema
@@ -111,6 +114,26 @@ const changeSchema = (inst : any, schema: string) => {
   state.nowSchema = inst.id + schema
   emits('changeSchema', inst, schema)
 }
+
+const selectDb = async (val?: any) => {
+  const info = val || store.state.redisDbOptInfo.dbOptInfo
+  if (info && info.dbId) {
+    const {tagPath, dbId} = info
+    menuRef.value.open(tagPath);
+    menuRef.value.open('redis-instance-' + dbId);
+    await changeInstance({id: dbId}, async (dbs: any[]) => {
+      await changeSchema({id: dbId}, dbs[0]?.name)
+    })
+  }
+}
+
+onMounted(()=>{
+  selectDb();
+})
+
+watch(()=>store.state.redisDbOptInfo.dbOptInfo, async newValue =>{
+  await selectDb(newValue)
+})
 
 </script>
 

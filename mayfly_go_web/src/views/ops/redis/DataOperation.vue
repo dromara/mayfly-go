@@ -335,7 +335,7 @@ const initLoadInstances = async ()=>{
   }
 }
 
-const changeInstance = async (inst: any) => {
+const changeInstance = async (inst: any, fn: Function) => {
   let dbs = state.instances.dbs[inst.id] || []
   if(dbs.length <=0 ){
     const res = await redisApi.redisInfo.request({ id: inst.id, host:inst.host });
@@ -348,8 +348,7 @@ const changeInstance = async (inst: any) => {
   }
 
   state.instances.dbs[inst.id] = dbs
-  
-  
+  fn && fn(dbs)
 }
 
 /** 初始化加载db数据 */

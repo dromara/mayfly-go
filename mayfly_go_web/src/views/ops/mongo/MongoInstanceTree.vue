@@ -7,7 +7,7 @@
         overflow:'auto'
       }" class="el-scrollbar flex-auto">
         
-        <el-menu background-color="transparent" :collapse-transition="false">
+        <el-menu background-color="transparent" ref="menuRef">
           <!-- 第一级：tag -->
           <el-sub-menu v-for="tag of instances.tags" :index="tag.tagPath" :key="tag.tagPath">
             <template #title>
@@ -18,7 +18,7 @@
             <el-sub-menu v-for="inst in instances.tree[tag.tagId]"
                          :index="'mongo-instance-' + inst.id"
                          :key="'mongo-instance-' + inst.id"
-                         @click.prevent="changeInstance(inst)"
+                         @click.prevent="changeInstance(inst, ()=>{})"
             >
               <template #title>
                 <el-popover
@@ -55,7 +55,7 @@
                 <!-- 第四级 01：表 -->
                 <el-sub-menu :index="inst.id + db.Name + '-table'" >
                   <template #title>
-                    <div style="width: 100%" @click="loadTableNames(inst, db.Name)">
+                    <div style="width: 100%" @click="loadTableNames(inst, db.Name, ()=>{})">
                       &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon><Calendar color="#409eff"/></el-icon>
                       <span>集合</span>
                       <el-icon v-show="state.loading[inst.id + db.Name]" class="is-loading"><Loading /></el-icon>
@@ -97,8 +97,9 @@
 </template>
 
 <script lang="ts" setup>
-import {onBeforeMount, reactive} from 'vue';
+import {nextTick, onBeforeMount, onMounted, reactive, ref, Ref, watch} from 'vue';
 import {formatByteSize} from '@/common/utils/format';
+import {store} from '@/store';
 
 const props = defineProps({
   instances: {
@@ -116,6 +117,8 @@ onBeforeMount(async ()=>{
 const setHeight = () => {
   state.instanceMenuMaxHeight = window.innerHeight - 140 + 'px';
 }
+
+const menuRef = ref(null) as Ref
 
 const state = reactive({
   instanceMenuMaxHeight: '800px',
@@ -135,9 +138,10 @@ const initLoadInstances = () => {
 /**
  * 改变选中的数据库实例
  * @param inst 选中的实例对象
+ * @param fn 选中的实例对象后的回调事件
  */
-const changeInstance = (inst : any) => {
-  emits('changeInstance', inst)
+const changeInstance = (inst : any, fn: Function) => {
+  emits('changeInstance', inst, fn)
 }
 /**
  * 改变选中的数据库schema
@@ -151,12 +155,14 @@ const changeSchema = (inst : any, schema: string) => {
 /**
  * 加载schema下所有表
  * @param inst 数据库实例
+ * @param fn 加载表名后的回调函数，参数：表名list
  * @param schema database名
  */
-const loadTableNames = async (inst: any, schema: string) => {
+const loadTableNames = async (inst: any, schema: string, fn: Function) => {
   state.loading[inst.id+schema] = true
-  await emits('loadTableNames', inst, schema, ()=>{
+  await emits('loadTableNames', inst, schema, (res: any)=>{
     state.loading[inst.id+schema] = false
+    fn && fn(res)
   })
 }
 /**
@@ -180,6 +186,38 @@ const filterTableName = (instId: number, schema: string, event?: any) => {
     a.show = param?eval('/'+param.split('').join('[_\w]*')+'[_\w]*/ig').test(a.tableName):true
   })
 }
+
+const selectDb = async (val?: any) => {
+  let info = val || store.state.mongoDbOptInfo.dbOptInfo;
+  if (info && info.dbId) {
+    const {tagPath, dbId, db} = info
+    menuRef.value.open(tagPath);
+    menuRef.value.open('mongo-instance-' + dbId);
+    await changeInstance({id: dbId}, () => {
+      // 加载数据库
+      nextTick(async () => {
+        menuRef.value.open(dbId + db)
+        // 加载集合列表
+        await nextTick(async () => {
+          await loadTableNames({id: dbId}, db, (res: any[]) => {
+            // 展开集合列表
+            menuRef.value.open(dbId + db + '-table')
+            // 加载第一张集合数据
+            loadTableData({id: dbId}, db, res[0].tableName)
+          })
+        })
+      })
+    })
+  }
+}
+
+onMounted(()=>{
+  selectDb();
+})
+
+watch(()=>store.state.mongoDbOptInfo.dbOptInfo, async newValue => {
+  await selectDb(newValue)
+})
 
 </script>
 
