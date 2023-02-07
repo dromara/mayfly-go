@@ -21,7 +21,7 @@ mysql:
   host: localhost:3306
   username: root
   password: 111049
-  db-name: mayfly-go
+  db-name: mayfly_go
   config: charset=utf8&loc=Local&parseTime=true
   max-idle-conns: 5
 # 若同时部署多台机器，则需要配置redis信息用于缓存权限码、验证码、公私钥等

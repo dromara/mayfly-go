@@ -74,7 +74,6 @@ func InitRouter() *gin.Engine {
 
 		sys_router.Init(api)
 
-		// project_router.Init(api)
 		tag_router.Init(api)
 		machine_router.Init(api)
 		db_router.Init(api)

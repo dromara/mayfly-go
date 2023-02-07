@@ -13,7 +13,7 @@
     "countup.js": "^2.0.7",
     "cropperjs": "^1.5.11",
     "echarts": "^5.4.0",
-    "element-plus": "^2.2.26",
+    "element-plus": "^2.2.29",
     "jsencrypt": "^3.2.1",
     "lodash": "^4.17.21",
     "mitt": "^3.0.0",
@@ -44,10 +44,10 @@
     "eslint": "^8.5.0",
     "eslint-plugin-vue": "^8.2.0",
     "prettier": "^2.3.0",
-    "sass": "^1.45.1",
-    "sass-loader": "^12.4.0",
+    "sass": "^1.58.0",
+    "sass-loader": "^13.2.0",
     "typescript": "^4.7.4",
-    "vite": "^4.0.4",
+    "vite": "^4.1.1",
     "vue-eslint-parser": "^8.0.1"
   },
   "browserslist": [
