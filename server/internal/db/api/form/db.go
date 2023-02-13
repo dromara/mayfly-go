@@ -19,7 +19,7 @@ type DbForm struct {
 }
 
 type DbSqlSaveForm struct {
-	Name string
+	Name string `binding:"required"`
 	Sql  string `binding:"required"`
 	Type int    `binding:"required"`
 	Db   string `binding:"required"`

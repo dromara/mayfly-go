@@ -13,16 +13,16 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="name" label="配置项"></el-table-column>
-                <el-table-column prop="key" label="配置key"></el-table-column>
-                <el-table-column prop="value" label="配置值" min-width="100px" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="name" label="配置项" min-width="100px" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="key" label="配置key" min-width="100px"></el-table-column>
+                <el-table-column prop="value" label="配置值" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="100px" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="updateTime" label="更新时间" min-width="100px">
                     <template #default="scope">
                         {{ dateFormat(scope.row.createTime) }}
                     </template>
                 </el-table-column>
-                <el-table-column prop="modifier" label="修改者" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="modifier" label="修改者" min-width="60px" show-overflow-tooltip></el-table-column>
                 <el-table-column label="操作" min-width="50" fixed="right">
                     <template #default="scope">
                         <el-link :disabled="scope.row.status == -1" type="warning"
@@ -134,6 +134,8 @@ const showSetConfigDialog = (row: any) => {
             if (row.value) {
                 state.paramsDialog.params = JSON.parse(row.value);
             }
+        } else {
+            state.paramsDialog.params = row.value;
         }
     } else {
         state.paramsDialog.params = row.value;

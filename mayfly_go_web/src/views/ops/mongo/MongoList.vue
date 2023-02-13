@@ -65,9 +65,6 @@
                         <el-divider direction="vertical" border-style="dashed" />
                         <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small"
                             :underline="false">集合</el-link>
-                        <el-divider direction="vertical" border-style="dashed" />
-                        <el-link type="primary" @click="openDataOps(scope.row)" plain size="small" :underline="false">
-                            数据操作</el-link>
                     </template>
                 </el-table-column>
             </el-table>
@@ -195,8 +192,6 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from '../tag/api.ts';
 import MongoEdit from './MongoEdit.vue';
 import { formatByteSize } from '@/common/utils/format';
-import { store } from '@/store';
-import router from '@/router';
 import { dateFormat } from '@/common/utils/date';
 
 const state = reactive({
@@ -405,22 +400,6 @@ const valChange = () => {
     state.currentData = null;
     search();
 };
-
-const openDataOps = (row: any) => {
-    state.dbOps.db = row.Name
-    let data = {
-        tagPath: state.currentData.tagPath,
-        dbId: state.dbOps.dbId,
-        db: state.dbOps.db,
-    }
-    state.databaseDialog.visible = false;
-    // 判断db是否发生改变
-    let oldDb = store.state.mongoDbOptInfo.dbOptInfo.db;
-    if (oldDb !== row.Name) {
-        store.dispatch('mongoDbOptInfo/setMongoDbOptInfo', data);
-    }
-    router.push({ name: 'MongoDataOp' });
-}
 
 </script>
 

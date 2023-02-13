@@ -6,59 +6,62 @@
                     @change-schema="loadInitSchema" :instances="state.instances" />
             </el-col>
             <el-col :span="20" style="border-left: 1px solid var(--el-card-border-color);">
-                <el-col class="mt10">
-                    <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
-                        <el-form-item label="key" label-width="40px">
-                            <el-input placeholder="match 支持*模糊key" style="width: 250px" v-model="scanParam.match"
-                                @clear="clear()" clearable></el-input>
-                        </el-form-item>
-                        <el-form-item label="count" label-width="40px">
-                            <el-input placeholder="count" style="width: 70px" v-model.number="scanParam.count">
-                            </el-input>
-                        </el-form-item>
-                        <el-form-item>
-                            <el-button @click="searchKey()" type="success" icon="search" plain></el-button>
-                            <el-button @click="scan()" icon="bottom" plain>scan</el-button>
-                            <el-popover placement="right" :width="200" trigger="click">
-                                <template #reference>
-                                    <el-button type="primary" icon="plus" plain></el-button>
-                                </template>
-                                <el-tag @click="onAddData('string')" :color="getTypeColor('string')"
-                                    style="cursor: pointer">string</el-tag>
-                                <el-tag @click="onAddData('hash')" :color="getTypeColor('hash')" class="ml5"
-                                    style="cursor: pointer">hash</el-tag>
-                                <el-tag @click="onAddData('set')" :color="getTypeColor('set')" class="ml5"
-                                    style="cursor: pointer">set</el-tag>
-                                <!-- <el-tag @click="onAddData('list')" :color="getTypeColor('list')" class="ml5" style="cursor: pointer">list</el-tag> -->
-                            </el-popover>
-                        </el-form-item>
-                        <div style="float: right">
-                            <span>keys: {{ state.dbsize }}</span>
-                        </div>
-                    </el-form>
-                </el-col>
-                <el-table v-loading="state.loading" :data="state.keys" stripe :highlight-current-row="true"
-                    style="cursor: pointer">
-                    <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
-                    <el-table-column prop="type" label="type" width="80">
-                        <template #default="scope">
-                            <el-tag :color="getTypeColor(scope.row.type)" size="small">{{ scope.row.type }}</el-tag>
-                        </template>
-                    </el-table-column>
-                    <el-table-column prop="ttl" label="ttl(过期时间)" width="140">
-                        <template #default="scope">
-                            {{ ttlConveter(scope.row.ttl) }}
-                        </template>
-                    </el-table-column>
-                    <el-table-column label="操作">
-                        <template #default="scope">
-                            <el-button @click="getValue(scope.row)" type="success" icon="search" plain size="small">查看
-                            </el-button>
-                            <el-button @click="del(scope.row.key)" type="danger" icon="delete" plain size="small">删除
-                            </el-button>
-                        </template>
-                    </el-table-column>
-                </el-table>
+                <div class="mt10 ml5">
+                    <el-col>
+                        <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
+                            <el-form-item label="key" label-width="40px">
+                                <el-input placeholder="match 支持*模糊key" style="width: 250px" v-model="scanParam.match"
+                                    @clear="clear()" clearable></el-input>
+                            </el-form-item>
+                            <el-form-item label="count" label-width="40px">
+                                <el-input placeholder="count" style="width: 70px" v-model.number="scanParam.count">
+                                </el-input>
+                            </el-form-item>
+                            <el-form-item>
+                                <el-button @click="searchKey()" type="success" icon="search" plain></el-button>
+                                <el-button @click="scan()" icon="bottom" plain>scan</el-button>
+                                <el-popover placement="right" :width="200" trigger="click">
+                                    <template #reference>
+                                        <el-button type="primary" icon="plus" plain></el-button>
+                                    </template>
+                                    <el-tag @click="onAddData('string')" :color="getTypeColor('string')"
+                                        style="cursor: pointer">string</el-tag>
+                                    <el-tag @click="onAddData('hash')" :color="getTypeColor('hash')" class="ml5"
+                                        style="cursor: pointer">hash</el-tag>
+                                    <el-tag @click="onAddData('set')" :color="getTypeColor('set')" class="ml5"
+                                        style="cursor: pointer">set</el-tag>
+                                    <!-- <el-tag @click="onAddData('list')" :color="getTypeColor('list')" class="ml5" style="cursor: pointer">list</el-tag> -->
+                                </el-popover>
+                            </el-form-item>
+                            <div style="float: right">
+                                <span>keys: {{ state.dbsize }}</span>
+                            </div>
+                        </el-form>
+                    </el-col>
+                    <el-table v-loading="state.loading" :data="state.keys" stripe :highlight-current-row="true"
+                        style="cursor: pointer">
+                        <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
+                        <el-table-column prop="type" label="type" width="80">
+                            <template #default="scope">
+                                <el-tag :color="getTypeColor(scope.row.type)" size="small">{{ scope.row.type }}</el-tag>
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="ttl" label="ttl(过期时间)" width="140">
+                            <template #default="scope">
+                                {{ ttlConveter(scope.row.ttl) }}
+                            </template>
+                        </el-table-column>
+                        <el-table-column label="操作">
+                            <template #default="scope">
+                                <el-button @click="getValue(scope.row)" type="success" icon="search" plain
+                                    size="small">查看
+                                </el-button>
+                                <el-button @click="del(scope.row.key)" type="danger" icon="delete" plain size="small">删除
+                                </el-button>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </div>
             </el-col>
         </el-row>
 
@@ -92,10 +95,8 @@ import SetValue from './SetValue.vue';
 import ListValue from './ListValue.vue';
 import { isTrue, notBlank, notNull } from '@/common/assert';
 
-import { useStore } from '@/store/index.ts';
 import RedisInstanceTree from '@/views/ops/redis/RedisInstanceTree.vue';
 
-let store = useStore();
 const state = reactive({
     loading: false,
     tags: [],

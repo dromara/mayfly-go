@@ -159,7 +159,7 @@ func (d *dbAppImpl) GetDatabases(ed *entity.Db) []string {
 	biz.ErrIsNilAppendErr(err, "数据库连接失败: %s")
 	defer dbConn.Close()
 
-	_, res, err := SelectDataByDb(dbConn, getDatabasesSql, true)
+	_, res, err := SelectDataByDb(dbConn, getDatabasesSql)
 	biz.ErrIsNilAppendErr(err, "获取数据库列表失败")
 	for _, re := range res {
 		databases = append(databases, re["dbname"].(string))
@@ -248,7 +248,7 @@ type DbInstance struct {
 // 执行查询语句
 // 依次返回 列名数组，结果map，错误
 func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]interface{}, error) {
-	return SelectDataByDb(d.db, execSql, false)
+	return SelectDataByDb(d.db, execSql)
 }
 
 // 将查询结果映射至struct，可具体参考sqlx库
@@ -259,7 +259,7 @@ func (d *DbInstance) SelectData2Struct(execSql string, dest interface{}) error {
 // 执行内部查询语句，不返回列名以及不限制行数
 // 依次返回 结果map，错误
 func (d *DbInstance) innerSelect(execSql string) ([]map[string]interface{}, error) {
-	_, res, err := SelectDataByDb(d.db, execSql, true)
+	_, res, err := SelectDataByDb(d.db, execSql)
 	return res, err
 }
 
@@ -361,7 +361,7 @@ func GetDbConn(d *entity.Db, db string) (*sql.DB, error) {
 	return DB, nil
 }
 
-func SelectDataByDb(db *sql.DB, selectSql string, isInner bool) ([]string, []map[string]interface{}, error) {
+func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]interface{}, error) {
 	rows, err := db.Query(selectSql)
 	if err != nil {
 		return nil, nil, err
@@ -388,14 +388,7 @@ func SelectDataByDb(db *sql.DB, selectSql string, isInner bool) ([]string, []map
 	colNames := make([]string, 0)
 	// 是否第一次遍历，列名数组只需第一次遍历时加入
 	isFirst := true
-	rowNum := 0
 	for rows.Next() {
-		rowNum++
-		// 非内部sql，则校验返回结果数量
-		if !isInner {
-			biz.IsTrue(rowNum <= Max_Rows, "结果集 > 2000, 请完善条件或分页信息")
-		}
-
 		// 不Scan也会导致等待，该链接实际处于未工作的状态，然后也会导致连接数迅速达到最大
 		err := rows.Scan(scans...)
 		if err != nil {

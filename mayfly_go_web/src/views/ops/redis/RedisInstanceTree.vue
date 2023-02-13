@@ -1,8 +1,8 @@
 <template>
     <tag-menu :instanceMenuMaxHeight="state.instanceMenuMaxHeight" :tags="instances.tags" ref="menuRef">
         <template #submenu="props">
-            <el-sub-menu v-for="inst in instances.tree[props.tag.tagId]" :index="'redis-instance-' + inst.id"
-                :key="'redis-instance-' + inst.id" @click.stop="changeInstance(inst)">
+            <el-sub-menu v-for="inst in instances.tree[props.tag.tagId]" :index="'redis-' + inst.id"
+                :key="'redis-' + inst.id" @click.stop="changeInstance(inst)">
                 <template #title>
                     <el-popover placement="right-start" title="redis实例信息" trigger="hover" :width="210">
                         <template #reference>
@@ -21,8 +21,7 @@
                 </template>
                 <!-- 第三级：数据库 -->
                 <el-menu-item v-for="db in instances.dbs[inst.id]" :index="inst.id + db.name" :key="inst.id + db.name"
-                    :class="state.nowSchema === (inst.id + db.name) && 'checked'"
-                    @click="changeSchema(inst, db.name)">
+                    :class="state.nowSchema === (inst.id + db.name) && 'checked'" @click="changeSchema(inst, db.name)">
                     <template #title>
                         &nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
                             <Coin color="#67c23a" />
@@ -38,8 +37,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onBeforeMount, onMounted, reactive, Ref, ref, watch } from 'vue';
-import { store } from '@/store';
+import { onBeforeMount, reactive, Ref, ref } from 'vue';
 import TagMenu from '../component/TagMenu.vue';
 
 defineProps({
@@ -51,15 +49,13 @@ defineProps({
 const emits = defineEmits(['initLoadInstances', 'changeInstance', 'changeSchema'])
 
 onBeforeMount(async () => {
-    await initLoadInstances()
-    setHeight()
+    await initLoadInstances();
+    setHeight();
 })
 
 const setHeight = () => {
     state.instanceMenuMaxHeight = window.innerHeight - 115 + 'px';
 }
-
-const menuRef = ref(null) as Ref;
 
 const state = reactive({
     instanceMenuMaxHeight: '800px',
@@ -81,7 +77,7 @@ const initLoadInstances = () => {
  * @param fn 选中的实例后的回调函数
  */
 const changeInstance = (inst: any, fn?: Function) => {
-    emits('changeInstance', inst, fn)
+    emits('changeInstance', inst, fn);
 }
 /**
  * 改变选中的数据库schema
@@ -89,29 +85,9 @@ const changeInstance = (inst: any, fn?: Function) => {
  * @param schema 选中的数据库schema
  */
 const changeSchema = (inst: any, schema: string) => {
-    state.nowSchema = inst.id + schema
-    emits('changeSchema', inst, schema)
+    state.nowSchema = inst.id + schema;
+    emits('changeSchema', inst, schema);
 }
-
-const selectDb = async (val?: any) => {
-    const info = val || store.state.redisDbOptInfo.dbOptInfo
-    if (info && info.dbId) {
-        const { tagPath, dbId } = info
-        menuRef.value.open(tagPath);
-        menuRef.value.open('redis-instance-' + dbId);
-        await changeInstance({ id: dbId }, async (dbs: any[]) => {
-            await changeSchema({ id: dbId }, dbs[0]?.name)
-        })
-    }
-}
-
-onMounted(() => {
-    selectDb();
-})
-
-watch(() => store.state.redisDbOptInfo.dbOptInfo, async newValue => {
-    await selectDb(newValue)
-})
 
 </script>
 

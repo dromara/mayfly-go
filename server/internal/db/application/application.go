@@ -1,6 +1,8 @@
 package application
 
-import "mayfly-go/internal/db/infrastructure/persistence"
+import (
+	"mayfly-go/internal/db/infrastructure/persistence"
+)
 
 var (
 	dbApp        Db        = newDbApp(persistence.GetDbRepo(), persistence.GetDbSqlRepo())

@@ -35,9 +35,6 @@
                             @click="showInfoDialog(scope.row)" :underline="false">单机信息</el-link>
                         <el-link @click="onShowClusterInfo(scope.row)" v-if="scope.row.mode === 'cluster'"
                             type="primary" :underline="false">集群信息</el-link>
-                        <el-divider direction="vertical" border-style="dashed" />
-
-                        <el-link @click="openDataOpt(scope.row)" type="success" :underline="false">数据操作</el-link>
                     </template>
                 </el-table-column>
             </el-table>
@@ -159,8 +156,6 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from '../tag/api.ts';
 import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
-import { store } from '@/store';
-import router from '@/router';
 
 const state = reactive({
     tags: [],
@@ -296,21 +291,6 @@ const valChange = () => {
     state.currentData = null;
     search();
 };
-// 打开redis数据操作页
-const openDataOpt = (row: any) => {
-    const { tagPath, id, db } = row;
-    // 判断db是否发生改变
-    let oldDbId = store.state.redisDbOptInfo.dbOptInfo.dbId;
-    if (oldDbId !== id) {
-        let params = {
-            tagPath,
-            dbId: id,
-            db
-        }
-        store.dispatch('redisDbOptInfo/setRedisDbOptInfo', params);
-    }
-    router.push({ name: 'DataOperation' });
-}
 </script>
 
 <style>

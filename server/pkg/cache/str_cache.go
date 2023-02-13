@@ -27,6 +27,16 @@ func SetStr(key, value string) {
 	rediscli.Set(key, value, 0)
 }
 
+// 删除指定key
+func Del(key string) {
+	if rediscli.GetCli() == nil {
+		checkStrCache()
+		delete(strCache, key)
+		return
+	}
+	rediscli.Del(key)
+}
+
 func checkStrCache() {
 	if strCache == nil {
 		strCache = make(map[string]string)

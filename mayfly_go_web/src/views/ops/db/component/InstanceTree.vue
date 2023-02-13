@@ -1,43 +1,43 @@
 <template>
-    <tag-menu :instanceMenuMaxHeight="instanceMenuMaxHeight" :tags="instances.tags" ref="menuRef">
+    <tag-menu :instanceMenuMaxHeight="instanceMenuMaxHeight" :tags="tags" ref="menuRef">
         <template #submenu="props">
             <!-- 第二级：数据库实例 -->
-            <el-sub-menu v-for="inst in instances.tree[props.tag.tagId]" :index="'instance-' + inst.id"
+            <el-sub-menu v-for="inst in tree[props.tag.tagId]" :index="'instance-' + inst.id"
                 :key="'instance-' + inst.id" @click.stop="changeInstance(inst, () => { })">
                 <template #title>
                     <el-popover placement="right-start" title="数据库实例信息" trigger="hover" :width="210">
                         <template #reference>
-                            <span>&nbsp;&nbsp;<el-icon>
+                            <span class="ml10">
+                                <el-icon>
                                     <MostlyCloudy color="#409eff" />
-                                </el-icon>{{ inst.name }}</span>
+                                </el-icon>{{ inst.name }}
+                            </span>
                         </template>
                         <template #default>
                             <el-form class="instances-pop-form" label-width="55px" :size="'small'">
                                 <el-form-item label="类型:">{{ inst.type }}</el-form-item>
                                 <el-form-item label="链接:">{{ inst.host }}:{{ inst.port }}</el-form-item>
                                 <el-form-item label="用户:">{{ inst.username }}</el-form-item>
-                                <el-form-item v-if="inst.remark" label="备注:">{{
-                                    inst.remark
-                                }}</el-form-item>
+                                <el-form-item v-if="inst.remark" label="备注:">{{ inst.remark }}</el-form-item>
                             </el-form>
                         </template>
                     </el-popover>
                 </template>
                 <!-- 第三级：数据库 -->
-                <el-sub-menu v-for="schema in instances.dbs[inst.id]" :index="inst.id + schema" :key="inst.id + schema"
+                <el-sub-menu v-for="schema in dbs[inst.id]" :index="inst.id + schema" :key="inst.id + schema"
                     :class="state.nowSchema === (inst.id + schema) && 'checked'"
                     @click.stop="changeSchema(inst, schema)">
                     <template #title>
-                        &nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
-                            <Coin color="#67c23a" />
-                        </el-icon>
-                        <span class="checked-schema">{{ schema }}</span>
+                        <span class="checked-schema ml20">
+                            <el-icon>
+                                <Coin color="#67c23a" />
+                            </el-icon>{{ schema }}</span>
                     </template>
                     <!-- 第四级 01：表 -->
                     <el-sub-menu :index="inst.id + schema + '-table'">
                         <template #title>
-                            <div style="width: 100%" @click="loadTableNames(inst, schema, () => { })">
-                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
+                            <div class="ml30" style="width: 100%" @click="loadSchemaTables(inst, schema)">
+                                <el-icon>
                                     <Calendar color="#409eff" />
                                 </el-icon>
                                 <span>表</span>
@@ -49,21 +49,22 @@
                         <el-menu-item :index="inst.id + schema + '-tableSearch'"
                             :key="inst.id + schema + '-tableSearch'">
                             <template #title>
-                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                                <el-input size="small" placeholder="过滤表" clearable
-                                    @change="filterTableName(inst.id, schema)"
-                                    @keyup="(e: any) => filterTableName(inst.id, schema, e)"
-                                    v-model="state.filterParam[inst.id + schema]" />
+                                <span class="ml35">
+                                    <el-input size="small" placeholder="表名、备注过滤表" clearable
+                                        @change="filterTableName(inst.id, schema)"
+                                        @keyup="(e: any) => filterTableName(inst.id, schema, e)"
+                                        v-model="state.filterParam[inst.id + schema]" />
+                                </span>
                             </template>
                         </el-menu-item>
 
-                        <template v-for="tb in instances.tables[inst.id + schema]">
+                        <template v-for="tb in tables[inst.id + schema]">
                             <el-menu-item :index="inst.id + schema + tb.tableName"
                                 :key="inst.id + schema + tb.tableName" v-if="tb.show"
-                                @click="loadTableData(inst, schema, tb.tableName)">
+                                @click="clickSchemaTable(inst, schema, tb.tableName)">
                                 <template #title>
-                                    <div style="width: 100%">
-                                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
+                                    <div class="ml35" style="width: 100%">
+                                        <el-icon>
                                             <Calendar color="#409eff" />
                                         </el-icon>
                                         <el-tooltip v-if="tb.tableComment" effect="customized"
@@ -77,21 +78,23 @@
                         </template>
                     </el-sub-menu>
                     <!-- 第四级 02：sql -->
-                    <el-sub-menu :index="inst.id + schema + '-sql'">
+                    <el-sub-menu @click.stop="loadSqls(inst, schema)" :index="inst.id + schema + '-sql'">
                         <template #title>
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
-                                <List color="#f56c6c" />
-                            </el-icon>
-                            <span>sql</span>
+                            <span class="ml30">
+                                <el-icon>
+                                    <List color="#f56c6c" />
+                                </el-icon>
+                                <span>sql</span>
+                            </span>
                         </template>
 
-                        <template v-for="sql in instances.sqls[inst.id + schema]">
-                            <el-menu-item :index="inst.id + schema + sql.name" :key="inst.id + schema + sql.name"
-                                v-if="sql.show" @click="loadSql(inst, schema, sql.name)">
+                        <template v-for="sql in sqls[inst.id + schema]">
+                            <el-menu-item v-if="sql.show" :index="inst.id + schema + sql.name"
+                                :key="inst.id + schema + sql.name" @click="clickSqlName(inst, schema, sql.name)">
                                 <template #title>
-                                    <div style="width: 100%">
-                                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<el-icon>
-                                            <Calendar color="#409eff" />
+                                    <div class="ml35" style="width: 100%">
+                                        <el-icon>
+                                            <Document />
                                         </el-icon>
                                         <span>{{ sql.name }}</span>
                                     </div>
@@ -106,39 +109,57 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onBeforeMount, onMounted, reactive, ref, Ref, watch } from 'vue';
-import { store } from '@/store';
+import { onBeforeMount, reactive, toRefs } from 'vue';
 import TagMenu from '../../component/TagMenu.vue';
+import { dbApi } from '../api';
+import { DbInst } from '../db';
 
-const props = defineProps({
-    instanceMenuMaxHeight: {
-        type: [Number, String],
-    },
-    instances: {
-        type: Object, required: true
-    },
-})
-
-const emits = defineEmits(['initLoadInstances', 'changeInstance', 'loadTableNames', 'loadTableData', 'changeSchema'])
+const emits = defineEmits(['changeInstance', 'clickSqlName', 'clickSchemaTable', 'changeSchema', 'loadSqlNames'])
 
 onBeforeMount(async () => {
-    await initLoadInstances() 
-    await nextTick(()=>selectDb())
+    await loadInstances();
+    state.instanceMenuMaxHeight = window.innerHeight - 140 + 'px';
 })
-
-const menuRef = ref(null) as Ref
 
 const state = reactive({
+    tags: {},
+    tree: {},
+    dbs: {},
+    tables: {},
+    sqls: {},
     nowSchema: '',
     filterParam: {},
-    loading: {}
+    loading: {},
+    instanceMenuMaxHeight: '850px',
 })
 
-/**
- * 初始化加载实例数据
- */
-const initLoadInstances = () => {
-    emits('initLoadInstances')
+const {
+    instanceMenuMaxHeight,
+    tags,
+    tree,
+    dbs,
+    sqls,
+    tables,
+} = toRefs(state)
+
+// 加载实例数据
+const loadInstances = async () => {
+    const res = await dbApi.dbs.request({ pageNum: 1, pageSize: 1000, })
+    if (!res.total) return
+    // state.instances = { tags: {}, tree: {}, dbs: {}, tables: {}, sqls: {} }; // 初始化变量
+    for (const db of res.list) {
+        let arr = state.tree[db.tagId] || []
+        const { tagId, tagPath } = db
+        // tags
+        state.tags[db.tagId] = { tagId, tagPath }
+
+        // tree
+        arr.push(db)
+        state.tree[db.tagId] = arr;
+
+        // dbs
+        state.dbs[db.id] = db.database.split(' ')
+    }
 }
 
 /**
@@ -158,68 +179,98 @@ const changeSchema = (inst: any, schema: string) => {
     state.nowSchema = inst.id + schema
     emits('changeSchema', inst, schema)
 }
-/**
- * 加载schema下所有表
+
+/** 加载schema下所有表
+ * 
  * @param inst 数据库实例
  * @param schema database名
- * @param fn 加载表集合后的回调函数，参数：res 表集合
  */
-const loadTableNames = async (inst: any, schema: string, fn: Function) => {
-    state.loading[inst.id + schema] = true
-    await emits('loadTableNames', inst, schema, (res: any[]) => {
-        state.loading[inst.id + schema] = false
-        fn && fn(res)
-    })
+const loadSchemaTables = async (inst: any, schema: string) => {
+    const key = getSchemaKey(inst.id, schema);
+    state.loading[key] = true
+    try {
+        let { id } = inst
+        let tables = await DbInst.getInst(id, inst.type).loadTables(schema);
+        tables && tables.forEach((a: any) => a.show = true)
+        state.tables[key] = tables;
+        changeSchema(inst, schema);
+    } finally {
+        state.loading[key] = false
+    }
 }
+
 /**
  * 加载选中表数据
  * @param inst 数据库实例
  * @param schema database名
  * @param tableName 表名
  */
-const loadTableData = (inst: any, schema: string, tableName: string) => {
-    emits('loadTableData', inst, schema, tableName)
+const clickSchemaTable = (inst: any, schema: string, tableName: string) => {
+    emits('clickSchemaTable', inst, schema, tableName)
 }
 
 const filterTableName = (instId: number, schema: string, event?: any) => {
+    const key = getSchemaKey(instId, schema)
     if (event) {
-        state.filterParam[instId + schema] = event.target.value
+        state.filterParam[key] = event.target.value
     }
-    let param = state.filterParam[instId + schema] as string
+    let param = state.filterParam[key] as string
     param = param?.replace('/', '\/')
-    const key = instId + schema;
-    props.instances.tables[key].forEach((a: any) => {
-        a.show = param ? eval('/' + param.split('').join('[_\w]*') + '[_\w]*/ig').test(a.tableName) : true
+    state.tables[key].forEach((a: any) => {
+        a.show = param ? eval('/' + param.split('').join('[_\w]*') + '[_\w]*/ig').test(a.tableName) || eval('/' + param.split('').join('[_\w]*') + '[_\w]*/ig').test(a.tableComment) : true
     })
 }
 
-const selectDb = async (val?: any) => {
-    let info = val || store.state.sqlExecInfo.dbOptInfo;
-    if (info && info.dbId) {
-        const { tagPath, dbId, db } = info
-        menuRef.value.open(tagPath);
-        menuRef.value.open('instance-' + dbId);
-        await changeInstance({ id: dbId }, () => {
-            // 加载数据库
-            nextTick(async () => {
-                menuRef.value.open(dbId + db)
-                state.nowSchema = (dbId + db)
-                // 加载集合列表
-                await nextTick(async () => {
-                    await loadTableNames({ id: dbId }, db, (res: any[]) => {
-                        // 展开集合列表
-                        menuRef.value.open(dbId + db + '-table')
-                    })
-                })
-            })
-        })
+/**
+ * 加载用户保存的sql脚本
+ * 
+ * @param inst 
+ * @param schema 
+ */
+const loadSqls = async (inst: any, schema: string) => {
+    const key = getSchemaKey(inst.id, schema)
+    let sqls = state.sqls[key];
+    if (!sqls) {
+        const sqls = await dbApi.getSqlNames.request({ id: inst.id, db: schema, })
+        sqls && sqls.forEach((a: any) => a.show = true)
+        state.sqls[key] = sqls;
+    } else {
+        sqls.forEach((a: any) => a.show = true);
     }
 }
 
-watch(() => store.state.sqlExecInfo.dbOptInfo, async newValue => {
-    await selectDb(newValue)
-})
+const reloadSqls = async (inst: any, schema: string) => {
+    const sqls = await dbApi.getSqlNames.request({ id: inst.id, db: schema, })
+    sqls && sqls.forEach((a: any) => a.show = true)
+    state.sqls[getSchemaKey(inst.id, schema)] = sqls;
+}
 
+/**
+ * 点击sql模板名称时间，加载用户保存的指定名称的sql内容，并回调子组件指定事件
+ */
+const clickSqlName = async (inst: any, schema: string, sqlName: string) => {
+    emits('clickSqlName', inst, schema, sqlName)
+    changeSchema(inst, schema);
+}
+
+/**
+ * 根据实例以及库获取对应的唯一id
+ * 
+ * @param inst  数据库实例
+ * @param schema 数据库
+ */
+const getSchemaKey = (instId: any, schema: string) => {
+    return instId + schema;
+}
+
+const getSchemas = (dbId: any) => {
+    return state.dbs[dbId] || []
+}
+
+defineExpose({
+    getSchemas,
+    reloadSqls,
+})
 </script>
 
 <style lang="scss">

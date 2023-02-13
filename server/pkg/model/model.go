@@ -145,7 +145,7 @@ func Insert(model interface{}) error {
 //
 // @param list为数组类型 如 var users *[]User，可指定为非model结构体，即只包含需要返回的字段结构体
 func ListBy(model interface{}, list interface{}, cols ...string) {
-	global.Db.Model(model).Select(cols).Where(model).Find(list)
+	global.Db.Model(model).Select(cols).Where(model).Order("id desc").Find(list)
 }
 
 // 获取满足model中不为空的字段值条件的所有数据.

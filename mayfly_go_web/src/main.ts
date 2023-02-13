@@ -18,6 +18,8 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import '@/assets/font/font.css'
 
 const app = createApp(App);
+// 屏蔽警告信息
+app.config.warnHandler = () => null;
 
 /**
  * 导出全局注册 element plus svg 图标

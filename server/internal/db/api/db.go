@@ -415,6 +415,7 @@ func (d *Db) DeleteSql(rc *req.Ctx) {
 	dbSql := &entity.DbSql{Type: 1, DbId: GetDbId(rc.GinCtx)}
 	dbSql.CreatorId = rc.LoginAccount.Id
 	dbSql.Name = rc.GinCtx.Query("name")
+	dbSql.Db = rc.GinCtx.Query("db")
 
 	model.DeleteByCondition(dbSql)
 

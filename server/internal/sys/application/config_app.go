@@ -1,11 +1,16 @@
 package application
 
 import (
+	"encoding/json"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
+	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils"
 )
+
+const SysConfigKeyPrefix = "sys:config:"
 
 type Config interface {
 	GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
@@ -36,12 +41,22 @@ func (a *configAppImpl) Save(config *entity.Config) {
 	} else {
 		a.configRepo.Update(config)
 	}
+	cache.Del(SysConfigKeyPrefix + config.Key)
 }
 
 func (a *configAppImpl) GetConfig(key string) *entity.Config {
 	config := &entity.Config{Key: key}
+	// 优先从缓存中获取
+	cacheStr := cache.GetStr(SysConfigKeyPrefix + key)
+	if cacheStr != "" {
+		json.Unmarshal([]byte(cacheStr), &config)
+		return config
+	}
+
 	if err := a.configRepo.GetConfig(config, "Id", "Key", "Value"); err != nil {
 		global.Log.Warnf("不存在key = [%s] 的系统配置", key)
+	} else {
+		cache.SetStr(SysConfigKeyPrefix+key, utils.ToJsonStr(config))
 	}
 	return config
 }

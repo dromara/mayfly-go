@@ -79,9 +79,8 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, onBeforeMount, onMounted, reactive, ref, Ref, watch } from 'vue';
+import { onBeforeMount, reactive } from 'vue';
 import { formatByteSize } from '@/common/utils/format';
-import { store } from '@/store';
 import TagMenu from '../component/TagMenu.vue';
 
 const props = defineProps({
@@ -100,8 +99,6 @@ onBeforeMount(async () => {
 const setHeight = () => {
     state.instanceMenuMaxHeight = window.innerHeight - 115 + 'px';
 }
-
-const menuRef = ref(null) as Ref
 
 const state = reactive({
     instanceMenuMaxHeight: '800px',
@@ -169,38 +166,6 @@ const filterTableName = (instId: number, schema: string, event?: any) => {
         a.show = param ? eval('/' + param.split('').join('[_\w]*') + '[_\w]*/ig').test(a.tableName) : true
     })
 }
-
-const selectDb = async (val?: any) => {
-    let info = val || store.state.mongoDbOptInfo.dbOptInfo;
-    if (info && info.dbId) {
-        const { tagPath, dbId, db } = info
-        menuRef.value.open(tagPath);
-        menuRef.value.open('mongo-instance-' + dbId);
-        await changeInstance({ id: dbId }, () => {
-            // 加载数据库
-            nextTick(async () => {
-                menuRef.value.open(dbId + db)
-                // 加载集合列表
-                await nextTick(async () => {
-                    await loadTableNames({ id: dbId }, db, (res: any[]) => {
-                        // 展开集合列表
-                        menuRef.value.open(dbId + db + '-table')
-                        // 加载第一张集合数据
-                        loadTableData({ id: dbId }, db, res[0].tableName)
-                    })
-                })
-            })
-        })
-    }
-}
-
-onMounted(() => {
-    selectDb();
-})
-
-watch(() => store.state.mongoDbOptInfo.dbOptInfo, async newValue => {
-    await selectDb(newValue)
-})
 
 </script>
 

@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
+	sysapp "mayfly-go/internal/sys/application"
+	sysentity "mayfly-go/internal/sys/domain/entity"
+	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
+	"strconv"
 	"strings"
 
 	"github.com/xwb1989/sqlparser"
@@ -73,32 +77,42 @@ func createSqlExecRecord(execSqlReq *DbSqlExecReq) *entity.DbSqlExec {
 
 func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
 	sql := execSqlReq.Sql
-	stmt, err := sqlparser.Parse(sql)
-	if err != nil {
-		// 就算解析失败也执行sql，让数据库来判断错误
-		//global.Log.Error("sql解析失败: ", err)
-		if strings.HasPrefix(strings.ToLower(execSqlReq.Sql), "select") ||
-			strings.HasPrefix(strings.ToLower(execSqlReq.Sql), "show") {
-			return doSelect(execSqlReq)
-		}
-		// 保存执行记录
-		d.dbSqlExecRepo.Insert(createSqlExecRecord(execSqlReq))
-		return doExec(execSqlReq.Sql, execSqlReq.DbInstance)
-	}
-
 	dbSqlExecRecord := createSqlExecRecord(execSqlReq)
 	var execRes *DbSqlExecRes
 	isSelect := false
+
+	stmt, err := sqlparser.Parse(sql)
+	if err != nil {
+		// 就算解析失败也执行sql，让数据库来判断错误。如果是查询sql则简单判断是否有limit分页参数信息（兼容pgsql）
+		// global.Log.Warnf("sqlparse解析sql[%s]失败: %s", sql, err.Error())
+		lowerSql := strings.ToLower(execSqlReq.Sql)
+		isSelect := strings.HasPrefix(lowerSql, "select")
+		if isSelect {
+			biz.IsTrue(strings.Contains(lowerSql, "limit"), "请完善分页信息")
+		}
+		var execErr error
+		if isSelect || strings.HasPrefix(lowerSql, "show") {
+			execRes, execErr = doRead(execSqlReq)
+		} else {
+			execRes, execErr = doExec(execSqlReq.Sql, execSqlReq.DbInstance)
+		}
+		if execErr != nil {
+			return nil, execErr
+		}
+		d.saveSqlExecLog(isSelect, dbSqlExecRecord)
+		return execRes, nil
+	}
+
 	switch stmt := stmt.(type) {
 	case *sqlparser.Select:
 		isSelect = true
-		execRes, err = doSelect(execSqlReq)
+		execRes, err = doSelect(stmt, execSqlReq)
 	case *sqlparser.Show:
 		isSelect = true
-		execRes, err = doSelect(execSqlReq)
+		execRes, err = doRead(execSqlReq)
 	case *sqlparser.OtherRead:
 		isSelect = true
-		execRes, err = doSelect(execSqlReq)
+		execRes, err = doRead(execSqlReq)
 	case *sqlparser.Update:
 		execRes, err = doUpdate(stmt, execSqlReq, dbSqlExecRecord)
 	case *sqlparser.Delete:
@@ -111,12 +125,22 @@ func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error)
 	if err != nil {
 		return nil, err
 	}
+	d.saveSqlExecLog(isSelect, dbSqlExecRecord)
+	return execRes, nil
+}
 
-	if !isSelect {
-		// 保存执行记录
+// 保存sql执行记录，如果是查询类则根据系统配置判断是否保存
+func (d *dbSqlExecAppImpl) saveSqlExecLog(isQuery bool, dbSqlExecRecord *entity.DbSqlExec) {
+	if !isQuery {
+		d.dbSqlExecRepo.Insert(dbSqlExecRecord)
+		return
+	}
+	if sysapp.GetConfigApp().GetConfig(sysentity.ConfigKeyDbSaveQuerySQL).BoolValue(false) {
+		dbSqlExecRecord.Table = "-"
+		dbSqlExecRecord.OldValue = "-"
+		dbSqlExecRecord.Type = entity.DbSqlExecTypeQuery
 		d.dbSqlExecRepo.Insert(dbSqlExecRecord)
 	}
-	return execRes, nil
 }
 
 func (d *dbSqlExecAppImpl) DeleteBy(condition *entity.DbSqlExec) {
@@ -127,7 +151,22 @@ func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExec, pageParam *m
 	return d.dbSqlExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func doSelect(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
+func doSelect(selectStmt *sqlparser.Select, execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
+	selectExprsStr := sqlparser.String(selectStmt.SelectExprs)
+	if selectExprsStr == "*" || strings.Contains(selectExprsStr, ".*") ||
+		len(strings.Split(selectExprsStr, ",")) > 1 {
+		limit := selectStmt.Limit
+		biz.NotNil(limit, "请完善分页信息后执行")
+		count, err := strconv.Atoi(sqlparser.String(limit.Rowcount))
+		biz.ErrIsNil(err, "分页参数有误")
+		maxCount := sysapp.GetConfigApp().GetConfig(sysentity.ConfigKeyDbQueryMaxCount).IntValue(200)
+		biz.IsTrue(count <= maxCount, fmt.Sprintf("查询结果集数需小于系统配置的%d条", maxCount))
+	}
+
+	return doRead(execSqlReq)
+}
+
+func doRead(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
 	dbInstance := execSqlReq.DbInstance
 	sql := execSqlReq.Sql
 	colNames, res, err := dbInstance.SelectData(sql)

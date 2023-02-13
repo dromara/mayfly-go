@@ -3,10 +3,13 @@ package entity
 import (
 	"encoding/json"
 	"mayfly-go/pkg/model"
+	"strconv"
 )
 
 const (
 	ConfigKeyUseLoginCaptcha string = "UseLoginCaptcha" // 是否使用登录验证码
+	ConfigKeyDbQueryMaxCount string = "DbQueryMaxCount" // 数据库查询的最大数量
+	ConfigKeyDbSaveQuerySQL  string = "DbSaveQuerySQL"  // 数据库是否记录查询相关sql
 )
 
 type Config struct {
@@ -40,4 +43,17 @@ func (c *Config) GetJsonMap() map[string]string {
 	}
 	_ = json.Unmarshal([]byte(c.Value), &res)
 	return res
+}
+
+// 获取配置的int值，如果配置值非int或不存在，则返回默认值
+func (c *Config) IntValue(defaultValue int) int {
+	// 如果值不存在，则返回默认值
+	if c.Id == 0 {
+		return defaultValue
+	}
+	if intV, err := strconv.Atoi(c.Value); err != nil {
+		return defaultValue
+	} else {
+		return intV
+	}
 }

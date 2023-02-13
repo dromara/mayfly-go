@@ -1,69 +1,67 @@
 <template>
     <div>
-      <el-row>
-        <el-col :span="4">
-          <mongo-instance-tree
-              @init-load-instances="loadInstances"
-              @change-instance="changeInstance"
-              @change-schema="changeDatabase"
-              @load-table-names="loadTableNames"
-              @load-table-data="changeCollection"
-              :instances="state.instances"/>
-        </el-col>
-        <el-col :span="20">
-          <el-container id="data-exec" style="border: 1px solid #eee; margin-top: 1px">
-            <el-tabs @tab-remove="removeDataTab" @tab-click="onDataTabClick" style="width: 100%; margin-left: 5px"
-                     v-model="state.activeName">
-              <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
-                
-                <el-row class="mt5 mb5">
-                  <el-col :span="2">
-                  <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false" class="">
-                  </el-link>
-                  <el-link @click="showInsertDocDialog" class="" type="primary" icon="plus" :underline="false">
-                  </el-link>
-                  </el-col>
-                  <el-col :span="22">
-                  <el-input ref="findParamInputRef" v-model="dt.findParamStr" placeholder="点击输入相应查询条件"
-                            @focus="showFindDialog(dt.key)">
-                    <template #prepend>查询参数</template>
-                  </el-input>
-                  </el-col>
-                </el-row>
-                <el-row>
-                  <el-col :span="6" v-for="item in dt.datas" :key="item">
-                    <el-card :body-style="{ padding: '0px', position: 'relative' }">
-                      <el-input type="textarea" v-model="item.value" :rows="10" />
-                      <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
-                        <div>
-                          <el-link @click="onJsonEditor(item)" :underline="false" type="success"
-                                   icon="MagicStick"></el-link>
+        <el-row>
+            <el-col :span="4">
+                <mongo-instance-tree @init-load-instances="loadInstances" @change-instance="changeInstance"
+                    @load-table-names="loadTableNames" @load-table-data="changeCollection"
+                    :instances="state.instances" />
+            </el-col>
+            <el-col :span="20">
+                <el-container id="data-exec" style="border: 1px solid #eee; margin-top: 1px">
+                    <el-tabs @tab-remove="removeDataTab" style="width: 100%; margin-left: 5px"
+                        v-model="state.activeName">
+                        <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label"
+                            :name="dt.key">
+                            <el-row class="mt5 mb5">
+                                <el-col :span="2">
+                                    <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false"
+                                        class="">
+                                    </el-link>
+                                    <el-link @click="showInsertDocDialog" class="" type="primary" icon="plus"
+                                        :underline="false">
+                                    </el-link>
+                                </el-col>
+                                <el-col :span="22">
+                                    <el-input ref="findParamInputRef" v-model="dt.findParamStr" placeholder="点击输入相应查询条件"
+                                        @focus="showFindDialog(dt.key)">
+                                        <template #prepend>查询参数</template>
+                                    </el-input>
+                                </el-col>
+                            </el-row>
+                            <el-row>
+                                <el-col :span="6" v-for="item in dt.datas" :key="item">
+                                    <el-card :body-style="{ padding: '0px', position: 'relative' }">
+                                        <el-input type="textarea" v-model="item.value" :rows="10" />
+                                        <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
+                                            <div>
+                                                <el-link @click="onJsonEditor(item)" :underline="false" type="success"
+                                                    icon="MagicStick"></el-link>
 
-                          <el-divider direction="vertical" border-style="dashed" />
+                                                <el-divider direction="vertical" border-style="dashed" />
 
-                          <el-link @click="onSaveDoc(item.value)" :underline="false" type="warning"
-                                   icon="DocumentChecked"></el-link>
+                                                <el-link @click="onSaveDoc(item.value)" :underline="false"
+                                                    type="warning" icon="DocumentChecked"></el-link>
 
-                          <el-divider direction="vertical" border-style="dashed" />
+                                                <el-divider direction="vertical" border-style="dashed" />
 
-                          <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?">
-                            <template #reference>
-                              <el-link :underline="false" type="danger" icon="DocumentDelete">
-                              </el-link>
-                            </template>
-                          </el-popconfirm>
-                        </div>
-                      </div>
-                    </el-card>
-                  </el-col>
-                </el-row>
-              </el-tab-pane>
-            </el-tabs>
-          </el-container>
-        </el-col>
+                                                <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?">
+                                                    <template #reference>
+                                                        <el-link :underline="false" type="danger" icon="DocumentDelete">
+                                                        </el-link>
+                                                    </template>
+                                                </el-popconfirm>
+                                            </div>
+                                        </div>
+                                    </el-card>
+                                </el-col>
+                            </el-row>
+                        </el-tab-pane>
+                    </el-tabs>
+                </el-container>
+            </el-col>
 
-      </el-row>
-        
+        </el-row>
+
         <el-dialog width="600px" title="find参数" v-model="findDialog.visible">
             <el-form label-width="70px">
                 <el-form-item label="filter">
@@ -101,7 +99,7 @@
         </el-dialog>
 
         <el-dialog width="60%" title="json编辑器" v-model="jsonEditorDialog.visible" @close="onCloseJsonEditDialog"
-                   :close-on-click-modal="false">
+            :close-on-click-modal="false">
             <monaco-editor v-model="jsonEditorDialog.doc" language="json" />
         </el-dialog>
 
@@ -110,26 +108,18 @@
 </template>
 
 <script lang="ts" setup>
-import {mongoApi} from './api';
-import {reactive, ref, toRefs} from 'vue';
-import {ElMessage} from 'element-plus';
+import { mongoApi } from './api';
+import { reactive, ref, toRefs } from 'vue';
+import { ElMessage } from 'element-plus';
 
-import {isTrue, notBlank} from '@/common/assert';
-import {useStore} from '@/store/index.ts';
+import { isTrue, notBlank } from '@/common/assert';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import MongoInstanceTree from '@/views/ops/mongo/MongoInstanceTree.vue';
 
-const store = useStore();
 const findParamInputRef: any = ref(null);
 const state = reactive({
     tags: [],
     mongoList: [] as any,
-    query: {
-        tagPath: null,
-    },
-    mongoId: null, // 当前选择操作的mongo
-    database: '', // 当前选择操作的库
-    collection: '', //当前选中的collection
     activeName: '', // 当前操作的tab
     dataTabs: {} as any, // 数据tabs
     findDialog: {
@@ -150,7 +140,7 @@ const state = reactive({
         doc: '',
         item: {} as any,
     },
-    instances:{tags:{}, tree:{}, dbs:{}, tables:{}}
+    instances: { tags: {}, tree: {}, dbs: {}, tables: {} }
 });
 
 const {
@@ -160,53 +150,50 @@ const {
 } = toRefs(state)
 
 const changeInstance = async (inst: any, fn: Function) => {
-  if (inst) {
-    if (!state.instances.dbs[inst.id]) {
-      const res = await mongoApi.databases.request({id: inst.id});
-      state.instances.dbs[inst.id] = res.Databases;
-      fn && fn(res.Databases)
+    if (inst) {
+        if (!state.instances.dbs[inst.id]) {
+            const res = await mongoApi.databases.request({ id: inst.id });
+            state.instances.dbs[inst.id] = res.Databases;
+            fn && fn(res.Databases)
+        }
     }
-  }
 }
 
-const changeDatabase = async (inst: any, database: string) => {
-};
-
-const loadTableNames = async (inst: any, database: string, fn:Function) => {
-  let tbs = await mongoApi.collections.request({ id: inst.id, database });
-  let tables = [];
-  for(let tb of tbs){
-    tables.push({tableName: tb, show: true})
-  }
-  state.instances.tables[inst.id+database] = tables
-  fn(tables)
+const loadTableNames = async (inst: any, database: string, fn: Function) => {
+    let tbs = await mongoApi.collections.request({ id: inst.id, database });
+    let tables = [];
+    for (let tb of tbs) {
+        tables.push({ tableName: tb, show: true })
+    }
+    state.instances.tables[inst.id + database] = tables
+    fn(tables)
 }
 
 const changeCollection = (inst: any, schema: string, collection: string) => {
-  state.collection = collection
-  state.mongoId = inst.id
-  state.database = schema
-  let key = inst.id + schema +collection
-  let dataTab = state.dataTabs[key];
-  if (!dataTab) {
-    // 默认查询参数
-    const findParam = {
-      filter: '{}',
-      sort: '{"_id": -1}',
-      skip: 0,
-      limit: 12,
-    };
-    state.dataTabs[key] = {
-      key: key,
-      label: schema+'.'+collection,
-      name: inst.id+schema+collection,
-      datas: [],
-      findParamStr: JSON.stringify(findParam),
-      findParam,
-    };
-  }
-  state.activeName = key;
-  findCommand(key);
+    const label = `${inst.id}:\`${schema}\`.${collection}`;
+    let dataTab = state.dataTabs[label];
+    if (!dataTab) {
+        // 默认查询参数
+        const findParam = {
+            filter: '{}',
+            sort: '{"_id": -1}',
+            skip: 0,
+            limit: 12,
+        };
+        state.dataTabs[label] = {
+            key: label,
+            label: label,
+            name: label,
+            mongoId: inst.id,
+            database: schema,
+            collection,
+            datas: [],
+            findParamStr: JSON.stringify(findParam),
+            findParam,
+        };
+    }
+    state.activeName = label;
+    findCommand(label);
 };
 
 const showFindDialog = (key: string) => {
@@ -230,7 +217,7 @@ const confirmFindDialog = () => {
 };
 
 const findCommand = async (key: string) => {
-    const dataTab = state.dataTabs[key];
+    const dataTab = getNowDataTab();
     const findParma = dataTab.findParam;
     let filter, sort;
     try {
@@ -241,9 +228,9 @@ const findCommand = async (key: string) => {
         return;
     }
     const datas = await mongoApi.findCommand.request({
-        id: state.mongoId,
-        database: state.database,
-        collection: state.collection,
+        id: dataTab.mongoId,
+        database: dataTab.database,
+        collection: dataTab.collection,
         filter,
         sort,
         limit: findParma.limit || 12,
@@ -287,10 +274,11 @@ const onInsertDoc = async () => {
     } catch (e) {
         ElMessage.error('文档内容错误,无法解析为json对象');
     }
+    const dataTab = getNowDataTab();
     const res = await mongoApi.insertCommand.request({
-        id: state.mongoId,
-        database: state.database,
-        collection: state.activeName,
+        id: dataTab.mongoId,
+        database: dataTab.database,
+        collection: dataTab.collection,
         doc: docObj,
     });
     isTrue(res.InsertedID, '新增失败');
@@ -314,10 +302,11 @@ const onSaveDoc = async (doc: string) => {
     const id = docObj._id;
     notBlank(id, '文档的_id属性不存在');
     delete docObj['_id'];
+    const dataTab = getNowDataTab();
     const res = await mongoApi.updateByIdCommand.request({
-        id: state.mongoId,
-        database: state.database,
-        collection: state.collection,
+        id: dataTab.mongoId,
+        database: dataTab.database,
+        collection: dataTab.collection,
         docId: id,
         update: { $set: docObj },
     });
@@ -329,10 +318,11 @@ const onDeleteDoc = async (doc: string) => {
     const docObj = parseDocJsonString(doc);
     const id = docObj._id;
     notBlank(id, '文档的_id属性不存在');
+    const dataTab = getNowDataTab();
     const res = await mongoApi.deleteByIdCommand.request({
-        id: state.mongoId,
-        database: state.database,
-        collection: state.collection,
+        id: dataTab.mongoId,
+        database: dataTab.database,
+        collection: dataTab.collection,
         docId: id,
     });
     isTrue(res.DeletedCount == 1, '删除失败');
@@ -352,15 +342,6 @@ const parseDocJsonString = (doc: string) => {
     }
 };
 
-/**
- * 数据tab点击
- */
-const onDataTabClick = (tab: any) => {
-    const name = tab.props.name;
-    // 修改选择框绑定的表信息
-    state.collection = name;
-};
-
 const removeDataTab = (targetName: string) => {
     const tabNames = Object.keys(state.dataTabs);
     let activeName = state.activeName;
@@ -373,29 +354,26 @@ const removeDataTab = (targetName: string) => {
         }
     });
     state.activeName = activeName;
-    // 如果移除最后一个数据tab，则将选择框绑定的collection置空
-    if (activeName == targetName) {
-        state.collection = '';
-    } else {
-        state.collection = activeName;
-    }
-
     delete state.dataTabs[targetName];
 };
 
 const loadInstances = async () => {
-  const res = await mongoApi.mongoList.request({pageNum: 1, pageSize: 1000,});
-  if(!res.total) return
-  state.instances = {tags:{}, tree:{}, dbs:{}, tables:{}} ; // 初始化变量
-  for (const db of res.list) {
-    let arr = state.instances.tree[db.tagId] || []
-    const {tagId, tagPath} = db
-    // tags
-    state.instances.tags[db.tagId]={tagId, tagPath}
-    // 实例
-    arr.push(db)
-    state.instances.tree[db.tagId] = arr;
-  }
+    const res = await mongoApi.mongoList.request({ pageNum: 1, pageSize: 1000, });
+    if (!res.total) return
+    state.instances = { tags: {}, tree: {}, dbs: {}, tables: {} }; // 初始化变量
+    for (const db of res.list) {
+        let arr = state.instances.tree[db.tagId] || []
+        const { tagId, tagPath } = db
+        // tags
+        state.instances.tags[db.tagId] = { tagId, tagPath }
+        // 实例
+        arr.push(db)
+        state.instances.tree[db.tagId] = arr;
+    }
+}
+
+const getNowDataTab = () => {
+    return state.dataTabs[state.activeName]
 }
 
 </script>

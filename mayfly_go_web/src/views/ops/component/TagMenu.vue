@@ -24,7 +24,7 @@
 </template>
 
 <script lang="ts" setup>
-import {reactive, ref, Ref, toRefs} from 'vue';
+import { reactive, ref, Ref, toRefs } from 'vue';
 
 const props = defineProps({
     instanceMenuMaxHeight: {
@@ -56,12 +56,19 @@ const clickTag = (tagPath: string) => {
     state.opend[tagPath] = !opend
 }
 
-const open = (index: string) => {
-  menuRef.value.open(index)
+const open = (index: string, isTag: boolean = false) => {
+    if (!index) {
+        return;
+    }
+    console.log(index)
+    menuRef.value.open(index)
+    if (isTag) {
+        clickTag(index)
+    }
 }
 
 defineExpose({
-  open
+    open
 })
 
 </script>

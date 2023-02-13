@@ -45,10 +45,9 @@
                             </el-input>
                             <div class="el-tag--plain el-tag--success" v-for="db in filterDb.list" :key="db"
                                 style="border:1px var(--color-success-light-3) solid; margin-top: 3px;border-radius: 5px; padding: 2px;position: relative">
-                                <el-link type="success" plain size="small" :underline="false"
-                                    @click="showTableInfo(scope.row, db)">{{ db }}</el-link>
+                                <el-link type="success" plain size="small" :underline="false">{{ db }}</el-link>
                                 <el-link type="primary" plain size="small" :underline="false"
-                                    @click="openSqlExec(scope.row, db)" style="position: absolute; right: 4px">数据操作
+                                    @click="showTableInfo(scope.row, db)" style="position: absolute; right: 4px">操作
                                 </el-link>
                             </div>
                         </el-popover>
@@ -181,6 +180,8 @@
                             size="small">DELETE</el-tag>
                         <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum['INSERT'].value" color="#A8DEE0"
                             size="small">INSERT</el-tag>
+                            <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum['QUERY'].value" color="#A8DEE0"
+                            size="small">QUERY</el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column prop="sql" label="SQL" min-width="230" show-overflow-tooltip> </el-table-column>
@@ -290,8 +291,6 @@ import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
 import { isTrue } from '@/common/assert';
 import { Search as SearchIcon } from '@element-plus/icons-vue'
-import router from '@/router';
-import { store } from '@/store';
 import { tagApi } from '../tag/api.ts';
 import { dateFormat } from '@/common/utils/date';
 
@@ -695,20 +694,6 @@ const dropTable = async (row: any) => {
         });
     } catch (err) { }
 };
-const openSqlExec = (row: any, db: any) => {
-    // 判断db是否发生改变
-    let oldDb = store.state.sqlExecInfo.dbOptInfo.db;
-    if (db && oldDb !== db) {
-        const { tagPath, id } = row;
-        let params = {
-            tagPath,
-            dbId: id,
-            db
-        }
-        store.dispatch('sqlExecInfo/setSqlExecInfo', params);
-    }
-    router.push({ name: 'SqlExec' });
-}
 
 // 点击查看时初始化数据
 const selectDb = (row: any) => {
