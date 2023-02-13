@@ -23,45 +23,54 @@
                         </template>
                     </el-popover>
                 </template>
+                <el-menu-item v-if="dbs[inst.id]?.length> 20" :index="'schema-filter-' + inst.id" :key="'schema-filter-' + inst.id">
+                    <template #title>
+                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                        <el-input size="small" placeholder="过滤数据库" clearable
+                                  @change="filterSchemaName(inst.id)"
+                                  @keyup="(e: any) => filterSchemaName(inst.id, e)"
+                                  v-model="state.schemaFilterParam[inst.id]" />
+                    </template>
+                </el-menu-item>
                 <!-- 第三级：数据库 -->
-                <el-sub-menu v-for="schema in dbs[inst.id]" :index="inst.id + schema" :key="inst.id + schema"
-                    :class="state.nowSchema === (inst.id + schema) && 'checked'"
-                    @click.stop="changeSchema(inst, schema)">
+                <el-sub-menu v-show="schema.show" v-for="schema in dbs[inst.id]" :index="inst.id + schema.name" :key="inst.id + schema.name"
+                    :class="state.nowSchema === (inst.id + schema.name) && 'checked'"
+                    @click.stop="changeSchema(inst, schema.name)">
                     <template #title>
                         <span class="checked-schema ml20">
                             <el-icon>
                                 <Coin color="#67c23a" />
-                            </el-icon>{{ schema }}</span>
+                            </el-icon>{{ schema.name }}</span>
                     </template>
                     <!-- 第四级 01：表 -->
-                    <el-sub-menu :index="inst.id + schema + '-table'">
+                    <el-sub-menu :index="inst.id + schema.name + '-table'">
                         <template #title>
-                            <div class="ml30" style="width: 100%" @click="loadSchemaTables(inst, schema)">
+                            <div class="ml30" style="width: 100%" @click="loadSchemaTables(inst, schema.name)">
                                 <el-icon>
                                     <Calendar color="#409eff" />
                                 </el-icon>
                                 <span>表</span>
-                                <el-icon v-show="state.loading[inst.id + schema]" class="is-loading">
+                                <el-icon v-show="state.loading[inst.id + schema.name]" class="is-loading">
                                     <Loading />
                                 </el-icon>
                             </div>
                         </template>
-                        <el-menu-item :index="inst.id + schema + '-tableSearch'"
-                            :key="inst.id + schema + '-tableSearch'">
+                        <el-menu-item v-if="tables[inst.id + schema.name]?.length> 20"  :index="inst.id + schema.name + '-tableSearch'"
+                            :key="inst.id + schema.name + '-tableSearch'">
                             <template #title>
                                 <span class="ml35">
                                     <el-input size="small" placeholder="表名、备注过滤表" clearable
-                                        @change="filterTableName(inst.id, schema)"
-                                        @keyup="(e: any) => filterTableName(inst.id, schema, e)"
-                                        v-model="state.filterParam[inst.id + schema]" />
+                                        @change="filterTableName(inst.id, schema.name)"
+                                        @keyup="(e: any) => filterTableName(inst.id, schema.name, e)"
+                                        v-model="state.filterParam[inst.id + schema.name]" />
                                 </span>
                             </template>
                         </el-menu-item>
 
-                        <template v-for="tb in tables[inst.id + schema]">
-                            <el-menu-item :index="inst.id + schema + tb.tableName"
-                                :key="inst.id + schema + tb.tableName" v-if="tb.show"
-                                @click="clickSchemaTable(inst, schema, tb.tableName)">
+                        <template v-for="tb in tables[inst.id + schema.name]">
+                            <el-menu-item :index="inst.id + schema.name + tb.tableName"
+                                :key="inst.id + schema.name + tb.tableName" v-if="tb.show"
+                                @click="clickSchemaTable(inst, schema.name, tb.tableName)">
                                 <template #title>
                                     <div class="ml35" style="width: 100%">
                                         <el-icon>
@@ -78,7 +87,7 @@
                         </template>
                     </el-sub-menu>
                     <!-- 第四级 02：sql -->
-                    <el-sub-menu @click.stop="loadSqls(inst, schema)" :index="inst.id + schema + '-sql'">
+                    <el-sub-menu @click.stop="loadSqls(inst, schema.name)" :index="inst.id + schema.name + '-sql'">
                         <template #title>
                             <span class="ml30">
                                 <el-icon>
@@ -88,9 +97,9 @@
                             </span>
                         </template>
 
-                        <template v-for="sql in sqls[inst.id + schema]">
-                            <el-menu-item v-if="sql.show" :index="inst.id + schema + sql.name"
-                                :key="inst.id + schema + sql.name" @click="clickSqlName(inst, schema, sql.name)">
+                        <template v-for="sql in sqls[inst.id + schema.name]">
+                            <el-menu-item v-if="sql.show" :index="inst.id + schema.name + sql.name"
+                                :key="inst.id + schema.name + sql.name" @click="clickSqlName(inst, schema.name, sql.name)">
                                 <template #title>
                                     <div class="ml35" style="width: 100%">
                                         <el-icon>
@@ -129,6 +138,7 @@ const state = reactive({
     sqls: {},
     nowSchema: '',
     filterParam: {},
+    schemaFilterParam: {},
     loading: {},
     instanceMenuMaxHeight: '850px',
 })
@@ -158,7 +168,10 @@ const loadInstances = async () => {
         state.tree[db.tagId] = arr;
 
         // dbs
-        state.dbs[db.id] = db.database.split(' ')
+        let databases = db.database.split(' ')
+        let dbs = [] as any [];
+        databases.forEach((a: string) =>dbs.push({name: a, show: true}))
+        state.dbs[db.id] = dbs
     }
 }
 
@@ -219,6 +232,17 @@ const filterTableName = (instId: number, schema: string, event?: any) => {
     state.tables[key].forEach((a: any) => {
         a.show = param ? eval('/' + param.split('').join('[_\w]*') + '[_\w]*/ig').test(a.tableName) || eval('/' + param.split('').join('[_\w]*') + '[_\w]*/ig').test(a.tableComment) : true
     })
+}
+
+const filterSchemaName = (instId: number, event?: any) => {
+  if (event) {
+    state.schemaFilterParam[instId] = event.target.value
+  }
+  let param = state.schemaFilterParam[instId] as string
+  param = param?.replace('/', '\/')
+  state.dbs[instId].forEach((a: any) => {
+    a.show = param ? eval('/' + param.split('').join('[_\w]*') + '[_\w]*/ig').test(a.name) : true
+  })
 }
 
 /**
