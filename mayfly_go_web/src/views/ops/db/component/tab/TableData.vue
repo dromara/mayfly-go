@@ -28,13 +28,11 @@
                 </el-tooltip>
                 <el-divider direction="vertical" border-style="dashed" />
 
-                <el-tooltip v-if="state.updatedFields.length > 0" class="box-item" effect="dark" content="提交修改"
-                    placement="top">
+                <el-tooltip v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
                     <el-link @click="submitUpdateFields()" type="success" :underline="false" class="f12">提交</el-link>
                 </el-tooltip>
-                <el-divider v-if="state.updatedFields.length > 0" direction="vertical" border-style="dashed" />
-                <el-tooltip v-if="state.updatedFields.length > 0" class="box-item" effect="dark" content="取消修改"
-                    placement="top">
+                <el-divider v-if="hasUpdatedFileds" direction="vertical" border-style="dashed" />
+                <el-tooltip v-if="hasUpdatedFileds" class="box-item" effect="dark" content="取消修改" placement="top">
                     <el-link @click="cancelUpdateFields" type="warning" :underline="false" class="f12">取消</el-link>
                 </el-tooltip>
             </el-col>
@@ -65,22 +63,12 @@
                 </el-input>
             </el-col>
         </el-row>
-        <el-table @cell-dblclick="(row: any, column: any, cell: any, event: any) => cellClick(row, column, cell)"
-            @sort-change="(sort: any) => onTableSortChange(sort)" @selection-change="onDataSelectionChange"
-            :data="datas" size="small" :max-height="tableHeight" v-loading="loading" element-loading-text="查询中..."
-            empty-text="暂无数据" stripe border class="mt5">
-            <el-table-column v-if="datas.length > 0" type="selection" width="35" />
-            <el-table-column min-width="100" :width="DbInst.flexColumnWidth(item, datas)" align="center"
-                v-for="item in columnNames" :key="item" :prop="item" :label="item" show-overflow-tooltip
-                :sortable="'custom'">
-                <template #header>
-                    <el-tooltip raw-content placement="top" effect="customized">
-                        <template #content> {{ getColumnTip(item) }} </template>
-                        {{ item }}
-                    </el-tooltip>
-                </template>
-            </el-table-column>
-        </el-table>
+
+        <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db-type="state.ti.dbType" :db="state.ti.db" :data="datas"
+            :table="state.table" :column-names="columnNames" :loading="loading" :height="tableHeight"
+            :show-column-tip="true" :sortable="true" @sort-change="(sort: any) => onTableSortChange(sort)"
+            @selection-change="onDataSelectionChange" @change-updated-field="changeUpdatedField"></db-table>
+
         <el-row type="flex" class="mt5" justify="center">
             <el-pagination small :total="count" @current-change="pageChange()" layout="prev, pager, next, total, jumper"
                 v-model:current-page="pageNum" :page-size="DbInst.DefaultLimit"></el-pagination>
@@ -115,16 +103,16 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, watch, reactive, toRefs } from 'vue';
-import { isTrue, notEmpty } from '@/common/assert';
+import { onMounted, watch, reactive, toRefs, ref, Ref } from 'vue';
+import { isTrue, notEmpty, notBlank } from '@/common/assert';
 import { ElMessage } from 'element-plus';
 
-import { DbInst, UpdateFieldsMeta, FieldsMeta, TabInfo } from '../../db';
+import { DbInst, TabInfo } from '../../db';
 import { exportCsv } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
-import { notBlank } from '../../../../../common/assert';
+import DbTable from '../DbTable.vue'
 
-const emits = defineEmits(['genInsertSql', 'clickSqlName', 'clickSchemaTable', 'changeSchema', 'loadSqlNames'])
+const emits = defineEmits(['genInsertSql'])
 
 const props = defineProps({
     data: {
@@ -137,9 +125,10 @@ const props = defineProps({
     }
 })
 
+const dbTableRef = ref(null) as Ref;
+
 const state = reactive({
     ti: {} as TabInfo,
-    dbId: null, // 当前选中操作的数据库实例
     table: '', // 当前的表名
     datas: [],
     sql: '', // 当前数据tab执行的sql
@@ -161,7 +150,7 @@ const state = reactive({
         value: null
     },
     tableHeight: '600',
-    updatedFields: [] as UpdateFieldsMeta[],// 各个tab表被修改的字段信息
+    hasUpdatedFileds: false,
 });
 
 const {
@@ -172,6 +161,7 @@ const {
     columnNames,
     pageNum,
     count,
+    hasUpdatedFileds,
     conditionDialog,
 } = toRefs(state);
 
@@ -183,8 +173,8 @@ onMounted(async () => {
     console.log('in table data mounted');
     state.ti = props.data;
     state.tableHeight = props.tableHeight;
-    state.table = state.ti.other.table;
-    notBlank(state.table, "TableData组件other.table信息不能为空")
+    state.table = state.ti.params.table;
+    notBlank(state.table, "TableData组件params.table信息不能为空")
 
     const columns = await state.ti.getNowDbInst().loadColumns(state.ti.db, state.table);
     state.columns = columns;
@@ -236,23 +226,6 @@ const exportData = () => {
     const dataList = state.datas as any;
     isTrue(dataList.length > 0, '没有数据可导出');
     exportCsv(`数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, state.columnNames, dataList)
-};
-
-
-const getColumnTip = (columnName: string) => {
-    // 优先从 table map中获取
-    let columns = getColumns();
-    if (!columns) {
-        return '';
-    }
-
-    const column = columns.find((c: any) => c.columnName == columnName);
-    const comment = column.columnComment;
-    return `${column.columnType} ${comment ? ' |  ' + comment : ''}`;
-};
-
-const getColumns = () => {
-    return state.ti.getNowDb().getColumns(state.table);
 };
 
 
@@ -319,6 +292,11 @@ const onDataSelectionChange = (datas: []) => {
     state.selectionDatas = datas;
 };
 
+const changeUpdatedField = (updatedFields: []) => {
+    // 如果存在要更新字段，则显示提交和取消按钮
+    state.hasUpdatedFileds = updatedFields && updatedFields.length > 0;
+}
+
 /**
  * 执行删除数据事件
  */
@@ -336,151 +314,12 @@ const onGenerateInsertSql = async () => {
     emits('genInsertSql', state.ti.getNowDbInst().genInsertSql(state.ti.db, state.table, state.selectionDatas));
 };
 
-
-// 监听单元格点击事件
-const cellClick = (row: any, column: any, cell: any) => {
-    const property = column.property;
-    // 如果当前操作的表名不存在 或者 当前列的property不存在(如多选框)，则不允许修改当前单元格内容
-    if (!property) {
-        return;
-    }
-    let div: HTMLElement = cell.children[0];
-    if (div && div.tagName === 'DIV') {
-        // 转为字符串比较,可能存在数字等
-        let text = (row[property] || row[property] == 0 ? row[property] : '') + '';
-        let input = document.createElement('input');
-        input.setAttribute('value', text);
-        // 将表格width也赋值于输入框，避免输入框长度超过表格长度
-        input.setAttribute('style', 'height:23px;text-align:center;border:none;' + div.getAttribute('style'));
-        cell.replaceChildren(input);
-        input.focus();
-        input.addEventListener('blur', async () => {
-            row[property] = input.value;
-            cell.replaceChildren(div);
-            if (input.value !== text) {
-                let currentUpdatedFields = state.updatedFields
-                const db = state.ti.getNowDb();
-                // 主键
-                const primaryKey = db.getColumn(state.table);
-                const primaryKeyValue = row[primaryKey.columnName];
-                // 更新字段列信息
-                const updateColumn = db.getColumn(state.table, property);
-                const newField = {
-                    div, row,
-                    fieldName: column.rawColumnKey,
-                    fieldType: updateColumn.columnType,
-                    oldValue: text,
-                    newValue: input.value
-                } as FieldsMeta;
-
-                // 被修改的字段
-                const primaryKeyFields = currentUpdatedFields.filter((meta) => meta.primaryKey === primaryKeyValue)
-                let hasKey = false;
-                if (primaryKeyFields.length <= 0) {
-                    primaryKeyFields[0] = {
-                        primaryKey: primaryKeyValue,
-                        primaryKeyName: primaryKey.columnName,
-                        primaryKeyType: primaryKey.columnType,
-                        fields: [newField]
-                    }
-                } else {
-                    hasKey = true
-                    let hasField = primaryKeyFields[0].fields.some(a => {
-                        if (a.fieldName === newField.fieldName) {
-                            a.newValue = newField.newValue
-                        }
-                        return a.fieldName === newField.fieldName
-                    })
-                    if (!hasField) {
-                        primaryKeyFields[0].fields.push(newField)
-                    }
-                }
-                let fields = primaryKeyFields[0].fields
-
-                const fieldsParam = fields.filter((a) => {
-                    if (a.fieldName === column.rawColumnKey) {
-                        a.newValue = input.value
-                    }
-                    return a.fieldName === column.rawColumnKey
-                })
-
-                const field = fieldsParam.length > 0 && fieldsParam[0] || {} as FieldsMeta
-                if (field.oldValue === input.value) { // 新值=旧值
-                    // 删除数据
-                    div.classList.remove('update_field_active')
-                    let delIndex: number[] = [];
-                    currentUpdatedFields.forEach((a, i) => {
-                        if (a.primaryKey === primaryKeyValue) {
-                            a.fields = a.fields && a.fields.length > 0 ? a.fields.filter(f => f.fieldName !== column.rawColumnKey) : [];
-                            a.fields.length <= 0 && delIndex.push(i)
-                        }
-                    });
-                    delIndex.forEach(i => delete currentUpdatedFields[i])
-                    currentUpdatedFields = currentUpdatedFields.filter(a => a)
-                } else {
-                    // 新增数据
-                    div.classList.add('update_field_active')
-                    if (hasKey) {
-                        currentUpdatedFields.forEach((value, index, array) => {
-                            if (value.primaryKey === primaryKeyValue) {
-                                array[index].fields = fields
-                            }
-                        })
-                    } else {
-                        currentUpdatedFields.push({
-                            primaryKey: primaryKeyValue,
-                            primaryKeyName: primaryKey.columnName,
-                            primaryKeyType: primaryKey.columnType,
-                            fields
-                        })
-                    }
-                }
-                state.updatedFields = currentUpdatedFields;
-            }
-        });
-    }
-};
-
 const submitUpdateFields = () => {
-    let currentUpdatedFields = state.updatedFields;
-    if (currentUpdatedFields.length <= 0) {
-        return;
-    }
-    const { db } = state.ti;
-    let res = '';
-    let divs: HTMLElement[] = [];
-    currentUpdatedFields.forEach(a => {
-        let sql = `UPDATE ${state.table} SET `;
-        let primaryKey = a.primaryKey;
-        let primaryKeyType = a.primaryKeyType;
-        let primaryKeyName = a.primaryKeyName;
-        a.fields.forEach(f => {
-            sql += ` ${f.fieldName} = ${DbInst.wrapColumnValue(f.fieldType, f.newValue)},`
-            divs.push(f.div)
-        })
-        sql = sql.substring(0, sql.length - 1)
-        sql += ` WHERE ${primaryKeyName} = ${DbInst.wrapColumnValue(primaryKeyType, primaryKey)} ;`
-        res += sql;
-    })
-
-    state.ti.getNowDbInst().promptExeSql(db, res, () => { }, () => {
-        currentUpdatedFields = [];
-        divs.forEach(a => {
-            a.classList.remove('update_field_active');
-        })
-        state.updatedFields = [];
-    });
-
+    dbTableRef.value.submitUpdateFields();
 }
 
 const cancelUpdateFields = () => {
-    state.updatedFields.forEach((a: any) => {
-        a.fields.forEach((b: any) => {
-            b.div.classList.remove('update_field_active')
-            b.row[b.fieldName] = b.oldValue
-        })
-    })
-    state.updatedFields = [];
+    dbTableRef.value.cancelUpdateFields();
 }
 
 // 添加新数据行
