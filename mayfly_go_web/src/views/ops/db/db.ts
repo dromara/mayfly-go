@@ -405,7 +405,7 @@ export class TabInfo {
     /**
      * tab需要的其他信息
      */
-    other: any
+    params: any
 
     getNowDbInst() {
         if (!this.dbType) {

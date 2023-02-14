@@ -116,7 +116,7 @@ const loadTableData = async (inst: any, schema: string, tableName: string) => {
     tab.dbType = inst.type;
     tab.db = schema;
     tab.type = TabType.TableData;
-    tab.other = {
+    tab.params = {
         table: tableName
     }
     state.tabs.set(label, tab)
@@ -136,7 +136,7 @@ const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
     } else {
         let count = 1;
         state.tabs.forEach((v) => {
-            if (v.type == TabType.Query && !v.other.sqlName) {
+            if (v.type == TabType.Query && !v.params.sqlName) {
                 count++;
             }
         })
@@ -153,7 +153,7 @@ const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
     tab.dbType = inst.type;
     tab.db = db;
     tab.type = TabType.Query;
-    tab.other = {
+    tab.params = {
         sqlName: sqlName,
         dbs: instanceTreeRef.value.getSchemas(dbId)
     }
@@ -258,7 +258,7 @@ const registerSqlCompletionItemProvider = () => {
             const tokens = textBeforePointer.trim().split(/\s+/)
             const lastToken = tokens[tokens.length - 1].toLowerCase()
 
-            const dbs = nowTab.other && nowTab.other.dbs;
+            const dbs = nowTab.params && nowTab.params.dbs;
             // console.log("光标前文本：=>" + textBeforePointerMulti)
 
             // console.log("最后输入的：=>" + lastToken)
@@ -291,14 +291,6 @@ const registerSqlCompletionItemProvider = () => {
                 if (tableInfo.tableName) {
                     let table = tableInfo.tableName
                     let db = tableInfo.dbName;
-                    // // 取出表名并提示
-                    // let dbs = state.monacoOptions.dbTables[dbId + db]
-                    // let columns = dbs ? (dbs[table] || []) : [];
-                    // if ((!columns || columns.length === 0) && db) {
-                    //     state.monacoOptions.dbTables[dbId + db] = await loadHintTables(dbId, db)
-                    //     dbs = state.monacoOptions.dbTables[dbId + db]
-                    //     columns = dbs ? (dbs[table] || []) : [];
-                    // }
                     // 取出表名并提示
                     let dbHits = await dbInst.loadDbHints(db)
                     let columns = dbHits[table]
