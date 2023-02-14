@@ -40,7 +40,9 @@
                         <span class="checked-schema ml20">
                             <el-icon>
                                 <Coin color="#67c23a" />
-                            </el-icon>{{ schema.name }}</span>
+                            </el-icon>
+                            <span v-html="schema.showName || schema.name"></span>
+                        </span>
                     </template>
                     <!-- 第四级 01：表 -->
                     <el-sub-menu :index="inst.id + schema.name + '-table'">
@@ -77,10 +79,10 @@
                                             <Calendar color="#409eff" />
                                         </el-icon>
                                         <el-tooltip v-if="tb.tableComment" effect="customized"
-                                            :content="tb.tableComment" placement="right">
-                                            {{ tb.tableName }}
+                                            :content="tb.tableComment" placement="right" >
+                                          <span v-html="tb.showName || tb.tableName"></span>
                                         </el-tooltip>
-                                        <span v-else>{{ tb.tableName }}</span>
+                                        <span v-else v-html="tb.showName || tb.tableName"></span>
                                     </div>
                                 </template>
                             </el-menu-item>
@@ -228,21 +230,57 @@ const filterTableName = (instId: number, schema: string, event?: any) => {
         state.filterParam[key] = event.target.value
     }
     let param = state.filterParam[key] as string
-    param = param?.replace('/', '\/')
     state.tables[key].forEach((a: any) => {
-        a.show = param ? eval('/' + param.split('').join('[_\w]*') + '[_\w]*/ig').test(a.tableName) || eval('/' + param.split('').join('[_\w]*') + '[_\w]*/ig').test(a.tableComment) : true
+        let {match, showName} = matchAndHighLight(param, a.tableName+a.tableComment, a.tableName)
+        a.show = match;
+        a.showName = showName
     })
 }
 
 const filterSchemaName = (instId: number, event?: any) => {
-  if (event) {
-    state.schemaFilterParam[instId] = event.target.value
-  }
-  let param = state.schemaFilterParam[instId] as string
-  param = param?.replace('/', '\/')
-  state.dbs[instId].forEach((a: any) => {
-    a.show = param ? eval('/' + param.split('').join('[_\w]*') + '[_\w]*/ig').test(a.name) : true
-  })
+    if (event) {
+        state.schemaFilterParam[instId] = event.target.value
+    }
+    let param = state.schemaFilterParam[instId] as string
+    param = param?.replace('/', '\/')
+    state.dbs[instId].forEach((a: any) => {
+        let {match, showName} = matchAndHighLight(param, a.name, a.name)
+        a.show = match
+        a.showName = showName
+    })
+}
+
+const matchAndHighLight = (searchParam: string, param: string, title: string): {match: boolean, showName: string} => {
+    if(!searchParam){
+        return  {match: true, showName: ''}
+    }
+    let str = '';
+    for(let c of searchParam?.replace('/', '\/')){
+        str += `(${c}).*`
+    }
+    let regex = eval(`/${str}/i`)
+    let res = param.match(regex);
+    if(res?.length){
+        if(res?.length){
+            let tmp = '', showName = '';
+            for(let i =1; i<=res.length-1; i++){
+                let head = (tmp || title).replace(res[i], `###${res[i]}!!!`);
+                let idx = head.lastIndexOf('!!!')+3;
+                tmp = head.substring(idx);
+                showName += head.substring(0, idx)
+                if(!tmp){
+                    break
+                }
+            }
+            showName += tmp;
+            showName = showName.replaceAll('###','<span style="color: red">')
+            showName = showName.replaceAll('!!!','</span>')
+            return {match: true, showName}
+        }
+    }
+  
+    return {match: false, showName: ''}
+
 }
 
 /**
