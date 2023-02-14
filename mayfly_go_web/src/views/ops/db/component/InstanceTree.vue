@@ -23,18 +23,18 @@
                         </template>
                     </el-popover>
                 </template>
-                <el-menu-item v-if="dbs[inst.id]?.length> 20" :index="'schema-filter-' + inst.id" :key="'schema-filter-' + inst.id">
+                <el-menu-item v-if="dbs[inst.id]?.length > 20" :index="'schema-filter-' + inst.id"
+                    :key="'schema-filter-' + inst.id">
                     <template #title>
                         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                        <el-input size="small" placeholder="过滤数据库" clearable
-                                  @change="filterSchemaName(inst.id)"
-                                  @keyup="(e: any) => filterSchemaName(inst.id, e)"
-                                  v-model="state.schemaFilterParam[inst.id]" />
+                        <el-input size="small" placeholder="过滤数据库" clearable @change="filterSchemaName(inst.id)"
+                            @keyup="(e: any) => filterSchemaName(inst.id, e)"
+                            v-model="state.schemaFilterParam[inst.id]" />
                     </template>
                 </el-menu-item>
                 <!-- 第三级：数据库 -->
-                <el-sub-menu v-show="schema.show" v-for="schema in dbs[inst.id]" :index="inst.id + schema.name" :key="inst.id + schema.name"
-                    :class="state.nowSchema === (inst.id + schema.name) && 'checked'"
+                <el-sub-menu v-show="schema.show" v-for="schema in dbs[inst.id]" :index="inst.id + schema.name"
+                    :key="inst.id + schema.name" :class="state.nowSchema === (inst.id + schema.name) && 'checked'"
                     @click.stop="changeSchema(inst, schema.name)">
                     <template #title>
                         <span class="checked-schema ml20">
@@ -57,7 +57,8 @@
                                 </el-icon>
                             </div>
                         </template>
-                        <el-menu-item v-if="tables[inst.id + schema.name]?.length> 20"  :index="inst.id + schema.name + '-tableSearch'"
+                        <el-menu-item v-if="tables[inst.id + schema.name]?.length > 20"
+                            :index="inst.id + schema.name + '-tableSearch'"
                             :key="inst.id + schema.name + '-tableSearch'">
                             <template #title>
                                 <span class="ml35">
@@ -79,8 +80,8 @@
                                             <Calendar color="#409eff" />
                                         </el-icon>
                                         <el-tooltip v-if="tb.tableComment" effect="customized"
-                                            :content="tb.tableComment" placement="right" >
-                                          <span v-html="tb.showName || tb.tableName"></span>
+                                            :content="tb.tableComment" placement="right">
+                                            <span v-html="tb.showName || tb.tableName"></span>
                                         </el-tooltip>
                                         <span v-else v-html="tb.showName || tb.tableName"></span>
                                     </div>
@@ -101,7 +102,8 @@
 
                         <template v-for="sql in sqls[inst.id + schema.name]">
                             <el-menu-item v-if="sql.show" :index="inst.id + schema.name + sql.name"
-                                :key="inst.id + schema.name + sql.name" @click="clickSqlName(inst, schema.name, sql.name)">
+                                :key="inst.id + schema.name + sql.name"
+                                @click="clickSqlName(inst, schema.name, sql.name)">
                                 <template #title>
                                     <div class="ml35" style="width: 100%">
                                         <el-icon>
@@ -171,8 +173,8 @@ const loadInstances = async () => {
 
         // dbs
         let databases = db.database.split(' ')
-        let dbs = [] as any [];
-        databases.forEach((a: string) =>dbs.push({name: a, show: true}))
+        let dbs = [] as any[];
+        databases.forEach((a: string) => dbs.push({ name: a, show: true }))
         state.dbs[db.id] = dbs
     }
 }
@@ -231,7 +233,7 @@ const filterTableName = (instId: number, schema: string, event?: any) => {
     }
     let param = state.filterParam[key] as string
     state.tables[key].forEach((a: any) => {
-        let {match, showName} = matchAndHighLight(param, a.tableName+a.tableComment, a.tableName)
+        let { match, showName } = matchAndHighLight(param, a.tableName + a.tableComment, a.tableName)
         a.show = match;
         a.showName = showName
     })
@@ -244,42 +246,42 @@ const filterSchemaName = (instId: number, event?: any) => {
     let param = state.schemaFilterParam[instId] as string
     param = param?.replace('/', '\/')
     state.dbs[instId].forEach((a: any) => {
-        let {match, showName} = matchAndHighLight(param, a.name, a.name)
+        let { match, showName } = matchAndHighLight(param, a.name, a.name)
         a.show = match
         a.showName = showName
     })
 }
 
-const matchAndHighLight = (searchParam: string, param: string, title: string): {match: boolean, showName: string} => {
-    if(!searchParam){
-        return  {match: true, showName: ''}
+const matchAndHighLight = (searchParam: string, param: string, title: string): { match: boolean, showName: string } => {
+    if (!searchParam) {
+        return { match: true, showName: '' }
     }
     let str = '';
-    for(let c of searchParam?.replace('/', '\/')){
+    for (let c of searchParam?.replace('/', '\/')) {
         str += `(${c}).*`
     }
     let regex = eval(`/${str}/i`)
     let res = param.match(regex);
-    if(res?.length){
-        if(res?.length){
+    if (res?.length) {
+        if (res?.length) {
             let tmp = '', showName = '';
-            for(let i =1; i<=res.length-1; i++){
+            for (let i = 1; i <= res.length - 1; i++) {
                 let head = (tmp || title).replace(res[i], `###${res[i]}!!!`);
-                let idx = head.lastIndexOf('!!!')+3;
+                let idx = head.lastIndexOf('!!!') + 3;
                 tmp = head.substring(idx);
                 showName += head.substring(0, idx)
-                if(!tmp){
+                if (!tmp) {
                     break
                 }
             }
             showName += tmp;
-            showName = showName.replaceAll('###','<span style="color: red">')
-            showName = showName.replaceAll('!!!','</span>')
-            return {match: true, showName}
+            showName = showName.replaceAll('###', '<span style="color: red">')
+            showName = showName.replaceAll('!!!', '</span>')
+            return { match: true, showName }
         }
     }
-  
-    return {match: false, showName: ''}
+
+    return { match: false, showName: '' }
 
 }
 

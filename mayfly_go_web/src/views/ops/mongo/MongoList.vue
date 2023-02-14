@@ -20,7 +20,14 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip>
+                    <template #default="scope">
+                        <tag-info :tag-path="scope.row.tagPath" />
+                        <span class="ml5">
+                            {{ scope.row.tagPath }}
+                        </span>
+                    </template>
+                </el-table-column>
                 <el-table-column prop="name" label="名称" width></el-table-column>
                 <el-table-column prop="uri" label="连接uri" min-width="150" show-overflow-tooltip>
                     <template #default="scope">
@@ -193,6 +200,7 @@ import { tagApi } from '../tag/api.ts';
 import MongoEdit from './MongoEdit.vue';
 import { formatByteSize } from '@/common/utils/format';
 import { dateFormat } from '@/common/utils/date';
+import TagInfo from '../component/TagInfo.vue';
 
 const state = reactive({
     tags: [],

@@ -66,7 +66,7 @@
 
         <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db-type="state.ti.dbType" :db="state.ti.db" :data="datas"
             :table="state.table" :column-names="columnNames" :loading="loading" :height="tableHeight"
-            :show-column-tip="true" :sortable="true" @sort-change="(sort: any) => onTableSortChange(sort)"
+            :show-column-tip="true" :sortable="'custom'" @sort-change="(sort: any) => onTableSortChange(sort)"
             @selection-change="onDataSelectionChange" @change-updated-field="changeUpdatedField"></db-table>
 
         <el-row type="flex" class="mt5" justify="center">
@@ -311,6 +311,7 @@ const onDeleteData = async () => {
 };
 
 const onGenerateInsertSql = async () => {
+    isTrue(state.selectionDatas && state.selectionDatas.length > 0, '请先选择数据');
     emits('genInsertSql', state.ti.getNowDbInst().genInsertSql(state.ti.db, state.table, state.selectionDatas));
 };
 

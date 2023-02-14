@@ -2,6 +2,7 @@ import Api from '@/common/Api';
 
 export const tagApi = {
     getAccountTags: Api.create("/tag-trees/account-has", 'get'),
+    listByQuery: Api.create("/tag-trees/query", 'get'),
     getTagTrees: Api.create("/tag-trees", 'get'),
     saveTagTree: Api.create("/tag-trees", 'post'),
     delTagTree: Api.create("/tag-trees/{id}", 'delete'),
@@ -11,8 +12,8 @@ export const tagApi = {
     delTeam: Api.create("/teams/{id}", 'delete'),
 
     getTeamMem: Api.create("/teams/{teamId}/members", 'get'),
-    saveTeamMem:  Api.create("/teams/{teamId}/members", 'post'),
-    delTeamMem:  Api.create("/teams/{teamId}/members/{accountId}", 'delete'),
+    saveTeamMem: Api.create("/teams/{teamId}/members", 'post'),
+    delTeamMem: Api.create("/teams/{teamId}/members/{accountId}", 'delete'),
 
     getTeamTagIds: Api.create("/teams/{teamId}/tags", 'get'),
     saveTeamTags: Api.create("/teams/{teamId}/tags", 'post'),

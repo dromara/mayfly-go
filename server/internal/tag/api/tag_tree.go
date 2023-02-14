@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
+	"strings"
 )
 
 type TagTree struct {
@@ -29,6 +30,15 @@ func (p *TagTree) GetTagTree(rc *req.Ctx) {
 	var tagTrees vo.TagTreeVOS
 	p.TagTreeApp.ListByQuery(new(entity.TagTreeQuery), &tagTrees)
 	rc.ResData = tagTrees.ToTrees(0)
+}
+
+func (p *TagTree) ListByQuery(rc *req.Ctx) {
+	cond := new(entity.TagTreeQuery)
+	tagPaths := rc.GinCtx.Query("tagPaths")
+	cond.CodePaths = strings.Split(tagPaths, ",")
+	var tagTrees vo.TagTreeVOS
+	p.TagTreeApp.ListByQuery(cond, &tagTrees)
+	rc.ResData = tagTrees
 }
 
 func (p *TagTree) SaveTagTree(rc *req.Ctx) {

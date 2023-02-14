@@ -20,7 +20,14 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip>
+                    <template #default="scope">
+                        <tag-info :tag-path="scope.row.tagPath" />
+                        <span class="ml5">
+                            {{ scope.row.tagPath }}
+                        </span>
+                    </template>
+                </el-table-column>
                 <el-table-column prop="name" label="名称" min-width="100"></el-table-column>
                 <el-table-column prop="host" label="host:port" min-width="150" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="mode" label="mode" min-width="100"></el-table-column>
@@ -156,6 +163,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from '../tag/api.ts';
 import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
+import TagInfo from '../component/TagInfo.vue';
 
 const state = reactive({
     tags: [],

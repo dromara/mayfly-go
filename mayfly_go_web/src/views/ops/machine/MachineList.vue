@@ -29,14 +29,21 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip>
+                    <template #default="scope">
+                        <tag-info :tag-path="scope.row.tagPath" />
+                        <span class="ml5">
+                            {{ scope.row.tagPath }}
+                        </span>
+                    </template>
+                </el-table-column>
                 <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="ip" label="ip:port" min-width="150">
                     <template #default="scope">
                         <el-link :disabled="scope.row.status == -1" @click="showMachineStats(scope.row)" type="primary"
-                            :underline="false">{{
-                                    `${scope.row.ip}:${scope.row.port}`
-                            }}</el-link>
+                            :underline="false">
+                            {{ `${scope.row.ip}:${scope.row.port}`}}
+                        </el-link>
                     </template>
                 </el-table-column>
                 <el-table-column prop="status" label="状态" min-width="80">
@@ -121,7 +128,8 @@
                 <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
 
                 <el-descriptions-item :span="2" label="用户名">{{ infoDialog.data.username }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="认证方式">{{ infoDialog.data.authMethod == 1 ? 'Password' :
+                <el-descriptions-item :span="1" label="认证方式">{{
+                    infoDialog.data.authMethod == 1 ? 'Password' :
                         'PublicKey'
                 }}</el-descriptions-item>
 
@@ -176,6 +184,7 @@ import ProcessList from './ProcessList.vue';
 import MachineStats from './MachineStats.vue';
 import MachineRec from './MachineRec.vue';
 import { dateFormat } from '@/common/utils/date';
+import TagInfo from '../component/TagInfo.vue';
 
 const router = useRouter();
 const state = reactive({

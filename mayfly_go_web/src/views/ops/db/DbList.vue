@@ -20,7 +20,14 @@
                         </el-radio>
                     </template>
                 </el-table-column>
-                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip>
+                    <template #default="scope">
+                        <tag-info :tag-path="scope.row.tagPath" />
+                        <span class="ml5">
+                            {{ scope.row.tagPath }}
+                        </span>
+                    </template>
+                </el-table-column>
                 <el-table-column prop="name" label="名称" min-width="160" show-overflow-tooltip></el-table-column>
                 <el-table-column min-width="170" label="host:port" show-overflow-tooltip>
                     <template #default="scope">
@@ -180,7 +187,7 @@
                             size="small">DELETE</el-tag>
                         <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum['INSERT'].value" color="#A8DEE0"
                             size="small">INSERT</el-tag>
-                            <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum['QUERY'].value" color="#A8DEE0"
+                        <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum['QUERY'].value" color="#A8DEE0"
                             size="small">QUERY</el-tag>
                     </template>
                 </el-table-column>
@@ -293,6 +300,7 @@ import { isTrue } from '@/common/assert';
 import { Search as SearchIcon } from '@element-plus/icons-vue'
 import { tagApi } from '../tag/api.ts';
 import { dateFormat } from '@/common/utils/date';
+import TagInfo from '../component/TagInfo.vue';
 
 const permissions = {
     saveDb: 'db:save',

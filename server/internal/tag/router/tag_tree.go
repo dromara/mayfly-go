@@ -20,6 +20,11 @@ func InitTagTreeRouter(router *gin.RouterGroup) {
 			req.NewCtxWithGin(c).Handle(m.GetTagTree)
 		})
 
+		// 根据条件获取标签
+		project.GET("query", func(c *gin.Context) {
+			req.NewCtxWithGin(c).Handle(m.ListByQuery)
+		})
+
 		// 获取登录账号拥有的标签信息
 		project.GET("account-has", func(c *gin.Context) {
 			req.NewCtxWithGin(c).Handle(m.GetAccountTags)

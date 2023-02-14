@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
+	"strings"
 )
 
 type tagTreeRepoImpl struct{}
@@ -21,6 +22,14 @@ func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEn
 	}
 	if condition.CodePath != "" {
 		sql = fmt.Sprintf("%s AND p.code_path = '%s'", sql, condition.CodePath)
+	}
+	if len(condition.CodePaths) > 0 {
+		strCodePaths := make([]string, 0)
+		// 将字符串用''包裹
+		for _, v := range condition.CodePaths {
+			strCodePaths = append(strCodePaths, fmt.Sprintf("'%s'", v))
+		}
+		sql = fmt.Sprintf("%s AND p.code_path IN (%s)", sql, strings.Join(strCodePaths, ","))
 	}
 	if condition.CodePathLike != "" {
 		sql = fmt.Sprintf("%s AND p.code_path LIKE '%s'", sql, condition.CodePathLike+"%")

@@ -9,6 +9,8 @@
                     <el-sub-menu v-for="tag of tags" :index="tag.tagPath" :key="tag.tagPath"
                         @click.stop="clickTag(tag.tagPath)">
                         <template #title>
+                            <tag-info :tag-path="tag.tagPath" />
+
                             <el-icon>
                                 <FolderOpened v-if="opend[tag.tagPath]" color="#e6a23c" />
                                 <Folder v-else />
@@ -25,6 +27,7 @@
 
 <script lang="ts" setup>
 import { reactive, ref, Ref, toRefs } from 'vue';
+import TagInfo from './TagInfo.vue';
 
 const props = defineProps({
     instanceMenuMaxHeight: {
@@ -60,7 +63,6 @@ const open = (index: string, isTag: boolean = false) => {
     if (!index) {
         return;
     }
-    console.log(index)
     menuRef.value.open(index)
     if (isTag) {
         clickTag(index)
