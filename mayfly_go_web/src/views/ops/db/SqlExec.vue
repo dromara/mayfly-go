@@ -267,7 +267,7 @@ const registerSqlCompletionItemProvider = () => {
                 let str = lastToken.substring(0, lastToken.lastIndexOf('.'))
                 // 库.表名联想
               
-                if (dbs.filter((a:any)=>a.name.indexOf(str)> -1)?.length > 0) {
+                if (dbs.filter((a:any)=>a.name === str)?.length > 0) {
                     let tables = await dbInst.loadTables(str)
                     let suggestions: languages.CompletionItem[] = []
                     for (let item of tables) {
