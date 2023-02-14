@@ -266,7 +266,8 @@ const registerSqlCompletionItemProvider = () => {
                 // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
                 let str = lastToken.substring(0, lastToken.lastIndexOf('.'))
                 // 库.表名联想
-                if (dbs.indexOf(str) > -1) {
+              
+                if (dbs.filter((a:any)=>a.name === str)?.length > 0) {
                     let tables = await dbInst.loadTables(str)
                     let suggestions: languages.CompletionItem[] = []
                     for (let item of tables) {
@@ -294,7 +295,7 @@ const registerSqlCompletionItemProvider = () => {
                     let dbHits = await dbInst.loadDbHints(db)
                     let columns = dbHits[table]
                     let suggestions: languages.CompletionItem[] = []
-                    columns.forEach((a: string, index: any) => {
+                    columns?.forEach((a: string, index: any) => {
                         // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
                         const nameAndComment = a.split("  ")
                         const fieldName = nameAndComment[0]
@@ -368,14 +369,14 @@ const registerSqlCompletionItemProvider = () => {
             })
 
             // 库名提示
-            dbs.forEach((a: string) => {
+            dbs.forEach((a: any) => {
                 suggestions.push({
                     label: {
-                        label: a,
+                        label: a.name,
                         description: 'schema'
                     },
                     kind: monaco.languages.CompletionItemKind.Folder,
-                    insertText: a,
+                    insertText: a.name,
                     range
                 });
             })
