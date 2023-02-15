@@ -149,7 +149,7 @@ function runBuild() {
         toPath=`pwd`
     fi
 
-    if [[ "${buildType}" == "5" ]] || [[ "${buildType}" == "0" ]] || [[ "${buildType}" == "6" ]] ; then
+    if [[ "${buildType}" == "5" ]] || [[ "${buildType}" == "6" ]] ; then
         read -p "请输入docker镜像版本号[默认latest]: " imageVersion
 
         if [ "${imageVersion}" == "" ] ; then
