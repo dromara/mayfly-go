@@ -64,7 +64,7 @@
             </el-col>
         </el-row>
 
-        <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db-type="state.ti.dbType" :db="state.ti.db" :data="datas"
+        <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db="state.ti.db" :data="datas"
             :table="state.table" :column-names="columnNames" :loading="loading" :height="tableHeight"
             :show-column-tip="true" :sortable="'custom'" @sort-change="(sort: any) => onTableSortChange(sort)"
             @selection-change="onDataSelectionChange" @change-updated-field="changeUpdatedField"></db-table>

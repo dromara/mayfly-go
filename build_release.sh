@@ -111,14 +111,24 @@ function buildDocker() {
     echo_yellow "-------------------构建docker镜像结束-------------------"
 }
 
+function buildxDocker() {
+    echo_yellow "-------------------docker buildx构建镜像开始-------------------"
+    imageVersion=$1
+    cd ${server_folder}
+    imageName="mayflygo/mayfly-go:${imageVersion}"
+    docker buildx build --push --platform linux/amd64,linux/arm64 -t "${imageName}" .
+    echo_green "docker多版本镜像构建完成->[${imageName}]"
+    echo_yellow "-------------------docker buildx构建镜像结束-------------------"
+}
+
 function runBuild() {
-    read -p "请选择构建版本[0|其他->全部 1->linux-amd64 2->linux-arm64 3->windows 4->mac 5->docker]: " buildType
+    read -p "请选择构建版本[0|其他->除docker镜像外其他 1->linux-amd64 2->linux-arm64 3->windows 4->mac 5->docker 6->docker buildx]: " buildType
 
     toPath="."
     imageVersion="latest"
     copyDocScript="1"
 
-    if [ "${buildType}" != "5" ] ; then
+    if [[ "${buildType}" != "5" ]] && [[ "${buildType}" != "6" ]] ; then
         # 构建结果的目的路径
         read -p "请输入构建产物输出目录[默认当前路径]: " toPath
         if [ ! -d ${toPath} ] ; then
@@ -139,7 +149,7 @@ function runBuild() {
         toPath=`pwd`
     fi
 
-    if [[ "${buildType}" == "5" ]] || [[ "${buildType}" == "0" ]] ; then
+    if [[ "${buildType}" == "5" ]] || [[ "${buildType}" == "0" ]] || [[ "${buildType}" == "6" ]] ; then
         read -p "请输入docker镜像版本号[默认latest]: " imageVersion
 
         if [ "${imageVersion}" == "" ] ; then
@@ -169,12 +179,14 @@ function runBuild() {
         "5")
             buildDocker ${imageVersion}
         ;;
+        "6")
+            buildxDocker ${imageVersion}
+        ;;
         *)
             buildLinuxAmd64 ${toPath} ${copyDocScript}
             buildLinuxArm64 ${toPath} ${copyDocScript}
             buildWindows ${toPath} ${copyDocScript}
             buildMac ${toPath} ${copyDocScript}
-            buildDocker ${imageVersion}
         ;;
     esac
 

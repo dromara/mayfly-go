@@ -6,9 +6,19 @@ const dbInstCache: Map<number, DbInst> = new Map();
 
 export class DbInst {
     /**
+     * 标签路径
+     */
+    tagPath: string
+
+    /**
      * 实例id
      */
     id: number
+
+    /**
+     * 实例名
+     */
+    name: string
 
     /**
      * 数据库类型, mysql postgres
@@ -184,25 +194,44 @@ export class DbInst {
     };
 
     /**
+     * 获取或新建dbInst，如果缓存中不存在则新建，否则直接返回
+     * @param inst 数据库实例，后端返回的列表接口中的信息
+     * @returns DbInst
+     */
+    static getOrNewInst(inst: any) {
+        if (!inst) {
+            throw new Error('inst不能为空')
+        }
+        let dbInst = dbInstCache.get(inst.id);
+        if (dbInst) {
+            return dbInst;
+        }
+        console.info(`new dbInst: ${inst.id}, tagPath: ${inst.tagPath}`);
+        dbInst = new DbInst();
+        dbInst.tagPath = inst.tagPath;
+        dbInst.id = inst.id;
+        dbInst.name = inst.name;
+        dbInst.type = inst.type;
+
+        dbInstCache.set(dbInst.id, dbInst);
+        return dbInst;
+    }
+
+    /**
     * 获取数据库实例id，若不存在，则新建一个并缓存
     * @param dbId 数据库实例id
     * @param dbType 第一次获取时为必传项，即第一次创建时
     * @returns 数据库实例
     */
-    static getInst(dbId: number, dbType?: string): DbInst {
+    static getInst(dbId?: number): DbInst {
+        if (!dbId) {
+            throw new Error('dbId不能为空');
+        }
         let dbInst = dbInstCache.get(dbId);
         if (dbInst) {
             return dbInst;
         }
-        if (!dbType) {
-            throw new Error('DbInst不存在, dbType为必传项')
-        }
-        console.log(`new dbInst -> dbId: ${dbId}, dbType: ${dbType}`);
-        dbInst = new DbInst();
-        dbInst.id = dbId;
-        dbInst.type = dbType;
-        dbInstCache.set(dbInst.id, dbInst);
-        return dbInst;
+        throw new Error('dbInst不存在! 请在合适调用点使用DbInst.newInst()新建该实例');
     }
 
     /**
@@ -388,11 +417,6 @@ export class TabInfo {
     dbId: number
 
     /**
-     * 数据库类型
-     */
-    dbType: string
-
-    /**
      * 库名
      */
     db: string = ''
@@ -408,10 +432,7 @@ export class TabInfo {
     params: any
 
     getNowDbInst() {
-        if (!this.dbType) {
-            throw new Error('dbType不能为空')
-        }
-        return DbInst.getInst(this.dbId, this.dbType);
+        return DbInst.getInst(this.dbId);
     }
 
     getNowDb() {

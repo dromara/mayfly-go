@@ -1,18 +1,34 @@
 <template>
     <div>
-        <el-row type="flex">
-            <el-col :span="24">
-                <el-button type="primary" icon="plus"
-                    @click="addQueryTab({ id: state.dbId, type: state.dbType }, state.db)"
+        <el-row>
+            <el-col :span="4">
+                <el-button type="primary" icon="plus" @click="addQueryTab({ id: nowDbInst.id }, state.db)"
                     size="small">新建查询</el-button>
             </el-col>
+            <el-col :span="20" v-if="state.db">
+                <el-descriptions :column="4" size="small" border style="height: 10px">
+                    <el-descriptions-item label-align="right" label="tag">{{ nowDbInst.tagPath }}</el-descriptions-item>
+
+                    <el-descriptions-item label="实例" label-align="right">
+                        {{ nowDbInst.id }}
+                        <el-divider direction="vertical" border-style="dashed" />
+                        {{ nowDbInst.type }}
+                        <el-divider direction="vertical" border-style="dashed" />
+                        {{ nowDbInst.name }}
+                    </el-descriptions-item>
+
+                    <el-descriptions-item label="库名" label-align="right">{{ state.db }}</el-descriptions-item>
+                </el-descriptions>
+            </el-col>
+        </el-row>
+        <el-row type="flex">
             <el-col :span="4" style="border-left: 1px solid #eee; margin-top: 10px">
                 <InstanceTree ref="instanceTreeRef" @change-instance="changeInstance" @change-schema="changeSchema"
                     @clickSqlName="onClickSqlName" @clickSchemaTable="loadTableData" />
             </el-col>
             <el-col :span="20">
                 <el-container id="data-exec" style="border-left: 1px solid #eee; margin-top: 10px">
-                    <el-tabs @tab-remove="remoteTab" @tab-click="onDataTabClick" style="width: 100%"
+                    <el-tabs @tab-remove="onRemoveTab" @tab-change="onTabChange" style="width: 100%"
                         v-model="state.activeName">
 
                         <el-tab-pane closable v-for="dt in state.tabs.values()" :key="dt.key" :label="dt.key"
@@ -37,7 +53,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref, Ref } from 'vue';
+import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
@@ -53,8 +69,10 @@ const instanceTreeRef = ref(null) as Ref;
 
 const tabs: Map<string, TabInfo> = new Map();
 const state = reactive({
-    dbId: null, // 当前选中操作的数据库实例
-    dbType: '',
+    /**
+     * 当前操作的数据库实例
+     */
+    nowDbInst: {} as DbInst,
     db: '', // 当前操作的数据库
     activeName: 'Query',
     tabs,
@@ -65,6 +83,10 @@ const state = reactive({
         sql: '',
     },
 });
+
+const {
+    nowDbInst,
+} = toRefs(state);
 
 onMounted(() => {
     self.completionItemProvider?.dispose()
@@ -85,15 +107,13 @@ const setHeight = () => {
 
 // 选择数据库实例
 const changeInstance = (inst: any, fn?: Function) => {
-    state.dbId = inst.id
-    state.dbType = inst.type
     fn && fn()
 }
 
 // 选择数据库
 const changeSchema = (inst: any, schema: string) => {
-    changeInstance(inst)
-    state.db = schema
+    state.nowDbInst = DbInst.getOrNewInst(inst);
+    state.db = schema;
 }
 
 // 加载选中的表数据，即新增表数据操作tab
@@ -113,7 +133,6 @@ const loadTableData = async (inst: any, schema: string, tableName: string) => {
     tab = new TabInfo();
     tab.key = label;
     tab.dbId = inst.id;
-    tab.dbType = inst.type;
     tab.db = schema;
     tab.type = TabType.TableData;
     tab.params = {
@@ -124,8 +143,8 @@ const loadTableData = async (inst: any, schema: string, tableName: string) => {
 
 // 新建查询panel
 const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
-    if (!db) {
-        ElMessage.warning('请选择schema')
+    if (!db || !inst.id) {
+        ElMessage.warning('请选择数据库实例及对应的schema')
         return
     }
     const dbId = inst.id;
@@ -150,7 +169,6 @@ const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
     tab = new TabInfo();
     tab.key = label;
     tab.dbId = dbId;
-    tab.dbType = inst.type;
     tab.db = db;
     tab.type = TabType.Query;
     tab.params = {
@@ -161,7 +179,7 @@ const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
     registerSqlCompletionItemProvider();
 }
 
-const remoteTab = (targetName: string) => {
+const onRemoveTab = (targetName: string) => {
     let activeName = state.activeName;
     const tabNames = [...state.tabs.keys()]
     for (let i = 0; i < tabNames.length; i++) {
@@ -172,19 +190,22 @@ const remoteTab = (targetName: string) => {
         const nextTab = tabNames[i + 1] || tabNames[i - 1];
         if (nextTab) {
             activeName = nextTab;
+        } else {
+            activeName = '';
         }
         state.tabs.delete(targetName);
         state.activeName = activeName;
-        break;
     }
 };
 
-/**
- * 数据tab点击
- */
-const onDataTabClick = (tab: any) => {
-    state.activeName = tab.props.name;
-};
+const onTabChange = () => {
+    if (!state.activeName) {
+        state.nowDbInst = {} as DbInst;
+        state.db = '';
+        return;
+    }
+    state.nowDbInst = DbInst.getInst(state.tabs.get(state.activeName)?.dbId);
+}
 
 const onGenerateInsertSql = async (sql: string) => {
     state.genSqlDialog.sql = sql;
@@ -201,7 +222,7 @@ const reloadSqls = (dbId: number, db: string) => {
 
 const deleteSqlScript = (ti: TabInfo) => {
     instanceTreeRef.value.reloadSqls({ id: ti.dbId }, ti.db);
-    remoteTab(ti.key);
+    onRemoveTab(ti.key);
 }
 
 const registerSqlCompletionItemProvider = () => {
@@ -214,8 +235,8 @@ const registerSqlCompletionItemProvider = () => {
             if (!nowTab) {
                 return;
             }
-            const { db, dbId, dbType } = nowTab;
-            const dbInst = DbInst.getInst(dbId, dbType);
+            const { db, dbId } = nowTab;
+            const dbInst = DbInst.getInst(dbId);
             const { lineNumber, column } = position
             const { startColumn, endColumn } = word
 
@@ -266,8 +287,8 @@ const registerSqlCompletionItemProvider = () => {
                 // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
                 let str = lastToken.substring(0, lastToken.lastIndexOf('.'))
                 // 库.表名联想
-              
-                if (dbs.filter((a:any)=>a.name === str)?.length > 0) {
+
+                if (dbs.filter((a: any) => a.name === str)?.length > 0) {
                     let tables = await dbInst.loadTables(str)
                     let suggestions: languages.CompletionItem[] = []
                     for (let item of tables) {

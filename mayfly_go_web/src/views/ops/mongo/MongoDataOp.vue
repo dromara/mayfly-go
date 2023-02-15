@@ -12,14 +12,16 @@
                         v-model="state.activeName">
                         <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label"
                             :name="dt.key">
-                            <el-row class="mt5 mb5">
+                            <el-row>
                                 <el-col :span="2">
-                                    <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false"
-                                        class="">
-                                    </el-link>
-                                    <el-link @click="showInsertDocDialog" class="" type="primary" icon="plus"
-                                        :underline="false">
-                                    </el-link>
+                                    <div>
+                                        <el-link @click="findCommand(state.activeName)" icon="refresh"
+                                            :underline="false" class="">
+                                        </el-link>
+                                        <el-link @click="showInsertDocDialog" class="ml5" type="primary" icon="plus"
+                                            :underline="false">
+                                        </el-link>
+                                    </div>
                                 </el-col>
                                 <el-col :span="22">
                                     <el-input ref="findParamInputRef" v-model="dt.findParamStr" placeholder="点击输入相应查询条件"

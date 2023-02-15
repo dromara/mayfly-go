@@ -207,7 +207,7 @@ const loadSchemaTables = async (inst: any, schema: string) => {
     state.loading[key] = true
     try {
         let { id } = inst
-        let tables = await DbInst.getInst(id, inst.type).loadTables(schema);
+        let tables = await DbInst.getInst(id).loadTables(schema);
         tables && tables.forEach((a: any) => a.show = true)
         state.tables[key] = tables;
         changeSchema(inst, schema);

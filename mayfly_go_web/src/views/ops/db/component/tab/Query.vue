@@ -62,7 +62,7 @@
                             style="font-size: 12px">取消</span></el-link>
                 </span>
             </el-row>
-            <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db-type="state.ti.dbType" :db="state.ti.db"
+            <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db="state.ti.db"
                 :data="execRes.data" :table="state.table" :column-names="execRes.tableColumn" :loading="loading"
                 height="250" empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
                 @selection-change="onDataSelectionChange" @change-updated-field="changeUpdatedField"></db-table>

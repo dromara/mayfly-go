@@ -306,7 +306,7 @@ const getNowDb = () => {
 }
 
 const getNowDbInst = () => {
-    return DbInst.getInst(state.dbId, state.dbType);
+    return DbInst.getInst(state.dbId);
 }
 
 defineExpose({
