@@ -2,9 +2,38 @@
     <div>
         <el-row>
             <el-col :span="4">
-                <redis-instance-tree @init-load-instances="initLoadInstances" @change-instance="changeInstance"
-                    @change-schema="loadInitSchema" :instances="state.instances" />
+                <el-row type="flex" justify="space-between">
+                    <el-col :span="24" class="el-scrollbar flex-auto">
+                        <tag-tree @node-click="nodeClick" :load="loadNode">
+                            <template #prefix="{ data }">
+                                <span v-if="data.type == NodeType.Redis">
+                                    <el-popover placement="right-start" title="redis实例信息" trigger="hover" :width="210">
+                                        <template #reference>
+                                            <el-icon>
+                                                <InfoFilled />
+                                            </el-icon>
+                                        </template>
+                                        <template #default>
+                                            <el-form class="instances-pop-form" label-width="50px" :size="'small'">
+                                                <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
+                                                <el-form-item label="链接:">{{ data.params.host }}</el-form-item>
+                                                <el-form-item label="备注:">{{
+                                                    data.params.remark
+                                                }}</el-form-item>
+                                            </el-form>
+                                        </template>
+                                    </el-popover>
+                                </span>
+
+                                <el-icon v-if="data.type == NodeType.Db">
+                                    <Coin color="#67c23a" />
+                                </el-icon>
+                            </template>
+                        </tag-tree>
+                    </el-col>
+                </el-row>
             </el-col>
+
             <el-col :span="20" style="border-left: 1px solid var(--el-card-border-color);">
                 <div class="mt10 ml5">
                     <el-col>
@@ -87,17 +116,26 @@
 
 <script lang="ts" setup>
 import { redisApi } from './api';
-import { toRefs, reactive } from 'vue';
+import { toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import HashValue from './HashValue.vue';
 import StringValue from './StringValue.vue';
 import SetValue from './SetValue.vue';
 import ListValue from './ListValue.vue';
 import { isTrue, notBlank, notNull } from '@/common/assert';
+import { TagTreeNode } from '../component/tag';
+import TagTree from '../component/TagTree.vue';
 
-import RedisInstanceTree from '@/views/ops/redis/RedisInstanceTree.vue';
+/**
+ * 树节点类型
+ */
+ class NodeType {
+    static Redis = 1
+    static Db = 2
+}
 
 const state = reactive({
+    instanceMenuMaxHeight: '600',
     loading: false,
     tags: [],
     redisList: [] as any,
@@ -137,7 +175,6 @@ const state = reactive({
     },
     keys: [],
     dbsize: 0,
-    instances: { tags: {}, tree: {}, dbs: {}, tables: {} }
 });
 
 const {
@@ -148,6 +185,103 @@ const {
     setValueDialog,
     listValueDialog,
 } = toRefs(state)
+
+
+onMounted(async () => {
+    setHeight();
+})
+
+const setHeight = () => {
+    state.instanceMenuMaxHeight = window.innerHeight - 115 + 'px';
+}
+
+/**
+ * instmap;  tagPaht -> redis info[]
+ */
+const instMap: Map<string, any[]> = new Map();
+
+const getInsts = async () => {
+    const res = await redisApi.redisList.request({});
+    if (!res.total) return
+    for (const redisInfo of res.list) {
+        const tagPath = redisInfo.tagPath;
+        let redisInsts = instMap.get(tagPath) || [];
+        redisInsts.push(redisInfo);
+        instMap.set(tagPath, redisInsts);
+    }
+}
+
+/**
+ * 加载文件树节点
+ * @param {Object} node
+ * @param {Object} resolve
+ */
+const loadNode = async (node: any) => {
+    // 一级为tagPath
+    if (node.level === 0) {
+        await getInsts();
+        const tagPaths = instMap.keys();
+        const tagNodes = [];
+        for (let tagPath of tagPaths) {
+            tagNodes.push(new TagTreeNode(tagPath, tagPath));
+        }
+        return tagNodes;
+    }
+
+    const data = node.data;
+    // 点击tagPath -> 加载数据库信息列表
+    if (data.type === TagTreeNode.TagPath) {
+        const redisInfos = instMap.get(data.key)
+        return redisInfos?.map((x: any) => {
+            return new TagTreeNode(`${data.key}.${x.id}`, x.name, NodeType.Redis).withParams(x);
+        });
+    }
+
+    // 点击redis实例 -> 加载库列表
+    if (data.type === NodeType.Redis) {
+        return await getDbs(data.params);
+    }
+
+    return [];
+};
+
+const nodeClick = (data: any) => {
+    // 点击库事件
+    if (data.type === NodeType.Db) {
+        resetScanParam();
+        state.scanParam.id = data.params.id;
+        state.scanParam.db = data.params.db;
+        scan();
+    }
+}
+
+/**
+ * 获取所有库信息
+ * @param redisInfo redis信息
+ */
+const getDbs = async (redisInfo: any) => {
+    let dbs: TagTreeNode[] = redisInfo.db.split(',').map((x: string) => {
+        return new TagTreeNode(x, x, NodeType.Db).withIsLeaf(true).withParams({
+            id: redisInfo.id,
+            db: x,
+            name: `db${x}`,
+            keys: 0,
+        })
+    })
+    const res = await redisApi.redisInfo.request({ id: redisInfo.id, host: redisInfo.host, section: "Keyspace" });
+    for (let db in res.Keyspace) {
+        for (let d of dbs) {
+            if (db == d.params.name) {
+                d.params.keys = res.Keyspace[db]?.split(',')[0]?.split('=')[1] || 0
+            }
+        }
+    }
+    // 替换label
+    dbs.forEach((e: any) => {
+        e.label = `${e.params.name} [${e.params.keys}]`
+    });
+    return dbs;
+}
 
 const scan = async () => {
     isTrue(state.scanParam.id != null, '请先选择redis');
@@ -312,49 +446,12 @@ const getTypeColor = (type: string) => {
         return '#A8DEE0';
     }
 };
-
-
-const initLoadInstances = async () => {
-    const res = await redisApi.redisList.request({});
-    if (!res.total) return
-    state.instances = { tags: {}, tree: {}, dbs: {}, tables: {} }; // 初始化变量
-    for (const db of res.list) {
-        let arr = state.instances.tree[db.tagId] || []
-        const { tagId, tagPath } = db
-        // tags
-        state.instances.tags[db.tagId] = { tagId, tagPath }
-        // 实例
-        arr.push(db)
-        state.instances.tree[db.tagId] = arr;
-    }
-}
-
-const changeInstance = async (inst: any, fn: Function) => {
-    let dbs = inst.db.split(',').map((x: string) => {
-        return { name: `db${x}`, keys: 0 }
-    })
-    const res = await redisApi.redisInfo.request({ id: inst.id, host: inst.host, section: "Keyspace" });
-    for (let db in res.Keyspace) {
-        for (let d of dbs) {
-            if (db == d.name) {
-                d.keys = res.Keyspace[db]?.split(',')[0]?.split('=')[1] || 0
-            }
-        }
-    }
-
-    state.instances.dbs[inst.id] = dbs
-    fn && fn(dbs)
-}
-
-/** 初始化加载db数据 */
-const loadInitSchema = (inst: any, schema: string) => {
-    state.scanParam.id = inst.id
-    state.scanParam.db = schema.replace('db', '')
-    scan()
-}
-
 </script>
 
-<style>
-
+<style lang="scss">
+.instances-pop-form {
+    .el-form-item {
+        margin-bottom: unset;
+    }
+}
 </style>

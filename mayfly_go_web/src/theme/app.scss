@@ -1,225 +1,261 @@
 /* 初始化样式
 ------------------------------- */
 * {
-	margin: 0;
-	padding: 0;
-	box-sizing: border-box;
-	outline: none !important;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    outline: none !important;
 }
 
 html,
 body,
 #app {
-	margin: 0;
-	padding: 0;
-	width: 100%;
-	height: 100%;
-	font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
-	font-weight: 450;
-	-webkit-font-smoothing: antialiased;
-	-webkit-tap-highlight-color: transparent;
-	background-color: #f8f8f8;
-	font-size: 14px;
-	overflow: hidden;
-	position: relative;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+    font-weight: 450;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    background-color: #f8f8f8;
+    font-size: 14px;
+    overflow: hidden;
+    position: relative;
 }
 
 /* 主布局样式
 ------------------------------- */
 .layout-container {
-	width: 100%;
-	height: 100%;
-	.layout-aside {
-		background: var(--bg-menuBar);
-		box-shadow: 2px 0 6px rgb(0 21 41 / 1%);
-		height: inherit;
-		position: relative;
-		z-index: 1;
-		display: flex;
-		flex-direction: column;
-		overflow-x: hidden !important;
-		.el-scrollbar__view {
-			overflow: hidden;
-		}
-	}
-	.layout-header {
-		padding: 0 !important;
-	}
-	.layout-main {
-		padding: 0 !important;
-		overflow: hidden;
-		width: 100%;
-		background-color: #f8f8f8;
-	}
-	.el-scrollbar {
-		width: 100%;
-	}
-	.layout-view-bg-white {
-		background: white;
-		width: 100%;
-		height: 100%;
-		border-radius: 4px;
-		border: 1px solid #ebeef5;
-	}
-	.layout-el-aside-br-color {
-		border-right: 1px solid rgb(238, 238, 238);
-	}
-	.layout-aside-width-default {
-		width: 220px !important;
-		transition: width 0.3s ease;
-	}
-	.layout-aside-width64 {
-		width: 64px !important;
-		transition: width 0.3s ease;
-	}
-	.layout-aside-width1 {
-		width: 1px !important;
-		transition: width 0.3s ease;
-	}
-	.layout-scrollbar {
-		@extend .el-scrollbar;
-		padding: 10px;
-	}
-	.layout-mian-height-50 {
-		height: calc(100vh - 50px);
-	}
-	.layout-columns-warp {
-		flex: 1;
-		display: flex;
-		overflow: hidden;
-	}
-	.layout-hide {
-		display: none;
-	}
+    width: 100%;
+    height: 100%;
+
+    .layout-aside {
+        background: var(--bg-menuBar);
+        box-shadow: 2px 0 6px rgb(0 21 41 / 1%);
+        height: inherit;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden !important;
+
+        .el-scrollbar__view {
+            overflow: hidden;
+        }
+    }
+
+    .layout-header {
+        padding: 0 !important;
+    }
+
+    .layout-main {
+        padding: 0 !important;
+        overflow: hidden;
+        width: 100%;
+        background-color: #f8f8f8;
+    }
+
+    .el-scrollbar {
+        width: 100%;
+    }
+
+    .layout-view-bg-white {
+        background: white;
+        width: 100%;
+        height: 100%;
+        border-radius: 4px;
+        border: 1px solid #ebeef5;
+    }
+
+    .layout-el-aside-br-color {
+        border-right: 1px solid rgb(238, 238, 238);
+    }
+
+    .layout-aside-width-default {
+        width: 220px !important;
+        transition: width 0.3s ease;
+    }
+
+    .layout-aside-width64 {
+        width: 64px !important;
+        transition: width 0.3s ease;
+    }
+
+    .layout-aside-width1 {
+        width: 1px !important;
+        transition: width 0.3s ease;
+    }
+
+    .layout-scrollbar {
+        @extend .el-scrollbar;
+        padding: 10px;
+    }
+
+    .layout-mian-height-50 {
+        height: calc(100vh - 50px);
+    }
+
+    .layout-columns-warp {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+    }
+
+    .layout-hide {
+        display: none;
+    }
 }
 
 /* element plus 全局样式
 ------------------------------- */
 .layout-breadcrumb-seting {
-	.el-drawer__header {
-		padding: 0 15px !important;
-		height: 50px;
-		display: flex;
-		align-items: center;
-		margin-bottom: 0 !important;
-		border-bottom: 1px solid rgb(230, 230, 230);
-	}
-	.el-divider {
-		background-color: rgb(230, 230, 230);
-	}
+    .el-drawer__header {
+        padding: 0 15px !important;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        margin-bottom: 0 !important;
+        border-bottom: 1px solid rgb(230, 230, 230);
+    }
+
+    .el-divider {
+        background-color: rgb(230, 230, 230);
+    }
 }
 
 /* nprogress 进度条跟随主题颜色
 ------------------------------- */
 #nprogress {
-	.bar {
-		background: var(--color-primary) !important;
-		z-index: 9999999 !important;
-	}
+    .bar {
+        background: var(--color-primary) !important;
+        z-index: 9999999 !important;
+    }
 }
 
 /* flex 弹性布局
 ------------------------------- */
 .flex {
-	display: flex;
+    display: flex;
 }
+
 .flex-auto {
-	flex: 1;
+    flex: 1;
 }
+
 .flex-center {
-	@extend .flex;
-	flex-direction: column;
-	width: 100%;
-	overflow: hidden;
+    @extend .flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: hidden;
 }
+
 .flex-margin {
-	margin: auto;
+    margin: auto;
 }
+
 .flex-warp {
-	display: flex;
-	flex-wrap: wrap;
-	align-content: flex-start;
-	margin: 0 -5px;
-	.flex-warp-item {
-		padding: 5px;
-		.flex-warp-item-box {
-			width: 100%;
-			height: 100%;
-		}
-	}
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    margin: 0 -5px;
+
+    .flex-warp-item {
+        padding: 5px;
+
+        .flex-warp-item-box {
+            width: 100%;
+            height: 100%;
+        }
+    }
 }
 
 /* 宽高 100%
 ------------------------------- */
 .w100 {
-	width: 100% !important;
+    width: 100% !important;
 }
+
 .h100 {
-	height: 100% !important;
+    height: 100% !important;
 }
+
 .vh100 {
-	height: 100vh !important;
+    height: 100vh !important;
 }
+
 .max100vh {
-	max-height: 100vh !important;
+    max-height: 100vh !important;
 }
+
 .min100vh {
-	min-height: 100vh !important;
+    min-height: 100vh !important;
 }
 
 /* 颜色值
 ------------------------------- */
 .color-primary {
-	color: var(--color-primary);
+    color: var(--color-primary);
 }
+
 .color-success {
-	color: var(--color-success);
+    color: var(--color-success);
 }
+
 .color-warning {
-	color: var(--color-warning);
+    color: var(--color-warning);
 }
+
 .color-danger {
-	color: var(--color-danger);
+    color: var(--color-danger);
 }
+
 .color-info {
-	color: var(--color-info);
+    color: var(--color-info);
 }
 
 /* 字体大小全局样式
 ------------------------------- */
 @for $i from 10 through 32 {
-	.font#{$i} {
-		font-size: #{$i}px !important;
-	}
+    .font#{$i} {
+        font-size: #{$i}px !important;
+    }
 }
 
 /* 外边距、内边距全局样式
 ------------------------------- */
 @for $i from 1 through 35 {
-	.mt#{$i} {
-		margin-top: #{$i}px !important;
-	}
-	.mr#{$i} {
-		margin-right: #{$i}px !important;
-	}
-	.mb#{$i} {
-		margin-bottom: #{$i}px !important;
-	}
-	.ml#{$i} {
-		margin-left: #{$i}px !important;
-	}
-	.pt#{$i} {
-		padding-top: #{$i}px !important;
-	}
-	.pr#{$i} {
-		padding-right: #{$i}px !important;
-	}
-	.pb#{$i} {
-		padding-bottom: #{$i}px !important;
-	}
-	.pl#{$i} {
-		padding-left: #{$i}px !important;
-	}
+    .mt#{$i} {
+        margin-top: #{$i}px !important;
+    }
+
+    .mr#{$i} {
+        margin-right: #{$i}px !important;
+    }
+
+    .mb#{$i} {
+        margin-bottom: #{$i}px !important;
+    }
+
+    .ml#{$i} {
+        margin-left: #{$i}px !important;
+    }
+
+    .pt#{$i} {
+        padding-top: #{$i}px !important;
+    }
+
+    .pr#{$i} {
+        padding-right: #{$i}px !important;
+    }
+
+    .pb#{$i} {
+        padding-bottom: #{$i}px !important;
+    }
+
+    .pl#{$i} {
+        padding-left: #{$i}px !important;
+    }
 }
 
 
@@ -249,15 +285,22 @@ body,
 .el-menu .fa:not(.is-children) {
     font-size: 14px;
 }
-.gray-mode{
+
+.gray-mode {
     filter: grayscale(100%);
 }
 
 
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
     transition: opacity .2s ease-in-out;
 }
-.fade-enter, .fade-leave-to /* .fade-leave-active below version 2.1.8 */ {
+
+.fade-enter,
+.fade-leave-to
+
+/* .fade-leave-active below version 2.1.8 */
+    {
     opacity: 0;
 }
 
@@ -270,7 +313,7 @@ body,
     -webkit-user-select: none;
     -ms-user-select: none;
     user-select: none;
-  }
+}
 
 .toolbar {
     width: 100%;
@@ -297,4 +340,14 @@ body,
 
 .f12 {
     font-size: 12px
+}
+
+.icon-middle {
+    .el-icon {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        vertical-align: middle;
+    }
 }

@@ -23,8 +23,51 @@
         </el-row>
         <el-row type="flex">
             <el-col :span="4" style="border-left: 1px solid #eee; margin-top: 10px">
-                <InstanceTree ref="instanceTreeRef" @change-instance="changeInstance" @change-schema="changeSchema"
-                    @clickSqlName="onClickSqlName" @clickSchemaTable="loadTableData" />
+                <tag-tree ref="tagTreeRef" @node-click="nodeClick" :load="loadNode" :height="state.tagTreeHeight">
+                    <template #prefix="{ data }">
+                        <span v-if="data.type == NodeType.DbInst">
+                            <el-popover placement="right-start" title="数据库实例信息" trigger="hover" :width="210">
+                                <template #reference>
+                                    <el-icon>
+                                        <InfoFilled />
+                                    </el-icon>
+                                </template>
+                                <template #default>
+                                    <el-form class="instances-pop-form" label-width="55px" :size="'small'">
+                                        <el-form-item label="类型:">{{ data.params.type }}</el-form-item>
+                                        <el-form-item label="链接:">{{ data.params.host }}:{{
+                                            data.params.port
+                                        }}</el-form-item>
+                                        <el-form-item label="用户:">{{ data.params.username }}</el-form-item>
+                                        <el-form-item v-if="data.params.remark" label="备注:">{{
+                                            data.params.remark
+                                        }}</el-form-item>
+                                    </el-form>
+                                </template>
+                            </el-popover>
+                        </span>
+
+                        <el-icon v-if="data.type == NodeType.Db">
+                            <Coin color="#67c23a" />
+                        </el-icon>
+
+                        <el-icon v-if="data.type == NodeType.TableMenu">
+                            <Calendar color="#409eff" />
+                        </el-icon>
+                        <el-tooltip v-if="data.type == NodeType.Table" effect="customized"
+                            :content="data.params.tableComment" placement="top-end">
+                            <el-icon>
+                                <Calendar color="#409eff" />
+                            </el-icon>
+                        </el-tooltip>
+
+                        <el-icon v-if="data.type == NodeType.SqlMenu || data.type == NodeType.Sql">
+                            <Files color="#f56c6c" />
+                        </el-icon>
+
+
+                    </template>
+                </tag-tree>
             </el-col>
             <el-col :span="20">
                 <el-container id="data-exec" style="border-left: 1px solid #eee; margin-top: 10px">
@@ -53,19 +96,33 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { onMounted, reactive, ref, toRefs } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
 import * as monaco from 'monaco-editor';
 import { editor, languages, Position } from 'monaco-editor';
-import InstanceTree from '@/views/ops/db/component/InstanceTree.vue';
 
 import { DbInst, TabInfo, TabType } from './db'
 import TableData from './component/tab/TableData.vue'
 import Query from './component/tab/Query.vue'
+import { TagTreeNode } from '../component/tag';
+import TagTree from '../component/TagTree.vue';
+import { dbApi } from './api';
 
-const instanceTreeRef = ref(null) as Ref;
+/**
+ * 树节点类型
+ */
+class NodeType {
+    static DbInst = 1
+    static Db = 2
+    static TableMenu = 3;
+    static SqlMenu = 4;
+    static Table = 5;
+    static Sql = 6;
+}
+
+const tagTreeRef: any = ref(null)
 
 const tabs: Map<string, TabInfo> = new Map();
 const state = reactive({
@@ -74,10 +131,11 @@ const state = reactive({
      */
     nowDbInst: {} as DbInst,
     db: '', // 当前操作的数据库
-    activeName: 'Query',
+    activeName: '',
     tabs,
     dataTabsTableHeight: '600',
     editorHeight: '600',
+    tagTreeHeight: window.innerHeight - 178 + 'px',
     genSqlDialog: {
         visible: false,
         sql: '',
@@ -99,15 +157,140 @@ onMounted(() => {
  * 设置editor高度和数据表高度
  */
 const setHeight = () => {
-    // 默认300px
-    // state.monacoOptions.height = window.innerHeight - 518 + 'px'
     state.editorHeight = window.innerHeight - 518 + 'px';
     state.dataTabsTableHeight = window.innerHeight - 219 - 36 + 'px';
+    state.tagTreeHeight = window.innerHeight - 165 + 'px';
 };
 
-// 选择数据库实例
-const changeInstance = (inst: any, fn?: Function) => {
-    fn && fn()
+/**
+* instmap; tagPaht -> redis info[]
+*/
+const instMap: Map<string, any[]> = new Map();
+
+const getInsts = async () => {
+    const res = await dbApi.dbs.request({ pageNum: 1, pageSize: 1000, })
+    if (!res.total) return
+    for (const db of res.list) {
+        const tagPath = db.tagPath;
+        let redisInsts = instMap.get(tagPath) || [];
+        redisInsts.push(db);
+        instMap.set(tagPath, redisInsts);
+    }
+}
+
+/**
+ * 加载树节点
+ * @param {Object} node
+ * @param {Object} resolve
+ */
+const loadNode = async (node: any) => {
+    // 一级为tagPath
+    if (node.level === 0) {
+        await getInsts();
+        const tagPaths = instMap.keys();
+        const tagNodes = [];
+        for (let tagPath of tagPaths) {
+            tagNodes.push(new TagTreeNode(tagPath, tagPath));
+        }
+        return tagNodes;
+    }
+
+    const data = node.data;
+    const nodeType = data.type;
+    const params = data.params;
+
+    // 点击tagPath -> 加载数据库实例信息列表
+    if (nodeType === TagTreeNode.TagPath) {
+        const dbInfos = instMap.get(data.key)
+        return dbInfos?.map((x: any) => {
+            return new TagTreeNode(`${data.key}.${x.id}`, x.name, NodeType.DbInst).withParams(x);
+        });
+    }
+
+    // 点击数据库实例 -> 加载库列表
+    if (nodeType === NodeType.DbInst) {
+        const dbs = params.database.split(' ');
+        return dbs.map((x: any) => {
+            return new TagTreeNode(`${data.key}.${x}`, x, NodeType.Db).withParams({
+                tagPath: params.tagPath,
+                id: params.id,
+                name: params.name,
+                type: params.type,
+                dbs: dbs,
+                db: x
+            })
+        })
+    }
+
+    // 点击数据库 -> 加载 表&Sql 菜单
+    if (nodeType === NodeType.Db) {
+        return [new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeType.TableMenu).withParams(params),
+        new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeType.SqlMenu).withParams(params)];
+    }
+
+    // 点击表菜单 -> 加载表列表
+    if (nodeType === NodeType.TableMenu) {
+        return await getTables(params);
+    }
+
+    if (nodeType === NodeType.SqlMenu) {
+        return await loadSqls(params.id, params.db, params.dbs);
+    }
+
+    return [];
+};
+
+const nodeClick = async (data: any) => {
+    const params = data.params;
+    const nodeKey = data.key;
+    const dataType = data.type;
+    // 点击数据库，修改当前数据库信息
+    if (dataType === NodeType.Db || dataType === NodeType.SqlMenu || dataType === NodeType.TableMenu) {
+        changeSchema({ id: params.id, name: params.name, type: params.type, tagPath: params.tagPath }, params.db);
+        return;
+    }
+
+    // 点击表加载表数据tab
+    if (dataType === NodeType.Table) {
+        await loadTableData({ id: params.id, nodeKey: nodeKey }, params.db, params.tableName);
+        return;
+    }
+
+    // 点击表加载表数据tab
+    if (dataType === NodeType.Sql) {
+        await addQueryTab({ id: params.id, nodeKey: nodeKey, dbs: params.dbs }, params.db, params.sqlName);
+    }
+}
+
+const getTables = async (params: any) => {
+    const { id, db } = params;
+    let tables = await DbInst.getInst(id).loadTables(db);
+    return tables.map((x: any) => {
+        return new TagTreeNode(`${id}.${db}.${x.tableName}`, x.tableName, NodeType.Table).withIsLeaf(true).withParams({
+            id,
+            db,
+            tableName: x.tableName,
+            tableComment: x.tableComment,
+        });
+    })
+}
+
+/**
+ * 加载用户保存的sql脚本
+ * 
+ * @param inst 
+ * @param schema 
+ */
+const loadSqls = async (id: any, db: string, dbs: any) => {
+    const sqls = await dbApi.getSqlNames.request({ id: id, db: db, })
+    return sqls.map((x: any) => {
+        return new TagTreeNode(`${id}.${db}.${x.name}`, x.name, NodeType.Sql).withIsLeaf(true).withParams({
+            id,
+            db,
+            dbs,
+            sqlName: x.name,
+        });
+    });
 }
 
 // 选择数据库
@@ -132,6 +315,7 @@ const loadTableData = async (inst: any, schema: string, tableName: string) => {
     }
     tab = new TabInfo();
     tab.key = label;
+    tab.treeNodeKey = inst.nodeKey;
     tab.dbId = inst.id;
     tab.db = schema;
     tab.type = TabType.TableData;
@@ -147,6 +331,7 @@ const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
         ElMessage.warning('请选择数据库实例及对应的schema')
         return
     }
+
     const dbId = inst.id;
     let label;
     // 存在sql模板名，则该模板名只允许一个tab
@@ -168,12 +353,13 @@ const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
     }
     tab = new TabInfo();
     tab.key = label;
+    tab.treeNodeKey = inst.nodeKey;
     tab.dbId = dbId;
     tab.db = db;
     tab.type = TabType.Query;
     tab.params = {
         sqlName: sqlName,
-        dbs: instanceTreeRef.value.getSchemas(dbId)
+        dbs: inst.dbs,
     }
     state.tabs.set(label, tab)
     registerSqlCompletionItemProvider();
@@ -204,7 +390,9 @@ const onTabChange = () => {
         state.db = '';
         return;
     }
-    state.nowDbInst = DbInst.getInst(state.tabs.get(state.activeName)?.dbId);
+    const nowTab = state.tabs.get(state.activeName);
+    state.nowDbInst = DbInst.getInst(nowTab?.dbId);
+    state.db = nowTab?.db as string;
 }
 
 const onGenerateInsertSql = async (sql: string) => {
@@ -212,17 +400,17 @@ const onGenerateInsertSql = async (sql: string) => {
     state.genSqlDialog.visible = true;
 };
 
-const onClickSqlName = (inst: any, schema: string, sqlName: string) => {
-    addQueryTab(inst, schema, sqlName);
-}
-
 const reloadSqls = (dbId: number, db: string) => {
-    instanceTreeRef.value.reloadSqls({ id: dbId }, db);
+    tagTreeRef.value.reloadNode(getSqlMenuNodeKey(dbId, db));
 }
 
 const deleteSqlScript = (ti: TabInfo) => {
-    instanceTreeRef.value.reloadSqls({ id: ti.dbId }, ti.db);
+    reloadSqls(ti.dbId, ti.db);
     onRemoveTab(ti.key);
+}
+
+const getSqlMenuNodeKey = (dbId: number, db: string) => {
+    return `${dbId}.${db}.sql-menu`
 }
 
 const registerSqlCompletionItemProvider = () => {
@@ -288,7 +476,7 @@ const registerSqlCompletionItemProvider = () => {
                 let str = lastToken.substring(0, lastToken.lastIndexOf('.'))
                 // 库.表名联想
 
-                if (dbs.filter((a: any) => a.name === str)?.length > 0) {
+                if (dbs && dbs.filter((a: any) => a === str)?.length > 0) {
                     let tables = await dbInst.loadTables(str)
                     let suggestions: languages.CompletionItem[] = []
                     for (let item of tables) {
@@ -390,17 +578,19 @@ const registerSqlCompletionItemProvider = () => {
             })
 
             // 库名提示
-            dbs.forEach((a: any) => {
-                suggestions.push({
-                    label: {
-                        label: a.name,
-                        description: 'schema'
-                    },
-                    kind: monaco.languages.CompletionItemKind.Folder,
-                    insertText: a.name,
-                    range
-                });
-            })
+            if (dbs) {
+                dbs.forEach((a: any) => {
+                    suggestions.push({
+                        label: {
+                            label: a,
+                            description: 'schema'
+                        },
+                        kind: monaco.languages.CompletionItemKind.Folder,
+                        insertText: a,
+                        range
+                    });
+                })
+            }
 
             const tables = await dbInst.loadTables(db);
             // 表名联想
@@ -517,5 +707,11 @@ select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(
 
 .update_field_active {
     background-color: var(--el-color-success)
+}
+
+.instances-pop-form {
+    .el-form-item {
+        margin-bottom: unset;
+    }
 }
 </style>

@@ -412,6 +412,11 @@ export class TabInfo {
     key: string
 
     /**
+     * 菜单树节点key
+     */
+    treeNodeKey: string
+
+    /**
      * 数据库实例id
      */
     dbId: number

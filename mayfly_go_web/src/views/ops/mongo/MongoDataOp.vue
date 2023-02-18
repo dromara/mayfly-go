@@ -2,12 +2,50 @@
     <div>
         <el-row>
             <el-col :span="4">
-                <mongo-instance-tree @init-load-instances="loadInstances" @change-instance="changeInstance"
-                    @load-table-names="loadTableNames" @load-table-data="changeCollection"
-                    :instances="state.instances" />
+                <tag-tree @node-click="nodeClick" :load="loadNode">
+                    <template #prefix="{ data }">
+                        <span v-if="data.type == NodeType.Mongo">
+                            <el-popover placement="right-start" title="mongo实例信息" trigger="hover" :width="210">
+                                <template #reference>
+                                    <el-icon>
+                                        <InfoFilled />
+                                    </el-icon>
+                                </template>
+                                <template #default>
+                                    <el-form class="instances-pop-form" label-width="50px" :size="'small'">
+                                        <el-form class="instances-pop-form" label-width="55px" :size="'small'">
+                                            <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
+                                            <el-form-item label="链接:">{{ data.params.uri }}</el-form-item>
+                                        </el-form>
+                                    </el-form>
+                                </template>
+                            </el-popover>
+                        </span>
+
+                        <el-icon v-if="data.type == NodeType.Dbs">
+                            <Coin color="#67c23a" />
+                        </el-icon>
+
+                        <el-icon v-if="data.type == NodeType.Coll || data.type == NodeType.CollMenu">
+                            <Document class="color-primary" />
+                        </el-icon>
+                    </template>
+
+                    <template #label="{ data }">
+                        <span v-if="data.type == NodeType.Dbs">
+                            {{ data.params.dbName }}
+                            <span style="color: #8492a6;font-size: 13px">
+                                [{{ formatByteSize(data.params.size) }}]
+                            </span>
+                        </span>
+
+                        <span v-else>{{ data.label }}</span>
+                    </template>
+                </tag-tree>
             </el-col>
+
             <el-col :span="20">
-                <el-container id="data-exec" style="border: 1px solid #eee; margin-top: 1px">
+                <el-container id="mongo-tab" style="border: 1px solid #eee; margin-top: 1px">
                     <el-tabs @tab-remove="removeDataTab" style="width: 100%; margin-left: 5px"
                         v-model="state.activeName">
                         <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label"
@@ -67,8 +105,8 @@
         <el-dialog width="600px" title="find参数" v-model="findDialog.visible">
             <el-form label-width="70px">
                 <el-form-item label="filter">
-                    <el-input v-model="findDialog.findParam.filter" type="textarea" :rows="6" clearable
-                        auto-complete="off"></el-input>
+                    <monaco-editor style="width: 100%;" height="150px" ref="monacoEditorRef"
+                        v-model="findDialog.findParam.filter" language="json" />
                 </el-form-item>
                 <el-form-item label="sort">
                     <el-input v-model="findDialog.findParam.sort" type="textarea" :rows="3" clearable
@@ -116,7 +154,19 @@ import { ElMessage } from 'element-plus';
 
 import { isTrue, notBlank } from '@/common/assert';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
-import MongoInstanceTree from '@/views/ops/mongo/MongoInstanceTree.vue';
+import { TagTreeNode } from '../component/tag';
+import TagTree from '../component/TagTree.vue';
+import { formatByteSize } from '@/common/utils/format';
+
+/**
+ * 树节点类型
+ */
+class NodeType {
+    static Mongo = 1
+    static Dbs = 2
+    static CollMenu = 3
+    static Coll = 4
+}
 
 const findParamInputRef: any = ref(null);
 const state = reactive({
@@ -142,7 +192,6 @@ const state = reactive({
         doc: '',
         item: {} as any,
     },
-    instances: { tags: {}, tree: {}, dbs: {}, tables: {} }
 });
 
 const {
@@ -151,28 +200,110 @@ const {
     jsonEditorDialog,
 } = toRefs(state)
 
-const changeInstance = async (inst: any, fn: Function) => {
-    if (inst) {
-        if (!state.instances.dbs[inst.id]) {
-            const res = await mongoApi.databases.request({ id: inst.id });
-            state.instances.dbs[inst.id] = res.Databases;
-            fn && fn(res.Databases)
+/**
+ * instmap;  tagPaht -> mongo info[]
+ */
+const instMap: Map<string, any[]> = new Map();
+
+const getInsts = async () => {
+    const res = await mongoApi.mongoList.request({ pageNum: 1, pageSize: 1000, });
+    if (!res.total) return
+    for (const mongoInfo of res.list) {
+        const tagPath = mongoInfo.tagPath;
+        let mongoInsts = instMap.get(tagPath) || [];
+        mongoInsts.push(mongoInfo);
+        instMap.set(tagPath, mongoInsts);
+    }
+}
+
+/**
+ * 加载文件树节点
+ * @param {Object} node
+ * @param {Object} resolve
+ */
+const loadNode = async (node: any) => {
+    // 一级为tagPath
+    if (node.level === 0) {
+        await getInsts();
+        const tagPaths = instMap.keys();
+        const tagNodes = [];
+        for (let tagPath of tagPaths) {
+            tagNodes.push(new TagTreeNode(tagPath, tagPath));
         }
+        return tagNodes;
+    }
+
+    const data = node.data;
+    const params = data.params;
+    const nodeType = data.type;
+
+    // 点击标签 -> 显示mongo信息列表
+    if (nodeType === TagTreeNode.TagPath) {
+        const mongoInfos = instMap.get(data.key)
+        return mongoInfos?.map((x: any) => {
+            return new TagTreeNode(`${data.key}.${x.id}`, x.name, NodeType.Mongo).withParams(x);
+        });
+    }
+
+    // 点击mongo -> 加载mongo数据库列表
+    if (nodeType === NodeType.Mongo) {
+        return await getDatabases(params);
+    }
+
+    // 点击数据库列表 -> 加载数据库下拥有的菜单列表
+    if (nodeType === NodeType.Dbs) {
+        return [new TagTreeNode(`${params.id}.${params.dbName}.mongo-coll`, '集合', NodeType.CollMenu).withParams(params)];
+    }
+
+    // 点击数据库集合节点 -> 加载集合列表
+    if (nodeType === NodeType.CollMenu) {
+        return await getCollections(params.id, params.dbName)
+    }
+
+    return [];
+};
+
+/**
+ * 获取实例的所有库信息
+ * @param inst 实例信息
+ */
+const getDatabases = async (inst: any) => {
+    const res = await mongoApi.databases.request({ id: inst.id });
+    return res.Databases.map((x: any) => {
+        const dbName = x.Name;
+        return new TagTreeNode(`${inst.id}.${dbName}`, dbName, NodeType.Dbs).withParams({
+            id: inst.id,
+            dbName,
+            size: x.SizeOnDisk,
+        })
+    })
+}
+
+/**
+ * 获取集合列表信息
+ * @param inst
+ */
+const getCollections = async (id: any, database: string) => {
+    const colls = await mongoApi.collections.request({ id, database });
+    return colls.map((x: any) => {
+        return new TagTreeNode(`${id}.${database}.${x}`, x, NodeType.Coll).withIsLeaf(true).withParams({
+            id,
+            database,
+            collection: x,
+        });
+    });
+}
+
+const nodeClick = (data: any) => {
+    // 点击集合
+    if (data.type === NodeType.Coll) {
+        const { id, database, collection } = data.params;
+        changeCollection(id, database, collection);
     }
 }
 
-const loadTableNames = async (inst: any, database: string, fn: Function) => {
-    let tbs = await mongoApi.collections.request({ id: inst.id, database });
-    let tables = [];
-    for (let tb of tbs) {
-        tables.push({ tableName: tb, show: true })
-    }
-    state.instances.tables[inst.id + database] = tables
-    fn(tables)
-}
-
-const changeCollection = (inst: any, schema: string, collection: string) => {
-    const label = `${inst.id}:\`${schema}\`.${collection}`;
+const changeCollection = (id: any, schema: string, collection: string) => {
+    const label = `${id}:\`${schema}\`.${collection}`;
     let dataTab = state.dataTabs[label];
     if (!dataTab) {
         // 默认查询参数
@@ -186,7 +317,7 @@ const changeCollection = (inst: any, schema: string, collection: string) => {
             key: label,
             label: label,
             name: label,
-            mongoId: inst.id,
+            mongoId: id,
             database: schema,
             collection,
             datas: [],
@@ -359,33 +490,28 @@ const removeDataTab = (targetName: string) => {
     delete state.dataTabs[targetName];
 };
 
-const loadInstances = async () => {
-    const res = await mongoApi.mongoList.request({ pageNum: 1, pageSize: 1000, });
-    if (!res.total) return
-    state.instances = { tags: {}, tree: {}, dbs: {}, tables: {} }; // 初始化变量
-    for (const db of res.list) {
-        let arr = state.instances.tree[db.tagId] || []
-        const { tagId, tagPath } = db
-        // tags
-        state.instances.tags[db.tagId] = { tagId, tagPath }
-        // 实例
-        arr.push(db)
-        state.instances.tree[db.tagId] = arr;
-    }
-}
-
 const getNowDataTab = () => {
     return state.dataTabs[state.activeName]
 }
 
 </script>
 
-<style>
+<style lang="scss">
 .mongo-doc-btns {
     position: absolute;
     z-index: 2;
     right: 3px;
     top: 2px;
     max-width: 120px;
+}
+
+#mongo-tab {
+    .el-tabs__header {
+        margin: 0 0 5px;
+
+        .el-tabs__item {
+            padding: 0 5px;
+        }
+    }
 }
 </style>

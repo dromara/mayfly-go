@@ -155,12 +155,15 @@ func doSelect(selectStmt *sqlparser.Select, execSqlReq *DbSqlExecReq) (*DbSqlExe
 	selectExprsStr := sqlparser.String(selectStmt.SelectExprs)
 	if selectExprsStr == "*" || strings.Contains(selectExprsStr, ".*") ||
 		len(strings.Split(selectExprsStr, ",")) > 1 {
-		limit := selectStmt.Limit
-		biz.NotNil(limit, "请完善分页信息后执行")
-		count, err := strconv.Atoi(sqlparser.String(limit.Rowcount))
-		biz.ErrIsNil(err, "分页参数有误")
+		// 如果配置为0，则不校验分页参数
 		maxCount := sysapp.GetConfigApp().GetConfig(sysentity.ConfigKeyDbQueryMaxCount).IntValue(200)
-		biz.IsTrue(count <= maxCount, fmt.Sprintf("查询结果集数需小于系统配置的%d条", maxCount))
+		if maxCount != 0 {
+			limit := selectStmt.Limit
+			biz.NotNil(limit, "请完善分页信息后执行")
+			count, err := strconv.Atoi(sqlparser.String(limit.Rowcount))
+			biz.ErrIsNil(err, "分页参数有误")
+			biz.IsTrue(count <= maxCount, fmt.Sprintf("查询结果集数需小于系统配置的%d条", maxCount))
+		}
 	}
 
 	return doRead(execSqlReq)

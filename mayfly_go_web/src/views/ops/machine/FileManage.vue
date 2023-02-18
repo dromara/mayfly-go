@@ -446,7 +446,6 @@ const showCreateFileDialog = (node: any) => {
 
 const createFile = async () => {
     const node = state.createFileDialog.node;
-    console.log(node.data);
     const name = state.createFileDialog.name;
     const type = state.createFileDialog.type;
     const path = node.data.path + '/' + name;
