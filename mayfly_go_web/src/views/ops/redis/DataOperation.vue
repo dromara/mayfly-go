@@ -9,9 +9,7 @@
                                 <span v-if="data.type == NodeType.Redis">
                                     <el-popover placement="right-start" title="redis实例信息" trigger="hover" :width="210">
                                         <template #reference>
-                                            <el-icon>
-                                                <InfoFilled />
-                                            </el-icon>
+                                            <img src="@/assets/icon/redis.png" class="img-icon" />
                                         </template>
                                         <template #default>
                                             <el-form class="instances-pop-form" label-width="50px" :size="'small'">
@@ -129,7 +127,7 @@ import TagTree from '../component/TagTree.vue';
 /**
  * 树节点类型
  */
- class NodeType {
+class NodeType {
     static Redis = 1
     static Db = 2
 }

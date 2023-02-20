@@ -1,5 +1,5 @@
 <template>
-    <div :style="{ height: height }" id="xterm" class="xterm" />
+    <div :style="{ height: props.height }" id="xterm" class="xterm" />
 </template>
 
 <script lang="ts" setup>
@@ -9,40 +9,31 @@ import { FitAddon } from 'xterm-addon-fit';
 import { getSession } from '@/common/utils/storage.ts';
 import config from '@/common/config';
 import { useStore } from '@/store/index.ts';
-import { nextTick, toRefs, watch, computed, reactive, onMounted, onBeforeUnmount } from 'vue';
+import { nextTick, computed, reactive, onMounted, onBeforeUnmount } from 'vue';
 
 const props = defineProps({
     machineId: { type: Number },
     cmd: { type: String },
-    height: { type: String },
+    height: { type: [String, Number] },
 })
 
 const state = reactive({
-    machineId: 0,
     cmd: '',
-    height: '',
     term: null as any,
     socket: null as any,
 });
-
-const {
-    height,
-} = toRefs(state)
 
 const resize = 1;
 const data = 2;
 const ping = 3;
 
-watch(props, (newValue: any) => {
-    state.machineId = newValue.machineId;
-    state.cmd = newValue.cmd;
-    state.height = newValue.height;
-});
-
 onMounted(() => {
-    state.machineId = props.machineId as any;
-    state.height = props.height as any;
     state.cmd = props.cmd as any;
+
+    nextTick(() => {
+        initXterm();
+        initSocket();
+    });
 });
 
 onBeforeUnmount(() => {
@@ -54,11 +45,6 @@ const store = useStore();
 // 获取布局配置信息
 const getThemeConfig: any = computed(() => {
     return store.state.themeConfig.themeConfig;
-});
-
-nextTick(() => {
-    initXterm();
-    initSocket();
 });
 
 function initXterm() {
@@ -122,7 +108,7 @@ function initXterm() {
 let pingInterval: any;
 function initSocket() {
     state.socket = new WebSocket(
-        `${config.baseWsUrl}/machines/${state.machineId}/terminal?token=${getSession('token')}&cols=${state.term.cols}&rows=${state.term.rows
+        `${config.baseWsUrl}/machines/${props.machineId}/terminal?token=${getSession('token')}&cols=${state.term.cols}&rows=${state.term.rows
         }`
     );
 
@@ -190,3 +176,10 @@ function closeAll() {
     }
 }
 </script>
+<style lang="scss">
+#xterm {
+    .xterm-viewport {
+        overflow-y: hidden
+    }
+}
+</style>

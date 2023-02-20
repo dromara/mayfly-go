@@ -1,7 +1,6 @@
 package application
 
 import (
-	"fmt"
 	dbapp "mayfly-go/internal/db/application"
 	dbentity "mayfly-go/internal/db/domain/entity"
 	machineapp "mayfly-go/internal/machine/application"
@@ -85,9 +84,7 @@ func (p *tagTreeAppImpl) Save(tag *entity.TagTree) {
 		// 校验同级标签，是否有以该code为开头的标识符
 		p.tagTreeRepo.SelectByCondition(&entity.TagTreeQuery{Pid: tag.Pid}, &hasLikeTags)
 		for _, v := range hasLikeTags {
-			if strings.HasPrefix(tag.Code, v.Code) {
-				panic(biz.NewBizErr(fmt.Sprintf("同级标签下的[%s]与[%s]存在相似开头字符, 请修改该标识code", v.Code, tag.Code)))
-			}
+			biz.IsTrue(!strings.HasPrefix(tag.Code, v.Code), "同级标签下的[%s]与[%s]存在相似开头字符, 请修改该标识code", v.Code, tag.Code)
 		}
 		p.tagTreeRepo.Insert(tag)
 		return

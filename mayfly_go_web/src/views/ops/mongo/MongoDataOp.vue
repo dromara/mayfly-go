@@ -7,9 +7,7 @@
                         <span v-if="data.type == NodeType.Mongo">
                             <el-popover placement="right-start" title="mongo实例信息" trigger="hover" :width="210">
                                 <template #reference>
-                                    <el-icon>
-                                        <InfoFilled />
-                                    </el-icon>
+                                    <img src="@/assets/icon/mongo.png" class="img-icon" />
                                 </template>
                                 <template #default>
                                     <el-form class="instances-pop-form" label-width="50px" :size="'small'">

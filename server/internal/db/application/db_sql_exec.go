@@ -162,7 +162,7 @@ func doSelect(selectStmt *sqlparser.Select, execSqlReq *DbSqlExecReq) (*DbSqlExe
 			biz.NotNil(limit, "请完善分页信息后执行")
 			count, err := strconv.Atoi(sqlparser.String(limit.Rowcount))
 			biz.ErrIsNil(err, "分页参数有误")
-			biz.IsTrue(count <= maxCount, fmt.Sprintf("查询结果集数需小于系统配置的%d条", maxCount))
+			biz.IsTrue(count <= maxCount, "查询结果集数需小于系统配置的%d条", maxCount)
 		}
 	}
 

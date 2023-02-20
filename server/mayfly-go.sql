@@ -352,7 +352,7 @@ CREATE TABLE `t_sys_config` (
 BEGIN;
 INSERT INTO `t_sys_config` VALUES (1, '是否启用登录验证码', 'UseLoginCaptcha', NULL, '1', '1: 启用、0: 不启用', '2022-08-25 22:27:17', 1, 'admin', '2022-08-26 10:26:56', 1, 'admin');
 INSERT INTO `t_sys_config` VALUES (2, '是否启用水印', 'UseWartermark', NULL, '1', '1: 启用、0: 不启用', '2022-08-25 23:36:35', 1, 'admin', '2022-08-26 10:02:52', 1, 'admin');
-INSERT INTO `t_sys_config` VALUES (3, '数据库查询最大结果集', 'DbQueryMaxCount', '[]', '200', '允许sql查询的最大结果集数', '2023-02-11 14:29:03', 1, 'admin', '2023-02-11 14:40:56', 1, 'admin');
+INSERT INTO `t_sys_config` VALUES (3, '数据库查询最大结果集', 'DbQueryMaxCount', '[]', '200', '允许sql查询的最大结果集数。注: 0=不限制', '2023-02-11 14:29:03', 1, 'admin', '2023-02-11 14:40:56', 1, 'admin');
 INSERT INTO `t_sys_config` VALUES (4, '数据库是否记录查询SQL', 'DbSaveQuerySQL', '[]', '0', '1: 记录、0:不记录', '2023-02-11 16:07:14', 1, 'admin', '2023-02-11 16:44:17', 1, 'admin');
 COMMIT;
 

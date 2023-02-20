@@ -70,9 +70,7 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	res, err := cli.Run(script)
 	// 记录请求参数
 	rc.ReqParam = fmt.Sprintf("[machine: %s, scriptId: %d, name: %s]", cli.GetMachine().GetLogDesc(), scriptId, ms.Name)
-	if err != nil {
-		panic(biz.NewBizErr(fmt.Sprintf("执行命令失败：%s", err.Error())))
-	}
+	biz.ErrIsNilAppendErr(err, "执行命令失败：%s")
 	rc.ResData = res
 }
 

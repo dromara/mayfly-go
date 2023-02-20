@@ -12,7 +12,7 @@ import { useRoute } from 'vue-router';
 const route = useRoute();
 const state = reactive({
     machineId: 0,
-    height: 700,
+    height: 0,
 });
 
 const {

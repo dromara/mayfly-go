@@ -118,9 +118,7 @@ func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []map[string]interface
 
 func (pm *PgsqlMetadata) GetPrimaryKey(tablename string) string {
 	columns := pm.GetColumns(tablename)
-	if len(columns) == 0 {
-		panic(biz.NewBizErr(fmt.Sprintf("[%s] 表不存在", tablename)))
-	}
+	biz.IsTrue(len(columns) > 0, "[%s] 表不存在", tablename)
 	for _, v := range columns {
 		if v["columnKey"].(string) == "PRI" {
 			return v["columnName"].(string)

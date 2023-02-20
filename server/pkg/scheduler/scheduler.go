@@ -30,8 +30,6 @@ func GetCron() *cron.Cron {
 
 func AddFun(spec string, cmd func()) cron.EntryID {
 	id, err := cronService.AddFunc(spec, cmd)
-	if err != nil {
-		panic(biz.NewBizErr("添加任务失败：" + err.Error()))
-	}
+	biz.ErrIsNilAppendErr(err, "添加任务失败: %s")
 	return id
 }
