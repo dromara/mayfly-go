@@ -24,10 +24,10 @@
                 </div> -->
             </div>
         </div>
-        <div class="login-copyright">
+        <!-- <div class="login-copyright">
             <div class="mb5 login-copyright-company">mayfly</div>
             <div class="login-copyright-msg">mayfly</div>
-        </div>
+        </div> -->
     </div>
 </template>
 

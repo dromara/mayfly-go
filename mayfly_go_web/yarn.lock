@@ -568,10 +568,10 @@ array-union@^2.1.0:
   resolved "https://registry.npm.taobao.org/array-union/download/array-union-2.1.0.tgz?cache=0&sync_timestamp=1614624262896&other_urls=https%3A%2F%2Fregistry.npm.taobao.org%2Farray-union%2Fdownload%2Farray-union-2.1.0.tgz"
   integrity sha1-t5hCCtvrHego2ErNii4j0+/oXo0=
 
-asciinema-player@^3.0.1:
-  version "3.0.1"
-  resolved "https://registry.npmmirror.com/asciinema-player/-/asciinema-player-3.0.1.tgz"
-  integrity sha512-plm/C/MhOtZWysrfcT/rzxOuu8vxvvDSvF50pqZS6KpJUDmATedAhO54zktbE/g7RiaaYfzgX8xjRhlQdgISwA==
+asciinema-player@^3.1.0:
+  version "3.1.0"
+  resolved "https://registry.npmmirror.com/asciinema-player/-/asciinema-player-3.1.0.tgz#64a315e75cb55c61f69e4be91ad0f4ffe0504979"
+  integrity sha512-O36+vQOreHW2w9Sao7AbHY4o3RJW7AxtVGtQdb74QkKZmaY8VzQJ3u36PTzltqlybJIpwXY9yK/PdVVmgmTEpg==
   dependencies:
     "@babel/runtime" "^7.15.4"
     solid-js "^1.3.0"
@@ -676,6 +676,11 @@ combined-stream@^1.0.8:
   dependencies:
     delayed-stream "~1.0.0"
 
+commander@^2.19.0:
+  version "2.20.3"
+  resolved "https://registry.npmmirror.com/commander/-/commander-2.20.3.tgz#fd485e84c03eb4881c20722ba48035e8531aeb33"
+  integrity sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==
+
 concat-map@0.0.1:
   version "0.0.1"
   resolved "https://registry.npm.taobao.org/concat-map/download/concat-map-0.0.1.tgz"
@@ -744,6 +749,11 @@ dir-glob@^3.0.1:
   dependencies:
     path-type "^4.0.0"
 
+discontinuous-range@1.0.0:
+  version "1.0.0"
+  resolved "https://registry.npmmirror.com/discontinuous-range/-/discontinuous-range-1.0.0.tgz#e38331f0844bba49b9a9cb71c771585aab1bc65a"
+  integrity sha512-c68LpLbO+7kP/b1Hr1qs8/BJ09F5khZGTxqxZuhzxpmwJKOgRFHJWIb9/KmqnqHhLdO55aOxFH/EGBvUQbL/RQ==
+
 doctrine@^3.0.0:
   version "3.0.0"
   resolved "https://registry.nlark.com/doctrine/download/doctrine-3.0.0.tgz"
@@ -772,10 +782,10 @@ echarts@^5.4.0:
     tslib "2.3.0"
     zrender "5.4.0"
 
-element-plus@^2.2.30:
-  version "2.2.30"
-  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.2.30.tgz#b594efcbd6969f3f88130aa1edf50c98139d6e73"
-  integrity sha512-HYSnmf2VMGa0gmw03evxevodPy3WimbAd4sfenOAhNs7Wl8IdT+YJjQyGAQjgEjRvhmujN4O/CZqhuEffRyOZg==
+element-plus@^2.2.32:
+  version "2.2.32"
+  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.2.32.tgz#e7e6757a66ed158363a86b5c9fc10dfbc0096783"
+  integrity sha512-DTJMhYOy6MApbmh6z/95hPTK5WrBiNHGzV4IN+uEkup1WoimQ+Qyt8RxKdTe/X1LWEJ8YgWv/Cl8P4ocrt5z5g==
   dependencies:
     "@ctrl/tinycolor" "^3.4.1"
     "@element-plus/icons-vue" "^2.0.6"
@@ -1346,6 +1356,11 @@ monaco-themes@^0.4.2:
   dependencies:
     fast-plist "^0.1.2"
 
+moo@^0.5.0:
+  version "0.5.2"
+  resolved "https://registry.npmmirror.com/moo/-/moo-0.5.2.tgz#f9fe82473bc7c184b0d32e2215d3f6e67278733c"
+  integrity sha512-iSAJLHYKnX41mKcJKjqvnAN9sf0LMDTXDEvFv+ffuRR9a1MIuXLjMNL6EsnDHSkKLTWNqQQ5uo61P4EbU4NU+Q==
+
 ms@2.1.2:
   version "2.1.2"
   resolved "https://registry.npmmirror.com/ms/download/ms-2.1.2.tgz"
@@ -1365,6 +1380,16 @@ natural-compare@^1.4.0:
   version "1.4.0"
   resolved "https://registry.npm.taobao.org/natural-compare/download/natural-compare-1.4.0.tgz"
   integrity sha1-Sr6/7tdUHywnrPspvbvRXI1bpPc=
+
+nearley@^2.20.1:
+  version "2.20.1"
+  resolved "https://registry.npmmirror.com/nearley/-/nearley-2.20.1.tgz#246cd33eff0d012faf197ff6774d7ac78acdd474"
+  integrity sha512-+Mc8UaAebFzgV+KpI5n7DasuuQCHA89dmwm7JXw3TV43ukfNQ9DnBH3Mdb2g/I4Fdxc26pwimBWvjIw0UAILSQ==
+  dependencies:
+    commander "^2.19.0"
+    moo "^0.5.0"
+    railroad-diagrams "^1.0.0"
+    randexp "0.4.6"
 
 neo-async@^2.6.2:
   version "2.6.2"
@@ -1490,6 +1515,19 @@ queue-microtask@^1.2.2:
   resolved "https://registry.nlark.com/queue-microtask/download/queue-microtask-1.2.3.tgz"
   integrity sha1-SSkii7xyTfrEPg77BYyve2z7YkM=
 
+railroad-diagrams@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.npmmirror.com/railroad-diagrams/-/railroad-diagrams-1.0.0.tgz#eb7e6267548ddedfb899c1b90e57374559cddb7e"
+  integrity sha512-cz93DjNeLY0idrCNOH6PviZGRN9GJhsdm9hpn1YCS879fj4W+x5IFJhhkRZcwVgMmFF7R82UA/7Oh+R8lLZg6A==
+
+randexp@0.4.6:
+  version "0.4.6"
+  resolved "https://registry.npmmirror.com/randexp/-/randexp-0.4.6.tgz#e986ad5e5e31dae13ddd6f7b3019aa7c87f60ca3"
+  integrity sha512-80WNmd9DA0tmZrw9qQa62GPPWfuXJknrmVmLcxvq4uZBdYqb1wYoKTmnlGUchvVWe0XiLupYkBoXVOxz3C8DYQ==
+  dependencies:
+    discontinuous-range "1.0.0"
+    ret "~0.1.10"
+
 readdirp@~3.6.0:
   version "3.6.0"
   resolved "https://registry.npm.taobao.org/readdirp/download/readdirp-3.6.0.tgz"
@@ -1520,6 +1558,11 @@ resolve@^1.22.1:
     is-core-module "^2.9.0"
     path-parse "^1.0.7"
     supports-preserve-symlinks-flag "^1.0.0"
+
+ret@~0.1.10:
+  version "0.1.15"
+  resolved "https://registry.npmmirror.com/ret/-/ret-0.1.15.tgz#b8a4825d5bdb1fc3f6f53c2bc33f81388681c7bc"
+  integrity sha512-TTlYpa+OL+vMMNG24xSlQGEJ3B/RzEfUlLct7b5G/ytav+wPrplCpVMFuwzXbkecJrb6IYo1iFb0S9v37754mg==
 
 reusify@^1.0.4:
   version "1.0.4"
@@ -1630,12 +1673,13 @@ sourcemap-codec@^1.4.8:
   resolved "https://registry.npmmirror.com/sourcemap-codec/-/sourcemap-codec-1.4.8.tgz"
   integrity sha512-9NykojV5Uih4lgo5So5dtw+f0JgJX30KCNI8gwhz2J9A15wD0Ml6tjHKwf6fTSa6fAdVBdZeNOs9eJ71qCk8vA==
 
-sql-formatter@^9.2.0:
-  version "9.2.0"
-  resolved "https://registry.npmmirror.com/sql-formatter/-/sql-formatter-9.2.0.tgz"
-  integrity sha512-Dn4lEpUeAhfNDR2LnEs9Uaq92TSHjhcNrzhllPuMnp188P4sLU7UcdcB9UqIfMfcN62gWXJlJ3KocaAf/SOzXQ==
+sql-formatter@^12.1.2:
+  version "12.1.2"
+  resolved "https://registry.npmmirror.com/sql-formatter/-/sql-formatter-12.1.2.tgz#6dfd042caaa468316123832751a05c77d2d1ef87"
+  integrity sha512-SoFn+9ZflUt8+HYZ/PaifXt1RptcDUn8HXqsWmfXdPV3WeHPgT0qOSJXxHU24d7NOVt9X40MLqf263fNk79XqA==
   dependencies:
     argparse "^2.0.1"
+    nearley "^2.20.1"
 
 strip-ansi@^6.0.1:
   version "6.0.1"

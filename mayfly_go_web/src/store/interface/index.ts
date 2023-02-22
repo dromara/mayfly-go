@@ -72,14 +72,6 @@ export interface UserInfosState {
     userInfos: object;
 }
 
-// 数据操作信息
-export interface DbOptInfoState {
-    dbOptInfo: {
-        tagPath?: string,
-        dbId?: number,
-        db?: string,
-    }
-}
 
 // 后端返回原始路由(未处理时)
 // export interface RequestOldRoutesState {
@@ -92,8 +84,5 @@ export interface RootStateTypes {
     routesList: RoutesListState;
     keepAliveNames: KeepAliveNamesState;
     userInfos: UserInfosState;
-    sqlExecInfo: DbOptInfoState;
-    redisDbOptInfo: DbOptInfoState;
-    mongoDbOptInfo: DbOptInfoState;
     // requestOldRoutes: RequestOldRoutesState;
 }

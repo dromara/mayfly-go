@@ -5,9 +5,6 @@ import themeConfig from '@/store/modules/themeConfig.ts';
 import routesList from '@/store/modules/routesList.ts';
 import keepAliveNames from '@/store/modules/keepAliveNames.ts';
 import userInfos from '@/store/modules/userInfos.ts';
-import sqlExecInfo from '@/store/modules/mysqlDbOptInfo.ts';
-import redisDbOptInfo  from '@/store/modules/redisDbOptInfo.ts';
-import mongoDbOptInfo from '@/store/modules/mongoDbOptInfo.ts';
 
 export const key: InjectionKey<Store<RootStateTypes>> = Symbol();
 
@@ -17,9 +14,6 @@ export const store = createStore<RootStateTypes>({
         routesList,
         keepAliveNames,
         userInfos,
-        sqlExecInfo,
-        redisDbOptInfo,
-        mongoDbOptInfo,
     },
 });
 

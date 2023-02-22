@@ -30,7 +30,7 @@ type Db struct {
 	TagApp       tagapp.TagTree
 }
 
-const DEFAULT_ROW_SIZE = 1800
+const DEFAULT_ROW_SIZE = 5000
 
 // @router /api/dbs [get]
 func (d *Db) Dbs(rc *req.Ctx) {
@@ -186,7 +186,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 	logExecRecord := true
 	// 如果执行sql文件大于该值则不记录sql执行记录
-	if fileheader.Size > 500*1024 {
+	if fileheader.Size > 50*1024 {
 		logExecRecord = false
 	}
 

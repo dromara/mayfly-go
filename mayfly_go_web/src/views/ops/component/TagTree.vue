@@ -6,7 +6,7 @@
 
                 <el-tree ref="treeRef" :style="{ maxHeight: state.height, height: state.height, overflow: 'auto' }"
                     :highlight-current="true" :indent="7" :load="loadNode" :props="treeProps" lazy node-key="key"
-                    :expand-on-click-node="true" :filter-node-method="filterNode" @node-click="treeNodeClick">
+                    :expand-on-click-node="true" :filter-node-method="filterNode" @node-click="treeNodeClick" @node-expand="treeNodeClick">
                     <template #default="{ node, data }">
                         <span class="icon-middle ">
                             <span v-if="data.type == TagTreeNode.TagPath">

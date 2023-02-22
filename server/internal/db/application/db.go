@@ -297,9 +297,6 @@ func (d *DbInstance) Close() {
 
 //------------------------------------------------------------------------------
 
-// 单次最大查询数据集
-const Max_Rows = 2000
-
 // 客户端连接缓存，指定时间内没有访问则会被关闭, key为数据库实例id:数据库
 var dbCache = cache.NewTimedCache(constant.DbConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
