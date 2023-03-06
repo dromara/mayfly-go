@@ -18,7 +18,7 @@ import (
 func getPgsqlDB(d *entity.Db, db string) (*sql.DB, error) {
 	driverName := d.Type
 	// SSH Conect
-	if d.EnableSshTunnel == 1 && d.SshTunnelMachineId != 0 {
+	if d.SshTunnelMachineId > 0 {
 		// 如果使用了隧道，则使用`postgres:ssh:隧道机器id`注册名
 		driverName = fmt.Sprintf("postgres:ssh:%d", d.SshTunnelMachineId)
 		if !utils.ArrContains(sql.Drivers(), driverName) {
@@ -36,7 +36,7 @@ func getPgsqlDB(d *entity.Db, db string) (*sql.DB, error) {
 
 // pgsql dialer
 type PqSqlDialer struct {
-	sshTunnelMachineId uint64
+	sshTunnelMachineId int
 }
 
 func (d *PqSqlDialer) Open(name string) (driver.Conn, error) {

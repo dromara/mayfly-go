@@ -16,15 +16,42 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// 机器信息
+type Info struct {
+	Id   uint64
+	Name string `json:"name"`
+	Ip   string `json:"ip"`   // IP地址
+	Port int    `json:"port"` // 端口号
+
+	AuthMethod int8   `json:"authMethod"` // 授权认证方式
+	Username   string `json:"username"`   // 用户名
+	Password   string `json:"-"`
+	Passphrase string `json:"-"` // 私钥口令
+
+	Status             int8   `json:"status"`             // 状态 1:启用；2:停用
+	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
+	EnableRecorder     int8   `json:"enableRecorder"`     // 是否启用终端回放记录
+	TagId              uint64 `json:"tagId"`
+	TagPath            string `json:"tagPath"`
+}
+
+func (m *Info) UseSshTunnel() bool {
+	return m.SshTunnelMachineId > 0
+}
+
+// 获取记录日志的描述
+func (m *Info) GetLogDesc() string {
+	return fmt.Sprintf("Machine[id=%d, tag=%s, name=%s, ip=%s:%d]", m.Id, m.TagPath, m.Name, m.Ip, m.Port)
+}
+
 // 客户端信息
 type Cli struct {
-	machine *entity.Machine
+	machine *Info
 
 	client     *ssh.Client  // ssh客户端
 	sftpClient *sftp.Client // sftp客户端
 
-	enableSshTunnel    int8
-	sshTunnelMachineId uint64
+	sshTunnelMachineId int
 }
 
 // 连接
@@ -54,7 +81,7 @@ func (c *Cli) Close() {
 		c.sftpClient.Close()
 		c.sftpClient = nil
 	}
-	if c.enableSshTunnel == 1 {
+	if c.sshTunnelMachineId > 0 {
 		CloseSshTunnelMachine(c.sshTunnelMachineId, c.machine.Id)
 	}
 }
@@ -106,7 +133,7 @@ func (c *Cli) Run(shell string) (string, error) {
 	return string(buf), nil
 }
 
-func (c *Cli) GetMachine() *entity.Machine {
+func (c *Cli) GetMachine() *Info {
 	return c.machine
 }
 
@@ -118,7 +145,7 @@ var cliCache = cache.NewTimedCache(constant.MachineConnExpireTime, 5*time.Second
 	})
 
 func init() {
-	AddCheckSshTunnelMachineUseFunc(func(machineId uint64) bool {
+	AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
 		// 遍历所有机器连接实例，若存在机器连接实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := cliCache.Items()
 		for _, v := range items {
@@ -144,7 +171,7 @@ func DeleteCli(id uint64) {
 }
 
 // 从缓存中获取客户端信息，不存在则回调获取机器信息函数，并新建
-func GetCli(machineId uint64, getMachine func(uint64) *entity.Machine) (*Cli, error) {
+func GetCli(machineId uint64, getMachine func(uint64) *Info) (*Cli, error) {
 	cli, err := cliCache.ComputeIfAbsent(machineId, func(_ interface{}) (interface{}, error) {
 		me := getMachine(machineId)
 		err := IfUseSshTunnelChangeIpPort(me, getMachine)
@@ -156,7 +183,6 @@ func GetCli(machineId uint64, getMachine func(uint64) *entity.Machine) (*Cli, er
 			CloseSshTunnelMachine(me.SshTunnelMachineId, me.Id)
 			return nil, err
 		}
-		c.enableSshTunnel = me.EnableSshTunnel
 		c.sshTunnelMachineId = me.SshTunnelMachineId
 		return c, nil
 	})
@@ -168,7 +194,7 @@ func GetCli(machineId uint64, getMachine func(uint64) *entity.Machine) (*Cli, er
 }
 
 // 测试连接，使用传值的方式，而非引用。因为如果使用了ssh隧道，则ip和端口会变为本地映射地址与端口
-func TestConn(me entity.Machine, getSshTunnelMachine func(uint64) *entity.Machine) error {
+func TestConn(me Info, getSshTunnelMachine func(uint64) *Info) error {
 	originId := me.Id
 	if originId == 0 {
 		// 随机设置一个ip，如果使用了隧道则用于临时保存隧道
@@ -177,7 +203,7 @@ func TestConn(me entity.Machine, getSshTunnelMachine func(uint64) *entity.Machin
 
 	err := IfUseSshTunnelChangeIpPort(&me, getSshTunnelMachine)
 	biz.ErrIsNilAppendErr(err, "ssh隧道连接失败: %s")
-	if me.EnableSshTunnel == 1 {
+	if me.UseSshTunnel() {
 		defer CloseSshTunnelMachine(me.SshTunnelMachineId, me.Id)
 	}
 	sshClient, err := GetSshClient(&me)
@@ -189,11 +215,11 @@ func TestConn(me entity.Machine, getSshTunnelMachine func(uint64) *entity.Machin
 }
 
 // 如果使用了ssh隧道，则修改机器ip port为暴露的ip port
-func IfUseSshTunnelChangeIpPort(me *entity.Machine, getMachine func(uint64) *entity.Machine) error {
-	if me.EnableSshTunnel != 1 {
+func IfUseSshTunnelChangeIpPort(me *Info, getMachine func(uint64) *Info) error {
+	if !me.UseSshTunnel() {
 		return nil
 	}
-	sshTunnelMachine, err := GetSshTunnelMachine(me.SshTunnelMachineId, func(u uint64) *entity.Machine {
+	sshTunnelMachine, err := GetSshTunnelMachine(me.SshTunnelMachineId, func(u uint64) *Info {
 		return getMachine(u)
 	})
 	if err != nil {
@@ -209,26 +235,34 @@ func IfUseSshTunnelChangeIpPort(me *entity.Machine, getMachine func(uint64) *ent
 	return nil
 }
 
-func GetSshClient(m *entity.Machine) (*ssh.Client, error) {
-	config := ssh.ClientConfig{
+func GetSshClient(m *Info) (*ssh.Client, error) {
+	config := &ssh.ClientConfig{
 		User: m.Username,
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
 			return nil
 		},
 		Timeout: 5 * time.Second,
 	}
-	if m.AuthMethod == entity.MachineAuthMethodPassword {
+
+	if m.AuthMethod == entity.AuthCertAuthMethodPassword {
 		config.Auth = []ssh.AuthMethod{ssh.Password(m.Password)}
 	} else if m.AuthMethod == entity.MachineAuthMethodPublicKey {
-		if signer, err := ssh.ParsePrivateKey([]byte(m.Password)); err != nil {
-			return nil, err
+		var key ssh.Signer
+		var err error
+
+		if len(m.Passphrase) > 0 {
+			key, err = ssh.ParsePrivateKeyWithPassphrase([]byte(m.Password), []byte(m.Passphrase))
 		} else {
-			config.Auth = []ssh.AuthMethod{ssh.PublicKeys(signer)}
+			key, err = ssh.ParsePrivateKey([]byte(m.Password))
 		}
+		if err != nil {
+			return nil, err
+		}
+		config.Auth = []ssh.AuthMethod{ssh.PublicKeys(key)}
 	}
 
 	addr := fmt.Sprintf("%s:%d", m.Ip, m.Port)
-	sshClient, err := ssh.Dial("tcp", addr, &config)
+	sshClient, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +270,7 @@ func GetSshClient(m *entity.Machine) (*ssh.Client, error) {
 }
 
 // 根据机器信息创建客户端对象
-func newClient(machine *entity.Machine) (*Cli, error) {
+func newClient(machine *Info) (*Cli, error) {
 	if machine == nil {
 		return nil, errors.New("机器不存在")
 	}

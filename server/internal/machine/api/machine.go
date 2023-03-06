@@ -53,7 +53,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 
 	list := res.List.(*[]*vo.MachineVO)
 	for _, mv := range *list {
-		mv.HasCli = machine.HasCli(*mv.Id)
+		mv.HasCli = machine.HasCli(mv.Id)
 	}
 	rc.ResData = res
 }
@@ -63,6 +63,7 @@ func (m *Machine) MachineStats(rc *req.Ctx) {
 	rc.ResData = stats
 }
 
+// 保存机器信息
 func (m *Machine) SaveMachine(rc *req.Ctx) {
 	g := rc.GinCtx
 	machineForm := new(form.MachineForm)
@@ -71,27 +72,22 @@ func (m *Machine) SaveMachine(rc *req.Ctx) {
 	me := new(entity.Machine)
 	utils.Copy(me, machineForm)
 
-	if me.AuthMethod == entity.MachineAuthMethodPassword {
-		// 密码解密，并使用解密后的赋值
-		originPwd, err := utils.DefaultRsaDecrypt(machineForm.Password, true)
-		biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
-		me.Password = originPwd
-	}
-
-	// 密码脱敏记录日志
-	machineForm.Password = "****"
+	machineForm.Password = "******"
 	rc.ReqParam = machineForm
 
 	me.SetBaseInfo(rc.LoginAccount)
 	m.MachineApp.Save(me)
 }
 
-// 获取机器实例密码，由于数据库是加密存储，故提供该接口展示原文密码
-func (m *Machine) GetMachinePwd(rc *req.Ctx) {
-	mid := GetMachineId(rc.GinCtx)
-	me := m.MachineApp.GetById(mid, "Password")
-	me.PwdDecrypt()
-	rc.ResData = me.Password
+func (m *Machine) TestConn(rc *req.Ctx) {
+	g := rc.GinCtx
+	machineForm := new(form.MachineForm)
+	ginx.BindJsonAndValid(g, machineForm)
+
+	me := new(entity.Machine)
+	utils.Copy(me, machineForm)
+
+	m.MachineApp.TestConn(me)
 }
 
 func (m *Machine) ChangeStatus(rc *req.Ctx) {

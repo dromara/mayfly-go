@@ -1,19 +1,21 @@
 package form
 
 type MachineForm struct {
-	Id                 uint64 `json:"id"`
-	Name               string `json:"name" binding:"required"`
-	Ip                 string `json:"ip" binding:"required"`       // IP地址
-	Username           string `json:"username" binding:"required"` // 用户名
-	AuthMethod         int8   `json:"authMethod" binding:"required"`
-	Password           string `json:"password"`
-	Port               int    `json:"port" binding:"required"` // 端口号
+	Id   uint64 `json:"id"`
+	Name string `json:"name" binding:"required"`
+	Ip   string `json:"ip" binding:"required"`   // IP地址
+	Port int    `json:"port" binding:"required"` // 端口号
+
+	// 资产授权凭证信息列表
+	AuthCertId int    `json:"authCertId"`
+	TagId      uint64 `json:"tagId"`
+	TagPath    string `json:"tagPath" binding:"required"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+
 	Remark             string `json:"remark"`
-	EnableSshTunnel    int8   `json:"enableSshTunnel"`    // 是否启用ssh隧道
-	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"` // ssh隧道机器id
+	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
 	EnableRecorder     int8   `json:"enableRecorder"`     // 是否启用终端回放记录
-	TagId              uint64 `json:"tagId"`
-	TagPath            string `json:"tagPath"`
 }
 
 type MachineRunForm struct {
@@ -48,4 +50,22 @@ type MachineFileUpdateForm struct {
 	Content string `binding:"required"`
 	Id      uint64 `binding:"required"`
 	Path    string `binding:"required"`
+}
+
+// 授权凭证
+type AuthCertForm struct {
+	Id         uint64 `json:"id"`
+	Name       string `json:"name" binding:"required"`
+	AuthMethod int8   `json:"authMethod" binding:"required"` // 1.密码 2.秘钥
+	Username   string `json:"username"`
+	Password   string `json:"password"`   // 密码or私钥
+	Passphrase string `json:"passphrase"` // 私钥口令
+	Remark     string `json:"remark"`
+}
+
+// 资产授权凭证信息
+type AssetAuthCertForm struct {
+	AuthCertId uint64 `json:"authCertId"`
+	TagId      uint64 `json:"tagId"`
+	TagPath    string `json:"tagPath" binding:"required"`
 }

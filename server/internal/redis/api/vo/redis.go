@@ -8,8 +8,7 @@ type Redis struct {
 	Host               *string    `json:"host"`
 	Db                 string     `json:"db"`
 	Mode               *string    `json:"mode"`
-	EnableSshTunnel    *int8      `json:"enableSshTunnel"`    // 是否启用ssh隧道
-	SshTunnelMachineId *uint64    `json:"sshTunnelMachineId"` // ssh隧道机器id
+	SshTunnelMachineId int        `json:"sshTunnelMachineId"` // ssh隧道机器id
 	Remark             *string    `json:"remark"`
 	TagId              *uint64    `json:"tagId"`
 	TagPath            *string    `json:"tagPath"`

@@ -1,21 +1,19 @@
 package form
 
 type DbForm struct {
-	Id       uint64
-	Name     string `binding:"required" json:"name"`
-	Type     string `binding:"required" json:"type"` // 类型，mysql oracle等
-	Host     string `binding:"required" json:"host"`
-	Port     int    `binding:"required" json:"port"`
-	Username string `binding:"required" json:"username"`
-	Password string `json:"password"`
-	Params   string `json:"params"`
-	Database string `json:"database"`
-	Remark   string `json:"remark"`
-	TagId    uint64 `json:"tagId"`
-	TagPath  string `json:"tagPath"`
-
-	EnableSshTunnel    int8   `json:"enableSshTunnel"`
-	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"`
+	Id                 uint64
+	Name               string `binding:"required" json:"name"`
+	Type               string `binding:"required" json:"type"` // 类型，mysql oracle等
+	Host               string `binding:"required" json:"host"`
+	Port               int    `binding:"required" json:"port"`
+	Username           string `binding:"required" json:"username"`
+	Password           string `json:"password"`
+	Params             string `json:"params"`
+	Database           string `json:"database"`
+	Remark             string `json:"remark"`
+	TagId              uint64 `json:"tagId"`
+	TagPath            string `json:"tagPath"`
+	SshTunnelMachineId int    `json:"sshTunnelMachineId"`
 }
 
 type DbSqlSaveForm struct {

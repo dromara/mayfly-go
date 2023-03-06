@@ -42,14 +42,14 @@ func (p *TagTree) ListByQuery(rc *req.Ctx) {
 }
 
 func (p *TagTree) SaveTagTree(rc *req.Ctx) {
-	projectTree := &entity.TagTree{}
-	ginx.BindJsonAndValid(rc.GinCtx, projectTree)
+	tagTree := &entity.TagTree{}
+	ginx.BindJsonAndValid(rc.GinCtx, tagTree)
 
 	loginAccount := rc.LoginAccount
-	projectTree.SetBaseInfo(loginAccount)
-	p.TagTreeApp.Save(projectTree)
+	tagTree.SetBaseInfo(loginAccount)
+	p.TagTreeApp.Save(tagTree)
 
-	rc.ReqParam = fmt.Sprintf("tagTreeId: %d, tagName: %s, codePath: %s", projectTree.Id, projectTree.Name, projectTree.CodePath)
+	rc.ReqParam = fmt.Sprintf("tagTreeId: %d, tagName: %s, codePath: %s", tagTree.Id, tagTree.Name, tagTree.CodePath)
 }
 
 func (p *TagTree) DelTagTree(rc *req.Ctx) {

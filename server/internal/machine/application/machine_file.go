@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
+	"mayfly-go/internal/machine/infrastructure/machine"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
 	"os"
@@ -29,7 +30,7 @@ type MachineFile interface {
 	Delete(id uint64)
 
 	// 获取文件关联的机器信息，主要用于记录日志使用
-	GetMachine(fileId uint64) *entity.Machine
+	GetMachine(fileId uint64) *machine.Info
 
 	/**  sftp 相关操作 **/
 
@@ -191,7 +192,7 @@ func (m *machineFileAppImpl) getSftpCli(machineId uint64) *sftp.Client {
 	return GetMachineApp().GetCli(machineId).GetSftpCli()
 }
 
-func (m *machineFileAppImpl) GetMachine(fileId uint64) *entity.Machine {
+func (m *machineFileAppImpl) GetMachine(fileId uint64) *machine.Info {
 	return GetMachineApp().GetCli(m.GetById(fileId).MachineId).GetMachine()
 }
 

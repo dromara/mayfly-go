@@ -63,7 +63,7 @@
         <el-dialog width="500px" :title="showTagDialog.title" :before-close="closeTagDialog"
             v-model="showTagDialog.visible">
             <el-form label-width="70px">
-                <el-form-item prop="project" label="标签:">
+                <el-form-item prop="tag" label="标签:">
                     <el-tree-select ref="tagTreeRef" style="width: 100%" v-model="showTagDialog.tagTreeTeams"
                         :data="showTagDialog.tags" :default-expanded-keys="showTagDialog.tagTreeTeams" multiple
                         :render-after-expand="true" show-checkbox check-strictly node-key="id"

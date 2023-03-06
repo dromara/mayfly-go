@@ -189,7 +189,7 @@ func getRedisCient(re *entity.Redis, db int) *RedisInstance {
 		ReadTimeout:  -1, // Disable timeouts, because SSH does not support deadlines.
 		WriteTimeout: -1,
 	}
-	if re.EnableSshTunnel == 1 {
+	if re.SshTunnelMachineId > 0 {
 		redisOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)
 	}
 	ri.Cli = redis.NewClient(redisOptions)
@@ -204,7 +204,7 @@ func getRedisClusterClient(re *entity.Redis) *RedisInstance {
 		Password:    re.Password,
 		DialTimeout: 8 * time.Second,
 	}
-	if re.EnableSshTunnel == 1 {
+	if re.SshTunnelMachineId > 0 {
 		redisClusterOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)
 	}
 	ri.ClusterCli = redis.NewClusterClient(redisClusterOptions)
@@ -224,14 +224,14 @@ func getRedisSentinelCient(re *entity.Redis, db int) *RedisInstance {
 		ReadTimeout:   -1, // Disable timeouts, because SSH does not support deadlines.
 		WriteTimeout:  -1,
 	}
-	if re.EnableSshTunnel == 1 {
+	if re.SshTunnelMachineId > 0 {
 		sentinelOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)
 	}
 	ri.Cli = redis.NewFailoverClient(sentinelOptions)
 	return ri
 }
 
-func getRedisDialer(machineId uint64) func(ctx context.Context, network, addr string) (net.Conn, error) {
+func getRedisDialer(machineId int) func(ctx context.Context, network, addr string) (net.Conn, error) {
 	sshTunnel := machineapp.GetMachineApp().GetSshTunnelMachine(machineId)
 	return func(_ context.Context, network, addr string) (net.Conn, error) {
 		if sshConn, err := sshTunnel.GetDialConn(network, addr); err == nil {
@@ -259,7 +259,7 @@ func CloseRedis(id uint64, db int) {
 }
 
 func init() {
-	machine.AddCheckSshTunnelMachineUseFunc(func(machineId uint64) bool {
+	machine.AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
 		// 遍历所有redis连接实例，若存在redis实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := redisCache.Items()
 		for _, v := range items {
@@ -303,7 +303,7 @@ type RedisInfo struct {
 	Mode    string
 	Name    string
 
-	SshTunnelMachineId uint64
+	SshTunnelMachineId int
 }
 
 // 获取记录日志的描述

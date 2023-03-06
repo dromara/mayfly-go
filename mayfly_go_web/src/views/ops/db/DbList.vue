@@ -264,7 +264,7 @@
                 <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
                 <el-descriptions-item :span="3" label="数据库">{{ infoDialog.data.database }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="SSH隧道">{{ infoDialog.data.enableSshTunnel == 1 ? '是' : '否' }}
+                <el-descriptions-item :span="3" label="SSH隧道">{{ infoDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }}
                 </el-descriptions-item>
 
                 <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data.createTime) }}
@@ -322,7 +322,6 @@ const state = reactive({
      */
     query: {
         tagPath: null,
-        projectId: null,
         pageNum: 1,
         pageSize: 10,
     },

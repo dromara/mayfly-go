@@ -14,6 +14,7 @@
                                         <template #default>
                                             <el-form class="instances-pop-form" label-width="50px" :size="'small'">
                                                 <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
+                                                <el-form-item label="模式:">{{ data.params.mode }}</el-form-item>
                                                 <el-form-item label="链接:">{{ data.params.host }}</el-form-item>
                                                 <el-form-item label="备注:">{{
                                                     data.params.remark

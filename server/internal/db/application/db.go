@@ -86,7 +86,7 @@ func (d *dbAppImpl) Save(dbEntity *entity.Db) {
 	}
 
 	// 查找是否存在该库
-	oldDb := &entity.Db{Host: dbEntity.Host, Port: dbEntity.Port, TagId: dbEntity.TagId}
+	oldDb := &entity.Db{Host: dbEntity.Host, Port: dbEntity.Port, Username: dbEntity.Username}
 	err := d.GetDbBy(oldDb)
 
 	if dbEntity.Id == 0 {
@@ -228,8 +228,7 @@ type DbInfo struct {
 	Username           string
 	TagPath            string
 	Database           string
-	EnableSshTunnel    int8 // 是否启用ssh隧道
-	SshTunnelMachineId uint64
+	SshTunnelMachineId int
 }
 
 // 获取记录日志的描述
@@ -306,7 +305,7 @@ var dbCache = cache.NewTimedCache(constant.DbConnExpireTime, 5*time.Second).
 	})
 
 func init() {
-	machine.AddCheckSshTunnelMachineUseFunc(func(machineId uint64) bool {
+	machine.AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
 		// 遍历所有db连接实例，若存在db实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := dbCache.Items()
 		for _, v := range items {

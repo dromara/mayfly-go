@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-tree-select @check="changeTag" style="width: 100%" v-model="selectTags" :data="tags"
+        <el-tree-select @check="changeTag" style="width: 100%" v-model="selectTags" :data="tags" placeholder="请选择关联标签"
             :render-after-expand="true" :default-expanded-keys="[selectTags]" show-checkbox check-strictly node-key="id"
             :props="{
                 value: 'id',

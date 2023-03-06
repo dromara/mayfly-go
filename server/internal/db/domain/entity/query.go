@@ -18,7 +18,6 @@ type DbQuery struct {
 	Remark   string `json:"remark"`
 	TagId    uint64
 
-	ProjectIds  []uint64
 	TagIds      []uint64
 	TagPathLike string
 }

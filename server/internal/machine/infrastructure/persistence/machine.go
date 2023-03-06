@@ -6,8 +6,6 @@ import (
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils"
-	"strings"
 )
 
 type machineRepoImpl struct{}
@@ -30,7 +28,8 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 		values = append(values, "%"+condition.Name+"%")
 	}
 	if len(condition.TagIds) > 0 {
-		sql = fmt.Sprintf("%s AND m.tag_id IN (%s) ", sql, strings.Join(utils.NumberArr2StrArr(condition.TagIds), ","))
+		sql = fmt.Sprintf("%s AND m.tag_id IN ? ", sql)
+		values = append(values, condition.TagIds)
 	}
 	if condition.TagPathLike != "" {
 		sql = sql + " AND m.tag_path LIKE ?"

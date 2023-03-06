@@ -20,24 +20,6 @@ class Api {
     }
 
     /**
-     * 设置rl
-     * @param {String} uri 请求url
-     */
-    setUrl(url: string) {
-        this.url = url;
-        return this;
-    }
-
-    /**
-     * url的请求方法
-     * @param {String} method 请求方法
-     */
-    setMethod(method: string) {
-        this.method = method;
-        return this;
-    }
-
-    /**
      * 获取权限的完整url
      */
     getUrl() {

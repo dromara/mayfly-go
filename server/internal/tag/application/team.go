@@ -11,7 +11,7 @@ type Team interface {
 	// 分页获取项目团队信息列表
 	GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
 
-	Save(projectTeam *entity.Team)
+	Save(team *entity.Team)
 
 	Delete(id uint64)
 
@@ -19,14 +19,11 @@ type Team interface {
 
 	GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity interface{}) *model.PageResult
 
-	SaveMember(projectTeamMember *entity.TeamMember)
+	SaveMember(tagTeamMember *entity.TeamMember)
 
 	DeleteMember(teamId, accountId uint64)
 
 	IsExistMember(teamId, accounId uint64) bool
-
-	// 账号是否有权限访问该项目关联的资源信息
-	// CanAccess(accountId, projectId uint64) error
 
 	//--------------- 关联项目相关接口 ---------------
 
@@ -34,84 +31,84 @@ type Team interface {
 
 	SaveTag(tagTeam *entity.TagTreeTeam)
 
-	DeleteTag(teamId, projectId uint64)
+	DeleteTag(teamId, tagId uint64)
 }
 
-func newTeamApp(projectTeamRepo repository.Team,
-	projectTeamMemberRepo repository.TeamMember,
+func newTeamApp(teamRepo repository.Team,
+	teamMemberRepo repository.TeamMember,
 	tagTreeTeamRepo repository.TagTreeTeam,
 ) Team {
-	return &projectTeamAppImpl{
-		projectTeamRepo:       projectTeamRepo,
-		projectTeamMemberRepo: projectTeamMemberRepo,
-		tagTreeTeamRepo:       tagTreeTeamRepo,
+	return &teamAppImpl{
+		teamRepo:        teamRepo,
+		teamMemberRepo:  teamMemberRepo,
+		tagTreeTeamRepo: tagTreeTeamRepo,
 	}
 }
 
-type projectTeamAppImpl struct {
-	projectTeamRepo       repository.Team
-	projectTeamMemberRepo repository.TeamMember
-	tagTreeTeamRepo       repository.TagTreeTeam
+type teamAppImpl struct {
+	teamRepo        repository.Team
+	teamMemberRepo  repository.TeamMember
+	tagTreeTeamRepo repository.TagTreeTeam
 }
 
-func (p *projectTeamAppImpl) GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
-	return p.projectTeamRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+func (p *teamAppImpl) GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+	return p.teamRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (p *projectTeamAppImpl) Save(projectTeam *entity.Team) {
-	if projectTeam.Id == 0 {
-		p.projectTeamRepo.Insert(projectTeam)
+func (p *teamAppImpl) Save(team *entity.Team) {
+	if team.Id == 0 {
+		p.teamRepo.Insert(team)
 	} else {
-		p.projectTeamRepo.UpdateById(projectTeam)
+		p.teamRepo.UpdateById(team)
 	}
 }
 
-func (p *projectTeamAppImpl) Delete(id uint64) {
-	p.projectTeamRepo.Delete(id)
-	p.projectTeamMemberRepo.DeleteBy(&entity.TeamMember{TeamId: id})
+func (p *teamAppImpl) Delete(id uint64) {
+	p.teamRepo.Delete(id)
+	p.teamMemberRepo.DeleteBy(&entity.TeamMember{TeamId: id})
 }
 
 // --------------- 团队成员相关接口 ---------------
 
-func (p *projectTeamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity interface{}) *model.PageResult {
-	return p.projectTeamMemberRepo.GetPageList(condition, pageParam, toEntity)
+func (p *teamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity interface{}) *model.PageResult {
+	return p.teamMemberRepo.GetPageList(condition, pageParam, toEntity)
 }
 
 // 保存团队成员信息
-func (p *projectTeamAppImpl) SaveMember(projectTeamMember *entity.TeamMember) {
-	projectTeamMember.Id = 0
-	biz.IsTrue(!p.projectTeamMemberRepo.IsExist(projectTeamMember.TeamId, projectTeamMember.AccountId), "该成员已存在")
-	p.projectTeamMemberRepo.Save(projectTeamMember)
+func (p *teamAppImpl) SaveMember(teamMember *entity.TeamMember) {
+	teamMember.Id = 0
+	biz.IsTrue(!p.teamMemberRepo.IsExist(teamMember.TeamId, teamMember.AccountId), "该成员已存在")
+	p.teamMemberRepo.Save(teamMember)
 }
 
 // 删除团队成员信息
-func (p *projectTeamAppImpl) DeleteMember(teamId, accountId uint64) {
-	p.projectTeamMemberRepo.DeleteBy(&entity.TeamMember{TeamId: teamId, AccountId: accountId})
+func (p *teamAppImpl) DeleteMember(teamId, accountId uint64) {
+	p.teamMemberRepo.DeleteBy(&entity.TeamMember{TeamId: teamId, AccountId: accountId})
 }
 
-func (p *projectTeamAppImpl) IsExistMember(teamId, accounId uint64) bool {
-	return p.projectTeamMemberRepo.IsExist(teamId, accounId)
+func (p *teamAppImpl) IsExistMember(teamId, accounId uint64) bool {
+	return p.teamMemberRepo.IsExist(teamId, accounId)
 }
 
 //--------------- 关联项目相关接口 ---------------
 
-func (p *projectTeamAppImpl) ListTagIds(teamId uint64) []uint64 {
-	projects := &[]entity.TagTreeTeam{}
-	p.tagTreeTeamRepo.ListProject(&entity.TagTreeTeam{TeamId: teamId}, projects)
+func (p *teamAppImpl) ListTagIds(teamId uint64) []uint64 {
+	tags := &[]entity.TagTreeTeam{}
+	p.tagTreeTeamRepo.ListTag(&entity.TagTreeTeam{TeamId: teamId}, tags)
 	ids := make([]uint64, 0)
-	for _, v := range *projects {
+	for _, v := range *tags {
 		ids = append(ids, v.TagId)
 	}
 	return ids
 }
 
 // 保存关联项目信息
-func (p *projectTeamAppImpl) SaveTag(projectTreeTeam *entity.TagTreeTeam) {
-	projectTreeTeam.Id = 0
-	p.tagTreeTeamRepo.Save(projectTreeTeam)
+func (p *teamAppImpl) SaveTag(tagTreeTeam *entity.TagTreeTeam) {
+	tagTreeTeam.Id = 0
+	p.tagTreeTeamRepo.Save(tagTreeTeam)
 }
 
 // 删除关联项目信息
-func (p *projectTeamAppImpl) DeleteTag(teamId, tagId uint64) {
+func (p *teamAppImpl) DeleteTag(teamId, tagId uint64) {
 	p.tagTreeTeamRepo.DeleteBy(&entity.TagTreeTeam{TeamId: teamId, TagId: tagId})
 }

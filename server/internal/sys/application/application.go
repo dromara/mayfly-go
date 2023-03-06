@@ -1,6 +1,8 @@
 package application
 
-import "mayfly-go/internal/sys/infrastructure/persistence"
+import (
+	"mayfly-go/internal/sys/infrastructure/persistence"
+)
 
 var (
 	accountApp  = newAccountApp(persistence.GetAccountRepo())

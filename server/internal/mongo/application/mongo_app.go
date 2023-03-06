@@ -108,7 +108,7 @@ var mongoCliCache = cache.NewTimedCache(constant.MongoConnExpireTime, 5*time.Sec
 	})
 
 func init() {
-	machine.AddCheckSshTunnelMachineUseFunc(func(machineId uint64) bool {
+	machine.AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
 		// 遍历所有mongo连接实例，若存在redis实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := mongoCliCache.Items()
 		for _, v := range items {
@@ -144,7 +144,7 @@ type MongoInfo struct {
 	Id                 uint64
 	Name               string
 	TagPath            string
-	SshTunnelMachineId uint64 // ssh隧道机器id
+	SshTunnelMachineId int // ssh隧道机器id
 }
 
 func (m *MongoInfo) GetLogDesc() string {
@@ -177,7 +177,7 @@ func connect(me *entity.Mongo) (*MongoInstance, error) {
 	mongoOptions := options.Client().ApplyURI(me.Uri).
 		SetMaxPoolSize(1)
 	// 启用ssh隧道则连接隧道机器
-	if me.EnableSshTunnel == 1 {
+	if me.SshTunnelMachineId > 0 {
 		mongoOptions.SetDialer(&MongoSshDialer{machineId: me.SshTunnelMachineId})
 	}
 
@@ -206,7 +206,7 @@ func toMongiInfo(me *entity.Mongo) *MongoInfo {
 }
 
 type MongoSshDialer struct {
-	machineId uint64
+	machineId int
 }
 
 func (sd *MongoSshDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {

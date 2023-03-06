@@ -3,8 +3,7 @@ package form
 type Mongo struct {
 	Id                 uint64
 	Uri                string `binding:"required" json:"uri"`
-	EnableSshTunnel    int8   `json:"enableSshTunnel"`    // 是否启用ssh隧道
-	SshTunnelMachineId uint64 `json:"sshTunnelMachineId"` // ssh隧道机器id
+	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
 	Name               string `binding:"required" json:"name"`
 	TagId              uint64 `binding:"required" json:"tagId"`
 	TagPath            string `json:"tagPath"`

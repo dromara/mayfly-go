@@ -23,6 +23,5 @@ type SelectDataDbVO struct {
 	Modifier   *string    `json:"modifier"`
 	ModifierId *int64     `json:"modifierId"`
 
-	EnableSshTunnel    *int8   `json:"enableSshTunnel"`
-	SshTunnelMachineId *uint64 `json:"sshTunnelMachineId"`
+	SshTunnelMachineId int `json:"sshTunnelMachineId"`
 }

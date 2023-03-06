@@ -8,7 +8,7 @@ import (
 	"reflect"
 )
 
-func ErrIsNil(err error, msg string, params ...interface{}) {
+func ErrIsNil(err error, msg string, params ...any) {
 	if err != nil {
 		global.Log.Error(msg + ": " + err.Error())
 		panic(NewBizErr(fmt.Sprintf(msg, params...)))
@@ -31,7 +31,7 @@ func IsNil(err error) {
 	}
 }
 
-func IsTrue(exp bool, msg string, params ...interface{}) {
+func IsTrue(exp bool, msg string, params ...any) {
 	if !exp {
 		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
@@ -43,21 +43,21 @@ func IsTrueBy(exp bool, err BizError) {
 	}
 }
 
-func NotEmpty(str string, msg string, params ...interface{}) {
+func NotEmpty(str string, msg string, params ...any) {
 	if str == "" {
 		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
 }
 
-func NotNil(data interface{}, msg string) {
+func NotNil(data interface{}, msg string, params ...any) {
 	if reflect.ValueOf(data).IsNil() {
-		panic(NewBizErr(msg))
+		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
 }
 
-func NotBlank(data interface{}, msg string) {
+func NotBlank(data interface{}, msg string, params ...any) {
 	if utils.IsBlank(data) {
-		panic(NewBizErr(msg))
+		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
 }
 

@@ -64,12 +64,12 @@ func (a *tagTreeRepoImpl) GetBy(condition *entity.TagTree, cols ...string) error
 	return model.GetBy(condition, cols...)
 }
 
-func (p *tagTreeRepoImpl) Insert(project *entity.TagTree) {
-	biz.ErrIsNil(model.Insert(project), "新增标签失败")
+func (p *tagTreeRepoImpl) Insert(tagTree *entity.TagTree) {
+	biz.ErrIsNil(model.Insert(tagTree), "新增标签失败")
 }
 
-func (p *tagTreeRepoImpl) UpdateById(project *entity.TagTree) {
-	biz.ErrIsNil(model.UpdateById(project), "更新标签失败")
+func (p *tagTreeRepoImpl) UpdateById(tagTree *entity.TagTree) {
+	biz.ErrIsNil(model.UpdateById(tagTree), "更新标签失败")
 }
 
 func (p *tagTreeRepoImpl) Delete(id uint64) {

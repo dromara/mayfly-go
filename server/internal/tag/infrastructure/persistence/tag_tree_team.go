@@ -13,7 +13,7 @@ func newTagTreeTeamRepo() repository.TagTreeTeam {
 	return new(tagTreeTeamRepoImpl)
 }
 
-func (p *tagTreeTeamRepoImpl) ListProject(condition *entity.TagTreeTeam, toEntity interface{}, orderBy ...string) {
+func (p *tagTreeTeamRepoImpl) ListTag(condition *entity.TagTreeTeam, toEntity interface{}, orderBy ...string) {
 	model.ListByOrder(condition, toEntity, orderBy...)
 }
 

@@ -21,10 +21,6 @@ func InitMachineRouter(router *gin.RouterGroup) {
 			req.NewCtxWithGin(c).Handle(m.Machines)
 		})
 
-		machines.GET(":machineId/pwd", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(m.GetMachinePwd)
-		})
-
 		machines.GET(":machineId/stats", func(c *gin.Context) {
 			req.NewCtxWithGin(c).Handle(m.MachineStats)
 		})
@@ -50,6 +46,11 @@ func InitMachineRouter(router *gin.RouterGroup) {
 				WithLog(saveMachine).
 				WithRequiredPermission(saveMachineP).
 				Handle(m.SaveMachine)
+		})
+
+		machines.POST("test-conn", func(c *gin.Context) {
+			req.NewCtxWithGin(c).
+				Handle(m.TestConn)
 		})
 
 		changeStatus := req.NewLogInfo("调整机器状态").WithSave(true)

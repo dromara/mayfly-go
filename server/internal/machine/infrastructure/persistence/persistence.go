@@ -6,6 +6,7 @@ var (
 	machineRepo       repository.Machine       = newMachineRepo()
 	machineFileRepo   repository.MachineFile   = newMachineFileRepo()
 	machineScriptRepo repository.MachineScript = newMachineScriptRepo()
+	authCertRepo                               = newAuthCertRepo()
 )
 
 func GetMachineRepo() repository.Machine {
@@ -18,4 +19,8 @@ func GetMachineFileRepo() repository.MachineFile {
 
 func GetMachineScriptRepo() repository.MachineScript {
 	return machineScriptRepo
+}
+
+func GetAuthCertRepo() repository.AuthCert {
+	return authCertRepo
 }

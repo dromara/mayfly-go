@@ -20,7 +20,7 @@ type TagTree interface {
 
 	GetById(id uint64) *entity.TagTree
 
-	Save(project *entity.TagTree)
+	Save(tt *entity.TagTree)
 
 	Delete(id uint64)
 

@@ -1,17 +1,25 @@
 package vo
 
-import "time"
+import (
+	"time"
+)
+
+// 授权凭证基础信息
+type AuthCertBaseVO struct {
+	Id         int    `json:"id"`
+	Name       string `json:"name"`
+	AuthMethod int8   `json:"authMethod"`
+}
 
 type MachineVO struct {
-	Id                 *uint64    `json:"id"`
-	Name               *string    `json:"name"`
-	Username           *string    `json:"username"`
-	Ip                 *string    `json:"ip"`
-	Port               *int       `json:"port"`
-	AuthMethod         *int8      `json:"authMethod"`
+	Id                 uint64     `json:"id"`
+	Name               string     `json:"name"`
+	Ip                 string     `json:"ip"`
+	Port               int        `json:"port"`
+	Username           string     `json:"username"`
+	AuthCertId         int        `json:"authCertId"`
 	Status             *int8      `json:"status"`
-	EnableSshTunnel    *int8      `json:"enableSshTunnel"`    // 是否启用ssh隧道
-	SshTunnelMachineId *uint64    `json:"sshTunnelMachineId"` // ssh隧道机器id
+	SshTunnelMachineId int        `json:"sshTunnelMachineId"` // ssh隧道机器id
 	CreateTime         *time.Time `json:"createTime"`
 	Creator            *string    `json:"creator"`
 	CreatorId          *int64     `json:"creatorId"`

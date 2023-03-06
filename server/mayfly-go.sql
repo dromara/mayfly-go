@@ -30,7 +30,6 @@ CREATE TABLE `t_db` (
   `database` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
   `params` varchar(125) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '其他连接参数',
   `network` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `enable_ssh_tunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
   `remark` varchar(125) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注，描述等',
   `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
@@ -105,6 +104,23 @@ CREATE TABLE `t_db_sql_exec` (
 BEGIN;
 COMMIT;
 
+DROP TABLE IF EXISTS `t_auth_cert`;
+CREATE TABLE `t_auth_cert` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `auth_method` tinyint NOT NULL COMMENT '1.密码 2.秘钥',
+  `password` varchar(4200) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '密码or私钥',
+  `passphrase` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '私钥口令',
+  `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `create_time` datetime NOT NULL,
+  `creator` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `creator_id` bigint NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `modifier_id` bigint NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='授权凭证';
+
 -- ----------------------------
 -- Table structure for t_machine
 -- ----------------------------
@@ -116,8 +132,8 @@ CREATE TABLE `t_machine` (
   `port` int(12) NOT NULL,
   `username` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `auth_method` tinyint(2) DEFAULT NULL COMMENT '1.密码登录2.publickey登录',
-  `password` varchar(3200) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-  `enable_ssh_tunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',
+  `password` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `auth_cert_id` bigint(20) DEFAULT NULL COMMENT '授权凭证id',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
   `enable_recorder` tinyint(2) DEFAULT NULL COMMENT '是否启用终端回放记录',
   `status` tinyint(2) NOT NULL COMMENT '状态: 1:启用; -1:禁用',
@@ -226,7 +242,6 @@ CREATE TABLE `t_mongo` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '名称',
   `uri` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '连接uri',
-  `enable_ssh_tunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
   `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
   `tag_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '标签路径',
@@ -256,7 +271,6 @@ CREATE TABLE `t_redis` (
   `password` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `db` varchar(64) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '库号: 多个库用,分割',
   `mode` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
-  `enable_ssh_tunnel` tinyint(2) DEFAULT NULL COMMENT '是否启用ssh隧道',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
   `remark` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL,
   `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
@@ -498,6 +512,10 @@ INSERT INTO `t_sys_resource` VALUES (99, 95, 2, 1, '删除团队', 'team:del', 2
 INSERT INTO `t_sys_resource` VALUES (100, 95, 2, 1, '新增团队成员', 'team:member:save', 3, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:27', '2022-10-26 13:59:27');
 INSERT INTO `t_sys_resource` VALUES (101, 95, 2, 1, '移除团队成员', 'team:member:del', 4, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:43', '2022-10-26 13:59:43');
 INSERT INTO `t_sys_resource` VALUES (102, 95, 2, 1, '保存团队标签', 'team:tag:save', 5, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:57', '2022-10-26 13:59:57');
+INSERT INTO `t_sys_resource` VALUES (103, 2, 1, 1, '授权凭证', 'authcerts', 6, '{"component":"AuthCertList","icon":"Unlock","isKeepAlive":true,"routeName":"AuthCertList"}', 1, 'admin', 1, 'admin', '2023-02-23 11:36:26', '2023-02-23 14:40:23');
+INSERT INTO `t_sys_resource` VALUES (104, 103, 2, 1, '基本权限', 'authcert', 1, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:37:24', '2023-02-23 11:37:24');
+INSERT INTO `t_sys_resource` VALUES (105, 103, 2, 1, '保存权限', 'authcert:save', 2, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:37:54', '2023-02-23 11:37:54');
+INSERT INTO `t_sys_resource` VALUES (106, 103, 2, 1, '删除权限', 'authcert:del', 3, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:38:09', '2023-02-23 11:38:09');
 COMMIT;
 
 -- ----------------------------
@@ -702,6 +720,10 @@ INSERT INTO `t_sys_role_resource` VALUES (522, 1, 99, 1, 'admin', '2022-10-26 20
 INSERT INTO `t_sys_role_resource` VALUES (523, 1, 100, 1, 'admin', '2022-10-26 20:03:14');
 INSERT INTO `t_sys_role_resource` VALUES (524, 1, 101, 1, 'admin', '2022-10-26 20:03:14');
 INSERT INTO `t_sys_role_resource` VALUES (525, 1, 102, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (526, 1, 103, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (527, 1, 104, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (528, 1, 105, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` VALUES (529, 1, 106, 1, 'admin', '2022-10-26 20:03:14');
 COMMIT;
 
 -- ----------------------------

@@ -3,7 +3,6 @@ package machine
 import (
 	"fmt"
 	"io"
-	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils"
@@ -15,7 +14,7 @@ import (
 )
 
 var (
-	sshTunnelMachines map[uint64]*SshTunnelMachine = make(map[uint64]*SshTunnelMachine)
+	sshTunnelMachines map[int]*SshTunnelMachine = make(map[int]*SshTunnelMachine)
 
 	mutex sync.Mutex
 
@@ -27,7 +26,7 @@ var (
 )
 
 // 检查ssh隧道机器是否有被使用
-type CheckSshTunnelMachineHasUseFunc func(uint64) bool
+type CheckSshTunnelMachineHasUseFunc func(int) bool
 
 func startCheckUse() {
 	global.Log.Info("开启定时检测ssh隧道机器是否还有被使用")
@@ -66,7 +65,7 @@ func AddCheckSshTunnelMachineUseFunc(checkFunc CheckSshTunnelMachineHasUseFunc) 
 
 // ssh隧道机器
 type SshTunnelMachine struct {
-	machineId uint64 // 隧道机器id
+	machineId int // 隧道机器id
 	SshClient *ssh.Client
 	mutex     sync.Mutex
 	tunnels   map[uint64]*Tunnel // 机器id -> 隧道
@@ -137,7 +136,7 @@ func (stm *SshTunnelMachine) Close() {
 }
 
 // 获取ssh隧道机器，方便统一管理充当ssh隧道的机器，避免创建多个ssh client
-func GetSshTunnelMachine(machineId uint64, getMachine func(uint64) *entity.Machine) (*SshTunnelMachine, error) {
+func GetSshTunnelMachine(machineId int, getMachine func(uint64) *Info) (*SshTunnelMachine, error) {
 	sshTunnelMachine := sshTunnelMachines[machineId]
 	if sshTunnelMachine != nil {
 		return sshTunnelMachine, nil
@@ -146,7 +145,7 @@ func GetSshTunnelMachine(machineId uint64, getMachine func(uint64) *entity.Machi
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	me := getMachine(machineId)
+	me := getMachine(uint64(machineId))
 	sshClient, err := GetSshClient(me)
 	if err != nil {
 		return nil, err
@@ -165,7 +164,7 @@ func GetSshTunnelMachine(machineId uint64, getMachine func(uint64) *entity.Machi
 }
 
 // 关闭ssh隧道机器的指定隧道
-func CloseSshTunnelMachine(machineId uint64, tunnelId uint64) {
+func CloseSshTunnelMachine(machineId int, tunnelId uint64) {
 	sshTunnelMachine := sshTunnelMachines[machineId]
 	if sshTunnelMachine == nil {
 		return
@@ -182,7 +181,7 @@ func CloseSshTunnelMachine(machineId uint64, tunnelId uint64) {
 
 type Tunnel struct {
 	id                uint64 // 唯一标识
-	machineId         uint64 // 隧道机器id
+	machineId         int    // 隧道机器id
 	localHost         string // 本地监听地址
 	localPort         int    // 本地端口
 	remoteHost        string // 远程连接地址

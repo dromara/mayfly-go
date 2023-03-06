@@ -14,7 +14,7 @@ import (
 
 func getMysqlDB(d *entity.Db, db string) (*sql.DB, error) {
 	// SSH Conect
-	if d.EnableSshTunnel == 1 && d.SshTunnelMachineId != 0 {
+	if d.SshTunnelMachineId > 0 {
 		sshTunnelMachine := machineapp.GetMachineApp().GetSshTunnelMachine(d.SshTunnelMachineId)
 		mysql.RegisterDialContext(d.Network, func(ctx context.Context, addr string) (net.Conn, error) {
 			return sshTunnelMachine.GetDialConn("tcp", addr)

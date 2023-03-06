@@ -10,6 +10,7 @@ export const machineApi = {
     // 终止进程
     killProcess: Api.create("/machines/{id}/process", 'delete'),
     closeCli: Api.create("/machines/{id}/close-cli", 'delete'),
+    testConn: Api.create("/machines/test-conn", 'post'),
     // 保存按钮
     saveMachine: Api.create("/machines", 'post'),
     // 调整状态
@@ -35,4 +36,11 @@ export const machineApi = {
     delConf: Api.create("/machines/{machineId}/files/{id}", 'delete'),
     terminal: Api.create("/api/machines/{id}/terminal", 'get'),
     recDirNames: Api.create("/machines/rec/names", 'get')
+}
+
+export const authCertApi = {
+    baseList : Api.create("/sys/authcerts/base", 'get'),
+    list: Api.create("/sys/authcerts", 'get'),
+    save: Api.create("/sys/authcerts", 'post'),
+    delete: Api.create("/sys/authcerts/{id}", 'delete'),
 }

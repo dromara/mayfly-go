@@ -18,19 +18,27 @@
                         <el-col :span="5">
                             <el-input v-model="param.model" placeholder="model"></el-input>
                         </el-col>
-                        <el-divider :span="1" direction="vertical" border-style="dashed" />
+                        <span :span="1">
+                            <el-divider direction="vertical" border-style="dashed" />
+                        </span>
                         <el-col :span="4">
                             <el-input v-model="param.name" placeholder="字段名"></el-input>
                         </el-col>
-                        <el-divider :span="1" direction="vertical" border-style="dashed" />
+                        <span :span="1">
+                            <el-divider direction="vertical" border-style="dashed" />
+                        </span>
                         <el-col :span="4">
                             <el-input v-model="param.placeholder" placeholder="字段说明"></el-input>
                         </el-col>
-                        <el-divider :span="1" direction="vertical" border-style="dashed" />
+                        <span :span="1">
+                            <el-divider direction="vertical" border-style="dashed" />
+                        </span>
                         <el-col :span="4">
                             <el-input v-model="param.options" placeholder="可选值 ,分割"></el-input>
                         </el-col>
-                        <el-divider :span="1" direction="vertical" border-style="dashed" />
+                        <span :span="1">
+                            <el-divider direction="vertical" border-style="dashed" />
+                        </span>
                         <el-col :span="2">
                             <el-button @click="onDeleteParam(index)" size="small" type="danger">删除</el-button>
                         </el-col>
@@ -143,6 +151,4 @@ const btnOk = async () => {
     });
 };
 </script>
-<style lang="scss">
-
-</style>
+<style lang="scss"></style>

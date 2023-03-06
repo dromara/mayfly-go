@@ -1,11 +1,20 @@
 package application
 
-import "mayfly-go/internal/machine/infrastructure/persistence"
+import (
+	"mayfly-go/internal/machine/infrastructure/persistence"
+)
 
 var (
-	machineApp       Machine       = newMachineApp(persistence.GetMachineRepo())
-	machineFileApp   MachineFile   = newMachineFileApp(persistence.GetMachineFileRepo(), persistence.GetMachineRepo())
+	machineFileApp MachineFile = newMachineFileApp(persistence.GetMachineFileRepo(), persistence.GetMachineRepo())
+
 	machineScriptApp MachineScript = newMachineScriptApp(persistence.GetMachineScriptRepo(), persistence.GetMachineRepo())
+
+	authCertApp AuthCert = newAuthCertApp(persistence.GetAuthCertRepo())
+
+	machineApp Machine = newMachineApp(
+		persistence.GetMachineRepo(),
+		GetAuthCertApp(),
+	)
 )
 
 func GetMachineApp() Machine {
@@ -18,4 +27,8 @@ func GetMachineFileApp() MachineFile {
 
 func GetMachineScriptApp() MachineScript {
 	return machineScriptApp
+}
+
+func GetAuthCertApp() AuthCert {
+	return authCertApp
 }

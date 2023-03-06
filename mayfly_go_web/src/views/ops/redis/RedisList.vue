@@ -137,7 +137,7 @@
                 <el-descriptions-item :span="3" label="库">{{ detailDialog.data.db }}</el-descriptions-item>
                 <el-descriptions-item :span="3" label="备注">{{ detailDialog.data.remark }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="SSH隧道">{{ detailDialog.data.enableSshTunnel == 1 ? '是' : '否' }}
+                <el-descriptions-item :span="3" label="SSH隧道">{{ detailDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }}
                 </el-descriptions-item>
 
                 <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(detailDialog.data.createTime) }}

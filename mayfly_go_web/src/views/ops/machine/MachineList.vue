@@ -15,8 +15,8 @@
                     </el-select>
                     <el-input class="ml5" placeholder="请输入名称" style="width: 150px" v-model="params.name" @clear="search"
                         plain clearable></el-input>
-                    <el-input class="ml5" placeholder="请输入ip" style="width: 150px" v-model="params.ip" @clear="search"
-                        plain clearable></el-input>
+                    <el-input class="ml5" placeholder="请输入ip" style="width: 150px" v-model="params.ip" @clear="search" plain
+                        clearable></el-input>
                     <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
                 </div>
             </div>
@@ -38,14 +38,19 @@
                     </template>
                 </el-table-column>
                 <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip></el-table-column>
+
                 <el-table-column prop="ip" label="ip:port" min-width="150">
                     <template #default="scope">
                         <el-link :disabled="scope.row.status == -1" @click="showMachineStats(scope.row)" type="primary"
                             :underline="false">
-                            {{ `${scope.row.ip}:${scope.row.port}`}}
+                            {{ `${scope.row.ip}:${scope.row.port}` }}
                         </el-link>
                     </template>
                 </el-table-column>
+
+                <el-table-column prop="username" label="用户名" min-width="100">
+                </el-table-column>
+
                 <el-table-column prop="status" label="状态" min-width="80">
                     <template #default="scope">
                         <el-switch v-auth:disabled="'machine:update'" :width="52" v-model="scope.row.status"
@@ -54,7 +59,7 @@
                             @change="changeStatus(scope.row)"></el-switch>
                     </template>
                 </el-table-column>
-                <el-table-column prop="username" label="用户名" min-width="90"></el-table-column>
+
                 <el-table-column prop="remark" label="备注" min-width="250" show-overflow-tooltip></el-table-column>
 
                 <el-table-column label="操作" min-width="235" fixed="right">
@@ -66,13 +71,13 @@
                         </span>
 
                         <span v-auth="'machine:file'">
-                            <el-link type="success" :disabled="scope.row.status == -1"
-                                @click="showFileManage(scope.row)" plain size="small" :underline="false">文件</el-link>
+                            <el-link type="success" :disabled="scope.row.status == -1" @click="showFileManage(scope.row)"
+                                plain size="small" :underline="false">文件</el-link>
                             <el-divider direction="vertical" border-style="dashed" />
                         </span>
 
-                        <el-link :disabled="scope.row.status == -1" type="warning" @click="serviceManager(scope.row)"
-                            plain size="small" :underline="false">脚本</el-link>
+                        <el-link :disabled="scope.row.status == -1" type="warning" @click="serviceManager(scope.row)" plain
+                            size="small" :underline="false">脚本</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
 
                         <el-dropdown>
@@ -90,8 +95,8 @@
                                     </el-dropdown-item>
 
                                     <el-dropdown-item>
-                                        <el-link @click="showProcess(scope.row)" :disabled="scope.row.status == -1"
-                                            plain :underline="false" size="small">进程</el-link>
+                                        <el-link @click="showProcess(scope.row)" :disabled="scope.row.status == -1" plain
+                                            :underline="false" size="small">进程</el-link>
                                     </el-dropdown-item>
 
                                     <el-dropdown-item v-if="scope.row.enableRecorder == 1">
@@ -128,14 +133,13 @@
                 <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
 
                 <el-descriptions-item :span="2" label="用户名">{{ infoDialog.data.username }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="认证方式">{{
-                    infoDialog.data.authMethod == 1 ? 'Password' :
-                        'PublicKey'
-                }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="认证方式">
+                    {{ infoDialog.data.authCertId > 1 ? '授权凭证' : '密码' }}
+                </el-descriptions-item>
 
                 <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
 
-                <el-descriptions-item :span="1.5" label="SSH隧道">{{ infoDialog.data.enableSshTunnel == 1 ? '是' : '否' }}
+                <el-descriptions-item :span="1.5" label="SSH隧道">{{ infoDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }}
                 </el-descriptions-item>
                 <el-descriptions-item :span="1.5" label="终端回放">{{ infoDialog.data.enableRecorder == 1 ? '是' : '否' }}
                 </el-descriptions-item>

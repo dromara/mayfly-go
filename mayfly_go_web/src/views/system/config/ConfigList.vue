@@ -19,7 +19,7 @@
                 <el-table-column prop="remark" label="备注" min-width="100px" show-overflow-tooltip></el-table-column>
                 <el-table-column prop="updateTime" label="更新时间" min-width="100px">
                     <template #default="scope">
-                        {{ dateFormat(scope.row.createTime) }}
+                        {{ dateFormat(scope.row.updateTime) }}
                     </template>
                 </el-table-column>
                 <el-table-column prop="modifier" label="修改者" min-width="60px" show-overflow-tooltip></el-table-column>

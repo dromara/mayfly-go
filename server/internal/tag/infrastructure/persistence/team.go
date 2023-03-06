@@ -17,18 +17,18 @@ func (p *teamRepoImpl) GetPageList(condition *entity.Team, pageParam *model.Page
 	return model.GetPage(pageParam, condition, condition, toEntity, orderBy...)
 }
 
-func (p *teamRepoImpl) Insert(projectTeam *entity.Team) {
-	biz.ErrIsNil(model.Insert(projectTeam), "新增团队失败")
+func (p *teamRepoImpl) Insert(team *entity.Team) {
+	biz.ErrIsNil(model.Insert(team), "新增团队失败")
 }
 
-func (p *teamRepoImpl) UpdateById(projectTeam *entity.Team) {
-	biz.ErrIsNil(model.UpdateById(projectTeam), "更新团队失败")
+func (p *teamRepoImpl) UpdateById(team *entity.Team) {
+	biz.ErrIsNil(model.UpdateById(team), "更新团队失败")
 }
 
 func (p *teamRepoImpl) Delete(id uint64) {
 	model.DeleteById(new(entity.Team), id)
 }
 
-func (p *teamRepoImpl) DeleteBy(projectTeam *entity.Team) {
-	model.DeleteByCondition(projectTeam)
+func (p *teamRepoImpl) DeleteBy(team *entity.Team) {
+	model.DeleteByCondition(team)
 }
