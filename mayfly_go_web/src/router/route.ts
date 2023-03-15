@@ -1,6 +1,5 @@
 import { RouteRecordRaw } from 'vue-router';
 import Layout from '@/views/layout/index.vue'
-// import RouterParent from '@/views/layout/routerView/parent.vue';
 
 // 定义动态路由
 export const dynamicRoutes = [
@@ -12,6 +11,7 @@ export const dynamicRoutes = [
         meta: {
             isKeepAlive: true,
         },
+        children: []
     //     children: [
     //         {
     //             path: '/home',

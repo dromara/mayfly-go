@@ -1,22 +1,8 @@
-import { InjectionKey } from 'vue';
-import { createStore, useStore as baseUseStore, Store } from 'vuex';
-import { RootStateTypes } from '@/store/interface/index';
-import themeConfig from '@/store/modules/themeConfig.ts';
-import routesList from '@/store/modules/routesList.ts';
-import keepAliveNames from '@/store/modules/keepAliveNames.ts';
-import userInfos from '@/store/modules/userInfos.ts';
+// https://pinia.vuejs.org/
+import { createPinia } from 'pinia';
 
-export const key: InjectionKey<Store<RootStateTypes>> = Symbol();
+// 创建
+const pinia = createPinia();
 
-export const store = createStore<RootStateTypes>({
-    modules: {
-        themeConfig,
-        routesList,
-        keepAliveNames,
-        userInfos,
-    },
-});
-
-export function useStore() {
-    return baseUseStore(key);
-}
+// 导出
+export default pinia;

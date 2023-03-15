@@ -88,7 +88,11 @@ func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error)
 		lowerSql := strings.ToLower(execSqlReq.Sql)
 		isSelect := strings.HasPrefix(lowerSql, "select")
 		if isSelect {
-			biz.IsTrue(strings.Contains(lowerSql, "limit"), "请完善分页信息")
+			// 如果配置为0，则不校验分页参数
+			maxCount := sysapp.GetConfigApp().GetConfig(sysentity.ConfigKeyDbQueryMaxCount).IntValue(200)
+			if maxCount != 0 {
+				biz.IsTrue(strings.Contains(lowerSql, "limit"), "请完善分页信息后执行")
+			}
 		}
 		var execErr error
 		if isSelect || strings.HasPrefix(lowerSql, "show") {

@@ -65,7 +65,7 @@
                 <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="路由名">
                     {{ infoDialog.data.meta.routeName }}
                 </el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="组件">
+                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="组件路径">
                     {{ infoDialog.data.meta.component }}
                 </el-descriptions-item>
                 <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="是否缓存">

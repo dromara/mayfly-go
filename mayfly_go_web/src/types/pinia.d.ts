@@ -1,7 +1,8 @@
-// 接口类型声明
+declare interface UserInfoState<T = any> {
+    userInfo: any
+}
 
-// 布局配置
-export interface ThemeConfigState {
+declare interface ThemeConfigState {
     themeConfig: {
         isDrawer: boolean;
         primary: string;
@@ -30,6 +31,7 @@ export interface ThemeConfigState {
         isShowLogoChange: boolean;
         isBreadcrumb: boolean;
         isTagsview: boolean;
+        isShareTagsView: boolean;
         isBreadcrumbIcon: boolean;
         isTagsviewIcon: boolean;
         isCacheTagsView: boolean;
@@ -52,37 +54,24 @@ export interface ThemeConfigState {
         terminalBackground: string;
         terminalCursor: string;
         terminalFontSize: number;
-        terminalFontWeight: string;
+        terminalFontWeight: string | any;
         editorTheme: string;
     };
 }
 
+// TagsView 路由列表
+declare interface TagsViewRoutesState<T = any> {
+	tagsViewRoutes: T[];
+	isTagsViewCurrenFull: Boolean;
+}
+
 // 路由列表
-export interface RoutesListState {
-    routesList: Array<object>;
+declare interface RoutesListState {
+    routesList: T[];
 }
 
 // 路由缓存列表
-export interface KeepAliveNamesState {
-    keepAliveNames: Array<string>;
-}
-
-// 用户信息
-export interface UserInfosState {
-    userInfos: object;
-}
-
-
-// 后端返回原始路由(未处理时)
-// export interface RequestOldRoutesState {
-//     requestOldRoutes: Array<object>;
-// }
-
-// 主接口(顶级类型声明)
-export interface RootStateTypes {
-    themeConfig: ThemeConfigState;
-    routesList: RoutesListState;
-    keepAliveNames: KeepAliveNamesState;
-    userInfos: UserInfosState;
-    // requestOldRoutes: RequestOldRoutesState;
+declare interface KeepAliveNamesState {
+    keepAliveNames: string[];
+    cachedViews: string[];
 }

@@ -4,7 +4,7 @@
         <el-container class="layout-mian-height-50">
             <Aside />
             <div class="flex-center layout-backtop">
-                <TagsView v-if="getThemeConfig.isTagsview" />
+                <TagsView v-if="themeConfig.isTagsview" />
                 <Main />
             </div>
         </el-container>
@@ -12,25 +12,13 @@
     </el-container>
 </template>
 
-<script lang="ts">
-import { computed } from 'vue';
-import { useStore } from '@/store/index.ts';
+<script lang="ts" setup name="layoutClassic">
+import { storeToRefs } from 'pinia';
+import { useThemeConfig } from '@/store/themeConfig';
 import Aside from '@/views/layout/component/aside.vue';
 import Header from '@/views/layout/component/header.vue';
 import Main from '@/views/layout/component/main.vue';
 import TagsView from '@/views/layout/navBars/tagsView/tagsView.vue';
-export default {
-    name: 'layoutClassic',
-    components: { Aside, Header, Main, TagsView },
-    setup() {
-        const store = useStore();
-        // 获取布局配置信息
-        const getThemeConfig = computed(() => {
-            return store.state.themeConfig.themeConfig;
-        });
-        return {
-            getThemeConfig,
-        };
-    },
-};
+
+const { themeConfig } = storeToRefs(useThemeConfig());
 </script>

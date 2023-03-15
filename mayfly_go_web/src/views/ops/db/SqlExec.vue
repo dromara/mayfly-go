@@ -99,7 +99,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref, toRefs } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, toRefs } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
@@ -107,11 +107,12 @@ import * as monaco from 'monaco-editor';
 import { editor, languages, Position } from 'monaco-editor';
 
 import { DbInst, TabInfo, TabType } from './db'
-import TableData from './component/tab/TableData.vue'
-import Query from './component/tab/Query.vue'
 import { TagTreeNode } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
+
+const Query = defineAsyncComponent(() => import('./component/tab/Query.vue'));
+const TableData = defineAsyncComponent(() => import('./component/tab/TableData.vue'));
 
 /**
  * 树节点类型
@@ -166,7 +167,7 @@ const setHeight = () => {
 };
 
 /**
-* instmap; tagPaht -> redis info[]
+* instmap; tagPaht -> info[]
 */
 const instMap: Map<string, any[]> = new Map();
 
@@ -212,7 +213,7 @@ const loadNode = async (node: any) => {
 
     // 点击数据库实例 -> 加载库列表
     if (nodeType === NodeType.DbInst) {
-        const dbs = params.database.split(' ');
+        const dbs = params.database.split(' ')?.sort();
         return dbs.map((x: any) => {
             return new TagTreeNode(`${data.key}.${x}`, x, NodeType.Db).withParams({
                 tagPath: params.tagPath,

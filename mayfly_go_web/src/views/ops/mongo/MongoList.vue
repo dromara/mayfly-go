@@ -196,7 +196,7 @@
 import { mongoApi } from './api';
 import { toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { tagApi } from '../tag/api.ts';
+import { tagApi } from '../tag/api';
 import MongoEdit from './MongoEdit.vue';
 import { formatByteSize } from '@/common/utils/format';
 import { dateFormat } from '@/common/utils/date';

@@ -1,14 +1,25 @@
 import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
-import { store } from '@/store/index.ts';
-import { getSession, clearSession } from '@/common/utils/storage.ts';
-import { templateResolve } from '@/common/utils/string.ts'
-import { NextLoading } from '@/common/utils/loading.ts';
-import { dynamicRoutes, staticRoutes, pathMatch } from './route.ts'
-import { imports } from './imports';
+import { getSession, clearSession } from '@/common/utils/storage';
+import { templateResolve } from '@/common/utils/string'
+import { NextLoading } from '@/common/utils/loading';
+import { dynamicRoutes, staticRoutes, pathMatch } from './route'
 import openApi from '@/common/openApi';
 import sockets from '@/common/sockets';
+import pinia from '@/store/index';
+import { useThemeConfig } from '@/store/themeConfig';
+import { useUserInfo } from '@/store/userInfo';
+import { useRoutesList } from '@/store/routesList';
+import { useKeepALiveNames } from '@/store/keepAliveNames';
+
+/**
+ * 获取目录下的 .vue、.tsx 全部文件
+ * @method import.meta.glob
+ * @link 参考：https://cn.vitejs.dev/guide/features.html#json
+ */
+const viewsModules: any = import.meta.glob('../views/**/*.{vue,tsx}');
+const dynamicViewsModules: Record<string, Function> = Object.assign({}, { ...viewsModules });
 
 // 添加静态路由
 const router = createRouter({
@@ -24,7 +35,7 @@ export function initAllFun() {
         // 无 token 停止执行下一步
         return false
     }
-    store.dispatch('userInfos/setUserInfos'); // 触发初始化用户信息
+    useUserInfo().setUserInfo({});
     router.addRoute(pathMatch); // 添加404界面
     resetRoute(); // 删除/重置路由
     // 添加动态路由
@@ -32,7 +43,7 @@ export function initAllFun() {
         router.addRoute((route as unknown) as RouteRecordRaw);
     });
     // 过滤权限菜单
-    store.dispatch('routesList/setRoutesList', setFilterMenuFun(dynamicRoutes[0].children, store.state.userInfos.userInfos.menus));
+    useRoutesList().setRoutesList(setFilterMenuFun(dynamicRoutes[0].children, useUserInfo().userInfo.menus))
 }
 
 // 后端控制路由：模拟执行路由数据初始化
@@ -43,7 +54,7 @@ export function initBackEndControlRoutesFun() {
         // 无 token 停止执行下一步
         return false
     }
-    store.dispatch('userInfos/setUserInfos'); // 触发初始化用户信息
+    useUserInfo().setUserInfo({});
     let menuRoute = getSession('menus')
     if (!menuRoute) {
         menuRoute = getBackEndControlRoutes(); // 获取路由
@@ -57,7 +68,7 @@ export function initBackEndControlRoutesFun() {
     formatTwoStageRoutes(formatFlatteningRoutes(dynamicRoutes)).forEach((route: any) => {
         router.addRoute((route as unknown) as RouteRecordRaw);
     });
-    store.dispatch('routesList/setRoutesList', dynamicRoutes[0].children);
+    useRoutesList().setRoutesList(dynamicRoutes[0].children)
 }
 
 // 后端控制路由，isRequestRoutes 为 true，则开启后端控制路由
@@ -76,7 +87,7 @@ export function backEndRouterConverter(routes: any, parentPath: string = "/") {
         item.meta = JSON.parse(item.meta)
         // 将meta.comoponet 解析为route.component
         if (item.meta.component) {
-            item.component = imports[item.meta.component as string]
+            item.component = dynamicImport(dynamicViewsModules, item.meta.component)
             delete item.meta['component']
         }
         // route.path == resource.code
@@ -104,6 +115,27 @@ export function backEndRouterConverter(routes: any, parentPath: string = "/") {
         item.children && backEndRouterConverter(item.children, item.path);
         return item;
     });
+}
+
+/**
+ * 后端路由 component 转换函数
+ * @param dynamicViewsModules 获取目录下的 .vue、.tsx 全部文件
+ * @param component 当前要处理项 component
+ * @returns 返回处理成函数后的 component
+ */
+export function dynamicImport(dynamicViewsModules: Record<string, Function>, component: string) {
+	const keys = Object.keys(dynamicViewsModules);
+	const matchKeys = keys.filter((key) => {
+		const k = key.replace(/..\/views|../, '');
+		return k.startsWith(`${component}`) || k.startsWith(`/${component}`);
+	});
+	if (matchKeys?.length === 1) {
+		const matchKey = matchKeys[0];
+		return dynamicViewsModules[matchKey];
+	}
+	if (matchKeys?.length > 1) {
+		return false;
+	}
 }
 
 // 多级嵌套数组处理成一维数组
@@ -134,7 +166,8 @@ export function formatTwoStageRoutes(arr: any) {
             }
         }
     });
-    store.dispatch('keepAliveNames/setCacheKeepAlive', cacheList);
+    useKeepALiveNames().setCacheKeepAlive(cacheList);
+    // store.dispatch('keepAliveNames/setCacheKeepAlive', cacheList);
     return newArr;
 }
 
@@ -167,7 +200,7 @@ export function setFilterRoute(chil: any) {
     chil.forEach((route: any) => {
         // 如果路由需要拥有指定code才可访问，则校验该用户菜单是否存在该code
         if (route.meta.code) {
-            store.state.userInfos.userInfos.menus.forEach((m: any) => {
+            useUserInfo().userInfo.menus.forEach((m: any) => {
                 if (route.meta.code == m) {
                     filterRoute.push({ ...route })
                 }
@@ -188,14 +221,14 @@ export function setFilterRouteEnd() {
 
 // 删除/重置路由
 export function resetRoute() {
-    store.state.routesList.routesList.forEach((route: any) => {
+    useRoutesList().routesList.forEach((route: any) => {
         const { name } = route;
         router.hasRoute(name) && router.removeRoute(name);
     });
 }
 
 // 初始化方法执行
-const { isRequestRoutes } = store.state.themeConfig.themeConfig;
+const { isRequestRoutes } = useThemeConfig(pinia).themeConfig;
 if (!isRequestRoutes) {
     // 未开启后端控制路由
     initAllFun();
@@ -214,7 +247,7 @@ router.beforeEach((to, from, next) => {
 
     // 如果有标题参数，则再原标题后加上参数来区别
     if (to.meta.titleRename) {
-        to.meta.title = templateResolve(to.meta.title, to.query)
+        to.meta.title = templateResolve(to.meta.title as string, to.query)
     }
 
     const token = getSession('token');
@@ -245,7 +278,7 @@ router.beforeEach((to, from, next) => {
     if (!SysWs && to.path != '/machine/terminal') {
         SysWs = sockets.sysMsgSocket();
     }
-    if (store.state.routesList.routesList.length > 0) {
+    if (useRoutesList().routesList.length > 0) {
         next();
     }
 });

@@ -9,6 +9,7 @@
 <script lang="ts">
 import { defineComponent, reactive, toRefs, onMounted, onBeforeMount, onUnmounted, nextTick, getCurrentInstance } from 'vue';
 import { useRoute } from 'vue-router';
+import mittBus from '@/common/utils/mitt';
 export default defineComponent({
     name: 'layoutIfameView',
     props: {
@@ -18,7 +19,6 @@ export default defineComponent({
         },
     },
     setup(props, { emit }) {
-        const { proxy } = getCurrentInstance() as any;
         const route = useRoute();
         const state = reactive({
             iframeLoading: true,
@@ -38,7 +38,7 @@ export default defineComponent({
         // 页面加载前
         onBeforeMount(() => {
             state.iframeUrl = props.meta.link;
-            proxy.mittBus.on('onTagsViewRefreshRouterView', (path: string) => {
+            mittBus.on('onTagsViewRefreshRouterView', (path: string) => {
                 if (route.path !== path) return false;
                 emit('getCurrentRouteMeta');
             });
@@ -49,7 +49,7 @@ export default defineComponent({
         });
         // 页面卸载时
         onUnmounted(() => {
-            proxy.mittBus.off('onTagsViewRefreshRouterView', () => {});
+            mittBus.off('onTagsViewRefreshRouterView', () => {});
         });
         return {
             ...toRefs(state),

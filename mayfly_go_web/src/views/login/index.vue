@@ -1,7 +1,7 @@
 <template>
     <div class="login-container">
         <div class="login-logo">
-            <span>{{ getThemeConfig.globalViceTitle }}</span>
+            <span>{{ themeConfig.globalViceTitle }}</span>
         </div>
         <div class="login-content" :class="{ 'login-content-mobile': tabsActiveName === 'mobile' }">
             <div class="login-content-main">
@@ -32,11 +32,12 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, computed } from 'vue';
+import { toRefs, reactive } from 'vue';
 import Account from '@/views/login/component/AccountLogin.vue';
-import { useStore } from '@/store/index.ts';
+import { storeToRefs } from 'pinia';
+import { useThemeConfig } from '@/store/themeConfig';
 
-const store = useStore();
+const { themeConfig } = storeToRefs(useThemeConfig());
 const state = reactive({
     tabsActiveName: 'account',
     isTabPaneShow: true,
@@ -47,10 +48,6 @@ const {
     tabsActiveName,
 } = toRefs(state)
 
-// 获取布局配置信息
-const getThemeConfig = computed(() => {
-    return store.state.themeConfig.themeConfig;
-});
 
 // 切换密码、手机登录
 const onTabsClick = () => {

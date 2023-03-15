@@ -4,7 +4,7 @@
             style="width: 100%">
             <el-option v-for="ac in acs" :key="ac.id" :value="ac.id" :label="ac.name">
                 <el-tag v-if="ac.authMethod == 1" type="success" size="small">密码</el-tag>
-                <el-tag v-if="ac.authMethod == 2" type="primary" size="small">密钥</el-tag>
+                <el-tag v-if="ac.authMethod == 2" size="small">密钥</el-tag>
 
                 <el-divider direction="vertical" border-style="dashed" />
                 {{ ac.name }}

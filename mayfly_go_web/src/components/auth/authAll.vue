@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import { computed } from 'vue';
-import { useStore } from '/@/store/index.ts';
+import { useUserInfo } from '@/store/userInfo';
 import { judementSameArr } from '/@/utils/arrayOperation.ts';
 export default {
     name: 'authAll',
@@ -17,10 +17,9 @@ export default {
         },
     },
     setup(props) {
-        const store = useStore();
         // 获取 vuex 中的用户权限
         const getUserAuthBtnList = computed(() => {
-            return judementSameArr(props.value, store.state.userInfos.userInfos.authBtnList);
+            return judementSameArr(props.value, useUserInfo().userInfo.authBtnList);
         });
         return {
             getUserAuthBtnList,

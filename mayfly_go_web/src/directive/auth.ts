@@ -1,12 +1,13 @@
 import type { App } from 'vue';
-import { auth, auths, authAll } from './authFunction'
+import { useUserInfo } from '@/store/userInfo';
+import { judementSameArr } from '@/common/utils/arrayOperation';
 
 // 用户权限指令
 export function authDirective(app: App) {
     // 单个权限验证（v-auth="xxx"）
     app.directive('auth', {
         mounted(el, binding) {
-            if (!auth(binding.value)) {
+            if (!useUserInfo().userInfo.permissions.some((v: any) => v === binding.value)) {
                 parseNoAuth(el, binding);
             };
         },
@@ -14,7 +15,14 @@ export function authDirective(app: App) {
     // 多个权限验证，满足一个则显示（v-auths="[xxx,xxx]"）
     app.directive('auths', {
         mounted(el, binding) {
-            if (!auths(binding.value)) {
+            const value = binding.value
+            let flag = false;
+            useUserInfo().userInfo.permissions.map((val: any) => {
+                value.map((v: any) => {
+                    if (val === v) flag = true;
+                });
+            });
+            if (!flag) {
                 parseNoAuth(el, binding);
             }
         },
@@ -22,7 +30,7 @@ export function authDirective(app: App) {
     // 多个权限验证，全部满足则显示（v-auth-all="[xxx,xxx]"）
     app.directive('auth-all', {
         mounted(el, binding) {
-            if (!authAll(binding.value)) {
+            if (!judementSameArr(binding.value, useUserInfo().userInfo.permissions)) {
                 parseNoAuth(el, binding);
             };
         },

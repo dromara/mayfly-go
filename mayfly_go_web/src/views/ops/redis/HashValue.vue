@@ -49,7 +49,7 @@
                     <template #default="scope">
                         <el-button v-if="operationType == 2" type="success" @click="hset(scope.row)" icon="check"
                             size="small" plain></el-button>
-                        <el-button type="danger" @click="hdel(scope.row.field, scope.$index)" icon="delete" size="small"
+                        <el-button v-auth="'redis:data:del'" type="danger" @click="hdel(scope.row.field, scope.$index)" icon="delete" size="small"
                             plain></el-button>
                     </template>
                 </el-table-column>

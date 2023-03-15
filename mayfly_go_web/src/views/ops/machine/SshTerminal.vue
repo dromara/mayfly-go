@@ -6,10 +6,11 @@
 import 'xterm/css/xterm.css';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
-import { getSession } from '@/common/utils/storage.ts';
+import { getSession } from '@/common/utils/storage';
 import config from '@/common/config';
-import { useStore } from '@/store/index.ts';
-import { nextTick, computed, reactive, onMounted, onBeforeUnmount } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useThemeConfig } from '@/store/themeConfig';
+import { nextTick, reactive, onMounted, onBeforeUnmount } from 'vue';
 
 const props = defineProps({
     machineId: { type: Number },
@@ -17,6 +18,7 @@ const props = defineProps({
     height: { type: [String, Number] },
 })
 
+const { themeConfig } = storeToRefs(useThemeConfig());
 const state = reactive({
     cmd: '',
     term: null as any,
@@ -40,24 +42,18 @@ onBeforeUnmount(() => {
     closeAll();
 });
 
-const store = useStore();
-
-// 获取布局配置信息
-const getThemeConfig: any = computed(() => {
-    return store.state.themeConfig.themeConfig;
-});
 
 function initXterm() {
     const term: any = new Terminal({
-        fontSize: getThemeConfig.value.terminalFontSize || 15,
-        fontWeight: getThemeConfig.value.terminalFontWeight || 'normal',
+        fontSize: themeConfig.value.terminalFontSize || 15,
+        fontWeight: themeConfig.value.terminalFontWeight || 'normal',
         fontFamily: 'JetBrainsMono, monaco, Consolas, Lucida Console, monospace',
         cursorBlink: true,
         disableStdin: false,
         theme: {
-            foreground: getThemeConfig.value.terminalForeground || '#7e9192', //字体
-            background: getThemeConfig.value.terminalBackground || '#002833', //背景色
-            cursor: getThemeConfig.value.terminalCursor || '#268F81', //设置光标
+            foreground: themeConfig.value.terminalForeground || '#7e9192', //字体
+            background: themeConfig.value.terminalBackground || '#002833', //背景色
+            cursor: themeConfig.value.terminalCursor || '#268F81', //设置光标
             // cursorAccent: "red",  // 光标停止颜色
         } as any,
     });

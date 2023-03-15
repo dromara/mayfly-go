@@ -120,7 +120,7 @@ const props = defineProps({
         required: true
     },
     tableHeight: {
-        type: String,
+        type: [String],
         default: '600'
     }
 })

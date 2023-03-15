@@ -4,10 +4,10 @@
             <el-col :sm="6" class="mb15">
                 <div @click="toPage({ id: 'personal' })" class="home-card-item home-card-first">
                     <div class="flex-margin flex">
-                        <img :src="getUserInfos.photo" />
+                        <img :src="userInfo.photo" />
                         <div class="home-card-first-right ml15">
                             <div class="flex-margin">
-                                <div class="home-card-first-right-title">{{ `${currentTime}, ${getUserInfos.username}`
+                                <div class="home-card-first-right-title">{{ `${currentTime}, ${userInfo.username}`
                                 }}</div>
                             </div>
                         </div>
@@ -29,15 +29,17 @@
 
 <script lang="ts" setup>
 import { toRefs, reactive, onMounted, nextTick, computed } from 'vue';
-import { useStore } from '@/store/index.ts';
 // import * as echarts from 'echarts';
 import { CountUp } from 'countup.js';
-import { formatAxis } from '@/common/utils/formatTime.ts';
+import { formatAxis } from '@/common/utils/format.ts';
 import { indexApi } from './api';
 import { useRouter } from 'vue-router';
+import { storeToRefs } from 'pinia';
+import { useUserInfo } from '@/store/userInfo';
 
 const router = useRouter();
-const store = useStore();
+const { userInfo } = storeToRefs(useUserInfo());
+
 const state = reactive({
     topCardItemList: [
         {
@@ -113,11 +115,6 @@ onMounted(() => {
     initNumCountUp();
     // initHomeLaboratory();
     // initHomeOvertime();
-});
-
-// 获取用户信息 vuex
-const getUserInfos = computed(() => {
-    return store.state.userInfos.userInfos;
 });
 </script>
 

@@ -8,7 +8,7 @@
             </el-form-item>
             <el-form-item prop="password">
                 <el-input type="password" placeholder="请输入密码" prefix-icon="lock" v-model="loginForm.password"
-                    autocomplete="off" show-password>
+                    autocomplete="off" @keyup.enter="login" show-password>
                 </el-input>
             </el-form-item>
             <el-form-item v-if="isUseLoginCaptcha" prop="captcha">
@@ -63,14 +63,15 @@
 import { nextTick, onMounted, ref, toRefs, reactive, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { initBackEndControlRoutesFun } from '@/router/index.ts';
-import { useStore } from '@/store/index.ts';
-import { setSession, setUserInfo2Session, setUseWatermark2Session } from '@/common/utils/storage.ts';
-import { formatAxis } from '@/common/utils/formatTime.ts';
+import { initBackEndControlRoutesFun } from '@/router/index';
+import { setSession, setUserInfo2Session, setUseWatermark2Session } from '@/common/utils/storage';
+import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';
 import { useLoginCaptcha, useWartermark } from '@/common/sysconfig';
 import { letterAvatar } from '@/common/utils/string';
+import { useUserInfo } from '@/store/userInfo';
+import { useThemeConfig } from '@/store/themeConfig';
 
 const rules = {
     username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -78,7 +79,6 @@ const rules = {
     captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
 }
 
-const store = useStore();
 const route = useRoute();
 const router = useRouter();
 const loginFormRef: any = ref(null);
@@ -202,8 +202,9 @@ const onSignIn = async () => {
     // 存储用户信息到浏览器缓存
     setUserInfo2Session(userInfos);
     // 1、请注意执行顺序(存储用户信息到vuex)
-    store.dispatch('userInfos/setUserInfos', userInfos);
-    if (!store.state.themeConfig.themeConfig.isRequestRoutes) {
+    useUserInfo().setUserInfo(userInfos)
+    // store.dispatch('userInfos/setUserInfos', userInfos);
+    if (!useThemeConfig().themeConfig.isRequestRoutes) {
         // 前端控制路由，2、请注意执行顺序
         // await initAllFun();
         await initBackEndControlRoutesFun();

@@ -41,6 +41,13 @@
             <div :id="'MonacoTextarea-' + ti.key" :style="{ height: editorHeight }">
             </div>
         </div>
+
+        <div class="editor-move-resize" @mousedown="onDragSetHeight">
+            <el-icon>
+                <Minus />
+            </el-icon>
+        </div>
+
         <div class="mt5">
             <el-row>
                 <el-link v-if="table" @click="onDeleteData()" class="ml5" type="danger" icon="delete"
@@ -62,18 +69,19 @@
                             style="font-size: 12px">取消</span></el-link>
                 </span>
             </el-row>
-            <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db="state.ti.db"
-                :data="execRes.data" :table="state.table" :column-names="execRes.tableColumn" :loading="loading"
-                height="250" empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
-                @selection-change="onDataSelectionChange" @change-updated-field="changeUpdatedField"></db-table>
+            <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db="state.ti.db" :data="execRes.data" :table="state.table"
+                :column-names="execRes.tableColumn" :loading="loading" :height="tableDataHeight"
+                empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改" @selection-change="onDataSelectionChange"
+                @change-updated-field="changeUpdatedField"></db-table>
         </div>
 
     </div>
 </template>
 
 <script lang="ts" setup>
-import { nextTick, watch, onMounted, computed, reactive, toRefs, ref, Ref } from 'vue';
-import { useStore } from '@/store/index.ts';
+import { nextTick, watch, onMounted, reactive, toRefs, ref, Ref } from 'vue';
+import { storeToRefs } from 'pinia';
+import { useThemeConfig } from '@/store/themeConfig';
 import { getSession } from '@/common/utils/storage';
 import { isTrue, notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
@@ -110,8 +118,7 @@ const props = defineProps({
     }
 })
 
-
-const store = useStore();
+const { themeConfig } = storeToRefs(useThemeConfig());
 const token = getSession('token');
 let monacoEditor = {} as editor.IStandaloneCodeEditor;
 const dbTableRef = ref(null) as Ref;
@@ -131,10 +138,12 @@ const state = reactive({
     },
     selectionDatas: [] as any,
     editorHeight: '500',
+    tableDataHeight: 250 as any,
     hasUpdatedFileds: false,
 });
 
 const {
+    tableDataHeight,
     editorHeight,
     ti,
     execRes,
@@ -166,11 +175,6 @@ onMounted(async () => {
     await state.ti.getNowDbInst().loadDbHints(state.ti.db);
 })
 
-// 获取布局配置信息
-const getThemeConfig: any = computed(() => {
-    return store.state.themeConfig.themeConfig;
-});
-
 self.MonacoEnvironment = {
     getWorker() {
         return new EditorWorker();
@@ -184,7 +188,7 @@ const initMonacoEditor = () => {
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
     monacoEditor = monaco.editor.create(monacoTextarea, {
         language: 'sql',
-        theme: getThemeConfig.value.editorTheme,
+        theme: themeConfig.value.editorTheme,
         automaticLayout: true, //自适应宽高布局
         folding: false,
         roundedSelection: false, // 禁用选择文本背景的圆角
@@ -265,6 +269,21 @@ const initMonacoEditor = () => {
         monacoEditor.getModel()?.setValue(state.sql);
     }
 };
+
+/**
+ * 拖拽改变sql编辑区和查询结果区高度
+*/
+const onDragSetHeight = () => {
+    document.onmousemove = (e) => {
+        e.preventDefault();
+        //得到鼠标拖动的宽高距离：取绝对值
+        state.editorHeight = `${document.getElementById('MonacoTextarea-' + state.ti.key)!.offsetHeight + e.movementY}px`
+        state.tableDataHeight -= e.movementY
+    }
+    document.onmouseup = () => {
+        document.onmousemove = null;
+    }
+}
 
 /**
  * 执行sql
@@ -544,5 +563,11 @@ const cancelUpdateFields = () => {
 
 .update_field_active {
     background-color: var(--el-color-success)
+}
+
+.editor-move-resize {
+    cursor: n-resize;
+    height: 3px;
+    text-align: center;
 }
 </style>

@@ -161,7 +161,7 @@
 
         <process-list v-model:visible="processDialog.visible" v-model:machineId="processDialog.machineId" />
 
-        <service-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible"
+        <script-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible"
             v-model:machineId="serviceDialog.machineId" />
 
         <file-manage :title="fileDialog.title" v-model:visible="fileDialog.visible"
@@ -176,19 +176,21 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted } from 'vue';
+import { toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi } from './api';
-import { tagApi } from '../tag/api.ts';
-import ServiceManage from './ServiceManage.vue';
-import FileManage from './FileManage.vue';
-import MachineEdit from './MachineEdit.vue';
-import ProcessList from './ProcessList.vue';
-import MachineStats from './MachineStats.vue';
-import MachineRec from './MachineRec.vue';
+import { tagApi } from '../tag/api';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
+
+// 组件
+const MachineEdit = defineAsyncComponent(() => import('./MachineEdit.vue'));
+const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
+const FileManage = defineAsyncComponent(() => import('./FileManage.vue'));
+const MachineStats = defineAsyncComponent(() => import('./MachineStats.vue'));
+const MachineRec = defineAsyncComponent(() => import('./MachineRec.vue'));
+const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
 
 const router = useRouter();
 const state = reactive({

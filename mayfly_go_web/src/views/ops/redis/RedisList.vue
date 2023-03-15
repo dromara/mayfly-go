@@ -160,7 +160,7 @@ import Info from './Info.vue';
 import { redisApi } from './api';
 import { toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { tagApi } from '../tag/api.ts';
+import { tagApi } from '../tag/api';
 import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';

@@ -1,10 +1,7 @@
-import { Module } from 'vuex';
-// 此处加上 `.ts` 后缀报错，具体原因不详
-import { ThemeConfigState, RootStateTypes } from '@/store/interface/index';
+import { defineStore } from 'pinia';
 
-const themeConfigModule: Module<ThemeConfigState, RootStateTypes> = {
-    namespaced: true,
-    state: {
+export const useThemeConfig = defineStore('themeConfig', {
+    state: (): ThemeConfigState => ({
         themeConfig: {
             // 是否开启布局配置抽屉
             isDrawer: false,
@@ -73,12 +70,13 @@ const themeConfigModule: Module<ThemeConfigState, RootStateTypes> = {
             isBreadcrumb: true,
             // 是否开启 Tagsview
             isTagsview: true,
+            isShareTagsView: false,
             // 是否开启 Breadcrumb 图标
             isBreadcrumbIcon: true,
             // 是否开启 Tagsview 图标
             isTagsviewIcon: true,
             // 是否开启 TagsView 缓存
-            isCacheTagsView: false,
+            isCacheTagsView: true,
             // 是否开启 TagsView 拖拽
             isSortableTagsView: true,
             // 是否开启 Footer 底部版权信息
@@ -94,8 +92,8 @@ const themeConfigModule: Module<ThemeConfigState, RootStateTypes> = {
 
             /* 其它设置
             ------------------------------- */
-            // 默认 Tagsview 风格，可选 1、 tags-style-one 2、 tags-style-two 3、 tags-style-three 4、 tags-style-four
-            tagsStyle: 'tags-style-one',
+            // 默认 Tagsview 风格，可选 1、 tags-style-one 2、 tags-style-two 3、 tags-style-three
+            tagsStyle: 'tags-style-three',
             // 默认主页面切换动画，可选 1、 slide-right 2、 slide-left 3、 opacitys
             animation: 'slide-right',
             // 默认分栏高亮风格，可选 1、 圆角 columns-round 2、 卡片 columns-card
@@ -135,19 +133,11 @@ const themeConfigModule: Module<ThemeConfigState, RootStateTypes> = {
             // 默认全局组件大小，可选值"<|large|default|small>"，默认 ''
             globalComponentSize: '',
         },
-    },
-    mutations: {
-        // 设置布局配置
-        getThemeConfig(state: any, data: object) {
-            state.themeConfig = data;
-        },
-    },
+    }),
     actions: {
         // 设置布局配置
-        setThemeConfig({ commit }, data: object) {
-            commit('getThemeConfig', data);
+        setThemeConfig(data: ThemeConfigState) {
+            this.themeConfig = data.themeConfig;
         },
     },
-};
-
-export default themeConfigModule;
+})

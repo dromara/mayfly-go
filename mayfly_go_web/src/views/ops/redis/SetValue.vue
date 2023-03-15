@@ -21,7 +21,7 @@
                 </el-table-column>
                 <el-table-column label="操作" width="90">
                     <template #default="scope">
-                        <el-button type="danger" @click="value.splice(scope.$index, 1)" icon="delete" size="small"
+                        <el-button v-auth="'redis:data:del'" type="danger" @click="value.splice(scope.$index, 1)" icon="delete" size="small"
                             plain>删除</el-button>
                     </template>
                 </el-table-column>

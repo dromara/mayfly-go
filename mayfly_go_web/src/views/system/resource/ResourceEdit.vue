@@ -1,84 +1,83 @@
 <template>
-    <div class="menu-dialog">
-        <el-dialog :title="title" :destroy-on-close="true" v-model="dialogVisible" width="769px">
+    <div class="system-menu-dialog-container layout-pd">
+        <el-dialog :title="title" :destroy-on-close="true" v-model="dialogVisible" width="800px">
             <el-form :model="form" :inline="true" ref="menuForm" :rules="rules" label-width="95px">
-                <el-row :gutter="10">
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item prop="type" label="类型" required>
-                            <el-select v-model="form.type" :disabled="typeDisabled" placeholder="请选择">
-                                <el-option v-for="item in enums.ResourceTypeEnum as any" :key="item.value" :label="item.label"
-                                    :value="item.value">
+                <el-row :gutter="35">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
+                        <el-form-item class="w100" prop="type" label="类型" required>
+                            <el-select class="w100" v-model="form.type" :disabled="typeDisabled" placeholder="请选择">
+                                <el-option v-for="item in enums.ResourceTypeEnum as any" :key="item.value"
+                                    :label="item.label" :value="item.value">
                                 </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item prop="name" label="名称" required>
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
+                        <el-form-item class="w100" prop="name" label="名称" required>
                             <el-input v-model.trim="form.name" placeholder="资源名[菜单名]" auto-complete="off"></el-input>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item prop="code" label="path|code">
-                            <el-input v-model.trim="form.code" placeholder="菜单不带/自动拼接父路径"></el-input>
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
+                        <el-form-item class="w100" prop="code" label="path|code">
+                            <el-input v-model.trim="form.code" placeholder="菜单不以'/'开头则自动拼接父菜单路径"></el-input>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item label="序号" prop="weight" required>
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
+                        <el-form-item class="w100" label="序号" prop="weight" required>
                             <el-input v-model.trim="form.weight" type="number" placeholder="请输入序号"></el-input>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item v-if="form.type === menuTypeValue" label="图标">
-                            <icon-selector v-model="form.meta.icon" type="ele" />
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                        <el-form-item class="w100" label="图标">
+                            <icon-selector v-model="form.meta.icon" />
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item v-if="form.type === menuTypeValue" prop="code" label="路由名">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                        <el-form-item class="w100" prop="code" label="路由名">
                             <el-input v-model.trim="form.meta.routeName" placeholder="请输入路由名称"></el-input>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item v-if="form.type === menuTypeValue" prop="code" label="组件">
-                            <el-input v-model.trim="form.meta.component" placeholder="请输入组件名"></el-input>
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                        <el-form-item class="w100" prop="code" label="组件路径">
+                            <el-input v-model.trim="form.meta.component" placeholder="请输入组件路径"></el-input>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item v-if="form.type === menuTypeValue" prop="code" label="是否缓存">
-                            <el-select v-model="form.meta.isKeepAlive" placeholder="请选择" width="w100">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                        <el-form-item class="w100" prop="code" label="是否缓存">
+                            <el-select v-model="form.meta.isKeepAlive" placeholder="请选择" class="w100">
                                 <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
                                     :value="item.value"> </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item v-if="form.type === menuTypeValue" prop="code" label="是否隐藏">
-                            <el-select v-model="form.meta.isHide" placeholder="请选择" width="w100">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                        <el-form-item class="w100" prop="code" label="是否隐藏">
+                            <el-select v-model="form.meta.isHide" placeholder="请选择" class="w100">
                                 <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
                                     :value="item.value"> </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item v-if="form.type === menuTypeValue" prop="code" label="tag不可删除">
-                            <el-select v-model="form.meta.isAffix" placeholder="请选择" width="w100">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                        <el-form-item class="w100" prop="code" label="tag不可删除">
+                            <el-select v-model="form.meta.isAffix" placeholder="请选择" class="w100">
                                 <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
                                     :value="item.value"> </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item v-if="form.type === menuTypeValue" prop="code" label="是否iframe">
-                            <el-select @change="changeIsIframe" v-model="form.meta.isIframe" placeholder="请选择"
-                                width="w100">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
+                        <el-form-item class="w100" prop="code" label="是否iframe">
+                            <el-select class="w100" @change="changeIsIframe" v-model="form.meta.isIframe" placeholder="请选择">
                                 <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
                                     :value="item.value"> </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb10">
-                        <el-form-item v-if="form.type === menuTypeValue && form.meta.isIframe" prop="code"
-                            label="iframe地址" width="w100">
-                            <el-input v-model.trim="form.meta.link" placeholder="请输入iframe url"></el-input>
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20"
+                        v-if="form.type === menuTypeValue && form.meta.isIframe">
+                        <el-form-item prop="code" label="iframe地址" class="w100">
+                            <el-input v-model.trim="form.meta.link" placeholder="请输入iframe url（http://xxx.com）"></el-input>
                         </el-form-item>
                     </el-col>
                 </el-row>
@@ -217,7 +216,9 @@ watch(props, (newValue: any) => {
 // 改变iframe字段，如果为是，则设置默认的组件
 const changeIsIframe = (value: boolean) => {
     if (value) {
-        state.form.meta.component = 'RouterParent';
+        state.form.meta.component = 'layout/routerView/parent';
+    } else {
+        state.form.meta.component = '';
     }
 };
 
@@ -267,6 +268,8 @@ const parseMenuMeta = (meta: any) => {
     }
     if (meta.link) {
         metaForm.link = meta.link;
+    } else {
+        delete metaForm['link']
     }
     if (meta.redirect) {
         metaForm.redirect = meta.redirect;

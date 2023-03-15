@@ -50,7 +50,7 @@
                                 <el-button @click="scan()" icon="bottom" plain>scan</el-button>
                                 <el-popover placement="right" :width="200" trigger="click">
                                     <template #reference>
-                                        <el-button type="primary" icon="plus" plain></el-button>
+                                        <el-button type="primary" icon="plus" plain v-auth="'redis:data:save'"></el-button>
                                     </template>
                                     <el-tag @click="onAddData('string')" :color="getTypeColor('string')"
                                         style="cursor: pointer">string</el-tag>
@@ -84,7 +84,7 @@
                                 <el-button @click="getValue(scope.row)" type="success" icon="search" plain
                                     size="small">查看
                                 </el-button>
-                                <el-button @click="del(scope.row.key)" type="danger" icon="delete" plain size="small">删除
+                                <el-button v-auth="'redis:data:del'" @click="del(scope.row.key)" type="danger" icon="delete" plain size="small">删除
                                 </el-button>
                             </template>
                         </el-table-column>
@@ -115,15 +115,16 @@
 
 <script lang="ts" setup>
 import { redisApi } from './api';
-import { toRefs, reactive, onMounted } from 'vue';
+import { defineAsyncComponent, toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import HashValue from './HashValue.vue';
-import StringValue from './StringValue.vue';
-import SetValue from './SetValue.vue';
-import ListValue from './ListValue.vue';
 import { isTrue, notBlank, notNull } from '@/common/assert';
 import { TagTreeNode } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
+
+const HashValue = defineAsyncComponent(() => import('./HashValue.vue'));
+const StringValue = defineAsyncComponent(() => import('./StringValue.vue'));
+const SetValue = defineAsyncComponent(() => import('./SetValue.vue'));
+const ListValue = defineAsyncComponent(() => import('./ListValue.vue'));
 
 /**
  * 树节点类型

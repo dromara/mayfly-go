@@ -77,5 +77,7 @@
 		 // 允许编译javascript文件
 		 "allowJs": true,
 		"sourceMap": true,
-	}
+	},
+    "include": ["src/**/*.ts", "src/**/*.vue", "src/**/*.tsx", "src/**/*.d.ts", "*.d.ts"], // **Represents any directory, and * represents any file. Indicates that all files in the src directory will be compiled
+	"exclude": ["node_modules", "dist"] // Indicates the file directory that does not need to be compiled
 }

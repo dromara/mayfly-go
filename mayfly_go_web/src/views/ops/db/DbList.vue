@@ -286,21 +286,22 @@
 </template>
 
 <script lang='ts' setup>
-import { toRefs, reactive, computed, onMounted } from 'vue';
+import { toRefs, reactive, computed, onMounted, defineAsyncComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
-import DbEdit from './DbEdit.vue';
-import CreateTable from './CreateTable.vue';
 import { dbApi } from './api';
 import enums from './enums';
-import SqlExecBox from './component/SqlExecBox.ts';
+import SqlExecBox from './component/SqlExecBox';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
 import { isTrue } from '@/common/assert';
 import { Search as SearchIcon } from '@element-plus/icons-vue'
-import { tagApi } from '../tag/api.ts';
+import { tagApi } from '../tag/api';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
+
+const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
+const CreateTable = defineAsyncComponent(() => import('./CreateTable.vue'));
 
 const permissions = {
     saveDb: 'db:save',

@@ -7,20 +7,20 @@
                     <div class="personal-user">
                         <div class="personal-user-left">
                             <el-upload class="h100 personal-user-left-upload" action="" multiple :limit="1">
-                                <img :src="getUserInfos.photo" />
+                                <img :src="userInfo.photo" />
                             </el-upload>
                         </div>
                         <div class="personal-user-right">
                             <el-row>
                                 <el-col :span="24" class="personal-title mb18">{{ currentTime }}，{{
-                                        getUserInfos.name
+                                        userInfo.name
                                 }}，生活变的再糟糕，也不妨碍我变得更好！
                                 </el-col>
                                 <el-col :span="24">
                                     <el-row>
                                         <el-col :xs="24" :sm="8" class="personal-item mb6">
                                             <div class="personal-item-label">用户名：</div>
-                                            <div class="personal-item-value">{{ getUserInfos.username }}</div>
+                                            <div class="personal-item-value">{{ userInfo.username }}</div>
                                         </el-col>
                                         <el-col :xs="24" :sm="16" class="personal-item mb6">
                                             <div class="personal-item-label">角色：</div>
@@ -32,12 +32,12 @@
                                     <el-row>
                                         <el-col :xs="24" :sm="8" class="personal-item mb6">
                                             <div class="personal-item-label">上次登录IP：</div>
-                                            <div class="personal-item-value">{{ getUserInfos.lastLoginIp }}</div>
+                                            <div class="personal-item-value">{{ userInfo.lastLoginIp }}</div>
                                         </el-col>
                                         <el-col :xs="24" :sm="16" class="personal-item mb6">
                                             <div class="personal-item-label">上次登录时间：</div>
                                             <div class="personal-item-value">{{
-                                                    dateFormat(getUserInfos.lastLoginTime)
+                                                    dateFormat(userInfo.lastLoginTime)
                                             }}</div>
                                         </el-col>
                                     </el-row>
@@ -178,13 +178,13 @@
 <script lang="ts" setup>
 import { toRefs, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { formatAxis } from '@/common/utils/formatTime.ts';
-import { useStore } from '@/store/index.ts';
+import { formatAxis } from '@/common/utils/format';
 import { personApi } from './api';
 import { dateFormat } from '@/common/utils/date';
+import { storeToRefs } from 'pinia';
+import { useUserInfo } from '@/store/userInfo';
 
-const store = useStore();
-
+const { userInfo } = storeToRefs(useUserInfo());
 const state = reactive({
     accountInfo: {
         roles: [],
@@ -215,11 +215,6 @@ const {
 // 当前时间提示语
 const currentTime = computed(() => {
     return formatAxis(new Date());
-});
-
-// 获取用户信息 vuex
-const getUserInfos = computed(() => {
-    return store.state.userInfos.userInfos;
 });
 
 const showMsgs = () => {

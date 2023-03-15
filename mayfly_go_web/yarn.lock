@@ -333,10 +333,10 @@
     "@typescript-eslint/types" "4.33.0"
     eslint-visitor-keys "^2.0.0"
 
-"@vitejs/plugin-vue@^2.3.3":
-  version "2.3.3"
-  resolved "https://registry.npmmirror.com/@vitejs/plugin-vue/-/plugin-vue-2.3.3.tgz"
-  integrity sha512-SmQLDyhz+6lGJhPELsBdzXGc+AcaT8stgkbiTFGpXPe8Tl1tJaBw1A6pxDqDuRsVkD8uscrkx3hA7QDOoKYtyw==
+"@vitejs/plugin-vue@^4.0.0":
+  version "4.0.0"
+  resolved "https://registry.npmmirror.com/@vitejs/plugin-vue/-/plugin-vue-4.0.0.tgz#93815beffd23db46288c787352a8ea31a0c03e5e"
+  integrity sha512-e0X4jErIxAB5oLtDqbHvHpJe/uWNkdpYV83AOG2xo2tEVSzCzewgJMtREZM30wXnM5ls90hxiOtAuVU6H5JgbA==
 
 "@vue/compiler-core@3.2.39":
   version "3.2.39"
@@ -422,15 +422,15 @@
     "@vue/compiler-dom" "3.2.47"
     "@vue/shared" "3.2.47"
 
-"@vue/devtools-api@^6.0.0-beta.11":
-  version "6.0.0-beta.20.1"
-  resolved "https://registry.npmmirror.com/@vue/devtools-api/download/@vue/devtools-api-6.0.0-beta.20.1.tgz"
-  integrity sha512-R2rfiRY+kZugzWh9ZyITaovx+jpU4vgivAEAiz80kvh3yviiTU3CBuGuyWpSwGz9/C7TkSWVM/FtQRGlZ16n8Q==
-
 "@vue/devtools-api@^6.4.5":
   version "6.4.5"
   resolved "https://registry.npmmirror.com/@vue/devtools-api/-/devtools-api-6.4.5.tgz"
   integrity sha512-JD5fcdIuFxU4fQyXUu3w2KpAJHzTVdN+p4iOX2lMWSHMOoQdMAcpFLZzm9Z/2nmsoZ1a96QEhZ26e50xLBsgOQ==
+
+"@vue/devtools-api@^6.5.0":
+  version "6.5.0"
+  resolved "https://registry.npmmirror.com/@vue/devtools-api/-/devtools-api-6.5.0.tgz#98b99425edee70b4c992692628fa1ea2c1e57d07"
+  integrity sha512-o9KfBeaBmCKl10usN4crU53fYtC1r7jJwdGKjPT24t348rHxgfpZ0xL3Xm/gLUYnc0oTp8LAmrxOeLyu6tbk2Q==
 
 "@vue/reactivity-transform@3.2.39":
   version "3.2.39"
@@ -792,10 +792,10 @@ echarts@^5.4.0:
     tslib "2.3.0"
     zrender "5.4.0"
 
-element-plus@^2.2.33:
-  version "2.2.33"
-  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.2.33.tgz#30fe0db427dba42eb60a0ad8177f2d5c90435a92"
-  integrity sha512-E/PmMnv4+4I9Ue0ZDfx2gGgGj4iBlTCWcES3o4jxfYjayFlcQO3UvElJzhaJZ8vDm9yfNN7t2w/xYOhsSYCNNg==
+element-plus@^2.3.0:
+  version "2.3.0"
+  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.3.0.tgz#c7492fe7b604eef60163d4e900ab074ae22bc553"
+  integrity sha512-3s3JO4+LHLi61tFwF2emIHx6nxwKKdj5YWcj3GUBoXKhbuRjhq6xqaxWpBlPk7jySr/8Eci5++T2THbvrpGn7A==
   dependencies:
     "@ctrl/tinycolor" "^3.4.1"
     "@element-plus/icons-vue" "^2.0.6"
@@ -1549,6 +1549,14 @@ picomatch@^2.0.4, picomatch@^2.2.1, picomatch@^2.2.3:
   resolved "https://registry.nlark.com/picomatch/download/picomatch-2.3.0.tgz?cache=0&sync_timestamp=1621648246651&other_urls=https%3A%2F%2Fregistry.nlark.com%2Fpicomatch%2Fdownload%2Fpicomatch-2.3.0.tgz"
   integrity sha1-8fBh3o9qS/AiiS4tEoI0+5gwKXI=
 
+pinia@^2.0.33:
+  version "2.0.33"
+  resolved "https://registry.npmmirror.com/pinia/-/pinia-2.0.33.tgz#b70065be697874d5824e9792f59bd5d87ddb5e7d"
+  integrity sha512-HOj1yVV2itw6rNIrR2f7+MirGNxhORjrULL8GWgRwXsGSvEqIQ+SE0MYt6cwtpegzCda3i+rVTZM+AM7CG+kRg==
+  dependencies:
+    "@vue/devtools-api" "^6.5.0"
+    vue-demi "*"
+
 postcss@^8.1.10:
   version "8.4.5"
   resolved "https://registry.npmmirror.com/postcss/download/postcss-8.4.5.tgz"
@@ -1894,13 +1902,6 @@ vue@^3.2.47:
     "@vue/runtime-dom" "3.2.47"
     "@vue/server-renderer" "3.2.47"
     "@vue/shared" "3.2.47"
-
-vuex@^4.0.2:
-  version "4.0.2"
-  resolved "https://registry.npmmirror.com/vuex/download/vuex-4.0.2.tgz"
-  integrity sha512-M6r8uxELjZIK8kTKDGgZTYX/ahzblnzC4isU1tpmEuOIIKmV+TRdc+H4s8ds2NuZ7wpUTdGRzJRtoj+lI+pc0Q==
-  dependencies:
-    "@vue/devtools-api" "^6.0.0-beta.11"
 
 which@^2.0.1:
   version "2.0.2"

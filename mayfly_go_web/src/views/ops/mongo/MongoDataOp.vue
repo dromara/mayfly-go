@@ -147,14 +147,15 @@
 
 <script lang="ts" setup>
 import { mongoApi } from './api';
-import { reactive, ref, toRefs } from 'vue';
+import { defineAsyncComponent, reactive, ref, toRefs } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { isTrue, notBlank } from '@/common/assert';
-import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { TagTreeNode } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { formatByteSize } from '@/common/utils/format';
+
+const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
 /**
  * 树节点类型

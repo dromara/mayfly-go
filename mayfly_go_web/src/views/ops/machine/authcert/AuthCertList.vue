@@ -30,7 +30,7 @@
                 <el-table-column prop="authMethod" label="认证方式" min-width="50px">
                     <template #default="scope">
                         <el-tag v-if="scope.row.authMethod == 1" type="success" size="small">密码</el-tag>
-                        <el-tag v-if="scope.row.authMethod == 2" type="primary" size="small">密钥</el-tag>
+                        <el-tag v-if="scope.row.authMethod == 2" size="small">密钥</el-tag>
                     </template>
                 </el-table-column>
                 <el-table-column prop="remark" label="备注" min-width="100px" show-overflow-tooltip>
