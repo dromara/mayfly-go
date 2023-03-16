@@ -341,23 +341,3 @@ body,
 .f12 {
     font-size: 12px
 }
-
-// 图标垂直居中
-.icon-middle {
-    .el-icon {
-        display: inline-flex;
-        justify-content: center;
-        align-items: center;
-        cursor: pointer;
-        vertical-align: middle;
-    }
-}
-.img-icon {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    vertical-align: middle;
-    height: 16px;
-    width: 16px;
-}

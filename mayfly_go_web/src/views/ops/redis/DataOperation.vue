@@ -9,7 +9,7 @@
                                 <span v-if="data.type == NodeType.Redis">
                                     <el-popover placement="right-start" title="redis实例信息" trigger="hover" :width="210">
                                         <template #reference>
-                                            <img src="@/assets/icon/redis.png" class="img-icon" />
+                                            <SvgIcon name="iconfont icon-op-redis" :size="18"/>
                                         </template>
                                         <template #default>
                                             <el-form class="instances-pop-form" label-width="50px" :size="'small'">
@@ -24,9 +24,7 @@
                                     </el-popover>
                                 </span>
 
-                                <el-icon v-if="data.type == NodeType.Db">
-                                    <Coin color="#67c23a" />
-                                </el-icon>
+                                <SvgIcon v-if="data.type == NodeType.Db" name="Coin" color="#67c23a"/>
                             </template>
                         </tag-tree>
                     </el-col>

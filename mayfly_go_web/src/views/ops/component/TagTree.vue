@@ -6,9 +6,10 @@
 
                 <el-tree ref="treeRef" :style="{ maxHeight: state.height, height: state.height, overflow: 'auto' }"
                     :highlight-current="true" :indent="7" :load="loadNode" :props="treeProps" lazy node-key="key"
-                    :expand-on-click-node="true" :filter-node-method="filterNode" @node-click="treeNodeClick" @node-expand="treeNodeClick">
+                    :expand-on-click-node="true" :filter-node-method="filterNode" @node-click="treeNodeClick"
+                    @node-expand="treeNodeClick">
                     <template #default="{ node, data }">
-                        <span class="icon-middle ">
+                        <span>
                             <span v-if="data.type == TagTreeNode.TagPath">
                                 <tag-info :tag-path="data.label" />
                             </span>
@@ -60,7 +61,7 @@ const { filterText } = toRefs(state)
 
 onMounted(async () => {
     if (!props.height) {
-        state.height = window.innerHeight - 145 + 'px';
+        state.height = window.innerHeight - 147 + 'px';
     } else {
         state.height = props.height;
     }
@@ -84,7 +85,13 @@ const loadNode = async (node: any, resolve: any) => {
     if (typeof resolve !== 'function') {
         return;
     }
-    return resolve(await props.load(node));
+    let nodes = []
+    try {
+        nodes = await props.load(node)
+    } catch (e: any) {
+        console.error(e);
+    }
+    return resolve(nodes)
 };
 
 const treeNodeClick = (data: any) => {

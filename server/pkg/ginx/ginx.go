@@ -6,6 +6,7 @@ import (
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -66,12 +67,10 @@ func ErrorRes(g *gin.Context, err interface{}) {
 		g.JSON(http.StatusOK, model.Error(t))
 	case error:
 		g.JSON(http.StatusOK, model.ServerError())
-		global.Log.Error(t)
-		// panic(err)
+		global.Log.Errorf("%s\n%s", t.Error(), string(debug.Stack()))
 	case string:
 		g.JSON(http.StatusOK, model.ServerError())
-		global.Log.Error(t)
-		// panic(err)
+		global.Log.Errorf("%s\n%s", t, string(debug.Stack()))
 	default:
 		global.Log.Error(t)
 	}

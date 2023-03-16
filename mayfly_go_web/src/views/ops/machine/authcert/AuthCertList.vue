@@ -9,10 +9,7 @@
                 </el-button>
 
                 <div style="float: right">
-                    <el-select v-model="query.type" placeholder="请选择标签" @clear="search" filterable clearable>
-                        <el-option label="" value="item"> </el-option>
-                    </el-select>
-                    <el-input class="ml5" placeholder="请输入凭证名称" style="width: 150px" v-model="query.name" @clear="search"
+                    <el-input class="ml5" placeholder="请输入凭证名称" style="width: 200px" v-model="query.name" @clear="search"
                         plain clearable></el-input>
                     <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
                 </div>

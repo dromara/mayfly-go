@@ -105,7 +105,8 @@
                                     </el-dropdown-item>
 
                                     <el-dropdown-item>
-                                        <el-link :disabled="!scope.row.hasCli || scope.row.status == -1" type="danger"
+                                        <el-link v-auth="'machine:close-cli'"
+                                            :disabled="!scope.row.hasCli || scope.row.status == -1" type="danger"
                                             @click="closeCli(scope.row)" plain size="small" :underline="false">关闭连接
                                         </el-link>
                                     </el-dropdown-item>

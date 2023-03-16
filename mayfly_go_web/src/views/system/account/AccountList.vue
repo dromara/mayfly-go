@@ -9,9 +9,9 @@
             <el-button v-auth="'account:del'" :disabled="chooseId == null" @click="deleteAccount()" type="danger"
                 icon="delete">删除</el-button>
             <div style="float: right">
-                <el-input class="mr2" placeholder="请输入账号名" size="small" style="width: 300px" v-model="query.username"
+                <el-input class="mr2" placeholder="请输入账号名" style="width: 200px" v-model="query.username"
                     @clear="search()" clearable></el-input>
-                <el-button @click="search()" type="success" icon="search" size="small"></el-button>
+                <el-button @click="search()" type="success" icon="search"></el-button>
             </div>
             <el-table :data="datas" ref="table" @current-change="choose" show-overflow-tooltip>
                 <el-table-column label="选择" width="55px">

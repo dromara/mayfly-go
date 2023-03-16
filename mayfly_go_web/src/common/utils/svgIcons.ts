@@ -1,5 +1,20 @@
 import { nextTick } from 'vue';
 import * as svg from '@element-plus/icons-vue';
+import iconfontJson from '@/assets/iconfont/iconfont.json'
+import SvgIcon from '@/components/svgIcon/index.vue';
+
+/**
+ * 导出全局注册 element plus svg 图标
+ * @param app vue 实例
+ * @description 使用：https://element-plus.gitee.io/zh-CN/component/icon.html
+ */
+export function registElSvgIcon(app: any) {
+    const icons = svg as any;
+    for (const i in icons) {
+        app.component(`${icons[i].name}`, icons[i]);
+    }
+    app.component('SvgIcon', SvgIcon);
+}
 
 // 获取阿里字体图标
 const getAlicdnIconfont = () => {
@@ -9,7 +24,8 @@ const getAlicdnIconfont = () => {
             let sheetsList = [];
             let sheetsIconList = [];
             for (let i = 0; i < styles.length; i++) {
-                if (styles[i].href && styles[i].href.indexOf('at.alicdn.com') > -1) {
+                console.log(styles[i]);
+                if (styles[i].href && styles[i].href.indexOf('iconfont') > -1) {
                     sheetsList.push(styles[i]);
                 }
             }
@@ -27,6 +43,16 @@ const getAlicdnIconfont = () => {
         });
     });
 };
+
+// 获取本地阿里icons
+const getLocalAliIconfont = () => {
+    return new Promise((resolve, reject) => {
+        nextTick(() => {
+            const prefix = iconfontJson.css_prefix_text;
+            resolve(iconfontJson.glyphs.map((x: any) => prefix + x.font_class));
+        });
+    });
+}
 
 // 初始化获取 css 样式，获取 element plus 自带图标
 const elementPlusIconfont = () => {
@@ -76,9 +102,9 @@ const awesomeIconfont = () => {
 
 // 定义导出方法集合
 const initIconfont = {
-    // ali: () => {
-    // 	return getAlicdnIconfont();
-    // },
+    ali: () => {
+    	return getLocalAliIconfont();
+    },
     ele: () => {
         return elementPlusIconfont();
     },

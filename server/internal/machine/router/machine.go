@@ -57,6 +57,7 @@ func InitMachineRouter(router *gin.RouterGroup) {
 		machines.PUT(":machineId/:status", func(c *gin.Context) {
 			req.NewCtxWithGin(c).
 				WithLog(changeStatus).
+				WithRequiredPermission(saveMachineP).
 				Handle(m.ChangeStatus)
 		})
 
@@ -68,8 +69,12 @@ func InitMachineRouter(router *gin.RouterGroup) {
 		})
 
 		closeCli := req.NewLogInfo("关闭机器客户端").WithSave(true)
+		closeCliP := req.NewPermission("machine:close-cli")
 		machines.DELETE(":machineId/close-cli", func(c *gin.Context) {
-			req.NewCtxWithGin(c).WithLog(closeCli).Handle(m.CloseCli)
+			req.NewCtxWithGin(c).
+				WithLog(closeCli).
+				WithRequiredPermission(closeCliP).
+				Handle(m.CloseCli)
 		})
 
 		machines.GET(":machineId/terminal", m.WsSSH)

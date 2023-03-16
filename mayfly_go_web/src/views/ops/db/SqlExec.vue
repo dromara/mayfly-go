@@ -28,14 +28,10 @@
                         <span v-if="data.type == NodeType.DbInst">
                             <el-popover placement="right-start" title="数据库实例信息" trigger="hover" :width="210">
                                 <template #reference>
-                                    <img v-if="data.params.type === 'mysql'" src="@/assets/icon/mysql.png"
-                                        class="img-icon" />
-                                    <img v-if="data.params.type === 'postgres'" src="@/assets/icon/postgres.png"
-                                        class="img-icon" />
+                                    <SvgIcon v-if="data.params.type === 'mysql'" name="iconfont icon-op-mysql" :size="18" />
+                                    <SvgIcon v-if="data.params.type === 'postgres'" name="iconfont icon-op-postgres" :size="18" />
 
-                                    <el-icon v-else>
-                                        <InfoFilled />
-                                    </el-icon>
+                                    <SvgIcon name="InfoFilled" v-else />
                                 </template>
                                 <template #default>
                                     <el-form class="instances-pop-form" label-width="55px" :size="'small'">
@@ -52,23 +48,16 @@
                             </el-popover>
                         </span>
 
-                        <el-icon v-if="data.type == NodeType.Db">
-                            <Coin color="#67c23a" />
-                        </el-icon>
+                        <SvgIcon v-if="data.type == NodeType.Db" name="Coin" color="#67c23a" />
 
-                        <el-icon v-if="data.type == NodeType.TableMenu">
-                            <Calendar color="#409eff" />
-                        </el-icon>
+                        <SvgIcon name="Calendar" v-if="data.type == NodeType.TableMenu" color="#409eff" />
+
                         <el-tooltip v-if="data.type == NodeType.Table" effect="customized"
                             :content="data.params.tableComment" placement="top-end">
-                            <el-icon>
-                                <Calendar color="#409eff" />
-                            </el-icon>
+                           <SvgIcon name="Calendar" color="#409eff" />
                         </el-tooltip>
 
-                        <el-icon v-if="data.type == NodeType.SqlMenu || data.type == NodeType.Sql">
-                            <Files color="#f56c6c" />
-                        </el-icon>
+                        <SvgIcon name="Files"  v-if="data.type == NodeType.SqlMenu || data.type == NodeType.Sql" color="#f56c6c" />
                     </template>
                 </tag-tree>
             </el-col>

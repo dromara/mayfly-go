@@ -2,19 +2,19 @@
     <template v-for="val in chils">
         <el-sub-menu :index="val.path" :key="val.path" v-if="val.children && val.children.length > 0">
             <template #title>
-                <SvgIcon :name="val.meta.icon" />
+                <SvgIcon :name="val.meta.icon"/>
                 <span>{{ val.meta.title }}</span>
             </template>
             <sub-item :chil="val.children" />
         </el-sub-menu>
-        <el-menu-item :index="val.path" :key="val.path" v-else>
+        <el-menu-item :index="val.path" :key="val?.path" v-else>
             <template v-if="!val.meta.link || (val.meta.link && val.meta.isIframe)">
-                <SvgIcon :name="val.meta.icon" />
+                <SvgIcon :name="val.meta.icon"/>
                 <span>{{ val.meta.title }}</span>
             </template>
             <template v-else>
                 <a :href="val.meta.link" target="_blank">
-                    <SvgIcon :name="val.meta.icon" />
+                    <SvgIcon :name="val.meta.icon"/>
                     {{ val.meta.title }}
                 </a>
             </template>
@@ -24,6 +24,7 @@
 
 <script lang="ts">
 import { computed, defineComponent } from 'vue';
+import SvgIcon from '@/components/svgIcon/index.vue';
 export default defineComponent({
     name: 'navMenuSubItem',
     props: {
@@ -35,7 +36,7 @@ export default defineComponent({
     setup(props) {
         // 获取父级菜单数据
         const chils = computed(() => {
-            return props.chil;
+            return props.chil as any;
         });
         return {
             chils,

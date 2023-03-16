@@ -7,7 +7,7 @@
                         <span v-if="data.type == NodeType.Mongo">
                             <el-popover placement="right-start" title="mongo实例信息" trigger="hover" :width="210">
                                 <template #reference>
-                                    <img src="@/assets/icon/mongo.png" class="img-icon" />
+                                    <SvgIcon name="iconfont icon-op-mongo" :size="18"/>
                                 </template>
                                 <template #default>
                                     <el-form class="instances-pop-form" label-width="50px" :size="'small'">
@@ -20,13 +20,9 @@
                             </el-popover>
                         </span>
 
-                        <el-icon v-if="data.type == NodeType.Dbs">
-                            <Coin color="#67c23a" />
-                        </el-icon>
+                        <SvgIcon v-if="data.type == NodeType.Dbs" name="Coin" color="#67c23a"/>
 
-                        <el-icon v-if="data.type == NodeType.Coll || data.type == NodeType.CollMenu">
-                            <Document class="color-primary" />
-                        </el-icon>
+                        <SvgIcon v-if="data.type == NodeType.Coll || data.type == NodeType.CollMenu" name="Document" class="color-primary"/>
                     </template>
 
                     <template #label="{ data }">

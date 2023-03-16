@@ -10,7 +10,7 @@
                 <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable>
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
-                <el-button v-waves type="primary" icon="search" @click="search()" class="ml5">查询</el-button>
+                <el-button type="success" icon="search" @click="search()" class="ml5"></el-button>
             </div>
             <el-table :data="datas" ref="table" @current-change="choose" show-overflow-tooltip stripe>
                 <el-table-column label="选择" width="60px">

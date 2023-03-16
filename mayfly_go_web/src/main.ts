@@ -1,36 +1,24 @@
 import { createApp } from 'vue';
 import App from '@/App.vue';
+
 import router from './router';
 import pinia from '@/store/index';
 import { directive } from '@/directive/index';
 import { globalComponentSize } from '@/common/utils/componentSize';
+import { registElSvgIcon } from '@/common/utils/svgIcons';
 
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
-import '@/theme/index.scss';
 import { ElMessage } from 'element-plus';
 
-import * as svg from '@element-plus/icons-vue';
-import SvgIcon from '@/components/svgIcon/index.vue';
+import '@/theme/index.scss';
 import '@/assets/font/font.css'
+import '@/assets/iconfont/iconfont.js'
 
 const app = createApp(App);
 
-/**
- * 导出全局注册 element plus svg 图标
- * @param app vue 实例
- * @description 使用：https://element-plus.gitee.io/zh-CN/component/icon.html
- */
-function elSvg(app: any) {
-    const icons = svg as any;
-    for (const i in icons) {
-        app.component(`${icons[i].name}`, icons[i]);
-    }
-    app.component('SvgIcon', SvgIcon);
-}
-
-elSvg(app);
+registElSvgIcon(app);
 directive(app);
 
 app.use(pinia)

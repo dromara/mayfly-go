@@ -5,7 +5,6 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/logger"
 	"mayfly-go/pkg/utils"
-	"runtime/debug"
 
 	"github.com/sirupsen/logrus"
 )
@@ -93,9 +92,9 @@ func getErrMsg(rc *Ctx, err interface{}) string {
 	case biz.BizError:
 		errMsg = fmt.Sprintf("\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())
 	case error:
-		errMsg = fmt.Sprintf("\n<-e errMsg: %s\n%s", t.Error(), string(debug.Stack()))
+		errMsg = fmt.Sprintf("\n<-e errMsg: %s", t.Error())
 	case string:
-		errMsg = fmt.Sprintf("\n<-e errMsg: %s\n%s", t, string(debug.Stack()))
+		errMsg = fmt.Sprintf("\n<-e errMsg: %s", t)
 	}
 	return (msg + errMsg)
 }

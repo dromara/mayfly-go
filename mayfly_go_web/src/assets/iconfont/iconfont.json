@@ -1,0 +1,51 @@
+{
+  "id": "3953964",
+  "name": "mayfly-go",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "23957582",
+      "name": "MongoDB",
+      "font_class": "mongo",
+      "unicode": "e646",
+      "unicode_decimal": 58950
+    },
+    {
+      "icon_id": "4969649",
+      "name": "Redis",
+      "font_class": "op-redis",
+      "unicode": "e728",
+      "unicode_decimal": 59176
+    },
+    {
+      "icon_id": "22442993",
+      "name": "PostgreSQL",
+      "font_class": "op-postgres",
+      "unicode": "e8b7",
+      "unicode_decimal": 59575
+    },
+    {
+      "icon_id": "10055634",
+      "name": "云数据库MongoDB",
+      "font_class": "op-mongo",
+      "unicode": "e7d7",
+      "unicode_decimal": 59351
+    },
+    {
+      "icon_id": "10055642",
+      "name": "云数据库 RDS MySQL",
+      "font_class": "op-mysql",
+      "unicode": "e7d8",
+      "unicode_decimal": 59352
+    },
+    {
+      "icon_id": "3876165",
+      "name": "redis",
+      "font_class": "redis",
+      "unicode": "e619",
+      "unicode_decimal": 58905
+    }
+  ]
+}

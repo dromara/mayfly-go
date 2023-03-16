@@ -16,7 +16,6 @@
 					:name="state.fontIconPrefix === '' ? prepend : state.fontIconPrefix"
 					class="font14"
 				/>
-				<!-- <i v-else :class="state.fontIconPrefix === '' ? prepend : state.fontIconPrefix" class="font14"></i> -->
 			</template>
 		</el-input>
 		<el-popover
@@ -32,10 +31,10 @@
 				<div class="icon-selector-warp">
 					<div class="icon-selector-warp-title">{{ title }}</div>
 					<el-tabs v-model="state.fontIconTabActive" @tab-click="onIconClick">
-						<!-- <el-tab-pane lazy label="ali" name="ali">
-							<IconList :list="fontIconSheetsFilterList" :empty="emptyDescription" :prefix="state.fontIconPrefix" @get-icon="onColClick" />
-						</el-tab-pane> -->
 						<el-tab-pane lazy label="ele" name="ele">
+							<IconList :list="fontIconSheetsFilterList" :empty="emptyDescription" :prefix="state.fontIconPrefix" @get-icon="onColClick" />
+						</el-tab-pane>
+                        <el-tab-pane lazy label="ali" name="ali">
 							<IconList :list="fontIconSheetsFilterList" :empty="emptyDescription" :prefix="state.fontIconPrefix" @get-icon="onColClick" />
 						</el-tab-pane>
 						<!-- <el-tab-pane lazy label="awe" name="awe">
@@ -51,7 +50,7 @@
 <script setup lang="ts" name="iconSelector">
 import { defineAsyncComponent, ref, reactive, onMounted, nextTick, computed, watch } from 'vue';
 import type { TabsPaneContext } from 'element-plus';
-import initIconfont from '@/common/utils/getStyleSheets';
+import initIconfont from '@/common/utils/svgIcons';
 import '@/theme/iconSelector.scss';
 
 // 定义父组件传过来的值
@@ -158,7 +157,11 @@ const initModeValueEcho = () => {
 // 处理 icon 类型，用于回显时，tab 高亮与初始化数据
 const initFontIconName = () => {
 	let name = 'ele';
-	// if (props.modelValue!.indexOf('iconfont') > -1) name = 'ali';
+	if (props.modelValue!.indexOf('iconfont') > -1) {
+        name = 'ali';
+    } else {
+        name = 'ele';
+    }
 	// else if (props.modelValue!.indexOf('ele-') > -1) name = 'ele';
 	// else if (props.modelValue!.indexOf('fa') > -1) name = 'awe';
 	// 初始化 tab 高亮回显
@@ -169,10 +172,9 @@ const initFontIconName = () => {
 const initFontIconData = async (name: string) => {
 	if (name === 'ali') {
 		// 阿里字体图标使用 `iconfont xxx`
-		// if (state.fontIconList.ali.length > 0) return;
-		// await initIconfont.ali().then((res: any) => {
-		// 	state.fontIconList.ali = res.map((i: string) => `iconfont ${i}`);
-		// });
+		if (state.fontIconList.ali.length > 0) return;
+		const res: any = await initIconfont.ali();
+        state.fontIconList.ali = res.map((i: string) => `iconfont ${i}`);
 	} else if (name === 'ele') {
 		// element plus 图标
 		if (state.fontIconList.ele.length > 0) return;

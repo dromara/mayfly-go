@@ -219,7 +219,6 @@ const addResource = (data: any) => {
 };
 
 const editResource = async (data: any) => {
-    state.dialogForm.visible = true;
     const res = await resourceApi.detail.request({
         id: data.id,
     });
@@ -230,6 +229,7 @@ const editResource = async (data: any) => {
     state.dialogForm.data = res;
     state.dialogForm.typeDisabled = true;
     state.dialogForm.title = '修改“' + data.name + '”菜单';
+    state.dialogForm.visible = true;
 };
 
 const valChange = () => {

@@ -443,7 +443,7 @@ BEGIN;
 INSERT INTO `t_sys_resource` (id,pid,`type`,status,name,code,weight,meta,creator_id,creator,modifier_id,modifier,create_time,update_time) VALUES
 	 (1,0,1,1,'首页','/home',1,'{"component":"home/Home","icon":"HomeFilled","isAffix":true,"isKeepAlive":true,"routeName":"Home"}',1,'admin',1,'admin','2021-05-25 16:44:41','2023-03-14 14:27:07'),
 	 (2,0,1,1,'机器管理','/machine',4,'{"icon":"Monitor","isKeepAlive":true,"redirect":"machine/list","routeName":"Machine"}',1,'admin',1,'admin','2021-05-25 16:48:16','2022-10-06 14:58:49'),
-	 (3,2,1,1,'机器列表','machines',2,'{"component":"ops/machine/MachineList","icon":"Monitor","isKeepAlive":true,"routeName":"MachineList"}',2,'admin',1,'admin','2021-05-25 16:50:04','2023-03-14 14:33:15'),
+	 (3,2,1,1,'机器列表','machines',2,'{"component":"ops/machine/MachineList","icon":"Monitor","isKeepAlive":true,"routeName":"MachineList"}',2,'admin',1,'admin','2021-05-25 16:50:04','2023-03-15 17:14:44'),
 	 (4,0,1,1,'系统管理','/sys',8,'{"icon":"Setting","isKeepAlive":true,"redirect":"/sys/resources","routeName":"sys"}',1,'admin',1,'admin','2021-05-26 15:20:20','2022-10-06 14:59:53'),
 	 (5,4,1,1,'资源管理','resources',3,'{"component":"system/resource/ResourceList","icon":"Menu","isKeepAlive":true,"routeName":"ResourceList"}',1,'admin',1,'admin','2021-05-26 15:23:07','2023-03-14 15:44:34'),
 	 (11,4,1,1,'角色管理','roles',2,'{"component":"system/role/RoleList","icon":"Menu","isKeepAlive":true,"routeName":"RoleList"}',1,'admin',1,'admin','2021-05-27 11:15:35','2023-03-14 15:44:22'),
@@ -469,9 +469,9 @@ INSERT INTO `t_sys_resource` (id,pid,`type`,status,name,code,weight,meta,creator
 	 (32,5,2,1,'资源管理基本权限','resource',0,NULL,1,'admin',1,'admin','2021-05-31 21:25:25','2021-05-31 21:25:25'),
 	 (33,11,2,1,'角色管理基本权限','role',0,NULL,1,'admin',1,'admin','2021-05-31 21:25:40','2021-05-31 21:25:40'),
 	 (34,14,2,1,'账号启用禁用按钮','account:changeStatus',5,NULL,1,'admin',1,'admin','2021-05-31 21:29:48','2021-05-31 21:29:48'),
-	 (36,0,1,1,'DBMS','/dbms',5,'{"icon":"Grid","isKeepAlive":true,"routeName":"DBMS"}',1,'admin',1,'admin','2021-06-01 14:01:33','2022-10-06 15:00:40'),
+	 (36,0,1,1,'DBMS','/dbms',5,'{"icon":"Coin","isKeepAlive":true,"routeName":"DBMS"}',1,'admin',1,'admin','2021-06-01 14:01:33','2023-03-15 17:31:08'),
 	 (37,3,2,1,'添加文件配置','machine:addFile',6,'null',1,'admin',1,'admin','2021-06-01 19:54:23','2021-06-01 19:54:23'),
-	 (38,36,1,1,'数据操作','sql-exec',1,'{"component":"ops/db/SqlExec","icon":"Search","isKeepAlive":true,"routeName":"SqlExec"}',1,'admin',1,'admin','2021-06-03 09:09:29','2023-03-14 15:42:29'),
+	 (38,36,1,1,'数据操作','sql-exec',1,'{"component":"ops/db/SqlExec","icon":"Coin","isKeepAlive":true,"routeName":"SqlExec"}',1,'admin',1,'admin','2021-06-03 09:09:29','2023-03-15 17:31:21'),
 	 (39,0,1,1,'个人中心','/personal',2,'{"component":"personal/index","icon":"UserFilled","isHide":true,"isKeepAlive":true,"routeName":"Personal"}',1,'admin',1,'admin','2021-06-03 14:25:35','2023-03-14 14:28:36'),
 	 (40,3,2,1,'文件管理-新增按钮','machine:file:add',7,'null',1,'admin',1,'admin','2021-06-08 11:06:26','2021-06-08 11:12:28'),
 	 (41,3,2,1,'文件管理-删除按钮','machine:file:del',8,'null',1,'admin',1,'admin','2021-06-08 11:06:49','2021-06-08 11:06:49'),
@@ -481,23 +481,23 @@ INSERT INTO `t_sys_resource` (id,pid,`type`,status,name,code,weight,meta,creator
 	 (45,3,2,1,'脚本管理-保存脚本按钮','machine:script:save',12,'null',1,'admin',1,'admin','2021-06-08 11:09:01','2021-06-08 11:09:01'),
 	 (46,3,2,1,'脚本管理-删除按钮','machine:script:del',13,'null',1,'admin',1,'admin','2021-06-08 11:09:27','2021-06-08 11:09:27'),
 	 (47,3,2,1,'脚本管理-执行按钮','machine:script:run',14,'null',1,'admin',1,'admin','2021-06-08 11:09:50','2021-06-08 11:09:50'),
-	 (49,36,1,1,'数据库管理','dbs',2,'{"component":"ops/db/DbList","icon":"Menu","isKeepAlive":true,"routeName":"DbList"}',1,'admin',1,'admin','2021-07-07 15:13:55','2023-03-14 14:34:01'),
+	 (49,36,1,1,'数据库管理','dbs',2,'{"component":"ops/db/DbList","icon":"Coin","isKeepAlive":true,"routeName":"DbList"}',1,'admin',1,'admin','2021-07-07 15:13:55','2023-03-15 17:31:28'),
 	 (54,49,2,1,'数据库保存','db:save',1,'null',1,'admin',1,'admin','2021-07-08 17:30:36','2021-07-08 17:31:05'),
 	 (55,49,2,1,'数据库删除','db:del',2,'null',1,'admin',1,'admin','2021-07-08 17:30:48','2021-07-08 17:30:48'),
 	 (57,3,2,1,'基本权限','machine',0,'null',1,'admin',1,'admin','2021-07-09 10:48:02','2021-07-09 10:48:02'),
 	 (58,49,2,1,'基本权限','db',0,'null',1,'admin',1,'admin','2021-07-09 10:48:22','2021-07-09 10:48:22'),
 	 (59,38,2,1,'基本权限','db:exec',1,'null',1,'admin',1,'admin','2021-07-09 10:50:13','2021-07-09 10:50:13'),
-	 (60,0,1,1,'Redis','/redis',6,'{"icon":"Menu","isKeepAlive":true,"routeName":"RDS"}',1,'admin',1,'admin','2021-07-19 20:15:41','2022-10-06 15:01:29'),
-	 (61,60,1,1,'数据操作','data-operation',1,'{"component":"ops/redis/DataOperation","icon":"Search","isKeepAlive":true,"routeName":"DataOperation"}',1,'admin',1,'admin','2021-07-19 20:17:29','2023-03-14 15:40:32'),
+	 (60,0,1,1,'Redis','/redis',6,'{"icon":"iconfont icon-redis","isKeepAlive":true,"routeName":"RDS"}',1,'admin',1,'admin','2021-07-19 20:15:41','2023-03-15 16:44:59'),
+	 (61,60,1,1,'数据操作','data-operation',1,'{"component":"ops/redis/DataOperation","icon":"iconfont icon-redis","isKeepAlive":true,"routeName":"DataOperation"}',1,'admin',1,'admin','2021-07-19 20:17:29','2023-03-15 16:37:50'),
 	 (62,61,2,1,'基本权限','redis:data',1,'null',1,'admin',1,'admin','2021-07-19 20:18:54','2021-07-19 20:18:54'),
-	 (63,60,1,1,'redis管理','manage',2,'{"component":"ops/redis/RedisList","icon":"Menu","isKeepAlive":true,"routeName":"RedisList"}',1,'admin',1,'admin','2021-07-20 10:48:04','2023-03-14 15:42:56'),
+	 (63,60,1,1,'redis管理','manage',2,'{"component":"ops/redis/RedisList","icon":"iconfont icon-redis","isKeepAlive":true,"routeName":"RedisList"}',1,'admin',1,'admin','2021-07-20 10:48:04','2023-03-15 16:38:00'),
 	 (64,63,2,1,'基本权限','redis:manage',1,'null',1,'admin',1,'admin','2021-07-20 10:48:26','2021-07-20 10:48:26'),
 	 (71,61,2,1,'数据保存','redis:data:save',6,'null',1,'admin',1,'admin','2021-08-17 11:20:37','2021-08-17 11:20:37'),
 	 (72,3,2,1,'终止进程','machine:killprocess',6,'null',1,'admin',1,'admin','2021-08-17 11:20:37','2021-08-17 11:20:37'),
-	 (79,0,1,1,'Mongo','/mongo',7,'{"icon":"Document","isKeepAlive":true,"routeName":"Mongo"}',1,'admin',1,'admin','2022-05-13 14:00:41','2022-10-06 15:01:34'),
-	 (80,79,1,1,'数据操作','mongo-data-operation',1,'{"component":"ops/mongo/MongoDataOp","icon":"Document","isKeepAlive":true,"routeName":"MongoDataOp"}',1,'admin',1,'admin','2022-05-13 14:03:58','2023-03-14 15:41:02'),
+	 (79,0,1,1,'Mongo','/mongo',7,'{"icon":"iconfont icon-mongo","isKeepAlive":true,"routeName":"Mongo"}',1,'admin',1,'admin','2022-05-13 14:00:41','2023-03-16 14:23:22'),
+	 (80,79,1,1,'数据操作','mongo-data-operation',1,'{"component":"ops/mongo/MongoDataOp","icon":"iconfont icon-mongo","isKeepAlive":true,"routeName":"MongoDataOp"}',1,'admin',1,'admin','2022-05-13 14:03:58','2023-03-15 17:15:02'),
 	 (81,80,2,1,'基本权限','mongo:base',1,'null',1,'admin',1,'admin','2022-05-13 14:04:16','2022-05-13 14:04:16'),
-	 (82,79,1,1,'Mongo管理','mongo-manage',2,'{"component":"ops/mongo/MongoList","icon":"Menu","isKeepAlive":true,"routeName":"MongoList"}',1,'admin',1,'admin','2022-05-16 18:13:06','2023-03-14 15:41:13'),
+	 (82,79,1,1,'Mongo管理','mongo-manage',2,'{"component":"ops/mongo/MongoList","icon":"iconfont icon-mongo","isKeepAlive":true,"routeName":"MongoList"}',1,'admin',1,'admin','2022-05-16 18:13:06','2023-03-15 17:26:55'),
 	 (83,82,2,1,'基本权限','mongo:manage:base',1,'null',1,'admin',1,'admin','2022-05-16 18:13:25','2022-05-16 18:13:25'),
 	 (84,4,1,1,'操作日志','syslogs',4,'{"component":"system/syslog/SyslogList","icon":"Tickets","routeName":"SyslogList"}',1,'admin',1,'admin','2022-07-13 19:57:07','2023-03-14 15:44:45'),
 	 (85,84,2,1,'操作日志基本权限','syslog',1,'null',1,'admin',1,'admin','2022-07-13 19:57:55','2022-07-13 19:57:55'),
@@ -517,7 +517,8 @@ INSERT INTO `t_sys_resource` (id,pid,`type`,status,name,code,weight,meta,creator
 	 (104,103,2,1,'基本权限','authcert',1,'null',1,'admin',1,'admin','2023-02-23 11:37:24','2023-02-23 11:37:24'),
 	 (105,103,2,1,'保存权限','authcert:save',2,'null',1,'admin',1,'admin','2023-02-23 11:37:54','2023-02-23 11:37:54'),
 	 (106,103,2,1,'删除权限','authcert:del',3,'null',1,'admin',1,'admin','2023-02-23 11:38:09','2023-02-23 11:38:09'),
-	 (108,61,2,1,'数据删除','redis:data:del',3,'null',1,'admin',1,'admin','2023-03-14 17:20:00','2023-03-14 17:20:00');
+	 (108,61,2,1,'数据删除','redis:data:del',3,'null',1,'admin',1,'admin','2023-03-14 17:20:00','2023-03-14 17:20:00'),
+	 (109,3,2,1,'关闭连接','machine:close-cli',6,'null',1,'admin',1,'admin','2023-03-16 16:11:04','2023-03-16 16:11:04');
 COMMIT;
 
 -- ----------------------------
@@ -568,164 +569,170 @@ CREATE TABLE `t_sys_role_resource` (
 -- Records of t_sys_role_resource
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_sys_role_resource` VALUES (1, 1, 1, 1, 'admin', '2021-05-27 15:07:39');
-INSERT INTO `t_sys_role_resource` VALUES (323, 1, 2, 1, 'admin', '2021-05-28 09:04:50');
-INSERT INTO `t_sys_role_resource` VALUES (326, 1, 4, 1, 'admin', '2021-05-28 09:04:50');
-INSERT INTO `t_sys_role_resource` VALUES (327, 1, 5, 1, 'admin', '2021-05-28 09:04:50');
-INSERT INTO `t_sys_role_resource` VALUES (328, 1, 11, 1, 'admin', '2021-05-28 09:04:50');
-INSERT INTO `t_sys_role_resource` VALUES (335, 1, 14, 1, 'admin', '2021-05-28 17:42:21');
-INSERT INTO `t_sys_role_resource` VALUES (336, 1, 3, 1, 'admin', '2021-05-28 17:42:43');
-INSERT INTO `t_sys_role_resource` VALUES (337, 1, 12, 1, 'admin', '2021-05-28 17:42:43');
-INSERT INTO `t_sys_role_resource` VALUES (338, 6, 2, 1, 'admin', '2021-05-28 19:19:38');
-INSERT INTO `t_sys_role_resource` VALUES (339, 6, 3, 1, 'admin', '2021-05-28 19:19:38');
-INSERT INTO `t_sys_role_resource` VALUES (342, 6, 1, 1, 'admin', '2021-05-29 01:31:22');
-INSERT INTO `t_sys_role_resource` VALUES (343, 5, 1, 1, 'admin', '2021-05-31 14:05:23');
-INSERT INTO `t_sys_role_resource` VALUES (344, 5, 4, 1, 'admin', '2021-05-31 14:05:23');
-INSERT INTO `t_sys_role_resource` VALUES (345, 5, 14, 1, 'admin', '2021-05-31 14:05:23');
-INSERT INTO `t_sys_role_resource` VALUES (346, 5, 5, 1, 'admin', '2021-05-31 14:05:23');
-INSERT INTO `t_sys_role_resource` VALUES (347, 5, 11, 1, 'admin', '2021-05-31 14:05:23');
-INSERT INTO `t_sys_role_resource` VALUES (348, 5, 3, 1, 'admin', '2021-05-31 16:33:14');
-INSERT INTO `t_sys_role_resource` VALUES (349, 5, 12, 1, 'admin', '2021-05-31 16:33:14');
-INSERT INTO `t_sys_role_resource` VALUES (350, 5, 2, 1, 'admin', '2021-05-31 16:33:14');
-INSERT INTO `t_sys_role_resource` VALUES (353, 1, 15, 1, 'admin', '2021-05-31 17:48:33');
-INSERT INTO `t_sys_role_resource` VALUES (354, 1, 16, 1, 'admin', '2021-05-31 17:48:33');
-INSERT INTO `t_sys_role_resource` VALUES (355, 1, 17, 1, 'admin', '2021-05-31 17:48:33');
-INSERT INTO `t_sys_role_resource` VALUES (356, 1, 18, 1, 'admin', '2021-05-31 17:48:33');
-INSERT INTO `t_sys_role_resource` VALUES (358, 1, 20, 1, 'admin', '2021-05-31 17:52:08');
-INSERT INTO `t_sys_role_resource` VALUES (360, 1, 22, 1, 'admin', '2021-05-31 18:05:04');
-INSERT INTO `t_sys_role_resource` VALUES (361, 1, 23, 1, 'admin', '2021-05-31 18:05:04');
-INSERT INTO `t_sys_role_resource` VALUES (362, 1, 24, 1, 'admin', '2021-05-31 18:05:04');
-INSERT INTO `t_sys_role_resource` VALUES (363, 1, 25, 1, 'admin', '2021-05-31 18:05:04');
-INSERT INTO `t_sys_role_resource` VALUES (364, 1, 26, 1, 'admin', '2021-05-31 18:05:04');
-INSERT INTO `t_sys_role_resource` VALUES (365, 1, 27, 1, 'admin', '2021-05-31 18:05:04');
-INSERT INTO `t_sys_role_resource` VALUES (366, 1, 28, 1, 'admin', '2021-05-31 18:05:04');
-INSERT INTO `t_sys_role_resource` VALUES (369, 1, 31, 1, 'admin', '2021-05-31 21:25:56');
-INSERT INTO `t_sys_role_resource` VALUES (370, 1, 32, 1, 'admin', '2021-05-31 21:25:56');
-INSERT INTO `t_sys_role_resource` VALUES (371, 1, 33, 1, 'admin', '2021-05-31 21:25:56');
-INSERT INTO `t_sys_role_resource` VALUES (374, 1, 36, 1, 'admin', '2021-06-01 14:01:57');
-INSERT INTO `t_sys_role_resource` VALUES (375, 1, 19, 1, 'admin', '2021-06-01 17:34:03');
-INSERT INTO `t_sys_role_resource` VALUES (376, 1, 21, 1, 'admin', '2021-06-01 17:34:03');
-INSERT INTO `t_sys_role_resource` VALUES (377, 1, 29, 1, 'admin', '2021-06-01 17:34:03');
-INSERT INTO `t_sys_role_resource` VALUES (378, 1, 30, 1, 'admin', '2021-06-01 17:34:03');
-INSERT INTO `t_sys_role_resource` VALUES (379, 1, 34, 1, 'admin', '2021-06-01 17:34:03');
-INSERT INTO `t_sys_role_resource` VALUES (380, 1, 37, 1, 'admin', '2021-06-03 09:09:42');
-INSERT INTO `t_sys_role_resource` VALUES (381, 1, 38, 1, 'admin', '2021-06-03 09:09:42');
-INSERT INTO `t_sys_role_resource` VALUES (383, 1, 40, 1, 'admin', '2021-06-08 11:21:52');
-INSERT INTO `t_sys_role_resource` VALUES (384, 1, 41, 1, 'admin', '2021-06-08 11:21:52');
-INSERT INTO `t_sys_role_resource` VALUES (385, 1, 42, 1, 'admin', '2021-06-08 11:21:52');
-INSERT INTO `t_sys_role_resource` VALUES (386, 1, 43, 1, 'admin', '2021-06-08 11:21:52');
-INSERT INTO `t_sys_role_resource` VALUES (387, 1, 44, 1, 'admin', '2021-06-08 11:21:52');
-INSERT INTO `t_sys_role_resource` VALUES (388, 1, 45, 1, 'admin', '2021-06-08 11:21:52');
-INSERT INTO `t_sys_role_resource` VALUES (389, 1, 46, 1, 'admin', '2021-06-08 11:21:52');
-INSERT INTO `t_sys_role_resource` VALUES (390, 1, 47, 1, 'admin', '2021-06-08 11:21:52');
-INSERT INTO `t_sys_role_resource` VALUES (391, 6, 39, 1, 'admin', '2021-06-08 15:10:58');
-INSERT INTO `t_sys_role_resource` VALUES (392, 6, 15, 1, 'admin', '2021-06-08 15:10:58');
-INSERT INTO `t_sys_role_resource` VALUES (395, 6, 31, 1, 'admin', '2021-06-08 15:10:58');
-INSERT INTO `t_sys_role_resource` VALUES (396, 6, 33, 1, 'admin', '2021-06-08 15:10:58');
-INSERT INTO `t_sys_role_resource` VALUES (397, 6, 32, 1, 'admin', '2021-06-08 15:10:58');
-INSERT INTO `t_sys_role_resource` VALUES (398, 6, 4, 1, 'admin', '2021-06-08 15:10:58');
-INSERT INTO `t_sys_role_resource` VALUES (399, 6, 14, 1, 'admin', '2021-06-08 15:10:58');
-INSERT INTO `t_sys_role_resource` VALUES (400, 6, 11, 1, 'admin', '2021-06-08 15:10:58');
-INSERT INTO `t_sys_role_resource` VALUES (401, 6, 5, 1, 'admin', '2021-06-08 15:10:58');
-INSERT INTO `t_sys_role_resource` VALUES (403, 7, 1, 1, 'admin', '2021-07-06 15:07:09');
-INSERT INTO `t_sys_role_resource` VALUES (405, 1, 49, 1, 'admin', '2021-07-07 15:14:17');
-INSERT INTO `t_sys_role_resource` VALUES (410, 1, 54, 1, 'admin', '2021-07-08 17:32:19');
-INSERT INTO `t_sys_role_resource` VALUES (411, 1, 55, 1, 'admin', '2021-07-08 17:32:19');
-INSERT INTO `t_sys_role_resource` VALUES (413, 1, 57, 1, 'admin', '2021-07-09 10:48:50');
-INSERT INTO `t_sys_role_resource` VALUES (414, 1, 58, 1, 'admin', '2021-07-09 10:48:50');
-INSERT INTO `t_sys_role_resource` VALUES (415, 8, 1, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (416, 8, 39, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (418, 8, 57, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (419, 8, 12, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (420, 8, 15, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (421, 8, 38, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (422, 8, 58, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (423, 8, 2, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (425, 8, 3, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (426, 8, 36, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (427, 8, 49, 1, 'admin', '2021-07-09 10:49:46');
-INSERT INTO `t_sys_role_resource` VALUES (428, 1, 59, 1, 'admin', '2021-07-09 10:50:20');
-INSERT INTO `t_sys_role_resource` VALUES (429, 8, 59, 1, 'admin', '2021-07-09 10:50:32');
-INSERT INTO `t_sys_role_resource` VALUES (431, 6, 57, 1, 'admin', '2021-07-12 16:44:12');
-INSERT INTO `t_sys_role_resource` VALUES (433, 1, 60, 1, 'admin', '2021-07-19 20:19:29');
-INSERT INTO `t_sys_role_resource` VALUES (434, 1, 61, 1, 'admin', '2021-07-19 20:19:29');
-INSERT INTO `t_sys_role_resource` VALUES (435, 1, 62, 1, 'admin', '2021-07-19 20:19:29');
-INSERT INTO `t_sys_role_resource` VALUES (436, 1, 63, 1, 'admin', '2021-07-20 10:48:39');
-INSERT INTO `t_sys_role_resource` VALUES (437, 1, 64, 1, 'admin', '2021-07-20 10:48:39');
-INSERT INTO `t_sys_role_resource` VALUES (444, 7, 39, 1, 'admin', '2021-09-09 10:10:30');
-INSERT INTO `t_sys_role_resource` VALUES (450, 6, 16, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (451, 6, 17, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (452, 6, 18, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (453, 6, 37, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (454, 6, 40, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (455, 6, 41, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (456, 6, 42, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (457, 6, 43, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (458, 6, 44, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (459, 6, 45, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (460, 6, 46, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (461, 6, 47, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (462, 6, 36, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (463, 6, 38, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (464, 6, 59, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (465, 6, 49, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (466, 6, 58, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (467, 6, 54, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (468, 6, 55, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (469, 6, 60, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (470, 6, 61, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (471, 6, 62, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (472, 6, 63, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (473, 6, 64, 1, 'admin', '2021-09-09 15:52:38');
-INSERT INTO `t_sys_role_resource` VALUES (479, 6, 19, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (480, 6, 21, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (481, 6, 29, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (482, 6, 30, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (483, 6, 34, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (484, 6, 20, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (485, 6, 22, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (486, 6, 23, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (487, 6, 24, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (488, 6, 25, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (489, 6, 26, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (490, 6, 27, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (491, 6, 28, 1, 'admin', '2021-09-09 15:53:56');
-INSERT INTO `t_sys_role_resource` VALUES (492, 8, 42, 1, 'admin', '2021-11-05 15:59:16');
-INSERT INTO `t_sys_role_resource` VALUES (493, 8, 43, 1, 'admin', '2021-11-05 15:59:16');
-INSERT INTO `t_sys_role_resource` VALUES (494, 8, 47, 1, 'admin', '2021-11-05 15:59:16');
-INSERT INTO `t_sys_role_resource` VALUES (495, 8, 60, 1, 'admin', '2021-11-05 15:59:16');
-INSERT INTO `t_sys_role_resource` VALUES (496, 8, 61, 1, 'admin', '2021-11-05 15:59:16');
-INSERT INTO `t_sys_role_resource` VALUES (497, 8, 62, 1, 'admin', '2021-11-05 15:59:16');
-INSERT INTO `t_sys_role_resource` VALUES (498, 8, 63, 1, 'admin', '2021-11-05 15:59:16');
-INSERT INTO `t_sys_role_resource` VALUES (499, 8, 64, 1, 'admin', '2021-11-05 15:59:16');
-INSERT INTO `t_sys_role_resource` VALUES (500, 1, 72, 1, 'admin', '2022-07-14 11:03:09');
-INSERT INTO `t_sys_role_resource` VALUES (501, 1, 71, 1, 'admin', '2022-07-14 11:03:09');
-INSERT INTO `t_sys_role_resource` VALUES (502, 1, 79, 1, 'admin', '2022-07-14 11:03:09');
-INSERT INTO `t_sys_role_resource` VALUES (503, 1, 80, 1, 'admin', '2022-07-14 11:03:09');
-INSERT INTO `t_sys_role_resource` VALUES (504, 1, 81, 1, 'admin', '2022-07-14 11:03:09');
-INSERT INTO `t_sys_role_resource` VALUES (505, 1, 82, 1, 'admin', '2022-07-14 11:03:09');
-INSERT INTO `t_sys_role_resource` VALUES (506, 1, 83, 1, 'admin', '2022-07-14 11:03:09');
-INSERT INTO `t_sys_role_resource` VALUES (507, 1, 84, 1, 'admin', '2022-07-14 11:10:11');
-INSERT INTO `t_sys_role_resource` VALUES (508, 1, 85, 1, 'admin', '2022-07-14 11:10:11');
-INSERT INTO `t_sys_role_resource` VALUES (510, 1, 87, 1, 'admin', '2022-07-14 11:10:11');
-INSERT INTO `t_sys_role_resource` VALUES (511, 1, 88, 1, 'admin', '2022-10-08 10:54:06');
-INSERT INTO `t_sys_role_resource` VALUES (512, 8, 80, 1, 'admin', '2022-10-08 10:54:34');
-INSERT INTO `t_sys_role_resource` VALUES (513, 8, 81, 1, 'admin', '2022-10-08 10:54:34');
-INSERT INTO `t_sys_role_resource` VALUES (515, 8, 79, 1, 'admin', '2022-10-08 10:54:34');
-INSERT INTO `t_sys_role_resource` VALUES (516, 1, 93, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (517, 1, 94, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (518, 1, 96, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (519, 1, 98, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (520, 1, 95, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (521, 1, 97, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (522, 1, 99, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (523, 1, 100, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (524, 1, 101, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (525, 1, 102, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (526, 1, 103, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (527, 1, 104, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (528, 1, 105, 1, 'admin', '2022-10-26 20:03:14');
-INSERT INTO `t_sys_role_resource` VALUES (529, 1, 106, 1, 'admin', '2022-10-26 20:03:14');
+INSERT INTO `t_sys_role_resource` (id,role_id,resource_id,creator_id,creator,create_time) VALUES
+	 (1,1,1,1,'admin','2021-05-27 15:07:39'),
+	 (323,1,2,1,'admin','2021-05-28 09:04:50'),
+	 (326,1,4,1,'admin','2021-05-28 09:04:50'),
+	 (327,1,5,1,'admin','2021-05-28 09:04:50'),
+	 (328,1,11,1,'admin','2021-05-28 09:04:50'),
+	 (335,1,14,1,'admin','2021-05-28 17:42:21'),
+	 (336,1,3,1,'admin','2021-05-28 17:42:43'),
+	 (337,1,12,1,'admin','2021-05-28 17:42:43'),
+	 (338,6,2,1,'admin','2021-05-28 19:19:38'),
+	 (339,6,3,1,'admin','2021-05-28 19:19:38'),
+	 (342,6,1,1,'admin','2021-05-29 01:31:22'),
+	 (343,5,1,1,'admin','2021-05-31 14:05:23'),
+	 (344,5,4,1,'admin','2021-05-31 14:05:23'),
+	 (345,5,14,1,'admin','2021-05-31 14:05:23'),
+	 (346,5,5,1,'admin','2021-05-31 14:05:23'),
+	 (347,5,11,1,'admin','2021-05-31 14:05:23'),
+	 (348,5,3,1,'admin','2021-05-31 16:33:14'),
+	 (349,5,12,1,'admin','2021-05-31 16:33:14'),
+	 (350,5,2,1,'admin','2021-05-31 16:33:14'),
+	 (353,1,15,1,'admin','2021-05-31 17:48:33'),
+	 (354,1,16,1,'admin','2021-05-31 17:48:33'),
+	 (355,1,17,1,'admin','2021-05-31 17:48:33'),
+	 (356,1,18,1,'admin','2021-05-31 17:48:33'),
+	 (358,1,20,1,'admin','2021-05-31 17:52:08'),
+	 (360,1,22,1,'admin','2021-05-31 18:05:04'),
+	 (361,1,23,1,'admin','2021-05-31 18:05:04'),
+	 (362,1,24,1,'admin','2021-05-31 18:05:04'),
+	 (363,1,25,1,'admin','2021-05-31 18:05:04'),
+	 (364,1,26,1,'admin','2021-05-31 18:05:04'),
+	 (365,1,27,1,'admin','2021-05-31 18:05:04'),
+	 (366,1,28,1,'admin','2021-05-31 18:05:04'),
+	 (369,1,31,1,'admin','2021-05-31 21:25:56'),
+	 (370,1,32,1,'admin','2021-05-31 21:25:56'),
+	 (371,1,33,1,'admin','2021-05-31 21:25:56'),
+	 (374,1,36,1,'admin','2021-06-01 14:01:57'),
+	 (375,1,19,1,'admin','2021-06-01 17:34:03'),
+	 (376,1,21,1,'admin','2021-06-01 17:34:03'),
+	 (377,1,29,1,'admin','2021-06-01 17:34:03'),
+	 (378,1,30,1,'admin','2021-06-01 17:34:03'),
+	 (379,1,34,1,'admin','2021-06-01 17:34:03'),
+	 (380,1,37,1,'admin','2021-06-03 09:09:42'),
+	 (381,1,38,1,'admin','2021-06-03 09:09:42'),
+	 (383,1,40,1,'admin','2021-06-08 11:21:52'),
+	 (384,1,41,1,'admin','2021-06-08 11:21:52'),
+	 (385,1,42,1,'admin','2021-06-08 11:21:52'),
+	 (386,1,43,1,'admin','2021-06-08 11:21:52'),
+	 (387,1,44,1,'admin','2021-06-08 11:21:52'),
+	 (388,1,45,1,'admin','2021-06-08 11:21:52'),
+	 (389,1,46,1,'admin','2021-06-08 11:21:52'),
+	 (390,1,47,1,'admin','2021-06-08 11:21:52'),
+	 (391,6,39,1,'admin','2021-06-08 15:10:58'),
+	 (392,6,15,1,'admin','2021-06-08 15:10:58'),
+	 (395,6,31,1,'admin','2021-06-08 15:10:58'),
+	 (396,6,33,1,'admin','2021-06-08 15:10:58'),
+	 (397,6,32,1,'admin','2021-06-08 15:10:58'),
+	 (398,6,4,1,'admin','2021-06-08 15:10:58'),
+	 (399,6,14,1,'admin','2021-06-08 15:10:58'),
+	 (400,6,11,1,'admin','2021-06-08 15:10:58'),
+	 (401,6,5,1,'admin','2021-06-08 15:10:58'),
+	 (403,7,1,1,'admin','2021-07-06 15:07:09'),
+	 (405,1,49,1,'admin','2021-07-07 15:14:17'),
+	 (410,1,54,1,'admin','2021-07-08 17:32:19'),
+	 (411,1,55,1,'admin','2021-07-08 17:32:19'),
+	 (413,1,57,1,'admin','2021-07-09 10:48:50'),
+	 (414,1,58,1,'admin','2021-07-09 10:48:50'),
+	 (418,8,57,1,'admin','2021-07-09 10:49:46'),
+	 (419,8,12,1,'admin','2021-07-09 10:49:46'),
+	 (420,8,15,1,'admin','2021-07-09 10:49:46'),
+	 (421,8,38,1,'admin','2021-07-09 10:49:46'),
+	 (423,8,2,1,'admin','2021-07-09 10:49:46'),
+	 (425,8,3,1,'admin','2021-07-09 10:49:46'),
+	 (426,8,36,1,'admin','2021-07-09 10:49:46'),
+	 (428,1,59,1,'admin','2021-07-09 10:50:20'),
+	 (429,8,59,1,'admin','2021-07-09 10:50:32'),
+	 (431,6,57,1,'admin','2021-07-12 16:44:12'),
+	 (433,1,60,1,'admin','2021-07-19 20:19:29'),
+	 (434,1,61,1,'admin','2021-07-19 20:19:29'),
+	 (435,1,62,1,'admin','2021-07-19 20:19:29'),
+	 (436,1,63,1,'admin','2021-07-20 10:48:39'),
+	 (437,1,64,1,'admin','2021-07-20 10:48:39'),
+	 (444,7,39,1,'admin','2021-09-09 10:10:30'),
+	 (450,6,16,1,'admin','2021-09-09 15:52:38'),
+	 (451,6,17,1,'admin','2021-09-09 15:52:38'),
+	 (452,6,18,1,'admin','2021-09-09 15:52:38'),
+	 (453,6,37,1,'admin','2021-09-09 15:52:38'),
+	 (454,6,40,1,'admin','2021-09-09 15:52:38'),
+	 (455,6,41,1,'admin','2021-09-09 15:52:38'),
+	 (456,6,42,1,'admin','2021-09-09 15:52:38'),
+	 (457,6,43,1,'admin','2021-09-09 15:52:38'),
+	 (458,6,44,1,'admin','2021-09-09 15:52:38'),
+	 (459,6,45,1,'admin','2021-09-09 15:52:38'),
+	 (460,6,46,1,'admin','2021-09-09 15:52:38'),
+	 (461,6,47,1,'admin','2021-09-09 15:52:38'),
+	 (462,6,36,1,'admin','2021-09-09 15:52:38'),
+	 (463,6,38,1,'admin','2021-09-09 15:52:38'),
+	 (464,6,59,1,'admin','2021-09-09 15:52:38'),
+	 (465,6,49,1,'admin','2021-09-09 15:52:38'),
+	 (466,6,58,1,'admin','2021-09-09 15:52:38'),
+	 (467,6,54,1,'admin','2021-09-09 15:52:38'),
+	 (468,6,55,1,'admin','2021-09-09 15:52:38'),
+	 (469,6,60,1,'admin','2021-09-09 15:52:38'),
+	 (470,6,61,1,'admin','2021-09-09 15:52:38'),
+	 (471,6,62,1,'admin','2021-09-09 15:52:38'),
+	 (472,6,63,1,'admin','2021-09-09 15:52:38'),
+	 (473,6,64,1,'admin','2021-09-09 15:52:38'),
+	 (479,6,19,1,'admin','2021-09-09 15:53:56'),
+	 (480,6,21,1,'admin','2021-09-09 15:53:56'),
+	 (481,6,29,1,'admin','2021-09-09 15:53:56'),
+	 (482,6,30,1,'admin','2021-09-09 15:53:56'),
+	 (483,6,34,1,'admin','2021-09-09 15:53:56'),
+	 (484,6,20,1,'admin','2021-09-09 15:53:56'),
+	 (485,6,22,1,'admin','2021-09-09 15:53:56'),
+	 (486,6,23,1,'admin','2021-09-09 15:53:56'),
+	 (487,6,24,1,'admin','2021-09-09 15:53:56'),
+	 (488,6,25,1,'admin','2021-09-09 15:53:56'),
+	 (489,6,26,1,'admin','2021-09-09 15:53:56'),
+	 (490,6,27,1,'admin','2021-09-09 15:53:56'),
+	 (491,6,28,1,'admin','2021-09-09 15:53:56'),
+	 (492,8,42,1,'admin','2021-11-05 15:59:16'),
+	 (493,8,43,1,'admin','2021-11-05 15:59:16'),
+	 (494,8,47,1,'admin','2021-11-05 15:59:16'),
+	 (495,8,60,1,'admin','2021-11-05 15:59:16'),
+	 (496,8,61,1,'admin','2021-11-05 15:59:16'),
+	 (497,8,62,1,'admin','2021-11-05 15:59:16'),
+	 (500,1,72,1,'admin','2022-07-14 11:03:09'),
+	 (501,1,71,1,'admin','2022-07-14 11:03:09'),
+	 (502,1,79,1,'admin','2022-07-14 11:03:09'),
+	 (503,1,80,1,'admin','2022-07-14 11:03:09'),
+	 (504,1,81,1,'admin','2022-07-14 11:03:09'),
+	 (505,1,82,1,'admin','2022-07-14 11:03:09'),
+	 (506,1,83,1,'admin','2022-07-14 11:03:09'),
+	 (507,1,84,1,'admin','2022-07-14 11:10:11'),
+	 (508,1,85,1,'admin','2022-07-14 11:10:11'),
+	 (510,1,87,1,'admin','2022-07-14 11:10:11'),
+	 (511,1,88,1,'admin','2022-10-08 10:54:06'),
+	 (512,8,80,1,'admin','2022-10-08 10:54:34'),
+	 (513,8,81,1,'admin','2022-10-08 10:54:34'),
+	 (515,8,79,1,'admin','2022-10-08 10:54:34'),
+	 (516,1,93,1,'admin','2022-10-26 20:03:14'),
+	 (517,1,94,1,'admin','2022-10-26 20:03:14'),
+	 (518,1,96,1,'admin','2022-10-26 20:03:14'),
+	 (519,1,98,1,'admin','2022-10-26 20:03:14'),
+	 (520,1,95,1,'admin','2022-10-26 20:03:14'),
+	 (521,1,97,1,'admin','2022-10-26 20:03:14'),
+	 (522,1,99,1,'admin','2022-10-26 20:03:14'),
+	 (523,1,100,1,'admin','2022-10-26 20:03:14'),
+	 (524,1,101,1,'admin','2022-10-26 20:03:14'),
+	 (525,1,102,1,'admin','2022-10-26 20:03:14'),
+	 (527,1,106,1,'admin','2023-02-23 14:30:54'),
+	 (528,1,103,1,'admin','2023-02-23 14:30:54'),
+	 (529,1,105,1,'admin','2023-02-23 14:31:00'),
+	 (530,1,104,1,'admin','2023-02-24 13:40:26'),
+	 (532,1,108,1,'admin','2023-03-14 17:28:06'),
+	 (533,6,79,1,'admin','2023-03-14 17:28:50'),
+	 (534,6,80,1,'admin','2023-03-14 17:28:50'),
+	 (535,6,81,1,'admin','2023-03-14 17:28:50'),
+	 (536,6,82,1,'admin','2023-03-14 17:28:50'),
+	 (537,6,83,1,'admin','2023-03-14 17:28:50'),
+	 (538,6,84,1,'admin','2023-03-14 17:29:00'),
+	 (539,6,85,1,'admin','2023-03-14 17:29:00'),
+	 (540,6,87,1,'admin','2023-03-14 17:29:00'),
+	 (541,6,88,1,'admin','2023-03-14 17:29:00'),
+	 (544,1,109,1,'admin','2023-03-16 16:11:25');
 COMMIT;
 
 -- ----------------------------
