@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 type Redis interface {
@@ -81,6 +81,9 @@ func (r *redisAppImpl) Save(re *entity.Redis) {
 
 	// 查找是否存在该库
 	oldRedis := &entity.Redis{Host: re.Host}
+	if re.SshTunnelMachineId > 0 {
+		oldRedis.SshTunnelMachineId = re.SshTunnelMachineId
+	}
 	err := r.GetRedisBy(oldRedis)
 
 	if re.Id == 0 {

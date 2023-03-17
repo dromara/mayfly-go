@@ -87,6 +87,9 @@ func (d *dbAppImpl) Save(dbEntity *entity.Db) {
 
 	// 查找是否存在该库
 	oldDb := &entity.Db{Host: dbEntity.Host, Port: dbEntity.Port, Username: dbEntity.Username}
+	if dbEntity.SshTunnelMachineId > 0 {
+		oldDb.SshTunnelMachineId = dbEntity.SshTunnelMachineId
+	}
 	err := d.GetDbBy(oldDb)
 
 	if dbEntity.Id == 0 {

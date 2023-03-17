@@ -62,6 +62,9 @@ func (m *machineAppImpl) Count(condition *entity.MachineQuery) int64 {
 
 func (m *machineAppImpl) Save(me *entity.Machine) {
 	oldMachine := &entity.Machine{Ip: me.Ip, Port: me.Port, Username: me.Username}
+	if me.SshTunnelMachineId > 0 {
+		oldMachine.SshTunnelMachineId = me.SshTunnelMachineId
+	}
 	err := m.GetMachine(oldMachine)
 
 	me.PwdEncrypt()

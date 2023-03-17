@@ -9,7 +9,7 @@
                                 <span v-if="data.type == NodeType.Redis">
                                     <el-popover placement="right-start" title="redis实例信息" trigger="hover" :width="210">
                                         <template #reference>
-                                            <SvgIcon name="iconfont icon-op-redis" :size="18"/>
+                                            <SvgIcon name="iconfont icon-op-redis" :size="18" />
                                         </template>
                                         <template #default>
                                             <el-form class="instances-pop-form" label-width="50px" :size="'small'">
@@ -24,7 +24,7 @@
                                     </el-popover>
                                 </span>
 
-                                <SvgIcon v-if="data.type == NodeType.Db" name="Coin" color="#67c23a"/>
+                                <SvgIcon v-if="data.type == NodeType.Db" name="Coin" color="#67c23a" />
                             </template>
                         </tag-tree>
                     </el-col>
@@ -64,7 +64,7 @@
                             </div>
                         </el-form>
                     </el-col>
-                    <el-table v-loading="state.loading" :data="state.keys" stripe :highlight-current-row="true"
+                    <el-table v-loading="state.loading" :data="state.keys" :height="tableHeight" stripe :highlight-current-row="true"
                         style="cursor: pointer">
                         <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
                         <el-table-column prop="type" label="type" width="80">
@@ -79,10 +79,10 @@
                         </el-table-column>
                         <el-table-column label="操作">
                             <template #default="scope">
-                                <el-button @click="getValue(scope.row)" type="success" icon="search" plain
-                                    size="small">查看
+                                <el-button @click="getValue(scope.row)" type="success" icon="search" plain size="small">查看
                                 </el-button>
-                                <el-button v-auth="'redis:data:del'" @click="del(scope.row.key)" type="danger" icon="delete" plain size="small">删除
+                                <el-button v-auth="'redis:data:del'" @click="del(scope.row.key)" type="danger" icon="delete"
+                                    plain size="small">删除
                                 </el-button>
                             </template>
                         </el-table-column>
@@ -133,8 +133,8 @@ class NodeType {
 }
 
 const state = reactive({
-    instanceMenuMaxHeight: '600',
     loading: false,
+    tableHeight: 600,
     tags: [],
     redisList: [] as any,
     dbList: [],
@@ -176,6 +176,7 @@ const state = reactive({
 });
 
 const {
+    tableHeight,
     scanParam,
     dataEdit,
     hashValueDialog,
@@ -190,7 +191,7 @@ onMounted(async () => {
 })
 
 const setHeight = () => {
-    state.instanceMenuMaxHeight = window.innerHeight - 115 + 'px';
+    state.tableHeight = window.innerHeight - 159;
 }
 
 /**
@@ -259,13 +260,18 @@ const nodeClick = (data: any) => {
  */
 const getDbs = async (redisInfo: any) => {
     let dbs: TagTreeNode[] = redisInfo.db.split(',').map((x: string) => {
-        return new TagTreeNode(x, x, NodeType.Db).withIsLeaf(true).withParams({
+        return new TagTreeNode(x, `db${x}`, NodeType.Db).withIsLeaf(true).withParams({
             id: redisInfo.id,
             db: x,
             name: `db${x}`,
             keys: 0,
         })
     })
+
+    if (redisInfo.mode == 'cluster') {
+        return dbs;
+    }
+
     const res = await redisApi.redisInfo.request({ id: redisInfo.id, host: redisInfo.host, section: "Keyspace" });
     for (let db in res.Keyspace) {
         for (let d of dbs) {
