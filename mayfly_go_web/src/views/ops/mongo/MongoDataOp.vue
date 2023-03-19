@@ -7,7 +7,7 @@
                         <span v-if="data.type == NodeType.Mongo">
                             <el-popover placement="right-start" title="mongo实例信息" trigger="hover" :width="210">
                                 <template #reference>
-                                    <SvgIcon name="iconfont icon-op-mongo" :size="18"/>
+                                    <SvgIcon name="iconfont icon-op-mongo" :size="18" />
                                 </template>
                                 <template #default>
                                     <el-form class="instances-pop-form" label-width="50px" :size="'small'">
@@ -20,9 +20,10 @@
                             </el-popover>
                         </span>
 
-                        <SvgIcon v-if="data.type == NodeType.Dbs" name="Coin" color="#67c23a"/>
+                        <SvgIcon v-if="data.type == NodeType.Dbs" name="Coin" color="#67c23a" />
 
-                        <SvgIcon v-if="data.type == NodeType.Coll || data.type == NodeType.CollMenu" name="Document" class="color-primary"/>
+                        <SvgIcon v-if="data.type == NodeType.Coll || data.type == NodeType.CollMenu" name="Document"
+                            class="color-primary" />
                     </template>
 
                     <template #label="{ data }">
@@ -40,17 +41,15 @@
 
             <el-col :span="20">
                 <el-container id="mongo-tab" style="border: 1px solid #eee; margin-top: 1px">
-                    <el-tabs @tab-remove="removeDataTab" style="width: 100%; margin-left: 5px"
-                        v-model="state.activeName">
-                        <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label"
-                            :name="dt.key">
+                    <el-tabs @tab-remove="removeDataTab" style="width: 100%; margin-left: 5px" v-model="state.activeName">
+                        <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                             <el-row>
                                 <el-col :span="2">
                                     <div>
-                                        <el-link @click="findCommand(state.activeName)" icon="refresh"
-                                            :underline="false" class="">
+                                        <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false"
+                                            class="">
                                         </el-link>
-                                        <el-link @click="showInsertDocDialog" class="ml5" type="primary" icon="plus"
+                                        <el-link @click="onEditDoc(null)" class="ml5" type="primary" icon="plus"
                                             :underline="false">
                                         </el-link>
                                     </div>
@@ -62,19 +61,19 @@
                                     </el-input>
                                 </el-col>
                             </el-row>
-                            <el-row>
+                            <el-row :style="`height: ${dataHeight}; overflow: auto;`">
                                 <el-col :span="6" v-for="item in dt.datas" :key="item">
                                     <el-card :body-style="{ padding: '0px', position: 'relative' }">
                                         <el-input type="textarea" v-model="item.value" :rows="10" />
                                         <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
                                             <div>
-                                                <el-link @click="onJsonEditor(item)" :underline="false" type="success"
+                                                <el-link @click="onEditDoc(item)" :underline="false" type="success"
                                                     icon="MagicStick"></el-link>
 
-                                                <el-divider direction="vertical" border-style="dashed" />
+                                                <!-- <el-divider direction="vertical" border-style="dashed" /> -->
 
-                                                <el-link @click="onSaveDoc(item.value)" :underline="false"
-                                                    type="warning" icon="DocumentChecked"></el-link>
+                                                <!-- <el-link @click="onSaveDoc(item.value)" :underline="false"
+                                                    type="warning" icon="DocumentChecked"></el-link> -->
 
                                                 <el-divider direction="vertical" border-style="dashed" />
 
@@ -121,20 +120,15 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="60%" :title="`新增'${state.activeName}'集合文档`" v-model="insertDocDialog.visible"
-            :close-on-click-modal="false">
-            <monaco-editor v-model="insertDocDialog.doc" language="json" />
+        <el-dialog width="60%" :title="`${state.docEditDialog.isAdd ? '新增' : '修改'}'${state.activeName}'集合文档`"
+            v-model="docEditDialog.visible" :close-on-click-modal="false">
+            <monaco-editor v-model="docEditDialog.doc" language="json" />
             <template #footer>
                 <div>
-                    <el-button @click="insertDocDialog.visible = false">取 消</el-button>
-                    <el-button @click="onInsertDoc" type="primary">确 定</el-button>
+                    <el-button @click="docEditDialog.visible = false">取 消</el-button>
+                    <el-button @click="onSaveDoc" type="primary">确 定</el-button>
                 </div>
             </template>
-        </el-dialog>
-
-        <el-dialog width="60%" title="json编辑器" v-model="jsonEditorDialog.visible" @close="onCloseJsonEditDialog"
-            :close-on-click-modal="false">
-            <monaco-editor v-model="jsonEditorDialog.doc" language="json" />
         </el-dialog>
 
         <div style="text-align: center; margin-top: 10px"></div>
@@ -166,6 +160,7 @@ class NodeType {
 const findParamInputRef: any = ref(null);
 const state = reactive({
     tags: [],
+    dataHeight: `${window.innerHeight - 194}px`,
     mongoList: [] as any,
     activeName: '', // 当前操作的tab
     dataTabs: {} as any, // 数据tabs
@@ -177,6 +172,11 @@ const state = reactive({
             filter: '',
             sort: '',
         },
+    },
+    docEditDialog: {
+        isAdd: true,
+        visible: false,
+        doc: '',
     },
     insertDocDialog: {
         visible: false,
@@ -190,7 +190,9 @@ const state = reactive({
 });
 
 const {
+    dataHeight,
     findDialog,
+    docEditDialog,
     insertDocDialog,
     jsonEditorDialog,
 } = toRefs(state)
@@ -381,7 +383,7 @@ const wrapDatas = (datas: any) => {
     return wrapDatas;
 };
 
-const showInsertDocDialog = () => {
+const showEditDocDialog = () => {
     // tab数据中的第一个文档，因为该集合的文档都类似，故使用第一个文档赋值至需要新增的文档输入框，方便直接修改新增
     const datasFirstDoc = state.dataTabs[state.activeName].datas[0];
     let doc = '';
@@ -391,55 +393,59 @@ const showInsertDocDialog = () => {
         delete docObj['_id'];
         doc = JSON.stringify(docObj, null, 4);
     }
-    state.insertDocDialog.doc = doc;
-    state.insertDocDialog.visible = true;
+    state.docEditDialog.doc = doc;
+    state.docEditDialog.visible = true;
 };
 
-const onInsertDoc = async () => {
-    let docObj;
-    try {
-        docObj = JSON.parse(state.insertDocDialog.doc);
-    } catch (e) {
-        ElMessage.error('文档内容错误,无法解析为json对象');
+const onEditDoc = async (item: any) => {
+    // 新增文档
+    if (!item) {
+        state.docEditDialog.isAdd = true;
+        showEditDocDialog();
+        return;
     }
-    const dataTab = getNowDataTab();
-    const res = await mongoApi.insertCommand.request({
-        id: dataTab.mongoId,
-        database: dataTab.database,
-        collection: dataTab.collection,
-        doc: docObj,
-    });
-    isTrue(res.InsertedID, '新增失败');
-    ElMessage.success('新增成功');
+    // 编辑修改文档
+    // state.docEditDialog.item = item;
+    state.docEditDialog.isAdd = false;
+    state.docEditDialog.doc = item.value;
+    state.docEditDialog.visible = true;
+}
+
+const onSaveDoc = async () => {
+    if (state.docEditDialog.isAdd) {
+        let docObj;
+        try {
+            docObj = JSON.parse(state.docEditDialog.doc);
+        } catch (e) {
+            ElMessage.error('文档内容错误,无法解析为json对象');
+        }
+        const dataTab = getNowDataTab();
+        const res = await mongoApi.insertCommand.request({
+            id: dataTab.mongoId,
+            database: dataTab.database,
+            collection: dataTab.collection,
+            doc: docObj,
+        });
+        isTrue(res.InsertedID, '新增失败');
+        ElMessage.success('新增成功');
+    } else {
+        const docObj = parseDocJsonString(state.docEditDialog.doc);
+        const id = docObj._id;
+        notBlank(id, '文档的_id属性不存在');
+        delete docObj['_id'];
+        const dataTab = getNowDataTab();
+        const res = await mongoApi.updateByIdCommand.request({
+            id: dataTab.mongoId,
+            database: dataTab.database,
+            collection: dataTab.collection,
+            docId: id,
+            update: { $set: docObj },
+        });
+        isTrue(res.ModifiedCount == 1, '修改失败');
+        ElMessage.success('保存成功');
+    }
     findCommand(state.activeName);
-    state.insertDocDialog.visible = false;
-};
-
-const onJsonEditor = (item: any) => {
-    state.jsonEditorDialog.item = item;
-    state.jsonEditorDialog.doc = item.value;
-    state.jsonEditorDialog.visible = true;
-};
-
-const onCloseJsonEditDialog = () => {
-    state.jsonEditorDialog.item.value = JSON.stringify(JSON.parse(state.jsonEditorDialog.doc), null, 4);
-};
-
-const onSaveDoc = async (doc: string) => {
-    const docObj = parseDocJsonString(doc);
-    const id = docObj._id;
-    notBlank(id, '文档的_id属性不存在');
-    delete docObj['_id'];
-    const dataTab = getNowDataTab();
-    const res = await mongoApi.updateByIdCommand.request({
-        id: dataTab.mongoId,
-        database: dataTab.database,
-        collection: dataTab.collection,
-        docId: id,
-        update: { $set: docObj },
-    });
-    isTrue(res.ModifiedCount == 1, '修改失败');
-    ElMessage.success('保存成功');
+    state.docEditDialog.visible = false;
 };
 
 const onDeleteDoc = async (doc: string) => {

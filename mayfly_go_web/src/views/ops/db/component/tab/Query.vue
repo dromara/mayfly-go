@@ -343,7 +343,7 @@ const onRunSql = async () => {
         state.selectionDatas = [];
         const tableName = sql.split(/from/i)[1];
         if (tableName) {
-            const tn = tableName.trim().split(' ')[0];
+            const tn = tableName.trim().split(' ')[0].split('\n')[0];
             state.table = tn;
             state.table = tn;
         } else {

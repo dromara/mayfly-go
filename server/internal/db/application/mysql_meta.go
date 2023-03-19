@@ -103,15 +103,15 @@ func (mm *MysqlMetadata) GetTableIndex(tableName string) []map[string]interface{
 	// 把查询结果以索引名分组，索引字段以逗号连接
 	result := make([]map[string]interface{}, 0)
 	key := ""
-	i := 0
-	for k, v := range res {
+	for _, v := range res {
 		// 当前的索引名
 		in := v["indexName"].(string)
 		if key == in {
+			// 索引字段已根据名称和顺序排序，故取最后一个即可
+			i := len(result) - 1
 			// 同索引字段以逗号连接
 			result[i]["columnName"] = result[i]["columnName"].(string) + "," + v["columnName"].(string)
 		} else {
-			i = k
 			key = in
 			result = append(result, v)
 		}
