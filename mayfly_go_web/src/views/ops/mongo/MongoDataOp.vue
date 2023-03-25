@@ -193,8 +193,6 @@ const {
     dataHeight,
     findDialog,
     docEditDialog,
-    insertDocDialog,
-    jsonEditorDialog,
 } = toRefs(state)
 
 /**

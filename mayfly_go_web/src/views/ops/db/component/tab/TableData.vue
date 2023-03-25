@@ -37,7 +37,7 @@
                 </el-tooltip>
             </el-col>
             <el-col :span="16">
-                <el-input v-model="condition" placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可" clearable size="small"
+                <el-input v-model="condition" placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可" clearable @clear="selectData" size="small"
                     style="width: 100%">
                     <template #prepend>
                         <el-popover trigger="click" :width="320" placement="right">
@@ -204,7 +204,7 @@ const selectData = async () => {
     const dbInst = state.ti.getNowDbInst();
     const { db } = state.ti;
     try {
-        const countRes = await dbInst.runSql(db, DbInst.getDefaultCountSql(state.table));
+        const countRes = await dbInst.runSql(db, DbInst.getDefaultCountSql(state.table, state.condition));
         state.count = countRes.res[0].count;
         let sql = dbInst.getDefaultSelectSql(state.table, state.condition, state.orderBy, state.pageNum);
         state.sql = sql;
