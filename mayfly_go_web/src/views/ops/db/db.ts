@@ -58,13 +58,14 @@ export class DbInst {
     /**
      * 加载数据库表信息
      * @param dbName 数据库名
+     * @param reload 是否重新请求接口获取数据
      * @returns 表信息
      */
-    async loadTables(dbName: string) {
+    async loadTables(dbName: string, reload?: boolean) {
         const db = this.getDb(dbName);
         // 优先从 table map中获取
         let tables = db.tables;
-        if (tables) {
+        if (!reload && tables) {
             return tables;
         }
         console.log(`load tables -> dbName: ${dbName}`);

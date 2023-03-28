@@ -59,6 +59,11 @@
 
                         <SvgIcon name="Files"  v-if="data.type == NodeType.SqlMenu || data.type == NodeType.Sql" color="#f56c6c" />
                     </template>
+                    <template #option="{data}">
+                      <span v-if="data.type == NodeType.TableMenu">
+                        <el-link @click="reloadTables(data.key)" icon="refresh" :underline="false"></el-link>
+                      </span>
+                    </template>
                 </tag-tree>
             </el-col>
             <el-col :span="20">
@@ -125,6 +130,7 @@ const state = reactive({
     nowDbInst: {} as DbInst,
     db: '', // 当前操作的数据库
     activeName: '',
+    reloadStatus: false,
     tabs,
     dataTabsTableHeight: '600',
     editorHeight: '600',
@@ -257,7 +263,8 @@ const nodeClick = async (data: any) => {
 
 const getTables = async (params: any) => {
     const { id, db } = params;
-    let tables = await DbInst.getInst(id).loadTables(db);
+    let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
+    state.reloadStatus=false
     return tables.map((x: any) => {
         return new TagTreeNode(`${id}.${db}.${x.tableName}`, x.tableName, NodeType.Table).withIsLeaf(true).withParams({
             id,
@@ -404,6 +411,11 @@ const deleteSqlScript = (ti: TabInfo) => {
 
 const getSqlMenuNodeKey = (dbId: number, db: string) => {
     return `${dbId}.${db}.sql-menu`
+}
+
+const reloadTables = (nodeKey:string) => {
+  state.reloadStatus=true
+  tagTreeRef.value.reloadNode(nodeKey);
 }
 
 const registerSqlCompletionItemProvider = () => {
