@@ -311,10 +311,10 @@ const addDefaultRows = () => {
         { name: 'id', type: 'bigint', length: '20', value: '', notNull: true, pri: true, auto_increment: true, remark: '主键ID' },
         { name: 'creator_id', type: 'bigint', length: '20', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人id' },
         { name: 'creator', type: 'varchar', length: '100', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人姓名' },
-        { name: 'creat_time', type: 'datetime', length: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建时间' },
-        { name: 'updater_id', type: 'bigint', length: '20', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人id' },
-        { name: 'updater', type: 'varchar', length: '100', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人姓名' },
-        { name: 'update_time', type: 'datetime', length: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改时间' },
+        { name: 'create_time', type: 'datetime', length: '', value: 'CURRENT_TIMESTAMP', notNull: true, pri: false, auto_increment: false, remark: '创建时间' },
+        { name: 'updator_id', type: 'bigint', length: '20', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人id' },
+        { name: 'updator', type: 'varchar', length: '100', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人姓名' },
+        { name: 'update_time', type: 'datetime', length: '', value: 'CURRENT_TIMESTAMP', notNull: true, pri: false, auto_increment: false, remark: '修改时间' },
     );
 };
 
@@ -406,7 +406,8 @@ const genSql = () => {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : '\'' + cl.value + '\'') : '';
         let defVal = `${val ? ('DEFAULT ' + val) : ''}`;
         let length = cl.length ? `(${cl.length})` : '';
-        return ` ${cl.name} ${cl.type}${length} ${cl.notNull ? 'NOT NULL' : 'NULL'} ${cl.auto_increment ? 'AUTO_INCREMENT' : ''} ${defVal} comment '${cl.remark || ''}' `
+        let onUpdate = 'update_time' === cl.name ? ' ON UPDATE CURRENT_TIMESTAMP ' : ''
+        return ` ${cl.name} ${cl.type}${length} ${cl.notNull ? 'NOT NULL' : 'NULL'} ${cl.auto_increment ? 'AUTO_INCREMENT' : ''} ${defVal} ${onUpdate} comment '${cl.remark || ''}' `
     }
 
     let data = state.tableData;
@@ -416,7 +417,7 @@ const genSql = () => {
             let primary_key = '';
             let fields: string[] = [];
             data.fields.res.forEach((item) => {
-                fields.push(genColumnBasicSql(item));
+              item.name && fields.push(genColumnBasicSql(item));
                 if (item.pri) {
                     primary_key += `${item.name},`;
                 }

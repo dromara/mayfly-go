@@ -19,6 +19,11 @@
                             <span class="ml3">
                                 <slot name="label" :data="data"> {{ data.label }}</slot>
                             </span>
+                          
+                            <span class="ml3">
+                                <slot name="option" :data="data"></slot>
+                            </span>
+                          
                         </span>
                     </template>
                 </el-tree>
