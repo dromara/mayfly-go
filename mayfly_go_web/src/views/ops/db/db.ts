@@ -68,6 +68,9 @@ export class DbInst {
         if (!reload && tables) {
             return tables;
         }
+        // 重置列信息缓存与表提示信息
+        db.columnsMap?.clear();
+        db.tableHints = null;
         console.log(`load tables -> dbName: ${dbName}`);
         tables = await dbApi.tableMetadata.request({ id: this.id, db: dbName });
         db.tables = tables;

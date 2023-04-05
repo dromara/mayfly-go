@@ -9,8 +9,8 @@
                             if (el) tagsRefs[k] = el;
                         }
                     ">
-                    <i class="iconfont icon-webicon318 layout-navbars-tagsview-ul-li-iconfont font14"
-                        v-if="isActive(v)"></i>
+                    <SvgIcon name="iconfont icon-tag-view-active" class="layout-navbars-tagsview-ul-li-iconfont font14"
+                        v-if="isActive(v)" />
                     <SvgIcon :name="v.meta.icon" class="layout-navbars-tagsview-ul-li-iconfont"
                         v-if="!isActive(v) && themeConfig.isTagsviewIcon" />
                     <span>{{ v.meta.title }}</span>
@@ -82,7 +82,7 @@ const initTagsView = () => {
         state.tagsViewList = getSession('tagsViewList');
     } else {
         state.tagsViews?.map((v: any) => {
-        	if (v.meta.isAffix && !v.meta.isHide) state.tagsViewList.push({ ...v });
+            if (v.meta.isAffix && !v.meta.isHide) state.tagsViewList.push({ ...v });
         });
         addTagsView(route.fullPath);
     }
@@ -523,4 +523,5 @@ onBeforeRouteUpdate((to) => {
 
 .layout-navbars-tagsview-shadow {
     box-shadow: rgb(0 21 41 / 4%) 0px 1px 4px;
-}</style>
+}
+</style>

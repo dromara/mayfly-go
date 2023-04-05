@@ -23,13 +23,15 @@
         </el-row>
         <el-row type="flex">
             <el-col :span="4" style="border-left: 1px solid #eee; margin-top: 10px">
-                <tag-tree ref="tagTreeRef" @node-click="nodeClick" :load="loadNode" :height="state.tagTreeHeight">
+                <tag-tree ref="tagTreeRef" @node-click="nodeClick" :load="loadNode" :load-contextmenu-items="getContextmenuItems" @current-contextmenu-click="onCurrentContextmenuClick"
+                    :height="state.tagTreeHeight">
                     <template #prefix="{ data }">
                         <span v-if="data.type == NodeType.DbInst">
                             <el-popover placement="right-start" title="数据库实例信息" trigger="hover" :width="210">
                                 <template #reference>
                                     <SvgIcon v-if="data.params.type === 'mysql'" name="iconfont icon-op-mysql" :size="18" />
-                                    <SvgIcon v-if="data.params.type === 'postgres'" name="iconfont icon-op-postgres" :size="18" />
+                                    <SvgIcon v-if="data.params.type === 'postgres'" name="iconfont icon-op-postgres"
+                                        :size="18" />
 
                                     <SvgIcon name="InfoFilled" v-else />
                                 </template>
@@ -54,15 +56,11 @@
 
                         <el-tooltip v-if="data.type == NodeType.Table" effect="customized"
                             :content="data.params.tableComment" placement="top-end">
-                           <SvgIcon name="Calendar" color="#409eff" />
+                            <SvgIcon name="Calendar" color="#409eff" />
                         </el-tooltip>
 
-                        <SvgIcon name="Files"  v-if="data.type == NodeType.SqlMenu || data.type == NodeType.Sql" color="#f56c6c" />
-                    </template>
-                    <template #option="{data}">
-                      <span v-if="data.type == NodeType.TableMenu">
-                        <el-link @click="reloadTables(data.key)" icon="refresh" :underline="false"></el-link>
-                      </span>
+                        <SvgIcon name="Files" v-if="data.type == NodeType.SqlMenu || data.type == NodeType.Sql"
+                            color="#f56c6c" />
                     </template>
                 </tag-tree>
             </el-col>
@@ -119,6 +117,9 @@ class NodeType {
     static Table = 5;
     static Sql = 6;
 }
+class ContextmenuClickId {
+    static ReloadTable = 0
+}
 
 const tagTreeRef: any = ref(null)
 
@@ -134,7 +135,7 @@ const state = reactive({
     tabs,
     dataTabsTableHeight: '600',
     editorHeight: '600',
-    tagTreeHeight: window.innerHeight - 178 + 'px',
+    tagTreeHeight: window.innerHeight - 173 + 'px',
     genSqlDialog: {
         visible: false,
         sql: '',
@@ -171,9 +172,9 @@ const getInsts = async () => {
     if (!res.total) return
     for (const db of res.list) {
         const tagPath = db.tagPath;
-        let redisInsts = instMap.get(tagPath) || [];
-        redisInsts.push(db);
-        instMap.set(tagPath, redisInsts);
+        let dbInsts = instMap.get(tagPath) || [];
+        dbInsts.push(db);
+        instMap.set(tagPath, dbInsts?.sort());
     }
 }
 
@@ -261,10 +262,28 @@ const nodeClick = async (data: any) => {
     }
 }
 
+const getContextmenuItems = (data: any) => {
+    const dataType = data.type;
+    if (dataType === NodeType.TableMenu) {
+        return [
+            { contextMenuClickId: ContextmenuClickId.ReloadTable, txt: '刷新', icon: 'RefreshRight' }
+        ]
+    }
+    return [];
+}
+
+// 当前右击菜单点击事件
+const onCurrentContextmenuClick = (clickData: any) => {
+    const clickId = clickData.id;
+    if (clickId == ContextmenuClickId.ReloadTable) {
+        reloadTables(clickData.item.key)
+    }
+}
+
 const getTables = async (params: any) => {
     const { id, db } = params;
     let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
-    state.reloadStatus=false
+    state.reloadStatus = false
     return tables.map((x: any) => {
         return new TagTreeNode(`${id}.${db}.${x.tableName}`, x.tableName, NodeType.Table).withIsLeaf(true).withParams({
             id,
@@ -413,9 +432,9 @@ const getSqlMenuNodeKey = (dbId: number, db: string) => {
     return `${dbId}.${db}.sql-menu`
 }
 
-const reloadTables = (nodeKey:string) => {
-  state.reloadStatus=true
-  tagTreeRef.value.reloadNode(nodeKey);
+const reloadTables = (nodeKey: string) => {
+    state.reloadStatus = true
+    tagTreeRef.value.reloadNode(nodeKey);
 }
 
 const registerSqlCompletionItemProvider = () => {
