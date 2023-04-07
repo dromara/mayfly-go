@@ -36,7 +36,6 @@
 import { reactive, onMounted, computed, ref, nextTick, onBeforeUpdate, onBeforeMount, onUnmounted, getCurrentInstance, watch } from 'vue';
 import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router';
 import screenfull from 'screenfull';
-import pinia from '@/store/index';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { getSession, setSession, removeSession } from '@/common/utils/storage.ts';
@@ -52,13 +51,15 @@ const tagsUlRef = ref();
 const { themeConfig } = storeToRefs(useThemeConfig());
 const route = useRoute();
 const router = useRouter();
-const state: any = reactive({
+
+const state = reactive({
     routePath: route.fullPath,
     dropdown: { x: '', y: '' },
     tagsRefsIndex: 0,
-    tagsViewList: [],
-    sortable: '',
+    tagsViewList: [] as any,
+    sortable: '' as any,
 });
+
 // 动态设置 tagsView 风格样式
 const setTagsStyle = computed(() => {
     return themeConfig.value.tagsStyle;
@@ -81,7 +82,7 @@ const initTagsView = () => {
     if (getSession('tagsViewList') && themeConfig.value.isCacheTagsView) {
         state.tagsViewList = getSession('tagsViewList');
     } else {
-        state.tagsViews?.map((v: any) => {
+        state.tagsViewList?.map((v: any) => {
             if (v.meta.isAffix && !v.meta.isHide) state.tagsViewList.push({ ...v });
         });
         addTagsView(route.fullPath);
@@ -127,28 +128,21 @@ const closeCurrentTagsView = (path: string) => {
             if (v.fullPath === path) {
                 state.tagsViewList.splice(k, 1);
                 setTimeout(() => {
-                    if (state.tagsViewList.length === k && themeConfig.value.isShareTagsView ? state.routePath === path : state.routeActive === path) {
-                        // 最后一个且高亮时
-                        if (arr[arr.length - 1].meta.isDynamic) {
-                            // 动态路由（xxx/:id/:name"）
-                            if (k !== arr.length) router.push({ name: arr[k].name, params: arr[k].params });
-                            else router.push({ name: arr[arr.length - 1].name, params: arr[arr.length - 1].params });
-                        } else {
-                            // 普通路由
-                            if (k !== arr.length) router.push({ path: arr[k].path, query: arr[k].query });
-                            else router.push({ path: arr[arr.length - 1].path, query: arr[arr.length - 1].query });
-                        }
+                    if (state.routePath !== path) {
+                        return;
+                    }
+                    let next;
+                    // 最后一个且高亮时
+                    if (state.tagsViewList.length === k) {
+                        next = k !== arr.length ? arr[k] : arr[arr.length - 1]
                     } else {
-                        // 非最后一个且高亮时，跳转到下一个
-                        if (state.tagsViewList.length !== k && themeConfig.value.isShareTagsView ? state.routePath === path : state.routeActive === path) {
-                            if (arr[k].meta.isDynamic) {
-                                // 动态路由（xxx/:id/:name"）
-                                router.push({ name: arr[k].name, params: arr[k].params });
-                            } else {
-                                // 普通路由
-                                router.push({ path: arr[k].path, query: arr[k].query });
-                            }
-                        }
+                        next = arr[k];
+                    }
+
+                    if (next.meta.isDynamic) {
+                        router.push({ name: next.name, params: next.params });
+                    } else {
+                        router.push({ path: next.path, query: next.query });
                     }
                 }, 0);
             }

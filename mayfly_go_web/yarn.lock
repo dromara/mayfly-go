@@ -792,10 +792,10 @@ echarts@^5.4.0:
     tslib "2.3.0"
     zrender "5.4.0"
 
-element-plus@^2.3.1:
-  version "2.3.1"
-  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.3.1.tgz#e4e13c28702709583ab978041145bc1367844842"
-  integrity sha512-IBS7ic1mRyDXpOreRkredV4ByZSuax5HPb0zNOHm4qwKC4wm927yQv+Is0JbzxPzCW5zWaV4PLy9/Gl3E3v59w==
+element-plus@^2.3.2:
+  version "2.3.2"
+  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.3.2.tgz#93abe96bcd5d00e96ef281e8d148391d698fb6e3"
+  integrity sha512-NIK0QckKKagdlMm3eLoVoD4Lkfj5ECzpZAxwrRLdm1Yi5qiTU9Guor33+IbIa52z4gHMuhMxgSVS2xAGmjLHsw==
   dependencies:
     "@ctrl/tinycolor" "^3.4.1"
     "@element-plus/icons-vue" "^2.0.6"
@@ -1400,10 +1400,10 @@ mitt@^3.0.0:
   resolved "https://registry.npmmirror.com/mitt/download/mitt-3.0.0.tgz"
   integrity sha512-7dX2/10ITVyqh4aOSVI9gdape+t9l2/8QxHrFmUXu4EEUpdlxl6RudZUPZoc+zuY2hk1j7XxVroIVIan/pD/SQ==
 
-monaco-editor@^0.36.1:
-  version "0.36.1"
-  resolved "https://registry.npmmirror.com/monaco-editor/-/monaco-editor-0.36.1.tgz#aad528c815605307473a1634612946921d8079b5"
-  integrity sha512-/CaclMHKQ3A6rnzBzOADfwdSJ25BFoFT0Emxsc4zYVyav5SkK9iA6lEtIeuN/oRYbwPgviJT+t3l+sjFa28jYg==
+monaco-editor@^0.37.1:
+  version "0.37.1"
+  resolved "https://registry.npmmirror.com/monaco-editor/-/monaco-editor-0.37.1.tgz#d6f5ffb593e019e74e19bf8a2bdef5a691876f4e"
+  integrity sha512-jLXEEYSbqMkT/FuJLBZAVWGuhIb4JNwHE9kPTorAVmsdZ4UzHAfgWxLsVtD7pLRFaOwYPhNG9nUCpmFL1t/dIg==
 
 monaco-sql-languages@^0.11.0:
   version "0.11.0"

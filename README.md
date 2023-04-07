@@ -9,6 +9,9 @@
     <img src="https://img.shields.io/github/stars/may-fly/mayfly-go.svg?style=social" alt="github star"/>
     <img src="https://img.shields.io/github/forks/may-fly/mayfly-go.svg?style=social" alt="github fork"/>
   </a>
+  <a href="https://hub.docker.com/r/mayflygo/mayfly-go/tags" target="_blank">
+    <img src="https://img.shields.io/docker/pulls/mayflygo/mayfly-go.svg?label=docker%20pulls&color=fac858" alt="docker pulls"/>
+  </a>
   <a href="https://github.com/golang/go" target="_blank">
     <img src="https://img.shields.io/badge/Golang-1.18%2B-yellow.svg" alt="golang"/>
   </a>

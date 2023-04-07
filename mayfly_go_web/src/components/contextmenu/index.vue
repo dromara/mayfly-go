@@ -45,9 +45,6 @@ const state = reactive({
     isShow: false,
     dropdownList: [
         { contextMenuClickId: 0, txt: '刷新', affix: false, icon: 'RefreshRight' },
-        { contextMenuClickId: 1, txt: '关闭', affix: false, icon: 'Close' },
-        { contextMenuClickId: 2, txt: '关闭其他', affix: false, icon: 'CircleClose' },
-        { contextMenuClickId: 3, txt: '关闭所有', affix: false, icon: 'FolderDelete' },
     ],
     item: {} as any,
     arrowLeft: 10,
