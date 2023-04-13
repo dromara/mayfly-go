@@ -1,43 +1,43 @@
 import Api from '@/common/Api';
 
 export const resourceApi = {
-    list: Api.create("/sys/resources", 'get'),
-    detail: Api.create("/sys/resources/{id}", 'get'),
-    save: Api.create("/sys/resources", 'post'),
-    update: Api.create("/sys/resources/{id}", 'put'),
-    del: Api.create("/sys/resources/{id}", 'delete'),
-    changeStatus: Api.create("/sys/resources/{id}/{status}", 'put')
+    list: Api.newGet("/sys/resources"),
+    detail: Api.newGet("/sys/resources/{id}"),
+    save: Api.newPost("/sys/resources"),
+    update: Api.newPut("/sys/resources/{id}"),
+    del: Api.newDelete("/sys/resources/{id}"),
+    changeStatus: Api.newPut("/sys/resources/{id}/{status}")
 }
 
 export const roleApi = {
-    list: Api.create("/sys/roles", 'get'),
-    save: Api.create("/sys/roles", 'post'),
-    update: Api.create("/sys/roles/{id}", 'put'),
-    del: Api.create("/sys/roles/{id}", 'delete'),
+    list: Api.newGet("/sys/roles"),
+    save: Api.newPost("/sys/roles"),
+    update: Api.newPut("/sys/roles/{id}"),
+    del: Api.newDelete("/sys/roles/{id}"),
     // 获取指定角色拥有的资源id
-    roleResourceIds: Api.create("/sys/roles/{id}/resourceIds", 'get'),
-    roleResources: Api.create("/sys/roles/{id}/resources", 'get'),
-    saveResources: Api.create("/sys/roles/{id}/resources", 'post')
+    roleResourceIds: Api.newGet("/sys/roles/{id}/resourceIds"),
+    roleResources: Api.newGet("/sys/roles/{id}/resources"),
+    saveResources: Api.newPost("/sys/roles/{id}/resources")
 }
 
 export const accountApi = {
-    list: Api.create("/sys/accounts", 'get'),
-    save: Api.create("/sys/accounts", 'post'),
-    update: Api.create("/sys/accounts/{id}", 'put'),
-    del: Api.create("/sys/accounts/{id}", 'delete'),
-    changeStatus: Api.create("/sys/accounts/change-status/{id}/{status}", 'put'),
-    roleIds: Api.create("/sys/accounts/{id}/roleIds", 'get'),
-    roles: Api.create("/sys/accounts/{id}/roles", 'get'),
-    resources: Api.create("/sys/accounts/{id}/resources", 'get'),
-    saveRoles: Api.create("/sys/accounts/roles", 'post')
+    list: Api.newGet("/sys/accounts"),
+    save: Api.newPost("/sys/accounts"),
+    update: Api.newPut("/sys/accounts/{id}"),
+    del: Api.newDelete("/sys/accounts/{id}"),
+    changeStatus: Api.newPut("/sys/accounts/change-status/{id}/{status}"),
+    roleIds: Api.newGet("/sys/accounts/{id}/roleIds"),
+    roles: Api.newGet("/sys/accounts/{id}/roles"),
+    resources: Api.newGet("/sys/accounts/{id}/resources"),
+    saveRoles: Api.newPost("/sys/accounts/roles")
 }
 
 export const configApi = {
-    list: Api.create("/sys/configs", 'get'),
-    save: Api.create("/sys/configs", 'post'),
-    getValue: Api.create("/sys/configs/value", 'get'),
+    list: Api.newGet("/sys/configs"),
+    save: Api.newPost("/sys/configs"),
+    getValue: Api.newGet("/sys/configs/value"),
 }
 
 export const logApi = {
-    list: Api.create("/syslogs", "get")
+    list: Api.newGet("/syslogs")
 }

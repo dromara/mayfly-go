@@ -28,7 +28,7 @@ class Api {
 
     /**
      * 操作该权限，即请求对应的url
-     * @param {Object} param 请求该权限的参数
+     * @param {Object} param 请求该api的参数
      */
     request(param: any = null, options: any = null): Promise<any> {
         return request.send(this, param, options);
@@ -36,7 +36,8 @@ class Api {
 
     /**
     * 操作该权限，即请求对应的url
-    * @param {Object} param 请求该权限的参数
+    * @param {Object} param 请求该api的参数
+    * @param headers headers
     */
     requestWithHeaders(param: any, headers: any): Promise<any> {
         return request.sendWithHeaders(this, param, headers);
@@ -50,8 +51,40 @@ class Api {
      * @param url url
      * @param method 请求方法(get,post,put,delete...)
      */
-    static create(url: string, method: string) {
+    static create(url: string, method: string) :Api {
         return new Api(url, method);
+    }
+
+    /**
+     * 创建get api
+     * @param url url
+     */
+    static newGet(url: string): Api {
+        return Api.create(url, 'get');
+    }
+
+    /**
+     * new post api
+     * @param url url
+     */
+    static newPost(url: string): Api {
+        return Api.create(url, 'post');
+    }
+
+    /**
+     * new put api
+     * @param url url
+     */
+    static newPut(url: string): Api {
+        return Api.create(url, 'put');
+    }
+
+    /**
+     * new delete api
+     * @param url url
+     */
+    static newDelete(url: string): Api {
+        return Api.create(url, 'delete');
     }
 }
 

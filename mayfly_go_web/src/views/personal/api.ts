@@ -1,8 +1,8 @@
 import Api from '@/common/Api';
 
 export const personApi = {
-    accountInfo: Api.create("/sys/accounts/self", 'get'),
-    updateAccount: Api.create("/sys/accounts/self", 'put'),
-    getMsgs: Api.create("/sys/accounts/msgs", 'get'),
+    accountInfo: Api.newGet("/sys/accounts/self"),
+    updateAccount: Api.newPut("/sys/accounts/self"),
+    getMsgs: Api.newGet("/sys/accounts/msgs"),
 }
 

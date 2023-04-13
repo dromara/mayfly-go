@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { getSession } from '@/common/utils/storage.ts';
+import { getSession } from '@/common/utils/storage';
 
 export const useUserInfo = defineStore('userInfo', {
     state: (): UserInfoState => ({

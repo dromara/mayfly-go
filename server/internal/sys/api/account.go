@@ -39,6 +39,10 @@ func (a *Account) Login(rc *req.Ctx) {
 		biz.IsTrue(captcha.Verify(loginForm.Cid, loginForm.Captcha), "验证码错误")
 	}
 
+	clientIp := rc.GinCtx.ClientIP()
+	rc.ReqParam = loginForm.Username
+	rc.ReqParam = fmt.Sprintf("username: %s | ip: %s", loginForm.Username, clientIp)
+
 	originPwd, err := utils.DefaultRsaDecrypt(loginForm.Password, true)
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
 
@@ -50,6 +54,20 @@ func (a *Account) Login(rc *req.Ctx) {
 
 	// 校验密码强度是否符合
 	biz.IsTrueBy(CheckPasswordLever(originPwd), biz.NewBizErrCode(401, "您的密码安全等级较低，请修改后重新登录"))
+	// 保存登录消息
+	go a.saveLogin(account, clientIp)
+
+	rc.ResData = map[string]interface{}{
+		"token":         req.CreateToken(account.Id, account.Username),
+		"name":          account.Name,
+		"username":      account.Username,
+		"lastLoginTime": account.LastLoginTime,
+		"lastLoginIp":   account.LastLoginIp,
+	}
+}
+
+func (a *Account) GetPermissions(rc *req.Ctx) {
+	account := rc.LoginAccount
 
 	var resources vo.AccountResourceVOList
 	// 获取账号菜单资源
@@ -66,23 +84,9 @@ func (a *Account) Login(rc *req.Ctx) {
 	}
 	// 保存该账号的权限codes
 	req.SavePermissionCodes(account.Id, permissions)
-
-	clientIp := rc.GinCtx.ClientIP()
-	// 保存登录消息
-	go a.saveLogin(account, clientIp)
-
-	rc.ReqParam = fmt.Sprintf("登录ip: %s", clientIp)
-	// 赋值loginAccount 主要用于记录操作日志，因为操作日志保存请求上下文没有该信息不保存日志
-	rc.LoginAccount = &model.LoginAccount{Id: account.Id, Username: account.Username}
-
 	rc.ResData = map[string]interface{}{
-		"token":         req.CreateToken(account.Id, account.Username),
-		"name":          account.Name,
-		"username":      account.Username,
-		"lastLoginTime": account.LastLoginTime,
-		"lastLoginIp":   account.LastLoginIp,
-		"menus":         menus.ToTrees(0),
-		"permissions":   permissions,
+		"menus":       menus.ToTrees(0),
+		"permissions": permissions,
 	}
 }
 
@@ -143,7 +147,7 @@ func (a *Account) saveLogin(account *entity.Account, ip string) {
 	// 创建登录消息
 	loginMsg := &entity.Msg{
 		RecipientId: int64(account.Id),
-		Msg:         fmt.Sprintf("于%s登录", now.Format("2006-01-02 15:04:05")),
+		Msg:         fmt.Sprintf("于[%s]-[%s]登录", ip, now.Format("2006-01-02 15:04:05")),
 		Type:        1,
 	}
 	loginMsg.CreateTime = &now

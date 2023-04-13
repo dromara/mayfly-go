@@ -1,11 +1,11 @@
-import request from './request'
+import Api from './Api'
 
 export default {
-    login: (param: any) => request.request('POST', '/sys/accounts/login', param),
-    changePwd: (param: any) => request.request('POST', '/sys/accounts/change-pwd', param),
-    getPublicKey: () => request.request('GET', '/common/public-key'),
-    getConfigValue: (param: any) => request.request('GET', '/sys/configs/value', param),
-    captcha: () => request.request('GET', '/sys/captcha'),
-    logout: (param: any) => request.request('POST', '/sys/accounts/logout/{token}', param),
-    getMenuRoute: (param: any) => request.request('Get', '/sys/resources/account', param)
+    login: Api.newPost("/sys/accounts/login"),
+    changePwd: Api.newPost("/sys/accounts/change-pwd"),
+    getPublicKey: Api.newGet("/common/public-key"),
+    getConfigValue: Api.newGet("/sys/configs/value"),
+    captcha: Api.newGet("/sys/captcha"),
+    logout: Api.newPost("/sys/accounts/logout/{token}"),
+    getPermissions: Api.newGet("/sys/accounts/permissions")
 }

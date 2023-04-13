@@ -2,27 +2,27 @@ import Api from '@/common/Api';
 
 export const dbApi = {
     // 获取权限列表
-    dbs: Api.create("/dbs", 'get'),
-    saveDb: Api.create("/dbs", 'post'),
-    getAllDatabase: Api.create("/dbs/databases", 'post'),
-    getDbPwd: Api.create("/dbs/{id}/pwd", 'get'),
-    deleteDb: Api.create("/dbs/{id}", 'delete'),
-    dumpDb: Api.create("/dbs/{id}/dump", 'post'),
-    tableInfos: Api.create("/dbs/{id}/t-infos", 'get'),
-    tableIndex: Api.create("/dbs/{id}/t-index", 'get'),
-    tableDdl: Api.create("/dbs/{id}/t-create-ddl", 'get'),
-    tableMetadata: Api.create("/dbs/{id}/t-metadata", 'get'),
-    columnMetadata: Api.create("/dbs/{id}/c-metadata", 'get'),
+    dbs: Api.newGet("/dbs"),
+    saveDb: Api.newPost("/dbs"),
+    getAllDatabase: Api.newPost("/dbs/databases"),
+    getDbPwd: Api.newGet("/dbs/{id}/pwd"),
+    deleteDb: Api.newDelete("/dbs/{id}"),
+    dumpDb: Api.newPost("/dbs/{id}/dump"),
+    tableInfos: Api.newGet("/dbs/{id}/t-infos"),
+    tableIndex: Api.newGet("/dbs/{id}/t-index"),
+    tableDdl: Api.newGet("/dbs/{id}/t-create-ddl"),
+    tableMetadata: Api.newGet("/dbs/{id}/t-metadata"),
+    columnMetadata: Api.newGet("/dbs/{id}/c-metadata"),
     // 获取表即列提示
-    hintTables: Api.create("/dbs/{id}/hint-tables", 'get'),
-    sqlExec: Api.create("/dbs/{id}/exec-sql", 'post'),
+    hintTables: Api.newGet("/dbs/{id}/hint-tables"),
+    sqlExec: Api.newPost("/dbs/{id}/exec-sql"),
     // 保存sql
-    saveSql: Api.create("/dbs/{id}/sql", 'post'),
+    saveSql: Api.newPost("/dbs/{id}/sql"),
     // 获取保存的sql
-    getSql: Api.create("/dbs/{id}/sql", 'get'),
+    getSql: Api.newGet("/dbs/{id}/sql"),
     // 获取保存的sql names
-    getSqlNames: Api.create("/dbs/{id}/sql-names", 'get'),
-    deleteDbSql: Api.create("/dbs/{id}/sql", 'delete'),
+    getSqlNames: Api.newGet("/dbs/{id}/sql-names"),
+    deleteDbSql: Api.newDelete("/dbs/{id}/sql"),
     // 获取数据库sql执行记录
-    getSqlExecs: Api.create("/dbs/{dbId}/sql-execs", 'get'),
+    getSqlExecs: Api.newGet("/dbs/{dbId}/sql-execs"),
 }

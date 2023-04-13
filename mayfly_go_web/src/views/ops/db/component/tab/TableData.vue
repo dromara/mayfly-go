@@ -6,7 +6,7 @@
                 </el-link>
                 <el-divider direction="vertical" border-style="dashed" />
 
-                <el-link @click="addRow()" type="primary" icon="plus" :underline="false"></el-link>
+                <el-link @click="onShowAddDataDialog()" type="primary" icon="plus" :underline="false"></el-link>
                 <el-divider direction="vertical" border-style="dashed" />
 
                 <el-link @click="onDeleteData()" type="danger" icon="delete" :underline="false"></el-link>
@@ -37,8 +37,8 @@
                 </el-tooltip>
             </el-col>
             <el-col :span="16">
-                <el-input v-model="condition" placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可" clearable @clear="selectData" size="small"
-                    style="width: 100%">
+                <el-input v-model="condition" placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可" clearable
+                    @clear="selectData" size="small" style="width: 100%">
                     <template #prepend>
                         <el-popover trigger="click" :width="320" placement="right">
                             <template #reference>
@@ -64,9 +64,9 @@
             </el-col>
         </el-row>
 
-        <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db="state.ti.db" :data="datas"
-            :table="state.table" :column-names="columnNames" :loading="loading" :height="tableHeight"
-            :show-column-tip="true" :sortable="'custom'" @sort-change="(sort: any) => onTableSortChange(sort)"
+        <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db="state.ti.db" :data="datas" :table="state.table"
+            :column-names="columnNames" :loading="loading" :height="tableHeight" :show-column-tip="true"
+            :sortable="'custom'" @sort-change="(sort: any) => onTableSortChange(sort)"
             @selection-change="onDataSelectionChange" @change-updated-field="changeUpdatedField"></db-table>
 
         <el-row type="flex" class="mt5" justify="center">
@@ -99,6 +99,26 @@
                 </span>
             </template>
         </el-dialog>
+
+        <el-dialog v-model="addDataDialog.visible" :title="addDataDialog.title" :destroy-on-close="true" width="600px">
+            <el-form ref="dataForm" :model="addDataDialog.data" label-width="160px">
+                <el-form-item v-for="column in columns" class="w100" :prop="column.columnName" :label="column.columnName"
+                    :required="column.nullable != 'YES' && column.columnKey != 'PRI'">
+                    <el-input-number v-if="DbInst.isNumber(column.columnType)"
+                        v-model="addDataDialog.data[`${column.columnName}`]"
+                        :placeholder="`${column.columnType}  ${column.columnComment}`" class="w100" />
+
+                    <el-input v-else v-model="addDataDialog.data[`${column.columnName}`]"
+                        :placeholder="`${column.columnType}  ${column.columnComment}`" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="closeAddDataDialog">取消</el-button>
+                    <el-button type="primary" @click="addRow">确定</el-button>
+                </span>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -113,6 +133,7 @@ import { dateStrFormat } from '@/common/utils/date';
 import DbTable from '../DbTable.vue'
 
 const emits = defineEmits(['genInsertSql'])
+const dataForm: any = ref(null);
 
 const props = defineProps({
     data: {
@@ -136,7 +157,7 @@ const state = reactive({
     condition: '', // 当前条件框的条件
     loading: false, // 是否在加载数据
     columnNames: [],
-    columns: [],
+    columns: [] as any,
     pageNum: 1,
     count: 0,
     selectionDatas: [] as any,
@@ -148,6 +169,12 @@ const state = reactive({
         visible: false,
         condition: '=',
         value: null
+    },
+    addDataDialog: {
+        data: {},
+        title: '',
+        placeholder: '',
+        visible: false,
     },
     tableHeight: '600',
     hasUpdatedFileds: false,
@@ -163,6 +190,7 @@ const {
     count,
     hasUpdatedFileds,
     conditionDialog,
+    addDataDialog,
 } = toRefs(state);
 
 watch(() => props.tableHeight, (newValue: any) => {
@@ -323,20 +351,43 @@ const cancelUpdateFields = () => {
     dbTableRef.value.cancelUpdateFields();
 }
 
+const onShowAddDataDialog = async () => {
+    state.addDataDialog.title = `添加'${state.table}'表数据`
+    state.addDataDialog.visible = true;
+};
+
+const closeAddDataDialog = () => {
+    state.addDataDialog.visible = false;
+    state.addDataDialog.data = {};
+}
+
 // 添加新数据行
 const addRow = async () => {
-    const columns = state.ti.getNowDb().getColumns(state.table);
-    // key: 字段名，value: 字段名提示
-    let obj: any = {};
-    columns.forEach((item: any) => {
-        obj[`${item.columnName}`] = `'${item.columnComment || ''} ${item.columnName}[${item.columnType}]${item.nullable == 'YES' ? '' : '[not null]'}'`;
+    dataForm.value.validate(async (valid: boolean) => {
+        if (valid) {
+            const data = state.addDataDialog.data;
+            // key: 字段名，value: 字段名提示
+            let obj: any = {};
+            for (let item of state.columns) {
+                const value = data[item.columnName]
+                if (!value) {
+                    continue
+                }
+                obj[`${item.columnName}`] = DbInst.wrapValueByType(value);
+            }
+            let columnNames = Object.keys(obj).join(',');
+            let values = Object.values(obj).join(',');
+            let sql = `INSERT INTO ${state.table} (${columnNames}) VALUES (${values});`;
+            state.ti.getNowDbInst().promptExeSql(state.ti.db, sql, null, () => {
+                closeAddDataDialog();
+                onRefresh();
+            });
+        } else {
+            ElMessage.error('请正确填写数据信息');
+            return false;
+        }
     });
-    let columnNames = Object.keys(obj).join(',');
-    let values = Object.values(obj).join(',');
-    let sql = `INSERT INTO ${state.table} (${columnNames}) VALUES (${values});`;
-    state.ti.getNowDbInst().promptExeSql(state.ti.db, sql, null, () => {
-        onRefresh();
-    });
+
 };
 
 </script>

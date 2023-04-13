@@ -1,20 +1,20 @@
 import Api from '@/common/Api';
 
 export const tagApi = {
-    getAccountTags: Api.create("/tag-trees/account-has", 'get'),
-    listByQuery: Api.create("/tag-trees/query", 'get'),
-    getTagTrees: Api.create("/tag-trees", 'get'),
-    saveTagTree: Api.create("/tag-trees", 'post'),
-    delTagTree: Api.create("/tag-trees/{id}", 'delete'),
+    getAccountTags: Api.newGet("/tag-trees/account-has"),
+    listByQuery: Api.newGet("/tag-trees/query"),
+    getTagTrees: Api.newGet("/tag-trees"),
+    saveTagTree: Api.newPost("/tag-trees"),
+    delTagTree: Api.newDelete("/tag-trees/{id}"),
 
-    getTeams: Api.create("/teams", 'get'),
-    saveTeam: Api.create("/teams", 'post'),
-    delTeam: Api.create("/teams/{id}", 'delete'),
+    getTeams: Api.newGet("/teams"),
+    saveTeam: Api.newPost("/teams"),
+    delTeam: Api.newDelete("/teams/{id}"),
 
-    getTeamMem: Api.create("/teams/{teamId}/members", 'get'),
-    saveTeamMem: Api.create("/teams/{teamId}/members", 'post'),
-    delTeamMem: Api.create("/teams/{teamId}/members/{accountId}", 'delete'),
+    getTeamMem: Api.newGet("/teams/{teamId}/members"),
+    saveTeamMem: Api.newPost("/teams/{teamId}/members"),
+    delTeamMem: Api.newDelete("/teams/{teamId}/members/{accountId}"),
 
-    getTeamTagIds: Api.create("/teams/{teamId}/tags", 'get'),
-    saveTeamTags: Api.create("/teams/{teamId}/tags", 'post'),
+    getTeamTagIds: Api.newGet("/teams/{teamId}/tags"),
+    saveTeamTags: Api.newPost("/teams/{teamId}/tags"),
 }   

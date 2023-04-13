@@ -22,7 +22,8 @@ export interface Result {
     data?: any;
 }
 
-const baseUrl: string = config.baseApiUrl as string
+const baseUrl: string = config.baseApiUrl
+const baseWsUrl: string = config.baseWsUrl
 
 /**
  * 通知错误消息
@@ -115,9 +116,8 @@ function request(method: string, url: string, params: any = null, headers: any =
         query.headers = headers
     }
 
-    const lowMethod = method.toLowerCase();
     // post和put使用json格式传参
-    if (lowMethod === 'post' || lowMethod === 'put') {
+    if (method === 'post' || method === 'put') {
         query.data = params;
     } else {
         query.params = params;
@@ -154,6 +154,7 @@ function getApiUrl(url: string) {
     // 只是返回api地址而不做请求，用在上传组件之类的
     return baseUrl + url + '?token=' + getSession('token');
 }
+
 
 export default {
     request,

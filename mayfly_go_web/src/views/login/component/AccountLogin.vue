@@ -63,7 +63,7 @@
 import { nextTick, onMounted, ref, toRefs, reactive, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { initBackEndControlRoutesFun } from '@/router/index';
+import { initRouter } from '@/router/index';
 import { setSession, setUserInfo2Session, setUseWatermark2Session } from '@/common/utils/storage';
 import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
@@ -71,7 +71,6 @@ import { RsaEncrypt } from '@/common/rsa';
 import { useLoginCaptcha, useWartermark } from '@/common/sysconfig';
 import { letterAvatar } from '@/common/utils/string';
 import { useUserInfo } from '@/store/userInfo';
-import { useThemeConfig } from '@/store/themeConfig';
 
 const rules = {
     username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -138,7 +137,7 @@ const getCaptcha = async () => {
     if (!state.isUseLoginCaptcha) {
         return;
     }
-    let res: any = await openApi.captcha();
+    let res: any = await openApi.captcha.request();
     state.captchaImage = res.base64Captcha;
     state.loginForm.cid = res.cid;
 };
@@ -167,10 +166,9 @@ const onSignIn = async () => {
     try {
         const loginReq = { ...state.loginForm };
         loginReq.password = await RsaEncrypt(originPwd);
-        loginRes = await openApi.login(loginReq);
+        loginRes = await openApi.login.request(loginReq);
         // 存储 token 到浏览器缓存
         setSession('token', loginRes.token);
-        setSession('menus', loginRes.menus);
     } catch (e: any) {
         state.loading.signIn = false;
         state.loginForm.captcha = '';
@@ -192,8 +190,6 @@ const onSignIn = async () => {
         // 头像
         photo: letterAvatar(state.loginForm.username),
         time: new Date().getTime(),
-        // // 菜单资源code数组
-        // menus: loginRes.menus,
         permissions: loginRes.permissions,
         lastLoginTime: loginRes.lastLoginTime,
         lastLoginIp: loginRes.lastLoginIp,
@@ -202,20 +198,9 @@ const onSignIn = async () => {
     // 存储用户信息到浏览器缓存
     setUserInfo2Session(userInfos);
     // 1、请注意执行顺序(存储用户信息到vuex)
-    useUserInfo().setUserInfo(userInfos)
-    // store.dispatch('userInfos/setUserInfos', userInfos);
-    if (!useThemeConfig().themeConfig.isRequestRoutes) {
-        // 前端控制路由，2、请注意执行顺序
-        // await initAllFun();
-        await initBackEndControlRoutesFun();
-        signInSuccess();
-    } else {
-        // 模拟后端控制路由，isRequestRoutes 为 true，则开启后端控制路由
-        // 添加完动态路由，再进行 router 跳转，否则可能报错 No match found for location with path "/"
-        await initBackEndControlRoutesFun();
-        // 执行完 initBackEndControlRoutesFun，再执行 signInSuccess
-        signInSuccess();
-    }
+    useUserInfo().setUserInfo(userInfos);
+    await initRouter();
+    signInSuccess();
 };
 
 // 登录成功后的跳转
@@ -248,7 +233,7 @@ const changePwd = () => {
             const changePwdReq: any = { ...form };
             changePwdReq.oldPassword = await RsaEncrypt(form.oldPassword);
             changePwdReq.newPassword = await RsaEncrypt(form.newPassword);
-            await openApi.changePwd(changePwdReq);
+            await openApi.changePwd.request(changePwdReq);
             ElMessage.success('密码修改成功, 新密码已填充至登录密码框');
             state.loginForm.password = state.changePwdDialog.form.newPassword;
             state.changePwdDialog.visible = false;

@@ -274,10 +274,19 @@ export class DbInst {
     * 根据字段类型包装字段值，如为字符串等则添加‘’，数字类型则直接返回即可
     */
     static wrapColumnValue(columnType: string, value: any) {
-        if (columnType.match(/int|double|float|nubmer|decimal|byte|bit/gi)) {
+        if (this.isNumber(columnType)) {
             return value;
         }
         return `'${value}'`;
+    };
+
+    /**
+     * 判断字段类型是否为数字类型
+     * @param columnType 字段类型
+     * @returns 
+     */
+    static isNumber(columnType: string) {
+        return columnType.match(/int|double|float|nubmer|decimal|byte|bit/gi);
     };
 
     /**

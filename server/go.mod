@@ -18,8 +18,8 @@ require (
 	golang.org/x/crypto v0.8.0 // ssh
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
-	gorm.io/driver/mysql v1.4.7
-	gorm.io/gorm v1.24.6
+	gorm.io/driver/mysql v1.5.0
+	gorm.io/gorm v1.25.0
 )
 
 require (

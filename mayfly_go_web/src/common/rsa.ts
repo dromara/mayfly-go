@@ -9,7 +9,7 @@ export async function getRsaPublicKey() {
     if (publicKey) {
         return publicKey
     }
-    publicKey = await openApi.getPublicKey() as string
+    publicKey = await openApi.getPublicKey.request() as string
     sessionStorage.setItem('RsaPublicKey', publicKey)
     return publicKey
 }

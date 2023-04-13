@@ -46,8 +46,8 @@ export function initAllFun() {
     useRoutesList().setRoutesList(setFilterMenuFun(dynamicRoutes[0].children, useUserInfo().userInfo.menus))
 }
 
-// 后端控制路由：模拟执行路由数据初始化
-export function initBackEndControlRoutesFun() {
+// 后端控制路由：执行路由数据初始化
+export async function initBackEndControlRoutesFun() {
     NextLoading.start(); // 界面 loading 动画开始执行
     const token = getSession('token'); // 获取浏览器缓存 token 值
     if (!token) {
@@ -55,11 +55,8 @@ export function initBackEndControlRoutesFun() {
         return false
     }
     useUserInfo().setUserInfo({});
-    let menuRoute = getSession('menus')
-    if (!menuRoute) {
-        menuRoute = getBackEndControlRoutes(); // 获取路由
-        // const oldRoutes = res; // 获取接口原始路由（未处理component）
-    }
+    // 获取路由
+    let menuRoute = await getBackEndControlRoutes();
     dynamicRoutes[0].children = backEndRouterConverter(menuRoute); // 处理路由（component）
     // 添加404界面
     router.addRoute(pathMatch);
@@ -72,8 +69,16 @@ export function initBackEndControlRoutesFun() {
 }
 
 // 后端控制路由，isRequestRoutes 为 true，则开启后端控制路由
-export function getBackEndControlRoutes() {
-    return openApi.getMenuRoute({});
+export async function getBackEndControlRoutes() {
+    try {
+        const menuAndPermission = await openApi.getPermissions.request();
+        // 赋值权限码，用于控制按钮等
+        useUserInfo().userInfo.permissions = menuAndPermission.permissions;
+        return menuAndPermission.menus;
+    } catch (e: any) {
+        console.error(e);
+        return []
+    }
 }
 
 // 后端控制路由，后端返回路由 转换为vue route
@@ -124,18 +129,18 @@ export function backEndRouterConverter(routes: any, parentPath: string = "/") {
  * @returns 返回处理成函数后的 component
  */
 export function dynamicImport(dynamicViewsModules: Record<string, Function>, component: string) {
-	const keys = Object.keys(dynamicViewsModules);
-	const matchKeys = keys.filter((key) => {
-		const k = key.replace(/..\/views|../, '');
-		return k.startsWith(`${component}`) || k.startsWith(`/${component}`);
-	});
-	if (matchKeys?.length === 1) {
-		const matchKey = matchKeys[0];
-		return dynamicViewsModules[matchKey];
-	}
-	if (matchKeys?.length > 1) {
-		return false;
-	}
+    const keys = Object.keys(dynamicViewsModules);
+    const matchKeys = keys.filter((key) => {
+        const k = key.replace(/..\/views|../, '');
+        return k.startsWith(`${component}`) || k.startsWith(`/${component}`);
+    });
+    if (matchKeys?.length === 1) {
+        const matchKey = matchKeys[0];
+        return dynamicViewsModules[matchKey];
+    }
+    if (matchKeys?.length > 1) {
+        return false;
+    }
 }
 
 // 多级嵌套数组处理成一维数组
@@ -167,7 +172,6 @@ export function formatTwoStageRoutes(arr: any) {
         }
     });
     useKeepALiveNames().setCacheKeepAlive(cacheList);
-    // store.dispatch('keepAliveNames/setCacheKeepAlive', cacheList);
     return newArr;
 }
 
@@ -227,21 +231,22 @@ export function resetRoute() {
     });
 }
 
-// 初始化方法执行
-const { isRequestRoutes } = useThemeConfig(pinia).themeConfig;
-if (!isRequestRoutes) {
-    // 未开启后端控制路由
-    initAllFun();
-} else if (isRequestRoutes) {
-    // 后端控制路由，isRequestRoutes 为 true，则开启后端控制路由
-    initBackEndControlRoutesFun();
+export async function initRouter() {
+    // 初始化方法执行
+    const { isRequestRoutes } = useThemeConfig(pinia).themeConfig;
+    if (!isRequestRoutes) {
+        // 未开启后端控制路由
+        initAllFun();
+    } else if (isRequestRoutes) {
+        // 后端控制路由，isRequestRoutes 为 true，则开启后端控制路由
+        await initBackEndControlRoutesFun();
+    }
 }
-
 
 let SysWs: any;
 
 // 路由加载前
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
     NProgress.configure({ showSpinner: false });
     if (to.meta.title) NProgress.start();
 
@@ -278,7 +283,10 @@ router.beforeEach((to, from, next) => {
     if (!SysWs && to.path != '/machine/terminal') {
         SysWs = sockets.sysMsgSocket();
     }
-    if (useRoutesList().routesList.length > 0) {
+    if (useRoutesList().routesList.length == 0) {
+        await initRouter();
+        next({ path: to.path, query: to.query });
+    } else {
         next();
     }
 });

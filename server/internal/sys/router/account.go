@@ -27,6 +27,11 @@ func InitAccountRouter(router *gin.RouterGroup) {
 				Handle(a.Login)
 		})
 
+		// 获取个人账号的权限资源信息
+		account.GET("/permissions", func(c *gin.Context) {
+			req.NewCtxWithGin(c).Handle(a.GetPermissions)
+		})
+
 		changePwdLog := req.NewLogInfo("用户修改密码").WithSave(true)
 		account.POST("change-pwd", func(g *gin.Context) {
 			req.NewCtxWithGin(g).

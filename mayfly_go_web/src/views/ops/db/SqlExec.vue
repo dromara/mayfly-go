@@ -135,7 +135,7 @@ const state = reactive({
     tabs,
     dataTabsTableHeight: '600',
     editorHeight: '600',
-    tagTreeHeight: window.innerHeight - 173 + 'px',
+    tagTreeHeight: window.innerHeight - 178 + 'px',
     genSqlDialog: {
         visible: false,
         sql: '',
