@@ -83,7 +83,7 @@ func GetByIdIn(model interface{}, list interface{}, ids []uint64, orderBy ...str
 	global.Db.Model(model).Where("id in (?)", ids).Order(orderByStr).Find(list)
 }
 
-// 根据id列表查询
+// 根据map指定条件查询列表
 func SelectByMap(model interface{}, list interface{}, where map[string]interface{}, orderBy ...string) {
 	var orderByStr string
 	if orderBy == nil {
@@ -94,7 +94,7 @@ func SelectByMap(model interface{}, list interface{}, where map[string]interface
 	global.Db.Model(model).Where(where).Order(orderByStr).Find(list)
 }
 
-// 根据id列表查询
+// 根据model指定条件统计数量
 func CountBy(model interface{}) int64 {
 	var count int64
 	global.Db.Model(model).Where(model).Count(&count)

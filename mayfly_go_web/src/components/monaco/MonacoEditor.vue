@@ -1,6 +1,6 @@
 <template>
     <div class="monaco-editor" style="border: 1px solid #ccc;">
-        <div ref="monacoTextarea" :style="{ height: height }"></div>
+        <div class="monaco-editor-content" ref="monacoTextarea" :style="{ height: height }"></div>
         <el-select v-if="canChangeMode" class="code-mode-select" v-model="languageMode" @change="changeLanguage">
             <el-option v-for="mode in languages" :key="mode.value" :label="mode.label" :value="mode.value"> </el-option>
         </el-select>

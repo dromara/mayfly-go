@@ -80,8 +80,8 @@ func (r *Ctx) WithRequiredPermission(permission *Permission) *Ctx {
 	return r
 }
 
-// 是否需要token
-func (r *Ctx) WithNeedToken(needToken bool) *Ctx {
+// 不需要token校验
+func (r *Ctx) DontNeedToken() *Ctx {
 	r.RequiredPermission = &Permission{NeedToken: false}
 	return r
 }

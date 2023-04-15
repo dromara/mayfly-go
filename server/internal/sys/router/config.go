@@ -17,7 +17,7 @@ func InitSysConfigRouter(router *gin.RouterGroup) {
 		})
 
 		db.GET("/value", func(c *gin.Context) {
-			req.NewCtxWithGin(c).WithNeedToken(false).Handle(r.GetConfigValueByKey)
+			req.NewCtxWithGin(c).DontNeedToken().Handle(r.GetConfigValueByKey)
 		})
 
 		saveConfig := req.NewLogInfo("保存系统配置信息").WithSave(true)

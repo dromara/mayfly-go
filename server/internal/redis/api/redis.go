@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/api/vo"
 	"mayfly-go/internal/redis/application"
@@ -13,11 +12,9 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
-	"strconv"
 	"strings"
-	"sync"
-	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -194,314 +191,20 @@ func (r *Redis) ClusterInfo(rc *req.Ctx) {
 	}
 }
 
-// scan获取redis的key列表信息
-func (r *Redis) Scan(rc *req.Ctx) {
-	g := rc.GinCtx
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
-
-	form := &form.RedisScanForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-
-	cmd := ri.GetCmdable()
-	ctx := context.Background()
-
-	kis := make([]*vo.KeyInfo, 0)
-	var cursorRes map[string]uint64 = make(map[string]uint64)
-
-	mode := ri.Info.Mode
-	if mode == "" || mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
-		redisAddr := ri.Cli.Options().Addr
-		// 汇总所有的查询出来的键值
-		var keys []string
-		// 有通配符或空时使用scan，非模糊匹配直接匹配key
-		if form.Match == "" || strings.ContainsAny(form.Match, "*") {
-			cursorRes[redisAddr] = form.Cursor[redisAddr]
-			for {
-				ks, cursor := ri.Scan(cursorRes[redisAddr], form.Match, form.Count)
-				cursorRes[redisAddr] = cursor
-				if len(ks) > 0 {
-					// 返回了数据则追加总集合中
-					keys = append(keys, ks...)
-				}
-				// 匹配的数量满足用户需求退出
-				if int32(len(keys)) >= int32(form.Count) {
-					break
-				}
-				// 匹配到最后退出
-				if cursor == 0 {
-					break
-				}
-			}
-		} else {
-			// 精确匹配
-			keys = append(keys, form.Match)
-		}
-
-		var keyInfoSplit []string
-		if len(keys) > 0 {
-			keyInfosLua := `local result = {}
-							-- KEYS[1]为第1个参数,lua数组下标从1开始
-							for i = 1, #KEYS do
-								local ttl = redis.call('ttl', KEYS[i]);
-								local keyType = redis.call('type', KEYS[i]);
-								table.insert(result, string.format("%d,%s", ttl, keyType['ok']));
-							end;
-							return table.concat(result, ".");`
-			// 通过lua获取 ttl,type.ttl2,type2格式，以便下面切割获取ttl和type。避免多次调用ttl和type函数
-			keyInfos, err := cmd.Eval(ctx, keyInfosLua, keys).Result()
-			biz.ErrIsNilAppendErr(err, "执行lua脚本获取key信息失败: %s")
-			keyInfoSplit = strings.Split(keyInfos.(string), ".")
-		}
-
-		for i, k := range keys {
-			ttlType := strings.Split(keyInfoSplit[i], ",")
-			ttl, _ := strconv.Atoi(ttlType[0])
-			// 没有存在该key,则跳过
-			if ttl == -2 {
-				continue
-			}
-			ki := &vo.KeyInfo{Key: k, Type: ttlType[1], Ttl: int64(ttl)}
-			kis = append(kis, ki)
-		}
-	} else if mode == entity.RedisModeCluster {
-		var keys []string
-		// 有通配符或空时使用scan，非模糊匹配直接匹配key
-		if form.Match == "" || strings.ContainsAny(form.Match, "*") {
-			mu := &sync.Mutex{}
-			// 遍历所有master节点，并执行scan命令，合并keys
-			ri.ClusterCli.ForEachMaster(ctx, func(ctx context.Context, client *redis.Client) error {
-				redisAddr := client.Options().Addr
-				nowCursor := form.Cursor[redisAddr]
-				for {
-					ks, cursor, _ := client.Scan(ctx, nowCursor, form.Match, form.Count).Result()
-					// 遍历节点的内部回调函数使用异步调用，如不加锁会导致集合并发错误
-					mu.Lock()
-					cursorRes[redisAddr] = cursor
-					nowCursor = cursor
-					if len(ks) > 0 {
-						// 返回了数据则追加总集合中
-						keys = append(keys, ks...)
-					}
-					mu.Unlock()
-					// 匹配的数量满足用户需求退出
-					if int32(len(keys)) >= int32(form.Count) {
-						break
-					}
-					// 匹配到最后退出
-					if cursor == 0 {
-						break
-					}
-				}
-				return nil
-			})
-
-		} else {
-			// 精确匹配
-			keys = append(keys, form.Match)
-		}
-
-		// 因为redis集群模式执行lua脚本key必须位于同一slot中，故单机获取的方式不适合
-		// 使用lua获取key的ttl以及类型，减少网络调用
-		keyInfoLua := `local ttl = redis.call('ttl', KEYS[1]);
-					   local keyType = redis.call('type', KEYS[1]);
-					   return string.format("%d,%s", ttl, keyType['ok'])`
-		for _, k := range keys {
-			keyInfo, err := cmd.Eval(ctx, keyInfoLua, []string{k}).Result()
-			biz.ErrIsNilAppendErr(err, "执行lua脚本获取key信息失败: %s")
-			ttlType := strings.Split(keyInfo.(string), ",")
-			ttl, _ := strconv.Atoi(ttlType[0])
-			// 没有存在该key,则跳过
-			if ttl == -2 {
-				continue
-			}
-			ki := &vo.KeyInfo{Key: k, Type: ttlType[1], Ttl: int64(ttl)}
-			kis = append(kis, ki)
-		}
-	}
-
-	size, _ := cmd.DBSize(context.TODO()).Result()
-	rc.ResData = &vo.Keys{Cursor: cursorRes, Keys: kis, DbSize: size}
-}
-
-func (r *Redis) DeleteKey(rc *req.Ctx) {
-	g := rc.GinCtx
-	key := g.Query("key")
+// 校验查询参数中的key为必填项，并返回redis实例
+func (r *Redis) checkKeyAndGetRedisIns(rc *req.Ctx) (*application.RedisInstance, string) {
+	key := rc.GinCtx.Query("key")
 	biz.NotEmpty(key, "key不能为空")
+	return r.getRedisIns(rc), key
+}
 
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
+func (r *Redis) getRedisIns(rc *req.Ctx) *application.RedisInstance {
+	ri := r.RedisApp.GetRedisInstance(getIdAndDbNum(rc.GinCtx))
 	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
-
-	rc.ReqParam = fmt.Sprintf("%s -> 删除key: %s", ri.Info.GetLogDesc(), key)
-	ri.GetCmdable().Del(context.Background(), key)
+	return ri
 }
 
-func (r *Redis) checkKey(rc *req.Ctx) (*application.RedisInstance, string) {
-	g := rc.GinCtx
-	key := g.Query("key")
-	biz.NotEmpty(key, "key不能为空")
-
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
-
-	return ri, key
-}
-
-func (r *Redis) GetStringValue(rc *req.Ctx) {
-	ri, key := r.checkKey(rc)
-	str, err := ri.GetCmdable().Get(context.TODO(), key).Result()
-	biz.ErrIsNilAppendErr(err, "获取字符串值失败: %s")
-	rc.ResData = str
-}
-
-func (r *Redis) SetStringValue(rc *req.Ctx) {
-	g := rc.GinCtx
-	keyValue := new(form.StringValue)
-	ginx.BindJsonAndValid(g, keyValue)
-
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
-
-	rc.ReqParam = fmt.Sprintf("%s -> %s", ri.Info.GetLogDesc(), utils.ToString(keyValue))
-
-	str, err := ri.GetCmdable().Set(context.TODO(), keyValue.Key, keyValue.Value, time.Second*time.Duration(keyValue.Timed)).Result()
-	biz.ErrIsNilAppendErr(err, "保存字符串值失败: %s")
-	rc.ResData = str
-}
-
-func (r *Redis) Hscan(rc *req.Ctx) {
-	ri, key := r.checkKey(rc)
-	g := rc.GinCtx
-	count := ginx.QueryInt(g, "count", 10)
-	match := g.Query("match")
-	cursor := ginx.QueryInt(g, "cursor", 0)
-	contextTodo := context.TODO()
-
-	cmdable := ri.GetCmdable()
-	keys, nextCursor, err := cmdable.HScan(contextTodo, key, uint64(cursor), match, int64(count)).Result()
-	biz.ErrIsNilAppendErr(err, "hcan err: %s")
-	keySize, err := cmdable.HLen(contextTodo, key).Result()
-	biz.ErrIsNilAppendErr(err, "hlen err: %s")
-
-	rc.ResData = map[string]interface{}{
-		"keys":    keys,
-		"cursor":  nextCursor,
-		"keySize": keySize,
-	}
-}
-
-func (r *Redis) Hdel(rc *req.Ctx) {
-	ri, key := r.checkKey(rc)
-	field := rc.GinCtx.Query("field")
-
-	delRes, err := ri.GetCmdable().HDel(context.TODO(), key, field).Result()
-	biz.ErrIsNilAppendErr(err, "hdel err: %s")
-	rc.ResData = delRes
-}
-
-func (r *Redis) Hget(rc *req.Ctx) {
-	ri, key := r.checkKey(rc)
-	field := rc.GinCtx.Query("field")
-
-	res, err := ri.GetCmdable().HGet(context.TODO(), key, field).Result()
-	biz.ErrIsNilAppendErr(err, "hget err: %s")
-	rc.ResData = res
-}
-
-func (r *Redis) SetHashValue(rc *req.Ctx) {
-	g := rc.GinCtx
-	hashValue := new(form.HashValue)
-	ginx.BindJsonAndValid(g, hashValue)
-
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
-
-	cmd := ri.GetCmdable()
-	key := hashValue.Key
-	contextTodo := context.TODO()
-	for _, v := range hashValue.Value {
-		res := cmd.HSet(contextTodo, key, v["field"].(string), v["value"])
-		biz.ErrIsNilAppendErr(res.Err(), "保存hash值失败: %s")
-	}
-	if hashValue.Timed != 0 && hashValue.Timed != -1 {
-		cmd.Expire(context.TODO(), key, time.Second*time.Duration(hashValue.Timed))
-	}
-}
-
-func (r *Redis) GetSetValue(rc *req.Ctx) {
-	ri, key := r.checkKey(rc)
-	res, err := ri.GetCmdable().SMembers(context.TODO(), key).Result()
-	biz.ErrIsNilAppendErr(err, "获取set值失败: %s")
-	rc.ResData = res
-}
-
-func (r *Redis) SetSetValue(rc *req.Ctx) {
-	g := rc.GinCtx
-	keyvalue := new(form.SetValue)
-	ginx.BindJsonAndValid(g, keyvalue)
-
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
-	cmd := ri.GetCmdable()
-
-	key := keyvalue.Key
-	// 简单处理->先删除，后新增
-	cmd.Del(context.TODO(), key)
-	cmd.SAdd(context.TODO(), key, keyvalue.Value...)
-
-	if keyvalue.Timed != -1 {
-		cmd.Expire(context.TODO(), key, time.Second*time.Duration(keyvalue.Timed))
-	}
-}
-
-func (r *Redis) GetListValue(rc *req.Ctx) {
-	ri, key := r.checkKey(rc)
-	ctx := context.TODO()
-	cmdable := ri.GetCmdable()
-
-	len, err := cmdable.LLen(ctx, key).Result()
-	biz.ErrIsNilAppendErr(err, "获取list长度失败: %s")
-
-	g := rc.GinCtx
-	start := ginx.QueryInt(g, "start", 0)
-	stop := ginx.QueryInt(g, "stop", 10)
-	res, err := cmdable.LRange(ctx, key, int64(start), int64(stop)).Result()
-	biz.ErrIsNilAppendErr(err, "获取list值失败: %s")
-
-	rc.ResData = map[string]interface{}{
-		"len":  len,
-		"list": res,
-	}
-}
-
-func (r *Redis) SaveListValue(rc *req.Ctx) {
-	g := rc.GinCtx
-	listValue := new(form.ListValue)
-	ginx.BindJsonAndValid(g, listValue)
-
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
-	cmd := ri.GetCmdable()
-
-	key := listValue.Key
-	ctx := context.TODO()
-	for _, v := range listValue.Value {
-		cmd.RPush(ctx, key, v)
-	}
-
-	if listValue.Timed != -1 {
-		cmd.Expire(context.TODO(), key, time.Second*time.Duration(listValue.Timed))
-	}
-}
-
-func (r *Redis) SetListValue(rc *req.Ctx) {
-	g := rc.GinCtx
-	listSetValue := new(form.ListSetValue)
-	ginx.BindJsonAndValid(g, listSetValue)
-
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db"))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
-
-	_, err := ri.GetCmdable().LSet(context.TODO(), listSetValue.Key, listSetValue.Index, listSetValue.Value).Result()
-	biz.ErrIsNilAppendErr(err, "list set失败: %s")
+// 获取redis id与要操作的库号（统一路径）
+func getIdAndDbNum(g *gin.Context) (uint64, int) {
+	return uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db")
 }

@@ -14,7 +14,7 @@ func InitCommonRouter(router *gin.RouterGroup) {
 		// 获取公钥
 		common.GET("public-key", func(g *gin.Context) {
 			req.NewCtxWithGin(g).
-				WithNeedToken(false).
+				DontNeedToken().
 				Handle(c.RasPublicKey)
 		})
 	}

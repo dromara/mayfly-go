@@ -244,6 +244,7 @@ export async function initRouter() {
 }
 
 let SysWs: any;
+let loadRouter = false;
 
 // 路由加载前
 router.beforeEach(async (to, from, next) => {
@@ -283,8 +284,10 @@ router.beforeEach(async (to, from, next) => {
     if (!SysWs && to.path != '/machine/terminal') {
         SysWs = sockets.sysMsgSocket();
     }
-    if (useRoutesList().routesList.length == 0) {
+    // 不存在路由（避免刷新页面找不到路由）并且未加载过（避免token过期，导致获取权限接口报权限不足，无限获取），则重新初始化路由
+    if (useRoutesList().routesList.length == 0 && !loadRouter) {
         await initRouter();
+        loadRouter = true;
         next({ path: to.path, query: to.query });
     } else {
         next();

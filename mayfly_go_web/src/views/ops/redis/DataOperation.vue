@@ -46,26 +46,16 @@
                             <el-form-item>
                                 <el-button @click="searchKey()" type="success" icon="search" plain></el-button>
                                 <el-button @click="scan()" icon="bottom" plain>scan</el-button>
-                                <el-popover placement="right" :width="200" trigger="click">
-                                    <template #reference>
-                                        <el-button type="primary" icon="plus" plain v-auth="'redis:data:save'"></el-button>
-                                    </template>
-                                    <el-tag @click="onAddData('string')" :color="getTypeColor('string')"
-                                        style="cursor: pointer">string</el-tag>
-                                    <el-tag @click="onAddData('hash')" :color="getTypeColor('hash')" class="ml5"
-                                        style="cursor: pointer">hash</el-tag>
-                                    <el-tag @click="onAddData('set')" :color="getTypeColor('set')" class="ml5"
-                                        style="cursor: pointer">set</el-tag>
-                                    <!-- <el-tag @click="onAddData('list')" :color="getTypeColor('list')" class="ml5" style="cursor: pointer">list</el-tag> -->
-                                </el-popover>
+                                <el-button @click="showNewKeyDialog" type="primary" icon="plus" plain
+                                    v-auth="'redis:data:save'"></el-button>
                             </el-form-item>
                             <div style="float: right">
                                 <span>keys: {{ state.dbsize }}</span>
                             </div>
                         </el-form>
                     </el-col>
-                    <el-table v-loading="state.loading" :data="state.keys" :height="tableHeight" stripe :highlight-current-row="true"
-                        style="cursor: pointer">
+                    <el-table v-loading="state.loading" :data="state.keys" :height="tableHeight" stripe
+                        :highlight-current-row="true" style="cursor: pointer">
                         <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
                         <el-table-column prop="type" label="type" width="80">
                             <template #default="scope">
@@ -79,7 +69,8 @@
                         </el-table-column>
                         <el-table-column label="操作">
                             <template #default="scope">
-                                <el-button @click="getValue(scope.row)" type="success" icon="search" plain size="small">查看
+                                <el-button @click="showKeyDetail(scope.row)" type="success" icon="search" plain
+                                    size="small">查看
                                 </el-button>
                                 <el-button v-auth="'redis:data:del'" @click="del(scope.row.key)" type="danger" icon="delete"
                                     plain size="small">删除
@@ -93,21 +84,37 @@
 
         <div style="text-align: center; margin-top: 10px"></div>
 
-        <hash-value v-model:visible="hashValueDialog.visible" :operationType="dataEdit.operationType"
-            :title="dataEdit.title" :keyInfo="dataEdit.keyInfo" :redisId="scanParam.id" :db="scanParam.db"
-            @cancel="onCancelDataEdit" @valChange="searchKey" />
+        <el-dialog title="Key详情" v-model="keyDetailDialog.visible" width="800px" :destroy-on-close="true"
+            :close-on-click-modal="false">
+            <key-detail :redisId="scanParam.id" :db="scanParam.db" :key-info="keyDetailDialog.keyInfo"
+                @change-key="searchKey()" />
+        </el-dialog>
 
-        <string-value v-model:visible="stringValueDialog.visible" :operationType="dataEdit.operationType"
-            :title="dataEdit.title" :keyInfo="dataEdit.keyInfo" :redisId="scanParam.id" :db="scanParam.db"
-            @cancel="onCancelDataEdit" @valChange="searchKey" />
+        <el-dialog title="新增Key" v-model="newKeyDialog.visible" width="500px" :destroy-on-close="true"
+            :close-on-click-modal="false">
+            <el-form ref="keyForm" label-width="50px">
+                <el-form-item prop="key" label="键名">
+                    <el-input v-model.trim="keyDetailDialog.keyInfo.key" placeholder="请输入键名"></el-input>
+                </el-form-item>
+                <el-form-item prop="type" label="类型">
+                    <el-select v-model="keyDetailDialog.keyInfo.type" default-first-option style="width: 100%"
+                        placeholder="请选择类型">
+                        <el-option key="string" label="string" value="string"></el-option>
+                        <el-option key="hash" label="hash" value="hash"></el-option>
+                        <el-option key="set" label="set" value="set"></el-option>
+                        <el-option key="zset" label="zset" value="zset"></el-option>
+                        <el-option key="list" label="list" value="list"></el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
 
-        <set-value v-model:visible="setValueDialog.visible" :title="dataEdit.title" :keyInfo="dataEdit.keyInfo"
-            :redisId="scanParam.id" :db="scanParam.db" :operationType="dataEdit.operationType" @valChange="searchKey"
-            @cancel="onCancelDataEdit" />
-
-        <list-value v-model:visible="listValueDialog.visible" :title="dataEdit.title" :keyInfo="dataEdit.keyInfo"
-            :redisId="scanParam.id" :db="scanParam.db" :operationType="dataEdit.operationType" @valChange="searchKey"
-            @cancel="onCancelDataEdit" />
+            <template #footer>
+                <div class="dialog-footer">
+                    <el-button @click="cancelNewKey()">取 消</el-button>
+                    <el-button v-auth="'machine:script:save'" type="primary" @click="newKey">确 定</el-button>
+                </div>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -119,10 +126,7 @@ import { isTrue, notBlank, notNull } from '@/common/assert';
 import { TagTreeNode } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 
-const HashValue = defineAsyncComponent(() => import('./HashValue.vue'));
-const StringValue = defineAsyncComponent(() => import('./StringValue.vue'));
-const SetValue = defineAsyncComponent(() => import('./SetValue.vue'));
-const ListValue = defineAsyncComponent(() => import('./ListValue.vue'));
+const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
 /**
  * 树节点类型
@@ -144,31 +148,20 @@ const state = reactive({
     scanParam: {
         id: null as any,
         mode: '',
-        db: '',
+        db: 0,
         match: null,
         count: 10,
         cursor: {},
     },
-    dataEdit: {
+    keyDetailDialog: {
         visible: false,
-        title: '新增数据',
-        operationType: 1,
         keyInfo: {
             type: 'string',
             timed: -1,
             key: '',
         },
     },
-    hashValueDialog: {
-        visible: false,
-    },
-    stringValueDialog: {
-        visible: false,
-    },
-    setValueDialog: {
-        visible: false,
-    },
-    listValueDialog: {
+    newKeyDialog: {
         visible: false,
     },
     keys: [],
@@ -178,11 +171,8 @@ const state = reactive({
 const {
     tableHeight,
     scanParam,
-    dataEdit,
-    hashValueDialog,
-    stringValueDialog,
-    setValueDialog,
-    listValueDialog,
+    keyDetailDialog,
+    newKeyDialog,
 } = toRefs(state)
 
 
@@ -339,50 +329,56 @@ const resetScanParam = () => {
     state.scanParam.cursor = {};
 };
 
-const getValue = async (row: any) => {
+const showKeyDetail = async (row: any) => {
     const type = row.type;
 
-    state.dataEdit.keyInfo.type = type;
-    state.dataEdit.keyInfo.timed = row.ttl;
-    state.dataEdit.keyInfo.key = row.key;
-    state.dataEdit.operationType = 2;
-    state.dataEdit.title = '查看数据';
-
-    if (type == 'hash') {
-        state.hashValueDialog.visible = true;
-    } else if (type == 'string') {
-        state.stringValueDialog.visible = true;
-    } else if (type == 'set') {
-        state.setValueDialog.visible = true;
-    } else if (type == 'list') {
-        state.listValueDialog.visible = true;
-    } else {
-        ElMessage.warning('暂不支持该类型');
-    }
+    state.keyDetailDialog.keyInfo.type = type;
+    state.keyDetailDialog.keyInfo.timed = row.ttl;
+    state.keyDetailDialog.keyInfo.key = row.key;
+    state.keyDetailDialog.visible = true;
 };
 
-const onAddData = (type: string) => {
+const closeKeyDetail = () => {
+
+    // state.keyDetailDialog.visible = false;
+}
+
+const showNewKeyDialog = () => {
     notNull(state.scanParam.id, '请先选择redis');
-    state.dataEdit.operationType = 1;
-    state.dataEdit.title = '新增数据';
-    state.dataEdit.keyInfo.type = type;
-    state.dataEdit.keyInfo.timed = -1;
-    if (type == 'hash') {
-        state.hashValueDialog.visible = true;
-    } else if (type == 'string') {
-        state.stringValueDialog.visible = true;
-    } else if (type == 'set') {
-        state.setValueDialog.visible = true;
-    } else if (type == 'list') {
-        state.listValueDialog.visible = true;
-    } else {
-        ElMessage.warning('暂不支持该类型');
-    }
-};
+    notNull(state.scanParam.db, "请选择要操作的库")
+    resetKeyDetailInfo();
+    state.newKeyDialog.visible = true;
+}
 
-const onCancelDataEdit = () => {
-    state.dataEdit.keyInfo = {} as any;
-};
+const cancelNewKey = () => {
+    resetKeyDetailInfo();
+    state.newKeyDialog.visible = false;
+}
+
+const newKey = async () => {
+    const keyInfo = state.keyDetailDialog.keyInfo
+    const keyType = keyInfo.type
+    const key = keyInfo.key;
+    notBlank(key, "键名不能为空");
+
+    if (keyType == 'string') {
+        await redisApi.setString.request({
+            id: state.scanParam.id,
+            db: state.scanParam.db,
+            key: key,
+            value: '',
+        })
+    }
+    state.newKeyDialog.visible = false;
+    state.keyDetailDialog.visible = true;
+    searchKey();
+}
+
+const resetKeyDetailInfo = () => {
+    state.keyDetailDialog.keyInfo.key = '';
+    state.keyDetailDialog.keyInfo.type = 'string';
+    state.keyDetailDialog.keyInfo.timed = -1;
+}
 
 const del = (key: string) => {
     ElMessageBox.confirm(`确定删除[ ${key} ] 该key?`, '提示', {

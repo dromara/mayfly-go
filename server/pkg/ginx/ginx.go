@@ -31,6 +31,15 @@ func GetPageParam(g *gin.Context) *model.PageParam {
 	return &model.PageParam{PageNum: QueryInt(g, "pageNum", 1), PageSize: QueryInt(g, "pageSize", 10)}
 }
 
+// 获取查询参数，不存在则返回默认值
+func Query(g *gin.Context, qm string, defaultStr string) string {
+	qv := g.Query(qm)
+	if qv == "" {
+		return defaultStr
+	}
+	return qv
+}
+
 // 获取查询参数中指定参数值，并转为int
 func QueryInt(g *gin.Context, qm string, defaultInt int) int {
 	qv := g.Query(qm)

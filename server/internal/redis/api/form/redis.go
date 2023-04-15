@@ -13,6 +13,16 @@ type Redis struct {
 	Remark             string `json:"remark"`
 }
 
+type Rename struct {
+	Key    string `binding:"required" json:"key"`
+	NewKey string `binding:"required" json:"newKey"`
+}
+
+type Expire struct {
+	Key     string `binding:"required" json:"key"`
+	Seconds int64  `binding:"required" json:"seconds"`
+}
+
 type KeyInfo struct {
 	Key   string `binding:"required" json:"key"`
 	Timed int64
@@ -49,4 +59,28 @@ type RedisScanForm struct {
 	Cursor map[string]uint64 `json:"cursor"`
 	Match  string            `json:"match"`
 	Count  int64             `json:"count"`
+}
+
+type ScanForm struct {
+	Key    string `json:"key"`
+	Cursor uint64 `json:"cursor"`
+	Match  string `json:"match"`
+	Count  int64  `json:"count"`
+}
+
+type SmemberOption struct {
+	Key    string `json:"key"`
+	Member any    `json:"member"`
+}
+
+type LRemOption struct {
+	Key    string `json:"key"`
+	Count  int64  `json:"count"`
+	Member any    `json:"member"`
+}
+
+type ZAddOption struct {
+	Key    string  `json:"key"`
+	Score  float64 `json:"score"`
+	Member any     `json:"member"`
 }

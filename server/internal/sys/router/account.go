@@ -22,7 +22,7 @@ func InitAccountRouter(router *gin.RouterGroup) {
 		loginLog := req.NewLogInfo("用户登录").WithSave(true)
 		account.POST("login", func(g *gin.Context) {
 			req.NewCtxWithGin(g).
-				WithNeedToken(false).
+				DontNeedToken().
 				WithLog(loginLog).
 				Handle(a.Login)
 		})
@@ -35,7 +35,7 @@ func InitAccountRouter(router *gin.RouterGroup) {
 		changePwdLog := req.NewLogInfo("用户修改密码").WithSave(true)
 		account.POST("change-pwd", func(g *gin.Context) {
 			req.NewCtxWithGin(g).
-				WithNeedToken(false).
+				DontNeedToken().
 				WithLog(changePwdLog).
 				Handle(a.ChangePassword)
 		})

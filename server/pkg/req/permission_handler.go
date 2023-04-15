@@ -20,11 +20,6 @@ func NewPermission(code string) *Permission {
 	return &Permission{NeedToken: true, Code: code}
 }
 
-func (p *Permission) WithNeedToken(needToken bool) *Permission {
-	p.NeedToken = needToken
-	return p
-}
-
 var (
 	permissionCodeRegistry PermissionCodeRegistry
 )
