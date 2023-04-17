@@ -268,6 +268,10 @@ const submitUpdateFields = () => {
         let primaryKeyName = a.primaryKeyName;
         a.fields.forEach(f => {
             sql += ` ${f.fieldName} = ${DbInst.wrapColumnValue(f.fieldType, f.newValue)},`
+            // 如果修改的字段是主键
+            if(f.fieldName === primaryKeyName){
+                primaryKey = f.oldValue
+            }
             divs.push(f.div)
         })
         sql = sql.substring(0, sql.length - 1)
