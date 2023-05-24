@@ -10,7 +10,7 @@ import (
 	"mayfly-go/pkg/utils"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func InitTokenConfig() {

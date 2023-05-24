@@ -249,20 +249,13 @@ type DbInstance struct {
 
 // 执行查询语句
 // 依次返回 列名数组，结果map，错误
-func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]interface{}, error) {
+func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]any, error) {
 	return SelectDataByDb(d.db, execSql)
 }
 
 // 将查询结果映射至struct，可具体参考sqlx库
-func (d *DbInstance) SelectData2Struct(execSql string, dest interface{}) error {
+func (d *DbInstance) SelectData2Struct(execSql string, dest any) error {
 	return Select2StructByDb(d.db, execSql, dest)
-}
-
-// 执行内部查询语句，不返回列名以及不限制行数
-// 依次返回 结果map，错误
-func (d *DbInstance) innerSelect(execSql string) ([]map[string]interface{}, error) {
-	_, res, err := SelectDataByDb(d.db, execSql)
-	return res, err
 }
 
 // 执行 update, insert, delete，建表等sql

@@ -266,7 +266,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
 			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS `%s`;\n", table))
-			writer.WriteString(dbmeta.GetCreateTableDdl(table)[0]["Create Table"].(string) + ";\n")
+			writer.WriteString(dbmeta.GetCreateTableDdl(table) + ";\n")
 		}
 
 		if !needData {
@@ -339,7 +339,7 @@ func (d *Db) HintTables(rc *req.Ctx) {
 	tables := dm.GetTables()
 	tableNames := make([]string, 0)
 	for _, v := range tables {
-		tableNames = append(tableNames, v["tableName"].(string))
+		tableNames = append(tableNames, v.TableName)
 	}
 	// key = 表名，value = 列名数组
 	res := make(map[string][]string)
@@ -353,15 +353,15 @@ func (d *Db) HintTables(rc *req.Ctx) {
 	// 获取所有表下的所有列信息
 	columnMds := dm.GetColumns(tableNames...)
 	for _, v := range columnMds {
-		tName := v["tableName"].(string)
+		tName := v.TableName
 		if res[tName] == nil {
 			res[tName] = make([]string, 0)
 		}
 
-		columnName := fmt.Sprintf("%s  [%s]", v["columnName"], v["columnType"])
-		comment := v["columnComment"]
+		columnName := fmt.Sprintf("%s  [%s]", v.ColumnName, v.ColumnType)
+		comment := v.ColumnComment
 		// 如果字段备注不为空，则加上备注信息
-		if comment != nil && comment != "" {
+		if comment != "" {
 			columnName = fmt.Sprintf("%s[%s]", columnName, comment)
 		}
 

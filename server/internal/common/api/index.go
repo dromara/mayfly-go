@@ -36,7 +36,7 @@ func (i *Index) Count(rc *req.Ctx) {
 		dbNum = i.DbApp.Count(&dbentity.DbQuery{TagIds: tagIds})
 		redisNum = i.RedisApp.Count(&redisentity.RedisQuery{TagIds: tagIds})
 	}
-	rc.ResData = map[string]interface{}{
+	rc.ResData = map[string]any{
 		"mongoNum":   mongoNum,
 		"machineNum": machienNum,
 		"dbNum":      dbNum,

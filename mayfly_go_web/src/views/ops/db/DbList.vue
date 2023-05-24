@@ -677,7 +677,7 @@ const showCreateDdl = async (row: any) => {
         db: state.db,
         tableName: row.tableName,
     });
-    state.ddlDialog.ddl = res[0]['Create Table'];
+    state.ddlDialog.ddl = res;
     state.ddlDialog.visible = true;
 };
 

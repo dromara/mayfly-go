@@ -22,7 +22,7 @@ DROP TABLE IF EXISTS `t_db`;
 CREATE TABLE `t_db` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
-  `host` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `host` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `port` int(8) NOT NULL,
   `username` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,

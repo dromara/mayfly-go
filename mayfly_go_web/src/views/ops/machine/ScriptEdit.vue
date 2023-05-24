@@ -4,11 +4,11 @@
             :show-close="true" :destroy-on-close="true" width="900px">
             <el-form :model="form" ref="scriptForm" label-width="50px" size="small">
                 <el-form-item prop="method" label="名称">
-                    <el-input v-model.trim="form.name" placeholder="请输入名称"></el-input>
+                    <el-input v-model="form.name" placeholder="请输入名称"></el-input>
                 </el-form-item>
 
                 <el-form-item prop="description" label="描述">
-                    <el-input v-model.trim="form.description" placeholder="请输入描述"></el-input>
+                    <el-input v-model="form.description" placeholder="请输入描述"></el-input>
                 </el-form-item>
 
                 <el-form-item prop="type" label="类型">
@@ -24,13 +24,13 @@
                 <el-form-item :key="param" v-for="(param, index) in params" prop="params" :label="`参数${index + 1}`">
                     <el-row>
                         <el-col :span="5">
-                            <el-input v-model="param.model" placeholder="内容中用{{.model}}替换"></el-input>
+                            <el-input v-model.trim="param.model" placeholder="内容中用{{.model}}替换"></el-input>
                         </el-col>
                         <span :span="1">
                             <el-divider direction="vertical" border-style="dashed" />
                         </span>
                         <el-col :span="4">
-                            <el-input v-model="param.name" placeholder="字段名"></el-input>
+                            <el-input v-model.trim="param.name" placeholder="字段名"></el-input>
                         </el-col>
                         <span :span="1">
                             <el-divider direction="vertical" border-style="dashed" />

@@ -7,7 +7,7 @@
 
 <script setup lang="ts" name="layout">
 import { onBeforeMount, onUnmounted } from 'vue';
-import { getLocal, setLocal } from '@/common/utils/storage.ts';
+import { getLocal, setLocal } from '@/common/utils/storage';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import Defaults from '@/views/layout/main/defaults.vue';

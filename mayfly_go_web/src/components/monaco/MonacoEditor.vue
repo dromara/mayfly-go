@@ -2,7 +2,7 @@
     <div class="monaco-editor" style="border: 1px solid #ccc;">
         <div class="monaco-editor-content" ref="monacoTextarea" :style="{ height: height }"></div>
         <el-select v-if="canChangeMode" class="code-mode-select" v-model="languageMode" @change="changeLanguage">
-            <el-option v-for="mode in languages" :key="mode.value" :label="mode.label" :value="mode.value"> </el-option>
+            <el-option v-for="mode in languageArr" :key="mode.value" :label="mode.label" :value="mode.value"> </el-option>
         </el-select>
     </div>
 </template>
@@ -54,7 +54,7 @@ const props = defineProps({
 //定义事件
 const emit = defineEmits(['update:modelValue'])
 
-const languages = [
+const languageArr = [
     {
         value: 'shell',
         label: 'Shell',

@@ -57,38 +57,12 @@ func (pd *PqSqlDialer) DialTimeout(network, address string, timeout time.Duratio
 
 // ---------------------------------- pgsql元数据 -----------------------------------
 const (
-	// postgres 表信息元数据
-	PGSQL_TABLE_MA = `SELECT obj_description(c.oid) AS "tableComment", c.relname AS "tableName" FROM pg_class c 
-	JOIN pg_namespace n ON c.relnamespace = n.oid WHERE n.nspname = (select current_schema()) AND c.reltype > 0`
-
-	PGSQL_TABLE_INFO = `SELECT obj_description(c.oid) AS "tableComment", c.relname AS "tableName" FROM pg_class c 
-	JOIN pg_namespace n ON c.relnamespace = n.oid WHERE n.nspname = (select current_schema()) AND c.reltype > 0`
-
-	PGSQL_INDEX_INFO = `SELECT indexname AS "indexName", indexdef AS "indexComment"
-	FROM pg_indexes WHERE schemaname =  (select current_schema()) AND tablename = '%s'`
-
-	PGSQL_COLUMN_MA = `SELECT
-		C.relname AS "tableName",
-		A.attname AS "columnName",
-		tc.is_nullable AS "nullable",
-		concat_ws ( '', t.typname, SUBSTRING ( format_type ( a.atttypid, a.atttypmod ) FROM '\(.*\)' ) ) AS "columnType",
-		(CASE WHEN ( SELECT COUNT(*) FROM pg_constraint WHERE conrelid = a.attrelid AND conkey[1]= attnum AND contype = 'p' ) > 0 THEN 'PRI' ELSE '' END ) AS "columnKey",
-		d.description AS "columnComment" 
-	FROM
-		pg_attribute a LEFT JOIN pg_description d ON d.objoid = a.attrelid 
-		AND d.objsubid = A.attnum
-		LEFT JOIN pg_class c ON A.attrelid = c.oid
-		LEFT JOIN pg_namespace pn ON c.relnamespace = pn.oid
-		LEFT JOIN pg_type t ON a.atttypid = t.oid 
-		JOIN information_schema.columns tc ON tc.column_name = a.attname AND tc.table_name = C.relname AND tc.table_schema = pn.nspname
-	WHERE
-		A.attnum >= 0 
-		AND pn.nspname = (select current_schema())
-		AND C.relname in (%s)
-	ORDER BY
-		C.relname DESC,
-		A.attnum ASC	
-	`
+	PGSQL_META_FILE      = "metasql/pgsql_meta.sql"
+	PGSQL_TABLE_MA_KEY   = "PGSQL_TABLE_MA"
+	PGSQL_TABLE_INFO_KEY = "PGSQL_TABLE_INFO"
+	PGSQL_INDEX_INFO_KEY = "PGSQL_INDEX_INFO"
+	PGSQL_COLUMN_MA_KEY  = "PGSQL_COLUMN_MA"
+	PGSQL_TABLE_DDL_KEY  = "PGSQL_TABLE_DDL_FUNC"
 )
 
 type PgsqlMetadata struct {
@@ -96,14 +70,22 @@ type PgsqlMetadata struct {
 }
 
 // 获取表基础元信息, 如表名等
-func (pm *PgsqlMetadata) GetTables() []map[string]interface{} {
-	res, err := pm.di.innerSelect(PGSQL_TABLE_MA)
+func (pm *PgsqlMetadata) GetTables() []Table {
+	_, res, err := pm.di.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_MA_KEY))
 	biz.ErrIsNilAppendErr(err, "获取表基本信息失败: %s")
-	return res
+
+	tables := make([]Table, 0)
+	for _, re := range res {
+		tables = append(tables, Table{
+			TableName:    re["tableName"].(string),
+			TableComment: utils.Any2String(re["tableComment"]),
+		})
+	}
+	return tables
 }
 
 // 获取列元信息, 如列名等
-func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []map[string]interface{} {
+func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []Column {
 	tableName := ""
 	for i := 0; i < len(tableNames); i++ {
 		if i != 0 {
@@ -111,41 +93,86 @@ func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []map[string]interface
 		}
 		tableName = tableName + "'" + tableNames[i] + "'"
 	}
-	result, err := pm.di.innerSelect(fmt.Sprintf(PGSQL_COLUMN_MA, tableName))
+
+	_, res, err := pm.di.SelectData(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
 	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
-	return result
+	columns := make([]Column, 0)
+	for _, re := range res {
+		columns = append(columns, Column{
+			TableName:     re["tableName"].(string),
+			ColumnName:    re["columnName"].(string),
+			ColumnType:    utils.Any2String(re["columnType"]),
+			ColumnComment: utils.Any2String(re["columnComment"]),
+			Nullable:      utils.Any2String(re["nullable"]),
+			ColumnKey:     utils.Any2String(re["columnKey"]),
+			ColumnDefault: utils.Any2String(re["columnDefault"]),
+		})
+	}
+	return columns
 }
 
 func (pm *PgsqlMetadata) GetPrimaryKey(tablename string) string {
 	columns := pm.GetColumns(tablename)
 	biz.IsTrue(len(columns) > 0, "[%s] 表不存在", tablename)
 	for _, v := range columns {
-		if v["columnKey"].(string) == "PRI" {
-			return v["columnName"].(string)
+		if v.ColumnKey == "PRI" {
+			return v.ColumnName
 		}
 	}
 
-	return columns[0]["columnName"].(string)
+	return columns[0].ColumnName
 }
 
 // 获取表信息，比GetTables获取更详细的表信息
-func (pm *PgsqlMetadata) GetTableInfos() []map[string]interface{} {
-	res, err := pm.di.innerSelect(PGSQL_TABLE_INFO)
+func (pm *PgsqlMetadata) GetTableInfos() []Table {
+	_, res, err := pm.di.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
 	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
-	return res
+
+	tables := make([]Table, 0)
+	for _, re := range res {
+		tables = append(tables, Table{
+			TableName:    re["tableName"].(string),
+			TableComment: utils.Any2String(re["tableComment"]),
+			CreateTime:   utils.Any2String(re["createTime"]),
+			TableRows:    utils.Any2Int(re["tableRows"]),
+			DataLength:   utils.Any2Int64(re["dataLength"]),
+			IndexLength:  utils.Any2Int64(re["indexLength"]),
+		})
+	}
+	return tables
 }
 
 // 获取表索引信息
-func (pm *PgsqlMetadata) GetTableIndex(tableName string) []map[string]interface{} {
-	res, err := pm.di.innerSelect(fmt.Sprintf(PGSQL_INDEX_INFO, tableName))
+func (pm *PgsqlMetadata) GetTableIndex(tableName string) []Index {
+	_, res, err := pm.di.SelectData(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
 	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
-	return res
+	indexs := make([]Index, 0)
+	for _, re := range res {
+		indexs = append(indexs, Index{
+			IndexName:    re["indexName"].(string),
+			ColumnName:   utils.Any2String(re["columnName"]),
+			IndexType:    utils.Any2String(re["indexType"]),
+			IndexComment: utils.Any2String(re["indexComment"]),
+			NonUnique:    utils.Any2Int(re["nonUnique"]),
+			SeqInIndex:   utils.Any2Int(re["seqInIndex"]),
+		})
+	}
+	return indexs
 }
 
 // 获取建表ddl
-func (pm *PgsqlMetadata) GetCreateTableDdl(tableName string) []map[string]interface{} {
-	biz.IsTrue(tableName == "", "暂不支持获取pgsql建表DDL")
-	return nil
+func (pm *PgsqlMetadata) GetCreateTableDdl(tableName string) string {
+	_, err := pm.di.Exec(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
+	biz.ErrIsNilAppendErr(err, "创建ddl函数失败: %s")
+
+	_, schemaRes, _ := pm.di.SelectData("select current_schema() as schema")
+	schemaName := schemaRes[0]["schema"].(string)
+
+	ddlSql := fmt.Sprintf("select showcreatetable('%s','%s') as sql", schemaName, tableName)
+	_, res, err := pm.di.SelectData(ddlSql)
+
+	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
+	return res[0]["sql"].(string)
 }
 
 func (pm *PgsqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]interface{}, error) {
