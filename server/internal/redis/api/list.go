@@ -22,7 +22,7 @@ func (r *Redis) GetListValue(rc *req.Ctx) {
 	res, err := cmdable.LRange(ctx, key, int64(start), int64(stop)).Result()
 	biz.ErrIsNilAppendErr(err, "获取list值失败: %s")
 
-	rc.ResData = map[string]interface{}{
+	rc.ResData = map[string]any{
 		"len":  len,
 		"list": res,
 	}

@@ -14,7 +14,7 @@ func newMachineFileRepo() repository.MachineFile {
 }
 
 // 分页获取机器文件信息列表
-func (m *machineFileRepoImpl) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *machineFileRepoImpl) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, condition, toEntity, orderBy...)
 }
 

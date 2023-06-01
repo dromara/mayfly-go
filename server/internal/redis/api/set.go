@@ -49,7 +49,7 @@ func (r *Redis) Sscan(rc *req.Ctx) {
 	cmd := r.getRedisIns(rc).GetCmdable()
 	keys, cursor, err := cmd.SScan(context.TODO(), scan.Key, scan.Cursor, scan.Match, scan.Count).Result()
 	biz.ErrIsNilAppendErr(err, "sscan失败: %s")
-	rc.ResData = map[string]interface{}{
+	rc.ResData = map[string]any{
 		"keys":   keys,
 		"cursor": cursor,
 	}

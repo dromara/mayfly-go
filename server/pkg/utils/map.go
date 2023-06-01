@@ -5,11 +5,11 @@ import (
 	"strconv"
 )
 
-func GetString4Map(m map[string]interface{}, key string) string {
+func GetString4Map(m map[string]any, key string) string {
 	return m[key].(string)
 }
 
-func GetInt4Map(m map[string]interface{}, key string) int {
+func GetInt4Map(m map[string]any, key string) int {
 	i := m[key]
 	iKind := reflect.TypeOf(i).Kind()
 	if iKind == reflect.Int {
@@ -24,21 +24,21 @@ func GetInt4Map(m map[string]interface{}, key string) int {
 
 // map构造器
 type mapBuilder struct {
-	m map[string]interface{}
+	m map[string]any
 }
 
-func MapBuilder(key string, value interface{}) *mapBuilder {
+func MapBuilder(key string, value any) *mapBuilder {
 	mb := new(mapBuilder)
-	mb.m = make(map[string]interface{}, 4)
+	mb.m = make(map[string]any, 4)
 	mb.m[key] = value
 	return mb
 }
 
-func (mb *mapBuilder) Put(key string, value interface{}) *mapBuilder {
+func (mb *mapBuilder) Put(key string, value any) *mapBuilder {
 	mb.m[key] = value
 	return mb
 }
 
-func (mb *mapBuilder) ToMap() map[string]interface{} {
+func (mb *mapBuilder) ToMap() map[string]any {
 	return mb.m
 }

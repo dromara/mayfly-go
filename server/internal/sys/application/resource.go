@@ -9,17 +9,17 @@ import (
 )
 
 type Resource interface {
-	GetResourceList(condition *entity.Resource, toEntity interface{}, orderBy ...string)
+	GetResourceList(condition *entity.Resource, toEntity any, orderBy ...string)
 
 	GetById(id uint64, cols ...string) *entity.Resource
 
-	GetByIdIn(ids []uint64, toEntity interface{}, cols ...string)
+	GetByIdIn(ids []uint64, toEntity any, cols ...string)
 
 	Save(entity *entity.Resource)
 
 	Delete(id uint64)
 
-	GetAccountResources(accountId uint64, toEntity interface{})
+	GetAccountResources(accountId uint64, toEntity any)
 }
 
 func newResourceApp(resourceRepo repository.Resource) Resource {
@@ -32,7 +32,7 @@ type resourceAppImpl struct {
 	resourceRepo repository.Resource
 }
 
-func (r *resourceAppImpl) GetResourceList(condition *entity.Resource, toEntity interface{}, orderBy ...string) {
+func (r *resourceAppImpl) GetResourceList(condition *entity.Resource, toEntity any, orderBy ...string) {
 	r.resourceRepo.GetResourceList(condition, toEntity, orderBy...)
 }
 
@@ -40,7 +40,7 @@ func (r *resourceAppImpl) GetById(id uint64, cols ...string) *entity.Resource {
 	return r.resourceRepo.GetById(id, cols...)
 }
 
-func (r *resourceAppImpl) GetByIdIn(ids []uint64, toEntity interface{}, orderBy ...string) {
+func (r *resourceAppImpl) GetByIdIn(ids []uint64, toEntity any, orderBy ...string) {
 	r.resourceRepo.GetByIdIn(ids, toEntity, orderBy...)
 }
 
@@ -84,7 +84,7 @@ func (r *resourceAppImpl) Delete(id uint64) {
 	model.DeleteByCondition(&entity.RoleResource{ResourceId: id})
 }
 
-func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity interface{}) {
+func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity any) {
 	r.resourceRepo.GetAccountResources(accountId, toEntity)
 }
 

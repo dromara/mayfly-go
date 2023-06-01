@@ -68,7 +68,7 @@ func TestTemplateRev(t *testing.T) {
 	//next := temp[ei:]
 	//key := temp[index+1 : ei-1]
 	//value := SubString(str, index, UnicodeIndex(str, next))
-	res := make(map[string]interface{})
+	res := make(map[string]any)
 	utils.ReverStrTemplate(temp, str, res)
 	fmt.Println(res)
 }

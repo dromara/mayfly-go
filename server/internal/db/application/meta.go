@@ -62,7 +62,7 @@ type DbMetadata interface {
 
 	// 获取指定表的数据-分页查询
 	// @return columns: 列字段名；result: 结果集；error: 错误
-	GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]interface{}, error)
+	GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error)
 }
 
 // ------------------------- 元数据sql操作 -------------------------

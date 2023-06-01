@@ -17,9 +17,9 @@ func newRedisRepo() repository.Redis {
 }
 
 // 分页获取机器信息列表
-func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	sql := "SELECT d.* FROM t_redis d WHERE 1=1  "
-	values := make([]interface{}, 0)
+	values := make([]any, 0)
 	if condition.Host != "" {
 		sql = sql + " AND d.host LIKE ?"
 		values = append(values, "%"+condition.Host+"%")
@@ -36,7 +36,7 @@ func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *mo
 }
 
 func (r *redisRepoImpl) Count(condition *entity.RedisQuery) int64 {
-	where := make(map[string]interface{})
+	where := make(map[string]any)
 	if len(condition.TagIds) > 0 {
 		where["tag_id"] = condition.TagIds
 	}

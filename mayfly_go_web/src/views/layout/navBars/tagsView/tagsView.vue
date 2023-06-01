@@ -38,7 +38,7 @@ import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router';
 import screenfull from 'screenfull';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import { getSession, setSession, removeSession } from '@/common/utils/storage.ts';
+import { getSession, setSession, removeSession } from '@/common/utils/storage';
 import mittBus from '@/common/utils/mitt';
 import Sortable from 'sortablejs';
 import Contextmenu from '@/views/layout/navBars/tagsView/contextmenu.vue';
@@ -99,13 +99,14 @@ const addTagsView = (path: string, to: any = null) => {
     if (!to) {
         to = route;
     }
+
     path = decodeURI(path);
     for (let tv of state.tagsViewList) {
         if (tv.fullPath === path) {
             return false;
         }
     }
-
+    
     const tagView = { ...to }
     // 防止Converting circular structure to JSON错误
     tagView.matched = null;

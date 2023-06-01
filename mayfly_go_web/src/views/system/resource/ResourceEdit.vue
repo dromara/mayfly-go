@@ -67,17 +67,20 @@
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100" prop="code" label="是否iframe">
-                            <el-select class="w100" @change="changeIsIframe" v-model="form.meta.isIframe" placeholder="请选择">
-                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
-                                    :value="item.value"> </el-option>
+                        <el-form-item class="w100" prop="code" label="外链">
+                            <el-select class="w100" @change="changeIsIframe" v-model="form.meta.linkType" placeholder="请选择">
+                                <!-- <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
+                                    :value="item.value"> </el-option> -->
+                                <el-option :key="0" label="否" :value="0"> </el-option>
+                                <el-option :key="1" label="内嵌" :value="1"> </el-option>
+                                <el-option :key="2" label="外链" :value="2"> </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20"
-                        v-if="form.type === menuTypeValue && form.meta.isIframe">
-                        <el-form-item prop="code" label="iframe地址" class="w100">
-                            <el-input v-model.trim="form.meta.link" placeholder="请输入iframe url（http://xxx.com）"></el-input>
+                        v-if="form.type === menuTypeValue && form.meta.linkType > 0">
+                        <el-form-item prop="code" label="链接地址" class="w100">
+                            <el-input v-model.trim="form.meta.link" placeholder="外链/内嵌的链接地址（http://xxx.com）"></el-input>
                         </el-form-item>
                     </el-col>
                 </el-row>
@@ -131,7 +134,7 @@ const defaultMeta = {
     isKeepAlive: true,
     isHide: false,
     isAffix: false,
-    isIframe: false,
+    linkType: 0,
     link: '',
 };
 
@@ -180,7 +183,7 @@ const state = reactive({
             isKeepAlive: true,
             isHide: false,
             isAffix: false,
-            isIframe: false,
+            linkType: 0,
             link: '',
         },
     },
@@ -210,7 +213,7 @@ watch(props, (newValue: any) => {
     state.form.meta.isKeepAlive = meta.isKeepAlive ? true : false;
     state.form.meta.isHide = meta.isHide ? true : false;
     state.form.meta.isAffix = meta.isAffix ? true : false;
-    state.form.meta.isIframe = meta.isIframe ? true : false;
+    state.form.meta.linkType = meta.linkType;
 });
 
 // 改变iframe字段，如果为是，则设置默认的组件
@@ -263,8 +266,8 @@ const parseMenuMeta = (meta: any) => {
     if (meta.isAffix) {
         metaForm.isAffix = true;
     }
-    if (meta.isIframe) {
-        metaForm.isIframe = true;
+    if (meta.linkType) {
+        metaForm.linkType = meta.linkType;
     }
     if (meta.link) {
         metaForm.link = meta.link;

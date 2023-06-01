@@ -185,7 +185,7 @@ func (r *Redis) ClusterInfo(rc *req.Ctx) {
 		}
 		nodesRes = append(nodesRes, node)
 	}
-	rc.ResData = map[string]interface{}{
+	rc.ResData = map[string]any{
 		"clusterInfo":  info,
 		"clusterNodes": nodesRes,
 	}

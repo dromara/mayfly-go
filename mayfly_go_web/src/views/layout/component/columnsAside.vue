@@ -7,7 +7,7 @@
                         if (el) columnsAsideOffsetTopRefs[k] = el;
                     }
                 " :class="{ 'layout-columns-active': state.liIndex === k }" :title="v.meta.title">
-                    <div class="layout-columns-aside-li-box" v-if="!v.meta.link || (v.meta.link && v.meta.isIframe)">
+                    <div class="layout-columns-aside-li-box" v-if="!v.meta.link || (v.meta.link && v.meta.linkType == 1)">
                         <i :class="v.meta.icon"></i>
                         <div class="layout-columns-aside-li-box-title font12">
                             {{ v.meta.title && v.meta.title.length >= 4 ? v.meta.title.substr(0, 4) : v.meta.title }}

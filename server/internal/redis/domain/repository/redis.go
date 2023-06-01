@@ -7,7 +7,7 @@ import (
 
 type Redis interface {
 	// 分页获取机器信息列表
-	GetRedisList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetRedisList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 
 	Count(condition *entity.RedisQuery) int64
 

@@ -49,25 +49,25 @@ func NotEmpty(str string, msg string, params ...any) {
 	}
 }
 
-func NotNil(data interface{}, msg string, params ...any) {
+func NotNil(data any, msg string, params ...any) {
 	if reflect.ValueOf(data).IsNil() {
 		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
 }
 
-func NotBlank(data interface{}, msg string, params ...any) {
+func NotBlank(data any, msg string, params ...any) {
 	if utils.IsBlank(data) {
 		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
 }
 
-func IsEquals(data interface{}, data1 interface{}, msg string) {
+func IsEquals(data any, data1 any, msg string) {
 	if data != data1 {
 		panic(NewBizErr(msg))
 	}
 }
 
-func Nil(data interface{}, msg string) {
+func Nil(data any, msg string) {
 	if !reflect.ValueOf(data).IsNil() {
 		panic(NewBizErr(msg))
 	}

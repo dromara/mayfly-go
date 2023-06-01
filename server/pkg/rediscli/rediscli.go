@@ -31,7 +31,7 @@ func Del(key string) {
 	cli.Del(context.TODO(), key)
 }
 
-func HSet(key string, field string, val interface{}) {
+func HSet(key string, field string, val any) {
 	cli.HSet(context.TODO(), key, field, val)
 }
 

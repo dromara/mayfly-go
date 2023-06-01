@@ -10,30 +10,30 @@ type Mongo struct {
 }
 
 type MongoCommand struct {
-	Database   string                 `binding:"required" json:"database"`
-	Collection string                 `binding:"required" json:"collection"`
-	Filter     map[string]interface{} `json:"filter"`
+	Database   string         `binding:"required" json:"database"`
+	Collection string         `binding:"required" json:"collection"`
+	Filter     map[string]any `json:"filter"`
 }
 
 type MongoRunCommand struct {
-	Database string                 `binding:"required" json:"database"`
-	Command  map[string]interface{} `json:"command"`
+	Database string         `binding:"required" json:"database"`
+	Command  map[string]any `json:"command"`
 }
 
 type MongoFindCommand struct {
 	MongoCommand
-	Sort  map[string]interface{} `json:"sort"`
+	Sort  map[string]any `json:"sort"`
 	Skip  int64
 	Limit int64
 }
 
 type MongoUpdateByIdCommand struct {
 	MongoCommand
-	DocId  interface{}            `binding:"required" json:"docId"`
-	Update map[string]interface{} `json:"update"`
+	DocId  any            `binding:"required" json:"docId"`
+	Update map[string]any `json:"update"`
 }
 
 type MongoInsertCommand struct {
 	MongoCommand
-	Doc map[string]interface{} `json:"doc"`
+	Doc map[string]any `json:"doc"`
 }

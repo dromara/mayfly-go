@@ -13,7 +13,7 @@ func newTeamRepo() repository.Team {
 	return new(teamRepoImpl)
 }
 
-func (p *teamRepoImpl) GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (p *teamRepoImpl) GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, condition, toEntity, orderBy...)
 }
 

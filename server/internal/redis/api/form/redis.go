@@ -30,29 +30,29 @@ type KeyInfo struct {
 
 type StringValue struct {
 	KeyInfo
-	Value interface{} `binding:"required" json:"value"`
+	Value any `binding:"required" json:"value"`
 }
 
 type HashValue struct {
 	KeyInfo
-	Value []map[string]interface{} `binding:"required" json:"value"`
+	Value []map[string]any `binding:"required" json:"value"`
 }
 
 type SetValue struct {
 	KeyInfo
-	Value []interface{} `binding:"required" json:"value"`
+	Value []any `binding:"required" json:"value"`
 }
 
 type ListValue struct {
 	KeyInfo
-	Value []interface{} `binding:"required" json:"value"`
+	Value []any `binding:"required" json:"value"`
 }
 
 // list lset命令参数入参
 type ListSetValue struct {
 	Key   string `binding:"required" json:"key"`
 	Index int64
-	Value interface{} `binding:"required" json:"value"`
+	Value any `binding:"required" json:"value"`
 }
 
 type RedisScanForm struct {

@@ -164,7 +164,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 		}
 	}
 
-	colAndRes := make(map[string]interface{})
+	colAndRes := make(map[string]any)
 	colAndRes["colNames"] = execResAll.ColNames
 	colAndRes["res"] = execResAll.Res
 	rc.ResData = colAndRes

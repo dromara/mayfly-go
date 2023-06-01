@@ -28,7 +28,7 @@ func (r *Redis) ZScan(rc *req.Ctx) {
 
 	keys, cursor, err := ri.GetCmdable().ZScan(context.TODO(), key, cursor, match, int64(count)).Result()
 	biz.ErrIsNilAppendErr(err, "sscan失败: %s")
-	rc.ResData = map[string]interface{}{
+	rc.ResData = map[string]any{
 		"keys":   keys,
 		"cursor": cursor,
 	}

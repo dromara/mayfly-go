@@ -140,7 +140,7 @@ func (c *Cli) GetMachine() *Info {
 // 机器客户端连接缓存，指定时间内没有访问则会被关闭
 var cliCache = cache.NewTimedCache(constant.MachineConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
-	OnEvicted(func(_, value interface{}) {
+	OnEvicted(func(_, value any) {
 		value.(*Cli).Close()
 	})
 
@@ -172,7 +172,7 @@ func DeleteCli(id uint64) {
 
 // 从缓存中获取客户端信息，不存在则回调获取机器信息函数，并新建
 func GetCli(machineId uint64, getMachine func(uint64) *Info) (*Cli, error) {
-	cli, err := cliCache.ComputeIfAbsent(machineId, func(_ interface{}) (interface{}, error) {
+	cli, err := cliCache.ComputeIfAbsent(machineId, func(_ any) (any, error) {
 		me := getMachine(machineId)
 		err := IfUseSshTunnelChangeIpPort(me, getMachine)
 		if err != nil {

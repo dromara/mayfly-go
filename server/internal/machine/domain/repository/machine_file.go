@@ -7,7 +7,7 @@ import (
 
 type MachineFile interface {
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 
 	// 根据条件获取
 	GetMachineFile(condition *entity.MachineFile, cols ...string) error

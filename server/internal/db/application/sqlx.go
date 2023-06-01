@@ -11,7 +11,7 @@ import (
 )
 
 // 将结果scan至结构体，copy至 sqlx库: https://github.com/jmoiron/sqlx
-func scanAll(rows *sql.Rows, dest interface{}, structOnly bool) error {
+func scanAll(rows *sql.Rows, dest any, structOnly bool) error {
 	var v, vp reflect.Value
 
 	value := reflect.ValueOf(dest)
@@ -50,7 +50,7 @@ func scanAll(rows *sql.Rows, dest interface{}, structOnly bool) error {
 	}
 
 	if !scannable {
-		var values []interface{}
+		var values []any
 		var m *Mapper = mapper()
 
 		fields := m.TraversalsByName(base, columns)
@@ -58,7 +58,7 @@ func scanAll(rows *sql.Rows, dest interface{}, structOnly bool) error {
 		if f, err := missingFields(fields); err != nil {
 			return fmt.Errorf("missing destination name %s in %T", columns[f], dest)
 		}
-		values = make([]interface{}, len(columns))
+		values = make([]any, len(columns))
 
 		for rows.Next() {
 			// create a new struct type (which returns PtrTo) and indirect it
@@ -178,7 +178,7 @@ func missingFields(transversals [][]int) (field int, err error) {
 // when iterating over many rows.  Empty traversals will get an interface pointer.
 // Because of the necessity of requesting ptrs or values, it's considered a bit too
 // specialized for inclusion in reflectx itself.
-func fieldsByTraversal(v reflect.Value, traversals [][]int, values []interface{}, ptrs bool) error {
+func fieldsByTraversal(v reflect.Value, traversals [][]int, values []any, ptrs bool) error {
 	v = reflect.Indirect(v)
 	if v.Kind() != reflect.Struct {
 		return errors.New("argument not a struct")
@@ -186,7 +186,7 @@ func fieldsByTraversal(v reflect.Value, traversals [][]int, values []interface{}
 
 	for i, traversal := range traversals {
 		if len(traversal) == 0 {
-			values[i] = new(interface{})
+			values[i] = new(any)
 			continue
 		}
 		f := FieldByIndexes(v, traversal)

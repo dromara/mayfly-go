@@ -77,11 +77,11 @@
                 <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="tag不可删除">
                     {{ infoDialog.data.meta.isAffix ? '是' : '否' }}
                 </el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="是否iframe">
-                    {{ infoDialog.data.meta.isIframe ? '是' : '否' }}
+                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="外链">
+                    {{ infoDialog.data.meta.linkType ? '是' : '否' }}
                 </el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue && infoDialog.data.meta.isIframe"
-                    label="iframe url">
+                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue && infoDialog.data.meta.linkType > 0"
+                    label="外链">
                     {{ infoDialog.data.meta.link }}
                 </el-descriptions-item>
 

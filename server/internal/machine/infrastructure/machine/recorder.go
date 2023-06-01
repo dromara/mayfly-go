@@ -57,7 +57,7 @@ func (rec *Recorder) WriteHeader(height, width int) {
 }
 
 func (rec *Recorder) WriteData(rectype RecType, data string) {
-	recData := make([]interface{}, 3)
+	recData := make([]any, 3)
 	recData[0] = float64(time.Since(rec.StartTime).Microseconds()) / float64(1000000)
 	recData[1] = rectype
 	recData[2] = data

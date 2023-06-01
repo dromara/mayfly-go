@@ -13,7 +13,7 @@ func newAuthCertRepo() repository.AuthCert {
 	return new(authCertRepoImpl)
 }
 
-func (m *authCertRepoImpl) GetPageList(condition *entity.AuthCert, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *authCertRepoImpl) GetPageList(condition *entity.AuthCert, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, condition, toEntity)
 }
 

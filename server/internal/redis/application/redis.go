@@ -23,7 +23,7 @@ import (
 
 type Redis interface {
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 
 	Count(condition *entity.RedisQuery) int64
 
@@ -55,7 +55,7 @@ type redisAppImpl struct {
 }
 
 // 分页获取机器脚本信息列表
-func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return r.redisRepo.GetRedisList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -251,7 +251,7 @@ func getRedisDialer(machineId int) func(ctx context.Context, network, addr strin
 // redis客户端连接缓存，指定时间内没有访问则会被关闭
 var redisCache = cache.NewTimedCache(constant.RedisConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
-	OnEvicted(func(key interface{}, value interface{}) {
+	OnEvicted(func(key any, value any) {
 		global.Log.Info(fmt.Sprintf("删除redis连接缓存 id = %s", key))
 		value.(*RedisInstance).Close()
 	})

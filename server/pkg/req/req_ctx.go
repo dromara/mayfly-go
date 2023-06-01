@@ -106,7 +106,7 @@ func UseAfterHandlerInterceptor(b HandlerInterceptorFunc) {
 }
 
 // 应用指定处理器拦截器，如果有一个错误则直接返回错误
-func ApplyHandlerInterceptor(his HandlerInterceptors, rc *Ctx) interface{} {
+func ApplyHandlerInterceptor(his HandlerInterceptors, rc *Ctx) any {
 	for _, handler := range his {
 		if err := handler(rc); err != nil {
 			return err

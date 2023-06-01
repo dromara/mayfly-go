@@ -17,10 +17,10 @@ func (a *accountRepoImpl) GetAccount(condition *entity.Account, cols ...string) 
 	return model.GetBy(condition, cols...)
 }
 
-func (m *accountRepoImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *accountRepoImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	sql := "SELECT * FROM t_sys_account "
 	username := condition.Username
-	values := make([]interface{}, 0)
+	values := make([]any, 0)
 	if username != "" {
 		sql = sql + " WHERE username LIKE ?"
 		values = append(values, "%"+username+"%")

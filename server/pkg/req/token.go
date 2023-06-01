@@ -50,7 +50,7 @@ func ParseToken(tokenStr string) (*model.LoginAccount, error) {
 		return nil, errors.New("token error")
 	}
 	// Parse token
-	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (any, error) {
 		return []byte(JwtKey), nil
 	})
 	if err != nil || token == nil {

@@ -7,7 +7,7 @@ type ResourceForm struct {
 	Name   string `binding:"required"`
 	Type   int    `binding:"required,oneof=1 2"`
 	Weight int
-	Meta   map[string]interface{}
+	Meta   map[string]any
 }
 
 type MenuResourceMeta struct {

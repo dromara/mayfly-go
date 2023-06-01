@@ -82,7 +82,7 @@ func UnicodeIndex(str, substr string) int {
 }
 
 // 字符串模板解析
-func TemplateResolve(temp string, data interface{}) string {
+func TemplateResolve(temp string, data any) string {
 	t, _ := template.New("string-temp").Parse(temp)
 	var tmplBytes bytes.Buffer
 
@@ -93,7 +93,7 @@ func TemplateResolve(temp string, data interface{}) string {
 	return tmplBytes.String()
 }
 
-func ReverStrTemplate(temp, str string, res map[string]interface{}) {
+func ReverStrTemplate(temp, str string, res map[string]any) {
 	index := UnicodeIndex(temp, "{")
 	ei := UnicodeIndex(temp, "}") + 1
 	next := StrTrim(temp[ei:])
@@ -118,7 +118,7 @@ func ReverStrTemplate(temp, str string, res map[string]interface{}) {
 	}
 }
 
-func ToString(value interface{}) string {
+func ToString(value any) string {
 	// interface 转 string
 	var key string
 	if value == nil {

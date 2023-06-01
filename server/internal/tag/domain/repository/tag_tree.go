@@ -6,7 +6,7 @@ import (
 
 type TagTree interface {
 	// 根据条件查询
-	SelectByCondition(condition *entity.TagTreeQuery, toEntity interface{}, orderBy ...string)
+	SelectByCondition(condition *entity.TagTreeQuery, toEntity any, orderBy ...string)
 
 	GetBy(condition *entity.TagTree, cols ...string) error
 

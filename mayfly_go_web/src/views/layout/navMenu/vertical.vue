@@ -11,7 +11,7 @@
             </el-sub-menu>
             <el-menu-item :index="val.path" :key="val?.path" v-else>
                 <SvgIcon :name="val.meta.icon"/>
-                <template #title v-if="!val.meta.link || (val.meta.link && val.meta.isIframe)">
+                <template #title v-if="!val.meta.link || (val.meta.link && val.meta.linkType == 1)">
                     <span>{{ val.meta.title }}</span>
                 </template>
                 <template #title v-else>

@@ -12,7 +12,7 @@ func newSyslogRepo() repository.Syslog {
 	return new(syslogRepoImpl)
 }
 
-func (m *syslogRepoImpl) GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *syslogRepoImpl) GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, condition, toEntity, orderBy...)
 }
 

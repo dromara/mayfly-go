@@ -11,7 +11,7 @@ import (
 )
 
 // Copy copy things，引用至copier
-func Copy(toValue interface{}, fromValue interface{}) (err error) {
+func Copy(toValue any, fromValue any) (err error) {
 	var (
 		isSlice bool
 		amount  = 1
@@ -133,7 +133,7 @@ func Copy(toValue interface{}, fromValue interface{}) (err error) {
 }
 
 // 对结构体的每个字段以及字段值执行doWith回调函数, 包括匿名属性的字段
-func DoWithFields(str interface{}, doWith func(fType reflect.StructField, fValue reflect.Value) error) error {
+func DoWithFields(str any, doWith func(fType reflect.StructField, fValue reflect.Value) error) error {
 	t := IndirectType(reflect.TypeOf(str))
 	if t.Kind() != reflect.Struct {
 		return errors.New("非结构体")
@@ -217,7 +217,7 @@ func set(to, from reflect.Value) bool {
 	return true
 }
 
-func Map2Struct(m map[string]interface{}, s interface{}) error {
+func Map2Struct(m map[string]any, s any) error {
 	toValue := Indirect(reflect.ValueOf(s))
 	if !toValue.CanAddr() {
 		return errors.New("to value is unaddressable")
@@ -275,7 +275,7 @@ func Map2Struct(m map[string]interface{}, s interface{}) error {
 	return nil
 }
 
-func Maps2Structs(maps []map[string]interface{}, structs interface{}) error {
+func Maps2Structs(maps []map[string]any, structs any) error {
 	structsV := reflect.Indirect(reflect.ValueOf(structs))
 	valType := structsV.Type()
 	valElemType := valType.Elem()
@@ -314,8 +314,8 @@ func getFiledValueByPath(path string, value reflect.Value) reflect.Value {
 	return value
 }
 
-func getInnerStructMaps(m map[string]interface{}) map[string]map[string]interface{} {
-	key2map := make(map[string]map[string]interface{})
+func getInnerStructMaps(m map[string]any) map[string]map[string]any {
+	key2map := make(map[string]map[string]any)
 	for k, v := range m {
 		if !strings.Contains(k, ".") {
 			continue
@@ -324,7 +324,7 @@ func getInnerStructMaps(m map[string]interface{}) map[string]map[string]interfac
 		prefix := k[0:lastIndex]
 		m2 := key2map[prefix]
 		if m2 == nil {
-			key2map[prefix] = map[string]interface{}{k[lastIndex+1:]: v}
+			key2map[prefix] = map[string]any{k[lastIndex+1:]: v}
 		} else {
 			m2[k[lastIndex+1:]] = v
 		}
@@ -335,7 +335,7 @@ func getInnerStructMaps(m map[string]interface{}) map[string]map[string]interfac
 
 //  decode等方法摘抄自mapstructure库
 
-func decode(name string, input interface{}, outVal reflect.Value) error {
+func decode(name string, input any, outVal reflect.Value) error {
 	var inputVal reflect.Value
 	if input != nil {
 		inputVal = reflect.ValueOf(input)
@@ -374,7 +374,7 @@ func decode(name string, input interface{}, outVal reflect.Value) error {
 	return err
 }
 
-func decodeInt(name string, data interface{}, val reflect.Value) error {
+func decodeInt(name string, data any, val reflect.Value) error {
 	dataVal := reflect.Indirect(reflect.ValueOf(data))
 	dataKind := getKind(dataVal)
 	dataType := dataVal.Type()
@@ -416,7 +416,7 @@ func decodeInt(name string, data interface{}, val reflect.Value) error {
 	return nil
 }
 
-func decodeUint(name string, data interface{}, val reflect.Value) error {
+func decodeUint(name string, data any, val reflect.Value) error {
 	dataVal := reflect.Indirect(reflect.ValueOf(data))
 	dataKind := getKind(dataVal)
 	dataType := dataVal.Type()
@@ -472,7 +472,7 @@ func decodeUint(name string, data interface{}, val reflect.Value) error {
 	return nil
 }
 
-func decodeFloat(name string, data interface{}, val reflect.Value) error {
+func decodeFloat(name string, data any, val reflect.Value) error {
 	dataVal := reflect.Indirect(reflect.ValueOf(data))
 	dataKind := getKind(dataVal)
 	dataType := dataVal.Type()
@@ -514,7 +514,7 @@ func decodeFloat(name string, data interface{}, val reflect.Value) error {
 	return nil
 }
 
-func decodeString(name string, data interface{}, val reflect.Value) error {
+func decodeString(name string, data any, val reflect.Value) error {
 	dataVal := reflect.Indirect(reflect.ValueOf(data))
 	dataKind := getKind(dataVal)
 
@@ -566,7 +566,7 @@ func decodeString(name string, data interface{}, val reflect.Value) error {
 	return nil
 }
 
-func decodePtr(name string, data interface{}, val reflect.Value) (bool, error) {
+func decodePtr(name string, data any, val reflect.Value) (bool, error) {
 	// If the input data is nil, then we want to just set the output
 	// pointer to be nil as well.
 	isNil := data == nil

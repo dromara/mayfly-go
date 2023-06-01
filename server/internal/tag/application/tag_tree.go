@@ -16,7 +16,7 @@ import (
 )
 
 type TagTree interface {
-	ListByQuery(condition *entity.TagTreeQuery, toEntity interface{})
+	ListByQuery(condition *entity.TagTreeQuery, toEntity any)
 
 	GetById(id uint64) *entity.TagTree
 
@@ -96,7 +96,7 @@ func (p *tagTreeAppImpl) Save(tag *entity.TagTree) {
 	p.tagTreeRepo.UpdateById(tag)
 }
 
-func (p *tagTreeAppImpl) ListByQuery(condition *entity.TagTreeQuery, toEntity interface{}) {
+func (p *tagTreeAppImpl) ListByQuery(condition *entity.TagTreeQuery, toEntity any) {
 	p.tagTreeRepo.SelectByCondition(condition, toEntity)
 }
 

@@ -1,15 +1,15 @@
 <template>
     <el-main class="layout-main">
         <el-scrollbar class="layout-scrollbar" ref="layoutScrollbarRef"
-            v-show="!state.currentRouteMeta.link && !state.currentRouteMeta.isIframe"
+            v-show="!state.currentRouteMeta.link && state.currentRouteMeta.linkType != 1"
             :style="{ minHeight: `calc(100vh - ${state.headerHeight}` }">
             <LayoutParentView />
             <Footer v-if="themeConfig.isFooter" />
         </el-scrollbar>
         <Link :style="{ height: `calc(100vh - ${state.headerHeight}` }" :meta="state.currentRouteMeta"
-            v-if="state.currentRouteMeta.link && !state.currentRouteMeta.isIframe" />
+            v-if="state.currentRouteMeta.link && state.currentRouteMeta.linkType == 2" />
         <Iframes :style="{ height: `calc(100vh - ${state.headerHeight}` }" :meta="state.currentRouteMeta"
-            v-if="state.currentRouteMeta.link && state.currentRouteMeta.isIframe && state.isShowLink"
+            v-if="state.currentRouteMeta.link && state.currentRouteMeta.linkType == 1 && state.isShowLink"
             @getCurrentRouteMeta="onGetCurrentRouteMeta" />
     </el-main>
 </template>

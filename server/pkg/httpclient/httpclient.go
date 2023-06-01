@@ -86,7 +86,7 @@ func (r *RequestWrapper) PostJson(body string) *ResponseWrapper {
 	return request(r)
 }
 
-func (r *RequestWrapper) PostObj(body interface{}) *ResponseWrapper {
+func (r *RequestWrapper) PostObj(body any) *ResponseWrapper {
 	marshal, err := json.Marshal(body)
 	if err != nil {
 		return createRequestError(errors.New("解析json obj错误"))
@@ -158,7 +158,7 @@ func (r *ResponseWrapper) IsSuccess() bool {
 	return r.StatusCode == 200
 }
 
-func (r *ResponseWrapper) BodyToObj(objPtr interface{}) error {
+func (r *ResponseWrapper) BodyToObj(objPtr any) error {
 	_ = json.Unmarshal(r.Body, &objPtr)
 	return r.getError()
 }
@@ -167,8 +167,8 @@ func (r *ResponseWrapper) BodyToString() (string, error) {
 	return string(r.Body), r.getError()
 }
 
-func (r *ResponseWrapper) BodyToMap() (map[string]interface{}, error) {
-	var res map[string]interface{}
+func (r *ResponseWrapper) BodyToMap() (map[string]any, error) {
+	var res map[string]any
 	err := json.Unmarshal(r.Body, &res)
 	if err != nil {
 		return nil, err

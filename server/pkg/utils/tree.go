@@ -9,7 +9,7 @@ type INode interface {
 	// IsRoot 判断当前节点是否是顶层根节点
 	IsRoot() bool
 
-	SetChildren(childern interface{})
+	SetChildren(childern any)
 }
 
 type INodes []INode

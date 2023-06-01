@@ -69,20 +69,20 @@ func (r *Role) SaveResource(rc *req.Ctx) {
 
 	// 将,拼接的字符串进行切割
 	idsStr := strings.Split(form.ResourceIds, ",")
-	var newIds []interface{}
+	var newIds []any
 	for _, v := range idsStr {
 		id, _ := strconv.Atoi(v)
 		newIds = append(newIds, uint64(id))
 	}
 
-	// 将[]uint64转为[]interface{}
+	// 将[]uint64转为[]any
 	oIds := r.RoleApp.GetRoleResourceIds(uint64(form.Id))
-	var oldIds []interface{}
+	var oldIds []any
 	for _, v := range oIds {
 		oldIds = append(oldIds, v)
 	}
 
-	addIds, delIds, _ := utils.ArrayCompare(newIds, oldIds, func(i1, i2 interface{}) bool {
+	addIds, delIds, _ := utils.ArrayCompare(newIds, oldIds, func(i1, i2 any) bool {
 		return i1.(uint64) == i2.(uint64)
 	})
 

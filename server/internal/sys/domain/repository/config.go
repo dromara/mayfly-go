@@ -6,7 +6,7 @@ import (
 )
 
 type Config interface {
-	GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 
 	Insert(config *entity.Config)
 

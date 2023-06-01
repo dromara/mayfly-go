@@ -15,10 +15,10 @@ func newMachineRepo() repository.Machine {
 }
 
 // 分页获取机器信息列表
-func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	sql := "SELECT m.* FROM t_machine m WHERE 1 = 1 "
 
-	values := make([]interface{}, 0)
+	values := make([]any, 0)
 	if condition.Ip != "" {
 		sql = sql + " AND m.ip LIKE ?"
 		values = append(values, "%"+condition.Ip+"%")
@@ -40,7 +40,7 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 }
 
 func (m *machineRepoImpl) Count(condition *entity.MachineQuery) int64 {
-	where := make(map[string]interface{})
+	where := make(map[string]any)
 	if len(condition.TagIds) > 0 {
 		where["tag_id"] = condition.TagIds
 	}

@@ -26,7 +26,7 @@ type DbSqlExecReq struct {
 
 type DbSqlExecRes struct {
 	ColNames []string
-	Res      []map[string]interface{}
+	Res      []map[string]any
 }
 
 // 合并执行结果，主要用于执行多条sql使用
@@ -52,7 +52,7 @@ type DbSqlExec interface {
 	DeleteBy(condition *entity.DbSqlExec)
 
 	// 分页获取
-	GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 }
 
 func newDbSqlExecApp(dbExecSqlRepo repository.DbSqlExec) DbSqlExec {
@@ -151,7 +151,7 @@ func (d *dbSqlExecAppImpl) DeleteBy(condition *entity.DbSqlExec) {
 	d.dbSqlExecRepo.DeleteBy(condition)
 }
 
-func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return d.dbSqlExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -256,8 +256,8 @@ func doExec(sql string, dbInstance *DbInstance) (*DbSqlExecRes, error) {
 	if err != nil {
 		execRes = err.Error()
 	}
-	res := make([]map[string]interface{}, 0)
-	resData := make(map[string]interface{})
+	res := make([]map[string]any, 0)
+	resData := make(map[string]any)
 	resData["rowsAffected"] = rowsAffected
 	resData["sql"] = sql
 	resData["result"] = execRes

@@ -13,7 +13,7 @@ func newResourceRepo() repository.Resource {
 	return new(resourceRepoImpl)
 }
 
-func (r *resourceRepoImpl) GetResourceList(condition *entity.Resource, toEntity interface{}, orderBy ...string) {
+func (r *resourceRepoImpl) GetResourceList(condition *entity.Resource, toEntity any, orderBy ...string) {
 	model.ListByOrder(condition, toEntity, orderBy...)
 }
 
@@ -26,7 +26,7 @@ func (r *resourceRepoImpl) GetById(id uint64, cols ...string) *entity.Resource {
 	return res
 }
 
-func (r *resourceRepoImpl) GetByIdIn(ids []uint64, toEntity interface{}, orderBy ...string) {
+func (r *resourceRepoImpl) GetByIdIn(ids []uint64, toEntity any, orderBy ...string) {
 	model.GetByIdIn(new(entity.Resource), toEntity, ids, orderBy...)
 }
 
@@ -38,7 +38,7 @@ func (r *resourceRepoImpl) GetByCondition(condition *entity.Resource, cols ...st
 	return model.GetBy(condition, cols...)
 }
 
-func (r *resourceRepoImpl) GetAccountResources(accountId uint64, toEntity interface{}) {
+func (r *resourceRepoImpl) GetAccountResources(accountId uint64, toEntity any) {
 	sql := `SELECT
 	           m.id,
 	           m.pid,

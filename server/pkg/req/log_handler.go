@@ -81,7 +81,7 @@ func getLogMsg(rc *Ctx) string {
 	return msg
 }
 
-func getErrMsg(rc *Ctx, err interface{}) string {
+func getErrMsg(rc *Ctx, err any) string {
 	msg := rc.LogInfo.Description
 	if !utils.IsBlank(rc.ReqParam) {
 		msg = msg + fmt.Sprintf("\n--> %s", utils.ToString(rc.ReqParam))

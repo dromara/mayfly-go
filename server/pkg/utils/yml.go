@@ -8,7 +8,7 @@ import (
 )
 
 // 从指定路径加载yaml文件
-func LoadYml(path string, out interface{}) error {
+func LoadYml(path string, out any) error {
 	yamlFileBytes, readErr := os.ReadFile(path)
 	if readErr != nil {
 		return readErr
@@ -21,7 +21,7 @@ func LoadYml(path string, out interface{}) error {
 	return nil
 }
 
-func LoadYmlByString(yamlStr string, out interface{}) error {
+func LoadYmlByString(yamlStr string, out any) error {
 	// yaml解析
 	return yaml.Unmarshal([]byte(yamlStr), out)
 }

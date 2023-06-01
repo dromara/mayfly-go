@@ -55,7 +55,7 @@ func TestGetFieldNames(t *testing.T) {
 }
 
 func TestMaps2Structs(t *testing.T) {
-	mapInstance := make(map[string]interface{})
+	mapInstance := make(map[string]any)
 	mapInstance["Username"] = "liang637210"
 	mapInstance["Id"] = 28
 	mapInstance["CreateTime"] = time.Now()
@@ -66,7 +66,7 @@ func TestMaps2Structs(t *testing.T) {
 	mapInstance["Inner.Dest.Username"] = "inner dest uername"
 	mapInstance["Inner.Dest.Inner.Desc"] = "inner dest inner desc"
 
-	mapInstance2 := make(map[string]interface{})
+	mapInstance2 := make(map[string]any)
 	mapInstance2["Username"] = "liang6372102"
 	mapInstance2["Id"] = 282
 	mapInstance2["CreateTime"] = time.Now()
@@ -77,7 +77,7 @@ func TestMaps2Structs(t *testing.T) {
 	mapInstance2["Inner.Dest.Username"] = "inner dest uername2"
 	mapInstance2["Inner.Dest.Inner.Desc"] = "inner dest inner desc2"
 
-	maps := make([]map[string]interface{}, 2)
+	maps := make([]map[string]any, 2)
 	maps[0] = mapInstance
 	maps[1] = mapInstance2
 	res := new([]Src)
@@ -88,7 +88,7 @@ func TestMaps2Structs(t *testing.T) {
 }
 
 func TestMap2Struct(t *testing.T) {
-	mapInstance := make(map[string]interface{})
+	mapInstance := make(map[string]any)
 	mapInstance["Username"] = "liang637210"
 	mapInstance["Id"] = 12
 	mapInstance["CreateTime"] = time.Now()
@@ -99,7 +99,7 @@ func TestMap2Struct(t *testing.T) {
 	mapInstance["Inner.Dest.Username"] = "inner dest uername"
 	mapInstance["Inner.Dest.Inner.Desc"] = "inner dest inner desc"
 
-	//innerMap := make(map[string]interface{})
+	//innerMap := make(map[string]any)
 	//innerMap["Name"] = "Innername"
 
 	//a := new(Src)
@@ -149,8 +149,8 @@ func TestMap2Struct(t *testing.T) {
 	fmt.Printf("map2struct后得到的 struct 内容为:%v", s)
 }
 
-func getPrefixKeyMap(m map[string]interface{}) map[string]map[string]interface{} {
-	key2map := make(map[string]map[string]interface{})
+func getPrefixKeyMap(m map[string]any) map[string]map[string]any {
+	key2map := make(map[string]map[string]any)
 	for k, v := range m {
 		if !strings.Contains(k, ".") {
 			continue
@@ -159,7 +159,7 @@ func getPrefixKeyMap(m map[string]interface{}) map[string]map[string]interface{}
 		prefix := k[0:lastIndex]
 		m2 := key2map[prefix]
 		if m2 == nil {
-			key2map[prefix] = map[string]interface{}{k[lastIndex+1:]: v}
+			key2map[prefix] = map[string]any{k[lastIndex+1:]: v}
 		} else {
 			m2[k[lastIndex+1:]] = v
 		}

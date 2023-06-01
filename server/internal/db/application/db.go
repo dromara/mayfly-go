@@ -21,7 +21,7 @@ import (
 
 type Db interface {
 	// 分页获取
-	GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 
 	Count(condition *entity.DbQuery) int64
 
@@ -58,7 +58,7 @@ type dbAppImpl struct {
 }
 
 // 分页获取数据库信息列表
-func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return d.dbRepo.GetDbList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -108,19 +108,19 @@ func (d *dbAppImpl) Save(dbEntity *entity.Db) {
 	dbId := dbEntity.Id
 	old := d.GetById(dbId)
 
-	var oldDbs []interface{}
+	var oldDbs []any
 	for _, v := range strings.Split(old.Database, " ") {
 		// 关闭数据库连接
 		CloseDb(dbEntity.Id, v)
 		oldDbs = append(oldDbs, v)
 	}
 
-	var newDbs []interface{}
+	var newDbs []any
 	for _, v := range strings.Split(dbEntity.Database, " ") {
 		newDbs = append(newDbs, v)
 	}
 	// 比较新旧数据库列表，需要将移除的数据库相关联的信息删除
-	_, delDb, _ := utils.ArrayCompare(newDbs, oldDbs, func(i1, i2 interface{}) bool {
+	_, delDb, _ := utils.ArrayCompare(newDbs, oldDbs, func(i1, i2 any) bool {
 		return i1.(string) == i2.(string)
 	})
 	for _, v := range delDb {
@@ -295,7 +295,7 @@ func (d *DbInstance) Close() {
 // 客户端连接缓存，指定时间内没有访问则会被关闭, key为数据库实例id:数据库
 var dbCache = cache.NewTimedCache(constant.DbConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
-	OnEvicted(func(key interface{}, value interface{}) {
+	OnEvicted(func(key any, value any) {
 		global.Log.Info(fmt.Sprintf("删除db连接缓存 id = %s", key))
 		value.(*DbInstance).Close()
 	})
@@ -353,7 +353,7 @@ func GetDbConn(d *entity.Db, db string) (*sql.DB, error) {
 	return DB, nil
 }
 
-func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]interface{}, error) {
+func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]any, error) {
 	rows, err := db.Query(selectSql)
 	if err != nil {
 		return nil, nil, err
@@ -367,7 +367,7 @@ func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]interf
 	}()
 	colTypes, _ := rows.ColumnTypes()
 	// 这里表示一行填充数据
-	scans := make([]interface{}, len(colTypes))
+	scans := make([]any, len(colTypes))
 	// 这里表示一行所有列的值，用[]byte表示
 	vals := make([][]byte, len(colTypes))
 	// 这里scans引用vals，把数据填充到[]byte里
@@ -375,7 +375,7 @@ func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]interf
 		scans[k] = &vals[k]
 	}
 
-	result := make([]map[string]interface{}, 0)
+	result := make([]map[string]any, 0)
 	// 列名用于前端表头名称按照数据库与查询字段顺序显示
 	colNames := make([]string, 0)
 	// 是否第一次遍历，列名数组只需第一次遍历时加入
@@ -387,7 +387,7 @@ func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]interf
 			return nil, nil, err
 		}
 		// 每行数据
-		rowData := make(map[string]interface{})
+		rowData := make(map[string]any)
 		// 把vals中的数据复制到row中
 		for i, v := range vals {
 			colType := colTypes[i]
@@ -406,7 +406,7 @@ func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]interf
 }
 
 // 将查询的值转为对应列类型的实际值，不全部转为字符串
-func valueConvert(data []byte, colType *sql.ColumnType) interface{} {
+func valueConvert(data []byte, colType *sql.ColumnType) any {
 	if data == nil {
 		return nil
 	}
@@ -455,7 +455,7 @@ func valueConvert(data []byte, colType *sql.ColumnType) interface{} {
 }
 
 // 查询数据结果映射至struct。可参考sqlx库
-func Select2StructByDb(db *sql.DB, selectSql string, dest interface{}) error {
+func Select2StructByDb(db *sql.DB, selectSql string, dest any) error {
 	rows, err := db.Query(selectSql)
 	if err != nil {
 		return err

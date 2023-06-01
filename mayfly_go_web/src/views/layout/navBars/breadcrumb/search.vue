@@ -87,7 +87,7 @@ const getRoutes = (routes: any) => {
 // 当前菜单选中时
 const onHandleSelect = (item: any) => {
     let { path, redirect } = item;
-    if (item.meta.link && !item.meta.isIframe) window.open(item.meta.link);
+    if (item.meta.link && item.meta.linkType == 2) window.open(item.meta.link);
     else if (redirect) router.push(redirect);
     else router.push(path);
     closeSearch();

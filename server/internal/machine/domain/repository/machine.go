@@ -7,7 +7,7 @@ import (
 
 type Machine interface {
 	// 分页获取机器信息列表
-	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 
 	Count(condition *entity.MachineQuery) int64
 

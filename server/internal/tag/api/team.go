@@ -111,20 +111,20 @@ func (p *Team) SaveTags(rc *req.Ctx) {
 
 	teamId := form.TeamId
 
-	// 将[]uint64转为[]interface{}
+	// 将[]uint64转为[]any
 	oIds := p.TeamApp.ListTagIds(teamId)
-	var oldIds []interface{}
+	var oldIds []any
 	for _, v := range oIds {
 		oldIds = append(oldIds, v)
 	}
 
-	var newIds []interface{}
+	var newIds []any
 	for _, v := range form.TagIds {
 		newIds = append(newIds, v)
 	}
 
 	// 比较新旧两合集
-	addIds, delIds, _ := utils.ArrayCompare(newIds, oldIds, func(i1, i2 interface{}) bool {
+	addIds, delIds, _ := utils.ArrayCompare(newIds, oldIds, func(i1, i2 any) bool {
 		return i1.(uint64) == i2.(uint64)
 	})
 

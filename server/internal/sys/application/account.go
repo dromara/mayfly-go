@@ -13,7 +13,7 @@ import (
 type Account interface {
 	GetAccount(condition *entity.Account, cols ...string) error
 
-	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 
 	Create(account *entity.Account)
 
@@ -37,7 +37,7 @@ func (a *accountAppImpl) GetAccount(condition *entity.Account, cols ...string) e
 	return a.accountRepo.GetAccount(condition, cols...)
 }
 
-func (a *accountAppImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (a *accountAppImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return a.accountRepo.GetPageList(condition, pageParam, toEntity)
 }
 

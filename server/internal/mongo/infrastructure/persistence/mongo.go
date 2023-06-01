@@ -17,14 +17,14 @@ func newMongoRepo() repository.Mongo {
 }
 
 // 分页获取数据库信息列表
-func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	sql := "SELECT d.* FROM t_mongo d WHERE 1=1  "
 
 	if len(condition.TagIds) > 0 {
 		sql = sql + " AND d.tag_id IN " + fmt.Sprintf("(%s)", strings.Join(utils.NumberArr2StrArr(condition.TagIds), ","))
 	}
 
-	values := make([]interface{}, 0)
+	values := make([]any, 0)
 	if condition.TagPathLike != "" {
 		values = append(values, condition.TagPathLike+"%")
 		sql = sql + " AND d.tag_path LIKE ?"
@@ -34,7 +34,7 @@ func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, pageParam *model.P
 }
 
 func (d *mongoRepoImpl) Count(condition *entity.MongoQuery) int64 {
-	where := make(map[string]interface{})
+	where := make(map[string]any)
 	if len(condition.TagIds) > 0 {
 		where["tag_id"] = condition.TagIds
 	}

@@ -23,7 +23,7 @@ func (r *Redis) Hscan(rc *req.Ctx) {
 	keySize, err := cmdable.HLen(contextTodo, key).Result()
 	biz.ErrIsNilAppendErr(err, "hlen err: %s")
 
-	rc.ResData = map[string]interface{}{
+	rc.ResData = map[string]any{
 		"keys":    keys,
 		"cursor":  nextCursor,
 		"keySize": keySize,

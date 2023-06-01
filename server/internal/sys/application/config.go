@@ -13,7 +13,7 @@ import (
 const SysConfigKeyPrefix = "sys:config:"
 
 type Config interface {
-	GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 
 	Save(config *entity.Config)
 
@@ -31,7 +31,7 @@ type configAppImpl struct {
 	configRepo repository.Config
 }
 
-func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return a.configRepo.GetPageList(condition, pageParam, toEntity)
 }
 

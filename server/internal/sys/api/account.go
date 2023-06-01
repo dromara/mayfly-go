@@ -57,7 +57,7 @@ func (a *Account) Login(rc *req.Ctx) {
 	// 保存登录消息
 	go a.saveLogin(account, clientIp)
 
-	rc.ResData = map[string]interface{}{
+	rc.ResData = map[string]any{
 		"token":         req.CreateToken(account.Id, account.Username),
 		"name":          account.Name,
 		"username":      account.Username,
@@ -84,7 +84,7 @@ func (a *Account) GetPermissions(rc *req.Ctx) {
 	}
 	// 保存该账号的权限codes
 	req.SavePermissionCodes(account.Id, permissions)
-	rc.ResData = map[string]interface{}{
+	rc.ResData = map[string]any{
 		"menus":       menus.ToTrees(0),
 		"permissions": permissions,
 	}
@@ -268,20 +268,20 @@ func (a *Account) SaveRoles(rc *req.Ctx) {
 
 	// 将,拼接的字符串进行切割
 	idsStr := strings.Split(form.RoleIds, ",")
-	var newIds []interface{}
+	var newIds []any
 	for _, v := range idsStr {
 		id, _ := strconv.Atoi(v)
 		newIds = append(newIds, uint64(id))
 	}
 
-	// 将[]uint64转为[]interface{}
+	// 将[]uint64转为[]any
 	oIds := a.RoleApp.GetAccountRoleIds(uint64(form.Id))
-	var oldIds []interface{}
+	var oldIds []any
 	for _, v := range oIds {
 		oldIds = append(oldIds, v)
 	}
 
-	addIds, delIds, _ := utils.ArrayCompare(newIds, oldIds, func(i1, i2 interface{}) bool {
+	addIds, delIds, _ := utils.ArrayCompare(newIds, oldIds, func(i1, i2 any) bool {
 		return i1.(uint64) == i2.(uint64)
 	})
 

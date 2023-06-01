@@ -23,7 +23,7 @@ import (
 
 type Mongo interface {
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 
 	Count(condition *entity.MongoQuery) int64
 
@@ -54,7 +54,7 @@ type mongoAppImpl struct {
 }
 
 // 分页获取数据库信息列表
-func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return d.mongoRepo.GetList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -102,7 +102,7 @@ func (d *mongoAppImpl) GetMongoCli(id uint64) *mongo.Client {
 // mongo客户端连接缓存，指定时间内没有访问则会被关闭
 var mongoCliCache = cache.NewTimedCache(constant.MongoConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
-	OnEvicted(func(key interface{}, value interface{}) {
+	OnEvicted(func(key any, value any) {
 		global.Log.Info("删除mongo连接缓存: id = ", key)
 		value.(*MongoInstance).Close()
 	})
@@ -122,7 +122,7 @@ func init() {
 
 // 获取mongo的连接实例
 func GetMongoInstance(mongoId uint64, getMongoEntity func(uint64) *entity.Mongo) (*MongoInstance, error) {
-	mi, err := mongoCliCache.ComputeIfAbsent(mongoId, func(_ interface{}) (interface{}, error) {
+	mi, err := mongoCliCache.ComputeIfAbsent(mongoId, func(_ any) (any, error) {
 		c, err := connect(getMongoEntity(mongoId))
 		if err != nil {
 			return nil, err

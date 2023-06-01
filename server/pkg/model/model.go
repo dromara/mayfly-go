@@ -67,13 +67,13 @@ func Tx(funcs ...func(db *gorm.DB) error) (err error) {
 //
 // 若error不为nil则为不存在该记录
 // @param model  数据库映射实体模型
-func GetById(model interface{}, id uint64, cols ...string) error {
+func GetById(model any, id uint64, cols ...string) error {
 	return global.Db.Select(cols).Where("id = ?", id).First(model).Error
 }
 
 // 根据map条件查询列表，map中的值如果为数组，则使用in查询
 // @param model  数据库映射实体模型
-func GetByIdIn(model interface{}, list interface{}, ids []uint64, orderBy ...string) {
+func GetByIdIn(model any, list any, ids []uint64, orderBy ...string) {
 	var orderByStr string
 	if orderBy == nil {
 		orderByStr = "id desc"
@@ -84,7 +84,7 @@ func GetByIdIn(model interface{}, list interface{}, ids []uint64, orderBy ...str
 }
 
 // 根据map指定条件查询列表
-func SelectByMap(model interface{}, list interface{}, where map[string]interface{}, orderBy ...string) {
+func SelectByMap(model any, list any, where map[string]any, orderBy ...string) {
 	var orderByStr string
 	if orderBy == nil {
 		orderByStr = "id desc"
@@ -95,7 +95,7 @@ func SelectByMap(model interface{}, list interface{}, where map[string]interface
 }
 
 // 根据model指定条件统计数量
-func CountBy(model interface{}) int64 {
+func CountBy(model any) int64 {
 	var count int64
 	global.Db.Model(model).Where(model).Count(&count)
 	return count
@@ -104,7 +104,7 @@ func CountBy(model interface{}) int64 {
 // 根据map为条件统计数量，map中的值如果为数组，则使用in查询
 // @param model  数据库映射实体模型
 // @param where  条件map
-func CountByMap(model interface{}, where map[string]interface{}) int64 {
+func CountByMap(model any, where map[string]any) int64 {
 	var count int64
 	global.Db.Model(model).Where(where).Count(&count)
 	return count
@@ -119,32 +119,32 @@ func CountBySql(sql string) int64 {
 
 // 根据id更新model，更新字段为model中不为空的值，即int类型不为0，ptr类型不为nil这类字段值
 // @param model  数据库映射实体模型
-func UpdateById(model interface{}) error {
+func UpdateById(model any) error {
 	return global.Db.Model(model).Updates(model).Error
 }
 
 // 根据id删除model
 // @param model  数据库映射实体模型
-func DeleteById(model interface{}, id uint64) error {
+func DeleteById(model any, id uint64) error {
 	return global.Db.Delete(model, "id = ?", id).Error
 }
 
 // 根据条件删除
 // @param model  数据库映射实体模型
-func DeleteByCondition(model interface{}) error {
+func DeleteByCondition(model any) error {
 	return global.Db.Where(model).Delete(model).Error
 }
 
 // 插入model
 // @param model  数据库映射实体模型
-func Insert(model interface{}) error {
+func Insert(model any) error {
 	return global.Db.Create(model).Error
 }
 
 // 获取满足model中不为空的字段值条件的所有数据.
 //
 // @param list为数组类型 如 var users *[]User，可指定为非model结构体，即只包含需要返回的字段结构体
-func ListBy(model interface{}, list interface{}, cols ...string) {
+func ListBy(model any, list any, cols ...string) {
 	global.Db.Model(model).Select(cols).Where(model).Order("id desc").Find(list)
 }
 
@@ -152,7 +152,7 @@ func ListBy(model interface{}, list interface{}, cols ...string) {
 //
 // @param list为数组类型 如 var users *[]User，可指定为非model结构体
 // @param model  数据库映射实体模型
-func ListByOrder(model interface{}, list interface{}, order ...string) {
+func ListByOrder(model any, list any, order ...string) {
 	var orderByStr string
 	if order == nil {
 		orderByStr = "id desc"
@@ -166,7 +166,7 @@ func ListByOrder(model interface{}, list interface{}, order ...string) {
 //
 // 若 error不为nil，则为不存在该记录
 // @param model  数据库映射实体模型
-func GetBy(model interface{}, cols ...string) error {
+func GetBy(model any, cols ...string) error {
 	return global.Db.Select(cols).Where(model).First(model).Error
 }
 
@@ -175,12 +175,12 @@ func GetBy(model interface{}, cols ...string) error {
 //	@param toModel  需要查询的字段
 //
 // 若 error不为nil，则为不存在该记录
-func GetByConditionTo(conditionModel interface{}, toModel interface{}) error {
+func GetByConditionTo(conditionModel any, toModel any) error {
 	return global.Db.Model(conditionModel).Where(conditionModel).First(toModel).Error
 }
 
 // 获取分页结果
-func GetPage(pageParam *PageParam, model interface{}, conditionModel interface{}, toModels interface{}, orderBy ...string) *PageResult {
+func GetPage(pageParam *PageParam, model any, conditionModel any, toModels any, orderBy ...string) *PageResult {
 	var count int64
 	err := global.Db.Model(model).Where(conditionModel).Count(&count).Error
 	biz.ErrIsNilAppendErr(err, " 查询错误：%s")
@@ -202,7 +202,7 @@ func GetPage(pageParam *PageParam, model interface{}, conditionModel interface{}
 }
 
 // 根据sql获取分页对象
-func GetPageBySql(sql string, param *PageParam, toModel interface{}, args ...interface{}) *PageResult {
+func GetPageBySql(sql string, param *PageParam, toModel any, args ...any) *PageResult {
 	db := global.Db
 	selectIndex := strings.Index(sql, "SELECT ") + 7
 	fromIndex := strings.Index(sql, " FROM")
@@ -222,12 +222,12 @@ func GetPageBySql(sql string, param *PageParam, toModel interface{}, args ...int
 	return &PageResult{Total: int64(count), List: toModel}
 }
 
-func GetListBySql(sql string, params ...interface{}) []map[string]interface{} {
-	var maps []map[string]interface{}
+func GetListBySql(sql string, params ...any) []map[string]any {
+	var maps []map[string]any
 	global.Db.Raw(sql, params...).Scan(&maps)
 	return maps
 }
 
-func GetListBySql2Model(sql string, toEntity interface{}, params ...interface{}) error {
+func GetListBySql2Model(sql string, toEntity any, params ...any) error {
 	return global.Db.Raw(sql, params...).Find(toEntity).Error
 }

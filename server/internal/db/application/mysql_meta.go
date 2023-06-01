@@ -156,6 +156,6 @@ func (mm *MysqlMetadata) GetCreateTableDdl(tableName string) string {
 	return res[0]["Create Table"].(string)
 }
 
-func (mm *MysqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]interface{}, error) {
+func (mm *MysqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {
 	return mm.di.SelectData(fmt.Sprintf("SELECT * FROM %s LIMIT %d, %d", tableName, (pageNum-1)*pageSize, pageSize))
 }

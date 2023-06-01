@@ -6,7 +6,7 @@ import (
 )
 
 type Msg interface {
-	GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 
 	Insert(msg *entity.Msg)
 }

@@ -8,11 +8,11 @@ import (
 type TeamMember interface {
 
 	// 获取项目成员列表
-	ListMemeber(condition *entity.TeamMember, toEntity interface{}, orderBy ...string)
+	ListMemeber(condition *entity.TeamMember, toEntity any, orderBy ...string)
 
 	Save(mp *entity.TeamMember)
 
-	GetPageList(condition *entity.TeamMember, pageParam *model.PageParam, toEntity interface{}) *model.PageResult
+	GetPageList(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) *model.PageResult
 
 	DeleteBy(condition *entity.TeamMember)
 

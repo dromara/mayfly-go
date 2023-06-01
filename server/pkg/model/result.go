@@ -13,9 +13,9 @@ const (
 
 // 统一返回结果结构体
 type Result struct {
-	Code int16       `json:"code"`
-	Msg  string      `json:"msg"`
-	Data interface{} `json:"data"`
+	Code int16  `json:"code"`
+	Msg  string `json:"msg"`
+	Data any    `json:"data"`
 }
 
 // 将Result转为json字符串
@@ -34,7 +34,7 @@ func (r *Result) IsSuccess() bool {
 
 // 返回成功状态的Result
 // @param data 成功附带的数据消息
-func Success(data interface{}) *Result {
+func Success(data any) *Result {
 	return &Result{Code: SuccessCode, Msg: SuccessMsg, Data: data}
 }
 

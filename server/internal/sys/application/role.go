@@ -8,7 +8,7 @@ import (
 )
 
 type Role interface {
-	GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
 
 	SaveRole(role *entity.Role)
 
@@ -16,7 +16,7 @@ type Role interface {
 
 	GetRoleResourceIds(roleId uint64) []uint64
 
-	GetRoleResources(roleId uint64, toEntity interface{})
+	GetRoleResources(roleId uint64, toEntity any)
 
 	// 保存角色资源关联记录
 	SaveRoleResource(rr *entity.RoleResource)
@@ -32,7 +32,7 @@ type Role interface {
 
 	DeleteAccountRole(accountId, roleId uint64)
 
-	GetAccountRoles(accountId uint64, toEntity interface{})
+	GetAccountRoles(accountId uint64, toEntity any)
 }
 
 func newRoleApp(roleRepo repository.Role) Role {
@@ -45,7 +45,7 @@ type roleAppImpl struct {
 	roleRepo repository.Role
 }
 
-func (m *roleAppImpl) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *roleAppImpl) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return m.roleRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -71,7 +71,7 @@ func (m *roleAppImpl) GetRoleResourceIds(roleId uint64) []uint64 {
 	return m.roleRepo.GetRoleResourceIds(roleId)
 }
 
-func (m *roleAppImpl) GetRoleResources(roleId uint64, toEntity interface{}) {
+func (m *roleAppImpl) GetRoleResources(roleId uint64, toEntity any) {
 	m.roleRepo.GetRoleResources(roleId, toEntity)
 }
 
@@ -95,6 +95,6 @@ func (m *roleAppImpl) DeleteAccountRole(accountId, roleId uint64) {
 	m.roleRepo.DeleteAccountRole(accountId, roleId)
 }
 
-func (m *roleAppImpl) GetAccountRoles(accountId uint64, toEntity interface{}) {
+func (m *roleAppImpl) GetAccountRoles(accountId uint64, toEntity any) {
 	m.roleRepo.GetAccountRoles(accountId, toEntity)
 }

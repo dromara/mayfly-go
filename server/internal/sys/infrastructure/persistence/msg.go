@@ -13,7 +13,7 @@ func newMsgRepo() repository.Msg {
 	return new(msgRepoImpl)
 }
 
-func (m *msgRepoImpl) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity interface{}, orderBy ...string) *model.PageResult {
+func (m *msgRepoImpl) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
 	return model.GetPage(pageParam, condition, condition, toEntity)
 }
 

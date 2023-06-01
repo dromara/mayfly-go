@@ -6,8 +6,8 @@ import (
 
 // 数组比较
 // 依次返回，新增值，删除值，以及不变值
-func ArrayCompare(newArr []interface{}, oldArr []interface{}, compareFun func(interface{}, interface{}) bool) ([]interface{}, []interface{}, []interface{}) {
-	var unmodifierValue []interface{}
+func ArrayCompare(newArr []any, oldArr []any, compareFun func(any, any) bool) ([]any, []any, []any) {
+	var unmodifierValue []any
 	ni, oi := 0, 0
 	for {
 		if ni >= len(newArr) {
