@@ -219,13 +219,14 @@ func getRedisSentinelCient(re *entity.Redis, db int) *RedisInstance {
 	// sentinel模式host为 masterName=host:port,host:port
 	masterNameAndHosts := strings.Split(re.Host, "=")
 	sentinelOptions := &redis.FailoverOptions{
-		MasterName:    masterNameAndHosts[0],
-		SentinelAddrs: strings.Split(masterNameAndHosts[1], ","),
-		Password:      re.Password, // no password set
-		DB:            db,          // use default DB
-		DialTimeout:   8 * time.Second,
-		ReadTimeout:   -1, // Disable timeouts, because SSH does not support deadlines.
-		WriteTimeout:  -1,
+		MasterName:       masterNameAndHosts[0],
+		SentinelAddrs:    strings.Split(masterNameAndHosts[1], ","),
+		Password:         re.Password, // no password set
+		SentinelPassword: re.Password, // 哨兵节点密码需与redis节点密码一致
+		DB:               db,          // use default DB
+		DialTimeout:      8 * time.Second,
+		ReadTimeout:      -1, // Disable timeouts, because SSH does not support deadlines.
+		WriteTimeout:     -1,
 	}
 	if re.SshTunnelMachineId > 0 {
 		sentinelOptions.Dialer = getRedisDialer(re.SshTunnelMachineId)
