@@ -19,37 +19,37 @@ type MachineForm struct {
 }
 
 type MachineRunForm struct {
-	MachineId int64  `binding:"required"`
-	Cmd       string `binding:"required"`
+	MachineId int64  `json:"machineId" binding:"required"`
+	Cmd       string `json:"cmd" binding:"required"`
 }
 
 type MachineFileForm struct {
-	Id        uint64
-	Name      string `binding:"required"`
-	MachineId uint64 `binding:"required"`
-	Type      int    `binding:"required"`
-	Path      string `binding:"required"`
+	Id        uint64 `json:"id"`
+	Name      string `json:"name" binding:"required"`
+	MachineId uint64 `json:"machineId" binding:"required"`
+	Type      int    `json:"type" binding:"required"`
+	Path      string `json:"path" binding:"required"`
 }
 
 type MachineScriptForm struct {
-	Id          uint64
-	Name        string `binding:"required"`
-	MachineId   uint64 `binding:"required"`
-	Type        int    `binding:"required"`
-	Description string `binding:"required"`
-	Params      string
-	Script      string `binding:"required"`
+	Id          uint64 `json:"id"`
+	Name        string `json:"name" binding:"required"`
+	MachineId   uint64 `json:"machineId" binding:"required"`
+	Type        int    `json:"type" binding:"required"`
+	Description string `json:"description" binding:"required"`
+	Params      string `json:"params"`
+	Script      string `json:"script" binding:"required"`
 }
 
 type MachineCreateFileForm struct {
-	Path string `binding:"required"`
-	Type string `binding:"required"`
+	Path string `json:"path" binding:"required"`
+	Type string `json:"type" binding:"required"`
 }
 
 type MachineFileUpdateForm struct {
-	Content string `binding:"required"`
-	Id      uint64 `binding:"required"`
-	Path    string `binding:"required"`
+	Content string `json:"content" binding:"required"`
+	Id      uint64 `json:"id" binding:"required"`
+	Path    string `json:"path" binding:"required"`
 }
 
 // 授权凭证

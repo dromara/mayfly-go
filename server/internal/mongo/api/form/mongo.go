@@ -1,7 +1,7 @@
 package form
 
 type Mongo struct {
-	Id                 uint64
+	Id                 uint64 `json:"id"`
 	Uri                string `binding:"required" json:"uri"`
 	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
 	Name               string `binding:"required" json:"name"`
@@ -23,8 +23,8 @@ type MongoRunCommand struct {
 type MongoFindCommand struct {
 	MongoCommand
 	Sort  map[string]any `json:"sort"`
-	Skip  int64
-	Limit int64
+	Skip  int64          `json:"skip"`
+	Limit int64          `json:"limit"`
 }
 
 type MongoUpdateByIdCommand struct {

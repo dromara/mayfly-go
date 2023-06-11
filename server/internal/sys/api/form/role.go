@@ -2,21 +2,21 @@ package form
 
 // 分配角色资源表单信息
 type RoleResourceForm struct {
-	Id          int
-	ResourceIds string
+	Id          int    `json:"id"`
+	ResourceIds string `json:"resourceIds"`
 }
 
 // 保存角色信息表单
 type RoleForm struct {
-	Id     int
+	Id     int    `json:"id"`
 	Status int    `json:"status"` // 1：可用；-1：不可用
-	Name   string `binding:"required"`
-	Code   string `binding:"required"`
+	Name   string `json:"name" binding:"required"`
+	Code   string `json:"code" binding:"required"`
 	Remark string `json:"remark"`
 }
 
 // 账号分配角色表单
 type AccountRoleForm struct {
-	Id      int `binding:"required"`
-	RoleIds string
+	Id      int    `json:"id" binding:"required"`
+	RoleIds string `json:"roleIds"`
 }

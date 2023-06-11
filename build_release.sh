@@ -115,7 +115,7 @@ function buildxDocker() {
     echo_yellow "-------------------docker buildx构建镜像开始-------------------"
     imageVersion=$1
     cd ${server_folder}
-    imageName="mayflygo/mayfly-go:${imageVersion}"
+    imageName="ccr.ccs.tencentyun.com/mayfly/mayfly-go:${imageVersion}"
     docker buildx build --push --platform linux/amd64,linux/arm64 -t "${imageName}" .
     echo_green "docker多版本镜像构建完成->[${imageName}]"
     echo_yellow "-------------------docker buildx构建镜像结束-------------------"

@@ -1,7 +1,7 @@
 package form
 
 type DbForm struct {
-	Id                 uint64
+	Id                 uint64 `json:"id"`
 	Name               string `binding:"required" json:"name"`
 	Type               string `binding:"required" json:"type"` // 类型，mysql oracle等
 	Host               string `binding:"required" json:"host"`
@@ -17,10 +17,10 @@ type DbForm struct {
 }
 
 type DbSqlSaveForm struct {
-	Name string `binding:"required"`
-	Sql  string `binding:"required"`
-	Type int    `binding:"required"`
-	Db   string `binding:"required"`
+	Name string `json:"name" binding:"required"`
+	Sql  string `json:"sql" binding:"required"`
+	Type int    `json:"type" binding:"required"`
+	Db   string `json:"db" binding:"required"`
 }
 
 // 数据库SQL执行表单

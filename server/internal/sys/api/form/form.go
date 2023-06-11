@@ -4,6 +4,6 @@ package form
 type LoginForm struct {
 	Username string `json:"username" binding:"required"`
 	Password string `binding:"required"`
-	Captcha  string
-	Cid      string
+	Captcha  string `json:"captcha"`
+	Cid      string `json:"cid"`
 }

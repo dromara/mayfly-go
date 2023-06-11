@@ -30,7 +30,7 @@
     "vue": "^3.3.4",
     "vue-clipboard3": "^1.0.1",
     "vue-router": "^4.2.2",
-    "xterm": "^5.1.0",
+    "xterm": "^5.2.1",
     "xterm-addon-fit": "^0.7.0"
   },
   "devDependencies": {

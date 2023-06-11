@@ -1,9 +1,9 @@
 package form
 
 type Redis struct {
-	Id                 uint64
+	Id                 uint64 `json:"id"`
 	Name               string `json:"name"`
-	Host               string `binding:"required" json:"host"`
+	Host               string `json:"host" binding:"required"`
 	Password           string `json:"password"`
 	Mode               string `json:"mode"`
 	Db                 string `json:"db"`
@@ -25,7 +25,7 @@ type Expire struct {
 
 type KeyInfo struct {
 	Key   string `binding:"required" json:"key"`
-	Timed int64
+	Timed int64  `json:"timed"`
 }
 
 type StringValue struct {
@@ -51,8 +51,8 @@ type ListValue struct {
 // list lset命令参数入参
 type ListSetValue struct {
 	Key   string `binding:"required" json:"key"`
-	Index int64
-	Value any `binding:"required" json:"value"`
+	Index int64  `json:"index"`
+	Value any    `binding:"required" json:"value"`
 }
 
 type RedisScanForm struct {

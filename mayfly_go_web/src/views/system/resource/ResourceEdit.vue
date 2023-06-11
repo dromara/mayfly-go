@@ -24,7 +24,7 @@
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
                         <el-form-item class="w100" label="序号" prop="weight" required>
-                            <el-input v-model.trim="form.weight" type="number" placeholder="请输入序号"></el-input>
+                            <el-input v-model.number="form.weight" type="number" placeholder="请输入序号"></el-input>
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
@@ -233,7 +233,6 @@ const btnOk = () => {
     } else {
         submitForm.meta = null as any;
     }
-    submitForm.weight = parseInt(submitForm.weight as any);
     menuForm.value.validate((valid: any) => {
         if (valid) {
             resourceApi.save.request(submitForm).then(() => {
