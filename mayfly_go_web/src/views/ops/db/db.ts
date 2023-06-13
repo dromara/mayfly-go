@@ -30,6 +30,9 @@ export class DbInst {
      */
     dbs: Map<string, Db> = new Map()
 
+    /** 数据库schema，多个用空格隔开 */
+    databases: string
+
     /**
      * 默认查询分页数量
      */
@@ -124,7 +127,7 @@ export class DbInst {
 
     /**
     * 执行sql
-    * 
+    *
     * @param sql sql
     * @param remark 执行备注
     */
@@ -186,7 +189,7 @@ export class DbInst {
         return `DELETE FROM ${table} WHERE ${primaryKeyColumnName} IN (${ids})`;
     }
 
-    /* 
+    /*
     * 弹框提示是否执行sql
     */
     promptExeSql = (db: string, sql: string, cancelFunc: any = null, successFunc: any = null) => {
@@ -216,6 +219,7 @@ export class DbInst {
         dbInst.id = inst.id;
         dbInst.name = inst.name;
         dbInst.type = inst.type;
+        dbInst.databases = inst.databases;
 
         dbInstCache.set(dbInst.id, dbInst);
         return dbInst;
@@ -283,14 +287,14 @@ export class DbInst {
     /**
      * 判断字段类型是否为数字类型
      * @param columnType 字段类型
-     * @returns 
+     * @returns
      */
     static isNumber(columnType: string) {
         return columnType.match(/int|double|float|nubmer|decimal|byte|bit/gi);
     };
 
     /**
-     * 
+     *
      * @param str 字符串
      * @param tableData 表数据
      * @param flag 标志

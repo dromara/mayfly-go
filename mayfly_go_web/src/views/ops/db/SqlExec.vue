@@ -2,7 +2,7 @@
     <div>
         <el-row>
             <el-col :span="4">
-                <el-button type="primary" icon="plus" @click="addQueryTab({ id: nowDbInst.id }, state.db)"
+                <el-button type="primary" icon="plus" @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases }, state.db)"
                     size="small">新建查询</el-button>
             </el-col>
             <el-col :span="20" v-if="state.db">
@@ -245,8 +245,8 @@ const nodeClick = async (data: any) => {
     const nodeKey = data.key;
     const dataType = data.type;
     // 点击数据库，修改当前数据库信息
-    if (dataType === NodeType.Db || dataType === NodeType.SqlMenu || dataType === NodeType.TableMenu) {
-        changeSchema({ id: params.id, name: params.name, type: params.type, tagPath: params.tagPath }, params.db);
+    if (dataType === NodeType.Db || dataType === NodeType.SqlMenu || dataType === NodeType.TableMenu || dataType === NodeType.DbInst) {
+        changeSchema({ id: params.id, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.database}, params.db);
         return;
     }
 
@@ -492,7 +492,7 @@ const registerSqlCompletionItemProvider = () => {
             const lastToken = tokens[tokens.length - 1].toLowerCase()
             const secondToken = tokens.length >2 && tokens[tokens.length - 2].toLowerCase() || ''
 
-            const dbs = nowTab.params && nowTab.params.dbs;
+            const dbs = nowTab.params?.dbs?.split(' ') || [];
             // console.log("光标前文本：=>" + textBeforePointerMulti)
             // console.log("最后输入的：=>" + lastToken)
             if (lastToken.indexOf('.') > -1 || secondToken.indexOf('.') > -1) {
