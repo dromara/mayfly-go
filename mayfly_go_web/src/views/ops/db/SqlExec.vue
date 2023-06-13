@@ -440,7 +440,7 @@ const reloadTables = (nodeKey: string) => {
 const registerSqlCompletionItemProvider = () => {
     // 参考 https://microsoft.github.io/monaco-editor/playground.html#extending-language-services-completion-provider-example
     self.completionItemProvider = self.completionItemProvider || monaco.languages.registerCompletionItemProvider('sql', {
-        triggerCharacters: ['.'],
+        triggerCharacters: ['.', ' '],
         provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
             let word = model.getWordUntilPosition(position);
             const nowTab = state.tabs.get(state.activeName);
@@ -495,6 +495,33 @@ const registerSqlCompletionItemProvider = () => {
             const dbs = nowTab.params?.dbs?.split(' ') || [];
             // console.log("光标前文本：=>" + textBeforePointerMulti)
             // console.log("最后输入的：=>" + lastToken)
+
+            let suggestions: languages.CompletionItem[] = []
+            const tables = await dbInst.loadTables(db);
+
+            async function hintTableColumns (tableName, db) {
+              let dbHits = await dbInst.loadDbHints(db)
+              let columns = dbHits[tableName]
+              let suggestions: languages.CompletionItem[] = []
+              columns?.forEach((a: string, index: any) => {
+                // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
+                const nameAndComment = a.split("  ")
+                const fieldName = nameAndComment[0]
+                suggestions.push({
+                  label: {
+                    label: a,
+                    description: 'column'
+                  },
+                  kind: monaco.languages.CompletionItemKind.Property,
+                  detail: '', // 不显示detail, 否则选中时备注等会被遮挡
+                  insertText: fieldName + ' ', // create_time
+                  range,
+                  sortText: 100 + index + '' // 使用表字段声明顺序排序,排序需为字符串类型
+                });
+              })
+              return suggestions
+            }
+
             if (lastToken.indexOf('.') > -1 || secondToken.indexOf('.') > -1) {
                 // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
                 let str = lastToken.substring(0, lastToken.lastIndexOf('.'))
@@ -503,7 +530,6 @@ const registerSqlCompletionItemProvider = () => {
                 }
 
                 // 库.表名联想
-
                 if (dbs && dbs.filter((a: any) => a === str)?.length > 0) {
                     let tables = await dbInst.loadTables(str)
                     let suggestions: languages.CompletionItem[] = []
@@ -526,36 +552,43 @@ const registerSqlCompletionItemProvider = () => {
                 // 表别名.表字段联想
                 let tableInfo = getTableByAlias(sql, db, str)
                 if (tableInfo.tableName) {
-                    let table = tableInfo.tableName
+                    let tableName = tableInfo.tableName
                     let db = tableInfo.dbName;
                     // 取出表名并提示
-                    let dbHits = await dbInst.loadDbHints(db)
-                    let columns = dbHits[table]
-                    let suggestions: languages.CompletionItem[] = []
-                    columns?.forEach((a: string, index: any) => {
-                        // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
-                        const nameAndComment = a.split("  ")
-                        const fieldName = nameAndComment[0]
-                        suggestions.push({
-                            label: {
-                                label: a,
-                                description: 'column'
-                            },
-                            kind: monaco.languages.CompletionItemKind.Property,
-                            detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                            insertText: fieldName + ' ', // create_time
-                            range,
-                            sortText: 100 + index + '' // 使用表字段声明顺序排序,排序需为字符串类型
-                        });
-                    })
-                    return { suggestions }
+                    let suggestions = await hintTableColumns(tableName, db);
+                    if(suggestions.length > 0){
+                        return { suggestions };
+                    }
                 }
                 return { suggestions: [] }
+            }else{
+              // 如果sql里含有表名，则提示表字段
+              let mat = textBeforePointerMulti.match(/from\n*\s+\n*(\w+)\n*\s+\n*/i)
+              if(mat && mat.length > 1){
+                  let tableName = mat[1]
+                  // 取出表名并提示
+                  let suggestions = await hintTableColumns(tableName, db);
+                  if(suggestions.length > 0){
+                      return { suggestions };
+                  }
+              }
             }
 
-            // 库名联想
+            // 表名联想
+            tables.forEach((tableMeta: any) => {
+                const {tableName, tableComment} = tableMeta;
+                suggestions.push({
+                    label: {
+                        label: tableName + ' - ' + tableComment,
+                        description: 'table'
+                    },
+                    kind: monaco.languages.CompletionItemKind.File,
+                    detail: tableComment,
+                    insertText: tableName + ' ',
+                    range
+                });
+            });
 
-            let suggestions: languages.CompletionItem[] = []
             // mysql关键字
             sqlLanguage.keywords.forEach((item: any) => {
                 suggestions.push({
@@ -606,7 +639,7 @@ const registerSqlCompletionItemProvider = () => {
             })
 
             // 库名提示
-            if (dbs) {
+            if (dbs && dbs.length > 0) {
                 dbs.forEach((a: any) => {
                     suggestions.push({
                         label: {
@@ -619,22 +652,6 @@ const registerSqlCompletionItemProvider = () => {
                     });
                 })
             }
-
-            const tables = await dbInst.loadTables(db);
-            // 表名联想
-            tables.forEach((tableMeta: any) => {
-                const { tableName, tableComment } = tableMeta
-                suggestions.push({
-                    label: {
-                        label: tableName + ' - ' + tableComment,
-                        description: 'table'
-                    },
-                    kind: monaco.languages.CompletionItemKind.File,
-                    detail: tableComment,
-                    insertText: tableName + ' ',
-                    range
-                });
-            })
 
             // 默认提示
             return {
