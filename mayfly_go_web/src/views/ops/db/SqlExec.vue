@@ -296,9 +296,9 @@ const getTables = async (params: any) => {
 
 /**
  * 加载用户保存的sql脚本
- * 
- * @param inst 
- * @param schema 
+ *
+ * @param inst
+ * @param schema
  */
 const loadSqls = async (id: any, db: string, dbs: any) => {
     const sqls = await dbApi.getSqlNames.request({ id: id, db: db, })
@@ -490,14 +490,18 @@ const registerSqlCompletionItemProvider = () => {
             // // const nextToken = nextTokens[0].toLowerCase()
             const tokens = textBeforePointer.trim().split(/\s+/)
             const lastToken = tokens[tokens.length - 1].toLowerCase()
+            const secondToken = tokens.length >2 && tokens[tokens.length - 2].toLowerCase() || ''
 
             const dbs = nowTab.params && nowTab.params.dbs;
             // console.log("光标前文本：=>" + textBeforePointerMulti)
-
             // console.log("最后输入的：=>" + lastToken)
-            if (lastToken.endsWith('.')) {
+            if (lastToken.indexOf('.') > -1 || secondToken.indexOf('.') > -1) {
                 // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
                 let str = lastToken.substring(0, lastToken.lastIndexOf('.'))
+                if(lastToken.trim().startsWith('.')){
+                  str = secondToken
+                }
+
                 // 库.表名联想
 
                 if (dbs && dbs.filter((a: any) => a === str)?.length > 0) {
