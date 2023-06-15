@@ -33,6 +33,7 @@ export const redisApi = {
 
     del: Api.newDelete("/redis/{id}/{db}/scan/{cursor}/{count}"),
     delKey: Api.newDelete("/redis/{id}/{db}/key"),
+    flushDb: Api.newDelete("/redis/{id}/{db}/flushdb"),
 
     lrem: Api.newPost("/redis/{id}/{db}/lrem"),
     getListValue: Api.newGet("/redis/{id}/{db}/list-value"),

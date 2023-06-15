@@ -91,6 +91,14 @@ func InitRedisRouter(router *gin.RouterGroup) {
 				Handle(rs.PersistKey)
 		})
 
+		flushDbL := req.NewLogInfo("redis-flushdb").WithSave(true)
+		redis.DELETE(":id/:db/flushdb", func(c *gin.Context) {
+			req.NewCtxWithGin(c).
+				WithLog(flushDbL).
+				WithRequiredPermission(saveDataP).
+				Handle(rs.FlushDb)
+		})
+
 		// 获取string类型值
 		redis.GET(":id/:db/string-value", func(c *gin.Context) {
 			req.NewCtxWithGin(c).Handle(rs.GetStringValue)

@@ -6,7 +6,8 @@ export const resourceApi = {
     save: Api.newPost("/sys/resources"),
     update: Api.newPut("/sys/resources/{id}"),
     del: Api.newDelete("/sys/resources/{id}"),
-    changeStatus: Api.newPut("/sys/resources/{id}/{status}")
+    changeStatus: Api.newPut("/sys/resources/{id}/{status}"),
+    sort: Api.newPost("/sys/resources/sort")
 }
 
 export const roleApi = {

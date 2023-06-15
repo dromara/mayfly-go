@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"mayfly-go/internal/sys/api/form"
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
@@ -46,8 +47,20 @@ func (r *Resource) DelResource(rc *req.Ctx) {
 }
 
 func (r *Resource) ChangeStatus(rc *req.Ctx) {
-	re := &entity.Resource{}
-	re.Id = uint64(ginx.PathParamInt(rc.GinCtx, "id"))
-	re.Status = int8(ginx.PathParamInt(rc.GinCtx, "status"))
-	r.ResourceApp.Save(re)
+	rid := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
+	status := int8(ginx.PathParamInt(rc.GinCtx, "status"))
+	rc.ReqParam = fmt.Sprintf("id = %d, status = %d", rid, status)
+	r.ResourceApp.ChangeStatus(rid, status)
+}
+
+func (r *Resource) Sort(rc *req.Ctx) {
+	var rs []form.ResourceForm
+	rc.GinCtx.ShouldBindJSON(&rs)
+	rc.ReqParam = rs
+
+	for _, v := range rs {
+		sortE := &entity.Resource{Pid: v.Pid, Weight: v.Weight}
+		sortE.Id = uint64(v.Id)
+		r.ResourceApp.Sort(sortE)
+	}
 }

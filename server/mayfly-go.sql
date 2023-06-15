@@ -1,17 +1,3 @@
-/*
- Navicat Premium Data Transfer
-
- Source Server Type    : MySQL
- Source Server Version : 50730
- Source Schema         : mayfly-go
-
- Target Server Type    : MySQL
- Target Server Version : 50730
- File Encoding         : 65001
-
- Date: 18/11/2021 14:33:55
-*/
-
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -419,106 +405,107 @@ COMMIT;
 -- ----------------------------
 DROP TABLE IF EXISTS `t_sys_resource`;
 CREATE TABLE `t_sys_resource` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `pid` int(11) NOT NULL COMMENT '父节点id',
-  `type` tinyint(255) NOT NULL COMMENT '1：菜单路由；2：资源（按钮等）',
-  `status` int(255) NOT NULL COMMENT '状态；1:可用，-1:禁用',
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `pid` int NOT NULL COMMENT '父节点id',
+  `ui_path` varchar(200) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '唯一标识路径',
+  `type` tinyint NOT NULL COMMENT '1：菜单路由；2：资源（按钮等）',
+  `status` int NOT NULL COMMENT '状态；1:可用，-1:禁用',
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '名称',
   `code` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '菜单路由为path，其他为唯一标识',
-  `weight` int(11) DEFAULT NULL COMMENT '权重顺序',
+  `weight` int DEFAULT NULL COMMENT '权重顺序',
   `meta` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '元数据',
-  `creator_id` bigint(20) NOT NULL,
+  `creator_id` bigint NOT NULL,
   `creator` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-  `modifier_id` bigint(20) NOT NULL,
+  `modifier_id` bigint NOT NULL,
   `modifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
   `create_time` datetime NOT NULL,
   `update_time` datetime NOT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=103 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='资源表';
+  PRIMARY KEY (`id`),
+  KEY `t_sys_resource_ui_path_IDX` (`ui_path`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=128 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='资源表';
 
 -- ----------------------------
 -- Records of t_sys_resource
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_sys_resource` (id,pid,`type`,status,name,code,weight,meta,creator_id,creator,modifier_id,modifier,create_time,update_time) VALUES
-	 (1,0,1,1,'首页','/home',1,'{"component":"home/Home","icon":"HomeFilled","isAffix":true,"isKeepAlive":true,"routeName":"Home"}',1,'admin',1,'admin','2021-05-25 16:44:41','2023-03-14 14:27:07'),
-	 (2,0,1,1,'机器管理','/machine',4,'{"icon":"Monitor","isKeepAlive":true,"redirect":"machine/list","routeName":"Machine"}',1,'admin',1,'admin','2021-05-25 16:48:16','2022-10-06 14:58:49'),
-	 (3,2,1,1,'机器列表','machines',2,'{"component":"ops/machine/MachineList","icon":"Monitor","isKeepAlive":true,"routeName":"MachineList"}',2,'admin',1,'admin','2021-05-25 16:50:04','2023-03-15 17:14:44'),
-	 (4,0,1,1,'系统管理','/sys',8,'{"icon":"Setting","isKeepAlive":true,"redirect":"/sys/resources","routeName":"sys"}',1,'admin',1,'admin','2021-05-26 15:20:20','2022-10-06 14:59:53'),
-	 (5,4,1,1,'资源管理','resources',3,'{"component":"system/resource/ResourceList","icon":"Menu","isKeepAlive":true,"routeName":"ResourceList"}',1,'admin',1,'admin','2021-05-26 15:23:07','2023-03-14 15:44:34'),
-	 (11,4,1,1,'角色管理','roles',2,'{"component":"system/role/RoleList","icon":"Menu","isKeepAlive":true,"routeName":"RoleList"}',1,'admin',1,'admin','2021-05-27 11:15:35','2023-03-14 15:44:22'),
-	 (12,3,2,1,'机器终端按钮','machine:terminal',4,'',1,'admin',1,'admin','2021-05-28 14:06:02','2021-05-31 17:47:59'),
-	 (14,4,1,1,'账号管理','accounts',1,'{"component":"system/account/AccountList","icon":"Menu","isKeepAlive":true,"routeName":"AccountList"}',1,'admin',1,'admin','2021-05-28 14:56:25','2023-03-14 15:44:10'),
-	 (15,3,2,1,'文件管理按钮','machine:file',5,NULL,1,'admin',1,'admin','2021-05-31 17:44:37','2021-05-31 17:48:07'),
-	 (16,3,2,1,'机器添加按钮','machine:add',1,NULL,1,'admin',1,'admin','2021-05-31 17:46:11','2021-05-31 19:34:15'),
-	 (17,3,2,1,'机器编辑按钮','machine:update',2,NULL,1,'admin',1,'admin','2021-05-31 17:46:23','2021-05-31 19:34:18'),
-	 (18,3,2,1,'机器删除按钮','machine:del',3,NULL,1,'admin',1,'admin','2021-05-31 17:46:36','2021-05-31 19:34:17'),
-	 (19,14,2,1,'角色分配按钮','account:saveRoles',1,NULL,1,'admin',1,'admin','2021-05-31 17:50:51','2021-05-31 19:19:30'),
-	 (20,11,2,1,'分配菜单&权限按钮','role:saveResources',1,NULL,1,'admin',1,'admin','2021-05-31 17:51:41','2021-05-31 19:33:37'),
-	 (21,14,2,1,'账号删除按钮','account:del',2,'null',1,'admin',1,'admin','2021-05-31 18:02:01','2021-06-10 17:12:17'),
-	 (22,11,2,1,'角色删除按钮','role:del',2,NULL,1,'admin',1,'admin','2021-05-31 18:02:29','2021-05-31 19:33:38'),
-	 (23,11,2,1,'角色新增按钮','role:add',3,NULL,1,'admin',1,'admin','2021-05-31 18:02:44','2021-05-31 19:33:39'),
-	 (24,11,2,1,'角色编辑按钮','role:update',4,NULL,1,'admin',1,'admin','2021-05-31 18:02:57','2021-05-31 19:33:40'),
-	 (25,5,2,1,'资源新增按钮','resource:add',1,NULL,1,'admin',1,'admin','2021-05-31 18:03:33','2021-05-31 19:31:47'),
-	 (26,5,2,1,'资源删除按钮','resource:delete',2,NULL,1,'admin',1,'admin','2021-05-31 18:03:47','2021-05-31 19:29:40'),
-	 (27,5,2,1,'资源编辑按钮','resource:update',3,NULL,1,'admin',1,'admin','2021-05-31 18:04:03','2021-05-31 19:29:40'),
-	 (28,5,2,1,'资源禁用启用按钮','resource:changeStatus',4,NULL,1,'admin',1,'admin','2021-05-31 18:04:33','2021-05-31 18:04:33'),
-	 (29,14,2,1,'账号添加按钮','account:add',3,NULL,1,'admin',1,'admin','2021-05-31 19:23:42','2021-05-31 19:23:42'),
-	 (30,14,2,1,'账号编辑修改按钮','account:update',4,NULL,1,'admin',1,'admin','2021-05-31 19:23:58','2021-05-31 19:23:58'),
-	 (31,14,2,1,'账号管理基本权限','account',0,'null',1,'admin',1,'admin','2021-05-31 21:25:06','2021-06-22 11:20:34'),
-	 (32,5,2,1,'资源管理基本权限','resource',0,NULL,1,'admin',1,'admin','2021-05-31 21:25:25','2021-05-31 21:25:25'),
-	 (33,11,2,1,'角色管理基本权限','role',0,NULL,1,'admin',1,'admin','2021-05-31 21:25:40','2021-05-31 21:25:40'),
-	 (34,14,2,1,'账号启用禁用按钮','account:changeStatus',5,NULL,1,'admin',1,'admin','2021-05-31 21:29:48','2021-05-31 21:29:48'),
-	 (36,0,1,1,'DBMS','/dbms',5,'{"icon":"Coin","isKeepAlive":true,"routeName":"DBMS"}',1,'admin',1,'admin','2021-06-01 14:01:33','2023-03-15 17:31:08'),
-	 (37,3,2,1,'添加文件配置','machine:addFile',6,'null',1,'admin',1,'admin','2021-06-01 19:54:23','2021-06-01 19:54:23'),
-	 (38,36,1,1,'数据操作','sql-exec',1,'{"component":"ops/db/SqlExec","icon":"Coin","isKeepAlive":true,"routeName":"SqlExec"}',1,'admin',1,'admin','2021-06-03 09:09:29','2023-03-15 17:31:21'),
-	 (39,0,1,1,'个人中心','/personal',2,'{"component":"personal/index","icon":"UserFilled","isHide":true,"isKeepAlive":true,"routeName":"Personal"}',1,'admin',1,'admin','2021-06-03 14:25:35','2023-03-14 14:28:36'),
-	 (40,3,2,1,'文件管理-新增按钮','machine:file:add',7,'null',1,'admin',1,'admin','2021-06-08 11:06:26','2021-06-08 11:12:28'),
-	 (41,3,2,1,'文件管理-删除按钮','machine:file:del',8,'null',1,'admin',1,'admin','2021-06-08 11:06:49','2021-06-08 11:06:49'),
-	 (42,3,2,1,'文件管理-写入or下载文件权限','machine:file:write',9,'null',1,'admin',1,'admin','2021-06-08 11:07:27','2021-06-08 11:07:27'),
-	 (43,3,2,1,'文件管理-文件上传按钮','machine:file:upload',10,'null',1,'admin',1,'admin','2021-06-08 11:07:42','2021-06-08 11:07:42'),
-	 (44,3,2,1,'文件管理-删除文件按钮','machine:file:rm',11,'null',1,'admin',1,'admin','2021-06-08 11:08:12','2021-06-08 11:08:12'),
-	 (45,3,2,1,'脚本管理-保存脚本按钮','machine:script:save',12,'null',1,'admin',1,'admin','2021-06-08 11:09:01','2021-06-08 11:09:01'),
-	 (46,3,2,1,'脚本管理-删除按钮','machine:script:del',13,'null',1,'admin',1,'admin','2021-06-08 11:09:27','2021-06-08 11:09:27'),
-	 (47,3,2,1,'脚本管理-执行按钮','machine:script:run',14,'null',1,'admin',1,'admin','2021-06-08 11:09:50','2021-06-08 11:09:50'),
-	 (49,36,1,1,'数据库管理','dbs',2,'{"component":"ops/db/DbList","icon":"Coin","isKeepAlive":true,"routeName":"DbList"}',1,'admin',1,'admin','2021-07-07 15:13:55','2023-03-15 17:31:28'),
-	 (54,49,2,1,'数据库保存','db:save',1,'null',1,'admin',1,'admin','2021-07-08 17:30:36','2021-07-08 17:31:05'),
-	 (55,49,2,1,'数据库删除','db:del',2,'null',1,'admin',1,'admin','2021-07-08 17:30:48','2021-07-08 17:30:48'),
-	 (57,3,2,1,'基本权限','machine',0,'null',1,'admin',1,'admin','2021-07-09 10:48:02','2021-07-09 10:48:02'),
-	 (58,49,2,1,'基本权限','db',0,'null',1,'admin',1,'admin','2021-07-09 10:48:22','2021-07-09 10:48:22'),
-	 (59,38,2,1,'基本权限','db:exec',1,'null',1,'admin',1,'admin','2021-07-09 10:50:13','2021-07-09 10:50:13'),
-	 (60,0,1,1,'Redis','/redis',6,'{"icon":"iconfont icon-redis","isKeepAlive":true,"routeName":"RDS"}',1,'admin',1,'admin','2021-07-19 20:15:41','2023-03-15 16:44:59'),
-	 (61,60,1,1,'数据操作','data-operation',1,'{"component":"ops/redis/DataOperation","icon":"iconfont icon-redis","isKeepAlive":true,"routeName":"DataOperation"}',1,'admin',1,'admin','2021-07-19 20:17:29','2023-03-15 16:37:50'),
-	 (62,61,2,1,'基本权限','redis:data',1,'null',1,'admin',1,'admin','2021-07-19 20:18:54','2021-07-19 20:18:54'),
-	 (63,60,1,1,'redis管理','manage',2,'{"component":"ops/redis/RedisList","icon":"iconfont icon-redis","isKeepAlive":true,"routeName":"RedisList"}',1,'admin',1,'admin','2021-07-20 10:48:04','2023-03-15 16:38:00'),
-	 (64,63,2,1,'基本权限','redis:manage',1,'null',1,'admin',1,'admin','2021-07-20 10:48:26','2021-07-20 10:48:26'),
-	 (71,61,2,1,'数据保存','redis:data:save',6,'null',1,'admin',1,'admin','2021-08-17 11:20:37','2021-08-17 11:20:37'),
-	 (72,3,2,1,'终止进程','machine:killprocess',6,'null',1,'admin',1,'admin','2021-08-17 11:20:37','2021-08-17 11:20:37'),
-	 (79,0,1,1,'Mongo','/mongo',7,'{"icon":"iconfont icon-mongo","isKeepAlive":true,"routeName":"Mongo"}',1,'admin',1,'admin','2022-05-13 14:00:41','2023-03-16 14:23:22'),
-	 (80,79,1,1,'数据操作','mongo-data-operation',1,'{"component":"ops/mongo/MongoDataOp","icon":"iconfont icon-mongo","isKeepAlive":true,"routeName":"MongoDataOp"}',1,'admin',1,'admin','2022-05-13 14:03:58','2023-03-15 17:15:02'),
-	 (81,80,2,1,'基本权限','mongo:base',1,'null',1,'admin',1,'admin','2022-05-13 14:04:16','2022-05-13 14:04:16'),
-	 (82,79,1,1,'Mongo管理','mongo-manage',2,'{"component":"ops/mongo/MongoList","icon":"iconfont icon-mongo","isKeepAlive":true,"routeName":"MongoList"}',1,'admin',1,'admin','2022-05-16 18:13:06','2023-03-15 17:26:55'),
-	 (83,82,2,1,'基本权限','mongo:manage:base',1,'null',1,'admin',1,'admin','2022-05-16 18:13:25','2022-05-16 18:13:25'),
-	 (84,4,1,1,'操作日志','syslogs',4,'{"component":"system/syslog/SyslogList","icon":"Tickets","routeName":"SyslogList"}',1,'admin',1,'admin','2022-07-13 19:57:07','2023-03-14 15:44:45'),
-	 (85,84,2,1,'操作日志基本权限','syslog',1,'null',1,'admin',1,'admin','2022-07-13 19:57:55','2022-07-13 19:57:55'),
-	 (87,4,1,1,'系统配置','configs',5,'{"component":"system/config/ConfigList","icon":"Setting","isKeepAlive":true,"routeName":"ConfigList"}',1,'admin',1,'admin','2022-08-25 22:18:55','2023-03-15 11:06:07'),
-	 (88,87,2,1,'基本权限','config:base',1,'null',1,'admin',1,'admin','2022-08-25 22:19:35','2022-08-25 22:19:35'),
-	 (93,0,1,1,'标签管理','/tag',3,'{"icon":"CollectionTag","isKeepAlive":true,"routeName":"Tag"}',1,'admin',1,'admin','2022-10-24 15:18:40','2022-10-24 15:24:29'),
-	 (94,93,1,1,'标签树','tag-trees',1,'{"component":"ops/tag/TagTreeList","icon":"CollectionTag","isKeepAlive":true,"routeName":"TagTreeList"}',1,'admin',1,'admin','2022-10-24 15:19:40','2023-03-14 14:30:51'),
-	 (95,93,1,1,'团队管理','teams',2,'{"component":"ops/tag/TeamList","icon":"UserFilled","isKeepAlive":true,"routeName":"TeamList"}',1,'admin',1,'admin','2022-10-24 15:20:09','2023-03-14 14:31:03'),
-	 (96,94,2,1,'保存标签','tag:save',1,'null',1,'admin',1,'admin','2022-10-24 15:20:40','2022-10-26 13:58:36'),
-	 (97,95,2,1,'保存团队','team:save',1,'null',1,'admin',1,'admin','2022-10-24 15:20:57','2022-10-26 13:58:56'),
-	 (98,94,2,1,'删除标签','tag:del',2,'null',1,'admin',1,'admin','2022-10-26 13:58:47','2022-10-26 13:58:47'),
-	 (99,95,2,1,'删除团队','team:del',2,'null',1,'admin',1,'admin','2022-10-26 13:59:06','2022-10-26 13:59:06'),
-	 (100,95,2,1,'新增团队成员','team:member:save',3,'null',1,'admin',1,'admin','2022-10-26 13:59:27','2022-10-26 13:59:27'),
-	 (101,95,2,1,'移除团队成员','team:member:del',4,'null',1,'admin',1,'admin','2022-10-26 13:59:43','2022-10-26 13:59:43'),
-	 (102,95,2,1,'保存团队标签','team:tag:save',5,'null',1,'admin',1,'admin','2022-10-26 13:59:57','2022-10-26 13:59:57'),
-	 (103,2,1,1,'授权凭证','authcerts',6,'{"component":"ops/machine/authcert/AuthCertList","icon":"Unlock","isKeepAlive":true,"routeName":"AuthCertList"}',1,'admin',1,'admin','2023-02-23 11:36:26','2023-03-14 14:33:28'),
-	 (104,103,2,1,'基本权限','authcert',1,'null',1,'admin',1,'admin','2023-02-23 11:37:24','2023-02-23 11:37:24'),
-	 (105,103,2,1,'保存权限','authcert:save',2,'null',1,'admin',1,'admin','2023-02-23 11:37:54','2023-02-23 11:37:54'),
-	 (106,103,2,1,'删除权限','authcert:del',3,'null',1,'admin',1,'admin','2023-02-23 11:38:09','2023-02-23 11:38:09'),
-	 (108,61,2,1,'数据删除','redis:data:del',3,'null',1,'admin',1,'admin','2023-03-14 17:20:00','2023-03-14 17:20:00'),
-	 (109,3,2,1,'关闭连接','machine:close-cli',6,'null',1,'admin',1,'admin','2023-03-16 16:11:04','2023-03-16 16:11:04');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(1, 0, 'Aexqq77l/', 1, 1, '首页', '/home', 10000000, '{"component":"home/Home","icon":"HomeFilled","isAffix":true,"isKeepAlive":true,"routeName":"Home"}', 1, 'admin', 1, 'admin', '2021-05-25 16:44:41', '2023-03-14 14:27:07');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(2, 0, '12sSjal1/', 1, 1, '机器管理', '/machine', 49999998, '{"icon":"Monitor","isKeepAlive":true,"redirect":"machine/list","routeName":"Machine"}', 1, 'admin', 1, 'admin', '2021-05-25 16:48:16', '2022-10-06 14:58:49');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(3, 2, '12sSjal1/lskeiql1/', 1, 1, '机器列表', 'machines', 20000000, '{"component":"ops/machine/MachineList","icon":"Monitor","isKeepAlive":true,"routeName":"MachineList"}', 2, 'admin', 1, 'admin', '2021-05-25 16:50:04', '2023-03-15 17:14:44');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(4, 0, 'Xlqig32x/', 1, 1, '系统管理', '/sys', 60000001, '{"icon":"Setting","isKeepAlive":true,"redirect":"/sys/resources","routeName":"sys"}', 1, 'admin', 1, 'admin', '2021-05-26 15:20:20', '2022-10-06 14:59:53');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(5, 4, 'Xlqig32x/UGxla231/', 1, 1, '资源管理', 'resources', 9999999, '{"component":"system/resource/ResourceList","icon":"Menu","isKeepAlive":true,"routeName":"ResourceList"}', 1, 'admin', 1, 'admin', '2021-05-26 15:23:07', '2023-03-14 15:44:34');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(11, 4, 'Xlqig32x/lxqSiae1/', 1, 1, '角色管理', 'roles', 10000001, '{"component":"system/role/RoleList","icon":"Menu","isKeepAlive":true,"routeName":"RoleList"}', 1, 'admin', 1, 'admin', '2021-05-27 11:15:35', '2023-03-14 15:44:22');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(12, 3, '12sSjal1/lskeiql1/Alw1Xkq3/', 2, 1, '机器终端按钮', 'machine:terminal', 40000000, '', 1, 'admin', 1, 'admin', '2021-05-28 14:06:02', '2021-05-31 17:47:59');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(14, 4, 'Xlqig32x/sfslfel/', 1, 1, '账号管理', 'accounts', 9999999, '{"component":"system/account/AccountList","icon":"Menu","isKeepAlive":true,"routeName":"AccountList"}', 1, 'admin', 1, 'admin', '2021-05-28 14:56:25', '2023-03-14 15:44:10');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(15, 3, '12sSjal1/lskeiql1/Lsew24Kx/', 2, 1, '文件管理按钮', 'machine:file', 50000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 17:44:37', '2021-05-31 17:48:07');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(16, 3, '12sSjal1/lskeiql1/exIsqL31/', 2, 1, '机器添加按钮', 'machine:add', 10000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 17:46:11', '2021-05-31 19:34:15');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(17, 3, '12sSjal1/lskeiql1/Liwakg2x/', 2, 1, '机器编辑按钮', 'machine:update', 20000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 17:46:23', '2021-05-31 19:34:18');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(18, 3, '12sSjal1/lskeiql1/Lieakenx/', 2, 1, '机器删除按钮', 'machine:del', 30000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 17:46:36', '2021-05-31 19:34:17');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(19, 14, 'Xlqig32x/sfslfel/UUiex2xA/', 2, 1, '角色分配按钮', 'account:saveRoles', 10000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 17:50:51', '2021-05-31 19:19:30');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(20, 11, 'Xlqig32x/lxqSiae1/EMq2Kxq3/', 2, 1, '分配菜单&权限按钮', 'role:saveResources', 10000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 17:51:41', '2021-05-31 19:33:37');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(21, 14, 'Xlqig32x/sfslfel/Uexax2xA/', 2, 1, '账号删除按钮', 'account:del', 20000000, 'null', 1, 'admin', 1, 'admin', '2021-05-31 18:02:01', '2021-06-10 17:12:17');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(22, 11, 'Xlqig32x/lxqSiae1/Elxq2Kxq3/', 2, 1, '角色删除按钮', 'role:del', 20000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:02:29', '2021-05-31 19:33:38');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(23, 11, 'Xlqig32x/lxqSiae1/342xKxq3/', 2, 1, '角色新增按钮', 'role:add', 30000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:02:44', '2021-05-31 19:33:39');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(24, 11, 'Xlqig32x/lxqSiae1/LexqKxq3/', 2, 1, '角色编辑按钮', 'role:update', 40000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:02:57', '2021-05-31 19:33:40');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(25, 5, 'Xlqig32x/UGxla231/Elxq23XK/', 2, 1, '资源新增按钮', 'resource:add', 10000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:03:33', '2021-05-31 19:31:47');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(26, 5, 'Xlqig32x/UGxla231/eloq23XK/', 2, 1, '资源删除按钮', 'resource:delete', 20000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:03:47', '2021-05-31 19:29:40');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(27, 5, 'Xlqig32x/UGxla231/JExq23XK/', 2, 1, '资源编辑按钮', 'resource:update', 30000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:04:03', '2021-05-31 19:29:40');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(28, 5, 'Xlqig32x/UGxla231/Elex13XK/', 2, 1, '资源禁用启用按钮', 'resource:changeStatus', 40000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 18:04:33', '2021-05-31 18:04:33');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(29, 14, 'Xlqig32x/sfslfel/xlawx2xA/', 2, 1, '账号添加按钮', 'account:add', 30000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 19:23:42', '2021-05-31 19:23:42');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(30, 14, 'Xlqig32x/sfslfel/32xax2xA/', 2, 1, '账号编辑修改按钮', 'account:update', 40000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 19:23:58', '2021-05-31 19:23:58');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(31, 14, 'Xlqig32x/sfslfel/eubale13/', 2, 1, '账号管理基本权限', 'account', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-05-31 21:25:06', '2021-06-22 11:20:34');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(32, 5, 'Xlqig32x/UGxla231/321q23XK/', 2, 1, '资源管理基本权限', 'resource', 10000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 21:25:25', '2021-05-31 21:25:25');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(33, 11, 'Xlqig32x/lxqSiae1/908xKxq3/', 2, 1, '角色管理基本权限', 'role', 10000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 21:25:40', '2021-05-31 21:25:40');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(34, 14, 'Xlqig32x/sfslfel/32alx2xA/', 2, 1, '账号启用禁用按钮', 'account:changeStatus', 50000000, NULL, 1, 'admin', 1, 'admin', '2021-05-31 21:29:48', '2021-05-31 21:29:48');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(36, 0, 'dbms23ax/', 1, 1, 'DBMS', '/dbms', 49999999, '{"icon":"Coin","isKeepAlive":true,"routeName":"DBMS"}', 1, 'admin', 1, 'admin', '2021-06-01 14:01:33', '2023-03-15 17:31:08');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(37, 3, '12sSjal1/lskeiql1/Keiqkx4L/', 2, 1, '添加文件配置', 'machine:addFile', 60000000, 'null', 1, 'admin', 1, 'admin', '2021-06-01 19:54:23', '2021-06-01 19:54:23');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(38, 36, 'dbms23ax/exaeca2x/', 1, 1, '数据操作', 'sql-exec', 10000000, '{"component":"ops/db/SqlExec","icon":"Coin","isKeepAlive":true,"routeName":"SqlExec"}', 1, 'admin', 1, 'admin', '2021-06-03 09:09:29', '2023-03-15 17:31:21');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(39, 0, 'sl3as23x/', 1, 1, '个人中心', '/personal', 19999999, '{"component":"personal/index","icon":"UserFilled","isHide":true,"isKeepAlive":true,"routeName":"Personal"}', 1, 'admin', 1, 'admin', '2021-06-03 14:25:35', '2023-03-14 14:28:36');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(40, 3, '12sSjal1/lskeiql1/Keal2Xke/', 2, 1, '文件管理-新增按钮', 'machine:file:add', 70000000, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:06:26', '2021-06-08 11:12:28');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(41, 3, '12sSjal1/lskeiql1/Ihfs2xaw/', 2, 1, '文件管理-删除按钮', 'machine:file:del', 80000000, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:06:49', '2021-06-08 11:06:49');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(42, 3, '12sSjal1/lskeiql1/', 2, 1, '文件管理-写入or下载文件权限', 'machine:file:write', 90000000, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:07:27', '2021-06-08 11:07:27');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(43, 3, '12sSjal1/lskeiql1/Ljewix43/', 2, 1, '文件管理-文件上传按钮', 'machine:file:upload', 100000000, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:07:42', '2021-06-08 11:07:42');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(44, 3, '12sSjal1/lskeiql1/L12wix43/', 2, 1, '文件管理-删除文件按钮', 'machine:file:rm', 110000000, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:08:12', '2021-06-08 11:08:12');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(45, 3, '12sSjal1/lskeiql1/Ljewisd3/', 2, 1, '脚本管理-保存脚本按钮', 'machine:script:save', 120000000, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:09:01', '2021-06-08 11:09:01');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(46, 3, '12sSjal1/lskeiql1/Ljeew43/', 2, 1, '脚本管理-删除按钮', 'machine:script:del', 130000000, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:09:27', '2021-06-08 11:09:27');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(47, 3, '12sSjal1/lskeiql1/ODewix43/', 2, 1, '脚本管理-执行按钮', 'machine:script:run', 140000000, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:09:50', '2021-06-08 11:09:50');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(49, 36, 'dbms23ax/xleaiec2/', 1, 1, '数据库管理', 'dbs', 20000000, '{"component":"ops/db/DbList","icon":"Coin","isKeepAlive":true,"routeName":"DbList"}', 1, 'admin', 1, 'admin', '2021-07-07 15:13:55', '2023-03-15 17:31:28');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(54, 49, 'dbms23ax/xleaiec2/leix3Axl/', 2, 1, '数据库保存', 'db:save', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:30:36', '2021-07-08 17:31:05');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(55, 49, 'dbms23ax/xleaiec2/ygjL3sxA/', 2, 1, '数据库删除', 'db:del', 20000000, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:30:48', '2021-07-08 17:30:48');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(57, 3, '12sSjal1/lskeiql1/OJewex43/', 2, 1, '基本权限', 'machine', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-09 10:48:02', '2021-07-09 10:48:02');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(58, 49, 'dbms23ax/xleaiec2/AceXe321/', 2, 1, '基本权限', 'db', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-09 10:48:22', '2021-07-09 10:48:22');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(59, 38, 'dbms23ax/exaeca2x/ealcia23/', 2, 1, '基本权限', 'db:exec', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-09 10:50:13', '2021-07-09 10:50:13');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(60, 0, 'RedisXq4/', 1, 1, 'Redis', '/redis', 50000001, '{"icon":"iconfont icon-redis","isKeepAlive":true,"routeName":"RDS"}', 1, 'admin', 1, 'admin', '2021-07-19 20:15:41', '2023-03-15 16:44:59');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(61, 60, 'RedisXq4/Exitx4al/', 1, 1, '数据操作', 'data-operation', 10000000, '{"component":"ops/redis/DataOperation","icon":"iconfont icon-redis","isKeepAlive":true,"routeName":"DataOperation"}', 1, 'admin', 1, 'admin', '2021-07-19 20:17:29', '2023-03-15 16:37:50');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(62, 61, 'RedisXq4/Exitx4al/LSjie321/', 2, 1, '基本权限', 'redis:data', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-19 20:18:54', '2021-07-19 20:18:54');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(63, 60, 'RedisXq4/Eoaljc12/', 1, 1, 'redis管理', 'manage', 20000000, '{"component":"ops/redis/RedisList","icon":"iconfont icon-redis","isKeepAlive":true,"routeName":"RedisList"}', 1, 'admin', 1, 'admin', '2021-07-20 10:48:04', '2023-03-15 16:38:00');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(64, 63, 'RedisXq4/Eoaljc12/IoxqAd31/', 2, 1, '基本权限', 'redis:manage', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-20 10:48:26', '2021-07-20 10:48:26');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(71, 61, 'RedisXq4/Exitx4al/IUlxia23/', 2, 1, '数据保存', 'redis:data:save', 60000000, 'null', 1, 'admin', 1, 'admin', '2021-08-17 11:20:37', '2021-08-17 11:20:37');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(72, 3, '12sSjal1/lskeiql1/LIEwix43/', 2, 1, '终止进程', 'machine:killprocess', 60000000, 'null', 1, 'admin', 1, 'admin', '2021-08-17 11:20:37', '2021-08-17 11:20:37');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(79, 0, 'Mongo452/', 1, 1, 'Mongo', '/mongo', 50000002, '{"icon":"iconfont icon-mongo","isKeepAlive":true,"routeName":"Mongo"}', 1, 'admin', 1, 'admin', '2022-05-13 14:00:41', '2023-03-16 14:23:22');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(80, 79, 'Mongo452/eggago31/', 1, 1, '数据操作', 'mongo-data-operation', 10000000, '{"component":"ops/mongo/MongoDataOp","icon":"iconfont icon-mongo","isKeepAlive":true,"routeName":"MongoDataOp"}', 1, 'admin', 1, 'admin', '2022-05-13 14:03:58', '2023-03-15 17:15:02');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(81, 80, 'Mongo452/eggago31/egjglal3/', 2, 1, '基本权限', 'mongo:base', 10000000, 'null', 1, 'admin', 1, 'admin', '2022-05-13 14:04:16', '2022-05-13 14:04:16');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(82, 79, 'Mongo452/ghxagl43/', 1, 1, 'Mongo管理', 'mongo-manage', 20000000, '{"component":"ops/mongo/MongoList","icon":"iconfont icon-mongo","isKeepAlive":true,"routeName":"MongoList"}', 1, 'admin', 1, 'admin', '2022-05-16 18:13:06', '2023-03-15 17:26:55');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(83, 82, 'Mongo452/ghxagl43/egljbla3/', 2, 1, '基本权限', 'mongo:manage:base', 10000000, 'null', 1, 'admin', 1, 'admin', '2022-05-16 18:13:25', '2022-05-16 18:13:25');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(84, 4, 'Xlqig32x/exlaeAlx/', 1, 1, '操作日志', 'syslogs', 20000000, '{"component":"system/syslog/SyslogList","icon":"Tickets","routeName":"SyslogList"}', 1, 'admin', 1, 'admin', '2022-07-13 19:57:07', '2023-03-14 15:44:45');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(85, 84, 'Xlqig32x/exlaeAlx/3xlqeXql/', 2, 1, '操作日志基本权限', 'syslog', 10000000, 'null', 1, 'admin', 1, 'admin', '2022-07-13 19:57:55', '2022-07-13 19:57:55');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(87, 4, 'Xlqig32x/Ulxaee23/', 1, 1, '系统配置', 'configs', 10000002, '{"component":"system/config/ConfigList","icon":"Setting","isKeepAlive":true,"routeName":"ConfigList"}', 1, 'admin', 1, 'admin', '2022-08-25 22:18:55', '2023-03-15 11:06:07');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(88, 87, 'Xlqig32x/Ulxaee23/exlqguA3/', 2, 1, '基本权限', 'config:base', 10000000, 'null', 1, 'admin', 1, 'admin', '2022-08-25 22:19:35', '2022-08-25 22:19:35');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(93, 0, 'Tag3fhad/', 1, 1, '标签管理', '/tag', 20000001, '{"icon":"CollectionTag","isKeepAlive":true,"routeName":"Tag"}', 1, 'admin', 1, 'admin', '2022-10-24 15:18:40', '2022-10-24 15:24:29');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(94, 93, 'Tag3fhad/glxajg23/', 1, 1, '标签树', 'tag-trees', 10000000, '{"component":"ops/tag/TagTreeList","icon":"CollectionTag","isKeepAlive":true,"routeName":"TagTreeList"}', 1, 'admin', 1, 'admin', '2022-10-24 15:19:40', '2023-03-14 14:30:51');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(95, 93, 'Tag3fhad/Bjlag32x/', 1, 1, '团队管理', 'teams', 20000000, '{"component":"ops/tag/TeamList","icon":"UserFilled","isKeepAlive":true,"routeName":"TeamList"}', 1, 'admin', 1, 'admin', '2022-10-24 15:20:09', '2023-03-14 14:31:03');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(96, 94, 'Tag3fhad/glxajg23/gkxagt23/', 2, 1, '保存标签', 'tag:save', 10000000, 'null', 1, 'admin', 1, 'admin', '2022-10-24 15:20:40', '2022-10-26 13:58:36');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(97, 95, 'Tag3fhad/Bjlag32x/GJslag32/', 2, 1, '保存团队', 'team:save', 10000000, 'null', 1, 'admin', 1, 'admin', '2022-10-24 15:20:57', '2022-10-26 13:58:56');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(98, 94, 'Tag3fhad/glxajg23/xjgalte2/', 2, 1, '删除标签', 'tag:del', 20000000, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:58:47', '2022-10-26 13:58:47');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(99, 95, 'Tag3fhad/Bjlag32x/Gguca23x/', 2, 1, '删除团队', 'team:del', 20000000, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:06', '2022-10-26 13:59:06');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(100, 95, 'Tag3fhad/Bjlag32x/Lgidsq32/', 2, 1, '新增团队成员', 'team:member:save', 30000000, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:27', '2022-10-26 13:59:27');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(101, 95, 'Tag3fhad/Bjlag32x/Lixaue3G/', 2, 1, '移除团队成员', 'team:member:del', 40000000, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:43', '2022-10-26 13:59:43');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(102, 95, 'Tag3fhad/Bjlag32x/Oygsq3xg/', 2, 1, '保存团队标签', 'team:tag:save', 50000000, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:57', '2022-10-26 13:59:57');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(103, 2, '12sSjal1/exahgl32/', 1, 1, '授权凭证', 'authcerts', 60000000, '{"component":"ops/machine/authcert/AuthCertList","icon":"Unlock","isKeepAlive":true,"routeName":"AuthCertList"}', 1, 'admin', 1, 'admin', '2023-02-23 11:36:26', '2023-03-14 14:33:28');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(104, 103, '12sSjal1/exahgl32/egxahg24/', 2, 1, '基本权限', 'authcert', 10000000, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:37:24', '2023-02-23 11:37:24');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(105, 103, '12sSjal1/exahgl32/yglxahg2/', 2, 1, '保存权限', 'authcert:save', 20000000, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:37:54', '2023-02-23 11:37:54');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(106, 103, '12sSjal1/exahgl32/Glxag234/', 2, 1, '删除权限', 'authcert:del', 30000000, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:38:09', '2023-02-23 11:38:09');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(108, 61, 'RedisXq4/Exitx4al/Gxlagheg/', 2, 1, '数据删除', 'redis:data:del', 30000000, 'null', 1, 'admin', 1, 'admin', '2023-03-14 17:20:00', '2023-03-14 17:20:00');
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time) VALUES(109, 3, '12sSjal1/lskeiql1/KMdsix43/', 2, 1, '关闭连接', 'machine:close-cli', 60000000, 'null', 1, 'admin', 1, 'admin', '2023-03-16 16:11:04', '2023-03-16 16:11:04');
 COMMIT;
 
 -- ----------------------------
@@ -569,170 +556,170 @@ CREATE TABLE `t_sys_role_resource` (
 -- Records of t_sys_role_resource
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_sys_role_resource` (id,role_id,resource_id,creator_id,creator,create_time) VALUES
-	 (1,1,1,1,'admin','2021-05-27 15:07:39'),
-	 (323,1,2,1,'admin','2021-05-28 09:04:50'),
-	 (326,1,4,1,'admin','2021-05-28 09:04:50'),
-	 (327,1,5,1,'admin','2021-05-28 09:04:50'),
-	 (328,1,11,1,'admin','2021-05-28 09:04:50'),
-	 (335,1,14,1,'admin','2021-05-28 17:42:21'),
-	 (336,1,3,1,'admin','2021-05-28 17:42:43'),
-	 (337,1,12,1,'admin','2021-05-28 17:42:43'),
-	 (338,6,2,1,'admin','2021-05-28 19:19:38'),
-	 (339,6,3,1,'admin','2021-05-28 19:19:38'),
-	 (342,6,1,1,'admin','2021-05-29 01:31:22'),
-	 (343,5,1,1,'admin','2021-05-31 14:05:23'),
-	 (344,5,4,1,'admin','2021-05-31 14:05:23'),
-	 (345,5,14,1,'admin','2021-05-31 14:05:23'),
-	 (346,5,5,1,'admin','2021-05-31 14:05:23'),
-	 (347,5,11,1,'admin','2021-05-31 14:05:23'),
-	 (348,5,3,1,'admin','2021-05-31 16:33:14'),
-	 (349,5,12,1,'admin','2021-05-31 16:33:14'),
-	 (350,5,2,1,'admin','2021-05-31 16:33:14'),
-	 (353,1,15,1,'admin','2021-05-31 17:48:33'),
-	 (354,1,16,1,'admin','2021-05-31 17:48:33'),
-	 (355,1,17,1,'admin','2021-05-31 17:48:33'),
-	 (356,1,18,1,'admin','2021-05-31 17:48:33'),
-	 (358,1,20,1,'admin','2021-05-31 17:52:08'),
-	 (360,1,22,1,'admin','2021-05-31 18:05:04'),
-	 (361,1,23,1,'admin','2021-05-31 18:05:04'),
-	 (362,1,24,1,'admin','2021-05-31 18:05:04'),
-	 (363,1,25,1,'admin','2021-05-31 18:05:04'),
-	 (364,1,26,1,'admin','2021-05-31 18:05:04'),
-	 (365,1,27,1,'admin','2021-05-31 18:05:04'),
-	 (366,1,28,1,'admin','2021-05-31 18:05:04'),
-	 (369,1,31,1,'admin','2021-05-31 21:25:56'),
-	 (370,1,32,1,'admin','2021-05-31 21:25:56'),
-	 (371,1,33,1,'admin','2021-05-31 21:25:56'),
-	 (374,1,36,1,'admin','2021-06-01 14:01:57'),
-	 (375,1,19,1,'admin','2021-06-01 17:34:03'),
-	 (376,1,21,1,'admin','2021-06-01 17:34:03'),
-	 (377,1,29,1,'admin','2021-06-01 17:34:03'),
-	 (378,1,30,1,'admin','2021-06-01 17:34:03'),
-	 (379,1,34,1,'admin','2021-06-01 17:34:03'),
-	 (380,1,37,1,'admin','2021-06-03 09:09:42'),
-	 (381,1,38,1,'admin','2021-06-03 09:09:42'),
-	 (383,1,40,1,'admin','2021-06-08 11:21:52'),
-	 (384,1,41,1,'admin','2021-06-08 11:21:52'),
-	 (385,1,42,1,'admin','2021-06-08 11:21:52'),
-	 (386,1,43,1,'admin','2021-06-08 11:21:52'),
-	 (387,1,44,1,'admin','2021-06-08 11:21:52'),
-	 (388,1,45,1,'admin','2021-06-08 11:21:52'),
-	 (389,1,46,1,'admin','2021-06-08 11:21:52'),
-	 (390,1,47,1,'admin','2021-06-08 11:21:52'),
-	 (391,6,39,1,'admin','2021-06-08 15:10:58'),
-	 (392,6,15,1,'admin','2021-06-08 15:10:58'),
-	 (395,6,31,1,'admin','2021-06-08 15:10:58'),
-	 (396,6,33,1,'admin','2021-06-08 15:10:58'),
-	 (397,6,32,1,'admin','2021-06-08 15:10:58'),
-	 (398,6,4,1,'admin','2021-06-08 15:10:58'),
-	 (399,6,14,1,'admin','2021-06-08 15:10:58'),
-	 (400,6,11,1,'admin','2021-06-08 15:10:58'),
-	 (401,6,5,1,'admin','2021-06-08 15:10:58'),
-	 (403,7,1,1,'admin','2021-07-06 15:07:09'),
-	 (405,1,49,1,'admin','2021-07-07 15:14:17'),
-	 (410,1,54,1,'admin','2021-07-08 17:32:19'),
-	 (411,1,55,1,'admin','2021-07-08 17:32:19'),
-	 (413,1,57,1,'admin','2021-07-09 10:48:50'),
-	 (414,1,58,1,'admin','2021-07-09 10:48:50'),
-	 (418,8,57,1,'admin','2021-07-09 10:49:46'),
-	 (419,8,12,1,'admin','2021-07-09 10:49:46'),
-	 (420,8,15,1,'admin','2021-07-09 10:49:46'),
-	 (421,8,38,1,'admin','2021-07-09 10:49:46'),
-	 (423,8,2,1,'admin','2021-07-09 10:49:46'),
-	 (425,8,3,1,'admin','2021-07-09 10:49:46'),
-	 (426,8,36,1,'admin','2021-07-09 10:49:46'),
-	 (428,1,59,1,'admin','2021-07-09 10:50:20'),
-	 (429,8,59,1,'admin','2021-07-09 10:50:32'),
-	 (431,6,57,1,'admin','2021-07-12 16:44:12'),
-	 (433,1,60,1,'admin','2021-07-19 20:19:29'),
-	 (434,1,61,1,'admin','2021-07-19 20:19:29'),
-	 (435,1,62,1,'admin','2021-07-19 20:19:29'),
-	 (436,1,63,1,'admin','2021-07-20 10:48:39'),
-	 (437,1,64,1,'admin','2021-07-20 10:48:39'),
-	 (444,7,39,1,'admin','2021-09-09 10:10:30'),
-	 (450,6,16,1,'admin','2021-09-09 15:52:38'),
-	 (451,6,17,1,'admin','2021-09-09 15:52:38'),
-	 (452,6,18,1,'admin','2021-09-09 15:52:38'),
-	 (453,6,37,1,'admin','2021-09-09 15:52:38'),
-	 (454,6,40,1,'admin','2021-09-09 15:52:38'),
-	 (455,6,41,1,'admin','2021-09-09 15:52:38'),
-	 (456,6,42,1,'admin','2021-09-09 15:52:38'),
-	 (457,6,43,1,'admin','2021-09-09 15:52:38'),
-	 (458,6,44,1,'admin','2021-09-09 15:52:38'),
-	 (459,6,45,1,'admin','2021-09-09 15:52:38'),
-	 (460,6,46,1,'admin','2021-09-09 15:52:38'),
-	 (461,6,47,1,'admin','2021-09-09 15:52:38'),
-	 (462,6,36,1,'admin','2021-09-09 15:52:38'),
-	 (463,6,38,1,'admin','2021-09-09 15:52:38'),
-	 (464,6,59,1,'admin','2021-09-09 15:52:38'),
-	 (465,6,49,1,'admin','2021-09-09 15:52:38'),
-	 (466,6,58,1,'admin','2021-09-09 15:52:38'),
-	 (467,6,54,1,'admin','2021-09-09 15:52:38'),
-	 (468,6,55,1,'admin','2021-09-09 15:52:38'),
-	 (469,6,60,1,'admin','2021-09-09 15:52:38'),
-	 (470,6,61,1,'admin','2021-09-09 15:52:38'),
-	 (471,6,62,1,'admin','2021-09-09 15:52:38'),
-	 (472,6,63,1,'admin','2021-09-09 15:52:38'),
-	 (473,6,64,1,'admin','2021-09-09 15:52:38'),
-	 (479,6,19,1,'admin','2021-09-09 15:53:56'),
-	 (480,6,21,1,'admin','2021-09-09 15:53:56'),
-	 (481,6,29,1,'admin','2021-09-09 15:53:56'),
-	 (482,6,30,1,'admin','2021-09-09 15:53:56'),
-	 (483,6,34,1,'admin','2021-09-09 15:53:56'),
-	 (484,6,20,1,'admin','2021-09-09 15:53:56'),
-	 (485,6,22,1,'admin','2021-09-09 15:53:56'),
-	 (486,6,23,1,'admin','2021-09-09 15:53:56'),
-	 (487,6,24,1,'admin','2021-09-09 15:53:56'),
-	 (488,6,25,1,'admin','2021-09-09 15:53:56'),
-	 (489,6,26,1,'admin','2021-09-09 15:53:56'),
-	 (490,6,27,1,'admin','2021-09-09 15:53:56'),
-	 (491,6,28,1,'admin','2021-09-09 15:53:56'),
-	 (492,8,42,1,'admin','2021-11-05 15:59:16'),
-	 (493,8,43,1,'admin','2021-11-05 15:59:16'),
-	 (494,8,47,1,'admin','2021-11-05 15:59:16'),
-	 (495,8,60,1,'admin','2021-11-05 15:59:16'),
-	 (496,8,61,1,'admin','2021-11-05 15:59:16'),
-	 (497,8,62,1,'admin','2021-11-05 15:59:16'),
-	 (500,1,72,1,'admin','2022-07-14 11:03:09'),
-	 (501,1,71,1,'admin','2022-07-14 11:03:09'),
-	 (502,1,79,1,'admin','2022-07-14 11:03:09'),
-	 (503,1,80,1,'admin','2022-07-14 11:03:09'),
-	 (504,1,81,1,'admin','2022-07-14 11:03:09'),
-	 (505,1,82,1,'admin','2022-07-14 11:03:09'),
-	 (506,1,83,1,'admin','2022-07-14 11:03:09'),
-	 (507,1,84,1,'admin','2022-07-14 11:10:11'),
-	 (508,1,85,1,'admin','2022-07-14 11:10:11'),
-	 (510,1,87,1,'admin','2022-07-14 11:10:11'),
-	 (511,1,88,1,'admin','2022-10-08 10:54:06'),
-	 (512,8,80,1,'admin','2022-10-08 10:54:34'),
-	 (513,8,81,1,'admin','2022-10-08 10:54:34'),
-	 (515,8,79,1,'admin','2022-10-08 10:54:34'),
-	 (516,1,93,1,'admin','2022-10-26 20:03:14'),
-	 (517,1,94,1,'admin','2022-10-26 20:03:14'),
-	 (518,1,96,1,'admin','2022-10-26 20:03:14'),
-	 (519,1,98,1,'admin','2022-10-26 20:03:14'),
-	 (520,1,95,1,'admin','2022-10-26 20:03:14'),
-	 (521,1,97,1,'admin','2022-10-26 20:03:14'),
-	 (522,1,99,1,'admin','2022-10-26 20:03:14'),
-	 (523,1,100,1,'admin','2022-10-26 20:03:14'),
-	 (524,1,101,1,'admin','2022-10-26 20:03:14'),
-	 (525,1,102,1,'admin','2022-10-26 20:03:14'),
-	 (527,1,106,1,'admin','2023-02-23 14:30:54'),
-	 (528,1,103,1,'admin','2023-02-23 14:30:54'),
-	 (529,1,105,1,'admin','2023-02-23 14:31:00'),
-	 (530,1,104,1,'admin','2023-02-24 13:40:26'),
-	 (532,1,108,1,'admin','2023-03-14 17:28:06'),
-	 (533,6,79,1,'admin','2023-03-14 17:28:50'),
-	 (534,6,80,1,'admin','2023-03-14 17:28:50'),
-	 (535,6,81,1,'admin','2023-03-14 17:28:50'),
-	 (536,6,82,1,'admin','2023-03-14 17:28:50'),
-	 (537,6,83,1,'admin','2023-03-14 17:28:50'),
-	 (538,6,84,1,'admin','2023-03-14 17:29:00'),
-	 (539,6,85,1,'admin','2023-03-14 17:29:00'),
-	 (540,6,87,1,'admin','2023-03-14 17:29:00'),
-	 (541,6,88,1,'admin','2023-03-14 17:29:00'),
-	 (544,1,109,1,'admin','2023-03-16 16:11:25');
+INSERT INTO `t_sys_role_resource` (role_id,resource_id,creator_id,creator,create_time) VALUES
+	 (1,'admin','2021-05-27 15:07:39'),
+	 (1,2,1,'admin','2021-05-28 09:04:50'),
+	 (1,4,1,'admin','2021-05-28 09:04:50'),
+	 (1,5,1,'admin','2021-05-28 09:04:50'),
+	 (1,11,1,'admin','2021-05-28 09:04:50'),
+	 (1,14,1,'admin','2021-05-28 17:42:21'),
+	 (1,3,1,'admin','2021-05-28 17:42:43'),
+	 (1,12,1,'admin','2021-05-28 17:42:43'),
+	 (6,2,1,'admin','2021-05-28 19:19:38'),
+	 (6,3,1,'admin','2021-05-28 19:19:38'),
+	 (6,1,1,'admin','2021-05-29 01:31:22'),
+	 (5,1,1,'admin','2021-05-31 14:05:23'),
+	 (5,4,1,'admin','2021-05-31 14:05:23'),
+	 (5,14,1,'admin','2021-05-31 14:05:23'),
+	 (5,5,1,'admin','2021-05-31 14:05:23'),
+	 (5,11,1,'admin','2021-05-31 14:05:23'),
+	 (5,3,1,'admin','2021-05-31 16:33:14'),
+	 (5,12,1,'admin','2021-05-31 16:33:14'),
+	 (5,2,1,'admin','2021-05-31 16:33:14'),
+	 (1,15,1,'admin','2021-05-31 17:48:33'),
+	 (1,16,1,'admin','2021-05-31 17:48:33'),
+	 (1,17,1,'admin','2021-05-31 17:48:33'),
+	 (1,18,1,'admin','2021-05-31 17:48:33'),
+	 (1,20,1,'admin','2021-05-31 17:52:08'),
+	 (1,22,1,'admin','2021-05-31 18:05:04'),
+	 (1,23,1,'admin','2021-05-31 18:05:04'),
+	 (1,24,1,'admin','2021-05-31 18:05:04'),
+	 (1,25,1,'admin','2021-05-31 18:05:04'),
+	 (1,26,1,'admin','2021-05-31 18:05:04'),
+	 (1,27,1,'admin','2021-05-31 18:05:04'),
+	 (1,28,1,'admin','2021-05-31 18:05:04'),
+	 (1,31,1,'admin','2021-05-31 21:25:56'),
+	 (1,32,1,'admin','2021-05-31 21:25:56'),
+	 (1,33,1,'admin','2021-05-31 21:25:56'),
+	 (1,36,1,'admin','2021-06-01 14:01:57'),
+	 (1,19,1,'admin','2021-06-01 17:34:03'),
+	 (1,21,1,'admin','2021-06-01 17:34:03'),
+	 (1,29,1,'admin','2021-06-01 17:34:03'),
+	 (1,30,1,'admin','2021-06-01 17:34:03'),
+	 (1,34,1,'admin','2021-06-01 17:34:03'),
+	 (1,37,1,'admin','2021-06-03 09:09:42'),
+	 (1,38,1,'admin','2021-06-03 09:09:42'),
+	 (1,40,1,'admin','2021-06-08 11:21:52'),
+	 (1,41,1,'admin','2021-06-08 11:21:52'),
+	 (1,42,1,'admin','2021-06-08 11:21:52'),
+	 (1,43,1,'admin','2021-06-08 11:21:52'),
+	 (1,44,1,'admin','2021-06-08 11:21:52'),
+	 (1,45,1,'admin','2021-06-08 11:21:52'),
+	 (1,46,1,'admin','2021-06-08 11:21:52'),
+	 (1,47,1,'admin','2021-06-08 11:21:52'),
+	 (6,39,1,'admin','2021-06-08 15:10:58'),
+	 (6,15,1,'admin','2021-06-08 15:10:58'),
+	 (6,31,1,'admin','2021-06-08 15:10:58'),
+	 (6,33,1,'admin','2021-06-08 15:10:58'),
+	 (6,32,1,'admin','2021-06-08 15:10:58'),
+	 (6,4,1,'admin','2021-06-08 15:10:58'),
+	 (6,14,1,'admin','2021-06-08 15:10:58'),
+	 (6,11,1,'admin','2021-06-08 15:10:58'),
+	 (6,5,1,'admin','2021-06-08 15:10:58'),
+	 (7,1,1,'admin','2021-07-06 15:07:09'),
+	 (1,49,1,'admin','2021-07-07 15:14:17'),
+	 (1,54,1,'admin','2021-07-08 17:32:19'),
+	 (1,55,1,'admin','2021-07-08 17:32:19'),
+	 (1,57,1,'admin','2021-07-09 10:48:50'),
+	 (1,58,1,'admin','2021-07-09 10:48:50'),
+	 (8,57,1,'admin','2021-07-09 10:49:46'),
+	 (8,12,1,'admin','2021-07-09 10:49:46'),
+	 (8,15,1,'admin','2021-07-09 10:49:46'),
+	 (8,38,1,'admin','2021-07-09 10:49:46'),
+	 (8,2,1,'admin','2021-07-09 10:49:46'),
+	 (8,3,1,'admin','2021-07-09 10:49:46'),
+	 (8,36,1,'admin','2021-07-09 10:49:46'),
+	 (1,59,1,'admin','2021-07-09 10:50:20'),
+	 (8,59,1,'admin','2021-07-09 10:50:32'),
+	 (6,57,1,'admin','2021-07-12 16:44:12'),
+	 (1,60,1,'admin','2021-07-19 20:19:29'),
+	 (1,61,1,'admin','2021-07-19 20:19:29'),
+	 (1,62,1,'admin','2021-07-19 20:19:29'),
+	 (1,63,1,'admin','2021-07-20 10:48:39'),
+	 (1,64,1,'admin','2021-07-20 10:48:39'),
+	 (7,39,1,'admin','2021-09-09 10:10:30'),
+	 (6,16,1,'admin','2021-09-09 15:52:38'),
+	 (6,17,1,'admin','2021-09-09 15:52:38'),
+	 (6,18,1,'admin','2021-09-09 15:52:38'),
+	 (6,37,1,'admin','2021-09-09 15:52:38'),
+	 (6,40,1,'admin','2021-09-09 15:52:38'),
+	 (6,41,1,'admin','2021-09-09 15:52:38'),
+	 (6,42,1,'admin','2021-09-09 15:52:38'),
+	 (6,43,1,'admin','2021-09-09 15:52:38'),
+	 (6,44,1,'admin','2021-09-09 15:52:38'),
+	 (6,45,1,'admin','2021-09-09 15:52:38'),
+	 (6,46,1,'admin','2021-09-09 15:52:38'),
+	 (6,47,1,'admin','2021-09-09 15:52:38'),
+	 (6,36,1,'admin','2021-09-09 15:52:38'),
+	 (6,38,1,'admin','2021-09-09 15:52:38'),
+	 (6,59,1,'admin','2021-09-09 15:52:38'),
+	 (6,49,1,'admin','2021-09-09 15:52:38'),
+	 (6,58,1,'admin','2021-09-09 15:52:38'),
+	 (6,54,1,'admin','2021-09-09 15:52:38'),
+	 (6,55,1,'admin','2021-09-09 15:52:38'),
+	 (6,60,1,'admin','2021-09-09 15:52:38'),
+	 (6,61,1,'admin','2021-09-09 15:52:38'),
+	 (6,62,1,'admin','2021-09-09 15:52:38'),
+	 (6,63,1,'admin','2021-09-09 15:52:38'),
+	 (6,64,1,'admin','2021-09-09 15:52:38'),
+	 (6,19,1,'admin','2021-09-09 15:53:56'),
+	 (6,21,1,'admin','2021-09-09 15:53:56'),
+	 (6,29,1,'admin','2021-09-09 15:53:56'),
+	 (6,30,1,'admin','2021-09-09 15:53:56'),
+	 (6,34,1,'admin','2021-09-09 15:53:56'),
+	 (6,20,1,'admin','2021-09-09 15:53:56'),
+	 (6,22,1,'admin','2021-09-09 15:53:56'),
+	 (6,23,1,'admin','2021-09-09 15:53:56'),
+	 (6,24,1,'admin','2021-09-09 15:53:56'),
+	 (6,25,1,'admin','2021-09-09 15:53:56'),
+	 (6,26,1,'admin','2021-09-09 15:53:56'),
+	 (6,27,1,'admin','2021-09-09 15:53:56'),
+	 (6,28,1,'admin','2021-09-09 15:53:56'),
+	 (8,42,1,'admin','2021-11-05 15:59:16'),
+	 (8,43,1,'admin','2021-11-05 15:59:16'),
+	 (8,47,1,'admin','2021-11-05 15:59:16'),
+	 (8,60,1,'admin','2021-11-05 15:59:16'),
+	 (8,61,1,'admin','2021-11-05 15:59:16'),
+	 (8,62,1,'admin','2021-11-05 15:59:16'),
+	 (1,72,1,'admin','2022-07-14 11:03:09'),
+	 (1,71,1,'admin','2022-07-14 11:03:09'),
+	 (1,79,1,'admin','2022-07-14 11:03:09'),
+	 (1,80,1,'admin','2022-07-14 11:03:09'),
+	 (1,81,1,'admin','2022-07-14 11:03:09'),
+	 (1,82,1,'admin','2022-07-14 11:03:09'),
+	 (1,83,1,'admin','2022-07-14 11:03:09'),
+	 (1,84,1,'admin','2022-07-14 11:10:11'),
+	 (1,85,1,'admin','2022-07-14 11:10:11'),
+	 (1,87,1,'admin','2022-07-14 11:10:11'),
+	 (1,88,1,'admin','2022-10-08 10:54:06'),
+	 (8,80,1,'admin','2022-10-08 10:54:34'),
+	 (8,81,1,'admin','2022-10-08 10:54:34'),
+	 (8,79,1,'admin','2022-10-08 10:54:34'),
+	 (1,93,1,'admin','2022-10-26 20:03:14'),
+	 (1,94,1,'admin','2022-10-26 20:03:14'),
+	 (1,96,1,'admin','2022-10-26 20:03:14'),
+	 (1,98,1,'admin','2022-10-26 20:03:14'),
+	 (1,95,1,'admin','2022-10-26 20:03:14'),
+	 (1,97,1,'admin','2022-10-26 20:03:14'),
+	 (1,99,1,'admin','2022-10-26 20:03:14'),
+	 (1,100,1,'admin','2022-10-26 20:03:14'),
+	 (1,101,1,'admin','2022-10-26 20:03:14'),
+	 (1,102,1,'admin','2022-10-26 20:03:14'),
+	 (1,106,1,'admin','2023-02-23 14:30:54'),
+	 (1,103,1,'admin','2023-02-23 14:30:54'),
+	 (1,105,1,'admin','2023-02-23 14:31:00'),
+	 (1,104,1,'admin','2023-02-24 13:40:26'),
+	 (1,108,1,'admin','2023-03-14 17:28:06'),
+	 (6,79,1,'admin','2023-03-14 17:28:50'),
+	 (6,80,1,'admin','2023-03-14 17:28:50'),
+	 (6,81,1,'admin','2023-03-14 17:28:50'),
+	 (6,82,1,'admin','2023-03-14 17:28:50'),
+	 (6,83,1,'admin','2023-03-14 17:28:50'),
+	 (6,84,1,'admin','2023-03-14 17:29:00'),
+	 (6,85,1,'admin','2023-03-14 17:29:00'),
+	 (6,87,1,'admin','2023-03-14 17:29:00'),
+	 (6,88,1,'admin','2023-03-14 17:29:00'),
+	 (1,109,1,'admin','2023-03-16 16:11:25');
 COMMIT;
 
 -- ----------------------------
@@ -760,7 +747,7 @@ CREATE TABLE `t_tag_tree` (
 -- Records of t_tag_tree
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_tag_tree` VALUES (33, 0, 'default', 'default', '默认', '默认标签', '2022-10-26 20:04:19', 1, 'admin', '2022-10-26 20:04:19', 1, 'admin');
+INSERT INTO `t_tag_tree` VALUES (33, 0, 'default', 'default/', '默认', '默认标签', '2022-10-26 20:04:19', 1, 'admin', '2022-10-26 20:04:19', 1, 'admin');
 COMMIT;
 
 -- ----------------------------
@@ -786,7 +773,7 @@ CREATE TABLE `t_tag_tree_team` (
 -- Records of t_tag_tree_team
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_tag_tree_team` VALUES (31, 33, 'default', 3, '2022-10-26 20:04:45', 1, 'admin', '2022-10-26 20:04:45', 1, 'admin');
+INSERT INTO `t_tag_tree_team` VALUES (31, 33, 'default/', 3, '2022-10-26 20:04:45', 1, 'admin', '2022-10-26 20:04:45', 1, 'admin');
 COMMIT;
 
 -- ----------------------------

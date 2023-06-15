@@ -38,6 +38,18 @@ func (r *resourceRepoImpl) GetByCondition(condition *entity.Resource, cols ...st
 	return model.GetBy(condition, cols...)
 }
 
+func (r *resourceRepoImpl) GetChildren(uiPath string) []entity.Resource {
+	sql := "SELECT id, ui_path FROM t_sys_resource WHERE ui_path LIKE ?"
+	var rs []entity.Resource
+	model.GetListBySql2Model(sql, &rs, uiPath+"%")
+	return rs
+}
+
+func (r *resourceRepoImpl) UpdateByUiPathLike(resource *entity.Resource) {
+	sql := "UPDATE t_sys_resource SET status=? WHERE (ui_path LIKE ?)"
+	model.ExecSql(sql, resource.Status, resource.UiPath+"%")
+}
+
 func (r *resourceRepoImpl) GetAccountResources(accountId uint64, toEntity any) {
 	sql := `SELECT
 	           m.id,
@@ -51,7 +63,7 @@ func (r *resourceRepoImpl) GetAccountResources(accountId uint64, toEntity any) {
             FROM
 	           t_sys_resource m 
             WHERE
-         	   m.STATUS = 1 
+         	   m.status = 1 
 	        AND m.id IN (
 	            SELECT DISTINCT
 		            ( rmb.resource_id ) 

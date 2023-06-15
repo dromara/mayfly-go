@@ -48,6 +48,7 @@
                                 <el-button @click="scan()" icon="bottom" plain>scan</el-button>
                                 <el-button @click="showNewKeyDialog" type="primary" icon="plus" plain
                                     v-auth="'redis:data:save'"></el-button>
+                                <el-button @click="flushDb" type="danger" plain v-auth="'redis:data:save'">flush</el-button>
                             </el-form-item>
                             <div style="float: right">
                                 <span>keys: {{ state.dbsize }}</span>
@@ -338,16 +339,29 @@ const showKeyDetail = async (row: any) => {
     state.keyDetailDialog.visible = true;
 };
 
-const closeKeyDetail = () => {
-
-    // state.keyDetailDialog.visible = false;
-}
-
 const showNewKeyDialog = () => {
     notNull(state.scanParam.id, '请先选择redis');
     notNull(state.scanParam.db, "请选择要操作的库")
     resetKeyDetailInfo();
     state.newKeyDialog.visible = true;
+}
+
+const flushDb = () => {
+    ElMessageBox.confirm(`确定清空[${state.scanParam.db}]库的所有key?`, '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+    }).then(() => {
+        redisApi.flushDb
+            .request({
+                id: state.scanParam.id,
+                db: state.scanParam.db,
+            })
+            .then(() => {
+                ElMessage.success('清除成功！');
+                searchKey();
+            });
+    }).catch(() => { });
 }
 
 const cancelNewKey = () => {

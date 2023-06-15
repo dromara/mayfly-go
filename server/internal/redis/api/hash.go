@@ -52,6 +52,7 @@ func (r *Redis) Hset(rc *req.Ctx) {
 	g := rc.GinCtx
 	hashValue := new(form.HashValue)
 	ginx.BindJsonAndValid(g, hashValue)
+	rc.ReqParam = hashValue
 
 	hv := hashValue.Value[0]
 	res, err := r.getRedisIns(rc).GetCmdable().HSet(context.TODO(), hashValue.Key, hv["field"].(string), hv["value"]).Result()

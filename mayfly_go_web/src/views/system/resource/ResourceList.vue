@@ -3,19 +3,20 @@
         <div class="toolbar">
             <div>
                 <span style="font-size: 14px">
-                    <SvgIcon name="info-filled" />红色字体表示禁用状态
+                    <SvgIcon name="info-filled" />红色、橙色字体表示禁用状态
                 </span>
             </div>
             <el-button v-auth="'resource:add'" type="primary" icon="plus" @click="addResource(false)">添加</el-button>
         </div>
-        <el-tree class="none-select" :indent="38" node-key="id" :props="props" :data="data"
-            @node-expand="handleNodeExpand" @node-collapse="handleNodeCollapse"
-            :default-expanded-keys="defaultExpandedKeys" :expand-on-click-node="false">
+        <el-tree class="none-select" :indent="38" node-key="id" :props="props" :data="data" @node-expand="handleNodeExpand"
+            @node-collapse="handleNodeCollapse" :default-expanded-keys="defaultExpandedKeys" :expand-on-click-node="false"
+            draggable :allow-drop="allowDrop" @node-drop="handleDrop">
             <template #default="{ data }">
                 <span class="custom-tree-node">
                     <span style="font-size: 13px" v-if="data.type === menuTypeValue">
                         <span style="color: #3c8dbc">【</span>
-                        {{ data.name }}
+                        <span v-if="data.status == 1">{{ data.name }}</span>
+                        <span v-if="data.status == -1" style="color: #e6a23c;">{{ data.name }}</span>
                         <span style="color: #3c8dbc">】</span>
                         <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
                     </span>
@@ -31,21 +32,17 @@
                     <el-link v-auth="'resource:update'" @click.prevent="editResource(data)" class="ml5" type="primary"
                         icon="edit" :underline="false" />
 
-                    <el-link v-auth="'resource:add'" @click.prevent="addResource(data)"
-                        v-if="data.type === menuTypeValue" icon="circle-plus" :underline="false"
-                        type="success" class="ml5" />
+                    <el-link v-auth="'resource:add'" @click.prevent="addResource(data)" v-if="data.type === menuTypeValue"
+                        icon="circle-plus" :underline="false" type="success" class="ml5" />
 
                     <el-link v-auth="'resource:changeStatus'" @click.prevent="changeStatus(data, -1)"
-                        v-if="data.status === 1 && data.type === permissionTypeValue"
-                        icon="circle-close" :underline="false" type="warning" class="ml5" />
+                        v-if="data.status === 1" icon="circle-close" :underline="false" type="warning" class="ml5" />
 
                     <el-link v-auth="'resource:changeStatus'" @click.prevent="changeStatus(data, 1)"
-                        v-if="data.status === -1 && data.type === permissionTypeValue"
-                        type="success" icon="circle-check" :underline="false" plain class="ml5" />
+                        v-if="data.status === -1" type="success" icon="circle-check" :underline="false" plain class="ml5" />
 
-                    <el-link v-auth="'resource:delete'" v-if="data.children == null && data.name !== '首页'"
-                        @click.prevent="deleteMenu(data)" type="danger" icon="delete" :underline="false" plain
-                        class="ml5" />
+                    <el-link v-auth="'resource:delete'" @click.prevent="deleteMenu(data)" type="danger" icon="delete"
+                        :underline="false" plain class="ml5" />
                 </span>
             </template>
         </el-tree>
@@ -61,7 +58,9 @@
                 </el-descriptions-item>
                 <el-descriptions-item label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
                 <el-descriptions-item label="code[菜单path]">{{ infoDialog.data.code }}</el-descriptions-item>
-                <el-descriptions-item label="序号">{{ infoDialog.data.weight }}</el-descriptions-item>
+                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="图标">
+                    <SvgIcon :name="infoDialog.data.meta.icon" />
+                </el-descriptions-item>
                 <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="路由名">
                     {{ infoDialog.data.meta.routeName }}
                 </el-descriptions-item>
@@ -117,7 +116,7 @@ const state = reactive({
         type: null,
         title: '',
         visible: false,
-        data: { pid: 0, type: 1, weight: 1 },
+        data: { pid: 0, type: 1 },
         // 资源类型选择是否选
         typeDisabled: true,
     },
@@ -134,7 +133,6 @@ const state = reactive({
             modifier: '',
             createTime: '',
             updateTime: '',
-            weight: null,
             code: '',
         },
     },
@@ -182,7 +180,7 @@ const deleteMenu = (data: any) => {
 
 const addResource = (data: any) => {
     let dialog = state.dialogForm;
-    dialog.data = { pid: 0, type: 1, weight: 1 };
+    dialog.data = { pid: 0, type: 1 };
     // 添加顶级菜单情况
     if (!data) {
         dialog.typeDisabled = true;
@@ -213,7 +211,6 @@ const addResource = (data: any) => {
         } else {
             dialog.data.type = menuTypeValue;
         }
-        dialog.data.weight = data.children.length + 1;
     }
     dialog.visible = true;
 };
@@ -242,7 +239,7 @@ const changeStatus = async (data: any, status: any) => {
         id: data.id,
         status: status,
     });
-    data.status = status;
+    search();
     ElMessage.success((status === 1 ? '启用' : '禁用') + '成功！');
 };
 
@@ -270,6 +267,51 @@ const handleNodeCollapse = (data: any, node: any) => {
         handleNodeCollapse(data, cn);
     }
 };
+
+const allowDrop = (draggingNode: any, dropNode: any, type: any) => {
+    // 如果是插入至目标节点
+    if (type === 'inner') {
+        // 只有目标节点下没有子节点才允许移动
+        if (!dropNode.data.children || dropNode.data.children == 0) {
+            // 只有权限节点可移动至菜单节点下 或者移动菜单
+            return (draggingNode.data.type == permissionTypeValue && dropNode.data.type == menuTypeValue) ||
+                (draggingNode.data.type == menuTypeValue && dropNode.data.type == menuTypeValue)
+        }
+        return false;
+    }
+    return draggingNode.data.type === dropNode.data.type;
+}
+
+const handleDrop = async (
+    draggingNode: any,
+    dropNode: any,
+    dropType: any,
+) => {
+    const draggingData = draggingNode.data;
+    const dropData = dropNode.data;
+    if (draggingData.pid !== dropData.pid) {
+        draggingData.pid = dropData.pid;
+    }
+    if (dropType === 'inner') {
+        draggingData.weight = 1;
+        draggingData.pid = dropData.id;
+    }
+    if (dropType === 'before') {
+        draggingData.weight = dropData.weight - 1;
+    }
+    if (dropType === 'after') {
+        draggingData.weight = dropData.weight + 1;
+    }
+
+    await resourceApi.sort.request([
+        {
+            id: draggingData.id,
+            name: draggingData.name,
+            pid: draggingData.pid,
+            weight: draggingData.weight
+        },
+    ])
+}
 
 const removeDeafultExpandId = (id: any) => {
     let index = state.defaultExpandedKeys.indexOf(id);

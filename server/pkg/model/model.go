@@ -231,3 +231,7 @@ func GetListBySql(sql string, params ...any) []map[string]any {
 func GetListBySql2Model(sql string, toEntity any, params ...any) error {
 	return global.Db.Raw(sql, params...).Find(toEntity).Error
 }
+
+func ExecSql(sql string, params ...any) {
+	global.Db.Exec(sql, params...)
+}

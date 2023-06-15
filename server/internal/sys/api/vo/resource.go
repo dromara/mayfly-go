@@ -53,6 +53,7 @@ type ResourceManageVO struct {
 	Name       string     `json:"name"`
 	Type       int        `json:"type"`
 	Status     int        `json:"status"`
+	Weight     int        `json:"weight"`
 	Creator    string     `json:"creator"`
 	CreateTime *time.Time `json:"createTime"`
 }

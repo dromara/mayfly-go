@@ -1,7 +1,7 @@
 <template>
     <div class="system-menu-dialog-container layout-pd">
         <el-dialog :title="title" :destroy-on-close="true" v-model="dialogVisible" width="800px">
-            <el-form :model="form" :inline="true" ref="menuForm" :rules="rules" label-width="95px">
+            <el-form :model="form" :inline="true" ref="menuForm" :rules="rules" label-width="100px">
                 <el-row :gutter="35">
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
                         <el-form-item class="w100" prop="type" label="类型" required>
@@ -19,12 +19,16 @@
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
                         <el-form-item class="w100" prop="code" label="path|code">
+                            <template #label>
+                                path|code
+                                <el-tooltip effect="dark" content="菜单类型则为访问路径（若菜单路径不以'/'开头则访问地址会自动拼接父菜单路径）、否则为资源唯一编码"
+                                    placement="top">
+                                    <el-icon>
+                                        <question-filled />
+                                    </el-icon>
+                                </el-tooltip>
+                            </template>
                             <el-input v-model.trim="form.code" placeholder="菜单不以'/'开头则自动拼接父菜单路径"></el-input>
-                        </el-form-item>
-                    </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
-                        <el-form-item class="w100" label="序号" prop="weight" required>
-                            <el-input v-model.number="form.weight" type="number" placeholder="请输入序号"></el-input>
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
@@ -33,17 +37,42 @@
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100" prop="code" label="路由名">
+                        <el-form-item class="w100">
+                            <template #label>
+                                路由名
+                                <el-tooltip effect="dark" content="与vue的组件名一致才可使组件缓存生效，如ResourceList" placement="top">
+                                    <el-icon>
+                                        <question-filled />
+                                    </el-icon>
+                                </el-tooltip>
+                            </template>
                             <el-input v-model.trim="form.meta.routeName" placeholder="请输入路由名称"></el-input>
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100" prop="code" label="组件路径">
+                        <el-form-item class="w100" prop="code">
+                            <template #label>
+                                组件路径
+                                <el-tooltip effect="dark" content="访问的组件路径，如：`system/resource/ResourceList`，默认在`views`目录下"
+                                    placement="top">
+                                    <el-icon>
+                                        <question-filled />
+                                    </el-icon>
+                                </el-tooltip>
+                            </template>
                             <el-input v-model.trim="form.meta.component" placeholder="请输入组件路径"></el-input>
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100" prop="code" label="是否缓存">
+                        <el-form-item class="w100" prop="isKeepAlive">
+                            <template #label>
+                                是否缓存
+                                <el-tooltip effect="dark" content="选择是则会被`keep-alive`缓存(重新进入页面不会刷新页面及重新请求数据)，需要路由名与vue的组件名一致" placement="top">
+                                    <el-icon>
+                                        <question-filled />
+                                    </el-icon>
+                                </el-tooltip>
+                            </template>
                             <el-select v-model="form.meta.isKeepAlive" placeholder="请选择" class="w100">
                                 <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
                                     :value="item.value"> </el-option>
@@ -51,7 +80,15 @@
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100" prop="code" label="是否隐藏">
+                        <el-form-item class="w100">
+                            <template #label>
+                                是否隐藏
+                                <el-tooltip effect="dark" content="选择隐藏则路由将不会出现在菜单栏中，但仍然可以访问。禁用则不可访问与操作" placement="top">
+                                    <el-icon>
+                                        <question-filled />
+                                    </el-icon>
+                                </el-tooltip>
+                            </template>
                             <el-select v-model="form.meta.isHide" placeholder="请选择" class="w100">
                                 <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
                                     :value="item.value"> </el-option>
@@ -67,10 +104,16 @@
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
-                        <el-form-item class="w100" prop="code" label="外链">
+                        <el-form-item class="w100" prop="linkType">
+                            <template #label>
+                                外链
+                                <el-tooltip effect="dark" content="内嵌: 以iframe展示、外链: 新标签打开" placement="top">
+                                    <el-icon>
+                                        <question-filled />
+                                    </el-icon>
+                                </el-tooltip>
+                            </template>
                             <el-select class="w100" @change="changeIsIframe" v-model="form.meta.linkType" placeholder="请选择">
-                                <!-- <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
-                                    :value="item.value"> </el-option> -->
                                 <el-option :key="0" label="否" :value="0"> </el-option>
                                 <el-option :key="1" label="内嵌" :value="1"> </el-option>
                                 <el-option :key="2" label="外链" :value="2"> </el-option>
@@ -146,13 +189,6 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
-    weight: [
-        {
-            required: true,
-            message: '请输入序号',
-            trigger: ['change', 'blur'],
-        },
-    ],
 }
 
 const trueFalseOption = [
@@ -174,7 +210,6 @@ const state = reactive({
         pid: null,
         code: null,
         type: null,
-        weight: 0,
         meta: {
             routeName: '',
             icon: '',

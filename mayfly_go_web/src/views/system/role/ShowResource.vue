@@ -10,8 +10,8 @@
                                 node.label
                         }}</span>
 
-                        <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="InfoFilled" type="info"
-                            :underline="false" />
+                        <!-- <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="InfoFilled" type="info"
+                            :underline="false" /> -->
                     </span>
                 </template>
             </el-tree>

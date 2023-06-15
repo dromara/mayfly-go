@@ -72,20 +72,15 @@ func (p *tagTreeAppImpl) Save(tag *entity.TagTree) {
 		if tag.Pid != 0 {
 			parentTag := p.tagTreeRepo.SelectById(tag.Pid)
 			biz.NotNil(parentTag, "父节点不存在")
-			tag.CodePath = parentTag.CodePath + entity.CodePathSeparator + tag.Code
+			tag.CodePath = parentTag.CodePath + tag.Code + entity.CodePathSeparator
 		} else {
-			tag.CodePath = tag.Code
+			tag.CodePath = tag.Code + entity.CodePathSeparator
 		}
 		// 判断该路径是否存在
 		var hasLikeTags []entity.TagTree
 		p.tagTreeRepo.SelectByCondition(&entity.TagTreeQuery{CodePathLike: tag.CodePath}, &hasLikeTags)
 		biz.IsTrue(len(hasLikeTags) == 0, "已存在该标签路径开头的标签, 请修改该标识code")
 
-		// 校验同级标签，是否有以该code为开头的标识符
-		p.tagTreeRepo.SelectByCondition(&entity.TagTreeQuery{Pid: tag.Pid}, &hasLikeTags)
-		for _, v := range hasLikeTags {
-			biz.IsTrue(!strings.HasPrefix(tag.Code, v.Code), "同级标签下的[%s]与[%s]存在相似开头字符, 请修改该标识code", v.Code, tag.Code)
-		}
 		p.tagTreeRepo.Insert(tag)
 		return
 	}

@@ -148,7 +148,7 @@ func (r *Redis) Scan(rc *req.Ctx) {
 func (r *Redis) TtlKey(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisIns(rc)
 	ttl, err := ri.GetCmdable().TTL(context.Background(), key).Result()
-	biz.ErrIsNil(err, "ttl失败: %s")
+	biz.ErrIsNilAppendErr(err, "ttl失败: %s")
 
 	if ttl == -1 {
 		rc.ResData = -1
@@ -186,4 +186,11 @@ func (r *Redis) PersistKey(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisIns(rc)
 	rc.ReqParam = fmt.Sprintf("%s -> 移除key[%s]的过期时间", ri.Info.GetLogDesc(), key)
 	ri.GetCmdable().Persist(context.Background(), key)
+}
+
+// 清空库
+func (r *Redis) FlushDb(rc *req.Ctx) {
+	ri := r.getRedisIns(rc)
+	rc.ReqParam = fmt.Sprintf("%s -> flushdb", ri.Info.GetLogDesc())
+	ri.GetCmdable().FlushDB(context.Background())
 }

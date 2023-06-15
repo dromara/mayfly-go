@@ -2,7 +2,8 @@
     <div>
         <el-row>
             <el-col :span="4">
-                <el-button type="primary" icon="plus" @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases }, state.db)"
+                <el-button type="primary" icon="plus"
+                    @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases }, state.db)"
                     size="small">新建查询</el-button>
             </el-col>
             <el-col :span="20" v-if="state.db">
@@ -23,7 +24,8 @@
         </el-row>
         <el-row type="flex">
             <el-col :span="4" style="border-left: 1px solid #eee; margin-top: 10px">
-                <tag-tree ref="tagTreeRef" @node-click="nodeClick" :load="loadNode" :load-contextmenu-items="getContextmenuItems" @current-contextmenu-click="onCurrentContextmenuClick"
+                <tag-tree ref="tagTreeRef" @node-click="nodeClick" :load="loadNode"
+                    :load-contextmenu-items="getContextmenuItems" @current-contextmenu-click="onCurrentContextmenuClick"
                     :height="state.tagTreeHeight">
                     <template #prefix="{ data }">
                         <span v-if="data.type == NodeType.DbInst">
@@ -246,7 +248,7 @@ const nodeClick = async (data: any) => {
     const dataType = data.type;
     // 点击数据库，修改当前数据库信息
     if (dataType === NodeType.Db || dataType === NodeType.SqlMenu || dataType === NodeType.TableMenu || dataType === NodeType.DbInst) {
-        changeSchema({ id: params.id, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.database}, params.db);
+        changeSchema({ id: params.id, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.database }, params.db);
         return;
     }
 
@@ -490,7 +492,7 @@ const registerSqlCompletionItemProvider = () => {
             // // const nextToken = nextTokens[0].toLowerCase()
             const tokens = textBeforePointer.trim().split(/\s+/)
             const lastToken = tokens[tokens.length - 1].toLowerCase()
-            const secondToken = tokens.length >2 && tokens[tokens.length - 2].toLowerCase() || ''
+            const secondToken = tokens.length > 2 && tokens[tokens.length - 2].toLowerCase() || ''
 
             const dbs = nowTab.params?.dbs?.split(' ') || [];
             // console.log("光标前文本：=>" + textBeforePointerMulti)
@@ -499,34 +501,34 @@ const registerSqlCompletionItemProvider = () => {
             let suggestions: languages.CompletionItem[] = []
             const tables = await dbInst.loadTables(db);
 
-            async function hintTableColumns (tableName, db) {
-              let dbHits = await dbInst.loadDbHints(db)
-              let columns = dbHits[tableName]
-              let suggestions: languages.CompletionItem[] = []
-              columns?.forEach((a: string, index: any) => {
-                // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
-                const nameAndComment = a.split("  ")
-                const fieldName = nameAndComment[0]
-                suggestions.push({
-                  label: {
-                    label: a,
-                    description: 'column'
-                  },
-                  kind: monaco.languages.CompletionItemKind.Property,
-                  detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                  insertText: fieldName + ' ', // create_time
-                  range,
-                  sortText: 100 + index + '' // 使用表字段声明顺序排序,排序需为字符串类型
-                });
-              })
-              return suggestions
+            async function hintTableColumns(tableName: any, db: any) {
+                let dbHits = await dbInst.loadDbHints(db)
+                let columns = dbHits[tableName]
+                let suggestions: languages.CompletionItem[] = []
+                columns?.forEach((a: string, index: any) => {
+                    // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
+                    const nameAndComment = a.split("  ")
+                    const fieldName = nameAndComment[0]
+                    suggestions.push({
+                        label: {
+                            label: a,
+                            description: 'column'
+                        },
+                        kind: monaco.languages.CompletionItemKind.Property,
+                        detail: '', // 不显示detail, 否则选中时备注等会被遮挡
+                        insertText: fieldName + ' ', // create_time
+                        range,
+                        sortText: 100 + index + '' // 使用表字段声明顺序排序,排序需为字符串类型
+                    });
+                })
+                return suggestions
             }
 
             if (lastToken.indexOf('.') > -1 || secondToken.indexOf('.') > -1) {
                 // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
                 let str = lastToken.substring(0, lastToken.lastIndexOf('.'))
-                if(lastToken.trim().startsWith('.')){
-                  str = secondToken
+                if (lastToken.trim().startsWith('.')) {
+                    str = secondToken
                 }
 
                 // 库.表名联想
@@ -556,27 +558,27 @@ const registerSqlCompletionItemProvider = () => {
                     let db = tableInfo.dbName;
                     // 取出表名并提示
                     let suggestions = await hintTableColumns(tableName, db);
-                    if(suggestions.length > 0){
+                    if (suggestions.length > 0) {
                         return { suggestions };
                     }
                 }
                 return { suggestions: [] }
-            }else{
-              // 如果sql里含有表名，则提示表字段
-              let mat = textBeforePointerMulti.match(/from\n*\s+\n*(\w+)\n*\s+\n*/i)
-              if(mat && mat.length > 1){
-                  let tableName = mat[1]
-                  // 取出表名并提示
-                  let suggestions = await hintTableColumns(tableName, db);
-                  if(suggestions.length > 0){
-                      return { suggestions };
-                  }
-              }
+            } else {
+                // 如果sql里含有表名，则提示表字段
+                let mat = textBeforePointerMulti.match(/from\n*\s+\n*(\w+)\n*\s+\n*/i)
+                if (mat && mat.length > 1) {
+                    let tableName = mat[1]
+                    // 取出表名并提示
+                    let addSuggestions = await hintTableColumns(tableName, db);
+                    if (addSuggestions.length > 0) {
+                        suggestions = suggestions.concat(addSuggestions)
+                    }
+                }
             }
 
             // 表名联想
             tables.forEach((tableMeta: any) => {
-                const {tableName, tableComment} = tableMeta;
+                const { tableName, tableComment } = tableMeta;
                 suggestions.push({
                     label: {
                         label: tableName + ' - ' + tableComment,

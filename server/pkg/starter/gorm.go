@@ -33,13 +33,19 @@ func gormMysql() *gorm.DB {
 		SkipInitializeWithVersion: false,   // 根据版本自动配置
 	}
 
+	sqlLogLevel := logger.Error
+	logConf := config.Conf.Log
+	// 如果为配置文件中配置的系统日志级别为debug，则打印gorm执行的sql信息
+	if logConf.Level == "debug" {
+		sqlLogLevel = logger.Info
+	}
 	gormLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer（日志输出的目标，前缀和日志包含的内容——译者注）
 		logger.Config{
-			SlowThreshold:             time.Second,  // 慢 SQL 阈值
-			LogLevel:                  logger.Error, // 日志级别, 改为logger.Info即可显示sql语句
-			IgnoreRecordNotFoundError: true,         // 忽略ErrRecordNotFound（记录未找到）错误
-			Colorful:                  true,         // 禁用彩色打印
+			SlowThreshold:             time.Second, // 慢 SQL 阈值
+			LogLevel:                  sqlLogLevel, // 日志级别, 改为logger.Info即可显示sql语句
+			IgnoreRecordNotFoundError: true,        // 忽略ErrRecordNotFound（记录未找到）错误
+			Colorful:                  true,        // 禁用彩色打印
 		},
 	)
 

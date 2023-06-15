@@ -18,4 +18,10 @@ type Resource interface {
 
 	// 获取账号资源列表
 	GetAccountResources(accountId uint64, toEntity any)
+
+	// 获取所有子节点id
+	GetChildren(uiPath string) []entity.Resource
+
+	// 根据uiPath右匹配更新所有相关类资源
+	UpdateByUiPathLike(resource *entity.Resource)
 }

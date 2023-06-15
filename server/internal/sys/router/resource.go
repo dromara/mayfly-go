@@ -38,6 +38,13 @@ func InitResourceRouter(router *gin.RouterGroup) {
 				Handle(r.ChangeStatus)
 		})
 
+		sort := req.NewLogInfo("资源排序").WithSave(true)
+		db.POST("sort", func(c *gin.Context) {
+			req.NewCtxWithGin(c).
+				WithLog(sort).
+				Handle(r.Sort)
+		})
+
 		delResource := req.NewLogInfo("删除资源").WithSave(true)
 		dePermission := req.NewPermission("resource:delete")
 		db.DELETE(":id", func(c *gin.Context) {

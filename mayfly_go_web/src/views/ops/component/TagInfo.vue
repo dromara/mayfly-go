@@ -48,14 +48,17 @@ const showTagInfo = async () => {
     const tagPaths = [];
     let nowTag = '';
     for (let tagStr of tagStrs) {
-        if (nowTag) {
-            nowTag = `${nowTag}/${tagStr}`
-        } else {
-            nowTag = tagStr
+        if (!tagStr) {
+            continue;
         }
-        tagPaths.push(nowTag)
+        if (nowTag) {
+            nowTag = `${nowTag}${tagStr}/`;
+        } else {
+            nowTag = tagStr + '/';
+        }
+        tagPaths.push(nowTag);
     }
-    state.tags = await tagApi.listByQuery.request({ tagPaths: tagPaths.join(',') })
+    state.tags = await tagApi.listByQuery.request({ tagPaths: tagPaths.join(',') });
 }
 
 </script>
