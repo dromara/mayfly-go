@@ -557,7 +557,7 @@ CREATE TABLE `t_sys_role_resource` (
 -- ----------------------------
 BEGIN;
 INSERT INTO `t_sys_role_resource` (role_id,resource_id,creator_id,creator,create_time) VALUES
-	 (1,'admin','2021-05-27 15:07:39'),
+	 (1,1,1,'admin','2021-05-27 15:07:39'),
 	 (1,2,1,'admin','2021-05-28 09:04:50'),
 	 (1,4,1,'admin','2021-05-28 09:04:50'),
 	 (1,5,1,'admin','2021-05-28 09:04:50'),
