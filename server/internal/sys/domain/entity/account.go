@@ -14,6 +14,7 @@ type Account struct {
 	Status        int8       `json:"status"`
 	LastLoginTime *time.Time `json:"lastLoginTime"`
 	LastLoginIp   string     `json:"lastLoginIp"`
+	OtpSecret     string     `json:"-"`
 }
 
 func (a *Account) TableName() string {

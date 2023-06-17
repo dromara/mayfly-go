@@ -27,6 +27,7 @@ export const accountApi = {
     update: Api.newPut("/sys/accounts/{id}"),
     del: Api.newDelete("/sys/accounts/{id}"),
     changeStatus: Api.newPut("/sys/accounts/change-status/{id}/{status}"),
+    resetOtpSecret: Api.newPut("/sys/accounts/{id}/reset-otp"),
     roleIds: Api.newGet("/sys/accounts/{id}/roleIds"),
     roles: Api.newGet("/sys/accounts/{id}/roles"),
     resources: Api.newGet("/sys/accounts/{id}/resources"),

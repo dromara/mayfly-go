@@ -141,8 +141,8 @@ func GetRsaPublicKey() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	cache.SetStr(publicKeyK, publicKey)
-	cache.SetStr(privateKeyK, privateKey)
+	cache.SetStr(publicKeyK, publicKey, -1)
+	cache.SetStr(privateKeyK, privateKey, -1)
 	return publicKey, nil
 }
 
@@ -156,8 +156,8 @@ func GetRsaPrivateKey() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	cache.SetStr(publicKeyK, publicKey)
-	cache.SetStr(privateKeyK, privateKey)
+	cache.SetStr(publicKeyK, publicKey, -1)
+	cache.SetStr(privateKeyK, privateKey, -1)
 	return privateKey, nil
 }
 

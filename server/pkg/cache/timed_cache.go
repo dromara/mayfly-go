@@ -63,10 +63,10 @@ type timedcache struct {
 func (c *timedcache) Add(k any, x any, d time.Duration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	_, found := c.get(k)
-	if found {
-		return fmt.Errorf("Item %s already exists", k)
-	}
+	// _, found := c.get(k)
+	// if found {
+	// 	return fmt.Errorf("Item %s already exists", k)
+	// }
 	c.set(k, x, d)
 	return nil
 }

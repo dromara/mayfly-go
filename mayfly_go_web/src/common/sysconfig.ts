@@ -1,6 +1,7 @@
 import openApi from './openApi';
 
 // 登录是否使用验证码配置key
+const AccountLoginSecurity = "AccountLoginSecurity"
 const UseLoginCaptchaConfigKey = "UseLoginCaptcha"
 const UseWartermarkConfigKey = "UseWartermark"
 
@@ -22,11 +23,24 @@ export async function getConfigValue(key: string) : Promise<string> {
  * @returns 是否为ture，1: true；其他: false
  */
 export async function getBoolConfigValue(key :string, defaultValue :boolean) : Promise<boolean> {
-    const value = await getConfigValue(key)
+    const value = await getConfigValue(key);
+    return convertBool(value, defaultValue);
+}
+
+/**
+ * 获取账号登录安全配置
+ * 
+ * @returns 
+ */
+export async function getAccountLoginSecurity() : Promise<any> {
+    const value = await getConfigValue(AccountLoginSecurity);
     if (!value) {
-        return defaultValue;
+        return null;
     }
-    return value == "1";
+    const jsonValue = JSON.parse(value);
+    jsonValue.useCaptcha = convertBool(jsonValue.useCaptcha, true);
+    jsonValue.useOtp = convertBool(jsonValue.useOtp, true);
+    return jsonValue;
 }
 
 /**
@@ -45,4 +59,11 @@ export async function useLoginCaptcha() : Promise<boolean> {
  */
  export async function useWartermark() : Promise<boolean> {
     return await getBoolConfigValue(UseWartermarkConfigKey, true)
+}
+
+function convertBool(value: string, defaultValue: boolean) {
+    if (!value) {
+        return defaultValue;
+    }
+    return value == "1" || value == "true";
 }

@@ -27,6 +27,12 @@ func InitAccountRouter(router *gin.RouterGroup) {
 				Handle(a.Login)
 		})
 
+		account.POST("otp-verify", func(g *gin.Context) {
+			req.NewCtxWithGin(g).
+				DontNeedToken().
+				Handle(a.OtpVerify)
+		})
+
 		// 获取个人账号的权限资源信息
 		account.GET("/permissions", func(c *gin.Context) {
 			req.NewCtxWithGin(c).Handle(a.GetPermissions)
@@ -75,6 +81,14 @@ func InitAccountRouter(router *gin.RouterGroup) {
 			req.NewCtxWithGin(c).
 				WithLog(changeStatus).
 				Handle(a.ChangeStatus)
+		})
+
+		resetOtpSecret := req.NewLogInfo("重置OTP密钥").WithSave(true)
+		account.PUT(":id/reset-otp", func(c *gin.Context) {
+			req.NewCtxWithGin(c).
+				WithRequiredPermission(addAccountPermission).
+				WithLog(resetOtpSecret).
+				Handle(a.ResetOtpSecret)
 		})
 
 		delAccount := req.NewLogInfo("删除账号").WithSave(true)

@@ -1,21 +1,30 @@
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"mayfly-go/internal/sys/api/form"
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/captcha"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/otp"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+)
+
+const (
+	OtpStatusNone  = -1 // 未启用otp校验
+	OtpStatusReg   = 1  // 用户otp secret已注册
+	OtpStatusNoReg = 2  // 用户otp secret未注册
 )
 
 type Account struct {
@@ -33,39 +42,141 @@ func (a *Account) Login(rc *req.Ctx) {
 	loginForm := &form.LoginForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, loginForm)
 
+	accountLoginSecurity := a.ConfigApp.GetConfig(entity.ConfigKeyAccountLoginSecurity).ToAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验
-	if a.ConfigApp.GetConfig(entity.ConfigKeyUseLoginCaptcha).BoolValue(true) {
+	if accountLoginSecurity.UseCaptcha {
 		// 校验验证码
 		biz.IsTrue(captcha.Verify(loginForm.Cid, loginForm.Captcha), "验证码错误")
 	}
 
+	username := loginForm.Username
 	clientIp := rc.GinCtx.ClientIP()
-	rc.ReqParam = loginForm.Username
-	rc.ReqParam = fmt.Sprintf("username: %s | ip: %s", loginForm.Username, clientIp)
+	rc.ReqParam = fmt.Sprintf("username: %s | ip: %s", username, clientIp)
 
 	originPwd, err := utils.DefaultRsaDecrypt(loginForm.Password, true)
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
 
-	account := &entity.Account{Username: loginForm.Username}
-	err = a.AccountApp.GetAccount(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp")
-	biz.ErrIsNil(err, "用户名或密码错误")
-	biz.IsTrue(utils.CheckPwdHash(originPwd, account.Password), "用户名或密码错误")
+	account := &entity.Account{Username: username}
+	err = a.AccountApp.GetAccount(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
+
+	failCountKey := fmt.Sprintf("account:login:failcount:%s", username)
+	nowFailCount := cache.GetInt(failCountKey)
+	loginFailCount := accountLoginSecurity.LoginFailCount
+	loginFailMin := accountLoginSecurity.LoginFailMin
+	biz.IsTrue(nowFailCount < loginFailCount, fmt.Sprintf("登录失败超过%d次, 请%d分钟后再试", loginFailCount, loginFailMin))
+
+	if err != nil || !utils.CheckPwdHash(originPwd, account.Password) {
+		nowFailCount++
+		cache.SetStr(failCountKey, strconv.Itoa(nowFailCount), time.Minute*time.Duration(loginFailMin))
+		panic(biz.NewBizErr(fmt.Sprintf("用户名或密码错误【当前登录失败%d次】", nowFailCount)))
+	}
 	biz.IsTrue(account.IsEnable(), "该账号不可用")
 
-	// 校验密码强度是否符合
+	// 校验密码强度（新用户第一次登录密码与账号名一致）
 	biz.IsTrueBy(CheckPasswordLever(originPwd), biz.NewBizErrCode(401, "您的密码安全等级较低，请修改后重新登录"))
-	// 保存登录消息
-	go a.saveLogin(account, clientIp)
 
-	rc.ResData = map[string]any{
-		"token":         req.CreateToken(account.Id, account.Username),
+	res := map[string]any{
 		"name":          account.Name,
-		"username":      account.Username,
+		"username":      username,
 		"lastLoginTime": account.LastLoginTime,
 		"lastLoginIp":   account.LastLoginIp,
 	}
+
+	// 默认为不校验otp
+	otpStatus := OtpStatusNone
+	var token string
+	// 访问系统使用的token
+	accessToken := req.CreateToken(account.Id, username)
+	// 若系统配置中设置开启otp双因素校验，则进行otp校验
+	if accountLoginSecurity.UseOtp {
+		otpSecret := account.OtpSecret
+		// 修改状态为已注册
+		otpStatus = OtpStatusReg
+		// 该token用于opt双因素校验
+		token = utils.RandString(32)
+		// 未注册otp secret或重置了秘钥
+		if otpSecret == "" || otpSecret == "-" {
+			otpStatus = OtpStatusNoReg
+			key, err := otp.NewTOTP(otp.GenerateOpts{
+				AccountName: username,
+				Issuer:      accountLoginSecurity.OtpIssuer,
+			})
+			biz.ErrIsNilAppendErr(err, "otp生成失败: %s")
+			res["otpUrl"] = key.URL()
+			// 使用otpSecret充当token进行二次校验
+			otpSecret = key.Secret()
+		}
+		// 缓存otpInfo, 只有双因素校验通过才可返回真正的accessToken
+		otpInfo := &OtpVerifyInfo{
+			AccountId:   account.Id,
+			Username:    username,
+			OptStatus:   otpStatus,
+			OtpSecret:   otpSecret,
+			AccessToken: accessToken,
+		}
+		cache.SetStr(fmt.Sprintf("otp:token:%s", token), utils.ToJsonStr(otpInfo), time.Minute*time.Duration(3))
+	} else {
+		// 不进行otp二次校验则直接返回accessToken
+		token = accessToken
+		// 保存登录消息
+		go a.saveLogin(account, clientIp)
+	}
+
+	// 赋值otp状态
+	res["otp"] = otpStatus
+	res["token"] = token
+	rc.ResData = res
 }
 
+type OtpVerifyInfo struct {
+	AccountId   uint64
+	Username    string
+	OptStatus   int
+	AccessToken string
+	OtpSecret   string
+}
+
+// OTP双因素校验
+func (a *Account) OtpVerify(rc *req.Ctx) {
+	otpVerify := new(form.OtpVerfiy)
+	ginx.BindJsonAndValid(rc.GinCtx, otpVerify)
+
+	tokenKey := fmt.Sprintf("otp:token:%s", otpVerify.OtpToken)
+	otpInfoJson := cache.GetStr(tokenKey)
+	biz.NotEmpty(otpInfoJson, "otpToken错误或失效, 请重新登陆获取")
+	otpInfo := new(OtpVerifyInfo)
+	json.Unmarshal([]byte(otpInfoJson), otpInfo)
+
+	failCountKey := fmt.Sprintf("account:otp:failcount:%d", otpInfo.AccountId)
+	failCount := cache.GetInt(failCountKey)
+	biz.IsTrue(failCount < 5, "双因素校验失败超过5次, 请10分钟后再试")
+
+	otpStatus := otpInfo.OptStatus
+	accessToken := otpInfo.AccessToken
+	accountId := otpInfo.AccountId
+	otpSecret := otpInfo.OtpSecret
+
+	if !otp.Validate(otpVerify.Code, otpSecret) {
+		cache.SetStr(failCountKey, strconv.Itoa(failCount+1), time.Minute*time.Duration(10))
+		panic(biz.NewBizErr("双因素认证授权码不正确"))
+	}
+
+	// 如果是未注册状态，则更新account表的otpSecret信息
+	if otpStatus == OtpStatusNoReg {
+		update := &entity.Account{OtpSecret: otpSecret}
+		update.Id = accountId
+		a.AccountApp.Update(update)
+	}
+
+	la := &entity.Account{Username: otpInfo.Username}
+	la.Id = accountId
+	go a.saveLogin(la, rc.GinCtx.ClientIP())
+
+	cache.Del(tokenKey)
+	rc.ResData = accessToken
+}
+
+// 获取当前登录用户的菜单与权限码
 func (a *Account) GetPermissions(rc *req.Ctx) {
 	account := rc.LoginAccount
 
@@ -295,4 +406,13 @@ func (a *Account) SaveRoles(rc *req.Ctx) {
 	for _, v := range delIds {
 		a.RoleApp.DeleteAccountRole(aid, v.(uint64))
 	}
+}
+
+// 重置otp秘钥
+func (a *Account) ResetOtpSecret(rc *req.Ctx) {
+	account := &entity.Account{OtpSecret: "-"}
+	accountId := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
+	account.Id = accountId
+	rc.ReqParam = fmt.Sprintf("accountId = %d", accountId)
+	a.AccountApp.Update(account)
 }
