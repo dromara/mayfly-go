@@ -28,7 +28,7 @@ mysql:
 # redis:
 #   host: localhost
 #   port: 6379
-#   passsord: 
+#   password: 111049
 #   db: 0
 log:
    # 日志等级, trace, debug, info, warn, error, fatal

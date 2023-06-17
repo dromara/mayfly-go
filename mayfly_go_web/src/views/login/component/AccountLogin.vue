@@ -11,7 +11,7 @@
                     autocomplete="off" @keyup.enter="login" show-password>
                 </el-input>
             </el-form-item>
-            <el-form-item v-if="isUseLoginCaptcha" prop="captcha">
+            <el-form-item v-if="accountLoginSecurity.useCaptcha" prop="captcha">
                 <el-row :gutter="15">
                     <el-col :span="16">
                         <el-input type="text" maxlength="6" placeholder="请输入验证码" prefix-icon="position"
@@ -25,6 +25,9 @@
                     </el-col>
                 </el-row>
             </el-form-item>
+            <span v-if="showLoginFailTips" style="color: #f56c6c;font-size: 12px;">
+                提示：登录失败超过{{ accountLoginSecurity.loginFailCount }}次后将被限制{{ accountLoginSecurity.loginFailMin }}分钟内不可再次登录
+            </span>
             <el-form-item>
                 <el-button type="primary" class="login-content-submit" round @click="login" :loading="loading.signIn">
                     <span>登 录</span>
@@ -34,8 +37,7 @@
 
         <el-dialog title="修改密码" v-model="changePwdDialog.visible" :close-on-click-modal="false" width="450px"
             :destroy-on-close="true">
-            <el-form :model="changePwdDialog.form" :rules="changePwdDialog.rules" ref="changePwdFormRef"
-                label-width="65px">
+            <el-form :model="changePwdDialog.form" :rules="changePwdDialog.rules" ref="changePwdFormRef" label-width="65px">
                 <el-form-item prop="username" label="用户名" required>
                     <el-input v-model.trim="changePwdDialog.form.username" disabled></el-input>
                 </el-form-item>
@@ -56,6 +58,26 @@
                 </div>
             </template>
         </el-dialog>
+
+        <el-dialog title="OTP校验" v-model="otpDialog.visible" @close="loading.signIn = false" :close-on-click-modal="false"
+            width="450px" :destroy-on-close="true">
+            <el-form ref="otpFormRef" :model="otpDialog.form" :rules="otpDialog.rules" label-width="65px">
+                <el-form-item v-if="otpDialog.otpUrl" label="二维码">
+                    <qrcode-vue :value="otpDialog.otpUrl" :size="200" level="H" />
+                </el-form-item>
+
+                <el-form-item prop="code" label="OTP" required>
+                    <el-input ref="otpCodeInputRef" v-model.trim="otpDialog.form.code" clearable @keyup.enter="otpVerify"
+                        placeholder="请输入双因素认证APP中显示的授权码"></el-input>
+                </el-form-item>
+            </el-form>
+
+            <template #footer>
+                <div class="dialog-footer">
+                    <el-button @click="otpVerify" type="primary" :loading="loading.otpConfirm">确 定</el-button>
+                </div>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -68,9 +90,10 @@ import { setSession, setUserInfo2Session, setUseWatermark2Session } from '@/comm
 import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';
-import { useLoginCaptcha, useWartermark } from '@/common/sysconfig';
+import { getAccountLoginSecurity, useWartermark } from '@/common/sysconfig';
 import { letterAvatar } from '@/common/utils/string';
 import { useUserInfo } from '@/store/userInfo';
+import QrcodeVue from 'qrcode.vue'
 
 const rules = {
     username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -82,9 +105,17 @@ const route = useRoute();
 const router = useRouter();
 const loginFormRef: any = ref(null);
 const changePwdFormRef: any = ref(null);
+const otpFormRef: any = ref(null);
+const otpCodeInputRef: any = ref(null);
 
 const state = reactive({
-    isUseLoginCaptcha: false,
+    accountLoginSecurity: {
+        useCaptcha: true,
+        useOtp: false,
+        loginFailCount: 5,
+        loginFailMin: 10,
+    },
+    showLoginFailTips: false,
     captchaImage: '',
     loginForm: {
         username: '',
@@ -110,23 +141,42 @@ const state = reactive({
             ],
         },
     },
+    otpDialog: {
+        visible: false,
+        otpUrl: "",
+        form: {
+            code: '',
+            otpToken: '',
+        },
+        rules: {
+            code: [
+                { required: true, message: '请输入OTP授权码', trigger: 'blur' },
+            ],
+        },
+    },
     loading: {
         signIn: false,
         changePwd: false,
+        otpConfirm: false,
     },
 });
 
 const {
-    isUseLoginCaptcha,
+    accountLoginSecurity,
+    showLoginFailTips,
     captchaImage,
     loginForm,
     changePwdDialog,
+    otpDialog,
     loading,
 } = toRefs(state)
 
 onMounted(async () => {
     nextTick(async () => {
-        state.isUseLoginCaptcha = await useLoginCaptcha();
+        const res = await getAccountLoginSecurity();
+        if (res) {
+            state.accountLoginSecurity = res;
+        }
         getCaptcha();
     });
     // 移除公钥, 方便后续重新获取
@@ -134,7 +184,7 @@ onMounted(async () => {
 });
 
 const getCaptcha = async () => {
-    if (!state.isUseLoginCaptcha) {
+    if (!state.accountLoginSecurity.useCaptcha) {
         return;
     }
     let res: any = await openApi.captcha.request();
@@ -158,6 +208,22 @@ const login = () => {
     });
 };
 
+const otpVerify = async () => {
+    otpFormRef.value.validate(async (valid: boolean) => {
+        if (!valid) {
+            return false;
+        }
+        try {
+            state.loading.otpConfirm = true;
+            const accessToken = await openApi.otpVerify.request(state.otpDialog.form);
+            await signInSuccess(accessToken);
+            state.otpDialog.visible = false;
+        } finally {
+            state.loading.otpConfirm = false;
+        }
+    });
+}
+
 // 登录
 const onSignIn = async () => {
     state.loading.signIn = true;
@@ -167,8 +233,6 @@ const onSignIn = async () => {
         const loginReq = { ...state.loginForm };
         loginReq.password = await RsaEncrypt(originPwd);
         loginRes = await openApi.login.request(loginReq);
-        // 存储 token 到浏览器缓存
-        setSession('token', loginRes.token);
     } catch (e: any) {
         state.loading.signIn = false;
         state.loginForm.captcha = '';
@@ -180,9 +244,11 @@ const onSignIn = async () => {
             state.changePwdDialog.visible = true;
         } else {
             getCaptcha();
+            state.showLoginFailTips = true;
         }
         return;
     }
+    state.showLoginFailTips = false;
     // 用户信息
     const userInfos = {
         name: loginRes.name,
@@ -190,7 +256,7 @@ const onSignIn = async () => {
         // 头像
         photo: letterAvatar(state.loginForm.username),
         time: new Date().getTime(),
-        permissions: loginRes.permissions,
+        // permissions: loginRes.permissions,
         lastLoginTime: loginRes.lastLoginTime,
         lastLoginIp: loginRes.lastLoginIp,
     };
@@ -199,12 +265,28 @@ const onSignIn = async () => {
     setUserInfo2Session(userInfos);
     // 1、请注意执行顺序(存储用户信息到vuex)
     useUserInfo().setUserInfo(userInfos);
-    await initRouter();
-    signInSuccess();
+
+    const token = loginRes.token;
+    // 如果不需要otp校验，则该token即为accessToken，否则为otp校验token
+    if (loginRes.otp == -1) {
+        signInSuccess(token);
+        return;
+    }
+
+    state.otpDialog.form.otpToken = token;
+    state.otpDialog.otpUrl = loginRes.otpUrl
+    state.otpDialog.visible = true;
+    setTimeout(() => {
+        otpCodeInputRef.value.focus();
+    }, 400);
 };
 
 // 登录成功后的跳转
-const signInSuccess = () => {
+const signInSuccess = async (accessToken: string = "") => {
+    // 存储 token 到浏览器缓存
+    setSession('token', accessToken);
+    // 初始化路由
+    await initRouter();
     // 初始化登录成功时间问候语
     let currentTimeInfo = currentTime.value;
     // 登录成功，跳到转首页

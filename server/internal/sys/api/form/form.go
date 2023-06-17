@@ -7,3 +7,8 @@ type LoginForm struct {
 	Captcha  string `json:"captcha"`
 	Cid      string `json:"cid"`
 }
+
+type OtpVerfiy struct {
+	OtpToken string `json:"otpToken" binding:"required"`
+	Code     string `json:"code" binding:"required"`
+}

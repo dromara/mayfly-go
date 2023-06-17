@@ -9,8 +9,8 @@
             <el-button v-auth="'account:del'" :disabled="chooseId == null" @click="deleteAccount()" type="danger"
                 icon="delete">删除</el-button>
             <div style="float: right">
-                <el-input class="mr2" placeholder="请输入账号名" style="width: 200px" v-model="query.username"
-                    @clear="search()" clearable></el-input>
+                <el-input class="mr2" placeholder="请输入账号名" style="width: 200px" v-model="query.username" @clear="search()"
+                    clearable></el-input>
                 <el-button @click="search()" type="success" icon="search"></el-button>
             </div>
             <el-table :data="datas" ref="table" @current-change="choose" show-overflow-tooltip>
@@ -42,12 +42,6 @@
                         {{ dateFormat(scope.row.createTime) }}
                     </template>
                 </el-table-column>
-                <!-- <el-table-column min-width="115" prop="modifier" label="更新账号"></el-table-column>
-			<el-table-column min-width="160" prop="updateTime" label="修改时间">
-				<template #default="scope">
-					{{ dateFormat(scope.row.updateTime) }}
-				</template>
-			</el-table-column> -->
 
                 <!-- <el-table-column min-width="120" prop="remark" label="备注" show-overflow-tooltip></el-table-column> -->
                 <el-table-column label="查看更多" min-width="150">
@@ -61,9 +55,13 @@
                 <el-table-column label="操作" min-width="200px">
                     <template #default="scope">
                         <el-button v-auth="'account:changeStatus'" @click="changeStatus(scope.row)"
-                            v-if="scope.row.status == 1" type="danger" icom="tickets" size="small" plain>禁用</el-button>
+                            v-if="scope.row.status == 1" type="danger" size="small" plain>禁用</el-button>
+
                         <el-button v-auth="'account:changeStatus'" v-if="scope.row.status == -1" type="success"
                             @click="changeStatus(scope.row)" size="small" plain>启用</el-button>
+                            
+                        <el-button v-auth="'account:add'" @click="resetOtpSecret(scope.row)" type="warning" size="small"
+                            plain>重置OTP</el-button>
                     </template>
                 </el-table-column>
             </el-table>
@@ -93,7 +91,7 @@
                     <span class="custom-tree-node">
                         <span v-if="data.type == enums.ResourceTypeEnum['MENU'].value">{{ node.label }}</span>
                         <span v-if="data.type == enums.ResourceTypeEnum['PERMISSION'].value" style="color: #67c23a">{{
-                                node.label
+                            node.label
                         }}</span>
                     </span>
                 </template>
@@ -215,6 +213,14 @@ const changeStatus = async (row: any) => {
     search();
 };
 
+const resetOtpSecret = async (row: any) => {
+    let id = row.id;
+    await accountApi.resetOtpSecret.request({
+        id,
+    });
+    ElMessage.success('操作成功');
+};
+
 const handlePageChange = (curPage: number) => {
     state.query.pageNum = curPage;
     search();
@@ -263,6 +269,4 @@ const deleteAccount = async () => {
     } catch (err) { }
 };
 </script>
-<style lang="scss">
-
-</style>
+<style lang="scss"></style>
