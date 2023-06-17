@@ -142,7 +142,8 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 		LoginAccount: rc.LoginAccount,
 	}
 
-	sqls := strings.Split(sql, ";\n")
+	sqls, err := sqlparser.SplitStatementToPieces(sql)
+	biz.ErrIsNil(err, "SQL解析错误,请检查您的执行SQL")
 	isMulti := len(sqls) > 1
 	var execResAll *application.DbSqlExecRes
 	for _, s := range sqls {
