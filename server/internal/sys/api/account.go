@@ -103,7 +103,6 @@ func (a *Account) Login(rc *req.Ctx) {
 			})
 			biz.ErrIsNilAppendErr(err, "otp生成失败: %s")
 			res["otpUrl"] = key.URL()
-			// 使用otpSecret充当token进行二次校验
 			otpSecret = key.Secret()
 		}
 		// 缓存otpInfo, 只有双因素校验通过才可返回真正的accessToken

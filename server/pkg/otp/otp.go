@@ -1,6 +1,8 @@
 package otp
 
 import (
+	"time"
+
 	otp_t "github.com/pquerna/otp"
 	totp_t "github.com/pquerna/otp/totp"
 )
@@ -16,4 +18,8 @@ func Validate(code string, secret string) bool {
 		return true
 	}
 	return totp_t.Validate(code, secret)
+}
+
+func GenTotpCode(code string, secret string) (string, error) {
+	return totp_t.GenerateCode(secret, time.Now())
 }

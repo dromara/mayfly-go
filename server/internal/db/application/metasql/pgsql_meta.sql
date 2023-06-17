@@ -11,7 +11,7 @@ WHERE
       current_schema ()
   )
   AND c.reltype > 0
-
+---------------------------------------
 --PGSQL_TABLE_INFO 表详细信息
 SELECT
   obj_description (c.oid) AS "tableComment",
@@ -28,7 +28,7 @@ WHERE
       current_schema ()
   )
   AND c.reltype > 0
-
+---------------------------------------
 --PGSQL_INDEX_INFO 表索引信息
 SELECT
   indexname AS "indexName",
@@ -41,7 +41,7 @@ WHERE
       current_schema ()
   )
   AND tablename = '%s'
-
+---------------------------------------
 --PGSQL_COLUMN_MA 表列信息
 SELECT
 	C.relname AS "tableName",
@@ -64,7 +64,7 @@ WHERE
 ORDER BY
 	C.relname DESC,
 	A.attnum ASC
-
+---------------------------------------
 --PGSQL_TABLE_DDL_FUNC 表ddl函数
  CREATE OR REPLACE FUNCTION showcreatetable(namespace character varying, tablename character varying)
         RETURNS character varying AS

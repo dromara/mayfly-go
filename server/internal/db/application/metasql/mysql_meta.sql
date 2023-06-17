@@ -9,7 +9,7 @@ WHERE
     SELECT
       database ()
   )
-
+---------------------------------------
 --MYSQL_TABLE_INFO 表详细信息
 SELECT
   table_name tableName,
@@ -25,7 +25,7 @@ WHERE
     SELECT
       database ()
   )
-
+---------------------------------------
 --MYSQL_INDEX_INFO 索引信息
 SELECT
   index_name indexName,
@@ -45,7 +45,7 @@ WHERE
 ORDER BY
   index_name asc,
   SEQ_IN_INDEX asc
-
+---------------------------------------
 --MYSQL_COLUMN_MA 列信息元数据
 SELECT
   table_name tableName,

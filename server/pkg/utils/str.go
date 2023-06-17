@@ -18,11 +18,11 @@ func StrTrim(str string) string {
 	return strings.Trim(str, " ")
 }
 
-// 去除字符串左右空字符与\n换行
+// 去除字符串左右空字符与\n\r换行回车符
 func StrTrimSpaceAndBr(str string) string {
 	return strings.TrimFunc(str, func(r rune) bool {
 		s := string(r)
-		return s == " " || s == "\n"
+		return s == " " || s == "\n" || s == "\r"
 	})
 }
 
