@@ -63,7 +63,7 @@ func (a *Account) Login(rc *req.Ctx) {
 	nowFailCount := cache.GetInt(failCountKey)
 	loginFailCount := accountLoginSecurity.LoginFailCount
 	loginFailMin := accountLoginSecurity.LoginFailMin
-	biz.IsTrue(nowFailCount < loginFailCount, fmt.Sprintf("登录失败超过%d次, 请%d分钟后再试", loginFailCount, loginFailMin))
+	biz.IsTrue(nowFailCount < loginFailCount, "登录失败超过%d次, 请%d分钟后再试", loginFailCount, loginFailMin)
 
 	if err != nil || !utils.CheckPwdHash(originPwd, account.Password) {
 		nowFailCount++
@@ -92,7 +92,7 @@ func (a *Account) Login(rc *req.Ctx) {
 		otpSecret := account.OtpSecret
 		// 修改状态为已注册
 		otpStatus = OtpStatusReg
-		// 该token用于opt双因素校验
+		// 该token用于otp双因素校验
 		token = utils.RandString(32)
 		// 未注册otp secret或重置了秘钥
 		if otpSecret == "" || otpSecret == "-" {

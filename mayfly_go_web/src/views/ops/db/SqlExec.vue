@@ -495,7 +495,7 @@ const registerSqlCompletionItemProvider = () => {
             const secondToken = tokens.length > 2 && tokens[tokens.length - 2].toLowerCase() || ''
 
             // const dbs = nowTab.params?.dbs?.split(' ') || [];
-            const dbs = db ? [db] : [];
+            const dbs = nowTab.params && nowTab.params.dbs && nowTab.params.dbs.split(' ') || [];
             // console.log("光标前文本：=>" + textBeforePointerMulti)
             // console.log("最后输入的：=>" + lastToken)
 

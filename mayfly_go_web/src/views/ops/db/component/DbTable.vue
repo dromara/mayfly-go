@@ -3,7 +3,7 @@
         <el-table @cell-dblclick="(row: any, column: any, cell: any, event: any) => cellClick(row, column, cell)"
             @sort-change="(sort: any) => onTableSortChange(sort)" @selection-change="onDataSelectionChange"
             :data="datas" size="small" :max-height="tableHeight" v-loading="loading" element-loading-text="查询中..."
-            :empty-text="emptyText" stripe border class="mt5">
+            :empty-text="emptyText" highlight-current-row stripe border class="mt5">
             <el-table-column v-if="datas.length > 0 && table" type="selection" width="35" />
             <el-table-column min-width="100" :width="DbInst.flexColumnWidth(item, datas)" align="center"
                 v-for="item in columnNames" :key="item" :prop="item" :label="item" show-overflow-tooltip
