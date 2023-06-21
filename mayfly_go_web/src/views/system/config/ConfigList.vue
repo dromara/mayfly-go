@@ -1,8 +1,9 @@
 <template>
     <div class="role-list">
         <el-card>
-            <el-button type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
-            <el-button :disabled="chooseId == null" @click="editConfig(chooseData)" type="primary" icon="edit">编辑
+            <el-button v-auth="'config:save'" type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
+            <el-button v-auth="'config:save'" :disabled="chooseId == null" @click="editConfig(chooseData)" type="primary"
+                icon="edit">编辑
             </el-button>
 
             <el-table :data="configs" @current-change="choose" ref="table" style="width: 100%">
@@ -60,7 +61,7 @@
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="closeSetConfigDialog()">取 消</el-button>
-                    <el-button type="primary" @click="setConfig()">确 定</el-button>
+                    <el-button v-auth="'config:save'" type="primary" @click="setConfig()">确 定</el-button>
                 </span>
             </template>
         </el-dialog>

@@ -89,6 +89,7 @@ func (a *Account) Login(rc *req.Ctx) {
 	accessToken := req.CreateToken(account.Id, username)
 	// 若系统配置中设置开启otp双因素校验，则进行otp校验
 	if accountLoginSecurity.UseOtp {
+		account.OtpSecretDecrypt()
 		otpSecret := account.OtpSecret
 		// 修改状态为已注册
 		otpStatus = OtpStatusReg
@@ -164,6 +165,7 @@ func (a *Account) OtpVerify(rc *req.Ctx) {
 	if otpStatus == OtpStatusNoReg {
 		update := &entity.Account{OtpSecret: otpSecret}
 		update.Id = accountId
+		update.OtpSecretEncrypt()
 		a.AccountApp.Update(update)
 	}
 

@@ -60,15 +60,15 @@
         </el-dialog>
 
         <el-dialog title="OTP校验" v-model="otpDialog.visible" @close="loading.signIn = false" :close-on-click-modal="false"
-            width="450px" :destroy-on-close="true">
+            width="350px" :destroy-on-close="true">
             <el-form ref="otpFormRef" :model="otpDialog.form" :rules="otpDialog.rules" label-width="65px">
                 <el-form-item v-if="otpDialog.otpUrl" label="二维码">
                     <qrcode-vue :value="otpDialog.otpUrl" :size="200" level="H" />
                 </el-form-item>
 
                 <el-form-item prop="code" label="OTP" required>
-                    <el-input ref="otpCodeInputRef" v-model.trim="otpDialog.form.code" clearable @keyup.enter="otpVerify"
-                        placeholder="请输入双因素认证APP中显示的授权码"></el-input>
+                    <el-input style="width:220px" ref="otpCodeInputRef" v-model.trim="otpDialog.form.code" clearable @keyup.enter="otpVerify"
+                        placeholder="请输入令牌APP中显示的授权码"></el-input>
                 </el-form-item>
             </el-form>
 

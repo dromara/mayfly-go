@@ -11,6 +11,7 @@ type AccountManageVO struct {
 	Username      string     `json:"username"`
 	Status        int        `json:"status"`
 	LastLoginTime *time.Time `json:"lastLoginTime"`
+	OtpSecret     string     `json:"otpSecret"`
 }
 
 // 账号角色信息

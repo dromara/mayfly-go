@@ -59,9 +59,9 @@
 
                         <el-button v-auth="'account:changeStatus'" v-if="scope.row.status == -1" type="success"
                             @click="changeStatus(scope.row)" size="small" plain>启用</el-button>
-                            
-                        <el-button v-auth="'account:add'" @click="resetOtpSecret(scope.row)" type="warning" size="small"
-                            plain>重置OTP</el-button>
+
+                        <el-button v-auth="'account:add'" :disabled="!scope.row.otpSecret || scope.row.otpSecret == '-'"
+                            @click="resetOtpSecret(scope.row)" type="warning" size="small" plain>重置OTP</el-button>
                     </template>
                 </el-table-column>
             </el-table>
@@ -219,6 +219,7 @@ const resetOtpSecret = async (row: any) => {
         id,
     });
     ElMessage.success('操作成功');
+    row.otpSecret = "-";
 };
 
 const handlePageChange = (curPage: number) => {

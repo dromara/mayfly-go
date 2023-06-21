@@ -12,8 +12,9 @@ func InitSysConfigRouter(router *gin.RouterGroup) {
 	r := &api.Config{ConfigApp: application.GetConfigApp()}
 	db := router.Group("sys/configs")
 	{
+		baseP := req.NewPermission("config:base")
 		db.GET("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(r.Configs)
+			req.NewCtxWithGin(c).WithRequiredPermission(baseP).Handle(r.Configs)
 		})
 
 		db.GET("/value", func(c *gin.Context) {
@@ -21,7 +22,7 @@ func InitSysConfigRouter(router *gin.RouterGroup) {
 		})
 
 		saveConfig := req.NewLogInfo("保存系统配置信息").WithSave(true)
-		saveConfigP := req.NewPermission("config:base")
+		saveConfigP := req.NewPermission("config:save")
 		db.POST("", func(c *gin.Context) {
 			req.NewCtxWithGin(c).
 				WithLog(saveConfig).

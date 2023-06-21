@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"mayfly-go/internal/common/utils"
 	"mayfly-go/pkg/model"
 	"time"
 )
@@ -24,6 +25,17 @@ func (a *Account) TableName() string {
 // 是否可用
 func (a *Account) IsEnable() bool {
 	return a.Status == AccountEnableStatus
+}
+
+func (a *Account) OtpSecretEncrypt() {
+	a.OtpSecret = utils.PwdAesEncrypt(a.OtpSecret)
+}
+
+func (a *Account) OtpSecretDecrypt() {
+	if a.OtpSecret == "-" {
+		return
+	}
+	a.OtpSecret = utils.PwdAesDecrypt(a.OtpSecret)
 }
 
 const (
