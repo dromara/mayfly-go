@@ -82,11 +82,12 @@
                                 v-for="item in tableData.indexs.colNames" :key="item.prop">
                                 <template #default="scope">
 
-                                    <el-input v-if="item.prop === 'indexName'" size="small"
+                                    <el-input v-if="item.prop === 'indexName'" size="small" disabled
                                         v-model="scope.row.indexName"></el-input>
 
                                     <el-select v-if="item.prop === 'columnNames'" v-model="scope.row.columnNames"
                                         multiple collapse-tags collapse-tags-tooltip filterable placeholder="请选择字段"
+                                               @change="indexChanges(scope.row)"
                                         style="width: 100%">
                                         <el-option v-for="cl in tableData.indexs.columns" :key="cl.name"
                                             :label="cl.name" :value="cl.name">
@@ -94,7 +95,7 @@
                                         </el-option>
                                     </el-select>
 
-                                    <el-checkbox v-if="item.prop === 'unique'" size="small" v-model="scope.row.unique">
+                                    <el-checkbox v-if="item.prop === 'unique'" size="small" v-model="scope.row.unique" @change="indexChanges(scope.row)">
                                     </el-checkbox>
 
                                     <el-select v-if="item.prop === 'indexType'" filterable size="small"
@@ -468,7 +469,7 @@ const genSql = () => {
             let changeData = filterChangedData(oldData.indexs, state.tableData.indexs.res, 'indexName')
             // 搜集修改和删除的索引，添加到drop index xx
             // 收集新增和修改的索引，添加到ADD xx
-            // ALTER TABLE `test1` 
+            // ALTER TABLE `test1`
             // DROP INDEX `test1_name_uindex`,
             // DROP INDEX `test1_column_name4_index`,
             // ADD UNIQUE INDEX `test1_name_uindex`(`id`) USING BTREE COMMENT 'ASDASD',
@@ -546,6 +547,21 @@ const reset = () => {
     },]
 };
 
+const indexChanges = (row: any) => {
+  let name = '';
+  if(row.columnNames && row.columnNames.length > 0){
+    for (const column of row.columnNames) {
+      name += column.replace('_','').toLowerCase() + '_'
+    }
+    name = name.substring(0, name.length-1)
+  } else {
+    return;
+  }
+
+  let prefix = row.unique? 'udx_' : 'idx_';
+  row.indexName = prefix + name;
+}
+
 const oldData = { indexs: [] as any[], fields: [] as any[] }
 watch(() => props.data, (newValue: any) => {
     const { row, indexs, columns } = newValue;
@@ -569,7 +585,7 @@ watch(() => props.data, (newValue: any) => {
                 length,
                 notNull: a.nullable !== 'YES',
                 pri: a.columnKey === 'PRI',
-                auto_increment: a.extra?.indexOf('auto_increment') > -1,
+                auto_increment: a.columnKey === 'PRI' /*a.extra?.indexOf('auto_increment') > -1*/,
                 remark: a.columnComment,
             };
             state.tableData.fields.res.push(data)
