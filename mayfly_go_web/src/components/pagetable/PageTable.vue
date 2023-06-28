@@ -12,7 +12,7 @@
                 <div>
                     <div v-if="props.query.length > 0" class="query-head">
                         <div style="display: flex; align-items: center;">
-                            <el-form :model="props.queryForm" label-width="70px" style="display: flex;">
+                            <el-form :model="props.queryForm" label-width="auto" style="display: flex;">
                                 <el-form-item :label="item.label" style="margin-right: 20px; margin-bottom: 0px;"
                                     v-for="item in props.query?.slice(0, defaultQueryCount)" :key="item.prop">
                                     <!-- 这里只获取指定个数的筛选条件 -->
