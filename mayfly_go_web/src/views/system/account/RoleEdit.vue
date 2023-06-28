@@ -6,7 +6,7 @@
                 <div style="float: left">
                     <el-input placeholder="请输入角色名" style="width: 150px" v-model="query.name" @clear="clear()" clearable>
                     </el-input>
-                    <el-button @click="search" type="success" icon="search"></el-button>
+                    <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
                 </div>
             </div>
             <el-table :data="allRole" border ref="roleTable" @select="select" style="width: 100%">

@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
@@ -34,6 +35,7 @@ func (r *Redis) Hdel(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisIns(rc)
 	field := rc.GinCtx.Query("field")
 
+	rc.ReqParam = fmt.Sprintf("key=%s, field=%s", key, field)
 	delRes, err := ri.GetCmdable().HDel(context.TODO(), key, field).Result()
 	biz.ErrIsNilAppendErr(err, "hdel err: %s")
 	rc.ResData = delRes

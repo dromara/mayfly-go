@@ -20,7 +20,7 @@ type Role struct {
 
 func (r *Role) Roles(rc *req.Ctx) {
 	g := rc.GinCtx
-	condition := &entity.Role{}
+	condition := &entity.Role{Name: g.Query("name")}
 	rc.ResData = r.RoleApp.GetPageList(condition, ginx.GetPageParam(g), new([]entity.Role))
 }
 

@@ -1,59 +1,35 @@
 <template>
     <div>
-        <el-card>
-            <el-button type="primary" icon="plus" @click="editMongo(true)" plain>添加</el-button>
-            <el-button type="primary" icon="edit" :disabled="currentId == null" @click="editMongo(false)" plain>编辑
-            </el-button>
-            <el-button type="danger" icon="delete" :disabled="currentId == null" @click="deleteMongo" plain>删除
-            </el-button>
-            <div style="float: right">
-                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable>
+        <page-table :query="state.queryConfig" v-model:query-form="query" :show-choose-column="true"
+            v-model:choose-data="state.chooseData" :data="list" :columns="state.columns" :total="total"
+            v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
+
+            <template #tagPathSelect>
+                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable
+                    style="width: 200px">
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
-                <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
-            </div>
-            <el-table :data="list" style="width: 100%" @current-change="choose" stripe>
-                <el-table-column label="选择" width="60px">
-                    <template #default="scope">
-                        <el-radio v-model="currentId" :label="scope.row.id">
-                            <i></i>
-                        </el-radio>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip>
-                    <template #default="scope">
-                        <tag-info :tag-path="scope.row.tagPath" />
-                        <span class="ml5">
-                            {{ scope.row.tagPath }}
-                        </span>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="name" label="名称" width></el-table-column>
-                <el-table-column prop="uri" label="连接uri" min-width="150" show-overflow-tooltip>
-                    <template #default="scope">
-                        {{ scope.row.uri.split('@')[1] }}
-                    </template>
-                </el-table-column>
-                <el-table-column prop="createTime" label="创建时间" min-width="150">
-                    <template #default="scope">
-                        {{ dateFormat(scope.row.createTime) }}
-                    </template>
-                </el-table-column>
-                <el-table-column prop="creator" label="创建人"></el-table-column>
+            </template>
 
-                <el-table-column label="操作" width>
-                    <template #default="scope">
-                        <el-link type="primary" @click="showDatabases(scope.row.id)" plain size="small"
-                            :underline="false">数据库</el-link>
-                    </template>
-                </el-table-column>
-            </el-table>
-            <el-row style="margin-top: 20px" type="flex" justify="end">
-                <el-pagination style="text-align: right" @current-change="handlePageChange" :total="total"
-                    layout="prev, pager, next, total, jumper" v-model:current-page="query.pageNum"
-                    :page-size="query.pageSize"></el-pagination>
-            </el-row>
-        </el-card>
+            <template #queryRight>
+                <el-button type="primary" icon="plus" @click="editMongo(true)" plain>添加</el-button>
+                <el-button type="primary" icon="edit" :disabled="!chooseData" @click="editMongo(false)" plain>编辑
+                </el-button>
+                <el-button type="danger" icon="delete" :disabled="!chooseData" @click="deleteMongo" plain>删除
+                </el-button>
+            </template>
+
+            <template #tagPath="{ data }">
+                <tag-info :tag-path="data.tagPath" />
+                <span class="ml5">
+                    {{ data.tagPath }}
+                </span>
+            </template>
+
+            <template #action="{ data }">
+                <el-link type="primary" @click="showDatabases(data.id)" plain size="small" :underline="false">数据库</el-link>
+            </template>
+        </page-table>
 
         <el-dialog width="800px" :title="databaseDialog.title" v-model="databaseDialog.visible">
             <el-table :data="databaseDialog.data" size="small">
@@ -76,8 +52,7 @@
                 </el-table-column>
             </el-table>
 
-            <el-dialog width="700px" :title="databaseDialog.statsDialog.title"
-                v-model="databaseDialog.statsDialog.visible">
+            <el-dialog width="700px" :title="databaseDialog.statsDialog.title" v-model="databaseDialog.statsDialog.visible">
                 <el-descriptions title="库状态信息" :column="3" border size="small">
                     <el-descriptions-item label="db" label-align="right" align="center">
                         {{ databaseDialog.statsDialog.data.db }}
@@ -199,8 +174,9 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from '../tag/api';
 import MongoEdit from './MongoEdit.vue';
 import { formatByteSize } from '@/common/utils/format';
-import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
+import PageTable from '@/components/pagetable/PageTable.vue'
+import { TableColumn, TableQuery } from '@/components/pagetable';
 
 const state = reactive({
     tags: [],
@@ -210,13 +186,23 @@ const state = reactive({
     },
     list: [],
     total: 0,
-    currentId: null,
-    currentData: null as any,
+    chooseData: null as any,
     query: {
         pageNum: 1,
         pageSize: 10,
         tagPath: null,
     },
+    queryConfig: [
+        TableQuery.slot("tagPath", "标签", "tagPathSelect"),
+    ],
+    columns: [
+        TableColumn.new("tagPath", "标签路径").setSlot("tagPath"),
+        TableColumn.new("name", "名称"),
+        TableColumn.new("uri", "连接uri"),
+        TableColumn.new("createTime", "创建时间").isTime(),
+        TableColumn.new("creator", "创建人"),
+        TableColumn.new("action", "操作").setSlot("action").setMinWidth(100).fixedRight(),
+    ],
     mongoEditDialog: {
         visible: false,
         data: null as any,
@@ -255,7 +241,7 @@ const {
     tags,
     list,
     total,
-    currentId,
+    chooseData,
     query,
     mongoEditDialog,
     databaseDialog,
@@ -266,19 +252,6 @@ const {
 onMounted(async () => {
     search();
 });
-
-const handlePageChange = (curPage: number) => {
-    state.query.pageNum = curPage;
-    search();
-};
-
-const choose = (item: any) => {
-    if (!item) {
-        return;
-    }
-    state.currentId = item.id;
-    state.currentData = item;
-};
 
 const showDatabases = async (id: number) => {
     // state.query.tagPath = row.tagPath
@@ -291,7 +264,7 @@ const showDatabases = async (id: number) => {
 
 const showDatabaseStats = async (dbName: string) => {
     state.databaseDialog.statsDialog.data = await mongoApi.runCommand.request({
-        id: state.currentId,
+        id: state.chooseData.id,
         database: dbName,
         command: {
             dbStats: 1,
@@ -310,7 +283,7 @@ const showCollections = async (database: string) => {
 };
 
 const setCollections = async (database: string) => {
-    const res = await mongoApi.collections.request({ id: state.currentId, database });
+    const res = await mongoApi.collections.request({ id: state.chooseData.id, database });
     const collections = [] as any;
     for (let r of res) {
         collections.push({ name: r });
@@ -323,7 +296,7 @@ const setCollections = async (database: string) => {
  */
 const showCollectionStats = async (collection: string) => {
     state.collectionsDialog.statsDialog.data = await mongoApi.runCommand.request({
-        id: state.currentId,
+        id: state.chooseData.id,
         database: state.collectionsDialog.database,
         command: {
             collStats: collection,
@@ -338,7 +311,7 @@ const showCollectionStats = async (collection: string) => {
  */
 const onDeleteCollection = async (collection: string) => {
     await mongoApi.runCommand.request({
-        id: state.currentId,
+        id: state.chooseData.id,
         database: state.collectionsDialog.database,
         command: {
             drop: collection,
@@ -355,7 +328,7 @@ const showCreateCollectionDialog = () => {
 const onCreateCollection = async () => {
     const form = state.createCollectionDialog.form;
     await mongoApi.runCommand.request({
-        id: state.currentId,
+        id: state.chooseData.id,
         database: state.collectionsDialog.database,
         command: {
             create: form.name,
@@ -374,10 +347,9 @@ const deleteMongo = async () => {
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await mongoApi.deleteMongo.request({ id: state.currentId });
+        await mongoApi.deleteMongo.request({ id: state.chooseData.id });
         ElMessage.success('删除成功');
-        state.currentData = null;
-        state.currentId = null;
+        state.chooseData = null;
         search();
     } catch (err) { }
 };
@@ -397,20 +369,17 @@ const editMongo = async (isAdd = false) => {
         state.mongoEditDialog.data = null;
         state.mongoEditDialog.title = '新增mongo';
     } else {
-        state.mongoEditDialog.data = state.currentData;
+        state.mongoEditDialog.data = state.chooseData;
         state.mongoEditDialog.title = '修改mongo';
     }
     state.mongoEditDialog.visible = true;
 };
 
 const valChange = () => {
-    state.currentId = null;
-    state.currentData = null;
+    state.chooseData = null;
     search();
 };
 
 </script>
 
-<style>
-
-</style>
+<style></style>

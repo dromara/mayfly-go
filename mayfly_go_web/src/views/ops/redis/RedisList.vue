@@ -1,56 +1,41 @@
 <template>
     <div>
-        <el-card>
-            <el-button type="primary" icon="plus" @click="editRedis(true)" plain>添加</el-button>
-            <el-button type="primary" icon="edit" :disabled="currentId == null" @click="editRedis(false)" plain>编辑
-            </el-button>
-            <el-button type="danger" icon="delete" :disabled="currentId == null" @click="deleteRedis" plain>删除
-            </el-button>
-            <div style="float: right">
-                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable>
+        <page-table :query="state.queryConfig" v-model:query-form="query" :show-choose-column="true"
+            v-model:choose-data="state.chooseData" :data="redisTable" :columns="state.columns" :total="total"
+            v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
+
+            <template #tagPathSelect>
+                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable
+                    style="width: 200px">
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
-                <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
-            </div>
-            <el-table :data="redisTable" @current-change="choose" stripe>
-                <el-table-column label="选择" width="60px">
-                    <template #default="scope">
-                        <el-radio v-model="currentId" :label="scope.row.id">
-                            <i></i>
-                        </el-radio>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip>
-                    <template #default="scope">
-                        <tag-info :tag-path="scope.row.tagPath" />
-                        <span class="ml5">
-                            {{ scope.row.tagPath }}
-                        </span>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="name" label="名称" min-width="100"></el-table-column>
-                <el-table-column prop="host" label="host:port" min-width="150" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="mode" label="mode" min-width="100"></el-table-column>
-                <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip></el-table-column>
+            </template>
 
-                <el-table-column label="更多" min-width="155" fixed="right">
-                    <template #default="scope">
-                        <el-link @click="showDetail(scope.row)" :underline="false">详情</el-link>
-                        <el-divider direction="vertical" border-style="dashed" />
+            <template #queryRight>
+                <el-button type="primary" icon="plus" @click="editRedis(true)" plain>添加</el-button>
+                <el-button type="primary" icon="edit" :disabled="!chooseData" @click="editRedis(false)" plain>编辑
+                </el-button>
+                <el-button type="danger" icon="delete" :disabled="!chooseData" @click="deleteRedis" plain>删除
+                </el-button>
+            </template>
 
-                        <el-link v-if="scope.row.mode === 'standalone' || scope.row.mode === 'sentinel'" type="primary"
-                            @click="showInfoDialog(scope.row)" :underline="false">单机信息</el-link>
-                        <el-link @click="onShowClusterInfo(scope.row)" v-if="scope.row.mode === 'cluster'"
-                            type="primary" :underline="false">集群信息</el-link>
-                    </template>
-                </el-table-column>
-            </el-table>
-            <el-row style="margin-top: 20px" type="flex" justify="end">
-                <el-pagination style="text-align: right" @current-change="handlePageChange" :total="total"
-                    layout="prev, pager, next, total, jumper" v-model:current-page="query.pageNum"
-                    :page-size="query.pageSize"></el-pagination>
-            </el-row>
-        </el-card>
+            <template #tagPath="{ data }">
+                <tag-info :tag-path="data.tagPath" />
+                <span class="ml5">
+                    {{ data.tagPath }}
+                </span>
+            </template>
+
+            <template #more="{ data }">
+                <el-link @click="showDetail(data)" :underline="false">详情</el-link>
+                <el-divider direction="vertical" border-style="dashed" />
+
+                <el-link v-if="data.mode === 'standalone' || data.mode === 'sentinel'" type="primary"
+                    @click="showInfoDialog(data)" :underline="false">单机信息</el-link>
+                <el-link @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary"
+                    :underline="false">集群信息</el-link>
+            </template>
+        </page-table>
 
         <info v-model:visible="infoDialog.visible" :title="infoDialog.title" :info="infoDialog.info"></info>
 
@@ -81,8 +66,8 @@
                         </el-tooltip>
                     </template>
                     <template #default="scope">
-                        <el-tag @click="showInfoDialog({ id: clusterInfoDialog.redisId, ip: scope.row.ip })"
-                            effect="plain" type="success" size="small" style="cursor: pointer">{{ scope.row.ip }}
+                        <el-tag @click="showInfoDialog({ id: clusterInfoDialog.redisId, ip: scope.row.ip })" effect="plain"
+                            type="success" size="small" style="cursor: pointer">{{ scope.row.ip }}
                         </el-tag>
                     </template>
                 </el-table-column>
@@ -90,8 +75,8 @@
                 <el-table-column prop="masterSlaveRelation" label="masterSlaveRelation" min-width="300">
                     <template #header>
                         masterSlaveRelation
-                        <el-tooltip class="box-item" effect="dark"
-                            content="如果节点是slave，并且已知master节点，则为master节点ID；否则为符号'-'" placement="top">
+                        <el-tooltip class="box-item" effect="dark" content="如果节点是slave，并且已知master节点，则为master节点ID；否则为符号'-'"
+                            placement="top">
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -112,8 +97,7 @@
                     <template #header>
                         configEpoch
                         <el-tooltip class="box-item" effect="dark"
-                            content="节点的epoch值（如果该节点是从节点，则为其主节点的epoch值）。每当节点发生失败切换时，都会创建一个新的，独特的，递增的epoch。"
-                            placement="top">
+                            content="节点的epoch值（如果该节点是从节点，则为其主节点的epoch值）。每当节点发生失败切换时，都会创建一个新的，独特的，递增的epoch。" placement="top">
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -164,19 +148,30 @@ import { tagApi } from '../tag/api';
 import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
+import PageTable from '@/components/pagetable/PageTable.vue'
+import { TableColumn, TableQuery } from '@/components/pagetable';
 
 const state = reactive({
     tags: [],
     redisTable: [],
     total: 0,
-    currentId: null,
-    currentData: null,
+    chooseData: null as any,
     query: {
         tagPath: null,
         pageNum: 1,
         pageSize: 10,
-        clusterId: null,
     },
+    queryConfig: [
+        TableQuery.slot("tagPath", "标签", "tagPathSelect"),
+    ],
+    columns: [
+        TableColumn.new("tagPath", "标签路径").setSlot("tagPath"),
+        TableColumn.new("name", "名称"),
+        TableColumn.new("host", "host:port"),
+        TableColumn.new("mode", "mode"),
+        TableColumn.new("remark", "备注"),
+        TableColumn.new("more", "更多").setSlot("more").setMinWidth(155).fixedRight(),
+    ],
     detailDialog: {
         visible: false,
         data: null as any,
@@ -209,7 +204,7 @@ const {
     tags,
     redisTable,
     total,
-    currentId,
+    chooseData,
     query,
     detailDialog,
     clusterInfoDialog,
@@ -221,23 +216,11 @@ onMounted(async () => {
     search();
 });
 
-const handlePageChange = (curPage: number) => {
-    state.query.pageNum = curPage;
-    search();
-};
 
 const showDetail = (detail: any) => {
     state.detailDialog.data = detail;
     state.detailDialog.visible = true;
 }
-
-const choose = (item: any) => {
-    if (!item) {
-        return;
-    }
-    state.currentId = item.id;
-    state.currentData = item;
-};
 
 const deleteRedis = async () => {
     try {
@@ -246,10 +229,9 @@ const deleteRedis = async () => {
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await redisApi.delRedis.request({ id: state.currentId });
+        await redisApi.delRedis.request({ id: state.chooseData.id });
         ElMessage.success('删除成功');
-        state.currentData = null;
-        state.currentId = null;
+        state.chooseData = null;
         search();
     } catch (err) { }
 };
@@ -288,19 +270,16 @@ const editRedis = async (isAdd = false) => {
         state.redisEditDialog.data = null;
         state.redisEditDialog.title = '新增redis';
     } else {
-        state.redisEditDialog.data = state.currentData;
+        state.redisEditDialog.data = state.chooseData;
         state.redisEditDialog.title = '修改redis';
     }
     state.redisEditDialog.visible = true;
 };
 
 const valChange = () => {
-    state.currentId = null;
-    state.currentData = null;
+    state.chooseData = null;
     search();
 };
 </script>
 
-<style>
-
-</style>
+<style></style>

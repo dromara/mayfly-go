@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-button @click="showEditDialog(null)" icon="plus" size="small" plain type="primary" class="mb10">添加新行</el-button>
-        <el-table size="small" border :data="hashValues" min-height=300 stripe>
+        <el-table size="small" border :data="hashValues" height="450" min-height=300 stripe>
             <el-table-column type="index" :label="'ID (Total: ' + total + ')'" sortable width="100">
             </el-table-column>
             <el-table-column resizable sortable prop="field" label="field" show-overflow-tooltip min-width="100">

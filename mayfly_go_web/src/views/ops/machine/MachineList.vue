@@ -1,127 +1,96 @@
 <template>
     <div>
-        <el-card>
-            <div>
+        <page-table :query="state.queryConfig" v-model:query-form="params" :show-choose-column="true"
+            v-model:choose-data="state.chooseData" :data="data.list" :columns="state.columns" :total="data.total"
+            v-model:page-size="params.pageSize" v-model:page-num="params.pageNum" @pageChange="search()">
+
+            <template #tagPathSelect>
+                <el-select @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" @clear="search" filterable
+                    clearable style="width: 200px">
+                    <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
+                </el-select>
+            </template>
+
+            <template #queryRight>
                 <el-button v-auth="'machine:add'" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加
                 </el-button>
-                <el-button v-auth="'machine:update'" type="primary" icon="edit" :disabled="!currentId"
-                    @click="openFormDialog(currentData)" plain>编辑</el-button>
-                <el-button v-auth="'machine:del'" :disabled="!currentId" @click="deleteMachine(currentId)" type="danger"
-                    icon="delete">删除</el-button>
-                <div style="float: right">
-                    <el-select @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" @clear="search" filterable
-                        clearable>
-                        <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
-                    </el-select>
-                    <el-input class="ml5" placeholder="请输入名称" style="width: 150px" v-model="params.name" @clear="search"
-                        plain clearable></el-input>
-                    <el-input class="ml5" placeholder="请输入ip" style="width: 150px" v-model="params.ip" @clear="search" plain
-                        clearable></el-input>
-                    <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
-                </div>
-            </div>
+                <el-button v-auth="'machine:update'" type="primary" icon="edit" :disabled="!chooseData"
+                    @click="openFormDialog(chooseData)" plain>编辑</el-button>
+                <el-button v-auth="'machine:del'" :disabled="!chooseData" @click="deleteMachine(chooseData.id)"
+                    type="danger" icon="delete">删除</el-button>
+            </template>
 
-            <el-table :data="data.list" stripe style="width: 100%" @current-change="choose">
-                <el-table-column label="选择" width="55px">
-                    <template #default="scope">
-                        <el-radio v-model="currentId" :label="scope.row.id">
-                            <i></i>
-                        </el-radio>
+            <template #tagPath="{ data }">
+                <tag-info :tag-path="data.tagPath" />
+                <span class="ml5">
+                    {{ data.tagPath }}
+                </span>
+            </template>
+
+            <template #ipPort="{ data }">
+                <el-link :disabled="data.status == -1" @click="showMachineStats(data)" type="primary" :underline="false">
+                    {{ `${data.ip}:${data.port}` }}
+                </el-link>
+            </template>
+
+            <template #status="{ data }">
+                <el-switch v-auth:disabled="'machine:update'" :width="52" v-model="data.status" :active-value="1"
+                    :inactive-value="-1" inline-prompt active-text="启用" inactive-text="停用"
+                    style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
+                    @change="changeStatus(data)"></el-switch>
+            </template>
+
+            <template #action="{ data }">
+                <span v-auth="'machine:terminal'">
+                    <el-link :disabled="data.status == -1" type="primary" @click="showTerminal(data)" plain size="small"
+                        :underline="false">终端</el-link>
+                    <el-divider direction="vertical" border-style="dashed" />
+                </span>
+
+                <span v-auth="'machine:file'">
+                    <el-link type="success" :disabled="data.status == -1" @click="showFileManage(data)" plain size="small"
+                        :underline="false">文件</el-link>
+                    <el-divider direction="vertical" border-style="dashed" />
+                </span>
+
+                <el-link :disabled="data.status == -1" type="warning" @click="serviceManager(data)" plain size="small"
+                    :underline="false">脚本</el-link>
+                <el-divider direction="vertical" border-style="dashed" />
+
+                <el-dropdown>
+                    <span class="el-dropdown-link-machine-list">
+                        更多
+                        <el-icon class="el-icon--right">
+                            <arrow-down />
+                        </el-icon>
+                    </span>
+                    <template #dropdown>
+                        <el-dropdown-menu>
+                            <el-dropdown-item>
+                                <el-link @click="showInfo(data)" plain :underline="false" size="small">详情
+                                </el-link>
+                            </el-dropdown-item>
+
+                            <el-dropdown-item>
+                                <el-link @click="showProcess(data)" :disabled="data.status == -1" plain :underline="false"
+                                    size="small">进程</el-link>
+                            </el-dropdown-item>
+
+                            <el-dropdown-item v-if="data.enableRecorder == 1">
+                                <el-link v-auth="'machine:update'" @click="showRec(data)" plain :underline="false"
+                                    size="small">终端回放</el-link>
+                            </el-dropdown-item>
+
+                            <el-dropdown-item>
+                                <el-link v-auth="'machine:close-cli'" :disabled="!data.hasCli || data.status == -1"
+                                    type="danger" @click="closeCli(data)" plain size="small" :underline="false">关闭连接
+                                </el-link>
+                            </el-dropdown-item>
+                        </el-dropdown-menu>
                     </template>
-                </el-table-column>
-                <el-table-column prop="tagPath" label="标签路径" min-width="150" show-overflow-tooltip>
-                    <template #default="scope">
-                        <tag-info :tag-path="scope.row.tagPath" />
-                        <span class="ml5">
-                            {{ scope.row.tagPath }}
-                        </span>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip></el-table-column>
-
-                <el-table-column prop="ip" label="ip:port" min-width="150">
-                    <template #default="scope">
-                        <el-link :disabled="scope.row.status == -1" @click="showMachineStats(scope.row)" type="primary"
-                            :underline="false">
-                            {{ `${scope.row.ip}:${scope.row.port}` }}
-                        </el-link>
-                    </template>
-                </el-table-column>
-
-                <el-table-column prop="username" label="用户名" min-width="100">
-                </el-table-column>
-
-                <el-table-column prop="status" label="状态" min-width="80">
-                    <template #default="scope">
-                        <el-switch v-auth:disabled="'machine:update'" :width="52" v-model="scope.row.status"
-                            :active-value="1" :inactive-value="-1" inline-prompt active-text="启用" inactive-text="停用"
-                            style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
-                            @change="changeStatus(scope.row)"></el-switch>
-                    </template>
-                </el-table-column>
-
-                <el-table-column prop="remark" label="备注" min-width="250" show-overflow-tooltip></el-table-column>
-
-                <el-table-column label="操作" min-width="235" fixed="right">
-                    <template #default="scope">
-                        <span v-auth="'machine:terminal'">
-                            <el-link :disabled="scope.row.status == -1" type="primary" @click="showTerminal(scope.row)"
-                                plain size="small" :underline="false">终端</el-link>
-                            <el-divider direction="vertical" border-style="dashed" />
-                        </span>
-
-                        <span v-auth="'machine:file'">
-                            <el-link type="success" :disabled="scope.row.status == -1" @click="showFileManage(scope.row)"
-                                plain size="small" :underline="false">文件</el-link>
-                            <el-divider direction="vertical" border-style="dashed" />
-                        </span>
-
-                        <el-link :disabled="scope.row.status == -1" type="warning" @click="serviceManager(scope.row)" plain
-                            size="small" :underline="false">脚本</el-link>
-                        <el-divider direction="vertical" border-style="dashed" />
-
-                        <el-dropdown>
-                            <span class="el-dropdown-link-machine-list">
-                                更多
-                                <el-icon class="el-icon--right">
-                                    <arrow-down />
-                                </el-icon>
-                            </span>
-                            <template #dropdown>
-                                <el-dropdown-menu>
-                                    <el-dropdown-item>
-                                        <el-link @click="showInfo(scope.row)" plain :underline="false" size="small">详情
-                                        </el-link>
-                                    </el-dropdown-item>
-
-                                    <el-dropdown-item>
-                                        <el-link @click="showProcess(scope.row)" :disabled="scope.row.status == -1" plain
-                                            :underline="false" size="small">进程</el-link>
-                                    </el-dropdown-item>
-
-                                    <el-dropdown-item v-if="scope.row.enableRecorder == 1">
-                                        <el-link v-auth="'machine:update'" @click="showRec(scope.row)" plain
-                                            :underline="false" size="small">终端回放</el-link>
-                                    </el-dropdown-item>
-
-                                    <el-dropdown-item>
-                                        <el-link v-auth="'machine:close-cli'"
-                                            :disabled="!scope.row.hasCli || scope.row.status == -1" type="danger"
-                                            @click="closeCli(scope.row)" plain size="small" :underline="false">关闭连接
-                                        </el-link>
-                                    </el-dropdown-item>
-                                </el-dropdown-menu>
-                            </template>
-                        </el-dropdown>
-                    </template>
-                </el-table-column>
-            </el-table>
-            <el-row style="margin-top: 20px" type="flex" justify="end">
-                <el-pagination style="text-align: right" :total="data.total" layout="prev, pager, next, total, jumper"
-                    v-model:current-page="params.pageNum" :page-size="params.pageSize"
-                    @current-change="handlePageChange"></el-pagination>
-            </el-row>
-        </el-card>
+                </el-dropdown>
+            </template>
+        </page-table>
 
         <el-dialog v-model="infoDialog.visible">
             <el-descriptions title="详情" :column="3" border>
@@ -184,6 +153,8 @@ import { machineApi } from './api';
 import { tagApi } from '../tag/api';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
+import PageTable from '@/components/pagetable/PageTable.vue'
+import { TableColumn, TableQuery } from '@/components/pagetable';
 
 // 组件
 const MachineEdit = defineAsyncComponent(() => import('./MachineEdit.vue'));
@@ -203,6 +174,20 @@ const state = reactive({
         name: null,
         tagPath: null,
     },
+    queryConfig: [
+        TableQuery.slot("tagPath", "标签", "tagPathSelect"),
+        TableQuery.text("ip", "IP"),
+        TableQuery.text("name", "名称"),
+    ],
+    columns: [
+        TableColumn.new("tagPath", "标签路径").setSlot("tagPath"),
+        TableColumn.new("name", "名称"),
+        TableColumn.new("ipPort", "ip:port").setSlot("ipPort"),
+        TableColumn.new("username", "用户名"),
+        TableColumn.new("status", "状态").setSlot("status"),
+        TableColumn.new("remark", "备注"),
+        TableColumn.new("action", "操作").setSlot("action").setMinWidth(235).fixedRight(),
+    ],
     // 列表数据
     data: {
         list: [],
@@ -212,9 +197,8 @@ const state = reactive({
         visible: false,
         data: null as any,
     },
-    // 当前选中数据id
-    currentId: 0,
-    currentData: null,
+    // 当前选中数据
+    chooseData: null as any,
     serviceDialog: {
         visible: false,
         machineId: 0,
@@ -252,8 +236,7 @@ const {
     params,
     data,
     infoDialog,
-    currentId,
-    currentData,
+    chooseData,
     serviceDialog,
     processDialog,
     fileDialog,
@@ -265,14 +248,6 @@ const {
 onMounted(async () => {
     search();
 });
-
-const choose = (item: any) => {
-    if (!item) {
-        return;
-    }
-    state.currentId = item.id;
-    state.currentData = item;
-};
 
 const showTerminal = (row: any) => {
     const { href } = router.resolve({
@@ -303,7 +278,7 @@ const getTags = async () => {
 const openFormDialog = async (machine: any) => {
     let dialogTitle;
     if (machine) {
-        state.machineEditDialog.data = state.currentData as any;
+        state.machineEditDialog.data = state.chooseData as any;
         dialogTitle = '编辑机器';
     } else {
         state.machineEditDialog.data = null;
@@ -323,8 +298,7 @@ const deleteMachine = async (id: number) => {
         });
         await machineApi.del.request({ id });
         ElMessage.success('操作成功');
-        state.currentId = 0;
-        state.currentData = null;
+        state.chooseData = null;
         search();
     } catch (err) { }
 };
@@ -339,6 +313,9 @@ const serviceManager = (row: any) => {
  * 调整机器状态
  */
 const changeStatus = async (row: any) => {
+    if (!row.id) {
+        return;
+    }
     await machineApi.changeStatus.request({ id: row.id, status: row.status });
 };
 
@@ -352,25 +329,19 @@ const showMachineStats = async (machine: any) => {
 };
 
 const submitSuccess = () => {
-    state.currentId = 0;
-    state.currentData = null;
+    state.chooseData = null;
     search();
 };
 
-const showFileManage = (currentData: any) => {
+const showFileManage = (chooseData: any) => {
     state.fileDialog.visible = true;
-    state.fileDialog.machineId = currentData.id;
-    state.fileDialog.title = `${currentData.name} => ${currentData.ip}`;
+    state.fileDialog.machineId = chooseData.id;
+    state.fileDialog.title = `${chooseData.name} => ${chooseData.ip}`;
 };
 
 const search = async () => {
     const res = await machineApi.list.request(state.params);
     state.data = res;
-};
-
-const handlePageChange = (curPage: number) => {
-    state.params.pageNum = curPage;
-    search();
 };
 
 const showInfo = (info: any) => {

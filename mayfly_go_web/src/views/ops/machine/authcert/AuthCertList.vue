@@ -1,56 +1,23 @@
 <template>
-    <div class="role-list">
-        <el-card>
-            <div>
+    <div>
+        <page-table :query="state.queryConfig" v-model:query-form="query" :show-choose-column="true"
+            v-model:choose-data="state.chooseData" :data="authcerts" :columns="state.columns" :total="total"
+            v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
+
+            <template #queryRight>
                 <el-button type="primary" icon="plus" @click="edit(false)">添加</el-button>
-                <el-button :disabled="chooseId == null" @click="edit(chooseData)" type="primary" icon="edit">编辑
+                <el-button :disabled="!chooseData" @click="edit(chooseData)" type="primary" icon="edit">编辑
                 </el-button>
-                <el-button :disabled="chooseId == null" @click="deleteAc(chooseData)" type="danger" icon="delete">删除
+                <el-button :disabled="!chooseData" @click="deleteAc(chooseData)" type="danger" icon="delete">删除
                 </el-button>
 
-                <div style="float: right">
-                    <el-input class="ml5" placeholder="请输入凭证名称" style="width: 200px" v-model="query.name" @clear="search"
-                        plain clearable></el-input>
-                    <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
-                </div>
-            </div>
+            </template>
 
-            <el-table :data="authcerts" @current-change="choose" ref="table" style="width: 100%">
-                <el-table-column label="选择" width="55px">
-                    <template #default="scope">
-                        <el-radio v-model="chooseId" :label="scope.row.id">
-                            <i></i>
-                        </el-radio>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="name" label="名称" min-width="60px" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="authMethod" label="认证方式" min-width="50px">
-                    <template #default="scope">
-                        <el-tag v-if="scope.row.authMethod == 1" type="success" size="small">密码</el-tag>
-                        <el-tag v-if="scope.row.authMethod == 2" size="small">密钥</el-tag>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="remark" label="备注" min-width="100px" show-overflow-tooltip>
-                </el-table-column>
-                <el-table-column prop="creator" label="创建人" min-width="60px"></el-table-column>
-                <el-table-column prop="createTime" label="创建时间" min-width="100px">
-                    <template #default="scope">
-                        {{ dateFormat(scope.row.createTime) }}
-                    </template>
-                </el-table-column>
-                <el-table-column prop="modifier" label="修改者" min-width="60px" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="updateTime" label="更新时间" min-width="100px">
-                    <template #default="scope">
-                        {{ dateFormat(scope.row.updateTime) }}
-                    </template>
-                </el-table-column>
-            </el-table>
-            <el-row style="margin-top: 20px" type="flex" justify="end">
-                <el-pagination style="text-align: right" @current-change="handlePageChange" :total="total"
-                    layout="prev, pager, next, total, jumper" v-model:current-page="query.pageNum"
-                    :page-size="query.pageSize"></el-pagination>
-            </el-row>
-        </el-card>
+            <template #authMethod="{ data }">
+                <el-tag v-if="data.authMethod == 1" type="success" size="small">密码</el-tag>
+                <el-tag v-if="data.authMethod == 2" size="small">密钥</el-tag>
+            </template>
+        </page-table>
 
         <auth-cert-edit :title="editor.title" v-model:visible="editor.visible" :data="editor.authcert"
             @val-change="editChange" />
@@ -62,19 +29,30 @@ import { toRefs, reactive, onMounted } from 'vue';
 import AuthCertEdit from './AuthCertEdit.vue';
 import { authCertApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { dateFormat } from '@/common/utils/date';
+import PageTable from '@/components/pagetable/PageTable.vue'
+import { TableColumn, TableQuery } from '@/components/pagetable';
 
 const state = reactive({
     query: {
         pageNum: 1,
         pageSize: 10,
         name: null,
-        type: null,
     },
+    queryConfig: [
+        TableQuery.text("name", "凭证名称"),
+    ],
+    columns: [
+        TableColumn.new("name", "名称"),
+        TableColumn.new("authMethod", "认证方式").setSlot("authMethod"),
+        TableColumn.new("remark", "备注"),
+        TableColumn.new("creator", "创建人"),
+        TableColumn.new("createTime", "创建时间").isTime(),
+        TableColumn.new("creator", "修改者"),
+        TableColumn.new("createTime", "修改时间").isTime(),
+    ],
     total: 0,
     authcerts: [],
-    chooseId: null,
-    chooseData: null,
+    chooseData: null as any,
     paramsDialog: {
         visible: false,
         config: null as any,
@@ -92,7 +70,6 @@ const {
     query,
     total,
     authcerts,
-    chooseId,
     chooseData,
     editor,
 } = toRefs(state)
@@ -107,22 +84,8 @@ const search = async () => {
     state.total = res.total;
 };
 
-const handlePageChange = (curPage: number) => {
-    state.query.pageNum = curPage;
-    search();
-};
-
-const choose = (item: any) => {
-    if (!item) {
-        return;
-    }
-    state.chooseId = item.id;
-    state.chooseData = item;
-};
-
 const editChange = () => {
     ElMessage.success('保存成功');
-    state.chooseId = null;
     state.chooseData = null;
     search();
 };
@@ -147,7 +110,6 @@ const deleteAc = async (data: any) => {
         await authCertApi.delete.request({ id: data.id });
         ElMessage.success('删除成功');
         state.chooseData = null;
-        state.chooseId = null;
         search();
     } catch (err) { }
 
