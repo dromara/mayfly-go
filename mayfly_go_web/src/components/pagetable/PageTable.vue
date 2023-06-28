@@ -43,7 +43,7 @@
                     </div>
                     <!-- 这里做的是一个类似于折叠面板的功能 -->
                     <div class="query-content" :class="isOpenMoreQuery ? 'is-open' : ''">
-                        <el-form :model="props.queryForm" label-width="70px" style="display: flex; flex-wrap: wrap;">
+                        <el-form :model="props.queryForm" label-width="auto" style="display: flex; flex-wrap: wrap;">
                             <el-form-item :label="item.label" style="margin-right: 20px; margin-bottom: 0px;"
                                 v-for="item in props.query?.slice(defaultQueryCount)" :key="item.prop">
 
@@ -224,7 +224,7 @@ watch(() => props.data, (newValue: any) => {
     if (newValue.length > 0) {
         props.columns.forEach(item => {
             if (item.autoWidth && item.show) {
-                item.minWidth = TableColumn.flexColumnWidth(item.prop, item.label, props.data) as any
+                item.minWidth = TableColumn.flexColumnWidth(item.prop, item.label, props.data) + item.addWidth
             }
         })
     }

@@ -1,4 +1,5 @@
 import { dateFormat } from '@/common/utils/date';
+import { getTextWidth } from '@/common/utils/string';
 
 export class TableColumn {
 
@@ -16,6 +17,11 @@ export class TableColumn {
      * 是否自动计算宽度
      */
     autoWidth: boolean = true;
+
+    /**
+     * 自动计算宽度时，累加该值（可能列值会进行转换添加图标等，宽度需要比计算出来的更宽些）
+     */
+    addWidth: number = 0;
 
     /**      
      * 最小宽度
@@ -58,6 +64,11 @@ export class TableColumn {
         return this;
     }
 
+    setAddWidth(addWidth: number): TableColumn {
+        this.addWidth = addWidth
+        return this;
+    }
+
     setSlot(slot: string): TableColumn {
         this.slot = slot
         return this;
@@ -95,16 +106,15 @@ export class TableColumn {
      * @param label 表头label也参与宽度计算
      * @returns 列宽度
      */
-    static flexColumnWidth = (str: any, label: string, tableData: any) => {
+    static flexColumnWidth = (str: any, label: string, tableData: any): number => {
         // str为该列的字段名(传字符串);tableData为该表格的数据源(传变量);
-
         str = str + '';
         let columnContent = '';
         if (!tableData || !tableData.length || tableData.length === 0 || tableData === undefined) {
-            return;
+            return 0;
         }
         if (!str || !str.length || str.length === 0 || str === undefined) {
-            return;
+            return 0;
         }
         // 获取该列中最长的数据(内容)
         let index = 0;
@@ -119,51 +129,14 @@ export class TableColumn {
             }
         }
         columnContent = tableData[index][str] + '';
-        const contentWidth: number = TableColumn.getContentWidth(columnContent);
+        // 需要加上表格的内间距等，视情况加
+        const contentWidth: number = getTextWidth(columnContent) + 30;
         // 获取label的宽度，取较大的宽度
-        const columnWidth: number = TableColumn.getContentWidth(label) + 30;
+        const columnWidth: number = getTextWidth(label) + 60;
         const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
-        return flexWidth + 'px';
-    };
-
-    /**
-     * 获取内容所需要占用的宽度
-    */
-    static getContentWidth = (content: any): number => {
-        if (!content) {
-            return 50;
-        }
-        // 以下分配的单位长度可根据实际需求进行调整
-        let flexWidth = 0;
-        for (const char of content) {
-            if (flexWidth > 500) {
-                break;
-            }
-            if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'z')) {
-                // 小写字母、数字字符
-                flexWidth += 9.3;
-                continue;
-            }
-            if (char >= 'A' && char <= 'Z') {
-                flexWidth += 9;
-                continue;
-            }
-            if (char >= '\u4e00' && char <= '\u9fa5') {
-                // 如果是中文字符，为字符分配16个单位宽度
-                flexWidth += 20;
-            } else {
-                // 其他种类字符
-                flexWidth += 8;
-            }
-        }
-        if (flexWidth > 400) {
-            // 设置最大宽度
-            flexWidth = 400;
-        }
-        return flexWidth;
+        return flexWidth > 400 ? 400 : flexWidth;
     };
 }
-
 
 export class TableQuery {
 

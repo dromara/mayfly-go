@@ -53,3 +53,56 @@ export function letterAvatar(name: string, size = 60, color = '') {
     canvas = null;
     return dataURI;
 };
+
+/**
+ * 计算文本所占用的宽度（px） -> 该种方式较为准确
+ * 使用span标签包裹内容，然后计算span的宽度 width： px
+ * @param str
+ */
+export function getTextWidth(str: string) {
+    let width = 0;
+    let html = document.createElement('span');
+    html.innerText = str;
+    html.className = 'getTextWidth';
+    document?.querySelector('body')?.appendChild(html);
+    width = (document?.querySelector('.getTextWidth') as any).offsetWidth;
+    document?.querySelector('.getTextWidth')?.remove();
+    return width;
+}
+
+/**
+ * 获取内容所需要占用的宽度
+*/
+export function getContentWidth(content: any): number {
+    if (!content) {
+        return 50;
+    }
+    // 以下分配的单位长度可根据实际需求进行调整
+    let flexWidth = 0;
+    for (const char of content) {
+        if (flexWidth > 500) {
+            break;
+        }
+        if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'z')) {
+            // 小写字母、数字字符
+            flexWidth += 9.3;
+            continue;
+        }
+        if (char >= 'A' && char <= 'Z') {
+            flexWidth += 9;
+            continue;
+        }
+        if (char >= '\u4e00' && char <= '\u9fa5') {
+            // 如果是中文字符，为字符分配16个单位宽度
+            flexWidth += 20;
+        } else {
+            // 其他种类字符
+            flexWidth += 8;
+        }
+    }
+    // if (flexWidth > 450) {
+    //     // 设置最大宽度
+    //     flexWidth = 450;
+    // }
+    return flexWidth;
+};

@@ -165,7 +165,7 @@ const state = reactive({
         TableQuery.slot("tagPath", "标签", "tagPathSelect"),
     ],
     columns: [
-        TableColumn.new("tagPath", "标签路径").setSlot("tagPath"),
+        TableColumn.new("tagPath", "标签路径").setSlot("tagPath").setAddWidth(20),
         TableColumn.new("name", "名称"),
         TableColumn.new("host", "host:port"),
         TableColumn.new("mode", "mode"),

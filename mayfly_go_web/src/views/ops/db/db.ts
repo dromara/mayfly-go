@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { dbApi } from './api';
+import { getTextWidth } from '@/common/utils/string';
 import SqlExecBox from './component/SqlExecBox';
 
 const dbInstCache: Map<number, DbInst> = new Map();
@@ -300,10 +301,8 @@ export class DbInst {
      * @param flag 标志
      * @returns 列宽度
      */
-    static flexColumnWidth = (str: any, tableData: any, flag = 'equal') => {
+    static flexColumnWidth = (str: any, tableData: any) => {
         // str为该列的字段名(传字符串);tableData为该表格的数据源(传变量);
-        // flag为可选值，可不传该参数,传参时可选'max'或'equal',默认为'max'
-        // flag为'max'则设置列宽适配该列中最长的内容,flag为'equal'则设置列宽适配该列中第一行内容的长度。
         str = str + '';
         let columnContent = '';
         if (!tableData || !tableData.length || tableData.length === 0 || tableData === undefined) {
@@ -312,69 +311,24 @@ export class DbInst {
         if (!str || !str.length || str.length === 0 || str === undefined) {
             return;
         }
-        if (flag === 'equal') {
-            // 获取该列中第一个不为空的数据(内容)
-            for (let i = 0; i < tableData.length; i++) {
-                // 转为字符串后比较
-                if ((tableData[i][str] + '').length > 0) {
-                    columnContent = tableData[i][str] + '';
-                    break;
-                }
+        // 获取该列中最长的数据(内容)
+        let index = 0;
+        for (let i = 0; i < tableData.length; i++) {
+            if (!tableData[i][str]) {
+                continue;
             }
-        } else {
-            // 获取该列中最长的数据(内容)
-            let index = 0;
-            for (let i = 0; i < tableData.length; i++) {
-                if (tableData[i][str] === null) {
-                    return;
-                }
-                const now_temp = tableData[i][str] + '';
-                const max_temp = tableData[index][str] + '';
-                if (now_temp.length > max_temp.length) {
-                    index = i;
-                }
+            const now_temp = tableData[i][str] + '';
+            const max_temp = tableData[index][str] + '';
+            if (now_temp.length > max_temp.length) {
+                index = i;
             }
-            columnContent = tableData[index][str] + '';
         }
-        const contentWidth: number = DbInst.getContentWidth(columnContent);
+        columnContent = tableData[index][str] + '';
+        const contentWidth: number = getTextWidth(columnContent) + 15;
         // 获取列名称的长度 加上排序图标长度
-        const columnWidth: number = DbInst.getContentWidth(str) + 43;
+        const columnWidth: number = getTextWidth(str) + 40;
         const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
-        return flexWidth + 'px';
-    };
-
-    /**
-     * 获取内容所需要占用的宽度
-    */
-    static getContentWidth = (content: any): number => {
-        // 以下分配的单位长度可根据实际需求进行调整
-        let flexWidth = 0;
-        for (const char of content) {
-            if (flexWidth > 500) {
-                break;
-            }
-            if ((char >= '0' && char <= '9') || (char >= 'a' && char <= 'z')) {
-                // 如果是小写字母、数字字符，分配8个单位宽度
-                flexWidth += 8.5;
-                continue;
-            }
-            if (char >= 'A' && char <= 'Z') {
-                flexWidth += 9;
-                continue;
-            }
-            if (char >= '\u4e00' && char <= '\u9fa5') {
-                // 如果是中文字符，为字符分配16个单位宽度
-                flexWidth += 16;
-            } else {
-                // 其他种类字符，为字符分配9个单位宽度
-                flexWidth += 8;
-            }
-        }
-        if (flexWidth > 500) {
-            // 设置最大宽度
-            flexWidth = 500;
-        }
-        return flexWidth;
+        return flexWidth > 500 ? 500 : flexWidth;
     };
 }
 
