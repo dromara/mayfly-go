@@ -1,20 +1,24 @@
 <template>
     <div>
         <el-table @cell-dblclick="(row: any, column: any, cell: any, event: any) => cellClick(row, column, cell)"
-            @sort-change="(sort: any) => onTableSortChange(sort)" @selection-change="onDataSelectionChange"
-            :data="datas" size="small" :max-height="tableHeight" v-loading="loading" element-loading-text="查询中..."
-            :empty-text="emptyText" highlight-current-row stripe border class="mt5">
+            @sort-change="(sort: any) => onTableSortChange(sort)" @selection-change="onDataSelectionChange" :data="datas"
+            size="small" :max-height="tableHeight" v-loading="loading" element-loading-text="查询中..." :empty-text="emptyText"
+            highlight-current-row stripe border class="mt5">
             <el-table-column v-if="datas.length > 0 && table" type="selection" width="35" />
-            <el-table-column min-width="100" :width="DbInst.flexColumnWidth(item, datas)" align="center"
-                v-for="item in columnNames" :key="item" :prop="item" :label="item" show-overflow-tooltip
-                :sortable="sortable">
-                <template #header v-if="showColumnTip">
-                    <el-tooltip raw-content placement="top" effect="customized">
-                        <template #content> {{ getColumnTip(item) }} </template>
-                        {{ item }}
-                    </el-tooltip>
-                </template>
-            </el-table-column>
+
+            <template v-for="(item, index) in columns">
+                <el-table-column min-width="100" :width="DbInst.flexColumnWidth(item.columnName, datas)" align="center"
+                    v-if="item.show" :key="index" :prop="item.columnName" :label="item.columnName" show-overflow-tooltip
+                    :sortable="sortable">
+                    <template #header v-if="showColumnTip">
+                        <el-tooltip raw-content placement="top" effect="customized">
+                            <template #content> {{ getColumnTip(item) }} </template>
+                            {{ item.columnName }}
+                        </el-tooltip>
+                    </template>
+                </el-table-column>
+            </template>
+
         </el-table>
     </div>
 </template>
@@ -45,8 +49,8 @@ const props = defineProps({
     data: {
         type: Array,
     },
-    columnNames: {
-        type: Array,
+    columns: {
+        type: Array<any>,
     },
     sortable: {
         type: [String, Boolean],
@@ -76,7 +80,6 @@ const state = reactive({
     db: '',  // 数据库名
     table: '', // 当前的表名
     datas: [],
-    columnNames: [],
     columns: [],
     sortable: false,
     loading: false,
@@ -92,7 +95,6 @@ const {
     datas,
     sortable,
     loading,
-    columnNames,
     showColumnTip,
 } = toRefs(state);
 
@@ -114,23 +116,15 @@ const setState = (props: any) => {
     state.tableHeight = props.height;
     state.sortable = props.sortable;
     state.loading = props.loading;
-    state.columnNames = props.columnNames;
+    state.columns = props.columns;
     state.showColumnTip = props.showColumnTip;
     state.emptyText = props.emptyText;
 }
 
-const getColumnTip = (columnName: string) => {
-    // 优先从 table map中获取
-    let columns = getNowDb().getColumns(state.table);
-    if (!columns) {
-        return '';
-    }
-
-    const column = columns.find((c: any) => c.columnName == columnName);
+const getColumnTip = (column: any) => {
     const comment = column.columnComment;
     return `${column.columnType} ${comment ? ' |  ' + comment : ''}`;
 };
-
 
 /**
  * 表排序字段变更
@@ -269,7 +263,7 @@ const submitUpdateFields = () => {
         a.fields.forEach(f => {
             sql += ` ${f.fieldName} = ${DbInst.wrapColumnValue(f.fieldType, f.newValue)},`
             // 如果修改的字段是主键
-            if(f.fieldName === primaryKeyName){
+            if (f.fieldName === primaryKeyName) {
                 primaryKey = f.oldValue
             }
             divs.push(f.div)
@@ -303,10 +297,6 @@ const cancelUpdateFields = () => {
 
 const changeUpdatedField = () => {
     emits('changeUpdatedField', state.updatedFields);
-}
-
-const getNowDb = () => {
-    return DbInst.getInst(state.dbId).getDb(state.db);
 }
 
 const getNowDbInst = () => {

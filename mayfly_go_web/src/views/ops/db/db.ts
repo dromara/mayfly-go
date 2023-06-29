@@ -90,6 +90,7 @@ export class DbInst {
         // 优先从 table map中获取
         let columns = db.getColumns(table);
         if (columns) {
+            
             return columns;
         }
         console.log(`load columns -> dbName: ${dbName}, table: ${table}`);
@@ -301,32 +302,35 @@ export class DbInst {
      * @param flag 标志
      * @returns 列宽度
      */
-    static flexColumnWidth = (str: any, tableData: any) => {
-        // str为该列的字段名(传字符串);tableData为该表格的数据源(传变量);
-        str = str + '';
-        let columnContent = '';
+    static flexColumnWidth = (prop: any, tableData: any) => {
+        if (!prop || !prop.length || prop.length === 0 || prop === undefined) {
+            return;
+        }
+
+        // 获取列名称的长度 加上排序图标长度
+        const columnWidth: number = getTextWidth(prop) + 40;
+        // prop为该列的字段名(传字符串);tableData为该表格的数据源(传变量);
         if (!tableData || !tableData.length || tableData.length === 0 || tableData === undefined) {
-            return;
+            return columnWidth;
         }
-        if (!str || !str.length || str.length === 0 || str === undefined) {
-            return;
-        }
+
         // 获取该列中最长的数据(内容)
-        let index = 0;
+        let maxWidthText = ""
+        let maxWidthValue
+        // 获取该列中最长的数据(内容)
         for (let i = 0; i < tableData.length; i++) {
-            if (!tableData[i][str]) {
+            let nowValue = tableData[i][prop]
+            if (!nowValue) {
                 continue;
             }
-            const now_temp = tableData[i][str] + '';
-            const max_temp = tableData[index][str] + '';
-            if (now_temp.length > max_temp.length) {
-                index = i;
+            // 转为字符串比较长度
+            let nowText = nowValue + "";
+            if (nowText.length > maxWidthText.length) {
+                maxWidthText = nowText;
+                maxWidthValue = nowValue;
             }
         }
-        columnContent = tableData[index][str] + '';
-        const contentWidth: number = getTextWidth(columnContent) + 15;
-        // 获取列名称的长度 加上排序图标长度
-        const columnWidth: number = getTextWidth(str) + 40;
+        const contentWidth: number = getTextWidth(maxWidthText) + 15;
         const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
         return flexWidth > 500 ? 500 : flexWidth;
     };

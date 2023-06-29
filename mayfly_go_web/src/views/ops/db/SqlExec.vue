@@ -517,7 +517,7 @@ const registerSqlCompletionItemProvider = () => {
                         },
                         kind: monaco.languages.CompletionItemKind.Property,
                         detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                        insertText: fieldName + ' ', // create_time
+                        insertText: fieldName, // create_time
                         range,
                         sortText: 100 + index + '' // 使用表字段声明顺序排序,排序需为字符串类型
                     });

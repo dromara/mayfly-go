@@ -6,6 +6,18 @@
                 </el-link>
                 <el-divider direction="vertical" border-style="dashed" />
 
+                <el-popover placement="bottom" title="表格字段配置" width="auto" trigger="click">
+                    <div v-for="(item, index) in columns" :key="index">
+                        <el-checkbox v-model="item.show"
+                            :label="`${!item.columnComment ? item.columnName : item.columnName + ' [' + item.columnComment + ']'}`"
+                            :true-label="true" :false-label="false" />
+                    </div>
+                    <template #reference>
+                        <el-link icon="Operation" size="small" :underline="false"></el-link>
+                    </template>
+                </el-popover>
+                <el-divider direction="vertical" border-style="dashed" />
+
                 <el-link @click="onShowAddDataDialog()" type="primary" icon="plus" :underline="false"></el-link>
                 <el-divider direction="vertical" border-style="dashed" />
 
@@ -44,11 +56,10 @@
                             <template #reference>
                                 <el-link type="success" :underline="false">选择列</el-link>
                             </template>
-                            <el-table :data="columns" max-height="500" size="small" @row-click="
-                                (...event: any) => {
-                                    onConditionRowClick(event);
-                                }
-                            " style="cursor: pointer">
+                            <el-table :data="columns" max-height="500" size="small" @row-click="(...event: any) => {
+                                onConditionRowClick(event);
+                            }
+                                " style="cursor: pointer">
                                 <el-table-column property="columnName" label="列名" show-overflow-tooltip>
                                 </el-table-column>
                                 <el-table-column property="columnComment" label="备注" show-overflow-tooltip>
@@ -65,9 +76,9 @@
         </el-row>
 
         <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db="state.ti.db" :data="datas" :table="state.table"
-            :column-names="columnNames" :loading="loading" :height="tableHeight" :show-column-tip="true"
-            :sortable="'custom'" @sort-change="(sort: any) => onTableSortChange(sort)"
-            @selection-change="onDataSelectionChange" @change-updated-field="changeUpdatedField"></db-table>
+            :columns="columns" :loading="loading" :height="tableHeight" :show-column-tip="true" :sortable="'custom'"
+            @sort-change="(sort: any) => onTableSortChange(sort)" @selection-change="onDataSelectionChange"
+            @change-updated-field="changeUpdatedField"></db-table>
 
         <el-row type="flex" class="mt5" justify="center">
             <el-pagination small :total="count" @current-change="pageChange()" layout="prev, pager, next, total, jumper"
@@ -156,7 +167,6 @@ const state = reactive({
     orderBy: '',
     condition: '', // 当前条件框的条件
     loading: false, // 是否在加载数据
-    columnNames: [],
     columns: [] as any,
     pageNum: 1,
     count: 0,
@@ -185,7 +195,6 @@ const {
     condition,
     loading,
     columns,
-    columnNames,
     pageNum,
     count,
     hasUpdatedFileds,
@@ -205,8 +214,10 @@ onMounted(async () => {
     notBlank(state.table, "TableData组件params.table信息不能为空")
 
     const columns = await state.ti.getNowDbInst().loadColumns(state.ti.db, state.table);
+    columns.forEach((x: any) => {
+        x.show = true;
+    })
     state.columns = columns;
-    state.columnNames = columns.map((t: any) => t.columnName);
     await onRefresh();
 })
 
@@ -253,7 +264,13 @@ const selectData = async () => {
 const exportData = () => {
     const dataList = state.datas as any;
     isTrue(dataList.length > 0, '没有数据可导出');
-    exportCsv(`数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, state.columnNames, dataList)
+    let columnNames = [];
+    for (let column of state.columns) {
+        if (column.show) {
+            columnNames.push(column.columnName);
+        }
+    }
+    exportCsv(`数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, columnNames, dataList)
 };
 
 

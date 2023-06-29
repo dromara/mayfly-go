@@ -45,13 +45,32 @@ export class TableColumn {
 
     align: string = "center"
 
+    /**
+     * 指定格式化函数对原始值进行格式化，如时间格式化等
+     * param1: data, param2: prop
+     */
     formatFunc: Function
 
+    /**
+     * 是否显示该列
+     */
     show: boolean = true
 
     constructor(prop: string, label: string) {
         this.prop = prop;
         this.label = label;
+    }
+
+    /**
+     * 获取该列在指定行数据中的值
+     * @param rowData 该行对应的数据
+     * @returns 该列对应的值
+     */
+    getValueByData(rowData: any) {
+        if (this.formatFunc) {
+            return this.formatFunc(rowData, this.prop);
+        }
+        return rowData[this.prop];
     }
 
     static new(prop: string, label: string): TableColumn {
@@ -74,6 +93,11 @@ export class TableColumn {
         return this;
     }
 
+    /**
+     * 设置该列的格式化回调函数
+     * @param func 格式化回调函数(参数为 -> data: 该行对应的数据，prop: 该列对应的prop属性值)
+     * @returns 
+     */
     setFormatFunc(func: Function): TableColumn {
         this.formatFunc = func;
         return this;
@@ -84,7 +108,9 @@ export class TableColumn {
      * @returns this
      */
     isTime(): TableColumn {
-        this.setFormatFunc(dateFormat)
+        this.setFormatFunc((data: any, prop: string) => {
+            return dateFormat(data[prop])
+        })
         return this;
     }
 
@@ -100,41 +126,49 @@ export class TableColumn {
 
 
     /**
-     * 
+     * 自动计算最小宽度
      * @param str 字符串
      * @param tableData 表数据
      * @param label 表头label也参与宽度计算
      * @returns 列宽度
      */
-    static flexColumnWidth = (str: any, label: string, tableData: any): number => {
-        // str为该列的字段名(传字符串);tableData为该表格的数据源(传变量);
-        str = str + '';
-        let columnContent = '';
+    autoCalculateMinWidth = (tableData: any) => {
+        const prop = this.prop
+        const label = this.label
+
         if (!tableData || !tableData.length || tableData.length === 0 || tableData === undefined) {
             return 0;
         }
-        if (!str || !str.length || str.length === 0 || str === undefined) {
-            return 0;
-        }
+
+        let maxWidthText = ""
+        let maxWidthValue
+        // 为了兼容formatFunc格式化回调函数
+        let maxData
         // 获取该列中最长的数据(内容)
-        let index = 0;
         for (let i = 0; i < tableData.length; i++) {
-            if (!tableData[i][str]) {
+            let nowData = tableData[i]
+            let nowValue = nowData[prop]
+            if (!nowValue) {
                 continue;
             }
-            const now_temp = tableData[i][str] + '';
-            const max_temp = tableData[index][str] + '';
-            if (now_temp.length > max_temp.length) {
-                index = i;
+            // 转为字符串比较长度
+            let nowText = nowValue + "";
+            if (nowText.length > maxWidthText.length) {
+                maxWidthText = nowText;
+                maxWidthValue = nowValue;
+                maxData = nowData;
             }
         }
-        columnContent = tableData[index][str] + '';
+        if (this.formatFunc && maxWidthValue) {
+            maxWidthText = this.formatFunc(maxData, prop) + ""
+        }
         // 需要加上表格的内间距等，视情况加
-        const contentWidth: number = getTextWidth(columnContent) + 30;
+        const contentWidth: number = getTextWidth(maxWidthText) + 30;
         // 获取label的宽度，取较大的宽度
         const columnWidth: number = getTextWidth(label) + 60;
         const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
-        return flexWidth > 400 ? 400 : flexWidth;
+        // 设置上限与累加需要额外增加的宽度
+        this.minWidth = (flexWidth > 400 ? 400 : flexWidth) + this.addWidth;
     };
 }
 

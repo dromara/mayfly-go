@@ -70,7 +70,7 @@
                 </span>
             </el-row>
             <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db="state.ti.db" :data="execRes.data" :table="state.table"
-                :column-names="execRes.tableColumn" :loading="loading" :height="tableDataHeight"
+                :columns="execRes.tableColumn" :loading="loading" :height="tableDataHeight"
                 empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改" @selection-change="onDataSelectionChange"
                 @change-updated-field="changeUpdatedField"></db-table>
         </div>
@@ -327,7 +327,13 @@ const onRunSql = async () => {
             ElMessage.warning('未查询到结果集')
         }
         state.execRes.data = colAndData.res;
-        state.execRes.tableColumn = colAndData.colNames;
+        // 兼容表格字段配置
+        state.execRes.tableColumn = colAndData.colNames.map((x: any) => {
+            return {
+                columnName: x,
+                show: true,
+            }
+        });
         cancelUpdateFields()
     } catch (e: any) {
         state.execRes.data = [];
@@ -486,7 +492,7 @@ const replaceSelection = (str: string, selection: any) => {
 const exportData = () => {
     const dataList = state.execRes.data as any;
     isTrue(dataList.length > 0, '没有数据可导出');
-    exportCsv(`数据查询导出-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, state.execRes.tableColumn, dataList)
+    exportCsv(`数据查询导出-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, state.execRes.tableColumn.map((x: any) => x.columnName), dataList)
 };
 
 const beforeUpload = (file: File) => {

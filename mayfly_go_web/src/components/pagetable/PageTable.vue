@@ -105,8 +105,7 @@
                         </template>
 
                         <template #default="scope" v-else>
-                            <span>{{ item.formatFunc ? item.formatFunc(scope.row[item.prop]) : scope.row[item.prop]
-                                }}</span>
+                            <span>{{ item.getValueByData(scope.row)}}</span>
                         </template>
 
                     </el-table-column>
@@ -224,7 +223,7 @@ watch(() => props.data, (newValue: any) => {
     if (newValue.length > 0) {
         props.columns.forEach(item => {
             if (item.autoWidth && item.show) {
-                item.minWidth = TableColumn.flexColumnWidth(item.prop, item.label, props.data) + item.addWidth
+                item.autoCalculateMinWidth(props.data);
             }
         })
     }

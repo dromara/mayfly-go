@@ -26,10 +26,6 @@
                 </span>
             </template>
 
-            <template #hostPort="{ data }">
-                {{ `${data.host}:${data.port}` }}
-            </template>
-
             <template #database="{ data }">
                 <el-popover placement="right" trigger="click" :width="300">
                     <template #reference>
@@ -313,7 +309,7 @@ const state = reactive({
     columns: [
         TableColumn.new("tagPath", "标签路径").setSlot("tagPath").setAddWidth(20),
         TableColumn.new("name", "名称"),
-        TableColumn.new("host", "host:port").setSlot("hostPort").setAddWidth(35),
+        TableColumn.new("host", "host:port").setFormatFunc((data: any, _prop: string) => `${data.host}:${data.port}`),
         TableColumn.new("type", "类型"),
         TableColumn.new("database", "数据库").setSlot("database").setMinWidth(70),
         TableColumn.new("username", "用户名"),
