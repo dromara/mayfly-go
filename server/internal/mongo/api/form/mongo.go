@@ -6,7 +6,7 @@ type Mongo struct {
 	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
 	Name               string `binding:"required" json:"name"`
 	TagId              uint64 `binding:"required" json:"tagId"`
-	TagPath            string `json:"tagPath"`
+	TagPath            string `binding:"required" json:"tagPath"`
 }
 
 type MongoCommand struct {

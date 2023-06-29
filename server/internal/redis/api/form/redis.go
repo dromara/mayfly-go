@@ -9,7 +9,7 @@ type Redis struct {
 	Db                 string `json:"db"`
 	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
 	TagId              uint64 `binding:"required" json:"tagId"`
-	TagPath            string `json:"tagPath"`
+	TagPath            string `binding:"required" json:"tagPath"`
 	Remark             string `json:"remark"`
 }
 

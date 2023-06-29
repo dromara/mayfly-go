@@ -8,7 +8,7 @@ type MachineForm struct {
 
 	// 资产授权凭证信息列表
 	AuthCertId int    `json:"authCertId"`
-	TagId      uint64 `json:"tagId"`
+	TagId      uint64 `json:"tagId" binding:"required"`
 	TagPath    string `json:"tagPath" binding:"required"`
 	Username   string `json:"username"`
 	Password   string `json:"password"`

@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/docker/pulls/mayflygo/mayfly-go.svg?label=docker%20pulls&color=fac858" alt="docker pulls"/>
   </a>
   <a href="https://github.com/golang/go" target="_blank">
-    <img src="https://img.shields.io/badge/Golang-1.18%2B-yellow.svg" alt="golang"/>
+    <img src="https://img.shields.io/badge/Golang-1.20%2B-yellow.svg" alt="golang"/>
   </a>
   <a href="https://cn.vuejs.org" target="_blank">
     <img src="https://img.shields.io/badge/Vue-3.x-green.svg" alt="vue">
@@ -35,15 +35,14 @@ web版 **linux(终端[终端回放] 文件 脚本 进程)、数据库（mysql po
 
 
 ### 系统相关资料
-- 项目文档: https://objs.gitee.io/mayfly-go-docs
+- 项目文档: https://www.yuque.com/may-fly/mayfly-go
 - 系统操作视频: https://space.bilibili.com/484091081/channel/collectiondetail?sid=392854
-- 部署文档：https://objs.gitee.io/mayfly-go-docs/download
 
 
 ### 系统核心功能截图
 
 ##### 记录操作记录
-![记录操作记录](https://images.gitee.com/uploads/images/2021/0508/204608_83ef7c33_1240250.png "屏幕截图.png")
+![记录操作记录](https://objs.gitee.io/mayfly-go-docs/home/log.jpg "屏幕截图.png")
 
 #### 机器操作
 ##### 状态查看
@@ -84,4 +83,4 @@ web版 **linux(终端[终端回放] 文件 脚本 进程)、数据库（mysql po
 ![资源管理](https://images.gitee.com/uploads/images/2021/0607/174436_e9e1535c_1240250.png "屏幕截图.png")
 
 
-**其他更多功能&操作指南可查看在线文档**:  https://objs.gitee.io/mayfly-go-docs
+**其他更多功能&操作指南可查看在线文档**:  https://www.yuque.com/may-fly/mayfly-go

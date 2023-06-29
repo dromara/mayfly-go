@@ -11,8 +11,8 @@ type DbForm struct {
 	Params             string `json:"params"`
 	Database           string `json:"database"`
 	Remark             string `json:"remark"`
-	TagId              uint64 `json:"tagId"`
-	TagPath            string `json:"tagPath"`
+	TagId              uint64 `binding:"required" json:"tagId"`
+	TagPath            string `binding:"required" json:"tagPath"`
 	SshTunnelMachineId int    `json:"sshTunnelMachineId"`
 }
 

@@ -5,12 +5,8 @@
             <el-form :model="form" ref="machineForm" :rules="rules" label-width="85px">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item prop="tagId" label="标签:" required :rules="{
-                            required: true,
-                            message: '请选择标签',
-                            trigger: ['change', 'blur'],
-                        }">
-                            <tag-select v-model:tag-id="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
+                        <el-form-item prop="tagId" label="标签:">
+                            <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
                         </el-form-item>
                         <el-form-item prop="name" label="名称:" required>
                             <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
@@ -100,6 +96,11 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'val-change'])
 
 const rules = {
+    tagId: [{
+        required: true,
+        message: '请选择标签',
+        trigger: ['blur', 'change'],
+    }],
     name: [
         {
             required: true,
@@ -250,7 +251,6 @@ const btnOk = async () => {
 
 const getReqForm = () => {
     const reqForm: any = { ...state.form };
-    debugger
     // 如果为密码认证，则置空授权凭证id
     if (state.authType == 1) {
         reqForm.authCertId = -1;
