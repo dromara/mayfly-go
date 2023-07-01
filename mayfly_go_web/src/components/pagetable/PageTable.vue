@@ -97,7 +97,7 @@
 
                         <!-- 插槽：预留功能 -->
                         <template #default="scope" v-if="item.slot">
-                            <slot :name="item.slot" :data="scope.row"></slot>
+                            <slot :name="item.prop" :data="scope.row"></slot>
                         </template>
 
                         <template #default="scope" v-else>

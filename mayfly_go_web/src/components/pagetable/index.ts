@@ -29,9 +29,9 @@ export class TableColumn {
     minWidth: number | string;
 
     /**
-     * 插槽名
+     * 是否插槽，是的话插槽名则为prop属性名
      */
-    slot: string;
+    slot: boolean = false;
 
     showOverflowTooltip: boolean = true;
 
@@ -88,8 +88,12 @@ export class TableColumn {
         return this;
     }
 
-    setSlot(slot: string): TableColumn {
-        this.slot = slot
+    /**
+     * 标识该列为插槽
+     * @returns this
+     */
+    isSlot(): TableColumn {
+        this.slot = true
         return this;
     }
 

@@ -6,17 +6,19 @@
 
             <template #queryRight>
                 <el-button type="primary" icon="plus" @click="edit(false)">添加</el-button>
-                <el-button :disabled="selectionData.length !== 1" @click="edit(selectionData)" type="primary" icon="edit">编辑
-                </el-button>
                 <el-button :disabled="selectionData.length < 1" @click="deleteAc(selectionData)" type="danger"
                     icon="delete">删除
                 </el-button>
-
             </template>
 
             <template #authMethod="{ data }">
                 <el-tag v-if="data.authMethod == 1" type="success" size="small">密码</el-tag>
                 <el-tag v-if="data.authMethod == 2" size="small">密钥</el-tag>
+            </template>
+
+            <template #action="{ data }">
+                <el-button @click="edit(data)" type="primary" link>编辑
+                </el-button>
             </template>
         </page-table>
 
@@ -44,12 +46,13 @@ const state = reactive({
     ],
     columns: [
         TableColumn.new("name", "名称"),
-        TableColumn.new("authMethod", "认证方式").setSlot("authMethod"),
+        TableColumn.new("authMethod", "认证方式").isSlot(),
         TableColumn.new("remark", "备注"),
         TableColumn.new("creator", "创建人"),
         TableColumn.new("createTime", "创建时间").isTime(),
         TableColumn.new("creator", "修改者"),
         TableColumn.new("createTime", "修改时间").isTime(),
+        TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(65),
     ],
     total: 0,
     authcerts: [],
@@ -92,7 +95,7 @@ const editChange = () => {
 
 const edit = (data: any) => {
     if (data) {
-        state.editor.authcert = data[0];
+        state.editor.authcert = data;
     } else {
         state.editor.authcert = false;
     }

@@ -6,10 +6,6 @@
 
             <template #queryRight>
                 <el-button v-auth="'role:add'" type="primary" icon="plus" @click="editRole(false)">添加</el-button>
-                <el-button v-auth="'role:update'" :disabled="selectionData.length != 1" @click="editRole(selectionData)"
-                    type="primary" icon="edit">编辑</el-button>
-                <el-button v-auth="'role:saveResources'" :disabled="selectionData.length != 1"
-                    @click="editResource(selectionData)" type="success" icon="setting">分配菜单&权限</el-button>
                 <el-button v-auth="'role:del'" :disabled="selectionData.length < 1" @click="deleteRole(selectionData)"
                     type="danger" icon="delete">删除</el-button>
             </template>
@@ -22,6 +18,12 @@
             <template #showmore="{ data }">
                 <el-link @click.prevent="showResources(data)" type="info">菜单&权限</el-link>
             </template>
+
+            <template #action="{ data }">
+                <el-button v-auth="'role:update'" @click="editRole(data)" type="primary" link>编辑</el-button>
+                <el-button v-auth="'role:saveResources'" @click="editResource(data)" type="success" link>权限分配</el-button>
+            </template>
+
         </page-table>
 
         <role-edit :title="roleEditDialog.title" v-model:visible="roleEditDialog.visible" :data="roleEditDialog.role"
@@ -59,12 +61,13 @@ const state = reactive({
         TableColumn.new("name", "角色名称"),
         TableColumn.new("code", "角色code"),
         TableColumn.new("remark", "备注"),
-        TableColumn.new("status", "状态").setSlot("status"),
+        TableColumn.new("status", "状态").isSlot(),
         TableColumn.new("creator", "创建账号"),
         TableColumn.new("createTime", "创建时间").isTime(),
         TableColumn.new("modifier", "更新账号"),
         TableColumn.new("updateTime", "更新时间").isTime(),
-        TableColumn.new("showmore", "查看更多").setSlot("showmore").setMinWidth(150).fixedRight(),
+        TableColumn.new("showmore", "查看更多").isSlot().setMinWidth(150),
+        TableColumn.new("action", "操作").isSlot().setMinWidth(160).fixedRight(),
     ],
     total: 0,
     roles: [],
@@ -119,7 +122,7 @@ const roleEditChange = () => {
 
 const editRole = (data: any) => {
     if (data) {
-        state.roleEditDialog.role = data[0];
+        state.roleEditDialog.role = data;
     } else {
         state.roleEditDialog.role = false;
     }

@@ -13,9 +13,6 @@
 
             <template #queryRight>
                 <el-button type="primary" icon="plus" @click="editRedis(true)" plain>添加</el-button>
-                <el-button type="primary" icon="edit" :disabled="selectionData.length != 1" @click="editRedis(false)"
-                    plain>编辑
-                </el-button>
                 <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>删除
                 </el-button>
             </template>
@@ -28,13 +25,16 @@
             </template>
 
             <template #more="{ data }">
-                <el-link @click="showDetail(data)" :underline="false">详情</el-link>
-                <el-divider direction="vertical" border-style="dashed" />
+                <el-button @click="showDetail(data)" link>详情</el-button>
 
-                <el-link v-if="data.mode === 'standalone' || data.mode === 'sentinel'" type="primary"
-                    @click="showInfoDialog(data)" :underline="false">单机信息</el-link>
-                <el-link @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary"
-                    :underline="false">集群信息</el-link>
+                <el-button v-if="data.mode === 'standalone' || data.mode === 'sentinel'" type="primary"
+                    @click="showInfoDialog(data)" link>单机信息</el-button>
+                <el-button @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary"
+                    link>集群信息</el-button>
+            </template>
+
+            <template #action="{ data }">
+                <el-button type="primary" link @click="editRedis(data)">编辑</el-button>
             </template>
         </page-table>
 
@@ -168,12 +168,13 @@ const state = reactive({
         TableQuery.slot("tagPath", "标签", "tagPathSelect"),
     ],
     columns: [
-        TableColumn.new("tagPath", "标签路径").setSlot("tagPath").setAddWidth(20),
+        TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
         TableColumn.new("name", "名称"),
         TableColumn.new("host", "host:port"),
         TableColumn.new("mode", "mode"),
         TableColumn.new("remark", "备注"),
-        TableColumn.new("more", "更多").setSlot("more").setMinWidth(155).fixedRight(),
+        TableColumn.new("more", "更多").isSlot().setMinWidth(155).fixedRight(),
+        TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight(),
     ],
     detailDialog: {
         visible: false,
@@ -273,12 +274,12 @@ const getTags = async () => {
     state.tags = await tagApi.getAccountTags.request(null);
 };
 
-const editRedis = async (isAdd = false) => {
-    if (isAdd) {
+const editRedis = async (data: any) => {
+    if (!data) {
         state.redisEditDialog.data = null;
         state.redisEditDialog.title = '新增redis';
     } else {
-        state.redisEditDialog.data = state.selectionData[0];
+        state.redisEditDialog.data = data;
         state.redisEditDialog.title = '修改redis';
     }
     state.redisEditDialog.visible = true;

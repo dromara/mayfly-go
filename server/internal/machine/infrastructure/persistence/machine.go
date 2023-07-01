@@ -16,7 +16,7 @@ func newMachineRepo() repository.Machine {
 }
 
 // 分页获取机器信息列表
-func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]vo.MachineVO, orderBy ...string) *model.PageResult[*[]vo.MachineVO] {
+func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]*vo.MachineVO, orderBy ...string) *model.PageResult[*[]*vo.MachineVO] {
 	qd := gormx.NewQuery(new(entity.Machine)).
 		Like("ip", condition.Ip).
 		Like("name", condition.Name).

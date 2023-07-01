@@ -13,8 +13,6 @@
 
             <template #queryRight>
                 <el-button v-auth="permissions.saveDb" type="primary" icon="plus" @click="editDb(true)">添加</el-button>
-                <el-button v-auth="permissions.saveDb" :disabled="selectionData.length != 1" @click="editDb(false)"
-                    type="primary" icon="edit">编辑</el-button>
                 <el-button v-auth="permissions.delDb" :disabled="selectionData.length < 1" @click="deleteDb()" type="danger"
                     icon="delete">删除</el-button>
             </template>
@@ -49,12 +47,14 @@
                 </el-popover>
             </template>
 
+            <template #more="{ data }">
+                <el-button @click="showInfo(data)" link>详情</el-button>
+
+                <el-button class="ml5" type="primary" @click="onShowSqlExec(data)" link>SQL执行记录</el-button>
+            </template>
+
             <template #action="{ data }">
-                <el-link plain size="small" :underline="false" @click="showInfo(data)">
-                    详情</el-link>
-                <el-divider direction="vertical" border-style="dashed" />
-                <el-link class="ml5" type="primary" plain size="small" :underline="false" @click="onShowSqlExec(data)">
-                    SQL执行记录</el-link>
+                <el-button v-auth="permissions.saveDb" @click="editDb(data)" type="primary" link>编辑</el-button>
             </template>
         </page-table>
 
@@ -309,14 +309,15 @@ const state = reactive({
         TableQuery.slot("tagPath", "标签", "tagPathSelect"),
     ],
     columns: [
-        TableColumn.new("tagPath", "标签路径").setSlot("tagPath").setAddWidth(20),
+        TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
         TableColumn.new("name", "名称"),
         TableColumn.new("host", "host:port").setFormatFunc((data: any, _prop: string) => `${data.host}:${data.port}`),
         TableColumn.new("type", "类型"),
-        TableColumn.new("database", "数据库").setSlot("database").setMinWidth(70),
+        TableColumn.new("database", "数据库").isSlot().setMinWidth(70),
         TableColumn.new("username", "用户名"),
         TableColumn.new("remark", "备注"),
-        TableColumn.new("action", "操作").setSlot("action").setMinWidth(175).fixedRight(),
+        TableColumn.new("more", "更多").isSlot().setMinWidth(165).fixedRight(),
+        TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight(),
     ],
     datas: [],
     total: 0,
@@ -469,12 +470,12 @@ const getTags = async () => {
     state.tags = await tagApi.getAccountTags.request(null);
 };
 
-const editDb = async (isAdd = false) => {
-    if (isAdd) {
+const editDb = async (data: any) => {
+    if (!data) {
         state.dbEditDialog.data = null;
         state.dbEditDialog.title = '新增数据库资源';
     } else {
-        state.dbEditDialog.data = state.selectionData[0];
+        state.dbEditDialog.data = data;
         state.dbEditDialog.title = '修改数据库资源';
     }
     state.dbEditDialog.visible = true;

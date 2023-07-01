@@ -14,8 +14,6 @@
             <template #queryRight>
                 <el-button v-auth="'machine:add'" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加
                 </el-button>
-                <el-button v-auth="'machine:update'" type="primary" icon="edit" :disabled="selectionData.length != 1"
-                    @click="openFormDialog(selectionData)" plain>编辑</el-button>
                 <el-button v-auth="'machine:del'" :disabled="selectionData.length < 1" @click="deleteMachine()"
                     type="danger" icon="delete">删除</el-button>
             </template>
@@ -42,19 +40,17 @@
 
             <template #action="{ data }">
                 <span v-auth="'machine:terminal'">
-                    <el-link :disabled="data.status == -1" type="primary" @click="showTerminal(data)" plain size="small"
-                        :underline="false">终端</el-link>
+                    <el-button :disabled="data.status == -1" type="primary" @click="showTerminal(data)" link>终端</el-button>
                     <el-divider direction="vertical" border-style="dashed" />
                 </span>
 
                 <span v-auth="'machine:file'">
-                    <el-link type="success" :disabled="data.status == -1" @click="showFileManage(data)" plain size="small"
-                        :underline="false">文件</el-link>
+                    <el-button type="success" :disabled="data.status == -1" @click="showFileManage(data)"
+                        link>文件</el-button>
                     <el-divider direction="vertical" border-style="dashed" />
                 </span>
 
-                <el-link :disabled="data.status == -1" type="warning" @click="serviceManager(data)" plain size="small"
-                    :underline="false">脚本</el-link>
+                <el-button :disabled="data.status == -1" type="warning" @click="serviceManager(data)" link>脚本</el-button>
                 <el-divider direction="vertical" border-style="dashed" />
 
                 <el-dropdown>
@@ -67,24 +63,25 @@
                     <template #dropdown>
                         <el-dropdown-menu>
                             <el-dropdown-item>
-                                <el-link @click="showInfo(data)" plain :underline="false" size="small">详情
-                                </el-link>
+                                <el-button @click="showInfo(data)" link>详情</el-button>
                             </el-dropdown-item>
 
                             <el-dropdown-item>
-                                <el-link @click="showProcess(data)" :disabled="data.status == -1" plain :underline="false"
-                                    size="small">进程</el-link>
+                                <el-button v-auth="'machine:update'" @click="openFormDialog(data)" link>编辑</el-button>
+                            </el-dropdown-item>
+
+                            <el-dropdown-item>
+                                <el-button @click="showProcess(data)" :disabled="data.status == -1" link>进程</el-button>
                             </el-dropdown-item>
 
                             <el-dropdown-item v-if="data.enableRecorder == 1">
-                                <el-link v-auth="'machine:update'" @click="showRec(data)" plain :underline="false"
-                                    size="small">终端回放</el-link>
+                                <el-button v-auth="'machine:update'" @click="showRec(data)" link>终端回放</el-button>
                             </el-dropdown-item>
 
                             <el-dropdown-item>
-                                <el-link v-auth="'machine:close-cli'" :disabled="!data.hasCli || data.status == -1"
-                                    type="danger" @click="closeCli(data)" plain size="small" :underline="false">关闭连接
-                                </el-link>
+                                <el-button v-auth="'machine:close-cli'" :disabled="!data.hasCli || data.status == -1"
+                                    type="danger" @click="closeCli(data)" link>关闭连接
+                                </el-button>
                             </el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
@@ -182,13 +179,13 @@ const state = reactive({
         TableQuery.text("name", "名称"),
     ],
     columns: [
-        TableColumn.new("tagPath", "标签路径").setSlot("tagPath").setAddWidth(20),
+        TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
         TableColumn.new("name", "名称"),
-        TableColumn.new("ipPort", "ip:port").setSlot("ipPort").setAddWidth(35),
+        TableColumn.new("ipPort", "ip:port").isSlot().setAddWidth(35),
         TableColumn.new("username", "用户名"),
-        TableColumn.new("status", "状态").setSlot("status").setMinWidth(85),
+        TableColumn.new("status", "状态").isSlot().setMinWidth(85),
         TableColumn.new("remark", "备注"),
-        TableColumn.new("action", "操作").setSlot("action").setMinWidth(235).fixedRight(),
+        TableColumn.new("action", "操作").isSlot().setMinWidth(235).fixedRight(),
     ],
     // 列表数据
     data: {
@@ -280,7 +277,7 @@ const getTags = async () => {
 const openFormDialog = async (machine: any) => {
     let dialogTitle;
     if (machine) {
-        state.machineEditDialog.data = state.selectionData[0];
+        state.machineEditDialog.data = machine;
         dialogTitle = '编辑机器';
     } else {
         state.machineEditDialog.data = null;

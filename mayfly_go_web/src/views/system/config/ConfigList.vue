@@ -5,9 +5,6 @@
 
             <template #queryRight>
                 <el-button v-auth="'config:save'" type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
-                <el-button v-auth="'config:save'" :disabled="state.selectionData.length != 1"
-                    @click="editConfig(state.selectionData[0])" type="primary" icon="edit">编辑
-                </el-button>
             </template>
 
             <template #status="{ data }">
@@ -16,8 +13,10 @@
             </template>
 
             <template #action="{ data }">
-                <el-link :disabled="data.status == -1" type="warning" @click="showSetConfigDialog(data)" plain size="small"
-                    :underline="false">配置</el-link>
+                <el-button :disabled="data.status == -1" type="warning" @click="showSetConfigDialog(data)"
+                    link>配置</el-button>
+                <el-button v-auth="'config:save'" @click="editConfig(data)" type="primary" link>编辑
+                </el-button>
             </template>
         </page-table>
 
@@ -76,7 +75,7 @@ const state = reactive({
         TableColumn.new("remark", "备注"),
         TableColumn.new("modifier", "更新账号"),
         TableColumn.new("updateTime", "更新时间").isTime(),
-        TableColumn.new("action", "操作").setSlot("action").fixedRight().setMinWidth(60),
+        TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(130),
     ],
     total: 0,
     configs: [],

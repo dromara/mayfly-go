@@ -32,7 +32,7 @@ type Machine interface {
 	GetById(id uint64, cols ...string) *entity.Machine
 
 	// 分页获取机器信息列表
-	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]vo.MachineVO, orderBy ...string) *model.PageResult[*[]vo.MachineVO]
+	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]*vo.MachineVO, orderBy ...string) *model.PageResult[*[]*vo.MachineVO]
 
 	// 获取机器连接
 	GetCli(id uint64) *machine.Cli
@@ -54,7 +54,7 @@ type machineAppImpl struct {
 }
 
 // 分页获取机器信息列表
-func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]vo.MachineVO, orderBy ...string) *model.PageResult[*[]vo.MachineVO] {
+func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]*vo.MachineVO, orderBy ...string) *model.PageResult[*[]*vo.MachineVO] {
 	return m.machineRepo.GetMachineList(condition, pageParam, toEntity, orderBy...)
 }
 

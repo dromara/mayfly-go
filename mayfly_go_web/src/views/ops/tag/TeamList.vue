@@ -19,12 +19,11 @@
             </template>
 
             <template #action="{ data }">
-                <el-link @click.prevent="showMembers(data)" :underline="false" type="primary">成员</el-link>
-                <el-divider direction="vertical" border-style="dashed" />
-                <el-link @click.prevent="showTags(data)" :underline="false" type="success">标签</el-link>
-                <el-divider v-auth="'team:save'" direction="vertical" border-style="dashed" />
-                <el-link v-auth="'team:save'" @click.prevent="showSaveTeamDialog(data)" :underline="false"
-                    type="warning">编辑</el-link>
+                <el-button @click.prevent="showMembers(data)" link type="primary">成员</el-button>
+
+                <el-button @click.prevent="showTags(data)" link type="success">标签</el-button>
+
+                <el-button v-auth="'team:save'" @click.prevent="showSaveTeamDialog(data)" link type="warning">编辑</el-button>
             </template>
         </page-table>
 
@@ -163,7 +162,7 @@ const state = reactive({
         TableColumn.new("remark", "备注"),
         TableColumn.new("createTime", "创建时间").isTime(),
         TableColumn.new("creator", "创建人"),
-        TableColumn.new("action", "操作").setSlot("action").setMinWidth(100).fixedRight(),
+        TableColumn.new("action", "操作").isSlot().setMinWidth(100).fixedRight(),
     ],
     total: 0,
     data: [],

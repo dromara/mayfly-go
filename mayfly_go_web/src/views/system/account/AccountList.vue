@@ -6,10 +6,6 @@
 
             <template #queryRight>
                 <el-button v-auth="'account:add'" type="primary" icon="plus" @click="editAccount(true)">添加</el-button>
-                <el-button v-auth="'account:add'" :disabled="state.selectionData.length != 1" @click="editAccount(false)"
-                    type="primary" icon="edit">编辑</el-button>
-                <el-button v-auth="'account:saveRoles'" :disabled="state.selectionData.length != 1" @click="showRoleEdit()"
-                    type="success" icon="setting">角色分配</el-button>
                 <el-button v-auth="'account:del'" :disabled="state.selectionData.length < 1" @click="deleteAccount()"
                     type="danger" icon="delete">删除</el-button>
             </template>
@@ -26,14 +22,18 @@
             </template>
 
             <template #action="{ data }">
-                <el-button v-auth="'account:changeStatus'" @click="changeStatus(data)" v-if="data.status == 1" type="danger"
-                    size="small" plain>禁用</el-button>
+                <el-button link v-auth="'account:add'" @click="editAccount(data)" type="primary">编辑</el-button>
 
-                <el-button v-auth="'account:changeStatus'" v-if="data.status == -1" type="success"
-                    @click="changeStatus(data)" size="small" plain>启用</el-button>
+                <el-button link v-auth="'account:saveRoles'" @click="showRoleEdit(data)" type="success">角色分配</el-button>
 
-                <el-button v-auth="'account:add'" :disabled="!data.otpSecret || data.otpSecret == '-'"
-                    @click="resetOtpSecret(data)" type="warning" size="small" plain>重置OTP</el-button>
+                <el-button link v-auth="'account:changeStatus'" @click="changeStatus(data)" v-if="data.status == 1"
+                    type="danger">禁用</el-button>
+
+                <el-button link v-auth="'account:changeStatus'" v-if="data.status == -1" type="success"
+                    @click="changeStatus(data)">启用</el-button>
+
+                <el-button link v-auth="'account:add'" :disabled="!data.otpSecret || data.otpSecret == '-'"
+                    @click="resetOtpSecret(data)" type="warning">重置OTP</el-button>
             </template>
         </page-table>
 
@@ -101,14 +101,14 @@ const state = reactive({
     columns: [
         TableColumn.new("name", "姓名"),
         TableColumn.new("username", "用户名"),
-        TableColumn.new("status", "状态").setSlot("status"),
+        TableColumn.new("status", "状态").isSlot("status"),
         TableColumn.new("lastLoginTime", "最后登录时间").isTime(),
-        TableColumn.new("showmore", "查看更多").setSlot("showmore").setMinWidth(150),
+        TableColumn.new("showmore", "查看更多").isSlot("showmore").setMinWidth(150),
         TableColumn.new("creator", "创建账号"),
         TableColumn.new("createTime", "创建时间").isTime(),
         TableColumn.new("modifier", "更新账号"),
         TableColumn.new("updateTime", "更新时间").isTime(),
-        TableColumn.new("action", "操作").setSlot("action").fixedRight().setMinWidth(200),
+        TableColumn.new("action", "操作").isSlot("action").fixedRight().setMinWidth(280),
     ],
     datas: [],
     total: 0,
@@ -202,16 +202,16 @@ const resetOtpSecret = async (row: any) => {
     row.otpSecret = "-";
 };
 
-const showRoleEdit = () => {
+const showRoleEdit = (data: any) => {
     state.roleDialog.visible = true;
-    state.roleDialog.account = state.selectionData[0];
+    state.roleDialog.account = data;
 };
 
-const editAccount = (isAdd = false) => {
-    if (isAdd) {
+const editAccount = (data: any) => {
+    if (!data) {
         state.accountDialog.data = null;
     } else {
-        state.accountDialog.data = state.selectionData[0];
+        state.accountDialog.data = data;
     }
     state.accountDialog.visible = true;
 };

@@ -13,9 +13,6 @@
 
             <template #queryRight>
                 <el-button type="primary" icon="plus" @click="editMongo(true)" plain>添加</el-button>
-                <el-button type="primary" icon="edit" :disabled="selectionData.length != 1" @click="editMongo(false)"
-                    plain>编辑
-                </el-button>
                 <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>删除
                 </el-button>
             </template>
@@ -28,7 +25,9 @@
             </template>
 
             <template #action="{ data }">
-                <el-link type="primary" @click="showDatabases(data.id)" plain size="small" :underline="false">数据库</el-link>
+                <el-button @click="showDatabases(data.id)" link>数据库</el-button>
+
+                <el-button type="primary" @click="editMongo(data)" link>编辑</el-button>
             </template>
         </page-table>
 
@@ -199,12 +198,12 @@ const state = reactive({
         TableQuery.slot("tagPath", "标签", "tagPathSelect"),
     ],
     columns: [
-        TableColumn.new("tagPath", "标签路径").setSlot("tagPath").setAddWidth(20),
+        TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
         TableColumn.new("name", "名称"),
         TableColumn.new("uri", "连接uri"),
         TableColumn.new("createTime", "创建时间").isTime(),
         TableColumn.new("creator", "创建人"),
-        TableColumn.new("action", "操作").setSlot("action").setMinWidth(100).fixedRight(),
+        TableColumn.new("action", "操作").isSlot().setMinWidth(100).fixedRight(),
     ],
     mongoEditDialog: {
         visible: false,
@@ -371,12 +370,12 @@ const getTags = async () => {
     state.tags = await tagApi.getAccountTags.request(null);
 };
 
-const editMongo = async (isAdd = false) => {
-    if (isAdd) {
+const editMongo = async (data: any) => {
+    if (!data) {
         state.mongoEditDialog.data = null;
         state.mongoEditDialog.title = '新增mongo';
     } else {
-        state.mongoEditDialog.data = state.selectionData[0];
+        state.mongoEditDialog.data = data;
         state.mongoEditDialog.title = '修改mongo';
     }
     state.mongoEditDialog.visible = true;

@@ -46,7 +46,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	}
 	condition.TagIds = tagIds
 
-	res := m.MachineApp.GetMachineList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.MachineVO))
+	res := m.MachineApp.GetMachineList(condition, ginx.GetPageParam(rc.GinCtx), new([]*vo.MachineVO))
 	if res.Total == 0 {
 		rc.ResData = res
 		return
