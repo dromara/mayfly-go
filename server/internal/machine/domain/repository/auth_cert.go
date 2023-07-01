@@ -6,7 +6,7 @@ import (
 )
 
 type AuthCert interface {
-	GetPageList(condition *entity.AuthCert, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.AuthCert, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Insert(ac *entity.AuthCert)
 

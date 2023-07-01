@@ -1,12 +1,12 @@
 <template>
     <div>
-        <page-table :query="state.queryConfig" v-model:query-form="query" :show-choose-column="true"
-            v-model:choose-data="state.chooseData" :data="data" :columns="state.columns" :total="total"
+        <page-table :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="selectionData" :data="data" :columns="state.columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #queryRight>
                 <el-button v-auth="'team:save'" type="primary" icon="plus" @click="showSaveTeamDialog(false)">添加</el-button>
-                <el-button v-auth="'team:del'" :disabled="!chooseData" @click="deleteTeam(chooseData)" type="danger"
+                <el-button v-auth="'team:del'" :disabled="selectionData.length < 1" @click="deleteTeam()" type="danger"
                     icon="delete">删除</el-button>
 
             </template>
@@ -167,7 +167,7 @@ const state = reactive({
     ],
     total: 0,
     data: [],
-    chooseData: null as any,
+    selectionData: [],
     showMemDialog: {
         visible: false,
         chooseId: 0,
@@ -209,7 +209,7 @@ const {
     addTeamDialog,
     total,
     data,
-    chooseData,
+    selectionData,
     showMemDialog,
     showTagDialog,
 } = toRefs(state)
@@ -252,15 +252,14 @@ const cancelSaveTeam = () => {
     teamForm.value.resetFields();
 };
 
-const deleteTeam = (data: any) => {
-    ElMessageBox.confirm(`此操作将删除 [${data.name}], 是否继续?`, '提示', {
+const deleteTeam = () => {
+    ElMessageBox.confirm(`此操作将删除【${state.selectionData.map((x: any) => x.name).join(", ")}】团队信息, 是否继续?`, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning',
     }).then(async () => {
-        await tagApi.delTeam.request({ id: data.id });
+        await tagApi.delTeam.request({ id: state.selectionData.map((x: any) => x.id).join(",") });
         ElMessage.success('删除成功！');
-        state.chooseData = null;
         search();
     });
 };
@@ -315,7 +314,7 @@ const showAddMemberDialog = () => {
 
 const addMember = async () => {
     const memForm = state.showMemDialog.memForm;
-    memForm.teamId = state.chooseData.id;
+    memForm.teamId = (state.selectionData[0] as any).id;
     notBlank(memForm.accountIds, '请先选择账号');
 
     await tagApi.saveTeamMem.request(memForm);

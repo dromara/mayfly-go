@@ -52,7 +52,7 @@ type DbSqlExec interface {
 	DeleteBy(condition *entity.DbSqlExec)
 
 	// 分页获取
-	GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 }
 
 func newDbSqlExecApp(dbExecSqlRepo repository.DbSqlExec) DbSqlExec {
@@ -151,7 +151,7 @@ func (d *dbSqlExecAppImpl) DeleteBy(condition *entity.DbSqlExec) {
 	d.dbSqlExecRepo.DeleteBy(condition)
 }
 
-func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
+func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return d.dbSqlExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 

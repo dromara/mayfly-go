@@ -6,7 +6,7 @@ import (
 )
 
 type Syslog interface {
-	GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Insert(log *entity.Syslog)
 }

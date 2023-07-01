@@ -1,10 +1,12 @@
 package application
 
 import (
+	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/internal/machine/infrastructure/machine"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 
 	"gorm.io/gorm"
@@ -30,7 +32,7 @@ type Machine interface {
 	GetById(id uint64, cols ...string) *entity.Machine
 
 	// 分页获取机器信息列表
-	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]vo.MachineVO, orderBy ...string) *model.PageResult[*[]vo.MachineVO]
 
 	// 获取机器连接
 	GetCli(id uint64) *machine.Cli
@@ -52,7 +54,7 @@ type machineAppImpl struct {
 }
 
 // 分页获取机器信息列表
-func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
+func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]vo.MachineVO, orderBy ...string) *model.PageResult[*[]vo.MachineVO] {
 	return m.machineRepo.GetMachineList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -109,7 +111,7 @@ func (m *machineAppImpl) ChangeStatus(id uint64, status int8) {
 func (m *machineAppImpl) Delete(id uint64) {
 	// 关闭连接
 	machine.DeleteCli(id)
-	model.Tx(
+	gormx.Tx(
 		func(db *gorm.DB) error {
 			// 删除machine表信息
 			return db.Delete(new(entity.Machine), "id = ?", id).Error

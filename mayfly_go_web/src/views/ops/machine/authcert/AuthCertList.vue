@@ -1,14 +1,15 @@
 <template>
     <div>
-        <page-table :query="state.queryConfig" v-model:query-form="query" :show-choose-column="true"
-            v-model:choose-data="state.chooseData" :data="authcerts" :columns="state.columns" :total="total"
+        <page-table :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="selectionData" :data="authcerts" :columns="state.columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #queryRight>
                 <el-button type="primary" icon="plus" @click="edit(false)">添加</el-button>
-                <el-button :disabled="!chooseData" @click="edit(chooseData)" type="primary" icon="edit">编辑
+                <el-button :disabled="selectionData.length !== 1" @click="edit(selectionData)" type="primary" icon="edit">编辑
                 </el-button>
-                <el-button :disabled="!chooseData" @click="deleteAc(chooseData)" type="danger" icon="delete">删除
+                <el-button :disabled="selectionData.length < 1" @click="deleteAc(selectionData)" type="danger"
+                    icon="delete">删除
                 </el-button>
 
             </template>
@@ -52,7 +53,7 @@ const state = reactive({
     ],
     total: 0,
     authcerts: [],
-    chooseData: null as any,
+    selectionData: [],
     paramsDialog: {
         visible: false,
         config: null as any,
@@ -70,7 +71,7 @@ const {
     query,
     total,
     authcerts,
-    chooseData,
+    selectionData,
     editor,
 } = toRefs(state)
 
@@ -86,13 +87,12 @@ const search = async () => {
 
 const editChange = () => {
     ElMessage.success('保存成功');
-    state.chooseData = null;
     search();
 };
 
 const edit = (data: any) => {
     if (data) {
-        state.editor.authcert = data;
+        state.editor.authcert = data[0];
     } else {
         state.editor.authcert = false;
     }
@@ -102,14 +102,13 @@ const edit = (data: any) => {
 
 const deleteAc = async (data: any) => {
     try {
-        await ElMessageBox.confirm(`确定删除该授权凭证?`, '提示', {
+        await ElMessageBox.confirm(`确定删除该【${data.map((x: any) => x.name).join(", ")}授权凭证?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await authCertApi.delete.request({ id: data.id });
+        await authCertApi.delete.request({ id: data.map((x: any) => x.id).join(",") });
         ElMessage.success('删除成功');
-        state.chooseData = null;
         search();
     } catch (err) { }
 

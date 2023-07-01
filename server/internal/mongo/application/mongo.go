@@ -23,7 +23,7 @@ import (
 
 type Mongo interface {
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Count(condition *entity.MongoQuery) int64
 
@@ -54,7 +54,7 @@ type mongoAppImpl struct {
 }
 
 // 分页获取数据库信息列表
-func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
+func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return d.mongoRepo.GetList(condition, pageParam, toEntity, orderBy...)
 }
 

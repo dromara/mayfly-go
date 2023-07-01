@@ -3,12 +3,13 @@ package application
 import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"strings"
 )
 
 type Role interface {
-	GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	SaveRole(role *entity.Role)
 
@@ -45,7 +46,7 @@ type roleAppImpl struct {
 	roleRepo repository.Role
 }
 
-func (m *roleAppImpl) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
+func (m *roleAppImpl) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return m.roleRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -54,17 +55,17 @@ func (m *roleAppImpl) SaveRole(role *entity.Role) {
 	if role.Id != 0 {
 		// code不可更改，防止误传
 		role.Code = ""
-		model.UpdateById(role)
+		gormx.UpdateById(role)
 	} else {
 		role.Status = 1
-		model.Insert(role)
+		gormx.Insert(role)
 	}
 }
 
 func (m *roleAppImpl) DeleteRole(id uint64) {
 	m.roleRepo.Delete(id)
 	// 删除角色与资源的关联关系
-	model.DeleteByCondition(&entity.RoleResource{RoleId: id})
+	gormx.DeleteByCondition(&entity.RoleResource{RoleId: id})
 }
 
 func (m *roleAppImpl) GetRoleResourceIds(roleId uint64) []uint64 {

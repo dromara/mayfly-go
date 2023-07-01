@@ -191,7 +191,7 @@ const setHeight = () => {
 const instMap: Map<string, any[]> = new Map();
 
 const getInsts = async () => {
-    const res = await redisApi.redisList.request({});
+    const res = await redisApi.redisList.request({ pageNum: 1, pageSize: 1000 });
     if (!res.total) return
     for (const redisInfo of res.list) {
         const tagPath = redisInfo.tagPath;

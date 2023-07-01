@@ -1,13 +1,12 @@
 <template>
     <div>
-        <page-table :show-choose-column="true" v-model:choose-data="state.chooseData" :data="configs"
-            :columns="state.columns" :total="total" v-model:page-size="query.pageSize" v-model:page-num="query.pageNum"
-            @pageChange="search()">
+        <page-table :show-selection="true" v-model:selection-data="selectionData" :data="configs" :columns="state.columns"
+            :total="total" v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #queryRight>
                 <el-button v-auth="'config:save'" type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
-                <el-button v-auth="'config:save'" :disabled="chooseData == null" @click="editConfig(chooseData)"
-                    type="primary" icon="edit">编辑
+                <el-button v-auth="'config:save'" :disabled="state.selectionData.length != 1"
+                    @click="editConfig(state.selectionData[0])" type="primary" icon="edit">编辑
                 </el-button>
             </template>
 
@@ -81,7 +80,7 @@ const state = reactive({
     ],
     total: 0,
     configs: [],
-    chooseData: null as any,
+    selectionData: [],
     paramsDialog: {
         visible: false,
         config: null as any,
@@ -99,7 +98,7 @@ const {
     query,
     total,
     configs,
-    chooseData,
+    selectionData,
     paramsDialog,
     configEdit,
 } = toRefs(state)
@@ -187,7 +186,6 @@ const hasParam = (paramKey: string, paramItems: any) => {
 
 const configEditChange = () => {
     ElMessage.success('保存成功');
-    state.chooseData = null;
     search();
 };
 

@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
+	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
@@ -40,7 +41,15 @@ func (r *Role) SaveRole(rc *req.Ctx) {
 
 // 删除角色及其资源关联关系
 func (r *Role) DelRole(rc *req.Ctx) {
-	r.RoleApp.DeleteRole(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	idsStr := ginx.PathParam(rc.GinCtx, "id")
+	rc.ReqParam = idsStr
+	ids := strings.Split(idsStr, ",")
+
+	for _, v := range ids {
+		value, err := strconv.Atoi(v)
+		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
+		r.RoleApp.DeleteRole(uint64(value))
+	}
 }
 
 // 获取角色关联的资源id数组，用于分配资源时回显已拥有的资源

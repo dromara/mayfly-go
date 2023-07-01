@@ -4,6 +4,7 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -14,14 +15,15 @@ func newDbSqlExecRepo() repository.DbSqlExec {
 }
 
 func (d *dbSqlExecRepoImpl) Insert(dse *entity.DbSqlExec) {
-	model.Insert(dse)
+	gormx.Insert(dse)
 }
 
 func (d *dbSqlExecRepoImpl) DeleteBy(condition *entity.DbSqlExec) {
-	biz.ErrIsNil(model.DeleteByCondition(condition), "删除sql执行记录失败")
+	biz.ErrIsNil(gormx.DeleteByCondition(condition), "删除sql执行记录失败")
 }
 
 // 分页获取
-func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
-	return model.GetPage(pageParam, condition, condition, toEntity, orderBy...)
+func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
+	return gormx.PageQuery(qd, pageParam, toEntity)
 }

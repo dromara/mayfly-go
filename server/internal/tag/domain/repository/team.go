@@ -6,7 +6,7 @@ import (
 )
 
 type Team interface {
-	GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Insert(p *entity.Team)
 

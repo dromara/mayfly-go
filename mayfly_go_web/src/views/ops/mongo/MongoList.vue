@@ -1,7 +1,7 @@
 <template>
     <div>
-        <page-table :query="state.queryConfig" v-model:query-form="query" :show-choose-column="true"
-            v-model:choose-data="state.chooseData" :data="list" :columns="state.columns" :total="total"
+        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="selectionData" :data="list" :columns="state.columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #tagPathSelect>
@@ -13,9 +13,10 @@
 
             <template #queryRight>
                 <el-button type="primary" icon="plus" @click="editMongo(true)" plain>添加</el-button>
-                <el-button type="primary" icon="edit" :disabled="!chooseData" @click="editMongo(false)" plain>编辑
+                <el-button type="primary" icon="edit" :disabled="selectionData.length != 1" @click="editMongo(false)"
+                    plain>编辑
                 </el-button>
-                <el-button type="danger" icon="delete" :disabled="!chooseData" @click="deleteMongo" plain>删除
+                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>删除
                 </el-button>
             </template>
 
@@ -169,7 +170,7 @@
 
 <script lang="ts" setup>
 import { mongoApi } from './api';
-import { toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from '../tag/api';
 import MongoEdit from './MongoEdit.vue';
@@ -177,6 +178,8 @@ import { formatByteSize } from '@/common/utils/format';
 import TagInfo from '../component/TagInfo.vue';
 import PageTable from '@/components/pagetable/PageTable.vue'
 import { TableColumn, TableQuery } from '@/components/pagetable';
+
+const pageTableRef: any = ref(null)
 
 const state = reactive({
     tags: [],
@@ -186,7 +189,7 @@ const state = reactive({
     },
     list: [],
     total: 0,
-    chooseData: null as any,
+    selectionData: [],
     query: {
         pageNum: 1,
         pageSize: 10,
@@ -241,7 +244,7 @@ const {
     tags,
     list,
     total,
-    chooseData,
+    selectionData,
     query,
     mongoEditDialog,
     databaseDialog,
@@ -264,7 +267,7 @@ const showDatabases = async (id: number) => {
 
 const showDatabaseStats = async (dbName: string) => {
     state.databaseDialog.statsDialog.data = await mongoApi.runCommand.request({
-        id: state.chooseData.id,
+        id: state.dbOps.dbId,
         database: dbName,
         command: {
             dbStats: 1,
@@ -283,7 +286,7 @@ const showCollections = async (database: string) => {
 };
 
 const setCollections = async (database: string) => {
-    const res = await mongoApi.collections.request({ id: state.chooseData.id, database });
+    const res = await mongoApi.collections.request({ id: state.dbOps.dbId, database });
     const collections = [] as any;
     for (let r of res) {
         collections.push({ name: r });
@@ -296,7 +299,7 @@ const setCollections = async (database: string) => {
  */
 const showCollectionStats = async (collection: string) => {
     state.collectionsDialog.statsDialog.data = await mongoApi.runCommand.request({
-        id: state.chooseData.id,
+        id: state.dbOps.dbId,
         database: state.collectionsDialog.database,
         command: {
             collStats: collection,
@@ -311,7 +314,7 @@ const showCollectionStats = async (collection: string) => {
  */
 const onDeleteCollection = async (collection: string) => {
     await mongoApi.runCommand.request({
-        id: state.chooseData.id,
+        id: state.dbOps.dbId,
         database: state.collectionsDialog.database,
         command: {
             drop: collection,
@@ -328,7 +331,7 @@ const showCreateCollectionDialog = () => {
 const onCreateCollection = async () => {
     const form = state.createCollectionDialog.form;
     await mongoApi.runCommand.request({
-        id: state.chooseData.id,
+        id: state.dbOps.dbId,
         database: state.collectionsDialog.database,
         command: {
             create: form.name,
@@ -342,22 +345,26 @@ const onCreateCollection = async () => {
 
 const deleteMongo = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除该mongo?`, '提示', {
+        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(", ")}】mongo信息?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await mongoApi.deleteMongo.request({ id: state.chooseData.id });
+        await mongoApi.deleteMongo.request({ id: state.selectionData.map((x: any) => x.id).join(",") });
         ElMessage.success('删除成功');
-        state.chooseData = null;
         search();
     } catch (err) { }
 };
 
 const search = async () => {
-    const res = await mongoApi.mongoList.request(state.query);
-    state.list = res.list;
-    state.total = res.total;
+    try {
+        pageTableRef.value.loading(true);
+        const res = await mongoApi.mongoList.request(state.query);
+        state.list = res.list;
+        state.total = res.total;
+    } finally {
+        pageTableRef.value.loading(false);
+    }
 };
 
 const getTags = async () => {
@@ -369,14 +376,13 @@ const editMongo = async (isAdd = false) => {
         state.mongoEditDialog.data = null;
         state.mongoEditDialog.title = '新增mongo';
     } else {
-        state.mongoEditDialog.data = state.chooseData;
+        state.mongoEditDialog.data = state.selectionData[0];
         state.mongoEditDialog.title = '修改mongo';
     }
     state.mongoEditDialog.visible = true;
 };
 
 const valChange = () => {
-    state.chooseData = null;
     search();
 };
 

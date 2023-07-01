@@ -9,7 +9,7 @@ type Account interface {
 	// 根据条件获取账号信息
 	GetAccount(condition *entity.Account, cols ...string) error
 
-	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Insert(account *entity.Account)
 

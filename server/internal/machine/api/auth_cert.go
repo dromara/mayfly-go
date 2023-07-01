@@ -5,9 +5,12 @@ import (
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/domain/entity"
+	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
+	"strconv"
+	"strings"
 )
 
 type AuthCert struct {
@@ -58,5 +61,13 @@ func (c *AuthCert) SaveAuthCert(rc *req.Ctx) {
 }
 
 func (c *AuthCert) Delete(rc *req.Ctx) {
-	c.AuthCertApp.DeleteById(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	idsStr := ginx.PathParam(rc.GinCtx, "id")
+	rc.ReqParam = idsStr
+	ids := strings.Split(idsStr, ",")
+
+	for _, v := range ids {
+		value, err := strconv.Atoi(v)
+		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
+		c.AuthCertApp.DeleteById(uint64(value))
+	}
 }

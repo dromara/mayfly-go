@@ -6,11 +6,12 @@
                 </el-link>
                 <el-divider direction="vertical" border-style="dashed" />
 
-                <el-popover placement="bottom" title="表格字段配置" width="auto" trigger="click">
+                <el-popover popper-style="max-height: 550px; overflow: auto; max-width: 450px" placement="bottom"
+                    width="auto" title="表格字段配置" trigger="click">
                     <div v-for="(item, index) in columns" :key="index">
                         <el-checkbox v-model="item.show"
                             :label="`${!item.columnComment ? item.columnName : item.columnName + ' [' + item.columnComment + ']'}`"
-                            :true-label="true" :false-label="false" />
+                            :true-label="true" :false-label="false" size="small" />
                     </div>
                     <template #reference>
                         <el-link icon="Operation" size="small" :underline="false"></el-link>

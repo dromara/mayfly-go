@@ -1,7 +1,7 @@
 <template>
     <div>
-        <page-table :query="state.queryConfig" v-model:query-form="query" :show-choose-column="true"
-            v-model:choose-data="state.chooseData" :data="redisTable" :columns="state.columns" :total="total"
+        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="selectionData" :data="redisTable" :columns="state.columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #tagPathSelect>
@@ -13,9 +13,10 @@
 
             <template #queryRight>
                 <el-button type="primary" icon="plus" @click="editRedis(true)" plain>添加</el-button>
-                <el-button type="primary" icon="edit" :disabled="!chooseData" @click="editRedis(false)" plain>编辑
+                <el-button type="primary" icon="edit" :disabled="selectionData.length != 1" @click="editRedis(false)"
+                    plain>编辑
                 </el-button>
-                <el-button type="danger" icon="delete" :disabled="!chooseData" @click="deleteRedis" plain>删除
+                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>删除
                 </el-button>
             </template>
 
@@ -142,7 +143,7 @@
 <script lang="ts" setup>
 import Info from './Info.vue';
 import { redisApi } from './api';
-import { toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from '../tag/api';
 import RedisEdit from './RedisEdit.vue';
@@ -151,11 +152,13 @@ import TagInfo from '../component/TagInfo.vue';
 import PageTable from '@/components/pagetable/PageTable.vue'
 import { TableColumn, TableQuery } from '@/components/pagetable';
 
+const pageTableRef: any = ref(null)
+
 const state = reactive({
     tags: [],
     redisTable: [],
     total: 0,
-    chooseData: null as any,
+    selectionData: [],
     query: {
         tagPath: null,
         pageNum: 1,
@@ -204,7 +207,7 @@ const {
     tags,
     redisTable,
     total,
-    chooseData,
+    selectionData,
     query,
     detailDialog,
     clusterInfoDialog,
@@ -224,14 +227,13 @@ const showDetail = (detail: any) => {
 
 const deleteRedis = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除该redis?`, '提示', {
+        await ElMessageBox.confirm(`确定删除该【${state.selectionData.map((x: any) => x.name).join(", ")}】redis信息?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await redisApi.delRedis.request({ id: state.chooseData.id });
+        await redisApi.delRedis.request({ id: state.selectionData.map((x: any) => x.id).join(",") });
         ElMessage.success('删除成功');
-        state.chooseData = null;
         search();
     } catch (err) { }
 };
@@ -256,9 +258,15 @@ const onShowClusterInfo = async (redis: any) => {
 };
 
 const search = async () => {
-    const res = await redisApi.redisList.request(state.query);
-    state.redisTable = res.list;
-    state.total = res.total;
+    try {
+        pageTableRef.value.loading(true);
+        console.log(state.query);
+        const res = await redisApi.redisList.request(state.query);
+        state.redisTable = res.list;
+        state.total = res.total;
+    } finally {
+        pageTableRef.value.loading(false);
+    }
 };
 
 const getTags = async () => {
@@ -270,14 +278,13 @@ const editRedis = async (isAdd = false) => {
         state.redisEditDialog.data = null;
         state.redisEditDialog.title = '新增redis';
     } else {
-        state.redisEditDialog.data = state.chooseData;
+        state.redisEditDialog.data = state.selectionData[0];
         state.redisEditDialog.title = '修改redis';
     }
     state.redisEditDialog.visible = true;
 };
 
 const valChange = () => {
-    state.chooseData = null;
     search();
 };
 </script>

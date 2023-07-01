@@ -4,12 +4,13 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
 type MachineScript interface {
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	// 根据条件获取
 	GetMachineScript(condition *entity.MachineScript, cols ...string) error
@@ -40,7 +41,7 @@ const Common_Script_Machine_Id = 9999999
 // 	machineScriptRepo: persistence.MachineScriptDao}
 
 // 分页获取机器脚本信息列表
-func (m *machineScriptAppImpl) GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
+func (m *machineScriptAppImpl) GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return m.machineScriptRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -62,9 +63,9 @@ func (m *machineScriptAppImpl) Save(entity *entity.MachineScript) {
 	}
 
 	if entity.Id != 0 {
-		model.UpdateById(entity)
+		gormx.UpdateById(entity)
 	} else {
-		model.Insert(entity)
+		gormx.Insert(entity)
 	}
 }
 

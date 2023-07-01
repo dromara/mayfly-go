@@ -10,8 +10,6 @@ type Resource interface {
 
 	GetById(id uint64, cols ...string) *entity.Resource
 
-	GetByIdIn(ids []uint64, toEntity any, orderBy ...string)
-
 	Delete(id uint64)
 
 	GetByCondition(condition *entity.Resource, cols ...string) error

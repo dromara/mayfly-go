@@ -72,7 +72,8 @@
                     动态表头显示，根据表格每条配置项中的show字段来决定改列是否显示或者隐藏 
                     columns 就是我们表格配置的数组对象
                 -->
-                    <el-popover placement="bottom" title="表格配置" :width="200" trigger="click">
+                    <el-popover placement="bottom" title="表格配置"
+                        popper-style="max-height: 550px; overflow: auto; max-width: 450px" width="auto" trigger="click">
                         <div v-for="(item, index) in props.columns" :key="index">
                             <el-checkbox v-model="item.show" :label="item.label" :true-label="true" :false-label="false" />
                         </div>
@@ -84,15 +85,10 @@
                 </div>
             </div>
 
-            <el-table v-bind="$attrs" max-height="700" @current-change="choose" :data="props.data" border
-                highlight-current-row show-overflow-tooltip>
-                <el-table-column v-if="props.showChooseColumn" label="选择" align="center" width="53px">
-                    <template #default="scope">
-                        <el-radio v-model="state.chooseId" :label="scope.row.id">
-                            <i></i>
-                        </el-radio>
-                    </template>
-                </el-table-column>
+            <el-table v-bind="$attrs" max-height="700" @selection-change="handleSelectionChange" :data="props.data" border
+                highlight-current-row show-overflow-tooltip v-loading="loadingData">
+
+                <el-table-column v-if="props.showSelection" type="selection" width="40" />
 
                 <template v-for="(item, index) in columns">
                     <el-table-column :key="index" v-if="item.show" :prop="item.prop" :label="item.label" :fixed="item.fixed"
@@ -126,22 +122,17 @@
 import { toRefs, watch, reactive, onMounted } from 'vue';
 import { TableColumn, TableQuery } from './index';
 
-const emit = defineEmits(['update:queryForm', 'update:pageNum', 'update:pageSize', 'update:chooseData', 'pageChange'])
+const emit = defineEmits(['update:queryForm', 'update:pageNum', 'update:pageSize', 'update:selectionData', 'pageChange'])
 
 const props = defineProps({
     // 是否显示选择列
-    showChooseColumn: {
+    showSelection: {
         type: Boolean,
         default: false,
     },
-    // 选择列绑定的主键key字段名
-    chooseDataIdKey: {
-        type: String,
-        default: "id"
-    },
     // 当前选择的数据
-    chooseData: {
-        type: Object
+    selectionData: {
+        type: Array<any>
     },
     // 列信息
     columns: {
@@ -190,25 +181,18 @@ const state = reactive({
     isOpenMoreQuery: false,
     defaultQueryCount: 2, // 默认显示的查询参数个数
     queryForm: {} as any,
+    loadingData: false,
 })
 
 const {
     isOpenMoreQuery,
     defaultQueryCount,
     queryForm,
+    loadingData,
 } = toRefs(state)
 
 watch(() => props.queryForm, (newValue: any) => {
     state.queryForm = newValue
-})
-
-watch(() => props.chooseData, (newValue: any) => {
-    state.chooseData = newValue
-    if (newValue) {
-        state.chooseId = state.chooseData[props.chooseDataIdKey]
-    } else {
-        state.chooseId = 0;
-    }
 })
 
 watch(() => props.pageNum, (newValue: any) => {
@@ -227,6 +211,7 @@ watch(() => props.data, (newValue: any) => {
             }
         })
     }
+    state.loadingData = false;
 })
 
 onMounted(() => {
@@ -235,37 +220,43 @@ onMounted(() => {
     state.queryForm = props.queryForm;
 })
 
-// 处理选中了列表中的某一条数据
-const choose = (item: any) => {
-    if (!item || !props.showChooseColumn) {
-        return;
-    }
-    state.chooseData = item;
-    state.chooseId = item[props.chooseDataIdKey]
-    emit('update:chooseData', state.chooseData)
-};
+const handleSelectionChange = (val: any) => {
+    emit('update:selectionData', val);
+}
 
 const handlePageChange = () => {
     emit('update:pageNum', state.pageNum)
-    emit("pageChange")
+    execQuery();
 }
 
 const handleSizeChange = () => {
-    emit('update:pageSize', state.pageSize)
-    emit("pageChange")
+    emit('update:pageSize', state.pageSize);
+    execQuery();
 }
 
 const queryData = () => {
-    // 触发重新调用查询接口即可
-    emit("pageChange")
+    execQuery();
 }
 
 const reset = () => {
     // 触发重新调用查询接口即可
     state.queryForm = {};
     emit('update:queryForm', state.queryForm)
+    execQuery();
+}
+
+const execQuery = () => {
     emit("pageChange")
 }
+
+/**
+ * 是否正在加载数据
+ */
+const loading = (loading: boolean) => {
+    state.loadingData = loading;
+}
+
+defineExpose({ loading })
 
 </script>
 <style scoped lang="scss">

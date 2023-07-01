@@ -4,6 +4,7 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
 
@@ -13,7 +14,7 @@ import (
 type Account interface {
 	GetAccount(condition *entity.Account, cols ...string) error
 
-	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Create(account *entity.Account)
 
@@ -37,7 +38,7 @@ func (a *accountAppImpl) GetAccount(condition *entity.Account, cols ...string) e
 	return a.accountRepo.GetAccount(condition, cols...)
 }
 
-func (a *accountAppImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
+func (a *accountAppImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return a.accountRepo.GetPageList(condition, pageParam, toEntity)
 }
 
@@ -56,7 +57,7 @@ func (a *accountAppImpl) Update(account *entity.Account) {
 }
 
 func (a *accountAppImpl) Delete(id uint64) {
-	err := model.Tx(
+	err := gormx.Tx(
 		func(db *gorm.DB) error {
 			// 删除account表信息
 			return db.Delete(new(entity.Account), "id = ?", id).Error

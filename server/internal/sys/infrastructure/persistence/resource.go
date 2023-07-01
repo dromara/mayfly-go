@@ -4,7 +4,7 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/gormx"
 )
 
 type resourceRepoImpl struct{}
@@ -14,40 +14,36 @@ func newResourceRepo() repository.Resource {
 }
 
 func (r *resourceRepoImpl) GetResourceList(condition *entity.Resource, toEntity any, orderBy ...string) {
-	model.ListByOrder(condition, toEntity, orderBy...)
+	gormx.ListByOrder(condition, toEntity, orderBy...)
 }
 
 func (r *resourceRepoImpl) GetById(id uint64, cols ...string) *entity.Resource {
 	res := new(entity.Resource)
-	if err := model.GetById(res, id, cols...); err != nil {
+	if err := gormx.GetById(res, id, cols...); err != nil {
 		return nil
 
 	}
 	return res
 }
 
-func (r *resourceRepoImpl) GetByIdIn(ids []uint64, toEntity any, orderBy ...string) {
-	model.GetByIdIn(new(entity.Resource), toEntity, ids, orderBy...)
-}
-
 func (r *resourceRepoImpl) Delete(id uint64) {
-	biz.ErrIsNil(model.DeleteById(new(entity.Resource), id), "删除失败")
+	biz.ErrIsNil(gormx.DeleteById(new(entity.Resource), id), "删除失败")
 }
 
 func (r *resourceRepoImpl) GetByCondition(condition *entity.Resource, cols ...string) error {
-	return model.GetBy(condition, cols...)
+	return gormx.GetBy(condition, cols...)
 }
 
 func (r *resourceRepoImpl) GetChildren(uiPath string) []entity.Resource {
 	sql := "SELECT id, ui_path FROM t_sys_resource WHERE ui_path LIKE ?"
 	var rs []entity.Resource
-	model.GetListBySql2Model(sql, &rs, uiPath+"%")
+	gormx.GetListBySql2Model(sql, &rs, uiPath+"%")
 	return rs
 }
 
 func (r *resourceRepoImpl) UpdateByUiPathLike(resource *entity.Resource) {
 	sql := "UPDATE t_sys_resource SET status=? WHERE (ui_path LIKE ?)"
-	model.ExecSql(sql, resource.Status, resource.UiPath+"%")
+	gormx.ExecSql(sql, resource.Status, resource.UiPath+"%")
 }
 
 func (r *resourceRepoImpl) GetAccountResources(accountId uint64, toEntity any) {
@@ -84,5 +80,5 @@ func (r *resourceRepoImpl) GetAccountResources(accountId uint64, toEntity any) {
             ORDER BY
 	        m.pid ASC,
 	        m.weight ASC`
-	biz.ErrIsNilAppendErr(model.GetListBySql2Model(sql, toEntity, accountId), "查询账号资源失败: %s")
+	biz.ErrIsNilAppendErr(gormx.GetListBySql2Model(sql, toEntity, accountId), "查询账号资源失败: %s")
 }

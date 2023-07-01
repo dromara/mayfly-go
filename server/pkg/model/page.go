@@ -7,12 +7,12 @@ type PageParam struct {
 }
 
 // 分页结果
-type PageResult struct {
+type PageResult[T any] struct {
 	Total int64 `json:"total"`
-	List  any   `json:"list"`
+	List  T     `json:"list"`
 }
 
-// 空分页结果日志
-func EmptyPageResult() *PageResult {
-	return &PageResult{Total: 0, List: make([]any, 0)}
+// 空分页结果
+func EmptyPageResult[T any]() *PageResult[T] {
+	return &PageResult[T]{Total: 0}
 }

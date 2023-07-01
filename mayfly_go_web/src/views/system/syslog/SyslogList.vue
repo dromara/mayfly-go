@@ -1,7 +1,8 @@
 <template>
     <div>
-        <page-table :query="state.queryConfig" v-model:query-form="query" :data="logs" :columns="state.columns"
-            :total="total" v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
+        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="query" :data="logs"
+            :columns="state.columns" :total="total" v-model:page-size="query.pageSize" v-model:page-num="query.pageNum"
+            @pageChange="search()">
 
             <template #selectAccount>
                 <el-select remote :remote-method="getAccount" v-model="query.creatorId" filterable placeholder="请输入并选择账号"
@@ -20,10 +21,12 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted } from 'vue';
 import { logApi, accountApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue'
 import { TableColumn, TableQuery } from '@/components/pagetable';
+
+const pageTableRef: any = ref(null);
 
 const state = reactive({
     query: {
@@ -64,9 +67,14 @@ onMounted(() => {
 });
 
 const search = async () => {
-    let res = await logApi.list.request(state.query);
-    state.logs = res.list;
-    state.total = res.total;
+    try {
+        pageTableRef.value.loading(true);
+        let res = await logApi.list.request(state.query);
+        state.logs = res.list;
+        state.total = res.total;
+    } finally {
+        pageTableRef.value.loading(false);
+    }
 };
 
 const getAccount = (username: any) => {

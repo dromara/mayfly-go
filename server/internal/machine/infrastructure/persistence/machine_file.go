@@ -4,6 +4,7 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -14,19 +15,20 @@ func newMachineFileRepo() repository.MachineFile {
 }
 
 // 分页获取机器文件信息列表
-func (m *machineFileRepoImpl) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
-	return model.GetPage(pageParam, condition, condition, toEntity, orderBy...)
+func (m *machineFileRepoImpl) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
+	return gormx.PageQuery(qd, pageParam, toEntity)
 }
 
 // 根据条件获取账号信息
 func (m *machineFileRepoImpl) GetMachineFile(condition *entity.MachineFile, cols ...string) error {
-	return model.GetBy(condition, cols...)
+	return gormx.GetBy(condition, cols...)
 }
 
 // 根据id获取
 func (m *machineFileRepoImpl) GetById(id uint64, cols ...string) *entity.MachineFile {
 	ms := new(entity.MachineFile)
-	if err := model.GetById(ms, id, cols...); err != nil {
+	if err := gormx.GetById(ms, id, cols...); err != nil {
 		return nil
 
 	}
@@ -35,13 +37,13 @@ func (m *machineFileRepoImpl) GetById(id uint64, cols ...string) *entity.Machine
 
 // 根据id获取
 func (m *machineFileRepoImpl) Delete(id uint64) {
-	biz.ErrIsNil(model.DeleteById(new(entity.MachineFile), id), "删除失败")
+	biz.ErrIsNil(gormx.DeleteById(new(entity.MachineFile), id), "删除失败")
 }
 
 func (m *machineFileRepoImpl) Create(entity *entity.MachineFile) {
-	model.Insert(entity)
+	gormx.Insert(entity)
 }
 
 func (m *machineFileRepoImpl) UpdateById(entity *entity.MachineFile) {
-	model.UpdateById(entity)
+	gormx.UpdateById(entity)
 }

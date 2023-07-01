@@ -7,7 +7,7 @@
                     </el-button>
                 </div>
             </div>
-            <el-table :data="fileTable" stripe style="width: 100%">
+            <el-table :data="fileTable" stripe style="width: 100%" v-loading="loading">
                 <el-table-column prop="name" label="名称" width>
                     <template #default="scope">
                         <el-input v-model="scope.row.name" size="small" :disabled="scope.row.id != null" clearable>
@@ -51,8 +51,8 @@
             <el-progress v-if="uploadProgressShow" style="width: 90%; margin-left: 20px" :text-inside="true"
                 :stroke-width="20" :percentage="progressNum" />
             <div style="height: 45vh; overflow: auto">
-                <el-tree v-if="tree.visible" ref="fileTree" :highlight-current="true" :load="loadNode"
-                    :props="treeProps" lazy node-key="id" :expand-on-click-node="true">
+                <el-tree v-if="tree.visible" ref="fileTree" :highlight-current="true" :load="loadNode" :props="treeProps"
+                    lazy node-key="id" :expand-on-click-node="true">
                     <template #default="{ node, data }">
                         <span class="custom-tree-node">
                             <el-dropdown size="small" @visible-change="getFilePath(data, $event)" trigger="contextmenu">
@@ -80,8 +80,7 @@
                                         </el-dropdown-item>
 
                                         <span v-auth="'machine:file:write'">
-                                            <el-dropdown-item @click="showCreateFileDialog(node)"
-                                                v-if="data.type == 'd'">
+                                            <el-dropdown-item @click="showCreateFileDialog(node)" v-if="data.type == 'd'">
                                                 <el-link type="primary" icon="document" :underline="false"
                                                     style="margin-left: 2px">新建</el-link>
                                             </el-dropdown-item>
@@ -148,8 +147,8 @@
             </template>
         </el-dialog>
 
-        <el-dialog :destroy-on-close="true" :title="fileContent.dialogTitle" v-model="fileContent.contentVisible" :close-on-click-modal="false"
-            top="5vh" width="70%">
+        <el-dialog :destroy-on-close="true" :title="fileContent.dialogTitle" v-model="fileContent.contentVisible"
+            :close-on-click-modal="false" top="5vh" width="70%">
             <div>
                 <monaco-editor :can-change-mode="true" v-model="fileContent.content" :language="fileContent.type" />
             </div>
@@ -206,6 +205,7 @@ const state = reactive({
         pageNum: 1,
         pageSize: 8,
     },
+    loading: false,
     form: {
         id: null,
         type: null,
@@ -250,6 +250,7 @@ const state = reactive({
 
 const {
     dialogVisible,
+    loading,
     query,
     total,
     fileTable,
@@ -261,17 +262,22 @@ const {
 } = toRefs(state)
 
 watch(props, async (newValue) => {
+    state.dialogVisible = newValue.visible;
     if (newValue.machineId && newValue.visible) {
         await getFiles();
     }
-    state.dialogVisible = newValue.visible;
 });
 
 const getFiles = async () => {
-    state.query.id = props.machineId as any;
-    const res = await files.request(state.query);
-    state.fileTable = res.list;
-    state.total = res.total;
+    try {
+        state.loading = true;
+        state.query.id = props.machineId as any;
+        const res = await files.request(state.query);
+        state.fileTable = res.list;
+        state.total = res.total;
+    } finally {
+        state.loading = false;
+    }
 };
 
 const handlePageChange = (curPage: number) => {
@@ -589,6 +595,4 @@ const formatFileSize = (size: any) => {
     return '-';
 };
 </script>
-<style lang="scss">
-
-</style>
+<style lang="scss"></style>

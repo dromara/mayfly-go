@@ -5,7 +5,7 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/gormx"
 	"strings"
 )
 
@@ -49,29 +49,29 @@ func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEn
 		sql = sql + ")"
 	}
 	sql = sql + " ORDER BY p.code_path"
-	model.GetListBySql2Model(sql, toEntity)
+	gormx.GetListBySql2Model(sql, toEntity)
 }
 
 func (p *tagTreeRepoImpl) SelectById(id uint64) *entity.TagTree {
 	pt := new(entity.TagTree)
-	if err := model.GetById(pt, id); err != nil {
+	if err := gormx.GetById(pt, id); err != nil {
 		return nil
 	}
 	return pt
 }
 
 func (a *tagTreeRepoImpl) GetBy(condition *entity.TagTree, cols ...string) error {
-	return model.GetBy(condition, cols...)
+	return gormx.GetBy(condition, cols...)
 }
 
 func (p *tagTreeRepoImpl) Insert(tagTree *entity.TagTree) {
-	biz.ErrIsNil(model.Insert(tagTree), "新增标签失败")
+	biz.ErrIsNil(gormx.Insert(tagTree), "新增标签失败")
 }
 
 func (p *tagTreeRepoImpl) UpdateById(tagTree *entity.TagTree) {
-	biz.ErrIsNil(model.UpdateById(tagTree), "更新标签失败")
+	biz.ErrIsNil(gormx.UpdateById(tagTree), "更新标签失败")
 }
 
 func (p *tagTreeRepoImpl) Delete(id uint64) {
-	model.DeleteById(new(entity.TagTree), id)
+	gormx.DeleteById(new(entity.TagTree), id)
 }

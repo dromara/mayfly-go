@@ -53,8 +53,14 @@ func QueryInt(g *gin.Context, qm string, defaultInt int) int {
 
 // 获取路径参数
 func PathParamInt(g *gin.Context, pm string) int {
-	value, _ := strconv.Atoi(g.Param(pm))
+	value, err := strconv.Atoi(g.Param(pm))
+	biz.ErrIsNilAppendErr(err, "string类型转换int异常: %s")
 	return value
+}
+
+// 获取路径参数
+func PathParam(g *gin.Context, pm string) string {
+	return g.Param(pm)
 }
 
 // 文件下载

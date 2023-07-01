@@ -1,7 +1,7 @@
 <template>
     <div>
-        <page-table :query="state.queryConfig" v-model:query-form="params" :show-choose-column="true"
-            v-model:choose-data="state.chooseData" :data="data.list" :columns="state.columns" :total="data.total"
+        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="params" :show-selection="true"
+            v-model:selection-data="state.selectionData" :data="data.list" :columns="state.columns" :total="data.total"
             v-model:page-size="params.pageSize" v-model:page-num="params.pageNum" @pageChange="search()">
 
             <template #tagPathSelect>
@@ -14,9 +14,9 @@
             <template #queryRight>
                 <el-button v-auth="'machine:add'" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加
                 </el-button>
-                <el-button v-auth="'machine:update'" type="primary" icon="edit" :disabled="!chooseData"
-                    @click="openFormDialog(chooseData)" plain>编辑</el-button>
-                <el-button v-auth="'machine:del'" :disabled="!chooseData" @click="deleteMachine(chooseData.id)"
+                <el-button v-auth="'machine:update'" type="primary" icon="edit" :disabled="selectionData.length != 1"
+                    @click="openFormDialog(selectionData)" plain>编辑</el-button>
+                <el-button v-auth="'machine:del'" :disabled="selectionData.length < 1" @click="deleteMachine()"
                     type="danger" icon="delete">删除</el-button>
             </template>
 
@@ -146,7 +146,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi } from './api';
@@ -165,6 +165,8 @@ const MachineRec = defineAsyncComponent(() => import('./MachineRec.vue'));
 const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
 
 const router = useRouter();
+const pageTableRef: any = ref(null)
+
 const state = reactive({
     tags: [] as any,
     params: {
@@ -198,7 +200,7 @@ const state = reactive({
         data: null as any,
     },
     // 当前选中数据
-    chooseData: null as any,
+    selectionData: [],
     serviceDialog: {
         visible: false,
         machineId: 0,
@@ -236,7 +238,7 @@ const {
     params,
     data,
     infoDialog,
-    chooseData,
+    selectionData,
     serviceDialog,
     processDialog,
     fileDialog,
@@ -278,7 +280,7 @@ const getTags = async () => {
 const openFormDialog = async (machine: any) => {
     let dialogTitle;
     if (machine) {
-        state.machineEditDialog.data = state.chooseData as any;
+        state.machineEditDialog.data = state.selectionData[0];
         dialogTitle = '编辑机器';
     } else {
         state.machineEditDialog.data = null;
@@ -289,16 +291,15 @@ const openFormDialog = async (machine: any) => {
     state.machineEditDialog.visible = true;
 };
 
-const deleteMachine = async (id: number) => {
+const deleteMachine = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除该机器信息? 该操作将同时删除脚本及文件配置信息`, '提示', {
+        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(", ")}】机器信息? 该操作将同时删除脚本及文件配置信息`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await machineApi.del.request({ id });
+        await machineApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(",") });
         ElMessage.success('操作成功');
-        state.chooseData = null;
         search();
     } catch (err) { }
 };
@@ -329,19 +330,23 @@ const showMachineStats = async (machine: any) => {
 };
 
 const submitSuccess = () => {
-    state.chooseData = null;
     search();
 };
 
-const showFileManage = (chooseData: any) => {
+const showFileManage = (selectionData: any) => {
     state.fileDialog.visible = true;
-    state.fileDialog.machineId = chooseData.id;
-    state.fileDialog.title = `${chooseData.name} => ${chooseData.ip}`;
+    state.fileDialog.machineId = selectionData.id;
+    state.fileDialog.title = `${selectionData.name} => ${selectionData.ip}`;
 };
 
 const search = async () => {
-    const res = await machineApi.list.request(state.params);
-    state.data = res;
+    try {
+        pageTableRef.value.loading(true);
+        const res = await machineApi.list.request(state.params);
+        state.data = res;
+    } finally {
+        pageTableRef.value.loading(false);
+    }
 };
 
 const showInfo = (info: any) => {

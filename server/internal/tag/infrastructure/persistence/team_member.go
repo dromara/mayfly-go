@@ -1,10 +1,10 @@
 package persistence
 
 import (
-	"fmt"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -15,36 +15,28 @@ func newTeamMemberRepo() repository.TeamMember {
 }
 
 func (p *teamMemberRepoImpl) ListMemeber(condition *entity.TeamMember, toEntity any, orderBy ...string) {
-	model.ListByOrder(condition, toEntity, orderBy...)
+	gormx.ListByOrder(condition, toEntity, orderBy...)
 }
 
 func (p *teamMemberRepoImpl) Save(pm *entity.TeamMember) {
-	biz.ErrIsNilAppendErr(model.Insert(pm), "保存团队成员失败：%s")
+	biz.ErrIsNilAppendErr(gormx.Insert(pm), "保存团队成员失败：%s")
 }
 
-func (p *teamMemberRepoImpl) GetPageList(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) *model.PageResult {
-	sql := "SELECT d.*, a.name FROM t_team_member d JOIN t_sys_account a ON d.account_id = a.id WHERE a.status = 1  "
-
-	if condition.AccountId != 0 {
-		sql = fmt.Sprintf("%s AND d.account_id = %d", sql, condition.AccountId)
-	}
-	if condition.TeamId != 0 {
-		sql = fmt.Sprintf("%s AND d.team_id = %d", sql, condition.TeamId)
-	}
-
-	values := make([]any, 0)
-	if condition.Username != "" {
-		sql = sql + " AND d.Username LIKE ?"
-		values = append(values, "%"+condition.Username+"%")
-	}
-	sql = sql + " ORDER BY d.id DESC"
-	return model.GetPageBySql(sql, pageParam, toEntity, values...)
+func (p *teamMemberRepoImpl) GetPageList(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) *model.PageResult[any] {
+	qd := gormx.NewQuery(new(entity.TeamMember)).
+		Select("t_team_member.*, a.name").
+		Joins("JOIN t_sys_account a ON t_team_member.account_id = a.id AND a.status = 1").
+		Eq("account_id", condition.AccountId).
+		Eq("team_id", condition.TeamId).
+		Like("a.username", condition.Username).
+		OrderByDesc("t_team_member.id")
+	return gormx.PageQuery(qd, pageParam, toEntity)
 }
 
 func (p *teamMemberRepoImpl) DeleteBy(condition *entity.TeamMember) {
-	model.DeleteByCondition(condition)
+	gormx.DeleteByCondition(condition)
 }
 
 func (p *teamMemberRepoImpl) IsExist(teamId, accountId uint64) bool {
-	return model.CountBy(&entity.TeamMember{TeamId: teamId, AccountId: accountId}) > 0
+	return gormx.CountBy(&entity.TeamMember{TeamId: teamId, AccountId: accountId}) > 0
 }

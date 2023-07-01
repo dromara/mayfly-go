@@ -12,6 +12,8 @@ import (
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
+	"strconv"
+	"strings"
 )
 
 type Team struct {
@@ -48,7 +50,15 @@ func (p *Team) SaveTeam(rc *req.Ctx) {
 }
 
 func (p *Team) DelTeam(rc *req.Ctx) {
-	p.TeamApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	idsStr := ginx.PathParam(rc.GinCtx, "id")
+	rc.ReqParam = idsStr
+	ids := strings.Split(idsStr, ",")
+
+	for _, v := range ids {
+		value, err := strconv.Atoi(v)
+		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
+		p.TeamApp.Delete(uint64(value))
+	}
 }
 
 // 获取团队的成员信息

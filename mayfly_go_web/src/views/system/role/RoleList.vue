@@ -1,17 +1,17 @@
 <template>
     <div>
-        <page-table :query="state.queryConfig" v-model:query-form="query" :show-choose-column="true"
-            v-model:choose-data="state.chooseData" :data="roles" :columns="state.columns" :total="total"
+        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="selectionData" :data="roles" :columns="state.columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #queryRight>
                 <el-button v-auth="'role:add'" type="primary" icon="plus" @click="editRole(false)">添加</el-button>
-                <el-button v-auth="'role:update'" :disabled="chooseData == null" @click="editRole(chooseData)"
+                <el-button v-auth="'role:update'" :disabled="selectionData.length != 1" @click="editRole(selectionData)"
                     type="primary" icon="edit">编辑</el-button>
-                <el-button v-auth="'role:saveResources'" :disabled="chooseData == null" @click="editResource(chooseData)"
-                    type="success" icon="setting">分配菜单&权限</el-button>
-                <el-button v-auth="'role:del'" :disabled="chooseData == null" @click="deleteRole(chooseData)" type="danger"
-                    icon="delete">删除</el-button>
+                <el-button v-auth="'role:saveResources'" :disabled="selectionData.length != 1"
+                    @click="editResource(selectionData)" type="success" icon="setting">分配菜单&权限</el-button>
+                <el-button v-auth="'role:del'" :disabled="selectionData.length < 1" @click="deleteRole(selectionData)"
+                    type="danger" icon="delete">删除</el-button>
             </template>
 
             <template #status="{ data }">
@@ -35,7 +35,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted } from 'vue';
 import RoleEdit from './RoleEdit.vue';
 import ResourceEdit from './ResourceEdit.vue';
 import ShowResource from './ShowResource.vue';
@@ -43,6 +43,8 @@ import { roleApi, resourceApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue'
 import { TableColumn, TableQuery } from '@/components/pagetable';
+
+const pageTableRef: any = ref(null)
 
 const state = reactive({
     query: {
@@ -66,7 +68,7 @@ const state = reactive({
     ],
     total: 0,
     roles: [],
-    chooseData: null as any,
+    selectionData: [],
     resourceDialog: {
         visible: false,
         role: {},
@@ -89,7 +91,7 @@ const {
     query,
     total,
     roles,
-    chooseData,
+    selectionData,
     resourceDialog,
     roleEditDialog,
     showResourceDialog,
@@ -100,20 +102,24 @@ onMounted(() => {
 });
 
 const search = async () => {
-    let res = await roleApi.list.request(state.query);
-    state.roles = res.list;
-    state.total = res.total;
+    try {
+        pageTableRef.value.loading(true);
+        let res = await roleApi.list.request(state.query);
+        state.roles = res.list;
+        state.total = res.total;
+    } finally {
+        pageTableRef.value.loading(false);
+    }
 };
 
 const roleEditChange = () => {
     ElMessage.success('修改成功！');
-    state.chooseData = null;
     search();
 };
 
 const editRole = (data: any) => {
     if (data) {
-        state.roleEditDialog.role = data;
+        state.roleEditDialog.role = data[0];
     } else {
         state.roleEditDialog.role = false;
     }
@@ -124,7 +130,7 @@ const editRole = (data: any) => {
 const deleteRole = async (data: any) => {
     try {
         await ElMessageBox.confirm(
-            `此操作将删除 [${data.name}] 该角色，以及与该角色有关的账号角色关联信息和资源角色关联信息, 是否继续?`,
+            `此操作将删除【${data.map((x: any) => x.name).join(", ")}】该角色，以及与该角色有关的账号角色关联信息和资源角色关联信息, 是否继续?`,
             '提示',
             {
                 confirmButtonText: '确定',
@@ -133,7 +139,7 @@ const deleteRole = async (data: any) => {
             }
         );
         await roleApi.del.request({
-            id: data.id,
+            id: data.map((x: any) => x.id).join(","),
         });
         ElMessage.success('删除成功！');
         search();

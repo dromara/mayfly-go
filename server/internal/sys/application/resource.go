@@ -5,7 +5,7 @@ import (
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/global"
-	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/utils"
 	"strings"
 	"time"
@@ -15,8 +15,6 @@ type Resource interface {
 	GetResourceList(condition *entity.Resource, toEntity any, orderBy ...string)
 
 	GetById(id uint64, cols ...string) *entity.Resource
-
-	GetByIdIn(ids []uint64, toEntity any, cols ...string)
 
 	Save(entity *entity.Resource)
 
@@ -47,10 +45,6 @@ func (r *resourceAppImpl) GetById(id uint64, cols ...string) *entity.Resource {
 	return r.resourceRepo.GetById(id, cols...)
 }
 
-func (r *resourceAppImpl) GetByIdIn(ids []uint64, toEntity any, orderBy ...string) {
-	r.resourceRepo.GetByIdIn(ids, toEntity, orderBy...)
-}
-
 func (r *resourceAppImpl) Save(resource *entity.Resource) {
 	// 更新操作
 	if resource.Id != 0 {
@@ -61,7 +55,7 @@ func (r *resourceAppImpl) Save(resource *entity.Resource) {
 				r.checkCode(resource.Code)
 			}
 		}
-		model.UpdateById(resource)
+		gormx.UpdateById(resource)
 		return
 	}
 
@@ -80,7 +74,7 @@ func (r *resourceAppImpl) Save(resource *entity.Resource) {
 	}
 	r.checkCode(resource.Code)
 	resource.Weight = int(time.Now().Unix())
-	model.Insert(resource)
+	gormx.Insert(resource)
 }
 
 func (r *resourceAppImpl) ChangeStatus(resourceId uint64, status int8) {
@@ -148,7 +142,7 @@ func (r *resourceAppImpl) Sort(sortResource *entity.Resource) {
 
 func (r *resourceAppImpl) checkCode(code string) {
 	biz.IsTrue(!strings.Contains(code, ","), "code不能包含','")
-	biz.IsEquals(model.CountBy(&entity.Resource{Code: code}), int64(0), "该code已存在")
+	biz.IsEquals(gormx.CountBy(&entity.Resource{Code: code}), int64(0), "该code已存在")
 }
 
 func (r *resourceAppImpl) Delete(id uint64) {
@@ -160,7 +154,7 @@ func (r *resourceAppImpl) Delete(id uint64) {
 	for _, v := range children {
 		r.resourceRepo.Delete(v.Id)
 		// 删除角色关联的资源信息
-		model.DeleteByCondition(&entity.RoleResource{ResourceId: v.Id})
+		gormx.DeleteByCondition(&entity.RoleResource{ResourceId: v.Id})
 	}
 }
 

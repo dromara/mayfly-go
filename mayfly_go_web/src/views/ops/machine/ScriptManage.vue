@@ -10,8 +10,8 @@
                     </el-select>
                 </div>
                 <div style="float: right">
-                    <el-button @click="editScript(currentData)" :disabled="currentId == null" type="primary"
-                        icon="tickets" size="small" plain>查看</el-button>
+                    <el-button @click="editScript(currentData)" :disabled="currentId == null" type="primary" icon="tickets"
+                        size="small" plain>查看</el-button>
                     <el-button v-auth="'machine:script:save'" type="primary" @click="editScript(null)" icon="plus"
                         size="small" plain>添加</el-button>
                     <el-button v-auth="'machine:script:del'" :disabled="currentId == null" type="danger"
@@ -19,7 +19,8 @@
                 </div>
             </div>
 
-            <el-table :data="scriptTable" @current-change="choose" stripe border size="small" style="width: 100%">
+            <el-table :data="scriptTable" @current-change="choose" stripe border size="small" v-loading="loading"
+                style="width: 100%">
                 <el-table-column label="选择" width="55px">
                     <template #default="scope">
                         <el-radio v-model="currentId" :label="scope.row.id">
@@ -39,8 +40,8 @@
                         <el-button v-if="scope.row.id == null" type="success" icon="el-icon-success" size="small" plain>
                             确定</el-button>
 
-                        <el-button v-auth="'machine:script:run'" v-if="scope.row.id != null"
-                            @click="runScript(scope.row)" type="primary" icon="video-play" size="small" plain>执行
+                        <el-button v-auth="'machine:script:run'" v-if="scope.row.id != null" @click="runScript(scope.row)"
+                            type="primary" icon="video-play" size="small" plain>执行
                         </el-button>
                     </template>
                 </el-table-column>
@@ -54,8 +55,8 @@
 
         <el-dialog title="脚本参数" v-model="scriptParamsDialog.visible" width="400px">
             <el-form ref="paramsForm" :model="scriptParamsDialog.params" label-width="70px" size="small">
-                <el-form-item v-for="item in scriptParamsDialog.paramsFormItem as any" :key="item.name"
-                    :prop="item.model" :label="item.name" required>
+                <el-form-item v-for="item in scriptParamsDialog.paramsFormItem as any" :key="item.name" :prop="item.model"
+                    :label="item.name" required>
                     <el-input v-if="!item.options" v-model="scriptParamsDialog.params[item.model]"
                         :placeholder="item.placeholder" autocomplete="off" clearable></el-input>
                     <el-select v-else v-model="scriptParamsDialog.params[item.model]" :placeholder="item.placeholder"
@@ -80,8 +81,7 @@
 
         <el-dialog v-if="terminalDialog.visible" title="终端" v-model="terminalDialog.visible" width="80%"
             :close-on-click-modal="false" :modal="false" @close="closeTermnial">
-            <ssh-terminal ref="terminal" :cmd="terminalDialog.cmd" :machineId="terminalDialog.machineId"
-                height="560px" />
+            <ssh-terminal ref="terminal" :cmd="terminalDialog.cmd" :machineId="terminalDialog.machineId" height="560px" />
         </el-dialog>
 
         <script-edit v-model:visible="editDialog.visible" v-model:data="editDialog.data" :title="editDialog.title"
@@ -111,6 +111,7 @@ const state = reactive({
     type: 0,
     currentId: null,
     currentData: null,
+    loading: false,
     query: {
         machineId: 0 as any,
         pageNum: 1,
@@ -142,6 +143,7 @@ const state = reactive({
 
 const {
     dialogVisible,
+    loading,
     type,
     currentId,
     currentData,
@@ -155,19 +157,24 @@ const {
 } = toRefs(state)
 
 watch(props, async (newValue) => {
+    state.dialogVisible = newValue.visible;
     if (props.machineId && newValue.visible) {
         await getScripts();
     }
-    state.dialogVisible = newValue.visible;
 });
 
 const getScripts = async () => {
-    state.currentId = null;
-    state.currentData = null;
-    state.query.machineId = state.type == 0 ? props.machineId : 9999999;
-    const res = await machineApi.scripts.request(state.query);
-    state.scriptTable = res.list;
-    state.total = res.total;
+    try {
+        state.loading = true;
+        state.currentId = null;
+        state.currentData = null;
+        state.query.machineId = state.type == 0 ? props.machineId : 9999999;
+        const res = await machineApi.scripts.request(state.query);
+        state.scriptTable = res.list;
+        state.total = res.total;
+    } finally {
+        state.loading = false;
+    }
 };
 
 const handlePageChange = (curPage: number) => {

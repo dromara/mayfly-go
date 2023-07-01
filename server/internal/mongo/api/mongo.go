@@ -13,6 +13,7 @@ import (
 	"mayfly-go/pkg/utils"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -32,7 +33,7 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	// 不存在可访问标签id，即没有可操作数据
 	tagIds := m.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
 	if len(tagIds) == 0 {
-		rc.ResData = model.EmptyPageResult()
+		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
 	condition.TagIds = tagIds
@@ -58,7 +59,15 @@ func (m *Mongo) Save(rc *req.Ctx) {
 }
 
 func (m *Mongo) DeleteMongo(rc *req.Ctx) {
-	m.MongoApp.Delete(m.GetMongoId(rc.GinCtx))
+	idsStr := ginx.PathParam(rc.GinCtx, "id")
+	rc.ReqParam = idsStr
+	ids := strings.Split(idsStr, ",")
+
+	for _, v := range ids {
+		value, err := strconv.Atoi(v)
+		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
+		m.MongoApp.Delete(uint64(value))
+	}
 }
 
 func (m *Mongo) Databases(rc *req.Ctx) {

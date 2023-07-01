@@ -23,7 +23,7 @@ import (
 
 type Redis interface {
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Count(condition *entity.RedisQuery) int64
 
@@ -55,7 +55,7 @@ type redisAppImpl struct {
 }
 
 // 分页获取机器脚本信息列表
-func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
+func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return r.redisRepo.GetRedisList(condition, pageParam, toEntity, orderBy...)
 }
 

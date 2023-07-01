@@ -345,9 +345,15 @@ func (a *Account) ChangeStatus(rc *req.Ctx) {
 }
 
 func (a *Account) DeleteAccount(rc *req.Ctx) {
-	id := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
-	rc.ReqParam = id
-	a.AccountApp.Delete(id)
+	idsStr := ginx.PathParam(rc.GinCtx, "id")
+	rc.ReqParam = idsStr
+	ids := strings.Split(idsStr, ",")
+
+	for _, v := range ids {
+		value, err := strconv.Atoi(v)
+		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
+		a.AccountApp.Delete(uint64(value))
+	}
 }
 
 // 获取账号角色id列表，用户回显角色分配

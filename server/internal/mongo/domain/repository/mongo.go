@@ -7,7 +7,7 @@ import (
 
 type Mongo interface {
 	// 分页获取列表
-	GetList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Count(condition *entity.MongoQuery) int64
 

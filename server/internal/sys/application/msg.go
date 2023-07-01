@@ -9,7 +9,7 @@ import (
 )
 
 type Msg interface {
-	GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Create(msg *entity.Msg)
 
@@ -27,7 +27,7 @@ type msgAppImpl struct {
 	msgRepo repository.Msg
 }
 
-func (a *msgAppImpl) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
+func (a *msgAppImpl) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return a.msgRepo.GetPageList(condition, pageParam, toEntity)
 }
 

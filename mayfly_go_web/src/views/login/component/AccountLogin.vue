@@ -61,7 +61,7 @@
 
         <el-dialog title="OTP校验" v-model="otpDialog.visible" @close="loading.signIn = false" :close-on-click-modal="false"
             width="350px" :destroy-on-close="true">
-            <el-form ref="otpFormRef" :model="otpDialog.form" :rules="otpDialog.rules" label-width="65px">
+            <el-form ref="otpFormRef" :model="otpDialog.form" :rules="otpDialog.rules" @submit.native.prevent label-width="65px">
                 <el-form-item v-if="otpDialog.otpUrl" label="二维码">
                     <qrcode-vue :value="otpDialog.otpUrl" :size="200" level="H" />
                 </el-form-item>

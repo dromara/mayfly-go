@@ -20,6 +20,7 @@ import (
 	"path"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -40,19 +41,18 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	// 不存在可访问标签id，即没有可操作数据
 	tagIds := m.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
 	if len(tagIds) == 0 {
-		rc.ResData = model.EmptyPageResult()
+		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
 	condition.TagIds = tagIds
 
-	res := m.MachineApp.GetMachineList(condition, ginx.GetPageParam(rc.GinCtx), new([]*vo.MachineVO))
+	res := m.MachineApp.GetMachineList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.MachineVO))
 	if res.Total == 0 {
 		rc.ResData = res
 		return
 	}
 
-	list := res.List.(*[]*vo.MachineVO)
-	for _, mv := range *list {
+	for _, mv := range *res.List {
 		mv.HasCli = machine.HasCli(mv.Id)
 	}
 	rc.ResData = res
@@ -99,9 +99,15 @@ func (m *Machine) ChangeStatus(rc *req.Ctx) {
 }
 
 func (m *Machine) DeleteMachine(rc *req.Ctx) {
-	id := uint64(ginx.PathParamInt(rc.GinCtx, "machineId"))
-	rc.ReqParam = id
-	m.MachineApp.Delete(id)
+	idsStr := ginx.PathParam(rc.GinCtx, "machineId")
+	rc.ReqParam = idsStr
+	ids := strings.Split(idsStr, ",")
+
+	for _, v := range ids {
+		value, err := strconv.Atoi(v)
+		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
+		m.MachineApp.Delete(uint64(value))
+	}
 }
 
 // 关闭机器客户端

@@ -1,16 +1,16 @@
 <template>
     <div>
-        <page-table :query="state.queryConfig" v-model:query-form="query" :show-choose-column="true"
-            v-model:choose-data="state.chooseData" :data="datas" :columns="state.columns" :total="total"
+        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="selectionData" :data="datas" :columns="state.columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #queryRight>
                 <el-button v-auth="'account:add'" type="primary" icon="plus" @click="editAccount(true)">添加</el-button>
-                <el-button v-auth="'account:add'" :disabled="state.chooseData == null" @click="editAccount(false)"
+                <el-button v-auth="'account:add'" :disabled="state.selectionData.length != 1" @click="editAccount(false)"
                     type="primary" icon="edit">编辑</el-button>
-                <el-button v-auth="'account:saveRoles'" :disabled="state.chooseData == null" @click="showRoleEdit()"
+                <el-button v-auth="'account:saveRoles'" :disabled="state.selectionData.length != 1" @click="showRoleEdit()"
                     type="success" icon="setting">角色分配</el-button>
-                <el-button v-auth="'account:del'" :disabled="state.chooseData == null" @click="deleteAccount()"
+                <el-button v-auth="'account:del'" :disabled="state.selectionData.length < 1" @click="deleteAccount()"
                     type="danger" icon="delete">删除</el-button>
             </template>
 
@@ -70,7 +70,7 @@
 </template>
 
 <script lang='ts' setup>
-import { toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted } from 'vue';
 import RoleEdit from './RoleEdit.vue';
 import AccountEdit from './AccountEdit.vue';
 import enums from '../enums';
@@ -80,11 +80,13 @@ import { dateFormat } from '@/common/utils/date';
 import PageTable from '@/components/pagetable/PageTable.vue'
 import { TableColumn, TableQuery } from '@/components/pagetable';
 
+const pageTableRef: any = ref(null)
+
 const state = reactive({
     /**
      * 选中的数据
      */
-    chooseData: null as any,
+    selectionData: [],
     /**
      * 查询条件
      */
@@ -136,6 +138,7 @@ const state = reactive({
 });
 
 const {
+    selectionData,
     query,
     datas,
     total,
@@ -150,9 +153,14 @@ onMounted(() => {
 });
 
 const search = async () => {
-    let res: any = await accountApi.list.request(state.query);
-    state.datas = res.list;
-    state.total = res.total;
+    try {
+        pageTableRef.value.loading(true);
+        let res: any = await accountApi.list.request(state.query);
+        state.datas = res.list;
+        state.total = res.total;
+    } finally {
+        pageTableRef.value.loading(false);
+    }
 };
 
 const showResources = async (row: any) => {
@@ -194,24 +202,16 @@ const resetOtpSecret = async (row: any) => {
     row.otpSecret = "-";
 };
 
-const handlePageChange = (curPage: number) => {
-    state.query.pageNum = curPage;
-    search();
-};
-
 const showRoleEdit = () => {
-    if (!state.chooseData) {
-        ElMessage.error('请选择账号');
-    }
     state.roleDialog.visible = true;
-    state.roleDialog.account = state.chooseData;
+    state.roleDialog.account = state.selectionData[0];
 };
 
 const editAccount = (isAdd = false) => {
     if (isAdd) {
         state.accountDialog.data = null;
     } else {
-        state.accountDialog.data = state.chooseData;
+        state.accountDialog.data = state.selectionData[0];
     }
     state.accountDialog.visible = true;
 };
@@ -229,14 +229,13 @@ const valChange = () => {
 
 const deleteAccount = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除该账号?`, '提示', {
+        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(", ")}】的账号?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await accountApi.del.request({ id: state.chooseData.id });
+        await accountApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(",") });
         ElMessage.success('删除成功');
-        state.chooseData = null;
         search();
     } catch (err) { }
 };

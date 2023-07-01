@@ -11,6 +11,7 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
@@ -40,7 +41,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	// 不存在可访问标签id，即没有可操作数据
 	tagIds := d.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
 	if len(tagIds) == 0 {
-		rc.ResData = model.EmptyPageResult()
+		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
 	condition.TagIds = tagIds
@@ -96,10 +97,18 @@ func (d *Db) GetDatabaseNames(rc *req.Ctx) {
 }
 
 func (d *Db) DeleteDb(rc *req.Ctx) {
-	dbId := GetDbId(rc.GinCtx)
-	d.DbApp.Delete(dbId)
-	// 删除该库的sql执行记录
-	d.DbSqlExecApp.DeleteBy(&entity.DbSqlExec{DbId: dbId})
+	idsStr := ginx.PathParam(rc.GinCtx, "dbId")
+	rc.ReqParam = idsStr
+	ids := strings.Split(idsStr, ",")
+
+	for _, v := range ids {
+		value, err := strconv.Atoi(v)
+		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
+		dbId := uint64(value)
+		d.DbApp.Delete(dbId)
+		// 删除该库的sql执行记录
+		d.DbSqlExecApp.DeleteBy(&entity.DbSqlExec{DbId: dbId})
+	}
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
@@ -381,21 +390,21 @@ func (d *Db) SaveSql(rc *req.Ctx) {
 
 	dbId := GetDbId(g)
 	// 判断dbId是否存在
-	err := model.GetById(new(entity.Db), dbId)
+	err := gormx.GetById(new(entity.Db), dbId)
 	biz.ErrIsNil(err, "该数据库信息不存在")
 
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
 	dbSql := &entity.DbSql{Type: dbSqlForm.Type, DbId: dbId, Name: dbSqlForm.Name, Db: dbSqlForm.Db}
 	dbSql.CreatorId = account.Id
-	e := model.GetBy(dbSql)
+	e := gormx.GetBy(dbSql)
 
 	dbSql.SetBaseInfo(account)
 	// 更新sql信息
 	dbSql.Sql = dbSqlForm.Sql
 	if e == nil {
-		model.UpdateById(dbSql)
+		gormx.UpdateById(dbSql)
 	} else {
-		model.Insert(dbSql)
+		gormx.Insert(dbSql)
 	}
 }
 
@@ -406,7 +415,7 @@ func (d *Db) GetSqlNames(rc *req.Ctx) {
 	dbSql := &entity.DbSql{Type: 1, DbId: id, Db: db}
 	dbSql.CreatorId = rc.LoginAccount.Id
 	var sqls []entity.DbSql
-	model.ListBy(dbSql, &sqls, "id", "name")
+	gormx.ListBy(dbSql, &sqls, "id", "name")
 
 	rc.ResData = sqls
 }
@@ -418,7 +427,7 @@ func (d *Db) DeleteSql(rc *req.Ctx) {
 	dbSql.Name = rc.GinCtx.Query("name")
 	dbSql.Db = rc.GinCtx.Query("db")
 
-	model.DeleteByCondition(dbSql)
+	gormx.DeleteByCondition(dbSql)
 
 }
 
@@ -430,7 +439,7 @@ func (d *Db) GetSql(rc *req.Ctx) {
 	dbSql.CreatorId = rc.LoginAccount.Id
 	dbSql.Name = rc.GinCtx.Query("name")
 
-	e := model.GetBy(dbSql)
+	e := gormx.GetBy(dbSql)
 	if e != nil {
 		return
 	}

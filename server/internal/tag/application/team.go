@@ -9,7 +9,7 @@ import (
 
 type Team interface {
 	// 分页获取项目团队信息列表
-	GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Save(team *entity.Team)
 
@@ -17,7 +17,7 @@ type Team interface {
 
 	//--------------- 团队成员相关接口 ---------------
 
-	GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) *model.PageResult
+	GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) *model.PageResult[any]
 
 	SaveMember(tagTeamMember *entity.TeamMember)
 
@@ -51,7 +51,7 @@ type teamAppImpl struct {
 	tagTreeTeamRepo repository.TagTreeTeam
 }
 
-func (p *teamAppImpl) GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
+func (p *teamAppImpl) GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return p.teamRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -66,11 +66,12 @@ func (p *teamAppImpl) Save(team *entity.Team) {
 func (p *teamAppImpl) Delete(id uint64) {
 	p.teamRepo.Delete(id)
 	p.teamMemberRepo.DeleteBy(&entity.TeamMember{TeamId: id})
+	p.tagTreeTeamRepo.DeleteBy(&entity.TagTreeTeam{TeamId: id})
 }
 
 // --------------- 团队成员相关接口 ---------------
 
-func (p *teamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) *model.PageResult {
+func (p *teamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) *model.PageResult[any] {
 	return p.teamMemberRepo.GetPageList(condition, pageParam, toEntity)
 }
 

@@ -11,5 +11,5 @@ type DbSqlExec interface {
 	DeleteBy(condition *entity.DbSqlExec)
 
 	// 分页获取
-	GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 }

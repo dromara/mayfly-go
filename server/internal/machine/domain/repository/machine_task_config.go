@@ -6,7 +6,7 @@ import (
 )
 
 type MachineTaskConfig interface {
-	GetPageList(condition *entity.MachineTaskConfig, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.MachineTaskConfig, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	// 根据条件获取
 	GetBy(condition *entity.MachineTaskConfig, cols ...string) error

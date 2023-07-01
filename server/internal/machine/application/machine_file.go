@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/internal/machine/infrastructure/machine"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"os"
 	"strings"
@@ -17,7 +18,7 @@ import (
 
 type MachineFile interface {
 	// 分页获取机器文件信息列表
-	GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	// 根据条件获取
 	GetMachineFile(condition *entity.MachineFile, cols ...string) error
@@ -67,7 +68,7 @@ type machineFileAppImpl struct {
 }
 
 // 分页获取机器脚本信息列表
-func (m *machineFileAppImpl) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
+func (m *machineFileAppImpl) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return m.machineFileRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -86,9 +87,9 @@ func (m *machineFileAppImpl) Save(entity *entity.MachineFile) {
 	biz.NotNil(m.machineRepo.GetById(entity.MachineId, "Name"), "该机器不存在")
 
 	if entity.Id != 0 {
-		model.UpdateById(entity)
+		gormx.UpdateById(entity)
 	} else {
-		model.Insert(entity)
+		gormx.Insert(entity)
 	}
 }
 

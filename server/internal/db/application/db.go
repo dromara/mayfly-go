@@ -21,7 +21,7 @@ import (
 
 type Db interface {
 	// 分页获取
-	GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Count(condition *entity.DbQuery) int64
 
@@ -58,7 +58,7 @@ type dbAppImpl struct {
 }
 
 // 分页获取数据库信息列表
-func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
+func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return d.dbRepo.GetDbList(condition, pageParam, toEntity, orderBy...)
 }
 

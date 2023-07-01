@@ -1,7 +1,7 @@
 <template>
     <div class="db-list">
-        <page-table :query="state.queryConfig" v-model:query-form="query" :show-choose-column="true"
-            v-model:choose-data="state.chooseData" :data="datas" :columns="state.columns" :total="total"
+        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="state.selectionData" :data="datas" :columns="state.columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #tagPathSelect>
@@ -13,9 +13,9 @@
 
             <template #queryRight>
                 <el-button v-auth="permissions.saveDb" type="primary" icon="plus" @click="editDb(true)">添加</el-button>
-                <el-button v-auth="permissions.saveDb" :disabled="!chooseData" @click="editDb(false)" type="primary"
-                    icon="edit">编辑</el-button>
-                <el-button v-auth="permissions.delDb" :disabled="!chooseData" @click="deleteDb(chooseData.id)" type="danger"
+                <el-button v-auth="permissions.saveDb" :disabled="selectionData.length != 1" @click="editDb(false)"
+                    type="primary" icon="edit">编辑</el-button>
+                <el-button v-auth="permissions.delDb" :disabled="selectionData.length < 1" @click="deleteDb()" type="danger"
                     icon="delete">删除</el-button>
             </template>
 
@@ -262,7 +262,7 @@
 </template>
 
 <script lang='ts' setup>
-import { toRefs, reactive, computed, onMounted, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, computed, onMounted, defineAsyncComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { dbApi } from './api';
@@ -286,6 +286,8 @@ const permissions = {
     delDb: 'db:del',
 }
 
+const pageTableRef: any = ref(null)
+
 const state = reactive({
     row: {},
     dbId: 0,
@@ -294,7 +296,7 @@ const state = reactive({
     /**
      * 选中的数据
      */
-    chooseData: null as any,
+    selectionData: [],
     /**
      * 查询条件
      */
@@ -398,7 +400,7 @@ const {
     dbId,
     db,
     tags,
-    chooseData,
+    selectionData,
     query,
     datas,
     total,
@@ -443,14 +445,19 @@ const filterTableInfos = computed(() => {
 });
 
 const search = async () => {
-    let res: any = await dbApi.dbs.request(state.query);
-    // 切割数据库
-    res.list.forEach((e: any) => {
-        e.popoverSelectDbVisible = false;
-        e.dbs = e.database.split(' ');
-    });
-    state.datas = res.list;
-    state.total = res.total;
+    try {
+        pageTableRef.value.loading(true);
+        let res: any = await dbApi.dbs.request(state.query);
+        // 切割数据库
+        res.list.forEach((e: any) => {
+            e.popoverSelectDbVisible = false;
+            e.dbs = e.database.split(' ');
+        });
+        state.datas = res.list;
+        state.total = res.total;
+    } finally {
+        pageTableRef.value.loading(false);
+    }
 };
 
 const showInfo = (info: any) => {
@@ -467,27 +474,25 @@ const editDb = async (isAdd = false) => {
         state.dbEditDialog.data = null;
         state.dbEditDialog.title = '新增数据库资源';
     } else {
-        state.dbEditDialog.data = state.chooseData;
+        state.dbEditDialog.data = state.selectionData[0];
         state.dbEditDialog.title = '修改数据库资源';
     }
     state.dbEditDialog.visible = true;
 };
 
 const valChange = () => {
-    state.chooseData = null;
     search();
 };
 
-const deleteDb = async (id: number) => {
+const deleteDb = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除该库?`, '提示', {
+        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(", ")}】库?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await dbApi.deleteDb.request({ id });
+        await dbApi.deleteDb.request({ id: state.selectionData.map((x: any) => x.id).join(",") });
         ElMessage.success('删除成功');
-        state.chooseData = null;
         search();
     } catch (err) { }
 };
@@ -626,7 +631,7 @@ const closeTableInfo = () => {
 const showColumns = async (row: any) => {
     state.chooseTableName = row.tableName;
     state.columnDialog.columns = await dbApi.columnMetadata.request({
-        id: state.chooseData.id,
+        id: state.dbId,
         db: state.db,
         tableName: row.tableName,
     });
@@ -637,7 +642,7 @@ const showColumns = async (row: any) => {
 const showTableIndex = async (row: any) => {
     state.chooseTableName = row.tableName;
     state.indexDialog.indexs = await dbApi.tableIndex.request({
-        id: state.chooseData.id,
+        id: state.dbId,
         db: state.db,
         tableName: row.tableName,
     });
@@ -648,7 +653,7 @@ const showTableIndex = async (row: any) => {
 const showCreateDdl = async (row: any) => {
     state.chooseTableName = row.tableName;
     const res = await dbApi.tableDdl.request({
-        id: state.chooseData.id,
+        id: state.dbId,
         db: state.db,
         tableName: row.tableName,
     });
@@ -669,10 +674,10 @@ const dropTable = async (row: any) => {
         });
         SqlExecBox({
             sql: `DROP TABLE ${tableName}`,
-            dbId: state.chooseData.id,
+            dbId: state.dbId,
             db: state.db,
             runSuccessCallback: async () => {
-                state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.chooseData.id, db: state.db });
+                state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.dbId, db: state.db });
             },
         });
     } catch (err) { }
@@ -708,12 +713,12 @@ const openEditTable = async (row: any) => {
     if (row.tableName) {
         state.tableCreateDialog.title = '修改表'
         let indexs = await dbApi.tableIndex.request({
-            id: state.chooseData.id,
+            id: state.dbId,
             db: state.db,
             tableName: row.tableName,
         });
         let columns = await dbApi.columnMetadata.request({
-            id: state.chooseData.id,
+            id: state.dbId,
             db: state.db,
             tableName: row.tableName,
         });

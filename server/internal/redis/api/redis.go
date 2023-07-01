@@ -12,6 +12,7 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,7 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 	// 不存在可访问标签id，即没有可操作数据
 	tagIds := r.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
 	if len(tagIds) == 0 {
-		rc.ResData = model.EmptyPageResult()
+		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
 	condition.TagIds = tagIds
@@ -66,7 +67,15 @@ func (r *Redis) GetRedisPwd(rc *req.Ctx) {
 }
 
 func (r *Redis) DeleteRedis(rc *req.Ctx) {
-	r.RedisApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	idsStr := ginx.PathParam(rc.GinCtx, "id")
+	rc.ReqParam = idsStr
+	ids := strings.Split(idsStr, ",")
+
+	for _, v := range ids {
+		value, err := strconv.Atoi(v)
+		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
+		r.RedisApp.Delete(uint64(value))
+	}
 }
 
 func (r *Redis) RedisInfo(rc *req.Ctx) {

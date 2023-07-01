@@ -1,13 +1,14 @@
 package repository
 
 import (
+	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/pkg/model"
 )
 
 type Machine interface {
 	// 分页获取机器信息列表
-	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult
+	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]vo.MachineVO, orderBy ...string) *model.PageResult[*[]vo.MachineVO]
 
 	Count(condition *entity.MachineQuery) int64
 

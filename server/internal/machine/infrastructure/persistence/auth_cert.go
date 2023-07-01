@@ -4,6 +4,7 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -13,21 +14,22 @@ func newAuthCertRepo() repository.AuthCert {
 	return new(authCertRepoImpl)
 }
 
-func (m *authCertRepoImpl) GetPageList(condition *entity.AuthCert, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult {
-	return model.GetPage(pageParam, condition, condition, toEntity)
+func (m *authCertRepoImpl) GetPageList(condition *entity.AuthCert, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
+	return gormx.PageQuery(qd, pageParam, toEntity)
 }
 
 func (m *authCertRepoImpl) Insert(ac *entity.AuthCert) {
-	biz.ErrIsNil(model.Insert(ac), "新增授权凭证失败")
+	biz.ErrIsNil(gormx.Insert(ac), "新增授权凭证失败")
 }
 
 func (m *authCertRepoImpl) Update(ac *entity.AuthCert) {
-	biz.ErrIsNil(model.UpdateById(ac), "更新授权凭证失败")
+	biz.ErrIsNil(gormx.UpdateById(ac), "更新授权凭证失败")
 }
 
 func (m *authCertRepoImpl) GetById(id uint64) *entity.AuthCert {
 	ac := new(entity.AuthCert)
-	err := model.GetById(ac, id)
+	err := gormx.GetById(ac, id)
 	if err != nil {
 		return nil
 	}
@@ -36,14 +38,14 @@ func (m *authCertRepoImpl) GetById(id uint64) *entity.AuthCert {
 
 func (m *authCertRepoImpl) GetByIds(ids ...uint64) []*entity.AuthCert {
 	acs := new([]*entity.AuthCert)
-	model.GetByIdIn(new(entity.AuthCert), acs, ids)
+	gormx.GetByIdIn(new(entity.AuthCert), acs, ids)
 	return *acs
 }
 
 func (m *authCertRepoImpl) GetByCondition(condition *entity.AuthCert, cols ...string) error {
-	return model.GetBy(condition, cols...)
+	return gormx.GetBy(condition, cols...)
 }
 
 func (m *authCertRepoImpl) DeleteById(id uint64) {
-	model.DeleteById(new(entity.AuthCert), id)
+	gormx.DeleteById(new(entity.AuthCert), id)
 }
