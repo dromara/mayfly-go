@@ -1,13 +1,14 @@
 import type { App } from 'vue';
 import { useUserInfo } from '@/store/userInfo';
 import { judementSameArr } from '@/common/utils/arrayOperation';
+import { hasPerm } from '@/components/auth/auth';
 
 // 用户权限指令
 export function authDirective(app: App) {
     // 单个权限验证（v-auth="xxx"）
     app.directive('auth', {
         mounted(el, binding) {
-            if (!useUserInfo().userInfo.permissions.some((v: any) => v === binding.value)) {
+            if (!hasPerm(binding.value)) {
                 parseNoAuth(el, binding);
             };
         },

@@ -44,11 +44,14 @@
                                 </el-input>
                             </el-form-item>
                             <el-form-item>
-                                <el-button @click="searchKey()" type="success" icon="search" plain></el-button>
-                                <el-button @click="scan()" icon="bottom" plain>scan</el-button>
-                                <el-button @click="showNewKeyDialog" type="primary" icon="plus" plain
-                                    v-auth="'redis:data:save'"></el-button>
-                                <el-button @click="flushDb" type="danger" plain v-auth="'redis:data:save'">flush</el-button>
+                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="searchKey()" type="success"
+                                    icon="search" plain></el-button>
+                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="scan()" icon="bottom"
+                                    plain>scan</el-button>
+                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="showNewKeyDialog"
+                                    type="primary" icon="plus" plain v-auth="'redis:data:save'"></el-button>
+                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="flushDb" type="danger" plain
+                                    v-auth="'redis:data:save'">flush</el-button>
                             </el-form-item>
                             <div style="float: right">
                                 <span>keys: {{ state.dbsize }}</span>
@@ -149,7 +152,7 @@ const state = reactive({
     scanParam: {
         id: null as any,
         mode: '',
-        db: 0,
+        db: null as any,
         match: null,
         count: 10,
         cursor: {},

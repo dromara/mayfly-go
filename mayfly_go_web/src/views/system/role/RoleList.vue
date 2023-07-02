@@ -1,12 +1,12 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
-            v-model:selection-data="selectionData" :data="roles" :columns="state.columns" :total="total"
+        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="selectionData" :data="roles" :columns="columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #queryRight>
-                <el-button v-auth="'role:add'" type="primary" icon="plus" @click="editRole(false)">添加</el-button>
-                <el-button v-auth="'role:del'" :disabled="selectionData.length < 1" @click="deleteRole(selectionData)"
+                <el-button v-auth="perms.addRole" type="primary" icon="plus" @click="editRole(false)">添加</el-button>
+                <el-button v-auth="perms.delRole" :disabled="selectionData.length < 1" @click="deleteRole(selectionData)"
                     type="danger" icon="delete">删除</el-button>
             </template>
 
@@ -20,8 +20,9 @@
             </template>
 
             <template #action="{ data }">
-                <el-button v-auth="'role:update'" @click="editRole(data)" type="primary" link>编辑</el-button>
-                <el-button v-auth="'role:saveResources'" @click="editResource(data)" type="success" link>权限分配</el-button>
+                <el-button v-if="actionBtns[perms.updateRole]" @click="editRole(data)" type="primary" link>编辑</el-button>
+                <el-button v-if="actionBtns[perms.saveRoleResource]" @click="editResource(data)" type="success"
+                    link>权限分配</el-button>
             </template>
 
         </page-table>
@@ -45,8 +46,34 @@ import { roleApi, resourceApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue'
 import { TableColumn, TableQuery } from '@/components/pagetable';
+import { hasPerms } from '@/components/auth/auth';
 
 const pageTableRef: any = ref(null)
+
+const perms = {
+    addRole: "role:add",
+    delRole: "role:del",
+    updateRole: "role:update",
+    saveRoleResource: "role:saveResources",
+}
+
+const queryConfig = [
+    TableQuery.text("name", "角色名"),
+]
+const columns = [
+    TableColumn.new("name", "角色名称"),
+    TableColumn.new("code", "角色code"),
+    TableColumn.new("remark", "备注"),
+    TableColumn.new("status", "状态").isSlot(),
+    TableColumn.new("creator", "创建账号"),
+    TableColumn.new("createTime", "创建时间").isTime(),
+    TableColumn.new("modifier", "更新账号"),
+    TableColumn.new("updateTime", "更新时间").isTime(),
+    TableColumn.new("showmore", "查看更多").isSlot().setMinWidth(150),
+]
+
+const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource])
+const actionColumn = TableColumn.new("action", "操作").isSlot().setMinWidth(160).fixedRight()
 
 const state = reactive({
     query: {
@@ -54,21 +81,6 @@ const state = reactive({
         pageSize: 10,
         name: null,
     },
-    queryConfig: [
-        TableQuery.text("name", "角色名"),
-    ],
-    columns: [
-        TableColumn.new("name", "角色名称"),
-        TableColumn.new("code", "角色code"),
-        TableColumn.new("remark", "备注"),
-        TableColumn.new("status", "状态").isSlot(),
-        TableColumn.new("creator", "创建账号"),
-        TableColumn.new("createTime", "创建时间").isTime(),
-        TableColumn.new("modifier", "更新账号"),
-        TableColumn.new("updateTime", "更新时间").isTime(),
-        TableColumn.new("showmore", "查看更多").isSlot().setMinWidth(150),
-        TableColumn.new("action", "操作").isSlot().setMinWidth(160).fixedRight(),
-    ],
     total: 0,
     roles: [],
     selectionData: [],
@@ -101,6 +113,9 @@ const {
 } = toRefs(state)
 
 onMounted(() => {
+    if (Object.keys(actionBtns).length > 0) {
+        columns.push(actionColumn);
+    }
     search();
 });
 

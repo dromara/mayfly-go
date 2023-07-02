@@ -1,13 +1,14 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
-            v-model:selection-data="selectionData" :data="datas" :columns="state.columns" :total="total"
+        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="selectionData" :data="datas" :columns="columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #queryRight>
-                <el-button v-auth="'account:add'" type="primary" icon="plus" @click="editAccount(true)">添加</el-button>
-                <el-button v-auth="'account:del'" :disabled="state.selectionData.length < 1" @click="deleteAccount()"
-                    type="danger" icon="delete">删除</el-button>
+                <el-button v-auth="perms.addAccount" type="primary" icon="plus"
+                    @click="editAccount(true)">添加</el-button>
+                <el-button v-auth="perms.delAccount" :disabled="state.selectionData.length < 1"
+                    @click="deleteAccount()" type="danger" icon="delete">删除</el-button>
             </template>
 
             <template #status="{ data }">
@@ -22,18 +23,21 @@
             </template>
 
             <template #action="{ data }">
-                <el-button link v-auth="'account:add'" @click="editAccount(data)" type="primary">编辑</el-button>
+                <el-button link v-if="actionBtns[perms.addAccount]" @click="editAccount(data)"
+                    type="primary">编辑</el-button>
 
-                <el-button link v-auth="'account:saveRoles'" @click="showRoleEdit(data)" type="success">角色分配</el-button>
+                <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="showRoleEdit(data)"
+                    type="success">角色分配</el-button>
 
-                <el-button link v-auth="'account:changeStatus'" @click="changeStatus(data)" v-if="data.status == 1"
-                    type="danger">禁用</el-button>
+                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == 1"
+                    @click="changeStatus(data)" type="danger">禁用</el-button>
 
-                <el-button link v-auth="'account:changeStatus'" v-if="data.status == -1" type="success"
+                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == -1" type="success"
                     @click="changeStatus(data)">启用</el-button>
 
-                <el-button link v-auth="'account:add'" :disabled="!data.otpSecret || data.otpSecret == '-'"
-                    @click="resetOtpSecret(data)" type="warning">重置OTP</el-button>
+                <el-button link v-if="actionBtns[perms.addAccount]"
+                    :disabled="!data.otpSecret || data.otpSecret == '-'" @click="resetOtpSecret(data)"
+                    type="warning">重置OTP</el-button>
             </template>
         </page-table>
 
@@ -79,8 +83,35 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { dateFormat } from '@/common/utils/date';
 import PageTable from '@/components/pagetable/PageTable.vue'
 import { TableColumn, TableQuery } from '@/components/pagetable';
+import { hasPerms } from '@/components/auth/auth';
 
 const pageTableRef: any = ref(null)
+
+const perms = {
+    addAccount: "account:add",
+    delAccount: "account:del",
+    saveAccountRole: "account:saveRoles",
+    changeAccountStatus: "account:changeStatus",
+}
+
+const queryConfig = [
+    TableQuery.text("username", "用户名"),
+]
+const columns = [
+    TableColumn.new("name", "姓名"),
+    TableColumn.new("username", "用户名"),
+    TableColumn.new("status", "状态").isSlot(),
+    TableColumn.new("lastLoginTime", "最后登录时间").isTime(),
+    TableColumn.new("showmore", "查看更多").isSlot().setMinWidth(150),
+    TableColumn.new("creator", "创建账号"),
+    TableColumn.new("createTime", "创建时间").isTime(),
+    TableColumn.new("modifier", "更新账号"),
+    TableColumn.new("updateTime", "更新时间").isTime(),
+]
+
+// 该用户拥有的的操作列按钮权限
+const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.changeAccountStatus])
+const actionColumn = TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(260).noShowOverflowTooltip()
 
 const state = reactive({
     /**
@@ -95,21 +126,6 @@ const state = reactive({
         pageNum: 1,
         pageSize: 10,
     },
-    queryConfig: [
-        TableQuery.text("username", "用户名"),
-    ],
-    columns: [
-        TableColumn.new("name", "姓名"),
-        TableColumn.new("username", "用户名"),
-        TableColumn.new("status", "状态").isSlot("status"),
-        TableColumn.new("lastLoginTime", "最后登录时间").isTime(),
-        TableColumn.new("showmore", "查看更多").isSlot("showmore").setMinWidth(150),
-        TableColumn.new("creator", "创建账号"),
-        TableColumn.new("createTime", "创建时间").isTime(),
-        TableColumn.new("modifier", "更新账号"),
-        TableColumn.new("updateTime", "更新时间").isTime(),
-        TableColumn.new("action", "操作").isSlot("action").fixedRight().setMinWidth(280),
-    ],
     datas: [],
     total: 0,
     showRoleDialog: {
@@ -149,6 +165,9 @@ const {
 } = toRefs(state)
 
 onMounted(() => {
+    if (Object.keys(actionBtns).length > 0) {
+        columns.push(actionColumn);
+    }
     search();
 });
 

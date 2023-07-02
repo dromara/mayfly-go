@@ -1,7 +1,7 @@
 <template>
     <div class="db-list">
-        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
-            v-model:selection-data="state.selectionData" :data="datas" :columns="state.columns" :total="total"
+        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="state.selectionData" :data="datas" :columns="columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #tagPathSelect>
@@ -12,8 +12,8 @@
             </template>
 
             <template #queryRight>
-                <el-button v-auth="permissions.saveDb" type="primary" icon="plus" @click="editDb(true)">添加</el-button>
-                <el-button v-auth="permissions.delDb" :disabled="selectionData.length < 1" @click="deleteDb()" type="danger"
+                <el-button v-auth="perms.saveDb" type="primary" icon="plus" @click="editDb(true)">添加</el-button>
+                <el-button v-auth="perms.delDb" :disabled="selectionData.length < 1" @click="deleteDb()" type="danger"
                     icon="delete">删除</el-button>
             </template>
 
@@ -54,7 +54,7 @@
             </template>
 
             <template #action="{ data }">
-                <el-button v-auth="permissions.saveDb" @click="editDb(data)" type="primary" link>编辑</el-button>
+                <el-button v-if="actionBtns[perms.saveDb]" @click="editDb(data)" type="primary" link>编辑</el-button>
             </template>
         </page-table>
 
@@ -277,14 +277,34 @@ import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
 import PageTable from '@/components/pagetable/PageTable.vue'
 import { TableColumn, TableQuery } from '@/components/pagetable';
+import { hasPerms } from '@/components/auth/auth';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 const CreateTable = defineAsyncComponent(() => import('./CreateTable.vue'));
 
-const permissions = {
+const perms = {
     saveDb: 'db:save',
     delDb: 'db:del',
 }
+
+const queryConfig = [
+    TableQuery.slot("tagPath", "标签", "tagPathSelect"),
+]
+
+const columns = [
+    TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
+    TableColumn.new("name", "名称"),
+    TableColumn.new("host", "host:port").setFormatFunc((data: any, _prop: string) => `${data.host}:${data.port}`),
+    TableColumn.new("type", "类型"),
+    TableColumn.new("database", "数据库").isSlot().setMinWidth(70),
+    TableColumn.new("username", "用户名"),
+    TableColumn.new("remark", "备注"),
+    TableColumn.new("more", "更多").isSlot().setMinWidth(165).fixedRight(),
+]
+
+// 该用户拥有的的操作列按钮权限
+const actionBtns = hasPerms([perms.saveDb,])
+const actionColumn = TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight();
 
 const pageTableRef: any = ref(null)
 
@@ -305,20 +325,6 @@ const state = reactive({
         pageNum: 1,
         pageSize: 10,
     },
-    queryConfig: [
-        TableQuery.slot("tagPath", "标签", "tagPathSelect"),
-    ],
-    columns: [
-        TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
-        TableColumn.new("name", "名称"),
-        TableColumn.new("host", "host:port").setFormatFunc((data: any, _prop: string) => `${data.host}:${data.port}`),
-        TableColumn.new("type", "类型"),
-        TableColumn.new("database", "数据库").isSlot().setMinWidth(70),
-        TableColumn.new("username", "用户名"),
-        TableColumn.new("remark", "备注"),
-        TableColumn.new("more", "更多").isSlot().setMinWidth(165).fixedRight(),
-        TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight(),
-    ],
     datas: [],
     total: 0,
     infoDialog: {
@@ -422,6 +428,9 @@ const {
 
 
 onMounted(async () => {
+    if (Object.keys(actionBtns).length > 0) {
+        columns.push(actionColumn);
+    }
     search();
 });
 

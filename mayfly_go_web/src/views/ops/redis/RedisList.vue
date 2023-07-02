@@ -1,7 +1,7 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
-            v-model:selection-data="selectionData" :data="redisTable" :columns="state.columns" :total="total"
+        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="selectionData" :data="redisTable" :columns="columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #tagPathSelect>
@@ -154,6 +154,19 @@ import { TableColumn, TableQuery } from '@/components/pagetable';
 
 const pageTableRef: any = ref(null)
 
+const queryConfig = [
+    TableQuery.slot("tagPath", "标签", "tagPathSelect"),
+]
+const columns = [
+    TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
+    TableColumn.new("name", "名称"),
+    TableColumn.new("host", "host:port"),
+    TableColumn.new("mode", "mode"),
+    TableColumn.new("remark", "备注"),
+    TableColumn.new("more", "更多").isSlot().setMinWidth(155).fixedRight(),
+    TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight(),
+]
+
 const state = reactive({
     tags: [],
     redisTable: [],
@@ -164,18 +177,6 @@ const state = reactive({
         pageNum: 1,
         pageSize: 10,
     },
-    queryConfig: [
-        TableQuery.slot("tagPath", "标签", "tagPathSelect"),
-    ],
-    columns: [
-        TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
-        TableColumn.new("name", "名称"),
-        TableColumn.new("host", "host:port"),
-        TableColumn.new("mode", "mode"),
-        TableColumn.new("remark", "备注"),
-        TableColumn.new("more", "更多").isSlot().setMinWidth(155).fixedRight(),
-        TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight(),
-    ],
     detailDialog: {
         visible: false,
         data: null as any,

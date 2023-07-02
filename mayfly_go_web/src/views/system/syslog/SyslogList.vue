@@ -45,7 +45,7 @@ const state = reactive({
     columns: [
         TableColumn.new("creator", "操作人"),
         TableColumn.new("createTime", "操作时间").isTime(),
-        TableColumn.new("type", "结果").setSlot("type"),
+        TableColumn.new("type", "结果").isSlot(),
         TableColumn.new("description", "描述"),
         TableColumn.new("reqParam", "操作信息"),
         TableColumn.new("resp", "响应信息"),

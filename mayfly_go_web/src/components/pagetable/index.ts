@@ -77,6 +77,11 @@ export class TableColumn {
         return new TableColumn(prop, label)
     }
 
+    noShowOverflowTooltip(): TableColumn {
+        this.showOverflowTooltip = false
+        return this;
+    }
+
     setMinWidth(minWidth: number | string): TableColumn {
         this.minWidth = minWidth
         this.autoWidth = false;

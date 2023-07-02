@@ -86,13 +86,13 @@
             </div>
 
             <el-table v-bind="$attrs" max-height="700" @selection-change="handleSelectionChange" :data="props.data" border
-                highlight-current-row show-overflow-tooltip v-loading="loadingData">
+                highlight-current-row v-loading="loadingData">
 
                 <el-table-column v-if="props.showSelection" type="selection" width="40" />
 
                 <template v-for="(item, index) in columns">
                     <el-table-column :key="index" v-if="item.show" :prop="item.prop" :label="item.label" :fixed="item.fixed"
-                        :align="item.align" :show-overflow-tooltip="item.showOverflowTooltip || true"
+                        :align="item.align" :show-overflow-tooltip="item.showOverflowTooltip"
                         :min-width="item.minWidth" :sortable="item.sortable || false" :type="item.type" :width="item.width">
 
                         <!-- 插槽：预留功能 -->

@@ -1,7 +1,7 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
-            v-model:selection-data="selectionData" :data="list" :columns="state.columns" :total="total"
+        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="query" :show-selection="true"
+            v-model:selection-data="selectionData" :data="list" :columns="columns" :total="total"
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #tagPathSelect>
@@ -180,6 +180,18 @@ import { TableColumn, TableQuery } from '@/components/pagetable';
 
 const pageTableRef: any = ref(null)
 
+const queryConfig = [
+    TableQuery.slot("tagPath", "标签", "tagPathSelect"),
+]
+const columns = [
+    TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
+    TableColumn.new("name", "名称"),
+    TableColumn.new("uri", "连接uri"),
+    TableColumn.new("createTime", "创建时间").isTime(),
+    TableColumn.new("creator", "创建人"),
+    TableColumn.new("action", "操作").isSlot().setMinWidth(100).fixedRight(),
+]
+
 const state = reactive({
     tags: [],
     dbOps: {
@@ -194,17 +206,6 @@ const state = reactive({
         pageSize: 10,
         tagPath: null,
     },
-    queryConfig: [
-        TableQuery.slot("tagPath", "标签", "tagPathSelect"),
-    ],
-    columns: [
-        TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
-        TableColumn.new("name", "名称"),
-        TableColumn.new("uri", "连接uri"),
-        TableColumn.new("createTime", "创建时间").isTime(),
-        TableColumn.new("creator", "创建人"),
-        TableColumn.new("action", "操作").isSlot().setMinWidth(100).fixedRight(),
-    ],
     mongoEditDialog: {
         visible: false,
         data: null as any,

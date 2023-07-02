@@ -1,7 +1,7 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :query="state.queryConfig" v-model:query-form="params" :show-selection="true"
-            v-model:selection-data="state.selectionData" :data="data.list" :columns="state.columns" :total="data.total"
+        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="params" :show-selection="true"
+            v-model:selection-data="state.selectionData" :data="data.list" :columns="columns" :total="data.total"
             v-model:page-size="params.pageSize" v-model:page-num="params.pageNum" @pageChange="search()">
 
             <template #tagPathSelect>
@@ -12,9 +12,9 @@
             </template>
 
             <template #queryRight>
-                <el-button v-auth="'machine:add'" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加
+                <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加
                 </el-button>
-                <el-button v-auth="'machine:del'" :disabled="selectionData.length < 1" @click="deleteMachine()"
+                <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()"
                     type="danger" icon="delete">删除</el-button>
             </template>
 
@@ -53,7 +53,7 @@
                 <el-button :disabled="data.status == -1" type="warning" @click="serviceManager(data)" link>脚本</el-button>
                 <el-divider direction="vertical" border-style="dashed" />
 
-                <el-dropdown>
+                <el-dropdown @command="handleCommand">
                     <span class="el-dropdown-link-machine-list">
                         更多
                         <el-icon class="el-icon--right">
@@ -62,26 +62,26 @@
                     </span>
                     <template #dropdown>
                         <el-dropdown-menu>
-                            <el-dropdown-item>
-                                <el-button @click="showInfo(data)" link>详情</el-button>
+                            <el-dropdown-item :command="{ type: 'detail', data }">
+                                详情
                             </el-dropdown-item>
 
-                            <el-dropdown-item>
-                                <el-button v-auth="'machine:update'" @click="openFormDialog(data)" link>编辑</el-button>
+                            <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.updateMachine]">
+                                编辑
                             </el-dropdown-item>
 
-                            <el-dropdown-item>
-                                <el-button @click="showProcess(data)" :disabled="data.status == -1" link>进程</el-button>
+                            <el-dropdown-item :command="{ type: 'process', data }" :disabled="data.status == -1">
+                                进程
                             </el-dropdown-item>
 
-                            <el-dropdown-item v-if="data.enableRecorder == 1">
-                                <el-button v-auth="'machine:update'" @click="showRec(data)" link>终端回放</el-button>
+                            <el-dropdown-item :command="{ type: 'terminalRec', data }"
+                                v-if="actionBtns[perms.updateMachine] && data.enableRecorder == 1">
+                                终端回放
                             </el-dropdown-item>
 
-                            <el-dropdown-item>
-                                <el-button v-auth="'machine:close-cli'" :disabled="!data.hasCli || data.status == -1"
-                                    type="danger" @click="closeCli(data)" link>关闭连接
-                                </el-button>
+                            <el-dropdown-item :command="{ type: 'closeCli', data }" v-if="actionBtns[perms.closeCli]"
+                                :disabled="!data.hasCli || data.status == -1">
+                                关闭连接
                             </el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
@@ -152,6 +152,7 @@ import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
 import PageTable from '@/components/pagetable/PageTable.vue'
 import { TableColumn, TableQuery } from '@/components/pagetable';
+import { hasPerms } from '@/components/auth/auth';
 
 // 组件
 const MachineEdit = defineAsyncComponent(() => import('./MachineEdit.vue'));
@@ -164,6 +165,32 @@ const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
 const router = useRouter();
 const pageTableRef: any = ref(null)
 
+const perms = {
+    addMachine: "machine:add",
+    updateMachine: "machine:update",
+    delMachine: "machine:del",
+    terminal: "machine:terminal",
+    closeCli: "machine:close-cli",
+}
+
+const queryConfig = [
+    TableQuery.slot("tagPath", "标签", "tagPathSelect"),
+    TableQuery.text("ip", "IP"),
+    TableQuery.text("name", "名称"),
+]
+
+const columns = [
+    TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
+    TableColumn.new("name", "名称"),
+    TableColumn.new("ipPort", "ip:port").isSlot().setAddWidth(35),
+    TableColumn.new("username", "用户名"),
+    TableColumn.new("status", "状态").isSlot().setMinWidth(85),
+    TableColumn.new("remark", "备注"),
+    TableColumn.new("action", "操作").isSlot().setMinWidth(238).fixedRight(),
+]
+// 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
+const actionBtns = hasPerms([perms.updateMachine, perms.closeCli])
+
 const state = reactive({
     tags: [] as any,
     params: {
@@ -173,20 +200,6 @@ const state = reactive({
         name: null,
         tagPath: null,
     },
-    queryConfig: [
-        TableQuery.slot("tagPath", "标签", "tagPathSelect"),
-        TableQuery.text("ip", "IP"),
-        TableQuery.text("name", "名称"),
-    ],
-    columns: [
-        TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
-        TableColumn.new("name", "名称"),
-        TableColumn.new("ipPort", "ip:port").isSlot().setAddWidth(35),
-        TableColumn.new("username", "用户名"),
-        TableColumn.new("status", "状态").isSlot().setMinWidth(85),
-        TableColumn.new("remark", "备注"),
-        TableColumn.new("action", "操作").isSlot().setMinWidth(235).fixedRight(),
-    ],
     // 列表数据
     data: {
         list: [],
@@ -247,6 +260,34 @@ const {
 onMounted(async () => {
     search();
 });
+
+const handleCommand = (commond: any) => {
+    const data = commond.data;
+    const type = commond.type;
+    console.log(type);
+    switch (type) {
+        case "detail": {
+            showInfo(data);
+            return;
+        }
+        case "edit": {
+            openFormDialog(data);
+            return;
+        }
+        case "process": {
+            showProcess(data);
+            return;
+        }
+        case "terminalRec": {
+            showRec(data);
+            return;
+        }
+        case "closeCli": {
+            closeCli(data);
+            return;
+        }
+    }
+}
 
 const showTerminal = (row: any) => {
     const { href } = router.resolve({

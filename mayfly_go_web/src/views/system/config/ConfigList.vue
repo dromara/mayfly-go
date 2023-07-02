@@ -1,10 +1,11 @@
 <template>
     <div>
-        <page-table :show-selection="true" v-model:selection-data="selectionData" :data="configs" :columns="state.columns"
+        <page-table :show-selection="true" v-model:selection-data="selectionData" :data="configs" :columns="columns"
             :total="total" v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #queryRight>
-                <el-button v-auth="'config:save'" type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
+                <el-button v-auth="perms.saveConfig" type="primary" icon="plus"
+                    @click="editConfig(false)">添加</el-button>
             </template>
 
             <template #status="{ data }">
@@ -15,7 +16,7 @@
             <template #action="{ data }">
                 <el-button :disabled="data.status == -1" type="warning" @click="showSetConfigDialog(data)"
                     link>配置</el-button>
-                <el-button v-auth="'config:save'" @click="editConfig(data)" type="primary" link>编辑
+                <el-button v-if="actionBtns[perms.saveConfig]" @click="editConfig(data)" type="primary" link>编辑
                 </el-button>
             </template>
         </page-table>
@@ -60,6 +61,21 @@ import { configApi } from '../api';
 import { ElMessage } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue'
 import { TableColumn } from '@/components/pagetable';
+import { hasPerms } from '@/components/auth/auth';
+
+const perms = {
+    saveConfig: "config:save"
+}
+const columns = [
+    TableColumn.new("name", "配置项"),
+    TableColumn.new("key", "配置key"),
+    TableColumn.new("value", "配置值"),
+    TableColumn.new("remark", "备注"),
+    TableColumn.new("modifier", "更新账号"),
+    TableColumn.new("updateTime", "更新时间").isTime(),
+]
+const actionColumn = TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip();
+const actionBtns = hasPerms([perms.saveConfig])
 
 const paramsFormRef: any = ref(null)
 const state = reactive({
@@ -68,15 +84,6 @@ const state = reactive({
         pageSize: 10,
         name: null,
     },
-    columns: [
-        TableColumn.new("name", "配置项"),
-        TableColumn.new("key", "配置key"),
-        TableColumn.new("value", "配置值"),
-        TableColumn.new("remark", "备注"),
-        TableColumn.new("modifier", "更新账号"),
-        TableColumn.new("updateTime", "更新时间").isTime(),
-        TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(130),
-    ],
     total: 0,
     configs: [],
     selectionData: [],
@@ -103,6 +110,9 @@ const {
 } = toRefs(state)
 
 onMounted(() => {
+    if (Object.keys(actionBtns).length > 0) {
+        columns.push(actionColumn);
+    }
     search();
 });
 
