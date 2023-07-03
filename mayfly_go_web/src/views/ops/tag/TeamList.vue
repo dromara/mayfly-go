@@ -185,7 +185,7 @@ const state = reactive({
         addVisible: false,
         memForm: {
             accountIds: [] as any,
-            teamId: 0,
+            teamId: 0 as any,
         },
         accounts: Array(),
     },
@@ -313,7 +313,7 @@ const showAddMemberDialog = () => {
 
 const addMember = async () => {
     const memForm = state.showMemDialog.memForm;
-    memForm.teamId = (state.selectionData[0] as any).id;
+    memForm.teamId = state.showMemDialog.query.teamId;
     notBlank(memForm.accountIds, '请先选择账号');
 
     await tagApi.saveTeamMem.request(memForm);
