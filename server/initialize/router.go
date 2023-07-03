@@ -7,6 +7,7 @@ import (
 	db_router "mayfly-go/internal/db/router"
 	machine_router "mayfly-go/internal/machine/router"
 	mongo_router "mayfly-go/internal/mongo/router"
+	msg_router "mayfly-go/internal/msg/router"
 	redis_router "mayfly-go/internal/redis/router"
 	sys_router "mayfly-go/internal/sys/router"
 	tag_router "mayfly-go/internal/tag/router"
@@ -73,6 +74,7 @@ func InitRouter() *gin.Engine {
 		common_router.InitCommonRouter(api)
 
 		sys_router.Init(api)
+		msg_router.Init(api)
 
 		tag_router.Init(api)
 		machine_router.Init(api)

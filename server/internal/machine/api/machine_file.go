@@ -8,7 +8,7 @@ import (
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/domain/entity"
-	sysApplication "mayfly-go/internal/sys/application"
+	msgapp "mayfly-go/internal/msg/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
@@ -23,7 +23,7 @@ import (
 
 type MachineFile struct {
 	MachineFileApp application.MachineFile
-	MsgApp         sysApplication.Msg
+	MsgApp         msgapp.Msg
 }
 
 const (

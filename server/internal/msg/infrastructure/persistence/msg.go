@@ -1,8 +1,8 @@
 package persistence
 
 import (
-	"mayfly-go/internal/sys/domain/entity"
-	"mayfly-go/internal/sys/domain/repository"
+	"mayfly-go/internal/msg/domain/entity"
+	"mayfly-go/internal/msg/domain/repository"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"

@@ -130,9 +130,9 @@
 
 <script lang="ts" setup>
 import { watch, toRefs, reactive, ref } from 'vue';
-import { TYPE_LIST, CHARACTER_SET_NAME_LIST, COLLATION_SUFFIX_LIST } from './service.ts';
+import { TYPE_LIST, CHARACTER_SET_NAME_LIST, COLLATION_SUFFIX_LIST } from './service';
 import { ElMessage } from 'element-plus';
-import SqlExecBox from './component/SqlExecBox.ts';
+import SqlExecBox from './component/SqlExecBox';
 
 const props = defineProps({
     visible: {
@@ -336,7 +336,7 @@ const submit = async () => {
     SqlExecBox({
         sql: sql,
         dbId: props.dbId as any,
-        db: props.db,
+        db: props.db as any,
         runSuccessCallback: () => {
             emit('submit-sql', {tableName: state.tableData.tableName });
             // cancel();

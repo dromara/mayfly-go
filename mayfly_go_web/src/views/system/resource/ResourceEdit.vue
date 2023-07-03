@@ -1,7 +1,7 @@
 <template>
     <div class="system-menu-dialog-container layout-pd">
         <el-dialog :title="title" :destroy-on-close="true" v-model="dialogVisible" width="800px">
-            <el-form :model="form" :inline="true" ref="menuForm" :rules="rules" label-width="100px">
+            <el-form :model="form" :inline="true" ref="menuForm" :rules="rules" label-width="auto">
                 <el-row :gutter="35">
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
                         <el-form-item class="w100" prop="type" label="类型" required>
@@ -67,7 +67,8 @@
                         <el-form-item class="w100" prop="isKeepAlive">
                             <template #label>
                                 是否缓存
-                                <el-tooltip effect="dark" content="选择是则会被`keep-alive`缓存(重新进入页面不会刷新页面及重新请求数据)，需要路由名与vue的组件名一致" placement="top">
+                                <el-tooltip effect="dark"
+                                    content="选择是则会被`keep-alive`缓存(重新进入页面不会刷新页面及重新请求数据)，需要路由名与vue的组件名一致" placement="top">
                                     <el-icon>
                                         <question-filled />
                                     </el-icon>

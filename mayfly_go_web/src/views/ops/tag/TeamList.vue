@@ -28,7 +28,7 @@
         </page-table>
 
         <el-dialog width="400px" title="团队编辑" :before-close="cancelSaveTeam" v-model="addTeamDialog.visible">
-            <el-form ref="teamForm" :model="addTeamDialog.form" label-width="70px">
+            <el-form ref="teamForm" :model="addTeamDialog.form" label-width="auto">
                 <el-form-item prop="name" label="团队名:" required>
                     <el-input v-model="addTeamDialog.form.name" auto-complete="off"></el-input>
                 </el-form-item>
@@ -46,7 +46,7 @@
 
         <el-dialog width="500px" :title="showTagDialog.title" :before-close="closeTagDialog"
             v-model="showTagDialog.visible">
-            <el-form label-width="70px">
+            <el-form label-width="auto">
                 <el-form-item prop="tag" label="标签:">
                     <el-tree-select ref="tagTreeRef" style="width: 100%" v-model="showTagDialog.tagTreeTeams"
                         :data="showTagDialog.tags" :default-expanded-keys="showTagDialog.tagTreeTeams" multiple

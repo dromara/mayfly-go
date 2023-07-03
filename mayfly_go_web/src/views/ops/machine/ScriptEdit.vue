@@ -2,7 +2,7 @@
     <div class="mock-data-dialog">
         <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :before-close="cancel"
             :show-close="true" :destroy-on-close="true" width="900px">
-            <el-form :model="form" ref="scriptForm" label-width="50px" size="small">
+            <el-form :model="form" ref="scriptForm" label-width="auto" size="small">
                 <el-form-item prop="method" label="名称">
                     <el-input v-model="form.name" placeholder="请输入名称"></el-input>
                 </el-form-item>

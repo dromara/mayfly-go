@@ -2,7 +2,7 @@
     <div>
         <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="500px"
             :destroy-on-close="true">
-            <el-form ref="acForm" :rules="rules" :model="form" label-width="90px">
+            <el-form ref="acForm" :rules="rules" :model="form" label-width="auto">
                 <el-form-item prop="name" label="名称:" required>
                     <el-input v-model="form.name"></el-input>
                 </el-form-item>

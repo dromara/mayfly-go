@@ -1,6 +1,7 @@
 package router
 
 import (
+	msgapp "mayfly-go/internal/msg/application"
 	"mayfly-go/internal/sys/api"
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/req"
@@ -14,7 +15,7 @@ func InitAccountRouter(router *gin.RouterGroup) {
 		AccountApp:  application.GetAccountApp(),
 		ResourceApp: application.GetResourceApp(),
 		RoleApp:     application.GetRoleApp(),
-		MsgApp:      application.GetMsgApp(),
+		MsgApp:      msgapp.GetMsgApp(),
 		ConfigApp:   application.GetConfigApp(),
 	}
 	{
@@ -54,10 +55,6 @@ func InitAccountRouter(router *gin.RouterGroup) {
 		// 更新个人账号信息
 		account.PUT("/self", func(c *gin.Context) {
 			req.NewCtxWithGin(c).Handle(a.UpdateAccount)
-		})
-
-		account.GET("/msgs", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(a.GetMsgs)
 		})
 
 		/**   后台管理接口  **/

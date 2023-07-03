@@ -2,7 +2,7 @@
     <div class="account-dialog">
         <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="35%"
             :destroy-on-close="true">
-            <el-form :model="form" ref="accountForm" :rules="rules" label-width="85px">
+            <el-form :model="form" ref="accountForm" :rules="rules" label-width="auto">
                 <el-form-item prop="name" label="姓名:" required>
                     <el-input v-model.trim="form.name" placeholder="请输入姓名" auto-complete="off"></el-input>
                 </el-form-item>

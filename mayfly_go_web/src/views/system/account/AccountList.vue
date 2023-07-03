@@ -5,10 +5,9 @@
             v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #queryRight>
-                <el-button v-auth="perms.addAccount" type="primary" icon="plus"
-                    @click="editAccount(true)">添加</el-button>
-                <el-button v-auth="perms.delAccount" :disabled="state.selectionData.length < 1"
-                    @click="deleteAccount()" type="danger" icon="delete">删除</el-button>
+                <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="editAccount(false)">添加</el-button>
+                <el-button v-auth="perms.delAccount" :disabled="state.selectionData.length < 1" @click="deleteAccount()"
+                    type="danger" icon="delete">删除</el-button>
             </template>
 
             <template #status="{ data }">
@@ -23,21 +22,19 @@
             </template>
 
             <template #action="{ data }">
-                <el-button link v-if="actionBtns[perms.addAccount]" @click="editAccount(data)"
-                    type="primary">编辑</el-button>
+                <el-button link v-if="actionBtns[perms.addAccount]" @click="editAccount(data)" type="primary">编辑</el-button>
 
                 <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="showRoleEdit(data)"
                     type="success">角色分配</el-button>
 
-                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == 1"
-                    @click="changeStatus(data)" type="danger">禁用</el-button>
+                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == 1" @click="changeStatus(data)"
+                    type="danger">禁用</el-button>
 
                 <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == -1" type="success"
                     @click="changeStatus(data)">启用</el-button>
 
-                <el-button link v-if="actionBtns[perms.addAccount]"
-                    :disabled="!data.otpSecret || data.otpSecret == '-'" @click="resetOtpSecret(data)"
-                    type="warning">重置OTP</el-button>
+                <el-button link v-if="actionBtns[perms.addAccount]" :disabled="!data.otpSecret || data.otpSecret == '-'"
+                    @click="resetOtpSecret(data)" type="warning">重置OTP</el-button>
             </template>
         </page-table>
 
@@ -97,7 +94,7 @@ const perms = {
 const queryConfig = [
     TableQuery.text("username", "用户名"),
 ]
-const columns = [
+const columns = ref([
     TableColumn.new("name", "姓名"),
     TableColumn.new("username", "用户名"),
     TableColumn.new("status", "状态").isSlot(),
@@ -107,7 +104,7 @@ const columns = [
     TableColumn.new("createTime", "创建时间").isTime(),
     TableColumn.new("modifier", "更新账号"),
     TableColumn.new("updateTime", "更新时间").isTime(),
-]
+])
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.changeAccountStatus])
@@ -166,7 +163,7 @@ const {
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
-        columns.push(actionColumn);
+        columns.value.push(actionColumn);
     }
     search();
 });

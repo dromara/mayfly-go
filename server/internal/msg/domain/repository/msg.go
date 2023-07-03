@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"mayfly-go/internal/sys/domain/entity"
+	"mayfly-go/internal/msg/domain/entity"
 	"mayfly-go/pkg/model"
 )
 

@@ -10,11 +10,13 @@
         <el-card>
             <div class="query" ref="queryRef">
                 <div>
-                    <div v-if="props.query.length > 0" class="query-head">
-                        <div style="display: flex; align-items: center;">
-                            <el-form :model="props.queryForm" label-width="auto" style="display: flex;">
-                                <el-form-item :label="item.label" style="margin-right: 20px; margin-bottom: 0px;"
-                                    v-for="item in props.query?.slice(0, defaultQueryCount)" :key="item.prop">
+                    <div v-if="props.query.length > 0">
+                        <el-form :model="props.queryForm" label-width="auto">
+                            <el-row v-for="i in Math.ceil((props.query.length + 1) / (defaultQueryCount + 1))" :key="i"
+                                v-show="i == 1 || isOpenMoreQuery" :class="i > 1 && isOpenMoreQuery ? 'is-open' : ''">
+
+                                <el-form-item :label="item.label" style="margin-right: 12px; margin-bottom: 0px;"
+                                    v-for="item in getRowQueryItem(i)" :key="item.prop">
                                     <!-- 这里只获取指定个数的筛选条件 -->
                                     <el-input v-model="queryForm[item.prop]" :placeholder="'输入' + item.label + '关键字'"
                                         clearable v-if="item.type == 'text'"></el-input>
@@ -26,40 +28,22 @@
                                         format="YYYY-MM-DD hh:mm:ss" value-format="x" range-separator="至"
                                         start-placeholder="开始时间" end-placeholder="结束时间" v-else-if="item.type == 'date'" />
 
+                                    <template v-else-if="item.slot == 'queryBtns'">
+                                        <template v-if="props.query?.length > defaultQueryCount">
+                                            <el-button @click="isOpenMoreQuery = !isOpenMoreQuery" v-if="!isOpenMoreQuery"
+                                                icon="ArrowDownBold" circle></el-button>
+                                            <el-button @click="isOpenMoreQuery = !isOpenMoreQuery" v-else icon="ArrowUpBold"
+                                                circle></el-button>
+                                        </template>
+
+                                        <el-button @click="queryData()" type="primary" icon="search" plain>查询</el-button>
+                                        <el-button @click="reset()" icon="RefreshRight">重置</el-button>
+                                    </template>
+
                                     <slot :name="item.slot"></slot>
                                 </el-form-item>
-                            </el-form>
 
-                            <template v-if="props.query?.length > defaultQueryCount">
-                                <el-button @click="isOpenMoreQuery = !isOpenMoreQuery" v-if="!isOpenMoreQuery"
-                                    icon="ArrowDownBold" circle></el-button>
-                                <el-button @click="isOpenMoreQuery = !isOpenMoreQuery" v-else icon="ArrowUpBold"
-                                    circle></el-button>
-                            </template>
-
-                            <el-button @click="queryData()" type="primary" plain>查询</el-button>
-                            <el-button @click="reset()">重置</el-button>
-                        </div>
-                    </div>
-                    <!-- 这里做的是一个类似于折叠面板的功能 -->
-                    <div class="query-content" :class="isOpenMoreQuery ? 'is-open' : ''">
-                        <el-form :model="props.queryForm" label-width="auto" style="display: flex; flex-wrap: wrap;">
-                            <el-form-item :label="item.label" style="margin-right: 20px; margin-bottom: 0px;"
-                                v-for="item in props.query?.slice(defaultQueryCount)" :key="item.prop">
-
-                                <!-- 这里获取除前两个以外所有的筛选条件 -->
-                                <el-input v-model="queryForm[item.prop]" :placeholder="'输入' + item.label + '关键字'" clearable
-                                    v-if="item.type == 'text'"></el-input>
-
-                                <el-select-v2 v-model="queryForm[item.prop]" :options="item.options" clearable
-                                    :placeholder="'选择' + item.label + '关键字'" v-else-if="item.type == 'select'" />
-
-                                <el-date-picker v-model="queryForm[item.prop]" clearable type="datetimerange"
-                                    format="YYYY-MM-DD hh:mm:ss" value-format="x" range-separator="至"
-                                    start-placeholder="开始时间" end-placeholder="结束时间" v-else-if="item.type == 'date'" />
-
-                                <slot :name="item.slot"></slot>
-                            </el-form-item>
+                            </el-row>
                         </el-form>
                     </div>
                 </div>
@@ -71,7 +55,7 @@
                     <!-- 
                     动态表头显示，根据表格每条配置项中的show字段来决定改列是否显示或者隐藏 
                     columns 就是我们表格配置的数组对象
-                -->
+                    -->
                     <el-popover placement="bottom" title="表格配置"
                         popper-style="max-height: 550px; overflow: auto; max-width: 450px" width="auto" trigger="click">
                         <div v-for="(item, index) in props.columns" :key="index">
@@ -92,8 +76,8 @@
 
                 <template v-for="(item, index) in columns">
                     <el-table-column :key="index" v-if="item.show" :prop="item.prop" :label="item.label" :fixed="item.fixed"
-                        :align="item.align" :show-overflow-tooltip="item.showOverflowTooltip"
-                        :min-width="item.minWidth" :sortable="item.sortable || false" :type="item.type" :width="item.width">
+                        :align="item.align" :show-overflow-tooltip="item.showOverflowTooltip" :min-width="item.minWidth"
+                        :sortable="item.sortable || false" :type="item.type" :width="item.width">
 
                         <!-- 插槽：预留功能 -->
                         <template #default="scope" v-if="item.slot">
@@ -179,7 +163,7 @@ const state = reactive({
     chooseData: null as any,
     chooseId: 0 as any,
     isOpenMoreQuery: false,
-    defaultQueryCount: 2, // 默认显示的查询参数个数
+    defaultQueryCount: 2, // 默认显示的查询参数个数，展开后每行显示个数为该值加1。第一行用最后一列来占用按钮
     queryForm: {} as any,
     loadingData: false,
 })
@@ -219,6 +203,18 @@ onMounted(() => {
     state.pageSize = props.pageSize;
     state.queryForm = props.queryForm;
 })
+
+const getRowQueryItem = (row: number) => {
+    // 第一行需要加个查询等按钮列
+    if (row === 1) {
+        const res = props.query.slice(row - 1, defaultQueryCount.value)
+        // 查询等按钮列
+        res.push(TableQuery.slot("", "", "queryBtns"))
+        return res
+    }
+    const columnCount = defaultQueryCount.value + 1;
+    return props.query.slice((row - 1) * columnCount - 1, row * columnCount - 1)
+}
 
 const handleSelectionChange = (val: any) => {
     emit('update:selectionData', val);
@@ -265,44 +261,19 @@ defineExpose({ loading })
         margin-bottom: 10px;
         overflow: hidden;
 
-        .query-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .query-content {
-            width: 100%;
-            max-height: 0px;
-            transition: all 0.8s;
-        }
-
         .is-open {
-            padding: 10px 0;
+            // padding: 10px 0;
             max-height: 200px;
+            margin-top: 10px;
         }
 
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        margin-bottom: 10px;
-
-        .query-content {
-            display: flex;
-            align-items: flex-start;
-
-            .query-form {
-                .el-form-item {
-                    margin: 0px;
-                    margin-right: 20px;
-                }
-            }
-        }
 
         .slot {
             display: flex;
             justify-content: flex-end;
-            padding-right: 20px;
         }
     }
 

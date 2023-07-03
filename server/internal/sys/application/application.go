@@ -7,7 +7,6 @@ import (
 var (
 	accountApp  = newAccountApp(persistence.GetAccountRepo())
 	configApp   = newConfigApp(persistence.GetConfigRepo())
-	msgApp      = newMsgApp(persistence.GetMsgRepo())
 	resourceApp = newResourceApp(persistence.GetResourceRepo())
 	roleApp     = newRoleApp(persistence.GetRoleRepo())
 	syslogApp   = newSyslogApp(persistence.GetSyslogRepo())
@@ -19,10 +18,6 @@ func GetAccountApp() Account {
 
 func GetConfigApp() Config {
 	return configApp
-}
-
-func GetMsgApp() Msg {
-	return msgApp
 }
 
 func GetResourceApp() Resource {

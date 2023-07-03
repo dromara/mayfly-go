@@ -113,7 +113,7 @@
         </el-dialog>
 
         <el-dialog v-model="addDataDialog.visible" :title="addDataDialog.title" :destroy-on-close="true" width="600px">
-            <el-form ref="dataForm" :model="addDataDialog.data" label-width="160px" size="small">
+            <el-form ref="dataForm" :model="addDataDialog.data" label-width="auto" size="small">
                 <el-form-item v-for="column in columns" class="w100" :prop="column.columnName" :label="column.columnName"
                     :required="column.nullable != 'YES' && column.columnKey != 'PRI'">
                     <el-input-number v-if="DbInst.isNumber(column.columnType)"

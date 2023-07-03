@@ -3,7 +3,7 @@ package router
 import (
 	"mayfly-go/internal/machine/api"
 	"mayfly-go/internal/machine/application"
-	sysApplication "mayfly-go/internal/sys/application"
+	msgapp "mayfly-go/internal/msg/application"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -14,7 +14,7 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 	{
 		mf := &api.MachineFile{
 			MachineFileApp: application.GetMachineFileApp(),
-			MsgApp:         sysApplication.GetMsgApp(),
+			MsgApp:         msgapp.GetMsgApp(),
 		}
 
 		// 获取指定机器文件列表

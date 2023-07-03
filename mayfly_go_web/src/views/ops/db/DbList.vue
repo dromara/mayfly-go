@@ -291,7 +291,7 @@ const queryConfig = [
     TableQuery.slot("tagPath", "标签", "tagPathSelect"),
 ]
 
-const columns = [
+const columns = ref([
     TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
     TableColumn.new("name", "名称"),
     TableColumn.new("host", "host:port").setFormatFunc((data: any, _prop: string) => `${data.host}:${data.port}`),
@@ -300,11 +300,11 @@ const columns = [
     TableColumn.new("username", "用户名"),
     TableColumn.new("remark", "备注"),
     TableColumn.new("more", "更多").isSlot().setMinWidth(165).fixedRight(),
-]
+])
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.saveDb,])
-const actionColumn = TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight();
+const actionColumn = TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight()
 
 const pageTableRef: any = ref(null)
 
@@ -429,7 +429,7 @@ const {
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
-        columns.push(actionColumn);
+        columns.value.push(actionColumn);
     }
     search();
 });

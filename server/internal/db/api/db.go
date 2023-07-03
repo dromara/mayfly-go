@@ -7,7 +7,7 @@ import (
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/domain/entity"
-	sysapp "mayfly-go/internal/sys/application"
+	msgapp "mayfly-go/internal/msg/application"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
@@ -27,7 +27,7 @@ import (
 type Db struct {
 	DbApp        application.Db
 	DbSqlExecApp application.DbSqlExec
-	MsgApp       sysapp.Msg
+	MsgApp       msgapp.Msg
 	TagApp       tagapp.TagTree
 }
 

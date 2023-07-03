@@ -179,7 +179,7 @@ const queryConfig = [
     TableQuery.text("name", "名称"),
 ]
 
-const columns = [
+const columns = ref([
     TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
     TableColumn.new("name", "名称"),
     TableColumn.new("ipPort", "ip:port").isSlot().setAddWidth(35),
@@ -187,7 +187,7 @@ const columns = [
     TableColumn.new("status", "状态").isSlot().setMinWidth(85),
     TableColumn.new("remark", "备注"),
     TableColumn.new("action", "操作").isSlot().setMinWidth(238).fixedRight(),
-]
+])
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
 const actionBtns = hasPerms([perms.updateMachine, perms.closeCli])
 

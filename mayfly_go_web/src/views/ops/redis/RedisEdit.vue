@@ -2,7 +2,7 @@
     <div>
         <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false"
             :destroy-on-close="true" width="38%">
-            <el-form :model="form" ref="redisForm" :rules="rules" label-width="85px">
+            <el-form :model="form" ref="redisForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
                         <el-form-item prop="tagId" label="标签:" required>

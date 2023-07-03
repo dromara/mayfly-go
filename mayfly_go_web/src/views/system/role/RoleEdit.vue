@@ -2,7 +2,7 @@
     <div class="role-dialog">
         <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="500px"
             :destroy-on-close="true">
-            <el-form ref="roleForm" :model="form" label-width="90px">
+            <el-form ref="roleForm" :model="form" label-width="auto">
                 <el-form-item prop="name" label="角色名称:" required>
                     <el-input v-model="form.name" auto-complete="off"></el-input>
                 </el-form-item>

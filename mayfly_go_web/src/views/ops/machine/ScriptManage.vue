@@ -54,7 +54,7 @@
         </el-dialog>
 
         <el-dialog title="脚本参数" v-model="scriptParamsDialog.visible" width="400px">
-            <el-form ref="paramsForm" :model="scriptParamsDialog.params" label-width="70px" size="small">
+            <el-form ref="paramsForm" :model="scriptParamsDialog.params" label-width="auto" size="small">
                 <el-form-item v-for="item in scriptParamsDialog.paramsFormItem as any" :key="item.name" :prop="item.model"
                     :label="item.name" required>
                     <el-input v-if="!item.options" v-model="scriptParamsDialog.params[item.model]"

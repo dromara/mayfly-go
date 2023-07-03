@@ -146,7 +146,7 @@
         </el-dialog>
 
         <el-dialog width="400px" title="新建集合" v-model="createCollectionDialog.visible" :destroy-on-close="true">
-            <el-form :model="createCollectionDialog.form" label-width="70px">
+            <el-form :model="createCollectionDialog.form" label-width="auto">
                 <el-form-item prop="name" label="集合名" required>
                     <el-input v-model="createCollectionDialog.form.name" clearable></el-input>
                 </el-form-item>
@@ -183,14 +183,14 @@ const pageTableRef: any = ref(null)
 const queryConfig = [
     TableQuery.slot("tagPath", "标签", "tagPathSelect"),
 ]
-const columns = [
+const columns = ref([
     TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
     TableColumn.new("name", "名称"),
     TableColumn.new("uri", "连接uri"),
     TableColumn.new("createTime", "创建时间").isTime(),
     TableColumn.new("creator", "创建人"),
     TableColumn.new("action", "操作").isSlot().setMinWidth(100).fixedRight(),
-]
+])
 
 const state = reactive({
     tags: [],

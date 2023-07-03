@@ -96,7 +96,7 @@
         </el-row>
 
         <el-dialog width="600px" title="find参数" v-model="findDialog.visible">
-            <el-form label-width="70px">
+            <el-form label-width="auto">
                 <el-form-item label="filter">
                     <monaco-editor style="width: 100%;" height="150px" ref="monacoEditorRef"
                         v-model="findDialog.findParam.filter" language="json" />

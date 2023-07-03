@@ -60,7 +60,7 @@ const perms = {
 const queryConfig = [
     TableQuery.text("name", "角色名"),
 ]
-const columns = [
+const columns = ref([
     TableColumn.new("name", "角色名称"),
     TableColumn.new("code", "角色code"),
     TableColumn.new("remark", "备注"),
@@ -70,7 +70,7 @@ const columns = [
     TableColumn.new("modifier", "更新账号"),
     TableColumn.new("updateTime", "更新时间").isTime(),
     TableColumn.new("showmore", "查看更多").isSlot().setMinWidth(150),
-]
+])
 
 const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource])
 const actionColumn = TableColumn.new("action", "操作").isSlot().setMinWidth(160).fixedRight()
@@ -114,7 +114,7 @@ const {
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
-        columns.push(actionColumn);
+        columns.value.push(actionColumn);
     }
     search();
 });

@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	msgapp "mayfly-go/internal/msg/application"
+	msgentity "mayfly-go/internal/msg/domain/entity"
 	"mayfly-go/internal/sys/api/form"
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
@@ -31,7 +33,7 @@ type Account struct {
 	AccountApp  application.Account
 	ResourceApp application.Resource
 	RoleApp     application.Role
-	MsgApp      application.Msg
+	MsgApp      msgapp.Msg
 	ConfigApp   application.Config
 }
 
@@ -257,7 +259,7 @@ func (a *Account) saveLogin(account *entity.Account, ip string) {
 	a.AccountApp.Update(updateAccount)
 
 	// 创建登录消息
-	loginMsg := &entity.Msg{
+	loginMsg := &msgentity.Msg{
 		RecipientId: int64(account.Id),
 		Msg:         fmt.Sprintf("于[%s]-[%s]登录", ip, now.Format("2006-01-02 15:04:05")),
 		Type:        1,
@@ -294,14 +296,6 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 		updateAccount.Password = utils.PwdHash(updateAccount.Password)
 	}
 	a.AccountApp.Update(updateAccount)
-}
-
-// 获取账号接收的消息列表
-func (a *Account) GetMsgs(rc *req.Ctx) {
-	condition := &entity.Msg{
-		RecipientId: int64(rc.LoginAccount.Id),
-	}
-	rc.ResData = a.MsgApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]entity.Msg))
 }
 
 /**    后台账号操作    **/

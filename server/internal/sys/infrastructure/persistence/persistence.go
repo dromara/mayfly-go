@@ -5,7 +5,6 @@ import "mayfly-go/internal/sys/domain/repository"
 var (
 	accountRepo  = newAccountRepo()
 	configRepo   = newConfigRepo()
-	msgRepo      = newMsgRepo()
 	resourceRepo = newResourceRepo()
 	roleRepo     = newRoleRepo()
 	syslogRepo   = newSyslogRepo()
@@ -17,10 +16,6 @@ func GetAccountRepo() repository.Account {
 
 func GetConfigRepo() repository.Config {
 	return configRepo
-}
-
-func GetMsgRepo() repository.Msg {
-	return msgRepo
 }
 
 func GetResourceRepo() repository.Resource {

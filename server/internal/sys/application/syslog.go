@@ -36,7 +36,7 @@ func (m *syslogAppImpl) GetPageList(condition *entity.Syslog, pageParam *model.P
 func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 	lg := req.LoginAccount
 	if lg == nil {
-		return
+		lg = &model.LoginAccount{Id: 0, Username: "-"}
 	}
 	syslog := new(entity.Syslog)
 	syslog.CreateTime = time.Now()

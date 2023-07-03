@@ -67,7 +67,7 @@
 
         <el-dialog width="500px" :title="saveTabDialog.title" :before-close="cancelSaveTag"
             v-model="saveTabDialog.visible">
-            <el-form ref="tagForm" :rules="rules" :model="saveTabDialog.form" label-width="70px">
+            <el-form ref="tagForm" :rules="rules" :model="saveTabDialog.form" label-width="auto">
                 <el-form-item prop="code" label="标识:" required>
                     <el-input :disabled="saveTabDialog.form.id ? true : false" v-model="saveTabDialog.form.code"
                         auto-complete="off"></el-input>

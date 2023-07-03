@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-form class='key-content-string' label-width="85px">
+        <el-form class='key-content-string' label-width="auto">
             <div>
                 <format-viewer ref="formatViewerRef" :content="string.value"></format-viewer>
             </div>

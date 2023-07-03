@@ -157,7 +157,7 @@ const pageTableRef: any = ref(null)
 const queryConfig = [
     TableQuery.slot("tagPath", "标签", "tagPathSelect"),
 ]
-const columns = [
+const columns = ref([
     TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
     TableColumn.new("name", "名称"),
     TableColumn.new("host", "host:port"),
@@ -165,7 +165,7 @@ const columns = [
     TableColumn.new("remark", "备注"),
     TableColumn.new("more", "更多").isSlot().setMinWidth(155).fixedRight(),
     TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight(),
-]
+])
 
 const state = reactive({
     tags: [],

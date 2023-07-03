@@ -12,7 +12,7 @@
                                             <SvgIcon name="iconfont icon-op-redis" :size="18" />
                                         </template>
                                         <template #default>
-                                            <el-form class="instances-pop-form" label-width="50px" :size="'small'">
+                                            <el-form class="instances-pop-form" label-width="auto" :size="'small'">
                                                 <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
                                                 <el-form-item label="模式:">{{ data.params.mode }}</el-form-item>
                                                 <el-form-item label="链接:">{{ data.params.host }}</el-form-item>
@@ -34,7 +34,7 @@
             <el-col :span="20" style="border-left: 1px solid var(--el-card-border-color);">
                 <div class="mt10 ml5">
                     <el-col>
-                        <el-form class="search-form" label-position="right" :inline="true" label-width="60px">
+                        <el-form class="search-form" label-position="right" :inline="true" label-width="auto">
                             <el-form-item label="key" label-width="40px">
                                 <el-input placeholder="match 支持*模糊key" style="width: 250px" v-model="scanParam.match"
                                     @clear="clear()" clearable></el-input>

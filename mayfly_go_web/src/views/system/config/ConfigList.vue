@@ -4,8 +4,7 @@
             :total="total" v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
 
             <template #queryRight>
-                <el-button v-auth="perms.saveConfig" type="primary" icon="plus"
-                    @click="editConfig(false)">添加</el-button>
+                <el-button v-auth="perms.saveConfig" type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
             </template>
 
             <template #status="{ data }">
@@ -23,7 +22,7 @@
 
         <el-dialog :before-close="closeSetConfigDialog" title="配置项设置" v-model="paramsDialog.visible" width="500px">
             <el-form v-if="paramsDialog.paramsFormItem.length > 0" ref="paramsFormRef" :model="paramsDialog.params"
-                label-width="130px">
+                label-width="auto">
                 <el-form-item v-for="item in paramsDialog.paramsFormItem" :key="item.name" :prop="item.model"
                     :label="item.name" required>
                     <el-input v-if="!item.options" v-model="paramsDialog.params[item.model]" :placeholder="item.placeholder"
@@ -35,7 +34,7 @@
                     </el-select>
                 </el-form-item>
             </el-form>
-            <el-form v-else ref="paramsFormRef" label-width="90px">
+            <el-form v-else ref="paramsFormRef" label-width="auto">
                 <el-form-item label="配置值" required>
                     <el-input v-model="paramsDialog.params" :placeholder="paramsDialog.config.remark" autocomplete="off"
                         clearable></el-input>
@@ -66,14 +65,14 @@ import { hasPerms } from '@/components/auth/auth';
 const perms = {
     saveConfig: "config:save"
 }
-const columns = [
+const columns = ref([
     TableColumn.new("name", "配置项"),
     TableColumn.new("key", "配置key"),
     TableColumn.new("value", "配置值"),
     TableColumn.new("remark", "备注"),
     TableColumn.new("modifier", "更新账号"),
     TableColumn.new("updateTime", "更新时间").isTime(),
-]
+])
 const actionColumn = TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip();
 const actionBtns = hasPerms([perms.saveConfig])
 
@@ -111,7 +110,7 @@ const {
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
-        columns.push(actionColumn);
+        columns.value.push(actionColumn);
     }
     search();
 });
