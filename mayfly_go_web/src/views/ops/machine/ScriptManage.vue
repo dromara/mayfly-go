@@ -4,23 +4,22 @@
             :before-close="handleClose" width="60%">
             <div class="toolbar">
                 <div style="float: left">
-                    <el-select v-model="type" @change="getScripts" size="small" placeholder="请选择">
+                    <el-select v-model="type" @change="getScripts" placeholder="请选择">
                         <el-option :key="0" label="私有" :value="0"> </el-option>
                         <el-option :key="1" label="公共" :value="1"> </el-option>
                     </el-select>
                 </div>
                 <div style="float: right">
                     <el-button @click="editScript(currentData)" :disabled="currentId == null" type="primary" icon="tickets"
-                        size="small" plain>查看</el-button>
+                        plain>查看</el-button>
                     <el-button v-auth="'machine:script:save'" type="primary" @click="editScript(null)" icon="plus"
-                        size="small" plain>添加</el-button>
+                        plain>添加</el-button>
                     <el-button v-auth="'machine:script:del'" :disabled="currentId == null" type="danger"
-                        @click="deleteRow(currentData)" icon="delete" size="small" plain>删除</el-button>
+                        @click="deleteRow(currentData)" icon="delete" plain>删除</el-button>
                 </div>
             </div>
 
-            <el-table :data="scriptTable" @current-change="choose" stripe border size="small" v-loading="loading"
-                style="width: 100%">
+            <el-table :data="scriptTable" @current-change="choose" stripe border v-loading="loading" style="width: 100%">
                 <el-table-column label="选择" width="55px">
                     <template #default="scope">
                         <el-radio v-model="currentId" :label="scope.row.id">
@@ -37,11 +36,11 @@
                 </el-table-column>
                 <el-table-column label="操作">
                     <template #default="scope">
-                        <el-button v-if="scope.row.id == null" type="success" icon="el-icon-success" size="small" plain>
+                        <el-button v-if="scope.row.id == null" type="success" icon="el-icon-success" plain>
                             确定</el-button>
 
                         <el-button v-auth="'machine:script:run'" v-if="scope.row.id != null" @click="runScript(scope.row)"
-                            type="primary" icon="video-play" size="small" plain>执行
+                            type="primary" icon="video-play" plain>执行
                         </el-button>
                     </template>
                 </el-table-column>
@@ -54,7 +53,7 @@
         </el-dialog>
 
         <el-dialog title="脚本参数" v-model="scriptParamsDialog.visible" width="400px">
-            <el-form ref="paramsForm" :model="scriptParamsDialog.params" label-width="auto" size="small">
+            <el-form ref="paramsForm" :model="scriptParamsDialog.params" label-width="auto">
                 <el-form-item v-for="item in scriptParamsDialog.paramsFormItem as any" :key="item.name" :prop="item.model"
                     :label="item.name" required>
                     <el-input v-if="!item.options" v-model="scriptParamsDialog.params[item.model]"
@@ -68,7 +67,7 @@
             </el-form>
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button type="primary" @click="hasParamsRun(currentData)" size="small">确 定</el-button>
+                    <el-button type="primary" @click="hasParamsRun(currentData)">确 定</el-button>
                 </span>
             </template>
         </el-dialog>

@@ -52,12 +52,10 @@ type MachineFileVO struct {
 }
 
 type MachineFileInfo struct {
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	Size    int64  `json:"size"`
-	Type    string `json:"type"`
-	Mode    string `json:"mode"`
-	ModTime string `json:"modTime"`
+	Name string `json:"name"`
+	Path string `json:"path"`
+	Size int64  `json:"size"`
+	Type string `json:"type"`
 }
 
 type MachineFileInfos []MachineFileInfo

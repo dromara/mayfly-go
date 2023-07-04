@@ -2,7 +2,7 @@
     <div class="mock-data-dialog">
         <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :before-close="cancel"
             :show-close="true" :destroy-on-close="true" width="900px">
-            <el-form :model="form" ref="scriptForm" label-width="auto" size="small">
+            <el-form :model="form" ref="scriptForm" label-width="auto" >
                 <el-form-item prop="method" label="名称">
                     <el-input v-model="form.name" placeholder="请输入名称"></el-input>
                 </el-form-item>
@@ -19,7 +19,7 @@
                 </el-form-item>
 
                 <el-row style="margin-left: 30px; margin-bottom: 5px">
-                    <el-button @click="onAddParam" size="small" type="success">新增占位符参数</el-button>
+                    <el-button @click="onAddParam"  type="success">新增占位符参数</el-button>
                 </el-row>
                 <el-form-item :key="param" v-for="(param, index) in params" prop="params" :label="`参数${index + 1}`">
                     <el-row>
@@ -48,7 +48,7 @@
                             <el-divider direction="vertical" border-style="dashed" />
                         </span>
                         <el-col :span="2">
-                            <el-button @click="onDeleteParam(index)" size="small" type="danger">删除</el-button>
+                            <el-button @click="onDeleteParam(index)"  type="danger">删除</el-button>
                         </el-col>
                     </el-row>
                 </el-form-item>

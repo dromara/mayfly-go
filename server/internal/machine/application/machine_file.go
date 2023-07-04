@@ -44,6 +44,12 @@ type MachineFile interface {
 	// 读取目录
 	ReadDir(fid uint64, path string) []fs.FileInfo
 
+	// 获取指定目录内容大小
+	GetDirSize(fid uint64, path string) string
+
+	// 获取文件stat
+	FileStat(fid uint64, path string) string
+
 	// 读取文件内容
 	ReadFile(fileId uint64, path string) *sftp.File
 
@@ -108,6 +114,35 @@ func (m *machineFileAppImpl) ReadDir(fid uint64, path string) []fs.FileInfo {
 	fis, err := sftpCli.ReadDir(path)
 	biz.ErrIsNilAppendErr(err, "读取目录失败: %s")
 	return fis
+}
+
+func (m *machineFileAppImpl) GetDirSize(fid uint64, path string) string {
+	_, machineId := m.checkAndReturnPathMid(fid, path)
+	res, err := GetMachineApp().GetCli(machineId).Run(fmt.Sprintf("du -sh %s", path))
+	if err != nil {
+		// 若存在目录为空，则可能会返回如下内容。最后一行即为真正目录内容所占磁盘空间大小
+		//du: cannot access ‘/proc/19087/fd/3’: No such file or directory\n
+		//du: cannot access ‘/proc/19087/fdinfo/3’: No such file or directory\n
+		//18G     /\n
+		if res == "" {
+			panic(biz.NewBizErr(fmt.Sprintf("获取目录大小失败: %s", err.Error())))
+		}
+		strs := strings.Split(res, "\n")
+		res = strs[len(strs)-2]
+
+		if !strings.Contains(res, "\t") {
+			panic(biz.NewBizErr(res))
+		}
+	}
+	// 返回 32K\t/tmp\n
+	return strings.Split(res, "\t")[0]
+}
+
+func (m *machineFileAppImpl) FileStat(fid uint64, path string) string {
+	_, machineId := m.checkAndReturnPathMid(fid, path)
+	res, err := GetMachineApp().GetCli(machineId).Run(fmt.Sprintf("stat -L %s", path))
+	biz.ErrIsNil(err, res)
+	return res
 }
 
 func (m *machineFileAppImpl) MkDir(fid uint64, path string) {

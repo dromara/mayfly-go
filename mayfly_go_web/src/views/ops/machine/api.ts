@@ -24,6 +24,8 @@ export const machineApi = {
     // 获取配置文件列表
     files: Api.newGet("/machines/{id}/files"),
     lsFile: Api.newGet("/machines/{machineId}/files/{fileId}/read-dir"),
+    dirSize: Api.newGet("/machines/{machineId}/files/{fileId}/dir-size"),
+    fileStat: Api.newGet("/machines/{machineId}/files/{fileId}/file-stat"),
     rmFile: Api.newDelete("/machines/{machineId}/files/{fileId}/remove"),
     uploadFile: Api.newPost("/machines/{machineId}/files/{fileId}/upload?token={token}"),
     fileContent: Api.newGet("/machines/{machineId}/files/{fileId}/read"),

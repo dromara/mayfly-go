@@ -52,6 +52,14 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 				Handle(mf.GetDirEntry)
 		})
 
+		machineFile.GET(":machineId/files/:fileId/dir-size", func(c *gin.Context) {
+			req.NewCtxWithGin(c).Handle(mf.GetDirSize)
+		})
+
+		machineFile.GET(":machineId/files/:fileId/file-stat", func(c *gin.Context) {
+			req.NewCtxWithGin(c).Handle(mf.GetFileStat)
+		})
+
 		writeFile := req.NewLogInfo("机器-修改文件内容").WithSave(true)
 		wfP := req.NewPermission("machine:file:write")
 		machineFile.POST(":machineId/files/:fileId/write", func(c *gin.Context) {

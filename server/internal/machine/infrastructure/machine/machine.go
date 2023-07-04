@@ -119,6 +119,7 @@ func (c *Cli) GetSession() (*ssh.Session, error) {
 
 // 执行shell
 // @param shell shell脚本命令
+// @return 返回执行成功或错误的消息
 func (c *Cli) Run(shell string) (string, error) {
 	session, err := c.GetSession()
 	if err != nil {
@@ -128,7 +129,7 @@ func (c *Cli) Run(shell string) (string, error) {
 	defer session.Close()
 	buf, err := session.CombinedOutput(shell)
 	if err != nil {
-		return "", err
+		return string(buf), err
 	}
 	return string(buf), nil
 }

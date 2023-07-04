@@ -76,7 +76,6 @@ func (m *MachineFile) CreateFile(rc *req.Ctx) {
 		m.MachineFileApp.CreateFile(fid, form.Path)
 		rc.ReqParam = fmt.Sprintf("%s -> 创建文件: %s", mi.GetLogDesc(), path)
 	}
-
 }
 
 func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
@@ -121,17 +120,31 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 	fisVO := make([]vo.MachineFileInfo, 0)
 	for _, fi := range fis {
 		fisVO = append(fisVO, vo.MachineFileInfo{
-			Name:    fi.Name(),
-			Size:    fi.Size(),
-			Path:    readPath + fi.Name(),
-			Type:    getFileType(fi.Mode()),
-			Mode:    fi.Mode().String(),
-			ModTime: fi.ModTime().Format("2006-01-02 15:04:05"),
+			Name: fi.Name(),
+			Size: fi.Size(),
+			Path: readPath + fi.Name(),
+			Type: getFileType(fi.Mode()),
 		})
 	}
 	sort.Sort(vo.MachineFileInfos(fisVO))
 	rc.ResData = fisVO
 	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
+}
+
+func (m *MachineFile) GetDirSize(rc *req.Ctx) {
+	g := rc.GinCtx
+	fid := GetMachineFileId(g)
+	readPath := g.Query("path")
+
+	rc.ResData = m.MachineFileApp.GetDirSize(fid, readPath)
+}
+
+func (m *MachineFile) GetFileStat(rc *req.Ctx) {
+	g := rc.GinCtx
+	fid := GetMachineFileId(g)
+	readPath := g.Query("path")
+
+	rc.ResData = m.MachineFileApp.FileStat(fid, readPath)
 }
 
 func (m *MachineFile) WriteFileContent(rc *req.Ctx) {

@@ -52,7 +52,7 @@ func PageQuery[T any](q *QueryCond, pageParam *model.PageParam, toModels T) *mod
 	gdb := q.GenGdb()
 	var count int64
 	err := gdb.Count(&count).Error
-	biz.ErrIsNilAppendErr(err, " 查询错误：%s")
+	biz.ErrIsNilAppendErr(err, "查询错误: %s")
 	if count == 0 {
 		return model.EmptyPageResult[T]()
 	}
@@ -60,7 +60,7 @@ func PageQuery[T any](q *QueryCond, pageParam *model.PageParam, toModels T) *mod
 	page := pageParam.PageNum
 	pageSize := pageParam.PageSize
 	err = gdb.Limit(pageSize).Offset((page - 1) * pageSize).Find(toModels).Error
-	biz.ErrIsNil(err, "查询失败")
+	biz.ErrIsNilAppendErr(err, "查询失败: %s")
 	return &model.PageResult[T]{Total: count, List: toModels}
 }
 

@@ -3,21 +3,21 @@
         <el-dialog :title="title" v-model="dialogVisible" :show-close="true" :before-close="handleClose" width="800px">
             <div class="toolbar">
                 <div style="float: right">
-                    <el-button v-auth="'machine:file:add'" type="primary" @click="add" icon="plus" size="small" plain>添加
+                    <el-button v-auth="'machine:file:add'" type="primary" @click="add" icon="plus" plain>添加
                     </el-button>
                 </div>
             </div>
             <el-table :data="fileTable" stripe style="width: 100%" v-loading="loading">
-                <el-table-column prop="name" label="名称" width>
+                <el-table-column prop="name" label="名称" min-width="70px">
                     <template #default="scope">
-                        <el-input v-model="scope.row.name" size="small" :disabled="scope.row.id != null" clearable>
+                        <el-input v-model="scope.row.name" :disabled="scope.row.id != null" clearable>
                         </el-input>
                     </template>
                 </el-table-column>
                 <el-table-column prop="name" label="类型" min-width="50px">
                     <template #default="scope">
-                        <el-select :disabled="scope.row.id != null" size="small" v-model="scope.row.type"
-                            style="width: 100px" placeholder="请选择">
+                        <el-select :disabled="scope.row.id != null" v-model="scope.row.type" style="width: 100px"
+                            placeholder="请选择">
                             <el-option v-for="item in enums.FileTypeEnum as any" :key="item.value" :label="item.label"
                                 :value="item.value"></el-option>
                         </el-select>
@@ -25,18 +25,18 @@
                 </el-table-column>
                 <el-table-column prop="path" label="路径" width>
                     <template #default="scope">
-                        <el-input v-model="scope.row.path" :disabled="scope.row.id != null" size="small" clearable>
+                        <el-input v-model="scope.row.path" :disabled="scope.row.id != null" clearable>
                         </el-input>
                     </template>
                 </el-table-column>
                 <el-table-column label="操作" width>
                     <template #default="scope">
                         <el-button v-if="scope.row.id == null" @click="addFiles(scope.row)" type="success"
-                            icon="success-filled" size="small" plain>确定</el-button>
+                            icon="success-filled" plain>确定</el-button>
                         <el-button v-if="scope.row.id != null" @click="getConf(scope.row)" type="primary" icon="tickets"
-                            size="small" plain>查看</el-button>
+                            plain>查看</el-button>
                         <el-button v-auth="'machine:file:del'" type="danger" @click="deleteRow(scope.$index, scope.row)"
-                            icon="delete" size="small" plain>删除</el-button>
+                            icon="delete" plain>删除</el-button>
                     </template>
                 </el-table-column>
             </el-table>
@@ -50,24 +50,24 @@
         <el-dialog :title="tree.title" v-model="tree.visible" :close-on-click-modal="false" width="70%">
             <el-progress v-if="uploadProgressShow" style="width: 90%; margin-left: 20px" :text-inside="true"
                 :stroke-width="20" :percentage="progressNum" />
-            <div style="height: 45vh; overflow: auto">
+            <div style="height: 55vh; overflow: auto">
                 <el-tree v-if="tree.visible" ref="fileTree" :highlight-current="true" :load="loadNode" :props="treeProps"
-                    lazy node-key="id" :expand-on-click-node="true">
+                    lazy node-key="id" :expand-on-click-node="false">
                     <template #default="{ node, data }">
                         <span class="custom-tree-node">
                             <el-dropdown size="small" @visible-change="getFilePath(data, $event)" trigger="contextmenu">
                                 <span class="el-dropdown-link">
                                     <span v-if="data.type == 'd' && !node.expanded">
-                                        <SvgIcon name="folder" />
+                                        <SvgIcon :size="15" name="folder" />
                                     </span>
                                     <span v-if="data.type == 'd' && node.expanded">
-                                        <SvgIcon name="folder-opened" />
+                                        <SvgIcon :size="15" name="folder-opened" />
                                     </span>
                                     <span v-if="data.type == '-'">
-                                        <SvgIcon name="document" />
+                                        <SvgIcon :size="15" name="document" />
                                     </span>
 
-                                    <span>
+                                    <span class="ml5" style="font-weight: bold;">
                                         {{ node.label }}
                                     </span>
                                 </span>
@@ -114,10 +114,28 @@
                                 </template>
                             </el-dropdown>
                             <span style="display: inline-block" class="ml15">
-                                <span style="color: #67c23a" v-if="data.type == '-'">[{{ formatFileSize(data.size)
-                                }}]</span>
-                                <span v-if="data.mode" style="color: #67c23a">&nbsp;[{{ data.mode }} {{ data.modTime
-                                }}]</span>
+                                <span style="color: #67c23a;font-weight: bold;" v-if="data.type == '-'">
+                                    [{{ formatFileSize(data.size) }}]
+                                </span>
+                                <span style="color: #67c23a;font-weight: bold;" v-if="data.type == 'd' && data.dirSize">
+                                    [{{ data.dirSize }}]
+                                </span>
+                                <span style="color: #67c23a;font-weight: bold;" v-if="data.type == 'd' && !data.dirSize">
+                                    [<el-button @click="getDirSize(data)" type="primary" link
+                                        :loading="data.loadingDirSize">size</el-button>]
+                                </span>
+
+                                <el-popover placement="top-start" :title="`${data.path}-文件详情`" :width="520" trigger="click"
+                                    @show="showFileStat(data)">
+                                    <template #reference>
+                                        <span style="color: #67c23a;font-weight: bold;">
+                                            [<el-button @click="showFileStat(data)" type="primary" link
+                                                :loading="data.loadingStat">stat</el-button>]
+                                        </span>
+                                    </template>
+                                    <el-input :input-style="{ color: 'black' }" disabled autosize v-model="data.stat"
+                                        type="textarea" />
+                                </el-popover>
                             </span>
                         </span>
                     </template>
@@ -444,6 +462,37 @@ const loadNode = async (node: any, resolve: any) => {
     return resolve(res);
 };
 
+const getDirSize = async (data: any) => {
+    try {
+        data.loadingDirSize = true;
+        const res = await machineApi.dirSize.request({
+            machineId: props.machineId,
+            fileId: state.tree.folder.id,
+            path: data.path
+        })
+        data.dirSize = res;
+    } finally {
+        data.loadingDirSize = false;
+    }
+}
+
+const showFileStat = async (data: any) => {
+    try {
+        if (data.stat) {
+            return;
+        }
+        data.loadingStat = true;
+        const res = await machineApi.fileStat.request({
+            machineId: props.machineId,
+            fileId: state.tree.folder.id,
+            path: data.path
+        })
+        data.stat = res;
+    } finally {
+        data.loadingStat = false;
+    }
+}
+
 const showCreateFileDialog = (node: any) => {
     isTrue(node.expanded, '请先点击展开该节点后再创建');
     state.createFileDialog.node = node;
@@ -595,4 +644,4 @@ const formatFileSize = (size: any) => {
     return '-';
 };
 </script>
-<style lang="scss"></style>
+<style  lang="scss"></style>
