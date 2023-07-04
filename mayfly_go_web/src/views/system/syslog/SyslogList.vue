@@ -5,8 +5,8 @@
             @pageChange="search()">
 
             <template #selectAccount>
-                <el-select remote :remote-method="getAccount" v-model="query.creatorId" filterable placeholder="请输入并选择账号"
-                    clearable class="mr5" style="width: 200px">
+                <el-select style="width: 200px" remote :remote-method="getAccount" v-model="query.creatorId" filterable
+                    placeholder="请输入并选择账号" clearable>
                     <el-option v-for="item in accounts" :key="item.id" :label="item.username" :value="item.id">
                     </el-option>
                 </el-select>
@@ -32,6 +32,7 @@ const state = reactive({
     query: {
         type: null,
         creatorId: null,
+        description: null,
         pageNum: 1,
         pageSize: 10,
     },
@@ -41,6 +42,7 @@ const state = reactive({
             { label: "成功", value: 1 },
             { label: "失败", value: 2 },
         ]),
+        TableQuery.text("description", "描述"),
     ],
     columns: [
         TableColumn.new("creator", "操作人"),

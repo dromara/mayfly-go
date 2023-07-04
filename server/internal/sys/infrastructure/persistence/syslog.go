@@ -14,7 +14,8 @@ func newSyslogRepo() repository.Syslog {
 }
 
 func (m *syslogRepoImpl) GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
-	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
+	qd := gormx.NewQuery(condition).Like("description", condition.Description).
+		Eq("creator_id", condition.CreatorId).Eq("type", condition.Type).WithOrderBy(orderBy...)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
 

@@ -11,7 +11,7 @@
             <div class="query" ref="queryRef">
                 <div>
                     <div v-if="props.query.length > 0">
-                        <el-form :model="props.queryForm" label-width="auto">
+                        <el-form :model="props.queryForm" label-width="auto" :size="props.size">
                             <el-row v-for="i in Math.ceil((props.query.length + 1) / (defaultQueryCount + 1))" :key="i"
                                 v-show="i == 1 || isOpenMoreQuery" :class="i > 1 && isOpenMoreQuery ? 'is-open' : ''">
 
@@ -63,14 +63,14 @@
                         </div>
                         <template #reference>
                             <!-- 一个Element Plus中的图标 -->
-                            <el-button icon="Operation"></el-button>
+                            <el-button icon="Operation" :size="props.size"></el-button>
                         </template>
                     </el-popover>
                 </div>
             </div>
 
             <el-table v-bind="$attrs" max-height="700" @selection-change="handleSelectionChange" :data="props.data" border
-                highlight-current-row v-loading="loadingData">
+                highlight-current-row v-loading="loadingData" :size="props.size">
 
                 <el-table-column v-if="props.showSelection" type="selection" width="40" />
 
@@ -93,7 +93,8 @@
             </el-table>
 
             <el-row style="margin-top: 20px" type="flex" justify="end">
-                <el-pagination @current-change="handlePageChange" @size-change="handleSizeChange" style="text-align: right"
+                <el-pagination :small="props.size == 'small'" @current-change="handlePageChange"
+                    @size-change="handleSizeChange" style="text-align: right"
                     layout="prev, pager, next, total, sizes, jumper" :total="props.total"
                     v-model:current-page="state.pageNum" v-model:page-size="state.pageSize"
                     :page-sizes="[10, 15, 20, 25]" />
@@ -109,6 +110,14 @@ import { TableColumn, TableQuery } from './index';
 const emit = defineEmits(['update:queryForm', 'update:pageNum', 'update:pageSize', 'update:selectionData', 'pageChange'])
 
 const props = defineProps({
+    size: {
+        type: String,
+        default: "",
+    },
+    inputWidth: {
+        type: [Number, String],
+        default: 0,
+    },
     // 是否显示选择列
     showSelection: {
         type: Boolean,
@@ -141,6 +150,13 @@ const props = defineProps({
         type: [Number],
         default: 10,
     },
+    // 查询条件配置
+    query: {
+        type: Array<TableQuery>,
+        default: function () {
+            return [];
+        }
+    },
     // 绑定的查询表单
     queryForm: {
         type: Object,
@@ -148,13 +164,6 @@ const props = defineProps({
             return {};
         }
     },
-    // 查询条件配置
-    query: {
-        type: Array<TableQuery>,
-        default: function () {
-            return [];
-        }
-    }
 })
 
 const state = reactive({
@@ -166,6 +175,8 @@ const state = reactive({
     defaultQueryCount: 2, // 默认显示的查询参数个数，展开后每行显示个数为该值加1。第一行用最后一列来占用按钮
     queryForm: {} as any,
     loadingData: false,
+    // 输入框宽度
+    inputWidth: "200px" as any,
 })
 
 const {
@@ -173,6 +184,7 @@ const {
     defaultQueryCount,
     queryForm,
     loadingData,
+    inputWidth,
 } = toRefs(state)
 
 watch(() => props.queryForm, (newValue: any) => {
@@ -195,13 +207,19 @@ watch(() => props.data, (newValue: any) => {
             }
         })
     }
-    state.loadingData = false;
 })
 
 onMounted(() => {
     state.pageNum = props.pageNum;
     state.pageSize = props.pageSize;
     state.queryForm = props.queryForm;
+
+    // 如果没传输入框宽度，则根据组件size设置默认宽度
+    if (!props.inputWidth) {
+        state.inputWidth = props.size == "small" ? "150px" : "200px"
+    } else {
+        state.inputWidth = props.inputWidth;
+    }
 })
 
 const getRowQueryItem = (row: number) => {
@@ -231,14 +249,23 @@ const handleSizeChange = () => {
 }
 
 const queryData = () => {
+    changePageNum(1);
     execQuery();
 }
 
 const reset = () => {
-    // 触发重新调用查询接口即可
-    state.queryForm = {};
-    emit('update:queryForm', state.queryForm)
+    // 将查询参数绑定的值置空，并重新粗发查询接口
+    for (let qi of props.query) {
+        state.queryForm[qi.prop] = null;
+    }
+    changePageNum(1);
+    emit('update:queryForm', state.queryForm);
     execQuery();
+}
+
+const changePageNum = (pageNum: number) => {
+    state.pageNum = pageNum;
+    emit('update:pageNum', state.pageNum)
 }
 
 const execQuery = () => {
@@ -286,15 +313,19 @@ defineExpose({ loading })
     font-weight: bold;
 }
 
-.el-input {
-    width: 200px;
-}
-
 .el-select-v2 {
-    width: 200px;
+    width: v-bind(inputWidth);
 }
 
-::v-deep(.el-date-editor) {
+.el-input {
+    width: v-bind(inputWidth);
+}
+
+.el-select {
+    width: v-bind(inputWidth);
+}
+
+.el-date-editor {
     width: 380px !important;
 }
 </style>

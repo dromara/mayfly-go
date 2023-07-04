@@ -273,7 +273,7 @@ const getFiles = async () => {
         state.loading = true;
         state.query.id = props.machineId as any;
         const res = await files.request(state.query);
-        state.fileTable = res.list;
+        state.fileTable = res.list || [];
         state.total = res.total;
     } finally {
         state.loading = false;
