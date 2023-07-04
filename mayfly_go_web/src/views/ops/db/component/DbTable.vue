@@ -172,7 +172,7 @@ const cellClick = (row: any, column: any, cell: any) => {
                 const updateColumn = await dbInst.loadTableColumn(state.db, state.table, property);
                 const newField = {
                     div, row,
-                    fieldName: column.rawColumnKey,
+                    fieldName: property,
                     fieldType: updateColumn.columnType,
                     oldValue: text,
                     newValue: input.value
@@ -203,10 +203,10 @@ const cellClick = (row: any, column: any, cell: any) => {
                 let fields = primaryKeyFields[0].fields
 
                 const fieldsParam = fields.filter((a) => {
-                    if (a.fieldName === column.rawColumnKey) {
+                    if (a.fieldName === column.property) {
                         a.newValue = input.value
                     }
-                    return a.fieldName === column.rawColumnKey
+                    return a.fieldName === column.property
                 })
 
                 const field = fieldsParam.length > 0 && fieldsParam[0] || {} as FieldsMeta
@@ -216,7 +216,7 @@ const cellClick = (row: any, column: any, cell: any) => {
                     let delIndex: number[] = [];
                     currentUpdatedFields.forEach((a, i) => {
                         if (a.primaryKey === primaryKeyValue) {
-                            a.fields = a.fields && a.fields.length > 0 ? a.fields.filter(f => f.fieldName !== column.rawColumnKey) : [];
+                            a.fields = a.fields && a.fields.length > 0 ? a.fields.filter(f => f.fieldName !== column.property) : [];
                             a.fields.length <= 0 && delIndex.push(i)
                         }
                     });
