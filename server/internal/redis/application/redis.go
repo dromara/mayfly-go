@@ -346,13 +346,13 @@ func (r *RedisInstance) Close() {
 	mode := r.Info.Mode
 	if mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
 		if err := r.Cli.Close(); err != nil {
-			global.Log.Errorf("关闭redis单机实例[%d]连接失败: %s", r.Id, err.Error())
+			global.Log.Errorf("关闭redis单机实例[%s]连接失败: %s", r.Id, err.Error())
 		}
 		r.Cli = nil
 	}
 	if mode == entity.RedisModeCluster {
 		if err := r.ClusterCli.Close(); err != nil {
-			global.Log.Errorf("关闭redis集群实例[%d]连接失败: %s", r.Id, err.Error())
+			global.Log.Errorf("关闭redis集群实例[%s]连接失败: %s", r.Id, err.Error())
 		}
 		r.ClusterCli = nil
 	}

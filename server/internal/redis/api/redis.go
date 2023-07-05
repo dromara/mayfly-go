@@ -115,9 +115,9 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 	var res string
 	var err error
 	if section == "" {
-		res, err = ri.Cli.Info(ctx).Result()
+		res, err = redisCli.Info(ctx).Result()
 	} else {
-		res, err = ri.Cli.Info(ctx, section).Result()
+		res, err = redisCli.Info(ctx, section).Result()
 	}
 
 	biz.ErrIsNilAppendErr(err, "获取redis info失败: %s")

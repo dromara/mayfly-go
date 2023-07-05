@@ -1,6 +1,6 @@
 <template>
     <div class="file-manage">
-        <el-dialog :title="title" v-model="dialogVisible" :show-close="true" :before-close="handleClose" width="800px">
+        <el-dialog :title="title" v-model="dialogVisible" :show-close="true" :before-close="handleClose" width="50%">
             <div class="toolbar">
                 <div style="float: right">
                     <el-button v-auth="'machine:file:add'" type="primary" @click="add" icon="plus" plain>添加
@@ -14,7 +14,7 @@
                         </el-input>
                     </template>
                 </el-table-column>
-                <el-table-column prop="name" label="类型" min-width="50px">
+                <el-table-column prop="name" label="类型" width="130px">
                     <template #default="scope">
                         <el-select :disabled="scope.row.id != null" v-model="scope.row.type" style="width: 100px"
                             placeholder="请选择">
@@ -23,25 +23,25 @@
                         </el-select>
                     </template>
                 </el-table-column>
-                <el-table-column prop="path" label="路径" width>
+                <el-table-column prop="path" label="路径" min-width="150px" show-overflow-tooltip>
                     <template #default="scope">
                         <el-input v-model="scope.row.path" :disabled="scope.row.id != null" clearable>
                         </el-input>
                     </template>
                 </el-table-column>
-                <el-table-column label="操作" width>
+                <el-table-column label="操作" min-wdith="180px">
                     <template #default="scope">
                         <el-button v-if="scope.row.id == null" @click="addFiles(scope.row)" type="success"
-                            icon="success-filled" plain>确定</el-button>
+                            icon="success-filled" plain></el-button>
                         <el-button v-if="scope.row.id != null" @click="getConf(scope.row)" type="primary" icon="tickets"
-                            plain>查看</el-button>
+                            plain></el-button>
                         <el-button v-auth="'machine:file:del'" type="danger" @click="deleteRow(scope.$index, scope.row)"
-                            icon="delete" plain>删除</el-button>
+                            icon="delete" plain></el-button>
                     </template>
                 </el-table-column>
             </el-table>
             <el-row style="margin-top: 10px" type="flex" justify="end">
-                <el-pagination small style="text-align: center" :total="total" layout="prev, pager, next, total, jumper"
+                <el-pagination style="text-align: center" :total="total" layout="prev, pager, next, total, jumper"
                     v-model:current-page="query.pageNum" :page-size="query.pageSize" @current-change="handlePageChange">
                 </el-pagination>
             </el-row>

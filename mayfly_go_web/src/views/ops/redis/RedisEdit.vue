@@ -37,8 +37,8 @@
                                 </template></el-input>
                         </el-form-item>
                         <el-form-item prop="db" label="库号:" required>
-                            <el-select @change="changeDb" v-model="dbList" multiple allow-create filterable
-                                placeholder="请选择可操作库号" style="width: 100%">
+                            <el-select @change="changeDb" :disabled="form.mode == 'cluster'" v-model="dbList" multiple
+                                allow-create filterable placeholder="请选择可操作库号" style="width: 100%">
                                 <el-option v-for="db in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]" :key="db"
                                     :label="db" :value="db" />
                             </el-select>

@@ -108,7 +108,7 @@ const columns = ref([
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.changeAccountStatus])
-const actionColumn = TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(260).noShowOverflowTooltip()
+const actionColumn = TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(260).noShowOverflowTooltip().alignCenter()
 
 const state = reactive({
     /**

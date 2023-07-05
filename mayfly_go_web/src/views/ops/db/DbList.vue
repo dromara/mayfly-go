@@ -12,7 +12,7 @@
             </template>
 
             <template #queryRight>
-                <el-button v-auth="perms.saveDb" type="primary" icon="plus" @click="editDb(true)">添加</el-button>
+                <el-button v-auth="perms.saveDb" type="primary" icon="plus" @click="editDb(false)">添加</el-button>
                 <el-button v-auth="perms.delDb" :disabled="selectionData.length < 1" @click="deleteDb()" type="danger"
                     icon="delete">删除</el-button>
             </template>
@@ -138,59 +138,47 @@
         </el-dialog>
 
         <el-dialog width="90%" :title="`${sqlExecLogDialog.title} - SQL执行记录`" :before-close="onBeforeCloseSqlExecDialog"
-            v-model="sqlExecLogDialog.visible">
-            <div class="toolbar">
-                <el-select v-model="sqlExecLogDialog.query.db" placeholder="请选择数据库" filterable clearable>
-                    <el-option v-for="item in sqlExecLogDialog.dbs" :key="item" :label="`${item}`" :value="item">
-                    </el-option>
-                </el-select>
-                <el-input v-model="sqlExecLogDialog.query.table" placeholder="请输入表名" clearable class="ml5"
-                    style="width: 180px" />
-                <el-select v-model="sqlExecLogDialog.query.type" placeholder="请选择操作类型" clearable class="ml5">
-                    <el-option v-for="item in enums.DbSqlExecTypeEnum as any" :key="item.value" :label="item.label"
-                        :value="item.value"> </el-option>
-                </el-select>
-                <el-button class="ml5" @click="searchSqlExecLog" type="success" icon="search"></el-button>
-            </div>
-            <el-table border stripe :data="sqlExecLogDialog.data" size="small">
-                <el-table-column prop="db" label="数据库" min-width="60" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="table" label="表" min-width="60" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="type" label="类型" width="85" show-overflow-tooltip>
-                    <template #default="scope">
-                        <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum['UPDATE'].value" color="#E4F5EB"
-                            size="small">UPDATE</el-tag>
-                        <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum['DELETE'].value" color="#F9E2AE"
-                            size="small">DELETE</el-tag>
-                        <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum['INSERT'].value" color="#A8DEE0"
-                            size="small">INSERT</el-tag>
-                        <el-tag v-if="scope.row.type == enums.DbSqlExecTypeEnum['QUERY'].value" color="#A8DEE0"
-                            size="small">QUERY</el-tag>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="sql" label="SQL" min-width="230" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="oldValue" label="原值" min-width="150" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="creator" label="执行人" min-width="60" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="createTime" label="执行时间" show-overflow-tooltip>
-                    <template #default="scope">
-                        {{ dateFormat(scope.row.createTime) }}
-                    </template>
-                </el-table-column>
-                <el-table-column prop="remark" label="备注" min-width="60" show-overflow-tooltip> </el-table-column>
-                <el-table-column label="操作" min-width="50" fixed="right">
-                    <template #default="scope">
-                        <el-link
-                            v-if="scope.row.type == enums.DbSqlExecTypeEnum['UPDATE'].value || scope.row.type == enums.DbSqlExecTypeEnum['DELETE'].value"
-                            type="primary" plain size="small" :underline="false" @click="onShowRollbackSql(scope.row)">
-                            还原SQL</el-link>
-                    </template>
-                </el-table-column>
-            </el-table>
-            <el-row style="margin-top: 20px" type="flex" justify="end">
-                <el-pagination style="text-align: right" @current-change="handleSqlExecPageChange"
-                    :total="sqlExecLogDialog.total" layout="prev, pager, next, total, jumper"
-                    v-model:current-page="sqlExecLogDialog.query.pageNum" :page-size="sqlExecLogDialog.query.pageSize">
-                </el-pagination>
-            </el-row>
+            :close-on-click-modal="false" v-model="sqlExecLogDialog.visible">
+            <page-table height="100%" ref="sqlExecDialogPageTableRef" :query="sqlExecLogDialog.queryConfig"
+                v-model:query-form="sqlExecLogDialog.query" :data="sqlExecLogDialog.data"
+                :columns="sqlExecLogDialog.columns" :total="sqlExecLogDialog.total"
+                v-model:page-size="sqlExecLogDialog.query.pageSize" v-model:page-num="sqlExecLogDialog.query.pageNum"
+                @pageChange="searchSqlExecLog()">
+
+                <template #dbSelect>
+                    <el-select v-model="sqlExecLogDialog.query.db" placeholder="请选择数据库" filterable clearable>
+                        <el-option v-for="item in sqlExecLogDialog.dbs" :key="item" :label="`${item}`" :value="item">
+                        </el-option>
+                    </el-select>
+                </template>
+
+                <template #typeSelect>
+                    <el-select v-model="sqlExecLogDialog.query.type" placeholder="请选择操作类型" clearable>
+                        <el-option v-for="item in enums.DbSqlExecTypeEnum as any" :key="item.value" :label="item.label"
+                            :value="item.value"> </el-option>
+                    </el-select>
+                </template>
+
+                <template #type="{ data }">
+                    <el-tag v-if="data.type == enums.DbSqlExecTypeEnum['UPDATE'].value" color="#E4F5EB"
+                        size="small">UPDATE</el-tag>
+                    <el-tag v-if="data.type == enums.DbSqlExecTypeEnum['DELETE'].value" color="#F9E2AE"
+                        size="small">DELETE</el-tag>
+                    <el-tag v-if="data.type == enums.DbSqlExecTypeEnum['INSERT'].value" color="#A8DEE0"
+                        size="small">INSERT</el-tag>
+                    <el-tag v-if="data.type == enums.DbSqlExecTypeEnum['QUERY'].value" color="#A8DEE0"
+                        size="small">QUERY</el-tag>
+                    <el-tag v-if="data.type == enums.DbSqlExecTypeEnum['OTHER'].value" color="#F9E2AE"
+                        size="small">OTHER</el-tag>
+                </template>
+
+                <template #action="{ data }">
+                    <el-link
+                        v-if="data.type == enums.DbSqlExecTypeEnum['UPDATE'].value || data.type == enums.DbSqlExecTypeEnum['DELETE'].value"
+                        type="primary" plain size="small" :underline="false" @click="onShowRollbackSql(data)">
+                        还原SQL</el-link>
+                </template>
+            </page-table>
         </el-dialog>
 
         <el-dialog width="55%" :title="`还原SQL`" v-model="rollbackSqlDialog.visible">
@@ -304,7 +292,7 @@ const columns = ref([
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.saveDb,])
-const actionColumn = TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight()
+const actionColumn = TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight().alignCenter()
 
 const pageTableRef: any = ref(null)
 
@@ -340,6 +328,22 @@ const state = reactive({
     },
     // sql执行记录弹框
     sqlExecLogDialog: {
+        queryConfig: [
+            TableQuery.slot("db", "数据库", "dbSelect"),
+            TableQuery.text("table", "表名"),
+            TableQuery.slot("type", "操作类型", "typeSelect"),
+        ],
+        columns: [
+            TableColumn.new("db", "数据库"),
+            TableColumn.new("table", "表"),
+            TableColumn.new("type", "类型").isSlot().setAddWidth(10),
+            TableColumn.new("creator", "执行人"),
+            TableColumn.new("sql", "SQL"),
+            TableColumn.new("oldValue", "原值"),
+            TableColumn.new("createTime", "执行时间").isTime(),
+            TableColumn.new("remark", "备注"),
+            TableColumn.new("action", "操作").isSlot().setMinWidth(100).fixedRight().alignCenter(),
+        ],
         title: '',
         visible: false,
         data: [],
@@ -351,7 +355,7 @@ const state = reactive({
             table: '',
             type: null,
             pageNum: 1,
-            pageSize: 12,
+            pageSize: 10,
         },
     },
     rollbackSqlDialog: {
@@ -531,11 +535,6 @@ const searchSqlExecLog = async () => {
     const res = await dbApi.getSqlExecs.request(state.sqlExecLogDialog.query);
     state.sqlExecLogDialog.data = res.list;
     state.sqlExecLogDialog.total = res.total;
-};
-
-const handleSqlExecPageChange = (curPage: number) => {
-    state.sqlExecLogDialog.query.pageNum = curPage;
-    searchSqlExecLog();
 };
 
 /**

@@ -69,7 +69,7 @@
                 </div>
             </div>
 
-            <el-table v-bind="$attrs" max-height="700" @selection-change="handleSelectionChange" :data="props.data" border
+            <el-table v-bind="$attrs" max-height="700" @selection-change="handleSelectionChange" :data="props.data"
                 highlight-current-row v-loading="loadingData" :size="props.size">
 
                 <el-table-column v-if="props.showSelection" type="selection" width="40" />
@@ -96,8 +96,7 @@
                 <el-pagination :small="props.size == 'small'" @current-change="handlePageChange"
                     @size-change="handleSizeChange" style="text-align: right"
                     layout="prev, pager, next, total, sizes, jumper" :total="props.total"
-                    v-model:current-page="state.pageNum" v-model:page-size="state.pageSize"
-                    :page-sizes="[10, 15, 20, 25]" />
+                    v-model:current-page="state.pageNum" v-model:page-size="state.pageSize" :page-sizes="pageSizes" />
             </el-row>
         </el-card>
     </div>
@@ -167,12 +166,11 @@ const props = defineProps({
 })
 
 const state = reactive({
+    pageSizes: [] as any, // 可选每页显示的数据量
     pageSize: 10,
     pageNum: 1,
-    chooseData: null as any,
-    chooseId: 0 as any,
     isOpenMoreQuery: false,
-    defaultQueryCount: 2, // 默认显示的查询参数个数，展开后每行显示个数为该值加1。第一行用最后一列来占用按钮
+    defaultQueryCount: 2, // 默认显示的查询参数个数，展开后每行显示查询条件个数为该值加1。第一行用最后一列来占用按钮
     queryForm: {} as any,
     loadingData: false,
     // 输入框宽度
@@ -180,6 +178,7 @@ const state = reactive({
 })
 
 const {
+    pageSizes,
     isOpenMoreQuery,
     defaultQueryCount,
     queryForm,
@@ -200,7 +199,7 @@ watch(() => props.pageSize, (newValue: any) => {
 })
 
 watch(() => props.data, (newValue: any) => {
-    if (newValue.length > 0) {
+    if (newValue && newValue.length > 0) {
         props.columns.forEach(item => {
             if (item.autoWidth && item.show) {
                 item.autoCalculateMinWidth(props.data);
@@ -210,9 +209,12 @@ watch(() => props.data, (newValue: any) => {
 })
 
 onMounted(() => {
+    const pageSize = props.pageSize;
+
     state.pageNum = props.pageNum;
-    state.pageSize = props.pageSize;
+    state.pageSize = pageSize;
     state.queryForm = props.queryForm;
+    state.pageSizes = [pageSize, pageSize * 2, pageSize * 3, pageSize * 4]
 
     // 如果没传输入框宽度，则根据组件size设置默认宽度
     if (!props.inputWidth) {
@@ -244,6 +246,7 @@ const handlePageChange = () => {
 }
 
 const handleSizeChange = () => {
+    changePageNum(1);
     emit('update:pageSize', state.pageSize);
     execQuery();
 }

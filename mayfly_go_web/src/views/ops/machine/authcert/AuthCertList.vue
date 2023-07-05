@@ -52,7 +52,7 @@ const state = reactive({
         TableColumn.new("createTime", "创建时间").isTime(),
         TableColumn.new("creator", "修改者"),
         TableColumn.new("createTime", "修改时间").isTime(),
-        TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(65),
+        TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(65).alignCenter(),
     ],
     total: 0,
     authcerts: [],

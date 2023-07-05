@@ -16,8 +16,9 @@ type DbSqlExec struct {
 }
 
 const (
-	DbSqlExecTypeUpdate int8 = 1 // 更新类型
-	DbSqlExecTypeDelete int8 = 2 // 删除类型
-	DbSqlExecTypeInsert int8 = 3 // 插入类型
-	DbSqlExecTypeQuery  int8 = 4 // 查询类型，如select、show等
+	DbSqlExecTypeOther  int8 = -1 // 其他类型
+	DbSqlExecTypeUpdate int8 = 1  // 更新类型
+	DbSqlExecTypeDelete int8 = 2  // 删除类型
+	DbSqlExecTypeInsert int8 = 3  // 插入类型
+	DbSqlExecTypeQuery  int8 = 4  // 查询类型，如select、show等
 )

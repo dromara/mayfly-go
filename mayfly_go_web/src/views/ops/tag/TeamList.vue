@@ -109,7 +109,7 @@
                 v-model:current-page="showMemDialog.query.pageNum" :page-size="showMemDialog.query.pageSize" />
 
             <el-dialog width="400px" title="添加成员" :before-close="cancelAddMember" v-model="showMemDialog.addVisible">
-                <el-form :model="showMemDialog.memForm" label-width="70px">
+                <el-form :model="showMemDialog.memForm" label-width="auto">
                     <el-form-item label="账号:">
                         <el-select style="width: 100%" remote :remote-method="getAccount"
                             v-model="showMemDialog.memForm.accountIds" filterable multiple placeholder="请输入账号模糊搜索并选择">
@@ -162,7 +162,7 @@ const state = reactive({
         TableColumn.new("remark", "备注"),
         TableColumn.new("createTime", "创建时间").isTime(),
         TableColumn.new("creator", "创建人"),
-        TableColumn.new("action", "操作").isSlot().setMinWidth(100).fixedRight(),
+        TableColumn.new("action", "操作").isSlot().setMinWidth(100).fixedRight().alignCenter(),
     ],
     total: 0,
     data: [],

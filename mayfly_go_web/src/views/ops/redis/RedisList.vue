@@ -164,7 +164,7 @@ const columns = ref([
     TableColumn.new("mode", "mode"),
     TableColumn.new("remark", "备注"),
     TableColumn.new("more", "更多").isSlot().setMinWidth(155).fixedRight(),
-    TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight(),
+    TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight().alignCenter(),
 ])
 
 const state = reactive({

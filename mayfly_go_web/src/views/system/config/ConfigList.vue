@@ -73,7 +73,7 @@ const columns = ref([
     TableColumn.new("modifier", "更新账号"),
     TableColumn.new("updateTime", "更新时间").isTime(),
 ])
-const actionColumn = TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip();
+const actionColumn = TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip().alignCenter();
 const actionBtns = hasPerms([perms.saveConfig])
 
 const paramsFormRef: any = ref(null)

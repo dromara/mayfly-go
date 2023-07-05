@@ -186,7 +186,7 @@ const columns = ref([
     TableColumn.new("username", "用户名"),
     TableColumn.new("status", "状态").isSlot().setMinWidth(85),
     TableColumn.new("remark", "备注"),
-    TableColumn.new("action", "操作").isSlot().setMinWidth(238).fixedRight(),
+    TableColumn.new("action", "操作").isSlot().setMinWidth(238).fixedRight().alignCenter(),
 ])
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
 const actionBtns = hasPerms([perms.updateMachine, perms.closeCli])

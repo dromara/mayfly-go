@@ -73,7 +73,7 @@ const columns = ref([
 ])
 
 const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource])
-const actionColumn = TableColumn.new("action", "操作").isSlot().setMinWidth(160).fixedRight()
+const actionColumn = TableColumn.new("action", "操作").isSlot().setMinWidth(160).fixedRight().alignCenter()
 
 const state = reactive({
     query: {

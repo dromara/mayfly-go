@@ -1,55 +1,40 @@
 <template>
     <div class="file-manage">
-        <el-dialog :title="title" v-model="dialogVisible" :destroy-on-close="true" :show-close="true"
-            :before-close="handleClose" width="60%">
-            <div class="toolbar">
-                <div style="float: left">
-                    <el-select v-model="type" @change="getScripts" placeholder="请选择">
+        <el-dialog @open="getScripts()" :title="title" v-model="dialogVisible" :destroy-on-close="true" :show-close="true"
+            :before-close="handleClose" width="55%">
+
+            <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="query" :data="scriptTable"
+                :columns="columns" :total="total" v-model:page-size="query.pageSize" v-model:page-num="query.pageNum"
+                @pageChange="getScripts()" :show-selection="true" v-model:selection-data="selectionData">
+
+                <template #typeSelect>
+                    <el-select v-model="type" placeholder="请选择">
                         <el-option :key="0" label="私有" :value="0"> </el-option>
                         <el-option :key="1" label="公共" :value="1"> </el-option>
                     </el-select>
-                </div>
-                <div style="float: right">
-                    <el-button @click="editScript(currentData)" :disabled="currentId == null" type="primary" icon="tickets"
-                        plain>查看</el-button>
+                </template>
+
+                <template #type="{ data }">
+                    {{ enums.scriptTypeEnum.getLabelByValue(data.type) }}
+                </template>
+
+                <template #queryRight>
                     <el-button v-auth="'machine:script:save'" type="primary" @click="editScript(null)" icon="plus"
                         plain>添加</el-button>
-                    <el-button v-auth="'machine:script:del'" :disabled="currentId == null" type="danger"
-                        @click="deleteRow(currentData)" icon="delete" plain>删除</el-button>
-                </div>
-            </div>
+                    <el-button v-auth="'machine:script:del'" :disabled="selectionData.length < 1" type="danger"
+                        @click="deleteRow(selectionData)" icon="delete" plain>删除</el-button>
+                </template>
 
-            <el-table :data="scriptTable" @current-change="choose" stripe border v-loading="loading" style="width: 100%">
-                <el-table-column label="选择" width="55px">
-                    <template #default="scope">
-                        <el-radio v-model="currentId" :label="scope.row.id">
-                            <i></i>
-                        </el-radio>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="name" label="名称" :min-width="70"> </el-table-column>
-                <el-table-column prop="description" label="描述" :min-width="100" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="name" label="类型" :min-width="50">
-                    <template #default="scope">
-                        {{ enums.scriptTypeEnum.getLabelByValue(scope.row.type) }}
-                    </template>
-                </el-table-column>
-                <el-table-column label="操作">
-                    <template #default="scope">
-                        <el-button v-if="scope.row.id == null" type="success" icon="el-icon-success" plain>
-                            确定</el-button>
+                <template #action="{ data }">
+                    <el-button v-auth="'machine:script:run'" v-if="data.id != null" @click="runScript(data)" type="primary"
+                        icon="video-play" link>执行
+                    </el-button>
 
-                        <el-button v-auth="'machine:script:run'" v-if="scope.row.id != null" @click="runScript(scope.row)"
-                            type="primary" icon="video-play" plain>执行
-                        </el-button>
-                    </template>
-                </el-table-column>
-            </el-table>
-            <el-row style="margin-top: 10px" type="flex" justify="end">
-                <el-pagination small style="text-align: center" :total="total" layout="prev, pager, next, total, jumper"
-                    v-model:current-page="query.pageNum" :page-size="query.pageSize" @current-change="handlePageChange">
-                </el-pagination>
-            </el-row>
+                    <el-button @click="editScript(data)" type="primary" icon="tickets" link>查看
+                    </el-button>
+                </template>
+            </page-table>
+
         </el-dialog>
 
         <el-dialog title="脚本参数" v-model="scriptParamsDialog.visible" width="400px">
@@ -67,7 +52,7 @@
             </el-form>
             <template #footer>
                 <span class="dialog-footer">
-                    <el-button type="primary" @click="hasParamsRun(currentData)">确 定</el-button>
+                    <el-button type="primary" @click="hasParamsRun()">确 定</el-button>
                 </span>
             </template>
         </el-dialog>
@@ -95,6 +80,8 @@ import SshTerminal from './SshTerminal.vue';
 import { machineApi } from './api';
 import enums from './enums';
 import ScriptEdit from './ScriptEdit.vue';
+import PageTable from '@/components/pagetable/PageTable.vue'
+import { TableColumn, TableQuery } from '@/components/pagetable';
 
 const props = defineProps({
     visible: { type: Boolean },
@@ -105,16 +92,25 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'update:machineId'])
 
 const paramsForm: any = ref(null);
+const pageTableRef: any = ref(null);
+
 const state = reactive({
     dialogVisible: false,
     type: 0,
-    currentId: null,
-    currentData: null,
-    loading: false,
+    selectionData: [],
+    queryConfig: [
+        TableQuery.slot("type", "类型", "typeSelect"),
+    ],
+    columns: [
+        TableColumn.new("name", "名称"),
+        TableColumn.new("description", "描述"),
+        TableColumn.new("type", "类型").isSlot().setAddWidth(5),
+        TableColumn.new("action", "操作").isSlot().setMinWidth(130).alignCenter(),
+    ],
     query: {
         machineId: 0 as any,
         pageNum: 1,
-        pageSize: 8,
+        pageSize: 6,
     },
     editDialog: {
         visible: false,
@@ -125,6 +121,7 @@ const state = reactive({
     total: 0,
     scriptTable: [],
     scriptParamsDialog: {
+        script: null,
         visible: false,
         params: {},
         paramsFormItem: [],
@@ -142,10 +139,10 @@ const state = reactive({
 
 const {
     dialogVisible,
-    loading,
+    queryConfig,
+    columns,
     type,
-    currentId,
-    currentData,
+    selectionData,
     query,
     editDialog,
     total,
@@ -157,28 +154,19 @@ const {
 
 watch(props, async (newValue) => {
     state.dialogVisible = newValue.visible;
-    if (props.machineId && newValue.visible) {
-        await getScripts();
-    }
 });
 
 const getScripts = async () => {
     try {
-        state.loading = true;
-        state.currentId = null;
-        state.currentData = null;
+        // 通过open事件才开获取到pageTableRef值
+        pageTableRef.value.loading(true)
         state.query.machineId = state.type == 0 ? props.machineId : 9999999;
         const res = await machineApi.scripts.request(state.query);
         state.scriptTable = res.list;
         state.total = res.total;
     } finally {
-        state.loading = false;
+        pageTableRef.value.loading(false)
     }
-};
-
-const handlePageChange = (curPage: number) => {
-    state.query.pageNum = curPage;
-    getScripts();
 };
 
 const runScript = async (script: any) => {
@@ -187,6 +175,7 @@ const runScript = async (script: any) => {
         state.scriptParamsDialog.paramsFormItem = JSON.parse(script.params);
         if (state.scriptParamsDialog.paramsFormItem && state.scriptParamsDialog.paramsFormItem.length > 0) {
             state.scriptParamsDialog.visible = true;
+            state.scriptParamsDialog.script = script;
             return;
         }
     }
@@ -195,14 +184,15 @@ const runScript = async (script: any) => {
 };
 
 // 有参数的脚本执行函数
-const hasParamsRun = async (script: any) => {
+const hasParamsRun = async () => {
     // 如果脚本参数弹窗显示，则校验参数表单数据通过后执行
     if (state.scriptParamsDialog.visible) {
         paramsForm.value.validate((valid: any) => {
             if (valid) {
-                run(script);
+                run(state.scriptParamsDialog.script);
                 state.scriptParamsDialog.params = {};
                 state.scriptParamsDialog.visible = false;
+                state.scriptParamsDialog.script = null;
                 paramsForm.value.resetFields();
             } else {
                 return false;
@@ -218,7 +208,7 @@ const run = async (script: any) => {
         const res = await machineApi.runScript.request({
             machineId: props.machineId,
             scriptId: script.id,
-            params: state.scriptParamsDialog.params,
+            params: JSON.stringify(state.scriptParamsDialog.params),
         });
 
         if (noResult) {
@@ -261,16 +251,6 @@ const closeTermnial = () => {
     state.terminalDialog.machineId = 0;
 };
 
-/**
- * 选择数据
- */
-const choose = (item: any) => {
-    if (!item) {
-        return;
-    }
-    state.currentId = item.id;
-    state.currentData = item;
-};
 
 const editScript = (data: any) => {
     state.editDialog.machineId = props.machineId as any;
@@ -287,8 +267,8 @@ const submitSuccess = () => {
     getScripts();
 };
 
-const deleteRow = (row: any) => {
-    ElMessageBox.confirm(`此操作将删除 [${row.name}], 是否继续?`, '提示', {
+const deleteRow = (rows: any) => {
+    ElMessageBox.confirm(`此操作将删除【${rows.map((x: any) => x.name).join(", ")}】脚本信息, 是否继续?`, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning',
@@ -296,7 +276,7 @@ const deleteRow = (row: any) => {
         machineApi.deleteScript
             .request({
                 machineId: props.machineId,
-                scriptId: row.id,
+                scriptId: rows.map((x: any) => x.id).join(","),
             })
             .then(() => {
                 getScripts();
@@ -312,6 +292,7 @@ const handleClose = () => {
     emit('update:visible', false);
     emit('update:machineId', null);
     emit('cancel');
+    state.type = 0;
     state.scriptTable = [];
     state.scriptParamsDialog.paramsFormItem = [];
 };

@@ -78,6 +78,7 @@ func createSqlExecRecord(execSqlReq *DbSqlExecReq) *entity.DbSqlExec {
 func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
 	sql := execSqlReq.Sql
 	dbSqlExecRecord := createSqlExecRecord(execSqlReq)
+	dbSqlExecRecord.Type = entity.DbSqlExecTypeOther
 	var execRes *DbSqlExecRes
 	isSelect := false
 

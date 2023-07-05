@@ -10,11 +10,9 @@
                                     <SvgIcon name="iconfont icon-op-mongo" :size="18" />
                                 </template>
                                 <template #default>
-                                    <el-form class="instances-pop-form" label-width="50px" :size="'small'">
-                                        <el-form class="instances-pop-form" label-width="55px" :size="'small'">
-                                            <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
-                                            <el-form-item label="链接:">{{ data.params.uri }}</el-form-item>
-                                        </el-form>
+                                    <el-form class="instances-pop-form" label-width="auto" :size="'small'">
+                                        <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
+                                        <el-form-item label="链接:">{{ data.params.uri }}</el-form-item>
                                     </el-form>
                                 </template>
                             </el-popover>

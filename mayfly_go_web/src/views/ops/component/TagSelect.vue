@@ -23,9 +23,10 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted } from 'vue';
+import { useAttrs, toRefs, reactive, onMounted } from 'vue';
 import { tagApi } from '../tag/api';
 
+const attrs = useAttrs()
 //定义事件
 const emit = defineEmits(['changeTag', 'update:tagPath'])
 
@@ -41,6 +42,9 @@ const {
 } = toRefs(state)
 
 onMounted(async () => {
+    if (attrs.modelValue) {
+        state.selectTags = attrs.modelValue;
+    }
     state.tags = await tagApi.getTagTrees.request(null);
 });
 

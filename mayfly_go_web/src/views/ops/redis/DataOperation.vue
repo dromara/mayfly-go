@@ -35,11 +35,11 @@
                 <div class="mt10 ml5">
                     <el-col>
                         <el-form class="search-form" label-position="right" :inline="true" label-width="auto">
-                            <el-form-item label="key" label-width="40px">
+                            <el-form-item label="key" label-width="auto">
                                 <el-input placeholder="match 支持*模糊key" style="width: 250px" v-model="scanParam.match"
                                     @clear="clear()" clearable></el-input>
                             </el-form-item>
-                            <el-form-item label="count" label-width="40px">
+                            <el-form-item label="count" label-width="auto">
                                 <el-input placeholder="count" style="width: 70px" v-model.number="scanParam.count">
                                 </el-input>
                             </el-form-item>
@@ -96,7 +96,7 @@
 
         <el-dialog title="新增Key" v-model="newKeyDialog.visible" width="500px" :destroy-on-close="true"
             :close-on-click-modal="false">
-            <el-form ref="keyForm" label-width="50px">
+            <el-form ref="keyForm" label-width="auto">
                 <el-form-item prop="key" label="键名">
                     <el-input v-model.trim="keyDetailDialog.keyInfo.key" placeholder="请输入键名"></el-input>
                 </el-form-item>

@@ -43,7 +43,7 @@ export class TableColumn {
 
     fixed: any;
 
-    align: string = "center"
+    align: string = "left"
 
     /**
      * 指定格式化函数对原始值进行格式化，如时间格式化等
@@ -90,6 +90,15 @@ export class TableColumn {
 
     setAddWidth(addWidth: number): TableColumn {
         this.addWidth = addWidth
+        return this;
+    }
+
+    /**
+     * 居中对齐
+     * @returns this
+     */
+    alignCenter(): TableColumn {
+        this.align = "center";
         return this;
     }
 

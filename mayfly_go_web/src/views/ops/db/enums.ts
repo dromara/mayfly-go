@@ -8,5 +8,6 @@ export default {
     DbSqlExecTypeEnum: new Enum().add('UPDATE', 'UPDATE', 1)
         .add('DELETE', 'DELETE', 2)
         .add('INSERT', 'INSERT', 3)
-        .add('QUERY', 'QUERY', 4),
+        .add('QUERY', 'QUERY', 4)
+        .add('OTHER', 'OTHER', -1),
 }

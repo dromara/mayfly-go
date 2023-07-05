@@ -12,6 +12,7 @@ import (
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -42,12 +43,15 @@ func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {
 }
 
 func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
-	msa := m.MachineScriptApp
-	sid := GetMachineScriptId(rc.GinCtx)
-	ms := msa.GetById(sid)
-	biz.NotNil(ms, "该脚本不存在")
-	rc.ReqParam = fmt.Sprintf("[scriptId: %d, name: %s, desc: %s, script: %s]", sid, ms.Name, ms.Description, ms.Script)
-	msa.Delete(sid)
+	idsStr := ginx.PathParam(rc.GinCtx, "scriptId")
+	rc.ReqParam = idsStr
+	ids := strings.Split(idsStr, ",")
+
+	for _, v := range ids {
+		value, err := strconv.Atoi(v)
+		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
+		m.MachineScriptApp.Delete(uint64(value))
+	}
 }
 
 func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
