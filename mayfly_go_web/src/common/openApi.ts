@@ -1,12 +1,12 @@
-import Api from './Api'
+import request from './request';
 
 export default {
-    login: Api.newPost("/sys/accounts/login"),
-    otpVerify: Api.newPost("/sys/accounts/otp-verify"),
-    changePwd: Api.newPost("/sys/accounts/change-pwd"),
-    getPublicKey: Api.newGet("/common/public-key"),
-    getConfigValue: Api.newGet("/sys/configs/value"),
-    captcha: Api.newGet("/sys/captcha"),
-    logout: Api.newPost("/sys/accounts/logout/{token}"),
-    getPermissions: Api.newGet("/sys/accounts/permissions")
-}
+    login: (param: any) => request.post('/sys/accounts/login', param),
+    otpVerify: (param: any) => request.post('/sys/accounts/otp-verify', param),
+    changePwd: (param: any) => request.post('/sys/accounts/change-pwd', param),
+    getPublicKey: () => request.get('/common/public-key'),
+    getConfigValue: (params: any) => request.get('/sys/configs/value', params),
+    captcha: () => request.get('/sys/captcha'),
+    logout: () => request.post('/sys/accounts/logout/{token}'),
+    getPermissions: () => request.get('/sys/accounts/permissions'),
+};

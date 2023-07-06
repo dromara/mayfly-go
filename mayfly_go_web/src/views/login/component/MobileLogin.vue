@@ -1,8 +1,7 @@
 <template>
     <el-form class="login-content-form">
         <el-form-item>
-            <el-input type="text" placeholder="请输入手机号" prefix-icon="el-icon-user" v-model="ruleForm.userName" clearable autocomplete="off">
-            </el-input>
+            <el-input type="text" placeholder="请输入手机号" prefix-icon="el-icon-user" v-model="ruleForm.userName" clearable autocomplete="off"> </el-input>
         </el-form-item>
         <el-form-item>
             <el-row :gutter="15">

@@ -1,15 +1,34 @@
 <template>
     <div>
-        <el-table @cell-dblclick="(row: any, column: any, cell: any, event: any) => cellClick(row, column, cell)"
-            @sort-change="(sort: any) => onTableSortChange(sort)" @selection-change="onDataSelectionChange" :data="datas"
-            size="small" :max-height="tableHeight" v-loading="loading" element-loading-text="查询中..." :empty-text="emptyText"
-            highlight-current-row stripe border class="mt5">
+        <el-table
+            @cell-dblclick="(row: any, column: any, cell: any, event: any) => cellClick(row, column, cell)"
+            @sort-change="(sort: any) => onTableSortChange(sort)"
+            @selection-change="onDataSelectionChange"
+            :data="datas"
+            size="small"
+            :max-height="tableHeight"
+            v-loading="loading"
+            element-loading-text="查询中..."
+            :empty-text="emptyText"
+            highlight-current-row
+            stripe
+            border
+            class="mt5"
+        >
             <el-table-column v-if="datas.length > 0 && table" type="selection" width="35" />
 
             <template v-for="(item, index) in columns">
-                <el-table-column min-width="100" :width="DbInst.flexColumnWidth(item.columnName, datas)" align="center"
-                    v-if="item.show" :key="index" :prop="item.columnName" :label="item.columnName" show-overflow-tooltip
-                    :sortable="sortable">
+                <el-table-column
+                    min-width="100"
+                    :width="DbInst.flexColumnWidth(item.columnName, datas)"
+                    align="center"
+                    v-if="item.show"
+                    :key="index"
+                    :prop="item.columnName"
+                    :label="item.columnName"
+                    show-overflow-tooltip
+                    :sortable="sortable"
+                >
                     <template #header v-if="showColumnTip">
                         <el-tooltip raw-content placement="top" effect="customized">
                             <template #content> {{ getColumnTip(item) }} </template>
@@ -18,7 +37,6 @@
                     </template>
                 </el-table-column>
             </template>
-
         </el-table>
     </div>
 </template>
@@ -307,11 +325,10 @@ defineExpose({
     submitUpdateFields,
     cancelUpdateFields
 })
-
 </script>
 
 <style lang="scss">
 .update_field_active {
-    background-color: var(--el-color-success)
+    background-color: var(--el-color-success);
 }
 </style>

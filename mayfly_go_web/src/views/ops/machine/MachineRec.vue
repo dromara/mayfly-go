@@ -1,7 +1,6 @@
 <template>
     <div id="terminalRecDialog">
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="handleClose" :close-on-click-modal="false"
-            :destroy-on-close="true" width="70%">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="handleClose" :close-on-click-modal="false" :destroy-on-close="true" width="70%">
             <div class="toolbar">
                 <el-select @change="getUsers" v-model="operateDate" placeholder="操作日期" filterable>
                     <el-option v-for="item in operateDates" :key="item" :label="item" :value="item"> </el-option>
@@ -30,9 +29,9 @@ const props = defineProps({
     visible: { type: Boolean },
     machineId: { type: Number },
     title: { type: String },
-})
+});
 
-const emit = defineEmits(['update:visible', 'cancel', 'update:machineId'])
+const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
 
 const playerRef = ref(null);
 const state = reactive({
@@ -47,16 +46,7 @@ const state = reactive({
     rec: '',
 });
 
-const {
-    dialogVisible,
-    title,
-    operateDates,
-    operateDate,
-    users,
-    recs,
-    user,
-    rec,
-} = toRefs(state)
+const { dialogVisible, title, operateDates, operateDate, users, recs, user, rec } = toRefs(state);
 
 watch(props, async (newValue: any) => {
     const visible = newValue.visible;

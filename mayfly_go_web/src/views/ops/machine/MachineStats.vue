@@ -1,7 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="true" :destroy-on-close="true"
-            :before-close="cancel" width="1050px">
+        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="true" :destroy-on-close="true" :before-close="cancel" width="1050px">
             <el-row :gutter="20">
                 <el-col :lg="12" :md="12">
                     <el-descriptions size="small" title="基础信息" :column="2" border>
@@ -20,8 +19,7 @@
                         <el-descriptions-item label="运行中任务">
                             {{ stats.RunningProcs }}
                         </el-descriptions-item>
-                        <el-descriptions-item label="负载"> {{ stats.Load1 }} {{ stats.Load5 }} {{ stats.Load10 }}
-                        </el-descriptions-item>
+                        <el-descriptions-item label="负载"> {{ stats.Load1 }} {{ stats.Load5 }} {{ stats.Load10 }} </el-descriptions-item>
                     </el-descriptions>
                 </el-col>
 
@@ -38,8 +36,7 @@
                 <el-col :lg="8" :md="8">
                     <span style="font-size: 16px; font-weight: 700">磁盘</span>
                     <el-table :data="stats.FSInfos" stripe max-height="250" style="width: 100%" border>
-                        <el-table-column prop="MountPoint" label="挂载点" min-width="100" show-overflow-tooltip>
-                        </el-table-column>
+                        <el-table-column prop="MountPoint" label="挂载点" min-width="100" show-overflow-tooltip> </el-table-column>
                         <el-table-column prop="Used" label="可使用" min-width="70" show-overflow-tooltip>
                             <template #default="scope">
                                 {{ formatByteSize(scope.row.Free) }}
@@ -57,10 +54,8 @@
                     <span style="font-size: 16px; font-weight: 700">网卡</span>
                     <el-table :data="netInter" stripe max-height="250" style="width: 100%" border>
                         <el-table-column prop="name" label="网卡" min-width="120" show-overflow-tooltip></el-table-column>
-                        <el-table-column prop="IPv4" label="IPv4" min-width="130" show-overflow-tooltip>
-                        </el-table-column>
-                        <el-table-column prop="IPv6" label="IPv6" min-width="130" show-overflow-tooltip>
-                        </el-table-column>
+                        <el-table-column prop="IPv4" label="IPv4" min-width="130" show-overflow-tooltip> </el-table-column>
+                        <el-table-column prop="IPv6" label="IPv6" min-width="130" show-overflow-tooltip> </el-table-column>
                         <el-table-column prop="Rx" label="接收(rx)" min-width="110" show-overflow-tooltip>
                             <template #default="scope">
                                 {{ formatByteSize(scope.row.Rx) }}
@@ -78,9 +73,9 @@
     </div>
 </template>
 
-<script lang="ts"  setup>
+<script lang="ts" setup>
 import { toRefs, reactive, watch, ref, nextTick } from 'vue';
-import useEcharts from '@/common/echarts/useEcharts.ts';
+import useEcharts from '@/common/echarts/useEcharts';
 import tdTheme from '@/common/echarts/theme.json';
 import { formatByteSize } from '@/common/utils/format';
 import { machineApi } from './api';
@@ -98,9 +93,9 @@ const props = defineProps({
     title: {
         type: String,
     },
-})
+});
 
-const emit = defineEmits(['update:visible', 'cancel', 'update:machineId'])
+const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
 
 const cpuRef: any = ref();
 const memRef: any = ref();
@@ -114,13 +109,9 @@ const state = reactive({
     netInter: [] as any,
 });
 
-const {
-    dialogVisible,
-    stats,
-    netInter,
-} = toRefs(state)
+const { dialogVisible, stats, netInter } = toRefs(state);
 
-let charts = [] as any
+let charts = [] as any;
 
 watch(props, async (newValue: any) => {
     const visible = newValue.visible;

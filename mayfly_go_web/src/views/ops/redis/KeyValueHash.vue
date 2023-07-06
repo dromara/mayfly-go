@@ -1,40 +1,37 @@
 <template>
     <div>
         <el-button @click="showEditDialog(null)" icon="plus" size="small" plain type="primary" class="mb10">添加新行</el-button>
-        <el-table size="small" border :data="hashValues" height="450" min-height=300 stripe>
-            <el-table-column type="index" :label="'ID (Total: ' + total + ')'" sortable width="100">
-            </el-table-column>
-            <el-table-column resizable sortable prop="field" label="field" show-overflow-tooltip min-width="100">
-            </el-table-column>
-            <el-table-column resizable sortable prop="value" label="value" show-overflow-tooltip min-width="200">
-            </el-table-column>
+        <el-table size="small" border :data="hashValues" height="450" min-height="300" stripe>
+            <el-table-column type="index" :label="'ID (Total: ' + total + ')'" sortable width="100"> </el-table-column>
+            <el-table-column resizable sortable prop="field" label="field" show-overflow-tooltip min-width="100"> </el-table-column>
+            <el-table-column resizable sortable prop="value" label="value" show-overflow-tooltip min-width="200"> </el-table-column>
             <el-table-column label="操作">
                 <template #header>
-                    <el-input class="key-detail-filter-value" v-model="state.filterValue" @keyup.enter='hscan(true, true)'
-                        placeholder="输入关键词回车搜索" clearable size="small" />
+                    <el-input
+                        class="key-detail-filter-value"
+                        v-model="state.filterValue"
+                        @keyup.enter="hscan(true, true)"
+                        placeholder="输入关键词回车搜索"
+                        clearable
+                        size="small"
+                    />
                 </template>
                 <template #default="scope">
-                    <el-link @click="showEditDialog(scope.row)" :underline="false" type="primary" icon="edit"
-                        plain></el-link>
+                    <el-link @click="showEditDialog(scope.row)" :underline="false" type="primary" icon="edit" plain></el-link>
                     <el-popconfirm title="确定删除?" @confirm="hdel(scope.row.field, scope.$index)">
                         <template #reference>
-                            <el-link v-auth="'redis:data:del'" :underline="false" type="danger" icon="delete" size="small"
-                                plain class="ml5"></el-link>
+                            <el-link v-auth="'redis:data:del'" :underline="false" type="danger" icon="delete" size="small" plain class="ml5"></el-link>
                         </template>
                     </el-popconfirm>
-
                 </template>
             </el-table-column>
         </el-table>
         <!-- load more content -->
-        <div class='content-more-container'>
-            <el-button size='small' @click='hscan()' :disabled='loadMoreDisable' class='content-more-btn'>
-                加载更多
-            </el-button>
+        <div class="content-more-container">
+            <el-button size="small" @click="hscan()" :disabled="loadMoreDisable" class="content-more-btn"> 加载更多 </el-button>
         </div>
 
-        <el-dialog title="添加新行" v-model="editDialog.visible" width="600px" :destroy-on-close="true"
-            :close-on-click-modal="false">
+        <el-dialog title="添加新行" v-model="editDialog.visible" width="600px" :destroy-on-close="true" :close-on-click-modal="false">
             <el-form>
                 <el-form-item>
                     <el-input v-model="editDialog.field" placeholder="field" />
@@ -64,17 +61,17 @@ const props = defineProps({
     redisId: {
         type: [Number],
         require: true,
-        default: 0
+        default: 0,
     },
     db: {
         type: [Number],
         require: true,
-        default: 0
+        default: 0,
     },
     keyInfo: {
         type: [Object],
     },
-})
+});
 
 const formatViewerRef = ref(null) as any;
 
@@ -98,29 +95,23 @@ const state = reactive({
     },
 });
 
-const {
-    hashValues,
-    total,
-    loadMoreDisable,
-    editDialog,
-} = toRefs(state)
-
+const { hashValues, total, loadMoreDisable, editDialog } = toRefs(state);
 
 onMounted(() => {
     state.redisId = props.redisId;
     state.db = props.db;
     state.key = props.keyInfo?.key;
     initData();
-})
+});
 
 const initData = () => {
     state.filterValue = '';
     hscan(true, true);
-}
+};
 
 const getScanMatch = () => {
     return state.filterValue ? `*${state.filterValue}*` : '*';
-}
+};
 
 const hscan = async (resetTableData = false, resetCursor = false) => {
     if (resetCursor) {
@@ -130,10 +121,10 @@ const hscan = async (resetTableData = false, resetCursor = false) => {
     const scanRes = await redisApi.hscan.request({
         ...getBaseReqParam(),
         match: getScanMatch(),
-        ...state.scanParam
+        ...state.scanParam,
     });
     state.scanParam.cursor = scanRes.cursor;
-    state.loadMoreDisable = scanRes.cursor == 0
+    state.loadMoreDisable = scanRes.cursor == 0;
     state.total = scanRes.keySize;
 
     const keys = scanRes.keys;
@@ -147,7 +138,7 @@ const hscan = async (resetTableData = false, resetCursor = false) => {
     if (resetTableData) {
         state.hashValues = hashValue;
     } else {
-        state.hashValues.push(...hashValue)
+        state.hashValues.push(...hashValue);
     }
 };
 
@@ -158,7 +149,7 @@ const hdel = async (field: any, index: any) => {
     });
 
     ElMessage.success('删除成功');
-    state.hashValues.splice(index, 1)
+    state.hashValues.splice(index, 1);
     state.total--;
 };
 
@@ -167,16 +158,16 @@ const showEditDialog = (row: any) => {
     state.editDialog.field = row ? row.field : '';
     state.editDialog.value = row ? row.value : '';
     state.editDialog.visible = true;
-}
+};
 
 const confirmEditData = async () => {
     const param = getBaseReqParam();
 
     const field = state.editDialog.field;
-    notBlank(field, "field不能为空");
+    notBlank(field, 'field不能为空');
 
     // 存在数据行，则说明为修改，则要先删除旧数据后新增
-    const dataRow = state.editDialog.dataRow
+    const dataRow = state.editDialog.dataRow;
     if (dataRow) {
         await redisApi.hdel.request({
             ...param,
@@ -185,7 +176,7 @@ const confirmEditData = async () => {
     }
 
     // 获取hash value内容并新增
-    const value = formatViewerRef.value.getContent()
+    const value = formatViewerRef.value.getContent();
     const res = await redisApi.hset.request({
         ...param,
         value: [
@@ -196,7 +187,7 @@ const confirmEditData = async () => {
         ],
     });
 
-    ElMessage.success("保存成功");
+    ElMessage.success('保存成功');
     if (dataRow) {
         state.editDialog.dataRow.value = value;
         state.editDialog.dataRow.field = field;
@@ -211,18 +202,17 @@ const confirmEditData = async () => {
     }
     state.editDialog.visible = false;
     state.editDialog.dataRow = null;
-}
+};
 
 const getBaseReqParam = () => {
     return {
         id: state.redisId,
         db: state.db,
-        key: state.key
-    }
-}
+        key: state.key,
+    };
+};
 
-defineExpose({ initData })
-
+defineExpose({ initData });
 </script>
 <style lang="scss">
 #string-value-text {

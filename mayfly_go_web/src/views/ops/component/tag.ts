@@ -2,17 +2,17 @@ export class TagTreeNode {
     /**
      * 节点id
      */
-    key: any
+    key: any;
 
     /**
      * 节点名称
      */
-    label: string
+    label: string;
 
     /**
      * 树节点类型
      */
-    type: any
+    type: any;
 
     isLeaf: boolean = false;
 

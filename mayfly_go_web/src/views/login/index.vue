@@ -43,11 +43,7 @@ const state = reactive({
     isTabPaneShow: true,
 });
 
-const {
-    isTabPaneShow,
-    tabsActiveName,
-} = toRefs(state)
-
+const { isTabPaneShow, tabsActiveName } = toRefs(state);
 
 // 切换密码、手机登录
 const onTabsClick = () => {

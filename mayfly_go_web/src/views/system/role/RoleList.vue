@@ -1,13 +1,23 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="query" :show-selection="true"
-            v-model:selection-data="selectionData" :data="roles" :columns="columns" :total="total"
-            v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
-
+        <page-table
+            ref="pageTableRef"
+            :query="queryConfig"
+            v-model:query-form="query"
+            :show-selection="true"
+            v-model:selection-data="selectionData"
+            :data="roles"
+            :columns="columns"
+            :total="total"
+            v-model:page-size="query.pageSize"
+            v-model:page-num="query.pageNum"
+            @pageChange="search()"
+        >
             <template #queryRight>
                 <el-button v-auth="perms.addRole" type="primary" icon="plus" @click="editRole(false)">添加</el-button>
-                <el-button v-auth="perms.delRole" :disabled="selectionData.length < 1" @click="deleteRole(selectionData)"
-                    type="danger" icon="delete">删除</el-button>
+                <el-button v-auth="perms.delRole" :disabled="selectionData.length < 1" @click="deleteRole(selectionData)" type="danger" icon="delete"
+                    >删除</el-button
+                >
             </template>
 
             <template #status="{ data }">
@@ -21,19 +31,19 @@
 
             <template #action="{ data }">
                 <el-button v-if="actionBtns[perms.updateRole]" @click="editRole(data)" type="primary" link>编辑</el-button>
-                <el-button v-if="actionBtns[perms.saveRoleResource]" @click="editResource(data)" type="success"
-                    link>权限分配</el-button>
+                <el-button v-if="actionBtns[perms.saveRoleResource]" @click="editResource(data)" type="success" link>权限分配</el-button>
             </template>
-
         </page-table>
 
-        <role-edit :title="roleEditDialog.title" v-model:visible="roleEditDialog.visible" :data="roleEditDialog.role"
-            @val-change="roleEditChange" />
-        <resource-edit v-model:visible="resourceDialog.visible" :role="resourceDialog.role"
-            :resources="resourceDialog.resources" :defaultCheckedKeys="resourceDialog.defaultCheckedKeys"
-            @cancel="cancelEditResources()" />
-        <show-resource v-model:visible="showResourceDialog.visible" :title="showResourceDialog.title"
-            v-model:resources="showResourceDialog.resources" />
+        <role-edit :title="roleEditDialog.title" v-model:visible="roleEditDialog.visible" :data="roleEditDialog.role" @val-change="roleEditChange" />
+        <resource-edit
+            v-model:visible="resourceDialog.visible"
+            :role="resourceDialog.role"
+            :resources="resourceDialog.resources"
+            :defaultCheckedKeys="resourceDialog.defaultCheckedKeys"
+            @cancel="cancelEditResources()"
+        />
+        <show-resource v-model:visible="showResourceDialog.visible" :title="showResourceDialog.title" v-model:resources="showResourceDialog.resources" />
     </div>
 </template>
 
@@ -44,36 +54,34 @@ import ResourceEdit from './ResourceEdit.vue';
 import ShowResource from './ShowResource.vue';
 import { roleApi, resourceApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import PageTable from '@/components/pagetable/PageTable.vue'
+import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 
-const pageTableRef: any = ref(null)
+const pageTableRef: any = ref(null);
 
 const perms = {
-    addRole: "role:add",
-    delRole: "role:del",
-    updateRole: "role:update",
-    saveRoleResource: "role:saveResources",
-}
+    addRole: 'role:add',
+    delRole: 'role:del',
+    updateRole: 'role:update',
+    saveRoleResource: 'role:saveResources',
+};
 
-const queryConfig = [
-    TableQuery.text("name", "角色名"),
-]
+const queryConfig = [TableQuery.text('name', '角色名')];
 const columns = ref([
-    TableColumn.new("name", "角色名称"),
-    TableColumn.new("code", "角色code"),
-    TableColumn.new("remark", "备注"),
-    TableColumn.new("status", "状态").isSlot(),
-    TableColumn.new("creator", "创建账号"),
-    TableColumn.new("createTime", "创建时间").isTime(),
-    TableColumn.new("modifier", "更新账号"),
-    TableColumn.new("updateTime", "更新时间").isTime(),
-    TableColumn.new("showmore", "查看更多").isSlot().setMinWidth(150),
-])
+    TableColumn.new('name', '角色名称'),
+    TableColumn.new('code', '角色code'),
+    TableColumn.new('remark', '备注'),
+    TableColumn.new('status', '状态').isSlot(),
+    TableColumn.new('creator', '创建账号'),
+    TableColumn.new('createTime', '创建时间').isTime(),
+    TableColumn.new('modifier', '更新账号'),
+    TableColumn.new('updateTime', '更新时间').isTime(),
+    TableColumn.new('showmore', '查看更多').isSlot().setMinWidth(150),
+]);
 
-const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource])
-const actionColumn = TableColumn.new("action", "操作").isSlot().setMinWidth(160).fixedRight().alignCenter()
+const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource]);
+const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(160).fixedRight().alignCenter();
 
 const state = reactive({
     query: {
@@ -102,15 +110,7 @@ const state = reactive({
     },
 });
 
-const {
-    query,
-    total,
-    roles,
-    selectionData,
-    resourceDialog,
-    roleEditDialog,
-    showResourceDialog,
-} = toRefs(state)
+const { query, total, roles, selectionData, resourceDialog, roleEditDialog, showResourceDialog } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
@@ -148,7 +148,7 @@ const editRole = (data: any) => {
 const deleteRole = async (data: any) => {
     try {
         await ElMessageBox.confirm(
-            `此操作将删除【${data.map((x: any) => x.name).join(", ")}】该角色，以及与该角色有关的账号角色关联信息和资源角色关联信息, 是否继续?`,
+            `此操作将删除【${data.map((x: any) => x.name).join(', ')}】该角色，以及与该角色有关的账号角色关联信息和资源角色关联信息, 是否继续?`,
             '提示',
             {
                 confirmButtonText: '确定',
@@ -157,11 +157,11 @@ const deleteRole = async (data: any) => {
             }
         );
         await roleApi.del.request({
-            id: data.map((x: any) => x.id).join(","),
+            id: data.map((x: any) => x.id).join(','),
         });
         ElMessage.success('删除成功！');
         search();
-    } catch (err) { }
+    } catch (err) {}
 };
 
 const showResources = async (row: any) => {

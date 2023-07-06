@@ -146,35 +146,16 @@
                 @pageChange="searchSqlExecLog()">
 
                 <template #dbSelect>
-                    <el-select v-model="sqlExecLogDialog.query.db" placeholder="请选择数据库" filterable clearable>
+                    <el-select v-model="sqlExecLogDialog.query.db" placeholder="请选择数据库" style="width: 200px" filterable
+                        clearable>
                         <el-option v-for="item in sqlExecLogDialog.dbs" :key="item" :label="`${item}`" :value="item">
                         </el-option>
                     </el-select>
                 </template>
 
-                <template #typeSelect>
-                    <el-select v-model="sqlExecLogDialog.query.type" placeholder="请选择操作类型" clearable>
-                        <el-option v-for="item in enums.DbSqlExecTypeEnum as any" :key="item.value" :label="item.label"
-                            :value="item.value"> </el-option>
-                    </el-select>
-                </template>
-
-                <template #type="{ data }">
-                    <el-tag v-if="data.type == enums.DbSqlExecTypeEnum['UPDATE'].value" color="#E4F5EB"
-                        size="small">UPDATE</el-tag>
-                    <el-tag v-if="data.type == enums.DbSqlExecTypeEnum['DELETE'].value" color="#F9E2AE"
-                        size="small">DELETE</el-tag>
-                    <el-tag v-if="data.type == enums.DbSqlExecTypeEnum['INSERT'].value" color="#A8DEE0"
-                        size="small">INSERT</el-tag>
-                    <el-tag v-if="data.type == enums.DbSqlExecTypeEnum['QUERY'].value" color="#A8DEE0"
-                        size="small">QUERY</el-tag>
-                    <el-tag v-if="data.type == enums.DbSqlExecTypeEnum['OTHER'].value" color="#F9E2AE"
-                        size="small">OTHER</el-tag>
-                </template>
-
                 <template #action="{ data }">
                     <el-link
-                        v-if="data.type == enums.DbSqlExecTypeEnum['UPDATE'].value || data.type == enums.DbSqlExecTypeEnum['DELETE'].value"
+                        v-if="data.type == DbSqlExecTypeEnum.Update.value || data.type == DbSqlExecTypeEnum.Delete.value"
                         type="primary" plain size="small" :underline="false" @click="onShowRollbackSql(data)">
                         还原SQL</el-link>
                 </template>
@@ -254,7 +235,7 @@ import { ref, toRefs, reactive, computed, onMounted, defineAsyncComponent } from
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { dbApi } from './api';
-import enums from './enums';
+import { DbSqlExecTypeEnum } from './enums';
 import SqlExecBox from './component/SqlExecBox';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
@@ -331,12 +312,12 @@ const state = reactive({
         queryConfig: [
             TableQuery.slot("db", "数据库", "dbSelect"),
             TableQuery.text("table", "表名"),
-            TableQuery.slot("type", "操作类型", "typeSelect"),
+            TableQuery.select("type", "操作类型").setOptions(Object.values(DbSqlExecTypeEnum)),
         ],
         columns: [
             TableColumn.new("db", "数据库"),
             TableColumn.new("table", "表"),
-            TableColumn.new("type", "类型").isSlot().setAddWidth(10),
+            TableColumn.new("type", "类型").typeTag(DbSqlExecTypeEnum).setAddWidth(10),
             TableColumn.new("creator", "执行人"),
             TableColumn.new("sql", "SQL"),
             TableColumn.new("oldValue", "原值"),
@@ -566,7 +547,7 @@ const onShowRollbackSql = async (sqlExecLog: any) => {
     const oldValue = JSON.parse(sqlExecLog.oldValue);
 
     const rollbackSqls = [];
-    if (sqlExecLog.type == enums.DbSqlExecTypeEnum['UPDATE'].value) {
+    if (sqlExecLog.type == DbSqlExecTypeEnum['UPDATE'].value) {
         for (let ov of oldValue) {
             const setItems = [];
             for (let key in ov) {
@@ -577,7 +558,7 @@ const onShowRollbackSql = async (sqlExecLog: any) => {
             }
             rollbackSqls.push(`UPDATE ${sqlExecLog.table} SET ${setItems.join(', ')} WHERE ${primaryKey} = ${wrapValue(ov[primaryKey])};`);
         }
-    } else if (sqlExecLog.type == enums.DbSqlExecTypeEnum['DELETE'].value) {
+    } else if (sqlExecLog.type == DbSqlExecTypeEnum['DELETE'].value) {
         const columnNames = columns.map((c: any) => c.columnName);
         for (let ov of oldValue) {
             const values = [];

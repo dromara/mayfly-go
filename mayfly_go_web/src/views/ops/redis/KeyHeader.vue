@@ -8,10 +8,8 @@
                 </template>
 
                 <template #suffix>
-                    <SvgIcon v-auth="'redis:data:save'" @click="renameKey" title="点击重命名" name="check"
-                        class="cursor-pointer" />
+                    <SvgIcon v-auth="'redis:data:save'" @click="renameKey" title="点击重命名" name="check" class="cursor-pointer" />
                 </template>
-
             </el-input>
         </div>
 
@@ -30,9 +28,8 @@
         </div>
 
         <!-- del & refresh btn -->
-        <div class='key-header-item key-header-btn-con'>
-            <el-button slot="reference" ref='refreshBtn' type="success" @click="refreshKey" icon="refresh"
-                title="刷新"></el-button>
+        <div class="key-header-item key-header-btn-con">
+            <el-button slot="reference" ref="refreshBtn" type="success" @click="refreshKey" icon="refresh" title="刷新"></el-button>
         </div>
     </div>
 </template>
@@ -43,17 +40,17 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 
 const props = defineProps({
     redisId: {
-        type: Number
+        type: Number,
     },
     db: {
-        type: Number
+        type: Number,
     },
     keyInfo: {
         type: [Object],
     },
-})
+});
 
-const emit = defineEmits(['refreshContent', 'changeKey', 'valChange'])
+const emit = defineEmits(['refreshContent', 'changeKey', 'valChange']);
 
 const state = reactive({
     redisId: 0,
@@ -66,19 +63,19 @@ const state = reactive({
 });
 
 onMounted(() => {
-    state.keyInfo = props.keyInfo
-    state.oldKey = props.keyInfo?.key
-})
+    state.keyInfo = props.keyInfo;
+    state.oldKey = props.keyInfo?.key;
+});
 
 const refreshKey = async () => {
     const ttl = await redisApi.keyTtl.request({
         id: props.redisId,
         db: props.db,
         key: state.oldKey,
-    })
+    });
     state.keyInfo.timed = ttl;
     emit('refreshContent');
-}
+};
 
 const renameKey = async () => {
     if (!state.oldKey || state.keyInfo.key == state.oldKey) {
@@ -88,11 +85,11 @@ const renameKey = async () => {
         id: props.redisId,
         db: props.db,
         newKey: state.keyInfo.key,
-        key: state.oldKey
+        key: state.oldKey,
     });
-    ElMessage.success("设置成功")
+    ElMessage.success('设置成功');
     emit('changeKey');
-}
+};
 
 const ttlKey = async () => {
     if (!state.oldKey) {
@@ -101,32 +98,28 @@ const ttlKey = async () => {
     // ttl <= 0，则持久化该key
     if (state.keyInfo.timed <= 0) {
         try {
-            await ElMessageBox.confirm(
-                '确定持久化该key?',
-                'Warning',
-                {
-                    confirmButtonText: '确认',
-                    cancelButtonText: '取消',
-                    type: 'warning',
-                }
-            )
+            await ElMessageBox.confirm('确定持久化该key?', 'Warning', {
+                confirmButtonText: '确认',
+                cancelButtonText: '取消',
+                type: 'warning',
+            });
         } catch (err) {
             return;
         }
         await persistKey();
         state.keyInfo.timed = -1;
-        return
+        return;
     }
 
     await redisApi.expireKey.request({
         id: props.redisId,
         db: props.db,
         key: state.keyInfo.key,
-        seconds: state.keyInfo.timed
+        seconds: state.keyInfo.timed,
     });
-    ElMessage.success("设置成功")
+    ElMessage.success('设置成功');
     emit('changeKey');
-}
+};
 
 const persistKey = async () => {
     await redisApi.persistKey.request({
@@ -134,14 +127,11 @@ const persistKey = async () => {
         db: props.db,
         key: state.keyInfo.key,
     });
-    ElMessage.success("设置成功")
+    ElMessage.success('设置成功');
     emit('changeKey');
-}
+};
 
-const {
-    keyInfo,
-    oldKey,
-} = toRefs(state)
+const { keyInfo, oldKey } = toRefs(state);
 
 // watch(
 //     () => props.keyInfo,
@@ -189,7 +179,7 @@ const {
     appearance: none;
 }
 
-.key-header-item.key-header-btn-con .el-button+.el-button {
+.key-header-item.key-header-btn-con .el-button + .el-button {
     margin-left: 4px;
 }
 

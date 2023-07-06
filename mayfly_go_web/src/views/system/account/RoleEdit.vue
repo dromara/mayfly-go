@@ -1,11 +1,9 @@
 <template>
     <div class="account-dialog">
-        <el-dialog :title="account == null ? '' : '分配“' + account.username + '”的角色'" v-model="dialogVisible"
-            :before-close="cancel" :show-close="false">
+        <el-dialog :title="account == null ? '' : '分配“' + account.username + '”的角色'" v-model="dialogVisible" :before-close="cancel" :show-close="false">
             <div class="toolbar">
                 <div style="float: left">
-                    <el-input placeholder="请输入角色名" style="width: 150px" v-model="query.name" @clear="clear()" clearable>
-                    </el-input>
+                    <el-input placeholder="请输入角色名" style="width: 150px" v-model="query.name" @clear="clear()" clearable> </el-input>
                     <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
                 </div>
             </div>
@@ -19,9 +17,15 @@
                     </template>
                 </el-table-column>
             </el-table>
-            <el-pagination @current-change="handlePageChange" style="text-align: center; margin-top: 20px" background
-                layout="prev, pager, next, total, jumper" :total="total" v-model:current-page="query.pageNum"
-                :page-size="query.pageSize"></el-pagination>
+            <el-pagination
+                @current-change="handlePageChange"
+                style="text-align: center; margin-top: 20px"
+                background
+                layout="prev, pager, next, total, jumper"
+                :total="total"
+                v-model:current-page="query.pageNum"
+                :page-size="query.pageSize"
+            ></el-pagination>
 
             <template #footer>
                 <div class="dialog-footer">
@@ -42,11 +46,11 @@ const props = defineProps({
     visible: {
         type: Boolean,
     },
-    account: Object
-})
+    account: Object,
+});
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change'])
+const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const roleTable: any = ref(null);
 
@@ -64,16 +68,10 @@ const state = reactive({
     total: 0,
 });
 
-const {
-    dialogVisible,
-    btnLoading,
-    allRole,
-    query,
-    total,
-} = toRefs(state)
+const { dialogVisible, btnLoading, allRole, query, total } = toRefs(state);
 
 // 用户拥有的角色信息
-let roles: any[] = []
+let roles: any[] = [];
 
 watch(props, (newValue: any) => {
     state.dialogVisible = newValue.visible;

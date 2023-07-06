@@ -9,27 +9,27 @@ import { defineStore } from 'pinia';
  * @methods delAllCachedViews 右键菜单`全部关闭`，删除要缓存的路由 names（关闭 Tagsview）
  */
 export const useKeepALiveNames = defineStore('keepALiveNames', {
-	state: (): KeepAliveNamesState => ({
-		keepAliveNames: [],
-		cachedViews: [],
-	}),
-	actions: {
-		async setCacheKeepAlive(data: Array<string>) {
-			this.keepAliveNames = data;
-		},
-		async addCachedView(view: any) {
-			if (view.meta.isKeepAlive) this.cachedViews?.push(view.name);
-		},
-		async delCachedView(view: any) {
-			const index = this.cachedViews.indexOf(view.name);
-			index > -1 && this.cachedViews.splice(index, 1);
-		},
-		async delOthersCachedViews(view: any) {
-			if (view.meta.isKeepAlive) this.cachedViews = [view.name];
-			else this.cachedViews = [];
-		},
-		async delAllCachedViews() {
-			this.cachedViews = [];
-		},
-	},
+    state: (): KeepAliveNamesState => ({
+        keepAliveNames: [],
+        cachedViews: [],
+    }),
+    actions: {
+        async setCacheKeepAlive(data: Array<string>) {
+            this.keepAliveNames = data;
+        },
+        async addCachedView(view: any) {
+            if (view.meta.isKeepAlive) this.cachedViews?.push(view.name);
+        },
+        async delCachedView(view: any) {
+            const index = this.cachedViews.indexOf(view.name);
+            index > -1 && this.cachedViews.splice(index, 1);
+        },
+        async delOthersCachedViews(view: any) {
+            if (view.meta.isKeepAlive) this.cachedViews = [view.name];
+            else this.cachedViews = [];
+        },
+        async delAllCachedViews() {
+            this.cachedViews = [];
+        },
+    },
 });

@@ -1,21 +1,27 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="params" :show-selection="true"
-            v-model:selection-data="state.selectionData" :data="data.list" :columns="columns" :total="data.total"
-            v-model:page-size="params.pageSize" v-model:page-num="params.pageNum" @pageChange="search()">
-
+        <page-table
+            ref="pageTableRef"
+            :query="queryConfig"
+            v-model:query-form="params"
+            :show-selection="true"
+            v-model:selection-data="state.selectionData"
+            :data="data.list"
+            :columns="columns"
+            :total="data.total"
+            v-model:page-size="params.pageSize"
+            v-model:page-num="params.pageNum"
+            @pageChange="search()"
+        >
             <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" @clear="search" filterable
-                    clearable style="width: 200px">
+                <el-select @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
             </template>
 
             <template #queryRight>
-                <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加
-                </el-button>
-                <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()"
-                    type="danger" icon="delete">删除</el-button>
+                <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加 </el-button>
+                <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()" type="danger" icon="delete">删除</el-button>
             </template>
 
             <template #tagPath="{ data }">
@@ -32,10 +38,18 @@
             </template>
 
             <template #status="{ data }">
-                <el-switch v-auth:disabled="'machine:update'" :width="52" v-model="data.status" :active-value="1"
-                    :inactive-value="-1" inline-prompt active-text="启用" inactive-text="停用"
+                <el-switch
+                    v-auth:disabled="'machine:update'"
+                    :width="52"
+                    v-model="data.status"
+                    :active-value="1"
+                    :inactive-value="-1"
+                    inline-prompt
+                    active-text="启用"
+                    inactive-text="停用"
                     style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
-                    @change="changeStatus(data)"></el-switch>
+                    @change="changeStatus(data)"
+                ></el-switch>
             </template>
 
             <template #action="{ data }">
@@ -45,8 +59,7 @@
                 </span>
 
                 <span v-auth="'machine:file'">
-                    <el-button type="success" :disabled="data.status == -1" @click="showFileManage(data)"
-                        link>文件</el-button>
+                    <el-button type="success" :disabled="data.status == -1" @click="showFileManage(data)" link>文件</el-button>
                     <el-divider direction="vertical" border-style="dashed" />
                 </span>
 
@@ -62,25 +75,21 @@
                     </span>
                     <template #dropdown>
                         <el-dropdown-menu>
-                            <el-dropdown-item :command="{ type: 'detail', data }">
-                                详情
-                            </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
 
-                            <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.updateMachine]">
-                                编辑
-                            </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.updateMachine]"> 编辑 </el-dropdown-item>
 
-                            <el-dropdown-item :command="{ type: 'process', data }" :disabled="data.status == -1">
-                                进程
-                            </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'process', data }" :disabled="data.status == -1"> 进程 </el-dropdown-item>
 
-                            <el-dropdown-item :command="{ type: 'terminalRec', data }"
-                                v-if="actionBtns[perms.updateMachine] && data.enableRecorder == 1">
+                            <el-dropdown-item :command="{ type: 'terminalRec', data }" v-if="actionBtns[perms.updateMachine] && data.enableRecorder == 1">
                                 终端回放
                             </el-dropdown-item>
 
-                            <el-dropdown-item :command="{ type: 'closeCli', data }" v-if="actionBtns[perms.closeCli]"
-                                :disabled="!data.hasCli || data.status == -1">
+                            <el-dropdown-item
+                                :command="{ type: 'closeCli', data }"
+                                v-if="actionBtns[perms.closeCli]"
+                                :disabled="!data.hasCli || data.status == -1"
+                            >
                                 关闭连接
                             </el-dropdown-item>
                         </el-dropdown-menu>
@@ -106,39 +115,33 @@
 
                 <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
 
-                <el-descriptions-item :span="1.5" label="SSH隧道">{{ infoDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }}
-                </el-descriptions-item>
-                <el-descriptions-item :span="1.5" label="终端回放">{{ infoDialog.data.enableRecorder == 1 ? '是' : '否' }}
-                </el-descriptions-item>
+                <el-descriptions-item :span="1.5" label="SSH隧道">{{ infoDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
+                <el-descriptions-item :span="1.5" label="终端回放">{{ infoDialog.data.enableRecorder == 1 ? '是' : '否' }} </el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data.createTime) }}
-                </el-descriptions-item>
+                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data.createTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data.creator }}</el-descriptions-item>
 
-
-                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }}
-                </el-descriptions-item>
+                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data.modifier }}</el-descriptions-item>
-
             </el-descriptions>
         </el-dialog>
 
-        <machine-edit :title="machineEditDialog.title" v-model:visible="machineEditDialog.visible"
-            v-model:machine="machineEditDialog.data" @valChange="submitSuccess"></machine-edit>
+        <machine-edit
+            :title="machineEditDialog.title"
+            v-model:visible="machineEditDialog.visible"
+            v-model:machine="machineEditDialog.data"
+            @valChange="submitSuccess"
+        ></machine-edit>
 
         <process-list v-model:visible="processDialog.visible" v-model:machineId="processDialog.machineId" />
 
-        <script-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible"
-            v-model:machineId="serviceDialog.machineId" />
+        <script-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible" v-model:machineId="serviceDialog.machineId" />
 
-        <file-manage :title="fileDialog.title" v-model:visible="fileDialog.visible"
-            v-model:machineId="fileDialog.machineId" />
+        <file-manage :title="fileDialog.title" v-model:visible="fileDialog.visible" v-model:machineId="fileDialog.machineId" />
 
-        <machine-stats v-model:visible="machineStatsDialog.visible" :machineId="machineStatsDialog.machineId"
-            :title="machineStatsDialog.title"></machine-stats>
+        <machine-stats v-model:visible="machineStatsDialog.visible" :machineId="machineStatsDialog.machineId" :title="machineStatsDialog.title"></machine-stats>
 
-        <machine-rec v-model:visible="machineRecDialog.visible" :machineId="machineRecDialog.machineId"
-            :title="machineRecDialog.title"></machine-rec>
+        <machine-rec v-model:visible="machineRecDialog.visible" :machineId="machineRecDialog.machineId" :title="machineRecDialog.title"></machine-rec>
     </div>
 </template>
 
@@ -150,7 +153,7 @@ import { machineApi } from './api';
 import { tagApi } from '../tag/api';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
-import PageTable from '@/components/pagetable/PageTable.vue'
+import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 
@@ -163,33 +166,29 @@ const MachineRec = defineAsyncComponent(() => import('./MachineRec.vue'));
 const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
 
 const router = useRouter();
-const pageTableRef: any = ref(null)
+const pageTableRef: any = ref(null);
 
 const perms = {
-    addMachine: "machine:add",
-    updateMachine: "machine:update",
-    delMachine: "machine:del",
-    terminal: "machine:terminal",
-    closeCli: "machine:close-cli",
-}
+    addMachine: 'machine:add',
+    updateMachine: 'machine:update',
+    delMachine: 'machine:del',
+    terminal: 'machine:terminal',
+    closeCli: 'machine:close-cli',
+};
 
-const queryConfig = [
-    TableQuery.slot("tagPath", "标签", "tagPathSelect"),
-    TableQuery.text("ip", "IP"),
-    TableQuery.text("name", "名称"),
-]
+const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect'), TableQuery.text('ip', 'IP'), TableQuery.text('name', '名称')];
 
 const columns = ref([
-    TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
-    TableColumn.new("name", "名称"),
-    TableColumn.new("ipPort", "ip:port").isSlot().setAddWidth(35),
-    TableColumn.new("username", "用户名"),
-    TableColumn.new("status", "状态").isSlot().setMinWidth(85),
-    TableColumn.new("remark", "备注"),
-    TableColumn.new("action", "操作").isSlot().setMinWidth(238).fixedRight().alignCenter(),
-])
+    TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
+    TableColumn.new('name', '名称'),
+    TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(35),
+    TableColumn.new('username', '用户名'),
+    TableColumn.new('status', '状态').isSlot().setMinWidth(85),
+    TableColumn.new('remark', '备注'),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(238).fixedRight().alignCenter(),
+]);
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
-const actionBtns = hasPerms([perms.updateMachine, perms.closeCli])
+const actionBtns = hasPerms([perms.updateMachine, perms.closeCli]);
 
 const state = reactive({
     tags: [] as any,
@@ -243,19 +242,8 @@ const state = reactive({
     },
 });
 
-const {
-    tags,
-    params,
-    data,
-    infoDialog,
-    selectionData,
-    serviceDialog,
-    processDialog,
-    fileDialog,
-    machineStatsDialog,
-    machineEditDialog,
-    machineRecDialog,
-} = toRefs(state)
+const { tags, params, data, infoDialog, selectionData, serviceDialog, processDialog, fileDialog, machineStatsDialog, machineEditDialog, machineRecDialog } =
+    toRefs(state);
 
 onMounted(async () => {
     search();
@@ -266,28 +254,28 @@ const handleCommand = (commond: any) => {
     const type = commond.type;
     console.log(type);
     switch (type) {
-        case "detail": {
+        case 'detail': {
             showInfo(data);
             return;
         }
-        case "edit": {
+        case 'edit': {
             openFormDialog(data);
             return;
         }
-        case "process": {
+        case 'process': {
             showProcess(data);
             return;
         }
-        case "terminalRec": {
+        case 'terminalRec': {
             showRec(data);
             return;
         }
-        case "closeCli": {
+        case 'closeCli': {
             closeCli(data);
             return;
         }
     }
-}
+};
 
 const showTerminal = (row: any) => {
     const { href } = router.resolve({
@@ -331,15 +319,19 @@ const openFormDialog = async (machine: any) => {
 
 const deleteMachine = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(", ")}】机器信息? 该操作将同时删除脚本及文件配置信息`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
-        await machineApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(",") });
+        await ElMessageBox.confirm(
+            `确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】机器信息? 该操作将同时删除脚本及文件配置信息`,
+            '提示',
+            {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning',
+            }
+        );
+        await machineApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('操作成功');
         search();
-    } catch (err) { }
+    } catch (err) {}
 };
 
 const serviceManager = (row: any) => {
@@ -390,7 +382,7 @@ const search = async () => {
 const showInfo = (info: any) => {
     state.infoDialog.data = info;
     state.infoDialog.visible = true;
-}
+};
 
 const showProcess = (row: any) => {
     state.processDialog.machineId = row.id;

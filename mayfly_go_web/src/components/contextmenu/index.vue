@@ -1,12 +1,24 @@
 <template>
     <transition name="el-zoom-in-center">
-        <div aria-hidden="true" class="el-dropdown__popper el-popper is-light is-pure custom-contextmenu" role="tooltip"
-            data-popper-placement="bottom" :style="`top: ${dropdowns.y + 5}px;left: ${dropdowns.x}px;`" :key="Math.random()"
-            v-show="state.isShow">
+        <div
+            aria-hidden="true"
+            class="el-dropdown__popper el-popper is-light is-pure custom-contextmenu"
+            role="tooltip"
+            data-popper-placement="bottom"
+            :style="`top: ${dropdowns.y + 5}px;left: ${dropdowns.x}px;`"
+            :key="Math.random()"
+            v-show="state.isShow"
+        >
             <ul class="el-dropdown-menu">
                 <template v-for="(v, k) in state.dropdownList">
-                    <li class="el-dropdown-menu__item" aria-disabled="false" tabindex="-1" :key="k" v-if="!v.affix"
-                        @click="onCurrentContextmenuClick(v.contextMenuClickId)">
+                    <li
+                        class="el-dropdown-menu__item"
+                        aria-disabled="false"
+                        tabindex="-1"
+                        :key="k"
+                        v-if="!v.affix"
+                        @click="onCurrentContextmenuClick(v.contextMenuClickId)"
+                    >
                         <SvgIcon :name="v.icon" />
                         <span>{{ v.txt }}</span>
                     </li>
@@ -43,9 +55,7 @@ const emit = defineEmits(['currentContextmenuClick']);
 // 定义变量内容
 const state = reactive({
     isShow: false,
-    dropdownList: [
-        { contextMenuClickId: 0, txt: '刷新', affix: false, icon: 'RefreshRight' },
-    ],
+    dropdownList: [{ contextMenuClickId: 0, txt: '刷新', affix: false, icon: 'RefreshRight' }],
     item: {} as any,
     arrowLeft: 10,
 });
@@ -100,7 +110,7 @@ watch(
 watch(
     () => props.items,
     (x: any) => {
-        state.dropdownList = x
+        state.dropdownList = x;
     },
     {
         deep: true,

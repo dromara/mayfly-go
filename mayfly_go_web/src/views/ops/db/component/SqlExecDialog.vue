@@ -36,7 +36,7 @@ const props = defineProps({
     sql: {
         type: String,
     },
-})
+});
 
 const remarkInputRef = ref<InputInstance>();
 const state = reactive({
@@ -48,12 +48,7 @@ const state = reactive({
     btnLoading: false,
 });
 
-const {
-    dialogVisible,
-    sqlValue,
-    remark,
-    btnLoading
-} = toRefs(state)
+const { dialogVisible, sqlValue, remark, btnLoading } = toRefs(state);
 
 state.sqlValue = props.sql as any;
 let runSuccessCallback: any;
@@ -81,7 +76,7 @@ const runSql = async () => {
         for (let re of res.res) {
             if (re.result !== 'success') {
                 ElMessage.error(`${re.sql} \n执行失败: ${re.result}`);
-                throw new Error(re.result)
+                throw new Error(re.result);
             }
         }
 
@@ -129,7 +124,7 @@ const open = (props: SqlExecProps) => {
     });
 };
 
-defineExpose({ open })
+defineExpose({ open });
 </script>
 <style lang="scss">
 .codesql {

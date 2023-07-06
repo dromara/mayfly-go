@@ -2,9 +2,9 @@ import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
 import { getSession, clearSession } from '@/common/utils/storage';
-import { templateResolve } from '@/common/utils/string'
+import { templateResolve } from '@/common/utils/string';
 import { NextLoading } from '@/common/utils/loading';
-import { dynamicRoutes, staticRoutes, pathMatch } from './route'
+import { dynamicRoutes, staticRoutes, pathMatch } from './route';
 import openApi from '@/common/openApi';
 import sockets from '@/common/sockets';
 import pinia from '@/store/index';
@@ -33,17 +33,17 @@ export function initAllFun() {
     const token = getSession('token'); // 获取浏览器缓存 token 值
     if (!token) {
         // 无 token 停止执行下一步
-        return false
+        return false;
     }
     useUserInfo().setUserInfo({});
     router.addRoute(pathMatch); // 添加404界面
     resetRoute(); // 删除/重置路由
     // 添加动态路由
     setFilterRouteEnd().forEach((route: any) => {
-        router.addRoute((route as unknown) as RouteRecordRaw);
+        router.addRoute(route as unknown as RouteRecordRaw);
     });
     // 过滤权限菜单
-    useRoutesList().setRoutesList(setFilterMenuFun(dynamicRoutes[0].children, useUserInfo().userInfo.menus))
+    useRoutesList().setRoutesList(setFilterMenuFun(dynamicRoutes[0].children, useUserInfo().userInfo.menus));
 }
 
 // 后端控制路由：执行路由数据初始化
@@ -52,7 +52,7 @@ export async function initBackEndControlRoutesFun() {
     const token = getSession('token'); // 获取浏览器缓存 token 值
     if (!token) {
         // 无 token 停止执行下一步
-        return false
+        return false;
     }
     useUserInfo().setUserInfo({});
     // 获取路由
@@ -63,59 +63,59 @@ export async function initBackEndControlRoutesFun() {
     resetRoute(); // 删除/重置路由
     // 添加动态路由
     formatTwoStageRoutes(formatFlatteningRoutes(dynamicRoutes)).forEach((route: any) => {
-        router.addRoute((route as unknown) as RouteRecordRaw);
+        router.addRoute(route as unknown as RouteRecordRaw);
     });
-    useRoutesList().setRoutesList(dynamicRoutes[0].children)
+    useRoutesList().setRoutesList(dynamicRoutes[0].children);
 }
 
 // 后端控制路由，isRequestRoutes 为 true，则开启后端控制路由
 export async function getBackEndControlRoutes() {
     try {
-        const menuAndPermission = await openApi.getPermissions.request();
+        const menuAndPermission = await openApi.getPermissions();
         // 赋值权限码，用于控制按钮等
         useUserInfo().userInfo.permissions = menuAndPermission.permissions;
         return menuAndPermission.menus;
     } catch (e: any) {
         console.error(e);
-        return []
+        return [];
     }
 }
 
 // 后端控制路由，后端返回路由 转换为vue route
-export function backEndRouterConverter(routes: any, parentPath: string = "/") {
+export function backEndRouterConverter(routes: any, parentPath: string = '/') {
     if (!routes) return;
     return routes.map((item: any) => {
         if (!item.meta) {
-            return item
+            return item;
         }
         // 将json字符串的meta转为对象
-        item.meta = JSON.parse(item.meta)
+        item.meta = JSON.parse(item.meta);
         // 将meta.comoponet 解析为route.component
         if (item.meta.component) {
-            item.component = dynamicImport(dynamicViewsModules, item.meta.component)
-            delete item.meta['component']
+            item.component = dynamicImport(dynamicViewsModules, item.meta.component);
+            delete item.meta['component'];
         }
         // route.path == resource.code
-        let path = item.code
+        let path = item.code;
         // 如果不是以 / 开头，则路径需要拼接父路径
-        if (!path.startsWith("/")) {
-            path = parentPath + "/" + path;
+        if (!path.startsWith('/')) {
+            path = parentPath + '/' + path;
         }
-        item.path = path
-        delete item['code']
+        item.path = path;
+        delete item['code'];
 
         // route.meta.title == resource.name
-        item.meta.title = item.name
-        delete item['name']
+        item.meta.title = item.name;
+        delete item['name'];
 
         // route.name == resource.meta.routeName
-        item.name = item.meta.routeName
-        delete item.meta['routeName']
+        item.name = item.meta.routeName;
+        delete item.meta['routeName'];
 
         // route.redirect == resource.meta.redirect
         if (item.meta.redirect) {
-            item.redirect = item.meta.redirect
-            delete item.meta['redirect']
+            item.redirect = item.meta.redirect;
+            delete item.meta['redirect'];
         }
         item.children && backEndRouterConverter(item.children, item.path);
         return item;
@@ -178,9 +178,9 @@ export function formatTwoStageRoutes(arr: any) {
 // 判断路由code 是否包含当前登录用户menus字段中，menus为字符串code数组
 export function hasAnth(menus: any, route: any) {
     if (route.meta && route.meta.code) {
-        return menus.includes(route.meta.code)
+        return menus.includes(route.meta.code);
     }
-    return true
+    return true;
 }
 
 // 递归过滤有权限的路由
@@ -190,7 +190,7 @@ export function setFilterMenuFun(routes: any, menus: any) {
         const item = { ...route };
         if (hasAnth(menus, item)) {
             if (item.children) {
-                item.children = setFilterMenuFun(item.children, menus)
+                item.children = setFilterMenuFun(item.children, menus);
             }
             menu.push(item);
         }
@@ -206,11 +206,11 @@ export function setFilterRoute(chil: any) {
         if (route.meta.code) {
             useUserInfo().userInfo.menus.forEach((m: any) => {
                 if (route.meta.code == m) {
-                    filterRoute.push({ ...route })
+                    filterRoute.push({ ...route });
                 }
-            })
+            });
         } else {
-            filterRoute.push({ ...route })
+            filterRoute.push({ ...route });
         }
     });
     return filterRoute;
@@ -253,7 +253,7 @@ router.beforeEach(async (to, from, next) => {
 
     // 如果有标题参数，则再原标题后加上参数来区别
     if (to.meta.titleRename) {
-        to.meta.title = templateResolve(to.meta.title as string, to.query)
+        to.meta.title = templateResolve(to.meta.title as string, to.query);
     }
 
     const token = getSession('token');

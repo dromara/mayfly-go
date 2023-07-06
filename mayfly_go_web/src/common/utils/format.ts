@@ -1,7 +1,7 @@
 /**
  * 格式化字节单位
  * @param size byte size
- * @returns 
+ * @returns
  */
 export function formatByteSize(size: any) {
     const value = Number(size);
@@ -116,8 +116,7 @@ export function formatDate(date: Date, format: string) {
         '3': '三',
         '4': '四',
     };
-    if (/(W+)/.test(format))
-        format = format.replace(RegExp.$1, RegExp.$1.length > 1 ? (RegExp.$1.length > 2 ? '星期' + week[we] : '周' + week[we]) : week[we]);
+    if (/(W+)/.test(format)) format = format.replace(RegExp.$1, RegExp.$1.length > 1 ? (RegExp.$1.length > 2 ? '星期' + week[we] : '周' + week[we]) : week[we]);
     if (/(Q+)/.test(format)) format = format.replace(RegExp.$1, RegExp.$1.length == 4 ? '第' + quarter[qut] + '季度' : quarter[qut]);
     for (let k in opt) {
         let r = new RegExp('(' + k + ')').exec(format);

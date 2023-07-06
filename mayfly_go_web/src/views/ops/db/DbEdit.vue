@@ -1,7 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false"
-            :destroy-on-close="true" width="38%">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" :destroy-on-close="true" width="38%">
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
@@ -20,8 +19,7 @@
                         </el-form-item>
                         <el-form-item prop="host" label="host:" required>
                             <el-col :span="18">
-                                <el-input :disabled="form.id !== undefined" v-model.trim="form.host" placeholder="请输入主机ip"
-                                    auto-complete="off"></el-input>
+                                <el-input :disabled="form.id !== undefined" v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
                             </el-col>
                             <el-col style="text-align: center" :span="1">:</el-col>
                             <el-col :span="5">
@@ -32,14 +30,17 @@
                             <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
                         </el-form-item>
                         <el-form-item prop="password" label="密码:">
-                            <el-input type="password" show-password v-model.trim="form.password" placeholder="请输入密码，修改操作可不填"
-                                autocomplete="new-password">
+                            <el-input
+                                type="password"
+                                show-password
+                                v-model.trim="form.password"
+                                placeholder="请输入密码，修改操作可不填"
+                                autocomplete="new-password"
+                            >
                                 <template v-if="form.id && form.id != 0" #suffix>
-                                    <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click"
-                                        :content="pwd">
+                                    <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click" :content="pwd">
                                         <template #reference>
-                                            <el-link @click="getDbPwd" :underline="false" type="primary" class="mr5">原密码
-                                            </el-link>
+                                            <el-link @click="getDbPwd" :underline="false" type="primary" class="mr5">原密码 </el-link>
                                         </template>
                                     </el-popover>
                                 </template>
@@ -47,9 +48,18 @@
                         </el-form-item>
                         <el-form-item prop="database" label="数据库名:" required>
                             <el-col :span="19">
-                                <el-select @change="changeDatabase" v-model="databaseList" multiple clearable collapse-tags
-                                    collapse-tags-tooltip filterable allow-create placeholder="请确保数据库实例信息填写完整后获取库名"
-                                    style="width: 100%">
+                                <el-select
+                                    @change="changeDatabase"
+                                    v-model="databaseList"
+                                    multiple
+                                    clearable
+                                    collapse-tags
+                                    collapse-tags-tooltip
+                                    filterable
+                                    allow-create
+                                    placeholder="请确保数据库实例信息填写完整后获取库名"
+                                    style="width: 100%"
+                                >
                                     <el-option v-for="db in allDatabases" :key="db" :label="db" :value="db" />
                                 </el-select>
                             </el-col>
@@ -70,12 +80,17 @@
                         <el-form-item prop="params" label="连接参数:">
                             <el-input v-model.trim="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2">
                                 <template #suffix>
-                                    <el-link target="_blank" href="https://github.com/go-sql-driver/mysql#parameters"
-                                        :underline="false" type="primary" class="mr5">参数参考</el-link>
+                                    <el-link
+                                        target="_blank"
+                                        href="https://github.com/go-sql-driver/mysql#parameters"
+                                        :underline="false"
+                                        type="primary"
+                                        class="mr5"
+                                        >参数参考</el-link
+                                    >
                                 </template>
                             </el-input>
                         </el-form-item>
-
 
                         <el-form-item prop="sshTunnelMachineId" label="SSH隧道:">
                             <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
@@ -113,10 +128,10 @@ const props = defineProps({
     title: {
         type: String,
     },
-})
+});
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change'])
+const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const rules = {
     tagId: [
@@ -161,7 +176,7 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
-}
+};
 
 const dbForm: any = ref(null);
 
@@ -190,15 +205,7 @@ const state = reactive({
     btnLoading: false,
 });
 
-const {
-    dialogVisible,
-    tabActiveName,
-    allDatabases,
-    databaseList,
-    form,
-    pwd,
-    btnLoading,
-} = toRefs(state)
+const { dialogVisible, tabActiveName, allDatabases, databaseList, form, pwd, btnLoading } = toRefs(state);
 
 watch(props, (newValue: any) => {
     state.dialogVisible = newValue.visible;

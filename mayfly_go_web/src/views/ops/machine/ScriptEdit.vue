@@ -1,8 +1,15 @@
 <template>
     <div class="mock-data-dialog">
-        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :before-close="cancel"
-            :show-close="true" :destroy-on-close="true" width="900px">
-            <el-form :model="form" ref="scriptForm" label-width="auto" >
+        <el-dialog
+            :title="title"
+            v-model="dialogVisible"
+            :close-on-click-modal="false"
+            :before-close="cancel"
+            :show-close="true"
+            :destroy-on-close="true"
+            width="900px"
+        >
+            <el-form :model="form" ref="scriptForm" label-width="auto">
                 <el-form-item prop="method" label="名称">
                     <el-input v-model="form.name" placeholder="请输入名称"></el-input>
                 </el-form-item>
@@ -13,13 +20,12 @@
 
                 <el-form-item prop="type" label="类型">
                     <el-select v-model="form.type" default-first-option style="width: 100%" placeholder="请选择类型">
-                        <el-option v-for="item in enums.scriptTypeEnum as any" :key="item.value" :label="item.label"
-                            :value="item.value"></el-option>
+                        <el-option v-for="item in ScriptResultEnum" :key="item.value" :label="item.label" :value="item.value"></el-option>
                     </el-select>
                 </el-form-item>
 
                 <el-row style="margin-left: 30px; margin-bottom: 5px">
-                    <el-button @click="onAddParam"  type="success">新增占位符参数</el-button>
+                    <el-button @click="onAddParam" type="success">新增占位符参数</el-button>
                 </el-row>
                 <el-form-item :key="param" v-for="(param, index) in params" prop="params" :label="`参数${index + 1}`">
                     <el-row>
@@ -48,7 +54,7 @@
                             <el-divider direction="vertical" border-style="dashed" />
                         </span>
                         <el-col :span="2">
-                            <el-button @click="onDeleteParam(index)"  type="danger">删除</el-button>
+                            <el-button @click="onDeleteParam(index)" type="danger">删除</el-button>
                         </el-col>
                     </el-row>
                 </el-form-item>
@@ -59,8 +65,7 @@
             <template #footer>
                 <div class="dialog-footer">
                     <el-button @click="cancel()" :disabled="submitDisabled">关 闭</el-button>
-                    <el-button v-auth="'machine:script:save'" type="primary" :loading="btnLoading" @click="btnOk"
-                        :disabled="submitDisabled">保 存</el-button>
+                    <el-button v-auth="'machine:script:save'" type="primary" :loading="btnLoading" @click="btnOk" :disabled="submitDisabled">保 存</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -71,7 +76,7 @@
 import { ref, toRefs, reactive, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { machineApi } from './api';
-import enums from './enums';
+import { ScriptResultEnum } from './enums';
 import { notEmpty } from '@/common/assert';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 
@@ -91,9 +96,9 @@ const props = defineProps({
     isCommon: {
         type: Boolean,
     },
-})
+});
 
-const emit = defineEmits(['update:visible', 'cancel', 'submitSuccess'])
+const emit = defineEmits(['update:visible', 'cancel', 'submitSuccess']);
 
 const { isCommon, machineId } = toRefs(props);
 const scriptForm: any = ref(null);
@@ -114,13 +119,7 @@ const state = reactive({
     btnLoading: false,
 });
 
-const {
-    dialogVisible,
-    submitDisabled,
-    params,
-    form,
-    btnLoading,
-} = toRefs(state)
+const { dialogVisible, submitDisabled, params, form, btnLoading } = toRefs(state);
 
 watch(props, (newValue: any) => {
     state.dialogVisible = newValue.visible;

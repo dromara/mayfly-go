@@ -3,56 +3,61 @@
         <el-dialog :title="title" v-model="dialogVisible" :show-close="true" :before-close="handleClose" width="50%">
             <div class="toolbar">
                 <div style="float: right">
-                    <el-button v-auth="'machine:file:add'" type="primary" @click="add" icon="plus" plain>添加
-                    </el-button>
+                    <el-button v-auth="'machine:file:add'" type="primary" @click="add" icon="plus" plain>添加 </el-button>
                 </div>
             </div>
             <el-table :data="fileTable" stripe style="width: 100%" v-loading="loading">
                 <el-table-column prop="name" label="名称" min-width="70px">
                     <template #default="scope">
-                        <el-input v-model="scope.row.name" :disabled="scope.row.id != null" clearable>
-                        </el-input>
+                        <el-input v-model="scope.row.name" :disabled="scope.row.id != null" clearable> </el-input>
                     </template>
                 </el-table-column>
                 <el-table-column prop="name" label="类型" width="130px">
                     <template #default="scope">
-                        <el-select :disabled="scope.row.id != null" v-model="scope.row.type" style="width: 100px"
-                            placeholder="请选择">
-                            <el-option v-for="item in enums.FileTypeEnum as any" :key="item.value" :label="item.label"
-                                :value="item.value"></el-option>
+                        <el-select :disabled="scope.row.id != null" v-model="scope.row.type" style="width: 100px" placeholder="请选择">
+                            <el-option v-for="item in FileTypeEnum as any" :key="item.value" :label="item.label" :value="item.value"></el-option>
                         </el-select>
                     </template>
                 </el-table-column>
                 <el-table-column prop="path" label="路径" min-width="150px" show-overflow-tooltip>
                     <template #default="scope">
-                        <el-input v-model="scope.row.path" :disabled="scope.row.id != null" clearable>
-                        </el-input>
+                        <el-input v-model="scope.row.path" :disabled="scope.row.id != null" clearable> </el-input>
                     </template>
                 </el-table-column>
                 <el-table-column label="操作" min-wdith="180px">
                     <template #default="scope">
-                        <el-button v-if="scope.row.id == null" @click="addFiles(scope.row)" type="success"
-                            icon="success-filled" plain></el-button>
-                        <el-button v-if="scope.row.id != null" @click="getConf(scope.row)" type="primary" icon="tickets"
-                            plain></el-button>
-                        <el-button v-auth="'machine:file:del'" type="danger" @click="deleteRow(scope.$index, scope.row)"
-                            icon="delete" plain></el-button>
+                        <el-button v-if="scope.row.id == null" @click="addFiles(scope.row)" type="success" icon="success-filled" plain></el-button>
+                        <el-button v-if="scope.row.id != null" @click="getConf(scope.row)" type="primary" icon="tickets" plain></el-button>
+                        <el-button v-auth="'machine:file:del'" type="danger" @click="deleteRow(scope.$index, scope.row)" icon="delete" plain></el-button>
                     </template>
                 </el-table-column>
             </el-table>
             <el-row style="margin-top: 10px" type="flex" justify="end">
-                <el-pagination style="text-align: center" :total="total" layout="prev, pager, next, total, jumper"
-                    v-model:current-page="query.pageNum" :page-size="query.pageSize" @current-change="handlePageChange">
+                <el-pagination
+                    style="text-align: center"
+                    :total="total"
+                    layout="prev, pager, next, total, jumper"
+                    v-model:current-page="query.pageNum"
+                    :page-size="query.pageSize"
+                    @current-change="handlePageChange"
+                >
                 </el-pagination>
             </el-row>
         </el-dialog>
 
         <el-dialog :title="tree.title" v-model="tree.visible" :close-on-click-modal="false" width="70%">
-            <el-progress v-if="uploadProgressShow" style="width: 90%; margin-left: 20px" :text-inside="true"
-                :stroke-width="20" :percentage="progressNum" />
+            <el-progress v-if="uploadProgressShow" style="width: 90%; margin-left: 20px" :text-inside="true" :stroke-width="20" :percentage="progressNum" />
             <div style="height: 55vh; overflow: auto">
-                <el-tree v-if="tree.visible" ref="fileTree" :highlight-current="true" :load="loadNode" :props="treeProps"
-                    lazy node-key="id" :expand-on-click-node="false">
+                <el-tree
+                    v-if="tree.visible"
+                    ref="fileTree"
+                    :highlight-current="true"
+                    :load="loadNode"
+                    :props="treeProps"
+                    lazy
+                    node-key="id"
+                    :expand-on-click-node="false"
+                >
                     <template #default="{ node, data }">
                         <span class="custom-tree-node">
                             <el-dropdown size="small" @visible-change="getFilePath(data, $event)" trigger="contextmenu">
@@ -67,31 +72,38 @@
                                         <SvgIcon :size="15" name="document" />
                                     </span>
 
-                                    <span class="ml5" style="font-weight: bold;">
+                                    <span class="ml5" style="font-weight: bold">
                                         {{ node.label }}
                                     </span>
                                 </span>
 
                                 <template #dropdown>
                                     <el-dropdown-menu>
-                                        <el-dropdown-item @click="getFileContent(tree.folder.id, data.path)"
-                                            v-if="data.type == '-' && data.size < 1 * 1024 * 1024">
+                                        <el-dropdown-item
+                                            @click="getFileContent(tree.folder.id, data.path)"
+                                            v-if="data.type == '-' && data.size < 1 * 1024 * 1024"
+                                        >
                                             <el-link type="info" icon="view" :underline="false">查看</el-link>
                                         </el-dropdown-item>
 
                                         <span v-auth="'machine:file:write'">
                                             <el-dropdown-item @click="showCreateFileDialog(node)" v-if="data.type == 'd'">
-                                                <el-link type="primary" icon="document" :underline="false"
-                                                    style="margin-left: 2px">新建</el-link>
+                                                <el-link type="primary" icon="document" :underline="false" style="margin-left: 2px">新建</el-link>
                                             </el-dropdown-item>
                                         </span>
 
                                         <span v-auth="'machine:file:upload'">
                                             <el-dropdown-item v-if="data.type == 'd'">
-                                                <el-upload :before-upload="beforeUpload" :on-success="uploadSuccess"
-                                                    action="" :http-request="getUploadFile" :headers="{ token }"
-                                                    :show-file-list="false" name="file"
-                                                    style="display: inline-block; margin-left: 2px">
+                                                <el-upload
+                                                    :before-upload="beforeUpload"
+                                                    :on-success="uploadSuccess"
+                                                    action=""
+                                                    :http-request="getUploadFile"
+                                                    :headers="{ token }"
+                                                    :show-file-list="false"
+                                                    name="file"
+                                                    style="display: inline-block; margin-left: 2px"
+                                                >
                                                     <el-link icon="upload" :underline="false">上传</el-link>
                                                 </el-upload>
                                             </el-dropdown-item>
@@ -99,42 +111,32 @@
 
                                         <span v-auth="'machine:file:write'">
                                             <el-dropdown-item @click="downloadFile(node, data)" v-if="data.type == '-'">
-                                                <el-link type="primary" icon="download" :underline="false"
-                                                    style="margin-left: 2px">下载</el-link>
+                                                <el-link type="primary" icon="download" :underline="false" style="margin-left: 2px">下载</el-link>
                                             </el-dropdown-item>
                                         </span>
 
                                         <span v-auth="'machine:file:rm'">
                                             <el-dropdown-item @click="deleteFile(node, data)" v-if="!dontOperate(data)">
-                                                <el-link type="danger" icon="delete" :underline="false"
-                                                    style="margin-left: 2px">删除</el-link>
+                                                <el-link type="danger" icon="delete" :underline="false" style="margin-left: 2px">删除</el-link>
                                             </el-dropdown-item>
                                         </span>
                                     </el-dropdown-menu>
                                 </template>
                             </el-dropdown>
                             <span style="display: inline-block" class="ml15">
-                                <span style="color: #67c23a;font-weight: bold;" v-if="data.type == '-'">
-                                    [{{ formatFileSize(data.size) }}]
-                                </span>
-                                <span style="color: #67c23a;font-weight: bold;" v-if="data.type == 'd' && data.dirSize">
-                                    [{{ data.dirSize }}]
-                                </span>
-                                <span style="color: #67c23a;font-weight: bold;" v-if="data.type == 'd' && !data.dirSize">
-                                    [<el-button @click="getDirSize(data)" type="primary" link
-                                        :loading="data.loadingDirSize">size</el-button>]
+                                <span style="color: #67c23a; font-weight: bold" v-if="data.type == '-'"> [{{ formatFileSize(data.size) }}] </span>
+                                <span style="color: #67c23a; font-weight: bold" v-if="data.type == 'd' && data.dirSize"> [{{ data.dirSize }}] </span>
+                                <span style="color: #67c23a; font-weight: bold" v-if="data.type == 'd' && !data.dirSize">
+                                    [<el-button @click="getDirSize(data)" type="primary" link :loading="data.loadingDirSize">size</el-button>]
                                 </span>
 
-                                <el-popover placement="top-start" :title="`${data.path}-文件详情`" :width="520" trigger="click"
-                                    @show="showFileStat(data)">
+                                <el-popover placement="top-start" :title="`${data.path}-文件详情`" :width="520" trigger="click" @show="showFileStat(data)">
                                     <template #reference>
-                                        <span style="color: #67c23a;font-weight: bold;">
-                                            [<el-button @click="showFileStat(data)" type="primary" link
-                                                :loading="data.loadingStat">stat</el-button>]
+                                        <span style="color: #67c23a; font-weight: bold">
+                                            [<el-button @click="showFileStat(data)" type="primary" link :loading="data.loadingStat">stat</el-button>]
                                         </span>
                                     </template>
-                                    <el-input :input-style="{ color: 'black' }" disabled autosize v-model="data.stat"
-                                        type="textarea" />
+                                    <el-input :input-style="{ color: 'black' }" disabled autosize v-model="data.stat" type="textarea" />
                                 </el-popover>
                             </span>
                         </span>
@@ -143,8 +145,15 @@
             </div>
         </el-dialog>
 
-        <el-dialog :destroy-on-close="true" title="新建文件" v-model="createFileDialog.visible"
-            :before-close="closeCreateFileDialog" :close-on-click-modal="false" top="5vh" width="400px">
+        <el-dialog
+            :destroy-on-close="true"
+            title="新建文件"
+            v-model="createFileDialog.visible"
+            :before-close="closeCreateFileDialog"
+            :close-on-click-modal="false"
+            top="5vh"
+            width="400px"
+        >
             <div>
                 <el-form-item prop="name" label="名称:">
                     <el-input v-model.trim="createFileDialog.name" placeholder="请输入名称" auto-complete="off"></el-input>
@@ -165,8 +174,14 @@
             </template>
         </el-dialog>
 
-        <el-dialog :destroy-on-close="true" :title="fileContent.dialogTitle" v-model="fileContent.contentVisible"
-            :close-on-click-modal="false" top="5vh" width="70%">
+        <el-dialog
+            :destroy-on-close="true"
+            :title="fileContent.dialogTitle"
+            v-model="fileContent.contentVisible"
+            :close-on-click-modal="false"
+            top="5vh"
+            width="70%"
+        >
             <div>
                 <monaco-editor :can-change-mode="true" v-model="fileContent.content" :language="fileContent.type" />
             </div>
@@ -188,7 +203,7 @@ import { machineApi } from './api';
 
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { getSession } from '@/common/utils/storage';
-import enums from './enums';
+import { FileTypeEnum } from './enums';
 import config from '@/common/config';
 import { isTrue } from '@/common/assert';
 
@@ -196,15 +211,15 @@ const props = defineProps({
     visible: { type: Boolean },
     machineId: { type: Number },
     title: { type: String },
-})
+});
 
-const emit = defineEmits(['update:visible', 'cancel', 'update:machineId'])
+const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
 
 const treeProps = {
     label: 'name',
     children: 'zones',
     isLeaf: 'leaf',
-}
+};
 
 const addFile = machineApi.addConf;
 const delFile = machineApi.delConf;
@@ -266,18 +281,7 @@ const state = reactive({
     file: null as any,
 });
 
-const {
-    dialogVisible,
-    loading,
-    query,
-    total,
-    fileTable,
-    fileContent,
-    tree,
-    progressNum,
-    uploadProgressShow,
-    createFileDialog,
-} = toRefs(state)
+const { dialogVisible, loading, query, total, fileTable, fileContent, tree, progressNum, uploadProgressShow, createFileDialog } = toRefs(state);
 
 watch(props, async (newValue) => {
     state.dialogVisible = newValue.visible;
@@ -468,13 +472,13 @@ const getDirSize = async (data: any) => {
         const res = await machineApi.dirSize.request({
             machineId: props.machineId,
             fileId: state.tree.folder.id,
-            path: data.path
-        })
+            path: data.path,
+        });
         data.dirSize = res;
     } finally {
         data.loadingDirSize = false;
     }
-}
+};
 
 const showFileStat = async (data: any) => {
     try {
@@ -485,13 +489,13 @@ const showFileStat = async (data: any) => {
         const res = await machineApi.fileStat.request({
             machineId: props.machineId,
             fileId: state.tree.folder.id,
-            path: data.path
-        })
+            path: data.path,
+        });
         data.stat = res;
     } finally {
         data.loadingStat = false;
     }
-}
+};
 
 const showCreateFileDialog = (node: any) => {
     isTrue(node.expanded, '请先点击展开该节点后再创建');
@@ -547,10 +551,7 @@ const deleteFile = (node: any, data: any) => {
 
 const downloadFile = (node: any, data: any) => {
     const a = document.createElement('a');
-    a.setAttribute(
-        'href',
-        `${config.baseApiUrl}/machines/${props.machineId}/files/${state.tree.folder.id}/read?type=1&path=${data.path}&token=${token}`
-    );
+    a.setAttribute('href', `${config.baseApiUrl}/machines/${props.machineId}/files/${state.tree.folder.id}/read?type=1&path=${data.path}&token=${token}`);
     a.click();
 };
 
@@ -602,24 +603,7 @@ const getFilePath = (data: object, visible: boolean) => {
 };
 const dontOperate = (data: any) => {
     const path = data.path;
-    const ls = [
-        '/',
-        '//',
-        '/usr',
-        '/usr/',
-        '/usr/bin',
-        '/opt',
-        '/run',
-        '/etc',
-        '/proc',
-        '/var',
-        '/mnt',
-        '/boot',
-        '/dev',
-        '/home',
-        '/media',
-        '/root',
-    ];
+    const ls = ['/', '//', '/usr', '/usr/', '/usr/bin', '/opt', '/run', '/etc', '/proc', '/var', '/mnt', '/boot', '/dev', '/home', '/media', '/root'];
     return ls.indexOf(path) != -1;
 };
 
@@ -644,4 +628,4 @@ const formatFileSize = (size: any) => {
     return '-';
 };
 </script>
-<style  lang="scss"></style>
+<style lang="scss"></style>

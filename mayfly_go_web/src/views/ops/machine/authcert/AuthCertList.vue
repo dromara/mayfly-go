@@ -1,29 +1,28 @@
 <template>
     <div>
-        <page-table :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
-            v-model:selection-data="selectionData" :data="authcerts" :columns="state.columns" :total="total"
-            v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
-
+        <page-table
+            :query="state.queryConfig"
+            v-model:query-form="query"
+            :show-selection="true"
+            v-model:selection-data="selectionData"
+            :data="authcerts"
+            :columns="state.columns"
+            :total="total"
+            v-model:page-size="query.pageSize"
+            v-model:page-num="query.pageNum"
+            @pageChange="search()"
+        >
             <template #queryRight>
                 <el-button type="primary" icon="plus" @click="edit(false)">添加</el-button>
-                <el-button :disabled="selectionData.length < 1" @click="deleteAc(selectionData)" type="danger"
-                    icon="delete">删除
-                </el-button>
-            </template>
-
-            <template #authMethod="{ data }">
-                <el-tag v-if="data.authMethod == 1" type="success" size="small">密码</el-tag>
-                <el-tag v-if="data.authMethod == 2" size="small">密钥</el-tag>
+                <el-button :disabled="selectionData.length < 1" @click="deleteAc(selectionData)" type="danger" icon="delete">删除 </el-button>
             </template>
 
             <template #action="{ data }">
-                <el-button @click="edit(data)" type="primary" link>编辑
-                </el-button>
+                <el-button @click="edit(data)" type="primary" link>编辑 </el-button>
             </template>
         </page-table>
 
-        <auth-cert-edit :title="editor.title" v-model:visible="editor.visible" :data="editor.authcert"
-            @val-change="editChange" />
+        <auth-cert-edit :title="editor.title" v-model:visible="editor.visible" :data="editor.authcert" @val-change="editChange" />
     </div>
 </template>
 
@@ -32,8 +31,9 @@ import { toRefs, reactive, onMounted } from 'vue';
 import AuthCertEdit from './AuthCertEdit.vue';
 import { authCertApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import PageTable from '@/components/pagetable/PageTable.vue'
+import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
+import { AuthMethodEnum } from '../enums';
 
 const state = reactive({
     query: {
@@ -41,18 +41,16 @@ const state = reactive({
         pageSize: 10,
         name: null,
     },
-    queryConfig: [
-        TableQuery.text("name", "凭证名称"),
-    ],
+    queryConfig: [TableQuery.text('name', '凭证名称')],
     columns: [
-        TableColumn.new("name", "名称"),
-        TableColumn.new("authMethod", "认证方式").isSlot(),
-        TableColumn.new("remark", "备注"),
-        TableColumn.new("creator", "创建人"),
-        TableColumn.new("createTime", "创建时间").isTime(),
-        TableColumn.new("creator", "修改者"),
-        TableColumn.new("createTime", "修改时间").isTime(),
-        TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(65).alignCenter(),
+        TableColumn.new('name', '名称'),
+        TableColumn.new('authMethod', '认证方式').typeTag(AuthMethodEnum),
+        TableColumn.new('remark', '备注'),
+        TableColumn.new('creator', '创建人'),
+        TableColumn.new('createTime', '创建时间').isTime(),
+        TableColumn.new('creator', '修改者'),
+        TableColumn.new('createTime', '修改时间').isTime(),
+        TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(65).alignCenter(),
     ],
     total: 0,
     authcerts: [],
@@ -70,13 +68,7 @@ const state = reactive({
     },
 });
 
-const {
-    query,
-    total,
-    authcerts,
-    selectionData,
-    editor,
-} = toRefs(state)
+const { query, total, authcerts, selectionData, editor } = toRefs(state);
 
 onMounted(() => {
     search();
@@ -105,16 +97,15 @@ const edit = (data: any) => {
 
 const deleteAc = async (data: any) => {
     try {
-        await ElMessageBox.confirm(`确定删除该【${data.map((x: any) => x.name).join(", ")}授权凭证?`, '提示', {
+        await ElMessageBox.confirm(`确定删除该【${data.map((x: any) => x.name).join(', ')}授权凭证?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await authCertApi.delete.request({ id: data.map((x: any) => x.id).join(",") });
+        await authCertApi.delete.request({ id: data.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) { }
-
-}
+    } catch (err) {}
+};
 </script>
 <style lang="scss"></style>

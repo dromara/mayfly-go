@@ -2,13 +2,11 @@
     <div>
         <el-dialog :title="`${title} 详情`" v-model="dialogVisible" :before-close="cancel" width="90%">
             <el-table @cell-click="cellClick" :data="data.res">
-                <el-table-column :width="200" :prop="item" :label="item" v-for="item in data.colNames" :key="item">
-                </el-table-column>
+                <el-table-column :width="200" :prop="item" :label="item" v-for="item in data.colNames" :key="item"> </el-table-column>
             </el-table>
         </el-dialog>
     </div>
 </template>
-
 
 <script lang="ts" setup>
 import { watch, toRefs, reactive } from 'vue';
@@ -23,10 +21,10 @@ const props = defineProps({
     data: {
         type: Object,
     },
-})
+});
 
 //定义事件
-const emit = defineEmits(['update:visible'])
+const emit = defineEmits(['update:visible']);
 
 const state = reactive({
     dialogVisible: false,
@@ -36,10 +34,7 @@ const state = reactive({
     },
 });
 
-const {
-    dialogVisible,
-    data,
-} = toRefs(state)
+const { dialogVisible, data } = toRefs(state);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -66,6 +61,4 @@ const cellClick = (row: any, column: any, cell: any) => {
 const cancel = () => {
     emit('update:visible', false);
 };
-
 </script>
-

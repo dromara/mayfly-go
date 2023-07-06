@@ -9,30 +9,30 @@ export class DbInst {
     /**
      * 标签路径
      */
-    tagPath: string
+    tagPath: string;
 
     /**
      * 实例id
      */
-    id: number
+    id: number;
 
     /**
      * 实例名
      */
-    name: string
+    name: string;
 
     /**
      * 数据库类型, mysql postgres
      */
-    type: string
+    type: string;
 
     /**
      * schema -> db
      */
-    dbs: Map<string, Db> = new Map()
+    dbs: Map<string, Db> = new Map();
 
     /** 数据库schema，多个用空格隔开 */
-    databases: string
+    databases: string;
 
     /**
      * 默认查询分页数量
@@ -46,9 +46,9 @@ export class DbInst {
      */
     getDb(dbName: string) {
         if (!dbName) {
-            throw new Error('dbName不能为空')
+            throw new Error('dbName不能为空');
         }
-        let db = this.dbs.get(dbName)
+        let db = this.dbs.get(dbName);
         if (db) {
             return db;
         }
@@ -90,7 +90,6 @@ export class DbInst {
         // 优先从 table map中获取
         let columns = db.getColumns(table);
         if (columns) {
-            
             return columns;
         }
         console.log(`load columns -> dbName: ${dbName}, table: ${table}`);
@@ -122,17 +121,17 @@ export class DbInst {
             return db.tableHints;
         }
         console.log(`load db-hits -> dbName: ${dbName}`);
-        const hits = await dbApi.hintTables.request({ id: this.id, db: db.name, })
+        const hits = await dbApi.hintTables.request({ id: this.id, db: db.name });
         db.tableHints = hits;
         return hits;
     }
 
     /**
-    * 执行sql
-    *
-    * @param sql sql
-    * @param remark 执行备注
-    */
+     * 执行sql
+     *
+     * @param sql sql
+     * @param remark 执行备注
+     */
     async runSql(dbName: string, sql: string, remark: string = '') {
         return await dbApi.sqlExec.request({
             id: this.id,
@@ -176,7 +175,7 @@ export class DbInst {
             }
             sqls.push(`INSERT INTO ${table} (${colNames.join(', ')}) VALUES(${values.join(', ')})`);
         }
-        return sqls.join(';\n') + ';'
+        return sqls.join(';\n') + ';';
     }
 
     /**
@@ -192,11 +191,13 @@ export class DbInst {
     }
 
     /*
-    * 弹框提示是否执行sql
-    */
+     * 弹框提示是否执行sql
+     */
     promptExeSql = (db: string, sql: string, cancelFunc: any = null, successFunc: any = null) => {
         SqlExecBox({
-            sql, dbId: this.id, db,
+            sql,
+            dbId: this.id,
+            db,
             runSuccessCallback: successFunc,
             cancelCallback: cancelFunc,
         });
@@ -209,7 +210,7 @@ export class DbInst {
      */
     static getOrNewInst(inst: any) {
         if (!inst) {
-            throw new Error('inst不能为空')
+            throw new Error('inst不能为空');
         }
         let dbInst = dbInstCache.get(inst.id);
         if (dbInst) {
@@ -228,11 +229,11 @@ export class DbInst {
     }
 
     /**
-    * 获取数据库实例id，若不存在，则新建一个并缓存
-    * @param dbId 数据库实例id
-    * @param dbType 第一次获取时为必传项，即第一次创建时
-    * @returns 数据库实例
-    */
+     * 获取数据库实例id，若不存在，则新建一个并缓存
+     * @param dbId 数据库实例id
+     * @param dbType 第一次获取时为必传项，即第一次创建时
+     * @returns 数据库实例
+     */
     static getInst(dbId?: number): DbInst {
         if (!dbId) {
             throw new Error('dbId不能为空');
@@ -252,11 +253,11 @@ export class DbInst {
     }
 
     /**
-    * 获取count sql
-    * @param table 表名
-    * @param condition 条件
-    * @returns count sql
-    */
+     * 获取count sql
+     * @param table 表名
+     * @param condition 条件
+     * @returns count sql
+     */
     static getDefaultCountSql = (table: string, condition?: string) => {
         return `SELECT COUNT(*) count FROM ${table} ${condition ? 'WHERE ' + condition : ''}`;
     };
@@ -277,14 +278,14 @@ export class DbInst {
     };
 
     /**
-    * 根据字段类型包装字段值，如为字符串等则添加‘’，数字类型则直接返回即可
-    */
+     * 根据字段类型包装字段值，如为字符串等则添加‘’，数字类型则直接返回即可
+     */
     static wrapColumnValue(columnType: string, value: any) {
         if (this.isNumber(columnType)) {
             return value;
         }
         return `'${value}'`;
-    };
+    }
 
     /**
      * 判断字段类型是否为数字类型
@@ -293,7 +294,7 @@ export class DbInst {
      */
     static isNumber(columnType: string) {
         return columnType.match(/int|double|float|nubmer|decimal|byte|bit/gi);
-    };
+    }
 
     /**
      *
@@ -315,16 +316,16 @@ export class DbInst {
         }
 
         // 获取该列中最长的数据(内容)
-        let maxWidthText = ""
-        let maxWidthValue
+        let maxWidthText = '';
+        let maxWidthValue;
         // 获取该列中最长的数据(内容)
         for (let i = 0; i < tableData.length; i++) {
-            let nowValue = tableData[i][prop]
+            let nowValue = tableData[i][prop];
             if (!nowValue) {
                 continue;
             }
             // 转为字符串比较长度
-            let nowText = nowValue + "";
+            let nowText = nowValue + '';
             if (nowText.length > maxWidthText.length) {
                 maxWidthText = nowText;
                 maxWidthValue = nowValue;
@@ -340,10 +341,10 @@ export class DbInst {
  * 数据库实例信息
  */
 class Db {
-    name: string  // 库名
-    tables: []   // 数据库实例表信息
-    columnsMap: Map<string, any> = new Map  // table -> columns
-    tableHints: any = null // 提示词
+    name: string; // 库名
+    tables: []; // 数据库实例表信息
+    columnsMap: Map<string, any> = new Map(); // table -> columns
+    tableHints: any = null; // 提示词
 
     /**
      * 获取指定表列信息（前提需要dbInst.loadColumns）
@@ -354,10 +355,10 @@ class Db {
     }
 
     /**
-    * 获取指定表中的指定列名信息，若列名为空则默认返回主键
-    * @param table 表名
-    * @param columnName 列名
-    */
+     * 获取指定表中的指定列名信息，若列名为空则默认返回主键
+     * @param table 表名
+     * @param columnName 列名
+     */
     getColumn(table: string, columnName: string = '') {
         const cols = this.getColumns(table);
         if (!columnName) {
@@ -384,32 +385,32 @@ export class TabInfo {
     /**
      * tab唯一key。与label、name都一致
      */
-    key: string
+    key: string;
 
     /**
      * 菜单树节点key
      */
-    treeNodeKey: string
+    treeNodeKey: string;
 
     /**
      * 数据库实例id
      */
-    dbId: number
+    dbId: number;
 
     /**
      * 库名
      */
-    db: string = ''
+    db: string = '';
 
     /**
      * tab 类型
      */
-    type: TabType
+    type: TabType;
 
     /**
      * tab需要的其他信息
      */
-    params: any
+    params: any;
 
     getNowDbInst() {
         return DbInst.getInst(this.dbId);
@@ -423,26 +424,26 @@ export class TabInfo {
 /** 修改表字段所需数据 */
 export type UpdateFieldsMeta = {
     // 主键值
-    primaryKey: string
+    primaryKey: string;
     // 主键名
-    primaryKeyName: string
+    primaryKeyName: string;
     // 主键类型
-    primaryKeyType: string
+    primaryKeyType: string;
     // 新值
-    fields: FieldsMeta[]
-}
+    fields: FieldsMeta[];
+};
 
 export type FieldsMeta = {
     // 字段所在div
-    div: HTMLElement
+    div: HTMLElement;
     // 字段名
-    fieldName: string
+    fieldName: string;
     // 字段所在的表格行数据
-    row: any
+    row: any;
     // 字段类型
-    fieldType: string
+    fieldType: string;
     // 原值
-    oldValue: string
+    oldValue: string;
     // 新值
-    newValue: string
-}
+    newValue: string;
+};

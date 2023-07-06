@@ -1,10 +1,15 @@
 <template>
     <div style="width: 100%">
-        <el-select @focus="getSshTunnelMachines" @change="change" style="width: 100%" v-model="sshTunnelMachineId"
-            @clear="clear" placeholder="请选择SSH隧道机器" clearable>
-            <el-option v-for="item in sshTunnelMachineList" :key="item.id" :label="`${item.ip}:${item.port} [${item.name}]`"
-                :value="item.id">
-            </el-option>
+        <el-select
+            @focus="getSshTunnelMachines"
+            @change="change"
+            style="width: 100%"
+            v-model="sshTunnelMachineId"
+            @clear="clear"
+            placeholder="请选择SSH隧道机器"
+            clearable
+        >
+            <el-option v-for="item in sshTunnelMachineList" :key="item.id" :label="`${item.ip}:${item.port} [${item.name}]`" :value="item.id"> </el-option>
         </el-select>
     </div>
 </template>
@@ -17,10 +22,10 @@ const props = defineProps({
     modelValue: {
         type: Number,
     },
-})
+});
 
 //定义事件
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue']);
 
 const state = reactive({
     // 单选则为id，多选为id数组
@@ -28,10 +33,7 @@ const state = reactive({
     sshTunnelMachineList: [] as any,
 });
 
-const {
-    sshTunnelMachineId,
-    sshTunnelMachineList,
-} = toRefs(state)
+const { sshTunnelMachineId, sshTunnelMachineList } = toRefs(state);
 
 onMounted(async () => {
     if (!props.modelValue || props.modelValue <= 0) {
@@ -52,7 +54,7 @@ const getSshTunnelMachines = async () => {
 const clear = () => {
     state.sshTunnelMachineId = null;
     change();
-}
+};
 
 const change = () => {
     emit('update:modelValue', state.sshTunnelMachineId);

@@ -20,16 +20,13 @@
 
                         <SvgIcon v-if="data.type == NodeType.Dbs" name="Coin" color="#67c23a" />
 
-                        <SvgIcon v-if="data.type == NodeType.Coll || data.type == NodeType.CollMenu" name="Document"
-                            class="color-primary" />
+                        <SvgIcon v-if="data.type == NodeType.Coll || data.type == NodeType.CollMenu" name="Document" class="color-primary" />
                     </template>
 
                     <template #label="{ data }">
                         <span v-if="data.type == NodeType.Dbs">
                             {{ data.params.dbName }}
-                            <span style="color: #8492a6;font-size: 13px">
-                                [{{ formatByteSize(data.params.size) }}]
-                            </span>
+                            <span style="color: #8492a6; font-size: 13px"> [{{ formatByteSize(data.params.size) }}] </span>
                         </span>
 
                         <span v-else>{{ data.label }}</span>
@@ -44,17 +41,17 @@
                             <el-row>
                                 <el-col :span="2">
                                     <div>
-                                        <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false"
-                                            class="">
-                                        </el-link>
-                                        <el-link @click="onEditDoc(null)" class="ml5" type="primary" icon="plus"
-                                            :underline="false">
-                                        </el-link>
+                                        <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false" class=""> </el-link>
+                                        <el-link @click="onEditDoc(null)" class="ml5" type="primary" icon="plus" :underline="false"> </el-link>
                                     </div>
                                 </el-col>
                                 <el-col :span="22">
-                                    <el-input ref="findParamInputRef" v-model="dt.findParamStr" placeholder="点击输入相应查询条件"
-                                        @focus="showFindDialog(dt.key)">
+                                    <el-input
+                                        ref="findParamInputRef"
+                                        v-model="dt.findParamStr"
+                                        placeholder="点击输入相应查询条件"
+                                        @focus="showFindDialog(dt.key)"
+                                    >
                                         <template #prepend>查询参数</template>
                                     </el-input>
                                 </el-col>
@@ -65,8 +62,7 @@
                                         <el-input type="textarea" v-model="item.value" :rows="10" />
                                         <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
                                             <div>
-                                                <el-link @click="onEditDoc(item)" :underline="false" type="success"
-                                                    icon="MagicStick"></el-link>
+                                                <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
 
                                                 <!-- <el-divider direction="vertical" border-style="dashed" /> -->
 
@@ -77,8 +73,7 @@
 
                                                 <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?">
                                                     <template #reference>
-                                                        <el-link :underline="false" type="danger" icon="DocumentDelete">
-                                                        </el-link>
+                                                        <el-link :underline="false" type="danger" icon="DocumentDelete"> </el-link>
                                                     </template>
                                                 </el-popconfirm>
                                             </div>
@@ -90,18 +85,15 @@
                     </el-tabs>
                 </el-container>
             </el-col>
-
         </el-row>
 
         <el-dialog width="600px" title="find参数" v-model="findDialog.visible">
             <el-form label-width="auto">
                 <el-form-item label="filter">
-                    <monaco-editor style="width: 100%;" height="150px" ref="monacoEditorRef"
-                        v-model="findDialog.findParam.filter" language="json" />
+                    <monaco-editor style="width: 100%" height="150px" ref="monacoEditorRef" v-model="findDialog.findParam.filter" language="json" />
                 </el-form-item>
                 <el-form-item label="sort">
-                    <el-input v-model="findDialog.findParam.sort" type="textarea" :rows="3" clearable
-                        auto-complete="off"></el-input>
+                    <el-input v-model="findDialog.findParam.sort" type="textarea" :rows="3" clearable auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item label="limit">
                     <el-input v-model.number="findDialog.findParam.limit" type="number" auto-complete="off"></el-input>
@@ -118,8 +110,12 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="60%" :title="`${state.docEditDialog.isAdd ? '新增' : '修改'}'${state.activeName}'集合文档`"
-            v-model="docEditDialog.visible" :close-on-click-modal="false">
+        <el-dialog
+            width="60%"
+            :title="`${state.docEditDialog.isAdd ? '新增' : '修改'}'${state.activeName}'集合文档`"
+            v-model="docEditDialog.visible"
+            :close-on-click-modal="false"
+        >
             <monaco-editor v-model="docEditDialog.doc" language="json" />
             <template #footer>
                 <div>
@@ -149,10 +145,10 @@ const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/Mona
  * 树节点类型
  */
 class NodeType {
-    static Mongo = 1
-    static Dbs = 2
-    static CollMenu = 3
-    static Coll = 4
+    static Mongo = 1;
+    static Dbs = 2;
+    static CollMenu = 3;
+    static Coll = 4;
 }
 
 const findParamInputRef: any = ref(null);
@@ -187,11 +183,7 @@ const state = reactive({
     },
 });
 
-const {
-    dataHeight,
-    findDialog,
-    docEditDialog,
-} = toRefs(state)
+const { dataHeight, findDialog, docEditDialog } = toRefs(state);
 
 /**
  * instmap;  tagPaht -> mongo info[]
@@ -199,15 +191,15 @@ const {
 const instMap: Map<string, any[]> = new Map();
 
 const getInsts = async () => {
-    const res = await mongoApi.mongoList.request({ pageNum: 1, pageSize: 1000, });
-    if (!res.total) return
+    const res = await mongoApi.mongoList.request({ pageNum: 1, pageSize: 1000 });
+    if (!res.total) return;
     for (const mongoInfo of res.list) {
         const tagPath = mongoInfo.tagPath;
         let mongoInsts = instMap.get(tagPath) || [];
         mongoInsts.push(mongoInfo);
         instMap.set(tagPath, mongoInsts);
     }
-}
+};
 
 /**
  * 加载文件树节点
@@ -232,7 +224,7 @@ const loadNode = async (node: any) => {
 
     // 点击标签 -> 显示mongo信息列表
     if (nodeType === TagTreeNode.TagPath) {
-        const mongoInfos = instMap.get(data.key)
+        const mongoInfos = instMap.get(data.key);
         return mongoInfos?.map((x: any) => {
             return new TagTreeNode(`${data.key}.${x.id}`, x.name, NodeType.Mongo).withParams(x);
         });
@@ -250,7 +242,7 @@ const loadNode = async (node: any) => {
 
     // 点击数据库集合节点 -> 加载集合列表
     if (nodeType === NodeType.CollMenu) {
-        return await getCollections(params.id, params.dbName)
+        return await getCollections(params.id, params.dbName);
     }
 
     return [];
@@ -268,9 +260,9 @@ const getDatabases = async (inst: any) => {
             id: inst.id,
             dbName,
             size: x.SizeOnDisk,
-        })
-    })
-}
+        });
+    });
+};
 
 /**
  * 获取集合列表信息
@@ -285,7 +277,7 @@ const getCollections = async (id: any, database: string) => {
             collection: x,
         });
     });
-}
+};
 
 const nodeClick = (data: any) => {
     // 点击集合
@@ -293,7 +285,7 @@ const nodeClick = (data: any) => {
         const { id, database, collection } = data.params;
         changeCollection(id, database, collection);
     }
-}
+};
 
 const changeCollection = (id: any, schema: string, collection: string) => {
     const label = `${id}:\`${schema}\`.${collection}`;
@@ -405,7 +397,7 @@ const onEditDoc = async (item: any) => {
     state.docEditDialog.isAdd = false;
     state.docEditDialog.doc = item.value;
     state.docEditDialog.visible = true;
-}
+};
 
 const onSaveDoc = async () => {
     if (state.docEditDialog.isAdd) {
@@ -488,9 +480,8 @@ const removeDataTab = (targetName: string) => {
 };
 
 const getNowDataTab = () => {
-    return state.dataTabs[state.activeName]
-}
-
+    return state.dataTabs[state.activeName];
+};
 </script>
 
 <style lang="scss">

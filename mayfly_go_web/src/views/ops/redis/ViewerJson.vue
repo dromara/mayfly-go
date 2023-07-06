@@ -12,9 +12,9 @@ const props = defineProps({
         type: String,
         default: '',
     },
-})
+});
 
-const monacoEditorRef = ref(null) as any
+const monacoEditorRef = ref(null) as any;
 
 const state = reactive({
     modelValue: '',
@@ -30,15 +30,15 @@ const state = reactive({
 // );
 
 onMounted(() => {
-    setContent(props.content)
-})
+    setContent(props.content);
+});
 
 const setContent = (val: any) => {
     state.modelValue = val;
     setTimeout(() => {
         monacoEditorRef.value.format();
-    }, 200)
-}
+    }, 200);
+};
 
 const getContent = () => {
     // 尝试压缩json
@@ -46,11 +46,10 @@ const getContent = () => {
         state.content = JSON.stringify(JSON.parse(state.modelValue));
         return state.content;
     } catch (e) {
-        return state.modelValue
+        return state.modelValue;
     }
-}
+};
 
-defineExpose({ getContent })
-
+defineExpose({ getContent });
 </script>
 <style lang="scss"></style>

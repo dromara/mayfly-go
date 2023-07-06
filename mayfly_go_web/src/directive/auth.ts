@@ -10,13 +10,13 @@ export function authDirective(app: App) {
         mounted(el, binding) {
             if (!hasPerm(binding.value)) {
                 parseNoAuth(el, binding);
-            };
+            }
         },
     });
     // 多个权限验证，满足一个则显示（v-auths="[xxx,xxx]"）
     app.directive('auths', {
         mounted(el, binding) {
-            const value = binding.value
+            const value = binding.value;
             let flag = false;
             useUserInfo().userInfo.permissions.map((val: any) => {
                 value.map((v: any) => {
@@ -33,14 +33,14 @@ export function authDirective(app: App) {
         mounted(el, binding) {
             if (!judementSameArr(binding.value, useUserInfo().userInfo.permissions)) {
                 parseNoAuth(el, binding);
-            };
+            }
         },
     });
 }
 
 /**
  * 处理没有权限场景
- * 
+ *
  * @param el  元素
  * @param binding 绑定至
  */
@@ -55,8 +55,8 @@ const parseNoAuth = (el: any, binding: any) => {
         // 移除该元素
         el.parentNode.removeChild(el);
     }
-}
+};
 
 const disableClickFn = (event: any) => {
     event && event.stopImmediatePropagation();
-}
+};

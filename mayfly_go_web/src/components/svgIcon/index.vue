@@ -35,7 +35,7 @@ const props = defineProps({
     isEle: {
         type: Boolean,
         default: true,
-    }
+    },
 });
 
 // 在线链接、本地引入地址前缀
@@ -48,7 +48,7 @@ const getIconName = computed(() => {
 
 // 用于判断 element plus 自带 svg 图标的显示、隐藏。不存在 空格分隔的icon name即为element plus自带icon
 const isShowIconSvg = computed(() => {
-    const ss = props?.name?.split(" ")
+    const ss = props?.name?.split(' ');
     if (!ss) {
         return true;
     }
@@ -56,13 +56,13 @@ const isShowIconSvg = computed(() => {
 });
 
 const isIconfont = () => {
-    return props?.name?.startsWith("iconfont")
-}
+    return props?.name?.startsWith('iconfont');
+};
 
 const getIconfontName = () => {
     // iconfont icon-xxxx 获取icon-xxx即可
-    return props?.name?.split(" ")[1]
-}
+    return props?.name?.split(' ')[1];
+};
 
 // 用于判断在线链接、本地引入等图标显示、隐藏
 const isShowIconImg = computed(() => {

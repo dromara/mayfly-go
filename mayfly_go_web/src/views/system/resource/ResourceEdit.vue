@@ -6,9 +6,7 @@
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20">
                         <el-form-item class="w100" prop="type" label="类型" required>
                             <el-select class="w100" v-model="form.type" :disabled="typeDisabled" placeholder="请选择">
-                                <el-option v-for="item in enums.ResourceTypeEnum as any" :key="item.value"
-                                    :label="item.label" :value="item.value">
-                                </el-option>
+                                <el-option v-for="item in ResourceTypeEnum" :key="item.value" :label="item.label" :value="item.value"> </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
@@ -21,8 +19,11 @@
                         <el-form-item class="w100" prop="code" label="path|code">
                             <template #label>
                                 path|code
-                                <el-tooltip effect="dark" content="菜单类型则为访问路径（若菜单路径不以'/'开头则访问地址会自动拼接父菜单路径）、否则为资源唯一编码"
-                                    placement="top">
+                                <el-tooltip
+                                    effect="dark"
+                                    content="菜单类型则为访问路径（若菜单路径不以'/'开头则访问地址会自动拼接父菜单路径）、否则为资源唯一编码"
+                                    placement="top"
+                                >
                                     <el-icon>
                                         <question-filled />
                                     </el-icon>
@@ -53,8 +54,7 @@
                         <el-form-item class="w100" prop="code">
                             <template #label>
                                 组件路径
-                                <el-tooltip effect="dark" content="访问的组件路径，如：`system/resource/ResourceList`，默认在`views`目录下"
-                                    placement="top">
+                                <el-tooltip effect="dark" content="访问的组件路径，如：`system/resource/ResourceList`，默认在`views`目录下" placement="top">
                                     <el-icon>
                                         <question-filled />
                                     </el-icon>
@@ -67,16 +67,18 @@
                         <el-form-item class="w100" prop="isKeepAlive">
                             <template #label>
                                 是否缓存
-                                <el-tooltip effect="dark"
-                                    content="选择是则会被`keep-alive`缓存(重新进入页面不会刷新页面及重新请求数据)，需要路由名与vue的组件名一致" placement="top">
+                                <el-tooltip
+                                    effect="dark"
+                                    content="选择是则会被`keep-alive`缓存(重新进入页面不会刷新页面及重新请求数据)，需要路由名与vue的组件名一致"
+                                    placement="top"
+                                >
                                     <el-icon>
                                         <question-filled />
                                     </el-icon>
                                 </el-tooltip>
                             </template>
                             <el-select v-model="form.meta.isKeepAlive" placeholder="请选择" class="w100">
-                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
-                                    :value="item.value"> </el-option>
+                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
@@ -91,16 +93,14 @@
                                 </el-tooltip>
                             </template>
                             <el-select v-model="form.meta.isHide" placeholder="请选择" class="w100">
-                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
-                                    :value="item.value"> </el-option>
+                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
                     <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue">
                         <el-form-item class="w100" prop="code" label="tag不可删除">
                             <el-select v-model="form.meta.isAffix" placeholder="请选择" class="w100">
-                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label"
-                                    :value="item.value"> </el-option>
+                                <el-option v-for="item in trueFalseOption" :key="item.value" :label="item.label" :value="item.value"> </el-option>
                             </el-select>
                         </el-form-item>
                     </el-col>
@@ -121,8 +121,7 @@
                             </el-select>
                         </el-form-item>
                     </el-col>
-                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20"
-                        v-if="form.type === menuTypeValue && form.meta.linkType > 0">
+                    <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" class="mb20" v-if="form.type === menuTypeValue && form.meta.linkType > 0">
                         <el-form-item prop="code" label="链接地址" class="w100">
                             <el-input v-model.trim="form.meta.link" placeholder="外链/内嵌的链接地址（http://xxx.com）"></el-input>
                         </el-form-item>
@@ -144,7 +143,7 @@
 import { ref, toRefs, reactive, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { resourceApi } from '../api';
-import enums from '../enums';
+import { ResourceTypeEnum } from '../enums';
 import { notEmpty } from '@/common/assert';
 import iconSelector from '@/components/iconSelector/index.vue';
 
@@ -161,14 +160,14 @@ const props = defineProps({
     typeDisabled: {
         type: Boolean,
     },
-})
+});
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change'])
+const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const menuForm: any = ref(null);
 
-const menuTypeValue = enums.ResourceTypeEnum['MENU'].value
+const menuTypeValue = ResourceTypeEnum.Menu.value;
 
 const defaultMeta = {
     routeName: '',
@@ -190,7 +189,7 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
-}
+};
 
 const trueFalseOption = [
     {
@@ -201,7 +200,7 @@ const trueFalseOption = [
         label: '否',
         value: false,
     },
-]
+];
 
 const state = reactive({
     dialogVisible: false,
@@ -226,11 +225,7 @@ const state = reactive({
     btnLoading: false,
 });
 
-const {
-    dialogVisible,
-    form,
-    btnLoading,
-} = toRefs(state)
+const { dialogVisible, form, btnLoading } = toRefs(state);
 
 watch(props, (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -307,7 +302,7 @@ const parseMenuMeta = (meta: any) => {
     if (meta.link) {
         metaForm.link = meta.link;
     } else {
-        delete metaForm['link']
+        delete metaForm['link'];
     }
     if (meta.redirect) {
         metaForm.redirect = meta.redirect;

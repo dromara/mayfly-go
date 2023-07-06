@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-form class='key-content-string' label-width="auto">
+        <el-form class="key-content-string" label-width="auto">
             <div>
                 <format-viewer ref="formatViewerRef" :content="string.value"></format-viewer>
             </div>
@@ -31,9 +31,9 @@ const props = defineProps({
     keyInfo: {
         type: [Object],
     },
-})
+});
 
-const formatViewerRef = ref(null) as any
+const formatViewerRef = ref(null) as any;
 
 const state = reactive({
     redisId: 0,
@@ -50,20 +50,18 @@ const state = reactive({
     },
 });
 
-const {
-    string,
-} = toRefs(state)
+const { string } = toRefs(state);
 
 onMounted(() => {
-    state.redisId = props.redisId
-    state.db = props.db
+    state.redisId = props.redisId;
+    state.db = props.db;
     state.key = props.keyInfo?.key;
     initData();
-})
+});
 
 const initData = () => {
     getStringValue();
-}
+};
 
 const getStringValue = async () => {
     if (state.key) {
@@ -86,12 +84,11 @@ const getBaseReqParam = () => {
     return {
         id: state.redisId,
         db: state.db,
-        key: state.key
-    }
-}
+        key: state.key,
+    };
+};
 
-defineExpose({ initData })
-
+defineExpose({ initData });
 </script>
 <style lang="scss">
 .key-content-string .format-viewer-container {

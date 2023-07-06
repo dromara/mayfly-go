@@ -116,7 +116,6 @@ export const useThemeConfig = defineStore('themeConfig', {
             // 编辑器主题
             editorTheme: 'vs',
 
-
             /* 后端控制路由
             ------------------------------- */
             // 是否开启后端控制路由
@@ -140,4 +139,4 @@ export const useThemeConfig = defineStore('themeConfig', {
             this.themeConfig = data.themeConfig;
         },
     },
-})
+});

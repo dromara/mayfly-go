@@ -1,8 +1,15 @@
 <template>
     <div>
-        <page-table :show-selection="true" v-model:selection-data="selectionData" :data="configs" :columns="columns"
-            :total="total" v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
-
+        <page-table
+            :show-selection="true"
+            v-model:selection-data="selectionData"
+            :data="configs"
+            :columns="columns"
+            :total="total"
+            v-model:page-size="query.pageSize"
+            v-model:page-num="query.pageNum"
+            @pageChange="search()"
+        >
             <template #queryRight>
                 <el-button v-auth="perms.saveConfig" type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
             </template>
@@ -13,31 +20,37 @@
             </template>
 
             <template #action="{ data }">
-                <el-button :disabled="data.status == -1" type="warning" @click="showSetConfigDialog(data)"
-                    link>配置</el-button>
-                <el-button v-if="actionBtns[perms.saveConfig]" @click="editConfig(data)" type="primary" link>编辑
-                </el-button>
+                <el-button :disabled="data.status == -1" type="warning" @click="showSetConfigDialog(data)" link>配置</el-button>
+                <el-button v-if="actionBtns[perms.saveConfig]" @click="editConfig(data)" type="primary" link>编辑 </el-button>
             </template>
         </page-table>
 
         <el-dialog :before-close="closeSetConfigDialog" title="配置项设置" v-model="paramsDialog.visible" width="500px">
-            <el-form v-if="paramsDialog.paramsFormItem.length > 0" ref="paramsFormRef" :model="paramsDialog.params"
-                label-width="auto">
-                <el-form-item v-for="item in paramsDialog.paramsFormItem" :key="item.name" :prop="item.model"
-                    :label="item.name" required>
-                    <el-input v-if="!item.options" v-model="paramsDialog.params[item.model]" :placeholder="item.placeholder"
-                        autocomplete="off" clearable></el-input>
-                    <el-select v-else v-model="paramsDialog.params[item.model]" :placeholder="item.placeholder" filterable
-                        autocomplete="off" clearable style="width: 100%">
-                        <el-option v-for="option in item.options.split(',')" :key="option" :label="option"
-                            :value="option" />
+            <el-form v-if="paramsDialog.paramsFormItem.length > 0" ref="paramsFormRef" :model="paramsDialog.params" label-width="auto">
+                <el-form-item v-for="item in paramsDialog.paramsFormItem" :key="item.name" :prop="item.model" :label="item.name" required>
+                    <el-input
+                        v-if="!item.options"
+                        v-model="paramsDialog.params[item.model]"
+                        :placeholder="item.placeholder"
+                        autocomplete="off"
+                        clearable
+                    ></el-input>
+                    <el-select
+                        v-else
+                        v-model="paramsDialog.params[item.model]"
+                        :placeholder="item.placeholder"
+                        filterable
+                        autocomplete="off"
+                        clearable
+                        style="width: 100%"
+                    >
+                        <el-option v-for="option in item.options.split(',')" :key="option" :label="option" :value="option" />
                     </el-select>
                 </el-form-item>
             </el-form>
             <el-form v-else ref="paramsFormRef" label-width="auto">
                 <el-form-item label="配置值" required>
-                    <el-input v-model="paramsDialog.params" :placeholder="paramsDialog.config.remark" autocomplete="off"
-                        clearable></el-input>
+                    <el-input v-model="paramsDialog.params" :placeholder="paramsDialog.config.remark" autocomplete="off" clearable></el-input>
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -48,8 +61,7 @@
             </template>
         </el-dialog>
 
-        <config-edit :title="configEdit.title" v-model:visible="configEdit.visible" :data="configEdit.config"
-            @val-change="configEditChange" />
+        <config-edit :title="configEdit.title" v-model:visible="configEdit.visible" :data="configEdit.config" @val-change="configEditChange" />
     </div>
 </template>
 
@@ -58,25 +70,25 @@ import { ref, toRefs, reactive, onMounted } from 'vue';
 import ConfigEdit from './ConfigEdit.vue';
 import { configApi } from '../api';
 import { ElMessage } from 'element-plus';
-import PageTable from '@/components/pagetable/PageTable.vue'
+import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 
 const perms = {
-    saveConfig: "config:save"
-}
+    saveConfig: 'config:save',
+};
 const columns = ref([
-    TableColumn.new("name", "配置项"),
-    TableColumn.new("key", "配置key"),
-    TableColumn.new("value", "配置值"),
-    TableColumn.new("remark", "备注"),
-    TableColumn.new("modifier", "更新账号"),
-    TableColumn.new("updateTime", "更新时间").isTime(),
-])
-const actionColumn = TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip().alignCenter();
-const actionBtns = hasPerms([perms.saveConfig])
+    TableColumn.new('name', '配置项'),
+    TableColumn.new('key', '配置key'),
+    TableColumn.new('value', '配置值'),
+    TableColumn.new('remark', '备注'),
+    TableColumn.new('modifier', '更新账号'),
+    TableColumn.new('updateTime', '更新时间').isTime(),
+]);
+const actionColumn = TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip().alignCenter();
+const actionBtns = hasPerms([perms.saveConfig]);
 
-const paramsFormRef: any = ref(null)
+const paramsFormRef: any = ref(null);
 const state = reactive({
     query: {
         pageNum: 1,
@@ -99,14 +111,7 @@ const state = reactive({
     },
 });
 
-const {
-    query,
-    total,
-    configs,
-    selectionData,
-    paramsDialog,
-    configEdit,
-} = toRefs(state)
+const { query, total, configs, selectionData, paramsDialog, configEdit } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
@@ -180,7 +185,6 @@ const setConfig = async () => {
     ElMessage.success('保存成功');
     closeSetConfigDialog();
     search();
-
 };
 
 const hasParam = (paramKey: string, paramItems: any) => {

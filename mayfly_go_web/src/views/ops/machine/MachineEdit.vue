@@ -1,7 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :destroy-on-close="true"
-            :before-close="cancel" width="650px">
+        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :destroy-on-close="true" :before-close="cancel" width="650px">
             <el-form :model="form" ref="machineForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
@@ -13,8 +12,7 @@
                         </el-form-item>
                         <el-form-item prop="ip" label="ip:" required>
                             <el-col :span="18">
-                                <el-input :disabled="form.id" v-model.trim="form.ip" placeholder="主机ip" auto-complete="off">
-                                </el-input>
+                                <el-input :disabled="form.id" v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"> </el-input>
                             </el-col>
                             <el-col style="text-align: center" :span="1">:</el-col>
                             <el-col :span="5">
@@ -23,20 +21,17 @@
                         </el-form-item>
 
                         <el-form-item prop="username" label="用户名:">
-                            <el-input v-model.trim="form.username" placeholder="请输授权用户名" autocomplete="new-password">
-                            </el-input>
+                            <el-input v-model.trim="form.username" placeholder="请输授权用户名" autocomplete="new-password"> </el-input>
                         </el-form-item>
 
                         <el-form-item label="认证方式:">
-                            <el-select @change="changeAuthMethod" style="width: 100%" v-model="state.authType"
-                                placeholder="请选认证方式">
+                            <el-select @change="changeAuthMethod" style="width: 100%" v-model="state.authType" placeholder="请选认证方式">
                                 <el-option key="1" label="密码" :value="1"> </el-option>
                                 <el-option key="2" label="授权凭证" :value="2"> </el-option>
                             </el-select>
                         </el-form-item>
                         <el-form-item v-if="state.authType == 1" prop="password" label="密码:">
-                            <el-input type="password" show-password v-model.trim="form.password" placeholder="请输入密码"
-                                autocomplete="new-password">
+                            <el-input type="password" show-password v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password">
                             </el-input>
                         </el-form-item>
 
@@ -78,7 +73,7 @@ import { machineApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagSelect from '../component/TagSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
-import AuthCertSelect from './authcert/AuthCertSelect.vue'
+import AuthCertSelect from './authcert/AuthCertSelect.vue';
 
 const props = defineProps({
     visible: {
@@ -90,17 +85,19 @@ const props = defineProps({
     title: {
         type: String,
     },
-})
+});
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change'])
+const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const rules = {
-    tagId: [{
-        required: true,
-        message: '请选择标签',
-        trigger: ['blur', 'change'],
-    }],
+    tagId: [
+        {
+            required: true,
+            message: '请选择标签',
+            trigger: ['blur', 'change'],
+        },
+    ],
     name: [
         {
             required: true,
@@ -136,7 +133,7 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
-}
+};
 
 const machineForm: any = ref(null);
 const authCertSelectRef: any = ref(null);
@@ -166,13 +163,7 @@ const state = reactive({
     btnLoading: false,
 });
 
-const {
-    dialogVisible,
-    tabActiveName,
-    form,
-    testConnBtnLoading,
-    btnLoading,
-} = toRefs(state)
+const { dialogVisible, tabActiveName, form, testConnBtnLoading, btnLoading } = toRefs(state);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -183,7 +174,7 @@ watch(props, async (newValue: any) => {
     if (newValue.machine) {
         state.form = { ...newValue.machine };
         // 如果凭证类型为公共的，则表示使用授权凭证认证
-        const authCertId = (state.form as any).authCertId
+        const authCertId = (state.form as any).authCertId;
         if (authCertId > 0) {
             state.authType = 2;
         } else {
@@ -203,7 +194,7 @@ const changeAuthMethod = (val: any) => {
             state.form.password = '';
         }
     }
-}
+};
 
 const testConn = async () => {
     machineForm.value.validate(async (valid: boolean) => {
@@ -224,7 +215,7 @@ const testConn = async () => {
             return false;
         }
     });
-}
+};
 
 const btnOk = async () => {
     machineForm.value.validate(async (valid: boolean) => {
@@ -256,10 +247,10 @@ const getReqForm = () => {
         reqForm.authCertId = -1;
     }
     if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
-        reqForm.sshTunnelMachineId = -1
+        reqForm.sshTunnelMachineId = -1;
     }
-    return reqForm
-}
+    return reqForm;
+};
 
 const cancel = () => {
     emit('update:visible', false);

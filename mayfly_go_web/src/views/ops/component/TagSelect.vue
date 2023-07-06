@@ -1,12 +1,22 @@
 <template>
     <div>
-        <el-tree-select v-bind="$attrs" @check="changeTag" style="width: 100%" :data="tags" placeholder="请选择关联标签"
-            :render-after-expand="true" :default-expanded-keys="[selectTags]" show-checkbox check-strictly node-key="id"
+        <el-tree-select
+            v-bind="$attrs"
+            @check="changeTag"
+            style="width: 100%"
+            :data="tags"
+            placeholder="请选择关联标签"
+            :render-after-expand="true"
+            :default-expanded-keys="[selectTags]"
+            show-checkbox
+            check-strictly
+            node-key="id"
             :props="{
                 value: 'id',
                 label: 'codePath',
                 children: 'children',
-            }">
+            }"
+        >
             <template #default="{ data }">
                 <span class="custom-tree-node">
                     <span style="font-size: 13px">
@@ -26,9 +36,9 @@
 import { useAttrs, toRefs, reactive, onMounted } from 'vue';
 import { tagApi } from '../tag/api';
 
-const attrs = useAttrs()
+const attrs = useAttrs();
 //定义事件
-const emit = defineEmits(['changeTag', 'update:tagPath'])
+const emit = defineEmits(['changeTag', 'update:tagPath']);
 
 const state = reactive({
     tags: [],
@@ -36,10 +46,7 @@ const state = reactive({
     selectTags: null as any,
 });
 
-const {
-    tags,
-    selectTags,
-} = toRefs(state)
+const { tags, selectTags } = toRefs(state);
 
 onMounted(async () => {
     if (attrs.modelValue) {
@@ -57,6 +64,4 @@ const changeTag = (tag: any, checkInfo: any) => {
     }
 };
 </script>
-<style lang="scss">
-
-</style>
+<style lang="scss"></style>

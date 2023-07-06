@@ -2,16 +2,24 @@
     <div>
         <el-row>
             <el-col :span="8">
-                <el-link @click="onRefresh()" icon="refresh" :underline="false" class="ml5">
-                </el-link>
+                <el-link @click="onRefresh()" icon="refresh" :underline="false" class="ml5"> </el-link>
                 <el-divider direction="vertical" border-style="dashed" />
 
-                <el-popover popper-style="max-height: 550px; overflow: auto; max-width: 450px" placement="bottom"
-                    width="auto" title="表格字段配置" trigger="click">
+                <el-popover
+                    popper-style="max-height: 550px; overflow: auto; max-width: 450px"
+                    placement="bottom"
+                    width="auto"
+                    title="表格字段配置"
+                    trigger="click"
+                >
                     <div v-for="(item, index) in columns" :key="index">
-                        <el-checkbox v-model="item.show"
+                        <el-checkbox
+                            v-model="item.show"
                             :label="`${!item.columnComment ? item.columnName : item.columnName + ' [' + item.columnComment + ']'}`"
-                            :true-label="true" :false-label="false" size="small" />
+                            :true-label="true"
+                            :false-label="false"
+                            size="small"
+                        />
                     </div>
                     <template #reference>
                         <el-link icon="Operation" size="small" :underline="false"></el-link>
@@ -26,8 +34,7 @@
                 <el-divider direction="vertical" border-style="dashed" />
 
                 <el-tooltip class="box-item" effect="dark" content="commit" placement="top">
-                    <el-link @click="onCommit()" type="success" icon="CircleCheck" :underline="false">
-                    </el-link>
+                    <el-link @click="onCommit()" type="success" icon="CircleCheck" :underline="false"> </el-link>
                 </el-tooltip>
                 <el-divider direction="vertical" border-style="dashed" />
 
@@ -50,21 +57,31 @@
                 </el-tooltip>
             </el-col>
             <el-col :span="16">
-                <el-input v-model="condition" placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可" clearable
-                    @clear="selectData" size="small" style="width: 100%">
+                <el-input
+                    v-model="condition"
+                    placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可"
+                    clearable
+                    @clear="selectData"
+                    size="small"
+                    style="width: 100%"
+                >
                     <template #prepend>
                         <el-popover trigger="click" :width="320" placement="right">
                             <template #reference>
                                 <el-link type="success" :underline="false">选择列</el-link>
                             </template>
-                            <el-table :data="columns" max-height="500" size="small" @row-click="(...event: any) => {
+                            <el-table
+                                :data="columns"
+                                max-height="500"
+                                size="small"
+                                @row-click="(...event: any) => {
                                 onConditionRowClick(event);
                             }
-                                " style="cursor: pointer">
-                                <el-table-column property="columnName" label="列名" show-overflow-tooltip>
-                                </el-table-column>
-                                <el-table-column property="columnComment" label="备注" show-overflow-tooltip>
-                                </el-table-column>
+                                "
+                                style="cursor: pointer"
+                            >
+                                <el-table-column property="columnName" label="列名" show-overflow-tooltip> </el-table-column>
+                                <el-table-column property="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
                             </el-table>
                         </el-popover>
                     </template>
@@ -76,16 +93,34 @@
             </el-col>
         </el-row>
 
-        <db-table ref="dbTableRef" :db-id="state.ti.dbId" :db="state.ti.db" :data="datas" :table="state.table"
-            :columns="columns" :loading="loading" :height="tableHeight" :show-column-tip="true" :sortable="'custom'"
-            @sort-change="(sort: any) => onTableSortChange(sort)" @selection-change="onDataSelectionChange"
-            @change-updated-field="changeUpdatedField"></db-table>
+        <db-table
+            ref="dbTableRef"
+            :db-id="state.ti.dbId"
+            :db="state.ti.db"
+            :data="datas"
+            :table="state.table"
+            :columns="columns"
+            :loading="loading"
+            :height="tableHeight"
+            :show-column-tip="true"
+            :sortable="'custom'"
+            @sort-change="(sort: any) => onTableSortChange(sort)"
+            @selection-change="onDataSelectionChange"
+            @change-updated-field="changeUpdatedField"
+        ></db-table>
 
         <el-row type="flex" class="mt5" justify="center">
-            <el-pagination small :total="count" @current-change="pageChange()" layout="prev, pager, next, total, jumper"
-                v-model:current-page="pageNum" :page-size="DbInst.DefaultLimit"></el-pagination>
+            <el-pagination
+                small
+                :total="count"
+                @current-change="pageChange()"
+                layout="prev, pager, next, total, jumper"
+                v-model:current-page="pageNum"
+                :page-size="DbInst.DefaultLimit"
+            ></el-pagination>
         </el-row>
-        <div style=" font-size: 12px; padding: 0 10px; color: #606266"><span>{{ state.sql }}</span>
+        <div style="font-size: 12px; padding: 0 10px; color: #606266">
+            <span>{{ state.sql }}</span>
         </div>
 
         <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
@@ -114,14 +149,21 @@
 
         <el-dialog v-model="addDataDialog.visible" :title="addDataDialog.title" :destroy-on-close="true" width="600px">
             <el-form ref="dataForm" :model="addDataDialog.data" label-width="auto" size="small">
-                <el-form-item v-for="column in columns" class="w100" :prop="column.columnName" :label="column.columnName"
-                    :required="column.nullable != 'YES' && column.columnKey != 'PRI'">
-                    <el-input-number v-if="DbInst.isNumber(column.columnType)"
+                <el-form-item
+                    v-for="column in columns"
+                    class="w100"
+                    :prop="column.columnName"
+                    :label="column.columnName"
+                    :required="column.nullable != 'YES' && column.columnKey != 'PRI'"
+                >
+                    <el-input-number
+                        v-if="DbInst.isNumber(column.columnType)"
                         v-model="addDataDialog.data[`${column.columnName}`]"
-                        :placeholder="`${column.columnType}  ${column.columnComment}`" class="w100" />
+                        :placeholder="`${column.columnType}  ${column.columnComment}`"
+                        class="w100"
+                    />
 
-                    <el-input v-else v-model="addDataDialog.data[`${column.columnName}`]"
-                        :placeholder="`${column.columnType}  ${column.columnComment}`" />
+                    <el-input v-else v-model="addDataDialog.data[`${column.columnName}`]" :placeholder="`${column.columnType}  ${column.columnComment}`" />
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -142,21 +184,21 @@ import { ElMessage } from 'element-plus';
 import { DbInst, TabInfo } from '../../db';
 import { exportCsv } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
-import DbTable from '../DbTable.vue'
+import DbTable from '../DbTable.vue';
 
-const emits = defineEmits(['genInsertSql'])
+const emits = defineEmits(['genInsertSql']);
 const dataForm: any = ref(null);
 
 const props = defineProps({
     data: {
         type: TabInfo,
-        required: true
+        required: true,
     },
     tableHeight: {
         type: [String],
-        default: '600'
-    }
-})
+        default: '600',
+    },
+});
 
 const dbTableRef = ref(null) as Ref;
 
@@ -179,7 +221,7 @@ const state = reactive({
         dataTab: null,
         visible: false,
         condition: '=',
-        value: null
+        value: null,
     },
     addDataDialog: {
         data: {},
@@ -191,47 +233,40 @@ const state = reactive({
     hasUpdatedFileds: false,
 });
 
-const {
-    datas,
-    condition,
-    loading,
-    columns,
-    pageNum,
-    count,
-    hasUpdatedFileds,
-    conditionDialog,
-    addDataDialog,
-} = toRefs(state);
+const { datas, condition, loading, columns, pageNum, count, hasUpdatedFileds, conditionDialog, addDataDialog } = toRefs(state);
 
-watch(() => props.tableHeight, (newValue: any) => {
-    state.tableHeight = newValue;
-});
+watch(
+    () => props.tableHeight,
+    (newValue: any) => {
+        state.tableHeight = newValue;
+    }
+);
 
 onMounted(async () => {
     console.log('in table data mounted');
     state.ti = props.data;
     state.tableHeight = props.tableHeight;
     state.table = state.ti.params.table;
-    notBlank(state.table, "TableData组件params.table信息不能为空")
+    notBlank(state.table, 'TableData组件params.table信息不能为空');
 
     const columns = await state.ti.getNowDbInst().loadColumns(state.ti.db, state.table);
     columns.forEach((x: any) => {
         x.show = true;
-    })
+    });
     state.columns = columns;
     await onRefresh();
-})
+});
 
 const onRefresh = async () => {
     // 查询条件置空
     state.condition = '';
     state.pageNum = 1;
     await selectData();
-}
+};
 
 /**
-   * 数据tab修改页数
-   */
+ * 数据tab修改页数
+ */
 const pageChange = async () => {
     await selectData();
 };
@@ -257,7 +292,7 @@ const selectData = async () => {
     } finally {
         state.loading = false;
     }
-}
+};
 
 /**
  * 导出当前页数据
@@ -271,9 +306,8 @@ const exportData = () => {
             columnNames.push(column.columnName);
         }
     }
-    exportCsv(`数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, columnNames, dataList)
+    exportCsv(`数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, columnNames, dataList);
 };
-
 
 /**
  * 条件查询，点击列信息后显示输入对应的值
@@ -320,7 +354,7 @@ const onSelectByCondition = async () => {
     notEmpty(state.condition, '条件不能为空');
     state.pageNum = 1;
     await selectData();
-}
+};
 
 /**
  * 表排序字段变更
@@ -341,7 +375,7 @@ const onDataSelectionChange = (datas: []) => {
 const changeUpdatedField = (updatedFields: []) => {
     // 如果存在要更新字段，则显示提交和取消按钮
     state.hasUpdatedFileds = updatedFields && updatedFields.length > 0;
-}
+};
 
 /**
  * 执行删除数据事件
@@ -350,7 +384,7 @@ const onDeleteData = async () => {
     const deleteDatas = state.selectionDatas;
     isTrue(deleteDatas && deleteDatas.length > 0, '请先选择要删除的数据');
     const { db } = state.ti;
-    const dbInst = state.ti.getNowDbInst()
+    const dbInst = state.ti.getNowDbInst();
     dbInst.promptExeSql(db, dbInst.genDeleteByPrimaryKeysSql(db, state.table, deleteDatas), null, () => {
         onRefresh();
     });
@@ -363,21 +397,21 @@ const onGenerateInsertSql = async () => {
 
 const submitUpdateFields = () => {
     dbTableRef.value.submitUpdateFields();
-}
+};
 
 const cancelUpdateFields = () => {
     dbTableRef.value.cancelUpdateFields();
-}
+};
 
 const onShowAddDataDialog = async () => {
-    state.addDataDialog.title = `添加'${state.table}'表数据`
+    state.addDataDialog.title = `添加'${state.table}'表数据`;
     state.addDataDialog.visible = true;
 };
 
 const closeAddDataDialog = () => {
     state.addDataDialog.visible = false;
     state.addDataDialog.data = {};
-}
+};
 
 // 添加新数据行
 const addRow = async () => {
@@ -387,9 +421,9 @@ const addRow = async () => {
             // key: 字段名，value: 字段名提示
             let obj: any = {};
             for (let item of state.columns) {
-                const value = data[item.columnName]
+                const value = data[item.columnName];
                 if (!value) {
-                    continue
+                    continue;
                 }
                 obj[`${item.columnName}`] = DbInst.wrapValueByType(value);
             }
@@ -405,13 +439,11 @@ const addRow = async () => {
             return false;
         }
     });
-
 };
-
 </script>
 
 <style lang="scss">
 .update_field_active {
-    background-color: var(--el-color-success)
+    background-color: var(--el-color-success);
 }
 </style>

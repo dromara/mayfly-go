@@ -2,21 +2,30 @@
     <div class="menu">
         <div class="toolbar">
             <div>
-                <span style="font-size: 14px">
-                    <SvgIcon name="info-filled" />红色、橙色字体表示禁用状态
-                </span>
+                <span style="font-size: 14px"> <SvgIcon name="info-filled" />红色、橙色字体表示禁用状态 </span>
             </div>
             <el-button v-auth="'resource:add'" type="primary" icon="plus" @click="addResource(false)">添加</el-button>
         </div>
-        <el-tree class="none-select" :indent="38" node-key="id" :props="props" :data="data" @node-expand="handleNodeExpand"
-            @node-collapse="handleNodeCollapse" :default-expanded-keys="defaultExpandedKeys" :expand-on-click-node="false"
-            draggable :allow-drop="allowDrop" @node-drop="handleDrop">
+        <el-tree
+            class="none-select"
+            :indent="38"
+            node-key="id"
+            :props="props"
+            :data="data"
+            @node-expand="handleNodeExpand"
+            @node-collapse="handleNodeCollapse"
+            :default-expanded-keys="defaultExpandedKeys"
+            :expand-on-click-node="false"
+            draggable
+            :allow-drop="allowDrop"
+            @node-drop="handleDrop"
+        >
             <template #default="{ data }">
                 <span class="custom-tree-node">
                     <span style="font-size: 13px" v-if="data.type === menuTypeValue">
                         <span style="color: #3c8dbc">【</span>
                         <span v-if="data.status == 1">{{ data.name }}</span>
-                        <span v-if="data.status == -1" style="color: #e6a23c;">{{ data.name }}</span>
+                        <span v-if="data.status == -1" style="color: #e6a23c">{{ data.name }}</span>
                         <span style="color: #3c8dbc">】</span>
                         <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
                     </span>
@@ -26,35 +35,60 @@
                         <span style="color: #3c8dbc">】</span>
                     </span>
 
-                    <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="view" type="info"
-                        :underline="false" />
+                    <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="view" type="info" :underline="false" />
 
-                    <el-link v-auth="'resource:update'" @click.prevent="editResource(data)" class="ml5" type="primary"
-                        icon="edit" :underline="false" />
+                    <el-link v-auth="'resource:update'" @click.prevent="editResource(data)" class="ml5" type="primary" icon="edit" :underline="false" />
 
-                    <el-link v-auth="'resource:add'" @click.prevent="addResource(data)" v-if="data.type === menuTypeValue"
-                        icon="circle-plus" :underline="false" type="success" class="ml5" />
+                    <el-link
+                        v-auth="'resource:add'"
+                        @click.prevent="addResource(data)"
+                        v-if="data.type === menuTypeValue"
+                        icon="circle-plus"
+                        :underline="false"
+                        type="success"
+                        class="ml5"
+                    />
 
-                    <el-link v-auth="'resource:changeStatus'" @click.prevent="changeStatus(data, -1)"
-                        v-if="data.status === 1" icon="circle-close" :underline="false" type="warning" class="ml5" />
+                    <el-link
+                        v-auth="'resource:changeStatus'"
+                        @click.prevent="changeStatus(data, -1)"
+                        v-if="data.status === 1"
+                        icon="circle-close"
+                        :underline="false"
+                        type="warning"
+                        class="ml5"
+                    />
 
-                    <el-link v-auth="'resource:changeStatus'" @click.prevent="changeStatus(data, 1)"
-                        v-if="data.status === -1" type="success" icon="circle-check" :underline="false" plain class="ml5" />
+                    <el-link
+                        v-auth="'resource:changeStatus'"
+                        @click.prevent="changeStatus(data, 1)"
+                        v-if="data.status === -1"
+                        type="success"
+                        icon="circle-check"
+                        :underline="false"
+                        plain
+                        class="ml5"
+                    />
 
-                    <el-link v-auth="'resource:delete'" @click.prevent="deleteMenu(data)" type="danger" icon="delete"
-                        :underline="false" plain class="ml5" />
+                    <el-link v-auth="'resource:delete'" @click.prevent="deleteMenu(data)" type="danger" icon="delete" :underline="false" plain class="ml5" />
                 </span>
             </template>
         </el-tree>
 
-        <ResourceEdit :title="dialogForm.title" v-model:visible="dialogForm.visible" v-model:data="dialogForm.data"
-            :typeDisabled="dialogForm.typeDisabled" :departTree="data" :type="dialogForm.type" @val-change="valChange">
-        </ResourceEdit>
+        <ResourceEdit
+            :title="dialogForm.title"
+            v-model:visible="dialogForm.visible"
+            v-model:data="dialogForm.data"
+            :typeDisabled="dialogForm.typeDisabled"
+            :departTree="data"
+            :type="dialogForm.type"
+            @val-change="valChange"
+        />
 
         <el-dialog v-model="infoDialog.visible">
             <el-descriptions title="资源信息" :column="2" border>
                 <el-descriptions-item label="类型">
-                    <el-tag size="small">{{ enums.ResourceTypeEnum.getLabelByValue(infoDialog.data.type) }}</el-tag>
+                    <el-tag size="small">{{ EnumValue.getLabelByValue(ResourceTypeEnum, infoDialog.data.type) }}</el-tag>
                 </el-descriptions-item>
                 <el-descriptions-item label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
                 <el-descriptions-item label="code[菜单path]">{{ infoDialog.data.code }}</el-descriptions-item>
@@ -79,17 +113,14 @@
                 <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="外链">
                     {{ infoDialog.data.meta.linkType ? '是' : '否' }}
                 </el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue && infoDialog.data.meta.linkType > 0"
-                    label="外链">
+                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue && infoDialog.data.meta.linkType > 0" label="外链">
                     {{ infoDialog.data.meta.link }}
                 </el-descriptions-item>
 
                 <el-descriptions-item label="创建者">{{ infoDialog.data.creator }}</el-descriptions-item>
-                <el-descriptions-item label="创建时间">{{ dateFormat(infoDialog.data.createTime) }}
-                </el-descriptions-item>
+                <el-descriptions-item label="创建时间">{{ dateFormat(infoDialog.data.createTime) }} </el-descriptions-item>
                 <el-descriptions-item label="修改者">{{ infoDialog.data.modifier }}</el-descriptions-item>
-                <el-descriptions-item label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }}
-                </el-descriptions-item>
+                <el-descriptions-item label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }} </el-descriptions-item>
             </el-descriptions>
         </el-dialog>
     </div>
@@ -99,16 +130,18 @@
 import { toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceEdit from './ResourceEdit.vue';
-import enums from '../enums';
+import { ResourceTypeEnum } from '../enums';
 import { resourceApi } from '../api';
 import { dateFormat } from '@/common/utils/date';
+import EnumValue from '@/common/Enum';
 
-const menuTypeValue = enums.ResourceTypeEnum['MENU'].value
-const permissionTypeValue = enums.ResourceTypeEnum['PERMISSION'].value
+const menuTypeValue = ResourceTypeEnum.Menu.value;
+const permissionTypeValue = ResourceTypeEnum.Permission.value;
+
 const props = {
     label: 'name',
     children: 'children',
-}
+};
 
 const state = reactive({
     //弹出框对象
@@ -142,14 +175,7 @@ const state = reactive({
     defaultExpandedKeys: [] as any[],
 });
 
-
-
-const {
-    dialogForm,
-    infoDialog,
-    data,
-    defaultExpandedKeys,
-} = toRefs(state)
+const { dialogForm, infoDialog, data, defaultExpandedKeys } = toRefs(state);
 
 onMounted(() => {
     search();
@@ -274,19 +300,17 @@ const allowDrop = (draggingNode: any, dropNode: any, type: any) => {
         // 只有目标节点下没有子节点才允许移动
         if (!dropNode.data.children || dropNode.data.children == 0) {
             // 只有权限节点可移动至菜单节点下 或者移动菜单
-            return (draggingNode.data.type == permissionTypeValue && dropNode.data.type == menuTypeValue) ||
+            return (
+                (draggingNode.data.type == permissionTypeValue && dropNode.data.type == menuTypeValue) ||
                 (draggingNode.data.type == menuTypeValue && dropNode.data.type == menuTypeValue)
+            );
         }
         return false;
     }
     return draggingNode.data.type === dropNode.data.type;
-}
+};
 
-const handleDrop = async (
-    draggingNode: any,
-    dropNode: any,
-    dropType: any,
-) => {
+const handleDrop = async (draggingNode: any, dropNode: any, dropType: any) => {
     const draggingData = draggingNode.data;
     const dropData = dropNode.data;
     if (draggingData.pid !== dropData.pid) {
@@ -308,10 +332,10 @@ const handleDrop = async (
             id: draggingData.id,
             name: draggingData.name,
             pid: draggingData.pid,
-            weight: draggingData.weight
+            weight: draggingData.weight,
         },
-    ])
-}
+    ]);
+};
 
 const removeDeafultExpandId = (id: any) => {
     let index = state.defaultExpandedKeys.indexOf(id);

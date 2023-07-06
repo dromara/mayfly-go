@@ -44,7 +44,7 @@ onMounted(() => {
         });
         // 获取缓存中的布局配置
         if (getLocal('themeConfig')) {
-            themeConfigStores.setThemeConfig({ themeConfig: getLocal('themeConfig') })
+            themeConfigStores.setThemeConfig({ themeConfig: getLocal('themeConfig') });
             document.documentElement.style.cssText = getLocal('themeConfigStyle');
         }
     });
@@ -52,7 +52,7 @@ onMounted(() => {
 
 // 页面销毁时，关闭监听布局配置
 onUnmounted(() => {
-    mittBus.off('openSetingsDrawer', () => { });
+    mittBus.off('openSetingsDrawer', () => {});
 });
 
 // 监听路由的变化，设置网站标题

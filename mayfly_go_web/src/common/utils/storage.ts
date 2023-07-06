@@ -36,21 +36,19 @@ export function clearSession() {
     window.sessionStorage.clear();
 }
 
-
-
 export function getUserInfo4Session() {
-    return getSession("userInfo")
+    return getSession('userInfo');
 }
 
 export function setUserInfo2Session(userinfo: any) {
-    setSession("userInfo", userinfo)
+    setSession('userInfo', userinfo);
 }
 
 // 获取是否开启水印
 export function getUseWatermark4Session() {
-    return getSession("useWatermark")
+    return getSession('useWatermark');
 }
 
 export function setUseWatermark2Session(useWatermark: boolean) {
-    setSession("useWatermark", useWatermark)
+    setSession('useWatermark', useWatermark);
 }

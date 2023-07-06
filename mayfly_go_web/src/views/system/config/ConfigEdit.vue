@@ -1,7 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="750px"
-            :destroy-on-close="true">
+        <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="750px" :destroy-on-close="true">
             <el-form ref="configForm" :model="form" label-width="auto">
                 <el-form-item prop="name" label="配置项:" required>
                     <el-input v-model="form.name"></el-input>
@@ -75,11 +74,10 @@ const props = defineProps({
     title: {
         type: String,
     },
-})
+});
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change'])
-
+const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const configForm: any = ref(null);
 
@@ -97,12 +95,7 @@ const state = reactive({
     btnLoading: false,
 });
 
-const {
-    dvisible,
-    params,
-    form,
-    btnLoading,
-} = toRefs(state)
+const { dvisible, params, form, btnLoading } = toRefs(state);
 
 watch(props, (newValue: any) => {
     state.dvisible = newValue.visible;

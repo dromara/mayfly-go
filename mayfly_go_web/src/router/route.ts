@@ -1,5 +1,5 @@
 import { RouteRecordRaw } from 'vue-router';
-import Layout from '@/views/layout/index.vue'
+import Layout from '@/views/layout/index.vue';
 
 // 定义动态路由
 export const dynamicRoutes = [
@@ -11,109 +11,109 @@ export const dynamicRoutes = [
         meta: {
             isKeepAlive: true,
         },
-        children: []
-    //     children: [
-    //         {
-    //             path: '/home',
-    //             name: 'home',
-    //             component: () => import('@/views/home/index.vue'),
-    //             meta: {
-    //                 title: '首页',
-    //                 // iframe链接
-    //                 link: '',
-    //                 // 是否在菜单栏显示，默认显示
-    //                 isHide: false,
-    //                 isKeepAlive: true,
-    //                 // tag标签是否不可删除
-    //                 isAffix: true,
-    //                 // 是否为iframe
-    //                 isIframe: false,
-    //                 icon: 'el-icon-s-home',
-    //             },
-    //         },
-    //         {
-    //             path: '/sys',
-    //             name: 'Resource',
-    //             redirect: '/sys/resources',
-    //             meta: {
-    //                 title: '系统管理',
-    //                 // 资源code，用于校验用户是否拥有该资源权限
-    //                 code: 'sys',
-    //                 // isKeepAlive: true,
-    //                 icon: 'el-icon-monitor',
-    //             },
-    //             children: [
-    //                 {
-    //                     path: 'sys/resources',
-    //                     name: 'ResourceList',
-    //                     component: () => import('@/views/system/resource'),
-    //                     meta: {
-    //                         title: '资源管理',
-    //                         code: 'resource:list',
-    //                         isKeepAlive: true,
-    //                         icon: 'el-icon-menu',
-    //                     },
-    //                 },
-    //                 {
-    //                     path: 'sys/roles',
-    //                     name: 'RoleList',
-    //                     component: () => import('@/views/system/role'),
-    //                     meta: {
-    //                         title: '角色管理',
-    //                         code: 'role:list',
-    //                         isKeepAlive: true,
-    //                         icon: 'el-icon-menu',
-    //                     },
-    //                 },
-    //                 {
-    //                     path: 'sys/accounts',
-    //                     name: 'ResourceList',
-    //                     component: () => import('@/views/system/account'),
-    //                     meta: {
-    //                         title: '账号管理',
-    //                         code: 'account:list',
-    //                         isKeepAlive: true,
-    //                         icon: 'el-icon-menu',
-    //                     },
-    //                 },
-    //             ],
-    //         },
-    //         {
-    //             path: '/machine',
-    //             name: 'Machine',
-    //             redirect: '/machine/list',
-    //             meta: {
-    //                 title: '机器管理',
-    //                 // 资源code，用于校验用户是否拥有该资源权限
-    //                 code: 'machine',
-    //                 // isKeepAlive: true,
-    //                 icon: 'el-icon-monitor',
-    //             },
-    //             children: [
-    //                 {
-    //                     path: '/list',
-    //                     name: 'MachineList',
-    //                     component: () => import('@/views/ops/machine'),
-    //                     meta: {
-    //                         title: '机器列表',
-    //                         code: 'machine:list',
-    //                         isKeepAlive: true,
-    //                         icon: 'el-icon-menu',
-    //                     },
-    //                 },
-    //             ],
-    //         },
-    //         {
-    //             path: '/personal',
-    //             name: 'personal',
-    //             component: () => import('@/views/personal/index.vue'),
-    //             meta: {
-    //                 title: '个人中心',
-    //                 isKeepAlive: true,
-    //                 icon: 'el-icon-user',
-    //             },
-    //         },
-    //     ],
+        children: [],
+        //     children: [
+        //         {
+        //             path: '/home',
+        //             name: 'home',
+        //             component: () => import('@/views/home/index.vue'),
+        //             meta: {
+        //                 title: '首页',
+        //                 // iframe链接
+        //                 link: '',
+        //                 // 是否在菜单栏显示，默认显示
+        //                 isHide: false,
+        //                 isKeepAlive: true,
+        //                 // tag标签是否不可删除
+        //                 isAffix: true,
+        //                 // 是否为iframe
+        //                 isIframe: false,
+        //                 icon: 'el-icon-s-home',
+        //             },
+        //         },
+        //         {
+        //             path: '/sys',
+        //             name: 'Resource',
+        //             redirect: '/sys/resources',
+        //             meta: {
+        //                 title: '系统管理',
+        //                 // 资源code，用于校验用户是否拥有该资源权限
+        //                 code: 'sys',
+        //                 // isKeepAlive: true,
+        //                 icon: 'el-icon-monitor',
+        //             },
+        //             children: [
+        //                 {
+        //                     path: 'sys/resources',
+        //                     name: 'ResourceList',
+        //                     component: () => import('@/views/system/resource'),
+        //                     meta: {
+        //                         title: '资源管理',
+        //                         code: 'resource:list',
+        //                         isKeepAlive: true,
+        //                         icon: 'el-icon-menu',
+        //                     },
+        //                 },
+        //                 {
+        //                     path: 'sys/roles',
+        //                     name: 'RoleList',
+        //                     component: () => import('@/views/system/role'),
+        //                     meta: {
+        //                         title: '角色管理',
+        //                         code: 'role:list',
+        //                         isKeepAlive: true,
+        //                         icon: 'el-icon-menu',
+        //                     },
+        //                 },
+        //                 {
+        //                     path: 'sys/accounts',
+        //                     name: 'ResourceList',
+        //                     component: () => import('@/views/system/account'),
+        //                     meta: {
+        //                         title: '账号管理',
+        //                         code: 'account:list',
+        //                         isKeepAlive: true,
+        //                         icon: 'el-icon-menu',
+        //                     },
+        //                 },
+        //             ],
+        //         },
+        //         {
+        //             path: '/machine',
+        //             name: 'Machine',
+        //             redirect: '/machine/list',
+        //             meta: {
+        //                 title: '机器管理',
+        //                 // 资源code，用于校验用户是否拥有该资源权限
+        //                 code: 'machine',
+        //                 // isKeepAlive: true,
+        //                 icon: 'el-icon-monitor',
+        //             },
+        //             children: [
+        //                 {
+        //                     path: '/list',
+        //                     name: 'MachineList',
+        //                     component: () => import('@/views/ops/machine'),
+        //                     meta: {
+        //                         title: '机器列表',
+        //                         code: 'machine:list',
+        //                         isKeepAlive: true,
+        //                         icon: 'el-icon-menu',
+        //                     },
+        //                 },
+        //             ],
+        //         },
+        //         {
+        //             path: '/personal',
+        //             name: 'personal',
+        //             component: () => import('@/views/personal/index.vue'),
+        //             meta: {
+        //                 title: '个人中心',
+        //                 isKeepAlive: true,
+        //                 icon: 'el-icon-user',
+        //             },
+        //         },
+        //     ],
     },
 ];
 

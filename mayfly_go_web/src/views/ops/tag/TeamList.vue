@@ -1,14 +1,20 @@
 <template>
     <div>
-        <page-table :query="state.queryConfig" v-model:query-form="query" :show-selection="true"
-            v-model:selection-data="selectionData" :data="data" :columns="state.columns" :total="total"
-            v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
-
+        <page-table
+            :query="state.queryConfig"
+            v-model:query-form="query"
+            :show-selection="true"
+            v-model:selection-data="selectionData"
+            :data="data"
+            :columns="state.columns"
+            :total="total"
+            v-model:page-size="query.pageSize"
+            v-model:page-num="query.pageNum"
+            @pageChange="search()"
+        >
             <template #queryRight>
                 <el-button v-auth="'team:save'" type="primary" icon="plus" @click="showSaveTeamDialog(false)">添加</el-button>
-                <el-button v-auth="'team:del'" :disabled="selectionData.length < 1" @click="deleteTeam()" type="danger"
-                    icon="delete">删除</el-button>
-
+                <el-button v-auth="'team:del'" :disabled="selectionData.length < 1" @click="deleteTeam()" type="danger" icon="delete">删除</el-button>
             </template>
 
             <template #tagPath="{ data }">
@@ -44,14 +50,23 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="500px" :title="showTagDialog.title" :before-close="closeTagDialog"
-            v-model="showTagDialog.visible">
+        <el-dialog width="500px" :title="showTagDialog.title" :before-close="closeTagDialog" v-model="showTagDialog.visible">
             <el-form label-width="auto">
                 <el-form-item prop="tag" label="标签:">
-                    <el-tree-select ref="tagTreeRef" style="width: 100%" v-model="showTagDialog.tagTreeTeams"
-                        :data="showTagDialog.tags" :default-expanded-keys="showTagDialog.tagTreeTeams" multiple
-                        :render-after-expand="true" show-checkbox check-strictly node-key="id" :props="showTagDialog.props"
-                        @check="tagTreeNodeCheck">
+                    <el-tree-select
+                        ref="tagTreeRef"
+                        style="width: 100%"
+                        v-model="showTagDialog.tagTreeTeams"
+                        :data="showTagDialog.tags"
+                        :default-expanded-keys="showTagDialog.tagTreeTeams"
+                        multiple
+                        :render-after-expand="true"
+                        show-checkbox
+                        check-strictly
+                        node-key="id"
+                        :props="showTagDialog.props"
+                        @check="tagTreeNodeCheck"
+                    >
                         <template #default="{ data }">
                             <span class="custom-tree-node">
                                 <span style="font-size: 13px">
@@ -59,8 +74,7 @@
                                     <span style="color: #3c8dbc">【</span>
                                     {{ data.name }}
                                     <span style="color: #3c8dbc">】</span>
-                                    <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}
-                                    </el-tag>
+                                    <el-tag v-if="data.children !== null" size="small">{{ data.children.length }} </el-tag>
                                 </span>
                             </span>
                         </template>
@@ -77,13 +91,20 @@
 
         <el-dialog width="700px" :title="showMemDialog.title" v-model="showMemDialog.visible">
             <div class="toolbar">
-                <el-button v-auth="'team:member:save'" @click="showAddMemberDialog()" type="primary" icon="plus"
-                    size="small">添加</el-button>
-                <el-button v-auth="'team:member:del'" @click="deleteMember" :disabled="showMemDialog.chooseId == null"
-                    type="danger" icon="delete" size="small">移除</el-button>
+                <el-button v-auth="'team:member:save'" @click="showAddMemberDialog()" type="primary" icon="plus" size="small">添加</el-button>
+                <el-button v-auth="'team:member:del'" @click="deleteMember" :disabled="showMemDialog.chooseId == null" type="danger" icon="delete" size="small"
+                    >移除</el-button
+                >
                 <div style="float: right">
-                    <el-input placeholder="请输入用户名" class="mr2" style="width: 150px" v-model="showMemDialog.query.username"
-                        size="small" @clear="search" clearable></el-input>
+                    <el-input
+                        placeholder="请输入用户名"
+                        class="mr2"
+                        style="width: 150px"
+                        v-model="showMemDialog.query.username"
+                        size="small"
+                        @clear="search"
+                        clearable
+                    ></el-input>
                     <el-button @click="setMemebers" type="success" icon="search" size="small"></el-button>
                 </div>
             </div>
@@ -104,17 +125,30 @@
                 </el-table-column>
                 <el-table-column property="creator" label="分配者" width="135"></el-table-column>
             </el-table>
-            <el-pagination size="small" @current-change="setMemebers" style="text-align: center" background
-                layout="prev, pager, next, total, jumper" :total="showMemDialog.members.total"
-                v-model:current-page="showMemDialog.query.pageNum" :page-size="showMemDialog.query.pageSize" />
+            <el-pagination
+                size="small"
+                @current-change="setMemebers"
+                style="text-align: center"
+                background
+                layout="prev, pager, next, total, jumper"
+                :total="showMemDialog.members.total"
+                v-model:current-page="showMemDialog.query.pageNum"
+                :page-size="showMemDialog.query.pageSize"
+            />
 
             <el-dialog width="400px" title="添加成员" :before-close="cancelAddMember" v-model="showMemDialog.addVisible">
                 <el-form :model="showMemDialog.memForm" label-width="auto">
                     <el-form-item label="账号:">
-                        <el-select style="width: 100%" remote :remote-method="getAccount"
-                            v-model="showMemDialog.memForm.accountIds" filterable multiple placeholder="请输入账号模糊搜索并选择">
-                            <el-option v-for="item in showMemDialog.accounts" :key="item.id"
-                                :label="`${item.username} [${item.name}]`" :value="item.id">
+                        <el-select
+                            style="width: 100%"
+                            remote
+                            :remote-method="getAccount"
+                            v-model="showMemDialog.memForm.accountIds"
+                            filterable
+                            multiple
+                            placeholder="请输入账号模糊搜索并选择"
+                        >
+                            <el-option v-for="item in showMemDialog.accounts" :key="item.id" :label="`${item.username} [${item.name}]`" :value="item.id">
                             </el-option>
                         </el-select>
                     </el-form-item>
@@ -137,7 +171,7 @@ import { accountApi } from '../../system/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dateFormat } from '@/common/utils/date';
 import { notBlank } from '@/common/assert';
-import PageTable from '@/components/pagetable/PageTable.vue'
+import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 
 const teamForm: any = ref(null);
@@ -154,15 +188,13 @@ const state = reactive({
         pageSize: 10,
         name: null,
     },
-    queryConfig: [
-        TableQuery.text("name", "团队名称"),
-    ],
+    queryConfig: [TableQuery.text('name', '团队名称')],
     columns: [
-        TableColumn.new("name", "团队名称"),
-        TableColumn.new("remark", "备注"),
-        TableColumn.new("createTime", "创建时间").isTime(),
-        TableColumn.new("creator", "创建人"),
-        TableColumn.new("action", "操作").isSlot().setMinWidth(100).fixedRight().alignCenter(),
+        TableColumn.new('name', '团队名称'),
+        TableColumn.new('remark', '备注'),
+        TableColumn.new('createTime', '创建时间').isTime(),
+        TableColumn.new('creator', '创建人'),
+        TableColumn.new('action', '操作').isSlot().setMinWidth(100).fixedRight().alignCenter(),
     ],
     total: 0,
     data: [],
@@ -203,15 +235,7 @@ const state = reactive({
     },
 });
 
-const {
-    query,
-    addTeamDialog,
-    total,
-    data,
-    selectionData,
-    showMemDialog,
-    showTagDialog,
-} = toRefs(state)
+const { query, addTeamDialog, total, data, selectionData, showMemDialog, showTagDialog } = toRefs(state);
 
 onMounted(() => {
     search();
@@ -252,12 +276,12 @@ const cancelSaveTeam = () => {
 };
 
 const deleteTeam = () => {
-    ElMessageBox.confirm(`此操作将删除【${state.selectionData.map((x: any) => x.name).join(", ")}】团队信息, 是否继续?`, '提示', {
+    ElMessageBox.confirm(`此操作将删除【${state.selectionData.map((x: any) => x.name).join(', ')}】团队信息, 是否继续?`, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning',
     }).then(async () => {
-        await tagApi.delTeam.request({ id: state.selectionData.map((x: any) => x.id).join(",") });
+        await tagApi.delTeam.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功！');
         search();
     });
@@ -374,15 +398,15 @@ const tagTreeNodeCheck = () => {
     // console.log(checkInfo);
 };
 
-        // function removeCheckedTagId(id: any) {
-        //     console.log(state.showTagDialog.tagTreeTeams);
-        //     for (let i = 0; i < state.showTagDialog.tagTreeTeams.length; i++) {
-        //         if (state.showTagDialog.tagTreeTeams[i] == id) {
-        //             console.log('has id', id);
-        //             state.showTagDialog.tagTreeTeams.splice(i, 1);
-        //         }
-        //     }
-        //     console.log(state.showTagDialog.tagTreeTeams);
-        // }
+// function removeCheckedTagId(id: any) {
+//     console.log(state.showTagDialog.tagTreeTeams);
+//     for (let i = 0; i < state.showTagDialog.tagTreeTeams.length; i++) {
+//         if (state.showTagDialog.tagTreeTeams[i] == id) {
+//             console.log('has id', id);
+//             state.showTagDialog.tagTreeTeams.splice(i, 1);
+//         }
+//     }
+//     console.log(state.showTagDialog.tagTreeTeams);
+// }
 </script>
 <style lang="scss"></style>

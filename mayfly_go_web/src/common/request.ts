@@ -1,7 +1,6 @@
-import router from "../router";
+import router from '../router';
 import Axios from 'axios';
-import { ResultEnum } from './enums'
-import Api from './Api';
+import { ResultEnum } from './enums';
 import config from './config';
 import { getSession } from './utils/storage';
 import { templateResolve } from './utils/string';
@@ -22,8 +21,8 @@ export interface Result {
     data?: any;
 }
 
-const baseUrl: string = config.baseApiUrl
-const baseWsUrl: string = config.baseWsUrl
+const baseUrl: string = config.baseApiUrl;
+const baseWsUrl: string = config.baseWsUrl;
 
 /**
  * 通知错误消息
@@ -37,28 +36,28 @@ function notifyErrorMsg(msg: string) {
 // create an axios instance
 const service = Axios.create({
     baseURL: baseUrl, // url = base url + request url
-    timeout: 20000 // request timeout
-})
+    timeout: 20000, // request timeout
+});
 
 // request interceptor
 service.interceptors.request.use(
     (config: any) => {
         // do something before request is sent
-        const token = getSession("token")
+        const token = getSession('token');
         if (token) {
             // 设置token
-            config.headers['Authorization'] = token
+            config.headers['Authorization'] = token;
         }
-        return config
+        return config;
     },
-    error => {
-        return Promise.reject(error)
+    (error) => {
+        return Promise.reject(error);
     }
-)
+);
 
 // response interceptor
 service.interceptors.response.use(
-    response => {
+    (response) => {
         // 获取请求返回结果
         const data: Result = response.data;
         // 如果提示没有权限，则移除token，使其重新登录
@@ -88,32 +87,31 @@ service.interceptors.response.use(
             }
         }
 
-        return Promise.reject(e)
+        return Promise.reject(e);
     }
-)
+);
 
 /**
  * 请求uri
  * 该方法已处理请求结果中code != 200的message提示,如需其他错误处理(取消加载状态,重置对象状态等等),可catch继续处理
- * 
+ *
  * @param {Object} method 请求方法(GET,POST,PUT,DELTE等)
  * @param {Object} uri    uri
  * @param {Object} params 参数
  */
 function request(method: string, url: string, params: any = null, headers: any = null, options: any = null): Promise<any> {
-    if (!url)
-        throw new Error('请求url不能为空');
+    if (!url) throw new Error('请求url不能为空');
     // 简单判断该url是否是restful风格
-    if (url.indexOf("{") != -1) {
+    if (url.indexOf('{') != -1) {
         url = templateResolve(url, params);
     }
     const query: any = {
         method,
         url: url,
-        ...options
+        ...options,
     };
     if (headers) {
-        query.headers = headers
+        query.headers = headers;
     }
 
     // post和put使用json格式传参
@@ -122,32 +120,39 @@ function request(method: string, url: string, params: any = null, headers: any =
     } else {
         query.params = params;
     }
-    return service.request(query).then(res => res)
-        .catch(e => {
+    return service
+        .request(query)
+        .then((res) => res)
+        .catch((e) => {
             // 如果返回的code不为成功，则会返回对应的错误msg，则直接统一通知即可
             if (e.msg) {
-                notifyErrorMsg(e.msg)
+                notifyErrorMsg(e.msg);
             }
             return Promise.reject(e);
         });
 }
 
 /**
- * 根据api执行对应接口
- * @param api Api实例
- * @param params 请求参数
+ * get请求uri
+ * 该方法已处理请求结果中code != 200的message提示,如需其他错误处理(取消加载状态,重置对象状态等等),可catch继续处理
+ *
+ * @param {Object} url   uri
+ * @param {Object} params 参数
  */
-function send(api: Api, params: any, options: any): Promise<any> {
-    return request(api.method, api.url, params, null, options);
+function get(url: string, params: any = null, headers: any = null, options: any = null): Promise<any> {
+    return request('get', url, params, headers, options);
 }
 
-/**
- * 根据api执行对应接口
- * @param api Api实例
- * @param params 请求参数
- */
-function sendWithHeaders(api: Api, params: any, headers: any): Promise<any> {
-    return request(api.method, api.url, params, headers, null);
+function post(url: string, params: any = null, headers: any = null, options: any = null): Promise<any> {
+    return request('post', url, params, headers, options);
+}
+
+function put(url: string, params: any = null, headers: any = null, options: any = null): Promise<any> {
+    return request('put', url, params, headers, options);
+}
+
+function del(url: string, params: any = null, headers: any = null, options: any = null): Promise<any> {
+    return request('delete', url, params, headers, options);
 }
 
 function getApiUrl(url: string) {
@@ -155,10 +160,11 @@ function getApiUrl(url: string) {
     return baseUrl + url + '?token=' + getSession('token');
 }
 
-
 export default {
     request,
-    send,
-    sendWithHeaders,
-    getApiUrl
-}
+    get,
+    post,
+    put,
+    del,
+    getApiUrl,
+};

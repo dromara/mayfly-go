@@ -1,5 +1,5 @@
-import { getUseWatermark4Session, getUserInfo4Session } from '@/common/utils/storage.ts';
-import { dateFormat2 } from '@/common/utils/date.ts'
+import { getUseWatermark4Session, getUserInfo4Session } from '@/common/utils/storage';
+import { dateFormat2 } from '@/common/utils/date';
 
 // 页面添加水印效果
 const setWatermark = (str: any) => {
@@ -44,17 +44,17 @@ function del() {
 const watermark = {
     use: () => {
         setTimeout(() => {
-            const userinfo = getUserInfo4Session()
+            const userinfo = getUserInfo4Session();
             if (userinfo && getUseWatermark4Session()) {
-                set(`${userinfo.username} ${dateFormat2('yyyy-MM-dd HH:mm:ss', new Date())}`)
+                set(`${userinfo.username} ${dateFormat2('yyyy-MM-dd HH:mm:ss', new Date())}`);
             } else {
                 del();
             }
-        }, 1500)
+        }, 1500);
     },
     // 设置水印
     set: (str: any) => {
-        set(str)
+        set(str);
     },
     // 删除水印
     del: () => {

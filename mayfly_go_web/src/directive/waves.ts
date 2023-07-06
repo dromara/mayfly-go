@@ -44,7 +44,7 @@ export function wavesDirective(app: App) {
             el.addEventListener('mousedown', onCurrentClick, false);
         },
         unmounted(el) {
-            el.addEventListener('mousedown', () => { });
+            el.addEventListener('mousedown', () => {});
         },
     });
 }

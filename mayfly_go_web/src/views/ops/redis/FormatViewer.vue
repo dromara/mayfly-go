@@ -1,17 +1,15 @@
 <template>
     <div class="format-viewer-container">
         <div class="mb5 fr">
-            <el-select v-model="selectedView" class='format-selector' size='mini' placeholder='Text'>
+            <el-select v-model="selectedView" class="format-selector" size="mini" placeholder="Text">
                 <template #prefix>
                     <SvgIcon name="view" />
                 </template>
-                <el-option v-for="item of Object.keys(viewers)" :key="item" :label="item" :value="item">
-                </el-option>
+                <el-option v-for="item of Object.keys(viewers)" :key="item" :label="item" :value="item"> </el-option>
             </el-select>
         </div>
 
-        <component ref='viewerRef' :is='components[viewerComponent]' :content='state.content' :name="selectedView">
-        </component>
+        <component ref="viewerRef" :is="components[viewerComponent]" :content="state.content" :name="selectedView"> </component>
     </div>
 </template>
 <script lang="ts" setup>
@@ -23,12 +21,13 @@ const props = defineProps({
     content: {
         type: String,
     },
-})
+});
 
 const components = shallowReactive({
-    ViewerText, ViewerJson
-})
-const viewerRef: any = ref(null)
+    ViewerText,
+    ViewerJson,
+});
+const viewerRef: any = ref(null);
 
 const state = reactive({
     content: '',
@@ -36,18 +35,16 @@ const state = reactive({
 });
 
 const viewers = {
-    "Text": {
+    Text: {
         value: 'ViewerText',
     },
 
-    "Json": {
+    Json: {
         value: 'ViewerJson',
-    }
-}
+    },
+};
 
-const {
-    selectedView,
-} = toRefs(state)
+const { selectedView } = toRefs(state);
 
 const viewerComponent = computed(() => {
     return viewers[state.selectedView].value;
@@ -62,15 +59,15 @@ watch(
 
 onMounted(() => {
     state.content = props.content as any;
-})
+});
 
 const getContent = () => {
     return viewerRef.value.getContent();
-}
+};
 
-defineExpose({ getContent })
-
+defineExpose({ getContent });
 </script>
+
 <style lang="scss">
 .format-selector {
     width: 130px;
@@ -85,7 +82,7 @@ defineExpose({ getContent })
     border: 1px solid #dcdfe6;
     padding: 5px 10px;
     border-radius: 4px;
-    clear: both
+    clear: both;
 }
 
 .format-viewer-container .formater-binary-tag {

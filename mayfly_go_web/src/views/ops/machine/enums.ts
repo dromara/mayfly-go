@@ -1,8 +1,26 @@
-import { Enum } from '@/common/Enum';
+import { EnumValue } from '@/common/Enum';
 
-export default {
-    // uri请求方法
-    scriptTypeEnum: new Enum().add('RESULT', '有结果', 1).add('NO_RESULT', '无结果', 2).add('REAL_TIME', '实时交互', 3),
-    // 文件类型枚举
-    FileTypeEnum: new Enum().add('DIRECTORY', '目录', 1).add('FILE', '文件', 2),
-}
+// 脚本执行结果类型
+export const ScriptResultEnum = {
+    Result: EnumValue.of(1, '有结果'),
+    NoResult: EnumValue.of(2, '无结果'),
+    RealTime: EnumValue.of(3, '实时交互'),
+};
+
+// 脚本类型
+export const ScriptTypeEnum = {
+    Private: EnumValue.of(1, '私有'),
+    Public: EnumValue.of(2, '公共'),
+};
+
+// 文件类型枚举
+export const FileTypeEnum = {
+    Directory: EnumValue.of(1, '目录'),
+    File: EnumValue.of(2, '文件'),
+};
+
+// 授权凭证认证方式枚举
+export const AuthMethodEnum = {
+    Password: EnumValue.of(1, '密码').tagTypeSuccess(),
+    PrivateKey: EnumValue.of(2, '秘钥'),
+};

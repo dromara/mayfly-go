@@ -16,9 +16,7 @@
                                                 <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
                                                 <el-form-item label="模式:">{{ data.params.mode }}</el-form-item>
                                                 <el-form-item label="链接:">{{ data.params.host }}</el-form-item>
-                                                <el-form-item label="备注:">{{
-                                                    data.params.remark
-                                                }}</el-form-item>
+                                                <el-form-item label="备注:">{{ data.params.remark }}</el-form-item>
                                             </el-form>
                                         </template>
                                     </el-popover>
@@ -31,35 +29,37 @@
                 </el-row>
             </el-col>
 
-            <el-col :span="20" style="border-left: 1px solid var(--el-card-border-color);">
+            <el-col :span="20" style="border-left: 1px solid var(--el-card-border-color)">
                 <div class="mt10 ml5">
                     <el-col>
                         <el-form class="search-form" label-position="right" :inline="true" label-width="auto">
                             <el-form-item label="key" label-width="auto">
-                                <el-input placeholder="match 支持*模糊key" style="width: 250px" v-model="scanParam.match"
-                                    @clear="clear()" clearable></el-input>
+                                <el-input placeholder="match 支持*模糊key" style="width: 250px" v-model="scanParam.match" @clear="clear()" clearable></el-input>
                             </el-form-item>
                             <el-form-item label="count" label-width="auto">
-                                <el-input placeholder="count" style="width: 70px" v-model.number="scanParam.count">
-                                </el-input>
+                                <el-input placeholder="count" style="width: 70px" v-model.number="scanParam.count"> </el-input>
                             </el-form-item>
                             <el-form-item>
-                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="searchKey()" type="success"
-                                    icon="search" plain></el-button>
-                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="scan()" icon="bottom"
-                                    plain>scan</el-button>
-                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="showNewKeyDialog"
-                                    type="primary" icon="plus" plain v-auth="'redis:data:save'"></el-button>
-                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="flushDb" type="danger" plain
-                                    v-auth="'redis:data:save'">flush</el-button>
+                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="searchKey()" type="success" icon="search" plain></el-button>
+                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="scan()" icon="bottom" plain>scan</el-button>
+                                <el-button
+                                    :disabled="!scanParam.id || !scanParam.db"
+                                    @click="showNewKeyDialog"
+                                    type="primary"
+                                    icon="plus"
+                                    plain
+                                    v-auth="'redis:data:save'"
+                                ></el-button>
+                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="flushDb" type="danger" plain v-auth="'redis:data:save'"
+                                    >flush</el-button
+                                >
                             </el-form-item>
                             <div style="float: right">
                                 <span>keys: {{ state.dbsize }}</span>
                             </div>
                         </el-form>
                     </el-col>
-                    <el-table v-loading="state.loading" :data="state.keys" :height="tableHeight" stripe
-                        :highlight-current-row="true" style="cursor: pointer">
+                    <el-table v-loading="state.loading" :data="state.keys" :height="tableHeight" stripe :highlight-current-row="true" style="cursor: pointer">
                         <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
                         <el-table-column prop="type" label="type" width="80">
                             <template #default="scope">
@@ -73,11 +73,9 @@
                         </el-table-column>
                         <el-table-column label="操作">
                             <template #default="scope">
-                                <el-button @click="showKeyDetail(scope.row)" type="success" icon="search" plain
-                                    size="small">查看
-                                </el-button>
-                                <el-button v-auth="'redis:data:del'" @click="del(scope.row.key)" type="danger" icon="delete"
-                                    plain size="small">删除
+                                <el-button @click="showKeyDetail(scope.row)" type="success" icon="search" plain size="small">查看 </el-button>
+                                <el-button v-auth="'redis:data:del'" @click="del(scope.row.key)" type="danger" icon="delete" plain size="small"
+                                    >删除
                                 </el-button>
                             </template>
                         </el-table-column>
@@ -88,21 +86,17 @@
 
         <div style="text-align: center; margin-top: 10px"></div>
 
-        <el-dialog title="Key详情" v-model="keyDetailDialog.visible" width="800px" :destroy-on-close="true"
-            :close-on-click-modal="false">
-            <key-detail :redisId="scanParam.id" :db="scanParam.db" :key-info="keyDetailDialog.keyInfo"
-                @change-key="searchKey()" />
+        <el-dialog title="Key详情" v-model="keyDetailDialog.visible" width="800px" :destroy-on-close="true" :close-on-click-modal="false">
+            <key-detail :redisId="scanParam.id" :db="scanParam.db" :key-info="keyDetailDialog.keyInfo" @change-key="searchKey()" />
         </el-dialog>
 
-        <el-dialog title="新增Key" v-model="newKeyDialog.visible" width="500px" :destroy-on-close="true"
-            :close-on-click-modal="false">
+        <el-dialog title="新增Key" v-model="newKeyDialog.visible" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
             <el-form ref="keyForm" label-width="auto">
                 <el-form-item prop="key" label="键名">
                     <el-input v-model.trim="keyDetailDialog.keyInfo.key" placeholder="请输入键名"></el-input>
                 </el-form-item>
                 <el-form-item prop="type" label="类型">
-                    <el-select v-model="keyDetailDialog.keyInfo.type" default-first-option style="width: 100%"
-                        placeholder="请选择类型">
+                    <el-select v-model="keyDetailDialog.keyInfo.type" default-first-option style="width: 100%" placeholder="请选择类型">
                         <el-option key="string" label="string" value="string"></el-option>
                         <el-option key="hash" label="hash" value="hash"></el-option>
                         <el-option key="set" label="set" value="set"></el-option>
@@ -136,8 +130,8 @@ const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
  * 树节点类型
  */
 class NodeType {
-    static Redis = 1
-    static Db = 2
+    static Redis = 1;
+    static Db = 2;
 }
 
 const state = reactive({
@@ -172,21 +166,15 @@ const state = reactive({
     dbsize: 0,
 });
 
-const {
-    tableHeight,
-    scanParam,
-    keyDetailDialog,
-    newKeyDialog,
-} = toRefs(state)
-
+const { tableHeight, scanParam, keyDetailDialog, newKeyDialog } = toRefs(state);
 
 onMounted(async () => {
     setHeight();
-})
+});
 
 const setHeight = () => {
     state.tableHeight = window.innerHeight - 159;
-}
+};
 
 /**
  * instmap;  tagPaht -> redis info[]
@@ -195,14 +183,14 @@ const instMap: Map<string, any[]> = new Map();
 
 const getInsts = async () => {
     const res = await redisApi.redisList.request({ pageNum: 1, pageSize: 1000 });
-    if (!res.total) return
+    if (!res.total) return;
     for (const redisInfo of res.list) {
         const tagPath = redisInfo.tagPath;
         let redisInsts = instMap.get(tagPath) || [];
         redisInsts.push(redisInfo);
         instMap.set(tagPath, redisInsts);
     }
-}
+};
 
 /**
  * 加载文件树节点
@@ -224,7 +212,7 @@ const loadNode = async (node: any) => {
     const data = node.data;
     // 点击tagPath -> 加载数据库信息列表
     if (data.type === TagTreeNode.TagPath) {
-        const redisInfos = instMap.get(data.key)
+        const redisInfos = instMap.get(data.key);
         return redisInfos?.map((x: any) => {
             return new TagTreeNode(`${data.key}.${x.id}`, x.name, NodeType.Redis).withParams(x);
         });
@@ -246,7 +234,7 @@ const nodeClick = (data: any) => {
         state.scanParam.db = data.params.db;
         scan();
     }
-}
+};
 
 /**
  * 获取所有库信息
@@ -259,27 +247,27 @@ const getDbs = async (redisInfo: any) => {
             db: x,
             name: `db${x}`,
             keys: 0,
-        })
-    })
+        });
+    });
 
     if (redisInfo.mode == 'cluster') {
         return dbs;
     }
 
-    const res = await redisApi.redisInfo.request({ id: redisInfo.id, host: redisInfo.host, section: "Keyspace" });
+    const res = await redisApi.redisInfo.request({ id: redisInfo.id, host: redisInfo.host, section: 'Keyspace' });
     for (let db in res.Keyspace) {
         for (let d of dbs) {
             if (db == d.params.name) {
-                d.params.keys = res.Keyspace[db]?.split(',')[0]?.split('=')[1] || 0
+                d.params.keys = res.Keyspace[db]?.split(',')[0]?.split('=')[1] || 0;
             }
         }
     }
     // 替换label
     dbs.forEach((e: any) => {
-        e.label = `${e.params.name} [${e.params.keys}]`
+        e.label = `${e.params.name} [${e.params.keys}]`;
     });
     return dbs;
-}
+};
 
 const scan = async () => {
     isTrue(state.scanParam.id != null, '请先选择redis');
@@ -287,7 +275,7 @@ const scan = async () => {
 
     const match: string = state.scanParam.match || '';
     if (!match) {
-        isTrue(state.scanParam.count <= 100, "key搜索条件为空时, count不能大于100")
+        isTrue(state.scanParam.count <= 100, 'key搜索条件为空时, count不能大于100');
     } else if (match.indexOf('*') != -1) {
         const dbsize = state.dbsize;
         // 如果为模糊搜索，并且搜索的key模式大于指定字符数，则将count设大点scan
@@ -298,10 +286,10 @@ const scan = async () => {
         }
     }
 
-    const scanParam = { ...state.scanParam }
+    const scanParam = { ...state.scanParam };
     // 集群模式count设小点，因为后端会从所有master节点scan一遍然后合并结果,默认假设redis集群有3个master
     if (scanParam.mode == 'cluster') {
-        scanParam.count = Math.floor(state.scanParam.count / 3)
+        scanParam.count = Math.floor(state.scanParam.count / 3);
     }
 
     state.loading = true;
@@ -344,39 +332,41 @@ const showKeyDetail = async (row: any) => {
 
 const showNewKeyDialog = () => {
     notNull(state.scanParam.id, '请先选择redis');
-    notNull(state.scanParam.db, "请选择要操作的库")
+    notNull(state.scanParam.db, '请选择要操作的库');
     resetKeyDetailInfo();
     state.newKeyDialog.visible = true;
-}
+};
 
 const flushDb = () => {
     ElMessageBox.confirm(`确定清空[${state.scanParam.db}]库的所有key?`, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning',
-    }).then(() => {
-        redisApi.flushDb
-            .request({
-                id: state.scanParam.id,
-                db: state.scanParam.db,
-            })
-            .then(() => {
-                ElMessage.success('清除成功！');
-                searchKey();
-            });
-    }).catch(() => { });
-}
+    })
+        .then(() => {
+            redisApi.flushDb
+                .request({
+                    id: state.scanParam.id,
+                    db: state.scanParam.db,
+                })
+                .then(() => {
+                    ElMessage.success('清除成功！');
+                    searchKey();
+                });
+        })
+        .catch(() => {});
+};
 
 const cancelNewKey = () => {
     resetKeyDetailInfo();
     state.newKeyDialog.visible = false;
-}
+};
 
 const newKey = async () => {
-    const keyInfo = state.keyDetailDialog.keyInfo
-    const keyType = keyInfo.type
+    const keyInfo = state.keyDetailDialog.keyInfo;
+    const keyType = keyInfo.type;
     const key = keyInfo.key;
-    notBlank(key, "键名不能为空");
+    notBlank(key, '键名不能为空');
 
     if (keyType == 'string') {
         await redisApi.setString.request({
@@ -384,36 +374,38 @@ const newKey = async () => {
             db: state.scanParam.db,
             key: key,
             value: '',
-        })
+        });
     }
     state.newKeyDialog.visible = false;
     state.keyDetailDialog.visible = true;
     searchKey();
-}
+};
 
 const resetKeyDetailInfo = () => {
     state.keyDetailDialog.keyInfo.key = '';
     state.keyDetailDialog.keyInfo.type = 'string';
     state.keyDetailDialog.keyInfo.timed = -1;
-}
+};
 
 const del = (key: string) => {
     ElMessageBox.confirm(`确定删除[ ${key} ] 该key?`, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning',
-    }).then(() => {
-        redisApi.delKey
-            .request({
-                key,
-                id: state.scanParam.id,
-                db: state.scanParam.db,
-            })
-            .then(() => {
-                ElMessage.success('删除成功！');
-                searchKey();
-            });
-    }).catch(() => { });
+    })
+        .then(() => {
+            redisApi.delKey
+                .request({
+                    key,
+                    id: state.scanParam.id,
+                    db: state.scanParam.db,
+                })
+                .then(() => {
+                    ElMessage.success('删除成功！');
+                    searchKey();
+                });
+        })
+        .catch(() => {});
 };
 
 const ttlConveter = (ttl: any) => {

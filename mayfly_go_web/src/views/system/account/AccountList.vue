@@ -1,18 +1,23 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="query" :show-selection="true"
-            v-model:selection-data="selectionData" :data="datas" :columns="columns" :total="total"
-            v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
-
+        <page-table
+            ref="pageTableRef"
+            :query="queryConfig"
+            v-model:query-form="query"
+            :show-selection="true"
+            v-model:selection-data="selectionData"
+            :data="datas"
+            :columns="columns"
+            :total="total"
+            v-model:page-size="query.pageSize"
+            v-model:page-num="query.pageNum"
+            @pageChange="search()"
+        >
             <template #queryRight>
                 <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="editAccount(false)">添加</el-button>
-                <el-button v-auth="perms.delAccount" :disabled="state.selectionData.length < 1" @click="deleteAccount()"
-                    type="danger" icon="delete">删除</el-button>
-            </template>
-
-            <template #status="{ data }">
-                <el-tag v-if="data.status == 1" type="success">正常</el-tag>
-                <el-tag v-if="data.status == -1" type="danger">禁用</el-tag>
+                <el-button v-auth="perms.delAccount" :disabled="state.selectionData.length < 1" @click="deleteAccount()" type="danger" icon="delete"
+                    >删除</el-button
+                >
             </template>
 
             <template #showmore="{ data }">
@@ -24,17 +29,20 @@
             <template #action="{ data }">
                 <el-button link v-if="actionBtns[perms.addAccount]" @click="editAccount(data)" type="primary">编辑</el-button>
 
-                <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="showRoleEdit(data)"
-                    type="success">角色分配</el-button>
+                <el-button link v-if="actionBtns[perms.saveAccountRole]" @click="showRoleEdit(data)" type="success">角色分配</el-button>
 
-                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == 1" @click="changeStatus(data)"
-                    type="danger">禁用</el-button>
+                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == 1" @click="changeStatus(data)" type="danger">禁用</el-button>
 
-                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == -1" type="success"
-                    @click="changeStatus(data)">启用</el-button>
+                <el-button link v-if="actionBtns[perms.changeAccountStatus] && data.status == -1" type="success" @click="changeStatus(data)">启用</el-button>
 
-                <el-button link v-if="actionBtns[perms.addAccount]" :disabled="!data.otpSecret || data.otpSecret == '-'"
-                    @click="resetOtpSecret(data)" type="warning">重置OTP</el-button>
+                <el-button
+                    link
+                    v-if="actionBtns[perms.addAccount]"
+                    :disabled="!data.otpSecret || data.otpSecret == '-'"
+                    @click="resetOtpSecret(data)"
+                    type="warning"
+                    >重置OTP
+                </el-button>
             </template>
         </page-table>
 
@@ -51,64 +59,64 @@
         </el-dialog>
 
         <el-dialog :title="showResourceDialog.title" v-model="showResourceDialog.visible" width="400px">
-            <el-tree style="height: 50vh; overflow: auto" :data="showResourceDialog.resources" node-key="id"
-                :props="showResourceDialog.defaultProps" :expand-on-click-node="true">
+            <el-tree
+                style="height: 50vh; overflow: auto"
+                :data="showResourceDialog.resources"
+                node-key="id"
+                :props="showResourceDialog.defaultProps"
+                :expand-on-click-node="true"
+            >
                 <template #default="{ node, data }">
                     <span class="custom-tree-node">
-                        <span v-if="data.type == enums.ResourceTypeEnum['MENU'].value">{{ node.label }}</span>
-                        <span v-if="data.type == enums.ResourceTypeEnum['PERMISSION'].value" style="color: #67c23a">{{
-                            node.label
-                        }}</span>
+                        <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ node.label }}</span>
+                        <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ node.label }}</span>
                     </span>
                 </template>
             </el-tree>
         </el-dialog>
 
         <role-edit v-model:visible="roleDialog.visible" :account="roleDialog.account" @cancel="cancel()" />
-        <account-edit v-model:visible="accountDialog.visible" v-model:account="accountDialog.data"
-            @val-change="valChange()" />
+        <account-edit v-model:visible="accountDialog.visible" v-model:account="accountDialog.data" @val-change="valChange()" />
     </div>
 </template>
 
-<script lang='ts' setup>
+<script lang="ts" setup>
 import { ref, toRefs, reactive, onMounted } from 'vue';
 import RoleEdit from './RoleEdit.vue';
 import AccountEdit from './AccountEdit.vue';
-import enums from '../enums';
+import { AccountStatusEnum, ResourceTypeEnum } from '../enums';
 import { accountApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dateFormat } from '@/common/utils/date';
-import PageTable from '@/components/pagetable/PageTable.vue'
+import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 
-const pageTableRef: any = ref(null)
+const pageTableRef: any = ref(null);
 
 const perms = {
-    addAccount: "account:add",
-    delAccount: "account:del",
-    saveAccountRole: "account:saveRoles",
-    changeAccountStatus: "account:changeStatus",
-}
+    addAccount: 'account:add',
+    delAccount: 'account:del',
+    saveAccountRole: 'account:saveRoles',
+    changeAccountStatus: 'account:changeStatus',
+};
 
-const queryConfig = [
-    TableQuery.text("username", "用户名"),
-]
+const queryConfig = [TableQuery.text('username', '用户名')];
 const columns = ref([
-    TableColumn.new("name", "姓名"),
-    TableColumn.new("username", "用户名"),
-    TableColumn.new("status", "状态").isSlot(),
-    TableColumn.new("lastLoginTime", "最后登录时间").isTime(),
-    TableColumn.new("showmore", "查看更多").isSlot().setMinWidth(150),
-    TableColumn.new("creator", "创建账号"),
-    TableColumn.new("createTime", "创建时间").isTime(),
-    TableColumn.new("modifier", "更新账号"),
-    TableColumn.new("updateTime", "更新时间").isTime(),
-])
+    TableColumn.new('name', '姓名'),
+    TableColumn.new('username', '用户名'),
+    TableColumn.new('status', '状态').typeTag(AccountStatusEnum),
+    TableColumn.new('lastLoginTime', '最后登录时间').isTime(),
+    TableColumn.new('showmore', '查看更多').isSlot().setMinWidth(150),
+    TableColumn.new('creator', '创建账号'),
+    TableColumn.new('createTime', '创建时间').isTime(),
+    TableColumn.new('modifier', '更新账号'),
+    TableColumn.new('updateTime', '更新时间').isTime(),
+]);
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.changeAccountStatus])
-const actionColumn = TableColumn.new("action", "操作").isSlot().fixedRight().setMinWidth(260).noShowOverflowTooltip().alignCenter()
+const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.changeAccountStatus]);
+const actionColumn = TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(260).noShowOverflowTooltip().alignCenter();
 
 const state = reactive({
     /**
@@ -150,16 +158,7 @@ const state = reactive({
     },
 });
 
-const {
-    selectionData,
-    query,
-    datas,
-    total,
-    showRoleDialog,
-    showResourceDialog,
-    roleDialog,
-    accountDialog,
-} = toRefs(state)
+const { selectionData, query, datas, total, showRoleDialog, showResourceDialog, roleDialog, accountDialog } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
@@ -215,7 +214,7 @@ const resetOtpSecret = async (row: any) => {
         id,
     });
     ElMessage.success('操作成功');
-    row.otpSecret = "-";
+    row.otpSecret = '-';
 };
 
 const showRoleEdit = (data: any) => {
@@ -245,15 +244,15 @@ const valChange = () => {
 
 const deleteAccount = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(", ")}】的账号?`, '提示', {
+        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】的账号?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await accountApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(",") });
+        await accountApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) { }
+    } catch (err) {}
 };
 </script>
 <style lang="scss"></style>

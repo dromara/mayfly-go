@@ -1,7 +1,6 @@
 <template>
     <div class="file-manage">
-        <el-dialog title="进程信息" v-model="dialogVisible" :destroy-on-close="true" :show-close="true"
-            :before-close="handleClose" width="65%">
+        <el-dialog title="进程信息" v-model="dialogVisible" :destroy-on-close="true" :show-close="true" :before-close="handleClose" width="65%">
             <div class="toolbar">
                 <el-row>
                     <el-col :span="4">
@@ -22,8 +21,7 @@
                         </el-select>
                     </el-col>
                     <el-col :span="6">
-                        <el-button class="ml5" @click="getProcess" type="primary" icon="tickets" size="small" plain>刷新
-                        </el-button>
+                        <el-button class="ml5" @click="getProcess" type="primary" icon="tickets" size="small" plain>刷新 </el-button>
                     </el-col>
                 </el-row>
             </div>
@@ -83,15 +81,13 @@
                         </el-tooltip>
                     </template>
                 </el-table-column>
-                <el-table-column prop="command" label="command" :min-width="120" show-overflow-tooltip>
-                </el-table-column>
+                <el-table-column prop="command" label="command" :min-width="120" show-overflow-tooltip> </el-table-column>
 
                 <el-table-column label="操作">
                     <template #default="scope">
                         <el-popconfirm title="确定终止该进程?" @confirm="confirmKillProcess(scope.row.pid)">
                             <template #reference>
-                                <el-button v-auth="'machine:killprocess'" type="danger" icon="delete" size="small"
-                                    plain>终止</el-button>
+                                <el-button v-auth="'machine:killprocess'" type="danger" icon="delete" size="small" plain>终止</el-button>
                             </template>
                         </el-popconfirm>
                         <!-- <el-button @click="addFiles(scope.row)" type="danger" icon="delete" size="small" plain>终止</el-button> -->
@@ -111,9 +107,9 @@ const props = defineProps({
     visible: { type: Boolean },
     machineId: { type: Number },
     title: { type: String },
-})
+});
 
-const emit = defineEmits(['update:visible', 'cancel', 'update:machineId'])
+const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
 
 const state = reactive({
     dialogVisible: false,
@@ -126,12 +122,7 @@ const state = reactive({
     processList: [],
 });
 
-const {
-    dialogVisible,
-    params,
-    processList,
-} = toRefs(state)
-
+const { dialogVisible, params, processList } = toRefs(state);
 
 watch(props, (newValue) => {
     if (props.machineId) {

@@ -15,16 +15,11 @@ const state = reactive({
     height: 0,
 });
 
-const {
-    machineId,
-    height,
-} = toRefs(state)
+const { machineId, height } = toRefs(state);
 
 onMounted(() => {
     state.height = window.innerHeight + 5;
     state.machineId = Number.parseInt(route.query.id as string);
 });
 </script>
-<style lang="scss">
-
-</style>
+<style lang="scss"></style>

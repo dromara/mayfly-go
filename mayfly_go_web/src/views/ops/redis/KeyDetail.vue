@@ -2,20 +2,26 @@
     <div>
         <el-container direction="vertical" class="key-tab-container">
             <!-- key info -->
-            <key-header ref="keyHeader" :redis-id="redisId" :db="db" :key-info="keyInfo" @refresh-content="refreshContent"
-                @change-key="changeKey" class="key-header-info">
+            <key-header
+                ref="keyHeader"
+                :redis-id="redisId"
+                :db="db"
+                :key-info="keyInfo"
+                @refresh-content="refreshContent"
+                @change-key="changeKey"
+                class="key-header-info"
+            >
             </key-header>
 
             <!-- key content -->
-            <component ref="keyValueRef" :is="components[componentName]" :redis-id="redisId" :db="db" :key-info="keyInfo">
-            </component>
+            <component ref="keyValueRef" :is="components[componentName]" :redis-id="redisId" :db="db" :key-info="keyInfo"> </component>
         </el-container>
     </div>
 </template>
 <script lang="ts" setup>
 import { defineAsyncComponent, ref, shallowReactive, reactive, computed, toRefs } from 'vue';
 import { ElMessage } from 'element-plus';
-import KeyHeader from './KeyHeader.vue'
+import KeyHeader from './KeyHeader.vue';
 
 const KeyValueString = defineAsyncComponent(() => import('./KeyValueString.vue'));
 const KeyValueHash = defineAsyncComponent(() => import('./KeyValueHash.vue'));
@@ -24,24 +30,28 @@ const KeyValueList = defineAsyncComponent(() => import('./KeyValueList.vue'));
 const KeyValueZset = defineAsyncComponent(() => import('./KeyValueZset.vue'));
 
 const components = shallowReactive({
-    KeyValueString, KeyValueHash, KeyValueSet, KeyValueList, KeyValueZset
-})
+    KeyValueString,
+    KeyValueHash,
+    KeyValueSet,
+    KeyValueList,
+    KeyValueZset,
+});
 
-const keyValueRef = ref(null) as any
+const keyValueRef = ref(null) as any;
 
 const props = defineProps({
     redisId: {
-        type: Number
+        type: Number,
     },
     db: {
-        type: Number
+        type: Number,
     },
     keyInfo: {
         type: [Object],
     },
-})
+});
 
-const emit = defineEmits(['update:visible', 'changeKey', 'valChange'])
+const emit = defineEmits(['update:visible', 'changeKey', 'valChange']);
 
 const state = reactive({
     redisId: 0,
@@ -56,25 +66,23 @@ const componentMap = {
 };
 
 const componentName = computed(() => {
-    const component = componentMap[props.keyInfo?.type]
+    const component = componentMap[props.keyInfo?.type];
     if (!component) {
-        ElMessage.error("暂不支持该类型")
-        return ''
+        ElMessage.error('暂不支持该类型');
+        return '';
     }
     return component;
 });
 
 const refreshContent = () => {
     keyValueRef.value?.initData();
-}
+};
 
 const changeKey = () => {
     emit('changeKey');
-}
+};
 
-const {
-
-} = toRefs(state)
+const {} = toRefs(state);
 
 // watch(
 //     () => props.keyInfo,

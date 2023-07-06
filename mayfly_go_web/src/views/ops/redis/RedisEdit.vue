@@ -1,7 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false"
-            :destroy-on-close="true" width="38%">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" :destroy-on-close="true" width="38%">
             <el-form :model="form" ref="redisForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
@@ -19,28 +18,41 @@
                             </el-select>
                         </el-form-item>
                         <el-form-item prop="host" label="host:" required>
-                            <el-input v-model.trim="form.host"
+                            <el-input
+                                v-model.trim="form.host"
                                 placeholder="请输入host:port；sentinel模式为: mastername=sentinelhost:port，若集群或哨兵需设多个节点可使用','分割"
-                                auto-complete="off" type="textarea"></el-input>
+                                auto-complete="off"
+                                type="textarea"
+                            ></el-input>
                         </el-form-item>
                         <el-form-item prop="password" label="密码:">
-                            <el-input type="password" show-password v-model.trim="form.password"
-                                placeholder="请输入密码, 修改操作可不填" autocomplete="new-password"><template
-                                    v-if="form.id && form.id != 0" #suffix>
-                                    <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click"
-                                        :content="pwd">
+                            <el-input
+                                type="password"
+                                show-password
+                                v-model.trim="form.password"
+                                placeholder="请输入密码, 修改操作可不填"
+                                autocomplete="new-password"
+                                ><template v-if="form.id && form.id != 0" #suffix>
+                                    <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click" :content="pwd">
                                         <template #reference>
-                                            <el-link @click="getPwd" :underline="false" type="primary"
-                                                class="mr5">原密码</el-link>
+                                            <el-link @click="getPwd" :underline="false" type="primary" class="mr5">原密码</el-link>
                                         </template>
                                     </el-popover>
-                                </template></el-input>
+                                </template></el-input
+                            >
                         </el-form-item>
                         <el-form-item prop="db" label="库号:" required>
-                            <el-select @change="changeDb" :disabled="form.mode == 'cluster'" v-model="dbList" multiple
-                                allow-create filterable placeholder="请选择可操作库号" style="width: 100%">
-                                <el-option v-for="db in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]" :key="db"
-                                    :label="db" :value="db" />
+                            <el-select
+                                @change="changeDb"
+                                :disabled="form.mode == 'cluster'"
+                                v-model="dbList"
+                                multiple
+                                allow-create
+                                filterable
+                                placeholder="请选择可操作库号"
+                                style="width: 100%"
+                            >
+                                <el-option v-for="db in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]" :key="db" :label="db" :value="db" />
                             </el-select>
                         </el-form-item>
                         <el-form-item prop="remark" label="备注:">
@@ -84,16 +96,18 @@ const props = defineProps({
     title: {
         type: String,
     },
-})
+});
 
-const emit = defineEmits(['update:visible', 'val-change', 'cancel'])
+const emit = defineEmits(['update:visible', 'val-change', 'cancel']);
 
 const rules = {
-    tagId: [{
-        required: true,
-        message: '请选择标签',
-        trigger: ['blur', 'change'],
-    }],
+    tagId: [
+        {
+            required: true,
+            message: '请选择标签',
+            trigger: ['blur', 'change'],
+        },
+    ],
     name: [
         {
             required: true,
@@ -122,7 +136,7 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
-}
+};
 
 const redisForm: any = ref(null);
 const state = reactive({
@@ -143,17 +157,9 @@ const state = reactive({
     dbList: [0],
     pwd: '',
     btnLoading: false,
-
 });
 
-const {
-    dialogVisible,
-    tabActiveName,
-    form,
-    dbList,
-    pwd,
-    btnLoading,
-} = toRefs(state)
+const { dialogVisible, tabActiveName, form, dbList, pwd, btnLoading } = toRefs(state);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -194,7 +200,7 @@ const btnOk = async () => {
                 return;
             }
             if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
-                reqForm.sshTunnelMachineId = -1
+                reqForm.sshTunnelMachineId = -1;
             }
             reqForm.password = await RsaEncrypt(reqForm.password);
             redisApi.saveRedis.request(reqForm).then(() => {

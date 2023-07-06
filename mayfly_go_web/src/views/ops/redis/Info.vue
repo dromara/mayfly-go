@@ -1,7 +1,6 @@
 <template>
     <div>
         <el-dialog :title="title" v-model="dialogVisible" :show-close="true" width="1000px" @close="close()">
-
             <el-row :gutter="20">
                 <el-col :lg="16" :md="16">
                     <el-descriptions class="redis-info info-server" title="Redis服务器信息" :column="3" size="small" border>
@@ -31,10 +30,8 @@
 
                 <el-col :lg="12" :md="12">
                     <el-descriptions class="redis-info info-client" title="客户端连接" :column="3" size="small" border>
-                        <el-descriptions-item label="已连接客户端数">{{ info.Clients.connected_clients
-                        }}</el-descriptions-item>
-                        <el-descriptions-item label="正在等待阻塞命令客户端数">{{ info.Clients.blocked_clients
-                        }}</el-descriptions-item>
+                        <el-descriptions-item label="已连接客户端数">{{ info.Clients.connected_clients }}</el-descriptions-item>
+                        <el-descriptions-item label="正在等待阻塞命令客户端数">{{ info.Clients.blocked_clients }}</el-descriptions-item>
                     </el-descriptions>
                 </el-col>
             </el-row>
@@ -50,14 +47,10 @@
                 <el-col :lg="24" :md="24">
                     <span style="font-size: 14px; font-weight: 700">键值统计</span>
                     <el-table :data="Keyspace" stripe max-height="250" style="width: 100%" border>
-                        <el-table-column prop="db" label="数据库" min-width="100" show-overflow-tooltip>
-                        </el-table-column>
-                        <el-table-column prop="keys" label="keys" min-width="70" show-overflow-tooltip>
-                        </el-table-column>
-                        <el-table-column prop="expires" label="expires" min-width="70" show-overflow-tooltip>
-                        </el-table-column>
-                        <el-table-column prop="avg_ttl" label="avg_ttl" min-width="70" show-overflow-tooltip>
-                        </el-table-column>
+                        <el-table-column prop="db" label="数据库" min-width="100" show-overflow-tooltip> </el-table-column>
+                        <el-table-column prop="keys" label="keys" min-width="70" show-overflow-tooltip> </el-table-column>
+                        <el-table-column prop="expires" label="expires" min-width="70" show-overflow-tooltip> </el-table-column>
+                        <el-table-column prop="avg_ttl" label="avg_ttl" min-width="70" show-overflow-tooltip> </el-table-column>
                     </el-table>
                 </el-col>
             </el-row>
@@ -71,12 +64,9 @@
             </el-descriptions>
 
             <el-descriptions class="redis-info info-persistence" title="持久化" :column="3" size="small" border>
-                <el-descriptions-item label="是否启用aof">{{ info.Persistence?.aof_enabled || false
-                }}</el-descriptions-item>
-                <el-descriptions-item label="是否正在载入持久化文件">{{ info.Persistence?.loading || false
-                }}</el-descriptions-item>
+                <el-descriptions-item label="是否启用aof">{{ info.Persistence?.aof_enabled || false }}</el-descriptions-item>
+                <el-descriptions-item label="是否正在载入持久化文件">{{ info.Persistence?.loading || false }}</el-descriptions-item>
             </el-descriptions>
-
         </el-dialog>
     </div>
 </template>
@@ -97,24 +87,20 @@ const props = defineProps({
     info: {
         type: [Boolean, Object],
     },
-})
+});
 
-const emit = defineEmits(['update:visible', 'close'])
+const emit = defineEmits(['update:visible', 'close']);
 
 const state = reactive({
     dialogVisible: false,
     memInfo: {} as any,
     Keyspace: [] as any[],
-
 });
 
 let memChart: any = null;
 let memRef = ref(null);
 
-const {
-    dialogVisible,
-    Keyspace,
-} = toRefs(state)
+const { dialogVisible, Keyspace } = toRefs(state);
 
 watch(
     () => props.visible,
@@ -132,15 +118,15 @@ watch(
         if (info['Keyspace']) {
             let arr = [];
             for (let k in info['Keyspace']) {
-                let data = { db: k }
-                let d = info['Keyspace'][k].split(',')
+                let data = { db: k };
+                let d = info['Keyspace'][k].split(',');
                 for (let f of d) {
-                    let v = f.split('=')
-                    data[v[0]] = v[1]
+                    let v = f.split('=');
+                    data[v[0]] = v[1];
                 }
-                arr.push(data)
+                arr.push(data);
             }
-            state.Keyspace = arr
+            state.Keyspace = arr;
         }
     }
 );
@@ -149,10 +135,10 @@ const initCharts = () => {
     nextTick(() => {
         initMemStats();
     });
-}
+};
 
 const initMemStats = () => {
-    let maxMem = state.memInfo.maxmemory === '0' ? state.memInfo.total_system_memory : state.memInfo.maxmemory
+    let maxMem = state.memInfo.maxmemory === '0' ? state.memInfo.total_system_memory : state.memInfo.maxmemory;
     const data = [
         { name: '可用内存：', value: maxMem - state.memInfo.used_memory },
         {
@@ -205,7 +191,7 @@ const initMemStats = () => {
         return;
     }
     memChart = useEcharts(memRef.value, tdTheme, option);
-}
+};
 
 const close = () => {
     emit('update:visible', false);

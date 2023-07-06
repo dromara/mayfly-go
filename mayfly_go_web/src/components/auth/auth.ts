@@ -3,7 +3,7 @@ import { useUserInfo } from '@/store/userInfo';
 /**
  * 判断当前用户是否拥有指定权限
  * @param code 权限code
- * @returns 
+ * @returns
  */
 export function hasPerm(code: string) {
     return useUserInfo().userInfo.permissions.some((v: any) => v === code);

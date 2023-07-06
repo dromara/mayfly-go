@@ -1,37 +1,90 @@
+export interface EnumValueTag {
+    color?: string;
+    type?: string;
+}
+
 /**
- * 枚举类
- * @author meilin.huang
+ * 枚举值
  */
-export class Enum {
+export class EnumValue {
     /**
-     * 添加枚举字段
-     * 
-     * @param {string} field  枚举字段名
-     * @param {string} label  枚举名称
-     * @param {Object} value  枚举值
+     * 枚举值
      */
-    add(field: string, label: string, value: any) {
-        this[field] = { label, value }
-        return this
+    value: any;
+
+    /**
+     * 枚举描述
+     */
+    label: string;
+
+    /**
+     * 展示的标签信息
+     */
+    tag: EnumValueTag;
+
+    constructor(value: any, label: string) {
+        this.value = value;
+        this.label = label;
+    }
+
+    setTagType(type: string = 'primary'): EnumValue {
+        this.tag = { type };
+        return this;
+    }
+
+    tagTypeSuccess(): EnumValue {
+        return this.setTagType('success');
+    }
+
+    tagTypeDanger(): EnumValue {
+        return this.setTagType('danger');
+    }
+
+    tagTypeWarning(): EnumValue {
+        return this.setTagType('warning');
+    }
+
+    setTagColor(color: string): EnumValue {
+        this.tag = { color };
+        return this;
+    }
+
+    public static of(value: any, label: string): EnumValue {
+        return new EnumValue(value, label);
     }
 
     /**
-     * 根据枚举value获取其label
-     * 
-     * @param {Object} value 
+     * 根据枚举值获取指定枚举值对象
+     *
+     * @param enumValues 所有枚举值
+     * @param value 需要匹配的枚举值
+     * @returns 枚举值对象
      */
-    getLabelByValue(value: any) {
-        // 字段不存在返回‘’
-        if (value === undefined || value === null) {
-            return ''
-        }
-        for (const i in this) {
-            const e: any = this[i]
-            if (e && e.value === value) {
-                return e.label
+    static getEnumByValue(enumValues: EnumValue[], value: any): EnumValue | null {
+        for (let enumValue of enumValues) {
+            if (enumValue.value == value) {
+                return enumValue;
             }
         }
+        return null;
+    }
 
-        return ''
+    /**
+     * 根据枚举值获取枚举描述
+     *
+     * @param enums 枚举对象
+     * @param value 枚举值
+     * @returns 枚举描述
+     */
+    static getLabelByValue(enums: any, value: any) {
+        const enumValues = Object.values(enums) as any;
+        for (let enumValue of enumValues) {
+            if (enumValue['value'] == value) {
+                return enumValue['label'];
+            }
+        }
+        return '';
     }
 }
+
+export default EnumValue;

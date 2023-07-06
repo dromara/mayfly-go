@@ -10,15 +10,13 @@ const props = defineProps({
     content: {
         type: String,
     },
-})
+});
 
 const state = reactive({
     modelValue: '',
 });
 
-const {
-    modelValue,
-} = toRefs(state)
+const { modelValue } = toRefs(state);
 
 watch(
     () => props.content,
@@ -29,13 +27,12 @@ watch(
 
 onMounted(() => {
     state.modelValue = props.content as any;
-})
+});
 
 const getContent = () => {
-    return state.modelValue
-}
+    return state.modelValue;
+};
 
-defineExpose({ getContent })
-
+defineExpose({ getContent });
 </script>
 <style lang="scss"></style>

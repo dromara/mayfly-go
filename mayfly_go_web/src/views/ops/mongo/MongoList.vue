@@ -1,20 +1,27 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="query" :show-selection="true"
-            v-model:selection-data="selectionData" :data="list" :columns="columns" :total="total"
-            v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
-
+        <page-table
+            ref="pageTableRef"
+            :query="queryConfig"
+            v-model:query-form="query"
+            :show-selection="true"
+            v-model:selection-data="selectionData"
+            :data="list"
+            :columns="columns"
+            :total="total"
+            v-model:page-size="query.pageSize"
+            v-model:page-num="query.pageNum"
+            @pageChange="search()"
+        >
             <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable
-                    style="width: 200px">
+                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
             </template>
 
             <template #queryRight>
                 <el-button type="primary" icon="plus" @click="editMongo(true)" plain>添加</el-button>
-                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>删除
-                </el-button>
+                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>删除 </el-button>
             </template>
 
             <template #tagPath="{ data }">
@@ -43,11 +50,9 @@
 
                 <el-table-column min-width="150" label="操作">
                     <template #default="scope">
-                        <el-link type="success" @click="showDatabaseStats(scope.row.Name)" plain size="small"
-                            :underline="false">stats</el-link>
+                        <el-link type="success" @click="showDatabaseStats(scope.row.Name)" plain size="small" :underline="false">stats</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
-                        <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small"
-                            :underline="false">集合</el-link>
+                        <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small" :underline="false">集合</el-link>
                     </template>
                 </el-table-column>
             </el-table>
@@ -101,8 +106,7 @@
                 <el-table-column prop="name" label="名称" show-overflow-tooltip> </el-table-column>
                 <el-table-column min-width="80" label="操作">
                     <template #default="scope">
-                        <el-link type="success" @click="showCollectionStats(scope.row.name)" plain size="small"
-                            :underline="false">stats</el-link>
+                        <el-link type="success" @click="showCollectionStats(scope.row.name)" plain size="small" :underline="false">stats</el-link>
                         <el-divider direction="vertical" border-style="dashed" />
                         <el-popconfirm @confirm="onDeleteCollection(scope.row.name)" title="确定删除该集合?">
                             <template #reference>
@@ -113,8 +117,7 @@
                 </el-table-column>
             </el-table>
 
-            <el-dialog width="700px" :title="collectionsDialog.statsDialog.title"
-                v-model="collectionsDialog.statsDialog.visible">
+            <el-dialog width="700px" :title="collectionsDialog.statsDialog.title" v-model="collectionsDialog.statsDialog.visible">
                 <el-descriptions title="集合状态信息" :column="3" border size="small">
                     <el-descriptions-item label="ns" label-align="right" :span="2" align="center">
                         {{ collectionsDialog.statsDialog.data.ns }}
@@ -162,8 +165,12 @@
             </template>
         </el-dialog>
 
-        <mongo-edit @val-change="valChange" :title="mongoEditDialog.title" v-model:visible="mongoEditDialog.visible"
-            v-model:mongo="mongoEditDialog.data"></mongo-edit>
+        <mongo-edit
+            @val-change="valChange"
+            :title="mongoEditDialog.title"
+            v-model:visible="mongoEditDialog.visible"
+            v-model:mongo="mongoEditDialog.data"
+        ></mongo-edit>
     </div>
 </template>
 
@@ -175,22 +182,20 @@ import { tagApi } from '../tag/api';
 import MongoEdit from './MongoEdit.vue';
 import { formatByteSize } from '@/common/utils/format';
 import TagInfo from '../component/TagInfo.vue';
-import PageTable from '@/components/pagetable/PageTable.vue'
+import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 
-const pageTableRef: any = ref(null)
+const pageTableRef: any = ref(null);
 
-const queryConfig = [
-    TableQuery.slot("tagPath", "标签", "tagPathSelect"),
-]
+const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect')];
 const columns = ref([
-    TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
-    TableColumn.new("name", "名称"),
-    TableColumn.new("uri", "连接uri"),
-    TableColumn.new("createTime", "创建时间").isTime(),
-    TableColumn.new("creator", "创建人"),
-    TableColumn.new("action", "操作").isSlot().setMinWidth(100).fixedRight().alignCenter(),
-])
+    TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
+    TableColumn.new('name', '名称'),
+    TableColumn.new('uri', '连接uri'),
+    TableColumn.new('createTime', '创建时间').isTime(),
+    TableColumn.new('creator', '创建人'),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(100).fixedRight().alignCenter(),
+]);
 
 const state = reactive({
     tags: [],
@@ -240,17 +245,7 @@ const state = reactive({
     },
 });
 
-const {
-    tags,
-    list,
-    total,
-    selectionData,
-    query,
-    mongoEditDialog,
-    databaseDialog,
-    collectionsDialog,
-    createCollectionDialog,
-} = toRefs(state)
+const { tags, list, total, selectionData, query, mongoEditDialog, databaseDialog, collectionsDialog, createCollectionDialog } = toRefs(state);
 
 onMounted(async () => {
     search();
@@ -258,7 +253,7 @@ onMounted(async () => {
 
 const showDatabases = async (id: number) => {
     // state.query.tagPath = row.tagPath
-    state.dbOps.dbId = id
+    state.dbOps.dbId = id;
 
     state.databaseDialog.data = (await mongoApi.databases.request({ id })).Databases;
     state.databaseDialog.title = `数据库列表`;
@@ -345,15 +340,15 @@ const onCreateCollection = async () => {
 
 const deleteMongo = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(", ")}】mongo信息?`, '提示', {
+        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】mongo信息?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await mongoApi.deleteMongo.request({ id: state.selectionData.map((x: any) => x.id).join(",") });
+        await mongoApi.deleteMongo.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) { }
+    } catch (err) {}
 };
 
 const search = async () => {
@@ -385,7 +380,6 @@ const editMongo = async (data: any) => {
 const valChange = () => {
     search();
 };
-
 </script>
 
 <style></style>

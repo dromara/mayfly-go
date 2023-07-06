@@ -16,7 +16,7 @@ const props = defineProps({
     machineId: { type: Number },
     cmd: { type: String },
     height: { type: [String, Number] },
-})
+});
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 const state = reactive({
@@ -41,7 +41,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
     closeAll();
 });
-
 
 function initXterm() {
     const term: any = new Terminal({
@@ -104,8 +103,7 @@ function initXterm() {
 let pingInterval: any;
 function initSocket() {
     state.socket = new WebSocket(
-        `${config.baseWsUrl}/machines/${props.machineId}/terminal?token=${getSession('token')}&cols=${state.term.cols}&rows=${state.term.rows
-        }`
+        `${config.baseWsUrl}/machines/${props.machineId}/terminal?token=${getSession('token')}&cols=${state.term.cols}&rows=${state.term.rows}`
     );
 
     // 监听socket连接
@@ -175,7 +173,7 @@ function closeAll() {
 <style lang="scss">
 #xterm {
     .xterm-viewport {
-        overflow-y: hidden
+        overflow-y: hidden;
     }
 }
 </style>

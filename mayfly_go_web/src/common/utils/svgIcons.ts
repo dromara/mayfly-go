@@ -1,6 +1,6 @@
 import { nextTick } from 'vue';
 import * as svg from '@element-plus/icons-vue';
-import iconfontJson from '@/assets/iconfont/iconfont.json'
+import iconfontJson from '@/assets/iconfont/iconfont.json';
 import SvgIcon from '@/components/svgIcon/index.vue';
 
 /**
@@ -52,21 +52,21 @@ const getLocalAliIconfont = () => {
             resolve(iconfontJson.glyphs.map((x: any) => prefix + x.font_class));
         });
     });
-}
+};
 
 // 初始化获取 css 样式，获取 element plus 自带图标
 const elementPlusIconfont = () => {
     return new Promise((resolve, reject) => {
-		nextTick(() => {
-			const icons = svg as any;
-			const sheetsIconList = [];
-			for (const i in icons) {
-				sheetsIconList.push(`${icons[i].name}`);
-			}
-			if (sheetsIconList.length > 0) resolve(sheetsIconList);
-			else reject('未获取到值，请刷新重试');
-		});
-	});
+        nextTick(() => {
+            const icons = svg as any;
+            const sheetsIconList = [];
+            for (const i in icons) {
+                sheetsIconList.push(`${icons[i].name}`);
+            }
+            if (sheetsIconList.length > 0) resolve(sheetsIconList);
+            else reject('未获取到值，请刷新重试');
+        });
+    });
 };
 
 // 初始化获取 css 样式，这里使用 fontawesome 的图标
@@ -103,7 +103,7 @@ const awesomeIconfont = () => {
 // 定义导出方法集合
 const initIconfont = {
     ali: () => {
-    	return getLocalAliIconfont();
+        return getLocalAliIconfont();
     },
     ele: () => {
         return elementPlusIconfont();

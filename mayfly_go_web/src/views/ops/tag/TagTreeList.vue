@@ -9,16 +9,27 @@
                         1. 用于将资产进行归类
                         <br />2. 可在团队管理中进行分配，用于资源隔离 <br />3. 拥有父标签的团队成员可访问操作其自身或子标签关联的资源
                     </template>
-                    <span>标签作用<el-icon>
+                    <span
+                        >标签作用<el-icon>
                             <question-filled />
                         </el-icon>
                     </span>
                 </el-tooltip>
             </div>
         </div>
-        <el-tree ref="tagTreeRef" class="none-select" :indent="38" node-key="id" :props="props" :data="data"
-            @node-expand="handleNodeExpand" @node-collapse="handleNodeCollapse"
-            :default-expanded-keys="defaultExpandedKeys" :expand-on-click-node="false" :filter-node-method="filterNode">
+        <el-tree
+            ref="tagTreeRef"
+            class="none-select"
+            :indent="38"
+            node-key="id"
+            :props="props"
+            :data="data"
+            @node-expand="handleNodeExpand"
+            @node-collapse="handleNodeCollapse"
+            :default-expanded-keys="defaultExpandedKeys"
+            :expand-on-click-node="false"
+            :filter-node-method="filterNode"
+        >
             <template #default="{ data }">
                 <span class="custom-tree-node">
                     <span style="font-size: 13px">
@@ -29,14 +40,11 @@
                         <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
                     </span>
 
-                    <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="view" type="info"
-                        :underline="false" />
+                    <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="view" type="info" :underline="false" />
 
-                    <el-link v-auth="'tag:save'" @click.prevent="showEditTagDialog(data)" class="ml5" type="primary"
-                        icon="edit" :underline="false" />
+                    <el-link v-auth="'tag:save'" @click.prevent="showEditTagDialog(data)" class="ml5" type="primary" icon="edit" :underline="false" />
 
-                    <el-link v-auth="'tag:save'" @click.prevent="showSaveTabDialog(data)" icon="circle-plus"
-                        :underline="false" type="success" class="ml5" />
+                    <el-link v-auth="'tag:save'" @click.prevent="showSaveTabDialog(data)" icon="circle-plus" :underline="false" type="success" class="ml5" />
 
                     <!-- <el-link
                         v-auth="'resource:changeStatus'"
@@ -59,18 +67,24 @@
                         class="ml5"
                     /> -->
 
-                    <el-link v-auth="'tag:del'" @click.prevent="deleteTag(data)" v-if="data.children == null"
-                        type="danger" icon="delete" :underline="false" plain class="ml5" />
+                    <el-link
+                        v-auth="'tag:del'"
+                        @click.prevent="deleteTag(data)"
+                        v-if="data.children == null"
+                        type="danger"
+                        icon="delete"
+                        :underline="false"
+                        plain
+                        class="ml5"
+                    />
                 </span>
             </template>
         </el-tree>
 
-        <el-dialog width="500px" :title="saveTabDialog.title" :before-close="cancelSaveTag"
-            v-model="saveTabDialog.visible">
+        <el-dialog width="500px" :title="saveTabDialog.title" :before-close="cancelSaveTag" v-model="saveTabDialog.visible">
             <el-form ref="tagForm" :rules="rules" :model="saveTabDialog.form" label-width="auto">
                 <el-form-item prop="code" label="标识:" required>
-                    <el-input :disabled="saveTabDialog.form.id ? true : false" v-model="saveTabDialog.form.code"
-                        auto-complete="off"></el-input>
+                    <el-input :disabled="saveTabDialog.form.id ? true : false" v-model="saveTabDialog.form.code" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item prop="name" label="名称:" required>
                     <el-input v-model="saveTabDialog.form.name" auto-complete="off"></el-input>
@@ -134,15 +148,10 @@ const state = reactive({
         data: null as any,
     },
     // 展开的节点
-    defaultExpandedKeys: [] as any
+    defaultExpandedKeys: [] as any,
 });
 
-const {
-    data,
-    saveTabDialog,
-    infoDialog,
-    defaultExpandedKeys,
-} = toRefs(state)
+const { data, saveTabDialog, infoDialog, defaultExpandedKeys } = toRefs(state);
 
 const props = {
     label: 'name',

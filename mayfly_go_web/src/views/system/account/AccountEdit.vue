@@ -1,18 +1,15 @@
 <template>
     <div class="account-dialog">
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="35%"
-            :destroy-on-close="true">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="35%" :destroy-on-close="true">
             <el-form :model="form" ref="accountForm" :rules="rules" label-width="auto">
                 <el-form-item prop="name" label="姓名:" required>
                     <el-input v-model.trim="form.name" placeholder="请输入姓名" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item prop="username" label="用户名:" required>
-                    <el-input :disabled="edit" v-model.trim="form.username" placeholder="请输入账号用户名，密码默认与账号名一致"
-                        auto-complete="off"></el-input>
+                    <el-input :disabled="edit" v-model.trim="form.username" placeholder="请输入账号用户名，密码默认与账号名一致" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item v-if="edit" prop="password" label="密码:">
-                    <el-input type="password" v-model.trim="form.password" placeholder="输入密码可修改用户密码"
-                        autocomplete="new-password"></el-input>
+                    <el-input type="password" v-model.trim="form.password" placeholder="输入密码可修改用户密码" autocomplete="new-password"></el-input>
                 </el-form-item>
             </el-form>
 
@@ -41,10 +38,10 @@ const props = defineProps({
     title: {
         type: String,
     },
-})
+});
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change'])
+const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const accountForm: any = ref(null);
 
@@ -63,7 +60,7 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
-}
+};
 
 const state = reactive({
     dialogVisible: false,
@@ -75,15 +72,10 @@ const state = reactive({
         password: null,
         repassword: null,
     },
-    btnLoading: false
+    btnLoading: false,
 });
 
-const {
-    dialogVisible,
-    edit,
-    form,
-    btnLoading,
-} = toRefs(state)
+const { dialogVisible, edit, form, btnLoading } = toRefs(state);
 
 watch(props, (newValue: any) => {
     if (newValue.account) {
@@ -122,6 +114,4 @@ const cancel = () => {
     emit('cancel');
 };
 </script>
-<style lang="scss">
-
-</style>
+<style lang="scss"></style>

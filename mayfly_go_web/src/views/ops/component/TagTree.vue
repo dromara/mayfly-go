@@ -4,10 +4,21 @@
             <el-col :span="24" class="el-scrollbar flex-auto" style="overflow: auto">
                 <el-input v-model="filterText" placeholder="输入关键字->搜索已展开节点信息" clearable size="small" class="mb5" />
 
-                <el-tree ref="treeRef" :style="{ maxHeight: state.height, height: state.height, overflow: 'auto' }"
-                    :highlight-current="true" :indent="7" :load="loadNode" :props="treeProps" lazy node-key="key"
-                    :expand-on-click-node="true" :filter-node-method="filterNode" @node-click="treeNodeClick"
-                    @node-expand="treeNodeClick" @node-contextmenu="nodeContextmenu">
+                <el-tree
+                    ref="treeRef"
+                    :style="{ maxHeight: state.height, height: state.height, overflow: 'auto' }"
+                    :highlight-current="true"
+                    :indent="7"
+                    :load="loadNode"
+                    :props="treeProps"
+                    lazy
+                    node-key="key"
+                    :expand-on-click-node="true"
+                    :filter-node-method="filterNode"
+                    @node-click="treeNodeClick"
+                    @node-expand="treeNodeClick"
+                    @node-contextmenu="nodeContextmenu"
+                >
                     <template #default="{ node, data }">
                         <span>
                             <span v-if="data.type == TagTreeNode.TagPath">
@@ -24,8 +35,7 @@
                 </el-tree>
             </el-col>
         </el-row>
-        <contextmenu :dropdown="state.dropdown" :items="state.contextmenuItems" ref="contextmenuRef"
-            @currentContextmenuClick="onCurrentContextmenuClick" />
+        <contextmenu :dropdown="state.dropdown" :items="state.contextmenuItems" ref="contextmenuRef" @currentContextmenuClick="onCurrentContextmenuClick" />
     </div>
 </template>
 
@@ -38,7 +48,7 @@ import Contextmenu from '@/components/contextmenu/index.vue';
 const props = defineProps({
     height: {
         type: [Number, String],
-        default: 0
+        default: 0,
     },
     load: {
         type: Function,
@@ -47,17 +57,17 @@ const props = defineProps({
     loadContextmenuItems: {
         type: Function,
         required: false,
-    }
-})
+    },
+});
 
 const treeProps = {
     label: 'name',
     children: 'zones',
     isLeaf: 'isLeaf',
-}
+};
 
-const emit = defineEmits(['nodeClick', 'currentContextmenuClick'])
-const treeRef: any = ref(null)
+const emit = defineEmits(['nodeClick', 'currentContextmenuClick']);
+const treeRef: any = ref(null);
 const contextmenuRef = ref();
 
 const state = reactive({
@@ -69,8 +79,8 @@ const state = reactive({
     },
     contextmenuItems: [],
     opend: {},
-})
-const { filterText } = toRefs(state)
+});
+const { filterText } = toRefs(state);
 
 onMounted(async () => {
     if (!props.height) {
@@ -78,40 +88,40 @@ onMounted(async () => {
     } else {
         state.height = props.height;
     }
-})
+});
 
 watch(filterText, (val) => {
-    treeRef.value?.filter(val)
-})
+    treeRef.value?.filter(val);
+});
 
 const filterNode = (value: string, data: any) => {
-    if (!value) return true
-    return data.label.includes(value)
-}
+    if (!value) return true;
+    return data.label.includes(value);
+};
 
 /**
-* 加载树节点
-* @param { Object } node
-* @param { Object } resolve
-*/
+ * 加载树节点
+ * @param { Object } node
+ * @param { Object } resolve
+ */
 const loadNode = async (node: any, resolve: any) => {
     if (typeof resolve !== 'function') {
         return;
     }
-    let nodes = []
+    let nodes = [];
     try {
-        nodes = await props.load(node)
+        nodes = await props.load(node);
     } catch (e: any) {
         console.error(e);
     }
-    return resolve(nodes)
+    return resolve(nodes);
 };
 
 const treeNodeClick = (data: any) => {
     emit('nodeClick', data);
     // 关闭可能存在的右击菜单
     contextmenuRef.value.closeContextmenu();
-}
+};
 
 // 树节点右击事件
 const nodeContextmenu = (event: any, data: any) => {
@@ -119,7 +129,7 @@ const nodeContextmenu = (event: any, data: any) => {
         return;
     }
     // 加载当前节点是否需要显示右击菜单
-    const items = props.loadContextmenuItems(data)
+    const items = props.loadContextmenuItems(data);
     if (!items || items.length == 0) {
         return;
     }
@@ -128,17 +138,17 @@ const nodeContextmenu = (event: any, data: any) => {
     state.dropdown.x = clientX;
     state.dropdown.y = clientY;
     contextmenuRef.value.openContextmenu(data);
-}
+};
 
 const onCurrentContextmenuClick = (clickData: any) => {
     emit('currentContextmenuClick', clickData);
-}
+};
 
 const reloadNode = (nodeKey: any) => {
     let node = getNode(nodeKey);
     node.loaded = false;
     node.expand();
-}
+};
 
 const getNode = (nodeKey: any) => {
     let node = treeRef.value.getNode(nodeKey);
@@ -146,11 +156,11 @@ const getNode = (nodeKey: any) => {
         throw new Error('未找到节点: ' + nodeKey);
     }
     return node;
-}
+};
 
 defineExpose({
     reloadNode,
-})
+});
 </script>
 
 <style lang="scss">

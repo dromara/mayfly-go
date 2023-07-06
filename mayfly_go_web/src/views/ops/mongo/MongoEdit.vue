@@ -1,7 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" width="38%"
-            :destroy-on-close="true">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :close-on-click-modal="false" width="38%" :destroy-on-close="true">
             <el-form :model="form" ref="mongoForm" :rules="rules" label-width="85px">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
@@ -13,8 +12,13 @@
                             <el-input v-model.trim="form.name" placeholder="请输入名称" auto-complete="off"></el-input>
                         </el-form-item>
                         <el-form-item prop="uri" label="uri" required>
-                            <el-input type="textarea" :rows="2" v-model.trim="form.uri"
-                                placeholder="形如 mongodb://username:password@host1:port1" auto-complete="off"></el-input>
+                            <el-input
+                                type="textarea"
+                                :rows="2"
+                                v-model.trim="form.uri"
+                                placeholder="形如 mongodb://username:password@host1:port1"
+                                auto-complete="off"
+                            ></el-input>
                         </el-form-item>
                     </el-tab-pane>
 
@@ -53,10 +57,10 @@ const props = defineProps({
     title: {
         type: String,
     },
-})
+});
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change'])
+const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const rules = {
     tagId: [
@@ -80,7 +84,7 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
-}
+};
 
 const mongoForm: any = ref(null);
 const state = reactive({
@@ -97,12 +101,7 @@ const state = reactive({
     btnLoading: false,
 });
 
-const {
-    dialogVisible,
-    tabActiveName,
-    form,
-    btnLoading,
-} = toRefs(state)
+const { dialogVisible, tabActiveName, form, btnLoading } = toRefs(state);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -122,7 +121,7 @@ const btnOk = async () => {
         if (valid) {
             const reqForm = { ...state.form };
             if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
-                reqForm.sshTunnelMachineId = -1
+                reqForm.sshTunnelMachineId = -1;
             }
             // reqForm.uri = await RsaEncrypt(reqForm.uri);
             mongoApi.saveMongo.request(reqForm).then(() => {

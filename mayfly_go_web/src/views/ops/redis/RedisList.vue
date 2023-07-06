@@ -1,20 +1,27 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="query" :show-selection="true"
-            v-model:selection-data="selectionData" :data="redisTable" :columns="columns" :total="total"
-            v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
-
+        <page-table
+            ref="pageTableRef"
+            :query="queryConfig"
+            v-model:query-form="query"
+            :show-selection="true"
+            v-model:selection-data="selectionData"
+            :data="redisTable"
+            :columns="columns"
+            :total="total"
+            v-model:page-size="query.pageSize"
+            v-model:page-num="query.pageNum"
+            @pageChange="search()"
+        >
             <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable
-                    style="width: 200px">
+                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
             </template>
 
             <template #queryRight>
                 <el-button type="primary" icon="plus" @click="editRedis(true)" plain>添加</el-button>
-                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>删除
-                </el-button>
+                <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>删除 </el-button>
             </template>
 
             <template #tagPath="{ data }">
@@ -27,10 +34,8 @@
             <template #more="{ data }">
                 <el-button @click="showDetail(data)" link>详情</el-button>
 
-                <el-button v-if="data.mode === 'standalone' || data.mode === 'sentinel'" type="primary"
-                    @click="showInfoDialog(data)" link>单机信息</el-button>
-                <el-button @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary"
-                    link>集群信息</el-button>
+                <el-button v-if="data.mode === 'standalone' || data.mode === 'sentinel'" type="primary" @click="showInfoDialog(data)" link>单机信息</el-button>
+                <el-button @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary" link>集群信息</el-button>
             </template>
 
             <template #action="{ data }">
@@ -41,8 +46,7 @@
         <info v-model:visible="infoDialog.visible" :title="infoDialog.title" :info="infoDialog.info"></info>
 
         <el-dialog width="1000px" title="集群信息" v-model="clusterInfoDialog.visible">
-            <el-input type="textarea" :autosize="{ minRows: 12, maxRows: 12 }" v-model="clusterInfoDialog.info">
-            </el-input>
+            <el-input type="textarea" :autosize="{ minRows: 12, maxRows: 12 }" v-model="clusterInfoDialog.info"> </el-input>
 
             <el-divider content-position="left">节点信息</el-divider>
             <el-table :data="clusterInfoDialog.nodes" stripe size="small" border>
@@ -59,16 +63,25 @@
                 <el-table-column prop="ip" label="ip" min-width="180">
                     <template #header>
                         ip
-                        <el-tooltip class="box-item" effect="dark"
-                            content="ip:port1@port2：port1指redis服务器与客户端通信的端口，port2则是集群内部节点间通信的端口" placement="top">
+                        <el-tooltip
+                            class="box-item"
+                            effect="dark"
+                            content="ip:port1@port2：port1指redis服务器与客户端通信的端口，port2则是集群内部节点间通信的端口"
+                            placement="top"
+                        >
                             <el-icon>
                                 <question-filled />
                             </el-icon>
                         </el-tooltip>
                     </template>
                     <template #default="scope">
-                        <el-tag @click="showInfoDialog({ id: clusterInfoDialog.redisId, ip: scope.row.ip })" effect="plain"
-                            type="success" size="small" style="cursor: pointer">{{ scope.row.ip }}
+                        <el-tag
+                            @click="showInfoDialog({ id: clusterInfoDialog.redisId, ip: scope.row.ip })"
+                            effect="plain"
+                            type="success"
+                            size="small"
+                            style="cursor: pointer"
+                            >{{ scope.row.ip }}
                         </el-tag>
                     </template>
                 </el-table-column>
@@ -76,8 +89,12 @@
                 <el-table-column prop="masterSlaveRelation" label="masterSlaveRelation" min-width="300">
                     <template #header>
                         masterSlaveRelation
-                        <el-tooltip class="box-item" effect="dark" content="如果节点是slave，并且已知master节点，则为master节点ID；否则为符号'-'"
-                            placement="top">
+                        <el-tooltip
+                            class="box-item"
+                            effect="dark"
+                            content="如果节点是slave，并且已知master节点，则为master节点ID；否则为符号'-'"
+                            placement="top"
+                        >
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -97,8 +114,12 @@
                 <el-table-column prop="configEpoch" label="configEpoch" min-width="130">
                     <template #header>
                         configEpoch
-                        <el-tooltip class="box-item" effect="dark"
-                            content="节点的epoch值（如果该节点是从节点，则为其主节点的epoch值）。每当节点发生失败切换时，都会创建一个新的，独特的，递增的epoch。" placement="top">
+                        <el-tooltip
+                            class="box-item"
+                            effect="dark"
+                            content="节点的epoch值（如果该节点是从节点，则为其主节点的epoch值）。每当节点发生失败切换时，都会创建一个新的，独特的，递增的epoch。"
+                            placement="top"
+                        >
                             <el-icon>
                                 <question-filled />
                             </el-icon>
@@ -122,21 +143,23 @@
                 <el-descriptions-item :span="3" label="库">{{ detailDialog.data.db }}</el-descriptions-item>
                 <el-descriptions-item :span="3" label="备注">{{ detailDialog.data.remark }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="SSH隧道">{{ detailDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }}
-                </el-descriptions-item>
+                <el-descriptions-item :span="3" label="SSH隧道">{{ detailDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(detailDialog.data.createTime) }}
-                </el-descriptions-item>
+                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(detailDialog.data.createTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="创建者">{{ detailDialog.data.creator }}</el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(detailDialog.data.updateTime) }}
-                </el-descriptions-item>
+                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(detailDialog.data.updateTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="修改者">{{ detailDialog.data.modifier }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
 
-        <redis-edit @val-change="valChange" :tags="tags" :title="redisEditDialog.title"
-            v-model:visible="redisEditDialog.visible" v-model:redis="redisEditDialog.data"></redis-edit>
+        <redis-edit
+            @val-change="valChange"
+            :tags="tags"
+            :title="redisEditDialog.title"
+            v-model:visible="redisEditDialog.visible"
+            v-model:redis="redisEditDialog.data"
+        ></redis-edit>
     </div>
 </template>
 
@@ -149,23 +172,21 @@ import { tagApi } from '../tag/api';
 import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
-import PageTable from '@/components/pagetable/PageTable.vue'
+import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 
-const pageTableRef: any = ref(null)
+const pageTableRef: any = ref(null);
 
-const queryConfig = [
-    TableQuery.slot("tagPath", "标签", "tagPathSelect"),
-]
+const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect')];
 const columns = ref([
-    TableColumn.new("tagPath", "标签路径").isSlot().setAddWidth(20),
-    TableColumn.new("name", "名称"),
-    TableColumn.new("host", "host:port"),
-    TableColumn.new("mode", "mode"),
-    TableColumn.new("remark", "备注"),
-    TableColumn.new("more", "更多").isSlot().setMinWidth(155).fixedRight(),
-    TableColumn.new("action", "操作").isSlot().setMinWidth(65).fixedRight().alignCenter(),
-])
+    TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
+    TableColumn.new('name', '名称'),
+    TableColumn.new('host', 'host:port'),
+    TableColumn.new('mode', 'mode'),
+    TableColumn.new('remark', '备注'),
+    TableColumn.new('more', '更多').isSlot().setMinWidth(155).fixedRight(),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(65).fixedRight().alignCenter(),
+]);
 
 const state = reactive({
     tags: [],
@@ -205,39 +226,28 @@ const state = reactive({
     },
 });
 
-const {
-    tags,
-    redisTable,
-    total,
-    selectionData,
-    query,
-    detailDialog,
-    clusterInfoDialog,
-    infoDialog,
-    redisEditDialog,
-} = toRefs(state)
+const { tags, redisTable, total, selectionData, query, detailDialog, clusterInfoDialog, infoDialog, redisEditDialog } = toRefs(state);
 
 onMounted(async () => {
     search();
 });
 
-
 const showDetail = (detail: any) => {
     state.detailDialog.data = detail;
     state.detailDialog.visible = true;
-}
+};
 
 const deleteRedis = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除该【${state.selectionData.map((x: any) => x.name).join(", ")}】redis信息?`, '提示', {
+        await ElMessageBox.confirm(`确定删除该【${state.selectionData.map((x: any) => x.name).join(', ')}】redis信息?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await redisApi.delRedis.request({ id: state.selectionData.map((x: any) => x.id).join(",") });
+        await redisApi.delRedis.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) { }
+    } catch (err) {}
 };
 
 const showInfoDialog = async (redis: any) => {

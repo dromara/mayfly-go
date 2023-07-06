@@ -2,9 +2,9 @@
     <div>
         <el-row>
             <el-col :span="4">
-                <el-button type="primary" icon="plus"
-                    @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases }, state.db)"
-                    size="small">新建查询</el-button>
+                <el-button type="primary" icon="plus" @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases }, state.db)" size="small"
+                    >新建查询</el-button
+                >
             </el-col>
             <el-col :span="20" v-if="state.db">
                 <el-descriptions :column="4" size="small" border style="height: 10px">
@@ -24,29 +24,29 @@
         </el-row>
         <el-row type="flex">
             <el-col :span="4" style="border-left: 1px solid #eee; margin-top: 10px">
-                <tag-tree ref="tagTreeRef" @node-click="nodeClick" :load="loadNode"
-                    :load-contextmenu-items="getContextmenuItems" @current-contextmenu-click="onCurrentContextmenuClick"
-                    :height="state.tagTreeHeight">
+                <tag-tree
+                    ref="tagTreeRef"
+                    @node-click="nodeClick"
+                    :load="loadNode"
+                    :load-contextmenu-items="getContextmenuItems"
+                    @current-contextmenu-click="onCurrentContextmenuClick"
+                    :height="state.tagTreeHeight"
+                >
                     <template #prefix="{ data }">
                         <span v-if="data.type == NodeType.DbInst">
                             <el-popover placement="right-start" title="数据库实例信息" trigger="hover" :width="210">
                                 <template #reference>
                                     <SvgIcon v-if="data.params.type === 'mysql'" name="iconfont icon-op-mysql" :size="18" />
-                                    <SvgIcon v-if="data.params.type === 'postgres'" name="iconfont icon-op-postgres"
-                                        :size="18" />
+                                    <SvgIcon v-if="data.params.type === 'postgres'" name="iconfont icon-op-postgres" :size="18" />
 
                                     <SvgIcon name="InfoFilled" v-else />
                                 </template>
                                 <template #default>
                                     <el-form class="instances-pop-form" label-width="55px" :size="'small'">
                                         <el-form-item label="类型:">{{ data.params.type }}</el-form-item>
-                                        <el-form-item label="链接:">{{ data.params.host }}:{{
-                                            data.params.port
-                                        }}</el-form-item>
+                                        <el-form-item label="链接:">{{ data.params.host }}:{{ data.params.port }}</el-form-item>
                                         <el-form-item label="用户:">{{ data.params.username }}</el-form-item>
-                                        <el-form-item v-if="data.params.remark" label="备注:">{{
-                                            data.params.remark
-                                        }}</el-form-item>
+                                        <el-form-item v-if="data.params.remark" label="备注:">{{ data.params.remark }}</el-form-item>
                                     </el-form>
                                 </template>
                             </el-popover>
@@ -56,28 +56,32 @@
 
                         <SvgIcon name="Calendar" v-if="data.type == NodeType.TableMenu" color="#409eff" />
 
-                        <el-tooltip v-if="data.type == NodeType.Table" effect="customized"
-                            :content="data.params.tableComment" placement="top-end">
+                        <el-tooltip v-if="data.type == NodeType.Table" effect="customized" :content="data.params.tableComment" placement="top-end">
                             <SvgIcon name="Calendar" color="#409eff" />
                         </el-tooltip>
 
-                        <SvgIcon name="Files" v-if="data.type == NodeType.SqlMenu || data.type == NodeType.Sql"
-                            color="#f56c6c" />
+                        <SvgIcon name="Files" v-if="data.type == NodeType.SqlMenu || data.type == NodeType.Sql" color="#f56c6c" />
                     </template>
                 </tag-tree>
             </el-col>
             <el-col :span="20">
                 <el-container id="data-exec" style="border-left: 1px solid #eee; margin-top: 10px">
-                    <el-tabs @tab-remove="onRemoveTab" @tab-change="onTabChange" style="width: 100%"
-                        v-model="state.activeName">
+                    <el-tabs @tab-remove="onRemoveTab" @tab-change="onTabChange" style="width: 100%" v-model="state.activeName">
+                        <el-tab-pane closable v-for="dt in state.tabs.values()" :key="dt.key" :label="dt.key" :name="dt.key">
+                            <table-data
+                                v-if="dt.type === TabType.TableData"
+                                @gen-insert-sql="onGenerateInsertSql"
+                                :data="dt"
+                                :table-height="state.dataTabsTableHeight"
+                            ></table-data>
 
-                        <el-tab-pane closable v-for="dt in state.tabs.values()" :key="dt.key" :label="dt.key"
-                            :name="dt.key">
-                            <table-data v-if="dt.type === TabType.TableData" @gen-insert-sql="onGenerateInsertSql"
-                                :data="dt" :table-height="state.dataTabsTableHeight"></table-data>
-
-                            <query v-else @save-sql-success="reloadSqls" @delete-sql-success="deleteSqlScript(dt)"
-                                :data="dt" :editor-height="state.editorHeight">
+                            <query
+                                v-else
+                                @save-sql-success="reloadSqls"
+                                @delete-sql-success="deleteSqlScript(dt)"
+                                :data="dt"
+                                :editor-height="state.editorHeight"
+                            >
                             </query>
                         </el-tab-pane>
                     </el-tabs>
@@ -85,8 +89,7 @@
             </el-col>
         </el-row>
 
-        <el-dialog @close="state.genSqlDialog.visible = false" v-model="state.genSqlDialog.visible" title="SQL"
-            width="1000px">
+        <el-dialog @close="state.genSqlDialog.visible = false" v-model="state.genSqlDialog.visible" title="SQL" width="1000px">
             <el-input v-model="state.genSqlDialog.sql" type="textarea" rows="20" />
         </el-dialog>
     </div>
@@ -100,7 +103,7 @@ import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/my
 import * as monaco from 'monaco-editor';
 import { editor, languages, Position } from 'monaco-editor';
 
-import { DbInst, TabInfo, TabType } from './db'
+import { DbInst, TabInfo, TabType } from './db';
 import { TagTreeNode } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
@@ -112,18 +115,18 @@ const TableData = defineAsyncComponent(() => import('./component/tab/TableData.v
  * 树节点类型
  */
 class NodeType {
-    static DbInst = 1
-    static Db = 2
+    static DbInst = 1;
+    static Db = 2;
     static TableMenu = 3;
     static SqlMenu = 4;
     static Table = 5;
     static Sql = 6;
 }
 class ContextmenuClickId {
-    static ReloadTable = 0
+    static ReloadTable = 0;
 }
 
-const tagTreeRef: any = ref(null)
+const tagTreeRef: any = ref(null);
 
 const tabs: Map<string, TabInfo> = new Map();
 const state = reactive({
@@ -144,12 +147,10 @@ const state = reactive({
     },
 });
 
-const {
-    nowDbInst,
-} = toRefs(state);
+const { nowDbInst } = toRefs(state);
 
 onMounted(() => {
-    self.completionItemProvider?.dispose()
+    self.completionItemProvider?.dispose();
     setHeight();
     // 监听浏览器窗口大小变化,更新对应组件高度
     window.onresize = () => setHeight();
@@ -165,20 +166,20 @@ const setHeight = () => {
 };
 
 /**
-* instmap; tagPaht -> info[]
-*/
+ * instmap; tagPaht -> info[]
+ */
 const instMap: Map<string, any[]> = new Map();
 
 const getInsts = async () => {
-    const res = await dbApi.dbs.request({ pageNum: 1, pageSize: 1000, })
-    if (!res.total) return
+    const res = await dbApi.dbs.request({ pageNum: 1, pageSize: 1000 });
+    if (!res.total) return;
     for (const db of res.list) {
         const tagPath = db.tagPath;
         let dbInsts = instMap.get(tagPath) || [];
         dbInsts.push(db);
         instMap.set(tagPath, dbInsts?.sort());
     }
-}
+};
 
 /**
  * 加载树节点
@@ -203,7 +204,7 @@ const loadNode = async (node: any) => {
 
     // 点击tagPath -> 加载数据库实例信息列表
     if (nodeType === TagTreeNode.TagPath) {
-        const dbInfos = instMap.get(data.key)
+        const dbInfos = instMap.get(data.key);
         return dbInfos?.map((x: any) => {
             return new TagTreeNode(`${data.key}.${x.id}`, x.name, NodeType.DbInst).withParams(x);
         });
@@ -219,15 +220,17 @@ const loadNode = async (node: any) => {
                 name: params.name,
                 type: params.type,
                 dbs: dbs,
-                db: x
-            })
-        })
+                db: x,
+            });
+        });
     }
 
     // 点击数据库 -> 加载 表&Sql 菜单
     if (nodeType === NodeType.Db) {
-        return [new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeType.TableMenu).withParams(params),
-        new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeType.SqlMenu).withParams(params)];
+        return [
+            new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeType.TableMenu).withParams(params),
+            new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeType.SqlMenu).withParams(params),
+        ];
     }
 
     // 点击表菜单 -> 加载表列表
@@ -262,30 +265,28 @@ const nodeClick = async (data: any) => {
     if (dataType === NodeType.Sql) {
         await addQueryTab({ id: params.id, nodeKey: nodeKey, dbs: params.dbs }, params.db, params.sqlName);
     }
-}
+};
 
 const getContextmenuItems = (data: any) => {
     const dataType = data.type;
     if (dataType === NodeType.TableMenu) {
-        return [
-            { contextMenuClickId: ContextmenuClickId.ReloadTable, txt: '刷新', icon: 'RefreshRight' }
-        ]
+        return [{ contextMenuClickId: ContextmenuClickId.ReloadTable, txt: '刷新', icon: 'RefreshRight' }];
     }
     return [];
-}
+};
 
 // 当前右击菜单点击事件
 const onCurrentContextmenuClick = (clickData: any) => {
     const clickId = clickData.id;
     if (clickId == ContextmenuClickId.ReloadTable) {
-        reloadTables(clickData.item.key)
+        reloadTables(clickData.item.key);
     }
-}
+};
 
 const getTables = async (params: any) => {
     const { id, db } = params;
     let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
-    state.reloadStatus = false
+    state.reloadStatus = false;
     return tables.map((x: any) => {
         return new TagTreeNode(`${id}.${db}.${x.tableName}`, x.tableName, NodeType.Table).withIsLeaf(true).withParams({
             id,
@@ -293,8 +294,8 @@ const getTables = async (params: any) => {
             tableName: x.tableName,
             tableComment: x.tableComment,
         });
-    })
-}
+    });
+};
 
 /**
  * 加载用户保存的sql脚本
@@ -303,7 +304,7 @@ const getTables = async (params: any) => {
  * @param schema
  */
 const loadSqls = async (id: any, db: string, dbs: any) => {
-    const sqls = await dbApi.getSqlNames.request({ id: id, db: db, })
+    const sqls = await dbApi.getSqlNames.request({ id: id, db: db });
     return sqls.map((x: any) => {
         return new TagTreeNode(`${id}.${db}.${x.name}`, x.name, NodeType.Sql).withIsLeaf(true).withParams({
             id,
@@ -312,17 +313,17 @@ const loadSqls = async (id: any, db: string, dbs: any) => {
             sqlName: x.name,
         });
     });
-}
+};
 
 // 选择数据库
 const changeSchema = (inst: any, schema: string) => {
     state.nowDbInst = DbInst.getOrNewInst(inst);
     state.db = schema;
-}
+};
 
 // 加载选中的表数据，即新增表数据操作tab
 const loadTableData = async (inst: any, schema: string, tableName: string) => {
-    changeSchema(inst, schema)
+    changeSchema(inst, schema);
     if (tableName == '') {
         return;
     }
@@ -341,16 +342,16 @@ const loadTableData = async (inst: any, schema: string, tableName: string) => {
     tab.db = schema;
     tab.type = TabType.TableData;
     tab.params = {
-        table: tableName
-    }
-    state.tabs.set(label, tab)
-}
+        table: tableName,
+    };
+    state.tabs.set(label, tab);
+};
 
 // 新建查询panel
 const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
     if (!db || !inst.id) {
-        ElMessage.warning('请选择数据库实例及对应的schema')
-        return
+        ElMessage.warning('请选择数据库实例及对应的schema');
+        return;
     }
 
     const dbId = inst.id;
@@ -364,7 +365,7 @@ const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
             if (v.type == TabType.Query && !v.params.sqlName) {
                 count++;
             }
-        })
+        });
         label = `新查询${count}:${dbId}:${db}`;
     }
     state.activeName = label;
@@ -381,16 +382,16 @@ const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
     tab.params = {
         sqlName: sqlName,
         dbs: inst.dbs,
-    }
-    state.tabs.set(label, tab)
+    };
+    state.tabs.set(label, tab);
     registerSqlCompletionItemProvider();
-}
+};
 
 const onRemoveTab = (targetName: string) => {
     let activeName = state.activeName;
-    const tabNames = [...state.tabs.keys()]
+    const tabNames = [...state.tabs.keys()];
     for (let i = 0; i < tabNames.length; i++) {
-        const tabName = tabNames[i]
+        const tabName = tabNames[i];
         if (tabName !== targetName) {
             continue;
         }
@@ -414,7 +415,7 @@ const onTabChange = () => {
     const nowTab = state.tabs.get(state.activeName);
     state.nowDbInst = DbInst.getInst(nowTab?.dbId);
     state.db = nowTab?.db as string;
-}
+};
 
 const onGenerateInsertSql = async (sql: string) => {
     state.genSqlDialog.sql = sql;
@@ -423,254 +424,256 @@ const onGenerateInsertSql = async (sql: string) => {
 
 const reloadSqls = (dbId: number, db: string) => {
     tagTreeRef.value.reloadNode(getSqlMenuNodeKey(dbId, db));
-}
+};
 
 const deleteSqlScript = (ti: TabInfo) => {
     reloadSqls(ti.dbId, ti.db);
     onRemoveTab(ti.key);
-}
+};
 
 const getSqlMenuNodeKey = (dbId: number, db: string) => {
-    return `${dbId}.${db}.sql-menu`
-}
+    return `${dbId}.${db}.sql-menu`;
+};
 
 const reloadTables = (nodeKey: string) => {
-    state.reloadStatus = true
+    state.reloadStatus = true;
     tagTreeRef.value.reloadNode(nodeKey);
-}
+};
 
 const registerSqlCompletionItemProvider = () => {
     // 参考 https://microsoft.github.io/monaco-editor/playground.html#extending-language-services-completion-provider-example
-    self.completionItemProvider = self.completionItemProvider || monaco.languages.registerCompletionItemProvider('sql', {
-        triggerCharacters: ['.', ' '],
-        provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
-            let word = model.getWordUntilPosition(position);
-            const nowTab = state.tabs.get(state.activeName);
-            if (!nowTab) {
-                return;
-            }
-            const { db, dbId } = nowTab;
-            const dbInst = DbInst.getInst(dbId);
-            const { lineNumber, column } = position
-            const { startColumn, endColumn } = word
-
-            // 当前行文本
-            let lineContent = model.getLineContent(lineNumber);
-            // 注释行不需要代码提示
-            if (lineContent.startsWith('--')) {
-                return { suggestions: [] }
-            }
-
-            let range = {
-                startLineNumber: lineNumber,
-                endLineNumber: lineNumber,
-                startColumn,
-                endColumn,
-            };
-
-            //  光标前文本
-            const textBeforePointer = model.getValueInRange({
-                startLineNumber: lineNumber,
-                startColumn: 0,
-                endLineNumber: lineNumber,
-                endColumn: column
-            })
-            const textBeforePointerMulti = model.getValueInRange({
-                startLineNumber: 1,
-                startColumn: 0,
-                endLineNumber: lineNumber,
-                endColumn: column
-            })
-            // 光标后文本
-            const textAfterPointerMulti = model.getValueInRange({
-                startLineNumber: lineNumber,
-                startColumn: column,
-                endLineNumber: model.getLineCount(),
-                endColumn: model.getLineMaxColumn(model.getLineCount())
-            })
-            // // const nextTokens = textAfterPointer.trim().split(/\s+/)
-            // // const nextToken = nextTokens[0].toLowerCase()
-            const tokens = textBeforePointer.trim().split(/\s+/)
-            let lastToken = tokens[tokens.length - 1].toLowerCase()
-            const secondToken = tokens.length > 2 && tokens[tokens.length - 2].toLowerCase() || ''
-
-            // const dbs = nowTab.params?.dbs?.split(' ') || [];
-            const dbs = nowTab.params && nowTab.params.dbs && nowTab.params.dbs.split(' ') || [];
-            // console.log("光标前文本：=>" + textBeforePointerMulti)
-            // console.log("最后输入的：=>" + lastToken)
-
-            let suggestions: languages.CompletionItem[] = []
-            const tables = await dbInst.loadTables(db);
-
-            async function hintTableColumns(tableName: any, db: any) {
-                let dbHits = await dbInst.loadDbHints(db)
-                let columns = dbHits[tableName]
-                let suggestions: languages.CompletionItem[] = []
-                columns?.forEach((a: string, index: any) => {
-                    // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
-                    const nameAndComment = a.split("  ")
-                    const fieldName = nameAndComment[0]
-                    suggestions.push({
-                        label: {
-                            label: a,
-                            description: 'column'
-                        },
-                        kind: monaco.languages.CompletionItemKind.Property,
-                        detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                        insertText: fieldName, // create_time
-                        range,
-                        sortText: 100 + index + '' // 使用表字段声明顺序排序,排序需为字符串类型
-                    });
-                })
-                return suggestions
-            }
-
-            if (lastToken.indexOf('.') > -1 || secondToken.indexOf('.') > -1) {
-                // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
-                let str = lastToken.substring(0, lastToken.lastIndexOf('.'))
-                if (lastToken.trim().startsWith('.')) {
-                    str = secondToken
+    self.completionItemProvider =
+        self.completionItemProvider ||
+        monaco.languages.registerCompletionItemProvider('sql', {
+            triggerCharacters: ['.', ' '],
+            provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
+                let word = model.getWordUntilPosition(position);
+                const nowTab = state.tabs.get(state.activeName);
+                if (!nowTab) {
+                    return;
                 }
-                // 如果字符串粘连起了如:'a.creator,a.',需要重新取出别名
-                let aliasArr = lastToken.split(',');
-                if (aliasArr.length > 1){
-                    lastToken = aliasArr[aliasArr.length-1];
-                    str = lastToken.substring(0, lastToken.lastIndexOf('.'))
-                    if (lastToken.trim().startsWith('.')) {
-                        str = secondToken
-                    }
+                const { db, dbId } = nowTab;
+                const dbInst = DbInst.getInst(dbId);
+                const { lineNumber, column } = position;
+                const { startColumn, endColumn } = word;
+
+                // 当前行文本
+                let lineContent = model.getLineContent(lineNumber);
+                // 注释行不需要代码提示
+                if (lineContent.startsWith('--')) {
+                    return { suggestions: [] };
                 }
-                // 库.表名联想
-                if (dbs && dbs.filter((a: any) => a === str)?.length > 0) {
-                    let tables = await dbInst.loadTables(str)
-                    let suggestions: languages.CompletionItem[] = []
-                    for (let item of tables) {
-                        const { tableName, tableComment } = item
+
+                let range = {
+                    startLineNumber: lineNumber,
+                    endLineNumber: lineNumber,
+                    startColumn,
+                    endColumn,
+                };
+
+                //  光标前文本
+                const textBeforePointer = model.getValueInRange({
+                    startLineNumber: lineNumber,
+                    startColumn: 0,
+                    endLineNumber: lineNumber,
+                    endColumn: column,
+                });
+                const textBeforePointerMulti = model.getValueInRange({
+                    startLineNumber: 1,
+                    startColumn: 0,
+                    endLineNumber: lineNumber,
+                    endColumn: column,
+                });
+                // 光标后文本
+                const textAfterPointerMulti = model.getValueInRange({
+                    startLineNumber: lineNumber,
+                    startColumn: column,
+                    endLineNumber: model.getLineCount(),
+                    endColumn: model.getLineMaxColumn(model.getLineCount()),
+                });
+                // // const nextTokens = textAfterPointer.trim().split(/\s+/)
+                // // const nextToken = nextTokens[0].toLowerCase()
+                const tokens = textBeforePointer.trim().split(/\s+/);
+                let lastToken = tokens[tokens.length - 1].toLowerCase();
+                const secondToken = (tokens.length > 2 && tokens[tokens.length - 2].toLowerCase()) || '';
+
+                // const dbs = nowTab.params?.dbs?.split(' ') || [];
+                const dbs = (nowTab.params && nowTab.params.dbs && nowTab.params.dbs.split(' ')) || [];
+                // console.log("光标前文本：=>" + textBeforePointerMulti)
+                // console.log("最后输入的：=>" + lastToken)
+
+                let suggestions: languages.CompletionItem[] = [];
+                const tables = await dbInst.loadTables(db);
+
+                async function hintTableColumns(tableName: any, db: any) {
+                    let dbHits = await dbInst.loadDbHints(db);
+                    let columns = dbHits[tableName];
+                    let suggestions: languages.CompletionItem[] = [];
+                    columns?.forEach((a: string, index: any) => {
+                        // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
+                        const nameAndComment = a.split('  ');
+                        const fieldName = nameAndComment[0];
                         suggestions.push({
                             label: {
-                                label: tableName + (tableComment ? ' - ' + tableComment : ''),
-                                description: 'table'
+                                label: a,
+                                description: 'column',
                             },
-                            kind: monaco.languages.CompletionItemKind.File,
-                            insertText: tableName,
-                            range
+                            kind: monaco.languages.CompletionItemKind.Property,
+                            detail: '', // 不显示detail, 否则选中时备注等会被遮挡
+                            insertText: fieldName, // create_time
+                            range,
+                            sortText: 100 + index + '', // 使用表字段声明顺序排序,排序需为字符串类型
                         });
-                    }
-                    return { suggestions }
+                    });
+                    return suggestions;
                 }
 
-                let sql = textBeforePointerMulti.split(';')[textBeforePointerMulti.split(';').length - 1] + textAfterPointerMulti.split(';')[0];
-                // 表别名.表字段联想
-                let tableInfo = getTableByAlias(sql, db, str)
-                if (tableInfo.tableName) {
-                    let tableName = tableInfo.tableName
-                    let db = tableInfo.dbName;
-                    // 取出表名并提示
-                    let suggestions = await hintTableColumns(tableName, db);
-                    if (suggestions.length > 0) {
+                if (lastToken.indexOf('.') > -1 || secondToken.indexOf('.') > -1) {
+                    // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
+                    let str = lastToken.substring(0, lastToken.lastIndexOf('.'));
+                    if (lastToken.trim().startsWith('.')) {
+                        str = secondToken;
+                    }
+                    // 如果字符串粘连起了如:'a.creator,a.',需要重新取出别名
+                    let aliasArr = lastToken.split(',');
+                    if (aliasArr.length > 1) {
+                        lastToken = aliasArr[aliasArr.length - 1];
+                        str = lastToken.substring(0, lastToken.lastIndexOf('.'));
+                        if (lastToken.trim().startsWith('.')) {
+                            str = secondToken;
+                        }
+                    }
+                    // 库.表名联想
+                    if (dbs && dbs.filter((a: any) => a === str)?.length > 0) {
+                        let tables = await dbInst.loadTables(str);
+                        let suggestions: languages.CompletionItem[] = [];
+                        for (let item of tables) {
+                            const { tableName, tableComment } = item;
+                            suggestions.push({
+                                label: {
+                                    label: tableName + (tableComment ? ' - ' + tableComment : ''),
+                                    description: 'table',
+                                },
+                                kind: monaco.languages.CompletionItemKind.File,
+                                insertText: tableName,
+                                range,
+                            });
+                        }
                         return { suggestions };
                     }
-                }
-                return { suggestions: [] }
-            } else {
-                // 如果sql里含有表名，则提示表字段
-                let mat = textBeforePointerMulti.match(/[from|update]\n*\s+\n*(\w+)\n*\s+\n*/i)
-                if (mat && mat.length > 1) {
-                    let tableName = mat[1]
-                    // 取出表名并提示
-                    let addSuggestions = await hintTableColumns(tableName, db);
-                    if (addSuggestions.length > 0) {
-                        suggestions = suggestions.concat(addSuggestions)
+
+                    let sql = textBeforePointerMulti.split(';')[textBeforePointerMulti.split(';').length - 1] + textAfterPointerMulti.split(';')[0];
+                    // 表别名.表字段联想
+                    let tableInfo = getTableByAlias(sql, db, str);
+                    if (tableInfo.tableName) {
+                        let tableName = tableInfo.tableName;
+                        let db = tableInfo.dbName;
+                        // 取出表名并提示
+                        let suggestions = await hintTableColumns(tableName, db);
+                        if (suggestions.length > 0) {
+                            return { suggestions };
+                        }
+                    }
+                    return { suggestions: [] };
+                } else {
+                    // 如果sql里含有表名，则提示表字段
+                    let mat = textBeforePointerMulti.match(/[from|update]\n*\s+\n*(\w+)\n*\s+\n*/i);
+                    if (mat && mat.length > 1) {
+                        let tableName = mat[1];
+                        // 取出表名并提示
+                        let addSuggestions = await hintTableColumns(tableName, db);
+                        if (addSuggestions.length > 0) {
+                            suggestions = suggestions.concat(addSuggestions);
+                        }
                     }
                 }
-            }
 
-            // 表名联想
-            tables.forEach((tableMeta: any) => {
-                const { tableName, tableComment } = tableMeta;
-                suggestions.push({
-                    label: {
-                        label: tableName + ' - ' + tableComment,
-                        description: 'table'
-                    },
-                    kind: monaco.languages.CompletionItemKind.File,
-                    detail: tableComment,
-                    insertText: tableName + ' ',
-                    range
-                });
-            });
-
-            // mysql关键字
-            sqlLanguage.keywords.forEach((item: any) => {
-                suggestions.push({
-                    label: {
-                        label: item,
-                        description: 'keyword'
-                    },
-                    kind: monaco.languages.CompletionItemKind.Keyword,
-                    insertText: item,
-                    range
-                });
-            })
-            // 操作符
-            sqlLanguage.operators.forEach((item: any) => {
-                suggestions.push({
-                    label: {
-                        label: item,
-                        description: 'opt'
-                    },
-                    kind: monaco.languages.CompletionItemKind.Operator,
-                    insertText: item,
-                    range
-                });
-            })
-            // 内置函数
-            sqlLanguage.builtinFunctions.forEach((item: any) => {
-                suggestions.push({
-                    label: {
-                        label: item,
-                        description: 'func'
-                    },
-                    kind: monaco.languages.CompletionItemKind.Function,
-                    insertText: item,
-                    range
-                });
-            })
-            // 内置变量
-            sqlLanguage.builtinVariables.forEach((item: string) => {
-                suggestions.push({
-                    label: {
-                        label: item,
-                        description: 'var'
-                    },
-                    kind: monaco.languages.CompletionItemKind.Variable,
-                    insertText: item,
-                    range
-                });
-            })
-
-            // 库名提示
-            if (dbs && dbs.length > 0) {
-                dbs.forEach((a: any) => {
+                // 表名联想
+                tables.forEach((tableMeta: any) => {
+                    const { tableName, tableComment } = tableMeta;
                     suggestions.push({
                         label: {
-                            label: a,
-                            description: 'schema'
+                            label: tableName + ' - ' + tableComment,
+                            description: 'table',
                         },
-                        kind: monaco.languages.CompletionItemKind.Folder,
-                        insertText: a,
-                        range
+                        kind: monaco.languages.CompletionItemKind.File,
+                        detail: tableComment,
+                        insertText: tableName + ' ',
+                        range,
                     });
-                })
-            }
+                });
 
-            // 默认提示
-            return {
-                suggestions: suggestions
-            };
-        },
-    });
-}
+                // mysql关键字
+                sqlLanguage.keywords.forEach((item: any) => {
+                    suggestions.push({
+                        label: {
+                            label: item,
+                            description: 'keyword',
+                        },
+                        kind: monaco.languages.CompletionItemKind.Keyword,
+                        insertText: item,
+                        range,
+                    });
+                });
+                // 操作符
+                sqlLanguage.operators.forEach((item: any) => {
+                    suggestions.push({
+                        label: {
+                            label: item,
+                            description: 'opt',
+                        },
+                        kind: monaco.languages.CompletionItemKind.Operator,
+                        insertText: item,
+                        range,
+                    });
+                });
+                // 内置函数
+                sqlLanguage.builtinFunctions.forEach((item: any) => {
+                    suggestions.push({
+                        label: {
+                            label: item,
+                            description: 'func',
+                        },
+                        kind: monaco.languages.CompletionItemKind.Function,
+                        insertText: item,
+                        range,
+                    });
+                });
+                // 内置变量
+                sqlLanguage.builtinVariables.forEach((item: string) => {
+                    suggestions.push({
+                        label: {
+                            label: item,
+                            description: 'var',
+                        },
+                        kind: monaco.languages.CompletionItemKind.Variable,
+                        insertText: item,
+                        range,
+                    });
+                });
+
+                // 库名提示
+                if (dbs && dbs.length > 0) {
+                    dbs.forEach((a: any) => {
+                        suggestions.push({
+                            label: {
+                                label: a,
+                                description: 'schema',
+                            },
+                            kind: monaco.languages.CompletionItemKind.Folder,
+                            insertText: a,
+                            range,
+                        });
+                    });
+                }
+
+                // 默认提示
+                return {
+                    suggestions: suggestions,
+                };
+            },
+        });
+};
 
 /**
  * 根据别名获取sql里的表名
@@ -678,8 +681,7 @@ const registerSqlCompletionItemProvider = () => {
  * @param db 默认数据库
  * @param alias 别名
  */
-const getTableByAlias = (sql: string, db: string, alias: string): { dbName: string, tableName: string } => {
-
+const getTableByAlias = (sql: string, db: string, alias: string): { dbName: string; tableName: string } => {
     // 表别名：表名
     let result = {};
     let defName = '';
@@ -695,30 +697,32 @@ where l.name='kevin' and exsits(select 1 from pharmacywestpas pw where p.outvisi
 unit all
 select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(\w*)/gi)
      */
-    let match = sql.match(/(join|from)\n*\s+\n*(\w*-?\w*\.?\w+)\s*(as)?\s*(\w*)\n*/gi)
+    let match = sql.match(/(join|from)\n*\s+\n*(\w*-?\w*\.?\w+)\s*(as)?\s*(\w*)\n*/gi);
     if (match && match.length > 0) {
-        match.forEach(a => {
+        match.forEach((a) => {
             // 去掉前缀，取出
-            let t = a.substring(5, a.length)
+            let t = a
+                .substring(5, a.length)
                 .replaceAll(/\s+/g, ' ')
                 .replaceAll(/\s+as\s+/gi, ' ')
-                .replaceAll(/\r\n/g, ' ').trim()
+                .replaceAll(/\r\n/g, ' ')
+                .trim()
                 .split(/\s+/);
             let withDb = t[0].split('.');
             // 表名是 db名.表名
-            let tName = withDb.length > 1 ? withDb[1] : withDb[0]
-            let dbName = withDb.length > 1 ? withDb[0] : (db || '')
+            let tName = withDb.length > 1 ? withDb[1] : withDb[0];
+            let dbName = withDb.length > 1 ? withDb[0] : db || '';
             if (t.length == 2) {
                 // 表别名：表名
-                result[t[1]] = { tableName: tName, dbName }
+                result[t[1]] = { tableName: tName, dbName };
             } else {
                 // 只有表名无别名 取第一个无别名的表为默认表
-                !defName && (defResult = { tableName: tName, dbName: db })
+                !defName && (defResult = { tableName: tName, dbName: db });
             }
-        })
+        });
     }
-    return result[alias] || defResult
-}
+    return result[alias] || defResult;
+};
 </script>
 
 <style lang="scss">
@@ -762,7 +766,7 @@ select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(
 }
 
 .update_field_active {
-    background-color: var(--el-color-success)
+    background-color: var(--el-color-success);
 }
 
 .instances-pop-form {

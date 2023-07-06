@@ -9,22 +9,19 @@ import { registElSvgIcon } from '@/common/utils/svgIcons';
 
 import ElementPlus from 'element-plus';
 import 'element-plus/dist/index.css';
-import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import { ElMessage } from 'element-plus';
 
 import '@/theme/index.scss';
-import '@/assets/font/font.css'
-import '@/assets/iconfont/iconfont.js'
+import '@/assets/font/font.css';
+import '@/assets/iconfont/iconfont.js';
 
 const app = createApp(App);
 
 registElSvgIcon(app);
 directive(app);
 
-app.use(pinia)
-    .use(router)
-    .use(ElementPlus, { size: globalComponentSize, locale: zhCn })
-    .mount('#app');
+app.use(pinia).use(router).use(ElementPlus, { size: globalComponentSize, locale: zhCn }).mount('#app');
 
 // 屏蔽警告信息
 app.config.warnHandler = () => null;
@@ -32,8 +29,8 @@ app.config.warnHandler = () => null;
 app.config.errorHandler = function (err: any, vm, info) {
     // 如果是断言错误，则进行提示即可
     if (err.name == 'AssertError') {
-        ElMessage.error(err.message)
+        ElMessage.error(err.message);
     } else {
-        console.error(err, info)
+        console.error(err, info);
     }
-}
+};

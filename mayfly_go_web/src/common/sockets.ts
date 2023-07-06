@@ -1,8 +1,7 @@
-
-import Config from './config'
-import { ElNotification } from 'element-plus'
+import Config from './config';
+import { ElNotification } from 'element-plus';
 import SocketBuilder from './SocketBuilder';
-import { getSession } from '@/common/utils/storage.ts';
+import { getSession } from '@/common/utils/storage';
 
 export default {
     /**
@@ -38,8 +37,9 @@ export default {
                     title: message.title,
                     message: message.msg,
                     type: mtype as any,
-                })
+                });
             })
-            .open((event: any) => console.log(event)).build();
-    }
-}
+            .open((event: any) => console.log(event))
+            .build();
+    },
+};

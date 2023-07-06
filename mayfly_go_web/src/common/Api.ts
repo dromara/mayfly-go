@@ -1,4 +1,4 @@
-import request from './request'
+import request from './request';
 
 /**
  * 可用于各模块定义各自api请求
@@ -27,22 +27,12 @@ class Api {
     }
 
     /**
-     * 操作该权限，即请求对应的url
+     * 请求对应的该api
      * @param {Object} param 请求该api的参数
      */
-    request(param: any = null, options: any = null): Promise<any> {
-        return request.send(this, param, options);
+    request(param: any = null, options: any = null, headers: any = null): Promise<any> {
+        return request.request(this.method, this.url, param, headers, options);
     }
-
-    /**
-    * 操作该权限，即请求对应的url
-    * @param {Object} param 请求该api的参数
-    * @param headers headers
-    */
-    requestWithHeaders(param: any, headers: any): Promise<any> {
-        return request.sendWithHeaders(this, param, headers);
-    }
-
 
     /**    静态方法     **/
 
@@ -51,7 +41,7 @@ class Api {
      * @param url url
      * @param method 请求方法(get,post,put,delete...)
      */
-    static create(url: string, method: string) :Api {
+    static create(url: string, method: string): Api {
         return new Api(url, method);
     }
 
@@ -88,5 +78,4 @@ class Api {
     }
 }
 
-
-export default Api
+export default Api;

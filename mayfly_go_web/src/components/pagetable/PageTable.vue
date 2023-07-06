@@ -12,28 +12,55 @@
                 <div>
                     <div v-if="props.query.length > 0">
                         <el-form :model="props.queryForm" label-width="auto" :size="props.size">
-                            <el-row v-for="i in Math.ceil((props.query.length + 1) / (defaultQueryCount + 1))" :key="i"
-                                v-show="i == 1 || isOpenMoreQuery" :class="i > 1 && isOpenMoreQuery ? 'is-open' : ''">
-
-                                <el-form-item :label="item.label" style="margin-right: 12px; margin-bottom: 0px;"
-                                    v-for="item in getRowQueryItem(i)" :key="item.prop">
+                            <el-row
+                                v-for="i in Math.ceil((props.query.length + 1) / (defaultQueryCount + 1))"
+                                :key="i"
+                                v-show="i == 1 || isOpenMoreQuery"
+                                :class="i > 1 && isOpenMoreQuery ? 'is-open' : ''"
+                            >
+                                <el-form-item
+                                    :label="item.label"
+                                    style="margin-right: 12px; margin-bottom: 0px"
+                                    v-for="item in getRowQueryItem(i)"
+                                    :key="item.prop"
+                                >
                                     <!-- 这里只获取指定个数的筛选条件 -->
-                                    <el-input v-model="queryForm[item.prop]" :placeholder="'输入' + item.label + '关键字'"
-                                        clearable v-if="item.type == 'text'"></el-input>
+                                    <el-input
+                                        v-model="queryForm[item.prop]"
+                                        :placeholder="'输入' + item.label + '关键字'"
+                                        clearable
+                                        v-if="item.type == 'text'"
+                                    ></el-input>
 
-                                    <el-select-v2 v-model="queryForm[item.prop]" :options="item.options" clearable
-                                        :placeholder="'选择' + item.label + '关键字'" v-else-if="item.type == 'select'" />
+                                    <el-select-v2
+                                        v-model="queryForm[item.prop]"
+                                        :options="item.options"
+                                        clearable
+                                        :placeholder="'选择' + item.label + '关键字'"
+                                        v-else-if="item.type == 'select'"
+                                    />
 
-                                    <el-date-picker v-model="queryForm[item.prop]" clearable type="datetimerange"
-                                        format="YYYY-MM-DD hh:mm:ss" value-format="x" range-separator="至"
-                                        start-placeholder="开始时间" end-placeholder="结束时间" v-else-if="item.type == 'date'" />
+                                    <el-date-picker
+                                        v-model="queryForm[item.prop]"
+                                        clearable
+                                        type="datetimerange"
+                                        format="YYYY-MM-DD hh:mm:ss"
+                                        value-format="x"
+                                        range-separator="至"
+                                        start-placeholder="开始时间"
+                                        end-placeholder="结束时间"
+                                        v-else-if="item.type == 'date'"
+                                    />
 
                                     <template v-else-if="item.slot == 'queryBtns'">
                                         <template v-if="props.query?.length > defaultQueryCount">
-                                            <el-button @click="isOpenMoreQuery = !isOpenMoreQuery" v-if="!isOpenMoreQuery"
-                                                icon="ArrowDownBold" circle></el-button>
-                                            <el-button @click="isOpenMoreQuery = !isOpenMoreQuery" v-else icon="ArrowUpBold"
-                                                circle></el-button>
+                                            <el-button
+                                                @click="isOpenMoreQuery = !isOpenMoreQuery"
+                                                v-if="!isOpenMoreQuery"
+                                                icon="ArrowDownBold"
+                                                circle
+                                            ></el-button>
+                                            <el-button @click="isOpenMoreQuery = !isOpenMoreQuery" v-else icon="ArrowUpBold" circle></el-button>
                                         </template>
 
                                         <el-button @click="queryData()" type="primary" icon="search" plain>查询</el-button>
@@ -42,7 +69,6 @@
 
                                     <slot :name="item.slot"></slot>
                                 </el-form-item>
-
                             </el-row>
                         </el-form>
                     </div>
@@ -56,8 +82,13 @@
                     动态表头显示，根据表格每条配置项中的show字段来决定改列是否显示或者隐藏 
                     columns 就是我们表格配置的数组对象
                     -->
-                    <el-popover placement="bottom" title="表格配置"
-                        popper-style="max-height: 550px; overflow: auto; max-width: 450px" width="auto" trigger="click">
+                    <el-popover
+                        placement="bottom"
+                        title="表格配置"
+                        popper-style="max-height: 550px; overflow: auto; max-width: 450px"
+                        width="auto"
+                        trigger="click"
+                    >
                         <div v-for="(item, index) in props.columns" :key="index">
                             <el-checkbox v-model="item.show" :label="item.label" :true-label="true" :false-label="false" />
                         </div>
@@ -69,42 +100,68 @@
                 </div>
             </div>
 
-            <el-table v-bind="$attrs" max-height="700" @selection-change="handleSelectionChange" :data="props.data"
-                highlight-current-row v-loading="loadingData" :size="props.size">
-
+            <el-table
+                v-bind="$attrs"
+                max-height="700"
+                @selection-change="handleSelectionChange"
+                :data="props.data"
+                highlight-current-row
+                v-loading="loadingData"
+                :size="props.size"
+            >
                 <el-table-column v-if="props.showSelection" type="selection" width="40" />
 
                 <template v-for="(item, index) in columns">
-                    <el-table-column :key="index" v-if="item.show" :prop="item.prop" :label="item.label" :fixed="item.fixed"
-                        :align="item.align" :show-overflow-tooltip="item.showOverflowTooltip" :min-width="item.minWidth"
-                        :sortable="item.sortable || false" :type="item.type" :width="item.width">
-
+                    <el-table-column
+                        :key="index"
+                        v-if="item.show"
+                        :prop="item.prop"
+                        :label="item.label"
+                        :fixed="item.fixed"
+                        :align="item.align"
+                        :show-overflow-tooltip="item.showOverflowTooltip"
+                        :min-width="item.minWidth"
+                        :sortable="item.sortable || false"
+                        :type="item.type"
+                        :width="item.width"
+                    >
                         <!-- 插槽：预留功能 -->
                         <template #default="scope" v-if="item.slot">
                             <slot :name="item.prop" :data="scope.row"></slot>
                         </template>
 
-                        <template #default="scope" v-else>
-                            <span>{{ item.getValueByData(scope.row)}}</span>
+                        <template #default="scope" v-else-if="item.type == 'tag'">
+                            <enum-tag :size="props.size" :enums="item.typeParam" :value="scope.row[item.prop]"></enum-tag>
                         </template>
 
+                        <template #default="scope" v-else>
+                            <span>{{ item.getValueByData(scope.row) }}</span>
+                        </template>
                     </el-table-column>
                 </template>
             </el-table>
 
             <el-row style="margin-top: 20px" type="flex" justify="end">
-                <el-pagination :small="props.size == 'small'" @current-change="handlePageChange"
-                    @size-change="handleSizeChange" style="text-align: right"
-                    layout="prev, pager, next, total, sizes, jumper" :total="props.total"
-                    v-model:current-page="state.pageNum" v-model:page-size="state.pageSize" :page-sizes="pageSizes" />
+                <el-pagination
+                    :small="props.size == 'small'"
+                    @current-change="handlePageChange"
+                    @size-change="handleSizeChange"
+                    style="text-align: right"
+                    layout="prev, pager, next, total, sizes, jumper"
+                    :total="props.total"
+                    v-model:current-page="state.pageNum"
+                    v-model:page-size="state.pageSize"
+                    :page-sizes="pageSizes"
+                />
             </el-row>
         </el-card>
     </div>
 </template>
 
-<script lang='ts' setup>
+<script lang="ts" setup>
 import { toRefs, watch, reactive, onMounted } from 'vue';
 import { TableColumn, TableQuery } from './index';
+import EnumTag from '@/components/enumtag/EnumTag.vue';
 
 const emit = defineEmits(['update:queryForm', 'update:pageNum', 'update:pageSize', 'update:selectionData', 'pageChange'])
 
@@ -283,7 +340,6 @@ const loading = (loading: boolean) => {
 }
 
 defineExpose({ loading })
-
 </script>
 <style scoped lang="scss">
 .page-table {

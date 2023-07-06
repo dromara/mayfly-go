@@ -1,6 +1,5 @@
 <template>
-    <div
-        style="display: inline-flex;  justify-content: center;  align-items: center; cursor: pointer;vertical-align: middle;">
+    <div style="display: inline-flex; justify-content: center; align-items: center; cursor: pointer; vertical-align: middle">
         <el-popover @show="showTagInfo" placement="top-start" title="标签信息" :width="300" trigger="hover">
             <template #reference>
                 <el-icon>
@@ -25,20 +24,18 @@ const props = defineProps({
         type: [String],
         required: true,
     },
-})
+});
 
 const state = reactive({
     tagPath: '',
     tags: [] as any,
-})
+});
 
-const {
-    tags,
-} = toRefs(state)
+const { tags } = toRefs(state);
 
 onMounted(async () => {
     state.tagPath = props.tagPath;
-})
+});
 
 const showTagInfo = async () => {
     if (state.tags && state.tags.length > 0) {
@@ -59,10 +56,7 @@ const showTagInfo = async () => {
         tagPaths.push(nowTag);
     }
     state.tags = await tagApi.listByQuery.request({ tagPaths: tagPaths.join(',') });
-}
-
+};
 </script>
 
-<style lang="scss">
-
-</style>
+<style lang="scss"></style>

@@ -1,14 +1,12 @@
 <template>
     <div class="role-dialog">
-        <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="500px"
-            :destroy-on-close="true">
+        <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="500px" :destroy-on-close="true">
             <el-form ref="roleForm" :model="form" label-width="auto">
                 <el-form-item prop="name" label="角色名称:" required>
                     <el-input v-model="form.name" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item prop="code" label="角色code:" required>
-                    <el-input :disabled="form.id != null" v-model="form.code" placeholder="COMMON开头则为所有账号共有角色"
-                        auto-complete="off"></el-input>
+                    <el-input :disabled="form.id != null" v-model="form.code" placeholder="COMMON开头则为所有账号共有角色" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item label="角色描述:">
                     <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入角色描述"></el-input>
@@ -38,10 +36,10 @@ const props = defineProps({
     title: {
         type: String,
     },
-})
+});
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change'])
+const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const roleForm: any = ref(null);
 const state = reactive({
@@ -56,11 +54,7 @@ const state = reactive({
     btnLoading: false,
 });
 
-const {
-    dvisible,
-    form,
-    btnLoading,
-} = toRefs(state)
+const { dvisible, form, btnLoading } = toRefs(state);
 
 watch(props, (newValue: any) => {
     state.dvisible = newValue.visible;
@@ -92,6 +86,4 @@ const btnOk = async () => {
     });
 };
 </script>
-<style lang="scss">
-
-</style>
+<style lang="scss"></style>
