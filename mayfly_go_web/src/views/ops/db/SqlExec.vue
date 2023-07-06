@@ -491,7 +491,7 @@ const registerSqlCompletionItemProvider = () => {
             // // const nextTokens = textAfterPointer.trim().split(/\s+/)
             // // const nextToken = nextTokens[0].toLowerCase()
             const tokens = textBeforePointer.trim().split(/\s+/)
-            const lastToken = tokens[tokens.length - 1].toLowerCase()
+            let lastToken = tokens[tokens.length - 1].toLowerCase()
             const secondToken = tokens.length > 2 && tokens[tokens.length - 2].toLowerCase() || ''
 
             // const dbs = nowTab.params?.dbs?.split(' ') || [];
@@ -531,7 +531,15 @@ const registerSqlCompletionItemProvider = () => {
                 if (lastToken.trim().startsWith('.')) {
                     str = secondToken
                 }
-
+                // 如果字符串粘连起了如:'a.creator,a.',需要重新取出别名
+                let aliasArr = lastToken.split(',');
+                if (aliasArr.length > 1){
+                    lastToken = aliasArr[aliasArr.length-1];
+                    str = lastToken.substring(0, lastToken.lastIndexOf('.'))
+                    if (lastToken.trim().startsWith('.')) {
+                        str = secondToken
+                    }
+                }
                 // 库.表名联想
                 if (dbs && dbs.filter((a: any) => a === str)?.length > 0) {
                     let tables = await dbInst.loadTables(str)
