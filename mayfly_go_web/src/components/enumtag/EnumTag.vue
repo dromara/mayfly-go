@@ -1,5 +1,5 @@
 <template>
-    <el-tag v-bind="$attrs" :type="type" :color="color">{{ enumLabel }}</el-tag>
+    <el-tag v-bind="$attrs" :type="type" :color="color" effect="plain">{{ enumLabel }}</el-tag>
 </template>
 
 <script lang="ts" setup>
@@ -9,11 +9,11 @@ import EnumValue from '@/common/Enum';
 const props = defineProps({
     enums: {
         type: Object, // 需要为EnumValue类型
-        default: {},
+        required: true,
     },
     value: {
         type: Object,
-        default: {},
+        required: true,
     },
 });
 
@@ -38,7 +38,7 @@ onMounted(() => {
 });
 
 const convert = (value: any) => {
-    const enumValue = EnumValue.getEnumByValue(Object.values(props.enums) as any, value) as any;
+    const enumValue = EnumValue.getEnumByValue(Object.values(props.enums as any) as any, value) as any;
     if (!enumValue) {
         state.enumLabel = '-';
         state.type = 'danger';

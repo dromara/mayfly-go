@@ -32,6 +32,10 @@ export class EnumValue {
         return this;
     }
 
+    tagTypeInfo(): EnumValue {
+        return this.setTagType('info');
+    }
+
     tagTypeSuccess(): EnumValue {
         return this.setTagType('success');
     }

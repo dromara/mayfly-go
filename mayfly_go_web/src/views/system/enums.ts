@@ -10,6 +10,11 @@ export const AccountStatusEnum = {
     Disable: EnumValue.of(-1, '禁用').tagTypeDanger(),
 };
 
+export const RoleStatusEnum = {
+    Enable: EnumValue.of(1, '正常').tagTypeSuccess(),
+    Disable: EnumValue.of(-1, '禁用').tagTypeDanger(),
+};
+
 export const LogTypeEnum = {
     Success: EnumValue.of(1, '成功').tagTypeSuccess(),
     Error: EnumValue.of(2, '失败').tagTypeDanger(),

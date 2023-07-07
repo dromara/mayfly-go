@@ -168,7 +168,7 @@ const emit = defineEmits(['update:queryForm', 'update:pageNum', 'update:pageSize
 const props = defineProps({
     size: {
         type: String,
-        default: "",
+        default: '',
     },
     inputWidth: {
         type: [Number, String],
@@ -188,11 +188,13 @@ const props = defineProps({
         type: Array<TableColumn>,
         default: function () {
             return [];
-        }
+        },
+        required: true,
     },
     // 表格数据
     data: {
         type: Array,
+        required: true,
     },
     total: {
         type: [Number],
@@ -244,15 +246,15 @@ const {
 } = toRefs(state)
 
 watch(() => props.queryForm, (newValue: any) => {
-    state.queryForm = newValue
+    state.queryForm = newValue;
 })
 
 watch(() => props.pageNum, (newValue: any) => {
-    state.pageNum = newValue
+    state.pageNum = newValue;
 })
 
 watch(() => props.pageSize, (newValue: any) => {
-    state.pageSize = newValue
+    state.pageSize = newValue;
 })
 
 watch(() => props.data, (newValue: any) => {
@@ -271,11 +273,11 @@ onMounted(() => {
     state.pageNum = props.pageNum;
     state.pageSize = pageSize;
     state.queryForm = props.queryForm;
-    state.pageSizes = [pageSize, pageSize * 2, pageSize * 3, pageSize * 4]
+    state.pageSizes = [pageSize, pageSize * 2, pageSize * 3, pageSize * 4];
 
     // 如果没传输入框宽度，则根据组件size设置默认宽度
     if (!props.inputWidth) {
-        state.inputWidth = props.size == "small" ? "150px" : "200px"
+        state.inputWidth = props.size == 'small' ? '150px' : '200px';
     } else {
         state.inputWidth = props.inputWidth;
     }
@@ -284,13 +286,13 @@ onMounted(() => {
 const getRowQueryItem = (row: number) => {
     // 第一行需要加个查询等按钮列
     if (row === 1) {
-        const res = props.query.slice(row - 1, defaultQueryCount.value)
+        const res = props.query.slice(row - 1, defaultQueryCount.value);
         // 查询等按钮列
-        res.push(TableQuery.slot("", "", "queryBtns"))
+        res.push(TableQuery.slot("", "", "queryBtns"));
         return res
     }
     const columnCount = defaultQueryCount.value + 1;
-    return props.query.slice((row - 1) * columnCount - 1, row * columnCount - 1)
+    return props.query.slice((row - 1) * columnCount - 1, row * columnCount - 1);
 }
 
 const handleSelectionChange = (val: any) => {
@@ -298,7 +300,7 @@ const handleSelectionChange = (val: any) => {
 }
 
 const handlePageChange = () => {
-    emit('update:pageNum', state.pageNum)
+    emit('update:pageNum', state.pageNum);
     execQuery();
 }
 
@@ -325,11 +327,11 @@ const reset = () => {
 
 const changePageNum = (pageNum: number) => {
     state.pageNum = pageNum;
-    emit('update:pageNum', state.pageNum)
+    emit('update:pageNum', state.pageNum);
 }
 
 const execQuery = () => {
-    emit("pageChange")
+    emit('pageChange');
 }
 
 /**

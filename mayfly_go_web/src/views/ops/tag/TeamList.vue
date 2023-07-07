@@ -89,52 +89,25 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="700px" :title="showMemDialog.title" v-model="showMemDialog.visible">
-            <div class="toolbar">
-                <el-button v-auth="'team:member:save'" @click="showAddMemberDialog()" type="primary" icon="plus" size="small">添加</el-button>
-                <el-button v-auth="'team:member:del'" @click="deleteMember" :disabled="showMemDialog.chooseId == null" type="danger" icon="delete" size="small"
-                    >移除</el-button
-                >
-                <div style="float: right">
-                    <el-input
-                        placeholder="请输入用户名"
-                        class="mr2"
-                        style="width: 150px"
-                        v-model="showMemDialog.query.username"
-                        size="small"
-                        @clear="search"
-                        clearable
-                    ></el-input>
-                    <el-button @click="setMemebers" type="success" icon="search" size="small"></el-button>
-                </div>
-            </div>
-            <el-table @current-change="chooseMember" border :data="showMemDialog.members.list" size="small">
-                <el-table-column label="选择" width="50px">
-                    <template #default="scope">
-                        <el-radio v-model="showMemDialog.chooseId" :label="scope.row.id">
-                            <i></i>
-                        </el-radio>
-                    </template>
-                </el-table-column>
-                <el-table-column property="name" label="姓名" width="115"></el-table-column>
-                <el-table-column property="username" label="账号" width="135"></el-table-column>
-                <el-table-column property="createTime" label="加入时间">
-                    <template #default="scope">
-                        {{ dateFormat(scope.row.createTime) }}
-                    </template>
-                </el-table-column>
-                <el-table-column property="creator" label="分配者" width="135"></el-table-column>
-            </el-table>
-            <el-pagination
-                size="small"
-                @current-change="setMemebers"
-                style="text-align: center"
-                background
-                layout="prev, pager, next, total, jumper"
+        <el-dialog width="50%" :title="showMemDialog.title" v-model="showMemDialog.visible">
+            <page-table
+                :query="showMemDialog.queryConfig"
+                v-model:query-form="showMemDialog.query"
+                :data="showMemDialog.members.list"
+                :columns="showMemDialog.columns"
                 :total="showMemDialog.members.total"
-                v-model:current-page="showMemDialog.query.pageNum"
-                :page-size="showMemDialog.query.pageSize"
-            />
+                v-model:page-size="showMemDialog.query.pageSize"
+                v-model:page-num="showMemDialog.query.pageNum"
+                @pageChange="setMemebers()"
+            >
+                <template #queryRight>
+                    <el-button v-auth="'team:member:save'" @click="showAddMemberDialog()" type="primary" icon="plus">添加</el-button>
+                </template>
+
+                <template #action="{ data }">
+                    <el-button v-auth="'team:member:del'" @click="deleteMember(data)" type="danger" link icon="delete"></el-button>
+                </template>
+            </page-table>
 
             <el-dialog width="400px" title="添加成员" :before-close="cancelAddMember" v-model="showMemDialog.addVisible">
                 <el-form :model="showMemDialog.memForm" label-width="auto">
@@ -169,7 +142,6 @@ import { ref, toRefs, reactive, onMounted } from 'vue';
 import { tagApi } from './api';
 import { accountApi } from '../../system/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { dateFormat } from '@/common/utils/date';
 import { notBlank } from '@/common/assert';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
@@ -194,15 +166,21 @@ const state = reactive({
         TableColumn.new('remark', '备注'),
         TableColumn.new('createTime', '创建时间').isTime(),
         TableColumn.new('creator', '创建人'),
-        TableColumn.new('action', '操作').isSlot().setMinWidth(100).fixedRight().alignCenter(),
+        TableColumn.new('action', '操作').isSlot().setMinWidth(120).fixedRight().alignCenter(),
     ],
     total: 0,
     data: [],
     selectionData: [],
     showMemDialog: {
+        queryConfig: [TableQuery.text('username', '用户名')],
+        columns: [
+            TableColumn.new('name', '姓名'),
+            TableColumn.new('username', '账号'),
+            TableColumn.new('createTime', '加入时间').isTime(),
+            TableColumn.new('creator', '分配者'),
+            TableColumn.new('action', '操作').isSlot().setMinWidth(80).fixedRight().alignCenter(),
+        ],
         visible: false,
-        chooseId: 0,
-        chooseData: null,
         query: {
             pageSize: 10,
             pageNum: 1,
@@ -211,7 +189,7 @@ const state = reactive({
         },
         members: {
             list: [],
-            total: null,
+            total: 0,
         },
         title: '',
         addVisible: false,
@@ -304,19 +282,8 @@ const getAccount = (username: any) => {
     }
 };
 
-/**
- * 选中成员
- */
-const chooseMember = (item: any) => {
-    if (!item) {
-        return;
-    }
-    state.showMemDialog.chooseData = item;
-    state.showMemDialog.chooseId = item.id;
-};
-
-const deleteMember = async () => {
-    await tagApi.delTeamMem.request(state.showMemDialog.chooseData);
+const deleteMember = async (data: any) => {
+    await tagApi.delTeamMem.request(data);
     ElMessage.success('移除成功');
     // 重新赋值成员列表
     setMemebers();
@@ -349,8 +316,6 @@ const addMember = async () => {
 const cancelAddMember = () => {
     state.showMemDialog.memForm = {} as any;
     state.showMemDialog.addVisible = false;
-    state.showMemDialog.chooseData = null;
-    state.showMemDialog.chooseId = 0;
 };
 
 /********** 标签相关 ***********/
@@ -379,7 +344,7 @@ const saveTags = async () => {
     closeTagDialog();
 };
 
-const tagTreeNodeCheck = () => {
+const tagTreeNodeCheck = (data: any) => {
     // const node = tagTreeRef.value.getNode(data.id);
     // console.log(node);
     // // state.showTagDialog.tagTreeTeams = [16]

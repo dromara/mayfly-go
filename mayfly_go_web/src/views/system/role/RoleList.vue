@@ -20,11 +20,6 @@
                 >
             </template>
 
-            <template #status="{ data }">
-                <el-tag v-if="data.status == 1" type="success" size="small">正常</el-tag>
-                <el-tag v-if="data.status == -1" type="danger" size="small">禁用</el-tag>
-            </template>
-
             <template #showmore="{ data }">
                 <el-link @click.prevent="showResources(data)" type="info">菜单&权限</el-link>
             </template>
@@ -57,6 +52,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
+import { RoleStatusEnum } from '../enums';
 
 const pageTableRef: any = ref(null);
 
@@ -72,7 +68,7 @@ const columns = ref([
     TableColumn.new('name', '角色名称'),
     TableColumn.new('code', '角色code'),
     TableColumn.new('remark', '备注'),
-    TableColumn.new('status', '状态').isSlot(),
+    TableColumn.new('status', '状态').typeTag(RoleStatusEnum),
     TableColumn.new('creator', '创建账号'),
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('modifier', '更新账号'),
