@@ -20,7 +20,7 @@ func (d *dbRepoImpl) GetDbList(condition *entity.DbQuery, pageParam *model.PageP
 		Like("host", condition.Host).
 		Like("database", condition.Database).
 		In("tag_id", condition.TagIds).
-		RLike("tag_path", condition.TagPathLike).
+		RLike("tag_path", condition.TagPath).
 		OrderByAsc("tag_path")
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
@@ -29,9 +29,6 @@ func (d *dbRepoImpl) Count(condition *entity.DbQuery) int64 {
 	where := make(map[string]any)
 	if len(condition.TagIds) > 0 {
 		where["tag_id"] = condition.TagIds
-	}
-	if condition.TagId != 0 {
-		where["tag_id"] = condition.TagId
 	}
 	return gormx.CountByCond(new(entity.Db), where)
 }

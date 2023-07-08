@@ -8,7 +8,7 @@ import (
 )
 
 type AuthCert interface {
-	GetPageList(condition *entity.AuthCert, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	GetPageList(condition *entity.AuthCertQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Save(ac *entity.AuthCert)
 
@@ -29,7 +29,7 @@ type authCertAppImpl struct {
 	authCertRepo repository.AuthCert
 }
 
-func (a *authCertAppImpl) GetPageList(condition *entity.AuthCert, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+func (a *authCertAppImpl) GetPageList(condition *entity.AuthCertQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return a.authCertRepo.GetPageList(condition, pageParam, toEntity)
 }
 

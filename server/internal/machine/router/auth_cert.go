@@ -10,36 +10,19 @@ import (
 
 func InitAuthCertRouter(router *gin.RouterGroup) {
 	r := &api.AuthCert{AuthCertApp: application.GetAuthCertApp()}
-	db := router.Group("sys/authcerts")
-	{
-		listAcP := req.NewPermission("authcert")
-		db.GET("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithRequiredPermission(listAcP).
-				Handle(r.AuthCerts)
-		})
+
+	ag := router.Group("sys/authcerts")
+
+	reqs := [...]*req.Conf{
+		req.NewGet("", r.AuthCerts).RequiredPermissionCode("authcert"),
 
 		// 基础授权凭证信息，不包含密码等
-		db.GET("base", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(r.BaseAuthCerts)
-		})
+		req.NewGet("base", r.BaseAuthCerts),
 
-		saveAc := req.NewLogInfo("保存授权凭证").WithSave(true)
-		saveAcP := req.NewPermission("authcert:save")
-		db.POST("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(saveAc).
-				WithRequiredPermission(saveAcP).
-				Handle(r.SaveAuthCert)
-		})
+		req.NewPost("", r.SaveAuthCert).Log(req.NewLogSave("保存授权凭证")).RequiredPermissionCode("authcert:save"),
 
-		deleteAc := req.NewLogInfo("删除授权凭证").WithSave(true)
-		deleteAcP := req.NewPermission("authcert:del")
-		db.DELETE(":id", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(deleteAc).
-				WithRequiredPermission(deleteAcP).
-				Handle(r.Delete)
-		})
+		req.NewDelete(":id", r.Delete).Log(req.NewLogSave("删除授权凭证")).RequiredPermissionCode("authcert:del"),
 	}
+
+	req.BatchSetGroup(ag, reqs[:])
 }

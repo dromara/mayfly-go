@@ -140,10 +140,11 @@ func (p *tagTreeAppImpl) CanAccess(accountId uint64, tagPath string) error {
 }
 
 func (p *tagTreeAppImpl) Delete(id uint64) {
-	biz.IsTrue(p.machineApp.Count(&machineentity.MachineQuery{TagId: id}) == 0, "请先删除该项目关联的机器信息")
-	biz.IsTrue(p.redisApp.Count(&redisentity.RedisQuery{TagId: id}) == 0, "请先删除该项目关联的redis信息")
-	biz.IsTrue(p.dbApp.Count(&dbentity.DbQuery{TagId: id}) == 0, "请先删除该项目关联的数据库信息")
-	biz.IsTrue(p.mongoApp.Count(&mongoentity.MongoQuery{TagId: id}) == 0, "请先删除该项目关联的Mongo信息")
+	tagIds := [1]uint64{id}
+	biz.IsTrue(p.machineApp.Count(&machineentity.MachineQuery{TagIds: tagIds[:]}) == 0, "请先删除该项目关联的机器信息")
+	biz.IsTrue(p.redisApp.Count(&redisentity.RedisQuery{TagIds: tagIds[:]}) == 0, "请先删除该项目关联的redis信息")
+	biz.IsTrue(p.dbApp.Count(&dbentity.DbQuery{TagIds: tagIds[:]}) == 0, "请先删除该项目关联的数据库信息")
+	biz.IsTrue(p.mongoApp.Count(&mongoentity.MongoQuery{TagIds: tagIds[:]}) == 0, "请先删除该项目关联的Mongo信息")
 	p.tagTreeRepo.Delete(id)
 	// 删除该标签关联的团队信息
 	p.tagTreeTeamRepo.DeleteBy(&entity.TagTreeTeam{TagId: id})

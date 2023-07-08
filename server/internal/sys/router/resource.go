@@ -10,48 +10,21 @@ import (
 
 func InitResourceRouter(router *gin.RouterGroup) {
 	r := &api.Resource{ResourceApp: application.GetResourceApp()}
-	db := router.Group("sys/resources")
-	{
-		db.GET("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(r.GetAllResourceTree)
-		})
+	rg := router.Group("sys/resources")
 
-		db.GET(":id", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(r.GetById)
-		})
+	reqs := [...]*req.Conf{
+		req.NewGet("", r.GetAllResourceTree),
 
-		saveResource := req.NewLogInfo("保存资源").WithSave(true)
-		srPermission := req.NewPermission("resource:add")
-		db.POST("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(saveResource).
-				WithRequiredPermission(srPermission).
-				Handle(r.SaveResource)
-		})
+		req.NewGet(":id", r.GetById),
 
-		changeStatus := req.NewLogInfo("修改资源状态").WithSave(true)
-		csPermission := req.NewPermission("resource:changeStatus")
-		db.PUT(":id/:status", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(changeStatus).
-				WithRequiredPermission(csPermission).
-				Handle(r.ChangeStatus)
-		})
+		req.NewPost("", r.SaveResource).Log(req.NewLogSave("保存资源")).RequiredPermissionCode("resource:add"),
 
-		sort := req.NewLogInfo("资源排序").WithSave(true)
-		db.POST("sort", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(sort).
-				Handle(r.Sort)
-		})
+		req.NewPut(":id/:status", r.ChangeStatus).Log(req.NewLogSave("修改资源状态")).RequiredPermissionCode("resource:changeStatus"),
 
-		delResource := req.NewLogInfo("删除资源").WithSave(true)
-		dePermission := req.NewPermission("resource:delete")
-		db.DELETE(":id", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(delResource).
-				WithRequiredPermission(dePermission).
-				Handle(r.DelResource)
-		})
+		req.NewPost("sort", r.Sort).Log(req.NewLogSave("资源排序")),
+
+		req.NewDelete(":id", r.DelResource).Log(req.NewLogSave("删除资源")).RequiredPermissionCode("resource:delete"),
 	}
+
+	req.BatchSetGroup(rg, reqs[:])
 }

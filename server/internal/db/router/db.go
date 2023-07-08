@@ -12,103 +12,55 @@ import (
 
 func InitDbRouter(router *gin.RouterGroup) {
 	db := router.Group("dbs")
-	{
-		d := &api.Db{
-			DbApp:        application.GetDbApp(),
-			DbSqlExecApp: application.GetDbSqlExecApp(),
-			MsgApp:       msgapp.GetMsgApp(),
-			TagApp:       tagapp.GetTagTreeApp(),
-		}
-		// 获取所有数据库列表
-		db.GET("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(d.Dbs)
-		})
 
-		saveDb := req.NewLogInfo("db-保存数据库信息").WithSave(true)
-		db.POST("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(saveDb).
-				Handle(d.Save)
-		})
+	d := &api.Db{
+		DbApp:        application.GetDbApp(),
+		DbSqlExecApp: application.GetDbSqlExecApp(),
+		MsgApp:       msgapp.GetMsgApp(),
+		TagApp:       tagapp.GetTagTreeApp(),
+	}
+
+	reqs := [...]*req.Conf{
+		// 获取数据库列表
+		req.NewGet("", d.Dbs),
+
+		req.NewPost("", d.Save).Log(req.NewLogSave("db-保存数据库信息")),
 
 		// 获取数据库实例的所有数据库名
-		db.POST("databases", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				Handle(d.GetDatabaseNames)
-		})
+		req.NewGet("/databases", d.GetDatabaseNames),
 
-		db.GET(":dbId/pwd", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(d.GetDbPwd)
-		})
+		req.NewGet(":dbId/pwd", d.GetDbPwd),
 
-		deleteDb := req.NewLogInfo("db-删除数据库信息").WithSave(true)
-		db.DELETE(":dbId", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(deleteDb).
-				Handle(d.DeleteDb)
-		})
+		req.NewDelete(":dbId", d.DeleteDb).Log(req.NewLogSave("db-删除数据库信息")),
 
-		db.GET(":dbId/t-infos", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(d.TableInfos)
-		})
+		req.NewGet(":dbId/t-infos", d.TableInfos),
 
-		db.GET(":dbId/t-index", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(d.TableIndex)
-		})
+		req.NewGet(":dbId/t-index", d.TableIndex),
 
-		db.GET(":dbId/t-create-ddl", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(d.GetCreateTableDdl)
-		})
+		req.NewGet(":dbId/t-create-ddl", d.GetCreateTableDdl),
 
-		execSqlLog := req.NewLogInfo("db-执行Sql")
-		db.POST(":dbId/exec-sql", func(g *gin.Context) {
-			rc := req.NewCtxWithGin(g).WithLog(execSqlLog)
-			rc.Handle(d.ExecSql)
-		})
+		req.NewPost(":dbId/exec-sql", d.ExecSql).Log(req.NewLog("db-执行Sql")),
 
-		execSqlFileLog := req.NewLogInfo("db-执行Sql文件").WithSave(true)
-		db.POST(":dbId/exec-sql-file", func(g *gin.Context) {
-			req.NewCtxWithGin(g).
-				WithLog(execSqlFileLog).
-				Handle(d.ExecSqlFile)
-		})
+		req.NewPost(":dbId/exec-sql-file", d.ExecSqlFile).Log(req.NewLogSave("db-执行Sql文件")),
 
-		dumpLog := req.NewLogInfo("db-导出sql文件").WithSave(true)
-		db.GET(":dbId/dump", func(g *gin.Context) {
-			req.NewCtxWithGin(g).
-				WithLog(dumpLog).
-				Handle(d.DumpSql)
-		})
+		req.NewGet(":dbId/dump", d.DumpSql).Log(req.NewLogSave("db-导出sql文件")).NoRes(),
 
-		db.GET(":dbId/t-metadata", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(d.TableMA)
-		})
+		req.NewGet(":dbId/t-metadata", d.TableMA),
 
-		db.GET(":dbId/c-metadata", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(d.ColumnMA)
-		})
+		req.NewGet(":dbId/c-metadata", d.ColumnMA),
 
-		db.GET(":dbId/hint-tables", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(d.HintTables)
-		})
+		req.NewGet(":dbId/hint-tables", d.HintTables),
 
-		/**  db sql相关接口  */
+		// 用户sql相关
+		req.NewPost(":dbId/sql", d.SaveSql),
 
-		db.POST(":dbId/sql", func(c *gin.Context) {
-			rc := req.NewCtxWithGin(c)
-			rc.Handle(d.SaveSql)
-		})
+		req.NewGet(":dbId/sql", d.GetSql),
 
-		db.GET(":dbId/sql", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(d.GetSql)
-		})
+		req.NewDelete(":dbId/sql", d.DeleteSql),
 
-		db.DELETE(":dbId/sql", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(d.DeleteSql)
-		})
-
-		db.GET(":dbId/sql-names", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(d.GetSqlNames)
-		})
+		req.NewGet(":dbId/sql-names", d.GetSqlNames),
 	}
+
+	req.BatchSetGroup(db, reqs[:])
+
 }

@@ -12,12 +12,7 @@ type DbSqlExec struct {
 }
 
 func (d *DbSqlExec) DbSqlExecs(rc *req.Ctx) {
-	g := rc.GinCtx
-	m := &entity.DbSqlExec{DbId: uint64(ginx.QueryInt(g, "dbId", 0)),
-		Db:    g.Query("db"),
-		Table: g.Query("table"),
-		Type:  int8(ginx.QueryInt(g, "type", 0)),
-	}
-	m.CreatorId = rc.LoginAccount.Id
-	rc.ResData = d.DbSqlExecApp.GetPageList(m, ginx.GetPageParam(rc.GinCtx), new([]entity.DbSqlExec))
+	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.DbSqlExecQuery))
+	queryCond.CreatorId = rc.LoginAccount.Id
+	rc.ResData = d.DbSqlExecApp.GetPageList(queryCond, page, new([]entity.DbSqlExec))
 }

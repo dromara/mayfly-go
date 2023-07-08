@@ -12,10 +12,6 @@ func InitCommonRouter(router *gin.RouterGroup) {
 	c := &api.Common{}
 	{
 		// 获取公钥
-		common.GET("public-key", func(g *gin.Context) {
-			req.NewCtxWithGin(g).
-				DontNeedToken().
-				Handle(c.RasPublicKey)
-		})
+		req.NewGet("public-key", c.RasPublicKey).DontNeedToken().Group(common)
 	}
 }

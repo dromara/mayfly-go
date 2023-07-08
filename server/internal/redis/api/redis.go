@@ -25,8 +25,7 @@ type Redis struct {
 }
 
 func (r *Redis) RedisList(rc *req.Ctx) {
-	condition := new(entity.RedisQuery)
-	condition.TagPathLike = rc.GinCtx.Query("tagPath")
+	queryCond, page := ginx.BindQueryAndPage[*entity.RedisQuery](rc.GinCtx, new(entity.RedisQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
 	tagIds := r.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
@@ -34,16 +33,14 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	condition.TagIds = tagIds
-	rc.ResData = r.RedisApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.Redis))
+	queryCond.TagIds = tagIds
+
+	rc.ResData = r.RedisApp.GetPageList(queryCond, page, new([]vo.Redis))
 }
 
 func (r *Redis) Save(rc *req.Ctx) {
 	form := &form.Redis{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-
-	redis := new(entity.Redis)
-	utils.Copy(redis, form)
+	redis := ginx.BindJsonAndCopyTo[*entity.Redis](rc.GinCtx, form, new(entity.Redis))
 
 	// 密码解密，并使用解密后的赋值
 	originPwd, err := utils.DefaultRsaDecrypt(redis.Password, true)

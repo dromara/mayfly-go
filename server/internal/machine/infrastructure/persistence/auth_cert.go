@@ -14,8 +14,8 @@ func newAuthCertRepo() repository.AuthCert {
 	return new(authCertRepoImpl)
 }
 
-func (m *authCertRepoImpl) GetPageList(condition *entity.AuthCert, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
-	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
+func (m *authCertRepoImpl) GetPageList(condition *entity.AuthCertQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+	qd := gormx.NewQuery(new(entity.AuthCert)).WithCondModel(condition).WithOrderBy(orderBy...)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
 

@@ -12,11 +12,6 @@ type Syslog struct {
 }
 
 func (r *Syslog) Syslogs(rc *req.Ctx) {
-	g := rc.GinCtx
-	condition := &entity.Syslog{
-		Type:        int8(ginx.QueryInt(g, "type", 0)),
-		CreatorId:   uint64(ginx.QueryInt(g, "creatorId", 0)),
-		Description: ginx.Query(g, "description", ""),
-	}
-	rc.ResData = r.SyslogApp.GetPageList(condition, ginx.GetPageParam(g), new([]entity.Syslog), "create_time DESC")
+	queryCond, page := ginx.BindQueryAndPage[*entity.SysLogQuery](rc.GinCtx, new(entity.SysLogQuery))
+	rc.ResData = r.SyslogApp.GetPageList(queryCond, page, new([]entity.SysLog), "create_time DESC")
 }

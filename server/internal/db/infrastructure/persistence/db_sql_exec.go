@@ -23,7 +23,7 @@ func (d *dbSqlExecRepoImpl) DeleteBy(condition *entity.DbSqlExec) {
 }
 
 // 分页获取
-func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExec, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
-	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
+func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+	qd := gormx.NewQuery(new(entity.DbSqlExec)).WithCondModel(condition).WithOrderBy(orderBy...)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }

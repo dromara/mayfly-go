@@ -21,7 +21,7 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 		Like("ip", condition.Ip).
 		Like("name", condition.Name).
 		In("tag_id", condition.TagIds).
-		RLike("tag_path", condition.TagPathLike).
+		RLike("tag_path", condition.TagPath).
 		OrderByAsc("tag_path")
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
@@ -30,9 +30,6 @@ func (m *machineRepoImpl) Count(condition *entity.MachineQuery) int64 {
 	where := make(map[string]any)
 	if len(condition.TagIds) > 0 {
 		where["tag_id"] = condition.TagIds
-	}
-	if condition.TagId != 0 {
-		where["tag_id"] = condition.TagId
 	}
 
 	return gormx.CountByCond(new(entity.Machine), where)

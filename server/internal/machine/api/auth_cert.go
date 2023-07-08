@@ -18,25 +18,15 @@ type AuthCert struct {
 }
 
 func (ac *AuthCert) BaseAuthCerts(rc *req.Ctx) {
-	g := rc.GinCtx
-	condition := &entity.AuthCert{
-		Name:       g.Query("name"),
-		AuthMethod: int8(ginx.QueryInt(g, "authMethod", 0)),
-	}
-	condition.Id = uint64(ginx.QueryInt(g, "id", 0))
-	rc.ResData = ac.AuthCertApp.GetPageList(condition, ginx.GetPageParam(g), new([]vo.AuthCertBaseVO))
+	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.AuthCertQuery))
+	rc.ResData = ac.AuthCertApp.GetPageList(queryCond, page, new([]vo.AuthCertBaseVO))
 }
 
 func (ac *AuthCert) AuthCerts(rc *req.Ctx) {
-	g := rc.GinCtx
-	condition := &entity.AuthCert{
-		Name:       g.Query("name"),
-		AuthMethod: int8(ginx.QueryInt(g, "authMethod", 0)),
-	}
-	condition.Id = uint64(ginx.QueryInt(g, "id", 0))
+	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.AuthCertQuery))
 
 	res := new([]*entity.AuthCert)
-	pageRes := ac.AuthCertApp.GetPageList(condition, ginx.GetPageParam(g), res)
+	pageRes := ac.AuthCertApp.GetPageList(queryCond, page, res)
 	for _, r := range *res {
 		r.PwdDecrypt()
 	}

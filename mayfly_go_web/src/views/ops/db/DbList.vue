@@ -479,7 +479,7 @@ const search = async () => {
         pageTableRef.value.loading(true);
         let res: any = await dbApi.dbs.request(state.query);
         // 切割数据库
-        res.list.forEach((e: any) => {
+        res.list?.forEach((e: any) => {
             e.popoverSelectDbVisible = false;
             e.dbs = e.database.split(' ');
         });

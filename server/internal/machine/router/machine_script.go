@@ -11,43 +11,23 @@ import (
 
 func InitMachineScriptRouter(router *gin.RouterGroup) {
 	machines := router.Group("machines")
-	{
-		ms := &api.MachineScript{
-			MachineScriptApp: application.GetMachineScriptApp(),
-			MachineApp:       application.GetMachineApp(),
-			TagApp:           tagapp.GetTagTreeApp(),
-		}
-
-		// 获取指定机器脚本列表
-		machines.GET(":machineId/scripts", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(ms.MachineScripts)
-		})
-
-		saveMachienScriptLog := req.NewLogInfo("机器-保存脚本").WithSave(true)
-		smsP := req.NewPermission("machine:script:save")
-		// 保存脚本
-		machines.POST(":machineId/scripts", func(c *gin.Context) {
-			req.NewCtxWithGin(c).WithLog(saveMachienScriptLog).
-				WithRequiredPermission(smsP).
-				Handle(ms.SaveMachineScript)
-		})
-
-		deleteLog := req.NewLogInfo("机器-删除脚本").WithSave(true)
-		dP := req.NewPermission("machine:script:del")
-		// 保存脚本
-		machines.DELETE(":machineId/scripts/:scriptId", func(c *gin.Context) {
-			req.NewCtxWithGin(c).WithLog(deleteLog).
-				WithRequiredPermission(dP).
-				Handle(ms.DeleteMachineScript)
-		})
-
-		runLog := req.NewLogInfo("机器-执行脚本").WithSave(true)
-		rP := req.NewPermission("machine:script:run")
-		// 运行脚本
-		machines.GET(":machineId/scripts/:scriptId/run", func(c *gin.Context) {
-			req.NewCtxWithGin(c).WithLog(runLog).
-				WithRequiredPermission(rP).
-				Handle(ms.RunMachineScript)
-		})
+	ms := &api.MachineScript{
+		MachineScriptApp: application.GetMachineScriptApp(),
+		MachineApp:       application.GetMachineApp(),
+		TagApp:           tagapp.GetTagTreeApp(),
 	}
+
+	reqs := [...]*req.Conf{
+		// 获取指定机器脚本列表
+		req.NewGet(":machineId/scripts", ms.MachineScripts),
+
+		req.NewPost(":machineId/scripts", ms.SaveMachineScript).Log(req.NewLogSave("机器-保存脚本")).RequiredPermissionCode("machine:script:save"),
+
+		req.NewDelete(":machineId/scripts/:scriptId", ms.DeleteMachineScript).Log(req.NewLogSave("机器-删除脚本")).RequiredPermissionCode("machine:script:del"),
+
+		req.NewGet(":machineId/scripts/:scriptId/run", ms.RunMachineScript).Log(req.NewLogSave("机器-执行脚本")).RequiredPermissionCode("machine:script:run"),
+	}
+
+	req.BatchSetGroup(machines, reqs[:])
+
 }

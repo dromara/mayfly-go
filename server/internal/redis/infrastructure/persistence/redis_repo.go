@@ -19,7 +19,7 @@ func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *mo
 	qd := gormx.NewQuery(new(entity.Redis)).
 		Like("host", condition.Host).
 		In("tag_id", condition.TagIds).
-		RLike("tag_path", condition.TagPathLike).
+		RLike("tag_path", condition.TagPath).
 		OrderByAsc("tag_path")
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
@@ -28,9 +28,6 @@ func (r *redisRepoImpl) Count(condition *entity.RedisQuery) int64 {
 	where := make(map[string]any)
 	if len(condition.TagIds) > 0 {
 		where["tag_id"] = condition.TagIds
-	}
-	if condition.TagId != 0 {
-		where["tag_id"] = condition.TagId
 	}
 
 	return gormx.CountByCond(new(entity.Redis), where)

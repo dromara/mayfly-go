@@ -13,12 +13,12 @@ func newSyslogRepo() repository.Syslog {
 	return new(syslogRepoImpl)
 }
 
-func (m *syslogRepoImpl) GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
-	qd := gormx.NewQuery(condition).Like("description", condition.Description).
+func (m *syslogRepoImpl) GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+	qd := gormx.NewQuery(new(entity.SysLog)).Like("description", condition.Description).
 		Eq("creator_id", condition.CreatorId).Eq("type", condition.Type).WithOrderBy(orderBy...)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
 
-func (m *syslogRepoImpl) Insert(syslog *entity.Syslog) {
+func (m *syslogRepoImpl) Insert(syslog *entity.SysLog) {
 	gormx.Insert(syslog)
 }

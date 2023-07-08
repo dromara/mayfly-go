@@ -8,9 +8,7 @@ type MongoQuery struct {
 	Name               string
 	Uri                string
 	SshTunnelMachineId uint64 // ssh隧道机器id
-	TagId              uint64 `json:"tagId"`
-	TagPath            string `json:"tagPath"`
+	TagPath            string `json:"tagPath" form:"tagPath"`
 
-	TagIds      []uint64
-	TagPathLike string
+	TagIds []uint64
 }

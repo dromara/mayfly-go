@@ -14,18 +14,14 @@ import (
 type HandlerFunc func(*Ctx)
 
 type Ctx struct {
-	GinCtx *gin.Context // gin context
+	Conf *Conf // 请求配置
 
-	RequiredPermission *Permission         // 需要的权限信息，默认为nil，需要校验token
-	LoginAccount       *model.LoginAccount // 登录账号信息，只有校验token后才会有值
-
-	LogInfo  *LogInfo // 日志相关信息
-	ReqParam any      // 请求参数，主要用于记录日志
-	ResData  any      // 响应结果
-	Err      any      // 请求错误
-
-	timed int64 // 执行时间
-	NoRes bool  // 无需返回结果，即文件下载等
+	GinCtx       *gin.Context        // gin context
+	LoginAccount *model.LoginAccount // 登录账号信息，只有校验token后才会有值
+	ReqParam     any                 // 请求参数，主要用于记录日志
+	ResData      any                 // 响应结果
+	Err          any                 // 请求错误
+	timed        int64               // 执行时间
 }
 
 func (rc *Ctx) Handle(handler HandlerFunc) {
@@ -54,36 +50,44 @@ func (rc *Ctx) Handle(handler HandlerFunc) {
 	begin := time.Now()
 	handler(rc)
 	rc.timed = time.Since(begin).Milliseconds()
-	if !rc.NoRes {
+	if rc.Conf == nil || !rc.Conf.noRes {
 		ginx.SuccessRes(ginCtx, rc.ResData)
 	}
 }
 
 func (rc *Ctx) Download(reader io.Reader, filename string) {
-	rc.NoRes = true
 	ginx.Download(rc.GinCtx, reader, filename)
+}
+
+func (rc *Ctx) WithConf(conf *Conf) *Ctx {
+	rc.Conf = conf
+	return rc
+}
+
+// 设置请求上下文需要的权限信息
+func (rc *Ctx) WithRequiredPermission(permission *Permission) *Ctx {
+	if rc.Conf == nil {
+		rc.Conf = new(Conf)
+	}
+	rc.Conf.requiredPermission = permission
+	return rc
+}
+
+// 设置请求日志信息
+func (rc *Ctx) WithLog(logInfo *LogInfo) *Ctx {
+	if rc.Conf == nil {
+		rc.Conf = new(Conf)
+	}
+	rc.Conf.logInfo = logInfo
+	return rc
+}
+
+func (rc *Ctx) GetLogInfo() *LogInfo {
+	return rc.Conf.logInfo
 }
 
 func NewCtxWithGin(g *gin.Context) *Ctx {
 	return &Ctx{GinCtx: g}
-}
-
-// 调用该方法设置请求描述，则默认记录日志，并不记录响应结果
-func (r *Ctx) WithLog(li *LogInfo) *Ctx {
-	r.LogInfo = li
-	return r
-}
-
-// 设置请求上下文需要的权限信息
-func (r *Ctx) WithRequiredPermission(permission *Permission) *Ctx {
-	r.RequiredPermission = permission
-	return r
-}
-
-// 不需要token校验
-func (r *Ctx) DontNeedToken() *Ctx {
-	r.RequiredPermission = &Permission{NeedToken: false}
-	return r
 }
 
 // 处理器拦截器函数

@@ -9,7 +9,6 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
 )
 
 type Resource struct {
@@ -29,11 +28,10 @@ func (r *Resource) GetById(rc *req.Ctx) {
 func (r *Resource) SaveResource(rc *req.Ctx) {
 	g := rc.GinCtx
 	form := new(form.ResourceForm)
-	ginx.BindJsonAndValid(g, form)
+	entity := ginx.BindJsonAndCopyTo(g, form, new(entity.Resource))
+
 	rc.ReqParam = form
 
-	entity := new(entity.Resource)
-	utils.Copy(entity, form)
 	// 将meta转为json字符串存储
 	bytes, _ := json.Marshal(form.Meta)
 	entity.Meta = string(bytes)

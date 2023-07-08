@@ -35,8 +35,7 @@ const DEFAULT_ROW_SIZE = 5000
 
 // @router /api/dbs [get]
 func (d *Db) Dbs(rc *req.Ctx) {
-	condition := new(entity.DbQuery)
-	condition.TagPathLike = rc.GinCtx.Query("tagPath")
+	queryCond, page := ginx.BindQueryAndPage[*entity.DbQuery](rc.GinCtx, new(entity.DbQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
 	tagIds := d.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
@@ -44,16 +43,14 @@ func (d *Db) Dbs(rc *req.Ctx) {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	condition.TagIds = tagIds
-	rc.ResData = d.DbApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.SelectDataDbVO))
+
+	queryCond.TagIds = tagIds
+	rc.ResData = d.DbApp.GetPageList(queryCond, page, new([]vo.SelectDataDbVO))
 }
 
 func (d *Db) Save(rc *req.Ctx) {
 	form := &form.DbForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-
-	db := new(entity.Db)
-	utils.Copy(db, form)
+	db := ginx.BindJsonAndCopyTo[*entity.Db](rc.GinCtx, form, new(entity.Db))
 
 	// 密码解密，并使用解密后的赋值
 	originPwd, err := utils.DefaultRsaDecrypt(form.Password, true)
@@ -319,7 +316,6 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 
 		writer.WriteString("COMMIT;\n")
 	}
-	rc.NoRes = true
 
 	rc.ReqParam = fmt.Sprintf("%s, tables: %s, dumpType: %s", dbInstance.Info.GetLogDesc(), tablesStr, dumpType)
 }

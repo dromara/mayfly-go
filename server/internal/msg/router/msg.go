@@ -13,9 +13,6 @@ func InitMsgRouter(router *gin.RouterGroup) {
 	a := &api.Msg{
 		MsgApp: application.GetMsgApp(),
 	}
-	{
-		msg.GET("/self", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(a.GetMsgs)
-		})
-	}
+
+	req.NewGet("/self", a.GetMsgs).Group(msg)
 }

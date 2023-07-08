@@ -10,8 +10,6 @@ import (
 func InitCaptchaRouter(router *gin.RouterGroup) {
 	captcha := router.Group("sys/captcha")
 	{
-		captcha.GET("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).DontNeedToken().Handle(api.GenerateCaptcha)
-		})
+		req.NewGet("", api.GenerateCaptcha).DontNeedToken().Group(captcha)
 	}
 }

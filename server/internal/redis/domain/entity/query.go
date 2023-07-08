@@ -12,8 +12,7 @@ type RedisQuery struct {
 	Db                 string `orm:"column(database)" json:"db"`
 	SshTunnelMachineId int    `orm:"column(ssh_tunnel_machine_id)" json:"sshTunnelMachineId"` // ssh隧道机器id
 	Remark             string
-	TagId              uint64
 
-	TagIds      []uint64
-	TagPathLike string
+	TagIds  []uint64
+	TagPath string `form:"tagPath"`
 }

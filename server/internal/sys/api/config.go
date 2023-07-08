@@ -7,7 +7,6 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
 )
 
 type Config struct {
@@ -27,13 +26,9 @@ func (c *Config) GetConfigValueByKey(rc *req.Ctx) {
 }
 
 func (c *Config) SaveConfig(rc *req.Ctx) {
-	g := rc.GinCtx
 	form := &form.ConfigForm{}
-	ginx.BindJsonAndValid(g, form)
+	config := ginx.BindJsonAndCopyTo(rc.GinCtx, form, new(entity.Config))
 	rc.ReqParam = form
-
-	config := new(entity.Config)
-	utils.Copy(config, form)
 	config.SetBaseInfo(rc.LoginAccount)
 	c.ConfigApp.Save(config)
 }

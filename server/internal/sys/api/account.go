@@ -283,11 +283,7 @@ func (a *Account) AccountInfo(rc *req.Ctx) {
 
 // 更新个人账号信息
 func (a *Account) UpdateAccount(rc *req.Ctx) {
-	updateForm := &form.AccountUpdateForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, updateForm)
-
-	updateAccount := new(entity.Account)
-	utils.Copy(updateAccount, updateForm)
+	updateAccount := ginx.BindJsonAndCopyTo[*entity.Account](rc.GinCtx, new(form.AccountUpdateForm), new(entity.Account))
 	// 账号id为登录者账号
 	updateAccount.Id = rc.LoginAccount.Id
 
@@ -310,11 +306,10 @@ func (a *Account) Accounts(rc *req.Ctx) {
 // @router /accounts
 func (a *Account) SaveAccount(rc *req.Ctx) {
 	form := &form.AccountCreateForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-	rc.ReqParam = form
+	account := ginx.BindJsonAndCopyTo(rc.GinCtx, form, new(entity.Account))
 
-	account := &entity.Account{}
-	utils.Copy(account, form)
+	form.Password = "*****"
+	rc.ReqParam = form
 	account.SetBaseInfo(rc.LoginAccount)
 
 	if account.Id == 0 {

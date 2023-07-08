@@ -33,7 +33,10 @@ func PermissionHandler(rc *Ctx) error {
 		}
 	}
 
-	permission := rc.RequiredPermission
+	var permission *Permission
+	if rc.Conf != nil {
+		permission = rc.Conf.requiredPermission
+	}
 	// 如果需要的权限信息不为空，并且不需要token，则不返回错误，继续后续逻辑
 	if permission != nil && !permission.NeedToken {
 		return nil

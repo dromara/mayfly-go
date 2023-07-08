@@ -11,215 +11,98 @@ import (
 
 func InitRedisRouter(router *gin.RouterGroup) {
 	redis := router.Group("redis")
-	{
-		rs := &api.Redis{
-			RedisApp: application.GetRedisApp(),
-			TagApp:   tagapp.GetTagTreeApp(),
-		}
 
+	rs := &api.Redis{
+		RedisApp: application.GetRedisApp(),
+		TagApp:   tagapp.GetTagTreeApp(),
+	}
+
+	// 保存数据权限
+	saveDataP := req.NewPermission("redis:data:save")
+	// 删除数据权限
+	deleteDataP := req.NewPermission("redis:data:del")
+
+	reqs := [...]*req.Conf{
 		// 获取redis list
-		redis.GET("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.RedisList)
-		})
+		req.NewGet("", rs.RedisList),
 
-		save := req.NewLogInfo("redis-保存信息").WithSave(true)
-		redis.POST("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).WithLog(save).Handle(rs.Save)
-		})
+		req.NewPost("", rs.Save).Log(req.NewLogSave("redis-保存信息")),
 
-		redis.GET(":id/pwd", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.GetRedisPwd)
-		})
+		req.NewGet(":id/pwd", rs.GetRedisPwd),
 
-		delRedis := req.NewLogInfo("redis-删除信息").WithSave(true)
-		redis.DELETE(":id", func(c *gin.Context) {
-			req.NewCtxWithGin(c).WithLog(delRedis).Handle(rs.DeleteRedis)
-		})
+		req.NewDelete(":id", rs.DeleteRedis).Log(req.NewLogSave("redis-删除信息")),
 
-		redis.GET(":id/info", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.RedisInfo)
-		})
+		req.NewGet("/:id/info", rs.RedisInfo),
 
-		redis.GET(":id/cluster-info", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.ClusterInfo)
-		})
+		req.NewGet(":id/cluster-info", rs.ClusterInfo),
 
 		// 获取指定redis keys
-		redis.POST(":id/:db/scan", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.Scan)
-		})
+		req.NewPost(":id/:db/scan", rs.Scan),
 
-		redis.GET(":id/:db/key-ttl", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.TtlKey)
-		})
+		req.NewGet(":id/:db/key-ttl", rs.TtlKey),
 
-		// 保存数据权限
-		saveDataP := req.NewPermission("redis:data:save")
-		// 删除数据权限
-		deleteDataP := req.NewPermission("redis:data:del")
+		req.NewDelete(":id/:db/key", rs.DeleteKey).Log(req.NewLogSave("redis-删除key")).RequiredPermission(deleteDataP),
 
-		// 删除key
-		deleteKeyL := req.NewLogInfo("redis-删除key").WithSave(true)
-		redis.DELETE(":id/:db/key", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(deleteKeyL).
-				WithRequiredPermission(deleteDataP).
-				Handle(rs.DeleteKey)
-		})
+		req.NewPost(":id/:db/rename-key", rs.RenameKey).Log(req.NewLogSave("redis-重命名key")).RequiredPermission(saveDataP),
 
-		renameKeyL := req.NewLogInfo("redis-重命名key").WithSave(true)
-		redis.POST(":id/:db/rename-key", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(renameKeyL).
-				WithRequiredPermission(saveDataP).
-				Handle(rs.RenameKey)
-		})
+		req.NewPost(":id/:db/expire-key", rs.ExpireKey).Log(req.NewLogSave("redis-设置key过期时间")).RequiredPermission(saveDataP),
 
-		expireKeyL := req.NewLogInfo("redis-设置key过期时间").WithSave(true)
-		redis.POST(":id/:db/expire-key", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(expireKeyL).
-				WithRequiredPermission(saveDataP).
-				Handle(rs.ExpireKey)
-		})
+		req.NewDelete(":id/:db/persist-key", rs.PersistKey).Log(req.NewLogSave("redis-移除key过期时间")).RequiredPermission(saveDataP),
 
-		persistKeyL := req.NewLogInfo("redis-移除key过期时间").WithSave(true)
-		redis.DELETE(":id/:db/persist-key", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(persistKeyL).
-				WithRequiredPermission(saveDataP).
-				Handle(rs.PersistKey)
-		})
-
-		flushDbL := req.NewLogInfo("redis-flushdb").WithSave(true)
-		redis.DELETE(":id/:db/flushdb", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(flushDbL).
-				WithRequiredPermission(saveDataP).
-				Handle(rs.FlushDb)
-		})
+		req.NewDelete(":id/:db/flushdb", rs.FlushDb).Log(req.NewLogSave("redis-flushdb")).RequiredPermission(deleteDataP),
 
 		// 获取string类型值
-		redis.GET(":id/:db/string-value", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.GetStringValue)
-		})
+		req.NewGet(":id/:db/string-value", rs.GetStringValue),
 
 		// 设置string类型值
-		setStringL := req.NewLogInfo("redis-setString").WithSave(true)
-		redis.POST(":id/:db/string-value", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(setStringL).
-				WithRequiredPermission(saveDataP).
-				Handle(rs.SetStringValue)
-		})
+		req.NewPost(":id/:db/string-value", rs.SetStringValue).Log(req.NewLogSave("redis-setString")).RequiredPermission(saveDataP),
 
-		// hscan
-		redis.GET(":id/:db/hscan", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.Hscan)
-		})
+		// ———————————————— hash操作 ————————————————
+		req.NewGet(":id/:db/hscan", rs.Hscan),
 
-		redis.GET(":id/:db/hget", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.Hget)
-		})
+		req.NewGet(":id/:db/hget", rs.Hget),
 
-		hsetL := req.NewLogInfo("redis-hset").WithSave(true)
-		redis.POST(":id/:db/hset", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(hsetL).
-				WithRequiredPermission(saveDataP).
-				Handle(rs.Hset)
-		})
+		req.NewPost(":id/:db/hset", rs.Hset).Log(req.NewLogSave("redis-hset")).RequiredPermission(saveDataP),
 
-		hdelL := req.NewLogInfo("redis-hdel").WithSave(true)
-		redis.DELETE(":id/:db/hdel", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(hdelL).
-				WithRequiredPermission(deleteDataP).
-				Handle(rs.Hdel)
-		})
+		req.NewDelete(":id/:db/hdel", rs.Hdel).Log(req.NewLogSave("redis-hdel")).RequiredPermission(deleteDataP),
 
 		// 设置hash类型值
-		setHashValueL := req.NewLogInfo("redis-setHashValue").WithSave(true)
-		redis.POST(":id/:db/hash-value", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(setHashValueL).
-				WithRequiredPermission(saveDataP).
-				Handle(rs.SetHashValue)
-		})
+		req.NewPost(":id/:db/hash-value", rs.SetHashValue).Log(req.NewLogSave("redis-setHashValue")).RequiredPermission(saveDataP),
 
-		// set操作
-		redis.GET(":id/:db/set-value", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.GetSetValue)
-		})
+		// ---------------  set操作  ----------------
+		req.NewGet(":id/:db/set-value", rs.GetSetValue),
 
-		redis.POST(":id/:db/set-value", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithRequiredPermission(saveDataP).
-				Handle(rs.SetSetValue)
-		})
+		req.NewPost(":id/:db/set-value", rs.SetSetValue).RequiredPermission(saveDataP),
 
-		redis.GET(":id/:db/scard", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.Scard)
-		})
+		req.NewGet(":id/:db/scard", rs.Scard),
 
-		redis.POST(":id/:db/sscan", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.Sscan)
-		})
+		req.NewPost(":id/:db/sscan", rs.Sscan),
 
-		redis.POST(":id/:db/sadd", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithRequiredPermission(saveDataP).
-				Handle(rs.Sadd)
-		})
+		req.NewPost(":id/:db/sadd", rs.Sadd).RequiredPermission(saveDataP),
 
-		redis.POST(":id/:db/srem", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithRequiredPermission(deleteDataP).
-				Handle(rs.Srem)
-		})
+		req.NewPost(":id/:db/srem", rs.Srem).RequiredPermission(deleteDataP),
 
-		// 获取list类型值
-		redis.GET(":id/:db/list-value", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.GetListValue)
-		})
+		// --------------- list操作  ----------------
+		req.NewGet(":id/:db/list-value", rs.GetListValue),
 
-		redis.POST(":id/:db/list-value", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.SaveListValue)
-		})
+		req.NewPost(":id/:db/list-value", rs.SaveListValue).RequiredPermission(saveDataP),
 
-		redis.POST(":id/:db/list-value/lset", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.SetListValue)
-		})
+		req.NewPost(":id/:db/list-value/lset", rs.SetListValue).RequiredPermission(saveDataP),
 
-		redis.POST(":id/:db/lrem", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithRequiredPermission(deleteDataP).
-				Handle(rs.Lrem)
-		})
+		req.NewPost(":id/:db/lrem", rs.Lrem).RequiredPermission(deleteDataP),
 
-		// zset操作
-		redis.GET(":id/:db/zcard", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.ZCard)
-		})
+		// --------------- zset操作  ----------------
+		req.NewGet(":id/:db/zcard", rs.ZCard),
 
-		redis.GET(":id/:db/zscan", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.ZScan)
-		})
+		req.NewGet(":id/:db/zscan", rs.ZScan),
 
-		redis.GET(":id/:db/zrevrange", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(rs.ZRevRange)
-		})
+		req.NewGet(":id/:db/zrevrange", rs.ZRevRange),
 
-		redis.POST(":id/:db/zrem", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithRequiredPermission(deleteDataP).
-				Handle(rs.ZRem)
-		})
+		req.NewPost(":id/:db/zrem", rs.ZRem).Log(req.NewLogSave("redis-zrem")).RequiredPermission(deleteDataP),
 
-		redis.POST(":id/:db/zadd", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithRequiredPermission(saveDataP).
-				Handle(rs.ZAdd)
-		})
+		req.NewPost(":id/:db/zadd", rs.ZAdd).RequiredPermission(saveDataP),
 	}
+
+	req.BatchSetGroup(redis, reqs[:])
+
 }

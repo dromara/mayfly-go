@@ -3,7 +3,7 @@ package entity
 import "time"
 
 // 系统操作日志
-type Syslog struct {
+type SysLog struct {
 	Id         uint64    `json:"id"`
 	CreateTime time.Time `json:"createTime"`
 	CreatorId  uint64    `json:"creatorId"`
@@ -15,7 +15,7 @@ type Syslog struct {
 	Resp        string `json:"resp"`     // 响应结构
 }
 
-func (a *Syslog) TableName() string {
+func (a *SysLog) TableName() string {
 	return "t_sys_log"
 }
 

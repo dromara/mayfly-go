@@ -12,10 +12,7 @@ func InitSyslogRouter(router *gin.RouterGroup) {
 	s := &api.Syslog{
 		SyslogApp: application.GetSyslogApp(),
 	}
-	sys := router.Group("syslogs")
-	{
-		sys.GET("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(s.Syslogs)
-		})
-	}
+	sysG := router.Group("syslogs")
+
+	req.NewGet("", s.Syslogs).Group(sysG)
 }

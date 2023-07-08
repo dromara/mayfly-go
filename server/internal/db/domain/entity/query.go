@@ -16,8 +16,17 @@ type DbQuery struct {
 	Database string `orm:"column(database)" json:"database"`
 	Params   string `json:"params"`
 	Remark   string `json:"remark"`
-	TagId    uint64
 
-	TagIds      []uint64
-	TagPathLike string
+	TagIds  []uint64
+	TagPath string `form:"tagPath"`
+}
+
+type DbSqlExecQuery struct {
+	Id    uint64 `json:"id" form:"id"`
+	DbId  uint64 `json:"dbId" form:"dbId"`
+	Db    string `json:"db" form:"db"`
+	Table string `json:"table" form:"table"`
+	Type  int8   `json:"type" form:"type"` // 类型
+
+	CreatorId uint64
 }

@@ -13,7 +13,7 @@ import (
 )
 
 type Syslog interface {
-	GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	// 从请求上下文的参数保存系统日志
 	SaveFromReq(req *req.Ctx)
@@ -29,7 +29,7 @@ type syslogAppImpl struct {
 	syslogRepo repository.Syslog
 }
 
-func (m *syslogAppImpl) GetPageList(condition *entity.Syslog, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+func (m *syslogAppImpl) GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return m.syslogRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -38,13 +38,13 @@ func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 	if lg == nil {
 		lg = &model.LoginAccount{Id: 0, Username: "-"}
 	}
-	syslog := new(entity.Syslog)
+	syslog := new(entity.SysLog)
 	syslog.CreateTime = time.Now()
 	syslog.Creator = lg.Username
 	syslog.CreatorId = lg.Id
-	syslog.Description = req.LogInfo.Description
+	syslog.Description = req.GetLogInfo().Description
 
-	if req.LogInfo.LogResp {
+	if req.GetLogInfo().LogResp {
 		respB, _ := json.Marshal(req.ResData)
 		syslog.Resp = string(respB)
 	}

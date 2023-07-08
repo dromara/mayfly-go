@@ -5,6 +5,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils"
 	"net/http"
 	"runtime/debug"
 	"strconv"
@@ -13,16 +14,36 @@ import (
 )
 
 // 绑定并校验请求结构体参数
-func BindJsonAndValid(g *gin.Context, data any) {
+func BindJsonAndValid[T any](g *gin.Context, data T) T {
 	if err := g.ShouldBindJSON(data); err != nil {
 		panic(biz.NewBizErr(err.Error()))
+	} else {
+		return data
 	}
 }
 
-// 绑定查询字符串到
-func BindQuery(g *gin.Context, data any) {
-	if err := g.ShouldBindQuery(data); err != nil {
+// 绑定请求体中的json至form结构体，并拷贝至另一结构体
+func BindJsonAndCopyTo[T any](g *gin.Context, form any, toStruct T) T {
+	BindJsonAndValid(g, form)
+	utils.Copy(toStruct, form)
+	return toStruct
+}
+
+// 绑定查询字符串到指定结构体
+func BindQuery[T any](g *gin.Context, data T) T {
+	if err := g.BindQuery(data); err != nil {
 		panic(biz.NewBizErr(err.Error()))
+	} else {
+		return data
+	}
+}
+
+// 绑定查询字符串到指定结构体，并将分页信息也返回
+func BindQueryAndPage[T any](g *gin.Context, data T) (T, *model.PageParam) {
+	if err := g.BindQuery(data); err != nil {
+		panic(biz.NewBizErr(err.Error()))
+	} else {
+		return data, GetPageParam(g)
 	}
 }
 

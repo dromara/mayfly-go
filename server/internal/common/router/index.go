@@ -23,9 +23,6 @@ func InitIndexRouter(router *gin.RouterGroup) {
 	}
 	{
 		// 首页基本信息统计
-		index.GET("count", func(g *gin.Context) {
-			req.NewCtxWithGin(g).
-				Handle(i.Count)
-		})
+		req.NewGet("count", i.Count).Group(index)
 	}
 }

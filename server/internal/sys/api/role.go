@@ -27,13 +27,9 @@ func (r *Role) Roles(rc *req.Ctx) {
 
 // 保存角色信息
 func (r *Role) SaveRole(rc *req.Ctx) {
-	g := rc.GinCtx
 	form := &form.RoleForm{}
-	ginx.BindJsonAndValid(g, form)
+	role := ginx.BindJsonAndCopyTo(rc.GinCtx, form, new(entity.Role))
 	rc.ReqParam = form
-
-	role := new(entity.Role)
-	utils.Copy(role, form)
 	role.SetBaseInfo(rc.LoginAccount)
 
 	r.RoleApp.SaveRole(role)

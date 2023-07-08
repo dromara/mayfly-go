@@ -13,43 +13,21 @@ func InitRoleRouter(router *gin.RouterGroup) {
 		RoleApp:     application.GetRoleApp(),
 		ResourceApp: application.GetResourceApp(),
 	}
-	db := router.Group("sys/roles")
-	{
+	rg := router.Group("sys/roles")
 
-		db.GET("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(r.Roles)
-		})
+	reqs := [...]*req.Conf{
+		req.NewGet("", r.Roles),
 
-		saveRole := req.NewLogInfo("保存角色").WithSave(true)
-		sPermission := req.NewPermission("role:add")
-		db.POST("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).WithLog(saveRole).
-				WithRequiredPermission(sPermission).
-				Handle(r.SaveRole)
-		})
+		req.NewPost("", r.SaveRole).Log(req.NewLogSave("保存角色")).RequiredPermissionCode("role:add"),
 
-		delRole := req.NewLogInfo("删除角色").WithSave(true)
-		drPermission := req.NewPermission("role:del")
-		db.DELETE(":id", func(c *gin.Context) {
-			req.NewCtxWithGin(c).WithLog(delRole).
-				WithRequiredPermission(drPermission).
-				Handle(r.DelRole)
-		})
+		req.NewDelete(":id", r.DelRole).Log(req.NewLogSave("删除角色")).RequiredPermissionCode("role:del"),
 
-		db.GET(":id/resourceIds", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(r.RoleResourceIds)
-		})
+		req.NewGet(":id/resourceIds", r.RoleResourceIds),
 
-		db.GET(":id/resources", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(r.RoleResource)
-		})
+		req.NewGet(":id/resources", r.RoleResource),
 
-		saveResource := req.NewLogInfo("保存角色资源").WithSave(true)
-		srPermission := req.NewPermission("role:saveResources")
-		db.POST(":id/resources", func(c *gin.Context) {
-			req.NewCtxWithGin(c).WithLog(saveResource).
-				WithRequiredPermission(srPermission).
-				Handle(r.SaveResource)
-		})
+		req.NewPost(":id/resources", r.SaveResource).Log(req.NewLogSave("保存角色资源")).RequiredPermissionCode("role:saveResources"),
 	}
+
+	req.BatchSetGroup(rg, reqs[:])
 }

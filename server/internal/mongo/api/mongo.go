@@ -10,7 +10,6 @@ import (
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
 	"regexp"
 	"strconv"
 	"strings"
@@ -27,8 +26,7 @@ type Mongo struct {
 }
 
 func (m *Mongo) Mongos(rc *req.Ctx) {
-	condition := new(entity.MongoQuery)
-	condition.TagPathLike = rc.GinCtx.Query("tagPath")
+	queryCond, page := ginx.BindQueryAndPage[*entity.MongoQuery](rc.GinCtx, new(entity.MongoQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
 	tagIds := m.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
@@ -36,16 +34,14 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	condition.TagIds = tagIds
-	rc.ResData = m.MongoApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]entity.Mongo))
+	queryCond.TagIds = tagIds
+
+	rc.ResData = m.MongoApp.GetPageList(queryCond, page, new([]entity.Mongo))
 }
 
 func (m *Mongo) Save(rc *req.Ctx) {
 	form := &form.Mongo{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-
-	mongo := new(entity.Mongo)
-	utils.Copy(mongo, form)
+	mongo := ginx.BindJsonAndCopyTo[*entity.Mongo](rc.GinCtx, form, new(entity.Mongo))
 
 	// 密码脱敏记录日志
 	form.Uri = func(str string) string {

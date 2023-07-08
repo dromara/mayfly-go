@@ -10,24 +10,18 @@ import (
 
 func InitSysConfigRouter(router *gin.RouterGroup) {
 	r := &api.Config{ConfigApp: application.GetConfigApp()}
-	db := router.Group("sys/configs")
-	{
-		baseP := req.NewPermission("config:base")
-		db.GET("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).WithRequiredPermission(baseP).Handle(r.Configs)
-		})
+	configG := router.Group("sys/configs")
 
-		db.GET("/value", func(c *gin.Context) {
-			req.NewCtxWithGin(c).DontNeedToken().Handle(r.GetConfigValueByKey)
-		})
+	baseP := req.NewPermission("config:base")
 
-		saveConfig := req.NewLogInfo("保存系统配置信息").WithSave(true)
-		saveConfigP := req.NewPermission("config:save")
-		db.POST("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(saveConfig).
-				WithRequiredPermission(saveConfigP).
-				Handle(r.SaveConfig)
-		})
+	reqs := [...]*req.Conf{
+		req.NewGet("", r.Configs).RequiredPermission(baseP),
+
+		// 获取指定配置key对应的值
+		req.NewGet("/value", r.GetConfigValueByKey).DontNeedToken(),
+
+		req.NewPost("", r.SaveConfig).Log(req.NewLogSave("保存系统配置信息")).RequiredPermissionCode("config:save"),
 	}
+
+	req.BatchSetGroup(configG, reqs[:])
 }

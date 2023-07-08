@@ -17,73 +17,34 @@ func InitMachineRouter(router *gin.RouterGroup) {
 
 	machines := router.Group("machines")
 	{
-		machines.GET("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(m.Machines)
-		})
-
-		machines.GET(":machineId/stats", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(m.MachineStats)
-		})
-
-		machines.GET(":machineId/process", func(c *gin.Context) {
-			req.NewCtxWithGin(c).Handle(m.GetProcess)
-		})
-
-		// 终止进程
-		killProcessL := req.NewLogInfo("终止进程").WithSave(true)
-		killProcessP := req.NewPermission("machine:killprocess")
-		machines.DELETE(":machineId/process", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(killProcessL).
-				WithRequiredPermission(killProcessP).
-				Handle(m.KillProcess)
-		})
-
-		saveMachine := req.NewLogInfo("保存机器信息").WithSave(true)
 		saveMachineP := req.NewPermission("machine:update")
-		machines.POST("", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(saveMachine).
-				WithRequiredPermission(saveMachineP).
-				Handle(m.SaveMachine)
-		})
 
-		machines.POST("test-conn", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				Handle(m.TestConn)
-		})
+		reqs := [...]*req.Conf{
+			req.NewGet("", m.Machines),
 
-		changeStatus := req.NewLogInfo("调整机器状态").WithSave(true)
-		machines.PUT(":machineId/:status", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(changeStatus).
-				WithRequiredPermission(saveMachineP).
-				Handle(m.ChangeStatus)
-		})
+			req.NewGet(":machineId/stats", m.MachineStats),
 
-		delMachine := req.NewLogInfo("删除机器").WithSave(true)
-		machines.DELETE(":machineId", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(delMachine).
-				Handle(m.DeleteMachine)
-		})
+			req.NewGet(":machineId/process", m.GetProcess),
 
-		closeCli := req.NewLogInfo("关闭机器客户端").WithSave(true)
-		closeCliP := req.NewPermission("machine:close-cli")
-		machines.DELETE(":machineId/close-cli", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithLog(closeCli).
-				WithRequiredPermission(closeCliP).
-				Handle(m.CloseCli)
-		})
+			req.NewDelete(":machineId/process", m.KillProcess).Log(req.NewLogSave("终止进程")).RequiredPermissionCode("machine:killprocess"),
 
+			req.NewPost("", m.SaveMachine).Log(req.NewLogSave("保存机器信息")).RequiredPermission(saveMachineP),
+
+			req.NewPost("test-conn", m.TestConn),
+
+			req.NewPut(":machineId/:status", m.ChangeStatus).Log(req.NewLogSave("调整机器状态")).RequiredPermission(saveMachineP),
+
+			req.NewDelete(":machineId", m.DeleteMachine).Log(req.NewLogSave("删除机器")),
+
+			req.NewDelete(":machineId/close-cli", m.CloseCli).Log(req.NewLogSave("关闭机器客户端")).RequiredPermissionCode("machine:close-cli"),
+
+			// 获取机器终端回放记录的相应文件夹名或文件名,目前具有保存机器信息的权限标识才有权限查看终端回放
+			req.NewGet("rec/names", m.MachineRecDirNames).RequiredPermission(saveMachineP),
+		}
+
+		req.BatchSetGroup(machines, reqs[:])
+
+		// 终端连接
 		machines.GET(":machineId/terminal", m.WsSSH)
-
-		// 获取机器终端回放记录的相应文件夹名或文件名,目前具有保存机器信息的权限标识才有权限查看终端回放
-		machines.GET("rec/names", func(c *gin.Context) {
-			req.NewCtxWithGin(c).
-				WithRequiredPermission(saveMachineP).
-				Handle(m.MachineRecDirNames)
-		})
 	}
 }

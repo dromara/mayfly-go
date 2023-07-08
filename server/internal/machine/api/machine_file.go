@@ -12,7 +12,6 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
 	"mayfly-go/pkg/ws"
 	"sort"
 	"strconv"
@@ -40,22 +39,16 @@ func (m *MachineFile) MachineFiles(rc *req.Ctx) {
 }
 
 func (m *MachineFile) SaveMachineFiles(rc *req.Ctx) {
-	g := rc.GinCtx
 	fileForm := new(form.MachineFileForm)
-	ginx.BindJsonAndValid(g, fileForm)
-
-	entity := new(entity.MachineFile)
-	utils.Copy(entity, fileForm)
-
+	entity := ginx.BindJsonAndCopyTo[*entity.MachineFile](rc.GinCtx, fileForm, new(entity.MachineFile))
 	entity.SetBaseInfo(rc.LoginAccount)
 
+	rc.ReqParam = fileForm
 	m.MachineFileApp.Save(entity)
 }
 
 func (m *MachineFile) DeleteFile(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
-	m.MachineFileApp.Delete(fid)
+	m.MachineFileApp.Delete(GetMachineFileId(rc.GinCtx))
 }
 
 /***      sftp相关操作      */
@@ -64,8 +57,7 @@ func (m *MachineFile) CreateFile(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
 
-	form := new(form.MachineCreateFileForm)
-	ginx.BindJsonAndValid(g, form)
+	form := ginx.BindJsonAndValid(g, new(form.MachineCreateFileForm))
 	path := form.Path
 
 	mi := m.MachineFileApp.GetMachine(fid)

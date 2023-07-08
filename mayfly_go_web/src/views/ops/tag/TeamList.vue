@@ -269,9 +269,9 @@ const deleteTeam = () => {
 
 const showMembers = async (team: any) => {
     state.showMemDialog.query.teamId = team.id;
+    state.showMemDialog.visible = true;
     await setMemebers();
     state.showMemDialog.title = `[${team.name}] 成员信息`;
-    state.showMemDialog.visible = true;
 };
 
 const getAccount = (username: any) => {

@@ -19,33 +19,34 @@ func SetSaveLogFunc(sl SaveLogFunc) {
 }
 
 type LogInfo struct {
-	LogResp     bool   // 是否记录返回结果
 	Description string // 请求描述
-	Save        bool   // 是否保存日志
+
+	LogResp bool // 是否记录返回结果
+	save    bool // 是否保存日志
 }
 
-// 新建日志信息
-func NewLogInfo(description string) *LogInfo {
-	return &LogInfo{Description: description, LogResp: false}
+// 新建日志信息，默认不保存该日志
+func NewLog(description string) *LogInfo {
+	return &LogInfo{Description: description, LogResp: false, save: false}
 }
 
-// 是否记录返回结果
-func (i *LogInfo) WithLogResp(logResp bool) *LogInfo {
-	i.LogResp = logResp
-	return i
+// 新建日志信息,并且需要保存该日志信息
+func NewLogSave(description string) *LogInfo {
+	return &LogInfo{Description: description, LogResp: false, save: true}
 }
 
-// 是否保存日志
-func (i *LogInfo) WithSave(saveLog bool) *LogInfo {
-	i.Save = saveLog
+// 记录返回结果
+func (i *LogInfo) WithLogResp() *LogInfo {
+	i.LogResp = true
 	return i
 }
 
 func LogHandler(rc *Ctx) error {
-	li := rc.LogInfo
-	if li == nil {
+	if rc.Conf == nil || rc.Conf.logInfo == nil {
 		return nil
 	}
+
+	li := rc.Conf.logInfo
 
 	lfs := logrus.Fields{}
 	if la := rc.LoginAccount; la != nil {
@@ -57,7 +58,7 @@ func LogHandler(rc *Ctx) error {
 	lfs[req.Method] = req.URL.Path
 
 	// 如果需要保存日志，并且保存日志处理函数存在则执行保存日志函数
-	if li.Save && saveLog != nil {
+	if li.save && saveLog != nil {
 		go saveLog(rc)
 	}
 	if err := rc.Err; err != nil {
@@ -69,20 +70,21 @@ func LogHandler(rc *Ctx) error {
 }
 
 func getLogMsg(rc *Ctx) string {
-	msg := rc.LogInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
+	logInfo := rc.Conf.logInfo
+	msg := logInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
 	if !utils.IsBlank(rc.ReqParam) {
 		msg = msg + fmt.Sprintf("\n--> %s", utils.ToString(rc.ReqParam))
 	}
 
 	// 返回结果不为空，则记录返回结果
-	if rc.LogInfo.LogResp && !utils.IsBlank(rc.ResData) {
+	if logInfo.LogResp && !utils.IsBlank(rc.ResData) {
 		msg = msg + fmt.Sprintf("\n<-- %s", utils.ToString(rc.ResData))
 	}
 	return msg
 }
 
 func getErrMsg(rc *Ctx, err any) string {
-	msg := rc.LogInfo.Description
+	msg := rc.Conf.logInfo.Description
 	if !utils.IsBlank(rc.ReqParam) {
 		msg = msg + fmt.Sprintf("\n--> %s", utils.ToString(rc.ReqParam))
 	}

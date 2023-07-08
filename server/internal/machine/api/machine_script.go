@@ -31,12 +31,9 @@ func (m *MachineScript) MachineScripts(rc *req.Ctx) {
 
 func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {
 	form := new(form.MachineScriptForm)
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-	rc.ReqParam = form
+	machineScript := ginx.BindJsonAndCopyTo(rc.GinCtx, form, new(entity.MachineScript))
 
-	// 转换为entity，并设置基本信息
-	machineScript := new(entity.MachineScript)
-	utils.Copy(machineScript, form)
+	rc.ReqParam = form
 	machineScript.SetBaseInfo(rc.LoginAccount)
 
 	m.MachineScriptApp.Save(machineScript)

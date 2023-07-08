@@ -33,10 +33,7 @@ type Machine struct {
 }
 
 func (m *Machine) Machines(rc *req.Ctx) {
-	condition := new(entity.MachineQuery)
-	condition.Ip = rc.GinCtx.Query("ip")
-	condition.Name = rc.GinCtx.Query("name")
-	condition.TagPathLike = rc.GinCtx.Query("tagPath")
+	condition, pageParam := ginx.BindQueryAndPage(rc.GinCtx, new(entity.MachineQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
 	tagIds := m.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
@@ -46,7 +43,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	}
 	condition.TagIds = tagIds
 
-	res := m.MachineApp.GetMachineList(condition, ginx.GetPageParam(rc.GinCtx), new([]*vo.MachineVO))
+	res := m.MachineApp.GetMachineList(condition, pageParam, new([]*vo.MachineVO))
 	if res.Total == 0 {
 		rc.ResData = res
 		return
@@ -65,12 +62,8 @@ func (m *Machine) MachineStats(rc *req.Ctx) {
 
 // 保存机器信息
 func (m *Machine) SaveMachine(rc *req.Ctx) {
-	g := rc.GinCtx
 	machineForm := new(form.MachineForm)
-	ginx.BindJsonAndValid(g, machineForm)
-
-	me := new(entity.Machine)
-	utils.Copy(me, machineForm)
+	me := ginx.BindJsonAndCopyTo(rc.GinCtx, machineForm, new(entity.Machine))
 
 	machineForm.Password = "******"
 	rc.ReqParam = machineForm
@@ -199,7 +192,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	biz.ErrIsNilAppendErr(err, "\033[1;31m连接失败: %s\033[0m")
 
 	// 记录系统操作日志
-	rc.WithLog(req.NewLogInfo("机器-终端操作").WithSave(true))
+	rc.WithLog(req.NewLogSave("机器-终端操作"))
 	rc.ReqParam = cli.GetMachine().GetLogDesc()
 	req.LogHandler(rc)
 
