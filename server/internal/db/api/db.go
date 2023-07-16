@@ -89,6 +89,7 @@ func (d *Db) GetDatabaseNames(rc *req.Ctx) {
 	// 如果id不为空，并且密码为空则从数据库查询
 	if form.Id != 0 && db.Password == "" {
 		db = d.DbApp.GetById(form.Id)
+		db.PwdDecrypt()
 	}
 	rc.ResData = d.DbApp.GetDatabases(db)
 }
