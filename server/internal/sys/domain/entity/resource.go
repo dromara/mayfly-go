@@ -5,9 +5,9 @@ import "mayfly-go/pkg/model"
 type Resource struct {
 	model.Model
 	Pid    int    `json:"pid"`
-	UiPath string // 唯一标识路径
-	Type   int8   `json:"type"`   // 1：菜单路由；2：资源（按钮等）
-	Status int8   `json:"status"` // 1：可用；-1：不可用
+	UiPath string `json:"ui_path"` // 唯一标识路径
+	Type   int8   `json:"type"`    // 1：菜单路由；2：资源（按钮等）
+	Status int8   `json:"status"`  // 1：可用；-1：不可用
 	Code   string `json:"code"`
 	Name   string `json:"name"`
 	Weight int    `json:"weight"`

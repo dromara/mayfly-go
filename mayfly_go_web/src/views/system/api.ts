@@ -43,3 +43,8 @@ export const configApi = {
 export const logApi = {
     list: Api.newGet('/syslogs'),
 };
+
+export const authApi = {
+    info: Api.newGet('/sys/auth'),
+    saveOAuth2: Api.newPut('/sys/auth/oauth2'),
+};

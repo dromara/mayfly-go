@@ -17,7 +17,7 @@ type Config interface {
 
 	Save(config *entity.Config)
 
-	// 获取指定key的配置信息, 不会返回nil, 若不存在则值都默认值即空字符串
+	// GetConfig 获取指定key的配置信息, 不会返回nil, 若不存在则值都默认值即空字符串
 	GetConfig(key string) *entity.Config
 }
 

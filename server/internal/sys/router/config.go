@@ -18,7 +18,7 @@ func InitSysConfigRouter(router *gin.RouterGroup) {
 		req.NewGet("", r.Configs).RequiredPermission(baseP),
 
 		// 获取指定配置key对应的值
-		req.NewGet("/value", r.GetConfigValueByKey).DontNeedToken(),
+		req.NewGet("/value", r.GetConfigValueByKey).RequiredPermission(baseP),
 
 		req.NewPost("", r.SaveConfig).Log(req.NewLogSave("保存系统配置信息")).RequiredPermissionCode("config:save"),
 	}
