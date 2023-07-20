@@ -114,17 +114,15 @@ func (m *machineAppImpl) Delete(id uint64) {
 	gormx.Tx(
 		func(db *gorm.DB) error {
 			// 删除machine表信息
-			return db.Delete(new(entity.Machine), "id = ?", id).Error
+			return gormx.DeleteByIdWithDb(db, new(entity.Machine), id)
 		},
 		func(db *gorm.DB) error {
 			// 删除machine_file
-			machineFile := &entity.MachineFile{MachineId: id}
-			return db.Where(machineFile).Delete(machineFile).Error
+			return gormx.DeleteByConditionWithDb(db, &entity.MachineFile{MachineId: id})
 		},
 		func(db *gorm.DB) error {
 			// 删除machine_script
-			machineScript := &entity.MachineScript{MachineId: id}
-			return db.Where(machineScript).Delete(machineScript).Error
+			return gormx.DeleteByConditionWithDb(db, &entity.MachineScript{MachineId: id})
 		},
 	)
 }

@@ -63,9 +63,14 @@ type AuthCertForm struct {
 	Remark     string `json:"remark"`
 }
 
-// 资产授权凭证信息
-type AssetAuthCertForm struct {
-	AuthCertId uint64 `json:"authCertId"`
-	TagId      uint64 `json:"tagId"`
-	TagPath    string `json:"tagPath" binding:"required"`
+// 机器记录任务
+type MachineCronJobForm struct {
+	Id              uint64   `json:"id"`
+	Name            string   `json:"name" binding:"required"`
+	Cron            string   `json:"cron" binding:"required"` // cron
+	Script          string   `json:"script" binding:"required"`
+	Status          int      `json:"status" binding:"required"`
+	SaveExecResType int      `json:"saveExecResType" binding:"required"`
+	MachineIds      []uint64 `json:"machineIds"`
+	Remark          string   `json:"remark"`
 }

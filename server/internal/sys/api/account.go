@@ -41,8 +41,7 @@ type Account struct {
 
 // @router /accounts/login [post]
 func (a *Account) Login(rc *req.Ctx) {
-	loginForm := &form.LoginForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, loginForm)
+	loginForm := ginx.BindJsonAndValid(rc.GinCtx, new(form.LoginForm))
 
 	accountLoginSecurity := a.ConfigApp.GetConfig(entity.ConfigKeyAccountLoginSecurity).ToAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验
@@ -52,7 +51,8 @@ func (a *Account) Login(rc *req.Ctx) {
 	}
 
 	username := loginForm.Username
-	clientIp := rc.GinCtx.ClientIP()
+
+	clientIp := getIpAndRegion(rc)
 	rc.ReqParam = fmt.Sprintf("username: %s | ip: %s", username, clientIp)
 
 	originPwd, err := utils.DefaultRsaDecrypt(loginForm.Password, true)
@@ -121,13 +121,19 @@ func (a *Account) Login(rc *req.Ctx) {
 		// 不进行otp二次校验则直接返回accessToken
 		token = accessToken
 		// 保存登录消息
-		go a.saveLogin(account, clientIp)
+		go a.saveLogin(account, getIpAndRegion(rc))
 	}
 
 	// 赋值otp状态
 	res["otp"] = otpStatus
 	res["token"] = token
 	rc.ResData = res
+}
+
+// 获取ip与归属地信息
+func getIpAndRegion(rc *req.Ctx) string {
+	clientIp := rc.GinCtx.ClientIP()
+	return fmt.Sprintf("%s %s", clientIp, utils.Ip2Region(clientIp))
 }
 
 type OtpVerifyInfo struct {
@@ -261,7 +267,7 @@ func (a *Account) saveLogin(account *entity.Account, ip string) {
 	// 创建登录消息
 	loginMsg := &msgentity.Msg{
 		RecipientId: int64(account.Id),
-		Msg:         fmt.Sprintf("于[%s]-[%s]登录", ip, now.Format("2006-01-02 15:04:05")),
+		Msg:         fmt.Sprintf("于[%s]-[%s]登录", ip, utils.DefaultTimeFormat(now)),
 		Type:        1,
 	}
 	loginMsg.CreateTime = &now
@@ -373,34 +379,27 @@ func (a *Account) SaveRoles(rc *req.Ctx) {
 	aid := uint64(form.Id)
 	rc.ReqParam = form
 
-	// 将,拼接的字符串进行切割
-	idsStr := strings.Split(form.RoleIds, ",")
-	var newIds []any
-	for _, v := range idsStr {
-		id, _ := strconv.Atoi(v)
-		newIds = append(newIds, uint64(id))
-	}
+	// 将,拼接的字符串进行切割并转换
+	newIds := utils.ArrayMap[string, uint64](strings.Split(form.RoleIds, ","), func(val string) uint64 {
+		id, _ := strconv.Atoi(val)
+		return uint64(id)
+	})
 
-	// 将[]uint64转为[]any
 	oIds := a.RoleApp.GetAccountRoleIds(uint64(form.Id))
-	var oldIds []any
-	for _, v := range oIds {
-		oldIds = append(oldIds, v)
-	}
 
-	addIds, delIds, _ := utils.ArrayCompare(newIds, oldIds, func(i1, i2 any) bool {
-		return i1.(uint64) == i2.(uint64)
+	addIds, delIds, _ := utils.ArrayCompare(newIds, oIds, func(i1, i2 uint64) bool {
+		return i1 == i2
 	})
 
 	createTime := time.Now()
 	creator := rc.LoginAccount.Username
 	creatorId := rc.LoginAccount.Id
 	for _, v := range addIds {
-		rr := &entity.AccountRole{AccountId: aid, RoleId: v.(uint64), CreateTime: &createTime, CreatorId: creatorId, Creator: creator}
+		rr := &entity.AccountRole{AccountId: aid, RoleId: v, CreateTime: &createTime, CreatorId: creatorId, Creator: creator}
 		a.RoleApp.SaveAccountRole(rr)
 	}
 	for _, v := range delIds {
-		a.RoleApp.DeleteAccountRole(aid, v.(uint64))
+		a.RoleApp.DeleteAccountRole(aid, v)
 	}
 }
 

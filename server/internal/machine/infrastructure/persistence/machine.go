@@ -7,6 +7,9 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils"
+	"strconv"
+	"strings"
 )
 
 type machineRepoImpl struct{}
@@ -23,6 +26,15 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 		In("tag_id", condition.TagIds).
 		RLike("tag_path", condition.TagPath).
 		OrderByAsc("tag_path")
+
+	if condition.Ids != "" {
+		// ,分割id转为id数组
+		qd.In("id", utils.ArrayMap[string, uint64](strings.Split(condition.Ids, ","), func(val string) uint64 {
+			id, _ := strconv.Atoi(val)
+			return uint64(id)
+		}))
+	}
+
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
 

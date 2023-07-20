@@ -55,7 +55,7 @@ const state = reactive({
         TableColumn.new('createTime', '操作时间').isTime(),
         TableColumn.new('type', '结果').typeTag(LogTypeEnum),
         TableColumn.new('description', '描述'),
-        TableColumn.new('reqParam', '操作信息'),
+        TableColumn.new('reqParam', '操作信息').canBeautify(),
         TableColumn.new('resp', '响应信息'),
     ],
     total: 0,

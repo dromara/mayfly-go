@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/utils"
 	"strings"
@@ -137,7 +136,7 @@ func (r *resourceAppImpl) Sort(sortResource *entity.Resource) {
 	}
 	condition := new(entity.Resource)
 	condition.Id = sortResource.Id
-	global.Db.Model(condition).Updates(updateMap)
+	gormx.Updates(condition, updateMap)
 }
 
 func (r *resourceAppImpl) checkCode(code string) {

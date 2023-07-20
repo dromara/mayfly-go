@@ -278,7 +278,6 @@ import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
 import { isTrue } from '@/common/assert';
 import { Search as SearchIcon } from '@element-plus/icons-vue';
-import { tagApi } from '../tag/api';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -354,8 +353,8 @@ const state = reactive({
             TableColumn.new('table', '表'),
             TableColumn.new('type', '类型').typeTag(DbSqlExecTypeEnum).setAddWidth(10),
             TableColumn.new('creator', '执行人'),
-            TableColumn.new('sql', 'SQL'),
-            TableColumn.new('oldValue', '原值'),
+            TableColumn.new('sql', 'SQL').canBeautify(),
+            TableColumn.new('oldValue', '原值').canBeautify(),
             TableColumn.new('createTime', '执行时间').isTime(),
             TableColumn.new('remark', '备注'),
             TableColumn.new('action', '操作').isSlot().setMinWidth(100).fixedRight().alignCenter(),
@@ -496,7 +495,7 @@ const showInfo = (info: any) => {
 };
 
 const getTags = async () => {
-    state.tags = await tagApi.getAccountTags.request(null);
+    state.tags = await dbApi.dbTags.request(null);
 };
 
 const editDb = async (data: any) => {

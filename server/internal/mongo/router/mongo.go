@@ -21,6 +21,8 @@ func InitMongoRouter(router *gin.RouterGroup) {
 		// 获取所有mongo列表
 		req.NewGet("", ma.Mongos),
 
+		req.NewGet("/tags", ma.MongoTags),
+
 		req.NewPost("", ma.Save).Log(req.NewLogSave("mongo-保存信息")),
 
 		req.NewDelete(":id", ma.DeleteMongo).Log(req.NewLogSave("mongo-删除信息")),

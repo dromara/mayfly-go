@@ -130,11 +130,40 @@
                             <slot :name="item.prop" :data="scope.row"></slot>
                         </template>
 
+                        <!-- 枚举类型使用tab展示 -->
                         <template #default="scope" v-else-if="item.type == 'tag'">
                             <enum-tag :size="props.size" :enums="item.typeParam" :value="scope.row[item.prop]"></enum-tag>
                         </template>
 
                         <template #default="scope" v-else>
+                            <!-- 配置了美化文本按钮以及文本内容大于指定长度，则显示美化按钮 -->
+                            <el-popover
+                                v-if="item.isBeautify && scope.row[item.prop]?.length > 35"
+                                effect="light"
+                                trigger="click"
+                                placement="top"
+                                width="600px"
+                            >
+                                <template #default>
+                                    <el-input
+                                        input-style="color: black;"
+                                        :autosize="{ minRows: 3, maxRows: 15 }"
+                                        disabled
+                                        v-model="formatVal"
+                                        type="textarea"
+                                    />
+                                </template>
+                                <template #reference>
+                                    <el-link
+                                        @click="formatText(scope.row[item.prop])"
+                                        :underline="false"
+                                        type="success"
+                                        icon="MagicStick"
+                                        class="mr5"
+                                    ></el-link>
+                                </template>
+                            </el-popover>
+
                             <span>{{ item.getValueByData(scope.row) }}</span>
                         </template>
                     </el-table-column>
@@ -234,6 +263,7 @@ const state = reactive({
     loadingData: false,
     // 输入框宽度
     inputWidth: "200px" as any,
+    formatVal: '', // 格式化后的值
 })
 
 const {
@@ -243,6 +273,7 @@ const {
     queryForm,
     loadingData,
     inputWidth,
+    formatVal,
 } = toRefs(state)
 
 watch(() => props.queryForm, (newValue: any) => {
@@ -282,6 +313,15 @@ onMounted(() => {
         state.inputWidth = props.inputWidth;
     }
 })
+
+const formatText = (data: any)=> {
+    state.formatVal = '';
+    try {
+        state.formatVal = JSON.stringify(JSON.parse(data), null, 4);
+    }  catch (e) {
+        state.formatVal = data;
+    }
+}
 
 const getRowQueryItem = (row: number) => {
     // 第一行需要加个查询等按钮列

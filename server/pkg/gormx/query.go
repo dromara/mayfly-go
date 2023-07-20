@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mayfly-go/pkg/consts"
 	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils"
 	"strings"
 
@@ -11,9 +12,10 @@ import (
 )
 
 type QueryCond struct {
+	dbModel       any // 数据库模型
+	table         string
 	selectColumns string   // 查询的列信息
 	joins         string   // join 类似 left join emails on emails.user_id = users.id
-	dbModel       any      // 数据库模型
 	condModel     any      // 条件模型
 	columns       []string // 查询的所有列（与values一一对应）
 	values        []any    // 查询列对应的值
@@ -23,6 +25,10 @@ type QueryCond struct {
 // NewQuery 构建查询条件
 func NewQuery(dbModel any) *QueryCond {
 	return &QueryCond{dbModel: dbModel}
+}
+
+func NewQueryWithTableName(tableName string) *QueryCond {
+	return &QueryCond{table: tableName}
 }
 
 func (q *QueryCond) WithCondModel(condModel any) *QueryCond {
@@ -45,29 +51,6 @@ func (q *QueryCond) Joins(joins string) *QueryCond {
 	return q
 }
 
-// Eq 等于 =
-func (q *QueryCond) Eq(column string, val any) *QueryCond {
-	return q.Cond(consts.Eq, column, val)
-}
-
-func (q *QueryCond) Like(column string, val string) *QueryCond {
-	if val == "" {
-		return q
-	}
-	return q.Cond(consts.Like, column, "%"+val+"%")
-}
-
-func (q *QueryCond) RLike(column string, val string) *QueryCond {
-	if val == "" {
-		return q
-	}
-	return q.Cond(consts.Like, column, val+"%")
-}
-
-func (q *QueryCond) In(column string, val any) *QueryCond {
-	return q.Cond(consts.In, column, val)
-}
-
 func (q *QueryCond) OrderByDesc(column string) *QueryCond {
 	q.orderBy = append(q.orderBy, fmt.Sprintf("%s DESC", column))
 	return q
@@ -78,8 +61,22 @@ func (q *QueryCond) OrderByAsc(column string) *QueryCond {
 	return q
 }
 
+// 添加未删除数据过滤条件（适用于单表用实体查询）
+func (q *QueryCond) Undeleted() *QueryCond {
+	// 存在表名，则可能为关联查询等，需要自行设置未删除条件过滤
+	if q.table != "" {
+		return q
+	}
+	return q.Eq0(model.DeletedColumn, model.ModelUndeleted)
+}
+
 func (q *QueryCond) GenGdb() *gorm.DB {
-	gdb := global.Db.Model(q.dbModel)
+	var gdb *gorm.DB
+	if q.table != "" {
+		gdb = global.Db.Table(q.table)
+	} else {
+		gdb = global.Db.Model(q.dbModel)
+	}
 
 	if q.selectColumns != "" {
 		gdb.Select(q.selectColumns)
@@ -102,39 +99,67 @@ func (q *QueryCond) GenGdb() *gorm.DB {
 	return gdb
 }
 
+// Eq 等于 =
+func (q *QueryCond) Eq(column string, val any) *QueryCond {
+	return q.Cond(consts.Eq, column, val, true)
+}
+
+// Eq 等于 = (零值也不忽略该添加)
+func (q *QueryCond) Eq0(column string, val any) *QueryCond {
+	return q.Cond(consts.Eq, column, val, false)
+}
+
+func (q *QueryCond) Like(column string, val string) *QueryCond {
+	if val == "" {
+		return q
+	}
+	return q.Cond(consts.Like, column, "%"+val+"%", false)
+}
+
+func (q *QueryCond) RLike(column string, val string) *QueryCond {
+	if val == "" {
+		return q
+	}
+	return q.Cond(consts.Like, column, val+"%", false)
+}
+
+func (q *QueryCond) In(column string, val any) *QueryCond {
+	return q.Cond(consts.In, column, val, true)
+}
+
 // // Ne 不等于 !=
 func (q *QueryCond) Ne(column string, val any) *QueryCond {
-	q.Cond(consts.Ne, column, val)
+	q.Cond(consts.Ne, column, val, true)
 	return q
 }
 
 // Gt 大于 >
 func (q *QueryCond) Gt(column string, val any) *QueryCond {
-	q.Cond(consts.Gt, column, val)
+	q.Cond(consts.Gt, column, val, true)
 	return q
 }
 
 // Ge 大于等于 >=
 func (q *QueryCond) Ge(column string, val any) *QueryCond {
-	q.Cond(consts.Ge, column, val)
+	q.Cond(consts.Ge, column, val, true)
 	return q
 }
 
 // Lt 小于 <
 func (q *QueryCond) Lt(column string, val any) *QueryCond {
-	q.Cond(consts.Lt, column, val)
+	q.Cond(consts.Lt, column, val, true)
 	return q
 }
 
 // Le 小于等于 <=
 func (q *QueryCond) Le(column string, val any) *QueryCond {
-	q.Cond(consts.Le, column, val)
+	q.Cond(consts.Le, column, val, true)
 	return q
 }
 
-func (q *QueryCond) Cond(cond, column string, val any) *QueryCond {
+func (q *QueryCond) Cond(cond, column string, val any, skipBlank bool) *QueryCond {
 	// 零值跳过
-	if utils.IsBlank(val) {
+	if skipBlank && utils.IsBlank(val) {
 		return q
 	}
 	q.columns = append(q.columns, fmt.Sprintf("%s %s ?", column, cond))

@@ -39,6 +39,10 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	rc.ResData = m.MongoApp.GetPageList(queryCond, page, new([]entity.Mongo))
 }
 
+func (m *Mongo) MongoTags(rc *req.Ctx) {
+	rc.ResData = m.TagApp.ListTagByAccountIdAndResource(rc.LoginAccount.Id, new(entity.Mongo))
+}
+
 func (m *Mongo) Save(rc *req.Ctx) {
 	form := &form.Mongo{}
 	mongo := ginx.BindJsonAndCopyTo[*entity.Mongo](rc.GinCtx, form, new(entity.Mongo))

@@ -168,7 +168,6 @@ import Info from './Info.vue';
 import { redisApi } from './api';
 import { ref, toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { tagApi } from '../tag/api';
 import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
@@ -282,7 +281,7 @@ const search = async () => {
 };
 
 const getTags = async () => {
-    state.tags = await tagApi.getAccountTags.request(null);
+    state.tags = await redisApi.redisTags.request(null);
 };
 
 const editRedis = async (data: any) => {

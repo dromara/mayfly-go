@@ -24,6 +24,8 @@ func InitDbRouter(router *gin.RouterGroup) {
 		// 获取数据库列表
 		req.NewGet("", d.Dbs),
 
+		req.NewGet("/tags", d.DbTags),
+
 		req.NewPost("", d.Save).Log(req.NewLogSave("db-保存数据库信息")),
 
 		// 获取数据库实例的所有数据库名

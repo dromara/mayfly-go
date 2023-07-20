@@ -3,6 +3,7 @@ import Api from '@/common/Api';
 export const machineApi = {
     // 获取权限列表
     list: Api.newGet('/machines'),
+    tagList: Api.newGet('/machines/tags'),
     getMachinePwd: Api.newGet('/machines/{id}/pwd'),
     info: Api.newGet('/machines/{id}/sysinfo'),
     stats: Api.newGet('/machines/{id}/stats'),
@@ -45,4 +46,13 @@ export const authCertApi = {
     list: Api.newGet('/sys/authcerts'),
     save: Api.newPost('/sys/authcerts'),
     delete: Api.newDelete('/sys/authcerts/{id}'),
+};
+
+export const cronJobApi = {
+    list: Api.newGet('/machine-cronjobs'),
+    relateMachineIds: Api.newGet('/machine-cronjobs/machine-ids'),
+    relateCronJobIds: Api.newGet('/machine-cronjobs/cronjob-ids'),
+    save: Api.newPost('/machine-cronjobs'),
+    delete: Api.newDelete('/machine-cronjobs/{id}'),
+    execList: Api.newGet('/machine-cronjobs/execs'),
 };

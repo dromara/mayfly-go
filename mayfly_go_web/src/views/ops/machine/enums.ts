@@ -24,3 +24,22 @@ export const AuthMethodEnum = {
     Password: EnumValue.of(1, '密码').tagTypeSuccess(),
     PrivateKey: EnumValue.of(2, '秘钥'),
 };
+
+// 计划任务状态
+export const CronJobStatusEnum = {
+    Enable: EnumValue.of(1, '启用').tagTypeSuccess(),
+    Disable: EnumValue.of(-1, '禁用').tagTypeDanger(),
+};
+
+// 计划任务保存执行结果类型
+export const CronJobSaveExecResTypeEnum = {
+    No: EnumValue.of(-1, '不记录').tagTypeDanger(),
+    OnError: EnumValue.of(1, '错误时记录').tagTypeWarning(),
+    Yes: EnumValue.of(2, '记录').tagTypeSuccess(),
+};
+
+// 计划任务执行记录状态
+export const CronJobExecStatusEnum = {
+    Error: EnumValue.of(-1, '错误').tagTypeDanger(),
+    Success: EnumValue.of(1, '成功').tagTypeSuccess(),
+};

@@ -30,7 +30,6 @@ func (m *machineFileRepoImpl) GetById(id uint64, cols ...string) *entity.Machine
 	ms := new(entity.MachineFile)
 	if err := gormx.GetById(ms, id, cols...); err != nil {
 		return nil
-
 	}
 	return ms
 }

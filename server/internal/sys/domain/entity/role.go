@@ -25,7 +25,8 @@ func (a *Role) TableName() string {
 
 // 角色资源
 type RoleResource struct {
-	Id         uint64     `json:"id"`
+	model.DeletedModel
+
 	RoleId     uint64     `json:"roleId"`
 	ResourceId uint64     `json:"resourceId"`
 	CreateTime *time.Time `json:"createTime"`
@@ -39,7 +40,8 @@ func (a *RoleResource) TableName() string {
 
 // 账号角色
 type AccountRole struct {
-	Id         uint64     `json:"id"`
+	model.DeletedModel
+
 	AccountId  uint64     `json:"accountId"`
 	RoleId     uint64     `json:"roleId"`
 	CreateTime *time.Time `json:"createTime"`

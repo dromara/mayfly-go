@@ -43,6 +43,19 @@ type MachineScriptVO struct {
 	MachineId   *uint64 `json:"machineId"`
 }
 
+// 机器记录任务
+type MachineCronJobVO struct {
+	Id              uint64 `json:"id"`
+	Key             string `json:"key"`
+	Name            string `json:"name"`
+	Cron            string `json:"cron"` // cron
+	Script          string `json:"script"`
+	Status          int    `json:"status"`
+	SaveExecResType int    `json:"saveExecResType"`
+	Remark          string `json:"remark"`
+	Running         bool   `json:"running" gorm:"-"` // 是否运行中
+}
+
 type MachineFileVO struct {
 	Id        *int64  `json:"id"`
 	Name      *string `json:"name"`

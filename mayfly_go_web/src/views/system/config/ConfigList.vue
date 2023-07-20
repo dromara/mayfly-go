@@ -80,7 +80,7 @@ const perms = {
 const columns = ref([
     TableColumn.new('name', '配置项'),
     TableColumn.new('key', '配置key'),
-    TableColumn.new('value', '配置值'),
+    TableColumn.new('value', '配置值').canBeautify(),
     TableColumn.new('remark', '备注'),
     TableColumn.new('modifier', '更新账号'),
     TableColumn.new('updateTime', '更新时间').isTime(),

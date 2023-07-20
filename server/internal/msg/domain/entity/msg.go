@@ -1,11 +1,13 @@
 package entity
 
 import (
+	"mayfly-go/pkg/model"
 	"time"
 )
 
 type Msg struct {
-	Id         uint64     `json:"id"`
+	model.DeletedModel
+
 	CreateTime *time.Time `json:"createTime"`
 	CreatorId  uint64     `json:"creatorId"`
 	Creator    string     `json:"creator"`

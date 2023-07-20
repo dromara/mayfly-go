@@ -12,6 +12,8 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/gormx"
 	"strings"
 )
 
@@ -35,6 +37,10 @@ type TagTree interface {
 
 	// 根据账号id获取其可访问标签信息
 	ListTagByAccountId(accountId uint64) []string
+
+	// 查询账号id可访问的资源相关联的标签信息
+	// @param model对应资源的实体信息，如Machinie、Db等等
+	ListTagByAccountIdAndResource(accountId uint64, model any) []string
 
 	// 账号是否有权限访问该标签关联的资源信息
 	CanAccess(accountId uint64, tagPath string) error
@@ -125,6 +131,18 @@ func (p *tagTreeAppImpl) ListTagIdByPath(tagPaths ...string) []uint64 {
 
 func (p *tagTreeAppImpl) ListTagByAccountId(accountId uint64) []string {
 	return p.tagTreeTeamRepo.SelectTagPathsByAccountId(accountId)
+}
+
+func (p *tagTreeAppImpl) ListTagByAccountIdAndResource(accountId uint64, entity any) []string {
+	var res []string
+
+	tagIds := p.ListTagIdByAccountId(accountId)
+	if len(tagIds) == 0 {
+		return res
+	}
+
+	global.Db.Model(entity).Distinct("tag_path").Where("tag_id in ?", tagIds).Scopes(gormx.UndeleteScope).Order("tag_path asc").Find(&res)
+	return res
 }
 
 func (p *tagTreeAppImpl) CanAccess(accountId uint64, tagPath string) error {

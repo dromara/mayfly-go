@@ -6,8 +6,8 @@ import (
 
 // 数组比较
 // 依次返回，新增值，删除值，以及不变值
-func ArrayCompare(newArr []any, oldArr []any, compareFun func(any, any) bool) ([]any, []any, []any) {
-	var unmodifierValue []any
+func ArrayCompare[T any](newArr []T, oldArr []T, compareFun func(T, T) bool) ([]T, []T, []T) {
+	var unmodifierValue []T
 	ni, oi := 0, 0
 	for {
 		if ni >= len(newArr) {
@@ -60,4 +60,24 @@ func ArrContains[T comparable](arr []T, el T) bool {
 		}
 	}
 	return false
+}
+
+// 数组转为map
+// @param keyFunc key的主键
+func Array2Map[T any, K comparable](arr []T, keyFunc func(val T) K) map[K]T {
+	res := make(map[K]T, len(arr))
+	for _, val := range arr {
+		key := keyFunc(val)
+		res[key] = val
+	}
+	return res
+}
+
+// 数组映射，即将一数组元素通过映射函数转换为另一数组
+func ArrayMap[T any, K comparable](arr []T, mapFunc func(val T) K) []K {
+	res := make([]K, len(arr))
+	for i, val := range arr {
+		res[i] = mapFunc(val)
+	}
+	return res
 }

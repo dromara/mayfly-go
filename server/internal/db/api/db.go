@@ -48,6 +48,10 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	rc.ResData = d.DbApp.GetPageList(queryCond, page, new([]vo.SelectDataDbVO))
 }
 
+func (d *Db) DbTags(rc *req.Ctx) {
+	rc.ResData = d.TagApp.ListTagByAccountIdAndResource(rc.LoginAccount.Id, new(entity.Db))
+}
+
 func (d *Db) Save(rc *req.Ctx) {
 	form := &form.DbForm{}
 	db := ginx.BindJsonAndCopyTo[*entity.Db](rc.GinCtx, form, new(entity.Db))

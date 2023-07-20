@@ -1,6 +1,7 @@
 package entity
 
 type MachineQuery struct {
+	Ids     string `json:"ids" form:"ids"`
 	Name    string `json:"name" form:"name"`
 	Ip      string `json:"ip" form:"ip"` // IP地址
 	TagPath string `json:"tagPath" form:"tagPath"`

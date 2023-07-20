@@ -8,7 +8,6 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
 	"strconv"
 	"strings"
 )
@@ -34,12 +33,8 @@ func (ac *AuthCert) AuthCerts(rc *req.Ctx) {
 }
 
 func (c *AuthCert) SaveAuthCert(rc *req.Ctx) {
-	g := rc.GinCtx
 	acForm := &form.AuthCertForm{}
-	ginx.BindJsonAndValid(g, acForm)
-
-	ac := new(entity.AuthCert)
-	utils.Copy(ac, acForm)
+	ac := ginx.BindJsonAndCopyTo(rc.GinCtx, acForm, new(entity.AuthCert))
 
 	// 脱敏记录日志
 	acForm.Passphrase = "***"

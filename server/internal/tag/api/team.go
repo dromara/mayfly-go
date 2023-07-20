@@ -123,24 +123,15 @@ func (p *Team) SaveTags(rc *req.Ctx) {
 
 	// 将[]uint64转为[]any
 	oIds := p.TeamApp.ListTagIds(teamId)
-	var oldIds []any
-	for _, v := range oIds {
-		oldIds = append(oldIds, v)
-	}
-
-	var newIds []any
-	for _, v := range form.TagIds {
-		newIds = append(newIds, v)
-	}
 
 	// 比较新旧两合集
-	addIds, delIds, _ := utils.ArrayCompare(newIds, oldIds, func(i1, i2 any) bool {
-		return i1.(uint64) == i2.(uint64)
+	addIds, delIds, _ := utils.ArrayCompare(form.TagIds, oIds, func(i1, i2 uint64) bool {
+		return i1 == i2
 	})
 
 	loginAccount := rc.LoginAccount
 	for _, v := range addIds {
-		tagId := v.(uint64)
+		tagId := v
 		tag := p.TagApp.GetById(tagId)
 		biz.NotNil(tag, "存在非法标签id")
 
@@ -149,7 +140,7 @@ func (p *Team) SaveTags(rc *req.Ctx) {
 		p.TeamApp.SaveTag(ptt)
 	}
 	for _, v := range delIds {
-		p.TeamApp.DeleteTag(teamId, v.(uint64))
+		p.TeamApp.DeleteTag(teamId, v)
 	}
 
 	rc.ReqParam = form

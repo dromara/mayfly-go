@@ -8,6 +8,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/lib/pq v1.10.7
+	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230712084735-068dc2aee82d
 	github.com/mojocn/base64Captcha v1.3.5 // 验证码
 	github.com/pkg/sftp v1.13.5
 	github.com/pquerna/otp v1.4.0

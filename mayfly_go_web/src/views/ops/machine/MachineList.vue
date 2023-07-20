@@ -150,7 +150,6 @@ import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi } from './api';
-import { tagApi } from '../tag/api';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -300,7 +299,7 @@ const closeCli = async (row: any) => {
 };
 
 const getTags = async () => {
-    state.tags = await tagApi.getAccountTags.request(null);
+    state.tags = await machineApi.tagList.request(null);
 };
 
 const openFormDialog = async (machine: any) => {

@@ -41,13 +41,13 @@ func (m *roleRepoImpl) GetRoleResources(roleId uint64, toEntity any) {
 	sql := "select rr.creator AS creator, rr.create_time AS CreateTime, rr.resource_id AS id, r.pid AS pid, " +
 		"r.name AS name, r.type AS type, r.status AS status " +
 		"FROM t_sys_role_resource rr JOIN t_sys_resource r ON rr.resource_id = r.id " +
-		"WHERE rr.role_id = ? " +
+		"WHERE rr.role_id = ? AND rr.is_deleted = 0 AND r.is_deleted = 0 " +
 		"ORDER BY r.pid ASC, r.weight ASC"
 	gormx.GetListBySql2Model(sql, toEntity, roleId)
 }
 
-func (m *roleRepoImpl) SaveRoleResource(rr *entity.RoleResource) {
-	gormx.Insert(rr)
+func (m *roleRepoImpl) SaveRoleResource(rr []*entity.RoleResource) {
+	gormx.BatchInsert(rr)
 }
 
 func (m *roleRepoImpl) DeleteRoleResource(roleId uint64, resourceId uint64) {
@@ -78,7 +78,7 @@ func (m *roleRepoImpl) DeleteAccountRole(accountId, roleId uint64) {
 // 获取账号角色信息列表
 func (m *roleRepoImpl) GetAccountRoles(accountId uint64, toEntity any) {
 	sql := "SELECT r.status, r.name, ar.create_time AS CreateTime, ar.creator AS creator " +
-		"FROM t_sys_role r JOIN t_sys_account_role ar ON r.id = ar.role_id AND ar.account_id = ? " +
+		"FROM t_sys_role r JOIN t_sys_account_role ar ON r.id = ar.role_id AND ar.account_id = ? AND r.is_deleted = 0 AND ar.is_deleted = 0 " +
 		"ORDER BY ar.create_time DESC"
 	gormx.GetListBySql2Model(sql, toEntity, accountId)
 }

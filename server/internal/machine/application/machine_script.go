@@ -35,11 +35,6 @@ type machineScriptAppImpl struct {
 
 const Common_Script_Machine_Id = 9999999
 
-// // 实现类单例
-// var MachineScriptApp MachineScript = &machineScriptAppImpl{
-// 	machineRepo:       persistence.MachineDao,
-// 	machineScriptRepo: persistence.MachineScriptDao}
-
 // 分页获取机器脚本信息列表
 func (m *machineScriptAppImpl) GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return m.machineScriptRepo.GetPageList(condition, pageParam, toEntity, orderBy...)

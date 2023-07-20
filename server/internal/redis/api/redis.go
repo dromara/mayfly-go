@@ -38,6 +38,10 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 	rc.ResData = r.RedisApp.GetPageList(queryCond, page, new([]vo.Redis))
 }
 
+func (r *Redis) RedisTags(rc *req.Ctx) {
+	rc.ResData = r.TagApp.ListTagByAccountIdAndResource(rc.LoginAccount.Id, new(entity.Redis))
+}
+
 func (r *Redis) Save(rc *req.Ctx) {
 	form := &form.Redis{}
 	redis := ginx.BindJsonAndCopyTo[*entity.Redis](rc.GinCtx, form, new(entity.Redis))

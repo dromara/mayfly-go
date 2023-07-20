@@ -3,6 +3,7 @@ import Api from '@/common/Api';
 export const dbApi = {
     // 获取权限列表
     dbs: Api.newGet('/dbs'),
+    dbTags: Api.newGet('/dbs/tags'),
     saveDb: Api.newPost('/dbs'),
     getAllDatabase: Api.newPost('/dbs/databases'),
     getDbPwd: Api.newGet('/dbs/{id}/pwd'),

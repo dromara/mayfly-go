@@ -68,6 +68,11 @@ export class TableColumn {
      */
     show: boolean = true;
 
+    /**
+     * 是否展示美化按钮（主要用于美化json文本等）
+     */
+    isBeautify: boolean = false;
+
     constructor(prop: string, label: string) {
         this.prop = prop;
         this.label = label;
@@ -125,6 +130,16 @@ export class TableColumn {
         return this;
     }
 
+    typeText(): TableColumn {
+        this.type = 'text';
+        return this;
+    }
+
+    typeJson(): TableColumn {
+        this.type = 'jsonText';
+        return this;
+    }
+
     /**
      * 标识该列为插槽
      * @returns this
@@ -173,6 +188,11 @@ export class TableColumn {
 
     fixedLeft(): TableColumn {
         this.fixed = 'left';
+        return this;
+    }
+
+    canBeautify(): TableColumn {
+        this.isBeautify = true;
         return this;
     }
 

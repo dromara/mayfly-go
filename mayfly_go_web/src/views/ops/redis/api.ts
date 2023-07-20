@@ -2,6 +2,7 @@ import Api from '@/common/Api';
 
 export const redisApi = {
     redisList: Api.newGet('/redis'),
+    redisTags: Api.newGet('/redis/tags'),
     getRedisPwd: Api.newGet('/redis/{id}/pwd'),
     redisInfo: Api.newGet('/redis/{id}/info'),
     clusterInfo: Api.newGet('/redis/{id}/cluster-info'),

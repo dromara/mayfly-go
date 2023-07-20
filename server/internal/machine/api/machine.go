@@ -55,6 +55,10 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	rc.ResData = res
 }
 
+func (m *Machine) MachineTags(rc *req.Ctx) {
+	rc.ResData = m.TagApp.ListTagByAccountIdAndResource(rc.LoginAccount.Id, new(entity.Machine))
+}
+
 func (m *Machine) MachineStats(rc *req.Ctx) {
 	stats := m.MachineApp.GetCli(GetMachineId(rc.GinCtx)).GetAllStats()
 	rc.ResData = stats

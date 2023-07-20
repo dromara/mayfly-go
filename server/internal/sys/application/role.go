@@ -20,7 +20,7 @@ type Role interface {
 	GetRoleResources(roleId uint64, toEntity any)
 
 	// 保存角色资源关联记录
-	SaveRoleResource(rr *entity.RoleResource)
+	SaveRoleResource(rr []*entity.RoleResource)
 
 	// 删除角色资源关联记录
 	DeleteRoleResource(roleId uint64, resourceId uint64)
@@ -76,7 +76,7 @@ func (m *roleAppImpl) GetRoleResources(roleId uint64, toEntity any) {
 	m.roleRepo.GetRoleResources(roleId, toEntity)
 }
 
-func (m *roleAppImpl) SaveRoleResource(rr *entity.RoleResource) {
+func (m *roleAppImpl) SaveRoleResource(rr []*entity.RoleResource) {
 	m.roleRepo.SaveRoleResource(rr)
 }
 

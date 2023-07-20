@@ -186,6 +186,7 @@ func getRedisCient(re *entity.Redis, db int) *RedisInstance {
 
 	redisOptions := &redis.Options{
 		Addr:         re.Host,
+		Username:     re.Username,
 		Password:     re.Password, // no password set
 		DB:           db,          // use default DB
 		DialTimeout:  8 * time.Second,
@@ -204,6 +205,7 @@ func getRedisClusterClient(re *entity.Redis) *RedisInstance {
 
 	redisClusterOptions := &redis.ClusterOptions{
 		Addrs:       strings.Split(re.Host, ","),
+		Username:    re.Username,
 		Password:    re.Password,
 		DialTimeout: 8 * time.Second,
 	}
@@ -221,6 +223,7 @@ func getRedisSentinelCient(re *entity.Redis, db int) *RedisInstance {
 	sentinelOptions := &redis.FailoverOptions{
 		MasterName:       masterNameAndHosts[0],
 		SentinelAddrs:    strings.Split(masterNameAndHosts[1], ","),
+		Username:         re.Username,
 		Password:         re.Password, // no password set
 		SentinelPassword: re.Password, // 哨兵节点密码需与redis节点密码一致
 		DB:               db,          // use default DB

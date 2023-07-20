@@ -15,7 +15,7 @@ type Role interface {
 
 	GetRoleResources(roleId uint64, toEntity any)
 
-	SaveRoleResource(rr *entity.RoleResource)
+	SaveRoleResource(rr []*entity.RoleResource)
 
 	DeleteRoleResource(roleId uint64, resourceId uint64)
 

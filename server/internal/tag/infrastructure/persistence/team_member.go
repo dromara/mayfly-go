@@ -23,13 +23,15 @@ func (p *teamMemberRepoImpl) Save(pm *entity.TeamMember) {
 }
 
 func (p *teamMemberRepoImpl) GetPageList(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) *model.PageResult[any] {
-	qd := gormx.NewQuery(new(entity.TeamMember)).
-		Select("t_team_member.*, a.name").
-		Joins("JOIN t_sys_account a ON t_team_member.account_id = a.id AND a.status = 1").
-		Eq("account_id", condition.AccountId).
-		Eq("team_id", condition.TeamId).
+	qd := gormx.NewQueryWithTableName("t_team_member t").
+		Select("t.*, a.name").
+		Joins("JOIN t_sys_account a ON t.account_id = a.id AND a.status = 1").
+		Eq("a.account_id", condition.AccountId).
+		Eq0("a.is_deleted", model.ModelUndeleted).
+		Eq("t.team_id", condition.TeamId).
+		Eq0("t.is_deleted", model.ModelUndeleted).
 		Like("a.username", condition.Username).
-		OrderByDesc("t_team_member.id")
+		OrderByDesc("t.id")
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
 

@@ -178,7 +178,6 @@
 import { mongoApi } from './api';
 import { ref, toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { tagApi } from '../tag/api';
 import MongoEdit from './MongoEdit.vue';
 import { formatByteSize } from '@/common/utils/format';
 import TagInfo from '../component/TagInfo.vue';
@@ -363,7 +362,7 @@ const search = async () => {
 };
 
 const getTags = async () => {
-    state.tags = await tagApi.getAccountTags.request(null);
+    state.tags = await mongoApi.mongoTags.request(null);
 };
 
 const editMongo = async (data: any) => {

@@ -15,6 +15,13 @@ var (
 		persistence.GetMachineRepo(),
 		GetAuthCertApp(),
 	)
+
+	machineCropJobApp MachineCronJob = newMachineCronJobApp(
+		persistence.GetMachineCronJobRepo(),
+		persistence.GetMachineCronJobRelateRepo(),
+		persistence.GetMachineCronJobExecRepo(),
+		GetMachineApp(),
+	)
 )
 
 func GetMachineApp() Machine {
@@ -31,4 +38,8 @@ func GetMachineScriptApp() MachineScript {
 
 func GetAuthCertApp() AuthCert {
 	return authCertApp
+}
+
+func GetMachineCronJobApp() MachineCronJob {
+	return machineCropJobApp
 }

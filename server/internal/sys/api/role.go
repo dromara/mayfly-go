@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils"
 	"strconv"
@@ -65,40 +66,37 @@ func (r *Role) RoleResource(rc *req.Ctx) {
 
 // 保存角色资源
 func (r *Role) SaveResource(rc *req.Ctx) {
-	g := rc.GinCtx
-
 	var form form.RoleResourceForm
-	ginx.BindJsonAndValid(g, &form)
+	ginx.BindJsonAndValid(rc.GinCtx, &form)
 	rid := uint64(form.Id)
 	rc.ReqParam = form
 
-	// 将,拼接的字符串进行切割
-	idsStr := strings.Split(form.ResourceIds, ",")
-	var newIds []any
-	for _, v := range idsStr {
-		id, _ := strconv.Atoi(v)
-		newIds = append(newIds, uint64(id))
-	}
+	// 将,拼接的字符串进行切割并转换
+	newIds := utils.ArrayMap[string, uint64](strings.Split(form.ResourceIds, ","), func(val string) uint64 {
+		id, _ := strconv.Atoi(val)
+		return uint64(id)
+	})
 
-	// 将[]uint64转为[]any
 	oIds := r.RoleApp.GetRoleResourceIds(uint64(form.Id))
-	var oldIds []any
-	for _, v := range oIds {
-		oldIds = append(oldIds, v)
-	}
 
-	addIds, delIds, _ := utils.ArrayCompare(newIds, oldIds, func(i1, i2 any) bool {
-		return i1.(uint64) == i2.(uint64)
+	addIds, delIds, _ := utils.ArrayCompare(newIds, oIds, func(i1, i2 uint64) bool {
+		return i1 == i2
 	})
 
 	createTime := time.Now()
 	creator := rc.LoginAccount.Username
 	creatorId := rc.LoginAccount.Id
+	undeleted := model.ModelUndeleted
+
+	addVals := make([]*entity.RoleResource, 0)
 	for _, v := range addIds {
-		rr := &entity.RoleResource{RoleId: rid, ResourceId: v.(uint64), CreateTime: &createTime, CreatorId: creatorId, Creator: creator}
-		r.RoleApp.SaveRoleResource(rr)
+		rr := &entity.RoleResource{RoleId: rid, ResourceId: v, CreateTime: &createTime, CreatorId: creatorId, Creator: creator}
+		rr.IsDeleted = undeleted
+		addVals = append(addVals, rr)
 	}
+	r.RoleApp.SaveRoleResource(addVals)
+
 	for _, v := range delIds {
-		r.RoleApp.DeleteRoleResource(rid, v.(uint64))
+		r.RoleApp.DeleteRoleResource(rid, v)
 	}
 }
