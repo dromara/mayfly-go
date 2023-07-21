@@ -56,7 +56,7 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'update:data', 'cancel']);
 
 const queryConfig = [
-    TableQuery.slot('machineSelect', '机器', 'machineSelect'),
+    TableQuery.slot('machineId', '机器', 'machineSelect'),
     TableQuery.select('status', '状态').setOptions(Object.values(CronJobExecStatusEnum)),
 ];
 

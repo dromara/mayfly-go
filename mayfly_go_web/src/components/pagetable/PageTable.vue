@@ -360,6 +360,7 @@ const reset = () => {
     for (let qi of props.query) {
         state.queryForm[qi.prop] = null;
     }
+    console.log(state.queryForm);
     changePageNum(1);
     emit('update:queryForm', state.queryForm);
     execQuery();

@@ -154,7 +154,7 @@ watch(props, async (newValue: any) => {
         state.form = { ...newValue.data };
         state.form.machineIds = await cronJobApi.relateMachineIds.request({ cronJobId: state.form.id });
     } else {
-        state.form = {} as any;
+        state.form = { script: '', status: 1 } as any;
         state.chooseMachines = [];
     }
 });

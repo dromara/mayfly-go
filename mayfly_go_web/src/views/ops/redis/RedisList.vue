@@ -20,7 +20,7 @@
             </template>
 
             <template #queryRight>
-                <el-button type="primary" icon="plus" @click="editRedis(true)" plain>添加</el-button>
+                <el-button type="primary" icon="plus" @click="editRedis(false)" plain>添加</el-button>
                 <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>删除 </el-button>
             </template>
 

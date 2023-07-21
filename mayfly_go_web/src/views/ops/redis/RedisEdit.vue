@@ -176,7 +176,7 @@ watch(props, async (newValue: any) => {
         convertDb(state.form.db);
     } else {
         state.form = { db: '0' } as any;
-        state.dbList = [];
+        state.dbList = [0];
     }
 });
 
