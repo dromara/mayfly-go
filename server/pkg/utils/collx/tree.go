@@ -1,4 +1,4 @@
-package utils
+package collx
 
 // ConvertToINodeArray 其他的结构体想要生成菜单树，直接实现这个接口
 type INode interface {

@@ -5,7 +5,7 @@ import (
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/gormx"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/stringx"
 	"strings"
 	"time"
 )
@@ -59,7 +59,7 @@ func (r *resourceAppImpl) Save(resource *entity.Resource) {
 	}
 
 	// 生成随机八位唯一标识符
-	ui := utils.RandString(8)
+	ui := stringx.Rand(8)
 	if pid := resource.Pid; pid != 0 {
 		pResource := r.GetById(uint64(pid))
 		biz.IsTrue(pResource != nil, "该父资源不存在")

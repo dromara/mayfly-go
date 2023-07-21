@@ -11,7 +11,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/collx"
 	"strconv"
 	"strings"
 )
@@ -125,7 +125,7 @@ func (p *Team) SaveTags(rc *req.Ctx) {
 	oIds := p.TeamApp.ListTagIds(teamId)
 
 	// 比较新旧两合集
-	addIds, delIds, _ := utils.ArrayCompare(form.TagIds, oIds, func(i1, i2 uint64) bool {
+	addIds, delIds, _ := collx.ArrayCompare(form.TagIds, oIds, func(i1, i2 uint64) bool {
 		return i1 == i2
 	})
 

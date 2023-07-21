@@ -14,7 +14,8 @@ import (
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/structx"
 	"mayfly-go/pkg/ws"
 	"os"
 	"path"
@@ -82,7 +83,7 @@ func (m *Machine) TestConn(rc *req.Ctx) {
 	ginx.BindJsonAndValid(g, machineForm)
 
 	me := new(entity.Machine)
-	utils.Copy(me, machineForm)
+	structx.Copy(me, machineForm)
 
 	m.MachineApp.TestConn(me)
 }
@@ -192,7 +193,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 		recorder = machine.NewRecorder(f)
 	}
 
-	mts, err := machine.NewTerminalSession(utils.RandString(16), wsConn, cli, rows, cols, recorder)
+	mts, err := machine.NewTerminalSession(stringx.Rand(16), wsConn, cli, rows, cols, recorder)
 	biz.ErrIsNilAppendErr(err, "\033[1;31m连接失败: %s\033[0m")
 
 	// 记录系统操作日志

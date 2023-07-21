@@ -5,8 +5,10 @@ import (
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/scheduler"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"time"
 )
 
@@ -107,7 +109,7 @@ func (m *machineCropJobAppImpl) GetRelateCronJobIds(machineId uint64) []uint64 {
 
 func (m *machineCropJobAppImpl) CronJobRelateMachines(cronJobId uint64, machineIds []uint64, la *model.LoginAccount) {
 	oldMachineIds := m.machineCropJobRelateRepo.GetMachineIds(cronJobId)
-	addIds, delIds, _ := utils.ArrayCompare[uint64](machineIds, oldMachineIds, func(u1, u2 uint64) bool { return u1 == u2 })
+	addIds, delIds, _ := collx.ArrayCompare[uint64](machineIds, oldMachineIds, func(u1, u2 uint64) bool { return u1 == u2 })
 	addVals := make([]*entity.MachineCronJobRelate, 0)
 
 	now := time.Now()
@@ -129,7 +131,7 @@ func (m *machineCropJobAppImpl) CronJobRelateMachines(cronJobId uint64, machineI
 
 func (m *machineCropJobAppImpl) MachineRelateCronJobs(machineId uint64, cronJobs []uint64, la *model.LoginAccount) {
 	oldCronIds := m.machineCropJobRelateRepo.GetCronJobIds(machineId)
-	addIds, delIds, _ := utils.ArrayCompare[uint64](cronJobs, oldCronIds, func(u1, u2 uint64) bool { return u1 == u2 })
+	addIds, delIds, _ := collx.ArrayCompare[uint64](cronJobs, oldCronIds, func(u1, u2 uint64) bool { return u1 == u2 })
 	addVals := make([]*entity.MachineCronJobRelate, 0)
 
 	now := time.Now()
@@ -186,7 +188,7 @@ func (m *machineCropJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 	var key string
 	isDisable := mcj.Status == entity.MachineCronJobStatusDisable
 	if mcj.Id == 0 {
-		key = utils.RandString(16)
+		key = stringx.Rand(16)
 		mcj.Key = key
 		if isDisable {
 			return
@@ -201,11 +203,19 @@ func (m *machineCropJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 	}
 
 	scheduler.AddFunByKey(key, mcj.Cron, func() {
-		m.runCronJob(key)
+		go m.runCronJob(key)
 	})
 }
 
 func (m *machineCropJobAppImpl) runCronJob(key string) {
+	// 简单使用redis分布式锁防止多实例同一时刻重复执行
+	if lock := rediscli.NewLock(key, 30*time.Second); lock != nil {
+		if !lock.Lock() {
+			return
+		}
+		defer lock.UnLock()
+	}
+
 	cronJob := new(entity.MachineCronJob)
 	cronJob.Key = key
 	err := m.machineCropJobRepo.GetBy(cronJob)

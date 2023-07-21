@@ -7,7 +7,7 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/jsonx"
 )
 
 const SysConfigKeyPrefix = "sys:config:"
@@ -56,7 +56,7 @@ func (a *configAppImpl) GetConfig(key string) *entity.Config {
 	if err := a.configRepo.GetConfig(config, "Id", "Key", "Value"); err != nil {
 		global.Log.Warnf("不存在key = [%s] 的系统配置", key)
 	} else {
-		cache.SetStr(SysConfigKeyPrefix+key, utils.ToJsonStr(config), -1)
+		cache.SetStr(SysConfigKeyPrefix+key, jsonx.ToStr(config), -1)
 	}
 	return config
 }

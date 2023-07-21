@@ -19,9 +19,6 @@ func runWebServer() {
 	// 注册路由
 	web := initialize.InitRouter()
 
-	// 初始化其他需要启动时运行的方法
-	initialize.InitOther()
-
 	server := config.Conf.Server
 	port := server.GetPort()
 	global.Log.Infof("Listening and serving HTTP on %s", port)

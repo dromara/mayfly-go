@@ -1,11 +1,12 @@
-package utils
+package jsonx
 
 import (
 	"encoding/json"
 	"mayfly-go/pkg/global"
 )
 
-func Json2Map(jsonStr string) map[string]any {
+// json字符串转map
+func ToMap(jsonStr string) map[string]any {
 	var res map[string]any
 	if jsonStr == "" {
 		return res
@@ -14,7 +15,8 @@ func Json2Map(jsonStr string) map[string]any {
 	return res
 }
 
-func ToJsonStr(val any) string {
+// 转换为json字符串
+func ToStr(val any) string {
 	if strBytes, err := json.Marshal(val); err != nil {
 		global.Log.Error("toJsonStr error: ", err)
 		return ""

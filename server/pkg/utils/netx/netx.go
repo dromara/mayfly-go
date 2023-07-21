@@ -1,4 +1,4 @@
-package utils
+package netx
 
 import (
 	"mayfly-go/pkg/global"

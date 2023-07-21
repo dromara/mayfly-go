@@ -3,7 +3,7 @@ package biz
 import (
 	"fmt"
 	"mayfly-go/pkg/global"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/anyx"
 
 	"reflect"
 )
@@ -56,7 +56,7 @@ func NotNil(data any, msg string, params ...any) {
 }
 
 func NotBlank(data any, msg string, params ...any) {
-	if utils.IsBlank(data) {
+	if anyx.IsBlank(data) {
 		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
 }

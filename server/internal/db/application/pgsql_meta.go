@@ -7,7 +7,8 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/collx"
 	"net"
 	"strings"
 	"time"
@@ -21,7 +22,7 @@ func getPgsqlDB(d *entity.Db, db string) (*sql.DB, error) {
 	if d.SshTunnelMachineId > 0 {
 		// 如果使用了隧道，则使用`postgres:ssh:隧道机器id`注册名
 		driverName = fmt.Sprintf("postgres:ssh:%d", d.SshTunnelMachineId)
-		if !utils.ArrContains(sql.Drivers(), driverName) {
+		if !collx.ArrayContains(sql.Drivers(), driverName) {
 			sql.Register(driverName, &PqSqlDialer{sshTunnelMachineId: d.SshTunnelMachineId})
 		}
 		sql.Drivers()
@@ -78,7 +79,7 @@ func (pm *PgsqlMetadata) GetTables() []Table {
 	for _, re := range res {
 		tables = append(tables, Table{
 			TableName:    re["tableName"].(string),
-			TableComment: utils.Any2String(re["tableComment"]),
+			TableComment: anyx.ConvString(re["tableComment"]),
 		})
 	}
 	return tables
@@ -101,11 +102,11 @@ func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []Column {
 		columns = append(columns, Column{
 			TableName:     re["tableName"].(string),
 			ColumnName:    re["columnName"].(string),
-			ColumnType:    utils.Any2String(re["columnType"]),
-			ColumnComment: utils.Any2String(re["columnComment"]),
-			Nullable:      utils.Any2String(re["nullable"]),
-			ColumnKey:     utils.Any2String(re["columnKey"]),
-			ColumnDefault: utils.Any2String(re["columnDefault"]),
+			ColumnType:    anyx.ConvString(re["columnType"]),
+			ColumnComment: anyx.ConvString(re["columnComment"]),
+			Nullable:      anyx.ConvString(re["nullable"]),
+			ColumnKey:     anyx.ConvString(re["columnKey"]),
+			ColumnDefault: anyx.ConvString(re["columnDefault"]),
 		})
 	}
 	return columns
@@ -132,11 +133,11 @@ func (pm *PgsqlMetadata) GetTableInfos() []Table {
 	for _, re := range res {
 		tables = append(tables, Table{
 			TableName:    re["tableName"].(string),
-			TableComment: utils.Any2String(re["tableComment"]),
-			CreateTime:   utils.Any2String(re["createTime"]),
-			TableRows:    utils.Any2Int(re["tableRows"]),
-			DataLength:   utils.Any2Int64(re["dataLength"]),
-			IndexLength:  utils.Any2Int64(re["indexLength"]),
+			TableComment: anyx.ConvString(re["tableComment"]),
+			CreateTime:   anyx.ConvString(re["createTime"]),
+			TableRows:    anyx.ConvInt(re["tableRows"]),
+			DataLength:   anyx.ConvInt64(re["dataLength"]),
+			IndexLength:  anyx.ConvInt64(re["indexLength"]),
 		})
 	}
 	return tables
@@ -150,11 +151,11 @@ func (pm *PgsqlMetadata) GetTableIndex(tableName string) []Index {
 	for _, re := range res {
 		indexs = append(indexs, Index{
 			IndexName:    re["indexName"].(string),
-			ColumnName:   utils.Any2String(re["columnName"]),
-			IndexType:    utils.Any2String(re["indexType"]),
-			IndexComment: utils.Any2String(re["indexComment"]),
-			NonUnique:    utils.Any2Int(re["nonUnique"]),
-			SeqInIndex:   utils.Any2Int(re["seqInIndex"]),
+			ColumnName:   anyx.ConvString(re["columnName"]),
+			IndexType:    anyx.ConvString(re["indexType"]),
+			IndexComment: anyx.ConvString(re["indexComment"]),
+			NonUnique:    anyx.ConvInt(re["nonUnique"]),
+			SeqInIndex:   anyx.ConvInt(re["seqInIndex"]),
 		})
 	}
 	return indexs

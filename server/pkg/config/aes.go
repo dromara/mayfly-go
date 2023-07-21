@@ -2,8 +2,8 @@ package config
 
 import (
 	"fmt"
-	"mayfly-go/pkg/utils"
 	"mayfly-go/pkg/utils/assert"
+	"mayfly-go/pkg/utils/cryptox"
 )
 
 type Aes struct {
@@ -12,12 +12,12 @@ type Aes struct {
 
 // 编码并base64
 func (a *Aes) EncryptBase64(data []byte) (string, error) {
-	return utils.AesEncryptBase64(data, []byte(a.Key))
+	return cryptox.AesEncryptBase64(data, []byte(a.Key))
 }
 
 // base64解码后再aes解码
 func (a *Aes) DecryptBase64(data string) ([]byte, error) {
-	return utils.AesDecryptBase64(data, []byte(a.Key))
+	return cryptox.AesDecryptBase64(data, []byte(a.Key))
 }
 
 func (j *Aes) Valid() {

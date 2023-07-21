@@ -1,8 +1,6 @@
-package utils
+package collx
 
-import (
-	"fmt"
-)
+import "fmt"
 
 // 数组比较
 // 依次返回，新增值，删除值，以及不变值
@@ -53,7 +51,7 @@ func NumberArr2StrArr[T NumT](numberArr []T) []string {
 }
 
 // 判断数组中是否含有指定元素
-func ArrContains[T comparable](arr []T, el T) bool {
+func ArrayContains[T comparable](arr []T, el T) bool {
 	for _, v := range arr {
 		if v == el {
 			return true
@@ -64,7 +62,7 @@ func ArrContains[T comparable](arr []T, el T) bool {
 
 // 数组转为map
 // @param keyFunc key的主键
-func Array2Map[T any, K comparable](arr []T, keyFunc func(val T) K) map[K]T {
+func ArrayToMap[T any, K comparable](arr []T, keyFunc func(val T) K) map[K]T {
 	res := make(map[K]T, len(arr))
 	for _, val := range arr {
 		key := keyFunc(val)

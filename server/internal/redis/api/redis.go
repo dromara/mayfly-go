@@ -11,7 +11,8 @@ import (
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/cryptox"
+	"mayfly-go/pkg/utils/stringx"
 	"strconv"
 	"strings"
 
@@ -47,7 +48,7 @@ func (r *Redis) Save(rc *req.Ctx) {
 	redis := ginx.BindJsonAndCopyTo[*entity.Redis](rc.GinCtx, form, new(entity.Redis))
 
 	// 密码解密，并使用解密后的赋值
-	originPwd, err := utils.DefaultRsaDecrypt(redis.Password, true)
+	originPwd, err := cryptox.DefaultRsaDecrypt(redis.Password, true)
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
 	redis.Password = originPwd
 
@@ -133,7 +134,7 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 			break
 		}
 		if strings.Contains(datas[i], "#") {
-			key := utils.SubString(datas[i], strings.Index(datas[i], "#")+1, utils.StrLen(datas[i]))
+			key := stringx.SubString(datas[i], strings.Index(datas[i], "#")+1, stringx.Len(datas[i]))
 			i++
 			key = strings.Trim(key, " ")
 

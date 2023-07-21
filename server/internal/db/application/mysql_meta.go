@@ -7,7 +7,7 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/anyx"
 	"net"
 
 	"github.com/go-sql-driver/mysql"
@@ -51,7 +51,7 @@ func (mm *MysqlMetadata) GetTables() []Table {
 	for _, re := range res {
 		tables = append(tables, Table{
 			TableName:    re["tableName"].(string),
-			TableComment: utils.Any2String(re["tableComment"]),
+			TableComment: anyx.ConvString(re["tableComment"]),
 		})
 	}
 	return tables
@@ -74,11 +74,11 @@ func (mm *MysqlMetadata) GetColumns(tableNames ...string) []Column {
 		columns = append(columns, Column{
 			TableName:     re["tableName"].(string),
 			ColumnName:    re["columnName"].(string),
-			ColumnType:    utils.Any2String(re["columnType"]),
-			ColumnComment: utils.Any2String(re["columnComment"]),
-			Nullable:      utils.Any2String(re["nullable"]),
-			ColumnKey:     utils.Any2String(re["columnKey"]),
-			ColumnDefault: utils.Any2String(re["columnDefault"]),
+			ColumnType:    anyx.ConvString(re["columnType"]),
+			ColumnComment: anyx.ConvString(re["columnComment"]),
+			Nullable:      anyx.ConvString(re["nullable"]),
+			ColumnKey:     anyx.ConvString(re["columnKey"]),
+			ColumnDefault: anyx.ConvString(re["columnDefault"]),
 		})
 	}
 	return columns
@@ -106,11 +106,11 @@ func (mm *MysqlMetadata) GetTableInfos() []Table {
 	for _, re := range res {
 		tables = append(tables, Table{
 			TableName:    re["tableName"].(string),
-			TableComment: utils.Any2String(re["tableComment"]),
-			CreateTime:   utils.Any2String(re["createTime"]),
-			TableRows:    utils.Any2Int(re["tableRows"]),
-			DataLength:   utils.Any2Int64(re["dataLength"]),
-			IndexLength:  utils.Any2Int64(re["indexLength"]),
+			TableComment: anyx.ConvString(re["tableComment"]),
+			CreateTime:   anyx.ConvString(re["createTime"]),
+			TableRows:    anyx.ConvInt(re["tableRows"]),
+			DataLength:   anyx.ConvInt64(re["dataLength"]),
+			IndexLength:  anyx.ConvInt64(re["indexLength"]),
 		})
 	}
 	return tables
@@ -124,11 +124,11 @@ func (mm *MysqlMetadata) GetTableIndex(tableName string) []Index {
 	for _, re := range res {
 		indexs = append(indexs, Index{
 			IndexName:    re["indexName"].(string),
-			ColumnName:   utils.Any2String(re["columnName"]),
-			IndexType:    utils.Any2String(re["indexType"]),
-			IndexComment: utils.Any2String(re["indexComment"]),
-			NonUnique:    utils.Any2Int(re["nonUnique"]),
-			SeqInIndex:   utils.Any2Int(re["seqInIndex"]),
+			ColumnName:   anyx.ConvString(re["columnName"]),
+			IndexType:    anyx.ConvString(re["indexType"]),
+			IndexComment: anyx.ConvString(re["indexComment"]),
+			NonUnique:    anyx.ConvInt(re["nonUnique"]),
+			SeqInIndex:   anyx.ConvInt(re["seqInIndex"]),
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接

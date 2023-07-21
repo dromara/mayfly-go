@@ -253,7 +253,7 @@ CREATE TABLE `t_machine_cron_job` (
   `modifier` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `create_time` datetime DEFAULT NULL,
   `update_time` datetime DEFAULT NULL,
-  `is_deleted` tinyint NOT NULL DEFAULT '-1',
+  `is_deleted` tinyint NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务';
@@ -266,7 +266,7 @@ CREATE TABLE `t_machine_cron_job_exec` (
   `status` tinyint DEFAULT NULL COMMENT '状态',
   `res` varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '执行结果',
   `exec_time` datetime DEFAULT NULL COMMENT '执行时间',
-  `is_deleted` tinyint NOT NULL DEFAULT '-1',
+  `is_deleted` tinyint NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务执行记录';
@@ -279,7 +279,7 @@ CREATE TABLE `t_machine_cron_job_relate` (
   `creator_id` bigint DEFAULT NULL,
   `creator` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `create_time` datetime DEFAULT NULL,
-  `is_deleted` tinyint NOT NULL DEFAULT '-1',
+  `is_deleted` tinyint NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务关联表';

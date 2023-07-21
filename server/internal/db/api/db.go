@@ -14,7 +14,9 @@ import (
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/cryptox"
+	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/structx"
 	"mayfly-go/pkg/ws"
 	"strconv"
 	"strings"
@@ -57,7 +59,7 @@ func (d *Db) Save(rc *req.Ctx) {
 	db := ginx.BindJsonAndCopyTo[*entity.Db](rc.GinCtx, form, new(entity.Db))
 
 	// 密码解密，并使用解密后的赋值
-	originPwd, err := utils.DefaultRsaDecrypt(form.Password, true)
+	originPwd, err := cryptox.DefaultRsaDecrypt(form.Password, true)
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
 	db.Password = originPwd
 
@@ -83,10 +85,10 @@ func (d *Db) GetDatabaseNames(rc *req.Ctx) {
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
 	db := new(entity.Db)
-	utils.Copy(db, form)
+	structx.Copy(db, form)
 
 	// 密码解密，并使用解密后的赋值
-	originPwd, err := utils.DefaultRsaDecrypt(form.Password, true)
+	originPwd, err := cryptox.DefaultRsaDecrypt(form.Password, true)
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
 	db.Password = originPwd
 
@@ -143,7 +145,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	biz.NotEmpty(form.Sql, "sql不能为空")
 
 	// 去除前后空格及换行符
-	sql := utils.StrTrimSpaceAndBr(form.Sql)
+	sql := stringx.TrimSpaceAndBr(form.Sql)
 
 	execReq := &application.DbSqlExecReq{
 		DbId:         id,
@@ -158,7 +160,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	isMulti := len(sqls) > 1
 	var execResAll *application.DbSqlExecRes
 	for _, s := range sqls {
-		s = utils.StrTrimSpaceAndBr(s)
+		s = stringx.TrimSpaceAndBr(s)
 		// 多条执行，如果有查询语句，则跳过
 		if isMulti && strings.HasPrefix(strings.ToLower(s), "select") {
 			continue
@@ -308,7 +310,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 					if ok {
 						values = append(values, fmt.Sprintf("%#v", strValue))
 					} else {
-						values = append(values, utils.ToString(value))
+						values = append(values, stringx.AnyToStr(value))
 					}
 				}
 				writer.WriteString(fmt.Sprintf(insertSql, table, strings.Join(values, ", ")))

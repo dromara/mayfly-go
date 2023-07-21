@@ -7,7 +7,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/collx"
 	"strconv"
 	"strings"
 )
@@ -29,7 +29,7 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 
 	if condition.Ids != "" {
 		// ,分割id转为id数组
-		qd.In("id", utils.ArrayMap[string, uint64](strings.Split(condition.Ids, ","), func(val string) uint64 {
+		qd.In("id", collx.ArrayMap[string, uint64](strings.Split(condition.Ids, ","), func(val string) uint64 {
 			id, _ := strconv.Atoi(val)
 			return uint64(id)
 		}))

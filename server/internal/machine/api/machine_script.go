@@ -10,7 +10,8 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/jsonx"
+	"mayfly-go/pkg/utils/stringx"
 	"strconv"
 	"strings"
 
@@ -63,7 +64,7 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	script := ms.Script
 	// 如果有脚本参数，则用脚本参数替换脚本中的模板占位符参数
 	if params := g.Query("params"); params != "" {
-		script = utils.TemplateParse(ms.Script, utils.Json2Map(params))
+		script = stringx.TemplateParse(ms.Script, jsonx.ToMap(params))
 	}
 	cli := m.MachineApp.GetCli(machineId)
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")

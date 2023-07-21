@@ -1,4 +1,4 @@
-package utils
+package stringx
 
 import (
 	"math/rand"
@@ -8,7 +8,7 @@ import (
 const randChar = "0123456789abcdefghigklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 // 生成随机字符串
-func RandString(l int) string {
+func Rand(l int) string {
 	strList := []byte(randChar)
 
 	result := []byte{}

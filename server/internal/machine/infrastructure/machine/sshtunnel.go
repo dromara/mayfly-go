@@ -5,7 +5,7 @@ import (
 	"io"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/scheduler"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/netx"
 	"net"
 	"os"
 	"sync"
@@ -75,7 +75,7 @@ func (stm *SshTunnelMachine) OpenSshTunnel(id uint64, ip string, port int) (expo
 	stm.mutex.Lock()
 	defer stm.mutex.Unlock()
 
-	localPort, err := utils.GetAvailablePort()
+	localPort, err := netx.GetAvailablePort()
 	if err != nil {
 		return "", 0, err
 	}

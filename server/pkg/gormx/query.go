@@ -5,7 +5,7 @@ import (
 	"mayfly-go/pkg/consts"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/anyx"
 	"strings"
 
 	"gorm.io/gorm"
@@ -159,7 +159,7 @@ func (q *QueryCond) Le(column string, val any) *QueryCond {
 
 func (q *QueryCond) Cond(cond, column string, val any, skipBlank bool) *QueryCond {
 	// 零值跳过
-	if skipBlank && utils.IsBlank(val) {
+	if skipBlank && anyx.IsBlank(val) {
 		return q
 	}
 	q.columns = append(q.columns, fmt.Sprintf("%s %s ?", column, cond))

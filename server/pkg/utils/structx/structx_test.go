@@ -1,7 +1,8 @@
-package utils
+package structx
 
 import (
 	"fmt"
+	"mayfly-go/pkg/utils/stringx"
 	"reflect"
 	"strings"
 	"testing"
@@ -188,7 +189,7 @@ func TestTemplateResolve(t *testing.T) {
 	d := make(map[string]string)
 	d["Name"] = "黄先生"
 	d["Age"] = "23jlfdsjf"
-	resolve := TemplateResolve("{{.Name}} is name, and {{.Age}} is age", d)
+	resolve := stringx.TemplateResolve("{{.Name}} is name, and {{.Age}} is age", d)
 	fmt.Println(resolve)
 
 }

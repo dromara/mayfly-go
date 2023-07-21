@@ -3,7 +3,7 @@ package application
 import (
 	"embed"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/stringx"
 	"strings"
 )
 
@@ -88,7 +88,7 @@ func GetLocalSql(file, key string) string {
 	sqls := strings.Split(allSql, "---------------------------------------")
 	var resSql string
 	for _, sql := range sqls {
-		sql = utils.StrTrimSpaceAndBr(sql)
+		sql = stringx.TrimSpaceAndBr(sql)
 		// 获取sql第一行的sql备注信息如：--MYSQL_TABLE_MA 表信息元数据
 		info := strings.SplitN(sql, "\n", 2)
 		// 原始sql，即去除第一行的key与备注信息

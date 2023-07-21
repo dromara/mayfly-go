@@ -9,7 +9,7 @@ import (
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/collx"
 	"strconv"
 	"strings"
 	"time"
@@ -72,14 +72,14 @@ func (r *Role) SaveResource(rc *req.Ctx) {
 	rc.ReqParam = form
 
 	// 将,拼接的字符串进行切割并转换
-	newIds := utils.ArrayMap[string, uint64](strings.Split(form.ResourceIds, ","), func(val string) uint64 {
+	newIds := collx.ArrayMap[string, uint64](strings.Split(form.ResourceIds, ","), func(val string) uint64 {
 		id, _ := strconv.Atoi(val)
 		return uint64(id)
 	})
 
 	oIds := r.RoleApp.GetRoleResourceIds(uint64(form.Id))
 
-	addIds, delIds, _ := utils.ArrayCompare(newIds, oIds, func(i1, i2 uint64) bool {
+	addIds, delIds, _ := collx.ArrayCompare(newIds, oIds, func(i1, i2 uint64) bool {
 		return i1 == i2
 	})
 

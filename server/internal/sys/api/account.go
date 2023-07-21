@@ -16,7 +16,12 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/otp"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/cryptox"
+	"mayfly-go/pkg/utils/jsonx"
+	"mayfly-go/pkg/utils/netx"
+	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/timex"
 	"regexp"
 	"strconv"
 	"strings"
@@ -55,7 +60,7 @@ func (a *Account) Login(rc *req.Ctx) {
 	clientIp := getIpAndRegion(rc)
 	rc.ReqParam = fmt.Sprintf("username: %s | ip: %s", username, clientIp)
 
-	originPwd, err := utils.DefaultRsaDecrypt(loginForm.Password, true)
+	originPwd, err := cryptox.DefaultRsaDecrypt(loginForm.Password, true)
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
 
 	account := &entity.Account{Username: username}
@@ -67,7 +72,7 @@ func (a *Account) Login(rc *req.Ctx) {
 	loginFailMin := accountLoginSecurity.LoginFailMin
 	biz.IsTrue(nowFailCount < loginFailCount, "登录失败超过%d次, 请%d分钟后再试", loginFailCount, loginFailMin)
 
-	if err != nil || !utils.CheckPwdHash(originPwd, account.Password) {
+	if err != nil || !cryptox.CheckPwdHash(originPwd, account.Password) {
 		nowFailCount++
 		cache.SetStr(failCountKey, strconv.Itoa(nowFailCount), time.Minute*time.Duration(loginFailMin))
 		panic(biz.NewBizErr(fmt.Sprintf("用户名或密码错误【当前登录失败%d次】", nowFailCount)))
@@ -96,7 +101,7 @@ func (a *Account) Login(rc *req.Ctx) {
 		// 修改状态为已注册
 		otpStatus = OtpStatusReg
 		// 该token用于otp双因素校验
-		token = utils.RandString(32)
+		token = stringx.Rand(32)
 		// 未注册otp secret或重置了秘钥
 		if otpSecret == "" || otpSecret == "-" {
 			otpStatus = OtpStatusNoReg
@@ -116,7 +121,7 @@ func (a *Account) Login(rc *req.Ctx) {
 			OtpSecret:   otpSecret,
 			AccessToken: accessToken,
 		}
-		cache.SetStr(fmt.Sprintf("otp:token:%s", token), utils.ToJsonStr(otpInfo), time.Minute*time.Duration(3))
+		cache.SetStr(fmt.Sprintf("otp:token:%s", token), jsonx.ToStr(otpInfo), time.Minute*time.Duration(3))
 	} else {
 		// 不进行otp二次校验则直接返回accessToken
 		token = accessToken
@@ -133,7 +138,7 @@ func (a *Account) Login(rc *req.Ctx) {
 // 获取ip与归属地信息
 func getIpAndRegion(rc *req.Ctx) string {
 	clientIp := rc.GinCtx.ClientIP()
-	return fmt.Sprintf("%s %s", clientIp, utils.Ip2Region(clientIp))
+	return fmt.Sprintf("%s %s", clientIp, netx.Ip2Region(clientIp))
 }
 
 type OtpVerifyInfo struct {
@@ -214,22 +219,22 @@ func (a *Account) ChangePassword(rc *req.Ctx) {
 	form := new(form.AccountChangePasswordForm)
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
-	originOldPwd, err := utils.DefaultRsaDecrypt(form.OldPassword, true)
+	originOldPwd, err := cryptox.DefaultRsaDecrypt(form.OldPassword, true)
 	biz.ErrIsNilAppendErr(err, "解密旧密码错误: %s")
 
 	account := &entity.Account{Username: form.Username}
 	err = a.AccountApp.GetAccount(account, "Id", "Username", "Password", "Status")
 	biz.ErrIsNil(err, "旧密码错误")
-	biz.IsTrue(utils.CheckPwdHash(originOldPwd, account.Password), "旧密码错误")
+	biz.IsTrue(cryptox.CheckPwdHash(originOldPwd, account.Password), "旧密码错误")
 	biz.IsTrue(account.IsEnable(), "该账号不可用")
 
-	originNewPwd, err := utils.DefaultRsaDecrypt(form.NewPassword, true)
+	originNewPwd, err := cryptox.DefaultRsaDecrypt(form.NewPassword, true)
 	biz.ErrIsNilAppendErr(err, "解密新密码错误: %s")
 	biz.IsTrue(CheckPasswordLever(originNewPwd), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
 
 	updateAccount := new(entity.Account)
 	updateAccount.Id = account.Id
-	updateAccount.Password = utils.PwdHash(originNewPwd)
+	updateAccount.Password = cryptox.PwdHash(originNewPwd)
 	a.AccountApp.Update(updateAccount)
 
 	// 赋值loginAccount 主要用于记录操作日志，因为操作日志保存请求上下文没有该信息不保存日志
@@ -267,7 +272,7 @@ func (a *Account) saveLogin(account *entity.Account, ip string) {
 	// 创建登录消息
 	loginMsg := &msgentity.Msg{
 		RecipientId: int64(account.Id),
-		Msg:         fmt.Sprintf("于[%s]-[%s]登录", ip, utils.DefaultTimeFormat(now)),
+		Msg:         fmt.Sprintf("于[%s]-[%s]登录", ip, timex.DefaultFormat(now)),
 		Type:        1,
 	}
 	loginMsg.CreateTime = &now
@@ -295,7 +300,7 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 
 	if updateAccount.Password != "" {
 		biz.IsTrue(CheckPasswordLever(updateAccount.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
-		updateAccount.Password = utils.PwdHash(updateAccount.Password)
+		updateAccount.Password = cryptox.PwdHash(updateAccount.Password)
 	}
 	a.AccountApp.Update(updateAccount)
 }
@@ -323,7 +328,7 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 	} else {
 		if account.Password != "" {
 			biz.IsTrue(CheckPasswordLever(account.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
-			account.Password = utils.PwdHash(account.Password)
+			account.Password = cryptox.PwdHash(account.Password)
 		}
 		a.AccountApp.Update(account)
 	}
@@ -380,14 +385,14 @@ func (a *Account) SaveRoles(rc *req.Ctx) {
 	rc.ReqParam = form
 
 	// 将,拼接的字符串进行切割并转换
-	newIds := utils.ArrayMap[string, uint64](strings.Split(form.RoleIds, ","), func(val string) uint64 {
+	newIds := collx.ArrayMap[string, uint64](strings.Split(form.RoleIds, ","), func(val string) uint64 {
 		id, _ := strconv.Atoi(val)
 		return uint64(id)
 	})
 
 	oIds := a.RoleApp.GetAccountRoleIds(uint64(form.Id))
 
-	addIds, delIds, _ := utils.ArrayCompare(newIds, oIds, func(i1, i2 uint64) bool {
+	addIds, delIds, _ := collx.ArrayCompare(newIds, oIds, func(i1, i2 uint64) bool {
 		return i1 == i2
 	})
 

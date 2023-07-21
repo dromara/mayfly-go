@@ -1,4 +1,4 @@
-package utils
+package structx
 
 import (
 	"database/sql"

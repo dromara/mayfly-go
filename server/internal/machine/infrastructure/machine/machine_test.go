@@ -2,7 +2,7 @@ package machine
 
 import (
 	"fmt"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/stringx"
 	"strings"
 	"testing"
 )
@@ -69,7 +69,7 @@ func TestTemplateRev(t *testing.T) {
 	//key := temp[index+1 : ei-1]
 	//value := SubString(str, index, UnicodeIndex(str, next))
 	res := make(map[string]any)
-	utils.ReverStrTemplate(temp, str, res)
+	stringx.ReverStrTemplate(temp, str, res)
 	fmt.Println(res)
 }
 

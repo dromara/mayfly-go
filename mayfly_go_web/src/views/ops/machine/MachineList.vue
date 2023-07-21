@@ -251,7 +251,6 @@ onMounted(async () => {
 const handleCommand = (commond: any) => {
     const data = commond.data;
     const type = commond.type;
-    console.log(type);
     switch (type) {
         case 'detail': {
             showInfo(data);

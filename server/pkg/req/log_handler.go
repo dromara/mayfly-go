@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/logger"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/stringx"
 
 	"github.com/sirupsen/logrus"
 )
@@ -72,21 +73,21 @@ func LogHandler(rc *Ctx) error {
 func getLogMsg(rc *Ctx) string {
 	logInfo := rc.Conf.logInfo
 	msg := logInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
-	if !utils.IsBlank(rc.ReqParam) {
-		msg = msg + fmt.Sprintf("\n--> %s", utils.ToString(rc.ReqParam))
+	if !anyx.IsBlank(rc.ReqParam) {
+		msg = msg + fmt.Sprintf("\n--> %s", stringx.AnyToStr(rc.ReqParam))
 	}
 
 	// 返回结果不为空，则记录返回结果
-	if logInfo.LogResp && !utils.IsBlank(rc.ResData) {
-		msg = msg + fmt.Sprintf("\n<-- %s", utils.ToString(rc.ResData))
+	if logInfo.LogResp && !anyx.IsBlank(rc.ResData) {
+		msg = msg + fmt.Sprintf("\n<-- %s", stringx.AnyToStr(rc.ResData))
 	}
 	return msg
 }
 
 func getErrMsg(rc *Ctx, err any) string {
 	msg := rc.Conf.logInfo.Description
-	if !utils.IsBlank(rc.ReqParam) {
-		msg = msg + fmt.Sprintf("\n--> %s", utils.ToString(rc.ReqParam))
+	if !anyx.IsBlank(rc.ReqParam) {
+		msg = msg + fmt.Sprintf("\n--> %s", stringx.AnyToStr(rc.ReqParam))
 	}
 
 	var errMsg string

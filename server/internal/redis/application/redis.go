@@ -12,7 +12,8 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/netx"
+	"mayfly-go/pkg/utils/structx"
 	"net"
 	"strconv"
 	"strings"
@@ -176,7 +177,7 @@ func getRedisCacheKey(id uint64, db int) string {
 
 func toRedisInfo(re *entity.Redis, db int) *RedisInfo {
 	redisInfo := new(RedisInfo)
-	utils.Copy(redisInfo, re)
+	structx.Copy(redisInfo, re)
 	redisInfo.Db = db
 	return redisInfo
 }
@@ -243,7 +244,7 @@ func getRedisDialer(machineId int) func(ctx context.Context, network, addr strin
 	return func(_ context.Context, network, addr string) (net.Conn, error) {
 		if sshConn, err := sshTunnel.GetDialConn(network, addr); err == nil {
 			// 将ssh conn包装，否则redis内部设置超时会报错,ssh conn不支持设置超时会返回错误: ssh: tcpChan: deadline not supported
-			return &utils.WrapSshConn{Conn: sshConn}, nil
+			return &netx.WrapSshConn{Conn: sshConn}, nil
 		} else {
 			return nil, err
 		}

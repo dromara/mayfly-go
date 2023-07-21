@@ -11,7 +11,8 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/structx"
 	"reflect"
 	"strconv"
 	"strings"
@@ -120,7 +121,7 @@ func (d *dbAppImpl) Save(dbEntity *entity.Db) {
 		newDbs = append(newDbs, v)
 	}
 	// 比较新旧数据库列表，需要将移除的数据库相关联的信息删除
-	_, delDb, _ := utils.ArrayCompare(newDbs, oldDbs, func(i1, i2 any) bool {
+	_, delDb, _ := collx.ArrayCompare(newDbs, oldDbs, func(i1, i2 any) bool {
 		return i1.(string) == i2.(string)
 	})
 	for _, v := range delDb {
@@ -193,7 +194,7 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	d.PwdDecrypt()
 
 	dbInfo := new(DbInfo)
-	utils.Copy(dbInfo, d)
+	structx.Copy(dbInfo, d)
 	dbInfo.Database = db
 	dbi := &DbInstance{Id: cacheKey, Info: dbInfo}
 

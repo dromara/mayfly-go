@@ -7,7 +7,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/stringx"
 	"time"
 )
 
@@ -25,7 +25,7 @@ func (r *Redis) SetStringValue(rc *req.Ctx) {
 
 	ri := r.getRedisIns(rc)
 	cmd := ri.GetCmdable()
-	rc.ReqParam = fmt.Sprintf("%s -> %s", ri.Info.GetLogDesc(), utils.ToString(keyValue))
+	rc.ReqParam = fmt.Sprintf("%s -> %s", ri.Info.GetLogDesc(), stringx.AnyToStr(keyValue))
 
 	str, err := cmd.Set(context.TODO(), keyValue.Key, keyValue.Value, time.Second*time.Duration(keyValue.Timed)).Result()
 	biz.ErrIsNilAppendErr(err, "保存字符串值失败: %s")

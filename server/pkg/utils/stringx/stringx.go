@@ -1,4 +1,4 @@
-package utils
+package stringx
 
 import (
 	"bytes"
@@ -9,17 +9,17 @@ import (
 )
 
 // 可判断中文
-func StrLen(str string) int {
+func Len(str string) int {
 	return len([]rune(str))
 }
 
 // 去除字符串左右空字符
-func StrTrim(str string) string {
+func Trim(str string) string {
 	return strings.Trim(str, " ")
 }
 
 // 去除字符串左右空字符与\n\r换行回车符
-func StrTrimSpaceAndBr(str string) string {
+func TrimSpaceAndBr(str string) string {
 	return strings.TrimFunc(str, func(r rune) bool {
 		s := string(r)
 		return s == " " || s == "\n" || s == "\r"
@@ -96,7 +96,7 @@ func TemplateResolve(temp string, data any) string {
 func ReverStrTemplate(temp, str string, res map[string]any) {
 	index := UnicodeIndex(temp, "{")
 	ei := UnicodeIndex(temp, "}") + 1
-	next := StrTrim(temp[ei:])
+	next := Trim(temp[ei:])
 	nextContain := UnicodeIndex(next, "{")
 	nextIndexValue := next
 	if nextContain != -1 {
@@ -106,19 +106,19 @@ func ReverStrTemplate(temp, str string, res map[string]any) {
 	// 如果后面没有内容了，则取字符串的长度即可
 	var valueLastIndex int
 	if nextIndexValue == "" {
-		valueLastIndex = StrLen(str)
+		valueLastIndex = Len(str)
 	} else {
 		valueLastIndex = UnicodeIndex(str, nextIndexValue)
 	}
-	value := StrTrim(SubString(str, index, valueLastIndex))
+	value := Trim(SubString(str, index, valueLastIndex))
 	res[key] = value
 	// 如果后面的还有需要解析的，则递归调用解析
 	if nextContain != -1 {
-		ReverStrTemplate(next, StrTrim(SubString(str, UnicodeIndex(str, value)+StrLen(value), StrLen(str))), res)
+		ReverStrTemplate(next, Trim(SubString(str, UnicodeIndex(str, value)+Len(value), Len(str))), res)
 	}
 }
 
-func ToString(value any) string {
+func AnyToStr(value any) string {
 	// interface 转 string
 	var key string
 	if value == nil {

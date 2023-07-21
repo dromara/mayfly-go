@@ -5,7 +5,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/structx"
 	"net/http"
 	"runtime/debug"
 	"strconv"
@@ -25,7 +25,7 @@ func BindJsonAndValid[T any](g *gin.Context, data T) T {
 // 绑定请求体中的json至form结构体，并拷贝至另一结构体
 func BindJsonAndCopyTo[T any](g *gin.Context, form any, toStruct T) T {
 	BindJsonAndValid(g, form)
-	utils.Copy(toStruct, form)
+	structx.Copy(toStruct, form)
 	return toStruct
 }
 
