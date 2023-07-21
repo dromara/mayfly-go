@@ -53,7 +53,7 @@ func (c *Config) SaveConfig(rc *req.Ctx) {
 
 // AuthConfig auth相关配置
 func (c *Config) AuthConfig(rc *req.Ctx) {
-	resp := &vo.OAuth2EnableVO{}
+	resp := &vo.Auth2EnableVO{}
 	config := c.ConfigApp.GetConfig(AuthOAuth2Key)
 	oauth2 := &vo.OAuth2VO{}
 	if config.Value != "" {

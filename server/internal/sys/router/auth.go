@@ -24,6 +24,9 @@ func InitSysAuthRouter(router *gin.RouterGroup) {
 
 		req.NewPut("/oauth2", r.SaveOAuth2).RequiredPermission(baseP),
 
+		req.NewGet("/status", r.Auth2Status),
+		req.NewGet("/oauth2/bind", r.OAuth2Bind),
+
 		req.NewGet("/oauth2/login", r.OAuth2Login).DontNeedToken(),
 		req.NewGet("/oauth2/callback", r.OAuth2Callback).NoRes().DontNeedToken(),
 	}

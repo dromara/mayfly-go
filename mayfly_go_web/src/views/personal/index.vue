@@ -155,14 +155,16 @@
                             </div>
                         </div>
                     </div> -->
-                    <div class="personal-edit-safe-box">
+                    <div v-show="authStatus.enable.oauth2" class="personal-edit-safe-box">
                         <div class="personal-edit-safe-item">
                             <div class="personal-edit-safe-item-left">
                                 <div class="personal-edit-safe-item-left-label">绑定OAuth2</div>
-                                <div class="personal-edit-safe-item-left-value">已绑定OAuth2</div>
+                                <div class="personal-edit-safe-item-left-value">
+                                    {{ authStatus.bind.oauth2 ? '已绑定' : '未绑定' }}
+                                </div>
                             </div>
                             <div class="personal-edit-safe-item-right">
-                                <el-button type="text">立即绑定</el-button>
+                                <el-button type="text" @click="bindOAuth2" :disabled="authStatus.bind">立即绑定</el-button>
                             </div>
                         </div>
                     </div>
@@ -180,6 +182,8 @@ import { personApi } from './api';
 import { dateFormat } from '@/common/utils/date';
 import { storeToRefs } from 'pinia';
 import { useUserInfo } from '@/store/userInfo';
+import config from '@/common/config';
+import { getSession } from '@/common/utils/storage';
 
 const { userInfo } = storeToRefs(useUserInfo());
 const state = reactive({
@@ -202,9 +206,13 @@ const state = reactive({
     accountForm: {
         password: '',
     },
+    authStatus: {
+        enable: { oauth2: false },
+        bind: { oauth2: false }
+    }
 });
 
-const { msgDialog, accountForm } = toRefs(state);
+const { msgDialog, accountForm, authStatus } = toRefs(state);
 
 // 当前时间提示语
 const currentTime = computed(() => {
@@ -222,9 +230,10 @@ const roleInfo = computed(() => {
     return state.accountInfo.roles.map((val: any) => val.name).join('、');
 });
 
-onMounted(() => {
+onMounted(async () => {
     getAccountInfo();
     getMsgs();
+    state.authStatus = await personApi.authStatus.request()
 });
 
 const getAccountInfo = async () => {
@@ -235,6 +244,31 @@ const updateAccount = async () => {
     await personApi.updateAccount.request(state.accountForm);
     ElMessage.success('更新成功');
 };
+
+const bindOAuth2 = () => {
+    // 小窗口打开oauth2鉴权
+    let oauthWindoe = window.open(config.baseApiUrl + "/sys/auth/oauth2/bind?token=" + getSession('token'), "oauth2", "width=600,height=600");
+    if (oauthWindoe) {
+        const handler = (e: any) => {
+            if (e.data.action === "oauthBind") {
+                oauthWindoe!.close();
+                window.removeEventListener("message", handler);
+                // 处理登录token
+                console.log(e.data);
+                ElMessage.success('绑定成功');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            }
+        }
+        window.addEventListener("message", handler);
+        setInterval(() => {
+            if (oauthWindoe!.closed) {
+                window.removeEventListener("message", handler);
+            }
+        }, 1000);
+    }
+}
 
 const getMsgs = async () => {
     const res = await personApi.getMsgs.request(state.msgDialog.query);
