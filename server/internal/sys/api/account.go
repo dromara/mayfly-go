@@ -120,7 +120,7 @@ func useOtp(account *entity.Account, otpIssuer, accessToken string) (*OtpVerifyI
 	otpStatus := OtpStatusReg
 	otpUrl := ""
 	// 该token用于otp双因素校验
-	token := utils.RandString(32)
+	token := stringx.Rand(32)
 	// 未注册otp secret或重置了秘钥
 	if otpSecret == "" || otpSecret == "-" {
 		otpStatus = OtpStatusNoReg
@@ -140,7 +140,7 @@ func useOtp(account *entity.Account, otpIssuer, accessToken string) (*OtpVerifyI
 		OtpSecret:   otpSecret,
 		AccessToken: accessToken,
 	}
-	cache.SetStr(fmt.Sprintf("otp:token:%s", token), utils.ToJsonStr(otpInfo), time.Minute*time.Duration(3))
+	cache.SetStr(fmt.Sprintf("otp:token:%s", token), jsonx.ToStr(otpInfo), time.Minute*time.Duration(3))
 	return otpInfo, otpUrl, token
 }
 

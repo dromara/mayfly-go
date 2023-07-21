@@ -18,7 +18,7 @@ import (
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils"
+	"mayfly-go/pkg/utils/stringx"
 	"net/http"
 	"strconv"
 	"strings"
@@ -53,7 +53,7 @@ func (a *Auth) OAuth2Login(rc *req.Ctx) {
 		biz.ErrIsNil(err, "获取oauth2 client失败: "+err.Error())
 		return
 	}
-	state := utils.RandString(32)
+	state := stringx.Rand(32)
 	cache.SetStr("oauth2:state:"+state, "login", 5*time.Minute)
 	rc.GinCtx.Redirect(http.StatusFound, client.AuthCodeURL(state))
 }
@@ -155,7 +155,7 @@ func (a *Auth) OAuth2Callback(rc *req.Ctx) {
 		}
 		// 进行登录
 		account := &entity.Account{
-			Model: model.Model{Id: accountId},
+			Model: model.Model{DeletedModel: model.DeletedModel{Id: accountId}},
 		}
 		if err := a.AccountApp.GetAccount(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret"); err != nil {
 			biz.ErrIsNil(err, "获取用户信息失败: "+err.Error())
@@ -305,7 +305,7 @@ func (a *Auth) OAuth2Bind(rc *req.Ctx) {
 		biz.ErrIsNil(err, "获取oauth2 client失败: "+err.Error())
 		return
 	}
-	state := utils.RandString(32)
+	state := stringx.Rand(32)
 	cache.SetStr("oauth2:state:"+state, "bind:"+strconv.FormatUint(rc.LoginAccount.Id, 10),
 		5*time.Minute)
 	rc.GinCtx.Redirect(http.StatusFound, client.AuthCodeURL(state))

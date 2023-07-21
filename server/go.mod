@@ -24,7 +24,10 @@ require (
 	gorm.io/gorm v1.25.2
 )
 
-require github.com/go-gormigrate/gormigrate/v2 v2.1.0
+require (
+	github.com/go-gormigrate/gormigrate/v2 v2.1.0
+	golang.org/x/oauth2 v0.10.0
+)
 
 require (
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
@@ -63,7 +66,6 @@ require (
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/image v0.0.0-20220302094943-723b81ca9867 // indirect
 	golang.org/x/net v0.12.0 // indirect
-	golang.org/x/oauth2 v0.10.0 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect

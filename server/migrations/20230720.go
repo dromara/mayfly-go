@@ -18,13 +18,13 @@ func T20230720() *gormigrate.Migration {
 			now := time.Now()
 			res := &entity.Resource{
 				Model: model.Model{
-					Id:         130,
-					CreateTime: &now,
-					CreatorId:  1,
-					Creator:    "admin",
-					UpdateTime: &now,
-					ModifierId: 1,
-					Modifier:   "admin",
+					DeletedModel: model.DeletedModel{Id: 130},
+					CreateTime:   &now,
+					CreatorId:    1,
+					Creator:      "admin",
+					UpdateTime:   &now,
+					ModifierId:   1,
+					Modifier:     "admin",
 				},
 				Pid:    4,
 				UiPath: "sys/auth",
@@ -42,13 +42,13 @@ func T20230720() *gormigrate.Migration {
 			}
 			res = &entity.Resource{
 				Model: model.Model{
-					Id:         131,
-					CreateTime: &now,
-					CreatorId:  1,
-					Creator:    "admin",
-					UpdateTime: &now,
-					ModifierId: 1,
-					Modifier:   "admin",
+					DeletedModel: model.DeletedModel{Id: 131},
+					CreateTime:   &now,
+					CreatorId:    1,
+					Creator:      "admin",
+					UpdateTime:   &now,
+					ModifierId:   1,
+					Modifier:     "admin",
 				},
 				Pid:    130,
 				UiPath: "sys/auth/base",

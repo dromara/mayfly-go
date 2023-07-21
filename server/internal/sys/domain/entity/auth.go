@@ -1,9 +1,12 @@
 package entity
 
-import "time"
+import (
+	"mayfly-go/pkg/model"
+	"time"
+)
 
 type OAuthAccount struct {
-	Id uint64 `json:"id"`
+	model.DeletedModel
 
 	AccountId uint64 `json:"accountId" gorm:"column:account_id;index:account_id,unique"`
 	Identity  string `json:"identity" gorm:"column:identity;index:identity,unique"`
