@@ -19,8 +19,8 @@ type Config struct {
 	model.Model
 	Name   string `json:"name"` // 配置名
 	Key    string `json:"key"`  // 配置key
-	Params string `json:"params"`
-	Value  string `json:"value"`
+	Params string `json:"params" gorm:"column:params;type:varchar(1000)"`
+	Value  string `json:"value" gorm:"column:value;type:varchar(1000)"`
 	Remark string `json:"remark"`
 }
 

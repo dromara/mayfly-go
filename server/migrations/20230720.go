@@ -15,16 +15,9 @@ func T20230720() *gormigrate.Migration {
 		ID: "20230319",
 		Migrate: func(tx *gorm.DB) error {
 			// 添加路由权限
-			now := time.Now()
 			res := &entity.Resource{
 				Model: model.Model{
-					DeletedModel: model.DeletedModel{Id: 130},
-					CreateTime:   &now,
-					CreatorId:    1,
-					Creator:      "admin",
-					UpdateTime:   &now,
-					ModifierId:   1,
-					Modifier:     "admin",
+					DeletedModel: model.DeletedModel{Id: 133},
 				},
 				Pid:    4,
 				UiPath: "sys/auth",
@@ -37,20 +30,14 @@ func T20230720() *gormigrate.Migration {
 					"\"icon\":\"User\",\"isKeepAlive\":true," +
 					"\"routeName\":\"AuthInfo\"}",
 			}
-			if err := tx.Save(res).Error; err != nil {
+			if err := insertResource(tx, res); err != nil {
 				return err
 			}
 			res = &entity.Resource{
 				Model: model.Model{
-					DeletedModel: model.DeletedModel{Id: 131},
-					CreateTime:   &now,
-					CreatorId:    1,
-					Creator:      "admin",
-					UpdateTime:   &now,
-					ModifierId:   1,
-					Modifier:     "admin",
+					DeletedModel: model.DeletedModel{Id: 134},
 				},
-				Pid:    130,
+				Pid:    133,
 				UiPath: "sys/auth/base",
 				Type:   2,
 				Status: 1,
@@ -59,12 +46,12 @@ func T20230720() *gormigrate.Migration {
 				Weight: 10000000,
 				Meta:   "null",
 			}
-			if err := tx.Save(res).Error; err != nil {
+			if err := insertResource(tx, res); err != nil {
 				return err
 			}
 			// 加大params字段长度
-			if err := tx.Exec("alter table " + (&entity.Config{}).TableName() +
-				" modify column params varchar(1000)").Error; err != nil {
+			now := time.Now()
+			if err := tx.AutoMigrate(&entity.Config{}); err != nil {
 				return err
 			}
 			if err := tx.Save(&entity.Config{

@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/go-gormigrate/gormigrate/v2"
 	"gorm.io/gorm"
+	"mayfly-go/internal/sys/domain/entity"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
 	"time"
 )
@@ -42,4 +44,25 @@ func run(db *gorm.DB, fs ...func() *gormigrate.Migration) error {
 		return err
 	}
 	return nil
+}
+
+func insertResource(tx *gorm.DB, res *entity.Resource) error {
+	now := time.Now()
+	res.CreateTime = &now
+	res.CreatorId = 1
+	res.Creator = "admin"
+	res.UpdateTime = &now
+	res.ModifierId = 1
+	res.Modifier = "admin"
+	if err := tx.Save(res).Error; err != nil {
+		return err
+	}
+	return tx.Save(&entity.RoleResource{
+		DeletedModel: model.DeletedModel{},
+		RoleId:       1,
+		ResourceId:   res.Id,
+		CreateTime:   &now,
+		CreatorId:    1,
+		Creator:      "admin",
+	}).Error
 }

@@ -10,9 +10,9 @@ type AuthCert struct {
 	model.Model
 
 	Name       string `json:"name"`
-	AuthMethod int8   `json:"authMethod"` // 1.密码 2.秘钥
-	Password   string `json:"password"`   // 密码or私钥
-	Passphrase string `json:"passphrase"` // 私钥口令
+	AuthMethod int8   `json:"authMethod"`                                         // 1.密码 2.秘钥
+	Password   string `json:"password" gorm:"column:password;type:varchar(4200)"` // 密码or私钥
+	Passphrase string `json:"passphrase"`                                         // 私钥口令
 	Remark     string `json:"remark"`
 }
 

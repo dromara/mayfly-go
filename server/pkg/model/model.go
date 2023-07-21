@@ -15,7 +15,7 @@ const (
 // 含有删除字段模型
 type DeletedModel struct {
 	Id         uint64     `json:"id"`
-	IsDeleted  int8       `json:"-"`
+	IsDeleted  int8       `json:"-" gorm:"column:is_deleted;default:0"`
 	DeleteTime *time.Time `json:"-"`
 }
 

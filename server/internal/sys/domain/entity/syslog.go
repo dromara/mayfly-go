@@ -15,8 +15,8 @@ type SysLog struct {
 
 	Type        int8   `json:"type"`
 	Description string `json:"description"`
-	ReqParam    string `json:"reqParam"` // 请求参数
-	Resp        string `json:"resp"`     // 响应结构
+	ReqParam    string `json:"reqParam" gorm:"column:req_param;type:varchar(1000)"` // 请求参数
+	Resp        string `json:"resp" gorm:"column:resp;type:varchar(1000)"`          // 响应结构
 }
 
 func (a *SysLog) TableName() string {
