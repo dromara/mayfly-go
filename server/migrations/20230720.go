@@ -84,7 +84,7 @@ func T20230720() *gormigrate.Migration {
 			}).Error; err != nil {
 				return err
 			}
-			return nil
+			return tx.AutoMigrate(&entity.OAuthAccount{})
 		},
 		Rollback: func(tx *gorm.DB) error {
 			return nil

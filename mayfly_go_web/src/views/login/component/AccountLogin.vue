@@ -2,37 +2,24 @@
     <div>
         <el-form ref="loginFormRef" :model="loginForm" :rules="rules" class="login-content-form" size="large">
             <el-form-item prop="username">
-                <el-input type="text" placeholder="请输入用户名" prefix-icon="user" v-model="loginForm.username" clearable autocomplete="off"> </el-input>
+                <el-input type="text" placeholder="请输入用户名" prefix-icon="user" v-model="loginForm.username" clearable
+                    autocomplete="off"> </el-input>
             </el-form-item>
             <el-form-item prop="password">
-                <el-input
-                    type="password"
-                    placeholder="请输入密码"
-                    prefix-icon="lock"
-                    v-model="loginForm.password"
-                    autocomplete="off"
-                    @keyup.enter="login"
-                    show-password
-                >
+                <el-input type="password" placeholder="请输入密码" prefix-icon="lock" v-model="loginForm.password"
+                    autocomplete="off" @keyup.enter="login" show-password>
                 </el-input>
             </el-form-item>
             <el-form-item v-if="accountLoginSecurity.useCaptcha" prop="captcha">
                 <el-row :gutter="15">
                     <el-col :span="16">
-                        <el-input
-                            type="text"
-                            maxlength="6"
-                            placeholder="请输入验证码"
-                            prefix-icon="position"
-                            v-model="loginForm.captcha"
-                            clearable
-                            autocomplete="off"
-                            @keyup.enter="login"
-                        ></el-input>
+                        <el-input type="text" maxlength="6" placeholder="请输入验证码" prefix-icon="position"
+                            v-model="loginForm.captcha" clearable autocomplete="off" @keyup.enter="login"></el-input>
                     </el-col>
                     <el-col :span="8">
                         <div class="login-content-code">
-                            <img class="login-content-code-img" @click="getCaptcha" width="130px" height="40px" :src="captchaImage" style="cursor: pointer" />
+                            <img class="login-content-code-img" @click="getCaptcha" width="130px" height="40px"
+                                :src="captchaImage" style="cursor: pointer" />
                         </div>
                     </el-col>
                 </el-row>
@@ -47,21 +34,19 @@
             </el-form-item>
         </el-form>
 
-        <el-dialog title="修改密码" v-model="changePwdDialog.visible" :close-on-click-modal="false" width="450px" :destroy-on-close="true">
+        <el-dialog title="修改密码" v-model="changePwdDialog.visible" :close-on-click-modal="false" width="450px"
+            :destroy-on-close="true">
             <el-form :model="changePwdDialog.form" :rules="changePwdDialog.rules" ref="changePwdFormRef" label-width="auto">
                 <el-form-item prop="username" label="用户名" required>
                     <el-input v-model.trim="changePwdDialog.form.username" disabled></el-input>
                 </el-form-item>
                 <el-form-item prop="oldPassword" label="旧密码" required>
-                    <el-input v-model.trim="changePwdDialog.form.oldPassword" autocomplete="new-password" type="password"></el-input>
+                    <el-input v-model.trim="changePwdDialog.form.oldPassword" autocomplete="new-password"
+                        type="password"></el-input>
                 </el-form-item>
                 <el-form-item prop="newPassword" label="新密码" required>
-                    <el-input
-                        v-model.trim="changePwdDialog.form.newPassword"
-                        placeholder="须为8位以上且包含字⺟⼤⼩写+数字+特殊符号"
-                        type="password"
-                        autocomplete="new-password"
-                    ></el-input>
+                    <el-input v-model.trim="changePwdDialog.form.newPassword" placeholder="须为8位以上且包含字⺟⼤⼩写+数字+特殊符号"
+                        type="password" autocomplete="new-password"></el-input>
                 </el-form-item>
             </el-form>
 
@@ -73,28 +58,17 @@
             </template>
         </el-dialog>
 
-        <el-dialog
-            title="OTP校验"
-            v-model="otpDialog.visible"
-            @close="loading.signIn = false"
-            :close-on-click-modal="false"
-            width="350px"
-            :destroy-on-close="true"
-        >
-            <el-form ref="otpFormRef" :model="otpDialog.form" :rules="otpDialog.rules" @submit.native.prevent label-width="auto">
+        <el-dialog title="OTP校验" v-model="otpDialog.visible" @close="loading.signIn = false" :close-on-click-modal="false"
+            width="350px" :destroy-on-close="true">
+            <el-form ref="otpFormRef" :model="otpDialog.form" :rules="otpDialog.rules" @submit.native.prevent
+                label-width="auto">
                 <el-form-item v-if="otpDialog.otpUrl" label="二维码">
                     <qrcode-vue :value="otpDialog.otpUrl" :size="200" level="H" />
                 </el-form-item>
 
                 <el-form-item prop="code" label="OTP" required>
-                    <el-input
-                        style="width: 220px"
-                        ref="otpCodeInputRef"
-                        v-model.trim="otpDialog.form.code"
-                        clearable
-                        @keyup.enter="otpVerify"
-                        placeholder="请输入令牌APP中显示的授权码"
-                    ></el-input>
+                    <el-input style="width: 220px" ref="otpCodeInputRef" v-model.trim="otpDialog.form.code" clearable
+                        @keyup.enter="otpVerify" placeholder="请输入令牌APP中显示的授权码"></el-input>
                 </el-form-item>
             </el-form>
 
@@ -265,10 +239,14 @@ const onSignIn = async () => {
         return;
     }
     state.showLoginFailTips = false;
+    loginResDeal(loginRes);
+}
+
+const loginResDeal = (loginRes: any) => {
     // 用户信息
     const userInfos = {
         name: loginRes.name,
-        username: state.loginForm.username,
+        username: loginRes.username,
         // 头像
         photo: letterAvatar(state.loginForm.username),
         time: new Date().getTime(),
@@ -296,6 +274,10 @@ const onSignIn = async () => {
         otpCodeInputRef.value.focus();
     }, 400);
 };
+
+defineExpose({
+    loginResDeal
+});
 
 // 登录成功后的跳转
 const signInSuccess = async (accessToken: string = '') => {

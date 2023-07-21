@@ -91,48 +91,57 @@ func (a *Account) Login(rc *req.Ctx) {
 
 	// 默认为不校验otp
 	otpStatus := OtpStatusNone
-	var token string
 	// 访问系统使用的token
 	accessToken := req.CreateToken(account.Id, username)
 	// 若系统配置中设置开启otp双因素校验，则进行otp校验
 	if accountLoginSecurity.UseOtp {
-		account.OtpSecretDecrypt()
-		otpSecret := account.OtpSecret
-		// 修改状态为已注册
-		otpStatus = OtpStatusReg
-		// 该token用于otp双因素校验
-		token = stringx.Rand(32)
-		// 未注册otp secret或重置了秘钥
-		if otpSecret == "" || otpSecret == "-" {
-			otpStatus = OtpStatusNoReg
-			key, err := otp.NewTOTP(otp.GenerateOpts{
-				AccountName: username,
-				Issuer:      accountLoginSecurity.OtpIssuer,
-			})
-			biz.ErrIsNilAppendErr(err, "otp生成失败: %s")
-			res["otpUrl"] = key.URL()
-			otpSecret = key.Secret()
+		otpInfo, otpurl, otpToken := useOtp(account, accountLoginSecurity.OtpIssuer, accessToken)
+		otpStatus = otpInfo.OptStatus
+		if otpurl != "" {
+			res["otpUrl"] = otpurl
 		}
-		// 缓存otpInfo, 只有双因素校验通过才可返回真正的accessToken
-		otpInfo := &OtpVerifyInfo{
-			AccountId:   account.Id,
-			Username:    username,
-			OptStatus:   otpStatus,
-			OtpSecret:   otpSecret,
-			AccessToken: accessToken,
-		}
-		cache.SetStr(fmt.Sprintf("otp:token:%s", token), jsonx.ToStr(otpInfo), time.Minute*time.Duration(3))
+		accessToken = otpToken
 	} else {
 		// 不进行otp二次校验则直接返回accessToken
-		token = accessToken
 		// 保存登录消息
-		go a.saveLogin(account, getIpAndRegion(rc))
+		go saveLogin(a.AccountApp, a.MsgApp, account, clientIp)
 	}
 
 	// 赋值otp状态
 	res["otp"] = otpStatus
-	res["token"] = token
+	res["token"] = accessToken
 	rc.ResData = res
+}
+
+func useOtp(account *entity.Account, otpIssuer, accessToken string) (*OtpVerifyInfo, string, string) {
+	account.OtpSecretDecrypt()
+	otpSecret := account.OtpSecret
+	// 修改状态为已注册
+	otpStatus := OtpStatusReg
+	otpUrl := ""
+	// 该token用于otp双因素校验
+	token := utils.RandString(32)
+	// 未注册otp secret或重置了秘钥
+	if otpSecret == "" || otpSecret == "-" {
+		otpStatus = OtpStatusNoReg
+		key, err := otp.NewTOTP(otp.GenerateOpts{
+			AccountName: account.Username,
+			Issuer:      otpIssuer,
+		})
+		biz.ErrIsNilAppendErr(err, "otp生成失败: %s")
+		otpUrl = key.URL()
+		otpSecret = key.Secret()
+	}
+	// 缓存otpInfo, 只有双因素校验通过才可返回真正的accessToken
+	otpInfo := &OtpVerifyInfo{
+		AccountId:   account.Id,
+		Username:    account.Username,
+		OptStatus:   otpStatus,
+		OtpSecret:   otpSecret,
+		AccessToken: accessToken,
+	}
+	cache.SetStr(fmt.Sprintf("otp:token:%s", token), utils.ToJsonStr(otpInfo), time.Minute*time.Duration(3))
+	return otpInfo, otpUrl, token
 }
 
 // 获取ip与归属地信息
@@ -184,7 +193,7 @@ func (a *Account) OtpVerify(rc *req.Ctx) {
 
 	la := &entity.Account{Username: otpInfo.Username}
 	la.Id = accountId
-	go a.saveLogin(la, rc.GinCtx.ClientIP())
+	go saveLogin(a.AccountApp, a.MsgApp, la, rc.GinCtx.ClientIP())
 
 	cache.Del(tokenKey)
 	rc.ResData = accessToken
@@ -261,13 +270,13 @@ func CheckPasswordLever(ps string) bool {
 }
 
 // 保存更新账号登录信息
-func (a *Account) saveLogin(account *entity.Account, ip string) {
+func saveLogin(accountApp application.Account, msgApp msgapp.Msg, account *entity.Account, ip string) {
 	// 更新账号最后登录时间
 	now := time.Now()
 	updateAccount := &entity.Account{LastLoginTime: &now}
 	updateAccount.Id = account.Id
 	updateAccount.LastLoginIp = ip
-	a.AccountApp.Update(updateAccount)
+	accountApp.Update(updateAccount)
 
 	// 创建登录消息
 	loginMsg := &msgentity.Msg{
@@ -278,7 +287,7 @@ func (a *Account) saveLogin(account *entity.Account, ip string) {
 	loginMsg.CreateTime = &now
 	loginMsg.Creator = account.Username
 	loginMsg.CreatorId = account.Id
-	a.MsgApp.Create(loginMsg)
+	msgApp.Create(loginMsg)
 }
 
 // 获取个人账号信息

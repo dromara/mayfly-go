@@ -6,6 +6,7 @@ export default {
     changePwd: (param: any) => request.post('/sys/accounts/change-pwd', param),
     getPublicKey: () => request.get('/common/public-key'),
     getConfigValue: (params: any) => request.get('/sys/configs/value', params),
+    oauthConfig: () => request.get('/sys/configs/auth'),
     captcha: () => request.get('/sys/captcha'),
     logout: () => request.post('/sys/accounts/logout/{token}'),
     getPermissions: () => request.get('/sys/accounts/permissions'),

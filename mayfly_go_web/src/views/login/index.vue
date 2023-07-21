@@ -9,7 +9,7 @@
                 <el-tabs v-model="tabsActiveName" @tab-click="onTabsClick">
                     <el-tab-pane label="账号密码登录" name="account" :disabled="tabsActiveName === 'account'">
                         <transition name="el-zoom-in-center">
-                            <Account v-show="isTabPaneShow" />
+                            <Account v-show="isTabPaneShow" ref="loginForm" />
                         </transition>
                     </el-tab-pane>
                     <!-- <el-tab-pane label="手机号登录" name="mobile" :disabled="tabsActiveName === 'mobile'">
@@ -18,10 +18,19 @@
                         </transition>
                     </el-tab-pane> -->
                 </el-tabs>
-                <!-- <div class="mt10">
+                <div class="mt10" v-show="authConfig.oauth2">
                     <el-button type="text" size="small">第三方登录</el-button>
-                    <el-button type="text" size="small">友情链接</el-button>
-                </div> -->
+                    <!-- <el-button type="text" size="small">友情链接</el-button> -->
+                </div>
+                <div class="mt10" v-show="authConfig.oauth2">
+                    <el-tooltip content="使用OAuth2登录" placement="top-start">
+                        <el-button type="text" size="small" @click="oauth2Login">
+                            <el-icon :size="18">
+                                <Menu />
+                            </el-icon>
+                        </el-button>
+                    </el-tooltip>
+                </div>
             </div>
         </div>
         <!-- <div class="login-copyright">
@@ -32,23 +41,58 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive } from 'vue';
+import { toRefs, reactive, onMounted, h, ref } from 'vue';
 import Account from '@/views/login/component/AccountLogin.vue';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
+import openApi from '@/common/openApi';
+import config from '@/common/config';
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 const state = reactive({
     tabsActiveName: 'account',
     isTabPaneShow: true,
+    authConfig: {
+        oauth2: false,
+    },
 });
 
-const { isTabPaneShow, tabsActiveName } = toRefs(state);
+const loginForm = ref<{ loginResDeal: (data: any) => void } | null>(null);
+
+const { isTabPaneShow, tabsActiveName, authConfig, } = toRefs(state);
 
 // 切换密码、手机登录
 const onTabsClick = () => {
     state.isTabPaneShow = !state.isTabPaneShow;
 };
+
+onMounted(async () => {
+    state.authConfig = await openApi.oauthConfig();
+
+});
+
+const oauth2Login = () => {
+    // 小窗口打开oauth2鉴权
+    let oauthWindoe = window.open(config.baseApiUrl + "/sys/auth/oauth2/login", "oauth2", "width=600,height=600");
+    if (oauthWindoe) {
+        const handler = (e: any) => {
+            if (e.data.action === "oauthLogin") {
+                oauthWindoe!.close();
+                window.removeEventListener("message", handler);
+                // 处理登录token
+                console.log(e.data);
+                loginForm.value!.loginResDeal(e.data);
+            }
+        }
+        window.addEventListener("message", handler);
+        setInterval(() => {
+            if (oauthWindoe!.closed) {
+                window.removeEventListener("message", handler);
+            }
+        }, 1000);
+    }
+}
+
 </script>
 
 <style scoped lang="scss">

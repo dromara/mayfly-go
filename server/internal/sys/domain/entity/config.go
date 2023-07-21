@@ -12,6 +12,7 @@ const (
 	ConfigKeyUseLoginOtp          string = "UseLoginOtp"          // 是否开启otp双因素校验
 	ConfigKeyDbQueryMaxCount      string = "DbQueryMaxCount"      // 数据库查询的最大数量
 	ConfigKeyDbSaveQuerySQL       string = "DbSaveQuerySQL"       // 数据库是否记录查询相关sql
+	ConfigUseWartermark           string = "UseWartermark"        // 是否使用水印
 )
 
 type Config struct {

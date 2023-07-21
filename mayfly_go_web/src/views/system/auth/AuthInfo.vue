@@ -22,22 +22,28 @@
                 </el-form-item>
                 <el-form-item prop="authorizationURL" label="Authorization URL" required>
                     <el-input v-model="oauth2.authorizationURL"
-                        placeholder="https://example.com/oauth/authorize"></el-input>
+                        placeholder="授权码获取地址 例如: https://example.com/oauth/authorize"></el-input>
                 </el-form-item>
                 <el-form-item prop="accessTokenURL" label="Access token URL" required>
-                    <el-input v-model="oauth2.accessTokenURL" placeholder="https://example.com/oauth/token"></el-input>
+                    <el-input v-model="oauth2.accessTokenURL"
+                        placeholder="访问token获取地址 例如: https://example.com/oauth/token"></el-input>
                 </el-form-item>
                 <el-form-item prop="resourceURL" label="Resource URL" required>
-                    <el-input v-model="oauth2.resourceURL" placeholder="https://example.com/user"></el-input>
+                    <el-input v-model="oauth2.resourceURL"
+                        placeholder="获取用户信息地址 例如: https://example.com/api/v4/user"></el-input>
                 </el-form-item>
                 <el-form-item prop="redirectURL" label="Redirect URL" required>
-                    <el-input v-model="oauth2.redirectURL" placeholder="http://mayfly地址/"></el-input>
+                    <el-input v-model="oauth2.redirectURL" placeholder="mayfly地址 例如: http://localhost:8889/"></el-input>
                 </el-form-item>
                 <el-form-item prop="userIdentifier" label="User identifier" required>
-                    <el-input v-model="oauth2.userIdentifier" placeholder=""></el-input>
+                    <el-input v-model="oauth2.userIdentifier"
+                        placeholder="用户唯一标识key 例如:username,如果有多层可以写为: data.username"></el-input>
                 </el-form-item>
                 <el-form-item prop="scopes" label="Scopes" required>
-                    <el-input v-model="oauth2.scopes" placeholder=""></el-input>
+                    <el-input v-model="oauth2.scopes" placeholder="read_user,read_api 多个使用,分割"></el-input>
+                </el-form-item>
+                <el-form-item prop="autoRegister" label="自动注册">
+                    <el-checkbox v-model="oauth2.autoRegister" label="开启自动注册将会自动注册账号, 否则需要手动创建账号后再进行绑定" />
                 </el-form-item>
                 <el-form-item>
                     <el-button type="primary" @click="onSubmit" :loading="btnLoading">保存</el-button>
@@ -50,7 +56,7 @@
 <script lang="ts" setup>
 import { onMounted, reactive, ref, toRefs } from 'vue';
 import { authApi } from '../api';
-import { FormInstance } from 'element-plus';
+import { ElMessage, FormInstance } from 'element-plus';
 
 
 const oauth2Form = ref<FormInstance>();
@@ -65,6 +71,7 @@ const state = reactive({
         redirectURL: '',
         userIdentifier: '',
         scopes: '',
+        autoRegister: false,
     },
     btnLoading: false,
 });
@@ -89,6 +96,7 @@ const onSubmit = () => {
             } catch (e) {
             }
             state.btnLoading = false;
+            ElMessage.success('保存成功');
         }
     })
 }

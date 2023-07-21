@@ -12,8 +12,8 @@
                         </div>
                         <div class="personal-user-right">
                             <el-row>
-                                <el-col :span="24" class="personal-title mb18"
-                                    >{{ currentTime }}，{{ userInfo.name }}，生活变的再糟糕，也不妨碍我变得更好！
+                                <el-col :span="24" class="personal-title mb18">{{ currentTime }}，{{ userInfo.name
+                                }}，生活变的再糟糕，也不妨碍我变得更好！
                                 </el-col>
                                 <el-col :span="24">
                                     <el-row>
@@ -77,16 +77,9 @@
                     </el-table-column>
                 </el-table>
                 <el-row type="flex" class="mt5" justify="center">
-                    <el-pagination
-                        small
-                        @current-change="getMsgs"
-                        style="text-align: center"
-                        background
-                        layout="prev, pager, next, total, jumper"
-                        :total="msgDialog.msgs.total"
-                        v-model:current-page="msgDialog.query.pageNum"
-                        :page-size="msgDialog.query.pageSize"
-                    />
+                    <el-pagination small @current-change="getMsgs" style="text-align: center" background
+                        layout="prev, pager, next, total, jumper" :total="msgDialog.msgs.total"
+                        v-model:current-page="msgDialog.query.pageNum" :page-size="msgDialog.query.pageSize" />
                 </el-row>
             </el-dialog>
 
@@ -115,7 +108,8 @@
                         <el-row :gutter="35">
                             <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="mb20">
                                 <el-form-item label="密码">
-                                    <el-input type="password" show-password v-model="accountForm.password" placeholder="请输入新密码" clearable></el-input>
+                                    <el-input type="password" show-password v-model="accountForm.password"
+                                        placeholder="请输入新密码" clearable></el-input>
                                 </el-form-item>
                             </el-col>
                             <!--  -->
@@ -160,18 +154,18 @@
                                 <el-button type="text">立即设置</el-button>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
                     <div class="personal-edit-safe-box">
                         <div class="personal-edit-safe-item">
                             <div class="personal-edit-safe-item-left">
-                                <div class="personal-edit-safe-item-left-label">绑定QQ</div>
-                                <div class="personal-edit-safe-item-left-value">已绑定QQ：110****566</div>
+                                <div class="personal-edit-safe-item-left-label">绑定OAuth2</div>
+                                <div class="personal-edit-safe-item-left-value">已绑定OAuth2</div>
                             </div>
                             <div class="personal-edit-safe-item-right">
-                                <el-button type="text">立即设置</el-button>
+                                <el-button type="text">立即绑定</el-button>
                             </div>
                         </div>
-                    </div> -->
+                    </div>
                 </el-card>
             </el-col>
         </el-row>

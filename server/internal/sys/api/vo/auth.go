@@ -9,8 +9,13 @@ type OAuth2VO struct {
 	RedirectURL      string `json:"redirectURL"`
 	UserIdentifier   string `json:"userIdentifier"`
 	Scopes           string `json:"scopes"`
+	AutoRegister     bool   `json:"autoRegister"`
 }
 
 type AuthVO struct {
 	*OAuth2VO `json:"oauth2"`
+}
+
+type OAuth2EnableVO struct {
+	OAuth2 bool `json:"oauth2"`
 }

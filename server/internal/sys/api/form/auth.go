@@ -9,4 +9,5 @@ type OAuth2Form struct {
 	RedirectURL      string `json:"redirectURL" binding:"required,url"`
 	UserIdentifier   string `json:"userIdentifier" binding:"required"`
 	Scopes           string `json:"scopes"`
+	AutoRegister     bool   `json:"autoRegister"`
 }
