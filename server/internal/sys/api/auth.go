@@ -186,7 +186,7 @@ func (a *Auth) OAuth2Callback(rc *req.Ctx) {
 			accessToken = otpToken
 		} else {
 			// 保存登录消息
-			go saveLogin(a.AccountApp, a.MsgApp, account, rc.GinCtx.ClientIP())
+			go saveLogin(a.AccountApp, a.MsgApp, account, getIpAndRegion(rc))
 		}
 		// 赋值otp状态
 		res["action"] = "oauthLogin"

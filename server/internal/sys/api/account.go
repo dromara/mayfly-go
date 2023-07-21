@@ -193,7 +193,7 @@ func (a *Account) OtpVerify(rc *req.Ctx) {
 
 	la := &entity.Account{Username: otpInfo.Username}
 	la.Id = accountId
-	go saveLogin(a.AccountApp, a.MsgApp, la, rc.GinCtx.ClientIP())
+	go saveLogin(a.AccountApp, a.MsgApp, la, getIpAndRegion(rc))
 
 	cache.Del(tokenKey)
 	rc.ResData = accessToken
