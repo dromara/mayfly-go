@@ -2,19 +2,19 @@ version: "3.9"
 
 services:
   mysql:
-    image: "mysql:5.7"
+    image: "mysql:8"
     container_name: mayfly-go-mysql
     environment:
       MYSQL_ROOT_PASSWORD: 111049
       MYSQL_DATABASE: mayfly-go
       TZ: Asia/Shanghai
     volumes:
-      - ./docs/docker-compose/mysql/data/mydir:/mydir
-      - ./docs/docker-compose/mysql/data/datadir:/var/lib/mysql
+      - ./server/docs/docker-compose/mysql/data/mydir:/mydir
+      - ./server/docs/docker-compose/mysql/data/datadir:/var/lib/mysql
       # 在宿主机编写 /apps/mysql/conf/my.cnf
-      - ./docs/docker-compose/mysql/my.cnf:/etc/my.cnf
+      - ./server/docs/docker-compose/mysql/my.cnf:/etc/my.cnf
       # 数据库还原目录 可将需要还原的sql文件放在这里
-      - ./docs/docker-compose/mysql/init:/docker-entrypoint-initdb.d
+      - ./server/docs/docker-compose/mysql/init:/docker-entrypoint-initdb.d
     restart: always
 
   server:
@@ -28,6 +28,8 @@ services:
     environment:
       TZ: Asia/Shanghai
       WAIT_HOSTS: mysql:3306
+    volumes:
+      - ./server/config.yml.example:/mayfly/config.yml
     depends_on:
       - mysql
     restart: always
