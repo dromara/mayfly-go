@@ -126,7 +126,7 @@ func (a *Auth) OAuth2Callback(rc *req.Ctx) {
 			}
 			// 不存在,进行注册
 			if !oauth.AutoRegister {
-				biz.ErrIsNil(errors.New("用户不存在，请先注册"), "用户不存在，请先注册")
+				biz.ErrIsNil(errors.New("未绑定账号, 请先注册"), "未绑定账号, 请先注册")
 			}
 			now := time.Now()
 			account := &entity.Account{

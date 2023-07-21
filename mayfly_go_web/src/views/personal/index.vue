@@ -164,7 +164,7 @@
                                 </div>
                             </div>
                             <div class="personal-edit-safe-item-right">
-                                <el-button type="text" @click="bindOAuth2" :disabled="authStatus.bind">立即绑定</el-button>
+                                <el-button type="text" @click="bindOAuth2" :disabled="authStatus.bind.oauth2">立即绑定</el-button>
                             </div>
                         </div>
                     </div>
