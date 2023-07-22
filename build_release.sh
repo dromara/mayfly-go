@@ -106,7 +106,7 @@ function buildDocker() {
     imageVersion=$1
     cd ${server_folder}
     imageName="mayflygo/mayfly-go:${imageVersion}"
-    docker build -t "${imageName}" .
+    docker build --platform linux/amd64 -t "${imageName}" .
     echo_green "docker镜像构建完成->[${imageName}]"
     echo_yellow "-------------------构建docker镜像结束-------------------"
 }

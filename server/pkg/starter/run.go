@@ -1,8 +1,10 @@
 package starter
 
 import (
+	"mayfly-go/migrations"
 	"mayfly-go/initialize"
 	"mayfly-go/pkg/config"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logger"
 	"mayfly-go/pkg/req"
 )
@@ -25,6 +27,10 @@ func RunWebServer() {
 
 	// 有配置redis信息，则初始化redis。多台机器部署需要使用redis存储验证码、权限、公私钥等
 	initRedis()
+	// 数据库升级操作
+	if err := migrations.RunMigrations(global.Db); err != nil {
+		logger.Log.Fatalf("数据库升级失败: %v", err)
+	}
 
 	// 初始化其他需要启动时运行的方法
 	initialize.InitOther()

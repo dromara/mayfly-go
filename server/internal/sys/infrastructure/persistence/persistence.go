@@ -3,15 +3,20 @@ package persistence
 import "mayfly-go/internal/sys/domain/repository"
 
 var (
-	accountRepo  = newAccountRepo()
-	configRepo   = newConfigRepo()
-	resourceRepo = newResourceRepo()
-	roleRepo     = newRoleRepo()
-	syslogRepo   = newSyslogRepo()
+	accountRepo     = newAccountRepo()
+	authAccountRepo = newAuthAccountRepo()
+	configRepo      = newConfigRepo()
+	resourceRepo    = newResourceRepo()
+	roleRepo        = newRoleRepo()
+	syslogRepo      = newSyslogRepo()
 )
 
 func GetAccountRepo() repository.Account {
 	return accountRepo
+}
+
+func GetOAuthAccountRepo() repository.OAuthAccount {
+	return authAccountRepo
 }
 
 func GetConfigRepo() repository.Config {

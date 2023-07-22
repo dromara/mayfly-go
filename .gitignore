@@ -17,4 +17,5 @@
 */node_modules/
 **/vendor/
 .idea
+.vscode
 out

@@ -29,12 +29,17 @@
             <el-form v-if="paramsDialog.paramsFormItem.length > 0" ref="paramsFormRef" :model="paramsDialog.params" label-width="auto">
                 <el-form-item v-for="item in paramsDialog.paramsFormItem" :key="item.name" :prop="item.model" :label="item.name" required>
                     <el-input
-                        v-if="!item.options"
+                        v-if="!item.options && !item.type"
                         v-model="paramsDialog.params[item.model]"
                         :placeholder="item.placeholder"
                         autocomplete="off"
                         clearable
                     ></el-input>
+                    <el-checkbox v-else-if="item.type == 'checkbox'"
+                        v-model="paramsDialog.params[item.model]"
+                            autocomplete="off"
+                            :label="item.placeholder"
+                            clearable/>
                     <el-select
                         v-else
                         v-model="paramsDialog.params[item.model]"

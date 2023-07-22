@@ -12,14 +12,15 @@ const (
 	ConfigKeyUseLoginOtp          string = "UseLoginOtp"          // 是否开启otp双因素校验
 	ConfigKeyDbQueryMaxCount      string = "DbQueryMaxCount"      // 数据库查询的最大数量
 	ConfigKeyDbSaveQuerySQL       string = "DbSaveQuerySQL"       // 数据库是否记录查询相关sql
+	ConfigUseWartermark           string = "UseWartermark"        // 是否使用水印
 )
 
 type Config struct {
 	model.Model
 	Name   string `json:"name"` // 配置名
 	Key    string `json:"key"`  // 配置key
-	Params string `json:"params"`
-	Value  string `json:"value"`
+	Params string `json:"params" gorm:"column:params;type:varchar(1000)"`
+	Value  string `json:"value" gorm:"column:value;type:varchar(1000)"`
 	Remark string `json:"remark"`
 }
 
