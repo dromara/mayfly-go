@@ -79,6 +79,10 @@ func SetPermissionCodeRegistery(pcr PermissionCodeRegistry) {
 	permissionCodeRegistry = pcr
 }
 
+func GetPermissionCodeRegistery() PermissionCodeRegistry {
+	return permissionCodeRegistry
+}
+
 type PermissionCodeRegistry interface {
 	// 保存用户权限code
 	SaveCodes(userId uint64, codes []string)
@@ -117,7 +121,9 @@ func (r *DefaultPermissionCodeRegistry) HasCode(userId uint64, code string) bool
 }
 
 func (r *DefaultPermissionCodeRegistry) Remove(userId uint64) {
-	r.cache.Delete(fmt.Sprintf("%v", userId))
+	if r.cache != nil {
+		r.cache.Delete(fmt.Sprintf("%v", userId))
+	}
 }
 
 type RedisPermissionCodeRegistry struct {

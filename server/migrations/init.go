@@ -1,29 +1,33 @@
 package migrations
 
 import (
-	"context"
-	"github.com/go-gormigrate/gormigrate/v2"
-	"gorm.io/gorm"
 	"mayfly-go/internal/sys/domain/entity"
+	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
 	"time"
+
+	"github.com/go-gormigrate/gormigrate/v2"
+	"gorm.io/gorm"
 )
 
 // RunMigrations 数据库迁移操作
 func RunMigrations(db *gorm.DB) error {
 	// 添加分布式锁, 防止多个服务同时执行迁移
-	if rediscli.GetCli() != nil {
-		if ok, err := rediscli.GetCli().
-			SetNX(context.Background(), "migrations", "lock", time.Minute).Result(); err != nil {
-			return err
-		} else if !ok {
+	lock := rediscli.NewLock("mayfly:db:migrations", 1*time.Minute)
+	if lock != nil {
+		if !lock.Lock() {
 			return nil
 		}
-		defer rediscli.Del("migrations")
+		defer lock.UnLock()
 	}
+
+	if !config.Conf.Mysql.AutoMigration {
+		return nil
+	}
+
 	return run(db,
-		T2022,
+		// T2022,
 		T20230720,
 	)
 }

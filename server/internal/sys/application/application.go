@@ -6,7 +6,6 @@ import (
 
 var (
 	accountApp  = newAccountApp(persistence.GetAccountRepo())
-	authApp     = newAuthApp(persistence.GetOAuthAccountRepo())
 	configApp   = newConfigApp(persistence.GetConfigRepo())
 	resourceApp = newResourceApp(persistence.GetResourceRepo())
 	roleApp     = newRoleApp(persistence.GetRoleRepo())
@@ -15,10 +14,6 @@ var (
 
 func GetAccountApp() Account {
 	return accountApp
-}
-
-func GetAuthApp() Auth {
-	return authApp
 }
 
 func GetConfigApp() Config {

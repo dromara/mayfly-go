@@ -18,6 +18,8 @@ jwt:
 aes:
   key: 1111111111111111
 mysql:
+  # 自动升级数据库
+  auto-migration: false
   host: localhost:3306
   username: root
   password: 111049

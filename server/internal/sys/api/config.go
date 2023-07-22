@@ -1,14 +1,11 @@
 package api
 
 import (
-	"encoding/json"
 	"mayfly-go/internal/sys/api/form"
-	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
-	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/req"
 )
 
@@ -51,18 +48,10 @@ func (c *Config) SaveConfig(rc *req.Ctx) {
 	c.ConfigApp.Save(config)
 }
 
-// AuthConfig auth相关配置
-func (c *Config) AuthConfig(rc *req.Ctx) {
-	resp := &vo.Auth2EnableVO{}
-	config := c.ConfigApp.GetConfig(AuthOAuth2Key)
-	oauth2 := &vo.OAuth2VO{}
-	if config.Value != "" {
-		if err := json.Unmarshal([]byte(config.Value), oauth2); err != nil {
-			global.Log.Warnf("解析自定义oauth2配置失败，err：%s", err.Error())
-			biz.ErrIsNil(err, "解析自定义oauth2配置失败")
-		} else if oauth2.ClientID != "" {
-			resp.OAuth2 = true
-		}
+// 获取oauth2登录配置信息，因为有些字段是敏感字段，故单独使用接口获取
+func (c *Config) Oauth2Config(rc *req.Ctx) {
+	oauth2LoginConfig := c.ConfigApp.GetConfig(entity.ConfigKeyOauth2Login).ToOauth2Login()
+	rc.ResData = map[string]any{
+		"enable": oauth2LoginConfig.Enable,
 	}
-	rc.ResData = resp
 }

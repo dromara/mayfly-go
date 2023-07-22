@@ -1,13 +1,13 @@
 import request from './request';
 
 export default {
-    login: (param: any) => request.post('/sys/accounts/login', param),
-    otpVerify: (param: any) => request.post('/sys/accounts/otp-verify', param),
-    changePwd: (param: any) => request.post('/sys/accounts/change-pwd', param),
+    login: (param: any) => request.post('/auth/accounts/login', param),
+    otpVerify: (param: any) => request.post('/auth/accounts/otp-verify', param),
     getPublicKey: () => request.get('/common/public-key'),
     getConfigValue: (params: any) => request.get('/sys/configs/value', params),
-    oauthConfig: () => request.get('/sys/configs/auth'),
+    oauth2LoginConfig: () => request.get('/sys/configs/oauth2-login'),
+    changePwd: (param: any) => request.post('/sys/accounts/change-pwd', param),
     captcha: () => request.get('/sys/captcha'),
-    logout: () => request.post('/sys/accounts/logout/{token}'),
+    logout: () => request.post('/auth/accounts/logout'),
     getPermissions: () => request.get('/sys/accounts/permissions'),
 };

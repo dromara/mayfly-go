@@ -35,7 +35,7 @@ func GetByIdIn(model any, list any, ids []uint64, orderBy ...string) {
 // 若 error不为nil，则为不存在该记录
 // @param model  数据库映射实体模型
 func GetBy(model any, cols ...string) error {
-	return global.Db.Debug().Select(cols).Where(model).Scopes(UndeleteScope).First(model).Error
+	return global.Db.Select(cols).Where(model).Scopes(UndeleteScope).First(model).Error
 }
 
 // 根据model指定条件统计数量

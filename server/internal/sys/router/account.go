@@ -22,11 +22,6 @@ func InitAccountRouter(router *gin.RouterGroup) {
 	addAccountPermission := req.NewPermission("account:add")
 
 	reqs := [...]*req.Conf{
-		// 用户登录
-		req.NewPost("/login", a.Login).Log(req.NewLogSave("用户登录")).DontNeedToken(),
-
-		// otp双因素校验
-		req.NewPost("/otp-verify", a.OtpVerify).DontNeedToken(),
 
 		// 获取个人账号的权限资源信息
 		req.NewGet("/permissions", a.GetPermissions),

@@ -18,15 +18,12 @@
                         </transition>
                     </el-tab-pane> -->
                 </el-tabs>
-                <div class="mt10" v-show="authConfig.oauth2">
-                    <el-button type="text" size="small">第三方登录</el-button>
-                    <!-- <el-button type="text" size="small">友情链接</el-button> -->
-                </div>
-                <div class="mt10" v-show="authConfig.oauth2">
-                    <el-tooltip content="使用OAuth2登录" placement="top-start">
-                        <el-button type="text" size="small" @click="oauth2Login">
+                <div class="mt20" v-show="authConfig.enable">
+                    <el-button link size="small">第三方登录: </el-button>
+                    <el-tooltip content="OAuth2登录" placement="top-start">
+                        <el-button link size="small" type="primary" @click="oauth2Login">
                             <el-icon :size="18">
-                                <Menu />
+                                <Link />
                             </el-icon>
                         </el-button>
                     </el-tooltip>
@@ -52,14 +49,14 @@ const { themeConfig } = storeToRefs(useThemeConfig());
 const state = reactive({
     tabsActiveName: 'account',
     isTabPaneShow: true,
-    authConfig: {
-        oauth2: false,
+    oauth2LoginConfig: {
+        enable: false,
     },
 });
 
 const loginForm = ref<{ loginResDeal: (data: any) => void } | null>(null);
 
-const { isTabPaneShow, tabsActiveName, authConfig, } = toRefs(state);
+const { isTabPaneShow, tabsActiveName, oauth2LoginConfig: authConfig } = toRefs(state);
 
 // 切换密码、手机登录
 const onTabsClick = () => {
@@ -67,32 +64,28 @@ const onTabsClick = () => {
 };
 
 onMounted(async () => {
-    state.authConfig = await openApi.oauthConfig();
-
+    state.oauth2LoginConfig = await openApi.oauth2LoginConfig();
 });
 
 const oauth2Login = () => {
     // 小窗口打开oauth2鉴权
-    let oauthWindoe = window.open(config.baseApiUrl + "/sys/auth/oauth2/login", "oauth2", "width=600,height=600");
+    let oauthWindoe = window.open(config.baseApiUrl + '/auth/oauth2/login', 'oauth2', 'width=600,height=600');
     if (oauthWindoe) {
         const handler = (e: any) => {
-            if (e.data.action === "oauthLogin") {
+            if (e.data.action === 'oauthLogin') {
                 oauthWindoe!.close();
-                window.removeEventListener("message", handler);
-                // 处理登录token
-                console.log(e.data);
+                window.removeEventListener('message', handler);
                 loginForm.value!.loginResDeal(e.data);
             }
-        }
-        window.addEventListener("message", handler);
+        };
+        window.addEventListener('message', handler);
         setInterval(() => {
             if (oauthWindoe!.closed) {
-                window.removeEventListener("message", handler);
+                window.removeEventListener('message', handler);
             }
         }, 1000);
     }
-}
-
+};
 </script>
 
 <style scoped lang="scss">

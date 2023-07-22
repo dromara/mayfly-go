@@ -3,6 +3,7 @@ package initialize
 import (
 	"fmt"
 	"io/fs"
+	auth_router "mayfly-go/internal/auth/router"
 	common_router "mayfly-go/internal/common/router"
 	db_router "mayfly-go/internal/db/router"
 	machine_router "mayfly-go/internal/machine/router"
@@ -72,6 +73,8 @@ func InitRouter() *gin.Engine {
 	{
 		common_router.InitIndexRouter(api)
 		common_router.InitCommonRouter(api)
+
+		auth_router.Init(api)
 
 		sys_router.Init(api)
 		msg_router.Init(api)

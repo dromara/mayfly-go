@@ -10,5 +10,4 @@ func Init(router *gin.RouterGroup) {
 	InitSystemRouter(router)
 	InitSyslogRouter(router)
 	InitSysConfigRouter(router)
-	InitSysAuthRouter(router)
 }

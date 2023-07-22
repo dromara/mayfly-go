@@ -25,8 +25,7 @@
             </el-icon>
         </div>
         <div class="layout-navbars-breadcrumb-user-icon">
-            <el-popover placement="bottom" trigger="click" :visible="state.isShowUserNewsPopover" :width="300"
-                popper-class="el-popover-pupop-user-news">
+            <el-popover placement="bottom" trigger="click" :visible="state.isShowUserNewsPopover" :width="300" popper-class="el-popover-pupop-user-news">
                 <template #reference>
                     <el-badge :is-dot="false" @click="state.isShowUserNewsPopover = !state.isShowUserNewsPopover">
                         <el-icon title="消息">
@@ -70,14 +69,15 @@ import { ref, computed, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import screenfull from 'screenfull';
-import { resetRoute } from '@/router/index.ts';
+import { resetRoute } from '@/router/index';
 import { storeToRefs } from 'pinia';
 import { useUserInfo } from '@/store/userInfo';
 import { useThemeConfig } from '@/store/themeConfig';
-import { clearSession, setLocal, getLocal, removeLocal } from '@/common/utils/storage.ts';
+import { clearSession, setLocal, getLocal, removeLocal } from '@/common/utils/storage';
 import UserNews from '@/views/layout/navBars/breadcrumb/userNews.vue';
 import SearchMenu from '@/views/layout/navBars/breadcrumb/search.vue';
 import mittBus from '@/common/utils/mitt';
+import openApi from '@/common/openApi';
 
 const router = useRouter();
 const searchRef = ref();
@@ -122,8 +122,9 @@ const onHandleCommandClick = (path: string) => {
             showCancelButton: true,
             confirmButtonText: '确定',
             cancelButtonText: '取消',
-            beforeClose: (action, instance, done) => {
+            beforeClose: async (action, instance, done) => {
                 if (action === 'confirm') {
+                    await openApi.logout();
                     instance.confirmButtonLoading = true;
                     instance.confirmButtonText = '退出中';
                     setTimeout(() => {
@@ -145,7 +146,7 @@ const onHandleCommandClick = (path: string) => {
                     ElMessage.success('安全退出成功！');
                 }, 300);
             })
-            .catch(() => { });
+            .catch(() => {});
     } else {
         router.push(path);
     }
@@ -244,4 +245,5 @@ onMounted(() => {
     ::v-deep(.el-badge__content.is-fixed) {
         top: 12px;
     }
-}</style>
+}
+</style>

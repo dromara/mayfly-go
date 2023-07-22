@@ -1,8 +1,6 @@
 package migrations
 
 import (
-	"github.com/go-gormigrate/gormigrate/v2"
-	"gorm.io/gorm"
 	entity2 "mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/machine/domain/entity"
 	entity3 "mayfly-go/internal/mongo/domain/entity"
@@ -10,6 +8,9 @@ import (
 	entity4 "mayfly-go/internal/redis/domain/entity"
 	entity5 "mayfly-go/internal/sys/domain/entity"
 	entity7 "mayfly-go/internal/tag/domain/entity"
+
+	"github.com/go-gormigrate/gormigrate/v2"
+	"gorm.io/gorm"
 )
 
 // T2022 TODO 在此之前的数据库表结构初始化, 目前先使用mayfly-go.sql文件初始化数据库结构

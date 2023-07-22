@@ -12,16 +12,16 @@
                         </div>
                         <div class="personal-user-right">
                             <el-row>
-                                <el-col :span="24" class="personal-title mb18">{{ currentTime }}，{{ userInfo.name
-                                }}，生活变的再糟糕，也不妨碍我变得更好！
+                                <el-col :span="24" class="personal-title mb18"
+                                    >{{ currentTime }}，{{ userInfo.name }}，生活变的再糟糕，也不妨碍我变得更好！
                                 </el-col>
                                 <el-col :span="24">
                                     <el-row>
-                                        <el-col :xs="24" :sm="8" class="personal-item mb6">
+                                        <el-col :xs="24" :sm="12" class="personal-item mb6">
                                             <div class="personal-item-label">用户名：</div>
                                             <div class="personal-item-value">{{ userInfo.username }}</div>
                                         </el-col>
-                                        <el-col :xs="24" :sm="16" class="personal-item mb6">
+                                        <el-col :xs="24" :sm="12" class="personal-item mb6">
                                             <div class="personal-item-label">角色：</div>
                                             <div class="personal-item-value">{{ roleInfo }}</div>
                                         </el-col>
@@ -29,11 +29,11 @@
                                 </el-col>
                                 <el-col :span="24">
                                     <el-row>
-                                        <el-col :xs="24" :sm="8" class="personal-item mb6">
+                                        <el-col :xs="24" :sm="12" class="personal-item mb6">
                                             <div class="personal-item-label">上次登录IP：</div>
                                             <div class="personal-item-value">{{ userInfo.lastLoginIp }}</div>
                                         </el-col>
-                                        <el-col :xs="24" :sm="16" class="personal-item mb6">
+                                        <el-col :xs="24" :sm="12" class="personal-item mb6">
                                             <div class="personal-item-label">上次登录时间：</div>
                                             <div class="personal-item-value">{{ dateFormat(userInfo.lastLoginTime) }}</div>
                                         </el-col>
@@ -77,9 +77,16 @@
                     </el-table-column>
                 </el-table>
                 <el-row type="flex" class="mt5" justify="center">
-                    <el-pagination small @current-change="getMsgs" style="text-align: center" background
-                        layout="prev, pager, next, total, jumper" :total="msgDialog.msgs.total"
-                        v-model:current-page="msgDialog.query.pageNum" :page-size="msgDialog.query.pageSize" />
+                    <el-pagination
+                        small
+                        @current-change="getMsgs"
+                        style="text-align: center"
+                        background
+                        layout="prev, pager, next, total, jumper"
+                        :total="msgDialog.msgs.total"
+                        v-model:current-page="msgDialog.query.pageNum"
+                        :page-size="msgDialog.query.pageSize"
+                    />
                 </el-row>
             </el-dialog>
 
@@ -108,8 +115,7 @@
                         <el-row :gutter="35">
                             <el-col :xs="24" :sm="12" :md="8" :lg="6" :xl="4" class="mb20">
                                 <el-form-item label="密码">
-                                    <el-input type="password" show-password v-model="accountForm.password"
-                                        placeholder="请输入新密码" clearable></el-input>
+                                    <el-input type="password" show-password v-model="accountForm.password" placeholder="请输入新密码" clearable></el-input>
                                 </el-form-item>
                             </el-col>
                             <!--  -->
@@ -121,19 +127,21 @@
                         </el-row>
                     </el-form>
 
-                    <!-- <div class="personal-edit-title mb15">账号安全</div>
-                    <div class="personal-edit-safe-box">
-                        <div class="personal-edit-safe-item">
-                            <div class="personal-edit-safe-item-left">
-                                <div class="personal-edit-safe-item-left-label">账户密码</div>
-                                <div class="personal-edit-safe-item-left-value">当前密码强度：强</div>
-                            </div>
-                            <div class="personal-edit-safe-item-right">
-                                <el-button type="text">立即修改</el-button>
+                    <span v-show="authStatus.enable">
+                        <div class="personal-edit-title mb15">账号信息</div>
+                        <div class="personal-edit-safe-box">
+                            <div class="personal-edit-safe-item">
+                                <div class="personal-edit-safe-item-left">
+                                    <div class="personal-edit-safe-item-left-label">Oauth2</div>
+                                    <div class="personal-edit-safe-item-left-value">当前状态：{{ authStatus.bind ? '已绑定' : '未绑定' }}</div>
+                                </div>
+                                <div class="personal-edit-safe-item-right">
+                                    <el-button link @click="bindOAuth2" :disabled="authStatus.bind" type="primary">立即绑定</el-button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div class="personal-edit-safe-box">
+                    </span>
+                    <!-- <div class="personal-edit-safe-box">
                         <div class="personal-edit-safe-item">
                             <div class="personal-edit-safe-item-left">
                                 <div class="personal-edit-safe-item-left-label">密保手机</div>
@@ -155,19 +163,6 @@
                             </div>
                         </div>
                     </div> -->
-                    <div v-show="authStatus.enable.oauth2" class="personal-edit-safe-box">
-                        <div class="personal-edit-safe-item">
-                            <div class="personal-edit-safe-item-left">
-                                <div class="personal-edit-safe-item-left-label">绑定OAuth2</div>
-                                <div class="personal-edit-safe-item-left-value">
-                                    {{ authStatus.bind.oauth2 ? '已绑定' : '未绑定' }}
-                                </div>
-                            </div>
-                            <div class="personal-edit-safe-item-right">
-                                <el-button type="text" @click="bindOAuth2" :disabled="authStatus.bind.oauth2">立即绑定</el-button>
-                            </div>
-                        </div>
-                    </div>
                 </el-card>
             </el-col>
         </el-row>
@@ -208,8 +203,8 @@ const state = reactive({
     },
     authStatus: {
         enable: { oauth2: false },
-        bind: { oauth2: false }
-    }
+        bind: { oauth2: false },
+    },
 });
 
 const { msgDialog, accountForm, authStatus } = toRefs(state);
@@ -233,7 +228,7 @@ const roleInfo = computed(() => {
 onMounted(async () => {
     getAccountInfo();
     getMsgs();
-    state.authStatus = await personApi.authStatus.request()
+    state.authStatus = await personApi.authStatus.request();
 });
 
 const getAccountInfo = async () => {
@@ -247,28 +242,27 @@ const updateAccount = async () => {
 
 const bindOAuth2 = () => {
     // 小窗口打开oauth2鉴权
-    let oauthWindoe = window.open(config.baseApiUrl + "/sys/auth/oauth2/bind?token=" + getSession('token'), "oauth2", "width=600,height=600");
-    if (oauthWindoe) {
+    let oauthWindow = window.open(config.baseApiUrl + '/auth/oauth2/bind?token=' + getSession('token'), 'oauth2', 'width=600,height=600');
+    if (oauthWindow) {
         const handler = (e: any) => {
-            if (e.data.action === "oauthBind") {
-                oauthWindoe!.close();
-                window.removeEventListener("message", handler);
+            if (e.data.action === 'oauthBind') {
+                oauthWindow!.close();
+                window.removeEventListener('message', handler);
                 // 处理登录token
-                console.log(e.data);
                 ElMessage.success('绑定成功');
                 setTimeout(() => {
                     location.reload();
                 }, 1000);
             }
-        }
-        window.addEventListener("message", handler);
+        };
+        window.addEventListener('message', handler);
         setInterval(() => {
-            if (oauthWindoe!.closed) {
-                window.removeEventListener("message", handler);
+            if (oauthWindow!.closed) {
+                window.removeEventListener('message', handler);
             }
         }, 1000);
     }
-}
+};
 
 const getMsgs = async () => {
     const res = await personApi.getMsgs.request(state.msgDialog.query);

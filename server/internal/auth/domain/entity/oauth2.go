@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type OAuthAccount struct {
+type Oauth2Account struct {
 	model.DeletedModel
 
 	AccountId uint64 `json:"accountId" gorm:"column:account_id;index:account_id,unique"`
@@ -15,6 +15,6 @@ type OAuthAccount struct {
 	UpdateTime *time.Time `json:"updateTime"`
 }
 
-func (OAuthAccount) TableName() string {
-	return "t_oauth_account"
+func (Oauth2Account) TableName() string {
+	return "t_oauth2_account"
 }
