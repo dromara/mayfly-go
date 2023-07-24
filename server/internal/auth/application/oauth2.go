@@ -12,6 +12,8 @@ type Oauth2 interface {
 	GetOAuthAccount(condition *entity.Oauth2Account, cols ...string) error
 
 	BindOAuthAccount(e *entity.Oauth2Account) error
+
+	Unbind(accountId uint64)
 }
 
 func newAuthApp(oauthAccountRepo repository.Oauth2Account) Oauth2 {
@@ -35,4 +37,8 @@ func (a *oauth2AppImpl) GetOAuthAccount(condition *entity.Oauth2Account, cols ..
 
 func (a *oauth2AppImpl) BindOAuthAccount(e *entity.Oauth2Account) error {
 	return a.oauthAccountRepo.SaveOAuthAccount(e)
+}
+
+func (a *oauth2AppImpl) Unbind(accountId uint64) {
+	a.oauthAccountRepo.DeleteBy(&entity.Oauth2Account{AccountId: accountId})
 }

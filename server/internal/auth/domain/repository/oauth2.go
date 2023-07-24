@@ -7,4 +7,6 @@ type Oauth2Account interface {
 	GetOAuthAccount(condition *entity.Oauth2Account, cols ...string) error
 
 	SaveOAuthAccount(e *entity.Oauth2Account) error
+
+	DeleteBy(e *entity.Oauth2Account)
 }

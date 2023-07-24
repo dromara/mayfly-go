@@ -8,7 +8,9 @@ type AccountCreateForm struct {
 }
 
 type AccountUpdateForm struct {
-	Password *string `json:"password" binding:"min=6,max=16"`
+	Name     string  `json:"name" binding:"max=16"` // 姓名
+	Username string  `json:"username" binding:"max=20"`
+	Password *string `json:"password"`
 }
 
 type AccountChangePasswordForm struct {

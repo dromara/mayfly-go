@@ -10,4 +10,5 @@ export default {
     captcha: () => request.get('/sys/captcha'),
     logout: () => request.post('/auth/accounts/logout'),
     getPermissions: () => request.get('/sys/accounts/permissions'),
+    oauth2Callback: (params: any) => request.get('/auth/oauth2/callback', params),
 };

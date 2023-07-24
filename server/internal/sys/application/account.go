@@ -14,6 +14,8 @@ import (
 type Account interface {
 	GetAccount(condition *entity.Account, cols ...string) error
 
+	GetById(id uint64) *entity.Account
+
 	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Create(account *entity.Account)
@@ -38,6 +40,10 @@ func (a *accountAppImpl) GetAccount(condition *entity.Account, cols ...string) e
 	return a.accountRepo.GetAccount(condition, cols...)
 }
 
+func (a *accountAppImpl) GetById(id uint64) *entity.Account {
+	return a.accountRepo.GetById(id)
+}
+
 func (a *accountAppImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	return a.accountRepo.GetPageList(condition, pageParam, toEntity)
 }
@@ -51,8 +57,12 @@ func (a *accountAppImpl) Create(account *entity.Account) {
 }
 
 func (a *accountAppImpl) Update(account *entity.Account) {
-	// 禁止更新用户名，防止误传被更新
-	account.Username = ""
+	if account.Username != "" {
+		unAcc := &entity.Account{Username: account.Username}
+		err := a.GetAccount(unAcc)
+		biz.IsTrue(err != nil || unAcc.Id == account.Id, "该用户名已存在")
+	}
+
 	a.accountRepo.Update(account)
 }
 

@@ -22,3 +22,7 @@ func (a *oauth2AccountRepoImpl) SaveOAuthAccount(e *entity.Oauth2Account) error 
 	}
 	return gormx.UpdateById(e)
 }
+
+func (a *oauth2AccountRepoImpl) DeleteBy(e *entity.Oauth2Account) {
+	gormx.DeleteByCondition(e)
+}

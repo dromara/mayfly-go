@@ -68,19 +68,22 @@ onMounted(async () => {
 });
 
 const oauth2Login = () => {
+    const width = 700;
+    const height = 500;
+    var iTop = (window.screen.height - 30 - height) / 2; //获得窗口的垂直位置;
+    var iLeft = (window.screen.width - 10 - width) / 2; //获得窗口的水平位置;
     // 小窗口打开oauth2鉴权
-    let oauthWindoe = window.open(config.baseApiUrl + '/auth/oauth2/login', 'oauth2', 'width=600,height=600');
-    if (oauthWindoe) {
+    let oauthWindow = window.open(config.baseApiUrl + '/auth/oauth2/login', 'oauth2', `height=${height},width=${width},top=${iTop},left=${iLeft},location=no`);
+    if (oauthWindow) {
         const handler = (e: any) => {
             if (e.data.action === 'oauthLogin') {
-                oauthWindoe!.close();
                 window.removeEventListener('message', handler);
                 loginForm.value!.loginResDeal(e.data);
             }
         };
         window.addEventListener('message', handler);
         setInterval(() => {
-            if (oauthWindoe!.closed) {
+            if (oauthWindow!.closed) {
                 window.removeEventListener('message', handler);
             }
         }, 1000);

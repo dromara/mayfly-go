@@ -18,6 +18,14 @@ func (a *accountRepoImpl) GetAccount(condition *entity.Account, cols ...string) 
 	return gormx.GetBy(condition, cols...)
 }
 
+func (a *accountRepoImpl) GetById(id uint64) *entity.Account {
+	ac := new(entity.Account)
+	if err := gormx.GetById(ac, id); err != nil {
+		return nil
+	}
+	return ac
+}
+
 func (m *accountRepoImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	qd := gormx.NewQuery(new(entity.Account)).
 		Like("name", condition.Name).

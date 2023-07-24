@@ -104,6 +104,24 @@
                 </div>
             </template>
         </el-dialog>
+
+        <el-dialog title="修改基本信息" v-model="baseInfoDialog.visible" :close-on-click-modal="false" width="450px" :destroy-on-close="true">
+            <el-form :model="baseInfoDialog.form" :rules="baseInfoDialog.rules" ref="changePwdFormRef" label-width="auto">
+                <el-form-item prop="username" label="用户名" required>
+                    <el-input v-model.trim="baseInfoDialog.form.username"></el-input>
+                </el-form-item>
+                <el-form-item prop="name" label="姓名" required>
+                    <el-input v-model.trim="baseInfoDialog.form.name"></el-input>
+                </el-form-item>
+            </el-form>
+
+            <template #footer>
+                <div class="dialog-footer">
+                    <!-- <el-button @click="cancelChangePwd">取 消</el-button> -->
+                    <el-button @click="updateUserInfo()" type="primary" :loading="loading.updateUserConfirm">确 定</el-button>
+                </div>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
@@ -112,7 +130,7 @@ import { nextTick, onMounted, ref, toRefs, reactive, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { initRouter } from '@/router/index';
-import { setSession, setUserInfo2Session, setUseWatermark2Session } from '@/common/utils/storage';
+import { getSession, setSession, setUserInfo2Session, setUseWatermark2Session } from '@/common/utils/storage';
 import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';
@@ -120,6 +138,7 @@ import { getAccountLoginSecurity, useWartermark } from '@/common/sysconfig';
 import { letterAvatar } from '@/common/utils/string';
 import { useUserInfo } from '@/store/userInfo';
 import QrcodeVue from 'qrcode.vue';
+import { personApi } from '@/views/personal/api';
 
 const rules = {
     username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -149,6 +168,7 @@ const state = reactive({
         captcha: '',
         cid: '',
     },
+    loginRes: {} as any,
     changePwdDialog: {
         visible: false,
         form: {
@@ -178,14 +198,26 @@ const state = reactive({
             code: [{ required: true, message: '请输入OTP授权码', trigger: 'blur' }],
         },
     },
+    baseInfoDialog: {
+        visible: false,
+        form: {
+            username: '',
+            name: '',
+        },
+        rules: {
+            username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+            name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+        },
+    },
     loading: {
         signIn: false,
         changePwd: false,
         otpConfirm: false,
+        updateUserConfirm: false,
     },
 });
 
-const { accountLoginSecurity, showLoginFailTips, captchaImage, loginForm, changePwdDialog, otpDialog, loading } = toRefs(state);
+const { accountLoginSecurity, showLoginFailTips, captchaImage, loginForm, changePwdDialog, otpDialog, baseInfoDialog, loading } = toRefs(state);
 
 onMounted(async () => {
     nextTick(async () => {
@@ -268,7 +300,17 @@ const onSignIn = async () => {
     loginResDeal(loginRes);
 };
 
+const updateUserInfo = async () => {
+    const form = state.baseInfoDialog.form;
+    await personApi.updateAccount.request(state.baseInfoDialog.form);
+    state.baseInfoDialog.visible = false;
+    useUserInfo().userInfo.username = form.username;
+    useUserInfo().userInfo.name = form.name;
+    await toIndex();
+};
+
 const loginResDeal = (loginRes: any) => {
+    state.loginRes = loginRes;
     // 用户信息
     const userInfos = {
         name: loginRes.name,
@@ -300,16 +342,26 @@ const loginResDeal = (loginRes: any) => {
     }, 400);
 };
 
-defineExpose({
-    loginResDeal,
-});
-
 // 登录成功后的跳转
 const signInSuccess = async (accessToken: string = '') => {
+    if (!accessToken) {
+        accessToken = getSession('token');
+    }
     // 存储 token 到浏览器缓存
     setSession('token', accessToken);
     // 初始化路由
     await initRouter();
+
+    // 判断是否为第一次oauth2登录，是的话需要用户填写姓名和用户名
+    if (state.loginRes.isFirstOauth2Login) {
+        state.baseInfoDialog.form.username = state.loginRes.username;
+        state.baseInfoDialog.visible = true;
+    } else {
+        await toIndex();
+    }
+};
+
+const toIndex = async () => {
     // 初始化登录成功时间问候语
     let currentTimeInfo = currentTime.value;
     // 登录成功，跳到转首页
@@ -356,6 +408,10 @@ const cancelChangePwd = () => {
     state.changePwdDialog.form.username = '';
     getCaptcha();
 };
+
+defineExpose({
+    loginResDeal,
+});
 </script>
 
 <style scoped lang="scss">

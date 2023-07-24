@@ -144,6 +144,14 @@ export const staticRoutes: Array<RouteRecordRaw> = [
         },
     },
     {
+        path: '/oauth2/callback',
+        name: 'oauth2Callback',
+        component: () => import('@/views/oauth/Oauth2Callback.vue'),
+        meta: {
+            title: 'oauth2回调',
+        },
+    },
+    {
         path: '/machine/terminal',
         name: 'machineTerminal',
         component: () => import('@/views/ops/machine/SshTerminalPage.vue'),

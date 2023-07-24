@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"mayfly-go/internal/auth/api/vo"
@@ -59,7 +58,7 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 	biz.NotEmpty(stateAction, "state已过期, 请重新登录")
 
 	token, err := client.Exchange(rc.GinCtx, code)
-	biz.ErrIsNilAppendErr(err, "获取token失败: %s")
+	biz.ErrIsNilAppendErr(err, "获取OAuth2 accessToken失败: %s")
 
 	// 获取用户信息
 	httpCli := client.Client(rc.GinCtx.Request.Context(), token)
@@ -104,7 +103,12 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 		err = a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
 			AccountId: accountId,
 		}, "account_id", "identity")
-		biz.IsTrue(err != nil, "该账号已被绑定")
+		biz.IsTrue(err != nil, "该账号已被其他用户绑定")
+
+		err = a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
+			Identity: userId,
+		}, "account_id", "identity")
+		biz.IsTrue(err != nil, "您已绑定其他账号")
 
 		now := time.Now()
 		err = a.Oauth2App.BindOAuthAccount(&entity.Oauth2Account{
@@ -118,13 +122,7 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 			"action": "oauthBind",
 			"bind":   true,
 		}
-		b, err = json.Marshal(res)
-		biz.ErrIsNil(err, "数据序列化失败")
-		rc.GinCtx.Header("Content-Type", "text/html; charset=utf-8")
-		rc.GinCtx.Writer.WriteHeader(http.StatusOK)
-		_, _ = rc.GinCtx.Writer.WriteString("<html>" +
-			"<script>top.opener.postMessage(" + string(b) + ")</script>" +
-			"</html>")
+		rc.ResData = res
 	} else {
 		panic(biz.NewBizErr("state不合法"))
 	}
@@ -132,14 +130,12 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 
 // 指定登录操作
 func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *sysentity.ConfigOauth2Login) {
-	clientIp := getIpAndRegion(rc)
-	rc.ReqParam = fmt.Sprintf("oauth2 login username: %s | ip: %s", userId, clientIp)
-
 	// 查询用户是否存在
 	oauthAccount := &entity.Oauth2Account{Identity: userId}
 	err := a.Oauth2App.GetOAuthAccount(oauthAccount, "account_id", "identity")
 
 	var accountId uint64
+	isFirst := false
 	// 不存在,进行注册
 	if err != nil {
 		biz.IsTrue(oauth.AutoRegister, "系统未开启自动注册, 请先让管理员添加对应账号")
@@ -164,6 +160,7 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *sysentity
 		})
 		biz.ErrIsNilAppendErr(err, "绑定用户失败: %s")
 		accountId = account.Id
+		isFirst = true
 	} else {
 		accountId = oauthAccount.AccountId
 	}
@@ -175,15 +172,13 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *sysentity
 	err = a.AccountApp.GetAccount(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
 	biz.ErrIsNilAppendErr(err, "获取用户信息失败: %s")
 
+	clientIp := getIpAndRegion(rc)
+	rc.ReqParam = fmt.Sprintf("oauth2 login username: %s | ip: %s", account.Username, clientIp)
+
 	res := LastLoginCheck(account, a.ConfigApp.GetConfig(sysentity.ConfigKeyAccountLoginSecurity).ToAccountLoginSecurity(), clientIp)
 	res["action"] = "oauthLogin"
-	b, err := json.Marshal(res)
-	biz.ErrIsNil(err, "数据序列化失败")
-	rc.GinCtx.Header("Content-Type", "text/html; charset=utf-8")
-	rc.GinCtx.Writer.WriteHeader(http.StatusOK)
-	_, _ = rc.GinCtx.Writer.WriteString("<html>" +
-		"<script>top.opener.postMessage(" + string(b) + ")</script>" +
-		"</html>")
+	res["isFirstOauth2Login"] = isFirst
+	rc.ResData = res
 }
 
 func (a *Oauth2Login) getOAuthClient() (*oauth2.Config, *sysentity.ConfigOauth2Login) {
@@ -198,7 +193,7 @@ func (a *Oauth2Login) getOAuthClient() (*oauth2.Config, *sysentity.ConfigOauth2L
 			AuthURL:  oath2LoginConfig.AuthorizationURL,
 			TokenURL: oath2LoginConfig.AccessTokenURL,
 		},
-		RedirectURL: oath2LoginConfig.RedirectURL + "/api/auth/oauth2/callback",
+		RedirectURL: oath2LoginConfig.RedirectURL + "/#/oauth2/callback",
 		Scopes:      strings.Split(oath2LoginConfig.Scopes, ","),
 	}
 	return client, oath2LoginConfig
@@ -216,4 +211,8 @@ func (a *Oauth2Login) Oauth2Status(ctx *req.Ctx) {
 	}
 
 	ctx.ResData = res
+}
+
+func (a *Oauth2Login) Oauth2Unbind(rc *req.Ctx) {
+	a.Oauth2App.Unbind(rc.LoginAccount.Id)
 }

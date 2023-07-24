@@ -136,7 +136,8 @@
                                     <div class="personal-edit-safe-item-left-value">当前状态：{{ authStatus.bind ? '已绑定' : '未绑定' }}</div>
                                 </div>
                                 <div class="personal-edit-safe-item-right">
-                                    <el-button link @click="bindOAuth2" :disabled="authStatus.bind" type="primary">立即绑定</el-button>
+                                    <el-button v-if="!authStatus.bind" link @click="bindOAuth2" type="primary">立即绑定</el-button>
+                                    <el-button v-else link @click="unbindOAuth2()" type="warning">解绑</el-button>
                                 </div>
                             </div>
                         </div>
@@ -202,8 +203,8 @@ const state = reactive({
         password: '',
     },
     authStatus: {
-        enable: { oauth2: false },
-        bind: { oauth2: false },
+        enable: false,
+        bind: false,
     },
 });
 
@@ -241,12 +242,19 @@ const updateAccount = async () => {
 };
 
 const bindOAuth2 = () => {
+    const width = 700;
+    const height = 500;
+    var iTop = (window.screen.height - 30 - height) / 2; //获得窗口的垂直位置;
+    var iLeft = (window.screen.width - 10 - width) / 2; //获得窗口的水平位置;
     // 小窗口打开oauth2鉴权
-    let oauthWindow = window.open(config.baseApiUrl + '/auth/oauth2/bind?token=' + getSession('token'), 'oauth2', 'width=600,height=600');
+    let oauthWindow = window.open(
+        config.baseApiUrl + '/auth/oauth2/bind?token=' + getSession('token'),
+        'oauth2',
+        `height=${height},width=${width},top=${iTop},left=${iLeft},location=no`
+    );
     if (oauthWindow) {
         const handler = (e: any) => {
             if (e.data.action === 'oauthBind') {
-                oauthWindow!.close();
                 window.removeEventListener('message', handler);
                 // 处理登录token
                 ElMessage.success('绑定成功');
@@ -262,6 +270,12 @@ const bindOAuth2 = () => {
             }
         }, 1000);
     }
+};
+
+const unbindOAuth2 = async () => {
+    await personApi.unbindOauth2.request();
+    ElMessage.success('解绑成功');
+    state.authStatus = await personApi.authStatus.request();
 };
 
 const getMsgs = async () => {

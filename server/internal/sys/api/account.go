@@ -105,6 +105,13 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 		biz.IsTrue(utils.CheckAccountPasswordLever(updateAccount.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
 		updateAccount.Password = cryptox.PwdHash(updateAccount.Password)
 	}
+
+	oldAcc := a.AccountApp.GetById(updateAccount.Id)
+	// 账号创建十分钟内允许修改用户名（兼容oauth2首次登录修改用户名），否则不允许修改
+	if oldAcc.CreateTime.Add(10 * time.Minute).Before(time.Now()) {
+		// 禁止更新用户名，防止误传被更新
+		updateAccount.Username = ""
+	}
 	a.AccountApp.Update(updateAccount)
 }
 
@@ -133,6 +140,8 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 			biz.IsTrue(utils.CheckAccountPasswordLever(account.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
 			account.Password = cryptox.PwdHash(account.Password)
 		}
+		// 更新操作不允许修改用户名、防止误传更新
+		account.Username = ""
 		a.AccountApp.Update(account)
 	}
 }

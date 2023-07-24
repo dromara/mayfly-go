@@ -257,7 +257,7 @@ router.beforeEach(async (to, from, next) => {
     }
 
     const token = getSession('token');
-    if (to.path === '/login' && !token) {
+    if ((to.path === '/login' || to.path == '/oauth2/callback') && !token) {
         next();
         NProgress.done();
         return;

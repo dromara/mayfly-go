@@ -45,9 +45,11 @@ func Init(router *gin.RouterGroup) {
 		req.NewGet("/oauth2/bind", oauth2Login.OAuth2Bind),
 
 		// oauth2回调地址
-		req.NewGet("/oauth2/callback", oauth2Login.OAuth2Callback).Log(req.NewLogSave("oauth2回调")).NoRes().DontNeedToken(),
+		req.NewGet("/oauth2/callback", oauth2Login.OAuth2Callback).Log(req.NewLogSave("oauth2回调")).DontNeedToken(),
 
 		req.NewGet("/oauth2/status", oauth2Login.Oauth2Status),
+
+		req.NewGet("/oauth2/unbind", oauth2Login.Oauth2Unbind).Log(req.NewLogSave("oauth2解绑")),
 	}
 
 	req.BatchSetGroup(rg, reqs[:])
