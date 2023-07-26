@@ -50,7 +50,7 @@
     "sass": "^1.62.0",
     "sass-loader": "^13.2.0",
     "typescript": "^5.0.2",
-    "vite": "^4.4.2",
+    "vite": "^4.4.7",
     "vue-eslint-parser": "^9.1.1"
   },
   "browserslist": [

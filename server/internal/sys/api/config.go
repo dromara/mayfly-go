@@ -53,5 +53,6 @@ func (c *Config) Oauth2Config(rc *req.Ctx) {
 	oauth2LoginConfig := c.ConfigApp.GetConfig(entity.ConfigKeyOauth2Login).ToOauth2Login()
 	rc.ResData = map[string]any{
 		"enable": oauth2LoginConfig.Enable,
+		"name":   oauth2LoginConfig.Name,
 	}
 }

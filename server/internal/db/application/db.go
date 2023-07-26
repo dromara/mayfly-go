@@ -3,7 +3,7 @@ package application
 import (
 	"database/sql"
 	"fmt"
-	"mayfly-go/internal/constant"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/machine/infrastructure/machine"
@@ -294,7 +294,7 @@ func (d *DbInstance) Close() {
 //------------------------------------------------------------------------------
 
 // 客户端连接缓存，指定时间内没有访问则会被关闭, key为数据库实例id:数据库
-var dbCache = cache.NewTimedCache(constant.DbConnExpireTime, 5*time.Second).
+var dbCache = cache.NewTimedCache(consts.DbConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key any, value any) {
 		global.Log.Info(fmt.Sprintf("删除db连接缓存 id = %s", key))

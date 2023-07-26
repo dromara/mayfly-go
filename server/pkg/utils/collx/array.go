@@ -1,7 +1,5 @@
 package collx
 
-import "fmt"
-
 // 数组比较
 // 依次返回，新增值，删除值，以及不变值
 func ArrayCompare[T any](newArr []T, oldArr []T, compareFun func(T, T) bool) ([]T, []T, []T) {
@@ -36,18 +34,6 @@ func ArrayCompare[T any](newArr []T, oldArr []T, compareFun func(T, T) bool) ([]
 	}
 
 	return newArr, oldArr, unmodifierValue
-}
-
-type NumT interface {
-	~int | ~int32 | ~uint64
-}
-
-func NumberArr2StrArr[T NumT](numberArr []T) []string {
-	strArr := make([]string, 0)
-	for _, v := range numberArr {
-		strArr = append(strArr, fmt.Sprintf("%d", v))
-	}
-	return strArr
 }
 
 // 判断数组中是否含有指定元素

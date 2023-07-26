@@ -3,7 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
-	"mayfly-go/internal/constant"
+	"mayfly-go/internal/common/consts"
 	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/infrastructure/machine"
 	"mayfly-go/internal/mongo/domain/entity"
@@ -101,7 +101,7 @@ func (d *mongoAppImpl) GetMongoCli(id uint64) *mongo.Client {
 // -----------------------------------------------------------
 
 // mongo客户端连接缓存，指定时间内没有访问则会被关闭
-var mongoCliCache = cache.NewTimedCache(constant.MongoConnExpireTime, 5*time.Second).
+var mongoCliCache = cache.NewTimedCache(consts.MongoConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key any, value any) {
 		global.Log.Info("删除mongo连接缓存: id = ", key)

@@ -106,7 +106,7 @@
         </el-dialog>
 
         <el-dialog title="修改基本信息" v-model="baseInfoDialog.visible" :close-on-click-modal="false" width="450px" :destroy-on-close="true">
-            <el-form :model="baseInfoDialog.form" :rules="baseInfoDialog.rules" ref="changePwdFormRef" label-width="auto">
+            <el-form :model="baseInfoDialog.form" :rules="baseInfoDialog.rules" ref="baseInfoFormRef" label-width="auto">
                 <el-form-item prop="username" label="用户名" required>
                     <el-input v-model.trim="baseInfoDialog.form.username"></el-input>
                 </el-form-item>
@@ -117,7 +117,6 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <!-- <el-button @click="cancelChangePwd">取 消</el-button> -->
                     <el-button @click="updateUserInfo()" type="primary" :loading="loading.updateUserConfirm">确 定</el-button>
                 </div>
             </template>
@@ -152,6 +151,7 @@ const loginFormRef: any = ref(null);
 const changePwdFormRef: any = ref(null);
 const otpFormRef: any = ref(null);
 const otpCodeInputRef: any = ref(null);
+const baseInfoFormRef: any = ref(null);
 
 const state = reactive({
     accountLoginSecurity: {
@@ -301,12 +301,22 @@ const onSignIn = async () => {
 };
 
 const updateUserInfo = async () => {
-    const form = state.baseInfoDialog.form;
-    await personApi.updateAccount.request(state.baseInfoDialog.form);
-    state.baseInfoDialog.visible = false;
-    useUserInfo().userInfo.username = form.username;
-    useUserInfo().userInfo.name = form.name;
-    await toIndex();
+    baseInfoFormRef.value.validate(async (valid: boolean) => {
+        if (!valid) {
+            return false;
+        }
+        try {
+            state.loading.updateUserConfirm = true;
+            const form = state.baseInfoDialog.form;
+            await personApi.updateAccount.request(state.baseInfoDialog.form);
+            state.baseInfoDialog.visible = false;
+            useUserInfo().userInfo.username = form.username;
+            useUserInfo().userInfo.name = form.name;
+            await toIndex();
+        } finally {
+            state.loading.updateUserConfirm = false;
+        }
+    });
 };
 
 const loginResDeal = (loginRes: any) => {

@@ -18,9 +18,9 @@
                         </transition>
                     </el-tab-pane> -->
                 </el-tabs>
-                <div class="mt20" v-show="authConfig.enable">
+                <div class="mt20" v-show="oauth2LoginConfig.enable">
                     <el-button link size="small">第三方登录: </el-button>
-                    <el-tooltip content="OAuth2登录" placement="top-start">
+                    <el-tooltip :content="oauth2LoginConfig.name" placement="top-start">
                         <el-button link size="small" type="primary" @click="oauth2Login">
                             <el-icon :size="18">
                                 <Link />
@@ -50,13 +50,14 @@ const state = reactive({
     tabsActiveName: 'account',
     isTabPaneShow: true,
     oauth2LoginConfig: {
+        name: 'OAuth2登录',
         enable: false,
     },
 });
 
 const loginForm = ref<{ loginResDeal: (data: any) => void } | null>(null);
 
-const { isTabPaneShow, tabsActiveName, oauth2LoginConfig: authConfig } = toRefs(state);
+const { isTabPaneShow, tabsActiveName, oauth2LoginConfig: oauth2LoginConfig } = toRefs(state);
 
 // 切换密码、手机登录
 const onTabsClick = () => {

@@ -3,7 +3,7 @@ package machine
 import (
 	"errors"
 	"fmt"
-	"mayfly-go/internal/constant"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
@@ -139,7 +139,7 @@ func (c *Cli) GetMachine() *Info {
 }
 
 // 机器客户端连接缓存，指定时间内没有访问则会被关闭
-var cliCache = cache.NewTimedCache(constant.MachineConnExpireTime, 5*time.Second).
+var cliCache = cache.NewTimedCache(consts.MachineConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(_, value any) {
 		value.(*Cli).Close()
