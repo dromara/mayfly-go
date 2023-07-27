@@ -1,11 +1,15 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
 	"strings"
+	"time"
 )
 
 type Role interface {
@@ -20,7 +24,7 @@ type Role interface {
 	GetRoleResources(roleId uint64, toEntity any)
 
 	// 保存角色资源关联记录
-	SaveRoleResource(rr []*entity.RoleResource)
+	SaveRoleResource(ctx context.Context, roleId uint64, resourceIds []uint64)
 
 	// 删除角色资源关联记录
 	DeleteRoleResource(roleId uint64, resourceId uint64)
@@ -29,7 +33,7 @@ type Role interface {
 	GetAccountRoleIds(accountId uint64) []uint64
 
 	// 保存账号角色关联信息
-	SaveAccountRole(rr *entity.AccountRole)
+	SaveAccountRole(ctx context.Context, accountId uint64, roleIds []uint64)
 
 	DeleteAccountRole(accountId, roleId uint64)
 
@@ -76,8 +80,30 @@ func (m *roleAppImpl) GetRoleResources(roleId uint64, toEntity any) {
 	m.roleRepo.GetRoleResources(roleId, toEntity)
 }
 
-func (m *roleAppImpl) SaveRoleResource(rr []*entity.RoleResource) {
-	m.roleRepo.SaveRoleResource(rr)
+func (m *roleAppImpl) SaveRoleResource(ctx context.Context, roleId uint64, resourceIds []uint64) {
+	oIds := m.GetRoleResourceIds(roleId)
+
+	addIds, delIds, _ := collx.ArrayCompare(resourceIds, oIds, func(i1, i2 uint64) bool {
+		return i1 == i2
+	})
+
+	la := contextx.GetLoginAccount(ctx)
+	createTime := time.Now()
+	creator := la.Username
+	creatorId := la.Id
+	undeleted := model.ModelUndeleted
+
+	addVals := make([]*entity.RoleResource, 0)
+	for _, v := range addIds {
+		rr := &entity.RoleResource{RoleId: roleId, ResourceId: v, CreateTime: &createTime, CreatorId: creatorId, Creator: creator}
+		rr.IsDeleted = undeleted
+		addVals = append(addVals, rr)
+	}
+	m.roleRepo.SaveRoleResource(addVals)
+
+	for _, v := range delIds {
+		m.DeleteRoleResource(roleId, v)
+	}
 }
 
 func (m *roleAppImpl) DeleteRoleResource(roleId uint64, resourceId uint64) {
@@ -88,8 +114,26 @@ func (m *roleAppImpl) GetAccountRoleIds(accountId uint64) []uint64 {
 	return m.roleRepo.GetAccountRoleIds(accountId)
 }
 
-func (m *roleAppImpl) SaveAccountRole(rr *entity.AccountRole) {
-	m.roleRepo.SaveAccountRole(rr)
+// 保存账号角色关联信息
+func (m *roleAppImpl) SaveAccountRole(ctx context.Context, accountId uint64, roleIds []uint64) {
+	oIds := m.GetAccountRoleIds(accountId)
+
+	addIds, delIds, _ := collx.ArrayCompare(roleIds, oIds, func(i1, i2 uint64) bool {
+		return i1 == i2
+	})
+
+	la := contextx.GetLoginAccount(ctx)
+
+	createTime := time.Now()
+	creator := la.Username
+	creatorId := la.Id
+	for _, v := range addIds {
+		rr := &entity.AccountRole{AccountId: accountId, RoleId: v, CreateTime: &createTime, CreatorId: creatorId, Creator: creator}
+		m.roleRepo.SaveAccountRole(rr)
+	}
+	for _, v := range delIds {
+		m.DeleteAccountRole(accountId, v)
+	}
 }
 
 func (m *roleAppImpl) DeleteAccountRole(accountId, roleId uint64) {

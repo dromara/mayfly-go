@@ -2,7 +2,7 @@ package form
 
 // 分配角色资源表单信息
 type RoleResourceForm struct {
-	Id          int    `json:"id"`
+	Id          uint64 `json:"id"`
 	ResourceIds string `json:"resourceIds"`
 }
 
@@ -17,6 +17,6 @@ type RoleForm struct {
 
 // 账号分配角色表单
 type AccountRoleForm struct {
-	Id      int    `json:"id" binding:"required"`
+	Id      uint64 `json:"id" binding:"required"`
 	RoleIds string `json:"roleIds"`
 }

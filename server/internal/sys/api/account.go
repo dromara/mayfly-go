@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -189,11 +190,8 @@ func (a *Account) AccountResources(rc *req.Ctx) {
 
 // 保存账号角色信息
 func (a *Account) SaveRoles(rc *req.Ctx) {
-	g := rc.GinCtx
-
 	var form form.AccountRoleForm
-	ginx.BindJsonAndValid(g, &form)
-	aid := uint64(form.Id)
+	ginx.BindJsonAndValid(rc.GinCtx, &form)
 	rc.ReqParam = form
 
 	// 将,拼接的字符串进行切割并转换
@@ -202,22 +200,7 @@ func (a *Account) SaveRoles(rc *req.Ctx) {
 		return uint64(id)
 	})
 
-	oIds := a.RoleApp.GetAccountRoleIds(uint64(form.Id))
-
-	addIds, delIds, _ := collx.ArrayCompare(newIds, oIds, func(i1, i2 uint64) bool {
-		return i1 == i2
-	})
-
-	createTime := time.Now()
-	creator := rc.LoginAccount.Username
-	creatorId := rc.LoginAccount.Id
-	for _, v := range addIds {
-		rr := &entity.AccountRole{AccountId: aid, RoleId: v, CreateTime: &createTime, CreatorId: creatorId, Creator: creator}
-		a.RoleApp.SaveAccountRole(rr)
-	}
-	for _, v := range delIds {
-		a.RoleApp.DeleteAccountRole(aid, v)
-	}
+	a.RoleApp.SaveAccountRole(contextx.NewLoginAccount(rc.LoginAccount), form.Id, newIds)
 }
 
 // 重置otp秘钥

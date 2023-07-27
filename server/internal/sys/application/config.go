@@ -10,7 +10,7 @@ import (
 	"mayfly-go/pkg/utils/jsonx"
 )
 
-const SysConfigKeyPrefix = "sys:config:"
+const SysConfigKeyPrefix = "mayfly:sys:config:"
 
 type Config interface {
 	GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]

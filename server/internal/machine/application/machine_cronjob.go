@@ -159,7 +159,7 @@ func (m *machineCropJobAppImpl) InitCronJob() {
 	}()
 
 	pageParam := &model.PageParam{
-		PageSize: 2,
+		PageSize: 100,
 		PageNum:  1,
 	}
 	cond := new(entity.MachineCronJob)

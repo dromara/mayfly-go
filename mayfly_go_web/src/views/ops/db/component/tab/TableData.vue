@@ -113,10 +113,12 @@
             <el-pagination
                 small
                 :total="count"
+                @size-change="handleSizeChange"
                 @current-change="pageChange()"
-                layout="prev, pager, next, total, jumper"
+                layout="prev, pager, next, total, sizes, jumper"
                 v-model:current-page="pageNum"
-                :page-size="DbInst.DefaultLimit"
+                v-model:page-size="pageSize"
+                :page-sizes="pageSizes"
             ></el-pagination>
         </el-row>
         <div style="font-size: 12px; padding: 0 10px; color: #606266">
@@ -212,6 +214,8 @@ const state = reactive({
     loading: false, // 是否在加载数据
     columns: [] as any,
     pageNum: 1,
+    pageSize: DbInst.DefaultLimit,
+    pageSizes: [20, 40, 80, 100, 200, 300, 400],
     count: 0,
     selectionDatas: [] as any,
     conditionDialog: {
@@ -233,7 +237,7 @@ const state = reactive({
     hasUpdatedFileds: false,
 });
 
-const { datas, condition, loading, columns, pageNum, count, hasUpdatedFileds, conditionDialog, addDataDialog } = toRefs(state);
+const { datas, condition, loading, columns, pageNum, pageSize, pageSizes, count, hasUpdatedFileds, conditionDialog, addDataDialog } = toRefs(state);
 
 watch(
     () => props.tableHeight,
@@ -281,7 +285,7 @@ const selectData = async () => {
     try {
         const countRes = await dbInst.runSql(db, DbInst.getDefaultCountSql(state.table, state.condition));
         state.count = countRes.res[0].count;
-        let sql = dbInst.getDefaultSelectSql(state.table, state.condition, state.orderBy, state.pageNum);
+        let sql = dbInst.getDefaultSelectSql(state.table, state.condition, state.orderBy, state.pageNum, state.pageSize);
         state.sql = sql;
         if (state.count > 0) {
             const colAndData: any = await dbInst.runSql(db, sql);
@@ -292,6 +296,12 @@ const selectData = async () => {
     } finally {
         state.loading = false;
     }
+};
+
+const handleSizeChange = async (size: any) => {
+    state.pageNum = 1;
+    state.pageSize = size;
+    await selectData();
 };
 
 /**

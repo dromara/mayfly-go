@@ -6,13 +6,12 @@ import (
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/ginx"
-	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Role struct {
@@ -68,7 +67,6 @@ func (r *Role) RoleResource(rc *req.Ctx) {
 func (r *Role) SaveResource(rc *req.Ctx) {
 	var form form.RoleResourceForm
 	ginx.BindJsonAndValid(rc.GinCtx, &form)
-	rid := uint64(form.Id)
 	rc.ReqParam = form
 
 	// 将,拼接的字符串进行切割并转换
@@ -77,26 +75,5 @@ func (r *Role) SaveResource(rc *req.Ctx) {
 		return uint64(id)
 	})
 
-	oIds := r.RoleApp.GetRoleResourceIds(uint64(form.Id))
-
-	addIds, delIds, _ := collx.ArrayCompare(newIds, oIds, func(i1, i2 uint64) bool {
-		return i1 == i2
-	})
-
-	createTime := time.Now()
-	creator := rc.LoginAccount.Username
-	creatorId := rc.LoginAccount.Id
-	undeleted := model.ModelUndeleted
-
-	addVals := make([]*entity.RoleResource, 0)
-	for _, v := range addIds {
-		rr := &entity.RoleResource{RoleId: rid, ResourceId: v, CreateTime: &createTime, CreatorId: creatorId, Creator: creator}
-		rr.IsDeleted = undeleted
-		addVals = append(addVals, rr)
-	}
-	r.RoleApp.SaveRoleResource(addVals)
-
-	for _, v := range delIds {
-		r.RoleApp.DeleteRoleResource(rid, v)
-	}
+	r.RoleApp.SaveRoleResource(contextx.NewLoginAccount(rc.LoginAccount), form.Id, newIds)
 }
