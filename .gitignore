@@ -19,3 +19,8 @@
 .idea
 .vscode
 out
+
+server/docs/docker-compose
+server/config.yml
+
+mayfly-go.log

@@ -20,10 +20,10 @@ aes:
 mysql:
   # 自动升级数据库
   auto-migration: false
-  host: localhost:3306
+  host: mysql:3306
   username: root
   password: 111049
-  db-name: mayfly_go
+  db-name: mayfly-go
   config: charset=utf8&loc=Local&parseTime=true
   max-idle-conns: 5
 # 若同时部署多台机器，则需要配置redis信息用于缓存权限码、验证码、公私钥等
