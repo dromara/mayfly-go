@@ -6,7 +6,7 @@ import (
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logger"
-	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/validatorx"
 )
 
 func RunWebServer() {
@@ -15,9 +15,6 @@ func RunWebServer() {
 
 	// 初始化日志配置信息
 	logger.Init()
-
-	// 初始化jwt key与expire time等
-	req.InitTokenConfig()
 
 	// 打印banner
 	printBanner()
@@ -32,6 +29,9 @@ func RunWebServer() {
 	if err := migrations.RunMigrations(global.Db); err != nil {
 		global.Log.Fatalf("数据库升级失败: %v", err)
 	}
+
+	// 参数校验器初始化、如错误提示中文转译等
+	validatorx.Init()
 
 	// 初始化其他需要启动时运行的方法
 	initialize.InitOther()

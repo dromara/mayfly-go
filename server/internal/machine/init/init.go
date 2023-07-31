@@ -1,4 +1,4 @@
-package initialize
+package init
 
 import "mayfly-go/internal/machine/application"
 

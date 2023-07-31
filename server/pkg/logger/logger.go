@@ -11,16 +11,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var Log = logrus.New()
-
 func Init() {
-	Log.SetFormatter(new(LogFormatter))
-	Log.SetReportCaller(true)
+	logger := logrus.New()
+	logger.SetFormatter(new(LogFormatter))
+	logger.SetReportCaller(true)
 
 	logConf := config.Conf.Log
 	// 如果不存在日志配置信息，则默认debug级别
 	if logConf == nil {
-		Log.SetLevel(logrus.DebugLevel)
+		logger.SetLevel(logrus.DebugLevel)
 		return
 	}
 
@@ -30,9 +29,9 @@ func Init() {
 		if err != nil {
 			panic(fmt.Sprintf("日志级别不存在: %s", level))
 		}
-		Log.SetLevel(l)
+		logger.SetLevel(l)
 	} else {
-		Log.SetLevel(logrus.DebugLevel)
+		logger.SetLevel(logrus.DebugLevel)
 	}
 
 	if logFile := logConf.File; logFile != nil {
@@ -42,10 +41,10 @@ func Init() {
 			panic(fmt.Sprintf("创建日志文件失败: %s", err.Error()))
 		}
 
-		Log.Out = file
+		logger.Out = file
 	}
 
-	global.Log = Log
+	global.Log = logger
 }
 
 type LogFormatter struct{}

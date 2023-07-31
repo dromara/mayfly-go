@@ -138,6 +138,7 @@ import { letterAvatar } from '@/common/utils/string';
 import { useUserInfo } from '@/store/userInfo';
 import QrcodeVue from 'qrcode.vue';
 import { personApi } from '@/views/personal/api';
+import { AccountUsernamePattern } from '@/common/pattern';
 
 const rules = {
     username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -205,7 +206,14 @@ const state = reactive({
             name: '',
         },
         rules: {
-            username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+            username: [
+                { required: true, message: '请输入用户名', trigger: 'blur' },
+                {
+                    pattern: AccountUsernamePattern.pattern,
+                    message: AccountUsernamePattern.message,
+                    trigger: ['blur'],
+                },
+            ],
             name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
         },
     },

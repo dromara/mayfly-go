@@ -3,7 +3,7 @@ package req
 import (
 	"fmt"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/logger"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/stringx"
 
@@ -63,10 +63,10 @@ func LogHandler(rc *Ctx) error {
 		go saveLog(rc)
 	}
 	if err := rc.Err; err != nil {
-		logger.Log.WithFields(lfs).Error(getErrMsg(rc, err))
+		global.Log.WithFields(lfs).Error(getErrMsg(rc, err))
 		return nil
 	}
-	logger.Log.WithFields(lfs).Info(getLogMsg(rc))
+	global.Log.WithFields(lfs).Info(getLogMsg(rc))
 	return nil
 }
 

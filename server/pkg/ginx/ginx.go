@@ -6,17 +6,19 @@ import (
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/structx"
+	"mayfly-go/pkg/validatorx"
 	"net/http"
 	"runtime/debug"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
 // 绑定并校验请求结构体参数
 func BindJsonAndValid[T any](g *gin.Context, data T) T {
 	if err := g.ShouldBindJSON(data); err != nil {
-		panic(biz.NewBizErr(err.Error()))
+		panic(ConvBindValidationError(data, err))
 	} else {
 		return data
 	}
@@ -32,7 +34,7 @@ func BindJsonAndCopyTo[T any](g *gin.Context, form any, toStruct T) T {
 // 绑定查询字符串到指定结构体
 func BindQuery[T any](g *gin.Context, data T) T {
 	if err := g.BindQuery(data); err != nil {
-		panic(biz.NewBizErr(err.Error()))
+		panic(ConvBindValidationError(data, err))
 	} else {
 		return data
 	}
@@ -41,7 +43,7 @@ func BindQuery[T any](g *gin.Context, data T) T {
 // 绑定查询字符串到指定结构体，并将分页信息也返回
 func BindQueryAndPage[T any](g *gin.Context, data T) (T, *model.PageParam) {
 	if err := g.BindQuery(data); err != nil {
-		panic(biz.NewBizErr(err.Error()))
+		panic(ConvBindValidationError(data, err))
 	} else {
 		return data, GetPageParam(g)
 	}
@@ -110,4 +112,12 @@ func ErrorRes(g *gin.Context, err any) {
 	default:
 		global.Log.Error(t)
 	}
+}
+
+// 转换参数校验错误为业务异常错误
+func ConvBindValidationError(data any, err error) error {
+	if e, ok := err.(validator.ValidationErrors); ok {
+		return biz.NewBizErrCode(403, validatorx.Translate2Str(data, e))
+	}
+	return err
 }
