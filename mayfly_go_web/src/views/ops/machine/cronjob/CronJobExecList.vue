@@ -64,7 +64,7 @@ const columns = ref([
     TableColumn.new('machineIp', '机器IP').setMinWidth(120),
     TableColumn.new('machineName', '机器名称').setMinWidth(100),
     TableColumn.new('status', '状态').typeTag(CronJobExecStatusEnum).setMinWidth(70),
-    TableColumn.new('res', '执行结果').setMinWidth(250),
+    TableColumn.new('res', '执行结果').setMinWidth(250).canBeautify(),
     TableColumn.new('execTime', '执行时间').isTime().setMinWidth(150),
 ]);
 

@@ -102,7 +102,7 @@
 
             <el-table
                 v-bind="$attrs"
-                max-height="700"
+                :max-height="tableMaxHeight"
                 @selection-change="handleSelectionChange"
                 :data="props.data"
                 highlight-current-row
@@ -264,6 +264,7 @@ const state = reactive({
     // 输入框宽度
     inputWidth: "200px" as any,
     formatVal: '', // 格式化后的值
+    tableMaxHeight: window.innerHeight - 240 + 'px',
 })
 
 const {
@@ -274,6 +275,7 @@ const {
     loadingData,
     inputWidth,
     formatVal,
+    tableMaxHeight,
 } = toRefs(state)
 
 watch(() => props.queryForm, (newValue: any) => {
@@ -304,7 +306,7 @@ onMounted(() => {
     state.pageNum = props.pageNum;
     state.pageSize = pageSize;
     state.queryForm = props.queryForm;
-    state.pageSizes = [pageSize, pageSize * 2, pageSize * 3, pageSize * 4];
+    state.pageSizes = [pageSize, pageSize * 2, pageSize * 3, pageSize * 4, pageSize * 5];
 
     // 如果没传输入框宽度，则根据组件size设置默认宽度
     if (!props.inputWidth) {

@@ -104,6 +104,7 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
 	readPath := g.Query("path")
+	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
 
 	if !strings.HasSuffix(readPath, "/") {
 		readPath = readPath + "/"
@@ -120,7 +121,6 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 	}
 	sort.Sort(vo.MachineFileInfos(fisVO))
 	rc.ResData = fisVO
-	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
 }
 
 func (m *MachineFile) GetDirSize(rc *req.Ctx) {
