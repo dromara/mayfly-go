@@ -4,7 +4,7 @@
             <div>
                 <span style="font-size: 14px"> <SvgIcon name="info-filled" />红色、橙色字体表示禁用状态 </span>
             </div>
-            <el-button v-auth="'resource:add'" type="primary" icon="plus" @click="addResource(false)">添加</el-button>
+            <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)">添加</el-button>
         </div>
         <el-tree
             class="none-select"
@@ -37,10 +37,10 @@
 
                     <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="view" type="info" :underline="false" />
 
-                    <el-link v-auth="'resource:update'" @click.prevent="editResource(data)" class="ml5" type="primary" icon="edit" :underline="false" />
+                    <el-link v-auth="perms.updateResource" @click.prevent="editResource(data)" class="ml5" type="primary" icon="edit" :underline="false" />
 
                     <el-link
-                        v-auth="'resource:add'"
+                        v-auth="perms.addResource"
                         @click.prevent="addResource(data)"
                         v-if="data.type === menuTypeValue"
                         icon="circle-plus"
@@ -50,7 +50,7 @@
                     />
 
                     <el-link
-                        v-auth="'resource:changeStatus'"
+                        v-auth="perms.changeStatus"
                         @click.prevent="changeStatus(data, -1)"
                         v-if="data.status === 1"
                         icon="circle-close"
@@ -60,7 +60,7 @@
                     />
 
                     <el-link
-                        v-auth="'resource:changeStatus'"
+                        v-auth="perms.changeStatus"
                         @click.prevent="changeStatus(data, 1)"
                         v-if="data.status === -1"
                         type="success"
@@ -70,7 +70,7 @@
                         class="ml5"
                     />
 
-                    <el-link v-auth="'resource:delete'" @click.prevent="deleteMenu(data)" type="danger" icon="delete" :underline="false" plain class="ml5" />
+                    <el-link v-auth="perms.delResource" @click.prevent="deleteMenu(data)" type="danger" icon="delete" :underline="false" plain class="ml5" />
                 </span>
             </template>
         </el-tree>
@@ -137,6 +137,13 @@ import EnumValue from '@/common/Enum';
 
 const menuTypeValue = ResourceTypeEnum.Menu.value;
 const permissionTypeValue = ResourceTypeEnum.Permission.value;
+
+const perms = {
+    addResource: 'resource:add',
+    delResource: 'resource:delete',
+    updateResource: 'resource:update',
+    changeStatus: 'resource:changeStatus',
+};
 
 const props = {
     label: 'name',

@@ -12,13 +12,15 @@ const props = defineProps({
         required: true,
     },
     value: {
-        type: Object,
+        type: [Object, String, Number],
         required: true,
     },
 });
 
+const defaultType = 'primary';
+
 const state = reactive({
-    type: 'primary',
+    type: defaultType,
     color: '',
     enumLabel: '',
 });
@@ -50,6 +52,8 @@ const convert = (value: any) => {
     if (enumValue.tag) {
         state.color = enumValue.tag.color;
         state.type = enumValue.tag.type;
+    } else {
+        state.type = defaultType;
     }
 };
 </script>

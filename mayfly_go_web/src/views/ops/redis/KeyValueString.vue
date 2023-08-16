@@ -11,7 +11,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { ref, reactive, watch, toRefs, onMounted } from 'vue';
+import { ref, reactive, toRefs, onMounted } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import { notEmpty } from '@/common/assert';

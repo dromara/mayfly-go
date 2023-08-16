@@ -18,7 +18,7 @@ import { useKeepALiveNames } from '@/store/keepAliveNames';
  * @method import.meta.glob
  * @link 参考：https://cn.vitejs.dev/guide/features.html#json
  */
-const viewsModules: any = import.meta.glob('../views/**/*.{vue,tsx}');
+const viewsModules: any = import.meta.glob(['../views/**/*.{vue,tsx}', '!../views/layout/**/*.{vue,tsx}']);
 const dynamicViewsModules: Record<string, Function> = Object.assign({}, { ...viewsModules });
 
 // 添加静态路由

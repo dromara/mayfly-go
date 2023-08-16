@@ -15,7 +15,7 @@
                 </el-form-item>
 
                 <el-form-item prop="cron" label="cron表达式">
-                    <el-input v-model="form.cron" placeholder="请输入cron表达式"></el-input>
+                    <el-input v-model="form.cron" placeholder="只支持5位表达式,不支持秒级.如 0/2 * * * * 表示每两分钟执行"></el-input>
                 </el-form-item>
 
                 <el-form-item prop="status" label="状态">

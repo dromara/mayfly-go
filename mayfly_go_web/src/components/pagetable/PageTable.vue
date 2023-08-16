@@ -314,7 +314,15 @@ onMounted(() => {
     } else {
         state.inputWidth = props.inputWidth;
     }
+
+    window.addEventListener('resize', () => {
+        calcuTableHeight();
+    });
 })
+
+const calcuTableHeight = () => {
+    state.tableMaxHeight = window.innerHeight - 240 + 'px';
+}
 
 const formatText = (data: any)=> {
     state.formatVal = '';
@@ -362,7 +370,7 @@ const reset = () => {
     for (let qi of props.query) {
         state.queryForm[qi.prop] = null;
     }
-    console.log(state.queryForm);
+
     changePageNum(1);
     emit('update:queryForm', state.queryForm);
     execQuery();

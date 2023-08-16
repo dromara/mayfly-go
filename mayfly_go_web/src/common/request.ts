@@ -1,6 +1,5 @@
 import router from '../router';
 import Axios from 'axios';
-import { ResultEnum } from './enums';
 import config from './config';
 import { getSession } from './utils/storage';
 import { templateResolve } from './utils/string';
@@ -19,6 +18,14 @@ export interface Result {
      * 数据
      */
     data?: any;
+}
+
+enum ResultEnum {
+    SUCCESS = 200,
+    ERROR = 400,
+    PARAM_ERROR = 405,
+    SERVER_ERROR = 500,
+    NO_PERMISSION = 501,
 }
 
 const baseUrl: string = config.baseApiUrl;
@@ -60,34 +67,46 @@ service.interceptors.response.use(
     (response) => {
         // 获取请求返回结果
         const data: Result = response.data;
+        if (data.code === ResultEnum.SUCCESS) {
+            return data.data;
+        }
         // 如果提示没有权限，则移除token，使其重新登录
         if (data.code === ResultEnum.NO_PERMISSION) {
             router.push({
                 path: '/401',
             });
         }
-        if (data.code === ResultEnum.SUCCESS) {
-            return data.data;
-        } else {
-            return Promise.reject(data);
-        }
+        return Promise.reject(data);
     },
     (e: any) => {
+        const rejectPromise = Promise.reject(e);
+
+        const statusCode = e.response?.status;
+        if (statusCode == 500) {
+            notifyErrorMsg('服务器未知异常');
+            return rejectPromise;
+        }
+
+        if (statusCode == 404) {
+            notifyErrorMsg('请求接口未找到');
+            return rejectPromise;
+        }
+
         if (e.message) {
             // 对响应错误做点什么
             if (e.message.indexOf('timeout') != -1) {
-                notifyErrorMsg('网络超时');
-            } else if (e.message == 'Network Error') {
+                notifyErrorMsg('网络请求超时');
+                return rejectPromise;
+            }
+
+            if (e.message == 'Network Error') {
                 notifyErrorMsg('网络连接错误');
-            } else if (e.message.indexOf('404')) {
-                notifyErrorMsg('请求接口找不到');
-            } else {
-                if (e.response.data) ElMessage.error(e.response.statusText);
-                else notifyErrorMsg('接口路径找不到');
+                return rejectPromise;
             }
         }
 
-        return Promise.reject(e);
+        notifyErrorMsg('网络请求错误');
+        return rejectPromise;
     }
 );
 
