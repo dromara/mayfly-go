@@ -31,6 +31,10 @@
                             <el-link type="success" :underline="false" icon="Document"></el-link>
                         </el-tooltip>
                     </el-upload>
+                    <el-divider direction="vertical" border-style="dashed" />
+                    <el-tooltip class="box-item" effect="dark" content="limit" placement="top">
+                        <el-link @click="onLimit()" type="success" :underline="false" icon="Operation"> </el-link>
+                    </el-tooltip>
                 </div>
 
                 <div style="float: right" class="fl">
@@ -484,6 +488,17 @@ const replaceSelection = (str: string, selection: any) => {
         column: 0,
     });
 };
+
+const onLimit = () => {
+  let position = monacoEditor.getPosition() as monaco.Position;
+  let newText = " limit 10";
+  monacoEditor?.getModel().applyEdits([
+    {
+      range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+      text: newText
+    }
+  ]);
+}
 
 /**
  * 导出当前页数据
