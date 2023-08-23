@@ -100,6 +100,7 @@ import { defineAsyncComponent, onMounted, reactive, ref, toRefs } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
+import { language as addSqlLanguage } from './lang/mysql.js';
 import * as monaco from 'monaco-editor';
 import { editor, languages, Position } from 'monaco-editor';
 
@@ -111,6 +112,10 @@ import { dbApi } from './api';
 const Query = defineAsyncComponent(() => import('./component/tab/Query.vue'));
 const TableData = defineAsyncComponent(() => import('./component/tab/TableData.vue'));
 
+const sqlCompletionKeywords = [...sqlLanguage.keywords, ...addSqlLanguage.keywords];
+const sqlCompletionOperators = [...sqlLanguage.operators, ...addSqlLanguage.operators];
+const sqlCompletionBuiltinFunctions = [...sqlLanguage.builtinFunctions, ...addSqlLanguage.builtinFunctions];
+const sqlCompletionBuiltinVariables = [...sqlLanguage.builtinVariables, ...addSqlLanguage.builtinVariables];
 /**
  * 树节点类型
  */
@@ -604,7 +609,7 @@ const registerSqlCompletionItemProvider = () => {
                 });
 
                 // mysql关键字
-                sqlLanguage.keywords.forEach((item: any) => {
+                sqlCompletionKeywords.forEach((item: any) => {
                     suggestions.push({
                         label: {
                             label: item,
@@ -615,8 +620,9 @@ const registerSqlCompletionItemProvider = () => {
                         range,
                     });
                 });
+
                 // 操作符
-                sqlLanguage.operators.forEach((item: any) => {
+                sqlCompletionOperators.forEach((item: any) => {
                     suggestions.push({
                         label: {
                             label: item,
@@ -627,9 +633,26 @@ const registerSqlCompletionItemProvider = () => {
                         range,
                     });
                 });
-                // 内置函数
-                sqlLanguage.builtinFunctions.forEach((item: any) => {
+                
+                let replacedFunctions = [] as string[]; 
+
+                // 添加的函数
+                addSqlLanguage.replaceFunctions.forEach((item: any) => {
+                    replacedFunctions.push(item.label)
                     suggestions.push({
+                        label: {
+                            label: item.label,
+                            description: item.description,
+                        },
+                        kind: monaco.languages.CompletionItemKind.Function,
+                        insertText: item.insertText,
+                        range,
+                    });
+                });
+              
+                // 内置函数
+                sqlCompletionBuiltinFunctions.forEach((item: any) => {
+                  replacedFunctions.indexOf(item) < 0 && suggestions.push({
                         label: {
                             label: item,
                             description: 'func',
@@ -640,7 +663,7 @@ const registerSqlCompletionItemProvider = () => {
                     });
                 });
                 // 内置变量
-                sqlLanguage.builtinVariables.forEach((item: string) => {
+                sqlCompletionBuiltinVariables.forEach((item: string) => {
                     suggestions.push({
                         label: {
                             label: item,
