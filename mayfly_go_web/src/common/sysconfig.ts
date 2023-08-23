@@ -67,3 +67,14 @@ function convertBool(value: string, defaultValue: boolean) {
     }
     return value == '1' || value == 'true';
 }
+
+/**
+ * 获取LDAP登录配置
+ *
+ * @returns
+ */
+export async function getLdapEnabled(): Promise<any> {
+    const value = await openApi.getLdapEnabled();
+    return convertBool(value, false);
+}
+

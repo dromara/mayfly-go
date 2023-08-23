@@ -1,10 +1,11 @@
 package form
 
 type LoginForm struct {
-	Username string `json:"username" binding:"required"`
-	Password string `binding:"required"`
-	Captcha  string `json:"captcha"`
-	Cid      string `json:"cid"`
+	Username  string `json:"username" binding:"required"`
+	Password  string `binding:"required"`
+	Captcha   string `json:"captcha"`
+	Cid       string `json:"cid"`
+	LdapLogin bool   `json:"ldapLogin"`
 }
 
 type OtpVerfiy struct {
