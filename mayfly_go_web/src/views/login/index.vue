@@ -124,7 +124,7 @@ const oauth2Login = () => {
         box-shadow: 0 2px 12px 0 var(--color-primary-light-5);
         border-radius: 4px;
         transition: height 0.2s linear;
-        height: 480px;
+        height: 490px;
         overflow: hidden;
         z-index: 1;
 

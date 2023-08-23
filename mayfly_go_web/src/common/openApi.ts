@@ -11,4 +11,6 @@ export default {
     logout: () => request.post('/auth/accounts/logout'),
     getPermissions: () => request.get('/sys/accounts/permissions'),
     oauth2Callback: (params: any) => request.get('/auth/oauth2/callback', params),
+    getLdapEnabled: () => request.get("/auth/ldap/enabled"),
+    ldapLogin: (param: any) => request.post('/auth/ldap/login', param),
 };
