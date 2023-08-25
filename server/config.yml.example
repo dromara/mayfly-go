@@ -38,17 +38,3 @@ log:
   # file:
   #   path: ./
   #   name: mayfly-go.log
-
-# ldap相关配置
-ldap:
-  enabled: true
-  host: "ldap.example.com"
-  port: 389
-  baseDn: "ou=users,dc=example,dc=com"
-  bindDn: "cn=admin,dc=example,dc=com"
-  userFilter: "(&(objectClass=organizationalPerson)(uid=%s))"
-  bindPassword: "admin123."
-  fieldMapping:
-    identifier: "cn"
-    displayName: "displayName"
-    email: "mail"

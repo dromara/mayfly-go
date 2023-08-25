@@ -43,7 +43,6 @@ type Config struct {
 	Mysql  *Mysql  `yaml:"mysql"`
 	Redis  *Redis  `yaml:"redis"`
 	Log    *Log    `yaml:"log"`
-	Ldap   *Ldap   `yaml:"ldap"`
 }
 
 // 配置文件内容校验

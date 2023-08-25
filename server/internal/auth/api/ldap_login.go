@@ -1,7 +1,7 @@
 package api
 
 import (
-	"errors"
+	"crypto/tls"
 	"fmt"
 	"mayfly-go/internal/auth/api/form"
 	msgapp "mayfly-go/internal/msg/application"
@@ -10,14 +10,15 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/captcha"
-	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/ginx"
-	"mayfly-go/pkg/ldap"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/cryptox"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/go-ldap/ldap/v3"
+	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
 
@@ -29,12 +30,8 @@ type LdapLogin struct {
 
 // @router /auth/ldap/enabled [get]
 func (a *LdapLogin) GetLdapEnabled(rc *req.Ctx) {
-	if config.Conf.Ldap != nil {
-		rc.ResData = config.Conf.Ldap.Enabled
-		return
-	}
-
-	rc.ResData = false
+	ldapLoginConfig := a.ConfigApp.GetConfig(sysentity.ConfigKeyLdapLogin).ToLdapLogin()
+	rc.ResData = ldapLoginConfig.Enable
 }
 
 // @router /auth/ldap/login [post]
@@ -96,7 +93,7 @@ func (a *LdapLogin) createUser(userName, displayName string) {
 }
 
 func (a *LdapLogin) getOrCreateUserWithLdap(userName string, password string, cols ...string) (*sysentity.Account, error) {
-	userInfo, err := ldap.Authenticate(userName, password)
+	userInfo, err := Authenticate(userName, password)
 	if err != nil {
 		return nil, errors.New("用户名密码错误")
 	}
@@ -109,4 +106,99 @@ func (a *LdapLogin) getOrCreateUserWithLdap(userName string, password string, co
 		return nil, err
 	}
 	return account, nil
+}
+
+type UserInfo struct {
+	UserName    string
+	DisplayName string
+	Email       string
+}
+
+// Authenticate 通过 LDAP 验证用户名密码
+func Authenticate(username, password string) (*UserInfo, error) {
+	ldapConf := sysapp.GetConfigApp().GetConfig(sysentity.ConfigKeyLdapLogin).ToLdapLogin()
+	conn, err := Connect(ldapConf)
+	if err != nil {
+		return nil, errors.Errorf("connect: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	sr, err := conn.Search(
+		ldap.NewSearchRequest(
+			ldapConf.BaseDN,
+			ldap.ScopeWholeSubtree,
+			ldap.NeverDerefAliases,
+			0,
+			0,
+			false,
+			strings.ReplaceAll(ldapConf.UserFilter, "%s", username),
+			[]string{"dn", ldapConf.UidMap, ldapConf.UdnMap, ldapConf.EmailMap},
+			nil,
+		),
+	)
+	if err != nil {
+		return nil, errors.Errorf("search user DN: %v", err)
+	} else if len(sr.Entries) != 1 {
+		return nil, errors.Errorf("expect 1 user DN but got %d", len(sr.Entries))
+	}
+	entry := sr.Entries[0]
+
+	// Bind as the user to verify their password
+	err = conn.Bind(entry.DN, password)
+	if err != nil {
+		return nil, errors.Errorf("bind user: %v", err)
+	}
+
+	userName := entry.GetAttributeValue(ldapConf.UidMap)
+	if userName == "" {
+		return nil, errors.Errorf("the attribute %q is not found or has empty value", ldapConf.UidMap)
+	}
+	return &UserInfo{
+		UserName:    userName,
+		DisplayName: entry.GetAttributeValue(ldapConf.UdnMap),
+		Email:       entry.GetAttributeValue(ldapConf.EmailMap),
+	}, nil
+}
+
+// Connect 创建 LDAP 连接
+func Connect(ldapConf *sysentity.ConfigLdapLogin) (*ldap.Conn, error) {
+	conn, err := dial(ldapConf)
+	if err != nil {
+		return nil, err
+	}
+
+	// Bind with a system account
+	err = conn.Bind(ldapConf.BindDN, ldapConf.BindPwd)
+	if err != nil {
+		_ = conn.Close()
+		return nil, errors.Errorf("bind: %v", err)
+	}
+	return conn, nil
+}
+
+func dial(ldapConf *sysentity.ConfigLdapLogin) (*ldap.Conn, error) {
+	addr := fmt.Sprintf("%s:%s", ldapConf.Host, ldapConf.Port)
+	tlsConfig := &tls.Config{
+		ServerName:         ldapConf.Host,
+		InsecureSkipVerify: ldapConf.SkipTLSVerify,
+	}
+	if ldapConf.SecurityProtocol == "LDAPS" {
+		conn, err := ldap.DialTLS("tcp", addr, tlsConfig)
+		if err != nil {
+			return nil, errors.Errorf("dial TLS: %v", err)
+		}
+		return conn, nil
+	}
+
+	conn, err := ldap.Dial("tcp", addr)
+	if err != nil {
+		return nil, errors.Errorf("dial: %v", err)
+	}
+	if ldapConf.SecurityProtocol == "StartTLS" {
+		if err = conn.StartTLS(tlsConfig); err != nil {
+			_ = conn.Close()
+			return nil, errors.Errorf("start TLS: %v", err)
+		}
+	}
+	return conn, nil
 }
