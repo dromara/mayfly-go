@@ -17,6 +17,12 @@ func Init(router *gin.RouterGroup) {
 		MsgApp:     msgapp.GetMsgApp(),
 	}
 
+	ldapLogin := &api.LdapLogin{
+		ConfigApp:  sysapp.GetConfigApp(),
+		AccountApp: sysapp.GetAccountApp(),
+		MsgApp:     msgapp.GetMsgApp(),
+	}
+
 	oauth2Login := &api.Oauth2Login{
 		Oauth2App:  application.GetAuthApp(),
 		ConfigApp:  sysapp.GetConfigApp(),
@@ -50,6 +56,10 @@ func Init(router *gin.RouterGroup) {
 		req.NewGet("/oauth2/status", oauth2Login.Oauth2Status),
 
 		req.NewGet("/oauth2/unbind", oauth2Login.Oauth2Unbind).Log(req.NewLogSave("oauth2解绑")),
+
+		// LDAP 登录
+		req.NewGet("/ldap/enabled", ldapLogin.GetLdapEnabled).DontNeedToken(),
+		req.NewPost("/ldap/login", ldapLogin.Login).Log(req.NewLogSave("LDAP 登录")).DontNeedToken(),
 	}
 
 	req.BatchSetGroup(rg, reqs[:])

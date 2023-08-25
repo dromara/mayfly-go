@@ -37,6 +37,9 @@
                     </el-col>
                 </el-row>
             </el-form-item>
+            <el-form-item v-if="ldapEnabled" prop="ldapLogin">
+              <el-checkbox v-model="loginForm.ldapLogin" label="LDAP 登录" size="small"/>
+            </el-form-item>
             <span v-if="showLoginFailTips" style="color: #f56c6c; font-size: 12px">
                 提示：登录失败超过{{ accountLoginSecurity.loginFailCount }}次后将被限制{{ accountLoginSecurity.loginFailMin }}分钟内不可再次登录
             </span>
@@ -133,7 +136,7 @@ import { getSession, setSession, setUserInfo2Session, setUseWatermark2Session } 
 import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';
-import { getAccountLoginSecurity, useWartermark } from '@/common/sysconfig';
+import {getAccountLoginSecurity, getLdapEnabled, useWartermark} from '@/common/sysconfig';
 import { letterAvatar } from '@/common/utils/string';
 import { useUserInfo } from '@/store/userInfo';
 import QrcodeVue from 'qrcode.vue';
@@ -168,6 +171,7 @@ const state = reactive({
         password: '',
         captcha: '',
         cid: '',
+        ldapLogin: false,
     },
     loginRes: {} as any,
     changePwdDialog: {
@@ -223,9 +227,10 @@ const state = reactive({
         otpConfirm: false,
         updateUserConfirm: false,
     },
+    ldapEnabled: false,
 });
 
-const { accountLoginSecurity, showLoginFailTips, captchaImage, loginForm, changePwdDialog, otpDialog, baseInfoDialog, loading } = toRefs(state);
+const { accountLoginSecurity, showLoginFailTips, captchaImage, loginForm, changePwdDialog, otpDialog, baseInfoDialog, loading, ldapEnabled } = toRefs(state);
 
 onMounted(async () => {
     nextTick(async () => {
@@ -234,6 +239,10 @@ onMounted(async () => {
             state.accountLoginSecurity = res;
         }
         getCaptcha();
+
+        const ldap = await getLdapEnabled();
+        state.ldapEnabled = ldap;
+        state.loginForm.ldapLogin = ldap
     });
     // 移除公钥, 方便后续重新获取
     sessionStorage.removeItem('RsaPublicKey');
@@ -288,7 +297,11 @@ const onSignIn = async () => {
     try {
         const loginReq = { ...state.loginForm };
         loginReq.password = await RsaEncrypt(originPwd);
-        loginRes = await openApi.login(loginReq);
+        if (state.loginForm.ldapLogin) {
+          loginRes = await openApi.ldapLogin(loginReq);
+        } else {
+          loginRes = await openApi.login(loginReq);
+        }
     } catch (e: any) {
         state.loading.signIn = false;
         state.loginForm.captcha = '';
