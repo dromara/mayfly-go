@@ -3,7 +3,6 @@ package router
 import (
 	"mayfly-go/internal/sys/api"
 	"mayfly-go/internal/sys/application"
-	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -19,12 +18,7 @@ func InitSysConfigRouter(router *gin.RouterGroup) {
 		req.NewGet("", r.Configs).RequiredPermission(baseP),
 
 		// 获取指定配置key对应的值
-		req.NewGet("/value", r.GetConfigValueByKeyWithNoToken([]string{
-			entity.ConfigKeyAccountLoginSecurity,
-			entity.ConfigKeyDbQueryMaxCount,
-			entity.ConfigKeyDbSaveQuerySQL,
-			entity.ConfigUseWartermark,
-		})).DontNeedToken(),
+		req.NewGet("/value", r.GetConfigValueByKey).DontNeedToken(),
 
 		req.NewGet("/oauth2-login", r.Oauth2Config).DontNeedToken(),
 

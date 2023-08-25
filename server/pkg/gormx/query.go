@@ -157,6 +157,13 @@ func (q *QueryCond) Le(column string, val any) *QueryCond {
 	return q
 }
 
+// And条件
+func (q *QueryCond) And(column string, val any) *QueryCond {
+	q.columns = append(q.columns, column)
+	q.values = append(q.values, val)
+	return q
+}
+
 func (q *QueryCond) Cond(cond, column string, val any, skipBlank bool) *QueryCond {
 	// 零值跳过
 	if skipBlank && anyx.IsBlank(val) {

@@ -6,6 +6,7 @@ require (
 	github.com/buger/jsonparser v1.1.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-gormigrate/gormigrate/v2 v2.1.0
+	github.com/go-ldap/ldap/v3 v3.4.5
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.14.0
@@ -15,6 +16,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230712084735-068dc2aee82d
 	github.com/mojocn/base64Captcha v1.3.5 // 验证码
+	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.13.6
 	github.com/pquerna/otp v1.4.0
 	github.com/redis/go-redis/v9 v9.1.0
@@ -31,6 +33,7 @@ require (
 )
 
 require (
+	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -38,6 +41,7 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
+	github.com/go-asn1-ber/asn1-ber v1.5.4 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
@@ -64,7 +68,7 @@ require (
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/image v0.0.0-20220302094943-723b81ca9867 // indirect
 	golang.org/x/net v0.14.0 // indirect
-	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
+	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.11.0 // indirect
 	golang.org/x/text v0.12.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

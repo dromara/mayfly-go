@@ -3,10 +3,11 @@ package ldap
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/go-ldap/ldap/v3"
-	"github.com/pkg/errors"
 	"mayfly-go/pkg/config"
 	"strings"
+
+	"github.com/go-ldap/ldap/v3"
+	"github.com/pkg/errors"
 )
 
 type UserInfo struct {

@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
+	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/jsonx"
+	"strings"
 )
 
 const SysConfigKeyPrefix = "mayfly:sys:config:"
@@ -39,6 +41,11 @@ func (a *configAppImpl) Save(config *entity.Config) {
 	if config.Id == 0 {
 		a.configRepo.Insert(config)
 	} else {
+		oldConfig := a.GetConfig(config.Key)
+		if oldConfig.Permission != "all" {
+			biz.IsTrue(strings.Contains(oldConfig.Permission, config.Modifier), "您无权修改该配置")
+		}
+
 		a.configRepo.Update(config)
 	}
 	cache.Del(SysConfigKeyPrefix + config.Key)
@@ -53,7 +60,7 @@ func (a *configAppImpl) GetConfig(key string) *entity.Config {
 		return config
 	}
 
-	if err := a.configRepo.GetConfig(config, "Id", "Key", "Value"); err != nil {
+	if err := a.configRepo.GetConfig(config, "Id", "Key", "Value", "Permission"); err != nil {
 		global.Log.Warnf("不存在key = [%s] 的系统配置", key)
 	} else {
 		cache.SetStr(SysConfigKeyPrefix+key, jsonx.ToStr(config), -1)

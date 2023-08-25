@@ -3,7 +3,6 @@ package api
 import (
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"mayfly-go/internal/auth/api/form"
 	msgapp "mayfly-go/internal/msg/application"
 	sysapp "mayfly-go/internal/sys/application"
@@ -18,6 +17,8 @@ import (
 	"mayfly-go/pkg/utils/cryptox"
 	"strconv"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type LdapLogin struct {
@@ -28,15 +29,17 @@ type LdapLogin struct {
 
 // @router /auth/ldap/enabled [get]
 func (a *LdapLogin) GetLdapEnabled(rc *req.Ctx) {
-	rc.ResData = config.Conf.Ldap.Enabled
+	if config.Conf.Ldap != nil {
+		rc.ResData = config.Conf.Ldap.Enabled
+		return
+	}
+
+	rc.ResData = false
 }
 
 // @router /auth/ldap/login [post]
 func (a *LdapLogin) Login(rc *req.Ctx) {
 	loginForm := ginx.BindJsonAndValid(rc.GinCtx, new(form.LoginForm))
-
-	// 确认是 LDAP 登录
-	biz.IsTrue(loginForm.LdapLogin, "LDAP 登录参数错误")
 
 	accountLoginSecurity := a.ConfigApp.GetConfig(sysentity.ConfigKeyAccountLoginSecurity).ToAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验

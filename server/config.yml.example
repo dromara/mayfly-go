@@ -38,6 +38,8 @@ log:
   # file:
   #   path: ./
   #   name: mayfly-go.log
+
+# ldap相关配置
 ldap:
   enabled: true
   host: "ldap.example.com"

@@ -16,28 +16,22 @@ type Config struct {
 func (c *Config) Configs(rc *req.Ctx) {
 	g := rc.GinCtx
 	condition := &entity.Config{Key: g.Query("key")}
+	condition.Permission = rc.LoginAccount.Username
 	rc.ResData = c.ConfigApp.GetPageList(condition, ginx.GetPageParam(g), new([]entity.Config))
 }
 
 func (c *Config) GetConfigValueByKey(rc *req.Ctx) {
 	key := rc.GinCtx.Query("key")
 	biz.NotEmpty(key, "key不能为空")
-	rc.ResData = c.ConfigApp.GetConfig(key).Value
-}
 
-func (c *Config) GetConfigValueByKeyWithNoToken(keys []string) func(rc *req.Ctx) {
-	keyMap := make(map[string]struct{})
-	for _, key := range keys {
-		keyMap[key] = struct{}{}
+	config := c.ConfigApp.GetConfig(key)
+	// 判断是否为公开配置
+	if config.Permission != "all" {
+		rc.ResData = ""
+		return
 	}
-	return func(rc *req.Ctx) {
-		key := rc.GinCtx.Query("key")
-		biz.NotEmpty(key, "key不能为空")
-		if _, ok := keyMap[key]; !ok {
-			biz.ErrIsNil(nil, "无权限获取该配置信息")
-		}
-		rc.ResData = c.ConfigApp.GetConfig(key).Value
-	}
+
+	rc.ResData = config.Value
 }
 
 func (c *Config) SaveConfig(rc *req.Ctx) {

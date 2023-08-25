@@ -15,7 +15,10 @@ func newConfigRepo() repository.Config {
 }
 
 func (m *configRepoImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
-	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
+	qd := gormx.NewQuery(condition).
+		Eq("key", condition.Key).
+		And("permission = 'all' OR permission LIKE ?", "%"+condition.Permission+",%").
+		WithOrderBy(orderBy...)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
 

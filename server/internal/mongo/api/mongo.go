@@ -10,6 +10,7 @@ import (
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/jsonx"
 	"regexp"
 	"strconv"
 	"strings"
@@ -71,14 +72,14 @@ func (m *Mongo) DeleteMongo(rc *req.Ctx) {
 }
 
 func (m *Mongo) Databases(rc *req.Ctx) {
-	cli := m.MongoApp.GetMongoCli(m.GetMongoId(rc.GinCtx))
+	cli := m.MongoApp.GetMongoInst(m.GetMongoId(rc.GinCtx)).Cli
 	res, err := cli.ListDatabases(context.TODO(), bson.D{})
 	biz.ErrIsNilAppendErr(err, "获取mongo所有库信息失败: %s")
 	rc.ResData = res
 }
 
 func (m *Mongo) Collections(rc *req.Ctx) {
-	cli := m.MongoApp.GetMongoCli(m.GetMongoId(rc.GinCtx))
+	cli := m.MongoApp.GetMongoInst(m.GetMongoId(rc.GinCtx)).Cli
 	db := rc.GinCtx.Query("database")
 	biz.NotEmpty(db, "database不能为空")
 	ctx := context.TODO()
@@ -90,8 +91,13 @@ func (m *Mongo) Collections(rc *req.Ctx) {
 func (m *Mongo) RunCommand(rc *req.Ctx) {
 	commandForm := new(form.MongoRunCommand)
 	ginx.BindJsonAndValid(rc.GinCtx, commandForm)
-	cli := m.MongoApp.GetMongoCli(m.GetMongoId(rc.GinCtx))
-	rc.ReqParam = commandForm
+
+	inst := m.MongoApp.GetMongoInst(m.GetMongoId(rc.GinCtx))
+
+	rc.ReqParam = jsonx.ToStr(map[string]any{
+		"info": inst.Info.GetLogDesc(),
+		"req":  commandForm,
+	})
 
 	// 顺序执行
 	commands := bson.D{}
@@ -106,7 +112,7 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 
 	ctx := context.TODO()
 	var bm bson.M
-	err := cli.Database(commandForm.Database).RunCommand(
+	err := inst.Cli.Database(commandForm.Database).RunCommand(
 		ctx,
 		commands,
 	).Decode(&bm)
@@ -117,7 +123,7 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 
 func (m *Mongo) FindCommand(rc *req.Ctx) {
 	g := rc.GinCtx
-	cli := m.MongoApp.GetMongoCli(m.GetMongoId(g))
+	cli := m.MongoApp.GetMongoInst(m.GetMongoId(g)).Cli
 	commandForm := new(form.MongoFindCommand)
 	ginx.BindJsonAndValid(g, commandForm)
 
@@ -150,9 +156,14 @@ func (m *Mongo) FindCommand(rc *req.Ctx) {
 
 func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 	g := rc.GinCtx
-	cli := m.MongoApp.GetMongoCli(m.GetMongoId(g))
 	commandForm := new(form.MongoUpdateByIdCommand)
 	ginx.BindJsonAndValid(g, commandForm)
+
+	inst := m.MongoApp.GetMongoInst(m.GetMongoId(g))
+	rc.ReqParam = jsonx.ToStr(map[string]any{
+		"info": inst.Info.GetLogDesc(),
+		"req":  commandForm,
+	})
 
 	// 解析docId文档id，如果为string类型则使用ObjectId解析，解析失败则为普通字符串
 	docId := commandForm.DocId
@@ -164,18 +175,22 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 		}
 	}
 
-	res, err := cli.Database(commandForm.Database).Collection(commandForm.Collection).UpdateByID(context.TODO(), docId, commandForm.Update)
+	res, err := inst.Cli.Database(commandForm.Database).Collection(commandForm.Collection).UpdateByID(context.TODO(), docId, commandForm.Update)
 	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
 
-	rc.ReqParam = commandForm
 	rc.ResData = res
 }
 
 func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 	g := rc.GinCtx
-	cli := m.MongoApp.GetMongoCli(m.GetMongoId(g))
 	commandForm := new(form.MongoUpdateByIdCommand)
 	ginx.BindJsonAndValid(g, commandForm)
+
+	inst := m.MongoApp.GetMongoInst(m.GetMongoId(g))
+	rc.ReqParam = jsonx.ToStr(map[string]any{
+		"info": inst.Info.GetLogDesc(),
+		"req":  commandForm,
+	})
 
 	// 解析docId文档id，如果为string类型则使用ObjectId解析，解析失败则为普通字符串
 	docId := commandForm.DocId
@@ -187,23 +202,24 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 		}
 	}
 
-	res, err := cli.Database(commandForm.Database).Collection(commandForm.Collection).DeleteOne(context.TODO(), bson.D{{"_id", docId}})
+	res, err := inst.Cli.Database(commandForm.Database).Collection(commandForm.Collection).DeleteOne(context.TODO(), bson.D{{Key: "_id", Value: docId}})
 	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
-
-	rc.ReqParam = commandForm
 	rc.ResData = res
 }
 
 func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
 	g := rc.GinCtx
-	cli := m.MongoApp.GetMongoCli(m.GetMongoId(g))
 	commandForm := new(form.MongoInsertCommand)
 	ginx.BindJsonAndValid(g, commandForm)
 
-	res, err := cli.Database(commandForm.Database).Collection(commandForm.Collection).InsertOne(context.TODO(), commandForm.Doc)
-	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
+	inst := m.MongoApp.GetMongoInst(m.GetMongoId(g))
+	rc.ReqParam = jsonx.ToStr(map[string]any{
+		"info": inst.Info.GetLogDesc(),
+		"req":  commandForm,
+	})
 
-	rc.ReqParam = commandForm
+	res, err := inst.Cli.Database(commandForm.Database).Collection(commandForm.Collection).InsertOne(context.TODO(), commandForm.Doc)
+	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
 	rc.ResData = res
 }
 

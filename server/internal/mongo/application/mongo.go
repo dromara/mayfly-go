@@ -39,9 +39,9 @@ type Mongo interface {
 	// 删除数据库信息
 	Delete(id uint64)
 
-	// 获取mongo连接client
+	// 获取mongo连接实例
 	// @param id mongo id
-	GetMongoCli(id uint64) *mongo.Client
+	GetMongoInst(id uint64) *MongoInstance
 }
 
 func newMongoAppImpl(mongoRepo repository.Mongo) Mongo {
@@ -88,14 +88,14 @@ func (d *mongoAppImpl) Save(m *entity.Mongo) {
 	}
 }
 
-func (d *mongoAppImpl) GetMongoCli(id uint64) *mongo.Client {
+func (d *mongoAppImpl) GetMongoInst(id uint64) *MongoInstance {
 	mongoInstance, err := GetMongoInstance(id, func(u uint64) *entity.Mongo {
 		mongo := d.GetById(u)
 		biz.NotNil(mongo, "mongo信息不存在")
 		return mongo
 	})
 	biz.ErrIsNilAppendErr(err, "连接mongo失败: %s")
-	return mongoInstance.Cli
+	return mongoInstance
 }
 
 // -----------------------------------------------------------
@@ -173,7 +173,7 @@ func connect(me *entity.Mongo) (*MongoInstance, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	mongoInstance := &MongoInstance{Id: me.Id, Info: toMongiInfo(me)}
+	mongoInstance := &MongoInstance{Id: me.Id, Info: toMongoInfo(me)}
 
 	mongoOptions := options.Client().ApplyURI(me.Uri).
 		SetMaxPoolSize(1)
@@ -200,7 +200,7 @@ func connect(me *entity.Mongo) (*MongoInstance, error) {
 	return mongoInstance, err
 }
 
-func toMongiInfo(me *entity.Mongo) *MongoInfo {
+func toMongoInfo(me *entity.Mongo) *MongoInfo {
 	mi := new(MongoInfo)
 	structx.Copy(mi, me)
 	return mi
