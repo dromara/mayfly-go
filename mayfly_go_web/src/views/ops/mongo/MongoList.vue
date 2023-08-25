@@ -34,136 +34,15 @@
             <template #action="{ data }">
                 <el-button @click="showDatabases(data.id)" link>数据库</el-button>
 
-                <el-button type="primary" @click="editMongo(data)" link>编辑</el-button>
+                <el-button @click="showUsers(data.id)" link type="success">cmd</el-button>
+
+                <el-button @click="editMongo(data)" link type="primary">编辑</el-button>
             </template>
         </page-table>
 
-        <el-dialog width="800px" :title="databaseDialog.title" v-model="databaseDialog.visible">
-            <el-table :data="databaseDialog.data" size="small">
-                <el-table-column min-width="130" property="Name" label="库名" />
-                <el-table-column min-width="90" property="SizeOnDisk" label="size">
-                    <template #default="scope">
-                        {{ formatByteSize(scope.row.SizeOnDisk) }}
-                    </template>
-                </el-table-column>
-                <el-table-column min-width="80" property="Empty" label="是否为空" />
+        <mongo-dbs v-model:visible="dbsVisible" :id="state.dbOps.dbId"></mongo-dbs>
 
-                <el-table-column min-width="150" label="操作">
-                    <template #default="scope">
-                        <el-link type="success" @click="showDatabaseStats(scope.row.Name)" plain size="small" :underline="false">stats</el-link>
-                        <el-divider direction="vertical" border-style="dashed" />
-                        <el-link type="primary" @click="showCollections(scope.row.Name)" plain size="small" :underline="false">集合</el-link>
-                    </template>
-                </el-table-column>
-            </el-table>
-
-            <el-dialog width="700px" :title="databaseDialog.statsDialog.title" v-model="databaseDialog.statsDialog.visible">
-                <el-descriptions title="库状态信息" :column="3" border size="small">
-                    <el-descriptions-item label="db" label-align="right" align="center">
-                        {{ databaseDialog.statsDialog.data.db }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="collections" label-align="right" align="center">
-                        {{ databaseDialog.statsDialog.data.collections }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="objects" label-align="right" align="center">
-                        {{ databaseDialog.statsDialog.data.objects }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="indexes" label-align="right" align="center">
-                        {{ databaseDialog.statsDialog.data.indexes }}
-                    </el-descriptions-item>
-
-                    <el-descriptions-item label="avgObjSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.avgObjSize) }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="dataSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.dataSize) }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="totalSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.totalSize) }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="storageSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.storageSize) }}
-                    </el-descriptions-item>
-
-                    <el-descriptions-item label="fsTotalSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.fsTotalSize) }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="fsUsedSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.fsUsedSize) }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="indexSize" label-align="right" align="center">
-                        {{ formatByteSize(databaseDialog.statsDialog.data.indexSize) }}
-                    </el-descriptions-item>
-                </el-descriptions>
-            </el-dialog>
-        </el-dialog>
-
-        <el-dialog width="600px" :title="collectionsDialog.title" v-model="collectionsDialog.visible">
-            <div>
-                <el-button @click="showCreateCollectionDialog" type="primary" icon="plus" size="small">新建</el-button>
-            </div>
-            <el-table border stripe :data="collectionsDialog.data" size="small">
-                <el-table-column prop="name" label="名称" show-overflow-tooltip> </el-table-column>
-                <el-table-column min-width="80" label="操作">
-                    <template #default="scope">
-                        <el-link type="success" @click="showCollectionStats(scope.row.name)" plain size="small" :underline="false">stats</el-link>
-                        <el-divider direction="vertical" border-style="dashed" />
-                        <el-popconfirm @confirm="onDeleteCollection(scope.row.name)" title="确定删除该集合?">
-                            <template #reference>
-                                <el-link type="danger" plain size="small" :underline="false">删除</el-link>
-                            </template>
-                        </el-popconfirm>
-                    </template>
-                </el-table-column>
-            </el-table>
-
-            <el-dialog width="700px" :title="collectionsDialog.statsDialog.title" v-model="collectionsDialog.statsDialog.visible">
-                <el-descriptions title="集合状态信息" :column="3" border size="small">
-                    <el-descriptions-item label="ns" label-align="right" :span="2" align="center">
-                        {{ collectionsDialog.statsDialog.data.ns }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="count" label-align="right" align="center">
-                        {{ collectionsDialog.statsDialog.data.count }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="avgObjSize" label-align="right" align="center">
-                        {{ formatByteSize(collectionsDialog.statsDialog.data.avgObjSize) }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="nindexes" label-align="right" align="center">
-                        {{ collectionsDialog.statsDialog.data.nindexes }}
-                    </el-descriptions-item>
-
-                    <el-descriptions-item label="size" label-align="right" align="center">
-                        {{ formatByteSize(collectionsDialog.statsDialog.data.size) }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="totalSize" label-align="right" align="center">
-                        {{ formatByteSize(collectionsDialog.statsDialog.data.totalSize) }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="storageSize" label-align="right" align="center">
-                        {{ formatByteSize(collectionsDialog.statsDialog.data.storageSize) }}
-                    </el-descriptions-item>
-                    <el-descriptions-item label="freeStorageSize" label-align="right" align="center">
-                        {{ formatByteSize(collectionsDialog.statsDialog.data.freeStorageSize) }}
-                    </el-descriptions-item>
-                </el-descriptions>
-            </el-dialog>
-        </el-dialog>
-
-        <el-dialog width="400px" title="新建集合" v-model="createCollectionDialog.visible" :destroy-on-close="true">
-            <el-form :model="createCollectionDialog.form" label-width="auto">
-                <el-form-item prop="name" label="集合名" required>
-                    <el-input v-model="createCollectionDialog.form.name" clearable></el-input>
-                </el-form-item>
-                <!-- <el-form-item label="描述:">
-                    <el-input v-model="showEnvDialog.envForm.remark" auto-complete="off"></el-input>
-                </el-form-item> -->
-            </el-form>
-            <template #footer>
-                <div>
-                    <el-button @click="createCollectionDialog.visible = false">取 消</el-button>
-                    <el-button @click="onCreateCollection" type="primary">确 定</el-button>
-                </div>
-            </template>
-        </el-dialog>
+        <mongo-run-command v-model:visible="usersVisible" :id="state.dbOps.dbId" />
 
         <mongo-edit
             @val-change="valChange"
@@ -176,13 +55,15 @@
 
 <script lang="ts" setup>
 import { mongoApi } from './api';
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { defineAsyncComponent, ref, toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import MongoEdit from './MongoEdit.vue';
-import { formatByteSize } from '@/common/utils/format';
 import TagInfo from '../component/TagInfo.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
+
+const MongoEdit = defineAsyncComponent(() => import('./MongoEdit.vue'));
+const MongoDbs = defineAsyncComponent(() => import('./MongoDbs.vue'));
+const MongoRunCommand = defineAsyncComponent(() => import('./MongoRunCommand.vue'));
 
 const pageTableRef: any = ref(null);
 
@@ -193,7 +74,7 @@ const columns = ref([
     TableColumn.new('uri', '连接uri'),
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('creator', '创建人'),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(100).fixedRight().alignCenter(),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(145).fixedRight().alignCenter(),
 ]);
 
 const state = reactive({
@@ -215,126 +96,24 @@ const state = reactive({
         data: null as any,
         title: '新增mongo',
     },
-    databaseDialog: {
-        visible: false,
-        data: [],
-        title: '',
-        statsDialog: {
-            visible: false,
-            data: {} as any,
-            title: '',
-        },
-    },
-    collectionsDialog: {
-        database: '',
-        visible: false,
-        data: [],
-        title: '',
-        statsDialog: {
-            visible: false,
-            data: {} as any,
-            title: '',
-        },
-    },
-    createCollectionDialog: {
-        visible: false,
-        form: {
-            name: '',
-        },
-    },
+    dbsVisible: false,
+    usersVisible: false,
 });
 
-const { tags, list, total, selectionData, query, mongoEditDialog, databaseDialog, collectionsDialog, createCollectionDialog } = toRefs(state);
+const { tags, list, total, selectionData, query, mongoEditDialog, dbsVisible, usersVisible } = toRefs(state);
 
 onMounted(async () => {
     search();
 });
 
 const showDatabases = async (id: number) => {
-    // state.query.tagPath = row.tagPath
     state.dbOps.dbId = id;
-
-    state.databaseDialog.data = (await mongoApi.databases.request({ id })).Databases;
-    state.databaseDialog.title = `数据库列表`;
-    state.databaseDialog.visible = true;
+    state.dbsVisible = true;
 };
 
-const showDatabaseStats = async (dbName: string) => {
-    state.databaseDialog.statsDialog.data = await mongoApi.runCommand.request({
-        id: state.dbOps.dbId,
-        database: dbName,
-        command: {
-            dbStats: 1,
-        },
-    });
-    state.databaseDialog.statsDialog.title = `'${dbName}' stats`;
-    state.databaseDialog.statsDialog.visible = true;
-};
-
-const showCollections = async (database: string) => {
-    state.collectionsDialog.database = database;
-    state.collectionsDialog.data = [];
-    setCollections(database);
-    state.collectionsDialog.title = `'${database}' 集合`;
-    state.collectionsDialog.visible = true;
-};
-
-const setCollections = async (database: string) => {
-    const res = await mongoApi.collections.request({ id: state.dbOps.dbId, database });
-    const collections = [] as any;
-    for (let r of res) {
-        collections.push({ name: r });
-    }
-    state.collectionsDialog.data = collections;
-};
-
-/**
- * 显示集合状态
- */
-const showCollectionStats = async (collection: string) => {
-    state.collectionsDialog.statsDialog.data = await mongoApi.runCommand.request({
-        id: state.dbOps.dbId,
-        database: state.collectionsDialog.database,
-        command: {
-            collStats: collection,
-        },
-    });
-    state.collectionsDialog.statsDialog.title = `'${collection}' stats`;
-    state.collectionsDialog.statsDialog.visible = true;
-};
-
-/**
- * 删除集合
- */
-const onDeleteCollection = async (collection: string) => {
-    await mongoApi.runCommand.request({
-        id: state.dbOps.dbId,
-        database: state.collectionsDialog.database,
-        command: {
-            drop: collection,
-        },
-    });
-    ElMessage.success('集合删除成功');
-    setCollections(state.collectionsDialog.database);
-};
-
-const showCreateCollectionDialog = () => {
-    state.createCollectionDialog.visible = true;
-};
-
-const onCreateCollection = async () => {
-    const form = state.createCollectionDialog.form;
-    await mongoApi.runCommand.request({
-        id: state.dbOps.dbId,
-        database: state.collectionsDialog.database,
-        command: {
-            create: form.name,
-        },
-    });
-    ElMessage.success('集合创建成功');
-    state.createCollectionDialog.visible = false;
-    state.createCollectionDialog.form = {} as any;
-    setCollections(state.collectionsDialog.database);
+const showUsers = async (id: number) => {
+    state.dbOps.dbId = id;
+    state.usersVisible = true;
 };
 
 const deleteMongo = async () => {

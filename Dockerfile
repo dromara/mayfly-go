@@ -10,7 +10,7 @@ RUN yarn
 RUN yarn build
 
 # 构建后端资源
-FROM golang:1.20-alpine3.16 as be-builder
+FROM golang:1.21.0 as be-builder
 
 ENV GOPROXY https://goproxy.cn
 WORKDIR /mayfly
@@ -30,6 +30,9 @@ RUN GO111MODULE=on CGO_ENABLED=0 GOOS=linux \
 FROM alpine:3.16
 
 RUN apk add --no-cache ca-certificates bash expat
+
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/\$TZ /etc/localtime && echo \$TZ > /etc/timezone
 
 WORKDIR /mayfly
 

@@ -91,12 +91,24 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 	commandForm := new(form.MongoRunCommand)
 	ginx.BindJsonAndValid(rc.GinCtx, commandForm)
 	cli := m.MongoApp.GetMongoCli(m.GetMongoId(rc.GinCtx))
+	rc.ReqParam = commandForm
+
+	// 顺序执行
+	commands := bson.D{}
+	for _, cmd := range commandForm.Command {
+		e := bson.E{}
+		for k, v := range cmd {
+			e.Key = k
+			e.Value = v
+		}
+		commands = append(commands, e)
+	}
 
 	ctx := context.TODO()
 	var bm bson.M
 	err := cli.Database(commandForm.Database).RunCommand(
 		ctx,
-		commandForm.Command,
+		commands,
 	).Decode(&bm)
 
 	biz.ErrIsNilAppendErr(err, "执行命令失败: %s")

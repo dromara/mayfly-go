@@ -28,7 +28,7 @@ export function exportCsv(filename: string, columns: string[], datas: []) {
     let link = document.createElement('a');
     let exportContent = '\uFEFF';
     let blob = new Blob([exportContent + csvString], {
-        type: 'text/plain;charset=utrf-8',
+        type: 'text/plain;charset=utf-8',
     });
     link.id = 'download-csv';
     link.setAttribute('href', URL.createObjectURL(blob));

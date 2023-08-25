@@ -16,8 +16,8 @@ type MongoCommand struct {
 }
 
 type MongoRunCommand struct {
-	Database string         `binding:"required" json:"database"`
-	Command  map[string]any `json:"command"`
+	Database string           `binding:"required" json:"database"`
+	Command  []map[string]any `json:"command"`
 }
 
 type MongoFindCommand struct {

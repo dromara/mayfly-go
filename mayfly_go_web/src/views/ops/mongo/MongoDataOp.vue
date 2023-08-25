@@ -35,55 +35,81 @@
             </el-col>
 
             <el-col :span="20">
-                <el-container id="mongo-tab" style="border: 1px solid #eee; margin-top: 1px">
-                    <el-tabs @tab-remove="removeDataTab" style="width: 100%; margin-left: 5px" v-model="state.activeName">
-                        <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
-                            <el-row>
-                                <el-col :span="2">
-                                    <div>
-                                        <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false" class=""> </el-link>
-                                        <el-link @click="onEditDoc(null)" class="ml5" type="primary" icon="plus" :underline="false"> </el-link>
-                                    </div>
-                                </el-col>
-                                <el-col :span="22">
-                                    <el-input
-                                        ref="findParamInputRef"
-                                        v-model="dt.findParamStr"
-                                        placeholder="点击输入相应查询条件"
-                                        @focus="showFindDialog(dt.key)"
-                                    >
-                                        <template #prepend>查询参数</template>
-                                    </el-input>
-                                </el-col>
-                            </el-row>
-                            <el-row :style="`height: ${dataHeight}; overflow: auto;`">
-                                <el-col :span="6" v-for="item in dt.datas" :key="item">
-                                    <el-card :body-style="{ padding: '0px', position: 'relative' }">
-                                        <el-input type="textarea" v-model="item.value" :rows="10" />
-                                        <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
-                                            <div>
-                                                <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
+                <div id="mongo-tab" style="border: 1px solid #eee; margin-top: 1px">
+                    <el-row v-if="nowColl">
+                        <el-descriptions :column="10" size="small" border>
+                            <!-- <el-descriptions-item label-align="right" label="tag">xxx</el-descriptions-item> -->
 
-                                                <!-- <el-divider direction="vertical" border-style="dashed" /> -->
+                            <el-descriptions-item label="ns" label-align="right">
+                                {{ nowColl.stats.ns }}
+                            </el-descriptions-item>
+                            <el-descriptions-item label="count" label-align="right">
+                                {{ nowColl.stats.count }}
+                            </el-descriptions-item>
+                            <el-descriptions-item label="avgObjSize" label-align="right">
+                                {{ formatByteSize(nowColl.stats.avgObjSize) }}
+                            </el-descriptions-item>
+                            <el-descriptions-item label="size" label-align="right">
+                                {{ formatByteSize(nowColl.stats.size) }}
+                            </el-descriptions-item>
+                            <el-descriptions-item label="totalSize" label-align="right">
+                                {{ formatByteSize(nowColl.stats.totalSize) }}
+                            </el-descriptions-item>
+                            <el-descriptions-item label="storageSize" label-align="right">
+                                {{ formatByteSize(nowColl.stats.storageSize) }}
+                            </el-descriptions-item>
+                            <el-descriptions-item label="freeStorageSize" label-align="right">
+                                {{ formatByteSize(nowColl.stats.freeStorageSize) }}
+                            </el-descriptions-item>
+                        </el-descriptions>
+                    </el-row>
 
-                                                <!-- <el-link @click="onSaveDoc(item.value)" :underline="false"
-                                                    type="warning" icon="DocumentChecked"></el-link> -->
-
-                                                <el-divider direction="vertical" border-style="dashed" />
-
-                                                <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?">
-                                                    <template #reference>
-                                                        <el-link :underline="false" type="danger" icon="DocumentDelete"> </el-link>
-                                                    </template>
-                                                </el-popconfirm>
-                                            </div>
+                    <el-row type="flex">
+                        <el-tabs @tab-remove="removeDataTab" style="width: 100%; margin-left: 5px" v-model="state.activeName">
+                            <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
+                                <el-row>
+                                    <el-col :span="2">
+                                        <div class="mt5">
+                                            <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false" class=""> </el-link>
+                                            <el-divider direction="vertical" border-style="dashed" />
+                                            <el-link v-auth="perms.saveData" @click="onEditDoc(null)" type="primary" icon="plus" :underline="false"> </el-link>
                                         </div>
-                                    </el-card>
-                                </el-col>
-                            </el-row>
-                        </el-tab-pane>
-                    </el-tabs>
-                </el-container>
+                                    </el-col>
+                                    <el-col :span="22">
+                                        <el-input
+                                            ref="findParamInputRef"
+                                            v-model="dt.findParamStr"
+                                            placeholder="点击输入相应查询条件"
+                                            @focus="showFindDialog(dt.key)"
+                                        >
+                                            <template #prepend>查询参数</template>
+                                        </el-input>
+                                    </el-col>
+                                </el-row>
+                                <el-row :style="`height: ${dataHeight}; overflow: auto;`">
+                                    <el-col :span="6" v-for="item in dt.datas" :key="item">
+                                        <el-card :body-style="{ padding: '0px', position: 'relative' }">
+                                            <el-input type="textarea" v-model="item.value" :rows="10" />
+                                            <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
+                                                <div>
+                                                    <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
+
+                                                    <el-divider direction="vertical" border-style="dashed" />
+
+                                                    <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?" width="160">
+                                                        <template #reference>
+                                                            <el-link v-auth="perms.delData" :underline="false" type="danger" icon="DocumentDelete"> </el-link>
+                                                        </template>
+                                                    </el-popconfirm>
+                                                </div>
+                                            </div>
+                                        </el-card>
+                                    </el-col>
+                                </el-row>
+                            </el-tab-pane>
+                        </el-tabs>
+                    </el-row>
+                </div>
             </el-col>
         </el-row>
 
@@ -120,7 +146,7 @@
             <template #footer>
                 <div>
                     <el-button @click="docEditDialog.visible = false">取 消</el-button>
-                    <el-button @click="onSaveDoc" type="primary">确 定</el-button>
+                    <el-button v-auth="perms.saveData" @click="onSaveDoc" type="primary">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -131,7 +157,7 @@
 
 <script lang="ts" setup>
 import { mongoApi } from './api';
-import { defineAsyncComponent, reactive, ref, toRefs } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref, toRefs } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { isTrue, notBlank } from '@/common/assert';
@@ -140,6 +166,11 @@ import TagTree from '../component/TagTree.vue';
 import { formatByteSize } from '@/common/utils/format';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
+
+const perms = {
+    saveData: 'mongo:data:save',
+    delData: 'mongo:data:del',
+};
 
 /**
  * 树节点类型
@@ -154,7 +185,7 @@ class NodeType {
 const findParamInputRef: any = ref(null);
 const state = reactive({
     tags: [],
-    dataHeight: `${window.innerHeight - 194}px`,
+    dataHeight: `${window.innerHeight - 194 - 35}px`,
     mongoList: [] as any,
     activeName: '', // 当前操作的tab
     dataTabs: {} as any, // 数据tabs
@@ -184,6 +215,10 @@ const state = reactive({
 });
 
 const { dataHeight, findDialog, docEditDialog } = toRefs(state);
+
+const nowColl = computed(() => {
+    return getNowDataTab();
+});
 
 /**
  * instmap;  tagPaht -> mongo info[]
@@ -279,15 +314,15 @@ const getCollections = async (id: any, database: string) => {
     });
 };
 
-const nodeClick = (data: any) => {
+const nodeClick = async (data: any) => {
     // 点击集合
     if (data.type === NodeType.Coll) {
         const { id, database, collection } = data.params;
-        changeCollection(id, database, collection);
+        await changeCollection(id, database, collection);
     }
 };
 
-const changeCollection = (id: any, schema: string, collection: string) => {
+const changeCollection = async (id: any, schema: string, collection: string) => {
     const label = `${id}:\`${schema}\`.${collection}`;
     let dataTab = state.dataTabs[label];
     if (!dataTab) {
@@ -345,6 +380,7 @@ const findCommand = async (key: string) => {
         ElMessage.error('filter或sort字段json字符串值错误。注意: json key需双引号');
         return;
     }
+
     const datas = await mongoApi.findCommand.request({
         id: dataTab.mongoId,
         database: dataTab.database,
@@ -355,6 +391,17 @@ const findCommand = async (key: string) => {
         skip: findParma.skip || 0,
     });
     state.dataTabs[key].datas = wrapDatas(datas);
+
+    // 获取coll stats
+    state.dataTabs[key].stats = await mongoApi.runCommand.request({
+        id: dataTab.mongoId,
+        database: dataTab.database,
+        command: [
+            {
+                collStats: dataTab.collection,
+            },
+        ],
+    });
 };
 
 /**

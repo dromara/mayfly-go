@@ -17,6 +17,8 @@ func InitMongoRouter(router *gin.RouterGroup) {
 		TagApp:   tagapp.GetTagTreeApp(),
 	}
 
+	saveDataPerm := req.NewPermission("mongo:data:save")
+
 	reqs := [...]*req.Conf{
 		// 获取所有mongo列表
 		req.NewGet("", ma.Mongos),
@@ -39,13 +41,13 @@ func InitMongoRouter(router *gin.RouterGroup) {
 		// 执行mongo find命令
 		req.NewPost(":id/command/find", ma.FindCommand),
 
-		req.NewPost(":id/command/update-by-id", ma.UpdateByIdCommand).Log(req.NewLogSave("mongo-更新文档")),
+		req.NewPost(":id/command/update-by-id", ma.UpdateByIdCommand).RequiredPermission(saveDataPerm).Log(req.NewLogSave("mongo-更新文档")),
 
 		// 执行mongo delete by id命令
-		req.NewPost(":id/command/delete-by-id", ma.DeleteByIdCommand).Log(req.NewLogSave("mongo-删除文档")),
+		req.NewPost(":id/command/delete-by-id", ma.DeleteByIdCommand).RequiredPermission(req.NewPermission("mongo:data:del")).Log(req.NewLogSave("mongo-删除文档")),
 
 		// 执行mongo insert 命令
-		req.NewPost(":id/command/insert", ma.InsertOneCommand).Log(req.NewLogSave("mogno-插入文档")),
+		req.NewPost(":id/command/insert", ma.InsertOneCommand).RequiredPermission(saveDataPerm).Log(req.NewLogSave("mogno-插入文档")),
 	}
 
 	req.BatchSetGroup(m, reqs[:])
