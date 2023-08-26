@@ -135,6 +135,7 @@ func (c *Config) ToLdapLogin() *ConfigLdapLogin {
 	ll := new(ConfigLdapLogin)
 	ll.Enable = c.ConvBool(jm["enable"], false)
 	ll.Host = jm["host"]
+	ll.Port = jm["port"]
 	ll.SkipTLSVerify = c.ConvBool(jm["skipTLSVerify"], true)
 	ll.SecurityProtocol = jm["securityProtocol"]
 	ll.BindDN = stringx.Trim(jm["bindDN"])

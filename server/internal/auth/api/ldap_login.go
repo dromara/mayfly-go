@@ -3,6 +3,9 @@ package api
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/go-ldap/ldap/v3"
+	"github.com/pkg/errors"
+	"gorm.io/gorm"
 	"mayfly-go/internal/auth/api/form"
 	msgapp "mayfly-go/internal/msg/application"
 	sysapp "mayfly-go/internal/sys/application"
@@ -16,10 +19,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/go-ldap/ldap/v3"
-	"github.com/pkg/errors"
-	"gorm.io/gorm"
 )
 
 type LdapLogin struct {
@@ -117,6 +116,9 @@ type UserInfo struct {
 // Authenticate 通过 LDAP 验证用户名密码
 func Authenticate(username, password string) (*UserInfo, error) {
 	ldapConf := sysapp.GetConfigApp().GetConfig(sysentity.ConfigKeyLdapLogin).ToLdapLogin()
+	if !ldapConf.Enable {
+		return nil, errors.Errorf("未启用 LDAP 登录")
+	}
 	conn, err := Connect(ldapConf)
 	if err != nil {
 		return nil, errors.Errorf("connect: %v", err)
