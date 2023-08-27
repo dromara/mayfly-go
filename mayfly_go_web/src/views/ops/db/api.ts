@@ -26,4 +26,10 @@ export const dbApi = {
     deleteDbSql: Api.newDelete('/dbs/{id}/sql'),
     // 获取数据库sql执行记录
     getSqlExecs: Api.newGet('/dbs/{dbId}/sql-execs'),
+
+    // 获取权限列表
+    instances: Api.newGet('/instances'),
+    saveInstance: Api.newPost('/instances'),
+    getInstancePwd: Api.newGet('/instances/{id}/pwd'),
+    deleteInstance: Api.newDelete('/instances/{id}'),
 };

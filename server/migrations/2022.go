@@ -43,6 +43,9 @@ func T2022() *gormigrate.Migration {
 				return err
 			}
 
+			if err := tx.AutoMigrate(&entity2.Instance{}); err != nil {
+				return err
+			}
 			if err := tx.AutoMigrate(&entity2.Db{}); err != nil {
 				return err
 			}
