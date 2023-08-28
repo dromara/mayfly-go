@@ -4,7 +4,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, watch, reactive, onMounted } from 'vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 
 const props = defineProps({
@@ -22,12 +22,12 @@ const state = reactive({
 });
 
 // 因为默认从Text viewer开始，暂时不watch（保存时会触发重新格式化）。
-// watch(
-//     () => props.content,
-//     (val: any) => {
-//         setContent(val);
-//     }
-// );
+watch(
+    () => props.content,
+    (val: any) => {
+        setContent(val);
+    }
+);
 
 onMounted(() => {
     setContent(props.content);
@@ -37,7 +37,7 @@ const setContent = (val: any) => {
     state.modelValue = val;
     setTimeout(() => {
         monacoEditorRef.value.format();
-    }, 200);
+    }, 100);
 };
 
 const getContent = () => {

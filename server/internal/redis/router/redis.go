@@ -39,7 +39,9 @@ func InitRedisRouter(router *gin.RouterGroup) {
 		req.NewGet(":id/cluster-info", rs.ClusterInfo),
 
 		// 获取指定redis keys
-		req.NewPost(":id/:db/scan", rs.Scan),
+		req.NewPost(":id/:db/scan", rs.ScanKeys),
+
+		req.NewGet(":id/:db/key-info", rs.KeyInfo),
 
 		req.NewGet(":id/:db/key-ttl", rs.TtlKey),
 

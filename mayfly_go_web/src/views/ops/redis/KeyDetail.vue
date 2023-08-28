@@ -6,8 +6,9 @@
                 ref="keyHeader"
                 :redis-id="redisId"
                 :db="db"
-                :key-info="keyInfo"
+                :key-info="state.keyInfo"
                 @refresh-content="refreshContent"
+                @del-key="delKey"
                 @change-key="changeKey"
                 class="key-header-info"
             >
@@ -19,7 +20,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { defineAsyncComponent, ref, shallowReactive, reactive, computed, toRefs } from 'vue';
+import { defineAsyncComponent, watch, ref, shallowReactive, reactive, computed, toRefs, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import KeyHeader from './KeyHeader.vue';
 
@@ -51,10 +52,11 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['update:visible', 'changeKey', 'valChange']);
+const emit = defineEmits(['update:visible', 'changeKey', 'delKey']);
 
 const state = reactive({
     redisId: 0,
+    keyInfo: {} as any,
 });
 
 const componentMap = {
@@ -78,18 +80,35 @@ const refreshContent = () => {
     keyValueRef.value?.initData();
 };
 
+const delKey = () => {
+    emit('delKey', state.keyInfo.key);
+};
+
 const changeKey = () => {
     emit('changeKey');
 };
 
-const {} = toRefs(state);
+const setKeyInfo = (val: any) => {
+    state.keyInfo.timed = val.timed;
+    state.keyInfo.key = val.key;
+    state.keyInfo.type = val.type;
+};
 
-// watch(
-//     () => props.keyInfo,
-//     (val) => {
-//         state.keyInfo = val;
-//     }
-// );
+watch(
+    () => props.keyInfo,
+    (val) => {
+        setKeyInfo(val);
+    },
+    {
+        deep: true,
+    }
+);
+
+onMounted(() => {
+    setKeyInfo(props.keyInfo);
+});
+
+const {} = toRefs(state);
 </script>
 <style lang="scss">
 .key-tab-container {

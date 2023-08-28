@@ -22,12 +22,12 @@ type Redis struct {
 
 type Keys struct {
 	Cursor map[string]uint64 `json:"cursor"`
-	Keys   []*KeyInfo        `json:"keys"`
+	Keys   []string          `json:"keys"`
 	DbSize int64             `json:"dbSize"`
 }
 
 type KeyInfo struct {
 	Key  string `json:"key"`
-	Ttl  int64  `json:"ttl"`
+	Ttl  int    `json:"ttl"`
 	Type string `json:"type"`
 }

@@ -84,11 +84,16 @@ const { filterText } = toRefs(state);
 
 onMounted(async () => {
     if (!props.height) {
-        state.height = window.innerHeight - 147 + 'px';
+        setHeight();
+        window.onresize = () => setHeight();
     } else {
         state.height = props.height;
     }
 });
+
+const setHeight = () => {
+    state.height = window.innerHeight - 147 + 'px';
+};
 
 watch(filterText, (val) => {
     treeRef.value?.filter(val);

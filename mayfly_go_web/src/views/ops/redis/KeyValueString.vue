@@ -2,7 +2,7 @@
     <div>
         <el-form class="key-content-string" label-width="auto">
             <div>
-                <format-viewer ref="formatViewerRef" :content="string.value"></format-viewer>
+                <format-viewer ref="formatViewerRef" height="250px" :content="string.value"></format-viewer>
             </div>
         </el-form>
         <div class="mt10 fr">
@@ -11,7 +11,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { ref, reactive, toRefs, onMounted } from 'vue';
+import { ref, watch, reactive, toRefs, onMounted } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import { notEmpty } from '@/common/assert';
@@ -53,11 +53,19 @@ const state = reactive({
 const { string } = toRefs(state);
 
 onMounted(() => {
-    state.redisId = props.redisId;
-    state.db = props.db;
-    state.key = props.keyInfo?.key;
-    initData();
+    setProps(props);
 });
+
+watch(props, (newVal) => {
+    setProps(newVal);
+});
+
+const setProps = (val: any) => {
+    state.redisId = val.redisId;
+    state.db = val.db;
+    state.key = val.keyInfo?.key;
+    initData();
+};
 
 const initData = () => {
     getStringValue();
@@ -91,18 +99,18 @@ const getBaseReqParam = () => {
 defineExpose({ initData });
 </script>
 <style lang="scss">
-.key-content-string .format-viewer-container {
-    min-height: calc(100vh - 453px);
-}
+// .key-content-string .format-viewer-container {
+//     min-height: calc(100vh - 253px);
+// }
 
-/*text viewer box*/
-.key-content-string .el-textarea textarea {
-    font-size: 14px;
-    height: calc(100vh - 436px);
-}
+// /*text viewer box*/
+// .key-content-string .el-textarea textarea {
+//     font-size: 14px;
+//     height: calc(100vh - 436px);
+// }
 
-/*json in monaco editor*/
-.key-content-string .monaco-editor-content {
-    height: calc(100vh - 450px) !important;
-}
+// /*json in monaco editor*/
+// .key-content-string .monaco-editor-content {
+//     height: calc(100vh - 450px) !important;
+// }
 </style>

@@ -29,74 +29,134 @@
                 </el-row>
             </el-col>
 
-            <el-col :span="20" style="border-left: 1px solid var(--el-card-border-color)">
-                <div class="mt10 ml5">
-                    <el-col>
-                        <el-form class="search-form" label-position="right" :inline="true" label-width="auto">
-                            <el-form-item label="key" label-width="auto">
-                                <el-input placeholder="match 支持*模糊key" style="width: 250px" v-model="scanParam.match" @clear="clear()" clearable></el-input>
-                            </el-form-item>
-                            <el-form-item label="count" label-width="auto">
-                                <el-input placeholder="count" style="width: 70px" v-model.number="scanParam.count"> </el-input>
-                            </el-form-item>
-                            <el-form-item>
-                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="searchKey()" type="success" icon="search" plain></el-button>
-                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="scan()" icon="bottom" plain>scan</el-button>
-                                <el-button
-                                    :disabled="!scanParam.id || !scanParam.db"
-                                    @click="showNewKeyDialog"
-                                    type="primary"
-                                    icon="plus"
-                                    plain
-                                    v-auth="'redis:data:save'"
-                                ></el-button>
-                                <el-button :disabled="!scanParam.id || !scanParam.db" @click="flushDb" type="danger" plain v-auth="'redis:data:save'"
-                                    >flush</el-button
-                                >
-                            </el-form-item>
-                            <div style="float: right">
-                                <span>keys: {{ state.dbsize }}</span>
-                            </div>
-                        </el-form>
-                    </el-col>
-                    <el-table v-loading="state.loading" :data="state.keys" :height="tableHeight" stripe :highlight-current-row="true" style="cursor: pointer">
-                        <el-table-column show-overflow-tooltip prop="key" label="key"></el-table-column>
-                        <el-table-column prop="type" label="type" width="80">
-                            <template #default="scope">
-                                <el-tag :color="getTypeColor(scope.row.type)" size="small">{{ scope.row.type }}</el-tag>
-                            </template>
-                        </el-table-column>
-                        <el-table-column prop="ttl" label="ttl(过期时间)" width="140">
-                            <template #default="scope">
-                                {{ ttlConveter(scope.row.ttl) }}
-                            </template>
-                        </el-table-column>
-                        <el-table-column label="操作">
-                            <template #default="scope">
-                                <el-button @click="showKeyDetail(scope.row)" type="success" icon="search" plain size="small">查看 </el-button>
-                                <el-button v-auth="'redis:data:del'" @click="del(scope.row.key)" type="danger" icon="delete" plain size="small"
-                                    >删除
-                                </el-button>
-                            </template>
-                        </el-table-column>
-                    </el-table>
+            <el-col v-loading="state.loadingKeyTree" :span="7" class="el-scrollbar flex-auto" style="overflow: auto">
+                <div>
+                    <el-row>
+                        <el-col :span="2">
+                            <el-input v-model="state.keySeparator" placeholder="分割符" size="small" class="ml5" />
+                        </el-col>
+                        <el-col :span="18">
+                            <el-input @clear="clear" v-model="scanParam.match" placeholder="match 支持*模糊key" clearable size="small" class="ml10" />
+                        </el-col>
+                        <el-col :span="4">
+                            <el-button
+                                class="ml15"
+                                :disabled="!scanParam.id || !scanParam.db"
+                                @click="searchKey()"
+                                type="success"
+                                icon="search"
+                                size="small"
+                                plain
+                            ></el-button>
+                        </el-col>
+                    </el-row>
+
+                    <el-row class="mb5 mt5">
+                        <el-col :span="20">
+                            <el-button class="ml5" :disabled="!scanParam.id || !scanParam.db" @click="scan(true)" type="success" icon="more" size="small" plain
+                                >加载更多</el-button
+                            >
+
+                            <el-button
+                                v-auth="'redis:data:save'"
+                                :disabled="!scanParam.id || !scanParam.db"
+                                @click="showNewKeyDialog"
+                                type="primary"
+                                icon="plus"
+                                size="small"
+                                plain
+                                >新增key</el-button
+                            >
+
+                            <el-button
+                                :disabled="!scanParam.id || !scanParam.db"
+                                @click="flushDb"
+                                type="danger"
+                                plain
+                                v-auth="'redis:data:del'"
+                                size="small"
+                                icon="delete"
+                                >flush</el-button
+                            >
+                        </el-col>
+                        <el-col :span="4">
+                            <span style="display: inline-block" class="mt5">keys: {{ state.dbsize }}</span>
+                        </el-col>
+                    </el-row>
+
+                    <el-tree
+                        :style="{ maxHeight: state.keyTreeHeight, height: state.keyTreeHeight, overflow: 'auto', border: '1px solid #e1f3d8' }"
+                        ref="keyTreeRef"
+                        :highlight-current="true"
+                        :data="keyTreeData"
+                        :props="treeProps"
+                        :indent="8"
+                        node-key="key"
+                        :auto-expand-parent="false"
+                        :default-expanded-keys="Array.from(state.keyTreeExpanded)"
+                        @node-click="handleKeyTreeNodeClick"
+                        @node-expand="keyTreeNodeExpand"
+                        @node-collapse="keyTreeNodeCollapse"
+                    >
+                        <template #default="{ node, data }">
+                            <span class="custom-tree-node key-list-custom-node">
+                                <el-dropdown size="small" trigger="contextmenu">
+                                    <span class="el-dropdown-link">
+                                        <span v-if="data.type == 1 && !node.expanded">
+                                            <SvgIcon :size="15" name="folder" />
+                                        </span>
+                                        <span v-if="data.type == 1 && node.expanded">
+                                            <SvgIcon :size="15" name="folder-opened" />
+                                        </span>
+                                        <span v-if="data.type == 1" class="ml5" style="font-weight: bold">
+                                            {{ node.label }}
+                                        </span>
+                                        <span v-if="data.type == 2" class="ml5" style="color: #67c23a">
+                                            {{ node.label }}
+                                        </span>
+
+                                        <span v-if="!node.isLeaf" class="ml5" style="font-weight: bold"> ({{ data.keyCount }}) </span>
+                                    </span>
+
+                                    <template #dropdown v-if="data.type == 2">
+                                        <el-dropdown-menu>
+                                            <el-dropdown-item @click="showKeyDetail(data.key, true)">
+                                                <el-link type="primary" icon="plus" :underline="false" style="margin-left: 2px">新tab打开</el-link>
+                                            </el-dropdown-item>
+                                            <span v-auth="'redis:data:del'">
+                                                <el-dropdown-item @click="delKey(data.key)">
+                                                    <el-link type="danger" icon="delete" :underline="false" style="margin-left: 2px">删除</el-link>
+                                                </el-dropdown-item>
+                                            </span>
+                                        </el-dropdown-menu>
+                                    </template>
+                                </el-dropdown>
+                            </span>
+                        </template>
+                    </el-tree>
+                </div>
+            </el-col>
+
+            <el-col :span="13" style="border-left: 1px solid var(--el-card-border-color)">
+                <div class="ml5">
+                    <el-tabs @tab-remove="removeDataTab" style="width: 100%" v-model="state.activeName">
+                        <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
+                            <key-detail :redisId="scanParam.id" :db="scanParam.db" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />
+                        </el-tab-pane>
+                    </el-tabs>
                 </div>
             </el-col>
         </el-row>
 
         <div style="text-align: center; margin-top: 10px"></div>
 
-        <el-dialog title="Key详情" v-model="keyDetailDialog.visible" width="800px" :destroy-on-close="true" :close-on-click-modal="false">
-            <key-detail :redisId="scanParam.id" :db="scanParam.db" :key-info="keyDetailDialog.keyInfo" @change-key="searchKey()" />
-        </el-dialog>
-
         <el-dialog title="新增Key" v-model="newKeyDialog.visible" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
             <el-form ref="keyForm" label-width="auto">
                 <el-form-item prop="key" label="键名">
-                    <el-input v-model.trim="keyDetailDialog.keyInfo.key" placeholder="请输入键名"></el-input>
+                    <el-input v-model.trim="newKeyDialog.keyInfo.key" placeholder="请输入键名"></el-input>
                 </el-form-item>
                 <el-form-item prop="type" label="类型">
-                    <el-select v-model="keyDetailDialog.keyInfo.type" default-first-option style="width: 100%" placeholder="请选择类型">
+                    <el-select v-model="newKeyDialog.keyInfo.type" default-first-option style="width: 100%" placeholder="请选择类型">
                         <el-option key="string" label="string" value="string"></el-option>
                         <el-option key="hash" label="hash" value="hash"></el-option>
                         <el-option key="set" label="set" value="set"></el-option>
@@ -109,7 +169,7 @@
             <template #footer>
                 <div class="dialog-footer">
                     <el-button @click="cancelNewKey()">取 消</el-button>
-                    <el-button v-auth="'machine:script:save'" type="primary" @click="newKey">确 定</el-button>
+                    <el-button v-auth="'redis:data:save'" type="primary" @click="newKey">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -118,11 +178,12 @@
 
 <script lang="ts" setup>
 import { redisApi } from './api';
-import { defineAsyncComponent, toRefs, reactive, onMounted } from 'vue';
+import { ref, defineAsyncComponent, toRefs, reactive, onMounted, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { isTrue, notBlank, notNull } from '@/common/assert';
 import { TagTreeNode } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
+import { keysToTree, sortByTreeNodes, keysToList } from './utils';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
@@ -134,24 +195,37 @@ class NodeType {
     static Db = 2;
 }
 
+const treeProps = {
+    label: 'name',
+    children: 'children',
+    isLeaf: 'leaf',
+};
+
+const defaultCount = 250;
+
+const keyTreeRef: any = ref(null);
+
 const state = reactive({
-    loading: false,
-    tableHeight: 600,
     tags: [],
     redisList: [] as any,
     dbList: [],
-    query: {
-        tagPath: null,
-    },
+    keyTreeHeight: window.innerHeight - 147 - 30 + 'px',
+    loadingKeyTree: false,
+    keys: [] as any,
+    keySeparator: ':',
+    keyTreeData: [] as any,
+    keyTreeExpanded: new Set(),
+    activeName: '',
+    dataTabs: {} as any,
     scanParam: {
         id: null as any,
         mode: '',
         db: null as any,
         match: null,
-        count: 10,
+        count: defaultCount,
         cursor: {},
     },
-    keyDetailDialog: {
+    newKeyDialog: {
         visible: false,
         keyInfo: {
             type: 'string',
@@ -159,21 +233,19 @@ const state = reactive({
             key: '',
         },
     },
-    newKeyDialog: {
-        visible: false,
-    },
-    keys: [],
     dbsize: 0,
 });
 
-const { tableHeight, scanParam, keyDetailDialog, newKeyDialog } = toRefs(state);
+const { scanParam, keyTreeData, newKeyDialog } = toRefs(state);
 
 onMounted(async () => {
     setHeight();
+    // 监听浏览器窗口大小变化,更新对应组件高度
+    window.onresize = () => setHeight();
 });
 
 const setHeight = () => {
-    state.tableHeight = window.innerHeight - 159;
+    state.keyTreeHeight = window.innerHeight - 177 + 'px';
 };
 
 /**
@@ -269,20 +341,20 @@ const getDbs = async (redisInfo: any) => {
     return dbs;
 };
 
-const scan = async () => {
+const scan = async (appendKey = false) => {
     isTrue(state.scanParam.id != null, '请先选择redis');
-    notBlank(state.scanParam.count, 'count不能为空');
+    notBlank(state.scanParam.db, '请先选择库');
 
     const match: string = state.scanParam.match || '';
     if (!match) {
-        isTrue(state.scanParam.count <= 100, 'key搜索条件为空时, count不能大于100');
+        state.scanParam.count = defaultCount;
     } else if (match.indexOf('*') != -1) {
         const dbsize = state.dbsize;
         // 如果为模糊搜索，并且搜索的key模式大于指定字符数，则将count设大点scan
         if (match.length > 10) {
             state.scanParam.count = dbsize > 100000 ? Math.floor(dbsize / 10) : 1000;
         } else {
-            state.scanParam.count = 100;
+            state.scanParam.count = defaultCount;
         }
     }
 
@@ -292,20 +364,123 @@ const scan = async () => {
         scanParam.count = Math.floor(state.scanParam.count / 3);
     }
 
-    state.loading = true;
     try {
+        state.loadingKeyTree = true;
         const res = await redisApi.scan.request(scanParam);
-        state.keys = res.keys;
+        // 追加key，则将新key合并至原keys（加载更多）
+        if (appendKey) {
+            state.keys = [...state.keys, ...res.keys];
+        } else {
+            state.keys = res.keys;
+        }
+        setKeyList(state.keys);
         state.dbsize = res.dbSize;
         state.scanParam.cursor = res.cursor;
     } finally {
-        state.loading = false;
+        state.loadingKeyTree = false;
     }
+};
+
+const setKeyList = (keys: any) => {
+    state.keyTreeData = state.keySeparator ? keysToTree(keys, state.keySeparator, state.keyTreeExpanded) : keysToList(keys);
+    nextTick(() => {
+        // key长度小于指定数量，则展开所有节点
+        if (keys.length <= 20) {
+            expandAllKeyNode(state.keyTreeData);
+        }
+
+        sortByTreeNodes(keyTreeRef.value.root.childNodes);
+    });
+};
+
+// 展开所有节点
+const expandAllKeyNode = (nodes: any) => {
+    for (let node of nodes) {
+        if (!node.children) {
+            continue;
+        }
+        state.keyTreeExpanded.add(node.key);
+        for (let i = 0; i < node.children.length; i++) {
+            expandAllKeyNode(node.children);
+        }
+    }
+};
+
+const handleKeyTreeNodeClick = async (data: any) => {
+    // 目录则不做处理
+    if (data.type == 1) {
+        return;
+    }
+
+    showKeyDetail(data.key);
+};
+
+const showKeyDetail = async (key: any, newTab = false) => {
+    let keyInfo;
+    if (typeof key == 'object') {
+        keyInfo = key;
+    } else {
+        if (state.dataTabs[key]) {
+            state.activeName = key;
+            return;
+        }
+        const res = await redisApi.keyInfo.request({ id: state.scanParam.id, db: state.scanParam.db, key: key });
+        keyInfo = {
+            key: key,
+            type: res.type,
+            timed: res.ttl,
+        };
+    }
+
+    let label = keyInfo.key;
+    if (label.length > 40) {
+        label = label.slice(0, 40) + '...';
+    }
+    const dataTab = {
+        key: keyInfo.key,
+        label,
+        keyInfo,
+    };
+
+    if (!newTab) {
+        delete state.dataTabs[state.activeName];
+    }
+
+    state.dataTabs[keyInfo.key] = dataTab;
+    state.activeName = keyInfo.key;
+};
+
+const removeDataTab = (targetName: string) => {
+    const tabNames = Object.keys(state.dataTabs);
+    let activeName = state.activeName;
+    tabNames.forEach((name, index) => {
+        if (name === targetName) {
+            const nextTab = tabNames[index + 1] || tabNames[index - 1];
+            if (nextTab) {
+                activeName = nextTab;
+            }
+        }
+    });
+    state.activeName = activeName;
+    delete state.dataTabs[targetName];
+};
+
+const keyTreeNodeExpand = (data: any, node: any, component: any) => {
+    state.keyTreeExpanded.add(data.key);
+    // async sort nodes
+    if (!node.customSorted) {
+        node.customSorted = true;
+        sortByTreeNodes(node.childNodes);
+    }
+};
+
+const keyTreeNodeCollapse = (data: any, node: any, component: any) => {
+    state.keyTreeExpanded.delete(data.key);
 };
 
 const searchKey = async () => {
     state.scanParam.cursor = {};
-    await scan();
+    await scan(false);
 };
 
 const clear = () => {
@@ -316,24 +491,17 @@ const clear = () => {
 };
 
 const resetScanParam = () => {
-    state.scanParam.count = 10;
     state.scanParam.match = null;
     state.scanParam.cursor = {};
-};
-
-const showKeyDetail = async (row: any) => {
-    const type = row.type;
-
-    state.keyDetailDialog.keyInfo.type = type;
-    state.keyDetailDialog.keyInfo.timed = row.ttl;
-    state.keyDetailDialog.keyInfo.key = row.key;
-    state.keyDetailDialog.visible = true;
+    state.keyTreeExpanded.clear();
+    state.dataTabs = {};
+    state.activeName = '';
 };
 
 const showNewKeyDialog = () => {
     notNull(state.scanParam.id, '请先选择redis');
     notNull(state.scanParam.db, '请选择要操作的库');
-    resetKeyDetailInfo();
+    resetNewKeyInfo();
     state.newKeyDialog.visible = true;
 };
 
@@ -358,12 +526,12 @@ const flushDb = () => {
 };
 
 const cancelNewKey = () => {
-    resetKeyDetailInfo();
+    resetNewKeyInfo();
     state.newKeyDialog.visible = false;
 };
 
 const newKey = async () => {
-    const keyInfo = state.keyDetailDialog.keyInfo;
+    const keyInfo = state.newKeyDialog.keyInfo;
     const keyType = keyInfo.type;
     const key = keyInfo.key;
     notBlank(key, '键名不能为空');
@@ -376,84 +544,44 @@ const newKey = async () => {
             value: '',
         });
     }
+
+    showKeyDetail(
+        {
+            ...keyInfo,
+        },
+        true
+    );
     state.newKeyDialog.visible = false;
-    state.keyDetailDialog.visible = true;
-    searchKey();
+
+    // 添加新增的key至key tree
+    state.keys.push(key);
+    setKeyList(state.keys);
 };
 
-const resetKeyDetailInfo = () => {
-    state.keyDetailDialog.keyInfo.key = '';
-    state.keyDetailDialog.keyInfo.type = 'string';
-    state.keyDetailDialog.keyInfo.timed = -1;
+const resetNewKeyInfo = () => {
+    state.newKeyDialog.keyInfo.key = '';
+    state.newKeyDialog.keyInfo.type = 'string';
+    state.newKeyDialog.keyInfo.timed = -1;
 };
 
-const del = (key: string) => {
+const delKey = (key: string) => {
     ElMessageBox.confirm(`确定删除[ ${key} ] 该key?`, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning',
     })
-        .then(() => {
-            redisApi.delKey
-                .request({
-                    key,
-                    id: state.scanParam.id,
-                    db: state.scanParam.db,
-                })
-                .then(() => {
-                    ElMessage.success('删除成功！');
-                    searchKey();
-                });
+        .then(async () => {
+            await redisApi.delKey.request({
+                key,
+                id: state.scanParam.id,
+                db: state.scanParam.db,
+            });
+            ElMessage.success('删除成功！');
+            searchKey();
+
+            removeDataTab(key);
         })
         .catch(() => {});
-};
-
-const ttlConveter = (ttl: any) => {
-    if (ttl == -1 || ttl == 0) {
-        return '永久';
-    }
-    if (!ttl) {
-        ttl = 0;
-    }
-    let second = parseInt(ttl); // 秒
-    let min = 0; // 分
-    let hour = 0; // 小时
-    let day = 0;
-    if (second > 60) {
-        min = parseInt(second / 60 + '');
-        second = second % 60;
-        if (min > 60) {
-            hour = parseInt(min / 60 + '');
-            min = min % 60;
-            if (hour > 24) {
-                day = parseInt(hour / 24 + '');
-                hour = hour % 24;
-            }
-        }
-    }
-    let result = '' + second + 's';
-    if (min > 0) {
-        result = '' + min + 'm:' + result;
-    }
-    if (hour > 0) {
-        result = '' + hour + 'h:' + result;
-    }
-    if (day > 0) {
-        result = '' + day + 'd:' + result;
-    }
-    return result;
-};
-
-const getTypeColor = (type: string) => {
-    if (type == 'string') {
-        return '#E4F5EB';
-    }
-    if (type == 'hash') {
-        return '#F9E2AE';
-    }
-    if (type == 'set') {
-        return '#A8DEE0';
-    }
 };
 </script>
 
@@ -462,5 +590,18 @@ const getTypeColor = (type: string) => {
     .el-form-item {
         margin-bottom: unset;
     }
+}
+
+.key-list-vtree {
+    height: calc(100vh - 250px);
+}
+
+.key-list-vtree .key-list-custom-node {
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /*note the following 2 items should be same value, may not consist with itemSize*/
+    height: 22px;
+    line-height: 22px;
 }
 </style>

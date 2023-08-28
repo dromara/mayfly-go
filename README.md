@@ -40,7 +40,7 @@ web 版 **linux(终端[终端回放] 文件 脚本 进程)、数据库（mysql p
 
 ### 演示环境
 
-http://mayflygo.1yue.net
+http://go.mayfly.run
 账号/密码：test/test123.
 
 ### 系统核心功能截图

@@ -20,7 +20,6 @@
                     >
                         <el-option v-for="item in state.accounts" :key="item.id" :label="`${item.username} [${item.name}]`" :value="item.username"> </el-option>
                     </el-select>
-                    <!-- <el-input v-model="form.permission" placeholder="可,分割可操作用户名"></el-input> -->
                 </el-form-item>
 
                 <el-row style="margin-left: 30px; margin-bottom: 5px">

@@ -508,7 +508,7 @@ CREATE TABLE `t_sys_resource` (
   `name` varchar(255) NOT NULL COMMENT '名称',
   `code` varchar(255) DEFAULT NULL COMMENT '菜单路由为path，其他为唯一标识',
   `weight` int DEFAULT NULL COMMENT '权重顺序',
-  `meta` varchar(255) DEFAULT NULL COMMENT '元数据',
+  `meta` varchar(455) DEFAULT NULL COMMENT '元数据',
   `creator_id` bigint NOT NULL,
   `creator` varchar(255) NOT NULL,
   `modifier_id` bigint NOT NULL,
@@ -607,7 +607,8 @@ INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(132, 130, '12sSjal1/W9XKiabq/zxXM23i0/', 2, 1, '删除计划任务', 'machine:cronjob:del', 1689860102, 'null', 1, 'admin', 1, 'admin', '2023-07-20 21:35:02', '2023-07-20 21:35:02', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(131, 130, '12sSjal1/W9XKiabq/gEOqr2pD/', 2, 1, '保存计划任务', 'machine:cronjob:save', 1689860087, 'null', 1, 'admin', 1, 'admin', '2023-07-20 21:34:47', '2023-07-20 21:34:47', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(130, 2, '12sSjal1/W9XKiabq/', 1, 1, '计划任务', '/machine/cron-job', 1689646396, '{"component":"ops/machine/cronjob/CronJobList","icon":"AlarmClock","isKeepAlive":true,"routeName":"CronJobList"}', 1, 'admin', 1, 'admin', '2023-07-18 10:13:16', '2023-07-18 10:14:06', 0, NULL);
-
+INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(134, 80, 'Mongo452/eggago31/3sblw1Wb/', 2, 1, '删除数据', 'mongo:data:del', 1692674964, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:24', '2023-08-22 11:29:24', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(133, 80, 'Mongo452/eggago31/xvpKk36u/', 2, 1, '保存数据', 'mongo:data:save', 1692674943, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:04', '2023-08-22 11:29:11', 0, NULL);
 COMMIT;
 
 -- ----------------------------

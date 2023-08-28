@@ -21,6 +21,10 @@ const props = defineProps({
     content: {
         type: String,
     },
+    height: {
+        type: String,
+        default: '0px',
+    },
 });
 
 const components = shallowReactive({
@@ -53,13 +57,23 @@ const viewerComponent = computed(() => {
 watch(
     () => props.content,
     (val: any) => {
-        state.content = val;
+        setContent(val);
     }
 );
 
 onMounted(() => {
-    state.content = props.content as any;
+    setContent(props.content as any);
 });
+
+const setContent = (content: string) => {
+    state.content = content;
+    try {
+        JSON.parse(content);
+        state.selectedView = 'Json';
+    } catch (e) {
+        state.selectedView = 'Text';
+    }
+};
 
 const getContent = () => {
     return viewerRef.value.getContent();
@@ -90,12 +104,13 @@ defineExpose({ getContent });
 }
 
 // 默认文本框样式
+
 .format-viewer-container .el-textarea textarea {
     font-size: 14px;
-    height: calc(100vh - 536px);
+    height: calc(100vh - 536px + v-bind(height));
 }
 
 .format-viewer-container .monaco-editor-content {
-    height: calc(100vh - 550px) !important;
+    height: calc(100vh - 550px + v-bind(height)) !important;
 }
 </style>

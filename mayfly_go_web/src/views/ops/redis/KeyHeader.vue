@@ -2,9 +2,9 @@
     <div>
         <!-- key name -->
         <div class="key-header-item key-name-input">
-            <el-input ref="keyNameInput" v-model="keyInfo.key" title="点击重命名" placeholder="KeyName">
+            <el-input ref="keyNameInput" v-model="ki.key" title="点击重命名" placeholder="KeyName">
                 <template #prepend>
-                    <span class="key-detail-type">{{ keyInfo.type }}</span>
+                    <span class="key-detail-type">{{ ki.type }}</span>
                 </template>
 
                 <template #suffix>
@@ -15,12 +15,20 @@
 
         <!-- key ttl -->
         <div class="key-header-item key-ttl-input">
-            <el-input type="number" v-model.number="keyInfo.timed" placeholder="单位(秒),负数永久" title="点击修改过期时间">
+            <el-input type="number" v-model.number="ki.timed" placeholder="单位(秒),负数永久" title="点击修改过期时间">
                 <template #prepend>
                     <span slot="prepend">TTL</span>
                 </template>
 
                 <template #suffix>
+                    <!-- 时间转换 -->
+                    <el-tooltip effect="dark" placement="top">
+                        <template #content>{{ ttlConveter(ki.timed) }}</template>
+                        <span class="ml10">
+                            <el-icon class="mr5"><InfoFilled /></el-icon>
+                        </span>
+                    </el-tooltip>
+
                     <!-- save ttl -->
                     <SvgIcon v-auth="'redis:data:save'" @click="ttlKey" title="点击修改过期时间" name="check" />
                 </template>
@@ -29,7 +37,8 @@
 
         <!-- del & refresh btn -->
         <div class="key-header-item key-header-btn-con">
-            <el-button slot="reference" ref="refreshBtn" type="success" @click="refreshKey" icon="refresh" title="刷新"></el-button>
+            <el-button slot="reference" type="success" @click="refreshKey" icon="refresh" title="刷新"></el-button>
+            <el-button v-auth="'redis:data:del'" slot="reference" type="danger" @click="delKey" icon="delete" title="删除"></el-button>
         </div>
     </div>
 </template>
@@ -50,11 +59,16 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['refreshContent', 'changeKey', 'valChange']);
+const emit = defineEmits(['refreshContent', 'delKey', 'changeKey']);
 
 const state = reactive({
     redisId: 0,
     keyInfo: {
+        key: '',
+        type: '',
+        timed: -1,
+    } as any,
+    ki: {
         key: '',
         type: '',
         timed: -1,
@@ -77,14 +91,18 @@ const refreshKey = async () => {
     emit('refreshContent');
 };
 
+const delKey = async () => {
+    emit('delKey', state.ki.key);
+};
+
 const renameKey = async () => {
-    if (!state.oldKey || state.keyInfo.key == state.oldKey) {
+    if (!state.oldKey || state.ki.key == state.oldKey) {
         return;
     }
     await redisApi.renameKey.request({
         id: props.redisId,
         db: props.db,
-        newKey: state.keyInfo.key,
+        newKey: state.ki.key,
         key: state.oldKey,
     });
     ElMessage.success('设置成功');
@@ -96,7 +114,7 @@ const ttlKey = async () => {
         return;
     }
     // ttl <= 0，则持久化该key
-    if (state.keyInfo.timed <= 0) {
+    if (state.ki.timed <= 0) {
         try {
             await ElMessageBox.confirm('确定持久化该key?', 'Warning', {
                 confirmButtonText: '确认',
@@ -107,15 +125,15 @@ const ttlKey = async () => {
             return;
         }
         await persistKey();
-        state.keyInfo.timed = -1;
+        state.ki.timed = -1;
         return;
     }
 
     await redisApi.expireKey.request({
         id: props.redisId,
         db: props.db,
-        key: state.keyInfo.key,
-        seconds: state.keyInfo.timed,
+        key: state.ki.key,
+        seconds: state.ki.timed,
     });
     ElMessage.success('设置成功');
     emit('changeKey');
@@ -131,15 +149,58 @@ const persistKey = async () => {
     emit('changeKey');
 };
 
-const { keyInfo, oldKey } = toRefs(state);
+const { ki } = toRefs(state);
 
-// watch(
-//     () => props.keyInfo,
-//     (val) => {
-//         state.keyInfo = val;
-//         state.keyName = state.keyInfo.key;
-//     }
-// );
+const setKeyInfo = (val: any) => {
+    state.ki.timed = val.timed;
+    state.ki.key = val.key;
+    state.oldKey = val.key;
+    state.ki.type = val.type;
+};
+
+watch(
+    () => props.keyInfo,
+    (val: any) => {
+        setKeyInfo(val);
+    },
+    { deep: true }
+);
+
+const ttlConveter = (ttl: any) => {
+    if (ttl == -1 || ttl == 0) {
+        return '永久';
+    }
+    if (!ttl) {
+        ttl = 0;
+    }
+    let second = parseInt(ttl); // 秒
+    let min = 0; // 分
+    let hour = 0; // 小时
+    let day = 0;
+    if (second > 60) {
+        min = parseInt(second / 60 + '');
+        second = second % 60;
+        if (min > 60) {
+            hour = parseInt(min / 60 + '');
+            min = min % 60;
+            if (hour > 24) {
+                day = parseInt(hour / 24 + '');
+                hour = hour % 24;
+            }
+        }
+    }
+    let result = '' + second + 's';
+    if (min > 0) {
+        result = '' + min + 'm:' + result;
+    }
+    if (hour > 0) {
+        result = '' + hour + 'h:' + result;
+    }
+    if (day > 0) {
+        result = '' + day + 'd:' + result;
+    }
+    return result;
+};
 </script>
 <style lang="scss">
 .key-detail-type {
@@ -163,13 +224,13 @@ const { keyInfo, oldKey } = toRefs(state);
     width: calc(100% - 332px);
     min-width: 220px;
     max-width: 800px;
-    margin-right: 15px;
+    margin-right: 10px;
     margin-bottom: 10px;
 }
 
 .key-header-item.key-ttl-input {
-    width: 220px;
-    margin-right: 15px;
+    width: 200px;
+    margin-right: 10px;
     margin-bottom: 10px;
 }
 

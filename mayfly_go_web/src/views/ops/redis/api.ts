@@ -9,6 +9,7 @@ export const redisApi = {
     saveRedis: Api.newPost('/redis'),
     delRedis: Api.newDelete('/redis/{id}'),
 
+    keyInfo: Api.newGet('/redis/{id}/{db}/key-info'),
     keyTtl: Api.newGet('/redis/{id}/{db}/key-ttl'),
     renameKey: Api.newPost('/redis/{id}/{db}/rename-key'),
     expireKey: Api.newPost('/redis/{id}/{db}/expire-key'),
