@@ -6,6 +6,11 @@ export function exportCsv(filename: string, columns: string[], datas: []) {
         let dataValueArr: any = [];
         for (let column of columns) {
             let val: any = data[column];
+            if (val == null || val == undefined) {
+                dataValueArr.push('');
+                continue;
+            }
+
             if (typeof val == 'string' && val) {
                 // csv格式如果有逗号，整体用双引号括起来；如果里面还有双引号就替换成两个双引号，这样导出来的格式就不会有问题了
                 if (val.indexOf(',') != -1) {
@@ -16,9 +21,9 @@ export function exportCsv(filename: string, columns: string[], datas: []) {
                     // 再将逗号转义
                     val = `"${val}"`;
                 }
-                dataValueArr.push(val);
+                dataValueArr.push(val + '\t');
             } else {
-                dataValueArr.push(val);
+                dataValueArr.push(val + '\t');
             }
         }
         cvsData.push(dataValueArr);

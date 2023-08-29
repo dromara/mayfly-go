@@ -29,8 +29,8 @@
                 </el-row>
             </el-col>
 
-            <el-col v-loading="state.loadingKeyTree" :span="7" class="el-scrollbar flex-auto" style="overflow: auto">
-                <div>
+            <el-col v-loading="state.loadingKeyTree" :span="7">
+                <div class="key-list-vtree">
                     <el-row>
                         <el-col :span="2">
                             <el-input v-model="state.keySeparator" placeholder="分割符" size="small" class="ml5" />
@@ -52,7 +52,7 @@
                     </el-row>
 
                     <el-row class="mb5 mt5">
-                        <el-col :span="20">
+                        <el-col :span="19">
                             <el-button class="ml5" :disabled="!scanParam.id || !scanParam.db" @click="scan(true)" type="success" icon="more" size="small" plain
                                 >加载更多</el-button
                             >
@@ -79,8 +79,8 @@
                                 >flush</el-button
                             >
                         </el-col>
-                        <el-col :span="4">
-                            <span style="display: inline-block" class="mt5">keys: {{ state.dbsize }}</span>
+                        <el-col :span="5">
+                            <span style="display: inline-block" class="mt5">keys:{{ state.dbsize }}</span>
                         </el-col>
                     </el-row>
 
@@ -97,43 +97,40 @@
                         @node-click="handleKeyTreeNodeClick"
                         @node-expand="keyTreeNodeExpand"
                         @node-collapse="keyTreeNodeCollapse"
+                        @node-contextmenu="rightClickNode"
                     >
                         <template #default="{ node, data }">
-                            <span class="custom-tree-node key-list-custom-node">
-                                <el-dropdown size="small" trigger="contextmenu">
-                                    <span class="el-dropdown-link">
-                                        <span v-if="data.type == 1 && !node.expanded">
-                                            <SvgIcon :size="15" name="folder" />
-                                        </span>
-                                        <span v-if="data.type == 1 && node.expanded">
-                                            <SvgIcon :size="15" name="folder-opened" />
-                                        </span>
-                                        <span v-if="data.type == 1" class="ml5" style="font-weight: bold">
-                                            {{ node.label }}
-                                        </span>
-                                        <span v-if="data.type == 2" class="ml5" style="color: #67c23a">
-                                            {{ node.label }}
-                                        </span>
+                            <span class="el-dropdown-link key-list-custom-node" :title="node.label">
+                                <span v-if="data.type == 1">
+                                    <SvgIcon :size="15" :name="node.expanded ? 'folder-opened' : 'folder'" />
+                                </span>
+                                <span :class="'ml5 ' + (data.type == 1 ? 'folder-label' : 'key-label')">
+                                    {{ node.label }}
+                                </span>
 
-                                        <span v-if="!node.isLeaf" class="ml5" style="font-weight: bold"> ({{ data.keyCount }}) </span>
-                                    </span>
-
-                                    <template #dropdown v-if="data.type == 2">
-                                        <el-dropdown-menu>
-                                            <el-dropdown-item @click="showKeyDetail(data.key, true)">
-                                                <el-link type="primary" icon="plus" :underline="false" style="margin-left: 2px">新tab打开</el-link>
-                                            </el-dropdown-item>
-                                            <span v-auth="'redis:data:del'">
-                                                <el-dropdown-item @click="delKey(data.key)">
-                                                    <el-link type="danger" icon="delete" :underline="false" style="margin-left: 2px">删除</el-link>
-                                                </el-dropdown-item>
-                                            </span>
-                                        </el-dropdown-menu>
-                                    </template>
-                                </el-dropdown>
+                                <span v-if="!node.isLeaf" class="ml5" style="font-weight: bold"> ({{ data.keyCount }}) </span>
                             </span>
                         </template>
                     </el-tree>
+
+                    <!-- right context menu -->
+                    <div ref="rightMenuRef" class="key-list-right-menu">
+                        <!-- folder right menu -->
+                        <div v-if="!state.rightClickNode?.isLeaf"></div>
+                        <!-- key right menu -->
+                        <div v-else>
+                            <el-row>
+                                <el-link @click="showKeyDetail(state.rightClickNode.key, true)" type="primary" icon="plus" :underline="false"
+                                    >新tab打开</el-link
+                                >
+                            </el-row>
+                            <el-row class="mt5">
+                                <el-link @click="delKey(state.rightClickNode.key)" v-auth="'redis:data:del'" type="danger" icon="delete" :underline="false"
+                                    >删除</el-link
+                                >
+                            </el-row>
+                        </div>
+                    </div>
                 </div>
             </el-col>
 
@@ -204,6 +201,7 @@ const treeProps = {
 const defaultCount = 250;
 
 const keyTreeRef: any = ref(null);
+const rightMenuRef: any = ref(null);
 
 const state = reactive({
     tags: [],
@@ -217,6 +215,7 @@ const state = reactive({
     keyTreeExpanded: new Set(),
     activeName: '',
     dataTabs: {} as any,
+    rightClickNode: {} as any,
     scanParam: {
         id: null as any,
         mode: '',
@@ -407,6 +406,7 @@ const expandAllKeyNode = (nodes: any) => {
 };
 
 const handleKeyTreeNodeClick = async (data: any) => {
+    hideAllMenus();
     // 目录则不做处理
     if (data.type == 1) {
         return;
@@ -476,6 +476,43 @@ const keyTreeNodeExpand = (data: any, node: any, component: any) => {
 
 const keyTreeNodeCollapse = (data: any, node: any, component: any) => {
     state.keyTreeExpanded.delete(data.key);
+};
+
+const rightClickNode = (event: any, data: any, node: any) => {
+    hideAllMenus();
+
+    keyTreeRef.value.setCurrentKey(node.key);
+    state.rightClickNode = node;
+
+    // nextTick for dom render
+    nextTick(() => {
+        let top = event.clientY;
+        const menu = rightMenuRef.value;
+        menu.style.display = 'block';
+
+        // position in bottom
+        if (document.body.clientHeight - top < menu.clientHeight) {
+            top -= menu.clientHeight;
+        }
+
+        menu.style.left = `${event.clientX}px`;
+        menu.style.top = `${top}px`;
+
+        document.addEventListener('click', hideAllMenus, { once: true });
+    });
+};
+
+const hideAllMenus = () => {
+    let menus: any = document.querySelectorAll('.key-list-right-menu');
+
+    if (menus.length === 0) {
+        return;
+    }
+
+    state.rightClickNode = null;
+    for (const menu of menus) {
+        menu.style.display = 'none';
+    }
 };
 
 const searchKey = async () => {
@@ -596,6 +633,14 @@ const delKey = (key: string) => {
     height: calc(100vh - 250px);
 }
 
+.key-list-vtree .folder-label {
+    font-weight: bold;
+}
+
+.key-list-vtree .key-label {
+    color: #67c23a;
+}
+
 .key-list-vtree .key-list-custom-node {
     width: 100%;
     overflow: hidden;
@@ -603,5 +648,22 @@ const delKey = (key: string) => {
     /*note the following 2 items should be same value, may not consist with itemSize*/
     height: 22px;
     line-height: 22px;
+}
+
+/* right menu style start */
+.key-list-right-menu {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    padding: 5px;
+    z-index: 99999;
+    overflow: hidden;
+    border-radius: 3px;
+    border: 2px solid lightgrey;
+    background: #fafafa;
+}
+.dark-mode .key-list-right-menu {
+    background: #263238;
 }
 </style>
