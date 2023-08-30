@@ -14,8 +14,14 @@
             @pageChange="search()"
         >
             <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
+                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable style="width: 200px">
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
+                </el-select>
+            </template>
+
+            <template #instanceSelect>
+                <el-select @focus="getInstances" v-model="query.instanceId" placeholder="请选择实例" filterable clearable style="width: 200px">
+                    <el-option v-for="item in instances" :key="item.id" :label="item.name" :value="item.id"> </el-option>
                 </el-select>
             </template>
 
@@ -226,30 +232,23 @@
             <el-input disabled type="textarea" :autosize="{ minRows: 15, maxRows: 30 }" v-model="ddlDialog.ddl" size="small"> </el-input>
         </el-dialog>
 
-        <el-dialog v-model="infoDialog.visible">
+        <el-dialog v-model="infoDialog.visible" :before-close="onBeforeCloseInfoDialog" :close-on-click-modal="false">
             <el-descriptions title="详情" :column="3" border>
-                <el-descriptions-item :span="1.5" label="id">{{ infoDialog.data.id }}</el-descriptions-item>
-                <el-descriptions-item :span="1.5" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
-
                 <el-descriptions-item :span="3" label="标签路径">{{ infoDialog.data.tagPath }}</el-descriptions-item>
-
-                <el-descriptions-item :span="2" label="主机">{{ infoDialog.data.host }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
-
-                <el-descriptions-item :span="2" label="用户名">{{ infoDialog.data.username }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="类型">{{ infoDialog.data.type }}</el-descriptions-item>
-
-                <el-descriptions-item :span="3" label="连接参数">{{ infoDialog.data.params }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
+                <el-descriptions-item :span="2" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="id">{{ infoDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="3" label="数据库">{{ infoDialog.data.database }}</el-descriptions-item>
-
-                <el-descriptions-item :span="3" label="SSH隧道">{{ infoDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
-
+                <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
                 <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data.createTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data.creator }}</el-descriptions-item>
-
                 <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data.modifier }}</el-descriptions-item>
+
+                <el-descriptions-item :span="3" label="数据库实例名称">{{ infoDialog.instance.name }}</el-descriptions-item>
+                <el-descriptions-item :span="2" label="主机">{{ infoDialog.instance.host }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="端口">{{ infoDialog.instance.port }}</el-descriptions-item>
+                <el-descriptions-item :span="2" label="用户名">{{ infoDialog.instance.username }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="类型">{{ infoDialog.instance.type }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
 
@@ -292,15 +291,15 @@ const perms = {
     delDb: 'db:del',
 };
 
-const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect')];
+const queryConfig = [
+    TableQuery.slot('tagPath', '标签', 'tagPathSelect'),
+    TableQuery.slot('instanceId', '实例', 'instanceSelect'),
+];
 
 const columns = ref([
     TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
     TableColumn.new('name', '名称'),
-    TableColumn.new('host', 'host:port').setFormatFunc((data: any, _prop: string) => `${data.host}:${data.port}`),
-    TableColumn.new('type', '类型'),
     TableColumn.new('database', '数据库').isSlot().setMinWidth(70),
-    TableColumn.new('username', '用户名'),
     TableColumn.new('remark', '备注'),
     TableColumn.new('more', '更多').isSlot().setMinWidth(165).fixedRight(),
 ]);
@@ -316,6 +315,7 @@ const state = reactive({
     dbId: 0,
     db: '',
     tags: [],
+    instances: [],
     /**
      * 选中的数据
      */
@@ -325,6 +325,7 @@ const state = reactive({
      */
     query: {
         tagPath: null,
+        instanceId: null,
         pageNum: 1,
         pageSize: 10,
     },
@@ -333,6 +334,10 @@ const state = reactive({
     infoDialog: {
         visible: false,
         data: null as any,
+        instance: null as any,
+        query: {
+            instanceId: 0,
+        }
     },
     showDumpInfo: false,
     dumpInfo: {
@@ -427,6 +432,7 @@ const {
     dbId,
     db,
     tags,
+    instances,
     selectionData,
     query,
     datas,
@@ -489,13 +495,29 @@ const search = async () => {
     }
 };
 
-const showInfo = (info: any) => {
+const showInfo = async (info: any) => {
     state.infoDialog.data = info;
+    state.infoDialog.query.instanceId = info.instanceId;
+    const res = await dbApi.getInstance.request(state.infoDialog.query);
+    state.infoDialog.instance = res;
     state.infoDialog.visible = true;
+};
+
+const onBeforeCloseInfoDialog = () => {
+  state.infoDialog.visible = false;
+  state.infoDialog.data = null;
+  state.infoDialog.instance = null;
 };
 
 const getTags = async () => {
     state.tags = await dbApi.dbTags.request(null);
+};
+
+const getInstances = async () => {
+    const data = await dbApi.instances.request(null);
+    if (data) {
+      state.instances = data.list;
+    }
 };
 
 const editDb = async (data: any) => {
@@ -527,7 +549,7 @@ const deleteDb = async () => {
 };
 
 const onShowSqlExec = async (row: any) => {
-    state.sqlExecLogDialog.title = `${row.name}[${row.host}:${row.port}]`;
+    state.sqlExecLogDialog.title = `${row.name}`;
     state.sqlExecLogDialog.query.dbId = row.id;
     state.sqlExecLogDialog.dbs = row.database.split(' ');
     searchSqlExecLog();

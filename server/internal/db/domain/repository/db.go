@@ -6,12 +6,12 @@ import (
 )
 
 type Db interface {
-	// 分页获取机器信息列表
+	// 分页获取数据信息列表
 	GetDbList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
 
 	Count(condition *entity.DbQuery) int64
 
-	// 根据条件获取账号信息
+	// 根据条件获取数据库信息
 	GetDb(condition *entity.Db, cols ...string) error
 
 	// 根据id获取

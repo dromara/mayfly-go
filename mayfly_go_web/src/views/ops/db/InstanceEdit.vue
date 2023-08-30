@@ -30,17 +30,9 @@
                                 type="password"
                                 show-password
                                 v-model.trim="form.password"
-                                placeholder="请输入密码，修改操作可不填"
+                                placeholder="请输入密码"
                                 autocomplete="new-password"
-                            >
-                                <template v-if="form.id && form.id != 0" #suffix>
-                                    <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click" :content="pwd">
-                                        <template #reference>
-                                            <el-link @click="getDbPwd" :underline="false" type="primary" class="mr5">原密码 </el-link>
-                                        </template>
-                                    </el-popover>
-                                </template>
-                            </el-input>
+                            />
                         </el-form-item>
 
                         <el-form-item prop="remark" label="备注:">
@@ -94,7 +86,7 @@ const props = defineProps({
     visible: {
         type: Boolean,
     },
-    db: {
+    data: {
         type: [Boolean, Object],
     },
     title: {
@@ -155,6 +147,8 @@ const state = reactive({
     },
     // 原密码
     pwd: '',
+    // 原用户名
+    oldUserName: null,
     btnLoading: false,
 });
 
@@ -166,10 +160,12 @@ watch(props, (newValue: any) => {
         return;
     }
     state.tabActiveName = 'basic';
-    if (newValue.db) {
-        state.form = { ...newValue.db };
+    if (newValue.data) {
+        state.form = { ...newValue.data};
+        state.oldUserName = state.form.username
     } else {
         state.form = { port: 3306 } as any;
+        state.oldUserName = null
     }
 });
 
@@ -180,7 +176,10 @@ const getDbPwd = async () => {
 const btnOk = async () => {
     if (!state.form.id) {
         notBlank(state.form.password, '新增操作，密码不可为空');
+    } else if (state.form.username != state.oldUserName) {
+      notBlank(state.form.password, '已修改用户名，请输入密码');
     }
+
     dbForm.value.validate(async (valid: boolean) => {
         if (valid) {
             const reqForm = { ...state.form };

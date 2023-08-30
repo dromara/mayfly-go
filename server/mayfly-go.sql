@@ -2,35 +2,60 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- ----------------------------
+-- Table structure for t_instance
+-- ----------------------------
+DROP TABLE IF EXISTS `t_instance`;
+CREATE TABLE `t_instance` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
+    `host` varchar(100) COLLATE utf8mb4_bin NOT NULL,
+    `port` int(8) NOT NULL,
+    `username` varchar(255) COLLATE utf8mb4_bin NOT NULL,
+    `password` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
+    `type` varchar(20) COLLATE utf8mb4_bin NOT NULL COMMENT '数据库实例类型(mysql...)',
+    `params` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '其他连接参数',
+    `network` varchar(20) COLLATE utf8mb4_bin DEFAULT NULL,
+    `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
+    `remark` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注，描述等',
+    `create_time` datetime DEFAULT NULL,
+    `creator_id` bigint(20) DEFAULT NULL,
+    `creator` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
+    `update_time` datetime DEFAULT NULL,
+    `modifier_id` bigint(20) DEFAULT NULL,
+    `modifier` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
+    `is_deleted` tinyint(8) NOT NULL DEFAULT '0',
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库实例信息表';
+
+-- ----------------------------
+-- Records of t_instance
+-- ----------------------------
+BEGIN;
+COMMIT;
+
+-- ----------------------------
 -- Table structure for t_db
 -- ----------------------------
 DROP TABLE IF EXISTS `t_db`;
 CREATE TABLE `t_db` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(32) DEFAULT NULL COMMENT '数据库实例名称',
-  `host` varchar(100) NOT NULL,
-  `port` int(8) NOT NULL,
-  `username` varchar(255) NOT NULL,
-  `password` varchar(255) DEFAULT NULL,
-  `type` varchar(20) NOT NULL COMMENT '数据库实例类型(mysql...)',
-  `database` varchar(1000) DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
-  `params` varchar(125) DEFAULT NULL COMMENT '其他连接参数',
-  `network` varchar(20) DEFAULT NULL,
-  `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
-  `remark` varchar(125) DEFAULT NULL COMMENT '备注，描述等',
-  `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
-  `tag_path` varchar(255) DEFAULT NULL COMMENT '标签路径',
-  `create_time` datetime DEFAULT NULL,
-  `creator_id` bigint(20) DEFAULT NULL,
-  `creator` varchar(32) DEFAULT NULL,
-  `update_time` datetime DEFAULT NULL,
-  `modifier_id` bigint(20) DEFAULT NULL,
-  `modifier` varchar(32) DEFAULT NULL,
-  `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
-  `delete_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_path` (`tag_path`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库资源信息表';
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
+    `database` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
+    `remark` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注，描述等',
+    `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
+    `tag_path` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '标签路径',
+    `instance_id` bigint(20) NOT NULL COMMENT '数据库实例 ID',
+    `create_time` datetime DEFAULT NULL,
+    `creator_id` bigint(20) DEFAULT NULL,
+    `creator` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
+    `update_time` datetime DEFAULT NULL,
+    `modifier_id` bigint(20) DEFAULT NULL,
+    `modifier` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
+    `is_deleted` tinyint(8) NOT NULL DEFAULT '0',
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库资源信息表';
 
 -- ----------------------------
 -- Records of t_db
@@ -609,6 +634,10 @@ INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(130, 2, '12sSjal1/W9XKiabq/', 1, 1, '计划任务', '/machine/cron-job', 1689646396, '{"component":"ops/machine/cronjob/CronJobList","icon":"AlarmClock","isKeepAlive":true,"routeName":"CronJobList"}', 1, 'admin', 1, 'admin', '2023-07-18 10:13:16', '2023-07-18 10:14:06', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(134, 80, 'Mongo452/eggago31/3sblw1Wb/', 2, 1, '删除数据', 'mongo:data:del', 1692674964, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:24', '2023-08-22 11:29:24', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(133, 80, 'Mongo452/eggago31/xvpKk36u/', 2, 1, '保存数据', 'mongo:data:save', 1692674943, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:04', '2023-08-22 11:29:11', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (135, 36, 'dbms23ax/X0f4BxT0/', 1, 1, '数据库实例管理', 'instances', 1693040706, '{\"component\":\"ops/db/InstanceList\",\"icon\":\"Coin\",\"isKeepAlive\":true,\"routeName\":\"InstanceList\"}', 1, 'admin', 1, 'admin', '2023-08-26 09:05:07', '2023-08-29 22:35:11', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (136, 133, 'dbms23ax/X0f4BxT0/D23fUiBr/', 2, 1, '实例保存', 'instance:save', 1693041001, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:10:02', '2023-08-26 09:10:02', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (137, 133, 'dbms23ax/X0f4BxT0/mJlBeTCs/', 2, 1, '基本权限', 'instance', 1693041055, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:10:55', '2023-08-26 09:10:55', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (138, 133, 'dbms23ax/X0f4BxT0/Sgg8uPwz/', 2, 1, '实例删除', 'instance:del', 1693041084, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:11:24', '2023-08-26 09:11:24', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -830,7 +859,13 @@ INSERT INTO `t_sys_role_resource` (role_id,resource_id,creator_id,creator,create
      (1,128,1,'admin','2023-03-16 16:11:25', 0, NULL),
      (1,130,1,'admin','2023-03-16 16:11:25', 0, NULL),
      (1,131,1,'admin','2023-03-16 16:11:25', 0, NULL),
-     (1,132,1,'admin','2023-03-16 16:11:25', 0, NULL);
+     (1,132,1,'admin','2023-03-16 16:11:25', 0, NULL),
+     (1,133,1,'admin','2023-08-30 20:17:00', 0, NULL),
+     (1,134,1,'admin','2023-08-30 20:17:00', 0, NULL),
+     (1,135,1,'admin','2023-08-30 20:17:00', 0, NULL),
+     (1,136,1,'admin','2023-08-30 20:17:00', 0, NULL),
+     (1,137,1,'admin','2023-08-30 20:17:00', 0, NULL),
+     (1,138,1,'admin','2023-08-30 20:17:00', 0, NULL);
 COMMIT;
 
 -- ----------------------------

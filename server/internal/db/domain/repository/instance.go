@@ -11,7 +11,7 @@ type Instance interface {
 
 	Count(condition *entity.InstanceQuery) int64
 
-	// 根据条件获取账号信息
+	// 根据条件获取实例信息
 	GetInstance(condition *entity.Instance, cols ...string) error
 
 	// 根据id获取

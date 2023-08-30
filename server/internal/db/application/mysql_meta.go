@@ -13,7 +13,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-func getMysqlDB(d *entity.Db, db string) (*sql.DB, error) {
+func getMysqlDB(d *entity.Instance, db string) (*sql.DB, error) {
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
 		sshTunnelMachine := machineapp.GetMachineApp().GetSshTunnelMachine(d.SshTunnelMachineId)

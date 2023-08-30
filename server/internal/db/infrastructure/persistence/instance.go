@@ -39,7 +39,6 @@ func (d *instanceRepoImpl) GetById(id uint64, cols ...string) *entity.Instance {
 	instance := new(entity.Instance)
 	if err := gormx.GetById(instance, id, cols...); err != nil {
 		return nil
-
 	}
 	return instance
 }

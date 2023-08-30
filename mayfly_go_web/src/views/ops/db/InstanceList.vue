@@ -50,7 +50,7 @@
             </el-descriptions>
         </el-dialog>
 
-        <instance-edit @val-change="valChange" :title="instanceEditDialog.title" v-model:visible="instanceEditDialog.visible" v-model:db="instanceEditDialog.data"></instance-edit>
+        <instance-edit @val-change="valChange" :title="instanceEditDialog.title" v-model:visible="instanceEditDialog.visible" v-model:data="instanceEditDialog.data"></instance-edit>
     </div>
 </template>
 
@@ -167,7 +167,7 @@ const valChange = () => {
 
 const deleteInstance = async () => {
     try {
-        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】实例?`, '提示', {
+        await ElMessageBox.confirm(`确定删除数据库实例【${state.selectionData.map((x: any) => x.name).join(', ')}】?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
