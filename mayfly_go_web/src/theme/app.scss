@@ -345,3 +345,15 @@ body,
 .f12 {
     font-size: 12px
 }
+
+.pointer {
+    cursor: pointer;
+}
+
+.pointer-icon {
+    cursor: pointer;
+    transition: color 0.3s;
+}
+.pointer-icon:hover {
+    color: var(--color-primary); /* 鼠标移动到图标时的颜色 */
+}

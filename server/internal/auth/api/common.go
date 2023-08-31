@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"mayfly-go/internal/auth/config"
 	msgapp "mayfly-go/internal/msg/application"
 	msgentity "mayfly-go/internal/msg/domain/entity"
 	sysapp "mayfly-go/internal/sys/application"
@@ -24,7 +25,7 @@ const (
 )
 
 // 最后的登录校验（共用）。校验通过返回登录成功响应结果map
-func LastLoginCheck(account *sysentity.Account, accountLoginSecurity *sysentity.AccountLoginSecurity, loginIp string) map[string]any {
+func LastLoginCheck(account *sysentity.Account, accountLoginSecurity *config.AccountLoginSecurity, loginIp string) map[string]any {
 	biz.IsTrue(account.IsEnable(), "该账号不可用")
 	username := account.Username
 

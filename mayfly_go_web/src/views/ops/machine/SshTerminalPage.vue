@@ -1,25 +1,18 @@
 <template>
-    <div>
-        <ssh-terminal ref="terminal" :machineId="machineId" :height="height + 'px'" />
+    <div class="terminal-wrapper">
+        <TerminalBody :socket-url="getMachineTerminalSocketUrl(route.query.id)" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import SshTerminal from './SshTerminal.vue';
-import { reactive, toRefs, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import TerminalBody from '@/components/terminal/TerminalBody.vue';
+import { getMachineTerminalSocketUrl } from './api';
 
 const route = useRoute();
-const state = reactive({
-    machineId: 0,
-    height: 0,
-});
-
-const { machineId, height } = toRefs(state);
-
-onMounted(() => {
-    state.height = window.innerHeight + 5;
-    state.machineId = Number.parseInt(route.query.id as string);
-});
 </script>
-<style lang="scss"></style>
+<style lang="scss">
+.terminal-wrapper {
+    height: calc(100vh);
+}
+</style>

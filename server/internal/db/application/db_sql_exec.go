@@ -3,10 +3,9 @@ package application
 import (
 	"encoding/json"
 	"fmt"
+	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
-	sysapp "mayfly-go/internal/sys/application"
-	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
 	"strconv"
@@ -90,7 +89,7 @@ func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error)
 		isSelect := strings.HasPrefix(lowerSql, "select")
 		if isSelect {
 			// 如果配置为0，则不校验分页参数
-			maxCount := sysapp.GetConfigApp().GetConfig(sysentity.ConfigKeyDbQueryMaxCount).IntValue(200)
+			maxCount := config.GetDbQueryMaxCount()
 			if maxCount != 0 {
 				biz.IsTrue(strings.Contains(lowerSql, "limit"), "请完善分页信息后执行")
 			}
@@ -140,7 +139,7 @@ func (d *dbSqlExecAppImpl) saveSqlExecLog(isQuery bool, dbSqlExecRecord *entity.
 		d.dbSqlExecRepo.Insert(dbSqlExecRecord)
 		return
 	}
-	if sysapp.GetConfigApp().GetConfig(sysentity.ConfigKeyDbSaveQuerySQL).BoolValue(false) {
+	if config.GetDbSaveQuerySql() {
 		dbSqlExecRecord.Table = "-"
 		dbSqlExecRecord.OldValue = "-"
 		dbSqlExecRecord.Type = entity.DbSqlExecTypeQuery
@@ -161,7 +160,7 @@ func doSelect(selectStmt *sqlparser.Select, execSqlReq *DbSqlExecReq) (*DbSqlExe
 	if selectExprsStr == "*" || strings.Contains(selectExprsStr, ".*") ||
 		len(strings.Split(selectExprsStr, ",")) > 1 {
 		// 如果配置为0，则不校验分页参数
-		maxCount := sysapp.GetConfigApp().GetConfig(sysentity.ConfigKeyDbQueryMaxCount).IntValue(200)
+		maxCount := config.GetDbQueryMaxCount()
 		if maxCount != 0 {
 			limit := selectStmt.Limit
 			biz.NotNil(limit, "请完善分页信息后执行")

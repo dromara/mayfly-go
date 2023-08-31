@@ -12,20 +12,17 @@ import (
 
 func Init(router *gin.RouterGroup) {
 	accountLogin := &api.AccountLogin{
-		ConfigApp:  sysapp.GetConfigApp(),
 		AccountApp: sysapp.GetAccountApp(),
 		MsgApp:     msgapp.GetMsgApp(),
 	}
 
 	ldapLogin := &api.LdapLogin{
-		ConfigApp:  sysapp.GetConfigApp(),
 		AccountApp: sysapp.GetAccountApp(),
 		MsgApp:     msgapp.GetMsgApp(),
 	}
 
 	oauth2Login := &api.Oauth2Login{
 		Oauth2App:  application.GetAuthApp(),
-		ConfigApp:  sysapp.GetConfigApp(),
 		AccountApp: sysapp.GetAccountApp(),
 		MsgApp:     msgapp.GetMsgApp(),
 	}
@@ -44,6 +41,8 @@ func Init(router *gin.RouterGroup) {
 		req.NewPost("/accounts/otp-verify", accountLogin.OtpVerify).DontNeedToken(),
 
 		/*--------oauth2登录相关----------*/
+
+		req.NewGet("/oauth2-config", oauth2Login.Oauth2Config).DontNeedToken(),
 
 		// oauth2登录
 		req.NewGet("/oauth2/login", oauth2Login.OAuth2Login).DontNeedToken(),

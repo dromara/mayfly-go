@@ -1,4 +1,6 @@
 import Api from '@/common/Api';
+import config from '@/common/config';
+import { getSession } from '@/common/utils/storage';
 
 export const machineApi = {
     // 获取权限列表
@@ -56,3 +58,7 @@ export const cronJobApi = {
     delete: Api.newDelete('/machine-cronjobs/{id}'),
     execList: Api.newGet('/machine-cronjobs/execs'),
 };
+
+export function getMachineTerminalSocketUrl(machineId: any) {
+    return `${config.baseWsUrl}/machines/${machineId}/terminal?token=${getSession('token')}`;
+}

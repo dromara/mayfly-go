@@ -32,7 +32,7 @@ FROM alpine:3.16
 RUN apk add --no-cache ca-certificates bash expat
 
 ENV TZ=Asia/Shanghai
-RUN ln -snf /usr/share/zoneinfo/\$TZ /etc/localtime && echo \$TZ > /etc/timezone
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 WORKDIR /mayfly
 

@@ -8,6 +8,8 @@
             :show-close="true"
             :before-close="handleClose"
             width="55%"
+            draggable
+            append-to-body
         >
             <page-table
                 ref="pageTableRef"
@@ -89,8 +91,10 @@
             :close-on-click-modal="false"
             :modal="false"
             @close="closeTermnial"
+            draggable
+            append-to-body
         >
-            <ssh-terminal ref="terminal" :cmd="terminalDialog.cmd" :machineId="terminalDialog.machineId" height="560px" />
+            <TerminalBody ref="terminal" :cmd="terminalDialog.cmd" :socket-url="getMachineTerminalSocketUrl(terminalDialog.machineId)" height="560px" />
         </el-dialog>
 
         <script-edit
@@ -107,8 +111,8 @@
 <script lang="ts" setup>
 import { ref, toRefs, reactive, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import SshTerminal from './SshTerminal.vue';
-import { machineApi } from './api';
+import TerminalBody from '@/components/terminal/TerminalBody.vue';
+import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { ScriptResultEnum, ScriptTypeEnum } from './enums';
 import ScriptEdit from './ScriptEdit.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -313,4 +317,4 @@ const handleClose = () => {
     state.scriptParamsDialog.paramsFormItem = [];
 };
 </script>
-<style lang="sass"></style>
+<style lang="scss"></style>

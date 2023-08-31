@@ -166,7 +166,7 @@ func (ts *TerminalSession) receiveWsMsg() {
 			case Data:
 				_, err := ts.terminal.Write([]byte(msgObj.Msg))
 				if err != nil {
-					global.Log.Debug("机器ssh终端写入消息失败: %s", err)
+					global.Log.Debugf("机器ssh终端写入消息失败: %s", err)
 				}
 			case Ping:
 				_, err := ts.terminal.SshSession.SendRequest("ping", true, nil)

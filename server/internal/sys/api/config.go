@@ -41,12 +41,3 @@ func (c *Config) SaveConfig(rc *req.Ctx) {
 	config.SetBaseInfo(rc.LoginAccount)
 	c.ConfigApp.Save(config)
 }
-
-// 获取oauth2登录配置信息，因为有些字段是敏感字段，故单独使用接口获取
-func (c *Config) Oauth2Config(rc *req.Ctx) {
-	oauth2LoginConfig := c.ConfigApp.GetConfig(entity.ConfigKeyOauth2Login).ToOauth2Login()
-	rc.ResData = map[string]any{
-		"enable": oauth2LoginConfig.Enable,
-		"name":   oauth2LoginConfig.Name,
-	}
-}

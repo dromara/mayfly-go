@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mayfly-go/internal/auth/api/form"
+	"mayfly-go/internal/auth/config"
 	"mayfly-go/internal/common/utils"
 	msgapp "mayfly-go/internal/msg/application"
 	sysapp "mayfly-go/internal/sys/application"
@@ -22,7 +23,6 @@ import (
 type AccountLogin struct {
 	AccountApp sysapp.Account
 	MsgApp     msgapp.Msg
-	ConfigApp  sysapp.Config
 }
 
 /**   用户账号密码登录   **/
@@ -31,7 +31,7 @@ type AccountLogin struct {
 func (a *AccountLogin) Login(rc *req.Ctx) {
 	loginForm := ginx.BindJsonAndValid(rc.GinCtx, new(form.LoginForm))
 
-	accountLoginSecurity := a.ConfigApp.GetConfig(sysentity.ConfigKeyAccountLoginSecurity).ToAccountLoginSecurity()
+	accountLoginSecurity := config.GetAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验
 	if accountLoginSecurity.UseCaptcha {
 		// 校验验证码

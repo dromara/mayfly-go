@@ -54,7 +54,10 @@
 
             <template #action="{ data }">
                 <span v-auth="'machine:terminal'">
-                    <el-button :disabled="data.status == -1" type="primary" @click="showTerminal(data)" link>终端</el-button>
+                    <el-tooltip effect="customized" content="按住ctrl则为新标签打开" placement="top">
+                        <el-button :disabled="data.status == -1" type="primary" @click="showTerminal(data, $event)" link>终端</el-button>
+                    </el-tooltip>
+
                     <el-divider direction="vertical" border-style="dashed" />
                 </span>
 
@@ -126,6 +129,16 @@
             </el-descriptions>
         </el-dialog>
 
+        <terminal-dialog ref="terminalDialogRef" :visibleMinimize="true">
+            <template #headerTitle="{ terminalInfo }">
+                {{ `${(terminalInfo.terminalId + '').slice(-2)}` }}
+                <el-divider direction="vertical" />
+                {{ `${terminalInfo.meta.username}@${terminalInfo.meta.ip}:${terminalInfo.meta.port}` }}
+                <el-divider direction="vertical" />
+                {{ terminalInfo.meta.name }}
+            </template>
+        </terminal-dialog>
+
         <machine-edit
             :title="machineEditDialog.title"
             v-model:visible="machineEditDialog.visible"
@@ -146,10 +159,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { machineApi } from './api';
+import { machineApi, getMachineTerminalSocketUrl } from './api';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -157,6 +170,7 @@ import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 
 // 组件
+const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
 const MachineEdit = defineAsyncComponent(() => import('./MachineEdit.vue'));
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
 const FileManage = defineAsyncComponent(() => import('./FileManage.vue'));
@@ -166,6 +180,7 @@ const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
 
 const router = useRouter();
 const pageTableRef: any = ref(null);
+const terminalDialogRef: any = ref(null);
 
 const perms = {
     addMachine: 'machine:add',
@@ -180,12 +195,13 @@ const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect'), Tabl
 const columns = ref([
     TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
     TableColumn.new('name', '名称'),
-    TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(35),
+    TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(45),
     TableColumn.new('username', '用户名'),
     TableColumn.new('status', '状态').isSlot().setMinWidth(85),
     TableColumn.new('remark', '备注'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(238).fixedRight().alignCenter(),
 ]);
+
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
 const actionBtns = hasPerms([perms.updateMachine, perms.closeCli]);
 
@@ -275,15 +291,28 @@ const handleCommand = (commond: any) => {
     }
 };
 
-const showTerminal = (row: any) => {
-    const { href } = router.resolve({
-        path: `/machine/terminal`,
-        query: {
-            id: row.id,
-            name: row.name,
-        },
+const showTerminal = (row: any, event: PointerEvent) => {
+    // 按住ctrl点击，则新建标签页打开, metaKey对应mac command键
+    if (event.ctrlKey || event.metaKey) {
+        const { href } = router.resolve({
+            path: `/machine/terminal`,
+            query: {
+                id: row.id,
+                name: row.name,
+            },
+        });
+        window.open(href, '_blank');
+        return;
+    }
+
+    const terminalId = Date.now();
+    terminalDialogRef.value.open({
+        terminalId,
+        socketUrl: getMachineTerminalSocketUrl(row.id),
+        minTitle: `${row.name} [${(terminalId + '').slice(-2)}]`, // 截取terminalId最后两位区分多个terminal
+        minDesc: `${row.username}@${row.ip}:${row.port} (${row.name})`,
+        meta: row,
     });
-    window.open(href, '_blank');
 };
 
 const closeCli = async (row: any) => {

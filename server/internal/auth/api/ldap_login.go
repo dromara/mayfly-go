@@ -3,10 +3,8 @@ package api
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/go-ldap/ldap/v3"
-	"github.com/pkg/errors"
-	"gorm.io/gorm"
 	"mayfly-go/internal/auth/api/form"
+	"mayfly-go/internal/auth/config"
 	msgapp "mayfly-go/internal/msg/application"
 	sysapp "mayfly-go/internal/sys/application"
 	sysentity "mayfly-go/internal/sys/domain/entity"
@@ -19,17 +17,20 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/go-ldap/ldap/v3"
+	"github.com/pkg/errors"
+	"gorm.io/gorm"
 )
 
 type LdapLogin struct {
 	AccountApp sysapp.Account
 	MsgApp     msgapp.Msg
-	ConfigApp  sysapp.Config
 }
 
 // @router /auth/ldap/enabled [get]
 func (a *LdapLogin) GetLdapEnabled(rc *req.Ctx) {
-	ldapLoginConfig := a.ConfigApp.GetConfig(sysentity.ConfigKeyLdapLogin).ToLdapLogin()
+	ldapLoginConfig := config.GetLdapLogin()
 	rc.ResData = ldapLoginConfig.Enable
 }
 
@@ -37,7 +38,7 @@ func (a *LdapLogin) GetLdapEnabled(rc *req.Ctx) {
 func (a *LdapLogin) Login(rc *req.Ctx) {
 	loginForm := ginx.BindJsonAndValid(rc.GinCtx, new(form.LoginForm))
 
-	accountLoginSecurity := a.ConfigApp.GetConfig(sysentity.ConfigKeyAccountLoginSecurity).ToAccountLoginSecurity()
+	accountLoginSecurity := config.GetAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验
 	if accountLoginSecurity.UseCaptcha {
 		// 校验验证码
@@ -115,7 +116,7 @@ type UserInfo struct {
 
 // Authenticate 通过 LDAP 验证用户名密码
 func Authenticate(username, password string) (*UserInfo, error) {
-	ldapConf := sysapp.GetConfigApp().GetConfig(sysentity.ConfigKeyLdapLogin).ToLdapLogin()
+	ldapConf := config.GetLdapLogin()
 	if !ldapConf.Enable {
 		return nil, errors.Errorf("未启用 LDAP 登录")
 	}
@@ -163,7 +164,7 @@ func Authenticate(username, password string) (*UserInfo, error) {
 }
 
 // Connect 创建 LDAP 连接
-func Connect(ldapConf *sysentity.ConfigLdapLogin) (*ldap.Conn, error) {
+func Connect(ldapConf *config.LdapLogin) (*ldap.Conn, error) {
 	conn, err := dial(ldapConf)
 	if err != nil {
 		return nil, err
@@ -178,7 +179,7 @@ func Connect(ldapConf *sysentity.ConfigLdapLogin) (*ldap.Conn, error) {
 	return conn, nil
 }
 
-func dial(ldapConf *sysentity.ConfigLdapLogin) (*ldap.Conn, error) {
+func dial(ldapConf *config.LdapLogin) (*ldap.Conn, error) {
 	addr := fmt.Sprintf("%s:%s", ldapConf.Host, ldapConf.Port)
 	tlsConfig := &tls.Config{
 		ServerName:         ldapConf.Host,

@@ -11,7 +11,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.1.0",
     "asciinema-player": "^3.5.0",
-    "axios": "^1.4.0",
+    "axios": "^1.5.0",
     "countup.js": "^2.7.0",
     "cropperjs": "^1.5.11",
     "echarts": "^5.4.0",
@@ -32,7 +32,10 @@
     "vue-clipboard3": "^1.0.1",
     "vue-router": "^4.2.4",
     "xterm": "^5.2.1",
-    "xterm-addon-fit": "^0.7.0"
+    "xterm-addon-fit": "^0.7.0",
+    "xterm-addon-search": "^0.12.0",
+    "xterm-addon-web-links": "^0.8.0",
+    "xterm-addon-webgl": "^0.15.0"
   },
   "devDependencies": {
     "@types/lodash": "^4.14.178",
