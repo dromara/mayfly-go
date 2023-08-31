@@ -80,8 +80,8 @@
 
             <template #more="{ data }">
                 <el-button @click="showInfo(data)" link>详情</el-button>
-
                 <el-button class="ml5" type="primary" @click="onShowSqlExec(data)" link>SQL执行记录</el-button>
+                <el-button class="ml5" type="primary" @click="onDumpDbs(data)" link>导出</el-button>
             </template>
 
             <template #action="{ data }">
@@ -178,6 +178,26 @@
                     </template>
                 </el-table-column>
             </el-table>
+        </el-dialog>
+
+        <el-dialog width="601" :title="`${db} 数据库导出`" v-model="exportDialog.visible">
+            <el-form-item label="导出内容: ">
+                <el-radio-group v-model="dumpInfo.type">
+                    <el-radio :label="1" size="small">结构</el-radio>
+                    <el-radio :label="2" size="small">数据</el-radio>
+                    <el-radio :label="3" size="small">结构＋数据</el-radio>
+                </el-radio-group>
+            </el-form-item>
+
+            <el-form-item>
+                <el-transfer :titles="['全部数据库', '导出数据库']"  max-height="300" size="small" v-model="exportDialog.value" :data="exportDialog.data">
+                </el-transfer>
+            </el-form-item>
+
+            <div style="text-align: right">
+                <el-button @click="exportDialog.visible = false" size="small">取消</el-button>
+                <el-button @click="dumpDbs()" type="success" size="small">确定</el-button>
+            </div>
         </el-dialog>
 
         <el-dialog
@@ -313,7 +333,7 @@ const columns = ref([
     TableColumn.new('name', '名称'),
     TableColumn.new('database', '数据库').isSlot().setMinWidth(70),
     TableColumn.new('remark', '备注'),
-    TableColumn.new('more', '更多').isSlot().setMinWidth(165).fixedRight(),
+    TableColumn.new('more', '更多').isSlot().setMinWidth(200).fixedRight(),
 ]);
 
 // 该用户拥有的的操作列按钮权限
@@ -402,6 +422,13 @@ const state = reactive({
         tableNameSearch: '',
         tableCommentSearch: '',
     },
+    exportDialog: {
+        visible: false,
+        dbId: 0,
+        type: 3,
+        data: [],
+        value: [],
+    },
     columnDialog: {
         visible: false,
         columns: [],
@@ -456,6 +483,7 @@ const {
     rollbackSqlDialog,
     chooseTableName,
     tableInfoDialog,
+    exportDialog,
     columnDialog,
     indexDialog,
     ddlDialog,
@@ -611,6 +639,37 @@ const dump = (db: string) => {
     );
     a.click();
     state.showDumpInfo = false;
+};
+
+const onDumpDbs = async (row: any) => {
+    const dbs = row.database.split(' ');
+    const data = []
+    for (let name of dbs) {
+        data.push({
+            key: name,
+            label: name,
+        })
+    }
+    state.exportDialog.value = []
+    state.exportDialog.data = data
+    state.exportDialog.dbId = row.id;
+    state.exportDialog.visible = true;
+};
+
+/**
+ * 数据库信息导出
+ */
+const dumpDbs = () => {
+    isTrue(state.exportDialog.value.length > 0, '请添加要导出的数据库');
+    const a = document.createElement('a');
+    a.setAttribute(
+        'href',
+        `${config.baseApiUrl}/dbs/${state.exportDialog.dbId}/dump?db=${state.exportDialog.value.join(',')}&type=${state.exportDialog.type}&token=${getSession(
+            'token'
+        )}`
+    );
+    a.click();
+    state.exportDialog.visible = false;
 };
 
 const onShowRollbackSql = async (sqlExecLog: any) => {
