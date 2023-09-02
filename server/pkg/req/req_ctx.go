@@ -26,7 +26,9 @@ type Ctx struct {
 
 func (rc *Ctx) Handle(handler HandlerFunc) {
 	ginCtx := rc.GinCtx
+	begin := time.Now()
 	defer func() {
+		rc.timed = time.Since(begin).Milliseconds()
 		if err := recover(); err != nil {
 			rc.Err = err
 			ginx.ErrorRes(ginCtx, err)
@@ -47,7 +49,6 @@ func (rc *Ctx) Handle(handler HandlerFunc) {
 		panic(err)
 	}
 
-	begin := time.Now()
 	handler(rc)
 	rc.timed = time.Since(begin).Milliseconds()
 	if rc.Conf == nil || !rc.Conf.noRes {

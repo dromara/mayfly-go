@@ -9,7 +9,7 @@ import (
 	"mayfly-go/internal/machine/infrastructure/machine"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/structx"
@@ -201,7 +201,7 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	DB, err := GetDbConn(d, db)
 	if err != nil {
 		dbi.Close()
-		global.Log.Errorf("连接db失败: %s:%d/%s", d.Host, d.Port, db)
+		logx.Errorf("连接db失败: %s:%d/%s", d.Host, d.Port, db)
 		panic(biz.NewBizErr(fmt.Sprintf("数据库连接失败: %s", err.Error())))
 	}
 
@@ -213,7 +213,7 @@ func (da *dbAppImpl) GetDbInstance(id uint64, db string) *DbInstance {
 	DB.SetMaxIdleConns(1)
 
 	dbi.db = DB
-	global.Log.Infof("连接db: %s:%d/%s", d.Host, d.Port, db)
+	logx.Infof("连接db: %s:%d/%s", d.Host, d.Port, db)
 	if needCache {
 		dbCache.Put(cacheKey, dbi)
 	}
@@ -285,7 +285,7 @@ func (di *DbInstance) GetMeta() DbMetadata {
 func (d *DbInstance) Close() {
 	if d.db != nil {
 		if err := d.db.Close(); err != nil {
-			global.Log.Errorf("关闭数据库实例[%s]连接失败: %s", d.Id, err.Error())
+			logx.Errorf("关闭数据库实例[%s]连接失败: %s", d.Id, err.Error())
 		}
 		d.db = nil
 	}
@@ -297,7 +297,7 @@ func (d *DbInstance) Close() {
 var dbCache = cache.NewTimedCache(consts.DbConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key any, value any) {
-		global.Log.Info(fmt.Sprintf("删除db连接缓存 id = %s", key))
+		logx.Info(fmt.Sprintf("删除db连接缓存 id = %s", key))
 		value.(*DbInstance).Close()
 	})
 

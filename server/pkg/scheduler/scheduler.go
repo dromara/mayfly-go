@@ -2,7 +2,7 @@ package scheduler
 
 import (
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"sync"
 
 	"github.com/robfig/cron/v3"
@@ -32,7 +32,7 @@ func Remove(id cron.EntryID) {
 
 // 根据任务key移除
 func RemoveByKey(key string) {
-	global.Log.Debugf("移除cron任务 => [key = %s]", key)
+	logx.Debugf("移除cron任务 => [key = %s]", key)
 	id, ok := key2IdMap.Load(key)
 	if ok {
 		Remove(id.(cron.EntryID))
@@ -53,7 +53,7 @@ func AddFun(spec string, cmd func()) cron.EntryID {
 
 // 根据key添加定时任务
 func AddFunByKey(key, spec string, cmd func()) {
-	global.Log.Debugf("添加cron任务 => [key = %s]", key)
+	logx.Debugf("添加cron任务 => [key = %s]", key)
 	RemoveByKey(key)
 	key2IdMap.Store(key, AddFun(spec, cmd))
 }

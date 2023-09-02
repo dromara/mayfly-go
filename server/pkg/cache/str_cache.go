@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/rediscli"
 	"strconv"
 	"time"
@@ -33,7 +33,7 @@ func GetInt(key string) int {
 		return 0
 	}
 	if intV, err := strconv.Atoi(val); err != nil {
-		global.Log.Error("获取缓存中的int值转换失败", err)
+		logx.Error("获取缓存中的int值转换失败", err)
 		return 0
 	} else {
 		return intV

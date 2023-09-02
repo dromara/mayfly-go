@@ -1,7 +1,7 @@
 package netx
 
 import (
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"net"
 
 	"github.com/lionsoul2014/ip2region/binding/golang/xdb"
@@ -43,7 +43,7 @@ func Ip2Region(ip string) string {
 		vIndex, err := xdb.LoadVectorIndexFromFile(ip2RegionDbPath)
 		// 第一次加载失败，则默认调整为不使用ip2Region
 		if err != nil {
-			global.Log.Errorf("failed to load ip2region vector index from `%s`: %s\n", ip2RegionDbPath, err)
+			logx.Errorf("failed to load ip2region vector index from `%s`: %s\n", ip2RegionDbPath, err)
 			useIp2Region = false
 			return ""
 		}
@@ -54,7 +54,7 @@ func Ip2Region(ip string) string {
 	// 2、用全局的 vIndex 创建带 VectorIndex 缓存的查询对象。
 	searcher, err := xdb.NewWithVectorIndex(ip2RegionDbPath, vectorIndex)
 	if err != nil {
-		global.Log.Errorf("failed to create searcher with vector index: %s\n", err)
+		logx.Errorf("failed to create searcher with vector index: %s\n", err)
 		return ""
 	}
 
@@ -63,7 +63,7 @@ func Ip2Region(ip string) string {
 	// do the search
 	region, err := searcher.SearchByStr(ip)
 	if err != nil {
-		global.Log.Warnf("failed to SearchIP(%s): %s\n", ip, err)
+		logx.Warnf("failed to SearchIP(%s): %s\n", ip, err)
 		return ""
 	}
 	return region

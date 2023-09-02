@@ -21,7 +21,6 @@ require (
 	github.com/pquerna/otp v1.4.0
 	github.com/redis/go-redis/v9 v9.1.0
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务
-	github.com/sirupsen/logrus v1.9.3
 	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
 	go.mongodb.org/mongo-driver v1.12.1 // mongo
 	golang.org/x/crypto v0.12.0 // ssh

@@ -32,7 +32,7 @@ func PwdAesEncrypt(password string) string {
 		return ""
 	}
 	aes := config.Conf.Aes
-	if aes == nil {
+	if aes.Key == "" {
 		return password
 	}
 	encryptPwd, err := aes.EncryptBase64([]byte(password))
@@ -46,7 +46,7 @@ func PwdAesDecrypt(encryptPwd string) string {
 		return ""
 	}
 	aes := config.Conf.Aes
-	if aes == nil {
+	if aes.Key == "" {
 		return encryptPwd
 	}
 	decryptPwd, err := aes.DecryptBase64(encryptPwd)

@@ -2,7 +2,7 @@ package jsonx
 
 import (
 	"encoding/json"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"strings"
 
 	"github.com/buger/jsonparser"
@@ -18,7 +18,7 @@ func ToMapByBytes(bytes []byte) map[string]any {
 	var res map[string]any
 	err := json.Unmarshal(bytes, &res)
 	if err != nil {
-		global.Log.Errorf("json字符串转map失败: %s", err.Error())
+		logx.Errorf("json字符串转map失败: %s", err.Error())
 	}
 	return res
 }
@@ -26,7 +26,7 @@ func ToMapByBytes(bytes []byte) map[string]any {
 // 转换为json字符串
 func ToStr(val any) string {
 	if strBytes, err := json.Marshal(val); err != nil {
-		global.Log.Error("toJsonStr error: ", err)
+		logx.ErrorTrace("toJsonStr error: ", err)
 		return ""
 	} else {
 		return string(strBytes)

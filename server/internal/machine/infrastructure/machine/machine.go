@@ -7,7 +7,7 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"net"
 	"time"
 
@@ -72,7 +72,7 @@ func (c *Cli) connect() error {
 // 关闭client并从缓存中移除，如果使用隧道则也关闭
 func (c *Cli) Close() {
 	m := c.machine
-	global.Log.Info(fmt.Sprintf("关闭机器客户端连接-> id: %d, name: %s, ip: %s", m.Id, m.Name, m.Ip))
+	logx.Info(fmt.Sprintf("关闭机器客户端连接-> id: %d, name: %s, ip: %s", m.Id, m.Name, m.Ip))
 	if c.client != nil {
 		c.client.Close()
 		c.client = nil
@@ -173,25 +173,24 @@ func DeleteCli(id uint64) {
 
 // 从缓存中获取客户端信息，不存在则回调获取机器信息函数，并新建
 func GetCli(machineId uint64, getMachine func(uint64) *Info) (*Cli, error) {
-	cli, err := cliCache.ComputeIfAbsent(machineId, func(_ any) (any, error) {
-		me := getMachine(machineId)
-		err := IfUseSshTunnelChangeIpPort(me, getMachine)
-		if err != nil {
-			return nil, fmt.Errorf("ssh隧道连接失败: %s", err.Error())
-		}
-		c, err := newClient(me)
-		if err != nil {
-			CloseSshTunnelMachine(me.SshTunnelMachineId, me.Id)
-			return nil, err
-		}
-		c.sshTunnelMachineId = me.SshTunnelMachineId
-		return c, nil
-	})
-
-	if cli != nil {
-		return cli.(*Cli), err
+	if load, ok := cliCache.Get(machineId); ok {
+		return load.(*Cli), nil
 	}
-	return nil, err
+
+	me := getMachine(machineId)
+	err := IfUseSshTunnelChangeIpPort(me, getMachine)
+	if err != nil {
+		return nil, fmt.Errorf("ssh隧道连接失败: %s", err.Error())
+	}
+	c, err := newClient(me)
+	if err != nil {
+		CloseSshTunnelMachine(me.SshTunnelMachineId, me.Id)
+		return nil, err
+	}
+	c.sshTunnelMachineId = me.SshTunnelMachineId
+
+	cliCache.Put(machineId, c)
+	return c, nil
 }
 
 // 测试连接，使用传值的方式，而非引用。因为如果使用了ssh隧道，则ip和端口会变为本地映射地址与端口
@@ -276,7 +275,7 @@ func newClient(machine *Info) (*Cli, error) {
 		return nil, errors.New("机器不存在")
 	}
 
-	global.Log.Infof("[%s]机器连接：%s:%d", machine.Name, machine.Ip, machine.Port)
+	logx.Infof("[%s]机器连接：%s:%d", machine.Name, machine.Ip, machine.Port)
 	cli := new(Cli)
 	cli.machine = machine
 	err := cli.connect()

@@ -10,7 +10,7 @@ import (
 	"mayfly-go/internal/redis/domain/repository"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/netx"
 	"mayfly-go/pkg/utils/structx"
@@ -163,7 +163,7 @@ func (r *redisAppImpl) GetRedisInstance(id uint64, db int) *RedisInstance {
 		}
 	}
 
-	global.Log.Infof("连接redis: %s", re.Host)
+	logx.Infof("连接redis: %s", re.Host)
 	if needCache {
 		redisCache.Put(getRedisCacheKey(id, db), ri)
 	}
@@ -257,7 +257,7 @@ func getRedisDialer(machineId int) func(ctx context.Context, network, addr strin
 var redisCache = cache.NewTimedCache(consts.RedisConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key any, value any) {
-		global.Log.Info(fmt.Sprintf("删除redis连接缓存 id = %s", key))
+		logx.Info(fmt.Sprintf("删除redis连接缓存 id = %s", key))
 		value.(*RedisInstance).Close()
 	})
 
@@ -350,13 +350,13 @@ func (r *RedisInstance) Close() {
 	mode := r.Info.Mode
 	if mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
 		if err := r.Cli.Close(); err != nil {
-			global.Log.Errorf("关闭redis单机实例[%s]连接失败: %s", r.Id, err.Error())
+			logx.Errorf("关闭redis单机实例[%s]连接失败: %s", r.Id, err.Error())
 		}
 		r.Cli = nil
 	}
 	if mode == entity.RedisModeCluster {
 		if err := r.ClusterCli.Close(); err != nil {
-			global.Log.Errorf("关闭redis集群实例[%s]连接失败: %s", r.Id, err.Error())
+			logx.Errorf("关闭redis集群实例[%s]连接失败: %s", r.Id, err.Error())
 		}
 		r.ClusterCli = nil
 	}

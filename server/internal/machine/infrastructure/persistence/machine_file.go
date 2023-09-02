@@ -40,9 +40,9 @@ func (m *machineFileRepoImpl) Delete(id uint64) {
 }
 
 func (m *machineFileRepoImpl) Create(entity *entity.MachineFile) {
-	gormx.Insert(entity)
+	biz.ErrIsNil(gormx.Insert(entity), "新增机器文件配置失败")
 }
 
 func (m *machineFileRepoImpl) UpdateById(entity *entity.MachineFile) {
-	gormx.UpdateById(entity)
+	biz.ErrIsNil(gormx.UpdateById(entity), "更新机器文件失败")
 }

@@ -3,7 +3,7 @@ package machine
 import (
 	"fmt"
 	"io"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/netx"
 	"net"
@@ -29,7 +29,7 @@ var (
 type CheckSshTunnelMachineHasUseFunc func(int) bool
 
 func startCheckUse() {
-	global.Log.Info("开启定时检测ssh隧道机器是否还有被使用")
+	logx.Info("开启定时检测ssh隧道机器是否还有被使用")
 	// 每十分钟检查一次隧道机器是否还有被使用
 	scheduler.AddFun("@every 10m", func() {
 		if !mutex.TryLock() {
@@ -38,7 +38,7 @@ func startCheckUse() {
 		defer mutex.Unlock()
 		// 遍历隧道机器，都未被使用将会被关闭
 		for mid, sshTunnelMachine := range sshTunnelMachines {
-			global.Log.Debugf("开始定时检查ssh隧道机器[%d]是否还有被使用...", mid)
+			logx.Debugf("开始定时检查ssh隧道机器[%d]是否还有被使用...", mid)
 			hasUse := false
 			for _, checkUseFunc := range checkSshTunnelMachineHasUseFuncs {
 				// 如果一个在使用则返回不关闭，不继续后续检查
@@ -126,10 +126,10 @@ func (stm *SshTunnelMachine) Close() {
 	}
 
 	if stm.SshClient != nil {
-		global.Log.Infof("ssh隧道机器[%d]未被使用, 关闭隧道...", stm.machineId)
+		logx.Infof("ssh隧道机器[%d]未被使用, 关闭隧道...", stm.machineId)
 		err := stm.SshClient.Close()
 		if err != nil {
-			global.Log.Errorf("关闭ssh隧道机器[%d]发生错误: %s", stm.machineId, err.Error())
+			logx.Errorf("关闭ssh隧道机器[%d]发生错误: %s", stm.machineId, err.Error())
 		}
 	}
 	delete(sshTunnelMachines, stm.machineId)
@@ -152,7 +152,7 @@ func GetSshTunnelMachine(machineId int, getMachine func(uint64) *Info) (*SshTunn
 	}
 	sshTunnelMachine = &SshTunnelMachine{SshClient: sshClient, machineId: machineId, tunnels: map[uint64]*Tunnel{}}
 
-	global.Log.Infof("初次连接ssh隧道机器[%d][%s:%d]", machineId, me.Ip, me.Port)
+	logx.Infof("初次连接ssh隧道机器[%d][%s:%d]", machineId, me.Ip, me.Port)
 	sshTunnelMachines[machineId] = sshTunnelMachine
 
 	// 如果实用了隧道机器且还没开始定时检查是否还被实用，则执行定时任务检测隧道是否还被使用
@@ -195,31 +195,31 @@ func (r *Tunnel) Open(sshClient *ssh.Client) {
 	localAddr := fmt.Sprintf("%s:%d", r.localHost, r.localPort)
 
 	for {
-		global.Log.Debugf("隧道 %v 等待客户端访问 %v", r.id, localAddr)
+		logx.Debugf("隧道 %v 等待客户端访问 %v", r.id, localAddr)
 		localConn, err := r.listener.Accept()
 		if err != nil {
-			global.Log.Debugf("隧道 %v 接受连接失败 %v, 退出循环", r.id, err.Error())
-			global.Log.Debug("-------------------------------------------------")
+			logx.Debugf("隧道 %v 接受连接失败 %v, 退出循环", r.id, err.Error())
+			logx.Debug("-------------------------------------------------")
 			return
 		}
 		r.localConnections = append(r.localConnections, localConn)
 
-		global.Log.Debugf("隧道 %v 新增本地连接 %v", r.id, localConn.RemoteAddr().String())
+		logx.Debugf("隧道 %v 新增本地连接 %v", r.id, localConn.RemoteAddr().String())
 		remoteAddr := fmt.Sprintf("%s:%d", r.remoteHost, r.remotePort)
-		global.Log.Debugf("隧道 %v 连接远程地址 %v ...", r.id, remoteAddr)
+		logx.Debugf("隧道 %v 连接远程地址 %v ...", r.id, remoteAddr)
 		remoteConn, err := sshClient.Dial("tcp", remoteAddr)
 		if err != nil {
-			global.Log.Debugf("隧道 %v 连接远程地址 %v, 退出循环", r.id, err.Error())
-			global.Log.Debug("-------------------------------------------------")
+			logx.Debugf("隧道 %v 连接远程地址 %v, 退出循环", r.id, err.Error())
+			logx.Debug("-------------------------------------------------")
 			return
 		}
 		r.remoteConnections = append(r.remoteConnections, remoteConn)
 
-		global.Log.Debugf("隧道 %v 连接远程主机成功", r.id)
+		logx.Debugf("隧道 %v 连接远程主机成功", r.id)
 		go copyConn(localConn, remoteConn)
 		go copyConn(remoteConn, localConn)
-		global.Log.Debugf("隧道 %v 开始转发数据 [%v]->[%v]", r.id, localAddr, remoteAddr)
-		global.Log.Debug("~~~~~~~~~~~~~~~~~~~~分割线~~~~~~~~~~~~~~~~~~~~~~~~")
+		logx.Debugf("隧道 %v 开始转发数据 [%v]->[%v]", r.id, localAddr, remoteAddr)
+		logx.Debug("~~~~~~~~~~~~~~~~~~~~分割线~~~~~~~~~~~~~~~~~~~~~~~~")
 	}
 }
 
@@ -233,7 +233,7 @@ func (r *Tunnel) Close() {
 	}
 	r.remoteConnections = nil
 	_ = r.listener.Close()
-	global.Log.Debugf("隧道 %d 监听器关闭", r.id)
+	logx.Debugf("隧道 %d 监听器关闭", r.id)
 }
 
 func copyConn(writer, reader net.Conn) {

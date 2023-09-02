@@ -1,7 +1,7 @@
 package validatorx
 
 import (
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"regexp"
 
 	"github.com/go-playground/validator/v10"
@@ -33,7 +33,7 @@ func RegisterPattern(patternName string, regexpStr string, errMsg string) {
 func patternValidFunc(f validator.FieldLevel) bool {
 	reg := regexpMap[f.Param()]
 	if reg == nil {
-		global.Log.Warnf("%s的正则校验规则不存在!", f.Param())
+		logx.Warnf("%s的正则校验规则不存在!", f.Param())
 		return false
 	}
 

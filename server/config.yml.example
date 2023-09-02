@@ -33,8 +33,12 @@ mysql:
 #   password: 111049
 #   db: 0
 log:
-   # 日志等级, trace, debug, info, warn, error, fatal
+   # 日志等级, debug, info, warn, error
   level: info
+  # 日志格式类型, text/json
+  type: text
+  # 是否记录方法调用栈信息
+  add-source: false
   # file:
   #   path: ./
   #   name: mayfly-go.log

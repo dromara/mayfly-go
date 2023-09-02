@@ -5,16 +5,13 @@ import (
 	"mayfly-go/migrations"
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/global"
-	"mayfly-go/pkg/logger"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/validatorx"
 )
 
 func RunWebServer() {
-	// 初始化config.yml配置文件映射信息
+	// 初始化config.yml配置文件映射信息或使用环境变量。并初始化系统日志相关配置
 	config.Init()
-
-	// 初始化日志配置信息
-	logger.Init()
 
 	// 打印banner
 	printBanner()
@@ -27,7 +24,7 @@ func RunWebServer() {
 
 	// 数据库升级操作
 	if err := migrations.RunMigrations(global.Db); err != nil {
-		global.Log.Fatalf("数据库升级失败: %v", err)
+		logx.Panicf("数据库升级失败: %v", err)
 	}
 
 	// 参数校验器初始化、如错误提示中文转译等

@@ -3,11 +3,10 @@ package req
 import (
 	"fmt"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/runtimex"
 	"mayfly-go/pkg/utils/stringx"
-
-	"github.com/sirupsen/logrus"
 )
 
 type SaveLogFunc func(*Ctx)
@@ -42,6 +41,8 @@ func (i *LogInfo) WithLogResp() *LogInfo {
 	return i
 }
 
+const DefaultLogFrames = 10
+
 func LogHandler(rc *Ctx) error {
 	if rc.Conf == nil || rc.Conf.logInfo == nil {
 		return nil
@@ -49,24 +50,54 @@ func LogHandler(rc *Ctx) error {
 
 	li := rc.Conf.logInfo
 
-	lfs := logrus.Fields{}
-	if la := rc.LoginAccount; la != nil {
-		lfs["uid"] = la.Id
-		lfs["uname"] = la.Username
-	}
+	attrMap := make(map[string]any, 0)
 
 	req := rc.GinCtx.Request
-	lfs[req.Method] = req.URL.Path
+	attrMap[req.Method] = req.URL.Path
+
+	if la := rc.LoginAccount; la != nil {
+		attrMap["uid"] = la.Id
+		attrMap["uname"] = la.Username
+	}
 
 	// 如果需要保存日志，并且保存日志处理函数存在则执行保存日志函数
 	if li.save && saveLog != nil {
 		go saveLog(rc)
 	}
+
+	logMsg := li.Description
+
+	if logx.GetConfig().IsJsonType() {
+		// json格式日志处理
+		attrMap["req"] = rc.ReqParam
+		if li.LogResp {
+			attrMap["resp"] = rc.ResData
+		}
+		attrMap["exeTime"] = rc.timed
+
+		if rc.Err != nil {
+			nFrames := DefaultLogFrames
+			if _, ok := rc.Err.(biz.BizError); ok {
+				nFrames = nFrames / 2
+			}
+			attrMap["error"] = rc.Err
+			// 跳过log_handler等相关堆栈
+			attrMap["stacktrace"] = runtimex.StatckStr(5, nFrames)
+		}
+	} else {
+		// 处理文本格式日志信息
+		if err := rc.Err; err != nil {
+			logMsg = getErrMsg(rc, err)
+		} else {
+			logMsg = getLogMsg(rc)
+		}
+	}
+
 	if err := rc.Err; err != nil {
-		global.Log.WithFields(lfs).Error(getErrMsg(rc, err))
+		logx.ErrorWithFields(logMsg, attrMap)
 		return nil
 	}
-	global.Log.WithFields(lfs).Info(getLogMsg(rc))
+	logx.InfoWithFields(logMsg, attrMap)
 	return nil
 }
 
@@ -85,19 +116,23 @@ func getLogMsg(rc *Ctx) string {
 }
 
 func getErrMsg(rc *Ctx, err any) string {
-	msg := rc.Conf.logInfo.Description
+	msg := rc.Conf.logInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
 	if !anyx.IsBlank(rc.ReqParam) {
 		msg = msg + fmt.Sprintf("\n--> %s", stringx.AnyToStr(rc.ReqParam))
 	}
 
+	nFrames := DefaultLogFrames
 	var errMsg string
 	switch t := err.(type) {
 	case biz.BizError:
-		errMsg = fmt.Sprintf("\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())
+		errMsg = fmt.Sprintf("\n<-e %s", t.String())
+		nFrames = nFrames / 2
 	case error:
 		errMsg = fmt.Sprintf("\n<-e errMsg: %s", t.Error())
 	case string:
 		errMsg = fmt.Sprintf("\n<-e errMsg: %s", t)
 	}
+	// 加上堆栈信息
+	errMsg += fmt.Sprintf("\n<-stacktrace: %s", runtimex.StatckStr(5, nFrames))
 	return (msg + errMsg)
 }

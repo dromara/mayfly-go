@@ -10,7 +10,7 @@ import (
 	"mayfly-go/internal/mongo/domain/repository"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/netx"
 	"mayfly-go/pkg/utils/structx"
@@ -104,7 +104,7 @@ func (d *mongoAppImpl) GetMongoInst(id uint64) *MongoInstance {
 var mongoCliCache = cache.NewTimedCache(consts.MongoConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key any, value any) {
-		global.Log.Info("删除mongo连接缓存: id = ", key)
+		logx.Info("删除mongo连接缓存: id = ", key)
 		value.(*MongoInstance).Close()
 	})
 
@@ -162,7 +162,7 @@ type MongoInstance struct {
 func (mi *MongoInstance) Close() {
 	if mi.Cli != nil {
 		if err := mi.Cli.Disconnect(context.Background()); err != nil {
-			global.Log.Errorf("关闭mongo实例[%d]连接失败: %s", mi.Id, err)
+			logx.Errorf("关闭mongo实例[%d]连接失败: %s", mi.Id, err)
 		}
 		mi.Cli = nil
 	}
@@ -192,7 +192,7 @@ func connect(me *entity.Mongo) (*MongoInstance, error) {
 		return nil, err
 	}
 
-	global.Log.Infof("连接mongo: %s", func(str string) string {
+	logx.Infof("连接mongo: %s", func(str string) string {
 		reg := regexp.MustCompile(`(^mongodb://.+?:)(.+)(@.+$)`)
 		return reg.ReplaceAllString(str, `${1}****${3}`)
 	}(me.Uri))

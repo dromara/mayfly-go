@@ -8,7 +8,6 @@ import (
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/internal/machine/infrastructure/machine"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"os"
 	"strings"
@@ -93,9 +92,9 @@ func (m *machineFileAppImpl) Save(entity *entity.MachineFile) {
 	biz.NotNil(m.machineRepo.GetById(entity.MachineId, "Name"), "该机器不存在")
 
 	if entity.Id != 0 {
-		gormx.UpdateById(entity)
+		m.machineFileRepo.UpdateById(entity)
 	} else {
-		gormx.Insert(entity)
+		m.machineFileRepo.Create(entity)
 	}
 }
 

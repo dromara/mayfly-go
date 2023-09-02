@@ -2,7 +2,7 @@ package rediscli
 
 import (
 	"context"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/stringx"
 	"time"
 
@@ -33,7 +33,7 @@ func NewLock(key string, expiration time.Duration) *RedisLock {
 func (rl *RedisLock) Lock() bool {
 	result, err := cli.SetNX(context.Background(), LockKeyPrefix+rl.key, rl.value, rl.expiration).Result()
 	if err != nil {
-		global.Log.Errorf("redis lock setNx fail: %s", err.Error())
+		logx.Errorf("redis lock setNx fail: %s", err.Error())
 		return false
 	}
 
@@ -65,7 +65,7 @@ func (rl *RedisLock) UnLock() bool {
 
 	result, err := script.Run(context.Background(), cli, []string{LockKeyPrefix + rl.key}, rl.value).Int64()
 	if err != nil {
-		global.Log.Errorf("redis unlock runScript fail: %s", err.Error())
+		logx.Errorf("redis unlock runScript fail: %s", err.Error())
 		return false
 	}
 
@@ -88,7 +88,7 @@ func (rl *RedisLock) RefreshLock() bool {
 
 	result, err := script.Run(context.Background(), cli, []string{LockKeyPrefix + rl.key}, rl.value, rl.expiration/time.Second).Int64()
 	if err != nil {
-		global.Log.Errorf("redis refreshLock runScript fail: %s", err.Error())
+		logx.Errorf("redis refreshLock runScript fail: %s", err.Error())
 		return false
 	}
 

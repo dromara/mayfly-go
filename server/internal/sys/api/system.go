@@ -2,7 +2,7 @@ package api
 
 import (
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/ws"
 
@@ -18,7 +18,7 @@ func (s *System) ConnectWs(g *gin.Context) {
 	wsConn, err := ws.Upgrader.Upgrade(g.Writer, g.Request, nil)
 	defer func() {
 		if err := recover(); err != nil {
-			global.Log.Error(err.(error).Error())
+			logx.ErrorTrace("websocket连接失败: ", err.(error))
 			if wsConn != nil {
 				wsConn.WriteMessage(websocket.TextMessage, []byte(err.(error).Error()))
 				wsConn.Close()

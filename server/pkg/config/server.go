@@ -1,6 +1,8 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Server struct {
 	Port           int            `yaml:"port"`
@@ -10,6 +12,18 @@ type Server struct {
 	Static         *[]*Static     `yaml:"static"`
 	StaticFile     *[]*StaticFile `yaml:"static-file"`
 	MachineRecPath string         `yaml:"machine-rec-path"` // 机器终端操作回放文件存储路径
+}
+
+func (s *Server) Default() {
+	if s.Model == "" {
+		s.Model = "release"
+	}
+	if s.Port == 0 {
+		s.Port = 8888
+	}
+	if s.MachineRecPath == "" {
+		s.MachineRecPath = "./rec"
+	}
 }
 
 func (s *Server) GetPort() string {

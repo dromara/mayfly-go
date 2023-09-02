@@ -1,5 +1,7 @@
 package biz
 
+import "fmt"
+
 // 业务错误
 type BizError struct {
 	code int16
@@ -21,6 +23,10 @@ func (e BizError) Error() string {
 // 错误码
 func (e BizError) Code() int16 {
 	return e.code
+}
+
+func (e BizError) String() string {
+	return fmt.Sprintf("errCode: %d, errMsg: %s", e.Code(), e.Error())
 }
 
 // 创建业务逻辑错误结构体，默认为业务逻辑错误

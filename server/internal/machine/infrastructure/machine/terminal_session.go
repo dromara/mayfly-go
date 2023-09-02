@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"time"
 	"unicode/utf8"
 
@@ -68,12 +68,12 @@ func (r TerminalSession) Start() {
 }
 
 func (r TerminalSession) Stop() {
-	global.Log.Debug("close machine ssh terminal session")
+	logx.Debug("close machine ssh terminal session")
 	r.tick.Stop()
 	r.cancel()
 	if r.terminal != nil {
 		if err := r.terminal.Close(); err != nil {
-			global.Log.Errorf("关闭机器ssh终端失败: %s", err.Error())
+			logx.Errorf("关闭机器ssh终端失败: %s", err.Error())
 		}
 	}
 }
@@ -87,7 +87,7 @@ func (ts TerminalSession) readFormTerminal() {
 			rn, size, err := ts.terminal.ReadRune()
 			if err != nil {
 				if err != io.EOF {
-					global.Log.Error("机器ssh终端读取消息失败: ", err)
+					logx.Error("机器ssh终端读取消息失败: ", err)
 				}
 				return
 			}
@@ -108,7 +108,7 @@ func (ts TerminalSession) writeToWebsocket() {
 			if len(buf) > 0 {
 				s := string(buf)
 				if err := WriteMessage(ts.wsConn, s); err != nil {
-					global.Log.Error("机器ssh终端发送消息至websocket失败: ", err)
+					logx.Error("机器ssh终端发送消息至websocket失败: ", err)
 					return
 				}
 				// 如果记录器存在，则记录操作回放信息
@@ -148,25 +148,25 @@ func (ts *TerminalSession) receiveWsMsg() {
 			// read websocket msg
 			_, wsData, err := wsConn.ReadMessage()
 			if err != nil {
-				global.Log.Debug("机器ssh终端读取websocket消息失败: ", err)
+				logx.Debugf("机器ssh终端读取websocket消息失败: %s", err.Error())
 				return
 			}
 			// 解析消息
 			msgObj := WsMsg{}
 			if err := json.Unmarshal(wsData, &msgObj); err != nil {
-				global.Log.Error("机器ssh终端消息解析失败: ", err)
+				logx.Error("机器ssh终端消息解析失败: ", err)
 			}
 			switch msgObj.Type {
 			case Resize:
 				if msgObj.Cols > 0 && msgObj.Rows > 0 {
 					if err := ts.terminal.WindowChange(msgObj.Rows, msgObj.Cols); err != nil {
-						global.Log.Error("ssh pty change windows size failed")
+						logx.Error("ssh pty change windows size failed")
 					}
 				}
 			case Data:
 				_, err := ts.terminal.Write([]byte(msgObj.Msg))
 				if err != nil {
-					global.Log.Debugf("机器ssh终端写入消息失败: %s", err)
+					logx.Debugf("机器ssh终端写入消息失败: %s", err)
 				}
 			case Ping:
 				_, err := ts.terminal.SshSession.SendRequest("ping", true, nil)

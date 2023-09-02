@@ -84,7 +84,7 @@ func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error)
 	stmt, err := sqlparser.Parse(sql)
 	if err != nil {
 		// 就算解析失败也执行sql，让数据库来判断错误。如果是查询sql则简单判断是否有limit分页参数信息（兼容pgsql）
-		// global.Log.Warnf("sqlparse解析sql[%s]失败: %s", sql, err.Error())
+		// logx.Warnf("sqlparse解析sql[%s]失败: %s", sql, err.Error())
 		lowerSql := strings.ToLower(execSqlReq.Sql)
 		isSelect := strings.HasPrefix(lowerSql, "select")
 		if isSelect {

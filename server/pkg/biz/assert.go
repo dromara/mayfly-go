@@ -2,7 +2,7 @@ package biz
 
 import (
 	"fmt"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 
 	"reflect"
@@ -10,13 +10,14 @@ import (
 
 func ErrIsNil(err error, msg string, params ...any) {
 	if err != nil {
-		global.Log.Error(msg + ": " + err.Error())
+		// logx.ErrorTrace(msg, err)
 		panic(NewBizErr(fmt.Sprintf(msg, params...)))
 	}
 }
 
 func ErrIsNilAppendErr(err error, msg string) {
 	if err != nil {
+		// logx.ErrorTrace(msg, err)
 		panic(NewBizErr(fmt.Sprintf(msg, err.Error())))
 	}
 }
@@ -26,7 +27,7 @@ func IsNil(err error) {
 	case *BizError:
 		panic(t)
 	case error:
-		global.Log.Error("非业务异常: " + err.Error())
+		logx.Error("非业务异常: " + err.Error())
 		panic(NewBizErr(fmt.Sprintf("非业务异常: %s", err.Error())))
 	}
 }

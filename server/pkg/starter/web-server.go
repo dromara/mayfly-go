@@ -4,11 +4,18 @@ import (
 	"mayfly-go/initialize"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/config"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
+
+	"github.com/gin-gonic/gin"
 )
 
 func runWebServer() {
+	// 设置gin日志输出器
+	logOut := logx.GetConfig().GetLogOut()
+	gin.DefaultErrorWriter = logOut
+	gin.DefaultWriter = logOut
+
 	// 权限处理器
 	req.UseBeforeHandlerInterceptor(req.PermissionHandler)
 	// 日志处理器
@@ -21,7 +28,7 @@ func runWebServer() {
 
 	server := config.Conf.Server
 	port := server.GetPort()
-	global.Log.Infof("Listening and serving HTTP on %s", port)
+	logx.Infof("Listening and serving HTTP on %s", port)
 
 	var err error
 	if server.Tls != nil && server.Tls.Enable {

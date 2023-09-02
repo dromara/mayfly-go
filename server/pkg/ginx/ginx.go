@@ -3,12 +3,11 @@ package ginx
 import (
 	"io"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/structx"
 	"mayfly-go/pkg/validatorx"
 	"net/http"
-	"runtime/debug"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -105,12 +104,10 @@ func ErrorRes(g *gin.Context, err any) {
 		g.JSON(http.StatusOK, model.Error(t))
 	case error:
 		g.JSON(http.StatusOK, model.ServerError())
-		global.Log.Errorf("%s\n%s", t.Error(), string(debug.Stack()))
 	case string:
 		g.JSON(http.StatusOK, model.ServerError())
-		global.Log.Errorf("%s\n%s", t, string(debug.Stack()))
 	default:
-		global.Log.Error(t)
+		logx.Error("未知错误", "errInfo", t)
 	}
 }
 

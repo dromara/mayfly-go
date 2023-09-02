@@ -3,13 +3,20 @@ package config
 import (
 	"flag"
 	"fmt"
-	"log/slog"
-	"mayfly-go/pkg/utils/assert"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/ymlx"
 	"os"
 	"path/filepath"
 	"strconv"
 )
+
+type ConfigItem interface {
+	// 验证配置
+	Valid()
+
+	// 如果不存在配置值，则设置默认值
+	Default()
+}
 
 // 配置文件映射对象
 var Conf *Config
@@ -23,14 +30,14 @@ func Init() {
 	// 读取配置文件信息
 	yc := &Config{}
 	if err := ymlx.LoadYml(startConfigParam.ConfigFilePath, yc); err != nil {
-		slog.Warn(fmt.Sprintf("读取配置文件[%s]失败: %s, 使用系统默认配置或环境变量配置", startConfigParam.ConfigFilePath, err.Error()))
-		// 设置默认信息，主要方便后续的系统环境变量替换
-		yc.SetDefaultConfig()
+		logx.Warn(fmt.Sprintf("读取配置文件[%s]失败: %s, 使用系统默认配置或环境变量配置", startConfigParam.ConfigFilePath, err.Error()))
 	}
-	// 校验配置文件内容信息
-	yc.Valid()
 	// 尝试使用系统环境变量替换配置信息
 	yc.ReplaceOsEnv()
+
+	yc.IfBlankDefaultValue()
+	// 校验配置文件内容信息
+	yc.Valid()
 	Conf = yc
 }
 
@@ -41,21 +48,34 @@ type CmdConfigParam struct {
 
 // yaml配置文件映射对象
 type Config struct {
-	Server *Server `yaml:"server"`
-	Jwt    *Jwt    `yaml:"jwt"`
-	Aes    *Aes    `yaml:"aes"`
-	Mysql  *Mysql  `yaml:"mysql"`
-	Redis  *Redis  `yaml:"redis"`
-	Log    *Log    `yaml:"log"`
+	Server Server `yaml:"server"`
+	Jwt    Jwt    `yaml:"jwt"`
+	Aes    Aes    `yaml:"aes"`
+	Mysql  Mysql  `yaml:"mysql"`
+	Redis  Redis  `yaml:"redis"`
+	Log    Log    `yaml:"log"`
+}
+
+func (c *Config) IfBlankDefaultValue() {
+	c.Log.Default()
+	// 优先初始化log，因为后续的一些default方法中会需要用到。统一日志输出
+	logx.Init(logx.Config{
+		Level:     c.Log.Level,
+		Type:      c.Log.Type,
+		AddSource: c.Log.AddSource,
+		Filename:  c.Log.File.Name,
+		Filepath:  c.Log.File.Path,
+	})
+
+	c.Server.Default()
+	c.Jwt.Default()
+	c.Mysql.Default()
 }
 
 // 配置文件内容校验
 func (c *Config) Valid() {
-	assert.IsTrue(c.Jwt != nil, "配置文件的[jwt]信息不能为空")
 	c.Jwt.Valid()
-	if c.Aes != nil {
-		c.Aes.Valid()
-	}
+	c.Aes.Valid()
 }
 
 // 替换系统环境变量，如果环境变量中存在该值，则优秀使用环境变量设定的值
@@ -97,31 +117,5 @@ func (c *Config) ReplaceOsEnv() {
 	jwtKey := os.Getenv("MAYFLY_JWT_KEY")
 	if jwtKey != "" {
 		c.Jwt.Key = jwtKey
-	}
-}
-
-func (c *Config) SetDefaultConfig() {
-	c.Server = &Server{
-		Model:          "release",
-		Port:           8888,
-		MachineRecPath: "./rec",
-	}
-
-	c.Jwt = &Jwt{
-		ExpireTime: 1440,
-	}
-
-	c.Aes = &Aes{
-		Key: "1111111111111111",
-	}
-
-	c.Mysql = &Mysql{
-		Host:         "localhost:3306",
-		Config:       "charset=utf8&loc=Local&parseTime=true",
-		MaxIdleConns: 5,
-	}
-
-	c.Log = &Log{
-		Level: "info",
 	}
 }

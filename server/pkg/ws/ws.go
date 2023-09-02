@@ -2,7 +2,7 @@ package ws
 
 import (
 	"encoding/json"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"net/http"
 	"time"
 
@@ -56,7 +56,7 @@ func checkConn() {
 
 // 删除ws连接
 func Delete(userid uint64) {
-	global.Log.Debug("移除websocket连接：uid = ", userid)
+	logx.Debugf("移除websocket连接: uid = %d", userid)
 	conn := conns[userid]
 	if conn != nil {
 		conn.Close()

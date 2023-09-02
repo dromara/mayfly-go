@@ -6,7 +6,7 @@ import (
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/jsonx"
 	"strings"
@@ -61,7 +61,7 @@ func (a *configAppImpl) GetConfig(key string) *entity.Config {
 	}
 
 	if err := a.configRepo.GetConfig(config, "Id", "Key", "Value", "Permission"); err != nil {
-		global.Log.Warnf("不存在key = [%s] 的系统配置", key)
+		logx.Warnf("不存在key = [%s] 的系统配置", key)
 	} else {
 		cache.SetStr(SysConfigKeyPrefix+key, jsonx.ToStr(config), -1)
 	}

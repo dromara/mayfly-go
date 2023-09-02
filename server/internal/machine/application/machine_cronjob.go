@@ -3,7 +3,7 @@ package application
 import (
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
-	"mayfly-go/pkg/global"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/scheduler"
@@ -154,7 +154,7 @@ func (m *machineCropJobAppImpl) MachineRelateCronJobs(machineId uint64, cronJobs
 func (m *machineCropJobAppImpl) InitCronJob() {
 	defer func() {
 		if err := recover(); err != nil {
-			global.Log.Errorf("机器计划任务初始化失败: %s", err.(error).Error())
+			logx.Errorf("机器计划任务初始化失败: %s", err.(error).Error())
 		}
 	}()
 
@@ -241,7 +241,7 @@ func (m *machineCropJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineC
 				Status:    entity.MachineCronJobExecStatusError,
 				Res:       res,
 			})
-			global.Log.Errorf("机器:[%d]执行[%s]计划任务失败: %s", mid, cronJob.Name, res)
+			logx.Errorf("机器:[%d]执行[%s]计划任务失败: %s", mid, cronJob.Name, res)
 		}
 	}()
 
@@ -250,9 +250,9 @@ func (m *machineCropJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineC
 		if res == "" {
 			res = err.Error()
 		}
-		global.Log.Errorf("机器:[%d]执行[%s]计划任务失败: %s", mid, cronJob.Name, res)
+		logx.Errorf("机器:[%d]执行[%s]计划任务失败: %s", mid, cronJob.Name, res)
 	} else {
-		global.Log.Debugf("机器:[%d]执行[%s]计划任务成功, 执行结果: %s", mid, cronJob.Name, res)
+		logx.Debugf("机器:[%d]执行[%s]计划任务成功, 执行结果: %s", mid, cronJob.Name, res)
 	}
 
 	if cronJob.SaveExecResType == entity.SaveExecResTypeNo ||
