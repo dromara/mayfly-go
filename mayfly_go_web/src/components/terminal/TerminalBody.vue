@@ -142,6 +142,8 @@ const onConnected = () => {
         return true;
     });
 
+    state.status = TerminalStatus.Connected;
+
     // resize
     sendResize(term.cols, term.rows);
     // 注册窗口大小监听器
@@ -153,8 +155,6 @@ const onConnected = () => {
     if (props.cmd) {
         sendCmd(props.cmd + ' \r');
     }
-
-    state.status = TerminalStatus.Connected;
 };
 
 // 自适应终端
@@ -220,7 +220,7 @@ enum MsgType {
 }
 
 const send = (msg: any) => {
-    socket.send(JSON.stringify(msg));
+    state.status == TerminalStatus.Connected && socket.send(JSON.stringify(msg));
 };
 
 const sendResize = (cols: number, rows: number) => {

@@ -30,7 +30,7 @@ func Generate() (string, string) {
 
 // 验证验证码
 func Verify(id string, val string) bool {
-	if id == "" || val == "" {
+	if store == nil || id == "" || val == "" {
 		return false
 	}
 	// 同时清理掉这个图片

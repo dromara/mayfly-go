@@ -2,6 +2,7 @@ package runtimex
 
 import (
 	"fmt"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -21,7 +22,7 @@ func StatckStr(skip, nFrames int) string {
 	i := 0
 	for {
 		frame, more := frames.Next()
-		fmt.Fprintf(&b, "called from %s (%s:%d)\n\t", frame.Function, ParseFrameFile(frame.File), frame.Line)
+		fmt.Fprintf(&b, "called from %s (%s:%d)\n\t", frame.Function, filepath.Base(frame.File), frame.Line)
 		if !more {
 			break
 		}
@@ -32,13 +33,4 @@ func StatckStr(skip, nFrames int) string {
 		}
 	}
 	return b.String()
-}
-
-// 处理栈帧文件名
-func ParseFrameFile(frameFile string) string {
-	// 尝试将完整路径如/usr/local/.../mayfly-go/server/pkg/starter/web-server.go切割为pkg/starter/web-server.go
-	if ss := strings.Split(frameFile, "mayfly-go/server/"); len(ss) > 1 {
-		return ss[1]
-	}
-	return frameFile
 }

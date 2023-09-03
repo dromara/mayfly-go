@@ -271,7 +271,6 @@ const onShowClusterInfo = async (redis: any) => {
 const search = async () => {
     try {
         pageTableRef.value.loading(true);
-        console.log(state.query);
         const res = await redisApi.redisList.request(state.query);
         state.redisTable = res.list;
         state.total = res.total;

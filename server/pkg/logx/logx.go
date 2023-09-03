@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"mayfly-go/pkg/utils/runtimex"
+	"path/filepath"
 	"runtime"
-	"strings"
 )
 
 var (
@@ -27,10 +27,10 @@ func GetConfig() *Config {
 func Init(logConf Config) {
 	config = &logConf
 	var handler slog.Handler
-	if logConf.Type == "text" {
-		handler = NewTextHandler(config)
-	} else {
+	if logConf.IsJsonType() {
 		handler = NewJsonHandler(config)
+	} else {
+		handler = NewTextHandler(config)
 	}
 	slog.SetDefault(slog.New(handler))
 }
@@ -53,7 +53,7 @@ func DebugWithFields(msg string, mapFields map[string]any) {
 
 // debug记录，并将堆栈信息添加至msg里，默认记录10个堆栈信息
 func DebugTrace(msg string, err error) {
-	Log(context.Background(), slog.LevelDebug, fmt.Sprintf(msg+"%s\n%s", err.Error(), runtimex.StatckStr(2, 10)))
+	Log(context.Background(), slog.LevelDebug, fmt.Sprintf(msg+" %s\n%s", err.Error(), runtimex.StatckStr(2, 10)))
 }
 
 func Info(msg string, args ...any) {
@@ -94,7 +94,7 @@ func Errorf(format string, args ...any) {
 
 // 错误记录，并将堆栈信息添加至msg里，默认记录10个堆栈信息
 func ErrorTrace(msg string, err error) {
-	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+"%s\n%s", err.Error(), runtimex.StatckStr(2, 10)))
+	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+" %s\n%s", err.Error(), runtimex.StatckStr(2, 10)))
 }
 
 func ErrorWithFields(msg string, mapFields map[string]any) {
@@ -130,7 +130,7 @@ func getCommonAttr(ctx context.Context, level slog.Level) []any {
 
 		source := &Source{
 			Function: f.Function,
-			Fileline: fmt.Sprintf("%s:%d", runtimex.ParseFrameFile(f.File), f.Line),
+			Fileline: fmt.Sprintf("%s:%d", filepath.Base(f.File), f.Line),
 		}
 		commonAttrs = append(commonAttrs, slog.SourceKey, source)
 	}
@@ -166,9 +166,5 @@ type Source struct {
 }
 
 func (s Source) String() string {
-	// 查找最后一个/的位置, 如mayfly-go/pkg/starter.runWebServer
-	lastIndex := strings.LastIndex(s.Function, "/")
-	// 获取最后一段,即starter.runWebServer
-	funcName := s.Function[lastIndex+1:]
-	return fmt.Sprintf("%s#%s", s.Fileline, funcName)
+	return fmt.Sprintf("%s (%s)", s.Function, s.Fileline)
 }
