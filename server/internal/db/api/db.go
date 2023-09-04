@@ -198,6 +198,10 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			if err == io.EOF {
 				break
 			}
+			if err != nil {
+				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbInstance.Info.GetLogDesc(), err.Error())))
+				return
+			}
 			sql := sqlparser.String(stmt)
 			execReq.Sql = sql
 			// 需要记录执行记录
