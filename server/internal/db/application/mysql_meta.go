@@ -152,7 +152,8 @@ func (mm *MysqlMetadata) GetTableIndex(tableName string) []Index {
 
 // 获取建表ddl
 func (mm *MysqlMetadata) GetCreateTableDdl(tableName string) string {
-	_, res, _ := mm.di.SelectData(fmt.Sprintf("show create table %s ", tableName))
+	_, res, err := mm.di.SelectData(fmt.Sprintf("show create table `%s` ", tableName))
+	biz.ErrIsNilAppendErr(err, "获取表结构失败: %s")
 	return res[0]["Create Table"].(string)
 }
 
