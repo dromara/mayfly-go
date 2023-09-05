@@ -247,6 +247,15 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		extName = ""
 	}
 
+	defer func() {
+		if err := recover(); err != nil {
+			switch t := err.(type) {
+			case *biz.BizError:
+				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("数据库导出失败", t.Error()))
+			}
+		}
+	}()
+
 	// 是否需要导出表结构
 	needStruct := dumpType == "1" || dumpType == "3"
 	// 是否需要导出数据
