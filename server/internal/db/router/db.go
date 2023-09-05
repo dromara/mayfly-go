@@ -29,9 +29,6 @@ func InitDbRouter(router *gin.RouterGroup) {
 
 		req.NewPost("", d.Save).Log(req.NewLogSave("db-保存数据库信息")),
 
-		// 获取数据库实例的所有数据库名
-		req.NewPost("/databases", d.GetDatabaseNames),
-
 		req.NewDelete(":dbId", d.DeleteDb).Log(req.NewLogSave("db-删除数据库信息")),
 
 		req.NewGet(":dbId/t-infos", d.TableInfos),

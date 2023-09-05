@@ -6,7 +6,7 @@ import (
 
 var (
 	instanceApp  Instance  = newInstanceApp(persistence.GetInstanceRepo())
-	dbApp        Db        = newDbApp(persistence.GetDbRepo(), persistence.GetDbSqlRepo())
+	dbApp        Db        = newDbApp(persistence.GetDbRepo(), persistence.GetDbSqlRepo(), instanceApp)
 	dbSqlExecApp DbSqlExec = newDbSqlExecApp(persistence.GetDbSqlExecRepo())
 )
 

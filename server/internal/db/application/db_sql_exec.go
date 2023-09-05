@@ -20,7 +20,7 @@ type DbSqlExecReq struct {
 	Sql          string
 	Remark       string
 	LoginAccount *model.LoginAccount
-	DbInstance   *DbConnection
+	DbConn       *DbConnection
 }
 
 type DbSqlExecRes struct {
@@ -98,7 +98,7 @@ func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error)
 		if isSelect || strings.HasPrefix(lowerSql, "show") {
 			execRes, execErr = doRead(execSqlReq)
 		} else {
-			execRes, execErr = doExec(execSqlReq.Sql, execSqlReq.DbInstance)
+			execRes, execErr = doExec(execSqlReq.Sql, execSqlReq.DbConn)
 		}
 		if execErr != nil {
 			return nil, execErr
@@ -124,7 +124,7 @@ func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error)
 	case *sqlparser.Insert:
 		execRes, err = doInsert(stmt, execSqlReq, dbSqlExecRecord)
 	default:
-		execRes, err = doExec(execSqlReq.Sql, execSqlReq.DbInstance)
+		execRes, err = doExec(execSqlReq.Sql, execSqlReq.DbConn)
 	}
 	if err != nil {
 		return nil, err
@@ -174,9 +174,9 @@ func doSelect(selectStmt *sqlparser.Select, execSqlReq *DbSqlExecReq) (*DbSqlExe
 }
 
 func doRead(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
-	dbInstance := execSqlReq.DbInstance
+	dbConn := execSqlReq.DbConn
 	sql := execSqlReq.Sql
-	colNames, res, err := dbInstance.SelectData(sql)
+	colNames, res, err := dbConn.SelectData(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func doRead(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
 }
 
 func doUpdate(update *sqlparser.Update, execSqlReq *DbSqlExecReq, dbSqlExec *entity.DbSqlExec) (*DbSqlExecRes, error) {
-	dbInstance := execSqlReq.DbInstance
+	dbConn := execSqlReq.DbConn
 
 	tableStr := sqlparser.String(update.TableExprs)
 	// 可能使用别名，故空格切割
@@ -202,12 +202,12 @@ func doUpdate(update *sqlparser.Update, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 	}
 
 	// 获取表主键列名,排除使用别名
-	primaryKey := dbInstance.GetMeta().GetPrimaryKey(tableName)
+	primaryKey := dbConn.GetMeta().GetPrimaryKey(tableName)
 
 	updateColumnsAndPrimaryKey := strings.Join(updateColumns, ",") + "," + primaryKey
 	// 查询要更新字段数据的旧值，以及主键值
 	selectSql := fmt.Sprintf("SELECT %s FROM %s %s LIMIT 200", updateColumnsAndPrimaryKey, tableStr, where)
-	_, res, err := dbInstance.SelectData(selectSql)
+	_, res, err := dbConn.SelectData(selectSql)
 	if err == nil {
 		bytes, _ := json.Marshal(res)
 		dbSqlExec.OldValue = string(bytes)
@@ -218,11 +218,11 @@ func doUpdate(update *sqlparser.Update, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 	dbSqlExec.Table = tableName
 	dbSqlExec.Type = entity.DbSqlExecTypeUpdate
 
-	return doExec(execSqlReq.Sql, dbInstance)
+	return doExec(execSqlReq.Sql, dbConn)
 }
 
 func doDelete(delete *sqlparser.Delete, execSqlReq *DbSqlExecReq, dbSqlExec *entity.DbSqlExec) (*DbSqlExecRes, error) {
-	dbInstance := execSqlReq.DbInstance
+	dbConn := execSqlReq.DbConn
 
 	tableStr := sqlparser.String(delete.TableExprs)
 	// 可能使用别名，故空格切割
@@ -232,14 +232,14 @@ func doDelete(delete *sqlparser.Delete, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 
 	// 查询删除数据
 	selectSql := fmt.Sprintf("SELECT * FROM %s %s LIMIT 200", tableStr, where)
-	_, res, _ := dbInstance.SelectData(selectSql)
+	_, res, _ := dbConn.SelectData(selectSql)
 
 	bytes, _ := json.Marshal(res)
 	dbSqlExec.OldValue = string(bytes)
 	dbSqlExec.Table = table
 	dbSqlExec.Type = entity.DbSqlExecTypeDelete
 
-	return doExec(execSqlReq.Sql, dbInstance)
+	return doExec(execSqlReq.Sql, dbConn)
 }
 
 func doInsert(insert *sqlparser.Insert, execSqlReq *DbSqlExecReq, dbSqlExec *entity.DbSqlExec) (*DbSqlExecRes, error) {
@@ -249,11 +249,11 @@ func doInsert(insert *sqlparser.Insert, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 	dbSqlExec.Table = table
 	dbSqlExec.Type = entity.DbSqlExecTypeInsert
 
-	return doExec(execSqlReq.Sql, execSqlReq.DbInstance)
+	return doExec(execSqlReq.Sql, execSqlReq.DbConn)
 }
 
-func doExec(sql string, dbInstance *DbConnection) (*DbSqlExecRes, error) {
-	rowsAffected, err := dbInstance.Exec(sql)
+func doExec(sql string, dbConn *DbConnection) (*DbSqlExecRes, error) {
+	rowsAffected, err := dbConn.Exec(sql)
 	execRes := "success"
 	if err != nil {
 		execRes = err.Error()

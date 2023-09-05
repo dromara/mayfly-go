@@ -86,12 +86,6 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 	}
 }
 
-func getInstanceId(g *gin.Context) uint64 {
-	instanceId, _ := strconv.Atoi(g.Param("instanceId"))
-	biz.IsTrue(instanceId > 0, "instanceId 错误")
-	return uint64(instanceId)
-}
-
 // 获取数据库实例的所有数据库名
 func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
 	instanceId := getInstanceId(rc.GinCtx)
@@ -99,4 +93,10 @@ func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
 	biz.IsTrue(instance != nil, "获取数据库实例错误")
 	instance.PwdDecrypt()
 	rc.ResData = d.InstanceApp.GetDatabases(instance)
+}
+
+func getInstanceId(g *gin.Context) uint64 {
+	instanceId, _ := strconv.Atoi(g.Param("instanceId"))
+	biz.IsTrue(instanceId > 0, "instanceId 错误")
+	return uint64(instanceId)
 }

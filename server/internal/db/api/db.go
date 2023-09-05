@@ -63,18 +63,6 @@ func (d *Db) Save(rc *req.Ctx) {
 	d.DbApp.Save(db)
 }
 
-// 获取数据库实例的所有数据库名
-func (d *Db) GetDatabaseNames(rc *req.Ctx) {
-	form := &form.DbForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-
-	instance := d.InstanceApp.GetById(form.InstanceId, "Password")
-	biz.NotNil(instance, "获取数据库实例错误")
-	instance.PwdDecrypt()
-	rc.ResData = d.InstanceApp.GetDatabases(instance)
-	rc.ResData = d.InstanceApp.GetDatabases(instance)
-}
-
 func (d *Db) DeleteDb(rc *req.Ctx) {
 	idsStr := ginx.PathParam(rc.GinCtx, "dbId")
 	rc.ReqParam = idsStr
@@ -94,9 +82,7 @@ func (d *Db) getDbConnection(g *gin.Context) *application.DbConnection {
 	dbName := g.Query("db")
 	biz.NotEmpty(dbName, "db不能为空")
 	dbId := getDbId(g)
-	db := d.DbApp.GetById(dbId)
-	instance := d.InstanceApp.GetById(db.InstanceId)
-	return d.DbApp.GetDbConnection(db, instance, dbName)
+	return d.DbApp.GetDbConnection(dbId, dbName)
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
@@ -121,12 +107,10 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	ginx.BindJsonAndValid(g, form)
 
 	dbId := getDbId(g)
-	db := d.DbApp.GetById(dbId)
-	instance := d.InstanceApp.GetById(db.InstanceId)
-	dbInstance := d.DbApp.GetDbConnection(db, instance, form.Db)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
+	dbConn := d.DbApp.GetDbConnection(dbId, form.Db)
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
 
-	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbInstance.Info.GetLogDesc(), form.Sql)
+	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbConn.Info.GetLogDesc(), form.Sql)
 	biz.NotEmpty(form.Sql, "sql不能为空")
 
 	// 去除前后空格及换行符
@@ -136,7 +120,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 		DbId:         dbId,
 		Db:           form.Db,
 		Remark:       form.Remark,
-		DbInstance:   dbInstance,
+		DbConn:       dbConn,
 		LoginAccount: rc.LoginAccount,
 	}
 
@@ -180,9 +164,9 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	dbId := getDbId(g)
 	dbName := getDbName(g)
 
-	dbInstance := d.getDbConnection(rc.GinCtx)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
-	rc.ReqParam = fmt.Sprintf("%s -> filename: %s", dbInstance.Info.GetLogDesc(), filename)
+	dbConn := d.getDbConnection(rc.GinCtx)
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
+	rc.ReqParam = fmt.Sprintf("%s -> filename: %s", dbConn.Info.GetLogDesc(), filename)
 
 	logExecRecord := true
 	// 如果执行sql文件大于该值则不记录sql执行记录
@@ -195,7 +179,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			if err := recover(); err != nil {
 				switch t := err.(type) {
 				case *biz.BizError:
-					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbInstance.Info.GetLogDesc(), t.Error())))
+					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), t.Error())))
 				}
 			}
 		}()
@@ -204,7 +188,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			DbId:         dbId,
 			Db:           dbName,
 			Remark:       fileheader.Filename,
-			DbInstance:   dbInstance,
+			DbConn:       dbConn,
 			LoginAccount: rc.LoginAccount,
 		}
 
@@ -220,15 +204,15 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			if logExecRecord {
 				_, err = d.DbSqlExecApp.Exec(execReq)
 			} else {
-				_, err = dbInstance.Exec(sql)
+				_, err = dbConn.Exec(sql)
 			}
 
 			if err != nil {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] -> sql=[%s] 执行失败: [%s]", filename, dbInstance.Info.GetLogDesc(), sql, err.Error())))
+				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] -> sql=[%s] 执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), sql, err.Error())))
 				return
 			}
 		}
-		d.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessMsg("sql脚本执行成功", fmt.Sprintf("[%s]执行完成 -> %s", filename, dbInstance.Info.GetLogDesc())))
+		d.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessMsg("sql脚本执行成功", fmt.Sprintf("[%s]执行完成 -> %s", filename, dbConn.Info.GetLogDesc())))
 	}()
 }
 

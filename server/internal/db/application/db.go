@@ -39,19 +39,21 @@ type Db interface {
 	// 获取数据库连接实例
 	// @param id 数据库实例id
 	// @param db 数据库
-	GetDbConnection(db *entity.Db, instance *entity.Instance, dbName string) *DbConnection
+	GetDbConnection(dbId uint64, dbName string) *DbConnection
 }
 
-func newDbApp(dbRepo repository.Db, dbSqlRepo repository.DbSql) Db {
+func newDbApp(dbRepo repository.Db, dbSqlRepo repository.DbSql, dbInstanceApp Instance) Db {
 	return &dbAppImpl{
-		dbRepo:    dbRepo,
-		dbSqlRepo: dbSqlRepo,
+		dbRepo:        dbRepo,
+		dbSqlRepo:     dbSqlRepo,
+		dbInstanceApp: dbInstanceApp,
 	}
 }
 
 type dbAppImpl struct {
-	dbRepo    repository.Db
-	dbSqlRepo repository.DbSql
+	dbRepo        repository.Db
+	dbSqlRepo     repository.DbSql
+	dbInstanceApp Instance
 }
 
 // 分页获取数据库信息列表
@@ -129,11 +131,11 @@ func (d *dbAppImpl) Delete(id uint64) {
 
 var mutex sync.Mutex
 
-func (d *dbAppImpl) GetDbConnection(db *entity.Db, instance *entity.Instance, dbName string) *DbConnection {
-	cacheKey := GetDbCacheKey(db.Id, dbName)
+func (d *dbAppImpl) GetDbConnection(dbId uint64, dbName string) *DbConnection {
+	cacheKey := GetDbCacheKey(dbId, dbName)
 
 	// Id不为0，则为需要缓存
-	needCache := db.Id != 0
+	needCache := dbId != 0
 	if needCache {
 		load, ok := dbCache.Get(cacheKey)
 		if ok {
@@ -143,9 +145,11 @@ func (d *dbAppImpl) GetDbConnection(db *entity.Db, instance *entity.Instance, db
 	mutex.Lock()
 	defer mutex.Unlock()
 
+	db := d.GetById(dbId)
 	biz.NotNil(db, "数据库信息不存在")
 	biz.IsTrue(strings.Contains(" "+db.Database+" ", " "+dbName+" "), "未配置该库的操作权限")
 
+	instance := d.dbInstanceApp.GetById(db.InstanceId)
 	// 密码解密
 	instance.PwdDecrypt()
 
@@ -208,7 +212,7 @@ func (d *DbInfo) GetLogDesc() string {
 	return fmt.Sprintf("DB[id=%d, tag=%s, name=%s, ip=%s:%d, database=%s]", d.Id, d.TagPath, d.Name, d.Host, d.Port, d.Database)
 }
 
-// db实例
+// db实例连接信息
 type DbConnection struct {
 	Id   string
 	Info *DbInfo
@@ -284,13 +288,6 @@ func init() {
 
 func GetDbCacheKey(dbId uint64, db string) string {
 	return fmt.Sprintf("%d:%s", dbId, db)
-}
-
-func GetDbInstanceByCache(id string) *DbConnection {
-	if load, ok := dbCache.Get(id); ok {
-		return load.(*DbConnection)
-	}
-	return nil
 }
 
 func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]any, error) {
