@@ -202,14 +202,14 @@
 
             <el-form-item>
                 <el-transfer
-                    :titles="['全部数据库', '导出数据库']"
-                    max-height="300"
                     v-model="exportDialog.value"
-                    :data="exportDialog.data"
                     filterable
                     filter-placeholder="按数据库名称筛选"
-                >
-                </el-transfer>
+                    :titles="['全部数据库', '导出数据库']"
+                    :data="exportDialog.data"
+                    max-height="300"
+                    size="small"
+                />
             </el-form-item>
 
             <template #footer>
