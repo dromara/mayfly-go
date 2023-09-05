@@ -5,8 +5,6 @@ export const dbApi = {
     dbs: Api.newGet('/dbs'),
     dbTags: Api.newGet('/dbs/tags'),
     saveDb: Api.newPost('/dbs'),
-    getAllDatabase: Api.newPost('/dbs/databases'),
-    getDbPwd: Api.newGet('/dbs/{id}/pwd'),
     deleteDb: Api.newDelete('/dbs/{id}'),
     dumpDb: Api.newPost('/dbs/{id}/dump'),
     tableInfos: Api.newGet('/dbs/{id}/t-infos'),
@@ -26,4 +24,12 @@ export const dbApi = {
     deleteDbSql: Api.newDelete('/dbs/{id}/sql'),
     // 获取数据库sql执行记录
     getSqlExecs: Api.newGet('/dbs/{dbId}/sql-execs'),
+
+    // 获取权限列表
+    instances: Api.newGet('/instances'),
+    getInstance: Api.newGet("/instances/{instanceId}"),
+    getAllDatabase: Api.newGet('/instances/{instanceId}/databases'),
+    saveInstance: Api.newPost('/instances'),
+    getInstancePwd: Api.newGet('/instances/{id}/pwd'),
+    deleteInstance: Api.newDelete('/instances/{id}'),
 };

@@ -14,6 +14,7 @@ func InitDbRouter(router *gin.RouterGroup) {
 	db := router.Group("dbs")
 
 	d := &api.Db{
+		InstanceApp:  application.GetInstanceApp(),
 		DbApp:        application.GetDbApp(),
 		DbSqlExecApp: application.GetDbSqlExecApp(),
 		MsgApp:       msgapp.GetMsgApp(),
@@ -30,8 +31,6 @@ func InitDbRouter(router *gin.RouterGroup) {
 
 		// 获取数据库实例的所有数据库名
 		req.NewPost("/databases", d.GetDatabaseNames),
-
-		req.NewGet(":dbId/pwd", d.GetDbPwd),
 
 		req.NewDelete(":dbId", d.DeleteDb).Log(req.NewLogSave("db-删除数据库信息")),
 

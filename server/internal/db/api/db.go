@@ -14,9 +14,7 @@ import (
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/stringx"
-	"mayfly-go/pkg/utils/structx"
 	"mayfly-go/pkg/ws"
 	"strconv"
 	"strings"
@@ -27,6 +25,7 @@ import (
 )
 
 type Db struct {
+	InstanceApp  application.Instance
 	DbApp        application.Db
 	DbSqlExecApp application.DbSqlExec
 	MsgApp       msgapp.Msg
@@ -58,25 +57,10 @@ func (d *Db) Save(rc *req.Ctx) {
 	form := &form.DbForm{}
 	db := ginx.BindJsonAndCopyTo[*entity.Db](rc.GinCtx, form, new(entity.Db))
 
-	// 密码解密，并使用解密后的赋值
-	originPwd, err := cryptox.DefaultRsaDecrypt(form.Password, true)
-	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
-	db.Password = originPwd
-
-	// 密码脱敏记录日志
-	form.Password = "****"
 	rc.ReqParam = form
 
 	db.SetBaseInfo(rc.LoginAccount)
 	d.DbApp.Save(db)
-}
-
-// 获取数据库实例密码，由于数据库是加密存储，故提供该接口展示原文密码
-func (d *Db) GetDbPwd(rc *req.Ctx) {
-	dbId := GetDbId(rc.GinCtx)
-	dbEntity := d.DbApp.GetById(dbId, "Password")
-	dbEntity.PwdDecrypt()
-	rc.ResData = dbEntity.Password
 }
 
 // 获取数据库实例的所有数据库名
@@ -84,20 +68,11 @@ func (d *Db) GetDatabaseNames(rc *req.Ctx) {
 	form := &form.DbForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
-	db := new(entity.Db)
-	structx.Copy(db, form)
-
-	// 密码解密，并使用解密后的赋值
-	originPwd, err := cryptox.DefaultRsaDecrypt(form.Password, true)
-	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
-	db.Password = originPwd
-
-	// 如果id不为空，并且密码为空则从数据库查询
-	if form.Id != 0 && db.Password == "" {
-		db = d.DbApp.GetById(form.Id)
-		db.PwdDecrypt()
-	}
-	rc.ResData = d.DbApp.GetDatabases(db)
+	instance := d.InstanceApp.GetById(form.InstanceId, "Password")
+	biz.NotNil(instance, "获取数据库实例错误")
+	instance.PwdDecrypt()
+	rc.ResData = d.InstanceApp.GetDatabases(instance)
+	rc.ResData = d.InstanceApp.GetDatabases(instance)
 }
 
 func (d *Db) DeleteDb(rc *req.Ctx) {
@@ -115,20 +90,29 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 	}
 }
 
+func (d *Db) getDbConnection(g *gin.Context) *application.DbConnection {
+	dbName := g.Query("db")
+	biz.NotEmpty(dbName, "db不能为空")
+	dbId := getDbId(g)
+	db := d.DbApp.GetById(dbId)
+	instance := d.InstanceApp.GetById(db.InstanceId)
+	return d.DbApp.GetDbConnection(db, instance, dbName)
+}
+
 func (d *Db) TableInfos(rc *req.Ctx) {
-	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetMeta().GetTableInfos()
+	rc.ResData = d.getDbConnection(rc.GinCtx).GetMeta().GetTableInfos()
 }
 
 func (d *Db) TableIndex(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetMeta().GetTableIndex(tn)
+	rc.ResData = d.getDbConnection(rc.GinCtx).GetMeta().GetTableIndex(tn)
 }
 
 func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	rc.ResData = d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetMeta().GetCreateTableDdl(tn)
+	rc.ResData = d.getDbConnection(rc.GinCtx).GetMeta().GetCreateTableDdl(tn)
 }
 
 func (d *Db) ExecSql(rc *req.Ctx) {
@@ -136,9 +120,10 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	form := &form.DbSqlExecForm{}
 	ginx.BindJsonAndValid(g, form)
 
-	id := GetDbId(g)
-	db := form.Db
-	dbInstance := d.DbApp.GetDbInstance(id, db)
+	dbId := getDbId(g)
+	db := d.DbApp.GetById(dbId)
+	instance := d.InstanceApp.GetById(db.InstanceId)
+	dbInstance := d.DbApp.GetDbConnection(db, instance, form.Db)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
 
 	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbInstance.Info.GetLogDesc(), form.Sql)
@@ -148,8 +133,8 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	sql := stringx.TrimSpaceAndBr(form.Sql)
 
 	execReq := &application.DbSqlExecReq{
-		DbId:         id,
-		Db:           db,
+		DbId:         dbId,
+		Db:           form.Db,
 		Remark:       form.Remark,
 		DbInstance:   dbInstance,
 		LoginAccount: rc.LoginAccount,
@@ -192,9 +177,10 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 	file, _ := fileheader.Open()
 	filename := fileheader.Filename
-	dbId, db := GetIdAndDb(g)
+	dbId := getDbId(g)
+	dbName := getDbName(g)
 
-	dbInstance := d.DbApp.GetDbInstance(dbId, db)
+	dbInstance := d.getDbConnection(rc.GinCtx)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
 	rc.ReqParam = fmt.Sprintf("%s -> filename: %s", dbInstance.Info.GetLogDesc(), filename)
 
@@ -216,7 +202,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 		execReq := &application.DbSqlExecReq{
 			DbId:         dbId,
-			Db:           db,
+			Db:           dbName,
 			Remark:       fileheader.Filename,
 			DbInstance:   dbInstance,
 			LoginAccount: rc.LoginAccount,
@@ -249,7 +235,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 // 数据库dump
 func (d *Db) DumpSql(rc *req.Ctx) {
 	g := rc.GinCtx
-	dbId, db := GetIdAndDb(g)
+	db := getDbName(g)
 	dumpType := g.Query("type")
 	tablesStr := g.Query("tables")
 	biz.NotEmpty(tablesStr, "请选择要导出的表")
@@ -260,7 +246,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	// 是否需要导出数据
 	needData := dumpType == "2" || dumpType == "3"
 
-	dbInstance := d.DbApp.GetDbInstance(dbId, db)
+	dbInstance := d.getDbConnection(rc.GinCtx)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
 
 	now := time.Now()
@@ -275,7 +261,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", db))
 	writer.WriteString("\n-- ----------------------------\n")
 
-	dbmeta := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx)).GetMeta()
+	dbmeta := d.getDbConnection(rc.GinCtx).GetMeta()
 	for _, table := range tables {
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
@@ -329,7 +315,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 
 // @router /api/db/:dbId/t-metadata [get]
 func (d *Db) TableMA(rc *req.Ctx) {
-	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
+	dbi := d.getDbConnection(rc.GinCtx)
 	rc.ResData = dbi.GetMeta().GetTables()
 }
 
@@ -339,13 +325,13 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 	tn := g.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
 
-	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
+	dbi := d.getDbConnection(rc.GinCtx)
 	rc.ResData = dbi.GetMeta().GetColumns(tn)
 }
 
 // @router /api/db/:dbId/hint-tables [get]
 func (d *Db) HintTables(rc *req.Ctx) {
-	dbi := d.DbApp.GetDbInstance(GetIdAndDb(rc.GinCtx))
+	dbi := d.getDbConnection(rc.GinCtx)
 
 	dm := dbi.GetMeta()
 	// 获取所有表
@@ -391,7 +377,7 @@ func (d *Db) SaveSql(rc *req.Ctx) {
 	ginx.BindJsonAndValid(g, dbSqlForm)
 	rc.ReqParam = dbSqlForm
 
-	dbId := GetDbId(g)
+	dbId := getDbId(g)
 	// 判断dbId是否存在
 	err := gormx.GetById(new(entity.Db), dbId)
 	biz.ErrIsNil(err, "该数据库信息不存在")
@@ -413,9 +399,10 @@ func (d *Db) SaveSql(rc *req.Ctx) {
 
 // 获取所有保存的sql names
 func (d *Db) GetSqlNames(rc *req.Ctx) {
-	id, db := GetIdAndDb(rc.GinCtx)
+	dbId := getDbId(rc.GinCtx)
+	dbName := getDbName(rc.GinCtx)
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-	dbSql := &entity.DbSql{Type: 1, DbId: id, Db: db}
+	dbSql := &entity.DbSql{Type: 1, DbId: dbId, Db: dbName}
 	dbSql.CreatorId = rc.LoginAccount.Id
 	var sqls []entity.DbSql
 	gormx.ListBy(dbSql, &sqls, "id", "name")
@@ -425,7 +412,7 @@ func (d *Db) GetSqlNames(rc *req.Ctx) {
 
 // 删除保存的sql
 func (d *Db) DeleteSql(rc *req.Ctx) {
-	dbSql := &entity.DbSql{Type: 1, DbId: GetDbId(rc.GinCtx)}
+	dbSql := &entity.DbSql{Type: 1, DbId: getDbId(rc.GinCtx)}
 	dbSql.CreatorId = rc.LoginAccount.Id
 	dbSql.Name = rc.GinCtx.Query("name")
 	dbSql.Db = rc.GinCtx.Query("db")
@@ -436,9 +423,10 @@ func (d *Db) DeleteSql(rc *req.Ctx) {
 
 // @router /api/db/:dbId/sql [get]
 func (d *Db) GetSql(rc *req.Ctx) {
-	id, db := GetIdAndDb(rc.GinCtx)
+	dbId := getDbId(rc.GinCtx)
+	dbName := getDbName(rc.GinCtx)
 	// 根据创建者id， 数据库id，以及sql模板名称查询保存的sql信息
-	dbSql := &entity.DbSql{Type: 1, DbId: id, Db: db}
+	dbSql := &entity.DbSql{Type: 1, DbId: dbId, Db: dbName}
 	dbSql.CreatorId = rc.LoginAccount.Id
 	dbSql.Name = rc.GinCtx.Query("name")
 
@@ -449,14 +437,14 @@ func (d *Db) GetSql(rc *req.Ctx) {
 	rc.ResData = dbSql
 }
 
-func GetDbId(g *gin.Context) uint64 {
+func getDbId(g *gin.Context) uint64 {
 	dbId, _ := strconv.Atoi(g.Param("dbId"))
 	biz.IsTrue(dbId > 0, "dbId错误")
 	return uint64(dbId)
 }
 
-func GetIdAndDb(g *gin.Context) (uint64, string) {
+func getDbName(g *gin.Context) string {
 	db := g.Query("db")
 	biz.NotEmpty(db, "db不能为空")
-	return GetDbId(g), db
+	return db
 }

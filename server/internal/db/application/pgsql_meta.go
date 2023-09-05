@@ -16,7 +16,7 @@ import (
 	"github.com/lib/pq"
 )
 
-func getPgsqlDB(d *entity.Db, db string) (*sql.DB, error) {
+func getPgsqlDB(d *entity.Instance, db string) (*sql.DB, error) {
 	driverName := d.Type
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
@@ -28,7 +28,11 @@ func getPgsqlDB(d *entity.Db, db string) (*sql.DB, error) {
 		sql.Drivers()
 	}
 
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", d.Host, d.Port, d.Username, d.Password, db)
+	var dbParam string
+	if db != "" {
+		dbParam = "dbname=" + db
+	}
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s %s sslmode=disable", d.Host, d.Port, d.Username, d.Password, dbParam)
 	if d.Params != "" {
 		dsn = fmt.Sprintf("%s %s", dsn, strings.Join(strings.Split(d.Params, "&"), " "))
 	}
@@ -67,7 +71,7 @@ const (
 )
 
 type PgsqlMetadata struct {
-	di *DbInstance
+	di *DbConnection
 }
 
 // 获取表基础元信息, 如表名等
