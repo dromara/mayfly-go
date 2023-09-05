@@ -212,7 +212,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 				break
 			}
 			if err != nil {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbInstance.Info.GetLogDesc(), err.Error())))
+				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
 				return
 			}
 			sql := sqlparser.String(stmt)
@@ -272,18 +272,17 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		tables = strings.Split(tablesStr, ",")
 	}
 
-	instance := d.InstanceApp.GetById(db.InstanceId)
 	writer := gzipResponseWriter{writer: gzip.NewWriter(g.Writer)}
 	defer writer.Close()
 	for _, dbName := range dbNames {
-		d.dumpHeader(writer, instance, dbName, len(dbNames) > 1)
-		d.dumpDb(writer, db, instance, dbName, tables, needStruct, needData)
+		d.dumpDb(writer, dbId, dbName, tables, needStruct, needData, len(dbNames) > 1)
 	}
 
 	rc.ReqParam = fmt.Sprintf("DB[id=%d, tag=%s, name=%s, databases=%s, tables=%s, dumpType=%s]", db.Id, db.TagPath, db.Name, dbNamesStr, tablesStr, dumpType)
 }
 
-func (d *Db) dumpHeader(writer gzipResponseWriter, instance *entity.Instance, dbName string, switchDb bool) {
+func (d *Db) dumpDb(writer gzipResponseWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool, switchDb bool) {
+	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
 	writer.WriteString("-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
 	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
@@ -291,18 +290,14 @@ func (d *Db) dumpHeader(writer gzipResponseWriter, instance *entity.Instance, db
 	writer.WriteString("\n-- ----------------------------\n")
 
 	if switchDb {
-		switch instance.Type {
+		switch dbConn.Info.Type {
 		case entity.DbTypeMysql:
 			writer.WriteString(fmt.Sprintf("use `%s`;\n", dbName))
 		default:
 			biz.IsTrue(false, "数据库类型必须为 %s", entity.DbTypeMysql)
 		}
 	}
-}
-
-func (d *Db) dumpDb(writer gzipResponseWriter, db *entity.Db, instance *entity.Instance, dbName string, tables []string, needStruct bool, needData bool) {
-	dbInst := d.DbApp.GetDbConnection(db, instance, dbName)
-	dbMeta := dbInst.GetMeta()
+	dbMeta := dbConn.GetMeta()
 	if len(tables) == 0 {
 		ti := dbMeta.GetTableInfos()
 		tables = make([]string, len(ti))
