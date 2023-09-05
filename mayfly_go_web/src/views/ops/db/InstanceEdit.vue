@@ -26,13 +26,17 @@
                             <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
                         </el-form-item>
                         <el-form-item prop="password" label="密码:">
-                            <el-input
-                                type="password"
-                                show-password
-                                v-model.trim="form.password"
-                                placeholder="请输入密码"
-                                autocomplete="new-password"
-                            />
+                            <el-input type="password" show-password v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password">
+                                <template v-if="form.id && form.id != 0" #suffix>
+                                    <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click" :content="pwd">
+                                        <template #reference>
+                                            <el-link v-auth="'db:instance:save'" @click="getDbPwd" :underline="false" type="primary" class="mr5"
+                                                >原密码
+                                            </el-link>
+                                        </template>
+                                    </el-popover>
+                                </template>
+                            </el-input>
                         </el-form-item>
 
                         <el-form-item prop="remark" label="备注:">
@@ -79,7 +83,6 @@ import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import { RsaEncrypt } from '@/common/rsa';
-import TagSelect from '../component/TagSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 
 const props = defineProps({
@@ -161,11 +164,11 @@ watch(props, (newValue: any) => {
     }
     state.tabActiveName = 'basic';
     if (newValue.data) {
-        state.form = { ...newValue.data};
-        state.oldUserName = state.form.username
+        state.form = { ...newValue.data };
+        state.oldUserName = state.form.username;
     } else {
         state.form = { port: 3306 } as any;
-        state.oldUserName = null
+        state.oldUserName = null;
     }
 });
 
@@ -177,7 +180,7 @@ const btnOk = async () => {
     if (!state.form.id) {
         notBlank(state.form.password, '新增操作，密码不可为空');
     } else if (state.form.username != state.oldUserName) {
-      notBlank(state.form.password, '已修改用户名，请输入密码');
+        notBlank(state.form.password, '已修改用户名，请输入密码');
     }
 
     dbForm.value.validate(async (valid: boolean) => {

@@ -17,9 +17,8 @@ func newInstanceRepo() repository.Instance {
 // 分页获取数据库信息列表
 func (d *instanceRepoImpl) GetInstanceList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	qd := gormx.NewQuery(new(entity.Instance)).
+		Eq("id", condition.Id).
 		Eq("host", condition.Host).
-		Eq("port", condition.Port).
-		Eq("username", condition.Username).
 		Like("name", condition.Name)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }

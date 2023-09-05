@@ -15,7 +15,9 @@
         >
             <template #queryRight>
                 <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)">添加</el-button>
-                <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete">删除</el-button>
+                <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete"
+                    >删除</el-button
+                >
             </template>
 
             <template #more="{ data }">
@@ -50,12 +52,17 @@
             </el-descriptions>
         </el-dialog>
 
-        <instance-edit @val-change="valChange" :title="instanceEditDialog.title" v-model:visible="instanceEditDialog.visible" v-model:data="instanceEditDialog.data"></instance-edit>
+        <instance-edit
+            @val-change="valChange"
+            :title="instanceEditDialog.title"
+            v-model:visible="instanceEditDialog.visible"
+            v-model:data="instanceEditDialog.data"
+        ></instance-edit>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, computed, onMounted, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dbApi } from './api';
 import { dateFormat } from '@/common/utils/date';
@@ -66,8 +73,8 @@ import { hasPerms } from '@/components/auth/auth';
 const InstanceEdit = defineAsyncComponent(() => import('./InstanceEdit.vue'));
 
 const perms = {
-    saveInstance: 'instance:save',
-    delInstance: 'instance:del',
+    saveInstance: 'db:instance:save',
+    delInstance: 'db:instance:del',
 };
 
 const queryConfig = [TableQuery.text('name', '名称')];
@@ -116,16 +123,7 @@ const state = reactive({
     },
 });
 
-const {
-    dbId,
-    db,
-    selectionData,
-    query,
-    datas,
-    total,
-    infoDialog,
-    instanceEditDialog,
-} = toRefs(state);
+const { selectionData, query, datas, total, infoDialog, instanceEditDialog } = toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
@@ -177,6 +175,5 @@ const deleteInstance = async () => {
         search();
     } catch (err) {}
 };
-
 </script>
 <style lang="scss"></style>

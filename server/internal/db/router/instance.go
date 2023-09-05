@@ -3,7 +3,6 @@ package router
 import (
 	"mayfly-go/internal/db/api"
 	"mayfly-go/internal/db/application"
-	msgapp "mayfly-go/internal/msg/application"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +14,6 @@ func InitInstanceRouter(router *gin.RouterGroup) {
 	d := &api.Instance{
 		InstanceApp: application.GetInstanceApp(),
 		DbApp:       application.GetDbApp(),
-		MsgApp:      msgapp.GetMsgApp(),
 	}
 
 	reqs := [...]*req.Conf{

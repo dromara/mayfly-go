@@ -104,7 +104,7 @@ func (d *mongoAppImpl) GetMongoInst(id uint64) *MongoInstance {
 var mongoCliCache = cache.NewTimedCache(consts.MongoConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key any, value any) {
-		logx.Info("删除mongo连接缓存: id = ", key)
+		logx.Infof("删除mongo连接缓存: id = %s", key)
 		value.(*MongoInstance).Close()
 	})
 

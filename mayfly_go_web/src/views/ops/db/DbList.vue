@@ -20,8 +20,23 @@
             </template>
 
             <template #instanceSelect>
-                <el-select @focus="getInstances" v-model="query.instanceId" placeholder="请选择实例" filterable clearable style="width: 200px">
-                    <el-option v-for="item in instances" :key="item.id" :label="item.name" :value="item.id"> </el-option>
+                <el-select
+                    remote
+                    :remote-method="getInstances"
+                    v-model="query.instanceId"
+                    placeholder="输入并选择实例"
+                    filterable
+                    clearable
+                    style="width: 200px"
+                >
+                    <el-option v-for="item in state.instances" :key="item.id" :label="`${item.name}`" :value="item.id">
+                        {{ item.name }}
+                        <el-divider direction="vertical" border-style="dashed" />
+
+                        {{ item.type }} / {{ item.host }}:{{ item.port }}
+                        <el-divider direction="vertical" border-style="dashed" />
+                        {{ item.username }}
+                    </el-option>
                 </el-select>
             </template>
 
@@ -234,21 +249,21 @@
 
         <el-dialog v-model="infoDialog.visible" :before-close="onBeforeCloseInfoDialog" :close-on-click-modal="false">
             <el-descriptions title="详情" :column="3" border>
-                <el-descriptions-item :span="3" label="标签路径">{{ infoDialog.data.tagPath }}</el-descriptions-item>
-                <el-descriptions-item :span="2" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="id">{{ infoDialog.data.id }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="数据库">{{ infoDialog.data.database }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
-                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data.createTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data.creator }}</el-descriptions-item>
-                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data.modifier }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="标签路径">{{ infoDialog.data?.tagPath }}</el-descriptions-item>
+                <el-descriptions-item :span="2" label="名称">{{ infoDialog.data?.name }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="id">{{ infoDialog.data?.id }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="数据库">{{ infoDialog.data?.database }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="备注">{{ infoDialog.data?.remark }}</el-descriptions-item>
+                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data?.createTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data?.creator }}</el-descriptions-item>
+                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(infoDialog.data?.updateTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data?.modifier }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="数据库实例名称">{{ infoDialog.instance.name }}</el-descriptions-item>
-                <el-descriptions-item :span="2" label="主机">{{ infoDialog.instance.host }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="端口">{{ infoDialog.instance.port }}</el-descriptions-item>
-                <el-descriptions-item :span="2" label="用户名">{{ infoDialog.instance.username }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="类型">{{ infoDialog.instance.type }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="数据库实例名称">{{ infoDialog.instance?.name }}</el-descriptions-item>
+                <el-descriptions-item :span="2" label="主机">{{ infoDialog.instance?.host }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="端口">{{ infoDialog.instance?.port }}</el-descriptions-item>
+                <el-descriptions-item :span="2" label="用户名">{{ infoDialog.instance?.username }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="类型">{{ infoDialog.instance?.type }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
 
@@ -291,10 +306,7 @@ const perms = {
     delDb: 'db:del',
 };
 
-const queryConfig = [
-    TableQuery.slot('tagPath', '标签', 'tagPathSelect'),
-    TableQuery.slot('instanceId', '实例', 'instanceSelect'),
-];
+const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect'), TableQuery.slot('instanceId', '实例', 'instanceSelect')];
 
 const columns = ref([
     TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
@@ -315,7 +327,7 @@ const state = reactive({
     dbId: 0,
     db: '',
     tags: [],
-    instances: [],
+    instances: [] as any,
     /**
      * 选中的数据
      */
@@ -337,7 +349,7 @@ const state = reactive({
         instance: null as any,
         query: {
             instanceId: 0,
-        }
+        },
     },
     showDumpInfo: false,
     dumpInfo: {
@@ -504,19 +516,23 @@ const showInfo = async (info: any) => {
 };
 
 const onBeforeCloseInfoDialog = () => {
-  state.infoDialog.visible = false;
-  state.infoDialog.data = null;
-  state.infoDialog.instance = null;
+    state.infoDialog.visible = false;
+    state.infoDialog.data = null;
+    state.infoDialog.instance = null;
 };
 
 const getTags = async () => {
     state.tags = await dbApi.dbTags.request(null);
 };
 
-const getInstances = async () => {
-    const data = await dbApi.instances.request(null);
+const getInstances = async (instanceName = '') => {
+    if (!instanceName) {
+        state.instances = [];
+        return;
+    }
+    const data = await dbApi.instances.request({ name: instanceName });
     if (data) {
-      state.instances = data.list;
+        state.instances = data.list;
     }
 };
 

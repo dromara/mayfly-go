@@ -50,7 +50,6 @@ func (rc *Ctx) Handle(handler HandlerFunc) {
 	}
 
 	handler(rc)
-	rc.timed = time.Since(begin).Milliseconds()
 	if rc.Conf == nil || !rc.Conf.noRes {
 		ginx.SuccessRes(ginCtx, rc.ResData)
 	}

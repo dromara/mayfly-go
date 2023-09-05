@@ -44,8 +44,7 @@
                                 <template #default>
                                     <el-form class="instances-pop-form" label-width="55px" :size="'small'">
                                         <el-form-item label="类型:">{{ data.params.type }}</el-form-item>
-                                        <el-form-item label="链接:">{{ data.params.host }}:{{ data.params.port }}</el-form-item>
-                                        <el-form-item label="用户:">{{ data.params.username }}</el-form-item>
+                                        <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
                                         <el-form-item v-if="data.params.remark" label="备注:">{{ data.params.remark }}</el-form-item>
                                     </el-form>
                                 </template>
@@ -633,12 +632,12 @@ const registerSqlCompletionItemProvider = () => {
                         range,
                     });
                 });
-                
-                let replacedFunctions = [] as string[]; 
+
+                let replacedFunctions = [] as string[];
 
                 // 添加的函数
                 addSqlLanguage.replaceFunctions.forEach((item: any) => {
-                    replacedFunctions.push(item.label)
+                    replacedFunctions.push(item.label);
                     suggestions.push({
                         label: {
                             label: item.label,
@@ -649,18 +648,19 @@ const registerSqlCompletionItemProvider = () => {
                         range,
                     });
                 });
-              
+
                 // 内置函数
                 sqlCompletionBuiltinFunctions.forEach((item: any) => {
-                  replacedFunctions.indexOf(item) < 0 && suggestions.push({
-                        label: {
-                            label: item,
-                            description: 'func',
-                        },
-                        kind: monaco.languages.CompletionItemKind.Function,
-                        insertText: item,
-                        range,
-                    });
+                    replacedFunctions.indexOf(item) < 0 &&
+                        suggestions.push({
+                            label: {
+                                label: item,
+                                description: 'func',
+                            },
+                            kind: monaco.languages.CompletionItemKind.Function,
+                            insertText: item,
+                            range,
+                        });
                 });
                 // 内置变量
                 sqlCompletionBuiltinVariables.forEach((item: string) => {

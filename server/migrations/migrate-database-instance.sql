@@ -28,11 +28,11 @@ BEGIN;
 
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (135, 36, 'dbms23ax/X0f4BxT0/', 1, 1, '数据库实例管理', 'instances', 1693040706, '{\"component\":\"ops/db/InstanceList\",\"icon\":\"Coin\",\"isKeepAlive\":true,\"routeName\":\"InstanceList\"}', 1, 'admin', 1, 'admin', '2023-08-26 09:05:07', '2023-08-29 22:35:11', 0, NULL);
 
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (136, 133, 'dbms23ax/X0f4BxT0/D23fUiBr/', 2, 1, '实例保存', 'instance:save', 1693041001, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:10:02', '2023-08-26 09:10:02', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (136, 135, 'dbms23ax/X0f4BxT0/D23fUiBr/', 2, 1, '实例保存', 'db:instance:save', 1693041001, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:10:02', '2023-08-26 09:10:02', 0, NULL);
 
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (137, 133, 'dbms23ax/X0f4BxT0/mJlBeTCs/', 2, 1, '基本权限', 'instance', 1693041055, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:10:55', '2023-08-26 09:10:55', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (137, 135, 'dbms23ax/X0f4BxT0/mJlBeTCs/', 2, 1, '基本权限', 'db:instance', 1693041055, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:10:55', '2023-08-26 09:10:55', 0, NULL);
 
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (138, 133, 'dbms23ax/X0f4BxT0/Sgg8uPwz/', 2, 1, '实例删除', 'instance:del', 1693041084, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:11:24', '2023-08-26 09:11:24', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (138, 135, 'dbms23ax/X0f4BxT0/Sgg8uPwz/', 2, 1, '实例删除', 'db:instance:del', 1693041084, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:11:24', '2023-08-26 09:11:24', 0, NULL);
 
 INSERT INTO `t_sys_role_resource` (role_id,resource_id,creator_id,creator,create_time,is_deleted,delete_time) VALUES
                                                                                                                   (1,135,1,'admin','2023-08-30 20:17:00', 0, NULL),

@@ -1,14 +1,39 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" @open="open" :before-close="cancel" :close-on-click-modal="false" :destroy-on-close="true" width="38%">
+        <el-dialog
+            :title="title"
+            v-model="dialogVisible"
+            @open="open"
+            :before-close="cancel"
+            :close-on-click-modal="false"
+            :destroy-on-close="true"
+            width="38%"
+        >
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
                 <el-form-item prop="tagId" label="标签:" required>
                     <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
                 </el-form-item>
 
                 <el-form-item prop="instanceId" label="数据库实例:" required>
-                    <el-select :disabled="form.id !== undefined" @change="getAllDatabase" v-model="form.instanceId" placeholder="请选择实例" filterable clearable style="width: 200px">
-                      <el-option v-for="item in state.instances" :key="item.id" :label="item.name" :value="item.id"> </el-option>
+                    <el-select
+                        :disabled="form.id !== undefined"
+                        remote
+                        :remote-method="getInstances"
+                        @change="getAllDatabase"
+                        v-model="form.instanceId"
+                        placeholder="请输入实例名称搜索并选择实例"
+                        filterable
+                        clearable
+                        class="w100"
+                    >
+                        <el-option v-for="item in state.instances" :key="item.id" :label="`${item.name}`" :value="item.id">
+                            {{ item.name }}
+                            <el-divider direction="vertical" border-style="dashed" />
+
+                            {{ item.type }} / {{ item.host }}:{{ item.port }}
+                            <el-divider direction="vertical" border-style="dashed" />
+                            {{ item.username }}
+                        </el-option>
                     </el-select>
                 </el-form-item>
 
@@ -17,20 +42,20 @@
                 </el-form-item>
 
                 <el-form-item prop="database" label="数据库名:" required>
-                      <el-select
-                          @change="changeDatabase"
-                          v-model="databaseList"
-                          multiple
-                          clearable
-                          collapse-tags
-                          collapse-tags-tooltip
-                          filterable
-                          allow-create
-                          placeholder="请确保数据库实例信息填写完整后获取库名"
-                          style="width: 100%"
-                      >
-                          <el-option v-for="db in allDatabases" :key="db" :label="db" :value="db" />
-                      </el-select>
+                    <el-select
+                        @change="changeDatabase"
+                        v-model="databaseList"
+                        multiple
+                        clearable
+                        collapse-tags
+                        collapse-tags-tooltip
+                        filterable
+                        allow-create
+                        placeholder="请确保数据库实例信息填写完整后获取库名"
+                        style="width: 100%"
+                    >
+                        <el-option v-for="db in allDatabases" :key="db" :label="db" :value="db" />
+                    </el-select>
                 </el-form-item>
 
                 <el-form-item prop="remark" label="备注:">
@@ -146,21 +171,28 @@ const changeDatabase = () => {
 };
 
 const getAllDatabase = async () => {
-    const reqForm = { ...state.form };
     if (state.form.instanceId > 0) {
-        state.allDatabases = await dbApi.getAllDatabase.request(reqForm);
+        state.allDatabases = await dbApi.getAllDatabase.request({ instanceId: state.form.instanceId });
     }
 };
 
-const getAllInstances = async () => {
-    const data = await dbApi.instances.request(null);
+const getInstances = async (instanceName: string = '', id = 0) => {
+    if (!id && !instanceName) {
+        state.instances = [];
+        return;
+    }
+    const data = await dbApi.instances.request({ id, name: instanceName });
     if (data) {
         state.instances = data.list;
     }
-}
+};
+
 const open = async () => {
-    await getAllInstances()
-    await getAllDatabase()
+    if (state.form.instanceId) {
+        // 根据id获取，因为需要回显实例名称
+        getInstances('', state.form.instanceId);
+    }
+    await getAllDatabase();
 };
 
 const btnOk = async () => {

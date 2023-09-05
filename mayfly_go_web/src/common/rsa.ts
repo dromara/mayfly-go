@@ -25,7 +25,7 @@ export async function RsaEncrypt(value: any) {
     if (!value) {
         return '';
     }
-    if (encryptor != null) {
+    if (encryptor != null && sessionStorage.getItem('RsaPublicKey') != null) {
         return encryptor.encrypt(value);
     }
     encryptor = new JSEncrypt();

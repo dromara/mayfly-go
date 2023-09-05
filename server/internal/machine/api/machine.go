@@ -129,12 +129,8 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 		cmd += fmt.Sprintf("| grep %s ", pname)
 	}
 
-	count := g.Query("count")
-	if count == "" {
-		count = "10"
-	}
-
-	cmd += "| head -n " + count
+	count := ginx.QueryInt(g, "count", 10)
+	cmd += "| head -n " + fmt.Sprintf("%d", count)
 
 	cli := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")

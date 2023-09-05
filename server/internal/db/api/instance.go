@@ -1,24 +1,23 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/domain/entity"
-	msgapp "mayfly-go/internal/msg/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/cryptox"
 	"strconv"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Instance struct {
 	InstanceApp application.Instance
 	DbApp       application.Db
-	MsgApp      msgapp.Msg
 }
 
 // Instances 获取数据库实例信息

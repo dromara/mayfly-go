@@ -4,17 +4,9 @@ import "mayfly-go/pkg/model"
 
 // 数据库实例查询
 type InstanceQuery struct {
-	model.Model
-
-	Name     string `orm:"column(name)" json:"name" form:"name"`
-	Type     string `orm:"column(type)" json:"type"` // 类型，mysql oracle等
-	Host     string `orm:"column(host)" json:"host"`
-	Port     int    `orm:"column(port)" json:"port"`
-	Network  string `orm:"column(network)" json:"network"`
-	Username string `orm:"column(username)" json:"username"`
-	Password string `orm:"column(password)" json:"-"`
-	Params   string `orm:"column(params)" json:"params"`
-	Remark   string `orm:"column(remark)" json:"remark"`
+	Id   uint64 `json:"id" form:"id"`
+	Name string `json:"name" form:"name"`
+	Host string `json:"host" form:"host"`
 }
 
 // 数据库查询实体，不与数据库表字段一一对应

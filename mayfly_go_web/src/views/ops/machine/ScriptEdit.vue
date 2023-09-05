@@ -9,16 +9,16 @@
             :destroy-on-close="true"
             width="900px"
         >
-            <el-form :model="form" ref="scriptForm" label-width="auto">
-                <el-form-item prop="method" label="名称">
+            <el-form :model="form" :rules="rules" ref="scriptForm" label-width="auto">
+                <el-form-item prop="name" label="名称" required>
                     <el-input v-model="form.name" placeholder="请输入名称"></el-input>
                 </el-form-item>
 
-                <el-form-item prop="description" label="描述">
+                <el-form-item prop="description" label="描述" required>
                     <el-input v-model="form.description" placeholder="请输入描述"></el-input>
                 </el-form-item>
 
-                <el-form-item prop="type" label="类型">
+                <el-form-item prop="type" label="类型" required>
                     <el-select v-model="form.type" default-first-option style="width: 100%" placeholder="请选择类型">
                         <el-option v-for="item in ScriptResultEnum" :key="item.value" :label="item.label" :value="item.value"></el-option>
                     </el-select>
@@ -59,7 +59,11 @@
                     </el-row>
                 </el-form-item>
 
-                <monaco-editor v-model="form.script" language="shell" height="300px" />
+                <el-form-item required prop="script" class="100w">
+                    <div style="width: 100%">
+                        <monaco-editor v-model="form.script" language="shell" height="300px" />
+                    </div>
+                </el-form-item>
             </el-form>
 
             <template #footer>
@@ -99,6 +103,37 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:visible', 'cancel', 'submitSuccess']);
+
+const rules = {
+    name: [
+        {
+            required: true,
+            message: '请输入名称',
+            trigger: ['change', 'blur'],
+        },
+    ],
+    description: [
+        {
+            required: true,
+            message: '请输入描述',
+            trigger: ['blur', 'change'],
+        },
+    ],
+    type: [
+        {
+            required: true,
+            message: '请选择类型',
+            trigger: ['change', 'blur'],
+        },
+    ],
+    script: [
+        {
+            required: true,
+            message: '请输入脚本',
+            trigger: ['blur', 'change'],
+        },
+    ],
+};
 
 const { isCommon, machineId } = toRefs(props);
 const scriptForm: any = ref(null);
@@ -147,12 +182,8 @@ const onDeleteParam = (idx: number) => {
 
 const btnOk = () => {
     state.form.machineId = isCommon.value ? 9999999 : (machineId?.value as any);
-    console.log('machineid:', machineId);
     scriptForm.value.validate((valid: any) => {
         if (valid) {
-            notEmpty(state.form.name, '名称不能为空');
-            notEmpty(state.form.description, '描述不能为空');
-            notEmpty(state.form.script, '内容不能为空');
             if (state.params) {
                 state.form.params = JSON.stringify(state.params);
             }
