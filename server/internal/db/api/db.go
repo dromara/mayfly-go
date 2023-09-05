@@ -247,15 +247,6 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		extName = ""
 	}
 
-	defer func() {
-		if err := recover(); err != nil {
-			switch t := err.(type) {
-			case *biz.BizError:
-				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("数据库导出失败", t.Error()))
-			}
-		}
-	}()
-
 	// 是否需要导出表结构
 	needStruct := dumpType == "1" || dumpType == "3"
 	// 是否需要导出数据
@@ -281,7 +272,23 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	}
 
 	writer := gzipResponseWriter{writer: gzip.NewWriter(g.Writer)}
-	defer writer.Close()
+	defer func() {
+		var msg string
+		if err := recover(); err != nil {
+			switch t := err.(type) {
+			case biz.BizError:
+				msg = t.Error()
+			case *biz.BizError:
+				msg = t.Error()
+			}
+		}
+		if len(msg) > 0 {
+			msg = "数据库导出失败: " + msg
+			writer.WriteString(msg)
+			d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("数据库导出失败", msg))
+		}
+		writer.Close()
+	}()
 	for _, dbName := range dbNames {
 		d.dumpDb(writer, dbId, dbName, tables, needStruct, needData, len(dbNames) > 1)
 	}
