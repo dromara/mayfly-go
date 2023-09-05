@@ -1,6 +1,7 @@
 package api
 
 import (
+	"compress/gzip"
 	"fmt"
 	"io"
 	"mayfly-go/internal/db/api/form"
@@ -30,6 +31,18 @@ type Db struct {
 	DbSqlExecApp application.DbSqlExec
 	MsgApp       msgapp.Msg
 	TagApp       tagapp.TagTree
+}
+
+type gzipResponseWriter struct {
+	writer *gzip.Writer
+}
+
+func (g gzipResponseWriter) WriteString(data string) {
+	g.writer.Write([]byte(data))
+}
+
+func (g gzipResponseWriter) Close() {
+	g.writer.Close()
 }
 
 const DEFAULT_ROW_SIZE = 5000
@@ -198,6 +211,10 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			if err == io.EOF {
 				break
 			}
+			if err != nil {
+				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
+				return
+			}
 			sql := sqlparser.String(stmt)
 			execReq.Sql = sql
 			// 需要记录执行记录
@@ -219,38 +236,81 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 // 数据库dump
 func (d *Db) DumpSql(rc *req.Ctx) {
 	g := rc.GinCtx
-	db := getDbName(g)
+	dbId := getDbId(g)
+	dbNamesStr := g.Query("db")
 	dumpType := g.Query("type")
 	tablesStr := g.Query("tables")
-	biz.NotEmpty(tablesStr, "请选择要导出的表")
-	tables := strings.Split(tablesStr, ",")
+	extName := g.Query("extName")
+	switch extName {
+	case ".gz", ".gzip", "gz", "gzip":
+		extName = ".gz"
+	default:
+		extName = ""
+	}
 
 	// 是否需要导出表结构
 	needStruct := dumpType == "1" || dumpType == "3"
 	// 是否需要导出数据
 	needData := dumpType == "2" || dumpType == "3"
 
-	dbInstance := d.getDbConnection(rc.GinCtx)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
+	db := d.DbApp.GetById(dbId)
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, db.TagPath), "%s")
 
 	now := time.Now()
-	filename := fmt.Sprintf("%s.%s.sql", db, now.Format("200601021504"))
+	filename := fmt.Sprintf("%s.%s.sql%s", db.Name, now.Format("20060102150405"), extName)
 	g.Header("Content-Type", "application/octet-stream")
 	g.Header("Content-Disposition", "attachment; filename="+filename)
+	if extName != ".gz" {
+		g.Header("Content-Encoding", "gzip")
+	}
 
-	writer := g.Writer
+	var dbNames, tables []string
+	if len(dbNamesStr) > 0 {
+		dbNames = strings.Split(dbNamesStr, ",")
+	}
+	if len(dbNames) == 1 && len(tablesStr) > 0 {
+		tables = strings.Split(tablesStr, ",")
+	}
+
+	writer := gzipResponseWriter{writer: gzip.NewWriter(g.Writer)}
+	defer writer.Close()
+	for _, dbName := range dbNames {
+		d.dumpDb(writer, dbId, dbName, tables, needStruct, needData, len(dbNames) > 1)
+	}
+
+	rc.ReqParam = fmt.Sprintf("DB[id=%d, tag=%s, name=%s, databases=%s, tables=%s, dumpType=%s]", db.Id, db.TagPath, db.Name, dbNamesStr, tablesStr, dumpType)
+}
+
+func (d *Db) dumpDb(writer gzipResponseWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool, switchDb bool) {
+	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
 	writer.WriteString("-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
-	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", now.Format("2006-01-02 15:04:05")))
-	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", db))
+	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
+	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", dbName))
 	writer.WriteString("\n-- ----------------------------\n")
 
-	dbmeta := d.getDbConnection(rc.GinCtx).GetMeta()
+	if switchDb {
+		switch dbConn.Info.Type {
+		case entity.DbTypeMysql:
+			writer.WriteString(fmt.Sprintf("use `%s`;\n", dbName))
+		default:
+			biz.IsTrue(false, "数据库类型必须为 %s", entity.DbTypeMysql)
+		}
+	}
+	dbMeta := dbConn.GetMeta()
+	if len(tables) == 0 {
+		ti := dbMeta.GetTableInfos()
+		tables = make([]string, len(ti))
+		for i, table := range ti {
+			tables[i] = table.TableName
+		}
+	}
+
 	for _, table := range tables {
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
 			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS `%s`;\n", table))
-			writer.WriteString(dbmeta.GetCreateTableDdl(table) + ";\n")
+			writer.WriteString(dbMeta.GetCreateTableDdl(table) + ";\n")
 		}
 
 		if !needData {
@@ -262,7 +322,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 
 		pageNum := 1
 		for {
-			columns, result, _ := dbmeta.GetTableRecord(table, pageNum, DEFAULT_ROW_SIZE)
+			columns, result, _ := dbMeta.GetTableRecord(table, pageNum, DEFAULT_ROW_SIZE)
 			resultLen := len(result)
 			if resultLen == 0 {
 				break
@@ -293,8 +353,6 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 
 		writer.WriteString("COMMIT;\n")
 	}
-
-	rc.ReqParam = fmt.Sprintf("%s, tables: %s, dumpType: %s", dbInstance.Info.GetLogDesc(), tablesStr, dumpType)
 }
 
 // @router /api/db/:dbId/t-metadata [get]

@@ -147,7 +147,7 @@ func (d *dbAppImpl) GetDbConnection(dbId uint64, dbName string) *DbConnection {
 
 	db := d.GetById(dbId)
 	biz.NotNil(db, "数据库信息不存在")
-	biz.IsTrue(strings.Contains(" "+db.Database+" ", " "+dbName+" "), "未配置该库的操作权限")
+	biz.IsTrue(strings.Contains(" "+db.Database+" ", " "+dbName+" "), "未配置数据库【%s】的操作权限", dbName)
 
 	instance := d.dbInstanceApp.GetById(db.InstanceId)
 	// 密码解密
