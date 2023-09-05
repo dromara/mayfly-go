@@ -271,31 +271,37 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	if len(dbNames) == 1 && len(tablesStr) > 0 {
 		tables = strings.Split(tablesStr, ",")
 	}
+
+	instance := d.InstanceApp.GetById(db.InstanceId)
 	writer := gzipResponseWriter{writer: gzip.NewWriter(g.Writer)}
 	defer writer.Close()
 	for _, dbName := range dbNames {
-		d.dumpDb(writer, db, dbName, tables, needStruct, needData)
+		d.dumpHeader(writer, instance, dbName, len(dbNames) > 1)
+		d.dumpDb(writer, db, instance, dbName, tables, needStruct, needData)
 	}
 
 	rc.ReqParam = fmt.Sprintf("DB[id=%d, tag=%s, name=%s, databases=%s, tables=%s, dumpType=%s]", db.Id, db.TagPath, db.Name, dbNamesStr, tablesStr, dumpType)
 }
 
-func (d *Db) dumpDb(writer gzipResponseWriter, db *entity.Db, dbName string, tables []string, needStruct bool, needData bool) {
+func (d *Db) dumpHeader(writer gzipResponseWriter, instance *entity.Instance, dbName string, switchDb bool) {
 	writer.WriteString("-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
 	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
 	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", dbName))
 	writer.WriteString("\n-- ----------------------------\n")
 
-	instance := d.InstanceApp.GetById(db.InstanceId)
-	dbInst := d.DbApp.GetDbConnection(db, instance, dbName)
-
-	switch dbInst.Info.Type {
-	case entity.DbTypeMysql:
-		writer.WriteString(fmt.Sprintf("use `%s`;\n", dbName))
-	default:
-		biz.IsTrue(false, "数据库类型必须为 %s", entity.DbTypeMysql)
+	if switchDb {
+		switch instance.Type {
+		case entity.DbTypeMysql:
+			writer.WriteString(fmt.Sprintf("use `%s`;\n", dbName))
+		default:
+			biz.IsTrue(false, "数据库类型必须为 %s", entity.DbTypeMysql)
+		}
 	}
+}
+
+func (d *Db) dumpDb(writer gzipResponseWriter, db *entity.Db, instance *entity.Instance, dbName string, tables []string, needStruct bool, needData bool) {
+	dbInst := d.DbApp.GetDbConnection(db, instance, dbName)
 	dbMeta := dbInst.GetMeta()
 	if len(tables) == 0 {
 		ti := dbMeta.GetTableInfos()
