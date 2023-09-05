@@ -71,7 +71,7 @@ const (
 )
 
 type PgsqlMetadata struct {
-	di *DbInstance
+	di *DbConnection
 }
 
 // 获取表基础元信息, 如表名等

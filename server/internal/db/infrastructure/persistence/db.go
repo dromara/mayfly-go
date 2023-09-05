@@ -18,7 +18,7 @@ func newDbRepo() repository.Db {
 func (d *dbRepoImpl) GetDbList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
 	qd := gormx.NewQueryWithTableName("t_db db").
 		Select("db.*, inst.name instance_name, inst.type instance_type").
-		Joins("JOIN t_instance inst ON db.instance_id = inst.id").
+		Joins("JOIN t_db_instance inst ON db.instance_id = inst.id").
 		Eq("db.instance_id", condition.InstanceId).
 		Like("db.database", condition.Database).
 		In("db.tag_id", condition.TagIds).

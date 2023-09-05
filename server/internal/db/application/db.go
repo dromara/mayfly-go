@@ -39,7 +39,7 @@ type Db interface {
 	// 获取数据库连接实例
 	// @param id 数据库实例id
 	// @param db 数据库
-	GetDbInstance(db *entity.Db, instance *entity.Instance, dbName string) *DbInstance
+	GetDbConnection(db *entity.Db, instance *entity.Instance, dbName string) *DbConnection
 }
 
 func newDbApp(dbRepo repository.Db, dbSqlRepo repository.DbSql) Db {
@@ -129,7 +129,7 @@ func (d *dbAppImpl) Delete(id uint64) {
 
 var mutex sync.Mutex
 
-func (d *dbAppImpl) GetDbInstance(db *entity.Db, instance *entity.Instance, dbName string) *DbInstance {
+func (d *dbAppImpl) GetDbConnection(db *entity.Db, instance *entity.Instance, dbName string) *DbConnection {
 	cacheKey := GetDbCacheKey(db.Id, dbName)
 
 	// Id不为0，则为需要缓存
@@ -137,7 +137,7 @@ func (d *dbAppImpl) GetDbInstance(db *entity.Db, instance *entity.Instance, dbNa
 	if needCache {
 		load, ok := dbCache.Get(cacheKey)
 		if ok {
-			return load.(*DbInstance)
+			return load.(*DbConnection)
 		}
 	}
 	mutex.Lock()
@@ -151,7 +151,7 @@ func (d *dbAppImpl) GetDbInstance(db *entity.Db, instance *entity.Instance, dbNa
 
 	dbInfo := NewDbInfo(db, instance)
 	dbInfo.Database = dbName
-	dbi := &DbInstance{Id: cacheKey, Info: dbInfo}
+	dbi := &DbConnection{Id: cacheKey, Info: dbInfo}
 
 	conn, err := getInstanceConn(instance, dbName)
 	if err != nil {
@@ -209,7 +209,7 @@ func (d *DbInfo) GetLogDesc() string {
 }
 
 // db实例
-type DbInstance struct {
+type DbConnection struct {
 	Id   string
 	Info *DbInfo
 
@@ -218,18 +218,18 @@ type DbInstance struct {
 
 // 执行查询语句
 // 依次返回 列名数组，结果map，错误
-func (d *DbInstance) SelectData(execSql string) ([]string, []map[string]any, error) {
+func (d *DbConnection) SelectData(execSql string) ([]string, []map[string]any, error) {
 	return SelectDataByDb(d.db, execSql)
 }
 
 // 将查询结果映射至struct，可具体参考sqlx库
-func (d *DbInstance) SelectData2Struct(execSql string, dest any) error {
+func (d *DbConnection) SelectData2Struct(execSql string, dest any) error {
 	return Select2StructByDb(d.db, execSql, dest)
 }
 
 // 执行 update, insert, delete，建表等sql
 // 返回影响条数和错误
-func (d *DbInstance) Exec(sql string) (int64, error) {
+func (d *DbConnection) Exec(sql string) (int64, error) {
 	res, err := d.db.Exec(sql)
 	if err != nil {
 		return 0, err
@@ -238,7 +238,7 @@ func (d *DbInstance) Exec(sql string) (int64, error) {
 }
 
 // 获取数据库元信息实现接口
-func (di *DbInstance) GetMeta() DbMetadata {
+func (di *DbConnection) GetMeta() DbMetadata {
 	dbType := di.Info.Type
 	if dbType == entity.DbTypeMysql {
 		return &MysqlMetadata{di: di}
@@ -250,7 +250,7 @@ func (di *DbInstance) GetMeta() DbMetadata {
 }
 
 // 关闭连接
-func (d *DbInstance) Close() {
+func (d *DbConnection) Close() {
 	if d.db != nil {
 		if err := d.db.Close(); err != nil {
 			logx.Errorf("关闭数据库实例[%s]连接失败: %s", d.Id, err.Error())
@@ -266,7 +266,7 @@ var dbCache = cache.NewTimedCache(consts.DbConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key any, value any) {
 		logx.Info(fmt.Sprintf("删除db连接缓存 id = %s", key))
-		value.(*DbInstance).Close()
+		value.(*DbConnection).Close()
 	})
 
 func init() {
@@ -274,7 +274,7 @@ func init() {
 		// 遍历所有db连接实例，若存在db实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := dbCache.Items()
 		for _, v := range items {
-			if v.Value.(*DbInstance).Info.SshTunnelMachineId == machineId {
+			if v.Value.(*DbConnection).Info.SshTunnelMachineId == machineId {
 				return true
 			}
 		}
@@ -286,9 +286,9 @@ func GetDbCacheKey(dbId uint64, db string) string {
 	return fmt.Sprintf("%d:%s", dbId, db)
 }
 
-func GetDbInstanceByCache(id string) *DbInstance {
+func GetDbInstanceByCache(id string) *DbConnection {
 	if load, ok := dbCache.Get(id); ok {
-		return load.(*DbInstance)
+		return load.(*DbConnection)
 	}
 	return nil
 }

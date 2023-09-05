@@ -20,7 +20,7 @@ type DbSqlExecReq struct {
 	Sql          string
 	Remark       string
 	LoginAccount *model.LoginAccount
-	DbInstance   *DbInstance
+	DbInstance   *DbConnection
 }
 
 type DbSqlExecRes struct {
@@ -252,7 +252,7 @@ func doInsert(insert *sqlparser.Insert, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 	return doExec(execSqlReq.Sql, execSqlReq.DbInstance)
 }
 
-func doExec(sql string, dbInstance *DbInstance) (*DbSqlExecRes, error) {
+func doExec(sql string, dbInstance *DbConnection) (*DbSqlExecRes, error) {
 	rowsAffected, err := dbInstance.Exec(sql)
 	execRes := "success"
 	if err != nil {

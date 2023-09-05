@@ -21,6 +21,10 @@ type Instance struct {
 	SshTunnelMachineId int    `orm:"column(ssh_tunnel_machine_id)" json:"sshTunnelMachineId"` // ssh隧道机器id
 }
 
+func (d *Instance) TableName() string {
+	return "t_db_instance"
+}
+
 // 获取数据库连接网络, 若没有使用ssh隧道，则直接返回。否则返回拼接的网络需要注册至指定dial
 func (d *Instance) GetNetwork() string {
 	network := d.Network

@@ -2,10 +2,10 @@ SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- ----------------------------
--- Table structure for t_instance
+-- Table structure for t_db_instance
 -- ----------------------------
-DROP TABLE IF EXISTS `t_instance`;
-CREATE TABLE `t_instance` (
+DROP TABLE IF EXISTS `t_db_instance`;
+CREATE TABLE `t_db_instance` (
     `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
     `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
     `host` varchar(100) COLLATE utf8mb4_bin NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE `t_instance` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库实例信息表';
 
 -- ----------------------------
--- Records of t_instance
+-- Records of t_db_instance
 -- ----------------------------
 BEGIN;
 COMMIT;

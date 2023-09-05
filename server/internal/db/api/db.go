@@ -90,29 +90,29 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 	}
 }
 
-func (d *Db) getDbInstance(g *gin.Context) *application.DbInstance {
+func (d *Db) getDbConnection(g *gin.Context) *application.DbConnection {
 	dbName := g.Query("db")
 	biz.NotEmpty(dbName, "db不能为空")
 	dbId := getDbId(g)
 	db := d.DbApp.GetById(dbId)
 	instance := d.InstanceApp.GetById(db.InstanceId)
-	return d.DbApp.GetDbInstance(db, instance, dbName)
+	return d.DbApp.GetDbConnection(db, instance, dbName)
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
-	rc.ResData = d.getDbInstance(rc.GinCtx).GetMeta().GetTableInfos()
+	rc.ResData = d.getDbConnection(rc.GinCtx).GetMeta().GetTableInfos()
 }
 
 func (d *Db) TableIndex(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	rc.ResData = d.getDbInstance(rc.GinCtx).GetMeta().GetTableIndex(tn)
+	rc.ResData = d.getDbConnection(rc.GinCtx).GetMeta().GetTableIndex(tn)
 }
 
 func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	rc.ResData = d.getDbInstance(rc.GinCtx).GetMeta().GetCreateTableDdl(tn)
+	rc.ResData = d.getDbConnection(rc.GinCtx).GetMeta().GetCreateTableDdl(tn)
 }
 
 func (d *Db) ExecSql(rc *req.Ctx) {
@@ -123,7 +123,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	dbId := getDbId(g)
 	db := d.DbApp.GetById(dbId)
 	instance := d.InstanceApp.GetById(db.InstanceId)
-	dbInstance := d.DbApp.GetDbInstance(db, instance, form.Db)
+	dbInstance := d.DbApp.GetDbConnection(db, instance, form.Db)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
 
 	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbInstance.Info.GetLogDesc(), form.Sql)
@@ -180,7 +180,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	dbId := getDbId(g)
 	dbName := getDbName(g)
 
-	dbInstance := d.getDbInstance(rc.GinCtx)
+	dbInstance := d.getDbConnection(rc.GinCtx)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
 	rc.ReqParam = fmt.Sprintf("%s -> filename: %s", dbInstance.Info.GetLogDesc(), filename)
 
@@ -246,7 +246,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	// 是否需要导出数据
 	needData := dumpType == "2" || dumpType == "3"
 
-	dbInstance := d.getDbInstance(rc.GinCtx)
+	dbInstance := d.getDbConnection(rc.GinCtx)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbInstance.Info.TagPath), "%s")
 
 	now := time.Now()
@@ -261,7 +261,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", db))
 	writer.WriteString("\n-- ----------------------------\n")
 
-	dbmeta := d.getDbInstance(rc.GinCtx).GetMeta()
+	dbmeta := d.getDbConnection(rc.GinCtx).GetMeta()
 	for _, table := range tables {
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
@@ -315,7 +315,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 
 // @router /api/db/:dbId/t-metadata [get]
 func (d *Db) TableMA(rc *req.Ctx) {
-	dbi := d.getDbInstance(rc.GinCtx)
+	dbi := d.getDbConnection(rc.GinCtx)
 	rc.ResData = dbi.GetMeta().GetTables()
 }
 
@@ -325,13 +325,13 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 	tn := g.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
 
-	dbi := d.getDbInstance(rc.GinCtx)
+	dbi := d.getDbConnection(rc.GinCtx)
 	rc.ResData = dbi.GetMeta().GetColumns(tn)
 }
 
 // @router /api/db/:dbId/hint-tables [get]
 func (d *Db) HintTables(rc *req.Ctx) {
-	dbi := d.getDbInstance(rc.GinCtx)
+	dbi := d.getDbConnection(rc.GinCtx)
 
 	dm := dbi.GetMeta()
 	// 获取所有表

@@ -1,4 +1,4 @@
-CREATE TABLE `t_instance` (
+CREATE TABLE `t_db_instance` (
                               `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
                               `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
                               `host` varchar(100) COLLATE utf8mb4_bin NOT NULL,
@@ -40,15 +40,15 @@ INSERT INTO `t_sys_role_resource` (role_id,resource_id,creator_id,creator,create
                                                                                                                   (1,137,1,'admin','2023-08-30 20:17:00', 0, NULL),
                                                                                                                   (1,138,1,'admin','2023-08-30 20:17:00', 0, NULL);
 
-INSERT INTO t_instance (`host`, `port`, `username`, `password`, `type`, `params`, `network`, `ssh_tunnel_machine_id`, `remark`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`)
+INSERT INTO t_db_instance (`host`, `port`, `username`, `password`, `type`, `params`, `network`, `ssh_tunnel_machine_id`, `remark`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`)
 SELECT DISTINCT `host`, `port`, `username`, `password`, `type`, `params`, `network`, `ssh_tunnel_machine_id`, '', '2023-08-30 15:04:07', 1, 'admin', '2023-08-30 15:04:07', 1, 'admin', 0, NULL
 FROM t_db
 WHERE is_deleted = 0;
 
-UPDATE t_instance SET name = CONCAT('instance_', id)
+UPDATE t_db_instance SET name = CONCAT('instance_', id)
 WHERE name is NULL;
 
-UPDATE t_db a, t_instance b SET a.instance_id = b.id
+UPDATE t_db a, t_db_instance b SET a.instance_id = b.id
 WHERE a.`host`=b.`host` and a.`port`=b.`port` and a.`username`=b.`username` and a.`password`=b.`password` and a.`type`=b.`type` and a.`params`=b.`params` and a.`network`=b.`network` and a.`ssh_tunnel_machine_id`=b.`ssh_tunnel_machine_id`;
 
 COMMIT;
