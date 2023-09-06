@@ -73,7 +73,9 @@ func (r TerminalSession) Stop() {
 	r.cancel()
 	if r.terminal != nil {
 		if err := r.terminal.Close(); err != nil {
-			logx.Errorf("关闭机器ssh终端失败: %s", err.Error())
+			if err != io.EOF {
+				logx.Errorf("关闭机器ssh终端失败: %s", err.Error())
+			}
 		}
 	}
 }

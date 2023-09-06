@@ -12,6 +12,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/timex"
 	"mayfly-go/pkg/ws"
 	"sort"
 	"strconv"
@@ -113,11 +114,14 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 	fisVO := make([]vo.MachineFileInfo, 0)
 	for _, fi := range fis {
 		fisVO = append(fisVO, vo.MachineFileInfo{
-			Name: fi.Name(),
-			Size: fi.Size(),
-			Path: readPath + fi.Name(),
-			Type: getFileType(fi.Mode()),
+			Name:    fi.Name(),
+			Size:    fi.Size(),
+			Path:    readPath + fi.Name(),
+			Type:    getFileType(fi.Mode()),
+			Mode:    fi.Mode().String(),
+			ModTime: timex.DefaultFormat(fi.ModTime()),
 		})
+
 	}
 	sort.Sort(vo.MachineFileInfos(fisVO))
 	rc.ResData = fisVO

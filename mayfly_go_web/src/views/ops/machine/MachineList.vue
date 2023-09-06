@@ -150,7 +150,7 @@
 
         <script-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible" v-model:machineId="serviceDialog.machineId" />
 
-        <file-manage :title="fileDialog.title" v-model:visible="fileDialog.visible" v-model:machineId="fileDialog.machineId" />
+        <file-conf-list :title="fileDialog.title" v-model:visible="fileDialog.visible" v-model:machineId="fileDialog.machineId" />
 
         <machine-stats v-model:visible="machineStatsDialog.visible" :machineId="machineStatsDialog.machineId" :title="machineStatsDialog.title"></machine-stats>
 
@@ -173,7 +173,7 @@ import { hasPerms } from '@/components/auth/auth';
 const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
 const MachineEdit = defineAsyncComponent(() => import('./MachineEdit.vue'));
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
-const FileManage = defineAsyncComponent(() => import('./FileManage.vue'));
+const FileConfList = defineAsyncComponent(() => import('./file/FileConfList.vue'));
 const MachineStats = defineAsyncComponent(() => import('./MachineStats.vue'));
 const MachineRec = defineAsyncComponent(() => import('./MachineRec.vue'));
 const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));

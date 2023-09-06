@@ -94,8 +94,7 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 func (d *Db) getDbConnection(g *gin.Context) *application.DbConnection {
 	dbName := g.Query("db")
 	biz.NotEmpty(dbName, "db不能为空")
-	dbId := getDbId(g)
-	return d.DbApp.GetDbConnection(dbId, dbName)
+	return d.DbApp.GetDbConnection(getDbId(g), dbName)
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
