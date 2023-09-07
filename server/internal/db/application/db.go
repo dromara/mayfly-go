@@ -313,13 +313,7 @@ func selectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]any, e
 }
 
 func walkTableRecord(db *sql.DB, selectSql string, walk func(record map[string]any, columns []string)) error {
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	rows, err := tx.Query(selectSql)
+	rows, err := db.Query(selectSql)
 	if err != nil {
 		return err
 	}
@@ -362,9 +356,6 @@ func walkTableRecord(db *sql.DB, selectSql string, walk func(record map[string]a
 		walk(rowData, colNames)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return err
-	}
 	return nil
 }
 
