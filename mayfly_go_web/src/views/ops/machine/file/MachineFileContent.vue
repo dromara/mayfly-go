@@ -1,6 +1,6 @@
 <template>
     <div class="machine-file-content">
-        <el-dialog :before-close="handleClose" :title="path" v-model="dialogVisible" :close-on-click-modal="false" top="5vh" width="65%">
+        <el-dialog :before-close="handleClose" :title="title || path" v-model="dialogVisible" :close-on-click-modal="false" top="5vh" width="65%">
             <div>
                 <monaco-editor :can-change-mode="true" v-model="content" :language="fileType" />
             </div>
@@ -24,6 +24,7 @@ import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 
 const props = defineProps({
     visible: { type: Boolean, default: false },
+    title: { type: String, default: '' },
     machineId: { type: Number },
     fileId: { type: Number, default: 0 },
     path: { type: String, default: '' },

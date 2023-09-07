@@ -12,6 +12,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/timex"
 	"mayfly-go/pkg/ws"
 	"sort"
@@ -191,12 +192,48 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 func (m *MachineFile) RemoveFile(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
-	path := g.Query("path")
 
-	m.MachineFileApp.RemoveFile(fid, path)
+	rmForm := new(form.MachineFileOpForm)
+	ginx.BindJsonAndValid(g, rmForm)
+
+	m.MachineFileApp.RemoveFile(fid, rmForm.Path...)
 
 	mi := m.MachineFileApp.GetMachine(fid)
-	rc.ReqParam = fmt.Sprintf("%s -> 删除文件: %s", mi.GetLogDesc(), path)
+	rc.ReqParam = fmt.Sprintf("%s -> 删除文件: %s", mi.GetLogDesc(), strings.Join(rmForm.Path, " | "))
+}
+
+func (m *MachineFile) CopyFile(rc *req.Ctx) {
+	g := rc.GinCtx
+	fid := GetMachineFileId(g)
+
+	cpForm := new(form.MachineFileOpForm)
+	ginx.BindJsonAndValid(g, cpForm)
+	mi := m.MachineFileApp.Copy(fid, cpForm.ToPath, cpForm.Path...)
+
+	rc.ReqParam = fmt.Sprintf("%s -> 拷贝文件: %s -> %s", mi.GetLogDesc(), strings.Join(cpForm.Path, " | "), cpForm.ToPath)
+}
+
+func (m *MachineFile) MvFile(rc *req.Ctx) {
+	g := rc.GinCtx
+	fid := GetMachineFileId(g)
+
+	cpForm := new(form.MachineFileOpForm)
+	ginx.BindJsonAndValid(g, cpForm)
+	mi := m.MachineFileApp.Mv(fid, cpForm.ToPath, cpForm.Path...)
+
+	rc.ReqParam = fmt.Sprintf("%s -> 移动文件: %s -> %s", mi.GetLogDesc(), strings.Join(cpForm.Path, " | "), cpForm.ToPath)
+}
+
+func (m *MachineFile) Rename(rc *req.Ctx) {
+	g := rc.GinCtx
+	fid := GetMachineFileId(g)
+
+	rename := new(form.MachineFileRename)
+	ginx.BindJsonAndValid(g, rename)
+	biz.ErrIsNilAppendErr(m.MachineFileApp.Rename(fid, rename.Oldname, rename.Newname), "文件重命名失败: %s")
+
+	mi := m.MachineFileApp.GetMachine(fid)
+	rc.ReqParam = fmt.Sprintf("%s -> 文件重命名: %s", mi.GetLogDesc(), jsonx.ToStr(rename))
 }
 
 func getFileType(fm fs.FileMode) string {

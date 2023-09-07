@@ -39,7 +39,13 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 
 		req.NewPost(":machineId/files/:fileId/upload", mf.UploadFile).Log(req.NewLogSave("机器-文件上传")).RequiredPermissionCode("machine:file:upload"),
 
-		req.NewDelete(":machineId/files/:fileId/remove", mf.RemoveFile).Log(req.NewLogSave("机器-删除文件or文件夹")).RequiredPermissionCode("machine:file:rm"),
+		req.NewPost(":machineId/files/:fileId/remove", mf.RemoveFile).Log(req.NewLogSave("机器-删除文件or文件夹")).RequiredPermissionCode("machine:file:rm"),
+
+		req.NewPost(":machineId/files/:fileId/cp", mf.CopyFile).Log(req.NewLogSave("机器-拷贝文件")).RequiredPermissionCode("machine:file:rm"),
+
+		req.NewPost(":machineId/files/:fileId/mv", mf.MvFile).Log(req.NewLogSave("机器-移动文件")).RequiredPermissionCode("machine:file:rm"),
+
+		req.NewPost(":machineId/files/:fileId/rename", mf.Rename).Log(req.NewLogSave("机器-文件重命名")).RequiredPermissionCode("machine:file:write"),
 	}
 
 	req.BatchSetGroup(machineFile, reqs[:])

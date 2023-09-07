@@ -2,20 +2,32 @@
     <div class="machine-file">
         <div>
             <el-progress v-if="uploadProgressShow" style="width: 90%; margin-left: 20px" :text-inside="true" :stroke-width="20" :percentage="progressNum" />
+
             <el-row class="mb10">
                 <el-breadcrumb separator-icon="ArrowRight">
                     <el-breadcrumb-item v-for="path in filePathNav">
-                        <el-link @click="setFiles(path.path)">{{ path.name }}</el-link>
+                        <el-link @click="setFiles(path.path)" style="font-weight: bold">{{ path.name }}</el-link>
                     </el-breadcrumb-item>
                 </el-breadcrumb>
             </el-row>
-            <el-table ref="fileTableRef" height="65vh" :data="files" style="width: 100%" highlight-current-row v-loading="loading">
+
+            <el-table
+                ref="fileTableRef"
+                @cell-dblclick="cellDbclick"
+                @selection-change="handleSelectionChange"
+                height="65vh"
+                :data="filterFiles"
+                highlight-current-row
+                v-loading="loading"
+            >
+                <el-table-column type="selection" width="30" />
+
                 <el-table-column prop="name" label="名称" show-overflow-tooltip>
                     <template #header>
                         <div class="machine-file-table-header">
                             <div>
                                 <el-button :disabled="nowPath == basePath" type="primary" circle size="small" icon="Back" @click="back()"> </el-button>
-                                <el-button class="ml0" type="primary" circle size="small" icon="Refresh" @click="refresh()"> </el-button>
+                                <el-button class="ml5" type="primary" circle size="small" icon="Refresh" @click="refresh()"> </el-button>
 
                                 <el-upload
                                     :before-upload="beforeUpload"
@@ -27,19 +39,78 @@
                                     name="file"
                                     class="machine-file-upload-exec"
                                 >
-                                    <el-button v-auth="'machine:file:upload'" class="ml10" type="primary" circle size="small" icon="Upload"> </el-button>
+                                    <el-button v-auth="'machine:file:upload'" class="ml5" type="primary" circle size="small" icon="Upload" title="上传">
+                                    </el-button>
                                 </el-upload>
+
+                                <el-button
+                                    :disabled="state.selectionFiles.length == 0"
+                                    v-auth="'machine:file:rm'"
+                                    @click="copyFile(state.selectionFiles)"
+                                    class="ml5"
+                                    type="primary"
+                                    circle
+                                    size="small"
+                                    icon="CopyDocument"
+                                    title="复制"
+                                >
+                                </el-button>
+
+                                <el-button
+                                    :disabled="state.selectionFiles.length == 0"
+                                    v-auth="'machine:file:rm'"
+                                    @click="mvFile(state.selectionFiles)"
+                                    class="ml5"
+                                    type="primary"
+                                    circle
+                                    size="small"
+                                    icon="Rank"
+                                    title="移动"
+                                >
+                                </el-button>
 
                                 <el-button
                                     v-auth="'machine:file:write'"
                                     @click="showCreateFileDialog()"
-                                    class="ml10"
+                                    class="ml5"
                                     type="primary"
                                     circle
                                     size="small"
                                     icon="FolderAdd"
+                                    title="新建"
                                 >
                                 </el-button>
+
+                                <el-button
+                                    :disabled="state.selectionFiles.length == 0"
+                                    v-auth="'machine:file:rm'"
+                                    @click="deleteFile(state.selectionFiles)"
+                                    class="ml5"
+                                    type="danger"
+                                    circle
+                                    size="small"
+                                    icon="delete"
+                                    title="删除"
+                                >
+                                </el-button>
+
+                                <el-button-group v-if="state.copyOrMvFile.paths.length > 0" size="small" class="ml5">
+                                    <el-tooltip effect="customized" raw-content placement="top">
+                                        <template #content>
+                                            <div v-for="path in state.copyOrMvFile.paths">{{ path }}</div>
+                                        </template>
+
+                                        <el-button @click="pasteFile" type="primary"
+                                            >{{ isCpFile() ? '复制' : '移动' }}粘贴{{ state.copyOrMvFile.paths.length }}</el-button
+                                        >
+                                    </el-tooltip>
+
+                                    <el-button icon="CloseBold" @click="cancelCopy" />
+                                </el-button-group>
+                            </div>
+
+                            <div style="width: 150px">
+                                <el-input v-model="fileNameFilter" size="small" placeholder="名称: 输入可过滤" clearable />
                             </div>
                         </div>
                     </template>
@@ -52,8 +123,16 @@
                             <SvgIcon :size="15" name="document" />
                         </span>
 
-                        <span class="ml5" style="font-weight: bold">
-                            <el-link @click="getFile(scope.row)" :underline="false">{{ scope.row.name }}</el-link>
+                        <span class="ml5" style="display: inline-block; width: 300px">
+                            <div v-if="scope.row.nameEdit">
+                                <el-input
+                                    @keyup.enter="fileRename(scope.row)"
+                                    :ref="(el: any) => el?.focus()"
+                                    @blur="filenameBlur(scope.row)"
+                                    v-model="scope.row.name"
+                                />
+                            </div>
+                            <el-link v-else @click="getFile(scope.row)" style="font-weight: bold" :underline="false">{{ scope.row.name }}</el-link>
                         </span>
                     </template>
                 </el-table-column>
@@ -71,7 +150,16 @@
                 <el-table-column prop="mode" label="属性" width="110"> </el-table-column>
                 <el-table-column prop="modTime" label="修改时间" width="165" sortable> </el-table-column>
 
-                <el-table-column label="操作" width="100">
+                <el-table-column width="100">
+                    <template #header>
+                        <el-popover placement="top" :width="270" trigger="hover">
+                            <template #reference>
+                                <SvgIcon name="QuestionFilled" :size="18" class="pointer-icon mr10" />
+                            </template>
+                            <div>rename: 双击文件名单元格后回车</div>
+                        </el-popover>
+                        操作
+                    </template>
                     <template #default="scope">
                         <el-link
                             @click="downloadFile(scope.row)"
@@ -83,7 +171,7 @@
                         ></el-link>
 
                         <el-link
-                            @click="deleteFile(scope.row)"
+                            @click="deleteFile([scope.row])"
                             v-if="!dontOperate(scope.row)"
                             v-auth="'machine:file:rm'"
                             type="danger"
@@ -147,13 +235,14 @@
 
 <script lang="ts" setup>
 import { toRefs, reactive, onMounted, computed } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox, ElInput } from 'element-plus';
 import { machineApi } from '../api';
 
 import { getSession } from '@/common/utils/storage';
 import config from '@/common/config';
 import { isTrue } from '@/common/assert';
 import MachineFileContent from './MachineFileContent.vue';
+import { notBlank } from '@/common/assert';
 
 const props = defineProps({
     machineId: { type: Number },
@@ -175,7 +264,17 @@ const state = reactive({
     loading: true,
     progressNum: 0,
     uploadProgressShow: false,
+    fileNameFilter: '',
     files: [] as any,
+    selectionFiles: [] as any,
+    copyOrMvFile: {
+        paths: [] as any,
+        type: 'cp',
+        fromPath: '',
+    },
+    renameFile: {
+        oldname: '',
+    },
     fileContent: {
         content: '',
         contentVisible: false,
@@ -192,12 +291,16 @@ const state = reactive({
     file: null as any,
 });
 
-const { basePath, nowPath, loading, files, progressNum, uploadProgressShow, fileContent, createFileDialog } = toRefs(state);
+const { basePath, nowPath, loading, fileNameFilter, progressNum, uploadProgressShow, fileContent, createFileDialog } = toRefs(state);
 
 onMounted(() => {
     state.basePath = props.path;
     setFiles(props.path);
 });
+
+const filterFiles = computed(() =>
+    state.files.filter((data: any) => !state.fileNameFilter || data.name.toLowerCase().includes(state.fileNameFilter.toLowerCase()))
+);
 
 const filePathNav = computed(() => {
     let basePath = state.basePath;
@@ -233,6 +336,98 @@ const filePathNav = computed(() => {
     return pathNavs;
 });
 
+const handleSelectionChange = (val: any) => {
+    state.selectionFiles = val;
+};
+
+const isCpFile = () => {
+    return state.copyOrMvFile.type == 'cp';
+};
+
+const copyFile = (files: any[]) => {
+    setCopyOrMvFile(files);
+};
+
+const mvFile = (files: any[]) => {
+    setCopyOrMvFile(files, 'mv');
+};
+
+const setCopyOrMvFile = (files: any[], type = 'cp') => {
+    for (let file of files) {
+        const path = file.path;
+        if (!state.copyOrMvFile.paths.includes(path)) {
+            state.copyOrMvFile.paths.push(path);
+        }
+    }
+    state.copyOrMvFile.type = type;
+    state.copyOrMvFile.fromPath = state.nowPath;
+};
+
+const pasteFile = async () => {
+    const cmFile = state.copyOrMvFile;
+    isTrue(state.nowPath != cmFile.fromPath, '同目录下不能粘贴');
+    const api = isCpFile() ? machineApi.cpFile : machineApi.mvFile;
+    try {
+        state.loading = true;
+        await api.request({
+            machineId: props.machineId,
+            fileId: props.fileId,
+            path: cmFile.paths,
+            toPath: state.nowPath,
+        });
+        ElMessage.success('粘贴成功');
+        state.copyOrMvFile.paths = [];
+        refresh();
+    } finally {
+        state.loading = false;
+    }
+};
+
+const cancelCopy = () => {
+    state.copyOrMvFile.paths = [];
+};
+
+const cellDbclick = (row: any, column: any) => {
+    // 双击名称列可修改名称
+    if (column.property == 'name') {
+        state.renameFile.oldname = row.name;
+        row.nameEdit = true;
+    }
+};
+
+const filenameBlur = (row: any) => {
+    const oldname = state.renameFile.oldname;
+    // 如果存在旧名称，则说明未回车修改文件名，则还原旧文件名
+    if (oldname) {
+        row.name = oldname;
+        state.renameFile.oldname = '';
+    }
+    row.nameEdit = false;
+};
+
+const fileRename = async (row: any) => {
+    if (row.name == state.renameFile.oldname) {
+        row.nameEdit = false;
+        return;
+    }
+    notBlank(row.name, '新名称不能为空');
+    try {
+        await machineApi.renameFile.request({
+            machineId: props.machineId,
+            fileId: props.fileId,
+            oldname: state.nowPath + pathSep + state.renameFile.oldname,
+            newname: state.nowPath + pathSep + row.name,
+        });
+        ElMessage.success('重命名成功');
+        // 修改路径上的文件名
+        row.path = state.nowPath + pathSep + row.name;
+        state.renameFile.oldname = '';
+    } catch (e) {
+        row.name = state.renameFile.oldname;
+    }
+    row.nameEdit = false;
+};
+
 const showFileContent = async (path: string) => {
     state.fileContent.dialogTitle = path;
     state.fileContent.path = path;
@@ -253,6 +448,7 @@ const setFiles = async (path: string) => {
         if (!path) {
             path = pathSep;
         }
+        state.fileNameFilter = '';
         state.loading = true;
         state.files = await lsFile(path);
         state.nowPath = path;
@@ -350,28 +546,25 @@ function getParentPath(filePath: string) {
     return segments.join(pathSep);
 }
 
-const deleteFile = (data: any) => {
-    const file = data.path;
-    ElMessageBox.confirm(`此操作将删除 [${file}], 是否继续?`, '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-    })
-        .then(() => {
-            machineApi.rmFile
-                .request({
-                    fileId: props.fileId,
-                    path: file,
-                    machineId: props.machineId,
-                })
-                .then(async () => {
-                    ElMessage.success('删除成功');
-                    refresh();
-                });
-        })
-        .catch(() => {
-            // skip
+const deleteFile = async (files: any) => {
+    try {
+        await ElMessageBox.confirm(`此操作将删除 ${files.map((x: any) => `[${x.path}]`).join('\n')}, 是否继续?`, '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
         });
+        state.loading = true;
+        await machineApi.rmFile.request({
+            fileId: props.fileId,
+            path: files.map((x: any) => x.path),
+            machineId: props.machineId,
+        });
+        ElMessage.success('删除成功');
+        refresh();
+    } catch (e) {
+    } finally {
+        state.loading = false;
+    }
 };
 
 const downloadFile = (data: any) => {

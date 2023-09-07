@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/internal/machine/infrastructure/machine"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"os"
 	"strings"
@@ -59,7 +60,13 @@ type MachineFile interface {
 	UploadFile(fileId uint64, path, filename string, reader io.Reader)
 
 	// 移除文件
-	RemoveFile(fileId uint64, path string)
+	RemoveFile(fileId uint64, path ...string)
+
+	Copy(fileId uint64, toPath string, paths ...string) *machine.Info
+
+	Mv(fileId uint64, toPath string, paths ...string) *machine.Info
+
+	Rename(fileId uint64, oldname string, newname string) error
 }
 
 func newMachineFileApp(machineFileRepo repository.MachineFile, machineRepo repository.Machine) MachineFile {
@@ -104,7 +111,7 @@ func (m *machineFileAppImpl) Delete(id uint64) {
 }
 
 func (m *machineFileAppImpl) ReadDir(fid uint64, path string) []fs.FileInfo {
-	path, machineId := m.checkAndReturnPathMid(fid, path)
+	machineId := m.checkAndReturnMid(fid, path)
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
 	}
@@ -116,7 +123,7 @@ func (m *machineFileAppImpl) ReadDir(fid uint64, path string) []fs.FileInfo {
 }
 
 func (m *machineFileAppImpl) GetDirSize(fid uint64, path string) string {
-	_, machineId := m.checkAndReturnPathMid(fid, path)
+	machineId := m.checkAndReturnMid(fid, path)
 	res, err := GetMachineApp().GetCli(machineId).Run(fmt.Sprintf("du -sh %s", path))
 	if err != nil {
 		// 若存在目录为空，则可能会返回如下内容。最后一行即为真正目录内容所占磁盘空间大小
@@ -138,14 +145,14 @@ func (m *machineFileAppImpl) GetDirSize(fid uint64, path string) string {
 }
 
 func (m *machineFileAppImpl) FileStat(fid uint64, path string) string {
-	_, machineId := m.checkAndReturnPathMid(fid, path)
+	machineId := m.checkAndReturnMid(fid, path)
 	res, err := GetMachineApp().GetCli(machineId).Run(fmt.Sprintf("stat -L %s", path))
 	biz.ErrIsNil(err, res)
 	return res
 }
 
 func (m *machineFileAppImpl) MkDir(fid uint64, path string) {
-	path, machineId := m.checkAndReturnPathMid(fid, path)
+	machineId := m.checkAndReturnMid(fid, path)
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
 	}
@@ -156,7 +163,7 @@ func (m *machineFileAppImpl) MkDir(fid uint64, path string) {
 }
 
 func (m *machineFileAppImpl) CreateFile(fid uint64, path string) {
-	path, machineId := m.checkAndReturnPathMid(fid, path)
+	machineId := m.checkAndReturnMid(fid, path)
 	sftpCli := m.getSftpCli(machineId)
 	file, err := sftpCli.Create(path)
 	biz.ErrIsNilAppendErr(err, "创建文件失败: %s")
@@ -164,7 +171,7 @@ func (m *machineFileAppImpl) CreateFile(fid uint64, path string) {
 }
 
 func (m *machineFileAppImpl) ReadFile(fileId uint64, path string) *sftp.File {
-	path, machineId := m.checkAndReturnPathMid(fileId, path)
+	machineId := m.checkAndReturnMid(fileId, path)
 	sftpCli := m.getSftpCli(machineId)
 	// 读取文件内容
 	fc, err := sftpCli.Open(path)
@@ -174,7 +181,7 @@ func (m *machineFileAppImpl) ReadFile(fileId uint64, path string) *sftp.File {
 
 // 写文件内容
 func (m *machineFileAppImpl) WriteFileContent(fileId uint64, path string, content []byte) {
-	_, machineId := m.checkAndReturnPathMid(fileId, path)
+	machineId := m.checkAndReturnMid(fileId, path)
 
 	sftpCli := m.getSftpCli(machineId)
 	f, err := sftpCli.OpenFile(path, os.O_WRONLY|os.O_TRUNC|os.O_CREATE|os.O_RDWR)
@@ -188,7 +195,7 @@ func (m *machineFileAppImpl) WriteFileContent(fileId uint64, path string, conten
 
 // 上传文件
 func (m *machineFileAppImpl) UploadFile(fileId uint64, path, filename string, reader io.Reader) {
-	path, machineId := m.checkAndReturnPathMid(fileId, path)
+	machineId := m.checkAndReturnMid(fileId, path)
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
 	}
@@ -202,24 +209,44 @@ func (m *machineFileAppImpl) UploadFile(fileId uint64, path, filename string, re
 }
 
 // 删除文件
-func (m *machineFileAppImpl) RemoveFile(fileId uint64, path string) {
-	path, machineId := m.checkAndReturnPathMid(fileId, path)
+func (m *machineFileAppImpl) RemoveFile(fileId uint64, path ...string) {
+	machineId := m.checkAndReturnMid(fileId, path...)
+
+	// 优先使用命令删除（速度快），sftp需要递归遍历删除子文件等
+	mcli := GetMachineApp().GetCli(machineId)
+	res, err := mcli.Run(fmt.Sprintf("rm -rf %s", strings.Join(path, " ")))
+	if err == nil {
+		return
+	}
+	logx.Errorf("使用命令rm删除文件失败: %s", res)
 
 	sftpCli := m.getSftpCli(machineId)
-	file, err := sftpCli.Open(path)
-	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
-	fi, _ := file.Stat()
-	if fi.IsDir() {
-		err = sftpCli.RemoveDirectory(path)
-		// 如果文件夹有内容会删除失败，则使用rm -rf命令删除
-		if err != nil {
-			GetMachineApp().GetCli(machineId).Run(fmt.Sprintf("rm -rf %s", path))
-			err = nil
-		}
-	} else {
-		err = sftpCli.Remove(path)
+	for _, p := range path {
+		err := sftpCli.RemoveAll(p)
+		biz.ErrIsNilAppendErr(err, "删除文件失败: %s")
 	}
-	biz.ErrIsNilAppendErr(err, "删除文件失败: %s")
+}
+
+func (m *machineFileAppImpl) Copy(fileId uint64, toPath string, paths ...string) *machine.Info {
+	mid := m.checkAndReturnMid(fileId, paths...)
+	mcli := GetMachineApp().GetCli(mid)
+	res, err := mcli.Run(fmt.Sprintf("cp -r %s %s", strings.Join(paths, " "), toPath))
+	biz.ErrIsNil(err, "文件拷贝失败: %s", res)
+	return mcli.GetMachine()
+}
+
+func (m *machineFileAppImpl) Mv(fileId uint64, toPath string, paths ...string) *machine.Info {
+	mid := m.checkAndReturnMid(fileId, paths...)
+	mcli := GetMachineApp().GetCli(mid)
+	res, err := mcli.Run(fmt.Sprintf("mv %s %s", strings.Join(paths, " "), toPath))
+	biz.ErrIsNil(err, "文件移动失败: %s", res)
+	return mcli.GetMachine()
+}
+
+func (m *machineFileAppImpl) Rename(fileId uint64, oldname string, newname string) error {
+	mid := m.checkAndReturnMid(fileId, newname)
+	sftpCli := m.getSftpCli(mid)
+	return sftpCli.Rename(oldname, newname)
 }
 
 // 获取sftp client
@@ -232,15 +259,13 @@ func (m *machineFileAppImpl) GetMachine(fileId uint64) *machine.Info {
 }
 
 // 校验并返回实际可访问的文件path
-func (m *machineFileAppImpl) checkAndReturnPathMid(fid uint64, inputPath string) (string, uint64) {
+func (m *machineFileAppImpl) checkAndReturnMid(fid uint64, inputPath ...string) uint64 {
 	biz.IsTrue(fid != 0, "文件id不能为空")
 	mf := m.GetById(fid)
 	biz.NotNil(mf, "文件不存在")
-	if inputPath != "" {
+	for _, path := range inputPath {
 		// 接口传入的地址需为配置路径的子路径
-		biz.IsTrue(strings.HasPrefix(inputPath, mf.Path), "无权访问该目录或文件")
-		return inputPath, mf.MachineId
-	} else {
-		return mf.Path, mf.MachineId
+		biz.IsTrue(strings.HasPrefix(path, mf.Path), "无权访问该目录或文件: %s", path)
 	}
+	return mf.MachineId
 }

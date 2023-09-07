@@ -1,8 +1,8 @@
 <template>
     <div class="file-manage">
-        <el-dialog :title="title" v-model="dialogVisible" :show-close="true" :before-close="handleClose" width="50%">
+        <el-dialog v-if="dialogVisible" :title="title" v-model="dialogVisible" :show-close="true" :before-close="handleClose" width="50%">
             <el-table :data="fileTable" stripe style="width: 100%" v-loading="loading">
-                <el-table-column prop="name" label="名称" min-width="70px">
+                <el-table-column prop="name" label="名称" min-width="100px">
                     <template #header>
                         <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="add()"> </el-button>
                         <span class="ml10">名称</span>
@@ -23,7 +23,7 @@
                         <el-input v-model="scope.row.path" :disabled="scope.row.id != null" clearable> </el-input>
                     </template>
                 </el-table-column>
-                <el-table-column label="操作" min-wdith="180px">
+                <el-table-column label="操作" min-wdith="120px">
                     <template #default="scope">
                         <el-button v-if="scope.row.id == null" @click="addFiles(scope.row)" type="success" icon="success-filled" plain></el-button>
                         <el-button v-if="scope.row.id != null" @click="getConf(scope.row)" type="primary" icon="tickets" plain></el-button>
@@ -42,13 +42,19 @@
                 >
                 </el-pagination>
             </el-row>
-        </el-dialog>
 
-        <el-dialog destroy-on-close :title="fileDialog.title" v-model="fileDialog.visible" :close-on-click-modal="false" width="65%">
-            <machine-file :machine-id="machineId" :file-id="fileDialog.fileId" :path="fileDialog.path" />
-        </el-dialog>
+            <el-dialog destroy-on-close :title="fileDialog.title" v-model="fileDialog.visible" :close-on-click-modal="false" width="70%">
+                <machine-file :title="fileDialog.title" :machine-id="machineId" :file-id="fileDialog.fileId" :path="fileDialog.path" />
+            </el-dialog>
 
-        <machine-file-content v-model:visible="fileContent.contentVisible" :machine-id="machineId" :file-id="fileContent.fileId" :path="fileContent.path" />
+            <machine-file-content
+                :title="fileContent.title"
+                v-model:visible="fileContent.contentVisible"
+                :machine-id="machineId"
+                :file-id="fileContent.fileId"
+                :path="fileContent.path"
+            />
+        </el-dialog>
     </div>
 </template>
 
@@ -56,7 +62,6 @@
 import { toRefs, reactive, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi } from '../api';
-
 import { FileTypeEnum } from '../enums';
 import MachineFile from './MachineFile.vue';
 import MachineFileContent from './MachineFileContent.vue';
@@ -96,9 +101,9 @@ const state = reactive({
         path: '',
     },
     fileContent: {
+        title: '',
         fileId: 0,
         contentVisible: false,
-        dialogTitle: '',
         path: '',
     },
 });
@@ -168,15 +173,18 @@ const getConf = async (row: any) => {
         state.fileDialog.fileId = row.id;
         state.fileDialog.title = row.name;
         state.fileDialog.path = row.path;
+        state.fileDialog.title = `${props.title} => ${row.path}`;
         state.fileDialog.visible = true;
         return;
     }
+
     showFileContent(row.id, row.path);
 };
 
 const showFileContent = async (fileId: number, path: string) => {
     state.fileContent.fileId = fileId;
     state.fileContent.path = path;
+    state.fileContent.title = `${props.title} => ${path}`;
     state.fileContent.contentVisible = true;
 };
 

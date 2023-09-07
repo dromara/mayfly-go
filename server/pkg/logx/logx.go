@@ -121,7 +121,7 @@ func getCommonAttr(ctx context.Context, level slog.Level) []any {
 	commonAttrs := make([]any, 0)
 
 	// 如果系统配置添加方法信息或者为错误级别时则 记录方法信息及行号
-	if config.AddSource || level == slog.LevelError {
+	if GetConfig().AddSource || level == slog.LevelError {
 		// skip [runtime.Callers, getCommonAttr, appendCommonAttr, logx.Log, logx.Info|Debug|Warn|Error..]
 		var pcs [1]uintptr
 		runtime.Callers(5, pcs[:])

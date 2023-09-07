@@ -52,6 +52,16 @@ type MachineFileUpdateForm struct {
 	Path    string `json:"path" binding:"required"`
 }
 
+type MachineFileOpForm struct {
+	Path   []string `json:"path" binding:"required"`
+	ToPath string   `json:"toPath"`
+}
+
+type MachineFileRename struct {
+	Oldname string `json:"oldname" binding:"required"`
+	Newname string `json:"newname"  binding:"required"`
+}
+
 // 授权凭证
 type AuthCertForm struct {
 	Id         uint64 `json:"id"`
