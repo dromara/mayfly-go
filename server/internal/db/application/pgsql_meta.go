@@ -183,3 +183,7 @@ func (pm *PgsqlMetadata) GetCreateTableDdl(tableName string) string {
 func (pm *PgsqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {
 	return pm.di.SelectData(fmt.Sprintf("SELECT * FROM %s OFFSET %d LIMIT %d", tableName, (pageNum-1)*pageSize, pageSize))
 }
+
+func (pm *PgsqlMetadata) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
+	return pm.di.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
+}

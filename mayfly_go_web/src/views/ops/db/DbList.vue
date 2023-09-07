@@ -194,7 +194,7 @@
                     <el-form-item label="扩展名: ">
                         <el-radio-group v-model="exportDialog.extName">
                             <el-radio label="sql" />
-                            <el-radio label="gz" />
+                            <el-radio label="gzip" />
                         </el-radio-group>
                     </el-form-item>
                 </el-col>
@@ -202,14 +202,14 @@
 
             <el-form-item>
                 <el-transfer
-                    :titles="['全部数据库', '导出数据库']"
-                    max-height="300"
                     v-model="exportDialog.value"
-                    :data="exportDialog.data"
                     filterable
                     filter-placeholder="按数据库名称筛选"
-                >
-                </el-transfer>
+                    :titles="['全部数据库', '导出数据库']"
+                    :data="exportDialog.data"
+                    max-height="300"
+                    size="small"
+                />
             </el-form-item>
 
             <template #footer>
@@ -353,7 +353,7 @@ const columns = ref([
     TableColumn.new('name', '名称'),
     TableColumn.new('database', '数据库').isSlot().setMinWidth(70),
     TableColumn.new('remark', '备注'),
-    TableColumn.new('more', '更多').isSlot().setMinWidth(220).fixedRight(),
+    TableColumn.new('more', '更多').isSlot().setMinWidth(180).fixedRight(),
 ]);
 
 // 该用户拥有的的操作列按钮权限
@@ -414,7 +414,7 @@ const state = reactive({
             TableColumn.new('oldValue', '原值').canBeautify(),
             TableColumn.new('createTime', '执行时间').isTime(),
             TableColumn.new('remark', '备注'),
-            TableColumn.new('action', '操作').isSlot().setMinWidth(100).fixedRight().alignCenter(),
+            TableColumn.new('action', '操作').isSlot().setMinWidth(80).fixedRight().alignCenter(),
         ],
         title: '',
         visible: false,

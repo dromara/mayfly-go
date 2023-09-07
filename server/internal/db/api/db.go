@@ -1,7 +1,6 @@
 package api
 
 import (
-	"compress/gzip"
 	"fmt"
 	"io"
 	"mayfly-go/internal/db/api/form"
@@ -32,20 +31,6 @@ type Db struct {
 	MsgApp       msgapp.Msg
 	TagApp       tagapp.TagTree
 }
-
-type gzipResponseWriter struct {
-	writer *gzip.Writer
-}
-
-func (g gzipResponseWriter) WriteString(data string) {
-	g.writer.Write([]byte(data))
-}
-
-func (g gzipResponseWriter) Close() {
-	g.writer.Close()
-}
-
-const DEFAULT_ROW_SIZE = 5000
 
 // @router /api/dbs [get]
 func (d *Db) Dbs(rc *req.Ctx) {
@@ -270,9 +255,24 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	if len(dbNames) == 1 && len(tablesStr) > 0 {
 		tables = strings.Split(tablesStr, ",")
 	}
-
-	writer := gzipResponseWriter{writer: gzip.NewWriter(g.Writer)}
-	defer writer.Close()
+	writer := newGzipWriter(g.Writer)
+	defer func() {
+		var msg string
+		if err := recover(); err != nil {
+			switch t := err.(type) {
+			case biz.BizError:
+				msg = t.Error()
+			case *biz.BizError:
+				msg = t.Error()
+			}
+		}
+		if len(msg) > 0 {
+			msg = "数据库导出失败: " + msg
+			writer.WriteString(msg)
+			d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("数据库导出失败", msg))
+		}
+		writer.Close()
+	}()
 	for _, dbName := range dbNames {
 		d.dumpDb(writer, dbId, dbName, tables, needStruct, needData, len(dbNames) > 1)
 	}
@@ -280,13 +280,14 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	rc.ReqParam = fmt.Sprintf("DB[id=%d, tag=%s, name=%s, databases=%s, tables=%s, dumpType=%s]", db.Id, db.TagPath, db.Name, dbNamesStr, tablesStr, dumpType)
 }
 
-func (d *Db) dumpDb(writer gzipResponseWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool, switchDb bool) {
+func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool, switchDb bool) {
 	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
 	writer.WriteString("-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
 	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
 	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", dbName))
 	writer.WriteString("\n-- ----------------------------\n")
+	writer.TryFlush()
 
 	if switchDb {
 		switch dbConn.Info.Type {
@@ -319,38 +320,29 @@ func (d *Db) dumpDb(writer gzipResponseWriter, dbId uint64, dbName string, table
 		writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", table))
 		writer.WriteString("BEGIN;\n")
 
-		pageNum := 1
-		for {
-			columns, result, _ := dbMeta.GetTableRecord(table, pageNum, DEFAULT_ROW_SIZE)
-			resultLen := len(result)
-			if resultLen == 0 {
-				break
-			}
-			insertSql := "INSERT INTO `%s` VALUES (%s);\n"
-			for _, res := range result {
-				var values []string
-				for _, column := range columns {
-					value := res[column]
-					if value == nil {
-						values = append(values, "NULL")
-						continue
-					}
-					strValue, ok := value.(string)
-					if ok {
-						values = append(values, fmt.Sprintf("%#v", strValue))
-					} else {
-						values = append(values, stringx.AnyToStr(value))
-					}
+		insertSql := "INSERT INTO `%s` VALUES (%s);\n"
+
+		dbMeta.WalkTableRecord(table, func(record map[string]any, columns []string) {
+			var values []string
+			for _, column := range columns {
+				value := record[column]
+				if value == nil {
+					values = append(values, "NULL")
+					continue
 				}
-				writer.WriteString(fmt.Sprintf(insertSql, table, strings.Join(values, ", ")))
+				strValue, ok := value.(string)
+				if ok {
+					values = append(values, fmt.Sprintf("%#v", strValue))
+				} else {
+					values = append(values, stringx.AnyToStr(value))
+				}
 			}
-			if resultLen < DEFAULT_ROW_SIZE {
-				break
-			}
-			pageNum++
-		}
+			writer.WriteString(fmt.Sprintf(insertSql, table, strings.Join(values, ", ")))
+			writer.TryFlush()
+		})
 
 		writer.WriteString("COMMIT;\n")
+		writer.TryFlush()
 	}
 }
 

@@ -223,12 +223,17 @@ type DbConnection struct {
 // 执行查询语句
 // 依次返回 列名数组，结果map，错误
 func (d *DbConnection) SelectData(execSql string) ([]string, []map[string]any, error) {
-	return SelectDataByDb(d.db, execSql)
+	return selectDataByDb(d.db, execSql)
 }
 
 // 将查询结果映射至struct，可具体参考sqlx库
 func (d *DbConnection) SelectData2Struct(execSql string, dest any) error {
-	return Select2StructByDb(d.db, execSql, dest)
+	return select2StructByDb(d.db, execSql, dest)
+}
+
+// WalkTableRecord 遍历表记录
+func (d *DbConnection) WalkTableRecord(selectSql string, walk func(record map[string]any, columns []string)) error {
+	return walkTableRecord(d.db, selectSql, walk)
 }
 
 // 执行 update, insert, delete，建表等sql
@@ -242,13 +247,13 @@ func (d *DbConnection) Exec(sql string) (int64, error) {
 }
 
 // 获取数据库元信息实现接口
-func (di *DbConnection) GetMeta() DbMetadata {
-	dbType := di.Info.Type
+func (d *DbConnection) GetMeta() DbMetadata {
+	dbType := d.Info.Type
 	if dbType == entity.DbTypeMysql {
-		return &MysqlMetadata{di: di}
+		return &MysqlMetadata{di: d}
 	}
 	if dbType == entity.DbTypePostgres {
-		return &PgsqlMetadata{di: di}
+		return &PgsqlMetadata{di: d}
 	}
 	return nil
 }
@@ -290,10 +295,33 @@ func GetDbCacheKey(dbId uint64, db string) string {
 	return fmt.Sprintf("%d:%s", dbId, db)
 }
 
-func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]any, error) {
-	rows, err := db.Query(selectSql)
+func selectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]any, error) {
+	// 列名用于前端表头名称按照数据库与查询字段顺序显示
+	var colNames []string
+	result := make([]map[string]any, 0, 16)
+	err := walkTableRecord(db, selectSql, func(record map[string]any, columns []string) {
+		result = append(result, record)
+		if colNames == nil {
+			colNames = make([]string, 0, len(columns))
+			copy(colNames, columns)
+		}
+	})
 	if err != nil {
 		return nil, nil, err
+	}
+	return colNames, result, nil
+}
+
+func walkTableRecord(db *sql.DB, selectSql string, walk func(record map[string]any, columns []string)) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.Query(selectSql)
+	if err != nil {
+		return err
 	}
 	// rows对象一定要close掉，如果出错，不关掉则会很迅速的达到设置最大连接数，
 	// 后面的链接过来直接报错或拒绝，实际上也没有起效果
@@ -302,44 +330,42 @@ func SelectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]any, e
 			rows.Close()
 		}
 	}()
-	colTypes, _ := rows.ColumnTypes()
+
+	colTypes, err := rows.ColumnTypes()
+	if err != nil {
+		return err
+	}
+	lenCols := len(colTypes)
+	// 列名用于前端表头名称按照数据库与查询字段顺序显示
+	colNames := make([]string, lenCols)
 	// 这里表示一行填充数据
-	scans := make([]any, len(colTypes))
+	scans := make([]any, lenCols)
 	// 这里表示一行所有列的值，用[]byte表示
-	vals := make([][]byte, len(colTypes))
-	// 这里scans引用vals，把数据填充到[]byte里
-	for k := range vals {
-		scans[k] = &vals[k]
+	values := make([][]byte, lenCols)
+	for k, colType := range colTypes {
+		colNames[k] = colType.Name()
+		// 这里scans引用values，把数据填充到[]byte里
+		scans[k] = &values[k]
 	}
 
-	result := make([]map[string]any, 0)
-	// 列名用于前端表头名称按照数据库与查询字段顺序显示
-	colNames := make([]string, 0)
-	// 是否第一次遍历，列名数组只需第一次遍历时加入
-	isFirst := true
 	for rows.Next() {
 		// 不Scan也会导致等待，该链接实际处于未工作的状态，然后也会导致连接数迅速达到最大
-		err := rows.Scan(scans...)
-		if err != nil {
-			return nil, nil, err
+		if err := rows.Scan(scans...); err != nil {
+			return err
 		}
 		// 每行数据
-		rowData := make(map[string]any)
-		// 把vals中的数据复制到row中
-		for i, v := range vals {
-			colType := colTypes[i]
-			colName := colType.Name()
-			// 如果是第一行，则将列名加入到列信息中，由于map是无序的，所有需要返回列名的有序数组
-			if isFirst {
-				colNames = append(colNames, colName)
-			}
-			rowData[colName] = valueConvert(v, colType)
+		rowData := make(map[string]any, lenCols)
+		// 把values中的数据复制到row中
+		for i, v := range values {
+			rowData[colTypes[i].Name()] = valueConvert(v, colTypes[i])
 		}
-		// 放入结果集
-		result = append(result, rowData)
-		isFirst = false
+		walk(rowData, colNames)
 	}
-	return colNames, result, nil
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // 将查询的值转为对应列类型的实际值，不全部转为字符串
@@ -392,7 +418,7 @@ func valueConvert(data []byte, colType *sql.ColumnType) any {
 }
 
 // 查询数据结果映射至struct。可参考sqlx库
-func Select2StructByDb(db *sql.DB, selectSql string, dest any) error {
+func select2StructByDb(db *sql.DB, selectSql string, dest any) error {
 	rows, err := db.Query(selectSql)
 	if err != nil {
 		return err
