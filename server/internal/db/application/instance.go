@@ -140,10 +140,11 @@ func (app *instanceAppImpl) GetDatabases(ed *entity.Instance) []string {
 	biz.ErrIsNilAppendErr(err, "数据库连接失败: %s")
 	defer dbConn.Close()
 
-	_, res, err := SelectDataByDb(dbConn, getDatabasesSql)
+	_, res, err := selectDataByDb(dbConn, getDatabasesSql)
 	biz.ErrIsNilAppendErr(err, "获取数据库列表失败")
 	for _, re := range res {
 		databases = append(databases, re["dbname"].(string))
 	}
+
 	return databases
 }
