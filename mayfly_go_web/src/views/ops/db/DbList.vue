@@ -342,6 +342,7 @@ const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 const CreateTable = defineAsyncComponent(() => import('./CreateTable.vue'));
 
 const perms = {
+    base: 'db',
     saveDb: 'db:save',
     delDb: 'db:del',
 };
@@ -357,7 +358,7 @@ const columns = ref([
 ]);
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns = hasPerms([perms.saveDb]);
+const actionBtns = hasPerms([perms.base, perms.saveDb]);
 const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(150).fixedRight().alignCenter();
 
 const pageTableRef: any = ref(null);
