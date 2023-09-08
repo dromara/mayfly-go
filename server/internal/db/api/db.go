@@ -174,9 +174,15 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
+				var errInfo string
 				switch t := err.(type) {
+				case biz.BizError:
+					errInfo = t.Error()
 				case *biz.BizError:
-					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), t.Error())))
+					errInfo = t.Error()
+				}
+				if len(errInfo) > 0 {
+					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)))
 				}
 			}
 		}()
