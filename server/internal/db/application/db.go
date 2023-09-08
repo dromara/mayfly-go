@@ -302,7 +302,7 @@ func selectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]any, e
 	err := walkTableRecord(db, selectSql, func(record map[string]any, columns []string) {
 		result = append(result, record)
 		if colNames == nil {
-			colNames = make([]string, 0, len(columns))
+			colNames = make([]string, len(columns))
 			copy(colNames, columns)
 		}
 	})
