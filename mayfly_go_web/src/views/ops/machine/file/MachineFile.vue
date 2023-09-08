@@ -29,19 +29,53 @@
                                 <el-button :disabled="nowPath == basePath" type="primary" circle size="small" icon="Back" @click="back()"> </el-button>
                                 <el-button class="ml5" type="primary" circle size="small" icon="Refresh" @click="refresh()"> </el-button>
 
-                                <el-upload
-                                    :before-upload="beforeUpload"
-                                    :on-success="uploadSuccess"
-                                    action=""
-                                    :http-request="getUploadFile"
-                                    :headers="{ token }"
-                                    :show-file-list="false"
-                                    name="file"
-                                    class="machine-file-upload-exec"
-                                >
-                                    <el-button v-auth="'machine:file:upload'" class="ml5" type="primary" circle size="small" icon="Upload" title="上传">
-                                    </el-button>
-                                </el-upload>
+                                <!-- 文件&文件夹上传 -->
+                                <el-dropdown class="machine-file-upload-exec" trigger="click" size="small">
+                                    <span>
+                                        <el-button
+                                            v-auth="'machine:file:upload'"
+                                            class="ml5"
+                                            type="primary"
+                                            circle
+                                            size="small"
+                                            icon="Upload"
+                                            title="上传"
+                                        ></el-button>
+                                    </span>
+                                    <template #dropdown>
+                                        <el-dropdown-menu>
+                                            <el-dropdown-item>
+                                                <el-upload
+                                                    :before-upload="beforeUpload"
+                                                    :on-success="uploadSuccess"
+                                                    action=""
+                                                    :http-request="getUploadFile"
+                                                    :headers="{ token }"
+                                                    :show-file-list="false"
+                                                    name="file"
+                                                    class="machine-file-upload-exec"
+                                                >
+                                                    <el-link>文件</el-link>
+                                                </el-upload>
+                                            </el-dropdown-item>
+
+                                            <el-dropdown-item>
+                                                <div>
+                                                    <el-link @click="addFinderToList">文件夹</el-link>
+                                                    <input
+                                                        type="file"
+                                                        id="folderUploadInput"
+                                                        ref="folderUploadRef"
+                                                        webkitdirectory
+                                                        directory
+                                                        @change="getFolder"
+                                                        style="display: none"
+                                                    />
+                                                </div>
+                                            </el-dropdown-item>
+                                        </el-dropdown-menu>
+                                    </template>
+                                </el-dropdown>
 
                                 <el-button
                                     :disabled="state.selectionFiles.length == 0"
@@ -234,7 +268,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted, computed } from 'vue';
+import { ref, toRefs, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox, ElInput } from 'element-plus';
 import { machineApi } from '../api';
 
@@ -252,6 +286,7 @@ const props = defineProps({
 });
 
 const token = getSession('token');
+const folderUploadRef: any = ref();
 
 const folderType = 'd';
 const fileType = '-';
@@ -573,6 +608,48 @@ const downloadFile = (data: any) => {
     a.click();
 };
 
+function addFinderToList() {
+    folderUploadRef.value.click();
+}
+
+function getFolder(e: any) {
+    //e.target.files为文件夹里面的文件
+    // 把文件夹数据放到formData里面，下面的files和paths字段根据接口来定
+    var form = new FormData();
+    form.append('basePath', state.nowPath);
+    for (let file of e.target.files) {
+        form.append('files', file);
+        form.append('paths', file.webkitRelativePath);
+    }
+    try {
+        // 上传操作
+        machineApi.uploadFile
+            .request(form, {
+                url: `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/upload-folder?token=${token}`,
+                headers: { 'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundaryF1uyUD0tWdqmJqpl' },
+                onUploadProgress: onUploadProgress,
+                baseURL: '',
+                timeout: 3 * 60 * 60 * 1000,
+            })
+            .then(() => {
+                ElMessage.success('上传成功');
+                setTimeout(() => {
+                    refresh();
+                    state.uploadProgressShow = false;
+                }, 3000);
+            })
+            .catch(() => {
+                state.uploadProgressShow = false;
+            });
+    } finally {
+        //无论上传成功与否，都把已选择的文件夹清空，否则选择同一文件夹没有反应
+        const folderEle: any = document.getElementById('folderUploadInput');
+        if (folderEle) {
+            folderEle.value = '';
+        }
+    }
+}
+
 const onUploadProgress = (progressEvent: any) => {
     state.uploadProgressShow = true;
     let complete = ((progressEvent.loaded / progressEvent.total) * 100) | 0;
@@ -593,7 +670,7 @@ const getUploadFile = (content: any) => {
             headers: { 'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundaryF1uyUD0tWdqmJqpl' },
             onUploadProgress: onUploadProgress,
             baseURL: '',
-            timeout: 60 * 60 * 1000,
+            timeout: 3 * 60 * 60 * 1000,
         })
         .then(() => {
             ElMessage.success('上传成功');

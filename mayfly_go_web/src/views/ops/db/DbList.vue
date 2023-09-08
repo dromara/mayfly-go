@@ -90,94 +90,7 @@
         </page-table>
 
         <el-dialog width="80%" :title="`${db} 表信息`" :before-close="closeTableInfo" v-model="tableInfoDialog.visible">
-            <el-row class="mb10">
-                <el-popover v-model:visible="showDumpInfo" :width="470" placement="right" trigger="click">
-                    <template #reference>
-                        <el-button class="ml5" type="success" size="small">导出</el-button>
-                    </template>
-                    <el-form-item label="导出内容: ">
-                        <el-radio-group v-model="dumpInfo.type">
-                            <el-radio :label="1" size="small">结构</el-radio>
-                            <el-radio :label="2" size="small">数据</el-radio>
-                            <el-radio :label="3" size="small">结构＋数据</el-radio>
-                        </el-radio-group>
-                    </el-form-item>
-
-                    <el-form-item label="导出表: ">
-                        <el-table @selection-change="handleDumpTableSelectionChange" max-height="300" size="small" :data="tableInfoDialog.infos">
-                            <el-table-column type="selection" width="45" />
-                            <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip> </el-table-column>
-                            <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip> </el-table-column>
-                        </el-table>
-                    </el-form-item>
-
-                    <div style="text-align: right">
-                        <el-button @click="showDumpInfo = false" size="small">取消</el-button>
-                        <el-button @click="dump(db)" type="success" size="small">确定</el-button>
-                    </div>
-                </el-popover>
-
-                <el-button type="primary" size="small" @click="openEditTable(false)">创建表</el-button>
-            </el-row>
-            <el-table v-loading="tableInfoDialog.loading" border stripe :data="filterTableInfos" size="small" max-height="680">
-                <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip>
-                    <template #header>
-                        <el-input v-model="tableInfoDialog.tableNameSearch" size="small" placeholder="表名: 输入可过滤" clearable />
-                    </template>
-                </el-table-column>
-                <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip>
-                    <template #header>
-                        <el-input v-model="tableInfoDialog.tableCommentSearch" size="small" placeholder="备注: 输入可过滤" clearable />
-                    </template>
-                </el-table-column>
-                <el-table-column
-                    prop="tableRows"
-                    label="Rows"
-                    min-width="70"
-                    sortable
-                    :sort-method="(a: any, b: any) => parseInt(a.tableRows) - parseInt(b.tableRows)"
-                ></el-table-column>
-                <el-table-column
-                    property="dataLength"
-                    label="数据大小"
-                    sortable
-                    :sort-method="(a: any, b: any) => parseInt(a.dataLength) - parseInt(b.dataLength)"
-                >
-                    <template #default="scope">
-                        {{ formatByteSize(scope.row.dataLength) }}
-                    </template>
-                </el-table-column>
-                <el-table-column
-                    property="indexLength"
-                    label="索引大小"
-                    sortable
-                    :sort-method="(a: any, b: any) => parseInt(a.indexLength) - parseInt(b.indexLength)"
-                >
-                    <template #default="scope">
-                        {{ formatByteSize(scope.row.indexLength) }}
-                    </template>
-                </el-table-column>
-                <el-table-column property="createTime" label="创建时间" min-width="150"> </el-table-column>
-                <el-table-column label="更多信息" min-width="140">
-                    <template #default="scope">
-                        <el-link @click.prevent="showColumns(scope.row)" type="primary">字段</el-link>
-                        <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">索引</el-link>
-                        <el-link
-                            class="ml5"
-                            v-if="tableCreateDialog.enableEditTypes.indexOf(tableCreateDialog.type) > -1"
-                            @click.prevent="openEditTable(scope.row)"
-                            type="warning"
-                            >编辑表</el-link
-                        >
-                        <el-link class="ml5" @click.prevent="showCreateDdl(scope.row)" type="info">DDL</el-link>
-                    </template>
-                </el-table-column>
-                <el-table-column label="操作" min-width="80">
-                    <template #default="scope">
-                        <el-link @click.prevent="dropTable(scope.row)" type="danger">删除</el-link>
-                    </template>
-                </el-table-column>
-            </el-table>
+            <db-table-list :db-id="dbId" :db="db" :db-type="state.row.type" />
         </el-dialog>
 
         <el-dialog width="620" :title="`${db} 数据库导出`" v-model="exportDialog.visible">
@@ -227,64 +140,7 @@
             :close-on-click-modal="false"
             v-model="sqlExecLogDialog.visible"
         >
-            <page-table
-                height="100%"
-                ref="sqlExecDialogPageTableRef"
-                :query="sqlExecLogDialog.queryConfig"
-                v-model:query-form="sqlExecLogDialog.query"
-                :data="sqlExecLogDialog.data"
-                :columns="sqlExecLogDialog.columns"
-                :total="sqlExecLogDialog.total"
-                v-model:page-size="sqlExecLogDialog.query.pageSize"
-                v-model:page-num="sqlExecLogDialog.query.pageNum"
-                @pageChange="searchSqlExecLog()"
-            >
-                <template #dbSelect>
-                    <el-select v-model="sqlExecLogDialog.query.db" placeholder="请选择数据库" style="width: 200px" filterable clearable>
-                        <el-option v-for="item in sqlExecLogDialog.dbs" :key="item" :label="`${item}`" :value="item"> </el-option>
-                    </el-select>
-                </template>
-
-                <template #action="{ data }">
-                    <el-link
-                        v-if="data.type == DbSqlExecTypeEnum.Update.value || data.type == DbSqlExecTypeEnum.Delete.value"
-                        type="primary"
-                        plain
-                        size="small"
-                        :underline="false"
-                        @click="onShowRollbackSql(data)"
-                    >
-                        还原SQL</el-link
-                    >
-                </template>
-            </page-table>
-        </el-dialog>
-
-        <el-dialog width="55%" :title="`还原SQL`" v-model="rollbackSqlDialog.visible">
-            <el-input type="textarea" :autosize="{ minRows: 15, maxRows: 30 }" v-model="rollbackSqlDialog.sql" size="small"> </el-input>
-        </el-dialog>
-
-        <el-dialog width="40%" :title="`${chooseTableName} 字段信息`" v-model="columnDialog.visible">
-            <el-table border stripe :data="columnDialog.columns" size="small">
-                <el-table-column prop="columnName" label="名称" show-overflow-tooltip> </el-table-column>
-                <el-table-column width="120" prop="columnType" label="类型" show-overflow-tooltip> </el-table-column>
-                <el-table-column width="80" prop="nullable" label="是否可为空" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
-            </el-table>
-        </el-dialog>
-
-        <el-dialog width="40%" :title="`${chooseTableName} 索引信息`" v-model="indexDialog.visible">
-            <el-table border stripe :data="indexDialog.indexs" size="small">
-                <el-table-column prop="indexName" label="索引名" min-width="120" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="columnName" label="列名" min-width="120" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="seqInIndex" label="列序列号" show-overflow-tooltip> </el-table-column>
-                <el-table-column prop="indexType" label="类型"> </el-table-column>
-                <el-table-column prop="indexComment" label="备注" min-width="130" show-overflow-tooltip> </el-table-column>
-            </el-table>
-        </el-dialog>
-
-        <el-dialog width="55%" :title="`${chooseTableName} Create-DDL`" v-model="ddlDialog.visible">
-            <el-input disabled type="textarea" :autosize="{ minRows: 15, maxRows: 30 }" v-model="ddlDialog.ddl" size="small"> </el-input>
+            <db-sql-exec-log :db-id="sqlExecLogDialog.dbId" :dbs="sqlExecLogDialog.dbs" />
         </el-dialog>
 
         <el-dialog v-model="infoDialog.visible" :before-close="onBeforeCloseInfoDialog" :close-on-click-modal="false">
@@ -308,26 +164,13 @@
         </el-dialog>
 
         <db-edit @val-change="valChange" :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible" v-model:db="dbEditDialog.data"></db-edit>
-        <create-table
-            :title="tableCreateDialog.title"
-            :active-name="tableCreateDialog.activeName"
-            :dbId="dbId"
-            :db="db"
-            :data="tableCreateDialog.data"
-            v-model:visible="tableCreateDialog.visible"
-            @submit-sql="onSubmitSql"
-        >
-        </create-table>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, computed, onMounted, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { formatByteSize } from '@/common/utils/format';
 import { dbApi } from './api';
-import { DbSqlExecTypeEnum } from './enums';
-import SqlExecBox from './component/SqlExecBox';
 import config from '@/common/config';
 import { getSession } from '@/common/utils/storage';
 import { isTrue } from '@/common/assert';
@@ -337,9 +180,10 @@ import TagInfo from '../component/TagInfo.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
+import DbSqlExecLog from './DbSqlExecLog.vue';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
-const CreateTable = defineAsyncComponent(() => import('./CreateTable.vue'));
+const DbTableList = defineAsyncComponent(() => import('./table/DbTableList.vue'));
 
 const perms = {
     base: 'db',
@@ -364,7 +208,7 @@ const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(15
 const pageTableRef: any = ref(null);
 
 const state = reactive({
-    row: {},
+    row: {} as any,
     dbId: 0,
     db: '',
     tags: [],
@@ -401,49 +245,15 @@ const state = reactive({
     },
     // sql执行记录弹框
     sqlExecLogDialog: {
-        queryConfig: [
-            TableQuery.slot('db', '数据库', 'dbSelect'),
-            TableQuery.text('table', '表名'),
-            TableQuery.select('type', '操作类型').setOptions(Object.values(DbSqlExecTypeEnum)),
-        ],
-        columns: [
-            TableColumn.new('db', '数据库'),
-            TableColumn.new('table', '表'),
-            TableColumn.new('type', '类型').typeTag(DbSqlExecTypeEnum).setAddWidth(10),
-            TableColumn.new('creator', '执行人'),
-            TableColumn.new('sql', 'SQL').canBeautify(),
-            TableColumn.new('oldValue', '原值').canBeautify(),
-            TableColumn.new('createTime', '执行时间').isTime(),
-            TableColumn.new('remark', '备注'),
-            TableColumn.new('action', '操作').isSlot().setMinWidth(80).fixedRight().alignCenter(),
-        ],
         title: '',
         visible: false,
-        data: [],
-        total: 0,
         dbs: [],
-        query: {
-            dbId: 0,
-            db: '',
-            table: '',
-            type: null,
-            pageNum: 1,
-            pageSize: 10,
-        },
-    },
-    rollbackSqlDialog: {
-        visible: false,
-        sql: '',
+        dbId: 0,
     },
     chooseTableName: '',
     tableInfoDialog: {
-        loading: false,
         visible: false,
-        infos: [],
-        tableNameSearch: '',
-        tableCommentSearch: '',
     },
-
     exportDialog: {
         visible: false,
         dbId: 0,
@@ -453,37 +263,10 @@ const state = reactive({
         contents: [] as any,
         extName: '',
     },
-
-    columnDialog: {
-        visible: false,
-        columns: [],
-    },
-    indexDialog: {
-        visible: false,
-        indexs: [],
-    },
-    ddlDialog: {
-        visible: false,
-        ddl: '',
-    },
     dbEditDialog: {
         visible: false,
         data: null as any,
         title: '新增数据库',
-    },
-    tableCreateDialog: {
-        title: '创建表',
-        visible: false,
-        activeName: '1',
-        type: '',
-        enableEditTypes: ['mysql'], // 支持"编辑表"的数据库类型
-        data: {
-            // 修改表时，传递修改数据
-            edit: false,
-            row: {},
-            indexs: [],
-            columns: [],
-        },
     },
     filterDb: {
         param: '',
@@ -492,56 +275,14 @@ const state = reactive({
     },
 });
 
-const {
-    dbId,
-    db,
-    tags,
-    instances,
-    selectionData,
-    query,
-    datas,
-    total,
-    infoDialog,
-    showDumpInfo,
-    dumpInfo,
-    sqlExecLogDialog,
-    rollbackSqlDialog,
-    chooseTableName,
-    tableInfoDialog,
-    exportDialog,
-    columnDialog,
-    indexDialog,
-    ddlDialog,
-    dbEditDialog,
-    tableCreateDialog,
-    filterDb,
-} = toRefs(state);
+const { dbId, db, tags, selectionData, query, datas, total, infoDialog, sqlExecLogDialog, tableInfoDialog, exportDialog, dbEditDialog, filterDb } =
+    toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
     search();
-});
-
-const filterTableInfos = computed(() => {
-    const infos = state.tableInfoDialog.infos;
-    const tableNameSearch = state.tableInfoDialog.tableNameSearch;
-    const tableCommentSearch = state.tableInfoDialog.tableCommentSearch;
-    if (!tableNameSearch && !tableCommentSearch) {
-        return infos;
-    }
-    return infos.filter((data: any) => {
-        let tnMatch = true;
-        let tcMatch = true;
-        if (tableNameSearch) {
-            tnMatch = data.tableName.toLowerCase().includes(tableNameSearch.toLowerCase());
-        }
-        if (tableCommentSearch) {
-            tcMatch = data.tableComment.includes(tableCommentSearch);
-        }
-        return tnMatch && tcMatch;
-    });
 });
 
 const search = async () => {
@@ -619,51 +360,15 @@ const deleteDb = async () => {
 
 const onShowSqlExec = async (row: any) => {
     state.sqlExecLogDialog.title = `${row.name}`;
-    state.sqlExecLogDialog.query.dbId = row.id;
+    state.sqlExecLogDialog.dbId = row.id;
     state.sqlExecLogDialog.dbs = row.database.split(' ');
-    searchSqlExecLog();
     state.sqlExecLogDialog.visible = true;
 };
 
 const onBeforeCloseSqlExecDialog = () => {
     state.sqlExecLogDialog.visible = false;
-    state.sqlExecLogDialog.data = [];
     state.sqlExecLogDialog.dbs = [];
-    state.sqlExecLogDialog.total = 0;
-    state.sqlExecLogDialog.query.dbId = 0;
-    state.sqlExecLogDialog.query.pageNum = 1;
-    state.sqlExecLogDialog.query.table = '';
-    state.sqlExecLogDialog.query.db = '';
-    state.sqlExecLogDialog.query.type = null;
-};
-
-const searchSqlExecLog = async () => {
-    const res = await dbApi.getSqlExecs.request(state.sqlExecLogDialog.query);
-    state.sqlExecLogDialog.data = res.list;
-    state.sqlExecLogDialog.total = res.total;
-};
-
-/**
- * 选择导出数据库表
- */
-const handleDumpTableSelectionChange = (vals: any) => {
-    state.dumpInfo.tables = vals.map((x: any) => x.tableName);
-};
-
-/**
- * 数据库信息导出
- */
-const dump = (db: string) => {
-    isTrue(state.dumpInfo.tables.length > 0, '请选择要导出的表');
-    const a = document.createElement('a');
-    a.setAttribute(
-        'href',
-        `${config.baseApiUrl}/dbs/${state.dbId}/dump?db=${db}&type=${state.dumpInfo.type}&tables=${state.dumpInfo.tables.join(',')}&token=${getSession(
-            'token'
-        )}`
-    );
-    a.click();
-    state.showDumpInfo = false;
+    state.sqlExecLogDialog.dbId = 0;
 };
 
 const onDumpDbs = async (row: any) => {
@@ -707,136 +412,16 @@ const dumpDbs = () => {
     state.exportDialog.visible = false;
 };
 
-const onShowRollbackSql = async (sqlExecLog: any) => {
-    const columns = await dbApi.columnMetadata.request({ id: sqlExecLog.dbId, db: sqlExecLog.db, tableName: sqlExecLog.table });
-    const primaryKey = getPrimaryKey(columns);
-    const oldValue = JSON.parse(sqlExecLog.oldValue);
-
-    const rollbackSqls = [];
-    if (sqlExecLog.type == DbSqlExecTypeEnum['UPDATE'].value) {
-        for (let ov of oldValue) {
-            const setItems = [];
-            for (let key in ov) {
-                if (key == primaryKey) {
-                    continue;
-                }
-                setItems.push(`${key} = ${wrapValue(ov[key])}`);
-            }
-            rollbackSqls.push(`UPDATE ${sqlExecLog.table} SET ${setItems.join(', ')} WHERE ${primaryKey} = ${wrapValue(ov[primaryKey])};`);
-        }
-    } else if (sqlExecLog.type == DbSqlExecTypeEnum['DELETE'].value) {
-        const columnNames = columns.map((c: any) => c.columnName);
-        for (let ov of oldValue) {
-            const values = [];
-            for (let column of columnNames) {
-                values.push(wrapValue(ov[column]));
-            }
-            rollbackSqls.push(`INSERT INTO ${sqlExecLog.table} (${columnNames.join(', ')}) VALUES (${values.join(', ')});`);
-        }
-    }
-
-    state.rollbackSqlDialog.sql = rollbackSqls.join('\n');
-    state.rollbackSqlDialog.visible = true;
-};
-
-const getPrimaryKey = (columns: any) => {
-    const col = columns.find((c: any) => c.columnKey == 'PRI');
-    if (col) {
-        return col.columnName;
-    }
-    return columns[0].columnName;
-};
-
-/**
- * 包装值，如果值类型为number则直接返回，其他则需要使用''包装
- */
-const wrapValue = (val: any) => {
-    if (typeof val == 'number') {
-        return val;
-    }
-    return `'${val}'`;
-};
-
 const showTableInfo = async (row: any, db: string) => {
-    state.tableInfoDialog.loading = true;
+    state.dbId = row.id;
+    state.row = row;
+    state.db = db;
     state.tableInfoDialog.visible = true;
-    try {
-        state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: row.id, db });
-        state.tableCreateDialog.type = row.type;
-        state.dbId = row.id;
-        state.row = row;
-        state.db = db;
-    } catch (e) {
-        state.tableInfoDialog.visible = false;
-    } finally {
-        state.tableInfoDialog.loading = false;
-    }
-};
-
-const onSubmitSql = async (row: { tableName: string }) => {
-    await openEditTable(row);
-    state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.dbId, db: state.db });
 };
 
 const closeTableInfo = () => {
     state.showDumpInfo = false;
     state.tableInfoDialog.visible = false;
-    state.tableInfoDialog.infos = [];
-};
-
-const showColumns = async (row: any) => {
-    state.chooseTableName = row.tableName;
-    state.columnDialog.columns = await dbApi.columnMetadata.request({
-        id: state.dbId,
-        db: state.db,
-        tableName: row.tableName,
-    });
-
-    state.columnDialog.visible = true;
-};
-
-const showTableIndex = async (row: any) => {
-    state.chooseTableName = row.tableName;
-    state.indexDialog.indexs = await dbApi.tableIndex.request({
-        id: state.dbId,
-        db: state.db,
-        tableName: row.tableName,
-    });
-
-    state.indexDialog.visible = true;
-};
-
-const showCreateDdl = async (row: any) => {
-    state.chooseTableName = row.tableName;
-    const res = await dbApi.tableDdl.request({
-        id: state.dbId,
-        db: state.db,
-        tableName: row.tableName,
-    });
-    state.ddlDialog.ddl = res;
-    state.ddlDialog.visible = true;
-};
-
-/**
- * 删除表
- */
-const dropTable = async (row: any) => {
-    try {
-        const tableName = row.tableName;
-        await ElMessageBox.confirm(`确定删除'${tableName}'表?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
-        SqlExecBox({
-            sql: `DROP TABLE ${tableName}`,
-            dbId: state.dbId,
-            db: state.db,
-            runSuccessCallback: async () => {
-                state.tableInfoDialog.infos = await dbApi.tableInfos.request({ id: state.dbId, db: state.db });
-            },
-        });
-    } catch (err) {}
 };
 
 // 点击查看时初始化数据
@@ -854,32 +439,6 @@ const filterSchema = () => {
         });
     } else {
         state.filterDb.list = state.filterDb.cache;
-    }
-};
-
-// 打开编辑表
-const openEditTable = async (row: any) => {
-    state.tableCreateDialog.visible = true;
-    state.tableCreateDialog.activeName = '1';
-
-    if (row === false) {
-        state.tableCreateDialog.data = { edit: false, row: {}, indexs: [], columns: [] };
-        state.tableCreateDialog.title = '创建表';
-    }
-
-    if (row.tableName) {
-        state.tableCreateDialog.title = '修改表';
-        let indexs = await dbApi.tableIndex.request({
-            id: state.dbId,
-            db: state.db,
-            tableName: row.tableName,
-        });
-        let columns = await dbApi.columnMetadata.request({
-            id: state.dbId,
-            db: state.db,
-            tableName: row.tableName,
-        });
-        state.tableCreateDialog.data = { edit: true, row, indexs, columns };
     }
 };
 </script>

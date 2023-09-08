@@ -148,8 +148,8 @@ func (m *Machine) KillProcess(rc *req.Ctx) {
 	cli := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
 
-	_, err := cli.Run("sudo kill -9 " + pid)
-	biz.ErrIsNilAppendErr(err, "终止进程失败: %s")
+	res, err := cli.Run("sudo kill -9 " + pid)
+	biz.ErrIsNil(err, "终止进程失败: %s", res)
 }
 
 func (m *Machine) WsSSH(g *gin.Context) {

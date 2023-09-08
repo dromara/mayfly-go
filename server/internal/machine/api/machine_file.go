@@ -11,13 +11,18 @@ import (
 	msgapp "mayfly-go/internal/msg/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/timex"
 	"mayfly-go/pkg/ws"
+	"mime/multipart"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 )
@@ -158,6 +163,8 @@ func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
 	rc.ReqParam = fmt.Sprintf("%s -> 修改文件内容: %s", mi.GetLogDesc(), path)
 }
 
+const MaxUploadFileSize int64 = 1024 * 1024 * 1024
+
 func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
@@ -165,6 +172,7 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 
 	fileheader, err := g.FormFile("file")
 	biz.ErrIsNilAppendErr(err, "读取文件失败: %s")
+	biz.IsTrue(fileheader.Size <= MaxUploadFileSize, "文件大小不能超过%d字节", MaxUploadFileSize)
 
 	file, _ := fileheader.Open()
 	rc.ReqParam = fmt.Sprintf("path: %s", path)
@@ -173,20 +181,104 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	rc.ReqParam = fmt.Sprintf("%s -> 上传文件: %s/%s", mi.GetLogDesc(), path, fileheader.Filename)
 
 	la := rc.LoginAccount
-	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				switch t := err.(type) {
-				case *biz.BizError:
-					m.MsgApp.CreateAndSend(la, ws.ErrMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
-				}
+	defer func() {
+		if err := recover(); err != nil {
+			logx.Errorf("文件上传失败: %s", err)
+			switch t := err.(type) {
+			case biz.BizError:
+				m.MsgApp.CreateAndSend(la, ws.ErrMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
 			}
-		}()
-		defer file.Close()
-		m.MachineFileApp.UploadFile(fid, path, fileheader.Filename, file)
-		// 保存消息并发送文件上传成功通知
-		m.MsgApp.CreateAndSend(la, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件已成功上传至 %s[%s:%s]", fileheader.Filename, mi.Name, mi.Ip, path)))
+		}
 	}()
+
+	defer file.Close()
+	m.MachineFileApp.UploadFile(fid, path, fileheader.Filename, file)
+	// 保存消息并发送文件上传成功通知
+	m.MsgApp.CreateAndSend(la, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件已成功上传至 %s[%s:%s]", fileheader.Filename, mi.Name, mi.Ip, path)))
+}
+
+type FolderFile struct {
+	Dir        string
+	Fileheader *multipart.FileHeader
+}
+
+func (m *MachineFile) UploadFolder(rc *req.Ctx) {
+	g := rc.GinCtx
+	fid := GetMachineFileId(g)
+
+	mf, err := g.MultipartForm()
+	biz.ErrIsNilAppendErr(err, "获取表单信息失败: %s")
+	basePath := mf.Value["basePath"][0]
+	biz.NotEmpty(basePath, "基础路径不能为空")
+
+	fileheaders := mf.File["files"]
+	biz.IsTrue(len(fileheaders) > 0, "文件不能为空")
+	allFileSize := collx.ArrayReduce(fileheaders, 0, func(i int64, fh *multipart.FileHeader) int64 {
+		return i + fh.Size
+	})
+	biz.IsTrue(allFileSize <= MaxUploadFileSize, "文件夹总大小不能超过%d字节", MaxUploadFileSize)
+
+	paths := mf.Value["paths"]
+
+	folderName := filepath.Dir(paths[0])
+	mi := m.MachineFileApp.GetMachine(fid)
+	rc.ReqParam = fmt.Sprintf("%s -> 上传文件夹: %s/%s", mi.GetLogDesc(), basePath, folderName)
+
+	folderFiles := make([]FolderFile, len(paths))
+	// 先创建目录，并将其包装为folderFile结构
+	mkdirs := make(map[string]bool, 0)
+	for i, path := range paths {
+		dir := filepath.Dir(path)
+		// 目录已建，则无需重复建
+		if !mkdirs[dir] {
+			m.MachineFileApp.MkDir(fid, basePath+"/"+dir)
+			mkdirs[dir] = true
+		}
+		folderFiles[i] = FolderFile{
+			Dir:        dir,
+			Fileheader: fileheaders[i],
+		}
+	}
+
+	// 分组处理
+	groupNum := 10
+	chunks := collx.ArraySplit(folderFiles, groupNum)
+
+	var wg sync.WaitGroup
+	// 设置要等待的协程数量
+	wg.Add(len(chunks))
+
+	la := rc.LoginAccount
+	for _, chunk := range chunks {
+		go func(files []FolderFile, wg *sync.WaitGroup) {
+			defer func() {
+				// 协程执行完成后调用Done方法
+				wg.Done()
+				if err := recover(); err != nil {
+					logx.Errorf("文件上传失败: %s", err)
+					switch t := err.(type) {
+					case biz.BizError:
+						m.MsgApp.CreateAndSend(la, ws.ErrMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
+					}
+				}
+			}()
+
+			for _, file := range files {
+				fileHeader := file.Fileheader
+				dir := file.Dir
+				file, _ := fileHeader.Open()
+				defer file.Close()
+				logx.Debugf("上传文件夹: dir=%s -> filename=%s", dir, fileHeader.Filename)
+				m.MachineFileApp.UploadFile(fid, basePath+"/"+dir, fileHeader.Filename, file)
+			}
+		}(chunk, &wg)
+	}
+
+	// 等待所有协程执行完成
+	wg.Wait()
+
+	// 保存消息并发送文件上传成功通知
+	m.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件夹已成功上传至 %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
 }
 
 func (m *MachineFile) RemoveFile(rc *req.Ctx) {

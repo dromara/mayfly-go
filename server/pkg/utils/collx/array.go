@@ -65,3 +65,52 @@ func ArrayMap[T any, K comparable](arr []T, mapFunc func(val T) K) []K {
 	}
 	return res
 }
+
+// 将数组或切片按固定大小分割成小数组
+func ArrayChunk[T any](arr []T, chunkSize int) [][]T {
+	var chunks [][]T
+	for i := 0; i < len(arr); i += chunkSize {
+		end := i + chunkSize
+		if end > len(arr) {
+			end = len(arr)
+		}
+		chunks = append(chunks, arr[i:end])
+	}
+	return chunks
+}
+
+// 将数组切割为指定个数的子数组，并尽可能均匀
+func ArraySplit[T any](arr []T, numGroups int) [][]T {
+	if numGroups > len(arr) {
+		numGroups = len(arr)
+	}
+
+	// 计算每个子数组的大小
+	size := len(arr) / numGroups
+	remainder := len(arr) % numGroups
+
+	// 创建一个存放子数组的切片
+	subArrays := make([][]T, numGroups)
+
+	// 分割数组为子数组
+	start := 0
+	for i := range subArrays {
+		subSize := size
+		if i < remainder {
+			subSize++
+		}
+		subArrays[i] = arr[start : start+subSize]
+		start += subSize
+	}
+
+	return subArrays
+}
+
+// reduce操作
+func ArrayReduce[T any, V any](arr []T, initialValue V, reducer func(V, T) V) V {
+	value := initialValue
+	for _, a := range arr {
+		value = reducer(value, a)
+	}
+	return value
+}

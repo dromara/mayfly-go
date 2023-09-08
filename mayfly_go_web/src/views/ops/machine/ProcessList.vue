@@ -85,7 +85,7 @@
 
                 <el-table-column label="操作">
                     <template #default="scope">
-                        <el-popconfirm title="确定终止该进程?" @confirm="confirmKillProcess(scope.row.pid)">
+                        <el-popconfirm title="确定终止该进程?" @confirm="confirmKillProcess(scope.row.pid)" width="160">
                             <template #reference>
                                 <el-button v-auth="'machine:killprocess'" type="danger" icon="delete" size="small" plain>终止</el-button>
                             </template>

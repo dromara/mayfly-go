@@ -158,7 +158,7 @@ func (m *machineFileAppImpl) MkDir(fid uint64, path string) {
 	}
 
 	sftpCli := m.getSftpCli(machineId)
-	err := sftpCli.Mkdir(path)
+	err := sftpCli.MkdirAll(path)
 	biz.ErrIsNilAppendErr(err, "创建目录失败: %s")
 }
 
