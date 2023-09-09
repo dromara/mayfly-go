@@ -2,13 +2,13 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/api/vo"
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/jsonx"
 	"strings"
 	"sync"
 	"time"
@@ -132,7 +132,7 @@ func (r *Redis) TtlKey(rc *req.Ctx) {
 
 func (r *Redis) DeleteKey(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisIns(rc)
-	rc.ReqParam = fmt.Sprintf("%s -> 删除key: %s", ri.Info.GetLogDesc(), key)
+	rc.ReqParam = jsonx.Kvs("redis", ri.Info, "key", key)
 	ri.GetCmdable().Del(context.Background(), key)
 }
 
@@ -141,7 +141,7 @@ func (r *Redis) RenameKey(rc *req.Ctx) {
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
 	ri := r.getRedisIns(rc)
-	rc.ReqParam = fmt.Sprintf("%s -> 重命名key[%s] -> [%s]", ri.Info.GetLogDesc(), form.Key, form.NewKey)
+	rc.ReqParam = jsonx.Kvs("redis", ri.Info, "rename", form)
 	ri.GetCmdable().Rename(context.Background(), form.Key, form.NewKey)
 }
 
@@ -150,20 +150,20 @@ func (r *Redis) ExpireKey(rc *req.Ctx) {
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
 	ri := r.getRedisIns(rc)
-	rc.ReqParam = fmt.Sprintf("%s -> 重置key[%s]过期时间为%d", ri.Info.GetLogDesc(), form.Key, form.Seconds)
+	rc.ReqParam = jsonx.Kvs("redis", ri.Info, "expire", form)
 	ri.GetCmdable().Expire(context.Background(), form.Key, time.Duration(form.Seconds)*time.Second)
 }
 
 // 移除过期时间
 func (r *Redis) PersistKey(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisIns(rc)
-	rc.ReqParam = fmt.Sprintf("%s -> 移除key[%s]的过期时间", ri.Info.GetLogDesc(), key)
+	rc.ReqParam = jsonx.Kvs("redis", ri.Info, "key", key)
 	ri.GetCmdable().Persist(context.Background(), key)
 }
 
 // 清空库
 func (r *Redis) FlushDb(rc *req.Ctx) {
 	ri := r.getRedisIns(rc)
-	rc.ReqParam = fmt.Sprintf("%s -> flushdb", ri.Info.GetLogDesc())
+	rc.ReqParam = ri.Info
 	ri.GetCmdable().FlushDB(context.Background())
 }

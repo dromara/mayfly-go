@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
@@ -71,7 +70,7 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 
 	res, err := cli.Run(script)
 	// 记录请求参数
-	rc.ReqParam = fmt.Sprintf("[machine: %s, scriptId: %d, name: %s]", cli.GetMachine().GetLogDesc(), scriptId, ms.Name)
+	rc.ReqParam = jsonx.Kvs("machine", cli.GetMachine(), "scriptId", scriptId, "name", ms.Name)
 	if res == "" {
 		biz.ErrIsNilAppendErr(err, "执行命令失败：%s")
 	}

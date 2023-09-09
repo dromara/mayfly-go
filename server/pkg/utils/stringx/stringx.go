@@ -126,6 +126,8 @@ func AnyToStr(value any) string {
 	}
 
 	switch it := value.(type) {
+	case string:
+		return it
 	case float64:
 		return strconv.FormatFloat(it, 'f', -1, 64)
 	case float32:
@@ -150,8 +152,6 @@ func AnyToStr(value any) string {
 		return strconv.FormatInt(it, 10)
 	case uint64:
 		return strconv.FormatUint(it, 10)
-	case string:
-		return it
 	case []byte:
 		return string(value.([]byte))
 	default:

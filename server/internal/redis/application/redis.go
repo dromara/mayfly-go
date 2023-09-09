@@ -304,14 +304,14 @@ func TestRedisConnection(re *entity.Redis) {
 }
 
 type RedisInfo struct {
-	Id      uint64
-	Host    string
-	Db      int // 库号
-	TagPath string
-	Mode    string
-	Name    string
+	Id      uint64 `json:"id"`
+	Host    string `json:"host"`
+	Db      int    `json:"db"` // 库号
+	TagPath string `json:"tagPath"`
+	Mode    string `json:"-"`
+	Name    string `json:"-"`
 
-	SshTunnelMachineId int
+	SshTunnelMachineId int `json:"-"`
 }
 
 // 获取记录日志的描述

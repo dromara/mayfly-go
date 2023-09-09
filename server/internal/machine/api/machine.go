@@ -15,7 +15,6 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/stringx"
-	"mayfly-go/pkg/utils/structx"
 	"mayfly-go/pkg/ws"
 	"os"
 	"path"
@@ -78,13 +77,7 @@ func (m *Machine) SaveMachine(rc *req.Ctx) {
 }
 
 func (m *Machine) TestConn(rc *req.Ctx) {
-	g := rc.GinCtx
-	machineForm := new(form.MachineForm)
-	ginx.BindJsonAndValid(g, machineForm)
-
-	me := new(entity.Machine)
-	structx.Copy(me, machineForm)
-
+	me := ginx.BindJsonAndCopyTo(rc.GinCtx, new(form.MachineForm), new(entity.Machine))
 	m.MachineApp.TestConn(me)
 }
 
@@ -194,7 +187,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 
 	// 记录系统操作日志
 	rc.WithLog(req.NewLogSave("机器-终端操作"))
-	rc.ReqParam = cli.GetMachine().GetLogDesc()
+	rc.ReqParam = cli.GetMachine()
 	req.LogHandler(rc)
 
 	mts.Start()

@@ -18,20 +18,20 @@ import (
 
 // 机器信息
 type Info struct {
-	Id   uint64
+	Id   uint64 `json:"id"`
 	Name string `json:"name"`
-	Ip   string `json:"ip"`   // IP地址
-	Port int    `json:"port"` // 端口号
+	Ip   string `json:"ip"` // IP地址
+	Port int    `json:"-"`  // 端口号
 
-	AuthMethod int8   `json:"authMethod"` // 授权认证方式
-	Username   string `json:"username"`   // 用户名
+	AuthMethod int8   `json:"-"` // 授权认证方式
+	Username   string `json:"-"` // 用户名
 	Password   string `json:"-"`
 	Passphrase string `json:"-"` // 私钥口令
 
-	Status             int8   `json:"status"`             // 状态 1:启用；2:停用
-	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
-	EnableRecorder     int8   `json:"enableRecorder"`     // 是否启用终端回放记录
-	TagId              uint64 `json:"tagId"`
+	Status             int8   `json:"-"` // 状态 1:启用；2:停用
+	SshTunnelMachineId int    `json:"-"` // ssh隧道机器id
+	EnableRecorder     int8   `json:"-"` // 是否启用终端回放记录
+	TagId              uint64 `json:"-"`
 	TagPath            string `json:"tagPath"`
 }
 

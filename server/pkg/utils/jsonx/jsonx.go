@@ -3,6 +3,7 @@ package jsonx
 import (
 	"encoding/json"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/stringx"
 	"strings"
 
 	"github.com/buger/jsonparser"
@@ -31,6 +32,31 @@ func ToStr(val any) string {
 	} else {
 		return string(strBytes)
 	}
+}
+
+// 将偶数个元素转为对应的map，并转为json
+//
+// 偶数索引为key，奇数为value
+func AnysToStr(elements ...any) string {
+	return ToStr(Kvs(elements...))
+}
+
+// 将偶数个元素转为对应的map[string]any
+//
+// 偶数索引为json key，奇数为value
+func Kvs(elements ...any) map[string]any {
+	myMap := make(map[string]any)
+
+	for i := 0; i < len(elements); i += 2 {
+		key := stringx.AnyToStr(elements[i])
+		if i+1 < len(elements) {
+			value := elements[i+1]
+			myMap[key] = value
+		} else {
+			myMap[key] = nil
+		}
+	}
+	return myMap
 }
 
 // 根据json字节数组获取对应字段路径的string类型值

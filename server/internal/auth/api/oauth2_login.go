@@ -98,7 +98,7 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 		account.Id = accountId
 		err = a.AccountApp.GetAccount(account, "username")
 		biz.ErrIsNilAppendErr(err, "该账号不存在")
-		rc.ReqParam = fmt.Sprintf("oauth2 bind username: %s", account.Username)
+		rc.ReqParam = jsonx.Kvs("username", account.Username, "type", "bind")
 
 		err = a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
 			AccountId: accountId,
@@ -173,7 +173,7 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 	biz.ErrIsNilAppendErr(err, "获取用户信息失败: %s")
 
 	clientIp := getIpAndRegion(rc)
-	rc.ReqParam = fmt.Sprintf("oauth2 login username: %s | ip: %s", account.Username, clientIp)
+	rc.ReqParam = jsonx.Kvs("username", account.Username, "ip", clientIp, "type", "login")
 
 	res := LastLoginCheck(account, config.GetAccountLoginSecurity(), clientIp)
 	res["action"] = "oauthLogin"

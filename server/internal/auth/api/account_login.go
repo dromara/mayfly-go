@@ -16,6 +16,7 @@ import (
 	"mayfly-go/pkg/otp"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/cryptox"
+	"mayfly-go/pkg/utils/jsonx"
 	"strconv"
 	"time"
 )
@@ -41,7 +42,7 @@ func (a *AccountLogin) Login(rc *req.Ctx) {
 	username := loginForm.Username
 
 	clientIp := getIpAndRegion(rc)
-	rc.ReqParam = fmt.Sprintf("username: %s | ip: %s", username, clientIp)
+	rc.ReqParam = jsonx.Kvs("username", username, "ip", clientIp)
 
 	originPwd, err := cryptox.DefaultRsaDecrypt(loginForm.Password, true)
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")

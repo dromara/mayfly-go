@@ -142,10 +142,10 @@ func DeleteMongoCache(mongoId uint64) {
 }
 
 type MongoInfo struct {
-	Id                 uint64
-	Name               string
-	TagPath            string
-	SshTunnelMachineId int // ssh隧道机器id
+	Id                 uint64 `json:"id"`
+	Name               string `json:"name"`
+	TagPath            string `json:"tagPath"`
+	SshTunnelMachineId int    `json:"-"` // ssh隧道机器id
 }
 
 func (m *MongoInfo) GetLogDesc() string {

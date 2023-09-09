@@ -93,11 +93,7 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 	ginx.BindJsonAndValid(rc.GinCtx, commandForm)
 
 	inst := m.MongoApp.GetMongoInst(m.GetMongoId(rc.GinCtx))
-
-	rc.ReqParam = jsonx.ToStr(map[string]any{
-		"info": inst.Info.GetLogDesc(),
-		"req":  commandForm,
-	})
+	rc.ReqParam = jsonx.Kvs("mongo", inst.Info, "cmd", commandForm)
 
 	// 顺序执行
 	commands := bson.D{}
@@ -160,10 +156,7 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 	ginx.BindJsonAndValid(g, commandForm)
 
 	inst := m.MongoApp.GetMongoInst(m.GetMongoId(g))
-	rc.ReqParam = jsonx.ToStr(map[string]any{
-		"info": inst.Info.GetLogDesc(),
-		"req":  commandForm,
-	})
+	rc.ReqParam = jsonx.Kvs("mongo", inst.Info, "cmd", commandForm)
 
 	// 解析docId文档id，如果为string类型则使用ObjectId解析，解析失败则为普通字符串
 	docId := commandForm.DocId
@@ -187,10 +180,7 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 	ginx.BindJsonAndValid(g, commandForm)
 
 	inst := m.MongoApp.GetMongoInst(m.GetMongoId(g))
-	rc.ReqParam = jsonx.ToStr(map[string]any{
-		"info": inst.Info.GetLogDesc(),
-		"req":  commandForm,
-	})
+	rc.ReqParam = jsonx.Kvs("mongo", inst.Info, "cmd", commandForm)
 
 	// 解析docId文档id，如果为string类型则使用ObjectId解析，解析失败则为普通字符串
 	docId := commandForm.DocId
@@ -213,10 +203,7 @@ func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
 	ginx.BindJsonAndValid(g, commandForm)
 
 	inst := m.MongoApp.GetMongoInst(m.GetMongoId(g))
-	rc.ReqParam = jsonx.ToStr(map[string]any{
-		"info": inst.Info.GetLogDesc(),
-		"req":  commandForm,
-	})
+	rc.ReqParam = jsonx.Kvs("mongo", inst.Info, "cmd", commandForm)
 
 	res, err := inst.Cli.Database(commandForm.Database).Collection(commandForm.Collection).InsertOne(context.TODO(), commandForm.Doc)
 	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")

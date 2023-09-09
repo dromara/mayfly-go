@@ -27,7 +27,7 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 
 		req.NewGet(":machineId/files/:fileId/read", mf.ReadFileContent).Log(req.NewLogSave("机器-获取文件内容")),
 
-		req.NewGet(":machineId/files/:fileId/read-dir", mf.GetDirEntry).Log(req.NewLogSave("机器-获取目录")),
+		req.NewGet(":machineId/files/:fileId/read-dir", mf.GetDirEntry),
 
 		req.NewGet(":machineId/files/:fileId/dir-size", mf.GetDirSize),
 
