@@ -14,6 +14,7 @@ import (
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/ws"
 	"os"
@@ -85,7 +86,7 @@ func (m *Machine) ChangeStatus(rc *req.Ctx) {
 	g := rc.GinCtx
 	id := uint64(ginx.PathParamInt(g, "machineId"))
 	status := int8(ginx.PathParamInt(g, "status"))
-	rc.ReqParam = fmt.Sprintf("id: %d -- status: %d", id, status)
+	rc.ReqParam = jsonx.Kvs("id", id, "status", status)
 	m.MachineApp.ChangeStatus(id, status)
 }
 

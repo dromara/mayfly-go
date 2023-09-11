@@ -9,9 +9,32 @@
 
 <script lang="ts" setup>
 import { ref, watch, toRefs, reactive, onMounted, onBeforeUnmount } from 'vue';
-import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
-import * as monaco from 'monaco-editor';
+// import * as monaco from 'monaco-editor';
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+// 相关语言
+import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution.js';
+import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js';
+import 'monaco-editor/esm/vs/basic-languages/dockerfile/dockerfile.contribution.js';
+import 'monaco-editor/esm/vs/basic-languages/javascript/javascript.contribution.js';
+import 'monaco-editor/esm/vs/basic-languages/html/html.contribution.js';
+import 'monaco-editor/esm/vs/basic-languages/css/css.contribution.js';
+import 'monaco-editor/esm/vs/basic-languages/python/python.contribution.js';
+import 'monaco-editor/esm/vs/basic-languages/markdown/markdown.contribution.js';
+import 'monaco-editor/esm/vs/basic-languages/java/java.contribution.js';
+import 'monaco-editor/esm/vs/basic-languages/sql/sql.contribution.js';
+import 'monaco-editor/esm/vs/language/json/monaco.contribution';
+// 右键菜单
+import 'monaco-editor/esm/vs/editor/contrib/contextmenu/browser/contextmenu.js';
+import 'monaco-editor/esm/vs/editor/contrib/caretOperations/browser/caretOperations.js';
+import 'monaco-editor/esm/vs/editor/contrib/clipboard//browser/clipboard.js';
+import 'monaco-editor/esm/vs/editor/contrib/find/browser/findController.js';
+import 'monaco-editor/esm/vs/editor/contrib/format//browser/formatActions.js';
+// 提示
+import 'monaco-editor/esm/vs/editor/contrib/suggest/browser/suggestController.js';
+import 'monaco-editor/esm/vs/editor/contrib/suggest/browser/suggestInlineCompletions.js';
+
 import { editor, languages } from 'monaco-editor';
+import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker';
 import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
 // 主题仓库 https://github.com/brijeshb42/monaco-themes
 // 主题例子 https://editor.bitwiser.in/

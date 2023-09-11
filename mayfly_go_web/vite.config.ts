@@ -68,11 +68,11 @@ const viteConfig: UserConfig = {
                             if (atRule.name === 'charset') {
                                 atRule.remove();
                             }
-                        }
-                    }
-                }
-            ]
-        }
+                        },
+                    },
+                },
+            ],
+        },
     },
 };
 
