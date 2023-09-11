@@ -283,7 +283,7 @@ const selectData = async () => {
     const dbInst = state.ti.getNowDbInst();
     const { db } = state.ti;
     try {
-        const countRes = await dbInst.runSql(db, DbInst.getDefaultCountSql(state.table, state.condition));
+        const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(state.table, state.condition));
         state.count = countRes.res[0].count;
         let sql = dbInst.getDefaultSelectSql(state.table, state.condition, state.orderBy, state.pageNum, state.pageSize);
         state.sql = sql;
@@ -427,6 +427,7 @@ const closeAddDataDialog = () => {
 const addRow = async () => {
     dataForm.value.validate(async (valid: boolean) => {
         if (valid) {
+            const dbInst = state.ti.getNowDbInst();
             const data = state.addDataDialog.data;
             // key: 字段名，value: 字段名提示
             let obj: any = {};
@@ -435,12 +436,12 @@ const addRow = async () => {
                 if (!value) {
                     continue;
                 }
-                obj[`${item.columnName}`] = DbInst.wrapValueByType(value);
+                obj[`${dbInst.wrapName(item.columnName)}`] = DbInst.wrapValueByType(value);
             }
             let columnNames = Object.keys(obj).join(',');
             let values = Object.values(obj).join(',');
-            let sql = `INSERT INTO ${state.table} (${columnNames}) VALUES (${values});`;
-            state.ti.getNowDbInst().promptExeSql(state.ti.db, sql, null, () => {
+            let sql = `INSERT INTO ${dbInst.wrapName(state.table)} (${columnNames}) VALUES (${values});`;
+            dbInst.promptExeSql(state.ti.db, sql, null, () => {
                 closeAddDataDialog();
                 onRefresh();
             });

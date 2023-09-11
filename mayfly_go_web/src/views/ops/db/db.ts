@@ -141,9 +141,19 @@ export class DbInst {
         });
     }
 
+    /**
+     * 获取count sql
+     * @param table 表名
+     * @param condition 条件
+     * @returns count sql
+     */
+    getDefaultCountSql = (table: string, condition?: string) => {
+        return `SELECT COUNT(*) count FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} limit 1`;
+    };
+
     // 获取指定表的默认查询sql
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number = DbInst.DefaultLimit) {
-        const baseSql = `SELECT * FROM ${table} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''}`;
+        const baseSql = `SELECT * FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''}`;
         if (this.type == 'mysql') {
             return `${baseSql} LIMIT ${(pageNum - 1) * limit}, ${limit};`;
         }
@@ -170,10 +180,10 @@ export class DbInst {
             let values = [];
             for (let column of columns) {
                 const colName = column.columnName;
-                colNames.push(colName);
+                colNames.push(this.wrapName(colName));
                 values.push(DbInst.wrapValueByType(data[colName]));
             }
-            sqls.push(`INSERT INTO ${table} (${colNames.join(', ')}) VALUES(${values.join(', ')})`);
+            sqls.push(`INSERT INTO ${this.wrapName(table)} (${colNames.join(', ')}) VALUES(${values.join(', ')})`);
         }
         return sqls.join(';\n') + ';';
     }
@@ -187,7 +197,7 @@ export class DbInst {
         const primaryKey = this.getDb(db).getColumn(table);
         const primaryKeyColumnName = primaryKey.columnName;
         const ids = datas.map((d: any) => `${DbInst.wrapColumnValue(primaryKey.columnType, d[primaryKeyColumnName])}`).join(',');
-        return `DELETE FROM ${table} WHERE ${primaryKeyColumnName} IN (${ids})`;
+        return `DELETE FROM ${this.wrapName(table)} WHERE ${this.wrapName(primaryKeyColumnName)} IN (${ids})`;
     }
 
     /*
@@ -201,6 +211,22 @@ export class DbInst {
             runSuccessCallback: successFunc,
             cancelCallback: cancelFunc,
         });
+    };
+
+    /**
+     * 包裹数据库表名、字段名等，避免使用关键字为字段名或表名时报错
+     * @param table
+     * @param condition
+     * @returns
+     */
+    wrapName = (name: string) => {
+        if (this.type == 'mysql') {
+            return `\`${name}\``;
+        }
+        if (this.type == 'postgres') {
+            return `"${name}"`;
+        }
+        return name;
     };
 
     /**
@@ -251,16 +277,6 @@ export class DbInst {
     static clearAll() {
         dbInstCache.clear();
     }
-
-    /**
-     * 获取count sql
-     * @param table 表名
-     * @param condition 条件
-     * @returns count sql
-     */
-    static getDefaultCountSql = (table: string, condition?: string) => {
-        return `SELECT COUNT(*) count FROM ${table} ${condition ? 'WHERE ' + condition : ''}`;
-    };
 
     /**
      * 根据返回值包装值，若值为字符串类型则添加''

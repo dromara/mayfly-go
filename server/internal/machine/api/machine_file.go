@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/domain/entity"
+	"mayfly-go/internal/machine/infrastructure/machine"
 	msgapp "mayfly-go/internal/msg/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
@@ -67,18 +68,19 @@ func (m *MachineFile) CreateFile(rc *req.Ctx) {
 	form := ginx.BindJsonAndValid(g, new(form.MachineCreateFileForm))
 	path := form.Path
 
-	mi := m.MachineFileApp.GetMachine(fid)
-
-	attrs := jsonx.Kvs("machine", mi, "path", path)
-	rc.ReqParam = attrs
-
+	attrs := jsonx.Kvs("path", path)
+	var mi *machine.Info
+	var err error
 	if form.Type == dir {
 		attrs["type"] = "目录"
-		m.MachineFileApp.MkDir(fid, form.Path)
+		mi, err = m.MachineFileApp.MkDir(fid, form.Path)
 	} else {
 		attrs["type"] = "文件"
-		m.MachineFileApp.CreateFile(fid, form.Path)
+		mi, err = m.MachineFileApp.CreateFile(fid, form.Path)
 	}
+	attrs["machine"] = mi
+	rc.ReqParam = attrs
+	biz.ErrIsNilAppendErr(err, "创建目录失败: %s")
 }
 
 func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
@@ -87,7 +89,9 @@ func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 	readPath := g.Query("path")
 	readType := g.Query("type")
 
-	sftpFile := m.MachineFileApp.ReadFile(fid, readPath)
+	sftpFile, mi, err := m.MachineFileApp.ReadFile(fid, readPath)
+	rc.ReqParam = jsonx.Kvs("machine", mi, "path", readPath)
+	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
 	defer sftpFile.Close()
 
 	fileInfo, _ := sftpFile.Stat()
@@ -96,9 +100,6 @@ func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 	if readType != "1" {
 		biz.IsTrue(filesize < max_read_size, "文件超过1m，请使用下载查看")
 	}
-
-	mi := m.MachineFileApp.GetMachine(fid)
-	rc.ReqParam = jsonx.Kvs("machine", mi, "path", readPath, "filesize", filesize)
 	// 如果读取类型为下载，则下载文件，否则获取文件内容
 	if readType == "1" {
 		// 截取文件名，如/usr/local/test.java -》 test.java
@@ -161,10 +162,9 @@ func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
 	ginx.BindJsonAndValid(g, form)
 	path := form.Path
 
-	mi := m.MachineFileApp.GetMachine(fid)
+	mi, err := m.MachineFileApp.WriteFileContent(fid, path, []byte(form.Content))
 	rc.ReqParam = jsonx.Kvs("machine", mi, "path", path)
-
-	m.MachineFileApp.WriteFileContent(fid, path, []byte(form.Content))
+	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
 }
 
 const MaxUploadFileSize int64 = 1024 * 1024 * 1024
@@ -181,9 +181,6 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	file, _ := fileheader.Open()
 	defer file.Close()
 
-	mi := m.MachineFileApp.GetMachine(fid)
-	rc.ReqParam = jsonx.Kvs("machine", mi, "path", fmt.Sprintf("%s/%s", path, fileheader.Filename))
-
 	la := rc.LoginAccount
 	defer func() {
 		if err := recover(); err != nil {
@@ -195,7 +192,9 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 		}
 	}()
 
-	m.MachineFileApp.UploadFile(fid, path, fileheader.Filename, file)
+	mi, err := m.MachineFileApp.UploadFile(fid, path, fileheader.Filename, file)
+	rc.ReqParam = jsonx.Kvs("machine", mi, "path", fmt.Sprintf("%s/%s", path, fileheader.Filename))
+	biz.ErrIsNilAppendErr(err, "创建文件失败: %s")
 	// 保存消息并发送文件上传成功通知
 	m.MsgApp.CreateAndSend(la, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件已成功上传至 %s[%s:%s]", fileheader.Filename, mi.Name, mi.Ip, path)))
 }
@@ -224,7 +223,9 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	paths := mf.Value["paths"]
 
 	folderName := filepath.Dir(paths[0])
-	mi := m.MachineFileApp.GetMachine(fid)
+	mcli := m.MachineFileApp.GetMachineCli(fid, basePath+"/"+folderName)
+	mi := mcli.GetMachine()
+	sftpCli := mcli.GetSftpCli()
 	rc.ReqParam = jsonx.Kvs("machine", mi, "path", fmt.Sprintf("%s/%s", basePath, folderName))
 
 	folderFiles := make([]FolderFile, len(paths))
@@ -234,7 +235,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 		dir := filepath.Dir(path)
 		// 目录已建，则无需重复建
 		if !mkdirs[dir] {
-			m.MachineFileApp.MkDir(fid, basePath+"/"+dir)
+			biz.ErrIsNilAppendErr(sftpCli.MkdirAll(basePath+"/"+dir), "创建目录失败: %s")
 			mkdirs[dir] = true
 		}
 		folderFiles[i] = FolderFile{
@@ -244,7 +245,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	}
 
 	// 分组处理
-	groupNum := 10
+	groupNum := 30
 	chunks := collx.ArraySplit(folderFiles, groupNum)
 
 	var wg sync.WaitGroup
@@ -271,15 +272,19 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 				dir := file.Dir
 				file, _ := fileHeader.Open()
 				defer file.Close()
+
 				logx.Debugf("上传文件夹: dir=%s -> filename=%s", dir, fileHeader.Filename)
-				m.MachineFileApp.UploadFile(fid, basePath+"/"+dir, fileHeader.Filename, file)
+
+				createfile, err := sftpCli.Create(fmt.Sprintf("%s/%s/%s", basePath, dir, fileHeader.Filename))
+				biz.ErrIsNilAppendErr(err, "创建文件失败: %s")
+				defer createfile.Close()
+				io.Copy(createfile, file)
 			}
 		}(chunk, &wg)
 	}
 
 	// 等待所有协程执行完成
 	wg.Wait()
-
 	// 保存消息并发送文件上传成功通知
 	m.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件夹已成功上传至 %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
 }
@@ -291,10 +296,9 @@ func (m *MachineFile) RemoveFile(rc *req.Ctx) {
 	rmForm := new(form.MachineFileOpForm)
 	ginx.BindJsonAndValid(g, rmForm)
 
-	mi := m.MachineFileApp.GetMachine(fid)
+	mi, err := m.MachineFileApp.RemoveFile(fid, rmForm.Path...)
 	rc.ReqParam = jsonx.Kvs("machine", mi, "path", rmForm.Path)
-
-	m.MachineFileApp.RemoveFile(fid, rmForm.Path...)
+	biz.ErrIsNilAppendErr(err, "删除文件失败: %s")
 }
 
 func (m *MachineFile) CopyFile(rc *req.Ctx) {
@@ -303,7 +307,8 @@ func (m *MachineFile) CopyFile(rc *req.Ctx) {
 
 	cpForm := new(form.MachineFileOpForm)
 	ginx.BindJsonAndValid(g, cpForm)
-	mi := m.MachineFileApp.Copy(fid, cpForm.ToPath, cpForm.Path...)
+	mi, err := m.MachineFileApp.Copy(fid, cpForm.ToPath, cpForm.Path...)
+	biz.ErrIsNilAppendErr(err, "文件拷贝失败: %s")
 	rc.ReqParam = jsonx.Kvs("machine", mi, "cp", cpForm)
 }
 
@@ -313,8 +318,9 @@ func (m *MachineFile) MvFile(rc *req.Ctx) {
 
 	cpForm := new(form.MachineFileOpForm)
 	ginx.BindJsonAndValid(g, cpForm)
-	mi := m.MachineFileApp.Mv(fid, cpForm.ToPath, cpForm.Path...)
+	mi, err := m.MachineFileApp.Mv(fid, cpForm.ToPath, cpForm.Path...)
 	rc.ReqParam = jsonx.Kvs("machine", mi, "mv", cpForm)
+	biz.ErrIsNilAppendErr(err, "文件移动失败: %s")
 }
 
 func (m *MachineFile) Rename(rc *req.Ctx) {
@@ -323,10 +329,9 @@ func (m *MachineFile) Rename(rc *req.Ctx) {
 
 	rename := new(form.MachineFileRename)
 	ginx.BindJsonAndValid(g, rename)
-	biz.ErrIsNilAppendErr(m.MachineFileApp.Rename(fid, rename.Oldname, rename.Newname), "文件重命名失败: %s")
-
-	mi := m.MachineFileApp.GetMachine(fid)
+	mi, err := m.MachineFileApp.Rename(fid, rename.Oldname, rename.Newname)
 	rc.ReqParam = jsonx.Kvs("machine", mi, "rename", rename)
+	biz.ErrIsNilAppendErr(err, "文件重命名失败: %s")
 }
 
 func getFileType(fm fs.FileMode) string {

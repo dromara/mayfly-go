@@ -266,6 +266,7 @@ const cellClick = (row: any, column: any, cell: any) => {
 };
 
 const submitUpdateFields = () => {
+    const dbInst = DbInst.getInst(state.dbId)
     let currentUpdatedFields = state.updatedFields;
     if (currentUpdatedFields.length <= 0) {
         return;
@@ -274,12 +275,12 @@ const submitUpdateFields = () => {
     let res = '';
     let divs: HTMLElement[] = [];
     currentUpdatedFields.forEach(a => {
-        let sql = `UPDATE ${state.table} SET `;
+        let sql = `UPDATE ${dbInst.wrapName(state.table)} SET `;
         let primaryKey = a.primaryKey;
         let primaryKeyType = a.primaryKeyType;
         let primaryKeyName = a.primaryKeyName;
         a.fields.forEach(f => {
-            sql += ` ${f.fieldName} = ${DbInst.wrapColumnValue(f.fieldType, f.newValue)},`
+            sql += ` ${dbInst.wrapName(f.fieldName)} = ${DbInst.wrapColumnValue(f.fieldType, f.newValue)},`
             // 如果修改的字段是主键
             if (f.fieldName === primaryKeyName) {
                 primaryKey = f.oldValue
@@ -287,11 +288,11 @@ const submitUpdateFields = () => {
             divs.push(f.div)
         })
         sql = sql.substring(0, sql.length - 1)
-        sql += ` WHERE ${primaryKeyName} = ${DbInst.wrapColumnValue(primaryKeyType, primaryKey)} ;`
+        sql += ` WHERE ${dbInst.wrapName(primaryKeyName)} = ${DbInst.wrapColumnValue(primaryKeyType, primaryKey)} ;`
         res += sql;
     })
 
-    DbInst.getInst(state.dbId).promptExeSql(db, res, () => { }, () => {
+    dbInst.promptExeSql(db, res, () => { }, () => {
         currentUpdatedFields = [];
         divs.forEach(a => {
             a.classList.remove('update_field_active');
