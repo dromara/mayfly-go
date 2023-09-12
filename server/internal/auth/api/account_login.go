@@ -17,6 +17,7 @@ import (
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/jsonx"
+	"mayfly-go/pkg/ws"
 	"strconv"
 	"time"
 )
@@ -118,4 +119,5 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 
 func (a *AccountLogin) Logout(rc *req.Ctx) {
 	req.GetPermissionCodeRegistery().Remove(rc.LoginAccount.Id)
+	ws.CloseClient(rc.LoginAccount.Id)
 }

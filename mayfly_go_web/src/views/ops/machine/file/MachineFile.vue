@@ -190,7 +190,7 @@
                             <template #reference>
                                 <SvgIcon name="QuestionFilled" :size="18" class="pointer-icon mr10" />
                             </template>
-                            <div>rename: 双击文件名单元格后回车</div>
+                            <div>rename: 双击文件名单元格修改后回车</div>
                         </el-popover>
                         操作
                     </template>

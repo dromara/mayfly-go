@@ -14,7 +14,7 @@ type Msg interface {
 	Create(msg *entity.Msg)
 
 	// 创建消息，并通过ws发送
-	CreateAndSend(la *model.LoginAccount, msg *ws.Msg)
+	CreateAndSend(la *model.LoginAccount, msg *ws.SysMsg)
 }
 
 func newMsgApp(msgRepo repository.Msg) Msg {
@@ -35,9 +35,9 @@ func (a *msgAppImpl) Create(msg *entity.Msg) {
 	a.msgRepo.Insert(msg)
 }
 
-func (a *msgAppImpl) CreateAndSend(la *model.LoginAccount, wmsg *ws.Msg) {
+func (a *msgAppImpl) CreateAndSend(la *model.LoginAccount, wmsg *ws.SysMsg) {
 	now := time.Now()
-	msg := &entity.Msg{Type: 2, Msg: wmsg.Msg, RecipientId: int64(la.Id), CreateTime: &now, CreatorId: la.Id, Creator: la.Username}
+	msg := &entity.Msg{Type: 2, Msg: wmsg.SysMsg, RecipientId: int64(la.Id), CreateTime: &now, CreatorId: la.Id, Creator: la.Username}
 	a.msgRepo.Insert(msg)
 	ws.SendMsg(la.Id, wmsg)
 }

@@ -187,7 +187,7 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 			logx.Errorf("文件上传失败: %s", err)
 			switch t := err.(type) {
 			case biz.BizError:
-				m.MsgApp.CreateAndSend(la, ws.ErrMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
+				m.MsgApp.CreateAndSend(la, ws.ErrSysMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
 			}
 		}
 	}()
@@ -196,7 +196,7 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	rc.ReqParam = jsonx.Kvs("machine", mi, "path", fmt.Sprintf("%s/%s", path, fileheader.Filename))
 	biz.ErrIsNilAppendErr(err, "创建文件失败: %s")
 	// 保存消息并发送文件上传成功通知
-	m.MsgApp.CreateAndSend(la, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件已成功上传至 %s[%s:%s]", fileheader.Filename, mi.Name, mi.Ip, path)))
+	m.MsgApp.CreateAndSend(la, ws.SuccessSysMsg("文件上传成功", fmt.Sprintf("[%s]文件已成功上传至 %s[%s:%s]", fileheader.Filename, mi.Name, mi.Ip, path)))
 }
 
 type FolderFile struct {
@@ -262,7 +262,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 					logx.Errorf("文件上传失败: %s", err)
 					switch t := err.(type) {
 					case biz.BizError:
-						m.MsgApp.CreateAndSend(la, ws.ErrMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
+						m.MsgApp.CreateAndSend(la, ws.ErrSysMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
 					}
 				}
 			}()
@@ -286,7 +286,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	// 等待所有协程执行完成
 	wg.Wait()
 	// 保存消息并发送文件上传成功通知
-	m.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessMsg("文件上传成功", fmt.Sprintf("[%s]文件夹已成功上传至 %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
+	m.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessSysMsg("文件上传成功", fmt.Sprintf("[%s]文件夹已成功上传至 %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
 }
 
 func (m *MachineFile) RemoveFile(rc *req.Ctx) {

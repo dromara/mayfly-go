@@ -182,7 +182,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 					errInfo = t.Error()
 				}
 				if len(errInfo) > 0 {
-					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)))
+					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)))
 				}
 			}
 		}()
@@ -202,7 +202,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 				break
 			}
 			if err != nil {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
+				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
 				return
 			}
 			sql := sqlparser.String(stmt)
@@ -215,11 +215,11 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			}
 
 			if err != nil {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] -> sql=[%s] 执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), sql, err.Error())))
+				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] -> sql=[%s] 执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), sql, err.Error())))
 				return
 			}
 		}
-		d.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessMsg("sql脚本执行成功", fmt.Sprintf("[%s]执行完成 -> %s", filename, dbConn.Info.GetLogDesc())))
+		d.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("[%s]执行完成 -> %s", filename, dbConn.Info.GetLogDesc())))
 	}()
 }
 
@@ -275,7 +275,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		if len(msg) > 0 {
 			msg = "数据库导出失败: " + msg
 			writer.WriteString(msg)
-			d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrMsg("数据库导出失败", msg))
+			d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("数据库导出失败", msg))
 		}
 		writer.Close()
 	}()

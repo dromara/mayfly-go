@@ -37,5 +37,5 @@ func (s *System) ConnectWs(g *gin.Context) {
 
 	// 登录账号信息
 	la := rc.LoginAccount
-	ws.Put(la.Id, wsConn)
+	ws.AddClient(la.Id, wsConn)
 }
