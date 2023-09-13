@@ -1,6 +1,14 @@
 <template>
     <div class="machine-file-content">
-        <el-dialog :before-close="handleClose" :title="title || path" v-model="dialogVisible" :close-on-click-modal="false" top="5vh" width="65%">
+        <el-dialog
+            destroy-on-close
+            :before-close="handleClose"
+            :title="title || path"
+            v-model="dialogVisible"
+            :close-on-click-modal="false"
+            top="5vh"
+            width="65%"
+        >
             <div>
                 <monaco-editor :can-change-mode="true" v-model="content" :language="fileType" />
             </div>

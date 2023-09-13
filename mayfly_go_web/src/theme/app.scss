@@ -11,6 +11,7 @@
 	--color-white: #ffffff;
 	--bg-main-color: #f8f8f8;
 	--bg-color: #f5f5ff;
+    --bg-menuBarActiveColor: #0000001a;
 	--border-color-light: #f1f2f3;
 	--el-color-primary-lighter: #ecf5ff;
 	--color-success-lighter: #f0f9eb;
@@ -334,9 +335,10 @@ body,
 
 .toolbar {
     width: 100%;
-    padding: 6px;
+    padding: 4px;
     overflow: hidden;
-    line-height: 32px;
+    line-height: 24px;
+    border: 1px solid var(--el-border-color-light, #ebeef5);
 }
 
 .fl {

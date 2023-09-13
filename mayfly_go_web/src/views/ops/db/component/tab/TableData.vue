@@ -66,9 +66,9 @@
                     style="width: 100%"
                 >
                     <template #prepend>
-                        <el-popover trigger="click" :width="320" placement="right">
+                        <el-popover :visible="state.condPopVisible" trigger="click" :width="320" placement="right">
                             <template #reference>
-                                <el-link type="success" :underline="false">选择列</el-link>
+                                <el-link @click="state.condPopVisible = true" type="success" :underline="false">选择列</el-link>
                             </template>
                             <el-table
                                 :data="columns"
@@ -125,7 +125,7 @@
             <span>{{ state.sql }}</span>
         </div>
 
-        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
+        <el-dialog style="z-index: 10000" v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
             <el-row>
                 <el-col :span="5">
                     <el-select v-model="conditionDialog.condition">
@@ -138,7 +138,7 @@
                     </el-select>
                 </el-col>
                 <el-col :span="19">
-                    <el-input v-model="conditionDialog.value" :placeholder="conditionDialog.placeholder" />
+                    <el-input ref="conditionInputRef" v-model="conditionDialog.value" :placeholder="conditionDialog.placeholder" />
                 </el-col>
             </el-row>
             <template #footer>
@@ -190,6 +190,7 @@ import DbTable from '../DbTable.vue';
 
 const emits = defineEmits(['genInsertSql']);
 const dataForm: any = ref(null);
+const conditionInputRef: any = ref();
 
 const props = defineProps({
     data: {
@@ -218,6 +219,7 @@ const state = reactive({
     pageSizes: [20, 40, 80, 100, 200, 300, 400],
     count: 0,
     selectionDatas: [] as any,
+    condPopVisible: false,
     conditionDialog: {
         title: '',
         placeholder: '',
@@ -328,6 +330,10 @@ const onConditionRowClick = (event: any) => {
     state.conditionDialog.placeholder = `${row.columnType}  ${row.columnComment}`;
     state.conditionDialog.columnRow = row;
     state.conditionDialog.visible = true;
+    state.condPopVisible = false;
+    setTimeout(() => {
+        conditionInputRef.value.focus();
+    }, 100);
 };
 
 // 确认条件

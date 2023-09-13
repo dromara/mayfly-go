@@ -180,6 +180,15 @@ watch(
     }
 );
 
+// 监听 themeConfig editorTheme配置文件的变化
+watch(
+    () => themeConfig.value.editorTheme,
+    (val) => {
+        console.log('monaco editor theme change: ', val);
+        monaco?.editor?.setTheme(val);
+    }
+);
+
 onMounted(async () => {
     console.log('in query mounted');
     state.ti = props.data;
@@ -285,9 +294,6 @@ const initMonacoEditor = () => {
             }
         },
     });
-
-    // 动态设置主题
-    // monaco.editor.setTheme('hc-black');
 
     // 如果sql有值，则默认赋值
     if (state.sql) {

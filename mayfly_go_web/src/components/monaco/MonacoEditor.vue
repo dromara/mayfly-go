@@ -48,6 +48,11 @@ import SolarizedLight from 'monaco-themes/themes/Solarized-light.json';
 import { language as shellLan } from 'monaco-editor/esm/vs/basic-languages/shell/shell.js';
 import { ElOption, ElSelect } from 'element-plus';
 
+import { storeToRefs } from 'pinia';
+import { useThemeConfig } from '@/store/themeConfig';
+
+const { themeConfig } = storeToRefs(useThemeConfig());
+
 const props = defineProps({
     modelValue: {
         type: String,
@@ -189,6 +194,15 @@ watch(
     }
 );
 
+// 监听 themeConfig editorTheme配置文件的变化
+watch(
+    () => themeConfig.value.editorTheme,
+    (val) => {
+        console.log('monaco editor theme change: ', val);
+        monaco?.editor?.setTheme(val);
+    }
+);
+
 const monacoTextarea: any = ref(null);
 
 let monacoEditorIns: editor.IStandaloneCodeEditor = null as any;
@@ -209,17 +223,13 @@ const initMonacoEditorIns = () => {
     // 初始化一些主题
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
     options.language = state.languageMode;
-    // 从localStorage中获取，通过store可能存在父子组件都使用store报错
-    options.theme = JSON.parse(localStorage.getItem('themeConfig') as string).editorTheme || 'vs';
+    options.theme = themeConfig.value.editorTheme;
     monacoEditorIns = monaco.editor.create(monacoTextarea.value, Object.assign(options, props.options as any));
 
     // 监听内容改变,双向绑定
     monacoEditorIns.onDidChangeModelContent(() => {
         emit('update:modelValue', monacoEditorIns.getModel()?.getValue());
     });
-
-    // 动态设置主题
-    // monaco.editor.setTheme('hc-black');
 };
 
 const changeLanguage = (value: any) => {

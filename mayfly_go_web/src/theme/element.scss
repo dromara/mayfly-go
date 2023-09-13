@@ -2,20 +2,6 @@
 
 /* Button 按钮
 ------------------------------- */
-// 第三方字体图标大小
-.el-button:not(.is-circle) i.el-icon,
-.el-button i.iconfont,
-.el-button i.fa,
-.el-button--default i.iconfont,
-.el-button--default i.fa {
-	font-size: 14px !important;
-	margin-right: 5px;
-}
-.el-button--small i.iconfont,
-.el-button--small i.fa {
-	font-size: 12px !important;
-	margin-right: 5px;
-}
 
 /* Input 输入框、InputNumber 计数器
 ------------------------------- */
@@ -145,7 +131,7 @@
 	}
 	// 横向菜单
 	.el-menu--horizontal {
-		background: var(--next-bg-topBar);
+		background: var(--bg-topBar);
 		.el-menu-item,
 		.el-sub-menu {
 			height: 48px !important;

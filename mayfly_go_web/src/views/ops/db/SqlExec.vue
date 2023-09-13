@@ -155,7 +155,7 @@ onMounted(() => {
  */
 const setHeight = () => {
     state.editorHeight = window.innerHeight - 518 + 'px';
-    state.dataTabsTableHeight = window.innerHeight - 219 - 36 + 'px';
+    state.dataTabsTableHeight = window.innerHeight - 261 + 'px';
     state.tagTreeHeight = window.innerHeight - 165 + 'px';
 };
 

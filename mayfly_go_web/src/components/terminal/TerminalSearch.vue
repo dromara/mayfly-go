@@ -81,8 +81,6 @@ function closeSearch() {
     state.search.visible = false;
     state.search.value = '';
     props.searchAddon?.clearDecorations();
-    // 取消查询关键字高亮
-    props.searchAddon?.clearActiveDecoration();
     emit('close');
 }
 
