@@ -7,8 +7,7 @@
                         <img :src="userInfo.photo" />
                         <div class="home-card-first-right ml15">
                             <div class="flex-margin">
-                                <div class="home-card-first-right-title">{{ `${currentTime}, ${userInfo.username}`
-                                }}</div>
+                                <div class="home-card-first-right-title">{{ `${currentTime}, ${userInfo.username}` }}</div>
                             </div>
                         </div>
                     </div>
@@ -31,7 +30,7 @@
 import { toRefs, reactive, onMounted, nextTick, computed } from 'vue';
 // import * as echarts from 'echarts';
 import { CountUp } from 'countup.js';
-import { formatAxis } from '@/common/utils/format.ts';
+import { formatAxis } from '@/common/utils/format';
 import { indexApi } from './api';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
@@ -65,9 +64,7 @@ const state = reactive({
     ],
 });
 
-const {
-    topCardItemList,
-} = toRefs(state)
+const { topCardItemList } = toRefs(state);
 
 // 当前时间提示语
 const currentTime = computed(() => {
@@ -179,8 +176,8 @@ onMounted(() => {
     }
 
     .home-card-first {
-        background: white;
-        border: 1px solid #ebeef5;
+        background: var(--bg-main-color);
+        border: 1px solid var(--el-border-color-light, #ebeef5);
         display: flex;
         align-items: center;
 
@@ -188,7 +185,7 @@ onMounted(() => {
             width: 60px;
             height: 60px;
             border-radius: 100%;
-            border: 2px solid var(--color-primary-light-5);
+            border: 2px solid var(--el-color-primary-light-5);
         }
 
         .home-card-first-right {
@@ -247,7 +244,8 @@ onMounted(() => {
             .home-dynamic-item-left {
                 text-align: right;
 
-                .home-dynamic-item-left-time1 {}
+                .home-dynamic-item-left-time1 {
+                }
 
                 .home-dynamic-item-left-time2 {
                     font-size: 13px;
@@ -262,7 +260,7 @@ onMounted(() => {
                 position: relative;
 
                 i {
-                    color: var(--color-primary);
+                    color: var(--el-color-primary);
                     font-size: 12px;
                     position: absolute;
                     top: 1px;
@@ -284,7 +282,7 @@ onMounted(() => {
                         border-radius: 100%;
                         padding: 3px 2px 2px;
                         text-align: center;
-                        color: var(--color-primary);
+                        color: var(--el-color-primary);
                     }
                 }
 

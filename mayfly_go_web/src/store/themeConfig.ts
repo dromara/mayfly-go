@@ -24,13 +24,13 @@ export const useThemeConfig = defineStore('themeConfig', {
             // 默认顶栏导航背景颜色，请注意：需要同时修改 `/@/theme/common/var.scss` 对应的值
             topBar: '#ffffff',
             // 默认菜单导航背景颜色，请注意：需要同时修改 `/@/theme/common/var.scss` 对应的值
-            menuBar: '#545c64',
+            menuBar: '#FFFFFF',
             // 默认分栏菜单背景颜色，请注意：需要同时修改 `/@/theme/common/var.scss` 对应的值
             columnsMenuBar: '#545c64',
             // 默认顶栏导航字体颜色，请注意：需要同时修改 `/@/theme/common/var.scss` 对应的值
             topBarColor: '#606266',
             // 默认菜单导航字体颜色，请注意：需要同时修改 `/@/theme/common/var.scss` 对应的值
-            menuBarColor: '#eaeaea',
+            menuBarColor: '#606266',
             // 默认分栏菜单字体颜色，请注意：需要同时修改 `/@/theme/common/var.scss` 对应的值
             columnsMenuBarColor: '#e6e6e6',
             // 是否开启顶栏背景颜色渐变
@@ -81,6 +81,8 @@ export const useThemeConfig = defineStore('themeConfig', {
             isSortableTagsView: true,
             // 是否开启 Footer 底部版权信息
             isFooter: false,
+            // 是否暗模式
+            isDark: false,
             // 是否开启灰色模式
             isGrayscale: false,
             // 是否开启色弱模式

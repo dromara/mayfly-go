@@ -1,6 +1,16 @@
 <template>
     <div class="layout-navbars-breadcrumb-user" :style="{ flex: layoutUserFlexNum }">
-        <el-dropdown :show-timeout="70" :hide-timeout="50" trigger="click" @command="onComponentSizeChange">
+        <div class="layout-navbars-breadcrumb-user-icon">
+            <el-switch
+                @change="switchDark(state.isDark)"
+                v-model="state.isDark"
+                active-action-icon="Moon"
+                inactive-action-icon="Sunny"
+                style="--el-switch-off-color: #c4c9c4; --el-switch-on-color: #2c2c2c"
+                class="dark-icon"
+            />
+        </div>
+        <!-- <el-dropdown :show-timeout="70" :hide-timeout="50" trigger="click" @command="onComponentSizeChange">
             <div class="layout-navbars-breadcrumb-user-icon">
                 <el-icon title="组件大小">
                     <plus />
@@ -13,7 +23,7 @@
                     <el-dropdown-item command="small" :disabled="state.disabledSize === 'small'">小型</el-dropdown-item>
                 </el-dropdown-menu>
             </template>
-        </el-dropdown>
+        </el-dropdown> -->
         <div class="layout-navbars-breadcrumb-user-icon" @click="onSearchClick">
             <el-icon title="菜单搜索">
                 <search />
@@ -65,7 +75,7 @@
 </template>
 
 <script setup lang="ts" name="layoutBreadcrumbUser">
-import { ref, computed, reactive, onMounted } from 'vue';
+import { ref, computed, reactive, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import screenfull from 'screenfull';
@@ -82,6 +92,7 @@ import openApi from '@/common/openApi';
 const router = useRouter();
 const searchRef = ref();
 const state = reactive({
+    isDark: false,
     isScreenfull: false,
     isShowUserNewsPopover: false,
     disabledI18n: 'zh-cn',
@@ -152,6 +163,19 @@ const onHandleCommandClick = (path: string) => {
     }
 };
 
+const switchDark = (isDark: boolean) => {
+    themeConfig.value.isDark = isDark;
+    setLocal('themeConfig', themeConfig.value);
+    const body = document.documentElement as HTMLElement;
+    if (isDark) {
+        body.setAttribute('class', 'dark');
+        themeConfig.value.editorTheme = 'vs-dark';
+    } else {
+        body.setAttribute('class', '');
+        themeConfig.value.editorTheme = 'SolarizedLight';
+    }
+};
+
 // // 菜单搜索点击
 const onSearchClick = () => {
     searchRef.value.openSearch();
@@ -188,6 +212,10 @@ const initComponentSize = () => {
 // 页面加载时
 onMounted(() => {
     if (getLocal('themeConfig')) {
+        const isDark = themeConfig.value.isDark;
+        state.isDark = isDark;
+        switchDark(isDark);
+
         initComponentSize();
     }
 });

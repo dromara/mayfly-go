@@ -145,13 +145,7 @@
                                 width="600px"
                             >
                                 <template #default>
-                                    <el-input
-                                        input-style="color: black;"
-                                        :autosize="{ minRows: 3, maxRows: 15 }"
-                                        disabled
-                                        v-model="formatVal"
-                                        type="textarea"
-                                    />
+                                    <el-input :autosize="{ minRows: 3, maxRows: 15 }" disabled v-model="formatVal" type="textarea" />
                                 </template>
                                 <template #reference>
                                     <el-link

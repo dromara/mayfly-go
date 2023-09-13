@@ -1,5 +1,5 @@
 <template>
-    <div class="instances-box">
+    <div class="tag-tree">
         <el-row type="flex" justify="space-between">
             <el-col :span="24" class="el-scrollbar flex-auto" style="overflow: auto">
                 <el-input v-model="filterText" placeholder="输入关键字->搜索已展开节点信息" clearable size="small" class="mb5" />
@@ -92,7 +92,7 @@ onMounted(async () => {
 });
 
 const setHeight = () => {
-    state.height = window.innerHeight - 147 + 'px';
+    state.height = window.innerHeight - 157 + 'px';
 };
 
 watch(filterText, (val) => {
@@ -168,10 +168,12 @@ defineExpose({
 });
 </script>
 
-<style lang="scss">
-.instances-box {
+<style lang="scss" scoped>
+.tag-tree {
     overflow: 'auto';
     position: relative;
+
+    border: 1px solid var(--el-border-color-light, #ebeef5);
 
     .el-tree {
         display: inline-block;

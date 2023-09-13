@@ -294,7 +294,7 @@ const getMsgTypeDesc = (type: number) => {
 </script>
 
 <style scoped lang="scss">
-@import '../../theme/mixins/mixins.scss';
+@import '../../theme/mixins/index.scss';
 
 .personal {
     .personal-user {
@@ -359,7 +359,7 @@ const getMsgTypeDesc = (type: number) => {
             font-size: 13px;
 
             &:hover {
-                color: var(--color-primary);
+                color: var(--el-color-primary);
                 cursor: pointer;
             }
         }
@@ -383,7 +383,7 @@ const getMsgTypeDesc = (type: number) => {
                     }
 
                     & a:hover {
-                        color: var(--color-primary);
+                        color: var(--el-color-primary);
                         cursor: pointer;
                     }
                 }
@@ -447,7 +447,7 @@ const getMsgTypeDesc = (type: number) => {
                 left: 0;
                 top: 50%;
                 transform: translateY(-50%);
-                background: var(--color-primary);
+                background: var(--el-color-primary);
             }
         }
 

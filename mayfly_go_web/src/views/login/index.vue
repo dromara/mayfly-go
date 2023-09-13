@@ -107,7 +107,7 @@ const oauth2Login = () => {
         display: flex;
         align-items: center;
         font-size: 20px;
-        color: var(--color-primary);
+        color: var(--el-color-primary);
         letter-spacing: 2px;
         width: 90%;
         transform: translateX(-50%);
@@ -121,7 +121,7 @@ const oauth2Login = () => {
         left: 50%;
         transform: translate(-50%, -50%) translate3d(0, 0, 0);
         background-color: rgba(255, 255, 255, 0.99);
-        box-shadow: 0 2px 12px 0 var(--color-primary-light-5);
+        box-shadow: 0 2px 12px 0 var(--el-color-primary-light-5);
         border-radius: 4px;
         transition: height 0.2s linear;
         height: 490px;

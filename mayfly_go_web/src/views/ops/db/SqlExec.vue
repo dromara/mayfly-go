@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-row>
+        <el-row class="mb5">
             <el-col :span="4">
                 <el-button type="primary" icon="plus" @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases.split(' ') }, state.db)" size="small"
                     >新建查询</el-button
@@ -23,7 +23,7 @@
             </el-col>
         </el-row>
         <el-row type="flex">
-            <el-col :span="4" style="border-left: 1px solid #eee; margin-top: 10px">
+            <el-col :span="4">
                 <tag-tree
                     ref="tagTreeRef"
                     @node-click="nodeClick"
@@ -64,7 +64,7 @@
                 </tag-tree>
             </el-col>
             <el-col :span="20">
-                <el-container id="data-exec" style="border-left: 1px solid #eee; margin-top: 10px">
+                <el-container id="data-exec" class="mt10">
                     <el-tabs @tab-remove="onRemoveTab" @tab-change="onTabChange" style="width: 100%" v-model="state.activeName">
                         <el-tab-pane closable v-for="dt in state.tabs.values()" :key="dt.key" :label="dt.key" :name="dt.key">
                             <table-data
@@ -456,11 +456,6 @@ const reloadTables = (nodeKey: string) => {
     cursor: n-resize;
     height: 3px;
     text-align: center;
-}
-
-.el-tabs__header {
-    padding: 0 10px;
-    background-color: #fff;
 }
 
 #data-exec {

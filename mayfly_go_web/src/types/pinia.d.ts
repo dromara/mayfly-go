@@ -1,5 +1,5 @@
 declare interface UserInfoState<T = any> {
-    userInfo: any
+    userInfo: any;
 }
 
 declare interface ThemeConfigState {
@@ -37,6 +37,7 @@ declare interface ThemeConfigState {
         isCacheTagsView: boolean;
         isSortableTagsView: boolean;
         isFooter: boolean;
+        isDark: boolean;
         isGrayscale: boolean;
         isInvert: boolean;
         isWartermark: boolean;
@@ -61,8 +62,8 @@ declare interface ThemeConfigState {
 
 // TagsView 路由列表
 declare interface TagsViewRoutesState<T = any> {
-	tagsViewRoutes: T[];
-	isTagsViewCurrenFull: Boolean;
+    tagsViewRoutes: T[];
+    isTagsViewCurrenFull: Boolean;
 }
 
 // 路由列表

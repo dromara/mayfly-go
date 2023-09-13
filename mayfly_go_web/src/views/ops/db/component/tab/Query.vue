@@ -902,7 +902,7 @@ select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(
 .sqlEditor {
     font-size: 8pt;
     font-weight: 600;
-    border: 1px solid #ccc;
+    border: 1px solid var(--el-border-color-light, #ebeef5);
 }
 
 .update_field_active {

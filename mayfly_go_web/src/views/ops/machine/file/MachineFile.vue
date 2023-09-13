@@ -22,7 +22,7 @@
             >
                 <el-table-column type="selection" width="30" />
 
-                <el-table-column prop="name" label="名称" show-overflow-tooltip>
+                <el-table-column prop="name" label="名称">
                     <template #header>
                         <div class="machine-file-table-header">
                             <div>

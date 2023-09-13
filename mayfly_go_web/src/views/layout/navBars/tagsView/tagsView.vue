@@ -2,29 +2,43 @@
     <div class="layout-navbars-tagsview" :class="{ 'layout-navbars-tagsview-shadow': themeConfig.layout === 'classic' }">
         <el-scrollbar ref="scrollbarRef" @wheel.prevent="onHandleScroll">
             <ul class="layout-navbars-tagsview-ul" :class="setTagsStyle" ref="tagsUlRef">
-                <li v-for="(v, k) in state.tagsViewList" :key="k" class="layout-navbars-tagsview-ul-li" :data-name="v.name"
-                    :class="{ 'is-active': isActive(v) }" @contextmenu.prevent="onContextmenu(v, $event)"
-                    @click="onTagsClick(v, k)" :ref="
+                <li
+                    v-for="(v, k) in state.tagsViewList"
+                    :key="k"
+                    class="layout-navbars-tagsview-ul-li"
+                    :data-name="v.name"
+                    :class="{ 'is-active': isActive(v) }"
+                    @contextmenu.prevent="onContextmenu(v, $event)"
+                    @click="onTagsClick(v, k)"
+                    :ref="
                         (el) => {
                             if (el) tagsRefs[k] = el;
                         }
-                    ">
-                    <SvgIcon name="iconfont icon-tag-view-active" class="layout-navbars-tagsview-ul-li-iconfont font14"
-                        v-if="isActive(v)" />
-                    <SvgIcon :name="v.meta.icon" class="layout-navbars-tagsview-ul-li-iconfont"
-                        v-if="!isActive(v) && themeConfig.isTagsviewIcon" />
+                    "
+                >
+                    <SvgIcon name="iconfont icon-tag-view-active" class="layout-navbars-tagsview-ul-li-iconfont font14" v-if="isActive(v)" />
+                    <SvgIcon :name="v.meta.icon" class="layout-navbars-tagsview-ul-li-iconfont" v-if="!isActive(v) && themeConfig.isTagsviewIcon" />
                     <span>{{ v.meta.title }}</span>
                     <template v-if="isActive(v)">
-                        <SvgIcon name="RefreshRight" class="font14 ml5 layout-navbars-tagsview-ul-li-refresh"
-                            @click.stop="refreshCurrentTagsView($route.fullPath)" />
-                        <SvgIcon name="Close" class="font14 layout-navbars-tagsview-ul-li-icon layout-icon-active"
+                        <SvgIcon
+                            name="RefreshRight"
+                            class="font14 ml5 layout-navbars-tagsview-ul-li-refresh"
+                            @click.stop="refreshCurrentTagsView($route.fullPath)"
+                        />
+                        <SvgIcon
+                            name="Close"
+                            class="font14 layout-navbars-tagsview-ul-li-icon layout-icon-active"
                             v-if="!v.meta.isAffix"
-                            @click.stop="closeCurrentTagsView(themeConfig.isShareTagsView ? v.path : v.path)" />
+                            @click.stop="closeCurrentTagsView(themeConfig.isShareTagsView ? v.path : v.path)"
+                        />
                     </template>
 
-                    <SvgIcon name="Close" class="font14 layout-navbars-tagsview-ul-li-icon layout-icon-three"
+                    <SvgIcon
+                        name="Close"
+                        class="font14 layout-navbars-tagsview-ul-li-icon layout-icon-three"
                         v-if="!v.meta.isAffix"
-                        @click.stop="closeCurrentTagsView(themeConfig.isShareTagsView ? v.path : v.path)" />
+                        @click.stop="closeCurrentTagsView(themeConfig.isShareTagsView ? v.path : v.path)"
+                    />
                 </li>
             </ul>
         </el-scrollbar>
@@ -106,8 +120,8 @@ const addTagsView = (path: string, to: any = null) => {
             return false;
         }
     }
-    
-    const tagView = { ...to }
+
+    const tagView = { ...to };
     // 防止Converting circular structure to JSON错误
     tagView.matched = null;
     tagView.redirectedFrom = null;
@@ -135,7 +149,7 @@ const closeCurrentTagsView = (path: string) => {
                     let next;
                     // 最后一个且高亮时
                     if (state.tagsViewList.length === k) {
-                        next = k !== arr.length ? arr[k] : arr[arr.length - 1]
+                        next = k !== arr.length ? arr[k] : arr[arr.length - 1];
                     } else {
                         next = arr[k];
                     }
@@ -366,8 +380,8 @@ onBeforeRouteUpdate((to) => {
 
 <style scoped lang="scss">
 .layout-navbars-tagsview {
-    background-color: var(--el-color-white);
-    border-bottom: 1px solid var(--next-border-color-light);
+    background-color: var(--bg-main-color);
+    border-bottom: 1px solid var(--el-border-color-light, #ebeef5);
     position: relative;
     z-index: 4;
 

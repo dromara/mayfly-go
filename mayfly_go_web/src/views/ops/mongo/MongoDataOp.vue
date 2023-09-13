@@ -35,31 +35,31 @@
             </el-col>
 
             <el-col :span="20">
-                <div id="mongo-tab" style="border: 1px solid #eee; margin-top: 1px">
+                <div id="mongo-tab" class="ml5" style="border: 1px solid var(--el-border-color-light, #ebeef5); margin-top: 1px">
                     <el-row v-if="nowColl">
                         <el-descriptions :column="10" size="small" border>
                             <!-- <el-descriptions-item label-align="right" label="tag">xxx</el-descriptions-item> -->
 
                             <el-descriptions-item label="ns" label-align="right">
-                                {{ nowColl.stats.ns }}
+                                {{ nowColl.stats?.ns }}
                             </el-descriptions-item>
                             <el-descriptions-item label="count" label-align="right">
-                                {{ nowColl.stats.count }}
+                                {{ nowColl.stats?.count }}
                             </el-descriptions-item>
                             <el-descriptions-item label="avgObjSize" label-align="right">
-                                {{ formatByteSize(nowColl.stats.avgObjSize) }}
+                                {{ formatByteSize(nowColl.stats?.avgObjSize) }}
                             </el-descriptions-item>
                             <el-descriptions-item label="size" label-align="right">
-                                {{ formatByteSize(nowColl.stats.size) }}
+                                {{ formatByteSize(nowColl.stats?.size) }}
                             </el-descriptions-item>
                             <el-descriptions-item label="totalSize" label-align="right">
-                                {{ formatByteSize(nowColl.stats.totalSize) }}
+                                {{ formatByteSize(nowColl.stats?.totalSize) }}
                             </el-descriptions-item>
                             <el-descriptions-item label="storageSize" label-align="right">
-                                {{ formatByteSize(nowColl.stats.storageSize) }}
+                                {{ formatByteSize(nowColl.stats?.storageSize) }}
                             </el-descriptions-item>
                             <el-descriptions-item label="freeStorageSize" label-align="right">
-                                {{ formatByteSize(nowColl.stats.freeStorageSize) }}
+                                {{ formatByteSize(nowColl.stats?.freeStorageSize) }}
                             </el-descriptions-item>
                         </el-descriptions>
                     </el-row>

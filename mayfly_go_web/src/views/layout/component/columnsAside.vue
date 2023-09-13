@@ -2,11 +2,18 @@
     <div class="layout-columns-aside">
         <el-scrollbar>
             <ul>
-                <li v-for="(v, k) in state.columnsAsideList" :key="k" @click="onColumnsAsideMenuClick(v, k)" :ref="
-                    (el) => {
-                        if (el) columnsAsideOffsetTopRefs[k] = el;
-                    }
-                " :class="{ 'layout-columns-active': state.liIndex === k }" :title="v.meta.title">
+                <li
+                    v-for="(v, k) in state.columnsAsideList"
+                    :key="k"
+                    @click="onColumnsAsideMenuClick(v, k)"
+                    :ref="
+                        (el) => {
+                            if (el) columnsAsideOffsetTopRefs[k] = el;
+                        }
+                    "
+                    :class="{ 'layout-columns-active': state.liIndex === k }"
+                    :title="v.meta.title"
+                >
                     <div class="layout-columns-aside-li-box" v-if="!v.meta.link || (v.meta.link && v.meta.linkType == 1)">
                         <i :class="v.meta.icon"></i>
                         <div class="layout-columns-aside-li-box-title font12">
@@ -166,7 +173,7 @@ onBeforeRouteUpdate((to) => {
         }
 
         .columns-round {
-            background: var(--color-primary);
+            background: var(--el-color-primary);
             color: #ffffff;
             position: absolute;
             left: 50%;

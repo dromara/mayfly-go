@@ -1,7 +1,7 @@
 server:
   # debug release test
   model: release
-  port: 8888
+  port: 18888
   cors: true
   tls:
     enable: false

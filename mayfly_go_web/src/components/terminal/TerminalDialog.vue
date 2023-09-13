@@ -288,18 +288,18 @@ defineExpose({
     }
 
     .terminal-status-error {
-        box-shadow: 0 3px 4px var(--color-danger);
-        border-color: var(--color-danger);
+        box-shadow: 0 3px 4px var(--el-color-danger);
+        border-color: var(--el-color-danger);
     }
 
     .terminal-status-no-connect {
-        box-shadow: 0 3px 4px var(--color-warning);
-        border-color: var(--color-warning);
+        box-shadow: 0 3px 4px var(--el-color-warning);
+        border-color: var(--el-color-warning);
     }
 
     .terminal-status-success {
-        box-shadow: 0 3px 4px var(--color-success);
-        border-color: var(--color-success);
+        box-shadow: 0 3px 4px var(--el-color-success);
+        border-color: var(--el-color-success);
     }
 
     .el-card__body {

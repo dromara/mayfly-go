@@ -93,7 +93,7 @@ defineExpose({ getContent });
 
 /*outline same with text viewer's .el-textarea__inner*/
 .format-viewer-container .text-formated-container {
-    border: 1px solid #dcdfe6;
+    border: 1px solid var(--el-border-color-light, #ebeef5);
     padding: 5px 10px;
     border-radius: 4px;
     clear: both;

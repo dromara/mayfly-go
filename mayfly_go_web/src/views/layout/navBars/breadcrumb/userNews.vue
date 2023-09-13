@@ -39,9 +39,7 @@ export default {
             state.newsList = [];
         };
         // 前往通知中心点击
-        const toMsgCenter = () => {
-            
-        };
+        const toMsgCenter = () => {};
         return {
             onAllReadClick,
             toMsgCenter,
@@ -62,7 +60,7 @@ export default {
         height: 35px;
         align-items: center;
         .head-box-btn {
-            color: var(--color-primary);
+            color: var(--el-color-primary);
             font-size: 13px;
             cursor: pointer;
             opacity: 0.8;
@@ -90,7 +88,7 @@ export default {
     }
     .foot-box {
         height: 35px;
-        color: var(--color-primary);
+        color: var(--el-color-primary);
         font-size: 13px;
         cursor: pointer;
         opacity: 0.8;

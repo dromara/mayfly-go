@@ -7,6 +7,23 @@
     outline: none !important;
 }
 
+:root {
+	--color-white: #ffffff;
+	--bg-main-color: #f8f8f8;
+	--bg-color: #f5f5ff;
+	--border-color-light: #f1f2f3;
+	--el-color-primary-lighter: #ecf5ff;
+	--color-success-lighter: #f0f9eb;
+	--color-warning-lighter: #fdf6ec;
+	--color-danger-lighter: #fef0f0;
+	--color-dark-hover: #0000001a;
+	--color-menu-hover: rgba(0, 0, 0, 0.2);
+	--color-user-hover: rgba(0, 0, 0, 0.04);
+	--color-seting-main: #e9eef3;
+	--color-seting-aside: #d3dce6;
+	--color-seting-header: #b3c0d1;
+}
+
 html,
 body,
 #app {
@@ -18,7 +35,7 @@ body,
     font-weight: 450;
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
-    background-color: #f8f8f8;
+    background-color: var(--bg-main-color);
     font-size: 14px;
     overflow: hidden;
     position: relative;
@@ -53,7 +70,7 @@ body,
         padding: 0 !important;
         overflow: hidden;
         width: 100%;
-        background-color: #f8f8f8;
+        background-color: var(--bg-main-color);
     }
 
     .el-scrollbar {
@@ -65,11 +82,11 @@ body,
         width: 100%;
         height: 100%;
         border-radius: 4px;
-        border: 1px solid #ebeef5;
+        border: 1px solid var(--el-border-color-light, #ebeef5);
     }
 
     .layout-el-aside-br-color {
-        border-right: 1px solid rgb(238, 238, 238);
+        border-right: 1px solid var(--el-border-color-light, #ebeef5);
     }
 
     .layout-aside-width-default {
@@ -116,7 +133,7 @@ body,
         display: flex;
         align-items: center;
         margin-bottom: 0 !important;
-        border-bottom: 1px solid rgb(230, 230, 230);
+        border-bottom: 1px solid var(--el-border-color-light, #ebeef5);
     }
 
     .el-divider {
@@ -128,7 +145,7 @@ body,
 ------------------------------- */
 #nprogress {
     .bar {
-        background: var(--color-primary) !important;
+        background: var(--el-color-primary) !important;
         z-index: 9999999 !important;
     }
 }
@@ -195,23 +212,23 @@ body,
 /* 颜色值
 ------------------------------- */
 .color-primary {
-    color: var(--color-primary);
+    color: var(--el-color-primary);
 }
 
 .color-success {
-    color: var(--color-success);
+    color: var(--el-color-success);
 }
 
 .color-warning {
-    color: var(--color-warning);
+    color: var(--el-color-warning);
 }
 
 .color-danger {
-    color: var(--color-danger);
+    color: var(--el-color-danger);
 }
 
 .color-info {
-    color: var(--color-info);
+    color: var(--el-color-info);
 }
 
 /* 字体大小全局样式
@@ -262,17 +279,17 @@ body,
 ::-webkit-scrollbar {
     width: 4px;
     height: 8px;
-    background-color: #F5F5F5;
+    background-color: var(--el-border-color-light, #ebeef5);
 }
 
 ::-webkit-scrollbar-track {
     -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
-    background-color: #F5F5F5;
+    background-color: var(--el-border-color-light, #ebeef5);
 }
 
 ::-webkit-scrollbar-thumb {
     -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
-    background-color: #F5F5F5;
+    background-color: var(--el-border-color-light, #ebeef5);
 }
 
 .el-menu .fa {
@@ -318,10 +335,8 @@ body,
 .toolbar {
     width: 100%;
     padding: 6px;
-    background-color: #ffffff;
     overflow: hidden;
     line-height: 32px;
-    border: 1px solid #e6ebf5;
 }
 
 .fl {
@@ -355,5 +370,5 @@ body,
     transition: color 0.3s;
 }
 .pointer-icon:hover {
-    color: var(--color-primary); /* 鼠标移动到图标时的颜色 */
+    color: var(--el-color-primary); /* 鼠标移动到图标时的颜色 */
 }

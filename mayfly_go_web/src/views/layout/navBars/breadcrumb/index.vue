@@ -20,7 +20,6 @@ import Logo from '@/views/layout/logo/index.vue';
 import Horizontal from '@/views/layout/navMenu/horizontal.vue';
 import mittBus from '@/common/utils/mitt';
 
-
 const { themeConfig } = storeToRefs(useThemeConfig());
 const { routesList } = storeToRefs(useRoutesList());
 const route = useRoute();
@@ -106,6 +105,6 @@ onUnmounted(() => {
     padding-right: 15px;
     background: var(--bg-topBar);
     overflow: hidden;
-    border-bottom: 1px solid #f1f2f3;
+    border-bottom: 1px solid var(--el-border-color-light, #ebeef5);
 }
 </style>

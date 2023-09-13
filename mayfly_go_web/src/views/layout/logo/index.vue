@@ -3,7 +3,9 @@
         <img src="@/assets/image/logo.svg" class="layout-logo-medium-img" />
         <span>
             {{ `${themeConfig.globalTitle}` }}
-            <sub><span style="font-size: 10px;color:goldenrod">{{ ` ${config.version}` }}</span></sub>
+            <sub
+                ><span style="font-size: 10px; color: goldenrod">{{ ` ${config.version}` }}</span></sub
+            >
         </span>
     </div>
     <div class="layout-logo-size" v-else @click="onThemeConfigChange">
@@ -41,14 +43,14 @@ const onThemeConfigChange = () => {
     align-items: center;
     justify-content: center;
     box-shadow: rgb(0 21 41 / 2%) 0px 1px 4px;
-    color: var(--color-primary);
+    color: var(--el-color-primary);
     font-size: 16px;
     cursor: pointer;
     animation: logoAnimation 0.3s ease-in-out;
 
     &:hover {
         span {
-            color: var(--color-primary-light-2);
+            color: var(--el-color-primary-light-2);
         }
     }
 

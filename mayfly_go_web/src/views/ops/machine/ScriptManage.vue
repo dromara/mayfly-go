@@ -8,8 +8,6 @@
             :show-close="true"
             :before-close="handleClose"
             width="55%"
-            draggable
-            append-to-body
         >
             <page-table
                 ref="pageTableRef"

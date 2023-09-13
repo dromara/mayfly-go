@@ -3,7 +3,7 @@
         <el-row>
             <el-col :span="4">
                 <el-row type="flex" justify="space-between">
-                    <el-col :span="24" class="el-scrollbar flex-auto">
+                    <el-col :span="24" class="flex-auto">
                         <tag-tree @node-click="nodeClick" :load="loadNode">
                             <template #prefix="{ data }">
                                 <span v-if="data.type == NodeType.Redis">
@@ -85,7 +85,13 @@
                     </el-row>
 
                     <el-tree
-                        :style="{ maxHeight: state.keyTreeHeight, height: state.keyTreeHeight, overflow: 'auto', border: '1px solid #e1f3d8' }"
+                        :style="{
+                            maxHeight: state.keyTreeHeight,
+                            height: state.keyTreeHeight,
+                            overflow: 'auto',
+                            border: '1px solid var(--el-border-color-light, #ebeef5)',
+                            marginLeft: '5px',
+                        }"
                         ref="keyTreeRef"
                         :highlight-current="true"
                         :data="keyTreeData"
@@ -244,7 +250,7 @@ onMounted(async () => {
 });
 
 const setHeight = () => {
-    state.keyTreeHeight = window.innerHeight - 177 + 'px';
+    state.keyTreeHeight = window.innerHeight - 174 + 'px';
 };
 
 /**

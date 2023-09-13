@@ -9,7 +9,7 @@
 		height: 3px !important;
 	}
 	::-webkit-scrollbar-track-piece {
-		background-color: #f8f8f8;
+		background-color: var(--bg-main-color);
 	}
 	// 滚动条的设置
 	::-webkit-scrollbar-thumb {
@@ -40,7 +40,7 @@
 		height: 7px;
 	}
 	::-webkit-scrollbar-track-piece {
-		background-color: #f8f8f8;
+		background-color: var(--bg-main-color);
 	}
 	// 滚动条的设置
 	::-webkit-scrollbar-thumb {
