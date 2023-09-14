@@ -7,7 +7,7 @@
                 >
             </el-col>
             <el-col :span="20" v-if="state.db">
-                <el-descriptions :column="4" size="small" border style="height: 10px">
+                <el-descriptions :column="4" size="small" border style="height: 10px" class="ml5">
                     <el-descriptions-item label-align="right" label="tag">{{ nowDbInst.tagPath }}</el-descriptions-item>
 
                     <el-descriptions-item label="实例" label-align="right">
@@ -64,7 +64,7 @@
                 </tag-tree>
             </el-col>
             <el-col :span="20">
-                <el-container id="data-exec" class="mt10">
+                <el-container id="data-exec" class="mt5 ml5">
                     <el-tabs @tab-remove="onRemoveTab" @tab-change="onTabChange" style="width: 100%" v-model="state.activeName">
                         <el-tab-pane closable v-for="dt in state.tabs.values()" :key="dt.key" :label="dt.key" :name="dt.key">
                             <table-data
@@ -155,7 +155,7 @@ onMounted(() => {
  */
 const setHeight = () => {
     state.editorHeight = window.innerHeight - 518 + 'px';
-    state.dataTabsTableHeight = window.innerHeight - 261 + 'px';
+    state.dataTabsTableHeight = window.innerHeight - 256 + 'px';
     state.tagTreeHeight = window.innerHeight - 165 + 'px';
 };
 

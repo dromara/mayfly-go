@@ -227,7 +227,7 @@
                                     ></el-link>
                                 </span>
                             </template>
-                            <el-input :input-style="{ color: 'black' }" disabled autosize v-model="scope.row.stat" type="textarea" />
+                            <el-input disabled autosize v-model="scope.row.stat" type="textarea" />
                         </el-popover>
                     </template>
                 </el-table-column>

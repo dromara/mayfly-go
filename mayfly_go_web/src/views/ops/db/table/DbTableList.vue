@@ -236,6 +236,7 @@ const filterTableInfos = computed(() => {
 const getTables = async () => {
     state.loading = true;
     try {
+        state.tables = [];
         state.tables = await dbApi.tableInfos.request({ id: props.dbId, db: props.db });
     } catch (e) {
     } finally {

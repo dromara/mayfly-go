@@ -68,7 +68,7 @@
                     <template #prepend>
                         <el-popover :visible="state.condPopVisible" trigger="click" :width="320" placement="right">
                             <template #reference>
-                                <el-link @click="state.condPopVisible = true" type="success" :underline="false">选择列</el-link>
+                                <el-link @click.stop="state.condPopVisible = !state.condPopVisible" type="success" :underline="false">选择列</el-link>
                             </template>
                             <el-table
                                 :data="columns"
@@ -125,7 +125,7 @@
             <span>{{ state.sql }}</span>
         </div>
 
-        <el-dialog style="z-index: 10000" v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
+        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
             <el-row>
                 <el-col :span="5">
                     <el-select v-model="conditionDialog.condition">
@@ -179,7 +179,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, watch, reactive, toRefs, ref, Ref } from 'vue';
+import { onMounted, watch, reactive, toRefs, ref, Ref, onUnmounted } from 'vue';
 import { isTrue, notEmpty, notBlank } from '@/common/assert';
 import { ElMessage } from 'element-plus';
 
@@ -261,7 +261,20 @@ onMounted(async () => {
     });
     state.columns = columns;
     await onRefresh();
+
+    // 点击除选择列按钮外，若存在条件弹窗，则关闭该弹窗
+    window.addEventListener('click', handlerWindowClick);
 });
+
+onUnmounted(() => {
+    window.removeEventListener('click', handlerWindowClick);
+});
+
+const handlerWindowClick = () => {
+    if (state.condPopVisible) {
+        state.condPopVisible = false;
+    }
+};
 
 const onRefresh = async () => {
     // 查询条件置空
@@ -330,7 +343,6 @@ const onConditionRowClick = (event: any) => {
     state.conditionDialog.placeholder = `${row.columnType}  ${row.columnComment}`;
     state.conditionDialog.columnRow = row;
     state.conditionDialog.visible = true;
-    state.condPopVisible = false;
     setTimeout(() => {
         conditionInputRef.value.focus();
     }, 100);
