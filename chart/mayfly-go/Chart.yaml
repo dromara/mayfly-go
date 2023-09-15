@@ -21,10 +21,10 @@ version: 0.1.1
 # incremented each time you make changes to the application. Versions are not expected to
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
-appVersion: "1.15.1"
+appVersion: "1.5.1"
 
 dependencies:
   - name: mysql
     version: 9.12.2
-    repository: oci://registry-1.docker.io/bitnamicharts/mysql
+    repository: oci://registry-1.docker.io/bitnamicharts
     condition: mysql.enabled
