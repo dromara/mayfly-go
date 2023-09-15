@@ -25,6 +25,6 @@ appVersion: "1.15.1"
 
 dependencies:
   - name: mysql
-    version: "9.12.2"
-    repository: "https://charts.bitnami.com/bitnami"
+    version: 9.12.2
+    repository: oci://registry-1.docker.io/bitnamicharts/mysql
     condition: mysql.enabled
