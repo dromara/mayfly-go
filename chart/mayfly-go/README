@@ -1,4 +1,4 @@
 ## helm install from ghcr oci
 ```
-helm install  myfly-go oci://ghcr.io/mayfly-go/mayfly-go/charts/mayfly-go --version v1.5.1
+helm install  myfly-go oci://ghcr.io/mayfly-go/mayfly-go/charts/mayfly-go --version v1.5.1 --namespace mayfly-go
 ```
