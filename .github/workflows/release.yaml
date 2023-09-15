@@ -1,0 +1,106 @@
+name: release
+
+on:
+  push:
+    branches:
+      - 'master'
+      - 'ci'
+    tags:
+      - 'v*'
+      - '!v1.4*'
+      - '!v1.3*'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  set-vars:
+    permissions:
+      contents: read
+    runs-on: ubuntu-22.04
+    outputs:
+      image-tag: ${{ steps.image.outputs.tag}}
+      platforms: ${{ steps.platforms.outputs.platforms }}
+      chart-version: ${{ steps.chart.outputs.chart_version }}
+      ghcr-registry-url: ${{ steps.chart.outputs.ghcr_registry_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag for ghcr
+        run: echo "tag=$(cat ./VERSION)" >> $GITHUB_OUTPUT
+        id: image
+
+      - name: Determine image platforms to use
+        id: platforms
+        run: |
+          IMAGE_PLATFORMS=linux/amd64
+          echo "Building image for platforms: $IMAGE_PLATFORMS"
+          echo "platforms=$IMAGE_PLATFORMS" >> $GITHUB_OUTPUT
+
+      - name: Set Helm chart version
+        id: chart
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          echo "chart_version=$(cat ./VERSION)" >> $GITHUB_OUTPUT
+          echo "ghcr_registry_url=ghcr.io/${OWNER,,}/mayfly-go" >> $GITHUB_OUTPUT
+
+  image-build-only:
+    needs: [set-vars]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    if: ${{ github.event_name == 'push' && github.ref_type != 'tag' }}
+    uses: ./.github/workflows/image-reuse.yaml
+    with:
+      platforms: ${{ needs.set-vars.outputs.platforms }}
+      push: false
+
+  image-build-and-publish:
+    needs: [set-vars]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
+    uses: ./.github/workflows/image-reuse.yaml
+    with:
+      ghcr_image_name: ${{ needs.set-vars.outputs.ghcr-registry-url }}/images/mayfly-go:${{ needs.set-vars.outputs.image-tag }}
+      platforms: ${{ needs.set-vars.outputs.platforms }}
+      push: true
+    secrets:
+      ghcr_username: ${{ github.actor }}
+      ghcr_password: ${{ secrets.GITHUB_TOKEN }}
+
+  chart-package-only:
+    needs: [set-vars, image-build-only]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    if: ${{ github.event_name == 'push' && github.ref_type != 'tag' }}
+    uses: ./.github/workflows/chart-reuse.yaml
+    with:
+      chart_version: ${{ needs.set-vars.outputs.chart-version }}
+      chart_app_version: ${{ needs.set-vars.outputs.image-tag }}
+      push: false
+
+  chart-package-and-push:
+    needs: [set-vars, image-build-and-publish]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    if: ${{ github.event_name == 'push' && github.ref_type == 'tag' }}
+    uses: ./.github/workflows/chart-reuse.yaml
+    with:
+      ghcr_registry_url: ${{ needs.set-vars.outputs.ghcr-registry-url }}/charts
+      chart_version: ${{ needs.set-vars.outputs.chart-version }}
+      chart_app_version: ${{ needs.set-vars.outputs.image-tag }}
+      push: true
+    secrets:
+      ghcr_username: ${{ github.actor }}
+      ghcr_password: ${{ secrets.GITHUB_TOKEN }}

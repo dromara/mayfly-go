@@ -12,13 +12,13 @@ RUN yarn build
 # 构建后端资源
 FROM golang:1.21.0 as be-builder
 
-ENV GOPROXY https://goproxy.cn
+# ENV GOPROXY https://goproxy.cn
 WORKDIR /mayfly
 
 # Copy the go source for building server
 COPY server .
 
-RUN go mod download
+RUN go mod tidy
 
 COPY --from=fe-builder /mayfly/dist /mayfly/static/static
 

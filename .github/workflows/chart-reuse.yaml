@@ -1,0 +1,79 @@
+name: Publish and Sign Container Image
+on:
+  workflow_call:
+    inputs:
+      ghcr_registry_url:
+        required: false
+        type: string
+      chart_version:
+        required: true
+        type: string
+      chart_app_version:
+        required: true
+        type: string
+      push:
+        required: true
+        type: boolean
+        default: false
+    secrets:
+      ghcr_username:
+        required: false
+      ghcr_password:
+        required: false
+
+permissions: {}
+
+jobs:
+  publish:
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    runs-on: ubuntu-22.04
+    steps:
+      - name: set Registry
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          echo "CHART_NAME_LC=${REPO#*/}" >>${GITHUB_ENV}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+        if: ${{ github.ref_type == 'tag'}}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        if: ${{ github.ref_type != 'tag'}}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.12.0
+
+      - name: Package Helm Chart
+        run: |
+          helm package ./chart/${CHART_NAME_LC} \
+                --dependency-update  \
+                --version ${{ inputs.chart_version }} \
+                --app-version ${{ inputs.chart_app_version }} \
+                --destination ./target
+
+      - name: Package Helm Chart
+        run: |
+          helm lint ./chart/${CHART_NAME_LC}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.ghcr_username }}
+          password: ${{ secrets.ghcr_password }}
+        if: ${{ inputs.ghcr_registry_url && inputs.push }}
+
+      - name: Push Helm Chart to ghcr OCI
+        run: |
+          helm push target/*.tgz oci://${{ inputs.ghcr_registry_url }}
+        if: ${{ inputs.ghcr_registry_url && inputs.push }}
