@@ -1,0 +1,109 @@
+# Default values for mayfly-go.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 2
+
+image:
+  repository: ghcr.io/mayfly-go/mayfly-go/images/mayfly-go
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances chart run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+## ref: https://kubernetes.io/docs/user-guide/node-selection/
+##
+nodeSelector: {}
+
+## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+##
+tolerations: []
+
+## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+## Note: podAffinityPreset, podAntiAffinityPreset, and  nodeAffinityPreset will be ignored when it's set
+##
+affinity: {}
+
+## Mayfly environment variable for containers Settings
+## ref: https://www.yuque.com/may-fly/mayfly-go/gge2yu8dv4khz5wl
+app:
+  vars:
+    ## Mayfly configure for Database info.
+    ## Production must modify the following information.
+    ##
+    MAYFLY_DB_HOST: mayfly-go-mysql:3306
+    MAYFLY_DB_NAME: mayfly-go
+    MAYFLY_DB_USER: mayfly-go
+    MAYFLY_DB_PASS: mayfly-go
+    MAYFLY_AES_KEY: 7bc5418eefd50402ef39107274891fbe
+    ## Generate jwt using the signature Private key
+    MAYFLY_JWT_KEY: 53445c86e8189b6c646ed7d0d319015144423e72
+
+## ref: https://github.com/bitnami/charts/blob/main/bitnami/mysql/values.yaml
+mysql:
+  ## Whether to Install the MySQL Instance or not
+  ##
+  enabled: true
+  ## MySQL Authentication parameters
+  ##
+  auth:
+    ## Password for the `root` user.
+    ##
+    rootPassword: ""
+    ## Name for a custom user to create
+    ##
+    username: mayfly-go
+    ## Password for the new user.
+    ##
+    password: mayfly-go
+    ## Name for a custom database to create
+    ##
+    database: mayfly-go

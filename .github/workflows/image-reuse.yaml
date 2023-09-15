@@ -1,0 +1,140 @@
+name: Publish and Sign Container Image
+on:
+  workflow_call:
+    inputs:
+      ghcr_image_name:
+        required: false
+        type: string
+      docker_image_name:
+        required: false
+        type: string
+      platforms:
+        required: true
+        type: string
+        default: linux/amd64
+      push:
+        required: true
+        type: boolean
+        default: false
+      target:
+        required: false
+        type: string
+
+    secrets:
+      ghcr_username:
+        required: false
+      ghcr_password:
+        required: false
+      docker_username:
+        required: false
+      docker_password:
+        required: false
+
+    outputs:
+      image-digest:
+        description:
+        value: ${{ jobs.publish.outputs.image-digest }}
+
+permissions: {}
+
+jobs:
+  publish:
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    runs-on: ubuntu-22.04
+    outputs:
+      image-digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+        if: ${{ github.ref_type == 'tag'}}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        if: ${{ github.ref_type != 'tag'}}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.1.2
+        with:
+          cosign-release: 'v2.1.1'
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Setup tags for container image as a CSV type
+        run: |
+          IMAGE_TAGS=$(for str in \
+            ${{ inputs.ghcr_image_name }} \
+            ${{ inputs.docker_image_name}}; do
+            echo -n "${str}",;done | sed 's/,$//')
+
+          echo $IMAGE_TAGS
+          echo "TAGS=$IMAGE_TAGS" >> $GITHUB_ENV
+
+      - name: Setup image namespace for signing, strip off the tag
+        run: |
+          TAGS=$(for tag in \
+            ${{ inputs.ghcr_image_name }} \
+            ${{ inputs.docker_image_name}}; do
+            echo -n "${tag}" | awk -F ":" '{print $1}' -;done)
+          
+            echo $TAGS
+            echo 'SIGNING_TAGS<<EOF' >> $GITHUB_ENV
+            echo $TAGS >> $GITHUB_ENV
+            echo 'EOF' >> $GITHUB_ENV
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.ghcr_username }}
+          password: ${{ secrets.ghcr_password }}
+        if: ${{ inputs.ghcr_image_name && inputs.push }}
+
+      - name: Login to dockerhub Container Registry
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.docker_username }}
+          password: ${{ secrets.docker_password }}
+        if: ${{ inputs.docker_image_name && inputs.push }}
+
+      - name: Set up build args for container image
+        run: |
+          echo "GIT_TAG=$(if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)" >> $GITHUB_ENV
+          echo "GIT_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_ENV
+          echo "GIT_TREE_STATE=$(if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)" >> $GITHUB_ENV
+
+      - name: Build and push container image
+        id: image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push }}
+          tags: ${{ env.TAGS }}
+          target: ${{ inputs.target }}
+          provenance: false
+          sbom: false
+          build-args: |
+            GIT_TAG=${{env.GIT_TAG}}
+            GIT_COMMIT=${{env.GIT_COMMIT}}
+            BUILD_DATE=${{env.BUILD_DATE}}
+            GIT_TREE_STATE=${{env.GIT_TREE_STATE}}
+
+      - name: Sign container images
+        run: |
+          for signing_tag in $SIGNING_TAGS; do
+            cosign sign \
+            -a "repo=${{ github.repository }}" \
+            -a "workflow=${{ github.workflow }}" \
+            -a "sha=${{ github.sha }}" \
+            -y \
+            "$signing_tag"@${{ steps.image.outputs.digest }}
+          done
+        if: ${{ inputs.push }}

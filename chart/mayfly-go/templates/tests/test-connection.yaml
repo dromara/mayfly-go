@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "mayfly-go.fullname" . }}-test-connection"
+  labels:
+    {{- include "mayfly-go.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['{{ include "mayfly-go.fullname" . }}:{{ .Values.service.port }}']
+  restartPolicy: Never
