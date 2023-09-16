@@ -92,7 +92,7 @@
 import { nextTick, watch, onMounted, reactive, toRefs, ref, Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import { getSession } from '@/common/utils/storage';
+import { getToken } from '@/common/utils/storage';
 import { isTrue, notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
 import config from '@/common/config';
@@ -148,7 +148,7 @@ const props = defineProps({
 });
 
 const { themeConfig } = storeToRefs(useThemeConfig());
-const token = getSession('token');
+const token = getToken();
 let monacoEditor = {} as editor.IStandaloneCodeEditor;
 const dbTableRef = ref(null) as Ref;
 

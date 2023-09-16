@@ -1,4 +1,4 @@
-import { getUseWatermark4Session, getUserInfo4Session } from '@/common/utils/storage';
+import { getUseWatermark, getUser } from '@/common/utils/storage';
 import { dateFormat2 } from '@/common/utils/date';
 
 // 页面添加水印效果
@@ -44,8 +44,8 @@ function del() {
 const watermark = {
     use: () => {
         setTimeout(() => {
-            const userinfo = getUserInfo4Session();
-            if (userinfo && getUseWatermark4Session()) {
+            const userinfo = getUser();
+            if (userinfo && getUseWatermark()) {
                 set(`${userinfo.username} ${dateFormat2('yyyy-MM-dd HH:mm:ss', new Date())}`);
             } else {
                 del();

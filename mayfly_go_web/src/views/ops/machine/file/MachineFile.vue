@@ -272,7 +272,7 @@ import { ref, toRefs, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox, ElInput } from 'element-plus';
 import { machineApi } from '../api';
 
-import { getSession } from '@/common/utils/storage';
+import { getToken } from '@/common/utils/storage';
 import config from '@/common/config';
 import { isTrue } from '@/common/assert';
 import MachineFileContent from './MachineFileContent.vue';
@@ -285,7 +285,7 @@ const props = defineProps({
     isFolder: { type: Boolean, default: true },
 });
 
-const token = getSession('token');
+const token = getToken();
 const folderUploadRef: any = ref();
 
 const folderType = 'd';

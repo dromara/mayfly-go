@@ -1,7 +1,7 @@
 import router from '../router';
 import Axios from 'axios';
 import config from './config';
-import { getSession } from './utils/storage';
+import { getToken } from './utils/storage';
 import { templateResolve } from './utils/string';
 import { ElMessage } from 'element-plus';
 
@@ -50,7 +50,7 @@ const service = Axios.create({
 service.interceptors.request.use(
     (config: any) => {
         // do something before request is sent
-        const token = getSession('token');
+        const token = getToken();
         if (token) {
             // 设置token
             config.headers['Authorization'] = token;
@@ -143,8 +143,8 @@ function request(method: string, url: string, params: any = null, headers: any =
         .request(query)
         .then((res) => res)
         .catch((e) => {
-            // 如果返回的code不为成功，则会返回对应的错误msg，则直接统一通知即可
-            if (e.msg) {
+            // 如果返回的code不为成功，则会返回对应的错误msg，则直接统一通知即可。忽略登录超时或没有权限的提示（直接跳转至401页面）
+            if (e.msg && e?.code != ResultEnum.NO_PERMISSION) {
                 notifyErrorMsg(e.msg);
             }
             return Promise.reject(e);
@@ -176,7 +176,7 @@ function del(url: string, params: any = null, headers: any = null, options: any 
 
 function getApiUrl(url: string) {
     // 只是返回api地址而不做请求，用在上传组件之类的
-    return baseUrl + url + '?token=' + getSession('token');
+    return baseUrl + url + '?token=' + getToken();
 }
 
 export default {

@@ -23,6 +23,7 @@ func init() {
 // 添加ws客户端
 func AddClient(userId uint64, conn *websocket.Conn) *Client {
 	cli := NewClient(UserId(userId), conn)
+	cli.Read()
 	Manager.AddClient(cli)
 	return cli
 }

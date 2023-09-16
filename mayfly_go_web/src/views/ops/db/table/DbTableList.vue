@@ -124,7 +124,7 @@ import { formatByteSize } from '@/common/utils/format';
 import { dbApi } from '../api';
 import SqlExecBox from '../component/SqlExecBox';
 import config from '@/common/config';
-import { getSession } from '@/common/utils/storage';
+import { getToken } from '@/common/utils/storage';
 import { isTrue } from '@/common/assert';
 
 const DbTableEdit = defineAsyncComponent(() => import('./DbTableEdit.vue'));
@@ -259,9 +259,7 @@ const dump = (db: string) => {
     const a = document.createElement('a');
     a.setAttribute(
         'href',
-        `${config.baseApiUrl}/dbs/${props.dbId}/dump?db=${db}&type=${state.dumpInfo.type}&tables=${state.dumpInfo.tables.join(',')}&token=${getSession(
-            'token'
-        )}`
+        `${config.baseApiUrl}/dbs/${props.dbId}/dump?db=${db}&type=${state.dumpInfo.type}&tables=${state.dumpInfo.tables.join(',')}&token=${getToken()}`
     );
     a.click();
     state.showDumpInfo = false;

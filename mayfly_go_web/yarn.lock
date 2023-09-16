@@ -804,10 +804,10 @@ echarts@^5.4.0:
     tslib "2.3.0"
     zrender "5.4.0"
 
-element-plus@^2.3.12:
-  version "2.3.12"
-  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.3.12.tgz#d3c91d0c701b2b3e67d06a351cb0c42dcc46460e"
-  integrity sha512-fAWpbKCyt+l1dsqSNPOs/F/dBN4Wp5CGAyxbiS5zqDwI4q3QPM+LxLU2h3GUHMIBtMGCvmsG98j5HPMkTKkvcA==
+element-plus@^2.3.14:
+  version "2.3.14"
+  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.3.14.tgz#302a23916b0c3375fcf4b927d7b94483dac13e1b"
+  integrity sha512-9yvxUaU4jXf2ZNPdmIxoj/f8BG8CDcGM6oHa9JIqxLjQlfY4bpzR1E5CjNimnOX3rxO93w1TQ0jTVt0RSxh9kA==
   dependencies:
     "@ctrl/tinycolor" "^3.4.1"
     "@element-plus/icons-vue" "^2.0.6"
