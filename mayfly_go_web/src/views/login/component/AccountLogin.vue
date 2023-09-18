@@ -132,7 +132,7 @@ import { nextTick, onMounted, ref, toRefs, reactive, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { initRouter } from '@/router/index';
-import { getSession, setSession, setUserInfo2Session, setUseWatermark2Session } from '@/common/utils/storage';
+import { saveToken, saveUser, saveUseWatermark } from '@/common/utils/storage';
 import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';
@@ -142,6 +142,7 @@ import { useUserInfo } from '@/store/userInfo';
 import QrcodeVue from 'qrcode.vue';
 import { personApi } from '@/views/personal/api';
 import { AccountUsernamePattern } from '@/common/pattern';
+import { getToken } from '../../../common/utils/storage';
 
 const rules = {
     username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -354,7 +355,7 @@ const loginResDeal = (loginRes: any) => {
     };
 
     // 存储用户信息到浏览器缓存
-    setUserInfo2Session(userInfos);
+    saveUser(userInfos);
     // 1、请注意执行顺序(存储用户信息到vuex)
     useUserInfo().setUserInfo(userInfos);
 
@@ -376,10 +377,10 @@ const loginResDeal = (loginRes: any) => {
 // 登录成功后的跳转
 const signInSuccess = async (accessToken: string = '') => {
     if (!accessToken) {
-        accessToken = getSession('token');
+        accessToken = getToken();
     }
     // 存储 token 到浏览器缓存
-    setSession('token', accessToken);
+    saveToken(accessToken);
     // 初始化路由
     await initRouter();
 
@@ -405,7 +406,7 @@ const toIndex = async () => {
         state.loading.signIn = true;
         ElMessage.success(`${currentTimeInfo}，欢迎回来！`);
         if (await useWartermark()) {
-            setUseWatermark2Session(true);
+            saveUseWatermark(true);
         }
     }, 300);
 };

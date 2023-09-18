@@ -83,7 +83,7 @@ import { resetRoute } from '@/router/index';
 import { storeToRefs } from 'pinia';
 import { useUserInfo } from '@/store/userInfo';
 import { useThemeConfig } from '@/store/themeConfig';
-import { clearSession, setLocal, getLocal, removeLocal } from '@/common/utils/storage';
+import { clearUser, clearSession, setLocal, getLocal, removeLocal } from '@/common/utils/storage';
 import UserNews from '@/views/layout/navBars/breadcrumb/userNews.vue';
 import SearchMenu from '@/views/layout/navBars/breadcrumb/search.vue';
 import mittBus from '@/common/utils/mitt';

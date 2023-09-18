@@ -23,9 +23,28 @@ type Client struct {
 	ReadMsgHander ReadMsgHandlerFunc // 读取消息处理函数
 }
 
+func NewClient(userId UserId, socket *websocket.Conn) *Client {
+	cli := &Client{
+		ClientId: stringx.Rand(16),
+		UserId:   userId,
+		WsConn:   socket,
+	}
+
+	return cli
+}
+
+func (c *Client) WithReadHandlerFunc(readMsgHandlerFunc ReadMsgHandlerFunc) *Client {
+	c.ReadMsgHander = readMsgHandlerFunc
+	return c
+}
+
+// 读取ws客户端消息
 func (c *Client) Read() {
 	go func() {
 		for {
+			if c.WsConn == nil {
+				return
+			}
 			messageType, data, err := c.WsConn.ReadMessage()
 			if err != nil {
 				if messageType == -1 && websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived) {
@@ -71,14 +90,4 @@ func (c *Client) WriteMsg(msg *Msg) error {
 // 向客户写入ping消息
 func (c *Client) Ping() error {
 	return c.WsConn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(time.Second))
-}
-
-func NewClient(userId UserId, socket *websocket.Conn) *Client {
-	cli := &Client{
-		ClientId: stringx.Rand(16),
-		UserId:   userId,
-		WsConn:   socket,
-	}
-
-	return cli
 }

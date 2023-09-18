@@ -1,7 +1,7 @@
 import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router';
 import NProgress from 'nprogress';
 import 'nprogress/nprogress.css';
-import { getSession, clearSession } from '@/common/utils/storage';
+import { clearSession, getToken } from '@/common/utils/storage';
 import { templateResolve } from '@/common/utils/string';
 import { NextLoading } from '@/common/utils/loading';
 import { dynamicRoutes, staticRoutes, pathMatch } from './route';
@@ -30,7 +30,7 @@ const router = createRouter({
 // 前端控制路由：初始化方法，防止刷新时丢失
 export function initAllFun() {
     NextLoading.start(); // 界面 loading 动画开始执行
-    const token = getSession('token'); // 获取浏览器缓存 token 值
+    const token = getToken(); // 获取浏览器缓存 token 值
     if (!token) {
         // 无 token 停止执行下一步
         return false;
@@ -49,7 +49,7 @@ export function initAllFun() {
 // 后端控制路由：执行路由数据初始化
 export async function initBackEndControlRoutesFun() {
     NextLoading.start(); // 界面 loading 动画开始执行
-    const token = getSession('token'); // 获取浏览器缓存 token 值
+    const token = getToken(); // 获取浏览器缓存 token 值
     if (!token) {
         // 无 token 停止执行下一步
         return false;
@@ -256,7 +256,7 @@ router.beforeEach(async (to, from, next) => {
         to.meta.title = templateResolve(to.meta.title as string, to.query);
     }
 
-    const token = getSession('token');
+    const token = getToken();
     if ((to.path === '/login' || to.path == '/oauth2/callback') && !token) {
         next();
         NProgress.done();

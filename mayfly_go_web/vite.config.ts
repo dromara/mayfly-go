@@ -49,6 +49,7 @@ const viteConfig: UserConfig = {
                 manualChunks: {
                     vue: ['vue', 'vue-router', 'pinia'],
                     echarts: ['echarts'],
+                    monaco: ['monaco-editor'],
                 },
             },
         },

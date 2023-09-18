@@ -1,14 +1,14 @@
 import Config from './config';
 import { ElNotification } from 'element-plus';
 import SocketBuilder from './SocketBuilder';
-import { getSession } from '@/common/utils/storage';
+import { getToken } from '@/common/utils/storage';
 
 export default {
     /**
      * 全局系统消息websocket
      */
     sysMsgSocket() {
-        const token = getSession('token');
+        const token = getToken();
         if (!token) {
             return null;
         }

@@ -141,8 +141,10 @@ func (manager *ClientManager) doConnect(client *Client) {
 // 处理断开连接
 func (manager *ClientManager) doDisconnect(client *Client) {
 	//关闭连接
-	_ = client.WsConn.Close()
-	client.WsConn = nil
+	if client.WsConn != nil {
+		_ = client.WsConn.Close()
+		client.WsConn = nil
+	}
 	manager.delClient4Map(client)
 	logx.Debugf("WS客户端已断开: uid=%d, count=%d", client.UserId, Manager.Count())
 }
