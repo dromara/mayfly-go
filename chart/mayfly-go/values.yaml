@@ -95,6 +95,9 @@ mysql:
   ## MySQL Authentication parameters
   ##
   auth:
+    ## Password for the `root` user.
+    ##
+    rootPassword: mayflyG0@dmin
     ## Name for a custom user to create
     ##
     username: mayfly-go
