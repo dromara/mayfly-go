@@ -9,7 +9,6 @@
 
 <script lang="ts" setup>
 import { ref, watch, toRefs, reactive, onMounted, onBeforeUnmount } from 'vue';
-// import * as monaco from 'monaco-editor';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 // 相关语言
 import 'monaco-editor/esm/vs/basic-languages/shell/shell.contribution.js';
@@ -155,7 +154,22 @@ const options = {
     },
 };
 
+const monacoTextarea: any = ref();
+
+let monacoEditorIns: editor.IStandaloneCodeEditor = null as any;
+let completionItemProvider: any = null;
+
+self.MonacoEnvironment = {
+    getWorker(_: any, label: string) {
+        if (label === 'json') {
+            return new JsonWorker();
+        }
+        return new EditorWorker();
+    },
+};
+
 const state = reactive({
+    editorHeight: '500px',
     languageMode: 'shell',
 });
 
@@ -173,6 +187,7 @@ onBeforeUnmount(() => {
         monacoEditorIns.dispose();
     }
     if (completionItemProvider) {
+        console.log('unmount=> dispose completion item provider');
         completionItemProvider.dispose();
     }
 });
@@ -202,20 +217,6 @@ watch(
         monaco?.editor?.setTheme(val);
     }
 );
-
-const monacoTextarea: any = ref(null);
-
-let monacoEditorIns: editor.IStandaloneCodeEditor = null as any;
-let completionItemProvider: any = null;
-
-self.MonacoEnvironment = {
-    getWorker(_: any, label: string) {
-        if (label === 'json') {
-            return new JsonWorker();
-        }
-        return new EditorWorker();
-    },
-};
 
 const initMonacoEditorIns = () => {
     console.log('初始化monaco编辑器');
@@ -260,6 +261,7 @@ const setEditorValue = (value: any) => {
  */
 const registerCompletionItemProvider = () => {
     if (completionItemProvider) {
+        console.log('exist competion item provider, dispose now');
         completionItemProvider.dispose();
     }
     if (state.languageMode == 'shell') {
@@ -299,7 +301,11 @@ const format = () => {
     monacoEditorIns.trigger('', 'editor.action.formatDocument', '');
 };
 
-defineExpose({ format });
+const getEditor = () => {
+    return monacoEditorIns;
+};
+
+defineExpose({ getEditor, format });
 </script>
 
 <style lang="scss">

@@ -26,6 +26,9 @@ func (m *Mysql) Default() {
 	if m.MaxIdleConns == 0 {
 		m.MaxIdleConns = 5
 	}
+	if m.MaxOpenConns == 0 {
+		m.MaxOpenConns = m.MaxIdleConns
+	}
 }
 
 func (m *Mysql) Dsn() string {

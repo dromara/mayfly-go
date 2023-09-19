@@ -95,13 +95,14 @@
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, onMounted, reactive, ref, toRefs } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, toRefs, onBeforeUnmount } from 'vue';
 import { ElMessage } from 'element-plus';
 
-import { DbInst, TabInfo, TabType } from './db';
+import { DbInst, TabInfo, TabType, registerDbCompletionItemProvider } from './db';
 import { TagTreeNode } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
+import { dispposeCompletionItemProvider } from '../../../components/monaco/completionItemProvider';
 
 const Query = defineAsyncComponent(() => import('./component/tab/Query.vue'));
 const TableData = defineAsyncComponent(() => import('./component/tab/TableData.vue'));
@@ -144,10 +145,13 @@ const state = reactive({
 const { nowDbInst } = toRefs(state);
 
 onMounted(() => {
-    self.completionItemProvider?.dispose();
     setHeight();
     // 监听浏览器窗口大小变化,更新对应组件高度
     window.onresize = () => setHeight();
+});
+
+onBeforeUnmount(() => {
+    dispposeCompletionItemProvider('sql');
 });
 
 /**
@@ -207,7 +211,6 @@ const loadNode = async (node: any) => {
     // 点击数据库实例 -> 加载库列表
     if (nodeType === NodeType.DbInst) {
         const dbs = params.database.split(' ')?.sort();
-        console.log(dbs);
         return dbs.map((x: any) => {
             return new TagTreeNode(`${data.key}.${x}`, x, NodeType.Db).withParams({
                 tagPath: params.tagPath,
@@ -406,9 +409,15 @@ const onTabChange = () => {
         state.db = '';
         return;
     }
+
     const nowTab = state.tabs.get(state.activeName);
     state.nowDbInst = DbInst.getInst(nowTab?.dbId);
     state.db = nowTab?.db as string;
+
+    if (nowTab?.type == TabType.Query) {
+        // 注册sql提示
+        registerDbCompletionItemProvider('sql', nowTab.dbId, nowTab.db, nowTab.params.dbs);
+    }
 };
 
 const onGenerateInsertSql = async (sql: string) => {
