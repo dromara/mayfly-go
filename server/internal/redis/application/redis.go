@@ -163,7 +163,7 @@ func (r *redisAppImpl) GetRedisInstance(id uint64, db int) *RedisInstance {
 		}
 	}
 
-	logx.Infof("连接redis: %s", re.Host)
+	logx.Infof("连接redis: %s/%d", re.Host, db)
 	if needCache {
 		redisCache.Put(getRedisCacheKey(id, db), ri)
 	}

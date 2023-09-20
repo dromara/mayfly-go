@@ -514,19 +514,6 @@ export function registerDbCompletionItemProvider(language: string, dbId: number,
                 endLineNumber: lineNumber,
                 endColumn: column,
             });
-            const textBeforePointerMulti = model.getValueInRange({
-                startLineNumber: 1,
-                startColumn: 0,
-                endLineNumber: lineNumber,
-                endColumn: column,
-            });
-            // 光标后文本
-            const textAfterPointerMulti = model.getValueInRange({
-                startLineNumber: lineNumber,
-                startColumn: column,
-                endLineNumber: model.getLineCount(),
-                endColumn: model.getLineMaxColumn(model.getLineCount()),
-            });
             // // const nextTokens = textAfterPointer.trim().split(/\s+/)
             // // const nextToken = nextTokens[0].toLowerCase()
             const tokens = textBeforePointer.trim().split(/\s+/);
@@ -537,12 +524,68 @@ export function registerDbCompletionItemProvider(language: string, dbId: number,
             // console.log("最后输入的：=>" + lastToken)
 
             let suggestions: languages.CompletionItem[] = [];
-            const tables = await dbInst.loadTables(db);
 
-            async function hintTableColumns(tableName: any, db: any) {
+            let alias = '';
+            if (lastToken.indexOf('.') > -1 || secondToken.indexOf('.') > -1) {
+                // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
+                alias = lastToken.substring(0, lastToken.lastIndexOf('.'));
+                if (lastToken.trim().startsWith('.')) {
+                    alias = secondToken;
+                }
+                // 如果字符串粘连起了如:'a.creator,a.',需要重新取出别名
+                let aliasArr = lastToken.split(',');
+                if (aliasArr.length > 1) {
+                    lastToken = aliasArr[aliasArr.length - 1];
+                    alias = lastToken.substring(0, lastToken.lastIndexOf('.'));
+                    if (lastToken.trim().startsWith('.')) {
+                        alias = secondToken;
+                    }
+                }
+            }
+
+            // 获取光标所在行之前的所有文本内容
+            const textBeforeCursor = model.getValueInRange({
+                startLineNumber: 1,
+                startColumn: 0,
+                endLineNumber: lineNumber,
+                endColumn: column,
+            });
+
+            // 获取光标所在行之后的所有文本内容
+            const textAfterCursor = model.getValueInRange({
+                startLineNumber: lineNumber,
+                startColumn: column,
+                endLineNumber: model.getLineCount(),
+                endColumn: model.getLineMaxColumn(model.getLineCount()),
+            });
+
+            // 检测光标前后文本中的分号位置，确定完整 SQL 语句的范围
+            const start = textBeforeCursor.lastIndexOf(';');
+            const end = textAfterCursor.indexOf(';');
+
+            let sqlStatement = '';
+            // 如果光标前后都有分号，则取二者之间的文本作为完整 SQL 语句
+            if (start !== -1 && end !== -1) {
+                sqlStatement = textBeforeCursor.substring(start + 1) + textAfterCursor.substring(0, end);
+            }
+            // 如果只有光标前面有分号，则取分号后的文本作为完整 SQL 语句
+            else if (start !== -1) {
+                sqlStatement = textBeforeCursor.substring(start + 1) + textAfterCursor;
+            }
+            // 如果只有光标后面有分号，则取分号前的文本作为完整 SQL 语句
+            else if (end !== -1) {
+                sqlStatement = textBeforeCursor + textAfterCursor.substring(0, end);
+            }
+            // 如果光标前后都没有分号，则取整个文本作为完整 SQL 语句
+            else {
+                sqlStatement = textBeforeCursor + textAfterCursor;
+            }
+
+            const tableName = getTableName4SqlCtx(sqlStatement, alias);
+            // 提出到表名，则将表对应的字段也添加进提示建议
+            if (tableName) {
                 let dbHits = await dbInst.loadDbHints(db);
                 let columns = dbHits[tableName];
-                let suggestions: languages.CompletionItem[] = [];
                 columns?.forEach((a: string, index: any) => {
                     // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
                     const nameAndComment = a.split('  ');
@@ -559,68 +602,16 @@ export function registerDbCompletionItemProvider(language: string, dbId: number,
                         sortText: 100 + index + '', // 使用表字段声明顺序排序,排序需为字符串类型
                     });
                 });
-                return suggestions;
+
+                // 若存在字段提示，并且有别名，则提示字段即可，不完善后续的表名以及函数等
+                if (suggestions.length > 0 && alias) {
+                    return {
+                        suggestions: suggestions,
+                    };
+                }
             }
 
-            if (lastToken.indexOf('.') > -1 || secondToken.indexOf('.') > -1) {
-                // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
-                let str = lastToken.substring(0, lastToken.lastIndexOf('.'));
-                if (lastToken.trim().startsWith('.')) {
-                    str = secondToken;
-                }
-                // 如果字符串粘连起了如:'a.creator,a.',需要重新取出别名
-                let aliasArr = lastToken.split(',');
-                if (aliasArr.length > 1) {
-                    lastToken = aliasArr[aliasArr.length - 1];
-                    str = lastToken.substring(0, lastToken.lastIndexOf('.'));
-                    if (lastToken.trim().startsWith('.')) {
-                        str = secondToken;
-                    }
-                }
-                // 库.表名联想
-                if (dbs && dbs.filter((a: any) => a === str)?.length > 0) {
-                    let tables = await dbInst.loadTables(str);
-                    let suggestions: languages.CompletionItem[] = [];
-                    for (let item of tables) {
-                        const { tableName, tableComment } = item;
-                        suggestions.push({
-                            label: {
-                                label: tableName + (tableComment ? ' - ' + tableComment : ''),
-                                description: 'table',
-                            },
-                            kind: monaco.languages.CompletionItemKind.File,
-                            insertText: tableName,
-                            range,
-                        });
-                    }
-                    return { suggestions };
-                }
-
-                let sql = textBeforePointerMulti.split(';')[textBeforePointerMulti.split(';').length - 1] + textAfterPointerMulti.split(';')[0];
-                // 表别名.表字段联想
-                let tableInfo = getTableByAlias(sql, db, str);
-                if (tableInfo.tableName) {
-                    let tableName = tableInfo.tableName;
-                    let db = tableInfo.dbName;
-                    // 取出表名并提示
-                    let suggestions = await hintTableColumns(tableName, db);
-                    if (suggestions.length > 0) {
-                        return { suggestions };
-                    }
-                }
-                return { suggestions: [] };
-            } else {
-                // 如果sql里含有表名，则提示表字段
-                let mat = textBeforePointerMulti.match(/[from|update]\n*\s+\n*(\w+)\n*\s+\n*/i);
-                if (mat && mat.length > 1) {
-                    let tableName = mat[1];
-                    // 取出表名并提示
-                    let addSuggestions = await hintTableColumns(tableName, db);
-                    if (addSuggestions.length > 0) {
-                        suggestions = suggestions.concat(addSuggestions);
-                    }
-                }
-            }
+            const tables = await dbInst.loadTables(db);
 
             // 表名联想
             tables.forEach((tableMeta: any, index: any) => {
@@ -729,51 +720,31 @@ export function registerDbCompletionItemProvider(language: string, dbId: number,
     });
 }
 
-/**
- * 根据别名获取sql里的表名
- * @param sql sql
- * @param db 默认数据库
- * @param alias 别名
- */
-const getTableByAlias = (sql: string, db: string, alias: string): { dbName: string; tableName: string } => {
-    // 表别名：表名
-    let result = {};
-    let defName = '';
-    let defResult = {};
-    // 正则匹配取出表名和表别名
-    // 测试sql
-    /*
+function getTableName4SqlCtx(sql: string, alias: string = '') {
+    // 去除多余的换行、空格和制表符
+    sql = sql.replace(/[\r\n\s\t]+/g, ' ');
 
-    `select * from database.Outvisit l
-left join patient p on l.patid=p.patientid
-join patstatic c on   l.patid=c.patid inner join patphone  ph  on l.patid=ph.patid
-where l.name='kevin' and exsits(select 1 from pharmacywestpas pw where p.outvisitid=l.outvisitid)
-unit all
-select * from invisit v where`.match(/(join|from)\s+(\w*-?\w*\.?\w+)\s*(as)?\s*(\w*)/gi)
-     */
-    let match = sql.match(/(join|from)\n*\s+\n*(\w*-?\w*\.?\w+)\s*(as)?\s*(\w*)\n*/gi);
-    if (match && match.length > 0) {
-        match.forEach((a) => {
-            // 去掉前缀，取出
-            let t = a
-                .substring(5, a.length)
-                .replaceAll(/\s+/g, ' ')
-                .replaceAll(/\s+as\s+/gi, ' ')
-                .replaceAll(/\r\n/g, ' ')
-                .trim()
-                .split(/\s+/);
-            let withDb = t[0].split('.');
-            // 表名是 db名.表名
-            let tName = withDb.length > 1 ? withDb[1] : withDb[0];
-            let dbName = withDb.length > 1 ? withDb[0] : db || '';
-            if (t.length == 2) {
-                // 表别名：表名
-                result[t[1]] = { tableName: tName, dbName };
-            } else {
-                // 只有表名无别名 取第一个无别名的表为默认表
-                !defName && (defResult = { tableName: tName, dbName: db });
-            }
-        });
+    // 提取所有可能的表名和别名
+    const regex = /(?:(?:FROM|JOIN|UPDATE)\s+(\S+)\s+(?:AS\s+)?(\S+))/gi;
+    let matches;
+    const tables = [];
+
+    // 使用正则表达式匹配所有的表和别名
+    while ((matches = regex.exec(sql)) !== null) {
+        const tableName = matches[1].replace(/[`"]/g, '');
+        const tableAlias = matches[2] ? matches[2].replace(/[`"]/g, '') : tableName;
+        tables.push({ tableName, tableAlias });
     }
-    return result[alias] || defResult;
-};
+
+    // console.log('sql....', sql);
+    // console.log('alias....', alias);
+    // console.log('parset tables...', tables);
+    if (alias) {
+        // 如果指定了别名参数，则返回对应的表名
+        const table = tables.find((t) => t.tableAlias === alias);
+        return table ? table.tableName : '';
+    } else {
+        // 如果未指定别名参数，则返回第一个表名
+        return tables.length > 0 ? tables[0].tableName : '';
+    }
+}
