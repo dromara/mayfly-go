@@ -83,3 +83,42 @@
 		opacity: 1;
 	}
 }
+
+/* 登录页动画
+------------------------------- */
+@keyframes loginLeft {
+	0% {
+		left: -100%;
+	}
+	50%,
+	100% {
+		left: 100%;
+	}
+}
+@keyframes loginTop {
+	0% {
+		top: -100%;
+	}
+	50%,
+	100% {
+		top: 100%;
+	}
+}
+@keyframes loginRight {
+	0% {
+		right: -100%;
+	}
+	50%,
+	100% {
+		right: 100%;
+	}
+}
+@keyframes loginBottom {
+	0% {
+		bottom: -100%;
+	}
+	50%,
+	100% {
+		bottom: 100%;
+	}
+}

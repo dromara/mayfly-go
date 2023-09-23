@@ -140,5 +140,17 @@ export const useThemeConfig = defineStore('themeConfig', {
         setThemeConfig(data: ThemeConfigState) {
             this.themeConfig = data.themeConfig;
         },
+        // 切换暗模式
+        switchDark(isDark: boolean) {
+            this.themeConfig.isDark = isDark;
+            const body = document.documentElement as HTMLElement;
+            if (isDark) {
+                body.setAttribute('class', 'dark');
+                this.themeConfig.editorTheme = 'vs-dark';
+            } else {
+                body.setAttribute('class', '');
+                this.themeConfig.editorTheme = 'SolarizedLight';
+            }
+        },
     },
 });

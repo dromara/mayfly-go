@@ -15,6 +15,7 @@ import LockScreen from '@/views/layout/lockScreen/index.vue';
 import Setings from '@/views/layout/navBars/breadcrumb/setings.vue';
 import Watermark from '@/common/utils/wartermark';
 import mittBus from '@/common/utils/mitt';
+import { getThemeConfig } from './common/utils/storage';
 
 const setingsRef = ref();
 const route = useRoute();
@@ -42,10 +43,14 @@ onMounted(() => {
         mittBus.on('openSetingsDrawer', () => {
             openSetingsDrawer();
         });
+
         // 获取缓存中的布局配置
-        if (getLocal('themeConfig')) {
-            themeConfigStores.setThemeConfig({ themeConfig: getLocal('themeConfig') });
+        const tc = getThemeConfig();
+        if (tc) {
+            themeConfigStores.setThemeConfig({ themeConfig: tc });
             document.documentElement.style.cssText = getLocal('themeConfigStyle');
+
+            themeConfigStores.switchDark(tc.isDark);
         }
     });
 });

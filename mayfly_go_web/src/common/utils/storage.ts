@@ -21,6 +21,14 @@ export function saveUser(userinfo: any) {
     setLocal(UserKey, userinfo);
 }
 
+export function saveThemeConfig(themeConfig: any) {
+    setLocal('themeConfig', themeConfig);
+}
+
+export function getThemeConfig() {
+    return getLocal('themeConfig');
+}
+
 // 获取是否开启水印
 export function getUseWatermark() {
     return getLocal('useWatermark');

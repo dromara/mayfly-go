@@ -213,7 +213,7 @@ onUnmounted(() => {
 }
 .layout-lock-screen-img {
     @extend .layout-lock-screen-fixed;
-    background: url('@/assets/image/bg-login.png') no-repeat;
+    background: url('@/assets/image/login-bg-main.svg') no-repeat;
     background-size: 100% 100%;
     z-index: 9999991;
 }

@@ -56,7 +56,7 @@
                 <crop />
             </el-icon>
         </div>
-        <el-dropdown :show-timeout="70" :hide-timeout="50" @command="onHandleCommandClick">
+        <el-dropdown trigger="click" :show-timeout="70" :hide-timeout="50" @command="onHandleCommandClick">
             <span class="layout-navbars-breadcrumb-user-link" style="cursor: pointer">
                 <img :src="userInfo.photo" class="layout-navbars-breadcrumb-user-link-photo mr5" />
                 {{ userInfo.name || userInfo.username }}
@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts" name="layoutBreadcrumbUser">
-import { ref, computed, reactive, onMounted, nextTick } from 'vue';
+import { ref, computed, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import screenfull from 'screenfull';
@@ -83,11 +83,12 @@ import { resetRoute } from '@/router/index';
 import { storeToRefs } from 'pinia';
 import { useUserInfo } from '@/store/userInfo';
 import { useThemeConfig } from '@/store/themeConfig';
-import { clearUser, clearSession, setLocal, getLocal, removeLocal } from '@/common/utils/storage';
+import { clearSession, removeLocal } from '@/common/utils/storage';
 import UserNews from '@/views/layout/navBars/breadcrumb/userNews.vue';
 import SearchMenu from '@/views/layout/navBars/breadcrumb/search.vue';
 import mittBus from '@/common/utils/mitt';
 import openApi from '@/common/openApi';
+import { saveThemeConfig, getThemeConfig } from '@/common/utils/storage';
 
 const router = useRouter();
 const searchRef = ref();
@@ -99,7 +100,8 @@ const state = reactive({
     disabledSize: '',
 });
 const { userInfo } = storeToRefs(useUserInfo());
-const { themeConfig } = storeToRefs(useThemeConfig());
+const themeConfigStore = useThemeConfig();
+const { themeConfig } = storeToRefs(themeConfigStore);
 
 // 设置分割样式
 const layoutUserFlexNum = computed(() => {
@@ -164,16 +166,8 @@ const onHandleCommandClick = (path: string) => {
 };
 
 const switchDark = (isDark: boolean) => {
-    themeConfig.value.isDark = isDark;
-    setLocal('themeConfig', themeConfig.value);
-    const body = document.documentElement as HTMLElement;
-    if (isDark) {
-        body.setAttribute('class', 'dark');
-        themeConfig.value.editorTheme = 'vs-dark';
-    } else {
-        body.setAttribute('class', '');
-        themeConfig.value.editorTheme = 'SolarizedLight';
-    }
+    themeConfigStore.switchDark(isDark);
+    saveThemeConfig(themeConfig.value);
 };
 
 // // 菜单搜索点击
@@ -185,7 +179,7 @@ const onSearchClick = () => {
 const onComponentSizeChange = (size: string) => {
     removeLocal('themeConfig');
     themeConfig.value.globalComponentSize = size;
-    setLocal('themeConfig', themeConfig.value);
+    saveThemeConfig(themeConfig.value);
     // proxy.$ELEMENT.size = size;
     initComponentSize();
     window.location.reload();
@@ -193,7 +187,7 @@ const onComponentSizeChange = (size: string) => {
 
 // 初始化全局组件大小
 const initComponentSize = () => {
-    switch (getLocal('themeConfig').globalComponentSize) {
+    switch (getThemeConfig().globalComponentSize) {
         case '':
             state.disabledSize = '';
             break;
@@ -211,12 +205,10 @@ const initComponentSize = () => {
 
 // 页面加载时
 onMounted(() => {
-    if (getLocal('themeConfig')) {
-        const isDark = themeConfig.value.isDark;
-        state.isDark = isDark;
-        switchDark(isDark);
-
+    const themeConfig = getThemeConfig();
+    if (themeConfig) {
         initComponentSize();
+        state.isDark = themeConfig.isDark;
     }
 });
 </script>

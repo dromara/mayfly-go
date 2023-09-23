@@ -374,7 +374,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="copy-config">
+                <!-- <div class="copy-config">
                     <el-alert title="点击下方按钮，复制布局配置去 /src/store/modules/themeConfig.ts中修改" type="warning" :closable="false"> </el-alert>
                     <el-button
                         size="small"
@@ -385,7 +385,7 @@
                         @click="onCopyConfigClick($event.target)"
                         >一键复制配置
                     </el-button>
-                </div>
+                </div> -->
             </el-scrollbar>
         </el-drawer>
     </div>

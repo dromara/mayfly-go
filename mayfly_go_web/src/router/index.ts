@@ -29,7 +29,6 @@ const router = createRouter({
 
 // 前端控制路由：初始化方法，防止刷新时丢失
 export function initAllFun() {
-    NextLoading.start(); // 界面 loading 动画开始执行
     const token = getToken(); // 获取浏览器缓存 token 值
     if (!token) {
         // 无 token 停止执行下一步
@@ -48,7 +47,6 @@ export function initAllFun() {
 
 // 后端控制路由：执行路由数据初始化
 export async function initBackEndControlRoutesFun() {
-    NextLoading.start(); // 界面 loading 动画开始执行
     const token = getToken(); // 获取浏览器缓存 token 值
     if (!token) {
         // 无 token 停止执行下一步
@@ -232,14 +230,19 @@ export function resetRoute() {
 }
 
 export async function initRouter() {
-    // 初始化方法执行
-    const { isRequestRoutes } = useThemeConfig(pinia).themeConfig;
-    if (!isRequestRoutes) {
-        // 未开启后端控制路由
-        initAllFun();
-    } else if (isRequestRoutes) {
-        // 后端控制路由，isRequestRoutes 为 true，则开启后端控制路由
-        await initBackEndControlRoutesFun();
+    NextLoading.start(); // 界面 loading 动画开始执行
+    try {
+        // 初始化方法执行
+        const { isRequestRoutes } = useThemeConfig(pinia).themeConfig;
+        if (!isRequestRoutes) {
+            // 未开启后端控制路由
+            initAllFun();
+        } else if (isRequestRoutes) {
+            // 后端控制路由，isRequestRoutes 为 true，则开启后端控制路由
+            await initBackEndControlRoutesFun();
+        }
+    } finally {
+        NextLoading.done();
     }
 }
 
@@ -297,7 +300,6 @@ router.beforeEach(async (to, from, next) => {
 // 路由加载后
 router.afterEach(() => {
     NProgress.done();
-    NextLoading.done();
 });
 
 // 导出路由

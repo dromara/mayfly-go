@@ -43,9 +43,12 @@ function del() {
 
 const watermark = {
     use: () => {
+        const userinfo = getUser();
+        if (!userinfo) {
+            del();
+        }
         setTimeout(() => {
-            const userinfo = getUser();
-            if (userinfo && getUseWatermark()) {
+            if (getUseWatermark()) {
                 set(`${userinfo.username} ${dateFormat2('yyyy-MM-dd HH:mm:ss', new Date())}`);
             } else {
                 del();

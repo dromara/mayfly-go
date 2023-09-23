@@ -335,8 +335,14 @@
     /* Set padding to ensure the height is 32px */
   //   padding: 6px 12px;
     background: linear-gradient(90deg, rgb(159, 229, 151), rgb(204, 229, 129));
-  }
-  .el-popper.is-customized .el-popper__arrow::before {
+}
+.el-popper.is-customized .el-popper__arrow::before {
     background: linear-gradient(45deg, #b2e68d, #bce689);
     right: 0;
-  }
+}
+
+
+.el-dialog {
+    border-radius: 6px; /* 设置圆角 */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* 添加轻微阴影效果 */
+}

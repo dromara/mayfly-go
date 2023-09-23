@@ -6,18 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/stringx"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"time"
 )
 
-var client = &http.Client{}
-
 // 默认超时
 const DefTimeout = 60
 
 type RequestWrapper struct {
+	client  http.Client
 	url     string
 	method  string
 	timeout int
@@ -34,7 +35,7 @@ type MultipartFile struct {
 
 // 创建一个请求
 func NewRequest(url string) *RequestWrapper {
-	return &RequestWrapper{url: url}
+	return &RequestWrapper{url: url, client: http.Client{}}
 }
 
 func (r *RequestWrapper) Url(url string) *RequestWrapper {
@@ -55,15 +56,13 @@ func (r *RequestWrapper) Timeout(timeout int) *RequestWrapper {
 	return r
 }
 
-func (r *RequestWrapper) GetByParam(paramMap map[string]string) *ResponseWrapper {
+func (r *RequestWrapper) GetByQuery(queryMap map[string]any) *ResponseWrapper {
 	var params string
-	for k, v := range paramMap {
+	for k, v := range queryMap {
 		if params != "" {
 			params += "&"
-		} else {
-			params += "?"
 		}
-		params += k + "=" + v
+		params += k + "=" + stringx.AnyToStr(v)
 	}
 	r.url += "?" + params
 	return r.Get()
@@ -72,7 +71,7 @@ func (r *RequestWrapper) GetByParam(paramMap map[string]string) *ResponseWrapper
 func (r *RequestWrapper) Get() *ResponseWrapper {
 	r.method = "GET"
 	r.body = nil
-	return request(r)
+	return sendRequest(r)
 }
 
 func (r *RequestWrapper) PostJson(body string) *ResponseWrapper {
@@ -83,18 +82,18 @@ func (r *RequestWrapper) PostJson(body string) *ResponseWrapper {
 		r.header = make(map[string]string)
 	}
 	r.header["Content-type"] = "application/json"
-	return request(r)
+	return sendRequest(r)
 }
 
 func (r *RequestWrapper) PostObj(body any) *ResponseWrapper {
 	marshal, err := json.Marshal(body)
 	if err != nil {
-		return createRequestError(errors.New("解析json obj错误"))
+		return &ResponseWrapper{err: errors.New("解析json obj错误")}
 	}
 	return r.PostJson(string(marshal))
 }
 
-func (r *RequestWrapper) PostParams(params string) *ResponseWrapper {
+func (r *RequestWrapper) PostForm(params string) *ResponseWrapper {
 	buf := bytes.NewBufferString(params)
 	r.method = "POST"
 	r.body = buf
@@ -102,7 +101,7 @@ func (r *RequestWrapper) PostParams(params string) *ResponseWrapper {
 		r.header = make(map[string]string)
 	}
 	r.header["Content-type"] = "application/x-www-form-urlencoded"
-	return request(r)
+	return sendRequest(r)
 }
 
 func (r *RequestWrapper) PostMulipart(files []MultipartFile, reqParams map[string]string) *ResponseWrapper {
@@ -115,7 +114,7 @@ func (r *RequestWrapper) PostMulipart(files []MultipartFile, reqParams map[strin
 		if uploadFile.FilePath != "" {
 			file, err := os.Open(uploadFile.FilePath)
 			if err != nil {
-				return createRequestError(err)
+				return &ResponseWrapper{err: err}
 			}
 			defer file.Close()
 			reader = file
@@ -125,18 +124,18 @@ func (r *RequestWrapper) PostMulipart(files []MultipartFile, reqParams map[strin
 
 		part, err := writer.CreateFormFile(uploadFile.FieldName, uploadFile.FileName)
 		if err != nil {
-			return createRequestError(err)
+			return &ResponseWrapper{err: err}
 		}
-		_, err = io.Copy(part, reader)
+		io.Copy(part, reader)
 	}
 	// 如果有其他参数，则写入body
 	for k, v := range reqParams {
 		if err := writer.WriteField(k, v); err != nil {
-			return createRequestError(err)
+			return &ResponseWrapper{err: err}
 		}
 	}
 	if err := writer.Close(); err != nil {
-		return createRequestError(err)
+		return &ResponseWrapper{err: err}
 	}
 
 	r.method = "POST"
@@ -145,74 +144,26 @@ func (r *RequestWrapper) PostMulipart(files []MultipartFile, reqParams map[strin
 		r.header = make(map[string]string)
 	}
 	r.header["Content-type"] = writer.FormDataContentType()
-	return request(r)
+	return sendRequest(r)
 }
 
-type ResponseWrapper struct {
-	StatusCode int
-	Body       []byte
-	Header     http.Header
-}
-
-func (r *ResponseWrapper) IsSuccess() bool {
-	return r.StatusCode == 200
-}
-
-func (r *ResponseWrapper) BodyToObj(objPtr any) error {
-	_ = json.Unmarshal(r.Body, &objPtr)
-	return r.getError()
-}
-
-func (r *ResponseWrapper) BodyToString() (string, error) {
-	return string(r.Body), r.getError()
-}
-
-func (r *ResponseWrapper) BodyToMap() (map[string]any, error) {
-	var res map[string]any
-	err := json.Unmarshal(r.Body, &res)
-	if err != nil {
-		return nil, err
-	}
-	return res, r.getError()
-}
-
-func (r *ResponseWrapper) getError() error {
-	if !r.IsSuccess() {
-		return errors.New(string(r.Body))
-	}
-	return nil
-}
-
-func request(rw *RequestWrapper) *ResponseWrapper {
-	wrapper := &ResponseWrapper{StatusCode: 0, Header: make(http.Header)}
+func sendRequest(rw *RequestWrapper) *ResponseWrapper {
+	respWrapper := &ResponseWrapper{}
 	timeout := rw.timeout
 	if timeout > 0 {
-		client.Timeout = time.Duration(timeout) * time.Second
+		rw.client.Timeout = time.Duration(timeout) * time.Second
 	} else {
 		timeout = DefTimeout
 	}
 
 	req, err := http.NewRequest(rw.method, rw.url, rw.body)
 	if err != nil {
-		return createRequestError(err)
+		respWrapper.err = fmt.Errorf("创建请求错误-%s", err.Error())
+		return respWrapper
 	}
 	setRequestHeader(req, rw.header)
-	resp, err := client.Do(req)
-	if err != nil {
-		wrapper.Body = []byte(fmt.Sprintf("执行HTTP请求错误-%s", err.Error()))
-		return wrapper
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		wrapper.Body = []byte(fmt.Sprintf("读取HTTP请求返回值失败-%s", err.Error()))
-		return wrapper
-	}
-	wrapper.StatusCode = resp.StatusCode
-	wrapper.Body = body
-	wrapper.Header = resp.Header
-
-	return wrapper
+	resp, err := rw.client.Do(req)
+	return &ResponseWrapper{resp: resp, err: err}
 }
 
 func setRequestHeader(req *http.Request, header map[string]string) {
@@ -222,6 +173,73 @@ func setRequestHeader(req *http.Request, header map[string]string) {
 	}
 }
 
-func createRequestError(err error) *ResponseWrapper {
-	return &ResponseWrapper{0, []byte(fmt.Sprintf("创建HTTP请求错误-%s", err.Error())), make(http.Header)}
+type ResponseWrapper struct {
+	resp *http.Response
+	err  error
+}
+
+// 将响应体通过json解析转为指定结构体
+func (r *ResponseWrapper) BodyToObj(objPtr any) error {
+	bodyBytes, err := r.BodyBytes()
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(bodyBytes, &objPtr)
+	if err != nil {
+		return fmt.Errorf("解析响应体-json解析失败-%s", err.Error())
+	}
+	return nil
+}
+
+// 将响应体转为strings
+func (r *ResponseWrapper) BodyToString() (string, error) {
+	bodyBytes, err := r.BodyBytes()
+	if err != nil {
+		return "", err
+	}
+	return string(bodyBytes), nil
+}
+
+// 将响应体通过json解析转为map
+func (r *ResponseWrapper) BodyToMap() (map[string]any, error) {
+	var res map[string]any
+	return res, r.BodyToObj(&res)
+}
+
+// 获取响应体的字节数组
+func (r *ResponseWrapper) BodyBytes() ([]byte, error) {
+	resp, err := r.GetHttpResp()
+	if err != nil {
+		return nil, err
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
+
+	if err != nil {
+		return nil, fmt.Errorf("读取响应体数据失败-%s", err.Error())
+	}
+	return body, err
+}
+
+// 获取http响应结果结构体
+func (r *ResponseWrapper) GetHttpResp() (*http.Response, error) {
+	if r.err != nil {
+		return nil, fmt.Errorf("请求失败-%s", r.err.Error())
+	}
+	if r.resp == nil {
+		return nil, errors.New("请求失败-响应结构体为空,请检查请求url等信息")
+	}
+
+	statusCode := r.resp.StatusCode
+	if isFailureStatusCode(statusCode) {
+		logx.Warnf("请求响应状态码为为失败状态: %v", statusCode)
+	}
+
+	return r.resp, nil
+}
+
+func isFailureStatusCode(statusCode int) bool {
+	return statusCode < http.StatusOK || statusCode >= http.StatusBadRequest
 }
