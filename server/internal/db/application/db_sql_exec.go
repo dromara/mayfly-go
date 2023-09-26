@@ -3,7 +3,7 @@ package application
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/xwb1989/sqlparser"
+	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
