@@ -3,7 +3,10 @@ package api
 import (
 	"bufio"
 	"fmt"
+	"github.com/lib/pq"
 	"io"
+	"mayfly-go/pkg/logx"
+
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
@@ -23,7 +26,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/xwb1989/sqlparser"
+	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 )
 
 type Db struct {
@@ -180,6 +183,8 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 				switch t := err.(type) {
 				case error:
 					errInfo = t.Error()
+				case string:
+					errInfo = t
 				}
 				if len(errInfo) > 0 {
 					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)))
@@ -195,9 +200,24 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			LoginAccount: rc.LoginAccount,
 		}
 
-		sqlScanner := SplitSqls(file)
-		for sqlScanner.Scan() {
-			sql := sqlScanner.Text()
+		var dbNameExec string
+		tokenizer := sqlparser.NewReaderTokenizer(file)
+		for {
+			stmt, err := sqlparser.ParseNext(tokenizer)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
+				return
+			}
+			sql := sqlparser.String(stmt)
+			if strings.HasPrefix(sql, "use ") {
+				dbNameExec = sql[4:]
+			}
+			if strings.HasPrefix(sql, "create table ") {
+				logx.Info(fmt.Sprintf("exec sql in database %s: %s", dbNameExec, sql))
+			}
 			execReq.Sql = sql
 			// 需要记录执行记录
 			if logExecRecord {
@@ -276,19 +296,32 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	rc.ReqParam = fmt.Sprintf("DB[id=%d, tag=%s, name=%s, databases=%s, tables=%s, dumpType=%s]", db.Id, db.TagPath, db.Name, dbNamesStr, tablesStr, dumpType)
 }
 
+func escapeSql(dbType string, sql string) string {
+	switch dbType {
+	case entity.DbTypePostgres:
+		return pq.QuoteLiteral(sql)
+	case entity.DbTypeMysql:
+		sql = strings.ReplaceAll(sql, `\`, `\\`)
+		sql = strings.ReplaceAll(sql, `'`, `''`)
+		return "'" + sql + "'"
+	default:
+		return sql
+	}
+}
+
 func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool, switchDb bool) {
 	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
-	writer.WriteString("-- ----------------------------")
+	writer.WriteString("\n-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
 	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
 	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", dbName))
 	writer.WriteString("\n-- ----------------------------\n")
-	writer.TryFlush()
+	writer.WriteString("\nSET FOREIGN_KEY_CHECKS = 0;\n")
 
 	if switchDb {
 		switch dbConn.Info.Type {
 		case entity.DbTypeMysql:
-			writer.WriteString(fmt.Sprintf("use `%s`;\n", dbName))
+			writer.WriteString(fmt.Sprintf("USE `%s`;\n", dbName))
 		default:
 			biz.IsTrue(false, "数据库类型必须为 %s", entity.DbTypeMysql)
 		}
@@ -303,23 +336,21 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 	}
 
 	for _, table := range tables {
+		writer.TryFlush()
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
 			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS `%s`;\n", table))
 			writer.WriteString(dbMeta.GetCreateTableDdl(table) + ";\n")
 		}
-
 		if !needData {
 			continue
 		}
-
 		writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", table))
 		writer.WriteString("BEGIN;\n")
-
 		insertSql := "INSERT INTO `%s` VALUES (%s);\n"
-
 		dbMeta.WalkTableRecord(table, func(record map[string]any, columns []string) {
 			var values []string
+			writer.TryFlush()
 			for _, column := range columns {
 				value := record[column]
 				if value == nil {
@@ -328,18 +359,17 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 				}
 				strValue, ok := value.(string)
 				if ok {
-					values = append(values, fmt.Sprintf("%#v", strValue))
+					strValue = escapeSql(dbConn.Info.Type, strValue)
+					values = append(values, strValue)
 				} else {
 					values = append(values, stringx.AnyToStr(value))
 				}
 			}
 			writer.WriteString(fmt.Sprintf(insertSql, table, strings.Join(values, ", ")))
-			writer.TryFlush()
 		})
-
 		writer.WriteString("COMMIT;\n")
-		writer.TryFlush()
 	}
+	writer.WriteString("\nSET FOREIGN_KEY_CHECKS = 1;\n")
 }
 
 // @router /api/db/:dbId/t-metadata [get]
