@@ -1,5 +1,5 @@
 import { RouteRecordRaw } from 'vue-router';
-import Layout from '@/views/layout/index.vue';
+import Layout from '@/layout/index.vue';
 
 // 定义动态路由
 export const dynamicRoutes = [

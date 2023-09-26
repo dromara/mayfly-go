@@ -21,8 +21,8 @@ import pinia from '@/store/index';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useRoutesList } from '@/store/routesList';
-import Logo from '@/views/layout/logo/index.vue';
-import Vertical from '@/views/layout/navMenu/vertical.vue';
+import Logo from '@/layout/logo/index.vue';
+import Vertical from '@/layout/navMenu/vertical.vue';
 import mittBus from '@/common/utils/mitt';
 
 const { proxy } = getCurrentInstance() as any;
@@ -38,8 +38,7 @@ const state: any = reactive({
 // 设置菜单展开/收起时的宽度
 const setCollapseWidth = computed(() => {
     let { layout, isCollapse, menuBar } = themeConfig.value;
-    let asideBrColor =
-        menuBar === '#FFFFFF' || menuBar === '#FFF' || menuBar === '#fff' || menuBar === '#ffffff' ? 'layout-el-aside-br-color' : '';
+    let asideBrColor = menuBar === '#FFFFFF' || menuBar === '#FFF' || menuBar === '#fff' || menuBar === '#ffffff' ? 'layout-el-aside-br-color' : '';
     if (layout === 'columns') {
         // 分栏布局，菜单收起时宽度给 1px
         if (isCollapse) {

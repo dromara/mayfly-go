@@ -1,5 +1,6 @@
 const TokenKey = 'token';
 const UserKey = 'user';
+const TagViewsKey = 'tagViews';
 
 // 获取请求token
 export function getToken(): string {
@@ -38,10 +39,22 @@ export function saveUseWatermark(useWatermark: boolean) {
     setLocal('useWatermark', useWatermark);
 }
 
-// 清楚用户相关的用户信息
+// 清除用户相关的用户信息
 export function clearUser() {
     removeLocal(TokenKey);
     removeLocal(UserKey);
+}
+
+export function getTagViews() {
+    return getSession(TagViewsKey);
+}
+
+export function setTagViews(tagViews: Array<object>) {
+    setSession(TagViewsKey, tagViews);
+}
+
+export function removeTagViews() {
+    removeSession(TagViewsKey);
 }
 
 // 1. localStorage

@@ -3,7 +3,7 @@
         <el-scrollbar ref="scrollbarRef" @wheel.prevent="onHandleScroll">
             <ul class="layout-navbars-tagsview-ul" :class="setTagsStyle" ref="tagsUlRef">
                 <li
-                    v-for="(v, k) in state.tagsViewList"
+                    v-for="(v, k) in tagsViews"
                     :key="k"
                     class="layout-navbars-tagsview-ul-li"
                     :data-name="v.name"
@@ -17,8 +17,8 @@
                     "
                 >
                     <SvgIcon name="iconfont icon-tag-view-active" class="layout-navbars-tagsview-ul-li-iconfont font14" v-if="isActive(v)" />
-                    <SvgIcon :name="v.meta.icon" class="layout-navbars-tagsview-ul-li-iconfont" v-if="!isActive(v) && themeConfig.isTagsviewIcon" />
-                    <span>{{ v.meta.title }}</span>
+                    <SvgIcon :name="v.icon" class="layout-navbars-tagsview-ul-li-iconfont" v-if="!isActive(v) && themeConfig.isTagsviewIcon" />
+                    <span>{{ v.title }}</span>
                     <template v-if="isActive(v)">
                         <SvgIcon
                             name="RefreshRight"
@@ -28,7 +28,7 @@
                         <SvgIcon
                             name="Close"
                             class="font14 layout-navbars-tagsview-ul-li-icon layout-icon-active"
-                            v-if="!v.meta.isAffix"
+                            v-if="!v.isAffix"
                             @click.stop="closeCurrentTagsView(themeConfig.isShareTagsView ? v.path : v.path)"
                         />
                     </template>
@@ -36,7 +36,7 @@
                     <SvgIcon
                         name="Close"
                         class="font14 layout-navbars-tagsview-ul-li-icon layout-icon-three"
-                        v-if="!v.meta.isAffix"
+                        v-if="!v.isAffix"
                         @click.stop="closeCurrentTagsView(themeConfig.isShareTagsView ? v.path : v.path)"
                     />
                 </li>
@@ -52,17 +52,24 @@ import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router';
 import screenfull from 'screenfull';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import { getSession, setSession, removeSession } from '@/common/utils/storage';
 import mittBus from '@/common/utils/mitt';
 import Sortable from 'sortablejs';
-import Contextmenu from '@/views/layout/navBars/tagsView/contextmenu.vue';
+import Contextmenu from '@/layout/navBars/tagsView/contextmenu.vue';
+import { getTagViews, setTagViews, removeTagViews } from '@/common/utils/storage';
+import { useTagsViews } from '@/store/tagsViews';
+import { useKeepALiveNames } from '@/store/keepAliveNames';
 
 const { proxy } = getCurrentInstance() as any;
 const tagsRefs = ref([]) as any;
 const scrollbarRef = ref();
 const contextmenuRef = ref();
 const tagsUlRef = ref();
+
 const { themeConfig } = storeToRefs(useThemeConfig());
+const { tagsViews } = storeToRefs(useTagsViews());
+
+const keepAliveNamesStores = useKeepALiveNames();
+
 const route = useRoute();
 const router = useRouter();
 
@@ -70,7 +77,6 @@ const state = reactive({
     routePath: route.fullPath,
     dropdown: { x: '', y: '' },
     tagsRefsIndex: 0,
-    tagsViewList: [] as any,
     sortable: '' as any,
 });
 
@@ -81,119 +87,153 @@ const setTagsStyle = computed(() => {
 
 // 存储 tagsViewList 到浏览器临时缓存中，页面刷新时，保留记录
 const addBrowserSetSession = (tagsViewList: Array<object>) => {
-    setSession('tagsViewList', tagsViewList);
+    setTagViews(tagsViewList);
 };
 
-// 获取 vuex 中的 tagsViewRoutes 列表
+// 获取  tagsViewRoutes 列表
 const getTagsViewRoutes = () => {
     state.routePath = route.fullPath;
-    state.tagsViewList = [];
-    if (!themeConfig.value.isCacheTagsView) removeSession('tagsViewList');
+    tagsViews.value = [];
+    if (!themeConfig.value.isCacheTagsView) {
+        removeTagViews();
+    }
     initTagsView();
 };
-// vuex 中获取路由信息：如果是设置了固定的（isAffix），进行初始化显示
+// 获取路由信息：如果是设置了固定的（isAffix），进行初始化显示
 const initTagsView = () => {
-    if (getSession('tagsViewList') && themeConfig.value.isCacheTagsView) {
-        state.tagsViewList = getSession('tagsViewList');
+    const tagViews = getTagViews();
+    if (tagViews && themeConfig.value.isCacheTagsView) {
+        tagsViews.value = tagViews;
     } else {
-        state.tagsViewList?.map((v: any) => {
-            if (v.meta.isAffix && !v.meta.isHide) state.tagsViewList.push({ ...v });
+        tagsViews.value?.map((v: any) => {
+            if (v.isAffix && !v.isHide) {
+                tagsViews.value.push({ ...v });
+                keepAliveNamesStores.setCacheKeepAlive(v);
+            }
         });
         addTagsView(route.fullPath);
     }
     // 初始化当前元素(li)的下标
-    getTagsRefsIndex(route.fullPath);
+    setTagsRefsIndex(route.fullPath);
     // 添加初始化横向滚动条移动到对应位置
     tagsViewmoveToCurrentTag();
 };
 
 // 1、添加 tagsView：未设置隐藏（isHide）也添加到在 tagsView 中
 // path为fullPath
-const addTagsView = (path: string, to: any = null) => {
-    if (!to) {
-        to = route;
-    }
-
-    path = decodeURI(path);
-    for (let tv of state.tagsViewList) {
-        if (tv.fullPath === path) {
-            return false;
+const addTagsView = (path: string, to: any = null, tagViewIndex: number = -1) => {
+    nextTick(async () => {
+        if (!to) {
+            to = route;
         }
-    }
 
-    const tagView = { ...to };
-    // 防止Converting circular structure to JSON错误
-    tagView.matched = null;
-    tagView.redirectedFrom = null;
-    state.tagsViewList.push(tagView);
-    addBrowserSetSession(state.tagsViewList);
+        for (let tv of tagsViews.value) {
+            if (tv.path === path) {
+                return false;
+            }
+        }
+
+        const tagView = {
+            path: path,
+            name: to.name,
+            query: to.query,
+            title: to.meta.title,
+            icon: to.meta.icon,
+            isAffix: to.meta.isAffix,
+            isKeepAlive: to.meta.isKeepAlive,
+        };
+
+        if (tagViewIndex != -1) {
+            tagsViews.value.splice(tagViewIndex + 1, 0, tagView);
+        } else {
+            tagsViews.value.push(tagView);
+        }
+        await keepAliveNamesStores.addCachedView(tagView);
+        addBrowserSetSession(tagsViews.value);
+    });
 };
 
 // 2、刷新当前 tagsView：
 // path为fullPath
-const refreshCurrentTagsView = (path: string) => {
+const refreshCurrentTagsView = async (path: string) => {
+    const item = getTagsView(path);
+    await keepAliveNamesStores.delCachedView(item);
+    keepAliveNamesStores.addCachedView(item);
     mittBus.emit('onTagsViewRefreshRouterView', path);
+};
+
+const getTagsView = (path: string) => {
+    return tagsViews.value.find((v: any) => v.path === path);
 };
 
 // 3、关闭当前 tagsView：如果是设置了固定的（isAffix），不可以关闭
 // path为fullPath
 const closeCurrentTagsView = (path: string) => {
-    state.tagsViewList.map((v: any, k: number, arr: any) => {
-        if (!v.meta.isAffix) {
-            if (v.fullPath === path) {
-                state.tagsViewList.splice(k, 1);
+    tagsViews.value.map((v: TagsView, k: number, arr: any) => {
+        if (!v.isAffix) {
+            if (v.path === path) {
+                keepAliveNamesStores.delCachedView(v);
+                tagsViews.value.splice(k, 1);
                 setTimeout(() => {
                     if (state.routePath !== path) {
                         return;
                     }
-                    let next;
+                    let next: TagsView;
                     // 最后一个且高亮时
-                    if (state.tagsViewList.length === k) {
+                    if (tagsViews.value.length === k) {
                         next = k !== arr.length ? arr[k] : arr[arr.length - 1];
                     } else {
                         next = arr[k];
                     }
 
-                    if (next.meta.isDynamic) {
-                        router.push({ name: next.name, params: next.params });
-                    } else {
+                    if (next) {
                         router.push({ path: next.path, query: next.query });
+                    } else {
+                        router.push({ path: '/' });
                     }
                 }, 0);
             }
         }
     });
-    addBrowserSetSession(state.tagsViewList);
+    addBrowserSetSession(tagsViews.value);
 };
 
 // 4、关闭其它 tagsView：如果是设置了固定的（isAffix），不进行关闭
 const closeOtherTagsView = (path: string) => {
-    const oldTagViews = state.tagsViewList;
-    state.tagsViewList = [];
-    oldTagViews.map((v: any) => {
-        if (v.meta.isAffix && !v.meta.isHide) state.tagsViewList.push({ ...v });
+    const oldTagViews = tagsViews.value;
+    tagsViews.value = [];
+    oldTagViews.map((v: TagsView) => {
+        if (v.isAffix && !v.isHide) {
+            keepAliveNamesStores.delOthersCachedViews(v);
+            tagsViews.value.push({ ...v });
+        }
     });
     addTagsView(path);
 };
 
 // 5、关闭全部 tagsView：如果是设置了固定的（isAffix），不进行关闭
 const closeAllTagsView = (path: string) => {
-    const oldTagViews = state.tagsViewList;
-    state.tagsViewList = [];
+    keepAliveNamesStores.delAllCachedViews();
+    const oldTagViews = tagsViews.value;
+    tagsViews.value = [];
     oldTagViews.map((v: any) => {
-        if (v.meta.isAffix && !v.meta.isHide) {
-            state.tagsViewList.push({ ...v });
-            if (state.tagsViewList.some((v: any) => v.path === path)) router.push({ path, query: route.query });
-            else router.push({ path: v.path, query: route.query });
+        if (v.isAffix && !v.isHide) {
+            tagsViews.value.push({ ...v });
+            if (tagsViews.value.some((v: any) => v.path === path)) {
+                router.push({ path, query: route.query });
+            }
         }
     });
-    addBrowserSetSession(state.tagsViewList);
+    if (tagsViews.value) {
+        router.push({ path: '/' });
+    }
+    addBrowserSetSession(tagsViews.value);
 };
 // 6、开启当前页面全屏
 const openCurrenFullscreen = (path: string) => {
-    const item = state.tagsViewList.find((v: any) => v.fullPath === path);
+    const item = tagsViews.value.find((v: any) => v.path === path);
     nextTick(() => {
-        router.push({ path, query: item.query });
+        router.push({ path, query: item?.query });
         const element = document.querySelector('.layout-main');
         const screenfulls: any = screenfull;
         screenfulls.request(element);
@@ -203,17 +243,17 @@ const openCurrenFullscreen = (path: string) => {
 const onCurrentContextmenuClick = (data: any) => {
     // path为fullPath
     let { id, path } = data;
-    let currentTag = state.tagsViewList.find((v: any) => v.fullPath === path);
+    let currentTag = tagsViews.value.find((v: any) => v.path === path);
     switch (id) {
         case 0:
             refreshCurrentTagsView(path);
-            router.push({ path, query: currentTag.query });
+            router.push({ path, query: currentTag?.query });
             break;
         case 1:
             closeCurrentTagsView(path);
             break;
         case 2:
-            router.push({ path, query: currentTag.query });
+            router.push({ path, query: currentTag?.query });
             closeOtherTagsView(path);
             break;
         case 3:
@@ -225,8 +265,8 @@ const onCurrentContextmenuClick = (data: any) => {
     }
 };
 // 判断页面高亮
-const isActive = (route: any) => {
-    return route.fullPath === state.routePath;
+const isActive = (tagView: TagsView) => {
+    return tagView.path === state.routePath;
 };
 // 右键点击时：传 x,y 坐标值到子组件中（props）
 const onContextmenu = (v: any, e: any) => {
@@ -237,7 +277,7 @@ const onContextmenu = (v: any, e: any) => {
 };
 // 当前的 tagsView 项点击时
 const onTagsClick = (v: any, k: number) => {
-    state.routePath = decodeURI(v.fullPath);
+    state.routePath = decodeURI(v.path);
     state.tagsRefsIndex = k;
     router.push(v);
 };
@@ -302,9 +342,9 @@ const tagsViewmoveToCurrentTag = () => {
     });
 };
 // 获取 tagsView 的下标：用于处理 tagsView 点击时的横向滚动
-const getTagsRefsIndex = (path: string) => {
-    if (state.tagsViewList.length > 0) {
-        state.tagsRefsIndex = state.tagsViewList.findIndex((item: any) => item.fullPath === path);
+const setTagsRefsIndex = (path: string) => {
+    if (tagsViews.value.length > 0) {
+        state.tagsRefsIndex = tagsViews.value.findIndex((item: any) => item.path === path);
     }
 };
 // 设置 tagsView 可以进行拖拽
@@ -319,7 +359,7 @@ const initSortable = () => {
             onEnd: () => {
                 const sortEndList: any = [];
                 state.sortable.toArray().map((val: any) => {
-                    state.tagsViewList.map((v: any) => {
+                    tagsViews.value.map((v: any) => {
                         if (v.name === val) sortEndList.push({ ...v });
                     });
                 });
@@ -328,18 +368,6 @@ const initSortable = () => {
         });
     }
 };
-
-// 监听路由的变化，动态赋值给 tagsView
-// watch(
-// 	pinia.state,
-// 	(val) => {
-// 		if (val.tagsViewRoutes.tagsViewRoutes.length === state.tagsViewRoutesList.length) return false;
-// 		getTagsViewRoutes();
-// 	},
-// 	{
-// 		deep: true,
-// 	}
-// );
 
 // 页面加载前
 onBeforeMount(() => {
@@ -371,9 +399,10 @@ onMounted(() => {
 });
 // 路由更新时
 onBeforeRouteUpdate((to) => {
-    state.routePath = decodeURI(to.fullPath);
-    addTagsView(to.fullPath, to);
-    getTagsRefsIndex(to.fullPath);
+    const path = decodeURI(to.fullPath);
+    state.routePath = path;
+    addTagsView(path, to, state.tagsRefsIndex);
+    setTagsRefsIndex(path);
     tagsViewmoveToCurrentTag();
 });
 </script>

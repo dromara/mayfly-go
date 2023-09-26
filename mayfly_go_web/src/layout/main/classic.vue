@@ -15,10 +15,10 @@
 <script lang="ts" setup name="layoutClassic">
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import Aside from '@/views/layout/component/aside.vue';
-import Header from '@/views/layout/component/header.vue';
-import Main from '@/views/layout/component/main.vue';
-import TagsView from '@/views/layout/navBars/tagsView/tagsView.vue';
+import Aside from '@/layout/component/aside.vue';
+import Header from '@/layout/component/header.vue';
+import Main from '@/layout/component/main.vue';
+import TagsView from '@/layout/navBars/tagsView/tagsView.vue';
 
 const { themeConfig } = storeToRefs(useThemeConfig());
 </script>

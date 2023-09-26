@@ -1,24 +1,23 @@
 <template>
     <div class="el-menu-horizontal-warp">
         <el-scrollbar @wheel.prevent="onElMenuHorizontalScroll" ref="elMenuHorizontalScrollRef">
-            <el-menu router :default-active="state.defaultActive" background-color="transparent" mode="horizontal"
-                @select="onHorizontalSelect">
+            <el-menu router :default-active="state.defaultActive" background-color="transparent" mode="horizontal" @select="onHorizontalSelect">
                 <template v-for="val in menuLists">
                     <el-sub-menu :index="val.path" v-if="val.children && val.children.length > 0" :key="val.path">
                         <template #title>
-                            <SvgIcon :name="val.meta.icon"/>
+                            <SvgIcon :name="val.meta.icon" />
                             <span>{{ val.meta.title }}</span>
                         </template>
                         <SubItem :chil="val.children" />
                     </el-sub-menu>
                     <el-menu-item :index="val.path" :key="val?.path" v-else>
                         <template #title v-if="!val.meta.link || (val.meta.link && val.meta.linkType == 1)">
-                            <SvgIcon :name="val.meta.icon"/>
+                            <SvgIcon :name="val.meta.icon" />
                             {{ val.meta.title }}
                         </template>
                         <template #title v-else>
                             <a :href="val.meta.link" target="_blank">
-                                <SvgIcon :name="val.meta.icon"/>
+                                <SvgIcon :name="val.meta.icon" />
                                 {{ val.meta.title }}
                             </a>
                         </template>
@@ -32,7 +31,7 @@
 <script lang="ts" setup name="navMenuHorizontal">
 import { reactive, computed, getCurrentInstance, onMounted, nextTick } from 'vue';
 import { useRoute, onBeforeRouteUpdate } from 'vue-router';
-import SubItem from '@/views/layout/navMenu/subItem.vue';
+import SubItem from '@/layout/navMenu/subItem.vue';
 import { useRoutesList } from '@/store/routesList';
 import { useThemeConfig } from '@/store/themeConfig';
 import mittBus from '@/common/utils/mitt';

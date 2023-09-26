@@ -18,7 +18,7 @@ import { useKeepALiveNames } from '@/store/keepAliveNames';
  * @method import.meta.glob
  * @link 参考：https://cn.vitejs.dev/guide/features.html#json
  */
-const viewsModules: any = import.meta.glob(['../views/**/*.{vue,tsx}', '!../views/layout/**/*.{vue,tsx}']);
+const viewsModules: any = import.meta.glob(['../views/**/*.{vue,tsx}']);
 const dynamicViewsModules: Record<string, Function> = Object.assign({}, { ...viewsModules });
 
 // 添加静态路由
@@ -37,12 +37,10 @@ export function initAllFun() {
     useUserInfo().setUserInfo({});
     router.addRoute(pathMatch); // 添加404界面
     resetRoute(); // 删除/重置路由
-    // 添加动态路由
-    setFilterRouteEnd().forEach((route: any) => {
-        router.addRoute(route as unknown as RouteRecordRaw);
-    });
+    router.addRoute(dynamicRoutes[0]);
+
     // 过滤权限菜单
-    useRoutesList().setRoutesList(setFilterMenuFun(dynamicRoutes[0].children, useUserInfo().userInfo.menus));
+    useRoutesList().setRoutesList(dynamicRoutes[0].children);
 }
 
 // 后端控制路由：执行路由数据初始化
@@ -55,14 +53,25 @@ export async function initBackEndControlRoutesFun() {
     useUserInfo().setUserInfo({});
     // 获取路由
     let menuRoute = await getBackEndControlRoutes();
-    dynamicRoutes[0].children = backEndRouterConverter(menuRoute); // 处理路由（component）
+
+    const cacheList: Array<string> = [];
+    // 处理路由（component）
+    dynamicRoutes[0].children = backEndRouterConverter(menuRoute, (router: any) => {
+        // 可能为false时不存在isKeepAlive属性
+        if (!router.meta.isKeepAlive) {
+            router.meta.isKeepAlive = false;
+        }
+        if (router.meta.isKeepAlive) {
+            cacheList.push(router.name);
+        }
+    });
+    useKeepALiveNames().setCacheKeepAlive(cacheList);
+
     // 添加404界面
     router.addRoute(pathMatch);
     resetRoute(); // 删除/重置路由
-    // 添加动态路由
-    formatTwoStageRoutes(formatFlatteningRoutes(dynamicRoutes)).forEach((route: any) => {
-        router.addRoute(route as unknown as RouteRecordRaw);
-    });
+    router.addRoute(dynamicRoutes[0] as unknown as RouteRecordRaw);
+
     useRoutesList().setRoutesList(dynamicRoutes[0].children);
 }
 
@@ -79,8 +88,10 @@ export async function getBackEndControlRoutes() {
     }
 }
 
+type RouterConvCallbackFunc = (router: any) => void;
+
 // 后端控制路由，后端返回路由 转换为vue route
-export function backEndRouterConverter(routes: any, parentPath: string = '/') {
+export function backEndRouterConverter(routes: any, callbackFunc: RouterConvCallbackFunc = null as any, parentPath: string = '/') {
     if (!routes) return;
     return routes.map((item: any) => {
         if (!item.meta) {
@@ -115,7 +126,9 @@ export function backEndRouterConverter(routes: any, parentPath: string = '/') {
             item.redirect = item.meta.redirect;
             delete item.meta['redirect'];
         }
-        item.children && backEndRouterConverter(item.children, item.path);
+        // 存在回调，则执行回调
+        callbackFunc && callbackFunc(item);
+        item.children && backEndRouterConverter(item.children, callbackFunc, item.path);
         return item;
     });
 }
@@ -139,86 +152,6 @@ export function dynamicImport(dynamicViewsModules: Record<string, Function>, com
     if (matchKeys?.length > 1) {
         return false;
     }
-}
-
-// 多级嵌套数组处理成一维数组
-export function formatFlatteningRoutes(arr: any) {
-    if (arr.length <= 0) return false;
-    for (let i = 0; i < arr.length; i++) {
-        if (arr[i].children) {
-            arr = arr.slice(0, i + 1).concat(arr[i].children, arr.slice(i + 1));
-        }
-    }
-    return arr;
-}
-
-// 多级嵌套数组处理后的一维数组，再处理成 `定义动态路由` 的格式
-// 只保留二级：也就是二级以上全部处理成只有二级，keep-alive 支持二级缓存
-// isKeepAlive 处理 `name` 值，进行缓存。顶级关闭，全部不缓存
-export function formatTwoStageRoutes(arr: any) {
-    if (arr.length <= 0) return false;
-    const newArr: any = [];
-    const cacheList: Array<string> = [];
-    arr.forEach((v: any) => {
-        if (v.path === '/') {
-            newArr.push({ component: v.component, name: v.name, path: v.path, redirect: v.redirect, meta: v.meta, children: [] });
-        } else {
-            newArr[0].children.push({ ...v });
-            if (newArr[0].meta.isKeepAlive && v.meta.isKeepAlive) {
-                cacheList.push(v.name);
-            }
-        }
-    });
-    useKeepALiveNames().setCacheKeepAlive(cacheList);
-    return newArr;
-}
-
-// 判断路由code 是否包含当前登录用户menus字段中，menus为字符串code数组
-export function hasAnth(menus: any, route: any) {
-    if (route.meta && route.meta.code) {
-        return menus.includes(route.meta.code);
-    }
-    return true;
-}
-
-// 递归过滤有权限的路由
-export function setFilterMenuFun(routes: any, menus: any) {
-    const menu: any = [];
-    routes.forEach((route: any) => {
-        const item = { ...route };
-        if (hasAnth(menus, item)) {
-            if (item.children) {
-                item.children = setFilterMenuFun(item.children, menus);
-            }
-            menu.push(item);
-        }
-    });
-    return menu;
-}
-
-// 获取当前用户的权限去比对路由表，用于动态路由的添加
-export function setFilterRoute(chil: any) {
-    let filterRoute: any = [];
-    chil.forEach((route: any) => {
-        // 如果路由需要拥有指定code才可访问，则校验该用户菜单是否存在该code
-        if (route.meta.code) {
-            useUserInfo().userInfo.menus.forEach((m: any) => {
-                if (route.meta.code == m) {
-                    filterRoute.push({ ...route });
-                }
-            });
-        } else {
-            filterRoute.push({ ...route });
-        }
-    });
-    return filterRoute;
-}
-
-// 比对后的路由表，进行重新赋值
-export function setFilterRouteEnd() {
-    let filterRouteEnd: any = formatTwoStageRoutes(formatFlatteningRoutes(dynamicRoutes));
-    filterRouteEnd[0].children = setFilterRoute(filterRouteEnd[0].children);
-    return filterRouteEnd;
 }
 
 // 删除/重置路由
@@ -255,7 +188,7 @@ router.beforeEach(async (to, from, next) => {
     if (to.meta.title) NProgress.start();
 
     // 如果有标题参数，则再原标题后加上参数来区别
-    if (to.meta.titleRename) {
+    if (to.meta.titleRename && to.meta.title) {
         to.meta.title = templateResolve(to.meta.title as string, to.query);
     }
 

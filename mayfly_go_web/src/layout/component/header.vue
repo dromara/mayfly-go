@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import { computed } from 'vue';
-import NavBarsIndex from '@/views/layout/navBars/index.vue';
+import NavBarsIndex from '@/layout/navBars/index.vue';
 import { useThemeConfig } from '@/store/themeConfig';
 export default {
     name: 'layoutHeader',

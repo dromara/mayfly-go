@@ -14,10 +14,10 @@ import pinia from '@/store/index';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useRoutesList } from '@/store/routesList';
-import Breadcrumb from '@/views/layout/navBars/breadcrumb/breadcrumb.vue';
-import User from '@/views/layout/navBars/breadcrumb/user.vue';
-import Logo from '@/views/layout/logo/index.vue';
-import Horizontal from '@/views/layout/navMenu/horizontal.vue';
+import Breadcrumb from '@/layout/navBars/breadcrumb/breadcrumb.vue';
+import User from '@/layout/navBars/breadcrumb/user.vue';
+import Logo from '@/layout/logo/index.vue';
+import Horizontal from '@/layout/navMenu/horizontal.vue';
 import mittBus from '@/common/utils/mitt';
 
 const { themeConfig } = storeToRefs(useThemeConfig());

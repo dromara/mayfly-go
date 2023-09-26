@@ -1,16 +1,25 @@
 <template>
     <el-main class="layout-main">
-        <el-scrollbar class="layout-scrollbar" ref="layoutScrollbarRef"
+        <el-scrollbar
+            class="layout-scrollbar"
+            ref="layoutScrollbarRef"
             v-show="!state.currentRouteMeta.link && state.currentRouteMeta.linkType != 1"
-            :style="{ minHeight: `calc(100vh - ${state.headerHeight}` }">
+            :style="{ minHeight: `calc(100vh - ${state.headerHeight}` }"
+        >
             <LayoutParentView />
             <Footer v-if="themeConfig.isFooter" />
         </el-scrollbar>
-        <Link :style="{ height: `calc(100vh - ${state.headerHeight}` }" :meta="state.currentRouteMeta"
-            v-if="state.currentRouteMeta.link && state.currentRouteMeta.linkType == 2" />
-        <Iframes :style="{ height: `calc(100vh - ${state.headerHeight}` }" :meta="state.currentRouteMeta"
+        <Link
+            :style="{ height: `calc(100vh - ${state.headerHeight}` }"
+            :meta="state.currentRouteMeta"
+            v-if="state.currentRouteMeta.link && state.currentRouteMeta.linkType == 2"
+        />
+        <Iframes
+            :style="{ height: `calc(100vh - ${state.headerHeight}` }"
+            :meta="state.currentRouteMeta"
             v-if="state.currentRouteMeta.link && state.currentRouteMeta.linkType == 1 && state.isShowLink"
-            @getCurrentRouteMeta="onGetCurrentRouteMeta" />
+            @getCurrentRouteMeta="onGetCurrentRouteMeta"
+        />
     </el-main>
 </template>
 
@@ -19,10 +28,10 @@ import { reactive, getCurrentInstance, watch, onBeforeMount } from 'vue';
 import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import LayoutParentView from '@/views/layout/routerView/parent.vue';
-import Footer from '@/views/layout/footer/index.vue';
-import Link from '@/views/layout/routerView/link.vue';
-import Iframes from '@/views/layout/routerView/iframes.vue';
+import LayoutParentView from '@/layout/routerView/parent.vue';
+import Footer from '@/layout/footer/index.vue';
+import Link from '@/layout/routerView/link.vue';
+import Iframes from '@/layout/routerView/iframes.vue';
 
 const { proxy } = getCurrentInstance() as any;
 const { themeConfig } = storeToRefs(useThemeConfig());

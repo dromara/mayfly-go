@@ -10,10 +10,10 @@ import { onBeforeMount, onUnmounted } from 'vue';
 import { getLocal, setLocal } from '@/common/utils/storage';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import Defaults from '@/views/layout/main/defaults.vue';
-import Classic from '@/views/layout/main/classic.vue';
-import Transverse from '@/views/layout/main/transverse.vue';
-import Columns from '@/views/layout/main/columns.vue';
+import Defaults from '@/layout/main/defaults.vue';
+import Classic from '@/layout/main/classic.vue';
+import Transverse from '@/layout/main/transverse.vue';
+import Columns from '@/layout/main/columns.vue';
 import mittBus from '@/common/utils/mitt';
 
 const { themeConfig } = storeToRefs(useThemeConfig());

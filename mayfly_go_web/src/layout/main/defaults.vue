@@ -15,9 +15,9 @@
 <script lang="ts">
 import { computed, getCurrentInstance, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import Aside from '@/views/layout/component/aside.vue';
-import Header from '@/views/layout/component/header.vue';
-import Main from '@/views/layout/component/main.vue';
+import Aside from '@/layout/component/aside.vue';
+import Header from '@/layout/component/header.vue';
+import Main from '@/layout/component/main.vue';
 import { useThemeConfig } from '@/store/themeConfig';
 export default {
     name: 'layoutDefaults',

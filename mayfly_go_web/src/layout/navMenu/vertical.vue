@@ -1,21 +1,28 @@
 <template>
-    <el-menu router :default-active="state.defaultActive" background-color="transparent" :collapse="setIsCollapse"
-        :unique-opened="themeConfig.isUniqueOpened" :collapse-transition="false">
+    <el-menu
+        router
+        :default-active="state.defaultActive"
+        background-color="transparent"
+        :collapse="setIsCollapse"
+        :unique-opened="themeConfig.isUniqueOpened"
+        :collapse-transition="false"
+    >
         <template v-for="val in menuLists">
             <el-sub-menu :index="val.path" v-if="val.children && val.children.length > 0" :key="val.path">
                 <template #title>
-                    <SvgIcon :name="val.meta.icon"/>
+                    <SvgIcon :name="val.meta.icon" />
                     <span>{{ val.meta.title }}</span>
                 </template>
                 <SubItem :chil="val.children" />
             </el-sub-menu>
             <el-menu-item :index="val.path" :key="val?.path" v-else>
-                <SvgIcon :name="val.meta.icon"/>
+                <SvgIcon :name="val.meta.icon" />
                 <template #title v-if="!val.meta.link || (val.meta.link && val.meta.linkType == 1)">
                     <span>{{ val.meta.title }}</span>
                 </template>
                 <template #title v-else>
-                    <a :href="val.meta.link" target="_blank">{{ val.meta.title }}</a></template>
+                    <a :href="val.meta.link" target="_blank">{{ val.meta.title }}</a></template
+                >
             </el-menu-item>
         </template>
     </el-menu>
@@ -26,7 +33,7 @@ import { reactive, computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useRoute, onBeforeRouteUpdate } from 'vue-router';
-import SubItem from '@/views/layout/navMenu/subItem.vue';
+import SubItem from '@/layout/navMenu/subItem.vue';
 import mittBus from '@/common/utils/mitt';
 
 // 定义父组件传过来的值
