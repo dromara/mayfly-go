@@ -405,9 +405,7 @@ const toIndex = async () => {
         // 关闭 loading
         state.loading.signIn = true;
         ElMessage.success(`${currentTimeInfo}，欢迎回来！`);
-        if (await useWartermark()) {
-            saveUseWatermark(true);
-        }
+        saveUseWatermark(await useWartermark());
     }, 300);
 };
 

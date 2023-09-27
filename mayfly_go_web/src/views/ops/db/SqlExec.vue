@@ -2,7 +2,12 @@
     <div>
         <el-row class="mb5">
             <el-col :span="4">
-                <el-button type="primary" icon="plus" @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases.split(' ') }, state.db)" size="small"
+                <el-button
+                    :disabled="!state.db || !nowDbInst.id"
+                    type="primary"
+                    icon="plus"
+                    @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases?.split(' ') }, state.db)"
+                    size="small"
                     >新建查询</el-button
                 >
             </el-col>
