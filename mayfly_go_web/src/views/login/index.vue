@@ -230,8 +230,8 @@ const oauth2Login = () => {
                 flex-direction: column;
                 height: 100%;
                 .login-right-warp-main-title {
-                    height: 130px;
-                    line-height: 130px;
+                    height: 110px;
+                    line-height: 110px;
                     font-size: 27px;
                     text-align: center;
                     letter-spacing: 3px;

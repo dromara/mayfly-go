@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"mayfly-go/internal/db/api/form"
@@ -16,6 +17,7 @@ import (
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/ws"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -176,9 +178,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			if err := recover(); err != nil {
 				var errInfo string
 				switch t := err.(type) {
-				case biz.BizError:
-					errInfo = t.Error()
-				case *biz.BizError:
+				case error:
 					errInfo = t.Error()
 				}
 				if len(errInfo) > 0 {
@@ -195,17 +195,9 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			LoginAccount: rc.LoginAccount,
 		}
 
-		tokens := sqlparser.NewTokenizer(file)
-		for {
-			stmt, err := sqlparser.ParseNext(tokens)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
-				return
-			}
-			sql := sqlparser.String(stmt)
+		sqlScanner := SplitSqls(file)
+		for sqlScanner.Scan() {
+			sql := sqlScanner.Text()
 			execReq.Sql = sql
 			// 需要记录执行记录
 			if logExecRecord {
@@ -266,9 +258,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		var msg string
 		if err := recover(); err != nil {
 			switch t := err.(type) {
-			case biz.BizError:
-				msg = t.Error()
-			case *biz.BizError:
+			case error:
 				msg = t.Error()
 			}
 		}
@@ -486,4 +476,36 @@ func getDbName(g *gin.Context) string {
 	db := g.Query("db")
 	biz.NotEmpty(db, "db不能为空")
 	return db
+}
+
+// 根据;\n切割sql
+func SplitSqls(r io.Reader) *bufio.Scanner {
+	scanner := bufio.NewScanner(r)
+	re := regexp.MustCompile(`\s*;\s*\n`)
+
+	scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+		if atEOF && len(data) == 0 {
+			return 0, nil, io.EOF
+		}
+
+		match := re.FindIndex(data)
+
+		if match != nil {
+			// 如果找到了";\n"，判断是否为最后一行
+			if match[1] == len(data) {
+				// 如果是最后一行，则返回完整的切片
+				return len(data), data, nil
+			}
+			// 否则，返回到";\n"之后，并且包括";\n"本身
+			return match[1], data[:match[1]], nil
+		}
+
+		if atEOF {
+			return len(data), data, nil
+		}
+
+		return 0, nil, nil
+	})
+
+	return scanner
 }

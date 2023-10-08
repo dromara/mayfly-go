@@ -504,7 +504,7 @@ DROP TABLE IF EXISTS `t_sys_msg`;
 CREATE TABLE `t_sys_msg` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `type` int(255) DEFAULT NULL,
-  `msg` varchar(255) NOT NULL,
+  `msg` varchar(2000) NOT NULL,
   `recipient_id` bigint(20) DEFAULT NULL COMMENT '接收人id，-1为所有接收',
   `creator_id` bigint(20) DEFAULT NULL,
   `creator` varchar(36) DEFAULT NULL,
