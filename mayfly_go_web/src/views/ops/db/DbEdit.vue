@@ -10,11 +10,11 @@
             width="38%"
         >
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-form-item prop="tagId" label="标签:" required>
+                <el-form-item prop="tagId" label="标签" required>
                     <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
                 </el-form-item>
 
-                <el-form-item prop="instanceId" label="数据库实例:" required>
+                <el-form-item prop="instanceId" label="数据库实例" required>
                     <el-select
                         :disabled="form.id !== undefined"
                         remote
@@ -37,11 +37,11 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item prop="name" label="别名:" required>
+                <el-form-item prop="name" label="别名" required>
                     <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
                 </el-form-item>
 
-                <el-form-item prop="database" label="数据库名:" required>
+                <el-form-item prop="database" label="数据库名" required>
                     <el-select
                         @change="changeDatabase"
                         v-model="databaseList"
@@ -58,7 +58,7 @@
                     </el-select>
                 </el-form-item>
 
-                <el-form-item prop="remark" label="备注:">
+                <el-form-item prop="remark" label="备注">
                     <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
                 </el-form-item>
             </el-form>

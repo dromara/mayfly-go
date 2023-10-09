@@ -2,27 +2,27 @@
     <div>
         <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="500px" :destroy-on-close="true">
             <el-form ref="acForm" :rules="rules" :model="form" label-width="auto">
-                <el-form-item prop="name" label="名称:" required>
+                <el-form-item prop="name" label="名称" required>
                     <el-input v-model="form.name"></el-input>
                 </el-form-item>
-                <el-form-item prop="authMethod" label="认证方式:" required>
+                <el-form-item prop="authMethod" label="认证方式" required>
                     <el-select style="width: 100%" v-model="form.authMethod" placeholder="请选择认证方式">
                         <el-option key="1" label="密码" :value="1"> </el-option>
                         <el-option key="2" label="密钥" :value="2"> </el-option>
                     </el-select>
                 </el-form-item>
-                <el-form-item v-if="form.authMethod == 1" prop="password" label="密码:">
+                <el-form-item v-if="form.authMethod == 1" prop="password" label="密码">
                     <el-input type="password" show-password clearable v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password">
                     </el-input>
                 </el-form-item>
-                <el-form-item v-if="form.authMethod == 2" prop="password" label="秘钥:">
+                <el-form-item v-if="form.authMethod == 2" prop="password" label="秘钥">
                     <el-input type="textarea" :rows="5" v-model="form.password" placeholder="请将私钥文件内容拷贝至此"> </el-input>
                 </el-form-item>
-                <el-form-item v-if="form.authMethod == 2" prop="passphrase" label="秘钥密码:">
+                <el-form-item v-if="form.authMethod == 2" prop="passphrase" label="秘钥密码">
                     <el-input type="password" v-model="form.passphrase"> </el-input>
                 </el-form-item>
 
-                <el-form-item label="备注:">
+                <el-form-item label="备注">
                     <el-input v-model="form.remark" type="textarea" :rows="2"></el-input>
                 </el-form-item>
             </el-form>

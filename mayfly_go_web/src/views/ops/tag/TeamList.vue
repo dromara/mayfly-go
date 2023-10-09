@@ -35,10 +35,10 @@
 
         <el-dialog width="400px" title="团队编辑" :before-close="cancelSaveTeam" v-model="addTeamDialog.visible">
             <el-form ref="teamForm" :model="addTeamDialog.form" label-width="auto">
-                <el-form-item prop="name" label="团队名:" required>
+                <el-form-item prop="name" label="团队名" required>
                     <el-input v-model="addTeamDialog.form.name" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item label="备注:">
+                <el-form-item label="备注">
                     <el-input v-model="addTeamDialog.form.remark" auto-complete="off"></el-input>
                 </el-form-item>
             </el-form>
@@ -52,7 +52,7 @@
 
         <el-dialog width="500px" :title="showTagDialog.title" :before-close="closeTagDialog" v-model="showTagDialog.visible">
             <el-form label-width="auto">
-                <el-form-item prop="tag" label="标签:">
+                <el-form-item prop="tag" label="标签">
                     <el-tree-select
                         ref="tagTreeRef"
                         style="width: 100%"
@@ -111,7 +111,7 @@
 
             <el-dialog width="400px" title="添加成员" :before-close="cancelAddMember" v-model="showMemDialog.addVisible">
                 <el-form :model="showMemDialog.memForm" label-width="auto">
-                    <el-form-item label="账号:">
+                    <el-form-item label="账号">
                         <el-select
                             style="width: 100%"
                             remote
@@ -344,7 +344,7 @@ const saveTags = async () => {
     closeTagDialog();
 };
 
-const tagTreeNodeCheck = (data: any) => {
+const tagTreeNodeCheck = () => {
     // const node = tagTreeRef.value.getNode(data.id);
     // console.log(node);
     // // state.showTagDialog.tagTreeTeams = [16]

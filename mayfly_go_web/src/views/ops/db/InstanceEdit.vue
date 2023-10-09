@@ -4,16 +4,16 @@
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item prop="name" label="别名:" required>
+                        <el-form-item prop="name" label="别名" required>
                             <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
                         </el-form-item>
-                        <el-form-item prop="type" label="类型:" required>
+                        <el-form-item prop="type" label="类型" required>
                             <el-select style="width: 100%" v-model="form.type" placeholder="请选择数据库类型">
                                 <el-option key="item.id" label="mysql" value="mysql"> </el-option>
                                 <el-option key="item.id" label="postgres" value="postgres"> </el-option>
                             </el-select>
                         </el-form-item>
-                        <el-form-item prop="host" label="host:" required>
+                        <el-form-item prop="host" label="host" required>
                             <el-col :span="18">
                                 <el-input :disabled="form.id !== undefined" v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
                             </el-col>
@@ -22,10 +22,10 @@
                                 <el-input type="number" v-model.number="form.port" placeholder="请输入端口"></el-input>
                             </el-col>
                         </el-form-item>
-                        <el-form-item prop="username" label="用户名:" required>
+                        <el-form-item prop="username" label="用户名" required>
                             <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
                         </el-form-item>
-                        <el-form-item prop="password" label="密码:">
+                        <el-form-item prop="password" label="密码">
                             <el-input type="password" show-password v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password">
                                 <template v-if="form.id && form.id != 0" #suffix>
                                     <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click" :content="pwd">
@@ -39,13 +39,13 @@
                             </el-input>
                         </el-form-item>
 
-                        <el-form-item prop="remark" label="备注:">
+                        <el-form-item prop="remark" label="备注">
                             <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
                         </el-form-item>
                     </el-tab-pane>
 
                     <el-tab-pane label="其他配置" name="other">
-                        <el-form-item prop="params" label="连接参数:">
+                        <el-form-item prop="params" label="连接参数">
                             <el-input v-model.trim="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2">
                                 <template #suffix>
                                     <el-link
@@ -60,7 +60,7 @@
                             </el-input>
                         </el-form-item>
 
-                        <el-form-item prop="sshTunnelMachineId" label="SSH隧道:">
+                        <el-form-item prop="sshTunnelMachineId" label="SSH隧道">
                             <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
                         </el-form-item>
                     </el-tab-pane>

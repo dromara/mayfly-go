@@ -2,13 +2,13 @@
     <div>
         <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="750px" :destroy-on-close="true">
             <el-form ref="configForm" :model="form" label-width="auto">
-                <el-form-item prop="name" label="配置项:" required>
+                <el-form-item prop="name" label="配置项" required>
                     <el-input v-model="form.name"></el-input>
                 </el-form-item>
-                <el-form-item prop="key" label="配置key:" required>
+                <el-form-item prop="key" label="配置key" required>
                     <el-input :disabled="form.id != null" v-model="form.key"></el-input>
                 </el-form-item>
-                <el-form-item prop="permission" label="权限:">
+                <el-form-item prop="permission" label="权限">
                     <el-select
                         style="width: 100%"
                         remote
@@ -59,7 +59,7 @@
                 <!-- <el-form-item prop="value" label="配置值:" required>
                     <el-input v-model="form.value"></el-input>
                 </el-form-item> -->
-                <el-form-item label="备注:">
+                <el-form-item label="备注">
                     <el-input v-model="form.remark" type="textarea" :rows="2"></el-input>
                 </el-form-item>
             </el-form>

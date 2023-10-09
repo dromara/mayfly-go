@@ -4,7 +4,7 @@
             <el-form :model="form" ref="mongoForm" :rules="rules" label-width="85px">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item prop="tagId" label="标签:" required>
+                        <el-form-item prop="tagId" label="标签" required>
                             <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
                         </el-form-item>
 
@@ -23,7 +23,7 @@
                     </el-tab-pane>
 
                     <el-tab-pane label="其他配置" name="other">
-                        <el-form-item prop="sshTunnelMachineId" label="SSH隧道:">
+                        <el-form-item prop="sshTunnelMachineId" label="SSH隧道">
                             <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
                         </el-form-item>
                     </el-tab-pane>
