@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/domain/entity"
 	msgapp "mayfly-go/internal/msg/application"
+	msgdto "mayfly-go/internal/msg/application/dto"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
@@ -16,7 +17,6 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/stringx"
-	"mayfly-go/pkg/ws"
 	"regexp"
 	"strconv"
 	"strings"
@@ -182,7 +182,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 					errInfo = t.Error()
 				}
 				if len(errInfo) > 0 {
-					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)))
+					d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)))
 				}
 			}
 		}()
@@ -207,11 +207,11 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			}
 
 			if err != nil {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] -> sql=[%s] 执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), sql, err.Error())))
+				d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] -> sql=[%s] 执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), sql, err.Error())))
 				return
 			}
 		}
-		d.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("[%s]执行完成 -> %s", filename, dbConn.Info.GetLogDesc())))
+		d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("[%s]执行完成 -> %s", filename, dbConn.Info.GetLogDesc())))
 	}()
 }
 
@@ -265,7 +265,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		if len(msg) > 0 {
 			msg = "数据库导出失败: " + msg
 			writer.WriteString(msg)
-			d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("数据库导出失败", msg))
+			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("数据库导出失败", msg))
 		}
 		writer.Close()
 	}()

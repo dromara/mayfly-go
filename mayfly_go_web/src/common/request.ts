@@ -29,7 +29,7 @@ enum ResultEnum {
 }
 
 const baseUrl: string = config.baseApiUrl;
-const baseWsUrl: string = config.baseWsUrl;
+// const baseWsUrl: string = config.baseWsUrl;
 
 /**
  * 通知错误消息
@@ -43,7 +43,7 @@ function notifyErrorMsg(msg: string) {
 // create an axios instance
 const service = Axios.create({
     baseURL: baseUrl, // url = base url + request url
-    timeout: 20000, // request timeout
+    timeout: 60000, // request timeout
 });
 
 // request interceptor
