@@ -7,7 +7,7 @@ import (
 )
 
 // 心跳间隔
-var heartbeatInterval = 25 * time.Second
+const heartbeatInterval = 25 * time.Second
 
 // 连接管理
 type ClientManager struct {

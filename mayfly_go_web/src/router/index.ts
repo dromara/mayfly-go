@@ -206,7 +206,7 @@ router.beforeEach(async (to, from, next) => {
 
         if (SysWs) {
             SysWs.close();
-            SysWs = null;
+            SysWs = undefined;
         }
         return;
     }
