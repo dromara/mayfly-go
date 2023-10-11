@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"github.com/lib/pq"
 	"io"
 	"mayfly-go/pkg/utils/uniqueid"
 	"mayfly-go/pkg/ws"
@@ -19,13 +18,14 @@ import (
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/sqlparser"
 	"mayfly-go/pkg/utils/stringx"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kanzihuang/vitess/go/vt/sqlparser"
+	"github.com/lib/pq"
 )
 
 type Db struct {
@@ -211,13 +211,8 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 		Terminated:         true,
 	}).WithCategory(progressCategory))
 
-	var parser sqlparser.Parser
-	if dbConn.Info.Type == entity.DbTypeMysql {
-		parser = sqlparser.NewMysqlParser(file)
-	} else {
-		parser = sqlparser.NewPostgresParser(file)
-	}
-
+	var sql string
+	tokenizer := sqlparser.NewReaderTokenizer(file, sqlparser.WithBufferCache())
 	ticker := time.NewTicker(time.Second * 1)
 	defer ticker.Stop()
 	for {
@@ -231,7 +226,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			}).WithCategory(progressCategory))
 		default:
 		}
-		err = parser.Next()
+		sql, err = sqlparser.SplitNext(tokenizer)
 		if err == io.EOF {
 			break
 		}
@@ -239,7 +234,6 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
 			return
 		}
-		sql := parser.Current()
 		const prefixUse = "use "
 		if strings.HasPrefix(sql, prefixUse) {
 			dbNameExec := strings.Trim(sql[len(prefixUse):], " `;\n")

@@ -13,7 +13,6 @@ require (
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/gorilla/websocket v1.5.0
-	github.com/kanzihuang/vitess/go/vt/sqlparser v0.0.0-20231007020222-b91ee5ef3b31
 	github.com/lib/pq v1.10.9
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230712084735-068dc2aee82d
 	github.com/mojocn/base64Captcha v1.3.5 // 验证码
@@ -33,6 +32,7 @@ require (
 )
 
 require (
+	github.com/kanzihuang/vitess/go/vt/sqlparser v0.0.0-20231012144002-84558a7213d7
 	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
 	gorm.io/driver/sqlite v1.5.1
 )
