@@ -2,10 +2,12 @@ package api
 
 import (
 	"fmt"
-	"github.com/lib/pq"
 	"io"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/uniqueid"
 	"mayfly-go/pkg/ws"
+
+	"github.com/lib/pq"
 
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
@@ -182,9 +184,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	defer func() {
 		var errInfo string
 		switch t := recover().(type) {
-		case biz.BizError:
-			errInfo = t.Error()
-		case *biz.BizError:
+		case error:
 			errInfo = t.Error()
 		case string:
 			errInfo = t
@@ -325,7 +325,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		d.dumpDb(writer, dbId, dbName, tables, needStruct, needData, len(dbNames) > 1)
 	}
 
-	rc.ReqParam = fmt.Sprintf("DB[id=%d, tag=%s, name=%s, databases=%s, tables=%s, dumpType=%s]", db.Id, db.TagPath, db.Name, dbNamesStr, tablesStr, dumpType)
+	rc.ReqParam = collx.Kvs("db", db, "databases", dbNamesStr, "tables", tablesStr, "dumpType", dumpType)
 }
 
 func escapeSql(dbType string, sql string) string {

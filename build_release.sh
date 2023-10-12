@@ -76,10 +76,10 @@ function build() {
     if [ "${copyDocScript}" == "1" ] ; then
         echo_green "拷贝脚本等资源文件[config.yml.example、mayfly-go.sql、readme.txt、startup.sh、shutdown.sh]"
         cp ${server_folder}/config.yml.example ${toFolder}
-        cp ${server_folder}/mayfly-go.sql ${toFolder}
         cp ${server_folder}/readme.txt ${toFolder}
-        cp ${server_folder}/startup.sh ${toFolder}
-        cp ${server_folder}/shutdown.sh ${toFolder}
+        cp ${server_folder}/resources/script/startup.sh ${toFolder}
+        cp ${server_folder}/resources/script/shutdown.sh ${toFolder}
+        cp ${server_folder}/resources/script/sql/mayfly-go.sql ${toFolder}
     fi
 
     echo_yellow ">>>>>>>>>>>>>>>>>>>${os}-${arch}打包构建完成<<<<<<<<<<<<<<<<<<<<\n"

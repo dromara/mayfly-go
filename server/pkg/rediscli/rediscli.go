@@ -23,8 +23,11 @@ func Get(key string) (string, error) {
 }
 
 // set key value
-func Set(key string, val string, expiration time.Duration) {
-	cli.Set(context.TODO(), key, val, expiration)
+func Set(key string, val string, expiration time.Duration) error {
+	if expiration < 0 {
+		expiration = 0
+	}
+	return cli.Set(context.TODO(), key, val, expiration).Err()
 }
 
 func Del(key string) {
