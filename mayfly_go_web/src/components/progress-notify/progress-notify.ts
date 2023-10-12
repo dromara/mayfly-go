@@ -1,14 +1,12 @@
-export const buildProgressProps = () : any =>  {
+export const buildProgressProps = (): any => {
     return {
         progress: {
             sqlFileName: {
-                type: String
+                type: String,
             },
             executedStatements: {
-                type: Number
+                type: Number,
             },
         },
     };
-}
-
-
+};

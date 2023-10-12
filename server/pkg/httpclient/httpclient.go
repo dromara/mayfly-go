@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"mime/multipart"
 	"net/http"
@@ -56,7 +58,7 @@ func (r *RequestWrapper) Timeout(timeout int) *RequestWrapper {
 	return r
 }
 
-func (r *RequestWrapper) GetByQuery(queryMap map[string]any) *ResponseWrapper {
+func (r *RequestWrapper) GetByQuery(queryMap collx.M) *ResponseWrapper {
 	var params string
 	for k, v := range queryMap {
 		if params != "" {
@@ -104,7 +106,7 @@ func (r *RequestWrapper) PostForm(params string) *ResponseWrapper {
 	return sendRequest(r)
 }
 
-func (r *RequestWrapper) PostMulipart(files []MultipartFile, reqParams map[string]string) *ResponseWrapper {
+func (r *RequestWrapper) PostMulipart(files []MultipartFile, reqParams collx.M) *ResponseWrapper {
 	buf := &bytes.Buffer{}
 	// 文件写入 buf
 	writer := multipart.NewWriter(buf)
@@ -130,7 +132,7 @@ func (r *RequestWrapper) PostMulipart(files []MultipartFile, reqParams map[strin
 	}
 	// 如果有其他参数，则写入body
 	for k, v := range reqParams {
-		if err := writer.WriteField(k, v); err != nil {
+		if err := writer.WriteField(k, anyx.ConvString(v)); err != nil {
 			return &ResponseWrapper{err: err}
 		}
 	}

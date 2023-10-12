@@ -53,7 +53,7 @@ func (a *Account) GetPermissions(rc *req.Ctx) {
 	}
 	// 保存该账号的权限codes
 	req.SavePermissionCodes(account.Id, permissions)
-	rc.ResData = map[string]any{
+	rc.ResData = collx.M{
 		"menus":       menus.ToTrees(0),
 		"permissions": permissions,
 	}

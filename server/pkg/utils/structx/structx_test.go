@@ -2,6 +2,7 @@ package structx
 
 import (
 	"fmt"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"reflect"
 	"strings"
@@ -160,7 +161,7 @@ func getPrefixKeyMap(m map[string]any) map[string]map[string]any {
 		prefix := k[0:lastIndex]
 		m2 := key2map[prefix]
 		if m2 == nil {
-			key2map[prefix] = map[string]any{k[lastIndex+1:]: v}
+			key2map[prefix] = collx.M{k[lastIndex+1:]: v}
 		} else {
 			m2[k[lastIndex+1:]] = v
 		}

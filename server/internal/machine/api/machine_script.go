@@ -9,6 +9,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
 	"strconv"
@@ -70,7 +71,7 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 
 	res, err := cli.Run(script)
 	// 记录请求参数
-	rc.ReqParam = jsonx.Kvs("machine", cli.GetMachine(), "scriptId", scriptId, "name", ms.Name)
+	rc.ReqParam = collx.Kvs("machine", cli.GetMachine(), "scriptId", scriptId, "name", ms.Name)
 	if res == "" {
 		biz.ErrIsNilAppendErr(err, "执行命令失败：%s")
 	}

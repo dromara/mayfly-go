@@ -6,6 +6,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 	"time"
 )
 
@@ -49,7 +50,7 @@ func (r *Redis) Sscan(rc *req.Ctx) {
 	cmd := r.getRedisIns(rc).GetCmdable()
 	keys, cursor, err := cmd.SScan(context.TODO(), scan.Key, scan.Cursor, scan.Match, scan.Count).Result()
 	biz.ErrIsNilAppendErr(err, "sscan失败: %s")
-	rc.ResData = map[string]any{
+	rc.ResData = collx.M{
 		"keys":   keys,
 		"cursor": cursor,
 	}

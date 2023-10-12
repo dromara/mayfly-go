@@ -8,7 +8,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils/jsonx"
+	"mayfly-go/pkg/utils/collx"
 	"strings"
 	"sync"
 	"time"
@@ -132,7 +132,7 @@ func (r *Redis) TtlKey(rc *req.Ctx) {
 
 func (r *Redis) DeleteKey(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisIns(rc)
-	rc.ReqParam = jsonx.Kvs("redis", ri.Info, "key", key)
+	rc.ReqParam = collx.Kvs("redis", ri.Info, "key", key)
 	ri.GetCmdable().Del(context.Background(), key)
 }
 
@@ -141,7 +141,7 @@ func (r *Redis) RenameKey(rc *req.Ctx) {
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
 	ri := r.getRedisIns(rc)
-	rc.ReqParam = jsonx.Kvs("redis", ri.Info, "rename", form)
+	rc.ReqParam = collx.Kvs("redis", ri.Info, "rename", form)
 	ri.GetCmdable().Rename(context.Background(), form.Key, form.NewKey)
 }
 
@@ -150,14 +150,14 @@ func (r *Redis) ExpireKey(rc *req.Ctx) {
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
 	ri := r.getRedisIns(rc)
-	rc.ReqParam = jsonx.Kvs("redis", ri.Info, "expire", form)
+	rc.ReqParam = collx.Kvs("redis", ri.Info, "expire", form)
 	ri.GetCmdable().Expire(context.Background(), form.Key, time.Duration(form.Seconds)*time.Second)
 }
 
 // 移除过期时间
 func (r *Redis) PersistKey(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisIns(rc)
-	rc.ReqParam = jsonx.Kvs("redis", ri.Info, "key", key)
+	rc.ReqParam = collx.Kvs("redis", ri.Info, "key", key)
 	ri.GetCmdable().Persist(context.Background(), key)
 }
 

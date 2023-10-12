@@ -3,7 +3,6 @@ package application
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
@@ -11,6 +10,8 @@ import (
 	"mayfly-go/pkg/model"
 	"strconv"
 	"strings"
+
+	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 )
 
 type DbSqlExecReq struct {

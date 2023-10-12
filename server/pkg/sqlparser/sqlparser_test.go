@@ -1,11 +1,11 @@
 package sqlparser
 
 import (
-	"github.com/kanzihuang/vitess/go/vt/sqlparser"
-	"github.com/stretchr/testify/require"
-	sqlparser_xwb1989 "github.com/xwb1989/sqlparser"
 	"strings"
 	"testing"
+
+	"github.com/kanzihuang/vitess/go/vt/sqlparser"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_ParseNext_WithCurrentDate(t *testing.T) {
@@ -45,22 +45,22 @@ func Test_ParseNext_WithCurrentDate(t *testing.T) {
 			require.Equal(t, test.want, sqlparser.String(tree))
 		})
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			token := sqlparser_xwb1989.NewTokenizer(strings.NewReader(test.input))
-			tree, err := sqlparser_xwb1989.ParseNext(token)
-			if len(test.err) > 0 {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), test.err)
-				return
-			}
-			require.NoError(t, err)
-			if len(test.want) == 0 {
-				test.want = test.input
-			}
-			require.Equal(t, test.wantXwb1989, sqlparser_xwb1989.String(tree))
-		})
-	}
+	// for _, test := range tests {
+	// 	t.Run(test.name, func(t *testing.T) {
+	// 		token := sqlparser_xwb1989.NewTokenizer(strings.NewReader(test.input))
+	// 		tree, err := sqlparser_xwb1989.ParseNext(token)
+	// 		if len(test.err) > 0 {
+	// 			require.Error(t, err)
+	// 			require.Contains(t, err.Error(), test.err)
+	// 			return
+	// 		}
+	// 		require.NoError(t, err)
+	// 		if len(test.want) == 0 {
+	// 			test.want = test.input
+	// 		}
+	// 		require.Equal(t, test.wantXwb1989, sqlparser_xwb1989.String(tree))
+	// 	})
+	// }
 }
 
 func Test_SplitSqls(t *testing.T) {

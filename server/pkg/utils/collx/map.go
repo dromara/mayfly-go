@@ -1,44 +1,24 @@
 package collx
 
-import (
-	"reflect"
-	"strconv"
-)
+import "mayfly-go/pkg/utils/stringx"
 
-func GetString4Map(m map[string]any, key string) string {
-	return m[key].(string)
-}
+// M is a shortcut for map[string]any
+type M map[string]any
 
-func GetInt4Map(m map[string]any, key string) int {
-	i := m[key]
-	iKind := reflect.TypeOf(i).Kind()
-	if iKind == reflect.Int {
-		return i.(int)
+// 将偶数个元素转为对应的M (map[string]any)
+//
+// 偶数索引为key，奇数为value
+func Kvs(elements ...any) M {
+	myMap := make(map[string]any)
+
+	for i := 0; i < len(elements); i += 2 {
+		key := stringx.AnyToStr(elements[i])
+		if i+1 < len(elements) {
+			value := elements[i+1]
+			myMap[key] = value
+		} else {
+			myMap[key] = nil
+		}
 	}
-	if iKind == reflect.String {
-		i, _ := strconv.Atoi(i.(string))
-		return i
-	}
-	return 0
-}
-
-// map构造器
-type mapBuilder struct {
-	m map[string]any
-}
-
-func MapBuilder(key string, value any) *mapBuilder {
-	mb := new(mapBuilder)
-	mb.m = make(map[string]any, 4)
-	mb.m[key] = value
-	return mb
-}
-
-func (mb *mapBuilder) Put(key string, value any) *mapBuilder {
-	mb.m[key] = value
-	return mb
-}
-
-func (mb *mapBuilder) ToMap() map[string]any {
-	return mb.m
+	return myMap
 }

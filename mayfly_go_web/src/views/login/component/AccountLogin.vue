@@ -160,7 +160,7 @@ const baseInfoFormRef: any = ref(null);
 
 const state = reactive({
     accountLoginSecurity: {
-        useCaptcha: true,
+        useCaptcha: false,
         useOtp: false,
         loginFailCount: 5,
         loginFailMin: 10,

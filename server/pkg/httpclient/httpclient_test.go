@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"fmt"
+	"mayfly-go/pkg/utils/collx"
 	"testing"
 )
 
@@ -26,7 +27,7 @@ func TestGetBodyToMap(t *testing.T) {
 func TestGetQueryBodyToMap(t *testing.T) {
 	res, err := NewRequest("http://go.mayfly.run/api/syslogs").
 		Header("Authorization", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2OTUzOTQ5NTIsImlkIjoxLCJ1c2VybmFtZSI6ImFkbWluIn0.pGrczVZqk5nlId-FZPkjW_O5Sw3-2yjgzACp_j4JEXY").
-		GetByQuery(map[string]any{"pageNum": 1, "pageSize": 10}).
+		GetByQuery(collx.M{"pageNum": 1, "pageSize": 10}).
 		BodyToMap()
 	fmt.Println(err)
 	fmt.Println(res["msg"])

@@ -11,6 +11,7 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/otp"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/netx"
 	"mayfly-go/pkg/utils/stringx"
@@ -29,7 +30,7 @@ func LastLoginCheck(account *sysentity.Account, accountLoginSecurity *config.Acc
 	biz.IsTrue(account.IsEnable(), "该账号不可用")
 	username := account.Username
 
-	res := map[string]any{
+	res := collx.M{
 		"name":          account.Name,
 		"username":      username,
 		"lastLoginTime": account.LastLoginTime,
