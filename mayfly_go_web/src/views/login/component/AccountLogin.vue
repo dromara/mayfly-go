@@ -132,7 +132,7 @@ import { nextTick, onMounted, ref, toRefs, reactive, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { initRouter } from '@/router/index';
-import { saveToken, saveUser, saveUseWatermark } from '@/common/utils/storage';
+import { saveToken, saveUser } from '@/common/utils/storage';
 import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';
@@ -142,13 +142,17 @@ import { useUserInfo } from '@/store/userInfo';
 import QrcodeVue from 'qrcode.vue';
 import { personApi } from '@/views/personal/api';
 import { AccountUsernamePattern } from '@/common/pattern';
-import { getToken } from '../../../common/utils/storage';
+import { getToken } from '@/common/utils/storage';
+import { useThemeConfig } from '@/store/themeConfig';
 
 const rules = {
     username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
     password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
     captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
 };
+
+// 定义变量内容
+const storesThemeConfig = useThemeConfig();
 
 const route = useRoute();
 const router = useRouter();
@@ -405,7 +409,8 @@ const toIndex = async () => {
         // 关闭 loading
         state.loading.signIn = true;
         ElMessage.success(`${currentTimeInfo}，欢迎回来！`);
-        saveUseWatermark(await useWartermark());
+        // 水印信息配置
+        storesThemeConfig.setWatermarkConfig(await useWartermark());
     }, 300);
 };
 

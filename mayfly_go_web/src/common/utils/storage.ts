@@ -30,15 +30,6 @@ export function getThemeConfig() {
     return getLocal('themeConfig');
 }
 
-// 获取是否开启水印
-export function getUseWatermark() {
-    return getLocal('useWatermark');
-}
-
-export function saveUseWatermark(useWatermark: boolean) {
-    setLocal('useWatermark', useWatermark);
-}
-
 // 清除用户相关的用户信息
 export function clearUser() {
     removeLocal(TokenKey);

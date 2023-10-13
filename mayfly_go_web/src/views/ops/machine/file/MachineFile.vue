@@ -196,22 +196,24 @@
                     </template>
                     <template #default="scope">
                         <el-link
-                            @click="downloadFile(scope.row)"
-                            v-if="scope.row.type == '-'"
-                            v-auth="'machine:file:write'"
-                            type="primary"
-                            icon="download"
-                            :underline="false"
-                        ></el-link>
-
-                        <el-link
                             @click="deleteFile([scope.row])"
                             v-if="!dontOperate(scope.row)"
                             v-auth="'machine:file:rm'"
                             type="danger"
                             icon="delete"
                             :underline="false"
+                            title="删除"
+                        ></el-link>
+
+                        <el-link
+                            @click="downloadFile(scope.row)"
+                            v-if="scope.row.type == '-'"
+                            v-auth="'machine:file:write'"
+                            type="primary"
+                            icon="download"
+                            :underline="false"
                             class="ml10"
+                            title="下载"
                         ></el-link>
 
                         <el-popover placement="top-start" :title="`${scope.row.path}-文件详情`" :width="520" trigger="click" @show="showFileStat(scope.row)">

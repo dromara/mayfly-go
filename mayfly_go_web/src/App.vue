@@ -1,27 +1,43 @@
 <template>
-    <router-view v-show="themeConfig.lockScreenTime !== 0" />
+    <el-watermark
+        :zIndex="10000000"
+        :width="200"
+        v-if="themeConfig.isWartermark"
+        :font="{ color: 'rgba(180, 180, 180, 0.5)' }"
+        :content="state.watermarkContent"
+    >
+        <router-view v-show="themeConfig.lockScreenTime !== 0" />
+    </el-watermark>
+    <router-view v-if="!themeConfig.isWartermark" v-show="themeConfig.lockScreenTime !== 0" />
+
     <LockScreen v-if="themeConfig.isLockScreen" />
     <Setings ref="setingsRef" v-show="themeConfig.lockScreenTime !== 0" />
 </template>
 
 <script setup lang="ts" name="app">
-import { ref, onBeforeMount, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, reactive, onBeforeMount, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
-// import { useTagsViewRoutes } from '@/store/tagsViewRoutes';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
 import { getLocal } from '@/common/utils/storage';
 import LockScreen from '@/layout/lockScreen/index.vue';
 import Setings from '@/layout/navBars/breadcrumb/setings.vue';
-import Watermark from '@/common/utils/wartermark';
 import mittBus from '@/common/utils/mitt';
 import { getThemeConfig } from './common/utils/storage';
+import { dateFormat2 } from '@/common/utils/date';
+import { useWartermark } from '@/common/sysconfig';
+import { useUserInfo } from '@/store/userInfo';
 
 const setingsRef = ref();
 const route = useRoute();
 
 const themeConfigStores = useThemeConfig();
 const { themeConfig } = storeToRefs(themeConfigStores);
+
+const state = reactive({
+    useWatermark: false,
+    watermarkContent: [] as any,
+});
 
 // 布局配置弹窗打开
 const openSetingsDrawer = () => {
@@ -39,6 +55,11 @@ onBeforeMount(() => {
 // 页面加载时
 onMounted(() => {
     nextTick(() => {
+        // 是否开启水印
+        useWartermark().then((res) => {
+            themeConfigStores.setWatermarkConfig(res);
+        });
+
         // 监听布局配置弹窗点击打开
         mittBus.on('openSetingsDrawer', () => {
             openSetingsDrawer();
@@ -55,8 +76,52 @@ onMounted(() => {
     });
 });
 
+// 监听 themeConfig isWartermark配置文件的变化
+watch(
+    () => themeConfig.value.isWartermark,
+    (val) => {
+        if (val) {
+            setTimeout(() => {
+                setWatermarkContent();
+                refreshWatermarkTime();
+            }, 1500);
+        }
+    }
+);
+
+const setWatermarkContent = () => {
+    const userinfo = useUserInfo().userInfo;
+    if (!userinfo) {
+        themeConfig.value.isWartermark = false;
+        return;
+    }
+    state.watermarkContent = [`${userinfo.username}(${userinfo.name})`, dateFormat2('yyyy-MM-dd HH:mm:ss', new Date())];
+    // 存在额外水印信息，则追加水印信息
+    if (themeConfig.value.wartermarkText?.trim()) {
+        state.watermarkContent.push(themeConfig.value.wartermarkText);
+    }
+};
+
+let refreshWatermarkTimeInterval: any = null;
+/**
+ * 刷新水印时间
+ */
+const refreshWatermarkTime = () => {
+    if (refreshWatermarkTimeInterval) {
+        clearInterval(refreshWatermarkTimeInterval);
+    }
+    refreshWatermarkTimeInterval = setInterval(() => {
+        if (themeConfig.value.isWartermark) {
+            state.watermarkContent[1] = dateFormat2('yyyy-MM-dd HH:mm:ss', new Date());
+        } else {
+            clearInterval(refreshWatermarkTimeInterval);
+        }
+    }, 10000);
+};
+
 // 页面销毁时，关闭监听布局配置
 onUnmounted(() => {
+    clearInterval(refreshWatermarkTimeInterval);
     mittBus.off('openSetingsDrawer', () => {});
 });
 
@@ -65,8 +130,6 @@ watch(
     () => route.path,
     () => {
         nextTick(() => {
-            // 路由变化更新水印
-            Watermark.use();
             document.title = `${route.meta.title} - ${themeConfig.value.globalTitle}` || themeConfig.value.globalTitle;
         });
     }

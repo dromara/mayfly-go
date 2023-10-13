@@ -12,7 +12,7 @@
                 </div>
             </div>
             <div class="right">
-                <img src="@/assets/image/401.png" />
+                <img src="@/assets/image/401.svg" />
             </div>
         </div>
     </div>
@@ -20,7 +20,7 @@
 
 <script lang="ts">
 import { useRouter } from 'vue-router';
-import { clearSession } from '@/common/utils/storage.ts';
+import { clearSession } from '@/common/utils/storage';
 export default {
     name: '401',
     setup() {
@@ -39,7 +39,7 @@ export default {
 <style scoped lang="scss">
 .error {
     height: 100%;
-    background-color: white;
+    background-color: var(--bg-main-color);
     display: flex;
     .error-flex {
         margin: auto;

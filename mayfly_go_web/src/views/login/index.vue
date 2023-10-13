@@ -78,6 +78,7 @@ const getThemeConfig = computed(() => {
 });
 
 onMounted(async () => {
+    getThemeConfig.value.isWartermark = false;
     state.oauth2LoginConfig = await openApi.oauth2LoginConfig();
 });
 

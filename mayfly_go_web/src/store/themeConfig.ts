@@ -89,8 +89,8 @@ export const useThemeConfig = defineStore('themeConfig', {
             isInvert: false,
             // 是否开启水印
             isWartermark: false,
-            // 水印文案
-            wartermarkText: 'mayfly',
+            // 额外水印文案
+            wartermarkText: '',
 
             /* 其它设置
             ------------------------------- */
@@ -151,6 +151,11 @@ export const useThemeConfig = defineStore('themeConfig', {
                 body.setAttribute('class', '');
                 this.themeConfig.editorTheme = 'SolarizedLight';
             }
+        },
+        // 设置水印配置信息
+        setWatermarkConfig(useWatermarkConfig: any) {
+            this.themeConfig.isWartermark = useWatermarkConfig.isUse;
+            this.themeConfig.wartermarkText = useWatermarkConfig.content;
         },
     },
 });
