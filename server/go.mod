@@ -13,6 +13,7 @@ require (
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/gorilla/websocket v1.5.0
+	github.com/kanzihuang/vitess/go/vt/sqlparser v0.0.0-20231014104824-e3b9aa5415a4
 	github.com/lib/pq v1.10.9
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230712084735-068dc2aee82d
 	github.com/mojocn/base64Captcha v1.3.5 // 验证码
@@ -28,13 +29,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
 	gorm.io/driver/mysql v1.5.1
+	gorm.io/driver/sqlite v1.5.4
 	gorm.io/gorm v1.25.4
-)
-
-require (
-	github.com/kanzihuang/vitess/go/vt/sqlparser v0.0.0-20231012144002-84558a7213d7
-	github.com/xwb1989/sqlparser v0.0.0-20180606152119-120387863bf2
-	gorm.io/driver/sqlite v1.5.1
 )
 
 require (
@@ -61,7 +57,7 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
-	github.com/mattn/go-sqlite3 v1.14.16 // indirect
+	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.7.0 // indirect

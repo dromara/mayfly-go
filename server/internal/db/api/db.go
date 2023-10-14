@@ -177,7 +177,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
-	rc.ReqParam = fmt.Sprintf("%s -> filename: %s", dbConn.Info.GetLogDesc(), filename)
+	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
 
 	defer func() {
 		var errInfo string
@@ -190,7 +190,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			errInfo = t
 		}
 		if len(errInfo) > 0 {
-			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)))
+			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)))
 		}
 	}()
 
@@ -212,7 +212,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	}).WithCategory(progressCategory))
 
 	var sql string
-	tokenizer := sqlparser.NewReaderTokenizer(file, sqlparser.WithBufferCache())
+	tokenizer := sqlparser.NewReaderTokenizer(file, sqlparser.WithCacheInBuffer())
 	ticker := time.NewTicker(time.Second * 1)
 	defer ticker.Stop()
 	for {
@@ -235,8 +235,9 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			return
 		}
 		const prefixUse = "use "
-		if strings.HasPrefix(sql, prefixUse) {
-			dbNameExec := strings.Trim(sql[len(prefixUse):], " `;\n")
+		const prefixUSE = "USE "
+		if strings.HasPrefix(sql, prefixUSE) || strings.HasPrefix(sql, prefixUse) {
+			dbNameExec := strings.TrimSpace(sql[len(prefixUse):])
 			if len(dbNameExec) > 0 {
 				dbConn = d.DbApp.GetDbConnection(dbId, dbNameExec)
 				biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
@@ -258,7 +259,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 		}
 		executedStatements++
 	}
-	d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("[%s]执行完成 -> %s", filename, dbConn.Info.GetLogDesc())))
+	d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)))
 }
 
 // 数据库dump
