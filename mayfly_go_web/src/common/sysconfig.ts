@@ -3,7 +3,7 @@ import openApi from './openApi';
 // 登录是否使用验证码配置key
 const AccountLoginSecurity = 'AccountLoginSecurity';
 const UseLoginCaptchaConfigKey = 'UseLoginCaptcha';
-const UseWartermarkConfigKey = 'UseWartermark';
+const UseWatermarkConfigKey = 'UseWatermark';
 
 /**
  * 获取系统配置值
@@ -57,8 +57,8 @@ export async function useLoginCaptcha(): Promise<boolean> {
  *
  * @returns
  */
-export async function useWartermark(): Promise<any> {
-    const value = await getConfigValue(UseWartermarkConfigKey);
+export async function useWatermark(): Promise<any> {
+    const value = await getConfigValue(UseWatermarkConfigKey);
     if (!value) {
         return {
             isUse: true,

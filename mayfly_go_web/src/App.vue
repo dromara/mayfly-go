@@ -1,21 +1,24 @@
 <template>
-    <el-watermark
-        :zIndex="10000000"
-        :width="200"
-        v-if="themeConfig.isWartermark"
-        :font="{ color: 'rgba(180, 180, 180, 0.5)' }"
-        :content="state.watermarkContent"
-    >
-        <router-view v-show="themeConfig.lockScreenTime !== 0" />
-    </el-watermark>
-    <router-view v-if="!themeConfig.isWartermark" v-show="themeConfig.lockScreenTime !== 0" />
+    <div class="h100">
+        <el-watermark
+            :zIndex="10000000"
+            :width="210"
+            v-if="themeConfig.isWatermark"
+            :font="{ color: 'rgba(180, 180, 180, 0.5)' }"
+            :content="themeConfig.watermarkText"
+            class="h100"
+        >
+            <router-view v-show="themeConfig.lockScreenTime !== 0" />
+        </el-watermark>
+        <router-view v-if="!themeConfig.isWatermark" v-show="themeConfig.lockScreenTime !== 0" />
 
-    <LockScreen v-if="themeConfig.isLockScreen" />
-    <Setings ref="setingsRef" v-show="themeConfig.lockScreenTime !== 0" />
+        <LockScreen v-if="themeConfig.isLockScreen" />
+        <Setings ref="setingsRef" v-show="themeConfig.lockScreenTime !== 0" />
+    </div>
 </template>
 
 <script setup lang="ts" name="app">
-import { ref, reactive, onBeforeMount, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
@@ -24,9 +27,7 @@ import LockScreen from '@/layout/lockScreen/index.vue';
 import Setings from '@/layout/navBars/breadcrumb/setings.vue';
 import mittBus from '@/common/utils/mitt';
 import { getThemeConfig } from './common/utils/storage';
-import { dateFormat2 } from '@/common/utils/date';
-import { useWartermark } from '@/common/sysconfig';
-import { useUserInfo } from '@/store/userInfo';
+import { useWatermark } from '@/common/sysconfig';
 
 const setingsRef = ref();
 const route = useRoute();
@@ -34,32 +35,14 @@ const route = useRoute();
 const themeConfigStores = useThemeConfig();
 const { themeConfig } = storeToRefs(themeConfigStores);
 
-const state = reactive({
-    useWatermark: false,
-    watermarkContent: [] as any,
-});
-
 // 布局配置弹窗打开
 const openSetingsDrawer = () => {
     setingsRef.value.openDrawer();
 };
 
-// 设置初始化，防止刷新时恢复默认
-onBeforeMount(() => {
-    // 设置批量第三方 icon 图标
-    // setIntroduction.cssCdn();
-    // // 设置批量第三方 js
-    // setIntroduction.jsCdn();
-});
-
 // 页面加载时
 onMounted(() => {
     nextTick(() => {
-        // 是否开启水印
-        useWartermark().then((res) => {
-            themeConfigStores.setWatermarkConfig(res);
-        });
-
         // 监听布局配置弹窗点击打开
         mittBus.on('openSetingsDrawer', () => {
             openSetingsDrawer();
@@ -73,33 +56,30 @@ onMounted(() => {
 
             themeConfigStores.switchDark(tc.isDark);
         }
+
+        // 是否开启水印
+        useWatermark().then((res) => {
+            themeConfigStores.setWatermarkConfig(res);
+        });
     });
 });
 
 // 监听 themeConfig isWartermark配置文件的变化
 watch(
-    () => themeConfig.value.isWartermark,
+    () => themeConfig.value.isWatermark,
     (val) => {
         if (val) {
             setTimeout(() => {
                 setWatermarkContent();
                 refreshWatermarkTime();
-            }, 1500);
+            }, 500);
         }
     }
 );
 
 const setWatermarkContent = () => {
-    const userinfo = useUserInfo().userInfo;
-    if (!userinfo) {
-        themeConfig.value.isWartermark = false;
-        return;
-    }
-    state.watermarkContent = [`${userinfo.username}(${userinfo.name})`, dateFormat2('yyyy-MM-dd HH:mm:ss', new Date())];
-    // 存在额外水印信息，则追加水印信息
-    if (themeConfig.value.wartermarkText?.trim()) {
-        state.watermarkContent.push(themeConfig.value.wartermarkText);
-    }
+    themeConfigStores.setWatermarkUser();
+    themeConfigStores.setWatermarkNowTime();
 };
 
 let refreshWatermarkTimeInterval: any = null;
@@ -111,8 +91,8 @@ const refreshWatermarkTime = () => {
         clearInterval(refreshWatermarkTimeInterval);
     }
     refreshWatermarkTimeInterval = setInterval(() => {
-        if (themeConfig.value.isWartermark) {
-            state.watermarkContent[1] = dateFormat2('yyyy-MM-dd HH:mm:ss', new Date());
+        if (themeConfig.value.isWatermark) {
+            themeConfigStores.setWatermarkNowTime();
         } else {
             clearInterval(refreshWatermarkTimeInterval);
         }

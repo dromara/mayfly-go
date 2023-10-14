@@ -40,8 +40,8 @@ declare interface ThemeConfigState {
         isDark: boolean;
         isGrayscale: boolean;
         isInvert: boolean;
-        isWartermark: boolean;
-        wartermarkText: string;
+        isWatermark: boolean;
+        watermarkText: Array<string>;
         tagsStyle: string;
         animation: string;
         columnsAsideStyle: string;

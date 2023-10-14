@@ -45,8 +45,7 @@
 </template>
 
 <script setup lang="ts" name="loginIndex">
-import { ref, defineAsyncComponent, onMounted, reactive, computed } from 'vue';
-import { storeToRefs } from 'pinia';
+import { ref, defineAsyncComponent, onMounted, reactive } from 'vue';
 import { useThemeConfig } from '@/store/themeConfig';
 import logoMini from '@/assets/image/logo.svg';
 import loginBgImg from '@/assets/image/login-bg-main.svg';
@@ -61,7 +60,6 @@ const loginForm = ref<{ loginResDeal: (data: any) => void } | null>(null);
 
 // 定义变量内容
 const storesThemeConfig = useThemeConfig();
-const { themeConfig } = storeToRefs(storesThemeConfig);
 
 const state = reactive({
     tabsActiveName: 'account',
@@ -72,13 +70,8 @@ const state = reactive({
     },
 });
 
-// 获取布局配置信息
-const getThemeConfig = computed(() => {
-    return themeConfig.value;
-});
-
 onMounted(async () => {
-    getThemeConfig.value.isWartermark = false;
+    storesThemeConfig.setWatermarkUser(true);
     state.oauth2LoginConfig = await openApi.oauth2LoginConfig();
 });
 

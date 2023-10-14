@@ -62,7 +62,7 @@ export default {
                 }
                 .left-item-title {
                     font-size: 20px;
-                    color: #333333;
+                    // color: #333333;
                     margin: 15px 0 5px 0;
                     animation-delay: 0.1s;
                 }

@@ -136,7 +136,7 @@ import { saveToken, saveUser } from '@/common/utils/storage';
 import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';
-import { getAccountLoginSecurity, getLdapEnabled, useWartermark } from '@/common/sysconfig';
+import { getAccountLoginSecurity, getLdapEnabled } from '@/common/sysconfig';
 import { letterAvatar } from '@/common/utils/string';
 import { useUserInfo } from '@/store/userInfo';
 import QrcodeVue from 'qrcode.vue';
@@ -409,8 +409,8 @@ const toIndex = async () => {
         // 关闭 loading
         state.loading.signIn = true;
         ElMessage.success(`${currentTimeInfo}，欢迎回来！`);
-        // 水印信息配置
-        storesThemeConfig.setWatermarkConfig(await useWartermark());
+        // 水印设置用户信息
+        storesThemeConfig.setWatermarkUser();
     }, 300);
 };
 
