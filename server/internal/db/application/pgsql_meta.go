@@ -17,7 +17,7 @@ import (
 )
 
 func getPgsqlDB(d *entity.Instance, db string) (*sql.DB, error) {
-	driverName := d.Type
+	driverName := string(d.Type)
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
 		// 如果使用了隧道，则使用`postgres:ssh:隧道机器id`注册名

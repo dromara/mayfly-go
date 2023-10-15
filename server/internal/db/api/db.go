@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/kanzihuang/vitess/go/vt/sqlparser"
-	"github.com/lib/pq"
 	"io"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
@@ -326,24 +325,6 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	rc.ReqParam = collx.Kvs("db", db, "databases", dbNamesStr, "tables", tablesStr, "dumpType", dumpType)
 }
 
-func escapeSql(dbType string, sql string) string {
-	if dbType == entity.DbTypePostgres {
-		return pq.QuoteLiteral(sql)
-	} else {
-		sql = strings.ReplaceAll(sql, `\`, `\\`)
-		sql = strings.ReplaceAll(sql, `'`, `''`)
-		return "'" + sql + "'"
-	}
-}
-
-func quoteTable(dbType string, table string) string {
-	if dbType == entity.DbTypePostgres {
-		return "\"" + table + "\""
-	} else {
-		return "`" + table + "`"
-	}
-}
-
 func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool, switchDb bool) {
 	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
 	writer.WriteString("\n-- ----------------------------")
@@ -355,14 +336,12 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 	if switchDb {
 		switch dbConn.Info.Type {
 		case entity.DbTypeMysql:
-			writer.WriteString(fmt.Sprintf("USE `%s`;\n", dbName))
+			writer.WriteString(fmt.Sprintf("USE %s;\n", entity.DbTypeMysql.QuoteIdentifier(dbName)))
 		default:
 			biz.IsTrue(false, "同时导出多个数据库，数据库类型必须为 %s", entity.DbTypeMysql)
 		}
 	}
-	if dbConn.Info.Type == entity.DbTypeMysql {
-		writer.WriteString("\nSET FOREIGN_KEY_CHECKS = 0;\n")
-	}
+	writer.WriteString(dbConn.Info.Type.StmtSetForeignKeyChecks(false))
 
 	dbMeta := dbConn.GetMeta()
 	if len(tables) == 0 {
@@ -375,7 +354,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 
 	for _, table := range tables {
 		writer.TryFlush()
-		quotedTable := quoteTable(dbConn.Info.Type, table)
+		quotedTable := dbConn.Info.Type.QuoteIdentifier(table)
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
 			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS %s;\n", quotedTable))
@@ -398,7 +377,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 				}
 				strValue, ok := value.(string)
 				if ok {
-					strValue = escapeSql(dbConn.Info.Type, strValue)
+					strValue = dbConn.Info.Type.QuoteLiteral(strValue)
 					values = append(values, strValue)
 				} else {
 					values = append(values, stringx.AnyToStr(value))
@@ -408,9 +387,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 		})
 		writer.WriteString("COMMIT;\n")
 	}
-	if dbConn.Info.Type == entity.DbTypeMysql {
-		writer.WriteString("\nSET FOREIGN_KEY_CHECKS = 1;\n")
-	}
+	writer.WriteString(dbConn.Info.Type.StmtSetForeignKeyChecks(true))
 }
 
 // @router /api/db/:dbId/t-metadata [get]

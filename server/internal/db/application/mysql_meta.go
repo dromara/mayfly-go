@@ -26,7 +26,7 @@ func getMysqlDB(d *entity.Instance, db string) (*sql.DB, error) {
 	if d.Params != "" {
 		dsn = fmt.Sprintf("%s&%s", dsn, d.Params)
 	}
-	return sql.Open(d.Type, dsn)
+	return sql.Open(string(d.Type), dsn)
 }
 
 // ---------------------------------- mysql元数据 -----------------------------------

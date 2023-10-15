@@ -10,7 +10,7 @@ type Instance struct {
 	model.Model
 
 	Name               string `orm:"column(name)" json:"name"`
-	Type               string `orm:"column(type)" json:"type"` // 类型，mysql oracle等
+	Type               DbType `orm:"column(type)" json:"type"` // 类型，mysql oracle等
 	Host               string `orm:"column(host)" json:"host"`
 	Port               int    `orm:"column(port)" json:"port"`
 	Network            string `orm:"column(network)" json:"network"`
@@ -47,8 +47,3 @@ func (d *Instance) PwdDecrypt() {
 	// 密码替换为解密后的密码
 	d.Password = utils.PwdAesDecrypt(d.Password)
 }
-
-const (
-	DbTypeMysql    = "mysql"
-	DbTypePostgres = "postgres"
-)

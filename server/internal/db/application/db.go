@@ -144,6 +144,7 @@ func (d *dbAppImpl) GetDbConnection(dbId uint64, dbName string) *DbConnection {
 	biz.IsTrue(strings.Contains(" "+db.Database+" ", " "+dbName+" "), "未配置数据库【%s】的操作权限", dbName)
 
 	instance := d.dbInstanceApp.GetById(db.InstanceId)
+	biz.NotNil(instance, "数据库实例不存在")
 	// 密码解密
 	instance.PwdDecrypt()
 
@@ -178,7 +179,7 @@ func (d *dbAppImpl) GetDbConnection(dbId uint64, dbName string) *DbConnection {
 type DbInfo struct {
 	Id                 uint64
 	Name               string
-	Type               string // 类型，mysql oracle等
+	Type               entity.DbType // 类型，mysql oracle等
 	Host               string
 	Port               int
 	Network            string
@@ -242,14 +243,14 @@ func (d *DbConnection) Exec(sql string) (int64, error) {
 
 // 获取数据库元信息实现接口
 func (d *DbConnection) GetMeta() DbMetadata {
-	dbType := d.Info.Type
-	if dbType == entity.DbTypeMysql {
+	switch d.Info.Type {
+	case entity.DbTypeMysql:
 		return &MysqlMetadata{di: d}
-	}
-	if dbType == entity.DbTypePostgres {
+	case entity.DbTypePostgres:
 		return &PgsqlMetadata{di: d}
+	default:
+		panic(fmt.Sprintf("invalid database type: %s", d.Info.Type))
 	}
-	return nil
 }
 
 // 关闭连接
