@@ -45,7 +45,7 @@ export default {
                                 notification: undefined,
                             }
                         }
-                        progress.props.progress.sqlFileName = content.sqlFileName
+                        progress.props.progress.title = content.title
                         progress.props.progress.executedStatements = content.executedStatements
                         if (!notifyMap.has(id)) {
                             const vNodeMessage = createVNode(

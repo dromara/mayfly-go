@@ -1,5 +1,5 @@
 <template>
-    <el-descriptions border size="small" :title="`${progress.sqlFileName}`">
+    <el-descriptions border size="small" :title="`${progress.title}`">
         <el-descriptions-item label="时间">{{ state.elapsedTime }}</el-descriptions-item>
         <el-descriptions-item label="已处理">{{ progress.executedStatements }}</el-descriptions-item>
     </el-descriptions>

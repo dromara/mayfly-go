@@ -125,7 +125,30 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	biz.ErrIsNil(err, "SQL解析错误,请检查您的执行SQL")
 	isMulti := len(sqls) > 1
 	var execResAll *application.DbSqlExecRes
+
+	progressId := uniqueid.IncrementID()
+	executedStatements := 0
+	progressTitle := fmt.Sprintf("%s/%s", dbConn.Info.Name, dbConn.Info.Database)
+	defer ws.SendJsonMsg(rc.LoginAccount.Id, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+		Id:                 progressId,
+		Title:              progressTitle,
+		ExecutedStatements: executedStatements,
+		Terminated:         true,
+	}).WithCategory(progressCategory))
+	ticker := time.NewTicker(time.Second * 1)
+	defer ticker.Stop()
 	for _, s := range sqls {
+		select {
+		case <-ticker.C:
+			ws.SendJsonMsg(rc.LoginAccount.Id, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+				Id:                 progressId,
+				Title:              progressTitle,
+				ExecutedStatements: executedStatements,
+				Terminated:         false,
+			}).WithCategory(progressCategory))
+		default:
+		}
+		executedStatements++
 		s = stringx.TrimSpaceAndBr(s)
 		// 多条执行，如果有查询语句，则跳过
 		if isMulti && strings.HasPrefix(strings.ToLower(s), "select") {
@@ -156,7 +179,7 @@ const progressCategory = "execSqlFileProgress"
 // progressMsg sql文件执行进度消息
 type progressMsg struct {
 	Id                 uint64 `json:"id"`
-	SqlFileName        string `json:"sqlFileName"`
+	Title              string `json:"title"`
 	ExecutedStatements int    `json:"executedStatements"`
 	Terminated         bool   `json:"terminated"`
 }
@@ -198,17 +221,17 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 		LoginAccount: rc.LoginAccount,
 	}
 
+	var sql string
+	tokenizer := sqlparser.NewReaderTokenizer(file, sqlparser.WithCacheInBuffer())
+
 	progressId := uniqueid.IncrementID()
 	executedStatements := 0
 	defer ws.SendJsonMsg(rc.LoginAccount.Id, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
 		Id:                 progressId,
-		SqlFileName:        filename,
+		Title:              filename,
 		ExecutedStatements: executedStatements,
 		Terminated:         true,
 	}).WithCategory(progressCategory))
-
-	var sql string
-	tokenizer := sqlparser.NewReaderTokenizer(file, sqlparser.WithCacheInBuffer())
 	ticker := time.NewTicker(time.Second * 1)
 	defer ticker.Stop()
 	for {
@@ -216,12 +239,13 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 		case <-ticker.C:
 			ws.SendJsonMsg(rc.LoginAccount.Id, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
 				Id:                 progressId,
-				SqlFileName:        filename,
+				Title:              filename,
 				ExecutedStatements: executedStatements,
 				Terminated:         false,
 			}).WithCategory(progressCategory))
 		default:
 		}
+		executedStatements++
 		sql, err = sqlparser.SplitNext(tokenizer)
 		if err == io.EOF {
 			break
@@ -259,7 +283,6 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] -> sql=[%s] 执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), sql, err.Error())))
 			return
 		}
-		executedStatements++
 	}
 	d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)))
 }
