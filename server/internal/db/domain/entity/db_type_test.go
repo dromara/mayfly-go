@@ -1,47 +1,47 @@
-package api
+package entity
 
 import (
-	"github.com/stretchr/testify/require"
-	"mayfly-go/internal/db/domain/entity"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_escapeSql(t *testing.T) {
 	tests := []struct {
 		name   string
-		dbType entity.DBType
+		dbType DbType
 		sql    string
 		want   string
 	}{
 		{
-			dbType: entity.DBTypeMysql{},
+			dbType: DbTypeMysql,
 			sql:    "\\a\\b",
 			want:   "'\\\\a\\\\b'",
 		},
 		{
-			dbType: entity.DBTypeMysql{},
+			dbType: DbTypeMysql,
 			sql:    "'a'",
 			want:   "'''a'''",
 		},
 		{
 			name:   "不间断空格",
-			dbType: entity.DBTypeMysql{},
+			dbType: DbTypeMysql,
 			sql:    "a\u00A0b",
 			want:   "'a\u00A0b'",
 		},
 		{
-			dbType: entity.DBTypePostgres{},
+			dbType: DbTypePostgres,
 			sql:    "\\a\\b",
 			want:   " E'\\\\a\\\\b'",
 		},
 		{
-			dbType: entity.DBTypePostgres{},
+			dbType: DbTypePostgres,
 			sql:    "'a'",
 			want:   "'''a'''",
 		},
 		{
 			name:   "不间断空格",
-			dbType: entity.DBTypePostgres{},
+			dbType: DbTypePostgres,
 			sql:    "a\u00A0b",
 			want:   "'a\u00A0b'",
 		},
