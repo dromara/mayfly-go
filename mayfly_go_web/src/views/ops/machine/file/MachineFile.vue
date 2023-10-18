@@ -274,7 +274,7 @@ import { ref, toRefs, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox, ElInput } from 'element-plus';
 import { machineApi } from '../api';
 
-import { getToken } from '@/common/utils/storage';
+import { joinClientParams } from '@/common/utils/storage';
 import config from '@/common/config';
 import { isTrue } from '@/common/assert';
 import MachineFileContent from './MachineFileContent.vue';
@@ -607,7 +607,7 @@ const deleteFile = async (files: any) => {
 
 const downloadFile = (data: any) => {
     const a = document.createElement('a');
-    a.setAttribute('href', `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/read?type=1&path=${data.path}&token=${token}`);
+    a.setAttribute('href', `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/read?type=1&path=${data.path}&${joinClientParams()}`);
     a.click();
 };
 
@@ -628,7 +628,7 @@ function getFolder(e: any) {
         // 上传操作
         machineApi.uploadFile
             .request(form, {
-                url: `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/upload-folder?token=${token}`,
+                url: `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/upload-folder?${joinClientParams()}`,
                 headers: { 'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundaryF1uyUD0tWdqmJqpl' },
                 onUploadProgress: onUploadProgress,
                 baseURL: '',
@@ -669,7 +669,7 @@ const getUploadFile = (content: any) => {
     params.append('token', token);
     machineApi.uploadFile
         .request(params, {
-            url: `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/upload?token=${token}`,
+            url: `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/upload?${joinClientParams()}`,
             headers: { 'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundaryF1uyUD0tWdqmJqpl' },
             onUploadProgress: onUploadProgress,
             baseURL: '',

@@ -2,10 +2,8 @@ package req
 
 import (
 	"errors"
-
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/config"
-	"mayfly-go/pkg/model"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -28,9 +26,9 @@ func CreateToken(userId uint64, username string) string {
 }
 
 // 解析token，并返回登录者账号信息
-func ParseToken(tokenStr string) (*model.LoginAccount, error) {
+func ParseToken(tokenStr string) (uint64, string, error) {
 	if tokenStr == "" {
-		return nil, errors.New("token error")
+		return 0, "", errors.New("token error")
 	}
 
 	// Parse token
@@ -38,8 +36,8 @@ func ParseToken(tokenStr string) (*model.LoginAccount, error) {
 		return []byte(config.Conf.Jwt.Key), nil
 	})
 	if err != nil || token == nil {
-		return nil, err
+		return 0, "", err
 	}
 	i := token.Claims.(jwt.MapClaims)
-	return &model.LoginAccount{Id: uint64(i["id"].(float64)), Username: i["username"].(string)}, nil
+	return uint64(i["id"].(float64)), i["username"].(string), nil
 }

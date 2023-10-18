@@ -1,14 +1,12 @@
 package entity
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/require"
+	"testing"
 )
 
-func Test_escapeSql(t *testing.T) {
+func Test_QuoteLiteral(t *testing.T) {
 	tests := []struct {
-		name   string
 		dbType DbType
 		sql    string
 		want   string
@@ -24,7 +22,6 @@ func Test_escapeSql(t *testing.T) {
 			want:   "'''a'''",
 		},
 		{
-			name:   "不间断空格",
 			dbType: DbTypeMysql,
 			sql:    "a\u00A0b",
 			want:   "'a\u00A0b'",
@@ -40,14 +37,13 @@ func Test_escapeSql(t *testing.T) {
 			want:   "'''a'''",
 		},
 		{
-			name:   "不间断空格",
 			dbType: DbTypePostgres,
 			sql:    "a\u00A0b",
 			want:   "'a\u00A0b'",
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(string(tt.dbType)+"_"+tt.sql, func(t *testing.T) {
 			got := tt.dbType.QuoteLiteral(tt.sql)
 			require.Equal(t, tt.want, got)
 		})

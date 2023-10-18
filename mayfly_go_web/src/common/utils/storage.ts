@@ -1,6 +1,9 @@
+import { v1 as uuidv1 } from 'uuid';
+
 const TokenKey = 'token';
 const UserKey = 'user';
 const TagViewsKey = 'tagViews';
+const ClientUuid = 'clientUuid'
 
 // 获取请求token
 export function getToken(): string {
@@ -46,6 +49,21 @@ export function setTagViews(tagViews: Array<object>) {
 
 export function removeTagViews() {
     removeSession(TagViewsKey);
+}
+
+// 获取客户端UUID
+export function getClientUuid(): string {
+    let uuid = getSession(ClientUuid)
+    if (uuid == null) {
+        uuid = uuidv1()
+        setSession(ClientUuid, uuid)
+    }
+    return uuid
+}
+
+// 组装客户端参数，包括 token 和 clientUuid
+export function joinClientParams(): string {
+    return `token=${getToken()}&clientUuid=${getClientUuid()}`
 }
 
 // 1. localStorage
