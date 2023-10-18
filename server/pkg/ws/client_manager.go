@@ -11,7 +11,7 @@ const heartbeatInterval = 25 * time.Second
 
 // 连接管理
 type ClientManager struct {
-	ClientMap map[UserId]*Client // 全部的连接, key->userid, value->&client
+	ClientMap map[string]*Client // 全部的连接, key->token, value->&client
 	RwLock    sync.RWMutex       // 读写锁
 
 	ConnectChan    chan *Client // 连接处理
@@ -21,7 +21,7 @@ type ClientManager struct {
 
 func NewClientManager() (clientManager *ClientManager) {
 	return &ClientManager{
-		ClientMap:      make(map[UserId]*Client),
+		ClientMap:      make(map[string]*Client),
 		ConnectChan:    make(chan *Client, 10),
 		DisConnectChan: make(chan *Client, 10),
 		MsgChan:        make(chan *Msg, 100),
@@ -58,12 +58,12 @@ func (manager *ClientManager) CloseClient(client *Client) {
 }
 
 // 根据用户id关闭客户端连接
-func (manager *ClientManager) CloseByUid(uid UserId) {
-	manager.CloseClient(manager.GetByUid(UserId(uid)))
+func (manager *ClientManager) CloseByClientUuid(clientUuid string) {
+	manager.CloseClient(manager.GetByClientUuid(clientUuid))
 }
 
 // 获取所有的客户端
-func (manager *ClientManager) AllClient() map[UserId]*Client {
+func (manager *ClientManager) AllClient() map[string]*Client {
 	manager.RwLock.RLock()
 	defer manager.RwLock.RUnlock()
 
@@ -74,7 +74,19 @@ func (manager *ClientManager) AllClient() map[UserId]*Client {
 func (manager *ClientManager) GetByUid(userId UserId) *Client {
 	manager.RwLock.RLock()
 	defer manager.RwLock.RUnlock()
-	return manager.ClientMap[userId]
+	for _, client := range manager.ClientMap {
+		if userId == client.UserId {
+			return client
+		}
+	}
+	return nil
+}
+
+// 通过userId获取
+func (manager *ClientManager) GetByClientUuid(uuid string) *Client {
+	manager.RwLock.RLock()
+	defer manager.RwLock.RUnlock()
+	return manager.ClientMap[uuid]
 }
 
 // 客户端数量
@@ -85,9 +97,8 @@ func (manager *ClientManager) Count() int {
 }
 
 // 发送json数据给指定用户
-func (manager *ClientManager) SendJsonMsg(userId UserId, data any) {
-	logx.Debugf("发送消息: toUid=%v, data=%v", userId, data)
-	manager.MsgChan <- &Msg{ToUserId: userId, Data: data, Type: JsonMsg}
+func (manager *ClientManager) SendJsonMsg(clientUuid string, data any) {
+	manager.MsgChan <- &Msg{ToClientUuid: clientUuid, Data: data, Type: JsonMsg}
 }
 
 // 监听并发送给客户端信息
@@ -95,7 +106,7 @@ func (manager *ClientManager) WriteMessage() {
 	go func() {
 		for {
 			msg := <-manager.MsgChan
-			if cli := manager.GetByUid(msg.ToUserId); cli != nil {
+			if cli := manager.GetByClientUuid(msg.ToClientUuid); cli != nil {
 				if err := cli.WriteMsg(msg); err != nil {
 					manager.CloseClient(cli)
 				}
@@ -130,7 +141,7 @@ func (manager *ClientManager) HeartbeatTimer() {
 
 // 处理建立连接
 func (manager *ClientManager) doConnect(client *Client) {
-	cli := manager.GetByUid(client.UserId)
+	cli := manager.GetByClientUuid(client.ClientUuid)
 	if cli != nil {
 		manager.doDisconnect(cli)
 	}
@@ -152,11 +163,11 @@ func (manager *ClientManager) doDisconnect(client *Client) {
 func (manager *ClientManager) addClient2Map(client *Client) {
 	manager.RwLock.Lock()
 	defer manager.RwLock.Unlock()
-	manager.ClientMap[client.UserId] = client
+	manager.ClientMap[client.ClientUuid] = client
 }
 
 func (manager *ClientManager) delClient4Map(client *Client) {
 	manager.RwLock.Lock()
 	defer manager.RwLock.Unlock()
-	delete(manager.ClientMap, client.UserId)
+	delete(manager.ClientMap, client.ClientUuid)
 }

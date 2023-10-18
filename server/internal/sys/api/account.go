@@ -81,7 +81,12 @@ func (a *Account) ChangePassword(rc *req.Ctx) {
 	a.AccountApp.Update(updateAccount)
 
 	// 赋值loginAccount 主要用于记录操作日志，因为操作日志保存请求上下文没有该信息不保存日志
-	rc.LoginAccount = &model.LoginAccount{Id: account.Id, Username: account.Username}
+	if rc.LoginAccount == nil {
+		rc.LoginAccount = &model.LoginAccount{
+			Id:       account.Id,
+			Username: account.Username,
+		}
+	}
 }
 
 // 获取个人账号信息

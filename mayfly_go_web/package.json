@@ -28,6 +28,7 @@
     "screenfull": "^6.0.2",
     "sortablejs": "^1.15.0",
     "sql-formatter": "^12.1.2",
+    "uuid": "^9.0.1",
     "vue": "^3.3.4",
     "vue-clipboard3": "^1.0.1",
     "vue-router": "^4.2.5",

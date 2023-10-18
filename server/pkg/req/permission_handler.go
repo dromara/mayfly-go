@@ -6,6 +6,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/config"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/utils/stringx"
 	"time"
@@ -49,18 +50,28 @@ func PermissionHandler(rc *Ctx) error {
 	if tokenStr == "" {
 		return biz.PermissionErr
 	}
-	loginAccount, err := ParseToken(tokenStr)
-	if err != nil || loginAccount == nil {
+	userId, userName, err := ParseToken(tokenStr)
+	if err != nil || userId == 0 {
 		return biz.PermissionErr
 	}
 	// 权限不为nil，并且permission code不为空，则校验是否有权限code
 	if permission != nil && permission.Code != "" {
-		if !permissionCodeRegistry.HasCode(loginAccount.Id, permission.Code) {
+		if !permissionCodeRegistry.HasCode(userId, permission.Code) {
 			return biz.PermissionErr
 		}
 	}
-
-	rc.LoginAccount = loginAccount
+	clientUuid := rc.GinCtx.Request.Header.Get("Client-Uuid")
+	// header不存在则从查询参数token中获取
+	if clientUuid == "" {
+		clientUuid = rc.GinCtx.Query("clientUuid")
+	}
+	if rc.LoginAccount == nil {
+		rc.LoginAccount = &model.LoginAccount{
+			Id:         userId,
+			Username:   userName,
+			ClientUuid: clientUuid,
+		}
+	}
 	return nil
 }
 

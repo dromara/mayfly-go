@@ -14,5 +14,6 @@ type Msg struct {
 	ToUserId UserId
 	Data     any
 
-	Type MsgType // 消息类型
+	Type         MsgType // 消息类型
+	ToClientUuid string
 }

@@ -88,7 +88,7 @@
 
 <script lang="ts" setup>
 import { nextTick, watch, onMounted, reactive, toRefs, ref, Ref } from 'vue';
-import { getToken } from '@/common/utils/storage';
+import { getToken, joinClientParams } from '@/common/utils/storage';
 import { isTrue, notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
 import config from '@/common/config';
@@ -485,7 +485,7 @@ const execSqlFileSuccess = (res: any) => {
 
 // 获取sql文件上传执行url
 const getUploadSqlFileUrl = () => {
-    return `${config.baseApiUrl}/dbs/${state.ti.dbId}/exec-sql-file?db=${state.ti.db}`;
+    return `${config.baseApiUrl}/dbs/${state.ti.dbId}/exec-sql-file?db=${state.ti.db}&${joinClientParams()}`;
 };
 
 const onDataSelectionChange = (datas: []) => {

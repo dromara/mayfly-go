@@ -172,7 +172,7 @@ import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dbApi } from './api';
 import config from '@/common/config';
-import { getToken } from '@/common/utils/storage';
+import { joinClientParams } from '@/common/utils/storage';
 import { isTrue } from '@/common/assert';
 import { Search as SearchIcon } from '@element-plus/icons-vue';
 import { dateFormat } from '@/common/utils/date';
@@ -406,7 +406,7 @@ const dumpDbs = () => {
         'href',
         `${config.baseApiUrl}/dbs/${state.exportDialog.dbId}/dump?db=${state.exportDialog.value.join(',')}&type=${type}&extName=${
             state.exportDialog.extName
-        }&token=${getToken()}`
+        }&${joinClientParams()}`
     );
     a.click();
     state.exportDialog.visible = false;

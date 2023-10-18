@@ -121,7 +121,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 		LoginAccount: rc.LoginAccount,
 	}
 
-	sqls, err := sqlparser.SplitStatementToPieces(sql)
+	sqls, err := sqlparser.SplitStatementToPieces(sql, sqlparser.WithDialect(dbConn.Info.Type.Dialect()))
 	biz.ErrIsNil(err, "SQL解析错误,请检查您的执行SQL")
 	isMulti := len(sqls) > 1
 	var execResAll *application.DbSqlExecRes
@@ -129,7 +129,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	progressId := uniqueid.IncrementID()
 	executedStatements := 0
 	progressTitle := fmt.Sprintf("%s/%s", dbConn.Info.Name, dbConn.Info.Database)
-	defer ws.SendJsonMsg(rc.LoginAccount.Id, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+	defer ws.SendJsonMsg(rc.LoginAccount.ClientUuid, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
 		Id:                 progressId,
 		Title:              progressTitle,
 		ExecutedStatements: executedStatements,
@@ -140,7 +140,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	for _, s := range sqls {
 		select {
 		case <-ticker.C:
-			ws.SendJsonMsg(rc.LoginAccount.Id, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+			ws.SendJsonMsg(rc.LoginAccount.ClientUuid, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
 				Id:                 progressId,
 				Title:              progressTitle,
 				ExecutedStatements: executedStatements,
@@ -222,11 +222,13 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	}
 
 	var sql string
-	tokenizer := sqlparser.NewReaderTokenizer(file, sqlparser.WithCacheInBuffer())
+
+	tokenizer := sqlparser.NewReaderTokenizer(file,
+		sqlparser.WithCacheInBuffer(), sqlparser.WithDialect(dbConn.Info.Type.Dialect()))
 
 	progressId := uniqueid.IncrementID()
 	executedStatements := 0
-	defer ws.SendJsonMsg(rc.LoginAccount.Id, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+	defer ws.SendJsonMsg(rc.LoginAccount.ClientUuid, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
 		Id:                 progressId,
 		Title:              filename,
 		ExecutedStatements: executedStatements,
@@ -237,7 +239,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	for {
 		select {
 		case <-ticker.C:
-			ws.SendJsonMsg(rc.LoginAccount.Id, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+			ws.SendJsonMsg(rc.LoginAccount.ClientUuid, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
 				Id:                 progressId,
 				Title:              filename,
 				ExecutedStatements: executedStatements,
