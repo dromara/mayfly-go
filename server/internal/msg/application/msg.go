@@ -40,5 +40,5 @@ func (a *msgAppImpl) CreateAndSend(la *model.LoginAccount, wmsg *dto.SysMsg) {
 	now := time.Now()
 	msg := &entity.Msg{Type: 2, Msg: wmsg.Msg, RecipientId: int64(la.Id), CreateTime: &now, CreatorId: la.Id, Creator: la.Username}
 	a.msgRepo.Insert(msg)
-	ws.SendJsonMsg(la.ClientUuid, wmsg)
+	ws.SendJsonMsg(ws.UserId(la.Id), wmsg.ClientId, wmsg)
 }

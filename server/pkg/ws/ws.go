@@ -21,21 +21,21 @@ func init() {
 }
 
 // 添加ws客户端
-func AddClient(userId uint64, clientUuid string, conn *websocket.Conn) *Client {
-	if len(clientUuid) == 0 {
+func AddClient(userId UserId, clientId string, conn *websocket.Conn) *Client {
+	if len(clientId) == 0 {
 		return nil
 	}
-	cli := NewClient(UserId(userId), clientUuid, conn)
+	cli := NewClient(UserId(userId), clientId, conn)
 	cli.Read()
 	Manager.AddClient(cli)
 	return cli
 }
 
-func CloseClient(clientUuid string) {
-	Manager.CloseByClientUuid(clientUuid)
+func CloseClient(uid UserId) {
+	Manager.CloseByUid(uid)
 }
 
 // 对指定用户发送json类型消息
-func SendJsonMsg(clientUuid string, msg any) {
-	Manager.SendJsonMsg(clientUuid, msg)
+func SendJsonMsg(userId UserId, clientId string, msg any) {
+	Manager.SendJsonMsg(userId, clientId, msg)
 }

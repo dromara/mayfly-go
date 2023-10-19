@@ -387,6 +387,9 @@ const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
         dbs: inst.dbs,
     };
     state.tabs.set(label, tab);
+
+    // 注册当前sql编辑框提示词
+    registerDbCompletionItemProvider('sql', tab.dbId, tab.db, tab.params.dbs);
 };
 
 const onRemoveTab = (targetName: string) => {

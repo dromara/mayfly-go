@@ -118,13 +118,13 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, computed, onMounted, defineAsyncComponent, nextTick } from 'vue';
+import { toRefs, reactive, watch, computed, onMounted, defineAsyncComponent } from 'vue';
 import { ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { dbApi } from '../api';
 import SqlExecBox from '../component/SqlExecBox';
 import config from '@/common/config';
-import { joinClientParams } from '@/common/utils/storage';
+import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
 
 const DbTableEdit = defineAsyncComponent(() => import('./DbTableEdit.vue'));
@@ -209,7 +209,7 @@ onMounted(async () => {
     getTables();
 });
 
-watch(props, async (newValue: any) => {
+watch(props, async () => {
     await getTables();
 });
 
@@ -239,6 +239,7 @@ const getTables = async () => {
         state.tables = [];
         state.tables = await dbApi.tableInfos.request({ id: props.dbId, db: props.db });
     } catch (e) {
+        //
     } finally {
         state.loading = false;
     }
@@ -317,7 +318,9 @@ const dropTable = async (row: any) => {
                 state.tables = await dbApi.tableInfos.request({ id: props.dbId, db: props.db });
             },
         });
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 // 打开编辑表

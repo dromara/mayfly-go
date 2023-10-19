@@ -1,3 +1,5 @@
+import { v1 as uuidv1 } from 'uuid';
+
 /**
  * 模板字符串解析，如：template = 'hahaha{name}_{id}' ,param = {name: 'hh', id: 1}
  * 解析后为 hahahahh_1
@@ -128,4 +130,12 @@ export function getContentWidth(content: any): number {
     //     flexWidth = 450;
     // }
     return flexWidth;
+}
+
+/**
+ *
+ * @returns uuid
+ */
+export function randomUuid() {
+    return uuidv1();
 }

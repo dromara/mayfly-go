@@ -171,6 +171,8 @@ const changeDatabase = () => {
 };
 
 const getAllDatabase = async () => {
+    // 清空数据库列表，可能已经有选择库了
+    state.databaseList = [];
     if (state.form.instanceId > 0) {
         state.allDatabases = await dbApi.getAllDatabase.request({ instanceId: state.form.instanceId });
     }

@@ -2,8 +2,6 @@ package api
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"io"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
@@ -15,15 +13,18 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/gormx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
-	"mayfly-go/pkg/utils/uniqueid"
 	"mayfly-go/pkg/ws"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 )
 
 type Db struct {
@@ -126,29 +127,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	isMulti := len(sqls) > 1
 	var execResAll *application.DbSqlExecRes
 
-	progressId := uniqueid.IncrementID()
-	executedStatements := 0
-	progressTitle := fmt.Sprintf("%s/%s", dbConn.Info.Name, dbConn.Info.Database)
-	defer ws.SendJsonMsg(rc.LoginAccount.ClientUuid, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
-		Id:                 progressId,
-		Title:              progressTitle,
-		ExecutedStatements: executedStatements,
-		Terminated:         true,
-	}).WithCategory(progressCategory))
-	ticker := time.NewTicker(time.Second * 1)
-	defer ticker.Stop()
 	for _, s := range sqls {
-		select {
-		case <-ticker.C:
-			ws.SendJsonMsg(rc.LoginAccount.ClientUuid, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
-				Id:                 progressId,
-				Title:              progressTitle,
-				ExecutedStatements: executedStatements,
-				Terminated:         false,
-			}).WithCategory(progressCategory))
-		default:
-		}
-		executedStatements++
 		s = stringx.TrimSpaceAndBr(s)
 		// 多条执行，如果有查询语句，则跳过
 		if isMulti && strings.HasPrefix(strings.ToLower(s), "select") {
@@ -178,7 +157,7 @@ const progressCategory = "execSqlFileProgress"
 
 // progressMsg sql文件执行进度消息
 type progressMsg struct {
-	Id                 uint64 `json:"id"`
+	Id                 string `json:"id"`
 	Title              string `json:"title"`
 	ExecutedStatements int    `json:"executedStatements"`
 	Terminated         bool   `json:"terminated"`
@@ -195,6 +174,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	filename := file.FileName()
 	dbId := getDbId(g)
 	dbName := getDbName(g)
+	clientId := g.Query("clientId")
 
 	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
@@ -209,7 +189,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			errInfo = t
 		}
 		if len(errInfo) > 0 {
-			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)))
+			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)).WithClientId(clientId))
 		}
 	}()
 
@@ -226,9 +206,9 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	tokenizer := sqlparser.NewReaderTokenizer(file,
 		sqlparser.WithCacheInBuffer(), sqlparser.WithDialect(dbConn.Info.Type.Dialect()))
 
-	progressId := uniqueid.IncrementID()
 	executedStatements := 0
-	defer ws.SendJsonMsg(rc.LoginAccount.ClientUuid, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+	progressId := stringx.Rand(32)
+	defer ws.SendJsonMsg(ws.UserId(rc.LoginAccount.Id), clientId, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
 		Id:                 progressId,
 		Title:              filename,
 		ExecutedStatements: executedStatements,
@@ -239,7 +219,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	for {
 		select {
 		case <-ticker.C:
-			ws.SendJsonMsg(rc.LoginAccount.ClientUuid, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+			ws.SendJsonMsg(ws.UserId(rc.LoginAccount.Id), clientId, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
 				Id:                 progressId,
 				Title:              filename,
 				ExecutedStatements: executedStatements,
@@ -252,21 +232,19 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 		if err == io.EOF {
 			break
 		}
-		if err != nil {
-			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本解析失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
-			return
-		}
+		biz.ErrIsNilAppendErr(err, "%s")
+
 		const prefixUse = "use "
 		const prefixUSE = "USE "
 		if strings.HasPrefix(sql, prefixUSE) || strings.HasPrefix(sql, prefixUse) {
 			var stmt sqlparser.Statement
 			stmt, err = sqlparser.Parse(sql)
-			if err != nil {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本解析失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
-			}
+			biz.ErrIsNilAppendErr(err, "%s")
+
 			stmtUse, ok := stmt.(*sqlparser.Use)
+			// 最终执行结果以数据库直接结果为准
 			if !ok {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本解析失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), sql)))
+				logx.Warnf("sql解析失败: %s", sql)
 			}
 			dbConn = d.DbApp.GetDbConnection(dbId, stmtUse.DBName.String())
 			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
@@ -281,12 +259,9 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			_, err = dbConn.Exec(sql)
 		}
 
-		if err != nil {
-			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] -> sql=[%s] 执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), sql, err.Error())))
-			return
-		}
+		biz.ErrIsNilAppendErr(err, "%s")
 	}
-	d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)))
+	d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)).WithClientId(clientId))
 }
 
 // 数据库dump

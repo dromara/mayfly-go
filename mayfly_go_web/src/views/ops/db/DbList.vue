@@ -172,7 +172,7 @@ import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dbApi } from './api';
 import config from '@/common/config';
-import { joinClientParams } from '@/common/utils/storage';
+import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
 import { Search as SearchIcon } from '@element-plus/icons-vue';
 import { dateFormat } from '@/common/utils/date';
@@ -355,7 +355,9 @@ const deleteDb = async () => {
         await dbApi.deleteDb.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 const onShowSqlExec = async (row: any) => {

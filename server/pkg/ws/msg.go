@@ -11,9 +11,9 @@ const (
 
 // 消息信息
 type Msg struct {
-	ToUserId UserId
-	Data     any
+	ToUserId   UserId // 用户id
+	ToClientId string // 客户端id
 
-	Type         MsgType // 消息类型
-	ToClientUuid string
+	Type MsgType // 消息类型
+	Data any
 }

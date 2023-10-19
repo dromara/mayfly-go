@@ -119,5 +119,5 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 
 func (a *AccountLogin) Logout(rc *req.Ctx) {
 	req.GetPermissionCodeRegistery().Remove(rc.LoginAccount.Id)
-	ws.CloseClient(rc.LoginAccount.ClientUuid)
+	ws.CloseClient(ws.UserId(rc.LoginAccount.Id))
 }

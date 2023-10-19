@@ -26,18 +26,19 @@ func (s *System) ConnectWs(g *gin.Context) {
 		}
 	}()
 
-	if err != nil {
-		panic(biz.NewBizErr("升级websocket失败"))
-	}
+	biz.ErrIsNilAppendErr(err, "%s")
+	clientId := g.Query("clientId")
+	biz.NotEmpty(clientId, "clientId不能为空")
+
 	// 权限校验
 	rc := req.NewCtxWithGin(g)
 	if err = req.PermissionHandler(rc); err != nil {
-		panic(biz.NewBizErr("没有权限"))
+		panic("sys ws连接没有权限")
 	}
 
 	// 登录账号信息
 	la := rc.LoginAccount
 	if la != nil {
-		ws.AddClient(la.Id, la.ClientUuid, wsConn)
+		ws.AddClient(ws.UserId(la.Id), clientId, wsConn)
 	}
 }

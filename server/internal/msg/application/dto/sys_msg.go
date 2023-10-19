@@ -14,6 +14,8 @@ type SysMsg struct {
 	Category string `json:"category"` // 消息类别
 	Title    string `json:"title"`    // 消息标题
 	Msg      string `json:"msg"`      // 消息内容
+
+	ClientId string
 }
 
 func (sm *SysMsg) WithTitle(title string) *SysMsg {
@@ -28,6 +30,11 @@ func (sm *SysMsg) WithCategory(category string) *SysMsg {
 
 func (sm *SysMsg) WithMsg(msg any) *SysMsg {
 	sm.Msg = stringx.AnyToStr(msg)
+	return sm
+}
+
+func (sm *SysMsg) WithClientId(clientId string) *SysMsg {
+	sm.ClientId = clientId
 	return sm
 }
 

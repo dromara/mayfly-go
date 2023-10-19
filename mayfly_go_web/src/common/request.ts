@@ -1,7 +1,7 @@
 import router from '../router';
 import Axios from 'axios';
 import config from './config';
-import { getClientUuid, getToken, joinClientParams } from './utils/storage';
+import { getClientId, getToken } from './utils/storage';
 import { templateResolve } from './utils/string';
 import { ElMessage } from 'element-plus';
 
@@ -54,7 +54,7 @@ service.interceptors.request.use(
         if (token) {
             // 设置token
             config.headers['Authorization'] = token;
-            config.headers['Client-Uuid'] = getClientUuid();
+            config.headers['ClientId'] = getClientId();
         }
         return config;
     },
@@ -178,6 +178,11 @@ function del(url: string, params: any = null, headers: any = null, options: any 
 function getApiUrl(url: string) {
     // 只是返回api地址而不做请求，用在上传组件之类的
     return baseUrl + url + '?' + joinClientParams();
+}
+
+// 组装客户端参数，包括 token 和 clientId
+export function joinClientParams(): string {
+    return `token=${getToken()}&clientId=${getClientId()}`;
 }
 
 export default {

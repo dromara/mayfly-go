@@ -179,7 +179,7 @@ import { dateFormat } from '@/common/utils/date';
 import { storeToRefs } from 'pinia';
 import { useUserInfo } from '@/store/userInfo';
 import config from '@/common/config';
-import { joinClientParams } from '@/common/utils/storage';
+import { joinClientParams } from '@/common/request';
 
 const { userInfo } = storeToRefs(useUserInfo());
 const state = reactive({

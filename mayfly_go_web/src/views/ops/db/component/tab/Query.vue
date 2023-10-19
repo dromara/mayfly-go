@@ -88,7 +88,7 @@
 
 <script lang="ts" setup>
 import { nextTick, watch, onMounted, reactive, toRefs, ref, Ref } from 'vue';
-import { getToken, joinClientParams } from '@/common/utils/storage';
+import { getToken } from '@/common/utils/storage';
 import { isTrue, notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
 import config from '@/common/config';
@@ -104,6 +104,12 @@ import { dateStrFormat } from '@/common/utils/date';
 import { dbApi } from '../../api';
 
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import { joinClientParams } from '@/common/request';
+import { createVNode } from 'vue';
+import { buildProgressProps } from '@/components/progress-notify/progress-notify';
+import ProgressNotify from '@/components/progress-notify/progress-notify.vue';
+import { ElNotification } from 'element-plus';
+import syssocket from '@/common/syssocket';
 
 const emits = defineEmits(['saveSqlSuccess', 'deleteSqlSuccess']);
 
@@ -384,7 +390,9 @@ const deleteSql = async () => {
         await dbApi.deleteDbSql.request({ id: dbId, db: db, name: sqlName });
         ElMessage.success('删除成功');
         emits('deleteSqlSuccess', dbId, db);
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 /**
@@ -472,8 +480,45 @@ const exportData = () => {
     );
 };
 
+/**
+ * sql文件执行进度通知缓存
+ */
+const sqlExecNotifyMap: Map<string, any> = new Map();
 const beforeUpload = (file: File) => {
     ElMessage.success(`'${file.name}' 正在上传执行, 请关注结果通知`);
+    syssocket.registerMsgHandler('execSqlFileProgress', function (message: any) {
+        const content = JSON.parse(message.msg);
+        const id = content.id;
+        let progress = sqlExecNotifyMap.get(id);
+        if (content.terminated) {
+            if (progress != undefined) {
+                progress.notification?.close();
+                sqlExecNotifyMap.delete(id);
+                progress = undefined;
+            }
+            return;
+        }
+
+        if (progress == undefined) {
+            progress = {
+                props: reactive(buildProgressProps()),
+                notification: undefined,
+            };
+        }
+        progress.props.progress.title = content.title;
+        progress.props.progress.executedStatements = content.executedStatements;
+        if (!sqlExecNotifyMap.has(id)) {
+            const vNodeMessage = createVNode(ProgressNotify, progress.props, null);
+            progress.notification = ElNotification({
+                duration: 0,
+                title: message.title,
+                message: vNodeMessage,
+                type: syssocket.getMsgType(message.type),
+                showClose: false,
+            });
+            sqlExecNotifyMap.set(id, progress);
+        }
+    });
 };
 
 // 执行sql成功

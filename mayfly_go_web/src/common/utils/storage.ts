@@ -1,9 +1,9 @@
-import { v1 as uuidv1 } from 'uuid';
+import { randomUuid } from './string';
 
 const TokenKey = 'token';
 const UserKey = 'user';
 const TagViewsKey = 'tagViews';
-const ClientUuid = 'clientUuid'
+const ClientIdKey = 'clientId';
 
 // 获取请求token
 export function getToken(): string {
@@ -52,18 +52,13 @@ export function removeTagViews() {
 }
 
 // 获取客户端UUID
-export function getClientUuid(): string {
-    let uuid = getSession(ClientUuid)
+export function getClientId(): string {
+    let uuid = getSession(ClientIdKey);
     if (uuid == null) {
-        uuid = uuidv1()
-        setSession(ClientUuid, uuid)
+        uuid = randomUuid();
+        setSession(ClientIdKey, uuid);
     }
-    return uuid
-}
-
-// 组装客户端参数，包括 token 和 clientUuid
-export function joinClientParams(): string {
-    return `token=${getToken()}&clientUuid=${getClientUuid()}`
+    return uuid;
 }
 
 // 1. localStorage

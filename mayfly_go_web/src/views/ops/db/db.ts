@@ -345,7 +345,6 @@ export class DbInst {
 
         // 获取该列中最长的数据(内容)
         let maxWidthText = '';
-        let maxWidthValue;
         // 获取该列中最长的数据(内容)
         for (let i = 0; i < tableData.length; i++) {
             let nowValue = tableData[i][prop];
@@ -356,7 +355,6 @@ export class DbInst {
             let nowText = nowValue + '';
             if (nowText.length > maxWidthText.length) {
                 maxWidthText = nowText;
-                maxWidthValue = nowValue;
             }
         }
         const contentWidth: number = getTextWidth(maxWidthText) + 15;

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/utils/stringx"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -17,27 +16,25 @@ type UserId uint64
 type ReadMsgHandlerFunc func([]byte)
 
 type Client struct {
-	ClientId   string          // 标识ID
-	UserId     UserId          // 用户ID
-	ClientUuid string          // 客户端UUID
-	WsConn     *websocket.Conn // 用户连接
+	ClientId string          // 标识ID
+	UserId   UserId          // 用户ID
+	WsConn   *websocket.Conn // 用户连接
 
-	ReadMsgHander ReadMsgHandlerFunc // 读取消息处理函数
+	ReadMsgHandler ReadMsgHandlerFunc // 读取消息处理函数
 }
 
-func NewClient(userId UserId, clientUuid string, socket *websocket.Conn) *Client {
+func NewClient(userId UserId, clientId string, socket *websocket.Conn) *Client {
 	cli := &Client{
-		ClientId:   stringx.Rand(16),
-		UserId:     userId,
-		ClientUuid: clientUuid,
-		WsConn:     socket,
+		ClientId: clientId,
+		UserId:   userId,
+		WsConn:   socket,
 	}
 
 	return cli
 }
 
 func (c *Client) WithReadHandlerFunc(readMsgHandlerFunc ReadMsgHandlerFunc) *Client {
-	c.ReadMsgHander = readMsgHandlerFunc
+	c.ReadMsgHandler = readMsgHandlerFunc
 	return c
 }
 
@@ -58,8 +55,8 @@ func (c *Client) Read() {
 					return
 				}
 			}
-			if c.ReadMsgHander != nil {
-				c.ReadMsgHander(data)
+			if c.ReadMsgHandler != nil {
+				c.ReadMsgHandler(data)
 			}
 		}
 	}()
@@ -67,7 +64,7 @@ func (c *Client) Read() {
 
 // 向客户端写入消息
 func (c *Client) WriteMsg(msg *Msg) error {
-	logx.Debugf("发送消息: toUid=%v, data=%v", c.UserId, msg.Data)
+	logx.Debugf("发送消息: toUserId=%v, toClientId=%s, data=%v", c.UserId, c.ClientId, msg.Data)
 
 	if msg.Type == JsonMsg {
 		bytes, _ := json.Marshal(msg.Data)

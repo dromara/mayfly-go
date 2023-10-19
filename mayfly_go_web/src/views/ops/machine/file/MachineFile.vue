@@ -274,11 +274,12 @@ import { ref, toRefs, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox, ElInput } from 'element-plus';
 import { machineApi } from '../api';
 
-import { joinClientParams } from '@/common/utils/storage';
+import { joinClientParams } from '@/common/request';
 import config from '@/common/config';
 import { isTrue } from '@/common/assert';
 import MachineFileContent from './MachineFileContent.vue';
 import { notBlank } from '@/common/assert';
+import { getToken } from '@/common/utils/storage';
 
 const props = defineProps({
     machineId: { type: Number },

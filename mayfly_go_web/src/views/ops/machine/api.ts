@@ -1,6 +1,6 @@
 import Api from '@/common/Api';
 import config from '@/common/config';
-import { joinClientParams } from '@/common/utils/storage';
+import { joinClientParams } from '@/common/request';
 
 export const machineApi = {
     // 获取权限列表

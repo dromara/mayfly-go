@@ -60,16 +60,10 @@ func PermissionHandler(rc *Ctx) error {
 			return biz.PermissionErr
 		}
 	}
-	clientUuid := rc.GinCtx.Request.Header.Get("Client-Uuid")
-	// header不存在则从查询参数token中获取
-	if clientUuid == "" {
-		clientUuid = rc.GinCtx.Query("clientUuid")
-	}
 	if rc.LoginAccount == nil {
 		rc.LoginAccount = &model.LoginAccount{
-			Id:         userId,
-			Username:   userName,
-			ClientUuid: clientUuid,
+			Id:       userId,
+			Username: userName,
 		}
 	}
 	return nil
