@@ -87,7 +87,7 @@
 </template>
 
 <script lang="ts" setup>
-import { nextTick, watch, onMounted, reactive, toRefs, ref, Ref } from 'vue';
+import { h, nextTick, watch, onMounted, reactive, toRefs, ref, Ref } from 'vue';
 import { getToken } from '@/common/utils/storage';
 import { isTrue, notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
@@ -105,7 +105,6 @@ import { dbApi } from '../../api';
 
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { joinClientParams } from '@/common/request';
-import { createVNode } from 'vue';
 import { buildProgressProps } from '@/components/progress-notify/progress-notify';
 import ProgressNotify from '@/components/progress-notify/progress-notify.vue';
 import { ElNotification } from 'element-plus';
@@ -508,11 +507,10 @@ const beforeUpload = (file: File) => {
         progress.props.progress.title = content.title;
         progress.props.progress.executedStatements = content.executedStatements;
         if (!sqlExecNotifyMap.has(id)) {
-            const vNodeMessage = createVNode(ProgressNotify, progress.props, null);
             progress.notification = ElNotification({
                 duration: 0,
                 title: message.title,
-                message: vNodeMessage,
+                message: h(ProgressNotify, progress.props),
                 type: syssocket.getMsgType(message.type),
                 showClose: false,
             });

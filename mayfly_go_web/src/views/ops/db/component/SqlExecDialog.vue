@@ -2,7 +2,7 @@
     <div>
         <el-dialog :destroy-on-close="true" title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px" @close="cancel">
             <monaco-editor height="300px" class="codesql" language="sql" v-model="sqlValue" />
-            <el-input ref="remarkInputRef" v-model="remark" placeholder="请输入执行备注" class="mt5" />
+            <el-input @keyup.enter="runSql" ref="remarkInputRef" v-model="remark" placeholder="请输入执行备注" class="mt5" />
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="cancel">取 消</el-button>

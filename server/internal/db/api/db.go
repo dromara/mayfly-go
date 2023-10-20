@@ -16,6 +16,7 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/ws"
@@ -181,14 +182,11 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
 
 	defer func() {
-		var errInfo string
-		switch t := recover().(type) {
-		case error:
-			errInfo = t.Error()
-		case string:
-			errInfo = t
-		}
-		if len(errInfo) > 0 {
+		if err := recover(); err != nil {
+			errInfo := anyx.ToString(err)
+			if len(errInfo) > 300 {
+				errInfo = errInfo[:300] + "..."
+			}
 			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)).WithClientId(clientId))
 		}
 	}()
@@ -302,15 +300,10 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	if len(dbNames) == 1 && len(tablesStr) > 0 {
 		tables = strings.Split(tablesStr, ",")
 	}
+
 	writer := newGzipWriter(g.Writer)
 	defer func() {
-		var msg string
-		if err := recover(); err != nil {
-			switch t := err.(type) {
-			case error:
-				msg = t.Error()
-			}
-		}
+		msg := anyx.ToString(recover())
 		if len(msg) > 0 {
 			msg = "数据库导出失败: " + msg
 			writer.WriteString(msg)
@@ -318,6 +311,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		}
 		writer.Close()
 	}()
+
 	for _, dbName := range dbNames {
 		d.dumpDb(writer, dbId, dbName, tables, needStruct, needData)
 	}
@@ -373,7 +367,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 					strValue = dbConn.Info.Type.QuoteLiteral(strValue)
 					values = append(values, strValue)
 				} else {
-					values = append(values, stringx.AnyToStr(value))
+					values = append(values, anyx.ToString(value))
 				}
 			}
 			writer.WriteString(fmt.Sprintf(insertSql, quotedTable, strings.Join(values, ", ")))

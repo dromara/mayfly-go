@@ -6,7 +6,6 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/runtimex"
-	"mayfly-go/pkg/utils/stringx"
 )
 
 type SaveLogFunc func(*Ctx)
@@ -105,12 +104,12 @@ func getLogMsg(rc *Ctx) string {
 	logInfo := rc.Conf.logInfo
 	msg := logInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
 	if !anyx.IsBlank(rc.ReqParam) {
-		msg = msg + fmt.Sprintf("\n--> %s", stringx.AnyToStr(rc.ReqParam))
+		msg = msg + fmt.Sprintf("\n--> %s", anyx.ToString(rc.ReqParam))
 	}
 
 	// 返回结果不为空，则记录返回结果
 	if logInfo.LogResp && !anyx.IsBlank(rc.ResData) {
-		msg = msg + fmt.Sprintf("\n<-- %s", stringx.AnyToStr(rc.ResData))
+		msg = msg + fmt.Sprintf("\n<-- %s", anyx.ToString(rc.ResData))
 	}
 	return msg
 }
@@ -118,7 +117,7 @@ func getLogMsg(rc *Ctx) string {
 func getErrMsg(rc *Ctx, err any) string {
 	msg := rc.Conf.logInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
 	if !anyx.IsBlank(rc.ReqParam) {
-		msg = msg + fmt.Sprintf("\n--> %s", stringx.AnyToStr(rc.ReqParam))
+		msg = msg + fmt.Sprintf("\n--> %s", anyx.ToString(rc.ReqParam))
 	}
 
 	nFrames := DefaultLogFrames

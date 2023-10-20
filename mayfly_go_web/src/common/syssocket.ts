@@ -37,7 +37,7 @@ class SysSocket {
         if (!token) {
             return null;
         }
-
+        console.log('init system ws');
         const sysMsgUrl = `${Config.baseWsUrl}/sysmsg?${joinClientParams()}`;
         this.socket = SocketBuilder.builder(sysMsgUrl)
             .message((event: { data: string }) => {
@@ -78,6 +78,7 @@ class SysSocket {
      * @param handlerFunc 消息处理函数
      */
     registerMsgHandler(category: any, handlerFunc: any) {
+        this.init();
         if (this.categoryHandlers.has(category)) {
             console.log(`${category}该类别消息处理器已存在...`);
             return;

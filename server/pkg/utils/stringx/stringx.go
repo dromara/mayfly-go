@@ -2,8 +2,6 @@ package stringx
 
 import (
 	"bytes"
-	"encoding/json"
-	"strconv"
 	"strings"
 	"text/template"
 )
@@ -115,47 +113,5 @@ func ReverStrTemplate(temp, str string, res map[string]any) {
 	// 如果后面的还有需要解析的，则递归调用解析
 	if nextContain != -1 {
 		ReverStrTemplate(next, Trim(SubString(str, UnicodeIndex(str, value)+Len(value), Len(str))), res)
-	}
-}
-
-func AnyToStr(value any) string {
-	// interface 转 string
-	var key string
-	if value == nil {
-		return key
-	}
-
-	switch it := value.(type) {
-	case string:
-		return it
-	case float64:
-		return strconv.FormatFloat(it, 'f', -1, 64)
-	case float32:
-		return strconv.FormatFloat(float64(it), 'f', -1, 64)
-	case int:
-		return strconv.Itoa(it)
-	case uint:
-		return strconv.Itoa(int(it))
-	case int8:
-		return strconv.Itoa(int(it))
-	case uint8:
-		return strconv.Itoa(int(it))
-	case int16:
-		return strconv.Itoa(int(it))
-	case uint16:
-		return strconv.Itoa(int(it))
-	case int32:
-		return strconv.Itoa(int(it))
-	case uint32:
-		return strconv.Itoa(int(it))
-	case int64:
-		return strconv.FormatInt(it, 10)
-	case uint64:
-		return strconv.FormatUint(it, 10)
-	case []byte:
-		return string(value.([]byte))
-	default:
-		newValue, _ := json.Marshal(value)
-		return string(newValue)
 	}
 }

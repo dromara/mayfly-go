@@ -1,6 +1,6 @@
 package collx
 
-import "mayfly-go/pkg/utils/stringx"
+import "mayfly-go/pkg/utils/anyx"
 
 // M is a shortcut for map[string]any
 type M map[string]any
@@ -12,7 +12,7 @@ func Kvs(elements ...any) M {
 	myMap := make(map[string]any)
 
 	for i := 0; i < len(elements); i += 2 {
-		key := stringx.AnyToStr(elements[i])
+		key := anyx.ToString(elements[i])
 		if i+1 < len(elements) {
 			value := elements[i+1]
 			myMap[key] = value

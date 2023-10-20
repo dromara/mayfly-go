@@ -8,7 +8,7 @@ import (
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
-	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/anyx"
 	"time"
 )
 
@@ -135,7 +135,7 @@ type RedisPermissionCodeRegistry struct {
 }
 
 func (r *RedisPermissionCodeRegistry) SaveCodes(userId uint64, codes []string) {
-	rediscli.Set(fmt.Sprintf("mayfly:%v:codes", userId), stringx.AnyToStr(codes), time.Minute*time.Duration(config.Conf.Jwt.ExpireTime))
+	rediscli.Set(fmt.Sprintf("mayfly:%v:codes", userId), anyx.ToString(codes), time.Minute*time.Duration(config.Conf.Jwt.ExpireTime))
 }
 
 func (r *RedisPermissionCodeRegistry) HasCode(userId uint64, code string) bool {

@@ -15,6 +15,7 @@ import (
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/timex"
 	"mime/multipart"
@@ -182,12 +183,9 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 
 	la := rc.LoginAccount
 	defer func() {
-		if err := recover(); err != nil {
+		if anyx.ToString(recover()) != "" {
 			logx.Errorf("文件上传失败: %s", err)
-			switch t := err.(type) {
-			case biz.BizError:
-				m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
-			}
+			m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e : %s", err)))
 		}
 	}()
 

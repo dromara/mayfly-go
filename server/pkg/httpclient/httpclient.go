@@ -9,7 +9,6 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/stringx"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -64,7 +63,7 @@ func (r *RequestWrapper) GetByQuery(queryMap collx.M) *ResponseWrapper {
 		if params != "" {
 			params += "&"
 		}
-		params += k + "=" + stringx.AnyToStr(v)
+		params += k + "=" + anyx.ToString(v)
 	}
 	r.url += "?" + params
 	return r.Get()
