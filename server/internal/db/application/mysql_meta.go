@@ -154,7 +154,7 @@ func (mm *MysqlMetadata) GetTableIndex(tableName string) []Index {
 func (mm *MysqlMetadata) GetCreateTableDdl(tableName string) string {
 	_, res, err := mm.di.SelectData(fmt.Sprintf("show create table `%s` ", tableName))
 	biz.ErrIsNilAppendErr(err, "获取表结构失败: %s")
-	return res[0]["Create Table"].(string)
+	return res[0]["Create Table"].(string) + ";"
 }
 
 func (mm *MysqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {

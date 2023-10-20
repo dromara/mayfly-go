@@ -75,7 +75,7 @@ ORDER BY
         -- columns
         tableScript:=tableScript || ' CREATE TABLE '|| tablename|| ' ( '|| chr(13)||chr(10) || array_to_string(
         array(
-        select ' ' || concat_ws(' ',fieldName, fieldType, fieldLen, indexType, isNullStr, fieldComment ) as column_line
+        select ' ' || concat_ws(' ',fieldName, fieldType, isNullStr ) as column_line
         from (
         select a.attname as fieldName,format_type(a.atttypid,a.atttypmod) as fieldType,(case when atttypmod-4>0 then
         atttypmod-4 else 0 end) as fieldLen,
@@ -91,10 +91,11 @@ ORDER BY
         from pg_attribute a where attstattarget=-1 and attrelid = (select c.oid from pg_class c,pg_namespace n where
         c.relnamespace=n.oid and n.nspname =namespace and relname =tablename)
         ) as string_columns
-        ),','||chr(13)||chr(10)) || ',';
+        ),','||chr(13)||chr(10));
         -- 约束
-        tableScript:= tableScript || chr(13)||chr(10) || array_to_string(
+        tableScript:= tableScript || array_to_string(
         array(
+        select '' union all
         select concat(' CONSTRAINT ',conname ,c ,u,p,f) from (
         select conname,
         case when contype='c' then ' CHECK('|| ( select findattname(namespace,tablename,'c') ) ||')' end as c ,
@@ -117,7 +118,7 @@ ORDER BY
         /** **/
         --- 获取非约束索引 column
         -- CREATE UNIQUE INDEX pg_language_oid_index ON pg_language USING btree (oid); -- table pg_language
-        tableScript:= tableScript || chr(13)||chr(10) || chr(13)||chr(10) || array_to_string(
+        tableScript:= tableScript || chr(13)||chr(10) || array_to_string(
         array(
         select 'CREATE INDEX ' || indexrelname || ' ON ' || tablename || ' USING btree '|| '(' || attname || ');' from (
         SELECT
@@ -134,16 +135,16 @@ ORDER BY
         WHERE c.relname=tablename and i.relname not in
         ( select constraint_name from information_schema.key_column_usage where table_name=tablename )
         )as t
-        ) ,','|| chr(13)||chr(10));
-        -- COMMENT COMMENT ON COLUMN sys_activity.id IS '主键';
-        tableScript:= tableScript || chr(13)||chr(10) || chr(13)||chr(10) || array_to_string(
+        ) , chr(13)||chr(10));
+        -- COMMENT ON COLUMN sys_activity.id IS '主键';
+        tableScript:= tableScript || chr(13)||chr(10) || array_to_string(
         array(
-        SELECT 'COMMENT ON COLUMN' || tablename || '.' || a.attname ||' IS '|| ''''|| d.description ||''''
+        SELECT 'COMMENT ON COLUMN ' || tablename || '.' || a.attname ||' IS '|| ''''|| d.description ||''';'
         FROM pg_class c
         JOIN pg_description d ON c.oid=d.objoid
         JOIN pg_attribute a ON c.oid = a.attrelid
         WHERE c.relname=tablename
-        AND a.attnum = d.objsubid),','|| chr(13)||chr(10)) ;
+        AND a.attnum = d.objsubid), chr(13)||chr(10)) ;
         return tableScript;
         end
         $BODY$ LANGUAGE plpgsql;

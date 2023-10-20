@@ -319,28 +319,21 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		writer.Close()
 	}()
 	for _, dbName := range dbNames {
-		d.dumpDb(writer, dbId, dbName, tables, needStruct, needData, len(dbNames) > 1)
+		d.dumpDb(writer, dbId, dbName, tables, needStruct, needData)
 	}
 
 	rc.ReqParam = collx.Kvs("db", db, "databases", dbNamesStr, "tables", tablesStr, "dumpType", dumpType)
 }
 
-func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool, switchDb bool) {
+func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool) {
 	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
 	writer.WriteString("\n-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
 	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
 	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", dbName))
-	writer.WriteString("\n-- ----------------------------\n")
+	writer.WriteString("\n-- ----------------------------\n\n")
 
-	if switchDb {
-		switch dbConn.Info.Type {
-		case entity.DbTypeMysql:
-			writer.WriteString(fmt.Sprintf("USE %s;\n", entity.DbTypeMysql.QuoteIdentifier(dbName)))
-		default:
-			biz.IsTrue(false, "同时导出多个数据库，数据库类型必须为 %s", entity.DbTypeMysql)
-		}
-	}
+	writer.WriteString(dbConn.Info.Type.StmtUseDatabase(dbName))
 	writer.WriteString(dbConn.Info.Type.StmtSetForeignKeyChecks(false))
 
 	dbMeta := dbConn.GetMeta()
@@ -358,7 +351,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
 			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS %s;\n", quotedTable))
-			writer.WriteString(dbMeta.GetCreateTableDdl(table) + ";\n")
+			writer.WriteString(dbMeta.GetCreateTableDdl(table) + "\n")
 		}
 		if !needData {
 			continue
