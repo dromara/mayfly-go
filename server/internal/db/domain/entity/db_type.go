@@ -94,9 +94,9 @@ func (dbType DbType) StmtSetForeignKeyChecks(check bool) string {
 	switch dbType {
 	case DbTypeMysql:
 		if check {
-			return "\nSET FOREIGN_KEY_CHECKS = 1;\n"
+			return "SET FOREIGN_KEY_CHECKS = 1;\n"
 		} else {
-			return "\nSET FOREIGN_KEY_CHECKS = 0;\n"
+			return "SET FOREIGN_KEY_CHECKS = 0;\n"
 		}
 	case DbTypePostgres:
 		// not currently supported postgres
@@ -104,5 +104,16 @@ func (dbType DbType) StmtSetForeignKeyChecks(check bool) string {
 	default:
 		panic(fmt.Sprintf("invalid database type: %s", dbType))
 	}
+}
 
+func (dbType DbType) StmtUseDatabase(dbName string) string {
+	switch dbType {
+	case DbTypeMysql:
+		return fmt.Sprintf("USE %s;\n", dbType.QuoteIdentifier(dbName))
+	case DbTypePostgres:
+		// not currently supported postgres
+		return ""
+	default:
+		panic(fmt.Sprintf("invalid database type: %s", dbType))
+	}
 }
