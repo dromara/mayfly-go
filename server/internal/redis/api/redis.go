@@ -11,6 +11,7 @@ import (
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/stringx"
 	"strconv"
@@ -196,7 +197,7 @@ func (r *Redis) ClusterInfo(rc *req.Ctx) {
 		}
 		nodesRes = append(nodesRes, node)
 	}
-	rc.ResData = map[string]any{
+	rc.ResData = collx.M{
 		"clusterInfo":  info,
 		"clusterNodes": nodesRes,
 	}

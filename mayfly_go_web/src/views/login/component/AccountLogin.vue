@@ -132,23 +132,27 @@ import { nextTick, onMounted, ref, toRefs, reactive, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { initRouter } from '@/router/index';
-import { saveToken, saveUser, saveUseWatermark } from '@/common/utils/storage';
+import { saveToken, saveUser } from '@/common/utils/storage';
 import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';
-import { getAccountLoginSecurity, getLdapEnabled, useWartermark } from '@/common/sysconfig';
+import { getAccountLoginSecurity, getLdapEnabled } from '@/common/sysconfig';
 import { letterAvatar } from '@/common/utils/string';
 import { useUserInfo } from '@/store/userInfo';
 import QrcodeVue from 'qrcode.vue';
 import { personApi } from '@/views/personal/api';
 import { AccountUsernamePattern } from '@/common/pattern';
-import { getToken } from '../../../common/utils/storage';
+import { getToken } from '@/common/utils/storage';
+import { useThemeConfig } from '@/store/themeConfig';
 
 const rules = {
     username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
     password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
     captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
 };
+
+// 定义变量内容
+const storesThemeConfig = useThemeConfig();
 
 const route = useRoute();
 const router = useRouter();
@@ -160,7 +164,7 @@ const baseInfoFormRef: any = ref(null);
 
 const state = reactive({
     accountLoginSecurity: {
-        useCaptcha: true,
+        useCaptcha: false,
         useOtp: false,
         loginFailCount: 5,
         loginFailMin: 10,
@@ -405,9 +409,8 @@ const toIndex = async () => {
         // 关闭 loading
         state.loading.signIn = true;
         ElMessage.success(`${currentTimeInfo}，欢迎回来！`);
-        if (await useWartermark()) {
-            saveUseWatermark(true);
-        }
+        // 水印设置用户信息
+        storesThemeConfig.setWatermarkUser();
     }, 300);
 };
 

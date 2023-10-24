@@ -7,6 +7,7 @@ import (
 	"mayfly-go/pkg/logx"
 	"time"
 
+	"github.com/glebarez/sqlite"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -14,15 +15,20 @@ import (
 )
 
 func initDb() {
-	global.Db = gormMysql()
+	global.Db = initGormDb()
 }
 
-func gormMysql() *gorm.DB {
+func initGormDb() *gorm.DB {
 	m := config.Conf.Mysql
-	if m.Dbname == "" {
-		logx.Panic("未找到数据库配置信息")
-		return nil
+	// 存在msyql数据库名，则优先使用mysql
+	if m.Dbname != "" {
+		return initMysql(m)
 	}
+
+	return initSqlite(config.Conf.Sqlite)
+}
+
+func initMysql(m config.Mysql) *gorm.DB {
 	logx.Infof("连接mysql [%s]", m.Host)
 	mysqlConfig := mysql.Config{
 		DSN:                       m.Dsn(), // DSN data source name
@@ -33,6 +39,31 @@ func gormMysql() *gorm.DB {
 		SkipInitializeWithVersion: false,   // 根据版本自动配置
 	}
 
+	if db, err := gorm.Open(mysql.New(mysqlConfig), getGormConfig()); err != nil {
+		logx.Panicf("连接mysql失败! [%s]", err.Error())
+		return nil
+	} else {
+		sqlDB, _ := db.DB()
+		sqlDB.SetMaxIdleConns(m.MaxIdleConns)
+		sqlDB.SetMaxOpenConns(m.MaxOpenConns)
+		return db
+	}
+}
+
+func initSqlite(sc config.Sqlite) *gorm.DB {
+	logx.Infof("连接sqlite [%s]", sc.Path)
+	if db, err := gorm.Open(sqlite.Open(sc.Path), getGormConfig()); err != nil {
+		logx.Panicf("连接sqlite失败! [%s]", err.Error())
+		return nil
+	} else {
+		sqlDB, _ := db.DB()
+		sqlDB.SetMaxIdleConns(sc.MaxIdleConns)
+		sqlDB.SetMaxOpenConns(sc.MaxOpenConns)
+		return db
+	}
+}
+
+func getGormConfig() *gorm.Config {
 	sqlLogLevel := logger.Error
 	logConf := logx.GetConfig()
 	// 如果为配置文件中配置的系统日志级别为debug，则打印gorm执行的sql信息
@@ -50,18 +81,8 @@ func gormMysql() *gorm.DB {
 		},
 	)
 
-	ormConfig := &gorm.Config{NamingStrategy: schema.NamingStrategy{
+	return &gorm.Config{NamingStrategy: schema.NamingStrategy{
 		TablePrefix:   "t_",
 		SingularTable: true,
 	}, Logger: gormLogger}
-
-	if db, err := gorm.Open(mysql.New(mysqlConfig), ormConfig); err != nil {
-		logx.Panicf("连接mysql失败! [%s]", err.Error())
-		return nil
-	} else {
-		sqlDB, _ := db.DB()
-		sqlDB.SetMaxIdleConns(m.MaxIdleConns)
-		sqlDB.SetMaxOpenConns(m.MaxOpenConns)
-		return db
-	}
 }

@@ -2,13 +2,13 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"mayfly-go/internal/sys/api/form"
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 )
 
 type Resource struct {
@@ -47,7 +47,7 @@ func (r *Resource) DelResource(rc *req.Ctx) {
 func (r *Resource) ChangeStatus(rc *req.Ctx) {
 	rid := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
 	status := int8(ginx.PathParamInt(rc.GinCtx, "status"))
-	rc.ReqParam = fmt.Sprintf("id = %d, status = %d", rid, status)
+	rc.ReqParam = collx.Kvs("id", rid, "status", status)
 	r.ResourceApp.ChangeStatus(rid, status)
 }
 

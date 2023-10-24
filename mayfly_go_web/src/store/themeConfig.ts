@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia';
+import { dateFormat2 } from '@/common/utils/date';
+import { useUserInfo } from '@/store/userInfo';
 
 export const useThemeConfig = defineStore('themeConfig', {
     state: (): ThemeConfigState => ({
@@ -88,9 +90,9 @@ export const useThemeConfig = defineStore('themeConfig', {
             // 是否开启色弱模式
             isInvert: false,
             // 是否开启水印
-            isWartermark: false,
-            // 水印文案
-            wartermarkText: 'mayfly',
+            isWatermark: false,
+            // 水印文案数组，0->用户信息  1->当前时间 2->额外信息
+            watermarkText: ['', '', ''],
 
             /* 其它设置
             ------------------------------- */
@@ -139,6 +141,41 @@ export const useThemeConfig = defineStore('themeConfig', {
         // 设置布局配置
         setThemeConfig(data: ThemeConfigState) {
             this.themeConfig = data.themeConfig;
+        },
+        // 切换暗模式
+        switchDark(isDark: boolean) {
+            this.themeConfig.isDark = isDark;
+            const body = document.documentElement as HTMLElement;
+            if (isDark) {
+                body.setAttribute('class', 'dark');
+                this.themeConfig.editorTheme = 'vs-dark';
+            } else {
+                body.setAttribute('class', '');
+                this.themeConfig.editorTheme = 'SolarizedLight';
+            }
+        },
+        // 设置水印配置信息
+        setWatermarkConfig(useWatermarkConfig: any) {
+            this.themeConfig.watermarkText = [];
+            this.themeConfig.isWatermark = useWatermarkConfig.isUse;
+            if (!useWatermarkConfig.isUse) {
+                return;
+            }
+            // 索引2为用户自定义水印信息
+            this.themeConfig.watermarkText[2] = useWatermarkConfig.content;
+        },
+        // 设置水印用户信息
+        setWatermarkUser(del: boolean = false) {
+            const userinfo = useUserInfo().userInfo;
+            let desc = '';
+            if (!del && userinfo && userinfo.username) {
+                desc = `${userinfo.username}(${userinfo.name})`;
+            }
+            this.themeConfig.watermarkText[0] = desc;
+        },
+        // 设置水印时间为当前时间
+        setWatermarkNowTime() {
+            this.themeConfig.watermarkText[1] = dateFormat2('yyyy-MM-dd HH:mm:ss', new Date());
         },
     },
 });

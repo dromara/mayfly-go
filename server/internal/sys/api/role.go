@@ -38,7 +38,7 @@ func (r *Role) SaveRole(rc *req.Ctx) {
 // 删除角色及其资源关联关系
 func (r *Role) DelRole(rc *req.Ctx) {
 	idsStr := ginx.PathParam(rc.GinCtx, "id")
-	rc.ReqParam = idsStr
+	rc.ReqParam = collx.Kvs("ids", idsStr)
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {

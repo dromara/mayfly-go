@@ -32,7 +32,7 @@ func CloseClient(userid uint64) {
 	Manager.CloseByUid(UserId(userid))
 }
 
-// 对指定用户发送消息
-func SendMsg(userId uint64, msg *SysMsg) {
+// 对指定用户发送json类型消息
+func SendJsonMsg(userId uint64, msg any) {
 	Manager.SendJsonMsg(UserId(userId), msg)
 }

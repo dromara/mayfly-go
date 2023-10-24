@@ -1,6 +1,7 @@
 package application
 
 import (
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/biz"
@@ -158,5 +159,14 @@ func (r *resourceAppImpl) Delete(id uint64) {
 }
 
 func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity any) {
+	// 超级管理员返回所有
+	if accountId == consts.AdminId {
+		cond := &entity.Resource{
+			Status: entity.ResourceStatusEnable,
+		}
+		r.resourceRepo.GetResourceList(cond, toEntity, "pid asc", "weight asc")
+		return
+	}
+
 	r.resourceRepo.GetAccountResources(accountId, toEntity)
 }

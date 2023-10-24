@@ -81,7 +81,6 @@ import { ref, toRefs, reactive, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { machineApi } from './api';
 import { ScriptResultEnum } from './enums';
-import { notEmpty } from '@/common/assert';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 
 const props = defineProps({

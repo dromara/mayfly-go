@@ -6,6 +6,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 )
 
 func (r *Redis) GetListValue(rc *req.Ctx) {
@@ -22,7 +23,7 @@ func (r *Redis) GetListValue(rc *req.Ctx) {
 	res, err := cmdable.LRange(ctx, key, int64(start), int64(stop)).Result()
 	biz.ErrIsNilAppendErr(err, "获取list值失败: %s")
 
-	rc.ResData = map[string]any{
+	rc.ResData = collx.M{
 		"len":  len,
 		"list": res,
 	}

@@ -5,7 +5,7 @@
 
             <el-row class="mb10">
                 <el-breadcrumb separator-icon="ArrowRight">
-                    <el-breadcrumb-item v-for="path in filePathNav">
+                    <el-breadcrumb-item v-for="path in filePathNav" :key="path">
                         <el-link @click="setFiles(path.path)" style="font-weight: bold">{{ path.name }}</el-link>
                     </el-breadcrumb-item>
                 </el-breadcrumb>
@@ -131,7 +131,7 @@
                                 <el-button-group v-if="state.copyOrMvFile.paths.length > 0" size="small" class="ml5">
                                     <el-tooltip effect="customized" raw-content placement="top">
                                         <template #content>
-                                            <div v-for="path in state.copyOrMvFile.paths">{{ path }}</div>
+                                            <div v-for="path in state.copyOrMvFile.paths" v-bind:key="path">{{ path }}</div>
                                         </template>
 
                                         <el-button @click="pasteFile" type="primary"
@@ -157,7 +157,7 @@
                             <SvgIcon :size="15" name="document" />
                         </span>
 
-                        <span class="ml5" style="display: inline-block; width: 300px">
+                        <span class="ml5" style="display: inline-block; width: 90%">
                             <div v-if="scope.row.nameEdit">
                                 <el-input
                                     @keyup.enter="fileRename(scope.row)"
@@ -196,22 +196,24 @@
                     </template>
                     <template #default="scope">
                         <el-link
-                            @click="downloadFile(scope.row)"
-                            v-if="scope.row.type == '-'"
-                            v-auth="'machine:file:write'"
-                            type="primary"
-                            icon="download"
-                            :underline="false"
-                        ></el-link>
-
-                        <el-link
                             @click="deleteFile([scope.row])"
                             v-if="!dontOperate(scope.row)"
                             v-auth="'machine:file:rm'"
                             type="danger"
                             icon="delete"
                             :underline="false"
+                            title="删除"
+                        ></el-link>
+
+                        <el-link
+                            @click="downloadFile(scope.row)"
+                            v-if="scope.row.type == '-'"
+                            v-auth="'machine:file:write'"
+                            type="primary"
+                            icon="download"
+                            :underline="false"
                             class="ml10"
+                            title="下载"
                         ></el-link>
 
                         <el-popover placement="top-start" :title="`${scope.row.path}-文件详情`" :width="520" trigger="click" @show="showFileStat(scope.row)">
@@ -244,10 +246,10 @@
             width="400px"
         >
             <div>
-                <el-form-item prop="name" label="名称:">
+                <el-form-item prop="name" label="名称">
                     <el-input v-model.trim="createFileDialog.name" placeholder="请输入名称" auto-complete="off"></el-input>
                 </el-form-item>
-                <el-form-item prop="type" label="类型:">
+                <el-form-item prop="type" label="类型">
                     <el-radio-group v-model="createFileDialog.type">
                         <el-radio label="d">文件夹</el-radio>
                         <el-radio label="-">文件</el-radio>
@@ -289,7 +291,7 @@ const token = getToken();
 const folderUploadRef: any = ref();
 
 const folderType = 'd';
-const fileType = '-';
+
 // 路径分隔符
 const pathSep = '/';
 
@@ -597,6 +599,7 @@ const deleteFile = async (files: any) => {
         ElMessage.success('删除成功');
         refresh();
     } catch (e) {
+        //
     } finally {
         state.loading = false;
     }

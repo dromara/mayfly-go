@@ -29,7 +29,7 @@ const viteConfig: UserConfig = {
         open: VITE_OPEN,
         proxy: {
             '/api': {
-                target: 'http://localhost:8888',
+                target: 'http://localhost:18888',
                 ws: true,
                 changeOrigin: true,
             },

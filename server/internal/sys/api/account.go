@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"mayfly-go/internal/common/utils"
 	msgapp "mayfly-go/internal/msg/application"
 	"mayfly-go/internal/sys/api/form"
@@ -53,7 +52,7 @@ func (a *Account) GetPermissions(rc *req.Ctx) {
 	}
 	// 保存该账号的权限codes
 	req.SavePermissionCodes(account.Id, permissions)
-	rc.ResData = map[string]any{
+	rc.ResData = collx.M{
 		"menus":       menus.ToTrees(0),
 		"permissions": permissions,
 	}
@@ -153,7 +152,7 @@ func (a *Account) ChangeStatus(rc *req.Ctx) {
 	account := &entity.Account{}
 	account.Id = uint64(ginx.PathParamInt(g, "id"))
 	account.Status = int8(ginx.PathParamInt(g, "status"))
-	rc.ReqParam = fmt.Sprintf("accountId: %d, status: %d", account.Id, account.Status)
+	rc.ReqParam = collx.Kvs("accountId", account.Id, "status", account.Status)
 	a.AccountApp.Update(account)
 }
 
@@ -208,6 +207,6 @@ func (a *Account) ResetOtpSecret(rc *req.Ctx) {
 	account := &entity.Account{OtpSecret: "-"}
 	accountId := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
 	account.Id = accountId
-	rc.ReqParam = fmt.Sprintf("accountId = %d", accountId)
+	rc.ReqParam = collx.Kvs("accountId", accountId)
 	a.AccountApp.Update(account)
 }

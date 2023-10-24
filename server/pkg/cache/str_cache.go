@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/rediscli"
 	"strconv"
@@ -20,11 +21,10 @@ func GetStr(key string) string {
 		return val.(string)
 	}
 
-	res, err := rediscli.Get(key)
-	if err != nil {
-		return ""
+	if res, err := rediscli.Get(key); err == nil {
+		return res
 	}
-	return res
+	return ""
 }
 
 func GetInt(key string) int {
@@ -47,7 +47,7 @@ func SetStr(key, value string, duration time.Duration) {
 		tm.Add(key, value, duration)
 		return
 	}
-	rediscli.Set(key, value, duration)
+	biz.ErrIsNilAppendErr(rediscli.Set(key, value, duration), "redis set err: %s")
 }
 
 // 删除指定key

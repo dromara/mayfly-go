@@ -3,7 +3,7 @@ import openApi from './openApi';
 // 登录是否使用验证码配置key
 const AccountLoginSecurity = 'AccountLoginSecurity';
 const UseLoginCaptchaConfigKey = 'UseLoginCaptcha';
-const UseWartermarkConfigKey = 'UseWartermark';
+const UseWatermarkConfigKey = 'UseWatermark';
 
 /**
  * 获取系统配置值
@@ -53,12 +53,21 @@ export async function useLoginCaptcha(): Promise<boolean> {
 }
 
 /**
- * 是否启用水印
+ * 是否启用水印信息配置
  *
  * @returns
  */
-export async function useWartermark(): Promise<boolean> {
-    return await getBoolConfigValue(UseWartermarkConfigKey, true);
+export async function useWatermark(): Promise<any> {
+    const value = await getConfigValue(UseWatermarkConfigKey);
+    if (!value) {
+        return {
+            isUse: true,
+        };
+    }
+    const jsonValue = JSON.parse(value);
+    // 将字符串转为bool
+    jsonValue.isUse = convertBool(jsonValue.isUse, true);
+    return jsonValue;
 }
 
 function convertBool(value: string, defaultValue: boolean) {
@@ -77,4 +86,3 @@ export async function getLdapEnabled(): Promise<any> {
     const value = await openApi.getLdapEnabled();
     return convertBool(value, false);
 }
-

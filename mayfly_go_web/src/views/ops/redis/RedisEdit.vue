@@ -4,20 +4,20 @@
             <el-form :model="form" ref="redisForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item prop="tagId" label="标签:" required>
+                        <el-form-item prop="tagId" label="标签" required>
                             <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
                         </el-form-item>
-                        <el-form-item prop="name" label="名称:" required>
+                        <el-form-item prop="name" label="名称" required>
                             <el-input v-model.trim="form.name" placeholder="请输入redis名称" auto-complete="off"></el-input>
                         </el-form-item>
-                        <el-form-item prop="mode" label="mode:" required>
+                        <el-form-item prop="mode" label="mode" required>
                             <el-select style="width: 100%" v-model="form.mode" placeholder="请选择模式">
                                 <el-option label="standalone" value="standalone"> </el-option>
                                 <el-option label="cluster" value="cluster"> </el-option>
                                 <el-option label="sentinel" value="sentinel"> </el-option>
                             </el-select>
                         </el-form-item>
-                        <el-form-item prop="host" label="host:" required>
+                        <el-form-item prop="host" label="host" required>
                             <el-input
                                 v-model.trim="form.host"
                                 placeholder="请输入host:port；sentinel模式为: mastername=sentinelhost:port，若集群或哨兵需设多个节点可使用','分割"
@@ -25,10 +25,10 @@
                                 type="textarea"
                             ></el-input>
                         </el-form-item>
-                        <el-form-item prop="username" label="用户名:">
+                        <el-form-item prop="username" label="用户名">
                             <el-input v-model.trim="form.username" placeholder="用户名"></el-input>
                         </el-form-item>
-                        <el-form-item prop="password" label="密码:">
+                        <el-form-item prop="password" label="密码">
                             <el-input
                                 type="password"
                                 show-password
@@ -44,7 +44,7 @@
                                 </template></el-input
                             >
                         </el-form-item>
-                        <el-form-item prop="db" label="库号:" required>
+                        <el-form-item prop="db" label="库号" required>
                             <el-select
                                 @change="changeDb"
                                 :disabled="form.mode == 'cluster'"
@@ -58,13 +58,13 @@
                                 <el-option v-for="db in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]" :key="db" :label="db" :value="db" />
                             </el-select>
                         </el-form-item>
-                        <el-form-item prop="remark" label="备注:">
+                        <el-form-item prop="remark" label="备注">
                             <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
                         </el-form-item>
                     </el-tab-pane>
 
                     <el-tab-pane label="其他配置" name="other">
-                        <el-form-item prop="sshTunnelMachineId" label="SSH隧道:">
+                        <el-form-item prop="sshTunnelMachineId" label="SSH隧道">
                             <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
                         </el-form-item>
                     </el-tab-pane>

@@ -6,6 +6,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -28,7 +29,7 @@ func (r *Redis) ZScan(rc *req.Ctx) {
 
 	keys, cursor, err := ri.GetCmdable().ZScan(context.TODO(), key, cursor, match, int64(count)).Result()
 	biz.ErrIsNilAppendErr(err, "sscan失败: %s")
-	rc.ResData = map[string]any{
+	rc.ResData = collx.M{
 		"keys":   keys,
 		"cursor": cursor,
 	}

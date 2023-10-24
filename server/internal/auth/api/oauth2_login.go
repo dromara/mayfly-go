@@ -14,6 +14,7 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
 	"net/http"
@@ -98,7 +99,7 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 		account.Id = accountId
 		err = a.AccountApp.GetAccount(account, "username")
 		biz.ErrIsNilAppendErr(err, "该账号不存在")
-		rc.ReqParam = jsonx.Kvs("username", account.Username, "type", "bind")
+		rc.ReqParam = collx.Kvs("username", account.Username, "type", "bind")
 
 		err = a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
 			AccountId: accountId,
@@ -118,7 +119,7 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 			UpdateTime: &now,
 		})
 		biz.ErrIsNilAppendErr(err, "绑定用户失败: %s")
-		res := map[string]any{
+		res := collx.M{
 			"action": "oauthBind",
 			"bind":   true,
 		}
@@ -173,7 +174,7 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 	biz.ErrIsNilAppendErr(err, "获取用户信息失败: %s")
 
 	clientIp := getIpAndRegion(rc)
-	rc.ReqParam = jsonx.Kvs("username", account.Username, "ip", clientIp, "type", "login")
+	rc.ReqParam = collx.Kvs("username", account.Username, "ip", clientIp, "type", "login")
 
 	res := LastLoginCheck(account, config.GetAccountLoginSecurity(), clientIp)
 	res["action"] = "oauthLogin"
@@ -220,7 +221,7 @@ func (a *Oauth2Login) Oauth2Unbind(rc *req.Ctx) {
 // 获取oauth2登录配置信息，因为有些字段是敏感字段，故单独使用接口获取
 func (c *Oauth2Login) Oauth2Config(rc *req.Ctx) {
 	oauth2LoginConfig := config.GetOauth2Login()
-	rc.ResData = map[string]any{
+	rc.ResData = collx.M{
 		"enable": oauth2LoginConfig.Enable,
 		"name":   oauth2LoginConfig.Name,
 	}

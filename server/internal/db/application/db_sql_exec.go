@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/xwb1989/sqlparser"
+	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 )
 
 type DbSqlExecReq struct {

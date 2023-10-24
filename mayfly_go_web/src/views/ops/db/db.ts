@@ -3,6 +3,18 @@ import { dbApi } from './api';
 import { getTextWidth } from '@/common/utils/string';
 import SqlExecBox from './component/SqlExecBox';
 
+import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
+import { language as addSqlLanguage } from './lang/mysql.js';
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import { editor, languages, Position } from 'monaco-editor';
+
+import { registerCompletionItemProvider } from '@/components/monaco/completionItemProvider';
+
+const sqlCompletionKeywords = [...sqlLanguage.keywords, ...addSqlLanguage.keywords];
+const sqlCompletionOperators = [...sqlLanguage.operators, ...addSqlLanguage.operators];
+const sqlCompletionBuiltinFunctions = [...sqlLanguage.builtinFunctions, ...addSqlLanguage.builtinFunctions];
+const sqlCompletionBuiltinVariables = [...sqlLanguage.builtinVariables, ...addSqlLanguage.builtinVariables];
+
 const dbInstCache: Map<number, DbInst> = new Map();
 
 export class DbInst {
@@ -463,3 +475,276 @@ export type FieldsMeta = {
     // 新值
     newValue: string;
 };
+
+/**
+ * 注册数据库表、字段等信息提示
+ *
+ * @param language 语言
+ * @param dbId 数据库id
+ * @param db 库名
+ * @param dbs 该库所有库名
+ */
+export function registerDbCompletionItemProvider(language: string, dbId: number, db: string, dbs: [] = []) {
+    registerCompletionItemProvider(language, {
+        triggerCharacters: ['.', ' '],
+        provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
+            let word = model.getWordUntilPosition(position);
+            const dbInst = DbInst.getInst(dbId);
+            const { lineNumber, column } = position;
+            const { startColumn, endColumn } = word;
+
+            // 当前行文本
+            let lineContent = model.getLineContent(lineNumber);
+            // 注释行不需要代码提示
+            if (lineContent.startsWith('--')) {
+                return { suggestions: [] };
+            }
+
+            let range = {
+                startLineNumber: lineNumber,
+                endLineNumber: lineNumber,
+                startColumn,
+                endColumn,
+            };
+
+            //  光标前文本
+            const textBeforePointer = model.getValueInRange({
+                startLineNumber: lineNumber,
+                startColumn: 0,
+                endLineNumber: lineNumber,
+                endColumn: column,
+            });
+            // // const nextTokens = textAfterPointer.trim().split(/\s+/)
+            // // const nextToken = nextTokens[0].toLowerCase()
+            const tokens = textBeforePointer.trim().split(/\s+/);
+            let lastToken = tokens[tokens.length - 1].toLowerCase();
+            const secondToken = (tokens.length > 2 && tokens[tokens.length - 2].toLowerCase()) || '';
+
+            // console.log("光标前文本：=>" + textBeforePointerMulti)
+            // console.log("最后输入的：=>" + lastToken)
+
+            let suggestions: languages.CompletionItem[] = [];
+
+            let alias = '';
+            if (lastToken.indexOf('.') > -1 || secondToken.indexOf('.') > -1) {
+                // 如果是.触发代码提示，则进行【 库.表名联想 】 或 【 表别名.表字段联想 】
+                alias = lastToken.substring(0, lastToken.lastIndexOf('.'));
+                if (lastToken.trim().startsWith('.')) {
+                    alias = secondToken;
+                }
+                // 如果字符串粘连起了如:'a.creator,a.',需要重新取出别名
+                let aliasArr = lastToken.split(',');
+                if (aliasArr.length > 1) {
+                    lastToken = aliasArr[aliasArr.length - 1];
+                    alias = lastToken.substring(0, lastToken.lastIndexOf('.'));
+                    if (lastToken.trim().startsWith('.')) {
+                        alias = secondToken;
+                    }
+                }
+            }
+
+            // 获取光标所在行之前的所有文本内容
+            const textBeforeCursor = model.getValueInRange({
+                startLineNumber: 1,
+                startColumn: 0,
+                endLineNumber: lineNumber,
+                endColumn: column,
+            });
+
+            // 获取光标所在行之后的所有文本内容
+            const textAfterCursor = model.getValueInRange({
+                startLineNumber: lineNumber,
+                startColumn: column,
+                endLineNumber: model.getLineCount(),
+                endColumn: model.getLineMaxColumn(model.getLineCount()),
+            });
+
+            // 检测光标前后文本中的分号位置，确定完整 SQL 语句的范围
+            const start = textBeforeCursor.lastIndexOf(';');
+            const end = textAfterCursor.indexOf(';');
+
+            let sqlStatement = '';
+            // 如果光标前后都有分号，则取二者之间的文本作为完整 SQL 语句
+            if (start !== -1 && end !== -1) {
+                sqlStatement = textBeforeCursor.substring(start + 1) + textAfterCursor.substring(0, end);
+            }
+            // 如果只有光标前面有分号，则取分号后的文本作为完整 SQL 语句
+            else if (start !== -1) {
+                sqlStatement = textBeforeCursor.substring(start + 1) + textAfterCursor;
+            }
+            // 如果只有光标后面有分号，则取分号前的文本作为完整 SQL 语句
+            else if (end !== -1) {
+                sqlStatement = textBeforeCursor + textAfterCursor.substring(0, end);
+            }
+            // 如果光标前后都没有分号，则取整个文本作为完整 SQL 语句
+            else {
+                sqlStatement = textBeforeCursor + textAfterCursor;
+            }
+
+            const tableName = getTableName4SqlCtx(sqlStatement, alias);
+            // 提出到表名，则将表对应的字段也添加进提示建议
+            if (tableName) {
+                let dbHits = await dbInst.loadDbHints(db);
+                let columns = dbHits[tableName];
+                columns?.forEach((a: string, index: any) => {
+                    // 字段数据格式  字段名 字段注释，  如： create_time  [datetime][创建时间]
+                    const nameAndComment = a.split('  ');
+                    const fieldName = nameAndComment[0];
+                    suggestions.push({
+                        label: {
+                            label: a,
+                            description: 'column',
+                        },
+                        kind: monaco.languages.CompletionItemKind.Property,
+                        detail: '', // 不显示detail, 否则选中时备注等会被遮挡
+                        insertText: fieldName, // create_time
+                        range,
+                        sortText: 100 + index + '', // 使用表字段声明顺序排序,排序需为字符串类型
+                    });
+                });
+
+                // 若存在字段提示，并且有别名，则提示字段即可，不完善后续的表名以及函数等
+                if (suggestions.length > 0 && alias) {
+                    return {
+                        suggestions: suggestions,
+                    };
+                }
+            }
+
+            const tables = await dbInst.loadTables(db);
+
+            // 表名联想
+            tables.forEach((tableMeta: any, index: any) => {
+                const { tableName, tableComment } = tableMeta;
+                suggestions.push({
+                    label: {
+                        label: tableName + ' - ' + tableComment,
+                        description: 'table',
+                    },
+                    kind: monaco.languages.CompletionItemKind.File,
+                    detail: tableComment,
+                    insertText: tableName + ' ',
+                    range,
+                    sortText: 300 + index + '',
+                });
+            });
+
+            // mysql关键字
+            sqlCompletionKeywords.forEach((item: any) => {
+                suggestions.push({
+                    label: {
+                        label: item,
+                        description: 'keyword',
+                    },
+                    kind: monaco.languages.CompletionItemKind.Keyword,
+                    insertText: item,
+                    range,
+                });
+            });
+
+            // 操作符
+            sqlCompletionOperators.forEach((item: any) => {
+                suggestions.push({
+                    label: {
+                        label: item,
+                        description: 'opt',
+                    },
+                    kind: monaco.languages.CompletionItemKind.Operator,
+                    insertText: item,
+                    range,
+                });
+            });
+
+            let replacedFunctions = [] as string[];
+
+            // 添加的函数
+            addSqlLanguage.replaceFunctions.forEach((item: any) => {
+                replacedFunctions.push(item.label);
+                suggestions.push({
+                    label: {
+                        label: item.label,
+                        description: item.description,
+                    },
+                    kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: item.insertText,
+                    range,
+                });
+            });
+
+            // 内置函数
+            sqlCompletionBuiltinFunctions.forEach((item: any) => {
+                replacedFunctions.indexOf(item) < 0 &&
+                    suggestions.push({
+                        label: {
+                            label: item,
+                            description: 'func',
+                        },
+                        kind: monaco.languages.CompletionItemKind.Function,
+                        insertText: item,
+                        range,
+                    });
+            });
+            // 内置变量
+            sqlCompletionBuiltinVariables.forEach((item: string) => {
+                suggestions.push({
+                    label: {
+                        label: item,
+                        description: 'var',
+                    },
+                    kind: monaco.languages.CompletionItemKind.Variable,
+                    insertText: item,
+                    range,
+                });
+            });
+
+            // 库名提示
+            if (dbs && dbs.length > 0) {
+                dbs.forEach((a: any) => {
+                    suggestions.push({
+                        label: {
+                            label: a,
+                            description: 'schema',
+                        },
+                        kind: monaco.languages.CompletionItemKind.Folder,
+                        insertText: a,
+                        range,
+                    });
+                });
+            }
+
+            // 默认提示
+            return {
+                suggestions: suggestions,
+            };
+        },
+    });
+}
+
+function getTableName4SqlCtx(sql: string, alias: string = '') {
+    // 去除多余的换行、空格和制表符
+    sql = sql.replace(/[\r\n\s\t]+/g, ' ');
+
+    // 提取所有可能的表名和别名
+    const regex = /(?:(?:FROM|JOIN|UPDATE)\s+(\S+)\s+(?:AS\s+)?(\S+))/gi;
+    let matches;
+    const tables = [];
+
+    // 使用正则表达式匹配所有的表和别名
+    while ((matches = regex.exec(sql)) !== null) {
+        const tableName = matches[1].replace(/[`"]/g, '');
+        const tableAlias = matches[2] ? matches[2].replace(/[`"]/g, '') : tableName;
+        tables.push({ tableName, tableAlias });
+    }
+
+    // console.log('sql....', sql);
+    // console.log('alias....', alias);
+    // console.log('parset tables...', tables);
+    if (alias) {
+        // 如果指定了别名参数，则返回对应的表名
+        const table = tables.find((t) => t.tableAlias === alias);
+        return table ? table.tableName : '';
+    } else {
+        // 如果未指定别名参数，则返回第一个表名
+        return tables.length > 0 ? tables[0].tableName : '';
+    }
+}

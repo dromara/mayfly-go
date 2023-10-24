@@ -52,6 +52,7 @@ type Config struct {
 	Jwt    Jwt    `yaml:"jwt"`
 	Aes    Aes    `yaml:"aes"`
 	Mysql  Mysql  `yaml:"mysql"`
+	Sqlite Sqlite `yaml:"sqlite"`
 	Redis  Redis  `yaml:"redis"`
 	Log    Log    `yaml:"log"`
 }
@@ -70,6 +71,7 @@ func (c *Config) IfBlankDefaultValue() {
 	c.Server.Default()
 	c.Jwt.Default()
 	c.Mysql.Default()
+	c.Sqlite.Default()
 }
 
 // 配置文件内容校验
@@ -107,6 +109,11 @@ func (c *Config) ReplaceOsEnv() {
 	dbPwd := os.Getenv("MAYFLY_DB_PASS")
 	if dbPwd != "" {
 		c.Mysql.Password = dbPwd
+	}
+
+	sqlitePath := os.Getenv("MAYFLY_SQLITE_PATH")
+	if sqlitePath != "" {
+		c.Sqlite.Path = sqlitePath
 	}
 
 	aesKey := os.Getenv("MAYFLY_AES_KEY")

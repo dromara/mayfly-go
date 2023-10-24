@@ -11,6 +11,7 @@ import (
 	redisentity "mayfly-go/internal/redis/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 )
 
 type Index struct {
@@ -36,7 +37,7 @@ func (i *Index) Count(rc *req.Ctx) {
 		dbNum = i.DbApp.Count(&dbentity.DbQuery{TagIds: tagIds})
 		redisNum = i.RedisApp.Count(&redisentity.RedisQuery{TagIds: tagIds})
 	}
-	rc.ResData = map[string]any{
+	rc.ResData = collx.M{
 		"mongoNum":   mongoNum,
 		"machineNum": machienNum,
 		"dbNum":      dbNum,

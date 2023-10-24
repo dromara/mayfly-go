@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mayfly-go/pkg/utils/collx"
 	"reflect"
 	"strconv"
 	"strings"
@@ -324,7 +325,7 @@ func getInnerStructMaps(m map[string]any) map[string]map[string]any {
 		prefix := k[0:lastIndex]
 		m2 := key2map[prefix]
 		if m2 == nil {
-			key2map[prefix] = map[string]any{k[lastIndex+1:]: v}
+			key2map[prefix] = collx.M{k[lastIndex+1:]: v}
 		} else {
 			m2[k[lastIndex+1:]] = v
 		}
@@ -633,26 +634,4 @@ func Case2Camel(name string) string {
 	name = strings.Replace(name, "_", " ", -1)
 	name = strings.Title(name)
 	return strings.Replace(name, " ", "", -1)
-}
-
-func IsBlank(value any) bool {
-	if value == nil {
-		return true
-	}
-	rValue := reflect.ValueOf(value)
-	switch rValue.Kind() {
-	case reflect.String:
-		return rValue.Len() == 0
-	case reflect.Bool:
-		return !rValue.Bool()
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return rValue.Int() == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return rValue.Uint() == 0
-	case reflect.Float32, reflect.Float64:
-		return rValue.Float() == 0
-	case reflect.Interface, reflect.Ptr:
-		return rValue.IsNil()
-	}
-	return reflect.DeepEqual(rValue.Interface(), reflect.Zero(rValue.Type()).Interface())
 }

@@ -2,6 +2,7 @@ package application
 
 import (
 	"database/sql"
+	"fmt"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/biz"
@@ -97,10 +98,13 @@ func (app *instanceAppImpl) Delete(id uint64) {
 func getInstanceConn(instance *entity.Instance, db string) (*sql.DB, error) {
 	var conn *sql.DB
 	var err error
-	if instance.Type == entity.DbTypeMysql {
+	switch instance.Type {
+	case entity.DbTypeMysql:
 		conn, err = getMysqlDB(instance, db)
-	} else if instance.Type == entity.DbTypePostgres {
+	case entity.DbTypePostgres:
 		conn, err = getPgsqlDB(instance, db)
+	default:
+		panic(fmt.Sprintf("invalid database type: %s", instance.Type))
 	}
 
 	if err != nil {
@@ -126,15 +130,8 @@ func (app *instanceAppImpl) GetDatabases(ed *entity.Instance) []string {
 	ed.Network = ed.GetNetwork()
 	databases := make([]string, 0)
 	var dbConn *sql.DB
-	var metaDb string
-	var getDatabasesSql string
-	if ed.Type == entity.DbTypeMysql {
-		metaDb = "information_schema"
-		getDatabasesSql = "SELECT SCHEMA_NAME AS dbname FROM SCHEMATA"
-	} else {
-		metaDb = "postgres"
-		getDatabasesSql = "SELECT datname AS dbname FROM pg_database"
-	}
+	metaDb := ed.Type.MetaDbName()
+	getDatabasesSql := ed.Type.StmtSelectDbName()
 
 	dbConn, err := getInstanceConn(ed, metaDb)
 	biz.ErrIsNilAppendErr(err, "数据库连接失败: %s")

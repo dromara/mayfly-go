@@ -3,6 +3,8 @@ package consts
 import "time"
 
 const (
+	AdminId = 1
+
 	MachineConnExpireTime = 60 * time.Minute
 	DbConnExpireTime      = 45 * time.Minute
 	RedisConnExpireTime   = 30 * time.Minute

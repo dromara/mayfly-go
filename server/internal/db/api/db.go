@@ -2,26 +2,28 @@ package api
 
 import (
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"io"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/domain/entity"
 	msgapp "mayfly-go/internal/msg/application"
+	msgdto "mayfly-go/internal/msg/application/dto"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/uniqueid"
 	"mayfly-go/pkg/ws"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/gin-gonic/gin"
-	"github.com/xwb1989/sqlparser"
 )
 
 type Db struct {
@@ -77,9 +79,7 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 }
 
 func (d *Db) getDbConnection(g *gin.Context) *application.DbConnection {
-	dbName := g.Query("db")
-	biz.NotEmpty(dbName, "db不能为空")
-	return d.DbApp.GetDbConnection(getDbId(g), dbName)
+	return d.DbApp.GetDbConnection(getDbId(g), getDbName(g))
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
@@ -150,77 +150,118 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	rc.ResData = colAndRes
 }
 
+// progressCategory sql文件执行进度消息类型
+const progressCategory = "execSqlFileProgress"
+
+// progressMsg sql文件执行进度消息
+type progressMsg struct {
+	Id                 uint64 `json:"id"`
+	SqlFileName        string `json:"sqlFileName"`
+	ExecutedStatements int    `json:"executedStatements"`
+	Terminated         bool   `json:"terminated"`
+}
+
 // 执行sql文件
 func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	g := rc.GinCtx
-	fileheader, err := g.FormFile("file")
+	multipart, err := g.Request.MultipartReader()
 	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
-
-	file, _ := fileheader.Open()
-	filename := fileheader.Filename
+	file, err := multipart.NextPart()
+	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
+	defer file.Close()
+	filename := file.FileName()
 	dbId := getDbId(g)
 	dbName := getDbName(g)
 
-	dbConn := d.getDbConnection(rc.GinCtx)
+	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
-	rc.ReqParam = fmt.Sprintf("%s -> filename: %s", dbConn.Info.GetLogDesc(), filename)
+	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
 
-	logExecRecord := true
-	// 如果执行sql文件大于该值则不记录sql执行记录
-	if fileheader.Size > 50*1024 {
-		logExecRecord = false
+	defer func() {
+		var errInfo string
+		switch t := recover().(type) {
+		case error:
+			errInfo = t.Error()
+		case string:
+			errInfo = t
+		}
+		if len(errInfo) > 0 {
+			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)))
+		}
+	}()
+
+	execReq := &application.DbSqlExecReq{
+		DbId:         dbId,
+		Db:           dbName,
+		Remark:       filename,
+		DbConn:       dbConn,
+		LoginAccount: rc.LoginAccount,
 	}
 
-	go func() {
-		defer func() {
-			if err := recover(); err != nil {
-				var errInfo string
-				switch t := err.(type) {
-				case biz.BizError:
-					errInfo = t.Error()
-				case *biz.BizError:
-					errInfo = t.Error()
-				}
-				if len(errInfo) > 0 {
-					d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s]%s执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)))
-				}
-			}
-		}()
+	progressId := uniqueid.IncrementID()
+	executedStatements := 0
+	defer ws.SendJsonMsg(rc.LoginAccount.Id, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+		Id:                 progressId,
+		SqlFileName:        filename,
+		ExecutedStatements: executedStatements,
+		Terminated:         true,
+	}).WithCategory(progressCategory))
 
-		execReq := &application.DbSqlExecReq{
-			DbId:         dbId,
-			Db:           dbName,
-			Remark:       fileheader.Filename,
-			DbConn:       dbConn,
-			LoginAccount: rc.LoginAccount,
+	var sql string
+	tokenizer := sqlparser.NewReaderTokenizer(file, sqlparser.WithCacheInBuffer())
+	ticker := time.NewTicker(time.Second * 1)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			ws.SendJsonMsg(rc.LoginAccount.Id, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+				Id:                 progressId,
+				SqlFileName:        filename,
+				ExecutedStatements: executedStatements,
+				Terminated:         false,
+			}).WithCategory(progressCategory))
+		default:
 		}
-
-		tokens := sqlparser.NewTokenizer(file)
-		for {
-			stmt, err := sqlparser.ParseNext(tokens)
-			if err == io.EOF {
-				break
-			}
+		sql, err = sqlparser.SplitNext(tokenizer)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本解析失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
+			return
+		}
+		const prefixUse = "use "
+		const prefixUSE = "USE "
+		if strings.HasPrefix(sql, prefixUSE) || strings.HasPrefix(sql, prefixUse) {
+			var stmt sqlparser.Statement
+			stmt, err = sqlparser.Parse(sql)
 			if err != nil {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
-				return
+				d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本解析失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), err.Error())))
 			}
-			sql := sqlparser.String(stmt)
+			stmtUse, ok := stmt.(*sqlparser.Use)
+			if !ok {
+				d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本解析失败", fmt.Sprintf("[%s][%s] 解析SQL失败: [%s]", filename, dbConn.Info.GetLogDesc(), sql)))
+			}
+			dbConn = d.DbApp.GetDbConnection(dbId, stmtUse.DBName.String())
+			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
+			execReq.DbConn = dbConn
+		}
+		// 需要记录执行记录
+		const maxRecordStatements = 64
+		if executedStatements < maxRecordStatements {
 			execReq.Sql = sql
-			// 需要记录执行记录
-			if logExecRecord {
-				_, err = d.DbSqlExecApp.Exec(execReq)
-			} else {
-				_, err = dbConn.Exec(sql)
-			}
-
-			if err != nil {
-				d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] -> sql=[%s] 执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), sql, err.Error())))
-				return
-			}
+			_, err = d.DbSqlExecApp.Exec(execReq)
+		} else {
+			_, err = dbConn.Exec(sql)
 		}
-		d.MsgApp.CreateAndSend(rc.LoginAccount, ws.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("[%s]执行完成 -> %s", filename, dbConn.Info.GetLogDesc())))
-	}()
+
+		if err != nil {
+			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s] -> sql=[%s] 执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), sql, err.Error())))
+			return
+		}
+		executedStatements++
+	}
+	d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)))
 }
 
 // 数据库dump
@@ -266,16 +307,14 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		var msg string
 		if err := recover(); err != nil {
 			switch t := err.(type) {
-			case biz.BizError:
-				msg = t.Error()
-			case *biz.BizError:
+			case error:
 				msg = t.Error()
 			}
 		}
 		if len(msg) > 0 {
 			msg = "数据库导出失败: " + msg
 			writer.WriteString(msg)
-			d.MsgApp.CreateAndSend(rc.LoginAccount, ws.ErrSysMsg("数据库导出失败", msg))
+			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("数据库导出失败", msg))
 		}
 		writer.Close()
 	}()
@@ -283,26 +322,27 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		d.dumpDb(writer, dbId, dbName, tables, needStruct, needData, len(dbNames) > 1)
 	}
 
-	rc.ReqParam = fmt.Sprintf("DB[id=%d, tag=%s, name=%s, databases=%s, tables=%s, dumpType=%s]", db.Id, db.TagPath, db.Name, dbNamesStr, tablesStr, dumpType)
+	rc.ReqParam = collx.Kvs("db", db, "databases", dbNamesStr, "tables", tablesStr, "dumpType", dumpType)
 }
 
 func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool, switchDb bool) {
 	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
-	writer.WriteString("-- ----------------------------")
+	writer.WriteString("\n-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
 	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
 	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", dbName))
 	writer.WriteString("\n-- ----------------------------\n")
-	writer.TryFlush()
 
 	if switchDb {
 		switch dbConn.Info.Type {
 		case entity.DbTypeMysql:
-			writer.WriteString(fmt.Sprintf("use `%s`;\n", dbName))
+			writer.WriteString(fmt.Sprintf("USE %s;\n", entity.DbTypeMysql.QuoteIdentifier(dbName)))
 		default:
-			biz.IsTrue(false, "数据库类型必须为 %s", entity.DbTypeMysql)
+			biz.IsTrue(false, "同时导出多个数据库，数据库类型必须为 %s", entity.DbTypeMysql)
 		}
 	}
+	writer.WriteString(dbConn.Info.Type.StmtSetForeignKeyChecks(false))
+
 	dbMeta := dbConn.GetMeta()
 	if len(tables) == 0 {
 		ti := dbMeta.GetTableInfos()
@@ -313,23 +353,22 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 	}
 
 	for _, table := range tables {
+		writer.TryFlush()
+		quotedTable := dbConn.Info.Type.QuoteIdentifier(table)
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
-			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS `%s`;\n", table))
+			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS %s;\n", quotedTable))
 			writer.WriteString(dbMeta.GetCreateTableDdl(table) + ";\n")
 		}
-
 		if !needData {
 			continue
 		}
-
 		writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", table))
 		writer.WriteString("BEGIN;\n")
-
-		insertSql := "INSERT INTO `%s` VALUES (%s);\n"
-
+		insertSql := "INSERT INTO %s VALUES (%s);\n"
 		dbMeta.WalkTableRecord(table, func(record map[string]any, columns []string) {
 			var values []string
+			writer.TryFlush()
 			for _, column := range columns {
 				value := record[column]
 				if value == nil {
@@ -338,18 +377,17 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 				}
 				strValue, ok := value.(string)
 				if ok {
-					values = append(values, fmt.Sprintf("%#v", strValue))
+					strValue = dbConn.Info.Type.QuoteLiteral(strValue)
+					values = append(values, strValue)
 				} else {
 					values = append(values, stringx.AnyToStr(value))
 				}
 			}
-			writer.WriteString(fmt.Sprintf(insertSql, table, strings.Join(values, ", ")))
-			writer.TryFlush()
+			writer.WriteString(fmt.Sprintf(insertSql, quotedTable, strings.Join(values, ", ")))
 		})
-
 		writer.WriteString("COMMIT;\n")
-		writer.TryFlush()
 	}
+	writer.WriteString(dbConn.Info.Type.StmtSetForeignKeyChecks(true))
 }
 
 // @router /api/db/:dbId/t-metadata [get]

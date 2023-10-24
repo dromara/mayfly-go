@@ -1,6 +1,7 @@
 package application
 
 import (
+	"mayfly-go/internal/msg/application/dto"
 	"mayfly-go/internal/msg/domain/entity"
 	"mayfly-go/internal/msg/domain/repository"
 	"mayfly-go/pkg/model"
@@ -14,7 +15,7 @@ type Msg interface {
 	Create(msg *entity.Msg)
 
 	// 创建消息，并通过ws发送
-	CreateAndSend(la *model.LoginAccount, msg *ws.SysMsg)
+	CreateAndSend(la *model.LoginAccount, msg *dto.SysMsg)
 }
 
 func newMsgApp(msgRepo repository.Msg) Msg {
@@ -35,9 +36,9 @@ func (a *msgAppImpl) Create(msg *entity.Msg) {
 	a.msgRepo.Insert(msg)
 }
 
-func (a *msgAppImpl) CreateAndSend(la *model.LoginAccount, wmsg *ws.SysMsg) {
+func (a *msgAppImpl) CreateAndSend(la *model.LoginAccount, wmsg *dto.SysMsg) {
 	now := time.Now()
-	msg := &entity.Msg{Type: 2, Msg: wmsg.SysMsg, RecipientId: int64(la.Id), CreateTime: &now, CreatorId: la.Id, Creator: la.Username}
+	msg := &entity.Msg{Type: 2, Msg: wmsg.Msg, RecipientId: int64(la.Id), CreateTime: &now, CreatorId: la.Id, Creator: la.Username}
 	a.msgRepo.Insert(msg)
-	ws.SendMsg(la.Id, wmsg)
+	ws.SendJsonMsg(la.Id, wmsg)
 }

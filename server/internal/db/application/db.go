@@ -76,42 +76,36 @@ func (d *dbAppImpl) GetById(id uint64, cols ...string) *entity.Db {
 }
 
 func (d *dbAppImpl) Save(dbEntity *entity.Db) {
-	// 查找是否存在该库
-	oldDb := &entity.Db{Name: dbEntity.Name}
+	// 查找是否存在
+	oldDb := &entity.Db{Name: dbEntity.Name, InstanceId: dbEntity.InstanceId}
 	err := d.GetDbBy(oldDb)
 
 	if dbEntity.Id == 0 {
-		biz.IsTrue(err != nil, "该数据库资源已存在")
+		biz.IsTrue(err != nil, "该实例下数据库名已存在")
 		d.dbRepo.Insert(dbEntity)
 		return
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
 	if err == nil {
-		biz.IsTrue(oldDb.Id == dbEntity.Id, "该数据库资源已存在")
+		biz.IsTrue(oldDb.Id == dbEntity.Id, "该实例下数据库名已存在")
 	}
 
 	dbId := dbEntity.Id
 	old := d.GetById(dbId)
 
-	var oldDbs []any
-	for _, v := range strings.Split(old.Database, " ") {
+	oldDbs := strings.Split(old.Database, " ")
+	newDbs := strings.Split(dbEntity.Database, " ")
+	// 比较新旧数据库列表，需要将移除的数据库相关联的信息删除
+	_, delDb, _ := collx.ArrayCompare(newDbs, oldDbs, func(i1, i2 string) bool {
+		return i1 == i2
+	})
+
+	for _, v := range delDb {
 		// 关闭数据库连接
 		CloseDb(dbEntity.Id, v)
-		oldDbs = append(oldDbs, v)
-	}
-
-	var newDbs []any
-	for _, v := range strings.Split(dbEntity.Database, " ") {
-		newDbs = append(newDbs, v)
-	}
-	// 比较新旧数据库列表，需要将移除的数据库相关联的信息删除
-	_, delDb, _ := collx.ArrayCompare(newDbs, oldDbs, func(i1, i2 any) bool {
-		return i1.(string) == i2.(string)
-	})
-	for _, v := range delDb {
 		// 删除该库关联的所有sql记录
-		d.dbSqlRepo.DeleteBy(&entity.DbSql{DbId: dbId, Db: v.(string)})
+		d.dbSqlRepo.DeleteBy(&entity.DbSql{DbId: dbId, Db: v})
 	}
 
 	d.dbRepo.Update(dbEntity)
@@ -150,6 +144,7 @@ func (d *dbAppImpl) GetDbConnection(dbId uint64, dbName string) *DbConnection {
 	biz.IsTrue(strings.Contains(" "+db.Database+" ", " "+dbName+" "), "未配置数据库【%s】的操作权限", dbName)
 
 	instance := d.dbInstanceApp.GetById(db.InstanceId)
+	biz.NotNil(instance, "数据库实例不存在")
 	// 密码解密
 	instance.PwdDecrypt()
 
@@ -184,7 +179,7 @@ func (d *dbAppImpl) GetDbConnection(dbId uint64, dbName string) *DbConnection {
 type DbInfo struct {
 	Id                 uint64
 	Name               string
-	Type               string // 类型，mysql oracle等
+	Type               entity.DbType // 类型，mysql oracle等
 	Host               string
 	Port               int
 	Network            string
@@ -248,14 +243,14 @@ func (d *DbConnection) Exec(sql string) (int64, error) {
 
 // 获取数据库元信息实现接口
 func (d *DbConnection) GetMeta() DbMetadata {
-	dbType := d.Info.Type
-	if dbType == entity.DbTypeMysql {
+	switch d.Info.Type {
+	case entity.DbTypeMysql:
 		return &MysqlMetadata{di: d}
-	}
-	if dbType == entity.DbTypePostgres {
+	case entity.DbTypePostgres:
 		return &PgsqlMetadata{di: d}
+	default:
+		panic(fmt.Sprintf("invalid database type: %s", d.Info.Type))
 	}
-	return nil
 }
 
 // 关闭连接

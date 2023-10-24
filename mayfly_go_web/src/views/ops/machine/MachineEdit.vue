@@ -4,13 +4,13 @@
             <el-form :model="form" ref="machineForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item prop="tagId" label="标签:">
+                        <el-form-item prop="tagId" label="标签">
                             <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
                         </el-form-item>
-                        <el-form-item prop="name" label="名称:" required>
+                        <el-form-item prop="name" label="名称" required>
                             <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
                         </el-form-item>
-                        <el-form-item prop="ip" label="ip:" required>
+                        <el-form-item prop="ip" label="ip" required>
                             <el-col :span="18">
                                 <el-input :disabled="form.id" v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"> </el-input>
                             </el-col>
@@ -20,36 +20,36 @@
                             </el-col>
                         </el-form-item>
 
-                        <el-form-item prop="username" label="用户名:">
+                        <el-form-item prop="username" label="用户名">
                             <el-input v-model.trim="form.username" placeholder="请输授权用户名" autocomplete="new-password"> </el-input>
                         </el-form-item>
 
-                        <el-form-item label="认证方式:">
+                        <el-form-item label="认证方式">
                             <el-select @change="changeAuthMethod" style="width: 100%" v-model="state.authType" placeholder="请选认证方式">
                                 <el-option key="1" label="密码" :value="1"> </el-option>
                                 <el-option key="2" label="授权凭证" :value="2"> </el-option>
                             </el-select>
                         </el-form-item>
-                        <el-form-item v-if="state.authType == 1" prop="password" label="密码:">
+                        <el-form-item v-if="state.authType == 1" prop="password" label="密码">
                             <el-input type="password" show-password v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password">
                             </el-input>
                         </el-form-item>
 
-                        <el-form-item v-if="state.authType == 2" prop="authCertId" label="授权凭证:" required>
+                        <el-form-item v-if="state.authType == 2" prop="authCertId" label="授权凭证" required>
                             <auth-cert-select ref="authCertSelectRef" v-model="form.authCertId" />
                         </el-form-item>
 
-                        <el-form-item prop="remark" label="备注:">
+                        <el-form-item prop="remark" label="备注">
                             <el-input type="textarea" v-model="form.remark"></el-input>
                         </el-form-item>
                     </el-tab-pane>
 
                     <el-tab-pane label="其他配置" name="other">
-                        <el-form-item prop="enableRecorder" label="终端回放:">
+                        <el-form-item prop="enableRecorder" label="终端回放">
                             <el-checkbox v-model="form.enableRecorder" :true-label="1" :false-label="-1"></el-checkbox>
                         </el-form-item>
 
-                        <el-form-item prop="sshTunnelMachineId" label="SSH隧道:">
+                        <el-form-item prop="sshTunnelMachineId" label="SSH隧道">
                             <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
                         </el-form-item>
                     </el-tab-pane>

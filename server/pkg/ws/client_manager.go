@@ -7,7 +7,7 @@ import (
 )
 
 // 心跳间隔
-var heartbeatInterval = 25 * time.Second
+const heartbeatInterval = 25 * time.Second
 
 // 连接管理
 type ClientManager struct {
@@ -31,7 +31,7 @@ func NewClientManager() (clientManager *ClientManager) {
 // 管道处理程序
 func (manager *ClientManager) Start() {
 	manager.HeartbeatTimer()
-	go manager.WriteMessage()
+	manager.WriteMessage()
 	for {
 		select {
 		case client := <-manager.ConnectChan:
@@ -118,7 +118,7 @@ func (manager *ClientManager) HeartbeatTimer() {
 				}
 				if err := cli.Ping(); err != nil {
 					manager.CloseClient(cli)
-					logx.Errorf("WS发送心跳失败: %v 总连接数：%d", userId, Manager.Count())
+					logx.Debugf("WS发送心跳失败: %v 总连接数：%d", userId, Manager.Count())
 				} else {
 					logx.Debugf("WS发送心跳成功: uid=%v", userId)
 				}

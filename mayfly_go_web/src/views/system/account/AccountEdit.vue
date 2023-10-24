@@ -1,20 +1,20 @@
 <template>
     <div class="account-dialog">
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="35%" :destroy-on-close="true">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" :show-close="false" width="500px" :destroy-on-close="true">
             <el-form :model="form" ref="accountForm" :rules="rules" label-width="auto">
-                <el-form-item prop="name" label="姓名:">
+                <el-form-item prop="name" label="姓名">
                     <el-input v-model.trim="form.name" placeholder="请输入姓名" auto-complete="off" clearable></el-input>
                 </el-form-item>
-                <el-form-item prop="username" label="用户名:">
+                <el-form-item prop="username" label="用户名">
                     <el-input
                         :disabled="edit"
                         v-model.trim="form.username"
-                        placeholder="请输入账号用户名，密码默认与账号名一致"
+                        placeholder="请输入账号用户名，密码默认与用户名一致"
                         auto-complete="off"
                         clearable
                     ></el-input>
                 </el-form-item>
-                <el-form-item v-if="edit" prop="password" label="密码:">
+                <el-form-item v-if="edit" prop="password" label="密码">
                     <el-input type="password" v-model.trim="form.password" placeholder="输入密码可修改用户密码" autocomplete="new-password"></el-input>
                 </el-form-item>
             </el-form>
