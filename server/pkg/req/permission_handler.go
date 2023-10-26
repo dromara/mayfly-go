@@ -3,9 +3,9 @@ package req
 import (
 	"encoding/json"
 	"fmt"
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/config"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/utils/anyx"
@@ -48,16 +48,16 @@ func PermissionHandler(rc *Ctx) error {
 		tokenStr = rc.GinCtx.Query("token")
 	}
 	if tokenStr == "" {
-		return biz.PermissionErr
+		return errorx.PermissionErr
 	}
 	userId, userName, err := ParseToken(tokenStr)
 	if err != nil || userId == 0 {
-		return biz.PermissionErr
+		return errorx.PermissionErr
 	}
 	// 权限不为nil，并且permission code不为空，则校验是否有权限code
 	if permission != nil && permission.Code != "" {
 		if !permissionCodeRegistry.HasCode(userId, permission.Code) {
-			return biz.PermissionErr
+			return errorx.PermissionErr
 		}
 	}
 	if rc.LoginAccount == nil {

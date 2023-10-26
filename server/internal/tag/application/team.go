@@ -4,20 +4,23 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
+
+	"gorm.io/gorm"
 )
 
 type Team interface {
 	// 分页获取项目团队信息列表
-	GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Save(team *entity.Team)
+	Save(team *entity.Team) error
 
-	Delete(id uint64)
+	Delete(id uint64) error
 
 	//--------------- 团队成员相关接口 ---------------
 
-	GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) *model.PageResult[any]
+	GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) (*model.PageResult[any], error)
 
 	SaveMember(tagTeamMember *entity.TeamMember)
 
@@ -29,9 +32,9 @@ type Team interface {
 
 	ListTagIds(teamId uint64) []uint64
 
-	SaveTag(tagTeam *entity.TagTreeTeam)
+	SaveTag(tagTeam *entity.TagTreeTeam) error
 
-	DeleteTag(teamId, tagId uint64)
+	DeleteTag(teamId, tagId uint64) error
 }
 
 func newTeamApp(teamRepo repository.Team,
@@ -51,27 +54,34 @@ type teamAppImpl struct {
 	tagTreeTeamRepo repository.TagTreeTeam
 }
 
-func (p *teamAppImpl) GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+func (p *teamAppImpl) GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return p.teamRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (p *teamAppImpl) Save(team *entity.Team) {
+func (p *teamAppImpl) Save(team *entity.Team) error {
 	if team.Id == 0 {
-		p.teamRepo.Insert(team)
-	} else {
-		p.teamRepo.UpdateById(team)
+		return p.teamRepo.Insert(team)
 	}
+	return p.teamRepo.UpdateById(team)
 }
 
-func (p *teamAppImpl) Delete(id uint64) {
-	p.teamRepo.Delete(id)
-	p.teamMemberRepo.DeleteBy(&entity.TeamMember{TeamId: id})
-	p.tagTreeTeamRepo.DeleteBy(&entity.TagTreeTeam{TeamId: id})
+func (p *teamAppImpl) Delete(id uint64) error {
+	return gormx.Tx(
+		func(db *gorm.DB) error {
+			return p.teamRepo.DeleteByIdWithDb(db, id)
+		},
+		func(db *gorm.DB) error {
+			return p.teamMemberRepo.DeleteByCondWithDb(db, &entity.TeamMember{TeamId: id})
+		},
+		func(db *gorm.DB) error {
+			return p.tagTreeTeamRepo.DeleteByCondWithDb(db, &entity.TagTreeTeam{TeamId: id})
+		},
+	)
 }
 
 // --------------- 团队成员相关接口 ---------------
 
-func (p *teamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) *model.PageResult[any] {
+func (p *teamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) (*model.PageResult[any], error) {
 	return p.teamMemberRepo.GetPageList(condition, pageParam, toEntity)
 }
 
@@ -79,12 +89,12 @@ func (p *teamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *mod
 func (p *teamAppImpl) SaveMember(teamMember *entity.TeamMember) {
 	teamMember.Id = 0
 	biz.IsTrue(!p.teamMemberRepo.IsExist(teamMember.TeamId, teamMember.AccountId), "该成员已存在")
-	p.teamMemberRepo.Save(teamMember)
+	p.teamMemberRepo.Insert(teamMember)
 }
 
 // 删除团队成员信息
 func (p *teamAppImpl) DeleteMember(teamId, accountId uint64) {
-	p.teamMemberRepo.DeleteBy(&entity.TeamMember{TeamId: teamId, AccountId: accountId})
+	p.teamMemberRepo.DeleteByCond(&entity.TeamMember{TeamId: teamId, AccountId: accountId})
 }
 
 func (p *teamAppImpl) IsExistMember(teamId, accounId uint64) bool {
@@ -95,7 +105,7 @@ func (p *teamAppImpl) IsExistMember(teamId, accounId uint64) bool {
 
 func (p *teamAppImpl) ListTagIds(teamId uint64) []uint64 {
 	tags := &[]entity.TagTreeTeam{}
-	p.tagTreeTeamRepo.ListTag(&entity.TagTreeTeam{TeamId: teamId}, tags)
+	p.tagTreeTeamRepo.ListByCondOrder(&entity.TagTreeTeam{TeamId: teamId}, tags)
 	ids := make([]uint64, 0)
 	for _, v := range *tags {
 		ids = append(ids, v.TagId)
@@ -104,12 +114,12 @@ func (p *teamAppImpl) ListTagIds(teamId uint64) []uint64 {
 }
 
 // 保存关联项目信息
-func (p *teamAppImpl) SaveTag(tagTreeTeam *entity.TagTreeTeam) {
+func (p *teamAppImpl) SaveTag(tagTreeTeam *entity.TagTreeTeam) error {
 	tagTreeTeam.Id = 0
-	p.tagTreeTeamRepo.Save(tagTreeTeam)
+	return p.tagTreeTeamRepo.Insert(tagTreeTeam)
 }
 
 // 删除关联项目信息
-func (p *teamAppImpl) DeleteTag(teamId, tagId uint64) {
-	p.tagTreeTeamRepo.DeleteBy(&entity.TagTreeTeam{TeamId: teamId, TagId: tagId})
+func (p *teamAppImpl) DeleteTag(teamId, tagId uint64) error {
+	return p.tagTreeTeamRepo.DeleteByCond(&entity.TagTreeTeam{TeamId: teamId, TagId: tagId})
 }

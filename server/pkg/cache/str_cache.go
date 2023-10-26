@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/rediscli"
 	"strconv"
@@ -41,13 +40,12 @@ func GetInt(key string) int {
 }
 
 // 如果系统有设置redis信息，则使用redis存，否则存于本机内存。duration == -1则为永久缓存
-func SetStr(key, value string, duration time.Duration) {
+func SetStr(key, value string, duration time.Duration) error {
 	if !useRedisCache() {
 		checkCache()
-		tm.Add(key, value, duration)
-		return
+		return tm.Add(key, value, duration)
 	}
-	biz.ErrIsNilAppendErr(rediscli.Set(key, value, duration), "redis set err: %s")
+	return rediscli.Set(key, value, duration)
 }
 
 // 删除指定key

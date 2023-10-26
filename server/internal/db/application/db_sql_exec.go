@@ -6,7 +6,7 @@ import (
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"strconv"
 	"strings"
@@ -51,7 +51,7 @@ type DbSqlExec interface {
 	DeleteBy(condition *entity.DbSqlExec)
 
 	// 分页获取
-	GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
 
 func newDbSqlExecApp(dbExecSqlRepo repository.DbSqlExec) DbSqlExec {
@@ -91,7 +91,9 @@ func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error)
 			// 如果配置为0，则不校验分页参数
 			maxCount := config.GetDbQueryMaxCount()
 			if maxCount != 0 {
-				biz.IsTrue(strings.Contains(lowerSql, "limit"), "请完善分页信息后执行")
+				if !strings.Contains(lowerSql, "limit") {
+					return nil, errorx.NewBiz("请完善分页信息后执行")
+				}
 			}
 		}
 		var execErr error
@@ -148,10 +150,10 @@ func (d *dbSqlExecAppImpl) saveSqlExecLog(isQuery bool, dbSqlExecRecord *entity.
 }
 
 func (d *dbSqlExecAppImpl) DeleteBy(condition *entity.DbSqlExec) {
-	d.dbSqlExecRepo.DeleteBy(condition)
+	d.dbSqlExecRepo.DeleteByCond(condition)
 }
 
-func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return d.dbSqlExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -163,10 +165,18 @@ func doSelect(selectStmt *sqlparser.Select, execSqlReq *DbSqlExecReq) (*DbSqlExe
 		maxCount := config.GetDbQueryMaxCount()
 		if maxCount != 0 {
 			limit := selectStmt.Limit
-			biz.NotNil(limit, "请完善分页信息后执行")
+			if limit == nil {
+				return nil, errorx.NewBiz("请完善分页信息后执行")
+			}
+
 			count, err := strconv.Atoi(sqlparser.String(limit.Rowcount))
-			biz.ErrIsNil(err, "分页参数有误")
-			biz.IsTrue(count <= maxCount, "查询结果集数需小于系统配置的%d条", maxCount)
+			if err != nil {
+				return nil, errorx.NewBiz("分页参数有误")
+			}
+
+			if count > maxCount {
+				return nil, errorx.NewBiz("查询结果集数需小于系统配置的%d条", maxCount)
+			}
 		}
 	}
 
@@ -193,7 +203,9 @@ func doUpdate(update *sqlparser.Update, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 	// 可能使用别名，故空格切割
 	tableName := strings.Split(tableStr, " ")[0]
 	where := sqlparser.String(update.Where)
-	biz.IsTrue(len(where) > 0, "SQL[%s]未执行. 请完善 where 条件后再执行", execSqlReq.Sql)
+	if len(where) == 0 {
+		return nil, errorx.NewBiz("SQL[%s]未执行. 请完善 where 条件后再执行", execSqlReq.Sql)
+	}
 
 	updateExprs := update.Exprs
 	updateColumns := make([]string, 0)
@@ -202,7 +214,10 @@ func doUpdate(update *sqlparser.Update, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 	}
 
 	// 获取表主键列名,排除使用别名
-	primaryKey := dbConn.GetMeta().GetPrimaryKey(tableName)
+	primaryKey, err := dbConn.GetMeta().GetPrimaryKey(tableName)
+	if err != nil {
+		return nil, errorx.NewBiz("获取表主键信息失败")
+	}
 
 	updateColumnsAndPrimaryKey := strings.Join(updateColumns, ",") + "," + primaryKey
 	// 查询要更新字段数据的旧值，以及主键值
@@ -228,7 +243,9 @@ func doDelete(delete *sqlparser.Delete, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 	// 可能使用别名，故空格切割
 	table := strings.Split(tableStr, " ")[0]
 	where := sqlparser.String(delete.Where)
-	biz.IsTrue(len(where) > 0, "SQL[%s]未执行. 请完善 where 条件后再执行", execSqlReq.Sql)
+	if len(where) == 0 {
+		return nil, errorx.NewBiz("SQL[%s]未执行. 请完善 where 条件后再执行", execSqlReq.Sql)
+	}
 
 	// 查询删除数据
 	selectSql := fmt.Sprintf("SELECT * FROM %s %s LIMIT 200", tableStr, where)

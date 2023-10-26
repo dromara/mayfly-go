@@ -5,16 +5,22 @@ import (
 )
 
 var (
-	machineFileApp MachineFile = newMachineFileApp(persistence.GetMachineFileRepo(), persistence.GetMachineRepo())
-
-	machineScriptApp MachineScript = newMachineScriptApp(persistence.GetMachineScriptRepo(), persistence.GetMachineRepo())
-
-	authCertApp AuthCert = newAuthCertApp(persistence.GetAuthCertRepo())
-
 	machineApp Machine = newMachineApp(
 		persistence.GetMachineRepo(),
 		GetAuthCertApp(),
 	)
+
+	machineFileApp MachineFile = newMachineFileApp(
+		persistence.GetMachineFileRepo(),
+		GetMachineApp(),
+	)
+
+	machineScriptApp MachineScript = newMachineScriptApp(
+		persistence.GetMachineScriptRepo(),
+		GetMachineApp(),
+	)
+
+	authCertApp AuthCert = newAuthCertApp(persistence.GetAuthCertRepo())
 
 	machineCropJobApp MachineCronJob = newMachineCronJobApp(
 		persistence.GetMachineCronJobRepo(),

@@ -18,14 +18,17 @@ type AuthCert struct {
 
 func (ac *AuthCert) BaseAuthCerts(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.AuthCertQuery))
-	rc.ResData = ac.AuthCertApp.GetPageList(queryCond, page, new([]vo.AuthCertBaseVO))
+	res, err := ac.AuthCertApp.GetPageList(queryCond, page, new([]vo.AuthCertBaseVO))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (ac *AuthCert) AuthCerts(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.AuthCertQuery))
 
 	res := new([]*entity.AuthCert)
-	pageRes := ac.AuthCertApp.GetPageList(queryCond, page, res)
+	pageRes, err := ac.AuthCertApp.GetPageList(queryCond, page, res)
+	biz.ErrIsNil(err)
 	for _, r := range *res {
 		r.PwdDecrypt()
 	}
@@ -42,7 +45,7 @@ func (c *AuthCert) SaveAuthCert(rc *req.Ctx) {
 	rc.ReqParam = acForm
 
 	ac.SetBaseInfo(rc.LoginAccount)
-	c.AuthCertApp.Save(ac)
+	biz.ErrIsNil(c.AuthCertApp.Save(ac))
 }
 
 func (c *AuthCert) Delete(rc *req.Ctx) {

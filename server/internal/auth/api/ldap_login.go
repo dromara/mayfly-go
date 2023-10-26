@@ -11,6 +11,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/captcha"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -69,7 +70,7 @@ func (a *LdapLogin) Login(rc *req.Ctx) {
 	if err != nil {
 		nowFailCount++
 		cache.SetStr(failCountKey, strconv.Itoa(nowFailCount), time.Minute*time.Duration(loginFailMin))
-		panic(biz.NewBizErr(fmt.Sprintf("用户名或密码错误【当前登录失败%d次】", nowFailCount)))
+		panic(errorx.NewBiz(fmt.Sprintf("用户名或密码错误【当前登录失败%d次】", nowFailCount)))
 	}
 
 	rc.ResData = LastLoginCheck(account, accountLoginSecurity, clientIp)
@@ -77,7 +78,7 @@ func (a *LdapLogin) Login(rc *req.Ctx) {
 
 func (a *LdapLogin) getUser(userName string, cols ...string) (*sysentity.Account, error) {
 	account := &sysentity.Account{Username: userName}
-	if err := a.AccountApp.GetAccount(account, cols...); err != nil {
+	if err := a.AccountApp.GetBy(account, cols...); err != nil {
 		return nil, err
 	}
 	return account, nil
@@ -87,10 +88,10 @@ func (a *LdapLogin) createUser(userName, displayName string) {
 	account := &sysentity.Account{Username: userName}
 	account.SetBaseInfo(nil)
 	account.Name = displayName
-	a.AccountApp.Create(account)
+	biz.ErrIsNil(a.AccountApp.Create(account))
 	// 将 LADP 用户本地密码设置为空，不允许本地登录
 	account.Password = cryptox.PwdHash("")
-	a.AccountApp.Update(account)
+	biz.ErrIsNil(a.AccountApp.Update(account))
 }
 
 func (a *LdapLogin) getOrCreateUserWithLdap(userName string, password string, cols ...string) (*sysentity.Account, error) {

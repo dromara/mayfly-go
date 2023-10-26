@@ -3,26 +3,13 @@ package persistence
 import (
 	"mayfly-go/internal/auth/domain/entity"
 	"mayfly-go/internal/auth/domain/repository"
-	"mayfly-go/pkg/gormx"
+	"mayfly-go/pkg/base"
 )
 
-type oauth2AccountRepoImpl struct{}
+type oauth2AccountRepoImpl struct {
+	base.RepoImpl[*entity.Oauth2Account]
+}
 
 func newAuthAccountRepo() repository.Oauth2Account {
-	return new(oauth2AccountRepoImpl)
-}
-
-func (a *oauth2AccountRepoImpl) GetOAuthAccount(condition *entity.Oauth2Account, cols ...string) error {
-	return gormx.GetBy(condition, cols...)
-}
-
-func (a *oauth2AccountRepoImpl) SaveOAuthAccount(e *entity.Oauth2Account) error {
-	if e.Id == 0 {
-		return gormx.Insert(e)
-	}
-	return gormx.UpdateById(e)
-}
-
-func (a *oauth2AccountRepoImpl) DeleteBy(e *entity.Oauth2Account) {
-	gormx.DeleteByCondition(e)
+	return &oauth2AccountRepoImpl{base.RepoImpl[*entity.Oauth2Account]{M: new(entity.Oauth2Account)}}
 }

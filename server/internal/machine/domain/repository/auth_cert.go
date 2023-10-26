@@ -2,21 +2,14 @@ package repository
 
 import (
 	"mayfly-go/internal/machine/domain/entity"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/model"
 )
 
 type AuthCert interface {
-	GetPageList(condition *entity.AuthCertQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	base.Repo[*entity.AuthCert]
 
-	Insert(ac *entity.AuthCert)
+	GetPageList(condition *entity.AuthCertQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Update(ac *entity.AuthCert)
-
-	GetById(id uint64) *entity.AuthCert
-
-	GetByIds(ids ...uint64) []*entity.AuthCert
-
-	GetByCondition(condition *entity.AuthCert, cols ...string) error
-
-	DeleteById(id uint64)
+	// GetByIds(ids ...uint64) []*entity.AuthCert
 }

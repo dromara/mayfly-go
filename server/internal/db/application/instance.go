@@ -5,67 +5,56 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 )
 
 type Instance interface {
+	base.App[*entity.Instance]
+
 	// GetPageList 分页获取数据库实例
-	GetPageList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	GetPageList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	Count(condition *entity.InstanceQuery) int64
 
-	// GetInstanceBy 根据条件获取数据库实例
-	GetInstanceBy(condition *entity.Instance, cols ...string) error
-
-	// GetById 根据id获取数据库实例
-	GetById(id uint64, cols ...string) *entity.Instance
-
-	Save(instanceEntity *entity.Instance)
+	Save(instanceEntity *entity.Instance) error
 
 	// Delete 删除数据库信息
-	Delete(id uint64)
+	Delete(id uint64) error
 
 	// GetDatabases 获取数据库实例的所有数据库列表
-	GetDatabases(entity *entity.Instance) []string
+	GetDatabases(entity *entity.Instance) ([]string, error)
 }
 
-func newInstanceApp(InstanceRepo repository.Instance) Instance {
-	return &instanceAppImpl{
-		instanceRepo: InstanceRepo,
-	}
+func newInstanceApp(instanceRepo repository.Instance) Instance {
+	app := new(instanceAppImpl)
+	app.Repo = instanceRepo
+	return app
 }
 
 type instanceAppImpl struct {
-	instanceRepo repository.Instance
+	base.AppImpl[*entity.Instance, repository.Instance]
 }
 
 // GetPageList 分页获取数据库实例
-func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
-	return app.instanceRepo.GetInstanceList(condition, pageParam, toEntity, orderBy...)
+func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return app.GetRepo().GetInstanceList(condition, pageParam, toEntity, orderBy...)
 }
 
 func (app *instanceAppImpl) Count(condition *entity.InstanceQuery) int64 {
-	return app.instanceRepo.Count(condition)
+	return app.CountByCond(condition)
 }
 
-// GetInstanceBy 根据条件获取数据库实例
-func (app *instanceAppImpl) GetInstanceBy(condition *entity.Instance, cols ...string) error {
-	return app.instanceRepo.GetInstance(condition, cols...)
-}
-
-// GetById 根据id获取数据库实例
-func (app *instanceAppImpl) GetById(id uint64, cols ...string) *entity.Instance {
-	return app.instanceRepo.GetById(id, cols...)
-}
-
-func (app *instanceAppImpl) Save(instanceEntity *entity.Instance) {
+func (app *instanceAppImpl) Save(instanceEntity *entity.Instance) error {
 	// 默认tcp连接
 	instanceEntity.Network = instanceEntity.GetNetwork()
 
 	// 测试连接
 	if instanceEntity.Password != "" {
-		testConnection(instanceEntity)
+		if err := testConnection(instanceEntity); err != nil {
+			return errorx.NewBiz("数据库连接失败: %s", err.Error())
+		}
 	}
 
 	// 查找是否存在该库
@@ -74,24 +63,28 @@ func (app *instanceAppImpl) Save(instanceEntity *entity.Instance) {
 		oldInstance.SshTunnelMachineId = instanceEntity.SshTunnelMachineId
 	}
 
-	err := app.GetInstanceBy(oldInstance)
+	err := app.GetBy(oldInstance)
 	if instanceEntity.Id == 0 {
-		biz.NotEmpty(instanceEntity.Password, "密码不能为空")
-		biz.IsTrue(err != nil, "该数据库实例已存在")
-		instanceEntity.PwdEncrypt()
-		app.instanceRepo.Insert(instanceEntity)
-	} else {
-		// 如果存在该库，则校验修改的库是否为该库
+		if instanceEntity.Password == "" {
+			return errorx.NewBiz("密码不能为空")
+		}
 		if err == nil {
-			biz.IsTrue(oldInstance.Id == instanceEntity.Id, "该数据库实例已存在")
+			return errorx.NewBiz("该数据库实例已存在")
 		}
 		instanceEntity.PwdEncrypt()
-		app.instanceRepo.Update(instanceEntity)
+		return app.Insert(instanceEntity)
 	}
+
+	// 如果存在该库，则校验修改的库是否为该库
+	if err == nil && oldInstance.Id != instanceEntity.Id {
+		return errorx.NewBiz("该数据库实例已存在")
+	}
+	instanceEntity.PwdEncrypt()
+	return app.UpdateById(instanceEntity)
 }
 
-func (app *instanceAppImpl) Delete(id uint64) {
-	app.instanceRepo.Delete(id)
+func (app *instanceAppImpl) Delete(id uint64) error {
+	return app.DeleteById(id)
 }
 
 // getInstanceConn 获取数据库连接数据库实例
@@ -119,14 +112,17 @@ func getInstanceConn(instance *entity.Instance, db string) (*sql.DB, error) {
 	return conn, nil
 }
 
-func testConnection(d *entity.Instance) {
+func testConnection(d *entity.Instance) error {
 	// 不指定数据库名称
 	conn, err := getInstanceConn(d, "")
-	biz.ErrIsNilAppendErr(err, "数据库连接失败: %s")
+	if err != nil {
+		return err
+	}
 	defer conn.Close()
+	return nil
 }
 
-func (app *instanceAppImpl) GetDatabases(ed *entity.Instance) []string {
+func (app *instanceAppImpl) GetDatabases(ed *entity.Instance) ([]string, error) {
 	ed.Network = ed.GetNetwork()
 	databases := make([]string, 0)
 	var dbConn *sql.DB
@@ -134,14 +130,18 @@ func (app *instanceAppImpl) GetDatabases(ed *entity.Instance) []string {
 	getDatabasesSql := ed.Type.StmtSelectDbName()
 
 	dbConn, err := getInstanceConn(ed, metaDb)
-	biz.ErrIsNilAppendErr(err, "数据库连接失败: %s")
+	if err != nil {
+		return nil, errorx.NewBiz("数据库连接失败: %s", err.Error())
+	}
 	defer dbConn.Close()
 
 	_, res, err := selectDataByDb(dbConn, getDatabasesSql)
-	biz.ErrIsNilAppendErr(err, "获取数据库列表失败")
+	if err != nil {
+		return nil, err
+	}
 	for _, re := range res {
 		databases = append(databases, re["dbname"].(string))
 	}
 
-	return databases
+	return databases, nil
 }

@@ -37,7 +37,9 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 	}
 	queryCond.TagIds = tagIds
 
-	rc.ResData = r.RedisApp.GetPageList(queryCond, page, new([]vo.Redis))
+	res, err := r.RedisApp.GetPageList(queryCond, page, new([]vo.Redis))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (r *Redis) RedisTags(rc *req.Ctx) {
@@ -58,13 +60,14 @@ func (r *Redis) Save(rc *req.Ctx) {
 	rc.ReqParam = form
 
 	redis.SetBaseInfo(rc.LoginAccount)
-	r.RedisApp.Save(redis)
+	biz.ErrIsNil(r.RedisApp.Save(redis))
 }
 
 // 获取redis实例密码，由于数据库是加密存储，故提供该接口展示原文密码
 func (r *Redis) GetRedisPwd(rc *req.Ctx) {
 	rid := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
-	re := r.RedisApp.GetById(rid, "Password")
+	re, err := r.RedisApp.GetById(new(entity.Redis), rid, "Password")
+	biz.ErrIsNil(err, "redis信息不存在")
 	re.PwdDecrypt()
 	rc.ResData = re.Password
 }
@@ -83,7 +86,8 @@ func (r *Redis) DeleteRedis(rc *req.Ctx) {
 
 func (r *Redis) RedisInfo(rc *req.Ctx) {
 	g := rc.GinCtx
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
+	ri, err := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
+	biz.ErrIsNil(err)
 
 	section := rc.GinCtx.Query("section")
 	mode := ri.Info.Mode
@@ -116,7 +120,6 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 	}
 
 	var res string
-	var err error
 	if section == "" {
 		res, err = redisCli.Info(ctx).Result()
 	} else {
@@ -161,7 +164,8 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 
 func (r *Redis) ClusterInfo(rc *req.Ctx) {
 	g := rc.GinCtx
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
+	ri, err := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
+	biz.ErrIsNil(err)
 	biz.IsEquals(ri.Info.Mode, entity.RedisModeCluster, "非集群模式")
 	info, _ := ri.ClusterCli.ClusterInfo(context.Background()).Result()
 	nodesStr, _ := ri.ClusterCli.ClusterNodes(context.Background()).Result()
@@ -211,7 +215,8 @@ func (r *Redis) checkKeyAndGetRedisIns(rc *req.Ctx) (*application.RedisInstance,
 }
 
 func (r *Redis) getRedisIns(rc *req.Ctx) *application.RedisInstance {
-	ri := r.RedisApp.GetRedisInstance(getIdAndDbNum(rc.GinCtx))
+	ri, err := r.RedisApp.GetRedisInstance(getIdAndDbNum(rc.GinCtx))
+	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
 	return ri
 }

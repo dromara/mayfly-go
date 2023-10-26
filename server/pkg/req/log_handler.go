@@ -2,7 +2,7 @@ package req
 
 import (
 	"fmt"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/runtimex"
@@ -76,7 +76,7 @@ func LogHandler(rc *Ctx) error {
 
 		if rc.Err != nil {
 			nFrames := DefaultLogFrames
-			if _, ok := rc.Err.(biz.BizError); ok {
+			if _, ok := rc.Err.(errorx.BizError); ok {
 				nFrames = nFrames / 2
 			}
 			attrMap["error"] = rc.Err
@@ -123,7 +123,7 @@ func getErrMsg(rc *Ctx, err any) string {
 	nFrames := DefaultLogFrames
 	var errMsg string
 	switch t := err.(type) {
-	case biz.BizError:
+	case errorx.BizError:
 		errMsg = fmt.Sprintf("\n<-e %s", t.String())
 		nFrames = nFrames / 2
 	case error:

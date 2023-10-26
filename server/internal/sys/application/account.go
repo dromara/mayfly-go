@@ -3,7 +3,8 @@ package application
 import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/cryptox"
@@ -12,71 +13,60 @@ import (
 )
 
 type Account interface {
-	GetAccount(condition *entity.Account, cols ...string) error
+	base.App[*entity.Account]
 
-	GetById(id uint64) *entity.Account
+	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	Create(account *entity.Account) error
 
-	Create(account *entity.Account)
+	Update(account *entity.Account) error
 
-	Update(account *entity.Account)
-
-	Delete(id uint64)
+	Delete(id uint64) error
 }
 
 func newAccountApp(accountRepo repository.Account) Account {
-	return &accountAppImpl{
-		accountRepo: accountRepo,
-	}
+	return &accountAppImpl{base.AppImpl[*entity.Account, repository.Account]{Repo: accountRepo}}
 }
 
 type accountAppImpl struct {
-	accountRepo repository.Account
+	base.AppImpl[*entity.Account, repository.Account]
 }
 
-// 根据条件获取账号信息
-func (a *accountAppImpl) GetAccount(condition *entity.Account, cols ...string) error {
-	return a.accountRepo.GetAccount(condition, cols...)
+func (a *accountAppImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return a.GetRepo().GetPageList(condition, pageParam, toEntity)
 }
 
-func (a *accountAppImpl) GetById(id uint64) *entity.Account {
-	return a.accountRepo.GetById(id)
-}
-
-func (a *accountAppImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
-	return a.accountRepo.GetPageList(condition, pageParam, toEntity)
-}
-
-func (a *accountAppImpl) Create(account *entity.Account) {
-	biz.IsTrue(a.GetAccount(&entity.Account{Username: account.Username}) != nil, "该账号用户名已存在")
+func (a *accountAppImpl) Create(account *entity.Account) error {
+	if a.GetBy(&entity.Account{Username: account.Username}) == nil {
+		return errorx.NewBiz("该账号用户名已存在")
+	}
 	// 默认密码为账号用户名
 	account.Password = cryptox.PwdHash(account.Username)
 	account.Status = entity.AccountEnableStatus
-	a.accountRepo.Insert(account)
+	return a.Insert(account)
 }
 
-func (a *accountAppImpl) Update(account *entity.Account) {
+func (a *accountAppImpl) Update(account *entity.Account) error {
 	if account.Username != "" {
 		unAcc := &entity.Account{Username: account.Username}
-		err := a.GetAccount(unAcc)
-		biz.IsTrue(err != nil || unAcc.Id == account.Id, "该用户名已存在")
+		err := a.GetBy(unAcc)
+		if err == nil && unAcc.Id != account.Id {
+			return errorx.NewBiz("该用户名已存在")
+		}
 	}
 
-	a.accountRepo.Update(account)
+	return a.UpdateById(account)
 }
 
-func (a *accountAppImpl) Delete(id uint64) {
-	err := gormx.Tx(
+func (a *accountAppImpl) Delete(id uint64) error {
+	return gormx.Tx(
 		func(db *gorm.DB) error {
-			// 删除account表信息
-			return db.Delete(new(entity.Account), "id = ?", id).Error
+			// 删除account信息
+			return a.DeleteByIdWithDb(db, id)
 		},
 		func(db *gorm.DB) error {
 			// 删除账号关联的角色信息
-			accountRole := &entity.AccountRole{AccountId: id}
-			return db.Where(accountRole).Delete(accountRole).Error
+			return gormx.DeleteByWithDb(db, &entity.AccountRole{AccountId: id})
 		},
 	)
-	biz.ErrIsNilAppendErr(err, "删除失败：%s")
 }

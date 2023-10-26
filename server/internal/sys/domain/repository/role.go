@@ -2,13 +2,14 @@ package repository
 
 import (
 	"mayfly-go/internal/sys/domain/entity"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/model"
 )
 
 type Role interface {
-	GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	base.Repo[*entity.Role]
 
-	Delete(id uint64)
+	GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	// 获取角色拥有的资源id数组，从role_resource表获取
 	GetRoleResourceIds(roleId uint64) []uint64

@@ -11,9 +11,11 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/config"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/ws"
@@ -44,7 +46,8 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	}
 	condition.TagIds = tagIds
 
-	res := m.MachineApp.GetMachineList(condition, pageParam, new([]*vo.MachineVO))
+	res, err := m.MachineApp.GetMachineList(condition, pageParam, new([]*vo.MachineVO))
+	biz.ErrIsNil(err)
 	if res.Total == 0 {
 		rc.ResData = res
 		return
@@ -61,8 +64,9 @@ func (m *Machine) MachineTags(rc *req.Ctx) {
 }
 
 func (m *Machine) MachineStats(rc *req.Ctx) {
-	stats := m.MachineApp.GetCli(GetMachineId(rc.GinCtx)).GetAllStats()
-	rc.ResData = stats
+	cli, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
+	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
+	rc.ResData = cli.GetAllStats()
 }
 
 // 保存机器信息
@@ -74,12 +78,13 @@ func (m *Machine) SaveMachine(rc *req.Ctx) {
 	rc.ReqParam = machineForm
 
 	me.SetBaseInfo(rc.LoginAccount)
-	m.MachineApp.Save(me)
+	biz.ErrIsNil(m.MachineApp.Save(me))
 }
 
 func (m *Machine) TestConn(rc *req.Ctx) {
 	me := ginx.BindJsonAndCopyTo(rc.GinCtx, new(form.MachineForm), new(entity.Machine))
-	m.MachineApp.TestConn(me)
+	// 测试连接
+	biz.ErrIsNilAppendErr(m.MachineApp.TestConn(me), "该机器无法连接: %s")
 }
 
 func (m *Machine) ChangeStatus(rc *req.Ctx) {
@@ -87,7 +92,7 @@ func (m *Machine) ChangeStatus(rc *req.Ctx) {
 	id := uint64(ginx.PathParamInt(g, "machineId"))
 	status := int8(ginx.PathParamInt(g, "status"))
 	rc.ReqParam = collx.Kvs("id", id, "status", status)
-	m.MachineApp.ChangeStatus(id, status)
+	biz.ErrIsNil(m.MachineApp.ChangeStatus(id, status))
 }
 
 func (m *Machine) DeleteMachine(rc *req.Ctx) {
@@ -126,7 +131,8 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 	count := ginx.QueryInt(g, "count", 10)
 	cmd += "| head -n " + fmt.Sprintf("%d", count)
 
-	cli := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
+	cli, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
+	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
 
 	res, err := cli.Run(cmd)
@@ -139,7 +145,8 @@ func (m *Machine) KillProcess(rc *req.Ctx) {
 	pid := rc.GinCtx.Query("pid")
 	biz.NotEmpty(pid, "进程id不能为空")
 
-	cli := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
+	cli, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
+	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
 
 	res, err := cli.Run("sudo kill -9 " + pid)
@@ -151,7 +158,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	defer func() {
 		if wsConn != nil {
 			if err := recover(); err != nil {
-				wsConn.WriteMessage(websocket.TextMessage, []byte(err.(error).Error()))
+				wsConn.WriteMessage(websocket.TextMessage, []byte(anyx.ToString(err)))
 			}
 			wsConn.Close()
 		}
@@ -161,10 +168,11 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	// 权限校验
 	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
 	if err = req.PermissionHandler(rc); err != nil {
-		panic(biz.NewBizErr("\033[1;31m您没有权限操作该机器终端,请重新登录后再试~\033[0m"))
+		panic(errorx.NewBiz("\033[1;31m您没有权限操作该机器终端,请重新登录后再试~\033[0m"))
 	}
 
-	cli := m.MachineApp.GetCli(GetMachineId(g))
+	cli, err := m.MachineApp.GetCli(GetMachineId(g))
+	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
 
 	cols := ginx.QueryInt(g, "cols", 80)

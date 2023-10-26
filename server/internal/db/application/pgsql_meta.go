@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/domain/entity"
 	machineapp "mayfly-go/internal/machine/application"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"net"
@@ -49,7 +49,11 @@ func (d *PqSqlDialer) Open(name string) (driver.Conn, error) {
 }
 
 func (pd *PqSqlDialer) Dial(network, address string) (net.Conn, error) {
-	if sshConn, err := machineapp.GetMachineApp().GetSshTunnelMachine(pd.sshTunnelMachineId).GetDialConn("tcp", address); err == nil {
+	sshTunnel, err := machineapp.GetMachineApp().GetSshTunnelMachine(pd.sshTunnelMachineId)
+	if err != nil {
+		return nil, err
+	}
+	if sshConn, err := sshTunnel.GetDialConn("tcp", address); err == nil {
 		return sshConn, nil
 	} else {
 		return nil, err
@@ -75,9 +79,11 @@ type PgsqlMetadata struct {
 }
 
 // 获取表基础元信息, 如表名等
-func (pm *PgsqlMetadata) GetTables() []Table {
+func (pm *PgsqlMetadata) GetTables() ([]Table, error) {
 	_, res, err := pm.di.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_MA_KEY))
-	biz.ErrIsNilAppendErr(err, "获取表基本信息失败: %s")
+	if err != nil {
+		return nil, err
+	}
 
 	tables := make([]Table, 0)
 	for _, re := range res {
@@ -86,11 +92,11 @@ func (pm *PgsqlMetadata) GetTables() []Table {
 			TableComment: anyx.ConvString(re["tableComment"]),
 		})
 	}
-	return tables
+	return tables, nil
 }
 
 // 获取列元信息, 如列名等
-func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []Column {
+func (pm *PgsqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
 	tableName := ""
 	for i := 0; i < len(tableNames); i++ {
 		if i != 0 {
@@ -100,7 +106,10 @@ func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []Column {
 	}
 
 	_, res, err := pm.di.SelectData(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
-	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
+	if err != nil {
+		return nil, err
+	}
+
 	columns := make([]Column, 0)
 	for _, re := range res {
 		columns = append(columns, Column{
@@ -113,25 +122,32 @@ func (pm *PgsqlMetadata) GetColumns(tableNames ...string) []Column {
 			ColumnDefault: anyx.ConvString(re["columnDefault"]),
 		})
 	}
-	return columns
+	return columns, nil
 }
 
-func (pm *PgsqlMetadata) GetPrimaryKey(tablename string) string {
-	columns := pm.GetColumns(tablename)
-	biz.IsTrue(len(columns) > 0, "[%s] 表不存在", tablename)
+func (pm *PgsqlMetadata) GetPrimaryKey(tablename string) (string, error) {
+	columns, err := pm.GetColumns(tablename)
+	if err != nil {
+		return "", err
+	}
+	if len(columns) == 0 {
+		return "", errorx.NewBiz("[%s] 表不存在", tablename)
+	}
 	for _, v := range columns {
 		if v.ColumnKey == "PRI" {
-			return v.ColumnName
+			return v.ColumnName, nil
 		}
 	}
 
-	return columns[0].ColumnName
+	return columns[0].ColumnName, nil
 }
 
 // 获取表信息，比GetTables获取更详细的表信息
-func (pm *PgsqlMetadata) GetTableInfos() []Table {
+func (pm *PgsqlMetadata) GetTableInfos() ([]Table, error) {
 	_, res, err := pm.di.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
-	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
+	if err != nil {
+		return nil, err
+	}
 
 	tables := make([]Table, 0)
 	for _, re := range res {
@@ -144,13 +160,16 @@ func (pm *PgsqlMetadata) GetTableInfos() []Table {
 			IndexLength:  anyx.ConvInt64(re["indexLength"]),
 		})
 	}
-	return tables
+	return tables, nil
 }
 
 // 获取表索引信息
-func (pm *PgsqlMetadata) GetTableIndex(tableName string) []Index {
+func (pm *PgsqlMetadata) GetTableIndex(tableName string) ([]Index, error) {
 	_, res, err := pm.di.SelectData(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
-	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
+	if err != nil {
+		return nil, err
+	}
+
 	indexs := make([]Index, 0)
 	for _, re := range res {
 		indexs = append(indexs, Index{
@@ -162,22 +181,26 @@ func (pm *PgsqlMetadata) GetTableIndex(tableName string) []Index {
 			SeqInIndex:   anyx.ConvInt(re["seqInIndex"]),
 		})
 	}
-	return indexs
+	return indexs, nil
 }
 
 // 获取建表ddl
-func (pm *PgsqlMetadata) GetCreateTableDdl(tableName string) string {
+func (pm *PgsqlMetadata) GetCreateTableDdl(tableName string) (string, error) {
 	_, err := pm.di.Exec(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
-	biz.ErrIsNilAppendErr(err, "创建ddl函数失败: %s")
+	if err != nil {
+		return "", err
+	}
 
 	_, schemaRes, _ := pm.di.SelectData("select current_schema() as schema")
 	schemaName := schemaRes[0]["schema"].(string)
 
 	ddlSql := fmt.Sprintf("select showcreatetable('%s','%s') as sql", schemaName, tableName)
 	_, res, err := pm.di.SelectData(ddlSql)
+	if err != nil {
+		return "", err
+	}
 
-	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
-	return res[0]["sql"].(string)
+	return res[0]["sql"].(string), nil
 }
 
 func (pm *PgsqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {

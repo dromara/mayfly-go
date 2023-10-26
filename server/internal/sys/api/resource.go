@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
+	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -17,12 +18,14 @@ type Resource struct {
 
 func (r *Resource) GetAllResourceTree(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
-	r.ResourceApp.GetResourceList(new(entity.Resource), &resources, "weight asc")
+	r.ResourceApp.ListByCondOrder(new(entity.Resource), &resources, "weight asc")
 	rc.ResData = resources.ToTrees(0)
 }
 
 func (r *Resource) GetById(rc *req.Ctx) {
-	rc.ResData = r.ResourceApp.GetById(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	res, err := r.ResourceApp.GetById(new(entity.Resource), uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	biz.ErrIsNil(err, "该资源不存在")
+	rc.ResData = res
 }
 
 func (r *Resource) SaveResource(rc *req.Ctx) {
@@ -37,18 +40,18 @@ func (r *Resource) SaveResource(rc *req.Ctx) {
 	entity.Meta = string(bytes)
 
 	entity.SetBaseInfo(rc.LoginAccount)
-	r.ResourceApp.Save(entity)
+	biz.ErrIsNil(r.ResourceApp.Save(entity))
 }
 
 func (r *Resource) DelResource(rc *req.Ctx) {
-	r.ResourceApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	biz.ErrIsNil(r.ResourceApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id"))))
 }
 
 func (r *Resource) ChangeStatus(rc *req.Ctx) {
 	rid := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
 	status := int8(ginx.PathParamInt(rc.GinCtx, "status"))
 	rc.ReqParam = collx.Kvs("id", rid, "status", status)
-	r.ResourceApp.ChangeStatus(rid, status)
+	biz.ErrIsNil(r.ResourceApp.ChangeStatus(rid, status))
 }
 
 func (r *Resource) Sort(rc *req.Ctx) {

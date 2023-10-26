@@ -27,7 +27,9 @@ type MachineScript struct {
 func (m *MachineScript) MachineScripts(rc *req.Ctx) {
 	g := rc.GinCtx
 	condition := &entity.MachineScript{MachineId: GetMachineId(g)}
-	rc.ResData = m.MachineScriptApp.GetPageList(condition, ginx.GetPageParam(g), new([]vo.MachineScriptVO))
+	res, err := m.MachineScriptApp.GetPageList(condition, ginx.GetPageParam(g), new([]vo.MachineScriptVO))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {
@@ -37,7 +39,7 @@ func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {
 	rc.ReqParam = form
 	machineScript.SetBaseInfo(rc.LoginAccount)
 
-	m.MachineScriptApp.Save(machineScript)
+	biz.ErrIsNil(m.MachineScriptApp.Save(machineScript))
 }
 
 func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
@@ -57,8 +59,8 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 
 	scriptId := GetMachineScriptId(g)
 	machineId := GetMachineId(g)
-	ms := m.MachineScriptApp.GetById(scriptId, "MachineId", "Name", "Script")
-	biz.NotNil(ms, "该脚本不存在")
+	ms, err := m.MachineScriptApp.GetById(new(entity.MachineScript), scriptId, "MachineId", "Name", "Script")
+	biz.ErrIsNil(err, "该脚本不存在")
 	biz.IsTrue(ms.MachineId == application.Common_Script_Machine_Id || ms.MachineId == machineId, "该脚本不属于该机器")
 
 	script := ms.Script
@@ -66,7 +68,8 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	if params := g.Query("params"); params != "" {
 		script = stringx.TemplateParse(ms.Script, jsonx.ToMap(params))
 	}
-	cli := m.MachineApp.GetCli(machineId)
+	cli, err := m.MachineApp.GetCli(machineId)
+	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
 
 	res, err := cli.Run(script)

@@ -2,24 +2,15 @@ package repository
 
 import (
 	"mayfly-go/internal/db/domain/entity"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/model"
 )
 
 type Db interface {
+	base.Repo[*entity.Db]
+
 	// 分页获取数据信息列表
-	GetDbList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	GetDbList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	Count(condition *entity.DbQuery) int64
-
-	// 根据条件获取数据库信息
-	GetDb(condition *entity.Db, cols ...string) error
-
-	// 根据id获取
-	GetById(id uint64, cols ...string) *entity.Db
-
-	Insert(db *entity.Db)
-
-	Update(db *entity.Db)
-
-	Delete(id uint64)
 }

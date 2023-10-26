@@ -24,7 +24,7 @@
                             <el-input v-model.trim="form.username" placeholder="请输授权用户名" autocomplete="new-password"> </el-input>
                         </el-form-item>
 
-                        <el-form-item label="认证方式">
+                        <el-form-item label="认证方式" required>
                             <el-select @change="changeAuthMethod" style="width: 100%" v-model="state.authType" placeholder="请选认证方式">
                                 <el-option key="1" label="密码" :value="1"> </el-option>
                                 <el-option key="2" label="授权凭证" :value="2"> </el-option>

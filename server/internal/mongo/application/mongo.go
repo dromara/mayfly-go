@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/machine/infrastructure/machine"
 	"mayfly-go/internal/mongo/domain/entity"
 	"mayfly-go/internal/mongo/domain/repository"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/logx"
@@ -23,21 +24,17 @@ import (
 )
 
 type Mongo interface {
+	base.App[*entity.Mongo]
+
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	Count(condition *entity.MongoQuery) int64
 
-	// 根据条件获取
-	GetBy(condition *entity.Mongo, cols ...string) error
-
-	// 根据id获取
-	GetById(id uint64, cols ...string) *entity.Mongo
-
-	Save(entity *entity.Mongo)
+	Save(entity *entity.Mongo) error
 
 	// 删除数据库信息
-	Delete(id uint64)
+	Delete(id uint64) error
 
 	// 获取mongo连接实例
 	// @param id mongo id
@@ -46,53 +43,45 @@ type Mongo interface {
 
 func newMongoAppImpl(mongoRepo repository.Mongo) Mongo {
 	return &mongoAppImpl{
-		mongoRepo: mongoRepo,
+		base.AppImpl[*entity.Mongo, repository.Mongo]{Repo: mongoRepo},
 	}
 }
 
 type mongoAppImpl struct {
-	mongoRepo repository.Mongo
+	base.AppImpl[*entity.Mongo, repository.Mongo]
 }
 
 // 分页获取数据库信息列表
-func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
-	return d.mongoRepo.GetList(condition, pageParam, toEntity, orderBy...)
+func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return d.GetRepo().GetList(condition, pageParam, toEntity, orderBy...)
 }
 
 func (d *mongoAppImpl) Count(condition *entity.MongoQuery) int64 {
-	return d.mongoRepo.Count(condition)
+	return d.GetRepo().Count(condition)
 }
 
-// 根据条件获取
-func (d *mongoAppImpl) GetBy(condition *entity.Mongo, cols ...string) error {
-	return d.mongoRepo.Get(condition, cols...)
-}
-
-// 根据id获取
-func (d *mongoAppImpl) GetById(id uint64, cols ...string) *entity.Mongo {
-	return d.mongoRepo.GetById(id, cols...)
-}
-
-func (d *mongoAppImpl) Delete(id uint64) {
-	d.mongoRepo.Delete(id)
+func (d *mongoAppImpl) Delete(id uint64) error {
 	DeleteMongoCache(id)
+	return d.GetRepo().DeleteById(id)
 }
 
-func (d *mongoAppImpl) Save(m *entity.Mongo) {
+func (d *mongoAppImpl) Save(m *entity.Mongo) error {
 	if m.Id == 0 {
-		d.mongoRepo.Insert(m)
-	} else {
-		// 先关闭连接
-		DeleteMongoCache(m.Id)
-		d.mongoRepo.Update(m)
+		return d.GetRepo().Insert(m)
 	}
+
+	// 先关闭连接
+	DeleteMongoCache(m.Id)
+	return d.GetRepo().UpdateById(m)
 }
 
 func (d *mongoAppImpl) GetMongoInst(id uint64) *MongoInstance {
-	mongoInstance, err := GetMongoInstance(id, func(u uint64) *entity.Mongo {
-		mongo := d.GetById(u)
-		biz.NotNil(mongo, "mongo信息不存在")
-		return mongo
+	mongoInstance, err := GetMongoInstance(id, func(u uint64) (*entity.Mongo, error) {
+		mongo, err := d.GetById(new(entity.Mongo), u)
+		if err != nil {
+			return nil, err
+		}
+		return mongo, nil
 	})
 	biz.ErrIsNilAppendErr(err, "连接mongo失败: %s")
 	return mongoInstance
@@ -122,9 +111,14 @@ func init() {
 }
 
 // 获取mongo的连接实例
-func GetMongoInstance(mongoId uint64, getMongoEntity func(uint64) *entity.Mongo) (*MongoInstance, error) {
+func GetMongoInstance(mongoId uint64, getMongoEntity func(uint64) (*entity.Mongo, error)) (*MongoInstance, error) {
 	mi, err := mongoCliCache.ComputeIfAbsent(mongoId, func(_ any) (any, error) {
-		c, err := connect(getMongoEntity(mongoId))
+		mongoEntity, err := getMongoEntity(mongoId)
+		if err != nil {
+			return nil, err
+		}
+
+		c, err := connect(mongoEntity)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +205,11 @@ type MongoSshDialer struct {
 }
 
 func (sd *MongoSshDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
-	if sshConn, err := machineapp.GetMachineApp().GetSshTunnelMachine(sd.machineId).GetDialConn(network, address); err == nil {
+	stm, err := machineapp.GetMachineApp().GetSshTunnelMachine(sd.machineId)
+	if err != nil {
+		return nil, err
+	}
+	if sshConn, err := stm.GetDialConn(network, address); err == nil {
 		// 将ssh conn包装，否则内部部设置超时会报错,ssh conn不支持设置超时会返回错误: ssh: tcpChan: deadline not supported
 		return &netx.WrapSshConn{Conn: sshConn}, nil
 	} else {

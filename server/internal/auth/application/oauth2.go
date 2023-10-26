@@ -3,9 +3,6 @@ package application
 import (
 	"mayfly-go/internal/auth/domain/entity"
 	"mayfly-go/internal/auth/domain/repository"
-	"mayfly-go/pkg/biz"
-
-	"gorm.io/gorm"
 )
 
 type Oauth2 interface {
@@ -27,18 +24,16 @@ type oauth2AppImpl struct {
 }
 
 func (a *oauth2AppImpl) GetOAuthAccount(condition *entity.Oauth2Account, cols ...string) error {
-	err := a.oauthAccountRepo.GetOAuthAccount(condition, cols...)
-	if err != nil {
-		// 排除其他报错，如表不存在等
-		biz.IsTrue(err == gorm.ErrRecordNotFound, "查询失败: %s", err.Error())
-	}
-	return err
+	return a.oauthAccountRepo.GetBy(condition, cols...)
 }
 
 func (a *oauth2AppImpl) BindOAuthAccount(e *entity.Oauth2Account) error {
-	return a.oauthAccountRepo.SaveOAuthAccount(e)
+	if e.Id == 0 {
+		return a.oauthAccountRepo.Insert(e)
+	}
+	return a.oauthAccountRepo.UpdateById(e)
 }
 
 func (a *oauth2AppImpl) Unbind(accountId uint64) {
-	a.oauthAccountRepo.DeleteBy(&entity.Oauth2Account{AccountId: accountId})
+	a.oauthAccountRepo.DeleteByCond(&entity.Oauth2Account{AccountId: accountId})
 }

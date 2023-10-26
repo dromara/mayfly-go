@@ -37,7 +37,9 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	}
 	queryCond.TagIds = tagIds
 
-	rc.ResData = m.MongoApp.GetPageList(queryCond, page, new([]entity.Mongo))
+	res, err := m.MongoApp.GetPageList(queryCond, page, new([]entity.Mongo))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (m *Mongo) MongoTags(rc *req.Ctx) {
@@ -56,7 +58,7 @@ func (m *Mongo) Save(rc *req.Ctx) {
 	rc.ReqParam = form
 
 	mongo.SetBaseInfo(rc.LoginAccount)
-	m.MongoApp.Save(mongo)
+	biz.ErrIsNil(m.MongoApp.Save(mongo))
 }
 
 func (m *Mongo) DeleteMongo(rc *req.Ctx) {

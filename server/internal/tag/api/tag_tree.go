@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/tag/api/vo"
 	"mayfly-go/internal/tag/application"
 	"mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"strings"
@@ -47,11 +48,11 @@ func (p *TagTree) SaveTagTree(rc *req.Ctx) {
 
 	loginAccount := rc.LoginAccount
 	tagTree.SetBaseInfo(loginAccount)
-	p.TagTreeApp.Save(tagTree)
-
 	rc.ReqParam = fmt.Sprintf("tagTreeId: %d, tagName: %s, codePath: %s", tagTree.Id, tagTree.Name, tagTree.CodePath)
+
+	biz.ErrIsNil(p.TagTreeApp.Save(tagTree))
 }
 
 func (p *TagTree) DelTagTree(rc *req.Ctx) {
-	p.TagTreeApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	biz.ErrIsNil(p.TagTreeApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id"))))
 }

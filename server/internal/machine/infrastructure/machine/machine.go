@@ -1,12 +1,11 @@
 package machine
 
 import (
-	"errors"
 	"fmt"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/machine/domain/entity"
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"net"
 	"time"
@@ -87,10 +86,10 @@ func (c *Cli) Close() {
 }
 
 // 获取sftp client
-func (c *Cli) GetSftpCli() *sftp.Client {
+func (c *Cli) GetSftpCli() (*sftp.Client, error) {
 	if c.client == nil {
 		if err := c.connect(); err != nil {
-			panic(biz.NewBizErr("连接ssh失败：" + err.Error()))
+			return nil, errorx.NewBiz("连接ssh失败: %s", err.Error())
 		}
 	}
 	sftpclient := c.sftpClient
@@ -98,13 +97,13 @@ func (c *Cli) GetSftpCli() *sftp.Client {
 	if sftpclient == nil {
 		sc, serr := sftp.NewClient(c.client)
 		if serr != nil {
-			panic(biz.NewBizErr("获取sftp client失败：" + serr.Error()))
+			return nil, errorx.NewBiz("获取sftp client失败: %s", serr.Error())
 		}
 		sftpclient = sc
 		c.sftpClient = sftpclient
 	}
 
-	return sftpclient
+	return sftpclient, nil
 }
 
 // 获取session
@@ -172,15 +171,19 @@ func DeleteCli(id uint64) {
 }
 
 // 从缓存中获取客户端信息，不存在则回调获取机器信息函数，并新建
-func GetCli(machineId uint64, getMachine func(uint64) *Info) (*Cli, error) {
+func GetCli(machineId uint64, getMachine func(uint64) (*Info, error)) (*Cli, error) {
 	if load, ok := cliCache.Get(machineId); ok {
 		return load.(*Cli), nil
 	}
 
-	me := getMachine(machineId)
-	err := IfUseSshTunnelChangeIpPort(me, getMachine)
+	me, err := getMachine(machineId)
 	if err != nil {
-		return nil, fmt.Errorf("ssh隧道连接失败: %s", err.Error())
+		return nil, err
+	}
+
+	err = IfUseSshTunnelChangeIpPort(me, getMachine)
+	if err != nil {
+		return nil, errorx.NewBiz("ssh隧道连接失败: %s", err.Error())
 	}
 	c, err := newClient(me)
 	if err != nil {
@@ -194,7 +197,7 @@ func GetCli(machineId uint64, getMachine func(uint64) *Info) (*Cli, error) {
 }
 
 // 测试连接，使用传值的方式，而非引用。因为如果使用了ssh隧道，则ip和端口会变为本地映射地址与端口
-func TestConn(me Info, getSshTunnelMachine func(uint64) *Info) error {
+func TestConn(me Info, getSshTunnelMachine func(uint64) (*Info, error)) error {
 	originId := me.Id
 	if originId == 0 {
 		// 随机设置一个ip，如果使用了隧道则用于临时保存隧道
@@ -202,7 +205,9 @@ func TestConn(me Info, getSshTunnelMachine func(uint64) *Info) error {
 	}
 
 	err := IfUseSshTunnelChangeIpPort(&me, getSshTunnelMachine)
-	biz.ErrIsNilAppendErr(err, "ssh隧道连接失败: %s")
+	if err != nil {
+		return fmt.Errorf("ssh隧道连接失败: %s", err.Error())
+	}
 	if me.UseSshTunnel() {
 		defer CloseSshTunnelMachine(me.SshTunnelMachineId, me.Id)
 	}
@@ -215,11 +220,11 @@ func TestConn(me Info, getSshTunnelMachine func(uint64) *Info) error {
 }
 
 // 如果使用了ssh隧道，则修改机器ip port为暴露的ip port
-func IfUseSshTunnelChangeIpPort(me *Info, getMachine func(uint64) *Info) error {
+func IfUseSshTunnelChangeIpPort(me *Info, getMachine func(uint64) (*Info, error)) error {
 	if !me.UseSshTunnel() {
 		return nil
 	}
-	sshTunnelMachine, err := GetSshTunnelMachine(me.SshTunnelMachineId, func(u uint64) *Info {
+	sshTunnelMachine, err := GetSshTunnelMachine(me.SshTunnelMachineId, func(u uint64) (*Info, error) {
 		return getMachine(u)
 	})
 	if err != nil {
@@ -272,7 +277,7 @@ func GetSshClient(m *Info) (*ssh.Client, error) {
 // 根据机器信息创建客户端对象
 func newClient(machine *Info) (*Cli, error) {
 	if machine == nil {
-		return nil, errors.New("机器不存在")
+		return nil, errorx.NewBiz("机器不存在")
 	}
 
 	logx.Infof("[%s]机器连接：%s:%d", machine.Name, machine.Ip, machine.Port)

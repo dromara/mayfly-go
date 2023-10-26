@@ -8,8 +8,9 @@ import (
 	"mayfly-go/internal/machine/infrastructure/machine"
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/domain/repository"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/cache"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/netx"
@@ -23,61 +24,49 @@ import (
 )
 
 type Redis interface {
+	base.App[*entity.Redis]
+
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	Count(condition *entity.RedisQuery) int64
 
-	// 根据id获取
-	GetById(id uint64, cols ...string) *entity.Redis
-
-	// 根据条件获取
-	GetRedisBy(condition *entity.Redis, cols ...string) error
-
-	Save(entity *entity.Redis)
+	Save(entity *entity.Redis) error
 
 	// 删除数据库信息
-	Delete(id uint64)
+	Delete(id uint64) error
 
 	// 获取数据库连接实例
 	// id: 数据库实例id
 	// db: 库号
-	GetRedisInstance(id uint64, db int) *RedisInstance
+	GetRedisInstance(id uint64, db int) (*RedisInstance, error)
 }
 
 func newRedisApp(redisRepo repository.Redis) Redis {
 	return &redisAppImpl{
-		redisRepo: redisRepo,
+		base.AppImpl[*entity.Redis, repository.Redis]{Repo: redisRepo},
 	}
 }
 
 type redisAppImpl struct {
-	redisRepo repository.Redis
+	base.AppImpl[*entity.Redis, repository.Redis]
 }
 
 // 分页获取机器脚本信息列表
-func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
-	return r.redisRepo.GetRedisList(condition, pageParam, toEntity, orderBy...)
+func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return r.GetRepo().GetRedisList(condition, pageParam, toEntity, orderBy...)
 }
 
 func (r *redisAppImpl) Count(condition *entity.RedisQuery) int64 {
-	return r.redisRepo.Count(condition)
+	return r.GetRepo().Count(condition)
 }
 
-// 根据id获取
-func (r *redisAppImpl) GetById(id uint64, cols ...string) *entity.Redis {
-	return r.redisRepo.GetById(id, cols...)
-}
-
-// 根据条件获取
-func (r *redisAppImpl) GetRedisBy(condition *entity.Redis, cols ...string) error {
-	return r.redisRepo.GetRedis(condition, cols...)
-}
-
-func (r *redisAppImpl) Save(re *entity.Redis) {
+func (r *redisAppImpl) Save(re *entity.Redis) error {
 	// ’修改信息且密码不为空‘ or ‘新增’需要测试是否可连接
 	if (re.Id != 0 && re.Password != "") || re.Id == 0 {
-		TestRedisConnection(re)
+		if err := TestRedisConnection(re); err != nil {
+			return errorx.NewBiz("Redis连接失败: %s", err.Error())
+		}
 	}
 
 	// 查找是否存在该库
@@ -85,55 +74,61 @@ func (r *redisAppImpl) Save(re *entity.Redis) {
 	if re.SshTunnelMachineId > 0 {
 		oldRedis.SshTunnelMachineId = re.SshTunnelMachineId
 	}
-	err := r.GetRedisBy(oldRedis)
+	err := r.GetBy(oldRedis)
 
 	if re.Id == 0 {
-		biz.IsTrue(err != nil, "该实例已存在")
-		re.PwdEncrypt()
-		r.redisRepo.Insert(re)
-	} else {
-		// 如果存在该库，则校验修改的库是否为该库
 		if err == nil {
-			biz.IsTrue(oldRedis.Id == re.Id, "该实例已存在")
-		}
-		// 如果修改了redis实例的库信息，则关闭旧库的连接
-		if oldRedis.Db != re.Db || oldRedis.SshTunnelMachineId != re.SshTunnelMachineId {
-			for _, dbStr := range strings.Split(oldRedis.Db, ",") {
-				db, _ := strconv.Atoi(dbStr)
-				CloseRedis(re.Id, db)
-			}
+			return errorx.NewBiz("该实例已存在")
 		}
 		re.PwdEncrypt()
-		r.redisRepo.Update(re)
+		return r.Insert(re)
 	}
+
+	// 如果存在该库，则校验修改的库是否为该库
+	if err == nil && oldRedis.Id != re.Id {
+		return errorx.NewBiz("该实例已存在")
+	}
+	// 如果修改了redis实例的库信息，则关闭旧库的连接
+	if oldRedis.Db != re.Db || oldRedis.SshTunnelMachineId != re.SshTunnelMachineId {
+		for _, dbStr := range strings.Split(oldRedis.Db, ",") {
+			db, _ := strconv.Atoi(dbStr)
+			CloseRedis(re.Id, db)
+		}
+	}
+	re.PwdEncrypt()
+	return r.UpdateById(re)
 }
 
 // 删除Redis信息
-func (r *redisAppImpl) Delete(id uint64) {
-	re := r.GetById(id)
-	biz.NotNil(re, "该redis信息不存在")
+func (r *redisAppImpl) Delete(id uint64) error {
+	re, err := r.GetById(new(entity.Redis), id)
+	if err != nil {
+		return errorx.NewBiz("该redis信息不存在")
+	}
 	// 如果存在连接，则关闭所有库连接信息
 	for _, dbStr := range strings.Split(re.Db, ",") {
 		db, _ := strconv.Atoi(dbStr)
 		CloseRedis(re.Id, db)
 	}
-	r.redisRepo.Delete(id)
+	return r.DeleteById(id)
 }
 
 // 获取数据库连接实例
-func (r *redisAppImpl) GetRedisInstance(id uint64, db int) *RedisInstance {
+func (r *redisAppImpl) GetRedisInstance(id uint64, db int) (*RedisInstance, error) {
 	// Id不为0，则为需要缓存
 	needCache := id != 0
 	if needCache {
 		load, ok := redisCache.Get(getRedisCacheKey(id, db))
 		if ok {
-			return load.(*RedisInstance)
+			return load.(*RedisInstance), nil
 		}
 	}
 	// 缓存不存在，则回调获取redis信息
-	re := r.GetById(id)
+	re, err := r.GetById(new(entity.Redis), id)
+	if err != nil {
+		return nil, errorx.NewBiz("redis信息不存在")
+	}
 	re.PwdDecrypt()
-	biz.NotNil(re, "redis信息不存在")
 
 	redisMode := re.Mode
 	var ri *RedisInstance
@@ -143,7 +138,7 @@ func (r *redisAppImpl) GetRedisInstance(id uint64, db int) *RedisInstance {
 		_, e := ri.Cli.Ping(context.Background()).Result()
 		if e != nil {
 			ri.Close()
-			panic(biz.NewBizErr(fmt.Sprintf("redis连接失败: %s", e.Error())))
+			return nil, errorx.NewBiz("redis连接失败: %s", e.Error())
 		}
 	} else if redisMode == entity.RedisModeCluster {
 		ri = getRedisClusterClient(re)
@@ -151,7 +146,7 @@ func (r *redisAppImpl) GetRedisInstance(id uint64, db int) *RedisInstance {
 		_, e := ri.ClusterCli.Ping(context.Background()).Result()
 		if e != nil {
 			ri.Close()
-			panic(biz.NewBizErr(fmt.Sprintf("redis集群连接失败: %s", e.Error())))
+			return nil, errorx.NewBiz("redis集群连接失败: %s", e.Error())
 		}
 	} else if redisMode == entity.RedisModeSentinel {
 		ri = getRedisSentinelCient(re, db)
@@ -159,7 +154,7 @@ func (r *redisAppImpl) GetRedisInstance(id uint64, db int) *RedisInstance {
 		_, e := ri.Cli.Ping(context.Background()).Result()
 		if e != nil {
 			ri.Close()
-			panic(biz.NewBizErr(fmt.Sprintf("redis sentinel连接失败: %s", e.Error())))
+			return nil, errorx.NewBiz("redis sentinel连接失败: %s", e.Error())
 		}
 	}
 
@@ -167,7 +162,7 @@ func (r *redisAppImpl) GetRedisInstance(id uint64, db int) *RedisInstance {
 	if needCache {
 		redisCache.Put(getRedisCacheKey(id, db), ri)
 	}
-	return ri
+	return ri, nil
 }
 
 // 生成redis连接缓存key
@@ -240,8 +235,12 @@ func getRedisSentinelCient(re *entity.Redis, db int) *RedisInstance {
 }
 
 func getRedisDialer(machineId int) func(ctx context.Context, network, addr string) (net.Conn, error) {
-	sshTunnel := machineapp.GetMachineApp().GetSshTunnelMachine(machineId)
 	return func(_ context.Context, network, addr string) (net.Conn, error) {
+		sshTunnel, err := machineapp.GetMachineApp().GetSshTunnelMachine(machineId)
+		if err != nil {
+			return nil, err
+		}
+
 		if sshConn, err := sshTunnel.GetDialConn(network, addr); err == nil {
 			// 将ssh conn包装，否则redis内部设置超时会报错,ssh conn不支持设置超时会返回错误: ssh: tcpChan: deadline not supported
 			return &netx.WrapSshConn{Conn: sshConn}, nil
@@ -279,7 +278,7 @@ func init() {
 	})
 }
 
-func TestRedisConnection(re *entity.Redis) {
+func TestRedisConnection(re *entity.Redis) error {
 	var cmd redis.Cmdable
 	// 取第一个库测试连接即可
 	dbStr := strings.Split(re.Db, ",")[0]
@@ -300,7 +299,7 @@ func TestRedisConnection(re *entity.Redis) {
 
 	// 测试连接
 	_, e := cmd.Ping(context.Background()).Result()
-	biz.ErrIsNilAppendErr(e, "Redis连接失败: %s")
+	return e
 }
 
 type RedisInfo struct {
@@ -340,10 +339,8 @@ func (r *RedisInstance) GetCmdable() redis.Cmdable {
 	return nil
 }
 
-func (r *RedisInstance) Scan(cursor uint64, match string, count int64) ([]string, uint64) {
-	keys, newcursor, err := r.GetCmdable().Scan(context.Background(), cursor, match, count).Result()
-	biz.ErrIsNilAppendErr(err, "scan失败: %s")
-	return keys, newcursor
+func (r *RedisInstance) Scan(cursor uint64, match string, count int64) ([]string, uint64, error) {
+	return r.GetCmdable().Scan(context.Background(), cursor, match, count).Result()
 }
 
 func (r *RedisInstance) Close() {

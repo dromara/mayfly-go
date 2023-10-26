@@ -40,7 +40,9 @@ func LastLoginCheck(account *sysentity.Account, accountLoginSecurity *config.Acc
 	// 默认为不校验otp
 	otpStatus := OtpStatusNone
 	// 访问系统使用的token
-	accessToken := req.CreateToken(account.Id, username)
+	accessToken, err := req.CreateToken(account.Id, username)
+	biz.ErrIsNilAppendErr(err, "token创建失败: %s")
+
 	// 若系统配置中设置开启otp双因素校验，则进行otp校验
 	if accountLoginSecurity.UseOtp {
 		otpInfo, otpurl, otpToken := useOtp(account, accountLoginSecurity.OtpIssuer, accessToken)
@@ -106,7 +108,7 @@ func saveLogin(account *sysentity.Account, ip string) {
 	updateAccount.Id = account.Id
 	updateAccount.LastLoginIp = ip
 	// 偷懒为了方便直接获取accountApp
-	sysapp.GetAccountApp().Update(updateAccount)
+	biz.ErrIsNil(sysapp.GetAccountApp().Update(updateAccount))
 
 	// 创建登录消息
 	loginMsg := &msgentity.Msg{

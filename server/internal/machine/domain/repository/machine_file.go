@@ -7,7 +7,7 @@ import (
 
 type MachineFile interface {
 	// 分页获取机器脚本信息列表
-	GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	// 根据条件获取
 	GetMachineFile(condition *entity.MachineFile, cols ...string) error
@@ -15,9 +15,9 @@ type MachineFile interface {
 	// 根据id获取
 	GetById(id uint64, cols ...string) *entity.MachineFile
 
-	Delete(id uint64)
+	Delete(id uint64) error
 
-	Create(entity *entity.MachineFile)
+	Create(entity *entity.MachineFile) error
 
-	UpdateById(entity *entity.MachineFile)
+	UpdateById(entity *entity.MachineFile) error
 }

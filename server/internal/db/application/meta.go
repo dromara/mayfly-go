@@ -44,22 +44,22 @@ type Index struct {
 type DbMetadata interface {
 
 	// 获取表基础元信息
-	GetTables() []Table
+	GetTables() ([]Table, error)
 
 	// 获取指定表名的所有列元信息
-	GetColumns(tableNames ...string) []Column
+	GetColumns(tableNames ...string) ([]Column, error)
 
 	// 获取表主键字段名，没有主键标识则默认第一个字段
-	GetPrimaryKey(tablename string) string
+	GetPrimaryKey(tablename string) (string, error)
 
 	// 获取表信息，比GetTables获取更详细的表信息
-	GetTableInfos() []Table
+	GetTableInfos() ([]Table, error)
 
 	// 获取表索引信息
-	GetTableIndex(tableName string) []Index
+	GetTableIndex(tableName string) ([]Index, error)
 
 	// 获取建表ddl
-	GetCreateTableDdl(tableName string) string
+	GetCreateTableDdl(tableName string) (string, error)
 
 	// 获取指定表的数据-分页查询
 	// @return columns: 列字段名；result: 结果集；error: 错误

@@ -7,8 +7,9 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/machine/infrastructure/machine"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/cache"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
@@ -20,79 +21,71 @@ import (
 )
 
 type Db interface {
+	base.App[*entity.Db]
+
 	// 分页获取
-	GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	Count(condition *entity.DbQuery) int64
 
-	// 根据条件获取
-	GetDbBy(condition *entity.Db, cols ...string) error
-
-	// 根据id获取
-	GetById(id uint64, cols ...string) *entity.Db
-
-	Save(entity *entity.Db)
+	Save(entity *entity.Db) error
 
 	// 删除数据库信息
-	Delete(id uint64)
+	Delete(id uint64) error
 
 	// 获取数据库连接实例
 	// @param id 数据库实例id
 	// @param db 数据库
-	GetDbConnection(dbId uint64, dbName string) *DbConnection
+	GetDbConnection(dbId uint64, dbName string) (*DbConnection, error)
 }
 
 func newDbApp(dbRepo repository.Db, dbSqlRepo repository.DbSql, dbInstanceApp Instance) Db {
-	return &dbAppImpl{
-		dbRepo:        dbRepo,
+	app := &dbAppImpl{
 		dbSqlRepo:     dbSqlRepo,
 		dbInstanceApp: dbInstanceApp,
 	}
+	app.Repo = dbRepo
+	return app
 }
 
 type dbAppImpl struct {
-	dbRepo        repository.Db
+	base.AppImpl[*entity.Db, repository.Db]
+
 	dbSqlRepo     repository.DbSql
 	dbInstanceApp Instance
 }
 
 // 分页获取数据库信息列表
-func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
-	return d.dbRepo.GetDbList(condition, pageParam, toEntity, orderBy...)
+func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return d.GetRepo().GetDbList(condition, pageParam, toEntity, orderBy...)
 }
 
 func (d *dbAppImpl) Count(condition *entity.DbQuery) int64 {
-	return d.dbRepo.Count(condition)
+	return d.GetRepo().Count(condition)
 }
 
-// 根据条件获取
-func (d *dbAppImpl) GetDbBy(condition *entity.Db, cols ...string) error {
-	return d.dbRepo.GetDb(condition, cols...)
-}
-
-// 根据id获取
-func (d *dbAppImpl) GetById(id uint64, cols ...string) *entity.Db {
-	return d.dbRepo.GetById(id, cols...)
-}
-
-func (d *dbAppImpl) Save(dbEntity *entity.Db) {
+func (d *dbAppImpl) Save(dbEntity *entity.Db) error {
 	// 查找是否存在
 	oldDb := &entity.Db{Name: dbEntity.Name, InstanceId: dbEntity.InstanceId}
-	err := d.GetDbBy(oldDb)
+	err := d.GetBy(oldDb)
 
 	if dbEntity.Id == 0 {
-		biz.IsTrue(err != nil, "该实例下数据库名已存在")
-		d.dbRepo.Insert(dbEntity)
-		return
+		if err == nil {
+			return errorx.NewBiz("该实例下数据库名已存在")
+		}
+		return d.Insert(dbEntity)
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
-	if err == nil {
-		biz.IsTrue(oldDb.Id == dbEntity.Id, "该实例下数据库名已存在")
+	if err == nil && oldDb.Id != dbEntity.Id {
+		return errorx.NewBiz("该实例下数据库名已存在")
 	}
 
 	dbId := dbEntity.Id
-	old := d.GetById(dbId)
+	old, err := d.GetById(new(entity.Db), dbId)
+	if err != nil {
+		return errorx.NewBiz("该数据库不存在")
+	}
 
 	oldDbs := strings.Split(old.Database, " ")
 	newDbs := strings.Split(dbEntity.Database, " ")
@@ -105,27 +98,30 @@ func (d *dbAppImpl) Save(dbEntity *entity.Db) {
 		// 关闭数据库连接
 		CloseDb(dbEntity.Id, v)
 		// 删除该库关联的所有sql记录
-		d.dbSqlRepo.DeleteBy(&entity.DbSql{DbId: dbId, Db: v})
+		d.dbSqlRepo.DeleteByCond(&entity.DbSql{DbId: dbId, Db: v})
 	}
 
-	d.dbRepo.Update(dbEntity)
+	return d.UpdateById(dbEntity)
 }
 
-func (d *dbAppImpl) Delete(id uint64) {
-	db := d.GetById(id)
+func (d *dbAppImpl) Delete(id uint64) error {
+	db, err := d.GetById(new(entity.Db), id)
+	if err != nil {
+		return errorx.NewBiz("该数据库不存在")
+	}
 	dbs := strings.Split(db.Database, " ")
 	for _, v := range dbs {
 		// 关闭连接
 		CloseDb(id, v)
 	}
-	d.dbRepo.Delete(id)
 	// 删除该库下用户保存的所有sql信息
-	d.dbSqlRepo.DeleteBy(&entity.DbSql{DbId: id})
+	d.dbSqlRepo.DeleteByCond(&entity.DbSql{DbId: id})
+	return d.DeleteById(id)
 }
 
 var mutex sync.Mutex
 
-func (d *dbAppImpl) GetDbConnection(dbId uint64, dbName string) *DbConnection {
+func (d *dbAppImpl) GetDbConnection(dbId uint64, dbName string) (*DbConnection, error) {
 	cacheKey := GetDbCacheKey(dbId, dbName)
 
 	// Id不为0，则为需要缓存
@@ -133,18 +129,24 @@ func (d *dbAppImpl) GetDbConnection(dbId uint64, dbName string) *DbConnection {
 	if needCache {
 		load, ok := dbCache.Get(cacheKey)
 		if ok {
-			return load.(*DbConnection)
+			return load.(*DbConnection), nil
 		}
 	}
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	db := d.GetById(dbId)
-	biz.NotNil(db, "数据库信息不存在")
-	biz.IsTrue(strings.Contains(" "+db.Database+" ", " "+dbName+" "), "未配置数据库【%s】的操作权限", dbName)
+	db, err := d.GetById(new(entity.Db), dbId)
+	if err != nil {
+		return nil, errorx.NewBiz("数据库信息不存在")
+	}
+	if !strings.Contains(" "+db.Database+" ", " "+dbName+" ") {
+		return nil, errorx.NewBiz("未配置数据库【%s】的操作权限", dbName)
+	}
 
-	instance := d.dbInstanceApp.GetById(db.InstanceId)
-	biz.NotNil(instance, "数据库实例不存在")
+	instance, err := d.dbInstanceApp.GetById(new(entity.Instance), db.InstanceId)
+	if err != nil {
+		return nil, errorx.NewBiz("数据库实例不存在")
+	}
 	// 密码解密
 	instance.PwdDecrypt()
 
@@ -156,7 +158,7 @@ func (d *dbAppImpl) GetDbConnection(dbId uint64, dbName string) *DbConnection {
 	if err != nil {
 		dbi.Close()
 		logx.Errorf("连接db失败: %s:%d/%s", dbInfo.Host, dbInfo.Port, dbName)
-		panic(biz.NewBizErr(fmt.Sprintf("数据库连接失败: %s", err.Error())))
+		return nil, errorx.NewBiz(fmt.Sprintf("数据库连接失败: %s", err.Error()))
 	}
 
 	// 最大连接周期，超过时间的连接就close
@@ -171,7 +173,7 @@ func (d *dbAppImpl) GetDbConnection(dbId uint64, dbName string) *DbConnection {
 	if needCache {
 		dbCache.Put(cacheKey, dbi)
 	}
-	return dbi
+	return dbi, nil
 }
 
 //----------------------------------------  db instance  ------------------------------------

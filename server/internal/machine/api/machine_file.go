@@ -12,6 +12,7 @@ import (
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
@@ -43,7 +44,9 @@ const (
 func (m *MachineFile) MachineFiles(rc *req.Ctx) {
 	g := rc.GinCtx
 	condition := &entity.MachineFile{MachineId: GetMachineId(g)}
-	rc.ResData = m.MachineFileApp.GetPageList(condition, ginx.GetPageParam(g), new([]vo.MachineFileVO))
+	res, err := m.MachineFileApp.GetPageList(condition, ginx.GetPageParam(g), new([]vo.MachineFileVO))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (m *MachineFile) SaveMachineFiles(rc *req.Ctx) {
@@ -52,11 +55,11 @@ func (m *MachineFile) SaveMachineFiles(rc *req.Ctx) {
 	entity.SetBaseInfo(rc.LoginAccount)
 
 	rc.ReqParam = fileForm
-	m.MachineFileApp.Save(entity)
+	biz.ErrIsNil(m.MachineFileApp.Save(entity))
 }
 
 func (m *MachineFile) DeleteFile(rc *req.Ctx) {
-	m.MachineFileApp.Delete(GetMachineFileId(rc.GinCtx))
+	biz.ErrIsNil(m.MachineFileApp.Delete(GetMachineFileId(rc.GinCtx)))
 }
 
 /***      sftp相关操作      */
@@ -121,7 +124,9 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 	if !strings.HasSuffix(readPath, "/") {
 		readPath = readPath + "/"
 	}
-	fis := m.MachineFileApp.ReadDir(fid, readPath)
+	fis, err := m.MachineFileApp.ReadDir(fid, readPath)
+	biz.ErrIsNilAppendErr(err, "读取目录失败: %s")
+
 	fisVO := make([]vo.MachineFileInfo, 0)
 	for _, fi := range fis {
 		fisVO = append(fisVO, vo.MachineFileInfo{
@@ -143,7 +148,9 @@ func (m *MachineFile) GetDirSize(rc *req.Ctx) {
 	fid := GetMachineFileId(g)
 	readPath := g.Query("path")
 
-	rc.ResData = m.MachineFileApp.GetDirSize(fid, readPath)
+	size, err := m.MachineFileApp.GetDirSize(fid, readPath)
+	biz.ErrIsNil(err)
+	rc.ResData = size
 }
 
 func (m *MachineFile) GetFileStat(rc *req.Ctx) {
@@ -151,7 +158,9 @@ func (m *MachineFile) GetFileStat(rc *req.Ctx) {
 	fid := GetMachineFileId(g)
 	readPath := g.Query("path")
 
-	rc.ResData = m.MachineFileApp.FileStat(fid, readPath)
+	res, err := m.MachineFileApp.FileStat(fid, readPath)
+	biz.ErrIsNil(err, res)
+	rc.ResData = res
 }
 
 func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
@@ -220,9 +229,12 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	paths := mf.Value["paths"]
 
 	folderName := filepath.Dir(paths[0])
-	mcli := m.MachineFileApp.GetMachineCli(fid, basePath+"/"+folderName)
+	mcli, err := m.MachineFileApp.GetMachineCli(fid, basePath+"/"+folderName)
+	biz.ErrIsNil(err)
 	mi := mcli.GetMachine()
-	sftpCli := mcli.GetSftpCli()
+
+	sftpCli, err := mcli.GetSftpCli()
+	biz.ErrIsNil(err)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", fmt.Sprintf("%s/%s", basePath, folderName))
 
 	folderFiles := make([]FolderFile, len(paths))
@@ -258,7 +270,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 				if err := recover(); err != nil {
 					logx.Errorf("文件上传失败: %s", err)
 					switch t := err.(type) {
-					case biz.BizError:
+					case errorx.BizError:
 						m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
 					}
 				}

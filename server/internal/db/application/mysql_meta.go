@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/domain/entity"
 	machineapp "mayfly-go/internal/machine/application"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"net"
 
@@ -16,7 +16,10 @@ import (
 func getMysqlDB(d *entity.Instance, db string) (*sql.DB, error) {
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
-		sshTunnelMachine := machineapp.GetMachineApp().GetSshTunnelMachine(d.SshTunnelMachineId)
+		sshTunnelMachine, err := machineapp.GetMachineApp().GetSshTunnelMachine(d.SshTunnelMachineId)
+		if err != nil {
+			return nil, err
+		}
 		mysql.RegisterDialContext(d.Network, func(ctx context.Context, addr string) (net.Conn, error) {
 			return sshTunnelMachine.GetDialConn("tcp", addr)
 		})
@@ -43,9 +46,11 @@ type MysqlMetadata struct {
 }
 
 // 获取表基础元信息, 如表名等
-func (mm *MysqlMetadata) GetTables() []Table {
+func (mm *MysqlMetadata) GetTables() ([]Table, error) {
 	_, res, err := mm.di.SelectData(GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_MA_KEY))
-	biz.ErrIsNilAppendErr(err, "获取表基本信息失败: %s")
+	if err != nil {
+		return nil, err
+	}
 
 	tables := make([]Table, 0)
 	for _, re := range res {
@@ -54,11 +59,11 @@ func (mm *MysqlMetadata) GetTables() []Table {
 			TableComment: anyx.ConvString(re["tableComment"]),
 		})
 	}
-	return tables
+	return tables, nil
 }
 
 // 获取列元信息, 如列名等
-func (mm *MysqlMetadata) GetColumns(tableNames ...string) []Column {
+func (mm *MysqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
 	tableName := ""
 	for i := 0; i < len(tableNames); i++ {
 		if i != 0 {
@@ -68,7 +73,10 @@ func (mm *MysqlMetadata) GetColumns(tableNames ...string) []Column {
 	}
 
 	_, res, err := mm.di.SelectData(fmt.Sprintf(GetLocalSql(MYSQL_META_FILE, MYSQL_COLUMN_MA_KEY), tableName))
-	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
+	if err != nil {
+		return nil, err
+	}
+
 	columns := make([]Column, 0)
 	for _, re := range res {
 		columns = append(columns, Column{
@@ -81,26 +89,34 @@ func (mm *MysqlMetadata) GetColumns(tableNames ...string) []Column {
 			ColumnDefault: anyx.ConvString(re["columnDefault"]),
 		})
 	}
-	return columns
+	return columns, nil
 }
 
 // 获取表主键字段名，不存在主键标识则默认第一个字段
-func (mm *MysqlMetadata) GetPrimaryKey(tablename string) string {
-	columns := mm.GetColumns(tablename)
-	biz.IsTrue(len(columns) > 0, "[%s] 表不存在", tablename)
+func (mm *MysqlMetadata) GetPrimaryKey(tablename string) (string, error) {
+	columns, err := mm.GetColumns(tablename)
+	if err != nil {
+		return "", err
+	}
+	if len(columns) == 0 {
+		return "", errorx.NewBiz("[%s] 表不存在", tablename)
+	}
+
 	for _, v := range columns {
 		if v.ColumnKey == "PRI" {
-			return v.ColumnName
+			return v.ColumnName, nil
 		}
 	}
 
-	return columns[0].ColumnName
+	return columns[0].ColumnName, nil
 }
 
 // 获取表信息，比GetTableMetedatas获取更详细的表信息
-func (mm *MysqlMetadata) GetTableInfos() []Table {
+func (mm *MysqlMetadata) GetTableInfos() ([]Table, error) {
 	_, res, err := mm.di.SelectData(GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_KEY))
-	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
+	if err != nil {
+		return nil, err
+	}
 
 	tables := make([]Table, 0)
 	for _, re := range res {
@@ -113,13 +129,16 @@ func (mm *MysqlMetadata) GetTableInfos() []Table {
 			IndexLength:  anyx.ConvInt64(re["indexLength"]),
 		})
 	}
-	return tables
+	return tables, nil
 }
 
 // 获取表索引信息
-func (mm *MysqlMetadata) GetTableIndex(tableName string) []Index {
+func (mm *MysqlMetadata) GetTableIndex(tableName string) ([]Index, error) {
 	_, res, err := mm.di.SelectData(fmt.Sprintf(GetLocalSql(MYSQL_META_FILE, MYSQL_INDEX_INFO_KEY), tableName))
-	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
+	if err != nil {
+		return nil, err
+	}
+
 	indexs := make([]Index, 0)
 	for _, re := range res {
 		indexs = append(indexs, Index{
@@ -147,14 +166,16 @@ func (mm *MysqlMetadata) GetTableIndex(tableName string) []Index {
 			result = append(result, v)
 		}
 	}
-	return result
+	return result, nil
 }
 
 // 获取建表ddl
-func (mm *MysqlMetadata) GetCreateTableDdl(tableName string) string {
+func (mm *MysqlMetadata) GetCreateTableDdl(tableName string) (string, error) {
 	_, res, err := mm.di.SelectData(fmt.Sprintf("show create table `%s` ", tableName))
-	biz.ErrIsNilAppendErr(err, "获取表结构失败: %s")
-	return res[0]["Create Table"].(string) + ";"
+	if err != nil {
+		return "", err
+	}
+	return res[0]["Create Table"].(string) + ";", nil
 }
 
 func (mm *MysqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {

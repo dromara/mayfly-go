@@ -22,12 +22,13 @@ func (m *MachineCronJob) MachineCronJobs(rc *req.Ctx) {
 	cond, pageParam := ginx.BindQueryAndPage(rc.GinCtx, new(entity.MachineCronJob))
 
 	vos := new([]*vo.MachineCronJobVO)
-	pr := m.MachineCronJobApp.GetPageList(cond, pageParam, vos)
+	pageRes, err := m.MachineCronJobApp.GetPageList(cond, pageParam, vos)
+	biz.ErrIsNil(err)
 	for _, mcj := range *vos {
 		mcj.Running = scheduler.ExistKey(mcj.Key)
 	}
 
-	rc.ResData = pr
+	rc.ResData = pageRes
 }
 
 func (m *MachineCronJob) Save(rc *req.Ctx) {
@@ -35,7 +36,8 @@ func (m *MachineCronJob) Save(rc *req.Ctx) {
 	mcj := ginx.BindJsonAndCopyTo[*entity.MachineCronJob](rc.GinCtx, jobForm, new(entity.MachineCronJob))
 	rc.ReqParam = jobForm
 	mcj.SetBaseInfo(rc.LoginAccount)
-	cronJobId := m.MachineCronJobApp.Save(mcj)
+	cronJobId, err := m.MachineCronJobApp.Save(mcj)
+	biz.ErrIsNil(err)
 
 	// 关联机器
 	m.MachineCronJobApp.CronJobRelateMachines(cronJobId, jobForm.MachineIds, rc.LoginAccount)
@@ -63,5 +65,7 @@ func (m *MachineCronJob) GetRelateCronJobIds(rc *req.Ctx) {
 
 func (m *MachineCronJob) CronJobExecs(rc *req.Ctx) {
 	cond, pageParam := ginx.BindQueryAndPage[*entity.MachineCronJobExec](rc.GinCtx, new(entity.MachineCronJobExec))
-	rc.ResData = m.MachineCronJobApp.GetExecPageList(cond, pageParam, new([]entity.MachineCronJobExec))
+	res, err := m.MachineCronJobApp.GetExecPageList(cond, pageParam, new([]entity.MachineCronJobExec))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }

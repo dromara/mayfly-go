@@ -1,12 +1,10 @@
 package repository
 
-import "mayfly-go/internal/auth/domain/entity"
+import (
+	"mayfly-go/internal/auth/domain/entity"
+	"mayfly-go/pkg/base"
+)
 
 type Oauth2Account interface {
-	// GetOAuthAccount 根据identity获取第三方账号信息
-	GetOAuthAccount(condition *entity.Oauth2Account, cols ...string) error
-
-	SaveOAuthAccount(e *entity.Oauth2Account) error
-
-	DeleteBy(e *entity.Oauth2Account)
+	base.Repo[*entity.Oauth2Account]
 }

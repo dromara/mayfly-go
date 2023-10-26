@@ -24,7 +24,9 @@ type Team struct {
 
 func (p *Team) GetTeams(rc *req.Ctx) {
 	teams := &[]entity.Team{}
-	rc.ResData = p.TeamApp.GetPageList(&entity.Team{}, ginx.GetPageParam(rc.GinCtx), teams)
+	res, err := p.TeamApp.GetPageList(&entity.Team{}, ginx.GetPageParam(rc.GinCtx), teams)
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (p *Team) SaveTeam(rc *req.Ctx) {
@@ -66,7 +68,9 @@ func (p *Team) GetTeamMembers(rc *req.Ctx) {
 	condition := &entity.TeamMember{TeamId: uint64(ginx.PathParamInt(rc.GinCtx, "id"))}
 	condition.Username = rc.GinCtx.Query("username")
 
-	rc.ResData = p.TeamApp.GetMemberPage(condition, ginx.GetPageParam(rc.GinCtx), &[]vo.TeamMember{})
+	res, err := p.TeamApp.GetMemberPage(condition, ginx.GetPageParam(rc.GinCtx), &[]vo.TeamMember{})
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 // 保存团队信息
@@ -84,7 +88,7 @@ func (p *Team) SaveTeamMember(rc *req.Ctx) {
 		// 校验账号，并赋值username
 		account := &sys_entity.Account{}
 		account.Id = accountId
-		biz.ErrIsNil(p.AccountApp.GetAccount(account, "Id", "Username"), "账号不存在")
+		biz.ErrIsNil(p.AccountApp.GetBy(account, "Id", "Username"), "账号不存在")
 
 		teamMember := new(entity.TeamMember)
 		teamMember.TeamId = teamId
@@ -132,8 +136,8 @@ func (p *Team) SaveTags(rc *req.Ctx) {
 	loginAccount := rc.LoginAccount
 	for _, v := range addIds {
 		tagId := v
-		tag := p.TagApp.GetById(tagId)
-		biz.NotNil(tag, "存在非法标签id")
+		tag, err := p.TagApp.GetById(new(entity.TagTree), tagId)
+		biz.ErrIsNil(err, "存在非法标签id")
 
 		ptt := &entity.TagTreeTeam{TeamId: teamId, TagId: tagId, TagPath: tag.CodePath}
 		ptt.SetBaseInfo(loginAccount)

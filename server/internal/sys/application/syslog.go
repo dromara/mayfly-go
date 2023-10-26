@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
@@ -13,7 +13,7 @@ import (
 )
 
 type Syslog interface {
-	GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	// 从请求上下文的参数保存系统日志
 	SaveFromReq(req *req.Ctx)
@@ -29,7 +29,7 @@ type syslogAppImpl struct {
 	syslogRepo repository.Syslog
 }
 
-func (m *syslogAppImpl) GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+func (m *syslogAppImpl) GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return m.syslogRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -64,7 +64,7 @@ func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 		syslog.Type = entity.SyslogTypeError
 		var errMsg string
 		switch t := err.(type) {
-		case *biz.BizError:
+		case errorx.BizError:
 			errMsg = fmt.Sprintf("errCode: %d, errMsg: %s", t.Code(), t.Error())
 		case error:
 			errMsg = t.Error()

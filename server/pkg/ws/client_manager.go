@@ -129,7 +129,9 @@ func (manager *ClientManager) WriteMessage() {
 			if cid != "" {
 				cli := manager.GetByUidAndCid(uid, cid)
 				if cli != nil {
-					cli.WriteMsg(msg)
+					if err := cli.WriteMsg(msg); err != nil {
+						logx.Warnf("ws消息发送失败[uid=%d, cid=%s]: %s", uid, cid, err.Error())
+					}
 				} else {
 					logx.Warnf("[uid=%v, cid=%s]的ws连接不存在", uid, cid)
 				}
@@ -138,7 +140,9 @@ func (manager *ClientManager) WriteMessage() {
 
 			// cid为空，则向该用户所有客户端发送该消息
 			for _, cli := range manager.GetByUid(uid) {
-				cli.WriteMsg(msg)
+				if err := cli.WriteMsg(msg); err != nil {
+					logx.Warnf("ws消息发送失败[uid=%d, cid=%s]: %s", uid, cli.ClientId, err.Error())
+				}
 			}
 		}
 	}()

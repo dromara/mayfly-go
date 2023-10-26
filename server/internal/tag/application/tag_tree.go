@@ -11,20 +11,21 @@ import (
 	redisentity "mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/gormx"
 	"strings"
 )
 
 type TagTree interface {
+	base.App[*entity.TagTree]
+
 	ListByQuery(condition *entity.TagTreeQuery, toEntity any)
 
-	GetById(id uint64) *entity.TagTree
+	Save(tt *entity.TagTree) error
 
-	Save(tt *entity.TagTree)
-
-	Delete(id uint64)
+	Delete(id uint64) error
 
 	// 获取账号id拥有的可访问的标签id
 	ListTagIdByAccountId(accountId uint64) []uint64
@@ -52,18 +53,20 @@ func newTagTreeApp(tagTreeRepo repository.TagTree,
 	redisApp redisapp.Redis,
 	dbApp dbapp.Db,
 	mongoApp mongoapp.Mongo) TagTree {
-	return &tagTreeAppImpl{
-		tagTreeRepo:     tagTreeRepo,
+	tagTreeApp := &tagTreeAppImpl{
 		tagTreeTeamRepo: tagTreeTeamRepo,
 		machineApp:      machineApp,
 		redisApp:        redisApp,
 		dbApp:           dbApp,
 		mongoApp:        mongoApp,
 	}
+	tagTreeApp.Repo = tagTreeRepo
+	return tagTreeApp
 }
 
 type tagTreeAppImpl struct {
-	tagTreeRepo     repository.TagTree
+	base.AppImpl[*entity.TagTree, repository.TagTree]
+
 	tagTreeTeamRepo repository.TagTreeTeam
 	machineApp      machineapp.Machine
 	redisApp        redisapp.Redis
@@ -71,38 +74,39 @@ type tagTreeAppImpl struct {
 	dbApp           dbapp.Db
 }
 
-func (p *tagTreeAppImpl) Save(tag *entity.TagTree) {
+func (p *tagTreeAppImpl) Save(tag *entity.TagTree) error {
 	// 新建项目树节点信息
 	if tag.Id == 0 {
-		biz.IsTrue(!strings.Contains(tag.Code, entity.CodePathSeparator), "标识符不能包含'/'")
+		if strings.Contains(tag.Code, entity.CodePathSeparator) {
+			return errorx.NewBiz("标识符不能包含'/'")
+		}
 		if tag.Pid != 0 {
-			parentTag := p.tagTreeRepo.SelectById(tag.Pid)
-			biz.NotNil(parentTag, "父节点不存在")
+			parentTag, err := p.GetById(new(entity.TagTree), tag.Pid)
+			if err != nil {
+				return errorx.NewBiz("父节点不存在")
+			}
 			tag.CodePath = parentTag.CodePath + tag.Code + entity.CodePathSeparator
 		} else {
 			tag.CodePath = tag.Code + entity.CodePathSeparator
 		}
 		// 判断该路径是否存在
 		var hasLikeTags []entity.TagTree
-		p.tagTreeRepo.SelectByCondition(&entity.TagTreeQuery{CodePathLike: tag.CodePath}, &hasLikeTags)
-		biz.IsTrue(len(hasLikeTags) == 0, "已存在该标签路径开头的标签, 请修改该标识code")
+		p.GetRepo().SelectByCondition(&entity.TagTreeQuery{CodePathLike: tag.CodePath}, &hasLikeTags)
+		if len(hasLikeTags) > 0 {
+			return errorx.NewBiz("已存在该标签路径开头的标签, 请修改该标识code")
+		}
 
-		p.tagTreeRepo.Insert(tag)
-		return
+		return p.GetRepo().Insert(tag)
 	}
 
 	// 防止误传导致被更新
 	tag.Code = ""
 	tag.CodePath = ""
-	p.tagTreeRepo.UpdateById(tag)
+	return p.GetRepo().UpdateById(tag)
 }
 
 func (p *tagTreeAppImpl) ListByQuery(condition *entity.TagTreeQuery, toEntity any) {
-	p.tagTreeRepo.SelectByCondition(condition, toEntity)
-}
-
-func (p *tagTreeAppImpl) GetById(tagId uint64) *entity.TagTree {
-	return p.tagTreeRepo.SelectById(tagId)
+	p.GetRepo().SelectByCondition(condition, toEntity)
 }
 
 func (p *tagTreeAppImpl) ListTagIdByAccountId(accountId uint64) []uint64 {
@@ -112,7 +116,7 @@ func (p *tagTreeAppImpl) ListTagIdByAccountId(accountId uint64) []uint64 {
 
 func (p *tagTreeAppImpl) ListTagByPath(tagPaths ...string) []entity.TagTree {
 	var tags []entity.TagTree
-	p.tagTreeRepo.SelectByCondition(&entity.TagTreeQuery{CodePathLikes: tagPaths}, &tags)
+	p.GetRepo().SelectByCondition(&entity.TagTreeQuery{CodePathLikes: tagPaths}, &tags)
 	return tags
 }
 
@@ -154,16 +158,25 @@ func (p *tagTreeAppImpl) CanAccess(accountId uint64, tagPath string) error {
 		}
 	}
 
-	return biz.NewBizErr("您无权操作该资源")
+	return errorx.NewBiz("您无权操作该资源")
 }
 
-func (p *tagTreeAppImpl) Delete(id uint64) {
+func (p *tagTreeAppImpl) Delete(id uint64) error {
 	tagIds := [1]uint64{id}
-	biz.IsTrue(p.machineApp.Count(&machineentity.MachineQuery{TagIds: tagIds[:]}) == 0, "请先删除该项目关联的机器信息")
-	biz.IsTrue(p.redisApp.Count(&redisentity.RedisQuery{TagIds: tagIds[:]}) == 0, "请先删除该项目关联的redis信息")
-	biz.IsTrue(p.dbApp.Count(&dbentity.DbQuery{TagIds: tagIds[:]}) == 0, "请先删除该项目关联的数据库信息")
-	biz.IsTrue(p.mongoApp.Count(&mongoentity.MongoQuery{TagIds: tagIds[:]}) == 0, "请先删除该项目关联的Mongo信息")
-	p.tagTreeRepo.Delete(id)
+	if p.machineApp.Count(&machineentity.MachineQuery{TagIds: tagIds[:]}) > 0 {
+		return errorx.NewBiz("请先删除该标签关联的机器信息")
+	}
+	if p.redisApp.Count(&redisentity.RedisQuery{TagIds: tagIds[:]}) > 0 {
+		return errorx.NewBiz("请先删除该标签关联的redis信息")
+	}
+	if p.dbApp.Count(&dbentity.DbQuery{TagIds: tagIds[:]}) > 0 {
+		return errorx.NewBiz("请先删除该标签关联的数据库信息")
+	}
+	if p.mongoApp.Count(&mongoentity.MongoQuery{TagIds: tagIds[:]}) > 0 {
+		return errorx.NewBiz("请先删除该标签关联的Mongo信息")
+	}
+
+	p.DeleteById(id)
 	// 删除该标签关联的团队信息
-	p.tagTreeTeamRepo.DeleteBy(&entity.TagTreeTeam{TagId: id})
+	return p.tagTreeTeamRepo.DeleteByCond(&entity.TagTreeTeam{TagId: id})
 }

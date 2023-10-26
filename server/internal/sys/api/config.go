@@ -17,7 +17,9 @@ func (c *Config) Configs(rc *req.Ctx) {
 	g := rc.GinCtx
 	condition := &entity.Config{Key: g.Query("key")}
 	condition.Permission = rc.LoginAccount.Username
-	rc.ResData = c.ConfigApp.GetPageList(condition, ginx.GetPageParam(g), new([]entity.Config))
+	res, err := c.ConfigApp.GetPageList(condition, ginx.GetPageParam(g), new([]entity.Config))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (c *Config) GetConfigValueByKey(rc *req.Ctx) {
@@ -39,5 +41,5 @@ func (c *Config) SaveConfig(rc *req.Ctx) {
 	config := ginx.BindJsonAndCopyTo(rc.GinCtx, form, new(entity.Config))
 	rc.ReqParam = form
 	config.SetBaseInfo(rc.LoginAccount)
-	c.ConfigApp.Save(config)
+	biz.ErrIsNil(c.ConfigApp.Save(config))
 }

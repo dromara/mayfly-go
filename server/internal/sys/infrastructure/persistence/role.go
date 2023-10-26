@@ -3,24 +3,22 @@ package persistence
 import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
-type roleRepoImpl struct{}
+type roleRepoImpl struct {
+	base.RepoImpl[*entity.Role]
+}
 
 func newRoleRepo() repository.Role {
-	return new(roleRepoImpl)
+	return &roleRepoImpl{base.RepoImpl[*entity.Role]{M: new(entity.Role)}}
 }
 
-func (m *roleRepoImpl) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+func (m *roleRepoImpl) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
 	return gormx.PageQuery(qd, pageParam, toEntity)
-}
-
-func (m *roleRepoImpl) Delete(id uint64) {
-	biz.ErrIsNil(gormx.DeleteById(new(entity.Role), id), "删除角色失败")
 }
 
 // 获取角色拥有的资源id数组，从role_resource表获取
@@ -51,7 +49,7 @@ func (m *roleRepoImpl) SaveRoleResource(rr []*entity.RoleResource) {
 }
 
 func (m *roleRepoImpl) DeleteRoleResource(roleId uint64, resourceId uint64) {
-	gormx.DeleteByCondition(&entity.RoleResource{RoleId: roleId, ResourceId: resourceId})
+	gormx.DeleteBy(&entity.RoleResource{RoleId: roleId, ResourceId: resourceId})
 }
 
 func (m *roleRepoImpl) GetAccountRoleIds(accountId uint64) []uint64 {
@@ -72,7 +70,7 @@ func (m *roleRepoImpl) SaveAccountRole(ar *entity.AccountRole) {
 }
 
 func (m *roleRepoImpl) DeleteAccountRole(accountId, roleId uint64) {
-	gormx.DeleteByCondition(&entity.AccountRole{RoleId: roleId, AccountId: accountId})
+	gormx.DeleteBy(&entity.AccountRole{RoleId: roleId, AccountId: accountId})
 }
 
 // 获取账号角色信息列表

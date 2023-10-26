@@ -1,7 +1,10 @@
 package repository
 
-import "mayfly-go/internal/db/domain/entity"
+import (
+	"mayfly-go/internal/db/domain/entity"
+	"mayfly-go/pkg/base"
+)
 
 type DbSql interface {
-	DeleteBy(condition *entity.DbSql)
+	base.Repo[*entity.DbSql]
 }

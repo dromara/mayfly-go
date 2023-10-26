@@ -48,7 +48,8 @@ func (r *Redis) ScanKeys(rc *req.Ctx) {
 		redisAddr := ri.Cli.Options().Addr
 		cursorRes[redisAddr] = form.Cursor[redisAddr]
 		for {
-			ks, cursor := ri.Scan(cursorRes[redisAddr], form.Match, form.Count)
+			ks, cursor, err := ri.Scan(cursorRes[redisAddr], form.Match, form.Count)
+			biz.ErrIsNil(err)
 			cursorRes[redisAddr] = cursor
 			if len(ks) > 0 {
 				// 返回了数据则追加总集合中

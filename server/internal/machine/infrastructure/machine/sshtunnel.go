@@ -136,7 +136,7 @@ func (stm *SshTunnelMachine) Close() {
 }
 
 // 获取ssh隧道机器，方便统一管理充当ssh隧道的机器，避免创建多个ssh client
-func GetSshTunnelMachine(machineId int, getMachine func(uint64) *Info) (*SshTunnelMachine, error) {
+func GetSshTunnelMachine(machineId int, getMachine func(uint64) (*Info, error)) (*SshTunnelMachine, error) {
 	sshTunnelMachine := sshTunnelMachines[machineId]
 	if sshTunnelMachine != nil {
 		return sshTunnelMachine, nil
@@ -145,7 +145,11 @@ func GetSshTunnelMachine(machineId int, getMachine func(uint64) *Info) (*SshTunn
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	me := getMachine(uint64(machineId))
+	me, err := getMachine(uint64(machineId))
+	if err != nil {
+		return nil, err
+	}
+
 	sshClient, err := GetSshClient(me)
 	if err != nil {
 		return nil, err

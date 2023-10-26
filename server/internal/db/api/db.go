@@ -48,7 +48,9 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	}
 
 	queryCond.TagIds = tagIds
-	rc.ResData = d.DbApp.GetPageList(queryCond, page, new([]vo.SelectDataDbVO))
+	res, err := d.DbApp.GetPageList(queryCond, page, new([]vo.SelectDataDbVO))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (d *Db) DbTags(rc *req.Ctx) {
@@ -62,7 +64,7 @@ func (d *Db) Save(rc *req.Ctx) {
 	rc.ReqParam = form
 
 	db.SetBaseInfo(rc.LoginAccount)
-	d.DbApp.Save(db)
+	biz.ErrIsNil(d.DbApp.Save(db))
 }
 
 func (d *Db) DeleteDb(rc *req.Ctx) {
@@ -81,23 +83,31 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 }
 
 func (d *Db) getDbConnection(g *gin.Context) *application.DbConnection {
-	return d.DbApp.GetDbConnection(getDbId(g), getDbName(g))
+	dc, err := d.DbApp.GetDbConnection(getDbId(g), getDbName(g))
+	biz.ErrIsNil(err)
+	return dc
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
-	rc.ResData = d.getDbConnection(rc.GinCtx).GetMeta().GetTableInfos()
+	res, err := d.getDbConnection(rc.GinCtx).GetMeta().GetTableInfos()
+	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
+	rc.ResData = res
 }
 
 func (d *Db) TableIndex(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	rc.ResData = d.getDbConnection(rc.GinCtx).GetMeta().GetTableIndex(tn)
+	res, err := d.getDbConnection(rc.GinCtx).GetMeta().GetTableIndex(tn)
+	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
+	rc.ResData = res
 }
 
 func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	rc.ResData = d.getDbConnection(rc.GinCtx).GetMeta().GetCreateTableDdl(tn)
+	res, err := d.getDbConnection(rc.GinCtx).GetMeta().GetCreateTableDdl(tn)
+	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
+	rc.ResData = res
 }
 
 func (d *Db) ExecSql(rc *req.Ctx) {
@@ -106,7 +116,8 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	ginx.BindJsonAndValid(g, form)
 
 	dbId := getDbId(g)
-	dbConn := d.DbApp.GetDbConnection(dbId, form.Db)
+	dbConn, err := d.DbApp.GetDbConnection(dbId, form.Db)
+	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
 
 	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbConn.Info.GetLogDesc(), form.Sql)
@@ -177,7 +188,8 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	dbName := getDbName(g)
 	clientId := g.Query("clientId")
 
-	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
+	dbConn, err := d.DbApp.GetDbConnection(dbId, dbName)
+	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
 	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
 
@@ -244,7 +256,8 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			if !ok {
 				logx.Warnf("sql解析失败: %s", sql)
 			}
-			dbConn = d.DbApp.GetDbConnection(dbId, stmtUse.DBName.String())
+			dbConn, err = d.DbApp.GetDbConnection(dbId, stmtUse.DBName.String())
+			biz.ErrIsNil(err)
 			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
 			execReq.DbConn = dbConn
 		}
@@ -282,7 +295,8 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	// 是否需要导出数据
 	needData := dumpType == "2" || dumpType == "3"
 
-	db := d.DbApp.GetById(dbId)
+	db, err := d.DbApp.GetById(new(entity.Db), dbId)
+	biz.ErrIsNil(err, "该数据库不存在")
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, db.TagPath), "%s")
 
 	now := time.Now()
@@ -320,7 +334,8 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 }
 
 func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool) {
-	dbConn := d.DbApp.GetDbConnection(dbId, dbName)
+	dbConn, err := d.DbApp.GetDbConnection(dbId, dbName)
+	biz.ErrIsNil(err)
 	writer.WriteString("\n-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
 	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
@@ -332,7 +347,8 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 
 	dbMeta := dbConn.GetMeta()
 	if len(tables) == 0 {
-		ti := dbMeta.GetTableInfos()
+		ti, err := dbMeta.GetTableInfos()
+		biz.ErrIsNil(err)
 		tables = make([]string, len(ti))
 		for i, table := range ti {
 			tables[i] = table.TableName
@@ -345,7 +361,9 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
 			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS %s;\n", quotedTable))
-			writer.WriteString(dbMeta.GetCreateTableDdl(table) + "\n")
+			ddl, err := dbMeta.GetCreateTableDdl(table)
+			biz.ErrIsNil(err)
+			writer.WriteString(ddl + "\n")
 		}
 		if !needData {
 			continue
@@ -380,7 +398,9 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 // @router /api/db/:dbId/t-metadata [get]
 func (d *Db) TableMA(rc *req.Ctx) {
 	dbi := d.getDbConnection(rc.GinCtx)
-	rc.ResData = dbi.GetMeta().GetTables()
+	res, err := dbi.GetMeta().GetTables()
+	biz.ErrIsNilAppendErr(err, "获取表基础信息失败: %s")
+	rc.ResData = res
 }
 
 // @router /api/db/:dbId/c-metadata [get]
@@ -390,7 +410,9 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 	biz.NotEmpty(tn, "tableName不能为空")
 
 	dbi := d.getDbConnection(rc.GinCtx)
-	rc.ResData = dbi.GetMeta().GetColumns(tn)
+	res, err := dbi.GetMeta().GetColumns(tn)
+	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
+	rc.ResData = res
 }
 
 // @router /api/db/:dbId/hint-tables [get]
@@ -399,7 +421,8 @@ func (d *Db) HintTables(rc *req.Ctx) {
 
 	dm := dbi.GetMeta()
 	// 获取所有表
-	tables := dm.GetTables()
+	tables, err := dm.GetTables()
+	biz.ErrIsNil(err)
 	tableNames := make([]string, 0)
 	for _, v := range tables {
 		tableNames = append(tableNames, v.TableName)
@@ -414,7 +437,8 @@ func (d *Db) HintTables(rc *req.Ctx) {
 	}
 
 	// 获取所有表下的所有列信息
-	columnMds := dm.GetColumns(tableNames...)
+	columnMds, err := dm.GetColumns(tableNames...)
+	biz.ErrIsNil(err)
 	for _, v := range columnMds {
 		tName := v.TableName
 		if res[tName] == nil {
@@ -481,8 +505,7 @@ func (d *Db) DeleteSql(rc *req.Ctx) {
 	dbSql.Name = rc.GinCtx.Query("name")
 	dbSql.Db = rc.GinCtx.Query("db")
 
-	gormx.DeleteByCondition(dbSql)
-
+	biz.ErrIsNil(gormx.DeleteBy(dbSql))
 }
 
 // @router /api/db/:dbId/sql [get]

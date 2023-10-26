@@ -114,7 +114,7 @@ func ToString(value any) string {
 	case uint64:
 		return strconv.FormatUint(it, 10)
 	case []byte:
-		return string(value.([]byte))
+		return string(it)
 	default:
 		newValue, _ := json.Marshal(value)
 		return string(newValue)

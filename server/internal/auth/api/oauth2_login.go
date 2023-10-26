@@ -12,6 +12,7 @@ import (
 	sysentity "mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -97,7 +98,7 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 
 		account := new(sysentity.Account)
 		account.Id = accountId
-		err = a.AccountApp.GetAccount(account, "username")
+		err = a.AccountApp.GetBy(account, "username")
 		biz.ErrIsNilAppendErr(err, "该账号不存在")
 		rc.ReqParam = collx.Kvs("username", account.Username, "type", "bind")
 
@@ -125,7 +126,7 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 		}
 		rc.ResData = res
 	} else {
-		panic(biz.NewBizErr("state不合法"))
+		panic(errorx.NewBiz("state不合法"))
 	}
 }
 
@@ -151,7 +152,7 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 			Name:     userId,
 			Username: userId,
 		}
-		a.AccountApp.Create(account)
+		biz.ErrIsNil(a.AccountApp.Create(account))
 		// 绑定
 		err := a.Oauth2App.BindOAuthAccount(&entity.Oauth2Account{
 			AccountId:  account.Id,
@@ -170,7 +171,7 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 	account := &sysentity.Account{
 		Model: model.Model{DeletedModel: model.DeletedModel{Id: accountId}},
 	}
-	err = a.AccountApp.GetAccount(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
+	err = a.AccountApp.GetBy(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
 	biz.ErrIsNilAppendErr(err, "获取用户信息失败: %s")
 
 	clientIp := getIpAndRegion(rc)

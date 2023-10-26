@@ -39,7 +39,7 @@ func (a *Account) GetPermissions(rc *req.Ctx) {
 
 	var resources vo.AccountResourceVOList
 	// 获取账号菜单资源
-	a.ResourceApp.GetAccountResources(account.Id, &resources)
+	biz.ErrIsNil(a.ResourceApp.GetAccountResources(account.Id, &resources))
 	// 菜单树与权限code数组
 	var menus vo.AccountResourceVOList
 	var permissions []string
@@ -66,7 +66,7 @@ func (a *Account) ChangePassword(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "解密旧密码错误: %s")
 
 	account := &entity.Account{Username: form.Username}
-	err = a.AccountApp.GetAccount(account, "Id", "Username", "Password", "Status")
+	err = a.AccountApp.GetBy(account, "Id", "Username", "Password", "Status")
 	biz.ErrIsNil(err, "旧密码错误")
 	biz.IsTrue(cryptox.CheckPwdHash(originOldPwd, account.Password), "旧密码错误")
 	biz.IsTrue(account.IsEnable(), "该账号不可用")
@@ -78,7 +78,7 @@ func (a *Account) ChangePassword(rc *req.Ctx) {
 	updateAccount := new(entity.Account)
 	updateAccount.Id = account.Id
 	updateAccount.Password = cryptox.PwdHash(originNewPwd)
-	a.AccountApp.Update(updateAccount)
+	biz.ErrIsNil(a.AccountApp.Update(updateAccount), "更新账号密码失败")
 
 	// 赋值loginAccount 主要用于记录操作日志，因为操作日志保存请求上下文没有该信息不保存日志
 	if rc.LoginAccount == nil {
@@ -111,13 +111,14 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 		updateAccount.Password = cryptox.PwdHash(updateAccount.Password)
 	}
 
-	oldAcc := a.AccountApp.GetById(updateAccount.Id)
+	oldAcc, err := a.AccountApp.GetById(new(entity.Account), updateAccount.Id)
+	biz.ErrIsNil(err, "账号信息不存在")
 	// 账号创建十分钟内允许修改用户名（兼容oauth2首次登录修改用户名），否则不允许修改
 	if oldAcc.CreateTime.Add(10 * time.Minute).Before(time.Now()) {
 		// 禁止更新用户名，防止误传被更新
 		updateAccount.Username = ""
 	}
-	a.AccountApp.Update(updateAccount)
+	biz.ErrIsNil(a.AccountApp.Update(updateAccount))
 }
 
 /**    后台账号操作    **/
@@ -126,7 +127,9 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 func (a *Account) Accounts(rc *req.Ctx) {
 	condition := &entity.Account{}
 	condition.Username = rc.GinCtx.Query("username")
-	rc.ResData = a.AccountApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.AccountManageVO))
+	res, err := a.AccountApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.AccountManageVO))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 // @router /accounts
@@ -139,7 +142,7 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 	account.SetBaseInfo(rc.LoginAccount)
 
 	if account.Id == 0 {
-		a.AccountApp.Create(account)
+		biz.ErrIsNil(a.AccountApp.Create(account))
 	} else {
 		if account.Password != "" {
 			biz.IsTrue(utils.CheckAccountPasswordLever(account.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
@@ -147,7 +150,7 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 		}
 		// 更新操作不允许修改用户名、防止误传更新
 		account.Username = ""
-		a.AccountApp.Update(account)
+		biz.ErrIsNil(a.AccountApp.Update(account))
 	}
 }
 
@@ -158,7 +161,7 @@ func (a *Account) ChangeStatus(rc *req.Ctx) {
 	account.Id = uint64(ginx.PathParamInt(g, "id"))
 	account.Status = int8(ginx.PathParamInt(g, "status"))
 	rc.ReqParam = collx.Kvs("accountId", account.Id, "status", account.Status)
-	a.AccountApp.Update(account)
+	biz.ErrIsNil(a.AccountApp.Update(account))
 }
 
 func (a *Account) DeleteAccount(rc *req.Ctx) {
@@ -169,7 +172,7 @@ func (a *Account) DeleteAccount(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		a.AccountApp.Delete(uint64(value))
+		biz.ErrIsNilAppendErr(a.AccountApp.Delete(uint64(value)), "删除失败：%s")
 	}
 }
 
@@ -188,7 +191,7 @@ func (a *Account) AccountRoles(rc *req.Ctx) {
 func (a *Account) AccountResources(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
 	// 获取账号菜单资源
-	a.ResourceApp.GetAccountResources(uint64(ginx.PathParamInt(rc.GinCtx, "id")), &resources)
+	biz.ErrIsNil(a.ResourceApp.GetAccountResources(uint64(ginx.PathParamInt(rc.GinCtx, "id")), &resources))
 	rc.ResData = resources.ToTrees(0)
 }
 
@@ -213,5 +216,5 @@ func (a *Account) ResetOtpSecret(rc *req.Ctx) {
 	accountId := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
 	account.Id = accountId
 	rc.ReqParam = collx.Kvs("accountId", accountId)
-	a.AccountApp.Update(account)
+	biz.ErrIsNil(a.AccountApp.Update(account))
 }

@@ -24,7 +24,9 @@ type Instance struct {
 // @router /api/instances [get]
 func (d *Instance) Instances(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage[*entity.InstanceQuery](rc.GinCtx, new(entity.InstanceQuery))
-	rc.ResData = d.InstanceApp.GetPageList(queryCond, page, new([]vo.SelectDataInstanceVO))
+	res, err := d.InstanceApp.GetPageList(queryCond, page, new([]vo.SelectDataInstanceVO))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 // SaveInstance 保存数据库实例信息
@@ -43,15 +45,15 @@ func (d *Instance) SaveInstance(rc *req.Ctx) {
 	rc.ReqParam = form
 
 	instance.SetBaseInfo(rc.LoginAccount)
-	d.InstanceApp.Save(instance)
+	biz.ErrIsNil(d.InstanceApp.Save(instance))
 }
 
 // GetInstance 获取数据库实例密码，由于数据库是加密存储，故提供该接口展示原文密码
 // @router /api/instances/:instance [GET]
 func (d *Instance) GetInstance(rc *req.Ctx) {
 	dbId := getInstanceId(rc.GinCtx)
-	dbEntity := d.InstanceApp.GetById(dbId)
-	biz.IsTrue(dbEntity != nil, "获取数据库实例错误")
+	dbEntity, err := d.InstanceApp.GetById(new(entity.Instance), dbId)
+	biz.ErrIsNil(err, "获取数据库实例错误")
 	dbEntity.Password = ""
 	rc.ResData = dbEntity
 }
@@ -60,8 +62,8 @@ func (d *Instance) GetInstance(rc *req.Ctx) {
 // @router /api/instances/:instance/pwd [GET]
 func (d *Instance) GetInstancePwd(rc *req.Ctx) {
 	instanceId := getInstanceId(rc.GinCtx)
-	instanceEntity := d.InstanceApp.GetById(instanceId, "Password")
-	biz.IsTrue(instanceEntity != nil, "获取数据库实例错误")
+	instanceEntity, err := d.InstanceApp.GetById(new(entity.Instance), instanceId, "Password")
+	biz.ErrIsNil(err, "获取数据库实例错误")
 	instanceEntity.PwdDecrypt()
 	rc.ResData = instanceEntity.Password
 }
@@ -78,8 +80,8 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
 		instanceId := uint64(value)
 		if d.DbApp.Count(&entity.DbQuery{InstanceId: instanceId}) != 0 {
-			instance := d.InstanceApp.GetById(instanceId, "name")
-			biz.NotNil(instance, "获取数据库实例错误，数据库实例ID为：%d", instance.Id)
+			instance, err := d.InstanceApp.GetById(new(entity.Instance), instanceId, "name")
+			biz.ErrIsNil(err, "获取数据库实例错误，数据库实例ID为: %d", instance.Id)
 			biz.IsTrue(false, "不能删除数据库实例【%s】，请先删除其关联的数据库资源。", instance.Name)
 		}
 		d.InstanceApp.Delete(instanceId)
@@ -89,10 +91,12 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 // 获取数据库实例的所有数据库名
 func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
 	instanceId := getInstanceId(rc.GinCtx)
-	instance := d.InstanceApp.GetById(instanceId, "Password")
-	biz.IsTrue(instance != nil, "获取数据库实例错误")
+	instance, err := d.InstanceApp.GetById(new(entity.Instance), instanceId, "Password")
+	biz.ErrIsNil(err, "获取数据库实例错误")
 	instance.PwdDecrypt()
-	rc.ResData = d.InstanceApp.GetDatabases(instance)
+	res, err := d.InstanceApp.GetDatabases(instance)
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func getInstanceId(g *gin.Context) uint64 {

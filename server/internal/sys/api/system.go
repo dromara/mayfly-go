@@ -20,7 +20,7 @@ func (s *System) ConnectWs(g *gin.Context) {
 	defer func() {
 		if err := recover(); err != nil {
 			errInfo := anyx.ToString(err)
-			logx.Error("websocket连接失败: ", errInfo)
+			logx.Errorf("websocket连接失败: %s", errInfo)
 			if wsConn != nil {
 				wsConn.WriteMessage(websocket.TextMessage, []byte(errInfo))
 				wsConn.Close()

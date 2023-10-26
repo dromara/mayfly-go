@@ -22,7 +22,9 @@ type Role struct {
 func (r *Role) Roles(rc *req.Ctx) {
 	g := rc.GinCtx
 	condition := &entity.Role{Name: g.Query("name")}
-	rc.ResData = r.RoleApp.GetPageList(condition, ginx.GetPageParam(g), new([]entity.Role))
+	res, err := r.RoleApp.GetPageList(condition, ginx.GetPageParam(g), new([]entity.Role))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 // 保存角色信息
