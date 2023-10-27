@@ -2,7 +2,9 @@ package entity
 
 import (
 	"mayfly-go/internal/common/utils"
+	"mayfly-go/internal/redis/rdm"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/structx"
 )
 
 type Redis struct {
@@ -20,12 +22,6 @@ type Redis struct {
 	TagPath            string
 }
 
-const (
-	RedisModeStandalone = "standalone"
-	RedisModeCluster    = "cluster"
-	RedisModeSentinel   = "sentinel"
-)
-
 func (r *Redis) PwdEncrypt() {
 	// 密码替换为加密后的密码
 	r.Password = utils.PwdAesEncrypt(r.Password)
@@ -34,4 +30,12 @@ func (r *Redis) PwdEncrypt() {
 func (r *Redis) PwdDecrypt() {
 	// 密码替换为解密后的密码
 	r.Password = utils.PwdAesDecrypt(r.Password)
+}
+
+// 转换为redisInfo进行连接
+func (re *Redis) ToRedisInfo(db int) *rdm.RedisInfo {
+	redisInfo := new(rdm.RedisInfo)
+	structx.Copy(redisInfo, re)
+	redisInfo.Db = db
+	return redisInfo
 }

@@ -109,6 +109,7 @@ func ErrorRes(g *gin.Context, err any) {
 		g.JSON(http.StatusOK, model.ServerError())
 	default:
 		logx.Errorf("未知错误: %v", t)
+		g.JSON(http.StatusOK, model.ServerError())
 	}
 }
 

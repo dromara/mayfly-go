@@ -1,10 +1,9 @@
-package application
+package dbm
 
 import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"mayfly-go/internal/db/domain/entity"
 	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
@@ -16,7 +15,7 @@ import (
 	"github.com/lib/pq"
 )
 
-func getPgsqlDB(d *entity.Instance, db string) (*sql.DB, error) {
+func getPgsqlDB(d *DbInfo) (*sql.DB, error) {
 	driverName := string(d.Type)
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
@@ -28,6 +27,7 @@ func getPgsqlDB(d *entity.Instance, db string) (*sql.DB, error) {
 		sql.Drivers()
 	}
 
+	db := d.Database
 	var dbParam string
 	if db != "" {
 		dbParam = "dbname=" + db
@@ -75,12 +75,12 @@ const (
 )
 
 type PgsqlMetadata struct {
-	di *DbConnection
+	dc *DbConn
 }
 
 // 获取表基础元信息, 如表名等
 func (pm *PgsqlMetadata) GetTables() ([]Table, error) {
-	_, res, err := pm.di.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_MA_KEY))
+	_, res, err := pm.dc.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_MA_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (pm *PgsqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
 		tableName = tableName + "'" + tableNames[i] + "'"
 	}
 
-	_, res, err := pm.di.SelectData(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
+	_, res, err := pm.dc.SelectData(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (pm *PgsqlMetadata) GetPrimaryKey(tablename string) (string, error) {
 
 // 获取表信息，比GetTables获取更详细的表信息
 func (pm *PgsqlMetadata) GetTableInfos() ([]Table, error) {
-	_, res, err := pm.di.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
+	_, res, err := pm.dc.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func (pm *PgsqlMetadata) GetTableInfos() ([]Table, error) {
 
 // 获取表索引信息
 func (pm *PgsqlMetadata) GetTableIndex(tableName string) ([]Index, error) {
-	_, res, err := pm.di.SelectData(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
+	_, res, err := pm.dc.SelectData(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -186,16 +186,16 @@ func (pm *PgsqlMetadata) GetTableIndex(tableName string) ([]Index, error) {
 
 // 获取建表ddl
 func (pm *PgsqlMetadata) GetCreateTableDdl(tableName string) (string, error) {
-	_, err := pm.di.Exec(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
+	_, err := pm.dc.Exec(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
 	if err != nil {
 		return "", err
 	}
 
-	_, schemaRes, _ := pm.di.SelectData("select current_schema() as schema")
+	_, schemaRes, _ := pm.dc.SelectData("select current_schema() as schema")
 	schemaName := schemaRes[0]["schema"].(string)
 
 	ddlSql := fmt.Sprintf("select showcreatetable('%s','%s') as sql", schemaName, tableName)
-	_, res, err := pm.di.SelectData(ddlSql)
+	_, res, err := pm.dc.SelectData(ddlSql)
 	if err != nil {
 		return "", err
 	}
@@ -204,9 +204,9 @@ func (pm *PgsqlMetadata) GetCreateTableDdl(tableName string) (string, error) {
 }
 
 func (pm *PgsqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {
-	return pm.di.SelectData(fmt.Sprintf("SELECT * FROM %s OFFSET %d LIMIT %d", tableName, (pageNum-1)*pageSize, pageSize))
+	return pm.dc.SelectData(fmt.Sprintf("SELECT * FROM %s OFFSET %d LIMIT %d", tableName, (pageNum-1)*pageSize, pageSize))
 }
 
 func (pm *PgsqlMetadata) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
-	return pm.di.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
+	return pm.dc.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
 }

@@ -1,10 +1,11 @@
-package entity
+package dbm
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"github.com/lib/pq"
-	"strings"
 )
 
 type DbType string

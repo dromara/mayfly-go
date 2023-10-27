@@ -9,16 +9,16 @@ import (
 )
 
 type instanceRepoImpl struct {
-	base.RepoImpl[*entity.Instance]
+	base.RepoImpl[*entity.DbInstance]
 }
 
 func newInstanceRepo() repository.Instance {
-	return &instanceRepoImpl{base.RepoImpl[*entity.Instance]{M: new(entity.Instance)}}
+	return &instanceRepoImpl{base.RepoImpl[*entity.DbInstance]{M: new(entity.DbInstance)}}
 }
 
 // 分页获取数据库信息列表
 func (d *instanceRepoImpl) GetInstanceList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(new(entity.Instance)).
+	qd := gormx.NewQuery(new(entity.DbInstance)).
 		Eq("id", condition.Id).
 		Eq("host", condition.Host).
 		Like("name", condition.Name)

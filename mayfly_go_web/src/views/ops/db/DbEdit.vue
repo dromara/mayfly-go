@@ -19,7 +19,7 @@
                         :disabled="form.id !== undefined"
                         remote
                         :remote-method="getInstances"
-                        @change="getAllDatabase"
+                        @change="changeInstance"
                         v-model="form.instanceId"
                         placeholder="请输入实例名称搜索并选择实例"
                         filterable
@@ -163,6 +163,11 @@ watch(props, (newValue: any) => {
     }
 });
 
+const changeInstance = () => {
+    state.databaseList = [];
+    getAllDatabase();
+};
+
 /**
  * 改变表单中的数据库字段，方便表单错误提示。如全部删光，可提示请添加数据库
  */
@@ -171,8 +176,6 @@ const changeDatabase = () => {
 };
 
 const getAllDatabase = async () => {
-    // 清空数据库列表，可能已经有选择库了
-    state.databaseList = [];
     if (state.form.instanceId > 0) {
         state.allDatabases = await dbApi.getAllDatabase.request({ instanceId: state.form.instanceId });
     }

@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/redis/api/vo"
 	"mayfly-go/internal/redis/application"
 	"mayfly-go/internal/redis/domain/entity"
+	"mayfly-go/internal/redis/rdm"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
@@ -86,7 +87,7 @@ func (r *Redis) DeleteRedis(rc *req.Ctx) {
 
 func (r *Redis) RedisInfo(rc *req.Ctx) {
 	g := rc.GinCtx
-	ri, err := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
+	ri, err := r.RedisApp.GetRedisConn(uint64(ginx.PathParamInt(g, "id")), 0)
 	biz.ErrIsNil(err)
 
 	section := rc.GinCtx.Query("section")
@@ -94,9 +95,9 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 	ctx := context.Background()
 	var redisCli *redis.Client
 
-	if mode == "" || mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
+	if mode == "" || mode == rdm.StandaloneMode || mode == rdm.SentinelMode {
 		redisCli = ri.Cli
-	} else if mode == entity.RedisModeCluster {
+	} else if mode == rdm.ClusterMode {
 		host := rc.GinCtx.Query("host")
 		biz.NotEmpty(host, "集群模式host信息不能为空")
 		clusterClient := ri.ClusterCli
@@ -164,9 +165,9 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 
 func (r *Redis) ClusterInfo(rc *req.Ctx) {
 	g := rc.GinCtx
-	ri, err := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
+	ri, err := r.RedisApp.GetRedisConn(uint64(ginx.PathParamInt(g, "id")), 0)
 	biz.ErrIsNil(err)
-	biz.IsEquals(ri.Info.Mode, entity.RedisModeCluster, "非集群模式")
+	biz.IsEquals(ri.Info.Mode, rdm.ClusterMode, "非集群模式")
 	info, _ := ri.ClusterCli.ClusterInfo(context.Background()).Result()
 	nodesStr, _ := ri.ClusterCli.ClusterNodes(context.Background()).Result()
 
@@ -208,14 +209,14 @@ func (r *Redis) ClusterInfo(rc *req.Ctx) {
 }
 
 // 校验查询参数中的key为必填项，并返回redis实例
-func (r *Redis) checkKeyAndGetRedisIns(rc *req.Ctx) (*application.RedisInstance, string) {
+func (r *Redis) checkKeyAndGetRedisConn(rc *req.Ctx) (*rdm.RedisConn, string) {
 	key := rc.GinCtx.Query("key")
 	biz.NotEmpty(key, "key不能为空")
-	return r.getRedisIns(rc), key
+	return r.getRedisConn(rc), key
 }
 
-func (r *Redis) getRedisIns(rc *req.Ctx) *application.RedisInstance {
-	ri, err := r.RedisApp.GetRedisInstance(getIdAndDbNum(rc.GinCtx))
+func (r *Redis) getRedisConn(rc *req.Ctx) *rdm.RedisConn {
+	ri, err := r.RedisApp.GetRedisConn(getIdAndDbNum(rc.GinCtx))
 	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
 	return ri

@@ -1,4 +1,4 @@
-package application
+package dbm
 
 import (
 	"database/sql"

@@ -33,7 +33,7 @@ func (d *Instance) Instances(rc *req.Ctx) {
 // @router /api/instances [post]
 func (d *Instance) SaveInstance(rc *req.Ctx) {
 	form := &form.InstanceForm{}
-	instance := ginx.BindJsonAndCopyTo[*entity.Instance](rc.GinCtx, form, new(entity.Instance))
+	instance := ginx.BindJsonAndCopyTo[*entity.DbInstance](rc.GinCtx, form, new(entity.DbInstance))
 
 	// 密码解密，并使用解密后的赋值
 	originPwd, err := cryptox.DefaultRsaDecrypt(form.Password, true)
@@ -52,7 +52,7 @@ func (d *Instance) SaveInstance(rc *req.Ctx) {
 // @router /api/instances/:instance [GET]
 func (d *Instance) GetInstance(rc *req.Ctx) {
 	dbId := getInstanceId(rc.GinCtx)
-	dbEntity, err := d.InstanceApp.GetById(new(entity.Instance), dbId)
+	dbEntity, err := d.InstanceApp.GetById(new(entity.DbInstance), dbId)
 	biz.ErrIsNil(err, "获取数据库实例错误")
 	dbEntity.Password = ""
 	rc.ResData = dbEntity
@@ -62,7 +62,7 @@ func (d *Instance) GetInstance(rc *req.Ctx) {
 // @router /api/instances/:instance/pwd [GET]
 func (d *Instance) GetInstancePwd(rc *req.Ctx) {
 	instanceId := getInstanceId(rc.GinCtx)
-	instanceEntity, err := d.InstanceApp.GetById(new(entity.Instance), instanceId, "Password")
+	instanceEntity, err := d.InstanceApp.GetById(new(entity.DbInstance), instanceId, "Password")
 	biz.ErrIsNil(err, "获取数据库实例错误")
 	instanceEntity.PwdDecrypt()
 	rc.ResData = instanceEntity.Password
@@ -80,7 +80,7 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
 		instanceId := uint64(value)
 		if d.DbApp.Count(&entity.DbQuery{InstanceId: instanceId}) != 0 {
-			instance, err := d.InstanceApp.GetById(new(entity.Instance), instanceId, "name")
+			instance, err := d.InstanceApp.GetById(new(entity.DbInstance), instanceId, "name")
 			biz.ErrIsNil(err, "获取数据库实例错误，数据库实例ID为: %d", instance.Id)
 			biz.IsTrue(false, "不能删除数据库实例【%s】，请先删除其关联的数据库资源。", instance.Name)
 		}
@@ -91,7 +91,7 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 // 获取数据库实例的所有数据库名
 func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
 	instanceId := getInstanceId(rc.GinCtx)
-	instance, err := d.InstanceApp.GetById(new(entity.Instance), instanceId, "Password")
+	instance, err := d.InstanceApp.GetById(new(entity.DbInstance), instanceId, "Password")
 	biz.ErrIsNil(err, "获取数据库实例错误")
 	instance.PwdDecrypt()
 	res, err := d.InstanceApp.GetDatabases(instance)

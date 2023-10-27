@@ -11,7 +11,7 @@ import (
 )
 
 func (r *Redis) Hscan(rc *req.Ctx) {
-	ri, key := r.checkKeyAndGetRedisIns(rc)
+	ri, key := r.checkKeyAndGetRedisConn(rc)
 	g := rc.GinCtx
 	count := ginx.QueryInt(g, "count", 10)
 	match := g.Query("match")
@@ -32,7 +32,7 @@ func (r *Redis) Hscan(rc *req.Ctx) {
 }
 
 func (r *Redis) Hdel(rc *req.Ctx) {
-	ri, key := r.checkKeyAndGetRedisIns(rc)
+	ri, key := r.checkKeyAndGetRedisConn(rc)
 	field := rc.GinCtx.Query("field")
 
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "key", key, "field", field)
@@ -42,7 +42,7 @@ func (r *Redis) Hdel(rc *req.Ctx) {
 }
 
 func (r *Redis) Hget(rc *req.Ctx) {
-	ri, key := r.checkKeyAndGetRedisIns(rc)
+	ri, key := r.checkKeyAndGetRedisConn(rc)
 	field := rc.GinCtx.Query("field")
 
 	res, err := ri.GetCmdable().HGet(context.TODO(), key, field).Result()
@@ -56,7 +56,7 @@ func (r *Redis) Hset(rc *req.Ctx) {
 	ginx.BindJsonAndValid(g, hashValue)
 
 	hv := hashValue.Value[0]
-	ri := r.getRedisIns(rc)
+	ri := r.getRedisConn(rc)
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "hash", hv)
 
 	res, err := ri.GetCmdable().HSet(context.TODO(), hashValue.Key, hv["field"].(string), hv["value"]).Result()
@@ -69,7 +69,7 @@ func (r *Redis) SetHashValue(rc *req.Ctx) {
 	hashValue := new(form.HashValue)
 	ginx.BindJsonAndValid(g, hashValue)
 
-	ri := r.getRedisIns(rc)
+	ri := r.getRedisConn(rc)
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "hash", hashValue)
 	cmd := ri.GetCmdable()
 

@@ -6,7 +6,7 @@ const (
 	AdminId = 1
 
 	MachineConnExpireTime = 60 * time.Minute
-	DbConnExpireTime      = 45 * time.Minute
+	DbConnExpireTime      = 120 * time.Minute
 	RedisConnExpireTime   = 30 * time.Minute
 	MongoConnExpireTime   = 30 * time.Minute
 

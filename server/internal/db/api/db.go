@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
+	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/domain/entity"
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
@@ -82,14 +83,14 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 	}
 }
 
-func (d *Db) getDbConnection(g *gin.Context) *application.DbConnection {
-	dc, err := d.DbApp.GetDbConnection(getDbId(g), getDbName(g))
+func (d *Db) getDbConn(g *gin.Context) *dbm.DbConn {
+	dc, err := d.DbApp.GetDbConn(getDbId(g), getDbName(g))
 	biz.ErrIsNil(err)
 	return dc
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
-	res, err := d.getDbConnection(rc.GinCtx).GetMeta().GetTableInfos()
+	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetTableInfos()
 	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
 	rc.ResData = res
 }
@@ -97,7 +98,7 @@ func (d *Db) TableInfos(rc *req.Ctx) {
 func (d *Db) TableIndex(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConnection(rc.GinCtx).GetMeta().GetTableIndex(tn)
+	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetTableIndex(tn)
 	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
 	rc.ResData = res
 }
@@ -105,7 +106,7 @@ func (d *Db) TableIndex(rc *req.Ctx) {
 func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConnection(rc.GinCtx).GetMeta().GetCreateTableDdl(tn)
+	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetCreateTableDdl(tn)
 	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
 	rc.ResData = res
 }
@@ -116,7 +117,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	ginx.BindJsonAndValid(g, form)
 
 	dbId := getDbId(g)
-	dbConn, err := d.DbApp.GetDbConnection(dbId, form.Db)
+	dbConn, err := d.DbApp.GetDbConn(dbId, form.Db)
 	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
 
@@ -188,7 +189,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	dbName := getDbName(g)
 	clientId := g.Query("clientId")
 
-	dbConn, err := d.DbApp.GetDbConnection(dbId, dbName)
+	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
 	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
 	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
@@ -256,7 +257,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			if !ok {
 				logx.Warnf("sql解析失败: %s", sql)
 			}
-			dbConn, err = d.DbApp.GetDbConnection(dbId, stmtUse.DBName.String())
+			dbConn, err = d.DbApp.GetDbConn(dbId, stmtUse.DBName.String())
 			biz.ErrIsNil(err)
 			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
 			execReq.DbConn = dbConn
@@ -334,7 +335,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 }
 
 func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool) {
-	dbConn, err := d.DbApp.GetDbConnection(dbId, dbName)
+	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
 	biz.ErrIsNil(err)
 	writer.WriteString("\n-- ----------------------------")
 	writer.WriteString("\n-- 导出平台: mayfly-go")
@@ -397,7 +398,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 
 // @router /api/db/:dbId/t-metadata [get]
 func (d *Db) TableMA(rc *req.Ctx) {
-	dbi := d.getDbConnection(rc.GinCtx)
+	dbi := d.getDbConn(rc.GinCtx)
 	res, err := dbi.GetMeta().GetTables()
 	biz.ErrIsNilAppendErr(err, "获取表基础信息失败: %s")
 	rc.ResData = res
@@ -409,7 +410,7 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 	tn := g.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
 
-	dbi := d.getDbConnection(rc.GinCtx)
+	dbi := d.getDbConn(rc.GinCtx)
 	res, err := dbi.GetMeta().GetColumns(tn)
 	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
 	rc.ResData = res
@@ -417,7 +418,7 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 
 // @router /api/db/:dbId/hint-tables [get]
 func (d *Db) HintTables(rc *req.Ctx) {
-	dbi := d.getDbConnection(rc.GinCtx)
+	dbi := d.getDbConn(rc.GinCtx)
 
 	dm := dbi.GetMeta()
 	// 获取所有表

@@ -1,8 +1,9 @@
-package entity
+package dbm
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_QuoteLiteral(t *testing.T) {

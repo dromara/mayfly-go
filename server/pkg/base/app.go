@@ -10,8 +10,14 @@ type App[T any] interface {
 	// 新增一个实体
 	Insert(e T) error
 
+	// 使用指定gorm db执行，主要用于事务执行
+	InsertWithDb(db *gorm.DB, e T) error
+
 	// 批量新增实体
 	BatchInsert(models []T) error
+
+	// 使用指定gorm db执行，主要用于事务执行
+	BatchInsertWithDb(db *gorm.DB, es []T) error
 
 	// 根据实体id更新实体信息
 	UpdateById(e T) error
@@ -70,9 +76,19 @@ func (ai *AppImpl[T, R]) Insert(e T) error {
 	return ai.GetRepo().Insert(e)
 }
 
+// 使用指定gorm db执行，主要用于事务执行
+func (ai *AppImpl[T, R]) InsertWithDb(db *gorm.DB, e T) error {
+	return ai.GetRepo().InsertWithDb(db, e)
+}
+
 // 批量新增实体 (单纯新增，不做其他业务逻辑处理)
 func (ai *AppImpl[T, R]) BatchInsert(es []T) error {
 	return ai.GetRepo().BatchInsert(es)
+}
+
+// 使用指定gorm db执行，主要用于事务执行
+func (ai *AppImpl[T, R]) BatchInsertWithDb(db *gorm.DB, es []T) error {
+	return ai.GetRepo().BatchInsertWithDb(db, es)
 }
 
 // 根据实体id更新实体信息 (单纯更新，不做其他业务逻辑处理)

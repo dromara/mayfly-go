@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mayfly-go/internal/db/config"
+	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/errorx"
@@ -20,7 +21,7 @@ type DbSqlExecReq struct {
 	Sql          string
 	Remark       string
 	LoginAccount *model.LoginAccount
-	DbConn       *DbConnection
+	DbConn       *dbm.DbConn
 }
 
 type DbSqlExecRes struct {
@@ -269,7 +270,7 @@ func doInsert(insert *sqlparser.Insert, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 	return doExec(execSqlReq.Sql, execSqlReq.DbConn)
 }
 
-func doExec(sql string, dbConn *DbConnection) (*DbSqlExecRes, error) {
+func doExec(sql string, dbConn *dbm.DbConn) (*DbSqlExecRes, error) {
 	rowsAffected, err := dbConn.Exec(sql)
 	execRes := "success"
 	if err != nil {

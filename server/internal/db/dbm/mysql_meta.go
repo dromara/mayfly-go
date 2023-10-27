@@ -1,10 +1,9 @@
-package application
+package dbm
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"mayfly-go/internal/db/domain/entity"
 	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
@@ -13,7 +12,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
-func getMysqlDB(d *entity.Instance, db string) (*sql.DB, error) {
+func getMysqlDB(d *DbInfo) (*sql.DB, error) {
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
 		sshTunnelMachine, err := machineapp.GetMachineApp().GetSshTunnelMachine(d.SshTunnelMachineId)
@@ -25,7 +24,7 @@ func getMysqlDB(d *entity.Instance, db string) (*sql.DB, error) {
 		})
 	}
 	// 设置dataSourceName  -> 更多参数参考：https://github.com/go-sql-driver/mysql#dsn-data-source-name
-	dsn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, db)
+	dsn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?timeout=8s", d.Username, d.Password, d.Network, d.Host, d.Port, d.Database)
 	if d.Params != "" {
 		dsn = fmt.Sprintf("%s&%s", dsn, d.Params)
 	}
@@ -42,12 +41,12 @@ const (
 )
 
 type MysqlMetadata struct {
-	di *DbConnection
+	dc *DbConn
 }
 
 // 获取表基础元信息, 如表名等
 func (mm *MysqlMetadata) GetTables() ([]Table, error) {
-	_, res, err := mm.di.SelectData(GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_MA_KEY))
+	_, res, err := mm.dc.SelectData(GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_MA_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +71,7 @@ func (mm *MysqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
 		tableName = tableName + "'" + tableNames[i] + "'"
 	}
 
-	_, res, err := mm.di.SelectData(fmt.Sprintf(GetLocalSql(MYSQL_META_FILE, MYSQL_COLUMN_MA_KEY), tableName))
+	_, res, err := mm.dc.SelectData(fmt.Sprintf(GetLocalSql(MYSQL_META_FILE, MYSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +112,7 @@ func (mm *MysqlMetadata) GetPrimaryKey(tablename string) (string, error) {
 
 // 获取表信息，比GetTableMetedatas获取更详细的表信息
 func (mm *MysqlMetadata) GetTableInfos() ([]Table, error) {
-	_, res, err := mm.di.SelectData(GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_KEY))
+	_, res, err := mm.dc.SelectData(GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +133,7 @@ func (mm *MysqlMetadata) GetTableInfos() ([]Table, error) {
 
 // 获取表索引信息
 func (mm *MysqlMetadata) GetTableIndex(tableName string) ([]Index, error) {
-	_, res, err := mm.di.SelectData(fmt.Sprintf(GetLocalSql(MYSQL_META_FILE, MYSQL_INDEX_INFO_KEY), tableName))
+	_, res, err := mm.dc.SelectData(fmt.Sprintf(GetLocalSql(MYSQL_META_FILE, MYSQL_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +170,7 @@ func (mm *MysqlMetadata) GetTableIndex(tableName string) ([]Index, error) {
 
 // 获取建表ddl
 func (mm *MysqlMetadata) GetCreateTableDdl(tableName string) (string, error) {
-	_, res, err := mm.di.SelectData(fmt.Sprintf("show create table `%s` ", tableName))
+	_, res, err := mm.dc.SelectData(fmt.Sprintf("show create table `%s` ", tableName))
 	if err != nil {
 		return "", err
 	}
@@ -179,9 +178,9 @@ func (mm *MysqlMetadata) GetCreateTableDdl(tableName string) (string, error) {
 }
 
 func (mm *MysqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {
-	return mm.di.SelectData(fmt.Sprintf("SELECT * FROM %s LIMIT %d, %d", tableName, (pageNum-1)*pageSize, pageSize))
+	return mm.dc.SelectData(fmt.Sprintf("SELECT * FROM %s LIMIT %d, %d", tableName, (pageNum-1)*pageSize, pageSize))
 }
 
 func (mm *MysqlMetadata) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
-	return mm.di.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
+	return mm.dc.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
 }

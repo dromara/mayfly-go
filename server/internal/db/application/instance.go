@@ -1,8 +1,6 @@
 package application
 
 import (
-	"database/sql"
-	"fmt"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
@@ -11,20 +9,20 @@ import (
 )
 
 type Instance interface {
-	base.App[*entity.Instance]
+	base.App[*entity.DbInstance]
 
 	// GetPageList 分页获取数据库实例
 	GetPageList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	Count(condition *entity.InstanceQuery) int64
 
-	Save(instanceEntity *entity.Instance) error
+	Save(instanceEntity *entity.DbInstance) error
 
 	// Delete 删除数据库信息
 	Delete(id uint64) error
 
 	// GetDatabases 获取数据库实例的所有数据库列表
-	GetDatabases(entity *entity.Instance) ([]string, error)
+	GetDatabases(entity *entity.DbInstance) ([]string, error)
 }
 
 func newInstanceApp(instanceRepo repository.Instance) Instance {
@@ -34,7 +32,7 @@ func newInstanceApp(instanceRepo repository.Instance) Instance {
 }
 
 type instanceAppImpl struct {
-	base.AppImpl[*entity.Instance, repository.Instance]
+	base.AppImpl[*entity.DbInstance, repository.Instance]
 }
 
 // GetPageList 分页获取数据库实例
@@ -46,19 +44,21 @@ func (app *instanceAppImpl) Count(condition *entity.InstanceQuery) int64 {
 	return app.CountByCond(condition)
 }
 
-func (app *instanceAppImpl) Save(instanceEntity *entity.Instance) error {
+func (app *instanceAppImpl) Save(instanceEntity *entity.DbInstance) error {
 	// 默认tcp连接
 	instanceEntity.Network = instanceEntity.GetNetwork()
 
 	// 测试连接
 	if instanceEntity.Password != "" {
-		if err := testConnection(instanceEntity); err != nil {
-			return errorx.NewBiz("数据库连接失败: %s", err.Error())
+		dbConn, err := toDbInfo(instanceEntity, 0, "", "").Conn()
+		if err != nil {
+			return err
 		}
+		defer dbConn.Close()
 	}
 
 	// 查找是否存在该库
-	oldInstance := &entity.Instance{Host: instanceEntity.Host, Port: instanceEntity.Port, Username: instanceEntity.Username}
+	oldInstance := &entity.DbInstance{Host: instanceEntity.Host, Port: instanceEntity.Port, Username: instanceEntity.Username}
 	if instanceEntity.SshTunnelMachineId > 0 {
 		oldInstance.SshTunnelMachineId = instanceEntity.SshTunnelMachineId
 	}
@@ -87,55 +87,19 @@ func (app *instanceAppImpl) Delete(id uint64) error {
 	return app.DeleteById(id)
 }
 
-// getInstanceConn 获取数据库连接数据库实例
-func getInstanceConn(instance *entity.Instance, db string) (*sql.DB, error) {
-	var conn *sql.DB
-	var err error
-	switch instance.Type {
-	case entity.DbTypeMysql:
-		conn, err = getMysqlDB(instance, db)
-	case entity.DbTypePostgres:
-		conn, err = getPgsqlDB(instance, db)
-	default:
-		panic(fmt.Sprintf("invalid database type: %s", instance.Type))
-	}
-
-	if err != nil {
-		return nil, err
-	}
-	err = conn.Ping()
-	if err != nil {
-		conn.Close()
-		return nil, err
-	}
-
-	return conn, nil
-}
-
-func testConnection(d *entity.Instance) error {
-	// 不指定数据库名称
-	conn, err := getInstanceConn(d, "")
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-	return nil
-}
-
-func (app *instanceAppImpl) GetDatabases(ed *entity.Instance) ([]string, error) {
+func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance) ([]string, error) {
 	ed.Network = ed.GetNetwork()
 	databases := make([]string, 0)
-	var dbConn *sql.DB
 	metaDb := ed.Type.MetaDbName()
 	getDatabasesSql := ed.Type.StmtSelectDbName()
 
-	dbConn, err := getInstanceConn(ed, metaDb)
+	dbConn, err := toDbInfo(ed, 0, metaDb, "").Conn()
 	if err != nil {
-		return nil, errorx.NewBiz("数据库连接失败: %s", err.Error())
+		return nil, err
 	}
 	defer dbConn.Close()
 
-	_, res, err := selectDataByDb(dbConn, getDatabasesSql)
+	_, res, err := dbConn.SelectData(getDatabasesSql)
 	if err != nil {
 		return nil, err
 	}
