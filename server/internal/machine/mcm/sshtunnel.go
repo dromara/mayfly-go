@@ -1,4 +1,4 @@
-package machine
+package mcm
 
 import (
 	"fmt"
@@ -136,14 +136,14 @@ func (stm *SshTunnelMachine) Close() {
 }
 
 // 获取ssh隧道机器，方便统一管理充当ssh隧道的机器，避免创建多个ssh client
-func GetSshTunnelMachine(machineId int, getMachine func(uint64) (*Info, error)) (*SshTunnelMachine, error) {
+func GetSshTunnelMachine(machineId int, getMachine func(uint64) (*MachineInfo, error)) (*SshTunnelMachine, error) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	sshTunnelMachine := sshTunnelMachines[machineId]
 	if sshTunnelMachine != nil {
 		return sshTunnelMachine, nil
 	}
-
-	mutex.Lock()
-	defer mutex.Unlock()
 
 	me, err := getMachine(uint64(machineId))
 	if err != nil {

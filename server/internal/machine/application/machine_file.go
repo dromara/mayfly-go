@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
-	"mayfly-go/internal/machine/infrastructure/machine"
+	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
@@ -32,18 +32,18 @@ type MachineFile interface {
 	Delete(id uint64) error
 
 	// 获取文件关联的机器信息，主要用于记录日志使用
-	// GetMachine(fileId uint64) *machine.Info
+	// GetMachine(fileId uint64) *mcm.Info
 
 	// 检查文件路径，并返回机器id
-	GetMachineCli(fileId uint64, path ...string) (*machine.Cli, error)
+	GetMachineCli(fileId uint64, path ...string) (*mcm.Cli, error)
 
 	/**  sftp 相关操作 **/
 
 	// 创建目录
-	MkDir(fid uint64, path string) (*machine.Info, error)
+	MkDir(fid uint64, path string) (*mcm.MachineInfo, error)
 
 	// 创建文件
-	CreateFile(fid uint64, path string) (*machine.Info, error)
+	CreateFile(fid uint64, path string) (*mcm.MachineInfo, error)
 
 	// 读取目录
 	ReadDir(fid uint64, path string) ([]fs.FileInfo, error)
@@ -55,22 +55,22 @@ type MachineFile interface {
 	FileStat(fid uint64, path string) (string, error)
 
 	// 读取文件内容
-	ReadFile(fileId uint64, path string) (*sftp.File, *machine.Info, error)
+	ReadFile(fileId uint64, path string) (*sftp.File, *mcm.MachineInfo, error)
 
 	// 写文件
-	WriteFileContent(fileId uint64, path string, content []byte) (*machine.Info, error)
+	WriteFileContent(fileId uint64, path string, content []byte) (*mcm.MachineInfo, error)
 
 	// 文件上传
-	UploadFile(fileId uint64, path, filename string, reader io.Reader) (*machine.Info, error)
+	UploadFile(fileId uint64, path, filename string, reader io.Reader) (*mcm.MachineInfo, error)
 
 	// 移除文件
-	RemoveFile(fileId uint64, path ...string) (*machine.Info, error)
+	RemoveFile(fileId uint64, path ...string) (*mcm.MachineInfo, error)
 
-	Copy(fileId uint64, toPath string, paths ...string) (*machine.Info, error)
+	Copy(fileId uint64, toPath string, paths ...string) (*mcm.MachineInfo, error)
 
-	Mv(fileId uint64, toPath string, paths ...string) (*machine.Info, error)
+	Mv(fileId uint64, toPath string, paths ...string) (*mcm.MachineInfo, error)
 
-	Rename(fileId uint64, oldname string, newname string) (*machine.Info, error)
+	Rename(fileId uint64, oldname string, newname string) (*mcm.MachineInfo, error)
 }
 
 func newMachineFileApp(machineFileRepo repository.MachineFile, machineApp Machine) MachineFile {
@@ -163,7 +163,7 @@ func (m *machineFileAppImpl) FileStat(fid uint64, path string) (string, error) {
 	return mcli.Run(fmt.Sprintf("stat -L %s", path))
 }
 
-func (m *machineFileAppImpl) MkDir(fid uint64, path string) (*machine.Info, error) {
+func (m *machineFileAppImpl) MkDir(fid uint64, path string) (*mcm.MachineInfo, error) {
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
 	}
@@ -177,7 +177,7 @@ func (m *machineFileAppImpl) MkDir(fid uint64, path string) (*machine.Info, erro
 	return mi, err
 }
 
-func (m *machineFileAppImpl) CreateFile(fid uint64, path string) (*machine.Info, error) {
+func (m *machineFileAppImpl) CreateFile(fid uint64, path string) (*mcm.MachineInfo, error) {
 	mi, sftpCli, err := m.GetMachineSftpCli(fid, path)
 	if err != nil {
 		return nil, err
@@ -191,7 +191,7 @@ func (m *machineFileAppImpl) CreateFile(fid uint64, path string) (*machine.Info,
 	return mi, err
 }
 
-func (m *machineFileAppImpl) ReadFile(fileId uint64, path string) (*sftp.File, *machine.Info, error) {
+func (m *machineFileAppImpl) ReadFile(fileId uint64, path string) (*sftp.File, *mcm.MachineInfo, error) {
 	mi, sftpCli, err := m.GetMachineSftpCli(fileId, path)
 	if err != nil {
 		return nil, nil, err
@@ -203,7 +203,7 @@ func (m *machineFileAppImpl) ReadFile(fileId uint64, path string) (*sftp.File, *
 }
 
 // 写文件内容
-func (m *machineFileAppImpl) WriteFileContent(fileId uint64, path string, content []byte) (*machine.Info, error) {
+func (m *machineFileAppImpl) WriteFileContent(fileId uint64, path string, content []byte) (*mcm.MachineInfo, error) {
 	mi, sftpCli, err := m.GetMachineSftpCli(fileId, path)
 	if err != nil {
 		return nil, err
@@ -219,7 +219,7 @@ func (m *machineFileAppImpl) WriteFileContent(fileId uint64, path string, conten
 }
 
 // 上传文件
-func (m *machineFileAppImpl) UploadFile(fileId uint64, path, filename string, reader io.Reader) (*machine.Info, error) {
+func (m *machineFileAppImpl) UploadFile(fileId uint64, path, filename string, reader io.Reader) (*mcm.MachineInfo, error) {
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
 	}
@@ -239,12 +239,12 @@ func (m *machineFileAppImpl) UploadFile(fileId uint64, path, filename string, re
 }
 
 // 删除文件
-func (m *machineFileAppImpl) RemoveFile(fileId uint64, path ...string) (*machine.Info, error) {
+func (m *machineFileAppImpl) RemoveFile(fileId uint64, path ...string) (*mcm.MachineInfo, error) {
 	mcli, err := m.GetMachineCli(fileId, path...)
 	if err != nil {
 		return nil, err
 	}
-	minfo := mcli.GetMachine()
+	minfo := mcli.Info
 
 	// 优先使用命令删除（速度快），sftp需要递归遍历删除子文件等
 	res, err := mcli.Run(fmt.Sprintf("rm -rf %s", strings.Join(path, " ")))
@@ -267,13 +267,13 @@ func (m *machineFileAppImpl) RemoveFile(fileId uint64, path ...string) (*machine
 	return minfo, err
 }
 
-func (m *machineFileAppImpl) Copy(fileId uint64, toPath string, paths ...string) (*machine.Info, error) {
+func (m *machineFileAppImpl) Copy(fileId uint64, toPath string, paths ...string) (*mcm.MachineInfo, error) {
 	mcli, err := m.GetMachineCli(fileId, paths...)
 	if err != nil {
 		return nil, err
 	}
 
-	mi := mcli.GetMachine()
+	mi := mcli.Info
 	res, err := mcli.Run(fmt.Sprintf("cp -r %s %s", strings.Join(paths, " "), toPath))
 	if err != nil {
 		return mi, errors.New(res)
@@ -281,13 +281,13 @@ func (m *machineFileAppImpl) Copy(fileId uint64, toPath string, paths ...string)
 	return mi, err
 }
 
-func (m *machineFileAppImpl) Mv(fileId uint64, toPath string, paths ...string) (*machine.Info, error) {
+func (m *machineFileAppImpl) Mv(fileId uint64, toPath string, paths ...string) (*mcm.MachineInfo, error) {
 	mcli, err := m.GetMachineCli(fileId, paths...)
 	if err != nil {
 		return nil, err
 	}
 
-	mi := mcli.GetMachine()
+	mi := mcli.Info
 	res, err := mcli.Run(fmt.Sprintf("mv %s %s", strings.Join(paths, " "), toPath))
 	if err != nil {
 		return mi, errorx.NewBiz(res)
@@ -295,7 +295,7 @@ func (m *machineFileAppImpl) Mv(fileId uint64, toPath string, paths ...string) (
 	return mi, err
 }
 
-func (m *machineFileAppImpl) Rename(fileId uint64, oldname string, newname string) (*machine.Info, error) {
+func (m *machineFileAppImpl) Rename(fileId uint64, oldname string, newname string) (*mcm.MachineInfo, error) {
 	mi, sftpCli, err := m.GetMachineSftpCli(fileId, newname)
 	if err != nil {
 		return nil, err
@@ -304,7 +304,7 @@ func (m *machineFileAppImpl) Rename(fileId uint64, oldname string, newname strin
 }
 
 // 获取文件机器cli
-func (m *machineFileAppImpl) GetMachineCli(fid uint64, inputPath ...string) (*machine.Cli, error) {
+func (m *machineFileAppImpl) GetMachineCli(fid uint64, inputPath ...string) (*mcm.Cli, error) {
 	mf := m.GetById(fid)
 	if mf == nil {
 		return nil, errorx.NewBiz("文件不存在")
@@ -320,7 +320,7 @@ func (m *machineFileAppImpl) GetMachineCli(fid uint64, inputPath ...string) (*ma
 }
 
 // 获取文件机器 sftp cli
-func (m *machineFileAppImpl) GetMachineSftpCli(fid uint64, inputPath ...string) (*machine.Info, *sftp.Client, error) {
+func (m *machineFileAppImpl) GetMachineSftpCli(fid uint64, inputPath ...string) (*mcm.MachineInfo, *sftp.Client, error) {
 	mcli, err := m.GetMachineCli(fid, inputPath...)
 	if err != nil {
 		return nil, nil, err
@@ -331,5 +331,5 @@ func (m *machineFileAppImpl) GetMachineSftpCli(fid uint64, inputPath ...string) 
 		return nil, nil, err
 	}
 
-	return mcli.GetMachine(), sftpCli, nil
+	return mcli.Info, sftpCli, nil
 }

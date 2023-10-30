@@ -159,7 +159,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent, nextTick } from 'vue';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi, getMachineTerminalSocketUrl } from './api';
@@ -358,7 +358,9 @@ const deleteMachine = async () => {
         await machineApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('操作成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 const serviceManager = (row: any) => {

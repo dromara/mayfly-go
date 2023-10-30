@@ -70,11 +70,11 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	}
 	cli, err := m.MachineApp.GetCli(machineId)
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.Info.TagPath), "%s")
 
 	res, err := cli.Run(script)
 	// 记录请求参数
-	rc.ReqParam = collx.Kvs("machine", cli.GetMachine(), "scriptId", scriptId, "name", ms.Name)
+	rc.ReqParam = collx.Kvs("machine", cli.Info, "scriptId", scriptId, "name", ms.Name)
 	if res == "" {
 		biz.ErrIsNilAppendErr(err, "执行命令失败：%s")
 	}

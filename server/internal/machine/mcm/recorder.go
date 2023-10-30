@@ -1,4 +1,4 @@
-package machine
+package mcm
 
 import (
 	"encoding/json"

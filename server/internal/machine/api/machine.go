@@ -7,7 +7,7 @@ import (
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/domain/entity"
-	"mayfly-go/internal/machine/infrastructure/machine"
+	"mayfly-go/internal/machine/mcm"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/config"
@@ -54,7 +54,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	}
 
 	for _, mv := range *res.List {
-		mv.HasCli = machine.HasCli(mv.Id)
+		mv.HasCli = mcm.HasCli(mv.Id)
 	}
 	rc.ResData = res
 }
@@ -109,7 +109,7 @@ func (m *Machine) DeleteMachine(rc *req.Ctx) {
 
 // 关闭机器客户端
 func (m *Machine) CloseCli(rc *req.Ctx) {
-	machine.DeleteCli(GetMachineId(rc.GinCtx))
+	mcm.DeleteCli(GetMachineId(rc.GinCtx))
 }
 
 // 获取进程列表信息
@@ -133,7 +133,7 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.Info.TagPath), "%s")
 
 	res, err := cli.Run(cmd)
 	biz.ErrIsNilAppendErr(err, "获取进程信息失败: %s")
@@ -147,7 +147,7 @@ func (m *Machine) KillProcess(rc *req.Ctx) {
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.Info.TagPath), "%s")
 
 	res, err := cli.Run("sudo kill -9 " + pid)
 	biz.ErrIsNil(err, "终止进程失败: %s", res)
@@ -173,30 +173,30 @@ func (m *Machine) WsSSH(g *gin.Context) {
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(g))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.GetMachine().TagPath), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.Info.TagPath), "%s")
 
 	cols := ginx.QueryInt(g, "cols", 80)
 	rows := ginx.QueryInt(g, "rows", 40)
 
-	var recorder *machine.Recorder
-	if cli.GetMachine().EnableRecorder == 1 {
+	var recorder *mcm.Recorder
+	if cli.Info.EnableRecorder == 1 {
 		now := time.Now()
 		// 回放文件路径为: 基础配置路径/机器id/操作日期/操作者账号/操作时间.cast
-		recPath := fmt.Sprintf("%s/%d/%s/%s", config.Conf.Server.GetMachineRecPath(), cli.GetMachine().Id, now.Format("20060102"), rc.LoginAccount.Username)
+		recPath := fmt.Sprintf("%s/%d/%s/%s", config.Conf.Server.GetMachineRecPath(), cli.Info.Id, now.Format("20060102"), rc.LoginAccount.Username)
 		os.MkdirAll(recPath, 0766)
 		fileName := path.Join(recPath, fmt.Sprintf("%s.cast", now.Format("20060102_150405")))
 		f, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0766)
 		biz.ErrIsNilAppendErr(err, "创建终端回放记录文件失败: %s")
 		defer f.Close()
-		recorder = machine.NewRecorder(f)
+		recorder = mcm.NewRecorder(f)
 	}
 
-	mts, err := machine.NewTerminalSession(stringx.Rand(16), wsConn, cli, rows, cols, recorder)
+	mts, err := mcm.NewTerminalSession(stringx.Rand(16), wsConn, cli, rows, cols, recorder)
 	biz.ErrIsNilAppendErr(err, "\033[1;31m连接失败: %s\033[0m")
 
 	// 记录系统操作日志
 	rc.WithLog(req.NewLogSave("机器-终端操作"))
-	rc.ReqParam = cli.GetMachine()
+	rc.ReqParam = cli.Info
 	req.LogHandler(rc)
 
 	mts.Start()

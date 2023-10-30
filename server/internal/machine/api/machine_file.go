@@ -8,7 +8,7 @@ import (
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/domain/entity"
-	"mayfly-go/internal/machine/infrastructure/machine"
+	"mayfly-go/internal/machine/mcm"
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
 	"mayfly-go/pkg/biz"
@@ -72,7 +72,7 @@ func (m *MachineFile) CreateFile(rc *req.Ctx) {
 	path := form.Path
 
 	attrs := collx.Kvs("path", path)
-	var mi *machine.Info
+	var mi *mcm.MachineInfo
 	var err error
 	if form.Type == dir {
 		attrs["type"] = "目录"
@@ -231,7 +231,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	folderName := filepath.Dir(paths[0])
 	mcli, err := m.MachineFileApp.GetMachineCli(fid, basePath+"/"+folderName)
 	biz.ErrIsNil(err)
-	mi := mcli.GetMachine()
+	mi := mcli.Info
 
 	sftpCli, err := mcli.GetSftpCli()
 	biz.ErrIsNil(err)
@@ -261,6 +261,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	// 设置要等待的协程数量
 	wg.Add(len(chunks))
 
+	isSuccess := true
 	la := rc.LoginAccount
 	for _, chunk := range chunks {
 		go func(files []FolderFile, wg *sync.WaitGroup) {
@@ -268,6 +269,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 				// 协程执行完成后调用Done方法
 				wg.Done()
 				if err := recover(); err != nil {
+					isSuccess = false
 					logx.Errorf("文件上传失败: %s", err)
 					switch t := err.(type) {
 					case errorx.BizError:
@@ -294,8 +296,10 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 
 	// 等待所有协程执行完成
 	wg.Wait()
-	// 保存消息并发送文件上传成功通知
-	m.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("文件上传成功", fmt.Sprintf("[%s]文件夹已成功上传至 %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
+	if isSuccess {
+		// 保存消息并发送文件上传成功通知
+		m.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("文件上传成功", fmt.Sprintf("[%s]文件夹已成功上传至 %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
+	}
 }
 
 func (m *MachineFile) RemoveFile(rc *req.Ctx) {

@@ -1,4 +1,4 @@
-package machine
+package mcm
 
 import (
 	"bufio"
@@ -70,21 +70,6 @@ echo '-----'
 echo '-----'
 top -b -n 1 | grep Cpu
 `
-
-func (c *Cli) GetAllStats() *Stats {
-	res, _ := c.Run(StatsShell)
-	infos := strings.Split(res, "-----")
-	stats := new(Stats)
-	getUptime(infos[0], stats)
-	getHostname(infos[1], stats)
-	getLoad(infos[2], stats)
-	getMemInfo(infos[3], stats)
-	getFSInfo(infos[4], stats)
-	getInterfaces(infos[5], stats)
-	getInterfaceInfo(infos[6], stats)
-	getCPU(infos[7], stats)
-	return stats
-}
 
 func getUptime(uptime string, stats *Stats) (err error) {
 	parts := strings.Fields(uptime)

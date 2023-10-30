@@ -3,7 +3,7 @@ package dbm
 import (
 	"fmt"
 	"mayfly-go/internal/common/consts"
-	"mayfly-go/internal/machine/infrastructure/machine"
+	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/logx"
 	"sync"
@@ -19,7 +19,7 @@ var connCache = cache.NewTimedCache(consts.DbConnExpireTime, 5*time.Second).
 	})
 
 func init() {
-	machine.AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
+	mcm.AddCheckSshTunnelMachineUseFunc(func(machineId int) bool {
 		// 遍历所有db连接实例，若存在db实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := connCache.Items()
 		for _, v := range items {

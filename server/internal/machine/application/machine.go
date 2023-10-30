@@ -4,7 +4,7 @@ import (
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
-	"mayfly-go/internal/machine/infrastructure/machine"
+	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gormx"
@@ -32,10 +32,10 @@ type Machine interface {
 	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]*vo.MachineVO, orderBy ...string) (*model.PageResult[*[]*vo.MachineVO], error)
 
 	// 获取机器连接
-	GetCli(id uint64) (*machine.Cli, error)
+	GetCli(id uint64) (*mcm.Cli, error)
 
 	// 获取ssh隧道机器连接
-	GetSshTunnelMachine(id int) (*machine.SshTunnelMachine, error)
+	GetSshTunnelMachine(id int) (*mcm.SshTunnelMachine, error)
 }
 
 func newMachineApp(machineRepo repository.Machine, authCertApp AuthCert) Machine {
@@ -84,7 +84,7 @@ func (m *machineAppImpl) Save(me *entity.Machine) error {
 	}
 
 	// 关闭连接
-	machine.DeleteCli(me.Id)
+	mcm.DeleteCli(me.Id)
 	return m.UpdateById(me)
 }
 
@@ -94,16 +94,18 @@ func (m *machineAppImpl) TestConn(me *entity.Machine) error {
 	if err != nil {
 		return err
 	}
-
-	return machine.TestConn(*mi, func(u uint64) (*machine.Info, error) {
-		return m.toMachineInfoById(u)
-	})
+	cli, err := mi.Conn()
+	if err != nil {
+		return err
+	}
+	cli.Close()
+	return nil
 }
 
 func (m *machineAppImpl) ChangeStatus(id uint64, status int8) error {
 	if status == entity.MachineStatusDisable {
 		// 关闭连接
-		machine.DeleteCli(id)
+		mcm.DeleteCli(id)
 	}
 	machine := new(entity.Machine)
 	machine.Id = id
@@ -114,7 +116,7 @@ func (m *machineAppImpl) ChangeStatus(id uint64, status int8) error {
 // 根据条件获取机器信息
 func (m *machineAppImpl) Delete(id uint64) error {
 	// 关闭连接
-	machine.DeleteCli(id)
+	mcm.DeleteCli(id)
 	return gormx.Tx(
 		func(db *gorm.DB) error {
 			// 删除machine表信息
@@ -131,20 +133,20 @@ func (m *machineAppImpl) Delete(id uint64) error {
 	)
 }
 
-func (m *machineAppImpl) GetCli(machineId uint64) (*machine.Cli, error) {
-	return machine.GetCli(machineId, func(mid uint64) (*machine.Info, error) {
+func (m *machineAppImpl) GetCli(machineId uint64) (*mcm.Cli, error) {
+	return mcm.GetMachineCli(machineId, func(mid uint64) (*mcm.MachineInfo, error) {
 		return m.toMachineInfoById(mid)
 	})
 }
 
-func (m *machineAppImpl) GetSshTunnelMachine(machineId int) (*machine.SshTunnelMachine, error) {
-	return machine.GetSshTunnelMachine(machineId, func(mid uint64) (*machine.Info, error) {
+func (m *machineAppImpl) GetSshTunnelMachine(machineId int) (*mcm.SshTunnelMachine, error) {
+	return mcm.GetSshTunnelMachine(machineId, func(mid uint64) (*mcm.MachineInfo, error) {
 		return m.toMachineInfoById(mid)
 	})
 }
 
 // 生成机器信息，根据授权凭证id填充用户密码等
-func (m *machineAppImpl) toMachineInfoById(machineId uint64) (*machine.Info, error) {
+func (m *machineAppImpl) toMachineInfoById(machineId uint64) (*mcm.MachineInfo, error) {
 	me, err := m.GetById(new(entity.Machine), machineId)
 	if err != nil {
 		return nil, errorx.NewBiz("机器信息不存在")
@@ -153,20 +155,22 @@ func (m *machineAppImpl) toMachineInfoById(machineId uint64) (*machine.Info, err
 		return nil, errorx.NewBiz("该机器已被停用")
 	}
 
-	return m.toMachineInfo(me)
+	if mi, err := m.toMachineInfo(me); err != nil {
+		return nil, err
+	} else {
+		return mi, nil
+	}
 }
 
-func (m *machineAppImpl) toMachineInfo(me *entity.Machine) (*machine.Info, error) {
-	mi := new(machine.Info)
+func (m *machineAppImpl) toMachineInfo(me *entity.Machine) (*mcm.MachineInfo, error) {
+	mi := new(mcm.MachineInfo)
 	mi.Id = me.Id
 	mi.Name = me.Name
 	mi.Ip = me.Ip
 	mi.Port = me.Port
 	mi.Username = me.Username
-	mi.TagId = me.TagId
 	mi.TagPath = me.TagPath
 	mi.EnableRecorder = me.EnableRecorder
-	mi.SshTunnelMachineId = me.SshTunnelMachineId
 
 	if me.UseAuthCert() {
 		ac, err := m.authCertApp.GetById(new(entity.AuthCert), uint64(me.AuthCertId))
@@ -183,6 +187,19 @@ func (m *machineAppImpl) toMachineInfo(me *entity.Machine) (*machine.Info, error
 			me.PwdDecrypt()
 		}
 		mi.Password = me.Password
+	}
+
+	// 使用了ssh隧道，则将隧道机器信息也附上
+	if me.SshTunnelMachineId > 0 {
+		sshTunnelMe, err := m.GetById(new(entity.Machine), uint64(me.SshTunnelMachineId))
+		if err != nil {
+			return nil, errorx.NewBiz("隧道机器信息不存在")
+		}
+		sshTunnelMi, err := m.toMachineInfo(sshTunnelMe)
+		if err != nil {
+			return nil, err
+		}
+		mi.SshTunnelMachine = sshTunnelMi
 	}
 	return mi, nil
 }
