@@ -1,6 +1,6 @@
 <template>
     <div style="display: inline-flex; justify-content: center; align-items: center; cursor: pointer; vertical-align: middle">
-        <el-popover @show="showTagInfo" placement="top-start" title="标签信息" :width="300" trigger="hover">
+        <el-popover :show-after="500" @show="showTagInfo" placement="top-start" title="标签信息" :width="300" trigger="hover">
             <template #reference>
                 <el-icon>
                     <InfoFilled />

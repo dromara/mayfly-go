@@ -151,7 +151,7 @@ export const useThemeConfig = defineStore('themeConfig', {
                 this.themeConfig.editorTheme = 'vs-dark';
             } else {
                 body.setAttribute('class', '');
-                this.themeConfig.editorTheme = 'SolarizedLight';
+                this.themeConfig.editorTheme = 'vs';
             }
         },
         // 设置水印配置信息

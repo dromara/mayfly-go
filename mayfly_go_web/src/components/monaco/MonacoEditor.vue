@@ -132,7 +132,7 @@ const languageArr = [
     },
 ];
 
-const options = {
+const defaultOptions = {
     language: 'shell',
     theme: 'SolarizedLight',
     automaticLayout: true, //自适应宽高布局
@@ -223,9 +223,9 @@ const initMonacoEditorIns = () => {
     // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
     // 初始化一些主题
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
-    options.language = state.languageMode;
-    options.theme = themeConfig.value.editorTheme;
-    monacoEditorIns = monaco.editor.create(monacoTextarea.value, Object.assign(options, props.options as any));
+    defaultOptions.language = state.languageMode;
+    defaultOptions.theme = themeConfig.value.editorTheme;
+    monacoEditorIns = monaco.editor.create(monacoTextarea.value, Object.assign(defaultOptions, props.options as any));
 
     // 监听内容改变,双向绑定
     monacoEditorIns.onDidChangeModelContent(() => {

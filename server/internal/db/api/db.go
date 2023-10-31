@@ -49,7 +49,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	}
 
 	queryCond.TagIds = tagIds
-	res, err := d.DbApp.GetPageList(queryCond, page, new([]vo.SelectDataDbVO))
+	res, err := d.DbApp.GetPageList(queryCond, page, new([]vo.DbListVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

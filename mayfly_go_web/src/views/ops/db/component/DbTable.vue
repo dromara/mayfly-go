@@ -30,7 +30,7 @@
                     :sortable="sortable"
                 >
                     <template #header v-if="showColumnTip">
-                        <el-tooltip raw-content placement="top" effect="customized">
+                        <el-tooltip :show-after="500" raw-content placement="top" effect="customized">
                             <template #content> {{ getColumnTip(item) }} </template>
                             {{ item.columnName }}
                         </el-tooltip>
@@ -45,7 +45,7 @@
 import { onMounted, watch, reactive, toRefs } from 'vue';
 import { DbInst, UpdateFieldsMeta, FieldsMeta } from '../db';
 
-const emits = defineEmits(['sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField'])
+const emits = defineEmits(['sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
 const props = defineProps({
     dbId: {
@@ -54,7 +54,7 @@ const props = defineProps({
     },
     dbType: {
         type: String,
-        default: ''
+        default: '',
     },
     db: {
         type: String,
@@ -88,14 +88,14 @@ const props = defineProps({
     },
     height: {
         type: String,
-        default: '600'
-    }
-})
+        default: '600',
+    },
+});
 
 const state = reactive({
     dbId: 0, // 当前选中操作的数据库实例
     dbType: '',
-    db: '',  // 数据库名
+    db: '', // 数据库名
     table: '', // 当前的表名
     datas: [],
     columns: [],
@@ -105,16 +105,10 @@ const state = reactive({
     showColumnTip: false,
     tableHeight: '600',
     emptyText: '',
-    updatedFields: [] as UpdateFieldsMeta[],// 各个tab表被修改的字段信息
+    updatedFields: [] as UpdateFieldsMeta[], // 各个tab表被修改的字段信息
 });
 
-const {
-    tableHeight,
-    datas,
-    sortable,
-    loading,
-    showColumnTip,
-} = toRefs(state);
+const { tableHeight, datas } = toRefs(state);
 
 watch(props, (newValue: any) => {
     setState(newValue);
@@ -123,7 +117,7 @@ watch(props, (newValue: any) => {
 onMounted(async () => {
     console.log('in DbTable mounted');
     setState(props);
-})
+});
 
 const setState = (props: any) => {
     state.dbId = props.dbId;
@@ -137,7 +131,7 @@ const setState = (props: any) => {
     state.columns = props.columns;
     state.showColumnTip = props.showColumnTip;
     state.emptyText = props.emptyText;
-}
+};
 
 const getColumnTip = (column: any) => {
     const comment = column.columnComment;
@@ -181,7 +175,7 @@ const cellClick = (row: any, column: any, cell: any) => {
             row[property] = input.value;
             cell.replaceChildren(div);
             if (input.value !== text) {
-                let currentUpdatedFields = state.updatedFields
+                let currentUpdatedFields = state.updatedFields;
                 const dbInst = getNowDbInst();
                 // 主键
                 const primaryKey = await dbInst.loadTableColumn(state.db, state.table);
@@ -189,73 +183,75 @@ const cellClick = (row: any, column: any, cell: any) => {
                 // 更新字段列信息
                 const updateColumn = await dbInst.loadTableColumn(state.db, state.table, property);
                 const newField = {
-                    div, row,
+                    div,
+                    row,
                     fieldName: property,
                     fieldType: updateColumn.columnType,
                     oldValue: text,
-                    newValue: input.value
+                    newValue: input.value,
                 } as FieldsMeta;
 
                 // 被修改的字段
-                const primaryKeyFields = currentUpdatedFields.filter((meta) => meta.primaryKey === primaryKeyValue)
+                const primaryKeyFields = currentUpdatedFields.filter((meta) => meta.primaryKey === primaryKeyValue);
                 let hasKey = false;
                 if (primaryKeyFields.length <= 0) {
                     primaryKeyFields[0] = {
                         primaryKey: primaryKeyValue,
                         primaryKeyName: primaryKey.columnName,
                         primaryKeyType: primaryKey.columnType,
-                        fields: [newField]
-                    }
+                        fields: [newField],
+                    };
                 } else {
-                    hasKey = true
-                    let hasField = primaryKeyFields[0].fields.some(a => {
+                    hasKey = true;
+                    let hasField = primaryKeyFields[0].fields.some((a) => {
                         if (a.fieldName === newField.fieldName) {
-                            a.newValue = newField.newValue
+                            a.newValue = newField.newValue;
                         }
-                        return a.fieldName === newField.fieldName
-                    })
+                        return a.fieldName === newField.fieldName;
+                    });
                     if (!hasField) {
-                        primaryKeyFields[0].fields.push(newField)
+                        primaryKeyFields[0].fields.push(newField);
                     }
                 }
-                let fields = primaryKeyFields[0].fields
+                let fields = primaryKeyFields[0].fields;
 
                 const fieldsParam = fields.filter((a) => {
                     if (a.fieldName === column.property) {
-                        a.newValue = input.value
+                        a.newValue = input.value;
                     }
-                    return a.fieldName === column.property
-                })
+                    return a.fieldName === column.property;
+                });
 
-                const field = fieldsParam.length > 0 && fieldsParam[0] || {} as FieldsMeta
-                if (field.oldValue === input.value) { // 新值=旧值
+                const field = (fieldsParam.length > 0 && fieldsParam[0]) || ({} as FieldsMeta);
+                if (field.oldValue === input.value) {
+                    // 新值=旧值
                     // 删除数据
-                    div.classList.remove('update_field_active')
+                    div.classList.remove('update_field_active');
                     let delIndex: number[] = [];
                     currentUpdatedFields.forEach((a, i) => {
                         if (a.primaryKey === primaryKeyValue) {
-                            a.fields = a.fields && a.fields.length > 0 ? a.fields.filter(f => f.fieldName !== column.property) : [];
-                            a.fields.length <= 0 && delIndex.push(i)
+                            a.fields = a.fields && a.fields.length > 0 ? a.fields.filter((f) => f.fieldName !== column.property) : [];
+                            a.fields.length <= 0 && delIndex.push(i);
                         }
                     });
-                    delIndex.forEach(i => delete currentUpdatedFields[i])
-                    currentUpdatedFields = currentUpdatedFields.filter(a => a)
+                    delIndex.forEach((i) => delete currentUpdatedFields[i]);
+                    currentUpdatedFields = currentUpdatedFields.filter((a) => a);
                 } else {
                     // 新增数据
-                    div.classList.add('update_field_active')
+                    div.classList.add('update_field_active');
                     if (hasKey) {
                         currentUpdatedFields.forEach((value, index, array) => {
                             if (value.primaryKey === primaryKeyValue) {
-                                array[index].fields = fields
+                                array[index].fields = fields;
                             }
-                        })
+                        });
                     } else {
                         currentUpdatedFields.push({
                             primaryKey: primaryKeyValue,
                             primaryKeyName: primaryKey.columnName,
                             primaryKeyType: primaryKey.columnType,
-                            fields
-                        })
+                            fields,
+                        });
                     }
                 }
                 state.updatedFields = currentUpdatedFields;
@@ -266,7 +262,7 @@ const cellClick = (row: any, column: any, cell: any) => {
 };
 
 const submitUpdateFields = () => {
-    const dbInst = DbInst.getInst(state.dbId)
+    const dbInst = DbInst.getInst(state.dbId);
     let currentUpdatedFields = state.updatedFields;
     if (currentUpdatedFields.length <= 0) {
         return;
@@ -274,58 +270,62 @@ const submitUpdateFields = () => {
     const db = state.db;
     let res = '';
     let divs: HTMLElement[] = [];
-    currentUpdatedFields.forEach(a => {
+    currentUpdatedFields.forEach((a) => {
         let sql = `UPDATE ${dbInst.wrapName(state.table)} SET `;
         let primaryKey = a.primaryKey;
         let primaryKeyType = a.primaryKeyType;
         let primaryKeyName = a.primaryKeyName;
-        a.fields.forEach(f => {
-            sql += ` ${dbInst.wrapName(f.fieldName)} = ${DbInst.wrapColumnValue(f.fieldType, f.newValue)},`
+        a.fields.forEach((f) => {
+            sql += ` ${dbInst.wrapName(f.fieldName)} = ${DbInst.wrapColumnValue(f.fieldType, f.newValue)},`;
             // 如果修改的字段是主键
             if (f.fieldName === primaryKeyName) {
-                primaryKey = f.oldValue
+                primaryKey = f.oldValue;
             }
-            divs.push(f.div)
-        })
-        sql = sql.substring(0, sql.length - 1)
-        sql += ` WHERE ${dbInst.wrapName(primaryKeyName)} = ${DbInst.wrapColumnValue(primaryKeyType, primaryKey)} ;`
+            divs.push(f.div);
+        });
+        sql = sql.substring(0, sql.length - 1);
+        sql += ` WHERE ${dbInst.wrapName(primaryKeyName)} = ${DbInst.wrapColumnValue(primaryKeyType, primaryKey)} ;`;
         res += sql;
-    })
-
-    dbInst.promptExeSql(db, res, () => { }, () => {
-        currentUpdatedFields = [];
-        divs.forEach(a => {
-            a.classList.remove('update_field_active');
-        })
-        state.updatedFields = [];
-        changeUpdatedField();
     });
-}
+
+    dbInst.promptExeSql(
+        db,
+        res,
+        () => {},
+        () => {
+            currentUpdatedFields = [];
+            divs.forEach((a) => {
+                a.classList.remove('update_field_active');
+            });
+            state.updatedFields = [];
+            changeUpdatedField();
+        }
+    );
+};
 
 const cancelUpdateFields = () => {
     state.updatedFields.forEach((a: any) => {
         a.fields.forEach((b: any) => {
-            b.div.classList.remove('update_field_active')
-            b.row[b.fieldName] = b.oldValue
-        })
-    })
+            b.div.classList.remove('update_field_active');
+            b.row[b.fieldName] = b.oldValue;
+        });
+    });
     state.updatedFields = [];
     changeUpdatedField();
-}
-
+};
 
 const changeUpdatedField = () => {
     emits('changeUpdatedField', state.updatedFields);
-}
+};
 
 const getNowDbInst = () => {
     return DbInst.getInst(state.dbId);
-}
+};
 
 defineExpose({
     submitUpdateFields,
-    cancelUpdateFields
-})
+    cancelUpdateFields,
+});
 </script>
 
 <style lang="scss">

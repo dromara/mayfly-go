@@ -39,7 +39,7 @@
                 >
                     <template #prefix="{ data }">
                         <span v-if="data.type == NodeType.DbInst">
-                            <el-popover placement="right-start" title="数据库实例信息" trigger="hover" :width="210">
+                            <el-popover :show-after="500" placement="right-start" title="数据库实例信息" trigger="hover" :width="210">
                                 <template #reference>
                                     <SvgIcon v-if="data.params.type === 'mysql'" name="iconfont icon-op-mysql" :size="18" />
                                     <SvgIcon v-if="data.params.type === 'postgres'" name="iconfont icon-op-postgres" :size="18" />
@@ -47,8 +47,10 @@
                                     <SvgIcon name="InfoFilled" v-else />
                                 </template>
                                 <template #default>
-                                    <el-form class="instances-pop-form" label-width="55px" :size="'small'">
+                                    <el-form class="instances-pop-form" label-width="auto" :size="'small'">
                                         <el-form-item label="类型:">{{ data.params.type }}</el-form-item>
+                                        <el-form-item label="host:">{{ `${data.params.host}:${data.params.port}` }}</el-form-item>
+                                        <el-form-item label="user:">{{ data.params.username }}</el-form-item>
                                         <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
                                         <el-form-item v-if="data.params.remark" label="备注:">{{ data.params.remark }}</el-form-item>
                                     </el-form>
@@ -60,7 +62,13 @@
 
                         <SvgIcon name="Calendar" v-if="data.type == NodeType.TableMenu" color="#409eff" />
 
-                        <el-tooltip v-if="data.type == NodeType.Table" effect="customized" :content="data.params.tableComment" placement="top-end">
+                        <el-tooltip
+                            :show-after="500"
+                            v-if="data.type == NodeType.Table"
+                            effect="customized"
+                            :content="data.params.tableComment"
+                            placement="top-end"
+                        >
                             <SvgIcon name="Calendar" color="#409eff" />
                         </el-tooltip>
 

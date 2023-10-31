@@ -5,7 +5,7 @@
                 <tag-tree @node-click="nodeClick" :load="loadNode">
                     <template #prefix="{ data }">
                         <span v-if="data.type == NodeType.Mongo">
-                            <el-popover placement="right-start" title="mongo实例信息" trigger="hover" :width="210">
+                            <el-popover :show-after="500" placement="right-start" title="mongo实例信息" trigger="hover" :width="210">
                                 <template #reference>
                                     <SvgIcon name="iconfont icon-op-mongo" :size="18" />
                                 </template>

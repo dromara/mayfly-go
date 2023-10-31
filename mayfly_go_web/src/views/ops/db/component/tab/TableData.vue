@@ -74,9 +74,10 @@
                                 :data="columns"
                                 max-height="500"
                                 size="small"
-                                @row-click="(...event: any) => {
-                                onConditionRowClick(event);
-                            }
+                                @row-click="
+                                    (...event: any) => {
+                                        onConditionRowClick(event);
+                                    }
                                 "
                                 style="cursor: pointer"
                             >
@@ -153,6 +154,7 @@
             <el-form ref="dataForm" :model="addDataDialog.data" label-width="auto" size="small">
                 <el-form-item
                     v-for="column in columns"
+                    :key="column.columnName"
                     class="w100"
                     :prop="column.columnName"
                     :label="column.columnName"

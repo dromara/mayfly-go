@@ -59,15 +59,20 @@ export async function useLoginCaptcha(): Promise<boolean> {
  */
 export async function useWatermark(): Promise<any> {
     const value = await getConfigValue(UseWatermarkConfigKey);
+    const defaultValue = {
+        isUse: true,
+    };
     if (!value) {
-        return {
-            isUse: true,
-        };
+        return defaultValue;
     }
-    const jsonValue = JSON.parse(value);
-    // 将字符串转为bool
-    jsonValue.isUse = convertBool(jsonValue.isUse, true);
-    return jsonValue;
+    try {
+        const jsonValue = JSON.parse(value);
+        // 将字符串转为bool
+        jsonValue.isUse = convertBool(jsonValue.isUse, true);
+        return jsonValue;
+    } catch (e) {
+        return defaultValue;
+    }
 }
 
 function convertBool(value: string, defaultValue: boolean) {

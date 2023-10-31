@@ -19,7 +19,7 @@ func newDbRepo() repository.Db {
 // 分页获取数据库信息列表
 func (d *dbRepoImpl) GetDbList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := gormx.NewQueryWithTableName("t_db db").
-		Select("db.*, inst.name instance_name, inst.type instance_type").
+		Select("db.*, inst.name instance_name, inst.type instance_type, inst.host, inst.port, inst.username ").
 		Joins("JOIN t_db_instance inst ON db.instance_id = inst.id").
 		Eq("db.instance_id", condition.InstanceId).
 		Like("db.database", condition.Database).

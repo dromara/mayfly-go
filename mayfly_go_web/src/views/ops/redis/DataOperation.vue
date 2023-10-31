@@ -7,7 +7,7 @@
                         <tag-tree @node-click="nodeClick" :load="loadNode">
                             <template #prefix="{ data }">
                                 <span v-if="data.type == NodeType.Redis">
-                                    <el-popover placement="right-start" title="redis实例信息" trigger="hover" :width="210">
+                                    <el-popover :show-after="500" placement="right-start" title="redis实例信息" trigger="hover" :width="210">
                                         <template #reference>
                                             <SvgIcon name="iconfont icon-op-redis" :size="18" />
                                         </template>
@@ -471,7 +471,7 @@ const removeDataTab = (targetName: string) => {
     delete state.dataTabs[targetName];
 };
 
-const keyTreeNodeExpand = (data: any, node: any, component: any) => {
+const keyTreeNodeExpand = (data: any, node: any) => {
     state.keyTreeExpanded.add(data.key);
     // async sort nodes
     if (!node.customSorted) {
@@ -480,7 +480,7 @@ const keyTreeNodeExpand = (data: any, node: any, component: any) => {
     }
 };
 
-const keyTreeNodeCollapse = (data: any, node: any, component: any) => {
+const keyTreeNodeCollapse = (data: any) => {
     state.keyTreeExpanded.delete(data.key);
 };
 

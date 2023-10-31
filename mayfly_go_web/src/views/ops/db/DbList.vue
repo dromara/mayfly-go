@@ -52,6 +52,10 @@
                 </span>
             </template>
 
+            <template #host="{ data }">
+                {{ `${data.host}:${data.port}` }}
+            </template>
+
             <template #database="{ data }">
                 <el-popover placement="right" trigger="click" :width="300">
                     <template #reference>
@@ -195,6 +199,10 @@ const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect'), Tabl
 
 const columns = ref([
     TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
+    TableColumn.new('instanceName', '实例名'),
+    TableColumn.new('type', '类型'),
+    TableColumn.new('host', 'ip:port').isSlot().setAddWidth(20),
+    TableColumn.new('username', 'username'),
     TableColumn.new('name', '名称'),
     TableColumn.new('database', '数据库').isSlot().setMinWidth(70),
     TableColumn.new('remark', '备注'),

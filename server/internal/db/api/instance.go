@@ -24,7 +24,7 @@ type Instance struct {
 // @router /api/instances [get]
 func (d *Instance) Instances(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage[*entity.InstanceQuery](rc.GinCtx, new(entity.InstanceQuery))
-	res, err := d.InstanceApp.GetPageList(queryCond, page, new([]vo.SelectDataInstanceVO))
+	res, err := d.InstanceApp.GetPageList(queryCond, page, new([]vo.InstanceListVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

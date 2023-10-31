@@ -54,7 +54,7 @@
 
             <template #action="{ data }">
                 <span v-auth="'machine:terminal'">
-                    <el-tooltip effect="customized" content="按住ctrl则为新标签打开" placement="top">
+                    <el-tooltip :show-after="500" effect="customized" content="按住ctrl则为新标签打开" placement="top">
                         <el-button :disabled="data.status == -1" type="primary" @click="showTerminal(data, $event)" link>终端</el-button>
                     </el-tooltip>
 

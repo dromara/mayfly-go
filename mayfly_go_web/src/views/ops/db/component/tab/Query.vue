@@ -6,12 +6,12 @@
                     <el-link @click="onRunSql()" :underline="false" class="ml15" icon="VideoPlay"> </el-link>
                     <el-divider direction="vertical" border-style="dashed" />
 
-                    <el-tooltip class="box-item" effect="dark" content="format sql" placement="top">
+                    <el-tooltip :show-after="1000" class="box-item" effect="dark" content="format sql" placement="top">
                         <el-link @click="formatSql()" type="primary" :underline="false" icon="MagicStick"> </el-link>
                     </el-tooltip>
                     <el-divider direction="vertical" border-style="dashed" />
 
-                    <el-tooltip class="box-item" effect="dark" content="commit" placement="top">
+                    <el-tooltip :show-after="1000" class="box-item" effect="dark" content="commit" placement="top">
                         <el-link @click="onCommit()" type="success" :underline="false" icon="CircleCheck"> </el-link>
                     </el-tooltip>
                     <el-divider direction="vertical" border-style="dashed" />
@@ -27,12 +27,12 @@
                         multiple
                         :limit="100"
                     >
-                        <el-tooltip class="box-item" effect="dark" content="SQL脚本执行" placement="top">
+                        <el-tooltip :show-after="1000" class="box-item" effect="dark" content="SQL脚本执行" placement="top">
                             <el-link type="success" :underline="false" icon="Document"></el-link>
                         </el-tooltip>
                     </el-upload>
                     <el-divider direction="vertical" border-style="dashed" />
-                    <el-tooltip class="box-item" effect="dark" content="limit" placement="top">
+                    <el-tooltip :show-after="1000" class="box-item" effect="dark" content="limit" placement="top">
                         <el-link @click="onLimit()" type="success" :underline="false" icon="Operation"> </el-link>
                     </el-tooltip>
                 </div>
@@ -153,7 +153,7 @@ const state = reactive({
     hasUpdatedFileds: false,
 });
 
-const { tableDataHeight, editorHeight, ti, execRes, table, sqlName, loading, hasUpdatedFileds } = toRefs(state);
+const { tableDataHeight, ti, execRes, table, loading, hasUpdatedFileds } = toRefs(state);
 
 watch(
     () => props.editorHeight,
