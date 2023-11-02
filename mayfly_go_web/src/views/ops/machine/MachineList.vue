@@ -195,7 +195,7 @@ const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect'), Tabl
 const columns = ref([
     TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
     TableColumn.new('name', '名称'),
-    TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(45),
+    TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
     TableColumn.new('username', '用户名'),
     TableColumn.new('status', '状态').isSlot().setMinWidth(85),
     TableColumn.new('remark', '备注'),

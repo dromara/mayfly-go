@@ -11,6 +11,7 @@ export const redisApi = {
 
     keyInfo: Api.newGet('/redis/{id}/{db}/key-info'),
     keyTtl: Api.newGet('/redis/{id}/{db}/key-ttl'),
+    keyMemuse: Api.newGet('/redis/{id}/{db}/key-memuse'),
     renameKey: Api.newPost('/redis/{id}/{db}/rename-key'),
     expireKey: Api.newPost('/redis/{id}/{db}/expire-key'),
     persistKey: Api.newDelete('/redis/{id}/{db}/persist-key'),

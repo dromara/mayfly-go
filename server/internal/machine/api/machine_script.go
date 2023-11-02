@@ -66,7 +66,8 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	script := ms.Script
 	// 如果有脚本参数，则用脚本参数替换脚本中的模板占位符参数
 	if params := g.Query("params"); params != "" {
-		script = stringx.TemplateParse(ms.Script, jsonx.ToMap(params))
+		script, err = stringx.TemplateParse(ms.Script, jsonx.ToMap(params))
+		biz.ErrIsNilAppendErr(err, "脚本模板参数解析失败: %s")
 	}
 	cli, err := m.MachineApp.GetCli(machineId)
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")

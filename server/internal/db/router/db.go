@@ -31,10 +31,6 @@ func InitDbRouter(router *gin.RouterGroup) {
 
 		req.NewDelete(":dbId", d.DeleteDb).Log(req.NewLogSave("db-删除数据库信息")),
 
-		req.NewGet(":dbId/t-infos", d.TableInfos),
-
-		req.NewGet(":dbId/t-index", d.TableIndex),
-
 		req.NewGet(":dbId/t-create-ddl", d.GetCreateTableDdl),
 
 		req.NewPost(":dbId/exec-sql", d.ExecSql).Log(req.NewLog("db-执行Sql")),
@@ -43,7 +39,9 @@ func InitDbRouter(router *gin.RouterGroup) {
 
 		req.NewGet(":dbId/dump", d.DumpSql).Log(req.NewLogSave("db-导出sql文件")).NoRes(),
 
-		req.NewGet(":dbId/t-metadata", d.TableMA),
+		req.NewGet(":dbId/t-infos", d.TableInfos),
+
+		req.NewGet(":dbId/t-index", d.TableIndex),
 
 		req.NewGet(":dbId/c-metadata", d.ColumnMA),
 

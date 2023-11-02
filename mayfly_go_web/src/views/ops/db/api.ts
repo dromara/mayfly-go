@@ -10,7 +10,6 @@ export const dbApi = {
     tableInfos: Api.newGet('/dbs/{id}/t-infos'),
     tableIndex: Api.newGet('/dbs/{id}/t-index'),
     tableDdl: Api.newGet('/dbs/{id}/t-create-ddl'),
-    tableMetadata: Api.newGet('/dbs/{id}/t-metadata'),
     columnMetadata: Api.newGet('/dbs/{id}/c-metadata'),
     // 获取表即列提示
     hintTables: Api.newGet('/dbs/{id}/hint-tables'),
@@ -27,7 +26,7 @@ export const dbApi = {
 
     // 获取权限列表
     instances: Api.newGet('/instances'),
-    getInstance: Api.newGet("/instances/{instanceId}"),
+    getInstance: Api.newGet('/instances/{instanceId}'),
     getAllDatabase: Api.newGet('/instances/{instanceId}/databases'),
     saveInstance: Api.newPost('/instances'),
     getInstancePwd: Api.newGet('/instances/{id}/pwd'),

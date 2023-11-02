@@ -45,6 +45,8 @@ func InitRedisRouter(router *gin.RouterGroup) {
 
 		req.NewGet(":id/:db/key-ttl", rs.TtlKey),
 
+		req.NewGet(":id/:db/key-memuse", rs.MemoryUsage),
+
 		req.NewDelete(":id/:db/key", rs.DeleteKey).Log(req.NewLogSave("redis-删除key")).RequiredPermission(deleteDataP),
 
 		req.NewPost(":id/:db/rename-key", rs.RenameKey).Log(req.NewLogSave("redis-重命名key")).RequiredPermission(saveDataP),

@@ -83,34 +83,6 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 	}
 }
 
-func (d *Db) getDbConn(g *gin.Context) *dbm.DbConn {
-	dc, err := d.DbApp.GetDbConn(getDbId(g), getDbName(g))
-	biz.ErrIsNil(err)
-	return dc
-}
-
-func (d *Db) TableInfos(rc *req.Ctx) {
-	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetTableInfos()
-	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
-	rc.ResData = res
-}
-
-func (d *Db) TableIndex(rc *req.Ctx) {
-	tn := rc.GinCtx.Query("tableName")
-	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetTableIndex(tn)
-	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
-	rc.ResData = res
-}
-
-func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
-	tn := rc.GinCtx.Query("tableName")
-	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetCreateTableDdl(tn)
-	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
-	rc.ResData = res
-}
-
 func (d *Db) ExecSql(rc *req.Ctx) {
 	g := rc.GinCtx
 	form := &form.DbSqlExecForm{}
@@ -348,7 +320,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 
 	dbMeta := dbConn.GetMeta()
 	if len(tables) == 0 {
-		ti, err := dbMeta.GetTableInfos()
+		ti, err := dbMeta.GetTables()
 		biz.ErrIsNil(err)
 		tables = make([]string, len(ti))
 		for i, table := range ti {
@@ -396,11 +368,17 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 	writer.WriteString(dbConn.Info.Type.StmtSetForeignKeyChecks(true))
 }
 
-// @router /api/db/:dbId/t-metadata [get]
-func (d *Db) TableMA(rc *req.Ctx) {
-	dbi := d.getDbConn(rc.GinCtx)
-	res, err := dbi.GetMeta().GetTables()
-	biz.ErrIsNilAppendErr(err, "获取表基础信息失败: %s")
+func (d *Db) TableInfos(rc *req.Ctx) {
+	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetTables()
+	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
+	rc.ResData = res
+}
+
+func (d *Db) TableIndex(rc *req.Ctx) {
+	tn := rc.GinCtx.Query("tableName")
+	biz.NotEmpty(tn, "tableName不能为空")
+	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetTableIndex(tn)
+	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
 	rc.ResData = res
 }
 
@@ -455,6 +433,14 @@ func (d *Db) HintTables(rc *req.Ctx) {
 
 		res[tName] = append(res[tName], columnName)
 	}
+	rc.ResData = res
+}
+
+func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
+	tn := rc.GinCtx.Query("tableName")
+	biz.NotEmpty(tn, "tableName不能为空")
+	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetCreateTableDdl(tn)
+	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
 	rc.ResData = res
 }
 
@@ -535,4 +521,10 @@ func getDbName(g *gin.Context) string {
 	db := g.Query("db")
 	biz.NotEmpty(db, "db不能为空")
 	return db
+}
+
+func (d *Db) getDbConn(g *gin.Context) *dbm.DbConn {
+	dc, err := d.DbApp.GetDbConn(getDbId(g), getDbName(g))
+	biz.ErrIsNil(err)
+	return dc
 }

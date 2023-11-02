@@ -20,7 +20,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { defineAsyncComponent, watch, ref, shallowReactive, reactive, computed, toRefs, onMounted } from 'vue';
+import { defineAsyncComponent, watch, ref, shallowReactive, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import KeyHeader from './KeyHeader.vue';
 
@@ -107,8 +107,6 @@ watch(
 onMounted(() => {
     setKeyInfo(props.keyInfo);
 });
-
-const {} = toRefs(state);
 </script>
 <style lang="scss">
 .key-tab-container {

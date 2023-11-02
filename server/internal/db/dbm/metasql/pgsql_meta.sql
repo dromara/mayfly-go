@@ -1,33 +1,22 @@
---PGSQL_TABLE_MA 表信息元数据
-SELECT
-  obj_description (c.oid) AS "tableComment",
-  c.relname AS "tableName"
-FROM
-  pg_class c
-  JOIN pg_namespace n ON c.relnamespace = n.oid
-WHERE
-  n.nspname = (
-    select
-      current_schema ()
-  )
-  AND c.reltype > 0
----------------------------------------
 --PGSQL_TABLE_INFO 表详细信息
-SELECT
-  obj_description (c.oid) AS "tableComment",
-  c.relname AS "tableName",
-  pg_table_size ('"' || n.nspname || '"."' || c.relname || '"') as "dataLength",
-  pg_indexes_size ('"' || n.nspname || '"."' || c.relname || '"') as "indexLength",
-  c.reltuples as "tableRows"
-FROM
-  pg_class c
-  JOIN pg_namespace n ON c.relnamespace = n.oid
-WHERE
-  n.nspname = (
-    select
-      current_schema ()
+select
+	c.relname as "tableName",
+	obj_description (c.oid) as "tableComment",
+	pg_table_size ('"' || n.nspname || '"."' || c.relname || '"') as "dataLength",
+	pg_indexes_size ('"' || n.nspname || '"."' || c.relname || '"') as "indexLength",
+	psut.n_live_tup as "tableRows"
+from
+	pg_class c
+join pg_namespace n on
+	c.relnamespace = n.oid
+join pg_stat_user_tables psut on
+	psut.relid = c."oid"
+where
+	n.nspname = (
+	select
+		current_schema ()
   )
-  AND c.reltype > 0
+	and c.reltype > 0
 ---------------------------------------
 --PGSQL_INDEX_INFO 表索引信息
 SELECT

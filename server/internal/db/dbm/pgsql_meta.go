@@ -67,7 +67,6 @@ func (pd *PqSqlDialer) DialTimeout(network, address string, timeout time.Duratio
 // ---------------------------------- pgsql元数据 -----------------------------------
 const (
 	PGSQL_META_FILE      = "metasql/pgsql_meta.sql"
-	PGSQL_TABLE_MA_KEY   = "PGSQL_TABLE_MA"
 	PGSQL_TABLE_INFO_KEY = "PGSQL_TABLE_INFO"
 	PGSQL_INDEX_INFO_KEY = "PGSQL_INDEX_INFO"
 	PGSQL_COLUMN_MA_KEY  = "PGSQL_COLUMN_MA"
@@ -80,7 +79,7 @@ type PgsqlMetadata struct {
 
 // 获取表基础元信息, 如表名等
 func (pm *PgsqlMetadata) GetTables() ([]Table, error) {
-	_, res, err := pm.dc.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_MA_KEY))
+	_, res, err := pm.dc.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +89,10 @@ func (pm *PgsqlMetadata) GetTables() ([]Table, error) {
 		tables = append(tables, Table{
 			TableName:    re["tableName"].(string),
 			TableComment: anyx.ConvString(re["tableComment"]),
+			CreateTime:   anyx.ConvString(re["createTime"]),
+			TableRows:    anyx.ConvInt(re["tableRows"]),
+			DataLength:   anyx.ConvInt64(re["dataLength"]),
+			IndexLength:  anyx.ConvInt64(re["indexLength"]),
 		})
 	}
 	return tables, nil
@@ -140,27 +143,6 @@ func (pm *PgsqlMetadata) GetPrimaryKey(tablename string) (string, error) {
 	}
 
 	return columns[0].ColumnName, nil
-}
-
-// 获取表信息，比GetTables获取更详细的表信息
-func (pm *PgsqlMetadata) GetTableInfos() ([]Table, error) {
-	_, res, err := pm.dc.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
-	if err != nil {
-		return nil, err
-	}
-
-	tables := make([]Table, 0)
-	for _, re := range res {
-		tables = append(tables, Table{
-			TableName:    re["tableName"].(string),
-			TableComment: anyx.ConvString(re["tableComment"]),
-			CreateTime:   anyx.ConvString(re["createTime"]),
-			TableRows:    anyx.ConvInt(re["tableRows"]),
-			DataLength:   anyx.ConvInt64(re["dataLength"]),
-			IndexLength:  anyx.ConvInt64(re["indexLength"]),
-		})
-	}
-	return tables, nil
 }
 
 // 获取表索引信息

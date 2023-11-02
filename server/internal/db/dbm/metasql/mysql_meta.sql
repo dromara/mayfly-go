@@ -1,15 +1,3 @@
---MYSQL_TABLE_MA 表信息元数据
-SELECT
-  table_name tableName,
-  table_comment tableComment
-from
-  information_schema.tables
-WHERE
-  table_schema = (
-    SELECT
-      database ()
-  )
----------------------------------------
 --MYSQL_TABLE_INFO 表详细信息
 SELECT
   table_name tableName,
@@ -21,7 +9,8 @@ SELECT
 FROM
   information_schema.tables
 WHERE
-  table_schema = (
+  table_type = 'BASE TABLE'
+  AND table_schema = (
     SELECT
       database ()
   )

@@ -88,7 +88,7 @@ export class DbInst {
         db.columnsMap?.clear();
         db.tableHints = null;
         console.log(`load tables -> dbName: ${dbName}`);
-        tables = await dbApi.tableMetadata.request({ id: this.id, db: dbName });
+        tables = await dbApi.tableInfos.request({ id: this.id, db: dbName });
         db.tables = tables;
         return tables;
     }

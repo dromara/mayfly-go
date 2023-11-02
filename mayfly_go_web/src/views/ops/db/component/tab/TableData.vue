@@ -33,26 +33,26 @@
                 <el-link @click="onDeleteData()" type="danger" icon="delete" :underline="false"></el-link>
                 <el-divider direction="vertical" border-style="dashed" />
 
-                <el-tooltip class="box-item" effect="dark" content="commit" placement="top">
+                <el-tooltip :show-after="500" class="box-item" effect="dark" content="commit" placement="top">
                     <el-link @click="onCommit()" type="success" icon="CircleCheck" :underline="false"> </el-link>
                 </el-tooltip>
                 <el-divider direction="vertical" border-style="dashed" />
 
-                <el-tooltip class="box-item" effect="dark" content="生成insert sql" placement="top">
+                <el-tooltip :show-after="500" class="box-item" effect="dark" content="生成insert sql" placement="top">
                     <el-link @click="onGenerateInsertSql()" type="success" :underline="false">gi</el-link>
                 </el-tooltip>
                 <el-divider direction="vertical" border-style="dashed" />
 
-                <el-tooltip class="box-item" effect="dark" content="导出当前页的csv文件" placement="top">
+                <el-tooltip :show-after="500" class="box-item" effect="dark" content="导出当前页的csv文件" placement="top">
                     <el-link type="success" :underline="false" @click="exportData"><span class="f12">导出</span></el-link>
                 </el-tooltip>
                 <el-divider direction="vertical" border-style="dashed" />
 
-                <el-tooltip v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
+                <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
                     <el-link @click="submitUpdateFields()" type="success" :underline="false" class="f12">提交</el-link>
                 </el-tooltip>
                 <el-divider v-if="hasUpdatedFileds" direction="vertical" border-style="dashed" />
-                <el-tooltip v-if="hasUpdatedFileds" class="box-item" effect="dark" content="取消修改" placement="top">
+                <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="取消修改" placement="top">
                     <el-link @click="cancelUpdateFields" type="warning" :underline="false" class="f12">取消</el-link>
                 </el-tooltip>
             </el-col>

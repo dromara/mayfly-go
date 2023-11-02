@@ -44,7 +44,7 @@
             </div>
         </div>
 
-        <MonacoEditor ref="monacoEditorRef" class="mt5" v-model="state.sql" language="sql" :height="editorHeight" :id="'MonacoTextarea-' + ti.key" />
+        <MonacoEditor ref="monacoEditorRef" class="mt5" v-model="state.sql" language="sql" :height="state.editorHeight" :id="'MonacoTextarea-' + ti.key" />
 
         <div class="editor-move-resize" @mousedown="onDragSetHeight">
             <el-icon>

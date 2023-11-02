@@ -30,6 +30,8 @@
                             <span class="ml3">
                                 <slot name="label" :data="data"> {{ data.label }}</slot>
                             </span>
+
+                            <slot :node="node" :data="data" name="suffix"></slot>
                         </span>
                     </template>
                 </el-tree>

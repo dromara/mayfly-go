@@ -114,14 +114,14 @@ const getListValue = async (resetTableData = false) => {
     state.loadMoreDisable = state.values.length === state.total;
 };
 
-const lset = async (row: any, rowIndex: number) => {
-    await redisApi.setListValue.request({
-        ...getBaseReqParam(),
-        index: (state.pageNum - 1) * state.pageSize + rowIndex,
-        value: row.value,
-    });
-    ElMessage.success('数据保存成功');
-};
+// const lset = async (row: any, rowIndex: number) => {
+//     await redisApi.setListValue.request({
+//         ...getBaseReqParam(),
+//         index: (state.pageNum - 1) * state.pageSize + rowIndex,
+//         value: row.value,
+//     });
+//     ElMessage.success('数据保存成功');
+// };
 
 const showEditDialog = (row: any) => {
     state.editDialog.dataRow = row;

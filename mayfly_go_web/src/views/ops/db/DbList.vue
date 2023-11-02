@@ -201,7 +201,7 @@ const columns = ref([
     TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
     TableColumn.new('instanceName', '实例名'),
     TableColumn.new('type', '类型'),
-    TableColumn.new('host', 'ip:port').isSlot().setAddWidth(20),
+    TableColumn.new('host', 'ip:port').isSlot().setAddWidth(40),
     TableColumn.new('username', 'username'),
     TableColumn.new('name', '名称'),
     TableColumn.new('database', '数据库').isSlot().setMinWidth(70),

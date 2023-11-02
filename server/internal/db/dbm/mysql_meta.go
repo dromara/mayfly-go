@@ -34,7 +34,6 @@ func getMysqlDB(d *DbInfo) (*sql.DB, error) {
 // ---------------------------------- mysql元数据 -----------------------------------
 const (
 	MYSQL_META_FILE      = "metasql/mysql_meta.sql"
-	MYSQL_TABLE_MA_KEY   = "MYSQL_TABLE_MA"
 	MYSQL_TABLE_INFO_KEY = "MYSQL_TABLE_INFO"
 	MYSQL_INDEX_INFO_KEY = "MYSQL_INDEX_INFO"
 	MYSQL_COLUMN_MA_KEY  = "MYSQL_COLUMN_MA"
@@ -46,7 +45,7 @@ type MysqlMetadata struct {
 
 // 获取表基础元信息, 如表名等
 func (mm *MysqlMetadata) GetTables() ([]Table, error) {
-	_, res, err := mm.dc.SelectData(GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_MA_KEY))
+	_, res, err := mm.dc.SelectData(GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +55,10 @@ func (mm *MysqlMetadata) GetTables() ([]Table, error) {
 		tables = append(tables, Table{
 			TableName:    re["tableName"].(string),
 			TableComment: anyx.ConvString(re["tableComment"]),
+			CreateTime:   anyx.ConvString(re["createTime"]),
+			TableRows:    anyx.ConvInt(re["tableRows"]),
+			DataLength:   anyx.ConvInt64(re["dataLength"]),
+			IndexLength:  anyx.ConvInt64(re["indexLength"]),
 		})
 	}
 	return tables, nil
@@ -108,27 +111,6 @@ func (mm *MysqlMetadata) GetPrimaryKey(tablename string) (string, error) {
 	}
 
 	return columns[0].ColumnName, nil
-}
-
-// 获取表信息，比GetTableMetedatas获取更详细的表信息
-func (mm *MysqlMetadata) GetTableInfos() ([]Table, error) {
-	_, res, err := mm.dc.SelectData(GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_KEY))
-	if err != nil {
-		return nil, err
-	}
-
-	tables := make([]Table, 0)
-	for _, re := range res {
-		tables = append(tables, Table{
-			TableName:    re["tableName"].(string),
-			TableComment: anyx.ConvString(re["tableComment"]),
-			CreateTime:   anyx.ConvString(re["createTime"]),
-			TableRows:    anyx.ConvInt(re["tableRows"]),
-			DataLength:   anyx.ConvInt64(re["dataLength"]),
-			IndexLength:  anyx.ConvInt64(re["indexLength"]),
-		})
-	}
-	return tables, nil
 }
 
 // 获取表索引信息

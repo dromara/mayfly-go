@@ -169,7 +169,6 @@ self.MonacoEnvironment = {
 };
 
 const state = reactive({
-    editorHeight: '500px',
     languageMode: 'shell',
 });
 

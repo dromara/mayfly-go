@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="db-sql-exec">
         <el-row class="mb5">
             <el-col :span="4">
                 <el-button
@@ -11,6 +11,7 @@
                     >新建查询</el-button
                 >
             </el-col>
+
             <el-col :span="20" v-if="state.db">
                 <el-descriptions :column="4" size="small" border style="height: 10px" class="ml5">
                     <el-descriptions-item label-align="right" label="tag">{{ nowDbInst.tagPath }}</el-descriptions-item>
@@ -27,6 +28,7 @@
                 </el-descriptions>
             </el-col>
         </el-row>
+
         <el-row type="flex">
             <el-col :span="4">
                 <tag-tree
@@ -74,8 +76,13 @@
 
                         <SvgIcon name="Files" v-if="data.type == NodeType.SqlMenu || data.type == NodeType.Sql" color="#f56c6c" />
                     </template>
+
+                    <template #suffix="{ data }">
+                        <span class="db-table-size" v-if="data.type == NodeType.Table">{{ ` ${data.params.size}` }}</span>
+                    </template>
                 </tag-tree>
             </el-col>
+
             <el-col :span="20">
                 <el-container id="data-exec" class="mt5 ml5">
                     <el-tabs @tab-remove="onRemoveTab" @tab-change="onTabChange" style="width: 100%" v-model="state.activeName">
@@ -110,7 +117,7 @@
 <script lang="ts" setup>
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, onBeforeUnmount } from 'vue';
 import { ElMessage } from 'element-plus';
-
+import { formatByteSize } from '@/common/utils/format';
 import { DbInst, TabInfo, TabType, registerDbCompletionItemProvider } from './db';
 import { TagTreeNode } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
@@ -304,6 +311,7 @@ const getTables = async (params: any) => {
             db,
             tableName: x.tableName,
             tableComment: x.tableComment,
+            size: formatByteSize(x.dataLength + x.indexLength, 1),
         });
     });
 };
@@ -461,47 +469,54 @@ const reloadTables = (nodeKey: string) => {
 </script>
 
 <style lang="scss">
-.sql-file-exec {
-    display: inline-flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    vertical-align: middle;
-    position: relative;
-    text-decoration: none;
-}
+.db-sql-exec {
+    .sql-file-exec {
+        display: inline-flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        vertical-align: middle;
+        position: relative;
+        text-decoration: none;
+    }
 
-.sqlEditor {
-    font-size: 8pt;
-    font-weight: 600;
-    border: 1px solid #ccc;
-}
+    .db-table-size {
+        color: #c4c9c4;
+        font-size: 10px;
+    }
 
-.editor-move-resize {
-    cursor: n-resize;
-    height: 3px;
-    text-align: center;
-}
+    .sqlEditor {
+        font-size: 8pt;
+        font-weight: 600;
+        border: 1px solid #ccc;
+    }
 
-#data-exec {
-    min-height: calc(100vh - 155px);
+    .editor-move-resize {
+        cursor: n-resize;
+        height: 3px;
+        text-align: center;
+    }
 
-    .el-tabs__header {
-        margin: 0 0 5px;
+    #data-exec {
+        min-height: calc(100vh - 155px);
 
-        .el-tabs__item {
-            padding: 0 5px;
+        .el-tabs__header {
+            margin: 0 0 5px;
+
+            .el-tabs__item {
+                padding: 0 5px;
+            }
         }
     }
-}
 
-.update_field_active {
-    background-color: var(--el-color-success);
-}
+    .update_field_active {
+        background-color: var(--el-color-success);
+    }
 
-.instances-pop-form {
-    .el-form-item {
-        margin-bottom: unset;
+    .instances-pop-form {
+        .el-form-item {
+            margin-bottom: unset;
+        }
     }
 }
 </style>

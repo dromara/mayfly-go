@@ -131,6 +131,11 @@ func (r *Redis) TtlKey(rc *req.Ctx) {
 	}
 }
 
+func (r *Redis) MemoryUsage(rc *req.Ctx) {
+	ri, key := r.checkKeyAndGetRedisConn(rc)
+	rc.ResData = ri.GetCmdable().MemoryUsage(context.Background(), key).Val()
+}
+
 func (r *Redis) DeleteKey(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisConn(rc)
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "key", key)

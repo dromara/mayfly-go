@@ -43,7 +43,7 @@ type Index struct {
 // 数据库元信息接口（表、列、获取表数据等元信息）
 type DbMetadata interface {
 
-	// 获取表基础元信息
+	// 获取表信息
 	GetTables() ([]Table, error)
 
 	// 获取指定表名的所有列元信息
@@ -52,8 +52,8 @@ type DbMetadata interface {
 	// 获取表主键字段名，没有主键标识则默认第一个字段
 	GetPrimaryKey(tablename string) (string, error)
 
-	// 获取表信息，比GetTables获取更详细的表信息
-	GetTableInfos() ([]Table, error)
+	// // 获取表信息，比GetTables获取更详细的表信息
+	// GetTableInfos() ([]Table, error)
 
 	// 获取表索引信息
 	GetTableIndex(tableName string) ([]Index, error)
