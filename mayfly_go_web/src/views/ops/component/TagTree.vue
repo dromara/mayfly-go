@@ -21,7 +21,7 @@
                 >
                     <template #default="{ node, data }">
                         <span>
-                            <span v-if="data.type == TagTreeNode.TagPath">
+                            <span v-if="data.type.value == TagTreeNode.TagPath">
                                 <tag-info :tag-path="data.label" />
                             </span>
 
@@ -54,7 +54,11 @@ const props = defineProps({
     },
     load: {
         type: Function,
-        required: true,
+        required: false,
+    },
+    loadTags: {
+        type: Function,
+        required: false,
     },
     loadContextmenuItems: {
         type: Function,
@@ -117,7 +121,13 @@ const loadNode = async (node: any, resolve: any) => {
     }
     let nodes = [];
     try {
-        nodes = await props.load(node);
+        if (node.level == 0 && props.loadTags) {
+            nodes = await props.loadTags(node);
+        } else if (props.load) {
+            nodes = await props.load(node);
+        } else {
+            nodes = await node.data.loadChildren();
+        }
     } catch (e: any) {
         console.error(e);
     }
@@ -126,18 +136,23 @@ const loadNode = async (node: any, resolve: any) => {
 
 const treeNodeClick = (data: any) => {
     emit('nodeClick', data);
+    if (data.type.nodeClickFunc) {
+        data.type.nodeClickFunc(data);
+    }
     // 关闭可能存在的右击菜单
     contextmenuRef.value.closeContextmenu();
 };
 
 // 树节点右击事件
 const nodeContextmenu = (event: any, data: any) => {
-    if (!props.loadContextmenuItems) {
-        return;
-    }
     // 加载当前节点是否需要显示右击菜单
-    const items = props.loadContextmenuItems(data);
+    let items = data.type.contextMenuItems;
     if (!items || items.length == 0) {
+        if (props.loadContextmenuItems) {
+            items = props.loadContextmenuItems(data);
+        }
+    }
+    if (!items) {
         return;
     }
     state.contextmenuItems = items;

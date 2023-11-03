@@ -12,18 +12,24 @@ export class TagTreeNode {
     /**
      * 树节点类型
      */
-    type: any;
+    type: NodeType;
 
+    /**
+     * 是否为叶子节点
+     */
     isLeaf: boolean = false;
 
+    /**
+     * 额外需要传递的参数
+     */
     params: any;
 
     static TagPath = -1;
 
-    constructor(key: any, label: string, type?: any) {
+    constructor(key: any, label: string, type?: NodeType) {
         this.key = key;
         this.label = label;
-        this.type = type || TagTreeNode.TagPath;
+        this.type = type || new NodeType(TagTreeNode.TagPath);
     }
 
     withIsLeaf(isLeaf: boolean) {
@@ -33,6 +39,70 @@ export class TagTreeNode {
 
     withParams(params: any) {
         this.params = params;
+        return this;
+    }
+
+    /**
+     * 加载子节点，使用节点类型的loadNodesFunc去加载子节点
+     * @returns 子节点信息
+     */
+    async loadChildren() {
+        if (this.isLeaf) {
+            return [];
+        }
+        if (this.type && this.type.loadNodesFunc) {
+            return await this.type.loadNodesFunc(this);
+        }
+        return [];
+    }
+}
+
+/**
+ * 节点类型，用于加载子节点及点击事件等
+ */
+export class NodeType {
+    /**
+     * 节点类型值
+     */
+    value: number;
+
+    contextMenuItems: [];
+
+    loadNodesFunc: (parentNode: TagTreeNode) => Promise<TagTreeNode[]>;
+
+    nodeClickFunc: (node: TagTreeNode) => void;
+
+    constructor(value: number) {
+        this.value = value;
+    }
+
+    /**
+     * 赋值加载子节点回调函数
+     * @param func 加载子节点回调函数
+     * @returns this
+     */
+    withLoadNodesFunc(func: (parentNode: TagTreeNode) => Promise<TagTreeNode[]>) {
+        this.loadNodesFunc = func;
+        return this;
+    }
+
+    /**
+     * 赋值节点点击事件回调函数
+     * @param func 节点点击事件回调函数
+     * @returns this
+     */
+    withNodeClickFunc(func: (node: TagTreeNode) => void) {
+        this.nodeClickFunc = func;
+        return this;
+    }
+
+    /**
+     * 赋值右击菜单按钮选项
+     * @param contextMenuItems 右击菜单按钮选项
+     * @returns this
+     */
+    withContextMenuItems(contextMenuItems: []) {
+        this.contextMenuItems = contextMenuItems;
         return this;
     }
 }

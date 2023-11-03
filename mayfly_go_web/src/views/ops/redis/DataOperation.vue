@@ -4,9 +4,9 @@
             <el-col :span="4">
                 <el-row type="flex" justify="space-between">
                     <el-col :span="24" class="flex-auto">
-                        <tag-tree @node-click="nodeClick" :load="loadNode">
+                        <tag-tree :loadTags="loadTags">
                             <template #prefix="{ data }">
-                                <span v-if="data.type == NodeType.Redis">
+                                <span v-if="data.type.value == RedisNodeType.Redis">
                                     <el-popover :show-after="500" placement="right-start" title="redis实例信息" trigger="hover" :width="210">
                                         <template #reference>
                                             <SvgIcon name="iconfont icon-op-redis" :size="18" />
@@ -22,7 +22,7 @@
                                     </el-popover>
                                 </span>
 
-                                <SvgIcon v-if="data.type == NodeType.Db" name="Coin" color="#67c23a" />
+                                <SvgIcon v-if="data.type.value == RedisNodeType.Db" name="Coin" color="#67c23a" />
                             </template>
                         </tag-tree>
                     </el-col>
@@ -184,7 +184,7 @@ import { redisApi } from './api';
 import { ref, defineAsyncComponent, toRefs, reactive, onMounted, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { isTrue, notBlank, notNull } from '@/common/assert';
-import { TagTreeNode } from '../component/tag';
+import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { keysToTree, sortByTreeNodes, keysToList } from './utils';
 
@@ -193,10 +193,60 @@ const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 /**
  * 树节点类型
  */
-class NodeType {
+class RedisNodeType {
     static Redis = 1;
     static Db = 2;
 }
+
+// tagpath 节点类型
+const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const redisInfos = instMap.get(parentNode.key);
+    if (!redisInfos) {
+        return [];
+    }
+    return redisInfos.map((x: any) => {
+        return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeRedis).withParams(x);
+    });
+});
+
+// redis实例节点类型
+const NodeTypeRedis = new NodeType(RedisNodeType.Redis).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const redisInfo = parentNode.params;
+    let dbs: TagTreeNode[] = redisInfo.db.split(',').map((x: string) => {
+        return new TagTreeNode(x, `db${x}`, NodeTypeDb).withIsLeaf(true).withParams({
+            id: redisInfo.id,
+            db: x,
+            name: `db${x}`,
+            keys: 0,
+        });
+    });
+
+    if (redisInfo.mode == 'cluster') {
+        return dbs;
+    }
+
+    const res = await redisApi.redisInfo.request({ id: redisInfo.id, host: redisInfo.host, section: 'Keyspace' });
+    for (let db in res.Keyspace) {
+        for (let d of dbs) {
+            if (db == d.params.name) {
+                d.params.keys = res.Keyspace[db]?.split(',')[0]?.split('=')[1] || 0;
+            }
+        }
+    }
+    // 替换label
+    dbs.forEach((e: any) => {
+        e.label = `${e.params.name} [${e.params.keys}]`;
+    });
+    return dbs;
+});
+
+// 库节点类型
+const NodeTypeDb = new NodeType(RedisNodeType.Db).withNodeClickFunc((nodeData: TagTreeNode) => {
+    resetScanParam();
+    state.scanParam.id = nodeData.params.id;
+    state.scanParam.db = nodeData.params.db;
+    scan();
+});
 
 const treeProps = {
     label: 'name',
@@ -270,80 +320,16 @@ const getInsts = async () => {
 };
 
 /**
- * 加载文件树节点
- * @param {Object} node
- * @param {Object} resolve
+ * 加载标签树节点
  */
-const loadNode = async (node: any) => {
-    // 一级为tagPath
-    if (node.level === 0) {
-        await getInsts();
-        const tagPaths = instMap.keys();
-        const tagNodes = [];
-        for (let tagPath of tagPaths) {
-            tagNodes.push(new TagTreeNode(tagPath, tagPath));
-        }
-        return tagNodes;
+const loadTags = async () => {
+    await getInsts();
+    const tagPaths = instMap.keys();
+    const tagNodes = [];
+    for (let tagPath of tagPaths) {
+        tagNodes.push(new TagTreeNode(tagPath, tagPath, NodeTypeTagPath));
     }
-
-    const data = node.data;
-    // 点击tagPath -> 加载数据库信息列表
-    if (data.type === TagTreeNode.TagPath) {
-        const redisInfos = instMap.get(data.key);
-        return redisInfos?.map((x: any) => {
-            return new TagTreeNode(`${data.key}.${x.id}`, x.name, NodeType.Redis).withParams(x);
-        });
-    }
-
-    // 点击redis实例 -> 加载库列表
-    if (data.type === NodeType.Redis) {
-        return await getDbs(data.params);
-    }
-
-    return [];
-};
-
-const nodeClick = (data: any) => {
-    // 点击库事件
-    if (data.type === NodeType.Db) {
-        resetScanParam();
-        state.scanParam.id = data.params.id;
-        state.scanParam.db = data.params.db;
-        scan();
-    }
-};
-
-/**
- * 获取所有库信息
- * @param redisInfo redis信息
- */
-const getDbs = async (redisInfo: any) => {
-    let dbs: TagTreeNode[] = redisInfo.db.split(',').map((x: string) => {
-        return new TagTreeNode(x, `db${x}`, NodeType.Db).withIsLeaf(true).withParams({
-            id: redisInfo.id,
-            db: x,
-            name: `db${x}`,
-            keys: 0,
-        });
-    });
-
-    if (redisInfo.mode == 'cluster') {
-        return dbs;
-    }
-
-    const res = await redisApi.redisInfo.request({ id: redisInfo.id, host: redisInfo.host, section: 'Keyspace' });
-    for (let db in res.Keyspace) {
-        for (let d of dbs) {
-            if (db == d.params.name) {
-                d.params.keys = res.Keyspace[db]?.split(',')[0]?.split('=')[1] || 0;
-            }
-        }
-    }
-    // 替换label
-    dbs.forEach((e: any) => {
-        e.label = `${e.params.name} [${e.params.keys}]`;
-    });
-    return dbs;
+    return tagNodes;
 };
 
 const scan = async (appendKey = false) => {

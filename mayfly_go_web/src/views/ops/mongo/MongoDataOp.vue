@@ -2,9 +2,9 @@
     <div>
         <el-row>
             <el-col :span="4">
-                <tag-tree @node-click="nodeClick" :load="loadNode">
+                <tag-tree :loadTags="loadTags">
                     <template #prefix="{ data }">
-                        <span v-if="data.type == NodeType.Mongo">
+                        <span v-if="data.type.value == MongoNodeType.Mongo">
                             <el-popover :show-after="500" placement="right-start" title="mongo实例信息" trigger="hover" :width="210">
                                 <template #reference>
                                     <SvgIcon name="iconfont icon-op-mongo" :size="18" />
@@ -18,14 +18,18 @@
                             </el-popover>
                         </span>
 
-                        <SvgIcon v-if="data.type == NodeType.Dbs" name="Coin" color="#67c23a" />
+                        <SvgIcon v-if="data.type.value == MongoNodeType.Dbs" name="Coin" color="#67c23a" />
 
-                        <SvgIcon v-if="data.type == NodeType.Coll || data.type == NodeType.CollMenu" name="Document" class="color-primary" />
+                        <SvgIcon
+                            v-if="data.type.value == MongoNodeType.Coll || data.type.value == MongoNodeType.CollMenu"
+                            name="Document"
+                            class="color-primary"
+                        />
                     </template>
 
                     <template #label="{ data }">
-                        <span v-if="data.type == NodeType.Dbs">
-                            {{ data.params.dbName }}
+                        <span v-if="data.type.value == MongoNodeType.Dbs">
+                            {{ data.params.database }}
                             <span style="color: #8492a6; font-size: 13px"> [{{ formatByteSize(data.params.size) }}] </span>
                         </span>
 
@@ -161,7 +165,7 @@ import { computed, defineAsyncComponent, reactive, ref, toRefs } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { isTrue, notBlank } from '@/common/assert';
-import { TagTreeNode } from '../component/tag';
+import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { formatByteSize } from '@/common/utils/format';
 
@@ -175,12 +179,62 @@ const perms = {
 /**
  * 树节点类型
  */
-class NodeType {
+class MongoNodeType {
     static Mongo = 1;
     static Dbs = 2;
     static CollMenu = 3;
     static Coll = 4;
 }
+
+// tagpath 节点类型
+const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    // 点击标签 -> 显示mongo信息列表
+    const mongoInfos = instMap.get(parentNode.key);
+    if (!mongoInfos) {
+        return [];
+    }
+    return mongoInfos?.map((x: any) => {
+        return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeMongo).withParams(x);
+    });
+});
+
+const NodeTypeMongo = new NodeType(MongoNodeType.Mongo).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const inst = parentNode.params;
+    // 点击mongo -> 加载mongo数据库列表
+    const res = await mongoApi.databases.request({ id: inst.id });
+    return res.Databases.map((x: any) => {
+        const database = x.Name;
+        return new TagTreeNode(`${inst.id}.${database}`, database, NodeTypeDbs).withParams({
+            id: inst.id,
+            database,
+            size: x.SizeOnDisk,
+        });
+    });
+});
+
+const NodeTypeDbs = new NodeType(MongoNodeType.Dbs).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const params = parentNode.params;
+    // 点击数据库列表 -> 加载数据库下拥有的菜单列表
+    return [new TagTreeNode(`${params.id}.${params.database}.mongo-coll`, '集合', NodeTypeCollMenu).withParams(params)];
+});
+
+const NodeTypeCollMenu = new NodeType(MongoNodeType.CollMenu).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const { id, database } = parentNode.params;
+    // 点击数据库集合节点 -> 加载集合列表
+    const colls = await mongoApi.collections.request({ id, database });
+    return colls.map((x: any) => {
+        return new TagTreeNode(`${id}.${database}.${x}`, x, NodeTypeColl).withIsLeaf(true).withParams({
+            id,
+            database,
+            collection: x,
+        });
+    });
+});
+
+const NodeTypeColl = new NodeType(MongoNodeType.Coll).withNodeClickFunc((nodeData: TagTreeNode) => {
+    const { id, database, collection } = nodeData.params;
+    changeCollection(id, database, collection);
+});
 
 const findParamInputRef: any = ref(null);
 const state = reactive({
@@ -237,89 +291,16 @@ const getInsts = async () => {
 };
 
 /**
- * 加载文件树节点
- * @param {Object} node
- * @param {Object} resolve
+ * 加载标签树树节点
  */
-const loadNode = async (node: any) => {
-    // 一级为tagPath
-    if (node.level === 0) {
-        await getInsts();
-        const tagPaths = instMap.keys();
-        const tagNodes = [];
-        for (let tagPath of tagPaths) {
-            tagNodes.push(new TagTreeNode(tagPath, tagPath));
-        }
-        return tagNodes;
+const loadTags = async () => {
+    await getInsts();
+    const tagPaths = instMap.keys();
+    const tagNodes = [];
+    for (let tagPath of tagPaths) {
+        tagNodes.push(new TagTreeNode(tagPath, tagPath, NodeTypeTagPath));
     }
-
-    const data = node.data;
-    const params = data.params;
-    const nodeType = data.type;
-
-    // 点击标签 -> 显示mongo信息列表
-    if (nodeType === TagTreeNode.TagPath) {
-        const mongoInfos = instMap.get(data.key);
-        return mongoInfos?.map((x: any) => {
-            return new TagTreeNode(`${data.key}.${x.id}`, x.name, NodeType.Mongo).withParams(x);
-        });
-    }
-
-    // 点击mongo -> 加载mongo数据库列表
-    if (nodeType === NodeType.Mongo) {
-        return await getDatabases(params);
-    }
-
-    // 点击数据库列表 -> 加载数据库下拥有的菜单列表
-    if (nodeType === NodeType.Dbs) {
-        return [new TagTreeNode(`${params.id}.${params.dbName}.mongo-coll`, '集合', NodeType.CollMenu).withParams(params)];
-    }
-
-    // 点击数据库集合节点 -> 加载集合列表
-    if (nodeType === NodeType.CollMenu) {
-        return await getCollections(params.id, params.dbName);
-    }
-
-    return [];
-};
-
-/**
- * 获取实例的所有库信息
- * @param inst 实例信息
- */
-const getDatabases = async (inst: any) => {
-    const res = await mongoApi.databases.request({ id: inst.id });
-    return res.Databases.map((x: any) => {
-        const dbName = x.Name;
-        return new TagTreeNode(`${inst.id}.${dbName}`, dbName, NodeType.Dbs).withParams({
-            id: inst.id,
-            dbName,
-            size: x.SizeOnDisk,
-        });
-    });
-};
-
-/**
- * 获取集合列表信息
- * @param inst
- */
-const getCollections = async (id: any, database: string) => {
-    const colls = await mongoApi.collections.request({ id, database });
-    return colls.map((x: any) => {
-        return new TagTreeNode(`${id}.${database}.${x}`, x, NodeType.Coll).withIsLeaf(true).withParams({
-            id,
-            database,
-            collection: x,
-        });
-    });
-};
-
-const nodeClick = async (data: any) => {
-    // 点击集合
-    if (data.type === NodeType.Coll) {
-        const { id, database, collection } = data.params;
-        await changeCollection(id, database, collection);
-    }
+    return tagNodes;
 };
 
 const changeCollection = async (id: any, schema: string, collection: string) => {

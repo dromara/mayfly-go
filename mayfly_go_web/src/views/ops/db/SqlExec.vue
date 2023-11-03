@@ -31,16 +31,9 @@
 
         <el-row type="flex">
             <el-col :span="4">
-                <tag-tree
-                    ref="tagTreeRef"
-                    @node-click="nodeClick"
-                    :load="loadNode"
-                    :load-contextmenu-items="getContextmenuItems"
-                    @current-contextmenu-click="onCurrentContextmenuClick"
-                    :height="state.tagTreeHeight"
-                >
+                <tag-tree ref="tagTreeRef" :loadTags="loadTags" @current-contextmenu-click="onCurrentContextmenuClick" :height="state.tagTreeHeight">
                     <template #prefix="{ data }">
-                        <span v-if="data.type == NodeType.DbInst">
+                        <span v-if="data.type.value == SqlExecNodeType.DbInst">
                             <el-popover :show-after="500" placement="right-start" title="数据库实例信息" trigger="hover" :width="210">
                                 <template #reference>
                                     <SvgIcon v-if="data.params.type === 'mysql'" name="iconfont icon-op-mysql" :size="18" />
@@ -60,13 +53,13 @@
                             </el-popover>
                         </span>
 
-                        <SvgIcon v-if="data.type == NodeType.Db" name="Coin" color="#67c23a" />
+                        <SvgIcon v-if="data.type.value == SqlExecNodeType.Db" name="Coin" color="#67c23a" />
 
-                        <SvgIcon name="Calendar" v-if="data.type == NodeType.TableMenu" color="#409eff" />
+                        <SvgIcon name="Calendar" v-if="data.type.value == SqlExecNodeType.TableMenu" color="#409eff" />
 
                         <el-tooltip
                             :show-after="500"
-                            v-if="data.type == NodeType.Table"
+                            v-if="data.type.value == SqlExecNodeType.Table"
                             effect="customized"
                             :content="data.params.tableComment"
                             placement="top-end"
@@ -74,11 +67,14 @@
                             <SvgIcon name="Calendar" color="#409eff" />
                         </el-tooltip>
 
-                        <SvgIcon name="Files" v-if="data.type == NodeType.SqlMenu || data.type == NodeType.Sql" color="#f56c6c" />
+                        <SvgIcon name="Files" v-if="data.type.value == SqlExecNodeType.SqlMenu || data.type.value == SqlExecNodeType.Sql" color="#f56c6c" />
                     </template>
 
                     <template #suffix="{ data }">
-                        <span class="db-table-size" v-if="data.type == NodeType.Table">{{ ` ${data.params.size}` }}</span>
+                        <span class="db-table-size" v-if="data.type.value == SqlExecNodeType.Table && data.params.size">{{ ` ${data.params.size}` }}</span>
+                        <span class="db-table-size" v-if="data.type.value == SqlExecNodeType.TableMenu && data.params.dbTableSize">{{
+                            ` ${data.params.dbTableSize}`
+                        }}</span>
                     </template>
                 </tag-tree>
             </el-col>
@@ -119,7 +115,7 @@ import { defineAsyncComponent, onMounted, reactive, ref, toRefs, onBeforeUnmount
 import { ElMessage } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { DbInst, TabInfo, TabType, registerDbCompletionItemProvider } from './db';
-import { TagTreeNode } from '../component/tag';
+import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
 import { dispposeCompletionItemProvider } from '../../../components/monaco/completionItemProvider';
@@ -129,7 +125,7 @@ const TableData = defineAsyncComponent(() => import('./component/tab/TableData.v
 /**
  * 树节点类型
  */
-class NodeType {
+class SqlExecNodeType {
     static DbInst = 1;
     static Db = 2;
     static TableMenu = 3;
@@ -137,9 +133,114 @@ class NodeType {
     static Table = 5;
     static Sql = 6;
 }
+
 class ContextmenuClickId {
     static ReloadTable = 0;
 }
+
+// node节点点击时，触发改变db事件
+const changeDb = (nodeData: TagTreeNode) => {
+    const params = nodeData.params;
+    changeSchema({ id: params.id, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.database }, params.db);
+};
+
+// tagpath 节点类型
+const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const dbInfos = instMap.get(parentNode.key);
+    if (!dbInfos) {
+        return [];
+    }
+    return dbInfos?.map((x: any) => {
+        return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeDbInst).withParams(x);
+    });
+});
+
+// 数据库实例节点类型
+const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst)
+    .withLoadNodesFunc((parentNode: TagTreeNode) => {
+        const params = parentNode.params;
+        const dbs = params.database.split(' ')?.sort();
+        return dbs.map((x: any) => {
+            return new TagTreeNode(`${parentNode.key}.${x}`, x, NodeTypeDb).withParams({
+                tagPath: params.tagPath,
+                id: params.id,
+                name: params.name,
+                type: params.type,
+                dbs: dbs,
+                db: x,
+            });
+        });
+    })
+    .withNodeClickFunc(changeDb);
+
+// 数据库节点
+const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
+    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+        const params = parentNode.params;
+        return [
+            new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams(params),
+            new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeTypeSqlMenu).withParams(params),
+        ];
+    })
+    .withNodeClickFunc(changeDb);
+
+// 数据库表菜单节点
+const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
+    .withContextMenuItems([{ contextMenuClickId: ContextmenuClickId.ReloadTable, txt: '刷新', icon: 'RefreshRight' }] as any)
+    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+        const params = parentNode.params;
+        const { id, db } = params;
+        // 获取当前库的所有表信息
+        let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
+        state.reloadStatus = false;
+        let dbTableSize = 0;
+        const tablesNode = tables.map((x: any) => {
+            dbTableSize += x.dataLength + x.indexLength;
+            return new TagTreeNode(`${id}.${db}.${x.tableName}`, x.tableName, NodeTypeTable).withIsLeaf(true).withParams({
+                id,
+                db,
+                tableName: x.tableName,
+                tableComment: x.tableComment,
+                size: formatByteSize(x.dataLength + x.indexLength, 1),
+            });
+        });
+        // 设置父节点参数的表大小
+        parentNode.params.dbTableSize = formatByteSize(dbTableSize);
+        return tablesNode;
+    })
+    .withNodeClickFunc(changeDb);
+
+// 数据库sql模板菜单节点
+const NodeTypeSqlMenu = new NodeType(SqlExecNodeType.SqlMenu)
+    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+        const params = parentNode.params;
+        const id = params.id;
+        const db = params.db;
+        const dbs = params.dbs;
+        // 加载用户保存的sql脚本
+        const sqls = await dbApi.getSqlNames.request({ id: id, db: db });
+        return sqls.map((x: any) => {
+            return new TagTreeNode(`${id}.${db}.${x.name}`, x.name, NodeTypeSql).withIsLeaf(true).withParams({
+                id,
+                db,
+                dbs,
+                sqlName: x.name,
+            });
+        });
+    })
+    .withNodeClickFunc(changeDb);
+
+// 表节点类型
+const NodeTypeTable = new NodeType(SqlExecNodeType.Table).withNodeClickFunc((nodeData: TagTreeNode) => {
+    const params = nodeData.params;
+    loadTableData({ id: params.id, nodeKey: nodeData.key }, params.db, params.tableName);
+});
+
+// sql模板节点类型
+const NodeTypeSql = new NodeType(SqlExecNodeType.Sql).withNodeClickFunc((nodeData: TagTreeNode) => {
+    const params = nodeData.params;
+    addQueryTab({ id: params.id, nodeKey: nodeData.key, dbs: params.dbs }, params.db, params.sqlName);
+});
 
 const tagTreeRef: any = ref(null);
 
@@ -200,97 +301,16 @@ const getInsts = async () => {
 };
 
 /**
- * 加载树节点
- * @param {Object} node
- * @param {Object} resolve
+ * 加载标签树节点
  */
-const loadNode = async (node: any) => {
-    // 一级为tagPath
-    if (node.level === 0) {
-        await getInsts();
-        const tagPaths = instMap.keys();
-        const tagNodes = [];
-        for (let tagPath of tagPaths) {
-            tagNodes.push(new TagTreeNode(tagPath, tagPath));
-        }
-        return tagNodes;
+const loadTags = async () => {
+    await getInsts();
+    const tagPaths = instMap.keys();
+    const tagNodes = [];
+    for (let tagPath of tagPaths) {
+        tagNodes.push(new TagTreeNode(tagPath, tagPath, NodeTypeTagPath));
     }
-
-    const data = node.data;
-    const nodeType = data.type;
-    const params = data.params;
-
-    // 点击tagPath -> 加载数据库实例信息列表
-    if (nodeType === TagTreeNode.TagPath) {
-        const dbInfos = instMap.get(data.key);
-        return dbInfos?.map((x: any) => {
-            return new TagTreeNode(`${data.key}.${x.id}`, x.name, NodeType.DbInst).withParams(x);
-        });
-    }
-
-    // 点击数据库实例 -> 加载库列表
-    if (nodeType === NodeType.DbInst) {
-        const dbs = params.database.split(' ')?.sort();
-        return dbs.map((x: any) => {
-            return new TagTreeNode(`${data.key}.${x}`, x, NodeType.Db).withParams({
-                tagPath: params.tagPath,
-                id: params.id,
-                name: params.name,
-                type: params.type,
-                dbs: dbs,
-                db: x,
-            });
-        });
-    }
-
-    // 点击数据库 -> 加载 表&Sql 菜单
-    if (nodeType === NodeType.Db) {
-        return [
-            new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeType.TableMenu).withParams(params),
-            new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeType.SqlMenu).withParams(params),
-        ];
-    }
-
-    // 点击表菜单 -> 加载表列表
-    if (nodeType === NodeType.TableMenu) {
-        return await getTables(params);
-    }
-
-    if (nodeType === NodeType.SqlMenu) {
-        return await loadSqls(params.id, params.db, params.dbs);
-    }
-
-    return [];
-};
-
-const nodeClick = async (data: any) => {
-    const params = data.params;
-    const nodeKey = data.key;
-    const dataType = data.type;
-    // 点击数据库，修改当前数据库信息
-    if (dataType === NodeType.Db || dataType === NodeType.SqlMenu || dataType === NodeType.TableMenu || dataType === NodeType.DbInst) {
-        changeSchema({ id: params.id, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.database }, params.db);
-        return;
-    }
-
-    // 点击表加载表数据tab
-    if (dataType === NodeType.Table) {
-        await loadTableData({ id: params.id, nodeKey: nodeKey }, params.db, params.tableName);
-        return;
-    }
-
-    // 点击表加载表数据tab
-    if (dataType === NodeType.Sql) {
-        await addQueryTab({ id: params.id, nodeKey: nodeKey, dbs: params.dbs }, params.db, params.sqlName);
-    }
-};
-
-const getContextmenuItems = (data: any) => {
-    const dataType = data.type;
-    if (dataType === NodeType.TableMenu) {
-        return [{ contextMenuClickId: ContextmenuClickId.ReloadTable, txt: '刷新', icon: 'RefreshRight' }];
-    }
-    return [];
+    return tagNodes;
 };
 
 // 当前右击菜单点击事件
@@ -299,39 +319,6 @@ const onCurrentContextmenuClick = (clickData: any) => {
     if (clickId == ContextmenuClickId.ReloadTable) {
         reloadTables(clickData.item.key);
     }
-};
-
-const getTables = async (params: any) => {
-    const { id, db } = params;
-    let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
-    state.reloadStatus = false;
-    return tables.map((x: any) => {
-        return new TagTreeNode(`${id}.${db}.${x.tableName}`, x.tableName, NodeType.Table).withIsLeaf(true).withParams({
-            id,
-            db,
-            tableName: x.tableName,
-            tableComment: x.tableComment,
-            size: formatByteSize(x.dataLength + x.indexLength, 1),
-        });
-    });
-};
-
-/**
- * 加载用户保存的sql脚本
- *
- * @param inst
- * @param schema
- */
-const loadSqls = async (id: any, db: string, dbs: any) => {
-    const sqls = await dbApi.getSqlNames.request({ id: id, db: db });
-    return sqls.map((x: any) => {
-        return new TagTreeNode(`${id}.${db}.${x.name}`, x.name, NodeType.Sql).withIsLeaf(true).withParams({
-            id,
-            db,
-            dbs,
-            sqlName: x.name,
-        });
-    });
 };
 
 // 选择数据库
@@ -372,6 +359,7 @@ const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
         ElMessage.warning('请选择数据库实例及对应的schema');
         return;
     }
+    changeSchema(inst, db);
 
     const dbId = inst.id;
     let label;
@@ -470,31 +458,9 @@ const reloadTables = (nodeKey: string) => {
 
 <style lang="scss">
 .db-sql-exec {
-    .sql-file-exec {
-        display: inline-flex;
-        flex-direction: row;
-        align-items: center;
-        justify-content: center;
-        vertical-align: middle;
-        position: relative;
-        text-decoration: none;
-    }
-
     .db-table-size {
         color: #c4c9c4;
-        font-size: 10px;
-    }
-
-    .sqlEditor {
-        font-size: 8pt;
-        font-weight: 600;
-        border: 1px solid #ccc;
-    }
-
-    .editor-move-resize {
-        cursor: n-resize;
-        height: 3px;
-        text-align: center;
+        font-size: 9px;
     }
 
     #data-exec {
