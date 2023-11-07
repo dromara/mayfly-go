@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"mayfly-go/internal/auth/config"
 	msgapp "mayfly-go/internal/msg/application"
@@ -108,7 +109,7 @@ func saveLogin(account *sysentity.Account, ip string) {
 	updateAccount.Id = account.Id
 	updateAccount.LastLoginIp = ip
 	// 偷懒为了方便直接获取accountApp
-	biz.ErrIsNil(sysapp.GetAccountApp().Update(updateAccount))
+	biz.ErrIsNil(sysapp.GetAccountApp().Update(context.TODO(), updateAccount))
 
 	// 创建登录消息
 	loginMsg := &msgentity.Msg{
@@ -119,5 +120,5 @@ func saveLogin(account *sysentity.Account, ip string) {
 	loginMsg.CreateTime = &now
 	loginMsg.Creator = account.Username
 	loginMsg.CreatorId = account.Id
-	msgapp.GetMsgApp().Create(loginMsg)
+	msgapp.GetMsgApp().Create(context.TODO(), loginMsg)
 }

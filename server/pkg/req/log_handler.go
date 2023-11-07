@@ -2,6 +2,7 @@ package req
 
 import (
 	"fmt"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
@@ -54,7 +55,7 @@ func LogHandler(rc *Ctx) error {
 	req := rc.GinCtx.Request
 	attrMap[req.Method] = req.URL.Path
 
-	if la := rc.LoginAccount; la != nil {
+	if la := contextx.GetLoginAccount(rc.MetaCtx); la != nil {
 		attrMap["uid"] = la.Id
 		attrMap["uname"] = la.Username
 	}
@@ -93,10 +94,10 @@ func LogHandler(rc *Ctx) error {
 	}
 
 	if err := rc.Err; err != nil {
-		logx.ErrorWithFields(logMsg, attrMap)
+		logx.ErrorWithFields(rc.MetaCtx, logMsg, attrMap)
 		return nil
 	}
-	logx.InfoWithFields(logMsg, attrMap)
+	logx.InfoWithFields(rc.MetaCtx, logMsg, attrMap)
 	return nil
 }
 

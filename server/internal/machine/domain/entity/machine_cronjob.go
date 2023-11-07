@@ -30,6 +30,13 @@ type MachineCronJobRelate struct {
 	CreateTime *time.Time
 }
 
+func (m *MachineCronJobRelate) SetBaseInfo(la *model.LoginAccount) {
+	now := time.Now()
+	m.CreateTime = &now
+	m.Creator = la.Username
+	m.CreatorId = la.Id
+}
+
 // 机器任务执行记录
 type MachineCronJobExec struct {
 	model.DeletedModel

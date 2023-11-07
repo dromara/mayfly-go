@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
@@ -20,10 +21,10 @@ type Db interface {
 
 	Count(condition *entity.DbQuery) int64
 
-	Save(entity *entity.Db) error
+	Save(ctx context.Context, entity *entity.Db) error
 
 	// 删除数据库信息
-	Delete(id uint64) error
+	Delete(ctx context.Context, id uint64) error
 
 	// 获取数据库连接实例
 	// @param id 数据库id
@@ -56,7 +57,7 @@ func (d *dbAppImpl) Count(condition *entity.DbQuery) int64 {
 	return d.GetRepo().Count(condition)
 }
 
-func (d *dbAppImpl) Save(dbEntity *entity.Db) error {
+func (d *dbAppImpl) Save(ctx context.Context, dbEntity *entity.Db) error {
 	// 查找是否存在
 	oldDb := &entity.Db{Name: dbEntity.Name, InstanceId: dbEntity.InstanceId}
 	err := d.GetBy(oldDb)
@@ -65,7 +66,7 @@ func (d *dbAppImpl) Save(dbEntity *entity.Db) error {
 		if err == nil {
 			return errorx.NewBiz("该实例下数据库名已存在")
 		}
-		return d.Insert(dbEntity)
+		return d.Insert(ctx, dbEntity)
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
@@ -90,13 +91,13 @@ func (d *dbAppImpl) Save(dbEntity *entity.Db) error {
 		// 关闭数据库连接
 		dbm.CloseDb(dbEntity.Id, v)
 		// 删除该库关联的所有sql记录
-		d.dbSqlRepo.DeleteByCond(&entity.DbSql{DbId: dbId, Db: v})
+		d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: dbId, Db: v})
 	}
 
-	return d.UpdateById(dbEntity)
+	return d.UpdateById(ctx, dbEntity)
 }
 
-func (d *dbAppImpl) Delete(id uint64) error {
+func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 	db, err := d.GetById(new(entity.Db), id)
 	if err != nil {
 		return errorx.NewBiz("该数据库不存在")
@@ -107,8 +108,8 @@ func (d *dbAppImpl) Delete(id uint64) error {
 		dbm.CloseDb(id, v)
 	}
 	// 删除该库下用户保存的所有sql信息
-	d.dbSqlRepo.DeleteByCond(&entity.DbSql{DbId: id})
-	return d.DeleteById(id)
+	d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: id})
+	return d.DeleteById(ctx, id)
 }
 
 func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error) {

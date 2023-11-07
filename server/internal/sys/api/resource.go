@@ -39,19 +39,18 @@ func (r *Resource) SaveResource(rc *req.Ctx) {
 	bytes, _ := json.Marshal(form.Meta)
 	entity.Meta = string(bytes)
 
-	entity.SetBaseInfo(rc.LoginAccount)
-	biz.ErrIsNil(r.ResourceApp.Save(entity))
+	biz.ErrIsNil(r.ResourceApp.Save(rc.MetaCtx, entity))
 }
 
 func (r *Resource) DelResource(rc *req.Ctx) {
-	biz.ErrIsNil(r.ResourceApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id"))))
+	biz.ErrIsNil(r.ResourceApp.Delete(rc.MetaCtx, uint64(ginx.PathParamInt(rc.GinCtx, "id"))))
 }
 
 func (r *Resource) ChangeStatus(rc *req.Ctx) {
 	rid := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
 	status := int8(ginx.PathParamInt(rc.GinCtx, "status"))
 	rc.ReqParam = collx.Kvs("id", rid, "status", status)
-	biz.ErrIsNil(r.ResourceApp.ChangeStatus(rid, status))
+	biz.ErrIsNil(r.ResourceApp.ChangeStatus(rc.MetaCtx, rid, status))
 }
 
 func (r *Resource) Sort(rc *req.Ctx) {
@@ -62,6 +61,6 @@ func (r *Resource) Sort(rc *req.Ctx) {
 	for _, v := range rs {
 		sortE := &entity.Resource{Pid: v.Pid, Weight: v.Weight}
 		sortE.Id = uint64(v.Id)
-		r.ResourceApp.Sort(sortE)
+		r.ResourceApp.Sort(rc.MetaCtx, sortE)
 	}
 }

@@ -8,18 +8,18 @@
                             <el-link @click="onRefresh" icon="refresh" :underline="false" type="success"></el-link>
                         </template>
                         <el-descriptions-item label="主机名">
-                            {{ stats.Hostname }}
+                            {{ stats.hostname }}
                         </el-descriptions-item>
                         <el-descriptions-item label="运行时间">
-                            {{ stats.Uptime }}
+                            {{ stats.uptime }}
                         </el-descriptions-item>
                         <el-descriptions-item label="总任务">
-                            {{ stats.TotalProcs }}
+                            {{ stats.totalProcs }}
                         </el-descriptions-item>
                         <el-descriptions-item label="运行中任务">
-                            {{ stats.RunningProcs }}
+                            {{ stats.runningProcs }}
                         </el-descriptions-item>
-                        <el-descriptions-item label="负载"> {{ stats.Load1 }} {{ stats.Load5 }} {{ stats.Load10 }} </el-descriptions-item>
+                        <el-descriptions-item label="负载"> {{ stats.load1 }} {{ stats.load5 }} {{ stats.load10 }} </el-descriptions-item>
                     </el-descriptions>
                 </el-col>
 
@@ -35,16 +35,16 @@
             <el-row :gutter="20">
                 <el-col :lg="8" :md="8">
                     <span style="font-size: 16px; font-weight: 700">磁盘</span>
-                    <el-table :data="stats.FSInfos" stripe max-height="250" style="width: 100%" border>
-                        <el-table-column prop="MountPoint" label="挂载点" min-width="100" show-overflow-tooltip> </el-table-column>
-                        <el-table-column prop="Used" label="可使用" min-width="70" show-overflow-tooltip>
+                    <el-table :data="stats.fSInfos" stripe max-height="250" style="width: 100%" border>
+                        <el-table-column prop="mountPoint" label="挂载点" min-width="100" show-overflow-tooltip> </el-table-column>
+                        <el-table-column prop="used" label="可使用" min-width="70" show-overflow-tooltip>
                             <template #default="scope">
-                                {{ formatByteSize(scope.row.Free) }}
+                                {{ formatByteSize(scope.row.free) }}
                             </template>
                         </el-table-column>
                         <el-table-column prop="Used" label="已使用" min-width="70" show-overflow-tooltip>
                             <template #default="scope">
-                                {{ formatByteSize(scope.row.Used) }}
+                                {{ formatByteSize(scope.row.used) }}
                             </template>
                         </el-table-column>
                     </el-table>
@@ -54,16 +54,16 @@
                     <span style="font-size: 16px; font-weight: 700">网卡</span>
                     <el-table :data="netInter" stripe max-height="250" style="width: 100%" border>
                         <el-table-column prop="name" label="网卡" min-width="120" show-overflow-tooltip></el-table-column>
-                        <el-table-column prop="IPv4" label="IPv4" min-width="130" show-overflow-tooltip> </el-table-column>
-                        <el-table-column prop="IPv6" label="IPv6" min-width="130" show-overflow-tooltip> </el-table-column>
-                        <el-table-column prop="Rx" label="接收(rx)" min-width="110" show-overflow-tooltip>
+                        <el-table-column prop="ipv4" label="IPv4" min-width="130" show-overflow-tooltip> </el-table-column>
+                        <el-table-column prop="ipv6" label="IPv6" min-width="130" show-overflow-tooltip> </el-table-column>
+                        <el-table-column prop="rx" label="接收(rx)" min-width="110" show-overflow-tooltip>
                             <template #default="scope">
-                                {{ formatByteSize(scope.row.Rx) }}
+                                {{ formatByteSize(scope.row.rx) }}
                             </template>
                         </el-table-column>
-                        <el-table-column prop="Tx" label="发送(tx)" min-width="110" show-overflow-tooltip>
+                        <el-table-column prop="tx" label="发送(tx)" min-width="110" show-overflow-tooltip>
                             <template #default="scope">
-                                {{ formatByteSize(scope.row.Tx) }}
+                                {{ formatByteSize(scope.row.tx) }}
                             </template>
                         </el-table-column>
                     </el-table>
@@ -83,9 +83,6 @@ import { machineApi } from './api';
 const props = defineProps({
     visible: {
         type: Boolean,
-    },
-    stats: {
-        type: Object,
     },
     machineId: {
         type: Number,
@@ -134,11 +131,12 @@ const onRefresh = async () => {
 };
 
 const initMemStats = () => {
+    const mem = state.stats.memInfo;
     const data = [
-        { name: '可用内存', value: state.stats.MemAvailable },
+        { name: '可用内存', value: mem.available },
         {
             name: '已用内存',
-            value: state.stats.MemTotal - state.stats.MemAvailable,
+            value: mem.total - mem.available,
         },
     ];
     const option = {
@@ -192,20 +190,20 @@ const initMemStats = () => {
 };
 
 const initCpuStats = () => {
-    const cpu = state.stats.CPU;
+    const cpu = state.stats.cpu;
     const data = [
-        { name: 'Idle', value: cpu.Idle },
+        { name: 'Idle', value: cpu.idle },
         {
             name: 'Iowait',
-            value: cpu.Iowait,
+            value: cpu.iowait,
         },
         {
             name: 'System',
-            value: cpu.System,
+            value: cpu.system,
         },
         {
             name: 'User',
-            value: cpu.User,
+            value: cpu.user,
         },
     ];
     const option = {
@@ -283,7 +281,7 @@ const initEchartsResize = () => {
 
 const parseNetInter = () => {
     state.netInter = [];
-    const netInter = state.stats.NetIntf;
+    const netInter = state.stats.netIntf;
     const keys = Object.keys(netInter);
     const values = Object.values(netInter);
     for (let i = 0; i < values.length; i++) {

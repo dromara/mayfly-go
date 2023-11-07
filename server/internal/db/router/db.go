@@ -46,15 +46,6 @@ func InitDbRouter(router *gin.RouterGroup) {
 		req.NewGet(":dbId/c-metadata", d.ColumnMA),
 
 		req.NewGet(":dbId/hint-tables", d.HintTables),
-
-		// 用户sql相关
-		req.NewPost(":dbId/sql", d.SaveSql),
-
-		req.NewGet(":dbId/sql", d.GetSql),
-
-		req.NewDelete(":dbId/sql", d.DeleteSql),
-
-		req.NewGet(":dbId/sql-names", d.GetSqlNames),
 	}
 
 	req.BatchSetGroup(db, reqs[:])

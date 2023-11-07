@@ -13,7 +13,6 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -42,7 +41,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage[*entity.DbQuery](rc.GinCtx, new(entity.DbQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	tagIds := d.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
+	tagIds := d.TagApp.ListTagIdByAccountId(rc.GetLoginAccount().Id)
 	if len(tagIds) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
@@ -55,7 +54,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 }
 
 func (d *Db) DbTags(rc *req.Ctx) {
-	rc.ResData = d.TagApp.ListTagByAccountIdAndResource(rc.LoginAccount.Id, new(entity.Db))
+	rc.ResData = d.TagApp.ListTagByAccountIdAndResource(rc.GetLoginAccount().Id, new(entity.Db))
 }
 
 func (d *Db) Save(rc *req.Ctx) {
@@ -64,8 +63,7 @@ func (d *Db) Save(rc *req.Ctx) {
 
 	rc.ReqParam = form
 
-	db.SetBaseInfo(rc.LoginAccount)
-	biz.ErrIsNil(d.DbApp.Save(db))
+	biz.ErrIsNil(d.DbApp.Save(rc.MetaCtx, db))
 }
 
 func (d *Db) DeleteDb(rc *req.Ctx) {
@@ -73,13 +71,14 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
+	ctx := rc.MetaCtx
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
 		dbId := uint64(value)
-		d.DbApp.Delete(dbId)
+		d.DbApp.Delete(ctx, dbId)
 		// 删除该库的sql执行记录
-		d.DbSqlExecApp.DeleteBy(&entity.DbSqlExec{DbId: dbId})
+		d.DbSqlExecApp.DeleteBy(ctx, &entity.DbSqlExec{DbId: dbId})
 	}
 }
 
@@ -91,7 +90,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	dbId := getDbId(g)
 	dbConn, err := d.DbApp.GetDbConn(dbId, form.Db)
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath), "%s")
 
 	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbConn.Info.GetLogDesc(), form.Sql)
 	biz.NotEmpty(form.Sql, "sql不能为空")
@@ -104,7 +103,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 		Db:           form.Db,
 		Remark:       form.Remark,
 		DbConn:       dbConn,
-		LoginAccount: rc.LoginAccount,
+		LoginAccount: rc.GetLoginAccount(),
 	}
 
 	sqls, err := sqlparser.SplitStatementToPieces(sql, sqlparser.WithDialect(dbConn.Info.Type.Dialect()))
@@ -163,7 +162,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath), "%s")
 	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
 
 	defer func() {
@@ -172,7 +171,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			if len(errInfo) > 300 {
 				errInfo = errInfo[:300] + "..."
 			}
-			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)).WithClientId(clientId))
+			d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.ErrSysMsg("sql脚本执行失败", fmt.Sprintf("[%s][%s]执行失败: [%s]", filename, dbConn.Info.GetLogDesc(), errInfo)).WithClientId(clientId))
 		}
 	}()
 
@@ -181,7 +180,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 		Db:           dbName,
 		Remark:       filename,
 		DbConn:       dbConn,
-		LoginAccount: rc.LoginAccount,
+		LoginAccount: rc.GetLoginAccount(),
 	}
 
 	var sql string
@@ -191,7 +190,8 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 	executedStatements := 0
 	progressId := stringx.Rand(32)
-	defer ws.SendJsonMsg(ws.UserId(rc.LoginAccount.Id), clientId, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+	laId := rc.GetLoginAccount().Id
+	defer ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
 		Id:                 progressId,
 		Title:              filename,
 		ExecutedStatements: executedStatements,
@@ -202,7 +202,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	for {
 		select {
 		case <-ticker.C:
-			ws.SendJsonMsg(ws.UserId(rc.LoginAccount.Id), clientId, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
+			ws.SendJsonMsg(ws.UserId(laId), clientId, msgdto.InfoSysMsg("sql脚本执行进度", &progressMsg{
 				Id:                 progressId,
 				Title:              filename,
 				ExecutedStatements: executedStatements,
@@ -231,7 +231,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			}
 			dbConn, err = d.DbApp.GetDbConn(dbId, stmtUse.DBName.String())
 			biz.ErrIsNil(err)
-			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, dbConn.Info.TagPath), "%s")
+			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(laId, dbConn.Info.TagPath), "%s")
 			execReq.DbConn = dbConn
 		}
 		// 需要记录执行记录
@@ -245,7 +245,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 		biz.ErrIsNilAppendErr(err, "%s")
 	}
-	d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)).WithClientId(clientId))
+	d.MsgApp.CreateAndSend(rc.GetLoginAccount(), msgdto.SuccessSysMsg("sql脚本执行成功", fmt.Sprintf("sql脚本执行完成：%s", rc.ReqParam)).WithClientId(clientId))
 }
 
 // 数据库dump
@@ -268,9 +268,10 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	// 是否需要导出数据
 	needData := dumpType == "2" || dumpType == "3"
 
+	la := rc.GetLoginAccount()
 	db, err := d.DbApp.GetById(new(entity.Db), dbId)
 	biz.ErrIsNil(err, "该数据库不存在")
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.LoginAccount.Id, db.TagPath), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(la.Id, db.TagPath), "%s")
 
 	now := time.Now()
 	filename := fmt.Sprintf("%s.%s.sql%s", db.Name, now.Format("20060102150405"), extName)
@@ -294,7 +295,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		if len(msg) > 0 {
 			msg = "数据库导出失败: " + msg
 			writer.WriteString(msg)
-			d.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.ErrSysMsg("数据库导出失败", msg))
+			d.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("数据库导出失败", msg))
 		}
 		writer.Close()
 	}()
@@ -442,73 +443,6 @@ func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
 	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetCreateTableDdl(tn)
 	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
 	rc.ResData = res
-}
-
-// @router /api/db/:dbId/sql [post]
-func (d *Db) SaveSql(rc *req.Ctx) {
-	g := rc.GinCtx
-	account := rc.LoginAccount
-	dbSqlForm := &form.DbSqlSaveForm{}
-	ginx.BindJsonAndValid(g, dbSqlForm)
-	rc.ReqParam = dbSqlForm
-
-	dbId := getDbId(g)
-	// 判断dbId是否存在
-	err := gormx.GetById(new(entity.Db), dbId)
-	biz.ErrIsNil(err, "该数据库信息不存在")
-
-	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-	dbSql := &entity.DbSql{Type: dbSqlForm.Type, DbId: dbId, Name: dbSqlForm.Name, Db: dbSqlForm.Db}
-	dbSql.CreatorId = account.Id
-	e := gormx.GetBy(dbSql)
-
-	dbSql.SetBaseInfo(account)
-	// 更新sql信息
-	dbSql.Sql = dbSqlForm.Sql
-	if e == nil {
-		gormx.UpdateById(dbSql)
-	} else {
-		gormx.Insert(dbSql)
-	}
-}
-
-// 获取所有保存的sql names
-func (d *Db) GetSqlNames(rc *req.Ctx) {
-	dbId := getDbId(rc.GinCtx)
-	dbName := getDbName(rc.GinCtx)
-	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
-	dbSql := &entity.DbSql{Type: 1, DbId: dbId, Db: dbName}
-	dbSql.CreatorId = rc.LoginAccount.Id
-	var sqls []entity.DbSql
-	gormx.ListBy(dbSql, &sqls, "id", "name")
-
-	rc.ResData = sqls
-}
-
-// 删除保存的sql
-func (d *Db) DeleteSql(rc *req.Ctx) {
-	dbSql := &entity.DbSql{Type: 1, DbId: getDbId(rc.GinCtx)}
-	dbSql.CreatorId = rc.LoginAccount.Id
-	dbSql.Name = rc.GinCtx.Query("name")
-	dbSql.Db = rc.GinCtx.Query("db")
-
-	biz.ErrIsNil(gormx.DeleteBy(dbSql))
-}
-
-// @router /api/db/:dbId/sql [get]
-func (d *Db) GetSql(rc *req.Ctx) {
-	dbId := getDbId(rc.GinCtx)
-	dbName := getDbName(rc.GinCtx)
-	// 根据创建者id， 数据库id，以及sql模板名称查询保存的sql信息
-	dbSql := &entity.DbSql{Type: 1, DbId: dbId, Db: dbName}
-	dbSql.CreatorId = rc.LoginAccount.Id
-	dbSql.Name = rc.GinCtx.Query("name")
-
-	e := gormx.GetBy(dbSql)
-	if e != nil {
-		return
-	}
-	rc.ResData = dbSql
 }
 
 func getDbId(g *gin.Context) uint64 {

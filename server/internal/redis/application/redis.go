@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/domain/repository"
 	"mayfly-go/internal/redis/rdm"
@@ -19,10 +20,10 @@ type Redis interface {
 
 	Count(condition *entity.RedisQuery) int64
 
-	Save(re *entity.Redis) error
+	Save(ctx context.Context, re *entity.Redis) error
 
 	// 删除数据库信息
-	Delete(id uint64) error
+	Delete(ctx context.Context, id uint64) error
 
 	// 获取数据库连接实例
 	// id: 数据库实例id
@@ -52,7 +53,7 @@ func (r *redisAppImpl) Count(condition *entity.RedisQuery) int64 {
 	return r.GetRepo().Count(condition)
 }
 
-func (r *redisAppImpl) Save(re *entity.Redis) error {
+func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis) error {
 	// ’修改信息且密码不为空‘ or ‘新增’需要测试是否可连接
 	if (re.Id != 0 && re.Password != "") || re.Id == 0 {
 		if err := r.TestConn(re); err != nil {
@@ -72,7 +73,7 @@ func (r *redisAppImpl) Save(re *entity.Redis) error {
 			return errorx.NewBiz("该实例已存在")
 		}
 		re.PwdEncrypt()
-		return r.Insert(re)
+		return r.Insert(ctx, re)
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
@@ -87,11 +88,11 @@ func (r *redisAppImpl) Save(re *entity.Redis) error {
 		}
 	}
 	re.PwdEncrypt()
-	return r.UpdateById(re)
+	return r.UpdateById(ctx, re)
 }
 
 // 删除Redis信息
-func (r *redisAppImpl) Delete(id uint64) error {
+func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 	re, err := r.GetById(new(entity.Redis), id)
 	if err != nil {
 		return errorx.NewBiz("该redis信息不存在")
@@ -101,7 +102,7 @@ func (r *redisAppImpl) Delete(id uint64) error {
 		db, _ := strconv.Atoi(dbStr)
 		rdm.CloseConn(re.Id, db)
 	}
-	return r.DeleteById(id)
+	return r.DeleteById(ctx, id)
 }
 
 // 获取数据库连接实例

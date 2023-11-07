@@ -44,8 +44,7 @@ func (c *AuthCert) SaveAuthCert(rc *req.Ctx) {
 	acForm.Password = "***"
 	rc.ReqParam = acForm
 
-	ac.SetBaseInfo(rc.LoginAccount)
-	biz.ErrIsNil(c.AuthCertApp.Save(ac))
+	biz.ErrIsNil(c.AuthCertApp.Save(rc.MetaCtx, ac))
 }
 
 func (c *AuthCert) Delete(rc *req.Ctx) {
@@ -56,6 +55,6 @@ func (c *AuthCert) Delete(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		c.AuthCertApp.DeleteById(uint64(value))
+		c.AuthCertApp.DeleteById(rc.MetaCtx, uint64(value))
 	}
 }

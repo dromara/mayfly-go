@@ -6,7 +6,6 @@ import (
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -32,9 +31,8 @@ func (r *Role) SaveRole(rc *req.Ctx) {
 	form := &form.RoleForm{}
 	role := ginx.BindJsonAndCopyTo(rc.GinCtx, form, new(entity.Role))
 	rc.ReqParam = form
-	role.SetBaseInfo(rc.LoginAccount)
 
-	r.RoleApp.SaveRole(role)
+	r.RoleApp.SaveRole(rc.MetaCtx, role)
 }
 
 // 删除角色及其资源关联关系
@@ -46,7 +44,7 @@ func (r *Role) DelRole(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		r.RoleApp.DeleteRole(uint64(value))
+		r.RoleApp.DeleteRole(rc.MetaCtx, uint64(value))
 	}
 }
 
@@ -77,5 +75,5 @@ func (r *Role) SaveResource(rc *req.Ctx) {
 		return uint64(id)
 	})
 
-	r.RoleApp.SaveRoleResource(contextx.NewLoginAccount(rc.LoginAccount), form.Id, newIds)
+	r.RoleApp.SaveRoleResource(rc.MetaCtx, form.Id, newIds)
 }

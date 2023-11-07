@@ -1,47 +1,50 @@
 package base
 
 import (
+	"context"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/gormx"
+	"mayfly-go/pkg/model"
 
 	"gorm.io/gorm"
 )
 
 // 基础repo接口
-type Repo[T any] interface {
+type Repo[T model.ModelI] interface {
 
 	// 新增一个实体
-	Insert(e T) error
+	Insert(ctx context.Context, e T) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	InsertWithDb(db *gorm.DB, e T) error
+	InsertWithDb(ctx context.Context, db *gorm.DB, e T) error
 
 	// 批量新增实体
-	BatchInsert(models []T) error
+	BatchInsert(ctx context.Context, models []T) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	BatchInsertWithDb(db *gorm.DB, es []T) error
+	BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []T) error
 
 	// 根据实体id更新实体信息
-	UpdateById(e T) error
+	UpdateById(ctx context.Context, e T) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	UpdateByIdWithDb(db *gorm.DB, e T) error
+	UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T) error
 
 	// 根据实体主键删除实体
-	DeleteById(id uint64) error
+	DeleteById(ctx context.Context, id uint64) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	DeleteByIdWithDb(db *gorm.DB, id uint64) error
+	DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error
 
 	// 根据实体条件，更新参数udpateFields指定字段
 	Updates(cond any, udpateFields map[string]any) error
 
 	// 根据实体条件删除实体
-	DeleteByCond(cond any) error
+	DeleteByCond(ctx context.Context, cond any) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	DeleteByCondWithDb(db *gorm.DB, cond any) error
+	DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error
 
 	// 根据实体id查询
 	GetById(e T, id uint64, cols ...string) error
@@ -66,52 +69,58 @@ type Repo[T any] interface {
 }
 
 // 基础repo接口
-type RepoImpl[T any] struct {
+type RepoImpl[T model.ModelI] struct {
 	M any // 模型实例
 }
 
-func (br *RepoImpl[T]) Insert(e T) error {
-	return gormx.Insert(e)
+func (br *RepoImpl[T]) Insert(ctx context.Context, e T) error {
+	return gormx.Insert(br.setBaseInfo(ctx, e))
 }
 
-func (br *RepoImpl[T]) InsertWithDb(db *gorm.DB, e T) error {
-	return gormx.InsertWithDb(db, e)
+func (br *RepoImpl[T]) InsertWithDb(ctx context.Context, db *gorm.DB, e T) error {
+	return gormx.InsertWithDb(db, br.setBaseInfo(ctx, e))
 }
 
-func (br *RepoImpl[T]) BatchInsert(es []T) error {
+func (br *RepoImpl[T]) BatchInsert(ctx context.Context, es []T) error {
+	for _, e := range es {
+		br.setBaseInfo(ctx, e)
+	}
 	return gormx.BatchInsert(es)
 }
 
 // 使用指定gorm db执行，主要用于事务执行
-func (br *RepoImpl[T]) BatchInsertWithDb(db *gorm.DB, es []T) error {
+func (br *RepoImpl[T]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []T) error {
+	for _, e := range es {
+		br.setBaseInfo(ctx, e)
+	}
 	return gormx.BatchInsertWithDb(db, es)
 }
 
-func (br *RepoImpl[T]) UpdateById(e T) error {
-	return gormx.UpdateById(e)
+func (br *RepoImpl[T]) UpdateById(ctx context.Context, e T) error {
+	return gormx.UpdateById(br.setBaseInfo(ctx, e))
 }
 
-func (br *RepoImpl[T]) UpdateByIdWithDb(db *gorm.DB, e T) error {
-	return gormx.UpdateByIdWithDb(db, e)
+func (br *RepoImpl[T]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T) error {
+	return gormx.UpdateByIdWithDb(db, br.setBaseInfo(ctx, e))
 }
 
 func (br *RepoImpl[T]) Updates(cond any, udpateFields map[string]any) error {
 	return gormx.Updates(cond, udpateFields)
 }
 
-func (br *RepoImpl[T]) DeleteById(id uint64) error {
+func (br *RepoImpl[T]) DeleteById(ctx context.Context, id uint64) error {
 	return gormx.DeleteById(br.getModel(), id)
 }
 
-func (br *RepoImpl[T]) DeleteByIdWithDb(db *gorm.DB, id uint64) error {
+func (br *RepoImpl[T]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error {
 	return gormx.DeleteByCondWithDb(db, br.getModel(), id)
 }
 
-func (br *RepoImpl[T]) DeleteByCond(cond any) error {
+func (br *RepoImpl[T]) DeleteByCond(ctx context.Context, cond any) error {
 	return gormx.DeleteByCond(br.getModel(), cond)
 }
 
-func (br *RepoImpl[T]) DeleteByCondWithDb(db *gorm.DB, cond any) error {
+func (br *RepoImpl[T]) DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error {
 	return gormx.DeleteByCondWithDb(db, br.getModel(), cond)
 }
 
@@ -146,4 +155,12 @@ func (br *RepoImpl[T]) CountByCond(cond any) int64 {
 func (br *RepoImpl[T]) getModel() any {
 	biz.IsTrue(br.M != nil, "base.RepoImpl的M字段不能为空")
 	return br.M
+}
+
+// 从上下文获取登录账号信息，并赋值至实体
+func (br *RepoImpl[T]) setBaseInfo(ctx context.Context, e T) T {
+	if la := contextx.GetLoginAccount(ctx); la != nil {
+		e.SetBaseInfo(la)
+	}
+	return e
 }

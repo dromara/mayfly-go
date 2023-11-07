@@ -38,8 +38,6 @@ func (s *System) ConnectWs(g *gin.Context) {
 	biz.ErrIsNil(err, "sys websocket没有权限连接")
 
 	// 登录账号信息
-	la := rc.LoginAccount
-	if la != nil {
-		ws.AddClient(ws.UserId(la.Id), clientId, wsConn)
-	}
+	la := rc.GetLoginAccount()
+	ws.AddClient(ws.UserId(la.Id), clientId, wsConn)
 }

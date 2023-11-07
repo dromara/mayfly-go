@@ -23,7 +23,7 @@ type Index struct {
 }
 
 func (i *Index) Count(rc *req.Ctx) {
-	accountId := rc.LoginAccount.Id
+	accountId := rc.GetLoginAccount().Id
 	tagIds := i.TagApp.ListTagIdByAccountId(accountId)
 
 	var mongoNum int64

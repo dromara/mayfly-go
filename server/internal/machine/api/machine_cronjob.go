@@ -35,12 +35,12 @@ func (m *MachineCronJob) Save(rc *req.Ctx) {
 	jobForm := new(form.MachineCronJobForm)
 	mcj := ginx.BindJsonAndCopyTo[*entity.MachineCronJob](rc.GinCtx, jobForm, new(entity.MachineCronJob))
 	rc.ReqParam = jobForm
-	mcj.SetBaseInfo(rc.LoginAccount)
-	cronJobId, err := m.MachineCronJobApp.Save(mcj)
+
+	cronJobId, err := m.MachineCronJobApp.Save(rc.MetaCtx, mcj)
 	biz.ErrIsNil(err)
 
 	// 关联机器
-	m.MachineCronJobApp.CronJobRelateMachines(cronJobId, jobForm.MachineIds, rc.LoginAccount)
+	m.MachineCronJobApp.CronJobRelateMachines(rc.MetaCtx, cronJobId, jobForm.MachineIds)
 }
 
 func (m *MachineCronJob) Delete(rc *req.Ctx) {
@@ -51,7 +51,7 @@ func (m *MachineCronJob) Delete(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		m.MachineCronJobApp.Delete(uint64(value))
+		m.MachineCronJobApp.Delete(rc.MetaCtx, uint64(value))
 	}
 }
 

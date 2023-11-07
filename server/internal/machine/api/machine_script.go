@@ -37,9 +37,7 @@ func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {
 	machineScript := ginx.BindJsonAndCopyTo(rc.GinCtx, form, new(entity.MachineScript))
 
 	rc.ReqParam = form
-	machineScript.SetBaseInfo(rc.LoginAccount)
-
-	biz.ErrIsNil(m.MachineScriptApp.Save(machineScript))
+	biz.ErrIsNil(m.MachineScriptApp.Save(rc.MetaCtx, machineScript))
 }
 
 func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
@@ -50,7 +48,7 @@ func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		m.MachineScriptApp.Delete(uint64(value))
+		m.MachineScriptApp.Delete(rc.MetaCtx, uint64(value))
 	}
 }
 
@@ -71,7 +69,7 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	}
 	cli, err := m.MachineApp.GetCli(machineId)
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.Info.TagPath), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath), "%s")
 
 	res, err := cli.Run(script)
 	// 记录请求参数

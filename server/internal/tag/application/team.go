@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/biz"
@@ -14,17 +15,17 @@ type Team interface {
 	// 分页获取项目团队信息列表
 	GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Save(team *entity.Team) error
+	Save(ctx context.Context, team *entity.Team) error
 
-	Delete(id uint64) error
+	Delete(ctx context.Context, id uint64) error
 
 	//--------------- 团队成员相关接口 ---------------
 
 	GetMemberPage(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) (*model.PageResult[any], error)
 
-	SaveMember(tagTeamMember *entity.TeamMember)
+	SaveMember(ctx context.Context, tagTeamMember *entity.TeamMember)
 
-	DeleteMember(teamId, accountId uint64)
+	DeleteMember(tx context.Context, teamId, accountId uint64)
 
 	IsExistMember(teamId, accounId uint64) bool
 
@@ -32,9 +33,9 @@ type Team interface {
 
 	ListTagIds(teamId uint64) []uint64
 
-	SaveTag(tagTeam *entity.TagTreeTeam) error
+	SaveTag(ctx context.Context, tagTeam *entity.TagTreeTeam) error
 
-	DeleteTag(teamId, tagId uint64) error
+	DeleteTag(tx context.Context, teamId, tagId uint64) error
 }
 
 func newTeamApp(teamRepo repository.Team,
@@ -58,23 +59,23 @@ func (p *teamAppImpl) GetPageList(condition *entity.Team, pageParam *model.PageP
 	return p.teamRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (p *teamAppImpl) Save(team *entity.Team) error {
+func (p *teamAppImpl) Save(ctx context.Context, team *entity.Team) error {
 	if team.Id == 0 {
-		return p.teamRepo.Insert(team)
+		return p.teamRepo.Insert(ctx, team)
 	}
-	return p.teamRepo.UpdateById(team)
+	return p.teamRepo.UpdateById(ctx, team)
 }
 
-func (p *teamAppImpl) Delete(id uint64) error {
+func (p *teamAppImpl) Delete(ctx context.Context, id uint64) error {
 	return gormx.Tx(
 		func(db *gorm.DB) error {
-			return p.teamRepo.DeleteByIdWithDb(db, id)
+			return p.teamRepo.DeleteByIdWithDb(ctx, db, id)
 		},
 		func(db *gorm.DB) error {
-			return p.teamMemberRepo.DeleteByCondWithDb(db, &entity.TeamMember{TeamId: id})
+			return p.teamMemberRepo.DeleteByCondWithDb(ctx, db, &entity.TeamMember{TeamId: id})
 		},
 		func(db *gorm.DB) error {
-			return p.tagTreeTeamRepo.DeleteByCondWithDb(db, &entity.TagTreeTeam{TeamId: id})
+			return p.tagTreeTeamRepo.DeleteByCondWithDb(ctx, db, &entity.TagTreeTeam{TeamId: id})
 		},
 	)
 }
@@ -86,15 +87,15 @@ func (p *teamAppImpl) GetMemberPage(condition *entity.TeamMember, pageParam *mod
 }
 
 // 保存团队成员信息
-func (p *teamAppImpl) SaveMember(teamMember *entity.TeamMember) {
+func (p *teamAppImpl) SaveMember(ctx context.Context, teamMember *entity.TeamMember) {
 	teamMember.Id = 0
 	biz.IsTrue(!p.teamMemberRepo.IsExist(teamMember.TeamId, teamMember.AccountId), "该成员已存在")
-	p.teamMemberRepo.Insert(teamMember)
+	p.teamMemberRepo.Insert(ctx, teamMember)
 }
 
 // 删除团队成员信息
-func (p *teamAppImpl) DeleteMember(teamId, accountId uint64) {
-	p.teamMemberRepo.DeleteByCond(&entity.TeamMember{TeamId: teamId, AccountId: accountId})
+func (p *teamAppImpl) DeleteMember(ctx context.Context, teamId, accountId uint64) {
+	p.teamMemberRepo.DeleteByCond(ctx, &entity.TeamMember{TeamId: teamId, AccountId: accountId})
 }
 
 func (p *teamAppImpl) IsExistMember(teamId, accounId uint64) bool {
@@ -114,12 +115,12 @@ func (p *teamAppImpl) ListTagIds(teamId uint64) []uint64 {
 }
 
 // 保存关联项目信息
-func (p *teamAppImpl) SaveTag(tagTreeTeam *entity.TagTreeTeam) error {
+func (p *teamAppImpl) SaveTag(ctx context.Context, tagTreeTeam *entity.TagTreeTeam) error {
 	tagTreeTeam.Id = 0
-	return p.tagTreeTeamRepo.Insert(tagTreeTeam)
+	return p.tagTreeTeamRepo.Insert(ctx, tagTreeTeam)
 }
 
 // 删除关联项目信息
-func (p *teamAppImpl) DeleteTag(teamId, tagId uint64) error {
-	return p.tagTreeTeamRepo.DeleteByCond(&entity.TagTreeTeam{TeamId: teamId, TagId: tagId})
+func (p *teamAppImpl) DeleteTag(ctx context.Context, teamId, tagId uint64) error {
+	return p.tagTreeTeamRepo.DeleteByCond(ctx, &entity.TagTreeTeam{TeamId: teamId, TagId: tagId})
 }

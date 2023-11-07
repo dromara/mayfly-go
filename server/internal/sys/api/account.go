@@ -35,7 +35,7 @@ type Account struct {
 
 // 获取当前登录用户的菜单与权限码
 func (a *Account) GetPermissions(rc *req.Ctx) {
-	account := rc.LoginAccount
+	account := rc.GetLoginAccount()
 
 	var resources vo.AccountResourceVOList
 	// 获取账号菜单资源
@@ -78,15 +78,13 @@ func (a *Account) ChangePassword(rc *req.Ctx) {
 	updateAccount := new(entity.Account)
 	updateAccount.Id = account.Id
 	updateAccount.Password = cryptox.PwdHash(originNewPwd)
-	biz.ErrIsNil(a.AccountApp.Update(updateAccount), "更新账号密码失败")
+	biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, updateAccount), "更新账号密码失败")
 
 	// 赋值loginAccount 主要用于记录操作日志，因为操作日志保存请求上下文没有该信息不保存日志
-	if rc.LoginAccount == nil {
-		rc.LoginAccount = &model.LoginAccount{
-			Id:       account.Id,
-			Username: account.Username,
-		}
-	}
+	contextx.WithLoginAccount(rc.MetaCtx, &model.LoginAccount{
+		Id:       account.Id,
+		Username: account.Username,
+	})
 }
 
 // 获取个人账号信息
@@ -94,7 +92,7 @@ func (a *Account) AccountInfo(rc *req.Ctx) {
 	ap := new(vo.AccountPersonVO)
 	// 角色信息
 	roles := new([]vo.AccountRoleVO)
-	a.RoleApp.GetAccountRoles(rc.LoginAccount.Id, roles)
+	a.RoleApp.GetAccountRoles(rc.GetLoginAccount().Id, roles)
 
 	ap.Roles = *roles
 	rc.ResData = ap
@@ -104,7 +102,7 @@ func (a *Account) AccountInfo(rc *req.Ctx) {
 func (a *Account) UpdateAccount(rc *req.Ctx) {
 	updateAccount := ginx.BindJsonAndCopyTo[*entity.Account](rc.GinCtx, new(form.AccountUpdateForm), new(entity.Account))
 	// 账号id为登录者账号
-	updateAccount.Id = rc.LoginAccount.Id
+	updateAccount.Id = rc.GetLoginAccount().Id
 
 	if updateAccount.Password != "" {
 		biz.IsTrue(utils.CheckAccountPasswordLever(updateAccount.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
@@ -118,7 +116,7 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 		// 禁止更新用户名，防止误传被更新
 		updateAccount.Username = ""
 	}
-	biz.ErrIsNil(a.AccountApp.Update(updateAccount))
+	biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, updateAccount))
 }
 
 /**    后台账号操作    **/
@@ -139,10 +137,9 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 
 	form.Password = "*****"
 	rc.ReqParam = form
-	account.SetBaseInfo(rc.LoginAccount)
 
 	if account.Id == 0 {
-		biz.ErrIsNil(a.AccountApp.Create(account))
+		biz.ErrIsNil(a.AccountApp.Create(rc.MetaCtx, account))
 	} else {
 		if account.Password != "" {
 			biz.IsTrue(utils.CheckAccountPasswordLever(account.Password), "密码强度必须8位以上且包含字⺟⼤⼩写+数字+特殊符号")
@@ -150,7 +147,7 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 		}
 		// 更新操作不允许修改用户名、防止误传更新
 		account.Username = ""
-		biz.ErrIsNil(a.AccountApp.Update(account))
+		biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, account))
 	}
 }
 
@@ -161,7 +158,7 @@ func (a *Account) ChangeStatus(rc *req.Ctx) {
 	account.Id = uint64(ginx.PathParamInt(g, "id"))
 	account.Status = int8(ginx.PathParamInt(g, "status"))
 	rc.ReqParam = collx.Kvs("accountId", account.Id, "status", account.Status)
-	biz.ErrIsNil(a.AccountApp.Update(account))
+	biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, account))
 }
 
 func (a *Account) DeleteAccount(rc *req.Ctx) {
@@ -172,7 +169,7 @@ func (a *Account) DeleteAccount(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		biz.ErrIsNilAppendErr(a.AccountApp.Delete(uint64(value)), "删除失败：%s")
+		biz.ErrIsNilAppendErr(a.AccountApp.Delete(rc.MetaCtx, uint64(value)), "删除失败：%s")
 	}
 }
 
@@ -207,7 +204,7 @@ func (a *Account) SaveRoles(rc *req.Ctx) {
 		return uint64(id)
 	})
 
-	a.RoleApp.SaveAccountRole(contextx.NewLoginAccount(rc.LoginAccount), form.Id, newIds)
+	a.RoleApp.SaveAccountRole(rc.MetaCtx, form.Id, newIds)
 }
 
 // 重置otp秘钥
@@ -216,5 +213,5 @@ func (a *Account) ResetOtpSecret(rc *req.Ctx) {
 	accountId := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
 	account.Id = accountId
 	rc.ReqParam = collx.Kvs("accountId", accountId)
-	biz.ErrIsNil(a.AccountApp.Update(account))
+	biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, account))
 }

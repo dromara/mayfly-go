@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"encoding/json"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
@@ -20,7 +21,7 @@ type Config interface {
 
 	GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Save(config *entity.Config) error
+	Save(ctx context.Context, config *entity.Config) error
 
 	// GetConfig 获取指定key的配置信息, 不会返回nil, 若不存在则值都默认值即空字符串
 	GetConfig(key string) *entity.Config
@@ -41,9 +42,9 @@ func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam *model.P
 	return a.GetRepo().GetPageList(condition, pageParam, toEntity)
 }
 
-func (a *configAppImpl) Save(config *entity.Config) error {
+func (a *configAppImpl) Save(ctx context.Context, config *entity.Config) error {
 	if config.Id == 0 {
-		if err := a.Insert(config); err != nil {
+		if err := a.Insert(ctx, config); err != nil {
 			return err
 		}
 	} else {
@@ -52,7 +53,7 @@ func (a *configAppImpl) Save(config *entity.Config) error {
 			return errorx.NewBiz("您无权修改该配置")
 		}
 
-		if err := a.UpdateById(config); err != nil {
+		if err := a.UpdateById(ctx, config); err != nil {
 			return err
 		}
 	}

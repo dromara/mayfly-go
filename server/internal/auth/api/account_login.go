@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"mayfly-go/internal/auth/api/form"
@@ -107,7 +108,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 		update := &sysentity.Account{OtpSecret: otpSecret}
 		update.Id = accountId
 		update.OtpSecretEncrypt()
-		biz.ErrIsNil(a.AccountApp.Update(update))
+		biz.ErrIsNil(a.AccountApp.Update(context.Background(), update))
 	}
 
 	la := &sysentity.Account{Username: otpInfo.Username}
@@ -119,6 +120,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 }
 
 func (a *AccountLogin) Logout(rc *req.Ctx) {
-	req.GetPermissionCodeRegistery().Remove(rc.LoginAccount.Id)
-	ws.CloseClient(ws.UserId(rc.LoginAccount.Id))
+	la := rc.GetLoginAccount()
+	req.GetPermissionCodeRegistery().Remove(la.Id)
+	ws.CloseClient(ws.UserId(la.Id))
 }

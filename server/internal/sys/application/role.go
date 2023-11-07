@@ -17,9 +17,9 @@ import (
 type Role interface {
 	GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	SaveRole(role *entity.Role) error
+	SaveRole(ctx context.Context, role *entity.Role) error
 
-	DeleteRole(id uint64) error
+	DeleteRole(ctx context.Context, id uint64) error
 
 	GetRoleResourceIds(roleId uint64) []uint64
 
@@ -29,7 +29,7 @@ type Role interface {
 	SaveRoleResource(ctx context.Context, roleId uint64, resourceIds []uint64)
 
 	// 删除角色资源关联记录
-	DeleteRoleResource(roleId uint64, resourceId uint64)
+	DeleteRoleResource(ctx context.Context, roleId uint64, resourceId uint64)
 
 	// 获取账号角色id列表
 	GetAccountRoleIds(accountId uint64) []uint64
@@ -37,7 +37,7 @@ type Role interface {
 	// 保存账号角色关联信息
 	SaveAccountRole(ctx context.Context, accountId uint64, roleIds []uint64)
 
-	DeleteAccountRole(accountId, roleId uint64)
+	DeleteAccountRole(ctx context.Context, accountId, roleId uint64)
 
 	GetAccountRoles(accountId uint64, toEntity any)
 }
@@ -56,7 +56,7 @@ func (m *roleAppImpl) GetPageList(condition *entity.Role, pageParam *model.PageP
 	return m.roleRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (m *roleAppImpl) SaveRole(role *entity.Role) error {
+func (m *roleAppImpl) SaveRole(ctx context.Context, role *entity.Role) error {
 	role.Code = strings.ToUpper(role.Code)
 	if role.Id != 0 {
 		// code不可更改，防止误传
@@ -68,11 +68,11 @@ func (m *roleAppImpl) SaveRole(role *entity.Role) error {
 	return gormx.Insert(role)
 }
 
-func (m *roleAppImpl) DeleteRole(id uint64) error {
+func (m *roleAppImpl) DeleteRole(ctx context.Context, id uint64) error {
 	// 删除角色与资源的关联关系
 	return gormx.Tx(
 		func(db *gorm.DB) error {
-			return m.roleRepo.DeleteByIdWithDb(db, id)
+			return m.roleRepo.DeleteByIdWithDb(ctx, db, id)
 		},
 		func(db *gorm.DB) error {
 			return gormx.DeleteByWithDb(db, &entity.RoleResource{RoleId: id})
@@ -110,11 +110,11 @@ func (m *roleAppImpl) SaveRoleResource(ctx context.Context, roleId uint64, resou
 	m.roleRepo.SaveRoleResource(addVals)
 
 	for _, v := range delIds {
-		m.DeleteRoleResource(roleId, v)
+		m.DeleteRoleResource(ctx, roleId, v)
 	}
 }
 
-func (m *roleAppImpl) DeleteRoleResource(roleId uint64, resourceId uint64) {
+func (m *roleAppImpl) DeleteRoleResource(ctx context.Context, roleId uint64, resourceId uint64) {
 	m.roleRepo.DeleteRoleResource(roleId, resourceId)
 }
 
@@ -140,11 +140,11 @@ func (m *roleAppImpl) SaveAccountRole(ctx context.Context, accountId uint64, rol
 		m.roleRepo.SaveAccountRole(rr)
 	}
 	for _, v := range delIds {
-		m.DeleteAccountRole(accountId, v)
+		m.DeleteAccountRole(ctx, accountId, v)
 	}
 }
 
-func (m *roleAppImpl) DeleteAccountRole(accountId, roleId uint64) {
+func (m *roleAppImpl) DeleteAccountRole(ctx context.Context, accountId, roleId uint64) {
 	m.roleRepo.DeleteAccountRole(accountId, roleId)
 }
 

@@ -39,7 +39,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	condition, pageParam := ginx.BindQueryAndPage(rc.GinCtx, new(entity.MachineQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	tagIds := m.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
+	tagIds := m.TagApp.ListTagIdByAccountId(rc.GetLoginAccount().Id)
 	if len(tagIds) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
@@ -55,12 +55,20 @@ func (m *Machine) Machines(rc *req.Ctx) {
 
 	for _, mv := range *res.List {
 		mv.HasCli = mcm.HasCli(mv.Id)
+		if machineStats, err := m.MachineApp.GetMachineStats(mv.Id); err == nil {
+			mv.Stat = collx.M{
+				"cpuIdle":      machineStats.CPU.Idle,
+				"memAvailable": machineStats.MemInfo.Available,
+				"memTotal":     machineStats.MemInfo.Total,
+				"fsInfos":      machineStats.FSInfos,
+			}
+		}
 	}
 	rc.ResData = res
 }
 
 func (m *Machine) MachineTags(rc *req.Ctx) {
-	rc.ResData = m.TagApp.ListTagByAccountIdAndResource(rc.LoginAccount.Id, new(entity.Machine))
+	rc.ResData = m.TagApp.ListTagByAccountIdAndResource(rc.GetLoginAccount().Id, new(entity.Machine))
 }
 
 func (m *Machine) MachineStats(rc *req.Ctx) {
@@ -77,8 +85,7 @@ func (m *Machine) SaveMachine(rc *req.Ctx) {
 	machineForm.Password = "******"
 	rc.ReqParam = machineForm
 
-	me.SetBaseInfo(rc.LoginAccount)
-	biz.ErrIsNil(m.MachineApp.Save(me))
+	biz.ErrIsNil(m.MachineApp.Save(rc.MetaCtx, me))
 }
 
 func (m *Machine) TestConn(rc *req.Ctx) {
@@ -92,7 +99,7 @@ func (m *Machine) ChangeStatus(rc *req.Ctx) {
 	id := uint64(ginx.PathParamInt(g, "machineId"))
 	status := int8(ginx.PathParamInt(g, "status"))
 	rc.ReqParam = collx.Kvs("id", id, "status", status)
-	biz.ErrIsNil(m.MachineApp.ChangeStatus(id, status))
+	biz.ErrIsNil(m.MachineApp.ChangeStatus(rc.MetaCtx, id, status))
 }
 
 func (m *Machine) DeleteMachine(rc *req.Ctx) {
@@ -103,7 +110,7 @@ func (m *Machine) DeleteMachine(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		m.MachineApp.Delete(uint64(value))
+		m.MachineApp.Delete(rc.MetaCtx, uint64(value))
 	}
 }
 
@@ -133,7 +140,7 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.Info.TagPath), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath), "%s")
 
 	res, err := cli.Run(cmd)
 	biz.ErrIsNilAppendErr(err, "获取进程信息失败: %s")
@@ -147,7 +154,7 @@ func (m *Machine) KillProcess(rc *req.Ctx) {
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.Info.TagPath), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath), "%s")
 
 	res, err := cli.Run("sudo kill -9 " + pid)
 	biz.ErrIsNil(err, "终止进程失败: %s", res)
@@ -173,7 +180,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(g))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.LoginAccount.Id, cli.Info.TagPath), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath), "%s")
 
 	cols := ginx.QueryInt(g, "cols", 80)
 	rows := ginx.QueryInt(g, "rows", 40)
@@ -182,7 +189,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	if cli.Info.EnableRecorder == 1 {
 		now := time.Now()
 		// 回放文件路径为: 基础配置路径/机器id/操作日期/操作者账号/操作时间.cast
-		recPath := fmt.Sprintf("%s/%d/%s/%s", config.Conf.Server.GetMachineRecPath(), cli.Info.Id, now.Format("20060102"), rc.LoginAccount.Username)
+		recPath := fmt.Sprintf("%s/%d/%s/%s", config.Conf.Server.GetMachineRecPath(), cli.Info.Id, now.Format("20060102"), rc.GetLoginAccount().Username)
 		os.MkdirAll(recPath, 0766)
 		fileName := path.Join(recPath, fmt.Sprintf("%s.cast", now.Format("20060102_150405")))
 		f, err := os.OpenFile(fileName, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0766)

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"mayfly-go/internal/auth/api/form"
@@ -88,10 +89,10 @@ func (a *LdapLogin) createUser(userName, displayName string) {
 	account := &sysentity.Account{Username: userName}
 	account.SetBaseInfo(nil)
 	account.Name = displayName
-	biz.ErrIsNil(a.AccountApp.Create(account))
+	biz.ErrIsNil(a.AccountApp.Create(context.TODO(), account))
 	// 将 LADP 用户本地密码设置为空，不允许本地登录
 	account.Password = cryptox.PwdHash("")
-	biz.ErrIsNil(a.AccountApp.Update(account))
+	biz.ErrIsNil(a.AccountApp.Update(context.TODO(), account))
 }
 
 func (a *LdapLogin) getOrCreateUserWithLdap(userName string, password string, cols ...string) (*sysentity.Account, error) {

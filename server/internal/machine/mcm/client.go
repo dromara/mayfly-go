@@ -42,7 +42,13 @@ func (c *Cli) GetSession() (*ssh.Session, error) {
 	if c.sshClient == nil {
 		return nil, errorx.NewBiz("请先进行机器客户端连接")
 	}
-	return c.sshClient.NewSession()
+	session, err := c.sshClient.NewSession()
+	if err != nil {
+		// 获取session失败，则关闭cli，重试
+		DeleteCli(c.Info.Id)
+		return nil, errorx.NewBiz("请重试...")
+	}
+	return session, nil
 }
 
 // 执行shell
@@ -51,7 +57,6 @@ func (c *Cli) GetSession() (*ssh.Session, error) {
 func (c *Cli) Run(shell string) (string, error) {
 	session, err := c.GetSession()
 	if err != nil {
-		c.Close()
 		return "", err
 	}
 	defer session.Close()
@@ -67,6 +72,10 @@ func (c *Cli) GetAllStats() *Stats {
 	res, _ := c.Run(StatsShell)
 	infos := strings.Split(res, "-----")
 	stats := new(Stats)
+	if len(infos) < 8 {
+		logx.Warnf("获取机器[id=%d, name=%s]的状态信息失败", c.Info.Id, c.Info.Name)
+		return stats
+	}
 	getUptime(infos[0], stats)
 	getHostname(infos[1], stats)
 	getLoad(infos[2], stats)

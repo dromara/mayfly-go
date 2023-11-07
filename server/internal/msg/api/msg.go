@@ -15,7 +15,7 @@ type Msg struct {
 // 获取账号接收的消息列表
 func (m *Msg) GetMsgs(rc *req.Ctx) {
 	condition := &entity.Msg{
-		RecipientId: int64(rc.LoginAccount.Id),
+		RecipientId: int64(rc.GetLoginAccount().Id),
 	}
 	res, err := m.MsgApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]entity.Msg))
 	biz.ErrIsNil(err)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -34,7 +35,7 @@ func (m *syslogAppImpl) GetPageList(condition *entity.SysLogQuery, pageParam *mo
 }
 
 func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
-	lg := req.LoginAccount
+	lg := contextx.GetLoginAccount(req.MetaCtx)
 	if lg == nil {
 		lg = &model.LoginAccount{Id: 0, Username: "-"}
 	}
@@ -74,5 +75,5 @@ func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 		syslog.Type = entity.SyslogTypeNorman
 	}
 
-	m.syslogRepo.Insert(syslog)
+	m.syslogRepo.Insert(req.MetaCtx, syslog)
 }

@@ -118,10 +118,10 @@ const props = defineProps({
         required: true,
     },
     // sql脚本名，若有则去加载该sql内容
-    sqlName: {
-        type: String,
-        default: '',
-    },
+    // sqlName: {
+    //     type: String,
+    //     default: '',
+    // },
     editorHeight: {
         type: String,
         default: '600',
@@ -153,7 +153,7 @@ const state = reactive({
     hasUpdatedFileds: false,
 });
 
-const { tableDataHeight, ti, execRes, table, loading, hasUpdatedFileds } = toRefs(state);
+const { tableDataHeight, ti, execRes, table, sqlName, loading, hasUpdatedFileds } = toRefs(state);
 
 watch(
     () => props.editorHeight,

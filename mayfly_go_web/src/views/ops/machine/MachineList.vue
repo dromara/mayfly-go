@@ -37,6 +37,36 @@
                 </el-link>
             </template>
 
+            <template #stat="{ data }">
+                <span v-if="!data.stat">-</span>
+                <div v-else>
+                    <el-row>
+                        <el-text size="small" style="font-size: 10px">
+                            内存(可用/总):
+                            <span :class="getStatsFontClass(data.stat.memAvailable, data.stat.memTotal)"
+                                >{{ formatByteSize(data.stat.memAvailable, 1) }}/{{ formatByteSize(data.stat.memTotal, 1) }}
+                            </span>
+                        </el-text>
+                    </el-row>
+                    <el-row>
+                        <el-text style="font-size: 10px" size="small">
+                            CPU(空闲): <span :class="getStatsFontClass(data.stat.cpuIdle, 100)">{{ data.stat.cpuIdle.toFixed(0) }}%</span>
+                        </el-text>
+                    </el-row>
+                </div>
+            </template>
+
+            <template #fs="{ data }">
+                <span v-if="!data.stat?.fsInfos">-</span>
+                <div v-else>
+                    <el-row v-for="i in data.stat.fsInfos.slice(0, 2)" :key="i.mountPoint">
+                        <el-text style="font-size: 10px" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
+                            {{ i.mountPoint }} => {{ formatByteSize(i.free, 0) }}/{{ formatByteSize(i.used + i.free, 0) }}
+                        </el-text>
+                    </el-row>
+                </div>
+            </template>
+
             <template #status="{ data }">
                 <el-switch
                     v-auth:disabled="'machine:update'"
@@ -168,6 +198,7 @@ import TagInfo from '../component/TagInfo.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
+import { formatByteSize } from '@/common/utils/format';
 
 // 组件
 const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
@@ -196,6 +227,8 @@ const columns = ref([
     TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
+    TableColumn.new('stat', '运行状态').isSlot().setAddWidth(50),
+    TableColumn.new('fs', '磁盘(挂载点=>可用/总)').isSlot().setAddWidth(20),
     TableColumn.new('username', '用户名'),
     TableColumn.new('status', '状态').isSlot().setMinWidth(85),
     TableColumn.new('remark', '备注'),
@@ -406,6 +439,18 @@ const search = async () => {
     } finally {
         pageTableRef.value.loading(false);
     }
+};
+
+const getStatsFontClass = (availavle: number, total: number) => {
+    const p = availavle / total;
+    if (p < 0.1) {
+        return 'color-danger';
+    }
+    if (p < 0.2) {
+        return 'color-warning';
+    }
+
+    return 'color-success';
 };
 
 const showInfo = (info: any) => {

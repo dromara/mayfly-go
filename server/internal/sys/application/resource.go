@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
@@ -15,13 +16,13 @@ import (
 type Resource interface {
 	base.App[*entity.Resource]
 
-	Save(entity *entity.Resource) error
+	Save(ctx context.Context, entity *entity.Resource) error
 
-	Delete(id uint64) error
+	Delete(ctx context.Context, id uint64) error
 
-	ChangeStatus(resourceId uint64, status int8) error
+	ChangeStatus(ctx context.Context, resourceId uint64, status int8) error
 
-	Sort(re *entity.Resource) error
+	Sort(ctx context.Context, re *entity.Resource) error
 
 	GetAccountResources(accountId uint64, toEntity any) error
 }
@@ -36,7 +37,7 @@ type resourceAppImpl struct {
 	base.AppImpl[*entity.Resource, repository.Resource]
 }
 
-func (r *resourceAppImpl) Save(resource *entity.Resource) error {
+func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) error {
 	// 更新操作
 	if resource.Id != 0 {
 		if resource.Code != "" {
@@ -51,7 +52,7 @@ func (r *resourceAppImpl) Save(resource *entity.Resource) error {
 				}
 			}
 		}
-		return gormx.UpdateById(resource)
+		return r.UpdateById(ctx, resource)
 	}
 
 	// 生成随机八位唯一标识符
@@ -73,10 +74,10 @@ func (r *resourceAppImpl) Save(resource *entity.Resource) error {
 		return err
 	}
 	resource.Weight = int(time.Now().Unix())
-	return gormx.Insert(resource)
+	return r.Insert(ctx, resource)
 }
 
-func (r *resourceAppImpl) ChangeStatus(resourceId uint64, status int8) error {
+func (r *resourceAppImpl) ChangeStatus(ctx context.Context, resourceId uint64, status int8) error {
 	resource, err := r.GetById(new(entity.Resource), resourceId)
 	if err != nil {
 		return errorx.NewBiz("资源不存在")
@@ -85,7 +86,7 @@ func (r *resourceAppImpl) ChangeStatus(resourceId uint64, status int8) error {
 	return r.GetRepo().UpdateByUiPathLike(resource)
 }
 
-func (r *resourceAppImpl) Sort(sortResource *entity.Resource) error {
+func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resource) error {
 	resource, err := r.GetById(new(entity.Resource), sortResource.Id)
 	if err != nil {
 		return errorx.NewBiz("资源不存在")
@@ -95,7 +96,7 @@ func (r *resourceAppImpl) Sort(sortResource *entity.Resource) error {
 	if sortResource.Pid == resource.Pid {
 		saveE := &entity.Resource{Weight: sortResource.Weight}
 		saveE.Id = sortResource.Id
-		return r.Save(saveE)
+		return r.Save(ctx, saveE)
 	}
 
 	// 若资源原本唯一标识路径为：xxxx/yyyy/zzzz/，则获取其父节点路径标识 xxxx/yyyy/ 与自身节点标识 zzzz/
@@ -131,7 +132,7 @@ func (r *resourceAppImpl) Sort(sortResource *entity.Resource) error {
 		} else {
 			updateUiPath.UiPath = strings.ReplaceAll(v.UiPath, parentResourceUiPath, newParentResourceUiPath)
 		}
-		r.Save(updateUiPath)
+		r.Save(ctx, updateUiPath)
 	}
 
 	// 更新零值使用map，因为pid=0表示根节点
@@ -155,7 +156,7 @@ func (r *resourceAppImpl) checkCode(code string) error {
 	return nil
 }
 
-func (r *resourceAppImpl) Delete(id uint64) error {
+func (r *resourceAppImpl) Delete(ctx context.Context, id uint64) error {
 	resource, err := r.GetById(new(entity.Resource), id)
 	if err != nil {
 		return errorx.NewBiz("资源不存在")
@@ -164,7 +165,7 @@ func (r *resourceAppImpl) Delete(id uint64) error {
 	// 删除当前节点及其所有子节点
 	children := r.GetRepo().GetChildren(resource.UiPath)
 	for _, v := range children {
-		r.GetRepo().DeleteById(v.Id)
+		r.GetRepo().DeleteById(ctx, v.Id)
 		// 删除角色关联的资源信息
 		gormx.DeleteBy(&entity.RoleResource{ResourceId: v.Id})
 	}

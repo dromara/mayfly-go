@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/pkg/base"
@@ -14,9 +15,9 @@ type MachineScript interface {
 	// 分页获取机器脚本信息列表
 	GetPageList(condition *entity.MachineScript, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Save(entity *entity.MachineScript) error
+	Save(ctx context.Context, entity *entity.MachineScript) error
 
-	Delete(id uint64)
+	Delete(ctx context.Context, id uint64)
 }
 
 func newMachineScriptApp(machineScriptRepo repository.MachineScript, machineApp Machine) MachineScript {
@@ -39,7 +40,7 @@ func (m *machineScriptAppImpl) GetPageList(condition *entity.MachineScript, page
 }
 
 // 保存机器脚本
-func (m *machineScriptAppImpl) Save(ms *entity.MachineScript) error {
+func (m *machineScriptAppImpl) Save(ctx context.Context, ms *entity.MachineScript) error {
 	// 如果机器id不为公共脚本id，则校验机器是否存在
 	if machineId := ms.MachineId; machineId != Common_Script_Machine_Id {
 		_, err := m.machineApp.GetById(new(entity.Machine), machineId, "Name")
@@ -49,12 +50,12 @@ func (m *machineScriptAppImpl) Save(ms *entity.MachineScript) error {
 	}
 
 	if ms.Id != 0 {
-		return m.UpdateById(ms)
+		return m.UpdateById(ctx, ms)
 	}
-	return m.Insert(ms)
+	return m.Insert(ctx, ms)
 }
 
 // 根据id删除
-func (m *machineScriptAppImpl) Delete(id uint64) {
-	m.DeleteById(id)
+func (m *machineScriptAppImpl) Delete(ctx context.Context, id uint64) {
+	m.DeleteById(ctx, id)
 }

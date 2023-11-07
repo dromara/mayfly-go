@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -27,9 +28,9 @@ type MachineFile interface {
 	// 根据id获取
 	GetById(id uint64, cols ...string) *entity.MachineFile
 
-	Save(entity *entity.MachineFile) error
+	Save(ctx context.Context, entity *entity.MachineFile) error
 
-	Delete(id uint64) error
+	Delete(ctx context.Context, id uint64) error
 
 	// 获取文件关联的机器信息，主要用于记录日志使用
 	// GetMachine(fileId uint64) *mcm.Info
@@ -91,31 +92,34 @@ func (m *machineFileAppImpl) GetPageList(condition *entity.MachineFile, pagePara
 
 // 根据条件获取
 func (m *machineFileAppImpl) GetMachineFile(condition *entity.MachineFile, cols ...string) error {
-	return m.machineFileRepo.GetMachineFile(condition, cols...)
+	return m.machineFileRepo.GetBy(condition, cols...)
 }
 
 // 根据id获取
 func (m *machineFileAppImpl) GetById(id uint64, cols ...string) *entity.MachineFile {
-	return m.machineFileRepo.GetById(id, cols...)
+	mf := new(entity.MachineFile)
+	if err := m.machineFileRepo.GetById(mf, id, cols...); err == nil {
+		return mf
+	}
+	return nil
 }
 
 // 保存机器文件配置
-func (m *machineFileAppImpl) Save(mf *entity.MachineFile) error {
+func (m *machineFileAppImpl) Save(ctx context.Context, mf *entity.MachineFile) error {
 	_, err := m.machineApp.GetById(new(entity.Machine), mf.MachineId, "Name")
 	if err != nil {
 		return errorx.NewBiz("该机器不存在")
 	}
 
 	if mf.Id != 0 {
-		return m.machineFileRepo.UpdateById(mf)
+		return m.machineFileRepo.UpdateById(ctx, mf)
 	}
 
-	return m.machineFileRepo.Create(mf)
+	return m.machineFileRepo.Insert(ctx, mf)
 }
 
-// 根据id删除
-func (m *machineFileAppImpl) Delete(id uint64) error {
-	return m.machineFileRepo.Delete(id)
+func (m *machineFileAppImpl) Delete(ctx context.Context, id uint64) error {
+	return m.machineFileRepo.DeleteById(ctx, id)
 }
 
 func (m *machineFileAppImpl) ReadDir(fid uint64, path string) ([]fs.FileInfo, error) {

@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/mongo/domain/entity"
 	"mayfly-go/internal/mongo/domain/repository"
 	"mayfly-go/internal/mongo/mgm"
@@ -17,10 +18,10 @@ type Mongo interface {
 
 	Count(condition *entity.MongoQuery) int64
 
-	Save(entity *entity.Mongo) error
+	Save(ctx context.Context, entity *entity.Mongo) error
 
 	// 删除数据库信息
-	Delete(id uint64) error
+	Delete(ctx context.Context, id uint64) error
 
 	// 获取mongo连接实例
 	// @param id mongo id
@@ -46,19 +47,19 @@ func (d *mongoAppImpl) Count(condition *entity.MongoQuery) int64 {
 	return d.GetRepo().Count(condition)
 }
 
-func (d *mongoAppImpl) Delete(id uint64) error {
+func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 	mgm.CloseConn(id)
-	return d.GetRepo().DeleteById(id)
+	return d.GetRepo().DeleteById(ctx, id)
 }
 
-func (d *mongoAppImpl) Save(m *entity.Mongo) error {
+func (d *mongoAppImpl) Save(ctx context.Context, m *entity.Mongo) error {
 	if m.Id == 0 {
-		return d.GetRepo().Insert(m)
+		return d.GetRepo().Insert(ctx, m)
 	}
 
 	// 先关闭连接
 	mgm.CloseConn(m.Id)
-	return d.GetRepo().UpdateById(m)
+	return d.GetRepo().UpdateById(ctx, m)
 }
 
 func (d *mongoAppImpl) GetMongoConn(id uint64) (*mgm.MongoConn, error) {

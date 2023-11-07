@@ -1,44 +1,47 @@
 package base
 
 import (
+	"context"
+	"mayfly-go/pkg/model"
+
 	"gorm.io/gorm"
 )
 
 // 基础application接口
-type App[T any] interface {
+type App[T model.ModelI] interface {
 
 	// 新增一个实体
-	Insert(e T) error
+	Insert(ctx context.Context, e T) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	InsertWithDb(db *gorm.DB, e T) error
+	InsertWithDb(ctx context.Context, db *gorm.DB, e T) error
 
 	// 批量新增实体
-	BatchInsert(models []T) error
+	BatchInsert(ctx context.Context, models []T) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	BatchInsertWithDb(db *gorm.DB, es []T) error
+	BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []T) error
 
 	// 根据实体id更新实体信息
-	UpdateById(e T) error
+	UpdateById(ctx context.Context, e T) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	UpdateByIdWithDb(db *gorm.DB, e T) error
+	UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T) error
 
 	// 根据实体主键删除实体
-	DeleteById(id uint64) error
+	DeleteById(ctx context.Context, id uint64) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	DeleteByIdWithDb(db *gorm.DB, id uint64) error
+	DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error
 
 	// 根据实体条件，更新参数udpateFields指定字段
-	Updates(cond any, udpateFields map[string]any) error
+	Updates(ctx context.Context, cond any, udpateFields map[string]any) error
 
 	// 根据实体条件删除实体
-	DeleteByCond(cond any) error
+	DeleteByCond(ctx context.Context, cond any) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	DeleteByCondWithDb(db *gorm.DB, cond any) error
+	DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error
 
 	// 根据实体id查询
 	GetById(e T, id uint64, cols ...string) (T, error)
@@ -62,7 +65,7 @@ type App[T any] interface {
 }
 
 // 基础application接口实现
-type AppImpl[T any, R Repo[T]] struct {
+type AppImpl[T model.ModelI, R Repo[T]] struct {
 	Repo R // repo接口
 }
 
@@ -72,57 +75,57 @@ func (ai *AppImpl[T, R]) GetRepo() R {
 }
 
 // 新增一个实体 (单纯新增，不做其他业务逻辑处理)
-func (ai *AppImpl[T, R]) Insert(e T) error {
-	return ai.GetRepo().Insert(e)
+func (ai *AppImpl[T, R]) Insert(ctx context.Context, e T) error {
+	return ai.GetRepo().Insert(ctx, e)
 }
 
 // 使用指定gorm db执行，主要用于事务执行
-func (ai *AppImpl[T, R]) InsertWithDb(db *gorm.DB, e T) error {
-	return ai.GetRepo().InsertWithDb(db, e)
+func (ai *AppImpl[T, R]) InsertWithDb(ctx context.Context, db *gorm.DB, e T) error {
+	return ai.GetRepo().InsertWithDb(ctx, db, e)
 }
 
 // 批量新增实体 (单纯新增，不做其他业务逻辑处理)
-func (ai *AppImpl[T, R]) BatchInsert(es []T) error {
-	return ai.GetRepo().BatchInsert(es)
+func (ai *AppImpl[T, R]) BatchInsert(ctx context.Context, es []T) error {
+	return ai.GetRepo().BatchInsert(ctx, es)
 }
 
 // 使用指定gorm db执行，主要用于事务执行
-func (ai *AppImpl[T, R]) BatchInsertWithDb(db *gorm.DB, es []T) error {
-	return ai.GetRepo().BatchInsertWithDb(db, es)
+func (ai *AppImpl[T, R]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []T) error {
+	return ai.GetRepo().BatchInsertWithDb(ctx, db, es)
 }
 
 // 根据实体id更新实体信息 (单纯更新，不做其他业务逻辑处理)
-func (ai *AppImpl[T, R]) UpdateById(e T) error {
-	return ai.GetRepo().UpdateById(e)
+func (ai *AppImpl[T, R]) UpdateById(ctx context.Context, e T) error {
+	return ai.GetRepo().UpdateById(ctx, e)
 }
 
 // 使用指定gorm db执行，主要用于事务执行
-func (ai *AppImpl[T, R]) UpdateByIdWithDb(db *gorm.DB, e T) error {
-	return ai.GetRepo().UpdateByIdWithDb(db, e)
+func (ai *AppImpl[T, R]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T) error {
+	return ai.GetRepo().UpdateByIdWithDb(ctx, db, e)
 }
 
 // 根据实体条件，更新参数udpateFields指定字段 (单纯更新，不做其他业务逻辑处理)
-func (ai *AppImpl[T, R]) Updates(cond any, udpateFields map[string]any) error {
+func (ai *AppImpl[T, R]) Updates(ctx context.Context, cond any, udpateFields map[string]any) error {
 	return ai.GetRepo().Updates(cond, udpateFields)
 }
 
 // 根据实体主键删除实体 (单纯删除实体，不做其他业务逻辑处理)
-func (ai *AppImpl[T, R]) DeleteById(id uint64) error {
-	return ai.GetRepo().DeleteById(id)
+func (ai *AppImpl[T, R]) DeleteById(ctx context.Context, id uint64) error {
+	return ai.GetRepo().DeleteById(ctx, id)
 }
 
-func (ai *AppImpl[T, R]) DeleteByIdWithDb(db *gorm.DB, id uint64) error {
-	return ai.GetRepo().DeleteByCondWithDb(db, id)
+func (ai *AppImpl[T, R]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error {
+	return ai.GetRepo().DeleteByCondWithDb(ctx, db, id)
 }
 
 // 根据指定条件删除实体 (单纯删除实体，不做其他业务逻辑处理)
-func (ai *AppImpl[T, R]) DeleteByCond(cond any) error {
-	return ai.GetRepo().DeleteByCond(cond)
+func (ai *AppImpl[T, R]) DeleteByCond(ctx context.Context, cond any) error {
+	return ai.GetRepo().DeleteByCond(ctx, cond)
 }
 
 // 使用指定gorm db执行，主要用于事务执行
-func (ai *AppImpl[T, R]) DeleteByCondWithDb(db *gorm.DB, cond any) error {
-	return ai.GetRepo().DeleteByCondWithDb(db, cond)
+func (ai *AppImpl[T, R]) DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error {
+	return ai.GetRepo().DeleteByCondWithDb(ctx, db, cond)
 }
 
 // 根据实体id查询

@@ -16,7 +16,7 @@ type TagTree struct {
 }
 
 func (p *TagTree) GetAccountTags(rc *req.Ctx) {
-	tagPaths := p.TagTreeApp.ListTagByAccountId(rc.LoginAccount.Id)
+	tagPaths := p.TagTreeApp.ListTagByAccountId(rc.GetLoginAccount().Id)
 	allTagPath := make([]string, 0)
 	if len(tagPaths) > 0 {
 		tags := p.TagTreeApp.ListTagByPath(tagPaths...)
@@ -46,13 +46,11 @@ func (p *TagTree) SaveTagTree(rc *req.Ctx) {
 	tagTree := &entity.TagTree{}
 	ginx.BindJsonAndValid(rc.GinCtx, tagTree)
 
-	loginAccount := rc.LoginAccount
-	tagTree.SetBaseInfo(loginAccount)
 	rc.ReqParam = fmt.Sprintf("tagTreeId: %d, tagName: %s, codePath: %s", tagTree.Id, tagTree.Name, tagTree.CodePath)
 
-	biz.ErrIsNil(p.TagTreeApp.Save(tagTree))
+	biz.ErrIsNil(p.TagTreeApp.Save(rc.MetaCtx, tagTree))
 }
 
 func (p *TagTree) DelTagTree(rc *req.Ctx) {
-	biz.ErrIsNil(p.TagTreeApp.Delete(uint64(ginx.PathParamInt(rc.GinCtx, "id"))))
+	biz.ErrIsNil(p.TagTreeApp.Delete(rc.MetaCtx, uint64(ginx.PathParamInt(rc.GinCtx, "id"))))
 }

@@ -26,11 +26,13 @@ type MachineVO struct {
 	UpdateTime         *time.Time `json:"updateTime"`
 	Modifier           *string    `json:"modifier"`
 	ModifierId         *int64     `json:"modifierId"`
-	HasCli             bool       `json:"hasCli" gorm:"-"`
 	Remark             *string    `json:"remark"`
 	EnableRecorder     int8       `json:"enableRecorder"`
 	TagId              uint64     `json:"tagId"`
 	TagPath            string     `json:"tagPath"`
+
+	HasCli bool           `json:"hasCli" gorm:"-"`
+	Stat   map[string]any `json:"stat" gorm:"-"`
 }
 
 type MachineScriptVO struct {

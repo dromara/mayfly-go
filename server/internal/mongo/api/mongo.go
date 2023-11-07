@@ -30,7 +30,7 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage[*entity.MongoQuery](rc.GinCtx, new(entity.MongoQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	tagIds := m.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
+	tagIds := m.TagApp.ListTagIdByAccountId(rc.GetLoginAccount().Id)
 	if len(tagIds) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
@@ -43,7 +43,7 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 }
 
 func (m *Mongo) MongoTags(rc *req.Ctx) {
-	rc.ResData = m.TagApp.ListTagByAccountIdAndResource(rc.LoginAccount.Id, new(entity.Mongo))
+	rc.ResData = m.TagApp.ListTagByAccountIdAndResource(rc.GetLoginAccount().Id, new(entity.Mongo))
 }
 
 func (m *Mongo) Save(rc *req.Ctx) {
@@ -57,8 +57,7 @@ func (m *Mongo) Save(rc *req.Ctx) {
 	}(form.Uri)
 	rc.ReqParam = form
 
-	mongo.SetBaseInfo(rc.LoginAccount)
-	biz.ErrIsNil(m.MongoApp.Save(mongo))
+	biz.ErrIsNil(m.MongoApp.Save(rc.MetaCtx, mongo))
 }
 
 func (m *Mongo) DeleteMongo(rc *req.Ctx) {
@@ -69,7 +68,7 @@ func (m *Mongo) DeleteMongo(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		m.MongoApp.Delete(uint64(value))
+		m.MongoApp.Delete(rc.MetaCtx, uint64(value))
 	}
 }
 

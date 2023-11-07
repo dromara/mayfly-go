@@ -9,48 +9,52 @@ import (
 )
 
 type FSInfo struct {
-	MountPoint string
-	Used       uint64
-	Free       uint64
+	MountPoint string `json:"mountPoint"`
+	Used       uint64 `json:"used"`
+	Free       uint64 `json:"free"`
 }
 
 type NetIntfInfo struct {
-	IPv4 string
-	IPv6 string
-	Rx   uint64
-	Tx   uint64
+	IPv4 string `json:"ipv4"`
+	IPv6 string `json:"ipv6"`
+	Rx   uint64 `json:"rx"`
+	Tx   uint64 `json:"tx"`
+}
+
+type MemInfo struct {
+	Total     uint64 `json:"total"`
+	Free      uint64 `json:"free"`
+	Buffers   uint64 `json:"buffers"`
+	Available uint64 `json:"available"`
+	Cached    uint64 `json:"cached"`
+	SwapTotal uint64 `json:"swapTotal"`
+	SwapFree  uint64 `json:"swapFree"`
 }
 
 type CPUInfo struct {
-	User    float32
-	Nice    float32
-	System  float32
-	Idle    float32
-	Iowait  float32
-	Irq     float32
-	SoftIrq float32
-	Steal   float32
-	Guest   float32
+	User    float32 `json:"user"`
+	Nice    float32 `json:"nice"`
+	System  float32 `json:"system"`
+	Idle    float32 `json:"idle"`
+	Iowait  float32 `json:"iowait"`
+	Irq     float32 `json:"irq"`
+	SoftIrq float32 `json:"softIrq"`
+	Steal   float32 `json:"steal"`
+	Guest   float32 `json:"guest"`
 }
 
 type Stats struct {
-	Uptime       string
-	Hostname     string
-	Load1        string
-	Load5        string
-	Load10       string
-	RunningProcs string
-	TotalProcs   string
-	MemTotal     uint64
-	MemFree      uint64
-	MemBuffers   uint64
-	MemAvailable uint64
-	MemCached    uint64
-	SwapTotal    uint64
-	SwapFree     uint64
-	FSInfos      []FSInfo
-	NetIntf      map[string]NetIntfInfo
-	CPU          CPUInfo // or []CPUInfo to get all the cpu-core's stats?
+	Uptime       string                 `json:"uptime"`
+	Hostname     string                 `json:"hostname"`
+	Load1        string                 `json:"load1"`
+	Load5        string                 `json:"load5"`
+	Load10       string                 `json:"load10"`
+	RunningProcs string                 `json:"runningProcs"`
+	TotalProcs   string                 `json:"totalProcs"`
+	MemInfo      MemInfo                `json:"memInfo"`
+	FSInfos      []FSInfo               `json:"fSInfos"`
+	NetIntf      map[string]NetIntfInfo `json:"netIntf"`
+	CPU          CPUInfo                `json:"cpu"` // or []CPUInfo to get all the cpu-core's stats?
 }
 
 const StatsShell = `
@@ -141,19 +145,19 @@ func getMemInfo(memInfo string, stats *Stats) (err error) {
 			val *= 1024
 			switch parts[0] {
 			case "MemTotal:":
-				stats.MemTotal = val
+				stats.MemInfo.Total = val
 			case "MemFree:":
-				stats.MemFree = val
+				stats.MemInfo.Free = val
 			case "Buffers:":
-				stats.MemBuffers = val
+				stats.MemInfo.Buffers = val
 			case "Cached:":
-				stats.MemCached = val
+				stats.MemInfo.Cached = val
 			case "SwapTotal:":
-				stats.SwapTotal = val
+				stats.MemInfo.SwapTotal = val
 			case "SwapFree:":
-				stats.SwapFree = val
+				stats.MemInfo.SwapFree = val
 			case "MemAvailable:":
-				stats.MemAvailable = val
+				stats.MemInfo.Available = val
 			}
 		}
 	}

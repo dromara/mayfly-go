@@ -43,9 +43,7 @@ func (d *Instance) SaveInstance(rc *req.Ctx) {
 	// 密码脱敏记录日志
 	form.Password = "****"
 	rc.ReqParam = form
-
-	instance.SetBaseInfo(rc.LoginAccount)
-	biz.ErrIsNil(d.InstanceApp.Save(instance))
+	biz.ErrIsNil(d.InstanceApp.Save(rc.MetaCtx, instance))
 }
 
 // GetInstance 获取数据库实例密码，由于数据库是加密存储，故提供该接口展示原文密码
@@ -84,7 +82,7 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 			biz.ErrIsNil(err, "获取数据库实例错误，数据库实例ID为: %d", instance.Id)
 			biz.IsTrue(false, "不能删除数据库实例【%s】，请先删除其关联的数据库资源。", instance.Name)
 		}
-		d.InstanceApp.Delete(instanceId)
+		d.InstanceApp.Delete(rc.MetaCtx, instanceId)
 	}
 }
 

@@ -31,7 +31,7 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage[*entity.RedisQuery](rc.GinCtx, new(entity.RedisQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	tagIds := r.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
+	tagIds := r.TagApp.ListTagIdByAccountId(rc.GetLoginAccount().Id)
 	if len(tagIds) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
@@ -44,7 +44,7 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 }
 
 func (r *Redis) RedisTags(rc *req.Ctx) {
-	rc.ResData = r.TagApp.ListTagByAccountIdAndResource(rc.LoginAccount.Id, new(entity.Redis))
+	rc.ResData = r.TagApp.ListTagByAccountIdAndResource(rc.GetLoginAccount().Id, new(entity.Redis))
 }
 
 func (r *Redis) Save(rc *req.Ctx) {
@@ -60,8 +60,7 @@ func (r *Redis) Save(rc *req.Ctx) {
 	form.Password = "****"
 	rc.ReqParam = form
 
-	redis.SetBaseInfo(rc.LoginAccount)
-	biz.ErrIsNil(r.RedisApp.Save(redis))
+	biz.ErrIsNil(r.RedisApp.Save(rc.MetaCtx, redis))
 }
 
 // 获取redis实例密码，由于数据库是加密存储，故提供该接口展示原文密码
@@ -81,7 +80,7 @@ func (r *Redis) DeleteRedis(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		r.RedisApp.Delete(uint64(value))
+		r.RedisApp.Delete(rc.MetaCtx, uint64(value))
 	}
 }
 
@@ -218,7 +217,7 @@ func (r *Redis) checkKeyAndGetRedisConn(rc *req.Ctx) (*rdm.RedisConn, string) {
 func (r *Redis) getRedisConn(rc *req.Ctx) *rdm.RedisConn {
 	ri, err := r.RedisApp.GetRedisConn(getIdAndDbNum(rc.GinCtx))
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, ri.Info.TagPath), "%s")
 	return ri
 }
 

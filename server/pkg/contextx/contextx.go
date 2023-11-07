@@ -21,9 +21,12 @@ func WithLoginAccount(ctx context.Context, la *model.LoginAccount) context.Conte
 	return context.WithValue(ctx, LoginAccountKey, la)
 }
 
-// 从context中获取登录账号信息
+// 从context中获取登录账号信息，不存在返回nil
 func GetLoginAccount(ctx context.Context) *model.LoginAccount {
-	return ctx.Value(LoginAccountKey).(*model.LoginAccount)
+	if la, ok := ctx.Value(LoginAccountKey).(*model.LoginAccount); ok {
+		return la
+	}
+	return nil
 }
 
 func NewTraceId() context.Context {
@@ -31,10 +34,13 @@ func NewTraceId() context.Context {
 }
 
 func WithTraceId(ctx context.Context) context.Context {
-	return context.WithValue(ctx, TraceIdKey, stringx.Rand(16))
+	return context.WithValue(ctx, TraceIdKey, stringx.RandByChars(16, stringx.Nums+stringx.LowerChars))
 }
 
 // 从context中获取traceId
 func GetTraceId(ctx context.Context) string {
-	return ctx.Value(TraceIdKey).(string)
+	if val, ok := ctx.Value(TraceIdKey).(string); ok {
+		return val
+	}
+	return ""
 }

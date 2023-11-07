@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	dbapp "mayfly-go/internal/db/application"
 	dbentity "mayfly-go/internal/db/domain/entity"
 	machineapp "mayfly-go/internal/machine/application"
@@ -23,9 +24,9 @@ type TagTree interface {
 
 	ListByQuery(condition *entity.TagTreeQuery, toEntity any)
 
-	Save(tt *entity.TagTree) error
+	Save(ctx context.Context, tt *entity.TagTree) error
 
-	Delete(id uint64) error
+	Delete(ctx context.Context, id uint64) error
 
 	// 获取账号id拥有的可访问的标签id
 	ListTagIdByAccountId(accountId uint64) []uint64
@@ -74,7 +75,7 @@ type tagTreeAppImpl struct {
 	dbApp           dbapp.Db
 }
 
-func (p *tagTreeAppImpl) Save(tag *entity.TagTree) error {
+func (p *tagTreeAppImpl) Save(ctx context.Context, tag *entity.TagTree) error {
 	// 新建项目树节点信息
 	if tag.Id == 0 {
 		if strings.Contains(tag.Code, entity.CodePathSeparator) {
@@ -96,13 +97,13 @@ func (p *tagTreeAppImpl) Save(tag *entity.TagTree) error {
 			return errorx.NewBiz("已存在该标签路径开头的标签, 请修改该标识code")
 		}
 
-		return p.GetRepo().Insert(tag)
+		return p.Insert(ctx, tag)
 	}
 
 	// 防止误传导致被更新
 	tag.Code = ""
 	tag.CodePath = ""
-	return p.GetRepo().UpdateById(tag)
+	return p.UpdateById(ctx, tag)
 }
 
 func (p *tagTreeAppImpl) ListByQuery(condition *entity.TagTreeQuery, toEntity any) {
@@ -161,7 +162,7 @@ func (p *tagTreeAppImpl) CanAccess(accountId uint64, tagPath string) error {
 	return errorx.NewBiz("您无权操作该资源")
 }
 
-func (p *tagTreeAppImpl) Delete(id uint64) error {
+func (p *tagTreeAppImpl) Delete(ctx context.Context, id uint64) error {
 	tagIds := [1]uint64{id}
 	if p.machineApp.Count(&machineentity.MachineQuery{TagIds: tagIds[:]}) > 0 {
 		return errorx.NewBiz("请先删除该标签关联的机器信息")
@@ -176,7 +177,7 @@ func (p *tagTreeAppImpl) Delete(id uint64) error {
 		return errorx.NewBiz("请先删除该标签关联的Mongo信息")
 	}
 
-	p.DeleteById(id)
+	p.DeleteById(ctx, id)
 	// 删除该标签关联的团队信息
-	return p.tagTreeTeamRepo.DeleteByCond(&entity.TagTreeTeam{TagId: id})
+	return p.tagTreeTeamRepo.DeleteByCond(ctx, &entity.TagTreeTeam{TagId: id})
 }

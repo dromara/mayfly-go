@@ -52,14 +52,13 @@ func (m *MachineFile) MachineFiles(rc *req.Ctx) {
 func (m *MachineFile) SaveMachineFiles(rc *req.Ctx) {
 	fileForm := new(form.MachineFileForm)
 	entity := ginx.BindJsonAndCopyTo[*entity.MachineFile](rc.GinCtx, fileForm, new(entity.MachineFile))
-	entity.SetBaseInfo(rc.LoginAccount)
 
 	rc.ReqParam = fileForm
-	biz.ErrIsNil(m.MachineFileApp.Save(entity))
+	biz.ErrIsNil(m.MachineFileApp.Save(rc.MetaCtx, entity))
 }
 
 func (m *MachineFile) DeleteFile(rc *req.Ctx) {
-	biz.ErrIsNil(m.MachineFileApp.Delete(GetMachineFileId(rc.GinCtx)))
+	biz.ErrIsNil(m.MachineFileApp.Delete(rc.MetaCtx, GetMachineFileId(rc.GinCtx)))
 }
 
 /***      sftp相关操作      */
@@ -190,7 +189,7 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	file, _ := fileheader.Open()
 	defer file.Close()
 
-	la := rc.LoginAccount
+	la := rc.GetLoginAccount()
 	defer func() {
 		if anyx.ToString(recover()) != "" {
 			logx.Errorf("文件上传失败: %s", err)
@@ -262,7 +261,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	wg.Add(len(chunks))
 
 	isSuccess := true
-	la := rc.LoginAccount
+	la := rc.GetLoginAccount()
 	for _, chunk := range chunks {
 		go func(files []FolderFile, wg *sync.WaitGroup) {
 			defer func() {
@@ -298,7 +297,7 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	wg.Wait()
 	if isSuccess {
 		// 保存消息并发送文件上传成功通知
-		m.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("文件上传成功", fmt.Sprintf("[%s]文件夹已成功上传至 %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
+		m.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg("文件上传成功", fmt.Sprintf("[%s]文件夹已成功上传至 %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
 	}
 }
 

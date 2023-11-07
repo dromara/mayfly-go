@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/auth/domain/entity"
 	"mayfly-go/internal/auth/domain/repository"
 )
@@ -29,11 +30,11 @@ func (a *oauth2AppImpl) GetOAuthAccount(condition *entity.Oauth2Account, cols ..
 
 func (a *oauth2AppImpl) BindOAuthAccount(e *entity.Oauth2Account) error {
 	if e.Id == 0 {
-		return a.oauthAccountRepo.Insert(e)
+		return a.oauthAccountRepo.Insert(context.Background(), e)
 	}
-	return a.oauthAccountRepo.UpdateById(e)
+	return a.oauthAccountRepo.UpdateById(context.Background(), e)
 }
 
 func (a *oauth2AppImpl) Unbind(accountId uint64) {
-	a.oauthAccountRepo.DeleteByCond(&entity.Oauth2Account{AccountId: accountId})
+	a.oauthAccountRepo.DeleteByCond(context.Background(), &entity.Oauth2Account{AccountId: accountId})
 }

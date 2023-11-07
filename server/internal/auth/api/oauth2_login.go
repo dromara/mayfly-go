@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"mayfly-go/internal/auth/api/vo"
@@ -42,7 +43,7 @@ func (a *Oauth2Login) OAuth2Login(rc *req.Ctx) {
 func (a *Oauth2Login) OAuth2Bind(rc *req.Ctx) {
 	client, _ := a.getOAuthClient()
 	state := stringx.Rand(32)
-	cache.SetStr("oauth2:state:"+state, "bind:"+strconv.FormatUint(rc.LoginAccount.Id, 10),
+	cache.SetStr("oauth2:state:"+state, "bind:"+strconv.FormatUint(rc.GetLoginAccount().Id, 10),
 		5*time.Minute)
 	rc.GinCtx.Redirect(http.StatusFound, client.AuthCodeURL(state))
 }
@@ -152,7 +153,7 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 			Name:     userId,
 			Username: userId,
 		}
-		biz.ErrIsNil(a.AccountApp.Create(account))
+		biz.ErrIsNil(a.AccountApp.Create(context.TODO(), account))
 		// 绑定
 		err := a.Oauth2App.BindOAuthAccount(&entity.Oauth2Account{
 			AccountId:  account.Id,
@@ -207,7 +208,7 @@ func (a *Oauth2Login) Oauth2Status(ctx *req.Ctx) {
 	res.Enable = oauth2LoginConfig.Enable
 	if res.Enable {
 		err := a.Oauth2App.GetOAuthAccount(&entity.Oauth2Account{
-			AccountId: ctx.LoginAccount.Id,
+			AccountId: ctx.GetLoginAccount().Id,
 		}, "account_id", "identity")
 		res.Bind = err == nil
 	}
@@ -216,7 +217,7 @@ func (a *Oauth2Login) Oauth2Status(ctx *req.Ctx) {
 }
 
 func (a *Oauth2Login) Oauth2Unbind(rc *req.Ctx) {
-	a.Oauth2App.Unbind(rc.LoginAccount.Id)
+	a.Oauth2App.Unbind(rc.GetLoginAccount().Id)
 }
 
 // 获取oauth2登录配置信息，因为有些字段是敏感字段，故单独使用接口获取

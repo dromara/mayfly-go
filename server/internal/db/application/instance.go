@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
@@ -16,10 +17,10 @@ type Instance interface {
 
 	Count(condition *entity.InstanceQuery) int64
 
-	Save(instanceEntity *entity.DbInstance) error
+	Save(ctx context.Context, instanceEntity *entity.DbInstance) error
 
 	// Delete 删除数据库信息
-	Delete(id uint64) error
+	Delete(ctx context.Context, id uint64) error
 
 	// GetDatabases 获取数据库实例的所有数据库列表
 	GetDatabases(entity *entity.DbInstance) ([]string, error)
@@ -44,7 +45,7 @@ func (app *instanceAppImpl) Count(condition *entity.InstanceQuery) int64 {
 	return app.CountByCond(condition)
 }
 
-func (app *instanceAppImpl) Save(instanceEntity *entity.DbInstance) error {
+func (app *instanceAppImpl) Save(ctx context.Context, instanceEntity *entity.DbInstance) error {
 	// 默认tcp连接
 	instanceEntity.Network = instanceEntity.GetNetwork()
 
@@ -72,7 +73,7 @@ func (app *instanceAppImpl) Save(instanceEntity *entity.DbInstance) error {
 			return errorx.NewBiz("该数据库实例已存在")
 		}
 		instanceEntity.PwdEncrypt()
-		return app.Insert(instanceEntity)
+		return app.Insert(ctx, instanceEntity)
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
@@ -80,11 +81,11 @@ func (app *instanceAppImpl) Save(instanceEntity *entity.DbInstance) error {
 		return errorx.NewBiz("该数据库实例已存在")
 	}
 	instanceEntity.PwdEncrypt()
-	return app.UpdateById(instanceEntity)
+	return app.UpdateById(ctx, instanceEntity)
 }
 
-func (app *instanceAppImpl) Delete(id uint64) error {
-	return app.DeleteById(id)
+func (app *instanceAppImpl) Delete(ctx context.Context, id uint64) error {
+	return app.DeleteById(ctx, id)
 }
 
 func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance) ([]string, error) {

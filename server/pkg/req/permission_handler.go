@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/config"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
@@ -60,12 +61,10 @@ func PermissionHandler(rc *Ctx) error {
 			return errorx.PermissionErr
 		}
 	}
-	if rc.LoginAccount == nil {
-		rc.LoginAccount = &model.LoginAccount{
-			Id:       userId,
-			Username: userName,
-		}
-	}
+	rc.MetaCtx = contextx.WithLoginAccount(rc.MetaCtx, &model.LoginAccount{
+		Id:       userId,
+		Username: userName,
+	})
 	return nil
 }
 

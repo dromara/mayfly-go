@@ -1,14 +1,20 @@
 package application
 
 import (
+	"context"
+	"fmt"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
+	"mayfly-go/internal/machine/infrastructure/cache"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gormx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/scheduler"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -16,17 +22,17 @@ import (
 type Machine interface {
 	base.App[*entity.Machine]
 
-	Save(*entity.Machine) error
+	Save(ctx context.Context, m *entity.Machine) error
 
 	// 测试机器连接
 	TestConn(me *entity.Machine) error
 
 	// 调整机器状态
-	ChangeStatus(id uint64, status int8) error
+	ChangeStatus(ctx context.Context, id uint64, status int8) error
 
 	Count(condition *entity.MachineQuery) int64
 
-	Delete(id uint64) error
+	Delete(ctx context.Context, id uint64) error
 
 	// 分页获取机器信息列表
 	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]*vo.MachineVO, orderBy ...string) (*model.PageResult[*[]*vo.MachineVO], error)
@@ -36,6 +42,12 @@ type Machine interface {
 
 	// 获取ssh隧道机器连接
 	GetSshTunnelMachine(id int) (*mcm.SshTunnelMachine, error)
+
+	// 定时更新机器状态信息
+	TimerUpdateStats()
+
+	// 获取机器运行时状态信息
+	GetMachineStats(machineId uint64) (*mcm.Stats, error)
 }
 
 func newMachineApp(machineRepo repository.Machine, authCertApp AuthCert) Machine {
@@ -61,7 +73,7 @@ func (m *machineAppImpl) Count(condition *entity.MachineQuery) int64 {
 	return m.GetRepo().Count(condition)
 }
 
-func (m *machineAppImpl) Save(me *entity.Machine) error {
+func (m *machineAppImpl) Save(ctx context.Context, me *entity.Machine) error {
 	oldMachine := &entity.Machine{Ip: me.Ip, Port: me.Port, Username: me.Username}
 	if me.SshTunnelMachineId > 0 {
 		oldMachine.SshTunnelMachineId = me.SshTunnelMachineId
@@ -75,7 +87,7 @@ func (m *machineAppImpl) Save(me *entity.Machine) error {
 		}
 		// 新增机器，默认启用状态
 		me.Status = entity.MachineStatusEnable
-		return m.Insert(me)
+		return m.Insert(ctx, me)
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
@@ -85,7 +97,7 @@ func (m *machineAppImpl) Save(me *entity.Machine) error {
 
 	// 关闭连接
 	mcm.DeleteCli(me.Id)
-	return m.UpdateById(me)
+	return m.UpdateById(ctx, me)
 }
 
 func (m *machineAppImpl) TestConn(me *entity.Machine) error {
@@ -102,7 +114,7 @@ func (m *machineAppImpl) TestConn(me *entity.Machine) error {
 	return nil
 }
 
-func (m *machineAppImpl) ChangeStatus(id uint64, status int8) error {
+func (m *machineAppImpl) ChangeStatus(ctx context.Context, id uint64, status int8) error {
 	if status == entity.MachineStatusDisable {
 		// 关闭连接
 		mcm.DeleteCli(id)
@@ -110,11 +122,11 @@ func (m *machineAppImpl) ChangeStatus(id uint64, status int8) error {
 	machine := new(entity.Machine)
 	machine.Id = id
 	machine.Status = status
-	return m.UpdateById(machine)
+	return m.UpdateById(ctx, machine)
 }
 
 // 根据条件获取机器信息
-func (m *machineAppImpl) Delete(id uint64) error {
+func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 	// 关闭连接
 	mcm.DeleteCli(id)
 	return gormx.Tx(
@@ -143,6 +155,39 @@ func (m *machineAppImpl) GetSshTunnelMachine(machineId int) (*mcm.SshTunnelMachi
 	return mcm.GetSshTunnelMachine(machineId, func(mid uint64) (*mcm.MachineInfo, error) {
 		return m.toMachineInfoById(mid)
 	})
+}
+
+func (m *machineAppImpl) TimerUpdateStats() {
+	logx.Debug("开始定时收集并缓存服务器状态信息...")
+	scheduler.AddFun("@every 2m", func() {
+		machineIds := new([]entity.Machine)
+		m.GetRepo().ListByCond(&entity.Machine{Status: entity.MachineStatusEnable}, machineIds, "id")
+		for _, ma := range *machineIds {
+			go func(mid uint64) {
+				defer func() {
+					if err := recover(); err != nil {
+						logx.ErrorTrace(fmt.Sprintf("定时获取机器[id=%d]状态信息失败", mid), err.(error))
+					}
+				}()
+				logx.Debugf("定时获取机器[id=%d]状态信息开始", mid)
+				cli, err := m.GetCli(mid)
+				// ssh获取客户端失败，则更新机器状态为禁用
+				if err != nil {
+					updateMachine := &entity.Machine{Status: entity.MachineStatusDisable}
+					updateMachine.Id = mid
+					now := time.Now()
+					updateMachine.UpdateTime = &now
+					m.UpdateById(context.TODO(), updateMachine)
+				}
+				cache.SaveMachineStats(mid, cli.GetAllStats())
+				logx.Debugf("定时获取机器[id=%d]状态信息结束", mid)
+			}(ma.Id)
+		}
+	})
+}
+
+func (m *machineAppImpl) GetMachineStats(machineId uint64) (*mcm.Stats, error) {
+	return cache.GetMachineStats(machineId)
 }
 
 // 生成机器信息，根据授权凭证id填充用户密码等

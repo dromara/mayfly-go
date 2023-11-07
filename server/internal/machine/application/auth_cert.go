@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/pkg/base"
@@ -13,7 +14,7 @@ type AuthCert interface {
 
 	GetPageList(condition *entity.AuthCertQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Save(ac *entity.AuthCert) error
+	Save(ctx context.Context, ac *entity.AuthCert) error
 
 	GetByIds(ids ...uint64) []*entity.AuthCert
 }
@@ -32,7 +33,7 @@ func (a *authCertAppImpl) GetPageList(condition *entity.AuthCertQuery, pageParam
 	return a.GetRepo().GetPageList(condition, pageParam, toEntity)
 }
 
-func (a *authCertAppImpl) Save(ac *entity.AuthCert) error {
+func (a *authCertAppImpl) Save(ctx context.Context, ac *entity.AuthCert) error {
 	oldAc := &entity.AuthCert{Name: ac.Name}
 	err := a.GetBy(oldAc, "Id", "Name")
 
@@ -41,14 +42,14 @@ func (a *authCertAppImpl) Save(ac *entity.AuthCert) error {
 		if err == nil {
 			return errorx.NewBiz("该凭证名已存在")
 		}
-		return a.Insert(ac)
+		return a.Insert(ctx, ac)
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
 	if err == nil && oldAc.Id != ac.Id {
 		return errorx.NewBiz("该凭证名已存在")
 	}
-	return a.UpdateById(ac)
+	return a.UpdateById(ctx, ac)
 }
 
 func (a *authCertAppImpl) GetByIds(ids ...uint64) []*entity.AuthCert {

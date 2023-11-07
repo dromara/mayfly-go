@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"mayfly-go/internal/db/config"
@@ -49,7 +50,7 @@ type DbSqlExec interface {
 	Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error)
 
 	// 根据条件删除sql执行记录
-	DeleteBy(condition *entity.DbSqlExec)
+	DeleteBy(ctx context.Context, condition *entity.DbSqlExec)
 
 	// 分页获取
 	GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
@@ -139,19 +140,19 @@ func (d *dbSqlExecAppImpl) Exec(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error)
 // 保存sql执行记录，如果是查询类则根据系统配置判断是否保存
 func (d *dbSqlExecAppImpl) saveSqlExecLog(isQuery bool, dbSqlExecRecord *entity.DbSqlExec) {
 	if !isQuery {
-		d.dbSqlExecRepo.Insert(dbSqlExecRecord)
+		d.dbSqlExecRepo.Insert(context.TODO(), dbSqlExecRecord)
 		return
 	}
 	if config.GetDbSaveQuerySql() {
 		dbSqlExecRecord.Table = "-"
 		dbSqlExecRecord.OldValue = "-"
 		dbSqlExecRecord.Type = entity.DbSqlExecTypeQuery
-		d.dbSqlExecRepo.Insert(dbSqlExecRecord)
+		d.dbSqlExecRepo.Insert(context.TODO(), dbSqlExecRecord)
 	}
 }
 
-func (d *dbSqlExecAppImpl) DeleteBy(condition *entity.DbSqlExec) {
-	d.dbSqlExecRepo.DeleteByCond(condition)
+func (d *dbSqlExecAppImpl) DeleteBy(ctx context.Context, condition *entity.DbSqlExec) {
+	d.dbSqlExecRepo.DeleteByCond(ctx, condition)
 }
 
 func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

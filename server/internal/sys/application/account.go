@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/base"
@@ -17,11 +18,11 @@ type Account interface {
 
 	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Create(account *entity.Account) error
+	Create(ctx context.Context, account *entity.Account) error
 
-	Update(account *entity.Account) error
+	Update(ctx context.Context, account *entity.Account) error
 
-	Delete(id uint64) error
+	Delete(ctx context.Context, id uint64) error
 }
 
 func newAccountApp(accountRepo repository.Account) Account {
@@ -36,17 +37,17 @@ func (a *accountAppImpl) GetPageList(condition *entity.Account, pageParam *model
 	return a.GetRepo().GetPageList(condition, pageParam, toEntity)
 }
 
-func (a *accountAppImpl) Create(account *entity.Account) error {
+func (a *accountAppImpl) Create(ctx context.Context, account *entity.Account) error {
 	if a.GetBy(&entity.Account{Username: account.Username}) == nil {
 		return errorx.NewBiz("该账号用户名已存在")
 	}
 	// 默认密码为账号用户名
 	account.Password = cryptox.PwdHash(account.Username)
 	account.Status = entity.AccountEnableStatus
-	return a.Insert(account)
+	return a.Insert(ctx, account)
 }
 
-func (a *accountAppImpl) Update(account *entity.Account) error {
+func (a *accountAppImpl) Update(ctx context.Context, account *entity.Account) error {
 	if account.Username != "" {
 		unAcc := &entity.Account{Username: account.Username}
 		err := a.GetBy(unAcc)
@@ -55,14 +56,14 @@ func (a *accountAppImpl) Update(account *entity.Account) error {
 		}
 	}
 
-	return a.UpdateById(account)
+	return a.UpdateById(ctx, account)
 }
 
-func (a *accountAppImpl) Delete(id uint64) error {
+func (a *accountAppImpl) Delete(ctx context.Context, id uint64) error {
 	return gormx.Tx(
 		func(db *gorm.DB) error {
 			// 删除account信息
-			return a.DeleteByIdWithDb(db, id)
+			return a.DeleteByIdWithDb(ctx, db, id)
 		},
 		func(db *gorm.DB) error {
 			// 删除账号关联的角色信息
