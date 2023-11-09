@@ -14,7 +14,6 @@ type DbSqlExec struct {
 
 func (d *DbSqlExec) DbSqlExecs(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.DbSqlExecQuery))
-	queryCond.CreatorId = rc.GetLoginAccount().Id
 	res, err := d.DbSqlExecApp.GetPageList(queryCond, page, new([]entity.DbSqlExec))
 	biz.ErrIsNil(err)
 	rc.ResData = res

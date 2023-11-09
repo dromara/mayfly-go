@@ -12,7 +12,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.14.0
 	github.com/go-sql-driver/mysql v1.7.1
-	github.com/golang-jwt/jwt/v5 v5.0.0
+	github.com/golang-jwt/jwt/v5 v5.1.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/kanzihuang/vitess/go/vt/sqlparser v0.0.0-20231018071450-ac8d9f0167e9
 	github.com/lib/pq v1.10.9
@@ -25,8 +25,8 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务
 	github.com/stretchr/testify v1.8.4
 	go.mongodb.org/mongo-driver v1.12.1 // mongo
-	golang.org/x/crypto v0.14.0 // ssh
-	golang.org/x/oauth2 v0.13.0
+	golang.org/x/crypto v0.15.0 // ssh
+	golang.org/x/oauth2 v0.14.0
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
 	gorm.io/driver/mysql v1.5.2
@@ -77,10 +77,10 @@ require (
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/exp v0.0.0-20230519143937-03e91628a987 // indirect
 	golang.org/x/image v0.0.0-20220302094943-723b81ca9867 // indirect
-	golang.org/x/net v0.16.0 // indirect
+	golang.org/x/net v0.18.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
-	golang.org/x/text v0.13.0 // indirect
+	golang.org/x/sys v0.14.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230131230820-1c016267d619 // indirect
 	google.golang.org/grpc v1.52.3 // indirect

@@ -20,11 +20,8 @@
                 >
             </template>
 
-            <template #more="{ data }">
-                <el-button @click="showInfo(data)" link>详情</el-button>
-            </template>
-
             <template #action="{ data }">
+                <el-button @click="showInfo(data)" link>详情</el-button>
                 <el-button v-if="actionBtns[perms.saveInstance]" @click="editInstance(data)" type="primary" link>编辑</el-button>
             </template>
         </page-table>
@@ -81,11 +78,11 @@ const queryConfig = [TableQuery.text('name', '名称')];
 
 const columns = ref([
     TableColumn.new('name', '名称'),
-    TableColumn.new('host', 'host:port').setFormatFunc((data: any, _prop: string) => `${data.host}:${data.port}`),
     TableColumn.new('type', '类型'),
+    TableColumn.new('host', 'host:port').setFormatFunc((data: any) => `${data.host}:${data.port}`),
     TableColumn.new('username', '用户名'),
+    TableColumn.new('params', '连接参数'),
     TableColumn.new('remark', '备注'),
-    TableColumn.new('more', '更多').isSlot().setMinWidth(50).fixedRight(),
 ]);
 
 // 该用户拥有的的操作列按钮权限
@@ -173,7 +170,9 @@ const deleteInstance = async () => {
         await dbApi.deleteInstance.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 </script>
 <style lang="scss"></style>

@@ -46,7 +46,8 @@ func (c *Cli) GetSession() (*ssh.Session, error) {
 	if err != nil {
 		// 获取session失败，则关闭cli，重试
 		DeleteCli(c.Info.Id)
-		return nil, errorx.NewBiz("请重试...")
+		logx.Errorf("获取机器客户端session失败: %s", err.Error())
+		return nil, errorx.NewBiz("获取会话失败, 请重试...")
 	}
 	return session, nil
 }
@@ -69,11 +70,15 @@ func (c *Cli) Run(shell string) (string, error) {
 
 // 获取机器的所有状态信息
 func (c *Cli) GetAllStats() *Stats {
-	res, _ := c.Run(StatsShell)
-	infos := strings.Split(res, "-----")
 	stats := new(Stats)
+	res, err := c.Run(StatsShell)
+	if err != nil {
+		logx.Errorf("执行机器[id=%d, name=%s]运行状态信息脚本失败: %s", c.Info.Id, c.Info.Name, err.Error())
+		return stats
+	}
+
+	infos := strings.Split(res, "-----")
 	if len(infos) < 8 {
-		logx.Warnf("获取机器[id=%d, name=%s]的状态信息失败", c.Info.Id, c.Info.Name)
 		return stats
 	}
 	getUptime(infos[0], stats)

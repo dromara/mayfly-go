@@ -40,7 +40,7 @@
                         </el-form-item>
 
                         <el-form-item prop="remark" label="备注">
-                            <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
+                            <el-input v-model="form.remark" auto-complete="off" type="textarea"></el-input>
                         </el-form-item>
                     </el-tab-pane>
 

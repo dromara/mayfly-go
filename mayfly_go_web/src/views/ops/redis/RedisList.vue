@@ -31,14 +31,11 @@
                 </span>
             </template>
 
-            <template #more="{ data }">
-                <el-button @click="showDetail(data)" link>详情</el-button>
-
+            <template #action="{ data }">
                 <el-button v-if="data.mode === 'standalone' || data.mode === 'sentinel'" type="primary" @click="showInfoDialog(data)" link>单机信息</el-button>
                 <el-button @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary" link>集群信息</el-button>
-            </template>
 
-            <template #action="{ data }">
+                <el-button @click="showDetail(data)" link>详情</el-button>
                 <el-button type="primary" link @click="editRedis(data)">编辑</el-button>
             </template>
         </page-table>
@@ -183,8 +180,7 @@ const columns = ref([
     TableColumn.new('host', 'host:port'),
     TableColumn.new('mode', 'mode'),
     TableColumn.new('remark', '备注'),
-    TableColumn.new('more', '更多').isSlot().setMinWidth(155).fixedRight(),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(65).fixedRight().alignCenter(),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(200).fixedRight().alignCenter(),
 ]);
 
 const state = reactive({
@@ -246,7 +242,9 @@ const deleteRedis = async () => {
         await redisApi.delRedis.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 const showInfoDialog = async (redis: any) => {

@@ -74,7 +74,7 @@ const columns = ref([
     TableColumn.new('uri', '连接uri'),
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('creator', '创建人'),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(145).fixedRight().alignCenter(),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(170).fixedRight().alignCenter(),
 ]);
 
 const state = reactive({
@@ -126,7 +126,9 @@ const deleteMongo = async () => {
         await mongoApi.deleteMongo.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 const search = async () => {

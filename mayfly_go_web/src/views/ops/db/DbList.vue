@@ -56,10 +56,10 @@
                 {{ `${data.host}:${data.port}` }}
             </template>
 
-            <template #database="{ data }">
-                <el-popover placement="right" trigger="click" :width="300">
+            <template #action="{ data }">
+                <el-popover placement="left" trigger="click" :width="300">
                     <template #reference>
-                        <el-link type="primary" :underline="false" plain @click="selectDb(data.dbs)">查看 </el-link>
+                        <el-button type="primary" @click="selectDb(data.dbs)" link>库操作</el-button>
                     </template>
                     <el-input v-model="filterDb.param" @keyup="filterSchema" class="w-50 m-2" placeholder="搜索" size="small">
                         <template #prefix>
@@ -80,16 +80,28 @@
                         </el-link>
                     </div>
                 </el-popover>
-            </template>
 
-            <template #more="{ data }">
-                <el-button @click="showInfo(data)" link>详情</el-button>
-                <el-button class="ml5" type="primary" @click="onShowSqlExec(data)" link>SQL执行记录</el-button>
-            </template>
+                <el-divider direction="vertical" border-style="dashed" />
+                <el-button type="primary" @click="onShowSqlExec(data)" link>SQL记录</el-button>
 
-            <template #action="{ data }">
-                <el-button v-if="actionBtns[perms.saveDb]" @click="editDb(data)" type="primary" link>编辑</el-button>
-                <el-button v-if="data.type == 'mysql'" class="ml5" type="primary" @click="onDumpDbs(data)" link>导出</el-button>
+                <el-divider direction="vertical" border-style="dashed" />
+                <el-dropdown @command="handleMoreActionCommand">
+                    <span class="el-dropdown-link-more">
+                        更多
+                        <el-icon class="el-icon--right">
+                            <arrow-down />
+                        </el-icon>
+                    </span>
+                    <template #dropdown>
+                        <el-dropdown-menu>
+                            <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
+
+                            <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.saveDb]"> 编辑 </el-dropdown-item>
+
+                            <el-dropdown-item :command="{ type: 'dumpDb', data }" v-if="data.type == 'mysql'"> 导出 </el-dropdown-item>
+                        </el-dropdown-menu>
+                    </template>
+                </el-dropdown>
             </template>
         </page-table>
 
@@ -204,14 +216,12 @@ const columns = ref([
     TableColumn.new('host', 'ip:port').isSlot().setAddWidth(40),
     TableColumn.new('username', 'username'),
     TableColumn.new('name', '名称'),
-    TableColumn.new('database', '数据库').isSlot().setMinWidth(70),
     TableColumn.new('remark', '备注'),
-    TableColumn.new('more', '更多').isSlot().setMinWidth(180).fixedRight(),
 ]);
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.base, perms.saveDb]);
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(150).fixedRight().alignCenter();
+const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(220).fixedRight().alignCenter();
 
 const pageTableRef: any = ref(null);
 
@@ -338,6 +348,24 @@ const getInstances = async (instanceName = '') => {
     }
 };
 
+const handleMoreActionCommand = (commond: any) => {
+    const data = commond.data;
+    const type = commond.type;
+    switch (type) {
+        case 'detail': {
+            showInfo(data);
+            return;
+        }
+        case 'edit': {
+            editDb(data);
+            return;
+        }
+        case 'dumpDb': {
+            onDumpDbs(data);
+        }
+    }
+};
+
 const editDb = async (data: any) => {
     if (!data) {
         state.dbEditDialog.data = null;
@@ -452,4 +480,12 @@ const filterSchema = () => {
     }
 };
 </script>
-<style lang="scss"></style>
+<style lang="scss">
+.el-dropdown-link-more {
+    cursor: pointer;
+    color: var(--el-color-primary);
+    display: flex;
+    align-items: center;
+    margin-top: 6px;
+}
+</style>
