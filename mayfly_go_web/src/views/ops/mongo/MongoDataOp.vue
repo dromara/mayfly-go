@@ -5,15 +5,19 @@
                 <tag-tree :loadTags="loadTags">
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == MongoNodeType.Mongo">
-                            <el-popover :show-after="500" placement="right-start" title="mongo实例信息" trigger="hover" :width="210">
+                            <el-popover :show-after="500" placement="right-start" title="mongo实例信息" trigger="hover" :width="250">
                                 <template #reference>
                                     <SvgIcon name="iconfont icon-op-mongo" :size="18" />
                                 </template>
                                 <template #default>
-                                    <el-form class="instances-pop-form" label-width="auto" :size="'small'">
-                                        <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
-                                        <el-form-item label="链接:">{{ data.params.uri }}</el-form-item>
-                                    </el-form>
+                                    <el-descriptions :column="1" size="small">
+                                        <el-descriptions-item label="名称">
+                                            {{ data.params.name }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="链接">
+                                            {{ data.params.uri }}
+                                        </el-descriptions-item>
+                                    </el-descriptions>
                                 </template>
                             </el-popover>
                         </span>

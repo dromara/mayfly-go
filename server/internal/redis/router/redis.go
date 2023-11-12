@@ -28,6 +28,8 @@ func InitRedisRouter(router *gin.RouterGroup) {
 
 		req.NewGet("/tags", rs.RedisTags),
 
+		req.NewPost("/test-conn", rs.TestConn),
+
 		req.NewPost("", rs.Save).Log(req.NewLogSave("redis-保存信息")),
 
 		req.NewGet(":id/pwd", rs.GetRedisPwd),

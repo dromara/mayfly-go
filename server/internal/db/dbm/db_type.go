@@ -55,7 +55,7 @@ func (dbType DbType) StmtSelectDbName() string {
 	case DbTypeMysql:
 		return "SELECT SCHEMA_NAME AS dbname FROM SCHEMATA"
 	case DbTypePostgres:
-		return "SELECT datname AS dbname FROM pg_database"
+		return "SELECT datname AS dbname FROM pg_database WHERE datistemplate = false AND has_database_privilege(datname, 'CONNECT')"
 	default:
 		panic(fmt.Sprintf("invalid database type: %s", dbType))
 	}

@@ -445,6 +445,14 @@ func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
 	rc.ResData = res
 }
 
+func (d *Db) GetPgsqlSchemas(rc *req.Ctx) {
+	conn := d.getDbConn(rc.GinCtx)
+	biz.IsTrue(conn.Info.Type == dbm.DbTypePostgres, "非postgres无法获取该schemas")
+	res, err := d.getDbConn(rc.GinCtx).GetMeta().(*dbm.PgsqlMetadata).GetSchemas()
+	biz.ErrIsNilAppendErr(err, "获取schemas失败: %s")
+	rc.ResData = res
+}
+
 func getDbId(g *gin.Context) uint64 {
 	dbId, _ := strconv.Atoi(g.Param("dbId"))
 	biz.IsTrue(dbId > 0, "dbId错误")

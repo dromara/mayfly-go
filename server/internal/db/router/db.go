@@ -33,6 +33,8 @@ func InitDbRouter(router *gin.RouterGroup) {
 
 		req.NewGet(":dbId/t-create-ddl", d.GetCreateTableDdl),
 
+		req.NewGet(":dbId/pg/schemas", d.GetPgsqlSchemas),
+
 		req.NewPost(":dbId/exec-sql", d.ExecSql).Log(req.NewLog("db-执行Sql")),
 
 		req.NewPost(":dbId/exec-sql-file", d.ExecSqlFile).Log(req.NewLogSave("db-执行Sql文件")),

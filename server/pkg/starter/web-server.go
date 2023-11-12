@@ -28,7 +28,7 @@ func runWebServer() {
 
 	server := config.Conf.Server
 	port := server.GetPort()
-	logx.Infof("Listening and serving HTTP on %s", port)
+	logx.Infof("Listening and serving HTTP on %s", port+server.ContextPath)
 
 	var err error
 	if server.Tls != nil && server.Tls.Enable {

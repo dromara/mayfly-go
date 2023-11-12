@@ -11,6 +11,7 @@ export const dbApi = {
     tableIndex: Api.newGet('/dbs/{id}/t-index'),
     tableDdl: Api.newGet('/dbs/{id}/t-create-ddl'),
     columnMetadata: Api.newGet('/dbs/{id}/c-metadata'),
+    pgSchemas: Api.newGet('/dbs/{id}/pg/schemas'),
     // 获取表即列提示
     hintTables: Api.newGet('/dbs/{id}/hint-tables'),
     sqlExec: Api.newPost('/dbs/{id}/exec-sql'),
@@ -28,6 +29,7 @@ export const dbApi = {
     instances: Api.newGet('/instances'),
     getInstance: Api.newGet('/instances/{instanceId}'),
     getAllDatabase: Api.newGet('/instances/{instanceId}/databases'),
+    testConn: Api.newPost('/instances/test-conn'),
     saveInstance: Api.newPost('/instances'),
     getInstancePwd: Api.newGet('/instances/{id}/pwd'),
     deleteInstance: Api.newDelete('/instances/{id}'),

@@ -24,6 +24,8 @@ export class TagTreeNode {
      */
     params: any;
 
+    icon: any;
+
     static TagPath = -1;
 
     constructor(key: any, label: string, type?: NodeType) {
@@ -39,6 +41,11 @@ export class TagTreeNode {
 
     withParams(params: any) {
         this.params = params;
+        return this;
+    }
+
+    withIcon(icon: any) {
+        this.icon = icon;
         return this;
     }
 

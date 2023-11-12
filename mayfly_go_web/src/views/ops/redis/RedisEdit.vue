@@ -73,6 +73,7 @@
 
             <template #footer>
                 <div class="dialog-footer">
+                    <el-button @click="testConn" :loading="state.testConnBtnLoading" type="success">测试连接</el-button>
                     <el-button @click="cancel()">取 消</el-button>
                     <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
                 </div>
@@ -161,6 +162,7 @@ const state = reactive({
     dbList: [0],
     pwd: '',
     btnLoading: false,
+    testConnBtnLoading: false,
 });
 
 const { dialogVisible, tabActiveName, form, dbList, pwd, btnLoading } = toRefs(state);
@@ -195,19 +197,40 @@ const getPwd = async () => {
     state.pwd = await redisApi.getRedisPwd.request({ id: state.form.id });
 };
 
+const getReqForm = async () => {
+    const reqForm = { ...state.form };
+    if (reqForm.mode == 'sentinel' && reqForm.host.split('=').length != 2) {
+        ElMessage.error('sentinel模式host需为: mastername=sentinelhost:sentinelport模式');
+        return;
+    }
+    if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
+        reqForm.sshTunnelMachineId = -1;
+    }
+    reqForm.password = await RsaEncrypt(reqForm.password);
+    return reqForm;
+};
+
+const testConn = async () => {
+    redisForm.value.validate(async (valid: boolean) => {
+        if (valid) {
+            state.testConnBtnLoading = true;
+            try {
+                await redisApi.testConn.request(await getReqForm());
+                ElMessage.success('连接成功');
+            } finally {
+                state.testConnBtnLoading = false;
+            }
+        } else {
+            ElMessage.error('请正确填写信息');
+            return false;
+        }
+    });
+};
+
 const btnOk = async () => {
     redisForm.value.validate(async (valid: boolean) => {
         if (valid) {
-            const reqForm = { ...state.form };
-            if (reqForm.mode == 'sentinel' && reqForm.host.split('=').length != 2) {
-                ElMessage.error('sentinel模式host需为: mastername=sentinelhost:sentinelport模式');
-                return;
-            }
-            if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
-                reqForm.sshTunnelMachineId = -1;
-            }
-            reqForm.password = await RsaEncrypt(reqForm.password);
-            redisApi.saveRedis.request(reqForm).then(() => {
+            redisApi.saveRedis.request(await getReqForm()).then(() => {
                 ElMessage.success('保存成功');
                 emit('val-change', state.form);
                 state.btnLoading = true;

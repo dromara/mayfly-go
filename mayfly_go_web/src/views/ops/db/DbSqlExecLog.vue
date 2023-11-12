@@ -39,7 +39,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs,watch, reactive, computed, onMounted, defineAsyncComponent } from 'vue';
+import { toRefs, watch, reactive, onMounted } from 'vue';
 import { dbApi } from './api';
 import { DbSqlExecTypeEnum } from './enums';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -103,13 +103,12 @@ onMounted(async () => {
     searchSqlExecLog();
 });
 
-watch(props, async (newValue: any) => {
+watch(props, async () => {
     await searchSqlExecLog();
 });
 
-
 const searchSqlExecLog = async () => {
-    state.query.dbId = props.dbId
+    state.query.dbId = props.dbId;
     const res = await dbApi.getSqlExecs.request(state.query);
     state.data = res.list;
     state.total = res.total;

@@ -3,6 +3,10 @@ function getBaseApiUrl() {
     if (path == '/') {
         return window.location.host;
     }
+    if (path.endsWith('/')) {
+        // 去除最后一个/
+        return window.location.host + path.replace(/\/$/, '');
+    }
     return window.location.host + path;
 }
 

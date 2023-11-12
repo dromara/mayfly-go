@@ -7,7 +7,7 @@
                 </el-icon>
             </template>
             <span v-for="(v, i) in tags" :key="i">
-                <el-tooltip effect="customized" :content="v.remark" placement="top">
+                <el-tooltip :content="v.remark" placement="top">
                     <span class="color-success">{{ v.name }}</span>
                 </el-tooltip>
                 <span v-if="i != state.tags.length - 1" class="color-primary"> / </span>

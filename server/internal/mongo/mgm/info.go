@@ -26,7 +26,7 @@ type MongoInfo struct {
 }
 
 func (mi *MongoInfo) Conn() (*MongoConn, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 
 	mongoOptions := options.Client().ApplyURI(mi.Uri).
@@ -40,7 +40,7 @@ func (mi *MongoInfo) Conn() (*MongoConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err = client.Ping(context.TODO(), nil); err != nil {
+	if err = client.Ping(ctx, nil); err != nil {
 		client.Disconnect(ctx)
 		return nil, err
 	}

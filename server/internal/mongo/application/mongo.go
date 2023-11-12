@@ -18,6 +18,8 @@ type Mongo interface {
 
 	Count(condition *entity.MongoQuery) int64
 
+	TestConn(entity *entity.Mongo) error
+
 	Save(ctx context.Context, entity *entity.Mongo) error
 
 	// 删除数据库信息
@@ -50,6 +52,15 @@ func (d *mongoAppImpl) Count(condition *entity.MongoQuery) int64 {
 func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 	mgm.CloseConn(id)
 	return d.GetRepo().DeleteById(ctx, id)
+}
+
+func (d *mongoAppImpl) TestConn(me *entity.Mongo) error {
+	conn, err := me.ToMongoInfo().Conn()
+	if err != nil {
+		return err
+	}
+	conn.Close()
+	return nil
 }
 
 func (d *mongoAppImpl) Save(ctx context.Context, m *entity.Mongo) error {

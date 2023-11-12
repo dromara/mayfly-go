@@ -34,7 +34,7 @@
                 <tag-tree ref="tagTreeRef" :loadTags="loadTags" @current-contextmenu-click="onCurrentContextmenuClick" :height="state.tagTreeHeight">
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == SqlExecNodeType.DbInst">
-                            <el-popover :show-after="500" placement="right-start" title="数据库实例信息" trigger="hover" :width="210">
+                            <el-popover :show-after="500" placement="right-start" title="数据库实例信息" trigger="hover" :width="250">
                                 <template #reference>
                                     <SvgIcon v-if="data.params.type === 'mysql'" name="iconfont icon-op-mysql" :size="18" />
                                     <SvgIcon v-if="data.params.type === 'postgres'" name="iconfont icon-op-postgres" :size="18" />
@@ -42,32 +42,31 @@
                                     <SvgIcon name="InfoFilled" v-else />
                                 </template>
                                 <template #default>
-                                    <el-form class="instances-pop-form" label-width="auto" :size="'small'">
-                                        <el-form-item label="类型:">{{ data.params.type }}</el-form-item>
-                                        <el-form-item label="host:">{{ `${data.params.host}:${data.params.port}` }}</el-form-item>
-                                        <el-form-item label="user:">{{ data.params.username }}</el-form-item>
-                                        <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
-                                        <el-form-item v-if="data.params.remark" label="备注:">{{ data.params.remark }}</el-form-item>
-                                    </el-form>
+                                    <el-descriptions :column="1" size="small">
+                                        <el-descriptions-item label="名称">
+                                            {{ data.params.name }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="host">
+                                            {{ `${data.params.host}:${data.params.port}` }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="user">
+                                            {{ data.params.username }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="备注">
+                                            {{ data.params.remark }}
+                                        </el-descriptions-item>
+                                    </el-descriptions>
                                 </template>
                             </el-popover>
                         </span>
 
-                        <SvgIcon v-if="data.type.value == SqlExecNodeType.Db" name="Coin" color="#67c23a" />
+                        <SvgIcon v-if="data.icon" :name="data.icon.name" :color="data.icon.color" />
+                    </template>
 
-                        <SvgIcon name="Calendar" v-if="data.type.value == SqlExecNodeType.TableMenu" color="#409eff" />
-
-                        <el-tooltip
-                            :show-after="500"
-                            v-if="data.type.value == SqlExecNodeType.Table"
-                            effect="customized"
-                            :content="data.params.tableComment"
-                            placement="top-end"
-                        >
-                            <SvgIcon name="Calendar" color="#409eff" />
+                    <template #label="{ data }">
+                        <el-tooltip placement="left" :show-after="1000" v-if="data.type.value == SqlExecNodeType.Table" :content="data.params.tableComment">
+                            {{ data.label }}
                         </el-tooltip>
-
-                        <SvgIcon name="Files" v-if="data.type.value == SqlExecNodeType.SqlMenu || data.type.value == SqlExecNodeType.Sql" color="#f56c6c" />
                     </template>
 
                     <template #suffix="{ data }">
@@ -81,32 +80,61 @@
 
             <el-col :span="20">
                 <el-container id="data-exec" class="mt5 ml5">
-                    <el-tabs @tab-remove="onRemoveTab" @tab-change="onTabChange" style="width: 100%" v-model="state.activeName">
-                        <el-tab-pane closable v-for="dt in state.tabs.values()" :key="dt.key" :label="dt.key" :name="dt.key">
-                            <table-data
-                                v-if="dt.type === TabType.TableData"
-                                @gen-insert-sql="onGenerateInsertSql"
-                                :data="dt"
-                                :table-height="state.dataTabsTableHeight"
-                            ></table-data>
+                    <el-tabs type="card" @tab-remove="onRemoveTab" @tab-change="onTabChange" style="width: 100%" v-model="state.activeName">
+                        <el-tab-pane closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
+                            <!-- <template #label>
+                                <el-popover :show-after="500" placement="right-start" title="数据库实例信息" trigger="hover" :width="250">
+                                    <template #reference> {{ dt.label }} </template>
+                                    <template #default>
+                                        <el-descriptions :column="1" size="small">
+                                            <el-descriptions-item label="名称">
+                                                {{ dt.params.name }}
+                                            </el-descriptions-item>
+                                            <el-descriptions-item label="host">
+                                                {{ `${dt.params.host}:${dt.params.port}` }}
+                                            </el-descriptions-item>
+                                            <el-descriptions-item label="user">
+                                                {{ dt.params.username }}
+                                            </el-descriptions-item>
+                                            <el-descriptions-item label="备注">
+                                                {{ dt.params.remark }}
+                                            </el-descriptions-item>
+                                        </el-descriptions>
+                                    </template>
+                                </el-popover>
+                            </template> -->
 
-                            <query
-                                v-else
+                            <db-table-data-op
+                                v-if="dt.type === TabType.TableData"
+                                :db-id="dt.dbId"
+                                :db-name="dt.db"
+                                :table-name="dt.params.table"
+                                :table-height="state.dataTabsTableHeight"
+                            ></db-table-data-op>
+
+                            <db-sql-editor
+                                v-if="dt.type === TabType.Query"
+                                :db-id="dt.dbId"
+                                :db-name="dt.db"
+                                :sql-name="dt.params.sqlName"
                                 @save-sql-success="reloadSqls"
                                 @delete-sql-success="deleteSqlScript(dt)"
-                                :data="dt"
                                 :editor-height="state.editorHeight"
                             >
-                            </query>
+                            </db-sql-editor>
+
+                            <db-tables-op
+                                v-if="dt.type == TabType.TablesOp"
+                                :db-id="dt.params.id"
+                                :db="dt.params.db"
+                                :db-type="dt.params.type"
+                                :height="state.tablesOpHeight"
+                            />
                         </el-tab-pane>
                     </el-tabs>
                 </el-container>
             </el-col>
         </el-row>
-
-        <el-dialog @close="state.genSqlDialog.visible = false" v-model="state.genSqlDialog.visible" title="SQL" width="1000px">
-            <el-input v-model="state.genSqlDialog.sql" type="textarea" rows="20" />
-        </el-dialog>
     </div>
 </template>
 
@@ -120,8 +148,10 @@ import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
 import { dispposeCompletionItemProvider } from '../../../components/monaco/completionItemProvider';
 
-const Query = defineAsyncComponent(() => import('./component/tab/Query.vue'));
-const TableData = defineAsyncComponent(() => import('./component/tab/TableData.vue'));
+const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
+const DbTableDataOp = defineAsyncComponent(() => import('./component/table/DbTableDataOp.vue'));
+const DbTablesOp = defineAsyncComponent(() => import('./component/table/DbTablesOp.vue'));
+
 /**
  * 树节点类型
  */
@@ -132,16 +162,40 @@ class SqlExecNodeType {
     static SqlMenu = 4;
     static Table = 5;
     static Sql = 6;
+    static PgSchemaMenu = 7;
+    static PgSchema = 8;
 }
+
+const DbIcon = {
+    name: 'Coin',
+    color: '#67c23a',
+};
+
+// pgsql schema icon
+const SchemaIcon = {
+    name: 'List',
+    color: '#67c23a',
+};
+
+const TableIcon = {
+    name: 'Calendar',
+    color: '#409eff',
+};
+
+const SqlIcon = {
+    name: 'Files',
+    color: '#f56c6c',
+};
 
 class ContextmenuClickId {
     static ReloadTable = 0;
+    static TableOp = 1;
 }
 
 // node节点点击时，触发改变db事件
-const changeDb = (nodeData: TagTreeNode) => {
+const nodeClickChangeDb = (nodeData: TagTreeNode) => {
     const params = nodeData.params;
-    changeSchema({ id: params.id, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.database }, params.db);
+    changeDb({ id: params.id, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.database }, params.db);
 };
 
 // tagpath 节点类型
@@ -161,54 +215,93 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst)
         const params = parentNode.params;
         const dbs = params.database.split(' ')?.sort();
         return dbs.map((x: any) => {
-            return new TagTreeNode(`${parentNode.key}.${x}`, x, NodeTypeDb).withParams({
-                tagPath: params.tagPath,
-                id: params.id,
-                name: params.name,
-                type: params.type,
-                dbs: dbs,
-                db: x,
-            });
+            return new TagTreeNode(`${parentNode.key}.${x}`, x, NodeTypeDb)
+                .withParams({
+                    tagPath: params.tagPath,
+                    id: params.id,
+                    name: params.name,
+                    type: params.type,
+                    dbs: dbs,
+                    db: x,
+                })
+                .withIcon(DbIcon);
         });
     })
-    .withNodeClickFunc(changeDb);
+    .withNodeClickFunc(nodeClickChangeDb);
 
 // 数据库节点
 const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
+        if (params.type == 'postgres') {
+            return [new TagTreeNode(`${params.id}.${params.db}.schema-menu`, 'schema', NodeTypePostgresScheamMenu).withParams(params).withIcon(SchemaIcon)];
+        }
+
         return [
-            new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams(params),
-            new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeTypeSqlMenu).withParams(params),
+            new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams(params).withIcon(TableIcon),
+            new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeTypeSqlMenu).withParams(params).withIcon(SqlIcon),
         ];
     })
-    .withNodeClickFunc(changeDb);
+    .withNodeClickFunc(nodeClickChangeDb);
 
-// 数据库表菜单节点
-const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
-    .withContextMenuItems([{ contextMenuClickId: ContextmenuClickId.ReloadTable, txt: '刷新', icon: 'RefreshRight' }] as any)
+// postgres schema模式菜单
+const NodeTypePostgresScheamMenu = new NodeType(SqlExecNodeType.PgSchemaMenu)
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
         const { id, db } = params;
+        const schemaNames = await dbApi.pgSchemas.request({ id, db });
+        return schemaNames.map((sn: any) => {
+            // 将db变更为  db/schema;
+            const nParams = { ...params };
+            nParams.schema = sn;
+            nParams.db = nParams.db + '/' + sn;
+            return new TagTreeNode(`${params.id}.${params.db}.schema.${sn}`, sn, NodeTypePostgresScheam).withParams(nParams).withIcon(SchemaIcon);
+        });
+    })
+    .withNodeClickFunc(nodeClickChangeDb);
+
+// postgres schema模式
+const NodeTypePostgresScheam = new NodeType(SqlExecNodeType.PgSchema)
+    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+        const params = parentNode.params;
+        return [
+            new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams(params).withIcon(TableIcon),
+            new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeTypeSqlMenu).withParams(params).withIcon(SqlIcon),
+        ];
+    })
+    .withNodeClickFunc(nodeClickChangeDb);
+
+// 数据库表菜单节点
+const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
+    .withContextMenuItems([
+        { contextMenuClickId: ContextmenuClickId.ReloadTable, txt: '刷新', icon: 'RefreshRight' },
+        { contextMenuClickId: ContextmenuClickId.TableOp, txt: '表操作', icon: 'Setting' },
+    ] as any)
+    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+        const params = parentNode.params;
+        let { id, db } = params;
         // 获取当前库的所有表信息
         let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
         state.reloadStatus = false;
         let dbTableSize = 0;
         const tablesNode = tables.map((x: any) => {
             dbTableSize += x.dataLength + x.indexLength;
-            return new TagTreeNode(`${id}.${db}.${x.tableName}`, x.tableName, NodeTypeTable).withIsLeaf(true).withParams({
-                id,
-                db,
-                tableName: x.tableName,
-                tableComment: x.tableComment,
-                size: formatByteSize(x.dataLength + x.indexLength, 1),
-            });
+            return new TagTreeNode(`${id}.${db}.${x.tableName}`, x.tableName, NodeTypeTable)
+                .withIsLeaf(true)
+                .withParams({
+                    id,
+                    db,
+                    tableName: x.tableName,
+                    tableComment: x.tableComment,
+                    size: formatByteSize(x.dataLength + x.indexLength, 1),
+                })
+                .withIcon(TableIcon);
         });
         // 设置父节点参数的表大小
         parentNode.params.dbTableSize = formatByteSize(dbTableSize);
         return tablesNode;
     })
-    .withNodeClickFunc(changeDb);
+    .withNodeClickFunc(nodeClickChangeDb);
 
 // 数据库sql模板菜单节点
 const NodeTypeSqlMenu = new NodeType(SqlExecNodeType.SqlMenu)
@@ -220,15 +313,18 @@ const NodeTypeSqlMenu = new NodeType(SqlExecNodeType.SqlMenu)
         // 加载用户保存的sql脚本
         const sqls = await dbApi.getSqlNames.request({ id: id, db: db });
         return sqls.map((x: any) => {
-            return new TagTreeNode(`${id}.${db}.${x.name}`, x.name, NodeTypeSql).withIsLeaf(true).withParams({
-                id,
-                db,
-                dbs,
-                sqlName: x.name,
-            });
+            return new TagTreeNode(`${id}.${db}.${x.name}`, x.name, NodeTypeSql)
+                .withIsLeaf(true)
+                .withParams({
+                    id,
+                    db,
+                    dbs,
+                    sqlName: x.name,
+                })
+                .withIcon(SqlIcon);
         });
     })
-    .withNodeClickFunc(changeDb);
+    .withNodeClickFunc(nodeClickChangeDb);
 
 // 表节点类型
 const NodeTypeTable = new NodeType(SqlExecNodeType.Table).withNodeClickFunc((nodeData: TagTreeNode) => {
@@ -256,11 +352,8 @@ const state = reactive({
     tabs,
     dataTabsTableHeight: '600',
     editorHeight: '600',
+    tablesOpHeight: '600',
     tagTreeHeight: window.innerHeight - 178 + 'px',
-    genSqlDialog: {
-        visible: false,
-        sql: '',
-    },
 });
 
 const { nowDbInst } = toRefs(state);
@@ -280,7 +373,8 @@ onBeforeUnmount(() => {
  */
 const setHeight = () => {
     state.editorHeight = window.innerHeight - 518 + 'px';
-    state.dataTabsTableHeight = window.innerHeight - 256 + 'px';
+    state.dataTabsTableHeight = window.innerHeight - 262 + 'px';
+    state.tablesOpHeight = window.innerHeight - 240 + 'px';
     state.tagTreeHeight = window.innerHeight - 165 + 'px';
 };
 
@@ -318,54 +412,62 @@ const onCurrentContextmenuClick = (clickData: any) => {
     const clickId = clickData.id;
     if (clickId == ContextmenuClickId.ReloadTable) {
         reloadTables(clickData.item.key);
+        return;
+    }
+    if (clickId == ContextmenuClickId.TableOp) {
+        const params = clickData.item.params;
+        addTablesOpTab({ id: params.id, db: params.db, type: params.type, nodeKey: clickData.item.key });
     }
 };
 
 // 选择数据库
-const changeSchema = (inst: any, schema: string) => {
-    state.nowDbInst = DbInst.getOrNewInst(inst);
-    state.db = schema;
+const changeDb = (db: any, dbName: string) => {
+    state.nowDbInst = DbInst.getOrNewInst(db);
+    state.db = dbName;
 };
 
 // 加载选中的表数据，即新增表数据操作tab
-const loadTableData = async (inst: any, schema: string, tableName: string) => {
-    changeSchema(inst, schema);
+const loadTableData = async (db: any, dbName: string, tableName: string) => {
+    changeDb(db, dbName);
     if (tableName == '') {
         return;
     }
 
-    const label = `${inst.id}:\`${schema}\`.${tableName}`;
-    let tab = state.tabs.get(label);
-    state.activeName = label;
+    const key = `${db.id}:\`${dbName}\`.${tableName}`;
+    let tab = state.tabs.get(key);
+    state.activeName = key;
     // 如果存在该表tab，则直接返回
     if (tab) {
         return;
     }
     tab = new TabInfo();
-    tab.key = label;
-    tab.treeNodeKey = inst.nodeKey;
-    tab.dbId = inst.id;
-    tab.db = schema;
+    tab.label = tableName;
+    tab.key = key;
+    tab.treeNodeKey = db.nodeKey;
+    tab.dbId = db.id;
+    tab.db = dbName;
     tab.type = TabType.TableData;
     tab.params = {
         table: tableName,
     };
-    state.tabs.set(label, tab);
+    state.tabs.set(key, tab);
 };
 
-// 新建查询panel
-const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
-    if (!db || !inst.id) {
+// 新建查询tab
+const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
+    if (!dbName || !db.id) {
         ElMessage.warning('请选择数据库实例及对应的schema');
         return;
     }
-    changeSchema(inst, db);
+    changeDb(db, dbName);
 
-    const dbId = inst.id;
+    const dbId = db.id;
     let label;
+    let key;
     // 存在sql模板名，则该模板名只允许一个tab
     if (sqlName) {
-        label = `查询:${dbId}:${db}.${sqlName}`;
+        label = `查询-${sqlName}`;
+        key = `查询:${dbId}:${dbName}.${sqlName}`;
     } else {
         let count = 1;
         state.tabs.forEach((v) => {
@@ -373,27 +475,64 @@ const addQueryTab = async (inst: any, db: string, sqlName: string = '') => {
                 count++;
             }
         });
-        label = `新查询${count}:${dbId}:${db}`;
+        label = `新查询-${count}`;
+        key = `新查询${count}:${dbId}:${dbName}`;
     }
-    state.activeName = label;
-    let tab = state.tabs.get(label);
+    state.activeName = key;
+    let tab = state.tabs.get(key);
     if (tab) {
         return;
     }
     tab = new TabInfo();
-    tab.key = label;
-    tab.treeNodeKey = inst.nodeKey;
+    tab.key = key;
+    tab.label = label;
+    tab.treeNodeKey = db.nodeKey;
     tab.dbId = dbId;
-    tab.db = db;
+    tab.db = dbName;
     tab.type = TabType.Query;
     tab.params = {
         sqlName: sqlName,
-        dbs: inst.dbs,
+        dbs: db.dbs,
     };
-    state.tabs.set(label, tab);
+    state.tabs.set(key, tab);
 
     // 注册当前sql编辑框提示词
     registerDbCompletionItemProvider('sql', tab.dbId, tab.db, tab.params.dbs);
+};
+
+/**
+ * 添加数据操作tab
+ * @param inst
+ */
+const addTablesOpTab = async (db: any) => {
+    const dbName = db.db;
+    if (!db || !db.id) {
+        ElMessage.warning('请选择数据库实例及对应的schema');
+        return;
+    }
+    changeDb(db, dbName);
+
+    const dbId = db.id;
+    let key = `表操作:${dbId}:${dbName}.tablesOp`;
+    state.activeName = key;
+
+    let tab = state.tabs.get(key);
+    if (tab) {
+        return;
+    }
+    tab = new TabInfo();
+    tab.key = key;
+    tab.label = `表操作-${dbName}`;
+    tab.treeNodeKey = db.nodeKey;
+    tab.dbId = dbId;
+    tab.db = dbName;
+    tab.type = TabType.TablesOp;
+    tab.params = {
+        id: db.id,
+        db: dbName,
+        type: db.type,
+    };
+    state.tabs.set(key, tab);
 };
 
 const onRemoveTab = (targetName: string) => {
@@ -412,6 +551,7 @@ const onRemoveTab = (targetName: string) => {
         }
         state.tabs.delete(targetName);
         state.activeName = activeName;
+        onTabChange();
     }
 };
 
@@ -430,11 +570,6 @@ const onTabChange = () => {
         // 注册sql提示
         registerDbCompletionItemProvider('sql', nowTab.dbId, nowTab.db, nowTab.params.dbs);
     }
-};
-
-const onGenerateInsertSql = async (sql: string) => {
-    state.genSqlDialog.sql = sql;
-    state.genSqlDialog.visible = true;
 };
 
 const reloadSqls = (dbId: number, db: string) => {
@@ -467,22 +602,16 @@ const reloadTables = (nodeKey: string) => {
         min-height: calc(100vh - 155px);
 
         .el-tabs__header {
-            margin: 0 0 5px;
+            margin: 0 0 10px;
 
             .el-tabs__item {
-                padding: 0 5px;
+                padding: 0 10px;
             }
         }
     }
 
     .update_field_active {
         background-color: var(--el-color-success);
-    }
-
-    .instances-pop-form {
-        .el-form-item {
-            margin-bottom: unset;
-        }
     }
 }
 </style>

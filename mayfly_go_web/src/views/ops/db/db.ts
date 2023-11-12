@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import { dbApi } from './api';
 import { getTextWidth } from '@/common/utils/string';
-import SqlExecBox from './component/SqlExecBox';
+import SqlExecBox from './component/sqleditor/SqlExecBox';
 
 import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
 import { language as addSqlLanguage } from './lang/mysql.js';
@@ -39,11 +39,11 @@ export class DbInst {
     type: string;
 
     /**
-     * schema -> db
+     * dbName -> db
      */
     dbs: Map<string, Db> = new Map();
 
-    /** 数据库schema，多个用空格隔开 */
+    /** 数据库，多个用空格隔开 */
     databases: string;
 
     /**
@@ -281,9 +281,9 @@ export class DbInst {
         if (this.type == 'mysql') {
             return `\`${name}\``;
         }
-        if (this.type == 'postgres') {
-            return `"${name}"`;
-        }
+        // if (this.type == 'postgres') {
+        //     return `"${name}"`;
+        // }
         return name;
     };
 
@@ -451,11 +451,18 @@ export enum TabType {
      * 查询框
      */
     Query,
+
+    /**
+     * 表操作
+     */
+    TablesOp,
 }
 
 export class TabInfo {
+    label: string;
+
     /**
-     * tab唯一key。与label、name都一致
+     * tab唯一key。与name都一致
      */
     key: string;
 

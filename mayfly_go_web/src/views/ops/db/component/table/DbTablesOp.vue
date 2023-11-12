@@ -30,7 +30,7 @@
             <el-button type="primary" size="small" @click="openEditTable(false)">创建表</el-button>
         </el-row>
 
-        <el-table v-loading="loading" border stripe :data="filterTableInfos" size="small" height="65vh">
+        <el-table v-loading="loading" border stripe :data="filterTableInfos" size="small" :height="height">
             <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip>
                 <template #header>
                     <el-input v-model="tableNameSearch" size="small" placeholder="表名: 输入可过滤" clearable />
@@ -104,7 +104,7 @@
             <el-input disabled type="textarea" :autosize="{ minRows: 15, maxRows: 30 }" v-model="ddlDialog.ddl" size="small"> </el-input>
         </el-dialog>
 
-        <db-table-edit
+        <db-table-op
             :title="tableCreateDialog.title"
             :active-name="tableCreateDialog.activeName"
             :dbId="dbId"
@@ -113,7 +113,7 @@
             v-model:visible="tableCreateDialog.visible"
             @submit-sql="onSubmitSql"
         >
-        </db-table-edit>
+        </db-table-op>
     </div>
 </template>
 
@@ -121,15 +121,19 @@
 import { toRefs, reactive, watch, computed, onMounted, defineAsyncComponent } from 'vue';
 import { ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
-import { dbApi } from '../api';
-import SqlExecBox from '../component/SqlExecBox';
+import { dbApi } from '@/views/ops/db/api';
+import SqlExecBox from '../sqleditor/SqlExecBox';
 import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
 
-const DbTableEdit = defineAsyncComponent(() => import('./DbTableEdit.vue'));
+const DbTableOp = defineAsyncComponent(() => import('./DbTableOp.vue'));
 
 const props = defineProps({
+    height: {
+        type: [String],
+        default: '65vh',
+    },
     dbId: {
         type: [Number],
         required: true,

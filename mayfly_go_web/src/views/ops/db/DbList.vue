@@ -57,34 +57,14 @@
             </template>
 
             <template #action="{ data }">
-                <el-popover placement="left" trigger="click" :width="300">
-                    <template #reference>
-                        <el-button type="primary" @click="selectDb(data.dbs)" link>库操作</el-button>
-                    </template>
-                    <el-input v-model="filterDb.param" @keyup="filterSchema" class="w-50 m-2" placeholder="搜索" size="small">
-                        <template #prefix>
-                            <el-icon class="el-input__icon">
-                                <search-icon />
-                            </el-icon>
-                        </template>
-                    </el-input>
-                    <div
-                        class="el-tag--plain el-tag--success"
-                        v-for="db in filterDb.list"
-                        :key="db"
-                        style="border: 1px var(--color-success-light-3) solid; margin-top: 3px; border-radius: 5px; padding: 2px; position: relative"
-                    >
-                        <el-link type="success" plain size="small" :underline="false">{{ db }}</el-link>
-                        <el-link type="primary" plain size="small" :underline="false" @click="showTableInfo(data, db)" style="position: absolute; right: 4px"
-                            >操作
-                        </el-link>
-                    </div>
-                </el-popover>
+                <span v-if="actionBtns[perms.saveDb]">
+                    <el-button type="primary" @click="editDb(data)" link>编辑</el-button>
+                    <el-divider direction="vertical" border-style="dashed" />
+                </span>
 
-                <el-divider direction="vertical" border-style="dashed" />
                 <el-button type="primary" @click="onShowSqlExec(data)" link>SQL记录</el-button>
-
                 <el-divider direction="vertical" border-style="dashed" />
+
                 <el-dropdown @command="handleMoreActionCommand">
                     <span class="el-dropdown-link-more">
                         更多
@@ -96,7 +76,7 @@
                         <el-dropdown-menu>
                             <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
 
-                            <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.saveDb]"> 编辑 </el-dropdown-item>
+                            <!-- <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.saveDb]"> 编辑 </el-dropdown-item> -->
 
                             <el-dropdown-item :command="{ type: 'dumpDb', data }" v-if="data.type == 'mysql'"> 导出 </el-dropdown-item>
                         </el-dropdown-menu>
@@ -104,10 +84,6 @@
                 </el-dropdown>
             </template>
         </page-table>
-
-        <el-dialog width="80%" :title="`${db} 表信息`" :before-close="closeTableInfo" v-model="tableInfoDialog.visible">
-            <db-table-list :db-id="dbId" :db="db" :db-type="state.row.type" />
-        </el-dialog>
 
         <el-dialog width="620" :title="`${db} 数据库导出`" v-model="exportDialog.visible">
             <el-row justify="space-between">
@@ -190,7 +166,6 @@ import { dbApi } from './api';
 import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
-import { Search as SearchIcon } from '@element-plus/icons-vue';
 import { dateFormat } from '@/common/utils/date';
 import TagInfo from '../component/TagInfo.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -199,7 +174,6 @@ import { hasPerms } from '@/components/auth/auth';
 import DbSqlExecLog from './DbSqlExecLog.vue';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
-const DbTableList = defineAsyncComponent(() => import('./table/DbTableList.vue'));
 
 const perms = {
     base: 'db',
@@ -254,23 +228,12 @@ const state = reactive({
             instanceId: 0,
         },
     },
-    showDumpInfo: false,
-    dumpInfo: {
-        id: 0,
-        db: '',
-        type: 3,
-        tables: [],
-    },
     // sql执行记录弹框
     sqlExecLogDialog: {
         title: '',
         visible: false,
         dbs: [],
         dbId: 0,
-    },
-    chooseTableName: '',
-    tableInfoDialog: {
-        visible: false,
     },
     exportDialog: {
         visible: false,
@@ -293,8 +256,7 @@ const state = reactive({
     },
 });
 
-const { dbId, db, tags, selectionData, query, datas, total, infoDialog, sqlExecLogDialog, tableInfoDialog, exportDialog, dbEditDialog, filterDb } =
-    toRefs(state);
+const { db, tags, selectionData, query, datas, total, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog } = toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
@@ -448,36 +410,6 @@ const dumpDbs = () => {
     );
     a.click();
     state.exportDialog.visible = false;
-};
-
-const showTableInfo = async (row: any, db: string) => {
-    state.dbId = row.id;
-    state.row = row;
-    state.db = db;
-    state.tableInfoDialog.visible = true;
-};
-
-const closeTableInfo = () => {
-    state.showDumpInfo = false;
-    state.tableInfoDialog.visible = false;
-};
-
-// 点击查看时初始化数据
-const selectDb = (row: any) => {
-    state.filterDb.param = '';
-    state.filterDb.cache = row;
-    state.filterDb.list = row;
-};
-
-// 输入字符过滤schema
-const filterSchema = () => {
-    if (state.filterDb.param) {
-        state.filterDb.list = state.filterDb.cache.filter((a) => {
-            return String(a).toLowerCase().indexOf(state.filterDb.param) > -1;
-        });
-    } else {
-        state.filterDb.list = state.filterDb.cache;
-    }
 };
 </script>
 <style lang="scss">

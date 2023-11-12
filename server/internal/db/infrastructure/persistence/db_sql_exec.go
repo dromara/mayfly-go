@@ -18,6 +18,11 @@ func newDbSqlExecRepo() repository.DbSqlExec {
 
 // 分页获取
 func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(new(entity.DbSqlExec)).WithCondModel(condition).WithOrderBy(orderBy...)
+	qd := gormx.NewQuery(new(entity.DbSqlExec)).
+		Eq("db_id", condition.DbId).
+		Eq("`table`", condition.Table).
+		Eq("type", condition.Type).
+		Eq("creator_id", condition.CreatorId).
+		RLike("db", condition.Db).WithOrderBy(orderBy...)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }

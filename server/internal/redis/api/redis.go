@@ -47,6 +47,18 @@ func (r *Redis) RedisTags(rc *req.Ctx) {
 	rc.ResData = r.TagApp.ListTagByAccountIdAndResource(rc.GetLoginAccount().Id, new(entity.Redis))
 }
 
+func (r *Redis) TestConn(rc *req.Ctx) {
+	form := &form.Redis{}
+	redis := ginx.BindJsonAndCopyTo[*entity.Redis](rc.GinCtx, form, new(entity.Redis))
+
+	// 密码解密，并使用解密后的赋值
+	originPwd, err := cryptox.DefaultRsaDecrypt(redis.Password, true)
+	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
+	redis.Password = originPwd
+
+	biz.ErrIsNil(r.RedisApp.TestConn(redis))
+}
+
 func (r *Redis) Save(rc *req.Ctx) {
 	form := &form.Redis{}
 	redis := ginx.BindJsonAndCopyTo[*entity.Redis](rc.GinCtx, form, new(entity.Redis))

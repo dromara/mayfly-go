@@ -78,7 +78,7 @@
                 size="small"
                 @click="maximize(minimizeTerminal.terminalId)"
             >
-                <el-tooltip effect="customized" :content="minimizeTerminal.desc" placement="top">
+                <el-tooltip :content="minimizeTerminal.desc" placement="top">
                     <span>
                         {{ minimizeTerminal.title }}
                     </span>

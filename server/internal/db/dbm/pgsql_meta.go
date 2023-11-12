@@ -29,13 +29,38 @@ func getPgsqlDB(d *DbInfo) (*sql.DB, error) {
 
 	db := d.Database
 	var dbParam string
+	exsitSchema := false
 	if db != "" {
-		dbParam = "dbname=" + db
+		// postgres database可以使用db/schema表示，方便连接指定schema, 若不存在schema则使用默认schema
+		ss := strings.Split(db, "/")
+		if len(ss) > 1 {
+			exsitSchema = true
+			dbParam = fmt.Sprintf("dbname=%s search_path=%s", ss[0], ss[len(ss)-1])
+		} else {
+			dbParam = "dbname=" + db
+		}
 	}
+
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s %s sslmode=disable", d.Host, d.Port, d.Username, d.Password, dbParam)
+	// 存在额外指定参数，则拼接该连接参数
 	if d.Params != "" {
+		// 存在指定的db，则需要将dbInstance配置中的parmas排除掉dbname和search_path
+		if db != "" {
+			paramArr := strings.Split(d.Params, "&")
+			paramArr = collx.ArrayRemoveFunc(paramArr, func(param string) bool {
+				if strings.HasPrefix(param, "dbname=") {
+					return true
+				}
+				if exsitSchema && strings.HasPrefix(param, "search_path") {
+					return true
+				}
+				return false
+			})
+			d.Params = strings.Join(paramArr, " ")
+		}
 		dsn = fmt.Sprintf("%s %s", dsn, strings.Join(strings.Split(d.Params, "&"), " "))
 	}
+
 	return sql.Open(driverName, dsn)
 }
 
@@ -67,6 +92,7 @@ func (pd *PqSqlDialer) DialTimeout(network, address string, timeout time.Duratio
 // ---------------------------------- pgsql元数据 -----------------------------------
 const (
 	PGSQL_META_FILE      = "metasql/pgsql_meta.sql"
+	PGSQL_DB_SCHEMAS     = "PGSQL_DB_SCHEMAS"
 	PGSQL_TABLE_INFO_KEY = "PGSQL_TABLE_INFO"
 	PGSQL_INDEX_INFO_KEY = "PGSQL_INDEX_INFO"
 	PGSQL_COLUMN_MA_KEY  = "PGSQL_COLUMN_MA"
@@ -191,4 +217,18 @@ func (pm *PgsqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int)
 
 func (pm *PgsqlMetadata) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
 	return pm.dc.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
+}
+
+// 获取pgsql当前连接的库可访问的schemaNames
+func (pm *PgsqlMetadata) GetSchemas() ([]string, error) {
+	sql := GetLocalSql(PGSQL_META_FILE, PGSQL_DB_SCHEMAS)
+	_, res, err := pm.dc.SelectData(sql)
+	if err != nil {
+		return nil, err
+	}
+	schemaNames := make([]string, 0)
+	for _, re := range res {
+		schemaNames = append(schemaNames, anyx.ConvString(re["schemaName"]))
+	}
+	return schemaNames, nil
 }

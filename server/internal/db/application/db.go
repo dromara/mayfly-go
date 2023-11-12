@@ -118,14 +118,24 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error) {
 		if err != nil {
 			return nil, errorx.NewBiz("数据库信息不存在")
 		}
-		if !strings.Contains(" "+db.Database+" ", " "+dbName+" ") {
-			return nil, errorx.NewBiz("未配置数据库【%s】的操作权限", dbName)
-		}
 
 		instance, err := d.dbInstanceApp.GetById(new(entity.DbInstance), db.InstanceId)
 		if err != nil {
 			return nil, errorx.NewBiz("数据库实例不存在")
 		}
+
+		checkDb := dbName
+		// 兼容pgsql db/schema模式
+		if instance.Type == dbm.DbTypePostgres {
+			ss := strings.Split(dbName, "/")
+			if len(ss) > 1 {
+				checkDb = ss[0]
+			}
+		}
+		if !strings.Contains(" "+db.Database+" ", " "+checkDb+" ") {
+			return nil, errorx.NewBiz("未配置数据库【%s】的操作权限", dbName)
+		}
+
 		// 密码解密
 		instance.PwdDecrypt()
 		return toDbInfo(instance, dbId, dbName, db.TagPath), nil

@@ -32,6 +32,7 @@
 
             <template #footer>
                 <div class="dialog-footer">
+                    <el-button @click="testConn" :loading="state.testConnBtnLoading" type="success">测试连接</el-button>
                     <el-button @click="cancel()">取 消</el-button>
                     <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
                 </div>
@@ -99,6 +100,7 @@ const state = reactive({
         tagPath: null as any,
     },
     btnLoading: false,
+    testConnBtnLoading: false,
 });
 
 const { dialogVisible, tabActiveName, form, btnLoading } = toRefs(state);
@@ -116,15 +118,35 @@ watch(props, async (newValue: any) => {
     }
 });
 
+const getReqForm = () => {
+    const reqForm = { ...state.form };
+    if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
+        reqForm.sshTunnelMachineId = -1;
+    }
+    return reqForm;
+};
+
+const testConn = async () => {
+    mongoForm.value.validate(async (valid: boolean) => {
+        if (valid) {
+            state.testConnBtnLoading = true;
+            try {
+                await mongoApi.testConn.request(getReqForm());
+                ElMessage.success('连接成功');
+            } finally {
+                state.testConnBtnLoading = false;
+            }
+        } else {
+            ElMessage.error('请正确填写信息');
+            return false;
+        }
+    });
+};
+
 const btnOk = async () => {
     mongoForm.value.validate(async (valid: boolean) => {
         if (valid) {
-            const reqForm = { ...state.form };
-            if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
-                reqForm.sshTunnelMachineId = -1;
-            }
-            // reqForm.uri = await RsaEncrypt(reqForm.uri);
-            mongoApi.saveMongo.request(reqForm).then(() => {
+            mongoApi.saveMongo.request(getReqForm).then(() => {
                 ElMessage.success('保存成功');
                 emit('val-change', state.form);
                 state.btnLoading = true;

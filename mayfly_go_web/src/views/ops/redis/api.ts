@@ -6,6 +6,7 @@ export const redisApi = {
     getRedisPwd: Api.newGet('/redis/{id}/pwd'),
     redisInfo: Api.newGet('/redis/{id}/info'),
     clusterInfo: Api.newGet('/redis/{id}/cluster-info'),
+    testConn: Api.newPost('/redis/test-conn'),
     saveRedis: Api.newPost('/redis'),
     delRedis: Api.newDelete('/redis/{id}'),
 

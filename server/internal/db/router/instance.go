@@ -20,6 +20,8 @@ func InitInstanceRouter(router *gin.RouterGroup) {
 		// 获取数据库列表
 		req.NewGet("", d.Instances),
 
+		req.NewPost("/test-conn", d.TestConn),
+
 		req.NewPost("", d.SaveInstance).Log(req.NewLogSave("db-保存数据库实例信息")),
 
 		req.NewGet(":instanceId", d.GetInstance),

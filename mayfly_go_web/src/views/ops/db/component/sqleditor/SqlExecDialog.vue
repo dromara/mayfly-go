@@ -15,7 +15,7 @@
 
 <script lang="ts" setup>
 import { toRefs, ref, nextTick, reactive } from 'vue';
-import { dbApi } from '../api';
+import { dbApi } from '@/views/ops/db/api';
 import { ElDialog, ElButton, ElInput, ElMessage, InputInstance } from 'element-plus';
 // import base style
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';

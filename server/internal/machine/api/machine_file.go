@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
+	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/mcm"
 	msgapp "mayfly-go/internal/msg/application"
@@ -175,8 +176,6 @@ func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
 }
 
-const MaxUploadFileSize int64 = 1024 * 1024 * 1024
-
 func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
@@ -184,7 +183,9 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 
 	fileheader, err := g.FormFile("file")
 	biz.ErrIsNilAppendErr(err, "读取文件失败: %s")
-	biz.IsTrue(fileheader.Size <= MaxUploadFileSize, "文件大小不能超过%d字节", MaxUploadFileSize)
+
+	maxUploadFileSize := config.GetMachine().UploadMaxFileSize
+	biz.IsTrue(fileheader.Size <= maxUploadFileSize, "文件大小不能超过%d字节", maxUploadFileSize)
 
 	file, _ := fileheader.Open()
 	defer file.Close()
@@ -223,7 +224,9 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	allFileSize := collx.ArrayReduce(fileheaders, 0, func(i int64, fh *multipart.FileHeader) int64 {
 		return i + fh.Size
 	})
-	biz.IsTrue(allFileSize <= MaxUploadFileSize, "文件夹总大小不能超过%d字节", MaxUploadFileSize)
+
+	maxUploadFileSize := config.GetMachine().UploadMaxFileSize
+	biz.IsTrue(allFileSize <= maxUploadFileSize, "文件夹总大小不能超过%d字节", maxUploadFileSize)
 
 	paths := mf.Value["paths"]
 

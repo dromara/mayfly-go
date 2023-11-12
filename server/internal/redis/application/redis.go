@@ -20,6 +20,9 @@ type Redis interface {
 
 	Count(condition *entity.RedisQuery) int64
 
+	// 测试连接
+	TestConn(re *entity.Redis) error
+
 	Save(ctx context.Context, re *entity.Redis) error
 
 	// 删除数据库信息
@@ -29,9 +32,6 @@ type Redis interface {
 	// id: 数据库实例id
 	// db: 库号
 	GetRedisConn(id uint64, db int) (*rdm.RedisConn, error)
-
-	// 测试连接
-	TestConn(re *entity.Redis) error
 }
 
 func newRedisApp(redisRepo repository.Redis) Redis {
@@ -53,14 +53,21 @@ func (r *redisAppImpl) Count(condition *entity.RedisQuery) int64 {
 	return r.GetRepo().Count(condition)
 }
 
-func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis) error {
-	// ’修改信息且密码不为空‘ or ‘新增’需要测试是否可连接
-	if (re.Id != 0 && re.Password != "") || re.Id == 0 {
-		if err := r.TestConn(re); err != nil {
-			return errorx.NewBiz("Redis连接失败: %s", err.Error())
-		}
+func (r *redisAppImpl) TestConn(re *entity.Redis) error {
+	db := 0
+	if re.Db != "" {
+		db, _ = strconv.Atoi(strings.Split(re.Db, ",")[0])
 	}
 
+	rc, err := re.ToRedisInfo(db).Conn()
+	if err != nil {
+		return err
+	}
+	rc.Close()
+	return nil
+}
+
+func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis) error {
 	// 查找是否存在该库
 	oldRedis := &entity.Redis{Host: re.Host}
 	if re.SshTunnelMachineId > 0 {
@@ -117,18 +124,4 @@ func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
 
 		return re.ToRedisInfo(db), nil
 	})
-}
-
-func (r *redisAppImpl) TestConn(re *entity.Redis) error {
-	db := 0
-	if re.Db != "" {
-		db, _ = strconv.Atoi(strings.Split(re.Db, ",")[0])
-	}
-
-	rc, err := re.ToRedisInfo(db).Conn()
-	if err != nil {
-		return err
-	}
-	rc.Close()
-	return nil
 }

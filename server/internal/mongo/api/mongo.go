@@ -46,6 +46,12 @@ func (m *Mongo) MongoTags(rc *req.Ctx) {
 	rc.ResData = m.TagApp.ListTagByAccountIdAndResource(rc.GetLoginAccount().Id, new(entity.Mongo))
 }
 
+func (m *Mongo) TestConn(rc *req.Ctx) {
+	form := &form.Mongo{}
+	mongo := ginx.BindJsonAndCopyTo[*entity.Mongo](rc.GinCtx, form, new(entity.Mongo))
+	biz.ErrIsNilAppendErr(m.MongoApp.TestConn(mongo), "连接失败: %s")
+}
+
 func (m *Mongo) Save(rc *req.Ctx) {
 	form := &form.Mongo{}
 	mongo := ginx.BindJsonAndCopyTo[*entity.Mongo](rc.GinCtx, form, new(entity.Mongo))

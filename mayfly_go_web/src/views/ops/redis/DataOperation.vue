@@ -7,17 +7,25 @@
                         <tag-tree :loadTags="loadTags">
                             <template #prefix="{ data }">
                                 <span v-if="data.type.value == RedisNodeType.Redis">
-                                    <el-popover :show-after="500" placement="right-start" title="redis实例信息" trigger="hover" :width="210">
+                                    <el-popover :show-after="500" placement="right-start" title="redis实例信息" trigger="hover" :width="250">
                                         <template #reference>
                                             <SvgIcon name="iconfont icon-op-redis" :size="18" />
                                         </template>
                                         <template #default>
-                                            <el-form class="instances-pop-form" label-width="auto" :size="'small'">
-                                                <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
-                                                <el-form-item label="模式:">{{ data.params.mode }}</el-form-item>
-                                                <el-form-item label="链接:">{{ data.params.host }}</el-form-item>
-                                                <el-form-item label="备注:">{{ data.params.remark }}</el-form-item>
-                                            </el-form>
+                                            <el-descriptions :column="1" size="small">
+                                                <el-descriptions-item label="名称">
+                                                    {{ data.params.name }}
+                                                </el-descriptions-item>
+                                                <el-descriptions-item label="模式">
+                                                    {{ data.params.mode }}
+                                                </el-descriptions-item>
+                                                <el-descriptions-item label="host">
+                                                    {{ data.params.host }}
+                                                </el-descriptions-item>
+                                                <el-descriptions-item label="备注" label-align="right">
+                                                    {{ data.params.remark }}
+                                                </el-descriptions-item>
+                                            </el-descriptions>
                                         </template>
                                     </el-popover>
                                 </span>
@@ -615,12 +623,6 @@ const delKey = (key: string) => {
 </script>
 
 <style lang="scss">
-.instances-pop-form {
-    .el-form-item {
-        margin-bottom: unset;
-    }
-}
-
 .key-list-vtree {
     height: calc(100vh - 250px);
 }

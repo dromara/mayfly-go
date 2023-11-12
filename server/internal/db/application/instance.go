@@ -17,6 +17,8 @@ type Instance interface {
 
 	Count(condition *entity.InstanceQuery) int64
 
+	TestConn(instanceEntity *entity.DbInstance) error
+
 	Save(ctx context.Context, instanceEntity *entity.DbInstance) error
 
 	// Delete 删除数据库信息
@@ -45,18 +47,18 @@ func (app *instanceAppImpl) Count(condition *entity.InstanceQuery) int64 {
 	return app.CountByCond(condition)
 }
 
+func (app *instanceAppImpl) TestConn(instanceEntity *entity.DbInstance) error {
+	dbConn, err := toDbInfo(instanceEntity, 0, "", "").Conn()
+	if err != nil {
+		return err
+	}
+	dbConn.Close()
+	return nil
+}
+
 func (app *instanceAppImpl) Save(ctx context.Context, instanceEntity *entity.DbInstance) error {
 	// 默认tcp连接
 	instanceEntity.Network = instanceEntity.GetNetwork()
-
-	// 测试连接
-	if instanceEntity.Password != "" {
-		dbConn, err := toDbInfo(instanceEntity, 0, "", "").Conn()
-		if err != nil {
-			return err
-		}
-		defer dbConn.Close()
-	}
 
 	// 查找是否存在该库
 	oldInstance := &entity.DbInstance{Host: instanceEntity.Host, Port: instanceEntity.Port, Username: instanceEntity.Username}

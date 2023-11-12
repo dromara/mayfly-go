@@ -87,7 +87,7 @@ const columns = ref([
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.saveInstance]);
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(65).fixedRight().alignCenter();
+const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(110).fixedRight().alignCenter();
 
 const pageTableRef: any = ref(null);
 

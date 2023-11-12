@@ -44,7 +44,7 @@
             </div>
         </div>
 
-        <MonacoEditor ref="monacoEditorRef" class="mt5" v-model="state.sql" language="sql" :height="state.editorHeight" :id="'MonacoTextarea-' + ti.key" />
+        <MonacoEditor ref="monacoEditorRef" class="mt5" v-model="state.sql" language="sql" :height="state.editorHeight" :id="'MonacoTextarea-' + getKey()" />
 
         <div class="editor-move-resize" @mousedown="onDragSetHeight">
             <el-icon>
@@ -69,10 +69,10 @@
                     <el-link type="warning" :underline="false" @click="cancelUpdateFields"><span style="font-size: 12px">取消</span></el-link>
                 </span>
             </el-row>
-            <db-table
+            <db-table-data
                 ref="dbTableRef"
-                :db-id="state.ti.dbId"
-                :db="state.ti.db"
+                :db-id="dbId"
+                :db="dbName"
                 :data="execRes.data"
                 :table="state.table"
                 :columns="execRes.tableColumn"
@@ -81,7 +81,7 @@
                 empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
                 @selection-change="onDataSelectionChange"
                 @change-updated-field="changeUpdatedField"
-            ></db-table>
+            ></db-table-data>
         </div>
     </div>
 </template>
@@ -97,8 +97,8 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { editor } from 'monaco-editor';
 
-import DbTable from '../DbTable.vue';
-import { TabInfo } from '../../db';
+import DbTableData from '@/views/ops/db/component/table/DbTableData.vue';
+import { DbInst } from '../../db';
 import { exportCsv } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
 import { dbApi } from '../../api';
@@ -113,15 +113,18 @@ import syssocket from '@/common/syssocket';
 const emits = defineEmits(['saveSqlSuccess', 'deleteSqlSuccess']);
 
 const props = defineProps({
-    data: {
-        type: TabInfo,
+    dbId: {
+        type: Number,
+        required: true,
+    },
+    dbName: {
+        type: String,
         required: true,
     },
     // sql脚本名，若有则去加载该sql内容
-    // sqlName: {
-    //     type: String,
-    //     default: '',
-    // },
+    sqlName: {
+        type: String,
+    },
     editorHeight: {
         type: String,
         default: '600',
@@ -136,9 +139,6 @@ let monacoEditor: editor.IStandaloneCodeEditor;
 
 const state = reactive({
     token,
-    ti: {} as TabInfo,
-    dbs: [],
-    dbId: null, // 当前选中操作的数据库实例
     table: '', // 当前单表操作sql的表信息
     sqlName: '',
     sql: '', // 当前编辑器的sql内容
@@ -153,7 +153,7 @@ const state = reactive({
     hasUpdatedFileds: false,
 });
 
-const { tableDataHeight, ti, execRes, table, sqlName, loading, hasUpdatedFileds } = toRefs(state);
+const { tableDataHeight, execRes, table, loading, hasUpdatedFileds } = toRefs(state);
 
 watch(
     () => props.editorHeight,
@@ -162,22 +162,22 @@ watch(
     }
 );
 
+const getNowDbInst = () => {
+    return DbInst.getInst(props.dbId);
+};
+
 onMounted(async () => {
     console.log('in query mounted');
-    state.ti = props.data;
     state.editorHeight = props.editorHeight;
-    const params = state.ti.params;
-    state.dbs = params && params.dbs;
 
-    if (params && params.sqlName) {
-        state.sqlName = params.sqlName;
-        const res = await dbApi.getSql.request({ id: state.ti.dbId, type: 1, name: state.sqlName, db: state.ti.db });
+    if (props.sqlName) {
+        const res = await dbApi.getSql.request({ id: props.dbId, type: 1, name: state.sqlName, db: props.dbName });
         state.sql = res.sql;
     }
     nextTick(() => {
         setTimeout(() => initMonacoEditor(), 50);
     });
-    await state.ti.getNowDbInst().loadDbHints(state.ti.db);
+    await getNowDbInst().loadDbHints(props.dbName);
 });
 
 const initMonacoEditor = () => {
@@ -186,7 +186,8 @@ const initMonacoEditor = () => {
     // 注册快捷键：ctrl + R 运行选中的sql
     monacoEditor.addAction({
         // An unique identifier of the contributed action.
-        id: 'run-sql-action' + state.ti.key,
+        // id: 'run-sql-action' + state.ti.key,
+        id: 'run-sql-action' + getKey(),
         // A label of the action that will be presented to the user.
         label: '执行SQL',
         // A precondition for this action.
@@ -213,7 +214,7 @@ const initMonacoEditor = () => {
     // 注册快捷键：ctrl + shift + f 格式化sql
     monacoEditor.addAction({
         // An unique identifier of the contributed action.
-        id: 'format-sql-action' + state.ti.key,
+        id: 'format-sql-action' + getKey(),
         // A label of the action that will be presented to the user.
         label: '格式化SQL',
         // A precondition for this action.
@@ -245,12 +246,16 @@ const onDragSetHeight = () => {
     document.onmousemove = (e) => {
         e.preventDefault();
         //得到鼠标拖动的宽高距离：取绝对值
-        state.editorHeight = `${document.getElementById('MonacoTextarea-' + state.ti.key)!.clientHeight + e.movementY}px`;
+        state.editorHeight = `${document.getElementById('MonacoTextarea-' + getKey())!.clientHeight + e.movementY}px`;
         state.tableDataHeight -= e.movementY;
     };
     document.onmouseup = () => {
         document.onmousemove = null;
     };
+};
+
+const getKey = () => {
+    return props.dbId + ':' + props.dbName;
 };
 
 /**
@@ -290,7 +295,7 @@ const onRunSql = async () => {
     try {
         state.loading = true;
 
-        const colAndData: any = await state.ti.getNowDbInst().runSql(state.ti.db, sql, execRemark);
+        const colAndData: any = await getNowDbInst().runSql(props.dbName, sql, execRemark);
         if (!colAndData.res || colAndData.res.length === 0) {
             ElMessage.warning('未查询到结果集');
         }
@@ -370,16 +375,17 @@ const saveSql = async () => {
         }
     }
 
-    await dbApi.saveSql.request({ id: state.ti.dbId, db: state.ti.db, sql: sql, type: 1, name: sqlName });
+    await dbApi.saveSql.request({ id: props.dbId, db: props.dbName, sql: sql, type: 1, name: sqlName });
     ElMessage.success('保存成功');
     // 保存sql脚本成功事件
-    emits('saveSqlSuccess', state.ti.dbId, state.ti.db);
+    emits('saveSqlSuccess', props.dbId, props.dbName);
 };
 
 const deleteSql = async () => {
     const sqlName = state.sqlName;
     notBlank(sqlName, '该sql内容未保存');
-    const { dbId, db } = state.ti;
+    const dbId = props.dbId;
+    const db = props.dbName;
     try {
         await ElMessageBox.confirm(`确定删除【${sqlName}】该SQL内容?`, '提示', {
             confirmButtonText: '确定',
@@ -415,7 +421,7 @@ const formatSql = () => {
  * 提交事务，用于没有开启自动提交事务
  */
 const onCommit = () => {
-    state.ti.getNowDbInst().runSql(state.ti.db, 'COMMIT;');
+    getNowDbInst().runSql(props.dbName, 'COMMIT;');
     ElMessage.success('COMMIT success');
 };
 
@@ -528,7 +534,7 @@ const execSqlFileSuccess = (res: any) => {
 
 // 获取sql文件上传执行url
 const getUploadSqlFileUrl = () => {
-    return `${config.baseApiUrl}/dbs/${state.ti.dbId}/exec-sql-file?db=${state.ti.db}&${joinClientParams()}`;
+    return `${config.baseApiUrl}/dbs/${props.dbId}/exec-sql-file?db=${props.dbName}&${joinClientParams()}`;
 };
 
 const onDataSelectionChange = (datas: []) => {
@@ -546,8 +552,8 @@ const changeUpdatedField = (updatedFields: []) => {
 const onDeleteData = async () => {
     const deleteDatas = state.selectionDatas;
     isTrue(deleteDatas && deleteDatas.length > 0, '请先选择要删除的数据');
-    const { db } = state.ti;
-    const dbInst = state.ti.getNowDbInst();
+    const db = props.dbName;
+    const dbInst = getNowDbInst();
     const primaryKey = await dbInst.loadTableColumn(db, state.table);
     const primaryKeyColumnName = primaryKey.columnName;
     dbInst.promptExeSql(db, dbInst.genDeleteByPrimaryKeysSql(db, state.table, deleteDatas), null, () => {

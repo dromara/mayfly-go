@@ -29,6 +29,18 @@ func (d *Instance) Instances(rc *req.Ctx) {
 	rc.ResData = res
 }
 
+func (d *Instance) TestConn(rc *req.Ctx) {
+	form := &form.InstanceForm{}
+	instance := ginx.BindJsonAndCopyTo[*entity.DbInstance](rc.GinCtx, form, new(entity.DbInstance))
+
+	// 密码解密，并使用解密后的赋值
+	originPwd, err := cryptox.DefaultRsaDecrypt(form.Password, true)
+	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
+	instance.Password = originPwd
+
+	biz.ErrIsNil(d.InstanceApp.TestConn(instance))
+}
+
 // SaveInstance 保存数据库实例信息
 // @router /api/instances [post]
 func (d *Instance) SaveInstance(rc *req.Ctx) {

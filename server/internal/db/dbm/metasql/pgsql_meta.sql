@@ -1,3 +1,13 @@
+--PGSQL_DB_SCHEMAS 库schemas
+select
+	n.nspname as "schemaName"
+from
+	pg_namespace n
+where
+	has_schema_privilege(n.nspname, 'USAGE')
+	and n.nspname not like 'pg_%'
+	and n.nspname != 'information_schema'
+---------------------------------------
 --PGSQL_TABLE_INFO 表详细信息
 select
 	c.relname as "tableName",
@@ -10,12 +20,10 @@ from
 join pg_namespace n on
 	c.relnamespace = n.oid
 join pg_stat_user_tables psut on
-	psut.relid = c."oid"
+	psut.relid = c.oid
 where
-	n.nspname = (
-	select
-		current_schema ()
-  )
+    has_table_privilege(CAST(c.oid AS regclass), 'SELECT')
+	and n.nspname = current_schema()
 	and c.reltype > 0
 ---------------------------------------
 --PGSQL_INDEX_INFO 表索引信息

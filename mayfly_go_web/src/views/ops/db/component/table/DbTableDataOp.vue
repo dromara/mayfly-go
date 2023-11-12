@@ -94,12 +94,12 @@
             </el-col>
         </el-row>
 
-        <db-table
+        <db-table-data
             ref="dbTableRef"
-            :db-id="state.ti.dbId"
-            :db="state.ti.db"
+            :db-id="dbId"
+            :db="dbName"
             :data="datas"
-            :table="state.table"
+            :table="tableName"
             :columns="columns"
             :loading="loading"
             :height="tableHeight"
@@ -108,7 +108,7 @@
             @sort-change="(sort: any) => onTableSortChange(sort)"
             @selection-change="onDataSelectionChange"
             @change-updated-field="changeUpdatedField"
-        ></db-table>
+        ></db-table-data>
 
         <el-row type="flex" class="mt5" justify="center">
             <el-pagination
@@ -177,26 +177,37 @@
                 </span>
             </template>
         </el-dialog>
+
+        <el-dialog @close="state.genSqlDialog.visible = false" v-model="state.genSqlDialog.visible" title="SQL" width="1000px">
+            <el-input v-model="state.genSqlDialog.sql" type="textarea" rows="20" />
+        </el-dialog>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { onMounted, watch, reactive, toRefs, ref, Ref, onUnmounted } from 'vue';
-import { isTrue, notEmpty, notBlank } from '@/common/assert';
+import { isTrue, notEmpty } from '@/common/assert';
 import { ElMessage } from 'element-plus';
 
-import { DbInst, TabInfo } from '../../db';
+import { DbInst } from '@/views/ops/db/db';
 import { exportCsv } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
-import DbTable from '../DbTable.vue';
+import DbTableData from './DbTableData.vue';
 
-const emits = defineEmits(['genInsertSql']);
 const dataForm: any = ref(null);
 const conditionInputRef: any = ref();
 
 const props = defineProps({
-    data: {
-        type: TabInfo,
+    dbId: {
+        type: Number,
+        required: true,
+    },
+    dbName: {
+        type: String,
+        required: true,
+    },
+    tableName: {
+        type: String,
         required: true,
     },
     tableHeight: {
@@ -208,8 +219,6 @@ const props = defineProps({
 const dbTableRef = ref(null) as Ref;
 
 const state = reactive({
-    ti: {} as TabInfo,
-    table: '', // 当前的表名
     datas: [],
     sql: '', // 当前数据tab执行的sql
     orderBy: '',
@@ -237,6 +246,10 @@ const state = reactive({
         placeholder: '',
         visible: false,
     },
+    genSqlDialog: {
+        visible: false,
+        sql: '',
+    },
     tableHeight: '600',
     hasUpdatedFileds: false,
 });
@@ -250,14 +263,15 @@ watch(
     }
 );
 
+const getNowDbInst = () => {
+    return DbInst.getInst(props.dbId);
+};
+
 onMounted(async () => {
     console.log('in table data mounted');
-    state.ti = props.data;
     state.tableHeight = props.tableHeight;
-    state.table = state.ti.params.table;
-    notBlank(state.table, 'TableData组件params.table信息不能为空');
 
-    const columns = await state.ti.getNowDbInst().loadColumns(state.ti.db, state.table);
+    const columns = await getNowDbInst().loadColumns(props.dbName, props.tableName);
     columns.forEach((x: any) => {
         x.show = true;
     });
@@ -297,12 +311,13 @@ const pageChange = async () => {
  */
 const selectData = async () => {
     state.loading = true;
-    const dbInst = state.ti.getNowDbInst();
-    const { db } = state.ti;
+    const dbInst = getNowDbInst();
+    const db = props.dbName;
+    const table = props.tableName;
     try {
-        const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(state.table, state.condition));
+        const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
         state.count = countRes.res[0].count;
-        let sql = dbInst.getDefaultSelectSql(state.table, state.condition, state.orderBy, state.pageNum, state.pageSize);
+        let sql = dbInst.getDefaultSelectSql(table, state.condition, state.orderBy, state.pageNum, state.pageSize);
         state.sql = sql;
         if (state.count > 0) {
             const colAndData: any = await dbInst.runSql(db, sql);
@@ -333,7 +348,7 @@ const exportData = () => {
             columnNames.push(column.columnName);
         }
     }
-    exportCsv(`数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, columnNames, dataList);
+    exportCsv(`数据导出-${props.tableName}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, columnNames, dataList);
 };
 
 /**
@@ -376,7 +391,7 @@ const onCancelCondition = () => {
  * 提交事务，用于没有开启自动提交事务
  */
 const onCommit = () => {
-    state.ti.getNowDbInst().runSql(state.ti.db, 'COMMIT;');
+    getNowDbInst().runSql(props.dbName, 'COMMIT;');
     ElMessage.success('COMMIT success');
 };
 
@@ -413,16 +428,17 @@ const changeUpdatedField = (updatedFields: []) => {
 const onDeleteData = async () => {
     const deleteDatas = state.selectionDatas;
     isTrue(deleteDatas && deleteDatas.length > 0, '请先选择要删除的数据');
-    const { db } = state.ti;
-    const dbInst = state.ti.getNowDbInst();
-    dbInst.promptExeSql(db, dbInst.genDeleteByPrimaryKeysSql(db, state.table, deleteDatas), null, () => {
+    const db = props.dbName;
+    const dbInst = getNowDbInst();
+    dbInst.promptExeSql(db, dbInst.genDeleteByPrimaryKeysSql(db, props.tableName, deleteDatas), null, () => {
         onRefresh();
     });
 };
 
 const onGenerateInsertSql = async () => {
     isTrue(state.selectionDatas && state.selectionDatas.length > 0, '请先选择数据');
-    emits('genInsertSql', state.ti.getNowDbInst().genInsertSql(state.ti.db, state.table, state.selectionDatas));
+    state.genSqlDialog.sql = getNowDbInst().genInsertSql(props.dbName, props.tableName, state.selectionDatas);
+    state.genSqlDialog.visible = true;
 };
 
 const submitUpdateFields = () => {
@@ -434,7 +450,7 @@ const cancelUpdateFields = () => {
 };
 
 const onShowAddDataDialog = async () => {
-    state.addDataDialog.title = `添加'${state.table}'表数据`;
+    state.addDataDialog.title = `添加'${props.tableName}'表数据`;
     state.addDataDialog.visible = true;
 };
 
@@ -447,7 +463,7 @@ const closeAddDataDialog = () => {
 const addRow = async () => {
     dataForm.value.validate(async (valid: boolean) => {
         if (valid) {
-            const dbInst = state.ti.getNowDbInst();
+            const dbInst = getNowDbInst();
             const data = state.addDataDialog.data;
             // key: 字段名，value: 字段名提示
             let obj: any = {};
@@ -460,8 +476,8 @@ const addRow = async () => {
             }
             let columnNames = Object.keys(obj).join(',');
             let values = Object.values(obj).join(',');
-            let sql = `INSERT INTO ${dbInst.wrapName(state.table)} (${columnNames}) VALUES (${values});`;
-            dbInst.promptExeSql(state.ti.db, sql, null, () => {
+            let sql = `INSERT INTO ${dbInst.wrapName(props.tableName)} (${columnNames}) VALUES (${values});`;
+            dbInst.promptExeSql(props.dbName, sql, null, () => {
                 closeAddDataDialog();
                 onRefresh();
             });

@@ -5,13 +5,13 @@ import (
 )
 
 type Server struct {
-	Port           int            `yaml:"port"`
-	Model          string         `yaml:"model"`
-	Cors           bool           `yaml:"cors"`
-	Tls            *Tls           `yaml:"tls"`
-	Static         *[]*Static     `yaml:"static"`
-	StaticFile     *[]*StaticFile `yaml:"static-file"`
-	MachineRecPath string         `yaml:"machine-rec-path"` // 机器终端操作回放文件存储路径
+	Port        int            `yaml:"port"`
+	Model       string         `yaml:"model"`
+	ContextPath string         `yaml:"context-path"` // 请求路径上下文
+	Cors        bool           `yaml:"cors"`
+	Tls         *Tls           `yaml:"tls"`
+	Static      *[]*Static     `yaml:"static"`
+	StaticFile  *[]*StaticFile `yaml:"static-file"`
 }
 
 func (s *Server) Default() {
@@ -21,22 +21,10 @@ func (s *Server) Default() {
 	if s.Port == 0 {
 		s.Port = 8888
 	}
-	if s.MachineRecPath == "" {
-		s.MachineRecPath = "./rec"
-	}
 }
 
 func (s *Server) GetPort() string {
 	return fmt.Sprintf(":%d", s.Port)
-}
-
-// 获取终端回访记录存放基础路径, 如果配置文件未配置，则默认为./rec
-func (s *Server) GetMachineRecPath() string {
-	path := s.MachineRecPath
-	if path == "" {
-		return "./rec"
-	}
-	return path
 }
 
 type Static struct {

@@ -136,7 +136,7 @@
 import { watch, toRefs, reactive, ref } from 'vue';
 import { TYPE_LIST, CHARACTER_SET_NAME_LIST, COLLATION_SUFFIX_LIST } from './service';
 import { ElMessage } from 'element-plus';
-import SqlExecBox from '../component/SqlExecBox';
+import SqlExecBox from '../sqleditor/SqlExecBox';
 
 const props = defineProps({
     visible: {

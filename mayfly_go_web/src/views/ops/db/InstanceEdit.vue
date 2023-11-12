@@ -69,6 +69,7 @@
 
             <template #footer>
                 <div class="dialog-footer">
+                    <el-button @click="testConn" :loading="state.testConnBtnLoading" type="success">测试连接</el-button>
                     <el-button @click="cancel()">取 消</el-button>
                     <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
                 </div>
@@ -153,6 +154,7 @@ const state = reactive({
     // 原用户名
     oldUserName: null,
     btnLoading: false,
+    testConnBtnLoading: false,
 });
 
 const { dialogVisible, tabActiveName, form, pwd, btnLoading } = toRefs(state);
@@ -176,6 +178,32 @@ const getDbPwd = async () => {
     state.pwd = await dbApi.getInstancePwd.request({ id: state.form.id });
 };
 
+const getReqForm = async () => {
+    const reqForm = { ...state.form };
+    reqForm.password = await RsaEncrypt(reqForm.password);
+    if (!state.form.sshTunnelMachineId) {
+        reqForm.sshTunnelMachineId = -1;
+    }
+    return reqForm;
+};
+
+const testConn = async () => {
+    dbForm.value.validate(async (valid: boolean) => {
+        if (valid) {
+            state.testConnBtnLoading = true;
+            try {
+                await dbApi.testConn.request(await getReqForm());
+                ElMessage.success('连接成功');
+            } finally {
+                state.testConnBtnLoading = false;
+            }
+        } else {
+            ElMessage.error('请正确填写信息');
+            return false;
+        }
+    });
+};
+
 const btnOk = async () => {
     if (!state.form.id) {
         notBlank(state.form.password, '新增操作，密码不可为空');
@@ -185,12 +213,7 @@ const btnOk = async () => {
 
     dbForm.value.validate(async (valid: boolean) => {
         if (valid) {
-            const reqForm = { ...state.form };
-            reqForm.password = await RsaEncrypt(reqForm.password);
-            if (!state.form.sshTunnelMachineId) {
-                reqForm.sshTunnelMachineId = -1;
-            }
-            dbApi.saveInstance.request(reqForm).then(() => {
+            dbApi.saveInstance.request(await getReqForm()).then(() => {
                 ElMessage.success('保存成功');
                 emit('val-change', state.form);
                 state.btnLoading = true;

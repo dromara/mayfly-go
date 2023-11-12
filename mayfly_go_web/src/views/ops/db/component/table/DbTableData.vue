@@ -30,7 +30,7 @@
                     :sortable="sortable"
                 >
                     <template #header v-if="showColumnTip">
-                        <el-tooltip :show-after="500" raw-content placement="top" effect="customized">
+                        <el-tooltip :show-after="500" raw-content placement="top">
                             <template #content> {{ getColumnTip(item) }} </template>
                             {{ item.columnName }}
                         </el-tooltip>
@@ -43,7 +43,7 @@
 
 <script lang="ts" setup>
 import { onMounted, watch, reactive, toRefs } from 'vue';
-import { DbInst, UpdateFieldsMeta, FieldsMeta } from '../db';
+import { DbInst, UpdateFieldsMeta, FieldsMeta } from '@/views/ops/db/db';
 
 const emits = defineEmits(['sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
