@@ -44,6 +44,10 @@ func Debug(msg string, args ...any) {
 	Log(context.Background(), slog.LevelDebug, msg, args...)
 }
 
+func DebugContext(ctx context.Context, msg string, args ...any) {
+	Log(ctx, slog.LevelDebug, msg, args...)
+}
+
 func Debugf(format string, args ...any) {
 	Log(context.Background(), slog.LevelDebug, fmt.Sprintf(format, args...))
 }
@@ -77,6 +81,10 @@ func Warn(msg string, args ...any) {
 	Log(context.Background(), slog.LevelWarn, msg, args...)
 }
 
+func WarnContext(ctx context.Context, msg string, args ...any) {
+	Log(ctx, slog.LevelWarn, msg, args...)
+}
+
 func Warnf(format string, args ...any) {
 	Log(context.Background(), slog.LevelWarn, fmt.Sprintf(format, args...))
 }
@@ -87,6 +95,10 @@ func WarnWithFields(msg string, mapFields map[string]any) {
 
 func Error(msg string, args ...any) {
 	Log(context.Background(), slog.LevelError, msg, args...)
+}
+
+func ErrorContext(ctx context.Context, msg string, args ...any) {
+	Log(ctx, slog.LevelError, msg, args...)
 }
 
 func Errorf(format string, args ...any) {

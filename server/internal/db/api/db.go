@@ -113,15 +113,14 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 
 	for _, s := range sqls {
 		s = stringx.TrimSpaceAndBr(s)
-		// 多条执行，如果有查询语句，则跳过
-		if isMulti && strings.HasPrefix(strings.ToLower(s), "select") {
-			continue
+		// 多条执行，暂不支持查询语句
+		if isMulti {
+			biz.IsTrue(!strings.HasPrefix(strings.ToLower(s), "select"), "多条语句执行暂不不支持select语句")
 		}
+
 		execReq.Sql = s
 		execRes, err := d.DbSqlExecApp.Exec(execReq)
-		if err != nil {
-			biz.ErrIsNilAppendErr(err, fmt.Sprintf("[%s] -> 执行失败: ", s)+"%s")
-		}
+		biz.ErrIsNilAppendErr(err, fmt.Sprintf("[%s] -> 执行失败: ", s)+"%s")
 
 		if execResAll == nil {
 			execResAll = execRes

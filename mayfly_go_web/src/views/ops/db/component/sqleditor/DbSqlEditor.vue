@@ -140,8 +140,8 @@ let monacoEditor: editor.IStandaloneCodeEditor;
 const state = reactive({
     token,
     table: '', // 当前单表操作sql的表信息
-    sqlName: '',
-    sql: '', // 当前编辑器的sql内容
+    sql: '', // 当前编辑器的sql内容s
+    sqlName: '' as any, // sql模板名称
     loading: false, // 是否在加载数据
     execRes: {
         data: [],
@@ -149,7 +149,7 @@ const state = reactive({
     },
     selectionDatas: [] as any,
     editorHeight: '500',
-    tableDataHeight: 250 as any,
+    tableDataHeight: 240 as any,
     hasUpdatedFileds: false,
 });
 
@@ -170,8 +170,9 @@ onMounted(async () => {
     console.log('in query mounted');
     state.editorHeight = props.editorHeight;
 
+    state.sqlName = props.sqlName;
     if (props.sqlName) {
-        const res = await dbApi.getSql.request({ id: props.dbId, type: 1, name: state.sqlName, db: props.dbName });
+        const res = await dbApi.getSql.request({ id: props.dbId, type: 1, db: props.dbName, name: props.sqlName });
         state.sql = res.sql;
     }
     nextTick(() => {
@@ -255,6 +256,9 @@ const onDragSetHeight = () => {
 };
 
 const getKey = () => {
+    if (props.sqlName) {
+        return `${props.dbId}:${props.dbName}.${props.sqlName}`;
+    }
     return props.dbId + ':' + props.dbName;
 };
 
@@ -359,8 +363,7 @@ const saveSql = async () => {
     notBlank(sql, 'sql内容不能为空');
 
     let sqlName = state.sqlName;
-    const newSql = !sqlName;
-    if (newSql) {
+    if (!sqlName) {
         try {
             const input = await ElMessageBox.prompt('请输入SQL脚本名', 'SQL名', {
                 confirmButtonText: '确定',
@@ -382,7 +385,7 @@ const saveSql = async () => {
 };
 
 const deleteSql = async () => {
-    const sqlName = state.sqlName;
+    const sqlName = props.sqlName;
     notBlank(sqlName, '该sql内容未保存');
     const dbId = props.dbId;
     const db = props.dbName;

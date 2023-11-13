@@ -29,6 +29,11 @@ export class DbInst {
     id: number;
 
     /**
+     * ip:port
+     */
+    host: string;
+
+    /**
      * 实例名
      */
     name: string;
@@ -304,6 +309,7 @@ export class DbInst {
         dbInst = new DbInst();
         dbInst.tagPath = inst.tagPath;
         dbInst.id = inst.id;
+        dbInst.host = inst.host;
         dbInst.name = inst.name;
         dbInst.type = inst.type;
         dbInst.databases = inst.databases;
@@ -406,6 +412,31 @@ export class DbInst {
         const contentWidth: number = getTextWidth(maxWidthText) + 15;
         const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
         return flexWidth > 500 ? 500 : flexWidth;
+    };
+
+    /**
+     * 根据数据库类型获取对应的图标名
+     * @param dbType 数据库类型
+     * @returns
+     */
+    static getIconName = (dbType: string) => {
+        if (dbType == 'mysql') {
+            return 'iconfont icon-op-mysql';
+        }
+        if (dbType == 'postgres') {
+            return 'iconfont icon-op-postgres';
+        }
+        return 'InfoFilled';
+    };
+
+    static getIcon = (dbType: string) => {
+        if (dbType == 'mysql') {
+            return 'iconfont icon-op-mysql';
+        }
+        if (dbType == 'postgres') {
+            return 'iconfont icon-op-postgres';
+        }
+        return 'InfoFilled';
     };
 }
 
