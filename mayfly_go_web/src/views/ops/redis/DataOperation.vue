@@ -128,23 +128,7 @@
                     </el-tree>
 
                     <!-- right context menu -->
-                    <div ref="rightMenuRef" class="key-list-right-menu">
-                        <!-- folder right menu -->
-                        <div v-if="!state.rightClickNode?.isLeaf"></div>
-                        <!-- key right menu -->
-                        <div v-else>
-                            <el-row>
-                                <el-link @click="showKeyDetail(state.rightClickNode.key, true)" type="primary" icon="plus" :underline="false"
-                                    >新tab打开</el-link
-                                >
-                            </el-row>
-                            <el-row class="mt5">
-                                <el-link @click="delKey(state.rightClickNode.key)" v-auth="'redis:data:del'" type="danger" icon="delete" :underline="false"
-                                    >删除</el-link
-                                >
-                            </el-row>
-                        </div>
-                    </div>
+                    <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
                 </div>
             </el-col>
 
@@ -195,8 +179,23 @@ import { isTrue, notBlank, notNull } from '@/common/assert';
 import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { keysToTree, sortByTreeNodes, keysToList } from './utils';
+import Contextmenu from '@/components/contextmenu/index.vue';
+import { ContextmenuItem } from '@/components/contextmenu/index';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
+
+const contextmenuRef = ref();
+
+const cmNewTabOpen = new ContextmenuItem('newTabOpenKey', '新tab打开')
+    .withIcon('plus')
+    .withHideFunc((data: any) => !data.isLeaf)
+    .withOnClick((data: any) => showKeyDetail(data.key, true));
+
+const cmDelKey = new ContextmenuItem('delKey', '删除')
+    .withIcon('delete')
+    .withPermission('redis:data:del')
+    .withHideFunc((data: any) => !data.isLeaf)
+    .withOnClick((data: any) => delKey(data.key));
 
 /**
  * 树节点类型
@@ -265,7 +264,6 @@ const treeProps = {
 const defaultCount = 250;
 
 const keyTreeRef: any = ref(null);
-const rightMenuRef: any = ref(null);
 
 const state = reactive({
     tags: [],
@@ -297,6 +295,13 @@ const state = reactive({
         },
     },
     dbsize: 0,
+    contextmenu: {
+        dropdown: {
+            x: 0,
+            y: 0,
+        },
+        items: [cmNewTabOpen, cmDelKey],
+    },
 });
 
 const { scanParam, keyTreeData, newKeyDialog } = toRefs(state);
@@ -406,7 +411,8 @@ const expandAllKeyNode = (nodes: any) => {
 };
 
 const handleKeyTreeNodeClick = async (data: any) => {
-    hideAllMenus();
+    // 关闭可能存在的右击菜单
+    contextmenuRef.value.closeContextmenu();
     // 目录则不做处理
     if (data.type == 1) {
         return;
@@ -479,40 +485,11 @@ const keyTreeNodeCollapse = (data: any) => {
 };
 
 const rightClickNode = (event: any, data: any, node: any) => {
-    hideAllMenus();
-
+    const { clientX, clientY } = event;
+    state.contextmenu.dropdown.x = clientX;
+    state.contextmenu.dropdown.y = clientY;
+    contextmenuRef.value.openContextmenu(node);
     keyTreeRef.value.setCurrentKey(node.key);
-    state.rightClickNode = node;
-
-    // nextTick for dom render
-    nextTick(() => {
-        let top = event.clientY;
-        const menu = rightMenuRef.value;
-        menu.style.display = 'block';
-
-        // position in bottom
-        if (document.body.clientHeight - top < menu.clientHeight) {
-            top -= menu.clientHeight;
-        }
-
-        menu.style.left = `${event.clientX}px`;
-        menu.style.top = `${top}px`;
-
-        document.addEventListener('click', hideAllMenus, { once: true });
-    });
-};
-
-const hideAllMenus = () => {
-    let menus: any = document.querySelectorAll('.key-list-right-menu');
-
-    if (menus.length === 0) {
-        return;
-    }
-
-    state.rightClickNode = null;
-    for (const menu of menus) {
-        menu.style.display = 'none';
-    }
 };
 
 const searchKey = async () => {
@@ -642,22 +619,5 @@ const delKey = (key: string) => {
     /*note the following 2 items should be same value, may not consist with itemSize*/
     height: 22px;
     line-height: 22px;
-}
-
-/* right menu style start */
-.key-list-right-menu {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    padding: 5px;
-    z-index: 99999;
-    overflow: hidden;
-    border-radius: 3px;
-    border: 2px solid lightgrey;
-    background: #fafafa;
-}
-.dark-mode .key-list-right-menu {
-    background: #263238;
 }
 </style>

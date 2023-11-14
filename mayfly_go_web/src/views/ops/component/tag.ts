@@ -1,3 +1,5 @@
+import { ContextmenuItem } from '@/components/contextmenu';
+
 export class TagTreeNode {
     /**
      * 节点id
@@ -73,7 +75,7 @@ export class NodeType {
      */
     value: number;
 
-    contextMenuItems: [];
+    contextMenuItems: ContextmenuItem[];
 
     loadNodesFunc: (parentNode: TagTreeNode) => Promise<TagTreeNode[]>;
 
@@ -108,7 +110,7 @@ export class NodeType {
      * @param contextMenuItems 右击菜单按钮选项
      * @returns this
      */
-    withContextMenuItems(contextMenuItems: []) {
+    withContextMenuItems(contextMenuItems: ContextmenuItem[]) {
         this.contextMenuItems = contextMenuItems;
         return this;
     }

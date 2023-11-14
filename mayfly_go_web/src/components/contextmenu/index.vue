@@ -7,17 +7,18 @@
             data-popper-placement="bottom"
             :style="`top: ${dropdowns.y + 5}px;left: ${dropdowns.x}px;`"
             :key="Math.random()"
-            v-show="state.isShow"
+            v-show="state.isShow && !allHide"
         >
             <ul class="el-dropdown-menu">
                 <template v-for="(v, k) in state.dropdownList">
                     <li
+                        v-auth="v.permission"
                         class="el-dropdown-menu__item"
                         aria-disabled="false"
                         tabindex="-1"
                         :key="k"
-                        v-if="!v.affix"
-                        @click="onCurrentContextmenuClick(v.contextMenuClickId)"
+                        v-if="!v.affix && !v.isHide(state.item)"
+                        @click="onCurrentContextmenuClick(v)"
                     >
                         <SvgIcon :name="v.icon" />
                         <span>{{ v.txt }}</span>
@@ -31,6 +32,7 @@
 
 <script setup lang="ts" name="layoutTagsViewContextmenu">
 import { computed, reactive, onMounted, onUnmounted, watch } from 'vue';
+import { ContextmenuItem } from './index';
 
 // 定义父组件传过来的值
 const props = defineProps({
@@ -44,7 +46,7 @@ const props = defineProps({
         },
     },
     items: {
-        type: Array,
+        type: Array<ContextmenuItem>,
         default: () => [],
     },
 });
@@ -55,9 +57,18 @@ const emit = defineEmits(['currentContextmenuClick']);
 // 定义变量内容
 const state = reactive({
     isShow: false,
-    dropdownList: [{ contextMenuClickId: 0, txt: '刷新', affix: false, icon: 'RefreshRight' }],
+    dropdownList: [] as ContextmenuItem[],
     item: {} as any,
     arrowLeft: 10,
+});
+
+const allHide = computed(() => {
+    for (let item of state.dropdownList) {
+        if (!item.isHide(state.item)) {
+            return false;
+        }
+    }
+    return true;
 });
 
 // 父级传过来的坐标 x,y 值
@@ -73,8 +84,12 @@ const dropdowns = computed(() => {
     }
 });
 // 当前项菜单点击
-const onCurrentContextmenuClick = (contextMenuClickId: number) => {
-    emit('currentContextmenuClick', { id: contextMenuClickId, item: state.item });
+const onCurrentContextmenuClick = (ci: ContextmenuItem) => {
+    // 存在点击事件，则触发该事件函数
+    if (ci.onClickFunc) {
+        ci.onClickFunc(state.item);
+    }
+    emit('currentContextmenuClick', { id: ci.clickId, item: state.item });
 };
 // 打开右键菜单：判断是否固定，固定则不显示关闭按钮
 const openContextmenu = (item: any) => {
@@ -91,6 +106,7 @@ const closeContextmenu = () => {
 // 监听页面监听进行右键菜单的关闭
 onMounted(() => {
     document.body.addEventListener('click', closeContextmenu);
+    state.dropdownList = props.items;
 });
 // 页面卸载时，移除右键菜单监听事件
 onUnmounted(() => {
@@ -140,3 +156,4 @@ defineExpose({
     }
 }
 </style>
+.

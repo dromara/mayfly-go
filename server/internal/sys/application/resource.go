@@ -150,7 +150,7 @@ func (r *resourceAppImpl) checkCode(code string) error {
 	if strings.Contains(code, ",") {
 		return errorx.NewBiz("code不能包含','")
 	}
-	if gormx.CountBy(&entity.Resource{Code: code}) == 0 {
+	if gormx.CountBy(&entity.Resource{Code: code}) != 0 {
 		return errorx.NewBiz("该code已存在")
 	}
 	return nil

@@ -6,6 +6,9 @@ import { useUserInfo } from '@/store/userInfo';
  * @returns
  */
 export function hasPerm(code: string) {
+    if (!code) {
+        return true;
+    }
     return useUserInfo().userInfo.permissions.some((v: any) => v === code);
 }
 

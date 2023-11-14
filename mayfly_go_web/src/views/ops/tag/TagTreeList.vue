@@ -1,8 +1,8 @@
 <template>
     <div class="menu">
         <div class="toolbar">
-            <el-input v-model="filterTag" placeholder="输入标签关键字过滤" style="width: 200px; margin-right: 10px" />
-            <el-button v-auth="'tag:save'" type="primary" icon="plus" @click="showSaveTabDialog(null)">添加</el-button>
+            <el-input v-model="filterTag" placeholder="输入关键字过滤(右击进行操作)" style="width: 220px; margin-right: 10px" />
+            <el-button v-auth="'tag:save'" type="primary" icon="plus" @click="showSaveTagDialog(null)">添加</el-button>
             <div style="float: right">
                 <el-tooltip effect="dark" placement="top">
                     <template #content>
@@ -26,8 +26,10 @@
             :data="data"
             @node-expand="handleNodeExpand"
             @node-collapse="handleNodeCollapse"
+            @node-contextmenu="nodeContextmenu"
+            @node-click="treeNodeClick"
             :default-expanded-keys="defaultExpandedKeys"
-            :expand-on-click-node="false"
+            :expand-on-click-node="true"
             :filter-node-method="filterNode"
         >
             <template #default="{ data }">
@@ -39,44 +41,6 @@
                         <span style="color: #3c8dbc">】</span>
                         <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
                     </span>
-
-                    <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="view" type="info" :underline="false" />
-
-                    <el-link v-auth="'tag:save'" @click.prevent="showEditTagDialog(data)" class="ml5" type="primary" icon="edit" :underline="false" />
-
-                    <el-link v-auth="'tag:save'" @click.prevent="showSaveTabDialog(data)" icon="circle-plus" :underline="false" type="success" class="ml5" />
-
-                    <!-- <el-link
-                        v-auth="'resource:changeStatus'"
-                        @click.prevent="changeStatus(data, -1)"
-                        v-if="data.status === 1 && data.type === enums.ResourceTypeEnum.PERMISSION.value"
-                        icon="circle-close"
-                        :underline="false"
-                        type="warning"
-                        class="ml5"
-                    />
-
-                    <el-link
-                        v-auth="'resource:changeStatus'"
-                        @click.prevent="changeStatus(data, 1)"
-                        v-if="data.status === -1 && data.type === enums.ResourceTypeEnum.PERMISSION.value"
-                        type="success"
-                        icon="circle-check"
-                        :underline="false"
-                        plain
-                        class="ml5"
-                    /> -->
-
-                    <el-link
-                        v-auth="'tag:del'"
-                        @click.prevent="deleteTag(data)"
-                        v-if="data.children == null"
-                        type="danger"
-                        icon="delete"
-                        :underline="false"
-                        plain
-                        class="ml5"
-                    />
                 </span>
             </template>
         </el-tree>
@@ -114,6 +78,8 @@
                 <el-descriptions-item label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
+
+        <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
     </div>
 </template>
 
@@ -122,6 +88,8 @@ import { toRefs, ref, watch, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from './api';
 import { dateFormat } from '@/common/utils/date';
+import Contextmenu from '@/components/contextmenu/index.vue';
+import { ContextmenuItem } from '@/components/contextmenu/index';
 
 interface Tree {
     id: number;
@@ -133,6 +101,28 @@ interface Tree {
 const tagForm: any = ref(null);
 const tagTreeRef: any = ref(null);
 const filterTag = ref('');
+const contextmenuRef = ref();
+
+const contextmenuInfo = new ContextmenuItem('info', '详情').withIcon('view').withOnClick((data: any) => info(data));
+
+const contextmenuAdd = new ContextmenuItem('addTag', '添加子标签')
+    .withIcon('circle-plus')
+    .withPermission('tag:save')
+    .withOnClick((data: any) => showSaveTagDialog(data));
+
+const contextmenuEdit = new ContextmenuItem('edit', '编辑')
+    .withIcon('edit')
+    .withPermission('tag:save')
+    .withOnClick((data: any) => showEditTagDialog(data));
+
+const contextmenuDel = new ContextmenuItem('delete', '删除')
+    .withIcon('delete')
+    .withPermission('tag:del')
+    .withHideFunc((data: any) => {
+        // 存在子标签，则不允许删除
+        return data.children;
+    })
+    .withOnClick((data: any) => deleteTag(data));
 
 const state = reactive({
     data: [],
@@ -149,6 +139,13 @@ const state = reactive({
     },
     // 展开的节点
     defaultExpandedKeys: [] as any,
+    contextmenu: {
+        dropdown: {
+            x: 0,
+            y: 0,
+        },
+        items: [contextmenuInfo, contextmenuEdit, contextmenuAdd, contextmenuDel],
+    },
 });
 
 const { data, saveTabDialog, infoDialog, defaultExpandedKeys } = toRefs(state);
@@ -188,12 +185,25 @@ const search = async () => {
     state.data = res;
 };
 
+// 树节点右击事件
+const nodeContextmenu = (event: any, data: any) => {
+    const { clientX, clientY } = event;
+    state.contextmenu.dropdown.x = clientX;
+    state.contextmenu.dropdown.y = clientY;
+    contextmenuRef.value.openContextmenu(data);
+};
+
+const treeNodeClick = () => {
+    // 关闭可能存在的右击菜单
+    contextmenuRef.value.closeContextmenu();
+};
+
 const info = async (data: any) => {
     state.infoDialog.data = data;
     state.infoDialog.visible = true;
 };
 
-const showSaveTabDialog = (data: any) => {
+const showSaveTagDialog = (data: any) => {
     if (data) {
         state.saveTabDialog.form.pid = data.id;
         state.saveTabDialog.title = `新增 [${data.codePath}] 子标签信息`;
@@ -300,3 +310,4 @@ const removeDeafultExpandId = (id: any) => {
     user-select: none;
 }
 </style>
+@/components/contextmenu

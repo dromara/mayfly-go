@@ -37,7 +37,7 @@
 
         <el-row type="flex">
             <el-col :span="4">
-                <tag-tree ref="tagTreeRef" :loadTags="loadTags" @current-contextmenu-click="onCurrentContextmenuClick" :height="state.tagTreeHeight">
+                <tag-tree ref="tagTreeRef" :loadTags="loadTags" :height="state.tagTreeHeight">
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == SqlExecNodeType.DbInst">
                             <el-popover :show-after="500" placement="right-start" title="数据库实例信息" trigger="hover" :width="250">
@@ -159,6 +159,7 @@ import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
 import { dispposeCompletionItemProvider } from '../../../components/monaco/completionItemProvider';
 import SvgIcon from '@/components/svgIcon/index.vue';
+import { ContextmenuItem } from '@/components/contextmenu/index';
 
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
 const DbTableDataOp = defineAsyncComponent(() => import('./component/table/DbTableDataOp.vue'));
@@ -198,11 +199,6 @@ const SqlIcon = {
     name: 'Files',
     color: '#f56c6c',
 };
-
-class ContextmenuClickId {
-    static ReloadTable = 0;
-    static TableOp = 1;
-}
 
 // node节点点击时，触发改变db事件
 const nodeClickChangeDb = (nodeData: TagTreeNode) => {
@@ -290,9 +286,13 @@ const NodeTypePostgresScheam = new NodeType(SqlExecNodeType.PgSchema)
 // 数据库表菜单节点
 const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
     .withContextMenuItems([
-        { contextMenuClickId: ContextmenuClickId.ReloadTable, txt: '刷新', icon: 'RefreshRight' },
-        { contextMenuClickId: ContextmenuClickId.TableOp, txt: '表操作', icon: 'Setting' },
-    ] as any)
+        new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadTables(data.key)),
+
+        new ContextmenuItem('tablesOp', '表操作').withIcon('Setting').withOnClick((data: any) => {
+            const params = data.params;
+            addTablesOpTab({ id: params.id, db: params.db, type: params.type, nodeKey: data.key });
+        }),
+    ])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
         let { id, db } = params;
@@ -421,19 +421,6 @@ const loadTags = async () => {
         tagNodes.push(new TagTreeNode(tagPath, tagPath, NodeTypeTagPath));
     }
     return tagNodes;
-};
-
-// 当前右击菜单点击事件
-const onCurrentContextmenuClick = (clickData: any) => {
-    const clickId = clickData.id;
-    if (clickId == ContextmenuClickId.ReloadTable) {
-        reloadTables(clickData.item.key);
-        return;
-    }
-    if (clickId == ContextmenuClickId.TableOp) {
-        const params = clickData.item.params;
-        addTablesOpTab({ id: params.id, db: params.db, type: params.type, nodeKey: clickData.item.key });
-    }
 };
 
 // 选择数据库,改变当前正在操作的数据库信息
@@ -655,3 +642,4 @@ const getNowDbInfo = () => {
     }
 }
 </style>
+../../../components/contextmenu

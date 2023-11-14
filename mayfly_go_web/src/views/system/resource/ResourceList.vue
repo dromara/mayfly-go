@@ -2,7 +2,7 @@
     <div class="menu">
         <div class="toolbar">
             <div>
-                <span style="font-size: 14px"> <SvgIcon name="info-filled" />红色、橙色字体表示禁用状态 </span>
+                <span style="font-size: 14px"> <SvgIcon name="info-filled" />红色、橙色字体表示禁用状态 (右击资源进行操作) </span>
             </div>
             <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)">添加</el-button>
         </div>
@@ -14,8 +14,10 @@
             :data="data"
             @node-expand="handleNodeExpand"
             @node-collapse="handleNodeCollapse"
+            @node-contextmenu="nodeContextmenu"
+            @node-click="treeNodeClick"
             :default-expanded-keys="defaultExpandedKeys"
-            :expand-on-click-node="false"
+            :expand-on-click-node="true"
             draggable
             :allow-drop="allowDrop"
             @node-drop="handleDrop"
@@ -34,43 +36,6 @@
                         <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">{{ data.name }}</span>
                         <span style="color: #3c8dbc">】</span>
                     </span>
-
-                    <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="view" type="info" :underline="false" />
-
-                    <el-link v-auth="perms.updateResource" @click.prevent="editResource(data)" class="ml5" type="primary" icon="edit" :underline="false" />
-
-                    <el-link
-                        v-auth="perms.addResource"
-                        @click.prevent="addResource(data)"
-                        v-if="data.type === menuTypeValue"
-                        icon="circle-plus"
-                        :underline="false"
-                        type="success"
-                        class="ml5"
-                    />
-
-                    <el-link
-                        v-auth="perms.changeStatus"
-                        @click.prevent="changeStatus(data, -1)"
-                        v-if="data.status === 1"
-                        icon="circle-close"
-                        :underline="false"
-                        type="warning"
-                        class="ml5"
-                    />
-
-                    <el-link
-                        v-auth="perms.changeStatus"
-                        @click.prevent="changeStatus(data, 1)"
-                        v-if="data.status === -1"
-                        type="success"
-                        icon="circle-check"
-                        :underline="false"
-                        plain
-                        class="ml5"
-                    />
-
-                    <el-link v-auth="perms.delResource" @click.prevent="deleteMenu(data)" type="danger" icon="delete" :underline="false" plain class="ml5" />
                 </span>
             </template>
         </el-tree>
@@ -123,17 +88,21 @@
                 <el-descriptions-item label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }} </el-descriptions-item>
             </el-descriptions>
         </el-dialog>
+
+        <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceEdit from './ResourceEdit.vue';
 import { ResourceTypeEnum } from '../enums';
 import { resourceApi } from '../api';
 import { dateFormat } from '@/common/utils/date';
 import EnumValue from '@/common/Enum';
+import Contextmenu from '@/components/contextmenu/index.vue';
+import { ContextmenuItem } from '@/components/contextmenu/index';
 
 const menuTypeValue = ResourceTypeEnum.Menu.value;
 const permissionTypeValue = ResourceTypeEnum.Permission.value;
@@ -150,7 +119,46 @@ const props = {
     children: 'children',
 };
 
+const contextmenuRef = ref();
+
+const contextmenuInfo = new ContextmenuItem('info', '详情').withIcon('View').withOnClick((data: any) => info(data));
+
+const contextmenuAdd = new ContextmenuItem('add', '添加子资源')
+    .withIcon('circle-plus')
+    .withPermission(perms.addResource)
+    .withHideFunc((data: any) => data.type !== menuTypeValue)
+    .withOnClick((data: any) => addResource(data));
+
+const contextmenuEdit = new ContextmenuItem('edit', '编辑')
+    .withIcon('edit')
+    .withPermission(perms.updateResource)
+    .withOnClick((data: any) => editResource(data));
+
+const contextmenuEnable = new ContextmenuItem('enable', '启用')
+    .withIcon('circle-check')
+    .withPermission(perms.updateResource)
+    .withHideFunc((data: any) => data.status === 1)
+    .withOnClick((data: any) => changeStatus(data, 1));
+
+const contextmenuDisable = new ContextmenuItem('disable', '禁用')
+    .withIcon('circle-close')
+    .withPermission(perms.updateResource)
+    .withHideFunc((data: any) => data.status === -1)
+    .withOnClick((data: any) => changeStatus(data, -1));
+
+const contextmenuDel = new ContextmenuItem('delete', '删除')
+    .withIcon('delete')
+    .withPermission(perms.delResource)
+    .withOnClick((data: any) => deleteMenu(data));
+
 const state = reactive({
+    contextmenu: {
+        dropdown: {
+            x: 0,
+            y: 0,
+        },
+        items: [contextmenuInfo, contextmenuAdd, contextmenuEdit, contextmenuEnable, contextmenuDisable, contextmenuDel],
+    },
     //弹出框对象
     dialogForm: {
         type: null,
@@ -191,6 +199,19 @@ onMounted(() => {
 const search = async () => {
     let res = await resourceApi.list.request(null);
     state.data = res;
+};
+
+// 树节点右击事件
+const nodeContextmenu = (event: any, data: any) => {
+    const { clientX, clientY } = event;
+    state.contextmenu.dropdown.x = clientX;
+    state.contextmenu.dropdown.y = clientY;
+    contextmenuRef.value.openContextmenu(data);
+};
+
+const treeNodeClick = () => {
+    // 关闭可能存在的右击菜单
+    contextmenuRef.value.closeContextmenu();
 };
 
 const deleteMenu = (data: any) => {
@@ -378,3 +399,4 @@ const info = async (data: any) => {
     user-select: none;
 }
 </style>
+@/components/contextmenu

@@ -68,10 +68,10 @@
                     <template #prepend>
                         <el-popover :visible="state.condPopVisible" trigger="click" :width="320" placement="right">
                             <template #reference>
-                                <el-link @click.stop="state.condPopVisible = !state.condPopVisible" type="success" :underline="false">选择列</el-link>
+                                <el-link @click.stop="chooseCondColumnName" type="success" :underline="false">选择列</el-link>
                             </template>
                             <el-table
-                                :data="columns"
+                                :data="filterCondColumns"
                                 max-height="500"
                                 size="small"
                                 @row-click="
@@ -81,7 +81,17 @@
                                 "
                                 style="cursor: pointer"
                             >
-                                <el-table-column property="columnName" label="列名" show-overflow-tooltip> </el-table-column>
+                                <el-table-column property="columnName" label="列名" show-overflow-tooltip>
+                                    <template #header>
+                                        <el-input
+                                            ref="columnNameSearchInputRef"
+                                            v-model="state.columnNameSearch"
+                                            size="small"
+                                            placeholder="列名: 输入可过滤"
+                                            clearable
+                                        />
+                                    </template>
+                                </el-table-column>
                                 <el-table-column property="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
                             </el-table>
                         </el-popover>
@@ -185,7 +195,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, watch, reactive, toRefs, ref, Ref, onUnmounted } from 'vue';
+import { onMounted, computed, watch, reactive, toRefs, ref, Ref, onUnmounted } from 'vue';
 import { isTrue, notEmpty } from '@/common/assert';
 import { ElMessage } from 'element-plus';
 
@@ -217,6 +227,7 @@ const props = defineProps({
 });
 
 const dbTableRef = ref(null) as Ref;
+const columnNameSearchInputRef = ref(null) as Ref;
 
 const state = reactive({
     datas: [],
@@ -231,6 +242,7 @@ const state = reactive({
     count: 0,
     selectionDatas: [] as any,
     condPopVisible: false,
+    columnNameSearch: '',
     conditionDialog: {
         title: '',
         placeholder: '',
@@ -350,6 +362,35 @@ const exportData = () => {
     }
     exportCsv(`数据导出-${props.tableName}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, columnNames, dataList);
 };
+
+/**
+ * 选择条件列
+ */
+const chooseCondColumnName = () => {
+    state.condPopVisible = !state.condPopVisible;
+    if (state.condPopVisible) {
+        columnNameSearchInputRef.value.clear();
+        columnNameSearchInputRef.value.focus();
+    }
+};
+
+/**
+ * 过滤条件列名
+ */
+const filterCondColumns = computed(() => {
+    const columns = state.columns;
+    const columnNameSearch = state.columnNameSearch;
+    if (!columnNameSearch) {
+        return columns;
+    }
+    return columns.filter((data: any) => {
+        let tnMatch = true;
+        if (columnNameSearch) {
+            tnMatch = data.columnName.toLowerCase().includes(columnNameSearch.toLowerCase());
+        }
+        return tnMatch;
+    });
+});
 
 /**
  * 条件查询，点击列信息后显示输入对应的值
