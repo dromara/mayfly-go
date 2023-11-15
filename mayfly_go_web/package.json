@@ -11,7 +11,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.1.0",
     "asciinema-player": "^3.6.2",
-    "axios": "^1.6.0",
+    "axios": "^1.6.2",
     "countup.js": "^2.7.0",
     "cropperjs": "^1.5.11",
     "echarts": "^5.4.3",

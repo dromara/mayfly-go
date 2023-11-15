@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-row>
-            <el-col :span="4">
+            <el-col :span="5">
                 <el-row type="flex" justify="space-between">
                     <el-col :span="24" class="flex-auto">
                         <tag-tree :loadTags="loadTags">
@@ -132,7 +132,7 @@
                 </div>
             </el-col>
 
-            <el-col :span="13" style="border-left: 1px solid var(--el-card-border-color)">
+            <el-col :span="12" style="border-left: 1px solid var(--el-card-border-color)">
                 <div class="ml5">
                     <el-tabs @tab-remove="removeDataTab" style="width: 100%" v-model="state.activeName">
                         <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">

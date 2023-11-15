@@ -8,7 +8,7 @@
                     ref="treeRef"
                     :style="{ maxHeight: state.height, height: state.height, overflow: 'auto' }"
                     :highlight-current="true"
-                    :indent="7"
+                    :indent="10"
                     :load="loadNode"
                     :props="treeProps"
                     lazy
@@ -190,6 +190,7 @@ defineExpose({
     overflow: 'auto';
     position: relative;
 
+    border-radius: var(--el-input-border-radius, var(--el-border-radius-base));
     border: 1px solid var(--el-border-color-light, #ebeef5);
 
     .el-tree {

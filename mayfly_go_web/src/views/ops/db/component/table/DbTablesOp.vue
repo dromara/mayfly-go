@@ -1,6 +1,6 @@
 <template>
     <div class="db-table">
-        <el-row class="mb10">
+        <el-row class="mb5">
             <el-popover v-model:visible="showDumpInfo" :width="470" placement="right" trigger="click">
                 <template #reference>
                     <el-button class="ml5" type="success" size="small">导出</el-button>
@@ -64,7 +64,7 @@
                 </template>
             </el-table-column>
             <el-table-column property="createTime" label="创建时间" min-width="150"> </el-table-column>
-            <el-table-column label="更多信息" min-width="140">
+            <el-table-column label="更多信息" min-width="160">
                 <template #default="scope">
                     <el-link @click.prevent="showColumns(scope.row)" type="primary">字段</el-link>
                     <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">索引</el-link>

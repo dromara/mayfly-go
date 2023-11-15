@@ -40,6 +40,12 @@ const openSetingsDrawer = () => {
     setingsRef.value.openDrawer();
 };
 
+const prefers = matchMedia('(prefers-color-scheme: dark)');
+const switchDarkFollowOS = () => {
+    // 跟随系统主题
+    themeConfigStores.switchDark(prefers.matches);
+};
+
 // 页面加载时
 onMounted(() => {
     nextTick(() => {
@@ -53,9 +59,8 @@ onMounted(() => {
         if (tc) {
             themeConfigStores.setThemeConfig({ themeConfig: tc });
             document.documentElement.style.cssText = getLocal('themeConfigStyle');
-
-            themeConfigStores.switchDark(tc.isDark);
         }
+        switchDarkFollowOS();
 
         // 是否开启水印
         useWatermark().then((res) => {

@@ -1,43 +1,8 @@
 <template>
     <div class="db-sql-exec">
-        <el-row class="mb5">
-            <el-col :span="4">
-                <el-button
-                    :disabled="!state.db || !nowDbInst.id"
-                    type="primary"
-                    icon="plus"
-                    @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases?.split(' ') }, state.db)"
-                    size="small"
-                    >新建查询</el-button
-                >
-            </el-col>
-
-            <el-col :span="20" v-if="state.db">
-                <el-descriptions :column="4" size="small" border style="height: 10px" class="ml5">
-                    <el-descriptions-item label-align="right" label="tag">{{ nowDbInst.tagPath }}</el-descriptions-item>
-
-                    <el-descriptions-item label-align="right">
-                        <template #label>
-                            <div>
-                                <SvgIcon :name="DbInst.getIconName(nowDbInst.type)" :size="18" />
-                                实例
-                            </div>
-                        </template>
-                        {{ nowDbInst.id }}
-                        <el-divider direction="vertical" border-style="dashed" />
-                        {{ nowDbInst.name }}
-                        <el-divider direction="vertical" border-style="dashed" />
-                        {{ nowDbInst.host }}
-                    </el-descriptions-item>
-
-                    <el-descriptions-item label="库名" label-align="right">{{ state.db }}</el-descriptions-item>
-                </el-descriptions>
-            </el-col>
-        </el-row>
-
-        <el-row type="flex">
-            <el-col :span="4">
-                <tag-tree ref="tagTreeRef" :loadTags="loadTags" :height="state.tagTreeHeight">
+        <el-row>
+            <el-col :span="5">
+                <tag-tree ref="tagTreeRef" :loadTags="loadTags">
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == SqlExecNodeType.DbInst">
                             <el-popover :show-after="500" placement="right-start" title="数据库实例信息" trigger="hover" :width="250">
@@ -81,8 +46,43 @@
                 </tag-tree>
             </el-col>
 
-            <el-col :span="20">
-                <el-container id="data-exec" class="mt5 ml5">
+            <el-col :span="19">
+                <el-row>
+                    <el-col :span="24" v-if="state.db">
+                        <el-descriptions :column="4" size="small" border class="ml5">
+                            <el-descriptions-item label-align="right" label="操作"
+                                ><el-button
+                                    :disabled="!state.db || !nowDbInst.id"
+                                    type="primary"
+                                    icon="Search"
+                                    @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases?.split(' ') }, state.db)"
+                                    size="small"
+                                    >新建查询</el-button
+                                ></el-descriptions-item
+                            >
+
+                            <el-descriptions-item label-align="right" label="tag">{{ nowDbInst.tagPath }}</el-descriptions-item>
+
+                            <el-descriptions-item label-align="right">
+                                <template #label>
+                                    <div>
+                                        <SvgIcon :name="DbInst.getIconName(nowDbInst.type)" :size="18" />
+                                        实例
+                                    </div>
+                                </template>
+                                {{ nowDbInst.id }}
+                                <el-divider direction="vertical" border-style="dashed" />
+                                {{ nowDbInst.name }}
+                                <el-divider direction="vertical" border-style="dashed" />
+                                {{ nowDbInst.host }}
+                            </el-descriptions-item>
+
+                            <el-descriptions-item label="库名" label-align="right">{{ state.db }}</el-descriptions-item>
+                        </el-descriptions>
+                    </el-col>
+                </el-row>
+
+                <div id="data-exec" class="mt5 ml5">
                     <el-tabs
                         v-if="state.tabs.size > 0"
                         type="card"
@@ -143,7 +143,7 @@
                             />
                         </el-tab-pane>
                     </el-tabs>
-                </el-container>
+                </div>
             </el-col>
         </el-row>
     </div>
@@ -157,7 +157,7 @@ import { DbInst, TabInfo, TabType, registerDbCompletionItemProvider } from './db
 import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
-import { dispposeCompletionItemProvider } from '../../../components/monaco/completionItemProvider';
+import { dispposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { ContextmenuItem } from '@/components/contextmenu/index';
 
@@ -203,10 +203,12 @@ const SqlIcon = {
 // node节点点击时，触发改变db事件
 const nodeClickChangeDb = (nodeData: TagTreeNode) => {
     const params = nodeData.params;
-    changeDb(
-        { id: params.id, host: `${params.host}:${params.port}`, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.database },
-        params.db
-    );
+    if (params.db) {
+        changeDb(
+            { id: params.id, host: `${params.host}`, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.database },
+            params.db
+        );
+    }
 };
 
 // tagpath 节点类型
@@ -221,25 +223,23 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
 });
 
 // 数据库实例节点类型
-const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst)
-    .withLoadNodesFunc((parentNode: TagTreeNode) => {
-        const params = parentNode.params;
-        const dbs = params.database.split(' ')?.sort();
-        return dbs.map((x: any) => {
-            return new TagTreeNode(`${parentNode.key}.${x}`, x, NodeTypeDb)
-                .withParams({
-                    tagPath: params.tagPath,
-                    id: params.id,
-                    name: params.name,
-                    type: params.type,
-                    host: `${params.host}:${params.port}`,
-                    dbs: dbs,
-                    db: x,
-                })
-                .withIcon(DbIcon);
-        });
-    })
-    .withNodeClickFunc(nodeClickChangeDb);
+const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((parentNode: TagTreeNode) => {
+    const params = parentNode.params;
+    const dbs = params.database.split(' ')?.sort();
+    return dbs.map((x: any) => {
+        return new TagTreeNode(`${parentNode.key}.${x}`, x, NodeTypeDb)
+            .withParams({
+                tagPath: params.tagPath,
+                id: params.id,
+                name: params.name,
+                type: params.type,
+                host: `${params.host}:${params.port}`,
+                dbs: dbs,
+                db: x,
+            })
+            .withIcon(DbIcon);
+    });
+});
 
 // 数据库节点
 const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
@@ -369,7 +369,6 @@ const state = reactive({
     dataTabsTableHeight: '600',
     editorHeight: '600',
     tablesOpHeight: '600',
-    tagTreeHeight: window.innerHeight - 178 + 'px',
 });
 
 const { nowDbInst } = toRefs(state);
@@ -389,9 +388,8 @@ onBeforeUnmount(() => {
  */
 const setHeight = () => {
     state.editorHeight = window.innerHeight - 500 + 'px';
-    state.dataTabsTableHeight = window.innerHeight - 250 + 'px';
+    state.dataTabsTableHeight = window.innerHeight - 255 + 'px';
     state.tablesOpHeight = window.innerHeight - 220 + 'px';
-    state.tagTreeHeight = window.innerHeight - 165 + 'px';
 };
 
 /**
@@ -434,6 +432,7 @@ const loadTableData = async (db: any, dbName: string, tableName: string) => {
     if (tableName == '') {
         return;
     }
+    changeDb(db, dbName);
 
     const key = `${db.id}:\`${dbName}\`.${tableName}`;
     let tab = state.tabs.get(key);
@@ -462,6 +461,7 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
         ElMessage.warning('请选择数据库实例及对应的schema');
         return;
     }
+    changeDb(db, dbName);
 
     const dbId = db.id;
     let label;
@@ -513,6 +513,7 @@ const addTablesOpTab = async (db: any) => {
         ElMessage.warning('请选择数据库实例及对应的schema');
         return;
     }
+    changeDb(db, dbName);
 
     const dbId = db.id;
     let key = `表操作:${dbId}:${dbName}.tablesOp`;
@@ -642,4 +643,3 @@ const getNowDbInfo = () => {
     }
 }
 </style>
-../../../components/contextmenu

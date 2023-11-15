@@ -1,5 +1,5 @@
 declare interface UserInfoState<T = any> {
-    userInfo: any;
+    userInfo: T;
 }
 
 declare interface ThemeConfigState {
@@ -92,7 +92,7 @@ declare interface TagsView {
 }
 
 // TagsView 路由列表
-declare interface TagsViewsState<T = any> {
+declare interface TagsViewsState<> {
     tagsViews: TagsView[];
 }
 

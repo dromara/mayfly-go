@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-row>
-            <el-col :span="4">
+            <el-col :span="5">
                 <tag-tree :loadTags="loadTags">
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == MongoNodeType.Mongo">
@@ -42,7 +42,7 @@
                 </tag-tree>
             </el-col>
 
-            <el-col :span="20">
+            <el-col :span="19">
                 <div id="mongo-tab" class="ml5" style="border: 1px solid var(--el-border-color-light, #ebeef5); margin-top: 1px">
                     <el-row v-if="nowColl">
                         <el-descriptions :column="10" size="small" border>
