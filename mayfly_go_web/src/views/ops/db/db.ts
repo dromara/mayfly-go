@@ -232,11 +232,12 @@ export class DbInst {
      * @param table 表名
      * @param datas 要生成的数据
      */
-    genInsertSql(dbName: string, table: string, datas: any[]): string {
+    async genInsertSql(dbName: string, table: string, datas: any[]) {
         if (!datas) {
             return '';
         }
-        const columns = this.getDb(dbName).getColumns(table);
+
+        const columns = await this.loadColumns(dbName, table);
         const sqls = [];
         for (let data of datas) {
             let colNames = [];
@@ -256,8 +257,8 @@ export class DbInst {
      * @param table 表名
      * @param datas 要删除的记录
      */
-    genDeleteByPrimaryKeysSql(db: string, table: string, datas: any[]) {
-        const primaryKey = this.getDb(db).getColumn(table);
+    async genDeleteByPrimaryKeysSql(db: string, table: string, datas: any[]) {
+        const primaryKey = await this.loadTableColumn(db, table);
         const primaryKeyColumnName = primaryKey.columnName;
         const ids = datas.map((d: any) => `${DbInst.wrapColumnValue(primaryKey.columnType, d[primaryKeyColumnName])}`).join(',');
         return `DELETE FROM ${this.wrapName(table)} WHERE ${this.wrapName(primaryKeyColumnName)} IN (${ids})`;
@@ -389,7 +390,7 @@ export class DbInst {
         }
 
         // 获取列名称的长度 加上排序图标长度
-        const columnWidth: number = getTextWidth(prop) + 40;
+        const columnWidth: number = getTextWidth(prop) + 23;
         // prop为该列的字段名(传字符串);tableData为该表格的数据源(传变量);
         if (!tableData || !tableData.length || tableData.length === 0 || tableData === undefined) {
             return columnWidth;
@@ -530,33 +531,6 @@ export class TabInfo {
         return this.getNowDbInst().getDb(this.db);
     }
 }
-
-/** 修改表字段所需数据 */
-export type UpdateFieldsMeta = {
-    // 主键值
-    primaryKey: string;
-    // 主键名
-    primaryKeyName: string;
-    // 主键类型
-    primaryKeyType: string;
-    // 新值
-    fields: FieldsMeta[];
-};
-
-export type FieldsMeta = {
-    // 字段所在div
-    div: HTMLElement;
-    // 字段名
-    fieldName: string;
-    // 字段所在的表格行数据
-    row: any;
-    // 字段类型
-    fieldType: string;
-    // 原值
-    oldValue: string;
-    // 新值
-    newValue: string;
-};
 
 /**
  * 注册数据库表、字段等信息提示

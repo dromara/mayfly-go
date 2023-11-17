@@ -50,10 +50,7 @@
 
         <div class="mt5">
             <el-row>
-                <el-link v-if="table" @click="onDeleteData()" class="ml5" type="danger" icon="delete" :underline="false"></el-link>
-
                 <span v-if="execRes.data.length > 0">
-                    <el-divider direction="vertical" border-style="dashed" />
                     <el-link type="success" :underline="false" @click="exportData"><span style="font-size: 12px">导出</span></el-link>
                 </span>
                 <span v-if="hasUpdatedFileds">
@@ -77,6 +74,7 @@
                 empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
                 @selection-change="onDataSelectionChange"
                 @change-updated-field="changeUpdatedField"
+                @data-delete="onDeleteData"
             ></db-table-data>
         </div>
     </div>
@@ -149,7 +147,7 @@ const state = reactive({
     hasUpdatedFileds: false,
 });
 
-const { tableDataHeight, execRes, table, loading, hasUpdatedFileds } = toRefs(state);
+const { tableDataHeight, execRes, loading, hasUpdatedFileds } = toRefs(state);
 
 watch(
     () => props.editorHeight,
@@ -529,27 +527,20 @@ const onDataSelectionChange = (datas: []) => {
     state.selectionDatas = datas;
 };
 
-const changeUpdatedField = (updatedFields: []) => {
+const changeUpdatedField = (updatedFields: any) => {
     // 如果存在要更新字段，则显示提交和取消按钮
-    state.hasUpdatedFileds = updatedFields && updatedFields.length > 0;
+    state.hasUpdatedFileds = updatedFields && updatedFields.size > 0;
 };
 
 /**
- * 执行删除数据事件
+ * 数据删除事件
  */
-const onDeleteData = async () => {
-    const deleteDatas = state.selectionDatas;
-    isTrue(deleteDatas && deleteDatas.length > 0, '请先选择要删除的数据');
+const onDeleteData = async (deleteDatas: any) => {
     const db = props.dbName;
     const dbInst = getNowDbInst();
     const primaryKey = await dbInst.loadTableColumn(db, state.table);
     const primaryKeyColumnName = primaryKey.columnName;
-    dbInst.promptExeSql(db, dbInst.genDeleteByPrimaryKeysSql(db, state.table, deleteDatas), null, () => {
-        state.execRes.data = state.execRes.data.filter(
-            (d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKeyColumnName] == d[primaryKeyColumnName]) != -1)
-        );
-        state.selectionDatas = [];
-    });
+    state.execRes.data = state.execRes.data.filter((d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKeyColumnName] == d[primaryKeyColumnName]) != -1));
 };
 
 const submitUpdateFields = () => {
@@ -570,10 +561,6 @@ const cancelUpdateFields = () => {
     vertical-align: middle;
     position: relative;
     text-decoration: none;
-}
-
-.update_field_active {
-    background-color: var(--el-color-success);
 }
 
 .editor-move-resize {

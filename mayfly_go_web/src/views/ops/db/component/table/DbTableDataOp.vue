@@ -30,16 +30,8 @@
                 <el-link @click="onShowAddDataDialog()" type="primary" icon="plus" :underline="false"></el-link>
                 <el-divider direction="vertical" border-style="dashed" />
 
-                <el-link @click="onDeleteData()" type="danger" icon="delete" :underline="false"></el-link>
-                <el-divider direction="vertical" border-style="dashed" />
-
                 <el-tooltip :show-after="500" class="box-item" effect="dark" content="commit" placement="top">
                     <el-link @click="onCommit()" type="success" icon="CircleCheck" :underline="false"> </el-link>
-                </el-tooltip>
-                <el-divider direction="vertical" border-style="dashed" />
-
-                <el-tooltip :show-after="500" class="box-item" effect="dark" content="生成insert sql" placement="top">
-                    <el-link @click="onGenerateInsertSql()" type="success" :underline="false">gi</el-link>
                 </el-tooltip>
                 <el-divider direction="vertical" border-style="dashed" />
 
@@ -118,6 +110,7 @@
             @sort-change="(sort: any) => onTableSortChange(sort)"
             @selection-change="onDataSelectionChange"
             @change-updated-field="changeUpdatedField"
+            @data-delete="onRefresh"
         ></db-table-data>
 
         <el-row type="flex" class="mt5" justify="center">
@@ -187,10 +180,6 @@
                 </span>
             </template>
         </el-dialog>
-
-        <el-dialog @close="state.genSqlDialog.visible = false" v-model="state.genSqlDialog.visible" title="SQL" width="1000px">
-            <el-input v-model="state.genSqlDialog.sql" type="textarea" rows="20" />
-        </el-dialog>
     </div>
 </template>
 
@@ -221,8 +210,8 @@ const props = defineProps({
         required: true,
     },
     tableHeight: {
-        type: [String],
-        default: '600',
+        type: [Number],
+        default: 600,
     },
 });
 
@@ -258,11 +247,7 @@ const state = reactive({
         placeholder: '',
         visible: false,
     },
-    genSqlDialog: {
-        visible: false,
-        sql: '',
-    },
-    tableHeight: '600',
+    tableHeight: 600,
     hasUpdatedFileds: false,
 });
 
@@ -446,11 +431,8 @@ const onSelectByCondition = async () => {
  * 表排序字段变更
  */
 const onTableSortChange = async (sort: any) => {
-    if (!sort.prop) {
-        return;
-    }
-    const sortType = sort.order == 'descending' ? 'DESC' : 'ASC';
-    state.orderBy = `ORDER BY ${sort.prop} ${sortType}`;
+    const sortType = sort.order == 'desc' ? 'DESC' : 'ASC';
+    state.orderBy = `ORDER BY ${sort.columnName} ${sortType}`;
     await onRefresh();
 };
 
@@ -458,28 +440,9 @@ const onDataSelectionChange = (datas: []) => {
     state.selectionDatas = datas;
 };
 
-const changeUpdatedField = (updatedFields: []) => {
+const changeUpdatedField = (updatedFields: any) => {
     // 如果存在要更新字段，则显示提交和取消按钮
-    state.hasUpdatedFileds = updatedFields && updatedFields.length > 0;
-};
-
-/**
- * 执行删除数据事件
- */
-const onDeleteData = async () => {
-    const deleteDatas = state.selectionDatas;
-    isTrue(deleteDatas && deleteDatas.length > 0, '请先选择要删除的数据');
-    const db = props.dbName;
-    const dbInst = getNowDbInst();
-    dbInst.promptExeSql(db, dbInst.genDeleteByPrimaryKeysSql(db, props.tableName, deleteDatas), null, () => {
-        onRefresh();
-    });
-};
-
-const onGenerateInsertSql = async () => {
-    isTrue(state.selectionDatas && state.selectionDatas.length > 0, '请先选择数据');
-    state.genSqlDialog.sql = getNowDbInst().genInsertSql(props.dbName, props.tableName, state.selectionDatas);
-    state.genSqlDialog.visible = true;
+    state.hasUpdatedFileds = updatedFields && updatedFields.size > 0;
 };
 
 const submitUpdateFields = () => {
@@ -530,8 +493,4 @@ const addRow = async () => {
 };
 </script>
 
-<style lang="scss">
-.update_field_active {
-    background-color: var(--el-color-success);
-}
-</style>
+<style lang="scss"></style>

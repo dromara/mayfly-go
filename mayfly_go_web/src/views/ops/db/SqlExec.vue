@@ -366,7 +366,7 @@ const state = reactive({
     activeName: '',
     reloadStatus: false,
     tabs,
-    dataTabsTableHeight: '600',
+    dataTabsTableHeight: 600,
     editorHeight: '600',
     tablesOpHeight: '600',
 });
@@ -388,7 +388,7 @@ onBeforeUnmount(() => {
  */
 const setHeight = () => {
     state.editorHeight = window.innerHeight - 500 + 'px';
-    state.dataTabsTableHeight = window.innerHeight - 255 + 'px';
+    state.dataTabsTableHeight = window.innerHeight - 255;
     state.tablesOpHeight = window.innerHeight - 220 + 'px';
 };
 
