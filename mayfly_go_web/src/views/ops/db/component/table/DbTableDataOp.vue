@@ -35,11 +35,6 @@
                 </el-tooltip>
                 <el-divider direction="vertical" border-style="dashed" />
 
-                <el-tooltip :show-after="500" class="box-item" effect="dark" content="导出当前页的csv文件" placement="top">
-                    <el-link type="success" :underline="false" @click="exportData"><span class="f12">导出</span></el-link>
-                </el-tooltip>
-                <el-divider direction="vertical" border-style="dashed" />
-
                 <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
                     <el-link @click="submitUpdateFields()" type="success" :underline="false" class="f12">提交</el-link>
                 </el-tooltip>
@@ -185,12 +180,10 @@
 
 <script lang="ts" setup>
 import { onMounted, computed, watch, reactive, toRefs, ref, Ref, onUnmounted } from 'vue';
-import { isTrue, notEmpty } from '@/common/assert';
+import { notEmpty } from '@/common/assert';
 import { ElMessage } from 'element-plus';
 
 import { DbInst } from '@/views/ops/db/db';
-import { exportCsv } from '@/common/utils/export';
-import { dateStrFormat } from '@/common/utils/date';
 import DbTableData from './DbTableData.vue';
 
 const dataForm: any = ref(null);
@@ -227,7 +220,7 @@ const state = reactive({
     columns: [] as any,
     pageNum: 1,
     pageSize: DbInst.DefaultLimit,
-    pageSizes: [20, 40, 80, 100, 200, 300, 400],
+    pageSizes: [20, 50, 100, 200, 500, 1000],
     count: 0,
     selectionDatas: [] as any,
     condPopVisible: false,
@@ -331,21 +324,6 @@ const handleSizeChange = async (size: any) => {
     state.pageNum = 1;
     state.pageSize = size;
     await selectData();
-};
-
-/**
- * 导出当前页数据
- */
-const exportData = () => {
-    const dataList = state.datas as any;
-    isTrue(dataList.length > 0, '没有数据可导出');
-    let columnNames = [];
-    for (let column of state.columns) {
-        if (column.show) {
-            columnNames.push(column.columnName);
-        }
-    }
-    exportCsv(`数据导出-${props.tableName}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, columnNames, dataList);
 };
 
 /**

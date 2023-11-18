@@ -12,6 +12,7 @@
                     :width="width"
                     :height="height"
                     fixed
+                    class="table"
                     :row-event-handlers="rowEventHandlers"
                 >
                     <template #header="{ columns }">
@@ -104,7 +105,7 @@
             <el-input v-model="state.genSqlDialog.sql" type="textarea" rows="20" />
         </el-dialog>
 
-        <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="headerContextmenuRef" />
+        <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
     </div>
 </template>
 
@@ -112,9 +113,10 @@
 import { ref, onMounted, watch, reactive, toRefs } from 'vue';
 import { ElInput } from 'element-plus';
 import { DbInst } from '@/views/ops/db/db';
-import Contextmenu from '@/components/contextmenu/index.vue';
-import { ContextmenuItem } from '@/components/contextmenu/index';
+import { ContextmenuItem, Contextmenu } from '@/components/contextmenu';
 import SvgIcon from '@/components/svgIcon/index.vue';
+import { exportCsv, exportFile } from '@/common/utils/export';
+import { dateStrFormat } from '@/common/utils/date';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
@@ -163,8 +165,10 @@ const props = defineProps({
     },
 });
 
-const headerContextmenuRef = ref();
+const contextmenuRef = ref();
 const tableRef = ref();
+
+/**  表头 contextmenu items  **/
 
 const cmHeaderAsc = new ContextmenuItem('asc', '升序').withIcon('top').withOnClick((data: any) => {
     onTableSortChange({ columnName: data.dataKey, order: 'asc' });
@@ -174,7 +178,21 @@ const cmHeaderDesc = new ContextmenuItem('desc', '降序').withIcon('bottom').wi
     onTableSortChange({ columnName: data.dataKey, order: 'desc' });
 });
 
-const cmDataDel = new ContextmenuItem('desc', '删除')
+const cmHeaderFixed = new ContextmenuItem('fixed', '固定')
+    .withIcon('Paperclip')
+    .withOnClick((data: any) => {
+        data.fixed = true;
+    })
+    .withHideFunc((data: any) => data.fixed);
+
+const cmHeaderCancenFixed = new ContextmenuItem('cancelFixed', '取消固定')
+    .withIcon('Minus')
+    .withOnClick((data: any) => (data.fixed = false))
+    .withHideFunc((data: any) => !data.fixed);
+
+/**  表数据 contextmenu items  **/
+
+const cmDataDel = new ContextmenuItem('deleteData', '删除')
     .withIcon('delete')
     .withOnClick(() => onDeleteData())
     .withHideFunc(() => {
@@ -182,13 +200,22 @@ const cmDataDel = new ContextmenuItem('desc', '删除')
     });
 
 const cmDataGenInsertSql = new ContextmenuItem('genInsertSql', 'Insert SQL')
-    .withIcon('document')
+    .withIcon('tickets')
     .withOnClick(() => onGenerateInsertSql())
     .withHideFunc(() => {
         return state.table == '';
     });
 
-const cmDataGenJson = new ContextmenuItem('genJson', '生成JSON').withIcon('document').withOnClick(() => onGenerateJson());
+const cmDataGenJson = new ContextmenuItem('genJson', '生成JSON').withIcon('tickets').withOnClick(() => onGenerateJson());
+
+const cmDataExportCsv = new ContextmenuItem('exportCsv', '导出CSV').withIcon('document').withOnClick(() => onExportCsv());
+
+const cmDataExportSql = new ContextmenuItem('exportSql', '导出SQL')
+    .withIcon('document')
+    .withOnClick(() => onExportSql())
+    .withHideFunc(() => {
+        return state.table == '';
+    });
 
 class NowUpdateCell {
     rowIndex: number;
@@ -328,7 +355,6 @@ onMounted(async () => {
 });
 
 const setTableData = (datas: any) => {
-    console.log('set table datas', props);
     tableRef.value.scrollTo({ scrollLeft: 0, scrollTop: 0 });
     selectionRowsMap.clear();
     cellUpdateMap.clear();
@@ -364,6 +390,11 @@ const canEdit = (rowIndex: number, colIndex: number) => {
     return state.table && nowUpdateCell && nowUpdateCell.rowIndex == rowIndex && nowUpdateCell.colIndex == colIndex;
 };
 
+/**
+ * 判断当前单元格是否被更新了
+ * @param rowIndex ri
+ * @param columnName cn
+ */
 const isUpdated = (rowIndex: number, columnName: string) => {
     return cellUpdateMap.get(rowIndex)?.columnsMap.get(columnName);
 };
@@ -423,8 +454,8 @@ const headerContextmenuClick = (event: any, data: any) => {
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmHeaderAsc, cmHeaderDesc];
-    headerContextmenuRef.value.openContextmenu(data);
+    state.contextmenu.items = [cmHeaderAsc, cmHeaderDesc, cmHeaderFixed, cmHeaderCancenFixed];
+    contextmenuRef.value.openContextmenu(data);
 };
 
 const dataContextmenuClick = (event: any, rowIndex: number, data: any) => {
@@ -437,86 +468,8 @@ const dataContextmenuClick = (event: any, rowIndex: number, data: any) => {
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmDataDel, cmDataGenInsertSql, cmDataGenJson];
-    headerContextmenuRef.value.openContextmenu(data);
-};
-
-const onEnterEditMode = (el: any, rowData: any, column: any, rowIndex = 0, columnIndex = 0) => {
-    if (!state.table) {
-        return;
-    }
-
-    triggerRefresh();
-
-    const oldVal = rowData[column.dataKey];
-    nowUpdateCell = {
-        rowIndex: rowIndex,
-        colIndex: columnIndex,
-        oldValue: oldVal,
-    };
-};
-
-const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
-    const oldValue = nowUpdateCell.oldValue;
-    const newValue = rowData[column.dataKey];
-
-    // 未改变单元格值
-    if (oldValue == newValue) {
-        nowUpdateCell = null as any;
-        triggerRefresh();
-        return;
-    }
-
-    let updatedRow = cellUpdateMap.get(rowIndex);
-    if (!updatedRow) {
-        updatedRow = new UpdatedRow();
-        updatedRow.rowData = rowData;
-        cellUpdateMap.set(rowIndex, updatedRow);
-    }
-
-    const columnName = column.dataKey;
-    let cellData = updatedRow.columnsMap.get(columnName);
-    if (cellData) {
-        // 多次修改情况，可能又修改回原值，则移除该修改单元格
-        if (cellData.oldValue == newValue) {
-            cellUpdateMap.delete(rowIndex);
-        }
-    } else {
-        cellData = new TableCellData();
-        cellData.oldValue = oldValue;
-        updatedRow.columnsMap.set(columnName, cellData);
-    }
-
-    nowUpdateCell = null as any;
-    triggerRefresh();
-    changeUpdatedField();
-};
-
-const rowClass = (row: any) => {
-    if (isSelection(row.rowIndex)) {
-        return 'data-selection';
-    }
-    if (row.rowIndex % 2 != 0) {
-        return 'data-spacing';
-    }
-    return '';
-};
-
-const getColumnTip = (column: any) => {
-    const comment = column.columnComment;
-    return `${column.columnType} ${comment ? ' |  ' + comment : ''}`;
-};
-
-/**
- * 触发响应式实时刷新，否则需要滑动或移动才能使样式实时生效
- */
-const triggerRefresh = () => {
-    // 改变columns等属性值，才能触发slot中的if条件等, 暂不知为啥
-    if (state.columns[0].opTimes) {
-        state.columns[0].opTimes = state.columns[0].opTimes + 1;
-    } else {
-        state.columns[0].opTimes = 1;
-    }
+    state.contextmenu.items = [cmDataDel, cmDataGenInsertSql, cmDataGenJson, cmDataExportCsv, cmDataExportSql];
+    contextmenuRef.value.openContextmenu(data);
 };
 
 /**
@@ -561,6 +514,77 @@ const onGenerateJson = async () => {
     state.genSqlDialog.sql = JSON.stringify(jsonObj, null, 4);
     state.genSqlDialog.title = 'JSON';
     state.genSqlDialog.visible = true;
+};
+
+/**
+ * 导出当前页数据
+ */
+const onExportCsv = () => {
+    const dataList = state.datas as any;
+    let columnNames = [];
+    for (let column of state.columns) {
+        if (column.show) {
+            columnNames.push(column.columnName);
+        }
+    }
+    exportCsv(`数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, columnNames, dataList);
+};
+
+const onExportSql = async () => {
+    const selectionDatas = state.datas;
+    exportFile(
+        `数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}.sql`,
+        await getNowDbInst().genInsertSql(state.db, state.table, selectionDatas)
+    );
+};
+
+const onEnterEditMode = (el: any, rowData: any, column: any, rowIndex = 0, columnIndex = 0) => {
+    if (!state.table) {
+        return;
+    }
+
+    triggerRefresh();
+    nowUpdateCell = {
+        rowIndex: rowIndex,
+        colIndex: columnIndex,
+        oldValue: rowData[column.dataKey],
+    };
+};
+
+const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
+    const oldValue = nowUpdateCell.oldValue;
+    const newValue = rowData[column.dataKey];
+
+    // 未改变单元格值
+    if (oldValue == newValue) {
+        nowUpdateCell = null as any;
+        triggerRefresh();
+        return;
+    }
+
+    let updatedRow = cellUpdateMap.get(rowIndex);
+    if (!updatedRow) {
+        updatedRow = new UpdatedRow();
+        updatedRow.rowData = rowData;
+        cellUpdateMap.set(rowIndex, updatedRow);
+    }
+
+    const columnName = column.dataKey;
+    let cellData = updatedRow.columnsMap.get(columnName);
+    if (cellData) {
+        // 多次修改情况，可能又修改回原值，则移除该修改单元格
+        if (cellData.oldValue == newValue) {
+            cellUpdateMap.delete(rowIndex);
+        }
+    } else {
+        cellData = new TableCellData();
+        cellData.oldValue = oldValue;
+        updatedRow.columnsMap.set(columnName, cellData);
+    }
+
+    nowUpdateCell = null as any;
+    triggerRefresh();
+    changeUpdatedField();
 };
 
 const submitUpdateFields = async () => {
@@ -630,6 +654,33 @@ const changeUpdatedField = () => {
     emits('changeUpdatedField', cellUpdateMap);
 };
 
+const rowClass = (row: any) => {
+    if (isSelection(row.rowIndex)) {
+        return 'data-selection';
+    }
+    if (row.rowIndex % 2 != 0) {
+        return 'data-spacing';
+    }
+    return '';
+};
+
+const getColumnTip = (column: any) => {
+    const comment = column.columnComment;
+    return `${column.columnType} ${comment ? ' |  ' + comment : ''}`;
+};
+
+/**
+ * 触发响应式实时刷新，否则需要滑动或移动才能使样式实时生效
+ */
+const triggerRefresh = () => {
+    // 改变columns等属性值，才能触发slot中的if条件等, 暂不知为啥
+    if (state.columns[0].opTimes) {
+        state.columns[0].opTimes = state.columns[0].opTimes + 1;
+    } else {
+        state.columns[0].opTimes = 1;
+    }
+};
+
 const getNowDbInst = () => {
     return DbInst.getInst(state.dbId);
 };
@@ -640,8 +691,13 @@ defineExpose({
 });
 </script>
 
-<style>
+<style lang="scss">
 .db-table-data {
+    .table {
+        border-left: var(--el-table-border);
+        border-top: var(--el-table-border);
+    }
+
     .table-data-cell {
         padding: 0 2px;
         font-size: 12px;
@@ -650,6 +706,7 @@ defineExpose({
     .data-selection {
         background-color: var(--el-color-success-light-8);
     }
+
     .data-spacing {
         background-color: var(--el-fill-color-lighter);
     }

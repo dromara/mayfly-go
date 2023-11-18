@@ -50,9 +50,6 @@
 
         <div class="mt5">
             <el-row>
-                <span v-if="execRes.data.length > 0">
-                    <el-link type="success" :underline="false" @click="exportData"><span style="font-size: 12px">导出</span></el-link>
-                </span>
                 <span v-if="hasUpdatedFileds">
                     <el-divider direction="vertical" border-style="dashed" />
                     <el-link type="success" :underline="false" @click="submitUpdateFields()"><span style="font-size: 12px">提交</span></el-link>
@@ -83,7 +80,7 @@
 <script lang="ts" setup>
 import { h, nextTick, watch, onMounted, reactive, toRefs, ref, Ref } from 'vue';
 import { getToken } from '@/common/utils/storage';
-import { isTrue, notBlank } from '@/common/assert';
+import { notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
 import config from '@/common/config';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -93,8 +90,6 @@ import { editor } from 'monaco-editor';
 
 import DbTableData from '@/views/ops/db/component/table/DbTableData.vue';
 import { DbInst } from '../../db';
-import { exportCsv } from '@/common/utils/export';
-import { dateStrFormat } from '@/common/utils/date';
 import { dbApi } from '../../api';
 
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
@@ -143,7 +138,7 @@ const state = reactive({
     },
     selectionDatas: [] as any,
     editorHeight: '500',
-    tableDataHeight: 240 as any,
+    tableDataHeight: 255 as any,
     hasUpdatedFileds: false,
 });
 
@@ -456,19 +451,6 @@ const replaceSelection = (str: string, selection: any) => {
         lineNumber: startLineNumber,
         column: 0,
     });
-};
-
-/**
- * 导出当前页数据
- */
-const exportData = () => {
-    const dataList = state.execRes.data as any;
-    isTrue(dataList.length > 0, '没有数据可导出');
-    exportCsv(
-        `数据查询导出-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`,
-        state.execRes.tableColumn.map((x: any) => x.columnName),
-        dataList
-    );
 };
 
 /**

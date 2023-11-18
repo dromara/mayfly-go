@@ -159,7 +159,7 @@ import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
 import { dispposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import { ContextmenuItem } from '@/components/contextmenu/index';
+import { ContextmenuItem } from '@/components/contextmenu';
 
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
 const DbTableDataOp = defineAsyncComponent(() => import('./component/table/DbTableDataOp.vue'));

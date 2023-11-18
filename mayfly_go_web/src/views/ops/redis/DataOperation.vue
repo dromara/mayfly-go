@@ -179,8 +179,7 @@ import { isTrue, notBlank, notNull } from '@/common/assert';
 import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { keysToTree, sortByTreeNodes, keysToList } from './utils';
-import Contextmenu from '@/components/contextmenu/index.vue';
-import { ContextmenuItem } from '@/components/contextmenu/index';
+import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 

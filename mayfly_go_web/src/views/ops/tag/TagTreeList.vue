@@ -88,8 +88,7 @@ import { toRefs, ref, watch, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from './api';
 import { dateFormat } from '@/common/utils/date';
-import Contextmenu from '@/components/contextmenu/index.vue';
-import { ContextmenuItem } from '@/components/contextmenu/index';
+import { Contextmenu, ContextmenuItem } from '@/components/contextmenu/index';
 
 interface Tree {
     id: number;

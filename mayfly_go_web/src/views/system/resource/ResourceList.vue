@@ -101,8 +101,7 @@ import { ResourceTypeEnum } from '../enums';
 import { resourceApi } from '../api';
 import { dateFormat } from '@/common/utils/date';
 import EnumValue from '@/common/Enum';
-import Contextmenu from '@/components/contextmenu/index.vue';
-import { ContextmenuItem } from '@/components/contextmenu/index';
+import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 
 const menuTypeValue = ResourceTypeEnum.Menu.value;
 const permissionTypeValue = ResourceTypeEnum.Permission.value;

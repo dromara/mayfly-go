@@ -1,4 +1,6 @@
-export class ContextmenuItem {
+import Contextmenu from './index.vue';
+
+class ContextmenuItem {
     clickId: any;
 
     txt: string;
@@ -53,3 +55,5 @@ export class ContextmenuItem {
         return false;
     }
 }
+
+export { Contextmenu, ContextmenuItem };

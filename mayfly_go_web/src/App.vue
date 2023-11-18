@@ -101,7 +101,7 @@ const refreshWatermarkTime = () => {
         } else {
             clearInterval(refreshWatermarkTimeInterval);
         }
-    }, 10000);
+    }, 60000);
 };
 
 // 页面销毁时，关闭监听布局配置

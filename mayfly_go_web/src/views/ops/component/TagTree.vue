@@ -42,16 +42,13 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref, watch, toRefs } from 'vue';
+import { onMounted, reactive, ref, watch, toRefs, onUnmounted } from 'vue';
 import { TagTreeNode } from './tag';
 import TagInfo from './TagInfo.vue';
-import Contextmenu from '@/components/contextmenu/index.vue';
+import { Contextmenu } from '@/components/contextmenu';
+import { useViewport } from '@/common/use';
 
 const props = defineProps({
-    height: {
-        type: [Number, String],
-        default: 0,
-    },
     load: {
         type: Function,
         required: false,
@@ -76,6 +73,8 @@ const emit = defineEmits(['nodeClick', 'currentContextmenuClick']);
 const treeRef: any = ref(null);
 const contextmenuRef = ref();
 
+const { vh } = useViewport();
+
 const state = reactive({
     height: 600 as any,
     filterText: '',
@@ -89,17 +88,17 @@ const state = reactive({
 const { filterText } = toRefs(state);
 
 onMounted(async () => {
-    if (!props.height) {
-        setHeight();
-        window.onresize = () => setHeight();
-    } else {
-        state.height = props.height;
-    }
+    setHeight();
+    window.addEventListener('resize', setHeight);
 });
 
 const setHeight = () => {
-    state.height = window.innerHeight - 157 + 'px';
+    state.height = vh.value - 148 + 'px';
 };
+
+onUnmounted(() => {
+    window.removeEventListener('resize', setHeight);
+});
 
 watch(filterText, (val) => {
     treeRef.value?.filter(val);
