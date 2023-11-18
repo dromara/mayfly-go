@@ -35,6 +35,16 @@
                 </el-tooltip>
                 <el-divider direction="vertical" border-style="dashed" />
 
+                <el-tooltip :show-after="500" class="box-item" effect="dark" content="commit" placement="top">
+                    <template #content>
+                        1. 右击数据/表头可显示操作菜单 <br />
+                        2. 按住Ctrl点击数据则为多选 <br />
+                        3. 双击单元格可编辑数据
+                    </template>
+                    <el-link icon="QuestionFilled" :underline="false"> </el-link>
+                </el-tooltip>
+                <el-divider direction="vertical" border-style="dashed" />
+
                 <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
                     <el-link @click="submitUpdateFields()" type="success" :underline="false" class="f12">提交</el-link>
                 </el-tooltip>

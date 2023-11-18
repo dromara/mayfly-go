@@ -4,7 +4,7 @@
             <el-input v-model="filterTag" placeholder="输入关键字过滤(右击进行操作)" style="width: 220px; margin-right: 10px" />
             <el-button v-auth="'tag:save'" type="primary" icon="plus" @click="showSaveTagDialog(null)">添加</el-button>
             <div style="float: right">
-                <el-tooltip effect="dark" placement="top">
+                <el-tooltip placement="top">
                     <template #content>
                         1. 用于将资产进行归类
                         <br />2. 可在团队管理中进行分配，用于资源隔离 <br />3. 拥有父标签的团队成员可访问操作其自身或子标签关联的资源

@@ -88,13 +88,13 @@
 
                     <template v-if="loading" #overlay>
                         <div class="el-loading-mask" style="display: flex; align-items: center; justify-content: center">
-                            <SvgIcon name="loading" color="var(--el-color-primary)" :size="26" />
+                            <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="42" />
                         </div>
                     </template>
 
                     <template #empty>
                         <div style="text-align: center">
-                            <el-empty :description="state.emptyText" :image-size="100" />
+                            <el-empty :style="{ height: `${tableHeight}px` }" :description="state.emptyText" :image-size="100" />
                         </div>
                     </template>
                 </el-table-v2>
@@ -312,7 +312,12 @@ watch(
 watch(
     () => props.columns,
     (newValue: any) => {
-        setTableColumns(newValue);
+        // 赋值列字段值是否隐藏，state.columns多了一列索引列
+        if (newValue.length + 1 == state.columns.length) {
+            for (let i = 0; i < newValue.length; i++) {
+                state.columns[i + 1].hidden = !newValue[i].show;
+            }
+        }
     },
     {
         deep: true,
@@ -507,7 +512,9 @@ const onGenerateJson = async () => {
     for (let selectionData of selectionDatas) {
         let obj = {};
         for (let column of state.columns) {
-            obj[column.title] = selectionData[column.dataKey];
+            if (column.show) {
+                obj[column.title] = selectionData[column.dataKey];
+            }
         }
         jsonObj.push(obj);
     }
