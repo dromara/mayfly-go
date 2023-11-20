@@ -176,6 +176,7 @@ import { redisApi } from './api';
 import { ref, defineAsyncComponent, toRefs, reactive, onMounted, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { isTrue, notBlank, notNull } from '@/common/assert';
+import { copyToClipboard } from '@/common/utils/string';
 import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { keysToTree, sortByTreeNodes, keysToList } from './utils';
@@ -184,6 +185,11 @@ import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
 const contextmenuRef = ref();
+
+const cmCopyKey = new ContextmenuItem('copyValue', '复制')
+    .withIcon('CopyDocument')
+    .withHideFunc((data: any) => !data.isLeaf)
+    .withOnClick(async (data: any) => await copyToClipboard(data.key));
 
 const cmNewTabOpen = new ContextmenuItem('newTabOpenKey', '新tab打开')
     .withIcon('plus')
@@ -299,7 +305,7 @@ const state = reactive({
             x: 0,
             y: 0,
         },
-        items: [cmNewTabOpen, cmDelKey],
+        items: [cmCopyKey, cmNewTabOpen, cmDelKey],
     },
 });
 

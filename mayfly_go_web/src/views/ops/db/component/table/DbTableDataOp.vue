@@ -111,7 +111,6 @@
             :loading="loading"
             :height="tableHeight"
             :show-column-tip="true"
-            :sortable="'custom'"
             @sort-change="(sort: any) => onTableSortChange(sort)"
             @selection-change="onDataSelectionChange"
             @change-updated-field="changeUpdatedField"
@@ -230,7 +229,7 @@ const state = reactive({
     columns: [] as any,
     pageNum: 1,
     pageSize: DbInst.DefaultLimit,
-    pageSizes: [20, 50, 100, 200, 500, 1000],
+    pageSizes: [25, 50, 100, 200, 500, 1000],
     count: 0,
     selectionDatas: [] as any,
     condPopVisible: false,

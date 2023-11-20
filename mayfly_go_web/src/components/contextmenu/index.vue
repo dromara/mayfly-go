@@ -12,6 +12,7 @@
             <ul class="el-dropdown-menu">
                 <template v-for="(v, k) in state.dropdownList">
                     <li
+                        :id="v.clickId"
                         v-auth="v.permission"
                         class="el-dropdown-menu__item"
                         aria-disabled="false"

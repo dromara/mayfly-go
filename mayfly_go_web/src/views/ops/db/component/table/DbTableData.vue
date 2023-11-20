@@ -4,8 +4,8 @@
             <template #default="{ height, width }">
                 <el-table-v2
                     ref="tableRef"
-                    :header-height="32"
-                    :row-height="32"
+                    :header-height="30"
+                    :row-height="30"
                     :row-class="rowClass"
                     :columns="state.columns"
                     :data="datas"
@@ -21,7 +21,7 @@
                                 :style="{
                                     width: `${column.width}px`,
                                     height: '100%',
-                                    lineHeight: '32px',
+                                    lineHeight: '30px',
                                     textAlign: 'center',
                                     borderRight: 'var(--el-table-border)',
                                 }"
@@ -56,7 +56,7 @@
                     </template>
 
                     <template #cell="{ rowData, column, rowIndex, columnIndex }">
-                        <div style="width: 100%; height: 100%; line-height: 32px">
+                        <div @contextmenu="dataContextmenuClick($event, rowIndex, column, rowData)" class="table-data-cell">
                             <!-- 行号列 -->
                             <div v-if="column.key == 'tableDataRowNo'">
                                 <el-text tag="b" size="small">
@@ -65,13 +65,13 @@
                             </div>
 
                             <!-- 数据列 -->
-                            <div v-else @dblclick="onEnterEditMode($event.target, rowData, column, rowIndex, columnIndex)">
+                            <div v-else @dblclick="onEnterEditMode(rowData, column, rowIndex, columnIndex)">
                                 <div v-if="canEdit(rowIndex, columnIndex)">
                                     <el-input
                                         :ref="(el: any) => el?.focus()"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
                                         class="w100"
-                                        input-style="text-align: center"
+                                        input-style="text-align: center; height: 27px;"
                                         size="small"
                                         v-model="rowData[column.dataKey!]"
                                     ></el-input>
@@ -101,8 +101,8 @@
             </template>
         </el-auto-resizer>
 
-        <el-dialog @close="state.genSqlDialog.visible = false" v-model="state.genSqlDialog.visible" :title="state.genSqlDialog.title" width="1000px">
-            <el-input v-model="state.genSqlDialog.sql" type="textarea" rows="20" />
+        <el-dialog @close="state.genTxtDialog.visible = false" v-model="state.genTxtDialog.visible" :title="state.genTxtDialog.title" width="1000px">
+            <el-input v-model="state.genTxtDialog.txt" type="textarea" rows="20" />
         </el-dialog>
 
         <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
@@ -112,6 +112,7 @@
 <script lang="ts" setup>
 import { ref, onMounted, watch, reactive, toRefs } from 'vue';
 import { ElInput } from 'element-plus';
+import { copyToClipboard } from '@/common/utils/string';
 import { DbInst } from '@/views/ops/db/db';
 import { ContextmenuItem, Contextmenu } from '@/components/contextmenu';
 import SvgIcon from '@/components/svgIcon/index.vue';
@@ -142,10 +143,6 @@ const props = defineProps({
     },
     columns: {
         type: Array<any>,
-    },
-    sortable: {
-        type: [String, Boolean],
-        default: false,
     },
     loading: {
         type: Boolean,
@@ -191,6 +188,16 @@ const cmHeaderCancenFixed = new ContextmenuItem('cancelFixed', '取消固定')
     .withHideFunc((data: any) => !data.fixed);
 
 /**  表数据 contextmenu items  **/
+
+const cmDataCopyCell = new ContextmenuItem('copyValue', '复制')
+    .withIcon('CopyDocument')
+    .withOnClick(async (data: any) => {
+        await copyToClipboard(data.rowData[data.column.dataKey]);
+    })
+    .withHideFunc(() => {
+        // 选中多条则隐藏该复制按钮
+        return selectionRowsMap.size > 1;
+    });
 
 const cmDataDel = new ContextmenuItem('deleteData', '删除')
     .withIcon('delete')
@@ -265,9 +272,7 @@ const state = reactive({
     table: '', // 当前的表名
     datas: [],
     columns: [] as any,
-    sortable: false,
     loading: false,
-    showColumnTip: false,
     tableHeight: 600,
     emptyText: '',
 
@@ -279,10 +284,10 @@ const state = reactive({
         items: [] as ContextmenuItem[],
     },
 
-    genSqlDialog: {
+    genTxtDialog: {
         title: 'SQL',
         visible: false,
-        sql: '',
+        txt: '',
     },
 });
 
@@ -298,8 +303,8 @@ const rowNoColumn = {
     width: 45,
     fixed: true,
     align: 'center',
-    headerClass: 'table-data-cell',
-    class: 'table-data-cell',
+    headerClass: 'table-column',
+    class: 'table-column',
 };
 
 watch(
@@ -348,9 +353,7 @@ watch(
 onMounted(async () => {
     console.log('in DbTable mounted');
     state.tableHeight = props.height;
-    state.sortable = props.sortable as any;
     state.loading = props.loading;
-    state.showColumnTip = props.showColumnTip;
     state.emptyText = props.emptyText;
 
     state.dbId = props.dbId;
@@ -377,8 +380,8 @@ const setTableColumns = (columns: any) => {
             width: DbInst.flexColumnWidth(columnName, state.datas),
             title: columnName,
             align: 'center',
-            headerClass: 'table-data-cell',
-            class: 'table-data-cell',
+            headerClass: 'table-column',
+            class: 'table-column',
             sortable: true,
             hidden: !x.show,
         };
@@ -448,9 +451,6 @@ const rowEventHandlers = {
         }
         selectionRow(rowIndex, rowData);
     },
-    onContextmenu: (e: any) => {
-        dataContextmenuClick(e.event, e.rowIndex, e.rowData);
-    },
 };
 
 const headerContextmenuClick = (event: any, data: any) => {
@@ -463,7 +463,7 @@ const headerContextmenuClick = (event: any, data: any) => {
     contextmenuRef.value.openContextmenu(data);
 };
 
-const dataContextmenuClick = (event: any, rowIndex: number, data: any) => {
+const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: any) => {
     event.preventDefault(); // 阻止默认的右击菜单行为
 
     // 当前行未选中，则单行选中该行
@@ -473,8 +473,8 @@ const dataContextmenuClick = (event: any, rowIndex: number, data: any) => {
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmDataDel, cmDataGenInsertSql, cmDataGenJson, cmDataExportCsv, cmDataExportSql];
-    contextmenuRef.value.openContextmenu(data);
+    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmDataGenInsertSql, cmDataGenJson, cmDataExportCsv, cmDataExportSql];
+    contextmenuRef.value.openContextmenu({ column, rowData: data });
 };
 
 /**
@@ -500,9 +500,9 @@ const onDeleteData = async () => {
 
 const onGenerateInsertSql = async () => {
     const selectionDatas = Array.from(selectionRowsMap.values());
-    state.genSqlDialog.sql = await getNowDbInst().genInsertSql(state.db, state.table, selectionDatas);
-    state.genSqlDialog.title = 'SQL';
-    state.genSqlDialog.visible = true;
+    state.genTxtDialog.txt = await getNowDbInst().genInsertSql(state.db, state.table, selectionDatas);
+    state.genTxtDialog.title = 'SQL';
+    state.genTxtDialog.visible = true;
 };
 
 const onGenerateJson = async () => {
@@ -518,9 +518,9 @@ const onGenerateJson = async () => {
         }
         jsonObj.push(obj);
     }
-    state.genSqlDialog.sql = JSON.stringify(jsonObj, null, 4);
-    state.genSqlDialog.title = 'JSON';
-    state.genSqlDialog.visible = true;
+    state.genTxtDialog.txt = JSON.stringify(jsonObj, null, 4);
+    state.genTxtDialog.title = 'JSON';
+    state.genTxtDialog.visible = true;
 };
 
 /**
@@ -545,7 +545,7 @@ const onExportSql = async () => {
     );
 };
 
-const onEnterEditMode = (el: any, rowData: any, column: any, rowIndex = 0, columnIndex = 0) => {
+const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 0) => {
     if (!state.table) {
         return;
     }
@@ -705,11 +705,19 @@ defineExpose({
         border-top: var(--el-table-border);
     }
 
-    .table-data-cell {
+    .table-column {
         padding: 0 2px;
         font-size: 12px;
         border-right: var(--el-table-border);
     }
+
+    .table-data-cell {
+        width: 100%;
+        height: 100%;
+        line-height: 30px;
+        cursor: pointer;
+    }
+
     .data-selection {
         background-color: var(--el-color-success-light-8);
     }

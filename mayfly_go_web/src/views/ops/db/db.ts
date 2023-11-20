@@ -54,7 +54,7 @@ export class DbInst {
     /**
      * 默认查询分页数量
      */
-    static DefaultLimit = 20;
+    static DefaultLimit = 25;
 
     /**
      * 获取指定数据库实例，若不存在则新建并缓存
