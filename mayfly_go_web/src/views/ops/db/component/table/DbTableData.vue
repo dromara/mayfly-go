@@ -719,7 +719,7 @@ defineExpose({
     }
 
     .data-selection {
-        background-color: var(--el-color-success-light-8);
+        background-color: var(--el-table-current-row-bg-color);
     }
 
     .data-spacing {

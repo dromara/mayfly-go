@@ -2,61 +2,65 @@
     <div>
         <el-row>
             <el-col :span="8">
-                <el-link @click="onRefresh()" icon="refresh" :underline="false" class="ml5"> </el-link>
-                <el-divider direction="vertical" border-style="dashed" />
+                <div class="mt5">
+                    <el-link @click="onRefresh()" icon="refresh" :underline="false" class="ml5"> </el-link>
+                    <el-divider direction="vertical" border-style="dashed" />
 
-                <el-popover
-                    popper-style="max-height: 550px; overflow: auto; max-width: 450px"
-                    placement="bottom"
-                    width="auto"
-                    title="表格字段配置"
-                    trigger="click"
-                >
-                    <div v-for="(item, index) in columns" :key="index">
-                        <el-checkbox
-                            v-model="item.show"
-                            :label="`${!item.columnComment ? item.columnName : item.columnName + ' [' + item.columnComment + ']'}`"
-                            :true-label="true"
-                            :false-label="false"
-                            size="small"
-                        />
-                    </div>
-                    <template #reference>
-                        <el-link icon="Operation" size="small" :underline="false"></el-link>
-                    </template>
-                </el-popover>
-                <el-divider direction="vertical" border-style="dashed" />
+                    <el-popover
+                        popper-style="max-height: 550px; overflow: auto; max-width: 450px"
+                        placement="bottom"
+                        width="auto"
+                        title="表格字段配置"
+                        trigger="click"
+                    >
+                        <div v-for="(item, index) in columns" :key="index">
+                            <el-checkbox
+                                v-model="item.show"
+                                :label="`${!item.columnComment ? item.columnName : item.columnName + ' [' + item.columnComment + ']'}`"
+                                :true-label="true"
+                                :false-label="false"
+                                size="small"
+                            />
+                        </div>
+                        <template #reference>
+                            <el-link icon="Operation" size="small" :underline="false"></el-link>
+                        </template>
+                    </el-popover>
+                    <el-divider direction="vertical" border-style="dashed" />
 
-                <el-link @click="onShowAddDataDialog()" type="primary" icon="plus" :underline="false"></el-link>
-                <el-divider direction="vertical" border-style="dashed" />
+                    <el-link @click="onShowAddDataDialog()" type="primary" icon="plus" :underline="false"></el-link>
+                    <el-divider direction="vertical" border-style="dashed" />
 
-                <el-tooltip :show-after="500" class="box-item" effect="dark" content="commit" placement="top">
-                    <el-link @click="onCommit()" type="success" icon="CircleCheck" :underline="false"> </el-link>
-                </el-tooltip>
-                <el-divider direction="vertical" border-style="dashed" />
+                    <el-tooltip :show-after="500" class="box-item" effect="dark" content="commit" placement="top">
+                        <el-link @click="onCommit()" type="success" icon="CircleCheck" :underline="false"> </el-link>
+                    </el-tooltip>
+                    <el-divider direction="vertical" border-style="dashed" />
 
-                <el-tooltip :show-after="500" class="box-item" effect="dark" content="commit" placement="top">
-                    <template #content>
-                        1. 右击数据/表头可显示操作菜单 <br />
-                        2. 按住Ctrl点击数据则为多选 <br />
-                        3. 双击单元格可编辑数据
-                    </template>
-                    <el-link icon="QuestionFilled" :underline="false"> </el-link>
-                </el-tooltip>
-                <el-divider direction="vertical" border-style="dashed" />
+                    <el-tooltip :show-after="500" class="box-item" effect="dark" content="commit" placement="top">
+                        <template #content>
+                            1. 右击数据/表头可显示操作菜单 <br />
+                            2. 按住Ctrl点击数据则为多选 <br />
+                            3. 双击单元格可编辑数据
+                        </template>
+                        <el-link icon="QuestionFilled" :underline="false"> </el-link>
+                    </el-tooltip>
+                    <el-divider direction="vertical" border-style="dashed" />
 
-                <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
-                    <el-link @click="submitUpdateFields()" type="success" :underline="false" class="f12">提交</el-link>
-                </el-tooltip>
-                <el-divider v-if="hasUpdatedFileds" direction="vertical" border-style="dashed" />
-                <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="取消修改" placement="top">
-                    <el-link @click="cancelUpdateFields" type="warning" :underline="false" class="f12">取消</el-link>
-                </el-tooltip>
+                    <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
+                        <el-link @click="submitUpdateFields()" type="success" :underline="false" class="f12">提交</el-link>
+                    </el-tooltip>
+                    <el-divider v-if="hasUpdatedFileds" direction="vertical" border-style="dashed" />
+                    <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="取消修改" placement="top">
+                        <el-link @click="cancelUpdateFields" type="warning" :underline="false" class="f12">取消</el-link>
+                    </el-tooltip>
+                </div>
             </el-col>
             <el-col :span="16">
                 <el-input
+                    ref="condInputRef"
+                    @keyup.enter.native="onSelectByCondition()"
                     v-model="condition"
-                    placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容点击查询按钮即可"
+                    placeholder="若需条件过滤，可选择列并点击对应的字段并输入需要过滤的内容后回车或点击查询按钮即可"
                     clearable
                     @clear="selectData"
                     size="small"
@@ -146,7 +150,12 @@
                     </el-select>
                 </el-col>
                 <el-col :span="19">
-                    <el-input ref="conditionInputRef" v-model="conditionDialog.value" :placeholder="conditionDialog.placeholder" />
+                    <el-input
+                        @keyup.enter.native="onConfirmCondition"
+                        ref="oneCondInputRef"
+                        v-model="conditionDialog.value"
+                        :placeholder="conditionDialog.placeholder"
+                    />
                 </el-col>
             </el-row>
             <template #footer>
@@ -195,9 +204,6 @@ import { ElMessage } from 'element-plus';
 import { DbInst } from '@/views/ops/db/db';
 import DbTableData from './DbTableData.vue';
 
-const dataForm: any = ref(null);
-const conditionInputRef: any = ref();
-
 const props = defineProps({
     dbId: {
         type: Number,
@@ -217,8 +223,13 @@ const props = defineProps({
     },
 });
 
+const dataForm: any = ref(null);
 const dbTableRef = ref(null) as Ref;
 const columnNameSearchInputRef = ref(null) as Ref;
+const oneCondInputRef: any = ref();
+const condInputRef = ref(null) as Ref;
+
+const defaultPageSize = DbInst.DefaultLimit;
 
 const state = reactive({
     datas: [],
@@ -228,8 +239,16 @@ const state = reactive({
     loading: false, // 是否在加载数据
     columns: [] as any,
     pageNum: 1,
-    pageSize: DbInst.DefaultLimit,
-    pageSizes: [25, 50, 100, 200, 500, 1000],
+    pageSize: defaultPageSize,
+    pageSizes: [
+        defaultPageSize,
+        defaultPageSize * 2,
+        defaultPageSize * 4,
+        defaultPageSize * 8,
+        defaultPageSize * 20,
+        defaultPageSize * 40,
+        defaultPageSize * 80,
+    ],
     count: 0,
     selectionDatas: [] as any,
     condPopVisible: false,
@@ -374,7 +393,7 @@ const onConditionRowClick = (event: any) => {
     state.conditionDialog.columnRow = row;
     state.conditionDialog.visible = true;
     setTimeout(() => {
-        conditionInputRef.value.focus();
+        oneCondInputRef.value.focus();
     }, 100);
 };
 
@@ -389,6 +408,7 @@ const onConfirmCondition = () => {
     condition += `${row.columnName} ${conditionDialog.condition} `;
     state.condition = condition + DbInst.wrapColumnValue(row.columnType, conditionDialog.value);
     onCancelCondition();
+    condInputRef.value.focus();
 };
 
 const onCancelCondition = () => {
@@ -412,6 +432,7 @@ const onSelectByCondition = async () => {
     notEmpty(state.condition, '条件不能为空');
     state.pageNum = 1;
     await selectData();
+    condInputRef.value.blur();
 };
 
 /**

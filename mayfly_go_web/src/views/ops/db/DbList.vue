@@ -85,7 +85,7 @@
             </template>
         </page-table>
 
-        <el-dialog width="620" :title="`${db} 数据库导出`" v-model="exportDialog.visible">
+        <el-dialog width="720px" :title="`${db} 数据库导出`" v-model="exportDialog.visible">
             <el-row justify="space-between">
                 <el-col :span="9">
                     <el-form-item label="导出内容: ">
@@ -413,6 +413,11 @@ const dumpDbs = () => {
 };
 </script>
 <style lang="scss">
+.db-list {
+    .el-transfer-panel {
+        width: 250px;
+    }
+}
 .el-dropdown-link-more {
     cursor: pointer;
     color: var(--el-color-primary);

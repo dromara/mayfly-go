@@ -565,8 +565,11 @@ const indexChanges = (row: any) => {
         return;
     }
 
-    let prefix = row.unique ? 'udx_' : 'idx_';
-    row.indexName = prefix + name;
+    let suffix = row.unique ? 'udx' : 'idx';
+    let commentSuffix = row.unique ? '唯一索引' : '普通索引';
+    // 以表名为前缀
+    row.indexName = `${tableData.value.tableName}-${name}-${suffix}`;
+    row.indexComment = `${tableData.value.tableName}表(${name.replaceAll('_', ',')})${commentSuffix}`;
 };
 
 const oldData = { indexs: [] as any[], fields: [] as any[] };
