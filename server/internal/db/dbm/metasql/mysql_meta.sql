@@ -44,7 +44,8 @@ SELECT
   column_comment columnComment,
   column_key columnKey,
   extra extra,
-  is_nullable nullable
+  is_nullable nullable,
+  NUMERIC_SCALE numScale
 from
   information_schema.columns
 WHERE

@@ -149,6 +149,7 @@ func (pm *PgsqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
 			Nullable:      anyx.ConvString(re["nullable"]),
 			ColumnKey:     anyx.ConvString(re["columnKey"]),
 			ColumnDefault: anyx.ConvString(re["columnDefault"]),
+			NumScale:      anyx.ConvString(re["numScale"]),
 		})
 	}
 	return columns, nil
@@ -183,13 +184,29 @@ func (pm *PgsqlMetadata) GetTableIndex(tableName string) ([]Index, error) {
 		indexs = append(indexs, Index{
 			IndexName:    re["indexName"].(string),
 			ColumnName:   anyx.ConvString(re["columnName"]),
-			IndexType:    anyx.ConvString(re["indexType"]),
+			IndexType:    anyx.ConvString(re["IndexType"]),
 			IndexComment: anyx.ConvString(re["indexComment"]),
 			NonUnique:    anyx.ConvInt(re["nonUnique"]),
 			SeqInIndex:   anyx.ConvInt(re["seqInIndex"]),
 		})
 	}
-	return indexs, nil
+	// 把查询结果以索引名分组，索引字段以逗号连接
+	result := make([]Index, 0)
+	key := ""
+	for _, v := range indexs {
+		// 当前的索引名
+		in := v.IndexName
+		if key == in {
+			// 索引字段已根据名称和顺序排序，故取最后一个即可
+			i := len(result) - 1
+			// 同索引字段以逗号连接
+			result[i].ColumnName = result[i].ColumnName + "," + v.ColumnName
+		} else {
+			key = in
+			result = append(result, v)
+		}
+	}
+	return result, nil
 }
 
 // 获取建表ddl

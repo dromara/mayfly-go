@@ -28,39 +28,32 @@ where
 ---------------------------------------
 --PGSQL_INDEX_INFO 表索引信息
 SELECT
-  indexname AS "indexName",
-  indexdef AS "indexComment"
-FROM
-  pg_indexes
-WHERE
-  schemaname = (
-    select
-      current_schema ()
-  )
-  AND tablename = '%s'
+    indexname AS "indexName",
+    'BTREE' AS "IndexType",
+    case when indexdef like 'CREATE UNIQUE INDEX%%' then 0 else 1 end as "nonUnique",
+    obj_description(b.oid, 'pg_class') AS "indexComment",
+    indexdef AS "indexDef",
+    c.attname AS "columnName",
+    c.attnum AS "seqInIndex"
+FROM pg_indexes a
+     join pg_class b on a.indexname = b.relname
+     join pg_attribute c on b.oid = c.attrelid
+WHERE a.schemaname = (select current_schema())
+  AND a.tablename = '%s';
 ---------------------------------------
 --PGSQL_COLUMN_MA 表列信息
 SELECT
-	C.relname AS "tableName",
-	A.attname AS "columnName",
-	tc.is_nullable AS "nullable",
-	concat_ws ( '', t.typname, SUBSTRING ( format_type ( a.atttypid, a.atttypmod ) FROM '\(.*\)' ) ) AS "columnType",
-	(CASE WHEN ( SELECT COUNT(*) FROM pg_constraint WHERE conrelid = a.attrelid AND conkey[1]= attnum AND contype = 'p' ) > 0 THEN 'PRI' ELSE '' END ) AS "columnKey",
-	d.description AS "columnComment" 
-FROM
-	pg_attribute a LEFT JOIN pg_description d ON d.objoid = a.attrelid 
-	AND d.objsubid = A.attnum
-	LEFT JOIN pg_class c ON A.attrelid = c.oid
-	LEFT JOIN pg_namespace pn ON c.relnamespace = pn.oid
-	LEFT JOIN pg_type t ON a.atttypid = t.oid 
-	JOIN information_schema.columns tc ON tc.column_name = a.attname AND tc.table_name = C.relname AND tc.table_schema = pn.nspname
-WHERE
-	A.attnum >= 0 
-	AND pn.nspname = (select current_schema())
-	AND C.relname in (%s)
-ORDER BY
-	C.relname DESC,
-	A.attnum ASC
+    table_name AS "tableName",
+    column_name AS "columnName",
+    is_nullable AS "nullable",
+    case when character_maximum_length > 0 then concat(udt_name, '(',character_maximum_length,')') else udt_name end  AS "columnType",
+    column_default as "columnDefault",
+    numeric_scale  AS "numScale",
+    case when column_default like 'nextval%%' then 'PRI' else '' end "columnKey",
+    col_description((table_schema || '.' || table_name)::regclass, ordinal_position) AS "columnComment"
+FROM information_schema.columns
+WHERE table_schema = (select current_schema()) and table_name = %s
+order by table_name, ordinal_position
 ---------------------------------------
 --PGSQL_TABLE_DDL_FUNC 表ddl函数
  CREATE OR REPLACE FUNCTION showcreatetable(namespace character varying, tablename character varying)
