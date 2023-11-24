@@ -387,7 +387,7 @@ onBeforeUnmount(() => {
  * 设置editor高度和数据表高度
  */
 const setHeight = () => {
-    state.editorHeight = window.innerHeight - 500 + 'px';
+    state.editorHeight = window.innerHeight - 520 + 'px';
     state.dataTabsTableHeight = window.innerHeight - 255;
     state.tablesOpHeight = window.innerHeight - 220 + 'px';
 };

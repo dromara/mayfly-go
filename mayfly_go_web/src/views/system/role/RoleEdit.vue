@@ -8,6 +8,11 @@
                 <el-form-item prop="code" label="角色code" required>
                     <el-input :disabled="form.id != null" v-model="form.code" placeholder="COMMON开头则为所有账号共有角色" auto-complete="off"></el-input>
                 </el-form-item>
+                <el-form-item prop="status" label="状态" required>
+                    <el-select v-model="form.status" placeholder="请选择状态" class="w100">
+                        <el-option v-for="item in RoleStatusEnum" :key="item.value" :label="item.label" :value="item.value"> </el-option>
+                    </el-select>
+                </el-form-item>
                 <el-form-item label="角色描述">
                     <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入角色描述"></el-input>
                 </el-form-item>
@@ -25,6 +30,7 @@
 <script lang="ts" setup>
 import { ref, toRefs, reactive, watch } from 'vue';
 import { roleApi } from '../api';
+import { RoleStatusEnum } from '../enums';
 
 const props = defineProps({
     visible: {

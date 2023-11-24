@@ -20,12 +20,9 @@
                 >
             </template>
 
-            <template #showmore="{ data }">
-                <el-link @click.prevent="showResources(data)" type="info">菜单&权限</el-link>
-            </template>
-
             <template #action="{ data }">
                 <el-button v-if="actionBtns[perms.updateRole]" @click="editRole(data)" type="primary" link>编辑</el-button>
+                <el-button @click="showResources(data)" type="info" link>权限详情</el-button>
                 <el-button v-if="actionBtns[perms.saveRoleResource]" @click="editResource(data)" type="success" link>权限分配</el-button>
             </template>
         </page-table>
@@ -73,11 +70,10 @@ const columns = ref([
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('modifier', '更新账号'),
     TableColumn.new('updateTime', '更新时间').isTime(),
-    TableColumn.new('showmore', '查看更多').isSlot().setMinWidth(150),
 ]);
 
 const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource]);
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(160).fixedRight().alignCenter();
+const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(260).fixedRight().alignCenter();
 
 const state = reactive({
     query: {
@@ -157,7 +153,9 @@ const deleteRole = async (data: any) => {
         });
         ElMessage.success('删除成功！');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 const showResources = async (row: any) => {

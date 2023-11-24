@@ -360,6 +360,7 @@ onMounted(async () => {
     state.dbType = props.dbType;
     state.db = props.db;
     state.table = props.table;
+    setTableData(props.data);
 });
 
 const setTableData = (datas: any) => {
@@ -386,7 +387,9 @@ const setTableColumns = (columns: any) => {
             hidden: !x.show,
         };
     });
-    state.columns.unshift(rowNoColumn);
+    if (state.columns.length > 0) {
+        state.columns.unshift(rowNoColumn);
+    }
 };
 
 /**

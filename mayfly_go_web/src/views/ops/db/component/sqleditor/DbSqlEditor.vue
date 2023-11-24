@@ -48,37 +48,77 @@
             </el-icon>
         </div>
 
-        <div class="mt5">
-            <el-row>
-                <span v-if="hasUpdatedFileds">
-                    <el-divider direction="vertical" border-style="dashed" />
-                    <el-link type="success" :underline="false" @click="submitUpdateFields()"><span style="font-size: 12px">提交</span></el-link>
-                </span>
-                <span v-if="hasUpdatedFileds">
-                    <el-divider direction="vertical" border-style="dashed" />
-                    <el-link type="warning" :underline="false" @click="cancelUpdateFields"><span style="font-size: 12px">取消</span></el-link>
-                </span>
-            </el-row>
-            <db-table-data
-                ref="dbTableRef"
-                :db-id="dbId"
-                :db="dbName"
-                :data="execRes.data"
-                :table="state.table"
-                :columns="execRes.tableColumn"
-                :loading="loading"
-                :height="tableDataHeight"
-                empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
-                @selection-change="onDataSelectionChange"
-                @change-updated-field="changeUpdatedField"
-                @data-delete="onDeleteData"
-            ></db-table-data>
+        <div class="mt5 sql-exec-res">
+            <el-tabs v-if="state.execResTabs.length > 0" @tab-remove="onRemoveTab" style="width: 100%" v-model="state.activeTab">
+                <el-tab-pane closable v-for="dt in state.execResTabs" :label="dt.label" :name="dt.label" :key="dt.label">
+                    <template #label>
+                        <el-popover :show-after="1000" placement="top-start" title="执行信息" trigger="hover" :width="300">
+                            <template #reference>
+                                <div>
+                                    <span>
+                                        <span v-if="dt.loading">
+                                            <SvgIcon class="mb2 is-loading" name="Loading" color="var(--el-color-primary)" />
+                                        </span>
+                                        <span v-else>
+                                            <SvgIcon class="mb2" v-if="!dt.errorMsg" name="CircleCheck" color="var(--el-color-success)" />
+                                            <SvgIcon class="mb2" v-if="dt.errorMsg" name="CircleClose" color="var(--el-color-error)" />
+                                        </span>
+                                    </span>
+
+                                    <span class="ml5">
+                                        {{ dt.label }}
+                                    </span>
+                                </div>
+                            </template>
+                            <template #default>
+                                <el-descriptions :column="1" size="small">
+                                    <el-descriptions-item label="耗时 :"> {{ dt.execTime }}ms </el-descriptions-item>
+                                    <el-descriptions-item label="结果集 :">
+                                        {{ dt.data?.length }}
+                                    </el-descriptions-item>
+                                    <el-descriptions-item label="SQL :">
+                                        {{ dt.sql }}
+                                    </el-descriptions-item>
+                                </el-descriptions>
+                            </template>
+                        </el-popover>
+                    </template>
+
+                    <el-row>
+                        <span v-if="dt.hasUpdatedFileds" class="mt5">
+                            <span>
+                                <el-link type="success" :underline="false" @click="submitUpdateFields(dt)"><span style="font-size: 12px">提交</span></el-link>
+                            </span>
+                            <span>
+                                <el-divider direction="vertical" border-style="dashed" />
+                                <el-link type="warning" :underline="false" @click="cancelUpdateFields(dt)"><span style="font-size: 12px">取消</span></el-link>
+                            </span>
+                        </span>
+                    </el-row>
+                    <db-table-data
+                        v-if="!dt.errorMsg"
+                        :ref="(el) => (dt.dbTableRef = el)"
+                        :db-id="dbId"
+                        :db="dbName"
+                        :data="dt.data"
+                        :table="dt.table"
+                        :columns="dt.tableColumn"
+                        :loading="dt.loading"
+                        :height="tableDataHeight"
+                        empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
+                        @change-updated-field="changeUpdatedField($event, dt)"
+                        @data-delete="onDeleteData($event, dt)"
+                    ></db-table-data>
+
+                    <el-result v-else icon="error" title="执行失败" :sub-title="dt.errorMsg"> </el-result>
+                </el-tab-pane>
+            </el-tabs>
         </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { h, nextTick, watch, onMounted, reactive, toRefs, ref, Ref } from 'vue';
+import { h, nextTick, watch, onMounted, reactive, toRefs, ref } from 'vue';
 import { getToken } from '@/common/utils/storage';
 import { notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
@@ -98,6 +138,7 @@ import { buildProgressProps } from '@/components/progress-notify/progress-notify
 import ProgressNotify from '@/components/progress-notify/progress-notify.vue';
 import { ElNotification } from 'element-plus';
 import syssocket from '@/common/syssocket';
+import SvgIcon from '@/components/svgIcon/index.vue';
 
 const emits = defineEmits(['saveSqlSuccess', 'deleteSqlSuccess']);
 
@@ -120,29 +161,57 @@ const props = defineProps({
     },
 });
 
+class ExecResTab {
+    label: string;
+
+    /**
+     * 当前结果集对应的sql
+     */
+    sql: string;
+
+    loading: boolean;
+
+    dbTableRef: any;
+
+    tableColumn: any[] = [];
+
+    data: any[] = [];
+
+    execTime: number;
+
+    /**
+     * 当前单表操作sql关联的表信息
+     */
+    table: string;
+
+    /**
+     * 是否有更新字段
+     */
+    hasUpdatedFileds: boolean;
+
+    errorMsg: string;
+
+    constructor(label: string) {
+        this.label = label;
+    }
+}
+
 const token = getToken();
 const monacoEditorRef: any = ref(null);
-const dbTableRef = ref(null) as Ref;
 
 let monacoEditor: editor.IStandaloneCodeEditor;
 
 const state = reactive({
     token,
-    table: '', // 当前单表操作sql的表信息
     sql: '', // 当前编辑器的sql内容s
     sqlName: '' as any, // sql模板名称
-    loading: false, // 是否在加载数据
-    execRes: {
-        data: [],
-        tableColumn: [],
-    },
-    selectionDatas: [] as any,
+    execResTabs: [] as ExecResTab[],
+    activeTab: '',
     editorHeight: '500',
     tableDataHeight: 255 as any,
-    hasUpdatedFileds: false,
 });
 
-const { tableDataHeight, execRes, loading, hasUpdatedFileds } = toRefs(state);
+const { tableDataHeight } = toRefs(state);
 
 watch(
     () => props.editorHeight,
@@ -158,6 +227,11 @@ const getNowDbInst = () => {
 onMounted(async () => {
     console.log('in query mounted');
     state.editorHeight = props.editorHeight;
+
+    // 默认新建一个结果集tab
+    const label = '结果1';
+    state.execResTabs.push(new ExecResTab(label));
+    state.activeTab = label;
 
     state.sqlName = props.sqlName;
     if (props.sqlName) {
@@ -201,6 +275,34 @@ const initMonacoEditor = () => {
         },
     });
 
+    // 注册快捷键：ctrl + R 运行选中的sql
+    monacoEditor.addAction({
+        // An unique identifier of the contributed action.
+        // id: 'run-sql-action' + state.ti.key,
+        id: 'run-sql-action-on-newtab' + getKey(),
+        // A label of the action that will be presented to the user.
+        label: '新标签执行SQL',
+        // A precondition for this action.
+        precondition: undefined,
+        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
+        keybindingContext: undefined,
+        keybindings: [
+            // chord
+            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyR, 0),
+        ],
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 1.6,
+        // Method that will be executed when the action is triggered.
+        // @param editor The editor instance is passed in as a convenience
+        run: async function () {
+            try {
+                await onRunSql(true);
+            } catch (e: any) {
+                e.message && ElMessage.error(e.message);
+            }
+        },
+    });
+
     // 注册快捷键：ctrl + shift + f 格式化sql
     monacoEditor.addAction({
         // An unique identifier of the contributed action.
@@ -229,6 +331,25 @@ const initMonacoEditor = () => {
     });
 };
 
+const onRemoveTab = (targetName: string) => {
+    let activeTab = state.activeTab;
+    const tabs = [...state.execResTabs];
+    for (let i = 0; i < tabs.length; i++) {
+        const tabName = tabs[i].label;
+        if (tabName !== targetName) {
+            continue;
+        }
+        const nextTab = tabs[i + 1] || tabs[i - 1];
+        if (nextTab) {
+            activeTab = nextTab.label;
+        } else {
+            activeTab = '';
+        }
+        state.execResTabs.splice(i, 1);
+        state.activeTab = activeTab;
+    }
+};
+
 /**
  * 拖拽改变sql编辑区和查询结果区高度
  */
@@ -254,7 +375,7 @@ const getKey = () => {
 /**
  * 执行sql
  */
-const onRunSql = async () => {
+const onRunSql = async (newTab = false) => {
     // 没有选中的文本，则为全部文本
     let sql = getSql() as string;
     notBlank(sql && sql.trim(), '请选中需要执行的sql');
@@ -285,44 +406,67 @@ const onRunSql = async () => {
         return;
     }
 
+    let execRes: ExecResTab;
+    let i = 0;
+    let label;
+    // 新tab执行，或者tabs为0，则新建tab执行sql
+    if (newTab || state.execResTabs.length == 0) {
+        label = `结果${state.execResTabs.length + 1}`;
+        execRes = new ExecResTab(label);
+        state.execResTabs.push(execRes);
+        i = state.execResTabs.length - 1;
+    } else {
+        // 不是新建tab执行，则在当前激活的tab上执行sql
+        i = state.execResTabs.findIndex((x) => x.label == state.activeTab);
+        execRes = state.execResTabs[i];
+        label = execRes.label;
+    }
+
+    state.activeTab = label;
+    const startTime = new Date().getTime();
     try {
-        state.loading = true;
+        execRes.loading = true;
+        execRes.errorMsg = '';
+        execRes.sql = '';
 
         const colAndData: any = await getNowDbInst().runSql(props.dbName, sql, execRemark);
         if (!colAndData.res || colAndData.res.length === 0) {
             ElMessage.warning('未查询到结果集');
         }
-        state.execRes.data = colAndData.res;
+        // 要实时响应，故需要用索引改变数据才生效
+        state.execResTabs[i].data = colAndData.res;
         // 兼容表格字段配置
-        state.execRes.tableColumn = colAndData.colNames.map((x: any) => {
+        state.execResTabs[i].tableColumn = colAndData.colNames.map((x: any) => {
             return {
                 columnName: x,
                 show: true,
             };
         });
-        cancelUpdateFields();
+        cancelUpdateFields(execRes);
     } catch (e: any) {
-        state.execRes.data = [];
-        state.execRes.tableColumn = [];
-        state.table = '';
+        execRes.data = [];
+        execRes.tableColumn = [];
+        execRes.table = '';
+        execRes.errorMsg = e.msg;
         return;
     } finally {
-        state.loading = false;
+        state.execResTabs[i].loading = false;
+        execRes.sql = sql;
+        execRes.execTime = new Date().getTime() - startTime;
     }
 
     // 即只有以该字符串开头的sql才可修改表数据内容
     if (sql.startsWith('SELECT *') || sql.startsWith('select *') || sql.startsWith('SELECT\n  *')) {
-        state.selectionDatas = [];
         const tableName = sql.split(/from/i)[1];
         if (tableName) {
             const tn = tableName.trim().split(' ')[0].split('\n')[0];
-            state.table = tn;
-            state.table = tn;
+            execRes.table = tn;
+            execRes.table = tn;
         } else {
-            state.table = '';
+            execRes.table = '';
         }
     } else {
-        state.table = '';
+        execRes.table = '';
     }
 };
 
@@ -505,32 +649,28 @@ const getUploadSqlFileUrl = () => {
     return `${config.baseApiUrl}/dbs/${props.dbId}/exec-sql-file?db=${props.dbName}&${joinClientParams()}`;
 };
 
-const onDataSelectionChange = (datas: []) => {
-    state.selectionDatas = datas;
-};
-
-const changeUpdatedField = (updatedFields: any) => {
+const changeUpdatedField = (updatedFields: any, dt: ExecResTab) => {
     // 如果存在要更新字段，则显示提交和取消按钮
-    state.hasUpdatedFileds = updatedFields && updatedFields.size > 0;
+    dt.hasUpdatedFileds = updatedFields && updatedFields.size > 0;
 };
 
 /**
  * 数据删除事件
  */
-const onDeleteData = async (deleteDatas: any) => {
+const onDeleteData = async (deleteDatas: any, dt: ExecResTab) => {
     const db = props.dbName;
     const dbInst = getNowDbInst();
-    const primaryKey = await dbInst.loadTableColumn(db, state.table);
+    const primaryKey = await dbInst.loadTableColumn(db, dt.table);
     const primaryKeyColumnName = primaryKey.columnName;
-    state.execRes.data = state.execRes.data.filter((d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKeyColumnName] == d[primaryKeyColumnName]) != -1));
+    dt.data = dt.data.filter((d: any) => !(deleteDatas.findIndex((x: any) => x[primaryKeyColumnName] == d[primaryKeyColumnName]) != -1));
 };
 
-const submitUpdateFields = () => {
-    dbTableRef.value.submitUpdateFields();
+const submitUpdateFields = (dt: ExecResTab) => {
+    dt?.dbTableRef?.submitUpdateFields();
 };
 
-const cancelUpdateFields = () => {
-    dbTableRef.value.cancelUpdateFields();
+const cancelUpdateFields = (dt: ExecResTab) => {
+    dt?.dbTableRef?.cancelUpdateFields();
 };
 </script>
 
@@ -549,5 +689,18 @@ const cancelUpdateFields = () => {
     cursor: n-resize;
     height: 3px;
     text-align: center;
+}
+
+.sql-exec-res {
+    .el-tabs__header {
+        margin: 0 0 !important;
+    }
+
+    .el-tabs__item {
+        font-size: 12px;
+        height: 20px;
+        margin: 0px;
+        padding: 0 6px !important;
+    }
 }
 </style>

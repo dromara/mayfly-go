@@ -30,7 +30,8 @@ func (d *DbConn) SelectData2Struct(execSql string, dest any) error {
 
 // WalkTableRecord 遍历表记录
 func (d *DbConn) WalkTableRecord(selectSql string, walk func(record map[string]any, columns []string)) error {
-	return walkTableRecord(d.db, selectSql, walk)
+	_, err := walkTableRecord(d.db, selectSql, walk)
+	return err
 }
 
 // 执行 update, insert, delete，建表等sql
@@ -66,26 +67,20 @@ func (d *DbConn) Close() {
 }
 
 func selectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]any, error) {
-	// 列名用于前端表头名称按照数据库与查询字段顺序显示
-	var colNames []string
 	result := make([]map[string]any, 0, 16)
-	err := walkTableRecord(db, selectSql, func(record map[string]any, columns []string) {
+	columns, err := walkTableRecord(db, selectSql, func(record map[string]any, columns []string) {
 		result = append(result, record)
-		if colNames == nil {
-			colNames = make([]string, len(columns))
-			copy(colNames, columns)
-		}
 	})
 	if err != nil {
 		return nil, nil, err
 	}
-	return colNames, result, nil
+	return columns, result, nil
 }
 
-func walkTableRecord(db *sql.DB, selectSql string, walk func(record map[string]any, columns []string)) error {
+func walkTableRecord(db *sql.DB, selectSql string, walk func(record map[string]any, columns []string)) ([]string, error) {
 	rows, err := db.Query(selectSql)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// rows对象一定要close掉，如果出错，不关掉则会很迅速的达到设置最大连接数，
 	// 后面的链接过来直接报错或拒绝，实际上也没有起效果
@@ -97,7 +92,7 @@ func walkTableRecord(db *sql.DB, selectSql string, walk func(record map[string]a
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	lenCols := len(colTypes)
 	// 列名用于前端表头名称按照数据库与查询字段顺序显示
@@ -115,7 +110,7 @@ func walkTableRecord(db *sql.DB, selectSql string, walk func(record map[string]a
 	for rows.Next() {
 		// 不Scan也会导致等待，该链接实际处于未工作的状态，然后也会导致连接数迅速达到最大
 		if err := rows.Scan(scans...); err != nil {
-			return err
+			return nil, err
 		}
 		// 每行数据
 		rowData := make(map[string]any, lenCols)
@@ -126,7 +121,7 @@ func walkTableRecord(db *sql.DB, selectSql string, walk func(record map[string]a
 		walk(rowData, colNames)
 	}
 
-	return nil
+	return colNames, nil
 }
 
 // 将查询的值转为对应列类型的实际值，不全部转为字符串
