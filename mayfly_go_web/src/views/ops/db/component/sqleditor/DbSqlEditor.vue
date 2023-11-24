@@ -34,8 +34,7 @@
                 </div>
 
                 <div style="float: right" class="fl">
-                    <el-button @click="saveSql()" type="primary" icon="document-add" plain size="small">保存SQL </el-button>
-                    <el-button v-if="sqlName" @click="deleteSql()" type="danger" icon="delete" plain size="small">删除SQL </el-button>
+                    <el-button @click="saveSql()" type="primary" icon="document-add" plain size="small">保存SQL</el-button>
                 </div>
             </div>
         </div>
@@ -50,7 +49,7 @@
 
         <div class="mt5 sql-exec-res">
             <el-tabs v-if="state.execResTabs.length > 0" @tab-remove="onRemoveTab" style="width: 100%" v-model="state.activeTab">
-                <el-tab-pane closable v-for="dt in state.execResTabs" :label="dt.label" :name="dt.label" :key="dt.label">
+                <el-tab-pane closable v-for="dt in state.execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
                     <template #label>
                         <el-popover :show-after="1000" placement="top-start" title="执行信息" trigger="hover" :width="300">
                             <template #reference>
@@ -65,19 +64,19 @@
                                         </span>
                                     </span>
 
-                                    <span class="ml5">
-                                        {{ dt.label }}
-                                    </span>
+                                    <span> 结果{{ dt.id }} </span>
                                 </div>
                             </template>
                             <template #default>
-                                <el-descriptions :column="1" size="small">
+                                <el-descriptions v-if="dt.sql" :column="1" size="small">
+                                    <el-descriptions-item>
+                                        <div style="width: 280px">
+                                            <el-text size="small" truncated :title="dt.sql"> {{ dt.sql }} </el-text>
+                                        </div>
+                                    </el-descriptions-item>
                                     <el-descriptions-item label="耗时 :"> {{ dt.execTime }}ms </el-descriptions-item>
                                     <el-descriptions-item label="结果集 :">
                                         {{ dt.data?.length }}
-                                    </el-descriptions-item>
-                                    <el-descriptions-item label="SQL :">
-                                        {{ dt.sql }}
                                     </el-descriptions-item>
                                 </el-descriptions>
                             </template>
@@ -140,7 +139,7 @@ import { ElNotification } from 'element-plus';
 import syssocket from '@/common/syssocket';
 import SvgIcon from '@/components/svgIcon/index.vue';
 
-const emits = defineEmits(['saveSqlSuccess', 'deleteSqlSuccess']);
+const emits = defineEmits(['saveSqlSuccess']);
 
 const props = defineProps({
     dbId: {
@@ -162,7 +161,7 @@ const props = defineProps({
 });
 
 class ExecResTab {
-    label: string;
+    id: number;
 
     /**
      * 当前结果集对应的sql
@@ -191,8 +190,8 @@ class ExecResTab {
 
     errorMsg: string;
 
-    constructor(label: string) {
-        this.label = label;
+    constructor(id: number) {
+        this.id = id;
     }
 }
 
@@ -206,7 +205,7 @@ const state = reactive({
     sql: '', // 当前编辑器的sql内容s
     sqlName: '' as any, // sql模板名称
     execResTabs: [] as ExecResTab[],
-    activeTab: '',
+    activeTab: 1,
     editorHeight: '500',
     tableDataHeight: 255 as any,
 });
@@ -229,9 +228,7 @@ onMounted(async () => {
     state.editorHeight = props.editorHeight;
 
     // 默认新建一个结果集tab
-    const label = '结果1';
-    state.execResTabs.push(new ExecResTab(label));
-    state.activeTab = label;
+    state.execResTabs.push(new ExecResTab(1));
 
     state.sqlName = props.sqlName;
     if (props.sqlName) {
@@ -244,106 +241,19 @@ onMounted(async () => {
     await getNowDbInst().loadDbHints(props.dbName);
 });
 
-const initMonacoEditor = () => {
-    monacoEditor = monacoEditorRef.value.getEditor();
-
-    // 注册快捷键：ctrl + R 运行选中的sql
-    monacoEditor.addAction({
-        // An unique identifier of the contributed action.
-        // id: 'run-sql-action' + state.ti.key,
-        id: 'run-sql-action' + getKey(),
-        // A label of the action that will be presented to the user.
-        label: '执行SQL',
-        // A precondition for this action.
-        precondition: undefined,
-        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
-        keybindingContext: undefined,
-        keybindings: [
-            // chord
-            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyR, 0),
-        ],
-        contextMenuGroupId: 'navigation',
-        contextMenuOrder: 1.5,
-        // Method that will be executed when the action is triggered.
-        // @param editor The editor instance is passed in as a convenience
-        run: async function () {
-            try {
-                await onRunSql();
-            } catch (e: any) {
-                e.message && ElMessage.error(e.message);
-            }
-        },
-    });
-
-    // 注册快捷键：ctrl + R 运行选中的sql
-    monacoEditor.addAction({
-        // An unique identifier of the contributed action.
-        // id: 'run-sql-action' + state.ti.key,
-        id: 'run-sql-action-on-newtab' + getKey(),
-        // A label of the action that will be presented to the user.
-        label: '新标签执行SQL',
-        // A precondition for this action.
-        precondition: undefined,
-        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
-        keybindingContext: undefined,
-        keybindings: [
-            // chord
-            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyR, 0),
-        ],
-        contextMenuGroupId: 'navigation',
-        contextMenuOrder: 1.6,
-        // Method that will be executed when the action is triggered.
-        // @param editor The editor instance is passed in as a convenience
-        run: async function () {
-            try {
-                await onRunSql(true);
-            } catch (e: any) {
-                e.message && ElMessage.error(e.message);
-            }
-        },
-    });
-
-    // 注册快捷键：ctrl + shift + f 格式化sql
-    monacoEditor.addAction({
-        // An unique identifier of the contributed action.
-        id: 'format-sql-action' + getKey(),
-        // A label of the action that will be presented to the user.
-        label: '格式化SQL',
-        // A precondition for this action.
-        precondition: undefined,
-        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
-        keybindingContext: undefined,
-        keybindings: [
-            // chord
-            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, 0),
-        ],
-        contextMenuGroupId: 'navigation',
-        contextMenuOrder: 2,
-        // Method that will be executed when the action is triggered.
-        // @param editor The editor instance is passed in as a convenience
-        run: async function () {
-            try {
-                await formatSql();
-            } catch (e: any) {
-                e.message && ElMessage.error(e.message);
-            }
-        },
-    });
-};
-
-const onRemoveTab = (targetName: string) => {
+const onRemoveTab = (targetId: number) => {
     let activeTab = state.activeTab;
     const tabs = [...state.execResTabs];
     for (let i = 0; i < tabs.length; i++) {
-        const tabName = tabs[i].label;
-        if (tabName !== targetName) {
+        const tabId = tabs[i].id;
+        if (tabId !== targetId) {
             continue;
         }
         const nextTab = tabs[i + 1] || tabs[i - 1];
         if (nextTab) {
-            activeTab = nextTab.label;
+            activeTab = nextTab.id;
         } else {
-            activeTab = '';
+            activeTab = 0;
         }
         state.execResTabs.splice(i, 1);
         state.activeTab = activeTab;
@@ -408,21 +318,22 @@ const onRunSql = async (newTab = false) => {
 
     let execRes: ExecResTab;
     let i = 0;
-    let label;
+    let id;
     // 新tab执行，或者tabs为0，则新建tab执行sql
     if (newTab || state.execResTabs.length == 0) {
-        label = `结果${state.execResTabs.length + 1}`;
-        execRes = new ExecResTab(label);
+        // 取最后一个tab的id + 1
+        id = state.execResTabs.length == 0 ? 1 : state.execResTabs[state.execResTabs.length - 1].id + 1;
+        execRes = new ExecResTab(id);
         state.execResTabs.push(execRes);
         i = state.execResTabs.length - 1;
     } else {
         // 不是新建tab执行，则在当前激活的tab上执行sql
-        i = state.execResTabs.findIndex((x) => x.label == state.activeTab);
+        i = state.execResTabs.findIndex((x) => x.id == state.activeTab);
         execRes = state.execResTabs[i];
-        label = execRes.label;
+        id = execRes.id;
     }
 
-    state.activeTab = label;
+    state.activeTab = id;
     const startTime = new Date().getTime();
     try {
         execRes.loading = true;
@@ -515,25 +426,6 @@ const saveSql = async () => {
     ElMessage.success('保存成功');
     // 保存sql脚本成功事件
     emits('saveSqlSuccess', props.dbId, props.dbName);
-};
-
-const deleteSql = async () => {
-    const sqlName = props.sqlName;
-    notBlank(sqlName, '该sql内容未保存');
-    const dbId = props.dbId;
-    const db = props.dbName;
-    try {
-        await ElMessageBox.confirm(`确定删除【${sqlName}】该SQL内容?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
-        await dbApi.deleteDbSql.request({ id: dbId, db: db, name: sqlName });
-        ElMessage.success('删除成功');
-        emits('deleteSqlSuccess', dbId, db);
-    } catch (err) {
-        //
-    }
 };
 
 /**
@@ -672,6 +564,116 @@ const submitUpdateFields = (dt: ExecResTab) => {
 const cancelUpdateFields = (dt: ExecResTab) => {
     dt?.dbTableRef?.cancelUpdateFields();
 };
+
+const initMonacoEditor = () => {
+    monacoEditor = monacoEditorRef.value.getEditor();
+
+    // 注册快捷键：ctrl + R 运行选中的sql
+    monacoEditor.addAction({
+        // An unique identifier of the contributed action.
+        // id: 'run-sql-action' + state.ti.key,
+        id: 'run-sql-action' + getKey(),
+        // A label of the action that will be presented to the user.
+        label: '执行SQL',
+        // A precondition for this action.
+        precondition: undefined,
+        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
+        keybindingContext: undefined,
+        keybindings: [
+            // chord
+            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyR, 0),
+        ],
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 1.5,
+        // Method that will be executed when the action is triggered.
+        // @param editor The editor instance is passed in as a convenience
+        run: async function () {
+            try {
+                await onRunSql();
+            } catch (e: any) {
+                e.message && ElMessage.error(e.message);
+            }
+        },
+    });
+
+    // 注册快捷键：ctrl + R 运行选中的sql
+    monacoEditor.addAction({
+        // An unique identifier of the contributed action.
+        // id: 'run-sql-action' + state.ti.key,
+        id: 'run-sql-action-on-newtab' + getKey(),
+        // A label of the action that will be presented to the user.
+        label: '新标签执行SQL',
+        // A precondition for this action.
+        precondition: undefined,
+        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
+        keybindingContext: undefined,
+        keybindings: [
+            // chord
+            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyR, 0),
+        ],
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 1.6,
+        // Method that will be executed when the action is triggered.
+        // @param editor The editor instance is passed in as a convenience
+        run: async function () {
+            try {
+                await onRunSql(true);
+            } catch (e: any) {
+                e.message && ElMessage.error(e.message);
+            }
+        },
+    });
+
+    // 注册快捷键：ctrl + shift + f 格式化sql
+    monacoEditor.addAction({
+        // An unique identifier of the contributed action.
+        id: 'format-sql-action' + getKey(),
+        // A label of the action that will be presented to the user.
+        label: '格式化SQL',
+        // A precondition for this action.
+        precondition: undefined,
+        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
+        keybindingContext: undefined,
+        keybindings: [
+            // chord
+            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, 0),
+        ],
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 2,
+        // Method that will be executed when the action is triggered.
+        // @param editor The editor instance is passed in as a convenience
+        run: async function () {
+            try {
+                await formatSql();
+            } catch (e: any) {
+                e.message && ElMessage.error(e.message);
+            }
+        },
+    });
+
+    // 注册快捷键：ctrl + shift + f 格式化sql
+    monacoEditor.addAction({
+        // An unique identifier of the contributed action.
+        id: 'save-sql-action' + getKey(),
+        // A label of the action that will be presented to the user.
+        label: '保存SQL',
+        // A precondition for this action.
+        precondition: undefined,
+        // A rule to evaluate on top of the precondition in order to dispatch the keybindings.
+        keybindingContext: undefined,
+        keybindings: [
+            // chord
+            monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, 0),
+        ],
+        contextMenuGroupId: 'navigation',
+        contextMenuOrder: 3,
+        // Method that will be executed when the action is triggered.
+        // @param editor The editor instance is passed in as a convenience
+        run: async function () {
+            await saveSql();
+        },
+    });
+};
 </script>
 
 <style lang="scss">
@@ -698,7 +700,7 @@ const cancelUpdateFields = (dt: ExecResTab) => {
 
     .el-tabs__item {
         font-size: 12px;
-        height: 20px;
+        height: 25px;
         margin: 0px;
         padding: 0 6px !important;
     }

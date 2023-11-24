@@ -129,7 +129,6 @@
                                 :db-name="dt.db"
                                 :sql-name="dt.params.sqlName"
                                 @save-sql-success="reloadSqls"
-                                @delete-sql-success="deleteSqlScript(dt)"
                                 :editor-height="state.editorHeight"
                             >
                             </db-sql-editor>
@@ -151,7 +150,7 @@
 
 <script lang="ts" setup>
 import { defineAsyncComponent, onMounted, reactive, ref, toRefs, onBeforeUnmount } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { DbInst, TabInfo, TabType, registerDbCompletionItemProvider } from './db';
 import { TagTreeNode, NodeType } from '../component/tag';
@@ -349,10 +348,14 @@ const NodeTypeTable = new NodeType(SqlExecNodeType.Table).withNodeClickFunc((nod
 });
 
 // sql模板节点类型
-const NodeTypeSql = new NodeType(SqlExecNodeType.Sql).withNodeClickFunc((nodeData: TagTreeNode) => {
-    const params = nodeData.params;
-    addQueryTab({ id: params.id, nodeKey: nodeData.key, dbs: params.dbs }, params.db, params.sqlName);
-});
+const NodeTypeSql = new NodeType(SqlExecNodeType.Sql)
+    .withNodeClickFunc((nodeData: TagTreeNode) => {
+        const params = nodeData.params;
+        addQueryTab({ id: params.id, nodeKey: nodeData.key, dbs: params.dbs }, params.db, params.sqlName);
+    })
+    .withContextMenuItems([
+        new ContextmenuItem('delSql', '删除').withIcon('delete').withOnClick((data: any) => deleteSql(data.params.id, data.params.db, data.params.sqlName)),
+    ]);
 
 const tagTreeRef: any = ref(null);
 
@@ -387,7 +390,7 @@ onBeforeUnmount(() => {
  * 设置editor高度和数据表高度
  */
 const setHeight = () => {
-    state.editorHeight = window.innerHeight - 520 + 'px';
+    state.editorHeight = window.innerHeight - 525 + 'px';
     state.dataTabsTableHeight = window.innerHeight - 255;
     state.tablesOpHeight = window.innerHeight - 220 + 'px';
 };
@@ -580,9 +583,19 @@ const reloadSqls = (dbId: number, db: string) => {
     tagTreeRef.value.reloadNode(getSqlMenuNodeKey(dbId, db));
 };
 
-const deleteSqlScript = (ti: TabInfo) => {
-    reloadSqls(ti.dbId, ti.db);
-    onRemoveTab(ti.key);
+const deleteSql = async (dbId: any, db: string, sqlName: string) => {
+    try {
+        await ElMessageBox.confirm(`确定删除【${sqlName}】该SQL内容?`, '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
+        });
+        await dbApi.deleteDbSql.request({ id: dbId, db: db, name: sqlName });
+        ElMessage.success('删除成功');
+        reloadSqls(dbId, db);
+    } catch (err) {
+        //
+    }
 };
 
 const getSqlMenuNodeKey = (dbId: number, db: string) => {
