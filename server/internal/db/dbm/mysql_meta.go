@@ -89,6 +89,7 @@ func (mm *MysqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
 			Nullable:      anyx.ConvString(re["nullable"]),
 			ColumnKey:     anyx.ConvString(re["columnKey"]),
 			ColumnDefault: anyx.ConvString(re["columnDefault"]),
+			NumScale:      anyx.ConvString(re["numScale"]),
 		})
 	}
 	return columns, nil

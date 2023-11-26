@@ -41,36 +41,23 @@
                     <el-input v-model="tableCommentSearch" size="small" placeholder="备注: 输入可过滤" clearable />
                 </template>
             </el-table-column>
-            <el-table-column
-                prop="tableRows"
-                label="Rows"
-                min-width="70"
-                sortable
-                :sort-method="(a: any, b: any) => parseInt(a.tableRows) - parseInt(b.tableRows)"
-            ></el-table-column>
+            <el-table-column prop="tableRows" label="Rows" min-width="70" sortable :sort-method="(a: any, b: any) => parseInt(a.tableRows) - parseInt(b.tableRows)"></el-table-column>
             <el-table-column property="dataLength" label="数据大小" sortable :sort-method="(a: any, b: any) => parseInt(a.dataLength) - parseInt(b.dataLength)">
                 <template #default="scope">
                     {{ formatByteSize(scope.row.dataLength) }}
                 </template>
             </el-table-column>
-            <el-table-column
-                property="indexLength"
-                label="索引大小"
-                sortable
-                :sort-method="(a: any, b: any) => parseInt(a.indexLength) - parseInt(b.indexLength)"
-            >
+            <el-table-column property="indexLength" label="索引大小" sortable :sort-method="(a: any, b: any) => parseInt(a.indexLength) - parseInt(b.indexLength)">
                 <template #default="scope">
                     {{ formatByteSize(scope.row.indexLength) }}
                 </template>
             </el-table-column>
-            <el-table-column property="createTime" label="创建时间" min-width="150"> </el-table-column>
+            <el-table-column v-if="dbType===DbType.mysql" property="createTime" label="创建时间" min-width="150"> </el-table-column>
             <el-table-column label="更多信息" min-width="160">
                 <template #default="scope">
                     <el-link @click.prevent="showColumns(scope.row)" type="primary">字段</el-link>
                     <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">索引</el-link>
-                    <el-link class="ml5" v-if="tableCreateDialog.enableEditTypes.indexOf(dbType) > -1" @click.prevent="openEditTable(scope.row)" type="warning"
-                        >编辑表</el-link
-                    >
+                    <el-link class="ml5" v-if="tableCreateDialog.enableEditTypes.indexOf(dbType) > -1" @click.prevent="openEditTable(scope.row)" type="warning">编辑表</el-link>
                     <el-link class="ml5" @click.prevent="showCreateDdl(scope.row)" type="info">DDL</el-link>
                 </template>
             </el-table-column>
@@ -104,21 +91,12 @@
             <el-input disabled type="textarea" :autosize="{ minRows: 15, maxRows: 30 }" v-model="ddlDialog.ddl" size="small"> </el-input>
         </el-dialog>
 
-        <db-table-op
-            :title="tableCreateDialog.title"
-            :active-name="tableCreateDialog.activeName"
-            :dbId="dbId"
-            :db="db"
-            :data="tableCreateDialog.data"
-            v-model:visible="tableCreateDialog.visible"
-            @submit-sql="onSubmitSql"
-        >
-        </db-table-op>
+        <db-table-op :title="tableCreateDialog.title" :active-name="tableCreateDialog.activeName" :dbId="dbId" :db="db" :dbType="dbType" :data="tableCreateDialog.data" v-model:visible="tableCreateDialog.visible" @submit-sql="onSubmitSql"> </db-table-op>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, computed, onMounted, defineAsyncComponent } from 'vue';
+import { computed, defineAsyncComponent, onMounted, reactive, toRefs, watch } from 'vue';
 import { ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { dbApi } from '@/views/ops/db/api';
@@ -126,6 +104,7 @@ import SqlExecBox from '../sqleditor/SqlExecBox';
 import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
+import { DbType } from '@/views/ops/db/component/table/dbs/db-option';
 
 const DbTableOp = defineAsyncComponent(() => import('./DbTableOp.vue'));
 
@@ -179,7 +158,7 @@ const state = reactive({
         visible: false,
         activeName: '1',
         type: '',
-        enableEditTypes: ['mysql'], // 支持"编辑表"的数据库类型
+        enableEditTypes: [DbType.mysql, DbType.postgresql], // 支持"编辑表"的数据库类型
         data: {
             // 修改表时，传递修改数据
             edit: false,
@@ -195,19 +174,7 @@ const state = reactive({
     },
 });
 
-const {
-    loading,
-    tables,
-    tableNameSearch,
-    tableCommentSearch,
-    showDumpInfo,
-    dumpInfo,
-    chooseTableName,
-    columnDialog,
-    indexDialog,
-    ddlDialog,
-    tableCreateDialog,
-} = toRefs(state);
+const { loading, tables, tableNameSearch, tableCommentSearch, showDumpInfo, dumpInfo, chooseTableName, columnDialog, indexDialog, ddlDialog, tableCreateDialog } = toRefs(state);
 
 onMounted(async () => {
     getTables();
@@ -262,10 +229,7 @@ const handleDumpTableSelectionChange = (vals: any) => {
 const dump = (db: string) => {
     isTrue(state.dumpInfo.tables.length > 0, '请选择要导出的表');
     const a = document.createElement('a');
-    a.setAttribute(
-        'href',
-        `${config.baseApiUrl}/dbs/${props.dbId}/dump?db=${db}&type=${state.dumpInfo.type}&tables=${state.dumpInfo.tables.join(',')}&${joinClientParams()}`
-    );
+    a.setAttribute('href', `${config.baseApiUrl}/dbs/${props.dbId}/dump?db=${db}&type=${state.dumpInfo.type}&tables=${state.dumpInfo.tables.join(',')}&${joinClientParams()}`);
     a.click();
     state.showDumpInfo = false;
 };

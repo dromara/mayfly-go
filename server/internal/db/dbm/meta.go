@@ -23,10 +23,11 @@ type Column struct {
 	ColumnName    string `json:"columnName"`    // 列名
 	ColumnType    string `json:"columnType"`    // 列类型
 	ColumnComment string `json:"columnComment"` // 列备注
-	ColumnKey     string `json:"columnKey"`
-	ColumnDefault string `json:"columnDefault"`
-	Nullable      string `json:"nullable"` // 是否可为null
-	Extra         string `json:"extra"`    // 其他信息
+	ColumnKey     string `json:"columnKey"`     // 是否为主键，逐渐的话值钱为PRI
+	ColumnDefault string `json:"columnDefault"` // 默认值
+	Nullable      string `json:"nullable"`      // 是否可为null
+	NumScale      string `json:"numScale"`      // 小数点
+	Extra         string `json:"extra"`         // 其他信息
 }
 
 // 表索引信息
