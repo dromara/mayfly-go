@@ -1,6 +1,18 @@
 <template>
     <div class="db-list">
-        <page-table ref="pageTableRef" :query="queryConfig" v-model:query-form="query" :show-selection="true" v-model:selection-data="state.selectionData" :data="datas" :columns="columns" :total="total" v-model:page-size="query.pageSize" v-model:page-num="query.pageNum" @pageChange="search()">
+        <page-table
+            ref="pageTableRef"
+            :query="queryConfig"
+            v-model:query-form="query"
+            :show-selection="true"
+            v-model:selection-data="state.selectionData"
+            :data="datas"
+            :columns="columns"
+            :total="total"
+            v-model:page-size="query.pageSize"
+            v-model:page-num="query.pageNum"
+            @pageChange="search()"
+        >
             <template #tagPathSelect>
                 <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable style="width: 200px">
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
@@ -8,7 +20,15 @@
             </template>
 
             <template #instanceSelect>
-                <el-select remote :remote-method="getInstances" v-model="query.instanceId" placeholder="输入并选择实例" filterable clearable style="width: 200px">
+                <el-select
+                    remote
+                    :remote-method="getInstances"
+                    v-model="query.instanceId"
+                    placeholder="输入并选择实例"
+                    filterable
+                    clearable
+                    style="width: 200px"
+                >
                     <el-option v-for="item in state.instances" :key="item.id" :label="`${item.name}`" :value="item.id">
                         {{ item.name }}
                         <el-divider direction="vertical" border-style="dashed" />
@@ -86,7 +106,15 @@
             </el-row>
 
             <el-form-item>
-                <el-transfer v-model="exportDialog.value" filterable filter-placeholder="按数据库名称筛选" :titles="['全部数据库', '导出数据库']" :data="exportDialog.data" max-height="300" size="small" />
+                <el-transfer
+                    v-model="exportDialog.value"
+                    filterable
+                    filter-placeholder="按数据库名称筛选"
+                    :titles="['全部数据库', '导出数据库']"
+                    :data="exportDialog.data"
+                    max-height="300"
+                    size="small"
+                />
             </el-form-item>
 
             <template #footer>
@@ -97,7 +125,13 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="90%" :title="`${sqlExecLogDialog.title} - SQL执行记录`" :before-close="onBeforeCloseSqlExecDialog" :close-on-click-modal="false" v-model="sqlExecLogDialog.visible">
+        <el-dialog
+            width="90%"
+            :title="`${sqlExecLogDialog.title} - SQL执行记录`"
+            :before-close="onBeforeCloseSqlExecDialog"
+            :close-on-click-modal="false"
+            v-model="sqlExecLogDialog.visible"
+        >
             <db-sql-exec-log :db-id="sqlExecLogDialog.dbId" :dbs="sqlExecLogDialog.dbs" />
         </el-dialog>
 
@@ -138,7 +172,7 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import DbSqlExecLog from './DbSqlExecLog.vue';
-import { DbType } from '@/views/ops/db/component/table/dbs/db-option';
+import { DbType } from './dialect';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
@@ -369,7 +403,12 @@ const dumpDbs = () => {
             type += 2;
         }
     }
-    a.setAttribute('href', `${config.baseApiUrl}/dbs/${state.exportDialog.dbId}/dump?db=${state.exportDialog.value.join(',')}&type=${type}&extName=${state.exportDialog.extName}&${joinClientParams()}`);
+    a.setAttribute(
+        'href',
+        `${config.baseApiUrl}/dbs/${state.exportDialog.dbId}/dump?db=${state.exportDialog.value.join(',')}&type=${type}&extName=${
+            state.exportDialog.extName
+        }&${joinClientParams()}`
+    );
     a.click();
     state.exportDialog.visible = false;
 };

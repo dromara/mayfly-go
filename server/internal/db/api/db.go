@@ -318,7 +318,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 	writer.WriteString(dbConn.Info.Type.StmtUseDatabase(dbName))
 	writer.WriteString(dbConn.Info.Type.StmtSetForeignKeyChecks(false))
 
-	dbMeta := dbConn.GetMeta()
+	dbMeta := dbConn.GetDialect()
 	if len(tables) == 0 {
 		ti, err := dbMeta.GetTables()
 		biz.ErrIsNil(err)
@@ -369,7 +369,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
-	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetTables()
+	res, err := d.getDbConn(rc.GinCtx).GetDialect().GetTables()
 	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
 	rc.ResData = res
 }
@@ -377,7 +377,7 @@ func (d *Db) TableInfos(rc *req.Ctx) {
 func (d *Db) TableIndex(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetTableIndex(tn)
+	res, err := d.getDbConn(rc.GinCtx).GetDialect().GetTableIndex(tn)
 	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
 	rc.ResData = res
 }
@@ -389,7 +389,7 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 	biz.NotEmpty(tn, "tableName不能为空")
 
 	dbi := d.getDbConn(rc.GinCtx)
-	res, err := dbi.GetMeta().GetColumns(tn)
+	res, err := dbi.GetDialect().GetColumns(tn)
 	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
 	rc.ResData = res
 }
@@ -398,7 +398,7 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 func (d *Db) HintTables(rc *req.Ctx) {
 	dbi := d.getDbConn(rc.GinCtx)
 
-	dm := dbi.GetMeta()
+	dm := dbi.GetDialect()
 	// 获取所有表
 	tables, err := dm.GetTables()
 	biz.ErrIsNil(err)
@@ -439,7 +439,7 @@ func (d *Db) HintTables(rc *req.Ctx) {
 func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc.GinCtx).GetMeta().GetCreateTableDdl(tn)
+	res, err := d.getDbConn(rc.GinCtx).GetDialect().GetCreateTableDdl(tn)
 	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
 	rc.ResData = res
 }
@@ -447,7 +447,7 @@ func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
 func (d *Db) GetPgsqlSchemas(rc *req.Ctx) {
 	conn := d.getDbConn(rc.GinCtx)
 	biz.IsTrue(conn.Info.Type == dbm.DbTypePostgres, "非postgres无法获取该schemas")
-	res, err := d.getDbConn(rc.GinCtx).GetMeta().(*dbm.PgsqlMetadata).GetSchemas()
+	res, err := d.getDbConn(rc.GinCtx).GetDialect().(*dbm.PgsqlDialect).GetSchemas()
 	biz.ErrIsNilAppendErr(err, "获取schemas失败: %s")
 	rc.ResData = res
 }

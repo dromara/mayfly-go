@@ -4,12 +4,12 @@ import { getTextWidth } from '@/common/utils/string';
 import SqlExecBox from './component/sqleditor/SqlExecBox';
 
 import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
-import { language as addSqlLanguage } from './lang/mysql.js';
+import { language as addSqlLanguage } from './dialect/mysql_dialect';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { editor, languages, Position } from 'monaco-editor';
 
 import { registerCompletionItemProvider } from '@/components/monaco/completionItemProvider';
-import { DbType } from '@/views/ops/db/component/table/dbs/db-option';
+import { getDbDialect } from './dialect';
 
 const sqlCompletionKeywords = [...sqlLanguage.keywords, ...addSqlLanguage.keywords];
 const sqlCompletionOperators = [...sqlLanguage.operators, ...addSqlLanguage.operators];
@@ -217,14 +217,7 @@ export class DbInst {
 
     // 获取指定表的默认查询sql
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number = DbInst.DefaultLimit) {
-        const baseSql = `SELECT * FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''}`;
-        if (this.type == DbType.mysql) {
-            return `${baseSql} LIMIT ${(pageNum - 1) * limit}, ${limit};`;
-        }
-        if (this.type == DbType.postgresql) {
-            return `${baseSql} OFFSET ${(pageNum - 1) * limit} LIMIT ${limit};`;
-        }
-        return baseSql;
+        return getDbDialect(this.type).getDefaultSelectSql(table, condition, orderBy, pageNum, limit);
     }
 
     /**
@@ -285,13 +278,7 @@ export class DbInst {
      * @returns
      */
     wrapName = (name: string) => {
-        if (this.type === DbType.mysql) {
-            return `\`${name}\``;
-        }
-        // if (this.type == 'postgres') {
-        //     return `"${name}"`;
-        // }
-        return name;
+        return getDbDialect(this.type).wrapName(name);
     };
 
     /**
@@ -414,31 +401,6 @@ export class DbInst {
         const contentWidth: number = getTextWidth(maxWidthText) + 15;
         const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
         return flexWidth > 500 ? 500 : flexWidth;
-    };
-
-    /**
-     * 根据数据库类型获取对应的图标名
-     * @param dbType 数据库类型
-     * @returns
-     */
-    static getIconName = (dbType: string) => {
-        if (dbType == DbType.mysql) {
-            return 'iconfont icon-op-mysql';
-        }
-        if (dbType == DbType.postgresql) {
-            return 'iconfont icon-op-postgres';
-        }
-        return 'InfoFilled';
-    };
-
-    static getIcon = (dbType: string) => {
-        if (dbType == DbType.mysql) {
-            return 'iconfont icon-op-mysql';
-        }
-        if (dbType == DbType.postgresql) {
-            return 'iconfont icon-op-postgres';
-        }
-        return 'InfoFilled';
     };
 }
 

@@ -92,9 +92,7 @@ func (app *instanceAppImpl) Delete(ctx context.Context, id uint64) error {
 
 func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance) ([]string, error) {
 	ed.Network = ed.GetNetwork()
-	databases := make([]string, 0)
 	metaDb := ed.Type.MetaDbName()
-	getDatabasesSql := ed.Type.StmtSelectDbName()
 
 	dbConn, err := toDbInfo(ed, 0, metaDb, "").Conn()
 	if err != nil {
@@ -102,13 +100,5 @@ func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance) ([]string, error
 	}
 	defer dbConn.Close()
 
-	_, res, err := dbConn.SelectData(getDatabasesSql)
-	if err != nil {
-		return nil, err
-	}
-	for _, re := range res {
-		databases = append(databases, re["dbname"].(string))
-	}
-
-	return databases, nil
+	return dbConn.GetDialect().GetDbNames()
 }

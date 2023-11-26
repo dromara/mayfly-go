@@ -50,17 +50,6 @@ func (dbType DbType) QuoteLiteral(literal string) string {
 	}
 }
 
-func (dbType DbType) StmtSelectDbName() string {
-	switch dbType {
-	case DbTypeMysql:
-		return "SELECT SCHEMA_NAME AS dbname FROM SCHEMATA"
-	case DbTypePostgres:
-		return "SELECT datname AS dbname FROM pg_database WHERE datistemplate = false AND has_database_privilege(datname, 'CONNECT')"
-	default:
-		panic(fmt.Sprintf("invalid database type: %s", dbType))
-	}
-}
-
 func (dbType DbType) Dialect() sqlparser.Dialect {
 	switch dbType {
 	case DbTypeMysql:

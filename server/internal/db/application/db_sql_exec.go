@@ -188,7 +188,7 @@ func doSelect(selectStmt *sqlparser.Select, execSqlReq *DbSqlExecReq) (*DbSqlExe
 func doRead(execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
 	dbConn := execSqlReq.DbConn
 	sql := execSqlReq.Sql
-	colNames, res, err := dbConn.SelectData(sql)
+	colNames, res, err := dbConn.Query(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +216,7 @@ func doUpdate(update *sqlparser.Update, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 	}
 
 	// 获取表主键列名,排除使用别名
-	primaryKey, err := dbConn.GetMeta().GetPrimaryKey(tableName)
+	primaryKey, err := dbConn.GetDialect().GetPrimaryKey(tableName)
 	if err != nil {
 		return nil, errorx.NewBiz("获取表主键信息失败")
 	}
@@ -224,7 +224,7 @@ func doUpdate(update *sqlparser.Update, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 	updateColumnsAndPrimaryKey := strings.Join(updateColumns, ",") + "," + primaryKey
 	// 查询要更新字段数据的旧值，以及主键值
 	selectSql := fmt.Sprintf("SELECT %s FROM %s %s LIMIT 200", updateColumnsAndPrimaryKey, tableStr, where)
-	_, res, err := dbConn.SelectData(selectSql)
+	_, res, err := dbConn.Query(selectSql)
 	if err == nil {
 		bytes, _ := json.Marshal(res)
 		dbSqlExec.OldValue = string(bytes)
@@ -251,7 +251,7 @@ func doDelete(delete *sqlparser.Delete, execSqlReq *DbSqlExecReq, dbSqlExec *ent
 
 	// 查询删除数据
 	selectSql := fmt.Sprintf("SELECT * FROM %s %s LIMIT 200", tableStr, where)
-	_, res, _ := dbConn.SelectData(selectSql)
+	_, res, _ := dbConn.Query(selectSql)
 
 	bytes, _ := json.Marshal(res)
 	dbSqlExec.OldValue = string(bytes)

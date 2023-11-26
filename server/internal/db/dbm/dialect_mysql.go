@@ -39,13 +39,27 @@ const (
 	MYSQL_COLUMN_MA_KEY  = "MYSQL_COLUMN_MA"
 )
 
-type MysqlMetadata struct {
+type MysqlDialect struct {
 	dc *DbConn
 }
 
+func (md *MysqlDialect) GetDbNames() ([]string, error) {
+	_, res, err := md.dc.Query("SELECT SCHEMA_NAME AS dbname FROM SCHEMATA")
+	if err != nil {
+		return nil, err
+	}
+
+	databases := make([]string, 0)
+	for _, re := range res {
+		databases = append(databases, anyx.ConvString(re["dbname"]))
+	}
+
+	return databases, nil
+}
+
 // 获取表基础元信息, 如表名等
-func (mm *MysqlMetadata) GetTables() ([]Table, error) {
-	_, res, err := mm.dc.SelectData(GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_KEY))
+func (md *MysqlDialect) GetTables() ([]Table, error) {
+	_, res, err := md.dc.Query(GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +79,7 @@ func (mm *MysqlMetadata) GetTables() ([]Table, error) {
 }
 
 // 获取列元信息, 如列名等
-func (mm *MysqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
+func (md *MysqlDialect) GetColumns(tableNames ...string) ([]Column, error) {
 	tableName := ""
 	for i := 0; i < len(tableNames); i++ {
 		if i != 0 {
@@ -74,7 +88,7 @@ func (mm *MysqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
 		tableName = tableName + "'" + tableNames[i] + "'"
 	}
 
-	_, res, err := mm.dc.SelectData(fmt.Sprintf(GetLocalSql(MYSQL_META_FILE, MYSQL_COLUMN_MA_KEY), tableName))
+	_, res, err := md.dc.Query(fmt.Sprintf(GetLocalSql(MYSQL_META_FILE, MYSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -96,8 +110,8 @@ func (mm *MysqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
 }
 
 // 获取表主键字段名，不存在主键标识则默认第一个字段
-func (mm *MysqlMetadata) GetPrimaryKey(tablename string) (string, error) {
-	columns, err := mm.GetColumns(tablename)
+func (md *MysqlDialect) GetPrimaryKey(tablename string) (string, error) {
+	columns, err := md.GetColumns(tablename)
 	if err != nil {
 		return "", err
 	}
@@ -115,8 +129,8 @@ func (mm *MysqlMetadata) GetPrimaryKey(tablename string) (string, error) {
 }
 
 // 获取表索引信息
-func (mm *MysqlMetadata) GetTableIndex(tableName string) ([]Index, error) {
-	_, res, err := mm.dc.SelectData(fmt.Sprintf(GetLocalSql(MYSQL_META_FILE, MYSQL_INDEX_INFO_KEY), tableName))
+func (md *MysqlDialect) GetTableIndex(tableName string) ([]Index, error) {
+	_, res, err := md.dc.Query(fmt.Sprintf(GetLocalSql(MYSQL_META_FILE, MYSQL_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -152,18 +166,18 @@ func (mm *MysqlMetadata) GetTableIndex(tableName string) ([]Index, error) {
 }
 
 // 获取建表ddl
-func (mm *MysqlMetadata) GetCreateTableDdl(tableName string) (string, error) {
-	_, res, err := mm.dc.SelectData(fmt.Sprintf("show create table `%s` ", tableName))
+func (md *MysqlDialect) GetCreateTableDdl(tableName string) (string, error) {
+	_, res, err := md.dc.Query(fmt.Sprintf("show create table `%s` ", tableName))
 	if err != nil {
 		return "", err
 	}
 	return res[0]["Create Table"].(string) + ";", nil
 }
 
-func (mm *MysqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {
-	return mm.dc.SelectData(fmt.Sprintf("SELECT * FROM %s LIMIT %d, %d", tableName, (pageNum-1)*pageSize, pageSize))
+func (md *MysqlDialect) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {
+	return md.dc.Query(fmt.Sprintf("SELECT * FROM %s LIMIT %d, %d", tableName, (pageNum-1)*pageSize, pageSize))
 }
 
-func (mm *MysqlMetadata) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
-	return mm.dc.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
+func (md *MysqlDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
+	return md.dc.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
 }

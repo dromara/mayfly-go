@@ -18,14 +18,32 @@ type DbConn struct {
 }
 
 // 执行查询语句
-// 依次返回 列名数组，结果map，错误
-func (d *DbConn) SelectData(execSql string) ([]string, []map[string]any, error) {
-	return selectDataByDb(d.db, execSql)
+// 依次返回 列名数组(顺序)，结果map，错误
+func (d *DbConn) Query(querySql string) ([]string, []map[string]any, error) {
+	result := make([]map[string]any, 0, 16)
+	columns, err := walkTableRecord(d.db, querySql, func(record map[string]any, columns []string) {
+		result = append(result, record)
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return columns, result, nil
 }
 
 // 将查询结果映射至struct，可具体参考sqlx库
-func (d *DbConn) SelectData2Struct(execSql string, dest any) error {
-	return select2StructByDb(d.db, execSql, dest)
+func (d *DbConn) Query2Struct(execSql string, dest any) error {
+	rows, err := d.db.Query(execSql)
+	if err != nil {
+		return err
+	}
+	// rows对象一定要close掉，如果出错，不关掉则会很迅速的达到设置最大连接数，
+	// 后面的链接过来直接报错或拒绝，实际上也没有起效果
+	defer func() {
+		if rows != nil {
+			rows.Close()
+		}
+	}()
+	return scanAll(rows, dest, false)
 }
 
 // WalkTableRecord 遍历表记录
@@ -45,12 +63,12 @@ func (d *DbConn) Exec(sql string) (int64, error) {
 }
 
 // 获取数据库元信息实现接口
-func (d *DbConn) GetMeta() DbMetadata {
+func (d *DbConn) GetDialect() DbDialect {
 	switch d.Info.Type {
 	case DbTypeMysql:
-		return &MysqlMetadata{dc: d}
+		return &MysqlDialect{dc: d}
 	case DbTypePostgres:
-		return &PgsqlMetadata{dc: d}
+		return &PgsqlDialect{dc: d}
 	default:
 		panic(fmt.Sprintf("invalid database type: %s", d.Info.Type))
 	}
@@ -64,17 +82,6 @@ func (d *DbConn) Close() {
 		}
 		d.db = nil
 	}
-}
-
-func selectDataByDb(db *sql.DB, selectSql string) ([]string, []map[string]any, error) {
-	result := make([]map[string]any, 0, 16)
-	columns, err := walkTableRecord(db, selectSql, func(record map[string]any, columns []string) {
-		result = append(result, record)
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	return columns, result, nil
 }
 
 func walkTableRecord(db *sql.DB, selectSql string, walk func(record map[string]any, columns []string)) ([]string, error) {
@@ -171,20 +178,4 @@ func valueConvert(data []byte, colType *sql.ColumnType) any {
 	}
 
 	return stringV
-}
-
-// 查询数据结果映射至struct。可参考sqlx库
-func select2StructByDb(db *sql.DB, selectSql string, dest any) error {
-	rows, err := db.Query(selectSql)
-	if err != nil {
-		return err
-	}
-	// rows对象一定要close掉，如果出错，不关掉则会很迅速的达到设置最大连接数，
-	// 后面的链接过来直接报错或拒绝，实际上也没有起效果
-	defer func() {
-		if rows != nil {
-			rows.Close()
-		}
-	}()
-	return scanAll(rows, dest, false)
 }

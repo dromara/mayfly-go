@@ -99,13 +99,27 @@ const (
 	PGSQL_TABLE_DDL_KEY  = "PGSQL_TABLE_DDL_FUNC"
 )
 
-type PgsqlMetadata struct {
+type PgsqlDialect struct {
 	dc *DbConn
 }
 
+func (pd *PgsqlDialect) GetDbNames() ([]string, error) {
+	_, res, err := pd.dc.Query("SELECT datname AS dbname FROM pg_database WHERE datistemplate = false AND has_database_privilege(datname, 'CONNECT')")
+	if err != nil {
+		return nil, err
+	}
+
+	databases := make([]string, 0)
+	for _, re := range res {
+		databases = append(databases, anyx.ConvString(re["dbname"]))
+	}
+
+	return databases, nil
+}
+
 // 获取表基础元信息, 如表名等
-func (pm *PgsqlMetadata) GetTables() ([]Table, error) {
-	_, res, err := pm.dc.SelectData(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
+func (pd *PgsqlDialect) GetTables() ([]Table, error) {
+	_, res, err := pd.dc.Query(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +139,7 @@ func (pm *PgsqlMetadata) GetTables() ([]Table, error) {
 }
 
 // 获取列元信息, 如列名等
-func (pm *PgsqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
+func (pd *PgsqlDialect) GetColumns(tableNames ...string) ([]Column, error) {
 	tableName := ""
 	for i := 0; i < len(tableNames); i++ {
 		if i != 0 {
@@ -134,7 +148,7 @@ func (pm *PgsqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
 		tableName = tableName + "'" + tableNames[i] + "'"
 	}
 
-	_, res, err := pm.dc.SelectData(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
+	_, res, err := pd.dc.Query(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -155,8 +169,8 @@ func (pm *PgsqlMetadata) GetColumns(tableNames ...string) ([]Column, error) {
 	return columns, nil
 }
 
-func (pm *PgsqlMetadata) GetPrimaryKey(tablename string) (string, error) {
-	columns, err := pm.GetColumns(tablename)
+func (pd *PgsqlDialect) GetPrimaryKey(tablename string) (string, error) {
+	columns, err := pd.GetColumns(tablename)
 	if err != nil {
 		return "", err
 	}
@@ -173,8 +187,8 @@ func (pm *PgsqlMetadata) GetPrimaryKey(tablename string) (string, error) {
 }
 
 // 获取表索引信息
-func (pm *PgsqlMetadata) GetTableIndex(tableName string) ([]Index, error) {
-	_, res, err := pm.dc.SelectData(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
+func (pd *PgsqlDialect) GetTableIndex(tableName string) ([]Index, error) {
+	_, res, err := pd.dc.Query(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -210,17 +224,17 @@ func (pm *PgsqlMetadata) GetTableIndex(tableName string) ([]Index, error) {
 }
 
 // 获取建表ddl
-func (pm *PgsqlMetadata) GetCreateTableDdl(tableName string) (string, error) {
-	_, err := pm.dc.Exec(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
+func (pd *PgsqlDialect) GetCreateTableDdl(tableName string) (string, error) {
+	_, err := pd.dc.Exec(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
 	if err != nil {
 		return "", err
 	}
 
-	_, schemaRes, _ := pm.dc.SelectData("select current_schema() as schema")
+	_, schemaRes, _ := pd.dc.Query("select current_schema() as schema")
 	schemaName := schemaRes[0]["schema"].(string)
 
 	ddlSql := fmt.Sprintf("select showcreatetable('%s','%s') as sql", schemaName, tableName)
-	_, res, err := pm.dc.SelectData(ddlSql)
+	_, res, err := pd.dc.Query(ddlSql)
 	if err != nil {
 		return "", err
 	}
@@ -228,18 +242,18 @@ func (pm *PgsqlMetadata) GetCreateTableDdl(tableName string) (string, error) {
 	return res[0]["sql"].(string), nil
 }
 
-func (pm *PgsqlMetadata) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {
-	return pm.dc.SelectData(fmt.Sprintf("SELECT * FROM %s OFFSET %d LIMIT %d", tableName, (pageNum-1)*pageSize, pageSize))
+func (pd *PgsqlDialect) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {
+	return pd.dc.Query(fmt.Sprintf("SELECT * FROM %s OFFSET %d LIMIT %d", tableName, (pageNum-1)*pageSize, pageSize))
 }
 
-func (pm *PgsqlMetadata) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
-	return pm.dc.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
+func (pd *PgsqlDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
+	return pd.dc.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
 }
 
 // 获取pgsql当前连接的库可访问的schemaNames
-func (pm *PgsqlMetadata) GetSchemas() ([]string, error) {
+func (pd *PgsqlDialect) GetSchemas() ([]string, error) {
 	sql := GetLocalSql(PGSQL_META_FILE, PGSQL_DB_SCHEMAS)
-	_, res, err := pm.dc.SelectData(sql)
+	_, res, err := pd.dc.Query(sql)
 	if err != nil {
 		return nil, err
 	}

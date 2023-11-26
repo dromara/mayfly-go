@@ -23,8 +23,15 @@
                                     <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name"> </el-input>
 
                                     <el-select v-else-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type">
-                                        <el-option v-for="pgsqlType in state.columnTypeList" :key="pgsqlType.dataType" :value="pgsqlType.udtName" :label="pgsqlType.dataType">
-                                            <span v-if="pgsqlType.dataType === pgsqlType.udtName">{{ pgsqlType.dataType }}{{ pgsqlType.desc && '：' + pgsqlType.desc }}</span>
+                                        <el-option
+                                            v-for="pgsqlType in state.columnTypeList"
+                                            :key="pgsqlType.dataType"
+                                            :value="pgsqlType.udtName"
+                                            :label="pgsqlType.dataType"
+                                        >
+                                            <span v-if="pgsqlType.dataType === pgsqlType.udtName"
+                                                >{{ pgsqlType.dataType }}{{ pgsqlType.desc && '：' + pgsqlType.desc }}</span
+                                            >
                                             <span v-else>{{ pgsqlType.dataType }}，别名：{{ pgsqlType.udtName }} {{ pgsqlType.desc }}</span>
                                         </el-option>
                                     </el-select>
@@ -39,11 +46,25 @@
 
                                     <el-checkbox v-else-if="item.prop === 'pri'" size="small" v-model="scope.row.pri"> </el-checkbox>
 
-                                    <el-checkbox v-else-if="item.prop === 'auto_increment'" size="small" v-model="scope.row.auto_increment" :disabled="dbType === DbType.postgresql"> </el-checkbox>
+                                    <el-checkbox
+                                        v-else-if="item.prop === 'auto_increment'"
+                                        size="small"
+                                        v-model="scope.row.auto_increment"
+                                        :disabled="dbType === DbType.postgresql"
+                                    >
+                                    </el-checkbox>
 
                                     <el-input v-else-if="item.prop === 'remark'" size="small" v-model="scope.row.remark"> </el-input>
 
-                                    <el-link v-else-if="item.prop === 'action'" type="danger" plain size="small" :underline="false" @click.prevent="deleteRow(scope.$index)">删除</el-link>
+                                    <el-link
+                                        v-else-if="item.prop === 'action'"
+                                        type="danger"
+                                        plain
+                                        size="small"
+                                        :underline="false"
+                                        @click.prevent="deleteRow(scope.$index)"
+                                        >删除</el-link
+                                    >
                                 </template>
                             </el-table-column>
                         </el-table>
@@ -58,13 +79,24 @@
                                 <template #default="scope">
                                     <el-input v-if="item.prop === 'indexName'" size="small" disabled v-model="scope.row.indexName"></el-input>
 
-                                    <el-select v-if="item.prop === 'columnNames'" v-model="scope.row.columnNames" multiple collapse-tags collapse-tags-tooltip filterable placeholder="请选择字段" @change="indexChanges(scope.row)" style="width: 100%">
+                                    <el-select
+                                        v-if="item.prop === 'columnNames'"
+                                        v-model="scope.row.columnNames"
+                                        multiple
+                                        collapse-tags
+                                        collapse-tags-tooltip
+                                        filterable
+                                        placeholder="请选择字段"
+                                        @change="indexChanges(scope.row)"
+                                        style="width: 100%"
+                                    >
                                         <el-option v-for="cl in tableData.indexs.columns" :key="cl.name" :label="cl.name" :value="cl.name">
                                             {{ cl.name + ' - ' + (cl.remark || '') }}
                                         </el-option>
                                     </el-select>
 
-                                    <el-checkbox v-if="item.prop === 'unique'" size="small" v-model="scope.row.unique" @change="indexChanges(scope.row)"> </el-checkbox>
+                                    <el-checkbox v-if="item.prop === 'unique'" size="small" v-model="scope.row.unique" @change="indexChanges(scope.row)">
+                                    </el-checkbox>
 
                                     <el-select v-if="item.prop === 'indexType'" filterable size="small" v-model="scope.row.indexType">
                                         <el-option v-for="typeValue in indexTypeList" :key="typeValue" :value="typeValue">{{ typeValue }}</el-option>
@@ -72,7 +104,15 @@
 
                                     <el-input v-if="item.prop === 'indexComment'" size="small" v-model="scope.row.indexComment"> </el-input>
 
-                                    <el-link v-if="item.prop === 'action'" type="danger" plain size="small" :underline="false" @click.prevent="deleteIndex(scope.$index)">删除</el-link>
+                                    <el-link
+                                        v-if="item.prop === 'action'"
+                                        type="danger"
+                                        plain
+                                        size="small"
+                                        :underline="false"
+                                        @click.prevent="deleteIndex(scope.$index)"
+                                        >删除</el-link
+                                    >
                                 </template>
                             </el-table-column>
                         </el-table>
@@ -92,10 +132,9 @@
 
 <script lang="ts" setup>
 import { reactive, ref, toRefs, watch } from 'vue';
-import { getDbOption } from './service';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from '../sqleditor/SqlExecBox';
-import { DbType } from '@/views/ops/db/component/table/dbs/db-option';
+import { getDbDialect, DbType } from '../../dialect/index';
 
 const props = defineProps({
     visible: {
@@ -121,14 +160,14 @@ const props = defineProps({
 //定义事件
 const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'submit-sql']);
 
-const dbOption = getDbOption(props.dbType);
+const dbDialect = getDbDialect(props.dbType);
 
 const formRef: any = ref();
 const state = reactive({
     dialogVisible: false,
     btnloading: false,
     activeName: '1',
-    columnTypeList: dbOption.getTypeList(),
+    columnTypeList: dbDialect.getColumnTypes(),
     indexTypeList: ['BTREE'], // mysql索引类型详解 http://c.biancheng.net/view/7897.html
     tableData: {
         fields: {
@@ -225,7 +264,7 @@ const state = reactive({
         },
         tableName: '',
         tableComment: '',
-        height: 550,
+        height: 450,
     },
 });
 
@@ -269,21 +308,101 @@ const addDefaultRows = () => {
         state.tableData.fields.res.push(
             { name: 'id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: true, auto_increment: true, remark: '主键ID' },
             { name: 'creator_id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人id' },
-            { name: 'creator', type: 'varchar', length: '100', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人姓名' },
-            { name: 'create_time', type: 'datetime', length: '', numScale: '', value: 'CURRENT_TIMESTAMP', notNull: true, pri: false, auto_increment: false, remark: '创建时间' },
+            {
+                name: 'creator',
+                type: 'varchar',
+                length: '100',
+                numScale: '',
+                value: '',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '创建人姓名',
+            },
+            {
+                name: 'create_time',
+                type: 'datetime',
+                length: '',
+                numScale: '',
+                value: 'CURRENT_TIMESTAMP',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '创建时间',
+            },
             { name: 'updator_id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人id' },
-            { name: 'updator', type: 'varchar', length: '100', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人姓名' },
-            { name: 'update_time', type: 'datetime', length: '', numScale: '', value: 'CURRENT_TIMESTAMP', notNull: true, pri: false, auto_increment: false, remark: '修改时间' }
+            {
+                name: 'updator',
+                type: 'varchar',
+                length: '100',
+                numScale: '',
+                value: '',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '修改人姓名',
+            },
+            {
+                name: 'update_time',
+                type: 'datetime',
+                length: '',
+                numScale: '',
+                value: 'CURRENT_TIMESTAMP',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '修改时间',
+            }
         );
     } else if (props.dbType === DbType.postgresql) {
         state.tableData.fields.res.push(
             { name: 'id', type: 'bigserial', length: '', numScale: '', value: '', notNull: true, pri: true, auto_increment: true, remark: '主键ID' },
             { name: 'creator_id', type: 'int8', length: '', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人id' },
-            { name: 'creator', type: 'varchar', length: '100', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人姓名' },
-            { name: 'create_time', type: 'timestamp', length: '', numScale: '', value: 'CURRENT_TIMESTAMP', notNull: true, pri: false, auto_increment: false, remark: '创建时间' },
+            {
+                name: 'creator',
+                type: 'varchar',
+                length: '100',
+                numScale: '',
+                value: '',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '创建人姓名',
+            },
+            {
+                name: 'create_time',
+                type: 'timestamp',
+                length: '',
+                numScale: '',
+                value: 'CURRENT_TIMESTAMP',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '创建时间',
+            },
             { name: 'updator_id', type: 'int8', length: '', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人id' },
-            { name: 'updator', type: 'varchar', length: '100', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人姓名' },
-            { name: 'update_time', type: 'timestamp', length: '', numScale: '', value: 'CURRENT_TIMESTAMP', notNull: true, pri: false, auto_increment: false, remark: '修改时间' }
+            {
+                name: 'updator',
+                type: 'varchar',
+                length: '100',
+                numScale: '',
+                value: '',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '修改人姓名',
+            },
+            {
+                name: 'update_time',
+                type: 'timestamp',
+                length: '',
+                numScale: '',
+                value: 'CURRENT_TIMESTAMP',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '修改时间',
+            }
         );
     }
 };
@@ -377,20 +496,20 @@ const genSql = () => {
     // 创建表
     if (!props.data?.edit) {
         if (state.activeName === '1') {
-            return dbOption.getCreateTableSql(data);
+            return dbDialect.getCreateTableSql(data);
         } else if (state.activeName === '2' && data.indexs.res.length > 0) {
-            return dbOption.getCreateIndexSql(data);
+            return dbDialect.getCreateIndexSql(data);
         }
     } else {
         // 修改
         if (state.activeName === '1') {
             // 修改列
             let changeData = filterChangedData(oldData.fields, state.tableData.fields.res, 'name');
-            return dbOption.getModifyColumnSql(data.tableName, changeData);
+            return dbDialect.getModifyColumnSql(data.tableName, changeData);
         } else if (state.activeName === '2') {
             // 修改索引
             let changeData = filterChangedData(oldData.indexs, state.tableData.indexs.res, 'indexName');
-            return dbOption.getModifyIndexSql(data.tableName, changeData);
+            return dbDialect.getModifyIndexSql(data.tableName, changeData);
         }
     }
 };
