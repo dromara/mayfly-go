@@ -125,6 +125,10 @@ class PostgresqlDialect implements DbDialect {
                     marks = true;
                 }
             }
+            // 哪些函数不需要加引号
+            if (this.matchType(cl.value, ['nextval'])) {
+                marks = false;
+            }
             return ` DEFAULT ${marks ? "'" : ''}${cl.value}${marks ? "'" : ''}`;
         }
         return '';
