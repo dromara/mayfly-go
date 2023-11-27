@@ -113,7 +113,8 @@ const cancel = () => {
 const open = (props: SqlExecProps) => {
     runSuccessCallback = props.runSuccessCallback;
     cancelCallback = props.cancelCallback;
-    state.sqlValue = sqlFormatter(props.sql);
+    props.dbType = props.dbType || 'mysql';
+    state.sqlValue = sqlFormatter(props.sql, { language: props.dbType });
     state.dbId = props.dbId;
     state.db = props.db;
     state.dialogVisible = true;

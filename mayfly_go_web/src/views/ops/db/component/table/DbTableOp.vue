@@ -135,6 +135,7 @@ import { reactive, ref, toRefs, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from '../sqleditor/SqlExecBox';
 import { getDbDialect, DbType } from '../../dialect/index';
+import { SqlLanguage } from 'sql-formatter/lib/src/sqlFormatter';
 
 const props = defineProps({
     visible: {
@@ -421,10 +422,20 @@ const submit = async () => {
         ElMessage.warning('没有更改');
         return;
     }
+    let dbType: SqlLanguage = '';
+    switch (props.dbType) {
+        case DbType.mysql:
+            dbType = DbType.mysql;
+            break;
+        case DbType.postgresql:
+            dbType = 'postgresql';
+            break;
+    }
     SqlExecBox({
         sql: sql,
         dbId: props.dbId as any,
         db: props.db as any,
+        dbType,
         runSuccessCallback: () => {
             emit('submit-sql', { tableName: state.tableData.tableName });
             // cancel();

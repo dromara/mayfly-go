@@ -1,10 +1,12 @@
 import { h, render, VNode } from 'vue';
 import SqlExecDialog from './SqlExecDialog.vue';
+import {SqlLanguage} from 'sql-formatter/lib/src/sqlFormatter'
 
 export type SqlExecProps = {
     sql: string;
     dbId: number;
     db: string;
+    dbType?: SqlLanguage;
     runSuccessCallback?: Function;
     cancelCallback?: Function;
 };
