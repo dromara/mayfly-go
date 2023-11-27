@@ -30,6 +30,10 @@ const MYSQL_TYPE_LIST = [
 ];
 
 class MysqlDialect implements DbDialect {
+    getFormatDialect() {
+        return 'mysql';
+    }
+
     getIcon() {
         return 'iconfont icon-op-mysql';
     }

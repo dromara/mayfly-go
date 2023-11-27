@@ -16,6 +16,11 @@ export const DbType = {
 
 export interface DbDialect {
     /**
+     * 获取格式化sql对应的dialect名称
+     */
+    getFormatDialect(): string;
+
+    /**
      * 获取图标信息
      */
     getIcon(): string;

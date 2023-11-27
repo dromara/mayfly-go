@@ -52,7 +52,7 @@ SELECT
     case when column_default like 'nextval%%' then 'PRI' else '' end "columnKey",
     col_description((table_schema || '.' || table_name)::regclass, ordinal_position) AS "columnComment"
 FROM information_schema.columns
-WHERE table_schema = (select current_schema()) and table_name = %s
+WHERE table_schema = (select current_schema()) and table_name in (%s)
 order by table_name, ordinal_position
 ---------------------------------------
 --PGSQL_TABLE_DDL_FUNC 表ddl函数

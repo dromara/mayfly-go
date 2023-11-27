@@ -78,7 +78,11 @@
                                 </div>
 
                                 <div v-else :class="isUpdated(rowIndex, column.dataKey) ? 'update_field_active' : ''">
-                                    <el-text :title="rowData[column.dataKey!]" size="small" truncated>
+                                    <el-text style="color: var(--el-color-info-light-5)" v-if="rowData[column.dataKey!] === null" size="small" truncated>
+                                        NULL
+                                    </el-text>
+
+                                    <el-text v-else :title="rowData[column.dataKey!]" size="small" truncated>
                                         {{ rowData[column.dataKey!] }}
                                     </el-text>
                                 </div>

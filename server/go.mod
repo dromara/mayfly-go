@@ -3,7 +3,6 @@ module mayfly-go
 go 1.21
 
 require (
-	gitee.com/opengauss/openGauss-connector-go-pq v1.0.4
 	github.com/buger/jsonparser v1.1.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/glebarez/sqlite v1.10.0
@@ -16,6 +15,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.1.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/kanzihuang/vitess/go/vt/sqlparser v0.0.0-20231018071450-ac8d9f0167e9
+	github.com/lib/pq v1.10.9
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230712084735-068dc2aee82d
 	github.com/mojocn/base64Captcha v1.3.5 // 验证码
 	github.com/pkg/errors v0.9.1
@@ -68,7 +68,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.11 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
@@ -82,7 +81,6 @@ require (
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230131230820-1c016267d619 // indirect
 	google.golang.org/grpc v1.52.3 // indirect

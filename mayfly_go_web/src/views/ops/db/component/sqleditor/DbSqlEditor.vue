@@ -138,6 +138,7 @@ import ProgressNotify from '@/components/progress-notify/progress-notify.vue';
 import { ElNotification } from 'element-plus';
 import syssocket from '@/common/syssocket';
 import SvgIcon from '@/components/svgIcon/index.vue';
+import { getDbDialect } from '../../dialect';
 
 const emits = defineEmits(['saveSqlSuccess']);
 
@@ -436,13 +437,16 @@ const formatSql = () => {
     if (!selection) {
         return;
     }
+
+    const formatDialect = getDbDialect(getNowDbInst().type).getFormatDialect();
+
     let sql = monacoEditor.getModel()?.getValueInRange(selection);
     // 有选中sql则格式化并替换选中sql, 否则格式化编辑器所有内容
     if (sql) {
-        replaceSelection(sqlFormatter(sql), selection);
+        replaceSelection(sqlFormatter(sql, { language: formatDialect }), selection);
         return;
     }
-    monacoEditor.getModel()?.setValue(sqlFormatter(monacoEditor.getValue()));
+    monacoEditor.getModel()?.setValue(sqlFormatter(monacoEditor.getValue(), { language: formatDialect }));
 };
 
 /**

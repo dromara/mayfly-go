@@ -83,6 +83,10 @@ const GAUSS_TYPE_LIST: sqlColumnType[] = [
 ];
 
 class PostgresqlDialect implements DbDialect {
+    getFormatDialect() {
+        return 'postgresql';
+    }
+
     getIcon() {
         return 'iconfont icon-op-postgres';
     }

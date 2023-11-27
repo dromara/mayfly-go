@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	pq "gitee.com/opengauss/openGauss-connector-go-pq"
+	"github.com/lib/pq"
 )
 
 func getPgsqlDB(d *DbInfo) (*sql.DB, error) {
-	driverName := "opengauss"
+	driverName := string(d.Type)
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
 		// 如果使用了隧道，则使用`postgres:ssh:隧道机器id`注册名
@@ -41,7 +41,7 @@ func getPgsqlDB(d *DbInfo) (*sql.DB, error) {
 		}
 	}
 
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password='%s' %s sslmode=disable", d.Host, d.Port, d.Username, d.Password, dbParam)
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s %s sslmode=disable", d.Host, d.Port, d.Username, d.Password, dbParam)
 	// 存在额外指定参数，则拼接该连接参数
 	if d.Params != "" {
 		// 存在指定的db，则需要将dbInstance配置中的parmas排除掉dbname和search_path

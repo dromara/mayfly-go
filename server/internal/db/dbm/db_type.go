@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-    pq "gitee.com/opengauss/openGauss-connector-go-pq"
 	"github.com/kanzihuang/vitess/go/vt/sqlparser"
+	"github.com/lib/pq"
 )
 
 type DbType string

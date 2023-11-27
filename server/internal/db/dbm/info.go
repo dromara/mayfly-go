@@ -45,13 +45,13 @@ func (dbInfo *DbInfo) Conn() (*DbConn, error) {
 	}
 
 	if err != nil {
-		logx.Errorf("连接db失败: %s:%d/%s", dbInfo.Host, dbInfo.Port, database)
+		logx.Errorf("连接db失败: %s:%d/%s, err:%s", dbInfo.Host, dbInfo.Port, database, err.Error())
 		return nil, errorx.NewBiz(fmt.Sprintf("数据库连接失败: %s", err.Error()))
 	}
 
 	err = conn.Ping()
 	if err != nil {
-		logx.Errorf("db ping失败: %s:%d/%s", dbInfo.Host, dbInfo.Port, database)
+		logx.Errorf("db ping失败: %s:%d/%s, err:%s", dbInfo.Host, dbInfo.Port, database, err.Error())
 		return nil, errorx.NewBiz(fmt.Sprintf("数据库连接失败: %s", err.Error()))
 	}
 
