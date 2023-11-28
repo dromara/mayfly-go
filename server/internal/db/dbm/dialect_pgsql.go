@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lib/pq"
+	pq "gitee.com/liuzongyang/libpq"
 )
 
 func getPgsqlDB(d *DbInfo) (*sql.DB, error) {
-	driverName := string(d.Type)
+	driverName := "postgres"
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
 		// 如果使用了隧道，则使用`postgres:ssh:隧道机器id`注册名
