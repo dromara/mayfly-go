@@ -311,8 +311,6 @@ const handlerWindowClick = () => {
 };
 
 const onRefresh = async () => {
-    // 查询条件置空
-    state.condition = '';
     state.pageNum = 1;
     await selectData();
 };

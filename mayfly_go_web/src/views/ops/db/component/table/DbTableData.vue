@@ -106,6 +106,11 @@
         </el-auto-resizer>
 
         <el-dialog @close="state.genTxtDialog.visible = false" v-model="state.genTxtDialog.visible" :title="state.genTxtDialog.title" width="1000px">
+            <template #header>
+                <div class="mr15" style="display: flex; justify-content: flex-end">
+                    <el-button id="copyValue" @click="copyGenTxt(state.genTxtDialog.txt)" icon="CopyDocument" type="success" size="small">一键复制</el-button>
+                </div>
+            </template>
             <el-input v-model="state.genTxtDialog.txt" type="textarea" rows="20" />
         </el-dialog>
 
@@ -528,6 +533,11 @@ const onGenerateJson = async () => {
     state.genTxtDialog.txt = JSON.stringify(jsonObj, null, 4);
     state.genTxtDialog.title = 'JSON';
     state.genTxtDialog.visible = true;
+};
+
+const copyGenTxt = async (txt: string) => {
+    await copyToClipboard(txt);
+    state.genTxtDialog.visible = false;
 };
 
 /**
