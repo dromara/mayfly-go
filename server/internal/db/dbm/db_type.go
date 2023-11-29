@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	pq "gitee.com/liuzongyang/libpq"
 	"github.com/kanzihuang/vitess/go/vt/sqlparser"
-	"github.com/lib/pq"
 )
 
 type DbType string
