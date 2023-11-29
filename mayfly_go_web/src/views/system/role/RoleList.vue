@@ -78,7 +78,7 @@ const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(26
 const state = reactive({
     query: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         name: null,
     },
     total: 0,

@@ -99,7 +99,7 @@ const paramsFormRef: any = ref(null);
 const state = reactive({
     query: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         name: null,
     },
     total: 0,

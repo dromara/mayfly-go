@@ -129,7 +129,7 @@ const state = reactive({
     query: {
         username: '',
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
     },
     datas: [],
     total: 0,
@@ -252,7 +252,9 @@ const deleteAccount = async () => {
         await accountApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 </script>
 <style lang="scss"></style>

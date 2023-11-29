@@ -26,14 +26,14 @@
                                 >
                                     <!-- 这里只获取指定个数的筛选条件 -->
                                     <el-input
-                                        v-model="queryForm[item.prop]"
+                                        v-model="queryForm_[item.prop]"
                                         :placeholder="'输入' + item.label + '关键字'"
                                         clearable
                                         v-if="item.type == 'text'"
                                     ></el-input>
 
                                     <el-select-v2
-                                        v-model="queryForm[item.prop]"
+                                        v-model="queryForm_[item.prop]"
                                         :options="item.options"
                                         clearable
                                         :placeholder="'选择' + item.label + '关键字'"
@@ -41,7 +41,7 @@
                                     />
 
                                     <el-date-picker
-                                        v-model="queryForm[item.prop]"
+                                        v-model="queryForm_[item.prop]"
                                         clearable
                                         type="datetimerange"
                                         format="YYYY-MM-DD hh:mm:ss"
@@ -185,8 +185,10 @@
 import { toRefs, watch, reactive, onMounted } from 'vue';
 import { TableColumn, TableQuery } from './index';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
+import { useThemeConfig } from '@/store/themeConfig';
+import { storeToRefs } from 'pinia';
 
-const emit = defineEmits(['update:queryForm', 'update:pageNum', 'update:pageSize', 'update:selectionData', 'pageChange'])
+const emit = defineEmits(['update:queryForm', 'update:pageNum', 'update:pageSize', 'update:selectionData', 'pageChange']);
 
 const props = defineProps({
     size: {
@@ -195,7 +197,7 @@ const props = defineProps({
     },
     inputWidth: {
         type: [Number, String],
-        default: 0,
+        default: '200px',
     },
     // 是否显示选择列
     showSelection: {
@@ -204,7 +206,7 @@ const props = defineProps({
     },
     // 当前选择的数据
     selectionData: {
-        type: Array<any>
+        type: Array<any>,
     },
     // 列信息
     columns: {
@@ -236,16 +238,18 @@ const props = defineProps({
         type: Array<TableQuery>,
         default: function () {
             return [];
-        }
+        },
     },
     // 绑定的查询表单
     queryForm: {
         type: Object,
         default: function () {
             return {};
-        }
+        },
     },
-})
+});
+
+const { themeConfig } = storeToRefs(useThemeConfig());
 
 const state = reactive({
     pageSizes: [] as any, // 可选每页显示的数据量
@@ -253,140 +257,144 @@ const state = reactive({
     pageNum: 1,
     isOpenMoreQuery: false,
     defaultQueryCount: 2, // 默认显示的查询参数个数，展开后每行显示查询条件个数为该值加1。第一行用最后一列来占用按钮
-    queryForm: {} as any,
+    queryForm_: {} as any,
     loadingData: false,
     // 输入框宽度
-    inputWidth: "200px" as any,
+    inputWidth_: '200px' as any,
     formatVal: '', // 格式化后的值
     tableMaxHeight: window.innerHeight - 240 + 'px',
-})
+});
 
-const {
-    pageSizes,
-    isOpenMoreQuery,
-    defaultQueryCount,
-    queryForm,
-    loadingData,
-    inputWidth,
-    formatVal,
-    tableMaxHeight,
-} = toRefs(state)
+const { pageSizes, isOpenMoreQuery, defaultQueryCount, queryForm_, inputWidth_, loadingData, tableMaxHeight } = toRefs(state);
 
-watch(() => props.queryForm, (newValue: any) => {
-    state.queryForm = newValue;
-})
-
-watch(() => props.pageNum, (newValue: any) => {
-    state.pageNum = newValue;
-})
-
-watch(() => props.pageSize, (newValue: any) => {
-    state.pageSize = newValue;
-})
-
-watch(() => props.data, (newValue: any) => {
-    if (newValue && newValue.length > 0) {
-        props.columns.forEach(item => {
-            if (item.autoWidth && item.show) {
-                item.autoCalculateMinWidth(props.data);
-            }
-        })
+watch(
+    () => props.queryForm,
+    (newValue: any) => {
+        state.queryForm_ = newValue;
     }
-})
+);
+
+watch(
+    () => props.pageNum,
+    (newValue: any) => {
+        state.pageNum = newValue;
+    }
+);
+
+watch(
+    () => props.pageSize,
+    (newValue: any) => {
+        state.pageSize = newValue;
+    }
+);
+
+watch(
+    () => props.data,
+    (newValue: any) => {
+        if (newValue && newValue.length > 0) {
+            props.columns.forEach((item) => {
+                if (item.autoWidth && item.show) {
+                    item.autoCalculateMinWidth(props.data);
+                }
+            });
+        }
+    }
+);
 
 onMounted(() => {
-    const pageSize = props.pageSize;
+    let pageSize = props.pageSize;
+
+    // 如果pageSize设为0，则使用系统全局配置的pageSize
+    if (!pageSize) {
+        pageSize = themeConfig.value.defaultListPageSize;
+        // 可能storage已经存在配置json，则可能没值，需要清storage重试
+        if (!pageSize) {
+            pageSize = 10;
+        }
+        emit('update:pageSize', pageSize);
+    }
 
     state.pageNum = props.pageNum;
     state.pageSize = pageSize;
-    state.queryForm = props.queryForm;
+    state.queryForm_ = props.queryForm;
     state.pageSizes = [pageSize, pageSize * 2, pageSize * 3, pageSize * 4, pageSize * 5];
 
     // 如果没传输入框宽度，则根据组件size设置默认宽度
     if (!props.inputWidth) {
-        state.inputWidth = props.size == 'small' ? '150px' : '200px';
+        state.inputWidth_ = props.size == 'small' ? '150px' : '200px';
     } else {
-        state.inputWidth = props.inputWidth;
+        state.inputWidth_ = props.inputWidth;
     }
 
     window.addEventListener('resize', () => {
         calcuTableHeight();
     });
-})
+});
 
 const calcuTableHeight = () => {
     state.tableMaxHeight = window.innerHeight - 240 + 'px';
-}
-
-const formatText = (data: any)=> {
-    state.formatVal = '';
-    try {
-        state.formatVal = JSON.stringify(JSON.parse(data), null, 4);
-    }  catch (e) {
-        state.formatVal = data;
-    }
-}
+};
 
 const getRowQueryItem = (row: number) => {
     // 第一行需要加个查询等按钮列
     if (row === 1) {
         const res = props.query.slice(row - 1, defaultQueryCount.value);
         // 查询等按钮列
-        res.push(TableQuery.slot("", "", "queryBtns"));
-        return res
+        res.push(TableQuery.slot('', '', 'queryBtns'));
+        return res;
     }
     const columnCount = defaultQueryCount.value + 1;
     return props.query.slice((row - 1) * columnCount - 1, row * columnCount - 1);
-}
+};
 
 const handleSelectionChange = (val: any) => {
     emit('update:selectionData', val);
-}
+};
 
 const handlePageChange = () => {
     emit('update:pageNum', state.pageNum);
     execQuery();
-}
+};
 
 const handleSizeChange = () => {
     changePageNum(1);
     emit('update:pageSize', state.pageSize);
     execQuery();
-}
+};
 
 const queryData = () => {
     changePageNum(1);
     execQuery();
-}
+};
 
 const reset = () => {
     // 将查询参数绑定的值置空，并重新粗发查询接口
     for (let qi of props.query) {
-        state.queryForm[qi.prop] = null;
+        state.queryForm_[qi.prop] = null;
     }
 
     changePageNum(1);
-    emit('update:queryForm', state.queryForm);
+    emit('update:queryForm', state.queryForm_);
     execQuery();
-}
+};
 
 const changePageNum = (pageNum: number) => {
     state.pageNum = pageNum;
     emit('update:pageNum', state.pageNum);
-}
+};
 
 const execQuery = () => {
     emit('pageChange');
-}
+};
 
 /**
  * 是否正在加载数据
  */
 const loading = (loading: boolean) => {
     state.loadingData = loading;
-}
+};
 
-defineExpose({ loading })
+defineExpose({ loading });
 </script>
 <style scoped lang="scss">
 .page-table {
@@ -420,15 +428,15 @@ defineExpose({ loading })
 }
 
 .el-select-v2 {
-    width: v-bind(inputWidth);
+    width: v-bind(inputWidth_);
 }
 
 .el-input {
-    width: v-bind(inputWidth);
+    width: v-bind(inputWidth_);
 }
 
 .el-select {
-    width: v-bind(inputWidth);
+    width: v-bind(inputWidth_);
 }
 
 .el-date-editor {

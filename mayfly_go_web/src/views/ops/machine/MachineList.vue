@@ -242,7 +242,7 @@ const state = reactive({
     tags: [] as any,
     params: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         ip: null,
         name: null,
         tagPath: null,

@@ -69,7 +69,7 @@ const columns = ref([
 const state = reactive({
     params: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         ip: null,
         name: null,
     },
@@ -121,7 +121,9 @@ const deleteCronJob = async () => {
         await cronJobApi.delete.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('操作成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 /**

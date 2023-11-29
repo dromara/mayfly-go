@@ -43,7 +43,7 @@ const state = reactive({
         creatorId: null,
         description: null,
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
     },
     queryConfig: [
         TableQuery.slot('creatorId', '操作人', 'selectAccount'),

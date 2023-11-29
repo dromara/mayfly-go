@@ -88,7 +88,7 @@ const state = reactive({
     selectionData: [],
     query: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         tagPath: null,
     },
     mongoEditDialog: {

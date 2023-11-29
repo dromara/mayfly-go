@@ -24,15 +24,15 @@
   resolved "https://registry.npmmirror.com/@ctrl/tinycolor/-/tinycolor-3.4.1.tgz"
   integrity sha512-ej5oVy6lykXsvieQtqZxCOaLT+xD4+QNarq78cIYISHmZXshCvROLudpQN3lfL8G0NL7plMSSK+zlyvCaIJ4Iw==
 
-"@element-plus/icons-vue@^2.0.6":
-  version "2.0.9"
-  resolved "https://registry.npmmirror.com/@element-plus/icons-vue/-/icons-vue-2.0.9.tgz"
-  integrity sha512-okdrwiVeKBmW41Hkl0eMrXDjzJwhQMuKiBOu17rOszqM+LS/yBYpNQNV5Jvoh06Wc+89fMmb/uhzf8NZuDuUaQ==
-
 "@element-plus/icons-vue@^2.1.0":
   version "2.1.0"
   resolved "https://registry.npmmirror.com/@element-plus/icons-vue/-/icons-vue-2.1.0.tgz#7ad90d08a8c0d5fd3af31c4f73264ca89614397a"
   integrity sha512-PSBn3elNoanENc1vnCfh+3WA9fimRC7n+fWkf3rE5jvv+aBohNHABC/KAR5KWPecxWxDTVT1ERpRbOMRcOV/vA==
+
+"@element-plus/icons-vue@^2.3.1":
+  version "2.3.1"
+  resolved "https://registry.npmmirror.com/@element-plus/icons-vue/-/icons-vue-2.3.1.tgz#1f635ad5fdd5c85ed936481525570e82b5a8307a"
+  integrity sha512-XxVUZv48RZAd87ucGS48jPf6pKu0yV5UCg9f4FFwtrYxXOwWuVJo6wOvSLKEoMQKjv8GsX/mhP6UsC1lRwbUWg==
 
 "@esbuild/android-arm64@0.19.8":
   version "0.19.8"
@@ -764,15 +764,6 @@ clipboard@^2.0.11:
     select "^1.1.2"
     tiny-emitter "^2.0.0"
 
-clipboard@^2.0.6:
-  version "2.0.10"
-  resolved "https://registry.npmmirror.com/clipboard/-/clipboard-2.0.10.tgz"
-  integrity sha512-cz3m2YVwFz95qSEbCDi2fzLN/epEN9zXBvfgAoGkvGOJZATMl9gtTDVOtBYkx2ODUJl2kvmud7n32sV2BpYR4g==
-  dependencies:
-    good-listener "^1.2.2"
-    select "^1.1.2"
-    tiny-emitter "^2.0.0"
-
 color-convert@^2.0.1:
   version "2.0.1"
   resolved "https://registry.nlark.com/color-convert/download/color-convert-2.0.1.tgz"
@@ -910,13 +901,13 @@ echarts@^5.4.3:
     tslib "2.3.0"
     zrender "5.4.4"
 
-element-plus@^2.4.2:
-  version "2.4.2"
-  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.4.2.tgz#2a24632e0904ccd7bbbd64c269704f6b9969833c"
-  integrity sha512-E/HwXX7JF1LPvQSjs0fZ8WblIoc0quoXsRXQZiL7QDq7xJdNGSUaXtdk7xiEv7axPmLfEFtxE5du9fFspDrmJw==
+element-plus@^2.4.3:
+  version "2.4.3"
+  resolved "https://registry.npmmirror.com/element-plus/-/element-plus-2.4.3.tgz#ff21d0207d71752eb6a47a46609bc667f222841f"
+  integrity sha512-b3q26j+lM4SBqiyzw8HybybGnP2pk4MWgrnzzzYW5qKQUgV6EG1Zg7nMCfgCVccI8tNvZoTiUHb2mFaiB9qT8w==
   dependencies:
     "@ctrl/tinycolor" "^3.4.1"
-    "@element-plus/icons-vue" "^2.0.6"
+    "@element-plus/icons-vue" "^2.3.1"
     "@floating-ui/dom" "^1.0.1"
     "@popperjs/core" "npm:@sxzz/popperjs-es@^2.11.7"
     "@types/lodash" "^4.14.182"
@@ -1373,7 +1364,7 @@ js-yaml@^4.1.0:
   dependencies:
     argparse "^2.0.1"
 
-jsencrypt@^3.3.1:
+jsencrypt@^3.3.2:
   version "3.3.2"
   resolved "https://registry.npmmirror.com/jsencrypt/-/jsencrypt-3.3.2.tgz#b0f1a2278810c7ba1cb8957af11195354622df7c"
   integrity sha512-arQR1R1ESGdAxY7ZheWr12wCaF2yF47v5qpB76TtV64H1pyGudk9Hvw8Y9tb/FiTIaaTRUyaSnm5T/Y53Ghm/A==
@@ -1698,10 +1689,10 @@ punycode@^2.1.0:
   resolved "https://registry.nlark.com/punycode/download/punycode-2.1.1.tgz"
   integrity sha1-tYsBCsQMIsVldhbI0sLALHv0eew=
 
-qrcode.vue@^3.4.0:
-  version "3.4.0"
-  resolved "https://registry.npmmirror.com/qrcode.vue/-/qrcode.vue-3.4.0.tgz#4513ff1a4734cb7184086c2fd439f0d462c6d281"
-  integrity sha512-4XeImbv10Fin16Fl2DArCMhGyAdvIg2jb7vDT+hZiIAMg/6H6mz9nUZr/dR8jBcun5VzNzkiwKhiqOGbloinwA==
+qrcode.vue@^3.4.1:
+  version "3.4.1"
+  resolved "https://registry.npmmirror.com/qrcode.vue/-/qrcode.vue-3.4.1.tgz#dd8141da9c4ea07ee56b111cd13eadf123af822a"
+  integrity sha512-wq/zHsifH4FJ1GXQi8/wNxD1KfQkckIpjK1KPTc/qwYU5/Bkd4me0w4xZSg6EXk6xLBkVDE0zxVagewv5EMAVA==
 
 queue-microtask@^1.2.2:
   version "1.2.3"
@@ -1947,23 +1938,16 @@ uuid@^9.0.1:
   resolved "https://registry.npmmirror.com/uuid/-/uuid-9.0.1.tgz#e188d4c8853cc722220392c424cd637f32293f30"
   integrity sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==
 
-vite@^5.0.2:
-  version "5.0.2"
-  resolved "https://registry.npmmirror.com/vite/-/vite-5.0.2.tgz#3c94627dace83b9bf04b64eaf618038e30fb95c0"
-  integrity sha512-6CCq1CAJCNM1ya2ZZA7+jS2KgnhbzvxakmlIjN24cF/PXhRMzpM/z8QgsVJA/Dm5fWUWnVEsmtBoMhmerPxT0g==
+vite@^5.0.3:
+  version "5.0.3"
+  resolved "https://registry.npmmirror.com/vite/-/vite-5.0.3.tgz#febf6801604c618234de331bd04382cf9a149ec6"
+  integrity sha512-WgEq8WEKpZ8c0DL4M1+E+kBZEJyjBmGVrul6z8Ljfhv+PPbNF4aGq014DwNYxGz2FGq6NKL0N8usdiESWd2l2w==
   dependencies:
     esbuild "^0.19.3"
     postcss "^8.4.31"
     rollup "^4.2.0"
   optionalDependencies:
     fsevents "~2.3.3"
-
-vue-clipboard3@^1.0.1:
-  version "1.0.1"
-  resolved "https://registry.npmmirror.com/vue-clipboard3/-/vue-clipboard3-1.0.1.tgz"
-  integrity sha512-iJ2vrizowfA73W3pcxMAKhYSvfekJrQ3FhbveVe9esS1Vfu+xW3Fgc0UKE8N4Q6DyRtcAoNlef8txmD8tK8dIg==
-  dependencies:
-    clipboard "^2.0.6"
 
 vue-demi@*:
   version "0.13.11"

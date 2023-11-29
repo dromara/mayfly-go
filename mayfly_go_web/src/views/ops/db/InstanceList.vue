@@ -105,7 +105,7 @@ const state = reactive({
     query: {
         name: null,
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
     },
     datas: [],
     total: 0,

@@ -38,7 +38,7 @@ import { AuthMethodEnum } from '../enums';
 const state = reactive({
     query: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         name: null,
     },
     queryConfig: [TableQuery.text('name', '凭证名称')],
@@ -105,7 +105,9 @@ const deleteAc = async (data: any) => {
         await authCertApi.delete.request({ id: data.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 </script>
 <style lang="scss"></style>

@@ -135,6 +135,10 @@ export const useThemeConfig = defineStore('themeConfig', {
             globalI18n: 'zh-cn',
             // 默认全局组件大小，可选值"<|large|default|small>"，默认 ''
             globalComponentSize: '',
+
+            /** 全局设置 */
+            // 默认列表页的分页大小
+            defaultListPageSize: 15,
         },
     }),
     actions: {

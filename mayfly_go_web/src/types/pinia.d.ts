@@ -57,6 +57,8 @@ declare interface ThemeConfigState {
         terminalFontSize: number;
         terminalFontWeight: string | any;
         editorTheme: string;
+
+        defaultListPageSize: number;
     };
 }
 

@@ -191,7 +191,7 @@ const state = reactive({
     query: {
         tagPath: null,
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
     },
     detailDialog: {
         visible: false,
