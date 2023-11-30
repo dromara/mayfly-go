@@ -132,7 +132,7 @@ import { nextTick, onMounted, ref, toRefs, reactive, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { initRouter } from '@/router/index';
-import { saveToken, saveUser, setSession } from '@/common/utils/storage';
+import { saveToken, saveUser } from '@/common/utils/storage';
 import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';

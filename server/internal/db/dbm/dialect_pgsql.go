@@ -8,6 +8,7 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/netx"
 	"net"
 	"strings"
 	"time"
@@ -41,7 +42,7 @@ func getPgsqlDB(d *DbInfo) (*sql.DB, error) {
 		}
 	}
 
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s %s sslmode=disable", d.Host, d.Port, d.Username, d.Password, dbParam)
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s %s sslmode=disable connect_timeout=8", d.Host, d.Port, d.Username, d.Password, dbParam)
 	// 存在额外指定参数，则拼接该连接参数
 	if d.Params != "" {
 		// 存在指定的db，则需要将dbInstance配置中的parmas排除掉dbname和search_path
@@ -79,7 +80,8 @@ func (pd *PqSqlDialer) Dial(network, address string) (net.Conn, error) {
 		return nil, err
 	}
 	if sshConn, err := sshTunnel.GetDialConn("tcp", address); err == nil {
-		return sshConn, nil
+		// 将ssh conn包装，否则会返回错误: ssh: tcpChan: deadline not supported
+		return &netx.WrapSshConn{Conn: sshConn}, nil
 	} else {
 		return nil, err
 	}

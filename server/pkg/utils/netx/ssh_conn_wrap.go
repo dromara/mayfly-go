@@ -26,7 +26,7 @@ func (c *WrapSshConn) RemoteAddr() net.Addr {
 	return c.Conn.RemoteAddr()
 }
 func (c *WrapSshConn) SetDeadline(t time.Time) error {
-	return c.Conn.SetDeadline(t)
+	return nil
 }
 func (c *WrapSshConn) SetReadDeadline(t time.Time) error {
 	return nil
