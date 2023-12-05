@@ -43,8 +43,6 @@ CREATE TABLE `t_db` (
     `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
     `database` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
     `remark` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注，描述等',
-    `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
-    `tag_path` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '标签路径',
     `instance_id` bigint(20) NOT NULL COMMENT '数据库实例 ID',
     `create_time` datetime DEFAULT NULL,
     `creator_id` bigint(20) DEFAULT NULL,
@@ -157,8 +155,6 @@ CREATE TABLE `t_machine` (
   `enable_recorder` tinyint(2) DEFAULT NULL COMMENT '是否启用终端回放记录',
   `status` tinyint(2) NOT NULL COMMENT '状态: 1:启用; -1:禁用',
   `remark` varchar(255) DEFAULT NULL,
-  `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
-  `tag_path` varchar(255) DEFAULT NULL COMMENT '标签路径',
   `need_monitor` tinyint(2) DEFAULT NULL,
   `create_time` datetime NOT NULL,
   `creator` varchar(16) DEFAULT NULL,
@@ -168,8 +164,7 @@ CREATE TABLE `t_machine` (
   `modifier_id` bigint(32) DEFAULT NULL,
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_path` (`tag_path`) USING BTREE
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器信息';
 
 -- ----------------------------
@@ -309,6 +304,21 @@ CREATE TABLE `t_machine_cron_job_relate` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务关联表';
 
+DROP TABLE IF EXISTS `t_machine_term_op`;
+CREATE TABLE `t_machine_term_op` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `machine_id` bigint NOT NULL COMMENT '机器id',
+  `username` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '登录用户名',
+  `record_file_path` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '终端回放文件路径',
+  `creator_id` bigint unsigned DEFAULT NULL,
+  `creator` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `create_time` datetime NOT NULL,
+  `end_time` datetime DEFAULT NULL,
+  `is_deleted` tinyint DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器终端操作记录表';
+
 -- ----------------------------
 -- Table structure for t_mongo
 -- ----------------------------
@@ -318,8 +328,6 @@ CREATE TABLE `t_mongo` (
   `name` varchar(36) NOT NULL COMMENT '名称',
   `uri` varchar(255) NOT NULL COMMENT '连接uri',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
-  `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
-  `tag_path` varchar(255) DEFAULT NULL COMMENT '标签路径',
   `create_time` datetime NOT NULL,
   `creator_id` bigint(20) DEFAULT NULL,
   `creator` varchar(36) DEFAULT NULL,
@@ -351,8 +359,6 @@ CREATE TABLE `t_redis` (
   `mode` varchar(32) DEFAULT NULL,
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
   `remark` varchar(125) DEFAULT NULL,
-  `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
-  `tag_path` varchar(255) DEFAULT NULL COMMENT '标签路径',
   `creator` varchar(32) DEFAULT NULL,
   `creator_id` bigint(32) DEFAULT NULL,
   `create_time` datetime DEFAULT NULL,
@@ -361,8 +367,7 @@ CREATE TABLE `t_redis` (
   `update_time` datetime DEFAULT NULL,
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_tag_path` (`tag_path`)
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='redis信息';
 
 -- ----------------------------
@@ -762,6 +767,26 @@ CREATE TABLE `t_tag_tree_team` (
   PRIMARY KEY (`id`),
   KEY `idx_tag_id` (`tag_id`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签树团队关联信息';
+
+DROP TABLE IF EXISTS `t_tag_resource`;
+CREATE TABLE `t_tag_resource` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `tag_id` bigint NOT NULL,
+  `tag_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '标签路径',
+  `resource_code` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '资源编码',
+  `resource_type` tinyint NOT NULL COMMENT '资源类型',
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint NOT NULL,
+  `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier_id` bigint NOT NULL,
+  `modifier` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `is_deleted` tinyint DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_tag_path` (`tag_path`(100)) USING BTREE,
+  KEY `idx_resource_code` (`resource_code`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签资源关联表';
 
 -- ----------------------------
 -- Records of t_tag_tree_team

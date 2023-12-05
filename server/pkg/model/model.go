@@ -5,11 +5,12 @@ import (
 )
 
 const (
-	IdColumn              = "id"
-	DeletedColumn         = "is_deleted" // 删除字段
-	DeleteTimeColumn      = "delete_time"
-	ModelDeleted     int8 = 1
-	ModelUndeleted   int8 = 0
+	IdColumn         = "id"
+	DeletedColumn    = "is_deleted" // 删除字段
+	DeleteTimeColumn = "delete_time"
+
+	ModelDeleted   int8 = 1
+	ModelUndeleted int8 = 0
 )
 
 // 实体接口

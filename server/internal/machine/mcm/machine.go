@@ -25,7 +25,7 @@ type MachineInfo struct {
 
 	SshTunnelMachine *MachineInfo `json:"-"` // ssh隧道机器
 	EnableRecorder   int8         `json:"-"` // 是否启用终端回放记录
-	TagPath          string       `json:"tagPath"`
+	TagPath          []string     `json:"tagPath"`
 }
 
 func (m *MachineInfo) UseSshTunnel() bool {

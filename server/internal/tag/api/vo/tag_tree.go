@@ -1,28 +1,17 @@
 package vo
 
-import "time"
+import (
+	"mayfly-go/internal/tag/domain/entity"
+)
 
-type TagTreeVO struct {
-	Id         int       `json:"id"`
-	Pid        int       `json:"pid"`
-	Name       string    `json:"name"`
-	Code       string    `json:"code"`
-	CodePath   string    `json:"codePath"`
-	Remark     string    `json:"remark"`
-	Creator    string    `json:"creator"`
-	CreateTime time.Time `json:"createTime"`
-	Modifier   string    `json:"modifier"`
-	UpdateTime time.Time `json:"updateTime"`
-}
-
-type TagTreeVOS []TagTreeVO
+type TagTreeVOS []*entity.TagTree
 
 type TagTreeItem struct {
-	TagTreeVO
+	*entity.TagTree
 	Children []TagTreeItem `json:"children"`
 }
 
-func (m *TagTreeVOS) ToTrees(pid int) []TagTreeItem {
+func (m *TagTreeVOS) ToTrees(pid uint64) []TagTreeItem {
 	var resourceTree []TagTreeItem
 
 	list := m.findChildren(pid)
@@ -31,15 +20,15 @@ func (m *TagTreeVOS) ToTrees(pid int) []TagTreeItem {
 	}
 
 	for _, v := range list {
-		Children := m.ToTrees(int(v.Id))
+		Children := m.ToTrees(v.Id)
 		resourceTree = append(resourceTree, TagTreeItem{v, Children})
 	}
 
 	return resourceTree
 }
 
-func (m *TagTreeVOS) findChildren(pid int) []TagTreeVO {
-	child := []TagTreeVO{}
+func (m *TagTreeVOS) findChildren(pid uint64) []*entity.TagTree {
+	child := []*entity.TagTree{}
 
 	for _, v := range *m {
 		if v.Pid == pid {

@@ -4,8 +4,19 @@
             <el-form :model="form" ref="redisForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item prop="tagId" label="标签" required>
-                            <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
+                        <el-form-item ref="tagSelectRef" prop="tagId" label="标签" required>
+                            <tag-tree-select
+                                @change-tag="
+                                    (tagIds) => {
+                                        form.tagId = tagIds;
+                                        tagSelectRef.validate();
+                                    }
+                                "
+                                multiple
+                                :resource-code="form.code"
+                                :resource-type="TagResourceTypeEnum.Redis.value"
+                                style="width: 100%"
+                            />
                         </el-form-item>
                         <el-form-item prop="name" label="名称" required>
                             <el-input v-model.trim="form.name" placeholder="请输入redis名称" auto-complete="off"></el-input>
@@ -87,8 +98,9 @@ import { toRefs, reactive, watch, ref } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import { RsaEncrypt } from '@/common/rsa';
-import TagSelect from '../component/TagSelect.vue';
+import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
@@ -143,13 +155,15 @@ const rules = {
 };
 
 const redisForm: any = ref(null);
+const tagSelectRef: any = ref(null);
+
 const state = reactive({
     dialogVisible: false,
     tabActiveName: 'basic',
     form: {
         id: null,
-        tagId: null as any,
-        tagPath: null as any,
+        code: '',
+        tagId: [],
         name: null,
         mode: 'standalone',
         host: '',

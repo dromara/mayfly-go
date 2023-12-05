@@ -10,9 +10,14 @@ const (
 	RedisConnExpireTime   = 30 * time.Minute
 	MongoConnExpireTime   = 30 * time.Minute
 
-/****  开发测试使用   ****/
-// MachineConnExpireTime = 4 * time.Minute
-// DbConnExpireTime      = 2 * time.Minute
-// RedisConnExpireTime   = 2 * time.Minute
-// MongoConnExpireTime   = 2 * time.Minute
+	/****  开发测试使用   ****/
+	// MachineConnExpireTime = 4 * time.Minute
+	// DbConnExpireTime      = 2 * time.Minute
+	// RedisConnExpireTime   = 2 * time.Minute
+	// MongoConnExpireTime   = 2 * time.Minute
+
+	TagResourceTypeMachine = 1
+	TagResourceTypeDb      = 2
+	TagResourceTypeRedis   = 3
+	TagResourceTypeMongo   = 4
 )

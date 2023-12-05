@@ -21,8 +21,8 @@ type MongoInfo struct {
 
 	Uri string `json:"-"`
 
-	TagPath            string `json:"tagPath"`
-	SshTunnelMachineId int    `json:"-"` // ssh隧道机器id
+	TagPath            []string `json:"tagPath"`
+	SshTunnelMachineId int      `json:"-"` // ssh隧道机器id
 }
 
 func (mi *MongoInfo) Conn() (*MongoConn, error) {

@@ -63,6 +63,12 @@ func (m *MachineCronJob) GetRelateCronJobIds(rc *req.Ctx) {
 	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(ginx.QueryInt(rc.GinCtx, "machineId", -1)))
 }
 
+func (m *MachineCronJob) RunCronJob(rc *req.Ctx) {
+	cronJobKey := ginx.PathParam(rc.GinCtx, "key")
+	biz.NotEmpty(cronJobKey, "cronJob key不能为空")
+	m.MachineCronJobApp.RunCronJob(cronJobKey)
+}
+
 func (m *MachineCronJob) CronJobExecs(rc *req.Ctx) {
 	cond, pageParam := ginx.BindQueryAndPage[*entity.MachineCronJobExec](rc.GinCtx, new(entity.MachineCronJobExec))
 	res, err := m.MachineCronJobApp.GetExecPageList(cond, pageParam, new([]entity.MachineCronJobExec))

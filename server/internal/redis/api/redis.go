@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/api/vo"
 	"mayfly-go/internal/redis/application"
@@ -31,20 +32,16 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage[*entity.RedisQuery](rc.GinCtx, new(entity.RedisQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	tagIds := r.TagApp.ListTagIdByAccountId(rc.GetLoginAccount().Id)
-	if len(tagIds) == 0 {
+	codes := r.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeRedis, queryCond.TagPath)
+	if len(codes) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	queryCond.TagIds = tagIds
+	queryCond.Codes = codes
 
 	res, err := r.RedisApp.GetPageList(queryCond, page, new([]vo.Redis))
 	biz.ErrIsNil(err)
 	rc.ResData = res
-}
-
-func (r *Redis) RedisTags(rc *req.Ctx) {
-	rc.ResData = r.TagApp.ListTagByAccountIdAndResource(rc.GetLoginAccount().Id, new(entity.Redis))
 }
 
 func (r *Redis) TestConn(rc *req.Ctx) {
@@ -72,7 +69,7 @@ func (r *Redis) Save(rc *req.Ctx) {
 	form.Password = "****"
 	rc.ReqParam = form
 
-	biz.ErrIsNil(r.RedisApp.Save(rc.MetaCtx, redis))
+	biz.ErrIsNil(r.RedisApp.Save(rc.MetaCtx, redis, form.TagId...))
 }
 
 // 获取redis实例密码，由于数据库是加密存储，故提供该接口展示原文密码
@@ -229,7 +226,7 @@ func (r *Redis) checkKeyAndGetRedisConn(rc *req.Ctx) (*rdm.RedisConn, string) {
 func (r *Redis) getRedisConn(rc *req.Ctx) *rdm.RedisConn {
 	ri, err := r.RedisApp.GetRedisConn(getIdAndDbNum(rc.GinCtx))
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, ri.Info.TagPath), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, ri.Info.TagPath...), "%s")
 	return ri
 }
 

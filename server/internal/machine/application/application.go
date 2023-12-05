@@ -2,12 +2,14 @@ package application
 
 import (
 	"mayfly-go/internal/machine/infrastructure/persistence"
+	tagapp "mayfly-go/internal/tag/application"
 )
 
 var (
 	machineApp Machine = newMachineApp(
 		persistence.GetMachineRepo(),
 		GetAuthCertApp(),
+		tagapp.GetTagTreeApp(),
 	)
 
 	machineFileApp MachineFile = newMachineFileApp(
@@ -28,6 +30,8 @@ var (
 		persistence.GetMachineCronJobExecRepo(),
 		GetMachineApp(),
 	)
+
+	machineTermOpApp MachineTermOp = newMachineTermOpApp(persistence.GetMachineTermOpRepo())
 )
 
 func GetMachineApp() Machine {
@@ -48,4 +52,8 @@ func GetAuthCertApp() AuthCert {
 
 func GetMachineCronJobApp() MachineCronJob {
 	return machineCropJobApp
+}
+
+func GetMachineTermOpApp() MachineTermOp {
+	return machineTermOpApp
 }

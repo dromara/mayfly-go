@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/mongo/api/form"
 	"mayfly-go/internal/mongo/application"
 	"mayfly-go/internal/mongo/domain/entity"
@@ -30,20 +31,16 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage[*entity.MongoQuery](rc.GinCtx, new(entity.MongoQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	tagIds := m.TagApp.ListTagIdByAccountId(rc.GetLoginAccount().Id)
-	if len(tagIds) == 0 {
+	codes := m.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeMongo, queryCond.TagPath)
+	if len(codes) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	queryCond.TagIds = tagIds
+	queryCond.Codes = codes
 
 	res, err := m.MongoApp.GetPageList(queryCond, page, new([]entity.Mongo))
 	biz.ErrIsNil(err)
 	rc.ResData = res
-}
-
-func (m *Mongo) MongoTags(rc *req.Ctx) {
-	rc.ResData = m.TagApp.ListTagByAccountIdAndResource(rc.GetLoginAccount().Id, new(entity.Mongo))
 }
 
 func (m *Mongo) TestConn(rc *req.Ctx) {
@@ -63,7 +60,7 @@ func (m *Mongo) Save(rc *req.Ctx) {
 	}(form.Uri)
 	rc.ReqParam = form
 
-	biz.ErrIsNil(m.MongoApp.Save(rc.MetaCtx, mongo))
+	biz.ErrIsNil(m.MongoApp.Save(rc.MetaCtx, mongo, form.TagId...))
 }
 
 func (m *Mongo) DeleteMongo(rc *req.Ctx) {

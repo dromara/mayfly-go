@@ -21,6 +21,7 @@ type Ctx struct {
 
 	GinCtx   *gin.Context // gin context
 	ReqParam any          // 请求参数，主要用于记录日志
+	LogExtra any          // 日志额外参数，主要用于系统日志定制化展示
 	ResData  any          // 响应结果
 	Err      any          // 请求错误
 	timed    int64        // 执行时间

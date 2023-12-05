@@ -10,6 +10,7 @@ var (
 	machineCropJobRepo       repository.MachineCronJob       = newMachineCronJobRepo()
 	machineCropJobExecRepo   repository.MachineCronJobExec   = newMachineCronJobExecRepo()
 	machineCronJobRelateRepo repository.MachineCronJobRelate = newMachineCropJobRelateRepo()
+	machineTermOpRepo        repository.MachineTermOp        = newMachineTermOpRepoImpl()
 )
 
 func GetMachineRepo() repository.Machine {
@@ -38,4 +39,8 @@ func GetMachineCronJobExecRepo() repository.MachineCronJobExec {
 
 func GetMachineCronJobRelateRepo() repository.MachineCronJobRelate {
 	return machineCronJobRelateRepo
+}
+
+func GetMachineTermOpRepo() repository.MachineTermOp {
+	return machineTermOpRepo
 }

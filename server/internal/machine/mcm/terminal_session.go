@@ -140,6 +140,7 @@ type WsMsg struct {
 	Rows int    `json:"rows"`
 }
 
+// 接收客户端ws发送过来的消息，并写入终端会话中。
 func (ts *TerminalSession) receiveWsMsg() {
 	wsConn := ts.wsConn
 	for {

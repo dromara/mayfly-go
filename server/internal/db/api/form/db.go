@@ -1,13 +1,12 @@
 package form
 
 type DbForm struct {
-	Id         uint64 `json:"id"`
-	Name       string `binding:"required" json:"name"`
-	Database   string `json:"database"`
-	Remark     string `json:"remark"`
-	TagId      uint64 `binding:"required" json:"tagId"`
-	TagPath    string `binding:"required" json:"tagPath"`
-	InstanceId uint64 `binding:"required" json:"instanceId"`
+	Id         uint64   `json:"id"`
+	Name       string   `binding:"required" json:"name"`
+	Database   string   `json:"database"`
+	Remark     string   `json:"remark"`
+	TagId      []uint64 `binding:"required" json:"tagId"`
+	InstanceId uint64   `binding:"required" json:"instanceId"`
 }
 
 type DbSqlSaveForm struct {

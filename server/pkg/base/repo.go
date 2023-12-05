@@ -6,6 +6,7 @@ import (
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/anyx"
 
 	"gorm.io/gorm"
 )
@@ -70,10 +71,13 @@ type Repo[T model.ModelI] interface {
 
 // 基础repo接口
 type RepoImpl[T model.ModelI] struct {
-	M any // 模型实例
+	M T // 模型实例
 }
 
 func (br *RepoImpl[T]) Insert(ctx context.Context, e T) error {
+	if db := contextx.GetDb(ctx); db != nil {
+		return br.InsertWithDb(ctx, db, e)
+	}
 	return gormx.Insert(br.setBaseInfo(ctx, e))
 }
 
@@ -82,6 +86,10 @@ func (br *RepoImpl[T]) InsertWithDb(ctx context.Context, db *gorm.DB, e T) error
 }
 
 func (br *RepoImpl[T]) BatchInsert(ctx context.Context, es []T) error {
+	if db := contextx.GetDb(ctx); db != nil {
+		return br.BatchInsertWithDb(ctx, db, es)
+	}
+
 	for _, e := range es {
 		br.setBaseInfo(ctx, e)
 	}
@@ -97,6 +105,10 @@ func (br *RepoImpl[T]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []
 }
 
 func (br *RepoImpl[T]) UpdateById(ctx context.Context, e T) error {
+	if db := contextx.GetDb(ctx); db != nil {
+		return br.UpdateByIdWithDb(ctx, db, e)
+	}
+
 	return gormx.UpdateById(br.setBaseInfo(ctx, e))
 }
 
@@ -109,6 +121,10 @@ func (br *RepoImpl[T]) Updates(cond any, udpateFields map[string]any) error {
 }
 
 func (br *RepoImpl[T]) DeleteById(ctx context.Context, id uint64) error {
+	if db := contextx.GetDb(ctx); db != nil {
+		return br.DeleteByIdWithDb(ctx, db, id)
+	}
+
 	return gormx.DeleteById(br.getModel(), id)
 }
 
@@ -117,6 +133,10 @@ func (br *RepoImpl[T]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uin
 }
 
 func (br *RepoImpl[T]) DeleteByCond(ctx context.Context, cond any) error {
+	if db := contextx.GetDb(ctx); db != nil {
+		return br.DeleteByCondWithDb(ctx, db, cond)
+	}
+
 	return gormx.DeleteByCond(br.getModel(), cond)
 }
 
@@ -152,8 +172,8 @@ func (br *RepoImpl[T]) CountByCond(cond any) int64 {
 }
 
 // 获取表的模型实例
-func (br *RepoImpl[T]) getModel() any {
-	biz.IsTrue(br.M != nil, "base.RepoImpl的M字段不能为空")
+func (br *RepoImpl[T]) getModel() T {
+	biz.IsTrue(!anyx.IsBlank(br.M), "base.RepoImpl的M字段不能为空")
 	return br.M
 }
 

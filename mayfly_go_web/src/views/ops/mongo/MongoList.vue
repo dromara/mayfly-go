@@ -25,10 +25,7 @@
             </template>
 
             <template #tagPath="{ data }">
-                <tag-info :tag-path="data.tagPath" />
-                <span class="ml5">
-                    {{ data.tagPath }}
-                </span>
+                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Mongo.value" />
             </template>
 
             <template #action="{ data }">
@@ -57,21 +54,25 @@
 import { mongoApi } from './api';
 import { defineAsyncComponent, ref, toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import TagInfo from '../component/TagInfo.vue';
+import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { tagApi } from '../tag/api';
+import { useRoute } from 'vue-router';
 
 const MongoEdit = defineAsyncComponent(() => import('./MongoEdit.vue'));
 const MongoDbs = defineAsyncComponent(() => import('./MongoDbs.vue'));
 const MongoRunCommand = defineAsyncComponent(() => import('./MongoRunCommand.vue'));
 
 const pageTableRef: any = ref(null);
+const route = useRoute();
 
 const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect')];
 const columns = ref([
-    TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('uri', '连接uri'),
+    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(20).alignCenter(),
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('creator', '创建人'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(170).fixedRight().alignCenter(),
@@ -89,7 +90,7 @@ const state = reactive({
     query: {
         pageNum: 1,
         pageSize: 0,
-        tagPath: null,
+        tagPath: '',
     },
     mongoEditDialog: {
         visible: false,
@@ -134,6 +135,11 @@ const deleteMongo = async () => {
 const search = async () => {
     try {
         pageTableRef.value.loading(true);
+
+        if (route.query.tagPath) {
+            state.query.tagPath = route.query.tagPath as string;
+        }
+
         const res = await mongoApi.mongoList.request(state.query);
         state.list = res.list;
         state.total = res.total;
@@ -143,7 +149,7 @@ const search = async () => {
 };
 
 const getTags = async () => {
-    state.tags = await mongoApi.mongoTags.request(null);
+    state.tags = await tagApi.getResourceTagPaths.request({ resourceType: TagResourceTypeEnum.Mongo.value });
 };
 
 const editMongo = async (data: any) => {

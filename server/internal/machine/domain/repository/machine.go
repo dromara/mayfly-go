@@ -12,6 +12,4 @@ type Machine interface {
 
 	// 分页获取机器信息列表
 	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]*vo.MachineVO, orderBy ...string) (*model.PageResult[*[]*vo.MachineVO], error)
-
-	Count(condition *entity.MachineQuery) int64
 }

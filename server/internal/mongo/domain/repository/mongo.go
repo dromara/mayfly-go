@@ -11,6 +11,4 @@ type Mongo interface {
 
 	// 分页获取列表
 	GetList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
-
-	Count(condition *entity.MongoQuery) int64
 }

@@ -2,7 +2,7 @@
     <div class="db-sql-exec">
         <el-row>
             <el-col :span="5">
-                <tag-tree ref="tagTreeRef" :loadTags="loadTags">
+                <tag-tree :resource-type="TagResourceTypeEnum.Db.value" :tag-path-node-type="NodeTypeTagPath" ref="tagTreeRef">
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == SqlExecNodeType.DbInst">
                             <el-popover :show-after="500" placement="right-start" title="数据库实例信息" trigger="hover" :width="250">
@@ -160,6 +160,8 @@ import { dispposeCompletionItemProvider } from '@/components/monaco/completionIt
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { ContextmenuItem } from '@/components/contextmenu';
 import { getDbDialect } from './dialect/index';
+import { sleep } from '@/common/utils/loading';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
 const DbTableDataOp = defineAsyncComponent(() => import('./component/table/DbTableDataOp.vue'));
@@ -213,11 +215,16 @@ const nodeClickChangeDb = (nodeData: TagTreeNode) => {
 
 // tagpath 节点类型
 const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
-    const dbInfos = instMap.get(parentNode.key);
+    const dbInfoRes = await dbApi.dbs.request({ tagPath: parentNode.key });
+    const dbInfos = dbInfoRes.list;
     if (!dbInfos) {
         return [];
     }
+
+    // 防止过快加载会出现一闪而过，对眼睛不好
+    await sleep(100);
     return dbInfos?.map((x: any) => {
+        x.tagPath = parentNode.key;
         return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeDbInst).withParams(x);
     });
 });
@@ -394,35 +401,6 @@ const setHeight = () => {
     state.editorHeight = window.innerHeight - 525 + 'px';
     state.dataTabsTableHeight = window.innerHeight - 255;
     state.tablesOpHeight = window.innerHeight - 220 + 'px';
-};
-
-/**
- * instmap; tagPaht -> info[]
- */
-const instMap: Map<string, any[]> = new Map();
-
-const getInsts = async () => {
-    const res = await dbApi.dbs.request({ pageNum: 1, pageSize: 1000 });
-    if (!res.total) return;
-    for (const db of res.list) {
-        const tagPath = db.tagPath;
-        let dbInsts = instMap.get(tagPath) || [];
-        dbInsts.push(db);
-        instMap.set(tagPath, dbInsts?.sort());
-    }
-};
-
-/**
- * 加载标签树节点
- */
-const loadTags = async () => {
-    await getInsts();
-    const tagPaths = instMap.keys();
-    const tagNodes = [];
-    for (let tagPath of tagPaths) {
-        tagNodes.push(new TagTreeNode(tagPath, tagPath, NodeTypeTagPath));
-    }
-    return tagNodes;
 };
 
 // 选择数据库,改变当前正在操作的数据库信息

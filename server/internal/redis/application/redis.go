@@ -2,12 +2,15 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/domain/repository"
 	"mayfly-go/internal/redis/rdm"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/stringx"
 	"strconv"
 	"strings"
 )
@@ -18,12 +21,10 @@ type Redis interface {
 	// 分页获取机器脚本信息列表
 	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Count(condition *entity.RedisQuery) int64
-
 	// 测试连接
 	TestConn(re *entity.Redis) error
 
-	Save(ctx context.Context, re *entity.Redis) error
+	Save(ctx context.Context, re *entity.Redis, tagIds ...uint64) error
 
 	// 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
@@ -34,23 +35,23 @@ type Redis interface {
 	GetRedisConn(id uint64, db int) (*rdm.RedisConn, error)
 }
 
-func newRedisApp(redisRepo repository.Redis) Redis {
-	return &redisAppImpl{
-		base.AppImpl[*entity.Redis, repository.Redis]{Repo: redisRepo},
+func newRedisApp(redisRepo repository.Redis, tagApp tagapp.TagTree) Redis {
+	app := &redisAppImpl{
+		tagApp: tagApp,
 	}
+	app.Repo = redisRepo
+	return app
 }
 
 type redisAppImpl struct {
 	base.AppImpl[*entity.Redis, repository.Redis]
+
+	tagApp tagapp.TagTree
 }
 
 // 分页获取redis列表
 func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return r.GetRepo().GetRedisList(condition, pageParam, toEntity, orderBy...)
-}
-
-func (r *redisAppImpl) Count(condition *entity.RedisQuery) int64 {
-	return r.GetRepo().Count(condition)
 }
 
 func (r *redisAppImpl) TestConn(re *entity.Redis) error {
@@ -67,7 +68,7 @@ func (r *redisAppImpl) TestConn(re *entity.Redis) error {
 	return nil
 }
 
-func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis) error {
+func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis, tagIds ...uint64) error {
 	// 查找是否存在该库
 	oldRedis := &entity.Redis{Host: re.Host}
 	if re.SshTunnelMachineId > 0 {
@@ -80,7 +81,15 @@ func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis) error {
 			return errorx.NewBiz("该实例已存在")
 		}
 		re.PwdEncrypt()
-		return r.Insert(ctx, re)
+
+		resouceCode := stringx.Rand(16)
+		re.Code = resouceCode
+
+		return r.Tx(ctx, func(ctx context.Context) error {
+			return r.Insert(ctx, re)
+		}, func(ctx context.Context) error {
+			return r.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeRedis, tagIds)
+		})
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
@@ -94,8 +103,13 @@ func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis) error {
 			rdm.CloseConn(re.Id, db)
 		}
 	}
+
 	re.PwdEncrypt()
-	return r.UpdateById(ctx, re)
+	return r.Tx(ctx, func(ctx context.Context) error {
+		return r.UpdateById(ctx, re)
+	}, func(ctx context.Context) error {
+		return r.tagApp.RelateResource(ctx, oldRedis.Code, consts.TagResourceTypeRedis, tagIds)
+	})
 }
 
 // 删除Redis信息
@@ -122,6 +136,6 @@ func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
 		}
 		re.PwdDecrypt()
 
-		return re.ToRedisInfo(db), nil
+		return re.ToRedisInfo(db, r.tagApp.ListTagPathByResource(consts.TagResourceTypeRedis, re.Code)...), nil
 	})
 }

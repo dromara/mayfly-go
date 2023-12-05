@@ -23,11 +23,9 @@ func (d *dbRepoImpl) GetDbList(condition *entity.DbQuery, pageParam *model.PageP
 		Joins("JOIN t_db_instance inst ON db.instance_id = inst.id").
 		Eq("db.instance_id", condition.InstanceId).
 		Like("db.database", condition.Database).
-		In("db.tag_id", condition.TagIds).
-		RLike("db.tag_path", condition.TagPath).
+		In("db.code", condition.Codes).
 		Eq0("db."+model.DeletedColumn, model.ModelUndeleted).
-		Eq0("inst."+model.DeletedColumn, model.ModelUndeleted).
-		OrderByAsc("db.tag_path")
+		Eq0("inst."+model.DeletedColumn, model.ModelUndeleted)
 
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }

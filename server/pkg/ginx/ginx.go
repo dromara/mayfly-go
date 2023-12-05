@@ -103,12 +103,8 @@ func ErrorRes(g *gin.Context, err any) {
 	switch t := err.(type) {
 	case errorx.BizError:
 		g.JSON(http.StatusOK, model.Error(t))
-	case error:
-		g.JSON(http.StatusOK, model.ServerError())
-	case string:
-		g.JSON(http.StatusOK, model.ServerError())
 	default:
-		logx.Errorf("未知错误: %v", t)
+		logx.ErrorTrace("服务器错误", t)
 		g.JSON(http.StatusOK, model.ServerError())
 	}
 }

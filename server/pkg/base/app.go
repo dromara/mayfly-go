@@ -2,6 +2,9 @@ package base
 
 import (
 	"context"
+	"fmt"
+	"mayfly-go/pkg/contextx"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 
 	"gorm.io/gorm"
@@ -62,6 +65,9 @@ type App[T model.ModelI] interface {
 
 	// 根据指定条件统计model表的数量, cond为条件可以为map等
 	CountByCond(cond any) int64
+
+	// 执行事务操作
+	Tx(ctx context.Context, funcs ...func(context.Context) error) (err error)
 }
 
 // 基础application接口实现
@@ -161,4 +167,29 @@ func (ai *AppImpl[T, R]) ListByCondOrder(cond any, list any, order ...string) er
 // 根据指定条件统计model表的数量, cond为条件可以为map等
 func (ai *AppImpl[T, R]) CountByCond(cond any) int64 {
 	return ai.GetRepo().CountByCond(cond)
+}
+
+// 执行事务操作
+func (ai *AppImpl[T, R]) Tx(ctx context.Context, funcs ...func(context.Context) error) (err error) {
+	tx := global.Db.Begin()
+	dbCtx := contextx.WithDb(ctx, tx)
+
+	defer func() {
+		// 移除当前已执行完成的的数据库事务实例
+		contextx.RmDb(ctx)
+		if r := recover(); r != nil {
+			tx.Rollback()
+			err = fmt.Errorf("%v", err)
+		}
+	}()
+
+	for _, f := range funcs {
+		err = f(dbCtx)
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+	}
+	err = tx.Commit().Error
+	return
 }

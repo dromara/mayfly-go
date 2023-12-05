@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"io"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
@@ -41,20 +42,16 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage[*entity.DbQuery](rc.GinCtx, new(entity.DbQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	tagIds := d.TagApp.ListTagIdByAccountId(rc.GetLoginAccount().Id)
-	if len(tagIds) == 0 {
+	codes := d.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeDb, queryCond.TagPath)
+	if len(codes) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
+	queryCond.Codes = codes
 
-	queryCond.TagIds = tagIds
 	res, err := d.DbApp.GetPageList(queryCond, page, new([]vo.DbListVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
-}
-
-func (d *Db) DbTags(rc *req.Ctx) {
-	rc.ResData = d.TagApp.ListTagByAccountIdAndResource(rc.GetLoginAccount().Id, new(entity.Db))
 }
 
 func (d *Db) Save(rc *req.Ctx) {
@@ -63,7 +60,7 @@ func (d *Db) Save(rc *req.Ctx) {
 
 	rc.ReqParam = form
 
-	biz.ErrIsNil(d.DbApp.Save(rc.MetaCtx, db))
+	biz.ErrIsNil(d.DbApp.Save(rc.MetaCtx, db, form.TagId...))
 }
 
 func (d *Db) DeleteDb(rc *req.Ctx) {
@@ -90,7 +87,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	dbId := getDbId(g)
 	dbConn, err := d.DbApp.GetDbConn(dbId, form.Db)
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath...), "%s")
 
 	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbConn.Info.GetLogDesc(), form.Sql)
 	biz.NotEmpty(form.Sql, "sql不能为空")
@@ -161,7 +158,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath...), "%s")
 	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
 
 	defer func() {
@@ -230,7 +227,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			}
 			dbConn, err = d.DbApp.GetDbConn(dbId, stmtUse.DBName.String())
 			biz.ErrIsNil(err)
-			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(laId, dbConn.Info.TagPath), "%s")
+			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(laId, dbConn.Info.TagPath...), "%s")
 			execReq.DbConn = dbConn
 		}
 		// 需要记录执行记录
@@ -270,7 +267,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	la := rc.GetLoginAccount()
 	db, err := d.DbApp.GetById(new(entity.Db), dbId)
 	biz.ErrIsNil(err, "该数据库不存在")
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(la.Id, db.TagPath), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(la.Id, d.TagApp.ListTagPathByResource(consts.TagResourceTypeDb, db.Code)...), "%s")
 
 	now := time.Now()
 	filename := fmt.Sprintf("%s.%s.sql%s", db.Name, now.Format("20060102150405"), extName)

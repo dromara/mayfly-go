@@ -2,13 +2,16 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/structx"
 	"strings"
 )
@@ -21,7 +24,7 @@ type Db interface {
 
 	Count(condition *entity.DbQuery) int64
 
-	Save(ctx context.Context, entity *entity.Db) error
+	Save(ctx context.Context, entity *entity.Db, tagIds ...uint64) error
 
 	// 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
@@ -32,10 +35,11 @@ type Db interface {
 	GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error)
 }
 
-func newDbApp(dbRepo repository.Db, dbSqlRepo repository.DbSql, dbInstanceApp Instance) Db {
+func newDbApp(dbRepo repository.Db, dbSqlRepo repository.DbSql, dbInstanceApp Instance, tagApp tagapp.TagTree) Db {
 	app := &dbAppImpl{
 		dbSqlRepo:     dbSqlRepo,
 		dbInstanceApp: dbInstanceApp,
+		tagApp:        tagApp,
 	}
 	app.Repo = dbRepo
 	return app
@@ -46,6 +50,7 @@ type dbAppImpl struct {
 
 	dbSqlRepo     repository.DbSql
 	dbInstanceApp Instance
+	tagApp        tagapp.TagTree
 }
 
 // 分页获取数据库信息列表
@@ -57,7 +62,7 @@ func (d *dbAppImpl) Count(condition *entity.DbQuery) int64 {
 	return d.GetRepo().Count(condition)
 }
 
-func (d *dbAppImpl) Save(ctx context.Context, dbEntity *entity.Db) error {
+func (d *dbAppImpl) Save(ctx context.Context, dbEntity *entity.Db, tagIds ...uint64) error {
 	// 查找是否存在
 	oldDb := &entity.Db{Name: dbEntity.Name, InstanceId: dbEntity.InstanceId}
 	err := d.GetBy(oldDb)
@@ -66,7 +71,15 @@ func (d *dbAppImpl) Save(ctx context.Context, dbEntity *entity.Db) error {
 		if err == nil {
 			return errorx.NewBiz("该实例下数据库名已存在")
 		}
-		return d.Insert(ctx, dbEntity)
+
+		resouceCode := stringx.Rand(16)
+		dbEntity.Code = resouceCode
+
+		return d.Tx(ctx, func(ctx context.Context) error {
+			return d.Insert(ctx, dbEntity)
+		}, func(ctx context.Context) error {
+			return d.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeDb, tagIds)
+		})
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
@@ -94,7 +107,11 @@ func (d *dbAppImpl) Save(ctx context.Context, dbEntity *entity.Db) error {
 		d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: dbId, Db: v})
 	}
 
-	return d.UpdateById(ctx, dbEntity)
+	return d.Tx(ctx, func(ctx context.Context) error {
+		return d.UpdateById(ctx, dbEntity)
+	}, func(ctx context.Context) error {
+		return d.tagApp.RelateResource(ctx, oldDb.Code, consts.TagResourceTypeDb, tagIds)
+	})
 }
 
 func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
@@ -138,11 +155,11 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error) {
 
 		// 密码解密
 		instance.PwdDecrypt()
-		return toDbInfo(instance, dbId, dbName, db.TagPath), nil
+		return toDbInfo(instance, dbId, dbName, d.tagApp.ListTagPathByResource(consts.TagResourceTypeDb, db.Code)...), nil
 	})
 }
 
-func toDbInfo(instance *entity.DbInstance, dbId uint64, database string, tagPath string) *dbm.DbInfo {
+func toDbInfo(instance *entity.DbInstance, dbId uint64, database string, tagPath ...string) *dbm.DbInfo {
 	di := new(dbm.DbInfo)
 	di.Id = dbId
 	di.Database = database

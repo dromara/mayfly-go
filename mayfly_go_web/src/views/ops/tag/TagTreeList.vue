@@ -79,6 +79,24 @@
             </el-descriptions>
         </el-dialog>
 
+        <el-dialog :title="`[ ${resourceDialog.tagPath} ] 关联的资源`" v-model="resourceDialog.visible" width="500px">
+            <el-table max-height="300" :data="resourceDialog.data">
+                <el-table-column property="resourceType" label="资源类型" min-width="50" show-overflow-tooltip>
+                    <template #default="scope">
+                        {{ EnumValue.getLabelByValue(TagResourceTypeEnum, scope.row.resourceType) }}
+                    </template>
+                </el-table-column>
+
+                <el-table-column property="count" label="数量" min-width="50" show-overflow-tooltip> </el-table-column>
+
+                <el-table-column label="操作" min-width="50" show-overflow-tooltip>
+                    <template #default="scope">
+                        <el-button @click="showResources(scope.row.resourceType, resourceDialog.tagPath)" link type="success">查看</el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-dialog>
+
         <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
     </div>
 </template>
@@ -89,6 +107,9 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from './api';
 import { dateFormat } from '@/common/utils/date';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu/index';
+import { TagResourceTypeEnum } from '../../../common/commonEnum';
+import EnumValue from '@/common/Enum';
+import { useRouter } from 'vue-router';
 
 interface Tree {
     id: number;
@@ -96,6 +117,8 @@ interface Tree {
     name: string;
     children?: Tree[];
 }
+
+const router = useRouter();
 
 const tagForm: any = ref(null);
 const tagTreeRef: any = ref(null);
@@ -123,6 +146,14 @@ const contextmenuDel = new ContextmenuItem('delete', '删除')
     })
     .withOnClick((data: any) => deleteTag(data));
 
+const contextmenuShowRelateResource = new ContextmenuItem('showRelateResources', '查看关联资源')
+    .withIcon('view')
+    .withHideFunc((data: any) => {
+        // 存在子标签，则不允许查看关联资源
+        return data.children;
+    })
+    .withOnClick((data: any) => showRelateResource(data));
+
 const state = reactive({
     data: [],
     saveTabDialog: {
@@ -136,6 +167,12 @@ const state = reactive({
         // 资源类型选择是否选
         data: null as any,
     },
+    resourceDialog: {
+        title: '',
+        visible: false,
+        tagPath: '',
+        data: null as any,
+    },
     // 展开的节点
     defaultExpandedKeys: [] as any,
     contextmenu: {
@@ -143,11 +180,11 @@ const state = reactive({
             x: 0,
             y: 0,
         },
-        items: [contextmenuInfo, contextmenuEdit, contextmenuAdd, contextmenuDel],
+        items: [contextmenuInfo, contextmenuEdit, contextmenuAdd, contextmenuDel, contextmenuShowRelateResource],
     },
 });
 
-const { data, saveTabDialog, infoDialog, defaultExpandedKeys } = toRefs(state);
+const { data, saveTabDialog, infoDialog, resourceDialog, defaultExpandedKeys } = toRefs(state);
 
 const props = {
     label: 'name',
@@ -205,7 +242,7 @@ const info = async (data: any) => {
 const showSaveTagDialog = (data: any) => {
     if (data) {
         state.saveTabDialog.form.pid = data.id;
-        state.saveTabDialog.title = `新增 [${data.codePath}] 子标签信息`;
+        state.saveTabDialog.title = `新增[ ${data.codePath} ]子标签信息`;
     } else {
         state.saveTabDialog.title = '新增根标签信息';
     }
@@ -219,6 +256,49 @@ const showEditTagDialog = (data: any) => {
     state.saveTabDialog.form.remark = data.remark;
     state.saveTabDialog.title = `修改 [${data.codePath}] 信息`;
     state.saveTabDialog.visible = true;
+};
+
+const showRelateResource = async (data: any) => {
+    const resourceMap = new Map();
+    state.resourceDialog.tagPath = data.codePath;
+    const tagResources = await tagApi.getTagResources.request({ tagId: data.id });
+    for (let tagResource of tagResources) {
+        const resourceType = tagResource.resourceType;
+        const exist = resourceMap.get(resourceType);
+        if (exist) {
+            exist.count = exist.count + 1;
+        } else {
+            resourceMap.set(resourceType, { resourceType, count: 1, tagPath: tagResource.tagPath });
+        }
+    }
+    state.resourceDialog.data = Array.from(resourceMap.values());
+    state.resourceDialog.visible = true;
+};
+
+const showResources = (resourceType: any, tagPath: string) => {
+    state.resourceDialog.visible = false;
+    setTimeout(() => {
+        let toPath = '';
+        if (resourceType == TagResourceTypeEnum.Machine.value) {
+            toPath = '/machine/machines';
+        }
+        if (resourceType == TagResourceTypeEnum.Db.value) {
+            toPath = '/dbms/dbs';
+        }
+        if (resourceType == TagResourceTypeEnum.Redis.value) {
+            toPath = '/redis/manage';
+        }
+        if (resourceType == TagResourceTypeEnum.Mongo.value) {
+            toPath = '/mongo/mongo-manage';
+        }
+
+        router.push({
+            path: toPath,
+            query: {
+                tagPath,
+            },
+        });
+    }, 350);
 };
 
 const saveTag = async () => {

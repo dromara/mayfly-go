@@ -10,8 +10,19 @@
             width="38%"
         >
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-form-item prop="tagId" label="标签" required>
-                    <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
+                <el-form-item ref="tagSelectRef" prop="tagId" label="标签" required>
+                    <tag-tree-select
+                        @change-tag="
+                            (tagIds) => {
+                                form.tagId = tagIds;
+                                tagSelectRef.validate();
+                            }
+                        "
+                        multiple
+                        :resource-code="form.code"
+                        :resource-type="TagResourceTypeEnum.Db.value"
+                        style="width: 100%"
+                    />
                 </el-form-item>
 
                 <el-form-item prop="instanceId" label="数据库实例" required>
@@ -77,7 +88,8 @@
 import { toRefs, reactive, watch, ref } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
-import TagSelect from '../component/TagSelect.vue';
+import TagTreeSelect from '../component/TagTreeSelect.vue';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
@@ -128,6 +140,7 @@ const rules = {
 };
 
 const dbForm: any = ref(null);
+const tagSelectRef: any = ref(null);
 
 const state = reactive({
     dialogVisible: false,
@@ -135,9 +148,9 @@ const state = reactive({
     databaseList: [] as any,
     form: {
         id: null,
-        tagId: null as any,
-        tagPath: null as any,
+        tagId: [],
         name: null,
+        code: '',
         database: '',
         remark: '',
         instanceId: null as any,
@@ -148,13 +161,14 @@ const state = reactive({
 
 const { dialogVisible, allDatabases, databaseList, form, btnLoading } = toRefs(state);
 
-watch(props, (newValue: any) => {
+watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
     if (!state.dialogVisible) {
         return;
     }
     if (newValue.db) {
         state.form = { ...newValue.db };
+
         // 将数据库名使用空格切割，获取所有数据库列表
         state.databaseList = newValue.db.database.split(' ');
     } else {

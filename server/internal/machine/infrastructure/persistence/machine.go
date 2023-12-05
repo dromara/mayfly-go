@@ -26,9 +26,7 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 		Eq("status", condition.Status).
 		Like("ip", condition.Ip).
 		Like("name", condition.Name).
-		In("tag_id", condition.TagIds).
-		RLike("tag_path", condition.TagPath).
-		OrderByAsc("tag_path")
+		In("code", condition.Codes)
 
 	if condition.Ids != "" {
 		// ,分割id转为id数组
@@ -39,13 +37,4 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 	}
 
 	return gormx.PageQuery(qd, pageParam, toEntity)
-}
-
-func (m *machineRepoImpl) Count(condition *entity.MachineQuery) int64 {
-	where := make(map[string]any)
-	if len(condition.TagIds) > 0 {
-		where["tag_id"] = condition.TagIds
-	}
-
-	return m.CountByCond(where)
 }

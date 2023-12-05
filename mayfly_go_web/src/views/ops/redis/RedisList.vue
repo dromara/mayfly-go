@@ -25,10 +25,7 @@
             </template>
 
             <template #tagPath="{ data }">
-                <tag-info :tag-path="data.tagPath" />
-                <span class="ml5">
-                    {{ data.tagPath }}
-                </span>
+                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Redis.value" />
             </template>
 
             <template #action="{ data }">
@@ -167,18 +164,22 @@ import { ref, toRefs, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
-import TagInfo from '../component/TagInfo.vue';
+import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
+import { tagApi } from '../tag/api';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { useRoute } from 'vue-router';
 
 const pageTableRef: any = ref(null);
+const route = useRoute();
 
 const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect')];
 const columns = ref([
-    TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('host', 'host:port'),
     TableColumn.new('mode', 'mode'),
+    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
     TableColumn.new('remark', '备注'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(200).fixedRight().alignCenter(),
 ]);
@@ -189,7 +190,7 @@ const state = reactive({
     total: 0,
     selectionData: [],
     query: {
-        tagPath: null,
+        tagPath: '',
         pageNum: 1,
         pageSize: 0,
     },
@@ -269,6 +270,11 @@ const onShowClusterInfo = async (redis: any) => {
 const search = async () => {
     try {
         pageTableRef.value.loading(true);
+
+        if (route.query.tagPath) {
+            state.query.tagPath = route.query.tagPath as string;
+        }
+
         const res = await redisApi.redisList.request(state.query);
         state.redisTable = res.list;
         state.total = res.total;
@@ -278,7 +284,7 @@ const search = async () => {
 };
 
 const getTags = async () => {
-    state.tags = await redisApi.redisTags.request(null);
+    state.tags = await tagApi.getResourceTagPaths.request({ resourceType: TagResourceTypeEnum.Redis.value });
 };
 
 const editRedis = async (data: any) => {

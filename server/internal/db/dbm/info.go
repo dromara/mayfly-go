@@ -20,7 +20,7 @@ type DbInfo struct {
 	Params   string
 	Database string
 
-	TagPath            string
+	TagPath            []string
 	SshTunnelMachineId int
 }
 

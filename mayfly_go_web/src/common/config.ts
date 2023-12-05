@@ -15,7 +15,7 @@ const config = {
     baseWsUrl: `${(window as any).globalConfig.BaseWsUrl || `${location.protocol == 'https:' ? 'wss:' : 'ws:'}//${getBaseApiUrl()}`}/api`,
 
     // 系统版本
-    version: 'v1.5.4',
+    version: 'v1.6.0',
 };
 
 export default config;

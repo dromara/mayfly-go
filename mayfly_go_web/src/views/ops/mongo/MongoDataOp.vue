@@ -2,7 +2,7 @@
     <div>
         <el-row>
             <el-col :span="5">
-                <tag-tree :loadTags="loadTags">
+                <tag-tree :resource-type="TagResourceTypeEnum.Mongo.value" :tag-path-node-type="NodeTypeTagPath">
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == MongoNodeType.Mongo">
                             <el-popover :show-after="500" placement="right-start" title="mongo实例信息" trigger="hover" :width="250">
@@ -172,6 +172,8 @@ import { isTrue, notBlank } from '@/common/assert';
 import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { formatByteSize } from '@/common/utils/format';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { sleep } from '@/common/utils/loading';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
@@ -192,12 +194,15 @@ class MongoNodeType {
 
 // tagpath 节点类型
 const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
-    // 点击标签 -> 显示mongo信息列表
-    const mongoInfos = instMap.get(parentNode.key);
-    if (!mongoInfos) {
+    const res = await mongoApi.mongoList.request({ tagPath: parentNode.key });
+    if (!res.total) {
         return [];
     }
+
+    const mongoInfos = res.list;
+    await sleep(100);
     return mongoInfos?.map((x: any) => {
+        x.tagPath = parentNode.key;
         return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeMongo).withParams(x);
     });
 });
@@ -277,35 +282,6 @@ const { dataHeight, findDialog, docEditDialog } = toRefs(state);
 const nowColl = computed(() => {
     return getNowDataTab();
 });
-
-/**
- * instmap;  tagPaht -> mongo info[]
- */
-const instMap: Map<string, any[]> = new Map();
-
-const getInsts = async () => {
-    const res = await mongoApi.mongoList.request({ pageNum: 1, pageSize: 1000 });
-    if (!res.total) return;
-    for (const mongoInfo of res.list) {
-        const tagPath = mongoInfo.tagPath;
-        let mongoInsts = instMap.get(tagPath) || [];
-        mongoInsts.push(mongoInfo);
-        instMap.set(tagPath, mongoInsts);
-    }
-};
-
-/**
- * 加载标签树树节点
- */
-const loadTags = async () => {
-    await getInsts();
-    const tagPaths = instMap.keys();
-    const tagNodes = [];
-    for (let tagPath of tagPaths) {
-        tagNodes.push(new TagTreeNode(tagPath, tagPath, NodeTypeTagPath));
-    }
-    return tagNodes;
-};
 
 const changeCollection = async (id: any, schema: string, collection: string) => {
     const label = `${id}:\`${schema}\`.${collection}`;

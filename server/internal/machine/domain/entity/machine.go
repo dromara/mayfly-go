@@ -8,14 +8,13 @@ import (
 type Machine struct {
 	model.Model
 
+	Code               string `json:"code"`
 	Name               string `json:"name"`
-	Ip                 string `json:"ip"`         // IP地址
-	Port               int    `json:"port"`       // 端口号
-	Username           string `json:"username"`   // 用户名
-	Password           string `json:"password"`   // 密码
-	AuthCertId         int    `json:"authCertId"` // 授权凭证id
-	TagId              uint64
-	TagPath            string
+	Ip                 string `json:"ip"`                 // IP地址
+	Port               int    `json:"port"`               // 端口号
+	Username           string `json:"username"`           // 用户名
+	Password           string `json:"password"`           // 密码
+	AuthCertId         int    `json:"authCertId"`         // 授权凭证id
 	Status             int8   `json:"status"`             // 状态 1:启用；2:停用
 	Remark             string `json:"remark"`             // 备注
 	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id

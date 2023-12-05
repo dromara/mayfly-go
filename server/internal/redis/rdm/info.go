@@ -31,9 +31,9 @@ type RedisInfo struct {
 	Username string    `json:"-"`
 	Password string    `json:"-"`
 
-	Name               string `json:"-"`
-	TagPath            string `json:"tagPath"`
-	SshTunnelMachineId int    `json:"-"`
+	Name               string   `json:"-"`
+	TagPath            []string `json:"tagPath"`
+	SshTunnelMachineId int      `json:"-"`
 }
 
 func (r *RedisInfo) Conn() (*RedisConn, error) {

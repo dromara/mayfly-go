@@ -69,7 +69,7 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	}
 	cli, err := m.MachineApp.GetCli(machineId)
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), "%s")
 
 	res, err := cli.Run(script)
 	// 记录请求参数

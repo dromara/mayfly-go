@@ -106,8 +106,17 @@ func Errorf(format string, args ...any) {
 }
 
 // 错误记录，并将堆栈信息添加至msg里，默认记录10个堆栈信息
-func ErrorTrace(msg string, err error) {
-	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+" %s\n%s", err.Error(), runtimex.StatckStr(2, 10)))
+func ErrorTrace(msg string, err any) {
+	errMsg := ""
+	switch t := err.(type) {
+	case error:
+		errMsg = t.Error()
+	case string:
+		errMsg = t
+	default:
+		errMsg = fmt.Sprintf("%v", t)
+	}
+	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+"\n%s\n%s", errMsg, runtimex.StatckStr(2, 10)))
 }
 
 func ErrorWithFields(ctx context.Context, msg string, mapFields map[string]any) {

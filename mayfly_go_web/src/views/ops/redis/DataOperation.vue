@@ -4,7 +4,7 @@
             <el-col :span="5">
                 <el-row type="flex" justify="space-between">
                     <el-col :span="24" class="flex-auto">
-                        <tag-tree :loadTags="loadTags">
+                        <tag-tree :resource-type="TagResourceTypeEnum.Redis.value" :tag-path-node-type="NodeTypeTagPath">
                             <template #prefix="{ data }">
                                 <span v-if="data.type.value == RedisNodeType.Redis">
                                     <el-popover :show-after="500" placement="right-start" title="redis实例信息" trigger="hover" :width="250">
@@ -181,6 +181,8 @@ import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { keysToTree, sortByTreeNodes, keysToList } from './utils';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
+import { sleep } from '../../../common/utils/loading';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
@@ -212,11 +214,15 @@ class RedisNodeType {
 
 // tagpath 节点类型
 const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
-    const redisInfos = instMap.get(parentNode.key);
-    if (!redisInfos) {
+    const res = await redisApi.redisList.request({ tagPath: parentNode.key });
+    if (!res.total) {
         return [];
     }
+
+    const redisInfos = res.list;
+    await sleep(100);
     return redisInfos.map((x: any) => {
+        x.tagPath = parentNode.key;
         return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeRedis).withParams(x);
     });
 });
@@ -321,34 +327,34 @@ const setHeight = () => {
     state.keyTreeHeight = window.innerHeight - 174 + 'px';
 };
 
-/**
- * instmap;  tagPaht -> redis info[]
- */
-const instMap: Map<string, any[]> = new Map();
+// /**
+//  * instmap;  tagPaht -> redis info[]
+//  */
+// const instMap: Map<string, any[]> = new Map();
 
-const getInsts = async () => {
-    const res = await redisApi.redisList.request({ pageNum: 1, pageSize: 1000 });
-    if (!res.total) return;
-    for (const redisInfo of res.list) {
-        const tagPath = redisInfo.tagPath;
-        let redisInsts = instMap.get(tagPath) || [];
-        redisInsts.push(redisInfo);
-        instMap.set(tagPath, redisInsts);
-    }
-};
+// const getInsts = async () => {
+//     const res = await redisApi.redisList.request({ pageNum: 1, pageSize: 1000 });
+//     if (!res.total) return;
+//     for (const redisInfo of res.list) {
+//         const tagPath = redisInfo.tagPath;
+//         let redisInsts = instMap.get(tagPath) || [];
+//         redisInsts.push(redisInfo);
+//         instMap.set(tagPath, redisInsts);
+//     }
+// };
 
-/**
- * 加载标签树节点
- */
-const loadTags = async () => {
-    await getInsts();
-    const tagPaths = instMap.keys();
-    const tagNodes = [];
-    for (let tagPath of tagPaths) {
-        tagNodes.push(new TagTreeNode(tagPath, tagPath, NodeTypeTagPath));
-    }
-    return tagNodes;
-};
+// /**
+//  * 加载标签树节点
+//  */
+// const loadTags = async () => {
+//     await getInsts();
+//     const tagPaths = instMap.keys();
+//     const tagNodes = [];
+//     for (let tagPath of tagPaths) {
+//         tagNodes.push(new TagTreeNode(tagPath, tagPath, NodeTypeTagPath));
+//     }
+//     return tagNodes;
+// };
 
 const scan = async (appendKey = false) => {
     isTrue(state.scanParam.id != null, '请先选择redis');

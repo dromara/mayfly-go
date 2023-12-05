@@ -44,6 +44,10 @@ type MachineCronJob interface {
 
 	// 初始化计划任务
 	InitCronJob()
+
+	// 执行cron job
+	// @param key cron job key
+	RunCronJob(key string)
 }
 
 type machineCropJobAppImpl struct {
@@ -183,30 +187,7 @@ func (m *machineCropJobAppImpl) InitCronJob() {
 	}
 }
 
-func (m *machineCropJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
-	var key string
-	isDisable := mcj.Status == entity.MachineCronJobStatusDisable
-	if mcj.Id == 0 {
-		key = stringx.Rand(16)
-		mcj.Key = key
-		if isDisable {
-			return
-		}
-	} else {
-		key = mcj.Key
-	}
-
-	if isDisable {
-		scheduler.RemoveByKey(key)
-		return
-	}
-
-	scheduler.AddFunByKey(key, mcj.Cron, func() {
-		go m.runCronJob(key)
-	})
-}
-
-func (m *machineCropJobAppImpl) runCronJob(key string) {
+func (m *machineCropJobAppImpl) RunCronJob(key string) {
 	// 简单使用redis分布式锁防止多实例同一时刻重复执行
 	if lock := rediscli.NewLock(key, 30*time.Second); lock != nil {
 		if !lock.Lock() {
@@ -229,6 +210,28 @@ func (m *machineCropJobAppImpl) runCronJob(key string) {
 	}
 }
 
+func (m *machineCropJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
+	var key string
+	isDisable := mcj.Status == entity.MachineCronJobStatusDisable
+	if mcj.Id == 0 {
+		key = stringx.Rand(16)
+		mcj.Key = key
+		if isDisable {
+			return
+		}
+	} else {
+		key = mcj.Key
+	}
+
+	if isDisable {
+		scheduler.RemoveByKey(key)
+		return
+	}
+
+	scheduler.AddFunByKey(key, mcj.Cron, func() {
+		go m.RunCronJob(key)
+	})
+}
 func (m *machineCropJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineCronJob) {
 	defer func() {
 		if err := recover(); err != nil {

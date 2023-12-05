@@ -3,17 +3,20 @@ package application
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/internal/machine/infrastructure/cache"
 	"mayfly-go/internal/machine/mcm"
+	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
+	"mayfly-go/pkg/utils/stringx"
 	"time"
 
 	"gorm.io/gorm"
@@ -22,15 +25,13 @@ import (
 type Machine interface {
 	base.App[*entity.Machine]
 
-	Save(ctx context.Context, m *entity.Machine) error
+	Save(ctx context.Context, m *entity.Machine, tagIds ...uint64) error
 
 	// 测试机器连接
 	TestConn(me *entity.Machine) error
 
 	// 调整机器状态
 	ChangeStatus(ctx context.Context, id uint64, status int8) error
-
-	Count(condition *entity.MachineQuery) int64
 
 	Delete(ctx context.Context, id uint64) error
 
@@ -50,9 +51,10 @@ type Machine interface {
 	GetMachineStats(machineId uint64) (*mcm.Stats, error)
 }
 
-func newMachineApp(machineRepo repository.Machine, authCertApp AuthCert) Machine {
+func newMachineApp(machineRepo repository.Machine, authCertApp AuthCert, tagApp tagapp.TagTree) Machine {
 	app := &machineAppImpl{
 		authCertApp: authCertApp,
+		tagApp:      tagApp,
 	}
 	app.Repo = machineRepo
 	return app
@@ -62,6 +64,8 @@ type machineAppImpl struct {
 	base.AppImpl[*entity.Machine, repository.Machine]
 
 	authCertApp AuthCert
+
+	tagApp tagapp.TagTree
 }
 
 // 分页获取机器信息列表
@@ -69,11 +73,7 @@ func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pagePara
 	return m.GetRepo().GetMachineList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (m *machineAppImpl) Count(condition *entity.MachineQuery) int64 {
-	return m.GetRepo().Count(condition)
-}
-
-func (m *machineAppImpl) Save(ctx context.Context, me *entity.Machine) error {
+func (m *machineAppImpl) Save(ctx context.Context, me *entity.Machine, tagIds ...uint64) error {
 	oldMachine := &entity.Machine{Ip: me.Ip, Port: me.Port, Username: me.Username}
 	if me.SshTunnelMachineId > 0 {
 		oldMachine.SshTunnelMachineId = me.SshTunnelMachineId
@@ -85,9 +85,16 @@ func (m *machineAppImpl) Save(ctx context.Context, me *entity.Machine) error {
 		if err == nil {
 			return errorx.NewBiz("该机器信息已存在")
 		}
+		resouceCode := stringx.Rand(16)
+		me.Code = resouceCode
 		// 新增机器，默认启用状态
 		me.Status = entity.MachineStatusEnable
-		return m.Insert(ctx, me)
+
+		return m.Tx(ctx, func(ctx context.Context) error {
+			return m.Insert(ctx, me)
+		}, func(ctx context.Context) error {
+			return m.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeMachine, tagIds)
+		})
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
@@ -97,7 +104,11 @@ func (m *machineAppImpl) Save(ctx context.Context, me *entity.Machine) error {
 
 	// 关闭连接
 	mcm.DeleteCli(me.Id)
-	return m.UpdateById(ctx, me)
+	return m.Tx(ctx, func(ctx context.Context) error {
+		return m.UpdateById(ctx, me)
+	}, func(ctx context.Context) error {
+		return m.tagApp.RelateResource(ctx, oldMachine.Code, consts.TagResourceTypeMachine, tagIds)
+	})
 }
 
 func (m *machineAppImpl) TestConn(me *entity.Machine) error {
@@ -214,7 +225,7 @@ func (m *machineAppImpl) toMachineInfo(me *entity.Machine) (*mcm.MachineInfo, er
 	mi.Ip = me.Ip
 	mi.Port = me.Port
 	mi.Username = me.Username
-	mi.TagPath = me.TagPath
+	mi.TagPath = m.tagApp.ListTagPathByResource(consts.TagResourceTypeMachine, me.Code)
 	mi.EnableRecorder = me.EnableRecorder
 
 	if me.UseAuthCert() {

@@ -26,6 +26,8 @@ func InitMachineCronJobRouter(router *gin.RouterGroup) {
 
 		req.NewDelete(":ids", cj.Delete).Log(req.NewLogSave("删除机器计划任务")),
 
+		req.NewPost("/run/:key", cj.RunCronJob).Log(req.NewLogSave("手动执行计划任务")),
+
 		req.NewGet("/execs", cj.CronJobExecs),
 	}
 

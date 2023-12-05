@@ -10,6 +10,7 @@ import (
 type Redis struct {
 	model.Model
 
+	Code               string `orm:"column(code)" json:"code"`
 	Name               string `orm:"column(name)" json:"name"`
 	Host               string `orm:"column(host)" json:"host"`
 	Mode               string `json:"mode"`
@@ -18,8 +19,6 @@ type Redis struct {
 	Db                 string `orm:"column(database)" json:"db"`
 	SshTunnelMachineId int    `orm:"column(ssh_tunnel_machine_id)" json:"sshTunnelMachineId"` // ssh隧道机器id
 	Remark             string
-	TagId              uint64
-	TagPath            string
 }
 
 func (r *Redis) PwdEncrypt() {
@@ -33,9 +32,10 @@ func (r *Redis) PwdDecrypt() {
 }
 
 // 转换为redisInfo进行连接
-func (re *Redis) ToRedisInfo(db int) *rdm.RedisInfo {
+func (re *Redis) ToRedisInfo(db int, tagPath ...string) *rdm.RedisInfo {
 	redisInfo := new(rdm.RedisInfo)
 	structx.Copy(redisInfo, re)
 	redisInfo.Db = db
+	redisInfo.TagPath = tagPath
 	return redisInfo
 }

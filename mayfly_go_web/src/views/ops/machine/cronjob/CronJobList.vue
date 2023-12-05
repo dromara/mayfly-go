@@ -24,6 +24,9 @@
             </template>
 
             <template #action="{ data }">
+                <el-button :disabled="data.status == CronJobStatusEnum.Disable.value" v-auth="perms.saveCronJob" type="primary" @click="runCronJob(data)" link
+                    >执行</el-button
+                >
                 <el-button v-auth="perms.saveCronJob" type="primary" @click="openFormDialog(data)" link>编辑</el-button>
                 <el-button type="primary" @click="showExec(data)" link>执行记录</el-button>
             </template>
@@ -109,6 +112,11 @@ const openFormDialog = async (data: any) => {
 
     state.cronJobEdit.title = dialogTitle;
     state.cronJobEdit.visible = true;
+};
+
+const runCronJob = async (data: any) => {
+    await cronJobApi.run.request({ key: data.key });
+    ElMessage.success('执行成功');
 };
 
 const deleteCronJob = async () => {

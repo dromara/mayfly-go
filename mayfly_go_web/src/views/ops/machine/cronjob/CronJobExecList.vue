@@ -13,9 +13,9 @@
                 ref="pageTableRef"
                 :query="queryConfig"
                 v-model:query-form="params"
-                :data="data.list"
+                :data="state.data.list"
                 :columns="columns"
-                :total="data.total"
+                :total="state.data.total"
                 v-model:page-size="params.pageSize"
                 v-model:page-num="params.pageNum"
                 @pageChange="search()"
@@ -88,7 +88,7 @@ const state = reactive({
 
 const machineMap: Map<number, any> = new Map();
 
-const { dialogVisible, params, data } = toRefs(state);
+const { dialogVisible, params } = toRefs(state);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;

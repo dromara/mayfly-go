@@ -1,12 +1,11 @@
 package form
 
 type Mongo struct {
-	Id                 uint64 `json:"id"`
-	Uri                string `binding:"required" json:"uri"`
-	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
-	Name               string `binding:"required" json:"name"`
-	TagId              uint64 `binding:"required" json:"tagId"`
-	TagPath            string `binding:"required" json:"tagPath"`
+	Id                 uint64   `json:"id"`
+	Uri                string   `binding:"required" json:"uri"`
+	SshTunnelMachineId int      `json:"sshTunnelMachineId"` // ssh隧道机器id
+	Name               string   `binding:"required" json:"name"`
+	TagId              []uint64 `binding:"required" json:"tagId"`
 }
 
 type MongoCommand struct {

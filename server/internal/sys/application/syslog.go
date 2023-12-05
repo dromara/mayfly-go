@@ -43,9 +43,10 @@ func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 	syslog.CreateTime = time.Now()
 	syslog.Creator = lg.Username
 	syslog.CreatorId = lg.Id
-	syslog.Description = req.GetLogInfo().Description
 
-	if req.GetLogInfo().LogResp {
+	logInfo := req.GetLogInfo()
+	syslog.Description = logInfo.Description
+	if logInfo.LogResp {
 		respB, _ := json.Marshal(req.ResData)
 		syslog.Resp = string(respB)
 	}

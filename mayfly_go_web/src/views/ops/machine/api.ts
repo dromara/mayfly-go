@@ -43,7 +43,10 @@ export const machineApi = {
     // 删除配置的文件or目录
     delConf: Api.newDelete('/machines/{machineId}/files/{id}'),
     terminal: Api.newGet('/api/machines/{id}/terminal'),
-    recDirNames: Api.newGet('/machines/rec/names'),
+    // 机器终端操作记录列表
+    termOpRecs: Api.newGet('/machines/{id}/term-recs'),
+    // 机器终端操作记录详情
+    termOpRec: Api.newGet('/machines/{id}/term-recs/{recId}'),
 };
 
 export const authCertApi = {
@@ -59,6 +62,7 @@ export const cronJobApi = {
     relateCronJobIds: Api.newGet('/machine-cronjobs/cronjob-ids'),
     save: Api.newPost('/machine-cronjobs'),
     delete: Api.newDelete('/machine-cronjobs/{id}'),
+    run: Api.newPost('/machine-cronjobs/run/{key}'),
     execList: Api.newGet('/machine-cronjobs/execs'),
 };
 

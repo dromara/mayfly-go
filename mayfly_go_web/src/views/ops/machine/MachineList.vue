@@ -24,13 +24,6 @@
                 <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()" type="danger" icon="delete">删除</el-button>
             </template>
 
-            <template #tagPath="{ data }">
-                <tag-info :tag-path="data.tagPath" />
-                <span class="ml5">
-                    {{ data.tagPath }}
-                </span>
-            </template>
-
             <template #ipPort="{ data }">
                 <el-link :disabled="data.status == -1" @click="showMachineStats(data)" type="primary" :underline="false">
                     {{ `${data.ip}:${data.port}` }}
@@ -80,6 +73,10 @@
                     style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
                     @change="changeStatus(data)"
                 ></el-switch>
+            </template>
+
+            <template #tagPath="{ data }">
+                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Machine.value" />
             </template>
 
             <template #action="{ data }">
@@ -190,15 +187,17 @@
 
 <script lang="ts" setup>
 import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi, getMachineTerminalSocketUrl } from './api';
 import { dateFormat } from '@/common/utils/date';
-import TagInfo from '../component/TagInfo.vue';
+import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { formatByteSize } from '@/common/utils/format';
+import { tagApi } from '../tag/api';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 // 组件
 const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
@@ -210,6 +209,7 @@ const MachineRec = defineAsyncComponent(() => import('./MachineRec.vue'));
 const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
 
 const router = useRouter();
+const route = useRoute();
 const pageTableRef: any = ref(null);
 const terminalDialogRef: any = ref(null);
 
@@ -224,13 +224,13 @@ const perms = {
 const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect'), TableQuery.text('ip', 'IP'), TableQuery.text('name', '名称')];
 
 const columns = ref([
-    TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
     TableColumn.new('stat', '运行状态').isSlot().setAddWidth(50),
     TableColumn.new('fs', '磁盘(挂载点=>可用/总)').isSlot().setAddWidth(20),
     TableColumn.new('username', '用户名'),
     TableColumn.new('status', '状态').isSlot().setMinWidth(85),
+    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
     TableColumn.new('remark', '备注'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(238).fixedRight().alignCenter(),
 ]);
@@ -245,7 +245,7 @@ const state = reactive({
         pageSize: 0,
         ip: null,
         name: null,
-        tagPath: null,
+        tagPath: '',
     },
     // 列表数据
     data: {
@@ -360,7 +360,7 @@ const closeCli = async (row: any) => {
 };
 
 const getTags = async () => {
-    state.tags = await machineApi.tagList.request(null);
+    state.tags = await tagApi.getResourceTagPaths.request({ resourceType: TagResourceTypeEnum.Machine.value });
 };
 
 const openFormDialog = async (machine: any) => {
@@ -434,6 +434,9 @@ const showFileManage = (selectionData: any) => {
 const search = async () => {
     try {
         pageTableRef.value.loading(true);
+        if (route.query.tagPath) {
+            state.params.tagPath = route.query.tagPath as string;
+        }
         const res = await machineApi.list.request(state.params);
         state.data = res;
     } finally {

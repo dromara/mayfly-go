@@ -2,14 +2,14 @@
     <div>
         <el-tree-select
             v-bind="$attrs"
-            @check="changeTag"
+            v-model="selectTags"
+            @change="changeTag"
             style="width: 100%"
             :data="tags"
             placeholder="请选择关联标签"
             :render-after-expand="true"
             :default-expanded-keys="[selectTags]"
             show-checkbox
-            check-strictly
             node-key="id"
             :props="{
                 value: 'id',
@@ -33,35 +33,46 @@
 </template>
 
 <script lang="ts" setup>
-import { useAttrs, toRefs, reactive, onMounted } from 'vue';
+import { toRefs, reactive, onMounted } from 'vue';
 import { tagApi } from '../tag/api';
 
-const attrs = useAttrs();
 //定义事件
-const emit = defineEmits(['changeTag', 'update:tagPath']);
+const emit = defineEmits(['update:modelValue', 'changeTag', 'input']);
+
+const props = defineProps({
+    resourceCode: {
+        type: [String],
+        required: true,
+    },
+    resourceType: {
+        type: [Number],
+        required: true,
+    },
+});
 
 const state = reactive({
     tags: [],
     // 单选则为id，多选为id数组
-    selectTags: null as any,
+    selectTags: [],
 });
 
 const { tags, selectTags } = toRefs(state);
 
 onMounted(async () => {
-    if (attrs.modelValue) {
-        state.selectTags = attrs.modelValue;
+    if (props.resourceCode) {
+        const resourceTags = await tagApi.getTagResources.request({
+            resourceCode: props.resourceCode,
+            resourceType: props.resourceType,
+        });
+        state.selectTags = resourceTags.map((x: any) => x.tagId);
+        changeTag();
     }
+
     state.tags = await tagApi.getTagTrees.request(null);
 });
 
-const changeTag = (tag: any, checkInfo: any) => {
-    if (checkInfo.checkedNodes.length > 0) {
-        emit('update:tagPath', tag.codePath);
-        emit('changeTag', tag);
-    } else {
-        emit('update:tagPath', null);
-    }
+const changeTag = () => {
+    emit('changeTag', state.selectTags);
 };
 </script>
 <style lang="scss"></style>

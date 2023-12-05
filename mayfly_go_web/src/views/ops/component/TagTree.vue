@@ -43,17 +43,22 @@
 
 <script lang="ts" setup>
 import { onMounted, reactive, ref, watch, toRefs, onUnmounted } from 'vue';
-import { TagTreeNode } from './tag';
+import { NodeType, TagTreeNode } from './tag';
 import TagInfo from './TagInfo.vue';
 import { Contextmenu } from '@/components/contextmenu';
 import { useViewport } from '@/common/use';
+import { tagApi } from '../tag/api';
 
 const props = defineProps({
-    load: {
-        type: Function,
-        required: false,
+    resourceType: {
+        type: [Number],
+        required: true,
     },
-    loadTags: {
+    tagPathNodeType: {
+        type: [NodeType],
+        required: true,
+    },
+    load: {
         type: Function,
         required: false,
     },
@@ -110,6 +115,18 @@ const filterNode = (value: string, data: any) => {
 };
 
 /**
+ * 加载标签树节点
+ */
+const loadTags = async () => {
+    const tags = await tagApi.getResourceTagPaths.request({ resourceType: props.resourceType });
+    const tagNodes = [];
+    for (let tagPath of tags) {
+        tagNodes.push(new TagTreeNode(tagPath, tagPath, props.tagPathNodeType));
+    }
+    return tagNodes;
+};
+
+/**
  * 加载树节点
  * @param { Object } node
  * @param { Object } resolve
@@ -120,8 +137,8 @@ const loadNode = async (node: any, resolve: any) => {
     }
     let nodes = [];
     try {
-        if (node.level == 0 && props.loadTags) {
-            nodes = await props.loadTags(node);
+        if (node.level == 0) {
+            nodes = await loadTags();
         } else if (props.load) {
             nodes = await props.load(node);
         } else {

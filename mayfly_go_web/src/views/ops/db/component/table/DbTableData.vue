@@ -71,7 +71,7 @@
                                         :ref="(el: any) => el?.focus()"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
                                         class="w100"
-                                        input-style="text-align: center; height: 27px;"
+                                        input-style="text-align: center; height: 26px;"
                                         size="small"
                                         v-model="rowData[column.dataKey!]"
                                     ></el-input>

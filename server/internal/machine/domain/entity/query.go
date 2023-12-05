@@ -6,7 +6,8 @@ type MachineQuery struct {
 	Status  int8   `json:"status" form:"status"`
 	Ip      string `json:"ip" form:"ip"` // IP地址
 	TagPath string `json:"tagPath" form:"tagPath"`
-	TagIds  []uint64
+
+	Codes []string
 }
 
 type AuthCertQuery struct {

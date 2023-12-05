@@ -48,6 +48,7 @@ func (app *instanceAppImpl) Count(condition *entity.InstanceQuery) int64 {
 }
 
 func (app *instanceAppImpl) TestConn(instanceEntity *entity.DbInstance) error {
+	instanceEntity.Network = instanceEntity.GetNetwork()
 	dbConn, err := toDbInfo(instanceEntity, 0, "", "").Conn()
 	if err != nil {
 		return err

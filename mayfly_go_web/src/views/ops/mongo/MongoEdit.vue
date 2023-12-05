@@ -4,8 +4,19 @@
             <el-form :model="form" ref="mongoForm" :rules="rules" label-width="85px">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item prop="tagId" label="标签" required>
-                            <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
+                        <el-form-item ref="tagSelectRef" prop="tagId" label="标签" required>
+                            <tag-tree-select
+                                @change-tag="
+                                    (tagIds) => {
+                                        form.tagId = tagIds;
+                                        tagSelectRef.validate();
+                                    }
+                                "
+                                multiple
+                                :resource-code="form.code"
+                                :resource-type="TagResourceTypeEnum.Mongo.value"
+                                style="width: 100%"
+                            />
                         </el-form-item>
 
                         <el-form-item prop="name" label="名称" required>
@@ -45,8 +56,9 @@
 import { toRefs, reactive, watch, ref } from 'vue';
 import { mongoApi } from './api';
 import { ElMessage } from 'element-plus';
-import TagSelect from '../component/TagSelect.vue';
+import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
@@ -88,16 +100,18 @@ const rules = {
 };
 
 const mongoForm: any = ref(null);
+const tagSelectRef: any = ref(null);
+
 const state = reactive({
     dialogVisible: false,
     tabActiveName: 'basic',
     form: {
         id: null,
+        code: '',
         name: null,
         uri: null,
         sshTunnelMachineId: null as any,
-        tagId: null as any,
-        tagPath: null as any,
+        tagId: [],
     },
     btnLoading: false,
     testConnBtnLoading: false,
@@ -146,7 +160,7 @@ const testConn = async () => {
 const btnOk = async () => {
     mongoForm.value.validate(async (valid: boolean) => {
         if (valid) {
-            mongoApi.saveMongo.request(getReqForm).then(() => {
+            mongoApi.saveMongo.request(getReqForm()).then(() => {
                 ElMessage.success('保存成功');
                 emit('val-change', state.form);
                 state.btnLoading = true;

@@ -265,7 +265,7 @@ const state = reactive({
     tableMaxHeight: window.innerHeight - 240 + 'px',
 });
 
-const { pageSizes, isOpenMoreQuery, defaultQueryCount, queryForm_, inputWidth_, loadingData, tableMaxHeight } = toRefs(state);
+const { pageSizes, isOpenMoreQuery, defaultQueryCount, queryForm_, inputWidth_, formatVal, loadingData, tableMaxHeight } = toRefs(state);
 
 watch(
     () => props.queryForm,
@@ -333,6 +333,15 @@ onMounted(() => {
 
 const calcuTableHeight = () => {
     state.tableMaxHeight = window.innerHeight - 240 + 'px';
+};
+
+const formatText = (data: any) => {
+    state.formatVal = '';
+    try {
+        state.formatVal = JSON.stringify(JSON.parse(data), null, 4);
+    } catch (e) {
+        state.formatVal = data;
+    }
 };
 
 const getRowQueryItem = (row: number) => {

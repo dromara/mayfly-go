@@ -46,10 +46,7 @@
             </template>
 
             <template #tagPath="{ data }">
-                <tag-info :tag-path="data.tagPath" />
-                <span class="ml5">
-                    {{ data.tagPath }}
-                </span>
+                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Db.value" />
             </template>
 
             <template #host="{ data }">
@@ -167,12 +164,15 @@ import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
 import { dateFormat } from '@/common/utils/date';
-import TagInfo from '../component/TagInfo.vue';
+import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import DbSqlExecLog from './DbSqlExecLog.vue';
 import { DbType } from './dialect';
+import { tagApi } from '../tag/api';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { useRoute } from 'vue-router';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
@@ -185,12 +185,12 @@ const perms = {
 const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect'), TableQuery.slot('instanceId', '实例', 'instanceSelect')];
 
 const columns = ref([
-    TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
     TableColumn.new('instanceName', '实例名'),
     TableColumn.new('type', '类型'),
     TableColumn.new('host', 'ip:port').isSlot().setAddWidth(40),
     TableColumn.new('username', 'username'),
     TableColumn.new('name', '名称'),
+    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
     TableColumn.new('remark', '备注'),
 ]);
 
@@ -198,6 +198,7 @@ const columns = ref([
 const actionBtns = hasPerms([perms.base, perms.saveDb]);
 const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(220).fixedRight().alignCenter();
 
+const route = useRoute();
 const pageTableRef: any = ref(null);
 
 const state = reactive({
@@ -214,7 +215,7 @@ const state = reactive({
      * 查询条件
      */
     query: {
-        tagPath: null,
+        tagPath: '',
         instanceId: null,
         pageNum: 1,
         pageSize: 0,
@@ -269,6 +270,10 @@ onMounted(async () => {
 const search = async () => {
     try {
         pageTableRef.value.loading(true);
+
+        if (route.query.tagPath) {
+            state.query.tagPath = route.query.tagPath as string;
+        }
         let res: any = await dbApi.dbs.request(state.query);
         // 切割数据库
         res.list?.forEach((e: any) => {
@@ -297,7 +302,7 @@ const onBeforeCloseInfoDialog = () => {
 };
 
 const getTags = async () => {
-    state.tags = await dbApi.dbTags.request(null);
+    state.tags = await tagApi.getResourceTagPaths.request({ resourceType: TagResourceTypeEnum.Db.value });
 };
 
 const getInstances = async (instanceName = '') => {
