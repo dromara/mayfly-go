@@ -1,4 +1,5 @@
 import Api from '@/common/Api';
+import { Base64 } from 'js-base64';
 
 export const dbApi = {
     // 获取权限列表
@@ -14,7 +15,12 @@ export const dbApi = {
     pgSchemas: Api.newGet('/dbs/{id}/pg/schemas'),
     // 获取表即列提示
     hintTables: Api.newGet('/dbs/{id}/hint-tables'),
-    sqlExec: Api.newPost('/dbs/{id}/exec-sql'),
+    sqlExec: Api.newPost('/dbs/{id}/exec-sql').withBeforeHandler((param: any) => {
+        // sql编码处理
+        if (param.sql) {
+            param.sql = Base64.encode(param.sql);
+        }
+    }),
     // 保存sql
     saveSql: Api.newPost('/dbs/{id}/sql'),
     // 获取保存的sql

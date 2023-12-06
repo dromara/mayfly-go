@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mayfly-go/internal/common/consts"
@@ -89,11 +90,13 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath...), "%s")
 
+	sqlBytes, err := base64.StdEncoding.DecodeString(form.Sql)
+	biz.ErrIsNilAppendErr(err, "sql解码失败: %s")
+	// 去除前后空格及换行符
+	sql := stringx.TrimSpaceAndBr(string(sqlBytes))
+
 	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbConn.Info.GetLogDesc(), form.Sql)
 	biz.NotEmpty(form.Sql, "sql不能为空")
-
-	// 去除前后空格及换行符
-	sql := stringx.TrimSpaceAndBr(form.Sql)
 
 	execReq := &application.DbSqlExecReq{
 		DbId:         dbId,

@@ -17,6 +17,7 @@
     "cropperjs": "^1.5.11",
     "echarts": "^5.4.3",
     "element-plus": "^2.4.3",
+    "js-base64": "^3.7.5",
     "jsencrypt": "^3.3.2",
     "lodash": "^4.17.21",
     "mitt": "^3.0.1",

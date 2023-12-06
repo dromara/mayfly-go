@@ -14,9 +14,25 @@ class Api {
      */
     method: string;
 
+    /**
+     * 请求前处理函数
+     * param1: param请求参数
+     */
+    beforeHandler: Function;
+
     constructor(url: string, method: string) {
         this.url = url;
         this.method = method;
+    }
+
+    /**
+     * 设置请求前处理回调函数
+     * @param func 请求前处理器
+     * @returns this
+     */
+    withBeforeHandler(func: Function) {
+        this.beforeHandler = func;
+        return this;
     }
 
     /**
@@ -31,6 +47,9 @@ class Api {
      * @param {Object} param 请求该api的参数
      */
     request(param: any = null, options: any = null, headers: any = null): Promise<any> {
+        if (this.beforeHandler) {
+            this.beforeHandler(param);
+        }
         return request.request(this.method, this.url, param, headers, options);
     }
 
