@@ -1,6 +1,7 @@
 package dbm
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
@@ -249,7 +250,7 @@ func (pd *PgsqlDialect) GetTableRecord(tableName string, pageNum, pageSize int) 
 }
 
 func (pd *PgsqlDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
-	return pd.dc.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
+	return pd.dc.WalkTableRecord(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walk)
 }
 
 // 获取pgsql当前连接的库可访问的schemaNames

@@ -196,9 +196,10 @@ export class DbInst {
      * @param sql sql
      * @param remark 执行备注
      */
-    async runSql(dbName: string, sql: string, remark: string = '') {
+    async runSql(dbName: string, sql: string, remark: string = '', key: string = '') {
         return await dbApi.sqlExec.request({
             id: this.id,
+            execId: key,
             db: dbName,
             sql: sql.trim(),
             remark,

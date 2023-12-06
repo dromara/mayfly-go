@@ -35,6 +35,8 @@ func InitDbRouter(router *gin.RouterGroup) {
 
 		req.NewPost(":dbId/exec-sql", d.ExecSql).Log(req.NewLog("db-执行Sql")),
 
+		req.NewPost(":dbId/exec-sql/cancel/:execId", d.CancelExecSql).Log(req.NewLog("db-取消执行Sql")),
+
 		req.NewPost(":dbId/exec-sql-file", d.ExecSqlFile).Log(req.NewLogSave("db-执行Sql文件")),
 
 		req.NewGet(":dbId/dump", d.DumpSql).Log(req.NewLogSave("db-导出sql文件")).NoRes(),

@@ -1,8 +1,10 @@
 package dbm
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"reflect"
 	"strconv"
@@ -20,11 +22,20 @@ type DbConn struct {
 // 执行查询语句
 // 依次返回 列名数组(顺序)，结果map，错误
 func (d *DbConn) Query(querySql string) ([]string, []map[string]any, error) {
+	return d.QueryContext(context.Background(), querySql)
+}
+
+// 执行查询语句
+// 依次返回 列名数组(顺序)，结果map，错误
+func (d *DbConn) QueryContext(ctx context.Context, querySql string) ([]string, []map[string]any, error) {
 	result := make([]map[string]any, 0, 16)
-	columns, err := walkTableRecord(d.db, querySql, func(record map[string]any, columns []string) {
+	columns, err := walkTableRecord(ctx, d.db, querySql, func(record map[string]any, columns []string) {
 		result = append(result, record)
 	})
 	if err != nil {
+		if err == context.Canceled {
+			return nil, nil, errorx.NewBiz("取消执行")
+		}
 		return nil, nil, err
 	}
 	return columns, result, nil
@@ -47,16 +58,25 @@ func (d *DbConn) Query2Struct(execSql string, dest any) error {
 }
 
 // WalkTableRecord 遍历表记录
-func (d *DbConn) WalkTableRecord(selectSql string, walk func(record map[string]any, columns []string)) error {
-	_, err := walkTableRecord(d.db, selectSql, walk)
+func (d *DbConn) WalkTableRecord(ctx context.Context, selectSql string, walk func(record map[string]any, columns []string)) error {
+	_, err := walkTableRecord(ctx, d.db, selectSql, walk)
 	return err
 }
 
 // 执行 update, insert, delete，建表等sql
 // 返回影响条数和错误
 func (d *DbConn) Exec(sql string) (int64, error) {
-	res, err := d.db.Exec(sql)
+	return d.ExecContext(context.Background(), sql)
+}
+
+// 执行 update, insert, delete，建表等sql
+// 返回影响条数和错误
+func (d *DbConn) ExecContext(ctx context.Context, sql string) (int64, error) {
+	res, err := d.db.ExecContext(ctx, sql)
 	if err != nil {
+		if err == context.Canceled {
+			return 0, errorx.NewBiz("取消执行")
+		}
 		return 0, err
 	}
 	return res.RowsAffected()
@@ -84,8 +104,9 @@ func (d *DbConn) Close() {
 	}
 }
 
-func walkTableRecord(db *sql.DB, selectSql string, walk func(record map[string]any, columns []string)) ([]string, error) {
-	rows, err := db.Query(selectSql)
+func walkTableRecord(ctx context.Context, db *sql.DB, selectSql string, walk func(record map[string]any, columns []string)) ([]string, error) {
+	rows, err := db.QueryContext(ctx, selectSql)
+
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,7 @@
         <el-row>
             <el-col :span="8">
                 <div class="mt5">
-                    <el-link @click="onRefresh()" icon="refresh" :underline="false" class="ml5"> </el-link>
+                    <el-link :disabled="state.loading" @click="onRefresh()" icon="refresh" :underline="false" class="ml5"> </el-link>
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-popover

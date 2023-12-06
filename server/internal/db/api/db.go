@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -24,6 +25,7 @@ import (
 	"mayfly-go/pkg/ws"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -80,6 +82,11 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 	}
 }
 
+/**  数据库操作相关、执行sql等   ***/
+
+// 取消执行sql函数map; key -> execId ; value -> cancelFunc
+var cancelExecSqlMap = sync.Map{}
+
 func (d *Db) ExecSql(rc *req.Ctx) {
 	g := rc.GinCtx
 	form := &form.DbSqlExecForm{}
@@ -95,15 +102,23 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	// 去除前后空格及换行符
 	sql := stringx.TrimSpaceAndBr(string(sqlBytes))
 
-	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbConn.Info.GetLogDesc(), sql)
+	rc.ReqParam = fmt.Sprintf("%s %s\n-> %s", dbConn.Info.GetLogDesc(), form.ExecId, sql)
 	biz.NotEmpty(form.Sql, "sql不能为空")
 
 	execReq := &application.DbSqlExecReq{
-		DbId:         dbId,
-		Db:           form.Db,
-		Remark:       form.Remark,
-		DbConn:       dbConn,
-		LoginAccount: rc.GetLoginAccount(),
+		DbId:   dbId,
+		Db:     form.Db,
+		Remark: form.Remark,
+		DbConn: dbConn,
+	}
+
+	ctx := rc.MetaCtx
+	// 如果存在执行id，则保存取消函数，用于后续可能的取消操作
+	if form.ExecId != "" {
+		cancelCtx, cancel := context.WithCancel(rc.MetaCtx)
+		ctx = cancelCtx
+		cancelExecSqlMap.Store(form.ExecId, cancel)
+		defer cancelExecSqlMap.Delete(form.ExecId)
 	}
 
 	sqls, err := sqlparser.SplitStatementToPieces(sql, sqlparser.WithDialect(dbConn.Info.Type.Dialect()))
@@ -119,7 +134,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 		}
 
 		execReq.Sql = s
-		execRes, err := d.DbSqlExecApp.Exec(execReq)
+		execRes, err := d.DbSqlExecApp.Exec(ctx, execReq)
 		biz.ErrIsNilAppendErr(err, fmt.Sprintf("[%s] -> 执行失败: ", s)+"%s")
 
 		if execResAll == nil {
@@ -133,6 +148,14 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	colAndRes["colNames"] = execResAll.ColNames
 	colAndRes["res"] = execResAll.Res
 	rc.ResData = colAndRes
+}
+
+func (d *Db) CancelExecSql(rc *req.Ctx) {
+	execId := ginx.PathParam(rc.GinCtx, "execId")
+	if cancelFunc, ok := cancelExecSqlMap.LoadAndDelete(execId); ok {
+		rc.ReqParam = execId
+		cancelFunc.(context.CancelFunc)()
+	}
 }
 
 // progressCategory sql文件执行进度消息类型
@@ -175,11 +198,10 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	}()
 
 	execReq := &application.DbSqlExecReq{
-		DbId:         dbId,
-		Db:           dbName,
-		Remark:       filename,
-		DbConn:       dbConn,
-		LoginAccount: rc.GetLoginAccount(),
+		DbId:   dbId,
+		Db:     dbName,
+		Remark: filename,
+		DbConn: dbConn,
 	}
 
 	var sql string
@@ -237,7 +259,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 		const maxRecordStatements = 64
 		if executedStatements < maxRecordStatements {
 			execReq.Sql = sql
-			_, err = d.DbSqlExecApp.Exec(execReq)
+			_, err = d.DbSqlExecApp.Exec(rc.MetaCtx, execReq)
 		} else {
 			_, err = dbConn.Exec(sql)
 		}

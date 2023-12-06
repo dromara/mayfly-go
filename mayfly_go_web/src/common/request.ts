@@ -4,6 +4,7 @@ import config from './config';
 import { getClientId, getToken } from './utils/storage';
 import { templateResolve } from './utils/string';
 import { ElMessage } from 'element-plus';
+import axios from 'axios';
 
 export interface Result {
     /**
@@ -67,20 +68,25 @@ service.interceptors.request.use(
 service.interceptors.response.use(
     (response) => {
         // 获取请求返回结果
-        const data: Result = response.data;
-        if (data.code === ResultEnum.SUCCESS) {
-            return data.data;
+        const res: Result = response.data;
+        if (res.code === ResultEnum.SUCCESS) {
+            return res.data;
         }
         // 如果提示没有权限，则移除token，使其重新登录
-        if (data.code === ResultEnum.NO_PERMISSION) {
+        if (res.code === ResultEnum.NO_PERMISSION) {
             router.push({
                 path: '/401',
             });
         }
-        return Promise.reject(data);
+        return Promise.reject(res);
     },
     (e: any) => {
         const rejectPromise = Promise.reject(e);
+
+        if (axios.isCancel(e)) {
+            console.log('请求已取消');
+            return rejectPromise;
+        }
 
         const statusCode = e.response?.status;
         if (statusCode == 500) {

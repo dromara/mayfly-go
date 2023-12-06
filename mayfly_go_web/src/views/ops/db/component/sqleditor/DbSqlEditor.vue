@@ -103,6 +103,7 @@
                         :table="dt.table"
                         :columns="dt.tableColumn"
                         :loading="dt.loading"
+                        :loading-key="dt.loadingKey"
                         :height="tableDataHeight"
                         empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
                         @change-updated-field="changeUpdatedField($event, dt)"
@@ -139,6 +140,7 @@ import { ElNotification } from 'element-plus';
 import syssocket from '@/common/syssocket';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { getDbDialect } from '../../dialect';
+import { randomUuid } from '@/common/utils/string';
 
 const emits = defineEmits(['saveSqlSuccess']);
 
@@ -170,6 +172,8 @@ class ExecResTab {
     sql: string;
 
     loading: boolean;
+
+    loadingKey: string;
 
     dbTableRef: any;
 
@@ -341,7 +345,10 @@ const onRunSql = async (newTab = false) => {
         execRes.errorMsg = '';
         execRes.sql = '';
 
-        const colAndData: any = await getNowDbInst().runSql(props.dbName, sql, execRemark);
+        const loadingKey = randomUuid();
+        execRes.loadingKey = loadingKey;
+
+        const colAndData: any = await getNowDbInst().runSql(props.dbName, sql, execRemark, loadingKey);
         if (!colAndData.res || colAndData.res.length === 0) {
             ElMessage.warning('未查询到结果集');
         }

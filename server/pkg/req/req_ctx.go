@@ -101,7 +101,7 @@ func (rc *Ctx) GetLogInfo() *LogInfo {
 }
 
 func NewCtxWithGin(g *gin.Context) *Ctx {
-	return &Ctx{GinCtx: g, MetaCtx: contextx.NewTraceId()}
+	return &Ctx{GinCtx: g, MetaCtx: contextx.WithTraceId(g.Request.Context())}
 }
 
 // 处理器拦截器函数

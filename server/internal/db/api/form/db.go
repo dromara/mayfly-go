@@ -18,6 +18,7 @@ type DbSqlSaveForm struct {
 
 // 数据库SQL执行表单
 type DbSqlExecForm struct {
+	ExecId string `json:"execId"`                 // 执行id(用于取消执行使用)
 	Db     string `binding:"required" json:"db"`  //数据库名
 	Sql    string `binding:"required" json:"sql"` // 执行sql
 	Remark string `json:"remark"`                 // 执行备注

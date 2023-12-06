@@ -179,5 +179,5 @@ func (md *MysqlDialect) GetTableRecord(tableName string, pageNum, pageSize int) 
 }
 
 func (md *MysqlDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
-	return md.dc.WalkTableRecord(fmt.Sprintf("SELECT * FROM %s", tableName), walk)
+	return md.dc.WalkTableRecord(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walk)
 }

@@ -90,9 +90,14 @@
                         </div>
                     </template>
 
-                    <template v-if="loading" #overlay>
-                        <div class="el-loading-mask" style="display: flex; align-items: center; justify-content: center">
-                            <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="42" />
+                    <template v-if="state.loading" #overlay>
+                        <div class="el-loading-mask" style="display: flex; flex-direction: column; align-items: center; justify-content: center">
+                            <div>
+                                <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="42" />
+                            </div>
+                            <div v-if="loadingKey" class="mt10">
+                                <el-button @click="cancelLoading" type="info" size="small" plain>取 消</el-button>
+                            </div>
                         </div>
                     </template>
 
@@ -127,10 +132,14 @@ import { ContextmenuItem, Contextmenu } from '@/components/contextmenu';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
+import { dbApi } from '../../api';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
 const props = defineProps({
+    loadingKey: {
+        type: String,
+    },
     dbId: {
         type: Number,
         required: true,
@@ -371,6 +380,12 @@ onMounted(async () => {
     state.table = props.table;
     setTableData(props.data);
 });
+
+const cancelLoading = async () => {
+    if (props.loadingKey) {
+        await dbApi.sqlExecCancel.request({ id: state.dbId, execId: props.loadingKey });
+    }
+};
 
 const setTableData = (datas: any) => {
     tableRef.value.scrollTo({ scrollLeft: 0, scrollTop: 0 });
