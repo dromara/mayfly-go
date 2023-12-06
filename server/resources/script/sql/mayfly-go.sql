@@ -40,6 +40,7 @@ COMMIT;
 DROP TABLE IF EXISTS `t_db`;
 CREATE TABLE `t_db` (
     `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'code',
     `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
     `database` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
     `remark` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注，描述等',
@@ -144,6 +145,7 @@ CREATE TABLE `t_auth_cert` (
 DROP TABLE IF EXISTS `t_machine`;
 CREATE TABLE `t_machine` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'code',
   `name` varchar(32) DEFAULT NULL,
   `ip` varchar(50) NOT NULL,
   `port` int(12) NOT NULL,
@@ -325,6 +327,7 @@ CREATE TABLE `t_machine_term_op` (
 DROP TABLE IF EXISTS `t_mongo`;
 CREATE TABLE `t_mongo` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'code',
   `name` varchar(36) NOT NULL COMMENT '名称',
   `uri` varchar(255) NOT NULL COMMENT '连接uri',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
@@ -351,6 +354,7 @@ COMMIT;
 DROP TABLE IF EXISTS `t_redis`;
 CREATE TABLE `t_redis` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'code',
   `name` varchar(255) DEFAULT NULL COMMENT '名称',
   `host` varchar(255) NOT NULL,
   `username` varchar(32) DEFAULT NULL COMMENT '用户名',
