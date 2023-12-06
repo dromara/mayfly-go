@@ -1,4 +1,5 @@
 import { DbDialect, sqlColumnType } from './index';
+import { SqlLanguage } from 'sql-formatter/lib/src/sqlFormatter';
 
 export { MYSQL_TYPE_LIST, MysqlDialect, language };
 
@@ -30,7 +31,7 @@ const MYSQL_TYPE_LIST = [
 ];
 
 class MysqlDialect implements DbDialect {
-    getFormatDialect() {
+    getFormatDialect(): SqlLanguage {
         return 'mysql';
     }
 

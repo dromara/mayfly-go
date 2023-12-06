@@ -67,6 +67,8 @@ type DbDialect interface {
 
 	// WalkTableRecord 遍历指定表的数据
 	WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error
+
+	GetSchemas() ([]string, error)
 }
 
 // ------------------------- 元数据sql操作 -------------------------

@@ -252,7 +252,7 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
 const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
-        if (params.type == 'postgres') {
+        if (params.type == 'postgres' || params.type === 'dm') {
             return [new TagTreeNode(`${params.id}.${params.db}.schema-menu`, 'schema', NodeTypePostgresScheamMenu).withParams(params).withIcon(SchemaIcon)];
         }
 

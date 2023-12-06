@@ -1,7 +1,7 @@
 import { DbDialect, sqlColumnType } from './index';
 import { SqlLanguage } from 'sql-formatter/lib/src/sqlFormatter';
 
-export { PostgresqlDialect, GAUSS_TYPE_LIST };
+export { DMDialect, GAUSS_TYPE_LIST };
 
 const GAUSS_TYPE_LIST: sqlColumnType[] = [
     // 数值 - 整数型
@@ -83,7 +83,7 @@ const GAUSS_TYPE_LIST: sqlColumnType[] = [
     { udtName: 'macaddr', dataType: 'macaddr', desc: 'MAC地址', space: '6字节' },
 ];
 
-class PostgresqlDialect implements DbDialect {
+class DMDialect implements DbDialect {
     getFormatDialect(): SqlLanguage {
         return 'postgresql';
     }

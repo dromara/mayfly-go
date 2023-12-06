@@ -40,6 +40,8 @@ func (dbInfo *DbInfo) Conn() (*DbConn, error) {
 		conn, err = getMysqlDB(dbInfo)
 	case DbTypePostgres:
 		conn, err = getPgsqlDB(dbInfo)
+	case DM:
+		conn, err = getDmDB(dbInfo)
 	default:
 		return nil, errorx.NewBiz("invalid database type: %s", dbInfo.Type)
 	}
