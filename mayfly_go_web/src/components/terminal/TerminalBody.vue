@@ -144,8 +144,6 @@ const onConnected = () => {
 
     state.status = TerminalStatus.Connected;
 
-    // resize
-    sendResize(term.cols, term.rows);
     // 注册窗口大小监听器
     window.addEventListener('resize', debounce(fitTerminal, 400));
 
@@ -180,7 +178,8 @@ const clear = () => {
 
 function initSocket() {
     if (props.socketUrl) {
-        socket = new WebSocket(props.socketUrl);
+        let socketUrl = `${props.socketUrl}&rows=${term.rows}&cols=${term.cols}`;
+        socket = new WebSocket(socketUrl);
     }
 
     // 监听socket连接

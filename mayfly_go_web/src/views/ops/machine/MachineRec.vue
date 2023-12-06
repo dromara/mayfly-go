@@ -114,6 +114,10 @@ const playRec = async (rec: any) => {
                 autoPlay: true,
                 speed: 1.0,
                 idleTimeLimit: 2,
+                // fit: false,
+                // terminalFontSize: 'small',
+                // cols: 100,
+                // rows: 33,
             });
         });
     } finally {
@@ -140,16 +144,6 @@ const handleClose = () => {
 #terminalRecDialog {
     .el-overlay .el-overlay-dialog .el-dialog .el-dialog__body {
         padding: 0px !important;
-    }
-
-    #rc-player {
-        .ap-terminal {
-            font-size: 14px !important;
-        }
-
-        .ap-player {
-            height: 550px !important;
-        }
     }
 }
 </style>

@@ -43,7 +43,7 @@ func NewTerminalSession(sessionId string, ws *websocket.Conn, cli *Cli, rows, co
 	}
 
 	if recorder != nil {
-		recorder.WriteHeader(rows-5, cols)
+		recorder.WriteHeader(rows-3, cols)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

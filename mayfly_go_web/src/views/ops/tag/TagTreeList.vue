@@ -91,7 +91,9 @@
 
                 <el-table-column label="操作" min-width="50" show-overflow-tooltip>
                     <template #default="scope">
-                        <el-button @click="showResources(scope.row.resourceType, resourceDialog.tagPath)" link type="success">查看</el-button>
+                        <el-button v-auth="scope.row.showAuthCode" @click="showResources(scope.row.resourceType, resourceDialog.tagPath)" link type="success"
+                            >查看</el-button
+                        >
                     </template>
                 </el-table-column>
             </el-table>
@@ -110,6 +112,7 @@ import { Contextmenu, ContextmenuItem } from '@/components/contextmenu/index';
 import { TagResourceTypeEnum } from '../../../common/commonEnum';
 import EnumValue from '@/common/Enum';
 import { useRouter } from 'vue-router';
+import { hasPerm } from '@/components/auth/auth';
 
 interface Tree {
     id: number;
@@ -267,15 +270,32 @@ const showRelateResource = async (data: any) => {
         const exist = resourceMap.get(resourceType);
         if (exist) {
             exist.count = exist.count + 1;
-        } else {
-            resourceMap.set(resourceType, { resourceType, count: 1, tagPath: tagResource.tagPath });
+            continue;
         }
+
+        // 相关管理页面基础权限
+        let showAuthCode = '';
+        if (resourceType == TagResourceTypeEnum.Machine.value) {
+            showAuthCode = 'machine';
+        }
+        if (resourceType == TagResourceTypeEnum.Db.value) {
+            showAuthCode = 'db';
+        }
+        if (resourceType == TagResourceTypeEnum.Redis.value) {
+            showAuthCode = 'redis:manage';
+        }
+        if (resourceType == TagResourceTypeEnum.Mongo.value) {
+            showAuthCode = 'mongo:manage:base';
+        }
+        resourceMap.set(resourceType, { resourceType, showAuthCode, count: 1, tagPath: tagResource.tagPath });
     }
+
     state.resourceDialog.data = Array.from(resourceMap.values());
     state.resourceDialog.visible = true;
 };
 
 const showResources = (resourceType: any, tagPath: string) => {
+    hasPerm;
     state.resourceDialog.visible = false;
     setTimeout(() => {
         let toPath = '';

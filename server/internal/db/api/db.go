@@ -95,7 +95,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	// 去除前后空格及换行符
 	sql := stringx.TrimSpaceAndBr(string(sqlBytes))
 
-	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbConn.Info.GetLogDesc(), form.Sql)
+	rc.ReqParam = fmt.Sprintf("%s\n-> %s", dbConn.Info.GetLogDesc(), sql)
 	biz.NotEmpty(form.Sql, "sql不能为空")
 
 	execReq := &application.DbSqlExecReq{
