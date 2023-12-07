@@ -137,7 +137,7 @@ func (pd *DMDialect) GetTableIndex(tableName string) ([]Index, error) {
 		indexs = append(indexs, Index{
 			IndexName:    re["indexName"].(string),
 			ColumnName:   anyx.ConvString(re["columnName"]),
-			IndexType:    anyx.ConvString(re["IndexType"]),
+			IndexType:    anyx.ConvString(re["indexType"]),
 			IndexComment: anyx.ConvString(re["indexComment"]),
 			NonUnique:    anyx.ConvInt(re["nonUnique"]),
 			SeqInIndex:   anyx.ConvInt(re["seqInIndex"]),

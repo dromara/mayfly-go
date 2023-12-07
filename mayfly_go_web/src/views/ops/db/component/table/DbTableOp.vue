@@ -98,7 +98,7 @@
                                     <el-checkbox v-if="item.prop === 'unique'" size="small" v-model="scope.row.unique" @change="indexChanges(scope.row)">
                                     </el-checkbox>
 
-                                    <el-select v-if="item.prop === 'indexType'" filterable size="small" v-model="scope.row.indexType">
+                                    <el-select v-if="item.prop === 'indexType'" disabled size="small" v-model="scope.row.indexType">
                                         <el-option v-for="typeValue in indexTypeList" :key="typeValue" :value="typeValue">{{ typeValue }}</el-option>
                                     </el-select>
 
@@ -134,7 +134,7 @@
 import { reactive, ref, toRefs, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from '../sqleditor/SqlExecBox';
-import { getDbDialect, DbType } from '../../dialect/index';
+import { getDbDialect, DbType, RowDefinition, IndexDefinition } from '../../dialect/index';
 
 const props = defineProps({
     visible: {
@@ -168,7 +168,7 @@ const state = reactive({
     btnloading: false,
     activeName: '1',
     columnTypeList: dbDialect.getInfo().columnTypes,
-    indexTypeList: ['BTREE'], // mysql索引类型详解 http://c.biancheng.net/view/7897.html
+    indexTypeList: ['BTREE', 'NORMAL'], // mysql索引类型详解 http://c.biancheng.net/view/7897.html
     tableData: {
         fields: {
             colNames: [
@@ -214,17 +214,7 @@ const state = reactive({
                     label: '操作',
                 },
             ],
-            res: [] as {
-                name: string;
-                type: string;
-                value: string;
-                length: string;
-                numScale: string;
-                notNull: boolean;
-                pri: boolean;
-                auto_increment: boolean;
-                remark: string;
-            }[],
+            res: [] as RowDefinition[],
         },
         indexs: {
             colNames: [
@@ -254,13 +244,7 @@ const state = reactive({
                 },
             ],
             columns: [{ name: '', remark: '' }],
-            res: [] as {
-                indexName: string;
-                columnNames: string[];
-                unique: boolean;
-                indexType: 'BTREE';
-                indexComment: string;
-            }[],
+            res: [] as IndexDefinition[],
         },
         tableName: '',
         tableComment: '',
@@ -294,117 +278,11 @@ const addRow = () => {
 };
 
 const addIndex = () => {
-    state.tableData.indexs.res.push({
-        indexName: '',
-        columnNames: [],
-        unique: false,
-        indexType: 'BTREE',
-        indexComment: '',
-    });
+    state.tableData.indexs.res.push(dbDialect.getDefaultIndex());
 };
 
 const addDefaultRows = () => {
-    if (props.dbType === DbType.mysql) {
-        state.tableData.fields.res.push(
-            { name: 'id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: true, auto_increment: true, remark: '主键ID' },
-            { name: 'creator_id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人id' },
-            {
-                name: 'creator',
-                type: 'varchar',
-                length: '100',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '创建人姓名',
-            },
-            {
-                name: 'create_time',
-                type: 'datetime',
-                length: '',
-                numScale: '',
-                value: 'CURRENT_TIMESTAMP',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '创建时间',
-            },
-            { name: 'updator_id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人id' },
-            {
-                name: 'updator',
-                type: 'varchar',
-                length: '100',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '修改人姓名',
-            },
-            {
-                name: 'update_time',
-                type: 'datetime',
-                length: '',
-                numScale: '',
-                value: 'CURRENT_TIMESTAMP',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '修改时间',
-            }
-        );
-    } else if (props.dbType === DbType.postgresql) {
-        state.tableData.fields.res.push(
-            { name: 'id', type: 'bigserial', length: '', numScale: '', value: '', notNull: true, pri: true, auto_increment: true, remark: '主键ID' },
-            { name: 'creator_id', type: 'int8', length: '', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人id' },
-            {
-                name: 'creator',
-                type: 'varchar',
-                length: '100',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '创建人姓名',
-            },
-            {
-                name: 'create_time',
-                type: 'timestamp',
-                length: '',
-                numScale: '',
-                value: 'CURRENT_TIMESTAMP',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '创建时间',
-            },
-            { name: 'updator_id', type: 'int8', length: '', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人id' },
-            {
-                name: 'updator',
-                type: 'varchar',
-                length: '100',
-                numScale: '',
-                value: '',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '修改人姓名',
-            },
-            {
-                name: 'update_time',
-                type: 'timestamp',
-                length: '',
-                numScale: '',
-                value: 'CURRENT_TIMESTAMP',
-                notNull: true,
-                pri: false,
-                auto_increment: false,
-                remark: '修改时间',
-            }
-        );
-    }
+    state.tableData.fields.res.push(...dbDialect.getDefaultRows());
 };
 
 const deleteRow = (index: any) => {
@@ -562,7 +440,7 @@ const indexChanges = (row: any) => {
     row.indexComment = `${tableData.value.tableName}表(${name.replaceAll('_', ',')})${commentSuffix}`;
 };
 
-const oldData = { indexs: [] as any[], fields: [] as any[] };
+const oldData = { indexs: [] as any[], fields: [] as RowDefinition[] };
 watch(
     () => props.data,
     (newValue: any) => {

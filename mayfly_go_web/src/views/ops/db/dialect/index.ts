@@ -11,6 +11,26 @@ export interface sqlColumnType {
     range?: string;
 }
 
+export interface RowDefinition {
+    name: string;
+    type: string;
+    value: string;
+    length: string;
+    numScale: string;
+    notNull: boolean;
+    pri: boolean;
+    auto_increment: boolean;
+    remark: string;
+}
+
+export interface IndexDefinition {
+    indexName: string;
+    columnNames: string[];
+    unique: boolean;
+    indexType: string;
+    indexComment?: string;
+}
+
 // 数据库基础信息
 export interface DialectInfo {
     /**
@@ -56,6 +76,10 @@ export interface DbDialect {
      */
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number): string;
 
+    getDefaultRows(): RowDefinition[];
+
+    getDefaultIndex(): IndexDefinition;
+
     /**
      * 包裹数据库表名、字段名等，避免使用关键字为字段名或表名时报错
      * @param name 名称
@@ -79,7 +103,7 @@ export interface DbDialect {
      * @param tableName 表名
      * @param changeData 改变信息
      */
-    getModifyColumnSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string;
+    getModifyColumnSql(tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string;
 
     /**
      * 生成编辑索引sql
