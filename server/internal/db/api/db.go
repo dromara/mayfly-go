@@ -468,8 +468,8 @@ func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
 
 func (d *Db) GetPgsqlSchemas(rc *req.Ctx) {
 	conn := d.getDbConn(rc.GinCtx)
-	biz.IsTrue(conn.Info.Type == dbm.DbTypePostgres, "非postgres无法获取该schemas")
-	res, err := d.getDbConn(rc.GinCtx).GetDialect().(*dbm.PgsqlDialect).GetSchemas()
+	biz.IsTrue(conn.Info.Type == dbm.DbTypePostgres || conn.Info.Type == dbm.DM, "非postgres无法获取该schemas")
+	res, err := d.getDbConn(rc.GinCtx).GetDialect().GetSchemas()
 	biz.ErrIsNilAppendErr(err, "获取schemas失败: %s")
 	rc.ResData = res
 }

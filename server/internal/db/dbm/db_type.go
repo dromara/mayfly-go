@@ -13,6 +13,7 @@ type DbType string
 const (
 	DbTypeMysql    DbType = "mysql"
 	DbTypePostgres DbType = "postgres"
+	DM             DbType = "dm"
 )
 
 func (dbType DbType) MetaDbName() string {
@@ -21,6 +22,8 @@ func (dbType DbType) MetaDbName() string {
 		return "information_schema"
 	case DbTypePostgres:
 		return "postgres"
+	case DM:
+		return ""
 	default:
 		panic(fmt.Sprintf("invalid database type: %s", dbType))
 	}
@@ -55,6 +58,8 @@ func (dbType DbType) Dialect() sqlparser.Dialect {
 	case DbTypeMysql:
 		return sqlparser.MysqlDialect{}
 	case DbTypePostgres:
+		return sqlparser.PostgresDialect{}
+	case DM:
 		return sqlparser.PostgresDialect{}
 	default:
 		panic(fmt.Sprintf("invalid database type: %s", dbType))

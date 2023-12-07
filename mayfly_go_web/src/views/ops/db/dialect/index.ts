@@ -1,5 +1,7 @@
 import { MysqlDialect } from './mysql_dialect';
 import { PostgresqlDialect } from './postgres_dialect';
+import { DMDialect } from '@/views/ops/db/dialect/dm_dialect';
+import { SqlLanguage } from 'sql-formatter/lib/src/sqlFormatter';
 
 export interface sqlColumnType {
     udtName: string;
@@ -12,13 +14,14 @@ export interface sqlColumnType {
 export const DbType = {
     mysql: 'mysql',
     postgresql: 'postgres',
+    dm: 'dm', // 达梦
 };
 
 export interface DbDialect {
     /**
      * 获取格式化sql对应的dialect名称
      */
-    getFormatDialect(): string;
+    getFormatDialect(): SqlLanguage;
 
     /**
      * 获取图标信息
@@ -75,6 +78,7 @@ export interface DbDialect {
 
 let mysqlDialect = new MysqlDialect();
 let postgresDialect = new PostgresqlDialect();
+let dmDialect = new DMDialect();
 
 export const getDbDialect = (dbType: string | undefined): DbDialect => {
     if (dbType === DbType.mysql) {
@@ -82,6 +86,9 @@ export const getDbDialect = (dbType: string | undefined): DbDialect => {
     }
     if (dbType === DbType.postgresql) {
         return postgresDialect;
+    }
+    if (dbType === DbType.dm) {
+        return dmDialect;
     }
     throw new Error('不支持的数据库');
 };

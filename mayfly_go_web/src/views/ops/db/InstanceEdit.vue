@@ -11,6 +11,7 @@
                             <el-select style="width: 100%" v-model="form.type" placeholder="请选择数据库类型">
                                 <el-option key="item.id" label="mysql" value="mysql"> </el-option>
                                 <el-option key="item.id" label="postgres" value="postgres"> </el-option>
+                                <el-option key="item.id" label="达梦(暂不支持ssh)" value="dm"> </el-option>
                             </el-select>
                         </el-form-item>
                         <el-form-item prop="host" label="host" required>
@@ -79,7 +80,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref } from 'vue';
+import { reactive, ref, toRefs, watch } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import { notBlank } from '@/common/assert';

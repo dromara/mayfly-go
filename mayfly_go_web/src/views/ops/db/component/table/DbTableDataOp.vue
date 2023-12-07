@@ -197,7 +197,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, computed, watch, reactive, toRefs, ref, Ref, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, Ref, ref, toRefs, watch } from 'vue';
 import { notEmpty } from '@/common/assert';
 import { ElMessage } from 'element-plus';
 
@@ -332,7 +332,7 @@ const selectData = async () => {
     const table = props.tableName;
     try {
         const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
-        state.count = countRes.res[0].count;
+        state.count = countRes.res[0].count || countRes.res[0].COUNT;
         let sql = dbInst.getDefaultSelectSql(table, state.condition, state.orderBy, state.pageNum, state.pageSize);
         state.sql = sql;
         if (state.count > 0) {

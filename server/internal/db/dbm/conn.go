@@ -89,6 +89,8 @@ func (d *DbConn) GetDialect() DbDialect {
 		return &MysqlDialect{dc: d}
 	case DbTypePostgres:
 		return &PgsqlDialect{dc: d}
+	case DM:
+		return &DMDialect{dc: d}
 	default:
 		panic(fmt.Sprintf("invalid database type: %s", d.Info.Type))
 	}
