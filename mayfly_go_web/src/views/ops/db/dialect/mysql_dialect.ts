@@ -1,4 +1,4 @@
-import { DbDialect, DialectInfo } from './index';
+import { DbDialect, DialectInfo, IndexDefinition, RowDefinition } from './index';
 
 export { MYSQL_TYPE_LIST, MysqlDialect, language };
 
@@ -47,6 +47,68 @@ class MysqlDialect implements DbDialect {
         }, ${limit};`;
     }
 
+    getDefaultRows(): RowDefinition[] {
+        return [
+            { name: 'id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: true, auto_increment: true, remark: '主键ID' },
+            { name: 'creator_id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人id' },
+            {
+                name: 'creator',
+                type: 'varchar',
+                length: '100',
+                numScale: '',
+                value: '',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '创建人姓名',
+            },
+            {
+                name: 'create_time',
+                type: 'datetime',
+                length: '',
+                numScale: '',
+                value: 'CURRENT_TIMESTAMP',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '创建时间',
+            },
+            { name: 'updator_id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人id' },
+            {
+                name: 'updator',
+                type: 'varchar',
+                length: '100',
+                numScale: '',
+                value: '',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '修改人姓名',
+            },
+            {
+                name: 'update_time',
+                type: 'datetime',
+                length: '',
+                numScale: '',
+                value: 'CURRENT_TIMESTAMP',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '修改时间',
+            },
+        ];
+    }
+
+    getDefaultIndex(): IndexDefinition {
+        return {
+            indexName: '',
+            columnNames: [],
+            unique: false,
+            indexType: 'BTREE',
+            indexComment: '',
+        };
+    }
+
     wrapName = (name: string) => {
         return `\`${name}\``;
     };
@@ -86,7 +148,7 @@ class MysqlDialect implements DbDialect {
         return sql.substring(0, sql.length - 1) + ';';
     }
 
-    getModifyColumnSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+    getModifyColumnSql(tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
         let addSql = '',
             updSql = '',
             delSql = '';

@@ -1,4 +1,4 @@
-import { DbDialect, DialectInfo, sqlColumnType } from './index';
+import { DbDialect, DialectInfo, IndexDefinition, RowDefinition, sqlColumnType } from './index';
 
 export { PostgresqlDialect, GAUSS_TYPE_LIST };
 
@@ -100,6 +100,68 @@ class PostgresqlDialect implements DbDialect {
         } LIMIT ${limit};`;
     }
 
+    getDefaultRows(): RowDefinition[] {
+        return [
+            { name: 'id', type: 'bigserial', length: '', numScale: '', value: '', notNull: true, pri: true, auto_increment: true, remark: '主键ID' },
+            { name: 'creator_id', type: 'int8', length: '', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人id' },
+            {
+                name: 'creator',
+                type: 'varchar',
+                length: '100',
+                numScale: '',
+                value: '',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '创建人姓名',
+            },
+            {
+                name: 'create_time',
+                type: 'timestamp',
+                length: '',
+                numScale: '',
+                value: 'CURRENT_TIMESTAMP',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '创建时间',
+            },
+            { name: 'updator_id', type: 'int8', length: '', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人id' },
+            {
+                name: 'updator',
+                type: 'varchar',
+                length: '100',
+                numScale: '',
+                value: '',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '修改人姓名',
+            },
+            {
+                name: 'update_time',
+                type: 'timestamp',
+                length: '',
+                numScale: '',
+                value: 'CURRENT_TIMESTAMP',
+                notNull: true,
+                pri: false,
+                auto_increment: false,
+                remark: '修改时间',
+            },
+        ];
+    }
+
+    getDefaultIndex(): IndexDefinition {
+        return {
+            indexName: '',
+            columnNames: [],
+            unique: false,
+            indexType: 'BTREE',
+            indexComment: '',
+        };
+    }
+
     wrapName = (name: string) => {
         return name;
     };
@@ -122,7 +184,7 @@ class PostgresqlDialect implements DbDialect {
             let marks = false;
             if (this.matchType(cl.type, ['char', 'time', 'date', 'text'])) {
                 // 默认值是now()的time或date不需要加引号
-                if (cl.value.toLowerCase().replace(' ', '') === 'CURRENT_TIMESTAMP' && this.matchType(cl.type, ['time', 'date'])) {
+                if (cl.value.toLowerCase().replace(' ', '') === 'current_timestamp' && this.matchType(cl.type, ['time', 'date'])) {
                     marks = false;
                 } else {
                     marks = true;
@@ -203,13 +265,16 @@ class PostgresqlDialect implements DbDialect {
         return sql.join(';');
     }
 
-    getModifyColumnSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+    getModifyColumnSql(tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
         let sql: string[] = [];
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
                 let typeLength = this.getTypeLengthSql(a);
                 let defaultSql = this.getDefaultValueSql(a);
                 sql.push(`ALTER TABLE ${tableName} add ${a.name} ${a.type}${typeLength} ${defaultSql}`);
+                if (a.remark) {
+                    sql.push(`comment on column "${tableName}"."${a.name}" is '${a.remark}'`);
+                }
             });
         }
 
@@ -220,6 +285,9 @@ class PostgresqlDialect implements DbDialect {
                 let defaultSql = this.getDefaultValueSql(a);
                 if (defaultSql) {
                     sql.push(`alter table ${tableName} alter column ${a.name} set ${defaultSql}`);
+                }
+                if (a.remark) {
+                    sql.push(`comment on column "${tableName}"."${a.name}" is '${a.remark}'`);
                 }
             });
         }

@@ -27,7 +27,9 @@ FROM DBA_INDEXES  a
          JOIN dba_objects b on a.owner = b.owner and b.object_name = a.index_name and b.object_type = 'INDEX'
          JOIN DBA_IND_COLUMNS c on a.owner = c.table_owner and a.index_name = c.index_name and a.TABLE_NAME = c.table_name
 
-WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)) and  a.TABLE_NAME = '%s'
+WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
+  and  a.TABLE_NAME = '%s'
+  and indexdef(b.object_id,1) != '禁止查看系统定义的索引信息'
 order by  a.TABLE_NAME, a.index_name, c.column_position asc
 ---------------------------------------
 --DM_COLUMN_MA 表列信息
