@@ -8,10 +8,11 @@
                             <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
                         </el-form-item>
                         <el-form-item prop="type" label="类型" required>
-                            <el-select style="width: 100%" v-model="form.type" placeholder="请选择数据库类型">
-                                <el-option key="item.id" label="mysql" value="mysql"> </el-option>
-                                <el-option key="item.id" label="postgres" value="postgres"> </el-option>
-                                <el-option key="item.id" label="达梦(暂不支持ssh)" value="dm"> </el-option>
+                            <el-select @change="changeDbType" style="width: 100%" v-model="form.type" placeholder="请选择数据库类型">
+                                <el-option v-for="dt in dbTypes" :key="dt.type" :value="dt.type">
+                                    <SvgIcon :name="getDbDialect(dt.type).getInfo().icon" :size="18" />
+                                    {{ dt.label }}
+                                </el-option>
                             </el-select>
                         </el-form-item>
                         <el-form-item prop="host" label="host" required>
@@ -86,6 +87,8 @@ import { ElMessage } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import { RsaEncrypt } from '@/common/rsa';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
+import { getDbDialect } from './dialect';
+import SvgIcon from '@/components/svgIcon/index.vue';
 
 const props = defineProps({
     visible: {
@@ -121,7 +124,7 @@ const rules = {
         {
             required: true,
             message: '请输入主机ip和port',
-            trigger: ['change', 'blur'],
+            trigger: ['blur'],
         },
     ],
     username: [
@@ -135,6 +138,21 @@ const rules = {
 
 const dbForm: any = ref(null);
 
+const dbTypes = [
+    {
+        type: 'mysql',
+        label: 'mysql',
+    },
+    {
+        type: 'postgres',
+        label: 'postgres',
+    },
+    {
+        type: 'dm',
+        label: '达梦(暂不支持ssh)',
+    },
+];
+
 const state = reactive({
     dialogVisible: false,
     tabActiveName: 'basic',
@@ -143,7 +161,7 @@ const state = reactive({
         type: null,
         name: null,
         host: '',
-        port: 3306,
+        port: null,
         username: null,
         password: null,
         params: null,
@@ -170,10 +188,16 @@ watch(props, (newValue: any) => {
         state.form = { ...newValue.data };
         state.oldUserName = state.form.username;
     } else {
-        state.form = { port: 3306 } as any;
+        state.form = { port: null } as any;
         state.oldUserName = null;
     }
 });
+
+const changeDbType = (val: string) => {
+    if (!state.form.id) {
+        state.form.port = getDbDialect(val).getInfo().defaultPort as any;
+    }
+};
 
 const getDbPwd = async () => {
     state.pwd = await dbApi.getInstancePwd.request({ id: state.form.id });

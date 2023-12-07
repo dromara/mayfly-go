@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	_ "gitee.com/chunanyong/dm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"strings"
+
+	_ "gitee.com/chunanyong/dm"
 )
 
 func getDmDB(d *DbInfo) (*sql.DB, error) {

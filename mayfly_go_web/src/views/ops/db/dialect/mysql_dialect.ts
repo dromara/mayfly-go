@@ -1,5 +1,4 @@
-import { DbDialect, sqlColumnType } from './index';
-import { SqlLanguage } from 'sql-formatter/lib/src/sqlFormatter';
+import { DbDialect, DialectInfo } from './index';
 
 export { MYSQL_TYPE_LIST, MysqlDialect, language };
 
@@ -30,13 +29,16 @@ const MYSQL_TYPE_LIST = [
     'varchar',
 ];
 
-class MysqlDialect implements DbDialect {
-    getFormatDialect(): SqlLanguage {
-        return 'mysql';
-    }
+const mysqlDialectInfo: DialectInfo = {
+    icon: 'iconfont icon-op-mysql',
+    defaultPort: 3306,
+    formatSqlDialect: 'mysql',
+    columnTypes: MYSQL_TYPE_LIST.map((a) => ({ udtName: a, dataType: a, desc: '', space: '' })),
+};
 
-    getIcon() {
-        return 'iconfont icon-op-mysql';
+class MysqlDialect implements DbDialect {
+    getInfo(): DialectInfo {
+        return mysqlDialectInfo;
     }
 
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
@@ -48,10 +50,6 @@ class MysqlDialect implements DbDialect {
     wrapName = (name: string) => {
         return `\`${name}\``;
     };
-
-    getColumnTypes(): sqlColumnType[] {
-        return MYSQL_TYPE_LIST.map((a) => ({ udtName: a, dataType: a, desc: '', space: '' }));
-    }
 
     genColumnBasicSql(cl: any): string {
         let val = cl.value ? (cl.value === 'CURRENT_TIMESTAMP' ? cl.value : `'${cl.value}'`) : '';

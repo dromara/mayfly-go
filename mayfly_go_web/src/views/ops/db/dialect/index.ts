@@ -11,6 +11,29 @@ export interface sqlColumnType {
     range?: string;
 }
 
+// 数据库基础信息
+export interface DialectInfo {
+    /**
+     * 图标
+     */
+    icon: string;
+
+    /**
+     * 默认端口
+     */
+    defaultPort: number;
+
+    /**
+     * 格式化sql的方言
+     */
+    formatSqlDialect: SqlLanguage;
+
+    /**
+     * 列字段类型
+     */
+    columnTypes: sqlColumnType[];
+}
+
 export const DbType = {
     mysql: 'mysql',
     postgresql: 'postgres',
@@ -19,14 +42,9 @@ export const DbType = {
 
 export interface DbDialect {
     /**
-     * 获取格式化sql对应的dialect名称
+     * 获取一些数据库默认信息
      */
-    getFormatDialect(): SqlLanguage;
-
-    /**
-     * 获取图标信息
-     */
-    getIcon(): string;
+    getInfo(): DialectInfo;
 
     /**
      * 获取默认查询sql
@@ -43,11 +61,6 @@ export interface DbDialect {
      * @param name 名称
      */
     wrapName(name: string): string;
-
-    /**
-     *  生成字段类型列表
-     * */
-    getColumnTypes(): sqlColumnType[];
 
     /**
      * 生成创建表sql

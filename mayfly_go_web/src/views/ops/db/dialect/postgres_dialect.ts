@@ -1,5 +1,4 @@
-import { DbDialect, sqlColumnType } from './index';
-import { SqlLanguage } from 'sql-formatter/lib/src/sqlFormatter';
+import { DbDialect, DialectInfo, sqlColumnType } from './index';
 
 export { PostgresqlDialect, GAUSS_TYPE_LIST };
 
@@ -83,13 +82,16 @@ const GAUSS_TYPE_LIST: sqlColumnType[] = [
     { udtName: 'macaddr', dataType: 'macaddr', desc: 'MAC地址', space: '6字节' },
 ];
 
-class PostgresqlDialect implements DbDialect {
-    getFormatDialect(): SqlLanguage {
-        return 'postgresql';
-    }
+const postgresDialectInfo: DialectInfo = {
+    icon: 'iconfont icon-op-postgres',
+    defaultPort: 5432,
+    formatSqlDialect: 'postgresql',
+    columnTypes: GAUSS_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName)),
+};
 
-    getIcon() {
-        return 'iconfont icon-op-postgres';
+class PostgresqlDialect implements DbDialect {
+    getInfo(): DialectInfo {
+        return postgresDialectInfo;
     }
 
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
@@ -101,10 +103,6 @@ class PostgresqlDialect implements DbDialect {
     wrapName = (name: string) => {
         return name;
     };
-
-    getColumnTypes(): sqlColumnType[] {
-        return GAUSS_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName));
-    }
 
     matchType(text: string, arr: string[]): boolean {
         if (!text || !arr || arr.length === 0) {
