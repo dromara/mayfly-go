@@ -7,7 +7,7 @@
                         <span v-if="data.type.value == SqlExecNodeType.DbInst">
                             <el-popover :show-after="500" placement="right-start" title="数据库实例信息" trigger="hover" :width="250">
                                 <template #reference>
-                                    <SvgIcon :name="getDbDialect(data.params.type).getIcon()" :size="18" />
+                                    <SvgIcon :name="getDbDialect(data.params.type).getInfo().icon" :size="18" />
                                 </template>
                                 <template #default>
                                     <el-descriptions :column="1" size="small">
@@ -66,7 +66,7 @@
                             <el-descriptions-item label-align="right">
                                 <template #label>
                                     <div>
-                                        <SvgIcon :name="getDbDialect(nowDbInst.type).getIcon()" :size="18" />
+                                        <SvgIcon :name="getDbDialect(nowDbInst.type).getInfo().icon" :size="18" />
                                         实例
                                     </div>
                                 </template>
@@ -104,7 +104,7 @@
                                                 {{ dt.params.name }}
                                             </el-descriptions-item>
                                             <el-descriptions-item label="host">
-                                                <SvgIcon :name="getDbDialect(dt.params.type).getIcon()" :size="18" />
+                                                <SvgIcon :name="getDbDialect(dt.params.type).getInfo().icon" :size="18" />
                                                 {{ dt.params.host }}
                                             </el-descriptions-item>
                                             <el-descriptions-item label="库名">

@@ -115,7 +115,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	ctx := rc.MetaCtx
 	// 如果存在执行id，则保存取消函数，用于后续可能的取消操作
 	if form.ExecId != "" {
-		cancelCtx, cancel := context.WithCancel(rc.MetaCtx)
+		cancelCtx, cancel := context.WithTimeout(rc.MetaCtx, 55*time.Second)
 		ctx = cancelCtx
 		cancelExecSqlMap.Store(form.ExecId, cancel)
 		defer cancelExecSqlMap.Delete(form.ExecId)

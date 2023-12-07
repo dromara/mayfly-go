@@ -167,7 +167,7 @@ const state = reactive({
     dialogVisible: false,
     btnloading: false,
     activeName: '1',
-    columnTypeList: dbDialect.getColumnTypes(),
+    columnTypeList: dbDialect.getInfo().columnTypes,
     indexTypeList: ['BTREE'], // mysql索引类型详解 http://c.biancheng.net/view/7897.html
     tableData: {
         fields: {
@@ -425,7 +425,7 @@ const submit = async () => {
         sql: sql,
         dbId: props.dbId as any,
         db: props.db as any,
-        dbType: dbDialect.getFormatDialect(),
+        dbType: dbDialect.getInfo().formatSqlDialect,
         runSuccessCallback: () => {
             emit('submit-sql', { tableName: state.tableData.tableName });
             // cancel();

@@ -34,8 +34,6 @@ require (
 	gorm.io/gorm v1.25.5
 )
 
-require golang.org/x/exp v0.0.0-20230519143937-03e91628a987
-
 require (
 	github.com/Azure/go-ntlmssp v0.0.0-20221128193559-754e69321358 // indirect
 	github.com/boombuler/barcode v1.0.1-0.20190219062509-6c824513bacc // indirect
@@ -79,6 +77,7 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	golang.org/x/arch v0.3.0 // indirect
+	golang.org/x/exp v0.0.0-20230519143937-03e91628a987
 	golang.org/x/image v0.0.0-20220302094943-723b81ca9867 // indirect
 	golang.org/x/net v0.18.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect

@@ -33,10 +33,7 @@ func (d *DbConn) QueryContext(ctx context.Context, querySql string) ([]string, [
 		result = append(result, record)
 	})
 	if err != nil {
-		if err == context.Canceled {
-			return nil, nil, errorx.NewBiz("取消执行")
-		}
-		return nil, nil, err
+		return nil, nil, wrapSqlError(err)
 	}
 	return columns, result, nil
 }
@@ -74,10 +71,7 @@ func (d *DbConn) Exec(sql string) (int64, error) {
 func (d *DbConn) ExecContext(ctx context.Context, sql string) (int64, error) {
 	res, err := d.db.ExecContext(ctx, sql)
 	if err != nil {
-		if err == context.Canceled {
-			return 0, errorx.NewBiz("取消执行")
-		}
-		return 0, err
+		return 0, wrapSqlError(err)
 	}
 	return res.RowsAffected()
 }
@@ -201,4 +195,15 @@ func valueConvert(data []byte, colType *sql.ColumnType) any {
 	}
 
 	return stringV
+}
+
+// 包装sql执行相关错误
+func wrapSqlError(err error) error {
+	if err == context.Canceled {
+		return errorx.NewBiz("取消执行")
+	}
+	if err == context.DeadlineExceeded {
+		return errorx.NewBiz("执行超时")
+	}
+	return err
 }
