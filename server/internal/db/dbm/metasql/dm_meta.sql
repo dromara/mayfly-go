@@ -15,19 +15,20 @@ where a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
   and a.object_type = 'TABLE'
 ---------------------------------------
 --DM_INDEX_INFO 表索引信息
-SELECT
-    indexname AS "indexName",
-    'BTREE' AS "IndexType",
-    case when indexdef like 'CREATE UNIQUE INDEX%%' then 0 else 1 end as "nonUnique",
-    obj_description(b.oid, 'pg_class') AS "indexComment",
-    indexdef AS "indexDef",
-    c.attname AS "columnName",
-    c.attnum AS "seqInIndex"
-FROM pg_indexes a
-     join pg_class b on a.indexname = b.relname
-     join pg_attribute c on b.oid = c.attrelid
-WHERE a.schemaname = (select current_schema())
-  AND a.tablename = '%s';
+select
+    a.index_name as indexName,
+    a.index_type as indexType,
+    case when a.uniqueness = 'UNIQUE' then 1 else 0 end as nonUnique,
+    indexdef(b.object_id,1) as indexDef,
+    c.column_name as columnName,
+    c.column_position as seqInIndex,
+    '无' as indexComment
+FROM DBA_INDEXES  a
+         JOIN dba_objects b on a.owner = b.owner and b.object_name = a.index_name and b.object_type = 'INDEX'
+         JOIN DBA_IND_COLUMNS c on a.owner = c.table_owner and a.index_name = c.index_name and a.TABLE_NAME = c.table_name
+
+WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)) and  a.TABLE_NAME = '%s'
+order by  a.TABLE_NAME, a.index_name, c.column_position asc
 ---------------------------------------
 --DM_COLUMN_MA 表列信息
 select a.table_name                                                                        as tableName,
