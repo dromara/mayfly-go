@@ -1,43 +1,39 @@
 <template>
     <div>
-        <el-row>
-            <el-col :span="5">
-                <el-row type="flex" justify="space-between">
-                    <el-col :span="24" class="flex-auto">
-                        <tag-tree :resource-type="TagResourceTypeEnum.Redis.value" :tag-path-node-type="NodeTypeTagPath">
-                            <template #prefix="{ data }">
-                                <span v-if="data.type.value == RedisNodeType.Redis">
-                                    <el-popover :show-after="500" placement="right-start" title="redis实例信息" trigger="hover" :width="250">
-                                        <template #reference>
-                                            <SvgIcon name="iconfont icon-op-redis" :size="18" />
-                                        </template>
-                                        <template #default>
-                                            <el-descriptions :column="1" size="small">
-                                                <el-descriptions-item label="名称">
-                                                    {{ data.params.name }}
-                                                </el-descriptions-item>
-                                                <el-descriptions-item label="模式">
-                                                    {{ data.params.mode }}
-                                                </el-descriptions-item>
-                                                <el-descriptions-item label="host">
-                                                    {{ data.params.host }}
-                                                </el-descriptions-item>
-                                                <el-descriptions-item label="备注" label-align="right">
-                                                    {{ data.params.remark }}
-                                                </el-descriptions-item>
-                                            </el-descriptions>
-                                        </template>
-                                    </el-popover>
-                                </span>
+        <Splitpanes class="default-theme">
+            <Pane size="20" max-size="30">
+                <tag-tree :resource-type="TagResourceTypeEnum.Redis.value" :tag-path-node-type="NodeTypeTagPath">
+                    <template #prefix="{ data }">
+                        <span v-if="data.type.value == RedisNodeType.Redis">
+                            <el-popover :show-after="500" placement="right-start" title="redis实例信息" trigger="hover" :width="250">
+                                <template #reference>
+                                    <SvgIcon name="iconfont icon-op-redis" :size="18" />
+                                </template>
+                                <template #default>
+                                    <el-descriptions :column="1" size="small">
+                                        <el-descriptions-item label="名称">
+                                            {{ data.params.name }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="模式">
+                                            {{ data.params.mode }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="host">
+                                            {{ data.params.host }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="备注" label-align="right">
+                                            {{ data.params.remark }}
+                                        </el-descriptions-item>
+                                    </el-descriptions>
+                                </template>
+                            </el-popover>
+                        </span>
 
-                                <SvgIcon v-if="data.type.value == RedisNodeType.Db" name="Coin" color="#67c23a" />
-                            </template>
-                        </tag-tree>
-                    </el-col>
-                </el-row>
-            </el-col>
+                        <SvgIcon v-if="data.type.value == RedisNodeType.Db" name="Coin" color="#67c23a" />
+                    </template>
+                </tag-tree>
+            </Pane>
 
-            <el-col v-loading="state.loadingKeyTree" :span="7">
+            <Pane min-size="20" size="30">
                 <div class="key-list-vtree">
                     <el-row>
                         <el-col :span="2">
@@ -98,7 +94,6 @@
                             height: state.keyTreeHeight,
                             overflow: 'auto',
                             border: '1px solid var(--el-border-color-light, #ebeef5)',
-                            marginLeft: '5px',
                         }"
                         ref="keyTreeRef"
                         :highlight-current="true"
@@ -127,21 +122,20 @@
                         </template>
                     </el-tree>
 
-                    <!-- right context menu -->
                     <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
                 </div>
-            </el-col>
+            </Pane>
 
-            <el-col :span="12" style="border-left: 1px solid var(--el-card-border-color)">
-                <div class="ml5">
-                    <el-tabs @tab-remove="removeDataTab" style="width: 100%" v-model="state.activeName">
+            <Pane min-size="40">
+                <div class="">
+                    <el-tabs @tab-remove="removeDataTab" v-model="state.activeName">
                         <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                             <key-detail :redisId="scanParam.id" :db="scanParam.db" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />
                         </el-tab-pane>
                     </el-tabs>
                 </div>
-            </el-col>
-        </el-row>
+            </Pane>
+        </Splitpanes>
 
         <div style="text-align: center; margin-top: 10px"></div>
 
@@ -183,6 +177,7 @@ import { keysToTree, sortByTreeNodes, keysToList } from './utils';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { sleep } from '../../../common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { Splitpanes, Pane } from 'splitpanes';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
@@ -326,35 +321,6 @@ onMounted(async () => {
 const setHeight = () => {
     state.keyTreeHeight = window.innerHeight - 174 + 'px';
 };
-
-// /**
-//  * instmap;  tagPaht -> redis info[]
-//  */
-// const instMap: Map<string, any[]> = new Map();
-
-// const getInsts = async () => {
-//     const res = await redisApi.redisList.request({ pageNum: 1, pageSize: 1000 });
-//     if (!res.total) return;
-//     for (const redisInfo of res.list) {
-//         const tagPath = redisInfo.tagPath;
-//         let redisInsts = instMap.get(tagPath) || [];
-//         redisInsts.push(redisInfo);
-//         instMap.set(tagPath, redisInsts);
-//     }
-// };
-
-// /**
-//  * 加载标签树节点
-//  */
-// const loadTags = async () => {
-//     await getInsts();
-//     const tagPaths = instMap.keys();
-//     const tagNodes = [];
-//     for (let tagPath of tagPaths) {
-//         tagNodes.push(new TagTreeNode(tagPath, tagPath, NodeTypeTagPath));
-//     }
-//     return tagNodes;
-// };
 
 const scan = async (appendKey = false) => {
     isTrue(state.scanParam.id != null, '请先选择redis');
@@ -612,7 +578,7 @@ const delKey = (key: string) => {
 
 <style lang="scss">
 .key-list-vtree {
-    height: calc(100vh - 250px);
+    height: 100%;
 }
 
 .key-list-vtree .folder-label {

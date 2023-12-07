@@ -13,6 +13,8 @@ import 'element-plus/theme-chalk/dark/css-vars.css';
 import zhCn from 'element-plus/es/locale/lang/zh-cn';
 import { ElMessage } from 'element-plus';
 
+import 'splitpanes/dist/splitpanes.css';
+
 import '@/theme/index.scss';
 import '@/assets/font/font.css';
 import '@/assets/iconfont/iconfont.js';

@@ -1,124 +1,128 @@
 <template>
     <div>
         <el-row>
-            <el-col :span="5">
-                <tag-tree :resource-type="TagResourceTypeEnum.Mongo.value" :tag-path-node-type="NodeTypeTagPath">
-                    <template #prefix="{ data }">
-                        <span v-if="data.type.value == MongoNodeType.Mongo">
-                            <el-popover :show-after="500" placement="right-start" title="mongo实例信息" trigger="hover" :width="250">
-                                <template #reference>
-                                    <SvgIcon name="iconfont icon-op-mongo" :size="18" />
-                                </template>
-                                <template #default>
-                                    <el-descriptions :column="1" size="small">
-                                        <el-descriptions-item label="名称">
-                                            {{ data.params.name }}
-                                        </el-descriptions-item>
-                                        <el-descriptions-item label="链接">
-                                            {{ data.params.uri }}
-                                        </el-descriptions-item>
-                                    </el-descriptions>
-                                </template>
-                            </el-popover>
-                        </span>
+            <Splitpanes class="default-theme">
+                <Pane size="20" max-size="30">
+                    <tag-tree :resource-type="TagResourceTypeEnum.Mongo.value" :tag-path-node-type="NodeTypeTagPath">
+                        <template #prefix="{ data }">
+                            <span v-if="data.type.value == MongoNodeType.Mongo">
+                                <el-popover :show-after="500" placement="right-start" title="mongo实例信息" trigger="hover" :width="250">
+                                    <template #reference>
+                                        <SvgIcon name="iconfont icon-op-mongo" :size="18" />
+                                    </template>
+                                    <template #default>
+                                        <el-descriptions :column="1" size="small">
+                                            <el-descriptions-item label="名称">
+                                                {{ data.params.name }}
+                                            </el-descriptions-item>
+                                            <el-descriptions-item label="链接">
+                                                {{ data.params.uri }}
+                                            </el-descriptions-item>
+                                        </el-descriptions>
+                                    </template>
+                                </el-popover>
+                            </span>
 
-                        <SvgIcon v-if="data.type.value == MongoNodeType.Dbs" name="Coin" color="#67c23a" />
+                            <SvgIcon v-if="data.type.value == MongoNodeType.Dbs" name="Coin" color="#67c23a" />
 
-                        <SvgIcon
-                            v-if="data.type.value == MongoNodeType.Coll || data.type.value == MongoNodeType.CollMenu"
-                            name="Document"
-                            class="color-primary"
-                        />
-                    </template>
+                            <SvgIcon
+                                v-if="data.type.value == MongoNodeType.Coll || data.type.value == MongoNodeType.CollMenu"
+                                name="Document"
+                                class="color-primary"
+                            />
+                        </template>
 
-                    <template #label="{ data }">
-                        <span v-if="data.type.value == MongoNodeType.Dbs">
-                            {{ data.params.database }}
-                            <span style="color: #8492a6; font-size: 13px"> [{{ formatByteSize(data.params.size) }}] </span>
-                        </span>
+                        <template #label="{ data }">
+                            <span v-if="data.type.value == MongoNodeType.Dbs">
+                                {{ data.params.database }}
+                                <span style="color: #8492a6; font-size: 13px"> [{{ formatByteSize(data.params.size) }}] </span>
+                            </span>
 
-                        <span v-else>{{ data.label }}</span>
-                    </template>
-                </tag-tree>
-            </el-col>
+                            <span v-else>{{ data.label }}</span>
+                        </template>
+                    </tag-tree>
+                </Pane>
 
-            <el-col :span="19">
-                <div id="mongo-tab" class="ml5" style="border: 1px solid var(--el-border-color-light, #ebeef5); margin-top: 1px">
-                    <el-row v-if="nowColl">
-                        <el-descriptions :column="10" size="small" border>
-                            <!-- <el-descriptions-item label-align="right" label="tag">xxx</el-descriptions-item> -->
+                <Pane>
+                    <div id="mongo-tab" class="ml5" style="border: 1px solid var(--el-border-color-light, #ebeef5); margin-top: 1px">
+                        <el-row v-if="nowColl">
+                            <el-descriptions :column="10" size="small" border>
+                                <!-- <el-descriptions-item label-align="right" label="tag">xxx</el-descriptions-item> -->
 
-                            <el-descriptions-item label="ns" label-align="right">
-                                {{ nowColl.stats?.ns }}
-                            </el-descriptions-item>
-                            <el-descriptions-item label="count" label-align="right">
-                                {{ nowColl.stats?.count }}
-                            </el-descriptions-item>
-                            <el-descriptions-item label="avgObjSize" label-align="right">
-                                {{ formatByteSize(nowColl.stats?.avgObjSize) }}
-                            </el-descriptions-item>
-                            <el-descriptions-item label="size" label-align="right">
-                                {{ formatByteSize(nowColl.stats?.size) }}
-                            </el-descriptions-item>
-                            <el-descriptions-item label="totalSize" label-align="right">
-                                {{ formatByteSize(nowColl.stats?.totalSize) }}
-                            </el-descriptions-item>
-                            <el-descriptions-item label="storageSize" label-align="right">
-                                {{ formatByteSize(nowColl.stats?.storageSize) }}
-                            </el-descriptions-item>
-                            <el-descriptions-item label="freeStorageSize" label-align="right">
-                                {{ formatByteSize(nowColl.stats?.freeStorageSize) }}
-                            </el-descriptions-item>
-                        </el-descriptions>
-                    </el-row>
+                                <el-descriptions-item label="ns" label-align="right">
+                                    {{ nowColl.stats?.ns }}
+                                </el-descriptions-item>
+                                <el-descriptions-item label="count" label-align="right">
+                                    {{ nowColl.stats?.count }}
+                                </el-descriptions-item>
+                                <el-descriptions-item label="avgObjSize" label-align="right">
+                                    {{ formatByteSize(nowColl.stats?.avgObjSize) }}
+                                </el-descriptions-item>
+                                <el-descriptions-item label="size" label-align="right">
+                                    {{ formatByteSize(nowColl.stats?.size) }}
+                                </el-descriptions-item>
+                                <el-descriptions-item label="totalSize" label-align="right">
+                                    {{ formatByteSize(nowColl.stats?.totalSize) }}
+                                </el-descriptions-item>
+                                <el-descriptions-item label="storageSize" label-align="right">
+                                    {{ formatByteSize(nowColl.stats?.storageSize) }}
+                                </el-descriptions-item>
+                                <el-descriptions-item label="freeStorageSize" label-align="right">
+                                    {{ formatByteSize(nowColl.stats?.freeStorageSize) }}
+                                </el-descriptions-item>
+                            </el-descriptions>
+                        </el-row>
 
-                    <el-row type="flex">
-                        <el-tabs @tab-remove="removeDataTab" style="width: 100%; margin-left: 5px" v-model="state.activeName">
-                            <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
-                                <el-row>
-                                    <el-col :span="2">
-                                        <div class="mt5">
-                                            <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false" class=""> </el-link>
-                                            <el-divider direction="vertical" border-style="dashed" />
-                                            <el-link v-auth="perms.saveData" @click="onEditDoc(null)" type="primary" icon="plus" :underline="false"> </el-link>
-                                        </div>
-                                    </el-col>
-                                    <el-col :span="22">
-                                        <el-input
-                                            ref="findParamInputRef"
-                                            v-model="dt.findParamStr"
-                                            placeholder="点击输入相应查询条件"
-                                            @focus="showFindDialog(dt.key)"
-                                        >
-                                            <template #prepend>查询参数</template>
-                                        </el-input>
-                                    </el-col>
-                                </el-row>
-                                <el-row :style="`height: ${dataHeight}; overflow: auto;`">
-                                    <el-col :span="6" v-for="item in dt.datas" :key="item">
-                                        <el-card :body-style="{ padding: '0px', position: 'relative' }">
-                                            <el-input type="textarea" v-model="item.value" :rows="10" />
-                                            <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
-                                                <div>
-                                                    <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
-
-                                                    <el-divider direction="vertical" border-style="dashed" />
-
-                                                    <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?" width="160">
-                                                        <template #reference>
-                                                            <el-link v-auth="perms.delData" :underline="false" type="danger" icon="DocumentDelete"> </el-link>
-                                                        </template>
-                                                    </el-popconfirm>
-                                                </div>
+                        <el-row type="flex">
+                            <el-tabs @tab-remove="removeDataTab" style="width: 100%; margin-left: 5px" v-model="state.activeName">
+                                <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
+                                    <el-row>
+                                        <el-col :span="2">
+                                            <div class="mt5">
+                                                <el-link @click="findCommand(state.activeName)" icon="refresh" :underline="false" class=""> </el-link>
+                                                <el-divider direction="vertical" border-style="dashed" />
+                                                <el-link v-auth="perms.saveData" @click="onEditDoc(null)" type="primary" icon="plus" :underline="false">
+                                                </el-link>
                                             </div>
-                                        </el-card>
-                                    </el-col>
-                                </el-row>
-                            </el-tab-pane>
-                        </el-tabs>
-                    </el-row>
-                </div>
-            </el-col>
+                                        </el-col>
+                                        <el-col :span="22">
+                                            <el-input
+                                                ref="findParamInputRef"
+                                                v-model="dt.findParamStr"
+                                                placeholder="点击输入相应查询条件"
+                                                @focus="showFindDialog(dt.key)"
+                                            >
+                                                <template #prepend>查询参数</template>
+                                            </el-input>
+                                        </el-col>
+                                    </el-row>
+                                    <el-row :style="`height: ${dataHeight}; overflow: auto;`">
+                                        <el-col :span="6" v-for="item in dt.datas" :key="item">
+                                            <el-card :body-style="{ padding: '0px', position: 'relative' }">
+                                                <el-input type="textarea" v-model="item.value" :rows="10" />
+                                                <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
+                                                    <div>
+                                                        <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
+
+                                                        <el-divider direction="vertical" border-style="dashed" />
+
+                                                        <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?" width="160">
+                                                            <template #reference>
+                                                                <el-link v-auth="perms.delData" :underline="false" type="danger" icon="DocumentDelete">
+                                                                </el-link>
+                                                            </template>
+                                                        </el-popconfirm>
+                                                    </div>
+                                                </div>
+                                            </el-card>
+                                        </el-col>
+                                    </el-row>
+                                </el-tab-pane>
+                            </el-tabs>
+                        </el-row>
+                    </div>
+                </Pane>
+            </Splitpanes>
         </el-row>
 
         <el-dialog width="600px" title="find参数" v-model="findDialog.visible">
@@ -174,6 +178,7 @@ import TagTree from '../component/TagTree.vue';
 import { formatByteSize } from '@/common/utils/format';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { sleep } from '@/common/utils/loading';
+import { Splitpanes, Pane } from 'splitpanes';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 

@@ -39,86 +39,96 @@
             </div>
         </div>
 
-        <MonacoEditor ref="monacoEditorRef" class="mt5" v-model="state.sql" language="sql" :height="state.editorHeight" :id="'MonacoTextarea-' + getKey()" />
+        <Splitpanes
+            @pane-maximize="resizeTableHeight([{ size: 0 }])"
+            @resize="resizeTableHeight"
+            horizontal
+            class="default-theme"
+            style="height: calc(100vh - 225px)"
+        >
+            <Pane :size="state.editorSize" max-size="80">
+                <MonacoEditor ref="monacoEditorRef" class="mt5" v-model="state.sql" language="sql" height="100%" :id="'MonacoTextarea-' + getKey()" />
+            </Pane>
 
-        <div class="editor-move-resize" @mousedown="onDragSetHeight">
-            <el-icon>
-                <Minus />
-            </el-icon>
-        </div>
+            <Pane :size="100 - state.editorSize">
+                <div class="mt5 sql-exec-res h100">
+                    <el-tabs class="h100 w100" v-if="state.execResTabs.length > 0" @tab-remove="onRemoveTab" v-model="state.activeTab">
+                        <el-tab-pane class="h100" closable v-for="dt in state.execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
+                            <template #label>
+                                <el-popover :show-after="1000" placement="top-start" title="执行信息" trigger="hover" :width="300">
+                                    <template #reference>
+                                        <div>
+                                            <span>
+                                                <span v-if="dt.loading">
+                                                    <SvgIcon class="mb2 is-loading" name="Loading" color="var(--el-color-primary)" />
+                                                </span>
+                                                <span v-else>
+                                                    <SvgIcon class="mb2" v-if="!dt.errorMsg" name="CircleCheck" color="var(--el-color-success)" />
+                                                    <SvgIcon class="mb2" v-if="dt.errorMsg" name="CircleClose" color="var(--el-color-error)" />
+                                                </span>
+                                            </span>
 
-        <div class="mt5 sql-exec-res">
-            <el-tabs v-if="state.execResTabs.length > 0" @tab-remove="onRemoveTab" style="width: 100%" v-model="state.activeTab">
-                <el-tab-pane closable v-for="dt in state.execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
-                    <template #label>
-                        <el-popover :show-after="1000" placement="top-start" title="执行信息" trigger="hover" :width="300">
-                            <template #reference>
-                                <div>
-                                    <span>
-                                        <span v-if="dt.loading">
-                                            <SvgIcon class="mb2 is-loading" name="Loading" color="var(--el-color-primary)" />
-                                        </span>
-                                        <span v-else>
-                                            <SvgIcon class="mb2" v-if="!dt.errorMsg" name="CircleCheck" color="var(--el-color-success)" />
-                                            <SvgIcon class="mb2" v-if="dt.errorMsg" name="CircleClose" color="var(--el-color-error)" />
-                                        </span>
-                                    </span>
-
-                                    <span> 结果{{ dt.id }} </span>
-                                </div>
-                            </template>
-                            <template #default>
-                                <el-descriptions v-if="dt.sql" :column="1" size="small">
-                                    <el-descriptions-item>
-                                        <div style="width: 280px">
-                                            <el-text size="small" truncated :title="dt.sql"> {{ dt.sql }} </el-text>
+                                            <span> 结果{{ dt.id }} </span>
                                         </div>
-                                    </el-descriptions-item>
-                                    <el-descriptions-item label="耗时 :"> {{ dt.execTime }}ms </el-descriptions-item>
-                                    <el-descriptions-item label="结果集 :">
-                                        {{ dt.data?.length }}
-                                    </el-descriptions-item>
-                                </el-descriptions>
+                                    </template>
+                                    <template #default>
+                                        <el-descriptions v-if="dt.sql" :column="1" size="small">
+                                            <el-descriptions-item>
+                                                <div style="width: 280px">
+                                                    <el-text size="small" truncated :title="dt.sql"> {{ dt.sql }} </el-text>
+                                                </div>
+                                            </el-descriptions-item>
+                                            <el-descriptions-item label="耗时 :"> {{ dt.execTime }}ms </el-descriptions-item>
+                                            <el-descriptions-item label="结果集 :">
+                                                {{ dt.data?.length }}
+                                            </el-descriptions-item>
+                                        </el-descriptions>
+                                    </template>
+                                </el-popover>
                             </template>
-                        </el-popover>
-                    </template>
 
-                    <el-row>
-                        <span v-if="dt.hasUpdatedFileds" class="mt5">
-                            <span>
-                                <el-link type="success" :underline="false" @click="submitUpdateFields(dt)"><span style="font-size: 12px">提交</span></el-link>
-                            </span>
-                            <span>
-                                <el-divider direction="vertical" border-style="dashed" />
-                                <el-link type="warning" :underline="false" @click="cancelUpdateFields(dt)"><span style="font-size: 12px">取消</span></el-link>
-                            </span>
-                        </span>
-                    </el-row>
-                    <db-table-data
-                        v-if="!dt.errorMsg"
-                        :ref="(el) => (dt.dbTableRef = el)"
-                        :db-id="dbId"
-                        :db="dbName"
-                        :data="dt.data"
-                        :table="dt.table"
-                        :columns="dt.tableColumn"
-                        :loading="dt.loading"
-                        :loading-key="dt.loadingKey"
-                        :height="tableDataHeight"
-                        empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
-                        @change-updated-field="changeUpdatedField($event, dt)"
-                        @data-delete="onDeleteData($event, dt)"
-                    ></db-table-data>
+                            <el-row>
+                                <span v-if="dt.hasUpdatedFileds" class="mt5">
+                                    <span>
+                                        <el-link type="success" :underline="false" @click="submitUpdateFields(dt)"
+                                            ><span style="font-size: 12px">提交</span></el-link
+                                        >
+                                    </span>
+                                    <span>
+                                        <el-divider direction="vertical" border-style="dashed" />
+                                        <el-link type="warning" :underline="false" @click="cancelUpdateFields(dt)"
+                                            ><span style="font-size: 12px">取消</span></el-link
+                                        >
+                                    </span>
+                                </span>
+                            </el-row>
+                            <db-table-data
+                                v-if="!dt.errorMsg"
+                                :ref="(el) => (dt.dbTableRef = el)"
+                                :db-id="dbId"
+                                :db="dbName"
+                                :data="dt.data"
+                                :table="dt.table"
+                                :columns="dt.tableColumn"
+                                :loading="dt.loading"
+                                :loading-key="dt.loadingKey"
+                                :height="tableDataHeight"
+                                empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
+                                @change-updated-field="changeUpdatedField($event, dt)"
+                                @data-delete="onDeleteData($event, dt)"
+                            ></db-table-data>
 
-                    <el-result v-else icon="error" title="执行失败" :sub-title="dt.errorMsg"> </el-result>
-                </el-tab-pane>
-            </el-tabs>
-        </div>
+                            <el-result v-else icon="error" title="执行失败" :sub-title="dt.errorMsg"> </el-result>
+                        </el-tab-pane>
+                    </el-tabs>
+                </div>
+            </Pane>
+        </Splitpanes>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { h, nextTick, watch, onMounted, reactive, toRefs, ref } from 'vue';
+import { h, nextTick, onMounted, reactive, toRefs, ref } from 'vue';
 import { getToken } from '@/common/utils/storage';
 import { notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
@@ -141,6 +151,7 @@ import syssocket from '@/common/syssocket';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { getDbDialect } from '../../dialect';
 import { randomUuid } from '@/common/utils/string';
+import { Splitpanes, Pane } from 'splitpanes';
 
 const emits = defineEmits(['saveSqlSuccess']);
 
@@ -156,10 +167,6 @@ const props = defineProps({
     // sql脚本名，若有则去加载该sql内容
     sqlName: {
         type: String,
-    },
-    editorHeight: {
-        type: String,
-        default: '600',
     },
 });
 
@@ -206,23 +213,17 @@ const monacoEditorRef: any = ref(null);
 let monacoEditor: editor.IStandaloneCodeEditor;
 
 const state = reactive({
+    editorSize: 50, // editor高度比例
     token,
     sql: '', // 当前编辑器的sql内容s
     sqlName: '' as any, // sql模板名称
     execResTabs: [] as ExecResTab[],
     activeTab: 1,
     editorHeight: '500',
-    tableDataHeight: 255 as any,
+    tableDataHeight: '250px',
 });
 
 const { tableDataHeight } = toRefs(state);
-
-watch(
-    () => props.editorHeight,
-    (newValue: any) => {
-        state.editorHeight = newValue;
-    }
-);
 
 const getNowDbInst = () => {
     return DbInst.getInst(props.dbId);
@@ -230,7 +231,12 @@ const getNowDbInst = () => {
 
 onMounted(async () => {
     console.log('in query mounted');
-    state.editorHeight = props.editorHeight;
+
+    // 第一个pane为sql editor
+    resizeTableHeight([{ size: state.editorSize }]);
+    window.onresize = () => {
+        resizeTableHeight([{ size: state.editorSize }]);
+    };
 
     // 默认新建一个结果集tab
     state.execResTabs.push(new ExecResTab(1));
@@ -265,19 +271,11 @@ const onRemoveTab = (targetId: number) => {
     }
 };
 
-/**
- * 拖拽改变sql编辑区和查询结果区高度
- */
-const onDragSetHeight = () => {
-    document.onmousemove = (e) => {
-        e.preventDefault();
-        //得到鼠标拖动的宽高距离：取绝对值
-        state.editorHeight = `${document.getElementById('MonacoTextarea-' + getKey())!.clientHeight + e.movementY}px`;
-        state.tableDataHeight -= e.movementY;
-    };
-    document.onmouseup = () => {
-        document.onmousemove = null;
-    };
+const resizeTableHeight = (e: any) => {
+    const vh = window.innerHeight;
+    state.editorSize = e[0].size;
+    const editorHeight = (vh - 225) * (state.editorSize / 100);
+    state.tableDataHeight = vh - 225 - 40 - editorHeight + 'px';
 };
 
 const getKey = () => {
@@ -335,6 +333,10 @@ const onRunSql = async (newTab = false) => {
         // 不是新建tab执行，则在当前激活的tab上执行sql
         i = state.execResTabs.findIndex((x) => x.id == state.activeTab);
         execRes = state.execResTabs[i];
+        if (execRes.loading) {
+            ElMessage.error('当前结果集tab正在执行, 请使用新标签执行');
+            return;
+        }
         id = execRes.id;
     }
 
@@ -445,7 +447,7 @@ const formatSql = () => {
         return;
     }
 
-    const formatDialect = getDbDialect(getNowDbInst().type).getFormatDialect();
+    const formatDialect = getDbDialect(getNowDbInst().type).getInfo().formatSqlDialect;
 
     let sql = monacoEditor.getModel()?.getValueInRange(selection);
     // 有选中sql则格式化并替换选中sql, 否则格式化编辑器所有内容

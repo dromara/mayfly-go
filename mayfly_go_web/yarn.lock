@@ -1765,6 +1765,11 @@ sortablejs@^1.15.0:
   resolved "https://registry.npmmirror.com/source-map-js/-/source-map-js-1.0.2.tgz"
   integrity sha512-R0XvVJ9WusLiqTCEiGCmICCMplcCkIwwR11mOSD9CR5u+IXYdiseeEuXCVAjS54zqwkLcPNnmU4OeJ6tUrWhDw==
 
+splitpanes@^3.1.5:
+  version "3.1.5"
+  resolved "https://registry.npmmirror.com/splitpanes/-/splitpanes-3.1.5.tgz#de81da25681c252d131747a9cb48a17156e2b210"
+  integrity sha512-r3Mq2ITFQ5a2VXLOy4/Sb2Ptp7OfEO8YIbhVJqJXoFc9hc5nTXXkCvtVDjIGbvC0vdE7tse+xTM9BMjsszP6bw==
+
 sql-formatter@^14.0.0:
   version "14.0.0"
   resolved "https://registry.npmmirror.com/sql-formatter/-/sql-formatter-14.0.0.tgz#07a1714c49d7d280ff2f6f09c64eebfba82b7053"

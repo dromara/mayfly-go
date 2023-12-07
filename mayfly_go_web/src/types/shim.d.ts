@@ -3,3 +3,4 @@ declare module 'sql-formatter';
 declare module 'jsoneditor';
 declare module 'asciinema-player';
 declare module 'vue-grid-layout';
+declare module 'splitpanes';

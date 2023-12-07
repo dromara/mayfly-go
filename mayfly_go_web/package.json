@@ -29,6 +29,7 @@
     "qrcode.vue": "^3.4.1",
     "screenfull": "^6.0.2",
     "sortablejs": "^1.15.0",
+    "splitpanes": "^3.1.5",
     "sql-formatter": "^14.0.0",
     "uuid": "^9.0.1",
     "vue": "^3.3.10",

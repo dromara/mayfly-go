@@ -1,5 +1,5 @@
 <template>
-    <div class="db-table-data mt5" :style="{ height: `${tableHeight}px` }">
+    <div class="db-table-data mt5" :style="{ height: tableHeight }">
         <el-auto-resizer>
             <template #default="{ height, width }">
                 <el-table-v2
@@ -93,7 +93,8 @@
                     <template v-if="state.loading" #overlay>
                         <div class="el-loading-mask" style="display: flex; flex-direction: column; align-items: center; justify-content: center">
                             <div>
-                                <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="42" />
+                                <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="28" />
+                                <el-text class="ml5" tag="b">执行时间 - {{ state.execTime.toFixed(1) }}s</el-text>
                             </div>
                             <div v-if="loadingKey" class="mt10">
                                 <el-button @click="cancelLoading" type="info" size="small" plain>取 消</el-button>
@@ -103,7 +104,7 @@
 
                     <template #empty>
                         <div style="text-align: center">
-                            <el-empty :style="{ height: `${tableHeight}px` }" :description="state.emptyText" :image-size="100" />
+                            <el-empty class="h100" :description="state.emptyText" :image-size="100" />
                         </div>
                     </template>
                 </el-table-v2>
@@ -124,7 +125,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, watch, reactive, toRefs } from 'vue';
+import { ref, onMounted, watch, reactive, toRefs, onBeforeUnmount } from 'vue';
 import { ElInput } from 'element-plus';
 import { copyToClipboard } from '@/common/utils/string';
 import { DbInst } from '@/views/ops/db/db';
@@ -137,9 +138,6 @@ import { dbApi } from '../../api';
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
 const props = defineProps({
-    loadingKey: {
-        type: String,
-    },
     dbId: {
         type: Number,
         required: true,
@@ -166,6 +164,9 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    loadingKey: {
+        type: String,
+    },
     emptyText: {
         type: String,
         default: '暂无数据',
@@ -175,8 +176,8 @@ const props = defineProps({
         default: false,
     },
     height: {
-        type: Number,
-        default: 600,
+        type: String,
+        default: '600px',
     },
 });
 
@@ -283,6 +284,9 @@ const selectionRowsMap: Map<number, any> = new Map();
 // 更新单元格  key-> rowIndex  value -> 更新行
 const cellUpdateMap: Map<number, UpdatedRow> = new Map();
 
+// 数据加载时间计时器
+let execTimeInterval: any = null;
+
 const state = reactive({
     dbId: 0, // 当前选中操作的数据库实例
     dbType: '',
@@ -291,9 +295,10 @@ const state = reactive({
     datas: [],
     columns: [] as any,
     loading: false,
-    tableHeight: 600,
+    tableHeight: '600px',
     emptyText: '',
 
+    execTime: 0,
     contextmenu: {
         dropdown: {
             x: 0,
@@ -365,6 +370,11 @@ watch(
     () => props.loading,
     (newValue: any) => {
         state.loading = newValue;
+        if (newValue) {
+            startLoading();
+        } else {
+            endLoading();
+        }
     }
 );
 
@@ -379,13 +389,15 @@ onMounted(async () => {
     state.db = props.db;
     state.table = props.table;
     setTableData(props.data);
+
+    if (state.loading) {
+        startLoading();
+    }
 });
 
-const cancelLoading = async () => {
-    if (props.loadingKey) {
-        await dbApi.sqlExecCancel.request({ id: state.dbId, execId: props.loadingKey });
-    }
-};
+onBeforeUnmount(() => {
+    endLoading();
+});
 
 const setTableData = (datas: any) => {
     tableRef.value.scrollTo({ scrollLeft: 0, scrollTop: 0 });
@@ -413,6 +425,27 @@ const setTableColumns = (columns: any) => {
     });
     if (state.columns.length > 0) {
         state.columns.unshift(rowNoColumn);
+    }
+};
+
+const startLoading = () => {
+    if (execTimeInterval) {
+        endLoading();
+    }
+    execTimeInterval = setInterval(() => {
+        state.execTime += 0.1; // 每秒递增执行时间
+    }, 100);
+};
+
+const endLoading = () => {
+    state.execTime = 0;
+    clearInterval(execTimeInterval);
+};
+
+const cancelLoading = async () => {
+    if (props.loadingKey) {
+        await dbApi.sqlExecCancel.request({ id: state.dbId, execId: props.loadingKey });
+        endLoading();
     }
 };
 

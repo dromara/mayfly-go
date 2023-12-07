@@ -98,7 +98,7 @@ onMounted(async () => {
 });
 
 const setHeight = () => {
-    state.height = vh.value - 148 + 'px';
+    state.height = vh.value - 150 + 'px';
 };
 
 onUnmounted(() => {

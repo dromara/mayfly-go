@@ -1,7 +1,7 @@
 <template>
     <div class="db-sql-exec">
-        <el-row>
-            <el-col :span="5">
+        <Splitpanes class="default-theme">
+            <Pane size="20" max-size="30">
                 <tag-tree :resource-type="TagResourceTypeEnum.Db.value" :tag-path-node-type="NodeTypeTagPath" ref="tagTreeRef">
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == SqlExecNodeType.DbInst">
@@ -44,9 +44,9 @@
                         }}</span>
                     </template>
                 </tag-tree>
-            </el-col>
+            </Pane>
 
-            <el-col :span="19">
+            <Pane>
                 <el-row>
                     <el-col :span="24" v-if="state.db">
                         <el-descriptions :column="4" size="small" border class="ml5">
@@ -90,8 +90,9 @@
                         @tab-change="onTabChange"
                         style="width: 100%"
                         v-model="state.activeName"
+                        class="h100"
                     >
-                        <el-tab-pane closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
+                        <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                             <template #label>
                                 <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
                                     <template #reference> {{ dt.label }} </template>
@@ -129,7 +130,6 @@
                                 :db-name="dt.db"
                                 :sql-name="dt.params.sqlName"
                                 @save-sql-success="reloadSqls"
-                                :editor-height="state.editorHeight"
                             >
                             </db-sql-editor>
 
@@ -143,8 +143,8 @@
                         </el-tab-pane>
                     </el-tabs>
                 </div>
-            </el-col>
-        </el-row>
+            </Pane>
+        </Splitpanes>
     </div>
 </template>
 
@@ -162,6 +162,7 @@ import { ContextmenuItem } from '@/components/contextmenu';
 import { getDbDialect } from './dialect/index';
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { Splitpanes, Pane } from 'splitpanes';
 
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
 const DbTableDataOp = defineAsyncComponent(() => import('./component/table/DbTableDataOp.vue'));
@@ -377,8 +378,7 @@ const state = reactive({
     activeName: '',
     reloadStatus: false,
     tabs,
-    dataTabsTableHeight: 600,
-    editorHeight: '600',
+    dataTabsTableHeight: '600px',
     tablesOpHeight: '600',
 });
 
@@ -398,8 +398,7 @@ onBeforeUnmount(() => {
  * 设置editor高度和数据表高度
  */
 const setHeight = () => {
-    state.editorHeight = window.innerHeight - 525 + 'px';
-    state.dataTabsTableHeight = window.innerHeight - 255;
+    state.dataTabsTableHeight = window.innerHeight - 255 + 'px';
     state.tablesOpHeight = window.innerHeight - 220 + 'px';
 };
 

@@ -218,8 +218,8 @@ const props = defineProps({
         required: true,
     },
     tableHeight: {
-        type: [Number],
-        default: 600,
+        type: [String],
+        default: '600px',
     },
 });
 
@@ -268,7 +268,7 @@ const state = reactive({
         placeholder: '',
         visible: false,
     },
-    tableHeight: 600,
+    tableHeight: '600px',
     hasUpdatedFileds: false,
 });
 
