@@ -133,7 +133,8 @@ import { ContextmenuItem, Contextmenu } from '@/components/contextmenu';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
-import { dbApi } from '../../api';
+import Api from '@/common/Api';
+import { useIntervalFn } from '@vueuse/core';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
@@ -285,7 +286,9 @@ const selectionRowsMap: Map<number, any> = new Map();
 const cellUpdateMap: Map<number, UpdatedRow> = new Map();
 
 // 数据加载时间计时器
-let execTimeInterval: any = null;
+const { pause, resume } = useIntervalFn(() => {
+    state.execTime += 0.1;
+}, 100);
 
 const state = reactive({
     dbId: 0, // 当前选中操作的数据库实例
@@ -429,22 +432,17 @@ const setTableColumns = (columns: any) => {
 };
 
 const startLoading = () => {
-    if (execTimeInterval) {
-        endLoading();
-    }
-    execTimeInterval = setInterval(() => {
-        state.execTime += 0.1; // 每秒递增执行时间
-    }, 100);
+    state.execTime = 0;
+    resume();
 };
 
 const endLoading = () => {
-    state.execTime = 0;
-    clearInterval(execTimeInterval);
+    pause();
 };
 
 const cancelLoading = async () => {
     if (props.loadingKey) {
-        await dbApi.sqlExecCancel.request({ id: state.dbId, execId: props.loadingKey });
+        Api.cancelReq(props.loadingKey);
         endLoading();
     }
 };

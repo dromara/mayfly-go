@@ -45,12 +45,18 @@
                 <el-button v-auth="perms.delDb" :disabled="selectionData.length < 1" @click="deleteDb()" type="danger" icon="delete">删除</el-button>
             </template>
 
-            <template #tagPath="{ data }">
-                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Db.value" />
+            <template #type="{ data }">
+                <el-tooltip :content="data.type" placement="top">
+                    <SvgIcon :name="getDbDialect(data.type).getInfo().icon" :size="20" />
+                </el-tooltip>
             </template>
 
             <template #host="{ data }">
                 {{ `${data.host}:${data.port}` }}
+            </template>
+
+            <template #tagPath="{ data }">
+                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Db.value" />
             </template>
 
             <template #action="{ data }">
@@ -173,6 +179,7 @@ import { DbType } from './dialect';
 import { tagApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
+import { getDbDialect } from './dialect/index';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
@@ -186,7 +193,7 @@ const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect'), Tabl
 
 const columns = ref([
     TableColumn.new('instanceName', '实例名'),
-    TableColumn.new('type', '类型'),
+    TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
     TableColumn.new('host', 'ip:port').isSlot().setAddWidth(40),
     TableColumn.new('username', 'username'),
     TableColumn.new('name', '名称'),

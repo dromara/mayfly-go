@@ -34,8 +34,8 @@
 <script setup lang="ts" name="layoutTagsViewContextmenu">
 import { computed, reactive, onMounted, onUnmounted, watch } from 'vue';
 import { ContextmenuItem } from './index';
-import { useViewport } from '@/common/use';
 import SvgIcon from '@/components/svgIcon/index.vue';
+import { useWindowSize } from '@vueuse/core';
 
 // 定义父组件传过来的值
 const props = defineProps({
@@ -57,7 +57,7 @@ const props = defineProps({
 // 定义子组件向父组件传值/事件
 const emit = defineEmits(['currentContextmenuClick']);
 
-const { vw, vh } = useViewport();
+const { width: vw, height: vh } = useWindowSize();
 
 // 定义变量内容
 const state = reactive({

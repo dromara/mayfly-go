@@ -197,9 +197,17 @@ export class DbInst {
      * @param remark 执行备注
      */
     async runSql(dbName: string, sql: string, remark: string = '', key: string = '') {
+        if (key) {
+            return await dbApi.sqlExec.allowCancelReq(key, {
+                id: this.id,
+                db: dbName,
+                sql: sql.trim(),
+                remark,
+            });
+        }
+
         return await dbApi.sqlExec.request({
             id: this.id,
-            execId: key,
             db: dbName,
             sql: sql.trim(),
             remark,

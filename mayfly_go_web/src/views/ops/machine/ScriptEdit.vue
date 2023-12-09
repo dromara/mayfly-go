@@ -24,39 +24,17 @@
                     </el-select>
                 </el-form-item>
 
-                <el-row style="margin-left: 30px; margin-bottom: 5px">
-                    <el-button @click="onAddParam" type="success">新增占位符参数</el-button>
-                </el-row>
-                <el-form-item :key="param" v-for="(param, index) in params" prop="params" :label="`参数${index + 1}`">
-                    <el-row>
-                        <el-col :span="5">
-                            <el-input v-model.trim="param.model" placeholder="内容中用{{.model}}替换"></el-input>
-                        </el-col>
-                        <span :span="1">
-                            <el-divider direction="vertical" border-style="dashed" />
-                        </span>
-                        <el-col :span="4">
-                            <el-input v-model.trim="param.name" placeholder="字段名"></el-input>
-                        </el-col>
-                        <span :span="1">
-                            <el-divider direction="vertical" border-style="dashed" />
-                        </span>
-                        <el-col :span="4">
-                            <el-input v-model="param.placeholder" placeholder="字段说明"></el-input>
-                        </el-col>
-                        <span :span="1">
-                            <el-divider direction="vertical" border-style="dashed" />
-                        </span>
-                        <el-col :span="4">
-                            <el-input v-model="param.options" placeholder="可选值 ,分割"></el-input>
-                        </el-col>
-                        <span :span="1">
-                            <el-divider direction="vertical" border-style="dashed" />
-                        </span>
-                        <el-col :span="2">
-                            <el-button @click="onDeleteParam(index)" type="danger">删除</el-button>
-                        </el-col>
-                    </el-row>
+                <el-form-item class="w100">
+                    <template #label>
+                        <el-tooltip placement="top">
+                            <template #content>
+                                <span v-pre>1. 脚本内容中可使用{{.model}}作为占位符 </span>
+                                <br />2. 执行脚本时可输入对应表单内容对占位符进行替换后执行
+                            </template>
+                            <span> 参数<SvgIcon name="question-filled" /> </span>
+                        </el-tooltip>
+                    </template>
+                    <dynamic-form-edit v-model="params" />
                 </el-form-item>
 
                 <el-form-item required prop="script" class="100w">
@@ -82,6 +60,8 @@ import { ElMessage } from 'element-plus';
 import { machineApi } from './api';
 import { ScriptResultEnum } from './enums';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import { DynamicFormEdit } from '@/components/dynamic-form';
+import SvgIcon from '@/components/svgIcon/index.vue';
 
 const props = defineProps({
     visible: {
@@ -170,14 +150,6 @@ watch(props, (newValue: any) => {
         state.form.script = '';
     }
 });
-
-const onAddParam = () => {
-    state.params.push({ name: '', model: '', placeholder: '' });
-};
-
-const onDeleteParam = (idx: number) => {
-    state.params.splice(idx, 1);
-};
 
 const btnOk = () => {
     state.form.machineId = isCommon.value ? 9999999 : (machineId?.value as any);

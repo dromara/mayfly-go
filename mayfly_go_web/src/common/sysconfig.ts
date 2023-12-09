@@ -2,8 +2,8 @@ import openApi from './openApi';
 
 // 登录是否使用验证码配置key
 const AccountLoginSecurity = 'AccountLoginSecurity';
-const UseLoginCaptchaConfigKey = 'UseLoginCaptcha';
 const UseWatermarkConfigKey = 'UseWatermark';
+const MachineConfig = 'MachineConfig';
 
 /**
  * 获取系统配置值
@@ -44,15 +44,6 @@ export async function getAccountLoginSecurity(): Promise<any> {
 }
 
 /**
- * 是否使用登录验证码
- *
- * @returns
- */
-export async function useLoginCaptcha(): Promise<boolean> {
-    return await getBoolConfigValue(UseLoginCaptchaConfigKey, true);
-}
-
-/**
  * 是否启用水印信息配置
  *
  * @returns
@@ -75,13 +66,6 @@ export async function useWatermark(): Promise<any> {
     }
 }
 
-function convertBool(value: string, defaultValue: boolean) {
-    if (!value) {
-        return defaultValue;
-    }
-    return value == '1' || value == 'true';
-}
-
 /**
  * 获取LDAP登录配置
  *
@@ -90,4 +74,33 @@ function convertBool(value: string, defaultValue: boolean) {
 export async function getLdapEnabled(): Promise<any> {
     const value = await openApi.getLdapEnabled();
     return convertBool(value, false);
+}
+
+/**
+ * 是否启用水印信息配置
+ *
+ * @returns
+ */
+export async function getMachineConfig(): Promise<any> {
+    const value = await getConfigValue(MachineConfig);
+    const defaultValue = {
+        // 默认1gb
+        uploadMaxFileSize: '1GB',
+    };
+    if (!value) {
+        return defaultValue;
+    }
+    try {
+        const jsonValue = JSON.parse(value);
+        return jsonValue;
+    } catch (e) {
+        return defaultValue;
+    }
+}
+
+function convertBool(value: string, defaultValue: boolean) {
+    if (!value) {
+        return defaultValue;
+    }
+    return value == '1' || value == 'true';
 }

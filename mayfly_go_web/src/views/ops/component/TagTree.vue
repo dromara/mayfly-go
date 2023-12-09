@@ -46,8 +46,8 @@ import { onMounted, reactive, ref, watch, toRefs, onUnmounted } from 'vue';
 import { NodeType, TagTreeNode } from './tag';
 import TagInfo from './TagInfo.vue';
 import { Contextmenu } from '@/components/contextmenu';
-import { useViewport } from '@/common/use';
 import { tagApi } from '../tag/api';
+import { useWindowSize } from '@vueuse/core';
 
 const props = defineProps({
     resourceType: {
@@ -78,7 +78,7 @@ const emit = defineEmits(['nodeClick', 'currentContextmenuClick']);
 const treeRef: any = ref(null);
 const contextmenuRef = ref();
 
-const { vh } = useViewport();
+const { height: vh } = useWindowSize();
 
 const state = reactive({
     height: 600 as any,

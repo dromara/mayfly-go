@@ -146,18 +146,6 @@ export const useThemeConfig = defineStore('themeConfig', {
         setThemeConfig(data: ThemeConfigState) {
             this.themeConfig = data.themeConfig;
         },
-        // 切换暗模式
-        switchDark(isDark: boolean) {
-            this.themeConfig.isDark = isDark;
-            const body = document.documentElement as HTMLElement;
-            if (isDark) {
-                body.setAttribute('class', 'dark');
-                this.themeConfig.editorTheme = 'vs-dark';
-            } else {
-                body.setAttribute('class', '');
-                this.themeConfig.editorTheme = 'vs';
-            }
-        },
         // 设置水印配置信息
         setWatermarkConfig(useWatermarkConfig: any) {
             this.themeConfig.watermarkText = [];

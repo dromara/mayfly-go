@@ -16,6 +16,37 @@ export function formatByteSize(size: number, fixed = 2) {
 }
 
 /**
+ * 容量转为对应的字节大小，如 1KB转为 1024
+ * @param sizeString  1kb 1gb等
+ * @returns
+ */
+export function convertToBytes(sizeStr: string) {
+    sizeStr = sizeStr.trim();
+    const unit = sizeStr.slice(-2);
+
+    const valueStr = sizeStr.slice(0, -2);
+    const value = parseInt(valueStr, 10);
+
+    let bytes = 0;
+
+    switch (unit.toUpperCase()) {
+        case 'KB':
+            bytes = value * 1024;
+            break;
+        case 'MB':
+            bytes = value * 1024 * 1024;
+            break;
+        case 'GB':
+            bytes = value * 1024 * 1024 * 1024;
+            break;
+        default:
+            throw new Error('Invalid size unit');
+    }
+
+    return bytes;
+}
+
+/**
  * 格式化json字符串
  * @param txt  json字符串
  * @param compress 是否压缩

@@ -21,7 +21,6 @@ export const dbApi = {
             param.sql = Base64.encode(param.sql);
         }
     }),
-    sqlExecCancel: Api.newPost('/dbs/{id}/exec-sql/cancel/{execId}'),
     // 保存sql
     saveSql: Api.newPost('/dbs/{id}/sql'),
     // 获取保存的sql

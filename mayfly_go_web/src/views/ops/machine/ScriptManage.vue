@@ -45,35 +45,16 @@
             </page-table>
         </el-dialog>
 
-        <el-dialog title="脚本参数" v-model="scriptParamsDialog.visible" width="400px">
-            <el-form ref="paramsForm" :model="scriptParamsDialog.params" label-width="auto">
-                <el-form-item v-for="item in scriptParamsDialog.paramsFormItem as any" :key="item.name" :prop="item.model" :label="item.name" required>
-                    <el-input
-                        v-if="!item.options"
-                        v-model="scriptParamsDialog.params[item.model]"
-                        :placeholder="item.placeholder"
-                        autocomplete="off"
-                        clearable
-                    ></el-input>
-                    <el-select
-                        v-else
-                        v-model="scriptParamsDialog.params[item.model]"
-                        :placeholder="item.placeholder"
-                        filterable
-                        autocomplete="off"
-                        clearable
-                        style="width: 100%"
-                    >
-                        <el-option v-for="option in item.options.split(',')" :key="option" :label="option" :value="option" />
-                    </el-select>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button type="primary" @click="hasParamsRun()">确 定</el-button>
-                </span>
-            </template>
-        </el-dialog>
+        <dynamic-form-dialog
+            title="脚本参数"
+            width="400px"
+            v-model:visible="scriptParamsDialog.visible"
+            ref="paramsForm"
+            :form-items="scriptParamsDialog.paramsFormItem"
+            v-model="scriptParamsDialog.params"
+            @confirm="hasParamsRun"
+        >
+        </dynamic-form-dialog>
 
         <el-dialog title="执行结果" v-model="resultDialog.visible" width="50%">
             <div style="white-space: pre-line; padding: 10px; color: #000000">
@@ -115,6 +96,7 @@ import { ScriptResultEnum, ScriptTypeEnum } from './enums';
 import ScriptEdit from './ScriptEdit.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
+import { DynamicFormDialog } from '@/components/dynamic-form';
 
 const props = defineProps({
     visible: { type: Boolean },
@@ -204,20 +186,9 @@ const runScript = async (script: any) => {
 
 // 有参数的脚本执行函数
 const hasParamsRun = async () => {
-    // 如果脚本参数弹窗显示，则校验参数表单数据通过后执行
-    if (state.scriptParamsDialog.visible) {
-        paramsForm.value.validate((valid: any) => {
-            if (valid) {
-                run(state.scriptParamsDialog.script);
-                state.scriptParamsDialog.params = {};
-                state.scriptParamsDialog.visible = false;
-                state.scriptParamsDialog.script = null;
-                paramsForm.value.resetFields();
-            } else {
-                return false;
-            }
-        });
-    }
+    await run(state.scriptParamsDialog.script);
+    state.scriptParamsDialog.visible = false;
+    state.scriptParamsDialog.script = null;
 };
 
 const run = async (script: any) => {

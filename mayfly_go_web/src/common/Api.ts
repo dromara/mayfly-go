@@ -49,32 +49,27 @@ class Api {
      * 请求对应的该api
      * @param {Object} param 请求该api的参数
      */
-    request(param: any = null, options: any = null, headers: any = null): Promise<any> {
+    request(param: any = null, options: any = {}): Promise<any> {
         if (this.beforeHandler) {
             this.beforeHandler(param);
         }
-        return request.request(this.method, this.url, param, headers, options);
+        return request.request(this.method, this.url, param, options);
     }
 
     /**
-     * 请求对应的该api
+     * 允许取消的请求, 使用Api.cancelReq(key) 取消请求
+     * @param key 用于取消该key关联的请求
      * @param {Object} param 请求该api的参数
      */
-    requestCanCancel(key: string, param: any = null, options: any = null, headers: any = null): Promise<any> {
+    allowCancelReq(key: string, param: any = null, options: RequestInit = {}): Promise<any> {
         let controller = Api.abortControllers.get(key);
         if (!controller) {
             controller = new AbortController();
             Api.abortControllers.set(key, controller);
         }
-        if (options) {
-            options.signal = controller.signal;
-        } else {
-            options = {
-                signal: controller.signal,
-            };
-        }
+        options.signal = controller.signal;
 
-        return this.request(param, options, headers);
+        return this.request(param, options);
     }
 
     /**    静态方法     **/

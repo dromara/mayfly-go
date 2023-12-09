@@ -25,7 +25,6 @@ import (
 	"mayfly-go/pkg/ws"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -84,9 +83,6 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 
 /**  数据库操作相关、执行sql等   ***/
 
-// 取消执行sql函数map; key -> execId ; value -> cancelFunc
-var cancelExecSqlMap = sync.Map{}
-
 func (d *Db) ExecSql(rc *req.Ctx) {
 	g := rc.GinCtx
 	form := &form.DbSqlExecForm{}
@@ -112,14 +108,9 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 		DbConn: dbConn,
 	}
 
-	ctx := rc.MetaCtx
-	// 如果存在执行id，则保存取消函数，用于后续可能的取消操作
-	if form.ExecId != "" {
-		cancelCtx, cancel := context.WithTimeout(rc.MetaCtx, 55*time.Second)
-		ctx = cancelCtx
-		cancelExecSqlMap.Store(form.ExecId, cancel)
-		defer cancelExecSqlMap.Delete(form.ExecId)
-	}
+	// 比前端超时时间稍微快一点，可以提示到前端
+	ctx, cancel := context.WithTimeout(rc.MetaCtx, 58*time.Second)
+	defer cancel()
 
 	sqls, err := sqlparser.SplitStatementToPieces(sql, sqlparser.WithDialect(dbConn.Info.Type.Dialect()))
 	biz.ErrIsNil(err, "SQL解析错误,请检查您的执行SQL")
@@ -148,14 +139,6 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	colAndRes["colNames"] = execResAll.ColNames
 	colAndRes["res"] = execResAll.Res
 	rc.ResData = colAndRes
-}
-
-func (d *Db) CancelExecSql(rc *req.Ctx) {
-	execId := ginx.PathParam(rc.GinCtx, "execId")
-	if cancelFunc, ok := cancelExecSqlMap.LoadAndDelete(execId); ok {
-		rc.ReqParam = execId
-		cancelFunc.(context.CancelFunc)()
-	}
 }
 
 // progressCategory sql文件执行进度消息类型

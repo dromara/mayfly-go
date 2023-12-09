@@ -33,7 +33,7 @@
                     </el-upload>
                 </div>
 
-                <div style="float: right" class="fl">
+                <div class="fr">
                     <el-button @click="saveSql()" type="primary" icon="document-add" plain size="small">保存SQL</el-button>
                 </div>
             </div>
@@ -128,7 +128,7 @@
 </template>
 
 <script lang="ts" setup>
-import { h, nextTick, onMounted, reactive, toRefs, ref } from 'vue';
+import { h, nextTick, onMounted, reactive, toRefs, ref, onBeforeUnmount } from 'vue';
 import { getToken } from '@/common/utils/storage';
 import { notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
@@ -150,8 +150,8 @@ import { ElNotification } from 'element-plus';
 import syssocket from '@/common/syssocket';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { getDbDialect } from '../../dialect';
-import { randomUuid } from '@/common/utils/string';
 import { Splitpanes, Pane } from 'splitpanes';
+import Api from '@/common/Api';
 
 const emits = defineEmits(['saveSqlSuccess']);
 
@@ -252,6 +252,12 @@ onMounted(async () => {
     await getNowDbInst().loadDbHints(props.dbName);
 });
 
+onBeforeUnmount(() => {
+    state.execResTabs.forEach((x: ExecResTab) => {
+        Api.removeAbortKey(x.loadingKey);
+    });
+});
+
 const onRemoveTab = (targetId: number) => {
     let activeTab = state.activeTab;
     const tabs = [...state.execResTabs];
@@ -347,7 +353,8 @@ const onRunSql = async (newTab = false) => {
         execRes.errorMsg = '';
         execRes.sql = '';
 
-        const loadingKey = randomUuid();
+        // 用于取消执行
+        const loadingKey = Api.genAbortKey(execRes.loadingKey);
         execRes.loadingKey = loadingKey;
 
         const colAndData: any = await getNowDbInst().runSql(props.dbName, sql, execRemark, loadingKey);
@@ -397,7 +404,7 @@ const onRunSql = async (newTab = false) => {
 const getSql = () => {
     let res = '' as string | undefined;
     // 编辑器还没初始化
-    if (!monacoEditor?.getModel) {
+    if (!monacoEditor?.getModel()) {
         return res;
     }
     // 选择选中的sql
@@ -405,6 +412,7 @@ const getSql = () => {
     if (selection) {
         res = monacoEditor.getModel()?.getValueInRange(selection);
     }
+
     // 整个编辑器的sql
     if (!res) {
         return monacoEditor.getModel()?.getValue();

@@ -20,6 +20,12 @@
                 >
             </template>
 
+            <template #type="{ data }">
+                <el-tooltip :content="data.type" placement="top">
+                    <SvgIcon :name="getDbDialect(data.type).getInfo().icon" :size="20" />
+                </el-tooltip>
+            </template>
+
             <template #action="{ data }">
                 <el-button @click="showInfo(data)" link>详情</el-button>
                 <el-button v-if="actionBtns[perms.saveInstance]" @click="editInstance(data)" type="primary" link>编辑</el-button>
@@ -66,6 +72,8 @@ import { dateFormat } from '@/common/utils/date';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
+import SvgIcon from '@/components/svgIcon/index.vue';
+import { getDbDialect } from './dialect';
 
 const InstanceEdit = defineAsyncComponent(() => import('./InstanceEdit.vue'));
 
@@ -78,7 +86,7 @@ const queryConfig = [TableQuery.text('name', '名称')];
 
 const columns = ref([
     TableColumn.new('name', '名称'),
-    TableColumn.new('type', '类型'),
+    TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
     TableColumn.new('host', 'host:port').setFormatFunc((data: any) => `${data.host}:${data.port}`),
     TableColumn.new('username', '用户名'),
     TableColumn.new('params', '连接参数'),
