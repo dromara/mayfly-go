@@ -84,9 +84,9 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="testConn" :loading="state.testConnBtnLoading" type="success">测试连接</el-button>
+                    <el-button @click="testConn" :loading="testConnBtnLoading" type="success">测试连接</el-button>
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -173,13 +173,15 @@ const state = reactive({
         remark: '',
         sshTunnelMachineId: -1,
     },
+    submitForm: {} as any,
     dbList: [0],
     pwd: '',
-    btnLoading: false,
-    testConnBtnLoading: false,
 });
 
-const { dialogVisible, tabActiveName, form, dbList, pwd, btnLoading } = toRefs(state);
+const { dialogVisible, tabActiveName, form, submitForm, dbList, pwd } = toRefs(state);
+
+const { isFetching: testConnBtnLoading, execute: testConnExec } = redisApi.testConn.useApi(submitForm);
+const { isFetching: saveBtnLoading, execute: saveRedisExec } = redisApi.saveRedis.useApi(submitForm);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -226,38 +228,28 @@ const getReqForm = async () => {
 
 const testConn = async () => {
     redisForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            state.testConnBtnLoading = true;
-            try {
-                await redisApi.testConn.request(await getReqForm());
-                ElMessage.success('连接成功');
-            } finally {
-                state.testConnBtnLoading = false;
-            }
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+
+        state.submitForm = await getReqForm();
+        await testConnExec();
+        ElMessage.success('连接成功');
     });
 };
 
 const btnOk = async () => {
     redisForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            redisApi.saveRedis.request(await getReqForm()).then(() => {
-                ElMessage.success('保存成功');
-                emit('val-change', state.form);
-                state.btnLoading = true;
-                setTimeout(() => {
-                    state.btnLoading = false;
-                }, 1000);
-
-                cancel();
-            });
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+        state.submitForm = await getReqForm();
+        await saveRedisExec();
+        ElMessage.success('保存成功');
+        emit('val-change', state.form);
+        cancel();
     });
 };
 

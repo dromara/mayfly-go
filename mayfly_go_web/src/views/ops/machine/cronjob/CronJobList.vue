@@ -2,16 +2,12 @@
     <div>
         <page-table
             ref="pageTableRef"
+            :page-api="cronJobApi.list"
             :query="queryConfig"
             v-model:query-form="params"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
-            :data="data.list"
             :columns="columns"
-            :total="data.total"
-            v-model:page-size="params.pageSize"
-            v-model:page-num="params.pageNum"
-            @pageChange="search()"
         >
             <template #queryRight>
                 <el-button v-auth="perms.saveCronJob" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加 </el-button>
@@ -38,7 +34,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { cronJobApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -47,8 +43,6 @@ import { CronJobStatusEnum, CronJobSaveExecResTypeEnum } from '../enums';
 
 const CronJobEdit = defineAsyncComponent(() => import('./CronJobEdit.vue'));
 const CronJobExecList = defineAsyncComponent(() => import('./CronJobExecList.vue'));
-
-const pageTableRef: any = ref(null);
 
 const perms = {
     saveCronJob: 'machine:cronjob:save',
@@ -69,17 +63,14 @@ const columns = ref([
     TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight().alignCenter(),
 ]);
 
+const pageTableRef: Ref<any> = ref(null);
+
 const state = reactive({
     params: {
         pageNum: 1,
         pageSize: 0,
         ip: null,
         name: null,
-    },
-    // 列表数据
-    data: {
-        list: [],
-        total: 10,
     },
     selectionData: [],
     execDialog: {
@@ -94,11 +85,9 @@ const state = reactive({
     },
 });
 
-const { selectionData, params, data, execDialog, cronJobEdit } = toRefs(state);
+const { selectionData, params, execDialog, cronJobEdit } = toRefs(state);
 
-onMounted(async () => {
-    search();
-});
+onMounted(async () => {});
 
 const openFormDialog = async (data: any) => {
     let dialogTitle;
@@ -143,13 +132,7 @@ const showExec = async (data: any) => {
 };
 
 const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-        const res = await cronJobApi.list.request(state.params);
-        state.data = res;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
+    pageTableRef.value.search();
 };
 </script>
 

@@ -2,16 +2,12 @@
     <div class="db-list">
         <page-table
             ref="pageTableRef"
+            :page-api="dbApi.instances"
             :query="queryConfig"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
-            :data="datas"
             :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
         >
             <template #queryRight>
                 <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)">添加</el-button>
@@ -56,7 +52,7 @@
         </el-dialog>
 
         <instance-edit
-            @val-change="valChange"
+            @val-change="search"
             :title="instanceEditDialog.title"
             v-model:visible="instanceEditDialog.visible"
             v-model:data="instanceEditDialog.data"
@@ -65,7 +61,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dbApi } from './api';
 import { dateFormat } from '@/common/utils/date';
@@ -96,8 +92,7 @@ const columns = ref([
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.saveInstance]);
 const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(110).fixedRight().alignCenter();
-
-const pageTableRef: any = ref(null);
+const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({
     row: {},
@@ -115,8 +110,6 @@ const state = reactive({
         pageNum: 1,
         pageSize: 0,
     },
-    datas: [],
-    total: 0,
     infoDialog: {
         visible: false,
         data: null as any,
@@ -128,24 +121,16 @@ const state = reactive({
     },
 });
 
-const { selectionData, query, datas, total, infoDialog, instanceEditDialog } = toRefs(state);
+const { selectionData, query, infoDialog, instanceEditDialog } = toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
-    search();
 });
 
-const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-        let res: any = await dbApi.instances.request(state.query);
-        state.datas = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
+const search = () => {
+    pageTableRef.value.search();
 };
 
 const showInfo = (info: any) => {
@@ -162,10 +147,6 @@ const editInstance = async (data: any) => {
         state.instanceEditDialog.title = '修改数据库实例';
     }
     state.instanceEditDialog.visible = true;
-};
-
-const valChange = () => {
-    search();
 };
 
 const deleteInstance = async () => {

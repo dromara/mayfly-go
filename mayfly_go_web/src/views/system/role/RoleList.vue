@@ -1,17 +1,13 @@
 <template>
     <div>
         <page-table
-            ref="pageTableRef"
             :query="queryConfig"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
-            :data="roles"
             :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
+            :page-api="roleApi.list"
+            ref="pageTableRef"
         >
             <template #queryRight>
                 <el-button v-auth="perms.addRole" type="primary" icon="plus" @click="editRole(false)">添加</el-button>
@@ -40,7 +36,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import RoleEdit from './RoleEdit.vue';
 import ResourceEdit from './ResourceEdit.vue';
 import ShowResource from './ShowResource.vue';
@@ -50,8 +46,6 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { RoleStatusEnum } from '../enums';
-
-const pageTableRef: any = ref(null);
 
 const perms = {
     addRole: 'role:add',
@@ -75,14 +69,13 @@ const columns = ref([
 const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource]);
 const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(260).fixedRight().alignCenter();
 
+const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
     query: {
         pageNum: 1,
         pageSize: 0,
         name: null,
     },
-    total: 0,
-    roles: [],
     selectionData: [],
     resourceDialog: {
         visible: false,
@@ -102,24 +95,16 @@ const state = reactive({
     },
 });
 
-const { query, total, roles, selectionData, resourceDialog, roleEditDialog, showResourceDialog } = toRefs(state);
+const { query, selectionData, resourceDialog, roleEditDialog, showResourceDialog } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
-    search();
 });
 
-const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-        let res = await roleApi.list.request(state.query);
-        state.roles = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
+const search = () => {
+    pageTableRef.value.search();
 };
 
 const roleEditChange = () => {

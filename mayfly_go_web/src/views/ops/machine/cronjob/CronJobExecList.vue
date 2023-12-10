@@ -1,6 +1,7 @@
 <template>
     <div>
         <el-dialog
+            @open="search()"
             :title="title"
             v-model="dialogVisible"
             :close-on-click-modal="false"
@@ -11,14 +12,13 @@
         >
             <page-table
                 ref="pageTableRef"
+                :page-api="cronJobApi.execList"
+                :lazy="true"
+                :data-handler-fn="parseData"
                 :query="queryConfig"
                 v-model:query-form="params"
                 :data="state.data.list"
                 :columns="columns"
-                :total="state.data.total"
-                v-model:page-size="params.pageSize"
-                v-model:page-num="params.pageNum"
-                @pageChange="search()"
             >
                 <template #machineSelect>
                     <el-select v-model="params.machineId" filterable placeholder="选择机器查询" style="width: 200px" clearable>
@@ -35,7 +35,7 @@
 </template>
 
 <script lang="ts" setup>
-import { watch, ref, toRefs, reactive } from 'vue';
+import { watch, ref, toRefs, reactive, Ref } from 'vue';
 import { cronJobApi, machineApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
@@ -67,6 +67,8 @@ const columns = ref([
     TableColumn.new('res', '执行结果').setMinWidth(250).canBeautify(),
     TableColumn.new('execTime', '执行时间').isTime().setMinWidth(150),
 ]);
+
+const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({
     dialogVisible: false,
@@ -108,17 +110,15 @@ watch(props, async (newValue: any) => {
     });
 
     state.params.cronJobId = props.data?.id;
-    search();
 });
 
 const search = async () => {
-    const res = await cronJobApi.execList.request(state.params);
-    if (!res.list) {
-        return;
-    }
+    pageTableRef.value.search();
+};
 
+const parseData = async (dataList: any) => {
     // 填充机器信息
-    for (let x of res.list) {
+    for (let x of dataList) {
         const machineId = x.machineId;
         let machine = machineMap.get(machineId);
         // 如果未找到，则可能被移除，则调接口查询机器信息
@@ -139,8 +139,7 @@ const search = async () => {
         x.machineIp = machine?.ip;
         x.machineName = machine?.name;
     }
-
-    state.data = res;
+    return dataList;
 };
 
 const cancel = () => {

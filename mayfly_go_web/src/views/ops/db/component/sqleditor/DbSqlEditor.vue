@@ -111,7 +111,7 @@
                                 :table="dt.table"
                                 :columns="dt.tableColumn"
                                 :loading="dt.loading"
-                                :loading-key="dt.loadingKey"
+                                :abort-fn="dt.abortFn"
                                 :height="tableDataHeight"
                                 empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
                                 @change-updated-field="changeUpdatedField($event, dt)"
@@ -128,7 +128,7 @@
 </template>
 
 <script lang="ts" setup>
-import { h, nextTick, onMounted, reactive, toRefs, ref, onBeforeUnmount } from 'vue';
+import { h, nextTick, onMounted, reactive, toRefs, ref } from 'vue';
 import { getToken } from '@/common/utils/storage';
 import { notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
@@ -151,7 +151,6 @@ import syssocket from '@/common/syssocket';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { getDbDialect } from '../../dialect';
 import { Splitpanes, Pane } from 'splitpanes';
-import Api from '@/common/Api';
 
 const emits = defineEmits(['saveSqlSuccess']);
 
@@ -178,11 +177,14 @@ class ExecResTab {
      */
     sql: string;
 
-    loading: boolean;
-
-    loadingKey: string;
+    /**
+     * 响应式loading
+     */
+    loading: any;
 
     dbTableRef: any;
+
+    abortFn: Function;
 
     tableColumn: any[] = [];
 
@@ -250,12 +252,6 @@ onMounted(async () => {
         setTimeout(() => initMonacoEditor(), 50);
     });
     await getNowDbInst().loadDbHints(props.dbName);
-});
-
-onBeforeUnmount(() => {
-    state.execResTabs.forEach((x: ExecResTab) => {
-        Api.removeAbortKey(x.loadingKey);
-    });
 });
 
 const onRemoveTab = (targetId: number) => {
@@ -339,7 +335,7 @@ const onRunSql = async (newTab = false) => {
         // 不是新建tab执行，则在当前激活的tab上执行sql
         i = state.execResTabs.findIndex((x) => x.id == state.activeTab);
         execRes = state.execResTabs[i];
-        if (execRes.loading) {
+        if (execRes.loading?.value) {
             ElMessage.error('当前结果集tab正在执行, 请使用新标签执行');
             return;
         }
@@ -349,18 +345,19 @@ const onRunSql = async (newTab = false) => {
     state.activeTab = id;
     const startTime = new Date().getTime();
     try {
-        execRes.loading = true;
         execRes.errorMsg = '';
         execRes.sql = '';
 
-        // 用于取消执行
-        const loadingKey = Api.genAbortKey(execRes.loadingKey);
-        execRes.loadingKey = loadingKey;
+        const { data, execute, isFetching, abort } = getNowDbInst().execSql(props.dbName, sql, execRemark);
+        execRes.loading = isFetching;
+        execRes.abortFn = abort;
 
-        const colAndData: any = await getNowDbInst().runSql(props.dbName, sql, execRemark, loadingKey);
+        await execute();
+        const colAndData: any = data.value;
         if (!colAndData.res || colAndData.res.length === 0) {
             ElMessage.warning('未查询到结果集');
         }
+
         // 要实时响应，故需要用索引改变数据才生效
         state.execResTabs[i].data = colAndData.res;
         // 兼容表格字段配置
@@ -378,7 +375,6 @@ const onRunSql = async (newTab = false) => {
         execRes.errorMsg = e.msg;
         return;
     } finally {
-        state.execResTabs[i].loading = false;
         execRes.sql = sql;
         execRes.execTime = new Date().getTime() - startTime;
     }

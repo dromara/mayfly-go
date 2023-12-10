@@ -1,17 +1,6 @@
 <template>
     <div class="db-sql-exec-log">
-        <page-table
-            height="100%"
-            ref="sqlExecDialogPageTableRef"
-            :query="queryConfig"
-            v-model:query-form="query"
-            :data="data"
-            :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="searchSqlExecLog()"
-        >
+        <page-table ref="pageTableRef" :page-api="dbApi.getSqlExecs" height="100%" :query="queryConfig" v-model:query-form="query" :columns="columns">
             <template #dbSelect>
                 <el-select v-model="query.db" placeholder="请选择数据库" style="width: 200px" filterable clearable>
                     <el-option v-for="item in dbs" :key="item" :label="`${item}`" :value="item"> </el-option>
@@ -39,7 +28,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, watch, reactive, onMounted } from 'vue';
+import { toRefs, watch, reactive, onMounted, Ref, ref } from 'vue';
 import { dbApi } from './api';
 import { DbSqlExecTypeEnum } from './enums';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -74,9 +63,9 @@ const columns = [
     TableColumn.new('action', '操作').isSlot().setMinWidth(90).fixedRight().alignCenter(),
 ];
 
+const pageTableRef: Ref<any> = ref(null);
+
 const state = reactive({
-    data: [],
-    total: 0,
     dbs: [],
     query: {
         dbId: 0,
@@ -97,21 +86,18 @@ const state = reactive({
     },
 });
 
-const { data, query, total, rollbackSqlDialog } = toRefs(state);
+const { query, rollbackSqlDialog } = toRefs(state);
 
-onMounted(async () => {
-    searchSqlExecLog();
-});
+onMounted(async () => {});
 
 watch(props, async () => {
+    state.query.dbId = props.dbId;
+    state.query.pageNum = 1;
     await searchSqlExecLog();
 });
 
 const searchSqlExecLog = async () => {
-    state.query.dbId = props.dbId;
-    const res = await dbApi.getSqlExecs.request(state.query);
-    state.data = res.list;
-    state.total = res.total;
+    pageTableRef.value.search();
 };
 
 const onShowRollbackSql = async (sqlExecLog: any) => {

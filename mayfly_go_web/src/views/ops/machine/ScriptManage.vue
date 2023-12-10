@@ -11,14 +11,11 @@
         >
             <page-table
                 ref="pageTableRef"
+                :page-api="machineApi.scripts"
+                :lazy="true"
                 :query="queryConfig"
                 v-model:query-form="query"
-                :data="scriptTable"
                 :columns="columns"
-                :total="total"
-                v-model:page-size="query.pageSize"
-                v-model:page-num="query.pageNum"
-                @pageChange="getScripts()"
                 :show-selection="true"
                 v-model:selection-data="selectionData"
             >
@@ -88,7 +85,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, watch } from 'vue';
+import { ref, toRefs, reactive, watch, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
@@ -107,7 +104,7 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
 
 const paramsForm: any = ref(null);
-const pageTableRef: any = ref(null);
+const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({
     dialogVisible: false,
@@ -150,24 +147,15 @@ const state = reactive({
     },
 });
 
-const { dialogVisible, queryConfig, columns, selectionData, query, editDialog, total, scriptTable, scriptParamsDialog, resultDialog, terminalDialog } =
-    toRefs(state);
+const { dialogVisible, queryConfig, columns, selectionData, query, editDialog, scriptParamsDialog, resultDialog, terminalDialog } = toRefs(state);
 
 watch(props, async (newValue) => {
     state.dialogVisible = newValue.visible;
 });
 
 const getScripts = async () => {
-    try {
-        // 通过open事件才开获取到pageTableRef值
-        pageTableRef.value.loading(true);
-        state.query.machineId = state.query.type == ScriptTypeEnum.Private.value ? props.machineId : 9999999;
-        const res = await machineApi.scripts.request(state.query);
-        state.scriptTable = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
+    state.query.machineId = state.query.type == ScriptTypeEnum.Private.value ? props.machineId : 9999999;
+    pageTableRef.value.search();
 };
 
 const runScript = async (script: any) => {

@@ -20,6 +20,7 @@ export const dbApi = {
         if (param.sql) {
             param.sql = Base64.encode(param.sql);
         }
+        return param;
     }),
     // 保存sql
     saveSql: Api.newPost('/dbs/{id}/sql'),

@@ -639,7 +639,7 @@ function uploadFolder(e: any) {
 
         // 上传操作
         machineApi.uploadFile
-            .request(form, {
+            .xhrReq(form, {
                 url: `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/upload-folder?${joinClientParams()}`,
                 headers: { 'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundaryF1uyUD0tWdqmJqpl' },
                 onUploadProgress: onUploadProgress,
@@ -680,7 +680,7 @@ const uploadFile = (content: any) => {
     params.append('fileId', props.fileId as any);
     params.append('token', token);
     machineApi.uploadFile
-        .request(params, {
+        .xhrReq(params, {
             url: `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/upload?${joinClientParams()}`,
             headers: { 'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundaryF1uyUD0tWdqmJqpl' },
             onUploadProgress: onUploadProgress,

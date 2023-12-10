@@ -2,16 +2,12 @@
     <div>
         <page-table
             ref="pageTableRef"
+            :page-api="machineApi.list"
             :query="queryConfig"
             v-model:query-form="params"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
-            :data="data.list"
             :columns="columns"
-            :total="data.total"
-            v-model:page-size="params.pageSize"
-            v-model:page-num="params.pageNum"
-            @pageChange="search()"
         >
             <template #tagPathSelect>
                 <el-select @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
@@ -186,7 +182,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent, Ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi, getMachineTerminalSocketUrl } from './api';
@@ -210,8 +206,8 @@ const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
 
 const router = useRouter();
 const route = useRoute();
-const pageTableRef: any = ref(null);
 const terminalDialogRef: any = ref(null);
+const pageTableRef: Ref<any> = ref(null);
 
 const perms = {
     addMachine: 'machine:add',
@@ -246,11 +242,6 @@ const state = reactive({
         ip: null,
         name: null,
         tagPath: '',
-    },
-    // 列表数据
-    data: {
-        list: [],
-        total: 10,
     },
     infoDialog: {
         visible: false,
@@ -290,11 +281,13 @@ const state = reactive({
     },
 });
 
-const { tags, params, data, infoDialog, selectionData, serviceDialog, processDialog, fileDialog, machineStatsDialog, machineEditDialog, machineRecDialog } =
+const { tags, params, infoDialog, selectionData, serviceDialog, processDialog, fileDialog, machineStatsDialog, machineEditDialog, machineRecDialog } =
     toRefs(state);
 
 onMounted(async () => {
-    search();
+    if (route.query.tagPath) {
+        state.params.tagPath = route.query.tagPath as string;
+    }
 });
 
 const handleCommand = (commond: any) => {
@@ -421,6 +414,10 @@ const showMachineStats = async (machine: any) => {
     state.machineStatsDialog.visible = true;
 };
 
+const search = async () => {
+    pageTableRef.value.search();
+};
+
 const submitSuccess = () => {
     search();
 };
@@ -429,19 +426,6 @@ const showFileManage = (selectionData: any) => {
     state.fileDialog.visible = true;
     state.fileDialog.machineId = selectionData.id;
     state.fileDialog.title = `${selectionData.name} => ${selectionData.ip}`;
-};
-
-const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-        if (route.query.tagPath) {
-            state.params.tagPath = route.query.tagPath as string;
-        }
-        const res = await machineApi.list.request(state.params);
-        state.data = res;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
 };
 
 const getStatsFontClass = (availavle: number, total: number) => {

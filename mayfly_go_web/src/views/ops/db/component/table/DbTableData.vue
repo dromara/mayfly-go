@@ -96,7 +96,7 @@
                                 <SvgIcon class="is-loading" name="loading" color="var(--el-color-primary)" :size="28" />
                                 <el-text class="ml5" tag="b">执行时间 - {{ state.execTime.toFixed(1) }}s</el-text>
                             </div>
-                            <div v-if="loadingKey" class="mt10">
+                            <div v-if="loading && abortFn" class="mt10">
                                 <el-button @click="cancelLoading" type="info" size="small" plain>取 消</el-button>
                             </div>
                         </div>
@@ -133,7 +133,6 @@ import { ContextmenuItem, Contextmenu } from '@/components/contextmenu';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
-import Api from '@/common/Api';
 import { useIntervalFn } from '@vueuse/core';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
@@ -165,8 +164,8 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
-    loadingKey: {
-        type: String,
+    abortFn: {
+        type: Function,
     },
     emptyText: {
         type: String,
@@ -441,10 +440,8 @@ const endLoading = () => {
 };
 
 const cancelLoading = async () => {
-    if (props.loadingKey) {
-        Api.cancelReq(props.loadingKey);
-        endLoading();
-    }
+    props.abortFn && props.abortFn();
+    endLoading();
 };
 
 /**

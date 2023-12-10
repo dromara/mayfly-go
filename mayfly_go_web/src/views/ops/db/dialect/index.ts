@@ -118,6 +118,9 @@ let postgresDialect = new PostgresqlDialect();
 let dmDialect = new DMDialect();
 
 export const getDbDialect = (dbType: string | undefined): DbDialect => {
+    if (!dbType) {
+        return mysqlDialect;
+    }
     if (dbType === DbType.mysql) {
         return mysqlDialect;
     }

@@ -43,9 +43,9 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="testConn" :loading="state.testConnBtnLoading" type="success">测试连接</el-button>
+                    <el-button @click="testConn" :loading="testConnBtnLoading" type="success">测试连接</el-button>
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -113,11 +113,13 @@ const state = reactive({
         sshTunnelMachineId: null as any,
         tagId: [],
     },
-    btnLoading: false,
-    testConnBtnLoading: false,
+    submitForm: {},
 });
 
-const { dialogVisible, tabActiveName, form, btnLoading } = toRefs(state);
+const { dialogVisible, tabActiveName, form, submitForm } = toRefs(state);
+
+const { isFetching: testConnBtnLoading, execute: testConnExec } = mongoApi.testConn.useApi(submitForm);
+const { isFetching: saveBtnLoading, execute: saveMongoExec } = mongoApi.saveMongo.useApi(submitForm);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -142,38 +144,28 @@ const getReqForm = () => {
 
 const testConn = async () => {
     mongoForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            state.testConnBtnLoading = true;
-            try {
-                await mongoApi.testConn.request(getReqForm());
-                ElMessage.success('连接成功');
-            } finally {
-                state.testConnBtnLoading = false;
-            }
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+
+        state.submitForm = getReqForm();
+        await testConnExec();
+        ElMessage.success('连接成功');
     });
 };
 
 const btnOk = async () => {
     mongoForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            mongoApi.saveMongo.request(getReqForm()).then(() => {
-                ElMessage.success('保存成功');
-                emit('val-change', state.form);
-                state.btnLoading = true;
-                setTimeout(() => {
-                    state.btnLoading = false;
-                }, 1000);
-
-                cancel();
-            });
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+        state.submitForm = getReqForm();
+        await saveMongoExec();
+        ElMessage.success('保存成功');
+        emit('val-change', state.form);
+        cancel();
     });
 };
 

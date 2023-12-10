@@ -11,7 +11,7 @@
             <div class="query" ref="queryRef">
                 <div>
                     <div v-if="props.query.length > 0">
-                        <el-form :model="props.queryForm" label-width="auto" :size="props.size">
+                        <el-form :model="queryForm_" label-width="auto" :size="props.size">
                             <el-row
                                 v-for="i in Math.ceil((props.query.length + 1) / (defaultQueryCount + 1))"
                                 :key="i"
@@ -104,9 +104,9 @@
                 v-bind="$attrs"
                 :max-height="tableMaxHeight"
                 @selection-change="handleSelectionChange"
-                :data="props.data"
+                :data="state.data"
                 highlight-current-row
-                v-loading="loadingData"
+                v-loading="state.loading"
                 :size="props.size"
             >
                 <el-table-column v-if="props.showSelection" type="selection" width="40" />
@@ -171,9 +171,9 @@
                     @size-change="handleSizeChange"
                     style="text-align: right"
                     layout="prev, pager, next, total, sizes, jumper"
-                    :total="props.total"
-                    v-model:current-page="state.pageNum"
-                    v-model:page-size="state.pageSize"
+                    :total="state.total"
+                    v-model:current-page="queryForm_.pageNum"
+                    v-model:page-size="queryForm_.pageSize"
                     :page-sizes="pageSizes"
                 />
             </el-row>
@@ -182,11 +182,13 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, watch, reactive, onMounted } from 'vue';
+import { toRefs, watch, reactive, onMounted, Ref } from 'vue';
 import { TableColumn, TableQuery } from './index';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { useThemeConfig } from '@/store/themeConfig';
 import { storeToRefs } from 'pinia';
+import { useVModel } from '@vueuse/core';
+import Api from '@/common/Api';
 
 const emit = defineEmits(['update:queryForm', 'update:pageNum', 'update:pageSize', 'update:selectionData', 'pageChange']);
 
@@ -216,22 +218,19 @@ const props = defineProps({
         },
         required: true,
     },
-    // 表格数据
-    data: {
-        type: Array,
+    // 调用分页数据的api
+    pageApi: {
+        type: Api,
         required: true,
     },
-    total: {
-        type: [Number],
-        default: 0,
+    // 数据处理回调函数，用于将请求回来的数据二次加工处理等
+    dataHandlerFn: {
+        type: Function,
     },
-    pageNum: {
-        type: Number,
-        default: 1,
-    },
-    pageSize: {
-        type: [Number],
-        default: 10,
+    // 懒加载，即需要手动调用search方法才可调接口获取数据，不会在mounted的时候调用。
+    lazy: {
+        type: Boolean,
+        default: false,
     },
     // 查询条件配置
     query: {
@@ -244,7 +243,10 @@ const props = defineProps({
     queryForm: {
         type: Object,
         default: function () {
-            return {};
+            return {
+                pageNum: 1,
+                pageSize: 10,
+            };
         },
     },
 });
@@ -253,56 +255,36 @@ const { themeConfig } = storeToRefs(useThemeConfig());
 
 const state = reactive({
     pageSizes: [] as any, // 可选每页显示的数据量
-    pageSize: 10,
-    pageNum: 1,
     isOpenMoreQuery: false,
     defaultQueryCount: 2, // 默认显示的查询参数个数，展开后每行显示查询条件个数为该值加1。第一行用最后一列来占用按钮
-    queryForm_: {} as any,
-    loadingData: false,
+    loading: false,
+    data: [],
+    total: 0,
     // 输入框宽度
     inputWidth_: '200px' as any,
     formatVal: '', // 格式化后的值
     tableMaxHeight: window.innerHeight - 240 + 'px',
 });
 
-const { pageSizes, isOpenMoreQuery, defaultQueryCount, queryForm_, inputWidth_, formatVal, loadingData, tableMaxHeight } = toRefs(state);
+const { pageSizes, isOpenMoreQuery, defaultQueryCount, inputWidth_, formatVal, tableMaxHeight } = toRefs(state);
+
+const queryForm_: Ref<any> = useVModel(props, 'queryForm', emit);
 
 watch(
-    () => props.queryForm,
-    (newValue: any) => {
-        state.queryForm_ = newValue;
-    }
-);
-
-watch(
-    () => props.pageNum,
-    (newValue: any) => {
-        state.pageNum = newValue;
-    }
-);
-
-watch(
-    () => props.pageSize,
-    (newValue: any) => {
-        state.pageSize = newValue;
-    }
-);
-
-watch(
-    () => props.data,
+    () => state.data,
     (newValue: any) => {
         if (newValue && newValue.length > 0) {
             props.columns.forEach((item) => {
                 if (item.autoWidth && item.show) {
-                    item.autoCalculateMinWidth(props.data);
+                    item.autoCalculateMinWidth(state.data);
                 }
             });
         }
     }
 );
 
-onMounted(() => {
-    let pageSize = props.pageSize;
+onMounted(async () => {
+    let pageSize = queryForm_.value.pageSize;
 
     // 如果pageSize设为0，则使用系统全局配置的pageSize
     if (!pageSize) {
@@ -311,12 +293,10 @@ onMounted(() => {
         if (!pageSize) {
             pageSize = 10;
         }
-        emit('update:pageSize', pageSize);
     }
 
-    state.pageNum = props.pageNum;
-    state.pageSize = pageSize;
-    state.queryForm_ = props.queryForm;
+    queryForm_.value.pageNum = 1;
+    queryForm_.value.pageSize = pageSize;
     state.pageSizes = [pageSize, pageSize * 2, pageSize * 3, pageSize * 4, pageSize * 5];
 
     // 如果没传输入框宽度，则根据组件size设置默认宽度
@@ -329,6 +309,10 @@ onMounted(() => {
     window.addEventListener('resize', () => {
         calcuTableHeight();
     });
+
+    if (!props.lazy) {
+        await reqPageApi();
+    }
 });
 
 const calcuTableHeight = () => {
@@ -360,14 +344,28 @@ const handleSelectionChange = (val: any) => {
     emit('update:selectionData', val);
 };
 
-const handlePageChange = () => {
-    emit('update:pageNum', state.pageNum);
+const reqPageApi = async () => {
+    try {
+        state.loading = true;
+        const res = await props.pageApi?.request(queryForm_.value);
+        if (props.dataHandlerFn) {
+            state.data = await props.dataHandlerFn(res.list);
+        } else {
+            state.data = res.list;
+        }
+        state.total = res.total;
+    } finally {
+        state.loading = false;
+    }
+};
+
+const handlePageChange = (val: number) => {
+    queryForm_.value.pageNum = val;
     execQuery();
 };
 
 const handleSizeChange = () => {
     changePageNum(1);
-    emit('update:pageSize', state.pageSize);
     execQuery();
 };
 
@@ -379,31 +377,24 @@ const queryData = () => {
 const reset = () => {
     // 将查询参数绑定的值置空，并重新粗发查询接口
     for (let qi of props.query) {
-        state.queryForm_[qi.prop] = null;
+        queryForm_.value[qi.prop] = null;
     }
 
     changePageNum(1);
-    emit('update:queryForm', state.queryForm_);
     execQuery();
 };
 
 const changePageNum = (pageNum: number) => {
-    state.pageNum = pageNum;
-    emit('update:pageNum', state.pageNum);
+    queryForm_.value.pageNum = pageNum;
 };
 
-const execQuery = () => {
-    emit('pageChange');
+const execQuery = async () => {
+    await reqPageApi();
 };
 
-/**
- * 是否正在加载数据
- */
-const loading = (loading: boolean) => {
-    state.loadingData = loading;
-};
-
-defineExpose({ loading });
+defineExpose({
+    search: execQuery,
+});
 </script>
 <style scoped lang="scss">
 .page-table {

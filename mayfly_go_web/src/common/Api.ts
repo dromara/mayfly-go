@@ -1,5 +1,5 @@
 import request from './request';
-import { randomUuid } from './utils/string';
+import { useApiFetch } from './useRequest';
 
 /**
  * 可用于各模块定义各自api请求
@@ -20,8 +20,6 @@ class Api {
      * param1: param请求参数
      */
     beforeHandler: Function;
-
-    static abortControllers: Map<string, AbortController> = new Map();
 
     constructor(url: string, method: string) {
         this.url = url;
@@ -46,67 +44,37 @@ class Api {
     }
 
     /**
-     * 请求对应的该api
+     * 响应式使用该api
+     * @param params 响应式params
+     * @param reqOptions 其他可选值
+     * @returns
+     */
+    useApi<T>(params: any = null, reqOptions: RequestInit = {}) {
+        return useApiFetch<T>(this, params, reqOptions);
+    }
+
+    /**
+     * fetch 请求对应的该api
      * @param {Object} param 请求该api的参数
      */
-    request(param: any = null, options: any = {}): Promise<any> {
+    async request(param: any = null, options: any = {}): Promise<any> {
+        const { execute, data } = this.useApi(param, options);
+        await execute();
+        return data.value;
+    }
+
+    /**
+     * xhr 请求对应的该api
+     * @param {Object} param 请求该api的参数
+     */
+    async xhrReq(param: any = null, options: any = {}): Promise<any> {
         if (this.beforeHandler) {
             this.beforeHandler(param);
         }
-        return request.request(this.method, this.url, param, options);
-    }
-
-    /**
-     * 允许取消的请求, 使用Api.cancelReq(key) 取消请求
-     * @param key 用于取消该key关联的请求
-     * @param {Object} param 请求该api的参数
-     */
-    allowCancelReq(key: string, param: any = null, options: RequestInit = {}): Promise<any> {
-        let controller = Api.abortControllers.get(key);
-        if (!controller) {
-            controller = new AbortController();
-            Api.abortControllers.set(key, controller);
-        }
-        options.signal = controller.signal;
-
-        return this.request(param, options);
+        return request.xhrReq(this.method, this.url, param, options);
     }
 
     /**    静态方法     **/
-
-    /**
-     * 取消请求
-     * @param key 请求key
-     */
-    static cancelReq(key: string) {
-        let controller = Api.abortControllers.get(key);
-        if (controller) {
-            controller.abort();
-            Api.removeAbortKey(key);
-        }
-    }
-
-    static removeAbortKey(key: string) {
-        if (key) {
-            console.log('remove abort key: ', key);
-            Api.abortControllers.delete(key);
-        }
-    }
-
-    /**
-     * 根据旧key生成新的abort key，可能旧key未取消，造成多余无用对象
-     * @param oldKey 旧key
-     * @returns key
-     */
-    static genAbortKey(oldKey: string) {
-        if (!oldKey) {
-            return randomUuid();
-        }
-        if (Api.abortControllers.get(oldKey)) {
-            return oldKey;
-        }
-        return randomUuid();
-    }
 
     /**
      * 静态工厂，返回Api对象，并设置url与method属性
@@ -151,3 +119,8 @@ class Api {
 }
 
 export default Api;
+
+export class PageRes {
+    list: any[] = [];
+    total: number = 0;
+}

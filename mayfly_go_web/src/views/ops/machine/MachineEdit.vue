@@ -71,7 +71,7 @@
                 <div>
                     <el-button @click="testConn" :loading="testConnBtnLoading" type="success">测试连接</el-button>
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -164,12 +164,14 @@ const state = reactive({
         sshTunnelMachineId: null as any,
         enableRecorder: -1,
     },
+    submitForm: {},
     pwd: '',
-    testConnBtnLoading: false,
-    btnLoading: false,
 });
 
-const { dialogVisible, tabActiveName, form, testConnBtnLoading, btnLoading } = toRefs(state);
+const { dialogVisible, tabActiveName, form, submitForm } = toRefs(state);
+
+const { isFetching: testConnBtnLoading, execute: testConnExec } = machineApi.testConn.useApi(submitForm);
+const { isFetching: saveBtnLoading, execute: saveMachineExec } = machineApi.saveMachine.useApi(submitForm);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -205,45 +207,29 @@ const changeAuthMethod = (val: any) => {
 
 const testConn = async () => {
     machineForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            const form = getReqForm();
-            if (!form) {
-                return;
-            }
-            state.testConnBtnLoading = true;
-            try {
-                await machineApi.testConn.request(form);
-                ElMessage.success('连接成功');
-            } finally {
-                state.testConnBtnLoading = false;
-            }
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+
+        state.submitForm = getReqForm();
+        await testConnExec();
+        ElMessage.success('连接成功');
     });
 };
 
 const btnOk = async () => {
     machineForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            const form = getReqForm();
-            if (!form) {
-                return;
-            }
-            state.btnLoading = true;
-            try {
-                await machineApi.saveMachine.request(form);
-                ElMessage.success('保存成功');
-                emit('val-change', form);
-                cancel();
-            } finally {
-                state.btnLoading = false;
-            }
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+
+        state.submitForm = getReqForm();
+        await saveMachineExec();
+        ElMessage.success('保存成功');
+        emit('val-change', submitForm);
+        cancel();
     });
 };
 

@@ -223,8 +223,7 @@ const deleteMenu = (data: any) => {
             .request({
                 id: data.id,
             })
-            .then((res) => {
-                console.log(res);
+            .then(() => {
                 ElMessage.success('删除成功！');
                 search();
             });

@@ -160,37 +160,35 @@ func (p *tagTreeAppImpl) RelateResource(ctx context.Context, resourceCode string
 		addTagIds, delTagIds, _ = collx.ArrayCompare[uint64](tagIds, oldTagIds, func(u1, u2 uint64) bool { return u1 == u2 })
 	}
 
-	return p.Tx(ctx, func(ctx context.Context) error {
-		if len(addTagIds) > 0 {
-			addTagResource := make([]*entity.TagResource, 0)
-			for _, tagId := range addTagIds {
-				tag, err := p.GetById(new(entity.TagTree), tagId)
-				if err != nil {
-					return errorx.NewBiz("存在错误标签id")
-				}
-				addTagResource = append(addTagResource, &entity.TagResource{
-					ResourceCode: resourceCode,
-					ResourceType: resourceType,
-					TagId:        tagId,
-					TagPath:      tag.CodePath,
-				})
+	if len(addTagIds) > 0 {
+		addTagResource := make([]*entity.TagResource, 0)
+		for _, tagId := range addTagIds {
+			tag, err := p.GetById(new(entity.TagTree), tagId)
+			if err != nil {
+				return errorx.NewBiz("存在错误标签id")
 			}
-			if err := p.tagResourceApp.BatchInsert(ctx, addTagResource); err != nil {
+			addTagResource = append(addTagResource, &entity.TagResource{
+				ResourceCode: resourceCode,
+				ResourceType: resourceType,
+				TagId:        tagId,
+				TagPath:      tag.CodePath,
+			})
+		}
+		if err := p.tagResourceApp.BatchInsert(ctx, addTagResource); err != nil {
+			return err
+		}
+	}
+
+	if len(delTagIds) > 0 {
+		for _, tagId := range delTagIds {
+			cond := &entity.TagResource{ResourceCode: resourceCode, ResourceType: resourceType, TagId: tagId}
+			if err := p.tagResourceApp.DeleteByCond(ctx, cond); err != nil {
 				return err
 			}
 		}
+	}
 
-		if len(delTagIds) > 0 {
-			for _, tagId := range delTagIds {
-				cond := &entity.TagResource{ResourceCode: resourceCode, ResourceType: resourceType, TagId: tagId}
-				if err := p.tagResourceApp.DeleteByCond(ctx, cond); err != nil {
-					return err
-				}
-			}
-		}
-
-		return nil
-	})
+	return nil
 }
 
 func (p *tagTreeAppImpl) ListTagPathByResource(resourceType int8, resourceCode string) []string {

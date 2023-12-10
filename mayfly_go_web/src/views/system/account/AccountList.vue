@@ -2,16 +2,12 @@
     <div>
         <page-table
             ref="pageTableRef"
+            :page-api="accountApi.list"
             :query="queryConfig"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
-            :data="datas"
             :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
         >
             <template #queryRight>
                 <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="editAccount(false)">添加</el-button>
@@ -81,7 +77,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import RoleEdit from './RoleEdit.vue';
 import AccountEdit from './AccountEdit.vue';
 import { AccountStatusEnum, ResourceTypeEnum } from '../enums';
@@ -91,8 +87,6 @@ import { dateFormat } from '@/common/utils/date';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
-
-const pageTableRef: any = ref(null);
 
 const perms = {
     addAccount: 'account:add',
@@ -118,6 +112,7 @@ const columns = ref([
 const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.changeAccountStatus]);
 const actionColumn = TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(260).noShowOverflowTooltip().alignCenter();
 
+const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
     /**
      * 选中的数据
@@ -131,8 +126,6 @@ const state = reactive({
         pageNum: 1,
         pageSize: 0,
     },
-    datas: [],
-    total: 0,
     showRoleDialog: {
         title: '',
         visible: false,
@@ -158,24 +151,16 @@ const state = reactive({
     },
 });
 
-const { selectionData, query, datas, total, showRoleDialog, showResourceDialog, roleDialog, accountDialog } = toRefs(state);
+const { selectionData, query, showRoleDialog, showResourceDialog, roleDialog, accountDialog } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
-    search();
 });
 
 const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-        let res: any = await accountApi.list.request(state.query);
-        state.datas = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
+    pageTableRef.value.search();
 };
 
 const showResources = async (row: any) => {

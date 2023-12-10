@@ -70,9 +70,9 @@ func (r *redisAppImpl) TestConn(re *entity.Redis) error {
 
 func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis, tagIds ...uint64) error {
 	// 查找是否存在该库
-	oldRedis := &entity.Redis{Host: re.Host}
-	if re.SshTunnelMachineId > 0 {
-		oldRedis.SshTunnelMachineId = re.SshTunnelMachineId
+	oldRedis := &entity.Redis{
+		Host:               re.Host,
+		SshTunnelMachineId: re.SshTunnelMachineId,
 	}
 	err := r.GetBy(oldRedis)
 

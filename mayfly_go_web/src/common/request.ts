@@ -4,10 +4,12 @@ import { getClientId, getToken } from './utils/storage';
 import { templateResolve } from './utils/string';
 import { ElMessage } from 'element-plus';
 import axios from 'axios';
+import { useApiFetch } from './useRequest';
+import Api from './Api';
 
 export default {
     request,
-    fetchReq,
+    xhrReq,
     get,
     post,
     put,
@@ -30,7 +32,7 @@ export interface Result {
     data?: any;
 }
 
-enum ResultEnum {
+export enum ResultEnum {
     SUCCESS = 200,
     ERROR = 400,
     PARAM_ERROR = 405,
@@ -38,7 +40,7 @@ enum ResultEnum {
     NO_PERMISSION = 501,
 }
 
-const baseUrl: string = config.baseApiUrl;
+export const baseUrl: string = config.baseApiUrl;
 // const baseUrl: string = 'http://localhost:18888/api';
 // const baseWsUrl: string = config.baseWsUrl;
 
@@ -115,14 +117,15 @@ axiosInst.interceptors.response.use(
 );
 
 /**
- * 请求uri
- * 该方法已处理请求结果中code != 200的message提示,如需其他错误处理(取消加载状态,重置对象状态等等),可catch继续处理
+ * xhr请求url
  *
- * @param {Object} method 请求方法(GET,POST,PUT,DELTE等)
- * @param {Object} uri    uri
- * @param {Object} params 参数
+ * @param method 请求方法
+ * @param url url
+ * @param params 参数
+ * @param options 可选
+ * @returns
  */
-function request(method: string, url: string, params: any = null, options: any = {}): Promise<any> {
+export function xhrReq(method: string, url: string, params: any = null, options: any = {}) {
     if (!url) {
         throw new Error('请求url不能为空');
     }
@@ -158,6 +161,21 @@ function request(method: string, url: string, params: any = null, options: any =
 }
 
 /**
+ * fetch请求url
+ *
+ * 该方法已处理请求结果中code != 200的message提示,如需其他错误处理(取消加载状态,重置对象状态等等),可catch继续处理
+ *
+ * @param {Object} method 请求方法(GET,POST,PUT,DELTE等)
+ * @param {Object} uri    uri
+ * @param {Object} params 参数
+ */
+async function request(method: string, url: string, params: any = null, options: any = {}): Promise<any> {
+    const { execute, data } = useApiFetch(Api.create(url, method), params, options);
+    await execute();
+    return data.value;
+}
+
+/**
  * get请求uri
  * 该方法已处理请求结果中code != 200的message提示,如需其他错误处理(取消加载状态,重置对象状态等等),可catch继续处理
  *
@@ -188,64 +206,6 @@ function getApiUrl(url: string) {
 // 组装客户端参数，包括 token 和 clientId
 export function joinClientParams(): string {
     return `token=${getToken()}&clientId=${getClientId()}`;
-}
-
-async function fetchReq(method: string, url: string, params: any = null, options: RequestInit = {}): Promise<any> {
-    options.method = method;
-
-    if (params) {
-        // post和put使用json格式传参
-        if (method === 'post' || method === 'put') {
-            options.body = JSON.stringify(params);
-        } else {
-            const searchParam = new URLSearchParams();
-            Object.keys(params).forEach((key) => {
-                const val = params[key];
-                if (val) {
-                    searchParam.append(key, val);
-                }
-            });
-            url = `${url}?${searchParam.toString()}`;
-        }
-    }
-
-    // Part 1: Add headers and attach auth token
-    const headers = new Headers(options.headers || {});
-
-    const token = getToken();
-    if (token) {
-        headers.set('Authorization', token);
-        headers.set('ClientId', getClientId());
-    }
-    options.headers = headers;
-
-    try {
-        const res: Response = await fetch(`${baseUrl}${url}`, options);
-        if (!res.ok) {
-            throw new Error(`请求响应错误: 状态码=${res.status}`);
-        }
-
-        const jsonRes = await res.json();
-        // 获取请求返回结果
-        const result: Result = jsonRes;
-        return parseResult(result);
-    } catch (e: any) {
-        const rejectPromise = Promise.reject(e);
-
-        if (e?.name == 'AbortError') {
-            console.log('请求已取消');
-            return rejectPromise;
-        }
-
-        if (e.message) {
-            notifyErrorMsg(e.message);
-            return rejectPromise;
-        }
-
-        notifyErrorMsg('网络请求错误');
-        console.error(e);
-        return rejectPromise;
-    }
 }
 
 function parseResult(result: Result) {

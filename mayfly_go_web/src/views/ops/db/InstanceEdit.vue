@@ -71,9 +71,9 @@
 
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="testConn" :loading="state.testConnBtnLoading" type="success">测试连接</el-button>
+                    <el-button @click="testConn" :loading="testConnBtnLoading" type="success">测试连接</el-button>
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -168,15 +168,17 @@ const state = reactive({
         remark: '',
         sshTunnelMachineId: null as any,
     },
+    subimtForm: {},
     // 原密码
     pwd: '',
     // 原用户名
     oldUserName: null,
-    btnLoading: false,
-    testConnBtnLoading: false,
 });
 
-const { dialogVisible, tabActiveName, form, pwd, btnLoading } = toRefs(state);
+const { dialogVisible, tabActiveName, form, subimtForm, pwd } = toRefs(state);
+
+const { isFetching: saveBtnLoading, execute: saveInstanceExec } = dbApi.saveInstance.useApi(subimtForm);
+const { isFetching: testConnBtnLoading, execute: testConnExec } = dbApi.testConn.useApi(subimtForm);
 
 watch(props, (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -214,18 +216,14 @@ const getReqForm = async () => {
 
 const testConn = async () => {
     dbForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            state.testConnBtnLoading = true;
-            try {
-                await dbApi.testConn.request(await getReqForm());
-                ElMessage.success('连接成功');
-            } finally {
-                state.testConnBtnLoading = false;
-            }
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+
+        state.subimtForm = await getReqForm();
+        await testConnExec();
+        ElMessage.success('连接成功');
     });
 };
 
@@ -237,21 +235,16 @@ const btnOk = async () => {
     }
 
     dbForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            dbApi.saveInstance.request(await getReqForm()).then(() => {
-                ElMessage.success('保存成功');
-                emit('val-change', state.form);
-                state.btnLoading = true;
-                setTimeout(() => {
-                    state.btnLoading = false;
-                }, 1000);
-
-                cancel();
-            });
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+
+        state.subimtForm = await getReqForm();
+        await saveInstanceExec();
+        ElMessage.success('保存成功');
+        emit('val-change', state.form);
+        cancel();
     });
 };
 

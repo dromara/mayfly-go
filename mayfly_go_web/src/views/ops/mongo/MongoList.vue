@@ -2,16 +2,12 @@
     <div>
         <page-table
             ref="pageTableRef"
+            :page-api="mongoApi.mongoList"
             :query="queryConfig"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
-            :data="list"
             :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
         >
             <template #tagPathSelect>
                 <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
@@ -42,7 +38,7 @@
         <mongo-run-command v-model:visible="usersVisible" :id="state.dbOps.dbId" />
 
         <mongo-edit
-            @val-change="valChange"
+            @val-change="search"
             :title="mongoEditDialog.title"
             v-model:visible="mongoEditDialog.visible"
             v-model:mongo="mongoEditDialog.data"
@@ -52,7 +48,7 @@
 
 <script lang="ts" setup>
 import { mongoApi } from './api';
-import { defineAsyncComponent, ref, toRefs, reactive, onMounted } from 'vue';
+import { defineAsyncComponent, ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -65,8 +61,8 @@ const MongoEdit = defineAsyncComponent(() => import('./MongoEdit.vue'));
 const MongoDbs = defineAsyncComponent(() => import('./MongoDbs.vue'));
 const MongoRunCommand = defineAsyncComponent(() => import('./MongoRunCommand.vue'));
 
-const pageTableRef: any = ref(null);
 const route = useRoute();
+const pageTableRef: Ref<any> = ref(null);
 
 const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect')];
 const columns = ref([
@@ -84,8 +80,6 @@ const state = reactive({
         dbId: 0,
         db: '',
     },
-    list: [],
-    total: 0,
     selectionData: [],
     query: {
         pageNum: 1,
@@ -101,10 +95,12 @@ const state = reactive({
     usersVisible: false,
 });
 
-const { tags, list, total, selectionData, query, mongoEditDialog, dbsVisible, usersVisible } = toRefs(state);
+const { tags, selectionData, query, mongoEditDialog, dbsVisible, usersVisible } = toRefs(state);
 
 onMounted(async () => {
-    search();
+    if (route.query.tagPath) {
+        state.query.tagPath = route.query.tagPath as string;
+    }
 });
 
 const showDatabases = async (id: number) => {
@@ -133,19 +129,7 @@ const deleteMongo = async () => {
 };
 
 const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-
-        if (route.query.tagPath) {
-            state.query.tagPath = route.query.tagPath as string;
-        }
-
-        const res = await mongoApi.mongoList.request(state.query);
-        state.list = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
+    pageTableRef.value.search();
 };
 
 const getTags = async () => {
@@ -161,10 +145,6 @@ const editMongo = async (data: any) => {
         state.mongoEditDialog.title = '修改mongo';
     }
     state.mongoEditDialog.visible = true;
-};
-
-const valChange = () => {
-    search();
 };
 </script>
 

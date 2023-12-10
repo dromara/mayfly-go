@@ -2,16 +2,12 @@
     <div class="db-list">
         <page-table
             ref="pageTableRef"
+            :page-api="dbApi.dbs"
             :query="queryConfig"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
-            :data="datas"
             :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
         >
             <template #tagPathSelect>
                 <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable style="width: 200px">
@@ -140,7 +136,7 @@
 
         <el-dialog v-model="infoDialog.visible" :before-close="onBeforeCloseInfoDialog" :close-on-click-modal="false">
             <el-descriptions title="详情" :column="3" border>
-                <el-descriptions-item :span="3" label="标签路径">{{ infoDialog.data?.tagPath }}</el-descriptions-item>
+                <!-- <el-descriptions-item :span="3" label="标签路径">{{ infoDialog.data?.tagPath }}</el-descriptions-item> -->
                 <el-descriptions-item :span="2" label="名称">{{ infoDialog.data?.name }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="id">{{ infoDialog.data?.id }}</el-descriptions-item>
                 <el-descriptions-item :span="3" label="数据库">{{ infoDialog.data?.database }}</el-descriptions-item>
@@ -158,12 +154,12 @@
             </el-descriptions>
         </el-dialog>
 
-        <db-edit @val-change="valChange" :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible" v-model:db="dbEditDialog.data"></db-edit>
+        <db-edit @val-change="search" :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible" v-model:db="dbEditDialog.data"></db-edit>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dbApi } from './api';
 import config from '@/common/config';
@@ -206,8 +202,7 @@ const actionBtns = hasPerms([perms.base, perms.saveDb]);
 const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(220).fixedRight().alignCenter();
 
 const route = useRoute();
-const pageTableRef: any = ref(null);
-
+const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
     row: {} as any,
     dbId: 0,
@@ -227,8 +222,6 @@ const state = reactive({
         pageNum: 1,
         pageSize: 0,
     },
-    datas: [],
-    total: 0,
     infoDialog: {
         visible: false,
         data: null as any,
@@ -265,33 +258,19 @@ const state = reactive({
     },
 });
 
-const { db, tags, selectionData, query, datas, total, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog } = toRefs(state);
+const { db, tags, selectionData, query, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog } = toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
-    search();
+    if (route.query.tagPath) {
+        state.query.tagPath = route.query.tagPath as string;
+    }
 });
 
 const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-
-        if (route.query.tagPath) {
-            state.query.tagPath = route.query.tagPath as string;
-        }
-        let res: any = await dbApi.dbs.request(state.query);
-        // 切割数据库
-        res.list?.forEach((e: any) => {
-            e.popoverSelectDbVisible = false;
-            e.dbs = e.database.split(' ');
-        });
-        state.datas = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
+    pageTableRef.value.search();
 };
 
 const showInfo = async (info: any) => {
@@ -350,10 +329,6 @@ const editDb = async (data: any) => {
         state.dbEditDialog.title = '修改数据库资源';
     }
     state.dbEditDialog.visible = true;
-};
-
-const valChange = () => {
-    search();
 };
 
 const deleteDb = async () => {

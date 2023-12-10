@@ -1,15 +1,6 @@
 <template>
     <div>
-        <page-table
-            :show-selection="true"
-            v-model:selection-data="selectionData"
-            :data="configs"
-            :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
-        >
+        <page-table ref="pageTableRef" :page-api="configApi.list" v-model:selection-data="selectionData" :columns="columns">
             <template #queryRight>
                 <el-button v-auth="perms.saveConfig" type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
             </template>
@@ -52,7 +43,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import ConfigEdit from './ConfigEdit.vue';
 import { configApi } from '../api';
 import { ElMessage } from 'element-plus';
@@ -75,15 +66,15 @@ const columns = ref([
 const actionColumn = TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip().alignCenter();
 const actionBtns = hasPerms([perms.saveConfig]);
 
+const pageTableRef: Ref<any> = ref(null);
 const paramsFormRef: any = ref(null);
+
 const state = reactive({
     query: {
         pageNum: 1,
         pageSize: 0,
         name: null,
     },
-    total: 0,
-    configs: [],
     selectionData: [],
     paramsDialog: {
         visible: false,
@@ -98,19 +89,16 @@ const state = reactive({
     },
 });
 
-const { query, total, configs, selectionData, paramsDialog, configEdit } = toRefs(state);
+const { selectionData, paramsDialog, configEdit } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
-    search();
 });
 
 const search = async () => {
-    let res = await configApi.list.request(state.query);
-    state.configs = res.list;
-    state.total = res.total;
+    pageTableRef.value.search();
 };
 
 const showSetConfigDialog = (row: any) => {

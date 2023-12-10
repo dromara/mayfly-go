@@ -2,16 +2,12 @@
     <div>
         <page-table
             ref="pageTableRef"
+            :page-api="redisApi.redisList"
             :query="queryConfig"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
-            :data="redisTable"
             :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
         >
             <template #tagPathSelect>
                 <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
@@ -148,7 +144,7 @@
         </el-dialog>
 
         <redis-edit
-            @val-change="valChange"
+            @val-change="search"
             :tags="tags"
             :title="redisEditDialog.title"
             v-model:visible="redisEditDialog.visible"
@@ -160,7 +156,7 @@
 <script lang="ts" setup>
 import Info from './Info.vue';
 import { redisApi } from './api';
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
@@ -171,8 +167,8 @@ import { tagApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
 
-const pageTableRef: any = ref(null);
 const route = useRoute();
+const pageTableRef: Ref<any> = ref(null);
 
 const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect')];
 const columns = ref([
@@ -186,8 +182,6 @@ const columns = ref([
 
 const state = reactive({
     tags: [],
-    redisTable: [],
-    total: 0,
     selectionData: [],
     query: {
         tagPath: '',
@@ -222,10 +216,12 @@ const state = reactive({
     },
 });
 
-const { tags, redisTable, total, selectionData, query, detailDialog, clusterInfoDialog, infoDialog, redisEditDialog } = toRefs(state);
+const { tags, selectionData, query, detailDialog, clusterInfoDialog, infoDialog, redisEditDialog } = toRefs(state);
 
 onMounted(async () => {
-    search();
+    if (route.query.tagPath) {
+        state.query.tagPath = route.query.tagPath as string;
+    }
 });
 
 const showDetail = (detail: any) => {
@@ -267,20 +263,8 @@ const onShowClusterInfo = async (redis: any) => {
     state.clusterInfoDialog.visible = true;
 };
 
-const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-
-        if (route.query.tagPath) {
-            state.query.tagPath = route.query.tagPath as string;
-        }
-
-        const res = await redisApi.redisList.request(state.query);
-        state.redisTable = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
+const search = () => {
+    pageTableRef.value.search();
 };
 
 const getTags = async () => {
@@ -296,10 +280,6 @@ const editRedis = async (data: any) => {
         state.redisEditDialog.title = '修改redis';
     }
     state.redisEditDialog.visible = true;
-};
-
-const valChange = () => {
-    search();
 };
 </script>
 

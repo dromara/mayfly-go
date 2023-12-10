@@ -1,16 +1,13 @@
 <template>
     <div>
         <page-table
+            ref="pageTableRef"
+            :page-api="authCertApi.list"
             :query="state.queryConfig"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
-            :data="authcerts"
             :columns="state.columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
         >
             <template #queryRight>
                 <el-button type="primary" icon="plus" @click="edit(false)">添加</el-button>
@@ -27,7 +24,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted } from 'vue';
+import { toRefs, reactive, onMounted, ref, Ref } from 'vue';
 import AuthCertEdit from './AuthCertEdit.vue';
 import { authCertApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -35,6 +32,7 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn, TableQuery } from '@/components/pagetable';
 import { AuthMethodEnum } from '../enums';
 
+const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
     query: {
         pageNum: 1,
@@ -68,16 +66,12 @@ const state = reactive({
     },
 });
 
-const { query, total, authcerts, selectionData, editor } = toRefs(state);
+const { query, selectionData, editor } = toRefs(state);
 
-onMounted(() => {
-    search();
-});
+onMounted(() => {});
 
 const search = async () => {
-    let res = await authCertApi.list.request(state.query);
-    state.authcerts = res.list;
-    state.total = res.total;
+    pageTableRef.value.search();
 };
 
 const editChange = () => {

@@ -20,7 +20,7 @@
             <template #footer>
                 <div class="dialog-footer">
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -57,10 +57,11 @@ const state = reactive({
         status: 1,
         remark: '',
     },
-    btnLoading: false,
 });
 
-const { dvisible, form, btnLoading } = toRefs(state);
+const { dvisible, form } = toRefs(state);
+
+const { isFetching: saveBtnLoading, execute: saveRoleExec } = roleApi.save.useApi(form);
 
 watch(props, (newValue: any) => {
     state.dvisible = newValue.visible;
@@ -81,13 +82,9 @@ const cancel = () => {
 const btnOk = async () => {
     roleForm.value.validate(async (valid: boolean) => {
         if (valid) {
-            await roleApi.save.request(state.form);
+            await saveRoleExec();
             emit('val-change', state.form);
             cancel();
-            state.btnLoading = true;
-            setTimeout(() => {
-                state.btnLoading = false;
-            }, 1000);
         }
     });
 };

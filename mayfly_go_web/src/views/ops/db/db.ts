@@ -196,18 +196,25 @@ export class DbInst {
      * @param sql sql
      * @param remark 执行备注
      */
-    async runSql(dbName: string, sql: string, remark: string = '', key: string = '') {
-        if (key) {
-            return await dbApi.sqlExec.allowCancelReq(key, {
-                id: this.id,
-                db: dbName,
-                sql: sql.trim(),
-                remark,
-            });
-        }
-
+    async runSql(dbName: string, sql: string, remark: string = '') {
         return await dbApi.sqlExec.request({
             id: this.id,
+            db: dbName,
+            sql: sql.trim(),
+            remark,
+        });
+    }
+
+    /**
+     * 执行sql(可取消的)
+     *
+     * @param sql sql
+     * @param remark 执行备注
+     */
+    execSql(dbName: string, sql: string, remark: string = '') {
+        let dbId = this.id;
+        return dbApi.sqlExec.useApi({
+            id: dbId,
             db: dbName,
             sql: sql.trim(),
             remark,

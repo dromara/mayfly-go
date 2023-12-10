@@ -74,10 +74,13 @@ func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pagePara
 }
 
 func (m *machineAppImpl) Save(ctx context.Context, me *entity.Machine, tagIds ...uint64) error {
-	oldMachine := &entity.Machine{Ip: me.Ip, Port: me.Port, Username: me.Username}
-	if me.SshTunnelMachineId > 0 {
-		oldMachine.SshTunnelMachineId = me.SshTunnelMachineId
+	oldMachine := &entity.Machine{
+		Ip:                 me.Ip,
+		Port:               me.Port,
+		Username:           me.Username,
+		SshTunnelMachineId: me.SshTunnelMachineId,
 	}
+
 	err := m.GetBy(oldMachine)
 
 	me.PwdEncrypt()

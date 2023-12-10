@@ -62,9 +62,11 @@ func (app *instanceAppImpl) Save(ctx context.Context, instanceEntity *entity.DbI
 	instanceEntity.Network = instanceEntity.GetNetwork()
 
 	// 查找是否存在该库
-	oldInstance := &entity.DbInstance{Host: instanceEntity.Host, Port: instanceEntity.Port, Username: instanceEntity.Username}
-	if instanceEntity.SshTunnelMachineId > 0 {
-		oldInstance.SshTunnelMachineId = instanceEntity.SshTunnelMachineId
+	oldInstance := &entity.DbInstance{
+		Host:               instanceEntity.Host,
+		Port:               instanceEntity.Port,
+		Username:           instanceEntity.Username,
+		SshTunnelMachineId: instanceEntity.SshTunnelMachineId,
 	}
 
 	err := app.GetBy(oldInstance)

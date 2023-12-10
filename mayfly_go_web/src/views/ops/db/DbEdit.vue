@@ -77,7 +77,7 @@
             <template #footer>
                 <div class="dialog-footer">
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -155,11 +155,12 @@ const state = reactive({
         remark: '',
         instanceId: null as any,
     },
-    btnLoading: false,
     instances: [] as any,
 });
 
-const { dialogVisible, allDatabases, databaseList, form, btnLoading } = toRefs(state);
+const { dialogVisible, allDatabases, form, databaseList } = toRefs(state);
+
+const { isFetching: saveBtnLoading, execute: saveDbExec } = dbApi.saveDb.useApi(form);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -216,22 +217,15 @@ const open = async () => {
 
 const btnOk = async () => {
     dbForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            const reqForm = { ...state.form };
-            dbApi.saveDb.request(reqForm).then(() => {
-                ElMessage.success('保存成功');
-                emit('val-change', state.form);
-                state.btnLoading = true;
-                setTimeout(() => {
-                    state.btnLoading = false;
-                }, 1000);
-
-                cancel();
-            });
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+
+        await saveDbExec();
+        ElMessage.success('保存成功');
+        emit('val-change', state.form);
+        cancel();
     });
 };
 
