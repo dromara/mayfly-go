@@ -223,14 +223,18 @@ const props = defineProps({
         type: Api,
         required: true,
     },
-    // 数据处理回调函数，用于将请求回来的数据二次加工处理等
-    dataHandlerFn: {
-        type: Function,
-    },
     // 懒加载，即需要手动调用search方法才可调接口获取数据，不会在mounted的时候调用。
     lazy: {
         type: Boolean,
         default: false,
+    },
+    // 执行查询时对查询参数进行处理，调整等
+    beforeQueryFn: {
+        type: Function,
+    },
+    // 数据处理回调函数，用于将请求回来的数据二次加工处理等
+    dataHandlerFn: {
+        type: Function,
     },
     // 查询条件配置
     query: {
@@ -347,13 +351,23 @@ const handleSelectionChange = (val: any) => {
 const reqPageApi = async () => {
     try {
         state.loading = true;
-        const res = await props.pageApi?.request(queryForm_.value);
+
+        let qf = queryForm_.value;
+        if (props.beforeQueryFn) {
+            qf = await props.beforeQueryFn(qf);
+        }
+
+        const res = await props.pageApi?.request(qf);
+        if (!res) {
+            return;
+        }
+
+        state.total = res.total;
         if (props.dataHandlerFn) {
             state.data = await props.dataHandlerFn(res.list);
         } else {
             state.data = res.list;
         }
-        state.total = res.total;
     } finally {
         state.loading = false;
     }

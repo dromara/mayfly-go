@@ -3,6 +3,7 @@
         <page-table
             ref="pageTableRef"
             :page-api="redisApi.redisList"
+            :before-query-fn="checkRouteTagPath"
             :query="queryConfig"
             v-model:query-form="query"
             :show-selection="true"
@@ -218,11 +219,14 @@ const state = reactive({
 
 const { tags, selectionData, query, detailDialog, clusterInfoDialog, infoDialog, redisEditDialog } = toRefs(state);
 
-onMounted(async () => {
+onMounted(async () => {});
+
+const checkRouteTagPath = (query: any) => {
     if (route.query.tagPath) {
-        state.query.tagPath = route.query.tagPath as string;
+        query.tagPath = route.query.tagPath as string;
     }
-});
+    return query;
+};
 
 const showDetail = (detail: any) => {
     state.detailDialog.data = detail;

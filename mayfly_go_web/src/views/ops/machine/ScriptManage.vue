@@ -12,6 +12,7 @@
             <page-table
                 ref="pageTableRef"
                 :page-api="machineApi.scripts"
+                :before-query-fn="checkScriptType"
                 :lazy="true"
                 :query="queryConfig"
                 v-model:query-form="query"
@@ -154,8 +155,18 @@ watch(props, async (newValue) => {
 });
 
 const getScripts = async () => {
-    state.query.machineId = state.query.type == ScriptTypeEnum.Private.value ? props.machineId : 9999999;
     pageTableRef.value.search();
+};
+
+const checkScriptType = (query: any) => {
+    if (!query.type) {
+        query.machineId = props.machineId;
+        query.type = ScriptTypeEnum.Private.value;
+    } else {
+        query.machineId = query.type == ScriptTypeEnum.Private.value ? props.machineId : 9999999;
+    }
+
+    return query;
 };
 
 const runScript = async (script: any) => {

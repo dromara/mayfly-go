@@ -3,6 +3,7 @@
         <page-table
             ref="pageTableRef"
             :page-api="machineApi.list"
+            :before-query-fn="checkRouteTagPath"
             :query="queryConfig"
             v-model:query-form="params"
             :show-selection="true"
@@ -284,11 +285,14 @@ const state = reactive({
 const { tags, params, infoDialog, selectionData, serviceDialog, processDialog, fileDialog, machineStatsDialog, machineEditDialog, machineRecDialog } =
     toRefs(state);
 
-onMounted(async () => {
+onMounted(async () => {});
+
+const checkRouteTagPath = (query: any) => {
     if (route.query.tagPath) {
-        state.params.tagPath = route.query.tagPath as string;
+        query.tagPath = route.query.tagPath as string;
     }
-});
+    return query;
+};
 
 const handleCommand = (commond: any) => {
     const data = commond.data;

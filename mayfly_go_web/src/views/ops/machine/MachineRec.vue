@@ -2,23 +2,14 @@
     <div id="terminalRecDialog">
         <el-dialog
             :title="title"
-            v-if="dialogVisible"
             v-model="dialogVisible"
             :before-close="handleClose"
             :close-on-click-modal="false"
             :destroy-on-close="true"
             width="800"
+            @open="getTermOps()"
         >
-            <page-table
-                height="100%"
-                v-model:query-form="query"
-                :data="data"
-                :columns="columns"
-                :total="total"
-                v-model:page-size="query.pageSize"
-                v-model:page-num="query.pageNum"
-                @pageChange="getTermOps()"
-            >
+            <page-table ref="pageTableRef" :page-api="machineApi.termOpRecs" :lazy="true" height="100%" v-model:query-form="query" :columns="columns">
                 <template #action="{ data }">
                     <el-button @click="playRec(data)" loading-icon="loading" :loading="data.playRecLoding" type="primary" link>回放</el-button>
                 </template>
@@ -39,7 +30,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, watch, ref, reactive, nextTick } from 'vue';
+import { toRefs, watch, ref, reactive, nextTick, Ref } from 'vue';
 import { machineApi } from './api';
 import * as AsciinemaPlayer from 'asciinema-player';
 import 'asciinema-player/dist/bundle/asciinema-player.css';
@@ -63,36 +54,32 @@ const columns = [
 ];
 
 const playerRef = ref(null);
+const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
     dialogVisible: false,
     title: '',
-    machineId: 0,
-    data: [],
-    total: 0,
     query: {
         pageNum: 1,
         pageSize: 10,
+        machineId: 0,
     },
 
     playerDialogVisible: false,
 });
 
-const { dialogVisible, query, data, total, playerDialogVisible } = toRefs(state);
+const { dialogVisible, query, playerDialogVisible } = toRefs(state);
 
 watch(props, async (newValue: any) => {
     const visible = newValue.visible;
-    if (visible) {
-        state.machineId = newValue.machineId;
-        state.title = newValue.title;
-        await getTermOps();
-    }
     state.dialogVisible = visible;
+    if (visible) {
+        state.query.machineId = newValue.machineId;
+        state.title = newValue.title;
+    }
 });
 
 const getTermOps = async () => {
-    const res = await machineApi.termOpRecs.request({ id: state.machineId, ...state.query });
-    state.data = res.list;
-    state.total = res.total;
+    pageTableRef.value.search();
 };
 
 let player: any = null;
@@ -136,8 +123,6 @@ const handleClose = () => {
     emit('update:visible', false);
     emit('update:machineId', null);
     emit('cancel');
-    state.data = [];
-    state.total = 0;
 };
 </script>
 <style lang="scss">

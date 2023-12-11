@@ -1,6 +1,14 @@
 <template>
     <div class="db-sql-exec-log">
-        <page-table ref="pageTableRef" :page-api="dbApi.getSqlExecs" height="100%" :query="queryConfig" v-model:query-form="query" :columns="columns">
+        <page-table
+            ref="pageTableRef"
+            :page-api="dbApi.getSqlExecs"
+            :lazy="true"
+            height="100%"
+            :query="queryConfig"
+            v-model:query-form="query"
+            :columns="columns"
+        >
             <template #dbSelect>
                 <el-select v-model="query.db" placeholder="请选择数据库" style="width: 200px" filterable clearable>
                     <el-option v-for="item in dbs" :key="item" :label="`${item}`" :value="item"> </el-option>
@@ -88,7 +96,11 @@ const state = reactive({
 
 const { query, rollbackSqlDialog } = toRefs(state);
 
-onMounted(async () => {});
+onMounted(async () => {
+    state.query.dbId = props.dbId;
+    state.query.pageNum = 1;
+    await searchSqlExecLog();
+});
 
 watch(props, async () => {
     state.query.dbId = props.dbId;
@@ -97,7 +109,9 @@ watch(props, async () => {
 });
 
 const searchSqlExecLog = async () => {
-    pageTableRef.value.search();
+    if (state.query.dbId) {
+        pageTableRef.value.search();
+    }
 };
 
 const onShowRollbackSql = async (sqlExecLog: any) => {

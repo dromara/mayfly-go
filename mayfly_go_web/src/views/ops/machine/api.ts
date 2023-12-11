@@ -44,7 +44,7 @@ export const machineApi = {
     delConf: Api.newDelete('/machines/{machineId}/files/{id}'),
     terminal: Api.newGet('/api/machines/{id}/terminal'),
     // 机器终端操作记录列表
-    termOpRecs: Api.newGet('/machines/{id}/term-recs'),
+    termOpRecs: Api.newGet('/machines/{machineId}/term-recs'),
     // 机器终端操作记录详情
     termOpRec: Api.newGet('/machines/{id}/term-recs/{recId}'),
 };

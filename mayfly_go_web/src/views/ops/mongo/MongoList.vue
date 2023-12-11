@@ -3,6 +3,7 @@
         <page-table
             ref="pageTableRef"
             :page-api="mongoApi.mongoList"
+            :before-query-fn="checkRouteTagPath"
             :query="queryConfig"
             v-model:query-form="query"
             :show-selection="true"
@@ -97,11 +98,14 @@ const state = reactive({
 
 const { tags, selectionData, query, mongoEditDialog, dbsVisible, usersVisible } = toRefs(state);
 
-onMounted(async () => {
+onMounted(async () => {});
+
+const checkRouteTagPath = (query: any) => {
     if (route.query.tagPath) {
-        state.query.tagPath = route.query.tagPath as string;
+        query.tagPath = route.query.tagPath as string;
     }
-});
+    return query;
+};
 
 const showDatabases = async (id: number) => {
     state.dbOps.dbId = id;

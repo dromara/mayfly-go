@@ -3,6 +3,7 @@
         <page-table
             ref="pageTableRef"
             :page-api="dbApi.dbs"
+            :before-query-fn="checkRouteTagPath"
             :query="queryConfig"
             v-model:query-form="query"
             :show-selection="true"
@@ -130,6 +131,7 @@
             :before-close="onBeforeCloseSqlExecDialog"
             :close-on-click-modal="false"
             v-model="sqlExecLogDialog.visible"
+            :destroy-on-close="true"
         >
             <db-sql-exec-log :db-id="sqlExecLogDialog.dbId" :dbs="sqlExecLogDialog.dbs" />
         </el-dialog>
@@ -264,10 +266,14 @@ onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
-    if (route.query.tagPath) {
-        state.query.tagPath = route.query.tagPath as string;
-    }
 });
+
+const checkRouteTagPath = (query: any) => {
+    if (route.query.tagPath) {
+        query.tagPath = route.query.tagPath as string;
+    }
+    return query;
+};
 
 const search = async () => {
     pageTableRef.value.search();
