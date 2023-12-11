@@ -88,39 +88,42 @@
                         </el-col>
                     </el-row>
 
-                    <el-tree
+                    <el-scrollbar
                         :style="{
                             maxHeight: state.keyTreeHeight,
                             height: state.keyTreeHeight,
-                            overflow: 'auto',
+                            backgroundColor: 'var(--el-fill-color-blank)',
                             border: '1px solid var(--el-border-color-light, #ebeef5)',
                         }"
-                        ref="keyTreeRef"
-                        :highlight-current="true"
-                        :data="keyTreeData"
-                        :props="treeProps"
-                        :indent="8"
-                        node-key="key"
-                        :auto-expand-parent="false"
-                        :default-expanded-keys="Array.from(state.keyTreeExpanded)"
-                        @node-click="handleKeyTreeNodeClick"
-                        @node-expand="keyTreeNodeExpand"
-                        @node-collapse="keyTreeNodeCollapse"
-                        @node-contextmenu="rightClickNode"
                     >
-                        <template #default="{ node, data }">
-                            <span class="el-dropdown-link key-list-custom-node" :title="node.label">
-                                <span v-if="data.type == 1">
-                                    <SvgIcon :size="15" :name="node.expanded ? 'folder-opened' : 'folder'" />
-                                </span>
-                                <span :class="'ml5 ' + (data.type == 1 ? 'folder-label' : 'key-label')">
-                                    {{ node.label }}
-                                </span>
+                        <el-tree
+                            ref="keyTreeRef"
+                            :highlight-current="true"
+                            :data="keyTreeData"
+                            :props="treeProps"
+                            :indent="8"
+                            node-key="key"
+                            :auto-expand-parent="false"
+                            :default-expanded-keys="Array.from(state.keyTreeExpanded)"
+                            @node-click="handleKeyTreeNodeClick"
+                            @node-expand="keyTreeNodeExpand"
+                            @node-collapse="keyTreeNodeCollapse"
+                            @node-contextmenu="rightClickNode"
+                        >
+                            <template #default="{ node, data }">
+                                <span class="el-dropdown-link key-list-custom-node" :title="node.label">
+                                    <span v-if="data.type == 1">
+                                        <SvgIcon :size="15" :name="node.expanded ? 'folder-opened' : 'folder'" />
+                                    </span>
+                                    <span :class="'ml5 ' + (data.type == 1 ? 'folder-label' : 'key-label')">
+                                        {{ node.label }}
+                                    </span>
 
-                                <span v-if="!node.isLeaf" class="ml5" style="font-weight: bold"> ({{ data.keyCount }}) </span>
-                            </span>
-                        </template>
-                    </el-tree>
+                                    <span v-if="!node.isLeaf" class="ml5" style="font-weight: bold"> ({{ data.keyCount }}) </span>
+                                </span>
+                            </template>
+                        </el-tree>
+                    </el-scrollbar>
 
                     <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
                 </div>
@@ -178,6 +181,7 @@ import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { sleep } from '../../../common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Splitpanes, Pane } from 'splitpanes';
+import { useEventListener } from '@vueuse/core';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
@@ -275,7 +279,7 @@ const state = reactive({
     tags: [],
     redisList: [] as any,
     dbList: [],
-    keyTreeHeight: window.innerHeight - 147 - 30 + 'px',
+    keyTreeHeight: '100px',
     loadingKeyTree: false,
     keys: [] as any,
     keySeparator: ':',
@@ -315,11 +319,11 @@ const { scanParam, keyTreeData, newKeyDialog } = toRefs(state);
 onMounted(async () => {
     setHeight();
     // 监听浏览器窗口大小变化,更新对应组件高度
-    window.onresize = () => setHeight();
+    useEventListener(window, 'resize', setHeight);
 });
 
 const setHeight = () => {
-    state.keyTreeHeight = window.innerHeight - 174 + 'px';
+    state.keyTreeHeight = window.innerHeight - 165 + 'px';
 };
 
 const scan = async (appendKey = false) => {

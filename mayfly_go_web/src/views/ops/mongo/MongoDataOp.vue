@@ -253,7 +253,7 @@ const NodeTypeColl = new NodeType(MongoNodeType.Coll).withNodeClickFunc((nodeDat
 const findParamInputRef: any = ref(null);
 const state = reactive({
     tags: [],
-    dataHeight: `${window.innerHeight - 194 - 35}px`,
+    dataHeight: `${window.innerHeight - 220}px`,
     mongoList: [] as any,
     activeName: '', // 当前操作的tab
     dataTabs: {} as any, // 数据tabs

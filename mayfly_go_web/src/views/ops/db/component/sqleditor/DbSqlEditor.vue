@@ -44,7 +44,7 @@
             @resize="resizeTableHeight"
             horizontal
             class="default-theme"
-            style="height: calc(100vh - 225px)"
+            style="height: calc(100vh - 220px)"
         >
             <Pane :size="state.editorSize" max-size="80">
                 <MonacoEditor ref="monacoEditorRef" class="mt5" v-model="state.sql" language="sql" height="100%" :id="'MonacoTextarea-' + getKey()" />
@@ -276,8 +276,9 @@ const onRemoveTab = (targetId: number) => {
 const resizeTableHeight = (e: any) => {
     const vh = window.innerHeight;
     state.editorSize = e[0].size;
-    const editorHeight = (vh - 225) * (state.editorSize / 100);
-    state.tableDataHeight = vh - 225 - 40 - editorHeight + 'px';
+    const plitpaneHeight = vh - 210;
+    const editorHeight = plitpaneHeight * (state.editorSize / 100);
+    state.tableDataHeight = plitpaneHeight - editorHeight - 40 + 'px';
 };
 
 const getKey = () => {

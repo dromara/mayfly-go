@@ -14,7 +14,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.14.0
 	github.com/go-sql-driver/mysql v1.7.1
-	github.com/golang-jwt/jwt/v5 v5.1.0
+	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/kanzihuang/vitess/go/vt/sqlparser v0.0.0-20231018071450-ac8d9f0167e9
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230712084735-068dc2aee82d
@@ -25,7 +25,7 @@ require (
 	github.com/redis/go-redis/v9 v9.3.0
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务
 	github.com/stretchr/testify v1.8.4
-	go.mongodb.org/mongo-driver v1.12.1 // mongo
+	go.mongodb.org/mongo-driver v1.13.1 // mongo
 	golang.org/x/crypto v0.16.0 // ssh
 	golang.org/x/oauth2 v0.14.0
 	gopkg.in/yaml.v3 v3.0.1

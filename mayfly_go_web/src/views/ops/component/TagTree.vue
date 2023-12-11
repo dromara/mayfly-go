@@ -1,53 +1,49 @@
 <template>
     <div class="tag-tree">
-        <el-row type="flex" justify="space-between">
-            <el-col :span="24" class="el-scrollbar flex-auto" style="overflow: auto">
-                <el-input v-model="filterText" placeholder="输入关键字->搜索已展开节点信息" clearable size="small" class="mb5" />
-
-                <el-tree
-                    ref="treeRef"
-                    :style="{ maxHeight: state.height, height: state.height, overflow: 'auto' }"
-                    :highlight-current="true"
-                    :indent="10"
-                    :load="loadNode"
-                    :props="treeProps"
-                    lazy
-                    node-key="key"
-                    :expand-on-click-node="true"
-                    :filter-node-method="filterNode"
-                    @node-click="treeNodeClick"
-                    @node-expand="treeNodeClick"
-                    @node-contextmenu="nodeContextmenu"
-                >
-                    <template #default="{ node, data }">
-                        <span>
-                            <span v-if="data.type.value == TagTreeNode.TagPath">
-                                <tag-info :tag-path="data.label" />
-                            </span>
-
-                            <slot v-else :node="node" :data="data" name="prefix"></slot>
-
-                            <span class="ml3">
-                                <slot name="label" :data="data"> {{ data.label }}</slot>
-                            </span>
-
-                            <slot :node="node" :data="data" name="suffix"></slot>
+        <el-input v-model="filterText" placeholder="输入关键字->搜索已展开节点信息" clearable size="small" class="mb5" />
+        <el-scrollbar :style="{ height: state.height, maxHeight: state.height, backgroundColor: 'var(--el-fill-color-blank)' }">
+            <el-tree
+                ref="treeRef"
+                :highlight-current="true"
+                :indent="10"
+                :load="loadNode"
+                :props="treeProps"
+                lazy
+                node-key="key"
+                :expand-on-click-node="true"
+                :filter-node-method="filterNode"
+                @node-click="treeNodeClick"
+                @node-expand="treeNodeClick"
+                @node-contextmenu="nodeContextmenu"
+            >
+                <template #default="{ node, data }">
+                    <span>
+                        <span v-if="data.type.value == TagTreeNode.TagPath">
+                            <tag-info :tag-path="data.label" />
                         </span>
-                    </template>
-                </el-tree>
-            </el-col>
-        </el-row>
+
+                        <slot v-else :node="node" :data="data" name="prefix"></slot>
+
+                        <span class="ml3">
+                            <slot name="label" :data="data"> {{ data.label }}</slot>
+                        </span>
+
+                        <slot :node="node" :data="data" name="suffix"></slot>
+                    </span>
+                </template>
+            </el-tree>
+        </el-scrollbar>
         <contextmenu :dropdown="state.dropdown" :items="state.contextmenuItems" ref="contextmenuRef" @currentContextmenuClick="onCurrentContextmenuClick" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref, watch, toRefs, onUnmounted } from 'vue';
+import { onMounted, reactive, ref, watch, toRefs } from 'vue';
 import { NodeType, TagTreeNode } from './tag';
 import TagInfo from './TagInfo.vue';
 import { Contextmenu } from '@/components/contextmenu';
 import { tagApi } from '../tag/api';
-import { useWindowSize } from '@vueuse/core';
+import { useEventListener, useWindowSize } from '@vueuse/core';
 
 const props = defineProps({
     resourceType: {
@@ -94,16 +90,12 @@ const { filterText } = toRefs(state);
 
 onMounted(async () => {
     setHeight();
-    window.addEventListener('resize', setHeight);
+    useEventListener(window, 'resize', setHeight);
 });
 
 const setHeight = () => {
-    state.height = vh.value - 150 + 'px';
+    state.height = vh.value - 138 + 'px';
 };
-
-onUnmounted(() => {
-    window.removeEventListener('resize', setHeight);
-});
 
 watch(filterText, (val) => {
     treeRef.value?.filter(val);
@@ -203,9 +195,6 @@ defineExpose({
 
 <style lang="scss" scoped>
 .tag-tree {
-    overflow: 'auto';
-    position: relative;
-
     border-radius: var(--el-input-border-radius, var(--el-border-radius-base));
     border: 1px solid var(--el-border-color-light, #ebeef5);
 

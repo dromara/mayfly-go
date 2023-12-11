@@ -163,6 +163,7 @@ import { getDbDialect } from './dialect/index';
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Splitpanes, Pane } from 'splitpanes';
+import { useEventListener } from '@vueuse/core';
 
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
 const DbTableDataOp = defineAsyncComponent(() => import('./component/table/DbTableDataOp.vue'));
@@ -387,7 +388,7 @@ const { nowDbInst } = toRefs(state);
 onMounted(() => {
     setHeight();
     // 监听浏览器窗口大小变化,更新对应组件高度
-    window.onresize = () => setHeight();
+    useEventListener(window, 'resize', setHeight);
 });
 
 onBeforeUnmount(() => {
@@ -399,7 +400,7 @@ onBeforeUnmount(() => {
  */
 const setHeight = () => {
     state.dataTabsTableHeight = window.innerHeight - 255 + 'px';
-    state.tablesOpHeight = window.innerHeight - 220 + 'px';
+    state.tablesOpHeight = window.innerHeight - 212 + 'px';
 };
 
 // 选择数据库,改变当前正在操作的数据库信息
@@ -609,8 +610,6 @@ const getNowDbInfo = () => {
     }
 
     #data-exec {
-        min-height: calc(100vh - 155px);
-
         .el-tabs {
             --el-tabs-header-height: 30px;
         }
