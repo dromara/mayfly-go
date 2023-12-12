@@ -55,7 +55,7 @@
                                     :disabled="!state.db || !nowDbInst.id"
                                     type="primary"
                                     icon="Search"
-                                    @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases?.split(' ') }, state.db)"
+                                    @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases }, state.db)"
                                     size="small"
                                     >新建查询</el-button
                                 ></el-descriptions-item
@@ -208,10 +208,7 @@ const SqlIcon = {
 const nodeClickChangeDb = (nodeData: TagTreeNode) => {
     const params = nodeData.params;
     if (params.db) {
-        changeDb(
-            { id: params.id, host: `${params.host}`, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.database },
-            params.db
-        );
+        changeDb({ id: params.id, host: `${params.host}`, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.dbs }, params.db);
     }
 };
 
@@ -276,6 +273,7 @@ const NodeTypePostgresScheamMenu = new NodeType(SqlExecNodeType.PgSchemaMenu)
             const nParams = { ...params };
             nParams.schema = sn;
             nParams.db = nParams.db + '/' + sn;
+            nParams.dbs = schemaNames;
             return new TagTreeNode(`${params.id}.${params.db}.schema.${sn}`, sn, NodeTypePostgresScheam).withParams(nParams).withIcon(SchemaIcon);
         });
     })
@@ -406,6 +404,7 @@ const setHeight = () => {
 // 选择数据库,改变当前正在操作的数据库信息
 const changeDb = (db: any, dbName: string) => {
     state.nowDbInst = DbInst.getOrNewInst(db);
+    state.nowDbInst.databases = db.databases;
     state.db = dbName;
 };
 
@@ -480,7 +479,6 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
         dbs: db.dbs,
     };
     state.tabs.set(key, tab);
-
     // 注册当前sql编辑框提示词
     registerDbCompletionItemProvider(tab.dbId, tab.db, tab.params.dbs, nowDbInst.value.type);
 };
