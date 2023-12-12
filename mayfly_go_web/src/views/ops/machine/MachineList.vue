@@ -4,19 +4,19 @@
             ref="pageTableRef"
             :page-api="machineApi.list"
             :before-query-fn="checkRouteTagPath"
-            :query="queryConfig"
+            :search-items="searchItems"
             v-model:query-form="params"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
             :columns="columns"
         >
             <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
+                <el-select @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" @clear="search" filterable clearable>
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
             </template>
 
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加 </el-button>
                 <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()" type="danger" icon="delete">删除</el-button>
             </template>
@@ -190,11 +190,12 @@ import { machineApi, getMachineTerminalSocketUrl } from './api';
 import { dateFormat } from '@/common/utils/date';
 import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { formatByteSize } from '@/common/utils/format';
 import { tagApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { SearchItem } from '@/components/SearchForm';
 
 // 组件
 const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
@@ -218,9 +219,9 @@ const perms = {
     closeCli: 'machine:close-cli',
 };
 
-const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect'), TableQuery.text('ip', 'IP'), TableQuery.text('name', '名称')];
+const searchItems = [SearchItem.slot('tagPath', '标签', 'tagPathSelect'), SearchItem.text('ip', 'IP'), SearchItem.text('name', '名称')];
 
-const columns = ref([
+const columns = [
     TableColumn.new('name', '名称'),
     TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
     TableColumn.new('stat', '运行状态').isSlot().setAddWidth(50),
@@ -230,7 +231,7 @@ const columns = ref([
     TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
     TableColumn.new('remark', '备注'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(238).fixedRight().alignCenter(),
-]);
+];
 
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
 const actionBtns = hasPerms([perms.updateMachine, perms.closeCli]);

@@ -3,13 +3,13 @@
         <page-table
             ref="pageTableRef"
             :page-api="dbApi.instances"
-            :query="queryConfig"
+            :searchItems="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
             :columns="columns"
         >
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)">添加</el-button>
                 <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete"
                     >删除</el-button
@@ -66,10 +66,11 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { dbApi } from './api';
 import { dateFormat } from '@/common/utils/date';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { getDbDialect } from './dialect';
+import { SearchItem } from '@/components/SearchForm';
 
 const InstanceEdit = defineAsyncComponent(() => import('./InstanceEdit.vue'));
 
@@ -78,7 +79,7 @@ const perms = {
     delInstance: 'db:instance:del',
 };
 
-const queryConfig = [TableQuery.text('name', '名称')];
+const searchItems = [SearchItem.text('name', '名称')];
 
 const columns = ref([
     TableColumn.new('name', '名称'),

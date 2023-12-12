@@ -4,19 +4,19 @@
             ref="pageTableRef"
             :page-api="redisApi.redisList"
             :before-query-fn="checkRouteTagPath"
-            :query="queryConfig"
+            :searchItems="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
             :columns="columns"
         >
             <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
+                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable>
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
             </template>
 
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button type="primary" icon="plus" @click="editRedis(false)" plain>添加</el-button>
                 <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>删除 </el-button>
             </template>
@@ -163,15 +163,16 @@ import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
 import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { tagApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
+import { SearchItem } from '@/components/SearchForm';
 
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
-const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect')];
+const searchItems = [SearchItem.slot('tagPath', '标签', 'tagPathSelect')];
 const columns = ref([
     TableColumn.new('name', '名称'),
     TableColumn.new('host', 'host:port'),

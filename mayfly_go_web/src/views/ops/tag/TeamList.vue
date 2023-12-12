@@ -3,13 +3,13 @@
         <page-table
             ref="pageTableRef"
             :page-api="tagApi.getTeams"
-            :query="state.queryConfig"
+            :search-items="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
-            :columns="state.columns"
+            :columns="columns"
         >
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="'team:save'" type="primary" icon="plus" @click="showSaveTeamDialog(false)">添加</el-button>
                 <el-button v-auth="'team:del'" :disabled="selectionData.length < 1" @click="deleteTeam()" type="danger" icon="delete">删除</el-button>
             </template>
@@ -91,11 +91,11 @@
                 ref="showMemPageTableRef"
                 :page-api="tagApi.getTeamMem"
                 :lazy="true"
-                :query="showMemDialog.queryConfig"
+                :search-items="showMemDialog.searchItems"
                 v-model:query-form="showMemDialog.query"
                 :columns="showMemDialog.columns"
             >
-                <template #queryRight>
+                <template #tableHeader>
                     <el-button v-auth="'team:member:save'" @click="showAddMemberDialog()" type="primary" icon="plus">添加</el-button>
                 </template>
 
@@ -139,12 +139,22 @@ import { accountApi } from '../../system/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
+import { SearchItem } from '@/components/SearchForm';
 
 const teamForm: any = ref(null);
 const tagTreeRef: any = ref(null);
 const pageTableRef: Ref<any> = ref(null);
 const showMemPageTableRef: Ref<any> = ref(null);
+
+const searchItems = [SearchItem.text('name', '团队名称')];
+const columns = [
+    TableColumn.new('name', '团队名称'),
+    TableColumn.new('remark', '备注'),
+    TableColumn.new('createTime', '创建时间').isTime(),
+    TableColumn.new('creator', '创建人'),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(120).fixedRight().alignCenter(),
+];
 
 const state = reactive({
     currentEditPermissions: false,
@@ -158,17 +168,9 @@ const state = reactive({
         pageSize: 0,
         name: null,
     },
-    queryConfig: [TableQuery.text('name', '团队名称')],
-    columns: [
-        TableColumn.new('name', '团队名称'),
-        TableColumn.new('remark', '备注'),
-        TableColumn.new('createTime', '创建时间').isTime(),
-        TableColumn.new('creator', '创建人'),
-        TableColumn.new('action', '操作').isSlot().setMinWidth(120).fixedRight().alignCenter(),
-    ],
     selectionData: [],
     showMemDialog: {
-        queryConfig: [TableQuery.text('username', '用户名')],
+        searchItems: [SearchItem.text('username', '用户名').withSpan(2)],
         columns: [
             TableColumn.new('name', '姓名'),
             TableColumn.new('username', '账号'),

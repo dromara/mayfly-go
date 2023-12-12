@@ -5,12 +5,12 @@
             :page-api="dbApi.getSqlExecs"
             :lazy="true"
             height="100%"
-            :query="queryConfig"
+            :search-items="searchItems"
             v-model:query-form="query"
             :columns="columns"
         >
             <template #dbSelect>
-                <el-select v-model="query.db" placeholder="请选择数据库" style="width: 200px" filterable clearable>
+                <el-select v-model="query.db" placeholder="请选择数据库" filterable clearable>
                     <el-option v-for="item in dbs" :key="item" :label="`${item}`" :value="item"> </el-option>
                 </el-select>
             </template>
@@ -40,7 +40,8 @@ import { toRefs, watch, reactive, onMounted, Ref, ref } from 'vue';
 import { dbApi } from './api';
 import { DbSqlExecTypeEnum } from './enums';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
+import { SearchItem } from '@/components/SearchForm';
 
 const props = defineProps({
     dbId: {
@@ -53,13 +54,13 @@ const props = defineProps({
     },
 });
 
-const queryConfig = [
-    TableQuery.slot('db', '数据库', 'dbSelect'),
-    TableQuery.text('table', '表名'),
-    TableQuery.select('type', '操作类型').setOptions(Object.values(DbSqlExecTypeEnum)),
+const searchItems = [
+    SearchItem.slot('db', '数据库', 'dbSelect'),
+    SearchItem.text('table', '表名'),
+    SearchItem.select('type', '操作类型').withEnum(DbSqlExecTypeEnum),
 ];
 
-const columns = [
+const columns = ref([
     TableColumn.new('db', '数据库'),
     TableColumn.new('table', '表'),
     TableColumn.new('type', '类型').typeTag(DbSqlExecTypeEnum).setAddWidth(10),
@@ -69,7 +70,7 @@ const columns = [
     TableColumn.new('createTime', '执行时间').isTime(),
     TableColumn.new('remark', '备注'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(90).fixedRight().alignCenter(),
-];
+]);
 
 const pageTableRef: Ref<any> = ref(null);
 

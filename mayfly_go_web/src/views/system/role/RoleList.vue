@@ -1,7 +1,7 @@
 <template>
     <div>
         <page-table
-            :query="queryConfig"
+            :search-items="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
@@ -9,7 +9,7 @@
             :page-api="roleApi.list"
             ref="pageTableRef"
         >
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="perms.addRole" type="primary" icon="plus" @click="editRole(false)">添加</el-button>
                 <el-button v-auth="perms.delRole" :disabled="selectionData.length < 1" @click="deleteRole(selectionData)" type="danger" icon="delete"
                     >删除</el-button
@@ -43,9 +43,10 @@ import ShowResource from './ShowResource.vue';
 import { roleApi, resourceApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { RoleStatusEnum } from '../enums';
+import { SearchItem } from '@/components/SearchForm';
 
 const perms = {
     addRole: 'role:add',
@@ -54,7 +55,7 @@ const perms = {
     saveRoleResource: 'role:saveResources',
 };
 
-const queryConfig = [TableQuery.text('name', '角色名')];
+const searchItems = [SearchItem.text('name', '角色名')];
 const columns = ref([
     TableColumn.new('name', '角色名称'),
     TableColumn.new('code', '角色code'),

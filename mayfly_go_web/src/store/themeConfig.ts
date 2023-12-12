@@ -138,7 +138,7 @@ export const useThemeConfig = defineStore('themeConfig', {
 
             /** 全局设置 */
             // 默认列表页的分页大小
-            defaultListPageSize: 15,
+            defaultListPageSize: 10,
         },
     }),
     actions: {

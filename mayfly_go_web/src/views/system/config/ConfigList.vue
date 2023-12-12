@@ -1,7 +1,7 @@
 <template>
     <div>
         <page-table ref="pageTableRef" :page-api="configApi.list" v-model:selection-data="selectionData" :columns="columns">
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="perms.saveConfig" type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
             </template>
 

@@ -3,13 +3,13 @@
         <page-table
             ref="pageTableRef"
             :page-api="cronJobApi.list"
-            :query="queryConfig"
+            :query="searchItems"
             v-model:query-form="params"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
             :columns="columns"
         >
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="perms.saveCronJob" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加 </el-button>
                 <el-button v-auth="perms.delCronJob" :disabled="selectionData.length < 1" @click="deleteCronJob()" type="danger" icon="delete">删除</el-button>
             </template>
@@ -38,8 +38,9 @@ import { ref, toRefs, reactive, onMounted, defineAsyncComponent, Ref } from 'vue
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { cronJobApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { CronJobStatusEnum, CronJobSaveExecResTypeEnum } from '../enums';
+import { SearchItem } from '@/components/SearchForm';
 
 const CronJobEdit = defineAsyncComponent(() => import('./CronJobEdit.vue'));
 const CronJobExecList = defineAsyncComponent(() => import('./CronJobExecList.vue'));
@@ -49,7 +50,7 @@ const perms = {
     delCronJob: 'machine:cronjob:del',
 };
 
-const queryConfig = [TableQuery.text('name', '名称'), TableQuery.select('status', '状态').setOptions(Object.values(CronJobStatusEnum))];
+const searchItems = [SearchItem.text('name', '名称'), SearchItem.select('status', '状态').withEnum(CronJobStatusEnum)];
 
 const columns = ref([
     TableColumn.new('key', 'key'),

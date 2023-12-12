@@ -4,19 +4,19 @@
             ref="pageTableRef"
             :page-api="mongoApi.mongoList"
             :before-query-fn="checkRouteTagPath"
-            :query="queryConfig"
+            :search-items="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
             :columns="columns"
         >
             <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
+                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable>
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
             </template>
 
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button type="primary" icon="plus" @click="editMongo(true)" plain>添加</el-button>
                 <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>删除 </el-button>
             </template>
@@ -53,10 +53,11 @@ import { defineAsyncComponent, ref, toRefs, reactive, onMounted, Ref } from 'vue
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { tagApi } from '../tag/api';
 import { useRoute } from 'vue-router';
+import { SearchItem } from '@/components/SearchForm';
 
 const MongoEdit = defineAsyncComponent(() => import('./MongoEdit.vue'));
 const MongoDbs = defineAsyncComponent(() => import('./MongoDbs.vue'));
@@ -65,15 +66,15 @@ const MongoRunCommand = defineAsyncComponent(() => import('./MongoRunCommand.vue
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
-const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect')];
-const columns = ref([
+const searchItems = [SearchItem.slot('tagPath', '标签', 'tagPathSelect')];
+const columns = [
     TableColumn.new('name', '名称'),
     TableColumn.new('uri', '连接uri'),
     TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(20).alignCenter(),
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('creator', '创建人'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(170).fixedRight().alignCenter(),
-]);
+];
 
 const state = reactive({
     tags: [],

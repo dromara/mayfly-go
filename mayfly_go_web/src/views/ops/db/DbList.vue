@@ -4,28 +4,20 @@
             ref="pageTableRef"
             :page-api="dbApi.dbs"
             :before-query-fn="checkRouteTagPath"
-            :query="queryConfig"
+            :search-items="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
             :columns="columns"
         >
             <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable style="width: 200px">
+                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable>
                     <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
                 </el-select>
             </template>
 
             <template #instanceSelect>
-                <el-select
-                    remote
-                    :remote-method="getInstances"
-                    v-model="query.instanceId"
-                    placeholder="输入并选择实例"
-                    filterable
-                    clearable
-                    style="width: 200px"
-                >
+                <el-select remote :remote-method="getInstances" v-model="query.instanceId" placeholder="输入并选择实例" filterable clearable>
                     <el-option v-for="item in state.instances" :key="item.id" :label="`${item.name}`" :value="item.id">
                         {{ item.name }}
                         <el-divider direction="vertical" border-style="dashed" />
@@ -37,7 +29,7 @@
                 </el-select>
             </template>
 
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="perms.saveDb" type="primary" icon="plus" @click="editDb(false)">添加</el-button>
                 <el-button v-auth="perms.delDb" :disabled="selectionData.length < 1" @click="deleteDb()" type="danger" icon="delete">删除</el-button>
             </template>
@@ -170,7 +162,7 @@ import { isTrue } from '@/common/assert';
 import { dateFormat } from '@/common/utils/date';
 import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import DbSqlExecLog from './DbSqlExecLog.vue';
 import { DbType } from './dialect';
@@ -178,6 +170,7 @@ import { tagApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
 import { getDbDialect } from './dialect/index';
+import { SearchItem } from '@/components/SearchForm';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
@@ -187,7 +180,7 @@ const perms = {
     delDb: 'db:del',
 };
 
-const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect'), TableQuery.slot('instanceId', '实例', 'instanceSelect')];
+const searchItems = [SearchItem.slot('tagPath', '标签', 'tagPathSelect'), SearchItem.slot('instanceId', '实例', 'instanceSelect')];
 
 const columns = ref([
     TableColumn.new('instanceName', '实例名'),

@@ -1,16 +1,8 @@
 <template>
     <div>
-        <page-table :query="queryConfig" v-model:query-form="query" :columns="columns" :page-api="logApi.list">
+        <page-table :search-items="searchItems" v-model:query-form="query" :columns="columns" :page-api="logApi.list">
             <template #selectAccount>
-                <el-select
-                    style="width: 200px"
-                    remote
-                    :remote-method="getAccount"
-                    v-model="query.creatorId"
-                    filterable
-                    placeholder="请输入并选择账号"
-                    clearable
-                >
+                <el-select remote :remote-method="getAccount" v-model="query.creatorId" filterable placeholder="请输入并选择账号" clearable>
                     <el-option v-for="item in accounts" :key="item.id" :label="item.username" :value="item.id"> </el-option>
                 </el-select>
             </template>
@@ -22,13 +14,14 @@
 import { toRefs, reactive } from 'vue';
 import { logApi, accountApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { LogTypeEnum } from '../enums';
+import { SearchItem } from '@/components/SearchForm';
 
-const queryConfig = [
-    TableQuery.slot('creatorId', '操作人', 'selectAccount'),
-    TableQuery.select('type', '操作结果').setOptions(Object.values(LogTypeEnum)),
-    TableQuery.text('description', '描述'),
+const searchItems = [
+    SearchItem.slot('creatorId', '操作人', 'selectAccount'),
+    SearchItem.select('type', '操作结果').withEnum(LogTypeEnum),
+    SearchItem.text('description', '描述'),
 ];
 
 const columns = [

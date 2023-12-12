@@ -14,13 +14,13 @@
                 :page-api="machineApi.scripts"
                 :before-query-fn="checkScriptType"
                 :lazy="true"
-                :query="queryConfig"
+                :search-items="state.searchItems"
                 v-model:query-form="query"
                 :columns="columns"
                 :show-selection="true"
                 v-model:selection-data="selectionData"
             >
-                <template #queryRight>
+                <template #tableHeader>
                     <el-button v-auth="'machine:script:save'" type="primary" @click="editScript(null)" icon="plus" plain>添加</el-button>
                     <el-button
                         v-auth="'machine:script:del'"
@@ -93,8 +93,9 @@ import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { ScriptResultEnum, ScriptTypeEnum } from './enums';
 import ScriptEdit from './ScriptEdit.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { DynamicFormDialog } from '@/components/dynamic-form';
+import { SearchItem } from '@/components/SearchForm';
 
 const props = defineProps({
     visible: { type: Boolean },
@@ -110,7 +111,7 @@ const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
     dialogVisible: false,
     selectionData: [],
-    queryConfig: [TableQuery.select('type', '类型').setOptions(Object.values(ScriptTypeEnum))],
+    searchItems: [SearchItem.select('type', '类型').withEnum(ScriptTypeEnum)],
     columns: [
         TableColumn.new('name', '名称'),
         TableColumn.new('description', '描述'),
@@ -129,8 +130,6 @@ const state = reactive({
         title: '',
         machineId: 9999999,
     },
-    total: 0,
-    scriptTable: [],
     scriptParamsDialog: {
         script: null,
         visible: false,
@@ -148,7 +147,7 @@ const state = reactive({
     },
 });
 
-const { dialogVisible, queryConfig, columns, selectionData, query, editDialog, scriptParamsDialog, resultDialog, terminalDialog } = toRefs(state);
+const { dialogVisible, columns, selectionData, query, editDialog, scriptParamsDialog, resultDialog, terminalDialog } = toRefs(state);
 
 watch(props, async (newValue) => {
     state.dialogVisible = newValue.visible;
@@ -281,7 +280,6 @@ const handleClose = () => {
     emit('update:machineId', null);
     emit('cancel');
     state.query.type = ScriptTypeEnum.Private.value;
-    state.scriptTable = [];
     state.scriptParamsDialog.paramsFormItem = [];
 };
 </script>

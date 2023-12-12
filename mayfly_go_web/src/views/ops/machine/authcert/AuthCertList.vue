@@ -3,13 +3,13 @@
         <page-table
             ref="pageTableRef"
             :page-api="authCertApi.list"
-            :query="state.queryConfig"
+            :search-items="state.searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
             :columns="state.columns"
         >
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button type="primary" icon="plus" @click="edit(false)">添加</el-button>
                 <el-button :disabled="selectionData.length < 1" @click="deleteAc(selectionData)" type="danger" icon="delete">删除 </el-button>
             </template>
@@ -29,8 +29,9 @@ import AuthCertEdit from './AuthCertEdit.vue';
 import { authCertApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { AuthMethodEnum } from '../enums';
+import { SearchItem } from '@/components/SearchForm';
 
 const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
@@ -39,7 +40,7 @@ const state = reactive({
         pageSize: 0,
         name: null,
     },
-    queryConfig: [TableQuery.text('name', '凭证名称')],
+    searchItems: [SearchItem.text('name', '凭证名称')],
     columns: [
         TableColumn.new('name', '名称'),
         TableColumn.new('authMethod', '认证方式').typeTag(AuthMethodEnum),
@@ -50,8 +51,6 @@ const state = reactive({
         TableColumn.new('createTime', '修改时间').isTime(),
         TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(65).alignCenter(),
     ],
-    total: 0,
-    authcerts: [],
     selectionData: [],
     paramsDialog: {
         visible: false,

@@ -15,13 +15,13 @@
                 :page-api="cronJobApi.execList"
                 :lazy="true"
                 :data-handler-fn="parseData"
-                :query="queryConfig"
+                :search-items="searchItems"
                 v-model:query-form="params"
                 :data="state.data.list"
                 :columns="columns"
             >
                 <template #machineSelect>
-                    <el-select v-model="params.machineId" filterable placeholder="选择机器查询" style="width: 200px" clearable>
+                    <el-select v-model="params.machineId" filterable placeholder="选择机器查询" clearable>
                         <el-option v-for="ac in machineMap.values()" :key="ac.id" :value="ac.id" :label="ac.ip">
                             {{ ac.ip }}
                             <el-divider direction="vertical" border-style="dashed" />
@@ -38,8 +38,9 @@
 import { watch, ref, toRefs, reactive, Ref } from 'vue';
 import { cronJobApi, machineApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { CronJobExecStatusEnum } from '../enums';
+import { SearchItem } from '@/components/SearchForm';
 
 const props = defineProps({
     visible: {
@@ -55,9 +56,9 @@ const props = defineProps({
 
 const emit = defineEmits(['update:visible', 'update:data', 'cancel']);
 
-const queryConfig = [
-    TableQuery.slot('machineId', '机器', 'machineSelect'),
-    TableQuery.select('status', '状态').setOptions(Object.values(CronJobExecStatusEnum)),
+const searchItems = [
+    SearchItem.slot('machineId', '机器', 'machineSelect'),
+    SearchItem.select('status', '状态').setOptions(Object.values(CronJobExecStatusEnum)),
 ];
 
 const columns = ref([

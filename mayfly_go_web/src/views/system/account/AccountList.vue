@@ -3,13 +3,13 @@
         <page-table
             ref="pageTableRef"
             :page-api="accountApi.list"
-            :query="queryConfig"
+            :search-items="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
             :columns="columns"
         >
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="perms.addAccount" type="primary" icon="plus" @click="editAccount(false)">添加</el-button>
                 <el-button v-auth="perms.delAccount" :disabled="state.selectionData.length < 1" @click="deleteAccount()" type="danger" icon="delete"
                     >删除</el-button
@@ -85,8 +85,9 @@ import { accountApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dateFormat } from '@/common/utils/date';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
+import { SearchItem } from '@/components/SearchForm';
 
 const perms = {
     addAccount: 'account:add',
@@ -95,8 +96,8 @@ const perms = {
     changeAccountStatus: 'account:changeStatus',
 };
 
-const queryConfig = [TableQuery.text('username', '用户名')];
-const columns = ref([
+const searchItems = [SearchItem.text('username', '用户名')];
+const columns = [
     TableColumn.new('name', '姓名'),
     TableColumn.new('username', '用户名'),
     TableColumn.new('status', '状态').typeTag(AccountStatusEnum),
@@ -106,7 +107,7 @@ const columns = ref([
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('modifier', '更新账号'),
     TableColumn.new('updateTime', '更新时间').isTime(),
-]);
+];
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.changeAccountStatus]);
@@ -155,7 +156,7 @@ const { selectionData, query, showRoleDialog, showResourceDialog, roleDialog, ac
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
-        columns.value.push(actionColumn);
+        columns.push(actionColumn);
     }
 });
 
