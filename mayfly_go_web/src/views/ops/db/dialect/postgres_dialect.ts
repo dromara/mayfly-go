@@ -1,4 +1,5 @@
-import { DbDialect, DialectInfo, IndexDefinition, RowDefinition, sqlColumnType } from './index';
+import { commonCustomKeywords, DbDialect, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, RowDefinition, sqlColumnType } from './index';
+import { language as pgsqlLanguage } from 'monaco-editor/esm/vs/basic-languages/pgsql/pgsql.js';
 
 export { PostgresqlDialect, GAUSS_TYPE_LIST };
 
@@ -82,16 +83,42 @@ const GAUSS_TYPE_LIST: sqlColumnType[] = [
     { udtName: 'macaddr', dataType: 'macaddr', desc: 'MAC地址', space: '6字节' },
 ];
 
-const postgresDialectInfo: DialectInfo = {
-    icon: 'iconfont icon-op-postgres',
-    defaultPort: 5432,
-    formatSqlDialect: 'postgresql',
-    columnTypes: GAUSS_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName)),
-};
+const replaceFunctions: EditorCompletionItem[] = [];
+
+let pgDialectInfo: DialectInfo;
 
 class PostgresqlDialect implements DbDialect {
     getInfo(): DialectInfo {
-        return postgresDialectInfo;
+        if (pgDialectInfo) {
+            return pgDialectInfo;
+        }
+
+        let { keywords, operators, builtinVariables, builtinFunctions } = pgsqlLanguage;
+        let replaceFunctionNames = replaceFunctions.map((a) => a.label);
+        let functions = builtinFunctions
+            .filter((a: string) => replaceFunctionNames.indexOf(a) < 0)
+            .map((a: string): EditorCompletionItem => ({ label: a, insertText: `${a}()`, description: 'func' }))
+            .concat(replaceFunctions);
+        let excludeKeywords = new Set(builtinFunctions.concat(replaceFunctionNames).concat(operators));
+
+        let editorCompletions: EditorCompletion = {
+            keywords: keywords
+                .filter((a: string) => !excludeKeywords.has(a)) // 移除已存在的operator、function
+                .map((a: string): EditorCompletionItem => ({ label: a, description: 'keyword' }))
+                .concat(commonCustomKeywords.map((a): EditorCompletionItem => ({ label: a, description: 'keyword' }))),
+            operators: operators.map((a: string): EditorCompletionItem => ({ label: a, description: 'operator' })),
+            functions,
+            variables: builtinVariables.map((a: string): EditorCompletionItem => ({ label: a, description: 'var' })),
+        };
+
+        pgDialectInfo = {
+            icon: 'iconfont icon-op-postgres',
+            defaultPort: 5432,
+            formatSqlDialect: 'postgresql',
+            columnTypes: GAUSS_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName)),
+            editorCompletions,
+        };
+        return pgDialectInfo;
     }
 
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
