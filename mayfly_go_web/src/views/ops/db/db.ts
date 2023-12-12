@@ -2,19 +2,11 @@
 import { dbApi } from './api';
 import { getTextWidth } from '@/common/utils/string';
 import SqlExecBox from './component/sqleditor/SqlExecBox';
-
-import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
-import { language as addSqlLanguage } from './dialect/mysql_dialect';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { editor, languages, Position } from 'monaco-editor';
 
 import { registerCompletionItemProvider } from '@/components/monaco/completionItemProvider';
-import { getDbDialect } from './dialect';
-
-const sqlCompletionKeywords = [...sqlLanguage.keywords, ...addSqlLanguage.keywords];
-const sqlCompletionOperators = [...sqlLanguage.operators, ...addSqlLanguage.operators];
-const sqlCompletionBuiltinFunctions = [...sqlLanguage.builtinFunctions, ...addSqlLanguage.builtinFunctions];
-const sqlCompletionBuiltinVariables = [...sqlLanguage.builtinVariables, ...addSqlLanguage.builtinVariables];
+import { EditorCompletionItem, getDbDialect } from './dialect';
 
 const dbInstCache: Map<number, DbInst> = new Map();
 
@@ -511,16 +503,38 @@ export class TabInfo {
     }
 }
 
+function registerCompletions(
+    completions: EditorCompletionItem[],
+    suggestions: languages.CompletionItem[],
+    kind: monaco.languages.CompletionItemKind,
+    range: any
+) {
+    // mysql关键字
+    completions.forEach((item: EditorCompletionItem) => {
+        let { label, insertText, description } = item;
+        suggestions.push({
+            label: { label, description },
+            kind,
+            insertText: insertText || label,
+            range,
+        });
+    });
+}
+
 /**
  * 注册数据库表、字段等信息提示
  *
- * @param language 语言
  * @param dbId 数据库id
  * @param db 库名
  * @param dbs 该库所有库名
+ * @param dbType 数据库类型
  */
-export function registerDbCompletionItemProvider(language: string, dbId: number, db: string, dbs: any[] = []) {
-    registerCompletionItemProvider(language, {
+export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: any[] = [], dbType: string) {
+    let dbDialect = getDbDialect(dbType);
+    let dbDialectInfo = dbDialect.getInfo();
+
+    let { keywords, operators, functions, variables } = dbDialectInfo.editorCompletions;
+    registerCompletionItemProvider('sql', {
         triggerCharacters: ['.', ' '],
         provideCompletionItems: async (model: editor.ITextModel, position: Position): Promise<languages.CompletionList | null | undefined> => {
             let word = model.getWordUntilPosition(position);
@@ -664,73 +678,10 @@ export function registerDbCompletionItemProvider(language: string, dbId: number,
                 });
             });
 
-            // mysql关键字
-            sqlCompletionKeywords.forEach((item: any) => {
-                suggestions.push({
-                    label: {
-                        label: item,
-                        description: 'keyword',
-                    },
-                    kind: monaco.languages.CompletionItemKind.Keyword,
-                    insertText: item,
-                    range,
-                });
-            });
-
-            // 操作符
-            sqlCompletionOperators.forEach((item: any) => {
-                suggestions.push({
-                    label: {
-                        label: item,
-                        description: 'opt',
-                    },
-                    kind: monaco.languages.CompletionItemKind.Operator,
-                    insertText: item,
-                    range,
-                });
-            });
-
-            let replacedFunctions = [] as string[];
-
-            // 添加的函数
-            addSqlLanguage.replaceFunctions.forEach((item: any) => {
-                replacedFunctions.push(item.label);
-                suggestions.push({
-                    label: {
-                        label: item.label,
-                        description: item.description,
-                    },
-                    kind: monaco.languages.CompletionItemKind.Function,
-                    insertText: item.insertText,
-                    range,
-                });
-            });
-
-            // 内置函数
-            sqlCompletionBuiltinFunctions.forEach((item: any) => {
-                replacedFunctions.indexOf(item) < 0 &&
-                    suggestions.push({
-                        label: {
-                            label: item,
-                            description: 'func',
-                        },
-                        kind: monaco.languages.CompletionItemKind.Function,
-                        insertText: item,
-                        range,
-                    });
-            });
-            // 内置变量
-            sqlCompletionBuiltinVariables.forEach((item: string) => {
-                suggestions.push({
-                    label: {
-                        label: item,
-                        description: 'var',
-                    },
-                    kind: monaco.languages.CompletionItemKind.Variable,
-                    insertText: item,
-                    range,
-                });
-            });
+            registerCompletions(keywords, suggestions, monaco.languages.CompletionItemKind.Keyword, range);
+            registerCompletions(operators, suggestions, monaco.languages.CompletionItemKind.Operator, range);
+            registerCompletions(functions, suggestions, monaco.languages.CompletionItemKind.Function, range);
+            registerCompletions(variables, suggestions, monaco.languages.CompletionItemKind.Variable, range);
 
             // 默认提示
             return {

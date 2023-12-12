@@ -482,7 +482,7 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
     state.tabs.set(key, tab);
 
     // 注册当前sql编辑框提示词
-    registerDbCompletionItemProvider('sql', tab.dbId, tab.db, tab.params.dbs);
+    registerDbCompletionItemProvider(tab.dbId, tab.db, tab.params.dbs, nowDbInst.value.type);
 };
 
 /**
@@ -554,7 +554,7 @@ const onTabChange = () => {
 
     if (nowTab?.type == TabType.Query) {
         // 注册sql提示
-        registerDbCompletionItemProvider('sql', nowTab.dbId, nowTab.db, nowTab.params.dbs);
+        registerDbCompletionItemProvider(nowTab.dbId, nowTab.db, nowTab.params.dbs, nowDbInst.value.type);
     }
 };
 

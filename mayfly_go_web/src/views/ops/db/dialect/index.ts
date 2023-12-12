@@ -30,6 +30,27 @@ export interface IndexDefinition {
     indexType: string;
     indexComment?: string;
 }
+export const commonCustomKeywords = ['GROUP BY', 'ORDER BY', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'SELECT * FROM'];
+
+export interface EditorCompletionItem {
+    /** 用于显示 */
+    label: string;
+    /** 用于插入编辑器，可预置一些变量方便使用函数 */
+    insertText?: string;
+    /** 用于描述 */
+    description: string;
+}
+
+export interface EditorCompletion {
+    /** 关键字 */
+    keywords: EditorCompletionItem[];
+    /** 操作关键字 */
+    operators: EditorCompletionItem[];
+    /** 函数,包括内置函数和自定义函数 */
+    functions: EditorCompletionItem[];
+    /** 内置变量 */
+    variables: EditorCompletionItem[];
+}
 
 // 数据库基础信息
 export interface DialectInfo {
@@ -52,6 +73,11 @@ export interface DialectInfo {
      * 列字段类型
      */
     columnTypes: sqlColumnType[];
+
+    /**
+     * 编辑器一些固定代码提示（关键字、操作符）
+     */
+    editorCompletions: EditorCompletion;
 }
 
 export const DbType = {
