@@ -42,7 +42,7 @@ export class DbInst {
     dbs: Map<string, Db> = new Map();
 
     /** 数据库，多个用空格隔开 */
-    databases: string;
+    databases: string[];
 
     /**
      * 默认查询分页数量
@@ -532,7 +532,6 @@ function registerCompletions(
 export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: any[] = [], dbType: string) {
     let dbDialect = getDbDialect(dbType);
     let dbDialectInfo = dbDialect.getInfo();
-
     let { keywords, operators, functions, variables } = dbDialectInfo.editorCompletions;
     registerCompletionItemProvider('sql', {
         triggerCharacters: ['.', ' '],
@@ -631,6 +630,9 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                 if (lastToken.trim().startsWith('.')) {
                     alias = secondToken;
                 }
+                if (!alias && secondToken.indexOf('.') > -1) {
+                    alias = secondToken.substring(secondToken.indexOf('.') + 1);
+                }
 
                 // 如果字符串粘连起了如:'a.creator,a.',需要重新取出别名
                 let aliasArr = lastToken.split(',');
@@ -643,8 +645,12 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                 }
 
                 // 如果是【库.表名联想】.前的字符串是库名
-                if (dbs.indexOf(alias) >= 0) {
-                    return await dbInst.loadTableSuggestions(alias, range);
+                if (dbs?.filter((a) => alias === a?.toLowerCase()).length > 0) {
+                    let dbName = alias;
+                    if (db.indexOf('/') > 0) {
+                        dbName = db.substring(0, db.indexOf('/') + 1) + alias;
+                    }
+                    return await dbInst.loadTableSuggestions(dbName, range);
                 }
                 // 表下列名联想  .前的字符串是表名或表别名
                 const sqlInfo = getTableName4SqlCtx(sqlStatement, alias, db);
@@ -707,6 +713,9 @@ function getTableName4SqlCtx(sql: string, alias: string = '', defaultDb: string)
         if (tableName.indexOf('.') >= 0) {
             let info = tableName.split('.');
             db = info[0];
+            if (defaultDb.indexOf('/') > 0) {
+                db = defaultDb.substring(0, defaultDb.indexOf('/') + 1) + db;
+            }
             tableName = info[1];
         }
         const tableAlias = matches[2] ? matches[2].replace(/[`"]/g, '') : tableName;
