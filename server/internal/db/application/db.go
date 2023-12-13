@@ -124,9 +124,18 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 		// 关闭连接
 		dbm.CloseDb(id, v)
 	}
-	// 删除该库下用户保存的所有sql信息
-	d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: id})
-	return d.DeleteById(ctx, id)
+
+	return d.Tx(ctx,
+		func(ctx context.Context) error {
+			return d.DeleteById(ctx, id)
+		},
+		func(ctx context.Context) error {
+			// 删除该库下用户保存的所有sql信息
+			return d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: id})
+		}, func(ctx context.Context) error {
+			var tagIds []uint64
+			return d.tagApp.RelateResource(ctx, db.Code, consts.TagResourceTypeDb, tagIds)
+		})
 }
 
 func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error) {

@@ -137,6 +137,11 @@ func (m *machineCropJobAppImpl) CronJobRelateMachines(ctx context.Context, cronJ
 }
 
 func (m *machineCropJobAppImpl) MachineRelateCronJobs(ctx context.Context, machineId uint64, cronJobs []uint64) {
+	if len(cronJobs) == 0 {
+		m.machineCropJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{MachineId: machineId})
+		return
+	}
+
 	oldCronIds := m.machineCropJobRelateRepo.GetCronJobIds(machineId)
 	addIds, delIds, _ := collx.ArrayCompare[uint64](cronJobs, oldCronIds, func(u1, u2 uint64) bool { return u1 == u2 })
 	addVals := make([]*entity.MachineCronJobRelate, 0)

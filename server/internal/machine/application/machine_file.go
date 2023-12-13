@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/internal/machine/mcm"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
@@ -19,18 +20,15 @@ import (
 )
 
 type MachineFile interface {
+	base.App[*entity.MachineFile]
+
 	// 分页获取机器文件信息列表
 	GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	// 根据条件获取
 	GetMachineFile(condition *entity.MachineFile, cols ...string) error
 
-	// 根据id获取
-	GetById(id uint64, cols ...string) *entity.MachineFile
-
 	Save(ctx context.Context, entity *entity.MachineFile) error
-
-	Delete(ctx context.Context, id uint64) error
 
 	// 获取文件关联的机器信息，主要用于记录日志使用
 	// GetMachine(fileId uint64) *mcm.Info
@@ -75,11 +73,14 @@ type MachineFile interface {
 }
 
 func newMachineFileApp(machineFileRepo repository.MachineFile, machineApp Machine) MachineFile {
-	return &machineFileAppImpl{machineApp: machineApp, machineFileRepo: machineFileRepo}
-
+	app := &machineFileAppImpl{machineApp: machineApp, machineFileRepo: machineFileRepo}
+	app.Repo = machineFileRepo
+	return app
 }
 
 type machineFileAppImpl struct {
+	base.AppImpl[*entity.MachineFile, repository.MachineFile]
+
 	machineFileRepo repository.MachineFile
 
 	machineApp Machine
@@ -95,15 +96,6 @@ func (m *machineFileAppImpl) GetMachineFile(condition *entity.MachineFile, cols 
 	return m.machineFileRepo.GetBy(condition, cols...)
 }
 
-// 根据id获取
-func (m *machineFileAppImpl) GetById(id uint64, cols ...string) *entity.MachineFile {
-	mf := new(entity.MachineFile)
-	if err := m.machineFileRepo.GetById(mf, id, cols...); err == nil {
-		return mf
-	}
-	return nil
-}
-
 // 保存机器文件配置
 func (m *machineFileAppImpl) Save(ctx context.Context, mf *entity.MachineFile) error {
 	_, err := m.machineApp.GetById(new(entity.Machine), mf.MachineId, "Name")
@@ -116,10 +108,6 @@ func (m *machineFileAppImpl) Save(ctx context.Context, mf *entity.MachineFile) e
 	}
 
 	return m.machineFileRepo.Insert(ctx, mf)
-}
-
-func (m *machineFileAppImpl) Delete(ctx context.Context, id uint64) error {
-	return m.machineFileRepo.DeleteById(ctx, id)
 }
 
 func (m *machineFileAppImpl) ReadDir(fid uint64, path string) ([]fs.FileInfo, error) {
@@ -309,8 +297,8 @@ func (m *machineFileAppImpl) Rename(fileId uint64, oldname string, newname strin
 
 // 获取文件机器cli
 func (m *machineFileAppImpl) GetMachineCli(fid uint64, inputPath ...string) (*mcm.Cli, error) {
-	mf := m.GetById(fid)
-	if mf == nil {
+	mf, err := m.GetById(new(entity.MachineFile), fid)
+	if err != nil {
 		return nil, errorx.NewBiz("文件不存在")
 	}
 

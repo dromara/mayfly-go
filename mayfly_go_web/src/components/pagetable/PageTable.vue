@@ -1,12 +1,14 @@
 <template>
     <div>
-        <!-- 查询表单 -->
-        <SearchForm v-show="isShowSearch" :items="searchItems" v-model="queryForm_" :search="queryData" :reset="reset" :search-col="searchCol">
-            <!-- 遍历父组件传入的 solts 透传给子组件 -->
-            <template v-for="(_, key) in useSlots()" v-slot:[key]>
-                <slot :name="key"></slot>
-            </template>
-        </SearchForm>
+        <transition name="el-zoom-in-top">
+            <!-- 查询表单 -->
+            <SearchForm v-show="isShowSearch" :items="searchItems" v-model="queryForm_" :search="queryData" :reset="reset" :search-col="searchCol">
+                <!-- 遍历父组件传入的 solts 透传给子组件 -->
+                <template v-for="(_, key) in useSlots()" v-slot:[key]>
+                    <slot :name="key"></slot>
+                </template>
+            </SearchForm>
+        </transition>
 
         <el-card>
             <div class="table-main">

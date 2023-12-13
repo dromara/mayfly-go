@@ -59,7 +59,7 @@ func (m *MachineFile) SaveMachineFiles(rc *req.Ctx) {
 }
 
 func (m *MachineFile) DeleteFile(rc *req.Ctx) {
-	biz.ErrIsNil(m.MachineFileApp.Delete(rc.MetaCtx, GetMachineFileId(rc.GinCtx)))
+	biz.ErrIsNil(m.MachineFileApp.DeleteById(rc.MetaCtx, GetMachineFileId(rc.GinCtx)))
 }
 
 /***      sftp相关操作      */

@@ -14,7 +14,7 @@
                             <span>:</span>
                         </template>
 
-                        <SearchFormItem v-if="!item.slot" :item="item" v-model="searchParam[item.prop]" />
+                        <SearchFormItem @keyup.enter="handleItemKeyupEnter(item)" v-if="!item.slot" :item="item" v-model="searchParam[item.prop]" />
 
                         <slot v-else :name="item.slot"></slot>
                     </el-form-item>
@@ -98,6 +98,12 @@ const showCollapse = computed(() => {
     }, 0);
     return show;
 });
+
+const handleItemKeyupEnter = (item: SearchItem) => {
+    if (item.type == 'input') {
+        props.search(searchParam);
+    }
+};
 </script>
 <style lang="scss">
 .search-form {

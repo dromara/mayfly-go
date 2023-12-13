@@ -12,14 +12,12 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/gormx"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/stringx"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 type Machine interface {
@@ -51,11 +49,14 @@ type Machine interface {
 	GetMachineStats(machineId uint64) (*mcm.Stats, error)
 }
 
-func newMachineApp(machineRepo repository.Machine, authCertApp AuthCert, tagApp tagapp.TagTree) Machine {
+func newMachineApp(machineRepo repository.Machine,
+	authCertApp AuthCert,
+	tagApp tagapp.TagTree) Machine {
 	app := &machineAppImpl{
 		authCertApp: authCertApp,
 		tagApp:      tagApp,
 	}
+
 	app.Repo = machineRepo
 	return app
 }
@@ -141,22 +142,22 @@ func (m *machineAppImpl) ChangeStatus(ctx context.Context, id uint64, status int
 
 // 根据条件获取机器信息
 func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
+	machine, err := m.GetById(new(entity.Machine), id)
+	if err != nil {
+		return errorx.NewBiz("机器信息不存在")
+	}
 	// 关闭连接
 	mcm.DeleteCli(id)
-	return gormx.Tx(
-		func(db *gorm.DB) error {
-			// 删除machine表信息
-			return gormx.DeleteByIdWithDb(db, new(entity.Machine), id)
-		},
-		func(db *gorm.DB) error {
-			// 删除machine_file
-			return gormx.DeleteByWithDb(db, &entity.MachineFile{MachineId: id})
-		},
-		func(db *gorm.DB) error {
-			// 删除machine_script
-			return gormx.DeleteByWithDb(db, &entity.MachineScript{MachineId: id})
-		},
-	)
+
+	// 发布机器删除事件
+	global.EventBus.Publish(ctx, consts.DeleteMachineEventTopic, machine)
+	return m.Tx(ctx,
+		func(ctx context.Context) error {
+			return m.DeleteById(ctx, id)
+		}, func(ctx context.Context) error {
+			var tagIds []uint64
+			return m.tagApp.RelateResource(ctx, machine.Code, consts.TagResourceTypeMachine, tagIds)
+		})
 }
 
 func (m *machineAppImpl) GetCli(machineId uint64) (*mcm.Cli, error) {

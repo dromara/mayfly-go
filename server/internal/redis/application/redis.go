@@ -123,7 +123,13 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 		db, _ := strconv.Atoi(dbStr)
 		rdm.CloseConn(re.Id, db)
 	}
-	return r.DeleteById(ctx, id)
+
+	return r.Tx(ctx, func(ctx context.Context) error {
+		return r.DeleteById(ctx, id)
+	}, func(ctx context.Context) error {
+		var tagIds []uint64
+		return r.tagApp.RelateResource(ctx, re.Code, consts.TagResourceTypeRedis, tagIds)
+	})
 }
 
 // 获取数据库连接实例

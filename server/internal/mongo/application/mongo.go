@@ -51,8 +51,20 @@ func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *mode
 }
 
 func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
+	mongoEntity, err := d.GetById(new(entity.Mongo), id)
+	if err != nil {
+		return errorx.NewBiz("mongo信息不存在")
+	}
+
 	mgm.CloseConn(id)
-	return d.GetRepo().DeleteById(ctx, id)
+	return d.Tx(ctx,
+		func(ctx context.Context) error {
+			return d.DeleteById(ctx, id)
+		},
+		func(ctx context.Context) error {
+			var tagIds []uint64
+			return d.tagApp.RelateResource(ctx, mongoEntity.Code, consts.TagResourceTypeMongo, tagIds)
+		})
 }
 
 func (d *mongoAppImpl) TestConn(me *entity.Mongo) error {

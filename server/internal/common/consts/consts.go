@@ -20,4 +20,7 @@ const (
 	TagResourceTypeDb      = 2
 	TagResourceTypeRedis   = 3
 	TagResourceTypeMongo   = 4
+
+	// 删除机器的事件主题名
+	DeleteMachineEventTopic = "machine:delete"
 )
