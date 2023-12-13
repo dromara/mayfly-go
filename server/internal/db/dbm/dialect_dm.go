@@ -43,14 +43,14 @@ type DMDialect struct {
 }
 
 func (pd *DMDialect) GetDbNames() ([]string, error) {
-	_, res, err := pd.dc.Query("SELECT name AS dbname FROM v$database")
+	_, res, err := pd.dc.Query("SELECT name AS DBNAME FROM v$database")
 	if err != nil {
 		return nil, err
 	}
 
 	databases := make([]string, 0)
 	for _, re := range res {
-		databases = append(databases, anyx.ConvString(re["dbname"]))
+		databases = append(databases, anyx.ConvString(re["DBNAME"]))
 	}
 
 	return databases, nil
@@ -66,11 +66,11 @@ func (pd *DMDialect) GetTables() ([]Table, error) {
 	tables := make([]Table, 0)
 	for _, re := range res {
 		tables = append(tables, Table{
-			TableName:    re["tableName"].(string),
-			TableComment: anyx.ConvString(re["tableComment"]),
-			CreateTime:   anyx.ConvString(re["createTime"]),
+			TableName:    re["TABLE_NAME"].(string),
+			TableComment: anyx.ConvString(re["TABLE_COMMENT"]),
+			CreateTime:   anyx.ConvString(re["CREATE_TIME"]),
 			TableRows:    anyx.ConvInt(re["tableRows"]),
-			DataLength:   anyx.ConvInt64(re["dataLength"]),
+			DataLength:   anyx.ConvInt64(re["DATA_LENGTH"]),
 			IndexLength:  anyx.ConvInt64(re["indexLength"]),
 		})
 	}
@@ -95,14 +95,14 @@ func (pd *DMDialect) GetColumns(tableNames ...string) ([]Column, error) {
 	columns := make([]Column, 0)
 	for _, re := range res {
 		columns = append(columns, Column{
-			TableName:     re["tableName"].(string),
-			ColumnName:    re["columnName"].(string),
-			ColumnType:    anyx.ConvString(re["columnType"]),
-			ColumnComment: anyx.ConvString(re["columnComment"]),
-			Nullable:      anyx.ConvString(re["nullable"]),
-			ColumnKey:     anyx.ConvString(re["columnKey"]),
-			ColumnDefault: anyx.ConvString(re["columnDefault"]),
-			NumScale:      anyx.ConvString(re["numScale"]),
+			TableName:     re["TABLE_NAME"].(string),
+			ColumnName:    re["COLUMN_NAME"].(string),
+			ColumnType:    anyx.ConvString(re["COLUMN_TYPE"]),
+			ColumnComment: anyx.ConvString(re["COLUMN_COMMENT"]),
+			Nullable:      anyx.ConvString(re["NULLABLE"]),
+			ColumnKey:     anyx.ConvString(re["COLUMN_KEY"]),
+			ColumnDefault: anyx.ConvString(re["COLUMN_DEFAULT"]),
+			NumScale:      anyx.ConvString(re["NUM_SCALE"]),
 		})
 	}
 	return columns, nil
@@ -135,12 +135,12 @@ func (pd *DMDialect) GetTableIndex(tableName string) ([]Index, error) {
 	indexs := make([]Index, 0)
 	for _, re := range res {
 		indexs = append(indexs, Index{
-			IndexName:    re["indexName"].(string),
-			ColumnName:   anyx.ConvString(re["columnName"]),
-			IndexType:    anyx.ConvString(re["indexType"]),
-			IndexComment: anyx.ConvString(re["indexComment"]),
-			NonUnique:    anyx.ConvInt(re["nonUnique"]),
-			SeqInIndex:   anyx.ConvInt(re["seqInIndex"]),
+			IndexName:    re["INDEX_NAME"].(string),
+			ColumnName:   anyx.ConvString(re["COLUMN_NAME"]),
+			IndexType:    anyx.ConvString(re["INDEX_TYPE"]),
+			IndexComment: anyx.ConvString(re["INDEX_COMMENT"]),
+			NonUnique:    anyx.ConvInt(re["NON_UNIQUE"]),
+			SeqInIndex:   anyx.ConvInt(re["SEQ_IN_INDEX"]),
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
@@ -169,8 +169,38 @@ func (pd *DMDialect) GetCreateTableDdl(tableName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// 建表ddl
+	var builder strings.Builder
+	for _, re := range res {
+		builder.WriteString(re["COLUMN_VALUE"].(string))
+	}
 
-	return res[0]["COLUMN_VALUE"].(string), nil
+	// 表注释
+	_, res, err = pd.dc.Query(fmt.Sprintf("select COMMENTS from USER_TAB_COMMENTS where TABLE_TYPE='TABLE' and TABLE_NAME = '%s'", tableName))
+	if res != nil {
+		for _, re := range res {
+			// COMMENT ON TABLE "SYS_MENU" IS '菜单表';
+			tableComment := fmt.Sprintf("\n\nCOMMENT ON TABLE \"%s\" IS '%s';\n", tableName, re["COMMENTS"].(string))
+			builder.WriteString(tableComment)
+		}
+	}
+
+	// 字段注释
+	fieldSql := fmt.Sprintf(`
+		SELECT COLUMN_NAME, COMMENTS
+		FROM USER_COL_COMMENTS
+		WHERE OWNER = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
+		  AND TABLE_NAME = '%s'
+		`, tableName)
+	_, res, err = pd.dc.Query(fieldSql)
+	if res != nil {
+		for _, re := range res {
+			// COMMENT ON COLUMN "SYS_MENU"."BIZ_CODE" IS '业务编码，应用编码1';
+			fieldComment := fmt.Sprintf("\nCOMMENT ON COLUMN \"%s\".\"%s\" IS '%s';", tableName, re["COLUMN_NAME"].(string), re["COMMENTS"].(string))
+			builder.WriteString(fieldComment)
+		}
+	}
+	return builder.String(), nil
 }
 
 func (pd *DMDialect) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {
@@ -190,7 +220,7 @@ func (pd *DMDialect) GetSchemas() ([]string, error) {
 	}
 	schemaNames := make([]string, 0)
 	for _, re := range res {
-		schemaNames = append(schemaNames, anyx.ConvString(re["schemaName"]))
+		schemaNames = append(schemaNames, anyx.ConvString(re["SCHEMA_NAME"]))
 	}
 	return schemaNames, nil
 }
