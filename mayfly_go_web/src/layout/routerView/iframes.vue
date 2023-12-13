@@ -7,7 +7,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, reactive, toRefs, onMounted, onBeforeMount, onUnmounted, nextTick, getCurrentInstance } from 'vue';
+import { defineComponent, reactive, toRefs, onMounted, onBeforeMount, onUnmounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import mittBus from '@/common/utils/mitt';
 export default defineComponent({

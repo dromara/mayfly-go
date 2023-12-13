@@ -215,13 +215,9 @@ watch(
     }
 );
 
-watch(
-    () => isShowSearch.value,
-    () => {
-        console.log('watch show sa');
-        calcuTableHeight();
-    }
-);
+watch(isShowSearch, () => {
+    calcuTableHeight();
+});
 
 onMounted(async () => {
     calcuTableHeight();

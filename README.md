@@ -22,7 +22,7 @@
 
 ### 介绍
 
-web 版 **linux(终端[终端回放] 文件 脚本 进程 计划任务)、数据库（mysql postgres）、redis(单机 哨兵 集群)、mongo 统一管理操作平台**
+web 版 **linux(终端[终端回放] 文件 脚本 进程 计划任务)、数据库（mysql postgres 达梦）、redis(单机 哨兵 集群)、mongo 统一管理操作平台**
 
 ### 开发语言与主要框架
 
