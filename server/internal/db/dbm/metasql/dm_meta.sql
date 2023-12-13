@@ -10,7 +10,7 @@ select
     a.created as CREATE_TIME,
     TABLE_USED_SPACE((SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)), a.object_name)*page() as DATA_LENGTH
 from dba_objects a
-         LEFT JOIN USER_TAB_COMMENTS b ON b.TABLE_TYPE='TABLE' and a.object_name = b.TABLE_NAME
+         LEFT JOIN DBA_TAB_COMMENTS b ON b.TABLE_TYPE='TABLE' and a.object_name = b.TABLE_NAME and b.owner = a.owner
 where a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
   and a.object_type = 'TABLE' and a.status = 'VALID'
 ---------------------------------------
