@@ -58,6 +58,11 @@ func (pd *DMDialect) GetDbNames() ([]string, error) {
 
 // 获取表基础元信息, 如表名等
 func (pd *DMDialect) GetTables() ([]Table, error) {
+
+	// 首先执行更新统计信息sql 这个统计信息在数据量比较大的时候就比较耗时，所以最好定时执行
+	// _, _, err := pd.dc.Query("dbms_stats.GATHER_SCHEMA_stats(SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))")
+
+	// 查询表信息
 	_, res, err := pd.dc.Query(GetLocalSql(DM_META_FILE, DM_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
@@ -69,9 +74,9 @@ func (pd *DMDialect) GetTables() ([]Table, error) {
 			TableName:    re["TABLE_NAME"].(string),
 			TableComment: anyx.ConvString(re["TABLE_COMMENT"]),
 			CreateTime:   anyx.ConvString(re["CREATE_TIME"]),
-			TableRows:    anyx.ConvInt(re["tableRows"]),
+			TableRows:    anyx.ConvInt(re["TABLE_ROWS"]),
 			DataLength:   anyx.ConvInt64(re["DATA_LENGTH"]),
-			IndexLength:  anyx.ConvInt64(re["indexLength"]),
+			IndexLength:  anyx.ConvInt64(re["INDEX_LENGTH"]),
 		})
 	}
 	return tables, nil
@@ -176,30 +181,54 @@ func (pd *DMDialect) GetCreateTableDdl(tableName string) (string, error) {
 	}
 
 	// 表注释
-	_, res, err = pd.dc.Query(fmt.Sprintf("select COMMENTS from USER_TAB_COMMENTS where TABLE_TYPE='TABLE' and TABLE_NAME = '%s'", tableName))
+	_, res, err = pd.dc.Query(fmt.Sprintf(`
+			select OWNER, COMMENTS from DBA_TAB_COMMENTS where TABLE_TYPE='TABLE' and TABLE_NAME = '%s'
+		    and owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
+			                                      `, tableName))
 	if res != nil {
 		for _, re := range res {
 			// COMMENT ON TABLE "SYS_MENU" IS '菜单表';
-			tableComment := fmt.Sprintf("\n\nCOMMENT ON TABLE \"%s\" IS '%s';\n", tableName, re["COMMENTS"].(string))
-			builder.WriteString(tableComment)
+			if re["COMMENTS"] != nil {
+				tableComment := fmt.Sprintf("\n\nCOMMENT ON TABLE \"%s\".\"%s\" IS '%s';", re["OWNER"].(string), tableName, re["COMMENTS"].(string))
+				builder.WriteString(tableComment)
+			}
 		}
 	}
 
 	// 字段注释
 	fieldSql := fmt.Sprintf(`
-		SELECT COLUMN_NAME, COMMENTS
+		SELECT OWNER, COLUMN_NAME, COMMENTS
 		FROM USER_COL_COMMENTS
 		WHERE OWNER = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
 		  AND TABLE_NAME = '%s'
 		`, tableName)
 	_, res, err = pd.dc.Query(fieldSql)
 	if res != nil {
+		builder.WriteString("\n")
 		for _, re := range res {
 			// COMMENT ON COLUMN "SYS_MENU"."BIZ_CODE" IS '业务编码，应用编码1';
-			fieldComment := fmt.Sprintf("\nCOMMENT ON COLUMN \"%s\".\"%s\" IS '%s';", tableName, re["COLUMN_NAME"].(string), re["COMMENTS"].(string))
-			builder.WriteString(fieldComment)
+			if re["COMMENTS"] != nil {
+				fieldComment := fmt.Sprintf("\nCOMMENT ON COLUMN \"%s\".\"%s\".\"%s\" IS '%s';", re["OWNER"].(string), tableName, re["COLUMN_NAME"].(string), re["COMMENTS"].(string))
+				builder.WriteString(fieldComment)
+			}
 		}
 	}
+
+	// 索引信息
+	indexSql := fmt.Sprintf(`
+		select indexdef(b.object_id,1) as INDEX_DEF from DBA_INDEXES a
+		join dba_objects b on a.owner = b.owner and b.object_name = a.index_name and b.object_type = 'INDEX'
+		where a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
+		and a.table_name = '%s' 
+		and indexdef(b.object_id,1) != '禁止查看系统定义的索引信息'
+	`, tableName)
+	_, res, err = pd.dc.Query(indexSql)
+	if res != nil {
+		for _, re := range res {
+			builder.WriteString("\n\n" + re["INDEX_DEF"].(string))
+		}
+	}
+
 	return builder.String(), nil
 }
 
