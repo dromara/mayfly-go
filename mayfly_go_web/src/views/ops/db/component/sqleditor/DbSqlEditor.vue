@@ -362,9 +362,10 @@ const onRunSql = async (newTab = false) => {
         // 要实时响应，故需要用索引改变数据才生效
         state.execResTabs[i].data = colAndData.res;
         // 兼容表格字段配置
-        state.execResTabs[i].tableColumn = colAndData.colNames.map((x: any) => {
+        state.execResTabs[i].tableColumn = colAndData.columns.map((x: any) => {
             return {
-                columnName: x,
+                columnName: x.name,
+                columnType: x.type,
                 show: true,
             };
         });

@@ -1,3 +1,4 @@
+import { DbInst } from '../db';
 import { commonCustomKeywords, DbDialect, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, RowDefinition, sqlColumnType } from './index';
 import { language as pgsqlLanguage } from 'monaco-editor/esm/vs/basic-languages/pgsql/pgsql.js';
 
@@ -187,6 +188,16 @@ class PostgresqlDialect implements DbDialect {
             indexType: 'BTREE',
             indexComment: '',
         };
+    }
+
+    getShortColumnType(columnType: string): string {
+        if (DbInst.isNumber(columnType)) {
+            return '123';
+        }
+        if (DbInst.isDate(columnType)) {
+            return 'date';
+        }
+        return 'abc';
     }
 
     wrapName = (name: string) => {

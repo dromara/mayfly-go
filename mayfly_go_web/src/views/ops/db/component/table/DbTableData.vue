@@ -26,16 +26,23 @@
                                     borderRight: 'var(--el-table-border)',
                                 }"
                             >
-                                <!-- 行号列表头 -->
-                                <div v-if="column.key == rowNoColumn.key || !showColumnTip">
+                                <!-- 行号列 -->
+                                <div v-if="column.key == rowNoColumn.key">
                                     <el-text tag="b"> {{ column.title }} </el-text>
                                 </div>
 
-                                <div v-else @contextmenu="headerContextmenuClick($event, column)">
+                                <!-- 字段名列 -->
+                                <div v-else @contextmenu="headerContextmenuClick($event, column)" style="position: relative">
+                                    <div class="column-type">
+                                        <span class="font8">{{ dbDialect.getShortColumnType(column.columnType) }}</span>
+                                    </div>
+
                                     <div v-if="showColumnTip" @mouseover="column.showSetting = true" @mouseleave="column.showSetting = false">
                                         <el-tooltip :show-after="500" raw-content placement="top">
                                             <template #content> {{ getColumnTip(column) }} </template>
-                                            <el-text tag="b" style="cursor: pointer"> {{ column.title }} </el-text>
+                                            <el-text tag="b" style="cursor: pointer">
+                                                {{ column.title }}
+                                            </el-text>
                                         </el-tooltip>
 
                                         <span>
@@ -48,7 +55,9 @@
                                     </div>
 
                                     <div v-else>
-                                        <el-text tag="b" style="cursor: pointer"> {{ column.title }} </el-text>
+                                        <el-text tag="b">
+                                            {{ column.title }}
+                                        </el-text>
                                     </div>
                                 </div>
                             </div>
@@ -58,7 +67,7 @@
                     <template #cell="{ rowData, column, rowIndex, columnIndex }">
                         <div @contextmenu="dataContextmenuClick($event, rowIndex, column, rowData)" class="table-data-cell">
                             <!-- 行号列 -->
-                            <div v-if="column.key == 'tableDataRowNo'">
+                            <div v-if="column.key == rowNoColumn.key">
                                 <el-text tag="b" size="small">
                                     {{ rowIndex + 1 }}
                                 </el-text>
@@ -78,7 +87,7 @@
                                 </div>
 
                                 <div v-else :class="isUpdated(rowIndex, column.dataKey) ? 'update_field_active' : ''">
-                                    <el-text style="color: var(--el-color-info-light-5)" v-if="rowData[column.dataKey!] === null" size="small" truncated>
+                                    <el-text v-if="rowData[column.dataKey!] === null" size="small" truncated style="color: var(--el-color-info-light-5)">
                                         NULL
                                     </el-text>
 
@@ -134,6 +143,7 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
 import { useIntervalFn } from '@vueuse/core';
+import { getDbDialect, DbDialect } from '../../dialect/index';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
@@ -273,6 +283,8 @@ class TableCellData {
     oldValue: any;
 }
 
+let dbDialect: DbDialect = null as any;
+
 let nowSortColumn = null as any;
 
 // 当前正在更新的单元格
@@ -388,6 +400,8 @@ onMounted(async () => {
 
     state.dbId = props.dbId;
     state.dbType = props.dbType;
+    dbDialect = getDbDialect(state.dbType);
+
     state.db = props.db;
     state.table = props.table;
     setTableData(props.data);
@@ -788,6 +802,15 @@ defineExpose({
 
     .update_field_active {
         background-color: var(--el-color-success);
+    }
+
+    .column-type {
+        color: var(--el-color-info-light-3);
+        font-weight: bold;
+        position: absolute;
+        top: -12px;
+        padding: 2px;
+        height: 12px;
     }
 }
 </style>

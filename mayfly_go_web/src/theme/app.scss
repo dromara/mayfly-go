@@ -248,7 +248,7 @@ body,
 
 /* 字体大小全局样式
 ------------------------------- */
-@for $i from 10 through 32 {
+@for $i from 8 through 32 {
     .font#{$i} {
         font-size: #{$i}px !important;
     }

@@ -245,11 +245,11 @@ func (pd *PgsqlDialect) GetCreateTableDdl(tableName string) (string, error) {
 	return res[0]["sql"].(string), nil
 }
 
-func (pd *PgsqlDialect) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {
+func (pd *PgsqlDialect) GetTableRecord(tableName string, pageNum, pageSize int) ([]*QueryColumn, []map[string]any, error) {
 	return pd.dc.Query(fmt.Sprintf("SELECT * FROM %s OFFSET %d LIMIT %d", tableName, (pageNum-1)*pageSize, pageSize))
 }
 
-func (pd *PgsqlDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
+func (pd *PgsqlDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []*QueryColumn)) error {
 	return pd.dc.WalkTableRecord(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walk)
 }
 

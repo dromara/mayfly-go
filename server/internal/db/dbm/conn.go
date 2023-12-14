@@ -19,17 +19,23 @@ type DbConn struct {
 	db *sql.DB
 }
 
+// 执行数据库查询返回的列信息
+type QueryColumn struct {
+	Name string `json:"name"` // 列名
+	Type string `json:"type"` // 类型
+}
+
 // 执行查询语句
-// 依次返回 列名数组(顺序)，结果map，错误
-func (d *DbConn) Query(querySql string) ([]string, []map[string]any, error) {
+// 依次返回 列信息数组(顺序)，结果map，错误
+func (d *DbConn) Query(querySql string) ([]*QueryColumn, []map[string]any, error) {
 	return d.QueryContext(context.Background(), querySql)
 }
 
 // 执行查询语句
-// 依次返回 列名数组(顺序)，结果map，错误
-func (d *DbConn) QueryContext(ctx context.Context, querySql string) ([]string, []map[string]any, error) {
+// 依次返回 列信息数组(顺序)，结果map，错误
+func (d *DbConn) QueryContext(ctx context.Context, querySql string) ([]*QueryColumn, []map[string]any, error) {
 	result := make([]map[string]any, 0, 16)
-	columns, err := walkTableRecord(ctx, d.db, querySql, func(record map[string]any, columns []string) {
+	columns, err := walkTableRecord(ctx, d.db, querySql, func(record map[string]any, columns []*QueryColumn) {
 		result = append(result, record)
 	})
 	if err != nil {
@@ -55,7 +61,7 @@ func (d *DbConn) Query2Struct(execSql string, dest any) error {
 }
 
 // WalkTableRecord 遍历表记录
-func (d *DbConn) WalkTableRecord(ctx context.Context, selectSql string, walk func(record map[string]any, columns []string)) error {
+func (d *DbConn) WalkTableRecord(ctx context.Context, selectSql string, walk func(record map[string]any, columns []*QueryColumn)) error {
 	_, err := walkTableRecord(ctx, d.db, selectSql, walk)
 	return err
 }
@@ -100,7 +106,7 @@ func (d *DbConn) Close() {
 	}
 }
 
-func walkTableRecord(ctx context.Context, db *sql.DB, selectSql string, walk func(record map[string]any, columns []string)) ([]string, error) {
+func walkTableRecord(ctx context.Context, db *sql.DB, selectSql string, walk func(record map[string]any, columns []*QueryColumn)) ([]*QueryColumn, error) {
 	rows, err := db.QueryContext(ctx, selectSql)
 
 	if err != nil {
@@ -120,13 +126,13 @@ func walkTableRecord(ctx context.Context, db *sql.DB, selectSql string, walk fun
 	}
 	lenCols := len(colTypes)
 	// 列名用于前端表头名称按照数据库与查询字段顺序显示
-	colNames := make([]string, lenCols)
+	cols := make([]*QueryColumn, lenCols)
 	// 这里表示一行填充数据
 	scans := make([]any, lenCols)
 	// 这里表示一行所有列的值，用[]byte表示
 	values := make([][]byte, lenCols)
 	for k, colType := range colTypes {
-		colNames[k] = colType.Name()
+		cols[k] = &QueryColumn{Name: colType.Name(), Type: colType.DatabaseTypeName()}
 		// 这里scans引用values，把数据填充到[]byte里
 		scans[k] = &values[k]
 	}
@@ -142,10 +148,10 @@ func walkTableRecord(ctx context.Context, db *sql.DB, selectSql string, walk fun
 		for i, v := range values {
 			rowData[colTypes[i].Name()] = valueConvert(v, colTypes[i])
 		}
-		walk(rowData, colNames)
+		walk(rowData, cols)
 	}
 
-	return colNames, nil
+	return cols, nil
 }
 
 // 将查询的值转为对应列类型的实际值，不全部转为字符串

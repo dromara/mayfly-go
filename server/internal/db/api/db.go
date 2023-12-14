@@ -136,7 +136,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	}
 
 	colAndRes := make(map[string]any)
-	colAndRes["colNames"] = execResAll.ColNames
+	colAndRes["columns"] = execResAll.Columns
 	colAndRes["res"] = execResAll.Res
 	rc.ResData = colAndRes
 }
@@ -349,11 +349,11 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 		writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", table))
 		writer.WriteString("BEGIN;\n")
 		insertSql := "INSERT INTO %s VALUES (%s);\n"
-		dbMeta.WalkTableRecord(table, func(record map[string]any, columns []string) {
+		dbMeta.WalkTableRecord(table, func(record map[string]any, columns []*dbm.QueryColumn) {
 			var values []string
 			writer.TryFlush()
 			for _, column := range columns {
-				value := record[column]
+				value := record[column.Name]
 				if value == nil {
 					values = append(values, "NULL")
 					continue

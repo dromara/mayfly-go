@@ -1,3 +1,4 @@
+import { DbInst } from '../db';
 import { DbDialect, sqlColumnType, DialectInfo, RowDefinition, IndexDefinition, EditorCompletionItem, commonCustomKeywords, EditorCompletion } from './index';
 import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/sql/sql.js';
 export { DMDialect, DM_TYPE_LIST };
@@ -429,9 +430,20 @@ class DMDialect implements DbDialect {
             indexComment: '',
         };
     }
+
     wrapName = (name: string) => {
         return name;
     };
+
+    getShortColumnType(columnType: string): string {
+        if (DbInst.isNumber(columnType)) {
+            return '123';
+        }
+        if (DbInst.isDate(columnType)) {
+            return 'date';
+        }
+        return 'abc';
+    }
 
     matchType(text: string, arr: string[]): boolean {
         if (!text || !arr || arr.length === 0) {

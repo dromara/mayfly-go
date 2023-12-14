@@ -1,3 +1,4 @@
+import { DbInst } from '../db';
 import { commonCustomKeywords, DbDialect, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, RowDefinition } from './index';
 import { language as mysqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
 
@@ -176,6 +177,16 @@ class MysqlDialect implements DbDialect {
             indexType: 'BTREE',
             indexComment: '',
         };
+    }
+
+    getShortColumnType(columnType: string): string {
+        if (DbInst.isNumber(columnType)) {
+            return '123';
+        }
+        if (DbInst.isDate(columnType)) {
+            return 'date';
+        }
+        return 'abc';
     }
 
     wrapName = (name: string) => {

@@ -26,19 +26,19 @@ type DbSqlExecReq struct {
 }
 
 type DbSqlExecRes struct {
-	ColNames []string
-	Res      []map[string]any
+	Columns []*dbm.QueryColumn
+	Res     []map[string]any
 }
 
 // 合并执行结果，主要用于执行多条sql使用
 func (d *DbSqlExecRes) Merge(execRes *DbSqlExecRes) {
-	canMerge := len(d.ColNames) == len(execRes.ColNames)
+	canMerge := len(d.Columns) == len(execRes.Columns)
 	if !canMerge {
 		return
 	}
 	// 列名不一致，则不合并
-	for i, colName := range d.ColNames {
-		if execRes.ColNames[i] != colName {
+	for i, col := range d.Columns {
+		if execRes.Columns[i].Name != col.Name {
 			return
 		}
 	}
@@ -188,13 +188,13 @@ func doSelect(ctx context.Context, selectStmt *sqlparser.Select, execSqlReq *DbS
 func doRead(ctx context.Context, execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {
 	dbConn := execSqlReq.DbConn
 	sql := execSqlReq.Sql
-	colNames, res, err := dbConn.QueryContext(ctx, sql)
+	cols, res, err := dbConn.QueryContext(ctx, sql)
 	if err != nil {
 		return nil, err
 	}
 	return &DbSqlExecRes{
-		ColNames: colNames,
-		Res:      res,
+		Columns: cols,
+		Res:     res,
 	}, nil
 }
 
@@ -285,7 +285,11 @@ func doExec(ctx context.Context, sql string, dbConn *dbm.DbConn) (*DbSqlExecRes,
 	res = append(res, resData)
 
 	return &DbSqlExecRes{
-		ColNames: []string{"sql", "rowsAffected", "result"},
-		Res:      res,
+		Columns: []*dbm.QueryColumn{
+			{Name: "sql", Type: "string"},
+			{Name: "rowsAffected", Type: "number"},
+			{Name: "result", Type: "string"},
+		},
+		Res: res,
 	}, err
 }

@@ -63,10 +63,10 @@ type DbDialect interface {
 
 	// 获取指定表的数据-分页查询
 	// @return columns: 列字段名；result: 结果集；error: 错误
-	GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error)
+	GetTableRecord(tableName string, pageNum, pageSize int) ([]*QueryColumn, []map[string]any, error)
 
 	// WalkTableRecord 遍历指定表的数据
-	WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error
+	WalkTableRecord(tableName string, walk func(record map[string]any, columns []*QueryColumn)) error
 
 	GetSchemas() ([]string, error)
 }

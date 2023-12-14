@@ -107,6 +107,12 @@ export interface DbDialect {
     getDefaultIndex(): IndexDefinition;
 
     /**
+     * 根据数据库完整字段类型，获取类型简称。如字符串为abc、数字为123、日期为date等。
+     * @param columnType 数据库原始字段类型
+     */
+    getShortColumnType(columnType: string): string;
+
+    /**
      * 包裹数据库表名、字段名等，避免使用关键字为字段名或表名时报错
      * @param name 名称
      */

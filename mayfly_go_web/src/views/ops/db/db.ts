@@ -374,6 +374,15 @@ export class DbInst {
     }
 
     /**
+     * 判断字段类型是否为日期相关类型
+     * @param columnType 字段类型
+     * @returns
+     */
+    static isDate(columnType: string) {
+        return columnType.match(/date|time/gi);
+    }
+
+    /**
      *
      * @param str 字符串
      * @param tableData 表数据
@@ -385,8 +394,8 @@ export class DbInst {
             return;
         }
 
-        // 获取列名称的长度 加上排序图标长度
-        const columnWidth: number = getTextWidth(prop) + 23;
+        // 获取列名称的长度 加上排序图标长度、abc为字段类型简称占位符
+        const columnWidth: number = getTextWidth(prop + 'abc') + 23;
         // prop为该列的字段名(传字符串);tableData为该表格的数据源(传变量);
         if (!tableData || !tableData.length || tableData.length === 0 || tableData === undefined) {
             return columnWidth;

@@ -174,11 +174,11 @@ func (md *MysqlDialect) GetCreateTableDdl(tableName string) (string, error) {
 	return res[0]["Create Table"].(string) + ";", nil
 }
 
-func (md *MysqlDialect) GetTableRecord(tableName string, pageNum, pageSize int) ([]string, []map[string]any, error) {
+func (md *MysqlDialect) GetTableRecord(tableName string, pageNum, pageSize int) ([]*QueryColumn, []map[string]any, error) {
 	return md.dc.Query(fmt.Sprintf("SELECT * FROM %s LIMIT %d, %d", tableName, (pageNum-1)*pageSize, pageSize))
 }
 
-func (md *MysqlDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []string)) error {
+func (md *MysqlDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []*QueryColumn)) error {
 	return md.dc.WalkTableRecord(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walk)
 }
 
