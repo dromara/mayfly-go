@@ -4,15 +4,31 @@ select
 from dba_objects
 ---------------------------------------
 --DM_TABLE_INFO 表详细信息
-select
-    a.object_name as TABLE_NAME,
-    b.comments as TABLE_COMMENT,
-    a.created as CREATE_TIME,
-    TABLE_USED_SPACE((SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)), a.object_name)*page() as DATA_LENGTH
-from dba_objects a
-         LEFT JOIN DBA_TAB_COMMENTS b ON b.TABLE_TYPE='TABLE' and a.object_name = b.TABLE_NAME and b.owner = a.owner
-where a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
-  and a.object_type = 'TABLE' and a.status = 'VALID'
+SELECT a.object_name                                      as TABLE_NAME,
+       b.comments                                         as TABLE_COMMENT,
+       a.created                                          as CREATE_TIME,
+       TABLE_USED_SPACE(
+               (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)),
+               a.object_name
+       ) * page()                                         as DATA_LENGTH,
+       (SELECT sum(INDEX_USED_PAGES(id))* page()
+        FROM SYSOBJECTS
+        WHERE NAME IN (SELECT INDEX_NAME
+                       FROM DBA_INDEXES
+                       WHERE OWNER = 'wxb'
+                         AND TABLE_NAME = a.object_name)) as INDEX_LENGTH,
+       c.num_rows                                         as TABLE_ROWS
+
+FROM dba_objects a
+         LEFT JOIN DBA_TAB_COMMENTS b ON b.TABLE_TYPE = 'TABLE'
+    AND a.object_name = b.TABLE_NAME
+    AND b.owner = a.owner
+         LEFT JOIN (SELECT a.owner, a.table_name, a.num_rows FROM dba_tables a) c
+                   ON c.owner = a.owner AND c.table_name = a.object_name
+
+WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
+  AND a.object_type = 'TABLE'
+  AND a.status = 'VALID'
 ---------------------------------------
 --DM_INDEX_INFO 表索引信息
 select
