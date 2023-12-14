@@ -1,7 +1,7 @@
 <template>
-    <div class="tag-tree">
-        <el-input v-model="filterText" placeholder="输入关键字->搜索已展开节点信息" clearable size="small" class="mb5" />
-        <el-scrollbar :style="{ height: state.height, maxHeight: state.height, backgroundColor: 'var(--el-fill-color-blank)' }">
+    <div class="tag-tree card pd5">
+        <el-scrollbar>
+            <el-input v-model="filterText" placeholder="输入关键字->搜索已展开节点信息" clearable size="small" class="mb5 w100" />
             <el-tree
                 ref="treeRef"
                 :highlight-current="true"
@@ -32,8 +32,9 @@
                     </span>
                 </template>
             </el-tree>
+
+            <contextmenu :dropdown="state.dropdown" :items="state.contextmenuItems" ref="contextmenuRef" @currentContextmenuClick="onCurrentContextmenuClick" />
         </el-scrollbar>
-        <contextmenu :dropdown="state.dropdown" :items="state.contextmenuItems" ref="contextmenuRef" @currentContextmenuClick="onCurrentContextmenuClick" />
     </div>
 </template>
 
@@ -43,7 +44,6 @@ import { NodeType, TagTreeNode } from './tag';
 import TagInfo from './TagInfo.vue';
 import { Contextmenu } from '@/components/contextmenu';
 import { tagApi } from '../tag/api';
-import { useEventListener, useWindowSize } from '@vueuse/core';
 
 const props = defineProps({
     resourceType: {
@@ -74,8 +74,6 @@ const emit = defineEmits(['nodeClick', 'currentContextmenuClick']);
 const treeRef: any = ref(null);
 const contextmenuRef = ref();
 
-const { height: vh } = useWindowSize();
-
 const state = reactive({
     height: 600 as any,
     filterText: '',
@@ -88,14 +86,7 @@ const state = reactive({
 });
 const { filterText } = toRefs(state);
 
-onMounted(async () => {
-    setHeight();
-    useEventListener(window, 'resize', setHeight);
-});
-
-const setHeight = () => {
-    state.height = vh.value - 138 + 'px';
-};
+onMounted(async () => {});
 
 watch(filterText, (val) => {
     treeRef.value?.filter(val);
@@ -195,8 +186,7 @@ defineExpose({
 
 <style lang="scss" scoped>
 .tag-tree {
-    border-radius: var(--el-input-border-radius, var(--el-border-radius-base));
-    border: 1px solid var(--el-border-color-light, #ebeef5);
+    height: calc(100vh - 108px);
 
     .el-tree {
         display: inline-block;

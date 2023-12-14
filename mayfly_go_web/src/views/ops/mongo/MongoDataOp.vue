@@ -44,9 +44,9 @@
                 </Pane>
 
                 <Pane>
-                    <div id="mongo-tab" class="ml5" style="border: 1px solid var(--el-border-color-light, #ebeef5); margin-top: 1px">
+                    <div class="mongo-data-tab card pd5">
                         <el-row v-if="nowColl">
-                            <el-descriptions :column="10" size="small" border>
+                            <el-descriptions class="w100" :column="10" size="small" border>
                                 <!-- <el-descriptions-item label-align="right" label="tag">xxx</el-descriptions-item> -->
 
                                 <el-descriptions-item label="ns" label-align="right">
@@ -74,7 +74,7 @@
                         </el-row>
 
                         <el-row type="flex">
-                            <el-tabs @tab-remove="removeDataTab" style="width: 100%; margin-left: 5px" v-model="state.activeName">
+                            <el-tabs @tab-remove="removeDataTab" class="w100 ml5" v-model="state.activeName">
                                 <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                                     <el-row>
                                         <el-col :span="2">
@@ -96,27 +96,29 @@
                                             </el-input>
                                         </el-col>
                                     </el-row>
-                                    <el-row :style="`height: ${dataHeight}; overflow: auto;`">
-                                        <el-col :span="6" v-for="item in dt.datas" :key="item">
-                                            <el-card :body-style="{ padding: '0px', position: 'relative' }">
-                                                <el-input type="textarea" v-model="item.value" :rows="10" />
-                                                <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
-                                                    <div>
-                                                        <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
+                                    <el-scrollbar class="mongo-data-tab-data">
+                                        <el-row>
+                                            <el-col :span="6" v-for="item in dt.datas" :key="item">
+                                                <el-card :body-style="{ padding: '0px', position: 'relative' }">
+                                                    <el-input type="textarea" v-model="item.value" :rows="10" />
+                                                    <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
+                                                        <div>
+                                                            <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
 
-                                                        <el-divider direction="vertical" border-style="dashed" />
+                                                            <el-divider direction="vertical" border-style="dashed" />
 
-                                                        <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?" width="160">
-                                                            <template #reference>
-                                                                <el-link v-auth="perms.delData" :underline="false" type="danger" icon="DocumentDelete">
-                                                                </el-link>
-                                                            </template>
-                                                        </el-popconfirm>
+                                                            <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?" width="160">
+                                                                <template #reference>
+                                                                    <el-link v-auth="perms.delData" :underline="false" type="danger" icon="DocumentDelete">
+                                                                    </el-link>
+                                                                </template>
+                                                            </el-popconfirm>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </el-card>
-                                        </el-col>
-                                    </el-row>
+                                                </el-card>
+                                            </el-col>
+                                        </el-row>
+                                    </el-scrollbar>
                                 </el-tab-pane>
                             </el-tabs>
                         </el-row>
@@ -253,7 +255,6 @@ const NodeTypeColl = new NodeType(MongoNodeType.Coll).withNodeClickFunc((nodeDat
 const findParamInputRef: any = ref(null);
 const state = reactive({
     tags: [],
-    dataHeight: `${window.innerHeight - 220}px`,
     mongoList: [] as any,
     activeName: '', // 当前操作的tab
     dataTabs: {} as any, // 数据tabs
@@ -282,7 +283,7 @@ const state = reactive({
     },
 });
 
-const { dataHeight, findDialog, docEditDialog } = toRefs(state);
+const { findDialog, docEditDialog } = toRefs(state);
 
 const nowColl = computed(() => {
     return getNowDataTab();
@@ -506,7 +507,17 @@ const getNowDataTab = () => {
     max-width: 120px;
 }
 
-#mongo-tab {
+.mongo-data-tab {
+    height: calc(100vh - 108px);
+}
+
+.mongo-data-tab {
+    margin-top: 1px;
+
+    .mongo-data-tab-data {
+        height: calc(100vh - 230px);
+    }
+
     .el-tabs__header {
         margin: 0 0 5px;
 

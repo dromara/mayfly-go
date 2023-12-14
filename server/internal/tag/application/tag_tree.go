@@ -88,9 +88,12 @@ func (p *tagTreeAppImpl) Save(ctx context.Context, tag *entity.TagTree) error {
 
 			tag.CodePath = parentTag.CodePath + tag.Code + entity.CodePathSeparator
 		} else {
+			if accountId != consts.AdminId {
+				return errorx.NewBiz("非管理员无法添加根标签")
+			}
 			tag.CodePath = tag.Code + entity.CodePathSeparator
 		}
-		if err := p.CanAccess(accountId, tag.CodePath); err != nil {
+		if p.CanAccess(accountId, tag.CodePath) != nil {
 			return errorx.NewBiz("无权添加该标签")
 		}
 

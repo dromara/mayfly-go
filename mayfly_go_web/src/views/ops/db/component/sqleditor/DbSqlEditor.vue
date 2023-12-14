@@ -1,8 +1,8 @@
 <template>
     <div>
         <div>
-            <div class="toolbar">
-                <div class="fl">
+            <div class="card pd5 flex-justify-between">
+                <div>
                     <el-link @click="onRunSql()" :underline="false" class="ml15" icon="VideoPlay"> </el-link>
                     <el-divider direction="vertical" border-style="dashed" />
 
@@ -33,7 +33,7 @@
                     </el-upload>
                 </div>
 
-                <div class="fr">
+                <div>
                     <el-button @click="saveSql()" type="primary" icon="document-add" plain size="small">保存SQL</el-button>
                 </div>
             </div>
@@ -44,7 +44,7 @@
             @resize="resizeTableHeight"
             horizontal
             class="default-theme"
-            style="height: calc(100vh - 220px)"
+            style="height: calc(100vh - 233px)"
         >
             <Pane :size="state.editorSize" max-size="80">
                 <MonacoEditor ref="monacoEditorRef" class="mt5" v-model="state.sql" language="sql" height="100%" :id="'MonacoTextarea-' + getKey()" />
@@ -128,7 +128,7 @@
 </template>
 
 <script lang="ts" setup>
-import { h, nextTick, onMounted, reactive, toRefs, ref } from 'vue';
+import { h, nextTick, onMounted, reactive, toRefs, ref, unref } from 'vue';
 import { getToken } from '@/common/utils/storage';
 import { notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
@@ -276,7 +276,7 @@ const onRemoveTab = (targetId: number) => {
 const resizeTableHeight = (e: any) => {
     const vh = window.innerHeight;
     state.editorSize = e[0].size;
-    const plitpaneHeight = vh - 210;
+    const plitpaneHeight = vh - 223;
     const editorHeight = plitpaneHeight * (state.editorSize / 100);
     state.tableDataHeight = plitpaneHeight - editorHeight - 40 + 'px';
 };
@@ -336,7 +336,7 @@ const onRunSql = async (newTab = false) => {
         // 不是新建tab执行，则在当前激活的tab上执行sql
         i = state.execResTabs.findIndex((x) => x.id == state.activeTab);
         execRes = state.execResTabs[i];
-        if (execRes.loading?.value) {
+        if (unref(execRes.loading)) {
             ElMessage.error('当前结果集tab正在执行, 请使用新标签执行');
             return;
         }

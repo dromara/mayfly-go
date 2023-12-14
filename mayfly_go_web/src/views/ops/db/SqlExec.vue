@@ -47,101 +47,103 @@
             </Pane>
 
             <Pane>
-                <el-row>
-                    <el-col :span="24" v-if="state.db">
-                        <el-descriptions :column="4" size="small" border class="ml5">
-                            <el-descriptions-item label-align="right" label="操作"
-                                ><el-button
-                                    :disabled="!state.db || !nowDbInst.id"
-                                    type="primary"
-                                    icon="Search"
-                                    @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases }, state.db)"
-                                    size="small"
-                                    >新建查询</el-button
-                                ></el-descriptions-item
-                            >
+                <div class="card db-op pd5">
+                    <el-row>
+                        <el-col :span="24" v-if="state.db">
+                            <el-descriptions :column="4" size="small" border>
+                                <el-descriptions-item label-align="right" label="操作"
+                                    ><el-button
+                                        :disabled="!state.db || !nowDbInst.id"
+                                        type="primary"
+                                        icon="Search"
+                                        @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases }, state.db)"
+                                        size="small"
+                                        >新建查询</el-button
+                                    ></el-descriptions-item
+                                >
 
-                            <el-descriptions-item label-align="right" label="tag">{{ nowDbInst.tagPath }}</el-descriptions-item>
+                                <el-descriptions-item label-align="right" label="tag">{{ nowDbInst.tagPath }}</el-descriptions-item>
 
-                            <el-descriptions-item label-align="right">
-                                <template #label>
-                                    <div>
-                                        <SvgIcon :name="getDbDialect(nowDbInst.type).getInfo().icon" :size="18" />
-                                        实例
-                                    </div>
-                                </template>
-                                {{ nowDbInst.id }}
-                                <el-divider direction="vertical" border-style="dashed" />
-                                {{ nowDbInst.name }}
-                                <el-divider direction="vertical" border-style="dashed" />
-                                {{ nowDbInst.host }}
-                            </el-descriptions-item>
-
-                            <el-descriptions-item label="库名" label-align="right">{{ state.db }}</el-descriptions-item>
-                        </el-descriptions>
-                    </el-col>
-                </el-row>
-
-                <div id="data-exec" class="mt5 ml5">
-                    <el-tabs
-                        v-if="state.tabs.size > 0"
-                        type="card"
-                        @tab-remove="onRemoveTab"
-                        @tab-change="onTabChange"
-                        style="width: 100%"
-                        v-model="state.activeName"
-                        class="h100"
-                    >
-                        <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
-                            <template #label>
-                                <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
-                                    <template #reference> {{ dt.label }} </template>
-                                    <template #default>
-                                        <el-descriptions :column="1" size="small">
-                                            <el-descriptions-item label="tagPath">
-                                                {{ dt.params.tagPath }}
-                                            </el-descriptions-item>
-                                            <el-descriptions-item label="名称">
-                                                {{ dt.params.name }}
-                                            </el-descriptions-item>
-                                            <el-descriptions-item label="host">
-                                                <SvgIcon :name="getDbDialect(dt.params.type).getInfo().icon" :size="18" />
-                                                {{ dt.params.host }}
-                                            </el-descriptions-item>
-                                            <el-descriptions-item label="库名">
-                                                {{ dt.params.dbName }}
-                                            </el-descriptions-item>
-                                        </el-descriptions>
+                                <el-descriptions-item label-align="right">
+                                    <template #label>
+                                        <div>
+                                            <SvgIcon :name="getDbDialect(nowDbInst.type).getInfo().icon" :size="18" />
+                                            实例
+                                        </div>
                                     </template>
-                                </el-popover>
-                            </template>
+                                    {{ nowDbInst.id }}
+                                    <el-divider direction="vertical" border-style="dashed" />
+                                    {{ nowDbInst.name }}
+                                    <el-divider direction="vertical" border-style="dashed" />
+                                    {{ nowDbInst.host }}
+                                </el-descriptions-item>
 
-                            <db-table-data-op
-                                v-if="dt.type === TabType.TableData"
-                                :db-id="dt.dbId"
-                                :db-name="dt.db"
-                                :table-name="dt.params.table"
-                                :table-height="state.dataTabsTableHeight"
-                            ></db-table-data-op>
+                                <el-descriptions-item label="库名" label-align="right">{{ state.db }}</el-descriptions-item>
+                            </el-descriptions>
+                        </el-col>
+                    </el-row>
 
-                            <db-sql-editor
-                                v-if="dt.type === TabType.Query"
-                                :db-id="dt.dbId"
-                                :db-name="dt.db"
-                                :sql-name="dt.params.sqlName"
-                                @save-sql-success="reloadSqls"
-                            >
-                            </db-sql-editor>
+                    <div id="data-exec" class="mt5">
+                        <el-tabs
+                            v-if="state.tabs.size > 0"
+                            type="card"
+                            @tab-remove="onRemoveTab"
+                            @tab-change="onTabChange"
+                            style="width: 100%"
+                            v-model="state.activeName"
+                            class="h100"
+                        >
+                            <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
+                                <template #label>
+                                    <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
+                                        <template #reference> {{ dt.label }} </template>
+                                        <template #default>
+                                            <el-descriptions :column="1" size="small">
+                                                <el-descriptions-item label="tagPath">
+                                                    {{ dt.params.tagPath }}
+                                                </el-descriptions-item>
+                                                <el-descriptions-item label="名称">
+                                                    {{ dt.params.name }}
+                                                </el-descriptions-item>
+                                                <el-descriptions-item label="host">
+                                                    <SvgIcon :name="getDbDialect(dt.params.type).getInfo().icon" :size="18" />
+                                                    {{ dt.params.host }}
+                                                </el-descriptions-item>
+                                                <el-descriptions-item label="库名">
+                                                    {{ dt.params.dbName }}
+                                                </el-descriptions-item>
+                                            </el-descriptions>
+                                        </template>
+                                    </el-popover>
+                                </template>
 
-                            <db-tables-op
-                                v-if="dt.type == TabType.TablesOp"
-                                :db-id="dt.params.id"
-                                :db="dt.params.db"
-                                :db-type="dt.params.type"
-                                :height="state.tablesOpHeight"
-                            />
-                        </el-tab-pane>
-                    </el-tabs>
+                                <db-table-data-op
+                                    v-if="dt.type === TabType.TableData"
+                                    :db-id="dt.dbId"
+                                    :db-name="dt.db"
+                                    :table-name="dt.params.table"
+                                    :table-height="state.dataTabsTableHeight"
+                                ></db-table-data-op>
+
+                                <db-sql-editor
+                                    v-if="dt.type === TabType.Query"
+                                    :db-id="dt.dbId"
+                                    :db-name="dt.db"
+                                    :sql-name="dt.params.sqlName"
+                                    @save-sql-success="reloadSqls"
+                                >
+                                </db-sql-editor>
+
+                                <db-tables-op
+                                    v-if="dt.type == TabType.TablesOp"
+                                    :db-id="dt.params.id"
+                                    :db="dt.params.db"
+                                    :db-type="dt.params.type"
+                                    :height="state.tablesOpHeight"
+                                />
+                            </el-tab-pane>
+                        </el-tabs>
+                    </div>
                 </div>
             </Pane>
         </Splitpanes>
@@ -397,8 +399,8 @@ onBeforeUnmount(() => {
  * 设置editor高度和数据表高度
  */
 const setHeight = () => {
-    state.dataTabsTableHeight = window.innerHeight - 255 + 'px';
-    state.tablesOpHeight = window.innerHeight - 212 + 'px';
+    state.dataTabsTableHeight = window.innerHeight - 270 + 'px';
+    state.tablesOpHeight = window.innerHeight - 225 + 'px';
 };
 
 // 选择数据库,改变当前正在操作的数据库信息
@@ -605,6 +607,10 @@ const getNowDbInfo = () => {
     .db-table-size {
         color: #c4c9c4;
         font-size: 9px;
+    }
+
+    .db-op {
+        height: calc(100vh - 108px);
     }
 
     #data-exec {

@@ -22,7 +22,8 @@ func Generate() (string, string, error) {
 
 	c := base64Captcha.NewCaptcha(driver, store)
 	// 获取
-	return c.Generate()
+	id, b64s, _, err := c.Generate()
+	return id, b64s, err
 }
 
 // 验证验证码

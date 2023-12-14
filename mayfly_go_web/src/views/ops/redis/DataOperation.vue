@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="redis-data-op">
         <Splitpanes class="default-theme">
             <Pane size="20" max-size="30">
                 <tag-tree :resource-type="TagResourceTypeEnum.Redis.value" :tag-path-node-type="NodeTypeTagPath">
@@ -34,68 +34,68 @@
             </Pane>
 
             <Pane min-size="20" size="30">
-                <div class="key-list-vtree">
-                    <el-row>
-                        <el-col :span="2">
-                            <el-input v-model="state.keySeparator" placeholder="分割符" size="small" class="ml5" />
-                        </el-col>
-                        <el-col :span="18">
-                            <el-input @clear="clear" v-model="scanParam.match" placeholder="match 支持*模糊key" clearable size="small" class="ml10" />
-                        </el-col>
-                        <el-col :span="4">
-                            <el-button
-                                class="ml15"
-                                :disabled="!scanParam.id || !scanParam.db"
-                                @click="searchKey()"
-                                type="success"
-                                icon="search"
-                                size="small"
-                                plain
-                            ></el-button>
-                        </el-col>
-                    </el-row>
+                <div class="key-list-vtree card pd5">
+                    <el-scrollbar>
+                        <el-row>
+                            <el-col :span="2">
+                                <el-input v-model="state.keySeparator" placeholder="分割符" size="small" class="ml5" />
+                            </el-col>
+                            <el-col :span="18">
+                                <el-input @clear="clear" v-model="scanParam.match" placeholder="match 支持*模糊key" clearable size="small" class="ml10" />
+                            </el-col>
+                            <el-col :span="4">
+                                <el-button
+                                    class="ml15"
+                                    :disabled="!scanParam.id || !scanParam.db"
+                                    @click="searchKey()"
+                                    type="success"
+                                    icon="search"
+                                    size="small"
+                                    plain
+                                ></el-button>
+                            </el-col>
+                        </el-row>
 
-                    <el-row class="mb5 mt5">
-                        <el-col :span="19">
-                            <el-button class="ml5" :disabled="!scanParam.id || !scanParam.db" @click="scan(true)" type="success" icon="more" size="small" plain
-                                >加载更多</el-button
-                            >
+                        <el-row class="mb5 mt5">
+                            <el-col :span="19">
+                                <el-button
+                                    class="ml5"
+                                    :disabled="!scanParam.id || !scanParam.db"
+                                    @click="scan(true)"
+                                    type="success"
+                                    icon="more"
+                                    size="small"
+                                    plain
+                                    >加载更多</el-button
+                                >
 
-                            <el-button
-                                v-auth="'redis:data:save'"
-                                :disabled="!scanParam.id || !scanParam.db"
-                                @click="showNewKeyDialog"
-                                type="primary"
-                                icon="plus"
-                                size="small"
-                                plain
-                                >新增key</el-button
-                            >
+                                <el-button
+                                    v-auth="'redis:data:save'"
+                                    :disabled="!scanParam.id || !scanParam.db"
+                                    @click="showNewKeyDialog"
+                                    type="primary"
+                                    icon="plus"
+                                    size="small"
+                                    plain
+                                    >新增key</el-button
+                                >
 
-                            <el-button
-                                :disabled="!scanParam.id || !scanParam.db"
-                                @click="flushDb"
-                                type="danger"
-                                plain
-                                v-auth="'redis:data:del'"
-                                size="small"
-                                icon="delete"
-                                >flush</el-button
-                            >
-                        </el-col>
-                        <el-col :span="5">
-                            <span style="display: inline-block" class="mt5">keys:{{ state.dbsize }}</span>
-                        </el-col>
-                    </el-row>
+                                <el-button
+                                    :disabled="!scanParam.id || !scanParam.db"
+                                    @click="flushDb"
+                                    type="danger"
+                                    plain
+                                    v-auth="'redis:data:del'"
+                                    size="small"
+                                    icon="delete"
+                                    >flush</el-button
+                                >
+                            </el-col>
+                            <el-col :span="5">
+                                <span style="display: inline-block" class="mt5">keys:{{ state.dbsize }}</span>
+                            </el-col>
+                        </el-row>
 
-                    <el-scrollbar
-                        :style="{
-                            maxHeight: state.keyTreeHeight,
-                            height: state.keyTreeHeight,
-                            backgroundColor: 'var(--el-fill-color-blank)',
-                            border: '1px solid var(--el-border-color-light, #ebeef5)',
-                        }"
-                    >
                         <el-tree
                             ref="keyTreeRef"
                             :highlight-current="true"
@@ -130,7 +130,7 @@
             </Pane>
 
             <Pane min-size="40">
-                <div class="">
+                <div class="key-detail card pd5">
                     <el-tabs @tab-remove="removeDataTab" v-model="state.activeName">
                         <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                             <key-detail :redisId="scanParam.id" :db="scanParam.db" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />
@@ -178,10 +178,9 @@ import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { keysToTree, sortByTreeNodes, keysToList } from './utils';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
-import { sleep } from '../../../common/utils/loading';
+import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Splitpanes, Pane } from 'splitpanes';
-import { useEventListener } from '@vueuse/core';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
@@ -316,15 +315,7 @@ const state = reactive({
 
 const { scanParam, keyTreeData, newKeyDialog } = toRefs(state);
 
-onMounted(async () => {
-    setHeight();
-    // 监听浏览器窗口大小变化,更新对应组件高度
-    useEventListener(window, 'resize', setHeight);
-});
-
-const setHeight = () => {
-    state.keyTreeHeight = window.innerHeight - 165 + 'px';
-};
+onMounted(async () => {});
 
 const scan = async (appendKey = false) => {
     isTrue(state.scanParam.id != null, '请先选择redis');
@@ -581,24 +572,27 @@ const delKey = (key: string) => {
 </script>
 
 <style lang="scss">
-.key-list-vtree {
-    height: 100%;
-}
+.redis-data-op {
+    .key-list-vtree,
+    .key-detail {
+        height: calc(100vh - 108px);
+    }
 
-.key-list-vtree .folder-label {
-    font-weight: bold;
-}
+    .key-list-vtree .folder-label {
+        font-weight: bold;
+    }
 
-.key-list-vtree .key-label {
-    color: #67c23a;
-}
+    .key-list-vtree .key-label {
+        color: #67c23a;
+    }
 
-.key-list-vtree .key-list-custom-node {
-    width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    /*note the following 2 items should be same value, may not consist with itemSize*/
-    height: 22px;
-    line-height: 22px;
+    .key-list-vtree .key-list-custom-node {
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        /*note the following 2 items should be same value, may not consist with itemSize*/
+        height: 22px;
+        line-height: 22px;
+    }
 }
 </style>

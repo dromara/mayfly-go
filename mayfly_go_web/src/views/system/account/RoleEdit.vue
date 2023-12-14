@@ -1,8 +1,8 @@
 <template>
     <div class="account-dialog">
         <el-dialog :title="account == null ? '' : '分配“' + account.username + '”的角色'" v-model="dialogVisible" :before-close="cancel" :show-close="false">
-            <div class="toolbar">
-                <div style="float: left">
+            <div class="card pd5">
+                <div>
                     <el-input placeholder="请输入角色名" style="width: 150px" v-model="query.name" @clear="clear()" clearable> </el-input>
                     <el-button class="ml5" @click="search" type="success" icon="search"></el-button>
                 </div>
@@ -17,15 +17,17 @@
                     </template>
                 </el-table-column>
             </el-table>
-            <el-pagination
-                @current-change="handlePageChange"
-                style="text-align: center; margin-top: 20px"
-                background
-                layout="prev, pager, next, total, jumper"
-                :total="total"
-                v-model:current-page="query.pageNum"
-                :page-size="query.pageSize"
-            ></el-pagination>
+            <el-row type="flex" justify="end">
+                <el-pagination
+                    @current-change="handlePageChange"
+                    style="text-align: center; margin-top: 20px"
+                    background
+                    layout="prev, pager, next, total, jumper"
+                    :total="total"
+                    v-model:current-page="query.pageNum"
+                    :page-size="query.pageSize"
+                ></el-pagination>
+            </el-row>
 
             <template #footer>
                 <div class="dialog-footer">

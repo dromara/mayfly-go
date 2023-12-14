@@ -21,7 +21,7 @@
                             </el-col>
                             <el-col style="text-align: center" :span="1">:</el-col>
                             <el-col :span="5">
-                                <el-input type="number" v-model.number="form.port" placeholder="请输入端口"></el-input>
+                                <el-input type="number" v-model.number="form.port" placeholder="端口"></el-input>
                             </el-col>
                         </el-form-item>
                         <el-form-item prop="username" label="用户名" required>
@@ -49,7 +49,7 @@
                     <el-tab-pane label="其他配置" name="other">
                         <el-form-item prop="params" label="连接参数">
                             <el-input v-model.trim="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2">
-                                <template #suffix>
+                                <!-- <template #suffix>
                                     <el-link
                                         target="_blank"
                                         href="https://github.com/go-sql-driver/mysql#parameters"
@@ -58,7 +58,7 @@
                                         class="mr5"
                                         >参数参考</el-link
                                     >
-                                </template>
+                                </template> -->
                             </el-input>
                         </el-form-item>
 

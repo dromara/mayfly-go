@@ -47,11 +47,11 @@
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
-                        <el-link @click="submitUpdateFields()" type="success" :underline="false" class="f12">提交</el-link>
+                        <el-link @click="submitUpdateFields()" type="success" :underline="false" class="font12">提交</el-link>
                     </el-tooltip>
                     <el-divider v-if="hasUpdatedFileds" direction="vertical" border-style="dashed" />
                     <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="取消修改" placement="top">
-                        <el-link @click="cancelUpdateFields" type="warning" :underline="false" class="f12">取消</el-link>
+                        <el-link @click="cancelUpdateFields" type="warning" :underline="false" class="font12">取消</el-link>
                     </el-tooltip>
                 </div>
             </el-col>

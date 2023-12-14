@@ -2,7 +2,7 @@
     <div>
         <transition name="el-zoom-in-top">
             <!-- 查询表单 -->
-            <SearchForm v-show="isShowSearch" :items="searchItems" v-model="queryForm_" :search="queryData" :reset="reset" :search-col="searchCol">
+            <SearchForm v-if="isShowSearch" :items="searchItems" v-model="queryForm_" :search="queryData" :reset="reset" :search-col="searchCol">
                 <!-- 遍历父组件传入的 solts 透传给子组件 -->
                 <template v-for="(_, key) in useSlots()" v-slot:[key]>
                     <slot :name="key"></slot>
@@ -10,7 +10,7 @@
             </SearchForm>
         </transition>
 
-        <el-card>
+        <div class="card">
             <div class="table-main">
                 <!-- 表格头部 操作按钮 -->
                 <div class="table-header">
@@ -121,7 +121,7 @@
                     :page-sizes="pageSizes"
                 />
             </el-row>
-        </el-card>
+        </div>
     </div>
 </template>
 

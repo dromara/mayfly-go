@@ -1,44 +1,52 @@
 <template>
-    <div class="menu">
-        <div class="toolbar">
+    <div class="card system-resouce-list">
+        <div class="card pd10 flex-justify-between">
             <div>
-                <span style="font-size: 14px"> <SvgIcon name="info-filled" />红色、橙色字体表示禁用状态 (右击资源进行操作) </span>
+                <el-input v-model="filterResource" clearable placeholder="输入关键字过滤(右击进行操作)" style="width: 220px; margin-right: 10px" />
+                <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)">添加</el-button>
             </div>
-            <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)">添加</el-button>
+
+            <div>
+                <span> <SvgIcon name="info-filled" />红色、橙色字体表示禁用状态 (右击资源进行操作) </span>
+            </div>
         </div>
-        <el-tree
-            class="none-select"
-            :indent="38"
-            node-key="id"
-            :props="props"
-            :data="data"
-            @node-expand="handleNodeExpand"
-            @node-collapse="handleNodeCollapse"
-            @node-contextmenu="nodeContextmenu"
-            @node-click="treeNodeClick"
-            :default-expanded-keys="defaultExpandedKeys"
-            :expand-on-click-node="true"
-            draggable
-            :allow-drop="allowDrop"
-            @node-drop="handleDrop"
-        >
-            <template #default="{ data }">
-                <span class="custom-tree-node">
-                    <span style="font-size: 13px" v-if="data.type === menuTypeValue">
-                        <span style="color: #3c8dbc">【</span>
-                        <span v-if="data.status == 1">{{ data.name }}</span>
-                        <span v-if="data.status == -1" style="color: #e6a23c">{{ data.name }}</span>
-                        <span style="color: #3c8dbc">】</span>
-                        <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
+        <el-scrollbar class="tree-data">
+            <el-tree
+                ref="resourceTreeRef"
+                class="none-select"
+                :indent="38"
+                node-key="id"
+                :props="props"
+                :data="data"
+                @node-expand="handleNodeExpand"
+                @node-collapse="handleNodeCollapse"
+                @node-contextmenu="nodeContextmenu"
+                @node-click="treeNodeClick"
+                :default-expanded-keys="defaultExpandedKeys"
+                :expand-on-click-node="true"
+                draggable
+                :allow-drop="allowDrop"
+                @node-drop="handleDrop"
+                :filter-node-method="filterNode"
+            >
+                <template #default="{ data }">
+                    <span class="custom-tree-node">
+                        <span style="font-size: 13px" v-if="data.type === menuTypeValue">
+                            <span style="color: #3c8dbc">【</span>
+                            <span v-if="data.status == 1">{{ data.name }}</span>
+                            <span v-if="data.status == -1" style="color: #e6a23c">{{ data.name }}</span>
+                            <span style="color: #3c8dbc">】</span>
+                            <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
+                        </span>
+                        <span style="font-size: 13px" v-if="data.type === permissionTypeValue">
+                            <span style="color: #3c8dbc">【</span>
+                            <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">{{ data.name }}</span>
+                            <span style="color: #3c8dbc">】</span>
+                        </span>
                     </span>
-                    <span style="font-size: 13px" v-if="data.type === permissionTypeValue">
-                        <span style="color: #3c8dbc">【</span>
-                        <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">{{ data.name }}</span>
-                        <span style="color: #3c8dbc">】</span>
-                    </span>
-                </span>
-            </template>
-        </el-tree>
+                </template>
+            </el-tree>
+        </el-scrollbar>
 
         <ResourceEdit
             :title="dialogForm.title"
@@ -94,7 +102,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceEdit from './ResourceEdit.vue';
 import { ResourceTypeEnum } from '../enums';
@@ -119,6 +127,8 @@ const props = {
 };
 
 const contextmenuRef = ref();
+const filterResource = ref();
+const resourceTreeRef = ref();
 
 const contextmenuInfo = new ContextmenuItem('info', '详情').withIcon('View').withOnClick((data: any) => info(data));
 
@@ -194,6 +204,17 @@ const { dialogForm, infoDialog, data, defaultExpandedKeys } = toRefs(state);
 onMounted(() => {
     search();
 });
+
+watch(filterResource, (val) => {
+    resourceTreeRef.value!.filter(val);
+});
+
+const filterNode = (value: string, data: any) => {
+    if (!value) {
+        return true;
+    }
+    return data.name.includes(value);
+};
 
 const search = async () => {
     let res = await resourceApi.list.request(null);
@@ -380,10 +401,14 @@ const info = async (data: any) => {
 };
 </script>
 <style lang="scss">
-.menu {
+.system-resouce-list {
     .el-tree-node__content {
         height: 40px;
         line-height: 40px;
+    }
+
+    .tree-data {
+        height: calc(100vh - 200px);
     }
 }
 

@@ -190,6 +190,18 @@ body,
     }
 }
 
+
+.flex-justify-between {
+    display: flex;
+    align-items: center; // 垂直方向水平居中
+    justify-content: space-between;  // 使第一个子元素靠近父容器的起始位置，最后一个子元素靠近终止位置，而其他子元素均匀分布在它们之间
+}
+
+.flex-align-center {
+    display: flex;
+    align-items: center;
+}
+
 /* 宽高 100%
 ------------------------------- */
 .w100 {
@@ -276,6 +288,10 @@ body,
     .pl#{$i} {
         padding-left: #{$i}px !important;
     }
+
+    .pd#{$i} {
+        padding: #{$i}px !important;
+    }
 }
 
 
@@ -335,12 +351,15 @@ body,
     user-select: none;
 }
 
-.toolbar {
-    width: 100%;
-    padding: 4px;
-    overflow: hidden;
-    line-height: 24px;
-    border: 1px solid var(--el-border-color-light, #ebeef5);
+/* custom card */
+.card {
+    box-sizing: border-box;
+    padding: 20px;
+    overflow-x: hidden;
+    background-color: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-light);
+    border-radius: 6px;
+    box-shadow: 0 0 12px rgb(0 0 0 / 5%);
 }
 
 .fl {
@@ -359,10 +378,6 @@ body,
 
 .el-table-z-index-inherit .el-table .el-table__cell {
     z-index: inherit !important;
-}
-
-.f12 {
-    font-size: 12px
 }
 
 .pointer {
@@ -396,6 +411,7 @@ body,
 .default-theme.splitpanes--horizontal>.splitpanes__splitter {
     border-top: 1px solid var(--bg-main-color);
 }
+
 // 竖线样式
 .splitpanes.default-theme .splitpanes__splitter::before,
 .splitpanes.default-theme .splitpanes__splitter::after {

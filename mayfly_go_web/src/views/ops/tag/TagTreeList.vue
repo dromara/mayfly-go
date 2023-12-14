@@ -1,8 +1,10 @@
 <template>
-    <div class="menu">
-        <div class="toolbar">
-            <el-input v-model="filterTag" placeholder="输入关键字过滤(右击进行操作)" style="width: 220px; margin-right: 10px" />
-            <el-button v-auth="'tag:save'" type="primary" icon="plus" @click="showSaveTagDialog(null)">添加</el-button>
+    <div class="tag-tree-list card">
+        <div class="card pd10">
+            <el-input v-model="filterTag" clearable placeholder="输入关键字过滤(右击进行操作)" style="width: 220px; margin-right: 10px" />
+            <el-button v-if="useUserInfo().userInfo.username == 'admin'" v-auth="'tag:save'" type="primary" icon="plus" @click="showSaveTagDialog(null)"
+                >添加</el-button
+            >
             <div style="float: right">
                 <el-tooltip placement="top">
                     <template #content>
@@ -17,33 +19,34 @@
                 </el-tooltip>
             </div>
         </div>
-        <el-tree
-            ref="tagTreeRef"
-            class="none-select"
-            :indent="38"
-            node-key="id"
-            :props="props"
-            :data="data"
-            @node-expand="handleNodeExpand"
-            @node-collapse="handleNodeCollapse"
-            @node-contextmenu="nodeContextmenu"
-            @node-click="treeNodeClick"
-            :default-expanded-keys="defaultExpandedKeys"
-            :expand-on-click-node="true"
-            :filter-node-method="filterNode"
-        >
-            <template #default="{ data }">
-                <span class="custom-tree-node">
-                    <span style="font-size: 13px">
-                        {{ data.code }}
-                        <span style="color: #3c8dbc">【</span>
-                        {{ data.name }}
-                        <span style="color: #3c8dbc">】</span>
-                        <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
+        <el-scrollbar class="tag-tree-data">
+            <el-tree
+                ref="tagTreeRef"
+                class="none-select"
+                node-key="id"
+                :props="props"
+                :data="data"
+                @node-expand="handleNodeExpand"
+                @node-collapse="handleNodeCollapse"
+                @node-contextmenu="nodeContextmenu"
+                @node-click="treeNodeClick"
+                :default-expanded-keys="defaultExpandedKeys"
+                :expand-on-click-node="true"
+                :filter-node-method="filterNode"
+            >
+                <template #default="{ data }">
+                    <span class="custom-tree-node">
+                        <span style="font-size: 13px">
+                            {{ data.code }}
+                            <span style="color: #3c8dbc">【</span>
+                            {{ data.name }}
+                            <span style="color: #3c8dbc">】</span>
+                            <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
+                        </span>
                     </span>
-                </span>
-            </template>
-        </el-tree>
+                </template>
+            </el-tree>
+        </el-scrollbar>
 
         <el-dialog width="500px" :title="saveTabDialog.title" :before-close="cancelSaveTag" v-model="saveTabDialog.visible">
             <el-form ref="tagForm" :rules="rules" :model="saveTabDialog.form" label-width="auto">
@@ -113,6 +116,7 @@ import { TagResourceTypeEnum } from '../../../common/commonEnum';
 import EnumValue from '@/common/Enum';
 import { useRouter } from 'vue-router';
 import { hasPerm } from '@/components/auth/auth';
+import { useUserInfo } from '@/store/userInfo';
 
 interface Tree {
     id: number;
@@ -390,12 +394,14 @@ const removeDeafultExpandId = (id: any) => {
 };
 </script>
 <style lang="scss">
-.menu {
-    height: 100%;
+.tag-tree-list {
+    .tag-tree-data {
+        height: calc(100vh - 200px);
 
-    .el-tree-node__content {
-        height: 40px;
-        line-height: 40px;
+        .el-tree-node__content {
+            height: 40px;
+            line-height: 40px;
+        }
     }
 }
 

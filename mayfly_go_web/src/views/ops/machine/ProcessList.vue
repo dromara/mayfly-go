@@ -1,19 +1,19 @@
 <template>
     <div class="file-manage">
         <el-dialog title="进程信息" v-model="dialogVisible" :destroy-on-close="true" :show-close="true" :before-close="handleClose" width="65%">
-            <div class="toolbar">
+            <div class="card pd5">
                 <el-row>
                     <el-col :span="4">
                         <el-input size="small" placeholder="进程名" v-model="params.name" plain clearable></el-input>
                     </el-col>
                     <el-col :span="4" class="ml5">
-                        <el-select @change="getProcess" size="small" v-model="params.sortType" placeholder="请选择排序类型">
+                        <el-select class="w100" @change="getProcess" size="small" v-model="params.sortType" placeholder="请选择排序类型">
                             <el-option key="cpu" label="cpu降序" value="1"> </el-option>
                             <el-option key="cpu" label="mem降序" value="2"> </el-option>
                         </el-select>
                     </el-col>
                     <el-col :span="4" class="ml5">
-                        <el-select @change="getProcess" size="small" v-model="params.count" placeholder="请选择进程个数">
+                        <el-select class="w100" @change="getProcess" size="small" v-model="params.count" placeholder="请选择进程个数">
                             <el-option key="10" label="10" value="10"> </el-option>
                             <el-option key="15" label="15" value="15"> </el-option>
                             <el-option key="20" label="20" value="20"> </el-option>
