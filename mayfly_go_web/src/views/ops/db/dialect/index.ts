@@ -52,6 +52,29 @@ export interface EditorCompletion {
     variables: EditorCompletionItem[];
 }
 
+// 定义一个数据类型的枚举，包含字符串、数字、日期、时间、日期时间
+export enum DataType {
+    String = 'string',
+    Number = 'number',
+    Date = 'date',
+    Time = 'time',
+    DateTime = 'datetime',
+}
+
+/** 列数据类型角标 */
+export const ColumnTypeSubscript = {
+    /** 字符串 */
+    string: 'abc',
+    /** 数字 */
+    number: '123',
+    /** 日期 */
+    date: 'icon-clock',
+    /** 时间 */
+    time: 'icon-clock',
+    /** 日期时间 */
+    datetime: 'icon-clock',
+};
+
 // 数据库基础信息
 export interface DialectInfo {
     /**
@@ -107,12 +130,6 @@ export interface DbDialect {
     getDefaultIndex(): IndexDefinition;
 
     /**
-     * 根据数据库完整字段类型，获取类型简称。如字符串为abc、数字为123、日期为date等。
-     * @param columnType 数据库原始字段类型
-     */
-    getShortColumnType(columnType: string): string;
-
-    /**
      * 包裹数据库表名、字段名等，避免使用关键字为字段名或表名时报错
      * @param name 名称
      */
@@ -143,6 +160,9 @@ export interface DbDialect {
      * @param changeData  改变数据
      */
     getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string;
+
+    /** 通过数据库字段类型，返回基本数据类型 */
+    getDataType: (columnType: string) => DataType;
 }
 
 let mysqlDialect = new MysqlDialect();

@@ -183,6 +183,35 @@
                         class="w100"
                     />
 
+                    <el-date-picker
+                        v-else-if="dbDialect.getDataType(column.columnType) === DataType.DateTime"
+                        v-model="addDataDialog.data[`${column.columnName}`]"
+                        :placeholder="`${column.columnType}  ${column.columnComment}`"
+                        type="datetime"
+                        class="w100"
+                        :default-value="new Date()"
+                        :default-time="new Date()"
+                        value-format="YYYY-MM-DD HH:mm:ss"
+                    />
+                    <el-date-picker
+                        v-else-if="dbDialect.getDataType(column.columnType) === DataType.Date"
+                        v-model="addDataDialog.data[`${column.columnName}`]"
+                        :placeholder="`${column.columnType}  ${column.columnComment}`"
+                        type="Date"
+                        class="w100"
+                        :default-value="new Date()"
+                        value-format="YYYY-MM-DD"
+                    />
+                    <el-time-picker
+                        v-else-if="dbDialect.getDataType(column.columnType) === DataType.Time"
+                        v-model="addDataDialog.data[`${column.columnName}`]"
+                        :placeholder="`${column.columnType}  ${column.columnComment}`"
+                        type="Date"
+                        class="w100"
+                        :default-value="new Date()"
+                        value-format="HH:mm:ss"
+                    />
+
                     <el-input v-else v-model="addDataDialog.data[`${column.columnName}`]" :placeholder="`${column.columnType}  ${column.columnComment}`" />
                 </el-form-item>
             </el-form>
@@ -203,6 +232,7 @@ import { ElMessage } from 'element-plus';
 
 import { DbInst } from '@/views/ops/db/db';
 import DbTableData from './DbTableData.vue';
+import { DataType, DbDialect, getDbDialect } from '@/views/ops/db/dialect';
 
 const props = defineProps({
     dbId: {
@@ -270,9 +300,10 @@ const state = reactive({
     },
     tableHeight: '600px',
     hasUpdatedFileds: false,
+    dbDialect: {} as DbDialect,
 });
 
-const { datas, condition, loading, columns, pageNum, pageSize, pageSizes, count, hasUpdatedFileds, conditionDialog, addDataDialog } = toRefs(state);
+const { datas, condition, loading, columns, pageNum, pageSize, pageSizes, count, hasUpdatedFileds, conditionDialog, addDataDialog, dbDialect } = toRefs(state);
 
 watch(
     () => props.tableHeight,
@@ -288,13 +319,14 @@ const getNowDbInst = () => {
 onMounted(async () => {
     console.log('in table data mounted');
     state.tableHeight = props.tableHeight;
-
     const columns = await getNowDbInst().loadColumns(props.dbName, props.tableName);
     columns.forEach((x: any) => {
         x.show = true;
     });
     state.columns = columns;
     await onRefresh();
+
+    state.dbDialect = getDbDialect(getNowDbInst().type);
 
     // 点击除选择列按钮外，若存在条件弹窗，则关闭该弹窗
     window.addEventListener('click', handlerWindowClick);

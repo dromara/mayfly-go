@@ -374,15 +374,6 @@ export class DbInst {
     }
 
     /**
-     * 判断字段类型是否为日期相关类型
-     * @param columnType 字段类型
-     * @returns
-     */
-    static isDate(columnType: string) {
-        return columnType.match(/date|time/gi);
-    }
-
-    /**
      *
      * @param str 字符串
      * @param tableData 表数据

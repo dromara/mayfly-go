@@ -1,5 +1,15 @@
 import { DbInst } from '../db';
-import { DbDialect, sqlColumnType, DialectInfo, RowDefinition, IndexDefinition, EditorCompletionItem, commonCustomKeywords, EditorCompletion } from './index';
+import {
+    DbDialect,
+    sqlColumnType,
+    DialectInfo,
+    RowDefinition,
+    IndexDefinition,
+    EditorCompletionItem,
+    commonCustomKeywords,
+    EditorCompletion,
+    DataType,
+} from './index';
 import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/sql/sql.js';
 export { DMDialect, DM_TYPE_LIST };
 
@@ -435,16 +445,6 @@ class DMDialect implements DbDialect {
         return name;
     };
 
-    getShortColumnType(columnType: string): string {
-        if (DbInst.isNumber(columnType)) {
-            return '123';
-        }
-        if (DbInst.isDate(columnType)) {
-            return 'date';
-        }
-        return 'abc';
-    }
-
     matchType(text: string, arr: string[]): boolean {
         if (!text || !arr || arr.length === 0) {
             return false;
@@ -614,5 +614,24 @@ class DMDialect implements DbDialect {
             return sql.join(';');
         }
         return '';
+    }
+
+    getDataType(columnType: string): DataType {
+        if (DbInst.isNumber(columnType)) {
+            return DataType.Number;
+        }
+        // 日期时间类型
+        if (/datetime|timestamp/gi.test(columnType)) {
+            return DataType.DateTime;
+        }
+        // 日期类型
+        if (/date/gi.test(columnType)) {
+            return DataType.Date;
+        }
+        // 时间类型
+        if (/time/gi.test(columnType)) {
+            return DataType.Time;
+        }
+        return DataType.String;
     }
 }
