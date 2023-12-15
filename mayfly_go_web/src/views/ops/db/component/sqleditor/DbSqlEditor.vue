@@ -428,7 +428,7 @@ const saveSql = async () => {
             const input = await ElMessageBox.prompt('请输入SQL脚本名', 'SQL名', {
                 confirmButtonText: '确定',
                 cancelButtonText: '取消',
-                inputPattern: /\.+/,
+                inputPattern: /.+/,
                 inputErrorMessage: '请输入SQL脚本名',
             });
             sqlName = input.value;

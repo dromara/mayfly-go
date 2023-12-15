@@ -169,7 +169,7 @@ const props = withDefaults(defineProps<PageTableProps>(), {
     toolButton: true,
     showSearch: false,
     searchItems: () => [],
-    searchCol: () => ({ xs: 1, sm: 3, md: 3, lg: 4, xl: 4 }),
+    searchCol: () => ({ xs: 1, sm: 3, md: 3, lg: 4, xl: 5 }),
 });
 
 // 接收 columns 并设置为响应式
@@ -243,7 +243,7 @@ onMounted(async () => {
 });
 
 const calcuTableHeight = () => {
-    const headerHeight = isShowSearch.value ? 320 : 240;
+    const headerHeight = isShowSearch.value ? 322 : 242;
     state.tableMaxHeight = window.innerHeight - headerHeight + 'px';
 };
 

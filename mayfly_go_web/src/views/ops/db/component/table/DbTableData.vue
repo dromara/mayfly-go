@@ -35,7 +35,7 @@
                                 <div v-else @contextmenu="headerContextmenuClick($event, column)" style="position: relative">
                                     <div class="column-type">
                                         <span v-if="ColumnTypeSubscript[dbDialect.getDataType(column.columnType)] === 'icon-clock'">
-                                            <SvgIcon :size="8" name="Clock" style="cursor: unset" />
+                                            <SvgIcon :size="10" name="Clock" style="cursor: unset" />
                                         </span>
                                         <span class="font8" v-else>{{ ColumnTypeSubscript[dbDialect.getDataType(column.columnType)] }}</span>
                                     </div>
@@ -83,7 +83,7 @@
                                         v-if="nowUpdateCell.dataType == DataType.Number || nowUpdateCell.dataType == DataType.String"
                                         :ref="(el: any) => el?.focus()"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
-                                        class="w100"
+                                        class="w100 mb4"
                                         input-style="text-align: center; height: 26px;"
                                         size="small"
                                         v-model="rowData[column.dataKey!]"
@@ -92,7 +92,7 @@
                                         v-if="nowUpdateCell.dataType == DataType.Date"
                                         :ref="(el: any) => el?.focus()"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
-                                        class="edit-time-picker"
+                                        class="edit-time-picker mb4"
                                         size="small"
                                         v-model="rowData[column.dataKey!]"
                                         :clearable="false"
@@ -104,7 +104,7 @@
                                         v-if="nowUpdateCell.dataType == DataType.DateTime"
                                         :ref="(el: any) => el?.focus()"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
-                                        class="edit-time-picker"
+                                        class="edit-time-picker mb4"
                                         size="small"
                                         v-model="rowData[column.dataKey!]"
                                         :clearable="false"
@@ -116,7 +116,7 @@
                                         v-if="nowUpdateCell.dataType == DataType.Time"
                                         :ref="(el: any) => el?.focus()"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
-                                        class="edit-time-picker"
+                                        class="edit-time-picker mb4"
                                         size="small"
                                         v-model="rowData[column.dataKey!]"
                                         :clearable="false"

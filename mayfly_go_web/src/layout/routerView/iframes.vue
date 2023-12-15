@@ -1,5 +1,5 @@
 <template>
-    <div class="layout-scrollbar">
+    <div>
         <div class="layout-view-bg-white flex h100" v-loading="iframeLoading">
             <iframe :src="iframeUrl" frameborder="0" height="100%" width="100%" id="iframe" v-show="!iframeLoading"></iframe>
         </div>

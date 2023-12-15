@@ -40,8 +40,8 @@ body,
     -webkit-tap-highlight-color: transparent;
     background-color: var(--bg-main-color);
     font-size: 14px;
-    overflow: hidden;
-    position: relative;
+    // overflow: hidden;
+    // position: relative;
 }
 
 /* 主布局样式
@@ -70,8 +70,9 @@ body,
     }
 
     .layout-main {
-        padding: 0 !important;
-        overflow: hidden;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        overflow-x: hidden;
         width: 100%;
         background-color: var(--bg-main-color);
     }
@@ -107,11 +108,6 @@ body,
         transition: width 0.3s ease;
     }
 
-    .layout-scrollbar {
-        @extend .el-scrollbar;
-        padding: 10px;
-    }
-
     .layout-mian-height-50 {
         height: calc(100vh - 50px);
     }
@@ -124,6 +120,11 @@ body,
 
     .layout-hide {
         display: none;
+    }
+
+    .el-footer {
+        height: auto;
+        padding: 0;
     }
 }
 
@@ -190,16 +191,21 @@ body,
     }
 }
 
-
 .flex-justify-between {
     display: flex;
     align-items: center; // 垂直方向水平居中
-    justify-content: space-between;  // 使第一个子元素靠近父容器的起始位置，最后一个子元素靠近终止位置，而其他子元素均匀分布在它们之间
+    justify-content: space-between; // 使第一个子元素靠近父容器的起始位置，最后一个子元素靠近终止位置，而其他子元素均匀分布在它们之间
+}
+
+.flex-all-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .flex-align-center {
     display: flex;
-    align-items: center;
+    align-items: center; // 垂直方向水平居中
 }
 
 /* 宽高 100%
@@ -360,6 +366,14 @@ body,
     border: 1px solid var(--el-border-color-light);
     border-radius: 6px;
     box-shadow: 0 0 12px rgb(0 0 0 / 5%);
+}
+
+/* content-box (常用内容盒子) */
+.content-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
 }
 
 .fl {

@@ -1,5 +1,5 @@
 <template>
-    <div class="layout-scrollbar">
+    <div>
         <div class="layout-view-bg-white flex layout-view-link">
             <a :href="currentRouteMeta.link" target="_blank" class="flex-margin">{{ currentRouteMeta.title }}：{{ currentRouteMeta.link }}</a>
         </div>
