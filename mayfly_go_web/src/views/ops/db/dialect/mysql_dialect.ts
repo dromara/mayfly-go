@@ -1,5 +1,5 @@
 import { DbInst } from '../db';
-import { commonCustomKeywords, DbDialect, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, RowDefinition } from './index';
+import { commonCustomKeywords, DataType, DbDialect, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, RowDefinition } from './index';
 import { language as mysqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
 
 export { MYSQL_TYPE_LIST, MysqlDialect };
@@ -179,16 +179,6 @@ class MysqlDialect implements DbDialect {
         };
     }
 
-    getShortColumnType(columnType: string): string {
-        if (DbInst.isNumber(columnType)) {
-            return '123';
-        }
-        if (DbInst.isDate(columnType)) {
-            return 'date';
-        }
-        return 'abc';
-    }
-
     wrapName = (name: string) => {
         return `\`${name}\``;
     };
@@ -313,5 +303,24 @@ class MysqlDialect implements DbDialect {
             return sql;
         }
         return '';
+    }
+
+    getDataType(columnType: string): DataType {
+        if (DbInst.isNumber(columnType)) {
+            return DataType.Number;
+        }
+        // 日期时间类型
+        if (/datetime|timestamp/gi.test(columnType)) {
+            return DataType.DateTime;
+        }
+        // 日期类型
+        if (/date/gi.test(columnType)) {
+            return DataType.Date;
+        }
+        // 时间类型
+        if (/time/gi.test(columnType)) {
+            return DataType.Time;
+        }
+        return DataType.String;
     }
 }

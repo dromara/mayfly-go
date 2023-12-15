@@ -34,7 +34,10 @@
                                 <!-- 字段名列 -->
                                 <div v-else @contextmenu="headerContextmenuClick($event, column)" style="position: relative">
                                     <div class="column-type">
-                                        <span class="font8">{{ dbDialect.getShortColumnType(column.columnType) }}</span>
+                                        <span v-if="ColumnTypeSubscript[dbDialect.getDataType(column.columnType)] === 'icon-clock'">
+                                            <SvgIcon :size="8" name="Clock" style="cursor: unset" />
+                                        </span>
+                                        <span class="font8" v-else>{{ ColumnTypeSubscript[dbDialect.getDataType(column.columnType)] }}</span>
                                     </div>
 
                                     <div v-if="showColumnTip" @mouseover="column.showSetting = true" @mouseleave="column.showSetting = false">
@@ -77,13 +80,49 @@
                             <div v-else @dblclick="onEnterEditMode(rowData, column, rowIndex, columnIndex)">
                                 <div v-if="canEdit(rowIndex, columnIndex)">
                                     <el-input
+                                        v-if="nowUpdateCell.dataType == DataType.Number || nowUpdateCell.dataType == DataType.String"
                                         :ref="(el: any) => el?.focus()"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
                                         class="w100"
                                         input-style="text-align: center; height: 26px;"
                                         size="small"
                                         v-model="rowData[column.dataKey!]"
-                                    ></el-input>
+                                    />
+                                    <el-date-picker
+                                        v-if="nowUpdateCell.dataType == DataType.Date"
+                                        :ref="(el: any) => el?.focus()"
+                                        @blur="onExitEditMode(rowData, column, rowIndex)"
+                                        class="edit-time-picker"
+                                        size="small"
+                                        v-model="rowData[column.dataKey!]"
+                                        :clearable="false"
+                                        type="Date"
+                                        value-format="YYYY-MM-DD"
+                                        placeholder="选择日期"
+                                    />
+                                    <el-date-picker
+                                        v-if="nowUpdateCell.dataType == DataType.DateTime"
+                                        :ref="(el: any) => el?.focus()"
+                                        @blur="onExitEditMode(rowData, column, rowIndex)"
+                                        class="edit-time-picker"
+                                        size="small"
+                                        v-model="rowData[column.dataKey!]"
+                                        :clearable="false"
+                                        type="datetime"
+                                        value-format="YYYY-MM-DD HH:mm:ss"
+                                        placeholder="选择日期时间"
+                                    />
+                                    <el-time-picker
+                                        v-if="nowUpdateCell.dataType == DataType.Time"
+                                        :ref="(el: any) => el?.focus()"
+                                        @blur="onExitEditMode(rowData, column, rowIndex)"
+                                        class="edit-time-picker"
+                                        size="small"
+                                        v-model="rowData[column.dataKey!]"
+                                        :clearable="false"
+                                        value-format="HH:mm:ss"
+                                        placeholder="选择时间"
+                                    />
                                 </div>
 
                                 <div v-else :class="isUpdated(rowIndex, column.dataKey) ? 'update_field_active' : ''">
@@ -143,7 +182,7 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
 import { useIntervalFn } from '@vueuse/core';
-import { getDbDialect, DbDialect } from '../../dialect/index';
+import { getDbDialect, DbDialect, ColumnTypeSubscript, DataType, DbType } from '../../dialect/index';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
@@ -151,10 +190,6 @@ const props = defineProps({
     dbId: {
         type: Number,
         required: true,
-    },
-    dbType: {
-        type: String,
-        default: '',
     },
     db: {
         type: String,
@@ -256,6 +291,7 @@ const cmDataExportSql = new ContextmenuItem('exportSql', '导出SQL')
 class NowUpdateCell {
     rowIndex: number;
     colIndex: number;
+    dataType: DataType;
     oldValue: any;
 }
 
@@ -399,7 +435,7 @@ onMounted(async () => {
     state.emptyText = props.emptyText;
 
     state.dbId = props.dbId;
-    state.dbType = props.dbType;
+    state.dbType = getNowDbInst().type;
     dbDialect = getDbDialect(state.dbType);
 
     state.db = props.db;
@@ -415,10 +451,24 @@ onBeforeUnmount(() => {
     endLoading();
 });
 
+const formatDataValues = (datas: any) => {
+    // mysql数据暂不做处理
+    if (DbType.mysql === getNowDbInst().type) {
+        return;
+    }
+
+    for (let data of datas) {
+        for (let column of props.columns!) {
+            data[column.columnName] = getFormatTimeValue(dbDialect.getDataType(column.columnType), data[column.columnName]);
+        }
+    }
+};
+
 const setTableData = (datas: any) => {
     tableRef.value.scrollTo({ scrollLeft: 0, scrollTop: 0 });
     selectionRowsMap.clear();
     cellUpdateMap.clear();
+    formatDataValues(datas);
     state.datas = datas;
     setTableColumns(props.columns);
 };
@@ -629,6 +679,7 @@ const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 
         rowIndex: rowIndex,
         colIndex: columnIndex,
         oldValue: rowData[column.dataKey],
+        dataType: dbDialect.getDataType(column.columnType),
     };
 };
 
@@ -745,6 +796,28 @@ const rowClass = (row: any) => {
     return '';
 };
 
+/**
+ * 根据数据库返回的时间字段类型，获取格式化后的时间值
+ * @param dataType getDataType返回的数据类型
+ * @param originValue 原始值
+ * @return 格式化后的值
+ */
+const getFormatTimeValue = (dataType: DataType, originValue: string): string => {
+    if (!originValue || dataType === DataType.Number || dataType === DataType.String) {
+        return originValue;
+    }
+    switch (dataType) {
+        case DataType.Time:
+            return dateStrFormat('HH:mm:ss', originValue);
+        case DataType.Date:
+            return dateStrFormat('yyyy-MM-dd', originValue);
+        case DataType.DateTime:
+            return dateStrFormat('yyyy-MM-dd HH:mm:ss', originValue);
+        default:
+            return originValue;
+    }
+};
+
 const getColumnTip = (column: any) => {
     const comment = column.columnComment;
     return `${column.columnType} ${comment ? ' |  ' + comment : ''}`;
@@ -811,6 +884,16 @@ defineExpose({
         top: -12px;
         padding: 2px;
         height: 12px;
+    }
+    .edit-time-picker {
+        height: 26px;
+        width: 100%;
+        .el-input__prefix {
+            display: none;
+        }
+        .el-input__inner {
+            text-align: center;
+        }
     }
 }
 </style>
