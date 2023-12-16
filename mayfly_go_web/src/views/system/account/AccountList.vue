@@ -96,7 +96,7 @@ const perms = {
     changeAccountStatus: 'account:changeStatus',
 };
 
-const searchItems = [SearchItem.text('username', '用户名')];
+const searchItems = [SearchItem.input('username', '用户名')];
 const columns = [
     TableColumn.new('name', '姓名'),
     TableColumn.new('username', '用户名'),

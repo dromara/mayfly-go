@@ -79,7 +79,7 @@ const perms = {
     delInstance: 'db:instance:del',
 };
 
-const searchItems = [SearchItem.text('name', '名称')];
+const searchItems = [SearchItem.input('name', '名称')];
 
 const columns = ref([
     TableColumn.new('name', '名称'),

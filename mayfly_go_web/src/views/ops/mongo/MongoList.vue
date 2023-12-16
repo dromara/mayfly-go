@@ -10,12 +10,6 @@
             v-model:selection-data="selectionData"
             :columns="columns"
         >
-            <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable>
-                    <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
-                </el-select>
-            </template>
-
             <template #tableHeader>
                 <el-button type="primary" icon="plus" @click="editMongo(true)" plain>添加</el-button>
                 <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteMongo" plain>删除 </el-button>
@@ -55,9 +49,8 @@ import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { tagApi } from '../tag/api';
 import { useRoute } from 'vue-router';
-import { SearchItem } from '@/components/SearchForm';
+import { getTagPathSearchItem } from '../component/tag';
 
 const MongoEdit = defineAsyncComponent(() => import('./MongoEdit.vue'));
 const MongoDbs = defineAsyncComponent(() => import('./MongoDbs.vue'));
@@ -66,7 +59,8 @@ const MongoRunCommand = defineAsyncComponent(() => import('./MongoRunCommand.vue
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
-const searchItems = [SearchItem.slot('tagPath', '标签', 'tagPathSelect')];
+const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Mongo.value)];
+
 const columns = [
     TableColumn.new('name', '名称'),
     TableColumn.new('uri', '连接uri'),
@@ -77,7 +71,6 @@ const columns = [
 ];
 
 const state = reactive({
-    tags: [],
     dbOps: {
         dbId: 0,
         db: '',
@@ -97,7 +90,7 @@ const state = reactive({
     usersVisible: false,
 });
 
-const { tags, selectionData, query, mongoEditDialog, dbsVisible, usersVisible } = toRefs(state);
+const { selectionData, query, mongoEditDialog, dbsVisible, usersVisible } = toRefs(state);
 
 onMounted(async () => {});
 
@@ -135,10 +128,6 @@ const deleteMongo = async () => {
 
 const search = async () => {
     pageTableRef.value.search();
-};
-
-const getTags = async () => {
-    state.tags = await tagApi.getResourceTagPaths.request({ resourceType: TagResourceTypeEnum.Mongo.value });
 };
 
 const editMongo = async (data: any) => {

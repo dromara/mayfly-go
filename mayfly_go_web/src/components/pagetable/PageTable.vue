@@ -2,7 +2,7 @@
     <div>
         <transition name="el-zoom-in-top">
             <!-- 查询表单 -->
-            <SearchForm v-if="isShowSearch" :items="searchItems" v-model="queryForm_" :search="queryData" :reset="reset" :search-col="searchCol">
+            <SearchForm v-if="isShowSearch" :items="tableSearchItems" v-model="queryForm_" :search="queryData" :reset="reset" :search-col="searchCol">
                 <!-- 遍历父组件传入的 solts 透传给子组件 -->
                 <template v-for="(_, key) in useSlots()" v-slot:[key]>
                     <slot :name="key"></slot>
@@ -20,24 +20,63 @@
 
                     <div v-if="toolButton" class="header-button-ri">
                         <slot name="toolButton">
-                            <el-button v-if="showToolButton('refresh')" icon="Refresh" circle @click="execQuery()" />
+                            <div class="tool-button">
+                                <!-- 简易单个搜索项 -->
+                                <div v-if="nowSearchItem" class="simple-search-form">
+                                    <el-dropdown v-if="searchItems?.length > 1">
+                                        <SvgIcon :size="16" name="ArrowDown" class="mr5 mt7" />
+                                        <template #dropdown>
+                                            <el-dropdown-menu>
+                                                <el-dropdown-item
+                                                    v-for="searchItem in searchItems"
+                                                    :key="searchItem.prop"
+                                                    @click="changeSimpleFormItem(searchItem)"
+                                                >
+                                                    {{ searchItem.label }}
+                                                </el-dropdown-item>
+                                            </el-dropdown-menu>
+                                        </template>
+                                    </el-dropdown>
 
-                            <el-button v-if="showToolButton('search') && searchItems?.length" icon="Search" circle @click="isShowSearch = !isShowSearch" />
+                                    <div class="simple-search-form-label mt5">
+                                        <el-text truncated tag="b">{{ `${nowSearchItem?.label} : ` }}</el-text>
+                                    </div>
 
-                            <el-popover
-                                placement="bottom"
-                                title="表格配置"
-                                popper-style="max-height: 550px; overflow: auto; max-width: 450px"
-                                width="auto"
-                                trigger="click"
-                            >
-                                <div v-for="(item, index) in tableColumns" :key="index">
-                                    <el-checkbox v-model="item.show" :label="item.label" :true-label="true" :false-label="false" />
+                                    <el-form-item style="width: 200px" :key="nowSearchItem.prop">
+                                        <SearchFormItem v-if="!nowSearchItem.slot" :item="nowSearchItem" v-model="queryForm_[nowSearchItem.prop]" />
+
+                                        <slot v-else :name="nowSearchItem.slot"></slot>
+                                    </el-form-item>
                                 </div>
-                                <template #reference>
-                                    <el-button icon="Operation" circle :size="props.size"></el-button>
-                                </template>
-                            </el-popover>
+
+                                <div>
+                                    <el-button v-if="showToolButton('search') && searchItems?.length" icon="Search" circle @click="queryData" />
+
+                                    <!-- <el-button v-if="showToolButton('refresh')" icon="Refresh" circle @click="execQuery()" /> -->
+
+                                    <el-button
+                                        v-if="showToolButton('search') && searchItems?.length > 1"
+                                        :icon="isShowSearch ? 'ArrowDown' : 'ArrowUp'"
+                                        circle
+                                        @click="isShowSearch = !isShowSearch"
+                                    />
+
+                                    <el-popover
+                                        placement="bottom"
+                                        title="表格配置"
+                                        popper-style="max-height: 550px; overflow: auto; max-width: 450px"
+                                        width="auto"
+                                        trigger="click"
+                                    >
+                                        <div v-for="(item, index) in tableColumns" :key="index">
+                                            <el-checkbox v-model="item.show" :label="item.label" :true-label="true" :false-label="false" />
+                                        </div>
+                                        <template #reference>
+                                            <el-button icon="Operation" circle :size="props.size"></el-button>
+                                        </template>
+                                    </el-popover>
+                                </div>
+                            </div>
                         </slot>
                     </div>
                 </div>
@@ -135,6 +174,8 @@ import { useVModel, useEventListener } from '@vueuse/core';
 import Api from '@/common/Api';
 import SearchForm from '@/components/SearchForm/index.vue';
 import { SearchItem } from '../SearchForm/index';
+import SearchFormItem from '../SearchForm/components/SearchFormItem.vue';
+import SvgIcon from '@/components/svgIcon/index.vue';
 
 const emit = defineEmits(['update:queryForm', 'update:selectionData', 'pageChange']);
 
@@ -151,7 +192,7 @@ export interface PageTableProps {
     searchItems?: SearchItem[];
     queryForm?: any; // 查询表单参数 ==> 非必传（默认为{pageNum:1, pageSize: 10}）
     border?: boolean; // 是否带有纵向边框 ==> 非必传（默认为false）
-    toolButton?: ('refresh' | 'setting' | 'search')[] | boolean; // 是否显示表格功能按钮 ==> 非必传（默认为true）
+    toolButton?: ('setting' | 'search')[] | boolean; // 是否显示表格功能按钮 ==> 非必传（默认为true）
     searchCol?: any; // 表格搜索项 每列占比配置 ==> 非必传 { xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }
 }
 
@@ -160,7 +201,6 @@ const props = withDefaults(defineProps<PageTableProps>(), {
     columns: () => [],
     showSelection: false,
     lazy: false,
-    initParam: {},
     queryForm: {
         pageNum: 1,
         pageSize: 0,
@@ -175,30 +215,42 @@ const props = withDefaults(defineProps<PageTableProps>(), {
 // 接收 columns 并设置为响应式
 const tableColumns = reactive<TableColumn[]>(props.columns);
 
-const { themeConfig } = storeToRefs(useThemeConfig());
+// 接收 searchItems 并设置为响应式
+const tableSearchItems = reactive<SearchItem[]>(props.searchItems);
 
-const state = reactive({
-    pageSizes: [] as any, // 可选每页显示的数据量
-    isOpenMoreQuery: false,
-    defaultQueryCount: 2, // 默认显示的查询参数个数，展开后每行显示查询条件个数为该值加1。第一行用最后一列来占用按钮
-    loading: false,
-    data: [],
-    total: 0,
-    // 输入框宽度
-    inputWidth_: '200px' as any,
-    formatVal: '', // 格式化后的值
-    tableMaxHeight: '500px',
-});
+const { themeConfig } = storeToRefs(useThemeConfig());
 
 // 是否显示搜索模块
 const isShowSearch = ref(props.showSearch);
 
 // 控制 ToolButton 显示
-const showToolButton = (key: 'refresh' | 'setting' | 'search') => {
+const showToolButton = (key: 'setting' | 'search') => {
     return Array.isArray(props.toolButton) ? props.toolButton.includes(key) : props.toolButton;
 };
 
+const state = reactive({
+    pageSizes: [] as any, // 可选每页显示的数据量
+    loading: false,
+    data: [],
+    total: 0,
+    // 输入框宽度
+    formatVal: '', // 格式化后的值
+    tableMaxHeight: '500px',
+});
+
 const { pageSizes, formatVal, tableMaxHeight } = toRefs(state);
+
+const nowSearchItem: Ref<SearchItem> = ref(null) as any;
+
+/**
+ * 改变当前的搜索项
+ * @param searchItem 当前点击的搜索项
+ */
+const changeSimpleFormItem = (searchItem: SearchItem) => {
+    // 将之前的值置为空，避免因为只显示一个搜索项却搜索多个条件
+    queryForm_.value[nowSearchItem.value.prop] = null;
+    nowSearchItem.value = searchItem;
+};
 
 const queryForm_: Ref<any> = useVModel(props, 'queryForm', emit);
 
@@ -223,6 +275,10 @@ onMounted(async () => {
     calcuTableHeight();
     useEventListener(window, 'resize', calcuTableHeight);
 
+    if (props.searchItems.length > 0) {
+        nowSearchItem.value = props.searchItems[0];
+    }
+
     let pageSize = queryForm_.value.pageSize;
     // 如果pageSize设为0，则使用系统全局配置的pageSize
     if (!pageSize) {
@@ -243,7 +299,7 @@ onMounted(async () => {
 });
 
 const calcuTableHeight = () => {
-    const headerHeight = isShowSearch.value ? 322 : 242;
+    const headerHeight = isShowSearch.value ? 325 : 245;
     state.tableMaxHeight = window.innerHeight - headerHeight + 'px';
 };
 
@@ -340,6 +396,26 @@ defineExpose({
 
         .header-button-ri {
             float: right;
+
+            .tool-button {
+                display: flex;
+                justify-content: space-between;
+            }
+
+            .simple-search-form {
+                margin-right: 10px;
+                display: flex;
+                justify-content: space-between;
+
+                ::v-deep(.el-form-item__content > *) {
+                    width: 100% !important;
+                }
+
+                .simple-search-form-label {
+                    text-align: right;
+                    margin-right: 5px;
+                }
+            }
         }
 
         .el-button {
@@ -402,9 +478,9 @@ defineExpose({
             border-radius: 50%;
         }
     }
-}
 
-::v-deep(.el-form-item__label) {
-    font-weight: bold;
+    ::v-deep(.el-form-item__label) {
+        font-weight: bold;
+    }
 }
 </style>

@@ -147,7 +147,7 @@ const tagTreeRef: any = ref(null);
 const pageTableRef: Ref<any> = ref(null);
 const showMemPageTableRef: Ref<any> = ref(null);
 
-const searchItems = [SearchItem.text('name', '团队名称')];
+const searchItems = [SearchItem.input('name', '团队名称')];
 const columns = [
     TableColumn.new('name', '团队名称'),
     TableColumn.new('remark', '备注'),
@@ -170,7 +170,7 @@ const state = reactive({
     },
     selectionData: [],
     showMemDialog: {
-        searchItems: [SearchItem.text('username', '用户名').withSpan(2)],
+        searchItems: [SearchItem.input('username', '用户名').withSpan(2)],
         columns: [
             TableColumn.new('name', '姓名'),
             TableColumn.new('username', '账号'),

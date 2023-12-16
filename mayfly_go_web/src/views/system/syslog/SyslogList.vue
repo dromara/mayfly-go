@@ -21,7 +21,7 @@ import { SearchItem } from '@/components/SearchForm';
 const searchItems = [
     SearchItem.slot('creatorId', '操作人', 'selectAccount'),
     SearchItem.select('type', '操作结果').withEnum(LogTypeEnum),
-    SearchItem.text('description', '描述'),
+    SearchItem.input('description', '描述'),
 ];
 
 const columns = [
@@ -47,6 +47,9 @@ const state = reactive({
 const { query, accounts } = toRefs(state);
 
 const getAccount = (username: any) => {
+    if (!username) {
+        return;
+    }
     accountApi.list.request({ username }).then((res) => {
         state.accounts = res.list;
     });

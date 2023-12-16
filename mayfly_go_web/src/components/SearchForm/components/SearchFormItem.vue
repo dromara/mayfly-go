@@ -2,6 +2,7 @@
     <component
         :is="item?.render ?? `el-${item.type}`"
         v-bind="{ ...handleSearchProps, ...placeholder, clearable: true }"
+        v-on="{ ...handleEvents }"
         v-model.trim="itemValue"
         :data="item.type === 'tree-select' ? item.options : []"
         :options="['cascader', 'select-v2'].includes(item.type!) ? item.options : []"
@@ -48,19 +49,6 @@ const fieldNames = computed(() => {
     };
 });
 
-// 接收 enumMap (el 为 select-v2 需单独处理 enumData)
-// const enumMap = inject('enumMap', ref(new Map()));
-// const columnEnum = computed(() => {
-//     let enumData = enumMap.value.get(props.item.prop);
-//     if (!enumData) return [];
-//     if (props.item?.type === 'select-v2' && props.item.fieldNames) {
-//         enumData = enumData.map((item: { [key: string]: any }) => {
-//             return { ...item, label: item[fieldNames.value.label], value: item[fieldNames.value.value] };
-//         });
-//     }
-//     return enumData;
-// });
-
 // 处理透传的 searchProps (type 为 tree-select、cascader 的时候需要给下默认 label && value && children)
 const handleSearchProps = computed(() => {
     const label = fieldNames.value.label;
@@ -75,6 +63,12 @@ const handleSearchProps = computed(() => {
         searchProps = { ...searchProps, props: { ...searchProps.props, label, value, children } };
     }
     return searchProps;
+});
+
+// 处理透传的 事件
+const handleEvents = computed(() => {
+    let itemEvents = props.item?.props ?? {};
+    return itemEvents;
 });
 
 // 处理默认 placeholder

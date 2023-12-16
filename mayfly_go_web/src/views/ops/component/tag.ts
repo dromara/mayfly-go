@@ -1,4 +1,6 @@
+import { OptionsApi, SearchItem } from '@/components/SearchForm';
 import { ContextmenuItem } from '@/components/contextmenu';
+import { tagApi } from '../tag/api';
 
 export class TagTreeNode {
     /**
@@ -114,4 +116,22 @@ export class NodeType {
         this.contextMenuItems = contextMenuItems;
         return this;
     }
+}
+
+/**
+ * 获取标签搜索项配置
+ * @param resourceType 资源类型
+ * @returns
+ */
+export function getTagPathSearchItem(resourceType: number) {
+    return SearchItem.select('tagPath', '标签').withOptionsApi(
+        OptionsApi.new(tagApi.getResourceTagPaths, { resourceType }).withConvertFn((res: any) => {
+            return res.map((x: any) => {
+                return {
+                    label: x,
+                    value: x,
+                };
+            });
+        })
+    );
 }

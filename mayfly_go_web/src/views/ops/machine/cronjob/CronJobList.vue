@@ -50,7 +50,7 @@ const perms = {
     delCronJob: 'machine:cronjob:del',
 };
 
-const searchItems = [SearchItem.text('name', '名称'), SearchItem.select('status', '状态').withEnum(CronJobStatusEnum)];
+const searchItems = [SearchItem.input('name', '名称'), SearchItem.select('status', '状态').withEnum(CronJobStatusEnum)];
 
 const columns = ref([
     TableColumn.new('key', 'key'),

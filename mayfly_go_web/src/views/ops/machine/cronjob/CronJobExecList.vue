@@ -56,10 +56,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:visible', 'update:data', 'cancel']);
 
-const searchItems = [
-    SearchItem.slot('machineId', '机器', 'machineSelect'),
-    SearchItem.select('status', '状态').setOptions(Object.values(CronJobExecStatusEnum)),
-];
+const searchItems = [SearchItem.slot('machineId', '机器', 'machineSelect'), SearchItem.select('status', '状态').withEnum(CronJobExecStatusEnum)];
 
 const columns = ref([
     TableColumn.new('machineIp', '机器IP').setMinWidth(120),

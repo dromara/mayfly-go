@@ -40,7 +40,7 @@ const state = reactive({
         pageSize: 0,
         name: null,
     },
-    searchItems: [SearchItem.text('name', '凭证名称')],
+    searchItems: [SearchItem.input('name', '凭证名称')],
     columns: [
         TableColumn.new('name', '名称'),
         TableColumn.new('authMethod', '认证方式').typeTag(AuthMethodEnum),

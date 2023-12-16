@@ -91,6 +91,7 @@
                                     <el-date-picker
                                         v-if="nowUpdateCell.dataType == DataType.Date"
                                         :ref="(el: any) => el?.focus()"
+                                        @change="onExitEditMode(rowData, column, rowIndex)"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
                                         class="edit-time-picker mb4"
                                         size="small"
@@ -103,18 +104,22 @@
                                     <el-date-picker
                                         v-if="nowUpdateCell.dataType == DataType.DateTime"
                                         :ref="(el: any) => el?.focus()"
+                                        @change="onExitEditMode(rowData, column, rowIndex)"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
                                         class="edit-time-picker mb4"
                                         size="small"
+                                        :key="rowIndex"
                                         v-model="rowData[column.dataKey!]"
                                         :clearable="false"
                                         type="datetime"
                                         value-format="YYYY-MM-DD HH:mm:ss"
                                         placeholder="选择日期时间"
+                                        :teleported="false"
                                     />
                                     <el-time-picker
                                         v-if="nowUpdateCell.dataType == DataType.Time"
                                         :ref="(el: any) => el?.focus()"
+                                        @change="onExitEditMode(rowData, column, rowIndex)"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
                                         class="edit-time-picker mb4"
                                         size="small"

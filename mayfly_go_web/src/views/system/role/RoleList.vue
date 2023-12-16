@@ -55,7 +55,7 @@ const perms = {
     saveRoleResource: 'role:saveResources',
 };
 
-const searchItems = [SearchItem.text('name', '角色名')];
+const searchItems = [SearchItem.input('name', '角色名')];
 const columns = ref([
     TableColumn.new('name', '角色名称'),
     TableColumn.new('code', '角色code'),

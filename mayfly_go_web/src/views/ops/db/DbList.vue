@@ -10,12 +10,6 @@
             v-model:selection-data="state.selectionData"
             :columns="columns"
         >
-            <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" filterable clearable>
-                    <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
-                </el-select>
-            </template>
-
             <template #instanceSelect>
                 <el-select remote :remote-method="getInstances" v-model="query.instanceId" placeholder="输入并选择实例" filterable clearable>
                     <el-option v-for="item in state.instances" :key="item.id" :label="`${item.name}`" :value="item.id">
@@ -166,10 +160,10 @@ import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import DbSqlExecLog from './DbSqlExecLog.vue';
 import { DbType } from './dialect';
-import { tagApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
 import { getDbDialect } from './dialect/index';
+import { getTagPathSearchItem } from '../component/tag';
 import { SearchItem } from '@/components/SearchForm';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
@@ -180,7 +174,7 @@ const perms = {
     delDb: 'db:del',
 };
 
-const searchItems = [SearchItem.slot('tagPath', '标签', 'tagPathSelect'), SearchItem.slot('instanceId', '实例', 'instanceSelect')];
+const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Db.value), SearchItem.slot('instanceId', '实例', 'instanceSelect')];
 
 const columns = ref([
     TableColumn.new('instanceName', '实例名'),
@@ -202,7 +196,6 @@ const state = reactive({
     row: {} as any,
     dbId: 0,
     db: '',
-    tags: [],
     instances: [] as any,
     /**
      * 选中的数据
@@ -253,7 +246,7 @@ const state = reactive({
     },
 });
 
-const { db, tags, selectionData, query, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog } = toRefs(state);
+const { db, selectionData, query, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog } = toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
@@ -284,10 +277,6 @@ const onBeforeCloseInfoDialog = () => {
     state.infoDialog.visible = false;
     state.infoDialog.data = null;
     state.infoDialog.instance = null;
-};
-
-const getTags = async () => {
-    state.tags = await tagApi.getResourceTagPaths.request({ resourceType: TagResourceTypeEnum.Db.value });
 };
 
 const getInstances = async (instanceName = '') => {

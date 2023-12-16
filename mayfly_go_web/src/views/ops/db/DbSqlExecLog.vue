@@ -56,7 +56,7 @@ const props = defineProps({
 
 const searchItems = [
     SearchItem.slot('db', '数据库', 'dbSelect'),
-    SearchItem.text('table', '表名'),
+    SearchItem.input('table', '表名'),
     SearchItem.select('type', '操作类型').withEnum(DbSqlExecTypeEnum),
 ];
 

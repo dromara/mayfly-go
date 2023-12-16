@@ -10,12 +10,6 @@
             v-model:selection-data="state.selectionData"
             :columns="columns"
         >
-            <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" @clear="search" filterable clearable>
-                    <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
-                </el-select>
-            </template>
-
             <template #tableHeader>
                 <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加 </el-button>
                 <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()" type="danger" icon="delete">删除</el-button>
@@ -193,9 +187,9 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { formatByteSize } from '@/common/utils/format';
-import { tagApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { SearchItem } from '@/components/SearchForm';
+import { getTagPathSearchItem } from '../component/tag';
 
 // 组件
 const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
@@ -219,7 +213,7 @@ const perms = {
     closeCli: 'machine:close-cli',
 };
 
-const searchItems = [SearchItem.slot('tagPath', '标签', 'tagPathSelect'), SearchItem.text('ip', 'IP'), SearchItem.text('name', '名称')];
+const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Machine.value), SearchItem.input('ip', 'IP'), SearchItem.input('name', '名称')];
 
 const columns = [
     TableColumn.new('name', '名称'),
@@ -237,7 +231,6 @@ const columns = [
 const actionBtns = hasPerms([perms.updateMachine, perms.closeCli]);
 
 const state = reactive({
-    tags: [] as any,
     params: {
         pageNum: 1,
         pageSize: 0,
@@ -283,8 +276,7 @@ const state = reactive({
     },
 });
 
-const { tags, params, infoDialog, selectionData, serviceDialog, processDialog, fileDialog, machineStatsDialog, machineEditDialog, machineRecDialog } =
-    toRefs(state);
+const { params, infoDialog, selectionData, serviceDialog, processDialog, fileDialog, machineStatsDialog, machineEditDialog, machineRecDialog } = toRefs(state);
 
 onMounted(async () => {});
 
@@ -355,10 +347,6 @@ const closeCli = async (row: any) => {
     await machineApi.closeCli.request({ id: row.id });
     ElMessage.success('关闭成功');
     search();
-};
-
-const getTags = async () => {
-    state.tags = await tagApi.getResourceTagPaths.request({ resourceType: TagResourceTypeEnum.Machine.value });
 };
 
 const openFormDialog = async (machine: any) => {
