@@ -94,6 +94,7 @@
                                         @change="onExitEditMode(rowData, column, rowIndex)"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
                                         class="edit-time-picker mb4"
+                                        popper-class="edit-time-picker-popper"
                                         size="small"
                                         v-model="rowData[column.dataKey!]"
                                         :clearable="false"
@@ -107,6 +108,7 @@
                                         @change="onExitEditMode(rowData, column, rowIndex)"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
                                         class="edit-time-picker mb4"
+                                        popper-class="edit-time-picker-popper"
                                         size="small"
                                         :key="rowIndex"
                                         v-model="rowData[column.dataKey!]"
@@ -122,6 +124,7 @@
                                         @change="onExitEditMode(rowData, column, rowIndex)"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
                                         class="edit-time-picker mb4"
+                                        popper-class="edit-time-picker-popper"
                                         size="small"
                                         v-model="rowData[column.dataKey!]"
                                         :clearable="false"
@@ -178,16 +181,16 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, watch, reactive, toRefs, onBeforeUnmount } from 'vue';
+import { onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { ElInput } from 'element-plus';
 import { copyToClipboard } from '@/common/utils/string';
 import { DbInst } from '@/views/ops/db/db';
-import { ContextmenuItem, Contextmenu } from '@/components/contextmenu';
+import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
 import { useIntervalFn } from '@vueuse/core';
-import { getDbDialect, DbDialect, ColumnTypeSubscript, DataType, DbType } from '../../dialect/index';
+import { ColumnTypeSubscript, DataType, DbDialect, DbType, getDbDialect } from '../../dialect/index';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
@@ -890,14 +893,62 @@ defineExpose({
         padding: 2px;
         height: 12px;
     }
-    .edit-time-picker {
-        height: 26px;
-        width: 100%;
-        .el-input__prefix {
-            display: none;
+}
+
+.edit-time-picker {
+    height: 26px;
+    width: 100% !important;
+    .el-input__prefix {
+        display: none;
+    }
+    .el-input__inner {
+        text-align: center;
+    }
+}
+.edit-time-picker-popper {
+    .el-date-picker {
+        width: 250px !important;
+        .el-date-picker__header {
+            margin: 0 5px;
         }
-        .el-input__inner {
-            text-align: center;
+        .el-picker-panel__content {
+            width: unset;
+            margin: 0 5px;
+        }
+        .el-date-picker__header-label {
+            font-size: 13px;
+        }
+        .el-picker-panel__footer {
+            padding: 0 5px;
+            button {
+                font-size: 11px;
+                padding: 5px 6px;
+                height: 20px;
+            }
+        }
+    }
+    .el-date-table {
+        th {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 0;
+        }
+        td {
+            padding: 0;
+        }
+    }
+    .el-time-panel {
+        width: 100px;
+
+        .el-time-spinner__list {
+            &::after,
+            &::before {
+                height: 10px;
+            }
+            .el-time-spinner__item {
+                height: 20px;
+                line-height: 20px;
+            }
         }
     }
 }
