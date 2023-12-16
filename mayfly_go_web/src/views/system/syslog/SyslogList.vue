@@ -1,12 +1,6 @@
 <template>
     <div>
-        <page-table :search-items="searchItems" v-model:query-form="query" :columns="columns" :page-api="logApi.list">
-            <template #selectAccount>
-                <el-select remote :remote-method="getAccount" v-model="query.creatorId" filterable placeholder="请输入并选择账号" clearable>
-                    <el-option v-for="item in accounts" :key="item.id" :label="item.username" :value="item.id"> </el-option>
-                </el-select>
-            </template>
-        </page-table>
+        <page-table :page-api="logApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns"> </page-table>
     </div>
 </template>
 
@@ -16,10 +10,24 @@ import { logApi, accountApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { LogTypeEnum } from '../enums';
-import { SearchItem } from '@/components/SearchForm';
+import { OptionsApi, SearchItem } from '@/components/SearchForm';
 
 const searchItems = [
-    SearchItem.slot('creatorId', '操作人', 'selectAccount'),
+    SearchItem.select('creatorId', '操作人')
+        .withPlaceholder('请输入并选择账号')
+        .withOptionsApi(
+            OptionsApi.new(accountApi.list, { username: null })
+                .withConvertFn((res: any) => {
+                    const accounts = res.list;
+                    return accounts.map((x: any) => {
+                        return {
+                            label: x.username,
+                            value: x.id,
+                        };
+                    });
+                })
+                .isRemote('username')
+        ),
     SearchItem.select('type', '操作结果').withEnum(LogTypeEnum),
     SearchItem.input('description', '描述'),
 ];
@@ -41,18 +49,8 @@ const state = reactive({
         pageNum: 1,
         pageSize: 0,
     },
-    accounts: [] as any,
 });
 
-const { query, accounts } = toRefs(state);
-
-const getAccount = (username: any) => {
-    if (!username) {
-        return;
-    }
-    accountApi.list.request({ username }).then((res) => {
-        state.accounts = res.list;
-    });
-};
+const { query } = toRefs(state);
 </script>
 <style lang="scss"></style>

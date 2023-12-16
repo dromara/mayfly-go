@@ -67,7 +67,7 @@ const handleSearchProps = computed(() => {
 
 // 处理透传的 事件
 const handleEvents = computed(() => {
-    let itemEvents = props.item?.props ?? {};
+    let itemEvents = props.item?.events ?? {};
     return itemEvents;
 });
 

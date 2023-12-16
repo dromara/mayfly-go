@@ -49,6 +49,13 @@ export class OptionsApi {
      */
     convertFn: (apiResp: any) => any;
 
+    // remote: boolean = false;
+
+    /**
+     * 远程方法参数属性字段，存在该值，则说明使用remote-method进行远程搜索
+     */
+    remoteMethodParamProp: string;
+
     withConvertFn(fn: (apiResp: any) => any) {
         this.convertFn = fn;
         return this;
@@ -69,6 +76,15 @@ export class OptionsApi {
      */
     withNoOnce() {
         this.once = false;
+        return this;
+    }
+
+    /**
+     * 是否使用select的remote方式远程搜索调用
+     * @param remoteReqParamKey  remote请求参数对应的prop，需要将输入的value赋值给params[paramProp]进行远程搜索
+     */
+    isRemote(paramProp: string) {
+        this.remoteMethodParamProp = paramProp;
         return this;
     }
 
@@ -228,7 +244,7 @@ export class SearchItem {
         if (!this.events) {
             this.events = {};
         }
-        this.props[event] = eventFn;
+        this.events[event] = eventFn;
         return this;
     }
 
@@ -251,6 +267,19 @@ export class SearchItem {
         this.optionsApi = optionsApi;
         // 使用api获取组件可选项需要将options转为响应式，否则组件无法响应式获取组件可选项
         this.options = ref(null);
+
+        // 存在远程搜索请求参数prop，则为使用远程搜索可选项
+        if (optionsApi.remoteMethodParamProp) {
+            return this.withOneProps('remote', true).withOneProps('remote-method', async (value: any) => {
+                if (!value) {
+                    this.options.value = [];
+                    return;
+                }
+                // 将输入的内容赋值为真实api请求参数中指定的属性字段
+                optionsApi.params[optionsApi.remoteMethodParamProp] = value;
+                this.options.value = await this.optionsApi.getOptions();
+            });
+        }
 
         // 立即执行，则直接调用api获取并赋值options
         if (this.optionsApi.immediate) {
@@ -276,5 +305,14 @@ export class SearchItem {
     withOptions(options: any): SearchItem {
         this.options = options;
         return this;
+    }
+
+    /**
+     * 赋值placeholder
+     * @param val placeholder
+     * @returns
+     */
+    withPlaceholder(val: string): SearchItem {
+        return this.withOneProps('placeholder', val);
     }
 }

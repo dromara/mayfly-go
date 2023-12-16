@@ -882,7 +882,7 @@ defineExpose({
     }
 
     .update_field_active {
-        background-color: var(--el-color-success);
+        background-color: var(--el-color-success-light-3);
     }
 
     .column-type {
