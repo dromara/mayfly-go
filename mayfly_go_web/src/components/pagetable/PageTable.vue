@@ -2,7 +2,7 @@
     <div>
         <transition name="el-zoom-in-top">
             <!-- 查询表单 -->
-            <SearchForm v-if="isShowSearch" :items="tableSearchItems" v-model="queryForm_" :search="queryData" :reset="reset" :search-col="searchCol">
+            <SearchForm v-if="isShowSearch" :items="tableSearchItems" v-model="queryForm_" :search="search" :reset="reset" :search-col="searchCol">
                 <!-- 遍历父组件传入的 solts 透传给子组件 -->
                 <template v-for="(_, key) in useSlots()" v-slot:[key]>
                     <slot :name="key"></slot>
@@ -50,7 +50,7 @@
                                 </div>
 
                                 <div>
-                                    <el-button v-if="showToolButton('search') && searchItems?.length" icon="Search" circle @click="queryData" />
+                                    <el-button v-if="showToolButton('search') && searchItems?.length" icon="Search" circle @click="search" />
 
                                     <!-- <el-button v-if="showToolButton('refresh')" icon="Refresh" circle @click="execQuery()" /> -->
 
@@ -82,16 +82,17 @@
                 </div>
 
                 <el-table
+                    ref="tableRef"
                     v-bind="$attrs"
                     :max-height="tableMaxHeight"
                     @selection-change="handleSelectionChange"
-                    :data="state.data"
+                    :data="tableData"
                     highlight-current-row
-                    v-loading="state.loading"
-                    :size="props.size"
+                    v-loading="loading"
+                    :size="props.size as any"
                     :border="border"
                 >
-                    <el-table-column v-if="props.showSelection" type="selection" width="40" />
+                    <el-table-column v-if="props.showSelection" :selectable="selectable" type="selection" width="40" />
 
                     <template v-for="(item, index) in tableColumns">
                         <el-table-column
@@ -150,11 +151,11 @@
             <el-row class="mt20" type="flex" justify="end">
                 <el-pagination
                     :small="props.size == 'small'"
-                    @current-change="handlePageChange"
-                    @size-change="handleSizeChange"
+                    @current-change="handlePageNumChange"
+                    @size-change="handlePageSizeChange"
                     style="text-align: right"
                     layout="prev, pager, next, total, sizes, jumper"
-                    :total="state.total"
+                    :total="total"
                     v-model:current-page="queryForm_.pageNum"
                     v-model:page-size="queryForm_.pageSize"
                     :page-sizes="pageSizes"
@@ -176,16 +177,19 @@ import SearchForm from '@/components/SearchForm/index.vue';
 import { SearchItem } from '../SearchForm/index';
 import SearchFormItem from '../SearchForm/components/SearchFormItem.vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
+import { usePageTable } from '../../hooks/usePageTable';
+import { ElTable } from 'element-plus';
 
 const emit = defineEmits(['update:queryForm', 'update:selectionData', 'pageChange']);
 
 export interface PageTableProps {
     size?: string;
-    showSelection?: boolean;
-    showSearch?: boolean; // 是否显示搜索表单
-    columns: TableColumn[]; // 列配置项  ==> 必传
-    data?: any[]; // 静态 table data 数据，若存在则不会使用 requestApi 返回的 data ==> 非必传
     pageApi: Api; // 请求表格数据的 api
+    columns: TableColumn[]; // 列配置项  ==> 必传
+    showSelection?: boolean;
+    selectable?: (row: any) => boolean; // 是否可选
+    showSearch?: boolean; // 是否显示搜索表单
+    data?: any[]; // 静态 table data 数据，若存在则不会使用 requestApi 返回的 data ==> 非必传
     lazy?: boolean; // 是否自动执行请求 api ==> 非必传（默认为false）
     beforeQueryFn?: (params: any) => any; // 执行查询时对查询参数进行处理，调整等
     dataHandlerFn?: (data: any) => any; // 数据处理回调函数，用于将请求回来的数据二次加工处理等
@@ -212,6 +216,9 @@ const props = withDefaults(defineProps<PageTableProps>(), {
     searchCol: () => ({ xs: 1, sm: 3, md: 3, lg: 4, xl: 5 }),
 });
 
+// table 实例
+const tableRef = ref<InstanceType<typeof ElTable>>();
+
 // 接收 columns 并设置为响应式
 const tableColumns = reactive<TableColumn[]>(props.columns);
 
@@ -228,18 +235,6 @@ const showToolButton = (key: 'setting' | 'search') => {
     return Array.isArray(props.toolButton) ? props.toolButton.includes(key) : props.toolButton;
 };
 
-const state = reactive({
-    pageSizes: [] as any, // 可选每页显示的数据量
-    loading: false,
-    data: [],
-    total: 0,
-    // 输入框宽度
-    formatVal: '', // 格式化后的值
-    tableMaxHeight: '500px',
-});
-
-const { pageSizes, formatVal, tableMaxHeight } = toRefs(state);
-
 const nowSearchItem: Ref<SearchItem> = ref(null) as any;
 
 /**
@@ -254,18 +249,31 @@ const changeSimpleFormItem = (searchItem: SearchItem) => {
 
 const queryForm_: Ref<any> = useVModel(props, 'queryForm', emit);
 
-watch(
-    () => state.data,
-    (newValue: any) => {
-        if (newValue && newValue.length > 0) {
-            props.columns.forEach((item) => {
-                if (item.autoWidth && item.show) {
-                    item.autoCalculateMinWidth(state.data);
-                }
-            });
-        }
-    }
+const { tableData, total, loading, search, reset, getTableData, handlePageNumChange, handlePageSizeChange } = usePageTable(
+    props.pageApi,
+    queryForm_,
+    props.beforeQueryFn,
+    props.dataHandlerFn
 );
+
+const state = reactive({
+    pageSizes: [] as any, // 可选每页显示的数据量
+    // 输入框宽度
+    formatVal: '', // 格式化后的值
+    tableMaxHeight: '500px',
+});
+
+const { pageSizes, formatVal, tableMaxHeight } = toRefs(state);
+
+watch(tableData, (newValue: any) => {
+    if (newValue && newValue.length > 0) {
+        props.columns.forEach((item) => {
+            if (item.autoWidth && item.show) {
+                item.autoCalculateMinWidth(tableData.value);
+            }
+        });
+    }
+});
 
 watch(isShowSearch, () => {
     calcuTableHeight();
@@ -294,7 +302,7 @@ onMounted(async () => {
     state.pageSizes = [pageSize, pageSize * 2, pageSize * 3, pageSize * 4, pageSize * 5];
 
     if (!props.lazy) {
-        await reqPageApi();
+        await getTableData();
     }
 });
 
@@ -316,66 +324,9 @@ const handleSelectionChange = (val: any) => {
     emit('update:selectionData', val);
 };
 
-const reqPageApi = async () => {
-    try {
-        state.loading = true;
-
-        let qf = queryForm_.value;
-        if (props.beforeQueryFn) {
-            qf = await props.beforeQueryFn(qf);
-        }
-
-        const res = await props.pageApi?.request(qf);
-        if (!res) {
-            return;
-        }
-
-        state.total = res.total;
-        if (props.dataHandlerFn) {
-            state.data = await props.dataHandlerFn(res.list);
-        } else {
-            state.data = res.list;
-        }
-    } finally {
-        state.loading = false;
-    }
-};
-
-const handlePageChange = (val: number) => {
-    queryForm_.value.pageNum = val;
-    execQuery();
-};
-
-const handleSizeChange = () => {
-    changePageNum(1);
-    execQuery();
-};
-
-const queryData = () => {
-    changePageNum(1);
-    execQuery();
-};
-
-const reset = () => {
-    // 将查询参数绑定的值置空，并重新粗发查询接口
-    for (let qi of props.searchItems) {
-        queryForm_.value[qi.prop] = null;
-    }
-
-    changePageNum(1);
-    execQuery();
-};
-
-const changePageNum = (pageNum: number) => {
-    queryForm_.value.pageNum = pageNum;
-};
-
-const execQuery = async () => {
-    await reqPageApi();
-};
-
 defineExpose({
-    search: execQuery,
+    tableRef: tableRef,
+    search: getTableData,
 });
 </script>
 <style scoped lang="scss">
