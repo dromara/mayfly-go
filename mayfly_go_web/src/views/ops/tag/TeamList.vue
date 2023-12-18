@@ -106,20 +106,7 @@
 
             <el-dialog width="400px" title="添加成员" :before-close="cancelAddMember" v-model="showMemDialog.addVisible">
                 <el-form :model="showMemDialog.memForm" label-width="auto">
-                    <el-form-item label="账号">
-                        <el-select
-                            style="width: 100%"
-                            remote
-                            :remote-method="getAccount"
-                            v-model="showMemDialog.memForm.accountIds"
-                            filterable
-                            multiple
-                            placeholder="请输入账号模糊搜索并选择"
-                        >
-                            <el-option v-for="item in showMemDialog.accounts" :key="item.id" :label="`${item.username} [${item.name}]`" :value="item.id">
-                            </el-option>
-                        </el-select>
-                    </el-form-item>
+                    <AccountSelectFormItem v-model="showMemDialog.memForm.accountIds" multiple focus />
                 </el-form>
                 <template #footer>
                     <div class="dialog-footer">
@@ -135,12 +122,12 @@
 <script lang="ts" setup>
 import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import { tagApi } from './api';
-import { accountApi } from '../../system/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { SearchItem } from '@/components/SearchForm';
+import AccountSelectFormItem from '@/views/system/account/components/AccountSelectFormItem.vue';
 
 const teamForm: any = ref(null);
 const tagTreeRef: any = ref(null);
@@ -265,14 +252,6 @@ const showMembers = async (team: any) => {
     state.showMemDialog.query.teamId = team.id;
     state.showMemDialog.visible = true;
     state.showMemDialog.title = `[${team.name}] 成员信息`;
-};
-
-const getAccount = (username: any) => {
-    if (username) {
-        accountApi.list.request({ username }).then((res) => {
-            state.showMemDialog.accounts = res.list;
-        });
-    }
 };
 
 const deleteMember = async (data: any) => {

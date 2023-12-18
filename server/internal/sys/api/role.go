@@ -8,6 +8,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"strconv"
 	"strings"
@@ -20,8 +21,16 @@ type Role struct {
 
 func (r *Role) Roles(rc *req.Ctx) {
 	g := rc.GinCtx
-	condition := &entity.Role{Name: g.Query("name")}
-	res, err := r.RoleApp.GetPageList(condition, ginx.GetPageParam(g), new([]entity.Role))
+	cond, pageParam := ginx.BindQueryAndPage(g, new(entity.RoleQuery))
+
+	notIdsStr := g.Query("notIds")
+	if notIdsStr != "" {
+		cond.NotIds = collx.ArrayMap[string, uint64](strings.Split(notIdsStr, ","), func(val string) uint64 {
+			return uint64(anyx.ConvInt(val))
+		})
+	}
+
+	res, err := r.RoleApp.GetPageList(cond, pageParam, new([]entity.Role))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -76,4 +85,15 @@ func (r *Role) SaveResource(rc *req.Ctx) {
 	})
 
 	r.RoleApp.SaveRoleResource(rc.MetaCtx, form.Id, newIds)
+}
+
+// 查看角色关联的用户
+func (r *Role) RoleAccount(rc *req.Ctx) {
+	g := rc.GinCtx
+	cond, pageParam := ginx.BindQueryAndPage[*entity.RoleAccountQuery](g, new(entity.RoleAccountQuery))
+	cond.RoleId = uint64(ginx.PathParamInt(g, "id"))
+	var accounts []*vo.AccountRoleVO
+	res, err := r.RoleApp.GetRoleAccountPage(cond, pageParam, &accounts)
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }

@@ -16,12 +16,6 @@
                 >
             </template>
 
-            <template #showmore="{ data }">
-                <el-link @click.prevent="showRoles(data)" type="success">角色</el-link>
-
-                <el-link class="ml5" @click.prevent="showResources(data)" type="info">菜单&权限</el-link>
-            </template>
-
             <template #action="{ data }">
                 <el-button link v-if="actionBtns[perms.addAccount]" @click="editAccount(data)" type="primary">编辑</el-button>
 
@@ -54,33 +48,16 @@
             </el-table>
         </el-dialog>
 
-        <el-dialog :title="showResourceDialog.title" v-model="showResourceDialog.visible" width="400px">
-            <el-tree
-                style="height: 50vh; overflow: auto"
-                :data="showResourceDialog.resources"
-                node-key="id"
-                :props="showResourceDialog.defaultProps"
-                :expand-on-click-node="true"
-            >
-                <template #default="{ node, data }">
-                    <span class="custom-tree-node">
-                        <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ node.label }}</span>
-                        <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ node.label }}</span>
-                    </span>
-                </template>
-            </el-tree>
-        </el-dialog>
-
-        <role-edit v-model:visible="roleDialog.visible" :account="roleDialog.account" @cancel="cancel()" />
+        <role-allocation v-model:visible="roleDialog.visible" :account="roleDialog.account" @cancel="cancel()" />
         <account-edit v-model:visible="accountDialog.visible" v-model:account="accountDialog.data" @val-change="valChange()" />
     </div>
 </template>
 
 <script lang="ts" setup>
 import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
-import RoleEdit from './RoleEdit.vue';
+import RoleAllocation from './RoleAllocation.vue';
 import AccountEdit from './AccountEdit.vue';
-import { AccountStatusEnum, ResourceTypeEnum } from '../enums';
+import { AccountStatusEnum } from '../enums';
 import { accountApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dateFormat } from '@/common/utils/date';
@@ -102,7 +79,6 @@ const columns = [
     TableColumn.new('username', '用户名'),
     TableColumn.new('status', '状态').typeTag(AccountStatusEnum),
     TableColumn.new('lastLoginTime', '最后登录时间').isTime(),
-    TableColumn.new('showmore', '查看更多').isSlot().setMinWidth(150),
     TableColumn.new('creator', '创建账号'),
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('modifier', '更新账号'),
@@ -152,7 +128,7 @@ const state = reactive({
     },
 });
 
-const { selectionData, query, showRoleDialog, showResourceDialog, roleDialog, accountDialog } = toRefs(state);
+const { selectionData, query, showRoleDialog, roleDialog, accountDialog } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
@@ -162,25 +138,6 @@ onMounted(() => {
 
 const search = async () => {
     pageTableRef.value.search();
-};
-
-const showResources = async (row: any) => {
-    let showResourceDialog = state.showResourceDialog;
-    showResourceDialog.title = '"' + row.username + '" 的菜单&权限';
-    showResourceDialog.resources = [];
-    showResourceDialog.resources = await accountApi.resources.request({
-        id: row.id,
-    });
-    showResourceDialog.visible = true;
-};
-
-const showRoles = async (row: any) => {
-    let showRoleDialog = state.showRoleDialog;
-    showRoleDialog.title = '"' + row.username + '" 的角色信息';
-    showRoleDialog.accountRoles = await accountApi.roles.request({
-        id: row.id,
-    });
-    showRoleDialog.visible = true;
 };
 
 const changeStatus = async (row: any) => {
@@ -203,11 +160,6 @@ const resetOtpSecret = async (row: any) => {
     row.otpSecret = '-';
 };
 
-const showRoleEdit = (data: any) => {
-    state.roleDialog.visible = true;
-    state.roleDialog.account = data;
-};
-
 const editAccount = (data: any) => {
     if (!data) {
         state.accountDialog.data = null;
@@ -215,6 +167,11 @@ const editAccount = (data: any) => {
         state.accountDialog.data = data;
     }
     state.accountDialog.visible = true;
+};
+
+const showRoleEdit = (data: any) => {
+    state.roleDialog.visible = true;
+    state.roleDialog.account = data;
 };
 
 const cancel = () => {

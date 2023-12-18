@@ -47,11 +47,8 @@ func InitAccountRouter(router *gin.RouterGroup) {
 
 		req.NewDelete(":id", a.DeleteAccount).Log(req.NewLogSave("删除账号")).RequiredPermissionCode("account:del"),
 
-		// 获取所有用户角色id列表
-		req.NewGet(":id/roleIds", a.AccountRoleIds),
-
-		// 保存用户角色
-		req.NewPost("/roles", a.SaveRoles).Log(req.NewLogSave("保存用户角色")).RequiredPermissionCode("account:saveRoles"),
+		// 关联用户角色
+		req.NewPost("/roles", a.RelateRole).Log(req.NewLogSave("关联用户角色")).RequiredPermissionCode("account:saveRoles"),
 
 		// 获取用户角色
 		req.NewGet(":id/roles", a.AccountRoles),

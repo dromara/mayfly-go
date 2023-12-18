@@ -121,7 +121,7 @@ export class TableColumn {
 
     /**
      * 使用标签类型展示该列（用于枚举值友好展示）
-     * @param param 枚举对象
+     * @param param 枚举对象, 如AccountStatusEnum
      * @returns this
      */
     typeTag(param: any): TableColumn {

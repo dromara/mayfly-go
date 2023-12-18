@@ -148,7 +148,7 @@
                 </el-table>
             </div>
 
-            <el-row class="mt20" type="flex" justify="end">
+            <el-row v-if="props.pageable" class="mt20" type="flex" justify="end">
                 <el-pagination
                     :small="props.size == 'small'"
                     @current-change="handlePageNumChange"
@@ -166,7 +166,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, watch, reactive, onMounted, Ref, ref, useSlots } from 'vue';
+import { toRefs, watch, reactive, onMounted, Ref, ref, useSlots, toValue } from 'vue';
 import { TableColumn } from './index';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { useThemeConfig } from '@/store/themeConfig';
@@ -188,6 +188,7 @@ export interface PageTableProps {
     columns: TableColumn[]; // 列配置项  ==> 必传
     showSelection?: boolean;
     selectable?: (row: any) => boolean; // 是否可选
+    pageable?: boolean;
     showSearch?: boolean; // 是否显示搜索表单
     data?: any[]; // 静态 table data 数据，若存在则不会使用 requestApi 返回的 data ==> 非必传
     lazy?: boolean; // 是否自动执行请求 api ==> 非必传（默认为false）
@@ -197,12 +198,13 @@ export interface PageTableProps {
     queryForm?: any; // 查询表单参数 ==> 非必传（默认为{pageNum:1, pageSize: 10}）
     border?: boolean; // 是否带有纵向边框 ==> 非必传（默认为false）
     toolButton?: ('setting' | 'search')[] | boolean; // 是否显示表格功能按钮 ==> 非必传（默认为true）
-    searchCol?: any; // 表格搜索项 每列占比配置 ==> 非必传 { xs: 1, sm: 2, md: 2, lg: 3, xl: 4 }
+    searchCol?: any; // 表格搜索项 每列占比配置 ==> 非必传 { xs: 1, sm: 2, md: 2, lg: 3, xl: 4 } | number 如 3
 }
 
 // 接受父组件参数，配置默认值
 const props = withDefaults(defineProps<PageTableProps>(), {
     columns: () => [],
+    pageable: true,
     showSelection: false,
     lazy: false,
     queryForm: {
@@ -250,6 +252,7 @@ const changeSimpleFormItem = (searchItem: SearchItem) => {
 const queryForm_: Ref<any> = useVModel(props, 'queryForm', emit);
 
 const { tableData, total, loading, search, reset, getTableData, handlePageNumChange, handlePageSizeChange } = usePageTable(
+    props.pageable,
     props.pageApi,
     queryForm_,
     props.beforeQueryFn,
@@ -324,9 +327,14 @@ const handleSelectionChange = (val: any) => {
     emit('update:selectionData', val);
 };
 
+const getData = () => {
+    return toValue(tableData);
+};
+
 defineExpose({
     tableRef: tableRef,
     search: getTableData,
+    getData,
 });
 </script>
 <style scoped lang="scss">

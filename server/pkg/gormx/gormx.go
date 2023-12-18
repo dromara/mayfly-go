@@ -72,6 +72,13 @@ func PageQuery[T any](q *QueryCond, pageParam *model.PageParam, toModels T) (*mo
 	return &model.PageResult[T]{Total: count, List: toModels}, nil
 }
 
+// 根据查询条件查询列表信息
+func ListByQueryCond(q *QueryCond, list any) error {
+	q.Undeleted()
+	gdb := q.GenGdb()
+	return gdb.Find(list).Error
+}
+
 // 获取满足model中不为空的字段值条件的所有数据.
 //
 // @param list为数组类型 如 var users *[]User，可指定为非model结构体，即只包含需要返回的字段结构体

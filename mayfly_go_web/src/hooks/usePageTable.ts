@@ -4,11 +4,13 @@ import { reactive, toRefs } from 'vue';
 
 /**
  * @description table 页面操作方法封装
+ * @param pageable 是否为分页获取
  * @param {Api} api 获取表格数据 api  (必传)
  * @param {Object} param 获取数据请求参数 (非必传，默认为{pageNum: 1, pageSize: 10})
  * @param {Function} dataCallBack 对api请求返回的数据进行处理的回调方法 (非必传)
  * */
 export const usePageTable = (
+    pageable: boolean = true,
     api?: Api,
     params: any = {
         // 当前页数
@@ -46,8 +48,12 @@ export const usePageTable = (
             let res = await api.request(sp);
             dataCallBack && (res = dataCallBack(res));
 
-            state.tableData = res.list;
-            state.total = res.total;
+            if (pageable) {
+                state.tableData = res.list;
+                state.total = res.total;
+            } else {
+                state.tableData = res;
+            }
         } catch (error: any) {
             ElMessage.error(error?.message);
         } finally {
@@ -55,12 +61,19 @@ export const usePageTable = (
         }
     };
 
+    const setPageNum = (pageNum: number) => {
+        if (!pageable) {
+            return;
+        }
+        state.searchParams.pageNum = pageNum;
+    };
+
     /**
      * @description 表格数据查询（pageNum = 1）
      * @return void
      * */
     const search = () => {
-        state.searchParams.pageNum = 1;
+        setPageNum(1);
         getTableData();
     };
 
@@ -69,7 +82,7 @@ export const usePageTable = (
      * @return void
      * */
     const reset = () => {
-        state.searchParams.pageNum = 1;
+        setPageNum(1);
         for (let prop of Object.keys(state.searchParams)) {
             if (prop == 'pageNum' || prop == 'pageSize') {
                 continue;
@@ -85,7 +98,7 @@ export const usePageTable = (
      * @return void
      * */
     const handlePageSizeChange = (val: number) => {
-        state.searchParams.pageNum = 1;
+        setPageNum(1);
         state.searchParams.pageSize = val;
         getTableData();
     };

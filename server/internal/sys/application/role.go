@@ -2,20 +2,23 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/sys/consts"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/contextx"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
-	"strings"
 	"time"
 
 	"gorm.io/gorm"
 )
 
 type Role interface {
-	GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.RoleQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+
+	ListByQuery(condition *entity.RoleQuery) ([]*entity.Role, error)
 
 	SaveRole(ctx context.Context, role *entity.Role) error
 
@@ -28,36 +31,37 @@ type Role interface {
 	// 保存角色资源关联记录
 	SaveRoleResource(ctx context.Context, roleId uint64, resourceIds []uint64)
 
-	// 删除角色资源关联记录
-	DeleteRoleResource(ctx context.Context, roleId uint64, resourceId uint64)
+	// 关联账号角色
+	RelateAccountRole(ctx context.Context, accountId, roleId uint64, relateType consts.AccountRoleRelateType) error
 
-	// 获取账号角色id列表
-	GetAccountRoleIds(accountId uint64) []uint64
+	// 获取账号关联角色
+	GetAccountRoles(accountId uint64) ([]*entity.AccountRole, error)
 
-	// 保存账号角色关联信息
-	SaveAccountRole(ctx context.Context, accountId uint64, roleIds []uint64)
-
-	DeleteAccountRole(ctx context.Context, accountId, roleId uint64)
-
-	GetAccountRoles(accountId uint64, toEntity any)
+	// 获取角色关联的用户信息
+	GetRoleAccountPage(condition *entity.RoleAccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
 
-func newRoleApp(roleRepo repository.Role) Role {
+func newRoleApp(roleRepo repository.Role, accountRoleRepo repository.AccountRole) Role {
 	return &roleAppImpl{
-		roleRepo: roleRepo,
+		roleRepo:        roleRepo,
+		accountRoleRepo: accountRoleRepo,
 	}
 }
 
 type roleAppImpl struct {
-	roleRepo repository.Role
+	roleRepo        repository.Role
+	accountRoleRepo repository.AccountRole
 }
 
-func (m *roleAppImpl) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (m *roleAppImpl) GetPageList(condition *entity.RoleQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return m.roleRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
+func (m *roleAppImpl) ListByQuery(condition *entity.RoleQuery) ([]*entity.Role, error) {
+	return m.roleRepo.ListByQuery(condition)
+}
+
 func (m *roleAppImpl) SaveRole(ctx context.Context, role *entity.Role) error {
-	role.Code = strings.ToUpper(role.Code)
 	if role.Id != 0 {
 		// code不可更改，防止误传
 		role.Code = ""
@@ -65,17 +69,20 @@ func (m *roleAppImpl) SaveRole(ctx context.Context, role *entity.Role) error {
 	}
 
 	role.Status = 1
-	return gormx.Insert(role)
+	return m.roleRepo.Insert(ctx, role)
 }
 
 func (m *roleAppImpl) DeleteRole(ctx context.Context, id uint64) error {
-	// 删除角色与资源的关联关系
+	// 删除角色与资源账号的关联关系
 	return gormx.Tx(
 		func(db *gorm.DB) error {
 			return m.roleRepo.DeleteByIdWithDb(ctx, db, id)
 		},
 		func(db *gorm.DB) error {
 			return gormx.DeleteByWithDb(db, &entity.RoleResource{RoleId: id})
+		},
+		func(db *gorm.DB) error {
+			return gormx.DeleteByWithDb(db, &entity.AccountRole{RoleId: id})
 		},
 	)
 }
@@ -110,44 +117,35 @@ func (m *roleAppImpl) SaveRoleResource(ctx context.Context, roleId uint64, resou
 	m.roleRepo.SaveRoleResource(addVals)
 
 	for _, v := range delIds {
-		m.DeleteRoleResource(ctx, roleId, v)
+		m.roleRepo.DeleteRoleResource(roleId, v)
 	}
 }
 
-func (m *roleAppImpl) DeleteRoleResource(ctx context.Context, roleId uint64, resourceId uint64) {
-	m.roleRepo.DeleteRoleResource(roleId, resourceId)
-}
+func (m *roleAppImpl) RelateAccountRole(ctx context.Context, accountId, roleId uint64, relateType consts.AccountRoleRelateType) error {
+	accountRole := &entity.AccountRole{AccountId: accountId, RoleId: roleId}
+	if relateType == consts.AccountRoleUnbind {
+		return m.accountRoleRepo.DeleteByCond(ctx, accountRole)
+	}
 
-func (m *roleAppImpl) GetAccountRoleIds(accountId uint64) []uint64 {
-	return m.roleRepo.GetAccountRoleIds(accountId)
-}
-
-// 保存账号角色关联信息
-func (m *roleAppImpl) SaveAccountRole(ctx context.Context, accountId uint64, roleIds []uint64) {
-	oIds := m.GetAccountRoleIds(accountId)
-
-	addIds, delIds, _ := collx.ArrayCompare(roleIds, oIds, func(i1, i2 uint64) bool {
-		return i1 == i2
-	})
+	err := m.accountRoleRepo.GetBy(accountRole)
+	if err == nil {
+		return errorx.NewBiz("该用户已拥有该权限")
+	}
 
 	la := contextx.GetLoginAccount(ctx)
-
 	createTime := time.Now()
-	creator := la.Username
-	creatorId := la.Id
-	for _, v := range addIds {
-		rr := &entity.AccountRole{AccountId: accountId, RoleId: v, CreateTime: &createTime, CreatorId: creatorId, Creator: creator}
-		m.roleRepo.SaveAccountRole(rr)
-	}
-	for _, v := range delIds {
-		m.DeleteAccountRole(ctx, accountId, v)
-	}
+	accountRole.Creator = la.Username
+	accountRole.CreatorId = la.Id
+	accountRole.CreateTime = &createTime
+	return m.accountRoleRepo.Insert(ctx, accountRole)
 }
 
-func (m *roleAppImpl) DeleteAccountRole(ctx context.Context, accountId, roleId uint64) {
-	m.roleRepo.DeleteAccountRole(accountId, roleId)
+func (m *roleAppImpl) GetAccountRoles(accountId uint64) ([]*entity.AccountRole, error) {
+	var res []*entity.AccountRole
+	err := m.accountRoleRepo.ListByCond(&entity.AccountRole{AccountId: accountId}, &res)
+	return res, err
 }
 
-func (m *roleAppImpl) GetAccountRoles(accountId uint64, toEntity any) {
-	m.roleRepo.GetAccountRoles(accountId, toEntity)
+func (m *roleAppImpl) GetRoleAccountPage(condition *entity.RoleAccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return m.accountRoleRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }

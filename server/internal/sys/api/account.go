@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/sys/api/form"
 	"mayfly-go/internal/sys/api/vo"
 	"mayfly-go/internal/sys/application"
+	"mayfly-go/internal/sys/consts"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/contextx"
@@ -91,10 +92,7 @@ func (a *Account) ChangePassword(rc *req.Ctx) {
 func (a *Account) AccountInfo(rc *req.Ctx) {
 	ap := new(vo.AccountPersonVO)
 	// 角色信息
-	roles := new([]vo.AccountRoleVO)
-	a.RoleApp.GetAccountRoles(rc.GetLoginAccount().Id, roles)
-
-	ap.Roles = *roles
+	ap.Roles = a.getAccountRoles(rc.GetLoginAccount().Id)
 	rc.ResData = ap
 }
 
@@ -173,16 +171,47 @@ func (a *Account) DeleteAccount(rc *req.Ctx) {
 	}
 }
 
-// 获取账号角色id列表，用户回显角色分配
-func (a *Account) AccountRoleIds(rc *req.Ctx) {
-	rc.ResData = a.RoleApp.GetAccountRoleIds(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+// 获取账号角色信息列表
+func (a *Account) AccountRoles(rc *req.Ctx) {
+	rc.ResData = a.getAccountRoles(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
 }
 
-// 获取账号角色id列表，用户回显角色分配
-func (a *Account) AccountRoles(rc *req.Ctx) {
-	vos := new([]vo.AccountRoleVO)
-	a.RoleApp.GetAccountRoles(uint64(ginx.PathParamInt(rc.GinCtx, "id")), vos)
-	rc.ResData = vos
+func (a *Account) getAccountRoles(accountId uint64) []*vo.AccountRoleVO {
+	vos := make([]*vo.AccountRoleVO, 0)
+
+	accountRoles, err := a.RoleApp.GetAccountRoles(accountId)
+	biz.ErrIsNil(err)
+
+	if len(accountRoles) == 0 {
+		return vos
+	}
+
+	// 获取角色信息进行组装
+	roleIds := collx.ArrayMap[*entity.AccountRole, uint64](accountRoles, func(val *entity.AccountRole) uint64 {
+		return val.RoleId
+	})
+	roles, err := a.RoleApp.ListByQuery(&entity.RoleQuery{Ids: roleIds})
+	biz.ErrIsNil(err)
+	roleId2Role := collx.ArrayToMap[*entity.Role, uint64](roles, func(val *entity.Role) uint64 {
+		return val.Id
+	})
+
+	for _, ac := range accountRoles {
+		role := roleId2Role[ac.RoleId]
+		if role == nil {
+			continue
+		}
+		vos = append(vos, &vo.AccountRoleVO{
+			RoleId:     ac.RoleId,
+			RoleName:   role.Name,
+			Code:       role.Code,
+			Status:     role.Status,
+			CreateTime: ac.CreateTime, // 分配时间
+			Creator:    ac.Creator,    // 分配者
+		})
+	}
+
+	return vos
 }
 
 func (a *Account) AccountResources(rc *req.Ctx) {
@@ -192,19 +221,13 @@ func (a *Account) AccountResources(rc *req.Ctx) {
 	rc.ResData = resources.ToTrees(0)
 }
 
-// 保存账号角色信息
-func (a *Account) SaveRoles(rc *req.Ctx) {
+// 关联账号角色
+func (a *Account) RelateRole(rc *req.Ctx) {
 	var form form.AccountRoleForm
 	ginx.BindJsonAndValid(rc.GinCtx, &form)
 	rc.ReqParam = form
 
-	// 将,拼接的字符串进行切割并转换
-	newIds := collx.ArrayMap[string, uint64](strings.Split(form.RoleIds, ","), func(val string) uint64 {
-		id, _ := strconv.Atoi(val)
-		return uint64(id)
-	})
-
-	a.RoleApp.SaveAccountRole(rc.MetaCtx, form.Id, newIds)
+	biz.ErrIsNil(a.RoleApp.RelateAccountRole(rc.MetaCtx, form.Id, form.RoleId, consts.AccountRoleRelateType(form.RelateType)))
 }
 
 // 重置otp秘钥

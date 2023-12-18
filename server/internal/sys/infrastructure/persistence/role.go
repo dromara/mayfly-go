@@ -16,9 +16,26 @@ func newRoleRepo() repository.Role {
 	return &roleRepoImpl{base.RepoImpl[*entity.Role]{M: new(entity.Role)}}
 }
 
-func (m *roleRepoImpl) GetPageList(condition *entity.Role, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
+func (m *roleRepoImpl) GetPageList(condition *entity.RoleQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	qd := gormx.NewQuery(new(entity.Role)).
+		Like("name", condition.Name).
+		Like("code", condition.Code).
+		In("id", condition.Ids).
+		NotIn("id", condition.NotIds).
+		WithOrderBy(orderBy...)
 	return gormx.PageQuery(qd, pageParam, toEntity)
+}
+
+func (m *roleRepoImpl) ListByQuery(condition *entity.RoleQuery) ([]*entity.Role, error) {
+	var res []*entity.Role
+	qd := gormx.NewQuery(new(entity.Role)).
+		Like("name", condition.Name).
+		Like("code", condition.Code).
+		In("id", condition.Ids).
+		NotIn("id", condition.NotIds).
+		OrderByDesc("id")
+	err := gormx.ListByQueryCond(qd, &res)
+	return res, err
 }
 
 // 获取角色拥有的资源id数组，从role_resource表获取
@@ -50,33 +67,4 @@ func (m *roleRepoImpl) SaveRoleResource(rr []*entity.RoleResource) {
 
 func (m *roleRepoImpl) DeleteRoleResource(roleId uint64, resourceId uint64) {
 	gormx.DeleteBy(&entity.RoleResource{RoleId: roleId, ResourceId: resourceId})
-}
-
-func (m *roleRepoImpl) GetAccountRoleIds(accountId uint64) []uint64 {
-	var rrs []entity.AccountRole
-
-	condtion := &entity.AccountRole{AccountId: accountId}
-	gormx.ListBy(condtion, &rrs, "RoleId")
-
-	var rids []uint64
-	for _, v := range rrs {
-		rids = append(rids, v.RoleId)
-	}
-	return rids
-}
-
-func (m *roleRepoImpl) SaveAccountRole(ar *entity.AccountRole) {
-	gormx.Insert(ar)
-}
-
-func (m *roleRepoImpl) DeleteAccountRole(accountId, roleId uint64) {
-	gormx.DeleteBy(&entity.AccountRole{RoleId: roleId, AccountId: accountId})
-}
-
-// 获取账号角色信息列表
-func (m *roleRepoImpl) GetAccountRoles(accountId uint64, toEntity any) {
-	sql := "SELECT r.status, r.name, ar.create_time AS CreateTime, ar.creator AS creator " +
-		"FROM t_sys_role r JOIN t_sys_account_role ar ON r.id = ar.role_id AND ar.account_id = ? AND r.is_deleted = 0 AND ar.is_deleted = 0 " +
-		"ORDER BY ar.create_time DESC"
-	gormx.GetListBySql2Model(sql, toEntity, accountId)
 }

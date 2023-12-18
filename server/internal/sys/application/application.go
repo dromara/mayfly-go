@@ -8,7 +8,7 @@ var (
 	accountApp  = newAccountApp(persistence.GetAccountRepo())
 	configApp   = newConfigApp(persistence.GetConfigRepo())
 	resourceApp = newResourceApp(persistence.GetResourceRepo())
-	roleApp     = newRoleApp(persistence.GetRoleRepo())
+	roleApp     = newRoleApp(persistence.GetRoleRepo(), persistence.GetAccountRoleRepo())
 	syslogApp   = newSyslogApp(persistence.GetSyslogRepo())
 )
 

@@ -20,6 +20,14 @@
                 <el-button v-if="actionBtns[perms.updateRole]" @click="editRole(data)" type="primary" link>编辑</el-button>
                 <el-button @click="showResources(data)" type="info" link>权限详情</el-button>
                 <el-button v-if="actionBtns[perms.saveRoleResource]" @click="editResource(data)" type="success" link>权限分配</el-button>
+                <el-button
+                    v-if="actionBtns[perms.saveAccountRole]"
+                    :disabled="data.code?.indexOf('COMMON') == 0"
+                    @click="showAccountAllocation(data)"
+                    type="success"
+                    link
+                    >用户管理</el-button
+                >
             </template>
         </page-table>
 
@@ -31,6 +39,9 @@
             :defaultCheckedKeys="resourceDialog.defaultCheckedKeys"
             @cancel="cancelEditResources()"
         />
+
+        <account-allocation v-model:visible="accountAllocationDialog.visible" :role="accountAllocationDialog.role" />
+
         <show-resource v-model:visible="showResourceDialog.visible" :title="showResourceDialog.title" v-model:resources="showResourceDialog.resources" />
     </div>
 </template>
@@ -47,12 +58,14 @@ import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { RoleStatusEnum } from '../enums';
 import { SearchItem } from '@/components/SearchForm';
+import AccountAllocation from './AccountAllocation.vue';
 
 const perms = {
     addRole: 'role:add',
     delRole: 'role:del',
     updateRole: 'role:update',
     saveRoleResource: 'role:saveResources',
+    saveAccountRole: 'account:saveRoles',
 };
 
 const searchItems = [SearchItem.input('name', '角色名')];
@@ -67,8 +80,8 @@ const columns = ref([
     TableColumn.new('updateTime', '更新时间').isTime(),
 ]);
 
-const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource]);
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(260).fixedRight().alignCenter();
+const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource, perms.saveAccountRole]);
+const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(290).fixedRight().alignCenter();
 
 const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
@@ -94,9 +107,13 @@ const state = reactive({
         resources: [],
         title: '',
     },
+    accountAllocationDialog: {
+        visible: false,
+        role: {},
+    },
 });
 
-const { query, selectionData, resourceDialog, roleEditDialog, showResourceDialog } = toRefs(state);
+const { query, selectionData, resourceDialog, roleEditDialog, showResourceDialog, accountAllocationDialog } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
@@ -174,6 +191,11 @@ const editResource = async (row: any) => {
     // 显示
     state.resourceDialog.visible = true;
     state.resourceDialog.role = row;
+};
+
+const showAccountAllocation = (data: any) => {
+    state.accountAllocationDialog.role = data;
+    state.accountAllocationDialog.visible = true;
 };
 
 /**

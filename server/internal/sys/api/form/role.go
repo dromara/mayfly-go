@@ -17,6 +17,7 @@ type RoleForm struct {
 
 // 账号分配角色表单
 type AccountRoleForm struct {
-	Id      uint64 `json:"id" binding:"required"`
-	RoleIds string `json:"roleIds"`
+	Id         uint64 `json:"id" binding:"required"`
+	RoleId     uint64 `json:"roleId" binding:"required"`
+	RelateType int    `json:"relateType" binding:"required"`
 }

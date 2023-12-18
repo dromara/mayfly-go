@@ -127,6 +127,10 @@ func (q *QueryCond) In(column string, val any) *QueryCond {
 	return q.Cond(consts.In, column, val, true)
 }
 
+func (q *QueryCond) NotIn(column string, val any) *QueryCond {
+	return q.Cond(consts.NotIn, column, val, true)
+}
+
 // // Ne 不等于 !=
 func (q *QueryCond) Ne(column string, val any) *QueryCond {
 	q.Cond(consts.Ne, column, val, true)
