@@ -6,6 +6,8 @@ from
 where
 	has_schema_privilege(n.nspname, 'USAGE')
 	and n.nspname not like 'pg_%'
+    and n.nspname not like 'dbms_%'
+    and n.nspname not like 'utl_%'
 	and n.nspname != 'information_schema'
 ---------------------------------------
 --PGSQL_TABLE_INFO 表详细信息

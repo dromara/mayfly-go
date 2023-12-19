@@ -24,7 +24,7 @@
                                 <!-- 简易单个搜索项 -->
                                 <div v-if="nowSearchItem" class="simple-search-form">
                                     <el-dropdown v-if="searchItems?.length > 1">
-                                        <SvgIcon :size="16" name="ArrowDown" class="mr5 mt7" />
+                                        <SvgIcon :size="16" name="CaretBottom" class="mr4 mt6 simple-search-form-btn" />
                                         <template #dropdown>
                                             <el-dropdown-menu>
                                                 <el-dropdown-item
@@ -373,6 +373,10 @@ defineExpose({
                 .simple-search-form-label {
                     text-align: right;
                     margin-right: 5px;
+                }
+
+                .simple-search-form-btn:hover {
+                    color: var(--el-color-primary);
                 }
             }
         }

@@ -32,7 +32,8 @@
                                 </div>
 
                                 <!-- 字段名列 -->
-                                <div v-else @contextmenu="headerContextmenuClick($event, column)" style="position: relative">
+                                <div v-else style="position: relative">
+                                    <!-- 字段列的数据类型 -->
                                     <div class="column-type">
                                         <span v-if="ColumnTypeSubscript[dbDialect.getDataType(column.columnType)] === 'icon-clock'">
                                             <SvgIcon :size="10" name="Clock" style="cursor: unset" />
@@ -62,6 +63,25 @@
                                             {{ column.title }}
                                         </el-text>
                                     </div>
+
+                                    <el-dropdown trigger="click" class="column-header-op">
+                                        <SvgIcon :size="16" name="CaretBottom" />
+                                        <template #dropdown>
+                                            <el-dropdown-menu>
+                                                <template v-for="menu in tableHeadlerMenu">
+                                                    <el-dropdown-item
+                                                        :key="menu.clickId"
+                                                        v-if="!menu.isHide(column)"
+                                                        @click="menu?.onClickFunc(column)"
+                                                        class="font12"
+                                                    >
+                                                        <SvgIcon v-if="menu.icon" :name="menu.icon" />
+                                                        {{ menu.txt }}
+                                                    </el-dropdown-item>
+                                                </template>
+                                            </el-dropdown-menu>
+                                        </template>
+                                    </el-dropdown>
                                 </div>
                             </div>
                         </div>
@@ -237,15 +257,21 @@ const props = defineProps({
 const contextmenuRef = ref();
 const tableRef = ref();
 
-/**  表头 contextmenu items  **/
+/**  表头 menu items  **/
 
-const cmHeaderAsc = new ContextmenuItem('asc', '升序').withIcon('top').withOnClick((data: any) => {
-    onTableSortChange({ columnName: data.dataKey, order: 'asc' });
-});
+const cmHeaderAsc = new ContextmenuItem('asc', '升序')
+    .withIcon('top')
+    .withOnClick((data: any) => {
+        onTableSortChange({ columnName: data.dataKey, order: 'asc' });
+    })
+    .withHideFunc(() => !props.showColumnTip);
 
-const cmHeaderDesc = new ContextmenuItem('desc', '降序').withIcon('bottom').withOnClick((data: any) => {
-    onTableSortChange({ columnName: data.dataKey, order: 'desc' });
-});
+const cmHeaderDesc = new ContextmenuItem('desc', '降序')
+    .withIcon('bottom')
+    .withOnClick((data: any) => {
+        onTableSortChange({ columnName: data.dataKey, order: 'desc' });
+    })
+    .withHideFunc(() => !props.showColumnTip);
 
 const cmHeaderFixed = new ContextmenuItem('fixed', '固定')
     .withIcon('Paperclip')
@@ -258,6 +284,9 @@ const cmHeaderCancenFixed = new ContextmenuItem('cancelFixed', '取消固定')
     .withIcon('Minus')
     .withOnClick((data: any) => (data.fixed = false))
     .withHideFunc((data: any) => !data.fixed);
+
+// 标头菜单
+const tableHeadlerMenu = [cmHeaderAsc, cmHeaderDesc, cmHeaderFixed, cmHeaderCancenFixed];
 
 /**  表数据 contextmenu items  **/
 
@@ -580,16 +609,6 @@ const rowEventHandlers = {
     },
 };
 
-const headerContextmenuClick = (event: any, data: any) => {
-    event.preventDefault(); // 阻止默认的右击菜单行为
-
-    const { clientX, clientY } = event;
-    state.contextmenu.dropdown.x = clientX;
-    state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmHeaderAsc, cmHeaderDesc, cmHeaderFixed, cmHeaderCancenFixed];
-    contextmenuRef.value.openContextmenu(data);
-};
-
 const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: any) => {
     event.preventDefault(); // 阻止默认的右击菜单行为
 
@@ -892,6 +911,13 @@ defineExpose({
         top: -12px;
         padding: 2px;
         height: 12px;
+    }
+
+    .column-header-op {
+        color: var(--el-color-primary);
+        position: absolute;
+        top: 6px;
+        right: 0px;
     }
 }
 

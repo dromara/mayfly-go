@@ -177,7 +177,6 @@ const showRoleEdit = (data: any) => {
 const cancel = () => {
     state.roleDialog.visible = false;
     state.roleDialog.account = null;
-    search();
 };
 
 const valChange = () => {
