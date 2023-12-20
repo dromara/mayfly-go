@@ -4,12 +4,85 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
+	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
+	"net"
 	"strings"
 
 	_ "gitee.com/chunanyong/dm"
 )
+
+type ConnectionInfo struct {
+	Port       int
+	Listener   net.Listener
+	remoteConn net.Conn
+}
+
+var connectionMap = make(map[string]ConnectionInfo)
+
+func getLocalListener() (net.Listener, int, error) {
+	// Setup localListener (type net.Listener)
+	localListener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 获取本地端口
+	localPort := localListener.Addr().(*net.TCPAddr).Port
+	return localListener, localPort, nil
+}
+
+func acceptConn(listener net.Listener, sshConn net.Conn) {
+	for {
+		localConn, err := listener.Accept()
+		if err != nil {
+			logx.Warn("端口转发出错", err)
+			return
+		}
+		go forward(localConn, sshConn)
+	}
+}
+
+func forward(localConn net.Conn, remoteConn net.Conn) {
+	copyConn := func(writer, reader net.Conn) {
+		_, err := io.Copy(writer, reader)
+		if err != nil {
+			logx.Warnf("io.Copy error: %s", err)
+		}
+	}
+	go copyConn(localConn, remoteConn)
+	go copyConn(remoteConn, localConn)
+}
+
+func openSsh(d *DbInfo) error {
+
+	sshTunnelMachine, err := machineapp.GetMachineApp().GetSshTunnelMachine(d.SshTunnelMachineId)
+	if err != nil {
+		return err
+	}
+	remoteConn, err := sshTunnelMachine.GetDialConn("tcp", fmt.Sprintf("%s:%d", d.Host, d.Port))
+	if err != nil {
+		return err
+	}
+	// 获取sshConn的本地端口
+	localLister, localPort, err := getLocalListener()
+	// defer localLister.Close()
+	go acceptConn(localLister, remoteConn)
+	connectionMap[d.Network] = ConnectionInfo{
+		Port:       localPort,
+		Listener:   localLister,
+		remoteConn: remoteConn,
+	}
+	d.Host = "127.0.0.1"
+	d.Port = localPort
+
+	return nil
+}
+
+// 创建一个成员变量存放ssh隧道转发对应的本地连接
 
 func getDmDB(d *DbInfo) (*sql.DB, error) {
 	driverName := "dm"
@@ -25,6 +98,15 @@ func getDmDB(d *DbInfo) (*sql.DB, error) {
 			dbParam = db
 		}
 	}
+
+	// 开启ssh隧道
+	if d.SshTunnelMachineId > 0 {
+		err := openSsh(d)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	dsn := fmt.Sprintf("dm://%s:%s@%s:%d/%s", d.Username, d.Password, d.Host, d.Port, dbParam)
 	return sql.Open(driverName, dsn)
 }

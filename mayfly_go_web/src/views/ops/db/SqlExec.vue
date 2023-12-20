@@ -161,11 +161,11 @@
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, onMounted, reactive, ref, toRefs, onBeforeUnmount } from 'vue';
+import { defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, toRefs } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
-import { DbInst, TabInfo, TabType, registerDbCompletionItemProvider } from './db';
-import { TagTreeNode, NodeType } from '../component/tag';
+import { DbInst, registerDbCompletionItemProvider, TabInfo, TabType } from './db';
+import { NodeType, TagTreeNode } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
 import { dispposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
@@ -174,7 +174,7 @@ import { ContextmenuItem } from '@/components/contextmenu';
 import { getDbDialect } from './dialect/index';
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { Splitpanes, Pane } from 'splitpanes';
+import { Pane, Splitpanes } from 'splitpanes';
 import { useEventListener } from '@vueuse/core';
 
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
