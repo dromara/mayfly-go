@@ -149,7 +149,7 @@ const dbTypes = [
     },
     {
         type: 'dm',
-        label: '达梦(暂不支持ssh)',
+        label: '达梦',
     },
 ];
 
