@@ -339,7 +339,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
 			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS %s;\n", quotedTable))
-			ddl, err := dbMeta.GetCreateTableDdl(table)
+			ddl, err := dbMeta.GetTableDDL(table)
 			biz.ErrIsNil(err)
 			writer.WriteString(ddl + "\n")
 		}
@@ -441,17 +441,15 @@ func (d *Db) HintTables(rc *req.Ctx) {
 	rc.ResData = res
 }
 
-func (d *Db) GetCreateTableDdl(rc *req.Ctx) {
+func (d *Db) GetTableDDL(rc *req.Ctx) {
 	tn := rc.GinCtx.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc.GinCtx).GetDialect().GetCreateTableDdl(tn)
+	res, err := d.getDbConn(rc.GinCtx).GetDialect().GetTableDDL(tn)
 	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
 	rc.ResData = res
 }
 
-func (d *Db) GetPgsqlSchemas(rc *req.Ctx) {
-	conn := d.getDbConn(rc.GinCtx)
-	biz.IsTrue(conn.Info.Type == dbm.DbTypePostgres || conn.Info.Type == dbm.DM, "非postgres无法获取该schemas")
+func (d *Db) GetSchemas(rc *req.Ctx) {
 	res, err := d.getDbConn(rc.GinCtx).GetDialect().GetSchemas()
 	biz.ErrIsNilAppendErr(err, "获取schemas失败: %s")
 	rc.ResData = res

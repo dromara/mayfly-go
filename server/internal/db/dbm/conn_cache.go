@@ -67,6 +67,17 @@ func GetDbConn(dbId uint64, database string, getDbInfo func() (*DbInfo, error)) 
 	return dbConn, nil
 }
 
+// 根据实例id获取连接
+func GetDbConnByInstanceId(instanceId uint64) *DbConn {
+	for _, connItem := range connCache.Items() {
+		conn := connItem.Value.(*DbConn)
+		if conn.Info.InstanceId == instanceId {
+			return conn
+		}
+	}
+	return nil
+}
+
 // 删除db缓存并关闭该数据库所有连接
 func CloseDb(dbId uint64, db string) {
 	connCache.Delete(GetDbConnId(dbId, db))

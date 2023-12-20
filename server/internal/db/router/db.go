@@ -29,9 +29,9 @@ func InitDbRouter(router *gin.RouterGroup) {
 
 		req.NewDelete(":dbId", d.DeleteDb).Log(req.NewLogSave("db-删除数据库信息")),
 
-		req.NewGet(":dbId/t-create-ddl", d.GetCreateTableDdl),
+		req.NewGet(":dbId/t-create-ddl", d.GetTableDDL),
 
-		req.NewGet(":dbId/pg/schemas", d.GetPgsqlSchemas),
+		req.NewGet(":dbId/pg/schemas", d.GetSchemas),
 
 		req.NewPost(":dbId/exec-sql", d.ExecSql).Log(req.NewLog("db-执行Sql")),
 

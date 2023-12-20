@@ -31,8 +31,12 @@ type Db interface {
 
 	// 获取数据库连接实例
 	// @param id 数据库id
-	// @param dbName 数据库
+	//
+	// @param dbName 数据库名
 	GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error)
+
+	// 根据数据库实例id获取连接，随机返回该instanceId下已连接的conn，若不存在则是使用该instanceId关联的db进行连接并返回。
+	GetDbConnByInstanceId(instanceId uint64) (*dbm.DbConn, error)
 }
 
 func newDbApp(dbRepo repository.Db, dbSqlRepo repository.DbSql, dbInstanceApp Instance, tagApp tagapp.TagTree) Db {
@@ -168,8 +172,26 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error) {
 	})
 }
 
+func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbm.DbConn, error) {
+	conn := dbm.GetDbConnByInstanceId(instanceId)
+	if conn != nil {
+		return conn, nil
+	}
+
+	var dbs []*entity.Db
+	err := d.ListByCond(&entity.Db{InstanceId: instanceId}, &dbs, "id", "database")
+	if err != nil || len(dbs) == 0 {
+		return nil, errorx.NewBiz("该实例未配置数据库, 请先进行配置")
+	}
+
+	// 使用该实例关联的已配置数据库中的第一个库进行连接并返回
+	firstDb := dbs[0]
+	return d.GetDbConn(firstDb.Id, strings.Split(firstDb.Database, " ")[0])
+}
+
 func toDbInfo(instance *entity.DbInstance, dbId uint64, database string, tagPath ...string) *dbm.DbInfo {
 	di := new(dbm.DbInfo)
+	di.InstanceId = instance.Id
 	di.Id = dbId
 	di.Database = database
 	di.TagPath = tagPath

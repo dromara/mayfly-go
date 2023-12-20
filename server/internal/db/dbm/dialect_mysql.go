@@ -43,6 +43,17 @@ type MysqlDialect struct {
 	dc *DbConn
 }
 
+func (md *MysqlDialect) GetDbServer() (*DbServer, error) {
+	_, res, err := md.dc.Query("SELECT VERSION() version")
+	if err != nil {
+		return nil, err
+	}
+	ds := &DbServer{
+		Version: anyx.ConvString(res[0]["version"]),
+	}
+	return ds, nil
+}
+
 func (md *MysqlDialect) GetDbNames() ([]string, error) {
 	_, res, err := md.dc.Query("SELECT SCHEMA_NAME AS dbname FROM SCHEMATA")
 	if err != nil {
@@ -166,7 +177,7 @@ func (md *MysqlDialect) GetTableIndex(tableName string) ([]Index, error) {
 }
 
 // 获取建表ddl
-func (md *MysqlDialect) GetCreateTableDdl(tableName string) (string, error) {
+func (md *MysqlDialect) GetTableDDL(tableName string) (string, error) {
 	_, res, err := md.dc.Query(fmt.Sprintf("show create table `%s` ", tableName))
 	if err != nil {
 		return "", err

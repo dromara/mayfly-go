@@ -185,6 +185,10 @@ defineExpose({
     position: fixed;
 
     .el-dropdown-menu__item {
+        padding: 5px 10px;
+    }
+
+    .el-dropdown-menu__item {
         font-size: 12px !important;
         white-space: nowrap;
 

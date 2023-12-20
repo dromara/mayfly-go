@@ -26,8 +26,8 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务
 	github.com/stretchr/testify v1.8.4
 	go.mongodb.org/mongo-driver v1.13.1 // mongo
-	golang.org/x/crypto v0.16.0 // ssh
-	golang.org/x/oauth2 v0.14.0
+	golang.org/x/crypto v0.17.0 // ssh
+	golang.org/x/oauth2 v0.15.0
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
 	gorm.io/driver/mysql v1.5.2
@@ -79,7 +79,7 @@ require (
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/exp v0.0.0-20230519143937-03e91628a987
 	golang.org/x/image v0.13.0 // indirect
-	golang.org/x/net v0.18.0 // indirect
+	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

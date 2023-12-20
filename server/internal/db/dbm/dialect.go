@@ -3,9 +3,16 @@ package dbm
 import (
 	"embed"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 )
+
+// 数据库服务实例信息
+type DbServer struct {
+	Version string  `json:"version"` // 版本信息
+	Extra   collx.M `json:"extra"`   // 其他额外信息
+}
 
 // 表信息
 type Table struct {
@@ -19,15 +26,15 @@ type Table struct {
 
 // 表的列信息
 type Column struct {
-	TableName     string `json:"tableName"`     // 表名
-	ColumnName    string `json:"columnName"`    // 列名
-	ColumnType    string `json:"columnType"`    // 列类型
-	ColumnComment string `json:"columnComment"` // 列备注
-	ColumnKey     string `json:"columnKey"`     // 是否为主键，逐渐的话值钱为PRI
-	ColumnDefault string `json:"columnDefault"` // 默认值
-	Nullable      string `json:"nullable"`      // 是否可为null
-	NumScale      string `json:"numScale"`      // 小数点
-	Extra         string `json:"extra"`         // 其他信息
+	TableName     string  `json:"tableName"`     // 表名
+	ColumnName    string  `json:"columnName"`    // 列名
+	ColumnType    string  `json:"columnType"`    // 列类型
+	ColumnComment string  `json:"columnComment"` // 列备注
+	ColumnKey     string  `json:"columnKey"`     // 是否为主键，逐渐的话值钱为PRI
+	ColumnDefault string  `json:"columnDefault"` // 默认值
+	Nullable      string  `json:"nullable"`      // 是否可为null
+	NumScale      string  `json:"numScale"`      // 小数点
+	Extra         collx.M `json:"extra"`         // 其他额外信息
 }
 
 // 表索引信息
@@ -43,6 +50,9 @@ type Index struct {
 // -----------------------------------元数据接口定义------------------------------------------
 // 数据库方言、元信息接口（表、列、获取表数据等元信息）
 type DbDialect interface {
+	// 获取数据库服务实例信息
+	GetDbServer() (*DbServer, error)
+
 	// 获取数据库名称列表
 	GetDbNames() ([]string, error)
 
@@ -59,7 +69,7 @@ type DbDialect interface {
 	GetTableIndex(tableName string) ([]Index, error)
 
 	// 获取建表ddl
-	GetCreateTableDdl(tableName string) (string, error)
+	GetTableDDL(tableName string) (string, error)
 
 	// 获取指定表的数据-分页查询
 	// @return columns: 列字段名；result: 结果集；error: 错误

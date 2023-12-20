@@ -106,6 +106,17 @@ type PgsqlDialect struct {
 	dc *DbConn
 }
 
+func (pd *PgsqlDialect) GetDbServer() (*DbServer, error) {
+	_, res, err := pd.dc.Query("SHOW server_version")
+	if err != nil {
+		return nil, err
+	}
+	ds := &DbServer{
+		Version: anyx.ConvString(res[0]["server_version"]),
+	}
+	return ds, nil
+}
+
 func (pd *PgsqlDialect) GetDbNames() ([]string, error) {
 	_, res, err := pd.dc.Query("SELECT datname AS dbname FROM pg_database WHERE datistemplate = false AND has_database_privilege(datname, 'CONNECT')")
 	if err != nil {
@@ -227,7 +238,7 @@ func (pd *PgsqlDialect) GetTableIndex(tableName string) ([]Index, error) {
 }
 
 // 获取建表ddl
-func (pd *PgsqlDialect) GetCreateTableDdl(tableName string) (string, error) {
+func (pd *PgsqlDialect) GetTableDDL(tableName string) (string, error) {
 	_, err := pd.dc.Exec(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
 	if err != nil {
 		return "", err

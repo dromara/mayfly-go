@@ -95,6 +95,16 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
                     return rejectPromise;
                 }
 
+                const respStatus = uaf.response.value?.status;
+                if (respStatus == 404) {
+                    ElMessage.error('请求接口不存在');
+                    return rejectPromise;
+                }
+                if (respStatus == 500) {
+                    ElMessage.error('服务器响应异常');
+                    return rejectPromise;
+                }
+
                 console.error(e);
                 ElMessage.error('网络请求错误');
                 return rejectPromise;

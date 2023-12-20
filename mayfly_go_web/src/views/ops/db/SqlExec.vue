@@ -5,7 +5,14 @@
                 <tag-tree :resource-type="TagResourceTypeEnum.Db.value" :tag-path-node-type="NodeTypeTagPath" ref="tagTreeRef">
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == SqlExecNodeType.DbInst">
-                            <el-popover :show-after="500" placement="right-start" title="数据库实例信息" trigger="hover" :width="250">
+                            <el-popover
+                                @show="showDbInfo(data.params)"
+                                :show-after="500"
+                                placement="right-start"
+                                title="数据库实例信息"
+                                trigger="hover"
+                                :width="250"
+                            >
                                 <template #reference>
                                     <SvgIcon :name="getDbDialect(data.params.type).getInfo().icon" :size="18" />
                                 </template>
@@ -16,6 +23,9 @@
                                         </el-descriptions-item>
                                         <el-descriptions-item label="host">
                                             {{ `${data.params.host}:${data.params.port}` }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="数据库版本">
+                                            <span v-loading="loadingServerInfo"> {{ `${dbServerInfo?.version}` }}</span>
                                         </el-descriptions-item>
                                         <el-descriptions-item label="user">
                                             {{ data.params.username }}
@@ -381,9 +391,18 @@ const state = reactive({
     tabs,
     dataTabsTableHeight: '600px',
     tablesOpHeight: '600',
+    dbServerInfo: {
+        loading: true,
+        version: '',
+    },
 });
 
 const { nowDbInst } = toRefs(state);
+
+const serverInfoReqParam = ref({
+    instanceId: 0,
+});
+const { execute: getDbServerInfo, isFetching: loadingServerInfo, data: dbServerInfo } = dbApi.getInstanceServerInfo.useApi<any>(serverInfoReqParam);
 
 onMounted(() => {
     setHeight();
@@ -401,6 +420,14 @@ onBeforeUnmount(() => {
 const setHeight = () => {
     state.dataTabsTableHeight = window.innerHeight - 270 + 'px';
     state.tablesOpHeight = window.innerHeight - 225 + 'px';
+};
+
+const showDbInfo = async (db: any) => {
+    if (dbServerInfo.value) {
+        dbServerInfo.value.version = '';
+    }
+    serverInfoReqParam.value.instanceId = db.instanceId;
+    await getDbServerInfo();
 };
 
 // 选择数据库,改变当前正在操作的数据库信息

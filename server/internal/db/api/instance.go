@@ -89,11 +89,7 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
 		instanceId := uint64(value)
-		if d.DbApp.Count(&entity.DbQuery{InstanceId: instanceId}) != 0 {
-			instance, err := d.InstanceApp.GetById(new(entity.DbInstance), instanceId, "name")
-			biz.ErrIsNil(err, "获取数据库实例错误，数据库实例ID为: %d", instance.Id)
-			biz.IsTrue(false, "不能删除数据库实例【%s】，请先删除其关联的数据库资源。", instance.Name)
-		}
+		biz.IsTrue(d.DbApp.Count(&entity.DbQuery{InstanceId: instanceId}) == 0, "不能删除数据库实例【%d】, 请先删除其关联的数据库资源", instanceId)
 		d.InstanceApp.Delete(rc.MetaCtx, instanceId)
 	}
 }
@@ -105,6 +101,16 @@ func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
 	biz.ErrIsNil(err, "获取数据库实例错误")
 	instance.PwdDecrypt()
 	res, err := d.InstanceApp.GetDatabases(instance)
+	biz.ErrIsNil(err)
+	rc.ResData = res
+}
+
+// 获取数据库实例server信息
+func (d *Instance) GetDbServer(rc *req.Ctx) {
+	instanceId := getInstanceId(rc.GinCtx)
+	conn, err := d.DbApp.GetDbConnByInstanceId(instanceId)
+	biz.ErrIsNil(err)
+	res, err := conn.GetDialect().GetDbServer()
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

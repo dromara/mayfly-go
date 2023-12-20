@@ -64,17 +64,12 @@
                                         </el-text>
                                     </div>
 
-                                    <el-dropdown trigger="click" class="column-header-op">
+                                    <el-dropdown trigger="click" class="column-header-op" size="small">
                                         <SvgIcon :size="16" name="CaretBottom" />
                                         <template #dropdown>
                                             <el-dropdown-menu>
                                                 <template v-for="menu in tableHeadlerMenu">
-                                                    <el-dropdown-item
-                                                        :key="menu.clickId"
-                                                        v-if="!menu.isHide(column)"
-                                                        @click="menu?.onClickFunc(column)"
-                                                        class="font12"
-                                                    >
+                                                    <el-dropdown-item :key="menu.clickId" v-if="!menu.isHide(column)" @click="menu?.onClickFunc(column)">
                                                         <SvgIcon v-if="menu.icon" :name="menu.icon" />
                                                         {{ menu.txt }}
                                                     </el-dropdown-item>

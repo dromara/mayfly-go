@@ -8,8 +8,9 @@ import (
 )
 
 type DbInfo struct {
-	Id   uint64
-	Name string
+	InstanceId uint64 // 实例id
+	Id         uint64 // dbId
+	Name       string
 
 	Type     DbType // 类型，mysql postgres等
 	Host     string

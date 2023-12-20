@@ -42,6 +42,17 @@ type DMDialect struct {
 	dc *DbConn
 }
 
+func (dd *DMDialect) GetDbServer() (*DbServer, error) {
+	_, res, err := dd.dc.Query("select * from v$instance")
+	if err != nil {
+		return nil, err
+	}
+	ds := &DbServer{
+		Version: anyx.ConvString(res[0]["SVR_VERSION"]),
+	}
+	return ds, nil
+}
+
 func (pd *DMDialect) GetDbNames() ([]string, error) {
 	_, res, err := pd.dc.Query("SELECT name AS DBNAME FROM v$database")
 	if err != nil {
@@ -168,7 +179,7 @@ func (pd *DMDialect) GetTableIndex(tableName string) ([]Index, error) {
 }
 
 // 获取建表ddl
-func (pd *DMDialect) GetCreateTableDdl(tableName string) (string, error) {
+func (pd *DMDialect) GetTableDDL(tableName string) (string, error) {
 	ddlSql := fmt.Sprintf("CALL SP_TABLEDEF((SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)), '%s')", tableName)
 	_, res, err := pd.dc.Query(ddlSql)
 	if err != nil {
@@ -185,13 +196,14 @@ func (pd *DMDialect) GetCreateTableDdl(tableName string) (string, error) {
 			select OWNER, COMMENTS from DBA_TAB_COMMENTS where TABLE_TYPE='TABLE' and TABLE_NAME = '%s'
 		    and owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
 			                                      `, tableName))
-	if res != nil {
-		for _, re := range res {
-			// COMMENT ON TABLE "SYS_MENU" IS '菜单表';
-			if re["COMMENTS"] != nil {
-				tableComment := fmt.Sprintf("\n\nCOMMENT ON TABLE \"%s\".\"%s\" IS '%s';", re["OWNER"].(string), tableName, re["COMMENTS"].(string))
-				builder.WriteString(tableComment)
-			}
+	if err != nil {
+		return "", err
+	}
+	for _, re := range res {
+		// COMMENT ON TABLE "SYS_MENU" IS '菜单表';
+		if re["COMMENTS"] != nil {
+			tableComment := fmt.Sprintf("\n\nCOMMENT ON TABLE \"%s\".\"%s\" IS '%s';", re["OWNER"].(string), tableName, re["COMMENTS"].(string))
+			builder.WriteString(tableComment)
 		}
 	}
 
@@ -203,14 +215,16 @@ func (pd *DMDialect) GetCreateTableDdl(tableName string) (string, error) {
 		  AND TABLE_NAME = '%s'
 		`, tableName)
 	_, res, err = pd.dc.Query(fieldSql)
-	if res != nil {
-		builder.WriteString("\n")
-		for _, re := range res {
-			// COMMENT ON COLUMN "SYS_MENU"."BIZ_CODE" IS '业务编码，应用编码1';
-			if re["COMMENTS"] != nil {
-				fieldComment := fmt.Sprintf("\nCOMMENT ON COLUMN \"%s\".\"%s\".\"%s\" IS '%s';", re["OWNER"].(string), tableName, re["COLUMN_NAME"].(string), re["COMMENTS"].(string))
-				builder.WriteString(fieldComment)
-			}
+	if err != nil {
+		return "", err
+	}
+
+	builder.WriteString("\n")
+	for _, re := range res {
+		// COMMENT ON COLUMN "SYS_MENU"."BIZ_CODE" IS '业务编码，应用编码1';
+		if re["COMMENTS"] != nil {
+			fieldComment := fmt.Sprintf("\nCOMMENT ON COLUMN \"%s\".\"%s\".\"%s\" IS '%s';", re["OWNER"].(string), tableName, re["COLUMN_NAME"].(string), re["COMMENTS"].(string))
+			builder.WriteString(fieldComment)
 		}
 	}
 
@@ -223,10 +237,11 @@ func (pd *DMDialect) GetCreateTableDdl(tableName string) (string, error) {
 		and indexdef(b.object_id,1) != '禁止查看系统定义的索引信息'
 	`, tableName)
 	_, res, err = pd.dc.Query(indexSql)
-	if res != nil {
-		for _, re := range res {
-			builder.WriteString("\n\n" + re["INDEX_DEF"].(string))
-		}
+	if err != nil {
+		return "", err
+	}
+	for _, re := range res {
+		builder.WriteString("\n\n" + re["INDEX_DEF"].(string))
 	}
 
 	return builder.String(), nil
