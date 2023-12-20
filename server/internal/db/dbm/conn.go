@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"reflect"
@@ -101,6 +102,10 @@ func (d *DbConn) Close() {
 	if d.db != nil {
 		if err := d.db.Close(); err != nil {
 			logx.Errorf("关闭数据库实例[%s]连接失败: %s", d.Id, err.Error())
+		}
+		// 如果是达梦并且使用了ssh隧道，则需要手动将其关闭
+		if d.Info.Type == DM && d.Info.SshTunnelMachineId > 0 {
+			mcm.CloseSshTunnelMachine(d.Info.SshTunnelMachineId, fmt.Sprintf("db:%d", d.Info.Id))
 		}
 		d.db = nil
 	}

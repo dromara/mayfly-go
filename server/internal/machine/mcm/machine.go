@@ -32,6 +32,10 @@ func (m *MachineInfo) UseSshTunnel() bool {
 	return m.SshTunnelMachine != nil
 }
 
+func (m *MachineInfo) GetTunnelId() string {
+	return fmt.Sprintf("machine:%d", m.Id)
+}
+
 // 连接
 func (mi *MachineInfo) Conn() (*Cli, error) {
 	logx.Infof("[%s]机器连接：%s:%d", mi.Name, mi.Ip, mi.Port)
@@ -46,7 +50,7 @@ func (mi *MachineInfo) Conn() (*Cli, error) {
 	sshClient, err := GetSshClient(mi)
 	if err != nil {
 		if mi.UseSshTunnel() {
-			CloseSshTunnelMachine(int(mi.SshTunnelMachine.Id), mi.Id)
+			CloseSshTunnelMachine(int(mi.SshTunnelMachine.Id), mi.GetTunnelId())
 		}
 		return nil, err
 	}
@@ -72,7 +76,7 @@ func (me *MachineInfo) IfUseSshTunnelChangeIpPort() error {
 	if err != nil {
 		return err
 	}
-	exposeIp, exposePort, err := sshTunnelMachine.OpenSshTunnel(me.Id, me.Ip, me.Port)
+	exposeIp, exposePort, err := sshTunnelMachine.OpenSshTunnel(me.GetTunnelId(), me.Ip, me.Port)
 	if err != nil {
 		return err
 	}

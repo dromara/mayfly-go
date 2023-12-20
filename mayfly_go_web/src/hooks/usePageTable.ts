@@ -1,6 +1,6 @@
 import Api from '@/common/Api';
 import { ElMessage } from 'element-plus';
-import { reactive, toRefs } from 'vue';
+import { reactive, toRefs, toValue } from 'vue';
 
 /**
  * @description table 页面操作方法封装
@@ -39,7 +39,7 @@ export const usePageTable = (
         if (!api) return;
         try {
             state.loading = true;
-            let sp = { ...state.searchParams };
+            let sp = toValue(state.searchParams);
             if (beforeQueryFn) {
                 sp = beforeQueryFn(sp);
                 state.searchParams = sp;

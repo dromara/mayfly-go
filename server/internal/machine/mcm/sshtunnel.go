@@ -68,10 +68,10 @@ type SshTunnelMachine struct {
 	machineId int // 隧道机器id
 	SshClient *ssh.Client
 	mutex     sync.Mutex
-	tunnels   map[uint64]*Tunnel // 机器id -> 隧道
+	tunnels   map[string]*Tunnel // 隧道id -> 隧道
 }
 
-func (stm *SshTunnelMachine) OpenSshTunnel(id uint64, ip string, port int) (exposedIp string, exposedPort int, err error) {
+func (stm *SshTunnelMachine) OpenSshTunnel(id string, ip string, port int) (exposedIp string, exposedPort int, err error) {
 	stm.mutex.Lock()
 	defer stm.mutex.Unlock()
 
@@ -154,7 +154,7 @@ func GetSshTunnelMachine(machineId int, getMachine func(uint64) (*MachineInfo, e
 	if err != nil {
 		return nil, err
 	}
-	sshTunnelMachine = &SshTunnelMachine{SshClient: sshClient, machineId: machineId, tunnels: map[uint64]*Tunnel{}}
+	sshTunnelMachine = &SshTunnelMachine{SshClient: sshClient, machineId: machineId, tunnels: map[string]*Tunnel{}}
 
 	logx.Infof("初次连接ssh隧道机器[%d][%s:%d]", machineId, me.Ip, me.Port)
 	sshTunnelMachines[machineId] = sshTunnelMachine
@@ -168,7 +168,7 @@ func GetSshTunnelMachine(machineId int, getMachine func(uint64) (*MachineInfo, e
 }
 
 // 关闭ssh隧道机器的指定隧道
-func CloseSshTunnelMachine(machineId int, tunnelId uint64) {
+func CloseSshTunnelMachine(machineId int, tunnelId string) {
 	sshTunnelMachine := sshTunnelMachines[machineId]
 	if sshTunnelMachine == nil {
 		return
@@ -184,7 +184,7 @@ func CloseSshTunnelMachine(machineId int, tunnelId uint64) {
 }
 
 type Tunnel struct {
-	id                uint64 // 唯一标识
+	id                string // 唯一标识
 	machineId         int    // 隧道机器id
 	localHost         string // 本地监听地址
 	localPort         int    // 本地端口
@@ -237,7 +237,7 @@ func (r *Tunnel) Close() {
 	}
 	r.remoteConnections = nil
 	_ = r.listener.Close()
-	logx.Debugf("隧道 %d 监听器关闭", r.id)
+	logx.Debugf("隧道 %s 监听器关闭", r.id)
 }
 
 func copyConn(writer, reader net.Conn) {

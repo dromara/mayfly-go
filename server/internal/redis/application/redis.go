@@ -103,6 +103,10 @@ func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis, tagIds ...uin
 			rdm.CloseConn(re.Id, db)
 		}
 	}
+	// 如果调整了ssh等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
+	if oldRedis.Code == "" {
+		oldRedis, _ = r.GetById(new(entity.Redis), re.Id)
+	}
 
 	re.PwdEncrypt()
 	return r.Tx(ctx, func(ctx context.Context) error {

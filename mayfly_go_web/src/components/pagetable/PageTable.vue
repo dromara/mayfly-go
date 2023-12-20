@@ -43,9 +43,14 @@
                                     </div>
 
                                     <el-form-item style="width: 200px" :key="nowSearchItem.prop">
-                                        <SearchFormItem v-if="!nowSearchItem.slot" :item="nowSearchItem" v-model="queryForm_[nowSearchItem.prop]" />
+                                        <SearchFormItem
+                                            @keyup.enter.native="searchFormItemKeyUpEnter"
+                                            v-if="!nowSearchItem.slot"
+                                            :item="nowSearchItem"
+                                            v-model="queryForm_[nowSearchItem.prop]"
+                                        />
 
-                                        <slot v-else :name="nowSearchItem.slot"></slot>
+                                        <slot @keyup.enter.native="searchFormItemKeyUpEnter" v-else :name="nowSearchItem.slot"></slot>
                                     </el-form-item>
                                 </div>
 
@@ -312,6 +317,11 @@ onMounted(async () => {
 const calcuTableHeight = () => {
     const headerHeight = isShowSearch.value ? 325 : 245;
     state.tableMaxHeight = window.innerHeight - headerHeight + 'px';
+};
+
+const searchFormItemKeyUpEnter = (event: any) => {
+    event.preventDefault();
+    search();
 };
 
 const formatText = (data: any) => {

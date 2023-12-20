@@ -106,6 +106,6 @@ func (c *Cli) Close() {
 	}
 	if c.Info.SshTunnelMachine != nil {
 		logx.Infof("关闭机器的隧道信息: machineId=%d, sshTunnelMachineId=%d", c.Info.Id, c.Info.SshTunnelMachine.Id)
-		CloseSshTunnelMachine(int(c.Info.SshTunnelMachine.Id), c.Info.Id)
+		CloseSshTunnelMachine(int(c.Info.SshTunnelMachine.Id), c.Info.GetTunnelId())
 	}
 }

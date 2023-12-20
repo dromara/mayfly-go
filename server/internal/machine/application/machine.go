@@ -105,6 +105,10 @@ func (m *machineAppImpl) Save(ctx context.Context, me *entity.Machine, tagIds ..
 	if err == nil && oldMachine.Id != me.Id {
 		return errorx.NewBiz("该机器信息已存在")
 	}
+	// 如果调整了ssh username等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
+	if oldMachine.Code == "" {
+		oldMachine, _ = m.GetById(new(entity.Machine), me.Id)
+	}
 
 	// 关闭连接
 	mcm.DeleteCli(me.Id)
