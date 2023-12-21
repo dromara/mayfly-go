@@ -1,26 +1,26 @@
-import { h, render, VNode } from 'vue';
-import SqlExecDialog from './SqlExecDialog.vue';
-import { SqlLanguage } from 'sql-formatter/lib/src/sqlFormatter';
+import { VNode, h, render } from 'vue';
+import MonacoEditorDialogComp from './MonacoEditorDialogComp.vue';
 
-export type SqlExecProps = {
-    sql: string;
-    dbId: number;
-    db: string;
-    dbType?: SqlLanguage;
-    runSuccessCallback?: Function;
-    cancelCallback?: Function;
+export type MonacoEditorDialogProps = {
+    content: string;
+    title: string;
+    language: string;
+    height?: string;
+    width?: string;
+    confirmFn?: Function;
+    cancelFn?: Function;
 };
 
-const boxId = 'sql-exec-dialog-id';
+const boxId = 'monaco-editor-dialog-id';
 
 let boxInstance: VNode;
 
-const SqlExecBox = (props: SqlExecProps): void => {
+const MonacoEditorDialog = (props: MonacoEditorDialogProps): void => {
     if (!boxInstance) {
         const container = document.createElement('div');
         container.id = boxId;
         // 创建 虚拟dom
-        boxInstance = h(SqlExecDialog);
+        boxInstance = h(MonacoEditorDialogComp);
         // 将虚拟dom渲染到 container dom 上
         render(boxInstance, container);
         // 最后将 container 追加到 body 上
@@ -34,4 +34,4 @@ const SqlExecBox = (props: SqlExecProps): void => {
     }
 };
 
-export default SqlExecBox;
+export default MonacoEditorDialog;

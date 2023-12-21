@@ -1,11 +1,11 @@
 <template>
     <div>
-        <el-dialog :destroy-on-close="true" :title="state.title" v-model="dialogVisible" :show-close="false" width="800px" @close="cancel">
-            <monaco-editor height="600px" class="codesql" :language="state.language" v-model="contentValue" />
+        <el-dialog :title="state.title" v-model="state.dialogVisible" :width="state.width" @close="cancel">
+            <monaco-editor ref="editorRef" :height="state.height" class="editor" :language="state.language" v-model="contentValue" />
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="cancel">取消</el-button>
-                    <el-button @click="submit" type="primary">确定</el-button>
+                    <el-button @click="confirm" type="primary">确定</el-button>
                 </span>
             </template>
         </el-dialog>
@@ -13,26 +13,27 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, ref, nextTick, reactive } from 'vue';
-import { ElDialog, ElButton, InputInstance, ElMessage } from 'element-plus';
+import { toRefs, ref, reactive } from 'vue';
+import { ElDialog, ElButton, ElMessage } from 'element-plus';
 // import base style
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import { MonacoEditorDialogProps } from './MonacoEditorDialog';
 
-import { TableDataEditorProps } from './DbTableDataEditorDialog';
+const editorRef: any = ref(null);
 
-const remarkInputRef = ref<InputInstance>();
 const state = reactive({
     dialogVisible: false,
+    height: '450px',
+    width: '800px',
     contentValue: '',
     title: '',
     language: '',
 });
 
-const { dialogVisible, contentValue } = toRefs(state);
+let confirmFn: any;
+let cancelFn: any;
 
-let cancelCallback: any;
-let runSuccessCallback: any;
-let runSuccess: boolean = false;
+const { contentValue } = toRefs(state);
 
 function compressHTML(html: string) {
     return (
@@ -45,11 +46,10 @@ function compressHTML(html: string) {
 }
 
 /**
- * 执行sql
+ * 确认按钮
  */
-const submit = async () => {
-    runSuccess = true;
-    if (runSuccessCallback) {
+const confirm = async () => {
+    if (confirmFn) {
         if (state.language === 'json') {
             let val;
             try {
@@ -64,34 +64,28 @@ const submit = async () => {
             }
 
             // 压缩json字符串
-            runSuccessCallback(JSON.stringify(val));
+            confirmFn(JSON.stringify(val));
         } else if (state.language === 'html') {
             // 压缩html字符串
-            runSuccessCallback(compressHTML(contentValue.value));
+            confirmFn(compressHTML(contentValue.value));
         } else {
-            runSuccessCallback(contentValue.value);
+            confirmFn(contentValue.value);
         }
     }
     state.dialogVisible = false;
     setTimeout(() => {
         state.contentValue = '';
         state.title = '';
-        runSuccessCallback = null;
-        runSuccess = false;
     }, 200);
 };
 
 const cancel = () => {
     state.dialogVisible = false;
     // 没有执行成功，并且取消回调函数存在，则执行
-    if (!runSuccess && cancelCallback) {
-        cancelCallback();
-    }
+    cancelFn && cancelFn();
     setTimeout(() => {
         state.contentValue = '';
         state.title = '';
-        cancelCallback = null;
-        runSuccess = false;
     }, 200);
 };
 
@@ -107,35 +101,34 @@ const formatXML = function (xml: string, tab?: string) {
     return formatted.substring(1, formatted.length - 3);
 };
 
-const open = (props: TableDataEditorProps) => {
-    cancelCallback = props.cancelCallback;
-    runSuccessCallback = props.runSuccessCallback;
-    // 格式化输出json
-    if (props.language === 'json') {
-        try {
-            state.contentValue = JSON.stringify(JSON.parse(props.content), null, '\t');
-        } catch (e) {
-            state.contentValue = 'json格式字符串错误: ' + props.content;
-        }
+const open = (optionProps: MonacoEditorDialogProps) => {
+    confirmFn = optionProps.confirmFn;
+    cancelFn = optionProps.cancelFn;
+
+    const language = optionProps.language;
+    state.language = language;
+    state.title = optionProps.title;
+    if (optionProps.height) {
+        state.height = optionProps.height;
     }
-    // 格式化输出html
-    if (props.language === 'html') {
-        state.contentValue = formatXML(props.content);
+
+    state.contentValue = optionProps.content;
+    // 格式化输出html;
+    if (language === 'html' || language == 'xml') {
+        state.contentValue = formatXML(optionProps.content);
     }
-    state.title = props.title;
-    state.language = props.language;
+
+    setTimeout(() => {
+        editorRef.value?.format();
+    }, 300);
+
     state.dialogVisible = true;
-    nextTick(() => {
-        setTimeout(() => {
-            remarkInputRef.value?.focus();
-        });
-    });
 };
 
 defineExpose({ open });
 </script>
-<style lang="scss">
-.codesql {
+<style lang="scss" scoped>
+.editor {
     font-size: 9pt;
     font-weight: 600;
 }

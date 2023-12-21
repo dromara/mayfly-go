@@ -185,7 +185,7 @@ defineExpose({
     position: fixed;
 
     .el-dropdown-menu__item {
-        padding: 5px 10px;
+        padding: 5px 12px;
     }
 
     .el-dropdown-menu__item {

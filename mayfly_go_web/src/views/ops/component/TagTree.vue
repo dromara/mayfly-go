@@ -24,7 +24,7 @@
 
                         <slot v-else :node="node" :data="data" name="prefix"></slot>
 
-                        <span class="ml3">
+                        <span class="ml3" :title="data.labelRemark">
                             <slot name="label" :data="data"> {{ data.label }}</slot>
                         </span>
 

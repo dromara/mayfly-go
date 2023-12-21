@@ -32,22 +32,19 @@
                                 </div>
 
                                 <!-- 字段名列 -->
-                                <div v-else style="position: relative">
+                                <div v-else @contextmenu="headerContextmenuClick($event, column)" style="position: relative">
                                     <!-- 字段列的数据类型 -->
                                     <div class="column-type">
-                                        <span v-if="ColumnTypeSubscript[dbDialect.getDataType(column.columnType)] === 'icon-clock'">
+                                        <span v-if="column.dataTypeSubscript === 'icon-clock'">
                                             <SvgIcon :size="10" name="Clock" style="cursor: unset" />
                                         </span>
-                                        <span class="font8" v-else>{{ ColumnTypeSubscript[dbDialect.getDataType(column.columnType)] }}</span>
+                                        <span class="font8" v-else>{{ column.dataTypeSubscript }}</span>
                                     </div>
 
-                                    <div v-if="showColumnTip" @mouseover="column.showSetting = true" @mouseleave="column.showSetting = false">
-                                        <el-tooltip :show-after="500" raw-content placement="top">
-                                            <template #content> {{ getColumnTip(column) }} </template>
-                                            <el-text tag="b" style="cursor: pointer">
-                                                {{ column.title }}
-                                            </el-text>
-                                        </el-tooltip>
+                                    <div v-if="showColumnTip">
+                                        <el-text tag="b" :title="column.remark" style="cursor: pointer">
+                                            {{ column.title }}
+                                        </el-text>
 
                                         <span>
                                             <SvgIcon
@@ -63,20 +60,6 @@
                                             {{ column.title }}
                                         </el-text>
                                     </div>
-
-                                    <el-dropdown trigger="click" class="column-header-op" size="small">
-                                        <SvgIcon :size="16" name="CaretBottom" />
-                                        <template #dropdown>
-                                            <el-dropdown-menu>
-                                                <template v-for="menu in tableHeadlerMenu">
-                                                    <el-dropdown-item :key="menu.clickId" v-if="!menu.isHide(column)" @click="menu?.onClickFunc(column)">
-                                                        <SvgIcon v-if="menu.icon" :name="menu.icon" />
-                                                        {{ menu.txt }}
-                                                    </el-dropdown-item>
-                                                </template>
-                                            </el-dropdown-menu>
-                                        </template>
-                                    </el-dropdown>
                                 </div>
                             </div>
                         </div>
@@ -161,7 +144,7 @@ import { dateStrFormat } from '@/common/utils/date';
 import { useIntervalFn } from '@vueuse/core';
 import { ColumnTypeSubscript, DataType, DbDialect, DbType, getDbDialect } from '../../dialect/index';
 import ColumnFormItem from './ColumnFormItem.vue';
-import TableDataEditorBox from '@/views/ops/db/component/table/DbTableDataEditorDialog';
+import MonacoEditorDialog from '@/components/monaco/MonacoEditorDialog';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
@@ -235,9 +218,6 @@ const cmHeaderCancenFixed = new ContextmenuItem('cancelFixed', '取消固定')
     .withIcon('Minus')
     .withOnClick((data: any) => (data.fixed = false))
     .withHideFunc((data: any) => !data.fixed);
-
-// 标头菜单
-const tableHeadlerMenu = [cmHeaderAsc, cmHeaderDesc, cmHeaderFixed, cmHeaderCancenFixed];
 
 /**  表数据 contextmenu items  **/
 
@@ -465,6 +445,11 @@ const setTableData = (datas: any) => {
 const setTableColumns = (columns: any) => {
     state.columns = columns.map((x: any) => {
         const columnName = x.columnName;
+        // 数据类型
+        x.dataType = dbDialect.getDataType(x.columnType);
+        x.dataTypeSubscript = ColumnTypeSubscript[x.dataType];
+        x.remark = `${x.columnType} ${x.columnComment ? ' |  ' + x.columnComment : ''}`;
+
         return {
             ...x,
             key: columnName,
@@ -559,6 +544,16 @@ const rowEventHandlers = {
         }
         selectionRow(rowIndex, rowData);
     },
+};
+
+const headerContextmenuClick = (event: any, data: any) => {
+    event.preventDefault(); // 阻止默认的右击菜单行为
+
+    const { clientX, clientY } = event;
+    state.contextmenu.dropdown.x = clientX;
+    state.contextmenu.dropdown.y = clientY;
+    state.contextmenu.items = [cmHeaderAsc, cmHeaderDesc, cmHeaderFixed, cmHeaderCancenFixed];
+    contextmenuRef.value.openContextmenu(data);
 };
 
 const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: any) => {
@@ -681,18 +676,18 @@ const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 
         rowIndex: rowIndex,
         colIndex: columnIndex,
         oldValue: rowData[column.dataKey],
-        dataType: dbDialect.getDataType(column.columnType),
+        dataType: column.dataType,
     };
 
     // 编辑器语言，如：json、html、string，目前支持json、html使用MonacoEditor编辑器
     let editorLang = getEditorLangByValue(rowData[column.dataKey]);
     state.editorLang = editorLang;
     if (editorLang === 'html' || editorLang === 'json') {
-        TableDataEditorBox({
+        MonacoEditorDialog({
             content: rowData[column.dataKey],
-            title: '编辑字段' + column.dataKey,
+            title: `编辑字段 [${column.dataKey}]`,
             language: editorLang,
-            runSuccessCallback: (newVal: any) => {
+            confirmFn: (newVal: any) => {
                 rowData[column.dataKey] = newVal;
                 onExitEditMode(rowData, column, rowIndex);
             },
@@ -835,11 +830,6 @@ const getFormatTimeValue = (dataType: DataType, originValue: string): string => 
     }
 };
 
-const getColumnTip = (column: any) => {
-    const comment = column.columnComment;
-    return `${column.columnType} ${comment ? ' |  ' + comment : ''}`;
-};
-
 /**
  * 触发响应式实时刷新，否则需要滑动或移动才能使样式实时生效
  */
@@ -901,13 +891,6 @@ defineExpose({
         top: -12px;
         padding: 2px;
         height: 12px;
-    }
-
-    .column-header-op {
-        color: var(--el-color-primary);
-        position: absolute;
-        top: 6px;
-        right: 0px;
     }
 }
 </style>

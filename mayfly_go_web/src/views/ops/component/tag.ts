@@ -14,6 +14,11 @@ export class TagTreeNode {
     label: string;
 
     /**
+     * 节点名称备注（用于元素title属性）
+     */
+    labelRemark: string;
+
+    /**
      * 树节点类型
      */
     type: NodeType;
@@ -36,6 +41,11 @@ export class TagTreeNode {
         this.key = key;
         this.label = label;
         this.type = type || new NodeType(TagTreeNode.TagPath);
+    }
+
+    withLabelRemark(labelRemark: any) {
+        this.labelRemark = labelRemark;
+        return this;
     }
 
     withIsLeaf(isLeaf: boolean) {

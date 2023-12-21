@@ -41,12 +41,6 @@
                         <SvgIcon v-if="data.icon" :name="data.icon.name" :color="data.icon.color" />
                     </template>
 
-                    <template #label="{ data }">
-                        <el-tooltip placement="left" :show-after="1000" v-if="data.type.value == SqlExecNodeType.Table" :content="data.params.tableComment">
-                            {{ data.label }}
-                        </el-tooltip>
-                    </template>
-
                     <template #suffix="{ data }">
                         <span class="db-table-size" v-if="data.type.value == SqlExecNodeType.Table && data.params.size">{{ ` ${data.params.size}` }}</span>
                         <span class="db-table-size" v-if="data.type.value == SqlExecNodeType.TableMenu && data.params.dbTableSize">{{
@@ -323,7 +317,8 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
                     tableComment: x.tableComment,
                     size: formatByteSize(x.dataLength + x.indexLength, 1),
                 })
-                .withIcon(TableIcon);
+                .withIcon(TableIcon)
+                .withLabelRemark(`${x.tableName} ${x.tableComment ? '| ' + x.tableComment : ''}`);
         });
         // 设置父节点参数的表大小
         parentNode.params.dbTableSize = formatByteSize(dbTableSize);
