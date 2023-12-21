@@ -135,43 +135,11 @@
                     :label="column.columnName"
                     :required="column.nullable != 'YES' && column.columnKey != 'PRI'"
                 >
-                    <el-input-number
-                        v-if="DbInst.isNumber(column.columnType)"
+                    <ColumnFormItem
                         v-model="addDataDialog.data[`${column.columnName}`]"
+                        :data-type="dbDialect.getDataType(column.columnType)"
                         :placeholder="`${column.columnType}  ${column.columnComment}`"
-                        class="w100"
                     />
-
-                    <el-date-picker
-                        v-else-if="dbDialect.getDataType(column.columnType) === DataType.DateTime"
-                        v-model="addDataDialog.data[`${column.columnName}`]"
-                        :placeholder="`${column.columnType}  ${column.columnComment}`"
-                        type="datetime"
-                        class="w100"
-                        :default-value="new Date()"
-                        :default-time="new Date()"
-                        value-format="YYYY-MM-DD HH:mm:ss"
-                    />
-                    <el-date-picker
-                        v-else-if="dbDialect.getDataType(column.columnType) === DataType.Date"
-                        v-model="addDataDialog.data[`${column.columnName}`]"
-                        :placeholder="`${column.columnType}  ${column.columnComment}`"
-                        type="Date"
-                        class="w100"
-                        :default-value="new Date()"
-                        value-format="YYYY-MM-DD"
-                    />
-                    <el-time-picker
-                        v-else-if="dbDialect.getDataType(column.columnType) === DataType.Time"
-                        v-model="addDataDialog.data[`${column.columnName}`]"
-                        :placeholder="`${column.columnType}  ${column.columnComment}`"
-                        type="Date"
-                        class="w100"
-                        :default-value="new Date()"
-                        value-format="HH:mm:ss"
-                    />
-
-                    <el-input v-else v-model="addDataDialog.data[`${column.columnName}`]" :placeholder="`${column.columnType}  ${column.columnComment}`" />
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -190,8 +158,9 @@ import { ElMessage } from 'element-plus';
 
 import { DbInst } from '@/views/ops/db/db';
 import DbTableData from './DbTableData.vue';
-import { DataType, DbDialect, getDbDialect } from '@/views/ops/db/dialect';
+import { DbDialect, getDbDialect } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
+import ColumnFormItem from './ColumnFormItem.vue';
 
 const props = defineProps({
     dbId: {

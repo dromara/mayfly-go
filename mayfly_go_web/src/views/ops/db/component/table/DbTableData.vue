@@ -94,57 +94,11 @@
                             <!-- 数据列 -->
                             <div v-else @dblclick="onEnterEditMode(rowData, column, rowIndex, columnIndex)">
                                 <div v-if="canEdit(rowIndex, columnIndex)">
-                                    <el-input
-                                        v-if="nowUpdateCell.dataType == DataType.Number || nowUpdateCell.dataType == DataType.String"
-                                        :ref="(el: any) => el?.focus()"
-                                        @blur="onExitEditMode(rowData, column, rowIndex)"
-                                        class="w100 mb4"
-                                        input-style="text-align: center; height: 26px;"
-                                        size="small"
+                                    <ColumnFormItem
                                         v-model="rowData[column.dataKey!]"
-                                    />
-                                    <el-date-picker
-                                        v-if="nowUpdateCell.dataType == DataType.Date"
-                                        :ref="(el: any) => el?.focus()"
-                                        @change="onExitEditMode(rowData, column, rowIndex)"
+                                        :data-type="nowUpdateCell.dataType"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
-                                        class="edit-time-picker mb4"
-                                        popper-class="edit-time-picker-popper"
-                                        size="small"
-                                        v-model="rowData[column.dataKey!]"
-                                        :clearable="false"
-                                        type="Date"
-                                        value-format="YYYY-MM-DD"
-                                        placeholder="选择日期"
-                                    />
-                                    <el-date-picker
-                                        v-if="nowUpdateCell.dataType == DataType.DateTime"
-                                        :ref="(el: any) => el?.focus()"
-                                        @change="onExitEditMode(rowData, column, rowIndex)"
-                                        @blur="onExitEditMode(rowData, column, rowIndex)"
-                                        class="edit-time-picker mb4"
-                                        popper-class="edit-time-picker-popper"
-                                        size="small"
-                                        :key="rowIndex"
-                                        v-model="rowData[column.dataKey!]"
-                                        :clearable="false"
-                                        type="datetime"
-                                        value-format="YYYY-MM-DD HH:mm:ss"
-                                        placeholder="选择日期时间"
-                                        :teleported="false"
-                                    />
-                                    <el-time-picker
-                                        v-if="nowUpdateCell.dataType == DataType.Time"
-                                        :ref="(el: any) => el?.focus()"
-                                        @change="onExitEditMode(rowData, column, rowIndex)"
-                                        @blur="onExitEditMode(rowData, column, rowIndex)"
-                                        class="edit-time-picker mb4"
-                                        popper-class="edit-time-picker-popper"
-                                        size="small"
-                                        v-model="rowData[column.dataKey!]"
-                                        :clearable="false"
-                                        value-format="HH:mm:ss"
-                                        placeholder="选择时间"
+                                        focus
                                     />
                                 </div>
 
@@ -206,6 +160,7 @@ import { exportCsv, exportFile } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
 import { useIntervalFn } from '@vueuse/core';
 import { ColumnTypeSubscript, DataType, DbDialect, DbType, getDbDialect } from '../../dialect/index';
+import ColumnFormItem from './ColumnFormItem.vue';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
@@ -706,6 +661,7 @@ const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 
 };
 
 const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
+    console.trace('exit');
     const oldValue = nowUpdateCell.oldValue;
     const newValue = rowData[column.dataKey];
 
@@ -913,64 +869,6 @@ defineExpose({
         position: absolute;
         top: 6px;
         right: 0px;
-    }
-}
-
-.edit-time-picker {
-    height: 26px;
-    width: 100% !important;
-    .el-input__prefix {
-        display: none;
-    }
-    .el-input__inner {
-        text-align: center;
-    }
-}
-.edit-time-picker-popper {
-    .el-date-picker {
-        width: 250px !important;
-        .el-date-picker__header {
-            margin: 0 5px;
-        }
-        .el-picker-panel__content {
-            width: unset;
-            margin: 0 5px;
-        }
-        .el-date-picker__header-label {
-            font-size: 13px;
-        }
-        .el-picker-panel__footer {
-            padding: 0 5px;
-            button {
-                font-size: 11px;
-                padding: 5px 6px;
-                height: 20px;
-            }
-        }
-    }
-    .el-date-table {
-        th {
-            font-size: 10px;
-            font-weight: 600;
-            padding: 0;
-        }
-        td {
-            padding: 0;
-        }
-    }
-    .el-time-panel {
-        width: 100px;
-
-        .el-time-spinner__list {
-            &::after,
-            &::before {
-                height: 10px;
-            }
-            .el-time-spinner__item {
-                height: 20px;
-                line-height: 20px;
-            }
-        }
     }
 }
 </style>
