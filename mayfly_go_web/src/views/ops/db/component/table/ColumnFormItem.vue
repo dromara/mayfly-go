@@ -11,7 +11,7 @@
     />
 
     <el-input
-        v-if="dataType == DataType.Number"
+        v-else-if="dataType == DataType.Number"
         :ref="(el: any) => focus && el?.focus()"
         @blur="emit('blur')"
         class="w100 mb4"
@@ -23,7 +23,7 @@
     />
 
     <el-date-picker
-        v-if="dataType == DataType.Date"
+        v-else-if="dataType == DataType.Date"
         :ref="(el: any) => focus && el?.focus()"
         @change="emit('blur')"
         @blur="emit('blur')"
@@ -38,7 +38,7 @@
     />
 
     <el-date-picker
-        v-if="dataType == DataType.DateTime"
+        v-else-if="dataType == DataType.DateTime"
         :ref="(el: any) => focus && el?.focus()"
         @change="emit('blur')"
         @blur="emit('blur')"
@@ -53,7 +53,7 @@
     />
 
     <el-time-picker
-        v-if="dataType == DataType.Time"
+        v-else-if="dataType == DataType.Time"
         :ref="(el: any) => focus && el?.focus()"
         @change="emit('blur')"
         @blur="emit('blur')"

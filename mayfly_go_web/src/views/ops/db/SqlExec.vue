@@ -263,31 +263,24 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
 const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
+        // pg类数据库会多一层schema
         if (params.type == 'postgres' || params.type === 'dm') {
-            return [new TagTreeNode(`${params.id}.${params.db}.schema-menu`, 'schema', NodeTypePostgresScheamMenu).withParams(params).withIcon(SchemaIcon)];
+            const params = parentNode.params;
+            const { id, db } = params;
+            const schemaNames = await dbApi.pgSchemas.request({ id, db });
+            return schemaNames.map((sn: any) => {
+                // 将db变更为  db/schema;
+                const nParams = { ...params };
+                nParams.schema = sn;
+                nParams.db = nParams.db + '/' + sn;
+                nParams.dbs = schemaNames;
+                return new TagTreeNode(`${params.id}.${params.db}.schema.${sn}`, sn, NodeTypePostgresScheam).withParams(nParams).withIcon(SchemaIcon);
+            });
         }
-
         return [
             new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams(params).withIcon(TableIcon),
             new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeTypeSqlMenu).withParams(params).withIcon(SqlIcon),
         ];
-    })
-    .withNodeClickFunc(nodeClickChangeDb);
-
-// postgres schema模式菜单
-const NodeTypePostgresScheamMenu = new NodeType(SqlExecNodeType.PgSchemaMenu)
-    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
-        const params = parentNode.params;
-        const { id, db } = params;
-        const schemaNames = await dbApi.pgSchemas.request({ id, db });
-        return schemaNames.map((sn: any) => {
-            // 将db变更为  db/schema;
-            const nParams = { ...params };
-            nParams.schema = sn;
-            nParams.db = nParams.db + '/' + sn;
-            nParams.dbs = schemaNames;
-            return new TagTreeNode(`${params.id}.${params.db}.schema.${sn}`, sn, NodeTypePostgresScheam).withParams(nParams).withIcon(SchemaIcon);
-        });
     })
     .withNodeClickFunc(nodeClickChangeDb);
 
