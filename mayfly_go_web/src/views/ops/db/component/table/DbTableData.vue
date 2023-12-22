@@ -79,8 +79,9 @@
                                 <div v-if="canEdit(rowIndex, columnIndex)">
                                     <ColumnFormItem
                                         v-model="rowData[column.dataKey!]"
-                                        :data-type="nowUpdateCell.dataType"
+                                        :data-type="column.dataType"
                                         @blur="onExitEditMode(rowData, column, rowIndex)"
+                                        :column-name="column.columnName"
                                         focus
                                     />
                                 </div>
@@ -144,7 +145,6 @@ import { dateStrFormat } from '@/common/utils/date';
 import { useIntervalFn } from '@vueuse/core';
 import { ColumnTypeSubscript, DataType, DbDialect, DbType, getDbDialect } from '../../dialect/index';
 import ColumnFormItem from './ColumnFormItem.vue';
-import MonacoEditorDialog from '@/components/monaco/MonacoEditorDialog';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
@@ -315,7 +315,6 @@ const state = reactive({
     loading: false,
     tableHeight: '600px',
     emptyText: '',
-    editorLang: 'string',
 
     execTime: 0,
     contextmenu: {
@@ -488,7 +487,7 @@ const cancelLoading = async () => {
  * @param colIndex ci
  */
 const canEdit = (rowIndex: number, colIndex: number) => {
-    return state.table && nowUpdateCell?.rowIndex == rowIndex && nowUpdateCell?.colIndex == colIndex && state.editorLang === 'string';
+    return state.table && nowUpdateCell?.rowIndex == rowIndex && nowUpdateCell?.colIndex == colIndex;
 };
 
 /**
@@ -643,29 +642,6 @@ const onExportSql = async () => {
     );
 };
 
-const getEditorLangByValue = (value: any) => {
-    if (typeof value === 'string') {
-        // 判断是否是json
-        try {
-            if (typeof JSON.parse(value) === 'object') {
-                return 'json';
-            }
-        } catch (e) {
-            /* empty */
-        }
-        // 判断是否是html
-        try {
-            const doc = new DOMParser().parseFromString(value, 'text/html');
-            if (Array.from(doc.body.childNodes).some((node) => node.nodeType === 1)) {
-                return 'html';
-            }
-        } catch (e) {
-            /* empty */
-        }
-    }
-    return 'string';
-};
-
 const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 0) => {
     if (!state.table) {
         return;
@@ -678,21 +654,6 @@ const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 
         oldValue: rowData[column.dataKey],
         dataType: column.dataType,
     };
-
-    // 编辑器语言，如：json、html、string，目前支持json、html使用MonacoEditor编辑器
-    let editorLang = getEditorLangByValue(rowData[column.dataKey]);
-    state.editorLang = editorLang;
-    if (editorLang === 'html' || editorLang === 'json') {
-        MonacoEditorDialog({
-            content: rowData[column.dataKey],
-            title: `编辑字段 [${column.dataKey}]`,
-            language: editorLang,
-            confirmFn: (newVal: any) => {
-                rowData[column.dataKey] = newVal;
-                onExitEditMode(rowData, column, rowIndex);
-            },
-        });
-    }
 };
 
 const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {

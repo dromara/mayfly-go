@@ -7,8 +7,8 @@ export type MonacoEditorDialogProps = {
     language: string;
     height?: string;
     width?: string;
-    confirmFn?: Function;
-    cancelFn?: Function;
+    confirmFn?: Function; // 点击确认的回调函数，入参editor value
+    cancelFn?: Function; // 点击取消 或 关闭弹窗的回调函数
 };
 
 const boxId = 'monaco-editor-dialog-id';

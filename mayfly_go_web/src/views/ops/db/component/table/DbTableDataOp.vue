@@ -63,7 +63,7 @@
                     @keyup.enter.native="onSelectByCondition"
                     @select="handlerColumnSelect"
                     popper-class="my-autocomplete"
-                    placeholder="可输入SQL条件表达式后回车或点击查询图标过滤结果, 可根据备注或字段名提示"
+                    placeholder="选择列 或 输入SQL条件表达式后回车或点击查询图标过滤结果, 输入时可根据字段名提示"
                     @clear="selectData"
                     size="small"
                     clearable
@@ -89,6 +89,38 @@
                                 {{ item.columnComment }}
                             </template>
                         </span>
+                    </template>
+
+                    <template #prepend>
+                        <el-popover :visible="state.condPopVisible" trigger="click" :width="320" placement="right">
+                            <template #reference>
+                                <el-button @click.stop="chooseCondColumnName" class="color-success" text size="small">选择列</el-button>
+                            </template>
+                            <el-table
+                                :data="filterCondColumns"
+                                max-height="500"
+                                size="small"
+                                @row-click="
+                                    (...event: any) => {
+                                        onConditionRowClick(event);
+                                    }
+                                "
+                                style="cursor: pointer"
+                            >
+                                <el-table-column property="columnName" label="列名" show-overflow-tooltip>
+                                    <template #header>
+                                        <el-input
+                                            ref="columnNameSearchInputRef"
+                                            v-model="state.columnNameSearch"
+                                            size="small"
+                                            placeholder="输入列名或备注过滤"
+                                            @click.stop="(e: any) => e.preventDefault()"
+                                        />
+                                    </template>
+                                </el-table-column>
+                                <el-table-column property="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
+                            </el-table>
+                        </el-popover>
                     </template>
                 </el-autocomplete>
             </el-col>
@@ -126,6 +158,35 @@
             <span>{{ state.sql }}</span>
         </div>
 
+        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
+            <el-row>
+                <el-col :span="5">
+                    <el-select v-model="conditionDialog.condition">
+                        <el-option label="=" value="="> </el-option>
+                        <el-option label="LIKE" value="LIKE"> </el-option>
+                        <el-option label=">" value=">"> </el-option>
+                        <el-option label=">=" value=">="> </el-option>
+                        <el-option label="<" value="<"> </el-option>
+                        <el-option label="<=" value="<="> </el-option>
+                    </el-select>
+                </el-col>
+                <el-col :span="19">
+                    <el-input
+                        @keyup.enter.native="onConfirmCondition"
+                        ref="condDialogInputRef"
+                        v-model="conditionDialog.value"
+                        :placeholder="conditionDialog.placeholder"
+                    />
+                </el-col>
+            </el-row>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="onCancelCondition">取消</el-button>
+                    <el-button type="primary" @click="onConfirmCondition">确定</el-button>
+                </span>
+            </template>
+        </el-dialog>
+
         <el-dialog v-model="addDataDialog.visible" :title="addDataDialog.title" :destroy-on-close="true" width="600px">
             <el-form ref="dataForm" :model="addDataDialog.data" label-width="auto" size="small">
                 <el-form-item
@@ -140,6 +201,7 @@
                         v-model="addDataDialog.data[`${column.columnName}`]"
                         :data-type="dbDialect.getDataType(column.columnType)"
                         :placeholder="`${column.columnType}  ${column.columnComment}`"
+                        :column-name="column.columnName"
                     />
                 </el-form-item>
             </el-form>
@@ -154,7 +216,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, Ref, ref, toRefs, watch } from 'vue';
+import { computed, onMounted, reactive, Ref, ref, toRefs, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { DbInst } from '@/views/ops/db/db';
@@ -162,6 +224,7 @@ import DbTableData from './DbTableData.vue';
 import { DbDialect, getDbDialect } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import ColumnFormItem from './ColumnFormItem.vue';
+import { useEventListener } from '@vueuse/core';
 
 const props = defineProps({
     dbId: {
@@ -185,6 +248,8 @@ const props = defineProps({
 const dataForm: any = ref(null);
 const dbTableRef: Ref = ref(null);
 const condInputRef: Ref = ref(null);
+const columnNameSearchInputRef: Ref = ref(null);
+const condDialogInputRef: Ref = ref(null);
 
 const defaultPageSize = DbInst.DefaultLimit;
 
@@ -208,6 +273,17 @@ const state = reactive({
     ],
     count: 0,
     selectionDatas: [] as any,
+    condPopVisible: false,
+    columnNameSearch: '',
+    conditionDialog: {
+        title: '',
+        placeholder: '',
+        columnRow: null,
+        dataTab: null,
+        visible: false,
+        condition: '=',
+        value: null,
+    },
     addDataDialog: {
         data: {},
         title: '',
@@ -219,7 +295,7 @@ const state = reactive({
     dbDialect: {} as DbDialect,
 });
 
-const { datas, condition, loading, columns, pageNum, pageSize, pageSizes, count, hasUpdatedFileds, addDataDialog, dbDialect } = toRefs(state);
+const { datas, condition, loading, columns, pageNum, pageSize, pageSizes, count, hasUpdatedFileds, conditionDialog, addDataDialog, dbDialect } = toRefs(state);
 
 watch(
     () => props.tableHeight,
@@ -243,7 +319,14 @@ onMounted(async () => {
     await onRefresh();
 
     state.dbDialect = getDbDialect(getNowDbInst().type);
+    useEventListener('click', handlerWindowClick);
 });
+
+const handlerWindowClick = () => {
+    if (state.condPopVisible) {
+        state.condPopVisible = false;
+    }
+};
 
 const onRefresh = async () => {
     state.pageNum = 1;
@@ -302,7 +385,7 @@ const getColumnTips = (queryString: string, callback: any) => {
     if (columnNameSearch) {
         columnNameSearch = columnNameSearch.toLowerCase();
         res = columns.filter((data: any) => {
-            return data.columnName.toLowerCase().includes(columnNameSearch) || data.columnComment.includes(columnNameSearch);
+            return data.columnName.toLowerCase().includes(columnNameSearch);
         });
     }
 
@@ -329,6 +412,69 @@ const handlerColumnSelect = (column: any) => {
     } else {
         condition.value = value;
     }
+};
+
+/**
+ * 选择条件列
+ */
+const chooseCondColumnName = () => {
+    state.condPopVisible = !state.condPopVisible;
+    if (state.condPopVisible) {
+        columnNameSearchInputRef.value.clear();
+        columnNameSearchInputRef.value.focus();
+    }
+};
+
+/**
+ * 过滤条件列名
+ */
+const filterCondColumns = computed(() => {
+    const columns = state.columns;
+    let columnNameSearch = state.columnNameSearch;
+    if (!columnNameSearch) {
+        return columns;
+    }
+    columnNameSearch = columnNameSearch.toLowerCase();
+    return columns.filter((data: any) => {
+        return data.columnName.toLowerCase().includes(columnNameSearch) || data.columnComment.toLowerCase().includes(columnNameSearch);
+    });
+});
+
+/**
+ * 条件查询，点击列信息后显示输入对应的值
+ */
+const onConditionRowClick = (event: any) => {
+    const row = event[0];
+    state.conditionDialog.title = `请输入 [${row.columnName}] 的值`;
+    state.conditionDialog.placeholder = `${row.columnType}  ${row.columnComment}`;
+    state.conditionDialog.columnRow = row;
+    state.conditionDialog.visible = true;
+    setTimeout(() => {
+        condDialogInputRef.value.focus();
+    }, 100);
+};
+
+// 确认条件
+const onConfirmCondition = () => {
+    const conditionDialog = state.conditionDialog;
+    let condition = state.condition;
+    if (condition) {
+        condition += ` AND `;
+    }
+    const row = conditionDialog.columnRow as any;
+    condition += `${row.columnName} ${conditionDialog.condition} `;
+    state.condition = condition + DbInst.wrapColumnValue(row.columnType, conditionDialog.value);
+    onCancelCondition();
+    condInputRef.value.focus();
+};
+
+const onCancelCondition = () => {
+    state.conditionDialog.visible = false;
+    state.conditionDialog.title = ``;
+    state.conditionDialog.placeholder = ``;
+    state.conditionDialog.value = null;
+    state.conditionDialog.columnRow = null;
+    state.conditionDialog.dataTab = null;
 };
 
 /**

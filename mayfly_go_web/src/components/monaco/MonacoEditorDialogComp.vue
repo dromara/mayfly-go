@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-dialog :title="state.title" v-model="state.dialogVisible" :width="state.width" @close="cancel">
-            <monaco-editor ref="editorRef" :height="state.height" class="editor" :language="state.language" v-model="contentValue" />
+            <monaco-editor ref="editorRef" :height="state.height" class="editor" :language="state.language" v-model="contentValue" can-change-mode />
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="cancel">取消</el-button>
@@ -120,6 +120,7 @@ const open = (optionProps: MonacoEditorDialogProps) => {
 
     setTimeout(() => {
         editorRef.value?.format();
+        editorRef.value?.focus();
     }, 300);
 
     state.dialogVisible = true;

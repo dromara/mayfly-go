@@ -1,7 +1,7 @@
 <template>
     <div class="monaco-editor" style="border: 1px solid var(--el-border-color-light, #ebeef5); height: 100%">
         <div class="monaco-editor-content" ref="monacoTextarea" :style="{ height: height }"></div>
-        <el-select v-if="canChangeMode" class="code-mode-select" v-model="languageMode" @change="changeLanguage">
+        <el-select v-if="canChangeMode" class="code-mode-select" v-model="languageMode" @change="changeLanguage" filterable>
             <el-option v-for="mode in languageArr" :key="mode.value" :label="mode.label" :value="mode.value"> </el-option>
         </el-select>
     </div>
@@ -294,17 +294,19 @@ const registeShell = () => {
 };
 
 const format = () => {
-    /*
-    触发自动格式化;
-   */
+    // 触发自动格式化;
     monacoEditorIns.trigger('', 'editor.action.formatDocument', '');
+};
+
+const focus = () => {
+    monacoEditorIns.focus();
 };
 
 const getEditor = () => {
     return monacoEditorIns;
 };
 
-defineExpose({ getEditor, format });
+defineExpose({ getEditor, format, focus });
 </script>
 
 <style lang="scss">

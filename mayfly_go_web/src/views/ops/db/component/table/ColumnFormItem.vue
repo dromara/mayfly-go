@@ -1,19 +1,22 @@
 <template>
-    <el-input
-        v-if="dataType == DataType.String"
-        :ref="(el: any) => focus && el?.focus()"
-        @blur="emit('blur')"
-        class="w100 mb4"
-        input-style="text-align: center; height: 26px;"
-        size="small"
-        v-model="itemValue"
-        :placeholder="placeholder"
-    />
+    <div class="string-input-container w100" v-if="dataType == DataType.String">
+        <el-input
+            v-if="dataType == DataType.String"
+            :ref="(el: any) => focus && el?.focus()"
+            @blur="handlerBlur"
+            class="w100 mb4"
+            input-style="text-align: center; height: 26px;"
+            size="small"
+            v-model="itemValue"
+            :placeholder="placeholder"
+        />
+        <SvgIcon v-if="showEditorIcon" @mousedown="openEditor" class="string-input-container-icon color-success" name="FullScreen" :size="10" />
+    </div>
 
     <el-input
         v-else-if="dataType == DataType.Number"
         :ref="(el: any) => focus && el?.focus()"
-        @blur="emit('blur')"
+        @blur="handlerBlur"
         class="w100 mb4"
         input-style="text-align: center; height: 26px;"
         size="small"
@@ -26,7 +29,7 @@
         v-else-if="dataType == DataType.Date"
         :ref="(el: any) => focus && el?.focus()"
         @change="emit('blur')"
-        @blur="emit('blur')"
+        @blur="handlerBlur"
         class="edit-time-picker mb4"
         popper-class="edit-time-picker-popper"
         size="small"
@@ -41,7 +44,7 @@
         v-else-if="dataType == DataType.DateTime"
         :ref="(el: any) => focus && el?.focus()"
         @change="emit('blur')"
-        @blur="emit('blur')"
+        @blur="handlerBlur"
         class="edit-time-picker mb4"
         popper-class="edit-time-picker-popper"
         size="small"
@@ -56,7 +59,7 @@
         v-else-if="dataType == DataType.Time"
         :ref="(el: any) => focus && el?.focus()"
         @change="emit('blur')"
-        @blur="emit('blur')"
+        @blur="handlerBlur"
         class="edit-time-picker mb4"
         popper-class="edit-time-picker-popper"
         size="small"
@@ -68,16 +71,19 @@
 </template>
 
 <script lang="ts" setup>
-import { Ref } from 'vue';
+import { Ref, ref, computed } from 'vue';
 import { ElInput } from 'element-plus';
 import { DataType } from '../../dialect/index';
 import { useVModel } from '@vueuse/core';
+import SvgIcon from '@/components/svgIcon/index.vue';
+import MonacoEditorDialog from '@/components/monaco/MonacoEditorDialog';
 
 export interface ColumnFormItemProps {
     modelValue: string | number; // 绑定的值
     dataType: DataType; // 数据类型
     focus?: boolean; // 是否获取焦点
     placeholder?: string;
+    columnName?: string;
 }
 
 const props = withDefaults(defineProps<ColumnFormItemProps>(), {
@@ -88,9 +94,75 @@ const props = withDefaults(defineProps<ColumnFormItemProps>(), {
 const emit = defineEmits(['update:modelValue', 'blur']);
 
 const itemValue: Ref<any> = useVModel(props, 'modelValue', emit);
+
+const showEditorIcon = computed(() => {
+    return typeof itemValue.value === 'string' && itemValue.value.length > 50;
+});
+
+const editorOpening = ref(false);
+
+const openEditor = () => {
+    editorOpening.value = true;
+    // 编辑器语言，如：json、html、text
+    let editorLang = getEditorLangByValue(itemValue.value);
+    MonacoEditorDialog({
+        content: itemValue.value,
+        title: `编辑字段 [${props.columnName}]`,
+        language: editorLang,
+        confirmFn: (newVal: any) => {
+            itemValue.value = newVal;
+            closeEditorDialog();
+        },
+        cancelFn: closeEditorDialog,
+    });
+};
+
+const closeEditorDialog = () => {
+    editorOpening.value = false;
+    handlerBlur();
+};
+
+const handlerBlur = () => {
+    if (editorOpening.value) {
+        return;
+    }
+    emit('blur');
+};
+
+const getEditorLangByValue = (value: any) => {
+    // 判断是否是json
+    try {
+        if (typeof JSON.parse(value) === 'object') {
+            return 'json';
+        }
+    } catch (e) {
+        /* empty */
+    }
+
+    // 判断是否是html
+    try {
+        const doc = new DOMParser().parseFromString(value, 'text/html');
+        if (Array.from(doc.body.childNodes).some((node) => node.nodeType === 1)) {
+            return 'html';
+        }
+    } catch (e) {
+        /* empty */
+    }
+
+    return 'text';
+};
 </script>
 
 <style lang="scss">
+.string-input-container {
+    position: relative;
+}
+.string-input-container-icon {
+    position: absolute;
+    top: 5px; /* 调整图标的垂直位置 */
+    right: 5px; /* 调整图标的水平位置 */
+}
+
 .edit-time-picker {
     height: 26px;
     width: 100% !important;
