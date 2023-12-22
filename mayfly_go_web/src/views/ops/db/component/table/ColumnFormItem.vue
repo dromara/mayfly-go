@@ -3,20 +3,20 @@
         <el-input
             v-if="dataType == DataType.String"
             :ref="(el: any) => focus && el?.focus()"
-            @blur="handlerBlur"
-            class="w100 mb4"
+            @blur="handleBlur"
+            :class="`w100 mb4 ${showEditorIcon ? 'string-input-container-show-icon' : ''}`"
             input-style="text-align: center; height: 26px;"
             size="small"
             v-model="itemValue"
             :placeholder="placeholder"
         />
-        <SvgIcon v-if="showEditorIcon" @mousedown="openEditor" class="string-input-container-icon color-success" name="FullScreen" :size="10" />
+        <SvgIcon v-if="showEditorIcon" @mousedown="openEditor" class="string-input-container-icon" name="FullScreen" :size="10" />
     </div>
 
     <el-input
         v-else-if="dataType == DataType.Number"
         :ref="(el: any) => focus && el?.focus()"
-        @blur="handlerBlur"
+        @blur="handleBlur"
         class="w100 mb4"
         input-style="text-align: center; height: 26px;"
         size="small"
@@ -29,7 +29,7 @@
         v-else-if="dataType == DataType.Date"
         :ref="(el: any) => focus && el?.focus()"
         @change="emit('blur')"
-        @blur="handlerBlur"
+        @blur="handleBlur"
         class="edit-time-picker mb4"
         popper-class="edit-time-picker-popper"
         size="small"
@@ -43,8 +43,8 @@
     <el-date-picker
         v-else-if="dataType == DataType.DateTime"
         :ref="(el: any) => focus && el?.focus()"
-        @change="emit('blur')"
-        @blur="handlerBlur"
+        @change="handleBlur"
+        @blur="handleBlur"
         class="edit-time-picker mb4"
         popper-class="edit-time-picker-popper"
         size="small"
@@ -58,8 +58,8 @@
     <el-time-picker
         v-else-if="dataType == DataType.Time"
         :ref="(el: any) => focus && el?.focus()"
-        @change="emit('blur')"
-        @blur="handlerBlur"
+        @change="handleBlur"
+        @blur="handleBlur"
         class="edit-time-picker mb4"
         popper-class="edit-time-picker-popper"
         size="small"
@@ -74,7 +74,6 @@
 import { Ref, ref, computed } from 'vue';
 import { ElInput } from 'element-plus';
 import { DataType } from '../../dialect/index';
-import { useVModel } from '@vueuse/core';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import MonacoEditorDialog from '@/components/monaco/MonacoEditorDialog';
 
@@ -93,7 +92,7 @@ const props = withDefaults(defineProps<ColumnFormItemProps>(), {
 
 const emit = defineEmits(['update:modelValue', 'blur']);
 
-const itemValue: Ref<any> = useVModel(props, 'modelValue', emit);
+const itemValue: Ref<any> = ref(props.modelValue);
 
 const showEditorIcon = computed(() => {
     return typeof itemValue.value === 'string' && itemValue.value.length > 50;
@@ -119,13 +118,14 @@ const openEditor = () => {
 
 const closeEditorDialog = () => {
     editorOpening.value = false;
-    handlerBlur();
+    handleBlur();
 };
 
-const handlerBlur = () => {
+const handleBlur = () => {
     if (editorOpening.value) {
         return;
     }
+    emit('update:modelValue', itemValue.value);
     emit('blur');
 };
 
@@ -157,10 +157,19 @@ const getEditorLangByValue = (value: any) => {
 .string-input-container {
     position: relative;
 }
+.string-input-container-show-icon {
+    .el-input__inner {
+        padding-right: 10px;
+    }
+}
 .string-input-container-icon {
     position: absolute;
     top: 5px; /* 调整图标的垂直位置 */
-    right: 5px; /* 调整图标的水平位置 */
+    right: 3px; /* 调整图标的水平位置 */
+    color: var(--el-color-primary);
+}
+.string-input-container-icon:hover {
+    color: var(--el-color-success);
 }
 
 .edit-time-picker {

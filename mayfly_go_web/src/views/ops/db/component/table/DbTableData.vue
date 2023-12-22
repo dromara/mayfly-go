@@ -657,6 +657,9 @@ const onEnterEditMode = (rowData: any, column: any, rowIndex = 0, columnIndex = 
 };
 
 const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
+    if (!nowUpdateCell) {
+        return;
+    }
     const oldValue = nowUpdateCell.oldValue;
     const newValue = rowData[column.dataKey];
 
@@ -763,9 +766,6 @@ const rowClass = (row: any) => {
     if (isSelection(row.rowIndex)) {
         return 'data-selection';
     }
-    if (row.rowIndex % 2 != 0) {
-        return 'data-spacing';
-    }
     return '';
 };
 
@@ -835,10 +835,6 @@ defineExpose({
 
     .data-selection {
         background-color: var(--el-table-current-row-bg-color);
-    }
-
-    .data-spacing {
-        background-color: var(--el-fill-color-lighter);
     }
 
     .update_field_active {

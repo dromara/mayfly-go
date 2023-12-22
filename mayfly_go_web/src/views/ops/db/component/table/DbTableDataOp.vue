@@ -94,7 +94,7 @@
                     <template #prepend>
                         <el-popover :visible="state.condPopVisible" trigger="click" :width="320" placement="right">
                             <template #reference>
-                                <el-button @click.stop="chooseCondColumnName" class="color-success" text size="small">选择列</el-button>
+                                <el-button @click.stop="chooseCondColumnName" style="color: var(--el-color-success)" text size="small">选择列</el-button>
                             </template>
                             <el-table
                                 :data="filterCondColumns"
