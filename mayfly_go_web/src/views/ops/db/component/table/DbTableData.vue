@@ -7,6 +7,7 @@
                     :header-height="30"
                     :row-height="30"
                     :row-class="rowClass"
+                    :row-key="null"
                     :columns="state.columns"
                     :data="datas"
                     :width="width"
@@ -28,7 +29,7 @@
                             >
                                 <!-- 行号列 -->
                                 <div v-if="column.key == rowNoColumn.key">
-                                    <el-text tag="b"> {{ column.title }} </el-text>
+                                    <b class="el-text" tag="b"> {{ column.title }} </b>
                                 </div>
 
                                 <!-- 字段名列 -->
@@ -42,9 +43,9 @@
                                     </div>
 
                                     <div v-if="showColumnTip">
-                                        <el-text tag="b" :title="column.remark" style="cursor: pointer">
+                                        <b :title="column.remark" class="el-text" style="cursor: pointer">
                                             {{ column.title }}
-                                        </el-text>
+                                        </b>
 
                                         <span>
                                             <SvgIcon
@@ -56,9 +57,9 @@
                                     </div>
 
                                     <div v-else>
-                                        <el-text tag="b">
+                                        <b class="el-text">
                                             {{ column.title }}
-                                        </el-text>
+                                        </b>
                                     </div>
                                 </div>
                             </div>
@@ -69,9 +70,9 @@
                         <div @contextmenu="dataContextmenuClick($event, rowIndex, column, rowData)" class="table-data-cell">
                             <!-- 行号列 -->
                             <div v-if="column.key == rowNoColumn.key">
-                                <el-text tag="b" size="small">
+                                <b class="el-text el-text--small">
                                     {{ rowIndex + 1 }}
-                                </el-text>
+                                </b>
                             </div>
 
                             <!-- 数据列 -->
@@ -87,13 +88,11 @@
                                 </div>
 
                                 <div v-else :class="isUpdated(rowIndex, column.dataKey) ? 'update_field_active' : ''">
-                                    <el-text v-if="rowData[column.dataKey!] === null" size="small" truncated style="color: var(--el-color-info-light-5)">
-                                        NULL
-                                    </el-text>
+                                    <span v-if="rowData[column.dataKey!] === null" style="color: var(--el-color-info-light-5)"> NULL </span>
 
-                                    <el-text v-else :title="rowData[column.dataKey!]" size="small" truncated>
+                                    <span v-else :title="rowData[column.dataKey!]" class="el-text el-text--small is-truncated">
                                         {{ rowData[column.dataKey!] }}
-                                    </el-text>
+                                    </span>
                                 </div>
                             </div>
                         </div>

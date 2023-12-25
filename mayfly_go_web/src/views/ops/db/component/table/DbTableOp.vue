@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" width="90%">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" width="90%" :close-on-press-escape="false" :close-on-click-modal="false">
             <el-form label-position="left" ref="formRef" :model="tableData" label-width="80px">
                 <el-row>
                     <el-col :span="12">
@@ -18,7 +18,13 @@
                 <el-tabs v-model="activeName">
                     <el-tab-pane label="字段" name="1">
                         <el-table :data="tableData.fields.res" :max-height="tableData.height">
-                            <el-table-column :prop="item.prop" :label="item.label" v-for="item in tableData.fields.colNames" :key="item.prop">
+                            <el-table-column
+                                :prop="item.prop"
+                                :label="item.label"
+                                v-for="item in tableData.fields.colNames"
+                                :key="item.prop"
+                                :width="item.width"
+                            >
                                 <template #default="scope">
                                     <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name"> </el-input>
 
@@ -162,6 +168,12 @@ const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'submit-sql'
 
 const dbDialect = getDbDialect(props.dbType);
 
+type ColName = {
+    prop: string;
+    label: string;
+    width?: number;
+};
+
 const formRef: any = ref();
 const state = reactive({
     dialogVisible: false,
@@ -196,14 +208,17 @@ const state = reactive({
                 {
                     prop: 'notNull',
                     label: '非空',
+                    width: 60,
                 },
                 {
                     prop: 'pri',
                     label: '主键',
+                    width: 60,
                 },
                 {
                     prop: 'auto_increment',
                     label: '自增',
+                    width: 60,
                 },
                 {
                     prop: 'remark',
@@ -212,8 +227,9 @@ const state = reactive({
                 {
                     prop: 'action',
                     label: '操作',
+                    width: 70,
                 },
-            ],
+            ] as ColName[],
             res: [] as RowDefinition[],
         },
         indexs: {

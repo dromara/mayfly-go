@@ -122,11 +122,12 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
                 return;
             }
 
-            // 如果提示没有权限，则移除token，使其重新登录
+            // 如果提示没有权限，则跳转至无权限页面
             if (result.code === ResultEnum.NO_PERMISSION) {
                 router.push({
                     path: '/401',
                 });
+                return;
             }
 
             // 如果返回的code不为成功，则会返回对应的错误msg，则直接统一通知即可。忽略登录超时或没有权限的提示（直接跳转至401页面）

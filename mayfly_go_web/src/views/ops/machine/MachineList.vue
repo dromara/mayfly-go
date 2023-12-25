@@ -43,10 +43,23 @@
             <template #fs="{ data }">
                 <span v-if="!data.stat?.fsInfos">-</span>
                 <div v-else>
-                    <el-row v-for="i in data.stat.fsInfos.slice(0, 2)" :key="i.mountPoint">
+                    <el-row v-for="(i, idx) in data.stat.fsInfos.slice(0, 2)" :key="i.mountPoint">
                         <el-text style="font-size: 10px" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
                             {{ i.mountPoint }} => {{ formatByteSize(i.free, 0) }}/{{ formatByteSize(i.used + i.free, 0) }}
                         </el-text>
+
+                        <!-- 展示剩余的磁盘信息 -->
+                        <el-popover :show-after="300" placement="top-start" width="230" trigger="hover">
+                            <template #reference>
+                                <SvgIcon class="mt5 ml5" color="var(--el-color-primary)" v-if="data.stat.fsInfos.length > 2 && idx == 1" name="MoreFilled" />
+                            </template>
+
+                            <el-row v-for="i in data.stat.fsInfos.slice(2)" :key="i.mountPoint">
+                                <el-text style="font-size: 10px" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
+                                    {{ i.mountPoint }} => {{ formatByteSize(i.free, 0) }}/{{ formatByteSize(i.used + i.free, 0) }}
+                                </el-text>
+                            </el-row>
+                        </el-popover>
                     </el-row>
                 </div>
             </template>
