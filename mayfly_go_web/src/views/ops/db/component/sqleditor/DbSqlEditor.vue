@@ -276,7 +276,7 @@ const onRemoveTab = (targetId: number) => {
 const resizeTableHeight = (e: any) => {
     const vh = window.innerHeight;
     state.editorSize = e[0].size;
-    const plitpaneHeight = vh - 223;
+    const plitpaneHeight = vh - 233;
     const editorHeight = plitpaneHeight * (state.editorSize / 100);
     state.tableDataHeight = plitpaneHeight - editorHeight - 40 + 'px';
 };

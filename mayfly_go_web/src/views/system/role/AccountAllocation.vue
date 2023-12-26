@@ -56,10 +56,7 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const perms = {
-    addAccount: 'account:add',
-    delAccount: 'account:del',
     saveAccountRole: 'account:saveRoles',
-    changeAccountStatus: 'account:changeStatus',
 };
 
 const searchItems = [SearchItem.input('name', '姓名'), SearchItem.input('username', '用户名')];
@@ -72,7 +69,7 @@ const columns = [
 ];
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns = hasPerms([perms.addAccount, perms.saveAccountRole, perms.changeAccountStatus]);
+const actionBtns = hasPerms([perms.saveAccountRole]);
 const actionColumn = TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(80).noShowOverflowTooltip().alignCenter();
 
 const pageTableRef: Ref<any> = ref(null);

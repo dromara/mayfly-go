@@ -44,19 +44,18 @@ func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam *model.P
 
 func (a *configAppImpl) Save(ctx context.Context, config *entity.Config) error {
 	if config.Id == 0 {
-		if err := a.Insert(ctx, config); err != nil {
-			return err
-		}
-	} else {
-		oldConfig := a.GetConfig(config.Key)
-		if oldConfig.Permission != "all" && !strings.Contains(oldConfig.Permission, config.Modifier) {
-			return errorx.NewBiz("您无权修改该配置")
-		}
-
-		if err := a.UpdateById(ctx, config); err != nil {
-			return err
-		}
+		return a.Insert(ctx, config)
 	}
+
+	oldConfig := a.GetConfig(config.Key)
+	if oldConfig.Permission != "all" && !strings.Contains(oldConfig.Permission, config.Modifier) {
+		return errorx.NewBiz("您无权修改该配置")
+	}
+
+	if err := a.UpdateById(ctx, config); err != nil {
+		return err
+	}
+
 	cache.Del(SysConfigKeyPrefix + config.Key)
 	return nil
 }

@@ -25,6 +25,7 @@ const useCustomFetch = createFetch({
                 headers.set('Authorization', token);
                 headers.set('ClientId', getClientId());
             }
+            headers.set('Content-Type', 'application/json');
             options.headers = headers;
 
             return { options };

@@ -1,3 +1,11 @@
+--MYSQL_DBS 数据库名信息
+SELECT
+	SCHEMA_NAME AS dbname
+FROM
+	information_schema.SCHEMATA
+WHERE
+	SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema')
+---------------------------------------
 --MYSQL_TABLE_INFO 表详细信息
 SELECT
   table_name tableName,

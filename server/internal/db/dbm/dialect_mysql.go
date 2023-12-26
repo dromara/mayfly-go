@@ -34,6 +34,7 @@ func getMysqlDB(d *DbInfo) (*sql.DB, error) {
 // ---------------------------------- mysql元数据 -----------------------------------
 const (
 	MYSQL_META_FILE      = "metasql/mysql_meta.sql"
+	MYSQL_DBS            = "MYSQL_DBS"
 	MYSQL_TABLE_INFO_KEY = "MYSQL_TABLE_INFO"
 	MYSQL_INDEX_INFO_KEY = "MYSQL_INDEX_INFO"
 	MYSQL_COLUMN_MA_KEY  = "MYSQL_COLUMN_MA"
@@ -55,7 +56,7 @@ func (md *MysqlDialect) GetDbServer() (*DbServer, error) {
 }
 
 func (md *MysqlDialect) GetDbNames() ([]string, error) {
-	_, res, err := md.dc.Query("SELECT SCHEMA_NAME AS dbname FROM SCHEMATA")
+	_, res, err := md.dc.Query(GetLocalSql(MYSQL_META_FILE, MYSQL_DBS))
 	if err != nil {
 		return nil, err
 	}

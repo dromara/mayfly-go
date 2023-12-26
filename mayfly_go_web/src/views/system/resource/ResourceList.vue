@@ -14,7 +14,7 @@
             <el-tree
                 ref="resourceTreeRef"
                 class="none-select"
-                :indent="38"
+                :indent="24"
                 node-key="id"
                 :props="props"
                 :data="data"
@@ -422,4 +422,3 @@ const info = async (data: any) => {
     user-select: none;
 }
 </style>
-@/components/contextmenu

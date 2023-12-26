@@ -1,5 +1,5 @@
 <template>
-    <div class="redis-data-op">
+    <div class="redis-data-op flex-all-center">
         <Splitpanes class="default-theme">
             <Pane size="20" max-size="30">
                 <tag-tree :resource-type="TagResourceTypeEnum.Redis.value" :tag-path-node-type="NodeTypeTagPath">
