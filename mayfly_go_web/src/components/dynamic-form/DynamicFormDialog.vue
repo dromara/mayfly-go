@@ -1,60 +1,55 @@
 <template>
-	<div class="form-dialog">
-		<el-dialog :title="title" v-model="visible" :width="dialogWidth ? dialogWidth : '500px'">
-			<dynamic-form ref="df" :form-info="formInfo" :form-data="formData" @submitSuccess="submitSuccess">
-				<template #btns="props">
-					<slot name="btns">
-						<el-button :disabled="props.submitDisabled" type="primary" @click="props.submit" size="small">保 存</el-button>
-						<el-button :disabled="props.submitDisabled" @click="close()" size="small">取 消</el-button>
-					</slot>
-				</template>
-			</dynamic-form>
-		</el-dialog>
-	</div>
+    <div class="form-dialog">
+        <el-dialog @close="close" v-bind="$attrs" :title="title" v-model="dialogVisible" :width="width">
+            <dynamic-form ref="df" :form-items="formItems" v-model="formData" />
+
+            <template #footer>
+                <span>
+                    <slot name="btns">
+                        <el-button @click="dialogVisible = false">取 消</el-button>
+                        <el-button type="primary" @click="confirm">确 定</el-button>
+                    </slot>
+                </span>
+            </template>
+        </el-dialog>
+    </div>
 </template>
 
-<script lang="ts">
-import { watch, ref, toRefs, reactive, onMounted, defineComponent } from 'vue';
+<script lang="ts" setup>
+import { ref } from 'vue';
 import DynamicForm from './DynamicForm.vue';
-export default defineComponent({
-	name: 'DynamicFormDialog',
-	components: {
-		DynamicForm,
-	},
-  
-	props: {
-		visible: { type: Boolean },
-		dialogWidth: { type: String },
-		title: { type: String },
-		formInfo: { type: Object },
-		formData: { type: [Object, Boolean] },
-	},
+import { useVModel } from '@vueuse/core';
 
-	setup(props: any, context) {
-		const df: any = ref();
+const emit = defineEmits(['update:visible', 'update:modelValue', 'close', 'confirm']);
 
-		const close = () => {
-			// 更新父组件visible prop对应的值为false
-			context.emit('update:visible', false);
-			// 关闭窗口，则将表单数据置为null
-			context.emit('update:formData', null);
-			context.emit('close');
-			// 取消动态表单的校验以及form数据
-			setTimeout(() => {
-				df.resetFieldsAndData();
-			}, 200);
-		};
-
-		const submitSuccess = (form: any) => {
-			context.emit('submitSuccess', form);
-			close();
-		};
-
-		return {
-			df,
-			close,
-			submitSuccess,
-		};
-	},
+const props = defineProps({
+    title: { type: String },
+    visible: { type: Boolean },
+    width: { type: [String, Number], default: '500px' },
+    formItems: { type: Array },
+    modelValue: { type: Object },
 });
+
+const df: any = ref();
+
+const formData: any = useVModel(props, 'modelValue', emit);
+const dialogVisible: any = useVModel(props, 'visible', emit);
+
+const close = () => {
+    emit('close');
+    // 取消动态表单的校验
+    setTimeout(() => {
+        formData.value = {};
+        df.value.resetFields();
+    }, 200);
+};
+
+const confirm = () => {
+    df.value.validate((valid: any) => {
+        if (!valid) {
+            return false;
+        }
+        emit('confirm', formData.value);
+    });
+};
 </script>

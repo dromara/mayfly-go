@@ -5,18 +5,35 @@ import (
 )
 
 const (
-	IdColumn              = "id"
-	DeletedColumn         = "is_deleted" // 删除字段
-	DeleteTimeColumn      = "delete_time"
-	ModelDeleted     int8 = 1
-	ModelUndeleted   int8 = 0
+	IdColumn         = "id"
+	DeletedColumn    = "is_deleted" // 删除字段
+	DeleteTimeColumn = "delete_time"
+
+	ModelDeleted   int8 = 1
+	ModelUndeleted int8 = 0
 )
+
+// 实体接口
+type ModelI interface {
+
+	// 使用当前登录账号信息设置实体结构体的基础信息
+	//
+	// 如创建时间，修改时间，创建者，修改者信息
+	SetBaseInfo(account *LoginAccount)
+}
 
 // 含有删除字段模型
 type DeletedModel struct {
 	Id         uint64     `json:"id"`
 	IsDeleted  int8       `json:"-" gorm:"column:is_deleted;default:0"`
 	DeleteTime *time.Time `json:"-"`
+}
+
+func (m *DeletedModel) SetBaseInfo(account *LoginAccount) {
+	isCreate := m.Id == 0
+	if isCreate {
+		m.IsDeleted = ModelUndeleted
+	}
 }
 
 // 基础实体模型，数据表最基础字段，每张表必备字段

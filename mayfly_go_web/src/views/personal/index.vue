@@ -179,7 +179,7 @@ import { dateFormat } from '@/common/utils/date';
 import { storeToRefs } from 'pinia';
 import { useUserInfo } from '@/store/userInfo';
 import config from '@/common/config';
-import { getToken } from '@/common/utils/storage';
+import { joinClientParams } from '@/common/request';
 
 const { userInfo } = storeToRefs(useUserInfo());
 const state = reactive({
@@ -248,7 +248,7 @@ const bindOAuth2 = () => {
     var iLeft = (window.screen.width - 10 - width) / 2; //获得窗口的水平位置;
     // 小窗口打开oauth2鉴权
     let oauthWindow = window.open(
-        config.baseApiUrl + '/auth/oauth2/bind?token=' + getToken(),
+        `${config.baseApiUrl}/auth/oauth2/bind?${joinClientParams()}`,
         'oauth2',
         `height=${height},width=${width},top=${iTop},left=${iLeft},location=no`
     );

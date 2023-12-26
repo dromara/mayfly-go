@@ -2,8 +2,8 @@
     <div class="layout-navbars-breadcrumb-user" :style="{ flex: layoutUserFlexNum }">
         <div class="layout-navbars-breadcrumb-user-icon">
             <el-switch
-                @change="switchDark(state.isDark)"
-                v-model="state.isDark"
+                @change="switchDark()"
+                v-model="isDark"
                 active-action-icon="Moon"
                 inactive-action-icon="Sunny"
                 style="--el-switch-off-color: #c4c9c4; --el-switch-on-color: #2c2c2c"
@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts" name="layoutBreadcrumbUser">
-import { ref, computed, reactive, onMounted } from 'vue';
+import { ref, computed, reactive, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessageBox, ElMessage } from 'element-plus';
 import screenfull from 'screenfull';
@@ -83,17 +83,17 @@ import { resetRoute } from '@/router/index';
 import { storeToRefs } from 'pinia';
 import { useUserInfo } from '@/store/userInfo';
 import { useThemeConfig } from '@/store/themeConfig';
-import { clearSession, removeLocal } from '@/common/utils/storage';
+import { clearSession } from '@/common/utils/storage';
 import UserNews from '@/layout/navBars/breadcrumb/userNews.vue';
 import SearchMenu from '@/layout/navBars/breadcrumb/search.vue';
 import mittBus from '@/common/utils/mitt';
 import openApi from '@/common/openApi';
 import { saveThemeConfig, getThemeConfig } from '@/common/utils/storage';
+import { useDark, usePreferredDark } from '@vueuse/core';
 
 const router = useRouter();
 const searchRef = ref();
 const state = reactive({
-    isDark: false,
     isScreenfull: false,
     isShowUserNewsPopover: false,
     disabledI18n: 'zh-cn',
@@ -165,8 +165,21 @@ const onHandleCommandClick = (path: string) => {
     }
 };
 
-const switchDark = (isDark: boolean) => {
-    themeConfigStore.switchDark(isDark);
+const isDark = useDark();
+const preDark = usePreferredDark();
+
+watch(preDark, (newValue) => {
+    isDark.value = newValue;
+    switchDark();
+});
+
+const switchDark = () => {
+    themeConfig.value.isDark = isDark.value;
+    if (isDark.value) {
+        themeConfig.value.editorTheme = 'vs-dark';
+    } else {
+        themeConfig.value.editorTheme = 'vs';
+    }
     saveThemeConfig(themeConfig.value);
 };
 
@@ -176,14 +189,14 @@ const onSearchClick = () => {
 };
 
 // 组件大小改变
-const onComponentSizeChange = (size: string) => {
-    removeLocal('themeConfig');
-    themeConfig.value.globalComponentSize = size;
-    saveThemeConfig(themeConfig.value);
-    // proxy.$ELEMENT.size = size;
-    initComponentSize();
-    window.location.reload();
-};
+// const onComponentSizeChange = (size: string) => {
+//     removeLocal('themeConfig');
+//     themeConfig.value.globalComponentSize = size;
+//     saveThemeConfig(themeConfig.value);
+//     // proxy.$ELEMENT.size = size;
+//     initComponentSize();
+//     window.location.reload();
+// };
 
 // 初始化全局组件大小
 const initComponentSize = () => {
@@ -208,7 +221,7 @@ onMounted(() => {
     const themeConfig = getThemeConfig();
     if (themeConfig) {
         initComponentSize();
-        state.isDark = themeConfig.isDark;
+        isDark.value = themeConfig.isDark;
     }
 });
 </script>

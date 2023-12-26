@@ -7,11 +7,10 @@ type MachineForm struct {
 	Port int    `json:"port" binding:"required"` // 端口号
 
 	// 资产授权凭证信息列表
-	AuthCertId int    `json:"authCertId"`
-	TagId      uint64 `json:"tagId" binding:"required"`
-	TagPath    string `json:"tagPath" binding:"required"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
+	AuthCertId int      `json:"authCertId"`
+	TagId      []uint64 `json:"tagId" binding:"required"`
+	Username   string   `json:"username"`
+	Password   string   `json:"password"`
 
 	Remark             string `json:"remark"`
 	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id

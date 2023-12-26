@@ -1,7 +1,10 @@
 package req
 
 import (
+	"context"
 	"io"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/assert"
@@ -16,12 +19,14 @@ type HandlerFunc func(*Ctx)
 type Ctx struct {
 	Conf *Conf // 请求配置
 
-	GinCtx       *gin.Context        // gin context
-	LoginAccount *model.LoginAccount // 登录账号信息，只有校验token后才会有值
-	ReqParam     any                 // 请求参数，主要用于记录日志
-	ResData      any                 // 响应结果
-	Err          any                 // 请求错误
-	timed        int64               // 执行时间
+	GinCtx   *gin.Context // gin context
+	ReqParam any          // 请求参数，主要用于记录日志
+	LogExtra any          // 日志额外参数，主要用于系统日志定制化展示
+	ResData  any          // 响应结果
+	Err      any          // 请求错误
+	timed    int64        // 执行时间
+
+	MetaCtx context.Context // 元数据上下文信息，如登录账号(只有校验token后才会有值)，traceId等
 }
 
 func (rc *Ctx) Handle(handler HandlerFunc) {
@@ -59,6 +64,15 @@ func (rc *Ctx) Download(reader io.Reader, filename string) {
 	ginx.Download(rc.GinCtx, reader, filename)
 }
 
+// 获取当前登录账号信息，不存在则会报错。
+//
+// 若不需要报错，则使用contextx.GetLoginAccount方法
+func (rc *Ctx) GetLoginAccount() *model.LoginAccount {
+	la := contextx.GetLoginAccount(rc.MetaCtx)
+	biz.IsTrue(la != nil, "获取登录账号信息失败, 请确认该接口是否通过鉴权")
+	return la
+}
+
 func (rc *Ctx) WithConf(conf *Conf) *Ctx {
 	rc.Conf = conf
 	return rc
@@ -87,7 +101,7 @@ func (rc *Ctx) GetLogInfo() *LogInfo {
 }
 
 func NewCtxWithGin(g *gin.Context) *Ctx {
-	return &Ctx{GinCtx: g}
+	return &Ctx{GinCtx: g, MetaCtx: contextx.WithTraceId(g.Request.Context())}
 }
 
 // 处理器拦截器函数

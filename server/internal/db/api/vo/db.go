@@ -2,18 +2,19 @@ package vo
 
 import "time"
 
-type SelectDataDbVO struct {
-	//models.BaseModel
+type DbListVO struct {
 	Id       *int64  `json:"id"`
+	Code     string  `json:"code"`
 	Name     *string `json:"name"`
 	Database *string `json:"database"`
 	Remark   *string `json:"remark"`
-	TagId    *int64  `json:"tagId"`
-	TagPath  *string `json:"tagPath"`
 
 	InstanceId   *int64  `json:"instanceId"`
 	InstanceName *string `json:"instanceName"`
 	InstanceType *string `json:"type"`
+	Host         string  `json:"host"`
+	Port         int     `json:"port"`
+	Username     string  `json:"username"`
 
 	CreateTime *time.Time `json:"createTime"`
 	Creator    *string    `json:"creator"`

@@ -1,64 +1,59 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 )
 
 type AuthCert interface {
-	GetPageList(condition *entity.AuthCertQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any]
+	base.App[*entity.AuthCert]
 
-	Save(ac *entity.AuthCert)
+	GetPageList(condition *entity.AuthCertQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	GetById(id uint64) *entity.AuthCert
+	Save(ctx context.Context, ac *entity.AuthCert) error
 
 	GetByIds(ids ...uint64) []*entity.AuthCert
-
-	DeleteById(id uint64)
 }
 
 func newAuthCertApp(authCertRepo repository.AuthCert) AuthCert {
 	return &authCertAppImpl{
-		authCertRepo: authCertRepo,
+		base.AppImpl[*entity.AuthCert, repository.AuthCert]{Repo: authCertRepo},
 	}
 }
 
 type authCertAppImpl struct {
-	authCertRepo repository.AuthCert
+	base.AppImpl[*entity.AuthCert, repository.AuthCert]
 }
 
-func (a *authCertAppImpl) GetPageList(condition *entity.AuthCertQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
-	return a.authCertRepo.GetPageList(condition, pageParam, toEntity)
+func (a *authCertAppImpl) GetPageList(condition *entity.AuthCertQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return a.GetRepo().GetPageList(condition, pageParam, toEntity)
 }
 
-func (a *authCertAppImpl) Save(ac *entity.AuthCert) {
+func (a *authCertAppImpl) Save(ctx context.Context, ac *entity.AuthCert) error {
 	oldAc := &entity.AuthCert{Name: ac.Name}
-	err := a.authCertRepo.GetByCondition(oldAc, "Id", "Name")
+	err := a.GetBy(oldAc, "Id", "Name")
 
 	ac.PwdEncrypt()
 	if ac.Id == 0 {
-		biz.IsTrue(err != nil, "该凭证名已存在")
-		a.authCertRepo.Insert(ac)
-		return
+		if err == nil {
+			return errorx.NewBiz("该凭证名已存在")
+		}
+		return a.Insert(ctx, ac)
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
-	if err == nil {
-		biz.IsTrue(oldAc.Id == ac.Id, "该凭证名已存在")
+	if err == nil && oldAc.Id != ac.Id {
+		return errorx.NewBiz("该凭证名已存在")
 	}
-	a.authCertRepo.Update(ac)
-}
-
-func (a *authCertAppImpl) GetById(id uint64) *entity.AuthCert {
-	return a.authCertRepo.GetById(id)
+	return a.UpdateById(ctx, ac)
 }
 
 func (a *authCertAppImpl) GetByIds(ids ...uint64) []*entity.AuthCert {
-	return a.authCertRepo.GetByIds(ids...)
-}
-
-func (a *authCertAppImpl) DeleteById(id uint64) {
-	a.authCertRepo.DeleteById(id)
+	acs := new([]*entity.AuthCert)
+	a.GetByIdIn(acs, ids)
+	return *acs
 }

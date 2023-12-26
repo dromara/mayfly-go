@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"mayfly-go/internal/auth/api/form"
@@ -12,6 +13,7 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/captcha"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/otp"
 	"mayfly-go/pkg/req"
@@ -49,7 +51,7 @@ func (a *AccountLogin) Login(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
 
 	account := &sysentity.Account{Username: username}
-	err = a.AccountApp.GetAccount(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
+	err = a.AccountApp.GetBy(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
 
 	failCountKey := fmt.Sprintf("account:login:failcount:%s", username)
 	nowFailCount := cache.GetInt(failCountKey)
@@ -60,11 +62,11 @@ func (a *AccountLogin) Login(rc *req.Ctx) {
 	if err != nil || !cryptox.CheckPwdHash(originPwd, account.Password) {
 		nowFailCount++
 		cache.SetStr(failCountKey, strconv.Itoa(nowFailCount), time.Minute*time.Duration(loginFailMin))
-		panic(biz.NewBizErr(fmt.Sprintf("用户名或密码错误【当前登录失败%d次】", nowFailCount)))
+		panic(errorx.NewBiz(fmt.Sprintf("用户名或密码错误【当前登录失败%d次】", nowFailCount)))
 	}
 
 	// 校验密码强度（新用户第一次登录密码与账号名一致）
-	biz.IsTrueBy(utils.CheckAccountPasswordLever(originPwd), biz.NewBizErrCode(401, "您的密码安全等级较低，请修改后重新登录"))
+	biz.IsTrueBy(utils.CheckAccountPasswordLever(originPwd), errorx.NewBizCode(401, "您的密码安全等级较低，请修改后重新登录"))
 	rc.ResData = LastLoginCheck(account, accountLoginSecurity, clientIp)
 }
 
@@ -98,7 +100,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 
 	if !otp.Validate(otpVerify.Code, otpSecret) {
 		cache.SetStr(failCountKey, strconv.Itoa(failCount+1), time.Minute*time.Duration(10))
-		panic(biz.NewBizErr("双因素认证授权码不正确"))
+		panic(errorx.NewBiz("双因素认证授权码不正确"))
 	}
 
 	// 如果是未注册状态，则更新account表的otpSecret信息
@@ -106,7 +108,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 		update := &sysentity.Account{OtpSecret: otpSecret}
 		update.Id = accountId
 		update.OtpSecretEncrypt()
-		a.AccountApp.Update(update)
+		biz.ErrIsNil(a.AccountApp.Update(context.Background(), update))
 	}
 
 	la := &sysentity.Account{Username: otpInfo.Username}
@@ -118,6 +120,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 }
 
 func (a *AccountLogin) Logout(rc *req.Ctx) {
-	req.GetPermissionCodeRegistery().Remove(rc.LoginAccount.Id)
-	ws.CloseClient(rc.LoginAccount.Id)
+	la := rc.GetLoginAccount()
+	req.GetPermissionCodeRegistery().Remove(la.Id)
+	ws.CloseClient(ws.UserId(la.Id))
 }

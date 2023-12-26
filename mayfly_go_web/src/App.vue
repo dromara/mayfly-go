@@ -28,6 +28,7 @@ import Setings from '@/layout/navBars/breadcrumb/setings.vue';
 import mittBus from '@/common/utils/mitt';
 import { getThemeConfig } from './common/utils/storage';
 import { useWatermark } from '@/common/sysconfig';
+import { useIntervalFn } from '@vueuse/core';
 
 const setingsRef = ref();
 const route = useRoute();
@@ -53,8 +54,6 @@ onMounted(() => {
         if (tc) {
             themeConfigStores.setThemeConfig({ themeConfig: tc });
             document.documentElement.style.cssText = getLocal('themeConfigStyle');
-
-            themeConfigStores.switchDark(tc.isDark);
         }
 
         // 是否开启水印
@@ -72,36 +71,35 @@ watch(
             setTimeout(() => {
                 setWatermarkContent();
                 refreshWatermarkTime();
+                resume();
             }, 500);
+        } else {
+            pause();
         }
     }
 );
 
+// 刷新水印时间
+const { pause, resume } = useIntervalFn(() => {
+    if (!themeConfig.value.isWatermark) {
+        pause();
+    }
+    refreshWatermarkTime();
+}, 60000);
+
 const setWatermarkContent = () => {
     themeConfigStores.setWatermarkUser();
-    themeConfigStores.setWatermarkNowTime();
 };
 
-let refreshWatermarkTimeInterval: any = null;
 /**
  * 刷新水印时间
  */
 const refreshWatermarkTime = () => {
-    if (refreshWatermarkTimeInterval) {
-        clearInterval(refreshWatermarkTimeInterval);
-    }
-    refreshWatermarkTimeInterval = setInterval(() => {
-        if (themeConfig.value.isWatermark) {
-            themeConfigStores.setWatermarkNowTime();
-        } else {
-            clearInterval(refreshWatermarkTimeInterval);
-        }
-    }, 10000);
+    themeConfigStores.setWatermarkNowTime();
 };
 
 // 页面销毁时，关闭监听布局配置
 onUnmounted(() => {
-    clearInterval(refreshWatermarkTimeInterval);
     mittBus.off('openSetingsDrawer', () => {});
 });
 

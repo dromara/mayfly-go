@@ -1,6 +1,7 @@
 <template>
     <div>
         <el-dialog
+            @open="search()"
             :title="title"
             v-model="dialogVisible"
             :close-on-click-modal="false"
@@ -11,17 +12,16 @@
         >
             <page-table
                 ref="pageTableRef"
-                :query="queryConfig"
+                :page-api="cronJobApi.execList"
+                :lazy="true"
+                :data-handler-fn="parseData"
+                :search-items="searchItems"
                 v-model:query-form="params"
-                :data="data.list"
+                :data="state.data.list"
                 :columns="columns"
-                :total="data.total"
-                v-model:page-size="params.pageSize"
-                v-model:page-num="params.pageNum"
-                @pageChange="search()"
             >
                 <template #machineSelect>
-                    <el-select v-model="params.machineId" filterable placeholder="选择机器查询" style="width: 200px" clearable>
+                    <el-select v-model="params.machineId" filterable placeholder="选择机器查询" clearable>
                         <el-option v-for="ac in machineMap.values()" :key="ac.id" :value="ac.id" :label="ac.ip">
                             {{ ac.ip }}
                             <el-divider direction="vertical" border-style="dashed" />
@@ -35,11 +35,12 @@
 </template>
 
 <script lang="ts" setup>
-import { watch, ref, toRefs, reactive } from 'vue';
+import { watch, ref, toRefs, reactive, Ref } from 'vue';
 import { cronJobApi, machineApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { CronJobExecStatusEnum } from '../enums';
+import { SearchItem } from '@/components/SearchForm';
 
 const props = defineProps({
     visible: {
@@ -55,10 +56,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:visible', 'update:data', 'cancel']);
 
-const queryConfig = [
-    TableQuery.slot('machineId', '机器', 'machineSelect'),
-    TableQuery.select('status', '状态').setOptions(Object.values(CronJobExecStatusEnum)),
-];
+const searchItems = [SearchItem.slot('machineId', '机器', 'machineSelect'), SearchItem.select('status', '状态').withEnum(CronJobExecStatusEnum)];
 
 const columns = ref([
     TableColumn.new('machineIp', '机器IP').setMinWidth(120),
@@ -67,6 +65,8 @@ const columns = ref([
     TableColumn.new('res', '执行结果').setMinWidth(250).canBeautify(),
     TableColumn.new('execTime', '执行时间').isTime().setMinWidth(150),
 ]);
+
+const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({
     dialogVisible: false,
@@ -88,7 +88,7 @@ const state = reactive({
 
 const machineMap: Map<number, any> = new Map();
 
-const { dialogVisible, params, data } = toRefs(state);
+const { dialogVisible, params } = toRefs(state);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -108,17 +108,15 @@ watch(props, async (newValue: any) => {
     });
 
     state.params.cronJobId = props.data?.id;
-    search();
 });
 
 const search = async () => {
-    const res = await cronJobApi.execList.request(state.params);
-    if (!res.list) {
-        return;
-    }
+    pageTableRef.value.search();
+};
 
+const parseData = async (dataList: any) => {
     // 填充机器信息
-    for (let x of res.list) {
+    for (let x of dataList) {
         const machineId = x.machineId;
         let machine = machineMap.get(machineId);
         // 如果未找到，则可能被移除，则调接口查询机器信息
@@ -139,8 +137,7 @@ const search = async () => {
         x.machineIp = machine?.ip;
         x.machineName = machine?.name;
     }
-
-    state.data = res;
+    return dataList;
 };
 
 const cancel = () => {

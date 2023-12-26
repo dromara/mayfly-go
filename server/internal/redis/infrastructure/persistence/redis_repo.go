@@ -3,57 +3,23 @@ package persistence
 import (
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/domain/repository"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
-type redisRepoImpl struct{}
+type redisRepoImpl struct {
+	base.RepoImpl[*entity.Redis]
+}
 
 func newRedisRepo() repository.Redis {
-	return new(redisRepoImpl)
+	return &redisRepoImpl{base.RepoImpl[*entity.Redis]{M: new(entity.Redis)}}
 }
 
 // 分页获取机器信息列表
-func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) *model.PageResult[any] {
+func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := gormx.NewQuery(new(entity.Redis)).
 		Like("host", condition.Host).
-		In("tag_id", condition.TagIds).
-		RLike("tag_path", condition.TagPath).
-		OrderByAsc("tag_path")
+		In("code", condition.Codes)
 	return gormx.PageQuery(qd, pageParam, toEntity)
-}
-
-func (r *redisRepoImpl) Count(condition *entity.RedisQuery) int64 {
-	where := make(map[string]any)
-	if len(condition.TagIds) > 0 {
-		where["tag_id"] = condition.TagIds
-	}
-
-	return gormx.CountByCond(new(entity.Redis), where)
-}
-
-// 根据id获取
-func (r *redisRepoImpl) GetById(id uint64, cols ...string) *entity.Redis {
-	rd := new(entity.Redis)
-	if err := gormx.GetById(rd, id, cols...); err != nil {
-		return nil
-	}
-	return rd
-}
-
-func (r *redisRepoImpl) GetRedis(condition *entity.Redis, cols ...string) error {
-	return gormx.GetBy(condition, cols...)
-}
-
-func (r *redisRepoImpl) Insert(redis *entity.Redis) {
-	biz.ErrIsNilAppendErr(gormx.Insert(redis), "新增失败: %s")
-}
-
-func (r *redisRepoImpl) Update(redis *entity.Redis) {
-	biz.ErrIsNilAppendErr(gormx.UpdateById(redis), "更新失败: %s")
-}
-
-func (r *redisRepoImpl) Delete(id uint64) {
-	biz.ErrIsNilAppendErr(gormx.DeleteById(new(entity.Redis), id), "删除失败: %s")
 }

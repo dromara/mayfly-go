@@ -1,17 +1,16 @@
 package form
 
 type Redis struct {
-	Id                 uint64 `json:"id"`
-	Name               string `json:"name"`
-	Host               string `json:"host" binding:"required"`
-	Username           string `json:"username"`
-	Password           string `json:"password"`
-	Mode               string `json:"mode"`
-	Db                 string `json:"db"`
-	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
-	TagId              uint64 `binding:"required" json:"tagId"`
-	TagPath            string `binding:"required" json:"tagPath"`
-	Remark             string `json:"remark"`
+	Id                 uint64   `json:"id"`
+	Name               string   `json:"name"`
+	Host               string   `json:"host" binding:"required"`
+	Username           string   `json:"username"`
+	Password           string   `json:"password"`
+	Mode               string   `json:"mode"`
+	Db                 string   `json:"db"`
+	SshTunnelMachineId int      `json:"sshTunnelMachineId"` // ssh隧道机器id
+	TagId              []uint64 `binding:"required" json:"tagId"`
+	Remark             string   `json:"remark"`
 }
 
 type Rename struct {

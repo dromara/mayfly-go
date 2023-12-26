@@ -10,8 +10,19 @@
             width="38%"
         >
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-form-item prop="tagId" label="标签" required>
-                    <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
+                <el-form-item ref="tagSelectRef" prop="tagId" label="标签" required>
+                    <tag-tree-select
+                        @change-tag="
+                            (tagIds) => {
+                                form.tagId = tagIds;
+                                tagSelectRef.validate();
+                            }
+                        "
+                        multiple
+                        :resource-code="form.code"
+                        :resource-type="TagResourceTypeEnum.Db.value"
+                        style="width: 100%"
+                    />
                 </el-form-item>
 
                 <el-form-item prop="instanceId" label="数据库实例" required>
@@ -19,7 +30,7 @@
                         :disabled="form.id !== undefined"
                         remote
                         :remote-method="getInstances"
-                        @change="getAllDatabase"
+                        @change="changeInstance"
                         v-model="form.instanceId"
                         placeholder="请输入实例名称搜索并选择实例"
                         filterable
@@ -66,7 +77,7 @@
             <template #footer>
                 <div class="dialog-footer">
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -77,7 +88,8 @@
 import { toRefs, reactive, watch, ref } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
-import TagSelect from '../component/TagSelect.vue';
+import TagTreeSelect from '../component/TagTreeSelect.vue';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
@@ -128,6 +140,7 @@ const rules = {
 };
 
 const dbForm: any = ref(null);
+const tagSelectRef: any = ref(null);
 
 const state = reactive({
     dialogVisible: false,
@@ -135,26 +148,28 @@ const state = reactive({
     databaseList: [] as any,
     form: {
         id: null,
-        tagId: null as any,
-        tagPath: null as any,
+        tagId: [],
         name: null,
+        code: '',
         database: '',
         remark: '',
         instanceId: null as any,
     },
-    btnLoading: false,
     instances: [] as any,
 });
 
-const { dialogVisible, allDatabases, databaseList, form, btnLoading } = toRefs(state);
+const { dialogVisible, allDatabases, form, databaseList } = toRefs(state);
 
-watch(props, (newValue: any) => {
+const { isFetching: saveBtnLoading, execute: saveDbExec } = dbApi.saveDb.useApi(form);
+
+watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
     if (!state.dialogVisible) {
         return;
     }
     if (newValue.db) {
         state.form = { ...newValue.db };
+
         // 将数据库名使用空格切割，获取所有数据库列表
         state.databaseList = newValue.db.database.split(' ');
     } else {
@@ -162,6 +177,11 @@ watch(props, (newValue: any) => {
         state.databaseList = [];
     }
 });
+
+const changeInstance = () => {
+    state.databaseList = [];
+    getAllDatabase();
+};
 
 /**
  * 改变表单中的数据库字段，方便表单错误提示。如全部删光，可提示请添加数据库
@@ -197,22 +217,15 @@ const open = async () => {
 
 const btnOk = async () => {
     dbForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            const reqForm = { ...state.form };
-            dbApi.saveDb.request(reqForm).then(() => {
-                ElMessage.success('保存成功');
-                emit('val-change', state.form);
-                state.btnLoading = true;
-                setTimeout(() => {
-                    state.btnLoading = false;
-                }, 1000);
-
-                cancel();
-            });
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+
+        await saveDbExec();
+        ElMessage.success('保存成功');
+        emit('val-change', state.form);
+        cancel();
     });
 };
 

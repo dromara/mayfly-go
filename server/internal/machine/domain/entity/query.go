@@ -3,9 +3,11 @@ package entity
 type MachineQuery struct {
 	Ids     string `json:"ids" form:"ids"`
 	Name    string `json:"name" form:"name"`
+	Status  int8   `json:"status" form:"status"`
 	Ip      string `json:"ip" form:"ip"` // IP地址
 	TagPath string `json:"tagPath" form:"tagPath"`
-	TagIds  []uint64
+
+	Codes []string
 }
 
 type AuthCertQuery struct {

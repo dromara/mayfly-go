@@ -40,11 +40,10 @@ COMMIT;
 DROP TABLE IF EXISTS `t_db`;
 CREATE TABLE `t_db` (
     `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'code',
     `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
     `database` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
     `remark` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注，描述等',
-    `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
-    `tag_path` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '标签路径',
     `instance_id` bigint(20) NOT NULL COMMENT '数据库实例 ID',
     `create_time` datetime DEFAULT NULL,
     `creator_id` bigint(20) DEFAULT NULL,
@@ -146,6 +145,7 @@ CREATE TABLE `t_auth_cert` (
 DROP TABLE IF EXISTS `t_machine`;
 CREATE TABLE `t_machine` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'code',
   `name` varchar(32) DEFAULT NULL,
   `ip` varchar(50) NOT NULL,
   `port` int(12) NOT NULL,
@@ -157,8 +157,6 @@ CREATE TABLE `t_machine` (
   `enable_recorder` tinyint(2) DEFAULT NULL COMMENT '是否启用终端回放记录',
   `status` tinyint(2) NOT NULL COMMENT '状态: 1:启用; -1:禁用',
   `remark` varchar(255) DEFAULT NULL,
-  `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
-  `tag_path` varchar(255) DEFAULT NULL COMMENT '标签路径',
   `need_monitor` tinyint(2) DEFAULT NULL,
   `create_time` datetime NOT NULL,
   `creator` varchar(16) DEFAULT NULL,
@@ -168,8 +166,7 @@ CREATE TABLE `t_machine` (
   `modifier_id` bigint(32) DEFAULT NULL,
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_path` (`tag_path`) USING BTREE
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器信息';
 
 -- ----------------------------
@@ -309,17 +306,31 @@ CREATE TABLE `t_machine_cron_job_relate` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务关联表';
 
+DROP TABLE IF EXISTS `t_machine_term_op`;
+CREATE TABLE `t_machine_term_op` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
+  `machine_id` bigint NOT NULL COMMENT '机器id',
+  `username` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '登录用户名',
+  `record_file_path` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '终端回放文件路径',
+  `creator_id` bigint unsigned DEFAULT NULL,
+  `creator` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `create_time` datetime NOT NULL,
+  `end_time` datetime DEFAULT NULL,
+  `is_deleted` tinyint DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器终端操作记录表';
+
 -- ----------------------------
 -- Table structure for t_mongo
 -- ----------------------------
 DROP TABLE IF EXISTS `t_mongo`;
 CREATE TABLE `t_mongo` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'code',
   `name` varchar(36) NOT NULL COMMENT '名称',
   `uri` varchar(255) NOT NULL COMMENT '连接uri',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
-  `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
-  `tag_path` varchar(255) DEFAULT NULL COMMENT '标签路径',
   `create_time` datetime NOT NULL,
   `creator_id` bigint(20) DEFAULT NULL,
   `creator` varchar(36) DEFAULT NULL,
@@ -343,6 +354,7 @@ COMMIT;
 DROP TABLE IF EXISTS `t_redis`;
 CREATE TABLE `t_redis` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'code',
   `name` varchar(255) DEFAULT NULL COMMENT '名称',
   `host` varchar(255) NOT NULL,
   `username` varchar(32) DEFAULT NULL COMMENT '用户名',
@@ -351,8 +363,6 @@ CREATE TABLE `t_redis` (
   `mode` varchar(32) DEFAULT NULL,
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
   `remark` varchar(125) DEFAULT NULL,
-  `tag_id` bigint(20) DEFAULT NULL COMMENT '标签id',
-  `tag_path` varchar(255) DEFAULT NULL COMMENT '标签路径',
   `creator` varchar(32) DEFAULT NULL,
   `creator_id` bigint(32) DEFAULT NULL,
   `create_time` datetime DEFAULT NULL,
@@ -361,8 +371,7 @@ CREATE TABLE `t_redis` (
   `update_time` datetime DEFAULT NULL,
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_tag_path` (`tag_path`)
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='redis信息';
 
 -- ----------------------------
@@ -466,9 +475,10 @@ BEGIN;
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier) VALUES('账号登录安全设置', 'AccountLoginSecurity', '[{"name":"登录验证码","model":"useCaptcha","placeholder":"是否启用登录验证码","options":"true,false"},{"name":"双因素校验(OTP)","model":"useOtp","placeholder":"是否启用双因素(OTP)校验","options":"true,false"},{"name":"OTP签发人","model":"otpIssuer","placeholder":"otp签发人"},{"name":"允许失败次数","model":"loginFailCount","placeholder":"登录失败n次后禁止登录"},{"name":"禁止登录时间","model":"loginFailMin","placeholder":"登录失败指定次数后禁止m分钟内再次登录"}]', '{"useCaptcha":"true","useOtp":"false","loginFailCount":"5","loginFailMin":"10","otpIssuer":"mayfly-go"}', '系统账号登录相关安全设置', '2023-06-17 11:02:11', 1, 'admin', '2023-06-17 14:18:07', 1, 'admin');
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('oauth2登录配置', 'Oauth2Login', '[{"name":"是否启用","model":"enable","placeholder":"是否启用oauth2登录","options":"true,false"},{"name":"名称","model":"name","placeholder":"oauth2名称"},{"name":"Client ID","model":"clientId","placeholder":"Client ID"},{"name":"Client Secret","model":"clientSecret","placeholder":"Client Secret"},{"name":"Authorization URL","model":"authorizationURL","placeholder":"Authorization URL"},{"name":"AccessToken URL","model":"accessTokenURL","placeholder":"AccessToken URL"},{"name":"Redirect URL","model":"redirectURL","placeholder":"本系统地址"},{"name":"Scopes","model":"scopes","placeholder":"Scopes"},{"name":"Resource URL","model":"resourceURL","placeholder":"获取用户信息资源地址"},{"name":"UserIdentifier","model":"userIdentifier","placeholder":"用户唯一标识字段;格式为type:fieldPath(string:username)"},{"name":"是否自动注册","model":"autoRegister","placeholder":"","options":"true,false"}]', '', 'oauth2登录相关配置信息', 'admin,', '2023-07-22 13:58:51', 1, 'admin', '2023-07-22 19:34:37', 1, 'admin', 0, NULL);
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('ldap登录配置', 'LdapLogin', '[{"name":"是否启用","model":"enable","placeholder":"是否启用","options":"true,false"},{"name":"host","model":"host","placeholder":"host"},{"name":"port","model":"port","placeholder":"port"},{"name":"bindDN","model":"bindDN","placeholder":"LDAP 服务的管理员账号，如: \\"cn=admin,dc=example,dc=com\\""},{"name":"bindPwd","model":"bindPwd","placeholder":"LDAP 服务的管理员密码"},{"name":"baseDN","model":"baseDN","placeholder":"用户所在的 base DN, 如: \\"ou=users,dc=example,dc=com\\""},{"name":"userFilter","model":"userFilter","placeholder":"过滤用户的方式, 如: \\"(uid=%s)、(&(objectClass=organizationalPerson)(uid=%s))\\""},{"name":"uidMap","model":"uidMap","placeholder":"用户id和 LDAP 字段名之间的映射关系,如: cn"},{"name":"udnMap","model":"udnMap","placeholder":"用户姓名(dispalyName)和 LDAP 字段名之间的映射关系,如: displayName"},{"name":"emailMap","model":"emailMap","placeholder":"用户email和 LDAP 字段名之间的映射关系"},{"name":"skipTLSVerify","model":"skipTLSVerify","placeholder":"客户端是否跳过 TLS 证书验证","options":"true,false"},{"name":"安全协议","model":"securityProtocol","placeholder":"安全协议（为Null不使用安全协议），如: StartTLS, LDAPS","options":"Null,StartTLS,LDAPS"}]', '', 'ldap登录相关配置', 'admin,', '2023-08-25 21:47:20', 1, 'admin', '2023-08-25 22:56:07', 1, 'admin', 0, NULL);
-INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier)VALUES ('是否启用水印', 'UseWatermark', NULL, '1', '1: 启用、0: 不启用', '2022-08-25 23:36:35', 1, 'admin', '2022-08-26 10:02:52', 1, 'admin');
+INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('是否启用水印', 'UseWatermark', '[{"name":"是否启用","model":"isUse","placeholder":"是否启用水印","options":"true,false"},{"name":"自定义信息","model":"content","placeholder":"额外添加的水印内容，可添加公司名称等"}]', '', '水印信息配置', 'all', '2022-08-25 23:36:35', 1, 'admin', '2022-08-26 10:02:52', 1, 'admin', 0, NULL);
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier)VALUES ('数据库查询最大结果集', 'DbQueryMaxCount', '[]', '200', '允许sql查询的最大结果集数。注: 0=不限制', '2023-02-11 14:29:03', 1, 'admin', '2023-02-11 14:40:56', 1, 'admin');
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier)VALUES ('数据库是否记录查询SQL', 'DbSaveQuerySQL', '[]', '0', '1: 记录、0:不记录', '2023-02-11 16:07:14', 1, 'admin', '2023-02-11 16:44:17', 1, 'admin');
+INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('机器相关配置', 'MachineConfig', '[{"name":"终端回放存储路径","model":"terminalRecPath","placeholder":"终端回放存储路径"},{"name":"uploadMaxFileSize","model":"uploadMaxFileSize","placeholder":"允许上传的最大文件大小(1MB\\\\2GB等)"}]', '{"terminalRecPath":"./rec","uploadMaxFileSize":"1GB"}', '机器相关配置，如终端回放路径等', 'admin,', '2023-07-13 16:26:44', 1, 'admin', '2023-11-09 22:01:31', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -708,7 +718,7 @@ INSERT INTO `t_sys_role_resource` (role_id,resource_id,creator_id,creator,create
 	 (8,62,1,'admin','2021-11-05 15:59:16', 0, NULL),
 	 (8,80,1,'admin','2022-10-08 10:54:34', 0, NULL),
 	 (8,81,1,'admin','2022-10-08 10:54:34', 0, NULL),
-	 (8,79,1,'admin','2022-10-08 10:54:34', 0, NULL),
+	 (8,79,1,'admin','2022-10-08 10:54:34', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -761,6 +771,26 @@ CREATE TABLE `t_tag_tree_team` (
   PRIMARY KEY (`id`),
   KEY `idx_tag_id` (`tag_id`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签树团队关联信息';
+
+DROP TABLE IF EXISTS `t_tag_resource`;
+CREATE TABLE `t_tag_resource` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `tag_id` bigint NOT NULL,
+  `tag_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '标签路径',
+  `resource_code` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '资源编码',
+  `resource_type` tinyint NOT NULL COMMENT '资源类型',
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint NOT NULL,
+  `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier_id` bigint NOT NULL,
+  `modifier` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `is_deleted` tinyint DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_tag_path` (`tag_path`(100)) USING BTREE,
+  KEY `idx_resource_code` (`resource_code`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签资源关联表';
 
 -- ----------------------------
 -- Records of t_tag_tree_team

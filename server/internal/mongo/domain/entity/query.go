@@ -10,5 +10,5 @@ type MongoQuery struct {
 	SshTunnelMachineId uint64 // ssh隧道机器id
 	TagPath            string `json:"tagPath" form:"tagPath"`
 
-	TagIds []uint64
+	Codes []string
 }

@@ -1,32 +1,33 @@
 <template>
     <div>
         <page-table
-            ref="pageTableRef"
-            :query="queryConfig"
+            :search-items="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
-            :data="roles"
             :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
+            :page-api="roleApi.list"
+            ref="pageTableRef"
         >
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="perms.addRole" type="primary" icon="plus" @click="editRole(false)">添加</el-button>
                 <el-button v-auth="perms.delRole" :disabled="selectionData.length < 1" @click="deleteRole(selectionData)" type="danger" icon="delete"
                     >删除</el-button
                 >
             </template>
 
-            <template #showmore="{ data }">
-                <el-link @click.prevent="showResources(data)" type="info">菜单&权限</el-link>
-            </template>
-
             <template #action="{ data }">
                 <el-button v-if="actionBtns[perms.updateRole]" @click="editRole(data)" type="primary" link>编辑</el-button>
+                <el-button @click="showResources(data)" type="info" link>权限详情</el-button>
                 <el-button v-if="actionBtns[perms.saveRoleResource]" @click="editResource(data)" type="success" link>权限分配</el-button>
+                <el-button
+                    v-if="actionBtns[perms.saveAccountRole]"
+                    :disabled="data.code?.indexOf('COMMON') == 0"
+                    @click="showAccountAllocation(data)"
+                    type="success"
+                    link
+                    >用户管理</el-button
+                >
             </template>
         </page-table>
 
@@ -38,32 +39,36 @@
             :defaultCheckedKeys="resourceDialog.defaultCheckedKeys"
             @cancel="cancelEditResources()"
         />
+
+        <account-allocation v-model:visible="accountAllocationDialog.visible" :role="accountAllocationDialog.role" />
+
         <show-resource v-model:visible="showResourceDialog.visible" :title="showResourceDialog.title" v-model:resources="showResourceDialog.resources" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import RoleEdit from './RoleEdit.vue';
 import ResourceEdit from './ResourceEdit.vue';
 import ShowResource from './ShowResource.vue';
 import { roleApi, resourceApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { RoleStatusEnum } from '../enums';
-
-const pageTableRef: any = ref(null);
+import { SearchItem } from '@/components/SearchForm';
+import AccountAllocation from './AccountAllocation.vue';
 
 const perms = {
     addRole: 'role:add',
     delRole: 'role:del',
     updateRole: 'role:update',
     saveRoleResource: 'role:saveResources',
+    saveAccountRole: 'account:saveRoles',
 };
 
-const queryConfig = [TableQuery.text('name', '角色名')];
+const searchItems = [SearchItem.input('name', '角色名')];
 const columns = ref([
     TableColumn.new('name', '角色名称'),
     TableColumn.new('code', '角色code'),
@@ -73,20 +78,18 @@ const columns = ref([
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('modifier', '更新账号'),
     TableColumn.new('updateTime', '更新时间').isTime(),
-    TableColumn.new('showmore', '查看更多').isSlot().setMinWidth(150),
 ]);
 
-const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource]);
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(160).fixedRight().alignCenter();
+const actionBtns = hasPerms([perms.updateRole, perms.saveRoleResource, perms.saveAccountRole]);
+const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(290).fixedRight().alignCenter();
 
+const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
     query: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         name: null,
     },
-    total: 0,
-    roles: [],
     selectionData: [],
     resourceDialog: {
         visible: false,
@@ -104,26 +107,22 @@ const state = reactive({
         resources: [],
         title: '',
     },
+    accountAllocationDialog: {
+        visible: false,
+        role: {},
+    },
 });
 
-const { query, total, roles, selectionData, resourceDialog, roleEditDialog, showResourceDialog } = toRefs(state);
+const { query, selectionData, resourceDialog, roleEditDialog, showResourceDialog, accountAllocationDialog } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
-    search();
 });
 
-const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-        let res = await roleApi.list.request(state.query);
-        state.roles = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
+const search = () => {
+    pageTableRef.value.search();
 };
 
 const roleEditChange = () => {
@@ -157,7 +156,9 @@ const deleteRole = async (data: any) => {
         });
         ElMessage.success('删除成功！');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 const showResources = async (row: any) => {
@@ -190,6 +191,11 @@ const editResource = async (row: any) => {
     // 显示
     state.resourceDialog.visible = true;
     state.resourceDialog.role = row;
+};
+
+const showAccountAllocation = (data: any) => {
+    state.accountAllocationDialog.role = data;
+    state.accountAllocationDialog.visible = true;
 };
 
 /**

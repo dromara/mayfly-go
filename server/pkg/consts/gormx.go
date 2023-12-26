@@ -11,6 +11,7 @@ const (
 	And       = "AND"
 	Or        = "OR"
 	In        = "IN"
+	NotIn     = "NOT IN"
 	Not       = "NOT"
 	Like      = "LIKE"
 	Eq        = "="

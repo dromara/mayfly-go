@@ -1,41 +1,45 @@
 <template>
     <div>
-        <page-table
-            ref="pageTableRef"
-            :query="state.queryConfig"
-            v-model:query-form="query"
-            :data="logs"
-            :columns="state.columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
-        >
-            <template #selectAccount>
-                <el-select
-                    style="width: 200px"
-                    remote
-                    :remote-method="getAccount"
-                    v-model="query.creatorId"
-                    filterable
-                    placeholder="请输入并选择账号"
-                    clearable
-                >
-                    <el-option v-for="item in accounts" :key="item.id" :label="item.username" :value="item.id"> </el-option>
-                </el-select>
-            </template>
-        </page-table>
+        <page-table :page-api="logApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns"> </page-table>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { toRefs, reactive } from 'vue';
 import { logApi, accountApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { LogTypeEnum } from '../enums';
+import { OptionsApi, SearchItem } from '@/components/SearchForm';
 
-const pageTableRef: any = ref(null);
+const searchItems = [
+    SearchItem.select('creatorId', '操作人')
+        .withPlaceholder('请输入并选择账号')
+        .withOptionsApi(
+            OptionsApi.new(accountApi.list, { username: null })
+                .withConvertFn((res: any) => {
+                    const accounts = res.list;
+                    return accounts.map((x: any) => {
+                        return {
+                            label: x.username,
+                            value: x.id,
+                        };
+                    });
+                })
+                .isRemote('username')
+        ),
+    SearchItem.select('type', '操作结果').withEnum(LogTypeEnum),
+    SearchItem.input('description', '描述'),
+];
+
+const columns = [
+    TableColumn.new('creator', '操作人'),
+    TableColumn.new('createTime', '操作时间').isTime(),
+    TableColumn.new('type', '结果').typeTag(LogTypeEnum),
+    TableColumn.new('description', '描述'),
+    TableColumn.new('reqParam', '操作信息').canBeautify(),
+    TableColumn.new('resp', '响应信息'),
+];
 
 const state = reactive({
     query: {
@@ -43,47 +47,10 @@ const state = reactive({
         creatorId: null,
         description: null,
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
     },
-    queryConfig: [
-        TableQuery.slot('creatorId', '操作人', 'selectAccount'),
-        TableQuery.select('type', '操作结果').setOptions(Object.values(LogTypeEnum)),
-        TableQuery.text('description', '描述'),
-    ],
-    columns: [
-        TableColumn.new('creator', '操作人'),
-        TableColumn.new('createTime', '操作时间').isTime(),
-        TableColumn.new('type', '结果').typeTag(LogTypeEnum),
-        TableColumn.new('description', '描述'),
-        TableColumn.new('reqParam', '操作信息').canBeautify(),
-        TableColumn.new('resp', '响应信息'),
-    ],
-    total: 0,
-    logs: [],
-    accounts: [] as any,
 });
 
-const { query, total, logs, accounts } = toRefs(state);
-
-onMounted(() => {
-    search();
-});
-
-const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-        let res = await logApi.list.request(state.query);
-        state.logs = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
-};
-
-const getAccount = (username: any) => {
-    accountApi.list.request({ username }).then((res) => {
-        state.accounts = res.list;
-    });
-};
+const { query } = toRefs(state);
 </script>
 <style lang="scss"></style>

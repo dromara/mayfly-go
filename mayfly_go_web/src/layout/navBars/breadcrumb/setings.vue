@@ -61,6 +61,24 @@
                     </div>
                 </div>
 
+                <!-- 全局设置 -->
+                <el-divider content-position="left">全局设置</el-divider>
+                <div class="layout-breadcrumb-seting-bar-flex mt15">
+                    <div class="layout-breadcrumb-seting-bar-flex-label">分页size</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-value">
+                        <el-input-number
+                            v-model="themeConfig.defaultListPageSize"
+                            controls-position="right"
+                            :min="10"
+                            :max="50"
+                            @change="setLocalThemeConfig"
+                            size="small"
+                            style="width: 90px"
+                        >
+                        </el-input-number>
+                    </div>
+                </div>
+
                 <!-- 全局主题 -->
                 <el-divider content-position="left">全局主题</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex">

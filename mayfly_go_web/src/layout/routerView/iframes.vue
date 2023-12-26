@@ -1,5 +1,5 @@
 <template>
-    <div class="layout-scrollbar">
+    <div>
         <div class="layout-view-bg-white flex h100" v-loading="iframeLoading">
             <iframe :src="iframeUrl" frameborder="0" height="100%" width="100%" id="iframe" v-show="!iframeLoading"></iframe>
         </div>
@@ -7,7 +7,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, reactive, toRefs, onMounted, onBeforeMount, onUnmounted, nextTick, getCurrentInstance } from 'vue';
+import { defineComponent, reactive, toRefs, onMounted, onBeforeMount, onUnmounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import mittBus from '@/common/utils/mitt';
 export default defineComponent({

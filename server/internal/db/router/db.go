@@ -25,17 +25,13 @@ func InitDbRouter(router *gin.RouterGroup) {
 		// 获取数据库列表
 		req.NewGet("", d.Dbs),
 
-		req.NewGet("/tags", d.DbTags),
-
 		req.NewPost("", d.Save).Log(req.NewLogSave("db-保存数据库信息")),
 
 		req.NewDelete(":dbId", d.DeleteDb).Log(req.NewLogSave("db-删除数据库信息")),
 
-		req.NewGet(":dbId/t-infos", d.TableInfos),
+		req.NewGet(":dbId/t-create-ddl", d.GetTableDDL),
 
-		req.NewGet(":dbId/t-index", d.TableIndex),
-
-		req.NewGet(":dbId/t-create-ddl", d.GetCreateTableDdl),
+		req.NewGet(":dbId/pg/schemas", d.GetSchemas),
 
 		req.NewPost(":dbId/exec-sql", d.ExecSql).Log(req.NewLog("db-执行Sql")),
 
@@ -43,20 +39,13 @@ func InitDbRouter(router *gin.RouterGroup) {
 
 		req.NewGet(":dbId/dump", d.DumpSql).Log(req.NewLogSave("db-导出sql文件")).NoRes(),
 
-		req.NewGet(":dbId/t-metadata", d.TableMA),
+		req.NewGet(":dbId/t-infos", d.TableInfos),
+
+		req.NewGet(":dbId/t-index", d.TableIndex),
 
 		req.NewGet(":dbId/c-metadata", d.ColumnMA),
 
 		req.NewGet(":dbId/hint-tables", d.HintTables),
-
-		// 用户sql相关
-		req.NewPost(":dbId/sql", d.SaveSql),
-
-		req.NewGet(":dbId/sql", d.GetSql),
-
-		req.NewDelete(":dbId/sql", d.DeleteSql),
-
-		req.NewGet(":dbId/sql-names", d.GetSqlNames),
 	}
 
 	req.BatchSetGroup(db, reqs[:])

@@ -13,3 +13,16 @@ type TagTreeQuery struct {
 	CodePathLike  string // 标识符路径模糊查询
 	CodePathLikes []string
 }
+
+type TagResourceQuery struct {
+	model.Model
+
+	TagPath       string   `json:"string"` // 标签路径
+	TagId         uint64   `json:"tagId" form:"tagId"`
+	ResourceType  int8     `json:"resourceType" form:"resourceType"` // 资源编码
+	ResourceCode  string   `json:"resourceCode" form:"resourceCode"` // 资源编码
+	ResourceCodes []string // 资源编码列表
+
+	TagPathLike  string // 标签路径模糊查询
+	TagPathLikes []string
+}

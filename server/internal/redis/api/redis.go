@@ -2,10 +2,12 @@ package api
 
 import (
 	"context"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/api/vo"
 	"mayfly-go/internal/redis/application"
 	"mayfly-go/internal/redis/domain/entity"
+	"mayfly-go/internal/redis/rdm"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
@@ -30,18 +32,28 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage[*entity.RedisQuery](rc.GinCtx, new(entity.RedisQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	tagIds := r.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
-	if len(tagIds) == 0 {
+	codes := r.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeRedis, queryCond.TagPath)
+	if len(codes) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	queryCond.TagIds = tagIds
+	queryCond.Codes = codes
 
-	rc.ResData = r.RedisApp.GetPageList(queryCond, page, new([]vo.Redis))
+	res, err := r.RedisApp.GetPageList(queryCond, page, new([]vo.Redis))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
-func (r *Redis) RedisTags(rc *req.Ctx) {
-	rc.ResData = r.TagApp.ListTagByAccountIdAndResource(rc.LoginAccount.Id, new(entity.Redis))
+func (r *Redis) TestConn(rc *req.Ctx) {
+	form := &form.Redis{}
+	redis := ginx.BindJsonAndCopyTo[*entity.Redis](rc.GinCtx, form, new(entity.Redis))
+
+	// 密码解密，并使用解密后的赋值
+	originPwd, err := cryptox.DefaultRsaDecrypt(redis.Password, true)
+	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
+	redis.Password = originPwd
+
+	biz.ErrIsNil(r.RedisApp.TestConn(redis))
 }
 
 func (r *Redis) Save(rc *req.Ctx) {
@@ -57,14 +69,14 @@ func (r *Redis) Save(rc *req.Ctx) {
 	form.Password = "****"
 	rc.ReqParam = form
 
-	redis.SetBaseInfo(rc.LoginAccount)
-	r.RedisApp.Save(redis)
+	biz.ErrIsNil(r.RedisApp.Save(rc.MetaCtx, redis, form.TagId...))
 }
 
 // 获取redis实例密码，由于数据库是加密存储，故提供该接口展示原文密码
 func (r *Redis) GetRedisPwd(rc *req.Ctx) {
 	rid := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
-	re := r.RedisApp.GetById(rid, "Password")
+	re, err := r.RedisApp.GetById(new(entity.Redis), rid, "Password")
+	biz.ErrIsNil(err, "redis信息不存在")
 	re.PwdDecrypt()
 	rc.ResData = re.Password
 }
@@ -77,22 +89,23 @@ func (r *Redis) DeleteRedis(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		r.RedisApp.Delete(uint64(value))
+		r.RedisApp.Delete(rc.MetaCtx, uint64(value))
 	}
 }
 
 func (r *Redis) RedisInfo(rc *req.Ctx) {
 	g := rc.GinCtx
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
+	ri, err := r.RedisApp.GetRedisConn(uint64(ginx.PathParamInt(g, "id")), 0)
+	biz.ErrIsNil(err)
 
 	section := rc.GinCtx.Query("section")
 	mode := ri.Info.Mode
 	ctx := context.Background()
 	var redisCli *redis.Client
 
-	if mode == "" || mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
+	if mode == "" || mode == rdm.StandaloneMode || mode == rdm.SentinelMode {
 		redisCli = ri.Cli
-	} else if mode == entity.RedisModeCluster {
+	} else if mode == rdm.ClusterMode {
 		host := rc.GinCtx.Query("host")
 		biz.NotEmpty(host, "集群模式host信息不能为空")
 		clusterClient := ri.ClusterCli
@@ -116,7 +129,6 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 	}
 
 	var res string
-	var err error
 	if section == "" {
 		res, err = redisCli.Info(ctx).Result()
 	} else {
@@ -161,8 +173,9 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 
 func (r *Redis) ClusterInfo(rc *req.Ctx) {
 	g := rc.GinCtx
-	ri := r.RedisApp.GetRedisInstance(uint64(ginx.PathParamInt(g, "id")), 0)
-	biz.IsEquals(ri.Info.Mode, entity.RedisModeCluster, "非集群模式")
+	ri, err := r.RedisApp.GetRedisConn(uint64(ginx.PathParamInt(g, "id")), 0)
+	biz.ErrIsNil(err)
+	biz.IsEquals(ri.Info.Mode, rdm.ClusterMode, "非集群模式")
 	info, _ := ri.ClusterCli.ClusterInfo(context.Background()).Result()
 	nodesStr, _ := ri.ClusterCli.ClusterNodes(context.Background()).Result()
 
@@ -204,15 +217,16 @@ func (r *Redis) ClusterInfo(rc *req.Ctx) {
 }
 
 // 校验查询参数中的key为必填项，并返回redis实例
-func (r *Redis) checkKeyAndGetRedisIns(rc *req.Ctx) (*application.RedisInstance, string) {
+func (r *Redis) checkKeyAndGetRedisConn(rc *req.Ctx) (*rdm.RedisConn, string) {
 	key := rc.GinCtx.Query("key")
 	biz.NotEmpty(key, "key不能为空")
-	return r.getRedisIns(rc), key
+	return r.getRedisConn(rc), key
 }
 
-func (r *Redis) getRedisIns(rc *req.Ctx) *application.RedisInstance {
-	ri := r.RedisApp.GetRedisInstance(getIdAndDbNum(rc.GinCtx))
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.LoginAccount.Id, ri.Info.TagPath), "%s")
+func (r *Redis) getRedisConn(rc *req.Ctx) *rdm.RedisConn {
+	ri, err := r.RedisApp.GetRedisConn(getIdAndDbNum(rc.GinCtx))
+	biz.ErrIsNil(err)
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, ri.Info.TagPath...), "%s")
 	return ri
 }
 

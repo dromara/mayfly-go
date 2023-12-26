@@ -132,7 +132,7 @@
             <template #footer>
                 <div>
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -222,10 +222,12 @@ const state = reactive({
             link: '',
         },
     },
-    btnLoading: false,
+    submitForm: {},
 });
 
-const { dialogVisible, form, btnLoading } = toRefs(state);
+const { dialogVisible, form, submitForm } = toRefs(state);
+
+const { isFetching: saveBtnLoading, execute: saveResouceExec } = resourceApi.save.useApi(submitForm);
 
 watch(props, (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -264,20 +266,15 @@ const btnOk = () => {
     } else {
         submitForm.meta = null as any;
     }
-    menuForm.value.validate((valid: any) => {
-        if (valid) {
-            resourceApi.save.request(submitForm).then(() => {
-                emit('val-change', submitForm);
-                state.btnLoading = true;
-                ElMessage.success('保存成功');
-                setTimeout(() => {
-                    state.btnLoading = false;
-                }, 1000);
 
-                cancel();
-            });
-        } else {
-            return false;
+    menuForm.value.validate(async (valid: any) => {
+        if (valid) {
+            state.submitForm = submitForm;
+            await saveResouceExec();
+
+            emit('val-change', submitForm);
+            ElMessage.success('保存成功');
+            cancel();
         }
     });
 };

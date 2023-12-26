@@ -19,6 +19,7 @@ export const roleApi = {
     roleResourceIds: Api.newGet('/sys/roles/{id}/resourceIds'),
     roleResources: Api.newGet('/sys/roles/{id}/resources'),
     saveResources: Api.newPost('/sys/roles/{id}/resources'),
+    roleAccounts: Api.newGet('/sys/roles/{id}/accounts'),
 };
 
 export const accountApi = {
@@ -28,10 +29,9 @@ export const accountApi = {
     del: Api.newDelete('/sys/accounts/{id}'),
     changeStatus: Api.newPut('/sys/accounts/change-status/{id}/{status}'),
     resetOtpSecret: Api.newPut('/sys/accounts/{id}/reset-otp'),
-    roleIds: Api.newGet('/sys/accounts/{id}/roleIds'),
     roles: Api.newGet('/sys/accounts/{id}/roles'),
     resources: Api.newGet('/sys/accounts/{id}/resources'),
-    saveRoles: Api.newPost('/sys/accounts/roles'),
+    saveRole: Api.newPost('/sys/accounts/roles'),
 };
 
 export const configApi = {

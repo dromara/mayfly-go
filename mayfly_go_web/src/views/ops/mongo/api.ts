@@ -3,6 +3,7 @@ import Api from '@/common/Api';
 export const mongoApi = {
     mongoList: Api.newGet('/mongos'),
     mongoTags: Api.newGet('/mongos/tags'),
+    testConn: Api.newPost('/mongos/test-conn'),
     saveMongo: Api.newPost('/mongos'),
     deleteMongo: Api.newDelete('/mongos/{id}'),
     databases: Api.newGet('/mongos/{id}/databases'),

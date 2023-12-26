@@ -1,5 +1,5 @@
 declare interface UserInfoState<T = any> {
-    userInfo: any;
+    userInfo: T;
 }
 
 declare interface ThemeConfigState {
@@ -57,6 +57,8 @@ declare interface ThemeConfigState {
         terminalFontSize: number;
         terminalFontWeight: string | any;
         editorTheme: string;
+
+        defaultListPageSize: number;
     };
 }
 
@@ -92,7 +94,7 @@ declare interface TagsView {
 }
 
 // TagsView 路由列表
-declare interface TagsViewsState<T = any> {
+declare interface TagsViewsState<> {
     tagsViews: TagsView[];
 }
 

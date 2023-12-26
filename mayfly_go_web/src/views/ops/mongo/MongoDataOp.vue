@@ -1,43 +1,51 @@
 <template>
-    <div>
-        <el-row>
-            <el-col :span="4">
-                <tag-tree @node-click="nodeClick" :load="loadNode">
+    <div class="flex-all-center">
+        <Splitpanes class="default-theme">
+            <Pane size="20" max-size="30">
+                <tag-tree :resource-type="TagResourceTypeEnum.Mongo.value" :tag-path-node-type="NodeTypeTagPath">
                     <template #prefix="{ data }">
-                        <span v-if="data.type == NodeType.Mongo">
-                            <el-popover placement="right-start" title="mongo实例信息" trigger="hover" :width="210">
+                        <span v-if="data.type.value == MongoNodeType.Mongo">
+                            <el-popover :show-after="500" placement="right-start" title="mongo实例信息" trigger="hover" :width="250">
                                 <template #reference>
                                     <SvgIcon name="iconfont icon-op-mongo" :size="18" />
                                 </template>
                                 <template #default>
-                                    <el-form class="instances-pop-form" label-width="auto" :size="'small'">
-                                        <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
-                                        <el-form-item label="链接:">{{ data.params.uri }}</el-form-item>
-                                    </el-form>
+                                    <el-descriptions :column="1" size="small">
+                                        <el-descriptions-item label="名称">
+                                            {{ data.params.name }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="链接">
+                                            {{ data.params.uri }}
+                                        </el-descriptions-item>
+                                    </el-descriptions>
                                 </template>
                             </el-popover>
                         </span>
 
-                        <SvgIcon v-if="data.type == NodeType.Dbs" name="Coin" color="#67c23a" />
+                        <SvgIcon v-if="data.type.value == MongoNodeType.Dbs" name="Coin" color="#67c23a" />
 
-                        <SvgIcon v-if="data.type == NodeType.Coll || data.type == NodeType.CollMenu" name="Document" class="color-primary" />
+                        <SvgIcon
+                            v-if="data.type.value == MongoNodeType.Coll || data.type.value == MongoNodeType.CollMenu"
+                            name="Document"
+                            class="color-primary"
+                        />
                     </template>
 
                     <template #label="{ data }">
-                        <span v-if="data.type == NodeType.Dbs">
-                            {{ data.params.dbName }}
+                        <span v-if="data.type.value == MongoNodeType.Dbs">
+                            {{ data.params.database }}
                             <span style="color: #8492a6; font-size: 13px"> [{{ formatByteSize(data.params.size) }}] </span>
                         </span>
 
                         <span v-else>{{ data.label }}</span>
                     </template>
                 </tag-tree>
-            </el-col>
+            </Pane>
 
-            <el-col :span="20">
-                <div id="mongo-tab" class="ml5" style="border: 1px solid var(--el-border-color-light, #ebeef5); margin-top: 1px">
+            <Pane>
+                <div class="mongo-data-tab card pd5 w100">
                     <el-row v-if="nowColl">
-                        <el-descriptions :column="10" size="small" border>
+                        <el-descriptions class="w100" :column="10" size="small" border>
                             <!-- <el-descriptions-item label-align="right" label="tag">xxx</el-descriptions-item> -->
 
                             <el-descriptions-item label="ns" label-align="right">
@@ -65,7 +73,7 @@
                     </el-row>
 
                     <el-row type="flex">
-                        <el-tabs @tab-remove="removeDataTab" style="width: 100%; margin-left: 5px" v-model="state.activeName">
+                        <el-tabs @tab-remove="removeDataTab" class="w100 ml5" v-model="state.activeName">
                             <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                                 <el-row>
                                     <el-col :span="2">
@@ -86,32 +94,35 @@
                                         </el-input>
                                     </el-col>
                                 </el-row>
-                                <el-row :style="`height: ${dataHeight}; overflow: auto;`">
-                                    <el-col :span="6" v-for="item in dt.datas" :key="item">
-                                        <el-card :body-style="{ padding: '0px', position: 'relative' }">
-                                            <el-input type="textarea" v-model="item.value" :rows="10" />
-                                            <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
-                                                <div>
-                                                    <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
+                                <el-scrollbar class="mongo-data-tab-data">
+                                    <el-row>
+                                        <el-col :span="6" v-for="item in dt.datas" :key="item">
+                                            <el-card :body-style="{ padding: '0px', position: 'relative' }">
+                                                <el-input type="textarea" v-model="item.value" :rows="10" />
+                                                <div style="padding: 3px; float: right" class="mr5 mongo-doc-btns">
+                                                    <div>
+                                                        <el-link @click="onEditDoc(item)" :underline="false" type="success" icon="MagicStick"></el-link>
 
-                                                    <el-divider direction="vertical" border-style="dashed" />
+                                                        <el-divider direction="vertical" border-style="dashed" />
 
-                                                    <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?" width="160">
-                                                        <template #reference>
-                                                            <el-link v-auth="perms.delData" :underline="false" type="danger" icon="DocumentDelete"> </el-link>
-                                                        </template>
-                                                    </el-popconfirm>
+                                                        <el-popconfirm @confirm="onDeleteDoc(item.value)" title="确定删除该文档?" width="160">
+                                                            <template #reference>
+                                                                <el-link v-auth="perms.delData" :underline="false" type="danger" icon="DocumentDelete">
+                                                                </el-link>
+                                                            </template>
+                                                        </el-popconfirm>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </el-card>
-                                    </el-col>
-                                </el-row>
+                                            </el-card>
+                                        </el-col>
+                                    </el-row>
+                                </el-scrollbar>
                             </el-tab-pane>
                         </el-tabs>
                     </el-row>
                 </div>
-            </el-col>
-        </el-row>
+            </Pane>
+        </Splitpanes>
 
         <el-dialog width="600px" title="find参数" v-model="findDialog.visible">
             <el-form label-width="auto">
@@ -161,9 +172,12 @@ import { computed, defineAsyncComponent, reactive, ref, toRefs } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { isTrue, notBlank } from '@/common/assert';
-import { TagTreeNode } from '../component/tag';
+import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { formatByteSize } from '@/common/utils/format';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { sleep } from '@/common/utils/loading';
+import { Splitpanes, Pane } from 'splitpanes';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
@@ -175,17 +189,69 @@ const perms = {
 /**
  * 树节点类型
  */
-class NodeType {
+class MongoNodeType {
     static Mongo = 1;
     static Dbs = 2;
     static CollMenu = 3;
     static Coll = 4;
 }
 
+// tagpath 节点类型
+const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const res = await mongoApi.mongoList.request({ tagPath: parentNode.key });
+    if (!res.total) {
+        return [];
+    }
+
+    const mongoInfos = res.list;
+    await sleep(100);
+    return mongoInfos?.map((x: any) => {
+        x.tagPath = parentNode.key;
+        return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeMongo).withParams(x);
+    });
+});
+
+const NodeTypeMongo = new NodeType(MongoNodeType.Mongo).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const inst = parentNode.params;
+    // 点击mongo -> 加载mongo数据库列表
+    const res = await mongoApi.databases.request({ id: inst.id });
+    return res.Databases.map((x: any) => {
+        const database = x.Name;
+        return new TagTreeNode(`${inst.id}.${database}`, database, NodeTypeDbs).withParams({
+            id: inst.id,
+            database,
+            size: x.SizeOnDisk,
+        });
+    });
+});
+
+const NodeTypeDbs = new NodeType(MongoNodeType.Dbs).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const params = parentNode.params;
+    // 点击数据库列表 -> 加载数据库下拥有的菜单列表
+    return [new TagTreeNode(`${params.id}.${params.database}.mongo-coll`, '集合', NodeTypeCollMenu).withParams(params)];
+});
+
+const NodeTypeCollMenu = new NodeType(MongoNodeType.CollMenu).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const { id, database } = parentNode.params;
+    // 点击数据库集合节点 -> 加载集合列表
+    const colls = await mongoApi.collections.request({ id, database });
+    return colls.map((x: any) => {
+        return new TagTreeNode(`${id}.${database}.${x}`, x, NodeTypeColl).withIsLeaf(true).withParams({
+            id,
+            database,
+            collection: x,
+        });
+    });
+});
+
+const NodeTypeColl = new NodeType(MongoNodeType.Coll).withNodeClickFunc((nodeData: TagTreeNode) => {
+    const { id, database, collection } = nodeData.params;
+    changeCollection(id, database, collection);
+});
+
 const findParamInputRef: any = ref(null);
 const state = reactive({
     tags: [],
-    dataHeight: `${window.innerHeight - 194 - 35}px`,
     mongoList: [] as any,
     activeName: '', // 当前操作的tab
     dataTabs: {} as any, // 数据tabs
@@ -214,113 +280,11 @@ const state = reactive({
     },
 });
 
-const { dataHeight, findDialog, docEditDialog } = toRefs(state);
+const { findDialog, docEditDialog } = toRefs(state);
 
 const nowColl = computed(() => {
     return getNowDataTab();
 });
-
-/**
- * instmap;  tagPaht -> mongo info[]
- */
-const instMap: Map<string, any[]> = new Map();
-
-const getInsts = async () => {
-    const res = await mongoApi.mongoList.request({ pageNum: 1, pageSize: 1000 });
-    if (!res.total) return;
-    for (const mongoInfo of res.list) {
-        const tagPath = mongoInfo.tagPath;
-        let mongoInsts = instMap.get(tagPath) || [];
-        mongoInsts.push(mongoInfo);
-        instMap.set(tagPath, mongoInsts);
-    }
-};
-
-/**
- * 加载文件树节点
- * @param {Object} node
- * @param {Object} resolve
- */
-const loadNode = async (node: any) => {
-    // 一级为tagPath
-    if (node.level === 0) {
-        await getInsts();
-        const tagPaths = instMap.keys();
-        const tagNodes = [];
-        for (let tagPath of tagPaths) {
-            tagNodes.push(new TagTreeNode(tagPath, tagPath));
-        }
-        return tagNodes;
-    }
-
-    const data = node.data;
-    const params = data.params;
-    const nodeType = data.type;
-
-    // 点击标签 -> 显示mongo信息列表
-    if (nodeType === TagTreeNode.TagPath) {
-        const mongoInfos = instMap.get(data.key);
-        return mongoInfos?.map((x: any) => {
-            return new TagTreeNode(`${data.key}.${x.id}`, x.name, NodeType.Mongo).withParams(x);
-        });
-    }
-
-    // 点击mongo -> 加载mongo数据库列表
-    if (nodeType === NodeType.Mongo) {
-        return await getDatabases(params);
-    }
-
-    // 点击数据库列表 -> 加载数据库下拥有的菜单列表
-    if (nodeType === NodeType.Dbs) {
-        return [new TagTreeNode(`${params.id}.${params.dbName}.mongo-coll`, '集合', NodeType.CollMenu).withParams(params)];
-    }
-
-    // 点击数据库集合节点 -> 加载集合列表
-    if (nodeType === NodeType.CollMenu) {
-        return await getCollections(params.id, params.dbName);
-    }
-
-    return [];
-};
-
-/**
- * 获取实例的所有库信息
- * @param inst 实例信息
- */
-const getDatabases = async (inst: any) => {
-    const res = await mongoApi.databases.request({ id: inst.id });
-    return res.Databases.map((x: any) => {
-        const dbName = x.Name;
-        return new TagTreeNode(`${inst.id}.${dbName}`, dbName, NodeType.Dbs).withParams({
-            id: inst.id,
-            dbName,
-            size: x.SizeOnDisk,
-        });
-    });
-};
-
-/**
- * 获取集合列表信息
- * @param inst
- */
-const getCollections = async (id: any, database: string) => {
-    const colls = await mongoApi.collections.request({ id, database });
-    return colls.map((x: any) => {
-        return new TagTreeNode(`${id}.${database}.${x}`, x, NodeType.Coll).withIsLeaf(true).withParams({
-            id,
-            database,
-            collection: x,
-        });
-    });
-};
-
-const nodeClick = async (data: any) => {
-    // 点击集合
-    if (data.type === NodeType.Coll) {
-        const { id, database, collection } = data.params;
-        await changeCollection(id, database, collection);
-    }
-};
 
 const changeCollection = async (id: any, schema: string, collection: string) => {
     const label = `${id}:\`${schema}\`.${collection}`;
@@ -540,7 +504,17 @@ const getNowDataTab = () => {
     max-width: 120px;
 }
 
-#mongo-tab {
+.mongo-data-tab {
+    height: calc(100vh - 108px);
+}
+
+.mongo-data-tab {
+    margin-top: 1px;
+
+    .mongo-data-tab-data {
+        height: calc(100vh - 230px);
+    }
+
     .el-tabs__header {
         margin: 0 0 5px;
 

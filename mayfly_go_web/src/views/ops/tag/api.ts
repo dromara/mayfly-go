@@ -1,11 +1,13 @@
 import Api from '@/common/Api';
 
 export const tagApi = {
-    getAccountTags: Api.newGet('/tag-trees/account-has'),
     listByQuery: Api.newGet('/tag-trees/query'),
     getTagTrees: Api.newGet('/tag-trees'),
     saveTagTree: Api.newPost('/tag-trees'),
     delTagTree: Api.newDelete('/tag-trees/{id}'),
+
+    getResourceTagPaths: Api.newGet('/tag-trees/resources/{resourceType}/tag-paths'),
+    getTagResources: Api.newGet('/tag-trees/resources'),
 
     getTeams: Api.newGet('/teams'),
     saveTeam: Api.newPost('/teams'),

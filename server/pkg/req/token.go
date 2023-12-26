@@ -2,17 +2,14 @@ package req
 
 import (
 	"errors"
-
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/config"
-	"mayfly-go/pkg/model"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 // 创建用户token
-func CreateToken(userId uint64, username string) string {
+func CreateToken(userId uint64, username string) (string, error) {
 	// 带权限创建令牌
 	// 设置有效期，过期需要重新登录获取token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -23,14 +20,16 @@ func CreateToken(userId uint64, username string) string {
 
 	// 使用自定义字符串加密 and get the complete encoded token as a string
 	tokenString, err := token.SignedString([]byte(config.Conf.Jwt.Key))
-	biz.ErrIsNilAppendErr(err, "token创建失败: %s")
-	return tokenString
+	if err != nil {
+		return "", err
+	}
+	return tokenString, nil
 }
 
 // 解析token，并返回登录者账号信息
-func ParseToken(tokenStr string) (*model.LoginAccount, error) {
+func ParseToken(tokenStr string) (uint64, string, error) {
 	if tokenStr == "" {
-		return nil, errors.New("token error")
+		return 0, "", errors.New("token error")
 	}
 
 	// Parse token
@@ -38,8 +37,11 @@ func ParseToken(tokenStr string) (*model.LoginAccount, error) {
 		return []byte(config.Conf.Jwt.Key), nil
 	})
 	if err != nil || token == nil {
-		return nil, err
+		return 0, "", err
+	}
+	if !token.Valid {
+		return 0, "", errors.New("token invalid")
 	}
 	i := token.Claims.(jwt.MapClaims)
-	return &model.LoginAccount{Id: uint64(i["id"].(float64)), Username: i["username"].(string)}, nil
+	return uint64(i["id"].(float64)), i["username"].(string), nil
 }

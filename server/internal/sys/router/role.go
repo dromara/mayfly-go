@@ -27,6 +27,8 @@ func InitRoleRouter(router *gin.RouterGroup) {
 		req.NewGet(":id/resources", r.RoleResource),
 
 		req.NewPost(":id/resources", r.SaveResource).Log(req.NewLogSave("保存角色资源")).RequiredPermissionCode("role:saveResources"),
+
+		req.NewGet(":id/accounts", r.RoleAccount),
 	}
 
 	req.BatchSetGroup(rg, reqs[:])

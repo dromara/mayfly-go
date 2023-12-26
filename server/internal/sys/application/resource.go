@@ -1,10 +1,12 @@
 package application
 
 import (
+	"context"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
@@ -12,58 +14,54 @@ import (
 )
 
 type Resource interface {
-	GetResourceList(condition *entity.Resource, toEntity any, orderBy ...string)
+	base.App[*entity.Resource]
 
-	GetById(id uint64, cols ...string) *entity.Resource
+	Save(ctx context.Context, entity *entity.Resource) error
 
-	Save(entity *entity.Resource)
+	Delete(ctx context.Context, id uint64) error
 
-	ChangeStatus(resourceId uint64, status int8)
+	ChangeStatus(ctx context.Context, resourceId uint64, status int8) error
 
-	Sort(re *entity.Resource)
+	Sort(ctx context.Context, re *entity.Resource) error
 
-	Delete(id uint64)
-
-	GetAccountResources(accountId uint64, toEntity any)
+	GetAccountResources(accountId uint64, toEntity any) error
 }
 
 func newResourceApp(resourceRepo repository.Resource) Resource {
 	return &resourceAppImpl{
-		resourceRepo: resourceRepo,
+		base.AppImpl[*entity.Resource, repository.Resource]{Repo: resourceRepo},
 	}
 }
 
 type resourceAppImpl struct {
-	resourceRepo repository.Resource
+	base.AppImpl[*entity.Resource, repository.Resource]
 }
 
-func (r *resourceAppImpl) GetResourceList(condition *entity.Resource, toEntity any, orderBy ...string) {
-	r.resourceRepo.GetResourceList(condition, toEntity, orderBy...)
-}
-
-func (r *resourceAppImpl) GetById(id uint64, cols ...string) *entity.Resource {
-	return r.resourceRepo.GetById(id, cols...)
-}
-
-func (r *resourceAppImpl) Save(resource *entity.Resource) {
+func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) error {
 	// 更新操作
 	if resource.Id != 0 {
 		if resource.Code != "" {
-			oldRes := r.GetById(resource.Id, "Code")
+			oldRes, err := r.GetById(new(entity.Resource), resource.Id, "Code")
+			if err != nil {
+				return errorx.NewBiz("更新失败, 该资源不存在")
+			}
 			// 如果修改了code，则校验新code是否存在
 			if oldRes.Code != resource.Code {
-				r.checkCode(resource.Code)
+				if err := r.checkCode(resource.Code); err != nil {
+					return err
+				}
 			}
 		}
-		gormx.UpdateById(resource)
-		return
+		return r.UpdateById(ctx, resource)
 	}
 
 	// 生成随机八位唯一标识符
 	ui := stringx.Rand(8)
 	if pid := resource.Pid; pid != 0 {
-		pResource := r.GetById(uint64(pid))
-		biz.IsTrue(pResource != nil, "该父资源不存在")
+		pResource, err := r.GetById(new(entity.Resource), uint64(pid))
+		if err != nil {
+			return errorx.NewBiz("该父资源不存在")
+		}
 		resource.UiPath = pResource.UiPath + ui + entity.ResourceUiPathSp
 	} else {
 		resource.UiPath = ui + entity.ResourceUiPathSp
@@ -72,27 +70,33 @@ func (r *resourceAppImpl) Save(resource *entity.Resource) {
 	if resource.Status == 0 {
 		resource.Status = entity.ResourceStatusEnable
 	}
-	r.checkCode(resource.Code)
+	if err := r.checkCode(resource.Code); err != nil {
+		return err
+	}
 	resource.Weight = int(time.Now().Unix())
-	gormx.Insert(resource)
+	return r.Insert(ctx, resource)
 }
 
-func (r *resourceAppImpl) ChangeStatus(resourceId uint64, status int8) {
-	resource := r.resourceRepo.GetById(resourceId)
-	biz.NotNil(resource, "资源不存在")
+func (r *resourceAppImpl) ChangeStatus(ctx context.Context, resourceId uint64, status int8) error {
+	resource, err := r.GetById(new(entity.Resource), resourceId)
+	if err != nil {
+		return errorx.NewBiz("资源不存在")
+	}
 	resource.Status = status
-	r.resourceRepo.UpdateByUiPathLike(resource)
+	return r.GetRepo().UpdateByUiPathLike(resource)
 }
 
-func (r *resourceAppImpl) Sort(sortResource *entity.Resource) {
-	resource := r.resourceRepo.GetById(sortResource.Id)
-	biz.NotNil(resource, "资源不存在")
+func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resource) error {
+	resource, err := r.GetById(new(entity.Resource), sortResource.Id)
+	if err != nil {
+		return errorx.NewBiz("资源不存在")
+	}
+
 	// 未改变父节点，则更新排序值即可
 	if sortResource.Pid == resource.Pid {
 		saveE := &entity.Resource{Weight: sortResource.Weight}
 		saveE.Id = sortResource.Id
-		r.Save(saveE)
-		return
+		return r.Save(ctx, saveE)
 	}
 
 	// 若资源原本唯一标识路径为：xxxx/yyyy/zzzz/，则获取其父节点路径标识 xxxx/yyyy/ 与自身节点标识 zzzz/
@@ -109,12 +113,14 @@ func (r *resourceAppImpl) Sort(sortResource *entity.Resource) {
 
 	newParentResourceUiPath := ""
 	if sortResource.Pid != 0 {
-		newParentResource := r.resourceRepo.GetById(uint64(sortResource.Pid))
-		biz.NotNil(newParentResource, "父资源不存在")
+		newParentResource, err := r.GetById(new(entity.Resource), uint64(sortResource.Pid))
+		if err != nil {
+			return errorx.NewBiz("父资源不存在")
+		}
 		newParentResourceUiPath = newParentResource.UiPath
 	}
 
-	children := r.resourceRepo.GetChildren(resource.UiPath)
+	children := r.GetRepo().GetChildren(resource.UiPath)
 	for _, v := range children {
 		if v.Id == sortResource.Id {
 			continue
@@ -126,7 +132,7 @@ func (r *resourceAppImpl) Sort(sortResource *entity.Resource) {
 		} else {
 			updateUiPath.UiPath = strings.ReplaceAll(v.UiPath, parentResourceUiPath, newParentResourceUiPath)
 		}
-		r.Save(updateUiPath)
+		r.Save(ctx, updateUiPath)
 	}
 
 	// 更新零值使用map，因为pid=0表示根节点
@@ -137,36 +143,43 @@ func (r *resourceAppImpl) Sort(sortResource *entity.Resource) {
 	}
 	condition := new(entity.Resource)
 	condition.Id = sortResource.Id
-	gormx.Updates(condition, updateMap)
+	return gormx.Updates(condition, updateMap)
 }
 
-func (r *resourceAppImpl) checkCode(code string) {
-	biz.IsTrue(!strings.Contains(code, ","), "code不能包含','")
-	biz.IsEquals(gormx.CountBy(&entity.Resource{Code: code}), int64(0), "该code已存在")
+func (r *resourceAppImpl) checkCode(code string) error {
+	if strings.Contains(code, ",") {
+		return errorx.NewBiz("code不能包含','")
+	}
+	if gormx.CountBy(&entity.Resource{Code: code}) != 0 {
+		return errorx.NewBiz("该code已存在")
+	}
+	return nil
 }
 
-func (r *resourceAppImpl) Delete(id uint64) {
-	resource := r.resourceRepo.GetById(id)
-	biz.NotNil(resource, "资源不存在")
+func (r *resourceAppImpl) Delete(ctx context.Context, id uint64) error {
+	resource, err := r.GetById(new(entity.Resource), id)
+	if err != nil {
+		return errorx.NewBiz("资源不存在")
+	}
 
 	// 删除当前节点及其所有子节点
-	children := r.resourceRepo.GetChildren(resource.UiPath)
+	children := r.GetRepo().GetChildren(resource.UiPath)
 	for _, v := range children {
-		r.resourceRepo.Delete(v.Id)
+		r.GetRepo().DeleteById(ctx, v.Id)
 		// 删除角色关联的资源信息
-		gormx.DeleteByCondition(&entity.RoleResource{ResourceId: v.Id})
+		gormx.DeleteBy(&entity.RoleResource{ResourceId: v.Id})
 	}
+	return nil
 }
 
-func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity any) {
+func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity any) error {
 	// 超级管理员返回所有
 	if accountId == consts.AdminId {
 		cond := &entity.Resource{
 			Status: entity.ResourceStatusEnable,
 		}
-		r.resourceRepo.GetResourceList(cond, toEntity, "pid asc", "weight asc")
-		return
+		return r.ListByCondOrder(cond, toEntity, "pid asc", "weight asc")
 	}
 
-	r.resourceRepo.GetAccountResources(accountId, toEntity)
+	return r.GetRepo().GetAccountResources(accountId, toEntity)
 }

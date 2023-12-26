@@ -2,18 +2,14 @@
     <div>
         <page-table
             ref="pageTableRef"
-            :query="queryConfig"
+            :page-api="cronJobApi.list"
+            :query="searchItems"
             v-model:query-form="params"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
-            :data="data.list"
             :columns="columns"
-            :total="data.total"
-            v-model:page-size="params.pageSize"
-            v-model:page-num="params.pageNum"
-            @pageChange="search()"
         >
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="perms.saveCronJob" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加 </el-button>
                 <el-button v-auth="perms.delCronJob" :disabled="selectionData.length < 1" @click="deleteCronJob()" type="danger" icon="delete">删除</el-button>
             </template>
@@ -24,6 +20,9 @@
             </template>
 
             <template #action="{ data }">
+                <el-button :disabled="data.status == CronJobStatusEnum.Disable.value" v-auth="perms.saveCronJob" type="primary" @click="runCronJob(data)" link
+                    >执行</el-button
+                >
                 <el-button v-auth="perms.saveCronJob" type="primary" @click="openFormDialog(data)" link>编辑</el-button>
                 <el-button type="primary" @click="showExec(data)" link>执行记录</el-button>
             </template>
@@ -35,24 +34,23 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { cronJobApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { CronJobStatusEnum, CronJobSaveExecResTypeEnum } from '../enums';
+import { SearchItem } from '@/components/SearchForm';
 
 const CronJobEdit = defineAsyncComponent(() => import('./CronJobEdit.vue'));
 const CronJobExecList = defineAsyncComponent(() => import('./CronJobExecList.vue'));
-
-const pageTableRef: any = ref(null);
 
 const perms = {
     saveCronJob: 'machine:cronjob:save',
     delCronJob: 'machine:cronjob:del',
 };
 
-const queryConfig = [TableQuery.text('name', '名称'), TableQuery.select('status', '状态').setOptions(Object.values(CronJobStatusEnum))];
+const searchItems = [SearchItem.input('name', '名称'), SearchItem.select('status', '状态').withEnum(CronJobStatusEnum)];
 
 const columns = ref([
     TableColumn.new('key', 'key'),
@@ -66,17 +64,14 @@ const columns = ref([
     TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight().alignCenter(),
 ]);
 
+const pageTableRef: Ref<any> = ref(null);
+
 const state = reactive({
     params: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         ip: null,
         name: null,
-    },
-    // 列表数据
-    data: {
-        list: [],
-        total: 10,
     },
     selectionData: [],
     execDialog: {
@@ -91,11 +86,9 @@ const state = reactive({
     },
 });
 
-const { selectionData, params, data, execDialog, cronJobEdit } = toRefs(state);
+const { selectionData, params, execDialog, cronJobEdit } = toRefs(state);
 
-onMounted(async () => {
-    search();
-});
+onMounted(async () => {});
 
 const openFormDialog = async (data: any) => {
     let dialogTitle;
@@ -111,6 +104,11 @@ const openFormDialog = async (data: any) => {
     state.cronJobEdit.visible = true;
 };
 
+const runCronJob = async (data: any) => {
+    await cronJobApi.run.request({ key: data.key });
+    ElMessage.success('执行成功');
+};
+
 const deleteCronJob = async () => {
     try {
         await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】计划任务信息? 该操作将同时删除执行记录`, '提示', {
@@ -121,7 +119,9 @@ const deleteCronJob = async () => {
         await cronJobApi.delete.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('操作成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 /**
@@ -133,13 +133,7 @@ const showExec = async (data: any) => {
 };
 
 const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-        const res = await cronJobApi.list.request(state.params);
-        state.data = res;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
+    pageTableRef.value.search();
 };
 </script>
 

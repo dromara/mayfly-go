@@ -11,18 +11,16 @@
         >
             <page-table
                 ref="pageTableRef"
-                :query="queryConfig"
+                :page-api="machineApi.scripts"
+                :before-query-fn="checkScriptType"
+                :lazy="true"
+                :search-items="state.searchItems"
                 v-model:query-form="query"
-                :data="scriptTable"
                 :columns="columns"
-                :total="total"
-                v-model:page-size="query.pageSize"
-                v-model:page-num="query.pageNum"
-                @pageChange="getScripts()"
                 :show-selection="true"
                 v-model:selection-data="selectionData"
             >
-                <template #queryRight>
+                <template #tableHeader>
                     <el-button v-auth="'machine:script:save'" type="primary" @click="editScript(null)" icon="plus" plain>添加</el-button>
                     <el-button
                         v-auth="'machine:script:del'"
@@ -45,35 +43,16 @@
             </page-table>
         </el-dialog>
 
-        <el-dialog title="脚本参数" v-model="scriptParamsDialog.visible" width="400px">
-            <el-form ref="paramsForm" :model="scriptParamsDialog.params" label-width="auto">
-                <el-form-item v-for="item in scriptParamsDialog.paramsFormItem as any" :key="item.name" :prop="item.model" :label="item.name" required>
-                    <el-input
-                        v-if="!item.options"
-                        v-model="scriptParamsDialog.params[item.model]"
-                        :placeholder="item.placeholder"
-                        autocomplete="off"
-                        clearable
-                    ></el-input>
-                    <el-select
-                        v-else
-                        v-model="scriptParamsDialog.params[item.model]"
-                        :placeholder="item.placeholder"
-                        filterable
-                        autocomplete="off"
-                        clearable
-                        style="width: 100%"
-                    >
-                        <el-option v-for="option in item.options.split(',')" :key="option" :label="option" :value="option" />
-                    </el-select>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button type="primary" @click="hasParamsRun()">确 定</el-button>
-                </span>
-            </template>
-        </el-dialog>
+        <dynamic-form-dialog
+            title="脚本参数"
+            width="400px"
+            v-model:visible="scriptParamsDialog.visible"
+            ref="paramsForm"
+            :form-items="scriptParamsDialog.paramsFormItem"
+            v-model="scriptParamsDialog.params"
+            @confirm="hasParamsRun"
+        >
+        </dynamic-form-dialog>
 
         <el-dialog title="执行结果" v-model="resultDialog.visible" width="50%">
             <div style="white-space: pre-line; padding: 10px; color: #000000">
@@ -107,14 +86,16 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, watch } from 'vue';
+import { ref, toRefs, reactive, watch, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { ScriptResultEnum, ScriptTypeEnum } from './enums';
 import ScriptEdit from './ScriptEdit.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
+import { DynamicFormDialog } from '@/components/dynamic-form';
+import { SearchItem } from '@/components/SearchForm';
 
 const props = defineProps({
     visible: { type: Boolean },
@@ -125,12 +106,12 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
 
 const paramsForm: any = ref(null);
-const pageTableRef: any = ref(null);
+const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({
     dialogVisible: false,
     selectionData: [],
-    queryConfig: [TableQuery.select('type', '类型').setOptions(Object.values(ScriptTypeEnum))],
+    searchItems: [SearchItem.select('type', '类型').withEnum(ScriptTypeEnum)],
     columns: [
         TableColumn.new('name', '名称'),
         TableColumn.new('description', '描述'),
@@ -149,8 +130,6 @@ const state = reactive({
         title: '',
         machineId: 9999999,
     },
-    total: 0,
-    scriptTable: [],
     scriptParamsDialog: {
         script: null,
         visible: false,
@@ -168,24 +147,25 @@ const state = reactive({
     },
 });
 
-const { dialogVisible, queryConfig, columns, selectionData, query, editDialog, total, scriptTable, scriptParamsDialog, resultDialog, terminalDialog } =
-    toRefs(state);
+const { dialogVisible, columns, selectionData, query, editDialog, scriptParamsDialog, resultDialog, terminalDialog } = toRefs(state);
 
 watch(props, async (newValue) => {
     state.dialogVisible = newValue.visible;
 });
 
 const getScripts = async () => {
-    try {
-        // 通过open事件才开获取到pageTableRef值
-        pageTableRef.value.loading(true);
-        state.query.machineId = state.query.type == ScriptTypeEnum.Private.value ? props.machineId : 9999999;
-        const res = await machineApi.scripts.request(state.query);
-        state.scriptTable = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
+    pageTableRef.value.search();
+};
+
+const checkScriptType = (query: any) => {
+    if (!query.type) {
+        query.machineId = props.machineId;
+        query.type = ScriptTypeEnum.Private.value;
+    } else {
+        query.machineId = query.type == ScriptTypeEnum.Private.value ? props.machineId : 9999999;
     }
+
+    return query;
 };
 
 const runScript = async (script: any) => {
@@ -204,20 +184,9 @@ const runScript = async (script: any) => {
 
 // 有参数的脚本执行函数
 const hasParamsRun = async () => {
-    // 如果脚本参数弹窗显示，则校验参数表单数据通过后执行
-    if (state.scriptParamsDialog.visible) {
-        paramsForm.value.validate((valid: any) => {
-            if (valid) {
-                run(state.scriptParamsDialog.script);
-                state.scriptParamsDialog.params = {};
-                state.scriptParamsDialog.visible = false;
-                state.scriptParamsDialog.script = null;
-                paramsForm.value.resetFields();
-            } else {
-                return false;
-            }
-        });
-    }
+    await run(state.scriptParamsDialog.script);
+    state.scriptParamsDialog.visible = false;
+    state.scriptParamsDialog.script = null;
 };
 
 const run = async (script: any) => {
@@ -311,7 +280,6 @@ const handleClose = () => {
     emit('update:machineId', null);
     emit('cancel');
     state.query.type = ScriptTypeEnum.Private.value;
-    state.scriptTable = [];
     state.scriptParamsDialog.paramsFormItem = [];
 };
 </script>

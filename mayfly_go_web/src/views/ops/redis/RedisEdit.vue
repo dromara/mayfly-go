@@ -4,8 +4,19 @@
             <el-form :model="form" ref="redisForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item prop="tagId" label="标签" required>
-                            <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
+                        <el-form-item ref="tagSelectRef" prop="tagId" label="标签" required>
+                            <tag-tree-select
+                                @change-tag="
+                                    (tagIds) => {
+                                        form.tagId = tagIds;
+                                        tagSelectRef.validate();
+                                    }
+                                "
+                                multiple
+                                :resource-code="form.code"
+                                :resource-type="TagResourceTypeEnum.Redis.value"
+                                style="width: 100%"
+                            />
                         </el-form-item>
                         <el-form-item prop="name" label="名称" required>
                             <el-input v-model.trim="form.name" placeholder="请输入redis名称" auto-complete="off"></el-input>
@@ -73,8 +84,9 @@
 
             <template #footer>
                 <div class="dialog-footer">
+                    <el-button @click="testConn" :loading="testConnBtnLoading" type="success">测试连接</el-button>
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -86,8 +98,9 @@ import { toRefs, reactive, watch, ref } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import { RsaEncrypt } from '@/common/rsa';
-import TagSelect from '../component/TagSelect.vue';
+import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
@@ -142,13 +155,15 @@ const rules = {
 };
 
 const redisForm: any = ref(null);
+const tagSelectRef: any = ref(null);
+
 const state = reactive({
     dialogVisible: false,
     tabActiveName: 'basic',
     form: {
         id: null,
-        tagId: null as any,
-        tagPath: null as any,
+        code: '',
+        tagId: [],
         name: null,
         mode: 'standalone',
         host: '',
@@ -158,12 +173,15 @@ const state = reactive({
         remark: '',
         sshTunnelMachineId: -1,
     },
+    submitForm: {} as any,
     dbList: [0],
     pwd: '',
-    btnLoading: false,
 });
 
-const { dialogVisible, tabActiveName, form, dbList, pwd, btnLoading } = toRefs(state);
+const { dialogVisible, tabActiveName, form, submitForm, dbList, pwd } = toRefs(state);
+
+const { isFetching: testConnBtnLoading, execute: testConnExec } = redisApi.testConn.useApi(submitForm);
+const { isFetching: saveBtnLoading, execute: saveRedisExec } = redisApi.saveRedis.useApi(submitForm);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -195,32 +213,43 @@ const getPwd = async () => {
     state.pwd = await redisApi.getRedisPwd.request({ id: state.form.id });
 };
 
-const btnOk = async () => {
-    redisForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            const reqForm = { ...state.form };
-            if (reqForm.mode == 'sentinel' && reqForm.host.split('=').length != 2) {
-                ElMessage.error('sentinel模式host需为: mastername=sentinelhost:sentinelport模式');
-                return;
-            }
-            if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
-                reqForm.sshTunnelMachineId = -1;
-            }
-            reqForm.password = await RsaEncrypt(reqForm.password);
-            redisApi.saveRedis.request(reqForm).then(() => {
-                ElMessage.success('保存成功');
-                emit('val-change', state.form);
-                state.btnLoading = true;
-                setTimeout(() => {
-                    state.btnLoading = false;
-                }, 1000);
+const getReqForm = async () => {
+    const reqForm = { ...state.form };
+    if (reqForm.mode == 'sentinel' && reqForm.host.split('=').length != 2) {
+        ElMessage.error('sentinel模式host需为: mastername=sentinelhost:sentinelport模式');
+        return;
+    }
+    if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
+        reqForm.sshTunnelMachineId = -1;
+    }
+    reqForm.password = await RsaEncrypt(reqForm.password);
+    return reqForm;
+};
 
-                cancel();
-            });
-        } else {
+const testConn = async () => {
+    redisForm.value.validate(async (valid: boolean) => {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+
+        state.submitForm = await getReqForm();
+        await testConnExec();
+        ElMessage.success('连接成功');
+    });
+};
+
+const btnOk = async () => {
+    redisForm.value.validate(async (valid: boolean) => {
+        if (!valid) {
+            ElMessage.error('请正确填写信息');
+            return false;
+        }
+        state.submitForm = await getReqForm();
+        await saveRedisExec();
+        ElMessage.success('保存成功');
+        emit('val-change', state.form);
+        cancel();
     });
 };
 

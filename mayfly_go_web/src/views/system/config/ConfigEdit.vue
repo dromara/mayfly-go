@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="750px" :destroy-on-close="true">
+        <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="900px" :destroy-on-close="true">
             <el-form ref="configForm" :model="form" label-width="auto">
                 <el-form-item prop="name" label="配置项" required>
                     <el-input v-model="form.name"></el-input>
@@ -22,43 +22,10 @@
                     </el-select>
                 </el-form-item>
 
-                <el-row style="margin-left: 30px; margin-bottom: 5px">
-                    <el-button @click="onAddParam" size="small" type="success">新增配置项</el-button>
-                </el-row>
-                <el-form-item :key="param" v-for="(param, index) in params" prop="params" :label="`参数${index + 1}`">
-                    <el-row>
-                        <el-col :span="5">
-                            <el-input v-model="param.model" placeholder="model"></el-input>
-                        </el-col>
-                        <span :span="1">
-                            <el-divider direction="vertical" border-style="dashed" />
-                        </span>
-                        <el-col :span="4">
-                            <el-input v-model="param.name" placeholder="字段名"></el-input>
-                        </el-col>
-                        <span :span="1">
-                            <el-divider direction="vertical" border-style="dashed" />
-                        </span>
-                        <el-col :span="4">
-                            <el-input v-model="param.placeholder" placeholder="字段说明"></el-input>
-                        </el-col>
-                        <span :span="1">
-                            <el-divider direction="vertical" border-style="dashed" />
-                        </span>
-                        <el-col :span="4">
-                            <el-input v-model="param.options" placeholder="可选值 ,分割"></el-input>
-                        </el-col>
-                        <span :span="1">
-                            <el-divider direction="vertical" border-style="dashed" />
-                        </span>
-                        <el-col :span="2">
-                            <el-button @click="onDeleteParam(index)" size="small" type="danger">删除</el-button>
-                        </el-col>
-                    </el-row>
+                <el-form-item label="配置项" class="w100">
+                    <dynamic-form-edit v-model="params" />
                 </el-form-item>
-                <!-- <el-form-item prop="value" label="配置值:" required>
-                    <el-input v-model="form.value"></el-input>
-                </el-form-item> -->
+
                 <el-form-item label="备注">
                     <el-input v-model="form.remark" type="textarea" :rows="2"></el-input>
                 </el-form-item>
@@ -66,7 +33,7 @@
             <template #footer>
                 <div class="dialog-footer">
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -76,6 +43,7 @@
 <script lang="ts" setup>
 import { ref, toRefs, reactive, watch } from 'vue';
 import { configApi, accountApi } from '../api';
+import { DynamicFormEdit } from '@/components/dynamic-form';
 
 const props = defineProps({
     visible: {
@@ -108,10 +76,11 @@ const state = reactive({
         remark: '',
         permission: '',
     },
-    btnLoading: false,
 });
 
-const { dvisible, params, form, btnLoading } = toRefs(state);
+const { dvisible, params, form } = toRefs(state);
+
+const { isFetching: saveBtnLoading, execute: saveConfigExec } = configApi.save.useApi(form);
 
 watch(props, (newValue: any) => {
     state.dvisible = newValue.visible;
@@ -138,14 +107,6 @@ watch(props, (newValue: any) => {
         state.permissionAccount = [];
     }
 });
-
-const onAddParam = () => {
-    state.params.push({ name: '', model: '', placeholder: '' });
-};
-
-const onDeleteParam = (idx: number) => {
-    state.params.splice(idx, 1);
-};
 
 const cancel = () => {
     // 更新父组件visible prop对应的值为false
@@ -174,13 +135,10 @@ const btnOk = async () => {
             } else {
                 state.form.permission = 'all';
             }
-            await configApi.save.request(state.form);
+
+            await saveConfigExec();
             emit('val-change', state.form);
             cancel();
-            state.btnLoading = true;
-            setTimeout(() => {
-                state.btnLoading = false;
-            }, 1000);
         }
     });
 };

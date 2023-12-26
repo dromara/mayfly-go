@@ -1,18 +1,15 @@
 <template>
     <div>
         <page-table
-            :query="state.queryConfig"
+            ref="pageTableRef"
+            :page-api="tagApi.getTeams"
+            :search-items="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
-            :data="data"
-            :columns="state.columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
+            :columns="columns"
         >
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="'team:save'" type="primary" icon="plus" @click="showSaveTeamDialog(false)">添加</el-button>
                 <el-button v-auth="'team:del'" :disabled="selectionData.length < 1" @click="deleteTeam()" type="danger" icon="delete">删除</el-button>
             </template>
@@ -89,18 +86,16 @@
             </template>
         </el-dialog>
 
-        <el-dialog width="50%" :title="showMemDialog.title" v-model="showMemDialog.visible">
+        <el-dialog @open="setMemebers" width="50%" :title="showMemDialog.title" v-model="showMemDialog.visible">
             <page-table
-                :query="showMemDialog.queryConfig"
+                ref="showMemPageTableRef"
+                :page-api="tagApi.getTeamMem"
+                :lazy="true"
+                :search-items="showMemDialog.searchItems"
                 v-model:query-form="showMemDialog.query"
-                :data="showMemDialog.members.list"
                 :columns="showMemDialog.columns"
-                :total="showMemDialog.members.total"
-                v-model:page-size="showMemDialog.query.pageSize"
-                v-model:page-num="showMemDialog.query.pageNum"
-                @pageChange="setMemebers()"
             >
-                <template #queryRight>
+                <template #tableHeader>
                     <el-button v-auth="'team:member:save'" @click="showAddMemberDialog()" type="primary" icon="plus">添加</el-button>
                 </template>
 
@@ -111,20 +106,7 @@
 
             <el-dialog width="400px" title="添加成员" :before-close="cancelAddMember" v-model="showMemDialog.addVisible">
                 <el-form :model="showMemDialog.memForm" label-width="auto">
-                    <el-form-item label="账号">
-                        <el-select
-                            style="width: 100%"
-                            remote
-                            :remote-method="getAccount"
-                            v-model="showMemDialog.memForm.accountIds"
-                            filterable
-                            multiple
-                            placeholder="请输入账号模糊搜索并选择"
-                        >
-                            <el-option v-for="item in showMemDialog.accounts" :key="item.id" :label="`${item.username} [${item.name}]`" :value="item.id">
-                            </el-option>
-                        </el-select>
-                    </el-form-item>
+                    <AccountSelectFormItem v-model="showMemDialog.memForm.accountIds" multiple focus />
                 </el-form>
                 <template #footer>
                     <div class="dialog-footer">
@@ -138,16 +120,29 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import { tagApi } from './api';
-import { accountApi } from '../../system/api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
+import { SearchItem } from '@/components/SearchForm';
+import AccountSelectFormItem from '@/views/system/account/components/AccountSelectFormItem.vue';
 
 const teamForm: any = ref(null);
 const tagTreeRef: any = ref(null);
+const pageTableRef: Ref<any> = ref(null);
+const showMemPageTableRef: Ref<any> = ref(null);
+
+const searchItems = [SearchItem.input('name', '团队名称')];
+const columns = [
+    TableColumn.new('name', '团队名称'),
+    TableColumn.new('remark', '备注'),
+    TableColumn.new('createTime', '创建时间').isTime(),
+    TableColumn.new('creator', '创建人'),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(120).fixedRight().alignCenter(),
+];
+
 const state = reactive({
     currentEditPermissions: false,
     addTeamDialog: {
@@ -157,22 +152,12 @@ const state = reactive({
     },
     query: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         name: null,
     },
-    queryConfig: [TableQuery.text('name', '团队名称')],
-    columns: [
-        TableColumn.new('name', '团队名称'),
-        TableColumn.new('remark', '备注'),
-        TableColumn.new('createTime', '创建时间').isTime(),
-        TableColumn.new('creator', '创建人'),
-        TableColumn.new('action', '操作').isSlot().setMinWidth(120).fixedRight().alignCenter(),
-    ],
-    total: 0,
-    data: [],
     selectionData: [],
     showMemDialog: {
-        queryConfig: [TableQuery.text('username', '用户名')],
+        searchItems: [SearchItem.input('username', '用户名').withSpan(2)],
         columns: [
             TableColumn.new('name', '姓名'),
             TableColumn.new('username', '账号'),
@@ -213,16 +198,12 @@ const state = reactive({
     },
 });
 
-const { query, addTeamDialog, total, data, selectionData, showMemDialog, showTagDialog } = toRefs(state);
+const { query, addTeamDialog, selectionData, showMemDialog, showTagDialog } = toRefs(state);
 
-onMounted(() => {
-    search();
-});
+onMounted(() => {});
 
 const search = async () => {
-    let res = await tagApi.getTeams.request(state.query);
-    state.data = res.list;
-    state.total = res.total;
+    pageTableRef.value.search();
 };
 
 const showSaveTeamDialog = (data: any) => {
@@ -270,16 +251,7 @@ const deleteTeam = () => {
 const showMembers = async (team: any) => {
     state.showMemDialog.query.teamId = team.id;
     state.showMemDialog.visible = true;
-    await setMemebers();
     state.showMemDialog.title = `[${team.name}] 成员信息`;
-};
-
-const getAccount = (username: any) => {
-    if (username) {
-        accountApi.list.request({ username }).then((res) => {
-            state.showMemDialog.accounts = res.list;
-        });
-    }
 };
 
 const deleteMember = async (data: any) => {
@@ -293,9 +265,7 @@ const deleteMember = async (data: any) => {
  * 设置成员列表信息
  */
 const setMemebers = async () => {
-    const res = await tagApi.getTeamMem.request(state.showMemDialog.query);
-    state.showMemDialog.members.list = res.list;
-    state.showMemDialog.members.total = res.total;
+    showMemPageTableRef.value.search();
 };
 
 const showAddMemberDialog = () => {

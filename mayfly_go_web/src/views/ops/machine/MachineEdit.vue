@@ -4,8 +4,19 @@
             <el-form :model="form" ref="machineForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item prop="tagId" label="标签">
-                            <tag-select v-model="form.tagId" v-model:tag-path="form.tagPath" style="width: 100%" />
+                        <el-form-item ref="tagSelectRef" prop="tagId" label="标签">
+                            <tag-tree-select
+                                multiple
+                                @change-tag="
+                                    (tagIds) => {
+                                        form.tagId = tagIds;
+                                        tagSelectRef.validate();
+                                    }
+                                "
+                                :resource-code="form.code"
+                                :resource-type="TagResourceTypeEnum.Machine.value"
+                                style="width: 100%"
+                            />
                         </el-form-item>
                         <el-form-item prop="name" label="名称" required>
                             <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
@@ -24,7 +35,7 @@
                             <el-input v-model.trim="form.username" placeholder="请输授权用户名" autocomplete="new-password"> </el-input>
                         </el-form-item>
 
-                        <el-form-item label="认证方式">
+                        <el-form-item label="认证方式" required>
                             <el-select @change="changeAuthMethod" style="width: 100%" v-model="state.authType" placeholder="请选认证方式">
                                 <el-option key="1" label="密码" :value="1"> </el-option>
                                 <el-option key="2" label="授权凭证" :value="2"> </el-option>
@@ -60,7 +71,7 @@
                 <div>
                     <el-button @click="testConn" :loading="testConnBtnLoading" type="success">测试连接</el-button>
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="btnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -71,9 +82,10 @@
 import { toRefs, reactive, watch, ref } from 'vue';
 import { machineApi } from './api';
 import { ElMessage } from 'element-plus';
-import TagSelect from '../component/TagSelect.vue';
+import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import AuthCertSelect from './authcert/AuthCertSelect.vue';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
@@ -95,7 +107,7 @@ const rules = {
         {
             required: true,
             message: '请选择标签',
-            trigger: ['blur', 'change'],
+            trigger: ['change'],
         },
     ],
     name: [
@@ -126,17 +138,11 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
-    password: [
-        {
-            required: true,
-            message: '请输入授权密码',
-            trigger: ['change', 'blur'],
-        },
-    ],
 };
 
 const machineForm: any = ref(null);
 const authCertSelectRef: any = ref(null);
+const tagSelectRef: any = ref(null);
 
 const state = reactive({
     dialogVisible: false,
@@ -146,24 +152,26 @@ const state = reactive({
     authType: 1,
     form: {
         id: null,
+        code: '',
         ip: null,
         port: 22,
         name: null,
         authCertId: null as any,
         username: '',
         password: '',
-        tagId: null as any,
-        tagPath: null as any,
+        tagId: [],
         remark: '',
         sshTunnelMachineId: null as any,
         enableRecorder: -1,
     },
+    submitForm: {},
     pwd: '',
-    testConnBtnLoading: false,
-    btnLoading: false,
 });
 
-const { dialogVisible, tabActiveName, form, testConnBtnLoading, btnLoading } = toRefs(state);
+const { dialogVisible, tabActiveName, form, submitForm } = toRefs(state);
+
+const { isFetching: testConnBtnLoading, execute: testConnExec } = machineApi.testConn.useApi(submitForm);
+const { isFetching: saveBtnLoading, execute: saveMachineExec } = machineApi.saveMachine.useApi(submitForm);
 
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -173,6 +181,7 @@ watch(props, async (newValue: any) => {
     state.tabActiveName = 'basic';
     if (newValue.machine) {
         state.form = { ...newValue.machine };
+
         // 如果凭证类型为公共的，则表示使用授权凭证认证
         const authCertId = (state.form as any).authCertId;
         if (authCertId > 0) {
@@ -181,7 +190,7 @@ watch(props, async (newValue: any) => {
             state.authType = 1;
         }
     } else {
-        state.form = { port: 22 } as any;
+        state.form = { port: 22, tagId: [] } as any;
         state.authType = 1;
     }
 });
@@ -198,45 +207,29 @@ const changeAuthMethod = (val: any) => {
 
 const testConn = async () => {
     machineForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            const form = getReqForm();
-            if (!form) {
-                return;
-            }
-            state.testConnBtnLoading = true;
-            try {
-                await machineApi.testConn.request(form);
-                ElMessage.success('连接成功');
-            } finally {
-                state.testConnBtnLoading = false;
-            }
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+
+        state.submitForm = getReqForm();
+        await testConnExec();
+        ElMessage.success('连接成功');
     });
 };
 
 const btnOk = async () => {
     machineForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            const form = getReqForm();
-            if (!form) {
-                return;
-            }
-            state.btnLoading = true;
-            try {
-                await machineApi.saveMachine.request(form);
-                ElMessage.success('保存成功');
-                emit('val-change', form);
-                cancel();
-            } finally {
-                state.btnLoading = false;
-            }
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
         }
+
+        state.submitForm = getReqForm();
+        await saveMachineExec();
+        ElMessage.success('保存成功');
+        emit('val-change', submitForm);
+        cancel();
     });
 };
 

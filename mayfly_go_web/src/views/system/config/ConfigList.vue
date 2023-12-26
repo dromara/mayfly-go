@@ -1,16 +1,7 @@
 <template>
     <div>
-        <page-table
-            :show-selection="true"
-            v-model:selection-data="selectionData"
-            :data="configs"
-            :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
-        >
-            <template #queryRight>
+        <page-table ref="pageTableRef" :page-api="configApi.list" v-model:selection-data="selectionData" :columns="columns">
+            <template #tableHeader>
                 <el-button v-auth="perms.saveConfig" type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
             </template>
 
@@ -25,41 +16,20 @@
             </template>
         </page-table>
 
-        <el-dialog :before-close="closeSetConfigDialog" title="配置项设置" v-model="paramsDialog.visible" width="600px">
-            <el-form v-if="paramsDialog.paramsFormItem.length > 0" ref="paramsFormRef" :model="paramsDialog.params" label-width="auto">
-                <el-form-item v-for="item in paramsDialog.paramsFormItem" :key="item.name" :prop="item.model" :label="item.name" required>
-                    <el-input
-                        v-if="!item.options && !item.type"
-                        v-model="paramsDialog.params[item.model]"
-                        :placeholder="item.placeholder"
-                        autocomplete="off"
-                        clearable
-                    ></el-input>
-                    <el-checkbox
-                        v-else-if="item.type == 'checkbox'"
-                        v-model="paramsDialog.params[item.model]"
-                        autocomplete="off"
-                        :label="item.placeholder"
-                        clearable
-                    />
-                    <el-select
-                        v-else
-                        v-model="paramsDialog.params[item.model]"
-                        :placeholder="item.placeholder"
-                        filterable
-                        autocomplete="off"
-                        clearable
-                        style="width: 100%"
-                    >
-                        <el-option v-for="option in item.options.split(',')" :key="option" :label="option" :value="option" />
-                    </el-select>
-                </el-form-item>
-            </el-form>
+        <el-dialog @close="closeSetConfigDialog" title="配置项设置" v-model="paramsDialog.visible" width="600px">
+            <dynamic-form
+                ref="paramsFormRef"
+                v-if="paramsDialog.paramsFormItem.length > 0"
+                :form-items="paramsDialog.paramsFormItem"
+                v-model="paramsDialog.params"
+            />
+
             <el-form v-else ref="paramsFormRef" label-width="auto">
                 <el-form-item label="配置值" required>
                     <el-input v-model="paramsDialog.params" :placeholder="paramsDialog.config.remark" autocomplete="off" clearable></el-input>
                 </el-form-item>
             </el-form>
+
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="closeSetConfigDialog()">取 消</el-button>
@@ -73,13 +43,14 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import ConfigEdit from './ConfigEdit.vue';
 import { configApi } from '../api';
 import { ElMessage } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
+import { DynamicForm } from '@/components/dynamic-form';
 
 const perms = {
     saveConfig: 'config:save',
@@ -95,15 +66,15 @@ const columns = ref([
 const actionColumn = TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(130).noShowOverflowTooltip().alignCenter();
 const actionBtns = hasPerms([perms.saveConfig]);
 
+const pageTableRef: Ref<any> = ref(null);
 const paramsFormRef: any = ref(null);
+
 const state = reactive({
     query: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         name: null,
     },
-    total: 0,
-    configs: [],
     selectionData: [],
     paramsDialog: {
         visible: false,
@@ -118,19 +89,16 @@ const state = reactive({
     },
 });
 
-const { query, total, configs, selectionData, paramsDialog, configEdit } = toRefs(state);
+const { selectionData, paramsDialog, configEdit } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
-    search();
 });
 
 const search = async () => {
-    let res = await configApi.list.request(state.query);
-    state.configs = res.list;
-    state.total = res.total;
+    pageTableRef.value.search();
 };
 
 const showSetConfigDialog = (row: any) => {
@@ -163,7 +131,7 @@ const closeSetConfigDialog = () => {
 const setConfig = async () => {
     let paramsValue = state.paramsDialog.params;
     if (state.paramsDialog.paramsFormItem.length > 0) {
-        await paramsFormRef.value.validate(async (valid: boolean) => {
+        await paramsFormRef.value.validate((valid: boolean) => {
             if (!valid) {
                 paramsValue = null as any;
                 return false;

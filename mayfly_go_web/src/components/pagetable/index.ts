@@ -121,7 +121,7 @@ export class TableColumn {
 
     /**
      * 使用标签类型展示该列（用于枚举值友好展示）
-     * @param param 枚举对象
+     * @param param 枚举对象, 如AccountStatusEnum
      * @returns this
      */
     typeTag(param: any): TableColumn {
@@ -241,69 +241,4 @@ export class TableColumn {
         // 设置上限与累加需要额外增加的宽度
         this.minWidth = (flexWidth > 400 ? 400 : flexWidth) + this.addWidth;
     };
-}
-
-export class TableQuery {
-    /**
-     * 属性字段
-     */
-    prop: string;
-
-    /**
-     * 显示表头
-     */
-    label: string;
-
-    /**
-     * 查询类型，text、select、date
-     */
-    type: string;
-
-    /**
-     * select可选值
-     */
-    options: any;
-
-    /**
-     * 插槽名
-     */
-    slot: string;
-
-    constructor(prop: string, label: string) {
-        this.prop = prop;
-        this.label = label;
-    }
-
-    static new(prop: string, label: string): TableQuery {
-        return new TableQuery(prop, label);
-    }
-
-    static text(prop: string, label: string): TableQuery {
-        const tq = new TableQuery(prop, label);
-        tq.type = 'text';
-        return tq;
-    }
-
-    static select(prop: string, label: string): TableQuery {
-        const tq = new TableQuery(prop, label);
-        tq.type = 'select';
-        return tq;
-    }
-
-    static date(prop: string, label: string): TableQuery {
-        const tq = new TableQuery(prop, label);
-        tq.type = 'date';
-        return tq;
-    }
-
-    static slot(prop: string, label: string, slotName: string): TableQuery {
-        const tq = new TableQuery(prop, label);
-        tq.slot = slotName;
-        return tq;
-    }
-
-    setOptions(options: any): TableQuery {
-        this.options = options;
-        return this;
-    }
 }

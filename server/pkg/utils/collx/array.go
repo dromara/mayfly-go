@@ -114,3 +114,14 @@ func ArrayReduce[T any, V any](arr []T, initialValue V, reducer func(V, T) V) V 
 	}
 	return value
 }
+
+// 数组元素移除操作
+func ArrayRemoveFunc[T any](arr []T, isDeleteFunc func(T) bool) []T {
+	var newArr []T
+	for _, a := range arr {
+		if !isDeleteFunc(a) {
+			newArr = append(newArr, a)
+		}
+	}
+	return newArr
+}

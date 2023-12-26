@@ -3,7 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"errors"
-	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/logx"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -20,12 +20,12 @@ type Client struct {
 	UserId   UserId          // 用户ID
 	WsConn   *websocket.Conn // 用户连接
 
-	ReadMsgHander ReadMsgHandlerFunc // 读取消息处理函数
+	ReadMsgHandler ReadMsgHandlerFunc // 读取消息处理函数
 }
 
-func NewClient(userId UserId, socket *websocket.Conn) *Client {
+func NewClient(userId UserId, clientId string, socket *websocket.Conn) *Client {
 	cli := &Client{
-		ClientId: stringx.Rand(16),
+		ClientId: clientId,
 		UserId:   userId,
 		WsConn:   socket,
 	}
@@ -34,7 +34,7 @@ func NewClient(userId UserId, socket *websocket.Conn) *Client {
 }
 
 func (c *Client) WithReadHandlerFunc(readMsgHandlerFunc ReadMsgHandlerFunc) *Client {
-	c.ReadMsgHander = readMsgHandlerFunc
+	c.ReadMsgHandler = readMsgHandlerFunc
 	return c
 }
 
@@ -55,8 +55,8 @@ func (c *Client) Read() {
 					return
 				}
 			}
-			if c.ReadMsgHander != nil {
-				c.ReadMsgHander(data)
+			if c.ReadMsgHandler != nil {
+				c.ReadMsgHandler(data)
 			}
 		}
 	}()
@@ -64,6 +64,8 @@ func (c *Client) Read() {
 
 // 向客户端写入消息
 func (c *Client) WriteMsg(msg *Msg) error {
+	logx.Debugf("发送消息: toUserId=%v, toClientId=%s, data=%v", c.UserId, c.ClientId, msg.Data)
+
 	if msg.Type == JsonMsg {
 		bytes, _ := json.Marshal(msg.Data)
 		return c.WsConn.WriteMessage(websocket.TextMessage, bytes)

@@ -1,58 +1,62 @@
 <template>
-    <div class="tag-tree">
-        <el-row type="flex" justify="space-between">
-            <el-col :span="24" class="el-scrollbar flex-auto" style="overflow: auto">
-                <el-input v-model="filterText" placeholder="输入关键字->搜索已展开节点信息" clearable size="small" class="mb5" />
-
-                <el-tree
-                    ref="treeRef"
-                    :style="{ maxHeight: state.height, height: state.height, overflow: 'auto' }"
-                    :highlight-current="true"
-                    :indent="7"
-                    :load="loadNode"
-                    :props="treeProps"
-                    lazy
-                    node-key="key"
-                    :expand-on-click-node="true"
-                    :filter-node-method="filterNode"
-                    @node-click="treeNodeClick"
-                    @node-expand="treeNodeClick"
-                    @node-contextmenu="nodeContextmenu"
-                >
-                    <template #default="{ node, data }">
-                        <span>
-                            <span v-if="data.type == TagTreeNode.TagPath">
-                                <tag-info :tag-path="data.label" />
-                            </span>
-
-                            <slot v-else :node="node" :data="data" name="prefix"></slot>
-
-                            <span class="ml3">
-                                <slot name="label" :data="data"> {{ data.label }}</slot>
-                            </span>
+    <div class="tag-tree card pd5">
+        <el-scrollbar>
+            <el-input v-model="filterText" placeholder="输入关键字->搜索已展开节点信息" clearable size="small" class="mb5 w100" />
+            <el-tree
+                ref="treeRef"
+                :highlight-current="true"
+                :indent="10"
+                :load="loadNode"
+                :props="treeProps"
+                lazy
+                node-key="key"
+                :expand-on-click-node="true"
+                :filter-node-method="filterNode"
+                @node-click="treeNodeClick"
+                @node-expand="treeNodeClick"
+                @node-contextmenu="nodeContextmenu"
+            >
+                <template #default="{ node, data }">
+                    <span>
+                        <span v-if="data.type.value == TagTreeNode.TagPath">
+                            <tag-info :tag-path="data.label" />
                         </span>
-                    </template>
-                </el-tree>
-            </el-col>
-        </el-row>
-        <contextmenu :dropdown="state.dropdown" :items="state.contextmenuItems" ref="contextmenuRef" @currentContextmenuClick="onCurrentContextmenuClick" />
+
+                        <slot v-else :node="node" :data="data" name="prefix"></slot>
+
+                        <span class="ml3" :title="data.labelRemark">
+                            <slot name="label" :data="data"> {{ data.label }}</slot>
+                        </span>
+
+                        <slot :node="node" :data="data" name="suffix"></slot>
+                    </span>
+                </template>
+            </el-tree>
+
+            <contextmenu :dropdown="state.dropdown" :items="state.contextmenuItems" ref="contextmenuRef" @currentContextmenuClick="onCurrentContextmenuClick" />
+        </el-scrollbar>
     </div>
 </template>
 
 <script lang="ts" setup>
 import { onMounted, reactive, ref, watch, toRefs } from 'vue';
-import { TagTreeNode } from './tag';
+import { NodeType, TagTreeNode } from './tag';
 import TagInfo from './TagInfo.vue';
-import Contextmenu from '@/components/contextmenu/index.vue';
+import { Contextmenu } from '@/components/contextmenu';
+import { tagApi } from '../tag/api';
 
 const props = defineProps({
-    height: {
-        type: [Number, String],
-        default: 0,
+    resourceType: {
+        type: [Number],
+        required: true,
+    },
+    tagPathNodeType: {
+        type: [NodeType],
+        required: true,
     },
     load: {
         type: Function,
-        required: true,
+        required: false,
     },
     loadContextmenuItems: {
         type: Function,
@@ -82,18 +86,7 @@ const state = reactive({
 });
 const { filterText } = toRefs(state);
 
-onMounted(async () => {
-    if (!props.height) {
-        setHeight();
-        window.onresize = () => setHeight();
-    } else {
-        state.height = props.height;
-    }
-});
-
-const setHeight = () => {
-    state.height = window.innerHeight - 157 + 'px';
-};
+onMounted(async () => {});
 
 watch(filterText, (val) => {
     treeRef.value?.filter(val);
@@ -102,6 +95,18 @@ watch(filterText, (val) => {
 const filterNode = (value: string, data: any) => {
     if (!value) return true;
     return data.label.includes(value);
+};
+
+/**
+ * 加载标签树节点
+ */
+const loadTags = async () => {
+    const tags = await tagApi.getResourceTagPaths.request({ resourceType: props.resourceType });
+    const tagNodes = [];
+    for (let tagPath of tags) {
+        tagNodes.push(new TagTreeNode(tagPath, tagPath, props.tagPathNodeType));
+    }
+    return tagNodes;
 };
 
 /**
@@ -115,7 +120,13 @@ const loadNode = async (node: any, resolve: any) => {
     }
     let nodes = [];
     try {
-        nodes = await props.load(node);
+        if (node.level == 0) {
+            nodes = await loadTags();
+        } else if (props.load) {
+            nodes = await props.load(node);
+        } else {
+            nodes = await node.data.loadChildren();
+        }
     } catch (e: any) {
         console.error(e);
     }
@@ -124,18 +135,23 @@ const loadNode = async (node: any, resolve: any) => {
 
 const treeNodeClick = (data: any) => {
     emit('nodeClick', data);
+    if (data.type.nodeClickFunc) {
+        data.type.nodeClickFunc(data);
+    }
     // 关闭可能存在的右击菜单
     contextmenuRef.value.closeContextmenu();
 };
 
 // 树节点右击事件
 const nodeContextmenu = (event: any, data: any) => {
-    if (!props.loadContextmenuItems) {
-        return;
-    }
     // 加载当前节点是否需要显示右击菜单
-    const items = props.loadContextmenuItems(data);
+    let items = data.type.contextMenuItems;
     if (!items || items.length == 0) {
+        if (props.loadContextmenuItems) {
+            items = props.loadContextmenuItems(data);
+        }
+    }
+    if (!items) {
         return;
     }
     state.contextmenuItems = items;
@@ -170,10 +186,7 @@ defineExpose({
 
 <style lang="scss" scoped>
 .tag-tree {
-    overflow: 'auto';
-    position: relative;
-
-    border: 1px solid var(--el-border-color-light, #ebeef5);
+    height: calc(100vh - 108px);
 
     .el-tree {
         display: inline-block;

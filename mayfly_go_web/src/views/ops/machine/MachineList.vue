@@ -2,39 +2,66 @@
     <div>
         <page-table
             ref="pageTableRef"
-            :query="queryConfig"
+            :page-api="machineApi.list"
+            :before-query-fn="checkRouteTagPath"
+            :search-items="searchItems"
             v-model:query-form="params"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
-            :data="data.list"
             :columns="columns"
-            :total="data.total"
-            v-model:page-size="params.pageSize"
-            v-model:page-num="params.pageNum"
-            @pageChange="search()"
         >
-            <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="params.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
-                    <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
-                </el-select>
-            </template>
-
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加 </el-button>
                 <el-button v-auth="perms.delMachine" :disabled="selectionData.length < 1" @click="deleteMachine()" type="danger" icon="delete">删除</el-button>
-            </template>
-
-            <template #tagPath="{ data }">
-                <tag-info :tag-path="data.tagPath" />
-                <span class="ml5">
-                    {{ data.tagPath }}
-                </span>
             </template>
 
             <template #ipPort="{ data }">
                 <el-link :disabled="data.status == -1" @click="showMachineStats(data)" type="primary" :underline="false">
                     {{ `${data.ip}:${data.port}` }}
                 </el-link>
+            </template>
+
+            <template #stat="{ data }">
+                <span v-if="!data.stat">-</span>
+                <div v-else>
+                    <el-row>
+                        <el-text size="small" style="font-size: 10px">
+                            内存(可用/总):
+                            <span :class="getStatsFontClass(data.stat.memAvailable, data.stat.memTotal)"
+                                >{{ formatByteSize(data.stat.memAvailable, 1) }}/{{ formatByteSize(data.stat.memTotal, 1) }}
+                            </span>
+                        </el-text>
+                    </el-row>
+                    <el-row>
+                        <el-text style="font-size: 10px" size="small">
+                            CPU(空闲): <span :class="getStatsFontClass(data.stat.cpuIdle, 100)">{{ data.stat.cpuIdle.toFixed(0) }}%</span>
+                        </el-text>
+                    </el-row>
+                </div>
+            </template>
+
+            <template #fs="{ data }">
+                <span v-if="!data.stat?.fsInfos">-</span>
+                <div v-else>
+                    <el-row v-for="(i, idx) in data.stat.fsInfos.slice(0, 2)" :key="i.mountPoint">
+                        <el-text style="font-size: 10px" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
+                            {{ i.mountPoint }} => {{ formatByteSize(i.free, 0) }}/{{ formatByteSize(i.used + i.free, 0) }}
+                        </el-text>
+
+                        <!-- 展示剩余的磁盘信息 -->
+                        <el-popover :show-after="300" placement="top-start" width="230" trigger="hover">
+                            <template #reference>
+                                <SvgIcon class="mt5 ml5" color="var(--el-color-primary)" v-if="data.stat.fsInfos.length > 2 && idx == 1" name="MoreFilled" />
+                            </template>
+
+                            <el-row v-for="i in data.stat.fsInfos.slice(2)" :key="i.mountPoint">
+                                <el-text style="font-size: 10px" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
+                                    {{ i.mountPoint }} => {{ formatByteSize(i.free, 0) }}/{{ formatByteSize(i.used + i.free, 0) }}
+                                </el-text>
+                            </el-row>
+                        </el-popover>
+                    </el-row>
+                </div>
             </template>
 
             <template #status="{ data }">
@@ -52,9 +79,13 @@
                 ></el-switch>
             </template>
 
+            <template #tagPath="{ data }">
+                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Machine.value" />
+            </template>
+
             <template #action="{ data }">
                 <span v-auth="'machine:terminal'">
-                    <el-tooltip effect="customized" content="按住ctrl则为新标签打开" placement="top">
+                    <el-tooltip :show-after="500" content="按住ctrl则为新标签打开" placement="top">
                         <el-button :disabled="data.status == -1" type="primary" @click="showTerminal(data, $event)" link>终端</el-button>
                     </el-tooltip>
 
@@ -159,15 +190,19 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent, Ref } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi, getMachineTerminalSocketUrl } from './api';
 import { dateFormat } from '@/common/utils/date';
-import TagInfo from '../component/TagInfo.vue';
+import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
+import { formatByteSize } from '@/common/utils/format';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { SearchItem } from '@/components/SearchForm';
+import { getTagPathSearchItem } from '../component/tag';
 
 // 组件
 const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
@@ -179,8 +214,9 @@ const MachineRec = defineAsyncComponent(() => import('./MachineRec.vue'));
 const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
 
 const router = useRouter();
-const pageTableRef: any = ref(null);
+const route = useRoute();
 const terminalDialogRef: any = ref(null);
+const pageTableRef: Ref<any> = ref(null);
 
 const perms = {
     addMachine: 'machine:add',
@@ -190,34 +226,30 @@ const perms = {
     closeCli: 'machine:close-cli',
 };
 
-const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect'), TableQuery.text('ip', 'IP'), TableQuery.text('name', '名称')];
+const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Machine.value), SearchItem.input('ip', 'IP'), SearchItem.input('name', '名称')];
 
-const columns = ref([
-    TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
+const columns = [
     TableColumn.new('name', '名称'),
-    TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(45),
+    TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
+    TableColumn.new('stat', '运行状态').isSlot().setAddWidth(50),
+    TableColumn.new('fs', '磁盘(挂载点=>可用/总)').isSlot().setAddWidth(20),
     TableColumn.new('username', '用户名'),
     TableColumn.new('status', '状态').isSlot().setMinWidth(85),
+    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
     TableColumn.new('remark', '备注'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(238).fixedRight().alignCenter(),
-]);
+];
 
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
 const actionBtns = hasPerms([perms.updateMachine, perms.closeCli]);
 
 const state = reactive({
-    tags: [] as any,
     params: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         ip: null,
         name: null,
-        tagPath: null,
-    },
-    // 列表数据
-    data: {
-        list: [],
-        total: 10,
+        tagPath: '',
     },
     infoDialog: {
         visible: false,
@@ -257,12 +289,16 @@ const state = reactive({
     },
 });
 
-const { tags, params, data, infoDialog, selectionData, serviceDialog, processDialog, fileDialog, machineStatsDialog, machineEditDialog, machineRecDialog } =
-    toRefs(state);
+const { params, infoDialog, selectionData, serviceDialog, processDialog, fileDialog, machineStatsDialog, machineEditDialog, machineRecDialog } = toRefs(state);
 
-onMounted(async () => {
-    search();
-});
+onMounted(async () => {});
+
+const checkRouteTagPath = (query: any) => {
+    if (route.query.tagPath) {
+        query.tagPath = route.query.tagPath as string;
+    }
+    return query;
+};
 
 const handleCommand = (commond: any) => {
     const data = commond.data;
@@ -326,10 +362,6 @@ const closeCli = async (row: any) => {
     search();
 };
 
-const getTags = async () => {
-    state.tags = await machineApi.tagList.request(null);
-};
-
 const openFormDialog = async (machine: any) => {
     let dialogTitle;
     if (machine) {
@@ -358,7 +390,9 @@ const deleteMachine = async () => {
         await machineApi.del.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('操作成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 const serviceManager = (row: any) => {
@@ -386,6 +420,10 @@ const showMachineStats = async (machine: any) => {
     state.machineStatsDialog.visible = true;
 };
 
+const search = async () => {
+    pageTableRef.value.search();
+};
+
 const submitSuccess = () => {
     search();
 };
@@ -396,14 +434,16 @@ const showFileManage = (selectionData: any) => {
     state.fileDialog.title = `${selectionData.name} => ${selectionData.ip}`;
 };
 
-const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-        const res = await machineApi.list.request(state.params);
-        state.data = res;
-    } finally {
-        pageTableRef.value.loading(false);
+const getStatsFontClass = (availavle: number, total: number) => {
+    const p = availavle / total;
+    if (p < 0.1) {
+        return 'color-danger';
     }
+    if (p < 0.2) {
+        return 'color-warning';
+    }
+
+    return 'color-success';
 };
 
 const showInfo = (info: any) => {

@@ -23,7 +23,7 @@ func InitMongoRouter(router *gin.RouterGroup) {
 		// 获取所有mongo列表
 		req.NewGet("", ma.Mongos),
 
-		req.NewGet("/tags", ma.MongoTags),
+		req.NewPost("/test-conn", ma.TestConn),
 
 		req.NewPost("", ma.Save).Log(req.NewLogSave("mongo-保存信息")),
 

@@ -13,6 +13,11 @@ func ToMap(jsonStr string) map[string]any {
 	return ToMapByBytes([]byte(jsonStr))
 }
 
+// json字符串转结构体
+func To[T any](jsonStr string, res T) (T, error) {
+	return res, json.Unmarshal([]byte(jsonStr), &res)
+}
+
 // json字节数组转map
 func ToMapByBytes(bytes []byte) map[string]any {
 	var res map[string]any

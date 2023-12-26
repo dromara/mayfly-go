@@ -1,10 +1,12 @@
 <template>
-    <div class="menu">
-        <div class="toolbar">
-            <el-input v-model="filterTag" placeholder="输入标签关键字过滤" style="width: 200px; margin-right: 10px" />
-            <el-button v-auth="'tag:save'" type="primary" icon="plus" @click="showSaveTabDialog(null)">添加</el-button>
+    <div class="tag-tree-list card">
+        <div class="card pd10">
+            <el-input v-model="filterTag" clearable placeholder="输入关键字过滤(右击进行操作)" style="width: 220px; margin-right: 10px" />
+            <el-button v-if="useUserInfo().userInfo.username == 'admin'" v-auth="'tag:save'" type="primary" icon="plus" @click="showSaveTagDialog(null)"
+                >添加</el-button
+            >
             <div style="float: right">
-                <el-tooltip effect="dark" placement="top">
+                <el-tooltip placement="top">
                     <template #content>
                         1. 用于将资产进行归类
                         <br />2. 可在团队管理中进行分配，用于资源隔离 <br />3. 拥有父标签的团队成员可访问操作其自身或子标签关联的资源
@@ -17,69 +19,34 @@
                 </el-tooltip>
             </div>
         </div>
-        <el-tree
-            ref="tagTreeRef"
-            class="none-select"
-            :indent="38"
-            node-key="id"
-            :props="props"
-            :data="data"
-            @node-expand="handleNodeExpand"
-            @node-collapse="handleNodeCollapse"
-            :default-expanded-keys="defaultExpandedKeys"
-            :expand-on-click-node="false"
-            :filter-node-method="filterNode"
-        >
-            <template #default="{ data }">
-                <span class="custom-tree-node">
-                    <span style="font-size: 13px">
-                        {{ data.code }}
-                        <span style="color: #3c8dbc">【</span>
-                        {{ data.name }}
-                        <span style="color: #3c8dbc">】</span>
-                        <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
+        <el-scrollbar class="tag-tree-data">
+            <el-tree
+                ref="tagTreeRef"
+                class="none-select"
+                node-key="id"
+                :props="props"
+                :data="data"
+                @node-expand="handleNodeExpand"
+                @node-collapse="handleNodeCollapse"
+                @node-contextmenu="nodeContextmenu"
+                @node-click="treeNodeClick"
+                :default-expanded-keys="defaultExpandedKeys"
+                :expand-on-click-node="true"
+                :filter-node-method="filterNode"
+            >
+                <template #default="{ data }">
+                    <span class="custom-tree-node">
+                        <span style="font-size: 13px">
+                            {{ data.code }}
+                            <span style="color: #3c8dbc">【</span>
+                            {{ data.name }}
+                            <span style="color: #3c8dbc">】</span>
+                            <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
+                        </span>
                     </span>
-
-                    <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="view" type="info" :underline="false" />
-
-                    <el-link v-auth="'tag:save'" @click.prevent="showEditTagDialog(data)" class="ml5" type="primary" icon="edit" :underline="false" />
-
-                    <el-link v-auth="'tag:save'" @click.prevent="showSaveTabDialog(data)" icon="circle-plus" :underline="false" type="success" class="ml5" />
-
-                    <!-- <el-link
-                        v-auth="'resource:changeStatus'"
-                        @click.prevent="changeStatus(data, -1)"
-                        v-if="data.status === 1 && data.type === enums.ResourceTypeEnum.PERMISSION.value"
-                        icon="circle-close"
-                        :underline="false"
-                        type="warning"
-                        class="ml5"
-                    />
-
-                    <el-link
-                        v-auth="'resource:changeStatus'"
-                        @click.prevent="changeStatus(data, 1)"
-                        v-if="data.status === -1 && data.type === enums.ResourceTypeEnum.PERMISSION.value"
-                        type="success"
-                        icon="circle-check"
-                        :underline="false"
-                        plain
-                        class="ml5"
-                    /> -->
-
-                    <el-link
-                        v-auth="'tag:del'"
-                        @click.prevent="deleteTag(data)"
-                        v-if="data.children == null"
-                        type="danger"
-                        icon="delete"
-                        :underline="false"
-                        plain
-                        class="ml5"
-                    />
-                </span>
-            </template>
-        </el-tree>
+                </template>
+            </el-tree>
+        </el-scrollbar>
 
         <el-dialog width="500px" :title="saveTabDialog.title" :before-close="cancelSaveTag" v-model="saveTabDialog.visible">
             <el-form ref="tagForm" :rules="rules" :model="saveTabDialog.form" label-width="auto">
@@ -114,6 +81,28 @@
                 <el-descriptions-item label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
+
+        <el-dialog :title="`[ ${resourceDialog.tagPath} ] 关联的资源`" v-model="resourceDialog.visible" width="500px">
+            <el-table max-height="300" :data="resourceDialog.data">
+                <el-table-column property="resourceType" label="资源类型" min-width="50" show-overflow-tooltip>
+                    <template #default="scope">
+                        {{ EnumValue.getLabelByValue(TagResourceTypeEnum, scope.row.resourceType) }}
+                    </template>
+                </el-table-column>
+
+                <el-table-column property="count" label="数量" min-width="50" show-overflow-tooltip> </el-table-column>
+
+                <el-table-column label="操作" min-width="50" show-overflow-tooltip>
+                    <template #default="scope">
+                        <el-button v-auth="scope.row.showAuthCode" @click="showResources(scope.row.resourceType, resourceDialog.tagPath)" link type="success"
+                            >查看</el-button
+                        >
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-dialog>
+
+        <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
     </div>
 </template>
 
@@ -122,6 +111,12 @@ import { toRefs, ref, watch, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from './api';
 import { dateFormat } from '@/common/utils/date';
+import { Contextmenu, ContextmenuItem } from '@/components/contextmenu/index';
+import { TagResourceTypeEnum } from '../../../common/commonEnum';
+import EnumValue from '@/common/Enum';
+import { useRouter } from 'vue-router';
+import { hasPerm } from '@/components/auth/auth';
+import { useUserInfo } from '@/store/userInfo';
 
 interface Tree {
     id: number;
@@ -130,9 +125,41 @@ interface Tree {
     children?: Tree[];
 }
 
+const router = useRouter();
+
 const tagForm: any = ref(null);
 const tagTreeRef: any = ref(null);
 const filterTag = ref('');
+const contextmenuRef = ref();
+
+const contextmenuInfo = new ContextmenuItem('info', '详情').withIcon('view').withOnClick((data: any) => info(data));
+
+const contextmenuAdd = new ContextmenuItem('addTag', '添加子标签')
+    .withIcon('circle-plus')
+    .withPermission('tag:save')
+    .withOnClick((data: any) => showSaveTagDialog(data));
+
+const contextmenuEdit = new ContextmenuItem('edit', '编辑')
+    .withIcon('edit')
+    .withPermission('tag:save')
+    .withOnClick((data: any) => showEditTagDialog(data));
+
+const contextmenuDel = new ContextmenuItem('delete', '删除')
+    .withIcon('delete')
+    .withPermission('tag:del')
+    .withHideFunc((data: any) => {
+        // 存在子标签，则不允许删除
+        return data.children;
+    })
+    .withOnClick((data: any) => deleteTag(data));
+
+const contextmenuShowRelateResource = new ContextmenuItem('showRelateResources', '查看关联资源')
+    .withIcon('view')
+    .withHideFunc((data: any) => {
+        // 存在子标签，则不允许查看关联资源
+        return data.children;
+    })
+    .withOnClick((data: any) => showRelateResource(data));
 
 const state = reactive({
     data: [],
@@ -147,11 +174,24 @@ const state = reactive({
         // 资源类型选择是否选
         data: null as any,
     },
+    resourceDialog: {
+        title: '',
+        visible: false,
+        tagPath: '',
+        data: null as any,
+    },
     // 展开的节点
     defaultExpandedKeys: [] as any,
+    contextmenu: {
+        dropdown: {
+            x: 0,
+            y: 0,
+        },
+        items: [contextmenuInfo, contextmenuEdit, contextmenuAdd, contextmenuDel, contextmenuShowRelateResource],
+    },
 });
 
-const { data, saveTabDialog, infoDialog, defaultExpandedKeys } = toRefs(state);
+const { data, saveTabDialog, infoDialog, resourceDialog, defaultExpandedKeys } = toRefs(state);
 
 const props = {
     label: 'name',
@@ -188,15 +228,28 @@ const search = async () => {
     state.data = res;
 };
 
+// 树节点右击事件
+const nodeContextmenu = (event: any, data: any) => {
+    const { clientX, clientY } = event;
+    state.contextmenu.dropdown.x = clientX;
+    state.contextmenu.dropdown.y = clientY;
+    contextmenuRef.value.openContextmenu(data);
+};
+
+const treeNodeClick = () => {
+    // 关闭可能存在的右击菜单
+    contextmenuRef.value.closeContextmenu();
+};
+
 const info = async (data: any) => {
     state.infoDialog.data = data;
     state.infoDialog.visible = true;
 };
 
-const showSaveTabDialog = (data: any) => {
+const showSaveTagDialog = (data: any) => {
     if (data) {
         state.saveTabDialog.form.pid = data.id;
-        state.saveTabDialog.title = `新增 [${data.codePath}] 子标签信息`;
+        state.saveTabDialog.title = `新增[ ${data.codePath} ]子标签信息`;
     } else {
         state.saveTabDialog.title = '新增根标签信息';
     }
@@ -210,6 +263,66 @@ const showEditTagDialog = (data: any) => {
     state.saveTabDialog.form.remark = data.remark;
     state.saveTabDialog.title = `修改 [${data.codePath}] 信息`;
     state.saveTabDialog.visible = true;
+};
+
+const showRelateResource = async (data: any) => {
+    const resourceMap = new Map();
+    state.resourceDialog.tagPath = data.codePath;
+    const tagResources = await tagApi.getTagResources.request({ tagId: data.id });
+    for (let tagResource of tagResources) {
+        const resourceType = tagResource.resourceType;
+        const exist = resourceMap.get(resourceType);
+        if (exist) {
+            exist.count = exist.count + 1;
+            continue;
+        }
+
+        // 相关管理页面基础权限
+        let showAuthCode = '';
+        if (resourceType == TagResourceTypeEnum.Machine.value) {
+            showAuthCode = 'machine';
+        }
+        if (resourceType == TagResourceTypeEnum.Db.value) {
+            showAuthCode = 'db';
+        }
+        if (resourceType == TagResourceTypeEnum.Redis.value) {
+            showAuthCode = 'redis:manage';
+        }
+        if (resourceType == TagResourceTypeEnum.Mongo.value) {
+            showAuthCode = 'mongo:manage:base';
+        }
+        resourceMap.set(resourceType, { resourceType, showAuthCode, count: 1, tagPath: tagResource.tagPath });
+    }
+
+    state.resourceDialog.data = Array.from(resourceMap.values());
+    state.resourceDialog.visible = true;
+};
+
+const showResources = (resourceType: any, tagPath: string) => {
+    hasPerm;
+    state.resourceDialog.visible = false;
+    setTimeout(() => {
+        let toPath = '';
+        if (resourceType == TagResourceTypeEnum.Machine.value) {
+            toPath = '/machine/machines';
+        }
+        if (resourceType == TagResourceTypeEnum.Db.value) {
+            toPath = '/dbms/dbs';
+        }
+        if (resourceType == TagResourceTypeEnum.Redis.value) {
+            toPath = '/redis/manage';
+        }
+        if (resourceType == TagResourceTypeEnum.Mongo.value) {
+            toPath = '/mongo/mongo-manage';
+        }
+
+        router.push({
+            path: toPath,
+            query: {
+                tagPath,
+            },
+        });
+    }, 350);
 };
 
 const saveTag = async () => {
@@ -281,12 +394,14 @@ const removeDeafultExpandId = (id: any) => {
 };
 </script>
 <style lang="scss">
-.menu {
-    height: 100%;
+.tag-tree-list {
+    .tag-tree-data {
+        height: calc(100vh - 200px);
 
-    .el-tree-node__content {
-        height: 40px;
-        line-height: 40px;
+        .el-tree-node__content {
+            height: 40px;
+            line-height: 40px;
+        }
     }
 }
 
@@ -300,3 +415,4 @@ const removeDeafultExpandId = (id: any) => {
     user-select: none;
 }
 </style>
+@/components/contextmenu

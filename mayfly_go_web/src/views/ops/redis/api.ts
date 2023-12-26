@@ -6,11 +6,13 @@ export const redisApi = {
     getRedisPwd: Api.newGet('/redis/{id}/pwd'),
     redisInfo: Api.newGet('/redis/{id}/info'),
     clusterInfo: Api.newGet('/redis/{id}/cluster-info'),
+    testConn: Api.newPost('/redis/test-conn'),
     saveRedis: Api.newPost('/redis'),
     delRedis: Api.newDelete('/redis/{id}'),
 
     keyInfo: Api.newGet('/redis/{id}/{db}/key-info'),
     keyTtl: Api.newGet('/redis/{id}/{db}/key-ttl'),
+    keyMemuse: Api.newGet('/redis/{id}/{db}/key-memuse'),
     renameKey: Api.newPost('/redis/{id}/{db}/rename-key'),
     expireKey: Api.newPost('/redis/{id}/{db}/expire-key'),
     persistKey: Api.newDelete('/redis/{id}/{db}/persist-key'),

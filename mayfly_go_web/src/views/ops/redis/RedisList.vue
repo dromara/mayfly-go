@@ -2,43 +2,28 @@
     <div>
         <page-table
             ref="pageTableRef"
-            :query="queryConfig"
+            :page-api="redisApi.redisList"
+            :before-query-fn="checkRouteTagPath"
+            :searchItems="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
-            :data="redisTable"
             :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
         >
-            <template #tagPathSelect>
-                <el-select @focus="getTags" v-model="query.tagPath" placeholder="请选择标签" @clear="search" filterable clearable style="width: 200px">
-                    <el-option v-for="item in tags" :key="item" :label="item" :value="item"> </el-option>
-                </el-select>
-            </template>
-
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button type="primary" icon="plus" @click="editRedis(false)" plain>添加</el-button>
                 <el-button type="danger" icon="delete" :disabled="selectionData.length < 1" @click="deleteRedis" plain>删除 </el-button>
             </template>
 
             <template #tagPath="{ data }">
-                <tag-info :tag-path="data.tagPath" />
-                <span class="ml5">
-                    {{ data.tagPath }}
-                </span>
-            </template>
-
-            <template #more="{ data }">
-                <el-button @click="showDetail(data)" link>详情</el-button>
-
-                <el-button v-if="data.mode === 'standalone' || data.mode === 'sentinel'" type="primary" @click="showInfoDialog(data)" link>单机信息</el-button>
-                <el-button @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary" link>集群信息</el-button>
+                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Redis.value" />
             </template>
 
             <template #action="{ data }">
+                <el-button v-if="data.mode === 'standalone' || data.mode === 'sentinel'" type="primary" @click="showInfoDialog(data)" link>单机信息</el-button>
+                <el-button @click="onShowClusterInfo(data)" v-if="data.mode === 'cluster'" type="primary" link>集群信息</el-button>
+
+                <el-button @click="showDetail(data)" link>详情</el-button>
                 <el-button type="primary" link @click="editRedis(data)">编辑</el-button>
             </template>
         </page-table>
@@ -154,8 +139,7 @@
         </el-dialog>
 
         <redis-edit
-            @val-change="valChange"
-            :tags="tags"
+            @val-change="search"
             :title="redisEditDialog.title"
             v-model:visible="redisEditDialog.visible"
             v-model:redis="redisEditDialog.data"
@@ -166,36 +150,37 @@
 <script lang="ts" setup>
 import Info from './Info.vue';
 import { redisApi } from './api';
-import { ref, toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
-import TagInfo from '../component/TagInfo.vue';
+import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { useRoute } from 'vue-router';
+import { getTagPathSearchItem } from '../component/tag';
 
-const pageTableRef: any = ref(null);
+const route = useRoute();
+const pageTableRef: Ref<any> = ref(null);
 
-const queryConfig = [TableQuery.slot('tagPath', '标签', 'tagPathSelect')];
+const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Redis.value)];
+
 const columns = ref([
-    TableColumn.new('tagPath', '标签路径').isSlot().setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('host', 'host:port'),
     TableColumn.new('mode', 'mode'),
+    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
     TableColumn.new('remark', '备注'),
-    TableColumn.new('more', '更多').isSlot().setMinWidth(155).fixedRight(),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(65).fixedRight().alignCenter(),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(200).fixedRight().alignCenter(),
 ]);
 
 const state = reactive({
-    tags: [],
-    redisTable: [],
-    total: 0,
     selectionData: [],
     query: {
-        tagPath: null,
+        tagPath: '',
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
     },
     detailDialog: {
         visible: false,
@@ -225,11 +210,16 @@ const state = reactive({
     },
 });
 
-const { tags, redisTable, total, selectionData, query, detailDialog, clusterInfoDialog, infoDialog, redisEditDialog } = toRefs(state);
+const { selectionData, query, detailDialog, clusterInfoDialog, infoDialog, redisEditDialog } = toRefs(state);
 
-onMounted(async () => {
-    search();
-});
+onMounted(async () => {});
+
+const checkRouteTagPath = (query: any) => {
+    if (route.query.tagPath) {
+        query.tagPath = route.query.tagPath as string;
+    }
+    return query;
+};
 
 const showDetail = (detail: any) => {
     state.detailDialog.data = detail;
@@ -246,7 +236,9 @@ const deleteRedis = async () => {
         await redisApi.delRedis.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 
 const showInfoDialog = async (redis: any) => {
@@ -268,19 +260,8 @@ const onShowClusterInfo = async (redis: any) => {
     state.clusterInfoDialog.visible = true;
 };
 
-const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-        const res = await redisApi.redisList.request(state.query);
-        state.redisTable = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
-};
-
-const getTags = async () => {
-    state.tags = await redisApi.redisTags.request(null);
+const search = () => {
+    pageTableRef.value.search();
 };
 
 const editRedis = async (data: any) => {
@@ -292,10 +273,6 @@ const editRedis = async (data: any) => {
         state.redisEditDialog.title = '修改redis';
     }
     state.redisEditDialog.visible = true;
-};
-
-const valChange = () => {
-    search();
 };
 </script>
 

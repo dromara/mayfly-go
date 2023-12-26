@@ -1,13 +1,13 @@
 <template>
     <div style="display: inline-flex; justify-content: center; align-items: center; cursor: pointer; vertical-align: middle">
-        <el-popover @show="showTagInfo" placement="top-start" title="标签信息" :width="300" trigger="hover">
+        <el-popover :show-after="500" @show="showTagInfo" placement="top-start" title="标签信息" :width="300" trigger="hover">
             <template #reference>
                 <el-icon>
                     <InfoFilled />
                 </el-icon>
             </template>
             <span v-for="(v, i) in tags" :key="i">
-                <el-tooltip effect="customized" :content="v.remark" placement="top">
+                <el-tooltip :content="v.remark" placement="top">
                     <span class="color-success">{{ v.name }}</span>
                 </el-tooltip>
                 <span v-if="i != state.tags.length - 1" class="color-primary"> / </span>

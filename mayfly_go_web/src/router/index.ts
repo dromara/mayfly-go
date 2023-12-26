@@ -6,7 +6,7 @@ import { templateResolve } from '@/common/utils/string';
 import { NextLoading } from '@/common/utils/loading';
 import { dynamicRoutes, staticRoutes, pathMatch } from './route';
 import openApi from '@/common/openApi';
-import sockets from '@/common/sockets';
+import syssocket from '@/common/syssocket';
 import pinia from '@/store/index';
 import { useThemeConfig } from '@/store/themeConfig';
 import { useUserInfo } from '@/store/userInfo';
@@ -179,7 +179,6 @@ export async function initRouter() {
     }
 }
 
-let SysWs: any;
 let loadRouter = false;
 
 // 路由加载前
@@ -204,10 +203,7 @@ router.beforeEach(async (to, from, next) => {
         resetRoute();
         NProgress.done();
 
-        if (SysWs) {
-            SysWs.close();
-            SysWs = undefined;
-        }
+        syssocket.destory();
         return;
     }
     if (token && to.path === '/login') {
@@ -217,9 +213,10 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // 终端不需要连接系统websocket消息
-    if (!SysWs && to.path != '/machine/terminal') {
-        SysWs = sockets.sysMsgSocket();
+    if (to.path != '/machine/terminal') {
+        syssocket.init();
     }
+
     // 不存在路由（避免刷新页面找不到路由）并且未加载过（避免token过期，导致获取权限接口报权限不足，无限获取），则重新初始化路由
     if (useRoutesList().routesList.length == 0 && !loadRouter) {
         await initRouter();

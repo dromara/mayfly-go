@@ -16,13 +16,19 @@ type AccountManageVO struct {
 
 // 账号角色信息
 type AccountRoleVO struct {
-	Name       *string    `json:"name"`
-	Status     int        `json:"status"`
-	CreateTime *time.Time `json:"createTime"`
-	Creator    string     `json:"creator"`
+	RoleId        uint64     `json:"roleId"`
+	RoleName      string     `json:"roleName"`
+	Code          string     `json:"code"`
+	Status        int        `json:"status"`
+	AccountId     uint64     `json:"accountId" gorm:"column:accountId"`
+	AccountName   string     `json:"accountName" gorm:"column:accountName"`
+	Username      string     `json:"username"`
+	AccountStatus int        `json:"accountStatus" gorm:"column:accountStatus"`
+	CreateTime    *time.Time `json:"createTime"`
+	Creator       string     `json:"creator"`
 }
 
 // 账号个人信息
 type AccountPersonVO struct {
-	Roles []AccountRoleVO `json:"roles"` // 角色信息
+	Roles []*AccountRoleVO `json:"roles"` // 角色信息
 }

@@ -18,7 +18,7 @@ WORKDIR /mayfly
 # Copy the go source for building server
 COPY server .
 
-RUN go mod download
+RUN go mod tidy && go mod download
 
 COPY --from=fe-builder /mayfly/dist /mayfly/static/static
 

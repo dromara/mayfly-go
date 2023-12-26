@@ -1,13 +1,13 @@
 # 🌈mayfly-go
 
 <p align="center">
-  <a href="https://gitee.com/objs/mayfly-go" target="_blank">
-    <img src="https://gitee.com/objs/mayfly-go/badge/star.svg?theme=white" alt="star"/>
-    <img src="https://gitee.com/objs/mayfly-go/badge/fork.svg" alt="fork"/>
+  <a href="https://gitee.com/dromara/mayfly-go" target="_blank">
+    <img src="https://gitee.com/dromara/mayfly-go/badge/star.svg?theme=white" alt="star"/>
+    <img src="https://gitee.com/dromara/mayfly-go/badge/fork.svg" alt="fork"/>
   </a>
-  <a href="https://github.com/may-fly/mayfly-go" target="_blank">
-    <img src="https://img.shields.io/github/stars/may-fly/mayfly-go.svg?style=social" alt="github star"/>
-    <img src="https://img.shields.io/github/forks/may-fly/mayfly-go.svg?style=social" alt="github fork"/>
+  <a href="https://github.com/dromara/mayfly-go" target="_blank">
+    <img src="https://img.shields.io/github/stars/dromara/mayfly-go.svg?style=social" alt="github star"/>
+    <img src="https://img.shields.io/github/forks/dromara/mayfly-go.svg?style=social" alt="github fork"/>
   </a>
   <a href="https://hub.docker.com/r/mayflygo/mayfly-go/tags" target="_blank">
     <img src="https://img.shields.io/docker/pulls/mayflygo/mayfly-go.svg?label=docker%20pulls&color=fac858" alt="docker pulls"/>
@@ -22,7 +22,7 @@
 
 ### 介绍
 
-web 版 **linux(终端[终端回放] 文件 脚本 进程 计划任务)、数据库（mysql postgres）、redis(单机 哨兵 集群)、mongo 统一管理操作平台**
+web 版 **linux(终端[终端回放] 文件 脚本 进程 计划任务)、数据库（mysql postgres 达梦）、redis(单机 哨兵 集群)、mongo 统一管理操作平台**
 
 ### 开发语言与主要框架
 
@@ -100,4 +100,4 @@ http://go.mayfly.run
 
 #### 💌 支持作者
 
-如果觉得项目不错，或者已经在使用了，希望你可以去 <a target="_blank" href="https://github.com/may-fly/mayfly-go">Github</a> 或者 <a target="_blank" href="https://gitee.com/objs/mayfly-go">Gitee</a> 帮我点个 ⭐ Star，这将是对我极大的鼓励与支持。
+如果觉得项目不错，或者已经在使用了，希望你可以去 <a target="_blank" href="https://github.com/dromara/mayfly-go">Github</a> 或者 <a target="_blank" href="https://gitee.com/dromara/mayfly-go">Gitee</a> 帮我点个 ⭐ Star，这将是对我极大的鼓励与支持。

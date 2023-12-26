@@ -107,10 +107,10 @@ defineExpose({ getContent });
 
 .format-viewer-container .el-textarea textarea {
     font-size: 14px;
-    height: calc(100vh - 536px + v-bind(height));
+    height: calc(100vh - 546px + v-bind(height));
 }
 
 .format-viewer-container .monaco-editor-content {
-    height: calc(100vh - 550px + v-bind(height)) !important;
+    height: calc(100vh - 560px + v-bind(height)) !important;
 }
 </style>

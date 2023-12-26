@@ -364,7 +364,7 @@ const loginResDeal = (loginRes: any) => {
     useUserInfo().setUserInfo(userInfos);
 
     const token = loginRes.token;
-    // 如果不需要otp校验，则该token即为accessToken，否则为otp校验token
+    // 如果不需要    otp校验，则该token即为accessToken，否则为otp校验token
     if (loginRes.otp == -1) {
         signInSuccess(token);
         return;
@@ -385,6 +385,7 @@ const signInSuccess = async (accessToken: string = '') => {
     }
     // 存储 token 到浏览器缓存
     saveToken(accessToken);
+
     // 初始化路由
     await initRouter();
 

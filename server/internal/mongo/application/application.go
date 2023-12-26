@@ -1,9 +1,12 @@
 package application
 
-import "mayfly-go/internal/mongo/infrastructure/persistence"
+import (
+	"mayfly-go/internal/mongo/infrastructure/persistence"
+	tagapp "mayfly-go/internal/tag/application"
+)
 
 var (
-	mongoApp Mongo = newMongoAppImpl(persistence.GetMongoRepo())
+	mongoApp Mongo = newMongoAppImpl(persistence.GetMongoRepo(), tagapp.GetTagTreeApp())
 )
 
 func GetMongoApp() Mongo {

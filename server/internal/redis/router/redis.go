@@ -26,7 +26,7 @@ func InitRedisRouter(router *gin.RouterGroup) {
 		// 获取redis list
 		req.NewGet("", rs.RedisList),
 
-		req.NewGet("/tags", rs.RedisTags),
+		req.NewPost("/test-conn", rs.TestConn),
 
 		req.NewPost("", rs.Save).Log(req.NewLogSave("redis-保存信息")),
 
@@ -44,6 +44,8 @@ func InitRedisRouter(router *gin.RouterGroup) {
 		req.NewGet(":id/:db/key-info", rs.KeyInfo),
 
 		req.NewGet(":id/:db/key-ttl", rs.TtlKey),
+
+		req.NewGet(":id/:db/key-memuse", rs.MemoryUsage),
 
 		req.NewDelete(":id/:db/key", rs.DeleteKey).Log(req.NewLogSave("redis-删除key")).RequiredPermission(deleteDataP),
 

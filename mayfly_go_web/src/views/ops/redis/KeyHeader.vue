@@ -17,7 +17,7 @@
         <div class="key-header-item key-ttl-input">
             <el-input type="number" v-model.number="ki.timed" placeholder="单位(秒),负数永久" title="点击修改过期时间">
                 <template #prepend>
-                    <span slot="prepend">TTL</span>
+                    <span>TTL</span>
                 </template>
 
                 <template #suffix>
@@ -37,8 +37,8 @@
 
         <!-- del & refresh btn -->
         <div class="key-header-item key-header-btn-con">
-            <el-button slot="reference" type="success" @click="refreshKey" icon="refresh" title="刷新"></el-button>
-            <el-button v-auth="'redis:data:del'" slot="reference" type="danger" @click="delKey" icon="delete" title="删除"></el-button>
+            <el-button type="success" @click="refreshKey" icon="refresh" title="刷新"></el-button>
+            <el-button v-auth="'redis:data:del'" type="danger" @click="delKey" icon="delete" title="删除"></el-button>
         </div>
     </div>
 </template>
@@ -74,6 +74,7 @@ const state = reactive({
         timed: -1,
     } as any,
     oldKey: '',
+    memuse: 0,
 });
 
 onMounted(() => {

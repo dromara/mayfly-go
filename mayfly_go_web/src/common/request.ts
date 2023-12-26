@@ -1,9 +1,21 @@
 import router from '../router';
-import Axios from 'axios';
 import config from './config';
-import { getToken } from './utils/storage';
+import { getClientId, getToken } from './utils/storage';
 import { templateResolve } from './utils/string';
 import { ElMessage } from 'element-plus';
+import axios from 'axios';
+import { useApiFetch } from './useRequest';
+import Api from './Api';
+
+export default {
+    request,
+    xhrReq,
+    get,
+    post,
+    put,
+    del,
+    getApiUrl,
+};
 
 export interface Result {
     /**
@@ -20,7 +32,7 @@ export interface Result {
     data?: any;
 }
 
-enum ResultEnum {
+export enum ResultEnum {
     SUCCESS = 200,
     ERROR = 400,
     PARAM_ERROR = 405,
@@ -28,7 +40,8 @@ enum ResultEnum {
     NO_PERMISSION = 501,
 }
 
-const baseUrl: string = config.baseApiUrl;
+export const baseUrl: string = config.baseApiUrl;
+// const baseUrl: string = 'http://localhost:18888/api';
 // const baseWsUrl: string = config.baseWsUrl;
 
 /**
@@ -41,19 +54,20 @@ function notifyErrorMsg(msg: string) {
 }
 
 // create an axios instance
-const service = Axios.create({
+const axiosInst = axios.create({
     baseURL: baseUrl, // url = base url + request url
     timeout: 60000, // request timeout
 });
 
 // request interceptor
-service.interceptors.request.use(
+axiosInst.interceptors.request.use(
     (config: any) => {
         // do something before request is sent
         const token = getToken();
         if (token) {
             // 设置token
             config.headers['Authorization'] = token;
+            config.headers['ClientId'] = getClientId();
         }
         return config;
     },
@@ -63,23 +77,15 @@ service.interceptors.request.use(
 );
 
 // response interceptor
-service.interceptors.response.use(
-    (response) => {
-        // 获取请求返回结果
-        const data: Result = response.data;
-        if (data.code === ResultEnum.SUCCESS) {
-            return data.data;
-        }
-        // 如果提示没有权限，则移除token，使其重新登录
-        if (data.code === ResultEnum.NO_PERMISSION) {
-            router.push({
-                path: '/401',
-            });
-        }
-        return Promise.reject(data);
-    },
+axiosInst.interceptors.response.use(
+    (response) => response,
     (e: any) => {
         const rejectPromise = Promise.reject(e);
+
+        if (axios.isCancel(e)) {
+            console.log('请求已取消');
+            return rejectPromise;
+        }
 
         const statusCode = e.response?.status;
         if (statusCode == 500) {
@@ -111,44 +117,62 @@ service.interceptors.response.use(
 );
 
 /**
- * 请求uri
+ * xhr请求url
+ *
+ * @param method 请求方法
+ * @param url url
+ * @param params 参数
+ * @param options 可选
+ * @returns
+ */
+export function xhrReq(method: string, url: string, params: any = null, options: any = {}) {
+    if (!url) {
+        throw new Error('请求url不能为空');
+    }
+
+    // 简单判断该url是否是restful风格
+    if (url.indexOf('{') != -1) {
+        url = templateResolve(url, params);
+    }
+
+    const req: any = {
+        method,
+        url,
+        ...options,
+    };
+
+    // post和put使用json格式传参
+    if (method === 'post' || method === 'put') {
+        req.data = params;
+    } else {
+        req.params = params;
+    }
+
+    return axiosInst
+        .request(req)
+        .then((response) => {
+            // 获取请求返回结果
+            const result: Result = response.data;
+            return parseResult(result);
+        })
+        .catch((e) => {
+            return Promise.reject(e);
+        });
+}
+
+/**
+ * fetch请求url
+ *
  * 该方法已处理请求结果中code != 200的message提示,如需其他错误处理(取消加载状态,重置对象状态等等),可catch继续处理
  *
  * @param {Object} method 请求方法(GET,POST,PUT,DELTE等)
  * @param {Object} uri    uri
  * @param {Object} params 参数
  */
-function request(method: string, url: string, params: any = null, headers: any = null, options: any = null): Promise<any> {
-    if (!url) throw new Error('请求url不能为空');
-    // 简单判断该url是否是restful风格
-    if (url.indexOf('{') != -1) {
-        url = templateResolve(url, params);
-    }
-    const query: any = {
-        method,
-        url: url,
-        ...options,
-    };
-    if (headers) {
-        query.headers = headers;
-    }
-
-    // post和put使用json格式传参
-    if (method === 'post' || method === 'put') {
-        query.data = params;
-    } else {
-        query.params = params;
-    }
-    return service
-        .request(query)
-        .then((res) => res)
-        .catch((e) => {
-            // 如果返回的code不为成功，则会返回对应的错误msg，则直接统一通知即可。忽略登录超时或没有权限的提示（直接跳转至401页面）
-            if (e.msg && e?.code != ResultEnum.NO_PERMISSION) {
-                notifyErrorMsg(e.msg);
-            }
-            return Promise.reject(e);
-        });
+async function request(method: string, url: string, params: any = null, options: any = {}): Promise<any> {
+    const { execute, data } = useApiFetch(Api.create(url, method), params, options);
+    await execute();
+    return data.value;
 }
 
 /**
@@ -158,32 +182,48 @@ function request(method: string, url: string, params: any = null, headers: any =
  * @param {Object} url   uri
  * @param {Object} params 参数
  */
-function get(url: string, params: any = null, headers: any = null, options: any = null): Promise<any> {
-    return request('get', url, params, headers, options);
+function get(url: string, params: any = null, options: any = {}): Promise<any> {
+    return request('get', url, params, options);
 }
 
-function post(url: string, params: any = null, headers: any = null, options: any = null): Promise<any> {
-    return request('post', url, params, headers, options);
+function post(url: string, params: any = null, options: any = {}): Promise<any> {
+    return request('post', url, params, options);
 }
 
-function put(url: string, params: any = null, headers: any = null, options: any = null): Promise<any> {
-    return request('put', url, params, headers, options);
+function put(url: string, params: any = null, options: any = {}): Promise<any> {
+    return request('put', url, params, options);
 }
 
-function del(url: string, params: any = null, headers: any = null, options: any = null): Promise<any> {
-    return request('delete', url, params, headers, options);
+function del(url: string, params: any = null, options: any = {}): Promise<any> {
+    return request('delete', url, params, options);
 }
 
 function getApiUrl(url: string) {
     // 只是返回api地址而不做请求，用在上传组件之类的
-    return baseUrl + url + '?token=' + getToken();
+    return baseUrl + url + '?' + joinClientParams();
 }
 
-export default {
-    request,
-    get,
-    post,
-    put,
-    del,
-    getApiUrl,
-};
+// 组装客户端参数，包括 token 和 clientId
+export function joinClientParams(): string {
+    return `token=${getToken()}&clientId=${getClientId()}`;
+}
+
+function parseResult(result: Result) {
+    if (result.code === ResultEnum.SUCCESS) {
+        return result.data;
+    }
+
+    // 如果提示没有权限，则移除token，使其重新登录
+    if (result.code === ResultEnum.NO_PERMISSION) {
+        router.push({
+            path: '/401',
+        });
+    }
+
+    // 如果返回的code不为成功，则会返回对应的错误msg，则直接统一通知即可。忽略登录超时或没有权限的提示（直接跳转至401页面）
+    if (result.msg && result?.code != ResultEnum.NO_PERMISSION) {
+        notifyErrorMsg(result.msg);
+    }
+
+    return Promise.reject(result);
+}

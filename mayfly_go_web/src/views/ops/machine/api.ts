@@ -1,6 +1,6 @@
 import Api from '@/common/Api';
 import config from '@/common/config';
-import { getToken } from '@/common/utils/storage';
+import { joinClientParams } from '@/common/request';
 
 export const machineApi = {
     // 获取权限列表
@@ -33,7 +33,7 @@ export const machineApi = {
     cpFile: Api.newPost('/machines/{machineId}/files/{fileId}/cp'),
     renameFile: Api.newPost('/machines/{machineId}/files/{fileId}/rename'),
     mvFile: Api.newPost('/machines/{machineId}/files/{fileId}/mv'),
-    uploadFile: Api.newPost('/machines/{machineId}/files/{fileId}/upload?token={token}'),
+    uploadFile: Api.newPost('/machines/{machineId}/files/{fileId}/upload?' + joinClientParams()),
     fileContent: Api.newGet('/machines/{machineId}/files/{fileId}/read'),
     createFile: Api.newPost('/machines/{machineId}/files/{id}/create-file'),
     // 修改文件内容
@@ -43,7 +43,10 @@ export const machineApi = {
     // 删除配置的文件or目录
     delConf: Api.newDelete('/machines/{machineId}/files/{id}'),
     terminal: Api.newGet('/api/machines/{id}/terminal'),
-    recDirNames: Api.newGet('/machines/rec/names'),
+    // 机器终端操作记录列表
+    termOpRecs: Api.newGet('/machines/{machineId}/term-recs'),
+    // 机器终端操作记录详情
+    termOpRec: Api.newGet('/machines/{id}/term-recs/{recId}'),
 };
 
 export const authCertApi = {
@@ -59,9 +62,10 @@ export const cronJobApi = {
     relateCronJobIds: Api.newGet('/machine-cronjobs/cronjob-ids'),
     save: Api.newPost('/machine-cronjobs'),
     delete: Api.newDelete('/machine-cronjobs/{id}'),
+    run: Api.newPost('/machine-cronjobs/run/{key}'),
     execList: Api.newGet('/machine-cronjobs/execs'),
 };
 
 export function getMachineTerminalSocketUrl(machineId: any) {
-    return `${config.baseWsUrl}/machines/${machineId}/terminal?token=${getToken()}`;
+    return `${config.baseWsUrl}/machines/${machineId}/terminal?${joinClientParams()}`;
 }

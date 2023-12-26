@@ -34,7 +34,7 @@ func InitRouter() *gin.Engine {
 	})
 
 	// 设置静态资源
-	setStatic(router)
+	setStatic(serverConfig.ContextPath, router)
 
 	// 是否允许跨域
 	if serverConfig.Cors {
@@ -42,7 +42,7 @@ func InitRouter() *gin.Engine {
 	}
 
 	// 设置路由组
-	api := router.Group("/api")
+	api := router.Group(serverConfig.ContextPath + "/api")
 	{
 		common_router.Init(api)
 
@@ -61,16 +61,17 @@ func InitRouter() *gin.Engine {
 	return router
 }
 
-func setStatic(router *gin.Engine) {
+func setStatic(contextPath string, router *gin.Engine) {
 	// 使用embed打包静态资源至二进制文件中
 	fsys, _ := fs.Sub(static.Static, "static")
 	fileServer := http.FileServer(http.FS(fsys))
-	handler := WrapStaticHandler(fileServer)
-	router.GET("/", handler)
-	router.GET("/favicon.ico", handler)
-	router.GET("/config.js", handler)
+	handler := WrapStaticHandler(http.StripPrefix(contextPath, fileServer))
+
+	router.GET(contextPath+"/", handler)
+	router.GET(contextPath+"/favicon.ico", handler)
+	router.GET(contextPath+"/config.js", handler)
 	// 所有/assets/**开头的都是静态资源文件
-	router.GET("/assets/*file", handler)
+	router.GET(contextPath+"/assets/*file", handler)
 
 	// 设置静态资源
 	if staticConfs := config.Conf.Server.Static; staticConfs != nil {

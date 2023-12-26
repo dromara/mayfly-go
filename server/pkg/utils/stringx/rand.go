@@ -5,11 +5,18 @@ import (
 	"time"
 )
 
-const randChar = "0123456789abcdefghigklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const Nums = "0123456789"
+const LowerChars = "abcdefghigklmnopqrstuvwxyz"
+const UpperChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 // 生成随机字符串
 func Rand(l int) string {
-	strList := []byte(randChar)
+	return RandByChars(l, Nums+LowerChars+UpperChars)
+}
+
+// 根据传入的chars，随机生成指定位数的字符串
+func RandByChars(l int, chars string) string {
+	strList := []byte(chars)
 
 	result := []byte{}
 	i := 0

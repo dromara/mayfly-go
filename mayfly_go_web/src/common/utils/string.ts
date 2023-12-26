@@ -1,3 +1,7 @@
+import { v1 as uuidv1 } from 'uuid';
+import Clipboard from 'clipboard';
+import { ElMessage } from 'element-plus';
+
 /**
  * 模板字符串解析，如：template = 'hahaha{name}_{id}' ,param = {name: 'hh', id: 1}
  * 解析后为 hahahahh_1
@@ -128,4 +132,50 @@ export function getContentWidth(content: any): number {
     //     flexWidth = 450;
     // }
     return flexWidth;
+}
+
+/**
+ *
+ * @returns uuid
+ */
+export function randomUuid() {
+    return uuidv1();
+}
+
+/**
+ * 拷贝文本至剪贴板
+ * @param txt 需要拷贝到剪贴板的文本
+ * @param selector click事件对应的元素selector，默认为 #copyValue
+ * @returns
+ */
+export async function copyToClipboard(txt: string, selector: string = '#copyValue') {
+    // navigator clipboard 需要https等安全上下文
+    if (navigator.clipboard && window.isSecureContext) {
+        // navigator clipboard 向剪贴板写文本
+        try {
+            // 拷贝单元格数据
+            await navigator.clipboard.writeText(txt);
+            ElMessage.success('复制成功');
+        } catch (e: any) {
+            ElMessage.error('复制失败');
+        }
+        return;
+    }
+
+    let clipboard = new Clipboard(selector, {
+        text: function () {
+            return txt;
+        },
+    });
+    clipboard.on('success', () => {
+        ElMessage.success('复制成功');
+        // 释放内存
+        clipboard.destroy();
+    });
+    clipboard.on('error', () => {
+        // 不支持复制
+        ElMessage.error('该浏览器不支持自动复制');
+        // 释放内存
+        clipboard.destroy();
+    });
 }

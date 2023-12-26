@@ -3,26 +3,16 @@ package persistence
 import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/gormx"
 )
 
-type tagTreeTeamRepoImpl struct{}
+type tagTreeTeamRepoImpl struct {
+	base.RepoImpl[*entity.TagTreeTeam]
+}
 
 func newTagTreeTeamRepo() repository.TagTreeTeam {
-	return new(tagTreeTeamRepoImpl)
-}
-
-func (p *tagTreeTeamRepoImpl) ListTag(condition *entity.TagTreeTeam, toEntity any, orderBy ...string) {
-	gormx.ListByOrder(condition, toEntity, orderBy...)
-}
-
-func (p *tagTreeTeamRepoImpl) Save(pm *entity.TagTreeTeam) {
-	biz.ErrIsNilAppendErr(gormx.Insert(pm), "保存团队项目信息失败：%s")
-}
-
-func (p *tagTreeTeamRepoImpl) DeleteBy(condition *entity.TagTreeTeam) {
-	gormx.DeleteByCondition(condition)
+	return &tagTreeTeamRepoImpl{base.RepoImpl[*entity.TagTreeTeam]{M: new(entity.TagTreeTeam)}}
 }
 
 func (p *tagTreeTeamRepoImpl) SelectTagPathsByAccountId(accountId uint64) []string {

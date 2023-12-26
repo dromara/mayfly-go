@@ -1,14 +1,11 @@
 package api
 
 import (
+	"mayfly-go/internal/common/consts"
 	dbapp "mayfly-go/internal/db/application"
-	dbentity "mayfly-go/internal/db/domain/entity"
 	machineapp "mayfly-go/internal/machine/application"
-	machineentity "mayfly-go/internal/machine/domain/entity"
 	mongoapp "mayfly-go/internal/mongo/application"
-	mongoentity "mayfly-go/internal/mongo/domain/entity"
 	redisapp "mayfly-go/internal/redis/application"
-	redisentity "mayfly-go/internal/redis/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -23,20 +20,13 @@ type Index struct {
 }
 
 func (i *Index) Count(rc *req.Ctx) {
-	accountId := rc.LoginAccount.Id
-	tagIds := i.TagApp.ListTagIdByAccountId(accountId)
+	accountId := rc.GetLoginAccount().Id
 
-	var mongoNum int64
-	var redisNum int64
-	var dbNum int64
-	var machienNum int64
+	mongoNum := len(i.TagApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeMongo, ""))
+	machienNum := len(i.TagApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeMachine, ""))
+	dbNum := len(i.TagApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeDb, ""))
+	redisNum := len(i.TagApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeRedis, ""))
 
-	if len(tagIds) > 0 {
-		mongoNum = i.MongoApp.Count(&mongoentity.MongoQuery{TagIds: tagIds})
-		machienNum = i.MachineApp.Count(&machineentity.MachineQuery{TagIds: tagIds})
-		dbNum = i.DbApp.Count(&dbentity.DbQuery{TagIds: tagIds})
-		redisNum = i.RedisApp.Count(&redisentity.RedisQuery{TagIds: tagIds})
-	}
 	rc.ResData = collx.M{
 		"mongoNum":   mongoNum,
 		"machineNum": machienNum,

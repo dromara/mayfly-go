@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/mongo/api/form"
 	"mayfly-go/internal/mongo/application"
 	"mayfly-go/internal/mongo/domain/entity"
@@ -30,18 +31,22 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage[*entity.MongoQuery](rc.GinCtx, new(entity.MongoQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	tagIds := m.TagApp.ListTagIdByAccountId(rc.LoginAccount.Id)
-	if len(tagIds) == 0 {
+	codes := m.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeMongo, queryCond.TagPath)
+	if len(codes) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	queryCond.TagIds = tagIds
+	queryCond.Codes = codes
 
-	rc.ResData = m.MongoApp.GetPageList(queryCond, page, new([]entity.Mongo))
+	res, err := m.MongoApp.GetPageList(queryCond, page, new([]entity.Mongo))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
-func (m *Mongo) MongoTags(rc *req.Ctx) {
-	rc.ResData = m.TagApp.ListTagByAccountIdAndResource(rc.LoginAccount.Id, new(entity.Mongo))
+func (m *Mongo) TestConn(rc *req.Ctx) {
+	form := &form.Mongo{}
+	mongo := ginx.BindJsonAndCopyTo[*entity.Mongo](rc.GinCtx, form, new(entity.Mongo))
+	biz.ErrIsNilAppendErr(m.MongoApp.TestConn(mongo), "连接失败: %s")
 }
 
 func (m *Mongo) Save(rc *req.Ctx) {
@@ -55,8 +60,7 @@ func (m *Mongo) Save(rc *req.Ctx) {
 	}(form.Uri)
 	rc.ReqParam = form
 
-	mongo.SetBaseInfo(rc.LoginAccount)
-	m.MongoApp.Save(mongo)
+	biz.ErrIsNil(m.MongoApp.Save(rc.MetaCtx, mongo, form.TagId...))
 }
 
 func (m *Mongo) DeleteMongo(rc *req.Ctx) {
@@ -67,23 +71,25 @@ func (m *Mongo) DeleteMongo(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		m.MongoApp.Delete(uint64(value))
+		m.MongoApp.Delete(rc.MetaCtx, uint64(value))
 	}
 }
 
 func (m *Mongo) Databases(rc *req.Ctx) {
-	cli := m.MongoApp.GetMongoInst(m.GetMongoId(rc.GinCtx)).Cli
-	res, err := cli.ListDatabases(context.TODO(), bson.D{})
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc.GinCtx))
+	biz.ErrIsNil(err)
+	res, err := conn.Cli.ListDatabases(context.TODO(), bson.D{})
 	biz.ErrIsNilAppendErr(err, "获取mongo所有库信息失败: %s")
 	rc.ResData = res
 }
 
 func (m *Mongo) Collections(rc *req.Ctx) {
-	cli := m.MongoApp.GetMongoInst(m.GetMongoId(rc.GinCtx)).Cli
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc.GinCtx))
+	biz.ErrIsNil(err)
 	db := rc.GinCtx.Query("database")
 	biz.NotEmpty(db, "database不能为空")
 	ctx := context.TODO()
-	res, err := cli.Database(db).ListCollectionNames(ctx, bson.D{})
+	res, err := conn.Cli.Database(db).ListCollectionNames(ctx, bson.D{})
 	biz.ErrIsNilAppendErr(err, "获取库集合信息失败: %s")
 	rc.ResData = res
 }
@@ -92,8 +98,9 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 	commandForm := new(form.MongoRunCommand)
 	ginx.BindJsonAndValid(rc.GinCtx, commandForm)
 
-	inst := m.MongoApp.GetMongoInst(m.GetMongoId(rc.GinCtx))
-	rc.ReqParam = collx.Kvs("mongo", inst.Info, "cmd", commandForm)
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc.GinCtx))
+	biz.ErrIsNil(err)
+	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
 	// 顺序执行
 	commands := bson.D{}
@@ -108,7 +115,7 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 
 	ctx := context.TODO()
 	var bm bson.M
-	err := inst.Cli.Database(commandForm.Database).RunCommand(
+	err = conn.Cli.Database(commandForm.Database).RunCommand(
 		ctx,
 		commands,
 	).Decode(&bm)
@@ -119,9 +126,12 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 
 func (m *Mongo) FindCommand(rc *req.Ctx) {
 	g := rc.GinCtx
-	cli := m.MongoApp.GetMongoInst(m.GetMongoId(g)).Cli
 	commandForm := new(form.MongoFindCommand)
 	ginx.BindJsonAndValid(g, commandForm)
+
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(g))
+	biz.ErrIsNil(err)
+	cli := conn.Cli
 
 	limit := commandForm.Limit
 	if limit != 0 {
@@ -155,8 +165,9 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 	commandForm := new(form.MongoUpdateByIdCommand)
 	ginx.BindJsonAndValid(g, commandForm)
 
-	inst := m.MongoApp.GetMongoInst(m.GetMongoId(g))
-	rc.ReqParam = collx.Kvs("mongo", inst.Info, "cmd", commandForm)
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(g))
+	biz.ErrIsNil(err)
+	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
 	// 解析docId文档id，如果为string类型则使用ObjectId解析，解析失败则为普通字符串
 	docId := commandForm.DocId
@@ -168,7 +179,7 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 		}
 	}
 
-	res, err := inst.Cli.Database(commandForm.Database).Collection(commandForm.Collection).UpdateByID(context.TODO(), docId, commandForm.Update)
+	res, err := conn.Cli.Database(commandForm.Database).Collection(commandForm.Collection).UpdateByID(context.TODO(), docId, commandForm.Update)
 	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
 
 	rc.ResData = res
@@ -179,8 +190,9 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 	commandForm := new(form.MongoUpdateByIdCommand)
 	ginx.BindJsonAndValid(g, commandForm)
 
-	inst := m.MongoApp.GetMongoInst(m.GetMongoId(g))
-	rc.ReqParam = collx.Kvs("mongo", inst.Info, "cmd", commandForm)
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(g))
+	biz.ErrIsNil(err)
+	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
 	// 解析docId文档id，如果为string类型则使用ObjectId解析，解析失败则为普通字符串
 	docId := commandForm.DocId
@@ -192,7 +204,7 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 		}
 	}
 
-	res, err := inst.Cli.Database(commandForm.Database).Collection(commandForm.Collection).DeleteOne(context.TODO(), bson.D{{Key: "_id", Value: docId}})
+	res, err := conn.Cli.Database(commandForm.Database).Collection(commandForm.Collection).DeleteOne(context.TODO(), bson.D{{Key: "_id", Value: docId}})
 	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
 	rc.ResData = res
 }
@@ -202,10 +214,11 @@ func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
 	commandForm := new(form.MongoInsertCommand)
 	ginx.BindJsonAndValid(g, commandForm)
 
-	inst := m.MongoApp.GetMongoInst(m.GetMongoId(g))
-	rc.ReqParam = collx.Kvs("mongo", inst.Info, "cmd", commandForm)
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(g))
+	biz.ErrIsNil(err)
+	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
-	res, err := inst.Cli.Database(commandForm.Database).Collection(commandForm.Collection).InsertOne(context.TODO(), commandForm.Doc)
+	res, err := conn.Cli.Database(commandForm.Database).Collection(commandForm.Collection).InsertOne(context.TODO(), commandForm.Doc)
 	biz.ErrIsNilAppendErr(err, "命令执行失败: %s")
 	rc.ResData = res
 }

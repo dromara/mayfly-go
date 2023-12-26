@@ -1,79 +1,52 @@
 <template>
-    <div class="menu">
-        <div class="toolbar">
+    <div class="card system-resouce-list">
+        <div class="card pd10 flex-justify-between">
             <div>
-                <span style="font-size: 14px"> <SvgIcon name="info-filled" />红色、橙色字体表示禁用状态 </span>
+                <el-input v-model="filterResource" clearable placeholder="输入关键字过滤(右击进行操作)" style="width: 220px; margin-right: 10px" />
+                <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)">添加</el-button>
             </div>
-            <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)">添加</el-button>
+
+            <div>
+                <span> <SvgIcon name="info-filled" />红色、橙色字体表示禁用状态 (右击资源进行操作) </span>
+            </div>
         </div>
-        <el-tree
-            class="none-select"
-            :indent="38"
-            node-key="id"
-            :props="props"
-            :data="data"
-            @node-expand="handleNodeExpand"
-            @node-collapse="handleNodeCollapse"
-            :default-expanded-keys="defaultExpandedKeys"
-            :expand-on-click-node="false"
-            draggable
-            :allow-drop="allowDrop"
-            @node-drop="handleDrop"
-        >
-            <template #default="{ data }">
-                <span class="custom-tree-node">
-                    <span style="font-size: 13px" v-if="data.type === menuTypeValue">
-                        <span style="color: #3c8dbc">【</span>
-                        <span v-if="data.status == 1">{{ data.name }}</span>
-                        <span v-if="data.status == -1" style="color: #e6a23c">{{ data.name }}</span>
-                        <span style="color: #3c8dbc">】</span>
-                        <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
+        <el-scrollbar class="tree-data">
+            <el-tree
+                ref="resourceTreeRef"
+                class="none-select"
+                :indent="24"
+                node-key="id"
+                :props="props"
+                :data="data"
+                @node-expand="handleNodeExpand"
+                @node-collapse="handleNodeCollapse"
+                @node-contextmenu="nodeContextmenu"
+                @node-click="treeNodeClick"
+                :default-expanded-keys="defaultExpandedKeys"
+                :expand-on-click-node="true"
+                draggable
+                :allow-drop="allowDrop"
+                @node-drop="handleDrop"
+                :filter-node-method="filterNode"
+            >
+                <template #default="{ data }">
+                    <span class="custom-tree-node">
+                        <span style="font-size: 13px" v-if="data.type === menuTypeValue">
+                            <span style="color: #3c8dbc">【</span>
+                            <span v-if="data.status == 1">{{ data.name }}</span>
+                            <span v-if="data.status == -1" style="color: #e6a23c">{{ data.name }}</span>
+                            <span style="color: #3c8dbc">】</span>
+                            <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
+                        </span>
+                        <span style="font-size: 13px" v-if="data.type === permissionTypeValue">
+                            <span style="color: #3c8dbc">【</span>
+                            <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">{{ data.name }}</span>
+                            <span style="color: #3c8dbc">】</span>
+                        </span>
                     </span>
-                    <span style="font-size: 13px" v-if="data.type === permissionTypeValue">
-                        <span style="color: #3c8dbc">【</span>
-                        <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">{{ data.name }}</span>
-                        <span style="color: #3c8dbc">】</span>
-                    </span>
-
-                    <el-link @click.prevent="info(data)" style="margin-left: 25px" icon="view" type="info" :underline="false" />
-
-                    <el-link v-auth="perms.updateResource" @click.prevent="editResource(data)" class="ml5" type="primary" icon="edit" :underline="false" />
-
-                    <el-link
-                        v-auth="perms.addResource"
-                        @click.prevent="addResource(data)"
-                        v-if="data.type === menuTypeValue"
-                        icon="circle-plus"
-                        :underline="false"
-                        type="success"
-                        class="ml5"
-                    />
-
-                    <el-link
-                        v-auth="perms.changeStatus"
-                        @click.prevent="changeStatus(data, -1)"
-                        v-if="data.status === 1"
-                        icon="circle-close"
-                        :underline="false"
-                        type="warning"
-                        class="ml5"
-                    />
-
-                    <el-link
-                        v-auth="perms.changeStatus"
-                        @click.prevent="changeStatus(data, 1)"
-                        v-if="data.status === -1"
-                        type="success"
-                        icon="circle-check"
-                        :underline="false"
-                        plain
-                        class="ml5"
-                    />
-
-                    <el-link v-auth="perms.delResource" @click.prevent="deleteMenu(data)" type="danger" icon="delete" :underline="false" plain class="ml5" />
-                </span>
-            </template>
-        </el-tree>
+                </template>
+            </el-tree>
+        </el-scrollbar>
 
         <ResourceEdit
             :title="dialogForm.title"
@@ -123,17 +96,20 @@
                 <el-descriptions-item label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }} </el-descriptions-item>
             </el-descriptions>
         </el-dialog>
+
+        <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted } from 'vue';
+import { ref, toRefs, reactive, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceEdit from './ResourceEdit.vue';
 import { ResourceTypeEnum } from '../enums';
 import { resourceApi } from '../api';
 import { dateFormat } from '@/common/utils/date';
 import EnumValue from '@/common/Enum';
+import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 
 const menuTypeValue = ResourceTypeEnum.Menu.value;
 const permissionTypeValue = ResourceTypeEnum.Permission.value;
@@ -150,7 +126,48 @@ const props = {
     children: 'children',
 };
 
+const contextmenuRef = ref();
+const filterResource = ref();
+const resourceTreeRef = ref();
+
+const contextmenuInfo = new ContextmenuItem('info', '详情').withIcon('View').withOnClick((data: any) => info(data));
+
+const contextmenuAdd = new ContextmenuItem('add', '添加子资源')
+    .withIcon('circle-plus')
+    .withPermission(perms.addResource)
+    .withHideFunc((data: any) => data.type !== menuTypeValue)
+    .withOnClick((data: any) => addResource(data));
+
+const contextmenuEdit = new ContextmenuItem('edit', '编辑')
+    .withIcon('edit')
+    .withPermission(perms.updateResource)
+    .withOnClick((data: any) => editResource(data));
+
+const contextmenuEnable = new ContextmenuItem('enable', '启用')
+    .withIcon('circle-check')
+    .withPermission(perms.updateResource)
+    .withHideFunc((data: any) => data.status === 1)
+    .withOnClick((data: any) => changeStatus(data, 1));
+
+const contextmenuDisable = new ContextmenuItem('disable', '禁用')
+    .withIcon('circle-close')
+    .withPermission(perms.updateResource)
+    .withHideFunc((data: any) => data.status === -1)
+    .withOnClick((data: any) => changeStatus(data, -1));
+
+const contextmenuDel = new ContextmenuItem('delete', '删除')
+    .withIcon('delete')
+    .withPermission(perms.delResource)
+    .withOnClick((data: any) => deleteMenu(data));
+
 const state = reactive({
+    contextmenu: {
+        dropdown: {
+            x: 0,
+            y: 0,
+        },
+        items: [contextmenuInfo, contextmenuAdd, contextmenuEdit, contextmenuEnable, contextmenuDisable, contextmenuDel],
+    },
     //弹出框对象
     dialogForm: {
         type: null,
@@ -188,9 +205,33 @@ onMounted(() => {
     search();
 });
 
+watch(filterResource, (val) => {
+    resourceTreeRef.value!.filter(val);
+});
+
+const filterNode = (value: string, data: any) => {
+    if (!value) {
+        return true;
+    }
+    return data.name.includes(value);
+};
+
 const search = async () => {
     let res = await resourceApi.list.request(null);
     state.data = res;
+};
+
+// 树节点右击事件
+const nodeContextmenu = (event: any, data: any) => {
+    const { clientX, clientY } = event;
+    state.contextmenu.dropdown.x = clientX;
+    state.contextmenu.dropdown.y = clientY;
+    contextmenuRef.value.openContextmenu(data);
+};
+
+const treeNodeClick = () => {
+    // 关闭可能存在的右击菜单
+    contextmenuRef.value.closeContextmenu();
 };
 
 const deleteMenu = (data: any) => {
@@ -203,8 +244,7 @@ const deleteMenu = (data: any) => {
             .request({
                 id: data.id,
             })
-            .then((res) => {
-                console.log(res);
+            .then(() => {
                 ElMessage.success('删除成功！');
                 search();
             });
@@ -361,10 +401,14 @@ const info = async (data: any) => {
 };
 </script>
 <style lang="scss">
-.menu {
+.system-resouce-list {
     .el-tree-node__content {
         height: 40px;
         line-height: 40px;
+    }
+
+    .tree-data {
+        height: calc(100vh - 200px);
     }
 }
 

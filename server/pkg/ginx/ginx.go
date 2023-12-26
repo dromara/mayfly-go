@@ -3,6 +3,7 @@ package ginx
 import (
 	"io"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/structx"
@@ -100,21 +101,18 @@ func SuccessRes(g *gin.Context, data any) {
 // 返回失败结果集
 func ErrorRes(g *gin.Context, err any) {
 	switch t := err.(type) {
-	case biz.BizError:
+	case errorx.BizError:
 		g.JSON(http.StatusOK, model.Error(t))
-	case error:
-		g.JSON(http.StatusOK, model.ServerError())
-	case string:
-		g.JSON(http.StatusOK, model.ServerError())
 	default:
-		logx.Error("未知错误", "errInfo", t)
+		logx.ErrorTrace("服务器错误", t)
+		g.JSON(http.StatusOK, model.ServerError())
 	}
 }
 
 // 转换参数校验错误为业务异常错误
 func ConvBindValidationError(data any, err error) error {
 	if e, ok := err.(validator.ValidationErrors); ok {
-		return biz.NewBizErrCode(403, validatorx.Translate2Str(data, e))
+		return errorx.NewBizCode(403, validatorx.Translate2Str(data, e))
 	}
 	return err
 }

@@ -110,6 +110,9 @@ const getFileType = (path: string) => {
     if (path.endsWith('xml') || path.endsWith('html')) {
         return 'html';
     }
+    if (path.endsWith('py')) {
+        return 'python';
+    }
     return 'text';
 };
 </script>

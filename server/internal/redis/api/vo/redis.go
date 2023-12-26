@@ -4,14 +4,13 @@ import "time"
 
 type Redis struct {
 	Id                 *int64     `json:"id"`
+	Code               *string    `json:"code"`
 	Name               *string    `json:"name"`
 	Host               *string    `json:"host"`
 	Db                 string     `json:"db"`
 	Mode               *string    `json:"mode"`
 	SshTunnelMachineId int        `json:"sshTunnelMachineId"` // ssh隧道机器id
 	Remark             *string    `json:"remark"`
-	TagId              *uint64    `json:"tagId"`
-	TagPath            *string    `json:"tagPath"`
 	CreateTime         *time.Time `json:"createTime"`
 	Creator            *string    `json:"creator"`
 	CreatorId          *int64     `json:"creatorId"`

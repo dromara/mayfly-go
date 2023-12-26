@@ -6,6 +6,25 @@
                     <span class="custom-tree-node">
                         <span v-if="data.type == ResourceTypeEnum.Menu.value">{{ node.label }}</span>
                         <span v-if="data.type == ResourceTypeEnum.Permission.value" style="color: #67c23a">{{ node.label }}</span>
+
+                        <el-popover :show-after="500" placement="right-start" title="资源分配信息" trigger="hover" :width="200">
+                            <template #reference>
+                                <el-link style="margin-left: 25px" icon="InfoFilled" type="info" :underline="false" />
+                            </template>
+                            <template #default>
+                                <el-descriptions :column="1" size="small">
+                                    <el-descriptions-item label="资源名称">
+                                        {{ data.name }}
+                                    </el-descriptions-item>
+                                    <el-descriptions-item label="分配账号">
+                                        {{ data.creator }}
+                                    </el-descriptions-item>
+                                    <el-descriptions-item label="分配时间">
+                                        {{ dateFormat(data.createTime) }}
+                                    </el-descriptions-item>
+                                </el-descriptions>
+                            </template>
+                        </el-popover>
                     </span>
                 </template>
             </el-tree>
@@ -14,9 +33,9 @@
 </template>
 
 <script lang="ts" setup>
-import { getCurrentInstance, toRefs, reactive, watch } from 'vue';
-import { ElMessageBox } from 'element-plus';
+import { toRefs, reactive, watch } from 'vue';
 import { ResourceTypeEnum } from '../enums';
+import { dateFormat } from '@/common/utils/date';
 
 const props = defineProps({
     visible: {
@@ -32,8 +51,6 @@ const props = defineProps({
 
 //定义事件
 const emit = defineEmits(['update:visible', 'update:resources']);
-
-const { proxy } = getCurrentInstance() as any;
 
 const defaultProps = {
     children: 'children',
@@ -51,26 +68,6 @@ watch(
         state.dialogVisible = newValue;
     }
 );
-
-const info = (info: any) => {
-    ElMessageBox.alert(
-        '<strong style="margin-right: 18px">资源名称:</strong>' +
-            info.name +
-            ' <br/><strong style="margin-right: 18px">分配账号:</strong>' +
-            info.creator +
-            ' <br/><strong style="margin-right: 18px">分配时间:</strong>' +
-            proxy.$filters.dateFormat(info.createTime) +
-            '',
-        '分配信息',
-        {
-            type: 'info',
-            dangerouslyUseHTMLString: true,
-            closeOnClickModal: true,
-            showConfirmButton: false,
-        }
-    ).catch(() => {});
-    return;
-};
 
 const closeDialog = () => {
     emit('update:visible', false);

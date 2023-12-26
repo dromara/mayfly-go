@@ -17,6 +17,7 @@ type DbQuery struct {
 	Database string `orm:"column(database)" json:"database"`
 	Remark   string `json:"remark"`
 
+	Codes   []string
 	TagIds  []uint64 `orm:"column(tag_id)"`
 	TagPath string   `form:"tagPath"`
 

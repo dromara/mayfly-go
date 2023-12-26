@@ -1,7 +1,6 @@
 package captcha
 
 import (
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/rediscli"
 	"time"
 
@@ -12,7 +11,7 @@ var store base64Captcha.Store
 var driver base64Captcha.Driver = base64Captcha.DefaultDriverDigit
 
 // 生成验证码
-func Generate() (string, string) {
+func Generate() (string, string, error) {
 	if store == nil {
 		if rediscli.GetCli() != nil {
 			store = new(RedisStore)
@@ -23,9 +22,8 @@ func Generate() (string, string) {
 
 	c := base64Captcha.NewCaptcha(driver, store)
 	// 获取
-	id, b64s, err := c.Generate()
-	biz.ErrIsNilAppendErr(err, "获取验证码错误: %s")
-	return id, b64s
+	id, b64s, _, err := c.Generate()
+	return id, b64s, err
 }
 
 // 验证验证码

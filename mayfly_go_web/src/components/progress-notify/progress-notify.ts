@@ -1,7 +1,7 @@
 export const buildProgressProps = (): any => {
     return {
         progress: {
-            sqlFileName: {
+            title: {
                 type: String,
             },
             executedStatements: {

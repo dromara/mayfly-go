@@ -2,11 +2,11 @@ package req
 
 import (
 	"fmt"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/contextx"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/runtimex"
-	"mayfly-go/pkg/utils/stringx"
 )
 
 type SaveLogFunc func(*Ctx)
@@ -55,7 +55,7 @@ func LogHandler(rc *Ctx) error {
 	req := rc.GinCtx.Request
 	attrMap[req.Method] = req.URL.Path
 
-	if la := rc.LoginAccount; la != nil {
+	if la := contextx.GetLoginAccount(rc.MetaCtx); la != nil {
 		attrMap["uid"] = la.Id
 		attrMap["uname"] = la.Username
 	}
@@ -77,7 +77,7 @@ func LogHandler(rc *Ctx) error {
 
 		if rc.Err != nil {
 			nFrames := DefaultLogFrames
-			if _, ok := rc.Err.(biz.BizError); ok {
+			if _, ok := rc.Err.(errorx.BizError); ok {
 				nFrames = nFrames / 2
 			}
 			attrMap["error"] = rc.Err
@@ -94,10 +94,10 @@ func LogHandler(rc *Ctx) error {
 	}
 
 	if err := rc.Err; err != nil {
-		logx.ErrorWithFields(logMsg, attrMap)
+		logx.ErrorWithFields(rc.MetaCtx, logMsg, attrMap)
 		return nil
 	}
-	logx.InfoWithFields(logMsg, attrMap)
+	logx.InfoWithFields(rc.MetaCtx, logMsg, attrMap)
 	return nil
 }
 
@@ -105,12 +105,12 @@ func getLogMsg(rc *Ctx) string {
 	logInfo := rc.Conf.logInfo
 	msg := logInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
 	if !anyx.IsBlank(rc.ReqParam) {
-		msg = msg + fmt.Sprintf("\n--> %s", stringx.AnyToStr(rc.ReqParam))
+		msg = msg + fmt.Sprintf("\n--> %s", anyx.ToString(rc.ReqParam))
 	}
 
 	// 返回结果不为空，则记录返回结果
 	if logInfo.LogResp && !anyx.IsBlank(rc.ResData) {
-		msg = msg + fmt.Sprintf("\n<-- %s", stringx.AnyToStr(rc.ResData))
+		msg = msg + fmt.Sprintf("\n<-- %s", anyx.ToString(rc.ResData))
 	}
 	return msg
 }
@@ -118,13 +118,13 @@ func getLogMsg(rc *Ctx) string {
 func getErrMsg(rc *Ctx, err any) string {
 	msg := rc.Conf.logInfo.Description + fmt.Sprintf(" ->%dms", rc.timed)
 	if !anyx.IsBlank(rc.ReqParam) {
-		msg = msg + fmt.Sprintf("\n--> %s", stringx.AnyToStr(rc.ReqParam))
+		msg = msg + fmt.Sprintf("\n--> %s", anyx.ToString(rc.ReqParam))
 	}
 
 	nFrames := DefaultLogFrames
 	var errMsg string
 	switch t := err.(type) {
-	case biz.BizError:
+	case errorx.BizError:
 		errMsg = fmt.Sprintf("\n<-e %s", t.String())
 		nFrames = nFrames / 2
 	case error:

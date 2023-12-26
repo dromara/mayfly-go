@@ -1,7 +1,7 @@
 <template>
-    <div class="monaco-editor" style="border: 1px solid var(--el-border-color-light, #ebeef5)">
+    <div class="monaco-editor" style="border: 1px solid var(--el-border-color-light, #ebeef5); height: 100%">
         <div class="monaco-editor-content" ref="monacoTextarea" :style="{ height: height }"></div>
-        <el-select v-if="canChangeMode" class="code-mode-select" v-model="languageMode" @change="changeLanguage">
+        <el-select v-if="canChangeMode" class="code-mode-select" v-model="languageMode" @change="changeLanguage" filterable>
             <el-option v-for="mode in languageArr" :key="mode.value" :label="mode.label" :value="mode.value"> </el-option>
         </el-select>
     </div>
@@ -132,7 +132,7 @@ const languageArr = [
     },
 ];
 
-const options = {
+const defaultOptions = {
     language: 'shell',
     theme: 'SolarizedLight',
     automaticLayout: true, //自适应宽高布局
@@ -169,7 +169,6 @@ self.MonacoEnvironment = {
 };
 
 const state = reactive({
-    editorHeight: '500px',
     languageMode: 'shell',
 });
 
@@ -223,9 +222,9 @@ const initMonacoEditorIns = () => {
     // options参数参考 https://microsoft.github.io/monaco-editor/api/interfaces/monaco.editor.IStandaloneEditorConstructionOptions.html#language
     // 初始化一些主题
     monaco.editor.defineTheme('SolarizedLight', SolarizedLight);
-    options.language = state.languageMode;
-    options.theme = themeConfig.value.editorTheme;
-    monacoEditorIns = monaco.editor.create(monacoTextarea.value, Object.assign(options, props.options as any));
+    defaultOptions.language = state.languageMode;
+    defaultOptions.theme = themeConfig.value.editorTheme;
+    monacoEditorIns = monaco.editor.create(monacoTextarea.value, Object.assign(defaultOptions, props.options as any));
 
     // 监听内容改变,双向绑定
     monacoEditorIns.onDidChangeModelContent(() => {
@@ -295,17 +294,19 @@ const registeShell = () => {
 };
 
 const format = () => {
-    /*
-    触发自动格式化;
-   */
+    // 触发自动格式化;
     monacoEditorIns.trigger('', 'editor.action.formatDocument', '');
+};
+
+const focus = () => {
+    monacoEditorIns.focus();
 };
 
 const getEditor = () => {
     return monacoEditorIns;
 };
 
-defineExpose({ getEditor, format });
+defineExpose({ getEditor, format, focus });
 </script>
 
 <style lang="scss">

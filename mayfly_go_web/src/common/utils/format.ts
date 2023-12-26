@@ -3,21 +3,47 @@
  * @param size byte size
  * @returns
  */
-export function formatByteSize(size: any) {
-    const value = Number(size);
-    if (size && !isNaN(value)) {
-        const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB', 'BB'];
-        let index = 0;
-        let k = value;
-        if (value >= 1024) {
-            while (k > 1024) {
-                k = k / 1024;
-                index++;
-            }
-        }
-        return `${k.toFixed(2)}${units[index]}`;
+export function formatByteSize(size: number, fixed = 2) {
+    if (size === 0) {
+        return '0B';
     }
-    return '-';
+
+    const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+    const base = 1024;
+    const exponent = Math.floor(Math.log(size) / Math.log(base));
+
+    return parseFloat((size / Math.pow(base, exponent)).toFixed(fixed)) + units[exponent];
+}
+
+/**
+ * 容量转为对应的字节大小，如 1KB转为 1024
+ * @param sizeString  1kb 1gb等
+ * @returns
+ */
+export function convertToBytes(sizeStr: string) {
+    sizeStr = sizeStr.trim();
+    const unit = sizeStr.slice(-2);
+
+    const valueStr = sizeStr.slice(0, -2);
+    const value = parseInt(valueStr, 10);
+
+    let bytes = 0;
+
+    switch (unit.toUpperCase()) {
+        case 'KB':
+            bytes = value * 1024;
+            break;
+        case 'MB':
+            bytes = value * 1024 * 1024;
+            break;
+        case 'GB':
+            bytes = value * 1024 * 1024 * 1024;
+            break;
+        default:
+            throw new Error('Invalid size unit');
+    }
+
+    return bytes;
 }
 
 /**

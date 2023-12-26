@@ -1,6 +1,7 @@
 package anyx
 
 import (
+	"encoding/json"
 	"reflect"
 	"strconv"
 )
@@ -74,4 +75,48 @@ func IsBlank(value any) bool {
 		return rValue.IsNil()
 	}
 	return reflect.DeepEqual(rValue.Interface(), reflect.Zero(rValue.Type()).Interface())
+}
+
+// any to string
+func ToString(value any) string {
+	// interface 转 string
+	if value == nil {
+		return ""
+	}
+
+	switch it := value.(type) {
+	case string:
+		return it
+	case error:
+		return it.Error()
+	case float64:
+		return strconv.FormatFloat(it, 'f', -1, 64)
+	case float32:
+		return strconv.FormatFloat(float64(it), 'f', -1, 64)
+	case int:
+		return strconv.Itoa(it)
+	case uint:
+		return strconv.Itoa(int(it))
+	case int8:
+		return strconv.Itoa(int(it))
+	case uint8:
+		return strconv.Itoa(int(it))
+	case int16:
+		return strconv.Itoa(int(it))
+	case uint16:
+		return strconv.Itoa(int(it))
+	case int32:
+		return strconv.Itoa(int(it))
+	case uint32:
+		return strconv.Itoa(int(it))
+	case int64:
+		return strconv.FormatInt(it, 10)
+	case uint64:
+		return strconv.FormatUint(it, 10)
+	case []byte:
+		return string(it)
+	default:
+		newValue, _ := json.Marshal(value)
+		return string(newValue)
+	}
 }

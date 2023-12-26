@@ -15,23 +15,15 @@
     </el-container>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup name="layoutColumns">
 import { computed } from 'vue';
 import Aside from '@/layout/component/aside.vue';
 import Header from '@/layout/component/header.vue';
 import Main from '@/layout/component/main.vue';
 import ColumnsAside from '@/layout/component/columnsAside.vue';
 import { useThemeConfig } from '@/store/themeConfig';
-export default {
-    name: 'layoutColumns',
-    components: { Aside, Header, Main, ColumnsAside },
-    setup() {
-        const isFixedHeader = computed(() => {
-            return useThemeConfig().themeConfig.isFixedHeader;
-        });
-        return {
-            isFixedHeader,
-        };
-    },
-};
+
+const isFixedHeader = computed(() => {
+    return useThemeConfig().themeConfig.isFixedHeader;
+});
 </script>

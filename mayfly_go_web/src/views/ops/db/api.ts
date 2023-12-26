@@ -1,4 +1,5 @@
 import Api from '@/common/Api';
+import { Base64 } from 'js-base64';
 
 export const dbApi = {
     // 获取权限列表
@@ -10,11 +11,17 @@ export const dbApi = {
     tableInfos: Api.newGet('/dbs/{id}/t-infos'),
     tableIndex: Api.newGet('/dbs/{id}/t-index'),
     tableDdl: Api.newGet('/dbs/{id}/t-create-ddl'),
-    tableMetadata: Api.newGet('/dbs/{id}/t-metadata'),
     columnMetadata: Api.newGet('/dbs/{id}/c-metadata'),
+    pgSchemas: Api.newGet('/dbs/{id}/pg/schemas'),
     // 获取表即列提示
     hintTables: Api.newGet('/dbs/{id}/hint-tables'),
-    sqlExec: Api.newPost('/dbs/{id}/exec-sql'),
+    sqlExec: Api.newPost('/dbs/{id}/exec-sql').withBeforeHandler((param: any) => {
+        // sql编码处理
+        if (param.sql) {
+            param.sql = Base64.encode(param.sql);
+        }
+        return param;
+    }),
     // 保存sql
     saveSql: Api.newPost('/dbs/{id}/sql'),
     // 获取保存的sql
@@ -27,8 +34,10 @@ export const dbApi = {
 
     // 获取权限列表
     instances: Api.newGet('/instances'),
-    getInstance: Api.newGet("/instances/{instanceId}"),
+    getInstance: Api.newGet('/instances/{instanceId}'),
     getAllDatabase: Api.newGet('/instances/{instanceId}/databases'),
+    getInstanceServerInfo: Api.newGet('/instances/{instanceId}/server-info'),
+    testConn: Api.newPost('/instances/test-conn'),
     saveInstance: Api.newPost('/instances'),
     getInstancePwd: Api.newGet('/instances/{id}/pwd'),
     deleteInstance: Api.newDelete('/instances/{id}'),

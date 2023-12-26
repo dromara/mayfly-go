@@ -3,7 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 )
 
 const (
@@ -44,17 +44,17 @@ func SuccessNoData() *Result {
 	return &Result{Code: SuccessCode, Msg: SuccessMsg}
 }
 
-func Error(bizerr biz.BizError) *Result {
+func Error(bizerr errorx.BizError) *Result {
 	return &Result{Code: bizerr.Code(), Msg: bizerr.Error()}
 }
 
 // 返回服务器错误Result
 func ServerError() *Result {
-	return Error(biz.ServerError)
+	return Error(errorx.ServerError)
 }
 
 func TokenError() *Result {
-	return Error(biz.PermissionErr)
+	return Error(errorx.PermissionErr)
 }
 
 func ErrorBy(code int16, msg string) *Result {

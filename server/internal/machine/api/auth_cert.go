@@ -18,14 +18,17 @@ type AuthCert struct {
 
 func (ac *AuthCert) BaseAuthCerts(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.AuthCertQuery))
-	rc.ResData = ac.AuthCertApp.GetPageList(queryCond, page, new([]vo.AuthCertBaseVO))
+	res, err := ac.AuthCertApp.GetPageList(queryCond, page, new([]vo.AuthCertBaseVO))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (ac *AuthCert) AuthCerts(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.AuthCertQuery))
 
 	res := new([]*entity.AuthCert)
-	pageRes := ac.AuthCertApp.GetPageList(queryCond, page, res)
+	pageRes, err := ac.AuthCertApp.GetPageList(queryCond, page, res)
+	biz.ErrIsNil(err)
 	for _, r := range *res {
 		r.PwdDecrypt()
 	}
@@ -41,8 +44,7 @@ func (c *AuthCert) SaveAuthCert(rc *req.Ctx) {
 	acForm.Password = "***"
 	rc.ReqParam = acForm
 
-	ac.SetBaseInfo(rc.LoginAccount)
-	c.AuthCertApp.Save(ac)
+	biz.ErrIsNil(c.AuthCertApp.Save(rc.MetaCtx, ac))
 }
 
 func (c *AuthCert) Delete(rc *req.Ctx) {
@@ -53,6 +55,6 @@ func (c *AuthCert) Delete(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		c.AuthCertApp.DeleteById(uint64(value))
+		c.AuthCertApp.DeleteById(rc.MetaCtx, uint64(value))
 	}
 }

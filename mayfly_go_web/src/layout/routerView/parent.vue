@@ -1,13 +1,11 @@
 <template>
-    <div class="h100">
-        <router-view v-slot="{ Component }">
-            <transition :name="setTransitionName" mode="out-in">
-                <keep-alive :include="getKeepAliveNames">
-                    <component :is="Component" :key="state.refreshRouterViewKey" class="w100" />
-                </keep-alive>
-            </transition>
-        </router-view>
-    </div>
+    <router-view v-slot="{ Component }">
+        <transition appear :name="setTransitionName" mode="out-in">
+            <keep-alive :include="getKeepAliveNames">
+                <component :is="Component" :key="state.refreshRouterViewKey" />
+            </keep-alive>
+        </transition>
+    </router-view>
 </template>
 
 <script lang="ts" setup name="layoutParentView">

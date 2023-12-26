@@ -7,14 +7,17 @@ import (
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
+	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
-	"mayfly-go/internal/machine/infrastructure/machine"
+	"mayfly-go/internal/machine/mcm"
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/timex"
 	"mime/multipart"
@@ -42,20 +45,21 @@ const (
 func (m *MachineFile) MachineFiles(rc *req.Ctx) {
 	g := rc.GinCtx
 	condition := &entity.MachineFile{MachineId: GetMachineId(g)}
-	rc.ResData = m.MachineFileApp.GetPageList(condition, ginx.GetPageParam(g), new([]vo.MachineFileVO))
+	res, err := m.MachineFileApp.GetPageList(condition, ginx.GetPageParam(g), new([]vo.MachineFileVO))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (m *MachineFile) SaveMachineFiles(rc *req.Ctx) {
 	fileForm := new(form.MachineFileForm)
 	entity := ginx.BindJsonAndCopyTo[*entity.MachineFile](rc.GinCtx, fileForm, new(entity.MachineFile))
-	entity.SetBaseInfo(rc.LoginAccount)
 
 	rc.ReqParam = fileForm
-	m.MachineFileApp.Save(entity)
+	biz.ErrIsNil(m.MachineFileApp.Save(rc.MetaCtx, entity))
 }
 
 func (m *MachineFile) DeleteFile(rc *req.Ctx) {
-	m.MachineFileApp.Delete(GetMachineFileId(rc.GinCtx))
+	biz.ErrIsNil(m.MachineFileApp.DeleteById(rc.MetaCtx, GetMachineFileId(rc.GinCtx)))
 }
 
 /***      sftp相关操作      */
@@ -68,7 +72,7 @@ func (m *MachineFile) CreateFile(rc *req.Ctx) {
 	path := form.Path
 
 	attrs := collx.Kvs("path", path)
-	var mi *machine.Info
+	var mi *mcm.MachineInfo
 	var err error
 	if form.Type == dir {
 		attrs["type"] = "目录"
@@ -120,7 +124,9 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 	if !strings.HasSuffix(readPath, "/") {
 		readPath = readPath + "/"
 	}
-	fis := m.MachineFileApp.ReadDir(fid, readPath)
+	fis, err := m.MachineFileApp.ReadDir(fid, readPath)
+	biz.ErrIsNilAppendErr(err, "读取目录失败: %s")
+
 	fisVO := make([]vo.MachineFileInfo, 0)
 	for _, fi := range fis {
 		fisVO = append(fisVO, vo.MachineFileInfo{
@@ -142,7 +148,9 @@ func (m *MachineFile) GetDirSize(rc *req.Ctx) {
 	fid := GetMachineFileId(g)
 	readPath := g.Query("path")
 
-	rc.ResData = m.MachineFileApp.GetDirSize(fid, readPath)
+	size, err := m.MachineFileApp.GetDirSize(fid, readPath)
+	biz.ErrIsNil(err)
+	rc.ResData = size
 }
 
 func (m *MachineFile) GetFileStat(rc *req.Ctx) {
@@ -150,7 +158,9 @@ func (m *MachineFile) GetFileStat(rc *req.Ctx) {
 	fid := GetMachineFileId(g)
 	readPath := g.Query("path")
 
-	rc.ResData = m.MachineFileApp.FileStat(fid, readPath)
+	res, err := m.MachineFileApp.FileStat(fid, readPath)
+	biz.ErrIsNil(err, res)
+	rc.ResData = res
 }
 
 func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
@@ -166,8 +176,6 @@ func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
 }
 
-const MaxUploadFileSize int64 = 1024 * 1024 * 1024
-
 func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
@@ -175,19 +183,18 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 
 	fileheader, err := g.FormFile("file")
 	biz.ErrIsNilAppendErr(err, "读取文件失败: %s")
-	biz.IsTrue(fileheader.Size <= MaxUploadFileSize, "文件大小不能超过%d字节", MaxUploadFileSize)
+
+	maxUploadFileSize := config.GetMachine().UploadMaxFileSize
+	biz.IsTrue(fileheader.Size <= maxUploadFileSize, "文件大小不能超过%d字节", maxUploadFileSize)
 
 	file, _ := fileheader.Open()
 	defer file.Close()
 
-	la := rc.LoginAccount
+	la := rc.GetLoginAccount()
 	defer func() {
-		if err := recover(); err != nil {
+		if anyx.ToString(recover()) != "" {
 			logx.Errorf("文件上传失败: %s", err)
-			switch t := err.(type) {
-			case biz.BizError:
-				m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
-			}
+			m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e : %s", err)))
 		}
 	}()
 
@@ -217,14 +224,19 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	allFileSize := collx.ArrayReduce(fileheaders, 0, func(i int64, fh *multipart.FileHeader) int64 {
 		return i + fh.Size
 	})
-	biz.IsTrue(allFileSize <= MaxUploadFileSize, "文件夹总大小不能超过%d字节", MaxUploadFileSize)
+
+	maxUploadFileSize := config.GetMachine().UploadMaxFileSize
+	biz.IsTrue(allFileSize <= maxUploadFileSize, "文件夹总大小不能超过%d字节", maxUploadFileSize)
 
 	paths := mf.Value["paths"]
 
 	folderName := filepath.Dir(paths[0])
-	mcli := m.MachineFileApp.GetMachineCli(fid, basePath+"/"+folderName)
-	mi := mcli.GetMachine()
-	sftpCli := mcli.GetSftpCli()
+	mcli, err := m.MachineFileApp.GetMachineCli(fid, basePath+"/"+folderName)
+	biz.ErrIsNil(err)
+	mi := mcli.Info
+
+	sftpCli, err := mcli.GetSftpCli()
+	biz.ErrIsNil(err)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", fmt.Sprintf("%s/%s", basePath, folderName))
 
 	folderFiles := make([]FolderFile, len(paths))
@@ -251,16 +263,18 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	// 设置要等待的协程数量
 	wg.Add(len(chunks))
 
-	la := rc.LoginAccount
+	isSuccess := true
+	la := rc.GetLoginAccount()
 	for _, chunk := range chunks {
 		go func(files []FolderFile, wg *sync.WaitGroup) {
 			defer func() {
 				// 协程执行完成后调用Done方法
 				wg.Done()
 				if err := recover(); err != nil {
+					isSuccess = false
 					logx.Errorf("文件上传失败: %s", err)
 					switch t := err.(type) {
-					case biz.BizError:
+					case errorx.BizError:
 						m.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("文件上传失败", fmt.Sprintf("执行文件上传失败：\n<-e errCode: %d, errMsg: %s", t.Code(), t.Error())))
 					}
 				}
@@ -284,8 +298,10 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 
 	// 等待所有协程执行完成
 	wg.Wait()
-	// 保存消息并发送文件上传成功通知
-	m.MsgApp.CreateAndSend(rc.LoginAccount, msgdto.SuccessSysMsg("文件上传成功", fmt.Sprintf("[%s]文件夹已成功上传至 %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
+	if isSuccess {
+		// 保存消息并发送文件上传成功通知
+		m.MsgApp.CreateAndSend(la, msgdto.SuccessSysMsg("文件上传成功", fmt.Sprintf("[%s]文件夹已成功上传至 %s[%s:%s]", folderName, mi.Name, mi.Ip, basePath)))
+	}
 }
 
 func (m *MachineFile) RemoveFile(rc *req.Ctx) {

@@ -1,155 +1,144 @@
 <template>
-    <div>
-        <el-row>
-            <el-col :span="4">
-                <el-row type="flex" justify="space-between">
-                    <el-col :span="24" class="flex-auto">
-                        <tag-tree @node-click="nodeClick" :load="loadNode">
-                            <template #prefix="{ data }">
-                                <span v-if="data.type == NodeType.Redis">
-                                    <el-popover placement="right-start" title="redis实例信息" trigger="hover" :width="210">
-                                        <template #reference>
-                                            <SvgIcon name="iconfont icon-op-redis" :size="18" />
-                                        </template>
-                                        <template #default>
-                                            <el-form class="instances-pop-form" label-width="auto" :size="'small'">
-                                                <el-form-item label="名称:">{{ data.params.name }}</el-form-item>
-                                                <el-form-item label="模式:">{{ data.params.mode }}</el-form-item>
-                                                <el-form-item label="链接:">{{ data.params.host }}</el-form-item>
-                                                <el-form-item label="备注:">{{ data.params.remark }}</el-form-item>
-                                            </el-form>
-                                        </template>
-                                    </el-popover>
-                                </span>
+    <div class="redis-data-op flex-all-center">
+        <Splitpanes class="default-theme">
+            <Pane size="20" max-size="30">
+                <tag-tree :resource-type="TagResourceTypeEnum.Redis.value" :tag-path-node-type="NodeTypeTagPath">
+                    <template #prefix="{ data }">
+                        <span v-if="data.type.value == RedisNodeType.Redis">
+                            <el-popover :show-after="500" placement="right-start" title="redis实例信息" trigger="hover" :width="250">
+                                <template #reference>
+                                    <SvgIcon name="iconfont icon-op-redis" :size="18" />
+                                </template>
+                                <template #default>
+                                    <el-descriptions :column="1" size="small">
+                                        <el-descriptions-item label="名称">
+                                            {{ data.params.name }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="模式">
+                                            {{ data.params.mode }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="host">
+                                            {{ data.params.host }}
+                                        </el-descriptions-item>
+                                        <el-descriptions-item label="备注" label-align="right">
+                                            {{ data.params.remark }}
+                                        </el-descriptions-item>
+                                    </el-descriptions>
+                                </template>
+                            </el-popover>
+                        </span>
 
-                                <SvgIcon v-if="data.type == NodeType.Db" name="Coin" color="#67c23a" />
+                        <SvgIcon v-if="data.type.value == RedisNodeType.Db" name="Coin" color="#67c23a" />
+                    </template>
+                </tag-tree>
+            </Pane>
+
+            <Pane min-size="20" size="30">
+                <div class="key-list-vtree card pd5">
+                    <el-scrollbar>
+                        <el-row>
+                            <el-col :span="2">
+                                <el-input v-model="state.keySeparator" placeholder="分割符" size="small" class="ml5" />
+                            </el-col>
+                            <el-col :span="18">
+                                <el-input @clear="clear" v-model="scanParam.match" placeholder="match 支持*模糊key" clearable size="small" class="ml10" />
+                            </el-col>
+                            <el-col :span="4">
+                                <el-button
+                                    class="ml15"
+                                    :disabled="!scanParam.id || !scanParam.db"
+                                    @click="searchKey()"
+                                    type="success"
+                                    icon="search"
+                                    size="small"
+                                    plain
+                                ></el-button>
+                            </el-col>
+                        </el-row>
+
+                        <el-row class="mb5 mt5">
+                            <el-col :span="19">
+                                <el-button
+                                    class="ml5"
+                                    :disabled="!scanParam.id || !scanParam.db"
+                                    @click="scan(true)"
+                                    type="success"
+                                    icon="more"
+                                    size="small"
+                                    plain
+                                    >加载更多</el-button
+                                >
+
+                                <el-button
+                                    v-auth="'redis:data:save'"
+                                    :disabled="!scanParam.id || !scanParam.db"
+                                    @click="showNewKeyDialog"
+                                    type="primary"
+                                    icon="plus"
+                                    size="small"
+                                    plain
+                                    >新增key</el-button
+                                >
+
+                                <el-button
+                                    :disabled="!scanParam.id || !scanParam.db"
+                                    @click="flushDb"
+                                    type="danger"
+                                    plain
+                                    v-auth="'redis:data:del'"
+                                    size="small"
+                                    icon="delete"
+                                    >flush</el-button
+                                >
+                            </el-col>
+                            <el-col :span="5">
+                                <span style="display: inline-block" class="mt5">keys:{{ state.dbsize }}</span>
+                            </el-col>
+                        </el-row>
+
+                        <el-tree
+                            ref="keyTreeRef"
+                            :highlight-current="true"
+                            :data="keyTreeData"
+                            :props="treeProps"
+                            :indent="8"
+                            node-key="key"
+                            :auto-expand-parent="false"
+                            :default-expanded-keys="Array.from(state.keyTreeExpanded)"
+                            @node-click="handleKeyTreeNodeClick"
+                            @node-expand="keyTreeNodeExpand"
+                            @node-collapse="keyTreeNodeCollapse"
+                            @node-contextmenu="rightClickNode"
+                        >
+                            <template #default="{ node, data }">
+                                <span class="el-dropdown-link key-list-custom-node" :title="node.label">
+                                    <span v-if="data.type == 1">
+                                        <SvgIcon :size="15" :name="node.expanded ? 'folder-opened' : 'folder'" />
+                                    </span>
+                                    <span :class="'ml5 ' + (data.type == 1 ? 'folder-label' : 'key-label')">
+                                        {{ node.label }}
+                                    </span>
+
+                                    <span v-if="!node.isLeaf" class="ml5" style="font-weight: bold"> ({{ data.keyCount }}) </span>
+                                </span>
                             </template>
-                        </tag-tree>
-                    </el-col>
-                </el-row>
-            </el-col>
+                        </el-tree>
+                    </el-scrollbar>
 
-            <el-col v-loading="state.loadingKeyTree" :span="7">
-                <div class="key-list-vtree">
-                    <el-row>
-                        <el-col :span="2">
-                            <el-input v-model="state.keySeparator" placeholder="分割符" size="small" class="ml5" />
-                        </el-col>
-                        <el-col :span="18">
-                            <el-input @clear="clear" v-model="scanParam.match" placeholder="match 支持*模糊key" clearable size="small" class="ml10" />
-                        </el-col>
-                        <el-col :span="4">
-                            <el-button
-                                class="ml15"
-                                :disabled="!scanParam.id || !scanParam.db"
-                                @click="searchKey()"
-                                type="success"
-                                icon="search"
-                                size="small"
-                                plain
-                            ></el-button>
-                        </el-col>
-                    </el-row>
-
-                    <el-row class="mb5 mt5">
-                        <el-col :span="19">
-                            <el-button class="ml5" :disabled="!scanParam.id || !scanParam.db" @click="scan(true)" type="success" icon="more" size="small" plain
-                                >加载更多</el-button
-                            >
-
-                            <el-button
-                                v-auth="'redis:data:save'"
-                                :disabled="!scanParam.id || !scanParam.db"
-                                @click="showNewKeyDialog"
-                                type="primary"
-                                icon="plus"
-                                size="small"
-                                plain
-                                >新增key</el-button
-                            >
-
-                            <el-button
-                                :disabled="!scanParam.id || !scanParam.db"
-                                @click="flushDb"
-                                type="danger"
-                                plain
-                                v-auth="'redis:data:del'"
-                                size="small"
-                                icon="delete"
-                                >flush</el-button
-                            >
-                        </el-col>
-                        <el-col :span="5">
-                            <span style="display: inline-block" class="mt5">keys:{{ state.dbsize }}</span>
-                        </el-col>
-                    </el-row>
-
-                    <el-tree
-                        :style="{
-                            maxHeight: state.keyTreeHeight,
-                            height: state.keyTreeHeight,
-                            overflow: 'auto',
-                            border: '1px solid var(--el-border-color-light, #ebeef5)',
-                            marginLeft: '5px',
-                        }"
-                        ref="keyTreeRef"
-                        :highlight-current="true"
-                        :data="keyTreeData"
-                        :props="treeProps"
-                        :indent="8"
-                        node-key="key"
-                        :auto-expand-parent="false"
-                        :default-expanded-keys="Array.from(state.keyTreeExpanded)"
-                        @node-click="handleKeyTreeNodeClick"
-                        @node-expand="keyTreeNodeExpand"
-                        @node-collapse="keyTreeNodeCollapse"
-                        @node-contextmenu="rightClickNode"
-                    >
-                        <template #default="{ node, data }">
-                            <span class="el-dropdown-link key-list-custom-node" :title="node.label">
-                                <span v-if="data.type == 1">
-                                    <SvgIcon :size="15" :name="node.expanded ? 'folder-opened' : 'folder'" />
-                                </span>
-                                <span :class="'ml5 ' + (data.type == 1 ? 'folder-label' : 'key-label')">
-                                    {{ node.label }}
-                                </span>
-
-                                <span v-if="!node.isLeaf" class="ml5" style="font-weight: bold"> ({{ data.keyCount }}) </span>
-                            </span>
-                        </template>
-                    </el-tree>
-
-                    <!-- right context menu -->
-                    <div ref="rightMenuRef" class="key-list-right-menu">
-                        <!-- folder right menu -->
-                        <div v-if="!state.rightClickNode?.isLeaf"></div>
-                        <!-- key right menu -->
-                        <div v-else>
-                            <el-row>
-                                <el-link @click="showKeyDetail(state.rightClickNode.key, true)" type="primary" icon="plus" :underline="false"
-                                    >新tab打开</el-link
-                                >
-                            </el-row>
-                            <el-row class="mt5">
-                                <el-link @click="delKey(state.rightClickNode.key)" v-auth="'redis:data:del'" type="danger" icon="delete" :underline="false"
-                                    >删除</el-link
-                                >
-                            </el-row>
-                        </div>
-                    </div>
+                    <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
                 </div>
-            </el-col>
+            </Pane>
 
-            <el-col :span="13" style="border-left: 1px solid var(--el-card-border-color)">
-                <div class="ml5">
-                    <el-tabs @tab-remove="removeDataTab" style="width: 100%" v-model="state.activeName">
+            <Pane min-size="40">
+                <div class="key-detail card pd5">
+                    <el-tabs @tab-remove="removeDataTab" v-model="state.activeName">
                         <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
                             <key-detail :redisId="scanParam.id" :db="scanParam.db" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />
                         </el-tab-pane>
                     </el-tabs>
                 </div>
-            </el-col>
-        </el-row>
+            </Pane>
+        </Splitpanes>
 
         <div style="text-align: center; margin-top: 10px"></div>
 
@@ -184,19 +173,96 @@ import { redisApi } from './api';
 import { ref, defineAsyncComponent, toRefs, reactive, onMounted, nextTick } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { isTrue, notBlank, notNull } from '@/common/assert';
-import { TagTreeNode } from '../component/tag';
+import { copyToClipboard } from '@/common/utils/string';
+import { TagTreeNode, NodeType } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { keysToTree, sortByTreeNodes, keysToList } from './utils';
+import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
+import { sleep } from '@/common/utils/loading';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { Splitpanes, Pane } from 'splitpanes';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
+
+const contextmenuRef = ref();
+
+const cmCopyKey = new ContextmenuItem('copyValue', '复制')
+    .withIcon('CopyDocument')
+    .withHideFunc((data: any) => !data.isLeaf)
+    .withOnClick(async (data: any) => await copyToClipboard(data.key));
+
+const cmNewTabOpen = new ContextmenuItem('newTabOpenKey', '新tab打开')
+    .withIcon('plus')
+    .withHideFunc((data: any) => !data.isLeaf)
+    .withOnClick((data: any) => showKeyDetail(data.key, true));
+
+const cmDelKey = new ContextmenuItem('delKey', '删除')
+    .withIcon('delete')
+    .withPermission('redis:data:del')
+    .withHideFunc((data: any) => !data.isLeaf)
+    .withOnClick((data: any) => delKey(data.key));
 
 /**
  * 树节点类型
  */
-class NodeType {
+class RedisNodeType {
     static Redis = 1;
     static Db = 2;
 }
+
+// tagpath 节点类型
+const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const res = await redisApi.redisList.request({ tagPath: parentNode.key });
+    if (!res.total) {
+        return [];
+    }
+
+    const redisInfos = res.list;
+    await sleep(100);
+    return redisInfos.map((x: any) => {
+        x.tagPath = parentNode.key;
+        return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeRedis).withParams(x);
+    });
+});
+
+// redis实例节点类型
+const NodeTypeRedis = new NodeType(RedisNodeType.Redis).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+    const redisInfo = parentNode.params;
+    let dbs: TagTreeNode[] = redisInfo.db.split(',').map((x: string) => {
+        return new TagTreeNode(x, `db${x}`, NodeTypeDb).withIsLeaf(true).withParams({
+            id: redisInfo.id,
+            db: x,
+            name: `db${x}`,
+            keys: 0,
+        });
+    });
+
+    if (redisInfo.mode == 'cluster') {
+        return dbs;
+    }
+
+    const res = await redisApi.redisInfo.request({ id: redisInfo.id, host: redisInfo.host, section: 'Keyspace' });
+    for (let db in res.Keyspace) {
+        for (let d of dbs) {
+            if (db == d.params.name) {
+                d.params.keys = res.Keyspace[db]?.split(',')[0]?.split('=')[1] || 0;
+            }
+        }
+    }
+    // 替换label
+    dbs.forEach((e: any) => {
+        e.label = `${e.params.name} [${e.params.keys}]`;
+    });
+    return dbs;
+});
+
+// 库节点类型
+const NodeTypeDb = new NodeType(RedisNodeType.Db).withNodeClickFunc((nodeData: TagTreeNode) => {
+    resetScanParam();
+    state.scanParam.id = nodeData.params.id;
+    state.scanParam.db = nodeData.params.db;
+    scan();
+});
 
 const treeProps = {
     label: 'name',
@@ -207,13 +273,12 @@ const treeProps = {
 const defaultCount = 250;
 
 const keyTreeRef: any = ref(null);
-const rightMenuRef: any = ref(null);
 
 const state = reactive({
     tags: [],
     redisList: [] as any,
     dbList: [],
-    keyTreeHeight: window.innerHeight - 147 - 30 + 'px',
+    keyTreeHeight: '100px',
     loadingKeyTree: false,
     keys: [] as any,
     keySeparator: ':',
@@ -239,112 +304,18 @@ const state = reactive({
         },
     },
     dbsize: 0,
+    contextmenu: {
+        dropdown: {
+            x: 0,
+            y: 0,
+        },
+        items: [cmCopyKey, cmNewTabOpen, cmDelKey],
+    },
 });
 
 const { scanParam, keyTreeData, newKeyDialog } = toRefs(state);
 
-onMounted(async () => {
-    setHeight();
-    // 监听浏览器窗口大小变化,更新对应组件高度
-    window.onresize = () => setHeight();
-});
-
-const setHeight = () => {
-    state.keyTreeHeight = window.innerHeight - 174 + 'px';
-};
-
-/**
- * instmap;  tagPaht -> redis info[]
- */
-const instMap: Map<string, any[]> = new Map();
-
-const getInsts = async () => {
-    const res = await redisApi.redisList.request({ pageNum: 1, pageSize: 1000 });
-    if (!res.total) return;
-    for (const redisInfo of res.list) {
-        const tagPath = redisInfo.tagPath;
-        let redisInsts = instMap.get(tagPath) || [];
-        redisInsts.push(redisInfo);
-        instMap.set(tagPath, redisInsts);
-    }
-};
-
-/**
- * 加载文件树节点
- * @param {Object} node
- * @param {Object} resolve
- */
-const loadNode = async (node: any) => {
-    // 一级为tagPath
-    if (node.level === 0) {
-        await getInsts();
-        const tagPaths = instMap.keys();
-        const tagNodes = [];
-        for (let tagPath of tagPaths) {
-            tagNodes.push(new TagTreeNode(tagPath, tagPath));
-        }
-        return tagNodes;
-    }
-
-    const data = node.data;
-    // 点击tagPath -> 加载数据库信息列表
-    if (data.type === TagTreeNode.TagPath) {
-        const redisInfos = instMap.get(data.key);
-        return redisInfos?.map((x: any) => {
-            return new TagTreeNode(`${data.key}.${x.id}`, x.name, NodeType.Redis).withParams(x);
-        });
-    }
-
-    // 点击redis实例 -> 加载库列表
-    if (data.type === NodeType.Redis) {
-        return await getDbs(data.params);
-    }
-
-    return [];
-};
-
-const nodeClick = (data: any) => {
-    // 点击库事件
-    if (data.type === NodeType.Db) {
-        resetScanParam();
-        state.scanParam.id = data.params.id;
-        state.scanParam.db = data.params.db;
-        scan();
-    }
-};
-
-/**
- * 获取所有库信息
- * @param redisInfo redis信息
- */
-const getDbs = async (redisInfo: any) => {
-    let dbs: TagTreeNode[] = redisInfo.db.split(',').map((x: string) => {
-        return new TagTreeNode(x, `db${x}`, NodeType.Db).withIsLeaf(true).withParams({
-            id: redisInfo.id,
-            db: x,
-            name: `db${x}`,
-            keys: 0,
-        });
-    });
-
-    if (redisInfo.mode == 'cluster') {
-        return dbs;
-    }
-
-    const res = await redisApi.redisInfo.request({ id: redisInfo.id, host: redisInfo.host, section: 'Keyspace' });
-    for (let db in res.Keyspace) {
-        for (let d of dbs) {
-            if (db == d.params.name) {
-                d.params.keys = res.Keyspace[db]?.split(',')[0]?.split('=')[1] || 0;
-            }
-        }
-    }
-    // 替换label
-    dbs.forEach((e: any) => {
-        e.label = `${e.params.name} [${e.params.keys}]`;
-    });
-    return dbs;
-};
+onMounted(async () => {});
 
 const scan = async (appendKey = false) => {
     isTrue(state.scanParam.id != null, '请先选择redis');
@@ -412,7 +383,8 @@ const expandAllKeyNode = (nodes: any) => {
 };
 
 const handleKeyTreeNodeClick = async (data: any) => {
-    hideAllMenus();
+    // 关闭可能存在的右击菜单
+    contextmenuRef.value.closeContextmenu();
     // 目录则不做处理
     if (data.type == 1) {
         return;
@@ -471,7 +443,7 @@ const removeDataTab = (targetName: string) => {
     delete state.dataTabs[targetName];
 };
 
-const keyTreeNodeExpand = (data: any, node: any, component: any) => {
+const keyTreeNodeExpand = (data: any, node: any) => {
     state.keyTreeExpanded.add(data.key);
     // async sort nodes
     if (!node.customSorted) {
@@ -480,45 +452,16 @@ const keyTreeNodeExpand = (data: any, node: any, component: any) => {
     }
 };
 
-const keyTreeNodeCollapse = (data: any, node: any, component: any) => {
+const keyTreeNodeCollapse = (data: any) => {
     state.keyTreeExpanded.delete(data.key);
 };
 
 const rightClickNode = (event: any, data: any, node: any) => {
-    hideAllMenus();
-
+    const { clientX, clientY } = event;
+    state.contextmenu.dropdown.x = clientX;
+    state.contextmenu.dropdown.y = clientY;
+    contextmenuRef.value.openContextmenu(node);
     keyTreeRef.value.setCurrentKey(node.key);
-    state.rightClickNode = node;
-
-    // nextTick for dom render
-    nextTick(() => {
-        let top = event.clientY;
-        const menu = rightMenuRef.value;
-        menu.style.display = 'block';
-
-        // position in bottom
-        if (document.body.clientHeight - top < menu.clientHeight) {
-            top -= menu.clientHeight;
-        }
-
-        menu.style.left = `${event.clientX}px`;
-        menu.style.top = `${top}px`;
-
-        document.addEventListener('click', hideAllMenus, { once: true });
-    });
-};
-
-const hideAllMenus = () => {
-    let menus: any = document.querySelectorAll('.key-list-right-menu');
-
-    if (menus.length === 0) {
-        return;
-    }
-
-    state.rightClickNode = null;
-    for (const menu of menus) {
-        menu.style.display = 'none';
-    }
 };
 
 const searchKey = async () => {
@@ -629,47 +572,27 @@ const delKey = (key: string) => {
 </script>
 
 <style lang="scss">
-.instances-pop-form {
-    .el-form-item {
-        margin-bottom: unset;
+.redis-data-op {
+    .key-list-vtree,
+    .key-detail {
+        height: calc(100vh - 108px);
     }
-}
 
-.key-list-vtree {
-    height: calc(100vh - 250px);
-}
+    .key-list-vtree .folder-label {
+        font-weight: bold;
+    }
 
-.key-list-vtree .folder-label {
-    font-weight: bold;
-}
+    .key-list-vtree .key-label {
+        color: #67c23a;
+    }
 
-.key-list-vtree .key-label {
-    color: #67c23a;
-}
-
-.key-list-vtree .key-list-custom-node {
-    width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    /*note the following 2 items should be same value, may not consist with itemSize*/
-    height: 22px;
-    line-height: 22px;
-}
-
-/* right menu style start */
-.key-list-right-menu {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    padding: 5px;
-    z-index: 99999;
-    overflow: hidden;
-    border-radius: 3px;
-    border: 2px solid lightgrey;
-    background: #fafafa;
-}
-.dark-mode .key-list-right-menu {
-    background: #263238;
+    .key-list-vtree .key-list-custom-node {
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        /*note the following 2 items should be same value, may not consist with itemSize*/
+        height: 22px;
+        line-height: 22px;
+    }
 }
 </style>

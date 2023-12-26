@@ -3,11 +3,13 @@ package req
 import (
 	"encoding/json"
 	"fmt"
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/config"
+	"mayfly-go/pkg/contextx"
+	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
-	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/anyx"
 	"time"
 )
 
@@ -47,20 +49,22 @@ func PermissionHandler(rc *Ctx) error {
 		tokenStr = rc.GinCtx.Query("token")
 	}
 	if tokenStr == "" {
-		return biz.PermissionErr
+		return errorx.PermissionErr
 	}
-	loginAccount, err := ParseToken(tokenStr)
-	if err != nil || loginAccount == nil {
-		return biz.PermissionErr
+	userId, userName, err := ParseToken(tokenStr)
+	if err != nil || userId == 0 {
+		return errorx.PermissionErr
 	}
 	// 权限不为nil，并且permission code不为空，则校验是否有权限code
 	if permission != nil && permission.Code != "" {
-		if !permissionCodeRegistry.HasCode(loginAccount.Id, permission.Code) {
-			return biz.PermissionErr
+		if !permissionCodeRegistry.HasCode(userId, permission.Code) {
+			return errorx.PermissionErr
 		}
 	}
-
-	rc.LoginAccount = loginAccount
+	rc.MetaCtx = contextx.WithLoginAccount(rc.MetaCtx, &model.LoginAccount{
+		Id:       userId,
+		Username: userName,
+	})
 	return nil
 }
 
@@ -130,7 +134,7 @@ type RedisPermissionCodeRegistry struct {
 }
 
 func (r *RedisPermissionCodeRegistry) SaveCodes(userId uint64, codes []string) {
-	rediscli.Set(fmt.Sprintf("mayfly:%v:codes", userId), stringx.AnyToStr(codes), time.Minute*time.Duration(config.Conf.Jwt.ExpireTime))
+	rediscli.Set(fmt.Sprintf("mayfly:%v:codes", userId), anyx.ToString(codes), time.Minute*time.Duration(config.Conf.Jwt.ExpireTime))
 }
 
 func (r *RedisPermissionCodeRegistry) HasCode(userId uint64, code string) bool {

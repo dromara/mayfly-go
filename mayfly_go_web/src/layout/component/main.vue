@@ -1,26 +1,22 @@
 <template>
     <el-main class="layout-main">
-        <el-scrollbar
-            class="layout-scrollbar"
-            ref="layoutScrollbarRef"
-            v-show="!state.currentRouteMeta.link && state.currentRouteMeta.linkType != 1"
-            :style="{ minHeight: `calc(100vh - ${state.headerHeight}` }"
-        >
+        <el-scrollbar ref="layoutScrollbarRef" v-show="!state.currentRouteMeta.link && state.currentRouteMeta.linkType != 1">
             <LayoutParentView />
-            <Footer v-if="themeConfig.isFooter" />
         </el-scrollbar>
-        <Link
-            :style="{ height: `calc(100vh - ${state.headerHeight}` }"
-            :meta="state.currentRouteMeta"
-            v-if="state.currentRouteMeta.link && state.currentRouteMeta.linkType == 2"
-        />
+
+        <Link class="h100" :meta="state.currentRouteMeta" v-if="state.currentRouteMeta.link && state.currentRouteMeta.linkType == 2" />
+
         <Iframes
-            :style="{ height: `calc(100vh - ${state.headerHeight}` }"
+            class="h100"
             :meta="state.currentRouteMeta"
             v-if="state.currentRouteMeta.link && state.currentRouteMeta.linkType == 1 && state.isShowLink"
             @getCurrentRouteMeta="onGetCurrentRouteMeta"
         />
     </el-main>
+
+    <el-footer v-if="themeConfig.isFooter">
+        <Footer />
+    </el-footer>
 </template>
 
 <script setup lang="ts" name="layoutMain">
@@ -57,7 +53,7 @@ const initCurrentRouteMeta = (meta: object) => {
 // 设置 main 的高度
 const initHeaderHeight = () => {
     let { isTagsview } = themeConfig.value;
-    if (isTagsview) return (state.headerHeight = `84px`);
+    if (isTagsview) return (state.headerHeight = `77px`);
     else return (state.headerHeight = `50px`);
 };
 // 页面加载前
@@ -67,7 +63,7 @@ onBeforeMount(() => {
 });
 // 监听 themeConfig 配置文件的变化，更新菜单 el-scrollbar 的高度
 watch(themeConfig.value, (val) => {
-    state.headerHeight = val.isTagsview ? '84px' : '50px';
+    state.headerHeight = val.isTagsview ? '77px' : '50px';
     if (val.isFixedHeaderChange !== val.isFixedHeader) {
         if (!proxy.$refs.layoutScrollbarRef) return false;
         proxy.$refs.layoutScrollbarRef.update();

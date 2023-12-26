@@ -4,7 +4,7 @@ import (
 	"context"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/api/vo"
-	"mayfly-go/internal/redis/domain/entity"
+	"mayfly-go/internal/redis/rdm"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
@@ -18,7 +18,7 @@ import (
 
 // scan获取redis的key列表信息
 func (r *Redis) ScanKeys(rc *req.Ctx) {
-	ri := r.getRedisIns(rc)
+	ri := r.getRedisConn(rc)
 
 	form := &form.RedisScanForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
@@ -44,11 +44,12 @@ func (r *Redis) ScanKeys(rc *req.Ctx) {
 
 	// 通配符或全匹配
 	mode := ri.Info.Mode
-	if mode == "" || mode == entity.RedisModeStandalone || mode == entity.RedisModeSentinel {
+	if mode == "" || mode == rdm.StandaloneMode || mode == rdm.SentinelMode {
 		redisAddr := ri.Cli.Options().Addr
 		cursorRes[redisAddr] = form.Cursor[redisAddr]
 		for {
-			ks, cursor := ri.Scan(cursorRes[redisAddr], form.Match, form.Count)
+			ks, cursor, err := ri.Scan(cursorRes[redisAddr], form.Match, form.Count)
+			biz.ErrIsNil(err)
 			cursorRes[redisAddr] = cursor
 			if len(ks) > 0 {
 				// 返回了数据则追加总集合中
@@ -63,7 +64,7 @@ func (r *Redis) ScanKeys(rc *req.Ctx) {
 				break
 			}
 		}
-	} else if mode == entity.RedisModeCluster {
+	} else if mode == rdm.ClusterMode {
 		mu := &sync.Mutex{}
 		// 遍历所有master节点，并执行scan命令，合并keys
 		ri.ClusterCli.ForEachMaster(ctx, func(ctx context.Context, client *redis.Client) error {
@@ -97,7 +98,7 @@ func (r *Redis) ScanKeys(rc *req.Ctx) {
 }
 
 func (r *Redis) KeyInfo(rc *req.Ctx) {
-	ri, key := r.checkKeyAndGetRedisIns(rc)
+	ri, key := r.checkKeyAndGetRedisConn(rc)
 	cmd := ri.GetCmdable()
 	ctx := context.Background()
 	ttl, err := cmd.TTL(ctx, key).Result()
@@ -119,7 +120,7 @@ func (r *Redis) KeyInfo(rc *req.Ctx) {
 }
 
 func (r *Redis) TtlKey(rc *req.Ctx) {
-	ri, key := r.checkKeyAndGetRedisIns(rc)
+	ri, key := r.checkKeyAndGetRedisConn(rc)
 	ttl, err := ri.GetCmdable().TTL(context.Background(), key).Result()
 	biz.ErrIsNilAppendErr(err, "ttl失败: %s")
 
@@ -130,8 +131,13 @@ func (r *Redis) TtlKey(rc *req.Ctx) {
 	}
 }
 
+func (r *Redis) MemoryUsage(rc *req.Ctx) {
+	ri, key := r.checkKeyAndGetRedisConn(rc)
+	rc.ResData = ri.GetCmdable().MemoryUsage(context.Background(), key).Val()
+}
+
 func (r *Redis) DeleteKey(rc *req.Ctx) {
-	ri, key := r.checkKeyAndGetRedisIns(rc)
+	ri, key := r.checkKeyAndGetRedisConn(rc)
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "key", key)
 	ri.GetCmdable().Del(context.Background(), key)
 }
@@ -140,7 +146,7 @@ func (r *Redis) RenameKey(rc *req.Ctx) {
 	form := &form.Rename{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
-	ri := r.getRedisIns(rc)
+	ri := r.getRedisConn(rc)
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "rename", form)
 	ri.GetCmdable().Rename(context.Background(), form.Key, form.NewKey)
 }
@@ -149,21 +155,21 @@ func (r *Redis) ExpireKey(rc *req.Ctx) {
 	form := &form.Expire{}
 	ginx.BindJsonAndValid(rc.GinCtx, form)
 
-	ri := r.getRedisIns(rc)
+	ri := r.getRedisConn(rc)
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "expire", form)
 	ri.GetCmdable().Expire(context.Background(), form.Key, time.Duration(form.Seconds)*time.Second)
 }
 
 // 移除过期时间
 func (r *Redis) PersistKey(rc *req.Ctx) {
-	ri, key := r.checkKeyAndGetRedisIns(rc)
+	ri, key := r.checkKeyAndGetRedisConn(rc)
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "key", key)
 	ri.GetCmdable().Persist(context.Background(), key)
 }
 
 // 清空库
 func (r *Redis) FlushDb(rc *req.Ctx) {
-	ri := r.getRedisIns(rc)
+	ri := r.getRedisConn(rc)
 	rc.ReqParam = ri.Info
 	ri.GetCmdable().FlushDB(context.Background())
 }

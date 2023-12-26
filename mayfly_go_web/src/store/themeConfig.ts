@@ -135,24 +135,16 @@ export const useThemeConfig = defineStore('themeConfig', {
             globalI18n: 'zh-cn',
             // 默认全局组件大小，可选值"<|large|default|small>"，默认 ''
             globalComponentSize: '',
+
+            /** 全局设置 */
+            // 默认列表页的分页大小
+            defaultListPageSize: 10,
         },
     }),
     actions: {
         // 设置布局配置
         setThemeConfig(data: ThemeConfigState) {
             this.themeConfig = data.themeConfig;
-        },
-        // 切换暗模式
-        switchDark(isDark: boolean) {
-            this.themeConfig.isDark = isDark;
-            const body = document.documentElement as HTMLElement;
-            if (isDark) {
-                body.setAttribute('class', 'dark');
-                this.themeConfig.editorTheme = 'vs-dark';
-            } else {
-                body.setAttribute('class', '');
-                this.themeConfig.editorTheme = 'SolarizedLight';
-            }
         },
         // 设置水印配置信息
         setWatermarkConfig(useWatermarkConfig: any) {

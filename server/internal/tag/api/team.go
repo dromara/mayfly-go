@@ -24,7 +24,9 @@ type Team struct {
 
 func (p *Team) GetTeams(rc *req.Ctx) {
 	teams := &[]entity.Team{}
-	rc.ResData = p.TeamApp.GetPageList(&entity.Team{}, ginx.GetPageParam(rc.GinCtx), teams)
+	res, err := p.TeamApp.GetPageList(&entity.Team{}, ginx.GetPageParam(rc.GinCtx), teams)
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 func (p *Team) SaveTeam(rc *req.Ctx) {
@@ -33,9 +35,8 @@ func (p *Team) SaveTeam(rc *req.Ctx) {
 	rc.ReqParam = team
 	isAdd := team.Id == 0
 
-	loginAccount := rc.LoginAccount
-	team.SetBaseInfo(loginAccount)
-	p.TeamApp.Save(team)
+	loginAccount := rc.GetLoginAccount()
+	p.TeamApp.Save(rc.MetaCtx, team)
 
 	// 如果是新增团队则默认将自己加入该团队
 	if isAdd {
@@ -44,8 +45,7 @@ func (p *Team) SaveTeam(rc *req.Ctx) {
 		teamMem.Username = loginAccount.Username
 		teamMem.TeamId = team.Id
 
-		teamMem.SetBaseInfo(rc.LoginAccount)
-		p.TeamApp.SaveMember(teamMem)
+		p.TeamApp.SaveMember(rc.MetaCtx, teamMem)
 	}
 }
 
@@ -57,7 +57,7 @@ func (p *Team) DelTeam(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		p.TeamApp.Delete(uint64(value))
+		p.TeamApp.Delete(rc.MetaCtx, uint64(value))
 	}
 }
 
@@ -66,7 +66,9 @@ func (p *Team) GetTeamMembers(rc *req.Ctx) {
 	condition := &entity.TeamMember{TeamId: uint64(ginx.PathParamInt(rc.GinCtx, "id"))}
 	condition.Username = rc.GinCtx.Query("username")
 
-	rc.ResData = p.TeamApp.GetMemberPage(condition, ginx.GetPageParam(rc.GinCtx), &[]vo.TeamMember{})
+	res, err := p.TeamApp.GetMemberPage(condition, ginx.GetPageParam(rc.GinCtx), &[]vo.TeamMember{})
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }
 
 // 保存团队信息
@@ -84,14 +86,13 @@ func (p *Team) SaveTeamMember(rc *req.Ctx) {
 		// 校验账号，并赋值username
 		account := &sys_entity.Account{}
 		account.Id = accountId
-		biz.ErrIsNil(p.AccountApp.GetAccount(account, "Id", "Username"), "账号不存在")
+		biz.ErrIsNil(p.AccountApp.GetBy(account, "Id", "Username"), "账号不存在")
 
 		teamMember := new(entity.TeamMember)
 		teamMember.TeamId = teamId
 		teamMember.AccountId = accountId
 		teamMember.Username = account.Username
-		teamMember.SetBaseInfo(rc.LoginAccount)
-		p.TeamApp.SaveMember(teamMember)
+		p.TeamApp.SaveMember(rc.MetaCtx, teamMember)
 	}
 
 	rc.ReqParam = teamMems
@@ -104,7 +105,7 @@ func (p *Team) DelTeamMember(rc *req.Ctx) {
 	aid := ginx.PathParamInt(g, "accountId")
 	rc.ReqParam = fmt.Sprintf("teamId: %d, accountId: %d", tid, aid)
 
-	p.TeamApp.DeleteMember(uint64(tid), uint64(aid))
+	p.TeamApp.DeleteMember(rc.MetaCtx, uint64(tid), uint64(aid))
 }
 
 // 获取团队关联的标签id
@@ -129,18 +130,16 @@ func (p *Team) SaveTags(rc *req.Ctx) {
 		return i1 == i2
 	})
 
-	loginAccount := rc.LoginAccount
 	for _, v := range addIds {
 		tagId := v
-		tag := p.TagApp.GetById(tagId)
-		biz.NotNil(tag, "存在非法标签id")
+		tag, err := p.TagApp.GetById(new(entity.TagTree), tagId)
+		biz.ErrIsNil(err, "存在非法标签id")
 
 		ptt := &entity.TagTreeTeam{TeamId: teamId, TagId: tagId, TagPath: tag.CodePath}
-		ptt.SetBaseInfo(loginAccount)
-		p.TeamApp.SaveTag(ptt)
+		p.TeamApp.SaveTag(rc.MetaCtx, ptt)
 	}
 	for _, v := range delIds {
-		p.TeamApp.DeleteTag(teamId, v)
+		p.TeamApp.DeleteTag(rc.MetaCtx, teamId, v)
 	}
 
 	rc.ReqParam = form

@@ -22,23 +22,25 @@ func (m *MachineCronJob) MachineCronJobs(rc *req.Ctx) {
 	cond, pageParam := ginx.BindQueryAndPage(rc.GinCtx, new(entity.MachineCronJob))
 
 	vos := new([]*vo.MachineCronJobVO)
-	pr := m.MachineCronJobApp.GetPageList(cond, pageParam, vos)
+	pageRes, err := m.MachineCronJobApp.GetPageList(cond, pageParam, vos)
+	biz.ErrIsNil(err)
 	for _, mcj := range *vos {
 		mcj.Running = scheduler.ExistKey(mcj.Key)
 	}
 
-	rc.ResData = pr
+	rc.ResData = pageRes
 }
 
 func (m *MachineCronJob) Save(rc *req.Ctx) {
 	jobForm := new(form.MachineCronJobForm)
 	mcj := ginx.BindJsonAndCopyTo[*entity.MachineCronJob](rc.GinCtx, jobForm, new(entity.MachineCronJob))
 	rc.ReqParam = jobForm
-	mcj.SetBaseInfo(rc.LoginAccount)
-	cronJobId := m.MachineCronJobApp.Save(mcj)
+
+	cronJobId, err := m.MachineCronJobApp.Save(rc.MetaCtx, mcj)
+	biz.ErrIsNil(err)
 
 	// 关联机器
-	m.MachineCronJobApp.CronJobRelateMachines(cronJobId, jobForm.MachineIds, rc.LoginAccount)
+	m.MachineCronJobApp.CronJobRelateMachines(rc.MetaCtx, cronJobId, jobForm.MachineIds)
 }
 
 func (m *MachineCronJob) Delete(rc *req.Ctx) {
@@ -49,7 +51,7 @@ func (m *MachineCronJob) Delete(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		m.MachineCronJobApp.Delete(uint64(value))
+		m.MachineCronJobApp.Delete(rc.MetaCtx, uint64(value))
 	}
 }
 
@@ -61,7 +63,15 @@ func (m *MachineCronJob) GetRelateCronJobIds(rc *req.Ctx) {
 	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(ginx.QueryInt(rc.GinCtx, "machineId", -1)))
 }
 
+func (m *MachineCronJob) RunCronJob(rc *req.Ctx) {
+	cronJobKey := ginx.PathParam(rc.GinCtx, "key")
+	biz.NotEmpty(cronJobKey, "cronJob key不能为空")
+	m.MachineCronJobApp.RunCronJob(cronJobKey)
+}
+
 func (m *MachineCronJob) CronJobExecs(rc *req.Ctx) {
 	cond, pageParam := ginx.BindQueryAndPage[*entity.MachineCronJobExec](rc.GinCtx, new(entity.MachineCronJobExec))
-	rc.ResData = m.MachineCronJobApp.GetExecPageList(cond, pageParam, new([]entity.MachineCronJobExec))
+	res, err := m.MachineCronJobApp.GetExecPageList(cond, pageParam, new([]entity.MachineCronJobExec))
+	biz.ErrIsNil(err)
+	rc.ResData = res
 }

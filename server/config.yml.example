@@ -2,13 +2,13 @@ server:
   # debug release test
   model: release
   port: 18888
+  # 上下文路径, 若设置了该值, 则请求地址为ip:port/context-path
+  # context-path: /mayfly
   cors: true
   tls:
     enable: false
     key-file: ./default.key
     cert-file: ./default.pem
-  # 机器终端操作回放文件存储路径
-  machine-rec-path: ./rec
 jwt:
   # jwt key，不设置默认使用随机字符串
   key: 

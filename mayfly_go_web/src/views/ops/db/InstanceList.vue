@@ -2,29 +2,28 @@
     <div class="db-list">
         <page-table
             ref="pageTableRef"
-            :query="queryConfig"
+            :page-api="dbApi.instances"
+            :searchItems="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
-            :data="datas"
             :columns="columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
         >
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)">添加</el-button>
                 <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete"
                     >删除</el-button
                 >
             </template>
 
-            <template #more="{ data }">
-                <el-button @click="showInfo(data)" link>详情</el-button>
+            <template #type="{ data }">
+                <el-tooltip :content="data.type" placement="top">
+                    <SvgIcon :name="getDbDialect(data.type).getInfo().icon" :size="20" />
+                </el-tooltip>
             </template>
 
             <template #action="{ data }">
+                <el-button @click="showInfo(data)" link>详情</el-button>
                 <el-button v-if="actionBtns[perms.saveInstance]" @click="editInstance(data)" type="primary" link>编辑</el-button>
             </template>
         </page-table>
@@ -53,7 +52,7 @@
         </el-dialog>
 
         <instance-edit
-            @val-change="valChange"
+            @val-change="search"
             :title="instanceEditDialog.title"
             v-model:visible="instanceEditDialog.visible"
             v-model:data="instanceEditDialog.data"
@@ -62,13 +61,16 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, onMounted, defineAsyncComponent, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dbApi } from './api';
 import { dateFormat } from '@/common/utils/date';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
+import SvgIcon from '@/components/svgIcon/index.vue';
+import { getDbDialect } from './dialect';
+import { SearchItem } from '@/components/SearchForm';
 
 const InstanceEdit = defineAsyncComponent(() => import('./InstanceEdit.vue'));
 
@@ -77,22 +79,21 @@ const perms = {
     delInstance: 'db:instance:del',
 };
 
-const queryConfig = [TableQuery.text('name', '名称')];
+const searchItems = [SearchItem.input('name', '名称')];
 
 const columns = ref([
     TableColumn.new('name', '名称'),
-    TableColumn.new('host', 'host:port').setFormatFunc((data: any, _prop: string) => `${data.host}:${data.port}`),
-    TableColumn.new('type', '类型'),
+    TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
+    TableColumn.new('host', 'host:port').setFormatFunc((data: any) => `${data.host}:${data.port}`),
     TableColumn.new('username', '用户名'),
+    TableColumn.new('params', '连接参数'),
     TableColumn.new('remark', '备注'),
-    TableColumn.new('more', '更多').isSlot().setMinWidth(50).fixedRight(),
 ]);
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms([perms.saveInstance]);
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(65).fixedRight().alignCenter();
-
-const pageTableRef: any = ref(null);
+const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(110).fixedRight().alignCenter();
+const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({
     row: {},
@@ -108,10 +109,8 @@ const state = reactive({
     query: {
         name: null,
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
     },
-    datas: [],
-    total: 0,
     infoDialog: {
         visible: false,
         data: null as any,
@@ -123,24 +122,16 @@ const state = reactive({
     },
 });
 
-const { selectionData, query, datas, total, infoDialog, instanceEditDialog } = toRefs(state);
+const { selectionData, query, infoDialog, instanceEditDialog } = toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
-    search();
 });
 
-const search = async () => {
-    try {
-        pageTableRef.value.loading(true);
-        let res: any = await dbApi.instances.request(state.query);
-        state.datas = res.list;
-        state.total = res.total;
-    } finally {
-        pageTableRef.value.loading(false);
-    }
+const search = () => {
+    pageTableRef.value.search();
 };
 
 const showInfo = (info: any) => {
@@ -159,10 +150,6 @@ const editInstance = async (data: any) => {
     state.instanceEditDialog.visible = true;
 };
 
-const valChange = () => {
-    search();
-};
-
 const deleteInstance = async () => {
     try {
         await ElMessageBox.confirm(`确定删除数据库实例【${state.selectionData.map((x: any) => x.name).join(', ')}】?`, '提示', {
@@ -173,7 +160,9 @@ const deleteInstance = async () => {
         await dbApi.deleteInstance.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 </script>
 <style lang="scss"></style>

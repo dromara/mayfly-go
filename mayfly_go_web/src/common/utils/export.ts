@@ -29,15 +29,19 @@ export function exportCsv(filename: string, columns: string[], datas: []) {
         cvsData.push(dataValueArr);
     }
     const csvString = cvsData.map((e) => e.join(',')).join('\n');
+    exportFile(`${filename}.csv`, csvString);
+}
+
+export function exportFile(filename: string, content: string) {
     // 导出
     let link = document.createElement('a');
     let exportContent = '\uFEFF';
-    let blob = new Blob([exportContent + csvString], {
+    let blob = new Blob([exportContent + content], {
         type: 'text/plain;charset=utf-8',
     });
-    link.id = 'download-csv';
+    link.id = 'download-file';
     link.setAttribute('href', URL.createObjectURL(blob));
-    link.setAttribute('download', `${filename}.csv`);
+    link.setAttribute('download', `${filename}`);
     document.body.appendChild(link);
     link.click();
 }

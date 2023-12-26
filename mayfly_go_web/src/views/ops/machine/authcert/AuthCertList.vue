@@ -1,18 +1,15 @@
 <template>
     <div>
         <page-table
-            :query="state.queryConfig"
+            ref="pageTableRef"
+            :page-api="authCertApi.list"
+            :search-items="state.searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="selectionData"
-            :data="authcerts"
             :columns="state.columns"
-            :total="total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
-            @pageChange="search()"
         >
-            <template #queryRight>
+            <template #tableHeader>
                 <el-button type="primary" icon="plus" @click="edit(false)">添加</el-button>
                 <el-button :disabled="selectionData.length < 1" @click="deleteAc(selectionData)" type="danger" icon="delete">删除 </el-button>
             </template>
@@ -27,21 +24,23 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted } from 'vue';
+import { toRefs, reactive, onMounted, ref, Ref } from 'vue';
 import AuthCertEdit from './AuthCertEdit.vue';
 import { authCertApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
-import { TableColumn, TableQuery } from '@/components/pagetable';
+import { TableColumn } from '@/components/pagetable';
 import { AuthMethodEnum } from '../enums';
+import { SearchItem } from '@/components/SearchForm';
 
+const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
     query: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 0,
         name: null,
     },
-    queryConfig: [TableQuery.text('name', '凭证名称')],
+    searchItems: [SearchItem.input('name', '凭证名称')],
     columns: [
         TableColumn.new('name', '名称'),
         TableColumn.new('authMethod', '认证方式').typeTag(AuthMethodEnum),
@@ -52,8 +51,6 @@ const state = reactive({
         TableColumn.new('createTime', '修改时间').isTime(),
         TableColumn.new('action', '操作').isSlot().fixedRight().setMinWidth(65).alignCenter(),
     ],
-    total: 0,
-    authcerts: [],
     selectionData: [],
     paramsDialog: {
         visible: false,
@@ -68,16 +65,12 @@ const state = reactive({
     },
 });
 
-const { query, total, authcerts, selectionData, editor } = toRefs(state);
+const { query, selectionData, editor } = toRefs(state);
 
-onMounted(() => {
-    search();
-});
+onMounted(() => {});
 
 const search = async () => {
-    let res = await authCertApi.list.request(state.query);
-    state.authcerts = res.list;
-    state.total = res.total;
+    pageTableRef.value.search();
 };
 
 const editChange = () => {
@@ -105,7 +98,9 @@ const deleteAc = async (data: any) => {
         await authCertApi.delete.request({ id: data.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
-    } catch (err) {}
+    } catch (err) {
+        //
+    }
 };
 </script>
 <style lang="scss"></style>

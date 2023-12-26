@@ -8,21 +8,23 @@
 }
 
 :root {
-	--color-white: #ffffff;
-	--bg-main-color: #f8f8f8;
-	--bg-color: #f5f5ff;
-    --bg-menuBarActiveColor: #0000000a;  // 菜单栏激活时的背景色
-	--border-color-light: #f1f2f3;
-	--el-color-primary-lighter: #ecf5ff;
-	--color-success-lighter: #f0f9eb;
-	--color-warning-lighter: #fdf6ec;
-	--color-danger-lighter: #fef0f0;
-	--color-dark-hover: #0000001a;
-	--color-menu-hover: rgba(0, 0, 0, 0.2);
-	--color-user-hover: rgba(0, 0, 0, 0.04);
-	--color-seting-main: #e9eef3;
-	--color-seting-aside: #d3dce6;
-	--color-seting-header: #b3c0d1;
+    --color-white: #ffffff;
+    --bg-main-color: #f8f8f8;
+    --bg-color: #f5f5ff;
+    --bg-menuBarActiveColor: #0000000a; // 菜单栏激活时的背景色
+    --border-color-light: #f1f2f3;
+    --el-color-primary-lighter: #ecf5ff;
+    --color-success-lighter: #f0f9eb;
+    --color-warning-lighter: #fdf6ec;
+    --color-danger-lighter: #fef0f0;
+    --color-dark-hover: #0000001a;
+    --color-menu-hover: rgba(0, 0, 0, 0.2);
+    --color-user-hover: rgba(0, 0, 0, 0.04);
+    --color-seting-main: #e9eef3;
+    --color-seting-aside: #d3dce6;
+    --color-seting-header: #b3c0d1;
+
+    --tagsview3-active-background-color: var(--el-color-primary-light-9);
 }
 
 html,
@@ -68,8 +70,9 @@ body,
     }
 
     .layout-main {
-        padding: 0 !important;
-        overflow: hidden;
+        box-sizing: border-box;
+        padding: 10px 10px;
+        overflow-x: hidden;
         width: 100%;
         background-color: var(--bg-main-color);
     }
@@ -105,11 +108,6 @@ body,
         transition: width 0.3s ease;
     }
 
-    .layout-scrollbar {
-        @extend .el-scrollbar;
-        padding: 10px;
-    }
-
     .layout-mian-height-50 {
         height: calc(100vh - 50px);
     }
@@ -122,6 +120,11 @@ body,
 
     .layout-hide {
         display: none;
+    }
+
+    .el-footer {
+        height: auto;
+        padding: 0;
     }
 }
 
@@ -188,6 +191,23 @@ body,
     }
 }
 
+.flex-justify-between {
+    display: flex;
+    align-items: center; // 垂直方向水平居中
+    justify-content: space-between; // 使第一个子元素靠近父容器的起始位置，最后一个子元素靠近终止位置，而其他子元素均匀分布在它们之间
+}
+
+.flex-all-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.flex-align-center {
+    display: flex;
+    align-items: center; // 垂直方向水平居中
+}
+
 /* 宽高 100%
 ------------------------------- */
 .w100 {
@@ -234,7 +254,7 @@ body,
 
 /* 字体大小全局样式
 ------------------------------- */
-@for $i from 10 through 32 {
+@for $i from 8 through 32 {
     .font#{$i} {
         font-size: #{$i}px !important;
     }
@@ -273,6 +293,10 @@ body,
 
     .pl#{$i} {
         padding-left: #{$i}px !important;
+    }
+
+    .pd#{$i} {
+        padding: #{$i}px !important;
     }
 }
 
@@ -333,12 +357,23 @@ body,
     user-select: none;
 }
 
-.toolbar {
-    width: 100%;
-    padding: 4px;
-    overflow: hidden;
-    line-height: 24px;
-    border: 1px solid var(--el-border-color-light, #ebeef5);
+/* custom card */
+.card {
+    box-sizing: border-box;
+    padding: 20px;
+    overflow-x: hidden;
+    background-color: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-light);
+    border-radius: 6px;
+    box-shadow: 0 0 12px rgb(0 0 0 / 5%);
+}
+
+/* content-box (常用内容盒子) */
+.content-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
 }
 
 .fl {
@@ -359,10 +394,6 @@ body,
     z-index: inherit !important;
 }
 
-.f12 {
-    font-size: 12px
-}
-
 .pointer {
     cursor: pointer;
 }
@@ -371,6 +402,46 @@ body,
     cursor: pointer;
     transition: color 0.3s;
 }
+
 .pointer-icon:hover {
-    color: var(--el-color-primary); /* 鼠标移动到图标时的颜色 */
+    color: var(--el-color-primary);
+    /* 鼠标移动到图标时的颜色 */
+}
+
+
+/**   splitpanes  **/
+.splitpanes.default-theme .splitpanes {
+    background: transparent !important;
+}
+
+.splitpanes.default-theme .splitpanes__pane {
+    background: transparent !important;
+}
+
+.default-theme.splitpanes--vertical>.splitpanes__splitter {
+    border-left: 1px solid var(--bg-main-color);
+}
+
+.default-theme.splitpanes--horizontal>.splitpanes__splitter {
+    border-top: 1px solid var(--bg-main-color);
+}
+
+// 竖线样式
+.splitpanes.default-theme .splitpanes__splitter::before,
+.splitpanes.default-theme .splitpanes__splitter::after {
+    background-color: var(--el-color-info-light-5);
+}
+
+.splitpanes.default-theme .splitpanes__splitter:hover::before,
+.splitpanes.default-theme .splitpanes__splitter:hover::after {
+    background-color: var(--el-color-success);
+}
+
+.splitpanes.default-theme .splitpanes__splitter {
+    min-width: 6px;
+    background: var(--el-color-info-light-8) !important;
+}
+
+.splitpanes.default-theme .splitpanes__splitter:hover {
+    background: var(--el-color-success-light-8) !important;
 }

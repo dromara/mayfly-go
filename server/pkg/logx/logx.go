@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/utils/runtimex"
 	"path/filepath"
 	"runtime"
@@ -43,11 +44,15 @@ func Debug(msg string, args ...any) {
 	Log(context.Background(), slog.LevelDebug, msg, args...)
 }
 
+func DebugContext(ctx context.Context, msg string, args ...any) {
+	Log(ctx, slog.LevelDebug, msg, args...)
+}
+
 func Debugf(format string, args ...any) {
 	Log(context.Background(), slog.LevelDebug, fmt.Sprintf(format, args...))
 }
 
-func DebugWithFields(msg string, mapFields map[string]any) {
+func DebugWithFields(ctx context.Context, msg string, mapFields map[string]any) {
 	Log(context.Background(), slog.LevelDebug, msg, map2Attrs(mapFields)...)
 }
 
@@ -68,12 +73,16 @@ func Infof(format string, args ...any) {
 	Log(context.Background(), slog.LevelInfo, fmt.Sprintf(format, args...))
 }
 
-func InfoWithFields(msg string, mapFields map[string]any) {
-	Log(context.Background(), slog.LevelInfo, msg, map2Attrs(mapFields)...)
+func InfoWithFields(ctx context.Context, msg string, mapFields map[string]any) {
+	Log(ctx, slog.LevelInfo, msg, map2Attrs(mapFields)...)
 }
 
 func Warn(msg string, args ...any) {
 	Log(context.Background(), slog.LevelWarn, msg, args...)
+}
+
+func WarnContext(ctx context.Context, msg string, args ...any) {
+	Log(ctx, slog.LevelWarn, msg, args...)
 }
 
 func Warnf(format string, args ...any) {
@@ -88,17 +97,30 @@ func Error(msg string, args ...any) {
 	Log(context.Background(), slog.LevelError, msg, args...)
 }
 
+func ErrorContext(ctx context.Context, msg string, args ...any) {
+	Log(ctx, slog.LevelError, msg, args...)
+}
+
 func Errorf(format string, args ...any) {
 	Log(context.Background(), slog.LevelError, fmt.Sprintf(format, args...))
 }
 
 // 错误记录，并将堆栈信息添加至msg里，默认记录10个堆栈信息
-func ErrorTrace(msg string, err error) {
-	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+" %s\n%s", err.Error(), runtimex.StatckStr(2, 10)))
+func ErrorTrace(msg string, err any) {
+	errMsg := ""
+	switch t := err.(type) {
+	case error:
+		errMsg = t.Error()
+	case string:
+		errMsg = t
+	default:
+		errMsg = fmt.Sprintf("%v", t)
+	}
+	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+"\n%s\n%s", errMsg, runtimex.StatckStr(2, 10)))
 }
 
-func ErrorWithFields(msg string, mapFields map[string]any) {
-	Log(context.Background(), slog.LevelError, msg, map2Attrs(mapFields)...)
+func ErrorWithFields(ctx context.Context, msg string, mapFields map[string]any) {
+	Log(ctx, slog.LevelError, msg, map2Attrs(mapFields)...)
 }
 
 func Panic(msg string, args ...any) {
@@ -120,6 +142,10 @@ func Log(ctx context.Context, level slog.Level, msg string, args ...any) {
 func getCommonAttr(ctx context.Context, level slog.Level) []any {
 	commonAttrs := make([]any, 0)
 
+	// 尝试从上下文获取traceId，若存在则记录
+	if traceId := contextx.GetTraceId(ctx); traceId != "" {
+		commonAttrs = append(commonAttrs, "tid", traceId)
+	}
 	// 如果系统配置添加方法信息或者为错误级别时则 记录方法信息及行号
 	if GetConfig().AddSource || level == slog.LevelError {
 		// skip [runtime.Callers, getCommonAttr, appendCommonAttr, logx.Log, logx.Info|Debug|Warn|Error..]

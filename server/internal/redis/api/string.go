@@ -11,7 +11,7 @@ import (
 )
 
 func (r *Redis) GetStringValue(rc *req.Ctx) {
-	ri, key := r.checkKeyAndGetRedisIns(rc)
+	ri, key := r.checkKeyAndGetRedisConn(rc)
 	str, err := ri.GetCmdable().Get(context.TODO(), key).Result()
 	biz.ErrIsNilAppendErr(err, "获取字符串值失败: %s")
 	rc.ResData = str
@@ -22,7 +22,7 @@ func (r *Redis) SetStringValue(rc *req.Ctx) {
 	keyValue := new(form.StringValue)
 	ginx.BindJsonAndValid(g, keyValue)
 
-	ri := r.getRedisIns(rc)
+	ri := r.getRedisConn(rc)
 	cmd := ri.GetCmdable()
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "string", keyValue)
 

@@ -6,11 +6,7 @@
     </el-container>
 </template>
 
-<script lang="ts">
+<script lang="ts" setup name="layoutTransverse">
 import Header from '@/layout/component/header.vue';
 import Main from '@/layout/component/main.vue';
-export default {
-    name: 'layoutTransverse',
-    components: { Header, Main },
-};
 </script>

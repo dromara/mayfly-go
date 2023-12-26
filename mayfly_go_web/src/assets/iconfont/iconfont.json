@@ -27,6 +27,13 @@
       "unicode_decimal": 59575
     },
     {
+        "icon_id": "12295203",
+        "name": "达梦数据库",
+        "font_class": "db-dm",
+        "unicode": "e6f0",
+        "unicode_decimal": 59120
+    },
+    {
       "icon_id": "10055634",
       "name": "云数据库MongoDB",
       "font_class": "op-mongo",
