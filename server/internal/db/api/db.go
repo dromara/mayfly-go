@@ -78,6 +78,8 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 		d.DbApp.Delete(ctx, dbId)
 		// 删除该库的sql执行记录
 		d.DbSqlExecApp.DeleteBy(ctx, &entity.DbSqlExec{DbId: dbId})
+
+		// todo delete restore task and histories
 	}
 }
 
@@ -471,4 +473,25 @@ func (d *Db) getDbConn(g *gin.Context) *dbm.DbConn {
 	dc, err := d.DbApp.GetDbConn(getDbId(g), getDbName(g))
 	biz.ErrIsNil(err)
 	return dc
+}
+
+// GetRestoreTask 获取数据库备份任务
+// @router /api/instances/:instance/restore-task [GET]
+func (d *Db) GetRestoreTask(rc *req.Ctx) {
+	// todo get restore task
+	panic("implement me")
+}
+
+// SaveRestoreTask 设置数据库备份任务
+// @router /api/instances/:instance/restore-task [POST]
+func (d *Db) SaveRestoreTask(rc *req.Ctx) {
+	// todo set restore task
+	panic("implement me")
+}
+
+// GetRestoreHistories 获取数据库备份历史
+// @router /api/instances/:instance/restore-histories [GET]
+func (d *Db) GetRestoreHistories(rc *req.Ctx) {
+	// todo get restore histories
+	panic("implement me")
 }

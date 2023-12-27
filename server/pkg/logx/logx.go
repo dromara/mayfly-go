@@ -194,3 +194,21 @@ type Source struct {
 func (s Source) String() string {
 	return fmt.Sprintf("%s (%s)", s.Function, s.Fileline)
 }
+
+// An Attr is a key-value pair.
+type Attr = slog.Attr
+
+// String returns an Attr for a string value.
+func String(key, value string) Attr {
+	return slog.String(key, value)
+}
+
+// Int64 returns an Attr for an int64.
+func Int64(key string, value int64) Attr {
+	return slog.Int64(key, value)
+}
+
+// Bool returns an Attr for an bool.
+func Bool(key string, value bool) Attr {
+	return slog.Bool(key, value)
+}

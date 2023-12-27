@@ -1,0 +1,36 @@
+package router
+
+import (
+	"github.com/gin-gonic/gin"
+	"mayfly-go/internal/db/api"
+	"mayfly-go/internal/db/application"
+	"mayfly-go/pkg/req"
+)
+
+func InitDbRestoreRouter(router *gin.RouterGroup) {
+	dbs := router.Group("/dbs")
+
+	d := &api.DbRestore{
+		DbRestoreApp: application.GetDbRestoreApp(),
+		DbApp:        application.GetDbApp(),
+	}
+
+	reqs := []*req.Conf{
+		// 获取数据库备份任务
+		req.NewGet(":dbId/restores", d.GetPageList),
+		// 创建数据库备份任务
+		req.NewPost(":dbId/restores", d.Create).Log(req.NewLogSave("db-创建数据库恢复任务")),
+		// 保存数据库备份任务
+		req.NewPut(":dbId/restores/:restoreId", d.Save).Log(req.NewLogSave("db-保存数据库恢复任务")),
+		// 启用数据库备份任务
+		req.NewPut(":dbId/restores/:restoreId/enable", d.Enable).Log(req.NewLogSave("db-启用数据库恢复任务")),
+		// 禁用数据库备份任务
+		req.NewPut(":dbId/restores/:restoreId/disable", d.Disable).Log(req.NewLogSave("db-禁用数据库恢复任务")),
+		// 删除数据库备份任务
+		req.NewDelete(":dbId/restores/:restoreId", d.Delete),
+		// 获取未配置定时恢复的数据库名称
+		req.NewGet(":dbId/db-names-without-restore", d.GetDbNamesWithoutRestore),
+	}
+
+	req.BatchSetGroup(dbs, reqs)
+}

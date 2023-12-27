@@ -68,7 +68,7 @@ func GenerateRSAKey(bits int) (string, string, error) {
 		return publicKeyStr, privateKeyStr, err
 	}
 	//创建一个pem.Block结构体对象
-	publicBlock := pem.Block{Type: "RSA Public Key", Bytes: X509PublicKey}
+	publicBlock := pem.Block{Type: "PUBLIC KEY", Bytes: X509PublicKey}
 
 	publicBuf := new(bytes.Buffer)
 	pem.Encode(publicBuf, &publicBlock)

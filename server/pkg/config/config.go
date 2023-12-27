@@ -55,6 +55,7 @@ type Config struct {
 	Sqlite Sqlite `yaml:"sqlite"`
 	Redis  Redis  `yaml:"redis"`
 	Log    Log    `yaml:"log"`
+	Db     Db     `yaml:"db"`
 }
 
 func (c *Config) IfBlankDefaultValue() {
@@ -72,6 +73,7 @@ func (c *Config) IfBlankDefaultValue() {
 	c.Jwt.Default()
 	c.Mysql.Default()
 	c.Sqlite.Default()
+	c.Db.Default()
 }
 
 // 配置文件内容校验

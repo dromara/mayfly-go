@@ -10,6 +10,7 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/utils/anyx"
+	"strings"
 	"time"
 )
 
@@ -44,6 +45,8 @@ func PermissionHandler(rc *Ctx) error {
 		return nil
 	}
 	tokenStr := rc.GinCtx.Request.Header.Get("Authorization")
+	// 删除前缀 Bearer, 以支持 Bearer Token
+	tokenStr, _ = strings.CutPrefix(tokenStr, "Bearer ")
 	// header不存在则从查询参数token中获取
 	if tokenStr == "" {
 		tokenStr = rc.GinCtx.Query("token")

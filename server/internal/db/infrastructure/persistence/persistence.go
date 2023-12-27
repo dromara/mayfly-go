@@ -3,10 +3,12 @@ package persistence
 import "mayfly-go/internal/db/domain/repository"
 
 var (
-	instanceRepo  repository.Instance  = newInstanceRepo()
-	dbRepo        repository.Db        = newDbRepo()
-	dbSqlRepo     repository.DbSql     = newDbSqlRepo()
-	dbSqlExecRepo repository.DbSqlExec = newDbSqlExecRepo()
+	instanceRepo         repository.Instance  = newInstanceRepo()
+	dbRepo               repository.Db        = newDbRepo()
+	dbSqlRepo            repository.DbSql     = newDbSqlRepo()
+	dbSqlExecRepo        repository.DbSqlExec = newDbSqlExecRepo()
+	dbBackupHistoryRepo                       = NewDbBackupHistoryRepo()
+	dbRestoreHistoryRepo                      = NewDbRestoreHistoryRepo()
 )
 
 func GetInstanceRepo() repository.Instance {
@@ -23,4 +25,12 @@ func GetDbSqlRepo() repository.DbSql {
 
 func GetDbSqlExecRepo() repository.DbSqlExec {
 	return dbSqlExecRepo
+}
+
+func GetDbBackupHistoryRepo() repository.DbBackupHistory {
+	return dbBackupHistoryRepo
+}
+
+func GetDbRestoreHistoryRepo() repository.DbRestoreHistory {
+	return dbRestoreHistoryRepo
 }

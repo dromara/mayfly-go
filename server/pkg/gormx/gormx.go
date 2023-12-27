@@ -155,8 +155,8 @@ func UpdateByIdWithDb(db *gorm.DB, model any) error {
 }
 
 // 根据实体条件，更新参数udpateFields指定字段
-func Updates(condition any, udpateFields map[string]any) error {
-	return global.Db.Model(condition).Updates(udpateFields).Error
+func Updates(model any, condition any, updateFields map[string]any) error {
+	return global.Db.Model(model).Where(condition).Updates(updateFields).Error
 }
 
 // 根据id删除model
@@ -210,7 +210,7 @@ func Tx(funcs ...func(db *gorm.DB) error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			err = fmt.Errorf("%v", err)
+			err = fmt.Errorf("%v", r)
 		}
 	}()
 	for _, f := range funcs {
