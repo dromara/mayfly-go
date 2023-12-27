@@ -33,7 +33,9 @@ export function getThemeConfig() {
     return getLocal('themeConfig');
 }
 
-// 清除用户相关的用户信息
+/**
+ * 清除当前登录用户相关信息
+ */
 export function clearUser() {
     removeLocal(TokenKey);
     removeLocal(UserKey);

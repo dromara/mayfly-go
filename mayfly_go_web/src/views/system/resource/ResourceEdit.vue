@@ -114,7 +114,7 @@
                                     </el-icon>
                                 </el-tooltip>
                             </template>
-                            <el-select class="w100" @change="changeIsIframe" v-model="form.meta.linkType" placeholder="请选择">
+                            <el-select class="w100" @change="changeLinkType" v-model="form.meta.linkType" placeholder="请选择">
                                 <el-option :key="0" label="否" :value="0"> </el-option>
                                 <el-option :key="1" label="内嵌" :value="1"> </el-option>
                                 <el-option :key="2" label="外链" :value="2"> </el-option>
@@ -249,13 +249,9 @@ watch(props, (newValue: any) => {
     state.form.meta.linkType = meta.linkType;
 });
 
-// 改变iframe字段，如果为是，则设置默认的组件
-const changeIsIframe = (value: boolean) => {
-    if (value) {
-        state.form.meta.component = 'layout/routerView/parent';
-    } else {
-        state.form.meta.component = '';
-    }
+// 改变外链类型
+const changeLinkType = () => {
+    state.form.meta.component = '';
 };
 
 const btnOk = () => {

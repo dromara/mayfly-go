@@ -18,7 +18,7 @@ import { useKeepALiveNames } from '@/store/keepAliveNames';
  * @method import.meta.glob
  * @link 参考：https://cn.vitejs.dev/guide/features.html#json
  */
-const viewsModules: any = import.meta.glob(['../views/**/*.{vue,tsx}']);
+const viewsModules: Record<string, Function> = import.meta.glob(['../views/**/*.{vue,tsx}']);
 const dynamicViewsModules: Record<string, Function> = Object.assign({}, { ...viewsModules });
 
 // 添加静态路由
@@ -104,7 +104,7 @@ export function backEndRouterConverter(routes: any, callbackFunc: RouterConvCall
             item.component = dynamicImport(dynamicViewsModules, item.meta.component);
             delete item.meta['component'];
         }
-        // route.path == resource.code
+
         let path = item.code;
         // 如果不是以 / 开头，则路径需要拼接父路径
         if (!path.startsWith('/')) {
@@ -145,13 +145,18 @@ export function dynamicImport(dynamicViewsModules: Record<string, Function>, com
         const k = key.replace(/..\/views|../, '');
         return k.startsWith(`${component}`) || k.startsWith(`/${component}`);
     });
+
     if (matchKeys?.length === 1) {
-        const matchKey = matchKeys[0];
-        return dynamicViewsModules[matchKey];
+        return dynamicViewsModules[matchKeys[0]];
     }
+
     if (matchKeys?.length > 1) {
-        return false;
+        console.error('匹配到多个相似组件路径, 可添加后缀.vue或.tsx进行区分或者重命名组件名, 请调整...', matchKeys);
+        return null;
     }
+
+    console.error(`未匹配到[${component}]组件名对应的组件文件`);
+    return null;
 }
 
 // 删除/重置路由
@@ -218,7 +223,7 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // 不存在路由（避免刷新页面找不到路由）并且未加载过（避免token过期，导致获取权限接口报权限不足，无限获取），则重新初始化路由
-    if (useRoutesList().routesList.length == 0 && !loadRouter) {
+    if (useRoutesList().routesList?.length == 0 && !loadRouter) {
         await initRouter();
         loadRouter = true;
         next({ path: to.path, query: to.query });

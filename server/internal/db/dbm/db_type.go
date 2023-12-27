@@ -19,7 +19,7 @@ const (
 func (dbType DbType) MetaDbName() string {
 	switch dbType {
 	case DbTypeMysql:
-		return "mysql"
+		return ""
 	case DbTypePostgres:
 		return "postgres"
 	case DM:

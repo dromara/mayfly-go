@@ -82,7 +82,7 @@ body,
     }
 
     .layout-view-bg-white {
-        background: white;
+        background: var(--bg-main-color);
         width: 100%;
         height: 100%;
         border-radius: 4px;

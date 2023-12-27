@@ -1,5 +1,5 @@
 import router from '../router';
-import { getClientId, getToken } from './utils/storage';
+import { clearUser, getClientId, getToken } from './utils/storage';
 import { templateResolve } from './utils/string';
 import { ElMessage } from 'element-plus';
 import { createFetch } from '@vueuse/core';
@@ -125,6 +125,7 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
 
             // 如果提示没有权限，则跳转至无权限页面
             if (result.code === ResultEnum.NO_PERMISSION) {
+                clearUser();
                 router.push({
                     path: '/401',
                 });

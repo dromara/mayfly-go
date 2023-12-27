@@ -49,9 +49,9 @@
                         </el-text>
 
                         <!-- 展示剩余的磁盘信息 -->
-                        <el-popover :show-after="300" placement="top-start" width="230" trigger="hover">
+                        <el-popover :show-after="300" v-if="data.stat.fsInfos.length > 2 && idx == 1" placement="top-start" width="230" trigger="hover">
                             <template #reference>
-                                <SvgIcon class="mt5 ml5" color="var(--el-color-primary)" v-if="data.stat.fsInfos.length > 2 && idx == 1" name="MoreFilled" />
+                                <SvgIcon class="mt5 ml5" color="var(--el-color-primary)" name="MoreFilled" />
                             </template>
 
                             <el-row v-for="i in data.stat.fsInfos.slice(2)" :key="i.mountPoint">
