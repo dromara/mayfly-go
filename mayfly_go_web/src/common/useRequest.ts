@@ -1,5 +1,5 @@
 import router from '../router';
-import { clearUser, getClientId, getToken } from './utils/storage';
+import { getClientId, getToken } from './utils/storage';
 import { templateResolve } from './utils/string';
 import { ElMessage } from 'element-plus';
 import { createFetch } from '@vueuse/core';
@@ -7,6 +7,7 @@ import Api from './Api';
 import { Result, ResultEnum } from './request';
 import config from './config';
 import { unref } from 'vue';
+import { URL_401 } from '../router/staticRouter';
 
 const baseUrl: string = config.baseApiUrl;
 
@@ -125,11 +126,10 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
 
             // 如果提示没有权限，则跳转至无权限页面
             if (result.code === ResultEnum.NO_PERMISSION) {
-                clearUser();
                 router.push({
-                    path: '/401',
+                    path: URL_401,
                 });
-                return;
+                return Promise.reject(result);
             }
 
             // 如果返回的code不为成功，则会返回对应的错误msg，则直接统一通知即可。忽略登录超时或没有权限的提示（直接跳转至401页面）

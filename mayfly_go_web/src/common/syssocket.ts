@@ -73,9 +73,9 @@ class SysSocket {
     }
 
     destory() {
-        this.socket.close();
+        this.socket?.close();
         this.socket = null;
-        this.categoryHandlers.clear();
+        this.categoryHandlers?.clear();
     }
 
     /**

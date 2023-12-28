@@ -1,5 +1,4 @@
 import Api from '@/common/Api';
-import { ElMessage } from 'element-plus';
 import { reactive, toRefs, toValue } from 'vue';
 
 /**
@@ -54,8 +53,6 @@ export const usePageTable = (
             } else {
                 state.tableData = res;
             }
-        } catch (error: any) {
-            ElMessage.error(error?.message);
         } finally {
             state.loading = false;
         }

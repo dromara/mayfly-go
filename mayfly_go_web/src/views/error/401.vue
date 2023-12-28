@@ -19,16 +19,21 @@
 </template>
 
 <script lang="ts">
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { clearSession } from '@/common/utils/storage';
+import { URL_LOGIN } from '@/router/staticRouter';
+
 export default {
     name: '401',
     setup() {
         const router = useRouter();
+        const route = useRoute();
+
         const onSetAuth = () => {
             clearSession();
-            router.push('/login');
+            router.push({ path: URL_LOGIN, query: route.query });
         };
+
         return {
             onSetAuth,
         };
@@ -93,3 +98,4 @@ export default {
     }
 }
 </style>
+@/router/staticRouter
