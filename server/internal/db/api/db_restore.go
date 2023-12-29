@@ -38,9 +38,9 @@ func (d *DbRestore) GetPageList(rc *req.Ctx) {
 // Create 保存数据库恢复任务
 // @router /api/dbs/:dbId/restores [POST]
 func (d *DbRestore) Create(rc *req.Ctx) {
-	form := &form.DbRestoreForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-	rc.ReqParam = form
+	restoreForm := &form.DbRestoreForm{}
+	ginx.BindJsonAndValid(rc.GinCtx, restoreForm)
+	rc.ReqParam = restoreForm
 
 	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
@@ -48,16 +48,13 @@ func (d *DbRestore) Create(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	task := &entity.DbRestore{
-		DbName:              form.DbName,
-		StartTime:           form.StartTime,
-		Interval:            form.Interval,
-		Enabled:             true,
-		Repeated:            form.Repeated,
+		DbTaskBase:          entity.NewDbBTaskBase(true, restoreForm.Repeated, restoreForm.StartTime, restoreForm.Interval),
+		DbName:              restoreForm.DbName,
 		DbInstanceId:        db.InstanceId,
-		PointInTime:         form.PointInTime,
-		DbBackupId:          form.DbBackupId,
-		DbBackupHistoryId:   form.DbBackupHistoryId,
-		DbBackupHistoryName: form.DbBackupHistoryName,
+		PointInTime:         restoreForm.PointInTime,
+		DbBackupId:          restoreForm.DbBackupId,
+		DbBackupHistoryId:   restoreForm.DbBackupHistoryId,
+		DbBackupHistoryName: restoreForm.DbBackupHistoryName,
 	}
 	biz.ErrIsNilAppendErr(d.DbRestoreApp.Create(rc.MetaCtx, task), "添加数据库恢复任务失败: %v")
 }
@@ -65,15 +62,14 @@ func (d *DbRestore) Create(rc *req.Ctx) {
 // Save 保存数据库恢复任务
 // @router /api/dbs/:dbId/restores/:restoreId [PUT]
 func (d *DbRestore) Save(rc *req.Ctx) {
-	form := &form.DbRestoreForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-	rc.ReqParam = form
+	restoreForm := &form.DbRestoreForm{}
+	ginx.BindJsonAndValid(rc.GinCtx, restoreForm)
+	rc.ReqParam = restoreForm
 
-	task := &entity.DbRestore{
-		StartTime: form.StartTime,
-		Interval:  form.Interval,
-	}
-	task.Id = form.Id
+	task := &entity.DbRestore{}
+	task.Id = restoreForm.Id
+	task.StartTime = restoreForm.StartTime
+	task.Interval = restoreForm.Interval
 	biz.ErrIsNilAppendErr(d.DbRestoreApp.Save(rc.MetaCtx, task), "保存数据库恢复任务失败: %v")
 }
 
