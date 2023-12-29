@@ -71,11 +71,15 @@ func (q *QueryCond) Undeleted() *QueryCond {
 }
 
 func (q *QueryCond) GenGdb() *gorm.DB {
+	return q.GenGdbWithDb(global.Db)
+}
+
+func (q *QueryCond) GenGdbWithDb(db *gorm.DB) *gorm.DB {
 	var gdb *gorm.DB
 	if q.table != "" {
-		gdb = global.Db.Table(q.table)
+		gdb = db.Table(q.table)
 	} else {
-		gdb = global.Db.Model(q.dbModel)
+		gdb = db.Model(q.dbModel)
 	}
 
 	if q.selectColumns != "" {
@@ -129,6 +133,10 @@ func (q *QueryCond) In(column string, val any) *QueryCond {
 
 func (q *QueryCond) NotIn(column string, val any) *QueryCond {
 	return q.Cond(consts.NotIn, column, val, true)
+}
+
+func (q *QueryCond) In0(column string, val any) *QueryCond {
+	return q.Cond(consts.In, column, val, true)
 }
 
 // // Ne 不等于 !=

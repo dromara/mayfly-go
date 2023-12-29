@@ -102,7 +102,7 @@ func (a *LdapLogin) getOrCreateUserWithLdap(userName string, password string, co
 	}
 
 	account, err := a.getUser(userName, cols...)
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		a.createUser(userName, userInfo.DisplayName)
 		return a.getUser(userName, cols...)
 	} else if err != nil {

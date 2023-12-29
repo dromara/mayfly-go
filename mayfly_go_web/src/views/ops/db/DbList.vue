@@ -61,10 +61,10 @@
                     <template #dropdown>
                         <el-dropdown-menu>
                             <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
-
-                            <!-- <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.saveDb]"> 编辑 </el-dropdown-item> -->
-
+                            <!--<el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.saveDb]"> 编辑 </el-dropdown-item>-->
                             <el-dropdown-item :command="{ type: 'dumpDb', data }" v-if="data.type == DbType.mysql"> 导出 </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'dbBackup', data }" v-if="data.type == DbType.mysql"> 备份 </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'dbRestore', data }" v-if="data.type == DbType.mysql"> 恢复 </el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
                 </el-dropdown>
@@ -122,6 +122,26 @@
             <db-sql-exec-log :db-id="sqlExecLogDialog.dbId" :dbs="sqlExecLogDialog.dbs" />
         </el-dialog>
 
+        <el-dialog
+            width="90%"
+            :title="`${dbBackupDialog.title} - 数据库备份`"
+            :close-on-click-modal="false"
+            :destroy-on-close="true"
+            v-model="dbBackupDialog.visible"
+        >
+            <db-backup-list :dbId="dbBackupDialog.dbId" :dbNames="dbBackupDialog.dbs" />
+        </el-dialog>
+
+        <el-dialog
+            width="90%"
+            :title="`${dbRestoreDialog.title} - 数据库恢复`"
+            :close-on-click-modal="false"
+            :destroy-on-close="true"
+            v-model="dbRestoreDialog.visible"
+        >
+            <db-restore-list :dbId="dbRestoreDialog.dbId" :dbNames="dbRestoreDialog.dbs" />
+        </el-dialog>
+
         <el-dialog v-model="infoDialog.visible" :before-close="onBeforeCloseInfoDialog" :close-on-click-modal="false">
             <el-descriptions title="详情" :column="3" border>
                 <!-- <el-descriptions-item :span="3" label="标签路径">{{ infoDialog.data?.tagPath }}</el-descriptions-item> -->
@@ -165,6 +185,8 @@ import { useRoute } from 'vue-router';
 import { getDbDialect } from './dialect/index';
 import { getTagPathSearchItem } from '../component/tag';
 import { SearchItem } from '@/components/SearchForm';
+import DbBackupList from './DbBackupList.vue';
+import DbRestoreList from './DbRestoreList.vue';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
@@ -225,6 +247,24 @@ const state = reactive({
         dbs: [],
         dbId: 0,
     },
+    // 数据库备份弹框
+    dbBackupDialog: {
+        title: '',
+        visible: false,
+        dbs: [],
+        dbId: 0,
+    },
+    // 数据库恢复弹框
+    dbRestoreDialog: {
+        title: '',
+        visible: false,
+        dbs: [],
+        dbId: 0,
+    },
+    chooseTableName: '',
+    tableInfoDialog: {
+        visible: false,
+    },
     exportDialog: {
         visible: false,
         dbId: 0,
@@ -246,7 +286,7 @@ const state = reactive({
     },
 });
 
-const { db, selectionData, query, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog } = toRefs(state);
+const { db, selectionData, query, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog, dbBackupDialog, dbRestoreDialog } = toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
@@ -304,6 +344,15 @@ const handleMoreActionCommand = (commond: any) => {
         }
         case 'dumpDb': {
             onDumpDbs(data);
+            return;
+        }
+        case 'dbBackup': {
+            onShowDbBackupDialog(data);
+            return;
+        }
+        case 'dbRestore': {
+            onShowDbRestoreDialog(data);
+            return;
         }
     }
 };
@@ -345,6 +394,20 @@ const onBeforeCloseSqlExecDialog = () => {
     state.sqlExecLogDialog.visible = false;
     state.sqlExecLogDialog.dbs = [];
     state.sqlExecLogDialog.dbId = 0;
+};
+
+const onShowDbBackupDialog = async (row: any) => {
+    state.dbBackupDialog.title = `${row.name}`;
+    state.dbBackupDialog.dbId = row.id;
+    state.dbBackupDialog.dbs = row.database.split(' ');
+    state.dbBackupDialog.visible = true;
+};
+
+const onShowDbRestoreDialog = async (row: any) => {
+    state.dbRestoreDialog.title = `${row.name}`;
+    state.dbRestoreDialog.dbId = row.id;
+    state.dbRestoreDialog.dbs = row.database.split(' ');
+    state.dbRestoreDialog.visible = true;
 };
 
 const onDumpDbs = async (row: any) => {

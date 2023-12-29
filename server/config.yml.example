@@ -46,3 +46,13 @@ log:
   # file:
   #   path: ./
   #   name: mayfly-go.log
+db:
+  backup-path: ./backup
+  mysqlutil-path:
+    mysql: ./mysqlutil/bin/mysql
+    mysqldump: ./mysqlutil/bin/mysqldump
+    mysqlbinlog: ./mysqlutil/bin/mysqlbinlog
+  mariadbutil-path:
+    mysql: ./mariadbutil/bin/mariadb
+    mysqldump: ./mariadbutil/bin/mariadb-dump
+    mysqlbinlog: ./mariadbutil/bin/mariadb-binlog

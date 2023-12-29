@@ -1,16 +1,16 @@
 # 构建前端资源
-FROM node:18-alpine3.16 as fe-builder
+FROM node:18-bookworm-slim as fe-builder
 
 WORKDIR /mayfly
 
 COPY mayfly_go_web .
 
-RUN yarn
+RUN yarn install
 
 RUN yarn build
 
 # 构建后端资源
-FROM golang:1.21.0 as be-builder
+FROM golang:1.21.5 as be-builder
 
 ENV GOPROXY https://goproxy.cn
 WORKDIR /mayfly
@@ -27,9 +27,11 @@ RUN GO111MODULE=on CGO_ENABLED=0 GOOS=linux \
     go build -a \
     -o mayfly-go main.go
 
-FROM alpine:3.16
+FROM debian:bookworm-slim
 
-RUN apk add --no-cache ca-certificates bash expat
+RUN apt-get update && \
+    apt-get install -y ca-certificates expat libncurses5 && \
+    apt-get clean
 
 ENV TZ=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone

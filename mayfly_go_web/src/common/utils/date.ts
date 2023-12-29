@@ -24,5 +24,8 @@ export function dateStrFormat(fmt: string, dateStr: string) {
 }
 
 export function dateFormat(dateStr: string) {
+    if (dateStr.startsWith('0001-01-01', 0)) {
+        return '';
+    }
     return dateFormat2('yyyy-MM-dd HH:mm:ss', new Date(dateStr));
 }

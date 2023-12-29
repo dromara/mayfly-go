@@ -143,7 +143,7 @@ func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resourc
 	}
 	condition := new(entity.Resource)
 	condition.Id = sortResource.Id
-	return gormx.Updates(condition, updateMap)
+	return gormx.Updates(condition, condition, updateMap)
 }
 
 func (r *resourceAppImpl) checkCode(code string) error {

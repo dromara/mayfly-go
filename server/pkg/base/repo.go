@@ -2,13 +2,10 @@ package base
 
 import (
 	"context"
-	"mayfly-go/pkg/biz"
+	"gorm.io/gorm"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils/anyx"
-
-	"gorm.io/gorm"
 )
 
 // 基础repo接口
@@ -117,31 +114,29 @@ func (br *RepoImpl[T]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T) e
 }
 
 func (br *RepoImpl[T]) Updates(cond any, udpateFields map[string]any) error {
-	return gormx.Updates(cond, udpateFields)
+	return gormx.Updates(br.GetModel(), cond, udpateFields)
 }
 
 func (br *RepoImpl[T]) DeleteById(ctx context.Context, id uint64) error {
 	if db := contextx.GetDb(ctx); db != nil {
 		return br.DeleteByIdWithDb(ctx, db, id)
 	}
-
 	return gormx.DeleteById(br.getModel(), id)
 }
 
 func (br *RepoImpl[T]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error {
-	return gormx.DeleteByCondWithDb(db, br.getModel(), id)
+	return gormx.DeleteByCondWithDb(db, br.GetModel(), id)
 }
 
 func (br *RepoImpl[T]) DeleteByCond(ctx context.Context, cond any) error {
 	if db := contextx.GetDb(ctx); db != nil {
 		return br.DeleteByCondWithDb(ctx, db, cond)
 	}
-
 	return gormx.DeleteByCond(br.getModel(), cond)
 }
 
 func (br *RepoImpl[T]) DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error {
-	return gormx.DeleteByCondWithDb(db, br.getModel(), cond)
+	return gormx.DeleteByCondWithDb(db, br.GetModel(), cond)
 }
 
 func (br *RepoImpl[T]) GetById(e T, id uint64, cols ...string) error {
@@ -152,7 +147,7 @@ func (br *RepoImpl[T]) GetById(e T, id uint64, cols ...string) error {
 }
 
 func (br *RepoImpl[T]) GetByIdIn(list any, ids []uint64, orderBy ...string) error {
-	return gormx.GetByIdIn(br.getModel(), list, ids, orderBy...)
+	return gormx.GetByIdIn(br.GetModel(), list, ids, orderBy...)
 }
 
 func (br *RepoImpl[T]) GetBy(cond T, cols ...string) error {
@@ -160,21 +155,25 @@ func (br *RepoImpl[T]) GetBy(cond T, cols ...string) error {
 }
 
 func (br *RepoImpl[T]) ListByCond(cond any, listModels any, cols ...string) error {
-	return gormx.ListByCond(br.getModel(), cond, listModels, cols...)
+	return gormx.ListByCond(br.GetModel(), cond, listModels, cols...)
 }
 
 func (br *RepoImpl[T]) ListByCondOrder(cond any, list any, order ...string) error {
-	return gormx.ListByCondOrder(br.getModel(), cond, list, order...)
+	return gormx.ListByCondOrder(br.GetModel(), cond, list, order...)
 }
 
 func (br *RepoImpl[T]) CountByCond(cond any) int64 {
-	return gormx.CountByCond(br.getModel(), cond)
+	return gormx.CountByCond(br.GetModel(), cond)
 }
 
-// 获取表的模型实例
+// getModel 获取表的模型实例
 func (br *RepoImpl[T]) getModel() T {
-	biz.IsTrue(!anyx.IsBlank(br.M), "base.RepoImpl的M字段不能为空")
 	return br.M
+}
+
+// GetModel 获取表的模型实例
+func (br *RepoImpl[T]) GetModel() T {
+	return br.getModel()
 }
 
 // 从上下文获取登录账号信息，并赋值至实体

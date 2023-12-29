@@ -32,7 +32,6 @@ export const dbApi = {
     // 获取数据库sql执行记录
     getSqlExecs: Api.newGet('/dbs/{dbId}/sql-execs'),
 
-    // 获取权限列表
     instances: Api.newGet('/instances'),
     getInstance: Api.newGet('/instances/{instanceId}'),
     getAllDatabase: Api.newGet('/instances/{instanceId}/databases'),
@@ -41,4 +40,21 @@ export const dbApi = {
     saveInstance: Api.newPost('/instances'),
     getInstancePwd: Api.newGet('/instances/{id}/pwd'),
     deleteInstance: Api.newDelete('/instances/{id}'),
+
+    // 获取数据库备份列表
+    getDbBackups: Api.newGet('/dbs/{dbId}/backups'),
+    createDbBackup: Api.newPost('/dbs/{dbId}/backups'),
+    getDbNamesWithoutBackup: Api.newGet('/dbs/{dbId}/db-names-without-backup'),
+    enableDbBackup: Api.newPut('/dbs/{dbId}/backups/{backupId}/enable'),
+    disableDbBackup: Api.newPut('/dbs/{dbId}/backups/{backupId}/disable'),
+    saveDbBackup: Api.newPut('/dbs/{dbId}/backups/{id}'),
+    getDbBackupHistories: Api.newGet('/dbs/{dbId}/backup-histories'),
+
+    // 获取数据库备份列表
+    getDbRestores: Api.newGet('/dbs/{dbId}/restores'),
+    createDbRestore: Api.newPost('/dbs/{dbId}/restores'),
+    getDbNamesWithoutRestore: Api.newGet('/dbs/{dbId}/db-names-without-restore'),
+    enableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/enable'),
+    disableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/disable'),
+    saveDbRestore: Api.newPut('/dbs/{dbId}/restores/{id}'),
 };

@@ -28,8 +28,8 @@
             </template>
         </page-table>
 
-        <el-dialog v-model="infoDialog.visible">
-            <el-descriptions title="详情" :column="3" border>
+        <el-dialog v-model="infoDialog.visible" title="详情">
+            <el-descriptions :column="3" border>
                 <el-descriptions-item :span="2" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="id">{{ infoDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="2" label="主机">{{ infoDialog.data.host }}</el-descriptions-item>

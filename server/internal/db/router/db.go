@@ -46,6 +46,11 @@ func InitDbRouter(router *gin.RouterGroup) {
 		req.NewGet(":dbId/c-metadata", d.ColumnMA),
 
 		req.NewGet(":dbId/hint-tables", d.HintTables),
+
+		req.NewGet(":dbId/restore-task", d.GetRestoreTask),
+		req.NewPost(":dbId/restore-task", d.SaveRestoreTask).
+			Log(req.NewLogSave("db-保存数据库恢复任务")),
+		req.NewGet(":dbId/restore-histories", d.GetRestoreHistories),
 	}
 
 	req.BatchSetGroup(db, reqs[:])
