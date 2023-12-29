@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/db/domain/service"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/stringx"
 	"time"
 )
 
@@ -62,7 +63,7 @@ func withUpdateRestoreStatus(repositories *repository.Repositories) SchedulerOpt
 			if lastErr != nil {
 				result = fmt.Sprintf("%v: %v", restoreResult[status], lastErr)
 			}
-			task.LastResult = result
+			task.LastResult = stringx.TruncateStr(result, entity.LastResultSize)
 			task.LastTime = time.Now()
 			return repositories.Restore.UpdateTaskStatus(ctx, task)
 		}

@@ -29,6 +29,7 @@
                         :disabled="state.editOrCreate"
                         @change="changeHistory"
                         v-model="state.history"
+                        value-key="id"
                         placeholder="数据库备份"
                         filterable
                         clearable

@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/db/domain/service"
+	"mayfly-go/pkg/utils/stringx"
 	"time"
 )
 
@@ -53,7 +54,7 @@ func withUpdateBinlogStatus(repositories *repository.Repositories) SchedulerOpti
 			if lastErr != nil {
 				result = fmt.Sprintf("%v: %v", binlogResult[status], lastErr)
 			}
-			task.LastResult = result
+			task.LastResult = stringx.TruncateStr(result, entity.LastResultSize)
 			task.LastTime = time.Now()
 			return repositories.Binlog.UpdateTaskStatus(ctx, task)
 		}
