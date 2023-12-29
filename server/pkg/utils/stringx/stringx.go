@@ -115,3 +115,17 @@ func ReverStrTemplate(temp, str string, res map[string]any) {
 		ReverStrTemplate(next, Trim(SubString(str, UnicodeIndex(str, value)+Len(value), Len(str))), res)
 	}
 }
+
+func TruncateStr(s string, length int) string {
+	if length >= len(s) {
+		return s
+	}
+	var last int
+	for i := range s {
+		if i > length {
+			break
+		}
+		last = i
+	}
+	return s[:last]
+}

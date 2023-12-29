@@ -1,6 +1,8 @@
 package entity
 
-import "time"
+import (
+	"time"
+)
 
 type TaskStatus int
 
@@ -19,3 +21,5 @@ type DbTask interface {
 	Schedule() bool
 	Update(task DbTask) bool
 }
+
+const LastResultSize = 256
