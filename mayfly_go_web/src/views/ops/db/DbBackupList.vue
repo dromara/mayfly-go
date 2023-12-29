@@ -9,11 +9,7 @@
             :searchItems="searchItems"
             :before-query-fn="beforeQueryFn"
             v-model:query-form="query"
-            :data="state.data"
             :columns="columns"
-            :total="state.total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
         >
             <template #dbSelect>
                 <el-select v-model="query.dbName" placeholder="请选择数据库" style="width: 200px" filterable clearable>
@@ -29,8 +25,8 @@
 
             <template #action="{ data }">
                 <el-button @click="editDbBackup(data)" type="primary" link>编辑</el-button>
-                <el-button @click="enableDbBackup(data)" type="primary" link>启用</el-button>
-                <el-button @click="disableDbBackup(data)" type="primary" link>禁用</el-button>
+                <el-button @click="enableDbBackup(data)" v-if="!data.enabled" type="success" link>启用</el-button>
+                <el-button @click="disableDbBackup(data)" v-if="data.enabled" type="warning" link>禁用</el-button>
             </template>
         </page-table>
 
@@ -76,7 +72,7 @@ const columns = [
     TableColumn.new('enabled', '是否启用'),
     TableColumn.new('lastResult', '执行结果'),
     TableColumn.new('lastTime', '执行时间').isTime(),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(220).fixedRight().alignCenter(),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(160).fixedRight().alignCenter(),
 ];
 
 const emptyQuery = {

@@ -29,6 +29,7 @@ func NewDbBinlog(history *DbBackupHistory) *DbBinlog {
 		Enabled:      true,
 		Interval:     BinlogDownloadInterval,
 		DbInstanceId: history.DbInstanceId,
+		LastTime:     time.Now(),
 	}
 	binlogTask.Id = binlogTask.DbInstanceId
 	return binlogTask

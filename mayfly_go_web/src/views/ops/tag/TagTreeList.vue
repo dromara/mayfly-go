@@ -396,7 +396,7 @@ const removeDeafultExpandId = (id: any) => {
 <style lang="scss">
 .tag-tree-list {
     .tag-tree-data {
-        height: calc(100vh - 200px);
+        height: calc(100vh - 202px);
 
         .el-tree-node__content {
             height: 40px;

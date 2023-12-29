@@ -9,11 +9,7 @@
             :searchItems="searchItems"
             :before-query-fn="beforeQueryFn"
             v-model:query-form="query"
-            :data="state.data"
             :columns="columns"
-            :total="state.total"
-            v-model:page-size="query.pageSize"
-            v-model:page-num="query.pageNum"
         >
             <template #dbSelect>
                 <el-select v-model="query.dbName" placeholder="请选择数据库" style="width: 200px" filterable clearable>

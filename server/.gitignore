@@ -2,9 +2,3 @@ static/static
 config.yml
 mayfly_rsa
 mayfly_rsa.pub
-# 数据库备份目录
-backup/
-# MySQL 可执行文件 (mysql mysqldump mysqlbinlog) 所在目录
-mysqlutil/
-# MariaDB 可执行文件 (mysql mysqldump mysqlbinlog) 所在目录
-mariadbutil/

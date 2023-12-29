@@ -43,17 +43,11 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { SearchItem } from '@/components/SearchForm';
-import { useVModel } from '@vueuse/core';
 import AccountSelectFormItem from '../account/components/AccountSelectFormItem.vue';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     role: Object,
 });
-
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const perms = {
     saveAccountRole: 'account:saveRoles',
@@ -94,7 +88,7 @@ const state = reactive({
 
 const { query, addAccountDialog } = toRefs(state);
 
-const dialogVisible = useVModel(props, 'visible', emit);
+const dialogVisible = defineModel('visible', { default: false });
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {

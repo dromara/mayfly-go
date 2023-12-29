@@ -61,6 +61,7 @@ func (d *DbBackup) Create(rc *req.Ctx) {
 			Enabled:      true,
 			Repeated:     form.Repeated,
 			DbInstanceId: db.InstanceId,
+			LastTime:     form.StartTime,
 		}
 		tasks = append(tasks, task)
 	}
@@ -78,6 +79,7 @@ func (d *DbBackup) Save(rc *req.Ctx) {
 		Name:      form.Name,
 		StartTime: form.StartTime,
 		Interval:  form.Interval,
+		LastTime:  form.StartTime,
 	}
 	task.Id = form.Id
 	biz.ErrIsNilAppendErr(d.DbBackupApp.Save(rc.MetaCtx, task), "保存数据库备份任务失败: %v")

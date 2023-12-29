@@ -55,7 +55,6 @@ type Config struct {
 	Sqlite Sqlite `yaml:"sqlite"`
 	Redis  Redis  `yaml:"redis"`
 	Log    Log    `yaml:"log"`
-	Db     Db     `yaml:"db"`
 }
 
 func (c *Config) IfBlankDefaultValue() {
@@ -73,7 +72,6 @@ func (c *Config) IfBlankDefaultValue() {
 	c.Jwt.Default()
 	c.Mysql.Default()
 	c.Sqlite.Default()
-	c.Db.Default()
 }
 
 // 配置文件内容校验
@@ -82,7 +80,7 @@ func (c *Config) Valid() {
 	c.Aes.Valid()
 }
 
-// 替换系统环境变量，如果环境变量中存在该值，则优秀使用环境变量设定的值
+// 替换系统环境变量，如果环境变量中存在该值，则优先使用环境变量设定的值
 func (c *Config) ReplaceOsEnv() {
 	serverPort := os.Getenv("MAYFLY_SERVER_PORT")
 	if serverPort != "" {

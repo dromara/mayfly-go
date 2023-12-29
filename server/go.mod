@@ -15,6 +15,7 @@ require (
 	github.com/go-playground/validator/v10 v10.14.0
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/golang-jwt/jwt/v5 v5.2.0
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/kanzihuang/vitess/go/vt/sqlparser v0.0.0-20231018071450-ac8d9f0167e9
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230712084735-068dc2aee82d
@@ -28,15 +29,11 @@ require (
 	go.mongodb.org/mongo-driver v1.13.1 // mongo
 	golang.org/x/crypto v0.17.0 // ssh
 	golang.org/x/oauth2 v0.15.0
+	golang.org/x/sync v0.1.0
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
 	gorm.io/driver/mysql v1.5.2
 	gorm.io/gorm v1.25.5
-)
-
-require (
-	github.com/google/uuid v1.3.0
-	golang.org/x/sync v0.1.0
 )
 
 require (

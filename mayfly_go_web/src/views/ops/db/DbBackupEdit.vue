@@ -46,9 +46,6 @@ import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
         type: [Boolean, Object],
     },
@@ -61,8 +58,12 @@ const props = defineProps({
     },
 });
 
+const visible = defineModel<boolean>('visible', {
+    default: false,
+});
+
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
 
 const rules = {
     dbNames: [
@@ -97,7 +98,7 @@ const state = reactive({
         dbId: 0,
         dbNames: String,
         name: null as any,
-        intervalDay: 1,
+        intervalDay: null,
         startTime: null as any,
         repeated: null as any,
     },
@@ -107,9 +108,9 @@ const state = reactive({
     editOrCreate: false,
 });
 
-watch(props, (newValue: any) => {
-    if (newValue.visible) {
-        init(newValue.data);
+watch(visible, (newValue: any) => {
+    if (newValue) {
+        init(props.data);
     }
 });
 
@@ -135,7 +136,7 @@ const init = (data: any) => {
     } else {
         state.editOrCreate = false;
         state.form.name = '';
-        state.form.intervalDay = 1;
+        state.form.intervalDay = null;
         const now = new Date();
         state.form.startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
         getDbNamesWithoutBackup();
@@ -150,32 +151,32 @@ const getDbNamesWithoutBackup = async () => {
 
 const btnOk = async () => {
     backupForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            state.form.repeated = true;
-            const reqForm = { ...state.form };
-            let api = dbApi.createDbBackup;
-            if (props.data) {
-                api = dbApi.saveDbBackup;
-            }
-            api.request(reqForm).then(() => {
-                ElMessage.success('保存成功');
-                emit('val-change', state.form);
-                state.btnLoading = true;
-                setTimeout(() => {
-                    state.btnLoading = false;
-                }, 1000);
-
-                cancel();
-            });
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
+        }
+
+        state.form.repeated = true;
+        const reqForm = { ...state.form };
+        let api = dbApi.createDbBackup;
+        if (props.data) {
+            api = dbApi.saveDbBackup;
+        }
+
+        try {
+            state.btnLoading = true;
+            await api.request(reqForm);
+            ElMessage.success('保存成功');
+            emit('val-change', state.form);
+            cancel();
+        } finally {
+            state.btnLoading = false;
         }
     });
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    visible.value = false;
     emit('cancel');
 };
 </script>

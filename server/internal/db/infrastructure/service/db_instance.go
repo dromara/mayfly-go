@@ -18,11 +18,12 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sync/singleflight"
 
+	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/db/domain/service"
-	"mayfly-go/pkg/config"
+
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/structx"
 )
@@ -145,13 +146,13 @@ func (svc *DbInstanceSvcImpl) Backup(ctx context.Context, backupHistory *entity.
 	}
 
 	cmd := exec.CommandContext(ctx, mysqldumpPath(), args...)
-	logx.Debug("backup database using mysqldump binary: ", cmd.String())
+	logx.Debugf("backup database using mysqldump binary: %s", cmd.String())
 	if err := runCmd(cmd); err != nil {
 		logx.Errorf("运行 mysqldump 程序失败: %v", err)
 		return nil, errors.Wrap(err, "运行 mysqldump 程序失败")
 	}
 
-	logx.Debug("Checking dumped file stat", tmpFile)
+	logx.Debugf("Checking dumped file stat: %s", tmpFile)
 	if _, err := os.Stat(tmpFile); err != nil {
 		logx.Errorf("未找到备份文件: %v", err)
 		return nil, errors.Wrapf(err, "未找到备份文件")
@@ -297,20 +298,20 @@ func parseLocalBinlogFirstEventTime(ctx context.Context, filePath string) (event
 // getBinlogDir gets the binlogDir.
 func getBinlogDir(instanceId uint64) string {
 	return filepath.Join(
-		config.Conf.Db.BackupPath,
+		config.GetDbBackupRestore().BackupPath,
 		fmt.Sprintf("instance-%d", instanceId),
 		"binlog")
 }
 
 func getDbInstanceBackupRoot(instanceId uint64) string {
 	return filepath.Join(
-		config.Conf.Db.BackupPath,
+		config.GetDbBackupRestore().BackupPath,
 		fmt.Sprintf("instance-%d", instanceId))
 }
 
 func getDbBackupDir(instanceId, backupId uint64) string {
 	return filepath.Join(
-		config.Conf.Db.BackupPath,
+		config.GetDbBackupRestore().BackupPath,
 		fmt.Sprintf("instance-%d", instanceId),
 		fmt.Sprintf("backup-%d", backupId))
 }
@@ -885,13 +886,13 @@ func formatDateTime(t time.Time) string {
 }
 
 func mysqlPath() string {
-	return config.Conf.Db.MysqlUtil.Mysql
+	return config.GetMysqlBin().MysqlPath
 }
 
 func mysqldumpPath() string {
-	return config.Conf.Db.MysqlUtil.MysqlDump
+	return config.GetMysqlBin().MysqldumpPath
 }
 
 func mysqlbinlogPath() string {
-	return config.Conf.Db.MysqlUtil.MysqlBinlog
+	return config.GetMysqlBin().MysqlbinlogPath
 }

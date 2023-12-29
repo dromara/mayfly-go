@@ -1,5 +1,5 @@
 import Api from '@/common/Api';
-import { reactive, toRefs, toValue } from 'vue';
+import { isReactive, reactive, toRefs, toValue } from 'vue';
 
 /**
  * @description table 页面操作方法封装
@@ -41,7 +41,12 @@ export const usePageTable = (
             let sp = toValue(state.searchParams);
             if (beforeQueryFn) {
                 sp = beforeQueryFn(sp);
-                state.searchParams = sp;
+
+                if (isReactive(state.searchParams)) {
+                    state.searchParams.value = sp;
+                } else {
+                    state.searchParams = sp;
+                }
             }
 
             let res = await api.request(sp);

@@ -29,6 +29,7 @@
                         :disabled="state.editOrCreate"
                         @change="changeHistory"
                         v-model="state.history"
+                        value-key="id"
                         placeholder="数据库备份"
                         filterable
                         clearable
@@ -58,9 +59,6 @@ import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
         type: [Boolean, Object],
     },
@@ -78,7 +76,11 @@ const props = defineProps({
 });
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
+
+const visible = defineModel<boolean>('visible', {
+    default: false,
+});
 
 const validatePointInTime = (rule: any, value: any, callback: any) => {
     if (!state.histories || state.histories.length == 0) {
@@ -161,9 +163,9 @@ onMounted(async () => {
     await init(props.data);
 });
 
-watch(props, (newValue: any) => {
-    if (newValue.visible) {
-        init(newValue.data);
+watch(visible, (newValue: any) => {
+    if (newValue) {
+        init(props.data);
     }
 });
 
@@ -230,38 +232,40 @@ const getDbNamesWithoutRestore = async () => {
 
 const btnOk = async () => {
     restoreForm.value.validate(async (valid: any) => {
-        if (valid) {
-            if (state.restoreMode == 'point-in-time') {
-                state.form.dbBackupId = 0;
-                state.form.dbBackupHistoryId = 0;
-                state.form.dbBackupHistoryName = '';
-            } else {
-                state.form.pointInTime = '0001-01-01T00:00:00Z';
-            }
-            state.form.repeated = false;
-            const reqForm = { ...state.form };
-            let api = dbApi.createDbRestore;
-            if (props.data) {
-                api = dbApi.saveDbRestore;
-            }
-            api.request(reqForm).then(() => {
-                ElMessage.success('保存成功');
-                emit('val-change', state.form);
-                state.btnLoading = true;
-                setTimeout(() => {
-                    state.btnLoading = false;
-                }, 1000);
-                cancel();
-            });
-        } else {
+        if (!valid) {
             ElMessage.error('请正确填写信息');
             return false;
+        }
+
+        if (state.restoreMode == 'point-in-time') {
+            state.form.dbBackupId = 0;
+            state.form.dbBackupHistoryId = 0;
+            state.form.dbBackupHistoryName = '';
+        } else {
+            state.form.pointInTime = '0001-01-01T00:00:00Z';
+        }
+
+        state.form.repeated = false;
+        const reqForm = { ...state.form };
+        let api = dbApi.createDbRestore;
+        if (props.data) {
+            api = dbApi.saveDbRestore;
+        }
+
+        try {
+            state.btnLoading = true;
+            await api.request(reqForm);
+            ElMessage.success('保存成功');
+            emit('val-change', state.form);
+            cancel();
+        } finally {
+            state.btnLoading = false;
         }
     });
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    visible.value = false;
     emit('cancel');
 };
 

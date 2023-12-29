@@ -8,7 +8,7 @@
             filterable
             placeholder="请输入账号模糊搜索并选择"
             v-bind="$attrs"
-            :ref="(el: any) => focus && el?.focus()"
+            :ref="(el: any) => props.focus && el?.focus()"
         >
             <el-option v-for="item in accounts" :key="item.id" :label="`${item.username} [${item.name}]`" :value="item.id"> </el-option>
         </el-select>
@@ -18,12 +18,8 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
 import { accountApi } from '../../api';
-import { useVModel } from '@vueuse/core';
 
 const props = defineProps({
-    modelValue: {
-        type: Object,
-    },
     // 是否获取焦点
     focus: {
         type: Boolean,
@@ -31,9 +27,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['update:modelValue']);
-
-const accountId = useVModel(props, 'modelValue', emit);
+const accountId = defineModel('modelValue');
 
 const accounts: any = ref([]);
 

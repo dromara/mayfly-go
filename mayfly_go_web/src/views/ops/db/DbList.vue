@@ -123,7 +123,7 @@
         </el-dialog>
 
         <el-dialog
-            width="90%"
+            width="80%"
             :title="`${dbBackupDialog.title} - 数据库备份`"
             :close-on-click-modal="false"
             :destroy-on-close="true"
@@ -133,7 +133,7 @@
         </el-dialog>
 
         <el-dialog
-            width="90%"
+            width="80%"
             :title="`${dbRestoreDialog.title} - 数据库恢复`"
             :close-on-click-modal="false"
             :destroy-on-close="true"
