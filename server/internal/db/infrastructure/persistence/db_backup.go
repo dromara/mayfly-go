@@ -7,7 +7,6 @@ import (
 	"gorm.io/gorm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
-	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"slices"
@@ -16,7 +15,8 @@ import (
 var _ repository.DbBackup = (*dbBackupRepoImpl)(nil)
 
 type dbBackupRepoImpl struct {
-	base.RepoImpl[*entity.DbBackup]
+	//base.RepoImpl[*entity.DbBackup]
+	dbTaskBase[*entity.DbBackup]
 }
 
 func NewDbBackupRepo() repository.DbBackup {
@@ -32,30 +32,6 @@ func (d *dbBackupRepoImpl) GetDbBackupList(condition *entity.DbBackupQuery, page
 		In0("db_name", condition.InDbNames).
 		Like("db_name", condition.DbName)
 	return gormx.PageQuery(qd, pageParam, toEntity)
-}
-
-func (d *dbBackupRepoImpl) UpdateEnabled(ctx context.Context, taskId uint64, enabled bool) error {
-	cond := map[string]any{
-		"id": taskId,
-	}
-	return d.Updates(cond, map[string]any{
-		"enabled": enabled,
-	})
-}
-
-func (d *dbBackupRepoImpl) UpdateTaskStatus(ctx context.Context, task *entity.DbBackup) error {
-	task = &entity.DbBackup{
-		Model: model.Model{
-			DeletedModel: model.DeletedModel{
-				Id: task.Id,
-			},
-		},
-		Finished:   task.Finished,
-		LastStatus: task.LastStatus,
-		LastResult: task.LastResult,
-		LastTime:   task.LastTime,
-	}
-	return d.UpdateById(ctx, task)
 }
 
 func (d *dbBackupRepoImpl) AddTask(ctx context.Context, tasks ...*entity.DbBackup) error {
@@ -94,7 +70,7 @@ func (d *dbBackupRepoImpl) AddTask(ctx context.Context, tasks ...*entity.DbBacku
 
 func (d *dbBackupRepoImpl) GetDbNamesWithoutBackup(instanceId uint64, dbNames []string) ([]string, error) {
 	var dbNamesWithBackup []string
-	query := gormx.NewQuery(d.M).
+	query := gormx.NewQuery(d.GetModel()).
 		Eq("db_instance_id", instanceId).
 		Eq("repeated", true)
 	if err := query.GenGdb().Pluck("db_name", &dbNamesWithBackup).Error; err != nil {

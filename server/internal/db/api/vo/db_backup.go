@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// DbBackupHistory 数据库备份任务
+// DbBackup 数据库备份任务
 type DbBackup struct {
 	Id           uint64        `json:"id"`
 	DbName       string        `json:"dbName"`               // 数据库名
@@ -21,8 +21,8 @@ type DbBackup struct {
 	Name         string        `json:"name"`                 // 备份任务名称
 }
 
-func (restore *DbBackup) MarshalJSON() ([]byte, error) {
+func (backup *DbBackup) MarshalJSON() ([]byte, error) {
 	type dbBackup DbBackup
-	restore.IntervalDay = uint64(restore.Interval / time.Hour / 24)
-	return json.Marshal((*dbBackup)(restore))
+	backup.IntervalDay = uint64(backup.Interval / time.Hour / 24)
+	return json.Marshal((*dbBackup)(backup))
 }

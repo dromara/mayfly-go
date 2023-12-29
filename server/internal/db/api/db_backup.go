@@ -39,11 +39,11 @@ func (d *DbBackup) GetPageList(rc *req.Ctx) {
 // Create 保存数据库备份任务
 // @router /api/dbs/:dbId/backups [POST]
 func (d *DbBackup) Create(rc *req.Ctx) {
-	form := &form.DbBackupForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-	rc.ReqParam = form
+	backupForm := &form.DbBackupForm{}
+	ginx.BindJsonAndValid(rc.GinCtx, backupForm)
+	rc.ReqParam = backupForm
 
-	dbNames := strings.Fields(form.DbNames)
+	dbNames := strings.Fields(backupForm.DbNames)
 	biz.IsTrue(len(dbNames) > 0, "解析数据库备份任务失败：数据库名称未定义")
 
 	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
@@ -54,12 +54,9 @@ func (d *DbBackup) Create(rc *req.Ctx) {
 	tasks := make([]*entity.DbBackup, 0, len(dbNames))
 	for _, dbName := range dbNames {
 		task := &entity.DbBackup{
+			DbTaskBase:   entity.NewDbBTaskBase(true, backupForm.Repeated, backupForm.StartTime, backupForm.Interval),
 			DbName:       dbName,
-			Name:         form.Name,
-			StartTime:    form.StartTime,
-			Interval:     form.Interval,
-			Enabled:      true,
-			Repeated:     form.Repeated,
+			Name:         backupForm.Name,
 			DbInstanceId: db.InstanceId,
 		}
 		tasks = append(tasks, task)
@@ -70,16 +67,16 @@ func (d *DbBackup) Create(rc *req.Ctx) {
 // Save 保存数据库备份任务
 // @router /api/dbs/:dbId/backups/:backupId [PUT]
 func (d *DbBackup) Save(rc *req.Ctx) {
-	form := &form.DbBackupForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-	rc.ReqParam = form
+	backupForm := &form.DbBackupForm{}
+	ginx.BindJsonAndValid(rc.GinCtx, backupForm)
+	rc.ReqParam = backupForm
 
 	task := &entity.DbBackup{
-		Name:      form.Name,
-		StartTime: form.StartTime,
-		Interval:  form.Interval,
+		Name: backupForm.Name,
 	}
-	task.Id = form.Id
+	task.Id = backupForm.Id
+	task.StartTime = backupForm.StartTime
+	task.Interval = backupForm.Interval
 	biz.ErrIsNilAppendErr(d.DbBackupApp.Save(rc.MetaCtx, task), "保存数据库备份任务失败: %v")
 }
 

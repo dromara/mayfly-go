@@ -7,7 +7,6 @@ import (
 	"gorm.io/gorm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
-	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"slices"
@@ -16,7 +15,7 @@ import (
 var _ repository.DbRestore = (*dbRestoreRepoImpl)(nil)
 
 type dbRestoreRepoImpl struct {
-	base.RepoImpl[*entity.DbRestore]
+	dbTaskBase[*entity.DbRestore]
 }
 
 func NewDbRestoreRepo() repository.DbRestore {
@@ -32,21 +31,6 @@ func (d *dbRestoreRepoImpl) GetDbRestoreList(condition *entity.DbRestoreQuery, p
 		In0("db_name", condition.InDbNames).
 		Like("db_name", condition.DbName)
 	return gormx.PageQuery(qd, pageParam, toEntity)
-}
-
-func (d *dbRestoreRepoImpl) UpdateTaskStatus(ctx context.Context, task *entity.DbRestore) error {
-	task = &entity.DbRestore{
-		Model: model.Model{
-			DeletedModel: model.DeletedModel{
-				Id: task.Id,
-			},
-		},
-		Finished:   task.Finished,
-		LastStatus: task.LastStatus,
-		LastResult: task.LastResult,
-		LastTime:   task.LastTime,
-	}
-	return d.UpdateById(ctx, task)
 }
 
 func (d *dbRestoreRepoImpl) AddTask(ctx context.Context, tasks ...*entity.DbRestore) error {
@@ -85,7 +69,7 @@ func (d *dbRestoreRepoImpl) AddTask(ctx context.Context, tasks ...*entity.DbRest
 
 func (d *dbRestoreRepoImpl) GetDbNamesWithoutRestore(instanceId uint64, dbNames []string) ([]string, error) {
 	var dbNamesWithRestore []string
-	query := gormx.NewQuery(d.M).
+	query := gormx.NewQuery(d.GetModel()).
 		Eq("db_instance_id", instanceId).
 		Eq("repeated", true)
 	if err := query.GenGdb().Pluck("db_name", &dbNamesWithRestore).Error; err != nil {
@@ -98,13 +82,4 @@ func (d *dbRestoreRepoImpl) GetDbNamesWithoutRestore(instanceId uint64, dbNames 
 		}
 	}
 	return result, nil
-}
-
-func (d *dbRestoreRepoImpl) UpdateEnabled(ctx context.Context, taskId uint64, enabled bool) error {
-	cond := map[string]any{
-		"id": taskId,
-	}
-	return d.Updates(cond, map[string]any{
-		"enabled": enabled,
-	})
 }
