@@ -42,10 +42,10 @@
         <el-dialog v-model="infoDialog.visible" title="数据库恢复">
             <el-descriptions :column="1" border>
                 <el-descriptions-item :span="1" label="数据库名称">{{ infoDialog.data.dbName }}</el-descriptions-item>
-                <el-descriptions-item v-if="!infoDialog.data.dbBackupHistoryName" :span="1" label="恢复时间点">{{
+                <el-descriptions-item v-if="infoDialog.data.pointInTime" :span="1" label="恢复时间点">{{
                     dateFormat(infoDialog.data.pointInTime)
                 }}</el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.dbBackupHistoryName" :span="1" label="数据库备份">{{
+                <el-descriptions-item v-if="!infoDialog.data.pointInTime" :span="1" label="数据库备份">{{
                     infoDialog.data.dbBackupHistoryName
                 }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="开始时间">{{ dateFormat(infoDialog.data.startTime) }}</el-descriptions-item>

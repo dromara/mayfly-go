@@ -202,7 +202,7 @@ func (svc *DbInstanceSvcImpl) RestoreBackup(ctx context.Context, database, fileN
 }
 
 func (svc *DbInstanceSvcImpl) Restore(ctx context.Context, task *entity.DbRestore) error {
-	if task.PointInTime.IsZero() {
+	if !task.PointInTime.Valid {
 		backupHistory := &entity.DbBackupHistory{}
 		err := svc.backupHistoryRepo.GetById(backupHistory, task.DbBackupHistoryId)
 		if err != nil {
@@ -216,7 +216,7 @@ func (svc *DbInstanceSvcImpl) Restore(ctx context.Context, task *entity.DbRestor
 	if err := svc.FetchBinlogs(ctx, true); err != nil {
 		return err
 	}
-	restoreInfo, err := svc.GetRestoreInfo(ctx, task.DbName, task.PointInTime)
+	restoreInfo, err := svc.GetRestoreInfo(ctx, task.DbName, task.PointInTime.Time)
 	if err != nil {
 		return err
 	}

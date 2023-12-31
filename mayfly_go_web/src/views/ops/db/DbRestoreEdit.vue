@@ -199,10 +199,10 @@ const init = async (data: any) => {
         state.form.dbBackupId = data.dbBackupId;
         state.form.dbBackupHistoryId = data.dbBackupHistoryId;
         state.form.dbBackupHistoryName = data.dbBackupHistoryName;
-        if (data.dbBackupHistoryId > 0) {
-            state.restoreMode = 'backup-history';
-        } else {
+        if (data.pointInTime) {
             state.restoreMode = 'point-in-time';
+        } else {
+            state.restoreMode = 'backup-history';
         }
         state.history = {
             dbBackupId: data.dbBackupId,
@@ -232,7 +232,30 @@ const getDbNamesWithoutRestore = async () => {
 
 const btnOk = async () => {
     restoreForm.value.validate(async (valid: any) => {
-        if (!valid) {
+        if (valid) {
+            if (state.restoreMode == 'point-in-time') {
+                state.form.dbBackupId = 0;
+                state.form.dbBackupHistoryId = 0;
+                state.form.dbBackupHistoryName = '';
+            } else {
+                state.form.pointInTime = null;
+            }
+            state.form.repeated = false;
+            const reqForm = { ...state.form };
+            let api = dbApi.createDbRestore;
+            if (props.data) {
+                api = dbApi.saveDbRestore;
+            }
+            api.request(reqForm).then(() => {
+                ElMessage.success('保存成功');
+                emit('val-change', state.form);
+                state.btnLoading = true;
+                setTimeout(() => {
+                    state.btnLoading = false;
+                }, 1000);
+                cancel();
+            });
+        } else {
             ElMessage.error('请正确填写信息');
             return false;
         }

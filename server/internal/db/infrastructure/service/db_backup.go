@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/db/domain/service"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/timex"
 	"time"
 
 	"github.com/google/uuid"
@@ -110,7 +111,7 @@ func withUpdateBackupStatus(repositories *repository.Repositories) SchedulerOpti
 				result = fmt.Sprintf("%v: %v", backupResult[status], lastErr)
 			}
 			task.LastResult = stringx.TruncateStr(result, entity.LastResultSize)
-			task.LastTime = time.Now()
+			task.LastTime = timex.NewNullTime(time.Now())
 			return repositories.Backup.UpdateTaskStatus(ctx, task)
 		}
 	}
