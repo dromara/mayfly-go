@@ -50,7 +50,9 @@ func withRunBackupTask(repositories *repository.Repositories, binlogSvc service.
 			if err := repositories.Instance.GetById(instance, task.DbInstanceId); err != nil {
 				return err
 			}
-			instance.PwdDecrypt()
+			if err := instance.PwdDecrypt(); err != nil {
+				return err
+			}
 			id, err := NewIncUUID()
 			if err != nil {
 				return err

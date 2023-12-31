@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"errors"
 	"mayfly-go/internal/common/utils"
 	"mayfly-go/pkg/model"
 )
@@ -26,14 +27,24 @@ const (
 	MachineStatusDisable int8 = -1 // 禁用状态
 )
 
-func (m *Machine) PwdEncrypt() {
+func (m *Machine) PwdEncrypt() error {
 	// 密码替换为加密后的密码
-	m.Password = utils.PwdAesEncrypt(m.Password)
+	password, err := utils.PwdAesEncrypt(m.Password)
+	if err != nil {
+		return errors.New("加密主机密码失败")
+	}
+	m.Password = password
+	return nil
 }
 
-func (m *Machine) PwdDecrypt() {
+func (m *Machine) PwdDecrypt() error {
 	// 密码替换为解密后的密码
-	m.Password = utils.PwdAesDecrypt(m.Password)
+	password, err := utils.PwdAesDecrypt(m.Password)
+	if err != nil {
+		return errors.New("解密主机密码失败")
+	}
+	m.Password = password
+	return nil
 }
 
 func (m *Machine) UseAuthCert() bool {

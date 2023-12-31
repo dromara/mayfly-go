@@ -74,7 +74,7 @@ func (d *Instance) GetInstancePwd(rc *req.Ctx) {
 	instanceId := getInstanceId(rc.GinCtx)
 	instanceEntity, err := d.InstanceApp.GetById(new(entity.DbInstance), instanceId, "Password")
 	biz.ErrIsNil(err, "获取数据库实例错误")
-	instanceEntity.PwdDecrypt()
+	biz.ErrIsNil(instanceEntity.PwdDecrypt())
 	rc.ResData = instanceEntity.Password
 }
 
@@ -105,7 +105,7 @@ func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
 	instanceId := getInstanceId(rc.GinCtx)
 	instance, err := d.InstanceApp.GetById(new(entity.DbInstance), instanceId, "Password")
 	biz.ErrIsNil(err, "获取数据库实例错误")
-	instance.PwdDecrypt()
+	biz.ErrIsNil(instance.PwdDecrypt())
 	res, err := d.InstanceApp.GetDatabases(instance)
 	biz.ErrIsNil(err)
 	rc.ResData = res

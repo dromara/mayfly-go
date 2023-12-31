@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/config"
 	"regexp"
 )
@@ -27,30 +26,34 @@ func CheckAccountPasswordLever(ps string) bool {
 }
 
 // 使用config.yml的aes.key进行密码加密
-func PwdAesEncrypt(password string) string {
+func PwdAesEncrypt(password string) (string, error) {
 	if password == "" {
-		return ""
+		return "", nil
 	}
 	aes := config.Conf.Aes
 	if aes.Key == "" {
-		return password
+		return password, nil
 	}
 	encryptPwd, err := aes.EncryptBase64([]byte(password))
-	biz.ErrIsNilAppendErr(err, "密码加密失败: %s")
-	return encryptPwd
+	if err != nil {
+		return "", err
+	}
+	return encryptPwd, nil
 }
 
 // 使用config.yml的aes.key进行密码解密
-func PwdAesDecrypt(encryptPwd string) string {
+func PwdAesDecrypt(encryptPwd string) (string, error) {
 	if encryptPwd == "" {
-		return ""
+		return "", nil
 	}
 	aes := config.Conf.Aes
 	if aes.Key == "" {
-		return encryptPwd
+		return encryptPwd, nil
 	}
 	decryptPwd, err := aes.DecryptBase64(encryptPwd)
-	biz.ErrIsNilAppendErr(err, "密码解密失败: %s")
+	if err != nil {
+		return "", err
+	}
 	// 解密后的密码
-	return string(decryptPwd)
+	return string(decryptPwd), nil
 }

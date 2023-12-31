@@ -65,7 +65,7 @@ func LastLoginCheck(account *sysentity.Account, accountLoginSecurity *config.Acc
 }
 
 func useOtp(account *sysentity.Account, otpIssuer, accessToken string) (*OtpVerifyInfo, string, string) {
-	account.OtpSecretDecrypt()
+	biz.ErrIsNil(account.OtpSecretDecrypt())
 	otpSecret := account.OtpSecret
 	// 修改状态为已注册
 	otpStatus := OtpStatusReg

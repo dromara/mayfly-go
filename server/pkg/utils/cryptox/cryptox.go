@@ -272,5 +272,9 @@ func pkcs7UnPadding(data []byte) ([]byte, error) {
 	}
 	//获取填充的个数
 	unPadding := int(data[length-1])
+	// todo fix: slice bounds out of range
+	if unPadding > length {
+		return nil, errors.New("解密字符串时去除填充个数超出字符串长度")
+	}
 	return data[:(length - unPadding)], nil
 }

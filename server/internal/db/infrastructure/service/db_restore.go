@@ -26,7 +26,9 @@ func withRunRestoreTask(repositories *repository.Repositories) SchedulerOption[*
 			if err := repositories.Instance.GetById(instance, task.DbInstanceId); err != nil {
 				return err
 			}
-			instance.PwdDecrypt()
+			if err := instance.PwdDecrypt(); err != nil {
+				return err
+			}
 			if err := NewDbInstanceSvc(instance, repositories).Restore(ctx, task); err != nil {
 				return err
 			}

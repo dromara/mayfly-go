@@ -25,7 +25,9 @@ func withDownloadBinlog(repositories *repository.Repositories) SchedulerOption[*
 			if err := repositories.Instance.GetById(instance, task.DbInstanceId); err != nil {
 				return err
 			}
-			instance.PwdDecrypt()
+			if err := instance.PwdDecrypt(); err != nil {
+				return err
+			}
 			svc := NewDbInstanceSvc(instance, repositories)
 			err := svc.FetchBinlogs(ctx, false)
 			if err != nil {
