@@ -20,11 +20,11 @@ func (a *Aes) DecryptBase64(data string) ([]byte, error) {
 	return cryptox.AesDecryptBase64(data, []byte(a.Key))
 }
 
-func (j *Aes) Valid() {
-	if j.Key == "" {
+func (a *Aes) Valid() {
+	if a.Key == "" {
 		return
 	}
-	aesKeyLen := len(j.Key)
+	aesKeyLen := len(a.Key)
 	assert.IsTrue(aesKeyLen == 16 || aesKeyLen == 24 || aesKeyLen == 32,
 		fmt.Sprintf("config.yml之 [aes.key] 长度需为16、24、32位长度, 当前为%d位", aesKeyLen))
 }

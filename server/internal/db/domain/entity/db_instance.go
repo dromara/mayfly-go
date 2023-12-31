@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"errors"
 	"fmt"
 	"mayfly-go/internal/common/utils"
 	"mayfly-go/internal/db/dbm"
@@ -39,12 +40,22 @@ func (d *DbInstance) GetNetwork() string {
 	return fmt.Sprintf("%s+ssh:%d", d.Type, d.SshTunnelMachineId)
 }
 
-func (d *DbInstance) PwdEncrypt() {
+func (d *DbInstance) PwdEncrypt() error {
 	// 密码替换为加密后的密码
-	d.Password = utils.PwdAesEncrypt(d.Password)
+	password, err := utils.PwdAesEncrypt(d.Password)
+	if err != nil {
+		return errors.New("加密数据库密码失败")
+	}
+	d.Password = password
+	return nil
 }
 
-func (d *DbInstance) PwdDecrypt() {
+func (d *DbInstance) PwdDecrypt() error {
 	// 密码替换为解密后的密码
-	d.Password = utils.PwdAesDecrypt(d.Password)
+	password, err := utils.PwdAesDecrypt(d.Password)
+	if err != nil {
+		return errors.New("解密数据库密码失败")
+	}
+	d.Password = password
+	return nil
 }

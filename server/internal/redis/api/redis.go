@@ -77,7 +77,9 @@ func (r *Redis) GetRedisPwd(rc *req.Ctx) {
 	rid := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
 	re, err := r.RedisApp.GetById(new(entity.Redis), rid, "Password")
 	biz.ErrIsNil(err, "redis信息不存在")
-	re.PwdDecrypt()
+	if err := re.PwdDecrypt(); err != nil {
+		biz.ErrIsNil(err)
+	}
 	rc.ResData = re.Password
 }
 

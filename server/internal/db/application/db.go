@@ -167,7 +167,9 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error) {
 		}
 
 		// 密码解密
-		instance.PwdDecrypt()
+		if err := instance.PwdDecrypt(); err != nil {
+			return nil, errorx.NewBiz(err.Error())
+		}
 		return toDbInfo(instance, dbId, dbName, d.tagApp.ListTagPathByResource(consts.TagResourceTypeDb, db.Code)...), nil
 	})
 }

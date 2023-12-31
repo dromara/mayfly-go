@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"errors"
 	"mayfly-go/internal/common/utils"
 	"mayfly-go/pkg/model"
 )
@@ -16,7 +17,7 @@ type AuthCert struct {
 	Remark     string `json:"remark"`
 }
 
-func (a *AuthCert) TableName() string {
+func (ac *AuthCert) TableName() string {
 	return "t_auth_cert"
 }
 
@@ -28,14 +29,32 @@ const (
 	AuthCertTypePublic  int8 = 2
 )
 
-// 密码加密
-func (ac *AuthCert) PwdEncrypt() {
-	ac.Password = utils.PwdAesEncrypt(ac.Password)
-	ac.Passphrase = utils.PwdAesEncrypt(ac.Passphrase)
+// PwdEncrypt 密码加密
+func (ac *AuthCert) PwdEncrypt() error {
+	password, err := utils.PwdAesEncrypt(ac.Password)
+	if err != nil {
+		return errors.New("加密授权凭证密码失败")
+	}
+	passphrase, err := utils.PwdAesEncrypt(ac.Passphrase)
+	if err != nil {
+		return errors.New("加密授权凭证私钥失败")
+	}
+	ac.Password = password
+	ac.Passphrase = passphrase
+	return nil
 }
 
-// 密码解密
-func (ac *AuthCert) PwdDecrypt() {
-	ac.Password = utils.PwdAesDecrypt(ac.Password)
-	ac.Passphrase = utils.PwdAesDecrypt(ac.Passphrase)
+// PwdDecrypt 密码解密
+func (ac *AuthCert) PwdDecrypt() error {
+	password, err := utils.PwdAesDecrypt(ac.Password)
+	if err != nil {
+		return errors.New("解密授权凭证密码失败")
+	}
+	passphrase, err := utils.PwdAesDecrypt(ac.Passphrase)
+	if err != nil {
+		return errors.New("解密授权凭证私钥失败")
+	}
+	ac.Password = password
+	ac.Passphrase = passphrase
+	return nil
 }

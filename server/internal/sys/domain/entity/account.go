@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"errors"
 	"mayfly-go/internal/common/utils"
 	"mayfly-go/pkg/model"
 	"time"
@@ -27,15 +28,25 @@ func (a *Account) IsEnable() bool {
 	return a.Status == AccountEnableStatus
 }
 
-func (a *Account) OtpSecretEncrypt() {
-	a.OtpSecret = utils.PwdAesEncrypt(a.OtpSecret)
+func (a *Account) OtpSecretEncrypt() error {
+	secret, err := utils.PwdAesEncrypt(a.OtpSecret)
+	if err != nil {
+		return errors.New("加密账户密码失败")
+	}
+	a.OtpSecret = secret
+	return nil
 }
 
-func (a *Account) OtpSecretDecrypt() {
+func (a *Account) OtpSecretDecrypt() error {
 	if a.OtpSecret == "-" {
-		return
+		return nil
 	}
-	a.OtpSecret = utils.PwdAesDecrypt(a.OtpSecret)
+	secret, err := utils.PwdAesDecrypt(a.OtpSecret)
+	if err != nil {
+		return errors.New("解密账户密码失败")
+	}
+	a.OtpSecret = secret
+	return nil
 }
 
 const (
