@@ -2,6 +2,7 @@ package entity
 
 import (
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/timex"
 	"time"
 )
 
@@ -37,15 +38,15 @@ func NewDbBTaskBase(enabled bool, repeated bool, startTime time.Time, interval t
 type DbTaskBase struct {
 	model.Model
 
-	Enabled    bool          // 是否启用
-	StartTime  time.Time     // 开始时间
-	Interval   time.Duration // 间隔时间
-	Finished   bool          // 是否完成
-	Repeated   bool          // 是否重复执行
-	LastStatus TaskStatus    // 最近一次执行状态
-	LastResult string        // 最近一次执行结果
-	LastTime   time.Time     // 最近一次执行时间
-	Deadline   time.Time     `gorm:"-" json:"-"` // 计划执行时间
+	Enabled    bool           // 是否启用
+	StartTime  time.Time      // 开始时间
+	Interval   time.Duration  // 间隔时间
+	Finished   bool           // 是否完成
+	Repeated   bool           // 是否重复执行
+	LastStatus TaskStatus     // 最近一次执行状态
+	LastResult string         // 最近一次执行结果
+	LastTime   timex.NullTime // 最近一次执行时间
+	Deadline   time.Time      `gorm:"-" json:"-"` // 计划执行时间
 }
 
 func (d *DbTaskBase) GetId() uint64 {
@@ -68,11 +69,11 @@ func (d *DbTaskBase) Schedule() bool {
 		if d.Interval == 0 {
 			return false
 		}
-		lastTime := d.LastTime
-		if d.LastTime.Sub(d.StartTime) < 0 {
+		lastTime := d.LastTime.Time
+		if lastTime.Sub(d.StartTime) < 0 {
 			lastTime = d.StartTime.Add(-d.Interval)
 		}
-		d.Deadline = lastTime.Add(d.Interval - d.LastTime.Sub(d.StartTime)%d.Interval)
+		d.Deadline = lastTime.Add(d.Interval - lastTime.Sub(d.StartTime)%d.Interval)
 	case TaskFailed:
 		d.Deadline = time.Now().Add(time.Minute)
 	default:
