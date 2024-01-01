@@ -17,6 +17,7 @@ var (
 	dbBackupHistoryApp  *DbBackupHistoryApp
 	dbRestoreApp        *DbRestoreApp
 	dbRestoreHistoryApp *DbRestoreHistoryApp
+	dbBinlogApp         *DbBinlogApp
 )
 
 var repositories *repository.Repositories
@@ -48,7 +49,17 @@ func Init() {
 			panic(fmt.Sprintf("初始化 dbRestoreApp 失败: %v", err))
 		}
 		dbBackupHistoryApp, err = newDbBackupHistoryApp(repositories)
+		if err != nil {
+			panic(fmt.Sprintf("初始化 dbBackupHistoryApp 失败: %v", err))
+		}
 		dbRestoreHistoryApp, err = newDbRestoreHistoryApp(repositories)
+		if err != nil {
+			panic(fmt.Sprintf("初始化 dbRestoreHistoryApp 失败: %v", err))
+		}
+		dbBinlogApp, err = newDbBinlogApp(repositories)
+		if err != nil {
+			panic(fmt.Sprintf("初始化 dbBinlogApp 失败: %v", err))
+		}
 	})()
 }
 
@@ -82,4 +93,8 @@ func GetDbRestoreApp() *DbRestoreApp {
 
 func GetDbRestoreHistoryApp() *DbRestoreHistoryApp {
 	return dbRestoreHistoryApp
+}
+
+func GetDbBinlogApp() *DbBinlogApp {
+	return dbBinlogApp
 }

@@ -1,6 +1,8 @@
 package persistence
 
 import (
+	"errors"
+	"gorm.io/gorm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
@@ -47,15 +49,20 @@ func (repo *dbBackupHistoryRepoImpl) GetLatestHistory(instanceId uint64, dbName 
 	return history, err
 }
 
-func (repo *dbBackupHistoryRepoImpl) GetEarliestHistory(instanceId uint64) (*entity.DbBackupHistory, error) {
+func (repo *dbBackupHistoryRepoImpl) GetEarliestHistory(instanceId uint64) (*entity.DbBackupHistory, bool, error) {
 	history := &entity.DbBackupHistory{}
 	db := global.Db.Model(repo.GetModel())
 	err := db.Where("db_instance_id = ?", instanceId).
 		Scopes(gormx.UndeleteScope).
 		Order("binlog_sequence").
 		First(history).Error
-	if err != nil {
-		return nil, err
+
+	switch {
+	case err == nil:
+		return history, true, nil
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		return history, false, nil
+	default:
+		return nil, false, err
 	}
-	return history, err
 }

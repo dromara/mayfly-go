@@ -1,6 +1,7 @@
 package timex
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"time"
@@ -50,4 +51,10 @@ func (nt *NullTime) MarshalJSON() ([]byte, error) {
 		return json.Marshal(nil)
 	}
 	return json.Marshal(nt.Time)
+}
+
+func SleepWithContext(ctx context.Context, d time.Duration) {
+	ctx, cancel := context.WithTimeout(ctx, d)
+	<-ctx.Done()
+	cancel()
 }
