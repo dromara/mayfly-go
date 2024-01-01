@@ -19,11 +19,15 @@ const (
 const LastResultSize = 256
 
 type DbTask interface {
+	model.ModelI
+
 	GetId() uint64
 	GetDeadline() time.Time
-	IsFinished() bool
+	Finished() bool
 	Schedule() bool
-	Update(task DbTask) bool
+	Update(task DbTask)
+	TaskBase() *DbTaskBase
+	TaskResult(status TaskStatus) string
 }
 
 func NewDbBTaskBase(enabled bool, repeated bool, startTime time.Time, interval time.Duration) *DbTaskBase {
@@ -41,7 +45,6 @@ type DbTaskBase struct {
 	Enabled    bool           // 是否启用
 	StartTime  time.Time      // 开始时间
 	Interval   time.Duration  // 间隔时间
-	Finished   bool           // 是否完成
 	Repeated   bool           // 是否重复执行
 	LastStatus TaskStatus     // 最近一次执行状态
 	LastResult string         // 最近一次执行结果
@@ -61,7 +64,7 @@ func (d *DbTaskBase) GetDeadline() time.Time {
 }
 
 func (d *DbTaskBase) Schedule() bool {
-	if d.Finished || !d.Enabled {
+	if d.Finished() || !d.Enabled {
 		return false
 	}
 	switch d.LastStatus {
@@ -82,13 +85,20 @@ func (d *DbTaskBase) Schedule() bool {
 	return true
 }
 
-func (d *DbTaskBase) IsFinished() bool {
+func (d *DbTaskBase) Finished() bool {
 	return !d.Repeated && d.LastStatus == TaskSuccess
 }
 
-func (d *DbTaskBase) Update(task DbTask) bool {
-	t := task.(*DbTaskBase)
+func (d *DbTaskBase) Update(task DbTask) {
+	t := task.TaskBase()
 	d.StartTime = t.StartTime
 	d.Interval = t.Interval
-	return true
+}
+
+func (d *DbTaskBase) TaskBase() *DbTaskBase {
+	return d
+}
+
+func (*DbTaskBase) TaskResult(_ TaskStatus) string {
+	return ""
 }

@@ -56,14 +56,14 @@ func (repo *dbBinlogHistoryRepoImpl) GetHistories(instanceId uint64, start, targ
 }
 
 func (repo *dbBinlogHistoryRepoImpl) GetLatestHistory(instanceId uint64) (*entity.DbBinlogHistory, bool, error) {
-	gdb := gormx.NewQuery(repo.GetModel()).
+	history := &entity.DbBinlogHistory{}
+	err := gormx.NewQuery(repo.GetModel()).
 		Eq("db_instance_id", instanceId).
 		Undeleted().
 		OrderByDesc("sequence").
-		GenGdb()
-	history := &entity.DbBinlogHistory{}
-
-	switch err := gdb.First(history).Error; {
+		GenGdb().
+		First(history).Error
+	switch {
 	case err == nil:
 		return history, true, nil
 	case errors.Is(err, gorm.ErrRecordNotFound):

@@ -357,9 +357,12 @@ func (svc *DbInstanceSvcImpl) fetchBinlogs(ctx context.Context, downloadLatestBi
 		latestSequence = latest.Sequence
 		binlogFileName = latest.FileName
 	} else {
-		earliest, err := svc.backupHistoryRepo.GetEarliestHistory(svc.instanceId)
+		earliest, ok, err := svc.backupHistoryRepo.GetEarliestHistory(svc.instanceId)
 		if err != nil {
 			return err
+		}
+		if !ok {
+			return nil
 		}
 		earliestSequence = earliest.BinlogSequence
 		binlogFileName = earliest.BinlogFileName
@@ -716,7 +719,7 @@ func (svc *DbInstanceSvcImpl) replayBinlog(ctx context.Context, originalDatabase
 		return errors.Wrap(err, "启动 mysql 程序失败")
 	}
 	if err := mysqlCmd.Wait(); err != nil {
-		return errors.Errorf("运行 mysql 程序失败: %s", mysqlbinlogErr.String())
+		return errors.Errorf("运行 mysql 程序失败: %s", mysqlErr.String())
 	}
 
 	return nil

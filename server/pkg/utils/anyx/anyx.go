@@ -120,3 +120,16 @@ func ToString(value any) string {
 		return string(newValue)
 	}
 }
+
+// DeepZero 初始化对象
+// 如 T 为基本类型或结构体，则返回零值
+// 如 T 为指向基本类型或结构体的指针，则返回指向零值的指针
+func DeepZero[T any]() T {
+	var data T
+	typ := reflect.TypeOf(data)
+	kind := typ.Kind()
+	if kind == reflect.Pointer {
+		return reflect.New(typ.Elem()).Interface().(T)
+	}
+	return data
+}

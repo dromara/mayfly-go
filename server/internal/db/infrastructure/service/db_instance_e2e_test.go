@@ -45,7 +45,7 @@ func (s *DbInstanceSuite) SetupSuite() {
 		Host:     "localhost",
 		Port:     3306,
 		Username: "test",
-		Password: "123456",
+		Password: "test",
 	}
 	s.repositories = &repository.Repositories{
 		Instance:       persistence.GetInstanceRepo(),

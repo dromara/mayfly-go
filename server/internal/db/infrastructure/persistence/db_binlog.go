@@ -6,13 +6,14 @@ import (
 	"gorm.io/gorm/clause"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/global"
 )
 
 var _ repository.DbBinlog = (*dbBinlogRepoImpl)(nil)
 
 type dbBinlogRepoImpl struct {
-	dbTaskBase[*entity.DbBinlog]
+	base.RepoImpl[*entity.DbBinlog]
 }
 
 func NewDbBinlogRepo() repository.DbBinlog {
