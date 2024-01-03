@@ -47,6 +47,7 @@ export const dbApi = {
     getDbNamesWithoutBackup: Api.newGet('/dbs/{dbId}/db-names-without-backup'),
     enableDbBackup: Api.newPut('/dbs/{dbId}/backups/{backupId}/enable'),
     disableDbBackup: Api.newPut('/dbs/{dbId}/backups/{backupId}/disable'),
+    startDbBackup: Api.newPut('/dbs/{dbId}/backups/{backupId}/start'),
     saveDbBackup: Api.newPut('/dbs/{dbId}/backups/{id}'),
     getDbBackupHistories: Api.newGet('/dbs/{dbId}/backup-histories'),
 

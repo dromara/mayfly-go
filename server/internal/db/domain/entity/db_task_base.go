@@ -23,11 +23,12 @@ type DbTask interface {
 
 	GetId() uint64
 	GetDeadline() time.Time
-	Finished() bool
+	IsFinished() bool
 	Schedule() bool
 	Update(task DbTask)
-	TaskBase() *DbTaskBase
-	TaskResult(status TaskStatus) string
+	GetTaskBase() *DbTaskBase
+	MessageWithStatus(status TaskStatus) string
+	IsEnabled() bool
 }
 
 func NewDbBTaskBase(enabled bool, repeated bool, startTime time.Time, interval time.Duration) *DbTaskBase {
@@ -64,7 +65,7 @@ func (d *DbTaskBase) GetDeadline() time.Time {
 }
 
 func (d *DbTaskBase) Schedule() bool {
-	if d.Finished() || !d.Enabled {
+	if d.IsFinished() || !d.Enabled {
 		return false
 	}
 	switch d.LastStatus {
@@ -85,20 +86,24 @@ func (d *DbTaskBase) Schedule() bool {
 	return true
 }
 
-func (d *DbTaskBase) Finished() bool {
+func (d *DbTaskBase) IsFinished() bool {
 	return !d.Repeated && d.LastStatus == TaskSuccess
 }
 
 func (d *DbTaskBase) Update(task DbTask) {
-	t := task.TaskBase()
+	t := task.GetTaskBase()
 	d.StartTime = t.StartTime
 	d.Interval = t.Interval
 }
 
-func (d *DbTaskBase) TaskBase() *DbTaskBase {
+func (d *DbTaskBase) GetTaskBase() *DbTaskBase {
 	return d
 }
 
-func (*DbTaskBase) TaskResult(_ TaskStatus) string {
+func (*DbTaskBase) MessageWithStatus(_ TaskStatus) string {
 	return ""
+}
+
+func (d *DbTaskBase) IsEnabled() bool {
+	return d.Enabled
 }

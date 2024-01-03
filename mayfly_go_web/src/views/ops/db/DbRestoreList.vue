@@ -25,8 +25,8 @@
 
             <template #action="{ data }">
                 <el-button @click="showDbRestore(data)" type="primary" link>详情</el-button>
-                <el-button @click="enableDbRestore(data)" type="primary" link>启用</el-button>
-                <el-button @click="disableDbRestore(data)" type="primary" link>禁用</el-button>
+                <el-button @click="enableDbRestore(data)" v-if="!data.enabled" type="primary" link>启用</el-button>
+                <el-button @click="disableDbRestore(data)" v-if="data.enabled" type="primary" link>禁用</el-button>
             </template>
         </page-table>
 

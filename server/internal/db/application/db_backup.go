@@ -58,6 +58,10 @@ func (app *DbBackupApp) Disable(ctx context.Context, taskId uint64) error {
 	return app.scheduler.DisableTask(ctx, taskId)
 }
 
+func (app *DbBackupApp) Start(ctx context.Context, taskId uint64) error {
+	return app.scheduler.StartTask(ctx, taskId)
+}
+
 // GetPageList 分页获取数据库备份任务
 func (app *DbBackupApp) GetPageList(condition *entity.DbBackupQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return app.repo.GetDbBackupList(condition, pageParam, toEntity, orderBy...)

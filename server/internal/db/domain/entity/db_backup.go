@@ -21,7 +21,7 @@ var (
 	}
 )
 
-func (*DbBackup) TaskResult(status TaskStatus) string {
+func (*DbBackup) MessageWithStatus(status TaskStatus) string {
 	var result string
 	switch status {
 	case TaskDelay:
