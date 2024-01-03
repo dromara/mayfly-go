@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
@@ -99,7 +100,7 @@ func (app *instanceAppImpl) Delete(ctx context.Context, id uint64) error {
 
 func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance) ([]string, error) {
 	ed.Network = ed.GetNetwork()
-	metaDb := ed.Type.MetaDbName()
+	metaDb := dbm.ToDbType(ed.Type).MetaDbName()
 
 	dbConn, err := toDbInfo(ed, 0, metaDb, "").Conn()
 	if err != nil {

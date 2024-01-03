@@ -7,34 +7,37 @@ import (
 	"github.com/google/uuid"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
-	"mayfly-go/internal/db/infrastructure/service"
 	"mayfly-go/pkg/model"
 	"time"
 )
 
-func newDbBackupApp(repositories *repository.Repositories) (*DbBackupApp, error) {
+func newDbBackupApp(repositories *repository.Repositories, dbApp Db) (*DbBackupApp, error) {
+	app := &DbBackupApp{
+		backupRepo:        repositories.Backup,
+		instanceRepo:      repositories.Instance,
+		backupHistoryRepo: repositories.BackupHistory,
+		dbApp:             dbApp,
+	}
 	scheduler, err := newDbScheduler[*entity.DbBackup](
 		repositories.Backup,
-		withRunBackupTask(repositories))
+		withRunBackupTask(app))
 	if err != nil {
 		return nil, err
 	}
-	app := &DbBackupApp{
-		repo:         repositories.Backup,
-		instanceRepo: repositories.Instance,
-		scheduler:    scheduler,
-	}
+	app.scheduler = scheduler
 	return app, nil
 }
 
 type DbBackupApp struct {
-	repo         repository.DbBackup
-	instanceRepo repository.Instance
-	scheduler    *dbScheduler[*entity.DbBackup]
+	backupRepo        repository.DbBackup
+	instanceRepo      repository.Instance
+	backupHistoryRepo repository.DbBackupHistory
+	dbApp             Db
+	scheduler         *dbScheduler[*entity.DbBackup]
 }
 
 func (app *DbBackupApp) Close() {
-	app.Close()
+	app.scheduler.Close()
 }
 
 func (app *DbBackupApp) Create(ctx context.Context, tasks ...*entity.DbBackup) error {
@@ -64,55 +67,55 @@ func (app *DbBackupApp) Start(ctx context.Context, taskId uint64) error {
 
 // GetPageList 分页获取数据库备份任务
 func (app *DbBackupApp) GetPageList(condition *entity.DbBackupQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return app.repo.GetDbBackupList(condition, pageParam, toEntity, orderBy...)
+	return app.backupRepo.GetDbBackupList(condition, pageParam, toEntity, orderBy...)
 }
 
 // GetDbNamesWithoutBackup 获取未配置定时备份的数据库名称
 func (app *DbBackupApp) GetDbNamesWithoutBackup(instanceId uint64, dbNames []string) ([]string, error) {
-	return app.repo.GetDbNamesWithoutBackup(instanceId, dbNames)
+	return app.backupRepo.GetDbNamesWithoutBackup(instanceId, dbNames)
 }
 
-func withRunBackupTask(repositories *repository.Repositories) dbSchedulerOption[*entity.DbBackup] {
+func withRunBackupTask(app *DbBackupApp) dbSchedulerOption[*entity.DbBackup] {
 	return func(scheduler *dbScheduler[*entity.DbBackup]) {
-		scheduler.RunTask = func(ctx context.Context, task *entity.DbBackup) error {
-			instance := new(entity.DbInstance)
-			if err := repositories.Instance.GetById(instance, task.DbInstanceId); err != nil {
-				return err
-			}
-			if err := instance.PwdDecrypt(); err != nil {
-				return err
-			}
-			id, err := NewIncUUID()
-			if err != nil {
-				return err
-			}
-			history := &entity.DbBackupHistory{
-				Uuid:         id.String(),
-				DbBackupId:   task.Id,
-				DbInstanceId: task.DbInstanceId,
-				DbName:       task.DbName,
-			}
-			binlogInfo, err := service.NewDbInstanceSvc(instance, repositories).Backup(ctx, history)
-			if err != nil {
-				return err
-			}
-			now := time.Now()
-			name := task.Name
-			if len(name) == 0 {
-				name = task.DbName
-			}
-			history.Name = fmt.Sprintf("%s[%s]", name, now.Format(time.DateTime))
-			history.CreateTime = now
-			history.BinlogFileName = binlogInfo.FileName
-			history.BinlogSequence = binlogInfo.Sequence
-			history.BinlogPosition = binlogInfo.Position
-
-			if err := repositories.BackupHistory.Insert(ctx, history); err != nil {
-				return err
-			}
-			return nil
-		}
+		scheduler.RunTask = app.runTask
 	}
+}
+
+func (app *DbBackupApp) runTask(ctx context.Context, task *entity.DbBackup) error {
+	id, err := NewIncUUID()
+	if err != nil {
+		return err
+	}
+	history := &entity.DbBackupHistory{
+		Uuid:         id.String(),
+		DbBackupId:   task.Id,
+		DbInstanceId: task.DbInstanceId,
+		DbName:       task.DbName,
+	}
+	conn, err := app.dbApp.GetDbConnByInstanceId(task.DbInstanceId)
+	if err != nil {
+		return err
+	}
+	dbProgram := conn.GetDialect().GetDbProgram()
+	binlogInfo, err := dbProgram.Backup(ctx, history)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	name := task.Name
+	if len(name) == 0 {
+		name = task.DbName
+	}
+	history.Name = fmt.Sprintf("%s[%s]", name, now.Format(time.DateTime))
+	history.CreateTime = now
+	history.BinlogFileName = binlogInfo.FileName
+	history.BinlogSequence = binlogInfo.Sequence
+	history.BinlogPosition = binlogInfo.Position
+
+	if err := app.backupHistoryRepo.Insert(ctx, history); err != nil {
+		return err
+	}
+	return nil
 }
 
 func NewIncUUID() (uuid.UUID, error) {

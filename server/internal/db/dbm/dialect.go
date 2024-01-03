@@ -79,6 +79,9 @@ type DbDialect interface {
 	WalkTableRecord(tableName string, walk func(record map[string]any, columns []*QueryColumn)) error
 
 	GetSchemas() ([]string, error)
+
+	// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
+	GetDbProgram() DbProgram
 }
 
 // ------------------------- 元数据sql操作 -------------------------

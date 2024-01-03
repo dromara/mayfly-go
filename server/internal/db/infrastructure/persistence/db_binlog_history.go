@@ -89,3 +89,35 @@ func (repo *dbBinlogHistoryRepoImpl) Upsert(_ context.Context, history *entity.D
 		}
 	})
 }
+
+func (repo *dbBinlogHistoryRepoImpl) InsertWithBinlogFiles(ctx context.Context, instanceId uint64, binlogFiles []*entity.BinlogFile) error {
+	if len(binlogFiles) == 0 {
+		return nil
+	}
+	histories := make([]*entity.DbBinlogHistory, 0, len(binlogFiles))
+	for _, fileOnServer := range binlogFiles {
+		if !fileOnServer.Downloaded {
+			break
+		}
+		history := &entity.DbBinlogHistory{
+			CreateTime:     time.Now(),
+			FileName:       fileOnServer.Name,
+			FileSize:       fileOnServer.Size,
+			Sequence:       fileOnServer.Sequence,
+			FirstEventTime: fileOnServer.FirstEventTime,
+			DbInstanceId:   instanceId,
+		}
+		histories = append(histories, history)
+	}
+	if len(histories) > 1 {
+		if err := repo.BatchInsert(ctx, histories[:len(histories)-1]); err != nil {
+			return err
+		}
+	}
+	if len(histories) > 0 {
+		if err := repo.Upsert(ctx, histories[len(histories)-1]); err != nil {
+			return err
+		}
+	}
+	return nil
+}

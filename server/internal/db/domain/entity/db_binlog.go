@@ -3,6 +3,7 @@ package entity
 import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/timex"
+	"time"
 )
 
 // DbBinlog 数据库备份任务
@@ -15,9 +16,20 @@ type DbBinlog struct {
 	DbInstanceId uint64         `json:"dbInstanceId"` // 数据库实例ID
 }
 
-func NewDbBinlog(history *DbBackupHistory) *DbBinlog {
+func NewDbBinlog(instanceId uint64) *DbBinlog {
 	binlogTask := &DbBinlog{}
-	binlogTask.Id = history.DbInstanceId
-	binlogTask.DbInstanceId = history.DbInstanceId
+	binlogTask.Id = instanceId
+	binlogTask.DbInstanceId = instanceId
 	return binlogTask
+}
+
+// BinlogFile is the metadata of the MySQL binlog file.
+type BinlogFile struct {
+	Name string
+	Size int64
+
+	// Sequence is parsed from Name and is for the sorting purpose.
+	Sequence       int64
+	FirstEventTime time.Time
+	Downloaded     bool
 }

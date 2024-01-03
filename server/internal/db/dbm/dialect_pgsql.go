@@ -277,3 +277,8 @@ func (pd *PgsqlDialect) GetSchemas() ([]string, error) {
 	}
 	return schemaNames, nil
 }
+
+// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
+func (pd *PgsqlDialect) GetDbProgram() DbProgram {
+	panic("implement me")
+}

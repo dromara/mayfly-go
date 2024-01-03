@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
-	"mayfly-go/internal/db/infrastructure/service"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/timex"
@@ -19,8 +18,10 @@ const (
 
 type DbBinlogApp struct {
 	binlogRepo        repository.DbBinlog
+	binlogHistoryRepo repository.DbBinlogHistory
 	backupRepo        repository.DbBackup
 	backupHistoryRepo repository.DbBackupHistory
+	dbApp             Db
 	context           context.Context
 	cancel            context.CancelFunc
 	waitGroup         sync.WaitGroup
@@ -36,13 +37,15 @@ var (
 	}
 )
 
-func newDbBinlogApp(repositories *repository.Repositories) (*DbBinlogApp, error) {
-	context, cancel := context.WithCancel(context.Background())
+func newDbBinlogApp(repositories *repository.Repositories, dbApp Db) (*DbBinlogApp, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 	svc := &DbBinlogApp{
 		binlogRepo:        repositories.Binlog,
+		binlogHistoryRepo: repositories.BinlogHistory,
 		backupRepo:        repositories.Backup,
 		backupHistoryRepo: repositories.BackupHistory,
-		context:           context,
+		dbApp:             dbApp,
+		context:           ctx,
 		cancel:            cancel,
 	}
 	svc.waitGroup.Add(1)
@@ -51,28 +54,32 @@ func newDbBinlogApp(repositories *repository.Repositories) (*DbBinlogApp, error)
 }
 
 func (app *DbBinlogApp) runTask(ctx context.Context, backup *entity.DbBackup) error {
-	backupHistory, ok, err := app.backupHistoryRepo.GetEarliestHistory(backup.DbInstanceId)
+	if err := app.AddTaskIfNotExists(ctx, entity.NewDbBinlog(backup.DbInstanceId)); err != nil {
+		return err
+	}
+	latestBinlogSequence, earliestBackupSequence := int64(-1), int64(-1)
+	binlogHistory, ok, err := app.binlogHistoryRepo.GetLatestHistory(backup.DbInstanceId)
 	if err != nil {
 		return err
 	}
-	if !ok {
-		return nil
+	if ok {
+		latestBinlogSequence = binlogHistory.Sequence
+	} else {
+		backupHistory, err := app.backupHistoryRepo.GetEarliestHistory(backup.DbInstanceId)
+		if err != nil {
+			return err
+		}
+		earliestBackupSequence = backupHistory.BinlogSequence
 	}
-	if err := app.AddTaskIfNotExists(ctx, entity.NewDbBinlog(backupHistory)); err != nil {
+	conn, err := app.dbApp.GetDbConnByInstanceId(backup.DbInstanceId)
+	if err != nil {
 		return err
 	}
-
-	instance := new(entity.DbInstance)
-	if err := repositories.Instance.GetById(instance, backup.DbInstanceId); err != nil {
-		return err
+	dbProgram := conn.GetDialect().GetDbProgram()
+	binlogFiles, err := dbProgram.FetchBinlogs(ctx, false, earliestBackupSequence, latestBinlogSequence)
+	if err == nil {
+		err = app.binlogHistoryRepo.InsertWithBinlogFiles(ctx, backup.DbInstanceId, binlogFiles)
 	}
-	if err := instance.PwdDecrypt(); err != nil {
-		return err
-	}
-
-	// todo: 将 FetchBinlogs() 迁移到 DbBinlogApp, 避免 instanceSvc 访问 mayfly 数据库
-	instSvc := service.NewDbInstanceSvc(instance, repositories)
-	err = instSvc.FetchBinlogs(ctx, false)
 	taskStatus := entity.TaskSuccess
 	if err != nil {
 		taskStatus = entity.TaskFailed

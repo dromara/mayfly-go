@@ -1,4 +1,4 @@
-package service
+package dbm
 
 import (
 	"bufio"
@@ -18,112 +18,32 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sync/singleflight"
 
-	"mayfly-go/internal/db/config"
-	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/domain/entity"
-	"mayfly-go/internal/db/domain/repository"
-	"mayfly-go/internal/db/domain/service"
-
+	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/utils/structx"
 )
 
-// BinlogFile is the metadata of the MySQL binlog file.
-type BinlogFile struct {
-	Name string
-	Size int64
+var _ DbProgram = (*DbProgramMysql)(nil)
 
-	// Sequence is parsed from Name and is for the sorting purpose.
-	Sequence       int64
-	FirstEventTime time.Time
-	Downloaded     bool
+type DbProgramMysql struct {
+	dbConn *DbConn
 }
 
-func newBinlogFile(name string, size int64) (*BinlogFile, error) {
-	_, seq, err := ParseBinlogName(name)
-	if err != nil {
-		return nil, err
-	}
-	return &BinlogFile{Name: name, Size: size, Sequence: seq}, nil
-}
-
-var _ service.DbInstanceSvc = (*DbInstanceSvcImpl)(nil)
-
-type DbInstanceSvcImpl struct {
-	instanceId        uint64
-	dbInfo            *dbm.DbInfo
-	backupHistoryRepo repository.DbBackupHistory
-	binlogHistoryRepo repository.DbBinlogHistory
-}
-
-func NewDbInstanceSvc(instance *entity.DbInstance, repositories *repository.Repositories) *DbInstanceSvcImpl {
-	dbInfo := new(dbm.DbInfo)
-	_ = structx.Copy(dbInfo, instance)
-	return &DbInstanceSvcImpl{
-		instanceId:        instance.Id,
-		dbInfo:            dbInfo,
-		backupHistoryRepo: repositories.BackupHistory,
-		binlogHistoryRepo: repositories.BinlogHistory,
+func NewDbProgramMysql(dbConn *DbConn) *DbProgramMysql {
+	return &DbProgramMysql{
+		dbConn: dbConn,
 	}
 }
 
-type RestoreInfo struct {
-	backupHistory   *entity.DbBackupHistory
-	binlogHistories []*entity.DbBinlogHistory
-	startPosition   int64
-	targetPosition  int64
-	targetTime      time.Time
+func (svc *DbProgramMysql) dbInfo() *DbInfo {
+	return svc.dbConn.Info
 }
 
-func (ri *RestoreInfo) getBinlogFiles(binlogDir string) []string {
-	files := make([]string, 0, len(ri.binlogHistories))
-	for _, history := range ri.binlogHistories {
-		files = append(files, filepath.Join(binlogDir, history.FileName))
-	}
-	return files
+func (svc *DbProgramMysql) GetBinlogFilePath(fileName string) string {
+	return filepath.Join(getBinlogDir(svc.dbInfo().InstanceId), fileName)
 }
 
-func (svc *DbInstanceSvcImpl) getBinlogFilePath(fileName string) string {
-	return filepath.Join(getBinlogDir(svc.instanceId), fileName)
-}
-
-func (svc *DbInstanceSvcImpl) GetRestoreInfo(ctx context.Context, dbName string, targetTime time.Time) (*RestoreInfo, error) {
-	binlogHistory, err := svc.binlogHistoryRepo.GetHistoryByTime(svc.instanceId, targetTime)
-	if err != nil {
-		return nil, err
-	}
-	position, err := getBinlogEventPositionAtOrAfterTime(ctx, svc.getBinlogFilePath(binlogHistory.FileName), targetTime)
-	if err != nil {
-		return nil, err
-	}
-	target := &entity.BinlogInfo{
-		FileName: binlogHistory.FileName,
-		Sequence: binlogHistory.Sequence,
-		Position: position,
-	}
-	backupHistory, err := svc.backupHistoryRepo.GetLatestHistory(svc.instanceId, dbName, target)
-	if err != nil {
-		return nil, err
-	}
-	start := &entity.BinlogInfo{
-		FileName: backupHistory.BinlogFileName,
-		Sequence: backupHistory.BinlogSequence,
-		Position: backupHistory.BinlogPosition,
-	}
-	binlogHistories, err := svc.binlogHistoryRepo.GetHistories(svc.instanceId, start, target)
-	if err != nil {
-		return nil, err
-	}
-	return &RestoreInfo{
-		backupHistory:   backupHistory,
-		binlogHistories: binlogHistories,
-		startPosition:   backupHistory.BinlogPosition,
-		targetPosition:  target.Position,
-		targetTime:      targetTime,
-	}, nil
-}
-
-func (svc *DbInstanceSvcImpl) Backup(ctx context.Context, backupHistory *entity.DbBackupHistory) (*entity.BinlogInfo, error) {
+func (svc *DbProgramMysql) Backup(ctx context.Context, backupHistory *entity.DbBackupHistory) (*entity.BinlogInfo, error) {
 	dir := getDbBackupDir(backupHistory.DbInstanceId, backupHistory.DbBackupId)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return nil, err
@@ -134,10 +54,10 @@ func (svc *DbInstanceSvcImpl) Backup(ctx context.Context, backupHistory *entity.
 	}()
 
 	args := []string{
-		"--host", svc.dbInfo.Host,
-		"--port", strconv.Itoa(svc.dbInfo.Port),
-		"--user", svc.dbInfo.Username,
-		"--password=" + svc.dbInfo.Password,
+		"--host", svc.dbInfo().Host,
+		"--port", strconv.Itoa(svc.dbInfo().Port),
+		"--user", svc.dbInfo().Username,
+		"--password=" + svc.dbInfo().Password,
 		"--add-drop-database",
 		"--result-file", tmpFile,
 		"--single-transaction",
@@ -174,15 +94,17 @@ func (svc *DbInstanceSvcImpl) Backup(ctx context.Context, backupHistory *entity.
 	return binlogInfo, nil
 }
 
-func (svc *DbInstanceSvcImpl) RestoreBackup(ctx context.Context, database, fileName string) error {
+func (svc *DbProgramMysql) RestoreBackupHistory(ctx context.Context, dbName string, dbBackupId uint64, dbBackupHistoryUuid string) error {
 	args := []string{
-		"--host", svc.dbInfo.Host,
-		"--port", strconv.Itoa(svc.dbInfo.Port),
-		"--database", database,
-		"--user", svc.dbInfo.Username,
-		"--password=" + svc.dbInfo.Password,
+		"--host", svc.dbInfo().Host,
+		"--port", strconv.Itoa(svc.dbInfo().Port),
+		"--database", dbName,
+		"--user", svc.dbInfo().Username,
+		"--password=" + svc.dbInfo().Password,
 	}
 
+	fileName := filepath.Join(getDbBackupDir(svc.dbInfo().InstanceId, dbBackupId),
+		fmt.Sprintf("%v.sql", dbBackupHistoryUuid))
 	file, err := os.Open(fileName)
 	if err != nil {
 		return errors.Wrap(err, "打开备份文件失败")
@@ -201,42 +123,14 @@ func (svc *DbInstanceSvcImpl) RestoreBackup(ctx context.Context, database, fileN
 	return nil
 }
 
-func (svc *DbInstanceSvcImpl) Restore(ctx context.Context, task *entity.DbRestore) error {
-	if !task.PointInTime.Valid {
-		backupHistory := &entity.DbBackupHistory{}
-		err := svc.backupHistoryRepo.GetById(backupHistory, task.DbBackupHistoryId)
-		if err != nil {
-			return err
-		}
-		fileName := filepath.Join(getDbBackupDir(backupHistory.DbInstanceId, backupHistory.DbBackupId),
-			fmt.Sprintf("%v.sql", backupHistory.Uuid))
-		return svc.RestoreBackup(ctx, task.DbName, fileName)
-	}
-
-	if err := svc.FetchBinlogs(ctx, true); err != nil {
-		return err
-	}
-	restoreInfo, err := svc.GetRestoreInfo(ctx, task.DbName, task.PointInTime.Time)
-	if err != nil {
-		return err
-	}
-	fileName := filepath.Join(getDbBackupDir(restoreInfo.backupHistory.DbInstanceId, restoreInfo.backupHistory.DbBackupId),
-		fmt.Sprintf("%s.sql", restoreInfo.backupHistory.Uuid))
-
-	if err := svc.RestoreBackup(ctx, task.DbName, fileName); err != nil {
-		return err
-	}
-	return svc.ReplayBinlogToDatabase(ctx, task.DbName, task.DbName, restoreInfo)
-}
-
 // Download binlog files on server.
-func (svc *DbInstanceSvcImpl) downloadBinlogFilesOnServer(ctx context.Context, binlogFilesOnServerSorted []*BinlogFile, downloadLatestBinlogFile bool) error {
+func (svc *DbProgramMysql) downloadBinlogFilesOnServer(ctx context.Context, binlogFilesOnServerSorted []*entity.BinlogFile, downloadLatestBinlogFile bool) error {
 	if len(binlogFilesOnServerSorted) == 0 {
 		logx.Debug("No binlog file found on server to download")
 		return nil
 	}
-	if err := os.MkdirAll(getBinlogDir(svc.instanceId), os.ModePerm); err != nil {
-		return errors.Wrapf(err, "创建 binlog 目录失败: %q", getBinlogDir(svc.instanceId))
+	if err := os.MkdirAll(getBinlogDir(svc.dbInfo().InstanceId), os.ModePerm); err != nil {
+		return errors.Wrapf(err, "创建 binlog 目录失败: %q", getBinlogDir(svc.dbInfo().InstanceId))
 	}
 	latestBinlogFileOnServer := binlogFilesOnServerSorted[len(binlogFilesOnServerSorted)-1]
 	for _, fileOnServer := range binlogFilesOnServerSorted {
@@ -244,7 +138,7 @@ func (svc *DbInstanceSvcImpl) downloadBinlogFilesOnServer(ctx context.Context, b
 		if isLatest && !downloadLatestBinlogFile {
 			continue
 		}
-		binlogFilePath := filepath.Join(getBinlogDir(svc.instanceId), fileOnServer.Name)
+		binlogFilePath := filepath.Join(getBinlogDir(svc.dbInfo().InstanceId), fileOnServer.Name)
 		logx.Debug("Downloading binlog file from MySQL server.", logx.String("path", binlogFilePath), logx.Bool("isLatest", isLatest))
 		if err := svc.downloadBinlogFile(ctx, fileOnServer, isLatest); err != nil {
 			logx.Error("下载 binlog 文件失败", logx.String("path", binlogFilePath), logx.String("error", err.Error()))
@@ -282,7 +176,7 @@ func parseLocalBinlogFirstEventTime(ctx context.Context, filePath string) (event
 		}
 	}()
 
-	for s := bufio.NewScanner(pr); ; s.Scan() {
+	for s := bufio.NewScanner(pr); s.Scan(); {
 		line := s.Text()
 		eventTimeParsed, found, err := parseBinlogEventTimeInLine(line)
 		if err != nil {
@@ -295,92 +189,58 @@ func parseLocalBinlogFirstEventTime(ctx context.Context, filePath string) (event
 	return time.Time{}, errors.New("解析 binlog 文件失败")
 }
 
-// getBinlogDir gets the binlogDir.
-func getBinlogDir(instanceId uint64) string {
-	return filepath.Join(
-		config.GetDbBackupRestore().BackupPath,
-		fmt.Sprintf("instance-%d", instanceId),
-		"binlog")
-}
-
-func getDbInstanceBackupRoot(instanceId uint64) string {
-	return filepath.Join(
-		config.GetDbBackupRestore().BackupPath,
-		fmt.Sprintf("instance-%d", instanceId))
-}
-
-func getDbBackupDir(instanceId, backupId uint64) string {
-	return filepath.Join(
-		config.GetDbBackupRestore().BackupPath,
-		fmt.Sprintf("instance-%d", instanceId),
-		fmt.Sprintf("backup-%d", backupId))
-}
-
 var singleFlightGroup singleflight.Group
 
 // FetchBinlogs downloads binlog files from startingFileName on server to `binlogDir`.
-func (svc *DbInstanceSvcImpl) FetchBinlogs(ctx context.Context, downloadLatestBinlogFile bool) error {
-	latestDownloaded := false
-	_, err, _ := singleFlightGroup.Do(strconv.FormatUint(svc.instanceId, 10), func() (interface{}, error) {
-		latestDownloaded = downloadLatestBinlogFile
-		err := svc.fetchBinlogs(ctx, downloadLatestBinlogFile)
-		return nil, err
+func (svc *DbProgramMysql) FetchBinlogs(ctx context.Context, downloadLatestBinlogFile bool, earliestBackupSequence, latestBinlogSequence int64) ([]*entity.BinlogFile, error) {
+	var downloaded bool
+	key := strconv.FormatUint(svc.dbInfo().InstanceId, 16)
+	binlogFiles, err, _ := singleFlightGroup.Do(key, func() (interface{}, error) {
+		downloaded = true
+		return svc.fetchBinlogs(ctx, downloadLatestBinlogFile, earliestBackupSequence, latestBinlogSequence)
 	})
-
-	if downloadLatestBinlogFile && !latestDownloaded {
-		_, err, _ = singleFlightGroup.Do(strconv.FormatUint(svc.instanceId, 10), func() (interface{}, error) {
-			err := svc.fetchBinlogs(ctx, true)
-			return nil, err
-		})
+	if err != nil {
+		return nil, err
 	}
-	return err
+	if downloaded {
+		return binlogFiles.([]*entity.BinlogFile), nil
+	}
+	if !downloadLatestBinlogFile {
+		return nil, nil
+	}
+	binlogFiles, err, _ = singleFlightGroup.Do(key, func() (interface{}, error) {
+		return svc.fetchBinlogs(ctx, true, earliestBackupSequence, latestBinlogSequence)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return binlogFiles.([]*entity.BinlogFile), err
 }
 
 // fetchBinlogs downloads binlog files from startingFileName on server to `binlogDir`.
-func (svc *DbInstanceSvcImpl) fetchBinlogs(ctx context.Context, downloadLatestBinlogFile bool) error {
+func (svc *DbProgramMysql) fetchBinlogs(ctx context.Context, downloadLatestBinlogFile bool, earliestBackupSequence, latestBinlogSequence int64) ([]*entity.BinlogFile, error) {
 	// Read binlog files list on server.
 	binlogFilesOnServerSorted, err := svc.GetSortedBinlogFilesOnServer(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(binlogFilesOnServerSorted) == 0 {
 		logx.Debug("No binlog file found on server to download")
-		return nil
-	}
-	latest, ok, err := svc.binlogHistoryRepo.GetLatestHistory(svc.instanceId)
-	if err != nil {
-		return err
-	}
-	binlogFileName := ""
-	latestSequence := int64(-1)
-	earliestSequence := int64(-1)
-	if ok {
-		latestSequence = latest.Sequence
-		binlogFileName = latest.FileName
-	} else {
-		earliest, ok, err := svc.backupHistoryRepo.GetEarliestHistory(svc.instanceId)
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return nil
-		}
-		earliestSequence = earliest.BinlogSequence
-		binlogFileName = earliest.BinlogFileName
+		return nil, nil
 	}
 	indexHistory := -1
 	for i, file := range binlogFilesOnServerSorted {
-		if latestSequence == file.Sequence {
+		if latestBinlogSequence == file.Sequence {
 			indexHistory = i + 1
 			break
 		}
-		if earliestSequence == file.Sequence {
+		if earliestBackupSequence == file.Sequence {
 			indexHistory = i
 			break
 		}
 	}
 	if indexHistory < 0 {
-		return errors.New(fmt.Sprintf("在数据库服务器上未找到 binlog 文件 %q", binlogFileName))
+		return nil, errors.New(fmt.Sprintf("在数据库服务器上未找到 binlog 文件: %d, %d", earliestBackupSequence, latestBinlogSequence))
 	}
 	if indexHistory > len(binlogFilesOnServerSorted)-1 {
 		indexHistory = len(binlogFilesOnServerSorted) - 1
@@ -388,48 +248,26 @@ func (svc *DbInstanceSvcImpl) fetchBinlogs(ctx context.Context, downloadLatestBi
 	binlogFilesOnServerSorted = binlogFilesOnServerSorted[indexHistory:]
 
 	if err := svc.downloadBinlogFilesOnServer(ctx, binlogFilesOnServerSorted, downloadLatestBinlogFile); err != nil {
-		return err
-	}
-	for i, fileOnServer := range binlogFilesOnServerSorted {
-		if !fileOnServer.Downloaded {
-			break
-		}
-		history := &entity.DbBinlogHistory{
-			CreateTime:     time.Now(),
-			FileName:       fileOnServer.Name,
-			FileSize:       fileOnServer.Size,
-			Sequence:       fileOnServer.Sequence,
-			FirstEventTime: fileOnServer.FirstEventTime,
-			DbInstanceId:   svc.instanceId,
-		}
-		if i == len(binlogFilesOnServerSorted)-1 {
-			if err := svc.binlogHistoryRepo.Upsert(ctx, history); err != nil {
-				return err
-			}
-		} else {
-			if err := svc.binlogHistoryRepo.Insert(ctx, history); err != nil {
-				return err
-			}
-		}
+		return nil, err
 	}
 
-	return nil
+	return binlogFilesOnServerSorted, nil
 }
 
 // Syncs the binlog specified by `meta` between the instance and local.
 // If isLast is true, it means that this is the last binlog file containing the targetTs event.
 // It may keep growing as there are ongoing writes to the database. So we just need to check that
 // the file size is larger or equal to the binlog file size we queried from the MySQL server earlier.
-func (svc *DbInstanceSvcImpl) downloadBinlogFile(ctx context.Context, binlogFileToDownload *BinlogFile, isLast bool) error {
-	tempBinlogPrefix := filepath.Join(getBinlogDir(svc.instanceId), "tmp-")
+func (svc *DbProgramMysql) downloadBinlogFile(ctx context.Context, binlogFileToDownload *entity.BinlogFile, isLast bool) error {
+	tempBinlogPrefix := filepath.Join(getBinlogDir(svc.dbInfo().InstanceId), "tmp-")
 	args := []string{
 		binlogFileToDownload.Name,
 		"--read-from-remote-server",
 		// Verify checksum binlog events.
 		"--verify-binlog-checksum",
-		"--host", svc.dbInfo.Host,
-		"--port", strconv.Itoa(svc.dbInfo.Port),
-		"--user", svc.dbInfo.Username,
+		"--host", svc.dbInfo().Host,
+		"--port", strconv.Itoa(svc.dbInfo().Port),
+		"--user", svc.dbInfo().Username,
 		"--raw",
 		// With --raw this is a prefix for the file names.
 		"--result-file", tempBinlogPrefix,
@@ -438,8 +276,8 @@ func (svc *DbInstanceSvcImpl) downloadBinlogFile(ctx context.Context, binlogFile
 	cmd := exec.CommandContext(ctx, mysqlbinlogPath(), args...)
 	// We cannot set password as a flag. Otherwise, there is warning message
 	// "mysqlbinlog: [Warning] Using a password on the command line interface can be insecure."
-	if svc.dbInfo.Password != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("MYSQL_PWD=%s", svc.dbInfo.Password))
+	if svc.dbInfo().Password != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("MYSQL_PWD=%s", svc.dbInfo().Password))
 	}
 
 	logx.Debug("Downloading binlog files using mysqlbinlog:", cmd.String())
@@ -467,7 +305,7 @@ func (svc *DbInstanceSvcImpl) downloadBinlogFile(ctx context.Context, binlogFile
 		return errors.Errorf("下载的 binlog 文件 %q 与服务上的文件大小不一致 %d != %d", binlogFilePathTemp, binlogFileTempInfo.Size(), binlogFileToDownload.Size)
 	}
 
-	binlogFilePath := svc.getBinlogFilePath(binlogFileToDownload.Name)
+	binlogFilePath := svc.GetBinlogFilePath(binlogFileToDownload.Name)
 	if err := os.Rename(binlogFilePathTemp, binlogFilePath); err != nil {
 		return errors.Wrapf(err, "binlog 文件更名失败: %q -> %q", binlogFilePathTemp, binlogFilePath)
 	}
@@ -482,14 +320,9 @@ func (svc *DbInstanceSvcImpl) downloadBinlogFile(ctx context.Context, binlogFile
 }
 
 // GetSortedBinlogFilesOnServer returns the information of binlog files in ascending order by their numeric extension.
-func (svc *DbInstanceSvcImpl) GetSortedBinlogFilesOnServer(_ context.Context) ([]*BinlogFile, error) {
-	conn, err := svc.dbInfo.Conn()
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+func (svc *DbProgramMysql) GetSortedBinlogFilesOnServer(_ context.Context) ([]*entity.BinlogFile, error) {
 	query := "SHOW BINARY LOGS"
-	columns, rows, err := conn.Query(query)
+	columns, rows, err := svc.dbConn.Query(query)
 	if err != nil {
 		return nil, errors.Wrapf(err, "SQL 语句 %q 执行失败", query)
 	}
@@ -507,7 +340,7 @@ func (svc *DbInstanceSvcImpl) GetSortedBinlogFilesOnServer(_ context.Context) ([
 		return nil, errors.Errorf("SQL 语句 %q 执行结果解析失败", query)
 	}
 
-	var binlogFiles []*BinlogFile
+	var binlogFiles []*entity.BinlogFile
 
 	for _, row := range rows {
 		name, nameOk := row["Log_name"].(string)
@@ -515,10 +348,14 @@ func (svc *DbInstanceSvcImpl) GetSortedBinlogFilesOnServer(_ context.Context) ([
 		if !nameOk || !sizeOk {
 			return nil, errors.Errorf("SQL 语句 %q 执行结果解析失败", query)
 		}
-
-		binlogFile, err := newBinlogFile(name, int64(size))
+		_, seq, err := ParseBinlogName(name)
 		if err != nil {
 			return nil, errors.Wrapf(err, "SQL 语句 %q 执行结果解析失败", query)
+		}
+		binlogFile := &entity.BinlogFile{
+			Name:     name,
+			Size:     int64(size),
+			Sequence: seq,
 		}
 		binlogFiles = append(binlogFiles, binlogFile)
 	}
@@ -569,10 +406,11 @@ func readBinlogInfoFromBackup(reader io.Reader) (*entity.BinlogInfo, error) {
 }
 
 // Use command like mysqlbinlog --start-datetime=targetTs binlog.000001 to parse the first binlog event position with timestamp equal or after targetTs.
-func getBinlogEventPositionAtOrAfterTime(ctx context.Context, filePath string, targetTime time.Time) (position int64, parseErr error) {
+func (svc *DbProgramMysql) GetBinlogEventPositionAtOrAfterTime(ctx context.Context, binlogName string, targetTime time.Time) (position int64, parseErr error) {
+	binlogPath := svc.GetBinlogFilePath(binlogName)
 	args := []string{
 		// Local binlog file path.
-		filePath,
+		binlogPath,
 		// Verify checksum binlog events.
 		"--verify-binlog-checksum",
 		// Tell mysqlbinlog to suppress the BINLOG statements for row events, which reduces the unneeded output.
@@ -597,7 +435,7 @@ func getBinlogEventPositionAtOrAfterTime(ctx context.Context, filePath string, t
 		}
 	}()
 
-	for s := bufio.NewScanner(pr); ; s.Scan() {
+	for s := bufio.NewScanner(pr); s.Scan(); {
 		line := s.Text()
 		posParsed, found, err := parseBinlogEventPosInLine(line)
 		if err != nil {
@@ -608,11 +446,11 @@ func getBinlogEventPositionAtOrAfterTime(ctx context.Context, filePath string, t
 			return posParsed, nil
 		}
 	}
-	return 0, errors.Errorf("在 %v 之后没有 binlog 事件", targetTime)
+	return 0, errors.Errorf("在 %s 之后没有 binlog 事件", targetTime.Format(time.DateTime))
 }
 
-// replayBinlog replays the binlog for `originDatabase` from `startBinlogInfo.Position` to `targetTs`, read binlog from `binlogDir`.
-func (svc *DbInstanceSvcImpl) replayBinlog(ctx context.Context, originalDatabase, targetDatabase string, restoreInfo *RestoreInfo) (replayErr error) {
+// ReplayBinlog replays the binlog for `originDatabase` from `startBinlogInfo.Position` to `targetTs`, read binlog from `binlogDir`.
+func (svc *DbProgramMysql) ReplayBinlog(ctx context.Context, originalDatabase, targetDatabase string, restoreInfo *RestoreInfo) (replayErr error) {
 	const (
 		// Variable lower_case_table_names related.
 
@@ -660,23 +498,23 @@ func (svc *DbInstanceSvcImpl) replayBinlog(ctx context.Context, originalDatabase
 		// List entries for just this database. It's applied after the --rewrite-db option, so we should provide the rewritten database, i.e., pitrDatabase.
 		"--database", targetDatabase,
 		// Decode binary log from first event with position equal to or greater than argument.
-		"--start-position", fmt.Sprintf("%d", restoreInfo.startPosition),
+		"--start-position", fmt.Sprintf("%d", restoreInfo.StartPosition),
 		// 	Stop decoding binary log at first event with position equal to or greater than argument.
-		"--stop-position", fmt.Sprintf("%d", restoreInfo.targetPosition),
+		"--stop-position", fmt.Sprintf("%d", restoreInfo.TargetPosition),
 	}
 
-	mysqlbinlogArgs = append(mysqlbinlogArgs, restoreInfo.getBinlogFiles(getBinlogDir(svc.instanceId))...)
+	mysqlbinlogArgs = append(mysqlbinlogArgs, restoreInfo.GetBinlogPaths(getBinlogDir(svc.dbInfo().InstanceId))...)
 
 	mysqlArgs := []string{
-		"--host", svc.dbInfo.Host,
-		"--port", strconv.Itoa(svc.dbInfo.Port),
-		"--user", svc.dbInfo.Username,
+		"--host", svc.dbInfo().Host,
+		"--port", strconv.Itoa(svc.dbInfo().Port),
+		"--user", svc.dbInfo().Username,
 	}
 
-	if svc.dbInfo.Password != "" {
+	if svc.dbInfo().Password != "" {
 		// The --password parameter of mysql/mysqlbinlog does not support the "--password PASSWORD" format (split by space).
 		// If provided like that, the program will hang.
-		mysqlArgs = append(mysqlArgs, fmt.Sprintf("--password=%s", svc.dbInfo.Password))
+		mysqlArgs = append(mysqlArgs, fmt.Sprintf("--password=%s", svc.dbInfo().Password))
 	}
 
 	mysqlbinlogCmd := exec.CommandContext(ctx, mysqlbinlogPath(), mysqlbinlogArgs...)
@@ -726,20 +564,9 @@ func (svc *DbInstanceSvcImpl) replayBinlog(ctx context.Context, originalDatabase
 	return nil
 }
 
-// ReplayBinlogToDatabase replays the binlog of originDatabaseName to the targetDatabaseName.
-func (svc *DbInstanceSvcImpl) ReplayBinlogToDatabase(ctx context.Context, originDatabaseName, targetDatabaseName string, restoreInfo *RestoreInfo) error {
-	return svc.replayBinlog(ctx, originDatabaseName, targetDatabaseName, restoreInfo)
-}
-
-func (svc *DbInstanceSvcImpl) getServerVariable(_ context.Context, varName string) (string, error) {
-	conn, err := svc.dbInfo.Conn()
-	if err != nil {
-		return "", err
-	}
-	defer conn.Close()
-
+func (svc *DbProgramMysql) getServerVariable(_ context.Context, varName string) (string, error) {
 	query := fmt.Sprintf("SHOW VARIABLES LIKE '%s'", varName)
-	_, rows, err := conn.Query(query)
+	_, rows, err := svc.dbConn.Query(query)
 	if err != nil {
 		return "", err
 	}
@@ -757,7 +584,7 @@ func (svc *DbInstanceSvcImpl) getServerVariable(_ context.Context, varName strin
 }
 
 // CheckBinlogEnabled checks whether binlog is enabled for the current instance.
-func (svc *DbInstanceSvcImpl) CheckBinlogEnabled(ctx context.Context) error {
+func (svc *DbProgramMysql) CheckBinlogEnabled(ctx context.Context) error {
 	value, err := svc.getServerVariable(ctx, "log_bin")
 	if err != nil {
 		return err
@@ -769,7 +596,7 @@ func (svc *DbInstanceSvcImpl) CheckBinlogEnabled(ctx context.Context) error {
 }
 
 // CheckBinlogRowFormat checks whether the binlog format is ROW.
-func (svc *DbInstanceSvcImpl) CheckBinlogRowFormat(ctx context.Context) error {
+func (svc *DbProgramMysql) CheckBinlogRowFormat(ctx context.Context) error {
 	value, err := svc.getServerVariable(ctx, "binlog_format")
 	if err != nil {
 		return err
@@ -793,12 +620,12 @@ func runCmd(cmd *exec.Cmd) error {
 	return nil
 }
 
-func (svc *DbInstanceSvcImpl) execute(database string, sql string) error {
+func (svc *DbProgramMysql) execute(database string, sql string) error {
 	args := []string{
-		"--host", svc.dbInfo.Host,
-		"--port", strconv.Itoa(svc.dbInfo.Port),
-		"--user", svc.dbInfo.Username,
-		"--password=" + svc.dbInfo.Password,
+		"--host", svc.dbInfo().Host,
+		"--port", strconv.Itoa(svc.dbInfo().Port),
+		"--user", svc.dbInfo().Username,
+		"--password=" + svc.dbInfo().Password,
 		"--execute", sql,
 	}
 	if len(database) > 0 {
@@ -817,8 +644,8 @@ func (svc *DbInstanceSvcImpl) execute(database string, sql string) error {
 // sortBinlogFiles will sort binlog files in ascending order by their numeric extension.
 // For mysql binlog, after the serial number reaches 999999, the next serial number will not return to 000000, but 1000000,
 // so we cannot directly use string to compare lexicographical order.
-func sortBinlogFiles(binlogFiles []*BinlogFile) []*BinlogFile {
-	var sorted []*BinlogFile
+func sortBinlogFiles(binlogFiles []*entity.BinlogFile) []*entity.BinlogFile {
+	var sorted []*entity.BinlogFile
 	sorted = append(sorted, binlogFiles...)
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].Sequence < sorted[j].Sequence
@@ -898,4 +725,25 @@ func mysqldumpPath() string {
 
 func mysqlbinlogPath() string {
 	return config.GetMysqlBin().MysqlbinlogPath
+}
+
+// getBinlogDir gets the binlogDir.
+func getBinlogDir(instanceId uint64) string {
+	return filepath.Join(
+		config.GetDbBackupRestore().BackupPath,
+		fmt.Sprintf("instance-%d", instanceId),
+		"binlog")
+}
+
+func getDbInstanceBackupRoot(instanceId uint64) string {
+	return filepath.Join(
+		config.GetDbBackupRestore().BackupPath,
+		fmt.Sprintf("instance-%d", instanceId))
+}
+
+func getDbBackupDir(instanceId, backupId uint64) string {
+	return filepath.Join(
+		config.GetDbBackupRestore().BackupPath,
+		fmt.Sprintf("instance-%d", instanceId),
+		fmt.Sprintf("backup-%d", backupId))
 }

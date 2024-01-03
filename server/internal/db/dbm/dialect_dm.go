@@ -68,8 +68,8 @@ func (dd *DMDialect) GetDbServer() (*DbServer, error) {
 	return ds, nil
 }
 
-func (pd *DMDialect) GetDbNames() ([]string, error) {
-	_, res, err := pd.dc.Query("SELECT name AS DBNAME FROM v$database")
+func (dd *DMDialect) GetDbNames() ([]string, error) {
+	_, res, err := dd.dc.Query("SELECT name AS DBNAME FROM v$database")
 	if err != nil {
 		return nil, err
 	}
@@ -83,13 +83,13 @@ func (pd *DMDialect) GetDbNames() ([]string, error) {
 }
 
 // 获取表基础元信息, 如表名等
-func (pd *DMDialect) GetTables() ([]Table, error) {
+func (dd *DMDialect) GetTables() ([]Table, error) {
 
 	// 首先执行更新统计信息sql 这个统计信息在数据量比较大的时候就比较耗时，所以最好定时执行
 	// _, _, err := pd.dc.Query("dbms_stats.GATHER_SCHEMA_stats(SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))")
 
 	// 查询表信息
-	_, res, err := pd.dc.Query(GetLocalSql(DM_META_FILE, DM_TABLE_INFO_KEY))
+	_, res, err := dd.dc.Query(GetLocalSql(DM_META_FILE, DM_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (pd *DMDialect) GetTables() ([]Table, error) {
 }
 
 // 获取列元信息, 如列名等
-func (pd *DMDialect) GetColumns(tableNames ...string) ([]Column, error) {
+func (dd *DMDialect) GetColumns(tableNames ...string) ([]Column, error) {
 	tableName := ""
 	for i := 0; i < len(tableNames); i++ {
 		if i != 0 {
@@ -118,7 +118,7 @@ func (pd *DMDialect) GetColumns(tableNames ...string) ([]Column, error) {
 		tableName = tableName + "'" + tableNames[i] + "'"
 	}
 
-	_, res, err := pd.dc.Query(fmt.Sprintf(GetLocalSql(DM_META_FILE, DM_COLUMN_MA_KEY), tableName))
+	_, res, err := dd.dc.Query(fmt.Sprintf(GetLocalSql(DM_META_FILE, DM_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -139,8 +139,8 @@ func (pd *DMDialect) GetColumns(tableNames ...string) ([]Column, error) {
 	return columns, nil
 }
 
-func (pd *DMDialect) GetPrimaryKey(tablename string) (string, error) {
-	columns, err := pd.GetColumns(tablename)
+func (dd *DMDialect) GetPrimaryKey(tablename string) (string, error) {
+	columns, err := dd.GetColumns(tablename)
 	if err != nil {
 		return "", err
 	}
@@ -157,8 +157,8 @@ func (pd *DMDialect) GetPrimaryKey(tablename string) (string, error) {
 }
 
 // 获取表索引信息
-func (pd *DMDialect) GetTableIndex(tableName string) ([]Index, error) {
-	_, res, err := pd.dc.Query(fmt.Sprintf(GetLocalSql(DM_META_FILE, DM_INDEX_INFO_KEY), tableName))
+func (dd *DMDialect) GetTableIndex(tableName string) ([]Index, error) {
+	_, res, err := dd.dc.Query(fmt.Sprintf(GetLocalSql(DM_META_FILE, DM_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -194,9 +194,9 @@ func (pd *DMDialect) GetTableIndex(tableName string) ([]Index, error) {
 }
 
 // 获取建表ddl
-func (pd *DMDialect) GetTableDDL(tableName string) (string, error) {
+func (dd *DMDialect) GetTableDDL(tableName string) (string, error) {
 	ddlSql := fmt.Sprintf("CALL SP_TABLEDEF((SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)), '%s')", tableName)
-	_, res, err := pd.dc.Query(ddlSql)
+	_, res, err := dd.dc.Query(ddlSql)
 	if err != nil {
 		return "", err
 	}
@@ -207,7 +207,7 @@ func (pd *DMDialect) GetTableDDL(tableName string) (string, error) {
 	}
 
 	// 表注释
-	_, res, err = pd.dc.Query(fmt.Sprintf(`
+	_, res, err = dd.dc.Query(fmt.Sprintf(`
 			select OWNER, COMMENTS from DBA_TAB_COMMENTS where TABLE_TYPE='TABLE' and TABLE_NAME = '%s'
 		    and owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
 			                                      `, tableName))
@@ -229,7 +229,7 @@ func (pd *DMDialect) GetTableDDL(tableName string) (string, error) {
 		WHERE OWNER = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
 		  AND TABLE_NAME = '%s'
 		`, tableName)
-	_, res, err = pd.dc.Query(fieldSql)
+	_, res, err = dd.dc.Query(fieldSql)
 	if err != nil {
 		return "", err
 	}
@@ -251,7 +251,7 @@ func (pd *DMDialect) GetTableDDL(tableName string) (string, error) {
 		and a.table_name = '%s' 
 		and indexdef(b.object_id,1) != '禁止查看系统定义的索引信息'
 	`, tableName)
-	_, res, err = pd.dc.Query(indexSql)
+	_, res, err = dd.dc.Query(indexSql)
 	if err != nil {
 		return "", err
 	}
@@ -262,18 +262,18 @@ func (pd *DMDialect) GetTableDDL(tableName string) (string, error) {
 	return builder.String(), nil
 }
 
-func (pd *DMDialect) GetTableRecord(tableName string, pageNum, pageSize int) ([]*QueryColumn, []map[string]any, error) {
-	return pd.dc.Query(fmt.Sprintf("SELECT * FROM %s OFFSET %d LIMIT %d", tableName, (pageNum-1)*pageSize, pageSize))
+func (dd *DMDialect) GetTableRecord(tableName string, pageNum, pageSize int) ([]*QueryColumn, []map[string]any, error) {
+	return dd.dc.Query(fmt.Sprintf("SELECT * FROM %s OFFSET %d LIMIT %d", tableName, (pageNum-1)*pageSize, pageSize))
 }
 
-func (pd *DMDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []*QueryColumn)) error {
-	return pd.dc.WalkTableRecord(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walk)
+func (dd *DMDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []*QueryColumn)) error {
+	return dd.dc.WalkTableRecord(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walk)
 }
 
 // 获取DM当前连接的库可访问的schemaNames
-func (pd *DMDialect) GetSchemas() ([]string, error) {
+func (dd *DMDialect) GetSchemas() ([]string, error) {
 	sql := GetLocalSql(DM_META_FILE, DM_DB_SCHEMAS)
-	_, res, err := pd.dc.Query(sql)
+	_, res, err := dd.dc.Query(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -282,4 +282,9 @@ func (pd *DMDialect) GetSchemas() ([]string, error) {
 		schemaNames = append(schemaNames, anyx.ConvString(re["SCHEMA_NAME"]))
 	}
 	return schemaNames, nil
+}
+
+// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
+func (dd *DMDialect) GetDbProgram() DbProgram {
+	panic("implement me")
 }
