@@ -51,9 +51,9 @@ func newDbScheduler[T entity.DbTask](taskRepo repository.DbTask[T], opts ...dbSc
 }
 
 func (s *dbScheduler[T]) updateTaskStatus(ctx context.Context, status entity.TaskStatus, lastErr error, task T) error {
-	base := task.TaskBase()
+	base := task.GetTaskBase()
 	base.LastStatus = status
-	var result = task.TaskResult(status)
+	var result = task.MessageWithStatus(status)
 	if lastErr != nil {
 		result = fmt.Sprintf("%v: %v", result, lastErr)
 	}
@@ -115,7 +115,7 @@ func (s *dbScheduler[T]) run() {
 			continue
 		}
 		task.Schedule()
-		if !task.Finished() {
+		if !task.IsFinished() {
 			s.queue.Enqueue(s.context, task)
 		}
 		s.mutex.Unlock()
@@ -184,15 +184,17 @@ func (s *dbScheduler[T]) EnableTask(ctx context.Context, taskId uint64) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if err := s.taskRepo.UpdateEnabled(ctx, taskId, true); err != nil {
-		return err
-	}
-	s.queue.Remove(ctx, taskId)
-
 	task := anyx.DeepZero[T]()
 	if err := s.taskRepo.GetById(task, taskId); err != nil {
 		return err
 	}
+	if task.IsEnabled() {
+		return nil
+	}
+	if err := s.taskRepo.UpdateEnabled(ctx, taskId, true); err != nil {
+		return err
+	}
+	s.queue.Remove(ctx, taskId)
 	if !task.Schedule() {
 		return nil
 	}
@@ -204,9 +206,33 @@ func (s *dbScheduler[T]) DisableTask(ctx context.Context, taskId uint64) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
+	task := anyx.DeepZero[T]()
+	if err := s.taskRepo.GetById(task, taskId); err != nil {
+		return err
+	}
+	if !task.IsEnabled() {
+		return nil
+	}
 	if err := s.taskRepo.UpdateEnabled(ctx, taskId, false); err != nil {
 		return err
 	}
 	s.queue.Remove(ctx, taskId)
+	return nil
+}
+
+func (s *dbScheduler[T]) StartTask(ctx context.Context, taskId uint64) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	task := anyx.DeepZero[T]()
+	if err := s.taskRepo.GetById(task, taskId); err != nil {
+		return err
+	}
+	if !task.IsEnabled() {
+		return errors.New("任务未启用")
+	}
+	s.queue.Remove(ctx, taskId)
+	task.GetTaskBase().Deadline = time.Now()
+	s.queue.Enqueue(ctx, task)
 	return nil
 }

@@ -120,6 +120,13 @@ func (d *DbBackup) Disable(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "禁用数据库备份任务失败: %v")
 }
 
+// Start 禁用数据库备份任务
+// @router /api/dbs/:dbId/backups/:taskId/start [PUT]
+func (d *DbBackup) Start(rc *req.Ctx) {
+	err := d.walk(rc, d.DbBackupApp.Start)
+	biz.ErrIsNilAppendErr(err, "运行数据库备份任务失败: %v")
+}
+
 // GetDbNamesWithoutBackup 获取未配置定时备份的数据库名称
 // @router /api/dbs/:dbId/db-names-without-backup [GET]
 func (d *DbBackup) GetDbNamesWithoutBackup(rc *req.Ctx) {

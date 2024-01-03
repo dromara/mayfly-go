@@ -18,7 +18,7 @@ type DbRestore struct {
 	DbInstanceId        uint64         `json:"dbInstanceId"`        // 数据库实例ID
 }
 
-func (*DbRestore) TaskResult(status TaskStatus) string {
+func (*DbRestore) MessageWithStatus(status TaskStatus) string {
 	var result string
 	switch status {
 	case TaskDelay:
