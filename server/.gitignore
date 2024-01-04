@@ -1,4 +1,6 @@
-static/static
+static/static/
 config.yml
 mayfly_rsa
 mayfly_rsa.pub
+
+db/

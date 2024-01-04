@@ -7,12 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/stretchr/testify/suite"
+	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/db/infrastructure/persistence"
-	"mayfly-go/pkg/config"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -38,7 +39,6 @@ func (s *DbInstanceSuite) SetupSuite() {
 	if err := chdir("mayfly-go", "server"); err != nil {
 		panic(err)
 	}
-	config.Init()
 	dbInfo := DbInfo{
 		Type:     DbTypeMysql,
 		Host:     "localhost",
@@ -59,6 +59,18 @@ func (s *DbInstanceSuite) SetupSuite() {
 		BinlogHistory:  persistence.NewDbBinlogHistoryRepo(),
 	}
 	s.instanceSvc = NewDbProgramMysql(s.dbConn)
+	var extName string
+	if runtime.GOOS == "windows" {
+		extName = ".exe"
+	}
+	path := "db/mysql/bin"
+	s.instanceSvc.mysqlBin = &config.MysqlBin{
+		Path:            filepath.Join(path),
+		MysqlPath:       filepath.Join(path, "mysql"+extName),
+		MysqldumpPath:   filepath.Join(path, "mysqldump"+extName),
+		MysqlbinlogPath: filepath.Join(path, "mysqlbinlog"+extName),
+	}
+	s.instanceSvc.backupPath = "db/backup"
 }
 
 func (s *DbInstanceSuite) TearDownSuite() {
@@ -81,7 +93,7 @@ func (s *DbInstanceSuite) TearDownTest() {
 	sql := fmt.Sprintf("drop database if exists `%s`", dbNameBackupTest)
 	require.NoError(s.instanceSvc.execute("", sql))
 
-	_ = os.RemoveAll(getDbInstanceBackupRoot(instanceIdTest))
+	_ = os.RemoveAll(s.instanceSvc.getDbInstanceBackupRoot(instanceIdTest))
 }
 
 func (s *DbInstanceSuite) TestBackup() {
@@ -98,7 +110,7 @@ func (s *DbInstanceSuite) testBackup(backupHistory *entity.DbBackupHistory) {
 	binlogInfo, err := s.instanceSvc.Backup(context.Background(), backupHistory)
 	require.NoError(err)
 
-	fileName := filepath.Join(getDbBackupDir(s.dbConn.Info.InstanceId, backupHistory.Id), dbNameBackupTest+".sql")
+	fileName := filepath.Join(s.instanceSvc.getDbBackupDir(s.dbConn.Info.InstanceId, backupHistory.Id), dbNameBackupTest+".sql")
 	_, err = os.Stat(fileName)
 	require.NoError(err)
 

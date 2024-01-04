@@ -18,8 +18,8 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sync/singleflight"
 
+	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/domain/entity"
-	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/logx"
 )
 
@@ -27,6 +27,10 @@ var _ DbProgram = (*DbProgramMysql)(nil)
 
 type DbProgramMysql struct {
 	dbConn *DbConn
+	// mysqlBin 用于集成测试
+	mysqlBin *config.MysqlBin
+	// backupPath 用于集成测试
+	backupPath string
 }
 
 func NewDbProgramMysql(dbConn *DbConn) *DbProgramMysql {
@@ -39,12 +43,31 @@ func (svc *DbProgramMysql) dbInfo() *DbInfo {
 	return svc.dbConn.Info
 }
 
+func (svc *DbProgramMysql) getMysqlBin() *config.MysqlBin {
+	if svc.mysqlBin != nil {
+		return svc.mysqlBin
+	}
+	var mysqlBin *config.MysqlBin
+	switch svc.dbInfo().Type {
+	default:
+		mysqlBin = config.GetMysqlBin(config.ConfigKeyDbMariaDbBin)
+	}
+	return mysqlBin
+}
+
+func (svc *DbProgramMysql) getBackupPath() string {
+	if len(svc.backupPath) > 0 {
+		return svc.backupPath
+	}
+	return config.GetDbBackupRestore().BackupPath
+}
+
 func (svc *DbProgramMysql) GetBinlogFilePath(fileName string) string {
-	return filepath.Join(getBinlogDir(svc.dbInfo().InstanceId), fileName)
+	return filepath.Join(svc.getBinlogDir(svc.dbInfo().InstanceId), fileName)
 }
 
 func (svc *DbProgramMysql) Backup(ctx context.Context, backupHistory *entity.DbBackupHistory) (*entity.BinlogInfo, error) {
-	dir := getDbBackupDir(backupHistory.DbInstanceId, backupHistory.DbBackupId)
+	dir := svc.getDbBackupDir(backupHistory.DbInstanceId, backupHistory.DbBackupId)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return nil, err
 	}
@@ -65,7 +88,7 @@ func (svc *DbProgramMysql) Backup(ctx context.Context, backupHistory *entity.DbB
 		"--databases", backupHistory.DbName,
 	}
 
-	cmd := exec.CommandContext(ctx, mysqldumpPath(), args...)
+	cmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqldumpPath, args...)
 	logx.Debugf("backup database using mysqldump binary: %s", cmd.String())
 	if err := runCmd(cmd); err != nil {
 		logx.Errorf("运行 mysqldump 程序失败: %v", err)
@@ -103,7 +126,7 @@ func (svc *DbProgramMysql) RestoreBackupHistory(ctx context.Context, dbName stri
 		"--password=" + svc.dbInfo().Password,
 	}
 
-	fileName := filepath.Join(getDbBackupDir(svc.dbInfo().InstanceId, dbBackupId),
+	fileName := filepath.Join(svc.getDbBackupDir(svc.dbInfo().InstanceId, dbBackupId),
 		fmt.Sprintf("%v.sql", dbBackupHistoryUuid))
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -113,7 +136,7 @@ func (svc *DbProgramMysql) RestoreBackupHistory(ctx context.Context, dbName stri
 		_ = file.Close()
 	}()
 
-	cmd := exec.CommandContext(ctx, mysqlPath(), args...)
+	cmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqlPath, args...)
 	cmd.Stdin = file
 	logx.Debug("恢复数据库: ", cmd.String())
 	if err := runCmd(cmd); err != nil {
@@ -129,8 +152,8 @@ func (svc *DbProgramMysql) downloadBinlogFilesOnServer(ctx context.Context, binl
 		logx.Debug("No binlog file found on server to download")
 		return nil
 	}
-	if err := os.MkdirAll(getBinlogDir(svc.dbInfo().InstanceId), os.ModePerm); err != nil {
-		return errors.Wrapf(err, "创建 binlog 目录失败: %q", getBinlogDir(svc.dbInfo().InstanceId))
+	if err := os.MkdirAll(svc.getBinlogDir(svc.dbInfo().InstanceId), os.ModePerm); err != nil {
+		return errors.Wrapf(err, "创建 binlog 目录失败: %q", svc.getBinlogDir(svc.dbInfo().InstanceId))
 	}
 	latestBinlogFileOnServer := binlogFilesOnServerSorted[len(binlogFilesOnServerSorted)-1]
 	for _, fileOnServer := range binlogFilesOnServerSorted {
@@ -138,7 +161,7 @@ func (svc *DbProgramMysql) downloadBinlogFilesOnServer(ctx context.Context, binl
 		if isLatest && !downloadLatestBinlogFile {
 			continue
 		}
-		binlogFilePath := filepath.Join(getBinlogDir(svc.dbInfo().InstanceId), fileOnServer.Name)
+		binlogFilePath := filepath.Join(svc.getBinlogDir(svc.dbInfo().InstanceId), fileOnServer.Name)
 		logx.Debug("Downloading binlog file from MySQL server.", logx.String("path", binlogFilePath), logx.Bool("isLatest", isLatest))
 		if err := svc.downloadBinlogFile(ctx, fileOnServer, isLatest); err != nil {
 			logx.Error("下载 binlog 文件失败", logx.String("path", binlogFilePath), logx.String("error", err.Error()))
@@ -149,7 +172,7 @@ func (svc *DbProgramMysql) downloadBinlogFilesOnServer(ctx context.Context, binl
 }
 
 // Parse the first binlog eventTs of a local binlog file.
-func parseLocalBinlogFirstEventTime(ctx context.Context, filePath string) (eventTime time.Time, parseErr error) {
+func (svc *DbProgramMysql) parseLocalBinlogFirstEventTime(ctx context.Context, filePath string) (eventTime time.Time, parseErr error) {
 	args := []string{
 		// Local binlog file path.
 		filePath,
@@ -158,7 +181,7 @@ func parseLocalBinlogFirstEventTime(ctx context.Context, filePath string) (event
 		// Tell mysqlbinlog to suppress the BINLOG statements for row events, which reduces the unneeded output.
 		"--base64-output=DECODE-ROWS",
 	}
-	cmd := exec.CommandContext(ctx, mysqlbinlogPath(), args...)
+	cmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqlbinlogPath, args...)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	pr, err := cmd.StdoutPipe()
@@ -259,7 +282,7 @@ func (svc *DbProgramMysql) fetchBinlogs(ctx context.Context, downloadLatestBinlo
 // It may keep growing as there are ongoing writes to the database. So we just need to check that
 // the file size is larger or equal to the binlog file size we queried from the MySQL server earlier.
 func (svc *DbProgramMysql) downloadBinlogFile(ctx context.Context, binlogFileToDownload *entity.BinlogFile, isLast bool) error {
-	tempBinlogPrefix := filepath.Join(getBinlogDir(svc.dbInfo().InstanceId), "tmp-")
+	tempBinlogPrefix := filepath.Join(svc.getBinlogDir(svc.dbInfo().InstanceId), "tmp-")
 	args := []string{
 		binlogFileToDownload.Name,
 		"--read-from-remote-server",
@@ -273,7 +296,7 @@ func (svc *DbProgramMysql) downloadBinlogFile(ctx context.Context, binlogFileToD
 		"--result-file", tempBinlogPrefix,
 	}
 
-	cmd := exec.CommandContext(ctx, mysqlbinlogPath(), args...)
+	cmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqlbinlogPath, args...)
 	// We cannot set password as a flag. Otherwise, there is warning message
 	// "mysqlbinlog: [Warning] Using a password on the command line interface can be insecure."
 	if svc.dbInfo().Password != "" {
@@ -309,7 +332,7 @@ func (svc *DbProgramMysql) downloadBinlogFile(ctx context.Context, binlogFileToD
 	if err := os.Rename(binlogFilePathTemp, binlogFilePath); err != nil {
 		return errors.Wrapf(err, "binlog 文件更名失败: %q -> %q", binlogFilePathTemp, binlogFilePath)
 	}
-	firstEventTime, err := parseLocalBinlogFirstEventTime(ctx, binlogFilePath)
+	firstEventTime, err := svc.parseLocalBinlogFirstEventTime(ctx, binlogFilePath)
 	if err != nil {
 		return err
 	}
@@ -416,9 +439,9 @@ func (svc *DbProgramMysql) GetBinlogEventPositionAtOrAfterTime(ctx context.Conte
 		// Tell mysqlbinlog to suppress the BINLOG statements for row events, which reduces the unneeded output.
 		"--base64-output=DECODE-ROWS",
 		// Instruct mysqlbinlog to start output only after encountering the first binlog event with timestamp equal or after targetTime.
-		"--start-datetime", formatDateTime(targetTime),
+		"--start-datetime", targetTime.Local().Format(time.DateTime),
 	}
-	cmd := exec.CommandContext(ctx, mysqlbinlogPath(), args...)
+	cmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqlbinlogPath, args...)
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	pr, err := cmd.StdoutPipe()
@@ -503,7 +526,7 @@ func (svc *DbProgramMysql) ReplayBinlog(ctx context.Context, originalDatabase, t
 		"--stop-position", fmt.Sprintf("%d", restoreInfo.TargetPosition),
 	}
 
-	mysqlbinlogArgs = append(mysqlbinlogArgs, restoreInfo.GetBinlogPaths(getBinlogDir(svc.dbInfo().InstanceId))...)
+	mysqlbinlogArgs = append(mysqlbinlogArgs, restoreInfo.GetBinlogPaths(svc.getBinlogDir(svc.dbInfo().InstanceId))...)
 
 	mysqlArgs := []string{
 		"--host", svc.dbInfo().Host,
@@ -517,8 +540,8 @@ func (svc *DbProgramMysql) ReplayBinlog(ctx context.Context, originalDatabase, t
 		mysqlArgs = append(mysqlArgs, fmt.Sprintf("--password=%s", svc.dbInfo().Password))
 	}
 
-	mysqlbinlogCmd := exec.CommandContext(ctx, mysqlbinlogPath(), mysqlbinlogArgs...)
-	mysqlCmd := exec.CommandContext(ctx, mysqlPath(), mysqlArgs...)
+	mysqlbinlogCmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqlbinlogPath, mysqlbinlogArgs...)
+	mysqlCmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqlPath, mysqlArgs...)
 	logx.Debug("Start replay binlog commands.",
 		logx.String("mysqlbinlog", mysqlbinlogCmd.String()),
 		logx.String("mysql", mysqlCmd.String()))
@@ -632,7 +655,7 @@ func (svc *DbProgramMysql) execute(database string, sql string) error {
 		args = append(args, database)
 	}
 
-	cmd := exec.Command(mysqlPath(), args...)
+	cmd := exec.Command(svc.getMysqlBin().MysqlPath, args...)
 	logx.Debug("execute sql using mysql binary: ", cmd.String())
 	if err := runCmd(cmd); err != nil {
 		logx.Errorf("运行 mysql 程序失败: %v", err)
@@ -709,41 +732,36 @@ func ParseBinlogName(name string) (string, int64, error) {
 	return s[0], seq, nil
 }
 
-// formatDateTime formats the timestamp to the local time string.
-func formatDateTime(t time.Time) string {
-	t = t.Local()
-	return fmt.Sprintf("%d-%d-%d %d:%d:%d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
-}
-
-func mysqlPath() string {
-	return config.GetMysqlBin().MysqlPath
-}
-
-func mysqldumpPath() string {
-	return config.GetMysqlBin().MysqldumpPath
-}
-
-func mysqlbinlogPath() string {
-	return config.GetMysqlBin().MysqlbinlogPath
-}
+//func mysqlPath() string {
+//	return config.GetMysqlBin().MysqlPath
+//}
+//
+//func mysqldumpPath() string {
+//	return config.GetMysqlBin().MysqldumpPath
+//}
+//
+//func mysqlbinlogPath() string {
+//	return config.GetMysqlBin().MysqlbinlogPath
+//}
+//
 
 // getBinlogDir gets the binlogDir.
-func getBinlogDir(instanceId uint64) string {
+func (svc *DbProgramMysql) getBinlogDir(instanceId uint64) string {
 	return filepath.Join(
-		config.GetDbBackupRestore().BackupPath,
+		svc.getBackupPath(),
 		fmt.Sprintf("instance-%d", instanceId),
 		"binlog")
 }
 
-func getDbInstanceBackupRoot(instanceId uint64) string {
+func (svc *DbProgramMysql) getDbInstanceBackupRoot(instanceId uint64) string {
 	return filepath.Join(
-		config.GetDbBackupRestore().BackupPath,
+		svc.getBackupPath(),
 		fmt.Sprintf("instance-%d", instanceId))
 }
 
-func getDbBackupDir(instanceId, backupId uint64) string {
+func (svc *DbProgramMysql) getDbBackupDir(instanceId, backupId uint64) string {
 	return filepath.Join(
-		config.GetDbBackupRestore().BackupPath,
+		svc.getBackupPath(),
 		fmt.Sprintf("instance-%d", instanceId),
 		fmt.Sprintf("backup-%d", backupId))
 }
