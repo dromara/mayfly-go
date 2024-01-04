@@ -79,7 +79,7 @@ func GetMysqlBin(configKey string) *MysqlBin {
 	if mysqldumpPath == "" {
 		mysqldumpPath = filepath.Join(path, "mysqldump"+extName)
 	}
-	mbc.MysqldumpPath = filepath.Join(mysqldumpPath + extName)
+	mbc.MysqldumpPath = filepath.Join(mysqldumpPath)
 
 	mysqlbinlogPath := jm["mysqlbinlog"]
 	if mysqlbinlogPath == "" {

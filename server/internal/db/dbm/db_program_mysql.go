@@ -50,7 +50,7 @@ func (svc *DbProgramMysql) getMysqlBin() *config.MysqlBin {
 	var mysqlBin *config.MysqlBin
 	switch svc.dbInfo().Type {
 	default:
-		mysqlBin = config.GetMysqlBin(config.ConfigKeyDbMariaDbBin)
+		mysqlBin = config.GetMysqlBin(config.ConfigKeyDbMysqlBin)
 	}
 	return mysqlBin
 }
@@ -731,19 +731,6 @@ func ParseBinlogName(name string) (string, int64, error) {
 	}
 	return s[0], seq, nil
 }
-
-//func mysqlPath() string {
-//	return config.GetMysqlBin().MysqlPath
-//}
-//
-//func mysqldumpPath() string {
-//	return config.GetMysqlBin().MysqldumpPath
-//}
-//
-//func mysqlbinlogPath() string {
-//	return config.GetMysqlBin().MysqlbinlogPath
-//}
-//
 
 // getBinlogDir gets the binlogDir.
 func (svc *DbProgramMysql) getBinlogDir(instanceId uint64) string {

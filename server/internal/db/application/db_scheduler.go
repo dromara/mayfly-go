@@ -119,10 +119,6 @@ func (s *dbScheduler[T]) run() {
 			s.queue.Enqueue(s.context, task)
 		}
 		s.mutex.Unlock()
-
-		if errRun != nil {
-			timex.SleepWithContext(s.context, sleepAfterError)
-		}
 	}
 }
 
@@ -191,6 +187,7 @@ func (s *dbScheduler[T]) EnableTask(ctx context.Context, taskId uint64) error {
 	if task.IsEnabled() {
 		return nil
 	}
+	task.GetTaskBase().Enabled = true
 	if err := s.taskRepo.UpdateEnabled(ctx, taskId, true); err != nil {
 		return err
 	}
