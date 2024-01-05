@@ -12,5 +12,6 @@ type DbBinlogHistory interface {
 	GetHistories(instanceId uint64, start, target *entity.BinlogInfo) ([]*entity.DbBinlogHistory, error)
 	GetHistoryByTime(instanceId uint64, targetTime time.Time) (*entity.DbBinlogHistory, error)
 	GetLatestHistory(instanceId uint64) (*entity.DbBinlogHistory, bool, error)
+	InsertWithBinlogFiles(ctx context.Context, instanceId uint64, binlogFiles []*entity.BinlogFile) error
 	Upsert(ctx context.Context, history *entity.DbBinlogHistory) error
 }

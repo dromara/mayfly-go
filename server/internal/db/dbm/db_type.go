@@ -16,6 +16,14 @@ const (
 	DM             DbType = "dm"
 )
 
+func ToDbType(dbType string) DbType {
+	return DbType(dbType)
+}
+
+func (dbType DbType) Equal(typ string) bool {
+	return ToDbType(typ) == dbType
+}
+
 func (dbType DbType) MetaDbName() string {
 	switch dbType {
 	case DbTypeMysql:

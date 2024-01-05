@@ -11,6 +11,9 @@ import (
 // 基础repo接口
 type Repo[T model.ModelI] interface {
 
+	// GetModel 获取表的模型实例
+	GetModel() T
+
 	// 新增一个实体
 	Insert(ctx context.Context, e T) error
 
@@ -24,10 +27,10 @@ type Repo[T model.ModelI] interface {
 	BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []T) error
 
 	// 根据实体id更新实体信息
-	UpdateById(ctx context.Context, e T) error
+	UpdateById(ctx context.Context, e T, columns ...string) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T) error
+	UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, columns ...string) error
 
 	// 根据实体主键删除实体
 	DeleteById(ctx context.Context, id uint64) error
@@ -101,16 +104,16 @@ func (br *RepoImpl[T]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []
 	return gormx.BatchInsertWithDb(db, es)
 }
 
-func (br *RepoImpl[T]) UpdateById(ctx context.Context, e T) error {
+func (br *RepoImpl[T]) UpdateById(ctx context.Context, e T, columns ...string) error {
 	if db := contextx.GetDb(ctx); db != nil {
-		return br.UpdateByIdWithDb(ctx, db, e)
+		return br.UpdateByIdWithDb(ctx, db, e, columns...)
 	}
 
-	return gormx.UpdateById(br.setBaseInfo(ctx, e))
+	return gormx.UpdateById(br.setBaseInfo(ctx, e), columns...)
 }
 
-func (br *RepoImpl[T]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T) error {
-	return gormx.UpdateByIdWithDb(db, br.setBaseInfo(ctx, e))
+func (br *RepoImpl[T]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, columns ...string) error {
+	return gormx.UpdateByIdWithDb(db, br.setBaseInfo(ctx, e), columns...)
 }
 
 func (br *RepoImpl[T]) Updates(cond any, udpateFields map[string]any) error {

@@ -107,7 +107,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 	if otpStatus == OtpStatusNoReg {
 		update := &sysentity.Account{OtpSecret: otpSecret}
 		update.Id = accountId
-		update.OtpSecretEncrypt()
+		biz.ErrIsNil(update.OtpSecretEncrypt())
 		biz.ErrIsNil(a.AccountApp.Update(context.Background(), update))
 	}
 

@@ -17,7 +17,7 @@ import (
 func ErrIsNil(err error, msgAndParams ...any) {
 	if err != nil {
 		if len(msgAndParams) == 0 {
-			panic(err)
+			panic(errorx.NewBiz(err.Error()))
 		}
 
 		panic(errorx.NewBiz(fmt.Sprintf(msgAndParams[0].(string), msgAndParams[1:]...)))

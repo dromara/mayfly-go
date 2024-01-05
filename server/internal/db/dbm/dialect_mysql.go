@@ -194,6 +194,11 @@ func (md *MysqlDialect) WalkTableRecord(tableName string, walk func(record map[s
 	return md.dc.WalkTableRecord(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walk)
 }
 
-func (pd *MysqlDialect) GetSchemas() ([]string, error) {
+func (md *MysqlDialect) GetSchemas() ([]string, error) {
 	return nil, nil
+}
+
+// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
+func (md *MysqlDialect) GetDbProgram() DbProgram {
+	return NewDbProgramMysql(md.dc)
 }

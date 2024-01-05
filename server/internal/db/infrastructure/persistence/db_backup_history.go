@@ -57,5 +57,5 @@ func (repo *dbBackupHistoryRepoImpl) GetEarliestHistory(instanceId uint64) (*ent
 	if err != nil {
 		return nil, err
 	}
-	return history, err
+	return history, nil
 }

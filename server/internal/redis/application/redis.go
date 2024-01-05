@@ -80,7 +80,9 @@ func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis, tagIds ...uin
 		if err == nil {
 			return errorx.NewBiz("该实例已存在")
 		}
-		re.PwdEncrypt()
+		if errEnc := re.PwdEncrypt(); errEnc != nil {
+			return errorx.NewBiz(errEnc.Error())
+		}
 
 		resouceCode := stringx.Rand(16)
 		re.Code = resouceCode
@@ -108,7 +110,9 @@ func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis, tagIds ...uin
 		oldRedis, _ = r.GetById(new(entity.Redis), re.Id)
 	}
 
-	re.PwdEncrypt()
+	if errEnc := re.PwdEncrypt(); errEnc != nil {
+		return errorx.NewBiz(errEnc.Error())
+	}
 	return r.Tx(ctx, func(ctx context.Context) error {
 		return r.UpdateById(ctx, re)
 	}, func(ctx context.Context) error {
@@ -144,8 +148,9 @@ func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
 		if err != nil {
 			return nil, errorx.NewBiz("redis信息不存在")
 		}
-		re.PwdDecrypt()
-
+		if err := re.PwdDecrypt(); err != nil {
+			return nil, errorx.NewBiz(err.Error())
+		}
 		return re.ToRedisInfo(db, r.tagApp.ListTagPathByResource(consts.TagResourceTypeRedis, re.Code)...), nil
 	})
 }

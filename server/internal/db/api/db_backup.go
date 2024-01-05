@@ -39,11 +39,11 @@ func (d *DbBackup) GetPageList(rc *req.Ctx) {
 // Create 保存数据库备份任务
 // @router /api/dbs/:dbId/backups [POST]
 func (d *DbBackup) Create(rc *req.Ctx) {
-	form := &form.DbBackupForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-	rc.ReqParam = form
+	backupForm := &form.DbBackupForm{}
+	ginx.BindJsonAndValid(rc.GinCtx, backupForm)
+	rc.ReqParam = backupForm
 
-	dbNames := strings.Fields(form.DbNames)
+	dbNames := strings.Fields(backupForm.DbNames)
 	biz.IsTrue(len(dbNames) > 0, "解析数据库备份任务失败：数据库名称未定义")
 
 	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
@@ -54,14 +54,10 @@ func (d *DbBackup) Create(rc *req.Ctx) {
 	tasks := make([]*entity.DbBackup, 0, len(dbNames))
 	for _, dbName := range dbNames {
 		task := &entity.DbBackup{
+			DbTaskBase:   entity.NewDbBTaskBase(true, backupForm.Repeated, backupForm.StartTime, backupForm.Interval),
 			DbName:       dbName,
-			Name:         form.Name,
-			StartTime:    form.StartTime,
-			Interval:     form.Interval,
-			Enabled:      true,
-			Repeated:     form.Repeated,
+			Name:         backupForm.Name,
 			DbInstanceId: db.InstanceId,
-			LastTime:     form.StartTime,
 		}
 		tasks = append(tasks, task)
 	}
@@ -71,17 +67,15 @@ func (d *DbBackup) Create(rc *req.Ctx) {
 // Save 保存数据库备份任务
 // @router /api/dbs/:dbId/backups/:backupId [PUT]
 func (d *DbBackup) Save(rc *req.Ctx) {
-	form := &form.DbBackupForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
-	rc.ReqParam = form
+	backupForm := &form.DbBackupForm{}
+	ginx.BindJsonAndValid(rc.GinCtx, backupForm)
+	rc.ReqParam = backupForm
 
-	task := &entity.DbBackup{
-		Name:      form.Name,
-		StartTime: form.StartTime,
-		Interval:  form.Interval,
-		LastTime:  form.StartTime,
-	}
-	task.Id = form.Id
+	task := &entity.DbBackup{}
+	task.Id = backupForm.Id
+	task.Name = backupForm.Name
+	task.StartTime = backupForm.StartTime
+	task.Interval = backupForm.Interval
 	biz.ErrIsNilAppendErr(d.DbBackupApp.Save(rc.MetaCtx, task), "保存数据库备份任务失败: %v")
 }
 
@@ -123,6 +117,13 @@ func (d *DbBackup) Enable(rc *req.Ctx) {
 func (d *DbBackup) Disable(rc *req.Ctx) {
 	err := d.walk(rc, d.DbBackupApp.Disable)
 	biz.ErrIsNilAppendErr(err, "禁用数据库备份任务失败: %v")
+}
+
+// Start 禁用数据库备份任务
+// @router /api/dbs/:dbId/backups/:taskId/start [PUT]
+func (d *DbBackup) Start(rc *req.Ctx) {
+	err := d.walk(rc, d.DbBackupApp.Start)
+	biz.ErrIsNilAppendErr(err, "运行数据库备份任务失败: %v")
 }
 
 // GetDbNamesWithoutBackup 获取未配置定时备份的数据库名称

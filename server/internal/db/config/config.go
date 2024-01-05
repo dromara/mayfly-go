@@ -2,6 +2,8 @@ package config
 
 import (
 	sysapp "mayfly-go/internal/sys/application"
+	"path/filepath"
+	"runtime"
 )
 
 const (
@@ -9,6 +11,7 @@ const (
 	ConfigKeyDbQueryMaxCount string = "DbQueryMaxCount" // 数据库查询的最大数量
 	ConfigKeyDbBackupRestore string = "DbBackupRestore" // 数据库备份
 	ConfigKeyDbMysqlBin      string = "MysqlBin"        // mysql可执行文件配置
+	ConfigKeyDbMariaDbBin    string = "MariaDbBin"      // mariadb可执行文件配置
 )
 
 // 获取数据库最大查询数量配置
@@ -36,7 +39,7 @@ func GetDbBackupRestore() *DbBackupRestore {
 	if backupPath == "" {
 		backupPath = "./db/backup"
 	}
-	dbrc.BackupPath = backupPath
+	dbrc.BackupPath = filepath.Join(backupPath)
 
 	return dbrc
 }
@@ -50,35 +53,39 @@ type MysqlBin struct {
 }
 
 // 获取数据库备份配置
-func GetMysqlBin() *MysqlBin {
-	c := sysapp.GetConfigApp().GetConfig(ConfigKeyDbMysqlBin)
+func GetMysqlBin(configKey string) *MysqlBin {
+	c := sysapp.GetConfigApp().GetConfig(configKey)
 	jm := c.GetJsonMap()
 
 	mbc := new(MysqlBin)
 
 	path := jm["path"]
 	if path == "" {
-		path = "./db/backup"
+		path = "./db/mysql/bin"
 	}
-	mbc.Path = path
+	mbc.Path = filepath.Join(path)
 
+	var extName string
+	if runtime.GOOS == "windows" {
+		extName = ".exe"
+	}
 	mysqlPath := jm["mysql"]
 	if mysqlPath == "" {
-		mysqlPath = path + "mysql"
+		mysqlPath = filepath.Join(path, "mysql"+extName)
 	}
-	mbc.MysqlPath = mysqlPath
+	mbc.MysqlPath = filepath.Join(mysqlPath)
 
 	mysqldumpPath := jm["mysqldump"]
 	if mysqldumpPath == "" {
-		mysqldumpPath = path + "mysqldump"
+		mysqldumpPath = filepath.Join(path, "mysqldump"+extName)
 	}
-	mbc.MysqldumpPath = mysqldumpPath
+	mbc.MysqldumpPath = filepath.Join(mysqldumpPath)
 
 	mysqlbinlogPath := jm["mysqlbinlog"]
 	if mysqlbinlogPath == "" {
-		mysqlbinlogPath = path + "mysqlbinlog"
+		mysqlbinlogPath = filepath.Join(path, "mysqlbinlog"+extName)
 	}
-	mbc.MysqlbinlogPath = mysqlbinlogPath
+	mbc.MysqlbinlogPath = filepath.Join(mysqlbinlogPath)
 
 	return mbc
 }

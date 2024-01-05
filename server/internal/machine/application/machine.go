@@ -84,7 +84,9 @@ func (m *machineAppImpl) Save(ctx context.Context, me *entity.Machine, tagIds ..
 
 	err := m.GetBy(oldMachine)
 
-	me.PwdEncrypt()
+	if errEnc := me.PwdEncrypt(); errEnc != nil {
+		return errorx.NewBiz(errEnc.Error())
+	}
 	if me.Id == 0 {
 		if err == nil {
 			return errorx.NewBiz("该机器信息已存在")
@@ -242,13 +244,17 @@ func (m *machineAppImpl) toMachineInfo(me *entity.Machine) (*mcm.MachineInfo, er
 			return nil, errorx.NewBiz("授权凭证信息已不存在，请重新关联")
 		}
 		mi.AuthMethod = ac.AuthMethod
-		ac.PwdDecrypt()
+		if err := ac.PwdDecrypt(); err != nil {
+			return nil, errorx.NewBiz(err.Error())
+		}
 		mi.Password = ac.Password
 		mi.Passphrase = ac.Passphrase
 	} else {
 		mi.AuthMethod = entity.AuthCertAuthMethodPassword
 		if me.Id != 0 {
-			me.PwdDecrypt()
+			if err := me.PwdDecrypt(); err != nil {
+				return nil, errorx.NewBiz(err.Error())
+			}
 		}
 		mi.Password = me.Password
 	}

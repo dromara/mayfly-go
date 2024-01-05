@@ -146,12 +146,12 @@ func BatchInsertWithDb[T any](db *gorm.DB, models []T) error {
 
 // 根据id更新model，更新字段为model中不为空的值，即int类型不为0，ptr类型不为nil这类字段值
 // @param model  数据库映射实体模型
-func UpdateById(model any) error {
-	return UpdateByIdWithDb(global.Db, model)
+func UpdateById(model any, columns ...string) error {
+	return UpdateByIdWithDb(global.Db, model, columns...)
 }
 
-func UpdateByIdWithDb(db *gorm.DB, model any) error {
-	return db.Model(model).Updates(model).Error
+func UpdateByIdWithDb(db *gorm.DB, model any, columns ...string) error {
+	return db.Model(model).Select(columns).Updates(model).Error
 }
 
 // 根据实体条件，更新参数udpateFields指定字段

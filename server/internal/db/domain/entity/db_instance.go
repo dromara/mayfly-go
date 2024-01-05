@@ -1,25 +1,25 @@
 package entity
 
 import (
+	"errors"
 	"fmt"
 	"mayfly-go/internal/common/utils"
-	"mayfly-go/internal/db/dbm"
 	"mayfly-go/pkg/model"
 )
 
 type DbInstance struct {
 	model.Model
 
-	Name               string     `orm:"column(name)" json:"name"`
-	Type               dbm.DbType `orm:"column(type)" json:"type"` // 类型，mysql oracle等
-	Host               string     `orm:"column(host)" json:"host"`
-	Port               int        `orm:"column(port)" json:"port"`
-	Network            string     `orm:"column(network)" json:"network"`
-	Username           string     `orm:"column(username)" json:"username"`
-	Password           string     `orm:"column(password)" json:"-"`
-	Params             string     `orm:"column(params)" json:"params"`
-	Remark             string     `orm:"column(remark)" json:"remark"`
-	SshTunnelMachineId int        `orm:"column(ssh_tunnel_machine_id)" json:"sshTunnelMachineId"` // ssh隧道机器id
+	Name               string `json:"name"`
+	Type               string `json:"type"` // 类型，mysql oracle等
+	Host               string `json:"host"`
+	Port               int    `json:"port"`
+	Network            string `json:"network"`
+	Username           string `json:"username"`
+	Password           string `json:"-"`
+	Params             string `json:"params"`
+	Remark             string `json:"remark"`
+	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
 }
 
 func (d *DbInstance) TableName() string {
@@ -39,12 +39,22 @@ func (d *DbInstance) GetNetwork() string {
 	return fmt.Sprintf("%s+ssh:%d", d.Type, d.SshTunnelMachineId)
 }
 
-func (d *DbInstance) PwdEncrypt() {
+func (d *DbInstance) PwdEncrypt() error {
 	// 密码替换为加密后的密码
-	d.Password = utils.PwdAesEncrypt(d.Password)
+	password, err := utils.PwdAesEncrypt(d.Password)
+	if err != nil {
+		return errors.New("加密数据库密码失败")
+	}
+	d.Password = password
+	return nil
 }
 
-func (d *DbInstance) PwdDecrypt() {
+func (d *DbInstance) PwdDecrypt() error {
 	// 密码替换为解密后的密码
-	d.Password = utils.PwdAesDecrypt(d.Password)
+	password, err := utils.PwdAesDecrypt(d.Password)
+	if err != nil {
+		return errors.New("解密数据库密码失败")
+	}
+	d.Password = password
+	return nil
 }

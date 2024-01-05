@@ -24,9 +24,12 @@
             </template>
 
             <template #action="{ data }">
-                <el-button @click="editDbBackup(data)" type="primary" link>编辑</el-button>
-                <el-button @click="enableDbBackup(data)" v-if="!data.enabled" type="success" link>启用</el-button>
-                <el-button @click="disableDbBackup(data)" v-if="data.enabled" type="warning" link>禁用</el-button>
+                <div style="text-align: left">
+                    <el-button @click="editDbBackup(data)" type="primary" link>编辑</el-button>
+                    <el-button v-if="!data.enabled" @click="enableDbBackup(data)" type="primary" link>启用</el-button>
+                    <el-button v-if="data.enabled" @click="disableDbBackup(data)" type="primary" link>禁用</el-button>
+                    <el-button v-if="data.enabled" @click="startDbBackup(data)" type="primary" link>立即备份</el-button>
+                </div>
             </template>
         </page-table>
 
@@ -149,6 +152,21 @@ const disableDbBackup = async (data: any) => {
     await dbApi.disableDbBackup.request({ dbId: props.dbId, backupId: backupId });
     await search();
     ElMessage.success('禁用成功');
+};
+
+const startDbBackup = async (data: any) => {
+    let backupId: String;
+    if (data) {
+        backupId = data.id;
+    } else if (state.selectedData.length > 0) {
+        backupId = state.selectedData.map((x: any) => x.id).join(' ');
+    } else {
+        ElMessage.error('请选择需要启用的备份任务');
+        return;
+    }
+    await dbApi.startDbBackup.request({ dbId: props.dbId, backupId: backupId });
+    await search();
+    ElMessage.success('备份任务启动成功');
 };
 </script>
 <style lang="scss"></style>

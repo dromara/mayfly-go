@@ -42,6 +42,28 @@ func NewDelayQueue[T Delayable](cap int) *DelayQueue[T] {
 	}
 }
 
+func (s *DelayQueue[T]) TryDequeue() (T, bool) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if elm, ok := s.priorityQueue.Peek(0); ok {
+		delay := elm.GetDeadline().Sub(time.Now())
+		if delay < minTimerDelay {
+			// 无需延迟，头部元素出队后直接返回
+			_, _ = s.dequeue()
+			return elm, true
+		}
+	}
+	return s.zero, false
+}
+
+func (s *DelayQueue[T]) TryEnqueue(val T) bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	return s.enqueue(val)
+}
+
 func (s *DelayQueue[T]) Dequeue(ctx context.Context) (T, bool) {
 	// 出队锁：避免因重复获取队列头部同一元素降低性能
 	select {
@@ -64,7 +86,6 @@ func (s *DelayQueue[T]) Dequeue(ctx context.Context) (T, bool) {
 		// 接收直接转发的不需要延迟的新元素
 		select {
 		case elm := <-s.transferChan:
-			delete(s.elmMap, elm.GetId())
 			s.mutex.Unlock()
 			return elm, true
 		default:
@@ -78,7 +99,6 @@ func (s *DelayQueue[T]) Dequeue(ctx context.Context) (T, bool) {
 			if delay < minTimerDelay {
 				// 无需延迟，头部元素出队后直接返回
 				_, _ = s.dequeue()
-				delete(s.elmMap, elm.GetId())
 				s.mutex.Unlock()
 				return elm, ok
 			}
@@ -122,6 +142,7 @@ func (s *DelayQueue[T]) dequeue() (T, bool) {
 	if !ok {
 		return s.zero, false
 	}
+	delete(s.elmMap, elm.GetId())
 	select {
 	case s.dequeuedSignal <- struct{}{}:
 	default:
@@ -133,6 +154,7 @@ func (s *DelayQueue[T]) enqueue(val T) bool {
 	if ok := s.priorityQueue.Enqueue(val); !ok {
 		return false
 	}
+	s.elmMap[val.GetId()] = val
 	select {
 	case s.enqueuedSignal <- struct{}{}:
 	default:
@@ -156,7 +178,6 @@ func (s *DelayQueue[T]) Enqueue(ctx context.Context, val T) bool {
 
 		// 如果队列未满，入队后直接返回
 		if !s.priorityQueue.IsFull() {
-			s.elmMap[val.GetId()] = val
 			s.enqueue(val)
 			s.mutex.Unlock()
 			return true

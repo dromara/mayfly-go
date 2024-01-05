@@ -17,6 +17,7 @@ var (
 	dbBackupHistoryApp  *DbBackupHistoryApp
 	dbRestoreApp        *DbRestoreApp
 	dbRestoreHistoryApp *DbRestoreHistoryApp
+	dbBinlogApp         *DbBinlogApp
 )
 
 var repositories *repository.Repositories
@@ -39,16 +40,26 @@ func Init() {
 		dbSqlExecApp = newDbSqlExecApp(persistence.GetDbSqlExecRepo())
 		dbSqlApp = newDbSqlApp(persistence.GetDbSqlRepo())
 
-		dbBackupApp, err = newDbBackupApp(repositories)
+		dbBackupApp, err = newDbBackupApp(repositories, dbApp)
 		if err != nil {
 			panic(fmt.Sprintf("初始化 dbBackupApp 失败: %v", err))
 		}
-		dbRestoreApp, err = newDbRestoreApp(repositories)
+		dbRestoreApp, err = newDbRestoreApp(repositories, dbApp)
 		if err != nil {
 			panic(fmt.Sprintf("初始化 dbRestoreApp 失败: %v", err))
 		}
 		dbBackupHistoryApp, err = newDbBackupHistoryApp(repositories)
+		if err != nil {
+			panic(fmt.Sprintf("初始化 dbBackupHistoryApp 失败: %v", err))
+		}
 		dbRestoreHistoryApp, err = newDbRestoreHistoryApp(repositories)
+		if err != nil {
+			panic(fmt.Sprintf("初始化 dbRestoreHistoryApp 失败: %v", err))
+		}
+		dbBinlogApp, err = newDbBinlogApp(repositories, dbApp)
+		if err != nil {
+			panic(fmt.Sprintf("初始化 dbBinlogApp 失败: %v", err))
+		}
 	})()
 }
 
@@ -82,4 +93,8 @@ func GetDbRestoreApp() *DbRestoreApp {
 
 func GetDbRestoreHistoryApp() *DbRestoreHistoryApp {
 	return dbRestoreHistoryApp
+}
+
+func GetDbBinlogApp() *DbBinlogApp {
+	return dbBinlogApp
 }

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
@@ -77,7 +78,9 @@ func (app *instanceAppImpl) Save(ctx context.Context, instanceEntity *entity.DbI
 		if err == nil {
 			return errorx.NewBiz("该数据库实例已存在")
 		}
-		instanceEntity.PwdEncrypt()
+		if err := instanceEntity.PwdEncrypt(); err != nil {
+			return errorx.NewBiz(err.Error())
+		}
 		return app.Insert(ctx, instanceEntity)
 	}
 
@@ -85,7 +88,9 @@ func (app *instanceAppImpl) Save(ctx context.Context, instanceEntity *entity.DbI
 	if err == nil && oldInstance.Id != instanceEntity.Id {
 		return errorx.NewBiz("该数据库实例已存在")
 	}
-	instanceEntity.PwdEncrypt()
+	if err := instanceEntity.PwdEncrypt(); err != nil {
+		return errorx.NewBiz(err.Error())
+	}
 	return app.UpdateById(ctx, instanceEntity)
 }
 
@@ -95,7 +100,7 @@ func (app *instanceAppImpl) Delete(ctx context.Context, id uint64) error {
 
 func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance) ([]string, error) {
 	ed.Network = ed.GetNetwork()
-	metaDb := ed.Type.MetaDbName()
+	metaDb := dbm.ToDbType(ed.Type).MetaDbName()
 
 	dbConn, err := toDbInfo(ed, 0, metaDb, "").Conn()
 	if err != nil {

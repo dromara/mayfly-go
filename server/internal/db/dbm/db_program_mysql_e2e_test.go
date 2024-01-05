@@ -1,19 +1,19 @@
 //go:build e2e
 
-package service
+package dbm
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"github.com/stretchr/testify/suite"
-	"mayfly-go/internal/db/dbm"
+	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/db/infrastructure/persistence"
-	"mayfly-go/pkg/config"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -30,23 +30,25 @@ const (
 
 type DbInstanceSuite struct {
 	suite.Suite
-	instance     *entity.DbInstance
 	repositories *repository.Repositories
-	instanceSvc  *DbInstanceSvcImpl
+	instanceSvc  *DbProgramMysql
+	dbConn       *DbConn
 }
 
 func (s *DbInstanceSuite) SetupSuite() {
 	if err := chdir("mayfly-go", "server"); err != nil {
 		panic(err)
 	}
-	config.Init()
-	s.instance = &entity.DbInstance{
-		Type:     dbm.DbTypeMysql,
+	dbInfo := DbInfo{
+		Type:     DbTypeMysql,
 		Host:     "localhost",
 		Port:     3306,
 		Username: "test",
-		Password: "123456",
+		Password: "test",
 	}
+	dbConn, err := dbInfo.Conn()
+	s.Require().NoError(err)
+	s.dbConn = dbConn
 	s.repositories = &repository.Repositories{
 		Instance:       persistence.GetInstanceRepo(),
 		Backup:         persistence.NewDbBackupRepo(),
@@ -56,7 +58,26 @@ func (s *DbInstanceSuite) SetupSuite() {
 		Binlog:         persistence.NewDbBinlogRepo(),
 		BinlogHistory:  persistence.NewDbBinlogHistoryRepo(),
 	}
-	s.instanceSvc = NewDbInstanceSvc(s.instance, s.repositories)
+	s.instanceSvc = NewDbProgramMysql(s.dbConn)
+	var extName string
+	if runtime.GOOS == "windows" {
+		extName = ".exe"
+	}
+	path := "db/mysql/bin"
+	s.instanceSvc.mysqlBin = &config.MysqlBin{
+		Path:            filepath.Join(path),
+		MysqlPath:       filepath.Join(path, "mysql"+extName),
+		MysqldumpPath:   filepath.Join(path, "mysqldump"+extName),
+		MysqlbinlogPath: filepath.Join(path, "mysqlbinlog"+extName),
+	}
+	s.instanceSvc.backupPath = "db/backup"
+}
+
+func (s *DbInstanceSuite) TearDownSuite() {
+	if s.dbConn != nil {
+		s.dbConn.Close()
+		s.dbConn = nil
+	}
 }
 
 func (s *DbInstanceSuite) SetupTest() {
@@ -72,7 +93,7 @@ func (s *DbInstanceSuite) TearDownTest() {
 	sql := fmt.Sprintf("drop database if exists `%s`", dbNameBackupTest)
 	require.NoError(s.instanceSvc.execute("", sql))
 
-	_ = os.RemoveAll(getDbInstanceBackupRoot(instanceIdTest))
+	_ = os.RemoveAll(s.instanceSvc.getDbInstanceBackupRoot(instanceIdTest))
 }
 
 func (s *DbInstanceSuite) TestBackup() {
@@ -89,7 +110,7 @@ func (s *DbInstanceSuite) testBackup(backupHistory *entity.DbBackupHistory) {
 	binlogInfo, err := s.instanceSvc.Backup(context.Background(), backupHistory)
 	require.NoError(err)
 
-	fileName := filepath.Join(getDbBackupDir(s.instance.Id, backupHistory.Id), dbNameBackupTest+".sql")
+	fileName := filepath.Join(s.instanceSvc.getDbBackupDir(s.dbConn.Info.InstanceId, backupHistory.Id), dbNameBackupTest+".sql")
 	_, err = os.Stat(fileName)
 	require.NoError(err)
 
@@ -165,7 +186,7 @@ func (s *DbInstanceSuite) testReplayBinlog(backupHistory *entity.DbBackupHistory
 	require.NoError(err)
 
 	binlogFileLast := binlogFilesOnServerSorted[len(binlogFilesOnServerSorted)-1]
-	position, err := getBinlogEventPositionAtOrAfterTime(context.Background(), s.instanceSvc.getBinlogFilePath(binlogFileLast.Name), targetTime)
+	position, err := s.instanceSvc.GetBinlogEventPositionAtOrAfterTime(context.Background(), binlogFileLast.Name, targetTime)
 	require.NoError(err)
 	binlogHistories := make([]*entity.DbBinlogHistory, 0, 2)
 	binlogHistoryBackup := &entity.DbBinlogHistory{
@@ -183,21 +204,19 @@ func (s *DbInstanceSuite) testReplayBinlog(backupHistory *entity.DbBackupHistory
 	}
 
 	restoreInfo := &RestoreInfo{
-		backupHistory:   backupHistory,
-		binlogHistories: binlogHistories,
-		startPosition:   backupHistory.BinlogPosition,
-		targetPosition:  position,
-		targetTime:      targetTime,
+		BackupHistory:   backupHistory,
+		BinlogHistories: binlogHistories,
+		StartPosition:   backupHistory.BinlogPosition,
+		TargetPosition:  position,
+		TargetTime:      targetTime,
 	}
-	err = s.instanceSvc.ReplayBinlogToDatabase(context.Background(), dbNameBackupTest, dbNameBackupTest, restoreInfo)
+	err = s.instanceSvc.ReplayBinlog(context.Background(), dbNameBackupTest, dbNameBackupTest, restoreInfo)
 	require.NoError(err)
 }
 
 func (s *DbInstanceSuite) testRestore(backupHistory *entity.DbBackupHistory) {
 	require := s.Require()
-	fileName := filepath.Join(getDbBackupDir(instanceIdTest, backupIdTest),
-		fmt.Sprintf("%v.sql", dbNameBackupTest))
-	err := s.instanceSvc.RestoreBackup(context.Background(), dbNameBackupTest, fileName)
+	err := s.instanceSvc.RestoreBackupHistory(context.Background(), backupHistory.DbName, backupHistory.DbBackupId, backupHistory.Uuid)
 	require.NoError(err)
 }
 

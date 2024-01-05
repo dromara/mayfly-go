@@ -26,6 +26,8 @@ func InitDbBackupRouter(router *gin.RouterGroup) {
 		req.NewPut(":dbId/backups/:backupId/enable", d.Enable).Log(req.NewLogSave("db-启用数据库备份任务")),
 		// 禁用数据库备份任务
 		req.NewPut(":dbId/backups/:backupId/disable", d.Disable).Log(req.NewLogSave("db-禁用数据库备份任务")),
+		// 立即启动数据库备份任务
+		req.NewPut(":dbId/backups/:backupId/start", d.Start).Log(req.NewLogSave("db-立即启动数据库备份任务")),
 		// 删除数据库备份任务
 		req.NewDelete(":dbId/backups/:backupId", d.Delete),
 		// 获取未配置定时备份的数据库名称

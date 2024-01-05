@@ -479,6 +479,8 @@ INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, crea
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier)VALUES ('数据库查询最大结果集', 'DbQueryMaxCount', '[]', '200', '允许sql查询的最大结果集数。注: 0=不限制', '2023-02-11 14:29:03', 1, 'admin', '2023-02-11 14:40:56', 1, 'admin');
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier)VALUES ('数据库是否记录查询SQL', 'DbSaveQuerySQL', '[]', '0', '1: 记录、0:不记录', '2023-02-11 16:07:14', 1, 'admin', '2023-02-11 16:44:17', 1, 'admin');
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('机器相关配置', 'MachineConfig', '[{"name":"终端回放存储路径","model":"terminalRecPath","placeholder":"终端回放存储路径"},{"name":"uploadMaxFileSize","model":"uploadMaxFileSize","placeholder":"允许上传的最大文件大小(1MB\\\\2GB等)"}]', '{"terminalRecPath":"./rec","uploadMaxFileSize":"1GB"}', '机器相关配置，如终端回放路径等', 'admin,', '2023-07-13 16:26:44', 1, 'admin', '2023-11-09 22:01:31', 1, 'admin', 0, NULL);
+INSERT INTO `t_sys_config` (`name`, `key`, `params`, `value`, `remark`, `permission`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`) VALUES('Mysql可执行文件', 'MysqlBin', '[{"model":"path","name":"路径","placeholder":"可执行文件路径","required":true},{"model":"mysql","name":"mysql","placeholder":"mysql命令路径(空则为 路径/mysql)","required":false},{"model":"mysqldump","name":"mysqldump","placeholder":"mysqldump命令路径(空则为 路径/mysqldump)","required":false},{"model":"mysqlbinlog","name":"mysqlbinlog","placeholder":"mysqlbinlog命令路径(空则为 路径/mysqlbinlog)","required":false}]', '{"mysql":"","mysqldump":"","mysqlbinlog":"","path":""}', '', 'admin,', '2023-12-29 10:01:33', 1, 'admin', '2023-12-29 13:34:40', 1, 'admin', 0, NULL);
+INSERT INTO `t_sys_config` (`name`, `key`, `params`, `value`, `remark`, `permission`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`) VALUES('数据库备份恢复', 'DbBackupRestore', '[{"model":"backupPath","name":"备份路径","placeholder":"备份文件存储路径"}]', '{"backupPath":"./db/backup"}', '', 'admin,', '2023-12-29 09:55:26', 1, 'admin', '2023-12-29 15:45:24', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -865,7 +867,6 @@ CREATE TABLE `t_db_backup` (
     `interval` bigint(20) DEFAULT NULL COMMENT '备份周期',
     `start_time` datetime DEFAULT NULL COMMENT '首次备份时间',
     `enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
-    `finished` tinyint(1) DEFAULT NULL COMMENT '是否完成',
     `last_status` tinyint(4) DEFAULT NULL COMMENT '上次备份状态',
     `last_result` varchar(256) DEFAULT NULL COMMENT '上次备份结果',
     `last_time` datetime DEFAULT NULL COMMENT '上次备份时间',
@@ -917,7 +918,6 @@ CREATE TABLE `t_db_restore` (
     `interval` bigint(20) DEFAULT NULL COMMENT '恢复周期',
     `start_time` datetime DEFAULT NULL COMMENT '首次恢复时间',
     `enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
-    `finished` tinyint(1) DEFAULT NULL COMMENT '是否完成',
     `last_status` tinyint(4) DEFAULT NULL COMMENT '上次恢复状态',
     `last_result` varchar(256) DEFAULT NULL COMMENT '上次恢复结果',
     `last_time` datetime DEFAULT NULL COMMENT '上次恢复时间',
@@ -959,9 +959,6 @@ DROP TABLE IF EXISTS `t_db_binlog`;
 CREATE TABLE `t_db_binlog` (
     `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
     `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
-    `interval` bigint(20) DEFAULT NULL COMMENT '下载周期',
-    `start_time` datetime DEFAULT NULL COMMENT '首次下载时间',
-    `enabled` tinyint(1) DEFAULT NULL COMMENT '会否启用',
     `last_status` bigint(20) DEFAULT NULL COMMENT '上次下载状态',
     `last_result` varchar(256) DEFAULT NULL COMMENT '上次下载结果',
     `last_time` datetime DEFAULT NULL COMMENT '上次下载时间',

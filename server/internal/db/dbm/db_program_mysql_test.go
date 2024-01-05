@@ -1,4 +1,4 @@
-package service
+package dbm
 
 import (
 	"github.com/stretchr/testify/require"

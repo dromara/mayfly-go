@@ -56,14 +56,14 @@ func (repo *dbBinlogHistoryRepoImpl) GetHistories(instanceId uint64, start, targ
 }
 
 func (repo *dbBinlogHistoryRepoImpl) GetLatestHistory(instanceId uint64) (*entity.DbBinlogHistory, bool, error) {
-	gdb := gormx.NewQuery(repo.GetModel()).
+	history := &entity.DbBinlogHistory{}
+	err := gormx.NewQuery(repo.GetModel()).
 		Eq("db_instance_id", instanceId).
 		Undeleted().
 		OrderByDesc("sequence").
-		GenGdb()
-	history := &entity.DbBinlogHistory{}
-
-	switch err := gdb.First(history).Error; {
+		GenGdb().
+		First(history).Error
+	switch {
 	case err == nil:
 		return history, true, nil
 	case errors.Is(err, gorm.ErrRecordNotFound):
@@ -88,4 +88,36 @@ func (repo *dbBinlogHistoryRepoImpl) Upsert(_ context.Context, history *entity.D
 			return err
 		}
 	})
+}
+
+func (repo *dbBinlogHistoryRepoImpl) InsertWithBinlogFiles(ctx context.Context, instanceId uint64, binlogFiles []*entity.BinlogFile) error {
+	if len(binlogFiles) == 0 {
+		return nil
+	}
+	histories := make([]*entity.DbBinlogHistory, 0, len(binlogFiles))
+	for _, fileOnServer := range binlogFiles {
+		if !fileOnServer.Downloaded {
+			break
+		}
+		history := &entity.DbBinlogHistory{
+			CreateTime:     time.Now(),
+			FileName:       fileOnServer.Name,
+			FileSize:       fileOnServer.Size,
+			Sequence:       fileOnServer.Sequence,
+			FirstEventTime: fileOnServer.FirstEventTime,
+			DbInstanceId:   instanceId,
+		}
+		histories = append(histories, history)
+	}
+	if len(histories) > 1 {
+		if err := repo.BatchInsert(ctx, histories[:len(histories)-1]); err != nil {
+			return err
+		}
+	}
+	if len(histories) > 0 {
+		if err := repo.Upsert(ctx, histories[len(histories)-1]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
