@@ -68,8 +68,8 @@
                     </el-tab-pane>
                     <el-tab-pane label="字段映射" name="field">
                         <el-form-item prop="fieldMap" label="字段映射" required>
-                            <el-table :data="form.fieldMap" style="width: 100%" :max-height="400" size="small">
-                                <el-table-column prop="src" label="源字段" />
+                            <el-table :data="form.fieldMap" :max-height="400" size="small">
+                                <el-table-column prop="src" label="源字段" :width="200" />
                                 <el-table-column prop="target" label="目标字段">
                                     <template #default="scope">
                                         <el-select v-model="scope.row.target">
@@ -164,8 +164,6 @@ type FormData = {
     pageSize?: number;
     updField?: string;
     updFieldVal?: string;
-    idRule?: 1 | 2;
-    pkField?: string;
     fieldMap?: { src: string; target: string }[];
     status?: 1 | 2;
 };
@@ -177,7 +175,6 @@ const basicFormData = {
     pageSize: 100,
     updField: 'id',
     updFieldVal: '0',
-    idRule: 2,
     fieldMap: [{ src: 'a', target: 'b' }],
     status: 1,
 } as FormData;
@@ -359,17 +356,7 @@ const handleGetSrcFields = async () => {
         });
     }
 
-    // 如果主键字段名为空或不存在于字段列表中，则取第一个字段
-    if (!state.form.pkField || !res.columns.find((a: any) => a.src === state.form.pkField)) {
-        state.form.pkField = res.columns[0].name;
-    }
-
     state.srcTableFields = res.columns.map((a: any) => a.name);
-
-    // 如果主键规则是参照数据源，字段映射不显示数据源的id
-    if (state.form.idRule === 2) {
-        res.columns = res.columns.filter((a: any) => a.name !== state.form.pkField);
-    }
 
     state.form.fieldMap = res.columns.map((a: any) => ({ src: a.name, target: filedMap[a.name] || '' }));
 
@@ -382,15 +369,19 @@ const handleGetTargetFields = async () => {
         if (columns && Array.isArray(columns)) {
             state.targetColumnList = columns;
             // 过滤目标字段，不存在的字段值设置为空
-            let names = columns.map((a) => a.columnName);
+            let names = columns.map((a) => a.columnName?.toLowerCase());
 
             state.form.fieldMap?.forEach((a) => {
                 if (a.target && !names.includes(a.target)) {
                     a.target = '';
                 }
                 // 优先设置字段名和src一样的值
-                if (names.includes(a.src)) {
-                    a.target = a.src;
+                if (names.includes(a.src?.toLowerCase())) {
+                    // 从columns中取出
+                    let res = columns.find((col: any) => col.columnName?.toLowerCase() === a.src?.toLowerCase());
+                    if (res) {
+                        a.target = res.columnName;
+                    }
                 }
             });
         }
@@ -428,7 +419,7 @@ const cancel = () => {
 <style lang="scss">
 .sync-task-edit {
     .el-select {
-        width: 400px;
+        width: 360px;
     }
     .task-sql {
         width: 100%;
