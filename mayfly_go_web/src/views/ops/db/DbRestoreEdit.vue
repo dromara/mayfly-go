@@ -92,6 +92,10 @@ const validatePointInTime = (rule: any, value: any, callback: any) => {
         callback(new Error('在此之前数据库没有备份记录'));
         return;
     }
+    if (value > new Date()) {
+        callback(new Error('恢复时间点晚于当前时间'));
+        return;
+    }
     callback();
 };
 
@@ -274,7 +278,6 @@ const getBackupHistories = async (dbId: Number, dbName: String) => {
     }
     const data = await dbApi.getDbBackupHistories.request({ dbId, dbName });
     if (!data || !data.list) {
-        // state.form.dbName = '';
         ElMessage.error('该数据库没有备份记录，无法创建数据库恢复任务');
         state.histories = [];
         return;

@@ -12,6 +12,7 @@ type DbType string
 
 const (
 	DbTypeMysql    DbType = "mysql"
+	DbTypeMariadb  DbType = "mariadb"
 	DbTypePostgres DbType = "postgres"
 	DbTypeDM       DbType = "dm"
 )
@@ -26,7 +27,7 @@ func (dbType DbType) Equal(typ string) bool {
 
 func (dbType DbType) MetaDbName() string {
 	switch dbType {
-	case DbTypeMysql:
+	case DbTypeMysql, DbTypeMariadb:
 		return ""
 	case DbTypePostgres:
 		return "postgres"
@@ -39,7 +40,7 @@ func (dbType DbType) MetaDbName() string {
 
 func (dbType DbType) QuoteIdentifier(name string) string {
 	switch dbType {
-	case DbTypeMysql:
+	case DbTypeMysql, DbTypeMariadb:
 		return quoteIdentifier(name, "`")
 	case DbTypePostgres:
 		return pq.QuoteIdentifier(name)
@@ -50,7 +51,7 @@ func (dbType DbType) QuoteIdentifier(name string) string {
 
 func (dbType DbType) QuoteLiteral(literal string) string {
 	switch dbType {
-	case DbTypeMysql:
+	case DbTypeMysql, DbTypeMariadb:
 		literal = strings.ReplaceAll(literal, `\`, `\\`)
 		literal = strings.ReplaceAll(literal, `'`, `''`)
 		return "'" + literal + "'"
@@ -63,7 +64,7 @@ func (dbType DbType) QuoteLiteral(literal string) string {
 
 func (dbType DbType) Dialect() sqlparser.Dialect {
 	switch dbType {
-	case DbTypeMysql:
+	case DbTypeMysql, DbTypeMariadb:
 		return sqlparser.MysqlDialect{}
 	case DbTypePostgres:
 		return sqlparser.PostgresDialect{}
@@ -95,7 +96,7 @@ func quoteIdentifier(name, quoter string) string {
 
 func (dbType DbType) StmtSetForeignKeyChecks(check bool) string {
 	switch dbType {
-	case DbTypeMysql:
+	case DbTypeMysql, DbTypeMariadb:
 		if check {
 			return "SET FOREIGN_KEY_CHECKS = 1;\n"
 		} else {
@@ -111,7 +112,7 @@ func (dbType DbType) StmtSetForeignKeyChecks(check bool) string {
 
 func (dbType DbType) StmtUseDatabase(dbName string) string {
 	switch dbType {
-	case DbTypeMysql:
+	case DbTypeMysql, DbTypeMariadb:
 		return fmt.Sprintf("USE %s;\n", dbType.QuoteIdentifier(dbName))
 	case DbTypePostgres:
 		// not currently supported postgres

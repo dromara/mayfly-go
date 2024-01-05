@@ -181,8 +181,10 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbm.DbConn, error
 	}
 
 	var dbs []*entity.Db
-	err := d.ListByCond(&entity.Db{InstanceId: instanceId}, &dbs, "id", "database")
-	if err != nil || len(dbs) == 0 {
+	if err := d.ListByCond(&entity.Db{InstanceId: instanceId}, &dbs, "id", "database"); err != nil {
+		return nil, errorx.NewBiz("获取数据库列表失败: ", err)
+	}
+	if len(dbs) == 0 {
 		return nil, errorx.NewBiz("该实例未配置数据库, 请先进行配置")
 	}
 

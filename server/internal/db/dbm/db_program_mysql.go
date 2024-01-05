@@ -49,10 +49,15 @@ func (svc *DbProgramMysql) getMysqlBin() *config.MysqlBin {
 	}
 	var mysqlBin *config.MysqlBin
 	switch svc.dbInfo().Type {
-	default:
+	case DbTypeMariadb:
+		mysqlBin = config.GetMysqlBin(config.ConfigKeyDbMariadbBin)
+	case DbTypeMysql:
 		mysqlBin = config.GetMysqlBin(config.ConfigKeyDbMysqlBin)
+	default:
+		panic(fmt.Sprintf("不兼容 MySQL 的数据库类型: %v", svc.dbInfo().Type))
 	}
-	return mysqlBin
+	svc.mysqlBin = mysqlBin
+	return svc.mysqlBin
 }
 
 func (svc *DbProgramMysql) getBackupPath() string {
