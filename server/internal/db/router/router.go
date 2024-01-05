@@ -8,8 +8,6 @@ func Init(router *gin.RouterGroup) {
 	InitDbSqlRouter(router)
 	InitDbSqlExecRouter(router)
 	InitDbBackupRouter(router)
-	InitDbBackupHistoryRouter(router)
 	InitDbRestoreRouter(router)
-	InitDbRestoreHistoryRouter(router)
 	InitDbDataSyncRouter(router)
 }

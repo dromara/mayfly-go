@@ -14,6 +14,7 @@ import (
 	"mayfly-go/pkg/captcha"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/cryptox"
@@ -87,7 +88,7 @@ func (a *LdapLogin) getUser(userName string, cols ...string) (*sysentity.Account
 
 func (a *LdapLogin) createUser(userName, displayName string) {
 	account := &sysentity.Account{Username: userName}
-	account.SetBaseInfo(nil)
+	account.SetBaseInfo(model.IdGenTypeNone, nil)
 	account.Name = displayName
 	biz.ErrIsNil(a.AccountApp.Create(context.TODO(), account))
 	// 将 LADP 用户本地密码设置为空，不允许本地登录

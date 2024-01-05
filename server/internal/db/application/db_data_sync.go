@@ -24,27 +24,36 @@ type DataSyncTask interface {
 
 	Save(ctx context.Context, instanceEntity *entity.DataSyncTask) error
 
-	// Delete 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
 
 	InitCronJob()
 
 	AddCronJob(taskEntity *entity.DataSyncTask)
+
 	AddCronJobById(id uint64) error
+
 	RemoveCronJob(taskEntity *entity.DataSyncTask)
+
 	RemoveCronJobById(id uint64) error
+
 	RemoveCronJobByKey(taskKey string)
+
 	RunCronJob(id uint64)
+
+	GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
 
-func newDataSyncApp(dataSyncRepo repository.DataSyncTask) DataSyncTask {
+func newDataSyncApp(dataSyncRepo repository.DataSyncTask, dataSyncLogRepo repository.DataSyncLog) DataSyncTask {
 	app := new(dataSyncAppImpl)
 	app.Repo = dataSyncRepo
+	app.dataSyncLogRepo = dataSyncLogRepo
 	return app
 }
 
 type dataSyncAppImpl struct {
 	base.AppImpl[*entity.DataSyncTask, repository.DataSyncTask]
+
+	dataSyncLogRepo repository.DataSyncLog
 }
 
 func (app *dataSyncAppImpl) GetPageList(condition *entity.DataSyncTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
@@ -114,6 +123,10 @@ func (app *dataSyncAppImpl) changeRunningState(id uint64, state int8) {
 func (app *dataSyncAppImpl) RunCronJob(id uint64) {
 	// 查询最新的任务信息
 	task, err := app.GetById(new(entity.DataSyncTask), id)
+	if err != nil {
+		logx.Warnf("[%d]任务不存在", id)
+		return
+	}
 	if task.RunningState == entity.DataSyncTaskRunStateRunning {
 		logx.Warnf("数据同步任务正在执行中：%s => %s", task.TaskName, task.TaskKey)
 		return
@@ -184,7 +197,7 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) {
 		var fieldMap []map[string]string
 		err = json.Unmarshal([]byte(task.FieldMap), &fieldMap)
 		if err != nil {
-			app.endRunning(task, entity.DataSyncTaskStateFail, fmt.Sprintf("解析字段映射json出错"), sql, resSize)
+			app.endRunning(task, entity.DataSyncTaskStateFail, "解析字段映射json出错", sql, resSize)
 			return
 		}
 
@@ -304,9 +317,10 @@ func (app *dataSyncAppImpl) endRunning(taskEntity *entity.DataSyncTask, state in
 	app.saveLog(taskEntity.Id, state, msg, sql, resNum)
 
 }
+
 func (app *dataSyncAppImpl) saveLog(taskId uint64, state int8, msg string, sql string, resNum int) {
 	now := time.Now()
-	_ = GetDataSyncLogApp().Insert(context.Background(), &entity.DataSyncLog{
+	_ = app.dataSyncLogRepo.Insert(context.Background(), &entity.DataSyncLog{
 		TaskId:      taskId,
 		CreateTime:  &now,
 		DataSqlFull: sql,
@@ -356,4 +370,8 @@ func (app *dataSyncAppImpl) InitCronJob() {
 		pageParam.PageNum++
 		_, _ = app.GetPageList(cond, pageParam, jobs)
 	}
+}
+
+func (app *dataSyncAppImpl) GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return app.dataSyncLogRepo.GetTaskLogList(condition, pageParam, toEntity, orderBy...)
 }

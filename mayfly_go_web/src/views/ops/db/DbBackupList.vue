@@ -75,7 +75,7 @@ const columns = [
     TableColumn.new('enabled', '是否启用'),
     TableColumn.new('lastResult', '执行结果'),
     TableColumn.new('lastTime', '执行时间').isTime(),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(160).fixedRight(),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight(),
 ];
 
 const emptyQuery = {

@@ -29,3 +29,9 @@ func (restore *DbRestore) MarshalJSON() ([]byte, error) {
 	restore.IntervalDay = uint64(restore.Interval / time.Hour / 24)
 	return json.Marshal((*dbBackup)(restore))
 }
+
+// DbRestoreHistory 数据库备份历史
+type DbRestoreHistory struct {
+	Id          uint64 `json:"id"`
+	DbRestoreId uint64 `json:"dbRestoreId"`
+}

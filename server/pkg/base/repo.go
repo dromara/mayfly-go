@@ -2,10 +2,11 @@ package base
 
 import (
 	"context"
-	"gorm.io/gorm"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
+
+	"gorm.io/gorm"
 )
 
 // 基础repo接口
@@ -182,7 +183,7 @@ func (br *RepoImpl[T]) GetModel() T {
 // 从上下文获取登录账号信息，并赋值至实体
 func (br *RepoImpl[T]) setBaseInfo(ctx context.Context, e T) T {
 	if la := contextx.GetLoginAccount(ctx); la != nil {
-		e.SetBaseInfo(la)
+		e.SetBaseInfo(model.IdGenTypeNone, la)
 	}
 	return e
 }

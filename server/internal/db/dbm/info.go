@@ -3,6 +3,7 @@ package dbm
 import (
 	"database/sql"
 	"fmt"
+	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 )
@@ -70,6 +71,24 @@ func (dbInfo *DbInfo) Conn() (*DbConn, error) {
 	logx.Infof("连接db: %s:%d/%s", dbInfo.Host, dbInfo.Port, database)
 
 	return dbc, nil
+}
+
+// 如果使用了ssh隧道，将其host port改变其本地映射host port
+func (di *DbInfo) IfUseSshTunnelChangeIpPort() error {
+	// 开启ssh隧道
+	if di.SshTunnelMachineId > 0 {
+		sshTunnelMachine, err := machineapp.GetMachineApp().GetSshTunnelMachine(di.SshTunnelMachineId)
+		if err != nil {
+			return err
+		}
+		exposedIp, exposedPort, err := sshTunnelMachine.OpenSshTunnel(fmt.Sprintf("db:%d", di.Id), di.Host, di.Port)
+		if err != nil {
+			return err
+		}
+		di.Host = exposedIp
+		di.Port = exposedPort
+	}
+	return nil
 }
 
 // 获取连接id

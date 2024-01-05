@@ -114,7 +114,8 @@ const search = async () => {
     pageTableRef.value.search();
 };
 
-const parseData = async (dataList: any) => {
+const parseData = async (res: any) => {
+    const dataList = res.list;
     // 填充机器信息
     for (let x of dataList) {
         const machineId = x.machineId;
@@ -137,7 +138,7 @@ const parseData = async (dataList: any) => {
         x.machineIp = machine?.ip;
         x.machineName = machine?.name;
     }
-    return dataList;
+    return res;
 };
 
 const cancel = () => {

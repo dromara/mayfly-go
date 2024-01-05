@@ -137,3 +137,19 @@ func (d *DbBackup) GetDbNamesWithoutBackup(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "获取未配置定时备份的数据库名称失败: %v")
 	rc.ResData = dbNamesWithoutBackup
 }
+
+// GetPageList 获取数据库备份历史
+// @router /api/dbs/:dbId/backups/:backupId/histories [GET]
+func (d *DbBackup) GetHistoryPageList(rc *req.Ctx) {
+	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
+	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
+	db, err := d.DbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
+	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
+
+	queryCond, page := ginx.BindQueryAndPage[*entity.DbBackupHistoryQuery](rc.GinCtx, new(entity.DbBackupHistoryQuery))
+	queryCond.DbInstanceId = db.InstanceId
+	queryCond.InDbNames = strings.Fields(db.Database)
+	res, err := d.DbBackupApp.GetHistoryPageList(queryCond, page, new([]vo.DbBackupHistory))
+	biz.ErrIsNilAppendErr(err, "获取数据库备份历史失败: %v")
+	rc.ResData = res
+}

@@ -13,7 +13,6 @@ func InitDbDataSyncRouter(router *gin.RouterGroup) {
 
 	d := &api.DataSyncTask{
 		DataSyncTaskApp: application.GetDataSyncTaskApp(),
-		DataSyncLogApp:  application.GetDataSyncLogApp(),
 	}
 
 	reqs := [...]*req.Conf{

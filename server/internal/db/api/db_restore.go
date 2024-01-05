@@ -92,21 +92,18 @@ func (d *DbRestore) walk(rc *req.Ctx, fn func(ctx context.Context, taskId uint64
 	return nil
 }
 
-// Delete 删除数据库恢复任务
 // @router /api/dbs/:dbId/restores/:taskId [DELETE]
 func (d *DbRestore) Delete(rc *req.Ctx) {
 	err := d.walk(rc, d.DbRestoreApp.Delete)
 	biz.ErrIsNilAppendErr(err, "删除数据库恢复任务失败: %v")
 }
 
-// Enable 删除数据库恢复任务
 // @router /api/dbs/:dbId/restores/:taskId/enable [PUT]
 func (d *DbRestore) Enable(rc *req.Ctx) {
 	err := d.walk(rc, d.DbRestoreApp.Enable)
 	biz.ErrIsNilAppendErr(err, "启用数据库恢复任务失败: %v")
 }
 
-// Disable 删除数据库恢复任务
 // @router /api/dbs/:dbId/restores/:taskId/disable [PUT]
 func (d *DbRestore) Disable(rc *req.Ctx) {
 	err := d.walk(rc, d.DbRestoreApp.Disable)
@@ -123,4 +120,15 @@ func (d *DbRestore) GetDbNamesWithoutRestore(rc *req.Ctx) {
 	dbNamesWithoutRestore, err := d.DbRestoreApp.GetDbNamesWithoutRestore(db.InstanceId, dbNames)
 	biz.ErrIsNilAppendErr(err, "获取未配置定时备份的数据库名称失败: %v")
 	rc.ResData = dbNamesWithoutRestore
+}
+
+// 获取数据库备份历史
+// @router /api/dbs/:dbId/restores/:restoreId/histories [GET]
+func (d *DbRestore) GetHistoryPageList(rc *req.Ctx) {
+	queryCond := &entity.DbRestoreHistoryQuery{
+		DbRestoreId: uint64(ginx.PathParamInt(rc.GinCtx, "restoreId")),
+	}
+	res, err := d.DbRestoreApp.GetHistoryPageList(queryCond, ginx.GetPageParam(rc.GinCtx), new([]vo.DbRestoreHistory))
+	biz.ErrIsNilAppendErr(err, "获取数据库备份历史失败: %v")
+	rc.ResData = res
 }

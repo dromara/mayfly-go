@@ -40,21 +40,27 @@ func NewDbProgramMysql(dbConn *DbConn) *DbProgramMysql {
 }
 
 func (svc *DbProgramMysql) dbInfo() *DbInfo {
-	return svc.dbConn.Info
+	dbInfo := svc.dbConn.Info
+	err := dbInfo.IfUseSshTunnelChangeIpPort()
+	if err != nil {
+		logx.Errorf("通过ssh隧道连接db失败: %s", err.Error())
+	}
+	return dbInfo
 }
 
 func (svc *DbProgramMysql) getMysqlBin() *config.MysqlBin {
 	if svc.mysqlBin != nil {
 		return svc.mysqlBin
 	}
+	dbInfo := svc.dbInfo()
 	var mysqlBin *config.MysqlBin
-	switch svc.dbInfo().Type {
+	switch dbInfo.Type {
 	case DbTypeMariadb:
 		mysqlBin = config.GetMysqlBin(config.ConfigKeyDbMariadbBin)
 	case DbTypeMysql:
 		mysqlBin = config.GetMysqlBin(config.ConfigKeyDbMysqlBin)
 	default:
-		panic(fmt.Sprintf("不兼容 MySQL 的数据库类型: %v", svc.dbInfo().Type))
+		panic(fmt.Sprintf("不兼容 MySQL 的数据库类型: %v", dbInfo.Type))
 	}
 	svc.mysqlBin = mysqlBin
 	return svc.mysqlBin
@@ -81,11 +87,12 @@ func (svc *DbProgramMysql) Backup(ctx context.Context, backupHistory *entity.DbB
 		_ = os.Remove(tmpFile)
 	}()
 
+	dbInfo := svc.dbInfo()
 	args := []string{
-		"--host", svc.dbInfo().Host,
-		"--port", strconv.Itoa(svc.dbInfo().Port),
-		"--user", svc.dbInfo().Username,
-		"--password=" + svc.dbInfo().Password,
+		"--host", dbInfo.Host,
+		"--port", strconv.Itoa(dbInfo.Port),
+		"--user", dbInfo.Username,
+		"--password=" + dbInfo.Password,
 		"--add-drop-database",
 		"--result-file", tmpFile,
 		"--single-transaction",
@@ -123,12 +130,13 @@ func (svc *DbProgramMysql) Backup(ctx context.Context, backupHistory *entity.DbB
 }
 
 func (svc *DbProgramMysql) RestoreBackupHistory(ctx context.Context, dbName string, dbBackupId uint64, dbBackupHistoryUuid string) error {
+	dbInfo := svc.dbInfo()
 	args := []string{
-		"--host", svc.dbInfo().Host,
-		"--port", strconv.Itoa(svc.dbInfo().Port),
+		"--host", dbInfo.Host,
+		"--port", strconv.Itoa(dbInfo.Port),
 		"--database", dbName,
-		"--user", svc.dbInfo().Username,
-		"--password=" + svc.dbInfo().Password,
+		"--user", dbInfo.Username,
+		"--password=" + dbInfo.Password,
 	}
 
 	fileName := filepath.Join(svc.getDbBackupDir(svc.dbInfo().InstanceId, dbBackupId),
@@ -157,7 +165,8 @@ func (svc *DbProgramMysql) downloadBinlogFilesOnServer(ctx context.Context, binl
 		logx.Debug("No binlog file found on server to download")
 		return nil
 	}
-	if err := os.MkdirAll(svc.getBinlogDir(svc.dbInfo().InstanceId), os.ModePerm); err != nil {
+	dbInfo := svc.dbInfo()
+	if err := os.MkdirAll(svc.getBinlogDir(dbInfo.InstanceId), os.ModePerm); err != nil {
 		return errors.Wrapf(err, "创建 binlog 目录失败: %q", svc.getBinlogDir(svc.dbInfo().InstanceId))
 	}
 	latestBinlogFileOnServer := binlogFilesOnServerSorted[len(binlogFilesOnServerSorted)-1]
@@ -166,7 +175,7 @@ func (svc *DbProgramMysql) downloadBinlogFilesOnServer(ctx context.Context, binl
 		if isLatest && !downloadLatestBinlogFile {
 			continue
 		}
-		binlogFilePath := filepath.Join(svc.getBinlogDir(svc.dbInfo().InstanceId), fileOnServer.Name)
+		binlogFilePath := filepath.Join(svc.getBinlogDir(dbInfo.InstanceId), fileOnServer.Name)
 		logx.Debug("Downloading binlog file from MySQL server.", logx.String("path", binlogFilePath), logx.Bool("isLatest", isLatest))
 		if err := svc.downloadBinlogFile(ctx, fileOnServer, isLatest); err != nil {
 			logx.Error("下载 binlog 文件失败", logx.String("path", binlogFilePath), logx.String("error", err.Error()))
@@ -287,15 +296,16 @@ func (svc *DbProgramMysql) fetchBinlogs(ctx context.Context, downloadLatestBinlo
 // It may keep growing as there are ongoing writes to the database. So we just need to check that
 // the file size is larger or equal to the binlog file size we queried from the MySQL server earlier.
 func (svc *DbProgramMysql) downloadBinlogFile(ctx context.Context, binlogFileToDownload *entity.BinlogFile, isLast bool) error {
-	tempBinlogPrefix := filepath.Join(svc.getBinlogDir(svc.dbInfo().InstanceId), "tmp-")
+	dbInfo := svc.dbInfo()
+	tempBinlogPrefix := filepath.Join(svc.getBinlogDir(dbInfo.InstanceId), "tmp-")
 	args := []string{
 		binlogFileToDownload.Name,
 		"--read-from-remote-server",
 		// Verify checksum binlog events.
 		"--verify-binlog-checksum",
-		"--host", svc.dbInfo().Host,
-		"--port", strconv.Itoa(svc.dbInfo().Port),
-		"--user", svc.dbInfo().Username,
+		"--host", dbInfo.Host,
+		"--port", strconv.Itoa(dbInfo.Port),
+		"--user", dbInfo.Username,
 		"--raw",
 		// With --raw this is a prefix for the file names.
 		"--result-file", tempBinlogPrefix,
@@ -304,8 +314,8 @@ func (svc *DbProgramMysql) downloadBinlogFile(ctx context.Context, binlogFileToD
 	cmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqlbinlogPath, args...)
 	// We cannot set password as a flag. Otherwise, there is warning message
 	// "mysqlbinlog: [Warning] Using a password on the command line interface can be insecure."
-	if svc.dbInfo().Password != "" {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("MYSQL_PWD=%s", svc.dbInfo().Password))
+	if dbInfo.Password != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("MYSQL_PWD=%s", dbInfo.Password))
 	}
 
 	logx.Debug("Downloading binlog files using mysqlbinlog:", cmd.String())
@@ -531,18 +541,19 @@ func (svc *DbProgramMysql) ReplayBinlog(ctx context.Context, originalDatabase, t
 		"--stop-position", fmt.Sprintf("%d", restoreInfo.TargetPosition),
 	}
 
-	mysqlbinlogArgs = append(mysqlbinlogArgs, restoreInfo.GetBinlogPaths(svc.getBinlogDir(svc.dbInfo().InstanceId))...)
+	dbInfo := svc.dbInfo()
+	mysqlbinlogArgs = append(mysqlbinlogArgs, restoreInfo.GetBinlogPaths(svc.getBinlogDir(dbInfo.InstanceId))...)
 
 	mysqlArgs := []string{
-		"--host", svc.dbInfo().Host,
-		"--port", strconv.Itoa(svc.dbInfo().Port),
-		"--user", svc.dbInfo().Username,
+		"--host", dbInfo.Host,
+		"--port", strconv.Itoa(dbInfo.Port),
+		"--user", dbInfo.Username,
 	}
 
-	if svc.dbInfo().Password != "" {
+	if dbInfo.Password != "" {
 		// The --password parameter of mysql/mysqlbinlog does not support the "--password PASSWORD" format (split by space).
 		// If provided like that, the program will hang.
-		mysqlArgs = append(mysqlArgs, fmt.Sprintf("--password=%s", svc.dbInfo().Password))
+		mysqlArgs = append(mysqlArgs, fmt.Sprintf("--password=%s", dbInfo.Password))
 	}
 
 	mysqlbinlogCmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqlbinlogPath, mysqlbinlogArgs...)
@@ -649,11 +660,12 @@ func runCmd(cmd *exec.Cmd) error {
 }
 
 func (svc *DbProgramMysql) execute(database string, sql string) error {
+	dbInfo := svc.dbInfo()
 	args := []string{
-		"--host", svc.dbInfo().Host,
-		"--port", strconv.Itoa(svc.dbInfo().Port),
-		"--user", svc.dbInfo().Username,
-		"--password=" + svc.dbInfo().Password,
+		"--host", dbInfo.Host,
+		"--port", strconv.Itoa(dbInfo.Port),
+		"--user", dbInfo.Username,
+		"--password=" + dbInfo.Password,
 		"--execute", sql,
 	}
 	if len(database) > 0 {

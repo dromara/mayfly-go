@@ -4,13 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/go-sql-driver/mysql"
 	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"net"
 	"regexp"
 	"strings"
+
+	"github.com/go-sql-driver/mysql"
 )
 
 func getMysqlDB(d *DbInfo) (*sql.DB, error) {
@@ -212,6 +213,7 @@ func (pd *MysqlDialect) WrapName(name string) string {
 func (pd *MysqlDialect) PageSql(pageNum int, pageSize int) string {
 	return fmt.Sprintf("limit %d, %d", (pageNum-1)*pageSize, pageSize)
 }
+
 func (pd *MysqlDialect) GetDataType(dbColumnType string) DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
 		return DataTypeNumber
@@ -230,6 +232,7 @@ func (pd *MysqlDialect) GetDataType(dbColumnType string) DataType {
 	}
 	return DataTypeString
 }
+
 func (pd *MysqlDialect) SaveBatch(conn *DbConn, tableName string, columns string, placeholder string, values [][]any) error {
 	// 执行批量insert sql，mysql支持批量insert语法
 	// insert into table_name (column1, column2, ...) values (value1, value2, ...), (value1, value2, ...), ...

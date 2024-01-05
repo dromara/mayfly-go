@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"github.com/google/uuid"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/model"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func newDbBackupApp(repositories *repository.Repositories, dbApp Db) (*DbBackupApp, error) {
@@ -75,6 +76,11 @@ func (app *DbBackupApp) GetDbNamesWithoutBackup(instanceId uint64, dbNames []str
 	return app.backupRepo.GetDbNamesWithoutBackup(instanceId, dbNames)
 }
 
+// GetPageList 分页获取数据库备份历史
+func (app *DbBackupApp) GetHistoryPageList(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return app.backupHistoryRepo.GetHistories(condition, pageParam, toEntity, orderBy...)
+}
+
 func withRunBackupTask(app *DbBackupApp) dbSchedulerOption[*entity.DbBackup] {
 	return func(scheduler *dbScheduler[*entity.DbBackup]) {
 		scheduler.RunTask = app.runTask
@@ -139,18 +145,18 @@ func NewIncUUID() (uuid.UUID, error) {
 	return uid, nil
 }
 
-func newDbBackupHistoryApp(repositories *repository.Repositories) (*DbBackupHistoryApp, error) {
-	app := &DbBackupHistoryApp{
-		repo: repositories.BackupHistory,
-	}
-	return app, nil
-}
+// func newDbBackupHistoryApp(repositories *repository.Repositories) (*DbBackupHistoryApp, error) {
+// 	app := &DbBackupHistoryApp{
+// 		repo: repositories.BackupHistory,
+// 	}
+// 	return app, nil
+// }
 
-type DbBackupHistoryApp struct {
-	repo repository.DbBackupHistory
-}
+// type DbBackupHistoryApp struct {
+// 	repo repository.DbBackupHistory
+// }
 
-// GetPageList 分页获取数据库备份历史
-func (app *DbBackupHistoryApp) GetPageList(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return app.repo.GetHistories(condition, pageParam, toEntity, orderBy...)
-}
+// // GetPageList 分页获取数据库备份历史
+// func (app *DbBackupHistoryApp) GetPageList(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+// 	return app.repo.GetHistories(condition, pageParam, toEntity, orderBy...)
+// }

@@ -73,6 +73,11 @@ func (app *DbRestoreApp) GetDbNamesWithoutRestore(instanceId uint64, dbNames []s
 	return app.restoreRepo.GetDbNamesWithoutRestore(instanceId, dbNames)
 }
 
+// 分页获取数据库备份历史
+func (app *DbRestoreApp) GetHistoryPageList(condition *entity.DbRestoreHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return app.restoreHistoryRepo.GetDbRestoreHistories(condition, pageParam, toEntity, orderBy...)
+}
+
 func (app *DbRestoreApp) runTask(ctx context.Context, task *entity.DbRestore) error {
 	conn, err := app.dbApp.GetDbConnByInstanceId(task.DbInstanceId)
 	if err != nil {
@@ -172,20 +177,4 @@ func withRunRestoreTask(app *DbRestoreApp) dbSchedulerOption[*entity.DbRestore] 
 	return func(scheduler *dbScheduler[*entity.DbRestore]) {
 		scheduler.RunTask = app.runTask
 	}
-}
-
-func newDbRestoreHistoryApp(repositories *repository.Repositories) (*DbRestoreHistoryApp, error) {
-	app := &DbRestoreHistoryApp{
-		repo: repositories.RestoreHistory,
-	}
-	return app, nil
-}
-
-type DbRestoreHistoryApp struct {
-	repo repository.DbRestoreHistory
-}
-
-// GetPageList 分页获取数据库备份历史
-func (app *DbRestoreHistoryApp) GetPageList(condition *entity.DbRestoreHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return app.repo.GetDbRestoreHistories(condition, pageParam, toEntity, orderBy...)
 }

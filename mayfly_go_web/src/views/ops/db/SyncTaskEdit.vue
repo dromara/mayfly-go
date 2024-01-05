@@ -10,7 +10,7 @@
             width="700px"
         >
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-tabs v-model="tabActiveName">
+                <el-tabs v-model="tabActiveName" style="height: 450px">
                     <el-tab-pane label="基本信息" name="basic">
                         <el-form-item prop="taskName" label="任务名" required>
                             <el-input v-model.trim="form.taskName" placeholder="请输入数据库别名" auto-complete="off" />
@@ -41,7 +41,7 @@
                             />
                         </el-form-item>
                         <el-form-item prop="dataSql" label="数据sql" required>
-                            <monaco-editor height="300px" class="task-sql" language="sql" v-model="form.dataSql" />
+                            <monaco-editor height="200px" class="task-sql" language="sql" v-model="form.dataSql" />
                         </el-form-item>
                     </el-tab-pane>
 
@@ -116,9 +116,6 @@ import { DbInst, registerDbCompletionItemProvider } from '@/views/ops/db/db';
 import { getDbDialect } from '@/views/ops/db/dialect';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     data: {
         type: [Boolean, Object],
     },
@@ -129,6 +126,8 @@ const props = defineProps({
 
 //定义事件
 const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+
+const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const rules = {
     taskName: [
@@ -180,7 +179,6 @@ const basicFormData = {
 } as FormData;
 
 const state = reactive({
-    dialogVisible: false,
     tabActiveName: 'basic',
     form: basicFormData,
     submitForm: {} as any,
@@ -218,18 +216,18 @@ const loadDbTables = async (dbId: number, db: string) => {
     }
 };
 
-const { dialogVisible, tabActiveName, form, submitForm } = toRefs(state);
+const { tabActiveName, form, submitForm } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveExec } = dbApi.saveDatasyncTask.useApi(submitForm);
 
-watch(props, async (newValue: any) => {
-    state.dialogVisible = newValue.visible;
-    if (!state.dialogVisible) {
+watch(dialogVisible, async (newValue: boolean) => {
+    if (!newValue) {
         return;
     }
     state.tabActiveName = 'basic';
-    if (newValue.data?.id) {
-        let data = await dbApi.getDatasyncTask.request({ taskId: newValue.data?.id });
+    const propsData = props.data as any;
+    if (propsData?.id) {
+        let data = await dbApi.getDatasyncTask.request({ taskId: propsData?.id });
         state.form = data;
         try {
             state.form.fieldMap = JSON.parse(data.fieldMap);
@@ -316,6 +314,7 @@ watch(tabActiveName, async (newValue: string) => {
             break;
     }
 });
+
 const handleGetSrcFields = async () => {
     // 执行sql，获取字段信息
     if (!state.form.dataSql || !state.form.dataSql.trim()) {
@@ -362,6 +361,7 @@ const handleGetSrcFields = async () => {
 
     state.previewRes = res;
 };
+
 const handleGetTargetFields = async () => {
     // 查询目标表下的字段信息
     if (state.form.targetDbName && state.form.targetTableName) {
@@ -412,7 +412,7 @@ const btnOk = async () => {
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    dialogVisible.value = false;
     emit('cancel');
 };
 </script>

@@ -30,7 +30,7 @@ type MachineCronJobRelate struct {
 	CreateTime *time.Time
 }
 
-func (m *MachineCronJobRelate) SetBaseInfo(la *model.LoginAccount) {
+func (m *MachineCronJobRelate) SetBaseInfo(gt model.IdGenType, la *model.LoginAccount) {
 	now := time.Now()
 	m.CreateTime = &now
 	m.Creator = la.Username

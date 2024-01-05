@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
@@ -29,18 +28,9 @@ func getDmDB(d *DbInfo) (*sql.DB, error) {
 		}
 	}
 
-	// 开启ssh隧道
-	if d.SshTunnelMachineId > 0 {
-		sshTunnelMachine, err := machineapp.GetMachineApp().GetSshTunnelMachine(d.SshTunnelMachineId)
-		if err != nil {
-			return nil, err
-		}
-		exposedIp, exposedPort, err := sshTunnelMachine.OpenSshTunnel(fmt.Sprintf("db:%d", d.Id), d.Host, d.Port)
-		if err != nil {
-			return nil, err
-		}
-		d.Host = exposedIp
-		d.Port = exposedPort
+	err := d.IfUseSshTunnelChangeIpPort()
+	if err != nil {
+		return nil, err
 	}
 
 	dsn := fmt.Sprintf("dm://%s:%s@%s:%d/%s", d.Username, d.Password, d.Host, d.Port, dbParam)
@@ -299,6 +289,7 @@ func (pd *DMDialect) WrapName(name string) string {
 func (pd *DMDialect) PageSql(pageNum int, pageSize int) string {
 	return fmt.Sprintf("LIMIT %d OFFSET %d", pageSize, (pageNum-1)*pageSize)
 }
+
 func (pd *DMDialect) GetDataType(dbColumnType string) DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
 		return DataTypeNumber

@@ -1,10 +1,11 @@
 package router
 
 import (
-	"github.com/gin-gonic/gin"
 	"mayfly-go/internal/db/api"
 	"mayfly-go/internal/db/application"
 	"mayfly-go/pkg/req"
+
+	"github.com/gin-gonic/gin"
 )
 
 func InitDbBackupRouter(router *gin.RouterGroup) {
@@ -32,6 +33,9 @@ func InitDbBackupRouter(router *gin.RouterGroup) {
 		req.NewDelete(":dbId/backups/:backupId", d.Delete),
 		// 获取未配置定时备份的数据库名称
 		req.NewGet(":dbId/db-names-without-backup", d.GetDbNamesWithoutBackup),
+
+		// 获取数据库备份历史
+		req.NewGet(":dbId/backup-histories/", d.GetHistoryPageList),
 	}
 
 	req.BatchSetGroup(dbs, reqs)

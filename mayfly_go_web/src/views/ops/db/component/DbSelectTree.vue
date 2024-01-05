@@ -150,7 +150,7 @@ const NodeTypePostgresSchema = new NodeType(SqlExecNodeType.PgSchema).withNodeCl
         overflow-x: hidden;
         width: 560px;
         .el-tree {
-            height: 200px;
+            height: 150px;
             overflow-y: auto;
             overflow-x: hidden;
         }

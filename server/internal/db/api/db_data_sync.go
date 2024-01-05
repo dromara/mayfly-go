@@ -3,8 +3,6 @@ package api
 import (
 	"context"
 	"encoding/base64"
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
@@ -15,11 +13,13 @@ import (
 	"mayfly-go/pkg/utils/stringx"
 	"strconv"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type DataSyncTask struct {
 	DataSyncTaskApp application.DataSyncTask
-	DataSyncLogApp  application.DataSyncLog
 }
 
 func (d *DataSyncTask) Tasks(rc *req.Ctx) {
@@ -31,7 +31,7 @@ func (d *DataSyncTask) Tasks(rc *req.Ctx) {
 
 func (d *DataSyncTask) Logs(rc *req.Ctx) {
 	queryCond, page := ginx.BindQueryAndPage[*entity.DataSyncLogQuery](rc.GinCtx, new(entity.DataSyncLogQuery))
-	res, err := d.DataSyncLogApp.GetTaskLogList(queryCond, page, new([]vo.DataSyncLogListVO))
+	res, err := d.DataSyncTaskApp.GetTaskLogList(queryCond, page, new([]vo.DataSyncLogListVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

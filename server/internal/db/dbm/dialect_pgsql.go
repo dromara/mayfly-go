@@ -291,6 +291,7 @@ func (pd *PgsqlDialect) WrapName(name string) string {
 func (pd *PgsqlDialect) PageSql(pageNum int, pageSize int) string {
 	return fmt.Sprintf("LIMIT %d OFFSET %d", pageSize, (pageNum-1)*pageSize)
 }
+
 func (pd *PgsqlDialect) GetDataType(dbColumnType string) DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
 		return DataTypeNumber
@@ -309,6 +310,7 @@ func (pd *PgsqlDialect) GetDataType(dbColumnType string) DataType {
 	}
 	return DataTypeString
 }
+
 func (pd *PgsqlDialect) SaveBatch(conn *DbConn, tableName string, columns string, placeholder string, values [][]any) error {
 	// 执行批量insert sql，跟mysql一样  pg或高斯支持批量insert语法
 	// insert into table_name (column1, column2, ...) values (value1, value2, ...), (value1, value2, ...), ...

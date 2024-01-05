@@ -38,17 +38,13 @@ func (d *DataSyncTask) TableName() string {
 }
 
 type DataSyncLog struct {
-	Id          uint64     `json:"id"`                           // 自增主键
+	model.IdModel
 	TaskId      uint64     `orm:"column(task_id)" json:"taskId"` // 任务表id
 	CreateTime  *time.Time `orm:"column(create_time)" json:"createTime"`
 	DataSqlFull string     `orm:"column(data_sql_full)" json:"dataSqlFull"` // 执行的完整sql
 	ResNum      int        `orm:"column(res_num)" json:"resNum"`            // 收到数据条数
 	ErrText     string     `orm:"column(err_text)" json:"errText"`          // 错误日志
 	Status      int8       `orm:"column(status)" json:"status"`             // 状态:1.成功  -1.失败
-}
-
-func (d *DataSyncLog) SetBaseInfo(account *model.LoginAccount) {
-	//TODO implement me
 }
 
 func (d *DataSyncLog) TableName() string {

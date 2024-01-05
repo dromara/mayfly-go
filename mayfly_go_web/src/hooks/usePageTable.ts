@@ -50,7 +50,7 @@ export const usePageTable = (
             }
 
             let res = await api.request(sp);
-            dataCallBack && (res = dataCallBack(res));
+            dataCallBack && (res = await dataCallBack(res));
 
             if (pageable) {
                 state.tableData = res.list;

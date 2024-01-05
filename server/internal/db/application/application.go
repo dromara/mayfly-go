@@ -9,17 +9,14 @@ import (
 )
 
 var (
-	instanceApp         Instance
-	dbApp               Db
-	dbSqlExecApp        DbSqlExec
-	dbSqlApp            DbSql
-	dbBackupApp         *DbBackupApp
-	dbBackupHistoryApp  *DbBackupHistoryApp
-	dbRestoreApp        *DbRestoreApp
-	dbRestoreHistoryApp *DbRestoreHistoryApp
-	dbBinlogApp         *DbBinlogApp
-	dataSyncApp         DataSyncTask
-	dataSyncLogApp      DataSyncLog
+	instanceApp  Instance
+	dbApp        Db
+	dbSqlExecApp DbSqlExec
+	dbSqlApp     DbSql
+	dbBackupApp  *DbBackupApp
+	dbRestoreApp *DbRestoreApp
+	dbBinlogApp  *DbBinlogApp
+	dataSyncApp  DataSyncTask
 )
 
 var repositories *repository.Repositories
@@ -41,8 +38,7 @@ func Init() {
 		dbApp = newDbApp(persistence.GetDbRepo(), persistence.GetDbSqlRepo(), instanceApp, tagapp.GetTagTreeApp())
 		dbSqlExecApp = newDbSqlExecApp(persistence.GetDbSqlExecRepo())
 		dbSqlApp = newDbSqlApp(persistence.GetDbSqlRepo())
-		dataSyncApp = newDataSyncApp(persistence.GetDataSyncTaskRepo())
-		dataSyncLogApp = newDataSyncLogApp(persistence.GetDataSyncLogRepo())
+		dataSyncApp = newDataSyncApp(persistence.GetDataSyncTaskRepo(), persistence.GetDataSyncLogRepo())
 
 		dbBackupApp, err = newDbBackupApp(repositories, dbApp)
 		if err != nil {
@@ -52,14 +48,7 @@ func Init() {
 		if err != nil {
 			panic(fmt.Sprintf("初始化 dbRestoreApp 失败: %v", err))
 		}
-		dbBackupHistoryApp, err = newDbBackupHistoryApp(repositories)
-		if err != nil {
-			panic(fmt.Sprintf("初始化 dbBackupHistoryApp 失败: %v", err))
-		}
-		dbRestoreHistoryApp, err = newDbRestoreHistoryApp(repositories)
-		if err != nil {
-			panic(fmt.Sprintf("初始化 dbRestoreHistoryApp 失败: %v", err))
-		}
+
 		dbBinlogApp, err = newDbBinlogApp(repositories, dbApp)
 		if err != nil {
 			panic(fmt.Sprintf("初始化 dbBinlogApp 失败: %v", err))
@@ -89,16 +78,8 @@ func GetDbBackupApp() *DbBackupApp {
 	return dbBackupApp
 }
 
-func GetDbBackupHistoryApp() *DbBackupHistoryApp {
-	return dbBackupHistoryApp
-}
-
 func GetDbRestoreApp() *DbRestoreApp {
 	return dbRestoreApp
-}
-
-func GetDbRestoreHistoryApp() *DbRestoreHistoryApp {
-	return dbRestoreHistoryApp
 }
 
 func GetDbBinlogApp() *DbBinlogApp {
@@ -107,8 +88,4 @@ func GetDbBinlogApp() *DbBinlogApp {
 
 func GetDataSyncTaskApp() DataSyncTask {
 	return dataSyncApp
-}
-
-func GetDataSyncLogApp() DataSyncLog {
-	return dataSyncLogApp
 }

@@ -75,6 +75,12 @@ func (stm *SshTunnelMachine) OpenSshTunnel(id string, ip string, port int) (expo
 	stm.mutex.Lock()
 	defer stm.mutex.Unlock()
 
+	tunnel := stm.tunnels[id]
+	// 已存在该id隧道，则直接返回
+	if tunnel != nil {
+		return tunnel.localHost, tunnel.localPort, nil
+	}
+
 	localPort, err := netx.GetAvailablePort()
 	if err != nil {
 		return "", 0, err
@@ -93,7 +99,7 @@ func (stm *SshTunnelMachine) OpenSshTunnel(id string, ip string, port int) (expo
 		return "", 0, err
 	}
 
-	tunnel := &Tunnel{
+	tunnel = &Tunnel{
 		id:         id,
 		machineId:  stm.machineId,
 		localHost:  hostname,

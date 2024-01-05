@@ -169,10 +169,7 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 	}
 
 	// 进行登录
-	account := &sysentity.Account{
-		Model: model.Model{DeletedModel: model.DeletedModel{Id: accountId}},
-	}
-	err = a.AccountApp.GetBy(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
+	account, err := a.AccountApp.GetById(new(sysentity.Account), accountId, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
 	biz.ErrIsNilAppendErr(err, "获取用户信息失败: %s")
 
 	clientIp := getIpAndRegion(rc)
