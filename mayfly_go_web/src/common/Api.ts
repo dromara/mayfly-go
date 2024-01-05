@@ -1,5 +1,5 @@
 import request from './request';
-import { useApiFetch } from './useRequest';
+import { useApiFetch } from '@/hooks/useRequest';
 
 /**
  * 可用于各模块定义各自api请求

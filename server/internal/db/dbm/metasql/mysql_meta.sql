@@ -38,7 +38,7 @@ WHERE
     SELECT
       database ()
   )
-  AND table_name = '%s'
+  AND table_name = ?
 ORDER BY
   index_name asc,
   SEQ_IN_INDEX asc

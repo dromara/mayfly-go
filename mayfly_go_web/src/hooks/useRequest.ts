@@ -1,13 +1,13 @@
-import router from '../router';
-import { getClientId, getToken } from './utils/storage';
-import { templateResolve } from './utils/string';
+import router from '@/router';
+import { getClientId, getToken } from '@/common/utils/storage';
+import { templateResolve } from '@/common/utils/string';
 import { ElMessage } from 'element-plus';
 import { createFetch } from '@vueuse/core';
-import Api from './Api';
-import { Result, ResultEnum } from './request';
-import config from './config';
+import Api from '@/common/Api';
+import { Result, ResultEnum } from '@/common/request';
+import config from '@/common/config';
 import { unref } from 'vue';
-import { URL_401 } from '../router/staticRouter';
+import { URL_401 } from '@/router/staticRouter';
 
 const baseUrl: string = config.baseApiUrl;
 

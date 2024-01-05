@@ -142,7 +142,7 @@ func (md *MysqlDialect) GetPrimaryKey(tablename string) (string, error) {
 
 // 获取表索引信息
 func (md *MysqlDialect) GetTableIndex(tableName string) ([]Index, error) {
-	_, res, err := md.dc.Query(fmt.Sprintf(GetLocalSql(MYSQL_META_FILE, MYSQL_INDEX_INFO_KEY), tableName))
+	_, res, err := md.dc.Query(GetLocalSql(MYSQL_META_FILE, MYSQL_INDEX_INFO_KEY), tableName)
 	if err != nil {
 		return nil, err
 	}

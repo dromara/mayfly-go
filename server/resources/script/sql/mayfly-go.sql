@@ -29,12 +29,6 @@ CREATE TABLE `t_db_instance` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库实例信息表';
 
 -- ----------------------------
--- Records of t_db_instance
--- ----------------------------
-BEGIN;
-COMMIT;
-
--- ----------------------------
 -- Table structure for t_db
 -- ----------------------------
 DROP TABLE IF EXISTS `t_db`;
@@ -57,12 +51,6 @@ CREATE TABLE `t_db` (
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库资源信息表';
 
 -- ----------------------------
--- Records of t_db
--- ----------------------------
-BEGIN;
-COMMIT;
-
--- ----------------------------
 -- Table structure for t_db_sql
 -- ----------------------------
 DROP TABLE IF EXISTS `t_db_sql`;
@@ -83,12 +71,6 @@ CREATE TABLE `t_db_sql` (
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库sql信息';
-
--- ----------------------------
--- Records of t_db_sql
--- ----------------------------
-BEGIN;
-COMMIT;
 
 -- ----------------------------
 -- Table structure for t_db_sql_exec
@@ -115,10 +97,143 @@ CREATE TABLE `t_db_sql_exec` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库sql执行记录表';
 
 -- ----------------------------
--- Records of t_db_sql_exec
+-- Table structure for t_db_backup
 -- ----------------------------
-BEGIN;
-COMMIT;
+DROP TABLE IF EXISTS `t_db_backup`;
+CREATE TABLE `t_db_backup` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(32) NOT NULL COMMENT '备份名称',
+    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
+    `db_name` varchar(64) NOT NULL COMMENT '数据库名称',
+    `repeated` tinyint(1) DEFAULT NULL COMMENT '是否重复执行',
+    `interval` bigint(20) DEFAULT NULL COMMENT '备份周期',
+    `start_time` datetime DEFAULT NULL COMMENT '首次备份时间',
+    `enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
+    `last_status` tinyint(4) DEFAULT NULL COMMENT '上次备份状态',
+    `last_result` varchar(256) DEFAULT NULL COMMENT '上次备份结果',
+    `last_time` datetime DEFAULT NULL COMMENT '上次备份时间',
+    `create_time` datetime DEFAULT NULL,
+    `creator_id` bigint(20) unsigned DEFAULT NULL,
+    `creator` varchar(32) DEFAULT NULL,
+    `update_time` datetime DEFAULT NULL,
+    `modifier_id` bigint(20) unsigned DEFAULT NULL,
+    `modifier` varchar(32) DEFAULT NULL,
+    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_db_name` (`db_name`) USING BTREE,
+    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ----------------------------
+-- Table structure for t_db_backup_history
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_backup_history`;
+CREATE TABLE `t_db_backup_history` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(64) NOT NULL COMMENT '历史备份名称',
+    `db_backup_id` bigint(20) unsigned NOT NULL COMMENT '数据库备份ID',
+    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
+    `db_name` varchar(64) NOT NULL COMMENT '数据库名称',
+    `uuid` varchar(36) NOT NULL COMMENT '历史备份uuid',
+    `binlog_file_name` varchar(32) DEFAULT NULL COMMENT 'BINLOG文件名',
+    `binlog_sequence` bigint(20) DEFAULT NULL COMMENT 'BINLOG序列号',
+    `binlog_position` bigint(20) DEFAULT NULL COMMENT 'BINLOG位置',
+    `create_time` datetime DEFAULT NULL COMMENT '历史备份创建时间',
+    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_db_backup_id` (`db_backup_id`) USING BTREE,
+    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE,
+    KEY `idx_db_name` (`db_name`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ----------------------------
+-- Table structure for t_db_restore
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_restore`;
+CREATE TABLE `t_db_restore` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
+    `db_name` varchar(64) NOT NULL COMMENT '数据库名称',
+    `repeated` tinyint(1) DEFAULT NULL COMMENT '是否重复执行',
+    `interval` bigint(20) DEFAULT NULL COMMENT '恢复周期',
+    `start_time` datetime DEFAULT NULL COMMENT '首次恢复时间',
+    `enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
+    `last_status` tinyint(4) DEFAULT NULL COMMENT '上次恢复状态',
+    `last_result` varchar(256) DEFAULT NULL COMMENT '上次恢复结果',
+    `last_time` datetime DEFAULT NULL COMMENT '上次恢复时间',
+    `point_in_time` datetime DEFAULT NULL COMMENT '恢复时间点',
+    `db_backup_id` bigint(20) unsigned DEFAULT NULL COMMENT '备份ID',
+    `db_backup_history_id` bigint(20) unsigned DEFAULT NULL COMMENT '历史备份ID',
+    `db_backup_history_name` varchar(64) DEFAULT NULL COMMENT '历史备份名称',
+    `create_time` datetime DEFAULT NULL,
+    `creator_id` bigint(20) unsigned DEFAULT NULL,
+    `creator` varchar(32) DEFAULT NULL,
+    `update_time` datetime DEFAULT NULL,
+    `modifier_id` bigint(20) unsigned DEFAULT NULL,
+    `modifier` varchar(32) DEFAULT NULL,
+    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_db_instane_id` (`db_instance_id`) USING BTREE,
+    KEY `idx_db_name` (`db_name`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ----------------------------
+-- Table structure for t_db_restore_history
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_restore_history`;
+CREATE TABLE `t_db_restore_history` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `db_restore_id` bigint(20) unsigned NOT NULL COMMENT '恢复ID',
+    `create_time` datetime DEFAULT NULL COMMENT '历史恢复创建时间',
+    `is_deleted` tinyint(4) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_db_restore_id` (`db_restore_id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ----------------------------
+-- Table structure for t_db_binlog
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_binlog`;
+CREATE TABLE `t_db_binlog` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
+    `last_status` bigint(20) DEFAULT NULL COMMENT '上次下载状态',
+    `last_result` varchar(256) DEFAULT NULL COMMENT '上次下载结果',
+    `last_time` datetime DEFAULT NULL COMMENT '上次下载时间',
+    `create_time` datetime DEFAULT NULL,
+    `creator_id` bigint(20) unsigned DEFAULT NULL,
+    `creator` varchar(32) DEFAULT NULL,
+    `update_time` datetime DEFAULT NULL,
+    `modifier_id` bigint(20) unsigned DEFAULT NULL,
+    `modifier` varchar(32) DEFAULT NULL,
+    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ----------------------------
+-- Table structure for t_db_binlog_history
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_binlog_history`;
+CREATE TABLE `t_db_binlog_history` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
+    `file_name` varchar(32) DEFAULT NULL COMMENT 'BINLOG文件名称',
+    `file_size` bigint(20) DEFAULT NULL COMMENT 'BINLOG文件大小',
+    `sequence` bigint(20) DEFAULT NULL COMMENT 'BINLOG序列号',
+    `first_event_time` datetime DEFAULT NULL COMMENT '首次事件时间',
+    `create_time` datetime DEFAULT NULL,
+    `is_deleted` tinyint(4) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 
 DROP TABLE IF EXISTS `t_auth_cert`;
 CREATE TABLE `t_auth_cert` (
@@ -170,12 +285,6 @@ CREATE TABLE `t_machine` (
 ) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器信息';
 
 -- ----------------------------
--- Records of t_machine
--- ----------------------------
-BEGIN;
-COMMIT;
-
--- ----------------------------
 -- Table structure for t_machine_file
 -- ----------------------------
 DROP TABLE IF EXISTS `t_machine_file`;
@@ -218,11 +327,6 @@ CREATE TABLE `t_machine_monitor` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
--- ----------------------------
--- Records of t_machine_monitor
--- ----------------------------
-BEGIN;
-COMMIT;
 
 -- ----------------------------
 -- Table structure for t_machine_script
@@ -343,12 +447,6 @@ CREATE TABLE `t_mongo` (
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- ----------------------------
--- Records of t_mongo
--- ----------------------------
-BEGIN;
-COMMIT;
-
--- ----------------------------
 -- Table structure for t_redis
 -- ----------------------------
 DROP TABLE IF EXISTS `t_redis`;
@@ -374,11 +472,6 @@ CREATE TABLE `t_redis` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='redis信息';
 
--- ----------------------------
--- Records of t_redis
--- ----------------------------
-BEGIN;
-COMMIT;
 
 DROP TABLE IF EXISTS `t_oauth2_account`;
 CREATE TABLE `t_oauth2_account` (
@@ -440,12 +533,6 @@ CREATE TABLE `t_sys_account_role` (
 ) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='账号角色关联表';
 
 -- ----------------------------
--- Records of t_sys_account_role
--- ----------------------------
-BEGIN;
-COMMIT;
-
--- ----------------------------
 -- Table structure for t_sys_config
 -- ----------------------------
 DROP TABLE IF EXISTS `t_sys_config`;
@@ -475,7 +562,7 @@ BEGIN;
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier) VALUES('账号登录安全设置', 'AccountLoginSecurity', '[{"name":"登录验证码","model":"useCaptcha","placeholder":"是否启用登录验证码","options":"true,false"},{"name":"双因素校验(OTP)","model":"useOtp","placeholder":"是否启用双因素(OTP)校验","options":"true,false"},{"name":"OTP签发人","model":"otpIssuer","placeholder":"otp签发人"},{"name":"允许失败次数","model":"loginFailCount","placeholder":"登录失败n次后禁止登录"},{"name":"禁止登录时间","model":"loginFailMin","placeholder":"登录失败指定次数后禁止m分钟内再次登录"}]', '{"useCaptcha":"true","useOtp":"false","loginFailCount":"5","loginFailMin":"10","otpIssuer":"mayfly-go"}', '系统账号登录相关安全设置', '2023-06-17 11:02:11', 1, 'admin', '2023-06-17 14:18:07', 1, 'admin');
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('oauth2登录配置', 'Oauth2Login', '[{"name":"是否启用","model":"enable","placeholder":"是否启用oauth2登录","options":"true,false"},{"name":"名称","model":"name","placeholder":"oauth2名称"},{"name":"Client ID","model":"clientId","placeholder":"Client ID"},{"name":"Client Secret","model":"clientSecret","placeholder":"Client Secret"},{"name":"Authorization URL","model":"authorizationURL","placeholder":"Authorization URL"},{"name":"AccessToken URL","model":"accessTokenURL","placeholder":"AccessToken URL"},{"name":"Redirect URL","model":"redirectURL","placeholder":"本系统地址"},{"name":"Scopes","model":"scopes","placeholder":"Scopes"},{"name":"Resource URL","model":"resourceURL","placeholder":"获取用户信息资源地址"},{"name":"UserIdentifier","model":"userIdentifier","placeholder":"用户唯一标识字段;格式为type:fieldPath(string:username)"},{"name":"是否自动注册","model":"autoRegister","placeholder":"","options":"true,false"}]', '', 'oauth2登录相关配置信息', 'admin,', '2023-07-22 13:58:51', 1, 'admin', '2023-07-22 19:34:37', 1, 'admin', 0, NULL);
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('ldap登录配置', 'LdapLogin', '[{"name":"是否启用","model":"enable","placeholder":"是否启用","options":"true,false"},{"name":"host","model":"host","placeholder":"host"},{"name":"port","model":"port","placeholder":"port"},{"name":"bindDN","model":"bindDN","placeholder":"LDAP 服务的管理员账号，如: \\"cn=admin,dc=example,dc=com\\""},{"name":"bindPwd","model":"bindPwd","placeholder":"LDAP 服务的管理员密码"},{"name":"baseDN","model":"baseDN","placeholder":"用户所在的 base DN, 如: \\"ou=users,dc=example,dc=com\\""},{"name":"userFilter","model":"userFilter","placeholder":"过滤用户的方式, 如: \\"(uid=%s)、(&(objectClass=organizationalPerson)(uid=%s))\\""},{"name":"uidMap","model":"uidMap","placeholder":"用户id和 LDAP 字段名之间的映射关系,如: cn"},{"name":"udnMap","model":"udnMap","placeholder":"用户姓名(dispalyName)和 LDAP 字段名之间的映射关系,如: displayName"},{"name":"emailMap","model":"emailMap","placeholder":"用户email和 LDAP 字段名之间的映射关系"},{"name":"skipTLSVerify","model":"skipTLSVerify","placeholder":"客户端是否跳过 TLS 证书验证","options":"true,false"},{"name":"安全协议","model":"securityProtocol","placeholder":"安全协议（为Null不使用安全协议），如: StartTLS, LDAPS","options":"Null,StartTLS,LDAPS"}]', '', 'ldap登录相关配置', 'admin,', '2023-08-25 21:47:20', 1, 'admin', '2023-08-25 22:56:07', 1, 'admin', 0, NULL);
-INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('是否启用水印', 'UseWatermark', '[{"name":"是否启用","model":"isUse","placeholder":"是否启用水印","options":"true,false"},{"name":"自定义信息","model":"content","placeholder":"额外添加的水印内容，可添加公司名称等"}]', '', '水印信息配置', 'all', '2022-08-25 23:36:35', 1, 'admin', '2022-08-26 10:02:52', 1, 'admin', 0, NULL);
+INSERT INTO `t_sys_config` (`name`, `key`, `params`, `value`, `remark`, `permission`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`) VALUES('系统全局样式设置', 'SysStyleConfig', '[{"model":"logoIcon","name":"logo图标","placeholder":"系统logo图标（base64编码, 建议svg格式，不超过10k）","required":false},{"model":"title","name":"菜单栏标题","placeholder":"系统菜单栏标题展示","required":false},{"model":"viceTitle","name":"登录页标题","placeholder":"登录页标题展示","required":false},{"model":"useWatermark","name":"是否启用水印","placeholder":"是否启用系统水印","options":"true,false","required":false},{"model":"watermarkContent","name":"水印补充信息","placeholder":"额外水印信息","required":false}]', '{"title":"mayfly-go","viceTitle":"mayfly-go","logoIcon":"","useWatermark":"true","watermarkContent":""}', '系统icon、标题、水印信息等配置', 'all', '2024-01-04 15:17:18', 1, 'admin', '2024-01-05 09:40:44', 1, 'admin', 0, NULL);
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier)VALUES ('数据库查询最大结果集', 'DbQueryMaxCount', '[]', '200', '允许sql查询的最大结果集数。注: 0=不限制', '2023-02-11 14:29:03', 1, 'admin', '2023-02-11 14:40:56', 1, 'admin');
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier)VALUES ('数据库是否记录查询SQL', 'DbSaveQuerySQL', '[]', '0', '1: 记录、0:不记录', '2023-02-11 16:07:14', 1, 'admin', '2023-02-11 16:44:17', 1, 'admin');
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('机器相关配置', 'MachineConfig', '[{"name":"终端回放存储路径","model":"terminalRecPath","placeholder":"终端回放存储路径"},{"name":"uploadMaxFileSize","model":"uploadMaxFileSize","placeholder":"允许上传的最大文件大小(1MB\\\\2GB等)"}]', '{"terminalRecPath":"./rec","uploadMaxFileSize":"1GB"}', '机器相关配置，如终端回放路径等', 'admin,', '2023-07-13 16:26:44', 1, 'admin', '2023-11-09 22:01:31', 1, 'admin', 0, NULL);
@@ -503,12 +590,6 @@ CREATE TABLE `t_sys_log` (
 ) ENGINE=InnoDB AUTO_INCREMENT=58 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统操作日志';
 
 -- ----------------------------
--- Records of t_sys_log
--- ----------------------------
-BEGIN;
-COMMIT;
-
--- ----------------------------
 -- Table structure for t_sys_msg
 -- ----------------------------
 DROP TABLE IF EXISTS `t_sys_msg`;
@@ -524,12 +605,6 @@ CREATE TABLE `t_sys_msg` (
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=91 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统消息表';
-
--- ----------------------------
--- Records of t_sys_msg
--- ----------------------------
-BEGIN;
-COMMIT;
 
 -- ----------------------------
 -- Table structure for t_sys_resource
@@ -853,143 +928,5 @@ CREATE TABLE `t_team_member` (
 BEGIN;
 INSERT INTO `t_team_member` VALUES (7, 3, 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', 0, NULL);
 COMMIT;
-
--- ----------------------------
--- Table structure for t_db_backup
--- ----------------------------
-DROP TABLE IF EXISTS `t_db_backup`;
-CREATE TABLE `t_db_backup` (
-    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    `name` varchar(32) NOT NULL COMMENT '备份名称',
-    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
-    `db_name` varchar(64) NOT NULL COMMENT '数据库名称',
-    `repeated` tinyint(1) DEFAULT NULL COMMENT '是否重复执行',
-    `interval` bigint(20) DEFAULT NULL COMMENT '备份周期',
-    `start_time` datetime DEFAULT NULL COMMENT '首次备份时间',
-    `enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
-    `last_status` tinyint(4) DEFAULT NULL COMMENT '上次备份状态',
-    `last_result` varchar(256) DEFAULT NULL COMMENT '上次备份结果',
-    `last_time` datetime DEFAULT NULL COMMENT '上次备份时间',
-    `create_time` datetime DEFAULT NULL,
-    `creator_id` bigint(20) unsigned DEFAULT NULL,
-    `creator` varchar(32) DEFAULT NULL,
-    `update_time` datetime DEFAULT NULL,
-    `modifier_id` bigint(20) unsigned DEFAULT NULL,
-    `modifier` varchar(32) DEFAULT NULL,
-    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
-    `delete_time` datetime DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_db_name` (`db_name`) USING BTREE,
-    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- ----------------------------
--- Table structure for t_db_backup_history
--- ----------------------------
-DROP TABLE IF EXISTS `t_db_backup_history`;
-CREATE TABLE `t_db_backup_history` (
-    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    `name` varchar(64) NOT NULL COMMENT '历史备份名称',
-    `db_backup_id` bigint(20) unsigned NOT NULL COMMENT '数据库备份ID',
-    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
-    `db_name` varchar(64) NOT NULL COMMENT '数据库名称',
-    `uuid` varchar(36) NOT NULL COMMENT '历史备份uuid',
-    `binlog_file_name` varchar(32) DEFAULT NULL COMMENT 'BINLOG文件名',
-    `binlog_sequence` bigint(20) DEFAULT NULL COMMENT 'BINLOG序列号',
-    `binlog_position` bigint(20) DEFAULT NULL COMMENT 'BINLOG位置',
-    `create_time` datetime DEFAULT NULL COMMENT '历史备份创建时间',
-    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
-    `delete_time` datetime DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_db_backup_id` (`db_backup_id`) USING BTREE,
-    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE,
-    KEY `idx_db_name` (`db_name`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- ----------------------------
--- Table structure for t_db_restore
--- ----------------------------
-DROP TABLE IF EXISTS `t_db_restore`;
-CREATE TABLE `t_db_restore` (
-    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
-    `db_name` varchar(64) NOT NULL COMMENT '数据库名称',
-    `repeated` tinyint(1) DEFAULT NULL COMMENT '是否重复执行',
-    `interval` bigint(20) DEFAULT NULL COMMENT '恢复周期',
-    `start_time` datetime DEFAULT NULL COMMENT '首次恢复时间',
-    `enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
-    `last_status` tinyint(4) DEFAULT NULL COMMENT '上次恢复状态',
-    `last_result` varchar(256) DEFAULT NULL COMMENT '上次恢复结果',
-    `last_time` datetime DEFAULT NULL COMMENT '上次恢复时间',
-    `point_in_time` datetime DEFAULT NULL COMMENT '恢复时间点',
-    `db_backup_id` bigint(20) unsigned DEFAULT NULL COMMENT '备份ID',
-    `db_backup_history_id` bigint(20) unsigned DEFAULT NULL COMMENT '历史备份ID',
-    `db_backup_history_name` varchar(64) DEFAULT NULL COMMENT '历史备份名称',
-    `create_time` datetime DEFAULT NULL,
-    `creator_id` bigint(20) unsigned DEFAULT NULL,
-    `creator` varchar(32) DEFAULT NULL,
-    `update_time` datetime DEFAULT NULL,
-    `modifier_id` bigint(20) unsigned DEFAULT NULL,
-    `modifier` varchar(32) DEFAULT NULL,
-    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
-    `delete_time` datetime DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_db_instane_id` (`db_instance_id`) USING BTREE,
-    KEY `idx_db_name` (`db_name`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- ----------------------------
--- Table structure for t_db_restore_history
--- ----------------------------
-DROP TABLE IF EXISTS `t_db_restore_history`;
-CREATE TABLE `t_db_restore_history` (
-    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    `db_restore_id` bigint(20) unsigned NOT NULL COMMENT '恢复ID',
-    `create_time` datetime DEFAULT NULL COMMENT '历史恢复创建时间',
-    `is_deleted` tinyint(4) NOT NULL DEFAULT 0,
-    `delete_time` datetime DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_db_restore_id` (`db_restore_id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- ----------------------------
--- Table structure for t_db_binlog
--- ----------------------------
-DROP TABLE IF EXISTS `t_db_binlog`;
-CREATE TABLE `t_db_binlog` (
-    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
-    `last_status` bigint(20) DEFAULT NULL COMMENT '上次下载状态',
-    `last_result` varchar(256) DEFAULT NULL COMMENT '上次下载结果',
-    `last_time` datetime DEFAULT NULL COMMENT '上次下载时间',
-    `create_time` datetime DEFAULT NULL,
-    `creator_id` bigint(20) unsigned DEFAULT NULL,
-    `creator` varchar(32) DEFAULT NULL,
-    `update_time` datetime DEFAULT NULL,
-    `modifier_id` bigint(20) unsigned DEFAULT NULL,
-    `modifier` varchar(32) DEFAULT NULL,
-    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
-    `delete_time` datetime DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- ----------------------------
--- Table structure for t_db_binlog_history
--- ----------------------------
-DROP TABLE IF EXISTS `t_db_binlog_history`;
-CREATE TABLE `t_db_binlog_history` (
-    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
-    `file_name` varchar(32) DEFAULT NULL COMMENT 'BINLOG文件名称',
-    `file_size` bigint(20) DEFAULT NULL COMMENT 'BINLOG文件大小',
-    `sequence` bigint(20) DEFAULT NULL COMMENT 'BINLOG序列号',
-    `first_event_time` datetime DEFAULT NULL COMMENT '首次事件时间',
-    `create_time` datetime DEFAULT NULL,
-    `is_deleted` tinyint(4) NOT NULL DEFAULT 0,
-    `delete_time` datetime DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -24,7 +24,7 @@
             </template>
 
             <template #action="{ data }">
-                <div style="text-align: left">
+                <div>
                     <el-button @click="editDbBackup(data)" type="primary" link>编辑</el-button>
                     <el-button v-if="!data.enabled" @click="enableDbBackup(data)" type="primary" link>启用</el-button>
                     <el-button v-if="data.enabled" @click="disableDbBackup(data)" type="primary" link>禁用</el-button>
@@ -75,7 +75,7 @@ const columns = [
     TableColumn.new('enabled', '是否启用'),
     TableColumn.new('lastResult', '执行结果'),
     TableColumn.new('lastTime', '执行时间').isTime(),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(160).fixedRight().alignCenter(),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(160).fixedRight(),
 ];
 
 const emptyQuery = {

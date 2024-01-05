@@ -1,6 +1,6 @@
 <template>
     <div class="layout-logo" v-if="setShowLogo" @click="onThemeConfigChange">
-        <img src="@/assets/image/logo.svg" class="layout-logo-medium-img" />
+        <img :src="themeConfig.logoIcon" class="layout-logo-medium-img" />
         <span>
             {{ `${themeConfig.globalTitle}` }}
             <sub
@@ -9,7 +9,7 @@
         </span>
     </div>
     <div class="layout-logo-size" v-else @click="onThemeConfigChange">
-        <img src="@/assets/image/logo.svg" class="layout-logo-size-img" />
+        <img :src="themeConfig.logoIcon" class="layout-logo-size-img" />
     </div>
 </template>
 

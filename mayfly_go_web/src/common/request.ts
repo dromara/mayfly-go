@@ -4,7 +4,7 @@ import { getClientId, getToken } from './utils/storage';
 import { templateResolve } from './utils/string';
 import { ElMessage } from 'element-plus';
 import axios from 'axios';
-import { useApiFetch } from './useRequest';
+import { useApiFetch } from '../hooks/useRequest';
 import Api from './Api';
 
 export default {

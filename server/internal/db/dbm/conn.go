@@ -28,17 +28,17 @@ type QueryColumn struct {
 
 // 执行查询语句
 // 依次返回 列信息数组(顺序)，结果map，错误
-func (d *DbConn) Query(querySql string) ([]*QueryColumn, []map[string]any, error) {
-	return d.QueryContext(context.Background(), querySql)
+func (d *DbConn) Query(querySql string, args ...any) ([]*QueryColumn, []map[string]any, error) {
+	return d.QueryContext(context.Background(), querySql, args...)
 }
 
 // 执行查询语句
 // 依次返回 列信息数组(顺序)，结果map，错误
-func (d *DbConn) QueryContext(ctx context.Context, querySql string) ([]*QueryColumn, []map[string]any, error) {
+func (d *DbConn) QueryContext(ctx context.Context, querySql string, args ...any) ([]*QueryColumn, []map[string]any, error) {
 	result := make([]map[string]any, 0, 16)
 	columns, err := walkTableRecord(ctx, d.db, querySql, func(record map[string]any, columns []*QueryColumn) {
 		result = append(result, record)
-	})
+	}, args...)
 	if err != nil {
 		return nil, nil, wrapSqlError(err)
 	}
@@ -111,8 +111,8 @@ func (d *DbConn) Close() {
 	}
 }
 
-func walkTableRecord(ctx context.Context, db *sql.DB, selectSql string, walk func(record map[string]any, columns []*QueryColumn)) ([]*QueryColumn, error) {
-	rows, err := db.QueryContext(ctx, selectSql)
+func walkTableRecord(ctx context.Context, db *sql.DB, selectSql string, walk func(record map[string]any, columns []*QueryColumn), args ...any) ([]*QueryColumn, error) {
+	rows, err := db.QueryContext(ctx, selectSql, args...)
 
 	if err != nil {
 		return nil, err
