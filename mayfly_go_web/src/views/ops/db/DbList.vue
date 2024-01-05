@@ -61,10 +61,9 @@
                     <template #dropdown>
                         <el-dropdown-menu>
                             <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
-                            <!--<el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.saveDb]"> 编辑 </el-dropdown-item>-->
-                            <el-dropdown-item :command="{ type: 'dumpDb', data }" v-if="data.type == DbType.mysql"> 导出 </el-dropdown-item>
-                            <el-dropdown-item :command="{ type: 'dbBackup', data }" v-if="data.type == DbType.mysql"> 备份 </el-dropdown-item>
-                            <el-dropdown-item :command="{ type: 'dbRestore', data }" v-if="data.type == DbType.mysql"> 恢复 </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'dumpDb', data }" v-if="supportAction('dumpDb', data.type)"> 导出 </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'dbBackup', data }" v-if="supportAction('dbBackup', data.type)"> 备份 </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'dbRestore', data }" v-if="supportAction('dbRestore', data.type)"> 恢复 </el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
                 </el-dropdown>
@@ -449,6 +448,16 @@ const dumpDbs = () => {
     );
     a.click();
     state.exportDialog.visible = false;
+};
+
+const supportAction = (action: string, dbType: string): boolean => {
+    let actions: string[] = [];
+    switch (dbType) {
+        case DbType.mysql:
+        case DbType.mariadb:
+            actions = ['dumpDb', 'dbBackup', 'dbRestore'];
+    }
+    return actions.includes(action);
 };
 </script>
 <style lang="scss">

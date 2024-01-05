@@ -142,7 +142,7 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
 import { useIntervalFn } from '@vueuse/core';
-import { ColumnTypeSubscript, DataType, DbDialect, DbType, getDbDialect } from '../../dialect/index';
+import { ColumnTypeSubscript, compatibleMysql, DataType, DbDialect, DbType, getDbDialect } from '../../dialect/index';
 import ColumnFormItem from './ColumnFormItem.vue';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
@@ -420,7 +420,7 @@ onBeforeUnmount(() => {
 
 const formatDataValues = (datas: any) => {
     // mysql数据暂不做处理
-    if (DbType.mysql === getNowDbInst().type) {
+    if (compatibleMysql(getNowDbInst().type)) {
         return;
     }
 

@@ -11,7 +11,7 @@ const (
 	ConfigKeyDbQueryMaxCount string = "DbQueryMaxCount" // 数据库查询的最大数量
 	ConfigKeyDbBackupRestore string = "DbBackupRestore" // 数据库备份
 	ConfigKeyDbMysqlBin      string = "MysqlBin"        // mysql可执行文件配置
-	ConfigKeyDbMariaDbBin    string = "MariaDbBin"      // mariadb可执行文件配置
+	ConfigKeyDbMariadbBin    string = "MariadbBin"      // mariadb可执行文件配置
 )
 
 // 获取数据库最大查询数量配置

@@ -105,8 +105,19 @@ export interface DialectInfo {
 
 export const DbType = {
     mysql: 'mysql',
+    mariadb: 'mariadb',
     postgresql: 'postgres',
     dm: 'dm', // 达梦
+};
+
+export const compatibleMysql = (dbType: string): boolean => {
+    switch (dbType) {
+        case DbType.mysql:
+        case DbType.mariadb:
+            return true;
+        default:
+            return false;
+    }
 };
 
 export interface DbDialect {
@@ -175,14 +186,15 @@ export const getDbDialect = (dbType: string | undefined): DbDialect => {
     if (!dbType) {
         return mysqlDialect;
     }
-    if (dbType === DbType.mysql) {
-        return mysqlDialect;
+    switch (dbType) {
+        case DbType.mysql:
+        case DbType.mariadb:
+            return mysqlDialect;
+        case DbType.postgresql:
+            return postgresDialect;
+        case DbType.dm:
+            return dmDialect;
+        default:
+            throw new Error('不支持的数据库');
     }
-    if (dbType === DbType.postgresql) {
-        return postgresDialect;
-    }
-    if (dbType === DbType.dm) {
-        return dmDialect;
-    }
-    throw new Error('不支持的数据库');
 };

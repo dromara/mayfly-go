@@ -57,13 +57,6 @@ func (s *DelayQueue[T]) TryDequeue() (T, bool) {
 	return s.zero, false
 }
 
-func (s *DelayQueue[T]) TryEnqueue(val T) bool {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
-	return s.enqueue(val)
-}
-
 func (s *DelayQueue[T]) Dequeue(ctx context.Context) (T, bool) {
 	// 出队锁：避免因重复获取队列头部同一元素降低性能
 	select {
@@ -160,6 +153,16 @@ func (s *DelayQueue[T]) enqueue(val T) bool {
 	default:
 	}
 	return true
+}
+
+func (s *DelayQueue[T]) TryEnqueue(val T) bool {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if s.priorityQueue.IsFull() {
+		return false
+	}
+	return s.enqueue(val)
 }
 
 func (s *DelayQueue[T]) Enqueue(ctx context.Context, val T) bool {

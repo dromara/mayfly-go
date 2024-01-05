@@ -37,7 +37,7 @@ func (dbInfo *DbInfo) Conn() (*DbConn, error) {
 	database := dbInfo.Database
 
 	switch dbInfo.Type {
-	case DbTypeMysql:
+	case DbTypeMysql, DbTypeMariadb:
 		conn, err = getMysqlDB(dbInfo)
 	case DbTypePostgres:
 		conn, err = getPgsqlDB(dbInfo)

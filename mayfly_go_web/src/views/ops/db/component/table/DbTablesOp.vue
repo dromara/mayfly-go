@@ -63,7 +63,7 @@
                     {{ formatByteSize(scope.row.indexLength) }}
                 </template>
             </el-table-column>
-            <el-table-column v-if="dbType === DbType.mysql" property="createTime" label="创建时间" min-width="150"> </el-table-column>
+            <el-table-column v-if="compatibleMysql(dbType)" property="createTime" label="创建时间" min-width="150"> </el-table-column>
             <el-table-column label="更多信息" min-width="160">
                 <template #default="scope">
                     <el-link @click.prevent="showColumns(scope.row)" type="primary">字段</el-link>
@@ -127,7 +127,7 @@ import SqlExecBox from '../sqleditor/SqlExecBox';
 import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
-import { DbType } from '../../dialect/index';
+import { compatibleMysql, DbType } from '../../dialect/index';
 
 const DbTableOp = defineAsyncComponent(() => import('./DbTableOp.vue'));
 
@@ -181,7 +181,7 @@ const state = reactive({
         visible: false,
         activeName: '1',
         type: '',
-        enableEditTypes: [DbType.mysql, DbType.postgresql, DbType.dm], // 支持"编辑表"的数据库类型
+        enableEditTypes: [DbType.mysql, DbType.mariadb, DbType.postgresql, DbType.dm], // 支持"编辑表"的数据库类型
         data: {
             // 修改表时，传递修改数据
             edit: false,

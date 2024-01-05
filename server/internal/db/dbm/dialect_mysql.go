@@ -29,7 +29,8 @@ func getMysqlDB(d *DbInfo) (*sql.DB, error) {
 	if d.Params != "" {
 		dsn = fmt.Sprintf("%s&%s", dsn, d.Params)
 	}
-	return sql.Open(string(d.Type), dsn)
+	const driverName = "mysql"
+	return sql.Open(driverName, dsn)
 }
 
 // ---------------------------------- mysql元数据 -----------------------------------

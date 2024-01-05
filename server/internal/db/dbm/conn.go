@@ -86,7 +86,7 @@ func (d *DbConn) ExecContext(ctx context.Context, sql string, args ...any) (int6
 // 获取数据库元信息实现接口
 func (d *DbConn) GetDialect() DbDialect {
 	switch d.Info.Type {
-	case DbTypeMysql:
+	case DbTypeMysql, DbTypeMariadb:
 		return &MysqlDialect{dc: d}
 	case DbTypePostgres:
 		return &PgsqlDialect{dc: d}

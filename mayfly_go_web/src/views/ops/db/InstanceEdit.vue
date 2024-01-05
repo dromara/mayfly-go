@@ -144,6 +144,10 @@ const dbTypes = [
         label: 'mysql',
     },
     {
+        type: 'mariadb',
+        label: 'mariadb',
+    },
+    {
         type: 'postgres',
         label: 'postgres',
     },
