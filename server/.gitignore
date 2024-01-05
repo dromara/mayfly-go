@@ -1,6 +1,11 @@
-static/static/
+/static/static/
 config.yml
 mayfly_rsa
 mayfly_rsa.pub
 
-db/
+# 数据库备份目录
+/db/backup/
+# mysql 程序目录
+/db/mysql/
+# mariadb 程序目录
+/db/mariadb/
