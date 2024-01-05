@@ -29,7 +29,9 @@ const isFixedHeader = computed(() => {
 watch(
     () => route.path,
     () => {
-        proxy.$refs.layoutScrollbarRef.wrapRef.scrollTop = 0;
+        try {
+            proxy.$refs.layoutScrollbarRef.wrapRef.scrollTop = 0;
+        } catch (e) {}
     }
 );
 </script>

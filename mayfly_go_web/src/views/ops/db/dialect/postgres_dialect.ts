@@ -133,9 +133,11 @@ class PostgresqlDialect implements DbDialect {
     }
 
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
-        return `SELECT * FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''}  OFFSET ${
-            (pageNum - 1) * limit
-        } LIMIT ${limit};`;
+        return `SELECT * FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(pageNum, limit)};`;
+    }
+
+    getPageSql(pageNum: number, limit: number) {
+        return ` OFFSET ${(pageNum - 1) * limit} LIMIT ${limit};`;
     }
 
     getDefaultRows(): RowDefinition[] {

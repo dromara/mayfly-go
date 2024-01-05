@@ -1,7 +1,7 @@
 --DM_DB_SCHEMAS 库schemas
 select
     distinct owner as SCHEMA_NAME
-from dba_objects
+from all_objects
 ---------------------------------------
 --DM_TABLE_INFO 表详细信息
 SELECT a.object_name                                      as TABLE_NAME,
@@ -14,16 +14,16 @@ SELECT a.object_name                                      as TABLE_NAME,
        (SELECT sum(INDEX_USED_PAGES(id))* page()
         FROM SYSOBJECTS
         WHERE NAME IN (SELECT INDEX_NAME
-                       FROM DBA_INDEXES
+                       FROM ALL_INDEXES
                        WHERE OWNER = 'wxb'
                          AND TABLE_NAME = a.object_name)) as INDEX_LENGTH,
        c.num_rows                                         as TABLE_ROWS
 
-FROM dba_objects a
-         LEFT JOIN DBA_TAB_COMMENTS b ON b.TABLE_TYPE = 'TABLE'
+FROM all_objects a
+         LEFT JOIN ALL_TAB_COMMENTS b ON b.TABLE_TYPE = 'TABLE'
     AND a.object_name = b.TABLE_NAME
     AND b.owner = a.owner
-         LEFT JOIN (SELECT a.owner, a.table_name, a.num_rows FROM dba_tables a) c
+         LEFT JOIN (SELECT a.owner, a.table_name, a.num_rows FROM all_tables a) c
                    ON c.owner = a.owner AND c.table_name = a.object_name
 
 WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
@@ -39,9 +39,10 @@ select
     c.column_name as COLUMN_NAME,
     c.column_position as SEQ_IN_INDEX,
     '无' as INDEX_COMMENT
-FROM DBA_INDEXES  a
-         LEFT JOIN dba_objects b on a.owner = b.owner and b.object_name = a.index_name and b.object_type = 'INDEX'
-         LEFT JOIN DBA_IND_COLUMNS c on a.owner = c.table_owner and a.index_name = c.index_name and a.TABLE_NAME = c.table_name
+FROM ALL_INDEXES a
+         LEFT JOIN all_objects b on a.owner = b.owner and b.object_name = a.index_name and b.object_type = 'INDEX'
+         LEFT JOIN ALL_IND_COLUMNS c
+                   on a.owner = c.table_owner and a.index_name = c.index_name and a.TABLE_NAME = c.table_name
 
 WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
   and  a.TABLE_NAME = '%s'
@@ -62,13 +63,13 @@ select a.table_name                                                             
        a.data_default                                                                      as COLUMN_DEFAULT,
        a.data_scale                                                                        as NUM_SCALE,
        case when t.COL_NAME = a.column_name then 'PRI' else '' end                         as COLUMN_KEY
-from dba_tab_columns a
+from all_tab_columns a
          left join user_col_comments b
                    on b.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)) and b.table_name = a.table_name and
                       a.column_name = b.column_name
          left join (select b.owner, b.table_name, a.name COL_NAME
                     from SYS.SYSCOLUMNS a,
-                         dba_tables b,
+                         all_tables b,
                          sys.sysobjects c,
                          sys.sysobjects d
                     where a.INFO2 & 0x01 = 0x01

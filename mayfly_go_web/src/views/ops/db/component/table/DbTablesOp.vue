@@ -357,7 +357,6 @@ const openEditTable = async (row: any) => {
 
 const onSubmitSql = async (row: { tableName: string }) => {
     await openEditTable(row);
-    state.tableCreateDialog.visible = false;
     state.tables = await dbApi.tableInfos.request({ id: props.dbId, db: props.db });
 };
 </script>

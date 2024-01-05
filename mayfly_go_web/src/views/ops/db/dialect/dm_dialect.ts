@@ -1,16 +1,17 @@
 import { DbInst } from '../db';
 import {
-    DbDialect,
-    sqlColumnType,
-    DialectInfo,
-    RowDefinition,
-    IndexDefinition,
-    EditorCompletionItem,
     commonCustomKeywords,
-    EditorCompletion,
     DataType,
+    DbDialect,
+    DialectInfo,
+    EditorCompletion,
+    EditorCompletionItem,
+    IndexDefinition,
+    RowDefinition,
+    sqlColumnType,
 } from './index';
 import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/sql/sql.js';
+
 export { DMDialect, DM_TYPE_LIST };
 
 // 参考文档:https://eco.dameng.com/document/dm/zh-cn/sql-dev/dmpl-sql-datatype.html#%E5%AD%97%E7%AC%A6%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B
@@ -374,9 +375,11 @@ class DMDialect implements DbDialect {
     }
 
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
-        return `SELECT * FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''}  OFFSET ${
-            (pageNum - 1) * limit
-        } LIMIT ${limit};`;
+        return `SELECT * FROM "${table}" ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(pageNum, limit)};`;
+    }
+
+    getPageSql(pageNum: number, limit: number) {
+        return ` OFFSET ${(pageNum - 1) * limit} LIMIT ${limit};`;
     }
 
     getDefaultRows(): RowDefinition[] {
@@ -442,7 +445,7 @@ class DMDialect implements DbDialect {
     }
 
     wrapName = (name: string) => {
-        return name;
+        return `"${name}"`;
     };
 
     matchType(text: string, arr: string[]): boolean {
@@ -497,7 +500,7 @@ class DMDialect implements DbDialect {
         // 默认值
         let defVal = this.getDefaultValueSql(cl);
         let incr = cl.auto_increment ? 'IDENTITY' : '';
-        return ` ${cl.name} ${cl.type}${length} ${incr} ${cl.notNull ? 'NOT NULL' : ''} ${defVal} `;
+        return ` "${cl.name}" ${cl.type}${length} ${incr} ${cl.notNull ? 'NOT NULL' : ''} ${defVal} `;
     }
 
     getCreateTableSql(data: any): string {
@@ -515,18 +518,18 @@ class DMDialect implements DbDialect {
             }
             // 列注释
             if (item.remark) {
-                columCommentSql += ` comment on column ${data.tableName}.${item.name} is '${item.remark}'; `;
+                columCommentSql += ` comment on column "${data.tableName}"."${item.name}" is '${item.remark}'; `;
             }
         });
         // 建表
-        createSql = `CREATE TABLE ${data.tableName}
+        createSql = `CREATE TABLE "${data.tableName}"
                      (
                          ${fields.join(',')}
                              ${pks ? `, PRIMARY KEY (${pks.join(',')})` : ''}
                      );`;
         // 表注释
         if (data.tableComment) {
-            tableCommentSql = ` comment on table ${data.tableName} is '${data.tableComment}'; `;
+            tableCommentSql = ` comment on table "${data.tableName}" is '${data.tableComment}'; `;
         }
 
         return createSql + tableCommentSql + columCommentSql;
@@ -547,7 +550,7 @@ class DMDialect implements DbDialect {
         let sql: string[] = [];
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
-                sql.push(`ALTER TABLE ${tableName} add COLUMN ${this.genColumnBasicSql(a)}`);
+                sql.push(`ALTER TABLE "${tableName}" add COLUMN ${this.genColumnBasicSql(a)}`);
                 if (a.remark) {
                     sql.push(`comment on COLUMN "${tableName}"."${a.name}" is '${a.remark}'`);
                 }
@@ -556,7 +559,7 @@ class DMDialect implements DbDialect {
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
-                sql.push(`ALTER TABLE ${tableName} MODIFY ${this.genColumnBasicSql(a)}`);
+                sql.push(`ALTER TABLE "${tableName}" MODIFY ${this.genColumnBasicSql(a)}`);
                 if (a.remark) {
                     sql.push(`comment on COLUMN "${tableName}"."${a.name}" is '${a.remark}'`);
                 }
@@ -565,7 +568,7 @@ class DMDialect implements DbDialect {
 
         if (changeData.del.length > 0) {
             changeData.del.forEach((a) => {
-                sql.push(`ALTER TABLE ${tableName} DROP COLUMN ${a.name}`);
+                sql.push(`ALTER TABLE "${tableName}" DROP COLUMN ${a.name}`);
             });
         }
         return sql.join(';');

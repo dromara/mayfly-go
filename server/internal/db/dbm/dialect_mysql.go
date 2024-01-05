@@ -4,12 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/go-sql-driver/mysql"
 	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"net"
-
-	"github.com/go-sql-driver/mysql"
+	"regexp"
+	"strings"
 )
 
 func getMysqlDB(d *DbInfo) (*sql.DB, error) {
@@ -201,4 +202,54 @@ func (md *MysqlDialect) GetSchemas() ([]string, error) {
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
 func (md *MysqlDialect) GetDbProgram() DbProgram {
 	return NewDbProgramMysql(md.dc)
+}
+
+func (pd *MysqlDialect) WrapName(name string) string {
+	return "`" + name + "`"
+}
+
+func (pd *MysqlDialect) PageSql(pageNum int, pageSize int) string {
+	return fmt.Sprintf("limit %d, %d", (pageNum-1)*pageSize, pageSize)
+}
+func (pd *MysqlDialect) GetDataType(dbColumnType string) DataType {
+	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
+		return DataTypeNumber
+	}
+	// 日期时间类型
+	if regexp.MustCompile(`(?i)datetime|timestamp`).MatchString(dbColumnType) {
+		return DataTypeDateTime
+	}
+	// 日期类型
+	if regexp.MustCompile(`(?i)date`).MatchString(dbColumnType) {
+		return DataTypeDate
+	}
+	// 时间类型
+	if regexp.MustCompile(`(?i)time`).MatchString(dbColumnType) {
+		return DataTypeTime
+	}
+	return DataTypeString
+}
+func (pd *MysqlDialect) SaveBatch(conn *DbConn, tableName string, columns string, placeholder string, values [][]any) error {
+	// 执行批量insert sql，mysql支持批量insert语法
+	// insert into table_name (column1, column2, ...) values (value1, value2, ...), (value1, value2, ...), ...
+
+	// 重复占位符字符串n遍
+	repeated := strings.Repeat(placeholder+",", len(values))
+	// 去除最后一个逗号
+	placeholder = strings.TrimSuffix(repeated, ",")
+
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), columns, placeholder)
+	// 执行批量insert sql
+	// 把二维数组转为一维数组
+	var args []any
+	for _, v := range values {
+		args = append(args, v...)
+	}
+	_, err := conn.Exec(sqlStr, args...)
+	return err
+}
+
+func (pd *MysqlDialect) FormatStrData(dbColumnValue string, dataType DataType) string {
+	// mysql不需要格式化时间日期等
+	return dbColumnValue
 }

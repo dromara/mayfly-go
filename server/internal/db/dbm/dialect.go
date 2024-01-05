@@ -82,6 +82,19 @@ type DbDialect interface {
 
 	// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
 	GetDbProgram() DbProgram
+
+	// 封装名字，如，mysql: `table_name`,  dm: "table_name"
+	WrapName(name string) string
+
+	// 分页sql，如：mysql: limit 1 ,10, dm: limit 10 offset 1
+	PageSql(pageNum int, pageSize int) string
+
+	// 批量保存数据
+	SaveBatch(conn *DbConn, tableName string, columns string, placeholder string, values [][]any) error
+
+	GetDataType(dbColumnType string) DataType
+
+	FormatStrData(dbColumnValue string, dataType DataType) string
 }
 
 // ------------------------- 元数据sql操作 -------------------------

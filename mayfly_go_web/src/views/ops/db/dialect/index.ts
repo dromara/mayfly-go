@@ -125,6 +125,8 @@ export interface DbDialect {
      */
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number): string;
 
+    getPageSql(pageNum: number, limit: number): string;
+
     getDefaultRows(): RowDefinition[];
 
     getDefaultIndex(): IndexDefinition;

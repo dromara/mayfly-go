@@ -112,9 +112,11 @@ class MysqlDialect implements DbDialect {
     }
 
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
-        return `SELECT * FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} LIMIT ${
-            (pageNum - 1) * limit
-        }, ${limit};`;
+        return `SELECT * FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(pageNum, limit)};`;
+    }
+
+    getPageSql(pageNum: number, limit: number) {
+        return ` LIMIT ${(pageNum - 1) * limit}, ${limit}`;
     }
 
     getDefaultRows(): RowDefinition[] {

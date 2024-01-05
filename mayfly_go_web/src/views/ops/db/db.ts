@@ -139,6 +139,7 @@ export class DbInst {
 
     /**
      * 获取表的所有列信息
+     * @param dbName 数据库名
      * @param table 表名
      */
     async loadColumns(dbName: string, table: string) {
@@ -370,7 +371,7 @@ export class DbInst {
      * @returns
      */
     static isNumber(columnType: string) {
-        return columnType.match(/int|double|float|nubmer|decimal|byte|bit/gi);
+        return columnType.match(/int|double|float|number|decimal|byte|bit/gi);
     }
 
     /**
@@ -617,7 +618,7 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                             description: 'schema',
                         },
                         kind: monaco.languages.CompletionItemKind.Folder,
-                        insertText: a,
+                        insertText: dbDialect.wrapName(a),
                         range,
                     });
                 });
@@ -678,7 +679,7 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                     },
                     kind: monaco.languages.CompletionItemKind.File,
                     detail: tableComment,
-                    insertText: tableName + ' ',
+                    insertText: dbDialect.wrapName(tableName) + ' ',
                     range,
                     sortText: 300 + index + '',
                 });

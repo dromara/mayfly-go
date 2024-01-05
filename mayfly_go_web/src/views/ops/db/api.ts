@@ -58,4 +58,20 @@ export const dbApi = {
     enableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/enable'),
     disableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/disable'),
     saveDbRestore: Api.newPut('/dbs/{dbId}/restores/{id}'),
+    
+    // 数据同步相关
+    datasyncTasks: Api.newGet('/datasync/tasks'),
+    saveDatasyncTask: Api.newPost('/datasync/tasks/save').withBeforeHandler((param: any) => {
+        // sql编码处理
+        if (param.dataSql) {
+            param.dataSql = Base64.encode(param.dataSql);
+        }
+        return param;
+    }),
+    getDatasyncTask: Api.newGet('/datasync/tasks/{taskId}'),
+    deleteDatasyncTask: Api.newDelete('/datasync/tasks/{taskId}/del'),
+    updateDatasyncTaskStatus: Api.newPost('/datasync/tasks/{taskId}/status'),
+    runDatasyncTask: Api.newPost('/datasync/tasks/{taskId}/run'),
+    stopDatasyncTask: Api.newPost('/datasync/tasks/{taskId}/stop'),
+    datasyncLogs: Api.newGet('/datasync/tasks/{taskId}/logs'),
 };

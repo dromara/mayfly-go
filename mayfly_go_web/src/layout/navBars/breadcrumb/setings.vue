@@ -596,7 +596,7 @@ const openDrawer = () => {
     themeConfig.value.isDrawer = true;
     nextTick(() => {
         // 初始化复制功能，防止点击两次才可以复制
-        onCopyConfigClick(copyConfigBtnRef.value.$el);
+        onCopyConfigClick(copyConfigBtnRef.value?.$el);
     });
 };
 // 触发 store 布局配置更新

@@ -6,8 +6,11 @@ import (
 	"fmt"
 	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
+	"regexp"
 	"strings"
+	"time"
 
 	_ "gitee.com/chunanyong/dm"
 )
@@ -208,7 +211,7 @@ func (dd *DMDialect) GetTableDDL(tableName string) (string, error) {
 
 	// 表注释
 	_, res, err = dd.dc.Query(fmt.Sprintf(`
-			select OWNER, COMMENTS from DBA_TAB_COMMENTS where TABLE_TYPE='TABLE' and TABLE_NAME = '%s'
+			select OWNER, COMMENTS from ALL_TAB_COMMENTS where TABLE_TYPE='TABLE' and TABLE_NAME = '%s'
 		    and owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
 			                                      `, tableName))
 	if err != nil {
@@ -245,8 +248,8 @@ func (dd *DMDialect) GetTableDDL(tableName string) (string, error) {
 
 	// 索引信息
 	indexSql := fmt.Sprintf(`
-		select indexdef(b.object_id,1) as INDEX_DEF from DBA_INDEXES a
-		join dba_objects b on a.owner = b.owner and b.object_name = a.index_name and b.object_type = 'INDEX'
+		select indexdef(b.object_id,1) as INDEX_DEF from ALL_INDEXES a
+		join ALL_objects b on a.owner = b.owner and b.object_name = a.index_name and b.object_type = 'INDEX'
 		where a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
 		and a.table_name = '%s' 
 		and indexdef(b.object_id,1) != '禁止查看系统定义的索引信息'
@@ -287,4 +290,62 @@ func (dd *DMDialect) GetSchemas() ([]string, error) {
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
 func (dd *DMDialect) GetDbProgram() DbProgram {
 	panic("implement me")
+}
+
+func (pd *DMDialect) WrapName(name string) string {
+	return "\"" + name + "\""
+}
+
+func (pd *DMDialect) PageSql(pageNum int, pageSize int) string {
+	return fmt.Sprintf("LIMIT %d OFFSET %d", pageSize, (pageNum-1)*pageSize)
+}
+func (pd *DMDialect) GetDataType(dbColumnType string) DataType {
+	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
+		return DataTypeNumber
+	}
+	// 日期时间类型
+	if regexp.MustCompile(`(?i)datetime|timestamp`).MatchString(dbColumnType) {
+		return DataTypeDateTime
+	}
+	// 日期类型
+	if regexp.MustCompile(`(?i)date`).MatchString(dbColumnType) {
+		return DataTypeDate
+	}
+	// 时间类型
+	if regexp.MustCompile(`(?i)time`).MatchString(dbColumnType) {
+		return DataTypeTime
+	}
+	return DataTypeString
+}
+
+func (pd *DMDialect) SaveBatch(conn *DbConn, tableName string, columns string, placeholder string, values [][]any) error {
+	// 执行批量insert sql
+	// insert into "table_name" ("column1", "column2", ...) values (value1, value2, ...)
+
+	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), columns, placeholder)
+	for _, value := range values {
+		// 达梦数据库只能一条条的执行insert
+		_, err := conn.Exec(sqlTemp, value...)
+		if err != nil {
+			logx.Errorf("执行sql失败：%s", err.Error())
+			return err
+		}
+	}
+	// 执行批量insert sql
+	return nil
+}
+
+func (pd *DMDialect) FormatStrData(dbColumnValue string, dataType DataType) string {
+	switch dataType {
+	case DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
+		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		return res.Format(time.DateTime)
+	case DataTypeDate: // "2024-01-02T00:00:00+08:00"
+		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		return res.Format(time.DateOnly)
+	case DataTypeTime: // "0000-01-01T22:08:22.275688+08:00"
+		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		return res.Format(time.TimeOnly)
+	}
+	return dbColumnValue
 }

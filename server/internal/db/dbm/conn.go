@@ -69,14 +69,14 @@ func (d *DbConn) WalkTableRecord(ctx context.Context, selectSql string, walk fun
 
 // 执行 update, insert, delete，建表等sql
 // 返回影响条数和错误
-func (d *DbConn) Exec(sql string) (int64, error) {
-	return d.ExecContext(context.Background(), sql)
+func (d *DbConn) Exec(sql string, args ...any) (int64, error) {
+	return d.ExecContext(context.Background(), sql, args...)
 }
 
 // 执行 update, insert, delete，建表等sql
 // 返回影响条数和错误
-func (d *DbConn) ExecContext(ctx context.Context, sql string) (int64, error) {
-	res, err := d.db.ExecContext(ctx, sql)
+func (d *DbConn) ExecContext(ctx context.Context, sql string, args ...any) (int64, error) {
+	res, err := d.db.ExecContext(ctx, sql, args...)
 	if err != nil {
 		return 0, wrapSqlError(err)
 	}
@@ -90,7 +90,7 @@ func (d *DbConn) GetDialect() DbDialect {
 		return &MysqlDialect{dc: d}
 	case DbTypePostgres:
 		return &PgsqlDialect{dc: d}
-	case DM:
+	case DbTypeDM:
 		return &DMDialect{dc: d}
 	default:
 		panic(fmt.Sprintf("invalid database type: %s", d.Info.Type))
@@ -104,7 +104,7 @@ func (d *DbConn) Close() {
 			logx.Errorf("关闭数据库实例[%s]连接失败: %s", d.Id, err.Error())
 		}
 		// 如果是达梦并且使用了ssh隧道，则需要手动将其关闭
-		if d.Info.Type == DM && d.Info.SshTunnelMachineId > 0 {
+		if d.Info.Type == DbTypeDM && d.Info.SshTunnelMachineId > 0 {
 			mcm.CloseSshTunnelMachine(d.Info.SshTunnelMachineId, fmt.Sprintf("db:%d", d.Info.Id))
 		}
 		d.db = nil

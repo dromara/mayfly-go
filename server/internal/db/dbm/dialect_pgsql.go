@@ -11,6 +11,7 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/netx"
 	"net"
+	"regexp"
 	"strings"
 	"time"
 
@@ -281,4 +282,64 @@ func (pd *PgsqlDialect) GetSchemas() ([]string, error) {
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
 func (pd *PgsqlDialect) GetDbProgram() DbProgram {
 	panic("implement me")
+}
+
+func (pd *PgsqlDialect) WrapName(name string) string {
+	return name
+}
+
+func (pd *PgsqlDialect) PageSql(pageNum int, pageSize int) string {
+	return fmt.Sprintf("LIMIT %d OFFSET %d", pageSize, (pageNum-1)*pageSize)
+}
+func (pd *PgsqlDialect) GetDataType(dbColumnType string) DataType {
+	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
+		return DataTypeNumber
+	}
+	// 日期时间类型
+	if regexp.MustCompile(`(?i)datetime|timestamp`).MatchString(dbColumnType) {
+		return DataTypeDateTime
+	}
+	// 日期类型
+	if regexp.MustCompile(`(?i)date`).MatchString(dbColumnType) {
+		return DataTypeDate
+	}
+	// 时间类型
+	if regexp.MustCompile(`(?i)time`).MatchString(dbColumnType) {
+		return DataTypeTime
+	}
+	return DataTypeString
+}
+func (pd *PgsqlDialect) SaveBatch(conn *DbConn, tableName string, columns string, placeholder string, values [][]any) error {
+	// 执行批量insert sql，跟mysql一样  pg或高斯支持批量insert语法
+	// insert into table_name (column1, column2, ...) values (value1, value2, ...), (value1, value2, ...), ...
+
+	// 重复占位符字符串n遍
+	repeated := strings.Repeat(placeholder+",", len(values))
+	// 去除最后一个逗号
+	placeholder = strings.TrimSuffix(repeated, ",")
+
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), columns, placeholder)
+	// 执行批量insert sql
+	// 把二维数组转为一维数组
+	var args []any
+	for _, v := range values {
+		args = append(args, v...)
+	}
+	_, err := conn.Exec(sqlStr, args...)
+	return err
+}
+
+func (pd *PgsqlDialect) FormatStrData(dbColumnValue string, dataType DataType) string {
+	switch dataType {
+	case DataTypeDateTime: // "2024-01-02T22:16:28.545377+08:00"
+		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		return res.Format(time.DateTime)
+	case DataTypeDate: //  "2024-01-02T00:00:00Z"
+		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		return res.Format(time.DateOnly)
+	case DataTypeTime: // "0000-01-01T22:16:28.545075+08:00"
+		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		return res.Format(time.TimeOnly)
+	}
+	return dbColumnValue
 }

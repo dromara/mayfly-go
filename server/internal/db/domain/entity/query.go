@@ -9,6 +9,14 @@ type InstanceQuery struct {
 	Host string `json:"host" form:"host"`
 }
 
+type DataSyncTaskQuery struct {
+	Name   string `json:"name" form:"name"`
+	Status int8   `json:"status" form:"status"`
+}
+type DataSyncLogQuery struct {
+	TaskId uint64 `json:"task_id" form:"taskId"`
+}
+
 // 数据库查询实体，不与数据库表字段一一对应
 type DbQuery struct {
 	model.Model

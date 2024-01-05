@@ -11,6 +11,7 @@ import (
 
 func Init() {
 	application.GetMachineCronJobApp().InitCronJob()
+
 	application.GetMachineApp().TimerUpdateStats()
 
 	global.EventBus.Subscribe(consts.DeleteMachineEventTopic, "machineFile", func(ctx context.Context, event *eventbus.Event) error {

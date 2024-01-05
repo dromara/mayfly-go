@@ -18,6 +18,8 @@ var (
 	dbRestoreApp        *DbRestoreApp
 	dbRestoreHistoryApp *DbRestoreHistoryApp
 	dbBinlogApp         *DbBinlogApp
+	dataSyncApp         DataSyncTask
+	dataSyncLogApp      DataSyncLog
 )
 
 var repositories *repository.Repositories
@@ -39,6 +41,8 @@ func Init() {
 		dbApp = newDbApp(persistence.GetDbRepo(), persistence.GetDbSqlRepo(), instanceApp, tagapp.GetTagTreeApp())
 		dbSqlExecApp = newDbSqlExecApp(persistence.GetDbSqlExecRepo())
 		dbSqlApp = newDbSqlApp(persistence.GetDbSqlRepo())
+		dataSyncApp = newDataSyncApp(persistence.GetDataSyncTaskRepo())
+		dataSyncLogApp = newDataSyncLogApp(persistence.GetDataSyncLogRepo())
 
 		dbBackupApp, err = newDbBackupApp(repositories, dbApp)
 		if err != nil {
@@ -60,6 +64,8 @@ func Init() {
 		if err != nil {
 			panic(fmt.Sprintf("初始化 dbBinlogApp 失败: %v", err))
 		}
+
+		dataSyncApp.InitCronJob()
 	})()
 }
 
@@ -97,4 +103,12 @@ func GetDbRestoreHistoryApp() *DbRestoreHistoryApp {
 
 func GetDbBinlogApp() *DbBinlogApp {
 	return dbBinlogApp
+}
+
+func GetDataSyncTaskApp() DataSyncTask {
+	return dataSyncApp
+}
+
+func GetDataSyncLogApp() DataSyncLog {
+	return dataSyncLogApp
 }
