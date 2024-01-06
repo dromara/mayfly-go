@@ -171,7 +171,7 @@ const basicFormData = {
     srcDbId: -1,
     targetDbId: -1,
     dataSql: 'select * from',
-    pageSize: 100,
+    pageSize: 1000,
     updField: 'id',
     updFieldVal: '0',
     fieldMap: [{ src: 'a', target: 'b' }],
@@ -291,7 +291,7 @@ watch(tabActiveName, async (newValue: string) => {
             let updField = srcDbDialect.wrapName(state.form.updField!);
             state.previewDataSql = `SELECT * FROM (\n ${state.form.dataSql?.trim() || '请输入数据sql'} \n ) t \n where ${updField} > '${
                 state.form.updFieldVal || ''
-            }' \n ${srcDbDialect.getPageSql(1, state.form.pageSize || 100)}`;
+            }'`;
 
             // 检查字段映射中是否存在重复的目标字段
             let fields = new Set();

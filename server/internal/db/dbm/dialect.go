@@ -1,6 +1,7 @@
 package dbm
 
 import (
+	"database/sql"
 	"embed"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/utils/collx"
@@ -71,12 +72,8 @@ type DbDialect interface {
 	// 获取建表ddl
 	GetTableDDL(tableName string) (string, error)
 
-	// 获取指定表的数据-分页查询
-	// @return columns: 列字段名；result: 结果集；error: 错误
-	GetTableRecord(tableName string, pageNum, pageSize int) ([]*QueryColumn, []map[string]any, error)
-
 	// WalkTableRecord 遍历指定表的数据
-	WalkTableRecord(tableName string, walk func(record map[string]any, columns []*QueryColumn)) error
+	WalkTableRecord(tableName string, walkFn WalkQueryRowsFunc) error
 
 	GetSchemas() ([]string, error)
 
@@ -86,11 +83,8 @@ type DbDialect interface {
 	// 封装名字，如，mysql: `table_name`,  dm: "table_name"
 	WrapName(name string) string
 
-	// 分页sql，如：mysql: limit 1 ,10, dm: limit 10 offset 1
-	PageSql(pageNum int, pageSize int) string
-
 	// 批量保存数据
-	SaveBatch(conn *DbConn, tableName string, columns string, placeholder string, values [][]any) error
+	BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error)
 
 	GetDataType(dbColumnType string) DataType
 

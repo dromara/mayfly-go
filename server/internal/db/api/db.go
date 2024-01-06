@@ -351,7 +351,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 		writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", table))
 		writer.WriteString("BEGIN;\n")
 		insertSql := "INSERT INTO %s VALUES (%s);\n"
-		dbMeta.WalkTableRecord(table, func(record map[string]any, columns []*dbm.QueryColumn) {
+		dbMeta.WalkTableRecord(table, func(record map[string]any, columns []*dbm.QueryColumn) error {
 			var values []string
 			writer.TryFlush()
 			for _, column := range columns {
@@ -369,6 +369,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 				}
 			}
 			writer.WriteString(fmt.Sprintf(insertSql, quotedTable, strings.Join(values, ", ")))
+			return nil
 		})
 		writer.WriteString("COMMIT;\n")
 	}

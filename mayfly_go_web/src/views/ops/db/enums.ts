@@ -8,3 +8,14 @@ export const DbSqlExecTypeEnum = {
     Query: EnumValue.of(4, 'QUERY').setTagColor('#A8DEE0'),
     Other: EnumValue.of(-1, 'OTHER').setTagColor('#F9E2AE'),
 };
+
+export const DbDataSyncRecentStateEnum = {
+    Success: EnumValue.of(1, '成功').setTagType('success'),
+    Fail: EnumValue.of(-1, '失败').setTagType('danger'),
+};
+
+export const DbDataSyncRunningStateEnum = {
+    Success: EnumValue.of(1, '运行中').setTagType('success'),
+    Wait: EnumValue.of(2, '待运行').setTagType('primary'),
+    Fail: EnumValue.of(3, '已停止').setTagType('danger'),
+};

@@ -255,12 +255,8 @@ func (dd *DMDialect) GetTableDDL(tableName string) (string, error) {
 	return builder.String(), nil
 }
 
-func (dd *DMDialect) GetTableRecord(tableName string, pageNum, pageSize int) ([]*QueryColumn, []map[string]any, error) {
-	return dd.dc.Query(fmt.Sprintf("SELECT * FROM %s OFFSET %d LIMIT %d", tableName, (pageNum-1)*pageSize, pageSize))
-}
-
-func (dd *DMDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []*QueryColumn)) error {
-	return dd.dc.WalkTableRecord(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walk)
+func (dd *DMDialect) WalkTableRecord(tableName string, walkFn WalkQueryRowsFunc) error {
+	return dd.dc.WalkQueryRows(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
 }
 
 // 获取DM当前连接的库可访问的schemaNames
@@ -286,10 +282,6 @@ func (pd *DMDialect) WrapName(name string) string {
 	return "\"" + name + "\""
 }
 
-func (pd *DMDialect) PageSql(pageNum int, pageSize int) string {
-	return fmt.Sprintf("LIMIT %d OFFSET %d", pageSize, (pageNum-1)*pageSize)
-}
-
 func (pd *DMDialect) GetDataType(dbColumnType string) DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
 		return DataTypeNumber
@@ -309,21 +301,29 @@ func (pd *DMDialect) GetDataType(dbColumnType string) DataType {
 	return DataTypeString
 }
 
-func (pd *DMDialect) SaveBatch(conn *DbConn, tableName string, columns string, placeholder string, values [][]any) error {
+func (pd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
 	// 执行批量insert sql
 	// insert into "table_name" ("column1", "column2", ...) values (value1, value2, ...)
 
-	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), columns, placeholder)
+	// 生成占位符字符串：如：(?,?)
+	// 重复字符串并用逗号连接
+	repeated := strings.Repeat("?,", len(columns))
+	// 去除最后一个逗号，占位符由括号包裹
+	placeholder := fmt.Sprintf("(%s)", strings.TrimSuffix(repeated, ","))
+
+	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), strings.Join(columns, ","), placeholder)
+	effRows := 0
 	for _, value := range values {
 		// 达梦数据库只能一条条的执行insert
-		_, err := conn.Exec(sqlTemp, value...)
+		er, err := pd.dc.TxExec(tx, sqlTemp, value...)
 		if err != nil {
 			logx.Errorf("执行sql失败：%s", err.Error())
-			return err
+			return int64(effRows), err
 		}
+		effRows += int(er)
 	}
 	// 执行批量insert sql
-	return nil
+	return int64(effRows), nil
 }
 
 func (pd *DMDialect) FormatStrData(dbColumnValue string, dataType DataType) string {

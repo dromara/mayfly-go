@@ -12,6 +12,9 @@ import (
 	"strings"
 )
 
+// 游标遍历查询结果集处理函数
+type WalkQueryRowsFunc func(row map[string]any, columns []*QueryColumn) error
+
 // db实例连接信息
 type DbConn struct {
 	Id   string
@@ -36,13 +39,21 @@ func (d *DbConn) Query(querySql string, args ...any) ([]*QueryColumn, []map[stri
 // 依次返回 列信息数组(顺序)，结果map，错误
 func (d *DbConn) QueryContext(ctx context.Context, querySql string, args ...any) ([]*QueryColumn, []map[string]any, error) {
 	result := make([]map[string]any, 0, 16)
-	columns, err := walkTableRecord(ctx, d.db, querySql, func(record map[string]any, columns []*QueryColumn) {
-		result = append(result, record)
+	var queryColumns []*QueryColumn
+
+	err := d.WalkQueryRows(ctx, querySql, func(row map[string]any, columns []*QueryColumn) error {
+		if len(queryColumns) == 0 {
+			queryColumns = columns
+		}
+		result = append(result, row)
+		return nil
 	}, args...)
+
 	if err != nil {
 		return nil, nil, wrapSqlError(err)
 	}
-	return columns, result, nil
+
+	return queryColumns, result, nil
 }
 
 // 将查询结果映射至struct，可具体参考sqlx库
@@ -61,10 +72,9 @@ func (d *DbConn) Query2Struct(execSql string, dest any) error {
 	return scanAll(rows, dest, false)
 }
 
-// WalkTableRecord 遍历表记录
-func (d *DbConn) WalkTableRecord(ctx context.Context, selectSql string, walk func(record map[string]any, columns []*QueryColumn)) error {
-	_, err := walkTableRecord(ctx, d.db, selectSql, walk)
-	return err
+// 游标方式遍历查询结果集, walkFn返回error不为nil, 则跳出遍历
+func (d *DbConn) WalkQueryRows(ctx context.Context, querySql string, walkFn WalkQueryRowsFunc, args ...any) error {
+	return walkQueryRows(ctx, d.db, querySql, walkFn, args...)
 }
 
 // 执行 update, insert, delete，建表等sql
@@ -73,14 +83,42 @@ func (d *DbConn) Exec(sql string, args ...any) (int64, error) {
 	return d.ExecContext(context.Background(), sql, args...)
 }
 
+// 事务执行 update, insert, delete，建表等sql，若tx == nil，则不使用事务
+// 返回影响条数和错误
+func (d *DbConn) TxExec(tx *sql.Tx, execSql string, args ...any) (int64, error) {
+	return d.TxExecContext(context.Background(), tx, execSql, args...)
+}
+
 // 执行 update, insert, delete，建表等sql
 // 返回影响条数和错误
-func (d *DbConn) ExecContext(ctx context.Context, sql string, args ...any) (int64, error) {
-	res, err := d.db.ExecContext(ctx, sql, args...)
+func (d *DbConn) ExecContext(ctx context.Context, execSql string, args ...any) (int64, error) {
+	res, err := d.db.ExecContext(ctx, execSql, args...)
 	if err != nil {
 		return 0, wrapSqlError(err)
 	}
 	return res.RowsAffected()
+}
+
+// 事务执行 update, insert, delete，建表等sql，若tx == nil，则不适用事务
+// 返回影响条数和错误
+func (d *DbConn) TxExecContext(ctx context.Context, tx *sql.Tx, execSql string, args ...any) (int64, error) {
+	var res sql.Result
+	var err error
+	if tx != nil {
+		res, err = tx.ExecContext(ctx, execSql, args...)
+	} else {
+		res, err = d.db.ExecContext(ctx, execSql, args...)
+	}
+
+	if err != nil {
+		return 0, wrapSqlError(err)
+	}
+	return res.RowsAffected()
+}
+
+// 开启事务
+func (d *DbConn) Begin() (*sql.Tx, error) {
+	return d.db.Begin()
 }
 
 // 获取数据库元信息实现接口
@@ -111,11 +149,12 @@ func (d *DbConn) Close() {
 	}
 }
 
-func walkTableRecord(ctx context.Context, db *sql.DB, selectSql string, walk func(record map[string]any, columns []*QueryColumn), args ...any) ([]*QueryColumn, error) {
+// 游标方式遍历查询rows, walkFn error不为nil, 则跳出遍历
+func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn WalkQueryRowsFunc, args ...any) error {
 	rows, err := db.QueryContext(ctx, selectSql, args...)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// rows对象一定要close掉，如果出错，不关掉则会很迅速的达到设置最大连接数，
 	// 后面的链接过来直接报错或拒绝，实际上也没有起效果
@@ -127,7 +166,7 @@ func walkTableRecord(ctx context.Context, db *sql.DB, selectSql string, walk fun
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	lenCols := len(colTypes)
 	// 列名用于前端表头名称按照数据库与查询字段顺序显示
@@ -145,7 +184,7 @@ func walkTableRecord(ctx context.Context, db *sql.DB, selectSql string, walk fun
 	for rows.Next() {
 		// 不Scan也会导致等待，该链接实际处于未工作的状态，然后也会导致连接数迅速达到最大
 		if err := rows.Scan(scans...); err != nil {
-			return nil, err
+			return err
 		}
 		// 每行数据
 		rowData := make(map[string]any, lenCols)
@@ -153,10 +192,13 @@ func walkTableRecord(ctx context.Context, db *sql.DB, selectSql string, walk fun
 		for i, v := range values {
 			rowData[colTypes[i].Name()] = valueConvert(v, colTypes[i])
 		}
-		walk(rowData, cols)
+		if err = walkFn(rowData, cols); err != nil {
+			logx.Error("游标遍历查询结果集出错,退出遍历: %s", err.Error())
+			return err
+		}
 	}
 
-	return cols, nil
+	return nil
 }
 
 // 将查询的值转为对应列类型的实际值，不全部转为字符串

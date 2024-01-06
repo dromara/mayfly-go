@@ -2,17 +2,18 @@ package application
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
-	"strings"
 	"time"
 )
 
@@ -38,7 +39,7 @@ type DataSyncTask interface {
 
 	RemoveCronJobByKey(taskKey string)
 
-	RunCronJob(id uint64)
+	RunCronJob(id uint64) error
 
 	GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
@@ -80,7 +81,9 @@ func (app *dataSyncAppImpl) AddCronJob(taskEntity *entity.DataSyncTask) {
 	// 根据状态添加新的任务
 	if taskEntity.Status == entity.DataSyncTaskStatusEnable {
 		scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
-			go app.RunCronJob(taskEntity.Id)
+			if err := app.RunCronJob(taskEntity.Id); err != nil {
+				logx.Errorf("定时执行数据同步任务失败: %s", err.Error())
+			}
 		})
 	}
 }
@@ -120,51 +123,21 @@ func (app *dataSyncAppImpl) changeRunningState(id uint64, state int8) {
 	_ = app.UpdateById(context.Background(), task)
 }
 
-func (app *dataSyncAppImpl) RunCronJob(id uint64) {
+func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
 	// 查询最新的任务信息
 	task, err := app.GetById(new(entity.DataSyncTask), id)
 	if err != nil {
-		logx.Warnf("[%d]任务不存在", id)
-		return
+		return errorx.NewBiz("任务不存在")
 	}
 	if task.RunningState == entity.DataSyncTaskRunStateRunning {
-		logx.Warnf("数据同步任务正在执行中：%s => %s", task.TaskName, task.TaskKey)
-		return
+		return errorx.NewBiz("该任务正在执行中")
 	}
 	// 开始运行时，修改状态为运行中
 	app.changeRunningState(id, entity.DataSyncTaskRunStateRunning)
 
-	logx.Warnf("开始执行数据同步任务：%s => %s", task.TaskName, task.TaskKey)
+	logx.Infof("开始执行数据同步任务：%s => %s", task.TaskName, task.TaskKey)
 
-	// 获取源数据库连接
-	srcConn, err := GetDbApp().GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
-	if err != nil {
-		app.endRunning(task, entity.DataSyncTaskStateFail, "连接源数据库失败", "", 0)
-		return
-	}
-
-	// 获取目标数据库连接
-	targetConn, err := GetDbApp().GetDbConn(uint64(task.TargetDbId), task.TargetDbName)
-	if err != nil {
-		app.endRunning(task, entity.DataSyncTaskStateFail, "连接目标数据库失败", "", 0)
-		return
-	}
-
-	// 当前分页
-	page := 1
-	// 记录每次分页返回数据条数
-	resSize := task.PageSize
-	// 记录本次同步数据总数
-	total := 0
-	srcDialect := srcConn.GetDialect()
-	// 记录更新字段最新值
-	updFieldVal := task.UpdFieldVal
-	targetDialect := targetConn.GetDialect()
-
-	for {
-		if resSize < task.PageSize {
-			break
-		}
+	go func() {
 		// 通过占位符格式化sql
 		updSql := ""
 		orderSql := ""
@@ -172,140 +145,174 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) {
 			updSql = fmt.Sprintf("and %s > '%s'", task.UpdField, task.UpdFieldVal)
 			orderSql = "order by " + task.UpdField + " asc "
 		}
-
-		pageSql := srcDialect.PageSql(page, task.PageSize)
 		// 组装查询sql
-		sql := fmt.Sprintf("select * from (%s) t where 1 = 1 %s %s %s", task.DataSql, updSql, orderSql, pageSql)
-		logx.Infof("同步任务：[%s]，执行sql：[%s]", task.TaskName, sql)
-		// 源数据库执行sql查询结果
-		columns, res, err := srcConn.Query(sql)
+		sql := fmt.Sprintf("select * from (%s) t where 1 = 1 %s %s", task.DataSql, updSql, orderSql)
+
+		err = app.doDataSync(sql, task)
 		if err != nil {
-			app.endRunning(task, entity.DataSyncTaskStateFail, fmt.Sprintf("查询源数据库失败:%s", err.Error()), sql, 0)
-			return
+			app.endRunning(task, entity.DataSyncTaskStateFail, fmt.Sprintf("执行失败: %s", err.Error()), sql, 0)
 		}
-		if len(res) == 0 {
-			app.endRunning(task, entity.DataSyncTaskStateSuccess, fmt.Sprintf("执行成功，新数据：%d 条", total), sql, 0)
-			return
-		}
-		// 每次分页查询成功后，记录一些数据
-		resSize = len(res)
-		total += resSize
-		page++
-		index := 0
+	}()
 
-		// task.FieldMap为json数组字符串 [{"src":"id","target":"id"}]，转为map
-		var fieldMap []map[string]string
-		err = json.Unmarshal([]byte(task.FieldMap), &fieldMap)
-		if err != nil {
-			app.endRunning(task, entity.DataSyncTaskStateFail, "解析字段映射json出错", sql, resSize)
-			return
-		}
+	return nil
+}
 
-		// 遍历columns 取task.UpdField的字段类型
-		updFieldType := dbm.DataTypeString
-		for _, column := range columns {
-			if column.Name == task.UpdField {
-				updFieldType = srcDialect.GetDataType(column.Type)
-				break
-			}
-		}
-
-		var data = make([]map[string]any, 0)
-
-		// 遍历res，组装插入sql
-		for _, record := range res {
-			index++
-			// 获取查询结果最后一条数据的UpdField字段值
-			if index == resSize {
-				updFieldVal = fmt.Sprintf("%v", record[task.UpdField])
-				updFieldVal = srcDialect.FormatStrData(updFieldVal, updFieldType)
-			}
-			var rowData = make(map[string]any)
-			// 遍历字段映射, target字段的值为src字段取值
-			for _, item := range fieldMap {
-				srcField := item["src"]
-				targetField := item["target"]
-				// target字段的值为src字段取值
-				rowData[targetField] = record[srcField]
-			}
-
-			data = append(data, rowData)
-		}
-
-		// 获取目标库字段数组
-		targetWrapColumns := make([]string, 0)
-		// 获取源库字段数组
-		srcColumns := make([]string, 0)
-		for _, item := range fieldMap {
-			targetField := item["target"]
-			srcField := item["target"]
-			targetWrapColumns = append(targetWrapColumns, targetDialect.WrapName(targetField))
-			srcColumns = append(srcColumns, srcField)
-		}
-
-		// 从目标库数据中取出源库字段对应的值
-		values := make([][]any, 0)
-		for _, record := range data {
-			rawValue := make([]any, 0)
-			for _, column := range srcColumns {
-				rawValue = append(rawValue, record[column])
-			}
-			values = append(values, rawValue)
-		}
-
-		// 生成占位符字符串：如：(?,?)
-		// 重复字符串并用逗号连接
-		repeated := strings.Repeat("?,", len(targetWrapColumns))
-		// 去除最后一个逗号，占位符由括号包裹
-		placeholder := fmt.Sprintf("(%s)", strings.TrimSuffix(repeated, ","))
-
-		// 目标数据库执行sql批量插入
-		err = targetDialect.SaveBatch(targetConn, task.TargetTableName, strings.Join(targetWrapColumns, ","), placeholder, values)
-		if err != nil {
-			// 保存执行成功日志
-			logx.Errorf("保存记录失败：%s", err.Error())
-			app.endRunning(task, entity.DataSyncTaskStateFail, err.Error(), sql, resSize)
-			return
-		}
-
-		// 保存运行时日志
-		logx.Infof("同步任务：[%s],保存记录成功：[%d]条", task.TaskName, total)
-		app.saveLog(task.Id, entity.DataSyncTaskStateSuccess, fmt.Sprintf("分页执行成功，新数据：%d 条", total), sql, total)
-
-		// 运行过程中，判断状态是否为已关闭，是则结束运行，否则继续运行
-		taskParam, _ := app.GetById(new(entity.DataSyncTask), id)
-		if taskParam.RunningState == entity.DataSyncTaskRunStateStop {
-			app.endRunning(task, entity.DataSyncTaskStateFail, "手动停止任务", sql, resSize)
-			return
-		}
-
-		// 记录一次数据状态
-		taskParam = new(entity.DataSyncTask)
-		taskParam.Id = task.Id
-		taskParam.UpdFieldVal = updFieldVal
-		taskParam.RecentState = entity.DataSyncTaskStateSuccess
-		taskParam.RunningState = entity.DataSyncTaskRunStateRunning
-		_ = app.UpdateById(context.Background(), taskParam)
+func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) error {
+	// 获取源数据库连接
+	srcConn, err := GetDbApp().GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
+	if err != nil {
+		return errorx.NewBiz("连接源数据库失败: %s", err.Error())
 	}
 
-	logx.Infof("同步任务：[%s]，执行完毕，保存记录成功：[%d]条", task.TaskName, total)
+	// 获取目标数据库连接
+	targetConn, err := GetDbApp().GetDbConn(uint64(task.TargetDbId), task.TargetDbName)
+	if err != nil {
+		return errorx.NewBiz("连接目标数据库失败: %s", err.Error())
+	}
+	targetDbTx, err := targetConn.Begin()
+	if err != nil {
+		return errorx.NewBiz("开启目标数据库事务失败: %s", err.Error())
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			targetDbTx.Rollback()
+			err = fmt.Errorf("%v", r)
+		}
+	}()
 
+	srcDialect := srcConn.GetDialect()
 	// 记录更新字段最新值
-	task.UpdFieldVal = updFieldVal
+	targetDialect := targetConn.GetDialect()
+
+	// task.FieldMap为json数组字符串 [{"src":"id","target":"id"}]，转为map
+	var fieldMap []map[string]string
+	err = json.Unmarshal([]byte(task.FieldMap), &fieldMap)
+	if err != nil {
+		return errorx.NewBiz("解析字段映射json出错: %s", err.Error())
+	}
+	var updFieldType dbm.DataType
+
+	// 记录本次同步数据总数
+	total := 0
+	batchSize := task.PageSize
+	result := make([]map[string]any, 0)
+	var queryColumns []*dbm.QueryColumn
+
+	err = srcConn.WalkQueryRows(context.Background(), sql, func(row map[string]any, columns []*dbm.QueryColumn) error {
+		if len(queryColumns) == 0 {
+			queryColumns = columns
+
+			// 遍历columns 取task.UpdField的字段类型
+			updFieldType = dbm.DataTypeString
+			for _, column := range columns {
+				if column.Name == task.UpdField {
+					updFieldType = srcDialect.GetDataType(column.Type)
+					break
+				}
+			}
+		}
+
+		total++
+		result = append(result, row)
+		if total%batchSize == 0 {
+			if err := app.srcData2TargetDb(result, fieldMap, updFieldType, task, srcDialect, targetDialect, targetDbTx); err != nil {
+				return err
+			}
+			result = result[:0]
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		targetDbTx.Rollback()
+		return err
+	}
+
+	// 处理剩余的数据
+	if len(result) > 0 {
+		if err := app.srcData2TargetDb(result, fieldMap, updFieldType, task, srcDialect, targetDialect, targetDbTx); err != nil {
+			targetDbTx.Rollback()
+			return err
+		}
+	}
+
+	if err := targetDbTx.Commit(); err != nil {
+		return errorx.NewBiz("数据同步-目标数据库事务提交失败: %s", err.Error())
+	}
+	logx.Infof("同步任务：[%s]，执行完毕，保存记录成功：[%d]条", task.TaskName, total)
 
 	// 保存执行成功日志
 	app.endRunning(task, entity.DataSyncTaskStateSuccess, fmt.Sprintf("本次任务执行成功，新数据：%d 条", total), "", total)
+	return nil
+}
 
+func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, updFieldType dbm.DataType, task *entity.DataSyncTask, srcDialect dbm.DbDialect, targetDialect dbm.DbDialect, targetDbTx *sql.Tx) error {
+	var data = make([]map[string]any, 0)
+
+	// 遍历res，组装插入sql
+	for _, record := range srcRes {
+		var rowData = make(map[string]any)
+		// 遍历字段映射, target字段的值为src字段取值
+		for _, item := range fieldMap {
+			srcField := item["src"]
+			targetField := item["target"]
+			// target字段的值为src字段取值
+			rowData[targetField] = record[srcField]
+		}
+
+		data = append(data, rowData)
+	}
+
+	updFieldVal := fmt.Sprintf("%v", srcRes[len(srcRes)-1][task.UpdField])
+	updFieldVal = srcDialect.FormatStrData(updFieldVal, updFieldType)
+	task.UpdFieldVal = updFieldVal
+
+	// 获取目标库字段数组
+	targetWrapColumns := make([]string, 0)
+	// 获取源库字段数组
+	srcColumns := make([]string, 0)
+	for _, item := range fieldMap {
+		targetField := item["target"]
+		srcField := item["target"]
+		targetWrapColumns = append(targetWrapColumns, targetDialect.WrapName(targetField))
+		srcColumns = append(srcColumns, srcField)
+	}
+
+	// 从目标库数据中取出源库字段对应的值
+	values := make([][]any, 0)
+	for _, record := range data {
+		rawValue := make([]any, 0)
+		for _, column := range srcColumns {
+			rawValue = append(rawValue, record[column])
+		}
+		values = append(values, rawValue)
+	}
+
+	// 目标数据库执行sql批量插入
+	_, err := targetDialect.BatchInsert(targetDbTx, task.TargetTableName, targetWrapColumns, values)
+	if err != nil {
+		return err
+	}
+
+	// 运行过程中，判断状态是否为已关闭，是则结束运行，否则继续运行
+	taskParam, _ := app.GetById(new(entity.DataSyncTask), task.Id)
+	if taskParam.RunningState == entity.DataSyncTaskRunStateStop {
+		return errorx.NewBiz("该任务已被手动终止")
+	}
+
+	return nil
 }
 
 func (app *dataSyncAppImpl) endRunning(taskEntity *entity.DataSyncTask, state int8, msg string, sql string, resNum int) {
-
 	logx.Info(msg)
 
 	task := new(entity.DataSyncTask)
 	task.Id = taskEntity.Id
 	task.RecentState = state
-	task.UpdFieldVal = taskEntity.UpdFieldVal
+	if state == entity.DataSyncTaskStateSuccess {
+		task.UpdFieldVal = taskEntity.UpdFieldVal
+	}
 	task.RunningState = entity.DataSyncTaskRunStateReady
 	// 运行失败之后设置任务状态为禁用
 	//if state == entity.DataSyncTaskStateFail {
@@ -315,7 +322,6 @@ func (app *dataSyncAppImpl) endRunning(taskEntity *entity.DataSyncTask, state in
 	_ = app.UpdateById(context.Background(), task)
 	// 保存执行日志
 	app.saveLog(taskEntity.Id, state, msg, sql, resNum)
-
 }
 
 func (app *dataSyncAppImpl) saveLog(taskId uint64, state int8, msg string, sql string, resNum int) {

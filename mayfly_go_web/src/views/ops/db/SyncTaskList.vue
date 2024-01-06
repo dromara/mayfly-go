@@ -13,11 +13,6 @@
                 <el-button v-auth="perms.save" type="primary" icon="plus" @click="edit(false)">添加</el-button>
                 <el-button v-auth="perms.del" :disabled="selectionData.length < 1" @click="del()" type="danger" icon="delete">删除</el-button>
             </template>
-            <template #recentState="{ data }">
-                <el-tag v-if="data.recentState == 1" class="ml-2" type="success">成功</el-tag>
-                <el-tag v-else-if="data.recentState == 2" class="ml-2" type="success">失败</el-tag>
-                <el-tag v-else-if="data.recentState == 0" class="ml-2" type="">未执行</el-tag>
-            </template>
             <template #status="{ data }">
                 <span v-if="actionBtns[perms.status]">
                     <el-switch
@@ -59,6 +54,7 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { SearchItem } from '@/components/SearchForm';
+import { DbDataSyncRecentStateEnum, DbDataSyncRunningStateEnum } from './enums';
 
 const DataSyncTaskEdit = defineAsyncComponent(() => import('./SyncTaskEdit.vue'));
 const DataSyncTaskLog = defineAsyncComponent(() => import('./SyncTaskLog.vue'));
@@ -75,7 +71,8 @@ const searchItems = [SearchItem.input('name', '名称')];
 // 任务名、修改人、修改时间、最近一次任务执行状态、状态(停用启用)、操作
 const columns = ref([
     TableColumn.new('taskName', '任务名'),
-    TableColumn.new('recentState', '最近任务状态').alignCenter().isSlot(),
+    TableColumn.new('runningState', '运行状态').alignCenter().typeTag(DbDataSyncRunningStateEnum),
+    TableColumn.new('recentState', '最近任务状态').alignCenter().typeTag(DbDataSyncRecentStateEnum),
     TableColumn.new('status', '状态').alignCenter().isSlot(),
     TableColumn.new('modifier', '修改人').alignCenter(),
     TableColumn.new('updateTime', '修改时间').alignCenter().isTime(),

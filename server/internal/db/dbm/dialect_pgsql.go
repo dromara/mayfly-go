@@ -257,12 +257,8 @@ func (pd *PgsqlDialect) GetTableDDL(tableName string) (string, error) {
 	return res[0]["sql"].(string), nil
 }
 
-func (pd *PgsqlDialect) GetTableRecord(tableName string, pageNum, pageSize int) ([]*QueryColumn, []map[string]any, error) {
-	return pd.dc.Query(fmt.Sprintf("SELECT * FROM %s OFFSET %d LIMIT %d", tableName, (pageNum-1)*pageSize, pageSize))
-}
-
-func (pd *PgsqlDialect) WalkTableRecord(tableName string, walk func(record map[string]any, columns []*QueryColumn)) error {
-	return pd.dc.WalkTableRecord(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walk)
+func (pd *PgsqlDialect) WalkTableRecord(tableName string, walkFn WalkQueryRowsFunc) error {
+	return pd.dc.WalkQueryRows(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
 }
 
 // 获取pgsql当前连接的库可访问的schemaNames
@@ -288,10 +284,6 @@ func (pd *PgsqlDialect) WrapName(name string) string {
 	return name
 }
 
-func (pd *PgsqlDialect) PageSql(pageNum int, pageSize int) string {
-	return fmt.Sprintf("LIMIT %d OFFSET %d", pageSize, (pageNum-1)*pageSize)
-}
-
 func (pd *PgsqlDialect) GetDataType(dbColumnType string) DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
 		return DataTypeNumber
@@ -311,24 +303,33 @@ func (pd *PgsqlDialect) GetDataType(dbColumnType string) DataType {
 	return DataTypeString
 }
 
-func (pd *PgsqlDialect) SaveBatch(conn *DbConn, tableName string, columns string, placeholder string, values [][]any) error {
+func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
 	// 执行批量insert sql，跟mysql一样  pg或高斯支持批量insert语法
 	// insert into table_name (column1, column2, ...) values (value1, value2, ...), (value1, value2, ...), ...
 
+	// 生成占位符字符串：如：(?,?)
+	// 重复字符串并用逗号连接
+	repeated := strings.Repeat("?,", len(columns))
+	// 去除最后一个逗号，占位符由括号包裹
+	placeholder := fmt.Sprintf("(%s)", strings.TrimSuffix(repeated, ","))
+
+	// 执行批量insert sql，mysql支持批量insert语法
+	// insert into table_name (column1, column2, ...) values (value1, value2, ...), (value1, value2, ...), ...
+
 	// 重复占位符字符串n遍
-	repeated := strings.Repeat(placeholder+",", len(values))
+	repeated = strings.Repeat(placeholder+",", len(values))
 	// 去除最后一个逗号
 	placeholder = strings.TrimSuffix(repeated, ",")
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), columns, placeholder)
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), strings.Join(columns, ","), placeholder)
 	// 执行批量insert sql
 	// 把二维数组转为一维数组
 	var args []any
 	for _, v := range values {
 		args = append(args, v...)
 	}
-	_, err := conn.Exec(sqlStr, args...)
-	return err
+
+	return pd.dc.TxExec(tx, sqlStr, args...)
 }
 
 func (pd *PgsqlDialect) FormatStrData(dbColumnValue string, dataType DataType) string {

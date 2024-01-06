@@ -23,9 +23,6 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     taskId: {
         type: Number,
     },
@@ -34,6 +31,8 @@ const props = defineProps({
         default: false,
     },
 });
+
+const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const columns = ref([
     // 状态:1.成功  -1.失败
@@ -44,14 +43,15 @@ const columns = ref([
     TableColumn.new('resNum', '数据条数'),
 ]);
 
-watch(props, async (newValue: any) => {
-    state.dialogVisible = newValue.visible;
-    if (!state.dialogVisible) {
+watch(dialogVisible, (newValue: any) => {
+    if (!newValue) {
         state.polling = false;
         watchPolling(false);
         return;
     }
+
     state.query.taskId = props.taskId!;
+    search();
     state.realTime = props.running;
     watchPolling(props.running);
 });
@@ -77,14 +77,6 @@ const watchPolling = (polling: boolean) => {
     }
 };
 
-watch(
-    () => props.taskId,
-    async (newValue: any) => {
-        state.query.taskId = newValue!;
-        search();
-    }
-);
-
 const logTableRef: Ref<any> = ref(null);
 
 const search = () => {
@@ -98,13 +90,12 @@ const search = () => {
 const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 //定义事件
 const cancel = () => {
-    emit('update:visible', false);
+    dialogVisible.value = false;
     emit('cancel');
     watchPolling(false);
 };
 
 const state = reactive({
-    dialogVisible: false,
     polling: false,
     pollingIndex: 0 as any,
     realTime: props.running,
@@ -119,5 +110,5 @@ const state = reactive({
     },
 });
 
-const { dialogVisible, query, realTime } = toRefs(state);
+const { query, realTime } = toRefs(state);
 </script>
