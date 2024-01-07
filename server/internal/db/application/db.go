@@ -24,7 +24,7 @@ type Db interface {
 
 	Count(condition *entity.DbQuery) int64
 
-	Save(ctx context.Context, entity *entity.Db, tagIds ...uint64) error
+	SaveDb(ctx context.Context, entity *entity.Db, tagIds ...uint64) error
 
 	// 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
@@ -66,7 +66,7 @@ func (d *dbAppImpl) Count(condition *entity.DbQuery) int64 {
 	return d.GetRepo().Count(condition)
 }
 
-func (d *dbAppImpl) Save(ctx context.Context, dbEntity *entity.Db, tagIds ...uint64) error {
+func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...uint64) error {
 	// 查找是否存在
 	oldDb := &entity.Db{Name: dbEntity.Name, InstanceId: dbEntity.InstanceId}
 	err := d.GetBy(oldDb)

@@ -33,6 +33,13 @@ type Repo[T model.ModelI] interface {
 	// 使用指定gorm db执行，主要用于事务执行
 	UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, columns ...string) error
 
+	// 保存实体，实体IsCreate返回true则新增，否则更新
+	Save(ctx context.Context, e T) error
+
+	// 保存实体，实体IsCreate返回true则新增，否则更新。
+	// 使用指定gorm db执行，主要用于事务执行
+	SaveWithDb(ctx context.Context, db *gorm.DB, e T) error
+
 	// 根据实体主键删除实体
 	DeleteById(ctx context.Context, id uint64) error
 
@@ -121,11 +128,25 @@ func (br *RepoImpl[T]) Updates(cond any, udpateFields map[string]any) error {
 	return gormx.Updates(br.GetModel(), cond, udpateFields)
 }
 
+func (br *RepoImpl[T]) Save(ctx context.Context, e T) error {
+	if e.IsCreate() {
+		return br.Insert(ctx, e)
+	}
+	return br.UpdateById(ctx, e)
+}
+
+func (br *RepoImpl[T]) SaveWithDb(ctx context.Context, db *gorm.DB, e T) error {
+	if e.IsCreate() {
+		return br.InsertWithDb(ctx, db, e)
+	}
+	return br.UpdateByIdWithDb(ctx, db, e)
+}
+
 func (br *RepoImpl[T]) DeleteById(ctx context.Context, id uint64) error {
 	if db := contextx.GetDb(ctx); db != nil {
 		return br.DeleteByIdWithDb(ctx, db, id)
 	}
-	return gormx.DeleteById(br.getModel(), id)
+	return gormx.DeleteById(br.GetModel(), id)
 }
 
 func (br *RepoImpl[T]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error {
@@ -136,7 +157,7 @@ func (br *RepoImpl[T]) DeleteByCond(ctx context.Context, cond any) error {
 	if db := contextx.GetDb(ctx); db != nil {
 		return br.DeleteByCondWithDb(ctx, db, cond)
 	}
-	return gormx.DeleteByCond(br.getModel(), cond)
+	return gormx.DeleteByCond(br.GetModel(), cond)
 }
 
 func (br *RepoImpl[T]) DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error {
@@ -170,19 +191,15 @@ func (br *RepoImpl[T]) CountByCond(cond any) int64 {
 	return gormx.CountByCond(br.GetModel(), cond)
 }
 
-// getModel 获取表的模型实例
-func (br *RepoImpl[T]) getModel() T {
-	return br.M
-}
-
 // GetModel 获取表的模型实例
 func (br *RepoImpl[T]) GetModel() T {
-	return br.getModel()
+	return br.M
 }
 
 // 从上下文获取登录账号信息，并赋值至实体
 func (br *RepoImpl[T]) setBaseInfo(ctx context.Context, e T) T {
 	if la := contextx.GetLoginAccount(ctx); la != nil {
+		// 默认使用数据库id策略, 若要改变则实体结构体自行覆盖SetBaseInfo方法。可参考 sys/entity.Resource
 		e.SetBaseInfo(model.IdGenTypeNone, la)
 	}
 	return e

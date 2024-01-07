@@ -21,7 +21,7 @@ type Mongo interface {
 
 	TestConn(entity *entity.Mongo) error
 
-	Save(ctx context.Context, entity *entity.Mongo, tagIds ...uint64) error
+	SaveMongo(ctx context.Context, entity *entity.Mongo, tagIds ...uint64) error
 
 	// 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
@@ -76,7 +76,7 @@ func (d *mongoAppImpl) TestConn(me *entity.Mongo) error {
 	return nil
 }
 
-func (d *mongoAppImpl) Save(ctx context.Context, m *entity.Mongo, tagIds ...uint64) error {
+func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ...uint64) error {
 	oldMongo := &entity.Mongo{Name: m.Name, SshTunnelMachineId: m.SshTunnelMachineId}
 	err := d.GetBy(oldMongo)
 

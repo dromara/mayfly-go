@@ -21,8 +21,8 @@ const (
 // 实体接口
 type ModelI interface {
 
-	// id生成策略
-	// IdGenType() IdGenType
+	// 是否为新建该实体模型, 默认 id == 0 为新建
+	IsCreate() bool
 
 	// 使用当前登录账号信息设置实体结构体的基础信息
 	//
@@ -34,14 +34,13 @@ type IdModel struct {
 	Id uint64 `json:"id"`
 }
 
-// func (m *IdModel) IdGenType() IdGenType {
-// 	// 默认由数据库自行生成
-// 	return IdGenTypeNone
-// }
+func (m *IdModel) IsCreate() bool {
+	return m.Id == 0
+}
 
 func (m *IdModel) SetBaseInfo(idGenType IdGenType, account *LoginAccount) {
 	// 存在id，则赋值
-	if m.Id != 0 {
+	if !m.IsCreate() {
 		return
 	}
 	m.Id = GetIdByGenType(idGenType)
@@ -70,7 +69,7 @@ type CreateModel struct {
 }
 
 func (m *CreateModel) SetBaseInfo(idGenType IdGenType, account *LoginAccount) {
-	if m.Id != 0 {
+	if !m.IsCreate() {
 		return
 	}
 
@@ -98,7 +97,7 @@ type Model struct {
 // 设置基础信息. 如创建时间，修改时间，创建者，修改者信息
 func (m *Model) SetBaseInfo(idGenType IdGenType, account *LoginAccount) {
 	nowTime := time.Now()
-	isCreate := m.Id == 0
+	isCreate := m.IsCreate()
 	if isCreate {
 		m.IsDeleted = ModelUndeleted
 		m.CreateTime = &nowTime

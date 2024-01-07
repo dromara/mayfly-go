@@ -14,6 +14,12 @@ export const DbDataSyncRecentStateEnum = {
     Fail: EnumValue.of(-1, '失败').setTagType('danger'),
 };
 
+export const DbDataSyncLogStatusEnum = {
+    Success: EnumValue.of(1, '成功').setTagType('success'),
+    Wait: EnumValue.of(2, '同步中').setTagType('primary'),
+    Fail: EnumValue.of(-1, '失败').setTagType('danger'),
+};
+
 export const DbDataSyncRunningStateEnum = {
     Success: EnumValue.of(1, '运行中').setTagType('success'),
     Wait: EnumValue.of(2, '待运行').setTagType('primary'),

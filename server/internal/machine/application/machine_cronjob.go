@@ -26,7 +26,7 @@ type MachineCronJob interface {
 	// 获取分页执行结果列表
 	GetExecPageList(condition *entity.MachineCronJobExec, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Save(ctx context.Context, entity *entity.MachineCronJob) (uint64, error)
+	SaveMachineCronJob(ctx context.Context, entity *entity.MachineCronJob) (uint64, error)
 
 	Delete(ctx context.Context, id uint64)
 
@@ -84,7 +84,7 @@ func (m *machineCropJobAppImpl) GetExecPageList(condition *entity.MachineCronJob
 }
 
 // 保存机器任务信息
-func (m *machineCropJobAppImpl) Save(ctx context.Context, mcj *entity.MachineCronJob) (uint64, error) {
+func (m *machineCropJobAppImpl) SaveMachineCronJob(ctx context.Context, mcj *entity.MachineCronJob) (uint64, error) {
 	// 更新操作
 	if mcj.Id != 0 {
 		m.UpdateById(ctx, mcj)

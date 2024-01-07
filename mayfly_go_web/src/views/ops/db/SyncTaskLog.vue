@@ -4,13 +4,9 @@
             <template #header>
                 <span class="mr10">任务执行日志</span>
                 <el-switch v-model="realTime" @change="watchPolling" inline-prompt active-text="实时" inactive-text="非实时" />
-                <span v-if="realTime" v-loading="true"></span>
+                <el-button @click="search" icon="Refresh" circle size="small" :loading="realTime" class="ml10"></el-button>
             </template>
             <page-table ref="logTableRef" :page-api="dbApi.datasyncLogs" v-model:query-form="query" :tool-button="false" :columns="columns" size="small">
-                <template #status="{ data }">
-                    <el-tag v-if="data.status == 1" class="ml-2" type="success">成功</el-tag>
-                    <el-tag v-else-if="data.status == -1" class="ml-2" type="danger">失败</el-tag>
-                </template>
             </page-table>
         </el-dialog>
     </div>
@@ -21,6 +17,7 @@ import { reactive, Ref, ref, toRefs, watch } from 'vue';
 import { dbApi } from '@/views/ops/db/api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
+import { DbDataSyncLogStatusEnum } from './enums';
 
 const props = defineProps({
     taskId: {
@@ -36,7 +33,7 @@ const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const columns = ref([
     // 状态:1.成功  -1.失败
-    TableColumn.new('status', '状态').alignCenter().isSlot(),
+    TableColumn.new('status', '状态').alignCenter().typeTag(DbDataSyncLogStatusEnum),
     TableColumn.new('createTime', '时间').alignCenter().isTime(),
     TableColumn.new('errText', '日志'),
     TableColumn.new('dataSqlFull', 'SQL').alignCenter(),

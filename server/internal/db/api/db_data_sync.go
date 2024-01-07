@@ -66,9 +66,7 @@ func (d *DataSyncTask) DeleteTask(rc *req.Ctx) {
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		id := uint64(value)
-		_ = d.DataSyncTaskApp.Delete(rc.MetaCtx, id)
-		_ = d.DataSyncTaskApp.RemoveCronJobById(id)
+		biz.ErrIsNil(d.DataSyncTaskApp.Delete(rc.MetaCtx, uint64(value)))
 	}
 }
 
@@ -76,10 +74,13 @@ func (d *DataSyncTask) ChangeStatus(rc *req.Ctx) {
 	form := &form.DataSyncTaskStatusForm{}
 	task := ginx.BindJsonAndCopyTo[*entity.DataSyncTask](rc.GinCtx, form, new(entity.DataSyncTask))
 	_ = d.DataSyncTaskApp.UpdateById(context.Background(), task)
+
 	if task.Status == entity.DataSyncTaskStatusEnable {
-		_ = d.DataSyncTaskApp.AddCronJobById(task.Id)
+		task, err := d.DataSyncTaskApp.GetById(new(entity.DataSyncTask), task.Id)
+		biz.ErrIsNil(err, "该任务不存在")
+		d.DataSyncTaskApp.AddCronJob(task)
 	} else {
-		_ = d.DataSyncTaskApp.RemoveCronJobById(task.Id)
+		d.DataSyncTaskApp.RemoveCronJobById(task.Id)
 	}
 	// 记录请求日志
 	rc.ReqParam = form

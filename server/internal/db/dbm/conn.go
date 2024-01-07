@@ -92,11 +92,7 @@ func (d *DbConn) TxExec(tx *sql.Tx, execSql string, args ...any) (int64, error) 
 // 执行 update, insert, delete，建表等sql
 // 返回影响条数和错误
 func (d *DbConn) ExecContext(ctx context.Context, execSql string, args ...any) (int64, error) {
-	res, err := d.db.ExecContext(ctx, execSql, args...)
-	if err != nil {
-		return 0, wrapSqlError(err)
-	}
-	return res.RowsAffected()
+	return d.TxExecContext(ctx, nil, execSql, args...)
 }
 
 // 事务执行 update, insert, delete，建表等sql，若tx == nil，则不适用事务

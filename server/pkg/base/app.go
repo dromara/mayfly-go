@@ -40,6 +40,13 @@ type App[T model.ModelI] interface {
 	// 根据实体条件，更新参数udpateFields指定字段
 	Updates(ctx context.Context, cond any, udpateFields map[string]any) error
 
+	// 保存实体，实体IsCreate返回true则新增，否则更新
+	Save(ctx context.Context, e T) error
+
+	// 保存实体，实体IsCreate返回true则新增，否则更新。
+	// 使用指定gorm db执行，主要用于事务执行
+	SaveWithDb(ctx context.Context, db *gorm.DB, e T) error
+
 	// 根据实体条件删除实体
 	DeleteByCond(ctx context.Context, cond any) error
 
@@ -113,6 +120,17 @@ func (ai *AppImpl[T, R]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T)
 // 根据实体条件，更新参数udpateFields指定字段 (单纯更新，不做其他业务逻辑处理)
 func (ai *AppImpl[T, R]) Updates(ctx context.Context, cond any, udpateFields map[string]any) error {
 	return ai.GetRepo().Updates(cond, udpateFields)
+}
+
+// 保存实体，实体IsCreate返回true则新增，否则更新
+func (ai *AppImpl[T, R]) Save(ctx context.Context, e T) error {
+	return ai.GetRepo().Save(ctx, e)
+}
+
+// 保存实体，实体IsCreate返回true则新增，否则更新。
+// 使用指定gorm db执行，主要用于事务执行
+func (ai *AppImpl[T, R]) SaveWithDb(ctx context.Context, db *gorm.DB, e T) error {
+	return ai.GetRepo().SaveWithDb(ctx, db, e)
 }
 
 // 根据实体主键删除实体 (单纯删除实体，不做其他业务逻辑处理)

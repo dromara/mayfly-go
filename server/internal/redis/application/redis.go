@@ -24,7 +24,7 @@ type Redis interface {
 	// 测试连接
 	TestConn(re *entity.Redis) error
 
-	Save(ctx context.Context, re *entity.Redis, tagIds ...uint64) error
+	SaveRedis(ctx context.Context, re *entity.Redis, tagIds ...uint64) error
 
 	// 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
@@ -68,7 +68,7 @@ func (r *redisAppImpl) TestConn(re *entity.Redis) error {
 	return nil
 }
 
-func (r *redisAppImpl) Save(ctx context.Context, re *entity.Redis, tagIds ...uint64) error {
+func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds ...uint64) error {
 	// 查找是否存在该库
 	oldRedis := &entity.Redis{
 		Host:               re.Host,

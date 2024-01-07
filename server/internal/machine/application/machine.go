@@ -23,7 +23,7 @@ import (
 type Machine interface {
 	base.App[*entity.Machine]
 
-	Save(ctx context.Context, m *entity.Machine, tagIds ...uint64) error
+	SaveMachine(ctx context.Context, m *entity.Machine, tagIds ...uint64) error
 
 	// 测试机器连接
 	TestConn(me *entity.Machine) error
@@ -74,7 +74,7 @@ func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pagePara
 	return m.GetRepo().GetMachineList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (m *machineAppImpl) Save(ctx context.Context, me *entity.Machine, tagIds ...uint64) error {
+func (m *machineAppImpl) SaveMachine(ctx context.Context, me *entity.Machine, tagIds ...uint64) error {
 	oldMachine := &entity.Machine{
 		Ip:                 me.Ip,
 		Port:               me.Port,

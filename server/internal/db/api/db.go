@@ -62,7 +62,7 @@ func (d *Db) Save(rc *req.Ctx) {
 
 	rc.ReqParam = form
 
-	biz.ErrIsNil(d.DbApp.Save(rc.MetaCtx, db, form.TagId...))
+	biz.ErrIsNil(d.DbApp.SaveDb(rc.MetaCtx, db, form.TagId...))
 }
 
 func (d *Db) DeleteDb(rc *req.Ctx) {

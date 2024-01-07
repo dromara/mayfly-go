@@ -80,7 +80,7 @@ func (m *Machine) SaveMachine(rc *req.Ctx) {
 	machineForm.Password = "******"
 	rc.ReqParam = machineForm
 
-	biz.ErrIsNil(m.MachineApp.Save(rc.MetaCtx, me, machineForm.TagId...))
+	biz.ErrIsNil(m.MachineApp.SaveMachine(rc.MetaCtx, me, machineForm.TagId...))
 }
 
 func (m *Machine) TestConn(rc *req.Ctx) {

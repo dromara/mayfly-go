@@ -60,7 +60,7 @@ func (m *Mongo) Save(rc *req.Ctx) {
 	}(form.Uri)
 	rc.ReqParam = form
 
-	biz.ErrIsNil(m.MongoApp.Save(rc.MetaCtx, mongo, form.TagId...))
+	biz.ErrIsNil(m.MongoApp.SaveMongo(rc.MetaCtx, mongo, form.TagId...))
 }
 
 func (m *Mongo) DeleteMongo(rc *req.Ctx) {

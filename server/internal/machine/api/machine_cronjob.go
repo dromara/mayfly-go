@@ -36,7 +36,7 @@ func (m *MachineCronJob) Save(rc *req.Ctx) {
 	mcj := ginx.BindJsonAndCopyTo[*entity.MachineCronJob](rc.GinCtx, jobForm, new(entity.MachineCronJob))
 	rc.ReqParam = jobForm
 
-	cronJobId, err := m.MachineCronJobApp.Save(rc.MetaCtx, mcj)
+	cronJobId, err := m.MachineCronJobApp.SaveMachineCronJob(rc.MetaCtx, mcj)
 	biz.ErrIsNil(err)
 
 	// 关联机器

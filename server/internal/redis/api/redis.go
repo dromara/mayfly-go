@@ -69,7 +69,7 @@ func (r *Redis) Save(rc *req.Ctx) {
 	form.Password = "****"
 	rc.ReqParam = form
 
-	biz.ErrIsNil(r.RedisApp.Save(rc.MetaCtx, redis, form.TagId...))
+	biz.ErrIsNil(r.RedisApp.SaveRedis(rc.MetaCtx, redis, form.TagId...))
 }
 
 // 获取redis实例密码，由于数据库是加密存储，故提供该接口展示原文密码

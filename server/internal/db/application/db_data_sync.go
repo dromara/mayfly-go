@@ -31,13 +31,7 @@ type DataSyncTask interface {
 
 	AddCronJob(taskEntity *entity.DataSyncTask)
 
-	AddCronJobById(id uint64) error
-
-	RemoveCronJob(taskEntity *entity.DataSyncTask)
-
-	RemoveCronJobById(id uint64) error
-
-	RemoveCronJobByKey(taskKey string)
+	RemoveCronJobById(taskId uint64)
 
 	RunCronJob(id uint64) error
 
@@ -62,15 +56,26 @@ func (app *dataSyncAppImpl) GetPageList(condition *entity.DataSyncTaskQuery, pag
 }
 
 func (app *dataSyncAppImpl) Save(ctx context.Context, taskEntity *entity.DataSyncTask) error {
-	app.AddCronJob(taskEntity)
+	var err error
 	if taskEntity.Id == 0 {
-		return app.Insert(ctx, taskEntity)
+		err = app.Insert(ctx, taskEntity)
+	} else {
+		err = app.UpdateById(ctx, taskEntity)
 	}
-	return app.UpdateById(ctx, taskEntity)
+	if err != nil {
+		return err
+	}
+
+	app.AddCronJob(taskEntity)
+	return nil
 }
 
 func (app *dataSyncAppImpl) Delete(ctx context.Context, id uint64) error {
-	return app.DeleteById(ctx, id)
+	if err := app.DeleteById(ctx, id); err != nil {
+		return err
+	}
+	app.RemoveCronJobById(id)
+	return nil
 }
 
 func (app *dataSyncAppImpl) AddCronJob(taskEntity *entity.DataSyncTask) {
@@ -88,31 +93,10 @@ func (app *dataSyncAppImpl) AddCronJob(taskEntity *entity.DataSyncTask) {
 	}
 }
 
-func (app *dataSyncAppImpl) AddCronJobById(id uint64) error {
-	task, err := app.GetById(new(entity.DataSyncTask), id)
-	if err != nil {
-		return err
-	}
-	app.AddCronJob(task)
-	return nil
-}
-
-func (app *dataSyncAppImpl) RemoveCronJob(taskEntity *entity.DataSyncTask) {
-	app.RemoveCronJobByKey(taskEntity.TaskKey)
-}
-
-func (app *dataSyncAppImpl) RemoveCronJobById(id uint64) error {
-	task, err := app.GetById(new(entity.DataSyncTask), id)
-	if err != nil {
-		return err
-	}
-	app.RemoveCronJob(task)
-	return nil
-}
-
-func (app *dataSyncAppImpl) RemoveCronJobByKey(taskKey string) {
-	if taskKey != "" {
-		scheduler.RemoveByKey(taskKey)
+func (app *dataSyncAppImpl) RemoveCronJobById(taskId uint64) {
+	task, err := app.GetById(new(entity.DataSyncTask), taskId)
+	if err == nil {
+		scheduler.RemoveByKey(task.TaskKey)
 	}
 }
 
@@ -148,30 +132,40 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
 		// 组装查询sql
 		sql := fmt.Sprintf("select * from (%s) t where 1 = 1 %s %s", task.DataSql, updSql, orderSql)
 
-		err = app.doDataSync(sql, task)
+		log, err := app.doDataSync(sql, task)
 		if err != nil {
-			app.endRunning(task, entity.DataSyncTaskStateFail, fmt.Sprintf("执行失败: %s", err.Error()), sql, 0)
+			log.ErrText = fmt.Sprintf("执行失败: %s", err.Error())
+			log.Status = entity.DataSyncTaskStateFail
+			app.endRunning(task, log)
 		}
 	}()
 
 	return nil
 }
 
-func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) error {
+func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*entity.DataSyncLog, error) {
+	now := time.Now()
+	syncLog := &entity.DataSyncLog{
+		TaskId:      task.Id,
+		CreateTime:  &now,
+		DataSqlFull: sql,
+		Status:      entity.DataSyncTaskStateRunning,
+	}
+
 	// 获取源数据库连接
 	srcConn, err := GetDbApp().GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
 	if err != nil {
-		return errorx.NewBiz("连接源数据库失败: %s", err.Error())
+		return syncLog, errorx.NewBiz("连接源数据库失败: %s", err.Error())
 	}
 
 	// 获取目标数据库连接
 	targetConn, err := GetDbApp().GetDbConn(uint64(task.TargetDbId), task.TargetDbName)
 	if err != nil {
-		return errorx.NewBiz("连接目标数据库失败: %s", err.Error())
+		return syncLog, errorx.NewBiz("连接目标数据库失败: %s", err.Error())
 	}
 	targetDbTx, err := targetConn.Begin()
 	if err != nil {
-		return errorx.NewBiz("开启目标数据库事务失败: %s", err.Error())
+		return syncLog, errorx.NewBiz("开启目标数据库事务失败: %s", err.Error())
 	}
 	defer func() {
 		if r := recover(); r != nil {
@@ -188,7 +182,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) er
 	var fieldMap []map[string]string
 	err = json.Unmarshal([]byte(task.FieldMap), &fieldMap)
 	if err != nil {
-		return errorx.NewBiz("解析字段映射json出错: %s", err.Error())
+		return syncLog, errorx.NewBiz("解析字段映射json出错: %s", err.Error())
 	}
 	var updFieldType dbm.DataType
 
@@ -218,6 +212,12 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) er
 			if err := app.srcData2TargetDb(result, fieldMap, updFieldType, task, srcDialect, targetDialect, targetDbTx); err != nil {
 				return err
 			}
+
+			// 记录当前已同步的数据量
+			syncLog.ErrText = fmt.Sprintf("本次任务执行中，已同步：%d条", total)
+			syncLog.ResNum = total
+			app.saveLog(syncLog)
+
 			result = result[:0]
 		}
 
@@ -226,25 +226,29 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) er
 
 	if err != nil {
 		targetDbTx.Rollback()
-		return err
+		return syncLog, err
 	}
 
 	// 处理剩余的数据
 	if len(result) > 0 {
 		if err := app.srcData2TargetDb(result, fieldMap, updFieldType, task, srcDialect, targetDialect, targetDbTx); err != nil {
 			targetDbTx.Rollback()
-			return err
+			return syncLog, err
 		}
 	}
 
 	if err := targetDbTx.Commit(); err != nil {
-		return errorx.NewBiz("数据同步-目标数据库事务提交失败: %s", err.Error())
+		return syncLog, errorx.NewBiz("数据同步-目标数据库事务提交失败: %s", err.Error())
 	}
 	logx.Infof("同步任务：[%s]，执行完毕，保存记录成功：[%d]条", task.TaskName, total)
 
 	// 保存执行成功日志
-	app.endRunning(task, entity.DataSyncTaskStateSuccess, fmt.Sprintf("本次任务执行成功，新数据：%d 条", total), "", total)
-	return nil
+	syncLog.ErrText = fmt.Sprintf("本次任务执行成功，新数据：%d 条", total)
+	syncLog.Status = entity.DataSyncTaskStateSuccess
+	syncLog.ResNum = total
+	app.endRunning(task, syncLog)
+
+	return syncLog, nil
 }
 
 func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, updFieldType dbm.DataType, task *entity.DataSyncTask, srcDialect dbm.DbDialect, targetDialect dbm.DbDialect, targetDbTx *sql.Tx) error {
@@ -304,9 +308,10 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	return nil
 }
 
-func (app *dataSyncAppImpl) endRunning(taskEntity *entity.DataSyncTask, state int8, msg string, sql string, resNum int) {
-	logx.Info(msg)
+func (app *dataSyncAppImpl) endRunning(taskEntity *entity.DataSyncTask, log *entity.DataSyncLog) {
+	logx.Info(log.ErrText)
 
+	state := log.Status
 	task := new(entity.DataSyncTask)
 	task.Id = taskEntity.Id
 	task.RecentState = state
@@ -321,19 +326,11 @@ func (app *dataSyncAppImpl) endRunning(taskEntity *entity.DataSyncTask, state in
 	//}
 	_ = app.UpdateById(context.Background(), task)
 	// 保存执行日志
-	app.saveLog(taskEntity.Id, state, msg, sql, resNum)
+	app.saveLog(log)
 }
 
-func (app *dataSyncAppImpl) saveLog(taskId uint64, state int8, msg string, sql string, resNum int) {
-	now := time.Now()
-	_ = app.dataSyncLogRepo.Insert(context.Background(), &entity.DataSyncLog{
-		TaskId:      taskId,
-		CreateTime:  &now,
-		DataSqlFull: sql,
-		ResNum:      resNum,
-		ErrText:     msg,
-		Status:      state,
-	})
+func (app *dataSyncAppImpl) saveLog(log *entity.DataSyncLog) {
+	app.dataSyncLogRepo.Save(context.Background(), log)
 }
 
 func (app *dataSyncAppImpl) InitCronJob() {
