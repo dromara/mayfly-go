@@ -278,11 +278,11 @@ func (dd *DMDialect) GetDbProgram() DbProgram {
 	panic("implement me")
 }
 
-func (pd *DMDialect) WrapName(name string) string {
+func (dd *DMDialect) WrapName(name string) string {
 	return "\"" + name + "\""
 }
 
-func (pd *DMDialect) GetDataType(dbColumnType string) DataType {
+func (dd *DMDialect) GetDataType(dbColumnType string) DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
 		return DataTypeNumber
 	}
@@ -301,7 +301,7 @@ func (pd *DMDialect) GetDataType(dbColumnType string) DataType {
 	return DataTypeString
 }
 
-func (pd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
+func (dd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
 	// 执行批量insert sql
 	// insert into "table_name" ("column1", "column2", ...) values (value1, value2, ...)
 
@@ -311,11 +311,11 @@ func (pd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string,
 	// 去除最后一个逗号，占位符由括号包裹
 	placeholder := fmt.Sprintf("(%s)", strings.TrimSuffix(repeated, ","))
 
-	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), strings.Join(columns, ","), placeholder)
+	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", dd.WrapName(tableName), strings.Join(columns, ","), placeholder)
 	effRows := 0
 	for _, value := range values {
 		// 达梦数据库只能一条条的执行insert
-		er, err := pd.dc.TxExec(tx, sqlTemp, value...)
+		er, err := dd.dc.TxExec(tx, sqlTemp, value...)
 		if err != nil {
 			logx.Errorf("执行sql失败：%s", err.Error())
 			return int64(effRows), err
@@ -326,7 +326,7 @@ func (pd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string,
 	return int64(effRows), nil
 }
 
-func (pd *DMDialect) FormatStrData(dbColumnValue string, dataType DataType) string {
+func (dd *DMDialect) FormatStrData(dbColumnValue string, dataType DataType) string {
 	switch dataType {
 	case DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
 		res, _ := time.Parse(time.RFC3339, dbColumnValue)

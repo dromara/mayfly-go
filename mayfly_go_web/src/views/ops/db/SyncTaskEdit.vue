@@ -278,7 +278,6 @@ watch(tabActiveName, async (newValue: string) => {
             await handleGetTargetFields();
             break;
         case 'targetDb':
-            await handleGetSrcFields();
             await handleGetTargetFields();
             if (state.form.targetDbId && state.form.targetDbName) {
                 await loadDbTables(state.form.targetDbId, state.form.targetDbName);

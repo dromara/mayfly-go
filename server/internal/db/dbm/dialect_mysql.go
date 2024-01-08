@@ -202,11 +202,11 @@ func (md *MysqlDialect) GetDbProgram() DbProgram {
 	return NewDbProgramMysql(md.dc)
 }
 
-func (pd *MysqlDialect) WrapName(name string) string {
+func (md *MysqlDialect) WrapName(name string) string {
 	return "`" + name + "`"
 }
 
-func (pd *MysqlDialect) GetDataType(dbColumnType string) DataType {
+func (md *MysqlDialect) GetDataType(dbColumnType string) DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
 		return DataTypeNumber
 	}
@@ -225,7 +225,7 @@ func (pd *MysqlDialect) GetDataType(dbColumnType string) DataType {
 	return DataTypeString
 }
 
-func (pd *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
+func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
 	// 生成占位符字符串：如：(?,?)
 	// 重复字符串并用逗号连接
 	repeated := strings.Repeat("?,", len(columns))
@@ -240,17 +240,17 @@ func (pd *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 	// 去除最后一个逗号
 	placeholder = strings.TrimSuffix(repeated, ",")
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), strings.Join(columns, ","), placeholder)
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", md.WrapName(tableName), strings.Join(columns, ","), placeholder)
 	// 执行批量insert sql
 	// 把二维数组转为一维数组
 	var args []any
 	for _, v := range values {
 		args = append(args, v...)
 	}
-	return pd.dc.TxExec(tx, sqlStr, args...)
+	return md.dc.TxExec(tx, sqlStr, args...)
 }
 
-func (pd *MysqlDialect) FormatStrData(dbColumnValue string, dataType DataType) string {
+func (md *MysqlDialect) FormatStrData(dbColumnValue string, dataType DataType) string {
 	// mysql不需要格式化时间日期等
 	return dbColumnValue
 }
