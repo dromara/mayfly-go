@@ -204,6 +204,10 @@ func doUpdate(ctx context.Context, update *sqlparser.Update, execSqlReq *DbSqlEx
 	tableStr := sqlparser.String(update.TableExprs)
 	// 可能使用别名，故空格切割
 	tableName := strings.Split(tableStr, " ")[0]
+
+	// 使用反引号转义表名
+	escapedTableName := "`" + tableName + "`"
+	
 	where := sqlparser.String(update.Where)
 	if len(where) == 0 {
 		return nil, errorx.NewBiz("SQL[%s]未执行. 请完善 where 条件后再执行", execSqlReq.Sql)
@@ -223,7 +227,7 @@ func doUpdate(ctx context.Context, update *sqlparser.Update, execSqlReq *DbSqlEx
 
 	updateColumnsAndPrimaryKey := strings.Join(updateColumns, ",") + "," + primaryKey
 	// 查询要更新字段数据的旧值，以及主键值
-	selectSql := fmt.Sprintf("SELECT %s FROM %s %s LIMIT 200", updateColumnsAndPrimaryKey, tableStr, where)
+	selectSql := fmt.Sprintf("SELECT %s FROM %s %s LIMIT 200", updateColumnsAndPrimaryKey, escapedTableName, where)
 	_, res, err := dbConn.QueryContext(ctx, selectSql)
 	if err == nil {
 		bytes, _ := json.Marshal(res)
@@ -244,13 +248,17 @@ func doDelete(ctx context.Context, delete *sqlparser.Delete, execSqlReq *DbSqlEx
 	tableStr := sqlparser.String(delete.TableExprs)
 	// 可能使用别名，故空格切割
 	table := strings.Split(tableStr, " ")[0]
+
+	// 使用反引号转义表名
+	escapedTableName := "`" + tableName + "`"
+	
 	where := sqlparser.String(delete.Where)
 	if len(where) == 0 {
 		return nil, errorx.NewBiz("SQL[%s]未执行. 请完善 where 条件后再执行", execSqlReq.Sql)
 	}
 
 	// 查询删除数据
-	selectSql := fmt.Sprintf("SELECT * FROM %s %s LIMIT 200", tableStr, where)
+	selectSql := fmt.Sprintf("SELECT * FROM %s %s LIMIT 200", escapedTableName, where)
 	_, res, _ := dbConn.QueryContext(ctx, selectSql)
 
 	bytes, _ := json.Marshal(res)
