@@ -234,6 +234,62 @@ CREATE TABLE `t_db_binlog_history` (
     KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- ----------------------------
+-- Table structure for t_db_data_sync_task
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_data_sync_task`;
+CREATE TABLE `t_db_data_sync_task`
+(
+    `id`                bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `creator_id`        bigint(20) NOT NULL COMMENT '创建人id',
+    `creator`           varchar(100) NOT NULL COMMENT '创建人姓名',
+    `create_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
+    `modifier`          varchar(100) NOT NULL COMMENT '修改人姓名',
+    `modifier_id`       bigint(20) NOT NULL COMMENT '修改人id',
+    `task_name`         varchar(500) NOT NULL COMMENT '任务名',
+    `task_cron`         varchar(50)  NOT NULL COMMENT '任务Cron表达式',
+    `src_db_id`         bigint(20) NOT NULL COMMENT '源数据库ID',
+    `src_db_name`       varchar(100)          DEFAULT NULL COMMENT '源数据库名',
+    `src_tag_path`      varchar(200)          DEFAULT NULL COMMENT '源数据库tag路径',
+    `target_db_id`      bigint(20) NOT NULL COMMENT '目标数据库ID',
+    `target_db_name`    varchar(100)          DEFAULT NULL COMMENT '目标数据库名',
+    `target_tag_path`   varchar(200)          DEFAULT NULL COMMENT '目标数据库tag路径',
+    `target_table_name` varchar(100)          DEFAULT NULL COMMENT '目标数据库表名',
+    `data_sql`          text         NOT NULL COMMENT '数据查询sql',
+    `page_size`         int(11) NOT NULL COMMENT '数据同步分页大小',
+    `upd_field`         varchar(100) NOT NULL DEFAULT 'id' COMMENT '更新字段，默认"id"',
+    `upd_field_val`     varchar(100)          DEFAULT NULL COMMENT '当前更新值',
+    `id_rule`           tinyint(2) NOT NULL DEFAULT '1' COMMENT 'id生成规则：1、MD5(时间戳+更新字段的值)。2、无(不自动生成id，选择无的时候需要指定主键ID字段是数据源哪个字段)',
+    `pk_field`          varchar(100)          DEFAULT 'id' COMMENT '主键id字段名，默认"id"',
+    `field_map`         text COMMENT '字段映射json',
+    `is_deleted`        tinyint(8) DEFAULT '0',
+    `delete_time`       datetime              DEFAULT NULL,
+    `status`            tinyint(1) NOT NULL DEFAULT '1' COMMENT '状态 1启用 2停用',
+    `recent_state`      tinyint(1) NOT NULL DEFAULT '0' COMMENT '最近一次状态 0未执行 1成功 2失败',
+    `task_key`          varchar(100)          DEFAULT NULL COMMENT '定时任务唯一uuid key',
+    `running_state`     tinyint(1) DEFAULT '2' COMMENT '运行时状态 1运行中、2待运行、3已停止',
+    PRIMARY KEY (`id`)
+) COMMENT='数据同步';
+
+-- ----------------------------
+-- Table structure for t_db_data_sync_log
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_data_sync_log`;
+CREATE TABLE `t_db_data_sync_log`
+(
+    `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+    `task_id`       bigint(20) NOT NULL COMMENT '同步任务表id',
+    `create_time`   datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `data_sql_full` text     NOT NULL COMMENT '执行的完整sql',
+    `res_num`       int(11) DEFAULT NULL COMMENT '收到数据条数',
+    `err_text`      text COMMENT '错误日志',
+    `status`        tinyint(4) NOT NULL DEFAULT '1' COMMENT '状态:1.成功  0.失败',
+    `is_deleted`    tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否删除 1是 0 否',
+    PRIMARY KEY (`id`),
+    KEY             `t_db_data_sync_log_taskid_idx` (`task_id`) USING BTREE COMMENT 't_db_data_sync_log表(taskid)普通索引'
+) COMMENT='数据同步日志';
+
 
 DROP TABLE IF EXISTS `t_auth_cert`;
 CREATE TABLE `t_auth_cert` (
@@ -719,12 +775,18 @@ INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(132, 130, '12sSjal1/W9XKiabq/zxXM23i0/', 2, 1, '删除计划任务', 'machine:cronjob:del', 1689860102, 'null', 1, 'admin', 1, 'admin', '2023-07-20 21:35:02', '2023-07-20 21:35:02', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(131, 130, '12sSjal1/W9XKiabq/gEOqr2pD/', 2, 1, '保存计划任务', 'machine:cronjob:save', 1689860087, 'null', 1, 'admin', 1, 'admin', '2023-07-20 21:34:47', '2023-07-20 21:34:47', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(130, 2, '12sSjal1/W9XKiabq/', 1, 1, '计划任务', '/machine/cron-job', 1689646396, '{"component":"ops/machine/cronjob/CronJobList","icon":"AlarmClock","isKeepAlive":true,"routeName":"CronJobList"}', 1, 'admin', 1, 'admin', '2023-07-18 10:13:16', '2023-07-18 10:14:06', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(134, 80, 'Mongo452/eggago31/3sblw1Wb/', 2, 1, '删除数据', 'mongo:data:del', 1692674964, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:24', '2023-08-22 11:29:24', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(133, 80, 'Mongo452/eggago31/xvpKk36u/', 2, 1, '保存数据', 'mongo:data:save', 1692674943, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:04', '2023-08-22 11:29:11', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(134, 80, 'Mongo452/eggago31/3sblw1Wb/', 2, 1, '删除数据', 'mongo:data:del', 1692674964, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:24', '2023-08-22 11:29:24', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(133, 80, 'Mongo452/eggago31/xvpKk36u/', 2, 1, '保存数据', 'mongo:data:save', 1692674943, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:04', '2023-08-22 11:29:11', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (135, 36, 'dbms23ax/X0f4BxT0/', 1, 1, '数据库实例', 'instances', 1693040706, '{\"component\":\"ops/db/InstanceList\",\"icon\":\"Coin\",\"isKeepAlive\":true,\"routeName\":\"InstanceList\"}', 1, 'admin', 1, 'admin', '2023-08-26 09:05:07', '2023-08-29 22:35:11', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (136, 135, 'dbms23ax/X0f4BxT0/D23fUiBr/', 2, 1, '实例保存', 'db:instance:save', 1693041001, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:10:02', '2023-08-26 09:10:02', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (137, 135, 'dbms23ax/X0f4BxT0/mJlBeTCs/', 2, 1, '基本权限', 'db:instance', 1693041055, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:10:55', '2023-08-26 09:10:55', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (138, 135, 'dbms23ax/X0f4BxT0/Sgg8uPwz/', 2, 1, '实例删除', 'db:instance:del', 1693041084, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:11:24', '2023-08-26 09:11:24', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(155, 150, 'Jra0n7De/PigmSGVg/', 2, 1, '日志', 'db:sync:log', 1704266866, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-01-03 15:27:47', '2024-01-03 15:27:47', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(154, 150, 'Jra0n7De/VBt68CDx/', 2, 1, '启停', 'db:sync:status', 1703641364, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:42:45', '2023-12-27 09:42:45', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(153, 150, 'Jra0n7De/pLOA2UYz/', 2, 1, '删除', 'db:sync:del', 1703641342, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:42:22', '2023-12-27 09:42:22', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(152, 150, 'Jra0n7De/zvAMo2vk/', 2, 1, '编辑', 'db:sync:save', 1703641320, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:42:00', '2023-12-27 09:42:12', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(151, 150, 'Jra0n7De/uAnHZxEV/', 2, 1, '基本权限', 'db:sync', 1703641202, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:40:02', '2023-12-27 09:40:02', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(150, 36, 'Jra0n7De/', 1, 1, '数据同步', 'sync', 1693040707, '{"component":"ops/db/SyncTaskList","icon":"Coin","isKeepAlive":true,"routeName":"SyncTaskList"}', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-22 09:51:34', '2023-12-27 10:16:57', 0, NULL);
 COMMIT;
 
 -- ----------------------------

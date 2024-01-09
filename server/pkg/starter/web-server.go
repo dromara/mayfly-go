@@ -3,14 +3,14 @@ package starter
 import (
 	"context"
 	"errors"
-	"github.com/gin-gonic/gin"
 	"mayfly-go/initialize"
-	"mayfly-go/internal/db/application"
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
 	"net/http"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func runWebServer(ctx context.Context) {
@@ -41,8 +41,7 @@ func runWebServer(ctx context.Context) {
 		if err != nil {
 			logx.Errorf("Failed to Shutdown HTTP Server: %v", err)
 		}
-		closeDbTasks()
-		// todo: close backupApp and restoreApp
+		initialize.Terminate()
 	}()
 
 	confSrv := config.Conf.Server
@@ -57,20 +56,5 @@ func runWebServer(ctx context.Context) {
 		logx.Info("HTTP Server Shutdown")
 	} else if err != nil {
 		logx.Errorf("Failed to Start HTTP Server: %v", err)
-	}
-}
-
-func closeDbTasks() {
-	restoreApp := application.GetDbRestoreApp()
-	if restoreApp != nil {
-		restoreApp.Close()
-	}
-	binlogApp := application.GetDbBinlogApp()
-	if binlogApp != nil {
-		binlogApp.Close()
-	}
-	backupApp := application.GetDbBackupApp()
-	if backupApp != nil {
-		backupApp.Close()
 	}
 }

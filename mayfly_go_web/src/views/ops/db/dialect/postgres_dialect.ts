@@ -203,7 +203,8 @@ class PostgresqlDialect implements DbDialect {
     }
 
     wrapName = (name: string) => {
-        return `"${name}"`;
+        // 后端sql解析器暂不支持pgsql
+        return name;
     };
 
     matchType(text: string, arr: string[]): boolean {

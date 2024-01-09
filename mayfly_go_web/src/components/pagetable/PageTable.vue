@@ -182,7 +182,7 @@ import SearchForm from '@/components/SearchForm/index.vue';
 import { SearchItem } from '../SearchForm/index';
 import SearchFormItem from '../SearchForm/components/SearchFormItem.vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import { usePageTable } from '../../hooks/usePageTable';
+import { usePageTable } from '@/hooks/usePageTable';
 import { ElTable } from 'element-plus';
 
 const emit = defineEmits(['update:queryForm', 'update:selectionData', 'pageChange']);
@@ -316,7 +316,7 @@ onMounted(async () => {
 });
 
 const calcuTableHeight = () => {
-    const headerHeight = isShowSearch.value ? 325 : 245;
+    const headerHeight = isShowSearch.value ? 330 : 250;
     state.tableMaxHeight = window.innerHeight - headerHeight + 'px';
 };
 

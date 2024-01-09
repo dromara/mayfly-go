@@ -24,10 +24,10 @@ type ModelI interface {
 	// 是否为新建该实体模型, 默认 id == 0 为新建
 	IsCreate() bool
 
-	// 使用当前登录账号信息设置实体结构体的基础信息
+	// 使用当前登录账号信息赋值实体结构体的基础信息
 	//
-	// 如创建时间，修改时间，创建者，修改者信息
-	SetBaseInfo(idGenType IdGenType, account *LoginAccount)
+	// 如创建时间，修改时间，创建者，修改者信息等
+	FillBaseInfo(idGenType IdGenType, account *LoginAccount)
 }
 
 type IdModel struct {
@@ -38,7 +38,7 @@ func (m *IdModel) IsCreate() bool {
 	return m.Id == 0
 }
 
-func (m *IdModel) SetBaseInfo(idGenType IdGenType, account *LoginAccount) {
+func (m *IdModel) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
 	// 存在id，则赋值
 	if !m.IsCreate() {
 		return
@@ -53,9 +53,9 @@ type DeletedModel struct {
 	DeleteTime *time.Time `json:"-"`
 }
 
-func (m *DeletedModel) SetBaseInfo(idGenType IdGenType, account *LoginAccount) {
+func (m *DeletedModel) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
 	if m.Id == 0 {
-		m.IdModel.SetBaseInfo(idGenType, account)
+		m.IdModel.FillBaseInfo(idGenType, account)
 		m.IsDeleted = ModelUndeleted
 	}
 }
@@ -73,7 +73,7 @@ func (m *CreateModel) SetBaseInfo(idGenType IdGenType, account *LoginAccount) {
 		return
 	}
 
-	m.DeletedModel.SetBaseInfo(idGenType, account)
+	m.DeletedModel.FillBaseInfo(idGenType, account)
 	nowTime := time.Now()
 	m.CreateTime = &nowTime
 	if account != nil {
@@ -101,7 +101,7 @@ func (m *Model) SetBaseInfo(idGenType IdGenType, account *LoginAccount) {
 	if isCreate {
 		m.IsDeleted = ModelUndeleted
 		m.CreateTime = &nowTime
-		m.IdModel.SetBaseInfo(idGenType, account)
+		m.IdModel.FillBaseInfo(idGenType, account)
 	}
 	m.UpdateTime = &nowTime
 

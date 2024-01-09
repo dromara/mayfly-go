@@ -86,11 +86,11 @@ func (br *RepoImpl[T]) Insert(ctx context.Context, e T) error {
 	if db := contextx.GetDb(ctx); db != nil {
 		return br.InsertWithDb(ctx, db, e)
 	}
-	return gormx.Insert(br.setBaseInfo(ctx, e))
+	return gormx.Insert(br.fillBaseInfo(ctx, e))
 }
 
 func (br *RepoImpl[T]) InsertWithDb(ctx context.Context, db *gorm.DB, e T) error {
-	return gormx.InsertWithDb(db, br.setBaseInfo(ctx, e))
+	return gormx.InsertWithDb(db, br.fillBaseInfo(ctx, e))
 }
 
 func (br *RepoImpl[T]) BatchInsert(ctx context.Context, es []T) error {
@@ -99,7 +99,7 @@ func (br *RepoImpl[T]) BatchInsert(ctx context.Context, es []T) error {
 	}
 
 	for _, e := range es {
-		br.setBaseInfo(ctx, e)
+		br.fillBaseInfo(ctx, e)
 	}
 	return gormx.BatchInsert(es)
 }
@@ -107,7 +107,7 @@ func (br *RepoImpl[T]) BatchInsert(ctx context.Context, es []T) error {
 // 使用指定gorm db执行，主要用于事务执行
 func (br *RepoImpl[T]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []T) error {
 	for _, e := range es {
-		br.setBaseInfo(ctx, e)
+		br.fillBaseInfo(ctx, e)
 	}
 	return gormx.BatchInsertWithDb(db, es)
 }
@@ -117,11 +117,11 @@ func (br *RepoImpl[T]) UpdateById(ctx context.Context, e T, columns ...string) e
 		return br.UpdateByIdWithDb(ctx, db, e, columns...)
 	}
 
-	return gormx.UpdateById(br.setBaseInfo(ctx, e), columns...)
+	return gormx.UpdateById(br.fillBaseInfo(ctx, e), columns...)
 }
 
 func (br *RepoImpl[T]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, columns ...string) error {
-	return gormx.UpdateByIdWithDb(db, br.setBaseInfo(ctx, e), columns...)
+	return gormx.UpdateByIdWithDb(db, br.fillBaseInfo(ctx, e), columns...)
 }
 
 func (br *RepoImpl[T]) Updates(cond any, udpateFields map[string]any) error {
@@ -197,10 +197,10 @@ func (br *RepoImpl[T]) GetModel() T {
 }
 
 // 从上下文获取登录账号信息，并赋值至实体
-func (br *RepoImpl[T]) setBaseInfo(ctx context.Context, e T) T {
+func (br *RepoImpl[T]) fillBaseInfo(ctx context.Context, e T) T {
 	if la := contextx.GetLoginAccount(ctx); la != nil {
 		// 默认使用数据库id策略, 若要改变则实体结构体自行覆盖SetBaseInfo方法。可参考 sys/entity.Resource
-		e.SetBaseInfo(model.IdGenTypeNone, la)
+		e.FillBaseInfo(model.IdGenTypeNone, la)
 	}
 	return e
 }

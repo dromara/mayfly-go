@@ -72,7 +72,7 @@ func createSqlExecRecord(ctx context.Context, execSqlReq *DbSqlExecReq) *entity.
 	dbSqlExecRecord.Db = execSqlReq.Db
 	dbSqlExecRecord.Sql = execSqlReq.Sql
 	dbSqlExecRecord.Remark = execSqlReq.Remark
-	dbSqlExecRecord.SetBaseInfo(model.IdGenTypeNone, contextx.GetLoginAccount(ctx))
+	dbSqlExecRecord.FillBaseInfo(model.IdGenTypeNone, contextx.GetLoginAccount(ctx))
 	return dbSqlExecRecord
 }
 

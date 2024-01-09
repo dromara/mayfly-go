@@ -9,6 +9,16 @@ import (
 	"strings"
 )
 
+type DataType string
+
+const (
+	DataTypeString   DataType = "string"
+	DataTypeNumber   DataType = "number"
+	DataTypeDate     DataType = "date"
+	DataTypeTime     DataType = "time"
+	DataTypeDateTime DataType = "datetime"
+)
+
 // 数据库服务实例信息
 type DbServer struct {
 	Version string  `json:"version"` // 版本信息
