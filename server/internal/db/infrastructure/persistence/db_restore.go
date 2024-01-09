@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"slices"
+
+	"gorm.io/gorm"
 )
 
 var _ repository.DbRestore = (*dbRestoreRepoImpl)(nil)
@@ -60,7 +61,7 @@ func (d *dbRestoreRepoImpl) AddTask(ctx context.Context, tasks ...*entity.DbRest
 			return err
 		}
 		if len(res) > 0 {
-			return errors.New(fmt.Sprintf("数据库备份任务已存在: %v", res))
+			return fmt.Errorf("数据库备份任务已存在: %v", res)
 		}
 
 		return d.BatchInsertWithDb(ctx, db, tasks)

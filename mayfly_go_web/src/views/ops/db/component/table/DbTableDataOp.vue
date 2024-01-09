@@ -47,6 +47,22 @@
                     </el-tooltip>
                     <el-divider direction="vertical" border-style="dashed" />
 
+                    <!-- 表数据展示配置 -->
+                    <el-popover
+                        popper-style="max-height: 550px; overflow: auto; max-width: 450px"
+                        placement="bottom"
+                        width="auto"
+                        title="展示配置"
+                        trigger="click"
+                    >
+                        <el-checkbox v-model="dbConfig.showColumnComment" label="显示字段备注" :true-label="true" :false-label="false" size="small" />
+                        <template #reference>
+                            <el-link type="primary" icon="setting" :underline="false"></el-link>
+                        </template>
+                    </el-popover>
+
+                    <el-divider direction="vertical" border-style="dashed" />
+
                     <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
                         <el-link @click="submitUpdateFields()" type="success" :underline="false" class="font12">提交</el-link>
                     </el-tooltip>
@@ -188,11 +204,11 @@
         </el-dialog>
 
         <el-dialog v-model="addDataDialog.visible" :title="addDataDialog.title" :destroy-on-close="true" width="600px">
-            <el-form ref="dataForm" :model="addDataDialog.data" label-width="auto" size="small">
+            <el-form ref="dataForm" :model="addDataDialog.data" :show-message="false" label-width="auto" size="small">
                 <el-form-item
                     v-for="column in columns"
                     :key="column.columnName"
-                    class="w100"
+                    class="w100 mb5"
                     :prop="column.columnName"
                     :label="column.columnName"
                     :required="column.nullable != 'YES' && column.columnKey != 'PRI'"
@@ -224,7 +240,7 @@ import DbTableData from './DbTableData.vue';
 import { DbDialect, getDbDialect } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import ColumnFormItem from './ColumnFormItem.vue';
-import { useEventListener } from '@vueuse/core';
+import { useEventListener, useStorage } from '@vueuse/core';
 
 const props = defineProps({
     dbId: {
@@ -252,6 +268,8 @@ const columnNameSearchInputRef: Ref = ref(null);
 const condDialogInputRef: Ref = ref(null);
 
 const defaultPageSize = DbInst.DefaultLimit;
+
+const dbConfig = useStorage('dbConfig', { showColumnComment: false });
 
 const state = reactive({
     datas: [],

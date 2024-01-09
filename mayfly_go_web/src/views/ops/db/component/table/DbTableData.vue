@@ -4,7 +4,7 @@
             <template #default="{ height, width }">
                 <el-table-v2
                     ref="tableRef"
-                    :header-height="30"
+                    :header-height="showColumnTip && dbConfig.showColumnComment ? 45 : 30"
                     :row-height="30"
                     :row-class="rowClass"
                     :row-key="null"
@@ -22,13 +22,12 @@
                                 :style="{
                                     width: `${column.width}px`,
                                     height: '100%',
-                                    lineHeight: '30px',
                                     textAlign: 'center',
                                     borderRight: 'var(--el-table-border)',
                                 }"
                             >
                                 <!-- 行号列 -->
-                                <div v-if="column.key == rowNoColumn.key">
+                                <div v-if="column.key == rowNoColumn.key" class="header-column-title">
                                     <b class="el-text" tag="b"> {{ column.title }} </b>
                                 </div>
 
@@ -43,20 +42,31 @@
                                     </div>
 
                                     <div v-if="showColumnTip">
-                                        <b :title="column.remark" class="el-text" style="cursor: pointer">
-                                            {{ column.title }}
-                                        </b>
+                                        <div class="header-column-title">
+                                            <b :title="column.remark" class="el-text" style="cursor: pointer">
+                                                {{ column.title }}
+                                            </b>
 
-                                        <span>
-                                            <SvgIcon
-                                                color="var(--el-color-primary)"
-                                                v-if="column.title == nowSortColumn?.columnName"
-                                                :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"
-                                            ></SvgIcon>
+                                            <span>
+                                                <SvgIcon
+                                                    color="var(--el-color-primary)"
+                                                    v-if="column.title == nowSortColumn?.columnName"
+                                                    :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"
+                                                ></SvgIcon>
+                                            </span>
+                                        </div>
+
+                                        <!-- 字段备注信息 -->
+                                        <span
+                                            v-if="dbConfig.showColumnComment"
+                                            style="color: var(--el-color-info-light-3)"
+                                            class="font10 el-text el-text--small is-truncated"
+                                        >
+                                            {{ column.columnComment }}
                                         </span>
                                     </div>
 
-                                    <div v-else>
+                                    <div v-else class="header-column-title">
                                         <b class="el-text">
                                             {{ column.title }}
                                         </b>
@@ -141,8 +151,8 @@ import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
 import { dateStrFormat } from '@/common/utils/date';
-import { useIntervalFn } from '@vueuse/core';
-import { ColumnTypeSubscript, compatibleMysql, DataType, DbDialect, DbType, getDbDialect } from '../../dialect/index';
+import { useIntervalFn, useStorage } from '@vueuse/core';
+import { ColumnTypeSubscript, compatibleMysql, DataType, DbDialect, getDbDialect } from '../../dialect/index';
 import ColumnFormItem from './ColumnFormItem.vue';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
@@ -332,6 +342,8 @@ const state = reactive({
 });
 
 const { tableHeight, datas } = toRefs(state);
+
+const dbConfig = useStorage('dbConfig', { showColumnComment: false });
 
 /**
  * 行号字段列
@@ -825,6 +837,13 @@ defineExpose({
         border-right: var(--el-table-border);
     }
 
+    .header-column-title {
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
     .table-data-cell {
         width: 100%;
         height: 100%;
@@ -844,7 +863,7 @@ defineExpose({
         color: var(--el-color-info-light-3);
         font-weight: bold;
         position: absolute;
-        top: -12px;
+        top: -7px;
         padding: 2px;
         height: 12px;
     }

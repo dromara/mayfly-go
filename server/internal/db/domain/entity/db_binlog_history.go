@@ -23,6 +23,6 @@ func (d *DbBinlogHistory) TableName() string {
 
 type BinlogInfo struct {
 	FileName string `json:"fileName"`
-	Sequence int64  `json:"sequence""`
+	Sequence int64  `json:"sequence"`
 	Position int64  `json:"position"`
 }

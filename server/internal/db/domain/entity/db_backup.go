@@ -11,16 +11,6 @@ type DbBackup struct {
 	DbInstanceId uint64 `json:"dbInstanceId"` // 数据库实例ID
 }
 
-var (
-	backupResult = map[TaskStatus]string{
-		TaskDelay:    "等待备份数据库",
-		TaskReady:    "准备备份数据库",
-		TaskReserved: "数据库备份中",
-		TaskSuccess:  "数据库备份成功",
-		TaskFailed:   "数据库备份失败",
-	}
-)
-
 func (*DbBackup) MessageWithStatus(status TaskStatus) string {
 	var result string
 	switch status {
