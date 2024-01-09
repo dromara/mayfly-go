@@ -18,9 +18,9 @@ func (a *Resource) TableName() string {
 	return "t_sys_resource"
 }
 
-func (m *Resource) SetBaseInfo(idGenType model.IdGenType, la *model.LoginAccount) {
+func (m *Resource) FillBaseInfo(idGenType model.IdGenType, la *model.LoginAccount) {
 	// id使用时间戳，减少id冲突概率
-	m.Model.SetBaseInfo(model.IdGenTypeTimestamp, la)
+	m.Model.FillBaseInfo(model.IdGenTypeTimestamp, la)
 }
 
 const (

@@ -202,10 +202,6 @@ func (md *MysqlDialect) GetDbProgram() DbProgram {
 	return NewDbProgramMysql(md.dc)
 }
 
-func (md *MysqlDialect) WrapName(name string) string {
-	return "`" + name + "`"
-}
-
 func (md *MysqlDialect) GetDataType(dbColumnType string) DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
 		return DataTypeNumber
@@ -240,7 +236,7 @@ func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 	// 去除最后一个逗号
 	placeholder = strings.TrimSuffix(repeated, ",")
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", md.WrapName(tableName), strings.Join(columns, ","), placeholder)
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", md.dc.Info.Type.WrapName(tableName), strings.Join(columns, ","), placeholder)
 	// 执行批量insert sql
 	// 把二维数组转为一维数组
 	var args []any

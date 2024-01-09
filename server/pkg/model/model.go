@@ -68,7 +68,7 @@ type CreateModel struct {
 	Creator    string     `json:"creator"`
 }
 
-func (m *CreateModel) SetBaseInfo(idGenType IdGenType, account *LoginAccount) {
+func (m *CreateModel) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
 	if !m.IsCreate() {
 		return
 	}
@@ -95,7 +95,7 @@ type Model struct {
 }
 
 // 设置基础信息. 如创建时间，修改时间，创建者，修改者信息
-func (m *Model) SetBaseInfo(idGenType IdGenType, account *LoginAccount) {
+func (m *Model) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
 	nowTime := time.Now()
 	isCreate := m.IsCreate()
 	if isCreate {

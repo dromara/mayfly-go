@@ -25,6 +25,17 @@ func (dbType DbType) Equal(typ string) bool {
 	return ToDbType(typ) == dbType
 }
 
+func (dbType DbType) QuoteIdentifier(name string) string {
+	switch dbType {
+	case DbTypeMysql, DbTypeMariadb:
+		return quoteIdentifier(name, "`")
+	case DbTypePostgres:
+		return pq.QuoteIdentifier(name)
+	default:
+		panic(fmt.Sprintf("invalid database type: %s", dbType))
+	}
+}
+
 func (dbType DbType) MetaDbName() string {
 	switch dbType {
 	case DbTypeMysql, DbTypeMariadb:
@@ -38,14 +49,13 @@ func (dbType DbType) MetaDbName() string {
 	}
 }
 
-func (dbType DbType) QuoteIdentifier(name string) string {
+// 包装字段名，防止使用了数据库保留关键字
+func (dbType DbType) WrapName(name string) string {
 	switch dbType {
 	case DbTypeMysql, DbTypeMariadb:
-		return quoteIdentifier(name, "`")
-	case DbTypePostgres:
-		return pq.QuoteIdentifier(name)
+		return fmt.Sprintf("`%s`", name)
 	default:
-		panic(fmt.Sprintf("invalid database type: %s", dbType))
+		return fmt.Sprintf(`"%s"`, name)
 	}
 }
 

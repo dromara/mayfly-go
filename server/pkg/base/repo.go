@@ -199,7 +199,7 @@ func (br *RepoImpl[T]) GetModel() T {
 // 从上下文获取登录账号信息，并赋值至实体
 func (br *RepoImpl[T]) fillBaseInfo(ctx context.Context, e T) T {
 	if la := contextx.GetLoginAccount(ctx); la != nil {
-		// 默认使用数据库id策略, 若要改变则实体结构体自行覆盖SetBaseInfo方法。可参考 sys/entity.Resource
+		// 默认使用数据库id策略, 若要改变则实体结构体自行覆盖FillBaseInfo方法。可参考 sys/entity.Resource
 		e.FillBaseInfo(model.IdGenTypeNone, la)
 	}
 	return e

@@ -175,8 +175,6 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 	}()
 
 	srcDialect := srcConn.GetDialect()
-	// 记录更新字段最新值
-	targetDialect := targetConn.GetDialect()
 
 	// task.FieldMap为json数组字符串 [{"src":"id","target":"id"}]，转为map
 	var fieldMap []map[string]string
@@ -209,7 +207,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 		total++
 		result = append(result, row)
 		if total%batchSize == 0 {
-			if err := app.srcData2TargetDb(result, fieldMap, updFieldType, task, srcDialect, targetDialect, targetDbTx); err != nil {
+			if err := app.srcData2TargetDb(result, fieldMap, updFieldType, task, srcDialect, targetConn, targetDbTx); err != nil {
 				return err
 			}
 
@@ -231,7 +229,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 
 	// 处理剩余的数据
 	if len(result) > 0 {
-		if err := app.srcData2TargetDb(result, fieldMap, updFieldType, task, srcDialect, targetDialect, targetDbTx); err != nil {
+		if err := app.srcData2TargetDb(result, fieldMap, updFieldType, task, srcDialect, targetConn, targetDbTx); err != nil {
 			targetDbTx.Rollback()
 			return syncLog, err
 		}
@@ -251,7 +249,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 	return syncLog, nil
 }
 
-func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, updFieldType dbm.DataType, task *entity.DataSyncTask, srcDialect dbm.DbDialect, targetDialect dbm.DbDialect, targetDbTx *sql.Tx) error {
+func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, updFieldType dbm.DataType, task *entity.DataSyncTask, srcDialect dbm.DbDialect, targetDbConn *dbm.DbConn, targetDbTx *sql.Tx) error {
 	var data = make([]map[string]any, 0)
 
 	// 遍历res，组装插入sql
@@ -279,7 +277,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	for _, item := range fieldMap {
 		targetField := item["target"]
 		srcField := item["target"]
-		targetWrapColumns = append(targetWrapColumns, targetDialect.WrapName(targetField))
+		targetWrapColumns = append(targetWrapColumns, targetDbConn.Info.Type.WrapName(targetField))
 		srcColumns = append(srcColumns, srcField)
 	}
 
@@ -294,7 +292,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	}
 
 	// 目标数据库执行sql批量插入
-	_, err := targetDialect.BatchInsert(targetDbTx, task.TargetTableName, targetWrapColumns, values)
+	_, err := targetDbConn.GetDialect().BatchInsert(targetDbTx, task.TargetTableName, targetWrapColumns, values)
 	if err != nil {
 		return err
 	}

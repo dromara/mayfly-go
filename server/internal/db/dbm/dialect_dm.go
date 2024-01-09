@@ -278,10 +278,6 @@ func (dd *DMDialect) GetDbProgram() DbProgram {
 	panic("implement me")
 }
 
-func (dd *DMDialect) WrapName(name string) string {
-	return "\"" + name + "\""
-}
-
 func (dd *DMDialect) GetDataType(dbColumnType string) DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
 		return DataTypeNumber
@@ -311,7 +307,7 @@ func (dd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string,
 	// 去除最后一个逗号，占位符由括号包裹
 	placeholder := fmt.Sprintf("(%s)", strings.TrimSuffix(repeated, ","))
 
-	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", dd.WrapName(tableName), strings.Join(columns, ","), placeholder)
+	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", dd.dc.Info.Type.WrapName(tableName), strings.Join(columns, ","), placeholder)
 	effRows := 0
 	for _, value := range values {
 		// 达梦数据库只能一条条的执行insert

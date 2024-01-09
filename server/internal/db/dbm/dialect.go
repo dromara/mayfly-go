@@ -90,9 +90,6 @@ type DbDialect interface {
 	// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
 	GetDbProgram() DbProgram
 
-	// 封装名字，如，mysql: `table_name`,  dm: "table_name"
-	WrapName(name string) string
-
 	// 批量保存数据
 	BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error)
 

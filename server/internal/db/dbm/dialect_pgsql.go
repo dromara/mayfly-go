@@ -280,10 +280,6 @@ func (pd *PgsqlDialect) GetDbProgram() DbProgram {
 	panic("implement me")
 }
 
-func (pd *PgsqlDialect) WrapName(name string) string {
-	return fmt.Sprintf(`"%s"`, name)
-}
-
 func (pd *PgsqlDialect) GetDataType(dbColumnType string) DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
 		return DataTypeNumber
@@ -323,7 +319,7 @@ func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 		placeholders = append(placeholders, "("+strings.Join(placeholder, ", ")+")")
 	}
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "))
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.dc.Info.Type.WrapName(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "))
 	// 执行批量insert sql
 
 	return pd.dc.TxExec(tx, sqlStr, args...)

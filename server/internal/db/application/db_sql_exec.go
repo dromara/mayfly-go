@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm"
@@ -11,6 +10,7 @@ import (
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/jsonx"
 	"strconv"
 	"strings"
 
@@ -226,8 +226,7 @@ func doUpdate(ctx context.Context, update *sqlparser.Update, execSqlReq *DbSqlEx
 	selectSql := fmt.Sprintf("SELECT %s FROM %s %s LIMIT 200", updateColumnsAndPrimaryKey, tableStr, where)
 	_, res, err := dbConn.QueryContext(ctx, selectSql)
 	if err == nil {
-		bytes, _ := json.Marshal(res)
-		dbSqlExec.OldValue = string(bytes)
+		dbSqlExec.OldValue = jsonx.ToStr(res)
 	} else {
 		dbSqlExec.OldValue = err.Error()
 	}
@@ -253,8 +252,7 @@ func doDelete(ctx context.Context, delete *sqlparser.Delete, execSqlReq *DbSqlEx
 	selectSql := fmt.Sprintf("SELECT * FROM %s %s LIMIT 200", tableStr, where)
 	_, res, _ := dbConn.QueryContext(ctx, selectSql)
 
-	bytes, _ := json.Marshal(res)
-	dbSqlExec.OldValue = string(bytes)
+	dbSqlExec.OldValue = jsonx.ToStr(res)
 	dbSqlExec.Table = table
 	dbSqlExec.Type = entity.DbSqlExecTypeDelete
 

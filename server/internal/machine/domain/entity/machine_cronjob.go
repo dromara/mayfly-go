@@ -21,20 +21,10 @@ type MachineCronJob struct {
 
 // 计划任务与机器关联信息
 type MachineCronJobRelate struct {
-	model.DeletedModel
+	model.CreateModel
 
-	CronJobId  uint64
-	MachineId  uint64
-	Creator    string
-	CreatorId  uint64
-	CreateTime *time.Time
-}
-
-func (m *MachineCronJobRelate) SetBaseInfo(gt model.IdGenType, la *model.LoginAccount) {
-	now := time.Now()
-	m.CreateTime = &now
-	m.Creator = la.Username
-	m.CreatorId = la.Id
+	CronJobId uint64
+	MachineId uint64
 }
 
 // 机器任务执行记录
