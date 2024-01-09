@@ -19,7 +19,8 @@ func newDataSyncTaskRepo() repository.DataSyncTask {
 // 分页获取数据库信息列表
 func (d *dataSyncTaskRepoImpl) GetTaskList(condition *entity.DataSyncTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := gormx.NewQuery(new(entity.DataSyncTask)).
-		Like("task_name", condition.Name)
+		Like("task_name", condition.Name).
+		Eq("status", condition.Status)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
 

@@ -281,7 +281,7 @@ func (pd *PgsqlDialect) GetDbProgram() DbProgram {
 }
 
 func (pd *PgsqlDialect) WrapName(name string) string {
-	return name
+	return fmt.Sprintf(`"%s"`, name)
 }
 
 func (pd *PgsqlDialect) GetDataType(dbColumnType string) DataType {
@@ -307,27 +307,24 @@ func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 	// 执行批量insert sql，跟mysql一样  pg或高斯支持批量insert语法
 	// insert into table_name (column1, column2, ...) values (value1, value2, ...), (value1, value2, ...), ...
 
-	// 生成占位符字符串：如：(?,?)
-	// 重复字符串并用逗号连接
-	repeated := strings.Repeat("?,", len(columns))
-	// 去除最后一个逗号，占位符由括号包裹
-	placeholder := fmt.Sprintf("(%s)", strings.TrimSuffix(repeated, ","))
-
-	// 执行批量insert sql，mysql支持批量insert语法
-	// insert into table_name (column1, column2, ...) values (value1, value2, ...), (value1, value2, ...), ...
-
-	// 重复占位符字符串n遍
-	repeated = strings.Repeat(placeholder+",", len(values))
-	// 去除最后一个逗号
-	placeholder = strings.TrimSuffix(repeated, ",")
-
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), strings.Join(columns, ","), placeholder)
-	// 执行批量insert sql
 	// 把二维数组转为一维数组
 	var args []any
 	for _, v := range values {
 		args = append(args, v...)
 	}
+
+	// 构建占位符字符串 "($1, $2, $3), ($4, $5, $6), ..." 用于指定参数
+	var placeholders []string
+	for i := 0; i < len(args); i += len(columns) {
+		var placeholder []string
+		for j := 0; j < len(columns); j++ {
+			placeholder = append(placeholder, fmt.Sprintf("$%d", i+j+1))
+		}
+		placeholders = append(placeholders, "("+strings.Join(placeholder, ", ")+")")
+	}
+
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.WrapName(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "))
+	// 执行批量insert sql
 
 	return pd.dc.TxExec(tx, sqlStr, args...)
 }

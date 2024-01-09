@@ -6,7 +6,7 @@ import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { editor, languages, Position } from 'monaco-editor';
 
 import { registerCompletionItemProvider } from '@/components/monaco/completionItemProvider';
-import { EditorCompletionItem, getDbDialect } from './dialect';
+import {DbDialect, EditorCompletionItem, getDbDialect} from './dialect'
 
 const dbInstCache: Map<number, DbInst> = new Map();
 
@@ -91,7 +91,7 @@ export class DbInst {
         return tables;
     }
 
-    async loadTableSuggestions(dbName: string, range: any, reload?: boolean) {
+    async loadTableSuggestions(dbDialect: DbDialect, dbName: string, range: any, reload?: boolean) {
         const tables = await this.loadTables(dbName, reload);
         // 表名联想
         let suggestions: languages.CompletionItem[] = [];
@@ -104,7 +104,7 @@ export class DbInst {
                 },
                 kind: monaco.languages.CompletionItemKind.File,
                 detail: tableComment,
-                insertText: tableName + ' ',
+                insertText: dbDialect.wrapName(tableName) + ' ',
                 range,
                 sortText: 300 + index + '',
             });
@@ -113,7 +113,7 @@ export class DbInst {
     }
 
     /** 加载列信息提示 */
-    async loadTableColumnSuggestions(db: string, tableName: string, range: any) {
+    async loadTableColumnSuggestions(dbDialect: DbDialect,db: string, tableName: string, range: any) {
         let dbHits = await this.loadDbHints(db);
         let columns = dbHits[tableName];
         let suggestions: languages.CompletionItem[] = [];
@@ -128,7 +128,7 @@ export class DbInst {
                 },
                 kind: monaco.languages.CompletionItemKind.Property,
                 detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                insertText: fieldName, // create_time
+                insertText: dbDialect.wrapName(fieldName)+ ' ', // create_time
                 range,
                 sortText: 100 + index + '', // 使用表字段声明顺序排序,排序需为字符串类型
             });
@@ -651,20 +651,20 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                     if (db.indexOf('/') > 0) {
                         dbName = db.substring(0, db.indexOf('/') + 1) + alias;
                     }
-                    return await dbInst.loadTableSuggestions(dbName, range);
+                    return await dbInst.loadTableSuggestions(dbDialect, dbName, range);
                 }
                 // 表下列名联想  .前的字符串是表名或表别名
                 const sqlInfo = getTableName4SqlCtx(sqlStatement, alias, db);
                 // 提出到表名，则将表对应的字段也添加进提示建议
                 if (sqlInfo) {
-                    return await dbInst.loadTableColumnSuggestions(sqlInfo.db, sqlInfo.tableName, range);
+                    return await dbInst.loadTableColumnSuggestions(dbDialect, sqlInfo.db, sqlInfo.tableName, range);
                 }
             }
 
             // 空格触发也会提示字段信息
             const sqlInfo = getTableName4SqlCtx(sqlStatement, alias, db);
             if (sqlInfo) {
-                const columnSuggestions = await dbInst.loadTableColumnSuggestions(sqlInfo.db, sqlInfo.tableName, range);
+                const columnSuggestions = await dbInst.loadTableColumnSuggestions(dbDialect, sqlInfo.db, sqlInfo.tableName, range);
                 suggestions.push(...columnSuggestions.suggestions);
             }
 
