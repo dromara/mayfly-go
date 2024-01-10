@@ -15,7 +15,7 @@
                     </el-descriptions>
                 </el-col>
                 <el-col :lg="8" :md="8" class="redis-info">
-                    <div class="info-memory-chart" ref="memRef"></div>
+                    <ECharts height="150" width="360" :option="state.memOption" />
                 </el-col>
             </el-row>
 
@@ -72,10 +72,10 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, watch, toRefs, ref, nextTick } from 'vue';
+import { reactive, watch, toRefs, nextTick } from 'vue';
 import { formatByteSize } from '@/common/utils/format';
-import useEcharts from '@/common/echarts/useEcharts';
-import tdTheme from '@/common/echarts/theme.json';
+import ECharts from '@/components/echarts/ECharts.vue';
+import { ECOption } from '@/components/echarts/config';
 
 const props = defineProps({
     visible: {
@@ -86,6 +86,7 @@ const props = defineProps({
     },
     info: {
         type: [Boolean, Object],
+        default: () => {},
     },
 });
 
@@ -95,10 +96,8 @@ const state = reactive({
     dialogVisible: false,
     memInfo: {} as any,
     Keyspace: [] as any[],
+    memOption: {},
 });
-
-let memChart: any = null;
-let memRef = ref(null);
 
 const { dialogVisible, Keyspace } = toRefs(state);
 
@@ -146,15 +145,14 @@ const initMemStats = () => {
             value: state.memInfo.used_memory,
         },
     ];
-    const option = {
+    const option: ECOption = {
         title: {
             text: '内存',
-            x: 'left',
             textStyle: { fontSize: 14 },
         },
         tooltip: {
             trigger: 'item',
-            valueFormatter: formatByteSize,
+            valueFormatter: (val: any) => formatByteSize(val),
         },
         legend: {
             top: '15%',
@@ -186,11 +184,8 @@ const initMemStats = () => {
             },
         ],
     };
-    if (memChart) {
-        memChart.setOption(option, true);
-        return;
-    }
-    memChart = useEcharts(memRef.value, tdTheme, option);
+
+    state.memOption = option;
 };
 
 const close = () => {
@@ -202,11 +197,6 @@ const close = () => {
 <style lang="scss">
 .redis-info {
     margin-top: 12px;
-
-    .info-memory-chart {
-        width: 360px;
-        height: 150px;
-    }
 }
 
 .row .title {

@@ -1,25 +1,29 @@
 <template>
-    <div class="db-select-tree">
-        <div style="color: gray">{{ (tagPath || '') + ' - ' + (dbName || '请选择数据源schema') }}</div>
-        <tag-tree :resource-type="TagResourceTypeEnum.Db.value" :tag-path-node-type="NodeTypeTagPath" ref="tagTreeRef">
-            <template #prefix="{ data }">
-                <SvgIcon v-if="data.type.value == SqlExecNodeType.DbInst" :name="getDbDialect(data.params.type).getInfo().icon" :size="18" />
-                <SvgIcon v-if="data.icon" :name="data.icon.name" :color="data.icon.color" />
-            </template>
-        </tag-tree>
-    </div>
+    <TagTreeResourceSelect
+        v-bind="$attrs"
+        v-model="selectNode"
+        @change="changeNode"
+        :resource-type="TagResourceTypeEnum.Db.value"
+        :tag-path-node-type="NodeTypeTagPath"
+    >
+        <template #prefix="{ data }">
+            <SvgIcon v-if="data.type.value == SqlExecNodeType.DbInst" :name="getDbDialect(data.params.type).getInfo().icon" :size="18" />
+            <SvgIcon v-if="data.icon" :name="data.icon.name" :color="data.icon.color" />
+        </template>
+    </TagTreeResourceSelect>
 </template>
 
 <script setup lang="ts">
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import TagTree from '@/views/ops/component/TagTree.vue';
 import { NodeType, TagTreeNode } from '@/views/ops/component/tag';
 import { dbApi } from '@/views/ops/db/api';
 import { sleep } from '@/common/utils/loading';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { DbType, getDbDialect } from '@/views/ops/db/dialect';
+import TagTreeResourceSelect from '../../component/TagTreeResourceSelect.vue';
+import { computed } from 'vue';
 
-defineProps({
+const props = defineProps({
     dbId: {
         type: Number,
     },
@@ -46,6 +50,15 @@ class SqlExecNodeType {
     static PgSchemaMenu = 7;
     static PgSchema = 8;
 }
+
+const selectNode = computed({
+    get: () => {
+        return props.dbName ? `${props.tagPath} - ${props.dbId} - ${props.dbName}` : '';
+    },
+    set: () => {
+        //
+    },
+});
 
 const DbIcon = {
     name: 'Coin',
@@ -89,7 +102,7 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
         fn = PgNodeTypes;
     }
     return dbs.map((x: any) => {
-        let tagTreeNode = new TagTreeNode(`${parentNode.key}.${x}`, x, fn)
+        let tagTreeNode = new TagTreeNode(`${parentNode.key}.${x}`, `${x}`, fn)
             .withParams({
                 tagPath: params.tagPath,
                 id: params.id,
@@ -107,17 +120,6 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
         return tagTreeNode;
     });
 });
-
-const nodeClickChangeDb = (nodeData: TagTreeNode) => {
-    const params = nodeData.params;
-    // postgres
-    emits('update:dbName', params.db);
-    emits('update:dbId', params.id);
-    emits('update:tagPath', params.tagPath);
-    emits('selectDb', params);
-
-    return true;
-};
 
 // 数据库节点
 const PgNodeTypes = new NodeType(SqlExecNodeType.Db).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
@@ -137,23 +139,19 @@ const PgNodeTypes = new NodeType(SqlExecNodeType.Db).withLoadNodesFunc(async (pa
     });
 });
 
-const MysqlNodeTypes = new NodeType(SqlExecNodeType.Db).withNodeClickFunc(nodeClickChangeDb);
+const MysqlNodeTypes = new NodeType(SqlExecNodeType.Db);
 
 // postgres schema模式
-const NodeTypePostgresSchema = new NodeType(SqlExecNodeType.PgSchema).withNodeClickFunc(nodeClickChangeDb);
+const NodeTypePostgresSchema = new NodeType(SqlExecNodeType.PgSchema);
+
+const changeNode = (nodeData: TagTreeNode) => {
+    const params = nodeData.params;
+    // postgres
+    emits('update:dbName', params.db);
+    emits('update:dbId', params.id);
+    emits('update:tagPath', params.tagPath);
+    emits('selectDb', params);
+};
 </script>
 
-<style lang="scss">
-.db-select-tree {
-    .tag-tree {
-        height: auto !important;
-        overflow-x: hidden;
-        width: 560px;
-        .el-tree {
-            height: 150px;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-    }
-}
-</style>
+<style lang="scss"></style>

@@ -1,7 +1,5 @@
 package entity
 
-import "mayfly-go/pkg/model"
-
 // InstanceQuery 数据库实例查询
 type InstanceQuery struct {
 	Id   uint64 `json:"id" form:"id"`
@@ -19,7 +17,7 @@ type DataSyncLogQuery struct {
 
 // 数据库查询实体，不与数据库表字段一一对应
 type DbQuery struct {
-	model.Model
+	Id uint64 `form:"id"`
 
 	Name     string `orm:"column(name)" json:"name"`
 	Database string `orm:"column(database)" json:"database"`

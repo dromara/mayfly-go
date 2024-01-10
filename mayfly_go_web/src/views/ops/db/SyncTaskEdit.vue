@@ -7,47 +7,62 @@
             :close-on-click-modal="false"
             :close-on-press-escape="false"
             :destroy-on-close="true"
-            width="700px"
+            width="850px"
         >
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName" style="height: 450px">
                     <el-tab-pane label="基本信息" name="basic">
-                        <el-form-item prop="taskName" label="任务名" required>
-                            <el-input v-model.trim="form.taskName" placeholder="请输入数据库别名" auto-complete="off" />
+                        <el-form-item>
+                            <el-row>
+                                <el-col :span="11">
+                                    <el-form-item prop="taskName" label="任务名" required>
+                                        <el-input v-model.trim="form.taskName" placeholder="请输入数据库别名" auto-complete="off" />
+                                    </el-form-item>
+                                </el-col>
+
+                                <el-col :span="11">
+                                    <el-form-item prop="taskCron" label="cron" required>
+                                        <template #label>
+                                            cron
+                                            <el-tooltip effect="dark" content="只支持5位表达式,不支持秒级.如 0/2 * * * * 表示每两分钟执行" placement="top">
+                                                <el-icon>
+                                                    <question-filled />
+                                                </el-icon>
+                                            </el-tooltip>
+                                        </template>
+
+                                        <el-input v-model="form.taskCron" placeholder="支持5位表达式,不支持秒级" auto-complete="off" />
+                                    </el-form-item>
+                                </el-col>
+
+                                <el-col :span="2">
+                                    <el-form-item prop="status" label="状态" label-width="60" required>
+                                        <el-switch
+                                            v-model="form.status"
+                                            inline-prompt
+                                            active-text="启用"
+                                            inactive-text="禁用"
+                                            :active-value="1"
+                                            :inactive-value="-1"
+                                        />
+                                    </el-form-item>
+                                </el-col>
+                            </el-row>
                         </el-form-item>
-                        <el-form-item prop="taskCron" label="cron" required>
-                            <el-input v-model="form.taskCron" placeholder="只支持5位表达式,不支持秒级.如 0/2 * * * * 表示每两分钟执行" auto-complete="off" />
-                        </el-form-item>
-                        <el-form-item prop="pageSize" label="分页大小" required>
-                            <el-input-number v-model.trim="form.pageSize" placeholder="同步数据时查询的每页数据大小" auto-complete="off" size="small" />
-                        </el-form-item>
-                        <el-form-item prop="updField" label="更新字段" required>
-                            <el-input v-model.trim="form.updField" placeholder="查询数据源的时候会带上这个字段当前最大值" auto-complete="off" />
-                        </el-form-item>
-                        <el-form-item prop="updFieldVal" label="更新值">
-                            <el-input v-model.trim="form.updFieldVal" placeholder="更新字段当前最大值" auto-complete="off" />
-                        </el-form-item>
-                        <el-form-item prop="status" label="状态" required>
-                            <el-switch v-model="form.status" inline-prompt active-text="启用" inactive-text="禁用" :active-value="1" :inactive-value="-1" />
-                        </el-form-item>
-                    </el-tab-pane>
-                    <el-tab-pane label="源数据库配置" name="srcDb">
-                        <el-form-item prop="srcDbId" label="数据源" required>
+
+                        <el-form-item prop="srcDbId" label="源数据库" required>
                             <db-select-tree
+                                placeholder="请选择源数据库"
                                 v-model:db-id="form.srcDbId"
                                 v-model:db-name="form.srcDbName"
                                 v-model:tag-path="form.srcTagPath"
                                 @select-db="onSelectSrcDb"
                             />
                         </el-form-item>
-                        <el-form-item prop="dataSql" label="数据sql" required>
-                            <monaco-editor height="200px" class="task-sql" language="sql" v-model="form.dataSql" />
-                        </el-form-item>
-                    </el-tab-pane>
 
-                    <el-tab-pane label="目标数据库配置" name="targetDb">
-                        <el-form-item prop="targetDbId" label="数据源" required>
+                        <el-form-item prop="targetDbId" label="目标数据库" required>
                             <db-select-tree
+                                placeholder="请选择目标数据库"
                                 v-model:db-id="form.targetDbId"
                                 v-model:db-name="form.targetDbName"
                                 v-model:tag-path="form.targetTagPath"
@@ -55,7 +70,11 @@
                             />
                         </el-form-item>
 
-                        <el-form-item prop="targetTableName" label="目标表" required>
+                        <el-form-item prop="dataSql" label="源数据sql" required>
+                            <monaco-editor height="150px" class="task-sql" language="sql" v-model="form.dataSql" />
+                        </el-form-item>
+
+                        <el-form-item prop="targetTableName" label="目标库表" required>
                             <el-select v-model="form.targetTableName" filterable placeholder="请选择目标数据库表">
                                 <el-option
                                     v-for="item in state.targetTableList"
@@ -65,7 +84,30 @@
                                 />
                             </el-select>
                         </el-form-item>
+
+                        <el-form-item>
+                            <el-row>
+                                <el-col :span="8">
+                                    <el-form-item prop="pageSize" label="分页大小" required>
+                                        <el-input type="number" v-model.trim="form.pageSize" placeholder="同步数据时查询的每页数据大小" auto-complete="off" />
+                                    </el-form-item>
+                                </el-col>
+
+                                <el-col :span="8">
+                                    <el-form-item prop="updField" label="更新字段" required>
+                                        <el-input v-model.trim="form.updField" placeholder="查询数据源的时候会带上这个字段当前最大值" auto-complete="off" />
+                                    </el-form-item>
+                                </el-col>
+
+                                <el-col :span="8">
+                                    <el-form-item prop="updFieldVal" label="更新值">
+                                        <el-input v-model.trim="form.updFieldVal" placeholder="更新字段当前最大值" auto-complete="off" />
+                                    </el-form-item>
+                                </el-col>
+                            </el-row>
+                        </el-form-item>
                     </el-tab-pane>
+
                     <el-tab-pane label="字段映射" name="field">
                         <el-form-item prop="fieldMap" label="字段映射" required>
                             <el-table :data="form.fieldMap" :max-height="400" size="small">
@@ -85,6 +127,7 @@
                             </el-table>
                         </el-form-item>
                     </el-tab-pane>
+
                     <el-tab-pane label="sql预览" name="sqlPreview">
                         <el-form-item prop="fieldMap" label="查询sql">
                             <el-input type="textarea" v-model="state.previewDataSql" readonly :input-style="{ height: '190px' }" />
@@ -226,48 +269,43 @@ watch(dialogVisible, async (newValue: boolean) => {
     }
     state.tabActiveName = 'basic';
     const propsData = props.data as any;
-    if (propsData?.id) {
-        let data = await dbApi.getDatasyncTask.request({ taskId: propsData?.id });
-        state.form = data;
-        try {
-            state.form.fieldMap = JSON.parse(data.fieldMap);
-        } catch (e) {
-            state.form.fieldMap = [];
-        }
-        let { srcDbId, srcTagPath, srcDbName, targetTagPath, targetDbId } = state.form;
-
-        //  初始化src数据源
-        if (srcTagPath && srcDbId) {
-            // 通过tagPath查询实例列表
-            const dbInfoRes = await dbApi.dbs.request({ tagPath: srcTagPath });
-            dbInfoRes.list.forEach((a: any) => {
-                if (a.id === srcDbId) {
-                    // 初始化实例
-                    a.databases = a.database?.split(' ').sort() || [];
-                    state.srcDbInst = DbInst.getOrNewInst(a);
-                }
-            });
-        }
-
-        //  初始化target数据源
-        if (targetTagPath && targetDbId) {
-            // 通过tagPath查询实例列表
-            const dbInfoRes = await dbApi.dbs.request({ tagPath: targetTagPath });
-            dbInfoRes.list.forEach((a: any) => {
-                if (a.id === targetDbId) {
-                    // 初始化实例
-                    a.databases = a.database?.split(' ').sort() || [];
-                    state.targetDbInst = DbInst.getOrNewInst(a);
-                }
-            });
-        }
-
-        // 注册sql代码提示
-        if (srcDbId && srcDbName) {
-            registerDbCompletionItemProvider(srcDbId, srcDbName, state.srcDbInst.databases, state.srcDbInst.type);
-        }
-    } else {
+    if (!propsData?.id) {
         state.form = basicFormData;
+        return;
+    }
+
+    let data = await dbApi.getDatasyncTask.request({ taskId: propsData?.id });
+    state.form = data;
+    try {
+        state.form.fieldMap = JSON.parse(data.fieldMap);
+    } catch (e) {
+        state.form.fieldMap = [];
+    }
+    let { srcDbId, srcDbName, targetDbId } = state.form;
+
+    //  初始化src数据源
+    if (srcDbId) {
+        // 通过tagPath查询实例列表
+        const dbInfoRes = await dbApi.dbs.request({ id: srcDbId });
+        const db = dbInfoRes.list[0];
+        // 初始化实例
+        db.databases = db.database?.split(' ').sort() || [];
+        state.srcDbInst = DbInst.getOrNewInst(db);
+    }
+
+    //  初始化target数据源
+    if (targetDbId) {
+        // 通过tagPath查询实例列表
+        const dbInfoRes = await dbApi.dbs.request({ id: targetDbId });
+        const db = dbInfoRes.list[0];
+        // 初始化实例
+        db.databases = db.database?.split(' ').sort() || [];
+        state.targetDbInst = DbInst.getOrNewInst(db);
+    }
+
+    // 注册sql代码提示
+    if (srcDbId && srcDbName) {
+        registerDbCompletionItemProvider(srcDbId, srcDbName, state.srcDbInst.databases, state.srcDbInst.type);
     }
 });
 
@@ -277,7 +315,7 @@ watch(tabActiveName, async (newValue: string) => {
             await handleGetSrcFields();
             await handleGetTargetFields();
             break;
-        case 'targetDb':
+        case 'dbConf':
             await handleGetTargetFields();
             if (state.form.targetDbId && state.form.targetDbName) {
                 await loadDbTables(state.form.targetDbId, state.form.targetDbName);
@@ -418,8 +456,12 @@ const cancel = () => {
 <style lang="scss">
 .sync-task-edit {
     .el-select {
-        width: 360px;
+        // width: 360px;
+        width: 100%;
     }
+    // .el-input__inner {
+    //     width: 100%; /* 将el-select内部输入框的宽度设置为100% */
+    // }
     .task-sql {
         width: 100%;
     }

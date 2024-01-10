@@ -22,6 +22,7 @@ func (d *dbRepoImpl) GetDbList(condition *entity.DbQuery, pageParam *model.PageP
 		Select("db.*, inst.name instance_name, inst.type instance_type, inst.host, inst.port, inst.username ").
 		Joins("JOIN t_db_instance inst ON db.instance_id = inst.id").
 		Eq("db.instance_id", condition.InstanceId).
+		Eq("db.id", condition.Id).
 		Like("db.database", condition.Database).
 		In("db.code", condition.Codes).
 		Eq0("db."+model.DeletedColumn, model.ModelUndeleted).
