@@ -19,11 +19,13 @@ var (
 	dataSyncApp  DataSyncTask
 )
 
-var repositories *repository.Repositories
+//var repositories *repository.Repositories
+//var scheduler *dbScheduler[*entity.DbBackup]
+//var scheduler1 *dbScheduler[*entity.DbRestore]
 
 func Init() {
 	sync.OnceFunc(func() {
-		repositories = &repository.Repositories{
+		repositories := &repository.Repositories{
 			Instance:       persistence.GetInstanceRepo(),
 			Backup:         persistence.NewDbBackupRepo(),
 			BackupHistory:  persistence.NewDbBackupHistoryRepo(),
@@ -40,15 +42,18 @@ func Init() {
 		dbSqlApp = newDbSqlApp(persistence.GetDbSqlRepo())
 		dataSyncApp = newDataSyncApp(persistence.GetDataSyncTaskRepo(), persistence.GetDataSyncLogRepo())
 
-		dbBackupApp, err = newDbBackupApp(repositories, dbApp)
+		scheduler, err := newDbScheduler(repositories)
+		if err != nil {
+			panic(fmt.Sprintf("初始化 dbScheduler 失败: %v", err))
+		}
+		dbBackupApp, err = newDbBackupApp(repositories, dbApp, scheduler)
 		if err != nil {
 			panic(fmt.Sprintf("初始化 dbBackupApp 失败: %v", err))
 		}
-		dbRestoreApp, err = newDbRestoreApp(repositories, dbApp)
+		dbRestoreApp, err = newDbRestoreApp(repositories, dbApp, scheduler)
 		if err != nil {
 			panic(fmt.Sprintf("初始化 dbRestoreApp 失败: %v", err))
 		}
-
 		dbBinlogApp, err = newDbBinlogApp(repositories, dbApp)
 		if err != nil {
 			panic(fmt.Sprintf("初始化 dbBinlogApp 失败: %v", err))

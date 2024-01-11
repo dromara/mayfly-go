@@ -93,3 +93,5 @@ require (
 	modernc.org/sqlite v1.23.1 // indirect
 	vitess.io/vitess v0.17.3 // indirect
 )
+
+require github.com/emirpasic/gods v1.18.1

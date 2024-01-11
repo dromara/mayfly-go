@@ -1,4 +1,4 @@
-package queue
+package runner
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-const minTimerDelay = time.Millisecond
+const minTimerDelay = time.Millisecond * 1
 const maxTimerDelay = time.Nanosecond * math.MaxInt64
 
 type DelayQueue[T Delayable] struct {
@@ -17,14 +17,12 @@ type DelayQueue[T Delayable] struct {
 	singleDequeue  chan struct{}
 	mutex          sync.Mutex
 	priorityQueue  *PriorityQueue[T]
-	elmMap         map[uint64]T
-
-	zero T
+	zero           T
 }
 
 type Delayable interface {
 	GetDeadline() time.Time
-	GetId() uint64
+	GetKey() string
 }
 
 func NewDelayQueue[T Delayable](cap int) *DelayQueue[T] {
@@ -35,7 +33,6 @@ func NewDelayQueue[T Delayable](cap int) *DelayQueue[T] {
 		dequeuedSignal: make(chan struct{}),
 		transferChan:   make(chan T),
 		singleDequeue:  singleDequeue,
-		elmMap:         make(map[uint64]T, 64),
 		priorityQueue: NewPriorityQueue[T](cap, func(src T, dst T) bool {
 			return src.GetDeadline().Before(dst.GetDeadline())
 		}),
@@ -135,7 +132,6 @@ func (s *DelayQueue[T]) dequeue() (T, bool) {
 	if !ok {
 		return s.zero, false
 	}
-	delete(s.elmMap, elm.GetId())
 	select {
 	case s.dequeuedSignal <- struct{}{}:
 	default:
@@ -147,7 +143,6 @@ func (s *DelayQueue[T]) enqueue(val T) bool {
 	if ok := s.priorityQueue.Enqueue(val); !ok {
 		return false
 	}
-	s.elmMap[val.GetId()] = val
 	select {
 	case s.enqueuedSignal <- struct{}{}:
 	default:
@@ -169,10 +164,6 @@ func (s *DelayQueue[T]) Enqueue(ctx context.Context, val T) bool {
 	for {
 		// 全局锁：避免入队和出队信号的重置与激活出现并发问题
 		s.mutex.Lock()
-		if _, ok := s.elmMap[val.GetId()]; ok {
-			s.mutex.Unlock()
-			return false
-		}
 
 		if ctx.Err() != nil {
 			s.mutex.Unlock()
@@ -220,24 +211,20 @@ func (s *DelayQueue[T]) Enqueue(ctx context.Context, val T) bool {
 	}
 }
 
-func (s *DelayQueue[T]) Remove(_ context.Context, elmId uint64) (T, bool) {
+func (s *DelayQueue[T]) Remove(_ context.Context, key string) (T, bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if _, ok := s.elmMap[elmId]; ok {
-		delete(s.elmMap, elmId)
-		return s.priorityQueue.Remove(s.index(elmId))
-	}
-	return s.zero, false
+	return s.priorityQueue.Remove(s.index(key))
 }
 
-func (s *DelayQueue[T]) index(elmId uint64) int {
+func (s *DelayQueue[T]) index(key string) int {
 	for i := 0; i < s.priorityQueue.Len(); i++ {
 		elm, ok := s.priorityQueue.Peek(i)
 		if !ok {
 			continue
 		}
-		if elmId == elm.GetId() {
+		if key == elm.GetKey() {
 			return i
 		}
 	}

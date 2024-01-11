@@ -22,7 +22,7 @@ func InitDbBackupRouter(router *gin.RouterGroup) {
 		// 创建数据库备份任务
 		req.NewPost(":dbId/backups", d.Create).Log(req.NewLogSave("db-创建数据库备份任务")),
 		// 保存数据库备份任务
-		req.NewPut(":dbId/backups/:backupId", d.Save).Log(req.NewLogSave("db-保存数据库备份任务")),
+		req.NewPut(":dbId/backups/:backupId", d.Update).Log(req.NewLogSave("db-保存数据库备份任务")),
 		// 启用数据库备份任务
 		req.NewPut(":dbId/backups/:backupId/enable", d.Enable).Log(req.NewLogSave("db-启用数据库备份任务")),
 		// 禁用数据库备份任务

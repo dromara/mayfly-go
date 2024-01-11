@@ -3,29 +3,27 @@ package application
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
+	"github.com/google/uuid"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/model"
-	"time"
-
-	"github.com/google/uuid"
 )
 
-func newDbBackupApp(repositories *repository.Repositories, dbApp Db) (*DbBackupApp, error) {
+func newDbBackupApp(repositories *repository.Repositories, dbApp Db, scheduler *dbScheduler) (*DbBackupApp, error) {
+	var jobs []*entity.DbBackup
+	if err := repositories.Backup.ListToDo(&jobs); err != nil {
+		return nil, err
+	}
+	if err := scheduler.AddJob(context.Background(), false, entity.DbJobTypeBackup, jobs); err != nil {
+		return nil, err
+	}
 	app := &DbBackupApp{
 		backupRepo:        repositories.Backup,
 		instanceRepo:      repositories.Instance,
 		backupHistoryRepo: repositories.BackupHistory,
 		dbApp:             dbApp,
+		scheduler:         scheduler,
 	}
-	scheduler, err := newDbScheduler[*entity.DbBackup](
-		repositories.Backup,
-		withRunBackupTask(app))
-	if err != nil {
-		return nil, err
-	}
-	app.scheduler = scheduler
 	return app, nil
 }
 
@@ -34,41 +32,41 @@ type DbBackupApp struct {
 	instanceRepo      repository.Instance
 	backupHistoryRepo repository.DbBackupHistory
 	dbApp             Db
-	scheduler         *dbScheduler[*entity.DbBackup]
+	scheduler         *dbScheduler
 }
 
 func (app *DbBackupApp) Close() {
 	app.scheduler.Close()
 }
 
-func (app *DbBackupApp) Create(ctx context.Context, tasks ...*entity.DbBackup) error {
-	return app.scheduler.AddTask(ctx, tasks...)
+func (app *DbBackupApp) Create(ctx context.Context, jobs []*entity.DbBackup) error {
+	return app.scheduler.AddJob(ctx, true /* 保存到数据库 */, entity.DbJobTypeBackup, jobs)
 }
 
-func (app *DbBackupApp) Save(ctx context.Context, task *entity.DbBackup) error {
-	return app.scheduler.UpdateTask(ctx, task)
+func (app *DbBackupApp) Update(ctx context.Context, job *entity.DbBackup) error {
+	return app.scheduler.UpdateJob(ctx, job)
 }
 
-func (app *DbBackupApp) Delete(ctx context.Context, taskId uint64) error {
+func (app *DbBackupApp) Delete(ctx context.Context, jobId uint64) error {
 	// todo: 删除数据库备份历史文件
-	return app.scheduler.DeleteTask(ctx, taskId)
+	return app.scheduler.RemoveJob(ctx, entity.DbJobTypeBackup, jobId)
 }
 
-func (app *DbBackupApp) Enable(ctx context.Context, taskId uint64) error {
-	return app.scheduler.EnableTask(ctx, taskId)
+func (app *DbBackupApp) Enable(ctx context.Context, jobId uint64) error {
+	return app.scheduler.EnableJob(ctx, entity.DbJobTypeBackup, jobId)
 }
 
-func (app *DbBackupApp) Disable(ctx context.Context, taskId uint64) error {
-	return app.scheduler.DisableTask(ctx, taskId)
+func (app *DbBackupApp) Disable(ctx context.Context, jobId uint64) error {
+	return app.scheduler.DisableJob(ctx, entity.DbJobTypeBackup, jobId)
 }
 
-func (app *DbBackupApp) Start(ctx context.Context, taskId uint64) error {
-	return app.scheduler.StartTask(ctx, taskId)
+func (app *DbBackupApp) Start(ctx context.Context, jobId uint64) error {
+	return app.scheduler.StartJobNow(ctx, entity.DbJobTypeBackup, jobId)
 }
 
 // GetPageList 分页获取数据库备份任务
-func (app *DbBackupApp) GetPageList(condition *entity.DbBackupQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return app.backupRepo.GetDbBackupList(condition, pageParam, toEntity, orderBy...)
+func (app *DbBackupApp) GetPageList(condition *entity.DbJobQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return app.backupRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 // GetDbNamesWithoutBackup 获取未配置定时备份的数据库名称
@@ -76,52 +74,9 @@ func (app *DbBackupApp) GetDbNamesWithoutBackup(instanceId uint64, dbNames []str
 	return app.backupRepo.GetDbNamesWithoutBackup(instanceId, dbNames)
 }
 
-// GetPageList 分页获取数据库备份历史
+// GetHistoryPageList 分页获取数据库备份历史
 func (app *DbBackupApp) GetHistoryPageList(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return app.backupHistoryRepo.GetHistories(condition, pageParam, toEntity, orderBy...)
-}
-
-func withRunBackupTask(app *DbBackupApp) dbSchedulerOption[*entity.DbBackup] {
-	return func(scheduler *dbScheduler[*entity.DbBackup]) {
-		scheduler.RunTask = app.runTask
-	}
-}
-
-func (app *DbBackupApp) runTask(ctx context.Context, task *entity.DbBackup) error {
-	id, err := NewIncUUID()
-	if err != nil {
-		return err
-	}
-	history := &entity.DbBackupHistory{
-		Uuid:         id.String(),
-		DbBackupId:   task.Id,
-		DbInstanceId: task.DbInstanceId,
-		DbName:       task.DbName,
-	}
-	conn, err := app.dbApp.GetDbConnByInstanceId(task.DbInstanceId)
-	if err != nil {
-		return err
-	}
-	dbProgram := conn.GetDialect().GetDbProgram()
-	binlogInfo, err := dbProgram.Backup(ctx, history)
-	if err != nil {
-		return err
-	}
-	now := time.Now()
-	name := task.Name
-	if len(name) == 0 {
-		name = task.DbName
-	}
-	history.Name = fmt.Sprintf("%s[%s]", name, now.Format(time.DateTime))
-	history.CreateTime = now
-	history.BinlogFileName = binlogInfo.FileName
-	history.BinlogSequence = binlogInfo.Sequence
-	history.BinlogPosition = binlogInfo.Position
-
-	if err := app.backupHistoryRepo.Insert(ctx, history); err != nil {
-		return err
-	}
-	return nil
 }
 
 func NewIncUUID() (uuid.UUID, error) {
@@ -144,19 +99,3 @@ func NewIncUUID() (uuid.UUID, error) {
 
 	return uid, nil
 }
-
-// func newDbBackupHistoryApp(repositories *repository.Repositories) (*DbBackupHistoryApp, error) {
-// 	app := &DbBackupHistoryApp{
-// 		repo: repositories.BackupHistory,
-// 	}
-// 	return app, nil
-// }
-
-// type DbBackupHistoryApp struct {
-// 	repo repository.DbBackupHistory
-// }
-
-// // GetPageList 分页获取数据库备份历史
-// func (app *DbBackupHistoryApp) GetPageList(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-// 	return app.repo.GetHistories(condition, pageParam, toEntity, orderBy...)
-// }

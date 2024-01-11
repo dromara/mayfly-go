@@ -27,7 +27,7 @@ func (d *DbRestore) GetPageList(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	var restores []vo.DbRestore
-	queryCond, page := ginx.BindQueryAndPage[*entity.DbRestoreQuery](rc.GinCtx, new(entity.DbRestoreQuery))
+	queryCond, page := ginx.BindQueryAndPage[*entity.DbJobQuery](rc.GinCtx, new(entity.DbJobQuery))
 	queryCond.DbInstanceId = db.InstanceId
 	queryCond.InDbNames = strings.Fields(db.Database)
 	res, err := d.DbRestoreApp.GetPageList(queryCond, page, &restores)
@@ -47,33 +47,31 @@ func (d *DbRestore) Create(rc *req.Ctx) {
 	db, err := d.DbApp.GetById(new(entity.Db), dbId, "instanceId")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
-	task := &entity.DbRestore{
-		DbTaskBase:          entity.NewDbBTaskBase(true, restoreForm.Repeated, restoreForm.StartTime, restoreForm.Interval),
-		DbName:              restoreForm.DbName,
-		DbInstanceId:        db.InstanceId,
+	job := &entity.DbRestore{
+		DbJobBaseImpl:       entity.NewDbBJobBase(db.InstanceId, restoreForm.DbName, entity.DbJobTypeRestore, true, restoreForm.Repeated, restoreForm.StartTime, restoreForm.Interval),
 		PointInTime:         restoreForm.PointInTime,
 		DbBackupId:          restoreForm.DbBackupId,
 		DbBackupHistoryId:   restoreForm.DbBackupHistoryId,
 		DbBackupHistoryName: restoreForm.DbBackupHistoryName,
 	}
-	biz.ErrIsNilAppendErr(d.DbRestoreApp.Create(rc.MetaCtx, task), "添加数据库恢复任务失败: %v")
+	biz.ErrIsNilAppendErr(d.DbRestoreApp.Create(rc.MetaCtx, job), "添加数据库恢复任务失败: %v")
 }
 
-// Save 保存数据库恢复任务
+// Update 保存数据库恢复任务
 // @router /api/dbs/:dbId/restores/:restoreId [PUT]
-func (d *DbRestore) Save(rc *req.Ctx) {
+func (d *DbRestore) Update(rc *req.Ctx) {
 	restoreForm := &form.DbRestoreForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, restoreForm)
 	rc.ReqParam = restoreForm
 
-	task := &entity.DbRestore{}
-	task.Id = restoreForm.Id
-	task.StartTime = restoreForm.StartTime
-	task.Interval = restoreForm.Interval
-	biz.ErrIsNilAppendErr(d.DbRestoreApp.Save(rc.MetaCtx, task), "保存数据库恢复任务失败: %v")
+	job := &entity.DbRestore{}
+	job.Id = restoreForm.Id
+	job.StartTime = restoreForm.StartTime
+	job.Interval = restoreForm.Interval
+	biz.ErrIsNilAppendErr(d.DbRestoreApp.Update(rc.MetaCtx, job), "保存数据库恢复任务失败: %v")
 }
 
-func (d *DbRestore) walk(rc *req.Ctx, fn func(ctx context.Context, taskId uint64) error) error {
+func (d *DbRestore) walk(rc *req.Ctx, fn func(ctx context.Context, restoreId uint64) error) error {
 	idsStr := ginx.PathParam(rc.GinCtx, "restoreId")
 	biz.NotEmpty(idsStr, "restoreId 为空")
 	rc.ReqParam = idsStr
@@ -83,8 +81,8 @@ func (d *DbRestore) walk(rc *req.Ctx, fn func(ctx context.Context, taskId uint64
 		if err != nil {
 			return err
 		}
-		taskId := uint64(value)
-		err = fn(rc.MetaCtx, taskId)
+		restoreId := uint64(value)
+		err = fn(rc.MetaCtx, restoreId)
 		if err != nil {
 			return err
 		}
@@ -92,19 +90,22 @@ func (d *DbRestore) walk(rc *req.Ctx, fn func(ctx context.Context, taskId uint64
 	return nil
 }
 
-// @router /api/dbs/:dbId/restores/:taskId [DELETE]
+// Delete 删除数据库恢复任务
+// @router /api/dbs/:dbId/restores/:restoreId [DELETE]
 func (d *DbRestore) Delete(rc *req.Ctx) {
 	err := d.walk(rc, d.DbRestoreApp.Delete)
 	biz.ErrIsNilAppendErr(err, "删除数据库恢复任务失败: %v")
 }
 
-// @router /api/dbs/:dbId/restores/:taskId/enable [PUT]
+// Enable 启用数据库恢复任务
+// @router /api/dbs/:dbId/restores/:restoreId/enable [PUT]
 func (d *DbRestore) Enable(rc *req.Ctx) {
 	err := d.walk(rc, d.DbRestoreApp.Enable)
 	biz.ErrIsNilAppendErr(err, "启用数据库恢复任务失败: %v")
 }
 
-// @router /api/dbs/:dbId/restores/:taskId/disable [PUT]
+// Disable 禁用数据库恢复任务
+// @router /api/dbs/:dbId/restores/:restoreId/disable [PUT]
 func (d *DbRestore) Disable(rc *req.Ctx) {
 	err := d.walk(rc, d.DbRestoreApp.Disable)
 	biz.ErrIsNilAppendErr(err, "禁用数据库恢复任务失败: %v")

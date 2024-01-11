@@ -97,12 +97,12 @@ func (s *DbInstanceSuite) TearDownTest() {
 }
 
 func (s *DbInstanceSuite) TestBackup() {
-	task := &entity.DbBackupHistory{
+	history := &entity.DbBackupHistory{
 		DbName: dbNameBackupTest,
 		Uuid:   dbNameBackupTest,
 	}
-	task.Id = backupIdTest
-	s.testBackup(task)
+	history.Id = backupIdTest
+	s.testBackup(history)
 }
 
 func (s *DbInstanceSuite) testBackup(backupHistory *entity.DbBackupHistory) {

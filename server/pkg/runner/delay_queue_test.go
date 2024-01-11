@@ -1,4 +1,4 @@
-package queue
+package runner
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"math/rand"
 	"runtime"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -28,6 +29,10 @@ func (elm *delayElement) GetId() uint64 {
 	return elm.id
 }
 
+func (elm *delayElement) GetKey() string {
+	return strconv.FormatUint(elm.id, 16)
+}
+
 type testDelayQueue = DelayQueue[*delayElement]
 
 func newTestDelayQueue(cap int) *testDelayQueue {
@@ -42,7 +47,6 @@ func mustEnqueue(val int, delay int64) func(t *testing.T, queue *testDelayQueue)
 }
 
 func newTestElm(value int, delay int64) *delayElement {
-
 	return &delayElement{
 		id:       elmId.Add(1),
 		value:    value,

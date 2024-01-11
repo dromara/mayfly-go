@@ -41,6 +41,7 @@ func runWebServer(ctx context.Context) {
 		if err != nil {
 			logx.Errorf("Failed to Shutdown HTTP Server: %v", err)
 		}
+
 		initialize.Terminate()
 	}()
 

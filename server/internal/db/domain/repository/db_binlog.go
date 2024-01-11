@@ -9,5 +9,5 @@ import (
 type DbBinlog interface {
 	base.Repo[*entity.DbBinlog]
 
-	AddTaskIfNotExists(ctx context.Context, task *entity.DbBinlog) error
+	AddJobIfNotExists(ctx context.Context, job *entity.DbBinlog) error
 }

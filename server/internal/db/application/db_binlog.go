@@ -28,12 +28,12 @@ type DbBinlogApp struct {
 }
 
 var (
-	binlogResult = map[entity.TaskStatus]string{
-		entity.TaskDelay:    "等待备份BINLOG",
-		entity.TaskReady:    "准备备份BINLOG",
-		entity.TaskReserved: "BINLOG备份中",
-		entity.TaskSuccess:  "BINLOG备份成功",
-		entity.TaskFailed:   "BINLOG备份失败",
+	binlogResult = map[entity.DbJobStatus]string{
+		entity.DbJobDelay:   "等待备份BINLOG",
+		entity.DbJobReady:   "准备备份BINLOG",
+		entity.DbJobRunning: "BINLOG备份中",
+		entity.DbJobSuccess: "BINLOG备份成功",
+		entity.DbJobFailed:  "BINLOG备份失败",
 	}
 )
 
@@ -53,8 +53,8 @@ func newDbBinlogApp(repositories *repository.Repositories, dbApp Db) (*DbBinlogA
 	return svc, nil
 }
 
-func (app *DbBinlogApp) runTask(ctx context.Context, backup *entity.DbBackup) error {
-	if err := app.AddTaskIfNotExists(ctx, entity.NewDbBinlog(backup.DbInstanceId)); err != nil {
+func (app *DbBinlogApp) fetchBinlog(ctx context.Context, backup *entity.DbBackup) error {
+	if err := app.AddJobIfNotExists(ctx, entity.NewDbBinlog(backup.DbInstanceId)); err != nil {
 		return err
 	}
 	latestBinlogSequence, earliestBackupSequence := int64(-1), int64(-1)
@@ -80,13 +80,13 @@ func (app *DbBinlogApp) runTask(ctx context.Context, backup *entity.DbBackup) er
 	if err == nil {
 		err = app.binlogHistoryRepo.InsertWithBinlogFiles(ctx, backup.DbInstanceId, binlogFiles)
 	}
-	taskStatus := entity.TaskSuccess
+	jobStatus := entity.DbJobSuccess
 	if err != nil {
-		taskStatus = entity.TaskFailed
+		jobStatus = entity.DbJobFailed
 	}
-	task := &entity.DbBinlog{}
-	task.Id = backup.DbInstanceId
-	return app.updateCurTask(ctx, taskStatus, err, task)
+	job := &entity.DbBinlog{}
+	job.Id = backup.DbInstanceId
+	return app.updateCurJob(ctx, jobStatus, err, job)
 }
 
 func (app *DbBinlogApp) run() {
@@ -99,16 +99,16 @@ func (app *DbBinlogApp) run() {
 }
 
 func (app *DbBinlogApp) fetchFromAllInstances() {
-	tasks, err := app.backupRepo.ListRepeating()
-	if err != nil {
+	var backups []*entity.DbBackup
+	if err := app.backupRepo.ListRepeating(&backups); err != nil {
 		logx.Errorf("DbBinlogApp: 获取数据库备份任务失败: %s", err.Error())
 		return
 	}
-	for _, task := range tasks {
+	for _, backup := range backups {
 		if app.closed() {
 			break
 		}
-		if err := app.runTask(app.context, task); err != nil {
+		if err := app.fetchBinlog(app.context, backup); err != nil {
 			logx.Errorf("DbBinlogApp: 下载 binlog 文件失败: %s", err.Error())
 			return
 		}
@@ -124,31 +124,31 @@ func (app *DbBinlogApp) closed() bool {
 	return app.context.Err() != nil
 }
 
-func (app *DbBinlogApp) AddTaskIfNotExists(ctx context.Context, task *entity.DbBinlog) error {
-	if err := app.binlogRepo.AddTaskIfNotExists(ctx, task); err != nil {
+func (app *DbBinlogApp) AddJobIfNotExists(ctx context.Context, job *entity.DbBinlog) error {
+	if err := app.binlogRepo.AddJobIfNotExists(ctx, job); err != nil {
 		return err
 	}
-	if task.Id == 0 {
+	if job.Id == 0 {
 		return nil
 	}
 	return nil
 }
 
-func (app *DbBinlogApp) DeleteTask(ctx context.Context, taskId uint64) error {
+func (app *DbBinlogApp) Delete(ctx context.Context, jobId uint64) error {
 	// todo: 删除 Binlog 历史文件
-	if err := app.binlogRepo.DeleteById(ctx, taskId); err != nil {
+	if err := app.binlogRepo.DeleteById(ctx, jobId); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (app *DbBinlogApp) updateCurTask(ctx context.Context, status entity.TaskStatus, lastErr error, task *entity.DbBinlog) error {
-	task.LastStatus = status
+func (app *DbBinlogApp) updateCurJob(ctx context.Context, status entity.DbJobStatus, lastErr error, job *entity.DbBinlog) error {
+	job.LastStatus = status
 	var result = binlogResult[status]
 	if lastErr != nil {
 		result = fmt.Sprintf("%v: %v", binlogResult[status], lastErr)
 	}
-	task.LastResult = stringx.TruncateStr(result, entity.LastResultSize)
-	task.LastTime = timex.NewNullTime(time.Now())
-	return app.binlogRepo.UpdateById(ctx, task, "last_status", "last_result", "last_time")
+	job.LastResult = stringx.TruncateStr(result, entity.LastResultSize)
+	job.LastTime = timex.NewNullTime(time.Now())
+	return app.binlogRepo.UpdateById(ctx, job, "last_status", "last_result", "last_time")
 }

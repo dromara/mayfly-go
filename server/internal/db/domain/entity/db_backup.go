@@ -1,29 +1,27 @@
 package entity
 
-var _ DbTask = (*DbBackup)(nil)
+import (
+	"context"
+	"mayfly-go/pkg/runner"
+)
+
+var _ DbJob = (*DbBackup)(nil)
 
 // DbBackup 数据库备份任务
 type DbBackup struct {
-	*DbTaskBase
+	*DbJobBaseImpl
 
-	Name         string `json:"name"`         // 备份任务名称
-	DbName       string `json:"dbName"`       // 数据库名
-	DbInstanceId uint64 `json:"dbInstanceId"` // 数据库实例ID
+	Name string `json:"Name"` // 数据库备份名称
 }
 
-func (*DbBackup) MessageWithStatus(status TaskStatus) string {
-	var result string
-	switch status {
-	case TaskDelay:
-		result = "等待备份数据库"
-	case TaskReady:
-		result = "准备备份数据库"
-	case TaskReserved:
-		result = "数据库备份中"
-	case TaskSuccess:
-		result = "数据库备份成功"
-	case TaskFailed:
-		result = "数据库备份失败"
+func (d *DbBackup) SetRun(fn func(ctx context.Context, job DbJob)) {
+	d.run = func(ctx context.Context) {
+		fn(ctx, d)
 	}
-	return result
+}
+
+func (d *DbBackup) SetRunnable(fn func(job DbJob, next runner.NextFunc) bool) {
+	d.runnable = func(next runner.NextFunc) bool {
+		return fn(d, next)
+	}
 }
