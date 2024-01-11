@@ -114,13 +114,16 @@ func (s *DelayQueue[T]) Dequeue(ctx context.Context) (T, bool) {
 			// 等待时间到期或新元素加入
 			timer := time.NewTimer(delay)
 			select {
-			case elm := <-s.transferChan:
-				return elm, true
-			case <-s.enqueuedSignal:
-				continue
 			case <-timer.C:
 				continue
+			case elm := <-s.transferChan:
+				timer.Stop()
+				return elm, true
+			case <-s.enqueuedSignal:
+				timer.Stop()
+				continue
 			case <-ctx.Done():
+				timer.Stop()
 				return s.zero, false
 			}
 		}
@@ -187,12 +190,14 @@ func (s *DelayQueue[T]) Enqueue(ctx context.Context, val T) bool {
 			// 新元素需要延迟，等待退出信号、出队信号和到期信号
 			timer := time.NewTimer(delay)
 			select {
-			case <-s.dequeuedSignal:
-				// 收到出队信号，从头开始尝试入队
-				continue
 			case <-timer.C:
 				// 新元素不再需要延迟
+			case <-s.dequeuedSignal:
+				// 收到出队信号，从头开始尝试入队
+				timer.Stop()
+				continue
 			case <-ctx.Done():
+				timer.Stop()
 				return false
 			}
 		} else {

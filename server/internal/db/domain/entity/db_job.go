@@ -187,7 +187,7 @@ func (d *DbJobBaseImpl) IsFinished() bool {
 	return !d.Repeated && d.LastStatus == DbJobSuccess
 }
 
-func (d *DbJobBaseImpl) Renew(job runner.Job) {
+func (d *DbJobBaseImpl) Update(job runner.Job) {
 	jobBase := job.(DbJob).GetJobBase()
 	d.StartTime = jobBase.StartTime
 	d.Interval = jobBase.Interval

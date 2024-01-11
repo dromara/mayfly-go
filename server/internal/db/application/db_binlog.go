@@ -65,9 +65,12 @@ func (app *DbBinlogApp) fetchBinlog(ctx context.Context, backup *entity.DbBackup
 	if ok {
 		latestBinlogSequence = binlogHistory.Sequence
 	} else {
-		backupHistory, err := app.backupHistoryRepo.GetEarliestHistory(backup.DbInstanceId)
+		backupHistory, ok, err := app.backupHistoryRepo.GetEarliestHistory(backup.DbInstanceId)
 		if err != nil {
 			return err
+		}
+		if !ok {
+			return nil
 		}
 		earliestBackupSequence = backupHistory.BinlogSequence
 	}
@@ -92,6 +95,8 @@ func (app *DbBinlogApp) fetchBinlog(ctx context.Context, backup *entity.DbBackup
 func (app *DbBinlogApp) run() {
 	defer app.waitGroup.Done()
 
+	// todo: 实现 binlog 并发下载
+	timex.SleepWithContext(app.context, time.Minute)
 	for !app.closed() {
 		app.fetchFromAllInstances()
 		timex.SleepWithContext(app.context, binlogDownloadInterval)

@@ -14,5 +14,5 @@ type DbBackupHistory interface {
 
 	GetLatestHistory(instanceId uint64, dbName string, bi *entity.BinlogInfo) (*entity.DbBackupHistory, error)
 
-	GetEarliestHistory(instanceId uint64) (*entity.DbBackupHistory, error)
+	GetEarliestHistory(instanceId uint64) (*entity.DbBackupHistory, bool, error)
 }
