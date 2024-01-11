@@ -28,7 +28,7 @@ func (d *DbBackup) GetPageList(rc *req.Ctx) {
 	db, err := d.DbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
-	queryCond, page := ginx.BindQueryAndPage[*entity.DbBackupQuery](rc.GinCtx, new(entity.DbBackupQuery))
+	queryCond, page := ginx.BindQueryAndPage[*entity.DbJobQuery](rc.GinCtx, new(entity.DbJobQuery))
 	queryCond.DbInstanceId = db.InstanceId
 	queryCond.InDbNames = strings.Fields(db.Database)
 	res, err := d.DbBackupApp.GetPageList(queryCond, page, new([]vo.DbBackup))
@@ -51,32 +51,30 @@ func (d *DbBackup) Create(rc *req.Ctx) {
 	db, err := d.DbApp.GetById(new(entity.Db), dbId, "instanceId")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
-	tasks := make([]*entity.DbBackup, 0, len(dbNames))
+	jobs := make([]*entity.DbBackup, 0, len(dbNames))
 	for _, dbName := range dbNames {
-		task := &entity.DbBackup{
-			DbTaskBase:   entity.NewDbBTaskBase(true, backupForm.Repeated, backupForm.StartTime, backupForm.Interval),
-			DbName:       dbName,
-			Name:         backupForm.Name,
-			DbInstanceId: db.InstanceId,
+		job := &entity.DbBackup{
+			DbJobBaseImpl: entity.NewDbBJobBase(db.InstanceId, dbName, entity.DbJobTypeBackup, true, backupForm.Repeated, backupForm.StartTime, backupForm.Interval),
+			Name:          backupForm.Name,
 		}
-		tasks = append(tasks, task)
+		jobs = append(jobs, job)
 	}
-	biz.ErrIsNilAppendErr(d.DbBackupApp.Create(rc.MetaCtx, tasks...), "添加数据库备份任务失败: %v")
+	biz.ErrIsNilAppendErr(d.DbBackupApp.Create(rc.MetaCtx, jobs), "添加数据库备份任务失败: %v")
 }
 
-// Save 保存数据库备份任务
+// Update 保存数据库备份任务
 // @router /api/dbs/:dbId/backups/:backupId [PUT]
-func (d *DbBackup) Save(rc *req.Ctx) {
+func (d *DbBackup) Update(rc *req.Ctx) {
 	backupForm := &form.DbBackupForm{}
 	ginx.BindJsonAndValid(rc.GinCtx, backupForm)
 	rc.ReqParam = backupForm
 
-	task := &entity.DbBackup{}
-	task.Id = backupForm.Id
-	task.Name = backupForm.Name
-	task.StartTime = backupForm.StartTime
-	task.Interval = backupForm.Interval
-	biz.ErrIsNilAppendErr(d.DbBackupApp.Save(rc.MetaCtx, task), "保存数据库备份任务失败: %v")
+	job := entity.NewDbJob(entity.DbJobTypeBackup).(*entity.DbBackup)
+	job.Id = backupForm.Id
+	job.Name = backupForm.Name
+	job.StartTime = backupForm.StartTime
+	job.Interval = backupForm.Interval
+	biz.ErrIsNilAppendErr(d.DbBackupApp.Update(rc.MetaCtx, job), "保存数据库备份任务失败: %v")
 }
 
 func (d *DbBackup) walk(rc *req.Ctx, fn func(ctx context.Context, backupId uint64) error) error {
@@ -89,8 +87,8 @@ func (d *DbBackup) walk(rc *req.Ctx, fn func(ctx context.Context, backupId uint6
 		if err != nil {
 			return err
 		}
-		taskId := uint64(value)
-		err = fn(rc.MetaCtx, taskId)
+		backupId := uint64(value)
+		err = fn(rc.MetaCtx, backupId)
 		if err != nil {
 			return err
 		}
@@ -99,28 +97,28 @@ func (d *DbBackup) walk(rc *req.Ctx, fn func(ctx context.Context, backupId uint6
 }
 
 // Delete 删除数据库备份任务
-// @router /api/dbs/:dbId/backups/:taskId [DELETE]
+// @router /api/dbs/:dbId/backups/:backupId [DELETE]
 func (d *DbBackup) Delete(rc *req.Ctx) {
 	err := d.walk(rc, d.DbBackupApp.Delete)
 	biz.ErrIsNilAppendErr(err, "删除数据库备份任务失败: %v")
 }
 
 // Enable 启用数据库备份任务
-// @router /api/dbs/:dbId/backups/:taskId/enable [PUT]
+// @router /api/dbs/:dbId/backups/:backupId/enable [PUT]
 func (d *DbBackup) Enable(rc *req.Ctx) {
 	err := d.walk(rc, d.DbBackupApp.Enable)
 	biz.ErrIsNilAppendErr(err, "启用数据库备份任务失败: %v")
 }
 
 // Disable 禁用数据库备份任务
-// @router /api/dbs/:dbId/backups/:taskId/disable [PUT]
+// @router /api/dbs/:dbId/backups/:backupId/disable [PUT]
 func (d *DbBackup) Disable(rc *req.Ctx) {
 	err := d.walk(rc, d.DbBackupApp.Disable)
 	biz.ErrIsNilAppendErr(err, "禁用数据库备份任务失败: %v")
 }
 
 // Start 禁用数据库备份任务
-// @router /api/dbs/:dbId/backups/:taskId/start [PUT]
+// @router /api/dbs/:dbId/backups/:backupId/start [PUT]
 func (d *DbBackup) Start(rc *req.Ctx) {
 	err := d.walk(rc, d.DbBackupApp.Start)
 	biz.ErrIsNilAppendErr(err, "运行数据库备份任务失败: %v")
@@ -138,7 +136,7 @@ func (d *DbBackup) GetDbNamesWithoutBackup(rc *req.Ctx) {
 	rc.ResData = dbNamesWithoutBackup
 }
 
-// GetPageList 获取数据库备份历史
+// GetHistoryPageList 获取数据库备份历史
 // @router /api/dbs/:dbId/backups/:backupId/histories [GET]
 func (d *DbBackup) GetHistoryPageList(rc *req.Ctx) {
 	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))

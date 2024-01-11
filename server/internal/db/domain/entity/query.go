@@ -40,8 +40,8 @@ type DbSqlExecQuery struct {
 	CreatorId uint64
 }
 
-// DbBackupQuery 数据库备份任务查询
-type DbBackupQuery struct {
+// DbJobQuery 数据库备份任务查询
+type DbJobQuery struct {
 	Id           uint64   `json:"id" form:"id"`
 	DbName       string   `json:"dbName" form:"dbName"`
 	IntervalDay  int      `json:"intervalDay" form:"intervalDay"`
@@ -61,13 +61,13 @@ type DbBackupHistoryQuery struct {
 }
 
 // DbRestoreQuery 数据库备份任务查询
-type DbRestoreQuery struct {
-	Id           uint64   `json:"id" form:"id"`
-	DbName       string   `json:"dbName" form:"dbName"`
-	InDbNames    []string `json:"-" form:"-"`
-	DbInstanceId uint64   `json:"-" form:"-"`
-	Repeated     bool     `json:"repeated" form:"repeated"` // 是否重复执行
-}
+//type DbRestoreQuery struct {
+//	Id           uint64   `json:"id" form:"id"`
+//	DbName       string   `json:"dbName" form:"dbName"`
+//	InDbNames    []string `json:"-" form:"-"`
+//	DbInstanceId uint64   `json:"-" form:"-"`
+//	Repeated     bool     `json:"repeated" form:"repeated"` // 是否重复执行
+//}
 
 // DbRestoreHistoryQuery 数据库备份任务查询
 type DbRestoreHistoryQuery struct {

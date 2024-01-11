@@ -103,8 +103,8 @@ func (ai *AppImpl[T, R]) BatchInsert(ctx context.Context, es []T) error {
 }
 
 // 使用指定gorm db执行，主要用于事务执行
-func (ai *AppImpl[T, R]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []T) error {
-	return ai.GetRepo().BatchInsertWithDb(ctx, db, es)
+func (ai *AppImpl[T, R]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, models []T) error {
+	return ai.GetRepo().BatchInsertWithDb(ctx, db, models)
 }
 
 // 根据实体id更新实体信息 (单纯更新，不做其他业务逻辑处理)

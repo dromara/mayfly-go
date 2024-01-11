@@ -20,8 +20,8 @@ func NewDbBinlogRepo() repository.DbBinlog {
 	return &dbBinlogRepoImpl{}
 }
 
-func (d *dbBinlogRepoImpl) AddTaskIfNotExists(_ context.Context, task *entity.DbBinlog) error {
-	if err := global.Db.Clauses(clause.OnConflict{DoNothing: true}).Create(task).Error; err != nil {
+func (d *dbBinlogRepoImpl) AddJobIfNotExists(_ context.Context, job *entity.DbBinlog) error {
+	if err := global.Db.Clauses(clause.OnConflict{DoNothing: true}).Create(job).Error; err != nil {
 		return fmt.Errorf("启动 binlog 下载失败: %w", err)
 	}
 	return nil

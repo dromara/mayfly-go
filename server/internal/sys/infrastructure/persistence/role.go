@@ -62,7 +62,7 @@ func (m *roleRepoImpl) GetRoleResources(roleId uint64, toEntity any) {
 }
 
 func (m *roleRepoImpl) SaveRoleResource(rr []*entity.RoleResource) {
-	gormx.BatchInsert(rr)
+	gormx.BatchInsert[*entity.RoleResource](rr)
 }
 
 func (m *roleRepoImpl) DeleteRoleResource(roleId uint64, resourceId uint64) {

@@ -1,4 +1,4 @@
-package queue
+package runner
 
 import (
 	"github.com/stretchr/testify/require"

@@ -22,10 +22,10 @@ type Repo[T model.ModelI] interface {
 	InsertWithDb(ctx context.Context, db *gorm.DB, e T) error
 
 	// 批量新增实体
-	BatchInsert(ctx context.Context, models []T) error
+	BatchInsert(ctx context.Context, models any) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []T) error
+	BatchInsertWithDb(ctx context.Context, db *gorm.DB, models any) error
 
 	// 根据实体id更新实体信息
 	UpdateById(ctx context.Context, e T, columns ...string) error
@@ -93,23 +93,22 @@ func (br *RepoImpl[T]) InsertWithDb(ctx context.Context, db *gorm.DB, e T) error
 	return gormx.InsertWithDb(db, br.fillBaseInfo(ctx, e))
 }
 
-func (br *RepoImpl[T]) BatchInsert(ctx context.Context, es []T) error {
+func (br *RepoImpl[T]) BatchInsert(ctx context.Context, es any) error {
 	if db := contextx.GetDb(ctx); db != nil {
 		return br.BatchInsertWithDb(ctx, db, es)
 	}
-
-	for _, e := range es {
+	for _, e := range es.([]T) {
 		br.fillBaseInfo(ctx, e)
 	}
-	return gormx.BatchInsert(es)
+	return gormx.BatchInsert[T](es)
 }
 
 // 使用指定gorm db执行，主要用于事务执行
-func (br *RepoImpl[T]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []T) error {
-	for _, e := range es {
+func (br *RepoImpl[T]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, es any) error {
+	for _, e := range es.([]T) {
 		br.fillBaseInfo(ctx, e)
 	}
-	return gormx.BatchInsertWithDb(db, es)
+	return gormx.BatchInsertWithDb[T](db, es)
 }
 
 func (br *RepoImpl[T]) UpdateById(ctx context.Context, e T, columns ...string) error {
