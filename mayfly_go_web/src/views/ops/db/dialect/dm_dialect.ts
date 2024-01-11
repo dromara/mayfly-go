@@ -444,8 +444,8 @@ class DMDialect implements DbDialect {
         };
     }
 
-    wrapName = (name: string) => {
-        return name;
+    quoteIdentifier = (name: string) => {
+        return `"${name}"`;
     };
 
     matchType(text: string, arr: string[]): boolean {

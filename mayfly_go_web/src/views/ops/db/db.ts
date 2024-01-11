@@ -6,7 +6,7 @@ import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { editor, languages, Position } from 'monaco-editor';
 
 import { registerCompletionItemProvider } from '@/components/monaco/completionItemProvider';
-import {DbDialect, EditorCompletionItem, getDbDialect} from './dialect'
+import { DbDialect, EditorCompletionItem, getDbDialect } from './dialect';
 
 const dbInstCache: Map<number, DbInst> = new Map();
 
@@ -104,7 +104,7 @@ export class DbInst {
                 },
                 kind: monaco.languages.CompletionItemKind.File,
                 detail: tableComment,
-                insertText: dbDialect.wrapName(tableName) + ' ',
+                insertText: dbDialect.quoteIdentifier(tableName) + ' ',
                 range,
                 sortText: 300 + index + '',
             });
@@ -113,7 +113,7 @@ export class DbInst {
     }
 
     /** 加载列信息提示 */
-    async loadTableColumnSuggestions(dbDialect: DbDialect,db: string, tableName: string, range: any) {
+    async loadTableColumnSuggestions(dbDialect: DbDialect, db: string, tableName: string, range: any) {
         let dbHits = await this.loadDbHints(db);
         let columns = dbHits[tableName];
         let suggestions: languages.CompletionItem[] = [];
@@ -128,7 +128,7 @@ export class DbInst {
                 },
                 kind: monaco.languages.CompletionItemKind.Property,
                 detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                insertText: dbDialect.wrapName(fieldName)+ ' ', // create_time
+                insertText: dbDialect.quoteIdentifier(fieldName) + ' ', // create_time
                 range,
                 sortText: 100 + index + '', // 使用表字段声明顺序排序,排序需为字符串类型
             });
@@ -287,7 +287,7 @@ export class DbInst {
      * @returns
      */
     wrapName = (name: string) => {
-        return getDbDialect(this.type).wrapName(name);
+        return getDbDialect(this.type).quoteIdentifier(name);
     };
 
     /**
@@ -618,7 +618,7 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                             description: 'schema',
                         },
                         kind: monaco.languages.CompletionItemKind.Folder,
-                        insertText: dbDialect.wrapName(a),
+                        insertText: dbDialect.quoteIdentifier(a),
                         range,
                     });
                 });
@@ -679,7 +679,7 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                     },
                     kind: monaco.languages.CompletionItemKind.File,
                     detail: tableComment,
-                    insertText: dbDialect.wrapName(tableName) + ' ',
+                    insertText: dbDialect.quoteIdentifier(tableName) + ' ',
                     range,
                     sortText: 300 + index + '',
                 });

@@ -236,7 +236,7 @@ func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 	// 去除最后一个逗号
 	placeholder = strings.TrimSuffix(repeated, ",")
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", md.dc.Info.Type.WrapName(tableName), strings.Join(columns, ","), placeholder)
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", md.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
 	// 执行批量insert sql
 	// 把二维数组转为一维数组
 	var args []any

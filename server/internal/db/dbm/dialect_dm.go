@@ -307,7 +307,7 @@ func (dd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string,
 	// 去除最后一个逗号，占位符由括号包裹
 	placeholder := fmt.Sprintf("(%s)", strings.TrimSuffix(repeated, ","))
 
-	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", dd.dc.Info.Type.WrapName(tableName), strings.Join(columns, ","), placeholder)
+	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", dd.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
 	effRows := 0
 	for _, value := range values {
 		// 达梦数据库只能一条条的执行insert

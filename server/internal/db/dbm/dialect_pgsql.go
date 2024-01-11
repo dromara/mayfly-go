@@ -319,7 +319,7 @@ func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 		placeholders = append(placeholders, "("+strings.Join(placeholder, ", ")+")")
 	}
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.dc.Info.Type.WrapName(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "))
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "))
 	// 执行批量insert sql
 
 	return pd.dc.TxExec(tx, sqlStr, args...)

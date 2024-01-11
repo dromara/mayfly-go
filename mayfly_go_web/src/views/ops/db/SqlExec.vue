@@ -255,6 +255,7 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
 
 // 数据库节点
 const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
+    .withContextMenuItems([new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key))])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
         // pg类数据库会多一层schema
@@ -280,6 +281,7 @@ const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
 
 // postgres schema模式
 const NodeTypePostgresScheam = new NodeType(SqlExecNodeType.PgSchema)
+    .withContextMenuItems([new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key))])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
         return [
@@ -292,7 +294,7 @@ const NodeTypePostgresScheam = new NodeType(SqlExecNodeType.PgSchema)
 // 数据库表菜单节点
 const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
     .withContextMenuItems([
-        new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadTables(data.key)),
+        new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key)),
 
         new ContextmenuItem('tablesOp', '表操作').withIcon('Setting').withOnClick((data: any) => {
             const params = data.params;
@@ -596,7 +598,7 @@ const getSqlMenuNodeKey = (dbId: number, db: string) => {
     return `${dbId}.${db}.sql-menu`;
 };
 
-const reloadTables = (nodeKey: string) => {
+const reloadNode = (nodeKey: string) => {
     state.reloadStatus = true;
     tagTreeRef.value.reloadNode(nodeKey);
 };

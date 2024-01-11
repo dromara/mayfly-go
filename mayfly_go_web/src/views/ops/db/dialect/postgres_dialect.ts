@@ -133,7 +133,10 @@ class PostgresqlDialect implements DbDialect {
     }
 
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
-        return `SELECT * FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(pageNum, limit)};`;
+        return `SELECT * FROM ${this.quoteIdentifier(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(
+            pageNum,
+            limit
+        )};`;
     }
 
     getPageSql(pageNum: number, limit: number) {
@@ -202,7 +205,7 @@ class PostgresqlDialect implements DbDialect {
         };
     }
 
-    wrapName = (name: string) => {
+    quoteIdentifier = (name: string) => {
         // 后端sql解析器暂不支持pgsql
         return name;
     };

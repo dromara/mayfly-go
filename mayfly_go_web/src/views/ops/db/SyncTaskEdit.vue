@@ -11,7 +11,7 @@
         >
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName" style="height: 450px">
-                    <el-tab-pane label="基本信息" name="basic">
+                    <el-tab-pane label="基本信息" :name="basicTab">
                         <el-form-item>
                             <el-row>
                                 <el-col :span="11">
@@ -108,7 +108,7 @@
                         </el-form-item>
                     </el-tab-pane>
 
-                    <el-tab-pane label="字段映射" name="field">
+                    <el-tab-pane label="字段映射" :name="fieldTab" :disabled="!baseFieldCompleted">
                         <el-form-item prop="fieldMap" label="字段映射" required>
                             <el-table :data="form.fieldMap" :max-height="400" size="small">
                                 <el-table-column prop="src" label="源字段" :width="200" />
@@ -128,7 +128,7 @@
                         </el-form-item>
                     </el-tab-pane>
 
-                    <el-tab-pane label="sql预览" name="sqlPreview">
+                    <el-tab-pane label="sql预览" :name="sqlPreviewTab" :disabled="!baseFieldCompleted">
                         <el-form-item prop="fieldMap" label="查询sql">
                             <el-input type="textarea" v-model="state.previewDataSql" readonly :input-style="{ height: '190px' }" />
                         </el-form-item>
@@ -140,7 +140,41 @@
             </el-form>
 
             <template #footer>
-                <div class="dialog-footer">
+                <div>
+                    <el-button
+                        v-if="tabActiveName != basicTab"
+                        @click="
+                            () => {
+                                switch (tabActiveName) {
+                                    case fieldTab:
+                                        tabActiveName = basicTab;
+                                        break;
+                                    case sqlPreviewTab:
+                                        tabActiveName = fieldTab;
+                                        break;
+                                }
+                            }
+                        "
+                        >上一步</el-button
+                    >
+                    <el-button
+                        v-if="tabActiveName != sqlPreviewTab"
+                        :disabled="!baseFieldCompleted"
+                        @click="
+                            () => {
+                                switch (tabActiveName) {
+                                    case basicTab:
+                                        tabActiveName = fieldTab;
+                                        break;
+                                    case fieldTab:
+                                        tabActiveName = sqlPreviewTab;
+                                        break;
+                                }
+                            }
+                        "
+                        >下一步</el-button
+                    >
+
                     <el-button @click="cancel()">取 消</el-button>
                     <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
@@ -150,7 +184,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, toRefs, watch } from 'vue';
+import { reactive, ref, toRefs, watch, computed } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
@@ -190,6 +224,10 @@ const rules = {
 };
 
 const dbForm: any = ref(null);
+
+const basicTab = 'basic';
+const fieldTab = 'field';
+const sqlPreviewTab = 'sqlPreview';
 
 type FormData = {
     id?: number;
@@ -235,33 +273,14 @@ const state = reactive({
     previewInsertSql: '',
 });
 
-const onSelectSrcDb = async (params: any) => {
-    //  初始化数据源
-    params.databases = params.dbs; // 数据源里需要这个值
-    state.srcDbInst = DbInst.getOrNewInst(params);
-    registerDbCompletionItemProvider(params.id, params.db, params.dbs, params.type);
-};
-
-const onSelectTargetDb = async (params: any) => {
-    state.targetDbInst = DbInst.getOrNewInst(params);
-    await loadDbTables(params.id, params.db);
-};
-
-const loadDbTables = async (dbId: number, db: string) => {
-    // 加载db下的表
-    let data = await dbApi.tableInfos.request({ id: dbId, db });
-    state.targetTableList = data;
-    if (data && data.length > 0) {
-        let names = data.map((a: any) => a.tableName);
-        if (!names.includes(state.form.targetTableName)) {
-            state.form.targetTableName = data[0].tableName;
-        }
-    }
-};
-
 const { tabActiveName, form, submitForm } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveExec } = dbApi.saveDatasyncTask.useApi(submitForm);
+
+// 基础字段信息是否填写完整
+const baseFieldCompleted = computed(() => {
+    return state.form.srcDbId && state.form.srcDbName && state.form.targetDbId && state.form.targetDbName && state.form.targetTableName;
+});
 
 watch(dialogVisible, async (newValue: boolean) => {
     if (!newValue) {
@@ -303,6 +322,10 @@ watch(dialogVisible, async (newValue: boolean) => {
         state.targetDbInst = DbInst.getOrNewInst(db);
     }
 
+    if (targetDbId && state.form.targetDbName) {
+        await loadDbTables(targetDbId, state.form.targetDbName);
+    }
+
     // 注册sql代码提示
     if (srcDbId && srcDbName) {
         registerDbCompletionItemProvider(srcDbId, srcDbName, state.srcDbInst.databases, state.srcDbInst.type);
@@ -311,21 +334,15 @@ watch(dialogVisible, async (newValue: boolean) => {
 
 watch(tabActiveName, async (newValue: string) => {
     switch (newValue) {
-        case 'field':
+        case fieldTab:
             await handleGetSrcFields();
             await handleGetTargetFields();
             break;
-        case 'dbConf':
-            await handleGetTargetFields();
-            if (state.form.targetDbId && state.form.targetDbName) {
-                await loadDbTables(state.form.targetDbId, state.form.targetDbName);
-            }
-            break;
-        case 'sqlPreview':
+        case sqlPreviewTab:
             let srcDbDialect = getDbDialect(state.srcDbInst.type);
             let targetDbDialect = getDbDialect(state.targetDbInst.type);
 
-            let updField = srcDbDialect.wrapName(state.form.updField!);
+            let updField = srcDbDialect.quoteIdentifier(state.form.updField!);
             state.previewDataSql = `SELECT * FROM (\n ${state.form.dataSql?.trim() || '请输入数据sql'} \n ) t \n where ${updField} > '${
                 state.form.updFieldVal || ''
             }'`;
@@ -339,18 +356,45 @@ watch(tabActiveName, async (newValue: string) => {
             });
             if (fields.size < (state.form.fieldMap?.length || 0)) {
                 ElMessage.warning('字段映射中存在重复的目标字段，请检查');
+                state.previewInsertSql = '';
                 return;
             }
 
-            let fieldArr = state.form.fieldMap?.map((a: any) => targetDbDialect.wrapName(a.target)) || [];
+            let fieldArr = state.form.fieldMap?.map((a: any) => targetDbDialect.quoteIdentifier(a.target)) || [];
             let placeholder = '?'.repeat(fieldArr.length).split('').join(',');
 
-            state.previewInsertSql = ` insert into ${targetDbDialect.wrapName(state.form.targetTableName!)}(${fieldArr.join(',')}) values (${placeholder});`;
+            state.previewInsertSql = ` insert into ${targetDbDialect.quoteIdentifier(state.form.targetTableName!)}(${fieldArr.join(
+                ','
+            )}) values (${placeholder});`;
             break;
         default:
             break;
     }
 });
+
+const onSelectSrcDb = async (params: any) => {
+    //  初始化数据源
+    params.databases = params.dbs; // 数据源里需要这个值
+    state.srcDbInst = DbInst.getOrNewInst(params);
+    registerDbCompletionItemProvider(params.id, params.db, params.dbs, params.type);
+};
+
+const onSelectTargetDb = async (params: any) => {
+    state.targetDbInst = DbInst.getOrNewInst(params);
+    await loadDbTables(params.id, params.db);
+};
+
+const loadDbTables = async (dbId: number, db: string) => {
+    // 加载db下的表
+    let data = await dbApi.tableInfos.request({ id: dbId, db });
+    state.targetTableList = data;
+    if (data && data.length > 0) {
+        let names = data.map((a: any) => a.tableName);
+        if (!names.includes(state.form.targetTableName)) {
+            state.form.targetTableName = data[0].tableName;
+        }
+    }
+};
 
 const handleGetSrcFields = async () => {
     // 执行sql，获取字段信息
@@ -456,12 +500,8 @@ const cancel = () => {
 <style lang="scss">
 .sync-task-edit {
     .el-select {
-        // width: 360px;
         width: 100%;
     }
-    // .el-input__inner {
-    //     width: 100%; /* 将el-select内部输入框的宽度设置为100% */
-    // }
     .task-sql {
         width: 100%;
     }
