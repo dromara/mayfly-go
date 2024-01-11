@@ -50,3 +50,34 @@ func Test_QuoteLiteral(t *testing.T) {
 		})
 	}
 }
+
+func Test_quoteIdentifier(t *testing.T) {
+	tests := []struct {
+		dbType DbType
+		sql    string
+		want   string
+	}{
+		{
+			dbType: DbTypeMysql,
+			sql:    "`a`",
+		},
+		{
+			dbType: DbTypeMysql,
+			sql:    "select table",
+		},
+		{
+			dbType: DbTypePostgres,
+			sql:    "a",
+		},
+		{
+			dbType: DbTypePostgres,
+			sql:    "table",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.dbType)+"_"+tt.sql, func(t *testing.T) {
+			got := tt.dbType.QuoteIdentifier(tt.sql)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}

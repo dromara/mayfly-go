@@ -25,37 +25,25 @@ func (dbType DbType) Equal(typ string) bool {
 	return ToDbType(typ) == dbType
 }
 
+// QuoteIdentifier quotes an "identifier" (e.g. a table or a column name) to be
+// used as part of an SQL statement.  For example:
+//
+//	tblname := "my_table"
+//	data := "my_data"
+//	quoted := quoteIdentifier(tblname, '"')
+//	err := db.Exec(fmt.Sprintf("INSERT INTO %s VALUES ($1)", quoted), data)
+//
+// Any double quotes in name will be escaped.  The quoted identifier will be
+// case sensitive when used in a query.  If the input string contains a zero
+// byte, the result will be truncated immediately before it.
 func (dbType DbType) QuoteIdentifier(name string) string {
 	switch dbType {
 	case DbTypeMysql, DbTypeMariadb:
 		return quoteIdentifier(name, "`")
 	case DbTypePostgres:
-		return pq.QuoteIdentifier(name)
+		return quoteIdentifier(name, `"`)
 	default:
-		panic(fmt.Sprintf("invalid database type: %s", dbType))
-	}
-}
-
-func (dbType DbType) MetaDbName() string {
-	switch dbType {
-	case DbTypeMysql, DbTypeMariadb:
-		return ""
-	case DbTypePostgres:
-		return "postgres"
-	case DbTypeDM:
-		return ""
-	default:
-		panic(fmt.Sprintf("invalid database type: %s", dbType))
-	}
-}
-
-// 包装字段名，防止使用了数据库保留关键字
-func (dbType DbType) WrapName(name string) string {
-	switch dbType {
-	case DbTypeMysql, DbTypeMariadb:
-		return fmt.Sprintf("`%s`", name)
-	default:
-		return fmt.Sprintf(`"%s"`, name)
+		return quoteIdentifier(name, `"`)
 	}
 }
 
@@ -68,7 +56,20 @@ func (dbType DbType) QuoteLiteral(literal string) string {
 	case DbTypePostgres:
 		return pq.QuoteLiteral(literal)
 	default:
-		panic(fmt.Sprintf("invalid database type: %s", dbType))
+		return pq.QuoteLiteral(literal)
+	}
+}
+
+func (dbType DbType) MetaDbName() string {
+	switch dbType {
+	case DbTypeMysql, DbTypeMariadb:
+		return ""
+	case DbTypePostgres:
+		return "postgres"
+	case DbTypeDM:
+		return ""
+	default:
+		return ""
 	}
 }
 
@@ -78,24 +79,11 @@ func (dbType DbType) Dialect() sqlparser.Dialect {
 		return sqlparser.MysqlDialect{}
 	case DbTypePostgres:
 		return sqlparser.PostgresDialect{}
-	case DbTypeDM:
-		return sqlparser.PostgresDialect{}
 	default:
-		panic(fmt.Sprintf("invalid database type: %s", dbType))
+		return sqlparser.PostgresDialect{}
 	}
 }
 
-// QuoteIdentifier quotes an "identifier" (e.g. a table or a column name) to be
-// used as part of an SQL statement.  For example:
-//
-//	tblname := "my_table"
-//	data := "my_data"
-//	quoted := pq.QuoteIdentifier(tblname)
-//	err := db.Exec(fmt.Sprintf("INSERT INTO %s VALUES ($1)", quoted), data)
-//
-// Any double quotes in name will be escaped.  The quoted identifier will be
-// case sensitive when used in a query.  If the input string contains a zero
-// byte, the result will be truncated immediately before it.
 func quoteIdentifier(name, quoter string) string {
 	end := strings.IndexRune(name, 0)
 	if end > -1 {
@@ -116,7 +104,7 @@ func (dbType DbType) StmtSetForeignKeyChecks(check bool) string {
 		// not currently supported postgres
 		return ""
 	default:
-		panic(fmt.Sprintf("invalid database type: %s", dbType))
+		return ""
 	}
 }
 
@@ -128,6 +116,6 @@ func (dbType DbType) StmtUseDatabase(dbName string) string {
 		// not currently supported postgres
 		return ""
 	default:
-		panic(fmt.Sprintf("invalid database type: %s", dbType))
+		return ""
 	}
 }

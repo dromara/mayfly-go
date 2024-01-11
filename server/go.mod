@@ -6,6 +6,7 @@ require (
 	gitee.com/chunanyong/dm v1.8.13
 	gitee.com/liuzongyang/libpq v1.0.9
 	github.com/buger/jsonparser v1.1.1
+	github.com/emirpasic/gods v1.18.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/glebarez/sqlite v1.10.0
 	github.com/go-gormigrate/gormigrate/v2 v2.1.0
@@ -93,5 +94,3 @@ require (
 	modernc.org/sqlite v1.23.1 // indirect
 	vitess.io/vitess v0.17.3 // indirect
 )
-
-require github.com/emirpasic/gods v1.18.1

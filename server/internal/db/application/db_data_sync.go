@@ -277,7 +277,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	for _, item := range fieldMap {
 		targetField := item["target"]
 		srcField := item["target"]
-		targetWrapColumns = append(targetWrapColumns, targetDbConn.Info.Type.WrapName(targetField))
+		targetWrapColumns = append(targetWrapColumns, targetDbConn.Info.Type.QuoteIdentifier(targetField))
 		srcColumns = append(srcColumns, srcField)
 	}
 

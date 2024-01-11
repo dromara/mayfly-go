@@ -112,7 +112,10 @@ class MysqlDialect implements DbDialect {
     }
 
     getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
-        return `SELECT * FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(pageNum, limit)};`;
+        return `SELECT * FROM ${this.quoteIdentifier(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(
+            pageNum,
+            limit
+        )};`;
     }
 
     getPageSql(pageNum: number, limit: number) {
@@ -181,7 +184,7 @@ class MysqlDialect implements DbDialect {
         };
     }
 
-    wrapName = (name: string) => {
+    quoteIdentifier = (name: string) => {
         return `\`${name}\``;
     };
 

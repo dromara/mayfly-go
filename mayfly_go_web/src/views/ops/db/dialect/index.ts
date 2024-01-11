@@ -143,10 +143,10 @@ export interface DbDialect {
     getDefaultIndex(): IndexDefinition;
 
     /**
-     * 包裹数据库表名、字段名等，避免使用关键字为字段名或表名时报错
+     * 引用标识符，包裹数据库表名、字段名等，避免使用关键字为字段名或表名时报错
      * @param name 名称
      */
-    wrapName(name: string): string;
+    quoteIdentifier(name: string): string;
 
     /**
      * 生成创建表sql
