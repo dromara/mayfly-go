@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/emirpasic/gods/maps/linkedhashmap"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/timex"
 	"sync"
 	"time"
 )
@@ -32,7 +33,7 @@ type Job interface {
 	Runnable(next NextFunc) bool
 	GetDeadline() time.Time
 	Schedule() bool
-	Renew(job Job)
+	Update(job Job)
 }
 
 type iterator[T Job] struct {
@@ -138,6 +139,7 @@ func NewRunner[T Job](maxRunning int) *Runner[T] {
 	}
 	go func() {
 		defer runner.wg.Done()
+		timex.SleepWithContext(runner.context, time.Second*10)
 		for runner.context.Err() == nil {
 			job, ok := runner.delayQueue.Dequeue(ctx)
 			if !ok {
@@ -277,7 +279,7 @@ func (r *Runner[T]) UpdateOrAdd(ctx context.Context, job T) error {
 	defer r.mutex.Unlock()
 
 	if old, ok := r.all[job.GetKey()]; ok {
-		old.Renew(job)
+		old.Update(job)
 		job = old
 	}
 	r.schedule(ctx, job)

@@ -232,9 +232,12 @@ func (s *dbScheduler) restoreMysql(ctx context.Context, job entity.DbJob) error 
 		if ok {
 			latestBinlogSequence = binlogHistory.Sequence
 		} else {
-			backupHistory, err := s.backupHistoryRepo.GetEarliestHistory(restore.DbInstanceId)
+			backupHistory, ok, err := s.backupHistoryRepo.GetEarliestHistory(restore.DbInstanceId)
 			if err != nil {
 				return err
+			}
+			if !ok {
+				return nil
 			}
 			earliestBackupSequence = backupHistory.BinlogSequence
 		}
@@ -300,12 +303,12 @@ func (s *dbScheduler) runnable(job entity.DbJob, next runner.NextFunc) bool {
 		itemBase := item.(entity.DbJob).GetJobBase()
 		if jobBase.DbInstanceId == itemBase.DbInstanceId {
 			countByInstanceId++
-			if countByInstanceId > maxCountByInstanceId {
+			if countByInstanceId >= maxCountByInstanceId {
 				return false
 			}
 			if jobBase.DbName == itemBase.DbName {
 				countByDbName++
-				if countByDbName > maxCountByDbName {
+				if countByDbName >= maxCountByDbName {
 					return false
 				}
 			}

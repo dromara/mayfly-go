@@ -19,10 +19,6 @@ var (
 	dataSyncApp  DataSyncTask
 )
 
-//var repositories *repository.Repositories
-//var scheduler *dbScheduler[*entity.DbBackup]
-//var scheduler1 *dbScheduler[*entity.DbRestore]
-
 func Init() {
 	sync.OnceFunc(func() {
 		repositories := &repository.Repositories{
