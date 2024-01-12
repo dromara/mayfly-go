@@ -1,10 +1,11 @@
-package dbm
+package mysql
 
 import (
-	"github.com/stretchr/testify/require"
 	"mayfly-go/internal/db/domain/entity"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_readBinlogInfoFromBackup(t *testing.T) {

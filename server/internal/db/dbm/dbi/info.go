@@ -1,4 +1,4 @@
-package dbm
+package dbi
 
 import (
 	"database/sql"
@@ -7,6 +7,9 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 )
+
+// 获取sql.DB函数
+type GetSqlDbFunc func(*DbInfo) (*sql.DB, error)
 
 type DbInfo struct {
 	InstanceId uint64 // 实例id
@@ -24,6 +27,8 @@ type DbInfo struct {
 
 	TagPath            []string
 	SshTunnelMachineId int
+
+	Meta Meta
 }
 
 // 获取记录日志的描述
@@ -32,22 +37,16 @@ func (d *DbInfo) GetLogDesc() string {
 }
 
 // 连接数据库
-func (dbInfo *DbInfo) Conn() (*DbConn, error) {
-	var conn *sql.DB
-	var err error
-	database := dbInfo.Database
-
-	switch dbInfo.Type {
-	case DbTypeMysql, DbTypeMariadb:
-		conn, err = getMysqlDB(dbInfo)
-	case DbTypePostgres:
-		conn, err = getPgsqlDB(dbInfo)
-	case DbTypeDM:
-		conn, err = getDmDB(dbInfo)
-	default:
-		return nil, errorx.NewBiz("invalid database type: %s", dbInfo.Type)
+func (dbInfo *DbInfo) Conn(meta Meta) (*DbConn, error) {
+	if meta == nil {
+		return nil, errorx.NewBiz("数据库元信息接口不能为空")
 	}
 
+	// 赋值Meta，方便后续获取dialect等
+	dbInfo.Meta = meta
+	database := dbInfo.Database
+
+	conn, err := meta.GetSqlDb(dbInfo)
 	if err != nil {
 		logx.Errorf("连接db失败: %s:%d/%s, err:%s", dbInfo.Host, dbInfo.Port, database, err.Error())
 		return nil, errorx.NewBiz(fmt.Sprintf("数据库连接失败: %s", err.Error()))

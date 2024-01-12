@@ -3,6 +3,10 @@ package dbm
 import (
 	"fmt"
 	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/internal/db/dbm/dm"
+	"mayfly-go/internal/db/dbm/mysql"
+	"mayfly-go/internal/db/dbm/postgres"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/logx"
@@ -15,7 +19,7 @@ var connCache = cache.NewTimedCache(consts.DbConnExpireTime, 5*time.Second).
 	WithUpdateAccessTime(true).
 	OnEvicted(func(key any, value any) {
 		logx.Info(fmt.Sprintf("删除db连接缓存 id = %s", key))
-		value.(*DbConn).Close()
+		value.(*dbi.DbConn).Close()
 	})
 
 func init() {
@@ -23,7 +27,7 @@ func init() {
 		// 遍历所有db连接实例，若存在db实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := connCache.Items()
 		for _, v := range items {
-			if v.Value.(*DbConn).Info.SshTunnelMachineId == machineId {
+			if v.Value.(*dbi.DbConn).Info.SshTunnelMachineId == machineId {
 				return true
 			}
 		}
@@ -33,8 +37,21 @@ func init() {
 
 var mutex sync.Mutex
 
+func getDbMetaByType(dt dbi.DbType) dbi.Meta {
+	switch dt {
+	case dbi.DbTypeMysql, dbi.DbTypeMariadb:
+		return mysql.GetMeta()
+	case dbi.DbTypePostgres:
+		return postgres.GetMeta()
+	case dbi.DbTypeDM:
+		return dm.GetMeta()
+	default:
+		panic(fmt.Sprintf("invalid database type: %s", dt))
+	}
+}
+
 // 从缓存中获取数据库连接信息，若缓存中不存在则会使用回调函数获取dbInfo进行连接并缓存
-func GetDbConn(dbId uint64, database string, getDbInfo func() (*DbInfo, error)) (*DbConn, error) {
+func GetDbConn(dbId uint64, database string, getDbInfo func() (*dbi.DbInfo, error)) (*dbi.DbConn, error) {
 	connId := GetDbConnId(dbId, database)
 
 	// connId不为空，则为需要缓存
@@ -42,7 +59,7 @@ func GetDbConn(dbId uint64, database string, getDbInfo func() (*DbInfo, error)) 
 	if needCache {
 		load, ok := connCache.Get(connId)
 		if ok {
-			return load.(*DbConn), nil
+			return load.(*dbi.DbConn), nil
 		}
 	}
 
@@ -56,7 +73,7 @@ func GetDbConn(dbId uint64, database string, getDbInfo func() (*DbInfo, error)) 
 	}
 
 	// 连接数据库
-	dbConn, err := dbInfo.Conn()
+	dbConn, err := Conn(dbInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -67,10 +84,15 @@ func GetDbConn(dbId uint64, database string, getDbInfo func() (*DbInfo, error)) 
 	return dbConn, nil
 }
 
+// 使用指定dbInfo信息进行连接
+func Conn(di *dbi.DbInfo) (*dbi.DbConn, error) {
+	return di.Conn(getDbMetaByType(di.Type))
+}
+
 // 根据实例id获取连接
-func GetDbConnByInstanceId(instanceId uint64) *DbConn {
+func GetDbConnByInstanceId(instanceId uint64) *dbi.DbConn {
 	for _, connItem := range connCache.Items() {
-		conn := connItem.Value.(*DbConn)
+		conn := connItem.Value.(*dbi.DbConn)
 		if conn.Info.InstanceId == instanceId {
 			return conn
 		}
@@ -81,4 +103,13 @@ func GetDbConnByInstanceId(instanceId uint64) *DbConn {
 // 删除db缓存并关闭该数据库所有连接
 func CloseDb(dbId uint64, db string) {
 	connCache.Delete(GetDbConnId(dbId, db))
+}
+
+// 获取连接id
+func GetDbConnId(dbId uint64, db string) string {
+	if dbId == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf("%d:%s", dbId, db)
 }

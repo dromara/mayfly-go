@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"mayfly-go/internal/db/config"
-	"mayfly-go/internal/db/dbm"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/contextx"
@@ -22,11 +22,11 @@ type DbSqlExecReq struct {
 	Db     string
 	Sql    string
 	Remark string
-	DbConn *dbm.DbConn
+	DbConn *dbi.DbConn
 }
 
 type DbSqlExecRes struct {
-	Columns []*dbm.QueryColumn
+	Columns []*dbi.QueryColumn
 	Res     []map[string]any
 }
 
@@ -269,7 +269,7 @@ func doInsert(ctx context.Context, insert *sqlparser.Insert, execSqlReq *DbSqlEx
 	return doExec(ctx, execSqlReq.Sql, execSqlReq.DbConn)
 }
 
-func doExec(ctx context.Context, sql string, dbConn *dbm.DbConn) (*DbSqlExecRes, error) {
+func doExec(ctx context.Context, sql string, dbConn *dbi.DbConn) (*DbSqlExecRes, error) {
 	rowsAffected, err := dbConn.ExecContext(ctx, sql)
 	execRes := "success"
 	if err != nil {
@@ -283,7 +283,7 @@ func doExec(ctx context.Context, sql string, dbConn *dbm.DbConn) (*DbSqlExecRes,
 	res = append(res, resData)
 
 	return &DbSqlExecRes{
-		Columns: []*dbm.QueryColumn{
+		Columns: []*dbi.QueryColumn{
 			{Name: "sql", Type: "string"},
 			{Name: "rowsAffected", Type: "number"},
 			{Name: "result", Type: "string"},

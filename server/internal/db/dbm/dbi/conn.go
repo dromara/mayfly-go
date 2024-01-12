@@ -1,4 +1,4 @@
-package dbm
+package dbi
 
 import (
 	"context"
@@ -117,18 +117,9 @@ func (d *DbConn) Begin() (*sql.Tx, error) {
 	return d.db.Begin()
 }
 
-// 获取数据库元信息实现接口
-func (d *DbConn) GetDialect() DbDialect {
-	switch d.Info.Type {
-	case DbTypeMysql, DbTypeMariadb:
-		return &MysqlDialect{dc: d}
-	case DbTypePostgres:
-		return &PgsqlDialect{dc: d}
-	case DbTypeDM:
-		return &DMDialect{dc: d}
-	default:
-		panic(fmt.Sprintf("invalid database type: %s", d.Info.Type))
-	}
+// 获取数据库dialect实现接口
+func (d *DbConn) GetDialect() Dialect {
+	return d.Info.Meta.GetDialect(d)
 }
 
 // 关闭连接

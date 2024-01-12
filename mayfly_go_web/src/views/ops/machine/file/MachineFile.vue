@@ -611,7 +611,7 @@ const deleteFile = async (files: any) => {
 
 const downloadFile = (data: any) => {
     const a = document.createElement('a');
-    a.setAttribute('href', `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/read?type=1&path=${data.path}&${joinClientParams()}`);
+    a.setAttribute('href', `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/download?path=${data.path}&${joinClientParams()}`);
     a.click();
 };
 

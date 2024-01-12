@@ -90,7 +90,6 @@ func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 	g := rc.GinCtx
 	fid := GetMachineFileId(g)
 	readPath := g.Query("path")
-	readType := g.Query("type")
 
 	sftpFile, mi, err := m.MachineFileApp.ReadFile(fid, readPath)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
@@ -99,20 +98,27 @@ func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 
 	fileInfo, _ := sftpFile.Stat()
 	filesize := fileInfo.Size()
-	// 如果是读取文件内容，则校验文件大小
-	if readType != "1" {
-		biz.IsTrue(filesize < max_read_size, "文件超过1m，请使用下载查看")
-	}
-	// 如果读取类型为下载，则下载文件，否则获取文件内容
-	if readType == "1" {
-		// 截取文件名，如/usr/local/test.java -》 test.java
-		path := strings.Split(readPath, "/")
-		rc.Download(sftpFile, path[len(path)-1])
-	} else {
-		datas, err := io.ReadAll(sftpFile)
-		biz.ErrIsNilAppendErr(err, "读取文件内容失败: %s")
-		rc.ResData = string(datas)
-	}
+
+	biz.IsTrue(filesize < max_read_size, "文件超过1m，请使用下载查看")
+	datas, err := io.ReadAll(sftpFile)
+	biz.ErrIsNilAppendErr(err, "读取文件内容失败: %s")
+
+	rc.ResData = string(datas)
+}
+
+func (m *MachineFile) DownloadFile(rc *req.Ctx) {
+	g := rc.GinCtx
+	fid := GetMachineFileId(g)
+	readPath := g.Query("path")
+
+	sftpFile, mi, err := m.MachineFileApp.ReadFile(fid, readPath)
+	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
+	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
+	defer sftpFile.Close()
+
+	// 截取文件名，如/usr/local/test.java -》 test.java
+	path := strings.Split(readPath, "/")
+	rc.Download(sftpFile, path[len(path)-1])
 }
 
 func (m *MachineFile) GetDirEntry(rc *req.Ctx) {

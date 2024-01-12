@@ -25,7 +25,9 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 
 		req.NewDelete(":machineId/files/:fileId", mf.DeleteFile).Log(req.NewLogSave("机器-删除文件配置")).RequiredPermissionCode("machine:file:del"),
 
-		req.NewGet(":machineId/files/:fileId/read", mf.ReadFileContent).Log(req.NewLogSave("机器-获取文件内容")),
+		req.NewGet(":machineId/files/:fileId/read", mf.ReadFileContent).Log(req.NewLogSave("机器-读取文件内容")),
+
+		req.NewGet(":machineId/files/:fileId/download", mf.DownloadFile).NoRes().Log(req.NewLogSave("机器-文件下载")),
 
 		req.NewGet(":machineId/files/:fileId/read-dir", mf.GetDirEntry),
 

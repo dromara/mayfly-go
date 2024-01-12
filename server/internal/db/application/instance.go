@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"mayfly-go/internal/db/dbm"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
@@ -50,7 +51,7 @@ func (app *instanceAppImpl) Count(condition *entity.InstanceQuery) int64 {
 
 func (app *instanceAppImpl) TestConn(instanceEntity *entity.DbInstance) error {
 	instanceEntity.Network = instanceEntity.GetNetwork()
-	dbConn, err := toDbInfo(instanceEntity, 0, "", "").Conn()
+	dbConn, err := dbm.Conn(toDbInfo(instanceEntity, 0, "", ""))
 	if err != nil {
 		return err
 	}
@@ -100,9 +101,9 @@ func (app *instanceAppImpl) Delete(ctx context.Context, id uint64) error {
 
 func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance) ([]string, error) {
 	ed.Network = ed.GetNetwork()
-	metaDb := dbm.ToDbType(ed.Type).MetaDbName()
+	metaDb := dbi.ToDbType(ed.Type).MetaDbName()
 
-	dbConn, err := toDbInfo(ed, 0, metaDb, "").Conn()
+	dbConn, err := dbm.Conn(toDbInfo(ed, 0, metaDb, ""))
 	if err != nil {
 		return nil, err
 	}

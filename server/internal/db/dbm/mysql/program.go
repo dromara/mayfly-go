@@ -1,4 +1,4 @@
-package dbm
+package mysql
 
 import (
 	"bufio"
@@ -19,27 +19,28 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"mayfly-go/internal/db/config"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/logx"
 )
 
-var _ DbProgram = (*DbProgramMysql)(nil)
+var _ dbi.DbProgram = (*DbProgramMysql)(nil)
 
 type DbProgramMysql struct {
-	dbConn *DbConn
+	dbConn *dbi.DbConn
 	// mysqlBin 用于集成测试
 	mysqlBin *config.MysqlBin
 	// backupPath 用于集成测试
 	backupPath string
 }
 
-func NewDbProgramMysql(dbConn *DbConn) *DbProgramMysql {
+func NewDbProgramMysql(dbConn *dbi.DbConn) *DbProgramMysql {
 	return &DbProgramMysql{
 		dbConn: dbConn,
 	}
 }
 
-func (svc *DbProgramMysql) dbInfo() *DbInfo {
+func (svc *DbProgramMysql) dbInfo() *dbi.DbInfo {
 	dbInfo := svc.dbConn.Info
 	err := dbInfo.IfUseSshTunnelChangeIpPort()
 	if err != nil {
@@ -55,9 +56,9 @@ func (svc *DbProgramMysql) getMysqlBin() *config.MysqlBin {
 	dbInfo := svc.dbInfo()
 	var mysqlBin *config.MysqlBin
 	switch dbInfo.Type {
-	case DbTypeMariadb:
+	case dbi.DbTypeMariadb:
 		mysqlBin = config.GetMysqlBin(config.ConfigKeyDbMariadbBin)
-	case DbTypeMysql:
+	case dbi.DbTypeMysql:
 		mysqlBin = config.GetMysqlBin(config.ConfigKeyDbMysqlBin)
 	default:
 		panic(fmt.Sprintf("不兼容 MySQL 的数据库类型: %v", dbInfo.Type))
@@ -488,7 +489,7 @@ func (svc *DbProgramMysql) GetBinlogEventPositionAtOrAfterTime(ctx context.Conte
 }
 
 // ReplayBinlog replays the binlog for `originDatabase` from `startBinlogInfo.Position` to `targetTs`, read binlog from `binlogDir`.
-func (svc *DbProgramMysql) ReplayBinlog(ctx context.Context, originalDatabase, targetDatabase string, restoreInfo *RestoreInfo) (replayErr error) {
+func (svc *DbProgramMysql) ReplayBinlog(ctx context.Context, originalDatabase, targetDatabase string, restoreInfo *dbi.RestoreInfo) (replayErr error) {
 	const (
 		// Variable lower_case_table_names related.
 

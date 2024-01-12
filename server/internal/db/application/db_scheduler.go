@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"mayfly-go/internal/db/dbm"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/logx"
@@ -314,7 +314,7 @@ func (s *dbScheduler) runnable(job entity.DbJob, next runner.NextFunc) bool {
 	return true
 }
 
-func (s *dbScheduler) restorePointInTime(ctx context.Context, program dbm.DbProgram, job *entity.DbRestore) error {
+func (s *dbScheduler) restorePointInTime(ctx context.Context, program dbi.DbProgram, job *entity.DbRestore) error {
 	binlogHistory, err := s.binlogHistoryRepo.GetHistoryByTime(job.DbInstanceId, job.PointInTime.Time)
 	if err != nil {
 		return err
@@ -341,7 +341,7 @@ func (s *dbScheduler) restorePointInTime(ctx context.Context, program dbm.DbProg
 	if err != nil {
 		return err
 	}
-	restoreInfo := &dbm.RestoreInfo{
+	restoreInfo := &dbi.RestoreInfo{
 		BackupHistory:   backupHistory,
 		BinlogHistories: binlogHistories,
 		StartPosition:   backupHistory.BinlogPosition,
@@ -354,7 +354,7 @@ func (s *dbScheduler) restorePointInTime(ctx context.Context, program dbm.DbProg
 	return program.ReplayBinlog(ctx, job.DbName, job.DbName, restoreInfo)
 }
 
-func (s *dbScheduler) restoreBackupHistory(ctx context.Context, program dbm.DbProgram, job *entity.DbRestore) error {
+func (s *dbScheduler) restoreBackupHistory(ctx context.Context, program dbi.DbProgram, job *entity.DbRestore) error {
 	backupHistory := &entity.DbBackupHistory{}
 	if err := s.backupHistoryRepo.GetById(backupHistory, job.DbBackupHistoryId); err != nil {
 		return err

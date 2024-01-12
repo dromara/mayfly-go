@@ -1,6 +1,6 @@
 //go:build e2e
 
-package dbm
+package mysql
 
 import (
 	"context"

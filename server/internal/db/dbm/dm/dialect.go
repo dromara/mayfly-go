@@ -1,9 +1,10 @@
-package dbm
+package dm
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
@@ -14,30 +15,6 @@ import (
 	_ "gitee.com/chunanyong/dm"
 )
 
-func getDmDB(d *DbInfo) (*sql.DB, error) {
-	driverName := "dm"
-	db := d.Database
-	var dbParam string
-	if db != "" {
-		// dm database可以使用db/schema表示，方便连接指定schema, 若不存在schema则使用默认schema
-		ss := strings.Split(db, "/")
-		if len(ss) > 1 {
-			dbParam = fmt.Sprintf("%s?schema=%s", ss[0], ss[len(ss)-1])
-		} else {
-			dbParam = db
-		}
-	}
-
-	err := d.IfUseSshTunnelChangeIpPort()
-	if err != nil {
-		return nil, err
-	}
-
-	dsn := fmt.Sprintf("dm://%s:%s@%s:%d/%s", d.Username, d.Password, d.Host, d.Port, dbParam)
-	return sql.Open(driverName, dsn)
-}
-
-// ---------------------------------- DM元数据 -----------------------------------
 const (
 	DM_META_FILE      = "metasql/dm_meta.sql"
 	DM_DB_SCHEMAS     = "DM_DB_SCHEMAS"
@@ -47,15 +24,15 @@ const (
 )
 
 type DMDialect struct {
-	dc *DbConn
+	dc *dbi.DbConn
 }
 
-func (dd *DMDialect) GetDbServer() (*DbServer, error) {
+func (dd *DMDialect) GetDbServer() (*dbi.DbServer, error) {
 	_, res, err := dd.dc.Query("select * from v$instance")
 	if err != nil {
 		return nil, err
 	}
-	ds := &DbServer{
+	ds := &dbi.DbServer{
 		Version: anyx.ConvString(res[0]["SVR_VERSION"]),
 	}
 	return ds, nil
@@ -76,20 +53,20 @@ func (dd *DMDialect) GetDbNames() ([]string, error) {
 }
 
 // 获取表基础元信息, 如表名等
-func (dd *DMDialect) GetTables() ([]Table, error) {
+func (dd *DMDialect) GetTables() ([]dbi.Table, error) {
 
 	// 首先执行更新统计信息sql 这个统计信息在数据量比较大的时候就比较耗时，所以最好定时执行
 	// _, _, err := pd.dc.Query("dbms_stats.GATHER_SCHEMA_stats(SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))")
 
 	// 查询表信息
-	_, res, err := dd.dc.Query(GetLocalSql(DM_META_FILE, DM_TABLE_INFO_KEY))
+	_, res, err := dd.dc.Query(dbi.GetLocalSql(DM_META_FILE, DM_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
 	}
 
-	tables := make([]Table, 0)
+	tables := make([]dbi.Table, 0)
 	for _, re := range res {
-		tables = append(tables, Table{
+		tables = append(tables, dbi.Table{
 			TableName:    re["TABLE_NAME"].(string),
 			TableComment: anyx.ConvString(re["TABLE_COMMENT"]),
 			CreateTime:   anyx.ConvString(re["CREATE_TIME"]),
@@ -102,7 +79,7 @@ func (dd *DMDialect) GetTables() ([]Table, error) {
 }
 
 // 获取列元信息, 如列名等
-func (dd *DMDialect) GetColumns(tableNames ...string) ([]Column, error) {
+func (dd *DMDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	tableName := ""
 	for i := 0; i < len(tableNames); i++ {
 		if i != 0 {
@@ -111,14 +88,14 @@ func (dd *DMDialect) GetColumns(tableNames ...string) ([]Column, error) {
 		tableName = tableName + "'" + tableNames[i] + "'"
 	}
 
-	_, res, err := dd.dc.Query(fmt.Sprintf(GetLocalSql(DM_META_FILE, DM_COLUMN_MA_KEY), tableName))
+	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
 
-	columns := make([]Column, 0)
+	columns := make([]dbi.Column, 0)
 	for _, re := range res {
-		columns = append(columns, Column{
+		columns = append(columns, dbi.Column{
 			TableName:     re["TABLE_NAME"].(string),
 			ColumnName:    re["COLUMN_NAME"].(string),
 			ColumnType:    anyx.ConvString(re["COLUMN_TYPE"]),
@@ -150,15 +127,15 @@ func (dd *DMDialect) GetPrimaryKey(tablename string) (string, error) {
 }
 
 // 获取表索引信息
-func (dd *DMDialect) GetTableIndex(tableName string) ([]Index, error) {
-	_, res, err := dd.dc.Query(fmt.Sprintf(GetLocalSql(DM_META_FILE, DM_INDEX_INFO_KEY), tableName))
+func (dd *DMDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
+	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
 
-	indexs := make([]Index, 0)
+	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
-		indexs = append(indexs, Index{
+		indexs = append(indexs, dbi.Index{
 			IndexName:    re["INDEX_NAME"].(string),
 			ColumnName:   anyx.ConvString(re["COLUMN_NAME"]),
 			IndexType:    anyx.ConvString(re["INDEX_TYPE"]),
@@ -168,7 +145,7 @@ func (dd *DMDialect) GetTableIndex(tableName string) ([]Index, error) {
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
-	result := make([]Index, 0)
+	result := make([]dbi.Index, 0)
 	key := ""
 	for _, v := range indexs {
 		// 当前的索引名
@@ -255,13 +232,13 @@ func (dd *DMDialect) GetTableDDL(tableName string) (string, error) {
 	return builder.String(), nil
 }
 
-func (dd *DMDialect) WalkTableRecord(tableName string, walkFn WalkQueryRowsFunc) error {
+func (dd *DMDialect) WalkTableRecord(tableName string, walkFn dbi.WalkQueryRowsFunc) error {
 	return dd.dc.WalkQueryRows(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
 }
 
 // 获取DM当前连接的库可访问的schemaNames
 func (dd *DMDialect) GetSchemas() ([]string, error) {
-	sql := GetLocalSql(DM_META_FILE, DM_DB_SCHEMAS)
+	sql := dbi.GetLocalSql(DM_META_FILE, DM_DB_SCHEMAS)
 	_, res, err := dd.dc.Query(sql)
 	if err != nil {
 		return nil, err
@@ -274,27 +251,27 @@ func (dd *DMDialect) GetSchemas() ([]string, error) {
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (dd *DMDialect) GetDbProgram() DbProgram {
+func (dd *DMDialect) GetDbProgram() dbi.DbProgram {
 	panic("implement me")
 }
 
-func (dd *DMDialect) GetDataType(dbColumnType string) DataType {
+func (dd *DMDialect) GetDataType(dbColumnType string) dbi.DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
-		return DataTypeNumber
+		return dbi.DataTypeNumber
 	}
 	// 日期时间类型
 	if regexp.MustCompile(`(?i)datetime|timestamp`).MatchString(dbColumnType) {
-		return DataTypeDateTime
+		return dbi.DataTypeDateTime
 	}
 	// 日期类型
 	if regexp.MustCompile(`(?i)date`).MatchString(dbColumnType) {
-		return DataTypeDate
+		return dbi.DataTypeDate
 	}
 	// 时间类型
 	if regexp.MustCompile(`(?i)time`).MatchString(dbColumnType) {
-		return DataTypeTime
+		return dbi.DataTypeTime
 	}
-	return DataTypeString
+	return dbi.DataTypeString
 }
 
 func (dd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
@@ -322,15 +299,15 @@ func (dd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string,
 	return int64(effRows), nil
 }
 
-func (dd *DMDialect) FormatStrData(dbColumnValue string, dataType DataType) string {
+func (dd *DMDialect) FormatStrData(dbColumnValue string, dataType dbi.DataType) string {
 	switch dataType {
-	case DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
+	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
 		res, _ := time.Parse(time.RFC3339, dbColumnValue)
 		return res.Format(time.DateTime)
-	case DataTypeDate: // "2024-01-02T00:00:00+08:00"
+	case dbi.DataTypeDate: // "2024-01-02T00:00:00+08:00"
 		res, _ := time.Parse(time.RFC3339, dbColumnValue)
 		return res.Format(time.DateOnly)
-	case DataTypeTime: // "0000-01-01T22:08:22.275688+08:00"
+	case dbi.DataTypeTime: // "0000-01-01T22:08:22.275688+08:00"
 		res, _ := time.Parse(time.RFC3339, dbColumnValue)
 		return res.Format(time.TimeOnly)
 	}

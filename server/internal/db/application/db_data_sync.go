@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"mayfly-go/internal/db/dbm"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
@@ -182,20 +182,20 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 	if err != nil {
 		return syncLog, errorx.NewBiz("解析字段映射json出错: %s", err.Error())
 	}
-	var updFieldType dbm.DataType
+	var updFieldType dbi.DataType
 
 	// 记录本次同步数据总数
 	total := 0
 	batchSize := task.PageSize
 	result := make([]map[string]any, 0)
-	var queryColumns []*dbm.QueryColumn
+	var queryColumns []*dbi.QueryColumn
 
-	err = srcConn.WalkQueryRows(context.Background(), sql, func(row map[string]any, columns []*dbm.QueryColumn) error {
+	err = srcConn.WalkQueryRows(context.Background(), sql, func(row map[string]any, columns []*dbi.QueryColumn) error {
 		if len(queryColumns) == 0 {
 			queryColumns = columns
 
 			// 遍历columns 取task.UpdField的字段类型
-			updFieldType = dbm.DataTypeString
+			updFieldType = dbi.DataTypeString
 			for _, column := range columns {
 				if column.Name == task.UpdField {
 					updFieldType = srcDialect.GetDataType(column.Type)
@@ -249,7 +249,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 	return syncLog, nil
 }
 
-func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, updFieldType dbm.DataType, task *entity.DataSyncTask, srcDialect dbm.DbDialect, targetDbConn *dbm.DbConn, targetDbTx *sql.Tx) error {
+func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, updFieldType dbi.DataType, task *entity.DataSyncTask, srcDialect dbi.Dialect, targetDbConn *dbi.DbConn, targetDbTx *sql.Tx) error {
 	var data = make([]map[string]any, 0)
 
 	// 遍历res，组装插入sql

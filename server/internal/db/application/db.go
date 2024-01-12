@@ -4,6 +4,7 @@ import (
 	"context"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/dbm"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	tagapp "mayfly-go/internal/tag/application"
@@ -33,10 +34,10 @@ type Db interface {
 	// @param id 数据库id
 	//
 	// @param dbName 数据库名
-	GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error)
+	GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error)
 
 	// 根据数据库实例id获取连接，随机返回该instanceId下已连接的conn，若不存在则是使用该instanceId关联的db进行连接并返回。
-	GetDbConnByInstanceId(instanceId uint64) (*dbm.DbConn, error)
+	GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error)
 }
 
 func newDbApp(dbRepo repository.Db, dbSqlRepo repository.DbSql, dbInstanceApp Instance, tagApp tagapp.TagTree) Db {
@@ -142,8 +143,8 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 		})
 }
 
-func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error) {
-	return dbm.GetDbConn(dbId, dbName, func() (*dbm.DbInfo, error) {
+func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
+	return dbm.GetDbConn(dbId, dbName, func() (*dbi.DbInfo, error) {
 		db, err := d.GetById(new(entity.Db), dbId)
 		if err != nil {
 			return nil, errorx.NewBiz("数据库信息不存在")
@@ -156,7 +157,7 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error) {
 
 		checkDb := dbName
 		// 兼容pgsql/dm db/schema模式
-		if dbm.DbTypePostgres.Equal(instance.Type) || dbm.DbTypeDM.Equal(instance.Type) {
+		if dbi.DbTypePostgres.Equal(instance.Type) || dbi.DbTypeDM.Equal(instance.Type) {
 			ss := strings.Split(dbName, "/")
 			if len(ss) > 1 {
 				checkDb = ss[0]
@@ -174,7 +175,7 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbm.DbConn, error) {
 	})
 }
 
-func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbm.DbConn, error) {
+func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error) {
 	conn := dbm.GetDbConnByInstanceId(instanceId)
 	if conn != nil {
 		return conn, nil
@@ -193,8 +194,8 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbm.DbConn, error
 	return d.GetDbConn(firstDb.Id, strings.Split(firstDb.Database, " ")[0])
 }
 
-func toDbInfo(instance *entity.DbInstance, dbId uint64, database string, tagPath ...string) *dbm.DbInfo {
-	di := new(dbm.DbInfo)
+func toDbInfo(instance *entity.DbInstance, dbId uint64, database string, tagPath ...string) *dbi.DbInfo {
+	di := new(dbi.DbInfo)
 	di.InstanceId = instance.Id
 	di.Id = dbId
 	di.Database = database

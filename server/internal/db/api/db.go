@@ -9,7 +9,7 @@ import (
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
-	"mayfly-go/internal/db/dbm"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
@@ -351,7 +351,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 		writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", table))
 		writer.WriteString("BEGIN;\n")
 		insertSql := "INSERT INTO %s VALUES (%s);\n"
-		dbMeta.WalkTableRecord(table, func(record map[string]any, columns []*dbm.QueryColumn) error {
+		dbMeta.WalkTableRecord(table, func(record map[string]any, columns []*dbi.QueryColumn) error {
 			var values []string
 			writer.TryFlush()
 			for _, column := range columns {
@@ -470,7 +470,7 @@ func getDbName(g *gin.Context) string {
 	return db
 }
 
-func (d *Db) getDbConn(g *gin.Context) *dbm.DbConn {
+func (d *Db) getDbConn(g *gin.Context) *dbi.DbConn {
 	dc, err := d.DbApp.GetDbConn(getDbId(g), getDbName(g))
 	biz.ErrIsNil(err)
 	return dc

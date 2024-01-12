@@ -1,4 +1,4 @@
-package dbm
+package dbi
 
 import (
 	"testing"

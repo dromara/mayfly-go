@@ -1,99 +1,17 @@
-package dbm
+package postgres
 
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"fmt"
-	machineapp "mayfly-go/internal/machine/application"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
-	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/netx"
-	"net"
 	"regexp"
 	"strings"
 	"time"
-
-	pq "gitee.com/liuzongyang/libpq"
 )
 
-func getPgsqlDB(d *DbInfo) (*sql.DB, error) {
-	driverName := string(d.Type)
-	// SSH Conect
-	if d.SshTunnelMachineId > 0 {
-		// 如果使用了隧道，则使用`postgres:ssh:隧道机器id`注册名
-		driverName = fmt.Sprintf("postgres:ssh:%d", d.SshTunnelMachineId)
-		if !collx.ArrayContains(sql.Drivers(), driverName) {
-			sql.Register(driverName, &PqSqlDialer{sshTunnelMachineId: d.SshTunnelMachineId})
-		}
-		sql.Drivers()
-	}
-
-	db := d.Database
-	var dbParam string
-	exsitSchema := false
-	if db != "" {
-		// postgres database可以使用db/schema表示，方便连接指定schema, 若不存在schema则使用默认schema
-		ss := strings.Split(db, "/")
-		if len(ss) > 1 {
-			exsitSchema = true
-			dbParam = fmt.Sprintf("dbname=%s search_path=%s", ss[0], ss[len(ss)-1])
-		} else {
-			dbParam = "dbname=" + db
-		}
-	}
-
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s %s sslmode=disable connect_timeout=8", d.Host, d.Port, d.Username, d.Password, dbParam)
-	// 存在额外指定参数，则拼接该连接参数
-	if d.Params != "" {
-		// 存在指定的db，则需要将dbInstance配置中的parmas排除掉dbname和search_path
-		if db != "" {
-			paramArr := strings.Split(d.Params, "&")
-			paramArr = collx.ArrayRemoveFunc(paramArr, func(param string) bool {
-				if strings.HasPrefix(param, "dbname=") {
-					return true
-				}
-				if exsitSchema && strings.HasPrefix(param, "search_path") {
-					return true
-				}
-				return false
-			})
-			d.Params = strings.Join(paramArr, " ")
-		}
-		dsn = fmt.Sprintf("%s %s", dsn, strings.Join(strings.Split(d.Params, "&"), " "))
-	}
-
-	return sql.Open(driverName, dsn)
-}
-
-// pgsql dialer
-type PqSqlDialer struct {
-	sshTunnelMachineId int
-}
-
-func (d *PqSqlDialer) Open(name string) (driver.Conn, error) {
-	return pq.DialOpen(d, name)
-}
-
-func (pd *PqSqlDialer) Dial(network, address string) (net.Conn, error) {
-	sshTunnel, err := machineapp.GetMachineApp().GetSshTunnelMachine(pd.sshTunnelMachineId)
-	if err != nil {
-		return nil, err
-	}
-	if sshConn, err := sshTunnel.GetDialConn("tcp", address); err == nil {
-		// 将ssh conn包装，否则会返回错误: ssh: tcpChan: deadline not supported
-		return &netx.WrapSshConn{Conn: sshConn}, nil
-	} else {
-		return nil, err
-	}
-}
-
-func (pd *PqSqlDialer) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
-	return pd.Dial(network, address)
-}
-
-// ---------------------------------- pgsql元数据 -----------------------------------
 const (
 	PGSQL_META_FILE      = "metasql/pgsql_meta.sql"
 	PGSQL_DB_SCHEMAS     = "PGSQL_DB_SCHEMAS"
@@ -104,15 +22,15 @@ const (
 )
 
 type PgsqlDialect struct {
-	dc *DbConn
+	dc *dbi.DbConn
 }
 
-func (pd *PgsqlDialect) GetDbServer() (*DbServer, error) {
+func (pd *PgsqlDialect) GetDbServer() (*dbi.DbServer, error) {
 	_, res, err := pd.dc.Query("SHOW server_version")
 	if err != nil {
 		return nil, err
 	}
-	ds := &DbServer{
+	ds := &dbi.DbServer{
 		Version: anyx.ConvString(res[0]["server_version"]),
 	}
 	return ds, nil
@@ -133,15 +51,15 @@ func (pd *PgsqlDialect) GetDbNames() ([]string, error) {
 }
 
 // 获取表基础元信息, 如表名等
-func (pd *PgsqlDialect) GetTables() ([]Table, error) {
-	_, res, err := pd.dc.Query(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
+func (pd *PgsqlDialect) GetTables() ([]dbi.Table, error) {
+	_, res, err := pd.dc.Query(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
 	}
 
-	tables := make([]Table, 0)
+	tables := make([]dbi.Table, 0)
 	for _, re := range res {
-		tables = append(tables, Table{
+		tables = append(tables, dbi.Table{
 			TableName:    re["tableName"].(string),
 			TableComment: anyx.ConvString(re["tableComment"]),
 			CreateTime:   anyx.ConvString(re["createTime"]),
@@ -154,7 +72,7 @@ func (pd *PgsqlDialect) GetTables() ([]Table, error) {
 }
 
 // 获取列元信息, 如列名等
-func (pd *PgsqlDialect) GetColumns(tableNames ...string) ([]Column, error) {
+func (pd *PgsqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	tableName := ""
 	for i := 0; i < len(tableNames); i++ {
 		if i != 0 {
@@ -163,14 +81,14 @@ func (pd *PgsqlDialect) GetColumns(tableNames ...string) ([]Column, error) {
 		tableName = tableName + "'" + tableNames[i] + "'"
 	}
 
-	_, res, err := pd.dc.Query(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
+	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
 
-	columns := make([]Column, 0)
+	columns := make([]dbi.Column, 0)
 	for _, re := range res {
-		columns = append(columns, Column{
+		columns = append(columns, dbi.Column{
 			TableName:     re["tableName"].(string),
 			ColumnName:    re["columnName"].(string),
 			ColumnType:    anyx.ConvString(re["columnType"]),
@@ -202,15 +120,15 @@ func (pd *PgsqlDialect) GetPrimaryKey(tablename string) (string, error) {
 }
 
 // 获取表索引信息
-func (pd *PgsqlDialect) GetTableIndex(tableName string) ([]Index, error) {
-	_, res, err := pd.dc.Query(fmt.Sprintf(GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
+func (pd *PgsqlDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
+	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
 
-	indexs := make([]Index, 0)
+	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
-		indexs = append(indexs, Index{
+		indexs = append(indexs, dbi.Index{
 			IndexName:    re["indexName"].(string),
 			ColumnName:   anyx.ConvString(re["columnName"]),
 			IndexType:    anyx.ConvString(re["IndexType"]),
@@ -220,7 +138,7 @@ func (pd *PgsqlDialect) GetTableIndex(tableName string) ([]Index, error) {
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
-	result := make([]Index, 0)
+	result := make([]dbi.Index, 0)
 	key := ""
 	for _, v := range indexs {
 		// 当前的索引名
@@ -240,7 +158,7 @@ func (pd *PgsqlDialect) GetTableIndex(tableName string) ([]Index, error) {
 
 // 获取建表ddl
 func (pd *PgsqlDialect) GetTableDDL(tableName string) (string, error) {
-	_, err := pd.dc.Exec(GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
+	_, err := pd.dc.Exec(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
 	if err != nil {
 		return "", err
 	}
@@ -257,13 +175,13 @@ func (pd *PgsqlDialect) GetTableDDL(tableName string) (string, error) {
 	return res[0]["sql"].(string), nil
 }
 
-func (pd *PgsqlDialect) WalkTableRecord(tableName string, walkFn WalkQueryRowsFunc) error {
+func (pd *PgsqlDialect) WalkTableRecord(tableName string, walkFn dbi.WalkQueryRowsFunc) error {
 	return pd.dc.WalkQueryRows(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
 }
 
 // 获取pgsql当前连接的库可访问的schemaNames
 func (pd *PgsqlDialect) GetSchemas() ([]string, error) {
-	sql := GetLocalSql(PGSQL_META_FILE, PGSQL_DB_SCHEMAS)
+	sql := dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_DB_SCHEMAS)
 	_, res, err := pd.dc.Query(sql)
 	if err != nil {
 		return nil, err
@@ -276,27 +194,27 @@ func (pd *PgsqlDialect) GetSchemas() ([]string, error) {
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (pd *PgsqlDialect) GetDbProgram() DbProgram {
+func (pd *PgsqlDialect) GetDbProgram() dbi.DbProgram {
 	panic("implement me")
 }
 
-func (pd *PgsqlDialect) GetDataType(dbColumnType string) DataType {
+func (pd *PgsqlDialect) GetDataType(dbColumnType string) dbi.DataType {
 	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
-		return DataTypeNumber
+		return dbi.DataTypeNumber
 	}
 	// 日期时间类型
 	if regexp.MustCompile(`(?i)datetime|timestamp`).MatchString(dbColumnType) {
-		return DataTypeDateTime
+		return dbi.DataTypeDateTime
 	}
 	// 日期类型
 	if regexp.MustCompile(`(?i)date`).MatchString(dbColumnType) {
-		return DataTypeDate
+		return dbi.DataTypeDate
 	}
 	// 时间类型
 	if regexp.MustCompile(`(?i)time`).MatchString(dbColumnType) {
-		return DataTypeTime
+		return dbi.DataTypeTime
 	}
-	return DataTypeString
+	return dbi.DataTypeString
 }
 
 func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
@@ -325,15 +243,15 @@ func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 	return pd.dc.TxExec(tx, sqlStr, args...)
 }
 
-func (pd *PgsqlDialect) FormatStrData(dbColumnValue string, dataType DataType) string {
+func (pd *PgsqlDialect) FormatStrData(dbColumnValue string, dataType dbi.DataType) string {
 	switch dataType {
-	case DataTypeDateTime: // "2024-01-02T22:16:28.545377+08:00"
+	case dbi.DataTypeDateTime: // "2024-01-02T22:16:28.545377+08:00"
 		res, _ := time.Parse(time.RFC3339, dbColumnValue)
 		return res.Format(time.DateTime)
-	case DataTypeDate: //  "2024-01-02T00:00:00Z"
+	case dbi.DataTypeDate: //  "2024-01-02T00:00:00Z"
 		res, _ := time.Parse(time.RFC3339, dbColumnValue)
 		return res.Format(time.DateOnly)
-	case DataTypeTime: // "0000-01-01T22:16:28.545075+08:00"
+	case dbi.DataTypeTime: // "0000-01-01T22:16:28.545075+08:00"
 		res, _ := time.Parse(time.RFC3339, dbColumnValue)
 		return res.Format(time.TimeOnly)
 	}

@@ -35,6 +35,7 @@ export const machineApi = {
     mvFile: Api.newPost('/machines/{machineId}/files/{fileId}/mv'),
     uploadFile: Api.newPost('/machines/{machineId}/files/{fileId}/upload?' + joinClientParams()),
     fileContent: Api.newGet('/machines/{machineId}/files/{fileId}/read'),
+    downloadFile: Api.newGet('/machines/{machineId}/files/{fileId}/download'),
     createFile: Api.newPost('/machines/{machineId}/files/{id}/create-file'),
     // 修改文件内容
     updateFileContent: Api.newPost('/machines/{machineId}/files/{id}/write'),

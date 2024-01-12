@@ -1,12 +1,13 @@
-package dbm
+package dbi
 
 import (
 	"database/sql"
 	"embed"
+	"strings"
+
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
-	"strings"
 )
 
 type DataType string
@@ -60,7 +61,7 @@ type Index struct {
 
 // -----------------------------------元数据接口定义------------------------------------------
 // 数据库方言、元信息接口（表、列、获取表数据等元信息）
-type DbDialect interface {
+type Dialect interface {
 	// 获取数据库服务实例信息
 	GetDbServer() (*DbServer, error)
 
