@@ -1,15 +1,12 @@
 package dbi
 
 import (
-	"database/sql"
 	"fmt"
 	machineapp "mayfly-go/internal/machine/application"
+	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 )
-
-// 获取sql.DB函数
-type GetSqlDbFunc func(*DbInfo) (*sql.DB, error)
 
 type DbInfo struct {
 	InstanceId uint64 // 实例id
@@ -76,7 +73,7 @@ func (dbInfo *DbInfo) Conn(meta Meta) (*DbConn, error) {
 func (di *DbInfo) IfUseSshTunnelChangeIpPort() error {
 	// 开启ssh隧道
 	if di.SshTunnelMachineId > 0 {
-		sshTunnelMachine, err := machineapp.GetMachineApp().GetSshTunnelMachine(di.SshTunnelMachineId)
+		sshTunnelMachine, err := GetSshTunnel(di.SshTunnelMachineId)
 		if err != nil {
 			return err
 		}
@@ -88,6 +85,11 @@ func (di *DbInfo) IfUseSshTunnelChangeIpPort() error {
 		di.Port = exposedPort
 	}
 	return nil
+}
+
+// 根据ssh tunnel机器id返回ssh tunnel
+func GetSshTunnel(sshTunnelMachineId int) (*mcm.SshTunnelMachine, error) {
+	return machineapp.GetMachineApp().GetSshTunnelMachine(sshTunnelMachineId)
 }
 
 // 获取连接id

@@ -98,9 +98,7 @@ func (m *roleAppImpl) GetRoleResources(roleId uint64, toEntity any) {
 func (m *roleAppImpl) SaveRoleResource(ctx context.Context, roleId uint64, resourceIds []uint64) {
 	oIds := m.GetRoleResourceIds(roleId)
 
-	addIds, delIds, _ := collx.ArrayCompare(resourceIds, oIds, func(i1, i2 uint64) bool {
-		return i1 == i2
-	})
+	addIds, delIds, _ := collx.ArrayCompare(resourceIds, oIds)
 
 	la := contextx.GetLoginAccount(ctx)
 	createTime := time.Now()

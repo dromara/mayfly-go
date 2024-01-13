@@ -52,7 +52,7 @@ func getDbMetaByType(dt dbi.DbType) dbi.Meta {
 
 // 从缓存中获取数据库连接信息，若缓存中不存在则会使用回调函数获取dbInfo进行连接并缓存
 func GetDbConn(dbId uint64, database string, getDbInfo func() (*dbi.DbInfo, error)) (*dbi.DbConn, error) {
-	connId := GetDbConnId(dbId, database)
+	connId := dbi.GetDbConnId(dbId, database)
 
 	// connId不为空，则为需要缓存
 	needCache := connId != ""
@@ -102,14 +102,5 @@ func GetDbConnByInstanceId(instanceId uint64) *dbi.DbConn {
 
 // 删除db缓存并关闭该数据库所有连接
 func CloseDb(dbId uint64, db string) {
-	connCache.Delete(GetDbConnId(dbId, db))
-}
-
-// 获取连接id
-func GetDbConnId(dbId uint64, db string) string {
-	if dbId == 0 {
-		return ""
-	}
-
-	return fmt.Sprintf("%d:%s", dbId, db)
+	connCache.Delete(dbi.GetDbConnId(dbId, db))
 }

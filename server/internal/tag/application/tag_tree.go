@@ -168,7 +168,7 @@ func (p *tagTreeAppImpl) RelateResource(ctx context.Context, resourceCode string
 		oldTagIds := collx.ArrayMap[*entity.TagResource, uint64](oldTagResources, func(tr *entity.TagResource) uint64 {
 			return tr.TagId
 		})
-		addTagIds, delTagIds, _ = collx.ArrayCompare[uint64](tagIds, oldTagIds, func(u1, u2 uint64) bool { return u1 == u2 })
+		addTagIds, delTagIds, _ = collx.ArrayCompare[uint64](tagIds, oldTagIds)
 	}
 
 	if len(addTagIds) > 0 {

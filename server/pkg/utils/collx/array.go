@@ -2,38 +2,41 @@ package collx
 
 // 数组比较
 // 依次返回，新增值，删除值，以及不变值
-func ArrayCompare[T any](newArr []T, oldArr []T, compareFun func(T, T) bool) ([]T, []T, []T) {
-	var unmodifierValue []T
-	ni, oi := 0, 0
-	for {
-		if ni >= len(newArr) {
-			break
-		}
-		nv := newArr[ni]
-		for {
-			if oi >= len(oldArr) {
-				oi = 0
-				break
-			}
-			ov := oldArr[oi]
-			if compareFun(nv, ov) {
-				unmodifierValue = append(unmodifierValue, nv)
-				// 新数组移除该位置值
-				if len(newArr) > ni {
-					newArr = append(newArr[:ni], newArr[ni+1:]...)
-					ni = ni - 1
-				}
-				if len(oldArr) > oi {
-					oldArr = append(oldArr[:oi], oldArr[oi+1:]...)
-					oi = oi - 1
-				}
-			}
-			oi = oi + 1
-		}
-		ni = ni + 1
+func ArrayCompare[T comparable](newArr []T, oldArr []T) ([]T, []T, []T) {
+	newSet := make(map[T]bool)
+	oldSet := make(map[T]bool)
+
+	// 将新数组和旧数组的元素分别添加到对应的哈希集合中
+	for _, elem := range newArr {
+		newSet[elem] = true
+	}
+	for _, elem := range oldArr {
+		oldSet[elem] = true
 	}
 
-	return newArr, oldArr, unmodifierValue
+	var (
+		added      []T
+		deleted    []T
+		unmodified []T
+	)
+
+	// 遍历新数组，根据元素是否存在于旧数组进行分类
+	for _, elem := range newArr {
+		if oldSet[elem] {
+			unmodified = append(unmodified, elem)
+		} else {
+			added = append(added, elem)
+		}
+	}
+
+	// 遍历旧数组，找出被删除的元素
+	for _, elem := range oldArr {
+		if !newSet[elem] {
+			deleted = append(deleted, elem)
+		}
+	}
+
+	return added, deleted, unmodified
 }
 
 // 判断数组中是否含有指定元素

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
-	machineapp "mayfly-go/internal/machine/application"
 	"net"
 	"sync"
 
@@ -30,7 +29,7 @@ type MysqlMeta struct {
 func (md *MysqlMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
-		sshTunnelMachine, err := machineapp.GetMachineApp().GetSshTunnelMachine(d.SshTunnelMachineId)
+		sshTunnelMachine, err := dbi.GetSshTunnel(d.SshTunnelMachineId)
 		if err != nil {
 			return nil, err
 		}

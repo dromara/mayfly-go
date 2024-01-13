@@ -5,7 +5,6 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
-	machineapp "mayfly-go/internal/machine/application"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/netx"
 	"net"
@@ -94,7 +93,7 @@ func (d *PqSqlDialer) Open(name string) (driver.Conn, error) {
 }
 
 func (pd *PqSqlDialer) Dial(network, address string) (net.Conn, error) {
-	sshTunnel, err := machineapp.GetMachineApp().GetSshTunnelMachine(pd.sshTunnelMachineId)
+	sshTunnel, err := dbi.GetSshTunnel(pd.sshTunnelMachineId)
 	if err != nil {
 		return nil, err
 	}

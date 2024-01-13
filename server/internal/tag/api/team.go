@@ -126,9 +126,7 @@ func (p *Team) SaveTags(rc *req.Ctx) {
 	oIds := p.TeamApp.ListTagIds(teamId)
 
 	// 比较新旧两合集
-	addIds, delIds, _ := collx.ArrayCompare(form.TagIds, oIds, func(i1, i2 uint64) bool {
-		return i1 == i2
-	})
+	addIds, delIds, _ := collx.ArrayCompare(form.TagIds, oIds)
 
 	for _, v := range addIds {
 		tagId := v

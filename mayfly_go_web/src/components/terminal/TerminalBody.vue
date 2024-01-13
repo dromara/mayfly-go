@@ -19,6 +19,7 @@ import { ref, nextTick, reactive, onMounted, onBeforeUnmount, watch } from 'vue'
 import TerminalSearch from './TerminalSearch.vue';
 import { debounce } from 'lodash';
 import { TerminalStatus } from './common';
+import { useEventListener } from '@vueuse/core';
 
 const props = defineProps({
     /**
@@ -145,7 +146,7 @@ const onConnected = () => {
     state.status = TerminalStatus.Connected;
 
     // 注册窗口大小监听器
-    window.addEventListener('resize', debounce(fitTerminal, 400));
+    useEventListener('resize', debounce(fitTerminal, 400));
 
     focus();
 
@@ -178,7 +179,7 @@ const clear = () => {
 
 function initSocket() {
     if (props.socketUrl) {
-        let socketUrl = `${props.socketUrl}&rows=${term.rows}&cols=${term.cols}`;
+        let socketUrl = `${props.socketUrl}&rows=${term?.rows}&cols=${term?.cols}`;
         socket = new WebSocket(socketUrl);
     }
 
@@ -196,8 +197,6 @@ function initSocket() {
 
     socket.onclose = (e: CloseEvent) => {
         console.log('terminal socket close...', e.reason);
-        // 关闭窗口大小监听器
-        window.removeEventListener('resize', debounce(fitTerminal, 100));
         // 清除 ping
         pingInterval && clearInterval(pingInterval);
         state.status = TerminalStatus.Disconnected;

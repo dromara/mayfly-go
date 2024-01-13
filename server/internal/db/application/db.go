@@ -101,9 +101,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 	oldDbs := strings.Split(old.Database, " ")
 	newDbs := strings.Split(dbEntity.Database, " ")
 	// 比较新旧数据库列表，需要将移除的数据库相关联的信息删除
-	_, delDb, _ := collx.ArrayCompare(newDbs, oldDbs, func(i1, i2 string) bool {
-		return i1 == i2
-	})
+	_, delDb, _ := collx.ArrayCompare(newDbs, oldDbs)
 
 	for _, v := range delDb {
 		// 关闭数据库连接

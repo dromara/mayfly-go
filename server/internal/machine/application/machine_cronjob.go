@@ -120,7 +120,7 @@ func (m *machineCropJobAppImpl) GetRelateCronJobIds(machineId uint64) []uint64 {
 
 func (m *machineCropJobAppImpl) CronJobRelateMachines(ctx context.Context, cronJobId uint64, machineIds []uint64) {
 	oldMachineIds := m.machineCropJobRelateRepo.GetMachineIds(cronJobId)
-	addIds, delIds, _ := collx.ArrayCompare[uint64](machineIds, oldMachineIds, func(u1, u2 uint64) bool { return u1 == u2 })
+	addIds, delIds, _ := collx.ArrayCompare[uint64](machineIds, oldMachineIds)
 	addVals := make([]*entity.MachineCronJobRelate, 0)
 
 	for _, addId := range addIds {
@@ -143,7 +143,7 @@ func (m *machineCropJobAppImpl) MachineRelateCronJobs(ctx context.Context, machi
 	}
 
 	oldCronIds := m.machineCropJobRelateRepo.GetCronJobIds(machineId)
-	addIds, delIds, _ := collx.ArrayCompare[uint64](cronJobs, oldCronIds, func(u1, u2 uint64) bool { return u1 == u2 })
+	addIds, delIds, _ := collx.ArrayCompare[uint64](cronJobs, oldCronIds)
 	addVals := make([]*entity.MachineCronJobRelate, 0)
 
 	for _, addId := range addIds {
