@@ -94,7 +94,7 @@ func (repo *dbBinlogHistoryRepoImpl) InsertWithBinlogFiles(ctx context.Context, 
 	if len(binlogFiles) == 0 {
 		return nil
 	}
-	histories := make([]any, 0, len(binlogFiles))
+	histories := make([]*entity.DbBinlogHistory, 0, len(binlogFiles))
 	for _, fileOnServer := range binlogFiles {
 		if !fileOnServer.Downloaded {
 			break
@@ -115,7 +115,7 @@ func (repo *dbBinlogHistoryRepoImpl) InsertWithBinlogFiles(ctx context.Context, 
 		}
 	}
 	if len(histories) > 0 {
-		if err := repo.Upsert(ctx, histories[len(histories)-1].(*entity.DbBinlogHistory)); err != nil {
+		if err := repo.Upsert(ctx, histories[len(histories)-1]); err != nil {
 			return err
 		}
 	}

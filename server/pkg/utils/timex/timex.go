@@ -54,7 +54,10 @@ func (nt *NullTime) MarshalJSON() ([]byte, error) {
 }
 
 func SleepWithContext(ctx context.Context, d time.Duration) {
-	ctx, cancel := context.WithTimeout(ctx, d)
-	<-ctx.Done()
-	cancel()
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+	case <-ctx.Done():
+	}
 }

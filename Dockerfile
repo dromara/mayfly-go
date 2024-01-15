@@ -5,9 +5,9 @@ WORKDIR /mayfly
 
 COPY mayfly_go_web .
 
-RUN yarn install
-
-RUN yarn build
+RUN yarn config set registry 'https://registry.npm.taobao.org' && \
+    yarn install && \
+    yarn build
 
 # 构建后端资源
 FROM golang:1.21.5 as be-builder

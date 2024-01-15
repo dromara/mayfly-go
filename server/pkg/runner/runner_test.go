@@ -29,7 +29,7 @@ type testJob struct {
 	deadline time.Time
 }
 
-func (t *testJob) Renew(job Job) {
+func (t *testJob) Update(_ Job) {
 }
 
 func (t *testJob) GetDeadline() time.Time {
@@ -82,6 +82,7 @@ func TestRunner_Close(t *testing.T) {
 	}()
 	waiting.Wait()
 	timer := time.NewTimer(time.Microsecond * 10)
+	defer timer.Stop()
 	runner.Close()
 	select {
 	case <-timer.C:
