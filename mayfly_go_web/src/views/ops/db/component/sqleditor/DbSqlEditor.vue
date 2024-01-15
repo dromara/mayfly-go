@@ -386,8 +386,8 @@ const onRunSql = async (newTab = false) => {
         const tableName = sql.split(/from/i)[1];
         if (tableName) {
             const tn = tableName.trim().split(' ')[0].split('\n')[0];
-            execRes.table = tn;
-            execRes.table = tn;
+            // 去除表名前后的字符`或者"
+            execRes.table = tn.replace(/`/g, '').replace(/"/g, '');
         } else {
             execRes.table = '';
         }

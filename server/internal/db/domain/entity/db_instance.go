@@ -15,6 +15,7 @@ type DbInstance struct {
 	Host               string `json:"host"`
 	Port               int    `json:"port"`
 	Network            string `json:"network"`
+	Sid                string `json:"sid"`
 	Username           string `json:"username"`
 	Password           string `json:"-"`
 	Params             string `json:"params"`

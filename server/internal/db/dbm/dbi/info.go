@@ -16,6 +16,7 @@ type DbInfo struct {
 	Type     DbType // 类型，mysql postgres等
 	Host     string
 	Port     int
+	Sid      string // oracle数据库需要指定sid
 	Network  string
 	Username string
 	Password string

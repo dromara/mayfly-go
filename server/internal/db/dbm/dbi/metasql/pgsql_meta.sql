@@ -9,6 +9,8 @@ where
     and n.nspname not like 'dbms_%'
     and n.nspname not like 'utl_%'
 	and n.nspname != 'information_schema'
+order by
+    n.nspname
 ---------------------------------------
 --PGSQL_TABLE_INFO 表详细信息
 select
@@ -27,6 +29,7 @@ where
     has_table_privilege(CAST(c.oid AS regclass), 'SELECT')
 	and n.nspname = current_schema()
 	and c.reltype > 0
+order by c.relname
 ---------------------------------------
 --PGSQL_INDEX_INFO 表索引信息
 SELECT

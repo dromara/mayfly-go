@@ -206,6 +206,9 @@ func valueConvert(data []byte, colType *sql.ColumnType) any {
 	if stringV == "" {
 		return ""
 	}
+	if colType == nil || colType.ScanType() == nil {
+		return stringV
+	}
 	colScanType := strings.ToLower(colType.ScanType().Name())
 
 	if strings.Contains(colScanType, "int") {

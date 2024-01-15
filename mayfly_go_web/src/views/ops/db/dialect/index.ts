@@ -2,6 +2,8 @@ import { MysqlDialect } from './mysql_dialect';
 import { PostgresqlDialect } from './postgres_dialect';
 import { DMDialect } from '@/views/ops/db/dialect/dm_dialect';
 import { SqlLanguage } from 'sql-formatter/lib/src/sqlFormatter';
+import { OracleDialect } from '@/views/ops/db/dialect/oracle_dialect';
+import { MariadbDialect } from '@/views/ops/db/dialect/mariadb_dialect';
 
 export interface sqlColumnType {
     udtName: string;
@@ -108,6 +110,7 @@ export const DbType = {
     mariadb: 'mariadb',
     postgresql: 'postgres',
     dm: 'dm', // 达梦
+    oracle: 'oracle',
 };
 
 export const compatibleMysql = (dbType: string): boolean => {
@@ -176,11 +179,16 @@ export interface DbDialect {
 
     /** 通过数据库字段类型，返回基本数据类型 */
     getDataType: (columnType: string) => DataType;
+
+    /** 包装字符串数据， 如：oracle需要把date类型改为 to_date(str, 'yyyy-mm-dd hh24:mi:ss') */
+    wrapStrValue(columnType: string, value: string): string;
 }
 
 let mysqlDialect = new MysqlDialect();
+let mariadbDialect = new MariadbDialect();
 let postgresDialect = new PostgresqlDialect();
 let dmDialect = new DMDialect();
+let oracleDialect = new OracleDialect();
 
 export const getDbDialect = (dbType: string | undefined): DbDialect => {
     if (!dbType) {
@@ -188,12 +196,15 @@ export const getDbDialect = (dbType: string | undefined): DbDialect => {
     }
     switch (dbType) {
         case DbType.mysql:
-        case DbType.mariadb:
             return mysqlDialect;
+        case DbType.mariadb:
+            return mariadbDialect;
         case DbType.postgresql:
             return postgresDialect;
         case DbType.dm:
             return dmDialect;
+        case DbType.oracle:
+            return oracleDialect;
         default:
             throw new Error('不支持的数据库');
     }

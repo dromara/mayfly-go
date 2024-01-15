@@ -9,7 +9,7 @@
                         </el-form-item>
                         <el-form-item prop="type" label="类型" required>
                             <el-select @change="changeDbType" style="width: 100%" v-model="form.type" placeholder="请选择数据库类型">
-                                <el-option v-for="dt in dbTypes" :key="dt.type" :value="dt.type">
+                                <el-option v-for="dt in dbTypes" :key="dt.type" :value="dt.type" :label="dt.label">
                                     <SvgIcon :name="getDbDialect(dt.type).getInfo().icon" :size="18" />
                                     {{ dt.label }}
                                 </el-option>
@@ -23,6 +23,9 @@
                             <el-col :span="5">
                                 <el-input type="number" v-model.number="form.port" placeholder="端口"></el-input>
                             </el-col>
+                        </el-form-item>
+                        <el-form-item v-if="form.type === DbType.oracle" prop="sid" label="SID">
+                            <el-input v-model.trim="form.sid" placeholder="请输入服务id"></el-input>
                         </el-form-item>
                         <el-form-item prop="username" label="用户名" required>
                             <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
@@ -87,7 +90,7 @@ import { ElMessage } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import { RsaEncrypt } from '@/common/rsa';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
-import { getDbDialect } from './dialect';
+import { DbType, getDbDialect } from './dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
 
 const props = defineProps({
@@ -134,6 +137,13 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
+    sid: [
+        {
+            required: true,
+            message: '请输入SID',
+            trigger: ['change', 'blur'],
+        },
+    ],
 };
 
 const dbForm: any = ref(null);
@@ -155,6 +165,10 @@ const dbTypes = [
         type: 'dm',
         label: '达梦',
     },
+    {
+        type: 'oracle',
+        label: 'oracle',
+    },
 ];
 
 const state = reactive({
@@ -167,6 +181,7 @@ const state = reactive({
         host: '',
         port: null,
         username: null,
+        sid: null, // oracle类项目需要服务id
         password: null,
         params: null,
         remark: '',

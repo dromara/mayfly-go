@@ -53,6 +53,20 @@
       "font_class": "redis",
       "unicode": "e619",
       "unicode_decimal": 58905
+    },
+    {
+      "icon_id": "11617944",
+      "name": "oracle",
+      "font_class": "oracle",
+      "unicode": "e6ea",
+      "unicode_decimal": 59114
+    },
+    {
+      "icon_id": "8105644",
+      "name": "mariadb",
+      "font_class": "mariadb",
+      "unicode": "e513",
+      "unicode_decimal": 58643
     }
   ]
 }

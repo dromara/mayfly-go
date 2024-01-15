@@ -10,6 +10,7 @@ CREATE TABLE `t_db_instance` (
     `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
     `host` varchar(100) COLLATE utf8mb4_bin NOT NULL,
     `port` int(8) NOT NULL,
+    `sid` varchar(255) NULL COMMENT 'oracle数据库需要sid',
     `username` varchar(255) COLLATE utf8mb4_bin NOT NULL,
     `password` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
     `type` varchar(20) COLLATE utf8mb4_bin NOT NULL COMMENT '数据库实例类型(mysql...)',

@@ -15,6 +15,7 @@ const (
 	DbTypeMariadb  DbType = "mariadb"
 	DbTypePostgres DbType = "postgres"
 	DbTypeDM       DbType = "dm"
+	DbTypeOracle   DbType = "oracle"
 )
 
 func ToDbType(dbType string) DbType {

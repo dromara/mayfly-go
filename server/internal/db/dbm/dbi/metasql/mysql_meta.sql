@@ -5,6 +5,7 @@ FROM
 	information_schema.SCHEMATA
 WHERE
 	SCHEMA_NAME NOT IN ('mysql', 'information_schema', 'performance_schema')
+ORDER BY SCHEMA_NAME
 ---------------------------------------
 --MYSQL_TABLE_INFO 表详细信息
 SELECT
@@ -22,6 +23,7 @@ WHERE
     SELECT
       database ()
   )
+ORDER BY table_name
 ---------------------------------------
 --MYSQL_INDEX_INFO 索引信息
 SELECT

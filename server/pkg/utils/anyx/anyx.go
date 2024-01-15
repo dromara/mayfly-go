@@ -2,6 +2,7 @@ package anyx
 
 import (
 	"encoding/json"
+	"math"
 	"reflect"
 	"strconv"
 )
@@ -40,6 +41,10 @@ func ConvInt(val any) int {
 		return int(value)
 	case uint8:
 		return int(value)
+	case float32:
+		return int(value)
+	case float64:
+		return int(math.Round(value))
 	default:
 		return 0
 	}

@@ -155,7 +155,7 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 
 		checkDb := dbName
 		// 兼容pgsql/dm db/schema模式
-		if dbi.DbTypePostgres.Equal(instance.Type) || dbi.DbTypeDM.Equal(instance.Type) {
+		if dbi.DbTypePostgres.Equal(instance.Type) || dbi.DbTypeDM.Equal(instance.Type) || dbi.DbTypeOracle.Equal(instance.Type) {
 			ss := strings.Split(dbName, "/")
 			if len(ss) > 1 {
 				checkDb = ss[0]
@@ -195,6 +195,7 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 func toDbInfo(instance *entity.DbInstance, dbId uint64, database string, tagPath ...string) *dbi.DbInfo {
 	di := new(dbi.DbInfo)
 	di.InstanceId = instance.Id
+	di.Sid = instance.Sid
 	di.Id = dbId
 	di.Database = database
 	di.TagPath = tagPath

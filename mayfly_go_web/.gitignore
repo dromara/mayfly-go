@@ -2,6 +2,7 @@
 node_modules
 /dist
 *.lock
+pnpm-lock.yaml
 
 # local env files
 .env.local

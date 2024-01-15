@@ -6,6 +6,7 @@ type InstanceForm struct {
 	Type               string `binding:"required" json:"type"` // 类型，mysql oracle等
 	Host               string `binding:"required" json:"host"`
 	Port               int    `binding:"required" json:"port"`
+	Sid                string `json:"sid"`
 	Username           string `binding:"required" json:"username"`
 	Password           string `json:"password"`
 	Params             string `json:"params"`

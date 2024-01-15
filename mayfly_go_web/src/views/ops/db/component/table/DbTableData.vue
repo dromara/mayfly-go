@@ -714,6 +714,7 @@ const submitUpdateFields = async () => {
 
     const db = state.db;
     let res = '';
+    const dbDialect = getDbDialect(dbInst.type);
 
     for (let updateRow of cellUpdateMap.values()) {
         let sql = `UPDATE ${dbInst.wrapName(state.table)} SET `;
@@ -731,7 +732,8 @@ const submitUpdateFields = async () => {
             }
             // 更新字段列信息
             const updateColumn = await dbInst.loadTableColumn(db, state.table, k);
-            sql += ` ${dbInst.wrapName(k)} = ${DbInst.wrapColumnValue(updateColumn.columnType, rowData[k])},`;
+
+            sql += ` ${dbInst.wrapName(k)} = ${DbInst.wrapColumnValue(updateColumn.columnType, rowData[k], dbDialect)},`;
 
             // 如果修改的字段是主键
             if (k === primaryKeyName) {
@@ -790,6 +792,10 @@ const getFormatTimeValue = (dataType: DataType, originValue: string): string => 
     if (!originValue || dataType === DataType.Number || dataType === DataType.String) {
         return originValue;
     }
+
+    // 把Z去掉
+    originValue = originValue.replace('Z', '');
+
     switch (dataType) {
         case DataType.Time:
             return dateStrFormat('HH:mm:ss', originValue);

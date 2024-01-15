@@ -328,4 +328,8 @@ class MysqlDialect implements DbDialect {
         }
         return DataType.String;
     }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
+    wrapStrValue(columnType: string, value: string): string {
+        return `'${value}'`;
+    }
 }

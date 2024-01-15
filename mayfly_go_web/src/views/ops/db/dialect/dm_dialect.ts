@@ -541,7 +541,7 @@ class DMDialect implements DbDialect {
         // 创建索引
         let sql: string[] = [];
         tableData.indexs.res.forEach((a: any) => {
-            sql.push(` CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName} USING btree ("${a.columnNames.join('","')})"`);
+            sql.push(` CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName} ON "${tableData.tableName}" ("${a.columnNames.join('","')})"`);
         });
         return sql.join(';');
     }
@@ -608,10 +608,7 @@ class DMDialect implements DbDialect {
 
             if (addIndexs.length > 0) {
                 addIndexs.forEach((a) => {
-                    sql.push(`CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')})`);
-                    if (a.indexComment) {
-                        sql.push(`COMMENT ON INDEX ${a.indexName} IS '${a.indexComment}'`);
-                    }
+                    sql.push(`CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName} ON "${tableName}" (${a.columnNames.join(',')})`);
                 });
             }
             return sql.join(';');
@@ -636,5 +633,10 @@ class DMDialect implements DbDialect {
             return DataType.Time;
         }
         return DataType.String;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
+    wrapStrValue(columnType: string, value: string): string {
+        return `'${value}'`;
     }
 }

@@ -18,6 +18,10 @@ export const dbApi = {
     sqlExec: Api.newPost('/dbs/{id}/exec-sql').withBeforeHandler((param: any) => {
         // sql编码处理
         if (param.sql) {
+            // 判断是开发环境就打印sql
+            if (process.env.NODE_ENV === 'development') {
+                console.log(param.sql);
+            }
             param.sql = Base64.encode(param.sql);
         }
         return param;
@@ -58,7 +62,7 @@ export const dbApi = {
     enableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/enable'),
     disableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/disable'),
     saveDbRestore: Api.newPut('/dbs/{dbId}/restores/{id}'),
-    
+
     // 数据同步相关
     datasyncTasks: Api.newGet('/datasync/tasks'),
     saveDatasyncTask: Api.newPost('/datasync/tasks/save').withBeforeHandler((param: any) => {

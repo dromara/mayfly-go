@@ -221,7 +221,7 @@ export class DbInst {
      * @returns count sql
      */
     getDefaultCountSql = (table: string, condition?: string) => {
-        return `SELECT COUNT(*) count FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} limit 1`;
+        return `SELECT COUNT(*) count FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''}`;
     };
 
     // 获取指定表的默认查询sql
@@ -358,11 +358,14 @@ export class DbInst {
     /**
      * 根据字段类型包装字段值，如为字符串等则添加‘’，数字类型则直接返回即可
      */
-    static wrapColumnValue(columnType: string, value: any) {
+    static wrapColumnValue(columnType: string, value: any, dbDialect?: DbDialect) {
         if (this.isNumber(columnType)) {
             return value;
         }
-        return `'${value}'`;
+        if (!dbDialect) {
+            return `${value}`;
+        }
+        return dbDialect.wrapStrValue(columnType, value);
     }
 
     /**

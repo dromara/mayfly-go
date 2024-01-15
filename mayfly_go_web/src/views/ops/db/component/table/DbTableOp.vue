@@ -140,7 +140,7 @@
 import { reactive, ref, toRefs, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from '../sqleditor/SqlExecBox';
-import { getDbDialect, DbType, RowDefinition, IndexDefinition } from '../../dialect/index';
+import { DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
 
 const props = defineProps({
     visible: {

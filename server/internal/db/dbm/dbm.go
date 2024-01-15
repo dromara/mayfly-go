@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/dbm/dm"
 	"mayfly-go/internal/db/dbm/mysql"
+	"mayfly-go/internal/db/dbm/oracle"
 	"mayfly-go/internal/db/dbm/postgres"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/cache"
@@ -45,6 +46,8 @@ func getDbMetaByType(dt dbi.DbType) dbi.Meta {
 		return postgres.GetMeta()
 	case dbi.DbTypeDM:
 		return dm.GetMeta()
+	case dbi.DbTypeOracle:
+		return oracle.GetMeta()
 	default:
 		panic(fmt.Sprintf("invalid database type: %s", dt))
 	}

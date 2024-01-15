@@ -2,6 +2,7 @@
 select
     distinct owner as SCHEMA_NAME
 from all_objects
+order by owner
 ---------------------------------------
 --DM_TABLE_INFO 表详细信息
 SELECT a.object_name                                      as TABLE_NAME,
@@ -29,6 +30,7 @@ FROM all_objects a
 WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
   AND a.object_type = 'TABLE'
   AND a.status = 'VALID'
+ORDER BY a.object_name
 ---------------------------------------
 --DM_INDEX_INFO 表索引信息
 select

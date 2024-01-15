@@ -89,7 +89,7 @@
                             <el-row>
                                 <el-col :span="8">
                                     <el-form-item prop="pageSize" label="分页大小" required>
-                                        <el-input type="number" v-model.trim="form.pageSize" placeholder="同步数据时查询的每页数据大小" auto-complete="off" />
+                                        <el-input type="number" v-model.number="form.pageSize" placeholder="同步数据时查询的每页数据大小" auto-complete="off" />
                                     </el-form-item>
                                 </el-col>
 
@@ -184,7 +184,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, toRefs, watch, computed } from 'vue';
+import { computed, reactive, ref, toRefs, watch } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';

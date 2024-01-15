@@ -349,7 +349,11 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 			continue
 		}
 		writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", table))
-		writer.WriteString("BEGIN;\n")
+
+		// 达梦不支持begin语句
+		if dbConn.Info.Type != dbi.DbTypeDM {
+			writer.WriteString("BEGIN;\n")
+		}
 		insertSql := "INSERT INTO %s VALUES (%s);\n"
 		dbMeta.WalkTableRecord(table, func(record map[string]any, columns []*dbi.QueryColumn) error {
 			var values []string
