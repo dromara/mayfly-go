@@ -1,5 +1,7 @@
 package entity
 
+import "time"
+
 type MachineQuery struct {
 	Ids     string `json:"ids" form:"ids"`
 	Name    string `json:"name" form:"name"`
@@ -14,4 +16,8 @@ type AuthCertQuery struct {
 	Id         uint64 `json:"id" form:"id"`
 	Name       string `json:"name" form:"name"`
 	AuthMethod string `json:"authMethod" form:"authMethod"` // IP地址
+}
+
+type MachineTermOpQuery struct {
+	StartCreateTime *time.Time
 }

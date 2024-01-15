@@ -20,3 +20,11 @@ func (m *machineTermOpRepoImpl) GetPageList(condition *entity.MachineTermOp, pag
 	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
+
+// 根据条件获取记录列表
+func (m *machineTermOpRepoImpl) SelectByQuery(cond *entity.MachineTermOpQuery) ([]*entity.MachineTermOp, error) {
+	qd := gormx.NewQuery(m.GetModel()).Le("create_time", cond.StartCreateTime)
+	var res []*entity.MachineTermOp
+	err := gormx.ListByQueryCond(qd, &res)
+	return res, err
+}

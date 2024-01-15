@@ -329,11 +329,6 @@ const getNowDbInst = () => {
 onMounted(async () => {
     console.log('in table data mounted');
     state.tableHeight = props.tableHeight;
-    const columns = await getNowDbInst().loadColumns(props.dbName, props.tableName);
-    columns.forEach((x: any) => {
-        x.show = true;
-    });
-    state.columns = columns;
     await onRefresh();
 
     state.dbDialect = getDbDialect(getNowDbInst().type);
@@ -367,6 +362,14 @@ const selectData = async () => {
     const db = props.dbName;
     const table = props.tableName;
     try {
+        if (state.columns.length == 0) {
+            const columns = await getNowDbInst().loadColumns(props.dbName, props.tableName);
+            columns.forEach((x: any) => {
+                x.show = true;
+            });
+            state.columns = columns;
+        }
+
         const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
         state.count = countRes.res[0].count || countRes.res[0].COUNT || 0;
         let sql = dbInst.getDefaultSelectSql(table, state.condition, state.orderBy, state.pageNum, state.pageSize);

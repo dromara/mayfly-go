@@ -10,7 +10,9 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/stringx"
 	"os"
 	"path"
@@ -26,6 +28,9 @@ type MachineTermOp interface {
 	TermConn(ctx context.Context, cli *mcm.Cli, wsConn *websocket.Conn, rows, cols int) error
 
 	GetPageList(condition *entity.MachineTermOp, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+
+	// 定时删除终端文件回放记录
+	TimerDeleteTermOp()
 }
 
 func newMachineTermOpApp(machineTermOpRepo repository.MachineTermOp) MachineTermOp {
@@ -38,7 +43,7 @@ type machineTermOpAppImpl struct {
 	base.AppImpl[*entity.MachineTermOp, repository.MachineTermOp]
 }
 
-func (a *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsConn *websocket.Conn, rows, cols int) error {
+func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsConn *websocket.Conn, rows, cols int) error {
 	var recorder *mcm.Recorder
 	var termOpRecord *entity.MachineTermOp
 
@@ -83,11 +88,41 @@ func (a *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 	if termOpRecord != nil {
 		now := time.Now()
 		termOpRecord.EndTime = &now
-		return a.Insert(ctx, termOpRecord)
+		return m.Insert(ctx, termOpRecord)
 	}
 	return nil
 }
 
-func (a *machineTermOpAppImpl) GetPageList(condition *entity.MachineTermOp, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return a.GetRepo().GetPageList(condition, pageParam, toEntity)
+func (m *machineTermOpAppImpl) GetPageList(condition *entity.MachineTermOp, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return m.GetRepo().GetPageList(condition, pageParam, toEntity)
+}
+
+func (m *machineTermOpAppImpl) TimerDeleteTermOp() {
+	logx.Debug("开始定时删除机器终端回放记录...")
+	scheduler.AddFun("@every 60m", func() {
+		startDate := time.Now().AddDate(0, 0, -config.GetMachine().TermOpSaveDays)
+		cond := &entity.MachineTermOpQuery{
+			StartCreateTime: &startDate,
+		}
+		termOps, err := m.GetRepo().SelectByQuery(cond)
+		if err != nil {
+			return
+		}
+
+		basePath := config.GetMachine().TerminalRecPath
+		for _, termOp := range termOps {
+			if err := m.DeleteTermOp(basePath, termOp); err != nil {
+				logx.Warnf("删除终端操作记录失败: %s", err.Error())
+			}
+		}
+	})
+}
+
+// 删除终端记录即对应文件
+func (m *machineTermOpAppImpl) DeleteTermOp(basePath string, termOp *entity.MachineTermOp) error {
+	if err := m.DeleteById(context.Background(), termOp.Id); err != nil {
+		return err
+	}
+
+	return os.Remove(path.Join(basePath, termOp.RecordFilePath))
 }

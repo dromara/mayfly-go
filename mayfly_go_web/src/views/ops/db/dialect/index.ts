@@ -1,7 +1,6 @@
 import { MysqlDialect } from './mysql_dialect';
 import { PostgresqlDialect } from './postgres_dialect';
 import { DMDialect } from '@/views/ops/db/dialect/dm_dialect';
-import { SqlLanguage } from 'sql-formatter/lib/src/sqlFormatter';
 import { OracleDialect } from '@/views/ops/db/dialect/oracle_dialect';
 import { MariadbDialect } from '@/views/ops/db/dialect/mariadb_dialect';
 
@@ -92,7 +91,7 @@ export interface DialectInfo {
     /**
      * 格式化sql的方言
      */
-    formatSqlDialect: SqlLanguage;
+    formatSqlDialect: string;
 
     /**
      * 列字段类型

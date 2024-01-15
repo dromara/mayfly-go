@@ -14,6 +14,8 @@ func Init() {
 
 	application.GetMachineApp().TimerUpdateStats()
 
+	application.GetMachineTermOpApp().TimerDeleteTermOp()
+
 	global.EventBus.Subscribe(consts.DeleteMachineEventTopic, "machineFile", func(ctx context.Context, event *eventbus.Event) error {
 		me := event.Val.(*entity.Machine)
 		return application.GetMachineFileApp().DeleteByCond(ctx, &entity.MachineFile{MachineId: me.Id})

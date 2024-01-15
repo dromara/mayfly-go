@@ -4,6 +4,7 @@ import (
 	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/bytex"
+	"mayfly-go/pkg/utils/stringx"
 )
 
 const (
@@ -13,6 +14,7 @@ const (
 type Machine struct {
 	TerminalRecPath   string // 终端操作记录存储位置
 	UploadMaxFileSize int64  // 允许上传的最大文件size
+	TermOpSaveDays    int    // 终端记录保存天数
 }
 
 // 获取机器相关配置
@@ -39,5 +41,6 @@ func GetMachine() *Machine {
 		}
 	}
 	mc.UploadMaxFileSize = uploadMaxFileSize
+	mc.TermOpSaveDays = stringx.ConvInt(jm["termOpSaveDays"], 30)
 	return mc
 }
