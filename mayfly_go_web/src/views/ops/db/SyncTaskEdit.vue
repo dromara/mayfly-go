@@ -22,16 +22,7 @@
 
                                 <el-col :span="11">
                                     <el-form-item prop="taskCron" label="cron" required>
-                                        <template #label>
-                                            cron
-                                            <el-tooltip effect="dark" content="只支持5位表达式,不支持秒级.如 0/2 * * * * 表示每两分钟执行" placement="top">
-                                                <el-icon>
-                                                    <question-filled />
-                                                </el-icon>
-                                            </el-tooltip>
-                                        </template>
-
-                                        <el-input v-model="form.taskCron" placeholder="支持5位表达式,不支持秒级" auto-complete="off" />
+                                        <CrontabInput v-model="form.taskCron" />
                                     </el-form-item>
                                 </el-col>
 
@@ -191,6 +182,7 @@ import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { DbInst, registerDbCompletionItemProvider } from '@/views/ops/db/db';
 import { getDbDialect } from '@/views/ops/db/dialect';
+import CrontabInput from '@/components/crontab/CrontabInput.vue';
 
 const props = defineProps({
     data: {
@@ -232,7 +224,7 @@ const sqlPreviewTab = 'sqlPreview';
 type FormData = {
     id?: number;
     taskName?: string;
-    taskCron?: string;
+    taskCron: string;
     srcDbId?: number;
     srcDbName?: string;
     srcTagPath?: string;

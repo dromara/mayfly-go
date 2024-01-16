@@ -15,7 +15,7 @@
                 </el-form-item>
 
                 <el-form-item prop="cron" label="cron表达式">
-                    <el-input v-model="form.cron" placeholder="只支持5位表达式,不支持秒级.如 0/2 * * * * 表示每两分钟执行"></el-input>
+                    <CrontabInput v-model="form.cron" />
                 </el-form-item>
 
                 <el-form-item prop="status" label="状态">
@@ -66,6 +66,7 @@ import { cronJobApi, machineApi } from '../api';
 import { CronJobStatusEnum, CronJobSaveExecResTypeEnum } from '../enums';
 import { notEmpty } from '@/common/assert';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import CrontabInput from '@/components/crontab/CrontabInput.vue';
 
 const props = defineProps({
     visible: {
@@ -82,6 +83,7 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'submitSuccess']);
 
 const formRef: any = ref(null);
+
 const rules = {
     name: [
         {

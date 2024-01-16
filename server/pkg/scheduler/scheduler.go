@@ -13,7 +13,7 @@ func init() {
 }
 
 var (
-	cronService = cron.New()
+	cronService = cron.New(cron.WithSeconds())
 	key2IdMap   sync.Map
 )
 

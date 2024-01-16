@@ -1,11 +1,11 @@
 package initialize
 
 import (
-	dbApp "mayfly-go/internal/db/application"
+	dbInit "mayfly-go/internal/db/init"
 	machineInit "mayfly-go/internal/machine/init"
 )
 
 func InitOther() {
 	machineInit.Init()
-	dbApp.Init()
+	dbInit.Init()
 }

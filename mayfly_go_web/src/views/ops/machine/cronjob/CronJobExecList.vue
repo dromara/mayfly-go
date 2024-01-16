@@ -1,7 +1,6 @@
 <template>
     <div>
         <el-dialog
-            @open="search()"
             :title="title"
             v-model="dialogVisible"
             :close-on-click-modal="false"
@@ -108,6 +107,7 @@ watch(props, async (newValue: any) => {
     });
 
     state.params.cronJobId = props.data?.id;
+    search();
 });
 
 const search = async () => {
