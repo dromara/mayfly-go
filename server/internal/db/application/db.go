@@ -113,7 +113,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.UpdateById(ctx, dbEntity)
 	}, func(ctx context.Context) error {
-		return d.tagApp.RelateResource(ctx, oldDb.Code, consts.TagResourceTypeDb, tagIds)
+		return d.tagApp.RelateResource(ctx, old.Code, consts.TagResourceTypeDb, tagIds)
 	})
 }
 

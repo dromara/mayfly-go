@@ -23,20 +23,11 @@
             </el-radio>
         </el-form-item>
 
-        <!-- <el-form-item>
-            <el-radio :label="5" v-model="radioValue">
-                指定
-                <el-select clearable v-model="checkboxList" placeholder="可多选" multiple>
-                    <el-option v-for="item in 9" :key="item" :value="item - 1 + fullYear" :label="item - 1 + fullYear" />
-                </el-select>
-            </el-radio>
-        </el-form-item> -->
-
         <el-form-item>
             <div class="flex-align-center w100">
                 <el-radio v-model="radioValue" :label="5" class="mr5"> 指定 </el-radio>
                 <el-select @click="radioValue = 5" class="w100" clearable v-model="checkboxList" placeholder="可多选" multiple>
-                    <el-option v-for="item in 9" :key="item" :value="item - 1 + fullYear" :label="item - 1 + fullYear" />
+                    <el-option v-for="item in 9" :key="item" :value="`${item - 1 + fullYear}`" :label="item - 1 + fullYear" />
                 </el-select>
             </div>
         </el-form-item>

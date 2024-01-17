@@ -150,6 +150,9 @@ func (p *tagTreeAppImpl) GetAccountResourceCodes(accountId uint64, resourceType 
 }
 
 func (p *tagTreeAppImpl) RelateResource(ctx context.Context, resourceCode string, resourceType int8, tagIds []uint64) error {
+	if resourceCode == "" {
+		return errorx.NewBiz("资源编号不能为空")
+	}
 	// 如果tagIds为空数组，则为解绑该标签资源关联关系
 	if len(tagIds) == 0 {
 		return p.tagResourceApp.DeleteByCond(ctx, &entity.TagResource{

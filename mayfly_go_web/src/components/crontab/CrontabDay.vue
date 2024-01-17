@@ -37,7 +37,7 @@
             <div class="flex-align-center w100">
                 <el-radio v-model="radioValue" :label="7" class="mr5"> 指定 </el-radio>
                 <el-select @click="radioValue = 7" class="w100" clearable v-model="checkboxList" placeholder="可多选" multiple>
-                    <el-option v-for="item in 31" :key="item" :value="item">{{ item }}</el-option>
+                    <el-option v-for="item in 31" :key="item" :value="`${item}`">{{ item }}</el-option>
                 </el-select>
             </div>
         </el-form-item>

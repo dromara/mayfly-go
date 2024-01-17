@@ -78,7 +78,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, toRefs, onMounted, reactive, ref, nextTick } from 'vue';
+import { computed, toRefs, onMounted, reactive, ref, nextTick, watch } from 'vue';
 import CrontabSecond from './CrontabSecond.vue';
 import CrontabMin from './CrontabMin.vue';
 import CrontabHour from './CrontabHour.vue';
@@ -129,8 +129,14 @@ const { tabTitles, crontabValueObj } = toRefs(state);
 
 onMounted(() => {
     resolveExp();
-    changeTab(state.activeName);
 });
+
+watch(
+    () => props.expression,
+    () => {
+        resolveExp();
+    }
+);
 
 function shouldHide(key: string) {
     if (props.hideComponent && props.hideComponent.includes(key)) return false;
@@ -156,6 +162,7 @@ function resolveExp() {
                 ...obj,
             };
         }
+        changeTab(state.activeName);
     } else {
         //没有传入的表达式 则还原
         clearCron();
