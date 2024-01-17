@@ -48,12 +48,17 @@ func (d *DbRestore) Create(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	job := &entity.DbRestore{
-		DbJobBaseImpl:       entity.NewDbBJobBase(db.InstanceId, restoreForm.DbName, entity.DbJobTypeRestore, true, restoreForm.Repeated, restoreForm.StartTime, restoreForm.Interval),
+		DbJobBaseImpl:       entity.NewDbBJobBase(db.InstanceId, entity.DbJobTypeRestore),
+		Enabled:             true,
+		Repeated:            restoreForm.Repeated,
+		StartTime:           restoreForm.StartTime,
+		Interval:            restoreForm.Interval,
 		PointInTime:         restoreForm.PointInTime,
 		DbBackupId:          restoreForm.DbBackupId,
 		DbBackupHistoryId:   restoreForm.DbBackupHistoryId,
 		DbBackupHistoryName: restoreForm.DbBackupHistoryName,
 	}
+	job.DbName = restoreForm.DbName
 	biz.ErrIsNilAppendErr(d.DbRestoreApp.Create(rc.MetaCtx, job), "添加数据库恢复任务失败: %v")
 }
 

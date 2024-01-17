@@ -26,20 +26,30 @@ type dbScheduler struct {
 	backupHistoryRepo  repository.DbBackupHistory
 	restoreRepo        repository.DbRestore
 	restoreHistoryRepo repository.DbRestoreHistory
+	binlogRepo         repository.DbBinlog
 	binlogHistoryRepo  repository.DbBinlogHistory
+	binlogTimes        map[uint64]time.Time
 }
 
 func newDbScheduler(repositories *repository.Repositories) (*dbScheduler, error) {
 	scheduler := &dbScheduler{
-		runner:             runner.NewRunner[entity.DbJob](maxRunning),
 		dbApp:              dbApp,
 		backupRepo:         repositories.Backup,
 		backupHistoryRepo:  repositories.BackupHistory,
 		restoreRepo:        repositories.Restore,
 		restoreHistoryRepo: repositories.RestoreHistory,
+		binlogRepo:         repositories.Binlog,
 		binlogHistoryRepo:  repositories.BinlogHistory,
 	}
+	scheduler.runner = runner.NewRunner[entity.DbJob](maxRunning, scheduler.runJob,
+		runner.WithScheduleJob[entity.DbJob](scheduler.scheduleJob),
+		runner.WithRunnableJob[entity.DbJob](scheduler.runnableJob),
+	)
 	return scheduler, nil
+}
+
+func (s *dbScheduler) scheduleJob(job entity.DbJob) (time.Time, error) {
+	return job.Schedule()
 }
 
 func (s *dbScheduler) repo(typ entity.DbJobType) repository.DbJob {
@@ -48,6 +58,8 @@ func (s *dbScheduler) repo(typ entity.DbJobType) repository.DbJob {
 		return s.backupRepo
 	case entity.DbJobTypeRestore:
 		return s.restoreRepo
+	case entity.DbJobTypeBinlog:
+		return s.binlogRepo
 	default:
 		panic(errors.New(fmt.Sprintf("无效的数据库任务类型: %v", typ)))
 	}
@@ -60,8 +72,6 @@ func (s *dbScheduler) UpdateJob(ctx context.Context, job entity.DbJob) error {
 	if err := s.repo(job.GetJobType()).UpdateById(ctx, job); err != nil {
 		return err
 	}
-	job.SetRun(s.run)
-	job.SetRunnable(s.runnable)
 	_ = s.runner.UpdateOrAdd(ctx, job)
 	return nil
 }
@@ -87,21 +97,11 @@ func (s *dbScheduler) AddJob(ctx context.Context, saving bool, jobType entity.Db
 		for i := 0; i < reflectLen; i++ {
 			job := reflectValue.Index(i).Interface().(entity.DbJob)
 			job.SetJobType(jobType)
-			if !job.Schedule() {
-				continue
-			}
-			job.SetRun(s.run)
-			job.SetRunnable(s.runnable)
 			_ = s.runner.Add(ctx, job)
 		}
 	default:
 		job := jobs.(entity.DbJob)
 		job.SetJobType(jobType)
-		if !job.Schedule() {
-			return nil
-		}
-		job.SetRun(s.run)
-		job.SetRunnable(s.runnable)
 		_ = s.runner.Add(ctx, job)
 	}
 	return nil
@@ -131,12 +131,10 @@ func (s *dbScheduler) EnableJob(ctx context.Context, jobType entity.DbJobType, j
 	if job.IsEnabled() {
 		return nil
 	}
-	job.GetJobBase().Enabled = true
+	job.SetEnabled(true)
 	if err := repo.UpdateEnabled(ctx, jobId, true); err != nil {
 		return err
 	}
-	job.SetRun(s.run)
-	job.SetRunnable(s.runnable)
 	_ = s.runner.Add(ctx, job)
 	return nil
 }
@@ -171,9 +169,6 @@ func (s *dbScheduler) StartJobNow(ctx context.Context, jobType entity.DbJobType,
 	if !job.IsEnabled() {
 		return errors.New("任务未启用")
 	}
-	job.GetJobBase().Deadline = time.Now()
-	job.SetRun(s.run)
-	job.SetRunnable(s.runnable)
 	_ = s.runner.StartNow(ctx, job)
 	return nil
 }
@@ -267,7 +262,7 @@ func (s *dbScheduler) restoreMysql(ctx context.Context, job entity.DbJob) error 
 	return nil
 }
 
-func (s *dbScheduler) run(ctx context.Context, job entity.DbJob) {
+func (s *dbScheduler) runJob(ctx context.Context, job entity.DbJob) {
 	job.SetLastStatus(entity.DbJobRunning, nil)
 	if err := s.repo(job.GetJobType()).UpdateLastStatus(ctx, job); err != nil {
 		logx.Errorf("failed to update job status: %v", err)
@@ -280,6 +275,8 @@ func (s *dbScheduler) run(ctx context.Context, job entity.DbJob) {
 		errRun = s.backupMysql(ctx, job)
 	case entity.DbJobTypeRestore:
 		errRun = s.restoreMysql(ctx, job)
+	case entity.DbJobTypeBinlog:
+		errRun = s.fetchBinlogMysql(ctx, job)
 	default:
 		errRun = errors.New(fmt.Sprintf("无效的数据库任务类型: %v", typ))
 	}
@@ -294,19 +291,27 @@ func (s *dbScheduler) run(ctx context.Context, job entity.DbJob) {
 	}
 }
 
-func (s *dbScheduler) runnable(job entity.DbJob, next runner.NextFunc) bool {
+func (s *dbScheduler) runnableJob(job entity.DbJob, next runner.NextJobFunc[entity.DbJob]) bool {
 	const maxCountByInstanceId = 4
 	const maxCountByDbName = 1
 	var countByInstanceId, countByDbName int
 	jobBase := job.GetJobBase()
 	for item, ok := next(); ok; item, ok = next() {
-		itemBase := item.(entity.DbJob).GetJobBase()
+		itemBase := item.GetJobBase()
 		if jobBase.DbInstanceId == itemBase.DbInstanceId {
 			countByInstanceId++
 			if countByInstanceId >= maxCountByInstanceId {
 				return false
 			}
-			if jobBase.DbName == itemBase.DbName {
+
+			if relatedToBinlog(job.GetJobType()) {
+				// todo: 恢复数据库前触发 BINLOG 同步，BINLOG 同步完成后才能恢复数据库
+				if relatedToBinlog(item.GetJobType()) {
+					return false
+				}
+			}
+
+			if job.GetDbName() == item.GetDbName() {
 				countByDbName++
 				if countByDbName >= maxCountByDbName {
 					return false
@@ -315,6 +320,10 @@ func (s *dbScheduler) runnable(job entity.DbJob, next runner.NextFunc) bool {
 		}
 	}
 	return true
+}
+
+func relatedToBinlog(typ entity.DbJobType) bool {
+	return typ == entity.DbJobTypeRestore || typ == entity.DbJobTypeBinlog
 }
 
 func (s *dbScheduler) restorePointInTime(ctx context.Context, program dbi.DbProgram, job *entity.DbRestore) error {
@@ -363,4 +372,35 @@ func (s *dbScheduler) restoreBackupHistory(ctx context.Context, program dbi.DbPr
 		return err
 	}
 	return program.RestoreBackupHistory(ctx, backupHistory.DbName, backupHistory.DbBackupId, backupHistory.Uuid)
+}
+
+func (s *dbScheduler) fetchBinlogMysql(ctx context.Context, backup entity.DbJob) error {
+	instanceId := backup.GetJobBase().DbInstanceId
+	latestBinlogSequence, earliestBackupSequence := int64(-1), int64(-1)
+	binlogHistory, ok, err := s.binlogHistoryRepo.GetLatestHistory(instanceId)
+	if err != nil {
+		return err
+	}
+	if ok {
+		latestBinlogSequence = binlogHistory.Sequence
+	} else {
+		backupHistory, ok, err := s.backupHistoryRepo.GetEarliestHistory(instanceId)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		earliestBackupSequence = backupHistory.BinlogSequence
+	}
+	conn, err := s.dbApp.GetDbConnByInstanceId(instanceId)
+	if err != nil {
+		return err
+	}
+	dbProgram := conn.GetDialect().GetDbProgram()
+	binlogFiles, err := dbProgram.FetchBinlogs(ctx, false, earliestBackupSequence, latestBinlogSequence)
+	if err == nil {
+		err = s.binlogHistoryRepo.InsertWithBinlogFiles(ctx, instanceId, binlogFiles)
+	}
+	return nil
 }

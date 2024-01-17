@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/stretchr/testify/suite"
 	"mayfly-go/internal/db/config"
+	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/db/infrastructure/persistence"
@@ -32,21 +33,21 @@ type DbInstanceSuite struct {
 	suite.Suite
 	repositories *repository.Repositories
 	instanceSvc  *DbProgramMysql
-	dbConn       *DbConn
+	dbConn       *dbi.DbConn
 }
 
 func (s *DbInstanceSuite) SetupSuite() {
 	if err := chdir("mayfly-go", "server"); err != nil {
 		panic(err)
 	}
-	dbInfo := DbInfo{
-		Type:     DbTypeMysql,
+	dbInfo := dbi.DbInfo{
+		Type:     dbi.DbTypeMysql,
 		Host:     "localhost",
 		Port:     3306,
 		Username: "test",
 		Password: "test",
 	}
-	dbConn, err := dbInfo.Conn()
+	dbConn, err := dbInfo.Conn(GetMeta())
 	s.Require().NoError(err)
 	s.dbConn = dbConn
 	s.repositories = &repository.Repositories{
@@ -203,7 +204,7 @@ func (s *DbInstanceSuite) testReplayBinlog(backupHistory *entity.DbBackupHistory
 		binlogHistories = append(binlogHistories, binlogHistoryLast)
 	}
 
-	restoreInfo := &RestoreInfo{
+	restoreInfo := &dbi.RestoreInfo{
 		BackupHistory:   backupHistory,
 		BinlogHistories: binlogHistories,
 		StartPosition:   backupHistory.BinlogPosition,

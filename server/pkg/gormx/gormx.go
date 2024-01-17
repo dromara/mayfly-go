@@ -135,13 +135,13 @@ func InsertWithDb(db *gorm.DB, model any) error {
 }
 
 // 批量插入
-func BatchInsert[T any](models any) error {
+func BatchInsert[T any](models []T) error {
 	return BatchInsertWithDb[T](global.Db, models)
 }
 
 // 批量插入
-func BatchInsertWithDb[T any](db *gorm.DB, models any) error {
-	return db.CreateInBatches(models, len(models.([]T))).Error
+func BatchInsertWithDb[T any](db *gorm.DB, models []T) error {
+	return db.CreateInBatches(models, len(models)).Error
 }
 
 // 根据id更新model，更新字段为model中不为空的值，即int类型不为0，ptr类型不为nil这类字段值

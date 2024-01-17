@@ -1,11 +1,5 @@
 package runner
 
-//var (
-//	false  = errors.New("queue: 队列已满")
-//	false = errors.New("queue: 队列为空")
-//	false   = errors.New("queue: 元素未找到")
-//)
-
 // PriorityQueue 是一个基于小顶堆的优先队列
 // 当capacity <= 0时，为无界队列，切片容量会动态扩缩容
 // 当capacity > 0 时，为有界队列，初始化后就固定容量，不会扩缩容

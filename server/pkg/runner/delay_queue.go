@@ -25,6 +25,35 @@ type Delayable interface {
 	GetKey() string
 }
 
+var _ Delayable = (*wrapper[Job])(nil)
+
+type wrapper[T Job] struct {
+	key      string
+	deadline time.Time
+	removed  bool
+	status   JobStatus
+	job      T
+}
+
+func newWrapper[T Job](job T) *wrapper[T] {
+	return &wrapper[T]{
+		key: job.GetKey(),
+		job: job,
+	}
+}
+
+func (d *wrapper[T]) GetDeadline() time.Time {
+	return d.deadline
+}
+
+func (d *wrapper[T]) GetKey() string {
+	return d.key
+}
+
+func (d *wrapper[T]) Payload() T {
+	return d.job
+}
+
 func NewDelayQueue[T Delayable](cap int) *DelayQueue[T] {
 	singleDequeue := make(chan struct{}, 1)
 	singleDequeue <- struct{}{}

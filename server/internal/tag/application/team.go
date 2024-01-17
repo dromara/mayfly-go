@@ -13,7 +13,7 @@ import (
 
 type Team interface {
 	// 分页获取项目团队信息列表
-	GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	Save(ctx context.Context, team *entity.Team) error
 
@@ -55,7 +55,7 @@ type teamAppImpl struct {
 	tagTreeTeamRepo repository.TagTreeTeam
 }
 
-func (p *teamAppImpl) GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (p *teamAppImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return p.teamRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 

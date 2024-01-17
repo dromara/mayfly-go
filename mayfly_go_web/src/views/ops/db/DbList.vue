@@ -198,11 +198,11 @@ const perms = {
 const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Db.value), SearchItem.slot('instanceId', '实例', 'instanceSelect')];
 
 const columns = ref([
-    TableColumn.new('instanceName', '实例名'),
+    TableColumn.new('name', '名称'),
     TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
+    TableColumn.new('instanceName', '实例名'),
     TableColumn.new('host', 'ip:port').isSlot().setAddWidth(40),
     TableColumn.new('username', 'username'),
-    TableColumn.new('name', '名称'),
     TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
     TableColumn.new('remark', '备注'),
 ]);

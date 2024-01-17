@@ -23,8 +23,9 @@ type Team struct {
 }
 
 func (p *Team) GetTeams(rc *req.Ctx) {
+	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.TeamQuery))
 	teams := &[]entity.Team{}
-	res, err := p.TeamApp.GetPageList(&entity.Team{}, ginx.GetPageParam(rc.GinCtx), teams)
+	res, err := p.TeamApp.GetPageList(queryCond, page, teams)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

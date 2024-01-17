@@ -78,6 +78,7 @@ func (repo *dbBinlogHistoryRepoImpl) Upsert(_ context.Context, history *entity.D
 		old := &entity.DbBinlogHistory{}
 		err := db.Where("db_instance_id = ?", history.DbInstanceId).
 			Where("sequence = ?", history.Sequence).
+			Scopes(gormx.UndeleteScope).
 			First(old).Error
 		switch {
 		case err == nil:

@@ -4,18 +4,21 @@
             <el-form :model="state.form" ref="backupForm" label-width="auto" :rules="rules">
                 <el-form-item prop="dbNames" label="数据库名称">
                     <el-select
-                        @change="changeDatabase"
-                        v-model="state.selectedDbNames"
+                        v-model="state.dbNamesSelected"
                         multiple
                         clearable
                         collapse-tags
                         collapse-tags-tooltip
                         filterable
                         :disabled="state.editOrCreate"
+                        :filter-method="filterDbNames"
                         placeholder="数据库名称"
                         style="width: 100%"
                     >
-                        <el-option v-for="db in state.dbNamesWithoutBackup" :key="db" :label="db" :value="db" />
+                        <template #header>
+                            <el-checkbox v-model="checkAllDbNames" :indeterminate="indeterminateDbNames" @change="handleCheckAll"> 全选 </el-checkbox>
+                        </template>
+                        <el-option v-for="db in state.dbNamesFiltered" :key="db" :label="db" :value="db" />
                     </el-select>
                 </el-form-item>
 
@@ -41,9 +44,10 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, watch } from 'vue';
+import { reactive, ref, toRefs, watch } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
+import type { CheckboxValueType } from 'element-plus';
 
 const props = defineProps({
     data: {
@@ -96,17 +100,24 @@ const state = reactive({
     form: {
         id: 0,
         dbId: 0,
-        dbNames: String,
+        dbNames: '',
         name: null as any,
         intervalDay: null,
         startTime: null as any,
         repeated: null as any,
     },
     btnLoading: false,
-    selectedDbNames: [] as any,
+    dbNamesSelected: [] as any,
     dbNamesWithoutBackup: [] as any,
+    dbNamesFiltered: [] as any,
+    filterString: '',
     editOrCreate: false,
 });
+
+const { dbNamesSelected, dbNamesWithoutBackup } = toRefs(state);
+
+const checkAllDbNames = ref(false);
+const indeterminateDbNames = ref(false);
 
 watch(visible, (newValue: any) => {
     if (newValue) {
@@ -114,20 +125,13 @@ watch(visible, (newValue: any) => {
     }
 });
 
-/**
- * 改变表单中的数据库字段，方便表单错误提示。如全部删光，可提示请添加数据库
- */
-const changeDatabase = () => {
-    state.form.dbNames = state.selectedDbNames.length == 0 ? '' : state.selectedDbNames.join(' ');
-};
-
 const init = (data: any) => {
-    state.selectedDbNames = [];
+    state.dbNamesSelected = [];
     state.form.dbId = props.dbId;
     if (data) {
         state.editOrCreate = true;
         state.dbNamesWithoutBackup = [data.dbName];
-        state.selectedDbNames = [data.dbName];
+        state.dbNamesSelected = [data.dbName];
         state.form.id = data.id;
         state.form.dbNames = data.dbName;
         state.form.name = data.name;
@@ -178,6 +182,51 @@ const btnOk = async () => {
 const cancel = () => {
     visible.value = false;
     emit('cancel');
+};
+
+const checkDbSelect = (val: string[]) => {
+    const selected = val.filter((dbName: string) => {
+        return dbName.includes(state.filterString);
+    });
+    if (selected.length === 0) {
+        checkAllDbNames.value = false;
+        indeterminateDbNames.value = false;
+        return;
+    }
+    if (selected.length === state.dbNamesFiltered.length) {
+        checkAllDbNames.value = true;
+        indeterminateDbNames.value = false;
+        return;
+    }
+    indeterminateDbNames.value = true;
+};
+
+watch(dbNamesSelected, (val: string[]) => {
+    checkDbSelect(val);
+    state.form.dbNames = val.join(' ');
+});
+
+watch(dbNamesWithoutBackup, (val: string[]) => {
+    state.dbNamesFiltered = val.map((dbName: string) => dbName);
+});
+
+const handleCheckAll = (val: CheckboxValueType) => {
+    const selected = state.dbNamesSelected.filter((dbName: string) => {
+        return !state.dbNamesFiltered.includes(dbName);
+    });
+    if (val) {
+        state.dbNamesSelected = selected.concat(state.dbNamesFiltered);
+    } else {
+        state.dbNamesSelected = selected;
+    }
+};
+
+const filterDbNames = (filterString: string) => {
+    state.dbNamesFiltered = state.dbNamesWithoutBackup.filter((dbName: string) => {
+        return dbName.includes(filterString);
+    });
+    state.filterString = filterString;
+    checkDbSelect(state.dbNamesSelected);
 };
 </script>
 <style lang="scss"></style>

@@ -13,10 +13,12 @@ type teamRepoImpl struct {
 }
 
 func newTeamRepo() repository.Team {
-	return &teamRepoImpl{base.RepoImpl[*entity.Team]{M: new(entity.Team)}}
+	return &teamRepoImpl{}
 }
 
-func (p *teamRepoImpl) GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
+func (p *teamRepoImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	qd := gormx.NewQuery(p.GetModel()).
+		Like("name", condition.Name).
+		WithOrderBy()
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }

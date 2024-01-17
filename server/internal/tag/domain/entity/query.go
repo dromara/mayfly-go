@@ -26,3 +26,9 @@ type TagResourceQuery struct {
 	TagPathLike  string // 标签路径模糊查询
 	TagPathLikes []string
 }
+
+type TeamQuery struct {
+	model.Model
+
+	Name string `json:"name" form:"name"` // 团队名称
+}

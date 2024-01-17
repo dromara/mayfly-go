@@ -155,7 +155,7 @@ const state = reactive({
         pointInTime: null as any,
     },
     btnLoading: false,
-    selectedDbNames: [] as any,
+    dbNamesSelected: [] as any,
     dbNamesWithoutRestore: [] as any,
     editOrCreate: false,
     histories: [] as any,
@@ -189,12 +189,12 @@ const changeHistory = async () => {
 };
 
 const init = async (data: any) => {
-    state.selectedDbNames = [];
+    state.dbNamesSelected = [];
     state.form.dbId = props.dbId;
     if (data) {
         state.editOrCreate = true;
         state.dbNamesWithoutRestore = [data.dbName];
-        state.selectedDbNames = [data.dbName];
+        state.dbNamesSelected = [data.dbName];
         state.form.id = data.id;
         state.form.dbName = data.dbName;
         state.form.intervalDay = data.intervalDay;

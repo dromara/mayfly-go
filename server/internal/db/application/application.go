@@ -50,7 +50,7 @@ func Init() {
 		if err != nil {
 			panic(fmt.Sprintf("初始化 dbRestoreApp 失败: %v", err))
 		}
-		dbBinlogApp, err = newDbBinlogApp(repositories, dbApp)
+		dbBinlogApp, err = newDbBinlogApp(repositories, dbApp, scheduler)
 		if err != nil {
 			panic(fmt.Sprintf("初始化 dbBinlogApp 失败: %v", err))
 		}
