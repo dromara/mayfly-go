@@ -11,7 +11,7 @@ var tm *TimedCache
 
 // 如果系统有设置redis信息，则从redis获取，否则本机内存获取
 func GetStr(key string) string {
-	if !useRedisCache() {
+	if !UseRedisCache() {
 		checkCache()
 		val, _ := tm.Get(key)
 		if val == nil {
@@ -41,7 +41,7 @@ func GetInt(key string) int {
 
 // 如果系统有设置redis信息，则使用redis存，否则存于本机内存。duration == -1则为永久缓存
 func SetStr(key, value string, duration time.Duration) error {
-	if !useRedisCache() {
+	if !UseRedisCache() {
 		checkCache()
 		return tm.Add(key, value, duration)
 	}
@@ -50,7 +50,7 @@ func SetStr(key, value string, duration time.Duration) error {
 
 // 删除指定key
 func Del(key string) {
-	if !useRedisCache() {
+	if !UseRedisCache() {
 		checkCache()
 		tm.Delete(key)
 		return
@@ -58,12 +58,12 @@ func Del(key string) {
 	rediscli.Del(key)
 }
 
+func UseRedisCache() bool {
+	return rediscli.GetCli() != nil
+}
+
 func checkCache() {
 	if tm == nil {
 		tm = NewTimedCache(time.Minute*time.Duration(5), 30*time.Second)
 	}
-}
-
-func useRedisCache() bool {
-	return rediscli.GetCli() != nil
 }
