@@ -80,13 +80,22 @@ func (dd *DMDialect) GetTables() ([]dbi.Table, error) {
 
 // 获取列元信息, 如列名等
 func (dd *DMDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
-	tableName := ""
-	for i := 0; i < len(tableNames); i++ {
-		if i != 0 {
-			tableName = tableName + ", "
-		}
-		tableName = tableName + "'" + tableNames[i] + "'"
+	if len(tableNames) == 0 {
+		// 处理空切片的情况，返回错误
+		return nil, errorx.NewBiz("获取表名失败")
 	}
+
+	rawTableNames := make([]string, 0, len(tableNames))
+
+	for _, name := range tableNames {
+		// 如果表名已转译，则删除头尾的反引号
+		if strings.HasPrefix(name, "`") && strings.HasSuffix(name, "`") {
+			name = name[1 : len(name)-1]
+		}
+		rawTableNames = append(rawTableNames, fmt.Sprintf("'%s'", name))
+	}
+
+	tableName := strings.Join(rawTableNames, ", ")
 
 	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_COLUMN_MA_KEY), tableName))
 	if err != nil {
