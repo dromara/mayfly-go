@@ -8,6 +8,7 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/collx"
 	"regexp"
 	"strings"
 	"time"
@@ -67,7 +68,7 @@ func (dd *DMDialect) GetTables() ([]dbi.Table, error) {
 	tables := make([]dbi.Table, 0)
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
-			TableName:    re["TABLE_NAME"].(string),
+			TableName:    anyx.ConvString(re["TABLE_NAME"]),
 			TableComment: anyx.ConvString(re["TABLE_COMMENT"]),
 			CreateTime:   anyx.ConvString(re["CREATE_TIME"]),
 			TableRows:    anyx.ConvInt(re["TABLE_ROWS"]),
@@ -80,13 +81,10 @@ func (dd *DMDialect) GetTables() ([]dbi.Table, error) {
 
 // 获取列元信息, 如列名等
 func (dd *DMDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
-	tableName := ""
-	for i := 0; i < len(tableNames); i++ {
-		if i != 0 {
-			tableName = tableName + ", "
-		}
-		tableName = tableName + "'" + tableNames[i] + "'"
-	}
+	dbType := dd.dc.Info.Type
+	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
+		return fmt.Sprintf("'%s'", dbType.RemoveQuote(val))
+	}), ",")
 
 	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_COLUMN_MA_KEY), tableName))
 	if err != nil {
@@ -96,8 +94,8 @@ func (dd *DMDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
 		columns = append(columns, dbi.Column{
-			TableName:     re["TABLE_NAME"].(string),
-			ColumnName:    re["COLUMN_NAME"].(string),
+			TableName:     anyx.ConvString(re["TABLE_NAME"]),
+			ColumnName:    anyx.ConvString(re["COLUMN_NAME"]),
 			ColumnType:    anyx.ConvString(re["COLUMN_TYPE"]),
 			ColumnComment: anyx.ConvString(re["COLUMN_COMMENT"]),
 			Nullable:      anyx.ConvString(re["NULLABLE"]),
@@ -136,7 +134,7 @@ func (dd *DMDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
 		indexs = append(indexs, dbi.Index{
-			IndexName:    re["INDEX_NAME"].(string),
+			IndexName:    anyx.ConvString(re["INDEX_NAME"]),
 			ColumnName:   anyx.ConvString(re["COLUMN_NAME"]),
 			IndexType:    anyx.ConvString(re["INDEX_TYPE"]),
 			IndexComment: anyx.ConvString(re["INDEX_COMMENT"]),

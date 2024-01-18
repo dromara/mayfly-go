@@ -2,6 +2,7 @@ package config
 
 import (
 	sysapp "mayfly-go/internal/sys/application"
+	"mayfly-go/pkg/utils/conv"
 	"mayfly-go/pkg/utils/stringx"
 )
 
@@ -26,8 +27,8 @@ func GetAccountLoginSecurity() *AccountLoginSecurity {
 	als := new(AccountLoginSecurity)
 	als.UseCaptcha = c.ConvBool(jm["useCaptcha"], true)
 	als.UseOtp = c.ConvBool(jm["useOtp"], false)
-	als.LoginFailCount = stringx.ConvInt(jm["loginFailCount"], 5)
-	als.LoginFailMin = stringx.ConvInt(jm["loginFailMin"], 10)
+	als.LoginFailCount = conv.Str2Int(jm["loginFailCount"], 5)
+	als.LoginFailMin = conv.Str2Int(jm["loginFailMin"], 10)
 	otpIssuer := jm["otpIssuer"]
 	if otpIssuer == "" {
 		otpIssuer = "mayfly-go"

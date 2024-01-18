@@ -3,7 +3,7 @@ package entity
 import (
 	"encoding/json"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils/stringx"
+	"mayfly-go/pkg/utils/conv"
 )
 
 const (
@@ -49,7 +49,7 @@ func (c *Config) IntValue(defaultValue int) int {
 	if c.Id == 0 {
 		return defaultValue
 	}
-	return stringx.ConvInt(c.Value, defaultValue)
+	return conv.Str2Int(c.Value, defaultValue)
 }
 
 // 转换配置中的值为bool类型（默认"1"或"true"为true，其他为false）

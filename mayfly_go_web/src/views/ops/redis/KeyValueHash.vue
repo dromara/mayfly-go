@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-button @click="showEditDialog(null)" icon="plus" size="small" plain type="primary" class="mb10">添加新行</el-button>
-        <el-table size="small" border :data="hashValues" height="450" min-height="300" stripe>
+        <el-table size="small" border :data="hashValues" height="500" min-height="300" stripe>
             <el-table-column type="index" :label="'ID (Total: ' + total + ')'" sortable width="100"> </el-table-column>
             <el-table-column resizable sortable prop="field" label="field" show-overflow-tooltip min-width="100"> </el-table-column>
             <el-table-column resizable sortable prop="value" label="value" show-overflow-tooltip min-width="200"> </el-table-column>
@@ -11,7 +11,7 @@
                         class="key-detail-filter-value"
                         v-model="state.filterValue"
                         @keyup.enter="hscan(true, true)"
-                        placeholder="输入关键词回车搜索"
+                        placeholder="关键词回车搜索"
                         clearable
                         size="small"
                     />
@@ -51,7 +51,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { ref, onMounted, reactive, watch, toRefs } from 'vue';
+import { ref, onMounted, reactive, toRefs } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import { notBlank } from '@/common/assert';

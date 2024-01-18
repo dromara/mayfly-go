@@ -48,6 +48,17 @@ func (dbType DbType) QuoteIdentifier(name string) string {
 	}
 }
 
+func (dbType DbType) RemoveQuote(name string) string {
+	switch dbType {
+	case DbTypeMysql, DbTypeMariadb:
+		return removeQuote(name, "`")
+	case DbTypePostgres:
+		return removeQuote(name, `"`)
+	default:
+		return removeQuote(name, `"`)
+	}
+}
+
 func (dbType DbType) QuoteLiteral(literal string) string {
 	switch dbType {
 	case DbTypeMysql, DbTypeMariadb:
@@ -91,6 +102,11 @@ func quoteIdentifier(name, quoter string) string {
 		name = name[:end]
 	}
 	return quoter + strings.Replace(name, quoter, quoter+quoter, -1) + quoter
+}
+
+// 移除相关引号
+func removeQuote(name, quoter string) string {
+	return strings.ReplaceAll(name, quoter, "")
 }
 
 func (dbType DbType) StmtSetForeignKeyChecks(check bool) string {

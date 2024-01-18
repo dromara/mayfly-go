@@ -41,7 +41,15 @@
                                 <el-input v-model="state.keySeparator" placeholder="分割符" size="small" class="ml5" />
                             </el-col>
                             <el-col :span="18">
-                                <el-input @clear="clear" v-model="scanParam.match" placeholder="match 支持*模糊key" clearable size="small" class="ml10" />
+                                <el-input
+                                    @clear="clear"
+                                    v-model="scanParam.match"
+                                    @keyup.enter.native="searchKey()"
+                                    placeholder="match 支持*模糊key, 回车搜索"
+                                    clearable
+                                    size="small"
+                                    class="ml10"
+                                />
                             </el-col>
                             <el-col :span="4">
                                 <el-button

@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/collx"
 	"regexp"
 	"strings"
 	"time"
@@ -73,13 +74,10 @@ func (pd *PgsqlDialect) GetTables() ([]dbi.Table, error) {
 
 // 获取列元信息, 如列名等
 func (pd *PgsqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
-	tableName := ""
-	for i := 0; i < len(tableNames); i++ {
-		if i != 0 {
-			tableName = tableName + ", "
-		}
-		tableName = tableName + "'" + tableNames[i] + "'"
-	}
+	dbType := pd.dc.Info.Type
+	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
+		return fmt.Sprintf("'%s'", dbType.RemoveQuote(val))
+	}), ",")
 
 	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
@@ -89,8 +87,8 @@ func (pd *PgsqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
 		columns = append(columns, dbi.Column{
-			TableName:     re["tableName"].(string),
-			ColumnName:    re["columnName"].(string),
+			TableName:     anyx.ConvString(re["tableName"]),
+			ColumnName:    anyx.ConvString(re["columnName"]),
 			ColumnType:    anyx.ConvString(re["columnType"]),
 			ColumnComment: anyx.ConvString(re["columnComment"]),
 			Nullable:      anyx.ConvString(re["nullable"]),
@@ -129,7 +127,7 @@ func (pd *PgsqlDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
 		indexs = append(indexs, dbi.Index{
-			IndexName:    re["indexName"].(string),
+			IndexName:    anyx.ConvString(re["indexName"]),
 			ColumnName:   anyx.ConvString(re["columnName"]),
 			IndexType:    anyx.ConvString(re["IndexType"]),
 			IndexComment: anyx.ConvString(re["indexComment"]),

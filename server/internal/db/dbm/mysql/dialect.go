@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/collx"
 	"regexp"
 	"strings"
 )
@@ -58,7 +59,7 @@ func (md *MysqlDialect) GetTables() ([]dbi.Table, error) {
 	tables := make([]dbi.Table, 0)
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
-			TableName:    re["tableName"].(string),
+			TableName:    anyx.ConvString(re["tableName"]),
 			TableComment: anyx.ConvString(re["tableComment"]),
 			CreateTime:   anyx.ConvString(re["createTime"]),
 			TableRows:    anyx.ConvInt(re["tableRows"]),
@@ -71,13 +72,10 @@ func (md *MysqlDialect) GetTables() ([]dbi.Table, error) {
 
 // 获取列元信息, 如列名等
 func (md *MysqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
-	tableName := ""
-	for i := 0; i < len(tableNames); i++ {
-		if i != 0 {
-			tableName = tableName + ", "
-		}
-		tableName = tableName + "'" + tableNames[i] + "'"
-	}
+	dbType := md.dc.Info.Type
+	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
+		return fmt.Sprintf("'%s'", dbType.RemoveQuote(val))
+	}), ",")
 
 	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
@@ -87,8 +85,8 @@ func (md *MysqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
 		columns = append(columns, dbi.Column{
-			TableName:     re["tableName"].(string),
-			ColumnName:    re["columnName"].(string),
+			TableName:     anyx.ConvString(re["tableName"]),
+			ColumnName:    anyx.ConvString(re["columnName"]),
 			ColumnType:    anyx.ConvString(re["columnType"]),
 			ColumnComment: anyx.ConvString(re["columnComment"]),
 			Nullable:      anyx.ConvString(re["nullable"]),
@@ -129,7 +127,7 @@ func (md *MysqlDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
 		indexs = append(indexs, dbi.Index{
-			IndexName:    re["indexName"].(string),
+			IndexName:    anyx.ConvString(re["indexName"]),
 			ColumnName:   anyx.ConvString(re["columnName"]),
 			IndexType:    anyx.ConvString(re["indexType"]),
 			IndexComment: anyx.ConvString(re["indexComment"]),
@@ -162,7 +160,7 @@ func (md *MysqlDialect) GetTableDDL(tableName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return res[0]["Create Table"].(string) + ";", nil
+	return anyx.ConvString(res[0]["Create Table"]) + ";", nil
 }
 
 func (md *MysqlDialect) WalkTableRecord(tableName string, walkFn dbi.WalkQueryRowsFunc) error {

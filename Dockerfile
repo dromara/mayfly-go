@@ -24,7 +24,7 @@ COPY --from=fe-builder /mayfly/dist /mayfly/static/static
 
 # Build
 RUN GO111MODULE=on CGO_ENABLED=0 GOOS=linux \
-    go build -a \
+    go build -a -ldflags=-w \
     -o mayfly-go main.go
 
 FROM debian:bookworm-slim
