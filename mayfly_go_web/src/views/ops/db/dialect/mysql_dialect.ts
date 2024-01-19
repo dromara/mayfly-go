@@ -4,6 +4,7 @@ import { language as mysqlLanguage } from 'monaco-editor/esm/vs/basic-languages/
 
 export { MYSQL_TYPE_LIST, MysqlDialect };
 
+// 参考官方文档：https://dev.mysql.com/doc/refman/8.0/en/data-types.html
 const MYSQL_TYPE_LIST = [
     'bigint',
     'binary',
@@ -31,6 +32,7 @@ const MYSQL_TYPE_LIST = [
     'varchar',
 ];
 
+// 参考官方文档：https://dev.mysql.com/doc/refman/8.3/en/functions.html
 const replaceFunctions: EditorCompletionItem[] = [
     /**  字符串相关函数  */
     { label: 'CONCAT', insertText: 'CONCAT(str1,str2,...)', description: '多字符串合并' },
@@ -193,7 +195,7 @@ class MysqlDialect implements DbDialect {
         let defVal = val ? `DEFAULT ${val}` : '';
         let length = cl.length ? `(${cl.length})` : '';
         let onUpdate = 'update_time' === cl.name ? ' ON UPDATE CURRENT_TIMESTAMP ' : '';
-        return ` ${cl.name} ${cl.type}${length} ${cl.notNull ? 'NOT NULL' : 'NULL'} ${
+        return ` ${this.quoteIdentifier(cl.name)} ${cl.type}${length} ${cl.notNull ? 'NOT NULL' : 'NULL'} ${
             cl.auto_increment ? 'AUTO_INCREMENT' : ''
         } ${defVal} ${onUpdate} comment '${cl.remark || ''}' `;
     }
@@ -223,35 +225,31 @@ class MysqlDialect implements DbDialect {
         return sql.substring(0, sql.length - 1) + ';';
     }
 
-    getModifyColumnSql(tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
-        let addSql = '',
-            updSql = '',
-            delSql = '';
-        if (changeData.add.length > 0) {
-            addSql = `ALTER TABLE ${tableName}`;
-            changeData.add.forEach((a) => {
-                addSql += ` ADD ${this.genColumnBasicSql(a)},`;
+    getModifyColumnSql(tableData: any, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
+        let sql = `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableName)}`;
+        let arr = [] as string[];
+        if (changeData.del.length > 0) {
+            changeData.del.forEach((a) => {
+                arr.push(` DROP COLUMN  ${this.quoteIdentifier(a.name)} `);
             });
-            addSql = addSql.substring(0, addSql.length - 1);
-            addSql += ';';
+        }
+        if (changeData.add.length > 0) {
+            changeData.add.forEach((a) => {
+                arr.push(` ADD COLUMN ${this.genColumnBasicSql(a)} `);
+            });
         }
 
         if (changeData.upd.length > 0) {
-            updSql = `ALTER TABLE ${tableName}`;
-            let arr = [] as string[];
             changeData.upd.forEach((a) => {
-                arr.push(` MODIFY ${this.genColumnBasicSql(a)}`);
+                if (a.name === a.oldName) {
+                    arr.push(` MODIFY COLUMN ${this.genColumnBasicSql(a)} `);
+                } else {
+                    arr.push(` CHANGE COLUMN ${this.quoteIdentifier(a.oldName!)} ${this.genColumnBasicSql(a)} `);
+                }
             });
-            updSql += arr.join(',');
-            updSql += ';';
         }
 
-        if (changeData.del.length > 0) {
-            changeData.del.forEach((a) => {
-                delSql += ` ALTER TABLE ${tableName} DROP COLUMN ${a.name}; `;
-            });
-        }
-        return addSql + updSql + delSql;
+        return sql + arr.join(',') + ';';
     }
 
     getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {

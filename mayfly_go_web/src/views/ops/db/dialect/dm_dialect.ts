@@ -54,6 +54,7 @@ const DM_TYPE_LIST: sqlColumnType[] = [
     { udtName: 'BFILE', dataType: 'BFILE', desc: '二进制文件', space: '', range: '100G-1' },
 ];
 
+// 参考官方文档：https://eco.dameng.com/document/dm/zh-cn/pm/function.html
 const replaceFunctions: EditorCompletionItem[] = [
     //  数值函数
     { label: 'ABS', insertText: 'ABS(n)', description: '求数值 n 的绝对值' },
@@ -367,7 +368,7 @@ class DMDialect implements DbDialect {
         dmDialectInfo = {
             icon: 'iconfont icon-db-dm',
             defaultPort: 5236,
-            formatSqlDialect: 'postgresql',
+            formatSqlDialect: 'plsql',
             columnTypes: DM_TYPE_LIST.sort((a, b) => a.udtName.localeCompare(b.udtName)),
             editorCompletions,
         };
@@ -500,7 +501,9 @@ class DMDialect implements DbDialect {
         // 默认值
         let defVal = this.getDefaultValueSql(cl);
         let incr = cl.auto_increment ? 'IDENTITY' : '';
-        return ` "${cl.name}" ${cl.type}${length} ${incr} ${cl.notNull ? 'NOT NULL' : ''} ${defVal} `;
+        // 如果有原名以原名为准
+        let name = cl.oldName && cl.name !== cl.oldName ? cl.oldName : cl.name;
+        return ` ${this.quoteIdentifier(name)} ${cl.type}${length} ${incr} ${cl.notNull ? 'NOT NULL' : ''} ${defVal} `;
     }
 
     getCreateTableSql(data: any): string {
@@ -546,32 +549,75 @@ class DMDialect implements DbDialect {
         return sql.join(';');
     }
 
-    getModifyColumnSql(tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
-        let sql: string[] = [];
+    getModifyColumnSql(tableData: any, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
+        let schemaArr = tableData.db.split('/');
+        let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
+
+        let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableName)}`;
+
+        let modifySql = '';
+        let dropSql = '';
+        let renameSql = '';
+        let commentSql = '';
+
+        // 主键字段
+        let priArr = new Set();
+
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
-                sql.push(`ALTER TABLE "${tableName}" add COLUMN ${this.genColumnBasicSql(a)}`);
+                modifySql += `ALTER TABLE ${dbTable} add COLUMN ${this.genColumnBasicSql(a)};`;
                 if (a.remark) {
-                    sql.push(`comment on COLUMN "${tableName}"."${a.name}" is '${a.remark}'`);
+                    commentSql += `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${a.remark}';`;
+                }
+                if (a.pri) {
+                    priArr.add(`"${a.name}"`);
                 }
             });
         }
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
-                sql.push(`ALTER TABLE "${tableName}" MODIFY ${this.genColumnBasicSql(a)}`);
-                if (a.remark) {
-                    sql.push(`comment on COLUMN "${tableName}"."${a.name}" is '${a.remark}'`);
+                let cmtSql = `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${a.remark}';`;
+                if (a.remark && a.oldName === a.name) {
+                    commentSql += cmtSql;
+                }
+                // 修改了字段名
+                if (a.oldName !== a.name) {
+                    renameSql += `ALTER TABLE ${dbTable} RENAME COLUMN ${this.quoteIdentifier(a.oldName!)} TO ${this.quoteIdentifier(a.name)};`;
+                    if (a.remark) {
+                        commentSql += cmtSql;
+                    }
+                }
+                modifySql += `ALTER TABLE ${dbTable} MODIFY ${this.genColumnBasicSql(a)};`;
+                if (a.pri) {
+                    priArr.add(`${this.quoteIdentifier(a.name)}`);
                 }
             });
         }
 
         if (changeData.del.length > 0) {
             changeData.del.forEach((a) => {
-                sql.push(`ALTER TABLE "${tableName}" DROP COLUMN ${a.name}`);
+                dropSql += `ALTER TABLE ${dbTable} DROP COLUMN ${a.name};`;
             });
         }
-        return sql.join(';');
+
+        // 编辑主键
+        let dropPkSql = '';
+        if (priArr.size > 0) {
+            let resPri = tableData.fields.res.filter((a: RowDefinition) => a.pri);
+            if (resPri) {
+                priArr.add(`${this.quoteIdentifier(resPri.name)}`);
+            }
+            // 如果有编辑主键字段，则删除主键，再添加主键
+            // 解析表字段中是否含有主键，有的话就删除主键
+            if (tableData.fields.oldFields.find((a: RowDefinition) => a.pri)) {
+                dropPkSql = `ALTER TABLE ${dbTable} DROP PRIMARY KEY;`;
+            }
+        }
+
+        let addPkSql = priArr.size > 0 ? `ALTER TABLE ${dbTable} ADD PRIMARY KEY (${Array.from(priArr).join(',')});` : '';
+
+        return dropPkSql + modifySql + dropSql + renameSql + addPkSql + commentSql;
     }
 
     getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {

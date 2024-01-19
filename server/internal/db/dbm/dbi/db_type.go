@@ -16,6 +16,7 @@ const (
 	DbTypePostgres DbType = "postgres"
 	DbTypeDM       DbType = "dm"
 	DbTypeOracle   DbType = "oracle"
+	DbTypeSqlite   DbType = "sqlite"
 )
 
 func ToDbType(dbType string) DbType {

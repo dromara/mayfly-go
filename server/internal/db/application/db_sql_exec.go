@@ -93,8 +93,12 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 			// 如果配置为0，则不校验分页参数
 			maxCount := config.GetDbQueryMaxCount()
 			if maxCount != 0 {
-				if !strings.Contains(lowerSql, "limit") {
-					return nil, errorx.NewBiz("请完善分页信息后执行")
+				// 兼容oracle rownum分页
+				if !strings.Contains(lowerSql, "limit") && !strings.Contains(lowerSql, "rownum") {
+					// 判断是不是count语句
+					if !strings.Contains(lowerSql, "count(") {
+						return nil, errorx.NewBiz("请完善分页信息后执行")
+					}
 				}
 			}
 		}

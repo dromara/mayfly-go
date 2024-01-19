@@ -269,26 +269,24 @@ const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
                 nParams.schema = sn;
                 nParams.db = nParams.db + '/' + sn;
                 nParams.dbs = schemaNames;
-                return new TagTreeNode(`${params.id}.${params.db}.schema.${sn}`, sn, NodeTypePostgresScheam).withParams(nParams).withIcon(SchemaIcon);
+                return new TagTreeNode(`${params.id}.${params.db}.schema.${sn}`, sn, NodeTypePostgresSchema).withParams(nParams).withIcon(SchemaIcon);
             });
         }
-        return [
-            new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams(params).withIcon(TableIcon),
-            new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeTypeSqlMenu).withParams(params).withIcon(SqlIcon),
-        ];
+        return NodeTypeTables(params);
     })
     .withNodeClickFunc(nodeClickChangeDb);
 
+const NodeTypeTables = (params: any) => {
+    return [
+        new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams(params).withIcon(TableIcon),
+        new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeTypeSqlMenu).withParams(params).withIcon(SqlIcon),
+    ];
+};
+
 // postgres schema模式
-const NodeTypePostgresScheam = new NodeType(SqlExecNodeType.PgSchema)
+const NodeTypePostgresSchema = new NodeType(SqlExecNodeType.PgSchema)
     .withContextMenuItems([new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key))])
-    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
-        const params = parentNode.params;
-        return [
-            new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams(params).withIcon(TableIcon),
-            new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeTypeSqlMenu).withParams(params).withIcon(SqlIcon),
-        ];
-    })
+    .withLoadNodesFunc(async (parentNode: TagTreeNode) => NodeTypeTables(parentNode.params))
     .withNodeClickFunc(nodeClickChangeDb);
 
 // 数据库表菜单节点

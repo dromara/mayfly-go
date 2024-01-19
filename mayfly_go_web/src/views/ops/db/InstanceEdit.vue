@@ -15,7 +15,7 @@
                                 </el-option>
                             </el-select>
                         </el-form-item>
-                        <el-form-item prop="host" label="host" required>
+                        <el-form-item v-if="form.type !== DbType.sqlite" prop="host" label="host" required>
                             <el-col :span="18">
                                 <el-input :disabled="form.id !== undefined" v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
                             </el-col>
@@ -24,13 +24,18 @@
                                 <el-input type="number" v-model.number="form.port" placeholder="端口"></el-input>
                             </el-col>
                         </el-form-item>
+
+                        <el-form-item v-if="form.type === DbType.sqlite" prop="host" label="sqlite地址">
+                            <el-input v-model.trim="form.host" placeholder="请输入sqlite文件在服务器的绝对地址"></el-input>
+                        </el-form-item>
+
                         <el-form-item v-if="form.type === DbType.oracle" prop="sid" label="SID">
                             <el-input v-model.trim="form.sid" placeholder="请输入服务id"></el-input>
                         </el-form-item>
-                        <el-form-item prop="username" label="用户名" required>
+                        <el-form-item v-if="form.type !== DbType.sqlite" prop="username" label="用户名" required>
                             <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
                         </el-form-item>
-                        <el-form-item prop="password" label="密码">
+                        <el-form-item v-if="form.type !== DbType.sqlite" prop="password" label="密码">
                             <el-input type="password" show-password v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password">
                                 <template v-if="form.id && form.id != 0" #suffix>
                                     <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click" :content="pwd">
@@ -169,6 +174,10 @@ const dbTypes = [
         type: 'oracle',
         label: 'oracle',
     },
+    {
+        type: 'sqlite',
+        label: 'sqlite',
+    },
 ];
 
 const state = reactive({
@@ -176,7 +185,7 @@ const state = reactive({
     tabActiveName: 'basic',
     form: {
         id: null,
-        type: null,
+        type: '',
         name: null,
         host: '',
         port: null,
@@ -247,10 +256,12 @@ const testConn = async () => {
 };
 
 const btnOk = async () => {
-    if (!state.form.id) {
-        notBlank(state.form.password, '新增操作，密码不可为空');
-    } else if (state.form.username != state.oldUserName) {
-        notBlank(state.form.password, '已修改用户名，请输入密码');
+    if (state.form.type !== DbType.sqlite) {
+        if (!state.form.id) {
+            notBlank(state.form.password, '新增操作，密码不可为空');
+        } else if (state.form.username != state.oldUserName) {
+            notBlank(state.form.password, '已修改用户名，请输入密码');
+        }
     }
 
     dbForm.value.validate(async (valid: boolean) => {

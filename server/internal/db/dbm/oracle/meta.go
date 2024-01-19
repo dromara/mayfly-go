@@ -44,9 +44,25 @@ func (md *OraMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 			schema = ss[1]
 		}
 	}
-
-	urlOptions["TIMEOUT"] = "60"
-	urlOptions["client charset"] = "UTF8"
+	// 解析参数
+	if d.Params != "" {
+		paramArr := strings.Split(d.Params, "&")
+		for _, param := range paramArr {
+			ps := strings.Split(param, "=")
+			if len(ps) > 1 {
+				if ps[0] == "clientCharset" {
+					urlOptions["client charset"] = ps[1]
+				} else {
+					urlOptions[ps[0]] = ps[1]
+				}
+			}
+		}
+	}
+	// 默认设置为UTF8
+	//if urlOptions["client charset"] == "" {
+	//	urlOptions["client charset"] = "UTF8"
+	//}
+	urlOptions["TIMEOUT"] = "10"
 	connStr := go_ora.BuildUrl(d.Host, d.Port, d.Sid, d.Username, d.Password, urlOptions)
 	conn, err := sql.Open(driverName, connStr)
 	if err != nil {

@@ -371,7 +371,7 @@ const selectData = async () => {
         }
 
         const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
-        state.count = countRes.res[0].count || countRes.res[0].COUNT || 0;
+        state.count = parseInt(countRes.res[0].count || countRes.res[0].COUNT || 0);
         let sql = dbInst.getDefaultSelectSql(table, state.condition, state.orderBy, state.pageNum, state.pageSize);
         state.sql = sql;
         if (state.count > 0) {

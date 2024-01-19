@@ -3,6 +3,7 @@ import { PostgresqlDialect } from './postgres_dialect';
 import { DMDialect } from '@/views/ops/db/dialect/dm_dialect';
 import { OracleDialect } from '@/views/ops/db/dialect/oracle_dialect';
 import { MariadbDialect } from '@/views/ops/db/dialect/mariadb_dialect';
+import { SqliteDialect } from '@/views/ops/db/dialect/sqlite_dialect';
 
 export interface sqlColumnType {
     udtName: string;
@@ -14,6 +15,7 @@ export interface sqlColumnType {
 
 export interface RowDefinition {
     name: string;
+    oldName?: string;
     type: string;
     value: string;
     length: string;
@@ -110,6 +112,7 @@ export const DbType = {
     postgresql: 'postgres',
     dm: 'dm', // 达梦
     oracle: 'oracle',
+    sqlite: 'sqlite',
 };
 
 export const compatibleMysql = (dbType: string): boolean => {
@@ -164,10 +167,11 @@ export interface DbDialect {
 
     /**
      * 生成编辑列sql
+     * @param tableData 表数据，包含表名、列数据、索引数据
      * @param tableName 表名
      * @param changeData 改变信息
      */
-    getModifyColumnSql(tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string;
+    getModifyColumnSql(tableData: any, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string;
 
     /**
      * 生成编辑索引sql
@@ -177,7 +181,7 @@ export interface DbDialect {
     getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string;
 
     /** 通过数据库字段类型，返回基本数据类型 */
-    getDataType: (columnType: string) => DataType;
+    getDataType(columnType: string): DataType;
 
     /** 包装字符串数据， 如：oracle需要把date类型改为 to_date(str, 'yyyy-mm-dd hh24:mi:ss') */
     wrapStrValue(columnType: string, value: string): string;
@@ -188,6 +192,7 @@ let mariadbDialect = new MariadbDialect();
 let postgresDialect = new PostgresqlDialect();
 let dmDialect = new DMDialect();
 let oracleDialect = new OracleDialect();
+let sqliteDialect = new SqliteDialect();
 
 export const getDbDialect = (dbType: string | undefined): DbDialect => {
     if (!dbType) {
@@ -204,6 +209,8 @@ export const getDbDialect = (dbType: string | undefined): DbDialect => {
             return dmDialect;
         case DbType.oracle:
             return oracleDialect;
+        case DbType.sqlite:
+            return sqliteDialect;
         default:
             throw new Error('不支持的数据库');
     }

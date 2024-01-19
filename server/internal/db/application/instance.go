@@ -73,9 +73,11 @@ func (app *instanceAppImpl) Save(ctx context.Context, instanceEntity *entity.DbI
 
 	err := app.GetBy(oldInstance)
 	if instanceEntity.Id == 0 {
-		if instanceEntity.Password == "" {
+
+		if instanceEntity.Type != string(dbi.DbTypeSqlite) && instanceEntity.Password == "" {
 			return errorx.NewBiz("密码不能为空")
 		}
+
 		if err == nil {
 			return errorx.NewBiz("该数据库实例已存在")
 		}

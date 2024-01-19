@@ -181,7 +181,7 @@ const state = reactive({
         visible: false,
         activeName: '1',
         type: '',
-        enableEditTypes: [DbType.mysql, DbType.mariadb, DbType.postgresql, DbType.dm, DbType.oracle], // 支持"编辑表"的数据库类型
+        enableEditTypes: [DbType.mysql, DbType.mariadb, DbType.postgresql, DbType.dm, DbType.oracle, DbType.sqlite], // 支持"编辑表"的数据库类型
         data: {
             // 修改表时，传递修改数据
             edit: false,

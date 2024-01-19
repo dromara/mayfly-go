@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" width="90%" :close-on-press-escape="false" :close-on-click-modal="false">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" width="70%" :close-on-press-escape="false" :close-on-click-modal="false">
             <el-form label-position="left" ref="formRef" :model="tableData" label-width="80px">
                 <el-row>
                     <el-col :span="12">
@@ -26,7 +26,7 @@
                                 :width="item.width"
                             >
                                 <template #default="scope">
-                                    <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name"> </el-input>
+                                    <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name" />
 
                                     <el-select v-else-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type">
                                         <el-option
@@ -42,35 +42,30 @@
                                         </el-option>
                                     </el-select>
 
-                                    <el-input v-else-if="item.prop === 'value'" size="small" v-model="scope.row.value"> </el-input>
+                                    <el-input v-else-if="item.prop === 'value'" size="small" v-model="scope.row.value" />
 
-                                    <el-input v-else-if="item.prop === 'length'" size="small" v-model="scope.row.length"> </el-input>
+                                    <el-input v-else-if="item.prop === 'length'" type="number" size="small" v-model.number="scope.row.length" />
 
-                                    <el-input v-else-if="item.prop === 'numScale'" size="small" v-model="scope.row.numScale"> </el-input>
+                                    <el-input v-else-if="item.prop === 'numScale'" type="number" size="small" v-model.number="scope.row.numScale" />
 
-                                    <el-checkbox v-else-if="item.prop === 'notNull'" size="small" v-model="scope.row.notNull"> </el-checkbox>
+                                    <el-checkbox v-else-if="item.prop === 'notNull'" size="small" v-model="scope.row.notNull" />
 
-                                    <el-checkbox v-else-if="item.prop === 'pri'" size="small" v-model="scope.row.pri"> </el-checkbox>
+                                    <el-checkbox v-else-if="item.prop === 'pri'" size="small" v-model="scope.row.pri" />
 
                                     <el-checkbox
                                         v-else-if="item.prop === 'auto_increment'"
                                         size="small"
                                         v-model="scope.row.auto_increment"
                                         :disabled="dbType === DbType.postgresql"
-                                    >
-                                    </el-checkbox>
+                                    />
 
-                                    <el-input v-else-if="item.prop === 'remark'" size="small" v-model="scope.row.remark"> </el-input>
+                                    <el-input v-else-if="item.prop === 'remark'" size="small" v-model="scope.row.remark" />
 
-                                    <el-link
-                                        v-else-if="item.prop === 'action'"
-                                        type="danger"
-                                        plain
-                                        size="small"
-                                        :underline="false"
-                                        @click.prevent="deleteRow(scope.$index)"
-                                        >删除</el-link
-                                    >
+                                    <el-popconfirm v-else-if="item.prop === 'action'" title="确定删除?" @confirm="deleteRow(scope.$index)">
+                                        <template #reference>
+                                            <el-link type="danger" plain size="small" :underline="false">删除</el-link>
+                                        </template>
+                                    </el-popconfirm>
                                 </template>
                             </el-table-column>
                         </el-table>
@@ -110,15 +105,11 @@
 
                                     <el-input v-if="item.prop === 'indexComment'" size="small" v-model="scope.row.indexComment"> </el-input>
 
-                                    <el-link
-                                        v-if="item.prop === 'action'"
-                                        type="danger"
-                                        plain
-                                        size="small"
-                                        :underline="false"
-                                        @click.prevent="deleteIndex(scope.$index)"
-                                        >删除</el-link
-                                    >
+                                    <el-popconfirm v-else-if="item.prop === 'action'" title="确定删除?" @confirm="deleteIndex(scope.$index)">
+                                        <template #reference>
+                                            <el-link type="danger" plain size="small" :underline="false">删除</el-link>
+                                        </template>
+                                    </el-popconfirm>
                                 </template>
                             </el-table-column>
                         </el-table>
@@ -130,6 +121,7 @@
                 </el-tabs>
             </el-form>
             <template #footer>
+                <el-button @click="cancel()">取消</el-button>
                 <el-button :loading="btnloading" @click="submit()" type="primary">保存</el-button>
             </template>
         </el-dialog>
@@ -187,22 +179,27 @@ const state = reactive({
                 {
                     prop: 'name',
                     label: '字段名称',
+                    width: 200,
                 },
                 {
                     prop: 'type',
                     label: '字段类型',
+                    width: 120,
                 },
                 {
                     prop: 'length',
                     label: '长度',
+                    width: 120,
                 },
                 {
                     prop: 'numScale',
                     label: '小数点',
+                    width: 120,
                 },
                 {
                     prop: 'value',
                     label: '默认值',
+                    width: 120,
                 },
 
                 {
@@ -231,6 +228,7 @@ const state = reactive({
                 },
             ] as ColName[],
             res: [] as RowDefinition[],
+            oldFields: [] as RowDefinition[],
         },
         indexs: {
             colNames: [
@@ -261,10 +259,12 @@ const state = reactive({
             ],
             columns: [{ name: '', remark: '' }],
             res: [] as IndexDefinition[],
+            oldIndexs: [] as IndexDefinition[],
         },
         tableName: '',
         tableComment: '',
         height: 450,
+        db: '',
     },
 });
 
@@ -359,7 +359,10 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
     nowArr.forEach((a) => {
         let k = a[key];
         newMap[k] = a;
-        if (!oldMap.hasOwnProperty(k)) {
+        // 取oldName，因为修改了name，但是oldName不会变
+        let oldName = a['oldName'];
+        oldName && (newMap[oldName] = a);
+        if (!oldMap.hasOwnProperty(k) && (!oldName || (oldName && !oldMap.hasOwnProperty(oldName)))) {
             // 新增
             data.add.push(a);
         }
@@ -376,7 +379,7 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
             for (let f in a) {
                 let oldV = a[f];
                 let newV = newData[f];
-                if (oldV.toString() !== newV.toString()) {
+                if (oldV?.toString() !== newV?.toString()) {
                     data.upd.push(newData);
                     break;
                 }
@@ -399,11 +402,11 @@ const genSql = () => {
         // 修改
         if (state.activeName === '1') {
             // 修改列
-            let changeData = filterChangedData(oldData.fields, state.tableData.fields.res, 'name');
-            return dbDialect.getModifyColumnSql(data.tableName, changeData);
+            let changeData = filterChangedData(state.tableData.fields.oldFields, state.tableData.fields.res, 'name');
+            return dbDialect.getModifyColumnSql(data, data.tableName, changeData);
         } else if (state.activeName === '2') {
             // 修改索引
-            let changeData = filterChangedData(oldData.indexs, state.tableData.indexs.res, 'indexName');
+            let changeData = filterChangedData(state.tableData.indexs.oldIndexs, state.tableData.indexs.res, 'indexName');
             return dbDialect.getModifyIndexSql(data.tableName, changeData);
         }
     }
@@ -456,7 +459,6 @@ const indexChanges = (row: any) => {
     row.indexComment = `${tableData.value.tableName}表(${name.replaceAll('_', ',')})${commentSuffix}`;
 };
 
-const oldData = { indexs: [] as any[], fields: [] as RowDefinition[] };
 watch(
     () => props.data,
     (newValue: any) => {
@@ -464,9 +466,10 @@ watch(
         // 回显表名表注释
         state.tableData.tableName = row.tableName;
         state.tableData.tableComment = row.tableComment;
+        state.tableData.db = props.db!;
         // 回显列
         if (columns && Array.isArray(columns) && columns.length > 0) {
-            oldData.fields = [];
+            state.tableData.fields.oldFields = [];
             state.tableData.fields.res = [];
             // 索引列下拉选
             state.tableData.indexs.columns = [];
@@ -474,10 +477,17 @@ watch(
                 let typeObj = a.columnType.replace(')', '').split('(');
                 let type = typeObj[0];
                 let length = (typeObj.length > 1 && typeObj[1]) || '';
+                let defaultValue = '';
+                if (a.columnDefault) {
+                    defaultValue = a.columnDefault.trim().replace(/^'|'$/g, '');
+                    // 解决高斯的默认值问题
+                    defaultValue = defaultValue.replace("'::character varying", '');
+                }
                 let data = {
                     name: a.columnName,
+                    oldName: a.columnName,
                     type,
-                    value: a.columnDefault || '',
+                    value: defaultValue,
                     length,
                     numScale: a.numScale,
                     notNull: a.nullable !== 'YES',
@@ -486,14 +496,14 @@ watch(
                     remark: a.columnComment,
                 };
                 state.tableData.fields.res.push(data);
-                oldData.fields.push(JSON.parse(JSON.stringify(data)));
+                state.tableData.fields.oldFields.push(JSON.parse(JSON.stringify(data)));
                 // 索引字段下拉选项
                 state.tableData.indexs.columns.push({ name: a.columnName, remark: a.columnComment });
             });
         }
         // 回显索引
         if (indexs && Array.isArray(indexs) && indexs.length > 0) {
-            oldData.indexs = [];
+            state.tableData.indexs.oldIndexs = [];
             state.tableData.indexs.res = [];
             // 索引过滤掉主键
             indexs
@@ -507,7 +517,7 @@ watch(
                         indexComment: a.indexComment,
                     };
                     state.tableData.indexs.res.push(data);
-                    oldData.indexs.push(JSON.parse(JSON.stringify(data)));
+                    state.tableData.indexs.oldIndexs.push(JSON.parse(JSON.stringify(data)));
                 });
         }
     }

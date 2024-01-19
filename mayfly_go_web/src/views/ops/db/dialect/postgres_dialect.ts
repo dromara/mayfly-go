@@ -228,7 +228,7 @@ class PostgresqlDialect implements DbDialect {
             let marks = false;
             if (this.matchType(cl.type, ['char', 'time', 'date', 'text'])) {
                 // 默认值是now()的time或date不需要加引号
-                if (cl.value.toLowerCase().replace(' ', '') === 'current_timestamp' && this.matchType(cl.type, ['time', 'date'])) {
+                if (cl.value.toLowerCase() === 'pg_systimestamp()' && this.matchType(cl.type, ['time', 'date'])) {
                     marks = false;
                 } else {
                     marks = true;
@@ -260,7 +260,10 @@ class PostgresqlDialect implements DbDialect {
         let length = this.getTypeLengthSql(cl);
         // 默认值
         let defVal = this.getDefaultValueSql(cl);
-        return ` ${cl.name} ${cl.type}${length} ${cl.notNull ? 'NOT NULL' : ''} ${defVal} `;
+        // 如果有原名以原名为准
+        let name = cl.oldName && cl.name !== cl.oldName ? cl.oldName : cl.name;
+
+        return ` ${this.quoteIdentifier(name)} ${cl.type}${length} ${cl.notNull ? 'NOT NULL' : ''} ${defVal} `;
     }
 
     getCreateTableSql(data: any): string {
@@ -301,7 +304,7 @@ class PostgresqlDialect implements DbDialect {
         // 创建索引
         let sql: string[] = [];
         tableData.indexs.res.forEach((a: any) => {
-            sql.push(` CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName} USING btree ("${a.columnNames.join('","')})"`);
+            sql.push(` create ${a.unique ? 'UNIQUE' : ''} index ${a.indexName} ("${a.columnNames.join('","')})"`);
             if (a.indexComment) {
                 sql.push(`COMMENT ON INDEX ${a.indexName} IS '${a.indexComment}'`);
             }
@@ -309,39 +312,57 @@ class PostgresqlDialect implements DbDialect {
         return sql.join(';');
     }
 
-    getModifyColumnSql(tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
-        let sql: string[] = [];
+    getModifyColumnSql(tableData: any, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
+        let schemaArr = tableData.db.split('/');
+        let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
+        let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableName)}`;
+
+        let dropPkSql = '';
+        let modifySql = '';
+        let dropSql = '';
+        let renameSql = '';
+        let addPkSql = '';
+        let commentSql = '';
+
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
-                let typeLength = this.getTypeLengthSql(a);
-                let defaultSql = this.getDefaultValueSql(a);
-                sql.push(`ALTER TABLE ${tableName} add ${a.name} ${a.type}${typeLength} ${defaultSql}`);
+                modifySql += `alter table ${dbTable} add ${this.genColumnBasicSql(a)};`;
                 if (a.remark) {
-                    sql.push(`comment on column "${tableName}"."${a.name}" is '${a.remark}'`);
+                    commentSql += `comment on column ${dbTable}.${this.quoteIdentifier(a.name)} is '${a.remark}';`;
                 }
             });
         }
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
+                let cmtSql = `comment on column ${dbTable}.${this.quoteIdentifier(a.name)} is '${a.remark}';`;
+                if (a.remark && a.oldName === a.name) {
+                    commentSql += cmtSql;
+                }
+                // 修改了字段名
+                if (a.oldName !== a.name) {
+                    renameSql += `alter table ${dbTable} rename column ${this.quoteIdentifier(a.oldName!)} to ${this.quoteIdentifier(a.name)};`;
+                    if (a.remark) {
+                        commentSql += cmtSql;
+                    }
+                }
                 let typeLength = this.getTypeLengthSql(a);
-                sql.push(`ALTER TABLE ${tableName} alter column ${a.name} type ${a.type}${typeLength}`);
+                // 如果有原名以原名为准
+                let name = a.oldName && a.name !== a.oldName ? a.oldName : a.name;
+                modifySql += `alter table ${dbTable} alter column ${this.quoteIdentifier(name)} type ${a.type}${typeLength} ;`;
                 let defaultSql = this.getDefaultValueSql(a);
                 if (defaultSql) {
-                    sql.push(`alter table ${tableName} alter column ${a.name} set ${defaultSql}`);
-                }
-                if (a.remark) {
-                    sql.push(`comment on column "${tableName}"."${a.name}" is '${a.remark}'`);
+                    modifySql += `alter table ${dbTable} alter column ${this.quoteIdentifier(name)} set ${defaultSql} ;`;
                 }
             });
         }
 
         if (changeData.del.length > 0) {
             changeData.del.forEach((a) => {
-                sql.push(`ALTER TABLE ${tableName} DROP COLUMN ${a.name}`);
+                dropSql += `alter table ${dbTable} drop column ${a.name};`;
             });
         }
-        return sql.join(';');
+        return dropPkSql + modifySql + dropSql + renameSql + addPkSql + commentSql;
     }
 
     getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {

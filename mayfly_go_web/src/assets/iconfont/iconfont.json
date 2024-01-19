@@ -55,11 +55,11 @@
       "unicode_decimal": 58905
     },
     {
-      "icon_id": "11617944",
+      "icon_id": "25271976",
       "name": "oracle",
       "font_class": "oracle",
-      "unicode": "e6ea",
-      "unicode_decimal": 59114
+      "unicode": "e507",
+      "unicode_decimal": 58631
     },
     {
       "icon_id": "8105644",
@@ -67,6 +67,13 @@
       "font_class": "mariadb",
       "unicode": "e513",
       "unicode_decimal": 58643
+    },
+    {
+      "icon_id": "13601813",
+      "name": "sqlite",
+      "font_class": "sqlite",
+      "unicode": "e546",
+      "unicode_decimal": 58694
     }
   ]
 }

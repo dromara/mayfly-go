@@ -75,7 +75,7 @@ type Dialect interface {
 	GetColumns(tableNames ...string) ([]Column, error)
 
 	// 获取表主键字段名，没有主键标识则默认第一个字段
-	GetPrimaryKey(tablename string) (string, error)
+	GetPrimaryKey(tableName string) (string, error)
 
 	// 获取表索引信息
 	GetTableIndex(tableName string) ([]Index, error)
