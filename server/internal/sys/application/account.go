@@ -43,7 +43,7 @@ func (a *accountAppImpl) Create(ctx context.Context, account *entity.Account) er
 	}
 	// 默认密码为账号用户名
 	account.Password = cryptox.PwdHash(account.Username)
-	account.Status = entity.AccountEnableStatus
+	account.Status = entity.AccountEnable
 	return a.Insert(ctx, account)
 }
 

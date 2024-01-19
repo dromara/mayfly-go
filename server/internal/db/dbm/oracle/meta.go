@@ -3,10 +3,11 @@ package oracle
 import (
 	"database/sql"
 	"fmt"
-	go_ora "github.com/sijms/go-ora/v2"
 	"mayfly-go/internal/db/dbm/dbi"
 	"strings"
 	"sync"
+
+	go_ora "github.com/sijms/go-ora/v2"
 )
 
 var (
@@ -58,10 +59,6 @@ func (md *OraMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 			}
 		}
 	}
-	// 默认设置为UTF8
-	//if urlOptions["client charset"] == "" {
-	//	urlOptions["client charset"] = "UTF8"
-	//}
 	urlOptions["TIMEOUT"] = "10"
 	connStr := go_ora.BuildUrl(d.Host, d.Port, d.Sid, d.Username, d.Password, urlOptions)
 	conn, err := sql.Open(driverName, connStr)

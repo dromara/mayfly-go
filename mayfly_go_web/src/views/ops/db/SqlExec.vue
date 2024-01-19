@@ -307,7 +307,8 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
         state.reloadStatus = false;
         let dbTableSize = 0;
         const tablesNode = tables.map((x: any) => {
-            dbTableSize += x.dataLength + x.indexLength;
+            const tableSize = x.dataLength + x.indexLength;
+            dbTableSize += tableSize;
             return new TagTreeNode(`${id}.${db}.${x.tableName}`, x.tableName, NodeTypeTable)
                 .withIsLeaf(true)
                 .withParams({
@@ -315,13 +316,13 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
                     db,
                     tableName: x.tableName,
                     tableComment: x.tableComment,
-                    size: formatByteSize(x.dataLength + x.indexLength, 1),
+                    size: tableSize == 0 ? '' : formatByteSize(tableSize, 1),
                 })
                 .withIcon(TableIcon)
                 .withLabelRemark(`${x.tableName} ${x.tableComment ? '| ' + x.tableComment : ''}`);
         });
         // 设置父节点参数的表大小
-        parentNode.params.dbTableSize = formatByteSize(dbTableSize);
+        parentNode.params.dbTableSize = dbTableSize == 0 ? '' : formatByteSize(dbTableSize);
         return tablesNode;
     })
     .withNodeClickFunc(nodeClickChangeDb);

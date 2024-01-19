@@ -868,7 +868,7 @@ defineExpose({
         color: var(--el-color-info-light-3);
         font-weight: bold;
         position: absolute;
-        top: -7px;
+        top: -5px;
         padding: 2px;
         height: 12px;
     }

@@ -154,7 +154,11 @@ func (a *Account) ChangeStatus(rc *req.Ctx) {
 
 	account := &entity.Account{}
 	account.Id = uint64(ginx.PathParamInt(g, "id"))
-	account.Status = int8(ginx.PathParamInt(g, "status"))
+
+	status := entity.AccountStatus(int8(ginx.PathParamInt(g, "status")))
+	biz.ErrIsNil(entity.AccountStatusEnum.Valid(status))
+	account.Status = status
+
 	rc.ReqParam = collx.Kvs("accountId", account.Id, "status", account.Status)
 	biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, account))
 }

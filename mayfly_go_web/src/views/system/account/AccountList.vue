@@ -142,7 +142,7 @@ const search = async () => {
 
 const changeStatus = async (row: any) => {
     let id = row.id;
-    let status = row.status == -1 ? 1 : -1;
+    let status = row.status == AccountStatusEnum.Disable.value ? AccountStatusEnum.Enable.value : AccountStatusEnum.Disable.value;
     await accountApi.changeStatus.request({
         id,
         status,
