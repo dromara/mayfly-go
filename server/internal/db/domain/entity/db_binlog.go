@@ -43,9 +43,8 @@ func (b *DbBinlog) GetDbName() string {
 func (b *DbBinlog) Schedule() (time.Time, error) {
 	switch b.GetJobBase().LastStatus {
 	case DbJobSuccess:
-		return time.Time{}, runner.ErrFinished
+		return time.Time{}, runner.ErrJobFinished
 	case DbJobFailed:
-
 		return time.Now().Add(BinlogDownloadInterval), nil
 	default:
 		return time.Now(), nil

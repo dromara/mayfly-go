@@ -22,11 +22,13 @@ func NewDbBackupRepo() repository.DbBackup {
 
 func (d *dbBackupRepoImpl) GetDbNamesWithoutBackup(instanceId uint64, dbNames []string) ([]string, error) {
 	var dbNamesWithBackup []string
-	query := gormx.NewQuery(d.GetModel()).
-		Eq("db_instance_id", instanceId).
-		Eq("repeated", true).
-		Undeleted()
-	if err := query.GenGdb().Pluck("db_name", &dbNamesWithBackup).Error; err != nil {
+	err := global.Db.Model(d.GetModel()).
+		Where("db_instance_id = ?", instanceId).
+		Where("repeated = ?", true).
+		Scopes(gormx.UndeleteScope).
+		Pluck("db_name", &dbNamesWithBackup).
+		Error
+	if err != nil {
 		return nil, err
 	}
 	result := make([]string, 0, len(dbNames))
@@ -39,11 +41,13 @@ func (d *dbBackupRepoImpl) GetDbNamesWithoutBackup(instanceId uint64, dbNames []
 }
 
 func (d *dbBackupRepoImpl) ListDbInstances(enabled bool, repeated bool, instanceIds *[]uint64) error {
-	query := gormx.NewQuery(d.GetModel()).
-		Eq0("enabled", enabled).
-		Eq0("repeated", repeated).
-		Undeleted()
-	return query.GenGdb().Distinct().Pluck("db_instance_id", &instanceIds).Error
+	return global.Db.Model(d.GetModel()).
+		Where("enabled = ?", enabled).
+		Where("repeated = ?", repeated).
+		Scopes(gormx.UndeleteScope).
+		Distinct().
+		Pluck("db_instance_id", &instanceIds).
+		Error
 }
 
 func (d *dbBackupRepoImpl) ListToDo(jobs any) error {

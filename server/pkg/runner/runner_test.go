@@ -75,7 +75,7 @@ func TestRunner_AddJob(t *testing.T) {
 		{
 			name: "repetitive job",
 			job:  newTestJob("dual"),
-			want: ErrExist,
+			want: ErrJobExist,
 		},
 	}
 	runner := NewRunner[*testJob](1, func(ctx context.Context, job *testJob) {

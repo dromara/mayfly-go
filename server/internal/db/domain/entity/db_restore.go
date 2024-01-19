@@ -28,23 +28,18 @@ func (r *DbRestore) GetDbName() string {
 }
 
 func (r *DbRestore) Schedule() (time.Time, error) {
-	var deadline time.Time
-	if r.IsFinished() || !r.Enabled {
-		return deadline, runner.ErrFinished
+	if !r.Enabled {
+		return time.Time{}, runner.ErrJobDisabled
 	}
 	switch r.LastStatus {
-	case DbJobSuccess:
-		lastTime := r.LastTime.Time
-		if lastTime.Before(r.StartTime) {
-			lastTime = r.StartTime.Add(-r.Interval)
-		}
-		deadline = lastTime.Add(r.Interval - lastTime.Sub(r.StartTime)%r.Interval)
-	case DbJobFailed:
-		deadline = time.Now().Add(time.Minute)
+	case DbJobSuccess, DbJobFailed:
+		return time.Time{}, runner.ErrJobFinished
 	default:
-		deadline = r.StartTime
+		if time.Now().Sub(r.StartTime) > time.Hour {
+			return time.Time{}, runner.ErrJobTimeout
+		}
+		return r.StartTime, nil
 	}
-	return deadline, nil
 }
 
 func (r *DbRestore) IsEnabled() bool {

@@ -24,9 +24,11 @@ func (b *DbBackup) GetDbName() string {
 }
 
 func (b *DbBackup) Schedule() (time.Time, error) {
-	var deadline time.Time
-	if b.IsFinished() || !b.Enabled {
-		return deadline, runner.ErrFinished
+	if b.IsFinished() {
+		return time.Time{}, runner.ErrJobFinished
+	}
+	if !b.Enabled {
+		return time.Time{}, runner.ErrJobDisabled
 	}
 	switch b.LastStatus {
 	case DbJobSuccess:
@@ -34,13 +36,12 @@ func (b *DbBackup) Schedule() (time.Time, error) {
 		if lastTime.Before(b.StartTime) {
 			lastTime = b.StartTime.Add(-b.Interval)
 		}
-		deadline = lastTime.Add(b.Interval - lastTime.Sub(b.StartTime)%b.Interval)
+		return lastTime.Add(b.Interval - lastTime.Sub(b.StartTime)%b.Interval), nil
 	case DbJobFailed:
-		deadline = time.Now().Add(time.Minute)
+		return time.Now().Add(time.Minute), nil
 	default:
-		deadline = b.StartTime
+		return b.StartTime, nil
 	}
-	return deadline, nil
 }
 
 func (b *DbBackup) IsFinished() bool {

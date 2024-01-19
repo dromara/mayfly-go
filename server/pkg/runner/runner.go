@@ -11,9 +11,11 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("job not found")
-	ErrExist    = errors.New("job already exists")
-	ErrFinished = errors.New("job already finished")
+	ErrJobNotFound = errors.New("job not found")
+	ErrJobExist    = errors.New("job already exists")
+	ErrJobFinished = errors.New("job already finished")
+	ErrJobDisabled = errors.New("job has been disabled")
+	ErrJobTimeout  = errors.New("job has timed out")
 )
 
 type JobKey = string
@@ -236,7 +238,7 @@ func (r *Runner[T]) afterRun(wrap *wrapper[T]) {
 func (r *Runner[T]) doScheduleJob(job T, finished bool) (time.Time, error) {
 	if r.scheduleJob == nil {
 		if finished {
-			return time.Time{}, ErrFinished
+			return time.Time{}, ErrJobFinished
 		}
 		return time.Now(), nil
 	}
@@ -293,7 +295,7 @@ func (r *Runner[T]) Add(ctx context.Context, job T) error {
 	defer r.mutex.Unlock()
 
 	if _, ok := r.all[job.GetKey()]; ok {
-		return ErrExist
+		return ErrJobExist
 	}
 	deadline, err := r.doScheduleJob(job, false)
 	if err != nil {
@@ -358,7 +360,7 @@ func (r *Runner[T]) Remove(ctx context.Context, key JobKey) error {
 
 	wrap, ok := r.all[key]
 	if !ok {
-		return ErrNotFound
+		return ErrJobNotFound
 	}
 	switch wrap.status {
 	case JobDelaying:

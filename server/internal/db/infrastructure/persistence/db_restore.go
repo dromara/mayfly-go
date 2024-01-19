@@ -22,13 +22,16 @@ func NewDbRestoreRepo() repository.DbRestore {
 
 func (d *dbRestoreRepoImpl) GetDbNamesWithoutRestore(instanceId uint64, dbNames []string) ([]string, error) {
 	var dbNamesWithRestore []string
-	query := gormx.NewQuery(d.GetModel()).
-		Eq("db_instance_id", instanceId).
-		Eq("repeated", true).
-		Undeleted()
-	if err := query.GenGdb().Pluck("db_name", &dbNamesWithRestore).Error; err != nil {
+	err := global.Db.Model(d.GetModel()).
+		Where("db_instance_id = ?", instanceId).
+		Where("repeated = ?", true).
+		Scopes(gormx.UndeleteScope).
+		Pluck("db_name", &dbNamesWithRestore).
+		Error
+	if err != nil {
 		return nil, err
 	}
+
 	result := make([]string, 0, len(dbNames))
 	for _, name := range dbNames {
 		if !slices.Contains(dbNamesWithRestore, name) {
