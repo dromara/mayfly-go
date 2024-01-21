@@ -20,18 +20,12 @@ type Syslog interface {
 	SaveFromReq(req *req.Ctx)
 }
 
-func newSyslogApp(syslogRepo repository.Syslog) Syslog {
-	return &syslogAppImpl{
-		syslogRepo: syslogRepo,
-	}
-}
-
 type syslogAppImpl struct {
-	syslogRepo repository.Syslog
+	SyslogRepo repository.Syslog `inject:""`
 }
 
 func (m *syslogAppImpl) GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.syslogRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+	return m.SyslogRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
@@ -76,5 +70,5 @@ func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 		syslog.Type = entity.SyslogTypeNorman
 	}
 
-	m.syslogRepo.Insert(req.MetaCtx, syslog)
+	m.SyslogRepo.Insert(req.MetaCtx, syslog)
 }

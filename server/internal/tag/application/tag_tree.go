@@ -51,23 +51,16 @@ type TagTree interface {
 	CanAccess(accountId uint64, tagPath ...string) error
 }
 
-func newTagTreeApp(tagTreeRepo repository.TagTree,
-	tagResourceApp TagResource,
-	tagTreeTeamRepo repository.TagTreeTeam,
-) TagTree {
-	tagTreeApp := &tagTreeAppImpl{
-		tagTreeTeamRepo: tagTreeTeamRepo,
-		tagResourceApp:  tagResourceApp,
-	}
-	tagTreeApp.Repo = tagTreeRepo
-	return tagTreeApp
-}
-
 type tagTreeAppImpl struct {
 	base.AppImpl[*entity.TagTree, repository.TagTree]
 
-	tagTreeTeamRepo repository.TagTreeTeam
-	tagResourceApp  TagResource
+	TagTreeTeamRepo repository.TagTreeTeam `inject:""`
+	TagResourceApp  TagResource            `inject:""`
+}
+
+// 注入TagTreeRepo
+func (p *tagTreeAppImpl) InjectTagTreeRepo(tagTreeRepo repository.TagTree) {
+	p.Repo = tagTreeRepo
 }
 
 func (p *tagTreeAppImpl) Save(ctx context.Context, tag *entity.TagTree) error {
@@ -82,7 +75,7 @@ func (p *tagTreeAppImpl) Save(ctx context.Context, tag *entity.TagTree) error {
 			if err != nil {
 				return errorx.NewBiz("父节点不存在")
 			}
-			if p.tagResourceApp.CountByCond(&entity.TagResource{TagId: tag.Pid}) > 0 {
+			if p.TagResourceApp.CountByCond(&entity.TagResource{TagId: tag.Pid}) > 0 {
 				return errorx.NewBiz("该父标签已关联资源, 无法添加子标签")
 			}
 
@@ -135,7 +128,7 @@ func (p *tagTreeAppImpl) GetAccountTagResources(accountId uint64, resourceType i
 
 	tagResourceQuery.TagPath = tagPath
 	tagResourceQuery.TagPathLikes = accountTagPaths
-	p.tagResourceApp.ListByQuery(tagResourceQuery, &tagResources)
+	p.TagResourceApp.ListByQuery(tagResourceQuery, &tagResources)
 	return tagResources
 }
 
@@ -155,14 +148,14 @@ func (p *tagTreeAppImpl) RelateResource(ctx context.Context, resourceCode string
 	}
 	// 如果tagIds为空数组，则为解绑该标签资源关联关系
 	if len(tagIds) == 0 {
-		return p.tagResourceApp.DeleteByCond(ctx, &entity.TagResource{
+		return p.TagResourceApp.DeleteByCond(ctx, &entity.TagResource{
 			ResourceCode: resourceCode,
 			ResourceType: resourceType,
 		})
 	}
 
 	var oldTagResources []*entity.TagResource
-	p.tagResourceApp.ListByQuery(&entity.TagResourceQuery{ResourceType: resourceType, ResourceCode: resourceCode}, &oldTagResources)
+	p.TagResourceApp.ListByQuery(&entity.TagResourceQuery{ResourceType: resourceType, ResourceCode: resourceCode}, &oldTagResources)
 
 	var addTagIds, delTagIds []uint64
 	if len(oldTagResources) == 0 {
@@ -188,7 +181,7 @@ func (p *tagTreeAppImpl) RelateResource(ctx context.Context, resourceCode string
 				TagPath:      tag.CodePath,
 			})
 		}
-		if err := p.tagResourceApp.BatchInsert(ctx, addTagResource); err != nil {
+		if err := p.TagResourceApp.BatchInsert(ctx, addTagResource); err != nil {
 			return err
 		}
 	}
@@ -196,7 +189,7 @@ func (p *tagTreeAppImpl) RelateResource(ctx context.Context, resourceCode string
 	if len(delTagIds) > 0 {
 		for _, tagId := range delTagIds {
 			cond := &entity.TagResource{ResourceCode: resourceCode, ResourceType: resourceType, TagId: tagId}
-			if err := p.tagResourceApp.DeleteByCond(ctx, cond); err != nil {
+			if err := p.TagResourceApp.DeleteByCond(ctx, cond); err != nil {
 				return err
 			}
 		}
@@ -207,7 +200,7 @@ func (p *tagTreeAppImpl) RelateResource(ctx context.Context, resourceCode string
 
 func (p *tagTreeAppImpl) ListTagPathByResource(resourceType int8, resourceCode string) []string {
 	var trs []*entity.TagResource
-	p.tagResourceApp.ListByQuery(&entity.TagResourceQuery{ResourceType: resourceType, ResourceCode: resourceCode}, &trs)
+	p.TagResourceApp.ListByQuery(&entity.TagResourceQuery{ResourceType: resourceType, ResourceCode: resourceCode}, &trs)
 	return collx.ArrayMap(trs, func(tr *entity.TagResource) string {
 		return tr.TagPath
 	})
@@ -220,7 +213,7 @@ func (p *tagTreeAppImpl) ListTagByPath(tagPaths ...string) []*entity.TagTree {
 }
 
 func (p *tagTreeAppImpl) ListTagByAccountId(accountId uint64) []string {
-	return p.tagTreeTeamRepo.SelectTagPathsByAccountId(accountId)
+	return p.TagTreeTeamRepo.SelectTagPathsByAccountId(accountId)
 }
 
 func (p *tagTreeAppImpl) CanAccess(accountId uint64, tagPath ...string) error {
@@ -250,7 +243,7 @@ func (p *tagTreeAppImpl) Delete(ctx context.Context, id uint64) error {
 		return errorx.NewBiz("您无权删除该标签")
 	}
 
-	if p.tagResourceApp.CountByCond(&entity.TagResource{TagId: id}) > 0 {
+	if p.TagResourceApp.CountByCond(&entity.TagResource{TagId: id}) > 0 {
 		return errorx.NewBiz("请先移除该标签关联的资源")
 	}
 
@@ -258,6 +251,6 @@ func (p *tagTreeAppImpl) Delete(ctx context.Context, id uint64) error {
 		return p.DeleteById(ctx, id)
 	}, func(ctx context.Context) error {
 		// 删除该标签关联的团队信息
-		return p.tagTreeTeamRepo.DeleteByCond(ctx, &entity.TagTreeTeam{TagId: id})
+		return p.TagTreeTeamRepo.DeleteByCond(ctx, &entity.TagTreeTeam{TagId: id})
 	})
 }

@@ -56,14 +56,8 @@ type DbSqlExec interface {
 	GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
 
-func newDbSqlExecApp(dbExecSqlRepo repository.DbSqlExec) DbSqlExec {
-	return &dbSqlExecAppImpl{
-		dbSqlExecRepo: dbExecSqlRepo,
-	}
-}
-
 type dbSqlExecAppImpl struct {
-	dbSqlExecRepo repository.DbSqlExec
+	DbSqlExecRepo repository.DbSqlExec `inject:""`
 }
 
 func createSqlExecRecord(ctx context.Context, execSqlReq *DbSqlExecReq) *entity.DbSqlExec {
@@ -144,23 +138,23 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 // 保存sql执行记录，如果是查询类则根据系统配置判断是否保存
 func (d *dbSqlExecAppImpl) saveSqlExecLog(isQuery bool, dbSqlExecRecord *entity.DbSqlExec) {
 	if !isQuery {
-		d.dbSqlExecRepo.Insert(context.TODO(), dbSqlExecRecord)
+		d.DbSqlExecRepo.Insert(context.TODO(), dbSqlExecRecord)
 		return
 	}
 	if config.GetDbSaveQuerySql() {
 		dbSqlExecRecord.Table = "-"
 		dbSqlExecRecord.OldValue = "-"
 		dbSqlExecRecord.Type = entity.DbSqlExecTypeQuery
-		d.dbSqlExecRepo.Insert(context.TODO(), dbSqlExecRecord)
+		d.DbSqlExecRepo.Insert(context.TODO(), dbSqlExecRecord)
 	}
 }
 
 func (d *dbSqlExecAppImpl) DeleteBy(ctx context.Context, condition *entity.DbSqlExec) {
-	d.dbSqlExecRepo.DeleteByCond(ctx, condition)
+	d.DbSqlExecRepo.DeleteByCond(ctx, condition)
 }
 
 func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return d.dbSqlExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+	return d.DbSqlExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 func doSelect(ctx context.Context, selectStmt *sqlparser.Select, execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error) {

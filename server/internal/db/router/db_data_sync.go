@@ -2,7 +2,8 @@ package router
 
 import (
 	"mayfly-go/internal/db/api"
-	"mayfly-go/internal/db/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -11,9 +12,8 @@ import (
 func InitDbDataSyncRouter(router *gin.RouterGroup) {
 	instances := router.Group("/datasync/tasks")
 
-	d := &api.DataSyncTask{
-		DataSyncTaskApp: application.GetDataSyncTaskApp(),
-	}
+	d := new(api.DataSyncTask)
+	biz.ErrIsNil(ioc.Inject(d))
 
 	reqs := [...]*req.Conf{
 		// 获取任务列表 /datasync

@@ -2,11 +2,8 @@ package router
 
 import (
 	"mayfly-go/internal/common/api"
-	dbapp "mayfly-go/internal/db/application"
-	machineapp "mayfly-go/internal/machine/application"
-	mongoapp "mayfly-go/internal/mongo/application"
-	redisapp "mayfly-go/internal/redis/application"
-	tagapp "mayfly-go/internal/tag/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -14,13 +11,8 @@ import (
 
 func InitIndexRouter(router *gin.RouterGroup) {
 	index := router.Group("common/index")
-	i := &api.Index{
-		TagApp:     tagapp.GetTagTreeApp(),
-		MachineApp: machineapp.GetMachineApp(),
-		DbApp:      dbapp.GetDbApp(),
-		RedisApp:   redisapp.GetRedisApp(),
-		MongoApp:   mongoapp.GetMongoApp(),
-	}
+	i := new(api.Index)
+	biz.ErrIsNil(ioc.Inject(i))
 	{
 		// 首页基本信息统计
 		req.NewGet("count", i.Count).Group(index)

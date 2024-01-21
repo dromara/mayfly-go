@@ -17,9 +17,9 @@ import (
 )
 
 type Team struct {
-	TeamApp    application.Team
-	TagApp     application.TagTree
-	AccountApp sys_applicaiton.Account
+	TeamApp    application.Team        `inject:""`
+	TagTreeApp application.TagTree     `inject:""`
+	AccountApp sys_applicaiton.Account `inject:""`
 }
 
 func (p *Team) GetTeams(rc *req.Ctx) {
@@ -131,7 +131,7 @@ func (p *Team) SaveTags(rc *req.Ctx) {
 
 	for _, v := range addIds {
 		tagId := v
-		tag, err := p.TagApp.GetById(new(entity.TagTree), tagId)
+		tag, err := p.TagTreeApp.GetById(new(entity.TagTree), tagId)
 		biz.ErrIsNil(err, "存在非法标签id")
 
 		ptt := &entity.TagTreeTeam{TeamId: teamId, TagId: tagId, TagPath: tag.CodePath}

@@ -27,15 +27,12 @@ type Config interface {
 	GetConfig(key string) *entity.Config
 }
 
-func newConfigApp(configRepo repository.Config) Config {
-	configApp := new(configAppImpl)
-	configApp.Repo = configRepo
-	return configApp
-	// return &configAppImpl{base.AppImpl[*entity.Config, repository.Config]{Repo: configRepo}}
-}
-
 type configAppImpl struct {
 	base.AppImpl[*entity.Config, repository.Config]
+}
+
+func (a *configAppImpl) InjectConfigRepo(repo repository.Config) {
+	a.Repo = repo
 }
 
 func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

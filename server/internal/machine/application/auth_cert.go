@@ -19,14 +19,13 @@ type AuthCert interface {
 	GetByIds(ids ...uint64) []*entity.AuthCert
 }
 
-func newAuthCertApp(authCertRepo repository.AuthCert) AuthCert {
-	return &authCertAppImpl{
-		base.AppImpl[*entity.AuthCert, repository.AuthCert]{Repo: authCertRepo},
-	}
-}
-
 type authCertAppImpl struct {
 	base.AppImpl[*entity.AuthCert, repository.AuthCert]
+}
+
+// 注入AuthCertRepo
+func (a *authCertAppImpl) InjectAuthCertRepo(repo repository.AuthCert) {
+	a.Repo = repo
 }
 
 func (a *authCertAppImpl) GetPageList(condition *entity.AuthCertQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

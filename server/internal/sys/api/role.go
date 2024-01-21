@@ -15,8 +15,8 @@ import (
 )
 
 type Role struct {
-	RoleApp     application.Role
-	ResourceApp application.Resource
+	RoleApp     application.Role     `inject:""`
+	ResourceApp application.Resource `inject:""`
 }
 
 func (r *Role) Roles(rc *req.Ctx) {

@@ -1,20 +1,17 @@
 package router
 
 import (
-	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/internal/tag/api"
-	"mayfly-go/internal/tag/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
 
 func InitTeamRouter(router *gin.RouterGroup) {
-	m := &api.Team{
-		TeamApp:    application.GetTeamApp(),
-		TagApp:     application.GetTagTreeApp(),
-		AccountApp: sysapp.GetAccountApp(),
-	}
+	m := new(api.Team)
+	biz.ErrIsNil(ioc.Inject(m))
 
 	team := router.Group("/teams")
 	{

@@ -1,31 +1,34 @@
 package persistence
 
-import "mayfly-go/internal/tag/domain/repository"
-
-var (
-	tagTreeRepo     repository.TagTree     = newTagTreeRepo()
-	tagTreeTeamRepo repository.TagTreeTeam = newTagTreeTeamRepo()
-	tagResourceRepo repository.TagResource = newTagResourceRepo()
-	teamRepo        repository.Team        = newTeamRepo()
-	teamMemberRepo  repository.TeamMember  = newTeamMemberRepo()
+import (
+	"mayfly-go/internal/tag/domain/repository"
+	"mayfly-go/pkg/ioc"
 )
 
+func Init() {
+	ioc.Register(newTagTreeRepo(), ioc.WithComponentName("TagTreeRepo"))
+	ioc.Register(newTagTreeTeamRepo(), ioc.WithComponentName("TagTreeTeamRepo"))
+	ioc.Register(newTagResourceRepo(), ioc.WithComponentName("TagResourceRepo"))
+	ioc.Register(newTeamRepo(), ioc.WithComponentName("TeamRepo"))
+	ioc.Register(newTeamMemberRepo(), ioc.WithComponentName("TeamMemberRepo"))
+}
+
 func GetTagTreeRepo() repository.TagTree {
-	return tagTreeRepo
+	return ioc.Get[repository.TagTree]("TagTreeRepo")
 }
 
 func GetTagTreeTeamRepo() repository.TagTreeTeam {
-	return tagTreeTeamRepo
+	return ioc.Get[repository.TagTreeTeam]("TagTreeTeamRepo")
 }
 
 func GetTagResourceRepo() repository.TagResource {
-	return tagResourceRepo
+	return ioc.Get[repository.TagResource]("TagResourceRepo")
 }
 
 func GetTeamRepo() repository.Team {
-	return teamRepo
+	return ioc.Get[repository.Team]("TeamRepo")
 }
 
 func GetTeamMemberRepo() repository.TeamMember {
-	return teamMemberRepo
+	return ioc.Get[repository.TeamMember]("TeamMemberRepo")
 }

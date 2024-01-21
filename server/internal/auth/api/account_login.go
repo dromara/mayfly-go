@@ -25,8 +25,8 @@ import (
 )
 
 type AccountLogin struct {
-	AccountApp sysapp.Account
-	MsgApp     msgapp.Msg
+	AccountApp sysapp.Account `inject:""`
+	MsgApp     msgapp.Msg     `inject:""`
 }
 
 /**   用户账号密码登录   **/

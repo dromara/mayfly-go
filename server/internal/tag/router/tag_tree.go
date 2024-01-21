@@ -2,17 +2,16 @@ package router
 
 import (
 	"mayfly-go/internal/tag/api"
-	"mayfly-go/internal/tag/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
 
 func InitTagTreeRouter(router *gin.RouterGroup) {
-	m := &api.TagTree{
-		TagTreeApp:     application.GetTagTreeApp(),
-		TagResourceApp: application.GetTagResourceApp(),
-	}
+	m := new(api.TagTree)
+	biz.ErrIsNil(ioc.Inject(m))
 
 	tagTree := router.Group("/tag-trees")
 	{

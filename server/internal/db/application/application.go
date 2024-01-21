@@ -4,20 +4,25 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/internal/db/infrastructure/persistence"
-	tagapp "mayfly-go/internal/tag/application"
+	"mayfly-go/pkg/ioc"
 	"sync"
 )
 
 var (
-	instanceApp  Instance
-	dbApp        Db
-	dbSqlExecApp DbSqlExec
-	dbSqlApp     DbSql
 	dbBackupApp  *DbBackupApp
 	dbRestoreApp *DbRestoreApp
 	dbBinlogApp  *DbBinlogApp
-	dataSyncApp  DataSyncTask
 )
+
+func init() {
+	persistence.Init()
+
+	ioc.Register(new(instanceAppImpl), ioc.WithComponentName("DbInstanceApp"))
+	ioc.Register(new(dbAppImpl), ioc.WithComponentName("DbApp"))
+	ioc.Register(new(dbSqlExecAppImpl), ioc.WithComponentName("DbSqlExecApp"))
+	ioc.Register(new(dbSqlAppImpl), ioc.WithComponentName("DbSqlApp"))
+	ioc.Register(new(dataSyncAppImpl), ioc.WithComponentName("DbDataSyncTaskApp"))
+}
 
 func Init() {
 	sync.OnceFunc(func() {
@@ -31,13 +36,7 @@ func Init() {
 			BinlogHistory:  persistence.NewDbBinlogHistoryRepo(),
 		}
 		var err error
-		instanceRepo := persistence.GetInstanceRepo()
-		instanceApp = newInstanceApp(instanceRepo)
-		dbApp = newDbApp(persistence.GetDbRepo(), persistence.GetDbSqlRepo(), instanceApp, tagapp.GetTagTreeApp())
-		dbSqlExecApp = newDbSqlExecApp(persistence.GetDbSqlExecRepo())
-		dbSqlApp = newDbSqlApp(persistence.GetDbSqlRepo())
-		dataSyncApp = newDataSyncApp(persistence.GetDataSyncTaskRepo(), persistence.GetDataSyncLogRepo())
-
+		dbApp := GetDbApp()
 		scheduler, err := newDbScheduler(repositories)
 		if err != nil {
 			panic(fmt.Sprintf("初始化 dbScheduler 失败: %v", err))
@@ -55,24 +54,24 @@ func Init() {
 			panic(fmt.Sprintf("初始化 dbBinlogApp 失败: %v", err))
 		}
 
-		dataSyncApp.InitCronJob()
+		GetDataSyncTaskApp().InitCronJob()
 	})()
 }
 
 func GetInstanceApp() Instance {
-	return instanceApp
+	return ioc.Get[Instance]("DbInstance")
 }
 
 func GetDbApp() Db {
-	return dbApp
+	return ioc.Get[Db]("DbApp")
 }
 
 func GetDbSqlApp() DbSql {
-	return dbSqlApp
+	return ioc.Get[DbSql]("DbSqlApp")
 }
 
 func GetDbSqlExecApp() DbSqlExec {
-	return dbSqlExecApp
+	return ioc.Get[DbSqlExec]("DbSqlExecApp")
 }
 
 func GetDbBackupApp() *DbBackupApp {
@@ -88,5 +87,5 @@ func GetDbBinlogApp() *DbBinlogApp {
 }
 
 func GetDataSyncTaskApp() DataSyncTask {
-	return dataSyncApp
+	return ioc.Get[DataSyncTask]("DbDataSyncTaskApp")
 }

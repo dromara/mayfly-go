@@ -16,8 +16,8 @@ import (
 )
 
 type Instance struct {
-	InstanceApp application.Instance
-	DbApp       application.Db
+	InstanceApp application.Instance `inject:"DbInstanceApp"`
+	DbApp       application.Db       `inject:""`
 }
 
 // Instances 获取数据库实例信息

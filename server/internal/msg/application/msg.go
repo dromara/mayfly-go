@@ -19,27 +19,21 @@ type Msg interface {
 	CreateAndSend(la *model.LoginAccount, msg *dto.SysMsg)
 }
 
-func newMsgApp(msgRepo repository.Msg) Msg {
-	return &msgAppImpl{
-		msgRepo: msgRepo,
-	}
-}
-
 type msgAppImpl struct {
-	msgRepo repository.Msg
+	MsgRepo repository.Msg `inject:""`
 }
 
 func (a *msgAppImpl) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return a.msgRepo.GetPageList(condition, pageParam, toEntity)
+	return a.MsgRepo.GetPageList(condition, pageParam, toEntity)
 }
 
 func (a *msgAppImpl) Create(ctx context.Context, msg *entity.Msg) {
-	a.msgRepo.Insert(ctx, msg)
+	a.MsgRepo.Insert(ctx, msg)
 }
 
 func (a *msgAppImpl) CreateAndSend(la *model.LoginAccount, wmsg *dto.SysMsg) {
 	now := time.Now()
 	msg := &entity.Msg{Type: 2, Msg: wmsg.Msg, RecipientId: int64(la.Id), CreateTime: &now, CreatorId: la.Id, Creator: la.Username}
-	a.msgRepo.Insert(context.TODO(), msg)
+	a.MsgRepo.Insert(context.TODO(), msg)
 	ws.SendJsonMsg(ws.UserId(la.Id), wmsg.ClientId, wmsg)
 }

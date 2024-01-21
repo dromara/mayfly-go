@@ -1,9 +1,9 @@
 package router
 
 import (
-	msgapp "mayfly-go/internal/msg/application"
 	"mayfly-go/internal/sys/api"
-	"mayfly-go/internal/sys/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -11,13 +11,8 @@ import (
 
 func InitAccountRouter(router *gin.RouterGroup) {
 	account := router.Group("sys/accounts")
-	a := &api.Account{
-		AccountApp:  application.GetAccountApp(),
-		ResourceApp: application.GetResourceApp(),
-		RoleApp:     application.GetRoleApp(),
-		MsgApp:      msgapp.GetMsgApp(),
-		ConfigApp:   application.GetConfigApp(),
-	}
+	a := new(api.Account)
+	biz.ErrIsNil(ioc.Inject(a))
 
 	addAccountPermission := req.NewPermission("account:add")
 

@@ -17,8 +17,8 @@ import (
 )
 
 type TagTree struct {
-	TagTreeApp     application.TagTree
-	TagResourceApp application.TagResource
+	TagTreeApp     application.TagTree     `inject:""`
+	TagResourceApp application.TagResource `inject:""`
 }
 
 func (p *TagTree) GetTagTree(rc *req.Ctx) {

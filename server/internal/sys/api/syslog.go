@@ -9,7 +9,7 @@ import (
 )
 
 type Syslog struct {
-	SyslogApp application.Syslog
+	SyslogApp application.Syslog `inject:""`
 }
 
 func (r *Syslog) Syslogs(rc *req.Ctx) {

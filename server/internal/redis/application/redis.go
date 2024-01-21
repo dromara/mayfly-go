@@ -35,18 +35,15 @@ type Redis interface {
 	GetRedisConn(id uint64, db int) (*rdm.RedisConn, error)
 }
 
-func newRedisApp(redisRepo repository.Redis, tagApp tagapp.TagTree) Redis {
-	app := &redisAppImpl{
-		tagApp: tagApp,
-	}
-	app.Repo = redisRepo
-	return app
-}
-
 type redisAppImpl struct {
 	base.AppImpl[*entity.Redis, repository.Redis]
 
-	tagApp tagapp.TagTree
+	TagApp tagapp.TagTree `inject:"TagTreeApp"`
+}
+
+// 注入RedisRepo
+func (r *redisAppImpl) InjectRedisRepo(repo repository.Redis) {
+	r.Repo = repo
 }
 
 // 分页获取redis列表
@@ -90,7 +87,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds .
 		return r.Tx(ctx, func(ctx context.Context) error {
 			return r.Insert(ctx, re)
 		}, func(ctx context.Context) error {
-			return r.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeRedis, tagIds)
+			return r.TagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeRedis, tagIds)
 		})
 	}
 
@@ -116,7 +113,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds .
 	return r.Tx(ctx, func(ctx context.Context) error {
 		return r.UpdateById(ctx, re)
 	}, func(ctx context.Context) error {
-		return r.tagApp.RelateResource(ctx, oldRedis.Code, consts.TagResourceTypeRedis, tagIds)
+		return r.TagApp.RelateResource(ctx, oldRedis.Code, consts.TagResourceTypeRedis, tagIds)
 	})
 }
 
@@ -136,7 +133,7 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 		return r.DeleteById(ctx, id)
 	}, func(ctx context.Context) error {
 		var tagIds []uint64
-		return r.tagApp.RelateResource(ctx, re.Code, consts.TagResourceTypeRedis, tagIds)
+		return r.TagApp.RelateResource(ctx, re.Code, consts.TagResourceTypeRedis, tagIds)
 	})
 }
 
@@ -151,6 +148,6 @@ func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
 		if err := re.PwdDecrypt(); err != nil {
 			return nil, errorx.NewBiz(err.Error())
 		}
-		return re.ToRedisInfo(db, r.tagApp.ListTagPathByResource(consts.TagResourceTypeRedis, re.Code)...), nil
+		return re.ToRedisInfo(db, r.TagApp.ListTagPathByResource(consts.TagResourceTypeRedis, re.Code)...), nil
 	})
 }

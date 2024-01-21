@@ -37,7 +37,7 @@ CREATE TABLE `t_db` (
     `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
     `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'code',
     `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
-    `database` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
+    `database` varchar(3000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
     `remark` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注，描述等',
     `instance_id` bigint(20) NOT NULL COMMENT '数据库实例 ID',
     `create_time` datetime DEFAULT NULL,

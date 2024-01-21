@@ -12,11 +12,11 @@ import (
 )
 
 type Index struct {
-	TagApp     tagapp.TagTree
-	MachineApp machineapp.Machine
-	DbApp      dbapp.Db
-	RedisApp   redisapp.Redis
-	MongoApp   mongoapp.Mongo
+	TagApp     tagapp.TagTree     `inject:"TagTreeApp"`
+	MachineApp machineapp.Machine `inject:""`
+	DbApp      dbapp.Db           `inject:""`
+	RedisApp   redisapp.Redis     `inject:""`
+	MongoApp   mongoapp.Mongo     `inject:""`
 }
 
 func (i *Index) Count(rc *req.Ctx) {

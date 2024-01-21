@@ -10,7 +10,7 @@ import (
 )
 
 type DbSql struct {
-	DbSqlApp application.DbSql
+	DbSqlApp application.DbSql `inject:""`
 }
 
 // @router /api/db/:dbId/sql [post]

@@ -27,11 +27,11 @@ const (
 )
 
 type Account struct {
-	AccountApp  application.Account
-	ResourceApp application.Resource
-	RoleApp     application.Role
-	MsgApp      msgapp.Msg
-	ConfigApp   application.Config
+	AccountApp  application.Account  `inject:""`
+	ResourceApp application.Resource `inject:""`
+	RoleApp     application.Role     `inject:""`
+	MsgApp      msgapp.Msg           `inject:""`
+	ConfigApp   application.Config   `inject:""`
 }
 
 // 获取当前登录用户的菜单与权限码

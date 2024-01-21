@@ -32,11 +32,11 @@ import (
 )
 
 type Db struct {
-	InstanceApp  application.Instance
-	DbApp        application.Db
-	DbSqlExecApp application.DbSqlExec
-	MsgApp       msgapp.Msg
-	TagApp       tagapp.TagTree
+	InstanceApp  application.Instance  `inject:"DbInstanceApp"`
+	DbApp        application.Db        `inject:""`
+	DbSqlExecApp application.DbSqlExec `inject:""`
+	MsgApp       msgapp.Msg            `inject:""`
+	TagApp       tagapp.TagTree        `inject:"TagTreeApp"`
 }
 
 // @router /api/dbs [get]

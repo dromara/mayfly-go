@@ -2,7 +2,8 @@ package router
 
 import (
 	"mayfly-go/internal/db/api"
-	"mayfly-go/internal/db/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -11,10 +12,8 @@ import (
 func InitInstanceRouter(router *gin.RouterGroup) {
 	instances := router.Group("/instances")
 
-	d := &api.Instance{
-		InstanceApp: application.GetInstanceApp(),
-		DbApp:       application.GetDbApp(),
-	}
+	d := new(api.Instance)
+	biz.ErrIsNil(ioc.Inject(d))
 
 	reqs := [...]*req.Conf{
 		// 获取数据库列表

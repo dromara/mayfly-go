@@ -2,8 +2,8 @@ package router
 
 import (
 	"mayfly-go/internal/mongo/api"
-	"mayfly-go/internal/mongo/application"
-	tagapp "mayfly-go/internal/tag/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -12,10 +12,8 @@ import (
 func InitMongoRouter(router *gin.RouterGroup) {
 	m := router.Group("mongos")
 
-	ma := &api.Mongo{
-		MongoApp: application.GetMongoApp(),
-		TagApp:   tagapp.GetTagTreeApp(),
-	}
+	ma := new(api.Mongo)
+	biz.ErrIsNil(ioc.Inject(ma))
 
 	saveDataPerm := req.NewPermission("mongo:data:save")
 

@@ -2,8 +2,8 @@ package router
 
 import (
 	"mayfly-go/internal/machine/api"
-	"mayfly-go/internal/machine/application"
-	tagapp "mayfly-go/internal/tag/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -11,11 +11,9 @@ import (
 
 func InitMachineScriptRouter(router *gin.RouterGroup) {
 	machines := router.Group("machines")
-	ms := &api.MachineScript{
-		MachineScriptApp: application.GetMachineScriptApp(),
-		MachineApp:       application.GetMachineApp(),
-		TagApp:           tagapp.GetTagTreeApp(),
-	}
+
+	ms := new(api.MachineScript)
+	biz.ErrIsNil(ioc.Inject(ms))
 
 	reqs := [...]*req.Conf{
 		// 获取指定机器脚本列表

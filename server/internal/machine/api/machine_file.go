@@ -31,8 +31,8 @@ import (
 )
 
 type MachineFile struct {
-	MachineFileApp application.MachineFile
-	MsgApp         msgapp.Msg
+	MachineFileApp application.MachineFile `inject:""`
+	MsgApp         msgapp.Msg              `inject:""`
 }
 
 const (

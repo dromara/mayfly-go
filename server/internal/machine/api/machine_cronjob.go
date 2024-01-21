@@ -15,7 +15,7 @@ import (
 )
 
 type MachineCronJob struct {
-	MachineCronJobApp application.MachineCronJob
+	MachineCronJobApp application.MachineCronJob `inject:""`
 }
 
 func (m *MachineCronJob) MachineCronJobs(rc *req.Ctx) {

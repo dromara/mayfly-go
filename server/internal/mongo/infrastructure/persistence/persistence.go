@@ -2,12 +2,13 @@ package persistence
 
 import (
 	"mayfly-go/internal/mongo/domain/repository"
+	"mayfly-go/pkg/ioc"
 )
 
-var (
-	mongoRepo repository.Mongo = newMongoRepo()
-)
+func Init() {
+	ioc.Register(newMongoRepo(), ioc.WithComponentName("MongoRepo"))
+}
 
 func GetMongoRepo() repository.Mongo {
-	return mongoRepo
+	return ioc.Get[repository.Mongo]("MongoRepo")
 }

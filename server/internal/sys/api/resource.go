@@ -13,7 +13,7 @@ import (
 )
 
 type Resource struct {
-	ResourceApp application.Resource
+	ResourceApp application.Resource `inject:""`
 }
 
 func (r *Resource) GetAllResourceTree(rc *req.Ctx) {

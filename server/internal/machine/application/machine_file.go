@@ -72,42 +72,40 @@ type MachineFile interface {
 	Rename(fileId uint64, oldname string, newname string) (*mcm.MachineInfo, error)
 }
 
-func newMachineFileApp(machineFileRepo repository.MachineFile, machineApp Machine) MachineFile {
-	app := &machineFileAppImpl{machineApp: machineApp, machineFileRepo: machineFileRepo}
-	app.Repo = machineFileRepo
-	return app
-}
-
 type machineFileAppImpl struct {
 	base.AppImpl[*entity.MachineFile, repository.MachineFile]
 
-	machineFileRepo repository.MachineFile
+	MachineFileRepo repository.MachineFile `inject:""`
+	MachineApp      Machine                `inject:""`
+}
 
-	machineApp Machine
+// 注入MachineFileRepo
+func (m *machineFileAppImpl) InjectMachineFileRepo(repo repository.MachineFile) {
+	m.Repo = repo
 }
 
 // 分页获取机器脚本信息列表
 func (m *machineFileAppImpl) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.machineFileRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+	return m.MachineFileRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 // 根据条件获取
 func (m *machineFileAppImpl) GetMachineFile(condition *entity.MachineFile, cols ...string) error {
-	return m.machineFileRepo.GetBy(condition, cols...)
+	return m.MachineFileRepo.GetBy(condition, cols...)
 }
 
 // 保存机器文件配置
 func (m *machineFileAppImpl) Save(ctx context.Context, mf *entity.MachineFile) error {
-	_, err := m.machineApp.GetById(new(entity.Machine), mf.MachineId, "Name")
+	_, err := m.MachineApp.GetById(new(entity.Machine), mf.MachineId, "Name")
 	if err != nil {
 		return errorx.NewBiz("该机器不存在")
 	}
 
 	if mf.Id != 0 {
-		return m.machineFileRepo.UpdateById(ctx, mf)
+		return m.MachineFileRepo.UpdateById(ctx, mf)
 	}
 
-	return m.machineFileRepo.Insert(ctx, mf)
+	return m.MachineFileRepo.Insert(ctx, mf)
 }
 
 func (m *machineFileAppImpl) ReadDir(fid uint64, path string) ([]fs.FileInfo, error) {
@@ -308,7 +306,7 @@ func (m *machineFileAppImpl) GetMachineCli(fid uint64, inputPath ...string) (*mc
 			return nil, errorx.NewBiz("无权访问该目录或文件: %s", path)
 		}
 	}
-	return m.machineApp.GetCli(mf.MachineId)
+	return m.MachineApp.GetCli(mf.MachineId)
 }
 
 // 获取文件机器 sftp cli

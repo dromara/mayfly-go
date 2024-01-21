@@ -41,24 +41,17 @@ type Role interface {
 	GetRoleAccountPage(condition *entity.RoleAccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
 
-func newRoleApp(roleRepo repository.Role, accountRoleRepo repository.AccountRole) Role {
-	return &roleAppImpl{
-		roleRepo:        roleRepo,
-		accountRoleRepo: accountRoleRepo,
-	}
-}
-
 type roleAppImpl struct {
-	roleRepo        repository.Role
-	accountRoleRepo repository.AccountRole
+	RoleRepo        repository.Role        `inject:""`
+	AccountRoleRepo repository.AccountRole `inject:""`
 }
 
 func (m *roleAppImpl) GetPageList(condition *entity.RoleQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.roleRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+	return m.RoleRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 func (m *roleAppImpl) ListByQuery(condition *entity.RoleQuery) ([]*entity.Role, error) {
-	return m.roleRepo.ListByQuery(condition)
+	return m.RoleRepo.ListByQuery(condition)
 }
 
 func (m *roleAppImpl) SaveRole(ctx context.Context, role *entity.Role) error {
@@ -69,14 +62,14 @@ func (m *roleAppImpl) SaveRole(ctx context.Context, role *entity.Role) error {
 	}
 
 	role.Status = 1
-	return m.roleRepo.Insert(ctx, role)
+	return m.RoleRepo.Insert(ctx, role)
 }
 
 func (m *roleAppImpl) DeleteRole(ctx context.Context, id uint64) error {
 	// 删除角色与资源账号的关联关系
 	return gormx.Tx(
 		func(db *gorm.DB) error {
-			return m.roleRepo.DeleteByIdWithDb(ctx, db, id)
+			return m.RoleRepo.DeleteByIdWithDb(ctx, db, id)
 		},
 		func(db *gorm.DB) error {
 			return gormx.DeleteByWithDb(db, &entity.RoleResource{RoleId: id})
@@ -88,11 +81,11 @@ func (m *roleAppImpl) DeleteRole(ctx context.Context, id uint64) error {
 }
 
 func (m *roleAppImpl) GetRoleResourceIds(roleId uint64) []uint64 {
-	return m.roleRepo.GetRoleResourceIds(roleId)
+	return m.RoleRepo.GetRoleResourceIds(roleId)
 }
 
 func (m *roleAppImpl) GetRoleResources(roleId uint64, toEntity any) {
-	m.roleRepo.GetRoleResources(roleId, toEntity)
+	m.RoleRepo.GetRoleResources(roleId, toEntity)
 }
 
 func (m *roleAppImpl) SaveRoleResource(ctx context.Context, roleId uint64, resourceIds []uint64) {
@@ -112,20 +105,20 @@ func (m *roleAppImpl) SaveRoleResource(ctx context.Context, roleId uint64, resou
 		rr.IsDeleted = undeleted
 		addVals = append(addVals, rr)
 	}
-	m.roleRepo.SaveRoleResource(addVals)
+	m.RoleRepo.SaveRoleResource(addVals)
 
 	for _, v := range delIds {
-		m.roleRepo.DeleteRoleResource(roleId, v)
+		m.RoleRepo.DeleteRoleResource(roleId, v)
 	}
 }
 
 func (m *roleAppImpl) RelateAccountRole(ctx context.Context, accountId, roleId uint64, relateType consts.AccountRoleRelateType) error {
 	accountRole := &entity.AccountRole{AccountId: accountId, RoleId: roleId}
 	if relateType == consts.AccountRoleUnbind {
-		return m.accountRoleRepo.DeleteByCond(ctx, accountRole)
+		return m.AccountRoleRepo.DeleteByCond(ctx, accountRole)
 	}
 
-	err := m.accountRoleRepo.GetBy(accountRole)
+	err := m.AccountRoleRepo.GetBy(accountRole)
 	if err == nil {
 		return errorx.NewBiz("该用户已拥有该权限")
 	}
@@ -135,15 +128,15 @@ func (m *roleAppImpl) RelateAccountRole(ctx context.Context, accountId, roleId u
 	accountRole.Creator = la.Username
 	accountRole.CreatorId = la.Id
 	accountRole.CreateTime = &createTime
-	return m.accountRoleRepo.Insert(ctx, accountRole)
+	return m.AccountRoleRepo.Insert(ctx, accountRole)
 }
 
 func (m *roleAppImpl) GetAccountRoles(accountId uint64) ([]*entity.AccountRole, error) {
 	var res []*entity.AccountRole
-	err := m.accountRoleRepo.ListByCond(&entity.AccountRole{AccountId: accountId}, &res)
+	err := m.AccountRoleRepo.ListByCond(&entity.AccountRole{AccountId: accountId}, &res)
 	return res, err
 }
 
 func (m *roleAppImpl) GetRoleAccountPage(condition *entity.RoleAccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.accountRoleRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+	return m.AccountRoleRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }

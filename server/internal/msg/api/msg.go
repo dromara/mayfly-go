@@ -9,7 +9,7 @@ import (
 )
 
 type Msg struct {
-	MsgApp application.Msg
+	MsgApp application.Msg `inject:""`
 }
 
 // 获取账号接收的消息列表

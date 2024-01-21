@@ -8,15 +8,15 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-type accountRepoImpl struct {
+type AccountRepoImpl struct {
 	base.RepoImpl[*entity.Account]
 }
 
 func newAccountRepo() repository.Account {
-	return &accountRepoImpl{base.RepoImpl[*entity.Account]{M: new(entity.Account)}}
+	return &AccountRepoImpl{base.RepoImpl[*entity.Account]{M: new(entity.Account)}}
 }
 
-func (m *accountRepoImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (m *AccountRepoImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := gormx.NewQuery(new(entity.Account)).
 		Like("name", condition.Name).
 		Like("username", condition.Username)

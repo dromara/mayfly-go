@@ -30,14 +30,13 @@ type Instance interface {
 	GetDatabases(entity *entity.DbInstance) ([]string, error)
 }
 
-func newInstanceApp(instanceRepo repository.Instance) Instance {
-	app := new(instanceAppImpl)
-	app.Repo = instanceRepo
-	return app
-}
-
 type instanceAppImpl struct {
 	base.AppImpl[*entity.DbInstance, repository.Instance]
+}
+
+// 注入DbInstanceRepo
+func (i *instanceAppImpl) InjectDbInstanceRepo(repo repository.Instance) {
+	i.Repo = repo
 }
 
 // GetPageList 分页获取数据库实例

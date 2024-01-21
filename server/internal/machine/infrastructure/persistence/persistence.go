@@ -1,46 +1,49 @@
 package persistence
 
-import "mayfly-go/internal/machine/domain/repository"
-
-var (
-	machineRepo              repository.Machine              = newMachineRepo()
-	machineFileRepo          repository.MachineFile          = newMachineFileRepo()
-	machineScriptRepo        repository.MachineScript        = newMachineScriptRepo()
-	authCertRepo             repository.AuthCert             = newAuthCertRepo()
-	machineCropJobRepo       repository.MachineCronJob       = newMachineCronJobRepo()
-	machineCropJobExecRepo   repository.MachineCronJobExec   = newMachineCronJobExecRepo()
-	machineCronJobRelateRepo repository.MachineCronJobRelate = newMachineCropJobRelateRepo()
-	machineTermOpRepo        repository.MachineTermOp        = newMachineTermOpRepoImpl()
+import (
+	"mayfly-go/internal/machine/domain/repository"
+	"mayfly-go/pkg/ioc"
 )
 
+func Init() {
+	ioc.Register(newMachineRepo(), ioc.WithComponentName("MachineRepo"))
+	ioc.Register(newMachineFileRepo(), ioc.WithComponentName("MachineFileRepo"))
+	ioc.Register(newMachineScriptRepo(), ioc.WithComponentName("MachineScriptRepo"))
+	ioc.Register(newAuthCertRepo(), ioc.WithComponentName("AuthCertRepo"))
+	ioc.Register(newMachineCronJobRepo(), ioc.WithComponentName("MachineCronJobRepo"))
+	ioc.Register(newMachineCronJobExecRepo(), ioc.WithComponentName("MachineCronJobExecRepo"))
+	ioc.Register(newMachineCronJobRelateRepo(), ioc.WithComponentName("MachineCronJobRelateRepo"))
+	ioc.Register(newMachineTermOpRepoImpl(), ioc.WithComponentName("MachineTermOpRepo"))
+}
+
 func GetMachineRepo() repository.Machine {
-	return machineRepo
+	return ioc.Get[repository.Machine]("MachineRepo")
 }
 
 func GetMachineFileRepo() repository.MachineFile {
-	return machineFileRepo
+	return ioc.Get[repository.MachineFile]("MachineFileRepo")
 }
 
 func GetMachineScriptRepo() repository.MachineScript {
-	return machineScriptRepo
+	return ioc.Get[repository.MachineScript]("MachineScriptRepo")
 }
 
 func GetAuthCertRepo() repository.AuthCert {
-	return authCertRepo
+	return ioc.Get[repository.AuthCert]("AuthCertRepo")
 }
 
 func GetMachineCronJobRepo() repository.MachineCronJob {
-	return machineCropJobRepo
+	return ioc.Get[repository.MachineCronJob]("MachineCronJobRepo")
 }
 
 func GetMachineCronJobExecRepo() repository.MachineCronJobExec {
-	return machineCropJobExecRepo
+	return ioc.Get[repository.MachineCronJobExec]("MachineCronJobExecRepo")
 }
 
 func GetMachineCronJobRelateRepo() repository.MachineCronJobRelate {
-	return machineCronJobRelateRepo
+	return ioc.Get[repository.MachineCronJobRelate]("MachineCropJobRelateRepo")
 }
 
 func GetMachineTermOpRepo() repository.MachineTermOp {
-	return machineTermOpRepo
+	return ioc.Get[repository.MachineTermOp]("MachineTermOpRepo")
 }

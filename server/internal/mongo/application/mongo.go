@@ -31,18 +31,15 @@ type Mongo interface {
 	GetMongoConn(id uint64) (*mgm.MongoConn, error)
 }
 
-func newMongoAppImpl(mongoRepo repository.Mongo, tagApp tagapp.TagTree) Mongo {
-	app := &mongoAppImpl{
-		tagApp: tagApp,
-	}
-	app.Repo = mongoRepo
-	return app
-}
-
 type mongoAppImpl struct {
 	base.AppImpl[*entity.Mongo, repository.Mongo]
 
-	tagApp tagapp.TagTree
+	TagApp tagapp.TagTree `inject:"TagTreeApp"`
+}
+
+// 注入MongoRepo
+func (d *mongoAppImpl) InjectMongoRepo(repo repository.Mongo) {
+	d.Repo = repo
 }
 
 // 分页获取数据库信息列表
@@ -63,7 +60,7 @@ func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 		},
 		func(ctx context.Context) error {
 			var tagIds []uint64
-			return d.tagApp.RelateResource(ctx, mongoEntity.Code, consts.TagResourceTypeMongo, tagIds)
+			return d.TagApp.RelateResource(ctx, mongoEntity.Code, consts.TagResourceTypeMongo, tagIds)
 		})
 }
 
@@ -91,7 +88,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, m)
 		}, func(ctx context.Context) error {
-			return d.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeMongo, tagIds)
+			return d.TagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeMongo, tagIds)
 		})
 	}
 
@@ -109,7 +106,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.UpdateById(ctx, m)
 	}, func(ctx context.Context) error {
-		return d.tagApp.RelateResource(ctx, oldMongo.Code, consts.TagResourceTypeMongo, tagIds)
+		return d.TagApp.RelateResource(ctx, oldMongo.Code, consts.TagResourceTypeMongo, tagIds)
 	})
 }
 
@@ -119,6 +116,6 @@ func (d *mongoAppImpl) GetMongoConn(id uint64) (*mgm.MongoConn, error) {
 		if err != nil {
 			return nil, errorx.NewBiz("mongo信息不存在")
 		}
-		return me.ToMongoInfo(d.tagApp.ListTagPathByResource(consts.TagResourceTypeMongo, me.Code)...), nil
+		return me.ToMongoInfo(d.TagApp.ListTagPathByResource(consts.TagResourceTypeMongo, me.Code)...), nil
 	})
 }

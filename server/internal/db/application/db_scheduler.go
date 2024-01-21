@@ -33,7 +33,7 @@ type dbScheduler struct {
 
 func newDbScheduler(repositories *repository.Repositories) (*dbScheduler, error) {
 	scheduler := &dbScheduler{
-		dbApp:              dbApp,
+		dbApp:              GetDbApp(),
 		backupRepo:         repositories.Backup,
 		backupHistoryRepo:  repositories.BackupHistory,
 		restoreRepo:        repositories.Restore,

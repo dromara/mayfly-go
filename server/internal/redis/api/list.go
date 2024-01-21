@@ -54,7 +54,7 @@ func (r *Redis) SaveListValue(rc *req.Ctx) {
 	}
 }
 
-func (r *Redis) SetListValue(rc *req.Ctx) {
+func (r *Redis) Lset(rc *req.Ctx) {
 	g := rc.GinCtx
 	listSetValue := new(form.ListSetValue)
 	ginx.BindJsonAndValid(g, listSetValue)

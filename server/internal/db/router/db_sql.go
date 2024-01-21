@@ -2,7 +2,8 @@ package router
 
 import (
 	"mayfly-go/internal/db/api"
-	"mayfly-go/internal/db/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -11,9 +12,8 @@ import (
 func InitDbSqlRouter(router *gin.RouterGroup) {
 	db := router.Group("dbs")
 
-	dbSql := &api.DbSql{
-		DbSqlApp: application.GetDbSqlApp(),
-	}
+	dbSql := new(api.DbSql)
+	biz.ErrIsNil(ioc.Inject(dbSql))
 
 	reqs := [...]*req.Conf{
 

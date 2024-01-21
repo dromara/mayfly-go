@@ -1,11 +1,16 @@
 package application
 
-import "mayfly-go/internal/auth/infrastructure/persistence"
-
-var (
-	authApp = newAuthApp(persistence.GetOauthAccountRepo())
+import (
+	"mayfly-go/internal/auth/infrastructure/persistence"
+	"mayfly-go/pkg/ioc"
 )
 
+func init() {
+	persistence.Init()
+
+	ioc.Register(new(oauth2AppImpl), ioc.WithComponentName("Oauth2App"))
+}
+
 func GetAuthApp() Oauth2 {
-	return authApp
+	return ioc.Get[Oauth2]("Oauth2App")
 }

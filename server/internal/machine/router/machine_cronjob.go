@@ -2,7 +2,8 @@ package router
 
 import (
 	"mayfly-go/internal/machine/api"
-	"mayfly-go/internal/machine/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -10,9 +11,9 @@ import (
 
 func InitMachineCronJobRouter(router *gin.RouterGroup) {
 	cronjobs := router.Group("machine-cronjobs")
-	cj := &api.MachineCronJob{
-		MachineCronJobApp: application.GetMachineCronJobApp(),
-	}
+
+	cj := new(api.MachineCronJob)
+	biz.ErrIsNil(ioc.Inject(cj))
 
 	reqs := [...]*req.Conf{
 		// 获取机器任务列表

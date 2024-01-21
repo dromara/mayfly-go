@@ -19,9 +19,9 @@ import (
 )
 
 type MachineScript struct {
-	MachineScriptApp application.MachineScript
-	MachineApp       application.Machine
-	TagApp           tagapp.TagTree
+	MachineScriptApp application.MachineScript `inject:""`
+	MachineApp       application.Machine       `inject:""`
+	TagApp           tagapp.TagTree            `inject:"TagTreeApp"`
 }
 
 func (m *MachineScript) MachineScripts(rc *req.Ctx) {

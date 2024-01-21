@@ -9,7 +9,7 @@ import (
 )
 
 type DbSqlExec struct {
-	DbSqlExecApp application.DbSqlExec
+	DbSqlExecApp application.DbSqlExec `inject:""`
 }
 
 func (d *DbSqlExec) DbSqlExecs(rc *req.Ctx) {

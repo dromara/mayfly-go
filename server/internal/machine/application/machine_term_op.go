@@ -33,14 +33,13 @@ type MachineTermOp interface {
 	TimerDeleteTermOp()
 }
 
-func newMachineTermOpApp(machineTermOpRepo repository.MachineTermOp) MachineTermOp {
-	return &machineTermOpAppImpl{
-		base.AppImpl[*entity.MachineTermOp, repository.MachineTermOp]{Repo: machineTermOpRepo},
-	}
-}
-
 type machineTermOpAppImpl struct {
 	base.AppImpl[*entity.MachineTermOp, repository.MachineTermOp]
+}
+
+// 注入MachineTermOpRepo
+func (m *machineTermOpAppImpl) InjectMachineTermOpRepo(repo repository.MachineTermOp) {
+	m.Repo = repo
 }
 
 func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsConn *websocket.Conn, rows, cols int) error {

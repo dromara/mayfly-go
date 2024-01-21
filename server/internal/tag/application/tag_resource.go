@@ -12,14 +12,13 @@ type TagResource interface {
 	ListByQuery(condition *entity.TagResourceQuery, toEntity any)
 }
 
-func newTagResourceApp(tagResourceRepo repository.TagResource) TagResource {
-	tagResourceApp := &tagResourceAppImpl{}
-	tagResourceApp.Repo = tagResourceRepo
-	return tagResourceApp
-}
-
 type tagResourceAppImpl struct {
 	base.AppImpl[*entity.TagResource, repository.TagResource]
+}
+
+// 注入TagResourceRepo
+func (tr *tagResourceAppImpl) InjectTagResourceRepo(repo repository.TagResource) {
+	tr.Repo = repo
 }
 
 func (tr *tagResourceAppImpl) ListByQuery(condition *entity.TagResourceQuery, toEntity any) {

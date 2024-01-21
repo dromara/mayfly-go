@@ -25,12 +25,13 @@ type Account interface {
 	Delete(ctx context.Context, id uint64) error
 }
 
-func newAccountApp(accountRepo repository.Account) Account {
-	return &accountAppImpl{base.AppImpl[*entity.Account, repository.Account]{Repo: accountRepo}}
-}
-
 type accountAppImpl struct {
 	base.AppImpl[*entity.Account, repository.Account]
+}
+
+// 注入AccountRepo
+func (a *accountAppImpl) InjectAccountRepo(repo repository.Account) {
+	a.Repo = repo
 }
 
 func (a *accountAppImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

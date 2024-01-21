@@ -23,8 +23,8 @@ import (
 )
 
 type Mongo struct {
-	MongoApp application.Mongo
-	TagApp   tagapp.TagTree
+	MongoApp application.Mongo `inject:""`
+	TagApp   tagapp.TagTree    `inject:"TagTreeApp"`
 }
 
 func (m *Mongo) Mongos(rc *req.Ctx) {

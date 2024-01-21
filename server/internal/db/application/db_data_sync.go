@@ -38,17 +38,14 @@ type DataSyncTask interface {
 	GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
 
-func newDataSyncApp(dataSyncRepo repository.DataSyncTask, dataSyncLogRepo repository.DataSyncLog) DataSyncTask {
-	app := new(dataSyncAppImpl)
-	app.Repo = dataSyncRepo
-	app.dataSyncLogRepo = dataSyncLogRepo
-	return app
-}
-
 type dataSyncAppImpl struct {
 	base.AppImpl[*entity.DataSyncTask, repository.DataSyncTask]
 
-	dataSyncLogRepo repository.DataSyncLog
+	DbDataSyncLogRepo repository.DataSyncLog `inject:""`
+}
+
+func (d *dataSyncAppImpl) InjectDbDataSyncTaskRepo(repo repository.DataSyncTask) {
+	d.Repo = repo
 }
 
 func (app *dataSyncAppImpl) GetPageList(condition *entity.DataSyncTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
@@ -328,7 +325,7 @@ func (app *dataSyncAppImpl) endRunning(taskEntity *entity.DataSyncTask, log *ent
 }
 
 func (app *dataSyncAppImpl) saveLog(log *entity.DataSyncLog) {
-	app.dataSyncLogRepo.Save(context.Background(), log)
+	app.DbDataSyncLogRepo.Save(context.Background(), log)
 }
 
 func (app *dataSyncAppImpl) InitCronJob() {
@@ -374,5 +371,5 @@ func (app *dataSyncAppImpl) InitCronJob() {
 }
 
 func (app *dataSyncAppImpl) GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return app.dataSyncLogRepo.GetTaskLogList(condition, pageParam, toEntity, orderBy...)
+	return app.DbDataSyncLogRepo.GetTaskLogList(condition, pageParam, toEntity, orderBy...)
 }

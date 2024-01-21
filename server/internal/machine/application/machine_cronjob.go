@@ -50,41 +50,31 @@ type MachineCronJob interface {
 	RunCronJob(key string)
 }
 
-type machineCropJobAppImpl struct {
+type machineCronJobAppImpl struct {
 	base.AppImpl[*entity.MachineCronJob, repository.MachineCronJob]
 
-	machineCropJobRelateRepo repository.MachineCronJobRelate
-	machineCropJobExecRepo   repository.MachineCronJobExec
-	machineApp               Machine
+	MachineCronJobRelateRepo repository.MachineCronJobRelate `inject:""`
+	MachineCronJobExecRepo   repository.MachineCronJobExec   `inject:""`
+	MachineApp               Machine                         `inject:""`
 }
 
-func newMachineCronJobApp(
-	machineCropJobRepo repository.MachineCronJob,
-	machineCropJobRelateRepo repository.MachineCronJobRelate,
-	machineCropJobExecRepo repository.MachineCronJobExec,
-	machineApp Machine,
-) MachineCronJob {
-	app := &machineCropJobAppImpl{
-		machineCropJobRelateRepo: machineCropJobRelateRepo,
-		machineCropJobExecRepo:   machineCropJobExecRepo,
-		machineApp:               machineApp,
-	}
-	app.Repo = machineCropJobRepo
-	return app
+// 注入MachineCronJobRepo
+func (m *machineCronJobAppImpl) InjectMachineCronJobRepo(repo repository.MachineCronJob) {
+	m.Repo = repo
 }
 
 // 分页获取机器脚本任务列表
-func (m *machineCropJobAppImpl) GetPageList(condition *entity.MachineCronJob, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (m *machineCronJobAppImpl) GetPageList(condition *entity.MachineCronJob, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return m.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 // 获取分页执行结果列表
-func (m *machineCropJobAppImpl) GetExecPageList(condition *entity.MachineCronJobExec, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.machineCropJobExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+func (m *machineCronJobAppImpl) GetExecPageList(condition *entity.MachineCronJobExec, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return m.MachineCronJobExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 // 保存机器任务信息
-func (m *machineCropJobAppImpl) SaveMachineCronJob(ctx context.Context, mcj *entity.MachineCronJob) (uint64, error) {
+func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, mcj *entity.MachineCronJob) (uint64, error) {
 	// 更新操作
 	if mcj.Id != 0 {
 		m.UpdateById(ctx, mcj)
@@ -104,22 +94,22 @@ func (m *machineCropJobAppImpl) SaveMachineCronJob(ctx context.Context, mcj *ent
 	return mcj.Id, nil
 }
 
-func (m *machineCropJobAppImpl) Delete(ctx context.Context, id uint64) {
+func (m *machineCronJobAppImpl) Delete(ctx context.Context, id uint64) {
 	m.DeleteById(ctx, id)
-	m.machineCropJobExecRepo.DeleteByCond(ctx, &entity.MachineCronJobExec{CronJobId: id})
-	m.machineCropJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: id})
+	m.MachineCronJobExecRepo.DeleteByCond(ctx, &entity.MachineCronJobExec{CronJobId: id})
+	m.MachineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: id})
 }
 
-func (m *machineCropJobAppImpl) GetRelateMachineIds(cronJobId uint64) []uint64 {
-	return m.machineCropJobRelateRepo.GetMachineIds(cronJobId)
+func (m *machineCronJobAppImpl) GetRelateMachineIds(cronJobId uint64) []uint64 {
+	return m.MachineCronJobRelateRepo.GetMachineIds(cronJobId)
 }
 
-func (m *machineCropJobAppImpl) GetRelateCronJobIds(machineId uint64) []uint64 {
-	return m.machineCropJobRelateRepo.GetCronJobIds(machineId)
+func (m *machineCronJobAppImpl) GetRelateCronJobIds(machineId uint64) []uint64 {
+	return m.MachineCronJobRelateRepo.GetCronJobIds(machineId)
 }
 
-func (m *machineCropJobAppImpl) CronJobRelateMachines(ctx context.Context, cronJobId uint64, machineIds []uint64) {
-	oldMachineIds := m.machineCropJobRelateRepo.GetMachineIds(cronJobId)
+func (m *machineCronJobAppImpl) CronJobRelateMachines(ctx context.Context, cronJobId uint64, machineIds []uint64) {
+	oldMachineIds := m.MachineCronJobRelateRepo.GetMachineIds(cronJobId)
 	addIds, delIds, _ := collx.ArrayCompare[uint64](machineIds, oldMachineIds)
 	addVals := make([]*entity.MachineCronJobRelate, 0)
 
@@ -129,20 +119,20 @@ func (m *machineCropJobAppImpl) CronJobRelateMachines(ctx context.Context, cronJ
 			CronJobId: cronJobId,
 		})
 	}
-	m.machineCropJobRelateRepo.BatchInsert(ctx, addVals)
+	m.MachineCronJobRelateRepo.BatchInsert(ctx, addVals)
 
 	for _, delId := range delIds {
-		m.machineCropJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: cronJobId, MachineId: delId})
+		m.MachineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: cronJobId, MachineId: delId})
 	}
 }
 
-func (m *machineCropJobAppImpl) MachineRelateCronJobs(ctx context.Context, machineId uint64, cronJobs []uint64) {
+func (m *machineCronJobAppImpl) MachineRelateCronJobs(ctx context.Context, machineId uint64, cronJobs []uint64) {
 	if len(cronJobs) == 0 {
-		m.machineCropJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{MachineId: machineId})
+		m.MachineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{MachineId: machineId})
 		return
 	}
 
-	oldCronIds := m.machineCropJobRelateRepo.GetCronJobIds(machineId)
+	oldCronIds := m.MachineCronJobRelateRepo.GetCronJobIds(machineId)
 	addIds, delIds, _ := collx.ArrayCompare[uint64](cronJobs, oldCronIds)
 	addVals := make([]*entity.MachineCronJobRelate, 0)
 
@@ -152,14 +142,14 @@ func (m *machineCropJobAppImpl) MachineRelateCronJobs(ctx context.Context, machi
 			CronJobId: addId,
 		})
 	}
-	m.machineCropJobRelateRepo.BatchInsert(ctx, addVals)
+	m.MachineCronJobRelateRepo.BatchInsert(ctx, addVals)
 
 	for _, delId := range delIds {
-		m.machineCropJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: delId, MachineId: machineId})
+		m.MachineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: delId, MachineId: machineId})
 	}
 }
 
-func (m *machineCropJobAppImpl) InitCronJob() {
+func (m *machineCronJobAppImpl) InitCronJob() {
 	defer func() {
 		if err := recover(); err != nil {
 			logx.ErrorTrace("机器计划任务初始化失败: %s", err.(error))
@@ -192,7 +182,7 @@ func (m *machineCropJobAppImpl) InitCronJob() {
 	}
 }
 
-func (m *machineCropJobAppImpl) RunCronJob(key string) {
+func (m *machineCronJobAppImpl) RunCronJob(key string) {
 	// 简单使用redis分布式锁防止多实例同一时刻重复执行
 	if lock := rediscli.NewLock(key, 30*time.Second); lock != nil {
 		if !lock.Lock() {
@@ -209,13 +199,13 @@ func (m *machineCropJobAppImpl) RunCronJob(key string) {
 		scheduler.RemoveByKey(key)
 	}
 
-	machienIds := m.machineCropJobRelateRepo.GetMachineIds(cronJob.Id)
+	machienIds := m.MachineCronJobRelateRepo.GetMachineIds(cronJob.Id)
 	for _, machineId := range machienIds {
 		go m.runCronJob0(machineId, cronJob)
 	}
 }
 
-func (m *machineCropJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
+func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 	var key string
 	isDisable := mcj.Status == entity.MachineCronJobStatusDisable
 	if mcj.Id == 0 {
@@ -237,11 +227,11 @@ func (m *machineCropJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 		go m.RunCronJob(key)
 	})
 }
-func (m *machineCropJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineCronJob) {
+func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineCronJob) {
 	defer func() {
 		if err := recover(); err != nil {
 			res := anyx.ToString(err)
-			m.machineCropJobExecRepo.Insert(context.TODO(), &entity.MachineCronJobExec{
+			m.MachineCronJobExecRepo.Insert(context.TODO(), &entity.MachineCronJobExec{
 				MachineId: mid,
 				CronJobId: cronJob.Id,
 				ExecTime:  time.Now(),
@@ -252,7 +242,7 @@ func (m *machineCropJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineC
 		}
 	}()
 
-	machineCli, err := m.machineApp.GetCli(uint64(mid))
+	machineCli, err := m.MachineApp.GetCli(uint64(mid))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
 	res, err := machineCli.Run(cronJob.Script)
 	if err != nil {
@@ -281,5 +271,5 @@ func (m *machineCropJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineC
 		execRes.Status = entity.MachineCronJobExecStatusError
 	}
 	// 保存执行记录
-	m.machineCropJobExecRepo.Insert(context.TODO(), execRes)
+	m.MachineCronJobExecRepo.Insert(context.TODO(), execRes)
 }

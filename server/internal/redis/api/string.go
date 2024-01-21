@@ -17,7 +17,7 @@ func (r *Redis) GetStringValue(rc *req.Ctx) {
 	rc.ResData = str
 }
 
-func (r *Redis) SetStringValue(rc *req.Ctx) {
+func (r *Redis) SaveStringValue(rc *req.Ctx) {
 	g := rc.GinCtx
 	keyValue := new(form.StringValue)
 	ginx.BindJsonAndValid(g, keyValue)

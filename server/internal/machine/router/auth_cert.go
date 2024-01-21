@@ -2,16 +2,18 @@ package router
 
 import (
 	"mayfly-go/internal/machine/api"
-	"mayfly-go/internal/machine/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
 
 func InitAuthCertRouter(router *gin.RouterGroup) {
-	r := &api.AuthCert{AuthCertApp: application.GetAuthCertApp()}
-
 	ag := router.Group("sys/authcerts")
+
+	r := new(api.AuthCert)
+	biz.ErrIsNil(ioc.Inject(r))
 
 	reqs := [...]*req.Conf{
 		req.NewGet("", r.AuthCerts).RequiredPermissionCode("authcert"),

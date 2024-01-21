@@ -49,24 +49,16 @@ type Machine interface {
 	GetMachineStats(machineId uint64) (*mcm.Stats, error)
 }
 
-func newMachineApp(machineRepo repository.Machine,
-	authCertApp AuthCert,
-	tagApp tagapp.TagTree) Machine {
-	app := &machineAppImpl{
-		authCertApp: authCertApp,
-		tagApp:      tagApp,
-	}
-
-	app.Repo = machineRepo
-	return app
-}
-
 type machineAppImpl struct {
 	base.AppImpl[*entity.Machine, repository.Machine]
 
-	authCertApp AuthCert
+	AuthCertApp AuthCert       `inject:""`
+	TagApp      tagapp.TagTree `inject:"TagTreeApp"`
+}
 
-	tagApp tagapp.TagTree
+// 注入MachineRepo
+func (m *machineAppImpl) InjectMachineRepo(repo repository.Machine) {
+	m.Repo = repo
 }
 
 // 分页获取机器信息列表
@@ -99,7 +91,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, me *entity.Machine, ta
 		return m.Tx(ctx, func(ctx context.Context) error {
 			return m.Insert(ctx, me)
 		}, func(ctx context.Context) error {
-			return m.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeMachine, tagIds)
+			return m.TagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeMachine, tagIds)
 		})
 	}
 
@@ -117,7 +109,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, me *entity.Machine, ta
 	return m.Tx(ctx, func(ctx context.Context) error {
 		return m.UpdateById(ctx, me)
 	}, func(ctx context.Context) error {
-		return m.tagApp.RelateResource(ctx, oldMachine.Code, consts.TagResourceTypeMachine, tagIds)
+		return m.TagApp.RelateResource(ctx, oldMachine.Code, consts.TagResourceTypeMachine, tagIds)
 	})
 }
 
@@ -162,7 +154,7 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 			return m.DeleteById(ctx, id)
 		}, func(ctx context.Context) error {
 			var tagIds []uint64
-			return m.tagApp.RelateResource(ctx, machine.Code, consts.TagResourceTypeMachine, tagIds)
+			return m.TagApp.RelateResource(ctx, machine.Code, consts.TagResourceTypeMachine, tagIds)
 		})
 }
 
@@ -235,11 +227,11 @@ func (m *machineAppImpl) toMachineInfo(me *entity.Machine) (*mcm.MachineInfo, er
 	mi.Ip = me.Ip
 	mi.Port = me.Port
 	mi.Username = me.Username
-	mi.TagPath = m.tagApp.ListTagPathByResource(consts.TagResourceTypeMachine, me.Code)
+	mi.TagPath = m.TagApp.ListTagPathByResource(consts.TagResourceTypeMachine, me.Code)
 	mi.EnableRecorder = me.EnableRecorder
 
 	if me.UseAuthCert() {
-		ac, err := m.authCertApp.GetById(new(entity.AuthCert), uint64(me.AuthCertId))
+		ac, err := m.AuthCertApp.GetById(new(entity.AuthCert), uint64(me.AuthCertId))
 		if err != nil {
 			return nil, errorx.NewBiz("授权凭证信息已不存在，请重新关联")
 		}

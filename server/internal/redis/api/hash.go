@@ -64,7 +64,7 @@ func (r *Redis) Hset(rc *req.Ctx) {
 	rc.ResData = res
 }
 
-func (r *Redis) SetHashValue(rc *req.Ctx) {
+func (r *Redis) SaveHashValue(rc *req.Ctx) {
 	g := rc.GinCtx
 	hashValue := new(form.HashValue)
 	ginx.BindJsonAndValid(g, hashValue)

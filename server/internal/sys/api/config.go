@@ -10,7 +10,7 @@ import (
 )
 
 type Config struct {
-	ConfigApp application.Config
+	ConfigApp application.Config `inject:""`
 }
 
 func (c *Config) Configs(rc *req.Ctx) {

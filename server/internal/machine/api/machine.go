@@ -29,9 +29,9 @@ import (
 )
 
 type Machine struct {
-	MachineApp       application.Machine
-	MachineTermOpApp application.MachineTermOp
-	TagApp           tagapp.TagTree
+	MachineApp       application.Machine       `inject:""`
+	MachineTermOpApp application.MachineTermOp `inject:""`
+	TagApp           tagapp.TagTree            `inject:"TagTreeApp"`
 }
 
 func (m *Machine) Machines(rc *req.Ctx) {

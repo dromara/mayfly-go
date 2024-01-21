@@ -28,8 +28,8 @@ import (
 )
 
 type LdapLogin struct {
-	AccountApp sysapp.Account
-	MsgApp     msgapp.Msg
+	AccountApp sysapp.Account `inject:""`
+	MsgApp     msgapp.Msg     `inject:""`
 }
 
 // @router /auth/ldap/enabled [get]

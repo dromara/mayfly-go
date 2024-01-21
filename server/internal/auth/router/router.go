@@ -2,30 +2,22 @@ package router
 
 import (
 	"mayfly-go/internal/auth/api"
-	"mayfly-go/internal/auth/application"
-	msgapp "mayfly-go/internal/msg/application"
-	sysapp "mayfly-go/internal/sys/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
 
 func Init(router *gin.RouterGroup) {
-	accountLogin := &api.AccountLogin{
-		AccountApp: sysapp.GetAccountApp(),
-		MsgApp:     msgapp.GetMsgApp(),
-	}
+	accountLogin := new(api.AccountLogin)
+	biz.ErrIsNil(ioc.Inject(accountLogin))
 
-	ldapLogin := &api.LdapLogin{
-		AccountApp: sysapp.GetAccountApp(),
-		MsgApp:     msgapp.GetMsgApp(),
-	}
+	ldapLogin := new(api.LdapLogin)
+	biz.ErrIsNil(ioc.Inject(ldapLogin))
 
-	oauth2Login := &api.Oauth2Login{
-		Oauth2App:  application.GetAuthApp(),
-		AccountApp: sysapp.GetAccountApp(),
-		MsgApp:     msgapp.GetMsgApp(),
-	}
+	oauth2Login := new(api.Oauth2Login)
+	biz.ErrIsNil(ioc.Inject(oauth2Login))
 
 	rg := router.Group("/auth")
 

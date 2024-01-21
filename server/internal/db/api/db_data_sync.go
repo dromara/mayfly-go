@@ -19,7 +19,7 @@ import (
 )
 
 type DataSyncTask struct {
-	DataSyncTaskApp application.DataSyncTask
+	DataSyncTaskApp application.DataSyncTask `inject:"DbDataSyncTaskApp"`
 }
 
 func (d *DataSyncTask) Tasks(rc *req.Ctx) {

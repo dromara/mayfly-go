@@ -24,8 +24,8 @@ import (
 )
 
 type Redis struct {
-	RedisApp application.Redis
-	TagApp   tagapp.TagTree
+	RedisApp application.Redis `inject:""`
+	TagApp   tagapp.TagTree    `inject:"TagTreeApp"`
 }
 
 func (r *Redis) RedisList(rc *req.Ctx) {

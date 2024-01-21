@@ -27,14 +27,13 @@ type Resource interface {
 	GetAccountResources(accountId uint64, toEntity any) error
 }
 
-func newResourceApp(resourceRepo repository.Resource) Resource {
-	return &resourceAppImpl{
-		base.AppImpl[*entity.Resource, repository.Resource]{Repo: resourceRepo},
-	}
-}
-
 type resourceAppImpl struct {
 	base.AppImpl[*entity.Resource, repository.Resource]
+}
+
+// 注入ResourceRepo
+func (r *resourceAppImpl) InjectResourceRepo(repo repository.Resource) {
+	r.Repo = repo
 }
 
 func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) error {

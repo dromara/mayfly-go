@@ -28,9 +28,9 @@ import (
 )
 
 type Oauth2Login struct {
-	Oauth2App  application.Oauth2
-	AccountApp sysapp.Account
-	MsgApp     msgapp.Msg
+	Oauth2App  application.Oauth2 `inject:""`
+	AccountApp sysapp.Account     `inject:""`
+	MsgApp     msgapp.Msg         `inject:""`
 }
 
 func (a *Oauth2Login) OAuth2Login(rc *req.Ctx) {

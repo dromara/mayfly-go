@@ -13,7 +13,7 @@ import (
 )
 
 type AuthCert struct {
-	AuthCertApp application.AuthCert
+	AuthCertApp application.AuthCert `inject:""`
 }
 
 func (ac *AuthCert) BaseAuthCerts(rc *req.Ctx) {
