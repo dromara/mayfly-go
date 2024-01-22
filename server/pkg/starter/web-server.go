@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"time"
 
+	sysapp "mayfly-go/internal/sys/application"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,7 +26,7 @@ func runWebServer(ctx context.Context) {
 	// 日志处理器
 	req.UseAfterHandlerInterceptor(req.LogHandler)
 	// 设置日志保存函数
-	req.SetSaveLogFunc(initialize.InitSaveLogFunc())
+	req.SetSaveLogFunc(sysapp.GetSyslogApp().SaveFromReq)
 
 	srv := http.Server{
 		Addr: config.Conf.Server.GetPort(),

@@ -14,7 +14,7 @@ var (
 	dbBinlogApp  *DbBinlogApp
 )
 
-func init() {
+func InitIoc() {
 	persistence.Init()
 
 	ioc.Register(new(instanceAppImpl), ioc.WithComponentName("DbInstanceApp"))

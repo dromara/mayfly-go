@@ -5,7 +5,7 @@ import (
 	"mayfly-go/pkg/ioc"
 )
 
-func init() {
+func InitIoc() {
 	persistence.Init()
 
 	ioc.Register(new(oauth2AppImpl), ioc.WithComponentName("Oauth2App"))

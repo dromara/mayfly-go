@@ -18,3 +18,8 @@ func Get[T any](name string) T {
 func Inject(component any) error {
 	return DefaultContainer.Inject(component)
 }
+
+// 注入默认ioc容器内组件所依赖的其他组件实例
+func InjectComponents() error {
+	return DefaultContainer.InjectComponents()
+}

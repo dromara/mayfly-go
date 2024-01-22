@@ -28,7 +28,7 @@ func (c *Container) Register(bean any, opts ...ComponentOption) {
 	cType := structx.IndirectType(reflect.TypeOf(component.Value))
 	// 组件名为空，则去组件类型名称作为组件名
 	if componentName == "" {
-		componentName := cType.Name()
+		componentName = cType.Name()
 		component.Name = componentName
 	}
 
@@ -43,6 +43,10 @@ func (c *Container) Register(bean any, opts ...ComponentOption) {
 // 注册对象实例的字段含有inject:"xxx"标签或者Setter方法，则注入对应组件实例
 func (c *Container) Inject(obj any) error {
 	objValue := reflect.ValueOf(obj)
+	if structx.Indirect(objValue).Kind() != reflect.Struct {
+		return nil
+	}
+
 	if err := c.injectWithField(objValue); err != nil {
 		return err
 	}
