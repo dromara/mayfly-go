@@ -8,6 +8,9 @@ import (
 )
 
 type DbProgram interface {
+	CheckBinlogEnabled(ctx context.Context) (bool, error)
+	CheckBinlogRowFormat(ctx context.Context) (bool, error)
+
 	Backup(ctx context.Context, backupHistory *entity.DbBackupHistory) (*entity.BinlogInfo, error)
 
 	FetchBinlogs(ctx context.Context, downloadLatestBinlogFile bool, earliestBackupSequence, latestBinlogSequence int64) ([]*entity.BinlogFile, error)

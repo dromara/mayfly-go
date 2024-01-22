@@ -9,7 +9,7 @@ import (
 type DbBackupHistory interface {
 	base.Repo[*entity.DbBackupHistory]
 
-	// GetDbBackupHistories 分页获取数据备份历史
+	// GetHistories 分页获取数据备份历史
 	GetHistories(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	GetLatestHistory(instanceId uint64, dbName string, bi *entity.BinlogInfo) (*entity.DbBackupHistory, error)

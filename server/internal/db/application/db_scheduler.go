@@ -219,6 +219,17 @@ func (s *dbScheduler) restoreMysql(ctx context.Context, job entity.DbJob) error 
 	}
 	dbProgram := conn.GetDialect().GetDbProgram()
 	if restore.PointInTime.Valid {
+		if enabled, err := dbProgram.CheckBinlogEnabled(ctx); err != nil {
+			return err
+		} else if !enabled {
+			return errors.New("数据库未启用 BINLOG")
+		}
+		if enabled, err := dbProgram.CheckBinlogRowFormat(ctx); err != nil {
+			return err
+		} else if !enabled {
+			return errors.New("数据库未启用 BINLOG 行模式")
+		}
+
 		latestBinlogSequence, earliestBackupSequence := int64(-1), int64(-1)
 		binlogHistory, ok, err := s.binlogHistoryRepo.GetLatestHistory(restore.DbInstanceId)
 		if err != nil {
@@ -363,7 +374,25 @@ func (s *dbScheduler) restorePointInTime(ctx context.Context, program dbi.DbProg
 	if err := program.RestoreBackupHistory(ctx, backupHistory.DbName, backupHistory.DbBackupId, backupHistory.Uuid); err != nil {
 		return err
 	}
-	return program.ReplayBinlog(ctx, job.DbName, job.DbName, restoreInfo)
+	if err := program.ReplayBinlog(ctx, job.DbName, job.DbName, restoreInfo); err != nil {
+		return err
+	}
+
+	// 由于 ReplayBinlog 未记录 BINLOG 事件，系统自动备份，避免数据丢失
+	backup := &entity.DbBackup{
+		DbJobBaseImpl: entity.NewDbBJobBase(backupHistory.DbInstanceId, entity.DbJobTypeBackup),
+		DbName:        backupHistory.DbName,
+		Enabled:       true,
+		Repeated:      false,
+		StartTime:     time.Now(),
+		Interval:      0,
+		Name:          fmt.Sprintf("%s-系统自动备份", backupHistory.DbName),
+	}
+	backup.Id = backupHistory.DbBackupId
+	if err := s.backupMysql(ctx, backup); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *dbScheduler) restoreBackupHistory(ctx context.Context, program dbi.DbProgram, job *entity.DbRestore) error {
@@ -399,8 +428,8 @@ func (s *dbScheduler) fetchBinlogMysql(ctx context.Context, backup entity.DbJob)
 	}
 	dbProgram := conn.GetDialect().GetDbProgram()
 	binlogFiles, err := dbProgram.FetchBinlogs(ctx, false, earliestBackupSequence, latestBinlogSequence)
-	if err == nil {
-		err = s.binlogHistoryRepo.InsertWithBinlogFiles(ctx, instanceId, binlogFiles)
+	if err != nil {
+		return err
 	}
-	return nil
+	return s.binlogHistoryRepo.InsertWithBinlogFiles(ctx, instanceId, binlogFiles)
 }

@@ -128,7 +128,7 @@ func (d *DbRestore) GetDbNamesWithoutRestore(rc *req.Ctx) {
 	rc.ResData = dbNamesWithoutRestore
 }
 
-// 获取数据库备份历史
+// GetHistoryPageList 获取数据库备份历史
 // @router /api/dbs/:dbId/restores/:restoreId/histories [GET]
 func (d *DbRestore) GetHistoryPageList(rc *req.Ctx) {
 	queryCond := &entity.DbRestoreHistoryQuery{

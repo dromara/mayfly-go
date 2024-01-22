@@ -153,8 +153,9 @@ func (s *DbInstanceSuite) TestRestorePontInTime() {
 	s.createTable(dbNameBackupTest, tableNameRestorePITTest, "")
 	s.selectTable(dbNameBackupTest, tableNameRestorePITTest, "")
 	time.Sleep(time.Second)
-	targetTime := time.Now()
 
+	// 首次恢复数据库
+	firstTargetTime := time.Now()
 	s.dropTable(dbNameBackupTest, tableNameBackupTest, "")
 	s.selectTable(dbNameBackupTest, tableNameBackupTest, "运行 mysql 程序失败")
 	s.createTable(dbNameBackupTest, tableNameNoBackupTest, "")
@@ -165,7 +166,28 @@ func (s *DbInstanceSuite) TestRestorePontInTime() {
 	s.selectTable(dbNameBackupTest, tableNameRestorePITTest, "运行 mysql 程序失败")
 	s.selectTable(dbNameBackupTest, tableNameNoBackupTest, "运行 mysql 程序失败")
 
-	s.testReplayBinlog(backupHistory, targetTime)
+	s.testReplayBinlog(backupHistory, firstTargetTime)
+	s.selectTable(dbNameBackupTest, tableNameBackupTest, "")
+	s.selectTable(dbNameBackupTest, tableNameRestorePITTest, "")
+	s.selectTable(dbNameBackupTest, tableNameNoBackupTest, "运行 mysql 程序失败")
+
+	s.testBackup(backupHistory)
+
+	// 再次恢复数据库
+	secondTargetTime := time.Now()
+	s.dropTable(dbNameBackupTest, tableNameBackupTest, "")
+	s.selectTable(dbNameBackupTest, tableNameBackupTest, "运行 mysql 程序失败")
+	s.dropTable(dbNameBackupTest, tableNameRestorePITTest, "")
+	s.selectTable(dbNameBackupTest, tableNameRestorePITTest, "运行 mysql 程序失败")
+	s.createTable(dbNameBackupTest, tableNameNoBackupTest, "")
+	s.selectTable(dbNameBackupTest, tableNameNoBackupTest, "")
+
+	s.testRestore(backupHistory)
+	s.selectTable(dbNameBackupTest, tableNameBackupTest, "")
+	s.selectTable(dbNameBackupTest, tableNameRestorePITTest, "")
+	s.selectTable(dbNameBackupTest, tableNameNoBackupTest, "运行 mysql 程序失败")
+
+	s.testReplayBinlog(backupHistory, secondTargetTime)
 	s.selectTable(dbNameBackupTest, tableNameBackupTest, "")
 	s.selectTable(dbNameBackupTest, tableNameRestorePITTest, "")
 	s.selectTable(dbNameBackupTest, tableNameNoBackupTest, "运行 mysql 程序失败")

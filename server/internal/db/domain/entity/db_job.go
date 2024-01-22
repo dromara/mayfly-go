@@ -21,7 +21,11 @@ const (
 	DbJobFailed
 )
 
-type DbJobType = string
+type DbJobType string
+
+func (typ DbJobType) String() string {
+	return string(typ)
+}
 
 const (
 	DbJobTypeBackup  DbJobType = "db-backup"
@@ -121,10 +125,10 @@ func (d *DbJobBaseImpl) SetLastStatus(status DbJobStatus, err error) {
 		jobName = DbJobNameBackup
 	case DbJobTypeRestore:
 		jobName = DbJobNameRestore
-	case DbJobNameBinlog:
+	case DbJobTypeBinlog:
 		jobName = DbJobNameBinlog
 	default:
-		jobName = d.jobType
+		jobName = d.jobType.String()
 	}
 	d.LastStatus = status
 	var result = jobName + statusName

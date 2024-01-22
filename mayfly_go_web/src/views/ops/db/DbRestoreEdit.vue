@@ -35,7 +35,13 @@
                         clearable
                         class="w100"
                     >
-                        <el-option v-for="item in state.histories" :key="item.id" :label="item.name" :value="item"> </el-option>
+                        <el-option
+                            v-for="item in state.histories"
+                            :key="item.id"
+                            :label="item.name + (item.binlogFileName ? ' ' : ' 不') + '支持指定时间点恢复'"
+                            :value="item"
+                        >
+                        </el-option>
                     </el-select>
                 </el-form-item>
                 <el-form-item prop="startTime" label="开始时间">
@@ -83,20 +89,30 @@ const visible = defineModel<boolean>('visible', {
 });
 
 const validatePointInTime = (rule: any, value: any, callback: any) => {
-    if (!state.histories || state.histories.length == 0) {
-        callback(new Error('数据库没有备份记录'));
-        return;
-    }
-    const history = state.histories[state.histories.length - 1];
-    if (value < new Date(history.createTime)) {
-        callback(new Error('在此之前数据库没有备份记录'));
-        return;
-    }
     if (value > new Date()) {
         callback(new Error('恢复时间点晚于当前时间'));
         return;
     }
-    callback();
+    if (!state.histories || state.histories.length == 0) {
+        callback(new Error('数据库没有备份记录'));
+        return;
+    }
+    let last = null;
+    for (const history of state.histories) {
+        if (!history.binlogFileName || history.binlogFileName.length === 0) {
+            break;
+        }
+        if (new Date(history.createTime) < value) {
+            callback();
+            return;
+        }
+        last = history;
+    }
+    if (!last) {
+        callback(new Error('现有数据库备份不支持指定时间恢复'));
+        return;
+    }
+    callback(last.name + ' 之前的数据库备份不支持指定时间恢复');
 };
 
 const rules = {
@@ -110,7 +126,6 @@ const rules = {
     pointInTime: [
         {
             required: true,
-            // message: '请选择恢复时间点',
             validator: validatePointInTime,
             trigger: ['change', 'blur'],
         },

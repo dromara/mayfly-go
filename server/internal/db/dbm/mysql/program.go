@@ -77,6 +77,15 @@ func (svc *DbProgramMysql) GetBinlogFilePath(fileName string) string {
 }
 
 func (svc *DbProgramMysql) Backup(ctx context.Context, backupHistory *entity.DbBackupHistory) (*entity.BinlogInfo, error) {
+	binlogEnabled, err := svc.CheckBinlogEnabled(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rowFormatEnabled, err := svc.CheckBinlogRowFormat(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	dir := svc.getDbBackupDir(backupHistory.DbInstanceId, backupHistory.DbBackupId)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
 		return nil, err
@@ -95,10 +104,11 @@ func (svc *DbProgramMysql) Backup(ctx context.Context, backupHistory *entity.DbB
 		"--add-drop-database",
 		"--result-file", tmpFile,
 		"--single-transaction",
-		"--master-data=2",
 		"--databases", backupHistory.DbName,
 	}
-
+	if binlogEnabled && rowFormatEnabled {
+		args = append(args, "--master-data=2")
+	}
 	cmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqldumpPath, args...)
 	logx.Debugf("backup database using mysqldump binary: %s", cmd.String())
 	if err := runCmd(cmd); err != nil {
@@ -115,7 +125,10 @@ func (svc *DbProgramMysql) Backup(ctx context.Context, backupHistory *entity.DbB
 	if err != nil {
 		return nil, err
 	}
-	binlogInfo, err := readBinlogInfoFromBackup(reader)
+	binlogInfo := &entity.BinlogInfo{}
+	if binlogEnabled && rowFormatEnabled {
+		binlogInfo, err = readBinlogInfoFromBackup(reader)
+	}
 	_ = reader.Close()
 	if err != nil {
 		return nil, errors.Wrapf(err, "从备份文件中读取 binlog 信息失败")
@@ -568,18 +581,24 @@ func (svc *DbProgramMysql) ReplayBinlog(ctx context.Context, originalDatabase, t
 		return errors.Wrap(err, "启动 mysqlbinlog 程序失败")
 	}
 	defer func() {
+		_ = mysqlbinlogCmd.Cancel()
 		if err := mysqlbinlogCmd.Wait(); err != nil {
-			if replayErr != nil {
-				replayErr = errors.Wrap(replayErr, "运行 mysqlbinlog 程序失败")
-			} else {
-				replayErr = errors.Errorf("运行 mysqlbinlog 程序失败: %s", mysqlbinlogErr.String())
+			if mysqlbinlogErr.Len() > 0 {
+				logx.Errorf("运行 mysqlbinlog 程序失败", mysqlbinlogErr.String())
+				if replayErr != nil {
+					replayErr = errors.Wrap(replayErr, "运行 mysqlbinlog 程序失败: "+mysqlbinlogErr.String())
+				} else {
+					replayErr = errors.Errorf("运行 mysqlbinlog 程序失败: %s", mysqlbinlogErr.String())
+				}
 			}
 		}
 	}()
 	if err := mysqlCmd.Start(); err != nil {
+		logx.Error("启动 mysql 程序失败")
 		return errors.Wrap(err, "启动 mysql 程序失败")
 	}
 	if err := mysqlCmd.Wait(); err != nil {
+		logx.Errorf("运行 mysql 程序失败: %s", mysqlErr.String())
 		return errors.Errorf("运行 mysql 程序失败: %s", mysqlErr.String())
 	}
 
@@ -606,27 +625,30 @@ func (svc *DbProgramMysql) getServerVariable(_ context.Context, varName string) 
 }
 
 // CheckBinlogEnabled checks whether binlog is enabled for the current instance.
-func (svc *DbProgramMysql) CheckBinlogEnabled(ctx context.Context) error {
+func (svc *DbProgramMysql) CheckBinlogEnabled(ctx context.Context) (bool, error) {
 	value, err := svc.getServerVariable(ctx, "log_bin")
-	if err != nil {
-		return err
+	switch {
+	case err == nil:
+		return strings.ToUpper(value) == "ON", nil
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	default:
+		return false, err
 	}
-	if strings.ToUpper(value) != "ON" {
-		return errors.Errorf("数据库未启用 binlog")
-	}
-	return nil
 }
 
-// CheckBinlogRowFormat checks whether the binlog format is ROW.
-func (svc *DbProgramMysql) CheckBinlogRowFormat(ctx context.Context) error {
+// CheckBinlogRowFormat checks whether the binlog format is ROW or MIXED.
+func (svc *DbProgramMysql) CheckBinlogRowFormat(ctx context.Context) (bool, error) {
 	value, err := svc.getServerVariable(ctx, "binlog_format")
-	if err != nil {
-		return err
+	switch {
+	case err == nil:
+		value = strings.ToUpper(value)
+		return value == "ROW" || value == "MIXED", nil
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	default:
+		return false, err
 	}
-	if strings.ToUpper(value) != "ROW" {
-		return errors.Errorf("binlog 格式 %s 不是行模式", value)
-	}
-	return nil
 }
 
 func runCmd(cmd *exec.Cmd) error {

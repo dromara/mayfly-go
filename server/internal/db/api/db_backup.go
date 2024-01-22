@@ -55,13 +55,13 @@ func (d *DbBackup) Create(rc *req.Ctx) {
 	for _, dbName := range dbNames {
 		job := &entity.DbBackup{
 			DbJobBaseImpl: entity.NewDbBJobBase(db.InstanceId, entity.DbJobTypeBackup),
+			DbName:        dbName,
 			Enabled:       true,
 			Repeated:      backupForm.Repeated,
 			StartTime:     backupForm.StartTime,
 			Interval:      backupForm.Interval,
 			Name:          backupForm.Name,
 		}
-		job.DbName = dbName
 		jobs = append(jobs, job)
 	}
 	biz.ErrIsNilAppendErr(d.DbBackupApp.Create(rc.MetaCtx, jobs), "添加数据库备份任务失败: %v")
