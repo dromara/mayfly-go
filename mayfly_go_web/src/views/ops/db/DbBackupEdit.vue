@@ -23,7 +23,7 @@
                 </el-form-item>
 
                 <el-form-item prop="name" label="任务名称">
-                    <el-input v-model.number="state.form.name" type="text" placeholder="任务名称"></el-input>
+                    <el-input v-model="state.form.name" type="text" placeholder="任务名称"></el-input>
                 </el-form-item>
                 <el-form-item prop="startTime" label="开始时间">
                     <el-date-picker v-model="state.form.startTime" type="datetime" placeholder="开始时间" />
@@ -101,7 +101,7 @@ const state = reactive({
         id: 0,
         dbId: 0,
         dbNames: '',
-        name: null as any,
+        name: '',
         intervalDay: null,
         startTime: null as any,
         repeated: null as any,

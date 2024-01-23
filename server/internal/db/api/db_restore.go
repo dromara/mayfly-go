@@ -14,8 +14,8 @@ import (
 )
 
 type DbRestore struct {
-	DbRestoreApp *application.DbRestoreApp `inject:""`
-	DbApp        application.Db            `inject:""`
+	restoreApp *application.DbRestoreApp `inject:"DbRestoreApp"`
+	dbApp      application.Db            `inject:"DbApp"`
 }
 
 // GetPageList 获取数据库恢复任务
@@ -23,14 +23,14 @@ type DbRestore struct {
 func (d *DbRestore) GetPageList(rc *req.Ctx) {
 	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
-	db, err := d.DbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
+	db, err := d.dbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	var restores []vo.DbRestore
 	queryCond, page := ginx.BindQueryAndPage[*entity.DbJobQuery](rc.GinCtx, new(entity.DbJobQuery))
 	queryCond.DbInstanceId = db.InstanceId
 	queryCond.InDbNames = strings.Fields(db.Database)
-	res, err := d.DbRestoreApp.GetPageList(queryCond, page, &restores)
+	res, err := d.restoreApp.GetPageList(queryCond, page, &restores)
 	biz.ErrIsNilAppendErr(err, "获取数据库恢复任务失败: %v")
 	rc.ResData = res
 }
@@ -44,7 +44,7 @@ func (d *DbRestore) Create(rc *req.Ctx) {
 
 	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
-	db, err := d.DbApp.GetById(new(entity.Db), dbId, "instanceId")
+	db, err := d.dbApp.GetById(new(entity.Db), dbId, "instanceId")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	job := &entity.DbRestore{
@@ -59,7 +59,7 @@ func (d *DbRestore) Create(rc *req.Ctx) {
 		DbBackupHistoryName: restoreForm.DbBackupHistoryName,
 	}
 	job.DbName = restoreForm.DbName
-	biz.ErrIsNilAppendErr(d.DbRestoreApp.Create(rc.MetaCtx, job), "添加数据库恢复任务失败: %v")
+	biz.ErrIsNilAppendErr(d.restoreApp.Create(rc.MetaCtx, job), "添加数据库恢复任务失败: %v")
 }
 
 // Update 保存数据库恢复任务
@@ -73,7 +73,7 @@ func (d *DbRestore) Update(rc *req.Ctx) {
 	job.Id = restoreForm.Id
 	job.StartTime = restoreForm.StartTime
 	job.Interval = restoreForm.Interval
-	biz.ErrIsNilAppendErr(d.DbRestoreApp.Update(rc.MetaCtx, job), "保存数据库恢复任务失败: %v")
+	biz.ErrIsNilAppendErr(d.restoreApp.Update(rc.MetaCtx, job), "保存数据库恢复任务失败: %v")
 }
 
 func (d *DbRestore) walk(rc *req.Ctx, fn func(ctx context.Context, restoreId uint64) error) error {
@@ -98,21 +98,21 @@ func (d *DbRestore) walk(rc *req.Ctx, fn func(ctx context.Context, restoreId uin
 // Delete 删除数据库恢复任务
 // @router /api/dbs/:dbId/restores/:restoreId [DELETE]
 func (d *DbRestore) Delete(rc *req.Ctx) {
-	err := d.walk(rc, d.DbRestoreApp.Delete)
+	err := d.walk(rc, d.restoreApp.Delete)
 	biz.ErrIsNilAppendErr(err, "删除数据库恢复任务失败: %v")
 }
 
 // Enable 启用数据库恢复任务
 // @router /api/dbs/:dbId/restores/:restoreId/enable [PUT]
 func (d *DbRestore) Enable(rc *req.Ctx) {
-	err := d.walk(rc, d.DbRestoreApp.Enable)
+	err := d.walk(rc, d.restoreApp.Enable)
 	biz.ErrIsNilAppendErr(err, "启用数据库恢复任务失败: %v")
 }
 
 // Disable 禁用数据库恢复任务
 // @router /api/dbs/:dbId/restores/:restoreId/disable [PUT]
 func (d *DbRestore) Disable(rc *req.Ctx) {
-	err := d.walk(rc, d.DbRestoreApp.Disable)
+	err := d.walk(rc, d.restoreApp.Disable)
 	biz.ErrIsNilAppendErr(err, "禁用数据库恢复任务失败: %v")
 }
 
@@ -120,10 +120,10 @@ func (d *DbRestore) Disable(rc *req.Ctx) {
 // @router /api/dbs/:dbId/db-names-without-backup [GET]
 func (d *DbRestore) GetDbNamesWithoutRestore(rc *req.Ctx) {
 	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
-	db, err := d.DbApp.GetById(new(entity.Db), dbId, "instance_id", "database")
+	db, err := d.dbApp.GetById(new(entity.Db), dbId, "instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 	dbNames := strings.Fields(db.Database)
-	dbNamesWithoutRestore, err := d.DbRestoreApp.GetDbNamesWithoutRestore(db.InstanceId, dbNames)
+	dbNamesWithoutRestore, err := d.restoreApp.GetDbNamesWithoutRestore(db.InstanceId, dbNames)
 	biz.ErrIsNilAppendErr(err, "获取未配置定时备份的数据库名称失败: %v")
 	rc.ResData = dbNamesWithoutRestore
 }
@@ -134,7 +134,7 @@ func (d *DbRestore) GetHistoryPageList(rc *req.Ctx) {
 	queryCond := &entity.DbRestoreHistoryQuery{
 		DbRestoreId: uint64(ginx.PathParamInt(rc.GinCtx, "restoreId")),
 	}
-	res, err := d.DbRestoreApp.GetHistoryPageList(queryCond, ginx.GetPageParam(rc.GinCtx), new([]vo.DbRestoreHistory))
+	res, err := d.restoreApp.GetHistoryPageList(queryCond, ginx.GetPageParam(rc.GinCtx), new([]vo.DbRestoreHistory))
 	biz.ErrIsNilAppendErr(err, "获取数据库备份历史失败: %v")
 	rc.ResData = res
 }

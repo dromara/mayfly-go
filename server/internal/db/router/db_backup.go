@@ -12,10 +12,7 @@ import (
 func InitDbBackupRouter(router *gin.RouterGroup) {
 	dbs := router.Group("/dbs")
 
-	d := &api.DbBackup{
-		//DbBackupApp: application.GetDbBackupApp(),
-		//DbApp:       application.GetDbApp(),
-	}
+	d := &api.DbBackup{}
 	biz.ErrIsNil(ioc.Inject(d))
 
 	reqs := []*req.Conf{

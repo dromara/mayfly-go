@@ -12,10 +12,7 @@ import (
 func InitDbRestoreRouter(router *gin.RouterGroup) {
 	dbs := router.Group("/dbs")
 
-	d := &api.DbRestore{
-		//DbRestoreApp: application.GetDbRestoreApp(),
-		//DbApp:        application.GetDbApp(),
-	}
+	d := &api.DbRestore{}
 	biz.ErrIsNil(ioc.Inject(d))
 
 	reqs := []*req.Conf{
