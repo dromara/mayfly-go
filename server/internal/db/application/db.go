@@ -98,9 +98,13 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 	// 比较新旧数据库列表，需要将移除的数据库相关联的信息删除
 	_, delDb, _ := collx.ArrayCompare(newDbs, oldDbs)
 
-	for _, v := range delDb {
+	// 先简单关闭可能存在的旧库连接（可能改了关联标签导致DbConn.Info.TagPath与修改后的标签不一致、导致操作权限校验出错）
+	for _, v := range oldDbs {
 		// 关闭数据库连接
 		dbm.CloseDb(dbEntity.Id, v)
+	}
+
+	for _, v := range delDb {
 		// 删除该库关联的所有sql记录
 		d.DbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: dbId, Db: v})
 	}

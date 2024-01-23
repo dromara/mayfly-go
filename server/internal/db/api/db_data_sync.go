@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/base64"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
@@ -73,7 +72,7 @@ func (d *DataSyncTask) DeleteTask(rc *req.Ctx) {
 func (d *DataSyncTask) ChangeStatus(rc *req.Ctx) {
 	form := &form.DataSyncTaskStatusForm{}
 	task := ginx.BindJsonAndCopyTo[*entity.DataSyncTask](rc.GinCtx, form, new(entity.DataSyncTask))
-	_ = d.DataSyncTaskApp.UpdateById(context.Background(), task)
+	_ = d.DataSyncTaskApp.UpdateById(rc.MetaCtx, task)
 
 	if task.Status == entity.DataSyncTaskStatusEnable {
 		task, err := d.DataSyncTaskApp.GetById(new(entity.DataSyncTask), task.Id)
@@ -99,7 +98,7 @@ func (d *DataSyncTask) Stop(rc *req.Ctx) {
 	task := new(entity.DataSyncTask)
 	task.Id = taskId
 	task.RunningState = entity.DataSyncTaskRunStateStop
-	_ = d.DataSyncTaskApp.UpdateById(context.Background(), task)
+	_ = d.DataSyncTaskApp.UpdateById(rc.MetaCtx, task)
 }
 
 func (d *DataSyncTask) GetTask(rc *req.Ctx) {
