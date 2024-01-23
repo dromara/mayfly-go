@@ -14,8 +14,8 @@ import (
 )
 
 type DbRestore struct {
-	DbRestoreApp *application.DbRestoreApp
-	DbApp        application.Db
+	DbRestoreApp *application.DbRestoreApp `inject:""`
+	DbApp        application.Db            `inject:""`
 }
 
 // GetPageList 获取数据库恢复任务

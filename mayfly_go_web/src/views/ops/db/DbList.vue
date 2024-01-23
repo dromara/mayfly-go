@@ -62,8 +62,15 @@
                         <el-dropdown-menu>
                             <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
                             <el-dropdown-item :command="{ type: 'dumpDb', data }" v-if="supportAction('dumpDb', data.type)"> 导出 </el-dropdown-item>
-                            <el-dropdown-item :command="{ type: 'dbBackup', data }" v-if="supportAction('dbBackup', data.type)"> 备份 </el-dropdown-item>
-                            <el-dropdown-item :command="{ type: 'dbRestore', data }" v-if="supportAction('dbRestore', data.type)"> 恢复 </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'backupDb', data }" v-if="actionBtns[perms.backupDb] && supportAction('backupDb', data.type)">
+                                备份
+                            </el-dropdown-item>
+                            <el-dropdown-item
+                                :command="{ type: 'restoreDb', data }"
+                                v-if="actionBtns[perms.restoreDb] && supportAction('restoreDb', data.type)"
+                            >
+                                恢复
+                            </el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
                 </el-dropdown>
@@ -193,6 +200,8 @@ const perms = {
     base: 'db',
     saveDb: 'db:save',
     delDb: 'db:del',
+    backupDb: 'db:backup',
+    restoreDb: 'db:restore',
 };
 
 const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Db.value), SearchItem.slot('instanceId', '实例', 'instanceSelect')];
@@ -208,7 +217,8 @@ const columns = ref([
 ]);
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns = hasPerms([perms.base, perms.saveDb]);
+// const actionBtns = hasPerms([perms.base, perms.saveDb]);
+const actionBtns = hasPerms(Object.values(perms));
 const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(220).fixedRight().alignCenter();
 
 const route = useRoute();
@@ -345,11 +355,11 @@ const handleMoreActionCommand = (commond: any) => {
             onDumpDbs(data);
             return;
         }
-        case 'dbBackup': {
+        case 'backupDb': {
             onShowDbBackupDialog(data);
             return;
         }
-        case 'dbRestore': {
+        case 'restoreDb': {
             onShowDbRestoreDialog(data);
             return;
         }
@@ -455,7 +465,7 @@ const supportAction = (action: string, dbType: string): boolean => {
     switch (dbType) {
         case DbType.mysql:
         case DbType.mariadb:
-            actions = ['dumpDb', 'dbBackup', 'dbRestore'];
+            actions = ['dumpDb', 'backupDb', 'restoreDb'];
     }
     return actions.includes(action);
 };

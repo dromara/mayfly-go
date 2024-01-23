@@ -10,10 +10,15 @@ func Init() {
 	ioc.Register(newDbRepo(), ioc.WithComponentName("DbRepo"))
 	ioc.Register(newDbSqlRepo(), ioc.WithComponentName("DbSqlRepo"))
 	ioc.Register(newDbSqlExecRepo(), ioc.WithComponentName("DbSqlExecRepo"))
-	ioc.Register(NewDbBackupHistoryRepo(), ioc.WithComponentName("DbBackupHistoryRepo"))
-	ioc.Register(NewDbRestoreHistoryRepo(), ioc.WithComponentName("DbRestoreHistoryRepo"))
 	ioc.Register(newDataSyncTaskRepo(), ioc.WithComponentName("DbDataSyncTaskRepo"))
 	ioc.Register(newDataSyncLogRepo(), ioc.WithComponentName("DbDataSyncLogRepo"))
+
+	ioc.Register(NewDbBackupRepo(), ioc.WithComponentName("DbBackupRepo"))
+	ioc.Register(NewDbBackupHistoryRepo(), ioc.WithComponentName("DbBackupHistoryRepo"))
+	ioc.Register(NewDbRestoreRepo(), ioc.WithComponentName("DbRestoreRepo"))
+	ioc.Register(NewDbRestoreHistoryRepo(), ioc.WithComponentName("DbRestoreHistoryRepo"))
+	ioc.Register(NewDbBinlogRepo(), ioc.WithComponentName("DbBinlogRepo"))
+	ioc.Register(NewDbBinlogHistoryRepo(), ioc.WithComponentName("DbBinlogHistoryRepo"))
 }
 
 func GetInstanceRepo() repository.Instance {

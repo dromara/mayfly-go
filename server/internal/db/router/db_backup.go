@@ -2,7 +2,8 @@ package router
 
 import (
 	"mayfly-go/internal/db/api"
-	"mayfly-go/internal/db/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -12,9 +13,10 @@ func InitDbBackupRouter(router *gin.RouterGroup) {
 	dbs := router.Group("/dbs")
 
 	d := &api.DbBackup{
-		DbBackupApp: application.GetDbBackupApp(),
-		DbApp:       application.GetDbApp(),
+		//DbBackupApp: application.GetDbBackupApp(),
+		//DbApp:       application.GetDbApp(),
 	}
+	biz.ErrIsNil(ioc.Inject(d))
 
 	reqs := []*req.Conf{
 		// 获取数据库备份任务

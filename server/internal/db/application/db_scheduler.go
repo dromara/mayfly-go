@@ -21,31 +21,23 @@ const (
 type dbScheduler struct {
 	mutex              sync.Mutex
 	runner             *runner.Runner[entity.DbJob]
-	dbApp              Db
-	backupRepo         repository.DbBackup
-	backupHistoryRepo  repository.DbBackupHistory
-	restoreRepo        repository.DbRestore
-	restoreHistoryRepo repository.DbRestoreHistory
-	binlogRepo         repository.DbBinlog
-	binlogHistoryRepo  repository.DbBinlogHistory
+	DbApp              Db                          `inject:"DbApp"`
+	BackupRepo         repository.DbBackup         `inject:"DbBackupRepo"`
+	BackupHistoryRepo  repository.DbBackupHistory  `inject:"DbBackupHistoryRepo"`
+	RestoreRepo        repository.DbRestore        `inject:"DbRestoreRepo"`
+	RestoreHistoryRepo repository.DbRestoreHistory `inject:"DbRestoreHistoryRepo"`
+	BinlogRepo         repository.DbBinlog         `inject:"DbBinlogRepo"`
+	BinlogHistoryRepo  repository.DbBinlogHistory  `inject:"DbBinlogHistoryRepo"`
 	binlogTimes        map[uint64]time.Time
 }
 
-func newDbScheduler(repositories *repository.Repositories) (*dbScheduler, error) {
-	scheduler := &dbScheduler{
-		dbApp:              GetDbApp(),
-		backupRepo:         repositories.Backup,
-		backupHistoryRepo:  repositories.BackupHistory,
-		restoreRepo:        repositories.Restore,
-		restoreHistoryRepo: repositories.RestoreHistory,
-		binlogRepo:         repositories.Binlog,
-		binlogHistoryRepo:  repositories.BinlogHistory,
-	}
+func newDbScheduler() *dbScheduler {
+	scheduler := &dbScheduler{}
 	scheduler.runner = runner.NewRunner[entity.DbJob](maxRunning, scheduler.runJob,
 		runner.WithScheduleJob[entity.DbJob](scheduler.scheduleJob),
 		runner.WithRunnableJob[entity.DbJob](scheduler.runnableJob),
 	)
-	return scheduler, nil
+	return scheduler
 }
 
 func (s *dbScheduler) scheduleJob(job entity.DbJob) (time.Time, error) {
@@ -55,11 +47,11 @@ func (s *dbScheduler) scheduleJob(job entity.DbJob) (time.Time, error) {
 func (s *dbScheduler) repo(typ entity.DbJobType) repository.DbJob {
 	switch typ {
 	case entity.DbJobTypeBackup:
-		return s.backupRepo
+		return s.BackupRepo
 	case entity.DbJobTypeRestore:
-		return s.restoreRepo
+		return s.RestoreRepo
 	case entity.DbJobTypeBinlog:
-		return s.binlogRepo
+		return s.BinlogRepo
 	default:
 		panic(errors.New(fmt.Sprintf("无效的数据库任务类型: %v", typ)))
 	}
@@ -185,7 +177,7 @@ func (s *dbScheduler) backupMysql(ctx context.Context, job entity.DbJob) error {
 		DbInstanceId: backup.DbInstanceId,
 		DbName:       backup.DbName,
 	}
-	conn, err := s.dbApp.GetDbConnByInstanceId(backup.DbInstanceId)
+	conn, err := s.DbApp.GetDbConnByInstanceId(backup.DbInstanceId)
 	if err != nil {
 		return err
 	}
@@ -205,7 +197,7 @@ func (s *dbScheduler) backupMysql(ctx context.Context, job entity.DbJob) error {
 	history.BinlogSequence = binlogInfo.Sequence
 	history.BinlogPosition = binlogInfo.Position
 
-	if err := s.backupHistoryRepo.Insert(ctx, history); err != nil {
+	if err := s.BackupHistoryRepo.Insert(ctx, history); err != nil {
 		return err
 	}
 	return nil
@@ -213,7 +205,7 @@ func (s *dbScheduler) backupMysql(ctx context.Context, job entity.DbJob) error {
 
 func (s *dbScheduler) restoreMysql(ctx context.Context, job entity.DbJob) error {
 	restore := job.(*entity.DbRestore)
-	conn, err := s.dbApp.GetDbConnByInstanceId(restore.DbInstanceId)
+	conn, err := s.DbApp.GetDbConnByInstanceId(restore.DbInstanceId)
 	if err != nil {
 		return err
 	}
@@ -231,14 +223,14 @@ func (s *dbScheduler) restoreMysql(ctx context.Context, job entity.DbJob) error 
 		}
 
 		latestBinlogSequence, earliestBackupSequence := int64(-1), int64(-1)
-		binlogHistory, ok, err := s.binlogHistoryRepo.GetLatestHistory(restore.DbInstanceId)
+		binlogHistory, ok, err := s.BinlogHistoryRepo.GetLatestHistory(restore.DbInstanceId)
 		if err != nil {
 			return err
 		}
 		if ok {
 			latestBinlogSequence = binlogHistory.Sequence
 		} else {
-			backupHistory, ok, err := s.backupHistoryRepo.GetEarliestHistory(restore.DbInstanceId)
+			backupHistory, ok, err := s.BackupHistoryRepo.GetEarliestHistory(restore.DbInstanceId)
 			if err != nil {
 				return err
 			}
@@ -251,7 +243,7 @@ func (s *dbScheduler) restoreMysql(ctx context.Context, job entity.DbJob) error 
 		if err != nil {
 			return err
 		}
-		if err := s.binlogHistoryRepo.InsertWithBinlogFiles(ctx, restore.DbInstanceId, binlogFiles); err != nil {
+		if err := s.BinlogHistoryRepo.InsertWithBinlogFiles(ctx, restore.DbInstanceId, binlogFiles); err != nil {
 			return err
 		}
 		if err := s.restorePointInTime(ctx, dbProgram, restore); err != nil {
@@ -267,7 +259,7 @@ func (s *dbScheduler) restoreMysql(ctx context.Context, job entity.DbJob) error 
 		CreateTime:  time.Now(),
 		DbRestoreId: restore.Id,
 	}
-	if err := s.restoreHistoryRepo.Insert(ctx, history); err != nil {
+	if err := s.RestoreHistoryRepo.Insert(ctx, history); err != nil {
 		return err
 	}
 	return nil
@@ -338,7 +330,7 @@ func relatedToBinlog(typ entity.DbJobType) bool {
 }
 
 func (s *dbScheduler) restorePointInTime(ctx context.Context, program dbi.DbProgram, job *entity.DbRestore) error {
-	binlogHistory, err := s.binlogHistoryRepo.GetHistoryByTime(job.DbInstanceId, job.PointInTime.Time)
+	binlogHistory, err := s.BinlogHistoryRepo.GetHistoryByTime(job.DbInstanceId, job.PointInTime.Time)
 	if err != nil {
 		return err
 	}
@@ -351,7 +343,7 @@ func (s *dbScheduler) restorePointInTime(ctx context.Context, program dbi.DbProg
 		Sequence: binlogHistory.Sequence,
 		Position: position,
 	}
-	backupHistory, err := s.backupHistoryRepo.GetLatestHistory(job.DbInstanceId, job.DbName, target)
+	backupHistory, err := s.BackupHistoryRepo.GetLatestHistory(job.DbInstanceId, job.DbName, target)
 	if err != nil {
 		return err
 	}
@@ -360,7 +352,7 @@ func (s *dbScheduler) restorePointInTime(ctx context.Context, program dbi.DbProg
 		Sequence: backupHistory.BinlogSequence,
 		Position: backupHistory.BinlogPosition,
 	}
-	binlogHistories, err := s.binlogHistoryRepo.GetHistories(job.DbInstanceId, start, target)
+	binlogHistories, err := s.BinlogHistoryRepo.GetHistories(job.DbInstanceId, start, target)
 	if err != nil {
 		return err
 	}
@@ -397,7 +389,7 @@ func (s *dbScheduler) restorePointInTime(ctx context.Context, program dbi.DbProg
 
 func (s *dbScheduler) restoreBackupHistory(ctx context.Context, program dbi.DbProgram, job *entity.DbRestore) error {
 	backupHistory := &entity.DbBackupHistory{}
-	if err := s.backupHistoryRepo.GetById(backupHistory, job.DbBackupHistoryId); err != nil {
+	if err := s.BackupHistoryRepo.GetById(backupHistory, job.DbBackupHistoryId); err != nil {
 		return err
 	}
 	return program.RestoreBackupHistory(ctx, backupHistory.DbName, backupHistory.DbBackupId, backupHistory.Uuid)
@@ -406,14 +398,14 @@ func (s *dbScheduler) restoreBackupHistory(ctx context.Context, program dbi.DbPr
 func (s *dbScheduler) fetchBinlogMysql(ctx context.Context, backup entity.DbJob) error {
 	instanceId := backup.GetJobBase().DbInstanceId
 	latestBinlogSequence, earliestBackupSequence := int64(-1), int64(-1)
-	binlogHistory, ok, err := s.binlogHistoryRepo.GetLatestHistory(instanceId)
+	binlogHistory, ok, err := s.BinlogHistoryRepo.GetLatestHistory(instanceId)
 	if err != nil {
 		return err
 	}
 	if ok {
 		latestBinlogSequence = binlogHistory.Sequence
 	} else {
-		backupHistory, ok, err := s.backupHistoryRepo.GetEarliestHistory(instanceId)
+		backupHistory, ok, err := s.BackupHistoryRepo.GetEarliestHistory(instanceId)
 		if err != nil {
 			return err
 		}
@@ -422,7 +414,7 @@ func (s *dbScheduler) fetchBinlogMysql(ctx context.Context, backup entity.DbJob)
 		}
 		earliestBackupSequence = backupHistory.BinlogSequence
 	}
-	conn, err := s.dbApp.GetDbConnByInstanceId(instanceId)
+	conn, err := s.DbApp.GetDbConnByInstanceId(instanceId)
 	if err != nil {
 		return err
 	}
@@ -431,5 +423,5 @@ func (s *dbScheduler) fetchBinlogMysql(ctx context.Context, backup entity.DbJob)
 	if err != nil {
 		return err
 	}
-	return s.binlogHistoryRepo.InsertWithBinlogFiles(ctx, instanceId, binlogFiles)
+	return s.BinlogHistoryRepo.InsertWithBinlogFiles(ctx, instanceId, binlogFiles)
 }

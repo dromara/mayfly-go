@@ -14,8 +14,8 @@ import (
 )
 
 type DbBackup struct {
-	DbBackupApp *application.DbBackupApp
-	DbApp       application.Db
+	DbBackupApp *application.DbBackupApp `inject:""`
+	DbApp       application.Db           `inject:""`
 }
 
 // todo: 鉴权，避免未经授权进行数据库备份和恢复

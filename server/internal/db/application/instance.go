@@ -35,8 +35,8 @@ type instanceAppImpl struct {
 }
 
 // 注入DbInstanceRepo
-func (i *instanceAppImpl) InjectDbInstanceRepo(repo repository.Instance) {
-	i.Repo = repo
+func (app *instanceAppImpl) InjectDbInstanceRepo(repo repository.Instance) {
+	app.Repo = repo
 }
 
 // GetPageList 分页获取数据库实例

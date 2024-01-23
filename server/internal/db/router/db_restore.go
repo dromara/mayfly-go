@@ -2,7 +2,8 @@ package router
 
 import (
 	"mayfly-go/internal/db/api"
-	"mayfly-go/internal/db/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -12,9 +13,10 @@ func InitDbRestoreRouter(router *gin.RouterGroup) {
 	dbs := router.Group("/dbs")
 
 	d := &api.DbRestore{
-		DbRestoreApp: application.GetDbRestoreApp(),
-		DbApp:        application.GetDbApp(),
+		//DbRestoreApp: application.GetDbRestoreApp(),
+		//DbApp:        application.GetDbApp(),
 	}
+	biz.ErrIsNil(ioc.Inject(d))
 
 	reqs := []*req.Conf{
 		// 获取数据库备份任务

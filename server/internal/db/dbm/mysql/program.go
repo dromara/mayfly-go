@@ -480,7 +480,7 @@ func (svc *DbProgramMysql) GetBinlogEventPositionAtOrAfterTime(ctx context.Conte
 			return posParsed, nil
 		}
 	}
-	return 0, errors.Errorf("在 %s 之后没有 binlog 事件", targetTime.Format(time.DateTime))
+	return 0, errors.Errorf("在 %s 之后没有 binlog 事件", targetTime.Local().Format(time.DateTime))
 }
 
 // ReplayBinlog replays the binlog for `originDatabase` from `startBinlogInfo.Position` to `targetTs`, read binlog from `binlogDir`.

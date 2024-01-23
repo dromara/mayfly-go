@@ -11,32 +11,26 @@ import (
 )
 
 type DbBinlogApp struct {
-	binlogRepo        repository.DbBinlog
-	binlogHistoryRepo repository.DbBinlogHistory
-	backupRepo        repository.DbBackup
-	backupHistoryRepo repository.DbBackupHistory
-	dbApp             Db
+	DbApp             Db                         `inject:"DbApp"`
+	Scheduler         *dbScheduler               `inject:"DbScheduler"`
+	BinlogRepo        repository.DbBinlog        `inject:"DbBinlogRepo"`
+	BinlogHistoryRepo repository.DbBinlogHistory `inject:"DbBinlogHistoryRepo"`
+	BackupRepo        repository.DbBackup        `inject:"DbBackupRepo"`
+	BackupHistoryRepo repository.DbBackupHistory `inject:"DbBackupHistoryRepo"`
 	context           context.Context
 	cancel            context.CancelFunc
 	waitGroup         sync.WaitGroup
-	scheduler         *dbScheduler
 }
 
-func newDbBinlogApp(repositories *repository.Repositories, dbApp Db, scheduler *dbScheduler) (*DbBinlogApp, error) {
+func newDbBinlogApp() *DbBinlogApp {
 	ctx, cancel := context.WithCancel(context.Background())
 	svc := &DbBinlogApp{
-		binlogRepo:        repositories.Binlog,
-		binlogHistoryRepo: repositories.BinlogHistory,
-		backupRepo:        repositories.Backup,
-		backupHistoryRepo: repositories.BackupHistory,
-		dbApp:             dbApp,
-		scheduler:         scheduler,
-		context:           ctx,
-		cancel:            cancel,
+		context: ctx,
+		cancel:  cancel,
 	}
 	svc.waitGroup.Add(1)
 	go svc.run()
-	return svc, nil
+	return svc
 }
 
 func (app *DbBinlogApp) run() {
@@ -54,7 +48,7 @@ func (app *DbBinlogApp) run() {
 		if app.closed() {
 			break
 		}
-		if err := app.scheduler.AddJob(app.context, false, entity.DbJobTypeBinlog, jobs); err != nil {
+		if err := app.Scheduler.AddJob(app.context, false, entity.DbJobTypeBinlog, jobs); err != nil {
 			logx.Error("DbBinlogApp: 添加 BINLOG 同步任务失败: ", err.Error())
 		}
 		timex.SleepWithContext(app.context, entity.BinlogDownloadInterval)
@@ -63,7 +57,7 @@ func (app *DbBinlogApp) run() {
 
 func (app *DbBinlogApp) loadJobs() ([]*entity.DbBinlog, error) {
 	var instanceIds []uint64
-	if err := app.backupRepo.ListDbInstances(true, true, &instanceIds); err != nil {
+	if err := app.BackupRepo.ListDbInstances(true, true, &instanceIds); err != nil {
 		return nil, err
 	}
 	jobs := make([]*entity.DbBinlog, 0, len(instanceIds))
@@ -90,7 +84,7 @@ func (app *DbBinlogApp) closed() bool {
 }
 
 func (app *DbBinlogApp) AddJobIfNotExists(ctx context.Context, job *entity.DbBinlog) error {
-	if err := app.binlogRepo.AddJobIfNotExists(ctx, job); err != nil {
+	if err := app.BinlogRepo.AddJobIfNotExists(ctx, job); err != nil {
 		return err
 	}
 	if job.Id == 0 {
@@ -101,7 +95,7 @@ func (app *DbBinlogApp) AddJobIfNotExists(ctx context.Context, job *entity.DbBin
 
 func (app *DbBinlogApp) Delete(ctx context.Context, jobId uint64) error {
 	// todo: 删除 Binlog 历史文件
-	if err := app.binlogRepo.DeleteById(ctx, jobId); err != nil {
+	if err := app.BinlogRepo.DeleteById(ctx, jobId); err != nil {
 		return err
 	}
 	return nil
