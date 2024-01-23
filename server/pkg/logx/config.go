@@ -1,20 +1,25 @@
 package logx
 
 import (
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path"
 	"strings"
+
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 type Config struct {
 	Level     string
 	Type      string // 日志类型；text、json
 	AddSource bool   // 是否记录调用方法
-	Filename  string
-	Filepath  string
+
+	Filename string // 日志文件名
+	Filepath string // 日志路径
+	MaxSize  int    // 日志文件的最大大小（以兆字节为单位）。当日志文件大小达到该值时，将触发切割操作，默认为 100 兆字节
+	MaxAge   int    // 根据文件名中的时间戳，设置保留旧日志文件的最大天数。一天被定义为 24 小时
+	Compress bool   // 是否使用 gzip 压缩方式压缩轮转后的日志文件
 
 	writer io.Writer
 }
@@ -24,15 +29,18 @@ func (c *Config) GetLogOut() io.Writer {
 	if c.writer != nil {
 		return c.writer
 	}
-	writer := os.Stdout
+	var writer io.Writer
+	writer = os.Stdout
 	// 根据配置文件设置日志级别
 	if c.Filepath != "" && c.Filename != "" {
 		// 写入文件
-		file, err := os.OpenFile(path.Join(c.Filepath, c.Filename), os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModeAppend|0666)
-		if err != nil {
-			panic(fmt.Sprintf("创建日志文件失败: %s", err.Error()))
+		writer = &lumberjack.Logger{
+			Filename:  path.Join(c.Filepath, c.Filename),
+			MaxSize:   c.MaxSize,
+			MaxAge:    c.MaxAge,
+			Compress:  c.Compress,
+			LocalTime: true,
 		}
-		writer = file
 	}
 
 	c.writer = writer

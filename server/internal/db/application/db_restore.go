@@ -8,13 +8,9 @@ import (
 )
 
 type DbRestoreApp struct {
-	dbApp              Db                          `inject:"DbApp"`
 	scheduler          *dbScheduler                `inject:"DbScheduler"`
-	instanceRepo       repository.Instance         `inject:"DbInstanceRepo"`
-	backupHistoryRepo  repository.DbBackupHistory  `inject:"DbBackupHistoryRepo"`
 	restoreRepo        repository.DbRestore        `inject:"DbRestoreRepo"`
 	restoreHistoryRepo repository.DbRestoreHistory `inject:"DbRestoreHistoryRepo"`
-	binlogHistoryRepo  repository.DbBinlogHistory  `inject:"DbBinlogHistoryRepo"`
 }
 
 func (app *DbRestoreApp) Init() error {

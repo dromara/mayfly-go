@@ -37,12 +37,19 @@ sqlite:
 #   password: 111049
 #   db: 0
 log:
-   # 日志等级, debug, info, warn, error
+  # 日志等级, debug, info, warn, error
   level: info
   # 日志格式类型, text/json
   type: text
   # 是否记录方法调用栈信息
   add-source: false
+  # 日志文件配置
   # file:
-  #   path: ./
+  #   path: ./log
   #   name: mayfly-go.log
+  #   # 日志文件的最大大小（以兆字节为单位）。当日志文件大小达到该值时，将触发切割操作
+  #   max-size: 500
+  #   # 根据文件名中的时间戳，设置保留旧日志文件的最大天数
+  #   max-age: 60
+  #   # 是否使用 gzip 压缩方式压缩轮转后的日志文件
+  #   compress: true

@@ -15,7 +15,12 @@ func InitDbRouter(router *gin.RouterGroup) {
 	d := new(api.Db)
 	biz.ErrIsNil(ioc.Inject(d))
 
+	dashbord := new(api.Dashbord)
+	biz.ErrIsNil(ioc.Inject(dashbord))
+
 	reqs := [...]*req.Conf{
+		req.NewGet("dashbord", dashbord.Dashbord),
+
 		// 获取数据库列表
 		req.NewGet("", d.Dbs),
 

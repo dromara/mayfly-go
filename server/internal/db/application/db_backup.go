@@ -3,16 +3,15 @@ package application
 import (
 	"context"
 	"encoding/binary"
-	"github.com/google/uuid"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/model"
+
+	"github.com/google/uuid"
 )
 
 type DbBackupApp struct {
-	dbApp             Db                         `inject:"DbApp"`
 	scheduler         *dbScheduler               `inject:"DbScheduler"`
-	instanceRepo      repository.Instance        `inject:"DbInstanceRepo"`
 	backupRepo        repository.DbBackup        `inject:"DbBackupRepo"`
 	backupHistoryRepo repository.DbBackupHistory `inject:"DbBackupHistoryRepo"`
 }

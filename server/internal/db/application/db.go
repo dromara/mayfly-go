@@ -43,9 +43,9 @@ type Db interface {
 type dbAppImpl struct {
 	base.AppImpl[*entity.Db, repository.Db]
 
-	DbSqlRepo     repository.DbSql `inject:""`
-	DbInstanceApp Instance         `inject:""`
-	TagApp        tagapp.TagTree   `inject:"TagTreeApp"`
+	dbSqlRepo     repository.DbSql `inject:"DbSqlRepo"`
+	dbInstanceApp Instance         `inject:"DbInstanceApp"`
+	tagApp        tagapp.TagTree   `inject:"TagTreeApp"`
 }
 
 // 注入DbRepo
@@ -78,7 +78,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, dbEntity)
 		}, func(ctx context.Context) error {
-			return d.TagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeDb, tagIds)
+			return d.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeDb, tagIds)
 		})
 	}
 
@@ -106,13 +106,13 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 
 	for _, v := range delDb {
 		// 删除该库关联的所有sql记录
-		d.DbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: dbId, Db: v})
+		d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: dbId, Db: v})
 	}
 
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.UpdateById(ctx, dbEntity)
 	}, func(ctx context.Context) error {
-		return d.TagApp.RelateResource(ctx, old.Code, consts.TagResourceTypeDb, tagIds)
+		return d.tagApp.RelateResource(ctx, old.Code, consts.TagResourceTypeDb, tagIds)
 	})
 }
 
@@ -133,10 +133,10 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 		},
 		func(ctx context.Context) error {
 			// 删除该库下用户保存的所有sql信息
-			return d.DbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: id})
+			return d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: id})
 		}, func(ctx context.Context) error {
 			var tagIds []uint64
-			return d.TagApp.RelateResource(ctx, db.Code, consts.TagResourceTypeDb, tagIds)
+			return d.tagApp.RelateResource(ctx, db.Code, consts.TagResourceTypeDb, tagIds)
 		})
 }
 
@@ -147,7 +147,7 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 			return nil, errorx.NewBiz("数据库信息不存在")
 		}
 
-		instance, err := d.DbInstanceApp.GetById(new(entity.DbInstance), db.InstanceId)
+		instance, err := d.dbInstanceApp.GetById(new(entity.DbInstance), db.InstanceId)
 		if err != nil {
 			return nil, errorx.NewBiz("数据库实例不存在")
 		}
@@ -168,7 +168,7 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 		if err := instance.PwdDecrypt(); err != nil {
 			return nil, errorx.NewBiz(err.Error())
 		}
-		return toDbInfo(instance, dbId, dbName, d.TagApp.ListTagPathByResource(consts.TagResourceTypeDb, db.Code)...), nil
+		return toDbInfo(instance, dbId, dbName, d.tagApp.ListTagPathByResource(consts.TagResourceTypeDb, db.Code)...), nil
 	})
 }
 

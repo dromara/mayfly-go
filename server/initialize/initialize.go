@@ -39,7 +39,7 @@ func InitOther() {
 
 	// 调用各个默认的初始化函数
 	for _, initFunc := range initFuncs {
-		initFunc()
+		go initFunc()
 	}
 	initFuncs = nil
 }

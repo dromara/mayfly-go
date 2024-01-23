@@ -15,9 +15,14 @@ func InitMongoRouter(router *gin.RouterGroup) {
 	ma := new(api.Mongo)
 	biz.ErrIsNil(ioc.Inject(ma))
 
+	dashbord := new(api.Dashbord)
+	biz.ErrIsNil(ioc.Inject(dashbord))
+
 	saveDataPerm := req.NewPermission("mongo:data:save")
 
 	reqs := [...]*req.Conf{
+		req.NewGet("dashbord", dashbord.Dashbord),
+
 		// 获取所有mongo列表
 		req.NewGet("", ma.Mongos),
 

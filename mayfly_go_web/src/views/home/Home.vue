@@ -73,12 +73,28 @@ const currentTime = computed(() => {
 
 // 初始化数字滚动
 const initNumCountUp = async () => {
-    const res: any = await indexApi.getIndexCount.request();
-    nextTick(() => {
-        new CountUp('mongoNum', res.mongoNum).start();
-        new CountUp('machineNum', res.machineNum).start();
-        new CountUp('dbNum', res.dbNum).start();
-        new CountUp('redisNum', res.redisNum).start();
+    indexApi.machineDashbord.request().then((res: any) => {
+        nextTick(() => {
+            new CountUp('machineNum', res.machineNum).start();
+        });
+    });
+
+    indexApi.dbDashbord.request().then((res: any) => {
+        nextTick(() => {
+            new CountUp('dbNum', res.dbNum).start();
+        });
+    });
+
+    indexApi.redisDashbord.request().then((res: any) => {
+        nextTick(() => {
+            new CountUp('redisNum', res.redisNum).start();
+        });
+    });
+
+    indexApi.mongoDashbord.request().then((res: any) => {
+        nextTick(() => {
+            new CountUp('mongoNum', res.mongoNum).start();
+        });
     });
 };
 

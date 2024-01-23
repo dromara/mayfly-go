@@ -15,12 +15,17 @@ func InitRedisRouter(router *gin.RouterGroup) {
 	rs := new(api.Redis)
 	biz.ErrIsNil(ioc.Inject(rs))
 
+	dashbord := new(api.Dashbord)
+	biz.ErrIsNil(ioc.Inject(dashbord))
+
 	// 保存数据权限
 	saveDataP := req.NewPermission("redis:data:save")
 	// 删除数据权限
 	deleteDataP := req.NewPermission("redis:data:del")
 
 	reqs := [...]*req.Conf{
+		req.NewGet("dashbord", dashbord.Dashbord),
+
 		// 获取redis list
 		req.NewGet("", rs.RedisList),
 

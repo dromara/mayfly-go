@@ -34,7 +34,7 @@ type Mongo interface {
 type mongoAppImpl struct {
 	base.AppImpl[*entity.Mongo, repository.Mongo]
 
-	TagApp tagapp.TagTree `inject:"TagTreeApp"`
+	tagApp tagapp.TagTree `inject:"TagTreeApp"`
 }
 
 // 注入MongoRepo
@@ -60,7 +60,7 @@ func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 		},
 		func(ctx context.Context) error {
 			var tagIds []uint64
-			return d.TagApp.RelateResource(ctx, mongoEntity.Code, consts.TagResourceTypeMongo, tagIds)
+			return d.tagApp.RelateResource(ctx, mongoEntity.Code, consts.TagResourceTypeMongo, tagIds)
 		})
 }
 
@@ -88,7 +88,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, m)
 		}, func(ctx context.Context) error {
-			return d.TagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeMongo, tagIds)
+			return d.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeMongo, tagIds)
 		})
 	}
 
@@ -106,7 +106,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.UpdateById(ctx, m)
 	}, func(ctx context.Context) error {
-		return d.TagApp.RelateResource(ctx, oldMongo.Code, consts.TagResourceTypeMongo, tagIds)
+		return d.tagApp.RelateResource(ctx, oldMongo.Code, consts.TagResourceTypeMongo, tagIds)
 	})
 }
 
@@ -116,6 +116,6 @@ func (d *mongoAppImpl) GetMongoConn(id uint64) (*mgm.MongoConn, error) {
 		if err != nil {
 			return nil, errorx.NewBiz("mongo信息不存在")
 		}
-		return me.ToMongoInfo(d.TagApp.ListTagPathByResource(consts.TagResourceTypeMongo, me.Code)...), nil
+		return me.ToMongoInfo(d.tagApp.ListTagPathByResource(consts.TagResourceTypeMongo, me.Code)...), nil
 	})
 }

@@ -109,11 +109,15 @@ func (c *Container) injectWithField(objValue reflect.Value) error {
 		}
 
 		fieldValue := objValue.Field(i)
-		fieldPtrValue := reflect.NewAt(fieldValue.Type(), fieldValue.Addr().UnsafePointer())
-		fieldValue = fieldPtrValue.Elem()
 		if !fieldValue.IsValid() || !fieldValue.CanSet() {
-			return fmt.Errorf("%s error: 字段无效或为不可导出类型", injectInfo)
+			// 不可导出变量处理
+			fieldPtrValue := reflect.NewAt(fieldValue.Type(), fieldValue.Addr().UnsafePointer())
+			fieldValue = fieldPtrValue.Elem()
+			if !fieldValue.IsValid() || !fieldValue.CanSet() {
+				return fmt.Errorf("%s error: 字段无效或为不可导出类型", injectInfo)
+			}
 		}
+
 		fieldValue.Set(reflect.ValueOf(component))
 	}
 

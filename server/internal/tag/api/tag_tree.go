@@ -12,8 +12,6 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"sort"
 	"strings"
-
-	"golang.org/x/exp/maps"
 )
 
 type TagTree struct {
@@ -43,7 +41,7 @@ func (p *TagTree) GetTagTree(rc *req.Ctx) {
 	}
 
 	// 获取所有以root标签开头的子标签
-	tags := p.TagTreeApp.ListTagByPath(maps.Keys(rootTag)...)
+	tags := p.TagTreeApp.ListTagByPath(collx.MapKeys(rootTag)...)
 	tagTrees := make(vo.TagTreeVOS, 0)
 	for _, tag := range tags {
 		tagPath := tag.CodePath
@@ -91,7 +89,7 @@ func (p *TagTree) TagResources(rc *req.Ctx) {
 		return tagResource.TagPath
 	})
 
-	tagPaths := maps.Keys(tagPath2Resource)
+	tagPaths := collx.MapKeys(tagPath2Resource)
 	sort.Strings(tagPaths)
 	rc.ResData = tagPaths
 }

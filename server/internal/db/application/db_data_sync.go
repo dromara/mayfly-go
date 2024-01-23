@@ -41,7 +41,7 @@ type DataSyncTask interface {
 type dataSyncAppImpl struct {
 	base.AppImpl[*entity.DataSyncTask, repository.DataSyncTask]
 
-	DbDataSyncLogRepo repository.DataSyncLog `inject:""`
+	dbDataSyncLogRepo repository.DataSyncLog `inject:"DbDataSyncLogRepo"`
 }
 
 func (d *dataSyncAppImpl) InjectDbDataSyncTaskRepo(repo repository.DataSyncTask) {
@@ -325,7 +325,7 @@ func (app *dataSyncAppImpl) endRunning(taskEntity *entity.DataSyncTask, log *ent
 }
 
 func (app *dataSyncAppImpl) saveLog(log *entity.DataSyncLog) {
-	app.DbDataSyncLogRepo.Save(context.Background(), log)
+	app.dbDataSyncLogRepo.Save(context.Background(), log)
 }
 
 func (app *dataSyncAppImpl) InitCronJob() {
@@ -371,5 +371,5 @@ func (app *dataSyncAppImpl) InitCronJob() {
 }
 
 func (app *dataSyncAppImpl) GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return app.DbDataSyncLogRepo.GetTaskLogList(condition, pageParam, toEntity, orderBy...)
+	return app.dbDataSyncLogRepo.GetTaskLogList(condition, pageParam, toEntity, orderBy...)
 }

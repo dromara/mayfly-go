@@ -53,9 +53,9 @@ type MachineCronJob interface {
 type machineCronJobAppImpl struct {
 	base.AppImpl[*entity.MachineCronJob, repository.MachineCronJob]
 
-	MachineCronJobRelateRepo repository.MachineCronJobRelate `inject:""`
-	MachineCronJobExecRepo   repository.MachineCronJobExec   `inject:""`
-	MachineApp               Machine                         `inject:""`
+	machineCronJobRelateRepo repository.MachineCronJobRelate `inject:"MachineCronJobRelateRepo"`
+	machineCronJobExecRepo   repository.MachineCronJobExec   `inject:"MachineCronJobExecRepo"`
+	machineApp               Machine                         `inject:"MachineApp"`
 }
 
 // 注入MachineCronJobRepo
@@ -70,7 +70,7 @@ func (m *machineCronJobAppImpl) GetPageList(condition *entity.MachineCronJob, pa
 
 // 获取分页执行结果列表
 func (m *machineCronJobAppImpl) GetExecPageList(condition *entity.MachineCronJobExec, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.MachineCronJobExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+	return m.machineCronJobExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 // 保存机器任务信息
@@ -96,20 +96,20 @@ func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, mcj *ent
 
 func (m *machineCronJobAppImpl) Delete(ctx context.Context, id uint64) {
 	m.DeleteById(ctx, id)
-	m.MachineCronJobExecRepo.DeleteByCond(ctx, &entity.MachineCronJobExec{CronJobId: id})
-	m.MachineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: id})
+	m.machineCronJobExecRepo.DeleteByCond(ctx, &entity.MachineCronJobExec{CronJobId: id})
+	m.machineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: id})
 }
 
 func (m *machineCronJobAppImpl) GetRelateMachineIds(cronJobId uint64) []uint64 {
-	return m.MachineCronJobRelateRepo.GetMachineIds(cronJobId)
+	return m.machineCronJobRelateRepo.GetMachineIds(cronJobId)
 }
 
 func (m *machineCronJobAppImpl) GetRelateCronJobIds(machineId uint64) []uint64 {
-	return m.MachineCronJobRelateRepo.GetCronJobIds(machineId)
+	return m.machineCronJobRelateRepo.GetCronJobIds(machineId)
 }
 
 func (m *machineCronJobAppImpl) CronJobRelateMachines(ctx context.Context, cronJobId uint64, machineIds []uint64) {
-	oldMachineIds := m.MachineCronJobRelateRepo.GetMachineIds(cronJobId)
+	oldMachineIds := m.machineCronJobRelateRepo.GetMachineIds(cronJobId)
 	addIds, delIds, _ := collx.ArrayCompare[uint64](machineIds, oldMachineIds)
 	addVals := make([]*entity.MachineCronJobRelate, 0)
 
@@ -119,20 +119,20 @@ func (m *machineCronJobAppImpl) CronJobRelateMachines(ctx context.Context, cronJ
 			CronJobId: cronJobId,
 		})
 	}
-	m.MachineCronJobRelateRepo.BatchInsert(ctx, addVals)
+	m.machineCronJobRelateRepo.BatchInsert(ctx, addVals)
 
 	for _, delId := range delIds {
-		m.MachineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: cronJobId, MachineId: delId})
+		m.machineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: cronJobId, MachineId: delId})
 	}
 }
 
 func (m *machineCronJobAppImpl) MachineRelateCronJobs(ctx context.Context, machineId uint64, cronJobs []uint64) {
 	if len(cronJobs) == 0 {
-		m.MachineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{MachineId: machineId})
+		m.machineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{MachineId: machineId})
 		return
 	}
 
-	oldCronIds := m.MachineCronJobRelateRepo.GetCronJobIds(machineId)
+	oldCronIds := m.machineCronJobRelateRepo.GetCronJobIds(machineId)
 	addIds, delIds, _ := collx.ArrayCompare[uint64](cronJobs, oldCronIds)
 	addVals := make([]*entity.MachineCronJobRelate, 0)
 
@@ -142,10 +142,10 @@ func (m *machineCronJobAppImpl) MachineRelateCronJobs(ctx context.Context, machi
 			CronJobId: addId,
 		})
 	}
-	m.MachineCronJobRelateRepo.BatchInsert(ctx, addVals)
+	m.machineCronJobRelateRepo.BatchInsert(ctx, addVals)
 
 	for _, delId := range delIds {
-		m.MachineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: delId, MachineId: machineId})
+		m.machineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: delId, MachineId: machineId})
 	}
 }
 
@@ -199,7 +199,7 @@ func (m *machineCronJobAppImpl) RunCronJob(key string) {
 		scheduler.RemoveByKey(key)
 	}
 
-	machienIds := m.MachineCronJobRelateRepo.GetMachineIds(cronJob.Id)
+	machienIds := m.machineCronJobRelateRepo.GetMachineIds(cronJob.Id)
 	for _, machineId := range machienIds {
 		go m.runCronJob0(machineId, cronJob)
 	}
@@ -231,7 +231,7 @@ func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineC
 	defer func() {
 		if err := recover(); err != nil {
 			res := anyx.ToString(err)
-			m.MachineCronJobExecRepo.Insert(context.TODO(), &entity.MachineCronJobExec{
+			m.machineCronJobExecRepo.Insert(context.TODO(), &entity.MachineCronJobExec{
 				MachineId: mid,
 				CronJobId: cronJob.Id,
 				ExecTime:  time.Now(),
@@ -242,7 +242,7 @@ func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineC
 		}
 	}()
 
-	machineCli, err := m.MachineApp.GetCli(uint64(mid))
+	machineCli, err := m.machineApp.GetCli(uint64(mid))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
 	res, err := machineCli.Run(cronJob.Script)
 	if err != nil {
@@ -271,5 +271,5 @@ func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineC
 		execRes.Status = entity.MachineCronJobExecStatusError
 	}
 	// 保存执行记录
-	m.MachineCronJobExecRepo.Insert(context.TODO(), execRes)
+	m.machineCronJobExecRepo.Insert(context.TODO(), execRes)
 }

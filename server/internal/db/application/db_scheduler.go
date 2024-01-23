@@ -28,7 +28,6 @@ type dbScheduler struct {
 	restoreHistoryRepo repository.DbRestoreHistory `inject:"DbRestoreHistoryRepo"`
 	binlogRepo         repository.DbBinlog         `inject:"DbBinlogRepo"`
 	binlogHistoryRepo  repository.DbBinlogHistory  `inject:"DbBinlogHistoryRepo"`
-	binlogTimes        map[uint64]time.Time
 }
 
 func newDbScheduler() *dbScheduler {
@@ -53,7 +52,7 @@ func (s *dbScheduler) repo(typ entity.DbJobType) repository.DbJob {
 	case entity.DbJobTypeBinlog:
 		return s.binlogRepo
 	default:
-		panic(errors.New(fmt.Sprintf("无效的数据库任务类型: %v", typ)))
+		panic(fmt.Errorf("无效的数据库任务类型: %v", typ))
 	}
 }
 
@@ -281,7 +280,7 @@ func (s *dbScheduler) runJob(ctx context.Context, job entity.DbJob) {
 	case entity.DbJobTypeBinlog:
 		errRun = s.fetchBinlogMysql(ctx, job)
 	default:
-		errRun = errors.New(fmt.Sprintf("无效的数据库任务类型: %v", typ))
+		errRun = fmt.Errorf("无效的数据库任务类型: %v", typ)
 	}
 	status := entity.DbJobSuccess
 	if errRun != nil {

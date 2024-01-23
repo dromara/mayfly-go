@@ -13,11 +13,16 @@ func InitMachineRouter(router *gin.RouterGroup) {
 	m := new(api.Machine)
 	biz.ErrIsNil(ioc.Inject(m))
 
+	dashbord := new(api.Dashbord)
+	biz.ErrIsNil(ioc.Inject(dashbord))
+
 	machines := router.Group("machines")
 	{
 		saveMachineP := req.NewPermission("machine:update")
 
 		reqs := [...]*req.Conf{
+			req.NewGet("dashbord", dashbord.Dashbord),
+
 			req.NewGet("", m.Machines),
 
 			req.NewGet(":machineId/stats", m.MachineStats),

@@ -11,15 +11,13 @@ import (
 )
 
 type DbBinlogApp struct {
-	dbApp             Db                         `inject:"DbApp"`
-	scheduler         *dbScheduler               `inject:"DbScheduler"`
-	binlogRepo        repository.DbBinlog        `inject:"DbBinlogRepo"`
-	binlogHistoryRepo repository.DbBinlogHistory `inject:"DbBinlogHistoryRepo"`
-	backupRepo        repository.DbBackup        `inject:"DbBackupRepo"`
-	backupHistoryRepo repository.DbBackupHistory `inject:"DbBackupHistoryRepo"`
-	context           context.Context
-	cancel            context.CancelFunc
-	waitGroup         sync.WaitGroup
+	scheduler  *dbScheduler        `inject:"DbScheduler"`
+	binlogRepo repository.DbBinlog `inject:"DbBinlogRepo"`
+	backupRepo repository.DbBackup `inject:"DbBackupRepo"`
+
+	context   context.Context
+	cancel    context.CancelFunc
+	waitGroup sync.WaitGroup
 }
 
 func newDbBinlogApp() *DbBinlogApp {

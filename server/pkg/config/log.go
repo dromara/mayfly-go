@@ -2,7 +2,6 @@ package config
 
 import (
 	"mayfly-go/pkg/logx"
-	"path"
 )
 
 type Log struct {
@@ -26,23 +25,9 @@ func (l *Log) Default() {
 }
 
 type LogFile struct {
-	Name string `yaml:"name"`
-	Path string `yaml:"path"`
-}
-
-// 获取完整路径文件名
-func (l *LogFile) GetFilename() string {
-	var filepath, filename string
-	if fp := l.Path; fp == "" {
-		filepath = "./"
-	} else {
-		filepath = fp
-	}
-	if fn := l.Name; fn == "" {
-		filename = "default.log"
-	} else {
-		filename = fn
-	}
-
-	return path.Join(filepath, filename)
+	Name     string `yaml:"name"`
+	Path     string `yaml:"path"`
+	MaxSize  int    `yaml:"max-size"`
+	MaxAge   int    `yaml:"max-age"`
+	Compress bool   `yaml:"compress"`
 }

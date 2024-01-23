@@ -66,6 +66,9 @@ func (c *Config) IfBlankDefaultValue() {
 		AddSource: c.Log.AddSource,
 		Filename:  c.Log.File.Name,
 		Filepath:  c.Log.File.Path,
+		MaxSize:   c.Log.File.MaxSize,
+		MaxAge:    c.Log.File.MaxAge,
+		Compress:  c.Log.File.Compress,
 	})
 
 	c.Server.Default()
