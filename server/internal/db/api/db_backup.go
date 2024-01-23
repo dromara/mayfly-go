@@ -14,8 +14,8 @@ import (
 )
 
 type DbBackup struct {
-	DbBackupApp *application.DbBackupApp `inject:""`
-	DbApp       application.Db           `inject:""`
+	dbBackupApp *application.DbBackupApp `inject:"DbBackupApp"`
+	dbApp       application.Db           `inject:"DbApp"`
 }
 
 // todo: 鉴权，避免未经授权进行数据库备份和恢复
@@ -25,13 +25,13 @@ type DbBackup struct {
 func (d *DbBackup) GetPageList(rc *req.Ctx) {
 	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
-	db, err := d.DbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
+	db, err := d.dbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	queryCond, page := ginx.BindQueryAndPage[*entity.DbJobQuery](rc.GinCtx, new(entity.DbJobQuery))
 	queryCond.DbInstanceId = db.InstanceId
 	queryCond.InDbNames = strings.Fields(db.Database)
-	res, err := d.DbBackupApp.GetPageList(queryCond, page, new([]vo.DbBackup))
+	res, err := d.dbBackupApp.GetPageList(queryCond, page, new([]vo.DbBackup))
 	biz.ErrIsNilAppendErr(err, "获取数据库备份任务失败: %v")
 	rc.ResData = res
 }
@@ -48,7 +48,7 @@ func (d *DbBackup) Create(rc *req.Ctx) {
 
 	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
-	db, err := d.DbApp.GetById(new(entity.Db), dbId, "instanceId")
+	db, err := d.dbApp.GetById(new(entity.Db), dbId, "instanceId")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	jobs := make([]*entity.DbBackup, 0, len(dbNames))
@@ -64,7 +64,7 @@ func (d *DbBackup) Create(rc *req.Ctx) {
 		}
 		jobs = append(jobs, job)
 	}
-	biz.ErrIsNilAppendErr(d.DbBackupApp.Create(rc.MetaCtx, jobs), "添加数据库备份任务失败: %v")
+	biz.ErrIsNilAppendErr(d.dbBackupApp.Create(rc.MetaCtx, jobs), "添加数据库备份任务失败: %v")
 }
 
 // Update 保存数据库备份任务
@@ -79,7 +79,7 @@ func (d *DbBackup) Update(rc *req.Ctx) {
 	job.Name = backupForm.Name
 	job.StartTime = backupForm.StartTime
 	job.Interval = backupForm.Interval
-	biz.ErrIsNilAppendErr(d.DbBackupApp.Update(rc.MetaCtx, job), "保存数据库备份任务失败: %v")
+	biz.ErrIsNilAppendErr(d.dbBackupApp.Update(rc.MetaCtx, job), "保存数据库备份任务失败: %v")
 }
 
 func (d *DbBackup) walk(rc *req.Ctx, fn func(ctx context.Context, backupId uint64) error) error {
@@ -104,28 +104,28 @@ func (d *DbBackup) walk(rc *req.Ctx, fn func(ctx context.Context, backupId uint6
 // Delete 删除数据库备份任务
 // @router /api/dbs/:dbId/backups/:backupId [DELETE]
 func (d *DbBackup) Delete(rc *req.Ctx) {
-	err := d.walk(rc, d.DbBackupApp.Delete)
+	err := d.walk(rc, d.dbBackupApp.Delete)
 	biz.ErrIsNilAppendErr(err, "删除数据库备份任务失败: %v")
 }
 
 // Enable 启用数据库备份任务
 // @router /api/dbs/:dbId/backups/:backupId/enable [PUT]
 func (d *DbBackup) Enable(rc *req.Ctx) {
-	err := d.walk(rc, d.DbBackupApp.Enable)
+	err := d.walk(rc, d.dbBackupApp.Enable)
 	biz.ErrIsNilAppendErr(err, "启用数据库备份任务失败: %v")
 }
 
 // Disable 禁用数据库备份任务
 // @router /api/dbs/:dbId/backups/:backupId/disable [PUT]
 func (d *DbBackup) Disable(rc *req.Ctx) {
-	err := d.walk(rc, d.DbBackupApp.Disable)
+	err := d.walk(rc, d.dbBackupApp.Disable)
 	biz.ErrIsNilAppendErr(err, "禁用数据库备份任务失败: %v")
 }
 
 // Start 禁用数据库备份任务
 // @router /api/dbs/:dbId/backups/:backupId/start [PUT]
 func (d *DbBackup) Start(rc *req.Ctx) {
-	err := d.walk(rc, d.DbBackupApp.Start)
+	err := d.walk(rc, d.dbBackupApp.Start)
 	biz.ErrIsNilAppendErr(err, "运行数据库备份任务失败: %v")
 }
 
@@ -133,10 +133,10 @@ func (d *DbBackup) Start(rc *req.Ctx) {
 // @router /api/dbs/:dbId/db-names-without-backup [GET]
 func (d *DbBackup) GetDbNamesWithoutBackup(rc *req.Ctx) {
 	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
-	db, err := d.DbApp.GetById(new(entity.Db), dbId, "instance_id", "database")
+	db, err := d.dbApp.GetById(new(entity.Db), dbId, "instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 	dbNames := strings.Fields(db.Database)
-	dbNamesWithoutBackup, err := d.DbBackupApp.GetDbNamesWithoutBackup(db.InstanceId, dbNames)
+	dbNamesWithoutBackup, err := d.dbBackupApp.GetDbNamesWithoutBackup(db.InstanceId, dbNames)
 	biz.ErrIsNilAppendErr(err, "获取未配置定时备份的数据库名称失败: %v")
 	rc.ResData = dbNamesWithoutBackup
 }
@@ -146,13 +146,13 @@ func (d *DbBackup) GetDbNamesWithoutBackup(rc *req.Ctx) {
 func (d *DbBackup) GetHistoryPageList(rc *req.Ctx) {
 	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
-	db, err := d.DbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
+	db, err := d.dbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	queryCond, page := ginx.BindQueryAndPage[*entity.DbBackupHistoryQuery](rc.GinCtx, new(entity.DbBackupHistoryQuery))
 	queryCond.DbInstanceId = db.InstanceId
 	queryCond.InDbNames = strings.Fields(db.Database)
-	res, err := d.DbBackupApp.GetHistoryPageList(queryCond, page, new([]vo.DbBackupHistory))
+	res, err := d.dbBackupApp.GetHistoryPageList(queryCond, page, new([]vo.DbBackupHistory))
 	biz.ErrIsNilAppendErr(err, "获取数据库备份历史失败: %v")
 	rc.ResData = res
 }

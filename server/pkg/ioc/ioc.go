@@ -108,12 +108,13 @@ func (c *Container) injectWithField(objValue reflect.Value) error {
 			return fmt.Errorf("%s error: 注入类型不一致(期望类型->%s.%s, 组件类型->%s.%s)", injectInfo, field.Type.PkgPath(), field.Type.Name(), componentType.PkgPath(), componentType.Name())
 		}
 
-		objValueField := objValue.Field(i)
-		if !objValueField.IsValid() || !objValueField.CanSet() {
+		fieldValue := objValue.Field(i)
+		fieldPtrValue := reflect.NewAt(fieldValue.Type(), fieldValue.Addr().UnsafePointer())
+		fieldValue = fieldPtrValue.Elem()
+		if !fieldValue.IsValid() || !fieldValue.CanSet() {
 			return fmt.Errorf("%s error: 字段无效或为不可导出类型", injectInfo)
 		}
-
-		objValueField.Set(reflect.ValueOf(component))
+		fieldValue.Set(reflect.ValueOf(component))
 	}
 
 	return nil
