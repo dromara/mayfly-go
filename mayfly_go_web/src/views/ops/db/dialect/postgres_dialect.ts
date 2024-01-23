@@ -228,7 +228,7 @@ class PostgresqlDialect implements DbDialect {
             let marks = false;
             if (this.matchType(cl.type, ['char', 'time', 'date', 'text'])) {
                 // 默认值是now()的time或date不需要加引号
-                if (cl.value.toLowerCase() === 'pg_systimestamp()' && this.matchType(cl.type, ['time', 'date'])) {
+                if (['pg_systimestamp()', 'current_timestamp'].includes(cl.value.toLowerCase()) && this.matchType(cl.type, ['time', 'date'])) {
                     marks = false;
                 } else {
                     marks = true;

@@ -115,6 +115,8 @@ export const DbType = {
     sqlite: 'sqlite',
 };
 
+export const editDbTypes = [DbType.mysql, DbType.mariadb, DbType.postgresql, DbType.dm, DbType.oracle, DbType.sqlite];
+
 export const compatibleMysql = (dbType: string): boolean => {
     switch (dbType) {
         case DbType.mysql:

@@ -23,3 +23,11 @@ type DbSqlExecForm struct {
 	Sql    string `binding:"required" json:"sql"` // 执行sql
 	Remark string `json:"remark"`                 // 执行备注
 }
+
+// 数据库复制表
+type DbCopyTableForm struct {
+	Id        uint64 `binding:"required" json:"id"`
+	Db        string `binding:"required" json:"db" `
+	TableName string `binding:"required" json:"tableName"`
+	CopyData  bool   `binding:"required" json:"copyData"` // 是否复制数据
+}

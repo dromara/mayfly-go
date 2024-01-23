@@ -462,6 +462,20 @@ func (d *Db) GetSchemas(rc *req.Ctx) {
 	rc.ResData = res
 }
 
+func (d *Db) CopyTable(rc *req.Ctx) {
+	form := &form.DbCopyTableForm{}
+	copy := ginx.BindJsonAndCopyTo[*dbi.DbCopyTable](rc.GinCtx, form, new(dbi.DbCopyTable))
+
+	conn, err := d.DbApp.GetDbConn(form.Id, form.Db)
+	biz.ErrIsNilAppendErr(err, "拷贝表失败: %s")
+
+	err = conn.GetDialect().CopyTable(copy)
+	if err != nil {
+		logx.Errorf("拷贝表失败: %s", err.Error())
+	}
+	biz.ErrIsNilAppendErr(err, "拷贝表失败: %s")
+}
+
 func getDbId(g *gin.Context) uint64 {
 	dbId, _ := strconv.Atoi(g.Param("dbId"))
 	biz.IsTrue(dbId > 0, "dbId错误")

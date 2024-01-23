@@ -58,7 +58,7 @@ func (sd *SqliteDialect) GetTables() ([]dbi.Table, error) {
 	tables := make([]dbi.Table, 0)
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
-			TableName:    re["tableName"].(string),
+			TableName:    anyx.ConvString(re["tableName"]),
 			TableComment: anyx.ConvString(re["tableComment"]),
 			CreateTime:   anyx.ConvString(re["createTime"]),
 			TableRows:    anyx.ConvInt(re["tableRows"]),
@@ -97,7 +97,7 @@ func (sd *SqliteDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			}
 			columns = append(columns, dbi.Column{
 				TableName:     tableName,
-				ColumnName:    re["name"].(string),
+				ColumnName:    anyx.ConvString(re["name"]),
 				ColumnType:    strings.ToLower(anyx.ConvString(re["type"])),
 				ColumnComment: "",
 				Nullable:      nullable,
@@ -117,7 +117,7 @@ func (sd *SqliteDialect) GetPrimaryKey(tableName string) (string, error) {
 	}
 	for _, re := range res {
 		if anyx.ConvInt(re["pk"]) == 1 {
-			return re["name"].(string), nil
+			return anyx.ConvString(re["name"]), nil
 		}
 	}
 
@@ -149,7 +149,7 @@ func (sd *SqliteDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
 
 	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
-		indexSql := re["indexSql"].(string)
+		indexSql := anyx.ConvString(re["indexSql"])
 		isUnique := strings.Contains(indexSql, "CREATE UNIQUE INDEX")
 		nonUnique := 1
 		if isUnique {
@@ -157,7 +157,7 @@ func (sd *SqliteDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
 		}
 
 		indexs = append(indexs, dbi.Index{
-			IndexName:    re["indexName"].(string),
+			IndexName:    anyx.ConvString(re["indexName"]),
 			ColumnName:   extractIndexFields(indexSql),
 			IndexType:    anyx.ConvString(re["indexType"]),
 			IndexComment: anyx.ConvString(re["indexComment"]),
@@ -171,13 +171,13 @@ func (sd *SqliteDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
 
 // 获取建表ddl
 func (sd *SqliteDialect) GetTableDDL(tableName string) (string, error) {
-	_, res, err := sd.dc.Query("select sql from sqlite_master WHERE name=? order by type desc", tableName)
+	_, res, err := sd.dc.Query("select sql from sqlite_master WHERE tbl_name=? order by type desc", tableName)
 	if err != nil {
 		return "", err
 	}
 	var builder strings.Builder
 	for _, re := range res {
-		builder.WriteString(re["sql"].(string))
+		builder.WriteString(anyx.ConvString(re["sql"]) + "; \n\n")
 	}
 
 	return builder.String(), nil
@@ -244,4 +244,36 @@ func (sd *SqliteDialect) FormatStrData(dbColumnValue string, dataType dbi.DataTy
 		return res.Format(time.TimeOnly)
 	}
 	return dbColumnValue
+}
+
+func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
+	tableName := copy.TableName
+
+	// 生成新表名,为老表明+_copy_时间戳
+	newTableName := tableName + "_copy_" + time.Now().Format("20060102150405")
+	ddl, err := sd.GetTableDDL(tableName)
+	if err != nil {
+		return err
+	}
+	// 生成建表语句
+	// 替换表名
+	ddl = strings.ReplaceAll(ddl, fmt.Sprintf("CREATE TABLE \"%s\"", tableName), fmt.Sprintf("CREATE TABLE \"%s\"", newTableName))
+	// 替换索引名，索引名为按照规范生成的，才能替换，否则未知索引名，无法替换
+	ddl = strings.ReplaceAll(ddl, fmt.Sprintf("CREATE INDEX \"%s", tableName), fmt.Sprintf("CREATE INDEX \"%s", newTableName))
+
+	// 执行建表语句
+	_, err = sd.dc.Exec(ddl)
+	if err != nil {
+		return err
+	}
+
+	// 使用异步线程插入数据
+	if copy.CopyData {
+		go func() {
+			// 执行插入语句
+			_, _ = sd.dc.Exec(fmt.Sprintf("INSERT INTO \"%s\" SELECT * FROM \"%s\"", newTableName, tableName))
+		}()
+	}
+
+	return err
 }

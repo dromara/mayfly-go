@@ -151,6 +151,16 @@
                 </div>
             </Pane>
         </Splitpanes>
+        <db-table-op
+            :title="tableCreateDialog.title"
+            :active-name="tableCreateDialog.activeName"
+            :dbId="tableCreateDialog.dbId"
+            :db="tableCreateDialog.db"
+            :dbType="tableCreateDialog.dbType"
+            :data="tableCreateDialog.data"
+            v-model:visible="tableCreateDialog.visible"
+            @submit-sql="onSubmitEditTableSql"
+        />
     </div>
 </template>
 
@@ -171,6 +181,7 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Pane, Splitpanes } from 'splitpanes';
 import { useEventListener } from '@vueuse/core';
 
+const DbTableOp = defineAsyncComponent(() => import('./component/table/DbTableOp.vue'));
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
 const DbTableDataOp = defineAsyncComponent(() => import('./component/table/DbTableDataOp.vue'));
 const DbTablesOp = defineAsyncComponent(() => import('./component/table/DbTablesOp.vue'));
@@ -258,9 +269,9 @@ const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
     .withContextMenuItems([new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key))])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
+        params.parentKey = parentNode.key;
         // pg类数据库会多一层schema
         if (params.type == DbType.postgresql || params.type === DbType.dm || params.type === DbType.oracle) {
-            const params = parentNode.params;
             const { id, db } = params;
             const schemaNames = await dbApi.pgSchemas.request({ id, db });
             return schemaNames.map((sn: any) => {
@@ -277,23 +288,29 @@ const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
     .withNodeClickFunc(nodeClickChangeDb);
 
 const NodeTypeTables = (params: any) => {
+  let tableKey = `${params.id}.${params.db}.table-menu`;
+  let sqlKey = getSqlMenuNodeKey(params.id, params.db);
     return [
-        new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams(params).withIcon(TableIcon),
-        new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeTypeSqlMenu).withParams(params).withIcon(SqlIcon),
+        new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams({...params, key:tableKey}).withIcon(TableIcon),
+        new TagTreeNode(sqlKey, 'SQL', NodeTypeSqlMenu).withParams({...params, key:sqlKey}).withIcon(SqlIcon),
     ];
 };
 
 // postgres schema模式
 const NodeTypePostgresSchema = new NodeType(SqlExecNodeType.PgSchema)
     .withContextMenuItems([new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key))])
-    .withLoadNodesFunc(async (parentNode: TagTreeNode) => NodeTypeTables(parentNode.params))
+    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+        const params = parentNode.params;
+        params.parentKey = parentNode.key;
+        return NodeTypeTables(params);
+    })
     .withNodeClickFunc(nodeClickChangeDb);
 
 // 数据库表菜单节点
 const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
     .withContextMenuItems([
         new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key)),
-
+        new ContextmenuItem('createTable', '创建表').withIcon('Plus').withOnClick((data: any) => onEditTable(data)),
         new ContextmenuItem('tablesOp', '表操作').withIcon('Setting').withOnClick((data: any) => {
             const params = data.params;
             addTablesOpTab({ id: params.id, db: params.db, type: params.type, nodeKey: data.key });
@@ -301,7 +318,7 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
     ])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
-        let { id, db } = params;
+        let { id, db, type } = params;
         // 获取当前库的所有表信息
         let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
         state.reloadStatus = false;
@@ -309,11 +326,15 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
         const tablesNode = tables.map((x: any) => {
             const tableSize = x.dataLength + x.indexLength;
             dbTableSize += tableSize;
-            return new TagTreeNode(`${id}.${db}.${x.tableName}`, x.tableName, NodeTypeTable)
+            const key = `${id}.${db}.${x.tableName}`;
+            return new TagTreeNode(key, x.tableName, NodeTypeTable)
                 .withIsLeaf(true)
                 .withParams({
                     id,
                     db,
+                    type,
+                    key: key,
+                    parentKey: parentNode.key,
                     tableName: x.tableName,
                     tableComment: x.tableComment,
                     size: tableSize == 0 ? '' : formatByteSize(tableSize, 1),
@@ -339,22 +360,23 @@ const NodeTypeSqlMenu = new NodeType(SqlExecNodeType.SqlMenu)
         return sqls.map((x: any) => {
             return new TagTreeNode(`${id}.${db}.${x.name}`, x.name, NodeTypeSql)
                 .withIsLeaf(true)
-                .withParams({
-                    id,
-                    db,
-                    dbs,
-                    sqlName: x.name,
-                })
+                .withParams({ id, db, dbs, sqlName: x.name })
                 .withIcon(SqlIcon);
         });
     })
     .withNodeClickFunc(nodeClickChangeDb);
 
 // 表节点类型
-const NodeTypeTable = new NodeType(SqlExecNodeType.Table).withNodeClickFunc((nodeData: TagTreeNode) => {
-    const params = nodeData.params;
-    loadTableData({ id: params.id, nodeKey: nodeData.key }, params.db, params.tableName);
-});
+const NodeTypeTable = new NodeType(SqlExecNodeType.Table)
+    .withContextMenuItems([
+        new ContextmenuItem('copyTable', '复制表').withIcon('copyDocument').withOnClick((data: any) => onCopyTable(data)),
+        new ContextmenuItem('editTable', '编辑表').withIcon('edit').withOnClick((data: any) => onEditTable(data)),
+        new ContextmenuItem('delTable', '删除表').withIcon('Delete').withOnClick((data: any) => onDeleteTable(data)),
+    ])
+    .withNodeClickFunc((nodeData: TagTreeNode) => {
+        const params = nodeData.params;
+        loadTableData({ id: params.id, nodeKey: nodeData.key }, params.db, params.tableName);
+    });
 
 // sql模板节点类型
 const NodeTypeSql = new NodeType(SqlExecNodeType.Sql)
@@ -384,9 +406,19 @@ const state = reactive({
         loading: true,
         version: '',
     },
+    tableCreateDialog: {
+        visible: false,
+        title: '',
+        activeName: '',
+        dbId: 0,
+        db: '',
+        dbType: '',
+        data: {},
+        parentKey: '',
+    },
 });
 
-const { nowDbInst } = toRefs(state);
+const { nowDbInst, tableCreateDialog } = toRefs(state);
 
 const serverInfoReqParam = ref({
     instanceId: 0,
@@ -600,6 +632,63 @@ const getSqlMenuNodeKey = (dbId: number, db: string) => {
 const reloadNode = (nodeKey: string) => {
     state.reloadStatus = true;
     tagTreeRef.value.reloadNode(nodeKey);
+};
+
+const onEditTable = async (data: any) => {
+    let { db, id, tableName, tableComment, type, parentKey, key } = data.params;
+    // data.label就是表名
+    if (tableName) {
+        state.tableCreateDialog.title = '修改表';
+        let indexs = await dbApi.tableIndex.request({ id, db, tableName });
+        let columns = await dbApi.columnMetadata.request({ id, db, tableName });
+        let row = { tableName, tableComment };
+        state.tableCreateDialog.data = { edit: true, row, indexs, columns };
+        state.tableCreateDialog.parentKey = parentKey;
+    } else {
+        state.tableCreateDialog.title = '创建表';
+        state.tableCreateDialog.data = { edit: false, row: {} };
+        state.tableCreateDialog.parentKey = key;
+    }
+
+    state.tableCreateDialog.visible = true;
+    state.tableCreateDialog.activeName = '1';
+    state.tableCreateDialog.dbId = id;
+    state.tableCreateDialog.db = db;
+    state.tableCreateDialog.dbType = type;
+};
+
+const onDeleteTable = async (data: any) => {
+    let { db, id, tableName, parentKey } = data.params;
+    await ElMessageBox.confirm(`此操作是永久性且无法撤销，确定删除【${tableName}】? `, '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+    });
+    // 执行sql
+    dbApi.sqlExec.request({ id, db, sql: `drop table ${tableName}` }).then(() => {
+        ElMessage.success('删除成功');
+        setTimeout(() => {
+            parentKey && reloadNode(parentKey);
+        }, 1000);
+    });
+};
+
+const onCopyTable = async (data: any) => {
+    let { db, id, tableName, parentKey } = data.params;
+
+    // 执行sql
+    dbApi.copyTable.request({ id, db, tableName, copyData:true }).then(() => {
+        ElMessage.success('复制成功');
+        setTimeout(() => {
+            parentKey && reloadNode(parentKey);
+        }, 1000);
+    });
+};
+
+const onSubmitEditTableSql = () => {
+    state.tableCreateDialog.visible = false;
+    state.tableCreateDialog.data = { edit: false, row: {} };
+    reloadNode(state.tableCreateDialog.parentKey);
 };
 
 /**

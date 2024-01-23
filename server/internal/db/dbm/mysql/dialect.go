@@ -10,6 +10,7 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"regexp"
 	"strings"
+	"time"
 )
 
 const (
@@ -223,4 +224,26 @@ func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 func (md *MysqlDialect) FormatStrData(dbColumnValue string, dataType dbi.DataType) string {
 	// mysql不需要格式化时间日期等
 	return dbColumnValue
+}
+
+func (md *MysqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
+
+	tableName := copy.TableName
+
+	// 生成新表名,为老表明+_copy_时间戳
+	newTableName := tableName + "_copy_" + time.Now().Format("20060102150405")
+
+	// 复制表结构创建表
+	_, err := md.dc.Exec(fmt.Sprintf("create table %s like %s", newTableName, tableName))
+	if err != nil {
+		return err
+	}
+
+	// 复制数据
+	if copy.CopyData {
+		go func() {
+			_, _ = md.dc.Exec(fmt.Sprintf("insert into %s select * from %s", newTableName, tableName))
+		}()
+	}
+	return err
 }

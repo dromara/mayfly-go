@@ -59,6 +59,13 @@ type Index struct {
 	NonUnique    int    `json:"nonUnique"`
 }
 
+type DbCopyTable struct {
+	Id        uint64 `json:"id"`
+	Db        string `json:"db" `
+	TableName string `json:"tableName"`
+	CopyData  bool   `json:"copyData"` // 是否复制数据
+}
+
 // -----------------------------------元数据接口定义------------------------------------------
 // 数据库方言、元信息接口（表、列、获取表数据等元信息）
 type Dialect interface {
@@ -97,6 +104,8 @@ type Dialect interface {
 	GetDataType(dbColumnType string) DataType
 
 	FormatStrData(dbColumnValue string, dataType DataType) string
+
+	CopyTable(copy *DbCopyTable) error
 }
 
 // ------------------------- 元数据sql操作 -------------------------

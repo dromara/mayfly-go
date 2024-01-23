@@ -145,7 +145,7 @@ class SqliteDialect implements DbDialect {
 
     getDefaultRows(): RowDefinition[] {
         return [
-            { name: 'id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: true, auto_increment: true, remark: '主键ID' },
+            { name: 'id', type: 'integer', length: '', numScale: '', value: '', notNull: true, pri: true, auto_increment: true, remark: '主键ID' },
             { name: 'creator_id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人id' },
             {
                 name: 'creator',

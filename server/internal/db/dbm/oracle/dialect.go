@@ -340,3 +340,14 @@ func (od *OracleDialect) FormatStrData(dbColumnValue string, dataType dbi.DataTy
 	}
 	return dbColumnValue
 }
+
+func (od *OracleDialect) CopyTable(copy *dbi.DbCopyTable) error {
+	// 生成新表名,为老表明+_copy_时间戳
+	newTableName := strings.ToUpper(copy.TableName + "_copy_" + time.Now().Format("20060102150405"))
+	condition := ""
+	if copy.CopyData {
+		condition = " where 1 = 2"
+	}
+	_, err := od.dc.Exec(fmt.Sprintf("create table \"%s\" as select * from \"%s\" %s", newTableName, copy.TableName, condition))
+	return err
+}

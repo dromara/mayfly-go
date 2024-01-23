@@ -132,7 +132,7 @@
 import { reactive, ref, toRefs, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from '../sqleditor/SqlExecBox';
-import { DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
+import { DbDialect, DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
 
 const props = defineProps({
     visible: {
@@ -158,7 +158,7 @@ const props = defineProps({
 //定义事件
 const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'submit-sql']);
 
-const dbDialect = getDbDialect(props.dbType);
+let dbDialect = getDbDialect(props.dbType);
 
 type ColName = {
     prop: string;
@@ -272,6 +272,7 @@ const { dialogVisible, btnloading, activeName, indexTypeList, tableData } = toRe
 
 watch(props, async (newValue) => {
     state.dialogVisible = newValue.visible;
+    dbDialect = getDbDialect(newValue.dbType);
 });
 
 const cancel = () => {

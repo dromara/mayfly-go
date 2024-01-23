@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"regexp"
 	"strings"
 	"time"
@@ -310,4 +312,45 @@ func (dd *DMDialect) FormatStrData(dbColumnValue string, dataType dbi.DataType) 
 		return res.Format(time.TimeOnly)
 	}
 	return dbColumnValue
+}
+
+func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
+	tableName := copy.TableName
+	ddl, err := dd.GetTableDDL(tableName)
+	if err != nil {
+		return err
+	}
+	// 生成新表名,为老表明+_copy_时间戳
+	newTableName := tableName + "_copy_" + time.Now().Format("20060102150405")
+
+	// 替换新表名
+	ddl = strings.ReplaceAll(ddl, fmt.Sprintf("\"%s\"", strings.ToUpper(tableName)), fmt.Sprintf("\"%s\"", strings.ToUpper(newTableName)))
+	// 去除空格换行
+	ddl = stringx.TrimSpaceAndBr(ddl)
+	sqls, err := sqlparser.SplitStatementToPieces(ddl, sqlparser.WithDialect(dd.dc.Info.Type.Dialect()))
+	for _, sql := range sqls {
+		_, _ = dd.dc.Exec(sql)
+	}
+
+	// 复制数据
+	if copy.CopyData {
+		go func() {
+			// 设置允许填充自增列之后，显示指定列名可以插入自增列
+			_, _ = dd.dc.Exec(fmt.Sprintf("set identity_insert \"%s\" on", newTableName))
+			// 获取列名
+			columns, _ := dd.GetColumns(tableName)
+			columnArr := make([]string, 0)
+			for _, column := range columns {
+				columnArr = append(columnArr, fmt.Sprintf("\"%s\"", column.ColumnName))
+			}
+			columnStr := strings.Join(columnArr, ",")
+			// 插入新数据并显示指定列
+			_, _ = dd.dc.Exec(fmt.Sprintf("insert into \"%s\" (%s) select %s from \"%s\"", newTableName, columnStr, columnStr, tableName))
+
+			// 执行完成后关闭允许填充自增列
+			_, _ = dd.dc.Exec(fmt.Sprintf("set identity_insert \"%s\" off", newTableName))
+		}()
+	}
+
+	return err
 }

@@ -11,6 +11,7 @@ export const dbApi = {
     tableInfos: Api.newGet('/dbs/{id}/t-infos'),
     tableIndex: Api.newGet('/dbs/{id}/t-index'),
     tableDdl: Api.newGet('/dbs/{id}/t-create-ddl'),
+    copyTable: Api.newPost('/dbs/{id}/copy-table'),
     columnMetadata: Api.newGet('/dbs/{id}/c-metadata'),
     pgSchemas: Api.newGet('/dbs/{id}/pg/schemas'),
     // 获取表即列提示

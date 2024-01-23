@@ -68,9 +68,7 @@
                 <template #default="scope">
                     <el-link @click.prevent="showColumns(scope.row)" type="primary">字段</el-link>
                     <el-link class="ml5" @click.prevent="showTableIndex(scope.row)" type="success">索引</el-link>
-                    <el-link class="ml5" v-if="tableCreateDialog.enableEditTypes.indexOf(dbType) > -1" @click.prevent="openEditTable(scope.row)" type="warning"
-                        >编辑表</el-link
-                    >
+                    <el-link class="ml5" v-if="editDbTypes.indexOf(dbType) > -1" @click.prevent="openEditTable(scope.row)" type="warning">编辑表</el-link>
                     <el-link class="ml5" @click.prevent="showCreateDdl(scope.row)" type="info">DDL</el-link>
                 </template>
             </el-table-column>
@@ -127,7 +125,7 @@ import SqlExecBox from '../sqleditor/SqlExecBox';
 import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
-import { compatibleMysql, DbType } from '../../dialect/index';
+import { compatibleMysql, DbType, editDbTypes } from '../../dialect/index';
 
 const DbTableOp = defineAsyncComponent(() => import('./DbTableOp.vue'));
 
