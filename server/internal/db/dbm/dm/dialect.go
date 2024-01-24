@@ -255,24 +255,16 @@ func (dd *DMDialect) GetDbProgram() dbi.DbProgram {
 	panic("implement me")
 }
 
-func (dd *DMDialect) GetDataType(dbColumnType string) dbi.DataType {
-	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
-		return dbi.DataTypeNumber
-	}
+var (
+	// 数字类型
+	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
 	// 日期时间类型
-	if regexp.MustCompile(`(?i)datetime|timestamp`).MatchString(dbColumnType) {
-		return dbi.DataTypeDateTime
-	}
+	datetimeRegexp = regexp.MustCompile(`(?i)datetime|timestamp`)
 	// 日期类型
-	if regexp.MustCompile(`(?i)date`).MatchString(dbColumnType) {
-		return dbi.DataTypeDate
-	}
+	dateRegexp = regexp.MustCompile(`(?i)date`)
 	// 时间类型
-	if regexp.MustCompile(`(?i)time`).MatchString(dbColumnType) {
-		return dbi.DataTypeTime
-	}
-	return dbi.DataTypeString
-}
+	timeRegexp = regexp.MustCompile(`(?i)time`)
+)
 
 func (dd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
 	// 执行批量insert sql
@@ -299,18 +291,46 @@ func (dd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string,
 	return int64(effRows), nil
 }
 
-func (dd *DMDialect) FormatStrData(dbColumnValue string, dataType dbi.DataType) string {
+type DataConverter struct {
+}
+
+func (dd *DMDialect) GetDataConverter() dbi.DataConverter {
+	return new(DataConverter)
+}
+
+func (dd *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
+	if numberRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeNumber
+	}
+	if datetimeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDateTime
+	}
+	if dateRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDate
+	}
+	if timeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeTime
+	}
+	return dbi.DataTypeString
+}
+
+func (dd *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
+	str := anyx.ToString(dbColumnValue)
 	switch dataType {
 	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.DateTime)
 	case dbi.DataTypeDate: // "2024-01-02T00:00:00+08:00"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.DateOnly)
 	case dbi.DataTypeTime: // "0000-01-01T22:08:22.275688+08:00"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.TimeOnly)
 	}
+	return str
+}
+
+func (dd *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
 	return dbColumnValue
 }
 

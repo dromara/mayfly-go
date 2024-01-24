@@ -115,7 +115,13 @@ export const DbType = {
     sqlite: 'sqlite',
 };
 
-export const editDbTypes = [DbType.mysql, DbType.mariadb, DbType.postgresql, DbType.dm, DbType.oracle, DbType.sqlite];
+// mysql兼容的数据库
+export const mysqlDbTypes = [DbType.mysql, DbType.mariadb, DbType.sqlite];
+
+// 有schema层的数据库
+export const schemaDbTypes = [DbType.postgresql, DbType.dm, DbType.oracle];
+
+export const editDbTypes = [...mysqlDbTypes, ...schemaDbTypes];
 
 export const compatibleMysql = (dbType: string): boolean => {
     switch (dbType) {

@@ -26,8 +26,8 @@ type PgsqlDialect struct {
 	dc *dbi.DbConn
 }
 
-func (pd *PgsqlDialect) GetDbServer() (*dbi.DbServer, error) {
-	_, res, err := pd.dc.Query("SHOW server_version")
+func (md *PgsqlDialect) GetDbServer() (*dbi.DbServer, error) {
+	_, res, err := md.dc.Query("SHOW server_version")
 	if err != nil {
 		return nil, err
 	}
@@ -37,8 +37,8 @@ func (pd *PgsqlDialect) GetDbServer() (*dbi.DbServer, error) {
 	return ds, nil
 }
 
-func (pd *PgsqlDialect) GetDbNames() ([]string, error) {
-	_, res, err := pd.dc.Query("SELECT datname AS dbname FROM pg_database WHERE datistemplate = false AND has_database_privilege(datname, 'CONNECT')")
+func (md *PgsqlDialect) GetDbNames() ([]string, error) {
+	_, res, err := md.dc.Query("SELECT datname AS dbname FROM pg_database WHERE datistemplate = false AND has_database_privilege(datname, 'CONNECT')")
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +52,8 @@ func (pd *PgsqlDialect) GetDbNames() ([]string, error) {
 }
 
 // 获取表基础元信息, 如表名等
-func (pd *PgsqlDialect) GetTables() ([]dbi.Table, error) {
-	_, res, err := pd.dc.Query(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
+func (md *PgsqlDialect) GetTables() ([]dbi.Table, error) {
+	_, res, err := md.dc.Query(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -73,13 +73,13 @@ func (pd *PgsqlDialect) GetTables() ([]dbi.Table, error) {
 }
 
 // 获取列元信息, 如列名等
-func (pd *PgsqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
-	dbType := pd.dc.Info.Type
+func (md *PgsqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
+	dbType := md.dc.Info.Type
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
 		return fmt.Sprintf("'%s'", dbType.RemoveQuote(val))
 	}), ",")
 
-	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
+	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -100,8 +100,8 @@ func (pd *PgsqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	return columns, nil
 }
 
-func (pd *PgsqlDialect) GetPrimaryKey(tablename string) (string, error) {
-	columns, err := pd.GetColumns(tablename)
+func (md *PgsqlDialect) GetPrimaryKey(tablename string) (string, error) {
+	columns, err := md.GetColumns(tablename)
 	if err != nil {
 		return "", err
 	}
@@ -118,8 +118,8 @@ func (pd *PgsqlDialect) GetPrimaryKey(tablename string) (string, error) {
 }
 
 // 获取表索引信息
-func (pd *PgsqlDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
-	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
+func (md *PgsqlDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
+	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -155,17 +155,17 @@ func (pd *PgsqlDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
 }
 
 // 获取建表ddl
-func (pd *PgsqlDialect) GetTableDDL(tableName string) (string, error) {
-	_, err := pd.dc.Exec(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
+func (md *PgsqlDialect) GetTableDDL(tableName string) (string, error) {
+	_, err := md.dc.Exec(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
 	if err != nil {
 		return "", err
 	}
 
-	_, schemaRes, _ := pd.dc.Query("select current_schema() as schema")
+	_, schemaRes, _ := md.dc.Query("select current_schema() as schema")
 	schemaName := schemaRes[0]["schema"].(string)
 
 	ddlSql := fmt.Sprintf("select showcreatetable('%s','%s') as sql", schemaName, tableName)
-	_, res, err := pd.dc.Query(ddlSql)
+	_, res, err := md.dc.Query(ddlSql)
 	if err != nil {
 		return "", err
 	}
@@ -173,14 +173,14 @@ func (pd *PgsqlDialect) GetTableDDL(tableName string) (string, error) {
 	return res[0]["sql"].(string), nil
 }
 
-func (pd *PgsqlDialect) WalkTableRecord(tableName string, walkFn dbi.WalkQueryRowsFunc) error {
-	return pd.dc.WalkQueryRows(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
+func (md *PgsqlDialect) WalkTableRecord(tableName string, walkFn dbi.WalkQueryRowsFunc) error {
+	return md.dc.WalkQueryRows(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
 }
 
 // 获取pgsql当前连接的库可访问的schemaNames
-func (pd *PgsqlDialect) GetSchemas() ([]string, error) {
+func (md *PgsqlDialect) GetSchemas() ([]string, error) {
 	sql := dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_DB_SCHEMAS)
-	_, res, err := pd.dc.Query(sql)
+	_, res, err := md.dc.Query(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -192,30 +192,11 @@ func (pd *PgsqlDialect) GetSchemas() ([]string, error) {
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (pd *PgsqlDialect) GetDbProgram() dbi.DbProgram {
+func (md *PgsqlDialect) GetDbProgram() dbi.DbProgram {
 	panic("implement me")
 }
 
-func (pd *PgsqlDialect) GetDataType(dbColumnType string) dbi.DataType {
-	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
-		return dbi.DataTypeNumber
-	}
-	// 日期时间类型
-	if regexp.MustCompile(`(?i)datetime|timestamp`).MatchString(dbColumnType) {
-		return dbi.DataTypeDateTime
-	}
-	// 日期类型
-	if regexp.MustCompile(`(?i)date`).MatchString(dbColumnType) {
-		return dbi.DataTypeDate
-	}
-	// 时间类型
-	if regexp.MustCompile(`(?i)time`).MatchString(dbColumnType) {
-		return dbi.DataTypeTime
-	}
-	return dbi.DataTypeString
-}
-
-func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
+func (md *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
 	// 执行批量insert sql，跟mysql一样  pg或高斯支持批量insert语法
 	// insert into table_name (column1, column2, ...) values (value1, value2, ...), (value1, value2, ...), ...
 
@@ -235,37 +216,79 @@ func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 		placeholders = append(placeholders, "("+strings.Join(placeholder, ", ")+")")
 	}
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", pd.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "))
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", md.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "))
 	// 执行批量insert sql
 
-	return pd.dc.TxExec(tx, sqlStr, args...)
+	return md.dc.TxExec(tx, sqlStr, args...)
 }
 
-func (pd *PgsqlDialect) FormatStrData(dbColumnValue string, dataType dbi.DataType) string {
+var (
+	// 数字类型
+	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
+	// 日期时间类型
+	datetimeRegexp = regexp.MustCompile(`(?i)datetime|timestamp`)
+	// 日期类型
+	dateRegexp = regexp.MustCompile(`(?i)date`)
+	// 时间类型
+	timeRegexp = regexp.MustCompile(`(?i)time`)
+)
+
+type DataConverter struct {
+}
+
+func (md *PgsqlDialect) GetDataConverter() dbi.DataConverter {
+	return new(DataConverter)
+}
+
+func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
+	if numberRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeNumber
+	}
+	// 日期时间类型
+	if datetimeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDateTime
+	}
+	// 日期类型
+	if dateRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDate
+	}
+	// 时间类型
+	if timeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeTime
+	}
+	return dbi.DataTypeString
+}
+
+func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
+	str := fmt.Sprintf("%v", dbColumnValue)
 	switch dataType {
 	case dbi.DataTypeDateTime: // "2024-01-02T22:16:28.545377+08:00"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.DateTime)
 	case dbi.DataTypeDate: //  "2024-01-02T00:00:00Z"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.DateOnly)
 	case dbi.DataTypeTime: // "0000-01-01T22:16:28.545075+08:00"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.TimeOnly)
 	}
+	return anyx.ConvString(dbColumnValue)
+}
+
+func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
 	return dbColumnValue
 }
 
-func (pd *PgsqlDialect) IsGauss() bool {
-	return strings.Contains(pd.dc.Info.Params, "gauss")
+func (md *PgsqlDialect) IsGauss() bool {
+	return strings.Contains(md.dc.Info.Params, "gauss")
 }
 
-func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
+func (md *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	tableName := copy.TableName
 	// 生成新表名,为老表明+_copy_时间戳
 	newTableName := tableName + "_copy_" + time.Now().Format("20060102150405")
 	// 执行根据旧表创建新表
-	_, err := pd.dc.Exec(fmt.Sprintf("create table %s (like %s)", newTableName, tableName))
+	_, err := md.dc.Exec(fmt.Sprintf("create table %s (like %s)", newTableName, tableName))
 	if err != nil {
 		return err
 	}
@@ -273,12 +296,12 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	// 复制数据
 	if copy.CopyData {
 		go func() {
-			_, _ = pd.dc.Exec(fmt.Sprintf("insert into %s select * from %s", newTableName, tableName))
+			_, _ = md.dc.Exec(fmt.Sprintf("insert into %s select * from %s", newTableName, tableName))
 		}()
 	}
 
 	// 查询旧表的自增字段名 重新设置新表的序列序列器
-	_, res, err := pd.dc.Query(fmt.Sprintf("select column_name from information_schema.columns where table_name = '%s' and column_default like 'nextval%%'", tableName))
+	_, res, err := md.dc.Query(fmt.Sprintf("select column_name from information_schema.columns where table_name = '%s' and column_default like 'nextval%%'", tableName))
 	if err != nil {
 		return err
 	}
@@ -288,7 +311,7 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 		if colName != "" {
 
 			// 查询自增列当前最大值
-			_, maxRes, err := pd.dc.Query(fmt.Sprintf("select max(%s) max_val from %s", colName, tableName))
+			_, maxRes, err := md.dc.Query(fmt.Sprintf("select max(%s) max_val from %s", colName, tableName))
 			if err != nil {
 				return err
 			}
@@ -304,12 +327,12 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 			newSeqName := fmt.Sprintf("%s_%s_copy_seq", newTableName, colName)
 
 			// 创建自增序列，当前最大值为旧表最大值
-			_, err = pd.dc.Exec(fmt.Sprintf("CREATE SEQUENCE %s START %d INCREMENT 1", newSeqName, maxVal))
+			_, err = md.dc.Exec(fmt.Sprintf("CREATE SEQUENCE %s START %d INCREMENT 1", newSeqName, maxVal))
 			if err != nil {
 				return err
 			}
 			// 将新表的自增主键序列与主键列相关联
-			_, err = pd.dc.Exec(fmt.Sprintf("alter table %s alter column %s set default nextval('%s')", newTableName, colName, newSeqName))
+			_, err = md.dc.Exec(fmt.Sprintf("alter table %s alter column %s set default nextval('%s')", newTableName, colName, newSeqName))
 			if err != nil {
 				return err
 			}

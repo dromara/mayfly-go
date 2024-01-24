@@ -177,25 +177,6 @@ func (md *MysqlDialect) GetDbProgram() dbi.DbProgram {
 	return NewDbProgramMysql(md.dc)
 }
 
-func (md *MysqlDialect) GetDataType(dbColumnType string) dbi.DataType {
-	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
-		return dbi.DataTypeNumber
-	}
-	// 日期时间类型
-	if regexp.MustCompile(`(?i)datetime|timestamp`).MatchString(dbColumnType) {
-		return dbi.DataTypeDateTime
-	}
-	// 日期类型
-	if regexp.MustCompile(`(?i)date`).MatchString(dbColumnType) {
-		return dbi.DataTypeDate
-	}
-	// 时间类型
-	if regexp.MustCompile(`(?i)time`).MatchString(dbColumnType) {
-		return dbi.DataTypeTime
-	}
-	return dbi.DataTypeString
-}
-
 func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
 	// 生成占位符字符串：如：(?,?)
 	// 重复字符串并用逗号连接
@@ -221,8 +202,48 @@ func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 	return md.dc.TxExec(tx, sqlStr, args...)
 }
 
-func (md *MysqlDialect) FormatStrData(dbColumnValue string, dataType dbi.DataType) string {
-	// mysql不需要格式化时间日期等
+var (
+	// 数字类型
+	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
+	// 日期时间类型
+	datetimeRegexp = regexp.MustCompile(`(?i)datetime|timestamp`)
+	// 日期类型
+	dateRegexp = regexp.MustCompile(`(?i)date`)
+	// 时间类型
+	timeRegexp = regexp.MustCompile(`(?i)time`)
+)
+
+type DataConverter struct {
+}
+
+func (md *MysqlDialect) GetDataConverter() dbi.DataConverter {
+	return new(DataConverter)
+}
+
+func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
+	if numberRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeNumber
+	}
+	// 日期时间类型
+	if datetimeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDateTime
+	}
+	// 日期类型
+	if dateRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDate
+	}
+	// 时间类型
+	if timeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeTime
+	}
+	return dbi.DataTypeString
+}
+
+func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
+	return anyx.ToString(dbColumnValue)
+}
+
+func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
 	return dbColumnValue
 }
 

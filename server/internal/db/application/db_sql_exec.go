@@ -163,7 +163,9 @@ func doSelect(ctx context.Context, selectStmt *sqlparser.Select, execSqlReq *DbS
 		len(strings.Split(selectExprsStr, ",")) > 1 {
 		// 如果配置为0，则不校验分页参数
 		maxCount := config.GetDbQueryMaxCount()
-		if maxCount != 0 {
+		// 哪些数据库跳过校验
+		skipped := dbi.DbTypeOracle == execSqlReq.DbConn.Info.Type
+		if maxCount != 0 && !skipped {
 			limit := selectStmt.Limit
 			if limit == nil {
 				return nil, errorx.NewBiz("请完善分页信息后执行")

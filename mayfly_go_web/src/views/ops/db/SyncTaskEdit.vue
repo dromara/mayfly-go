@@ -47,6 +47,7 @@
                                 v-model:db-id="form.srcDbId"
                                 v-model:db-name="form.srcDbName"
                                 v-model:tag-path="form.srcTagPath"
+                                v-model:db-type="form.srcDbType"
                                 @select-db="onSelectSrcDb"
                             />
                         </el-form-item>
@@ -181,7 +182,7 @@ import { ElMessage } from 'element-plus';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { DbInst, registerDbCompletionItemProvider } from '@/views/ops/db/db';
-import { getDbDialect } from '@/views/ops/db/dialect';
+import {DbType, getDbDialect} from '@/views/ops/db/dialect'
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 
 const props = defineProps({
@@ -227,6 +228,7 @@ type FormData = {
     taskCron: string;
     srcDbId?: number;
     srcDbName?: string;
+    srcDbType?: string;
     srcTagPath?: string;
     targetDbId?: number;
     targetDbName?: string;
@@ -245,7 +247,7 @@ const basicFormData = {
     targetDbId: -1,
     dataSql: 'select * from',
     pageSize: 1000,
-    updField: 'id',
+    updField: '',
     updFieldVal: '0',
     fieldMap: [{ src: 'a', target: 'b' }],
     status: 1,
@@ -302,6 +304,7 @@ watch(dialogVisible, async (newValue: boolean) => {
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
         state.srcDbInst = DbInst.getOrNewInst(db);
+        state.form.srcDbType = state.srcDbInst.type
     }
 
     //  初始化target数据源
@@ -396,8 +399,8 @@ const handleGetSrcFields = async () => {
     }
 
     // 判断sql是否是查询语句
-    if (!/^select/i.test(state.form.dataSql!)) {
-        let msg = 'sql语句错误，请输入查询语句';
+    if (!/^select/i.test(state.form.dataSql.trim()!)) {
+        let msg = 'sql语句错误，请输入select语句';
         ElMessage.warning(msg);
         return;
     }
@@ -410,10 +413,16 @@ const handleGetSrcFields = async () => {
     }
 
     // 执行sql
+    // oracle的分页关键字不一样
+    let limit = ' limit 1'
+    if(state.form.srcDbType === DbType.oracle){
+      limit = ' where rownum <= 1'
+    }
+    
     const res = await dbApi.sqlExec.request({
         id: state.form.srcDbId,
         db: state.form.srcDbName,
-        sql: state.form.dataSql.trim() + ' limit 1',
+        sql: `select * from (${state.form.dataSql}) t ${limit}`
     });
 
     if (!res.columns) {

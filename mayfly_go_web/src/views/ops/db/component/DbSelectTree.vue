@@ -19,7 +19,7 @@ import { NodeType, TagTreeNode } from '@/views/ops/component/tag';
 import { dbApi } from '@/views/ops/db/api';
 import { sleep } from '@/common/utils/loading';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import { DbType, getDbDialect } from '@/views/ops/db/dialect';
+import { getDbDialect, mysqlDbTypes} from '@/views/ops/db/dialect'
 import TagTreeResourceSelect from '../../component/TagTreeResourceSelect.vue';
 import { computed } from 'vue';
 
@@ -33,9 +33,12 @@ const props = defineProps({
     tagPath: {
         type: String,
     },
+    dbType: {
+        type: String,
+    },
 });
 
-const emits = defineEmits(['update:dbName', 'update:tagPath', 'update:dbId', 'selectDb']);
+const emits = defineEmits(['update:dbName', 'update:tagPath', 'update:dbId', 'update:dbType', 'selectDb']);
 
 /**
  * 树节点类型
@@ -88,7 +91,7 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
 
 /**  mysql类型的数据库，没有schema层 */
 const mysqlType = (type: string) => {
-    return type === DbType.mysql;
+    return mysqlDbTypes.includes(type);
 };
 
 // 数据库实例节点类型
@@ -150,6 +153,7 @@ const changeNode = (nodeData: TagTreeNode) => {
     emits('update:dbName', params.db);
     emits('update:dbId', params.id);
     emits('update:tagPath', params.tagPath);
+    emits('update:dbType', params.type);
     emits('selectDb', params);
 };
 </script>

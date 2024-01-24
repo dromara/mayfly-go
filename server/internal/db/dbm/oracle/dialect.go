@@ -8,7 +8,6 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -257,25 +256,6 @@ func (od *OracleDialect) GetDbProgram() dbi.DbProgram {
 	panic("implement me")
 }
 
-func (od *OracleDialect) GetDataType(dbColumnType string) dbi.DataType {
-	if regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`).MatchString(dbColumnType) {
-		return dbi.DataTypeNumber
-	}
-	// 日期时间类型
-	if regexp.MustCompile(`(?i)datetime|timestamp`).MatchString(dbColumnType) {
-		return dbi.DataTypeDateTime
-	}
-	// 日期类型
-	if regexp.MustCompile(`(?i)date`).MatchString(dbColumnType) {
-		return dbi.DataTypeDate
-	}
-	// 时间类型
-	if regexp.MustCompile(`(?i)time`).MatchString(dbColumnType) {
-		return dbi.DataTypeTime
-	}
-	return dbi.DataTypeString
-}
-
 func (od *OracleDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
 	//INSERT ALL
 	//INTO my_table(field_1,field_2) VALUES (value_1,value_2)
@@ -301,20 +281,6 @@ func (od *OracleDialect) BatchInsert(tx *sql.Tx, tableName string, columns []str
 	for i := 0; i < len(args); i += len(columns) {
 		var placeholder []string
 		for j := 0; j < len(columns); j++ {
-			// 判断字符串数据格式是时间"2023-06-25 10:40:10"  占位符需要变成 to_date(:x, 'fmt')
-			if reflect.TypeOf(args[i+j]) == reflect.TypeOf("") {
-				if regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$`).MatchString(args[i+j].(string)) {
-					placeholder = append(placeholder, fmt.Sprintf("to_date(:%d, 'yyyy-mm-dd hh24:mi:ss')", i+j+1))
-				} else if regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`).MatchString(args[i+j].(string)) {
-					// 只有年月日的数据，oracle会自动补零时分秒，如：2024-01-02: to_date('2024-01-02','yyyy-mm-dd') 输出：2024-01-02 00:00:00
-					placeholder = append(placeholder, fmt.Sprintf("to_date(:%d, 'yyyy-mm-dd')", i+j+1))
-				} else if regexp.MustCompile(`^\d{2}:\d{2}:\d{2}$`).MatchString(args[i+j].(string)) {
-					// 只有时间的数据，oracle会拼接当前月份的年月日，如当前月份是2024-01: to_date('13:23:11','hh24:mi:ss') 输出：2024-01-01 13:23:11
-					placeholder = append(placeholder, fmt.Sprintf("to_date(:%d, 'hh24:mi:ss')", i+j+1))
-				}
-				continue
-			}
-
 			placeholder = append(placeholder, fmt.Sprintf(":%d", i+j+1))
 		}
 		sqlArr = append(sqlArr, fmt.Sprintf("INTO %s (%s) VALUES (%s)", od.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), strings.Join(placeholder, ",")))
@@ -326,17 +292,47 @@ func (od *OracleDialect) BatchInsert(tx *sql.Tx, tableName string, columns []str
 	return res, err
 }
 
-func (od *OracleDialect) FormatStrData(dbColumnValue string, dataType dbi.DataType) string {
+var (
+	// 数字类型
+	numberTypeRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
+	// 日期时间类型
+	datetimeTypeRegexp = regexp.MustCompile(`(?i)date|timestamp`)
+)
+
+type DataConverter struct {
+}
+
+func (od *OracleDialect) GetDataConverter() dbi.DataConverter {
+	return new(DataConverter)
+}
+
+func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
+	if numberTypeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeNumber
+	}
+	// 日期时间类型
+	if datetimeTypeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDateTime
+	}
+	return dbi.DataTypeString
+}
+
+func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
+	str := anyx.ToString(dbColumnValue)
 	switch dataType {
+	// oracle把日期类型数据格式化输出
 	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.DateTime)
-	case dbi.DataTypeDate: // "2024-01-02T00:00:00+08:00"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
-		return res.Format(time.DateOnly)
-	case dbi.DataTypeTime: // "0000-01-01T22:08:22.275688+08:00"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
-		return res.Format(time.TimeOnly)
+	}
+	return str
+}
+
+func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
+	// oracle把日期类型的数据转化为time类型
+	if dataType == dbi.DataTypeDateTime {
+		res, _ := time.Parse(time.RFC3339, anyx.ConvString(dbColumnValue))
+		return res
 	}
 	return dbColumnValue
 }
@@ -345,7 +341,7 @@ func (od *OracleDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	// 生成新表名,为老表明+_copy_时间戳
 	newTableName := strings.ToUpper(copy.TableName + "_copy_" + time.Now().Format("20060102150405"))
 	condition := ""
-	if copy.CopyData {
+	if !copy.CopyData {
 		condition = " where 1 = 2"
 	}
 	_, err := od.dc.Exec(fmt.Sprintf("create table \"%s\" as select * from \"%s\" %s", newTableName, copy.TableName, condition))

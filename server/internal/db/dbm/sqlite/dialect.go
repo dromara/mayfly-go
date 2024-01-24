@@ -196,16 +196,6 @@ func (sd *SqliteDialect) GetDbProgram() dbi.DbProgram {
 	panic("implement me")
 }
 
-func (sd *SqliteDialect) GetDataType(dbColumnType string) dbi.DataType {
-	if regexp.MustCompile(`(?i)int`).MatchString(dbColumnType) {
-		return dbi.DataTypeNumber
-	}
-	if regexp.MustCompile(`(?i)datetime`).MatchString(dbColumnType) {
-		return dbi.DataTypeDateTime
-	}
-	return dbi.DataTypeString
-}
-
 func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
 	// 执行批量insert sql，跟mysql一样 支持批量insert语法
 	// 生成占位符字符串：如：(?,?)
@@ -231,18 +221,47 @@ func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []str
 	return sd.dc.TxExec(tx, sqlStr, args...)
 }
 
-func (sd *SqliteDialect) FormatStrData(dbColumnValue string, dataType dbi.DataType) string {
+var (
+	// 数字类型
+	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit|real`)
+	// 日期时间类型
+	datetimeRegexp = regexp.MustCompile(`(?i)datetime`)
+)
+
+type DataConverter struct {
+}
+
+func (sd *SqliteDialect) GetDataConverter() dbi.DataConverter {
+	return new(DataConverter)
+}
+
+func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
+	if numberRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeNumber
+	}
+	if datetimeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDateTime
+	}
+	return dbi.DataTypeString
+}
+
+func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
+	str := anyx.ToString(dbColumnValue)
 	switch dataType {
 	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.DateTime)
 	case dbi.DataTypeDate: // "2024-01-02T00:00:00+08:00"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.DateOnly)
 	case dbi.DataTypeTime: // "0000-01-01T22:08:22.275688+08:00"
-		res, _ := time.Parse(time.RFC3339, dbColumnValue)
+		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.TimeOnly)
 	}
+	return str
+}
+
+func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
 	return dbColumnValue
 }
 

@@ -175,7 +175,7 @@ import { dbApi } from './api';
 import { dispposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { ContextmenuItem } from '@/components/contextmenu';
-import { DbType, getDbDialect } from './dialect/index';
+import { getDbDialect, schemaDbTypes} from './dialect/index'
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Pane, Splitpanes } from 'splitpanes';
@@ -271,7 +271,7 @@ const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
         const params = parentNode.params;
         params.parentKey = parentNode.key;
         // pg类数据库会多一层schema
-        if (params.type == DbType.postgresql || params.type === DbType.dm || params.type === DbType.oracle) {
+        if (schemaDbTypes.includes(params.type)) {
             const { id, db } = params;
             const schemaNames = await dbApi.pgSchemas.request({ id, db });
             return schemaNames.map((sn: any) => {

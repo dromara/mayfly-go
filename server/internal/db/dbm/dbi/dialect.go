@@ -66,9 +66,23 @@ type DbCopyTable struct {
 	CopyData  bool   `json:"copyData"` // 是否复制数据
 }
 
+// 数据转换器
+type DataConverter interface {
+	// 获取数据对应的类型
+	// @param dbColumnType 数据库原始列类型，如varchar等
+	GetDataType(dbColumnType string) DataType
+
+	// 根据数据类型格式化指定数据
+	FormatData(dbColumnValue any, dataType DataType) string
+
+	// 根据数据类型解析数据为符合要求的指定类型等
+	ParseData(dbColumnValue any, dataType DataType) any
+}
+
 // -----------------------------------元数据接口定义------------------------------------------
 // 数据库方言、元信息接口（表、列、获取表数据等元信息）
 type Dialect interface {
+
 	// 获取数据库服务实例信息
 	GetDbServer() (*DbServer, error)
 
@@ -101,9 +115,7 @@ type Dialect interface {
 	// 批量保存数据
 	BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error)
 
-	GetDataType(dbColumnType string) DataType
-
-	FormatStrData(dbColumnValue string, dataType DataType) string
+	GetDataConverter() DataConverter
 
 	CopyTable(copy *DbCopyTable) error
 }
