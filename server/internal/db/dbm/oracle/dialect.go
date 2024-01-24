@@ -292,6 +292,10 @@ func (od *OracleDialect) BatchInsert(tx *sql.Tx, tableName string, columns []str
 	return res, err
 }
 
+func (od *OracleDialect) GetDataConverter() dbi.DataConverter {
+	return new(DataConverter)
+}
+
 var (
 	// 数字类型
 	numberTypeRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
@@ -300,10 +304,6 @@ var (
 )
 
 type DataConverter struct {
-}
-
-func (od *OracleDialect) GetDataConverter() dbi.DataConverter {
-	return new(DataConverter)
 }
 
 func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {

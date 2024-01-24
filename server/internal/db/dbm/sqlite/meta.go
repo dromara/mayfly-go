@@ -5,19 +5,10 @@ import (
 	"errors"
 	"mayfly-go/internal/db/dbm/dbi"
 	"os"
-	"sync"
 )
 
-var (
-	meta dbi.Meta
-	once sync.Once
-)
-
-func GetMeta() dbi.Meta {
-	once.Do(func() {
-		meta = new(SqliteMeta)
-	})
-	return meta
+func init() {
+	dbi.Register(dbi.DbTypeSqlite, new(SqliteMeta))
 }
 
 type SqliteMeta struct {

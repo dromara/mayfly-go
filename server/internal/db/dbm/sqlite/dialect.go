@@ -221,6 +221,10 @@ func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []str
 	return sd.dc.TxExec(tx, sqlStr, args...)
 }
 
+func (sd *SqliteDialect) GetDataConverter() dbi.DataConverter {
+	return new(DataConverter)
+}
+
 var (
 	// 数字类型
 	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit|real`)
@@ -229,10 +233,6 @@ var (
 )
 
 type DataConverter struct {
-}
-
-func (sd *SqliteDialect) GetDataConverter() dbi.DataConverter {
-	return new(DataConverter)
 }
 
 func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {

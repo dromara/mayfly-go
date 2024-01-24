@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
@@ -14,6 +13,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 
 	_ "gitee.com/chunanyong/dm"
 )
@@ -291,11 +292,11 @@ func (dd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string,
 	return int64(effRows), nil
 }
 
-type DataConverter struct {
-}
-
 func (dd *DMDialect) GetDataConverter() dbi.DataConverter {
 	return new(DataConverter)
+}
+
+type DataConverter struct {
 }
 
 func (dd *DataConverter) GetDataType(dbColumnType string) dbi.DataType {

@@ -5,21 +5,12 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"strings"
-	"sync"
 
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
-var (
-	meta dbi.Meta
-	once sync.Once
-)
-
-func GetMeta() dbi.Meta {
-	once.Do(func() {
-		meta = new(OraMeta)
-	})
-	return meta
+func init() {
+	dbi.Register(dbi.DbTypeOracle, new(OraMeta))
 }
 
 type OraMeta struct {

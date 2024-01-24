@@ -6,21 +6,14 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"net"
-	"sync"
 
 	"github.com/go-sql-driver/mysql"
 )
 
-var (
-	meta dbi.Meta
-	once sync.Once
-)
-
-func GetMeta() dbi.Meta {
-	once.Do(func() {
-		meta = new(MysqlMeta)
-	})
-	return meta
+func init() {
+	meta := new(MysqlMeta)
+	dbi.Register(dbi.DbTypeMysql, meta)
+	dbi.Register(dbi.DbTypeMariadb, meta)
 }
 
 type MysqlMeta struct {

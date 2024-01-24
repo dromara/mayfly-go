@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/internal/db/dbm/dm"
-	"mayfly-go/internal/db/dbm/mysql"
-	"mayfly-go/internal/db/dbm/oracle"
-	"mayfly-go/internal/db/dbm/postgres"
-	"mayfly-go/internal/db/dbm/sqlite"
+	_ "mayfly-go/internal/db/dbm/dm"
+	_ "mayfly-go/internal/db/dbm/mysql"
+	_ "mayfly-go/internal/db/dbm/oracle"
+	_ "mayfly-go/internal/db/dbm/postgres"
+	_ "mayfly-go/internal/db/dbm/sqlite"
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/logx"
@@ -38,23 +38,6 @@ func init() {
 }
 
 var mutex sync.Mutex
-
-func getDbMetaByType(dt dbi.DbType) dbi.Meta {
-	switch dt {
-	case dbi.DbTypeMysql, dbi.DbTypeMariadb:
-		return mysql.GetMeta()
-	case dbi.DbTypePostgres:
-		return postgres.GetMeta()
-	case dbi.DbTypeDM:
-		return dm.GetMeta()
-	case dbi.DbTypeOracle:
-		return oracle.GetMeta()
-	case dbi.DbTypeSqlite:
-		return sqlite.GetMeta()
-	default:
-		panic(fmt.Sprintf("invalid database type: %s", dt))
-	}
-}
 
 // 从缓存中获取数据库连接信息，若缓存中不存在则会使用回调函数获取dbInfo进行连接并缓存
 func GetDbConn(dbId uint64, database string, getDbInfo func() (*dbi.DbInfo, error)) (*dbi.DbConn, error) {
@@ -92,7 +75,7 @@ func GetDbConn(dbId uint64, database string, getDbInfo func() (*dbi.DbInfo, erro
 
 // 使用指定dbInfo信息进行连接
 func Conn(di *dbi.DbInfo) (*dbi.DbConn, error) {
-	return di.Conn(getDbMetaByType(di.Type))
+	return di.Conn(dbi.GetMeta(di.Type))
 }
 
 // 根据实例id获取连接

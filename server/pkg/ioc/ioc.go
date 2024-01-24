@@ -26,7 +26,7 @@ func (c *Container) Register(bean any, opts ...ComponentOption) {
 
 	componentName := component.Name
 	cType := structx.IndirectType(reflect.TypeOf(component.Value))
-	// 组件名为空，则去组件类型名称作为组件名
+	// 组件名为空，则取组件类型名称作为组件名
 	if componentName == "" {
 		componentName = cType.Name()
 		component.Name = componentName

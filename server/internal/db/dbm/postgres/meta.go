@@ -9,22 +9,13 @@ import (
 	"mayfly-go/pkg/utils/netx"
 	"net"
 	"strings"
-	"sync"
 	"time"
 
 	pq "gitee.com/liuzongyang/libpq"
 )
 
-var (
-	meta dbi.Meta
-	once sync.Once
-)
-
-func GetMeta() dbi.Meta {
-	once.Do(func() {
-		meta = new(PostgresMeta)
-	})
-	return meta
+func init() {
+	dbi.Register(dbi.DbTypePostgres, new(PostgresMeta))
 }
 
 type PostgresMeta struct {

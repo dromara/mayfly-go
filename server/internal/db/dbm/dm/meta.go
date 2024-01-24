@@ -6,19 +6,10 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"net/url"
 	"strings"
-	"sync"
 )
 
-var (
-	meta dbi.Meta
-	once sync.Once
-)
-
-func GetMeta() dbi.Meta {
-	once.Do(func() {
-		meta = new(DmMeta)
-	})
-	return meta
+func init() {
+	dbi.Register(dbi.DbTypeDM, new(DmMeta))
 }
 
 type DmMeta struct {

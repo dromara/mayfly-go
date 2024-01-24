@@ -115,6 +115,7 @@ type Dialect interface {
 	// 批量保存数据
 	BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error)
 
+	// 获取数据转换器用于解析格式化列数据等
 	GetDataConverter() DataConverter
 
 	CopyTable(copy *DbCopyTable) error
