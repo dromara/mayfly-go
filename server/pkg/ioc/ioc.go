@@ -1,16 +1,22 @@
 package ioc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/structx"
 	"reflect"
 	"strings"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // 容器
 type Container struct {
+	mu         sync.RWMutex
 	components map[string]*Component
 }
 
@@ -22,6 +28,9 @@ func NewContainer() *Container {
 
 // 注册实例至实例容器
 func (c *Container) Register(bean any, opts ...ComponentOption) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	component := NewComponent(bean, opts...)
 
 	componentName := component.Name
@@ -32,7 +41,7 @@ func (c *Container) Register(bean any, opts ...ComponentOption) {
 		component.Name = componentName
 	}
 
-	if _, err := c.Get(componentName); err == nil {
+	if _, ok := c.components[componentName]; ok {
 		logx.Warnf("组件名[%s]已经注册至容器, 重复注册...", componentName)
 	}
 
@@ -58,16 +67,37 @@ func (c *Container) Inject(obj any) error {
 
 // 对所有组件实例执行Inject。即为实例字段注入依赖的组件实例
 func (c *Container) InjectComponents() error {
-	for _, v := range c.components {
-		if err := c.Inject(v.Value); err != nil {
-			return err
-		}
+	componentsGroups := collx.ArraySplit[*Component](collx.MapValues(c.components), 10)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	errGroup, _ := errgroup.WithContext(ctx)
+
+	for _, components := range componentsGroups {
+		components := components // 创建局部变量以在闭包中使用
+		errGroup.Go(func() error {
+			for _, v := range components {
+				if err := c.Inject(v.Value); err != nil {
+					cancel() // 取消所有协程的执行
+					return err
+				}
+			}
+			return nil
+		})
 	}
+
+	if err := errGroup.Wait(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // 根据组件实例名，获取对应实例信息
 func (c *Container) Get(name string) (any, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	component, ok := c.components[name]
 	if !ok {
 		return nil, errors.New("component not found: " + name)

@@ -77,6 +77,11 @@ func (d *DbConn) WalkQueryRows(ctx context.Context, querySql string, walkFn Walk
 	return walkQueryRows(ctx, d.db, querySql, walkFn, args...)
 }
 
+// 游标方式遍历指定表的结果集, walkFn返回error不为nil, 则跳出遍历
+func (d *DbConn) WalkTableRows(ctx context.Context, tableName string, walkFn WalkQueryRowsFunc) error {
+	return d.WalkQueryRows(ctx, fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
+}
+
 // 执行 update, insert, delete，建表等sql
 // 返回影响条数和错误
 func (d *DbConn) Exec(sql string, args ...any) (int64, error) {

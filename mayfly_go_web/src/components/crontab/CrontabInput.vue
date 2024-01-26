@@ -1,5 +1,5 @@
 <template>
-    <el-input v-model="cron" placeholder="可点击左边按钮进行可视化配置">
+    <el-input v-model="cron" placeholder="可点击左边按钮配置">
         <template #prepend>
             <el-button @click="showCron = true" icon="Pointer"></el-button>
         </template>

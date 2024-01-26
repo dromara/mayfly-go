@@ -355,7 +355,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 			writer.WriteString("BEGIN;\n")
 		}
 		insertSql := "INSERT INTO %s VALUES (%s);\n"
-		dbMeta.WalkTableRecord(table, func(record map[string]any, columns []*dbi.QueryColumn) error {
+		dbConn.WalkTableRows(context.TODO(), table, func(record map[string]any, columns []*dbi.QueryColumn) error {
 			var values []string
 			writer.TryFlush()
 			for _, column := range columns {

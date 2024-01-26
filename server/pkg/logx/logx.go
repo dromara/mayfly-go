@@ -116,7 +116,7 @@ func ErrorTrace(msg string, err any) {
 	default:
 		errMsg = fmt.Sprintf("%v", t)
 	}
-	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+"\n%s\n%s", errMsg, runtimex.StatckStr(2, 10)))
+	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+"\n%s\n%s", errMsg, runtimex.StatckStr(2, 20)))
 }
 
 func ErrorWithFields(ctx context.Context, msg string, mapFields map[string]any) {

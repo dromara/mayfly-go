@@ -15,11 +15,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/logx"
+
+	"github.com/pkg/errors"
 )
 
 var _ dbi.DbProgram = (*DbProgramMysql)(nil)
@@ -584,7 +585,7 @@ func (svc *DbProgramMysql) ReplayBinlog(ctx context.Context, originalDatabase, t
 		_ = mysqlbinlogCmd.Cancel()
 		if err := mysqlbinlogCmd.Wait(); err != nil {
 			if mysqlbinlogErr.Len() > 0 {
-				logx.Errorf("运行 mysqlbinlog 程序失败", mysqlbinlogErr.String())
+				logx.Errorf("运行 mysqlbinlog 程序失败: %s", mysqlbinlogErr.String())
 				if replayErr != nil {
 					replayErr = errors.Wrap(replayErr, "运行 mysqlbinlog 程序失败: "+mysqlbinlogErr.String())
 				} else {

@@ -104,9 +104,6 @@ type Dialect interface {
 	// 获取建表ddl
 	GetTableDDL(tableName string) (string, error)
 
-	// WalkTableRecord 遍历指定表的数据
-	WalkTableRecord(tableName string, walkFn WalkQueryRowsFunc) error
-
 	GetSchemas() ([]string, error)
 
 	// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复

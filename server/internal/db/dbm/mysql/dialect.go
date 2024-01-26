@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
@@ -162,10 +161,6 @@ func (md *MysqlDialect) GetTableDDL(tableName string) (string, error) {
 		return "", err
 	}
 	return anyx.ConvString(res[0]["Create Table"]) + ";", nil
-}
-
-func (md *MysqlDialect) WalkTableRecord(tableName string, walkFn dbi.WalkQueryRowsFunc) error {
-	return md.dc.WalkQueryRows(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
 }
 
 func (md *MysqlDialect) GetSchemas() ([]string, error) {

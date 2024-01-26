@@ -1,7 +1,6 @@
 package oracle
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
@@ -231,10 +230,6 @@ func (od *OracleDialect) GetTableDDL(tableName string) (string, error) {
 	}
 
 	return builder.String(), nil
-}
-
-func (od *OracleDialect) WalkTableRecord(tableName string, walkFn dbi.WalkQueryRowsFunc) error {
-	return od.dc.WalkQueryRows(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
 }
 
 // 获取DM当前连接的库可访问的schemaNames

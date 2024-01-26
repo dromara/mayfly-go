@@ -363,7 +363,7 @@ export class DbInst {
             return value;
         }
         if (!dbDialect) {
-            return `${value}`;
+            return `'${value}'`;
         }
         return dbDialect.wrapStrValue(columnType, value);
     }

@@ -1,7 +1,6 @@
 package sqlite
 
 import (
-	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -181,10 +180,6 @@ func (sd *SqliteDialect) GetTableDDL(tableName string) (string, error) {
 	}
 
 	return builder.String(), nil
-}
-
-func (sd *SqliteDialect) WalkTableRecord(tableName string, walkFn dbi.WalkQueryRowsFunc) error {
-	return sd.dc.WalkQueryRows(context.Background(), fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
 }
 
 func (sd *SqliteDialect) GetSchemas() ([]string, error) {
