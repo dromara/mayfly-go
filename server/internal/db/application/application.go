@@ -34,22 +34,6 @@ func Init() {
 	})()
 }
 
-func GetInstanceApp() Instance {
-	return ioc.Get[Instance]("DbInstance")
-}
-
-func GetDbApp() Db {
-	return ioc.Get[Db]("DbApp")
-}
-
-func GetDbSqlApp() DbSql {
-	return ioc.Get[DbSql]("DbSqlApp")
-}
-
-func GetDbSqlExecApp() DbSqlExec {
-	return ioc.Get[DbSqlExec]("DbSqlExecApp")
-}
-
 func GetDbBackupApp() *DbBackupApp {
 	return ioc.Get[*DbBackupApp]("DbBackupApp")
 }

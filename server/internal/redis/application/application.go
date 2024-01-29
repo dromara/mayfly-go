@@ -10,7 +10,3 @@ func InitIoc() {
 
 	ioc.Register(new(redisAppImpl), ioc.WithComponentName("RedisApp"))
 }
-
-func GetRedisApp() Redis {
-	return ioc.Get[Redis]("RedisApp")
-}

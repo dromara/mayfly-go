@@ -28,10 +28,6 @@ func GetMachineScriptApp() MachineScript {
 	return ioc.Get[MachineScript]("MachineScriptApp")
 }
 
-func GetAuthCertApp() AuthCert {
-	return ioc.Get[AuthCert]("AuthCertApp")
-}
-
 func GetMachineCronJobApp() MachineCronJob {
 	return ioc.Get[MachineCronJob]("MachineCronJobApp")
 }

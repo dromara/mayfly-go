@@ -45,6 +45,8 @@ type dataSyncAppImpl struct {
 	base.AppImpl[*entity.DataSyncTask, repository.DataSyncTask]
 
 	dbDataSyncLogRepo repository.DataSyncLog `inject:"DbDataSyncLogRepo"`
+
+	dbApp Db `inject:"DbApp"`
 }
 
 var (
@@ -130,7 +132,7 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
 		updSql := ""
 		orderSql := ""
 		if task.UpdFieldVal != "0" && task.UpdFieldVal != "" && task.UpdField != "" {
-			srcConn, _ := GetDbApp().GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
+			srcConn, _ := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
 
 			task.UpdFieldVal = strings.Trim(task.UpdFieldVal, " ")
 			// 把UpdFieldVal尝试转为int，如果可以转为int，则不添加引号，否则添加引号
@@ -173,13 +175,13 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 	}
 
 	// 获取源数据库连接
-	srcConn, err := GetDbApp().GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
+	srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
 	if err != nil {
 		return syncLog, errorx.NewBiz("连接源数据库失败: %s", err.Error())
 	}
 
 	// 获取目标数据库连接
-	targetConn, err := GetDbApp().GetDbConn(uint64(task.TargetDbId), task.TargetDbName)
+	targetConn, err := app.dbApp.GetDbConn(uint64(task.TargetDbId), task.TargetDbName)
 	if err != nil {
 		return syncLog, errorx.NewBiz("连接目标数据库失败: %s", err.Error())
 	}

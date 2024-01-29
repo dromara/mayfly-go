@@ -67,7 +67,7 @@ func (c *Container) Inject(obj any) error {
 
 // 对所有组件实例执行Inject。即为实例字段注入依赖的组件实例
 func (c *Container) InjectComponents() error {
-	componentsGroups := collx.ArraySplit[*Component](collx.MapValues(c.components), 10)
+	componentsGroups := collx.ArraySplit[*Component](collx.MapValues(c.components), 3)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
