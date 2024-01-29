@@ -35,7 +35,7 @@ order by c.relname
 SELECT
     indexname AS "indexName",
     'BTREE' AS "IndexType",
-    case when indexdef like 'CREATE UNIQUE INDEX%%' then 0 else 1 end as "nonUnique",
+    case when indexdef like 'CREATE UNIQUE INDEX%%' then 1 else 0 end as "isUnique",
     obj_description(b.oid, 'pg_class') AS "indexComment",
     indexdef AS "indexDef",
     c.attname AS "columnName",
@@ -47,18 +47,21 @@ WHERE a.schemaname = (select current_schema())
   AND a.tablename = '%s';
 ---------------------------------------
 --PGSQL_COLUMN_MA 表列信息
-SELECT
-    table_name AS "tableName",
-    column_name AS "columnName",
-    is_nullable AS "nullable",
+SELECT a.table_name                                                                           AS "tableName",
+       a.column_name                                                                          AS "columnName",
+       a.is_nullable                                                                          AS "nullable",
     case when character_maximum_length > 0 then concat(udt_name, '(',character_maximum_length,')') else udt_name end  AS "columnType",
-    column_default as "columnDefault",
-    numeric_scale  AS "numScale",
-    case when column_default like 'nextval%%' then 'PRI' else '' end "columnKey",
-    col_description((table_schema || '.' || table_name)::regclass, ordinal_position) AS "columnComment"
-FROM information_schema.columns
-WHERE table_schema = (select current_schema()) and table_name in (%s)
-order by table_name, ordinal_position
+       a.column_default                                                                       as "columnDefault",
+       a.numeric_scale                                                                        AS "numScale",
+       case when a.column_default like 'nextval%%' then 1 else 0 end                             "isIdentity",
+       case when b.column_name is not null then 1 else 0 end                                     "isPrimaryKey",
+       col_description((a.table_schema || '.' || a.table_name)::regclass, a.ordinal_position) AS "columnComment"
+FROM information_schema.columns a
+         left join information_schema.key_column_usage b
+                   on a.table_schema = b.table_schema and b.table_name = a.table_name and b.column_name = a.column_name
+WHERE a.table_schema = (select current_schema())
+  and a.table_name in (%s)
+order by a.table_name, a.ordinal_position
 ---------------------------------------
 --PGSQL_TABLE_DDL_FUNC 表ddl函数
  CREATE OR REPLACE FUNCTION showcreatetable(namespace character varying, tablename character varying)

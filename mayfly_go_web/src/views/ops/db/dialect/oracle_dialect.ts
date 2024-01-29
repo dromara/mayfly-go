@@ -92,7 +92,35 @@ const replaceFunctions: EditorCompletionItem[] = [
     { label: 'NVL2', insertText: 'NVL2(x,value1,value2)', description: '如果x非空，返回value1，否则返回value2' },
 ];
 
-const addCustomKeywords = ['ROWNUM', 'DUAL'];
+const addCustomKeywords: EditorCompletionItem[] = [
+    {
+        label: 'ROWNUM',
+        description: 'keyword',
+        insertText: 'ROWNUM',
+    },
+    {
+        label: 'DUAL',
+        description: 'keyword',
+        insertText: 'DUAL',
+    },
+    // 分页代码块
+    {
+        label: 'SELECT ROWNUM',
+        description: 'code block',
+        insertText: 'SELECT * from table_name where rownum <= 10',
+    },
+    {
+        label: 'SELECT PAGE',
+        description: 'code block',
+        insertText: ` SELECT * FROM
+    (
+      SELECT t.*, ROWNUM AS rn
+      FROM table_name t
+      WHERE ROWNUM <= 25
+    )
+  WHERE rn > 0 \n`,
+    },
+];
 
 let oracleDialectInfo: DialectInfo;
 class OracleDialect implements DbDialect {
@@ -104,6 +132,7 @@ class OracleDialect implements DbDialect {
         let { keywords, operators, builtinVariables } = sqlLanguage;
         let functionNames = replaceFunctions.map((a) => a.label);
         let excludeKeywords = new Set(functionNames.concat(operators));
+        excludeKeywords.add('SELECT');
 
         let editorCompletions: EditorCompletion = {
             keywords: keywords
@@ -118,15 +147,7 @@ class OracleDialect implements DbDialect {
                         })
                     )
                 )
-                .concat(
-                    // 加上自定义的关键字
-                    addCustomKeywords.map(
-                        (a): EditorCompletionItem => ({
-                            label: a,
-                            description: 'keyword',
-                        })
-                    )
-                ),
+                .concat(addCustomKeywords),
             operators: operators.map((a: string): EditorCompletionItem => ({ label: a, description: 'operator' })),
             functions: replaceFunctions,
             variables: builtinVariables.map((a: string): EditorCompletionItem => ({ label: a, description: 'var' })),
@@ -142,7 +163,7 @@ class OracleDialect implements DbDialect {
         return oracleDialectInfo;
     }
 
-    getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
+    getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
         return `
         SELECT *
         FROM (
@@ -399,7 +420,7 @@ class OracleDialect implements DbDialect {
         return dropPkSql + modifySql + dropSql + renameSql + addPkSql + commentSql;
     }
 
-    getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
         // 不能直接修改索引名或字段、需要先删后加
         let dropIndexNames: string[] = [];
         let addIndexs: any[] = [];

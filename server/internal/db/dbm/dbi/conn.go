@@ -173,7 +173,12 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 	// 这里表示一行所有列的值，用[]byte表示
 	values := make([][]byte, lenCols)
 	for k, colType := range colTypes {
-		cols[k] = &QueryColumn{Name: colType.Name(), Type: colType.DatabaseTypeName()}
+		// 处理字段名，如果为空，则命名为匿名列
+		colName := colType.Name()
+		if colName == "" {
+			colName = fmt.Sprintf("<anonymous%d>", k+1)
+		}
+		cols[k] = &QueryColumn{Name: colName, Type: colType.DatabaseTypeName()}
 		// 这里scans引用values，把数据填充到[]byte里
 		scans[k] = &values[k]
 	}
@@ -187,7 +192,7 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 		rowData := make(map[string]any, lenCols)
 		// 把values中的数据复制到row中
 		for i, v := range values {
-			rowData[colTypes[i].Name()] = valueConvert(v, colTypes[i])
+			rowData[cols[i].Name] = valueConvert(v, colTypes[i])
 		}
 		if err = walkFn(rowData, cols); err != nil {
 			logx.Error("游标遍历查询结果集出错,退出遍历: %s", err.Error())

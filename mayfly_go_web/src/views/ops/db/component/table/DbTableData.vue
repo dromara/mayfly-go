@@ -715,9 +715,13 @@ const submitUpdateFields = async () => {
     const db = state.db;
     let res = '';
     const dbDialect = getDbDialect(dbInst.type);
-
+    let schema = '';
+    let dbArr = db.split('/');
+    if (dbArr.length == 2) {
+        schema = dbInst.wrapName(dbArr[1]) + '.';
+    }
     for (let updateRow of cellUpdateMap.values()) {
-        let sql = `UPDATE ${dbInst.wrapName(state.table)} SET `;
+        let sql = `UPDATE ${schema}${dbInst.wrapName(state.table)} SET `;
         const rowData = updateRow.rowData;
         // 主键列信息
         const primaryKey = await dbInst.loadTableColumn(db, state.table);

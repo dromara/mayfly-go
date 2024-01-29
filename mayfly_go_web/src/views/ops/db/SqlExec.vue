@@ -165,8 +165,8 @@
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, toRefs } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { defineAsyncComponent, h, onBeforeUnmount, onMounted, reactive, ref, toRefs } from 'vue';
+import { ElCheckbox, ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { DbInst, registerDbCompletionItemProvider, TabInfo, TabType } from './db';
 import { NodeType, TagTreeNode } from '../component/tag';
@@ -175,7 +175,7 @@ import { dbApi } from './api';
 import { dispposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { ContextmenuItem } from '@/components/contextmenu';
-import { getDbDialect, schemaDbTypes} from './dialect/index'
+import { getDbDialect, schemaDbTypes } from './dialect/index';
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Pane, Splitpanes } from 'splitpanes';
@@ -229,21 +229,25 @@ const nodeClickChangeDb = (nodeData: TagTreeNode) => {
     }
 };
 
-// tagpath 节点类型
-const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
-    const dbInfoRes = await dbApi.dbs.request({ tagPath: parentNode.key });
-    const dbInfos = dbInfoRes.list;
-    if (!dbInfos) {
-        return [];
-    }
+const ContextmenuItemRefresh = new ContextmenuItem('refresh', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key));
 
-    // 防止过快加载会出现一闪而过，对眼睛不好
-    await sleep(100);
-    return dbInfos?.map((x: any) => {
-        x.tagPath = parentNode.key;
-        return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeDbInst).withParams(x);
-    });
-});
+// tagpath 节点类型
+const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath)
+    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+        const dbInfoRes = await dbApi.dbs.request({ tagPath: parentNode.key });
+        const dbInfos = dbInfoRes.list;
+        if (!dbInfos) {
+            return [];
+        }
+
+        // 防止过快加载会出现一闪而过，对眼睛不好
+        await sleep(100);
+        return dbInfos?.map((x: any) => {
+            x.tagPath = parentNode.key;
+            return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeDbInst).withParams(x);
+        });
+    })
+    .withContextMenuItems([ContextmenuItemRefresh]);
 
 // 数据库实例节点类型
 const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((parentNode: TagTreeNode) => {
@@ -266,7 +270,7 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
 
 // 数据库节点
 const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
-    .withContextMenuItems([new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key))])
+    .withContextMenuItems([ContextmenuItemRefresh])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
         params.parentKey = parentNode.key;
@@ -288,17 +292,17 @@ const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
     .withNodeClickFunc(nodeClickChangeDb);
 
 const NodeTypeTables = (params: any) => {
-  let tableKey = `${params.id}.${params.db}.table-menu`;
-  let sqlKey = getSqlMenuNodeKey(params.id, params.db);
+    let tableKey = `${params.id}.${params.db}.table-menu`;
+    let sqlKey = getSqlMenuNodeKey(params.id, params.db);
     return [
-        new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams({...params, key:tableKey}).withIcon(TableIcon),
-        new TagTreeNode(sqlKey, 'SQL', NodeTypeSqlMenu).withParams({...params, key:sqlKey}).withIcon(SqlIcon),
+        new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams({ ...params, key: tableKey }).withIcon(TableIcon),
+        new TagTreeNode(sqlKey, 'SQL', NodeTypeSqlMenu).withParams({ ...params, key: sqlKey }).withIcon(SqlIcon),
     ];
 };
 
 // postgres schema模式
 const NodeTypePostgresSchema = new NodeType(SqlExecNodeType.PgSchema)
-    .withContextMenuItems([new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key))])
+    .withContextMenuItems([ContextmenuItemRefresh])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
         params.parentKey = parentNode.key;
@@ -309,7 +313,7 @@ const NodeTypePostgresSchema = new NodeType(SqlExecNodeType.PgSchema)
 // 数据库表菜单节点
 const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
     .withContextMenuItems([
-        new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key)),
+        ContextmenuItemRefresh,
         new ContextmenuItem('createTable', '创建表').withIcon('Plus').withOnClick((data: any) => onEditTable(data)),
         new ContextmenuItem('tablesOp', '表操作').withIcon('Setting').withOnClick((data: any) => {
             const params = data.params;
@@ -676,12 +680,34 @@ const onDeleteTable = async (data: any) => {
 const onCopyTable = async (data: any) => {
     let { db, id, tableName, parentKey } = data.params;
 
-    // 执行sql
-    dbApi.copyTable.request({ id, db, tableName, copyData:true }).then(() => {
-        ElMessage.success('复制成功');
-        setTimeout(() => {
-            parentKey && reloadNode(parentKey);
-        }, 1000);
+    let checked = ref(false);
+
+    // 弹出确认框，并选择是否复制数据
+    await ElMessageBox({
+        title: `复制表【${tableName}】`,
+        type: 'warning',
+        //  icon: markRaw(Delete),
+        message: () =>
+            h(ElCheckbox, {
+                label: '是否复制数据?',
+                modelValue: checked.value,
+                'onUpdate:modelValue': (val: boolean | string | number) => {
+                    if (typeof val === 'boolean') {
+                        checked.value = val;
+                    }
+                },
+            }),
+        callback: (action: string) => {
+            if (action === 'confirm') {
+                // 执行sql
+                dbApi.copyTable.request({ id, db, tableName, copyData: checked.value }).then(() => {
+                    ElMessage.success('复制成功');
+                    setTimeout(() => {
+                        parentKey && reloadNode(parentKey);
+                    }, 1000);
+                });
+            }
+        },
     });
 };
 

@@ -103,7 +103,8 @@ func (od *OracleDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			ColumnType:    anyx.ConvString(re["COLUMN_TYPE"]),
 			ColumnComment: anyx.ConvString(re["COLUMN_COMMENT"]),
 			Nullable:      anyx.ConvString(re["NULLABLE"]),
-			ColumnKey:     anyx.ConvString(re["COLUMN_KEY"]),
+			IsPrimaryKey:  anyx.ConvInt(re["IS_PRIMARY_KEY"]) == 1,
+			IsIdentity:    anyx.ConvInt(re["IS_IDENTITY"]) == 1,
 			ColumnDefault: defaultVal,
 			NumScale:      anyx.ConvString(re["NUM_SCALE"]),
 		})
@@ -120,7 +121,7 @@ func (od *OracleDialect) GetPrimaryKey(tablename string) (string, error) {
 		return "", errorx.NewBiz("[%s] 表不存在", tablename)
 	}
 	for _, v := range columns {
-		if v.ColumnKey == "PRI" {
+		if v.IsPrimaryKey {
 			return v.ColumnName, nil
 		}
 	}
@@ -142,7 +143,7 @@ func (od *OracleDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
 			ColumnName:   anyx.ConvString(re["COLUMN_NAME"]),
 			IndexType:    anyx.ConvString(re["INDEX_TYPE"]),
 			IndexComment: anyx.ConvString(re["INDEX_COMMENT"]),
-			NonUnique:    anyx.ConvInt(re["NON_UNIQUE"]),
+			IsUnique:     anyx.ConvInt(re["IS_UNIQUE"]) == 1,
 			SeqInIndex:   anyx.ConvInt(re["SEQ_IN_INDEX"]),
 		})
 	}

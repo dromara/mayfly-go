@@ -7,6 +7,10 @@ import { editor, languages, Position } from 'monaco-editor';
 
 import { registerCompletionItemProvider } from '@/components/monaco/completionItemProvider';
 import { DbDialect, EditorCompletionItem, getDbDialect } from './dialect';
+import { type RemovableRef, useLocalStorage } from '@vueuse/core';
+
+const hintsStorage: RemovableRef<Map<string, any>> = useLocalStorage('db-table-hints', new Map());
+const tableStorage: RemovableRef<Map<string, any>> = useLocalStorage('db-tables', new Map());
 
 const dbInstCache: Map<number, DbInst> = new Map();
 
@@ -58,14 +62,15 @@ export class DbInst {
         if (!dbName) {
             throw new Error('dbName不能为空');
         }
-        let db = this.dbs.get(dbName);
+        let key = `${this.id}_${dbName}`;
+        let db = this.dbs.get(key);
         if (db) {
             return db;
         }
         console.info(`new db -> dbId: ${this.id}, dbName: ${dbName}`);
         db = new Db();
         db.name = dbName;
-        this.dbs.set(dbName, db);
+        this.dbs.set(key, db);
         return db;
     }
 
@@ -77,17 +82,22 @@ export class DbInst {
      */
     async loadTables(dbName: string, reload?: boolean) {
         const db = this.getDb(dbName);
-        // 优先从 table map中获取
-        let tables = db.tables;
+        let key = this.dbTablesKey(dbName);
+        let tables = tableStorage.value.get(key);
+        // 优先从 table 缓存中获取
         if (!reload && tables) {
+            db.tables = tables;
             return tables;
         }
         // 重置列信息缓存与表提示信息
         db.columnsMap?.clear();
-        db.tableHints = null;
         console.log(`load tables -> dbName: ${dbName}`);
         tables = await dbApi.tableInfos.request({ id: this.id, db: dbName });
+        tableStorage.value.set(key, tables);
         db.tables = tables;
+
+        // 异步加载表提示信息
+        this.loadDbHints(dbName, true).then(() => {});
         return tables;
     }
 
@@ -169,18 +179,30 @@ export class DbInst {
         return this.getDb(dbName).getColumn(table, columnName);
     }
 
+    dbTableHintsKey(dbName: string) {
+        return `db-table-hints_${this.id}_${dbName}`;
+    }
+
+    dbTablesKey(dbName: string) {
+        return `db-tables_${this.id}_${dbName}`;
+    }
+
     /**
      * 获取库信息提示
      */
-    async loadDbHints(dbName: string) {
+    async loadDbHints(dbName: string, reload?: boolean) {
         const db = this.getDb(dbName);
-        if (db.tableHints) {
-            return db.tableHints;
+        let key = this.dbTableHintsKey(dbName);
+        let hints = hintsStorage.value.get(key);
+        if (!reload && hints) {
+            db.tableHints = hints;
+            return hints;
         }
         console.log(`load db-hits -> dbName: ${dbName}`);
-        const hits = await dbApi.hintTables.request({ id: this.id, db: db.name });
-        db.tableHints = hits;
-        return hits;
+        hints = await dbApi.hintTables.request({ id: this.id, db: db.name });
+        db.tableHints = hints;
+        hintsStorage.value.set(key, hints);
+        return hints;
     }
 
     /**
@@ -225,8 +247,8 @@ export class DbInst {
     };
 
     // 获取指定表的默认查询sql
-    getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number = DbInst.DefaultLimit) {
-        return getDbDialect(this.type).getDefaultSelectSql(table, condition, orderBy, pageNum, limit);
+    getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number = DbInst.DefaultLimit) {
+        return getDbDialect(this.type).getDefaultSelectSql(db, table, condition, orderBy, pageNum, limit);
     }
 
     /**
@@ -275,6 +297,7 @@ export class DbInst {
             sql,
             dbId: this.id,
             db,
+            dbType: getDbDialect(this.type).getInfo().formatSqlDialect,
             runSuccessCallback: successFunc,
             cancelCallback: cancelFunc,
         });
@@ -441,7 +464,7 @@ class Db {
     getColumn(table: string, columnName: string = '') {
         const cols = this.getColumns(table);
         if (!columnName) {
-            const col = cols.find((c: any) => c.columnKey == 'PRI');
+            const col = cols.find((c: any) => c.isPrimaryKey);
             return col || cols[0];
         }
         return cols.find((c: any) => c.columnName == columnName);

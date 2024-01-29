@@ -132,7 +132,7 @@ class PostgresqlDialect implements DbDialect {
         return pgDialectInfo;
     }
 
-    getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
+    getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
         return `SELECT * FROM ${this.quoteIdentifier(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(
             pageNum,
             limit
@@ -365,7 +365,7 @@ class PostgresqlDialect implements DbDialect {
         return dropPkSql + modifySql + dropSql + renameSql + addPkSql + commentSql;
     }
 
-    getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
         // 不能直接修改索引名或字段、需要先删后加
         let dropIndexNames: string[] = [];
         let addIndexs: any[] = [];

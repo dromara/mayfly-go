@@ -23,14 +23,6 @@ func GetConfigApp() Config {
 	return ioc.Get[Config]("ConfigApp")
 }
 
-func GetResourceApp() Resource {
-	return ioc.Get[Resource]("ResourceApp")
-}
-
-func GetRoleApp() Role {
-	return ioc.Get[Role]("RoleApp")
-}
-
 func GetSyslogApp() Syslog {
 	return ioc.Get[Syslog]("SyslogApp")
 }

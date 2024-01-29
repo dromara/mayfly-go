@@ -3,6 +3,7 @@
         <el-input
             v-if="dataType == DataType.String"
             :ref="(el: any) => focus && el?.focus()"
+            :disabled="disabled"
             @blur="handleBlur"
             :class="`w100 mb4 ${showEditorIcon ? 'string-input-container-show-icon' : ''}`"
             input-style="text-align: center; height: 26px;"
@@ -16,6 +17,7 @@
     <el-input
         v-else-if="dataType == DataType.Number"
         :ref="(el: any) => focus && el?.focus()"
+        :disabled="disabled"
         @blur="handleBlur"
         class="w100 mb4"
         input-style="text-align: center; height: 26px;"
@@ -28,6 +30,7 @@
     <el-date-picker
         v-else-if="dataType == DataType.Date"
         :ref="(el: any) => focus && el?.focus()"
+        :disabled="disabled"
         @change="emit('blur')"
         @blur="handleBlur"
         class="edit-time-picker mb4"
@@ -43,6 +46,7 @@
     <el-date-picker
         v-else-if="dataType == DataType.DateTime"
         :ref="(el: any) => focus && el?.focus()"
+        :disabled="disabled"
         @change="handleBlur"
         @blur="handleBlur"
         class="edit-time-picker mb4"
@@ -58,6 +62,7 @@
     <el-time-picker
         v-else-if="dataType == DataType.Time"
         :ref="(el: any) => focus && el?.focus()"
+        :disabled="disabled"
         @change="handleBlur"
         @blur="handleBlur"
         class="edit-time-picker mb4"
@@ -71,7 +76,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Ref, ref, computed } from 'vue';
+import { computed, ref, Ref } from 'vue';
 import { ElInput } from 'element-plus';
 import { DataType } from '../../dialect/index';
 import SvgIcon from '@/components/svgIcon/index.vue';
@@ -83,11 +88,13 @@ export interface ColumnFormItemProps {
     focus?: boolean; // 是否获取焦点
     placeholder?: string;
     columnName?: string;
+    disabled?: boolean;
 }
 
 const props = withDefaults(defineProps<ColumnFormItemProps>(), {
     focus: false,
     dataType: DataType.String,
+    disabled: false,
 });
 
 const emit = defineEmits(['update:modelValue', 'blur']);

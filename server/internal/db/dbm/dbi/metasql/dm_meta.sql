@@ -36,7 +36,7 @@ ORDER BY a.object_name
 select
     a.index_name as INDEX_NAME,
     a.index_type as INDEX_TYPE,
-    case when a.uniqueness = 'UNIQUE' then 1 else 0 end as NON_UNIQUE,
+    case when a.uniqueness = 'UNIQUE' then 1 else 0 end as IS_UNIQUE,
     indexdef(b.object_id,1) as INDEX_DEF,
     c.column_name as COLUMN_NAME,
     c.column_position as SEQ_IN_INDEX,
@@ -64,22 +64,26 @@ select a.table_name                                                             
        b.comments                                                                          as COLUMN_COMMENT,
        a.data_default                                                                      as COLUMN_DEFAULT,
        a.data_scale                                                                        as NUM_SCALE,
-       case when t.COL_NAME = a.column_name then 'PRI' else '' end                         as COLUMN_KEY
+       case when t.COL_NAME = a.column_name then 1 else 0 end as IS_IDENTITY,
+       case when t2.constraint_type = 'P' then 1 else 0 end   as IS_PRIMARY_KEY
 from all_tab_columns a
          left join user_col_comments b
-                   on b.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)) and b.table_name = a.table_name and
-                      a.column_name = b.column_name
-         left join (select b.owner, b.table_name, a.name COL_NAME
+                   on b.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
+                       and b.table_name = a.table_name
+                       and a.column_name = b.column_name
+         left join (select b.owner, b.TABLE_NAME, a.NAME as COL_NAME
                     from SYS.SYSCOLUMNS a,
-                         all_tables b,
-                         sys.sysobjects c,
-                         sys.sysobjects d
+                         SYS.all_tables b,
+                         SYS.SYSOBJECTS c
                     where a.INFO2 & 0x01 = 0x01
-   and a.id=c.id and d.type$ = 'SCH' and d.id = c.schid
-   and b.owner =  (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
-   and c.schid = ( select id from sys.sysobjects where type$ = 'SCH' and name = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)))
-   and c.name = b.table_name) t
-                   on t.table_name = a.table_name
+                      and a.ID = c.ID
+                      and c.NAME = b.TABLE_NAME) t
+                   on t.table_name = a.table_name and t.owner = a.owner
+         left join (select uc.OWNER, uic.column_name, uic.table_name, uc.constraint_type
+                    from user_ind_columns uic
+                             left join user_constraints uc on uic.index_name = uc.index_name) t2
+                   on t2.table_name = t.table_name and a.column_name = t2.column_name
 where a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
   and a.table_name in (%s)
-order by a.table_name, a.column_id
+order by a.table_name,
+         a.column_id

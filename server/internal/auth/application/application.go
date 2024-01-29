@@ -10,7 +10,3 @@ func InitIoc() {
 
 	ioc.Register(new(oauth2AppImpl), ioc.WithComponentName("Oauth2App"))
 }
-
-func GetAuthApp() Oauth2 {
-	return ioc.Get[Oauth2]("Oauth2App")
-}

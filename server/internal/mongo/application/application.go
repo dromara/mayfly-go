@@ -10,7 +10,3 @@ func InitIoc() {
 
 	ioc.Register(new(mongoAppImpl), ioc.WithComponentName("MongoApp"))
 }
-
-func GetMongoApp() Mongo {
-	return ioc.Get[Mongo]("MongoApp")
-}

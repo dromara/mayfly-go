@@ -113,7 +113,7 @@ class MysqlDialect implements DbDialect {
         return mysqlDialectInfo;
     }
 
-    getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
+    getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
         return `SELECT * FROM ${this.quoteIdentifier(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(
             pageNum,
             limit
@@ -252,7 +252,7 @@ class MysqlDialect implements DbDialect {
         return sql + arr.join(',') + ';';
     }
 
-    getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
         // 搜集修改和删除的索引，添加到drop index xx
         // 收集新增和修改的索引，添加到ADD xx
         // ALTER TABLE `test1`

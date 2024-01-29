@@ -24,6 +24,7 @@ type MachineInfo struct {
 	Passphrase string `json:"-"` // 私钥口令
 
 	SshTunnelMachine *MachineInfo `json:"-"` // ssh隧道机器
+	TempSshMachineId uint64       `json:"-"` // ssh隧道机器id，用于记录隧道机器id，连接出错后关闭隧道
 	EnableRecorder   int8         `json:"-"` // 是否启用终端回放记录
 	TagPath          []string     `json:"tagPath"`
 }
@@ -47,10 +48,10 @@ func (mi *MachineInfo) Conn() (*Cli, error) {
 	}
 
 	cli := &Cli{Info: mi}
-	sshClient, err := GetSshClient(mi)
+	sshClient, err := GetSshClient(mi, nil)
 	if err != nil {
 		if mi.UseSshTunnel() {
-			CloseSshTunnelMachine(int(mi.SshTunnelMachine.Id), mi.GetTunnelId())
+			CloseSshTunnelMachine(int(mi.TempSshMachineId), mi.GetTunnelId())
 		}
 		return nil, err
 	}
@@ -83,10 +84,29 @@ func (me *MachineInfo) IfUseSshTunnelChangeIpPort() error {
 	// 修改机器ip地址
 	me.Ip = exposeIp
 	me.Port = exposePort
+	// 代理之后置空跳板机信息，防止重复跳
+	me.TempSshMachineId = me.SshTunnelMachine.Id
+	me.SshTunnelMachine = nil
 	return nil
 }
 
-func GetSshClient(m *MachineInfo) (*ssh.Client, error) {
+func GetSshClient(m *MachineInfo, jumpClient *ssh.Client) (*ssh.Client, error) {
+	// 递归一直取到底层没有跳板机的机器信息
+	if m.SshTunnelMachine != nil {
+		jumpClient, _ = GetSshClient(m.SshTunnelMachine, jumpClient)
+		// 新建一个没有跳板机的机器信息
+		m1 := &MachineInfo{
+			Ip:         m.Ip,
+			Port:       m.Port,
+			AuthMethod: m.AuthMethod,
+			Username:   m.Username,
+			Password:   m.Password,
+			Passphrase: m.Passphrase,
+		}
+		// 使用跳板机连接目标机器
+		return GetSshClient(m1, jumpClient)
+	}
+	// 配置 SSH 客户端
 	config := &ssh.ClientConfig{
 		User: m.Username,
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
@@ -94,7 +114,6 @@ func GetSshClient(m *MachineInfo) (*ssh.Client, error) {
 		},
 		Timeout: 5 * time.Second,
 	}
-
 	if m.AuthMethod == entity.AuthCertAuthMethodPassword {
 		config.Auth = []ssh.AuthMethod{ssh.Password(m.Password)}
 	} else if m.AuthMethod == entity.MachineAuthMethodPublicKey {
@@ -113,6 +132,19 @@ func GetSshClient(m *MachineInfo) (*ssh.Client, error) {
 	}
 
 	addr := fmt.Sprintf("%s:%d", m.Ip, m.Port)
+	if jumpClient != nil {
+		// 连接目标服务器
+		netConn, err := jumpClient.Dial("tcp", addr)
+		if err != nil {
+			return nil, err
+		}
+		conn, channel, reqs, err := ssh.NewClientConn(netConn, addr, config)
+		if err != nil {
+			return nil, err
+		}
+		// 创建目标服务器的 SSH 客户端
+		return ssh.NewClient(conn, channel, reqs), nil
+	}
 	sshClient, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
 		return nil, err

@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/dbm/dbi"
 	_ "mayfly-go/internal/db/dbm/dm"
+	_ "mayfly-go/internal/db/dbm/mssql"
 	_ "mayfly-go/internal/db/dbm/mysql"
 	_ "mayfly-go/internal/db/dbm/oracle"
 	_ "mayfly-go/internal/db/dbm/postgres"

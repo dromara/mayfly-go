@@ -21,9 +21,9 @@ ORDER BY a.TABLE_NAME
 SELECT ai.INDEX_NAME                          AS INDEX_NAME,
        ai.INDEX_TYPE                          AS INDEX_TYPE,
        CASE
-           WHEN ai.uniqueness = 'UNIQUE' THEN 'NO'
-           ELSE 'YES'
-           END                                AS NON_UNIQUE,
+           WHEN ai.uniqueness = 'UNIQUE' THEN 1
+           ELSE 0
+           END AS IS_UNIQUE,
        (SELECT LISTAGG(column_name, ', ') WITHIN GROUP (ORDER BY column_position)
         FROM ALL_IND_COLUMNS aic
         WHERE aic.INDEX_NAME = ai.INDEX_NAME
@@ -53,9 +53,8 @@ SELECT a.TABLE_NAME                                              as TABLE_NAME,
        b.COMMENTS                                                as COLUMN_COMMENT,
        a.DATA_DEFAULT                                            as COLUMN_DEFAULT,
        a.DATA_SCALE                                              as NUM_SCALE,
-       CASE
-           WHEN d.pri IS NOT NULL THEN 'PRI'
-           END as COLUMN_KEY
+       CASE WHEN d.pri IS NOT NULL THEN 1 ELSE 0 END         as IS_PRIMARY_KEY,
+       CASE WHEN a.IDENTITY_COLUMN = 'YES' THEN 1 ELSE 0 END as IS_IDENTITY
 FROM all_tab_columns a
          LEFT JOIN all_col_comments b
                    on a.OWNER = b.OWNER AND a.TABLE_NAME = b.TABLE_NAME AND a.COLUMN_NAME = b.COLUMN_NAME

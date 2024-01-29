@@ -90,17 +90,14 @@ func (sd *SqliteDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			if strings.Contains(defaultValue, "'") {
 				defaultValue = strings.ReplaceAll(defaultValue, "'", "")
 			}
-			columnKey := ""
-			if anyx.ConvInt(re["pk"]) == 1 {
-				columnKey = "PRI"
-			}
 			columns = append(columns, dbi.Column{
 				TableName:     tableName,
 				ColumnName:    anyx.ConvString(re["name"]),
 				ColumnType:    strings.ToLower(anyx.ConvString(re["type"])),
 				ColumnComment: "",
 				Nullable:      nullable,
-				ColumnKey:     columnKey,
+				IsPrimaryKey:  anyx.ConvInt(re["pk"]) == 1,
+				IsIdentity:    anyx.ConvInt(re["pk"]) == 1,
 				ColumnDefault: defaultValue,
 				NumScale:      "0",
 			})
@@ -150,17 +147,13 @@ func (sd *SqliteDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	for _, re := range res {
 		indexSql := anyx.ConvString(re["indexSql"])
 		isUnique := strings.Contains(indexSql, "CREATE UNIQUE INDEX")
-		nonUnique := 1
-		if isUnique {
-			nonUnique = 0
-		}
 
 		indexs = append(indexs, dbi.Index{
 			IndexName:    anyx.ConvString(re["indexName"]),
 			ColumnName:   extractIndexFields(indexSql),
 			IndexType:    anyx.ConvString(re["indexType"]),
 			IndexComment: anyx.ConvString(re["indexComment"]),
-			NonUnique:    nonUnique,
+			IsUnique:     isUnique,
 			SeqInIndex:   1,
 		})
 	}

@@ -19,7 +19,7 @@ import { NodeType, TagTreeNode } from '@/views/ops/component/tag';
 import { dbApi } from '@/views/ops/db/api';
 import { sleep } from '@/common/utils/loading';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import { getDbDialect, mysqlDbTypes} from '@/views/ops/db/dialect'
+import { getDbDialect, noSchemaTypes } from '@/views/ops/db/dialect';
 import TagTreeResourceSelect from '../../component/TagTreeResourceSelect.vue';
 import { computed } from 'vue';
 
@@ -90,8 +90,8 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
 });
 
 /**  mysql类型的数据库，没有schema层 */
-const mysqlType = (type: string) => {
-    return mysqlDbTypes.includes(type);
+const noSchemaType = (type: string) => {
+    return noSchemaTypes.includes(type);
 };
 
 // 数据库实例节点类型
@@ -99,7 +99,7 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
     const params = parentNode.params;
     const dbs = params.database.split(' ')?.sort();
     let fn: NodeType;
-    if (mysqlType(params.type)) {
+    if (noSchemaType(params.type)) {
         fn = MysqlNodeTypes;
     } else {
         fn = PgNodeTypes;
@@ -117,7 +117,7 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
                 db: x,
             })
             .withIcon(DbIcon);
-        if (mysqlType(params.type)) {
+        if (noSchemaType(params.type)) {
             tagTreeNode.isLeaf = true;
         }
         return tagTreeNode;

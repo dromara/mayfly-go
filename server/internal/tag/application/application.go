@@ -12,15 +12,3 @@ func InitIoc() {
 	ioc.Register(new(teamAppImpl), ioc.WithComponentName("TeamApp"))
 	ioc.Register(new(tagResourceAppImpl), ioc.WithComponentName("TagResourceApp"))
 }
-
-func GetTagTreeApp() TagTree {
-	return ioc.Get[TagTree]("TagTreeApp")
-}
-
-func GetTeamApp() Team {
-	return ioc.Get[Team]("TeamApp")
-}
-
-func GetTagResourceApp() TagResource {
-	return ioc.Get[TagResource]("TagResourceApp")
-}

@@ -29,5 +29,5 @@ type DbCopyTableForm struct {
 	Id        uint64 `binding:"required" json:"id"`
 	Db        string `binding:"required" json:"db" `
 	TableName string `binding:"required" json:"tableName"`
-	CopyData  bool   `binding:"required" json:"copyData"` // 是否复制数据
+	CopyData  bool   `json:"copyData"` // 是否复制数据
 }

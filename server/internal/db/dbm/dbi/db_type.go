@@ -17,6 +17,7 @@ const (
 	DbTypeDM       DbType = "dm"
 	DbTypeOracle   DbType = "oracle"
 	DbTypeSqlite   DbType = "sqlite"
+	DbTypeMssql    DbType = "mssql"
 )
 
 func ToDbType(dbType string) DbType {
@@ -44,6 +45,8 @@ func (dbType DbType) QuoteIdentifier(name string) string {
 		return quoteIdentifier(name, "`")
 	case DbTypePostgres:
 		return quoteIdentifier(name, `"`)
+	case DbTypeMssql:
+		return fmt.Sprintf("[%s]", name)
 	default:
 		return quoteIdentifier(name, `"`)
 	}

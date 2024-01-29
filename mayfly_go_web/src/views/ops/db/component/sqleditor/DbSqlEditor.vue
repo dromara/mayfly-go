@@ -128,12 +128,12 @@
 </template>
 
 <script lang="ts" setup>
-import { h, nextTick, onMounted, reactive, toRefs, ref, unref } from 'vue';
+import { h, nextTick, onMounted, reactive, ref, toRefs, unref } from 'vue';
 import { getToken } from '@/common/utils/storage';
 import { notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
 import config from '@/common/config';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { editor } from 'monaco-editor';
@@ -146,11 +146,10 @@ import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { joinClientParams } from '@/common/request';
 import { buildProgressProps } from '@/components/progress-notify/progress-notify';
 import ProgressNotify from '@/components/progress-notify/progress-notify.vue';
-import { ElNotification } from 'element-plus';
 import syssocket from '@/common/syssocket';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { getDbDialect } from '../../dialect';
-import { Splitpanes, Pane } from 'splitpanes';
+import { Pane, Splitpanes } from 'splitpanes';
 
 const emits = defineEmits(['saveSqlSuccess']);
 
@@ -357,6 +356,7 @@ const onRunSql = async (newTab = false) => {
         const colAndData: any = data.value;
         if (!colAndData.res || colAndData.res.length === 0) {
             ElMessage.warning('未查询到结果集');
+            return;
         }
 
         // 要实时响应，故需要用索引改变数据才生效
