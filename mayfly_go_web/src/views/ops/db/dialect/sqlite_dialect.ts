@@ -132,7 +132,7 @@ class SqliteDialect implements DbDialect {
         return sqliteDialectInfo;
     }
 
-    getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
+    getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
         return `SELECT * FROM ${this.quoteIdentifier(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(
             pageNum,
             limit
@@ -284,7 +284,7 @@ class SqliteDialect implements DbDialect {
         return sql.join(';') + ';';
     }
 
-    getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
         // sqlite创建索引需要先删除再创建
         // CREATE INDEX "main"."aa1" ON "t_sys_resource" ( "ui_path" );
 

@@ -74,6 +74,13 @@
       "font_class": "sqlite",
       "unicode": "e546",
       "unicode_decimal": 58694
+    },
+    {
+      "icon_id": "29340317",
+      "name": "temp-mssql",
+      "font_class": "MSSQLNATIVE",
+      "unicode": "e600",
+      "unicode_decimal": 58880
     }
   ]
 }

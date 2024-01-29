@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/jsonx"
 	"strconv"
@@ -87,8 +88,14 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 			// 如果配置为0，则不校验分页参数
 			maxCount := config.GetDbQueryMaxCount()
 			if maxCount != 0 {
-				// 兼容oracle rownum分页
-				if !strings.Contains(lowerSql, "limit") && !strings.Contains(lowerSql, "rownum") {
+
+				if !strings.Contains(lowerSql, "limit") &&
+					// 兼容oracle rownum分页
+					!strings.Contains(lowerSql, "rownum") &&
+					// 兼容mssql offset分页
+					!strings.Contains(lowerSql, "offset") &&
+					// 兼容mssql top 分页  with result as ({query sql}) select top 100 * from result
+					!strings.Contains(lowerSql, " top ") {
 					// 判断是不是count语句
 					if !strings.Contains(lowerSql, "count(") {
 						return nil, errorx.NewBiz("请完善分页信息后执行")
@@ -164,7 +171,7 @@ func doSelect(ctx context.Context, selectStmt *sqlparser.Select, execSqlReq *DbS
 		// 如果配置为0，则不校验分页参数
 		maxCount := config.GetDbQueryMaxCount()
 		// 哪些数据库跳过校验
-		skipped := dbi.DbTypeOracle == execSqlReq.DbConn.Info.Type
+		skipped := dbi.DbTypeOracle == execSqlReq.DbConn.Info.Type || dbi.DbTypeMssql == execSqlReq.DbConn.Info.Type
 		if maxCount != 0 && !skipped {
 			limit := selectStmt.Limit
 			if limit == nil {
@@ -204,6 +211,9 @@ func doUpdate(ctx context.Context, update *sqlparser.Update, execSqlReq *DbSqlEx
 	tableStr := sqlparser.String(update.TableExprs)
 	// 可能使用别名，故空格切割
 	tableName := strings.Split(tableStr, " ")[0]
+	if strings.Index(tableName, ".") > -1 {
+		tableName = strings.Split(tableName, ".")[1]
+	}
 	where := sqlparser.String(update.Where)
 	if len(where) == 0 {
 		return nil, errorx.NewBiz("SQL[%s]未执行. 请完善 where 条件后再执行", execSqlReq.Sql)
@@ -223,14 +233,26 @@ func doUpdate(ctx context.Context, update *sqlparser.Update, execSqlReq *DbSqlEx
 
 	updateColumnsAndPrimaryKey := strings.Join(updateColumns, ",") + "," + primaryKey
 	// 查询要更新字段数据的旧值，以及主键值
-	selectSql := fmt.Sprintf("SELECT %s FROM %s %s LIMIT 200", updateColumnsAndPrimaryKey, tableStr, where)
-	_, res, err := dbConn.QueryContext(ctx, selectSql)
-	if err == nil {
-		dbSqlExec.OldValue = jsonx.ToStr(res)
-	} else {
-		dbSqlExec.OldValue = err.Error()
+	selectSql := fmt.Sprintf("SELECT %s FROM %s %s", updateColumnsAndPrimaryKey, tableStr, where)
+
+	// WalkQuery查出最多200条数据
+	maxRec := 200
+	nowRec := 0
+	res := make([]map[string]any, 0)
+	err = dbConn.WalkQueryRows(ctx, selectSql, func(row map[string]any, columns []*dbi.QueryColumn) error {
+		nowRec++
+		res = append(res, row)
+		if nowRec == maxRec {
+			return errorx.NewBiz(fmt.Sprintf("超出更新最大查询条数限制: %d", maxRec))
+		}
+		return nil
+	})
+
+	if err != nil {
+		logx.Warn(err.Error())
 	}
 
+	dbSqlExec.OldValue = jsonx.ToStr(res)
 	dbSqlExec.Table = tableName
 	dbSqlExec.Type = entity.DbSqlExecTypeUpdate
 

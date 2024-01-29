@@ -36,7 +36,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, watch, reactive, onMounted, Ref, ref } from 'vue';
+import { onMounted, reactive, Ref, ref, toRefs, watch } from 'vue';
 import { dbApi } from './api';
 import { DbSqlExecTypeEnum } from './enums';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -120,6 +120,12 @@ const onShowRollbackSql = async (sqlExecLog: any) => {
     const primaryKey = getPrimaryKey(columns);
     const oldValue = JSON.parse(sqlExecLog.oldValue);
 
+    let schema = '';
+    let dbArr = sqlExecLog.db.split('/');
+    if (dbArr.length == 2) {
+        schema = dbArr[1] + '.';
+    }
+
     const rollbackSqls = [];
     if (sqlExecLog.type == DbSqlExecTypeEnum.Update.value) {
         for (let ov of oldValue) {
@@ -130,7 +136,7 @@ const onShowRollbackSql = async (sqlExecLog: any) => {
                 }
                 setItems.push(`${key} = ${wrapValue(ov[key])}`);
             }
-            rollbackSqls.push(`UPDATE ${sqlExecLog.table} SET ${setItems.join(', ')} WHERE ${primaryKey} = ${wrapValue(ov[primaryKey])};`);
+            rollbackSqls.push(`UPDATE ${schema}${sqlExecLog.table} SET ${setItems.join(', ')} WHERE ${primaryKey} = ${wrapValue(ov[primaryKey])};`);
         }
     } else if (sqlExecLog.type == DbSqlExecTypeEnum.Delete.value) {
         const columnNames = columns.map((c: any) => c.columnName);
@@ -139,7 +145,7 @@ const onShowRollbackSql = async (sqlExecLog: any) => {
             for (let column of columnNames) {
                 values.push(wrapValue(ov[column]));
             }
-            rollbackSqls.push(`INSERT INTO ${sqlExecLog.table} (${columnNames.join(', ')}) VALUES (${values.join(', ')});`);
+            rollbackSqls.push(`INSERT INTO ${schema}${sqlExecLog.table} (${columnNames.join(', ')}) VALUES (${values.join(', ')});`);
         }
     }
 
@@ -148,7 +154,7 @@ const onShowRollbackSql = async (sqlExecLog: any) => {
 };
 
 const getPrimaryKey = (columns: any) => {
-    const col = columns.find((c: any) => c.columnKey == 'PRI');
+    const col = columns.find((c: any) => c.isPrimaryKey);
     if (col) {
         return col.columnName;
     }

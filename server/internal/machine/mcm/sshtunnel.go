@@ -156,7 +156,7 @@ func GetSshTunnelMachine(machineId int, getMachine func(uint64) (*MachineInfo, e
 		return nil, err
 	}
 
-	sshClient, err := GetSshClient(me)
+	sshClient, err := GetSshClient(me, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -170,8 +170,8 @@
                 :page-sizes="pageSizes"
             ></el-pagination>
         </el-row>
-        <div style="font-size: 12px; padding: 0 10px; color: #606266">
-            <span>{{ state.sql }}</span>
+        <div style="padding: 0 10px">
+            <span style="color: var(--el-color-info-light-3)" class="font10 el-text el-text--small is-truncated">{{ state.sql }}</span>
         </div>
 
         <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
@@ -211,13 +211,14 @@
                     class="w100 mb5"
                     :prop="column.columnName"
                     :label="column.columnName"
-                    :required="column.nullable != 'YES' && column.columnKey != 'PRI'"
+                    :required="column.nullable != 'YES' && !column.isPrimaryKey && !column.isIdentity"
                 >
                     <ColumnFormItem
                         v-model="addDataDialog.data[`${column.columnName}`]"
                         :data-type="dbDialect.getDataType(column.columnType)"
                         :placeholder="`${column.columnType}  ${column.columnComment}`"
                         :column-name="column.columnName"
+                        :disabled="column.isIdentity"
                     />
                 </el-form-item>
             </el-form>
@@ -372,7 +373,7 @@ const selectData = async () => {
 
         const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
         state.count = parseInt(countRes.res[0].count || countRes.res[0].COUNT || 0);
-        let sql = dbInst.getDefaultSelectSql(table, state.condition, state.orderBy, state.pageNum, state.pageSize);
+        let sql = dbInst.getDefaultSelectSql(db, table, state.condition, state.orderBy, state.pageNum, state.pageSize);
         state.sql = sql;
         if (state.count > 0) {
             const colAndData: any = await dbInst.runSql(db, sql);
@@ -566,7 +567,13 @@ const addRow = async () => {
             }
             let columnNames = Object.keys(obj).join(',');
             let values = Object.values(obj).join(',');
-            let sql = `INSERT INTO ${dbInst.wrapName(props.tableName)} (${columnNames}) VALUES (${values});`;
+            // 获取schema
+            let schema = '';
+            let arr = props.dbName?.split('/');
+            if (arr && arr.length > 1) {
+                schema = dbInst.wrapName(arr[1]) + '.';
+            }
+            let sql = `INSERT INTO ${schema}${dbInst.wrapName(props.tableName)} (${columnNames}) VALUES (${values});`;
             dbInst.promptExeSql(props.dbName, sql, null, () => {
                 closeAddDataDialog();
                 onRefresh();

@@ -42,7 +42,8 @@ type Column struct {
 	ColumnName    string  `json:"columnName"`    // 列名
 	ColumnType    string  `json:"columnType"`    // 列类型
 	ColumnComment string  `json:"columnComment"` // 列备注
-	ColumnKey     string  `json:"columnKey"`     // 是否为主键，逐渐的话值钱为PRI
+	IsPrimaryKey  bool    `json:"isPrimaryKey"`  // 是否为主键
+	IsIdentity    bool    `json:"isIdentity"`    // 是否自增
 	ColumnDefault string  `json:"columnDefault"` // 默认值
 	Nullable      string  `json:"nullable"`      // 是否可为null
 	NumScale      string  `json:"numScale"`      // 小数点
@@ -56,7 +57,7 @@ type Index struct {
 	IndexType    string `json:"indexType"`    // 索引类型
 	IndexComment string `json:"indexComment"` // 备注
 	SeqInIndex   int    `json:"seqInIndex"`
-	NonUnique    int    `json:"nonUnique"`
+	IsUnique     bool   `json:"isUnique"`
 }
 
 type DbCopyTable struct {

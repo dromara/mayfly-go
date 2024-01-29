@@ -90,7 +90,8 @@ func (md *MysqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 			ColumnType:    anyx.ConvString(re["columnType"]),
 			ColumnComment: anyx.ConvString(re["columnComment"]),
 			Nullable:      anyx.ConvString(re["nullable"]),
-			ColumnKey:     anyx.ConvString(re["columnKey"]),
+			IsPrimaryKey:  anyx.ConvInt(re["isPrimaryKey"]) == 1,
+			IsIdentity:    anyx.ConvInt(re["isIdentity"]) == 1,
 			ColumnDefault: anyx.ConvString(re["columnDefault"]),
 			NumScale:      anyx.ConvString(re["numScale"]),
 		})
@@ -109,7 +110,7 @@ func (md *MysqlDialect) GetPrimaryKey(tablename string) (string, error) {
 	}
 
 	for _, v := range columns {
-		if v.ColumnKey == "PRI" {
+		if v.IsPrimaryKey {
 			return v.ColumnName, nil
 		}
 	}
@@ -131,7 +132,7 @@ func (md *MysqlDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
 			ColumnName:   anyx.ConvString(re["columnName"]),
 			IndexType:    anyx.ConvString(re["indexType"]),
 			IndexComment: anyx.ConvString(re["indexComment"]),
-			NonUnique:    anyx.ConvInt(re["nonUnique"]),
+			IsUnique:     anyx.ConvInt(re["isUnique"]) == 1,
 			SeqInIndex:   anyx.ConvInt(re["seqInIndex"]),
 		})
 	}

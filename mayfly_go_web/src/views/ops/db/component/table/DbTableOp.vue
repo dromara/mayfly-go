@@ -56,7 +56,7 @@
                                         v-else-if="item.prop === 'auto_increment'"
                                         size="small"
                                         v-model="scope.row.auto_increment"
-                                        :disabled="dbType === DbType.postgresql"
+                                        :disabled="disableEditIncr()"
                                     />
 
                                     <el-input v-else-if="item.prop === 'remark'" size="small" v-model="scope.row.remark" />
@@ -99,9 +99,7 @@
                                     <el-checkbox v-if="item.prop === 'unique'" size="small" v-model="scope.row.unique" @change="indexChanges(scope.row)">
                                     </el-checkbox>
 
-                                    <el-select v-if="item.prop === 'indexType'" disabled size="small" v-model="scope.row.indexType">
-                                        <el-option v-for="typeValue in indexTypeList" :key="typeValue" :value="typeValue">{{ typeValue }}</el-option>
-                                    </el-select>
+                                    <el-input v-if="item.prop === 'indexType'" disabled size="small" v-model="scope.row.indexType" />
 
                                     <el-input v-if="item.prop === 'indexComment'" size="small" v-model="scope.row.indexComment"> </el-input>
 
@@ -132,7 +130,7 @@
 import { reactive, ref, toRefs, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from '../sqleditor/SqlExecBox';
-import { DbDialect, DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
+import { DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
 
 const props = defineProps({
     visible: {
@@ -172,7 +170,6 @@ const state = reactive({
     btnloading: false,
     activeName: '1',
     columnTypeList: dbDialect.getInfo().columnTypes,
-    indexTypeList: ['BTREE', 'NORMAL'], // mysql索引类型详解 http://c.biancheng.net/view/7897.html
     tableData: {
         fields: {
             colNames: [
@@ -268,7 +265,7 @@ const state = reactive({
     },
 });
 
-const { dialogVisible, btnloading, activeName, indexTypeList, tableData } = toRefs(state);
+const { dialogVisible, btnloading, activeName, tableData } = toRefs(state);
 
 watch(props, async (newValue) => {
     state.dialogVisible = newValue.visible;
@@ -408,7 +405,7 @@ const genSql = () => {
         } else if (state.activeName === '2') {
             // 修改索引
             let changeData = filterChangedData(state.tableData.indexs.oldIndexs, state.tableData.indexs.res, 'indexName');
-            return dbDialect.getModifyIndexSql(data.tableName, changeData);
+            return dbDialect.getModifyIndexSql(data, data.tableName, changeData);
         }
     }
 };
@@ -418,28 +415,8 @@ const reset = () => {
     formRef.value.resetFields();
     state.tableData.tableName = '';
     state.tableData.tableComment = '';
-    state.tableData.fields.res = [
-        {
-            name: '',
-            type: '',
-            value: '',
-            length: '',
-            numScale: '',
-            notNull: false,
-            pri: false,
-            auto_increment: false,
-            remark: '',
-        },
-    ];
-    state.tableData.indexs.res = [
-        {
-            indexName: '',
-            columnNames: [],
-            unique: false,
-            indexType: 'BTREE',
-            indexComment: '',
-        },
-    ];
+    state.tableData.fields.res = [];
+    state.tableData.indexs.res = [];
 };
 
 const indexChanges = (row: any) => {
@@ -458,6 +435,21 @@ const indexChanges = (row: any) => {
     // 以表名为前缀
     row.indexName = `${tableData.value.tableName}_${name}_${suffix}`.replaceAll(' ', '');
     row.indexComment = `${tableData.value.tableName}表(${name.replaceAll('_', ',')})${commentSuffix}`;
+};
+
+const disableEditIncr = () => {
+    if (DbType.postgresql === props.dbType) {
+        return true;
+    }
+
+    // 如果是mssql则不能修改自增
+    if (props.data?.edit) {
+        if (DbType.mssql === props.dbType) {
+            return true;
+        }
+    }
+
+    return false;
 };
 
 watch(
@@ -492,8 +484,8 @@ watch(
                     length,
                     numScale: a.numScale,
                     notNull: a.nullable !== 'YES',
-                    pri: a.columnKey === 'PRI',
-                    auto_increment: a.columnKey === 'PRI' /*a.extra?.indexOf('auto_increment') > -1*/,
+                    pri: a.isPrimaryKey,
+                    auto_increment: a.isIdentity /*a.extra?.indexOf('auto_increment') > -1*/,
                     remark: a.columnComment,
                 };
                 state.tableData.fields.res.push(data);
@@ -513,7 +505,7 @@ watch(
                     let data = {
                         indexName: a.indexName,
                         columnNames: a.columnName?.split(','),
-                        unique: a.nonUnique === 0 || false,
+                        unique: a.isUnique || false,
                         indexType: a.indexType,
                         indexComment: a.indexComment,
                     };

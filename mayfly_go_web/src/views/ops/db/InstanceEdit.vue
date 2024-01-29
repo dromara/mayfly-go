@@ -156,27 +156,31 @@ const dbForm: any = ref(null);
 const dbTypes = [
     {
         type: 'mysql',
-        label: 'mysql',
+        label: 'MySQL',
     },
     {
         type: 'mariadb',
-        label: 'mariadb',
+        label: 'MariaDB',
     },
     {
         type: 'postgres',
-        label: 'postgres',
+        label: 'PostgreSQL',
     },
     {
         type: 'dm',
-        label: '达梦',
+        label: 'DM',
     },
     {
         type: 'oracle',
-        label: 'oracle',
+        label: 'Oracle',
     },
     {
         type: 'sqlite',
-        label: 'sqlite',
+        label: 'Sqlite',
+    },
+    {
+        type: 'mssql',
+        label: 'MSSQL',
     },
 ];
 
@@ -196,17 +200,17 @@ const state = reactive({
         remark: '',
         sshTunnelMachineId: null as any,
     },
-    subimtForm: {},
+    submitForm: {},
     // 原密码
     pwd: '',
     // 原用户名
     oldUserName: null,
 });
 
-const { dialogVisible, tabActiveName, form, subimtForm, pwd } = toRefs(state);
+const { dialogVisible, tabActiveName, form, submitForm, pwd } = toRefs(state);
 
-const { isFetching: saveBtnLoading, execute: saveInstanceExec } = dbApi.saveInstance.useApi(subimtForm);
-const { isFetching: testConnBtnLoading, execute: testConnExec } = dbApi.testConn.useApi(subimtForm);
+const { isFetching: saveBtnLoading, execute: saveInstanceExec } = dbApi.saveInstance.useApi(submitForm);
+const { isFetching: testConnBtnLoading, execute: testConnExec } = dbApi.testConn.useApi(submitForm);
 
 watch(props, (newValue: any) => {
     state.dialogVisible = newValue.visible;
@@ -249,7 +253,7 @@ const testConn = async () => {
             return false;
         }
 
-        state.subimtForm = await getReqForm();
+        state.submitForm = await getReqForm();
         await testConnExec();
         ElMessage.success('连接成功');
     });
@@ -270,7 +274,7 @@ const btnOk = async () => {
             return false;
         }
 
-        state.subimtForm = await getReqForm();
+        state.submitForm = await getReqForm();
         await saveInstanceExec();
         ElMessage.success('保存成功');
         emit('val-change', state.form);

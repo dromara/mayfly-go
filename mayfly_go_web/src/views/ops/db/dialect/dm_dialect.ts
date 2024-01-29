@@ -375,12 +375,12 @@ class DMDialect implements DbDialect {
         return dmDialectInfo;
     }
 
-    getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
+    getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
         return `SELECT * FROM "${table}" ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(pageNum, limit)};`;
     }
 
     getPageSql(pageNum: number, limit: number) {
-        return ` OFFSET ${(pageNum - 1) * limit} LIMIT ${limit};`;
+        return ` OFFSET ${(pageNum - 1) * limit} LIMIT ${limit}`;
     }
 
     getDefaultRows(): RowDefinition[] {
@@ -620,7 +620,7 @@ class DMDialect implements DbDialect {
         return dropPkSql + modifySql + dropSql + renameSql + addPkSql + commentSql;
     }
 
-    getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
         // 不能直接修改索引名或字段、需要先删后加
         let dropIndexNames: string[] = [];
         let addIndexs: any[] = [];

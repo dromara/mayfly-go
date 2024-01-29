@@ -30,7 +30,7 @@ SELECT
   index_name indexName,
   column_name columnName,
   index_type indexType,
-  non_unique nonUnique,
+  IF(non_unique, 0, 1) isUnique,
   SEQ_IN_INDEX seqInIndex,
   INDEX_COMMENT indexComment
 FROM
@@ -46,24 +46,25 @@ ORDER BY
   SEQ_IN_INDEX asc
 ---------------------------------------
 --MYSQL_COLUMN_MA 列信息元数据
-SELECT
-  table_name tableName,
-  column_name columnName,
-  column_type columnType,
-  column_default columnDefault,
-  column_comment columnComment,
-  column_key columnKey,
-  extra extra,
-  is_nullable nullable,
-  NUMERIC_SCALE numScale
-from
-  information_schema.columns
-WHERE
-  table_schema = (
-    SELECT
-      database ()
-  )
-  AND table_name in (%s)
-ORDER BY
-  tableName,
-  ordinal_position
+SELECT table_name     tableName,
+       column_name    columnName,
+       column_type    columnType,
+       column_default columnDefault,
+       column_comment columnComment,
+       CASE
+           WHEN column_key = 'PRI' THEN
+               1
+           ELSE 0
+           END AS     isPrimaryKey,
+       CASE
+           WHEN extra LIKE '%%auto_increment%%' THEN
+               1
+           ELSE 0
+           END AS     isIdentity,
+       is_nullable    nullable,
+       NUMERIC_SCALE  numScale
+FROM information_schema.COLUMNS
+WHERE table_schema = (SELECT DATABASE())
+  AND table_name IN (%s)
+ORDER BY table_name,
+         ordinal_position

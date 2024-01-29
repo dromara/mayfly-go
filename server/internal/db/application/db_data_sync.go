@@ -295,7 +295,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	}
 	// 解决字段大小写问题
 	updFieldVal := srcRes[len(srcRes)-1][strings.ToUpper(task.UpdField)]
-	if updFieldVal == "" {
+	if updFieldVal == "" || updFieldVal == nil {
 		updFieldVal = srcRes[len(srcRes)-1][strings.ToLower(task.UpdField)]
 	}
 
@@ -331,12 +331,6 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	if err != nil {
 		return err
 	}
-
-	// 运行完成一轮就记录一下修改字段最大值
-	taskParam1 := new(entity.DataSyncTask)
-	taskParam1.Id = task.Id
-	taskParam1.UpdFieldVal = task.UpdFieldVal
-	_ = app.UpdateById(context.Background(), taskParam1)
 
 	// 运行过程中，判断状态是否为已关闭，是则结束运行，否则继续运行
 	taskParam, _ := app.GetById(new(entity.DataSyncTask), task.Id)

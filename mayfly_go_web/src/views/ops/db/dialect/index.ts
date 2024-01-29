@@ -4,6 +4,7 @@ import { DMDialect } from '@/views/ops/db/dialect/dm_dialect';
 import { OracleDialect } from '@/views/ops/db/dialect/oracle_dialect';
 import { MariadbDialect } from '@/views/ops/db/dialect/mariadb_dialect';
 import { SqliteDialect } from '@/views/ops/db/dialect/sqlite_dialect';
+import { MssqlDialect } from '@/views/ops/db/dialect/mssql_dialect';
 
 export interface sqlColumnType {
     udtName: string;
@@ -113,15 +114,16 @@ export const DbType = {
     dm: 'dm', // 达梦
     oracle: 'oracle',
     sqlite: 'sqlite',
+    mssql: 'mssql', // ms sqlserver
 };
 
 // mysql兼容的数据库
-export const mysqlDbTypes = [DbType.mysql, DbType.mariadb, DbType.sqlite];
+export const noSchemaTypes = [DbType.mysql, DbType.mariadb, DbType.sqlite];
 
 // 有schema层的数据库
-export const schemaDbTypes = [DbType.postgresql, DbType.dm, DbType.oracle];
+export const schemaDbTypes = [DbType.postgresql, DbType.dm, DbType.oracle, DbType.mssql];
 
-export const editDbTypes = [...mysqlDbTypes, ...schemaDbTypes];
+export const editDbTypes = [...noSchemaTypes, ...schemaDbTypes];
 
 export const compatibleMysql = (dbType: string): boolean => {
     switch (dbType) {
@@ -141,13 +143,14 @@ export interface DbDialect {
 
     /**
      * 获取默认查询sql
+     * @param db  数据库信息
      * @param table  表名
      * @param condition 条件
      * @param orderBy 排序
      * @param pageNum  页数
      * @param limit  条数
      */
-    getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number): string;
+    getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number): string;
 
     getPageSql(pageNum: number, limit: number): string;
 
@@ -183,10 +186,11 @@ export interface DbDialect {
 
     /**
      * 生成编辑索引sql
+     * @param tableData 表数据，包含表名、列数据、索引数据
      * @param tableName   表名
      * @param changeData  改变数据
      */
-    getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string;
+    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string;
 
     /** 通过数据库字段类型，返回基本数据类型 */
     getDataType(columnType: string): DataType;
@@ -201,6 +205,7 @@ let postgresDialect = new PostgresqlDialect();
 let dmDialect = new DMDialect();
 let oracleDialect = new OracleDialect();
 let sqliteDialect = new SqliteDialect();
+let mssqlDialect = new MssqlDialect();
 
 export const getDbDialect = (dbType: string | undefined): DbDialect => {
     if (!dbType) {
@@ -219,6 +224,8 @@ export const getDbDialect = (dbType: string | undefined): DbDialect => {
             return oracleDialect;
         case DbType.sqlite:
             return sqliteDialect;
+        case DbType.mssql:
+            return mssqlDialect;
         default:
             throw new Error('不支持的数据库');
     }
