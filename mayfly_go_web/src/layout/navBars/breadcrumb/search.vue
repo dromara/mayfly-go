@@ -1,17 +1,22 @@
 <template>
     <div class="layout-search-dialog">
         <el-dialog v-model="state.isShowSearch" width="300px" destroy-on-close :modal="false" fullscreen :show-close="false">
-            <el-autocomplete v-model="state.menuQuery" :fetch-suggestions="menuSearch" placeholder="菜单搜索"
-                prefix-icon="el-icon-search" ref="layoutMenuAutocompleteRef" @select="onHandleSelect" @blur="onSearchBlur">
+            <el-autocomplete
+                v-model="state.menuQuery"
+                :fetch-suggestions="menuSearch"
+                placeholder="菜单搜索"
+                prefix-icon="el-icon-search"
+                ref="layoutMenuAutocompleteRef"
+                @select="onHandleSelect"
+                @blur="onSearchBlur"
+            >
                 <template #prefix>
                     <el-icon class="el-input__icon">
                         <search />
                     </el-icon>
                 </template>
                 <template #default="{ item }">
-                    <div>
-                        <SvgIcon :name="item.meta.icon" class="mr5" />{{ item.meta.title }}
-                    </div>
+                    <div><SvgIcon :name="item.meta.icon" class="mr5" />{{ item.meta.title }}</div>
                 </template>
             </el-autocomplete>
         </el-dialog>
@@ -23,7 +28,7 @@ import { reactive, ref, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useRoutesList } from '@/store/routesList';
 
-const layoutMenuAutocompleteRef: any = ref(null);;
+const layoutMenuAutocompleteRef: any = ref(null);
 const router = useRouter();
 const state: any = reactive({
     isShowSearch: false,
@@ -54,8 +59,7 @@ const menuSearch = (queryString: any, cb: any) => {
 const createFilter = (queryString: any) => {
     return (restaurant: any) => {
         return (
-            restaurant.path.toLowerCase().indexOf(queryString.toLowerCase()) > -1 ||
-            restaurant.meta.title.toLowerCase().indexOf(queryString.toLowerCase()) > -1
+            restaurant.path.toLowerCase().indexOf(queryString.toLowerCase()) > -1 || restaurant.meta.title.toLowerCase().indexOf(queryString.toLowerCase()) > -1
         );
     };
 };
@@ -97,7 +101,7 @@ const onSearchBlur = () => {
     closeSearch();
 };
 
-defineExpose({openSearch})
+defineExpose({ openSearch });
 </script>
 
 <style scoped lang="scss">

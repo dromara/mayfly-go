@@ -107,6 +107,7 @@ class MssqlDialect implements DbDialect {
         };
 
         mssqlDialectInfo = {
+            name: 'MSSQL',
             icon: 'iconfont icon-MSSQLNATIVE',
             defaultPort: 1433,
             formatSqlDialect: 'transactsql',

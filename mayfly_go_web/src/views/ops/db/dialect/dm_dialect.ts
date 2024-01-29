@@ -366,6 +366,7 @@ class DMDialect implements DbDialect {
         };
 
         dmDialectInfo = {
+            name: 'DM',
             icon: 'iconfont icon-db-dm',
             defaultPort: 5236,
             formatSqlDialect: 'plsql',

@@ -93,7 +93,10 @@ func (me *MachineInfo) IfUseSshTunnelChangeIpPort() error {
 func GetSshClient(m *MachineInfo, jumpClient *ssh.Client) (*ssh.Client, error) {
 	// 递归一直取到底层没有跳板机的机器信息
 	if m.SshTunnelMachine != nil {
-		jumpClient, _ = GetSshClient(m.SshTunnelMachine, jumpClient)
+		jumpClient, err := GetSshClient(m.SshTunnelMachine, jumpClient)
+		if err != nil {
+			return nil, err
+		}
 		// 新建一个没有跳板机的机器信息
 		m1 := &MachineInfo{
 			Ip:         m.Ip,

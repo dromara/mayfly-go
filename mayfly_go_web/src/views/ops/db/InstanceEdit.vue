@@ -9,10 +9,14 @@
                         </el-form-item>
                         <el-form-item prop="type" label="类型" required>
                             <el-select @change="changeDbType" style="width: 100%" v-model="form.type" placeholder="请选择数据库类型">
-                                <el-option v-for="dt in dbTypes" :key="dt.type" :value="dt.type" :label="dt.label">
-                                    <SvgIcon :name="getDbDialect(dt.type).getInfo().icon" :size="18" />
-                                    {{ dt.label }}
+                                <el-option v-for="(dbTypeAndDialect, key) in getDbDialectMap()" :key="key" :value="dbTypeAndDialect[0]">
+                                    <SvgIcon :name="dbTypeAndDialect[1].getInfo().icon" :size="18" />
+                                    {{ dbTypeAndDialect[1].getInfo().name }}
                                 </el-option>
+
+                                <template #prefix>
+                                    <SvgIcon :name="getDbDialect(form.type).getInfo().icon" :size="18" />
+                                </template>
                             </el-select>
                         </el-form-item>
                         <el-form-item v-if="form.type !== DbType.sqlite" prop="host" label="host" required>
@@ -95,7 +99,7 @@ import { ElMessage } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import { RsaEncrypt } from '@/common/rsa';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
-import { DbType, getDbDialect } from './dialect';
+import { DbType, getDbDialect, getDbDialectMap } from './dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
 
 const props = defineProps({
@@ -153,37 +157,6 @@ const rules = {
 
 const dbForm: any = ref(null);
 
-const dbTypes = [
-    {
-        type: 'mysql',
-        label: 'MySQL',
-    },
-    {
-        type: 'mariadb',
-        label: 'MariaDB',
-    },
-    {
-        type: 'postgres',
-        label: 'PostgreSQL',
-    },
-    {
-        type: 'dm',
-        label: 'DM',
-    },
-    {
-        type: 'oracle',
-        label: 'Oracle',
-    },
-    {
-        type: 'sqlite',
-        label: 'Sqlite',
-    },
-    {
-        type: 'mssql',
-        label: 'MSSQL',
-    },
-];
-
 const state = reactive({
     dialogVisible: false,
     tabActiveName: 'basic',
@@ -222,7 +195,7 @@ watch(props, (newValue: any) => {
         state.form = { ...newValue.data };
         state.oldUserName = state.form.username;
     } else {
-        state.form = { port: null } as any;
+        state.form = { port: null, type: DbType.mysql } as any;
         state.oldUserName = null;
     }
 });

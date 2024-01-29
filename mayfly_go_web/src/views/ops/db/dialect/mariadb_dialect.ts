@@ -12,6 +12,7 @@ class MariadbDialect extends MysqlDialect implements DbDialect {
 
         mariadbDialectInfo = {} as DialectInfo;
         Object.assign(mariadbDialectInfo, super.getInfo());
+        mariadbDialectInfo.name = 'MariaDB';
         mariadbDialectInfo.icon = 'iconfont icon-mariadb';
         return mariadbDialectInfo;
     }

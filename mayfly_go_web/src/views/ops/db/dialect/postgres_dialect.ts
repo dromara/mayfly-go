@@ -123,6 +123,7 @@ class PostgresqlDialect implements DbDialect {
         };
 
         pgDialectInfo = {
+            name: 'PostgreSQL',
             icon: 'iconfont icon-op-postgres',
             defaultPort: 5432,
             formatSqlDialect: 'postgresql',

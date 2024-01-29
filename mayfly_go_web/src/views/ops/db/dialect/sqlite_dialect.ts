@@ -123,6 +123,7 @@ class SqliteDialect implements DbDialect {
         };
 
         sqliteDialectInfo = {
+            name: 'Sqlite',
             icon: 'iconfont icon-sqlite',
             defaultPort: 0,
             formatSqlDialect: 'sql',

@@ -154,6 +154,7 @@ class OracleDialect implements DbDialect {
         };
 
         oracleDialectInfo = {
+            name: 'Oracle',
             icon: 'iconfont icon-oracle',
             defaultPort: 1521,
             formatSqlDialect: 'plsql',

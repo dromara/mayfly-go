@@ -82,6 +82,11 @@ export const ColumnTypeSubscript = {
 // 数据库基础信息
 export interface DialectInfo {
     /**
+     * 数据库类型label
+     */
+    name: string;
+
+    /**
      * 图标
      */
     icon: string;
@@ -200,33 +205,28 @@ export interface DbDialect {
 }
 
 let mysqlDialect = new MysqlDialect();
-let mariadbDialect = new MariadbDialect();
-let postgresDialect = new PostgresqlDialect();
-let dmDialect = new DMDialect();
-let oracleDialect = new OracleDialect();
-let sqliteDialect = new SqliteDialect();
-let mssqlDialect = new MssqlDialect();
 
-export const getDbDialect = (dbType: string | undefined): DbDialect => {
-    if (!dbType) {
-        return mysqlDialect;
-    }
-    switch (dbType) {
-        case DbType.mysql:
-            return mysqlDialect;
-        case DbType.mariadb:
-            return mariadbDialect;
-        case DbType.postgresql:
-            return postgresDialect;
-        case DbType.dm:
-            return dmDialect;
-        case DbType.oracle:
-            return oracleDialect;
-        case DbType.sqlite:
-            return sqliteDialect;
-        case DbType.mssql:
-            return mssqlDialect;
-        default:
-            throw new Error('不支持的数据库');
-    }
+let dbType2DialectMap: Map<string, DbDialect> = new Map();
+
+export const registerDbDialect = (dbType: string, dd: DbDialect) => {
+    dbType2DialectMap.set(dbType, dd);
 };
+
+export const getDbDialectMap = () => {
+    return dbType2DialectMap;
+};
+
+export const getDbDialect = (dbType: string): DbDialect => {
+    return dbType2DialectMap.get(dbType) || mysqlDialect;
+};
+
+(function () {
+    console.log('init register db dialect');
+    registerDbDialect(DbType.mysql, mysqlDialect);
+    registerDbDialect(DbType.mariadb, new MariadbDialect());
+    registerDbDialect(DbType.postgresql, new PostgresqlDialect());
+    registerDbDialect(DbType.dm, new DMDialect());
+    registerDbDialect(DbType.oracle, new OracleDialect());
+    registerDbDialect(DbType.sqlite, new SqliteDialect());
+    registerDbDialect(DbType.mssql, new MssqlDialect());
+})();

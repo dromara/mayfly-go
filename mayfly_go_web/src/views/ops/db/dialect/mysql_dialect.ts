@@ -104,6 +104,7 @@ class MysqlDialect implements DbDialect {
         };
 
         mysqlDialectInfo = {
+            name: 'MySQL',
             icon: 'iconfont icon-op-mysql',
             defaultPort: 3306,
             formatSqlDialect: 'mysql',
