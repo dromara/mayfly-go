@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
@@ -53,8 +54,8 @@ var (
 	dateTimeReg = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$`)
 )
 
-func (d *dataSyncAppImpl) InjectDbDataSyncTaskRepo(repo repository.DataSyncTask) {
-	d.Repo = repo
+func (app *dataSyncAppImpl) InjectDbDataSyncTaskRepo(repo repository.DataSyncTask) {
+	app.Repo = repo
 }
 
 func (app *dataSyncAppImpl) GetPageList(condition *entity.DataSyncTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
@@ -64,15 +65,22 @@ func (app *dataSyncAppImpl) GetPageList(condition *entity.DataSyncTaskQuery, pag
 func (app *dataSyncAppImpl) Save(ctx context.Context, taskEntity *entity.DataSyncTask) error {
 	var err error
 	if taskEntity.Id == 0 {
+		// 新建时生成key
+		taskEntity.TaskKey = uuid.New().String()
 		err = app.Insert(ctx, taskEntity)
 	} else {
 		err = app.UpdateById(ctx, taskEntity)
 	}
+
 	if err != nil {
 		return err
 	}
 
-	app.AddCronJob(taskEntity)
+	task, err := app.GetById(new(entity.DataSyncTask), taskEntity.Id)
+	if err != nil {
+		return err
+	}
+	app.AddCronJob(task)
 	return nil
 }
 
@@ -92,9 +100,13 @@ func (app *dataSyncAppImpl) AddCronJob(taskEntity *entity.DataSyncTask) {
 	// 根据状态添加新的任务
 	if taskEntity.Status == entity.DataSyncTaskStatusEnable {
 		scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
-			if err := app.RunCronJob(taskEntity.Id); err != nil {
-				logx.Errorf("定时执行数据同步任务失败: %s", err.Error())
-			}
+			go func() {
+				taskId := taskEntity.Id
+				logx.Infof("开始执行同步任务: %d", taskId)
+				if err := app.RunCronJob(taskId); err != nil {
+					logx.Errorf("定时执行数据同步任务失败: %s", err.Error())
+				}
+			}()
 		})
 	}
 }

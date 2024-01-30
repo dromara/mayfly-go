@@ -14,6 +14,7 @@ const (
 	DbTypeMysql    DbType = "mysql"
 	DbTypeMariadb  DbType = "mariadb"
 	DbTypePostgres DbType = "postgres"
+	DbTypeGauss    DbType = "gauss"
 	DbTypeDM       DbType = "dm"
 	DbTypeOracle   DbType = "oracle"
 	DbTypeSqlite   DbType = "sqlite"
@@ -43,7 +44,7 @@ func (dbType DbType) QuoteIdentifier(name string) string {
 	switch dbType {
 	case DbTypeMysql, DbTypeMariadb:
 		return quoteIdentifier(name, "`")
-	case DbTypePostgres:
+	case DbTypePostgres, DbTypeGauss:
 		return quoteIdentifier(name, `"`)
 	case DbTypeMssql:
 		return fmt.Sprintf("[%s]", name)
@@ -56,7 +57,7 @@ func (dbType DbType) RemoveQuote(name string) string {
 	switch dbType {
 	case DbTypeMysql, DbTypeMariadb:
 		return removeQuote(name, "`")
-	case DbTypePostgres:
+	case DbTypePostgres, DbTypeGauss:
 		return removeQuote(name, `"`)
 	default:
 		return removeQuote(name, `"`)
@@ -69,7 +70,7 @@ func (dbType DbType) QuoteLiteral(literal string) string {
 		literal = strings.ReplaceAll(literal, `\`, `\\`)
 		literal = strings.ReplaceAll(literal, `'`, `''`)
 		return "'" + literal + "'"
-	case DbTypePostgres:
+	case DbTypePostgres, DbTypeGauss:
 		return pq.QuoteLiteral(literal)
 	default:
 		return pq.QuoteLiteral(literal)
@@ -80,7 +81,7 @@ func (dbType DbType) MetaDbName() string {
 	switch dbType {
 	case DbTypeMysql, DbTypeMariadb:
 		return ""
-	case DbTypePostgres:
+	case DbTypePostgres, DbTypeGauss:
 		return "postgres"
 	case DbTypeDM:
 		return ""
@@ -93,7 +94,7 @@ func (dbType DbType) Dialect() sqlparser.Dialect {
 	switch dbType {
 	case DbTypeMysql, DbTypeMariadb:
 		return sqlparser.MysqlDialect{}
-	case DbTypePostgres:
+	case DbTypePostgres, DbTypeGauss:
 		return sqlparser.PostgresDialect{}
 	default:
 		return sqlparser.PostgresDialect{}
@@ -121,7 +122,7 @@ func (dbType DbType) StmtSetForeignKeyChecks(check bool) string {
 		} else {
 			return "SET FOREIGN_KEY_CHECKS = 0;\n"
 		}
-	case DbTypePostgres:
+	case DbTypePostgres, DbTypeGauss:
 		// not currently supported postgres
 		return ""
 	default:
@@ -133,7 +134,7 @@ func (dbType DbType) StmtUseDatabase(dbName string) string {
 	switch dbType {
 	case DbTypeMysql, DbTypeMariadb:
 		return fmt.Sprintf("USE %s;\n", dbType.QuoteIdentifier(dbName))
-	case DbTypePostgres:
+	case DbTypePostgres, DbTypeGauss:
 		// not currently supported postgres
 		return ""
 	default:

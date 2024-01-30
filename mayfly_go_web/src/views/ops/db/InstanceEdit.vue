@@ -9,13 +9,18 @@
                         </el-form-item>
                         <el-form-item prop="type" label="类型" required>
                             <el-select @change="changeDbType" style="width: 100%" v-model="form.type" placeholder="请选择数据库类型">
-                                <el-option v-for="(dbTypeAndDialect, key) in getDbDialectMap()" :key="key" :value="dbTypeAndDialect[0]">
-                                    <SvgIcon :name="dbTypeAndDialect[1].getInfo().icon" :size="18" />
+                                <el-option
+                                    v-for="(dbTypeAndDialect, key) in getDbDialectMap()"
+                                    :key="key"
+                                    :value="dbTypeAndDialect[0]"
+                                    :label="dbTypeAndDialect[1].getInfo().name"
+                                >
+                                    <SvgIcon :name="dbTypeAndDialect[1].getInfo().icon" :size="20" />
                                     {{ dbTypeAndDialect[1].getInfo().name }}
                                 </el-option>
 
                                 <template #prefix>
-                                    <SvgIcon :name="getDbDialect(form.type).getInfo().icon" :size="18" />
+                                    <SvgIcon :name="getDbDialect(form.type).getInfo().icon" :size="20" />
                                 </template>
                             </el-select>
                         </el-form-item>

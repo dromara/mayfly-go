@@ -5,6 +5,7 @@ import { OracleDialect } from '@/views/ops/db/dialect/oracle_dialect';
 import { MariadbDialect } from '@/views/ops/db/dialect/mariadb_dialect';
 import { SqliteDialect } from '@/views/ops/db/dialect/sqlite_dialect';
 import { MssqlDialect } from '@/views/ops/db/dialect/mssql_dialect';
+import { GaussDialect } from '@/views/ops/db/dialect/gauss_dialect';
 
 export interface sqlColumnType {
     udtName: string;
@@ -116,6 +117,7 @@ export const DbType = {
     mysql: 'mysql',
     mariadb: 'mariadb',
     postgresql: 'postgres',
+    gauss: 'gauss',
     dm: 'dm', // 达梦
     oracle: 'oracle',
     sqlite: 'sqlite',
@@ -126,7 +128,7 @@ export const DbType = {
 export const noSchemaTypes = [DbType.mysql, DbType.mariadb, DbType.sqlite];
 
 // 有schema层的数据库
-export const schemaDbTypes = [DbType.postgresql, DbType.dm, DbType.oracle, DbType.mssql];
+export const schemaDbTypes = [DbType.postgresql, DbType.gauss, DbType.dm, DbType.oracle, DbType.mssql];
 
 export const editDbTypes = [...noSchemaTypes, ...schemaDbTypes];
 
@@ -225,6 +227,7 @@ export const getDbDialect = (dbType: string): DbDialect => {
     registerDbDialect(DbType.mysql, mysqlDialect);
     registerDbDialect(DbType.mariadb, new MariadbDialect());
     registerDbDialect(DbType.postgresql, new PostgresqlDialect());
+    registerDbDialect(DbType.gauss, new GaussDialect());
     registerDbDialect(DbType.dm, new DMDialect());
     registerDbDialect(DbType.oracle, new OracleDialect());
     registerDbDialect(DbType.sqlite, new SqliteDialect());

@@ -158,21 +158,62 @@
             @data-delete="onRefresh"
         ></db-table-data>
 
-        <el-row type="flex" class="mt5" justify="center">
-            <el-pagination
-                small
-                :total="count"
-                @size-change="handleSizeChange"
-                @current-change="pageChange()"
-                layout="prev, pager, next, total, sizes, jumper"
-                v-model:current-page="pageNum"
-                v-model:page-size="pageSize"
-                :page-sizes="pageSizes"
-            ></el-pagination>
+        <el-row type="flex" class="mt5" :gutter="10" justify="end" style="user-select: none">
+            <el-col :span="12">
+                <el-text
+                    style="color: var(--el-color-info-light-3); font-size: 12px; margin-top: 5px"
+                    class="is-truncated"
+                    @click="handleCopySql(sql)"
+                    :title="sql"
+                    >{{ sql }}</el-text
+                >
+            </el-col>
+            <el-col :span="12">
+                <el-row :gutter="10" justify="center">
+                    <el-link class="op-page" :underline="false" @click="pageNum = 1" :disabled="pageNum == 1" icon="DArrowLeft" title="首页" />
+                    <el-link class="op-page" :underline="false" @click="pageNum = --pageNum || 1" :disabled="pageNum == 1" icon="Back" title="上一页" />
+                    <div class="op-page">
+                        <el-input-number
+                            style="width: 50px"
+                            :controls="false"
+                            :min="1"
+                            v-model="state.setPageNum"
+                            size="small"
+                            @blur="handleSetPageNum"
+                            @keydown.enter="handleSetPageNum"
+                        />
+                    </div>
+                    <el-link class="op-page" :underline="false" @click="++pageNum" icon="Right" />
+                    <el-link class="op-page" :underline="false" @click="handleEndPage" icon="DArrowRight" />
+                    <div style="width: 90px; margin-left: 20px" class="op-page">
+                        <el-select size="small" :default-first-option="true" v-model="pageSize" @change="handleSizeChange">
+                            <el-option
+                                style="font-size: 12px; height: 24px; line-height: 24px"
+                                v-for="(op, i) in pageSizes"
+                                :key="i"
+                                :label="op + '条/页'"
+                                :value="op"
+                            />
+                        </el-select>
+                    </div>
+                    <el-link
+                        class="op-page"
+                        style="margin-left: 20px"
+                        v-if="!state.counting"
+                        :underline="false"
+                        @click="handleCount"
+                        icon="Stopwatch"
+                        title="计数"
+                    />
+                    <el-link class="op-page" style="margin-left: 20px" v-if="state.counting" :underline="false" title="计数中...">
+                        <el-icon class="is-loading">
+                            <Loading />
+                        </el-icon>
+                    </el-link>
+                    <el-text class="op-page" style="font-size: 12px" v-if="state.showTotal">总 {{ state.total }} 条</el-text>
+                </el-row>
+            </el-col>
         </el-row>
-        <div style="padding: 0 10px">
-            <span style="color: var(--el-color-info-light-3)" class="font10 el-text el-text--small is-truncated">{{ state.sql }}</span>
-        </div>
 
         <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
             <el-row>
@@ -242,6 +283,7 @@ import { DbDialect, getDbDialect } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import ColumnFormItem from './ColumnFormItem.vue';
 import { useEventListener, useStorage } from '@vueuse/core';
+import { copyToClipboard } from '@/common/utils/string';
 
 const props = defineProps({
     dbId: {
@@ -290,7 +332,10 @@ const state = reactive({
         defaultPageSize * 40,
         defaultPageSize * 80,
     ],
-    count: 0,
+    setPageNum: 0,
+    total: 0,
+    showTotal: 0,
+    counting: false,
     selectionDatas: [] as any,
     condPopVisible: false,
     columnNameSearch: '',
@@ -314,7 +359,7 @@ const state = reactive({
     dbDialect: {} as DbDialect,
 });
 
-const { datas, condition, loading, columns, pageNum, pageSize, pageSizes, count, hasUpdatedFileds, conditionDialog, addDataDialog, dbDialect } = toRefs(state);
+const { datas, condition, loading, columns, pageNum, pageSize, pageSizes, sql, hasUpdatedFileds, conditionDialog, addDataDialog, dbDialect } = toRefs(state);
 
 watch(
     () => props.tableHeight,
@@ -347,18 +392,19 @@ const onRefresh = async () => {
     await selectData();
 };
 
-/**
- * 数据tab修改页数
- */
-const pageChange = async () => {
-    await selectData();
-};
+watch(
+    () => state.pageNum,
+    async () => {
+        await selectData();
+    }
+);
 
 /**
  * 单表数据信息查询数据
  */
 const selectData = async () => {
     state.loading = true;
+    state.setPageNum = state.pageNum;
     const dbInst = getNowDbInst();
     const db = props.dbName;
     const table = props.tableName;
@@ -371,16 +417,10 @@ const selectData = async () => {
             state.columns = columns;
         }
 
-        const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
-        state.count = parseInt(countRes.res[0].count || countRes.res[0].COUNT || 0);
         let sql = dbInst.getDefaultSelectSql(db, table, state.condition, state.orderBy, state.pageNum, state.pageSize);
         state.sql = sql;
-        if (state.count > 0) {
-            const colAndData: any = await dbInst.runSql(db, sql);
-            state.datas = colAndData.res;
-        } else {
-            state.datas = [];
-        }
+        const colAndData: any = await dbInst.runSql(db, sql);
+        state.datas = colAndData.res;
     } finally {
         state.loading = false;
     }
@@ -390,6 +430,38 @@ const handleSizeChange = async (size: any) => {
     state.pageNum = 1;
     state.pageSize = size;
     await selectData();
+};
+
+const handleEndPage = async () => {
+    await handleCount();
+    state.pageNum = Math.ceil(state.total / state.pageSize);
+    await selectData();
+};
+
+const handleSetPageNum = async () => {
+    state.pageNum = state.setPageNum;
+    await selectData();
+};
+const handleCount = async () => {
+    state.counting = true;
+
+    try {
+        const db = props.dbName;
+        const table = props.tableName;
+        const dbInst = getNowDbInst();
+        const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
+        state.total = parseInt(countRes.res[0].count || countRes.res[0].COUNT || 0);
+        state.showTotal = true;
+    } catch (e) {
+        /* empty */
+    }
+
+    state.counting = false;
+};
+
+const handleCopySql = async (sql: string) => {
+    await copyToClipboard(sql);
+    ElMessage.success('复制成功');
 };
 
 // 完整的条件,每次选中后会重置条件框内容，故需要这个变量在获取建议时将文本框内容保存
@@ -586,4 +658,8 @@ const addRow = async () => {
 };
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+.op-page {
+    margin-left: 5px;
+}
+</style>

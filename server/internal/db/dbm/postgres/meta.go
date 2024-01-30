@@ -16,13 +16,18 @@ import (
 
 func init() {
 	dbi.Register(dbi.DbTypePostgres, new(PostgresMeta))
+
+	gauss := new(PostgresMeta)
+	gauss.Param = "dbtype=gauss"
+	dbi.Register(dbi.DbTypeGauss, gauss)
 }
 
 type PostgresMeta struct {
+	Param string
 }
 
 func (md *PostgresMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
-	driverName := string(d.Type)
+	driverName := "postgres"
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
 		// 如果使用了隧道，则使用`postgres:ssh:隧道机器id`注册名
@@ -65,6 +70,10 @@ func (md *PostgresMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 			d.Params = strings.Join(paramArr, " ")
 		}
 		dsn = fmt.Sprintf("%s %s", dsn, strings.Join(strings.Split(d.Params, "&"), " "))
+	}
+
+	if md.Param != "" && !strings.Contains(dsn, "dbtype") {
+		dsn = fmt.Sprintf("%s %s", dsn, md.Param)
 	}
 
 	return sql.Open(driverName, dsn)

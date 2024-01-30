@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type DataSyncTask struct {
@@ -45,13 +44,6 @@ func (d *DataSyncTask) SaveTask(rc *req.Ctx) {
 	sql := stringx.TrimSpaceAndBr(string(sqlBytes))
 	task.DataSql = sql
 	form.DataSql = sql
-
-	key := task.TaskKey
-	// 判断key为空就生成随机key
-	if key == "" {
-		key = uuid.New().String()
-		task.TaskKey = key
-	}
 
 	rc.ReqParam = form
 	biz.ErrIsNil(d.DataSyncTaskApp.Save(rc.MetaCtx, task))
@@ -88,7 +80,7 @@ func (d *DataSyncTask) ChangeStatus(rc *req.Ctx) {
 func (d *DataSyncTask) Run(rc *req.Ctx) {
 	taskId := getTaskId(rc.GinCtx)
 	rc.ReqParam = taskId
-	d.DataSyncTaskApp.RunCronJob(taskId)
+	_ = d.DataSyncTaskApp.RunCronJob(taskId)
 }
 
 func (d *DataSyncTask) Stop(rc *req.Ctx) {

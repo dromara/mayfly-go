@@ -81,6 +81,13 @@
       "font_class": "MSSQLNATIVE",
       "unicode": "e600",
       "unicode_decimal": 58880
+    },
+    {
+      "icon_id": "7699332",
+      "name": "gaussdb",
+      "font_class": "gauss",
+      "unicode": "e683",
+      "unicode_decimal": 59011
     }
   ]
 }
