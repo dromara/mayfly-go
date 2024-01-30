@@ -54,8 +54,7 @@ func (d *dbRestoreRepoImpl) ListToDo(jobs any) error {
 }
 
 // GetPageList 分页获取数据库备份任务列表
-func (d *dbRestoreRepoImpl) GetPageList(condition *entity.DbJobQuery, pageParam *model.PageParam, toEntity any, _ ...string) (*model.PageResult[any], error) {
-	d.GetModel()
+func (d *dbRestoreRepoImpl) GetPageList(condition *entity.DbRestoreQuery, pageParam *model.PageParam, toEntity any, _ ...string) (*model.PageResult[any], error) {
 	qd := gormx.NewQuery(d.GetModel()).
 		Eq("id", condition.Id).
 		Eq0("db_instance_id", condition.DbInstanceId).
@@ -63,6 +62,17 @@ func (d *dbRestoreRepoImpl) GetPageList(condition *entity.DbJobQuery, pageParam 
 		In0("db_name", condition.InDbNames).
 		Like("db_name", condition.DbName)
 	return gormx.PageQuery(qd, pageParam, toEntity)
+}
+
+func (d *dbRestoreRepoImpl) GetEnabledRestores(toEntity any, backupHistoryId ...uint64) error {
+	return global.Db.Model(d.GetModel()).
+		Select("id", "db_backup_history_id", "last_status", "last_result", "last_time").
+		Where("db_backup_history_id in ?", backupHistoryId).
+		Where("enabled = true").
+		Scopes(gormx.UndeleteScope).
+		Order("id DESC").
+		Find(toEntity).
+		Error
 }
 
 // AddJob 添加数据库任务
@@ -74,7 +84,12 @@ func (d *dbRestoreRepoImpl) UpdateEnabled(_ context.Context, jobId uint64, enabl
 	cond := map[string]any{
 		"id": jobId,
 	}
+	desc := "任务已禁用"
+	if enabled {
+		desc = "任务已启用"
+	}
 	return d.Updates(cond, map[string]any{
-		"enabled": enabled,
+		"enabled":      enabled,
+		"enabled_desc": desc,
 	})
 }

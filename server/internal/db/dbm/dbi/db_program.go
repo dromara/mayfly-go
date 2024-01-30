@@ -19,6 +19,8 @@ type DbProgram interface {
 
 	RestoreBackupHistory(ctx context.Context, dbName string, dbBackupId uint64, dbBackupHistoryUuid string) error
 
+	RemoveBackupHistory(ctx context.Context, dbBackupId uint64, dbBackupHistoryUuid string) error
+
 	GetBinlogEventPositionAtOrAfterTime(ctx context.Context, binlogName string, targetTime time.Time) (position int64, parseErr error)
 }
 

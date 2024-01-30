@@ -13,12 +13,12 @@ const LastResultSize = 256
 
 type DbJobKey = runner.JobKey
 
-type DbJobStatus int
+type DbJobStatus = runner.JobStatus
 
 const (
-	DbJobRunning DbJobStatus = iota
-	DbJobSuccess
-	DbJobFailed
+	DbJobRunning = runner.JobRunning
+	DbJobSuccess = runner.JobSuccess
+	DbJobFailed  = runner.JobFailed
 )
 
 type DbJobType string
@@ -28,12 +28,14 @@ func (typ DbJobType) String() string {
 }
 
 const (
+	DbJobUnknown     DbJobType = "db-unknown"
 	DbJobTypeBackup  DbJobType = "db-backup"
 	DbJobTypeRestore DbJobType = "db-restore"
 	DbJobTypeBinlog  DbJobType = "db-binlog"
 )
 
 const (
+	DbJobNameUnknown = "未知任务"
 	DbJobNameBackup  = "数据库备份"
 	DbJobNameRestore = "数据库恢复"
 	DbJobNameBinlog  = "BINLOG同步"
@@ -43,41 +45,24 @@ var _ runner.Job = (DbJob)(nil)
 
 type DbJobBase interface {
 	model.ModelI
-
-	GetKey() string
-	GetJobType() DbJobType
-	SetJobType(typ DbJobType)
-	GetJobBase() *DbJobBaseImpl
-	SetLastStatus(status DbJobStatus, err error)
+	GetLastStatus() DbJobStatus
 }
 
 type DbJob interface {
 	runner.Job
 	DbJobBase
 
+	GetInstanceId() uint64
+	GetKey() string
+	GetJobType() DbJobType
 	GetDbName() string
 	Schedule() (time.Time, error)
 	IsEnabled() bool
-	SetEnabled(enabled bool)
+	IsExpired() bool
+	SetEnabled(enabled bool, desc string)
 	Update(job runner.Job)
 	GetInterval() time.Duration
-}
-
-func NewDbJob(typ DbJobType) DbJob {
-	switch typ {
-	case DbJobTypeBackup:
-		return &DbBackup{
-			DbJobBaseImpl: &DbJobBaseImpl{
-				jobType: DbJobTypeBackup},
-		}
-	case DbJobTypeRestore:
-		return &DbRestore{
-			DbJobBaseImpl: &DbJobBaseImpl{
-				jobType: DbJobTypeRestore},
-		}
-	default:
-		panic(fmt.Sprintf("invalid DbJobType: %v", typ))
-	}
+	SetLastStatus(status DbJobStatus, err error)
 }
 
 var _ DbJobBase = (*DbJobBaseImpl)(nil)
@@ -85,30 +70,25 @@ var _ DbJobBase = (*DbJobBaseImpl)(nil)
 type DbJobBaseImpl struct {
 	model.Model
 
-	DbInstanceId uint64         // 数据库实例ID
-	LastStatus   DbJobStatus    // 最近一次执行状态
-	LastResult   string         // 最近一次执行结果
-	LastTime     timex.NullTime // 最近一次执行时间
-	jobType      DbJobType
-	jobKey       runner.JobKey
+	LastStatus DbJobStatus    // 最近一次执行状态
+	LastResult string         // 最近一次执行结果
+	LastTime   timex.NullTime // 最近一次执行时间
+	jobKey     runner.JobKey
 }
 
-func NewDbBJobBase(instanceId uint64, jobType DbJobType) *DbJobBaseImpl {
-	return &DbJobBaseImpl{
-		DbInstanceId: instanceId,
-		jobType:      jobType,
+func (d *DbJobBaseImpl) getJobType() DbJobType {
+	job, ok := any(d).(DbJob)
+	if !ok {
+		return DbJobUnknown
 	}
+	return job.GetJobType()
 }
 
-func (d *DbJobBaseImpl) GetJobType() DbJobType {
-	return d.jobType
+func (d *DbJobBaseImpl) GetLastStatus() DbJobStatus {
+	return d.LastStatus
 }
 
-func (d *DbJobBaseImpl) SetJobType(typ DbJobType) {
-	d.jobType = typ
-}
-
-func (d *DbJobBaseImpl) SetLastStatus(status DbJobStatus, err error) {
+func (d *DbJobBaseImpl) setLastStatus(jobType DbJobType, status DbJobStatus, err error) {
 	var statusName, jobName string
 	switch status {
 	case DbJobRunning:
@@ -120,7 +100,8 @@ func (d *DbJobBaseImpl) SetLastStatus(status DbJobStatus, err error) {
 	default:
 		return
 	}
-	switch d.jobType {
+
+	switch jobType {
 	case DbJobTypeBackup:
 		jobName = DbJobNameBackup
 	case DbJobTypeRestore:
@@ -128,7 +109,7 @@ func (d *DbJobBaseImpl) SetLastStatus(status DbJobStatus, err error) {
 	case DbJobTypeBinlog:
 		jobName = DbJobNameBinlog
 	default:
-		jobName = d.jobType.String()
+		jobName = jobType.String()
 	}
 	d.LastStatus = status
 	var result = jobName + statusName
@@ -139,17 +120,13 @@ func (d *DbJobBaseImpl) SetLastStatus(status DbJobStatus, err error) {
 	d.LastTime = timex.NewNullTime(time.Now())
 }
 
-func (d *DbJobBaseImpl) GetJobBase() *DbJobBaseImpl {
-	return d
-}
-
 func FormatJobKey(typ DbJobType, jobId uint64) DbJobKey {
 	return fmt.Sprintf("%v-%d", typ, jobId)
 }
 
-func (d *DbJobBaseImpl) GetKey() DbJobKey {
+func (d *DbJobBaseImpl) getKey(jobType DbJobType) DbJobKey {
 	if len(d.jobKey) == 0 {
-		d.jobKey = FormatJobKey(d.jobType, d.Id)
+		d.jobKey = FormatJobKey(jobType, d.Id)
 	}
 	return d.jobKey
 }

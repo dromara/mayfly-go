@@ -35,6 +35,10 @@ func InitDbBackupRouter(router *gin.RouterGroup) {
 
 		// 获取数据库备份历史
 		req.NewGet(":dbId/backup-histories/", d.GetHistoryPageList),
+		// 从数据库备份历史中恢复数据库
+		req.NewPost(":dbId/backup-histories/:backupHistoryId/restore", d.RestoreHistories),
+		// 删除数据库备份历史
+		req.NewDelete(":dbId/backup-histories/:backupHistoryId", d.DeleteHistories),
 	}
 
 	req.BatchSetGroup(dbs, reqs)

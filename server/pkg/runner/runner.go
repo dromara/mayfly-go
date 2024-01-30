@@ -11,18 +11,20 @@ import (
 )
 
 var (
-	ErrJobNotFound = errors.New("job not found")
-	ErrJobExist    = errors.New("job already exists")
-	ErrJobFinished = errors.New("job already finished")
-	ErrJobDisabled = errors.New("job has been disabled")
-	ErrJobTimeout  = errors.New("job has timed out")
+	ErrJobNotFound = errors.New("任务未找到")
+	ErrJobExist    = errors.New("任务已存在")
+	ErrJobFinished = errors.New("任务已完成")
+	ErrJobDisabled = errors.New("任务已禁用")
+	ErrJobExpired  = errors.New("任务已过期")
+	ErrJobRunning  = errors.New("任务执行中")
 )
 
 type JobKey = string
-type RunJobFunc[T Job] func(ctx context.Context, job T)
+type RunJobFunc[T Job] func(ctx context.Context, job T) error
 type NextJobFunc[T Job] func() (T, bool)
-type RunnableJobFunc[T Job] func(job T, next NextJobFunc[T]) bool
+type RunnableJobFunc[T Job] func(job T, next NextJobFunc[T]) (bool, error)
 type ScheduleJobFunc[T Job] func(job T) (deadline time.Time, err error)
+type UpdateJobFunc[T Job] func(ctx context.Context, job T) error
 
 type JobStatus int
 
@@ -31,11 +33,15 @@ const (
 	JobDelaying
 	JobWaiting
 	JobRunning
+	JobSuccess
+	JobFailed
 )
 
 type Job interface {
 	GetKey() JobKey
 	Update(job Job)
+	SetStatus(status JobStatus, err error)
+	SetEnabled(enabled bool, desc string)
 }
 
 type iterator[T Job] struct {
@@ -114,6 +120,7 @@ type Runner[T Job] struct {
 	runJob      RunJobFunc[T]
 	runnableJob RunnableJobFunc[T]
 	scheduleJob ScheduleJobFunc[T]
+	updateJob   UpdateJobFunc[T]
 	mutex       sync.Mutex
 	wg          sync.WaitGroup
 	context     context.Context
@@ -138,6 +145,12 @@ func WithScheduleJob[T Job](scheduleJob ScheduleJobFunc[T]) Opt[T] {
 	}
 }
 
+func WithUpdateJob[T Job](updateJob UpdateJobFunc[T]) Opt[T] {
+	return func(runner *Runner[T]) {
+		runner.updateJob = updateJob
+	}
+}
+
 func NewRunner[T Job](maxRunning int, runJob RunJobFunc[T], opts ...Opt[T]) *Runner[T] {
 	ctx, cancel := context.WithCancel(context.Background())
 	runner := &Runner[T]{
@@ -151,13 +164,14 @@ func NewRunner[T Job](maxRunning int, runJob RunJobFunc[T], opts ...Opt[T]) *Run
 		delayQueue: NewDelayQueue[*wrapper[T]](0),
 	}
 	runner.runJob = runJob
+	runner.runnableJob = func(job T, _ NextJobFunc[T]) (bool, error) {
+		return true, nil
+	}
+	runner.updateJob = func(ctx context.Context, job T) error {
+		return nil
+	}
 	for _, opt := range opts {
 		opt(runner)
-	}
-	if runner.runnableJob == nil {
-		runner.runnableJob = func(job T, _ NextJobFunc[T]) bool {
-			return true
-		}
 	}
 
 	runner.wg.Add(maxRunning + 1)
@@ -211,10 +225,32 @@ func (r *Runner[T]) doRun(wrap *wrapper[T]) {
 	defer func() {
 		if err := recover(); err != nil {
 			logx.Error(fmt.Sprintf("failed to run job: %v", err))
+			time.Sleep(time.Millisecond * 10)
 		}
 	}()
-
-	r.runJob(r.context, wrap.job)
+	wrap.job.SetStatus(JobRunning, nil)
+	if err := r.updateJob(r.context, wrap.job); err != nil {
+		err = fmt.Errorf("任务状态保存失败: %w", err)
+		wrap.job.SetStatus(JobFailed, err)
+		_ = r.updateJob(r.context, wrap.job)
+		return
+	}
+	runErr := r.runJob(r.context, wrap.job)
+	if runErr != nil {
+		wrap.job.SetStatus(JobFailed, runErr)
+	} else {
+		wrap.job.SetStatus(JobSuccess, nil)
+	}
+	if err := r.updateJob(r.context, wrap.job); err != nil {
+		if runErr != nil {
+			err = fmt.Errorf("任务状态保存失败: %w, %w", err, runErr)
+		} else {
+			err = fmt.Errorf("任务状态保存失败: %w", err)
+		}
+		wrap.job.SetStatus(JobFailed, err)
+		_ = r.updateJob(r.context, wrap.job)
+		return
+	}
 }
 
 func (r *Runner[T]) afterRun(wrap *wrapper[T]) {
@@ -249,12 +285,19 @@ func (r *Runner[T]) pickRunnableJob() (*wrapper[T], bool) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
+	var disabled []JobKey
 	iter := r.running.Iterator()
 	var runnable *wrapper[T]
 	ok := r.waiting.Any(func(key interface{}, value interface{}) bool {
 		wrap := value.(*wrapper[T])
 		iter.Begin()
-		if r.runnableJob(wrap.job, iter.Next) {
+		able, err := r.runnableJob(wrap.job, iter.Next)
+		if err != nil {
+			wrap.job.SetEnabled(false, err.Error())
+			r.updateJob(r.context, wrap.job)
+			disabled = append(disabled, key.(JobKey))
+		}
+		if able {
 			if r.running.Full() {
 				return false
 			}
@@ -269,6 +312,10 @@ func (r *Runner[T]) pickRunnableJob() (*wrapper[T], bool) {
 		}
 		return false
 	})
+	for _, key := range disabled {
+		r.waiting.Remove(key)
+		delete(r.all, key)
+	}
 	if !ok {
 		return nil, false
 	}
@@ -304,24 +351,23 @@ func (r *Runner[T]) Add(ctx context.Context, job T) error {
 	return r.schedule(ctx, deadline, job)
 }
 
-func (r *Runner[T]) UpdateOrAdd(ctx context.Context, job T) error {
+func (r *Runner[T]) Update(ctx context.Context, job T) error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
 	wrap, ok := r.all[job.GetKey()]
-	if ok {
-		wrap.job.Update(job)
-		switch wrap.status {
-		case JobDelaying:
-			r.delayQueue.Remove(ctx, wrap.key)
-			delete(r.all, wrap.key)
-		case JobWaiting:
-			r.waiting.Remove(wrap.key)
-			delete(r.all, wrap.key)
-		case JobRunning:
-			return nil
-		default:
-		}
+	if !ok {
+		return ErrJobNotFound
+	}
+	wrap.job.Update(job)
+	switch wrap.status {
+	case JobDelaying:
+		r.delayQueue.Remove(ctx, wrap.key)
+	case JobWaiting:
+		r.waiting.Remove(wrap.key)
+	case JobRunning:
+		return nil
+	default:
 	}
 	deadline, err := r.doScheduleJob(job, false)
 	if err != nil {
@@ -360,7 +406,7 @@ func (r *Runner[T]) Remove(ctx context.Context, key JobKey) error {
 
 	wrap, ok := r.all[key]
 	if !ok {
-		return ErrJobNotFound
+		return nil
 	}
 	switch wrap.status {
 	case JobDelaying:
@@ -372,6 +418,7 @@ func (r *Runner[T]) Remove(ctx context.Context, key JobKey) error {
 	case JobRunning:
 		// 统一标记为 removed, 待任务执行完成后再删除
 		wrap.removed = true
+		return ErrJobRunning
 	default:
 	}
 	return nil

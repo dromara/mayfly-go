@@ -21,12 +21,14 @@
                 <el-button type="primary" icon="plus" @click="createDbRestore()">添加</el-button>
                 <el-button type="primary" icon="video-play" @click="enableDbRestore(null)">启用</el-button>
                 <el-button type="primary" icon="video-pause" @click="disableDbRestore(null)">禁用</el-button>
+                <el-button type="danger" icon="delete" @click="deleteDbRestore(null)">删除</el-button>
             </template>
 
             <template #action="{ data }">
                 <el-button @click="showDbRestore(data)" type="primary" link>详情</el-button>
                 <el-button @click="enableDbRestore(data)" v-if="!data.enabled" type="primary" link>启用</el-button>
                 <el-button @click="disableDbRestore(data)" v-if="data.enabled" type="primary" link>禁用</el-button>
+                <el-button @click="deleteDbRestore(data)" type="danger" link>删除</el-button>
             </template>
         </page-table>
 
@@ -49,7 +51,7 @@
                     infoDialog.data.dbBackupHistoryName
                 }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="开始时间">{{ dateFormat(infoDialog.data.startTime) }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="是否启用">{{ infoDialog.data.enabled }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="是否启用">{{ infoDialog.data.enabledDesc }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="执行时间">{{ dateFormat(infoDialog.data.lastTime) }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="执行结果">{{ infoDialog.data.lastResult }}</el-descriptions-item>
             </el-descriptions>
@@ -63,7 +65,7 @@ import { dbApi } from './api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { SearchItem } from '@/components/SearchForm';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { dateFormat } from '@/common/utils/date';
 const DbRestoreEdit = defineAsyncComponent(() => import('./DbRestoreEdit.vue'));
 const pageTableRef: Ref<any> = ref(null);
@@ -85,7 +87,7 @@ const searchItems = [SearchItem.slot('dbName', '数据库名称', 'dbSelect')];
 const columns = [
     TableColumn.new('dbName', '数据库名称'),
     TableColumn.new('startTime', '启动时间').isTime(),
-    TableColumn.new('enabled', '是否启用'),
+    TableColumn.new('enabledDesc', '是否启用'),
     TableColumn.new('lastTime', '执行时间').isTime(),
     TableColumn.new('lastResult', '执行结果'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(220).fixedRight().alignCenter(),
@@ -135,19 +137,39 @@ const createDbRestore = async () => {
     state.dbRestoreEditDialog.visible = true;
 };
 
+const deleteDbRestore = async (data: any) => {
+    let restoreId: string;
+    if (data) {
+        restoreId = data.id;
+    } else if (state.selectedData.length > 0) {
+        restoreId = state.selectedData.map((x: any) => x.id).join(' ');
+    } else {
+        ElMessage.error('请选择需要删除的数据库恢复任务');
+        return;
+    }
+    await ElMessageBox.confirm(`确定删除 “数据库恢复任务” 吗？`, '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+    });
+    await dbApi.deleteDbRestore.request({ dbId: props.dbId, restoreId: restoreId });
+    await search();
+    ElMessage.success('删除成功');
+};
+
 const showDbRestore = async (data: any) => {
     state.infoDialog.data = data;
     state.infoDialog.visible = true;
 };
 
 const enableDbRestore = async (data: any) => {
-    let restoreId: String;
+    let restoreId: string;
     if (data) {
         restoreId = data.id;
     } else if (state.selectedData.length > 0) {
         restoreId = state.selectedData.map((x: any) => x.id).join(' ');
     } else {
-        ElMessage.error('请选择需要启用的恢复任务');
+        ElMessage.error('请选择需要启用的数据库恢复任务');
         return;
     }
     await dbApi.enableDbRestore.request({ dbId: props.dbId, restoreId: restoreId });
@@ -156,13 +178,13 @@ const enableDbRestore = async (data: any) => {
 };
 
 const disableDbRestore = async (data: any) => {
-    let restoreId: String;
+    let restoreId: string;
     if (data) {
         restoreId = data.id;
     } else if (state.selectedData.length > 0) {
         restoreId = state.selectedData.map((x: any) => x.id).join(' ');
     } else {
-        ElMessage.error('请选择需要禁用的恢复任务');
+        ElMessage.error('请选择需要禁用的数据库恢复任务');
         return;
     }
     await dbApi.disableDbRestore.request({ dbId: props.dbId, restoreId: restoreId });

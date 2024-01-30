@@ -27,7 +27,7 @@ func (d *DbRestore) GetPageList(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	var restores []vo.DbRestore
-	queryCond, page := ginx.BindQueryAndPage[*entity.DbJobQuery](rc.GinCtx, new(entity.DbJobQuery))
+	queryCond, page := ginx.BindQueryAndPage[*entity.DbRestoreQuery](rc.GinCtx, new(entity.DbRestoreQuery))
 	queryCond.DbInstanceId = db.InstanceId
 	queryCond.InDbNames = strings.Fields(db.Database)
 	res, err := d.restoreApp.GetPageList(queryCond, page, &restores)
@@ -48,7 +48,8 @@ func (d *DbRestore) Create(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	job := &entity.DbRestore{
-		DbJobBaseImpl:       entity.NewDbBJobBase(db.InstanceId, entity.DbJobTypeRestore),
+		DbInstanceId:        db.InstanceId,
+		DbName:              restoreForm.DbName,
 		Enabled:             true,
 		Repeated:            restoreForm.Repeated,
 		StartTime:           restoreForm.StartTime,
@@ -58,8 +59,11 @@ func (d *DbRestore) Create(rc *req.Ctx) {
 		DbBackupHistoryId:   restoreForm.DbBackupHistoryId,
 		DbBackupHistoryName: restoreForm.DbBackupHistoryName,
 	}
-	job.DbName = restoreForm.DbName
 	biz.ErrIsNilAppendErr(d.restoreApp.Create(rc.MetaCtx, job), "添加数据库恢复任务失败: %v")
+}
+
+func (d *DbRestore) createWithBackupHistory(backupHistoryIds string) {
+
 }
 
 // Update 保存数据库恢复任务

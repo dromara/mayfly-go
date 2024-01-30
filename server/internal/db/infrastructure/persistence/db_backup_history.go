@@ -21,14 +21,22 @@ func NewDbBackupHistoryRepo() repository.DbBackupHistory {
 	return &dbBackupHistoryRepoImpl{}
 }
 
-func (repo *dbBackupHistoryRepoImpl) GetHistories(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(new(entity.DbBackupHistory)).
+func (repo *dbBackupHistoryRepoImpl) GetPageList(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	qd := gormx.NewQuery(repo.GetModel()).
 		Eq("id", condition.Id).
 		Eq0("db_instance_id", condition.DbInstanceId).
 		In0("db_name", condition.InDbNames).
 		Eq("db_backup_id", condition.DbBackupId).
 		Eq("db_name", condition.DbName)
 	return gormx.PageQuery(qd, pageParam, toEntity)
+}
+
+func (repo *dbBackupHistoryRepoImpl) GetHistories(backupHistoryIds []uint64, toEntity any) error {
+	return global.Db.Model(repo.GetModel()).
+		Where("id in ?", backupHistoryIds).
+		Scopes(gormx.UndeleteScope).
+		Find(toEntity).
+		Error
 }
 
 func (repo *dbBackupHistoryRepoImpl) GetLatestHistory(instanceId uint64, dbName string, bi *entity.BinlogInfo) (*entity.DbBackupHistory, error) {
@@ -64,4 +72,34 @@ func (repo *dbBackupHistoryRepoImpl) GetEarliestHistory(instanceId uint64) (*ent
 	default:
 		return nil, false, err
 	}
+}
+
+func (repo *dbBackupHistoryRepoImpl) UpdateDeleting(deleting bool, backupHistoryId ...uint64) (bool, error) {
+	db := global.Db.Model(repo.GetModel()).
+		Where("id in ?", backupHistoryId).
+		Where("restoring = false").
+		Scopes(gormx.UndeleteScope).
+		Update("restoring", deleting)
+	if db.Error != nil {
+		return false, db.Error
+	}
+	if db.RowsAffected != int64(len(backupHistoryId)) {
+		return false, nil
+	}
+	return true, nil
+}
+
+func (repo *dbBackupHistoryRepoImpl) UpdateRestoring(restoring bool, backupHistoryId ...uint64) (bool, error) {
+	db := global.Db.Model(repo.GetModel()).
+		Where("id in ?", backupHistoryId).
+		Where("deleting = false").
+		Scopes(gormx.UndeleteScope).
+		Update("restoring", restoring)
+	if db.Error != nil {
+		return false, db.Error
+	}
+	if db.RowsAffected != int64(len(backupHistoryId)) {
+		return false, nil
+	}
+	return true, nil
 }

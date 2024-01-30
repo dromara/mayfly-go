@@ -29,14 +29,19 @@ func (t *testJob) GetKey() JobKey {
 	return t.Key
 }
 
+func (t *testJob) SetStatus(status JobStatus, err error) {}
+
+func (t *testJob) SetEnabled(enabled bool, desc string) {}
+
 func TestRunner_Close(t *testing.T) {
 	signal := make(chan struct{}, 1)
 	waiting := sync.WaitGroup{}
 	waiting.Add(1)
-	runner := NewRunner[*testJob](1, func(ctx context.Context, job *testJob) {
+	runner := NewRunner[*testJob](1, func(ctx context.Context, job *testJob) error {
 		waiting.Done()
 		timex.SleepWithContext(ctx, time.Hour)
 		signal <- struct{}{}
+		return nil
 	})
 	go func() {
 		job := &testJob{
@@ -78,8 +83,9 @@ func TestRunner_AddJob(t *testing.T) {
 			want: ErrJobExist,
 		},
 	}
-	runner := NewRunner[*testJob](1, func(ctx context.Context, job *testJob) {
+	runner := NewRunner[*testJob](1, func(ctx context.Context, job *testJob) error {
 		timex.SleepWithContext(ctx, time.Hour)
+		return nil
 	})
 	defer runner.Close()
 	for _, tc := range testCases {
@@ -99,10 +105,11 @@ func TestJob_UpdateStatus(t *testing.T) {
 		running
 		finished
 	)
-	runner := NewRunner[*testJob](1, func(ctx context.Context, job *testJob) {
+	runner := NewRunner[*testJob](1, func(ctx context.Context, job *testJob) error {
 		job.status = running
 		timex.SleepWithContext(ctx, d*2)
 		job.status = finished
+		return nil
 	})
 	first := newTestJob("first")
 	second := newTestJob("second")

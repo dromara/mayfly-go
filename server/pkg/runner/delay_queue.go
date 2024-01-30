@@ -50,10 +50,6 @@ func (d *wrapper[T]) GetKey() string {
 	return d.key
 }
 
-func (d *wrapper[T]) Payload() T {
-	return d.job
-}
-
 func NewDelayQueue[T Delayable](cap int) *DelayQueue[T] {
 	singleDequeue := make(chan struct{}, 1)
 	singleDequeue <- struct{}{}

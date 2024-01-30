@@ -9,10 +9,15 @@ import (
 type DbBackupHistory interface {
 	base.Repo[*entity.DbBackupHistory]
 
-	// GetHistories 分页获取数据备份历史
-	GetHistories(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	// GetPageList 分页获取数据备份历史
+	GetPageList(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	GetLatestHistory(instanceId uint64, dbName string, bi *entity.BinlogInfo) (*entity.DbBackupHistory, error)
 
 	GetEarliestHistory(instanceId uint64) (*entity.DbBackupHistory, bool, error)
+
+	GetHistories(backupHistoryIds []uint64, toEntity any) error
+
+	UpdateDeleting(deleting bool, backupHistoryId ...uint64) (bool, error)
+	UpdateRestoring(restoring bool, backupHistoryId ...uint64) (bool, error)
 }

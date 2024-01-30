@@ -21,6 +21,7 @@
                 <el-button type="primary" icon="plus" @click="createDbBackup()">添加</el-button>
                 <el-button type="primary" icon="video-play" @click="enableDbBackup(null)">启用</el-button>
                 <el-button type="primary" icon="video-pause" @click="disableDbBackup(null)">禁用</el-button>
+                <el-button type="danger" icon="delete" @click="deleteDbBackup(null)">删除</el-button>
             </template>
 
             <template #action="{ data }">
@@ -29,6 +30,7 @@
                     <el-button v-if="!data.enabled" @click="enableDbBackup(data)" type="primary" link>启用</el-button>
                     <el-button v-if="data.enabled" @click="disableDbBackup(data)" type="primary" link>禁用</el-button>
                     <el-button v-if="data.enabled" @click="startDbBackup(data)" type="primary" link>立即备份</el-button>
+                    <el-button @click="deleteDbBackup(data)" type="danger" link>删除</el-button>
                 </div>
             </template>
         </page-table>
@@ -49,7 +51,7 @@ import { dbApi } from './api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { SearchItem } from '@/components/SearchForm';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 const DbBackupEdit = defineAsyncComponent(() => import('./DbBackupEdit.vue'));
 const pageTableRef: Ref<any> = ref(null);
@@ -72,10 +74,10 @@ const columns = [
     TableColumn.new('name', '任务名称'),
     TableColumn.new('startTime', '启动时间').isTime(),
     TableColumn.new('intervalDay', '备份周期'),
-    TableColumn.new('enabled', '是否启用'),
+    TableColumn.new('enabledDesc', '是否启用'),
     TableColumn.new('lastResult', '执行结果'),
     TableColumn.new('lastTime', '执行时间').isTime(),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight(),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(220).fixedRight(),
 ];
 
 const emptyQuery = {
@@ -167,6 +169,26 @@ const startDbBackup = async (data: any) => {
     await dbApi.startDbBackup.request({ dbId: props.dbId, backupId: backupId });
     await search();
     ElMessage.success('备份任务启动成功');
+};
+
+const deleteDbBackup = async (data: any) => {
+    let backupId: string;
+    if (data) {
+        backupId = data.id;
+    } else if (state.selectedData.length > 0) {
+        backupId = state.selectedData.map((x: any) => x.id).join(' ');
+    } else {
+        ElMessage.error('请选择需要删除的数据库备份任务');
+        return;
+    }
+    await ElMessageBox.confirm(`确定删除 “数据库备份任务” 吗？`, '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+    });
+    await dbApi.deleteDbBackup.request({ dbId: props.dbId, backupId: backupId });
+    await search();
+    ElMessage.success('删除成功');
 };
 </script>
 <style lang="scss"></style>

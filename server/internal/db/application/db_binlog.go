@@ -46,7 +46,7 @@ func (app *DbBinlogApp) run() {
 		if app.closed() {
 			break
 		}
-		if err := app.scheduler.AddJob(app.context, false, entity.DbJobTypeBinlog, jobs); err != nil {
+		if err := app.scheduler.AddJob(app.context, jobs); err != nil {
 			logx.Error("DbBinlogApp: 添加 BINLOG 同步任务失败: ", err.Error())
 		}
 		timex.SleepWithContext(app.context, entity.BinlogDownloadInterval)

@@ -62,7 +62,7 @@
 <script lang="ts" setup>
 import { onMounted, reactive, ref, watch } from 'vue';
 import { dbApi } from './api';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 const props = defineProps({
     data: {
@@ -161,7 +161,7 @@ const state = reactive({
         id: 0,
         dbId: 0,
         dbName: null as any,
-        intervalDay: 1,
+        intervalDay: 0,
         startTime: null as any,
         repeated: null as any,
         dbBackupId: null as any,
@@ -233,7 +233,8 @@ const init = async (data: any) => {
     } else {
         state.form.dbName = '';
         state.editOrCreate = false;
-        state.form.intervalDay = 1;
+        state.form.intervalDay = 0;
+        state.form.repeated = false;
         state.form.pointInTime = new Date();
         state.form.startTime = new Date();
         state.histories = [];
@@ -252,6 +253,12 @@ const getDbNamesWithoutRestore = async () => {
 const btnOk = async () => {
     restoreForm.value.validate(async (valid: any) => {
         if (valid) {
+            await ElMessageBox.confirm(`确定恢复数据库吗？`, '提示', {
+                confirmButtonText: '确定',
+                cancelButtonText: '取消',
+                type: 'warning',
+            });
+
             if (state.restoreMode == 'point-in-time') {
                 state.form.dbBackupId = 0;
                 state.form.dbBackupHistoryId = 0;
@@ -260,13 +267,14 @@ const btnOk = async () => {
                 state.form.pointInTime = null;
             }
             state.form.repeated = false;
+            state.form.intervalDay = 0;
             const reqForm = { ...state.form };
             let api = dbApi.createDbRestore;
             if (props.data) {
                 api = dbApi.saveDbRestore;
             }
             api.request(reqForm).then(() => {
-                ElMessage.success('保存成功');
+                ElMessage.success('成功创建数据库恢复任务');
                 emit('val-change', state.form);
                 state.btnLoading = true;
                 setTimeout(() => {

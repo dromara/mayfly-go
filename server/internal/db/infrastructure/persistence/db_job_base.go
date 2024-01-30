@@ -31,7 +31,7 @@ func (d *dbJobBaseImpl[T]) UpdateLastStatus(ctx context.Context, job entity.DbJo
 }
 
 func addJob[T entity.DbJob](ctx context.Context, repo dbJobBaseImpl[T], jobs any) error {
-	// refactor and jobs from any to []T
+	// refactor jobs from any to []T
 	return gormx.Tx(func(db *gorm.DB) error {
 		var instanceId uint64
 		var dbNames []string
@@ -44,11 +44,10 @@ func addJob[T entity.DbJob](ctx context.Context, repo dbJobBaseImpl[T], jobs any
 			dbNames = make([]string, 0, reflectLen)
 			for i := 0; i < reflectLen; i++ {
 				job := reflectValue.Index(i).Interface().(entity.DbJob)
-				jobBase := job.GetJobBase()
 				if instanceId == 0 {
-					instanceId = jobBase.DbInstanceId
+					instanceId = job.GetInstanceId()
 				}
-				if jobBase.DbInstanceId != instanceId {
+				if job.GetInstanceId() != instanceId {
 					return errors.New("不支持同时为多个数据库实例添加数据库任务")
 				}
 				if job.GetInterval() == 0 {
@@ -59,8 +58,7 @@ func addJob[T entity.DbJob](ctx context.Context, repo dbJobBaseImpl[T], jobs any
 			}
 		default:
 			job := jobs.(entity.DbJob)
-			jobBase := job.GetJobBase()
-			instanceId = jobBase.DbInstanceId
+			instanceId = job.GetInstanceId()
 			if job.GetInterval() > 0 {
 				dbNames = append(dbNames, job.GetDbName())
 			}

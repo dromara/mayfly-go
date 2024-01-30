@@ -142,6 +142,12 @@ func (svc *DbProgramMysql) Backup(ctx context.Context, backupHistory *entity.DbB
 	return binlogInfo, nil
 }
 
+func (svc *DbProgramMysql) RemoveBackupHistory(_ context.Context, dbBackupId uint64, dbBackupHistoryUuid string) error {
+	fileName := filepath.Join(svc.getDbBackupDir(svc.dbInfo().InstanceId, dbBackupId),
+		fmt.Sprintf("%v.sql", dbBackupHistoryUuid))
+	return os.Remove(fileName)
+}
+
 func (svc *DbProgramMysql) RestoreBackupHistory(ctx context.Context, dbName string, dbBackupId uint64, dbBackupHistoryUuid string) error {
 	dbInfo := svc.dbInfo()
 	args := []string{

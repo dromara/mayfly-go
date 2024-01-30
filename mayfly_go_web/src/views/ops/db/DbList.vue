@@ -63,13 +63,19 @@
                             <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
                             <el-dropdown-item :command="{ type: 'dumpDb', data }" v-if="supportAction('dumpDb', data.type)"> 导出 </el-dropdown-item>
                             <el-dropdown-item :command="{ type: 'backupDb', data }" v-if="actionBtns[perms.backupDb] && supportAction('backupDb', data.type)">
-                                备份
+                                备份任务
+                            </el-dropdown-item>
+                            <el-dropdown-item
+                                :command="{ type: 'backupHistory', data }"
+                                v-if="actionBtns[perms.backupDb] && supportAction('backupDb', data.type)"
+                            >
+                                备份历史
                             </el-dropdown-item>
                             <el-dropdown-item
                                 :command="{ type: 'restoreDb', data }"
                                 v-if="actionBtns[perms.restoreDb] && supportAction('restoreDb', data.type)"
                             >
-                                恢复
+                                恢复任务
                             </el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
@@ -140,6 +146,16 @@
 
         <el-dialog
             width="80%"
+            :title="`${dbBackupHistoryDialog.title} - 数据库备份历史`"
+            :close-on-click-modal="false"
+            :destroy-on-close="true"
+            v-model="dbBackupHistoryDialog.visible"
+        >
+            <db-backup-history-list :dbId="dbBackupHistoryDialog.dbId" :dbNames="dbBackupHistoryDialog.dbs" />
+        </el-dialog>
+
+        <el-dialog
+            width="80%"
             :title="`${dbRestoreDialog.title} - 数据库恢复`"
             :close-on-click-modal="false"
             :destroy-on-close="true"
@@ -192,6 +208,7 @@ import { getDbDialect } from './dialect/index';
 import { getTagPathSearchItem } from '../component/tag';
 import { SearchItem } from '@/components/SearchForm';
 import DbBackupList from './DbBackupList.vue';
+import DbBackupHistoryList from './DbBackupHistoryList.vue';
 import DbRestoreList from './DbRestoreList.vue';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
@@ -263,6 +280,13 @@ const state = reactive({
         dbs: [],
         dbId: 0,
     },
+    // 数据库备份历史弹框
+    dbBackupHistoryDialog: {
+        title: '',
+        visible: false,
+        dbs: [],
+        dbId: 0,
+    },
     // 数据库恢复弹框
     dbRestoreDialog: {
         title: '',
@@ -295,7 +319,8 @@ const state = reactive({
     },
 });
 
-const { db, selectionData, query, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog, dbBackupDialog, dbRestoreDialog } = toRefs(state);
+const { db, selectionData, query, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog, dbBackupDialog, dbBackupHistoryDialog, dbRestoreDialog } =
+    toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
@@ -359,6 +384,10 @@ const handleMoreActionCommand = (commond: any) => {
             onShowDbBackupDialog(data);
             return;
         }
+        case 'backupHistory': {
+            onShowDbBackupHistoryDialog(data);
+            return;
+        }
         case 'restoreDb': {
             onShowDbRestoreDialog(data);
             return;
@@ -410,6 +439,13 @@ const onShowDbBackupDialog = async (row: any) => {
     state.dbBackupDialog.dbId = row.id;
     state.dbBackupDialog.dbs = row.database.split(' ');
     state.dbBackupDialog.visible = true;
+};
+
+const onShowDbBackupHistoryDialog = async (row: any) => {
+    state.dbBackupHistoryDialog.title = `${row.name}`;
+    state.dbBackupHistoryDialog.dbId = row.id;
+    state.dbBackupHistoryDialog.dbs = row.database.split(' ');
+    state.dbBackupHistoryDialog.visible = true;
 };
 
 const onShowDbRestoreDialog = async (row: any) => {

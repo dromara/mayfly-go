@@ -13,5 +13,5 @@ type DbBackup interface {
 	GetDbNamesWithoutBackup(instanceId uint64, dbNames []string) ([]string, error)
 
 	// GetPageList 分页获取数据库任务列表
-	GetPageList(condition *entity.DbJobQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.DbBackupQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }

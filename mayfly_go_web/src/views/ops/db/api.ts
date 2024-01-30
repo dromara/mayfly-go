@@ -49,16 +49,20 @@ export const dbApi = {
     // 获取数据库备份列表
     getDbBackups: Api.newGet('/dbs/{dbId}/backups'),
     createDbBackup: Api.newPost('/dbs/{dbId}/backups'),
+    deleteDbBackup: Api.newDelete('/dbs/{dbId}/backups/{backupId}'),
     getDbNamesWithoutBackup: Api.newGet('/dbs/{dbId}/db-names-without-backup'),
     enableDbBackup: Api.newPut('/dbs/{dbId}/backups/{backupId}/enable'),
     disableDbBackup: Api.newPut('/dbs/{dbId}/backups/{backupId}/disable'),
     startDbBackup: Api.newPut('/dbs/{dbId}/backups/{backupId}/start'),
     saveDbBackup: Api.newPut('/dbs/{dbId}/backups/{id}'),
     getDbBackupHistories: Api.newGet('/dbs/{dbId}/backup-histories'),
+    restoreDbBackupHistory: Api.newPost('/dbs/{dbId}/backup-histories/{backupHistoryId}/restore'),
+    deleteDbBackupHistory: Api.newDelete('/dbs/{dbId}/backup-histories/{backupHistoryId}'),
 
-    // 获取数据库备份列表
+    // 获取数据库恢复列表
     getDbRestores: Api.newGet('/dbs/{dbId}/restores'),
     createDbRestore: Api.newPost('/dbs/{dbId}/restores'),
+    deleteDbRestore: Api.newDelete('/dbs/{dbId}/restores/{restoreId}'),
     getDbNamesWithoutRestore: Api.newGet('/dbs/{dbId}/db-names-without-restore'),
     enableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/enable'),
     disableDbRestore: Api.newPut('/dbs/{dbId}/restores/{restoreId}/disable'),

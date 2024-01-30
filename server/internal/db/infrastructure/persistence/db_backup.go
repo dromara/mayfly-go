@@ -63,7 +63,7 @@ func (d *dbBackupRepoImpl) ListToDo(jobs any) error {
 }
 
 // GetPageList 分页获取数据库备份任务列表
-func (d *dbBackupRepoImpl) GetPageList(condition *entity.DbJobQuery, pageParam *model.PageParam, toEntity any, _ ...string) (*model.PageResult[any], error) {
+func (d *dbBackupRepoImpl) GetPageList(condition *entity.DbBackupQuery, pageParam *model.PageParam, toEntity any, _ ...string) (*model.PageResult[any], error) {
 	d.GetModel()
 	qd := gormx.NewQuery(d.GetModel()).
 		Eq("id", condition.Id).
@@ -83,7 +83,12 @@ func (d *dbBackupRepoImpl) UpdateEnabled(_ context.Context, jobId uint64, enable
 	cond := map[string]any{
 		"id": jobId,
 	}
+	desc := "任务已禁用"
+	if enabled {
+		desc = "任务已启用"
+	}
 	return d.Updates(cond, map[string]any{
-		"enabled": enabled,
+		"enabled":      enabled,
+		"enabled_desc": desc,
 	})
 }
