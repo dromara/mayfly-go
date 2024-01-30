@@ -158,18 +158,19 @@
             @data-delete="onRefresh"
         ></db-table-data>
 
-        <el-row type="flex" class="mt5" :gutter="10" justify="end" style="user-select: none">
+        <el-row type="flex" class="mt5" :gutter="10" justify="space-between" style="user-select: none">
             <el-col :span="12">
                 <el-text
-                    style="color: var(--el-color-info-light-3); font-size: 12px; margin-top: 5px"
-                    class="is-truncated"
-                    @click="handleCopySql(sql)"
+                    id="copyValue"
+                    style="color: var(--el-color-info-light-3)"
+                    class="is-truncated font12 mt5"
+                    @click="copyToClipboard(sql)"
                     :title="sql"
                     >{{ sql }}</el-text
                 >
             </el-col>
             <el-col :span="12">
-                <el-row :gutter="10" justify="center">
+                <el-row :gutter="10" justify="left">
                     <el-link class="op-page" :underline="false" @click="pageNum = 1" :disabled="pageNum == 1" icon="DArrowLeft" title="首页" />
                     <el-link class="op-page" :underline="false" @click="pageNum = --pageNum || 1" :disabled="pageNum == 1" icon="Back" title="上一页" />
                     <div class="op-page">
@@ -183,9 +184,9 @@
                             @keydown.enter="handleSetPageNum"
                         />
                     </div>
-                    <el-link class="op-page" :underline="false" @click="++pageNum" icon="Right" />
-                    <el-link class="op-page" :underline="false" @click="handleEndPage" icon="DArrowRight" />
-                    <div style="width: 90px; margin-left: 20px" class="op-page">
+                    <el-link class="op-page" :underline="false" @click="++pageNum" :disabled="datas.length < pageSize" icon="Right" />
+                    <el-link class="op-page" :underline="false" @click="handleEndPage" :disabled="datas.length < pageSize" icon="DArrowRight" />
+                    <div style="width: 90px" class="op-page ml10">
                         <el-select size="small" :default-first-option="true" v-model="pageSize" @change="handleSizeChange">
                             <el-option
                                 style="font-size: 12px; height: 24px; line-height: 24px"
@@ -196,21 +197,13 @@
                             />
                         </el-select>
                     </div>
-                    <el-link
-                        class="op-page"
-                        style="margin-left: 20px"
-                        v-if="!state.counting"
-                        :underline="false"
-                        @click="handleCount"
-                        icon="Stopwatch"
-                        title="计数"
-                    />
-                    <el-link class="op-page" style="margin-left: 20px" v-if="state.counting" :underline="false" title="计数中...">
+                    <el-link class="op-page ml10" v-if="!state.counting" :underline="false" @click="handleCount" icon="Stopwatch" title="计数" />
+                    <el-link class="op-page ml10" v-if="state.counting" :underline="false" title="计数中...">
                         <el-icon class="is-loading">
                             <Loading />
                         </el-icon>
                     </el-link>
-                    <el-text class="op-page" style="font-size: 12px" v-if="state.showTotal">总 {{ state.total }} 条</el-text>
+                    <el-text class="op-page font12" v-if="state.showTotal">总 {{ state.total }} 条</el-text>
                 </el-row>
             </el-col>
         </el-row>
@@ -334,7 +327,7 @@ const state = reactive({
     ],
     setPageNum: 0,
     total: 0,
-    showTotal: 0,
+    showTotal: false,
     counting: false,
     selectionDatas: [] as any,
     condPopVisible: false,
@@ -457,11 +450,6 @@ const handleCount = async () => {
     }
 
     state.counting = false;
-};
-
-const handleCopySql = async (sql: string) => {
-    await copyToClipboard(sql);
-    ElMessage.success('复制成功');
 };
 
 // 完整的条件,每次选中后会重置条件框内容，故需要这个变量在获取建议时将文本框内容保存

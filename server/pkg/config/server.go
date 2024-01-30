@@ -19,7 +19,7 @@ func (s *Server) Default() {
 		s.Model = "release"
 	}
 	if s.Port == 0 {
-		s.Port = 8888
+		s.Port = 18888
 	}
 }
 

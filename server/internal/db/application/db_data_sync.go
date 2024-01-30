@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
@@ -19,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type DataSyncTask interface {
@@ -99,14 +100,12 @@ func (app *dataSyncAppImpl) AddCronJob(taskEntity *entity.DataSyncTask) {
 
 	// 根据状态添加新的任务
 	if taskEntity.Status == entity.DataSyncTaskStatusEnable {
+		taskId := taskEntity.Id
 		scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
-			go func() {
-				taskId := taskEntity.Id
-				logx.Infof("开始执行同步任务: %d", taskId)
-				if err := app.RunCronJob(taskId); err != nil {
-					logx.Errorf("定时执行数据同步任务失败: %s", err.Error())
-				}
-			}()
+			logx.Infof("开始执行同步任务: %d", taskId)
+			if err := app.RunCronJob(taskId); err != nil {
+				logx.Errorf("定时执行数据同步任务失败: %s", err.Error())
+			}
 		})
 	}
 }
@@ -231,7 +230,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 			// 遍历columns 取task.UpdField的字段类型
 			updFieldType = dbi.DataTypeString
 			for _, column := range columns {
-				if strings.ToLower(column.Name) == strings.ToLower(task.UpdField) {
+				if strings.EqualFold(strings.ToLower(column.Name), strings.ToLower(task.UpdField)) {
 					updFieldType = srcDialect.GetDataConverter().GetDataType(column.Type)
 					break
 				}

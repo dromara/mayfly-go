@@ -211,7 +211,7 @@ func doUpdate(ctx context.Context, update *sqlparser.Update, execSqlReq *DbSqlEx
 	tableStr := sqlparser.String(update.TableExprs)
 	// 可能使用别名，故空格切割
 	tableName := strings.Split(tableStr, " ")[0]
-	if strings.Index(tableName, ".") > -1 {
+	if strings.Contains(tableName, ".") {
 		tableName = strings.Split(tableName, ".")[1]
 	}
 	where := sqlparser.String(update.Where)

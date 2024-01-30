@@ -224,7 +224,7 @@ func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 	}
 
 	scheduler.AddFunByKey(key, mcj.Cron, func() {
-		go m.RunCronJob(key)
+		m.RunCronJob(key)
 	})
 }
 func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineCronJob) {
