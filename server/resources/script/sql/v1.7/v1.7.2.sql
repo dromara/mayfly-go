@@ -9,5 +9,5 @@ ALTER TABLE `t_db_restore`
     ADD COLUMN `enabled_desc` varchar(64) NULL COMMENT '任务启用描述' AFTER `enabled`;
 
 ALTER TABLE `t_db_backup_history`
-    ADD COLUMN `restoring` int(1) NOT NULL DEFAULT(0) COMMENT '备份历史恢复标识',
-    ADD COLUMN `deleting` int(1) NOT NULL DEFAULT(0) COMMENT '备份历史删除标识';
+    ADD COLUMN `restoring` int(1) NOT NULL DEFAULT '0' COMMENT '备份历史恢复标识',
+    ADD COLUMN `deleting` int(1) NOT NULL DEFAULT '0' COMMENT '备份历史删除标识';

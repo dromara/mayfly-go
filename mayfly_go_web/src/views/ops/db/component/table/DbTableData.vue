@@ -46,14 +46,6 @@
                                             <b :title="column.remark" class="el-text" style="cursor: pointer">
                                                 {{ column.title }}
                                             </b>
-
-                                            <span>
-                                                <SvgIcon
-                                                    color="var(--el-color-primary)"
-                                                    v-if="column.title == nowSortColumn?.columnName"
-                                                    :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"
-                                                ></SvgIcon>
-                                            </span>
                                         </div>
 
                                         <!-- 字段备注信息 -->
@@ -70,6 +62,13 @@
                                         <b class="el-text">
                                             {{ column.title }}
                                         </b>
+                                    </div>
+
+                                    <!-- 字段列右部分内容 -->
+                                    <div class="column-right">
+                                        <span v-if="column.title == nowSortColumn?.columnName">
+                                            <SvgIcon color="var(--el-color-primary)" :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"></SvgIcon>
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -874,7 +873,13 @@ defineExpose({
         position: absolute;
         top: -5px;
         padding: 2px;
-        height: 12px;
+    }
+
+    .column-right {
+        position: absolute;
+        top: 2px;
+        right: 0;
+        padding: 2px;
     }
 }
 </style>

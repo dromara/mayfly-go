@@ -197,13 +197,10 @@
                             />
                         </el-select>
                     </div>
-                    <el-link class="op-page ml10" v-if="!state.counting" :underline="false" @click="handleCount" icon="Stopwatch" title="计数" />
-                    <el-link class="op-page ml10" v-if="state.counting" :underline="false" title="计数中...">
-                        <el-icon class="is-loading">
-                            <Loading />
-                        </el-icon>
-                    </el-link>
-                    <el-text class="op-page font12" v-if="state.showTotal">总 {{ state.total }} 条</el-text>
+
+                    <el-button @click="handleCount" :loading="state.counting" class="ml10" text bg size="small">
+                        {{ state.showTotal ? `${state.total} 条` : 'count' }}
+                    </el-button>
                 </el-row>
             </el-col>
         </el-row>

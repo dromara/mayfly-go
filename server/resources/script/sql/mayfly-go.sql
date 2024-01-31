@@ -110,6 +110,7 @@ CREATE TABLE `t_db_backup` (
     `interval` bigint(20) DEFAULT NULL COMMENT '备份周期',
     `start_time` datetime DEFAULT NULL COMMENT '首次备份时间',
     `enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
+    `enabled_desc` varchar(64) NULL COMMENT '任务启用描述',
     `last_status` tinyint(4) DEFAULT NULL COMMENT '上次备份状态',
     `last_result` varchar(256) DEFAULT NULL COMMENT '上次备份结果',
     `last_time` datetime DEFAULT NULL COMMENT '上次备份时间',
@@ -143,6 +144,8 @@ CREATE TABLE `t_db_backup_history` (
     `create_time` datetime DEFAULT NULL COMMENT '历史备份创建时间',
     `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
     `delete_time` datetime DEFAULT NULL,
+    `restoring` int(1) NOT NULL DEFAULT '0' COMMENT '备份历史恢复标识',
+    `deleting` int(1) NOT NULL DEFAULT '0' COMMENT '备份历史删除标识',
     PRIMARY KEY (`id`),
     KEY `idx_db_backup_id` (`db_backup_id`) USING BTREE,
     KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE,
@@ -161,6 +164,7 @@ CREATE TABLE `t_db_restore` (
     `interval` bigint(20) DEFAULT NULL COMMENT '恢复周期',
     `start_time` datetime DEFAULT NULL COMMENT '首次恢复时间',
     `enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
+    `enabled_desc` varchar(64) NULL COMMENT '任务启用描述',
     `last_status` tinyint(4) DEFAULT NULL COMMENT '上次恢复状态',
     `last_result` varchar(256) DEFAULT NULL COMMENT '上次恢复结果',
     `last_time` datetime DEFAULT NULL COMMENT '上次恢复时间',
@@ -570,7 +574,7 @@ CREATE TABLE `t_sys_account` (
 -- Records of t_sys_account
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_sys_account` VALUES (1, "管理员", 'admin', '$2a$10$w3Wky2U.tinvR7c/s0aKPuwZsIu6pM1/DMJalwBDMbE6niHIxVrrm', 1, '', '2022-10-26 20:03:48', '::1', '2020-01-01 19:00:00', 1, 'admin', '2020-01-01 19:00:00', 1, 'admin', 0, NULL);
+INSERT INTO `t_sys_account` VALUES (1, '管理员', 'admin', '$2a$10$w3Wky2U.tinvR7c/s0aKPuwZsIu6pM1/DMJalwBDMbE6niHIxVrrm', 1, '', '2022-10-26 20:03:48', '::1', '2020-01-01 19:00:00', 1, 'admin', '2020-01-01 19:00:00', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -788,6 +792,8 @@ INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(152, 150, 'Jra0n7De/zvAMo2vk/', 2, 1, '编辑', 'db:sync:save', 1703641320, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:42:00', '2023-12-27 09:42:12', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(151, 150, 'Jra0n7De/uAnHZxEV/', 2, 1, '基本权限', 'db:sync', 1703641202, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:40:02', '2023-12-27 09:40:02', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(150, 36, 'Jra0n7De/', 1, 1, '数据同步', 'sync', 1693040707, '{"component":"ops/db/SyncTaskList","icon":"Coin","isKeepAlive":true,"routeName":"SyncTaskList"}', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-22 09:51:34', '2023-12-27 10:16:57', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(161, 49, 'dbms23ax/xleaiec2/3NUXQFIO/', 2, 1, '数据库备份', 'db:backup', 1705973876, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:37:56', '2024-01-23 09:37:56', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(160, 49, 'dbms23ax/xleaiec2/ghErkTdb/', 2, 1, '数据库恢复', 'db:restore', 1705973909, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:38:29', '2024-01-23 09:38:29', 0, NULL);
 COMMIT;
 
 -- ----------------------------
