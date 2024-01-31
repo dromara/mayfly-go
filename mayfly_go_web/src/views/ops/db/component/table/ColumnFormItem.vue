@@ -6,7 +6,6 @@
             :disabled="disabled"
             @blur="handleBlur"
             :class="`w100 mb4 ${showEditorIcon ? 'string-input-container-show-icon' : ''}`"
-            input-style="text-align: center; height: 26px;"
             size="small"
             v-model="itemValue"
             :placeholder="placeholder"
@@ -20,7 +19,6 @@
         :disabled="disabled"
         @blur="handleBlur"
         class="w100 mb4"
-        input-style="text-align: center; height: 26px;"
         size="small"
         v-model.number="itemValue"
         :placeholder="placeholder"
@@ -184,9 +182,6 @@ const getEditorLangByValue = (value: any) => {
     width: 100% !important;
     .el-input__prefix {
         display: none;
-    }
-    .el-input__inner {
-        text-align: center;
     }
 }
 

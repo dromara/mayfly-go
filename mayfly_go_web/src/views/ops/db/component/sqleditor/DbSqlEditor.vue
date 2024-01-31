@@ -148,7 +148,6 @@ import { buildProgressProps } from '@/components/progress-notify/progress-notify
 import ProgressNotify from '@/components/progress-notify/progress-notify.vue';
 import syssocket from '@/common/syssocket';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import { getDbDialect } from '../../dialect';
 import { Pane, Splitpanes } from 'splitpanes';
 
 const emits = defineEmits(['saveSqlSuccess']);
@@ -453,7 +452,7 @@ const formatSql = () => {
         return;
     }
 
-    const formatDialect = getDbDialect(getNowDbInst().type).getInfo().formatSqlDialect;
+    const formatDialect = getNowDbInst().getDialect().getInfo().formatSqlDialect;
 
     let sql = monacoEditor.getModel()?.getValueInRange(selection);
     // 有选中sql则格式化并替换选中sql, 否则格式化编辑器所有内容

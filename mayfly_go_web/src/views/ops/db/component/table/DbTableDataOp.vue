@@ -234,32 +234,16 @@
             </template>
         </el-dialog>
 
-        <el-dialog v-model="addDataDialog.visible" :title="addDataDialog.title" :destroy-on-close="true" width="600px">
-            <el-form ref="dataForm" :model="addDataDialog.data" :show-message="false" label-width="auto" size="small">
-                <el-form-item
-                    v-for="column in columns"
-                    :key="column.columnName"
-                    class="w100 mb5"
-                    :prop="column.columnName"
-                    :label="column.columnName"
-                    :required="column.nullable != 'YES' && !column.isPrimaryKey && !column.isIdentity"
-                >
-                    <ColumnFormItem
-                        v-model="addDataDialog.data[`${column.columnName}`]"
-                        :data-type="dbDialect.getDataType(column.columnType)"
-                        :placeholder="`${column.columnType}  ${column.columnComment}`"
-                        :column-name="column.columnName"
-                        :disabled="column.isIdentity"
-                    />
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="closeAddDataDialog">取消</el-button>
-                    <el-button type="primary" @click="addRow">确定</el-button>
-                </span>
-            </template>
-        </el-dialog>
+        <DbTableDataForm
+            :db-inst="getNowDbInst()"
+            :db-name="dbName"
+            :columns="columns"
+            :title="addDataDialog.title"
+            :table-name="tableName"
+            v-model:visible="addDataDialog.visible"
+            v-model="addDataDialog.data"
+            @submit-success="onRefresh"
+        />
     </div>
 </template>
 
@@ -269,11 +253,11 @@ import { ElMessage } from 'element-plus';
 
 import { DbInst } from '@/views/ops/db/db';
 import DbTableData from './DbTableData.vue';
-import { DbDialect, getDbDialect } from '@/views/ops/db/dialect';
+import { DbDialect } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import ColumnFormItem from './ColumnFormItem.vue';
 import { useEventListener, useStorage } from '@vueuse/core';
 import { copyToClipboard } from '@/common/utils/string';
+import DbTableDataForm from './DbTableDataForm.vue';
 
 const props = defineProps({
     dbId: {
@@ -294,7 +278,6 @@ const props = defineProps({
     },
 });
 
-const dataForm: any = ref(null);
 const dbTableRef: Ref = ref(null);
 const condInputRef: Ref = ref(null);
 const columnNameSearchInputRef: Ref = ref(null);
@@ -341,7 +324,6 @@ const state = reactive({
     addDataDialog: {
         data: {},
         title: '',
-        placeholder: '',
         visible: false,
     },
     tableHeight: '600px',
@@ -349,7 +331,7 @@ const state = reactive({
     dbDialect: {} as DbDialect,
 });
 
-const { datas, condition, loading, columns, pageNum, pageSize, pageSizes, sql, hasUpdatedFileds, conditionDialog, addDataDialog, dbDialect } = toRefs(state);
+const { datas, condition, loading, columns, pageNum, pageSize, pageSizes, sql, hasUpdatedFileds, conditionDialog, addDataDialog } = toRefs(state);
 
 watch(
     () => props.tableHeight,
@@ -367,7 +349,7 @@ onMounted(async () => {
     state.tableHeight = props.tableHeight;
     await onRefresh();
 
-    state.dbDialect = getDbDialect(getNowDbInst().type);
+    state.dbDialect = getNowDbInst().getDialect();
     useEventListener('click', handlerWindowClick);
 });
 
@@ -600,46 +582,6 @@ const cancelUpdateFields = () => {
 const onShowAddDataDialog = async () => {
     state.addDataDialog.title = `添加'${props.tableName}'表数据`;
     state.addDataDialog.visible = true;
-};
-
-const closeAddDataDialog = () => {
-    state.addDataDialog.visible = false;
-    state.addDataDialog.data = {};
-};
-
-// 添加新数据行
-const addRow = async () => {
-    dataForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            const dbInst = getNowDbInst();
-            const data = state.addDataDialog.data;
-            // key: 字段名，value: 字段名提示
-            let obj: any = {};
-            for (let item of state.columns) {
-                const value = data[item.columnName];
-                if (!value) {
-                    continue;
-                }
-                obj[`${dbInst.wrapName(item.columnName)}`] = DbInst.wrapValueByType(value);
-            }
-            let columnNames = Object.keys(obj).join(',');
-            let values = Object.values(obj).join(',');
-            // 获取schema
-            let schema = '';
-            let arr = props.dbName?.split('/');
-            if (arr && arr.length > 1) {
-                schema = dbInst.wrapName(arr[1]) + '.';
-            }
-            let sql = `INSERT INTO ${schema}${dbInst.wrapName(props.tableName)} (${columnNames}) VALUES (${values});`;
-            dbInst.promptExeSql(props.dbName, sql, null, () => {
-                closeAddDataDialog();
-                onRefresh();
-            });
-        } else {
-            ElMessage.error('请正确填写数据信息');
-            return false;
-        }
-    });
 };
 </script>
 

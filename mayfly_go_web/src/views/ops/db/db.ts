@@ -74,6 +74,11 @@ export class DbInst {
         return db;
     }
 
+    // 获取数据库实例方言
+    getDialect(): DbDialect {
+        return getDbDialect(this.type);
+    }
+
     /**
      * 加载数据库表信息
      * @param dbName 数据库名
@@ -257,7 +262,7 @@ export class DbInst {
      * @param table 表名
      * @param datas 要生成的数据
      */
-    async genInsertSql(dbName: string, table: string, datas: any[]) {
+    async genInsertSql(dbName: string, table: string, datas: any[], skipNull = false) {
         if (!datas) {
             return '';
         }
@@ -269,12 +274,47 @@ export class DbInst {
             let values = [];
             for (let column of columns) {
                 const colName = column.columnName;
+                if (skipNull && data[colName] == null) {
+                    continue;
+                }
                 colNames.push(this.wrapName(colName));
                 values.push(DbInst.wrapValueByType(data[colName]));
             }
             sqls.push(`INSERT INTO ${this.wrapName(table)} (${colNames.join(', ')}) VALUES(${values.join(', ')})`);
         }
         return sqls.join(';\n') + ';';
+    }
+
+    /**
+     * 生成根据主键更新语句
+     * @param dbName 数据库名
+     * @param table 表名
+     * @param columnValue 要更新的列以及对应的值 field->columnName; value->columnValue
+     * @param rowData 表的一行完整数据（需要获取主键信息）
+     */
+    async genUpdateSql(dbName: string, table: string, columnValue: {}, rowData: {}) {
+        let schema = '';
+        let dbArr = dbName.split('/');
+        if (dbArr.length == 2) {
+            schema = this.wrapName(dbArr[1]) + '.';
+        }
+
+        let sql = `UPDATE ${schema}${this.wrapName(table)} SET `;
+        // 主键列信息
+        const primaryKey = await this.loadTableColumn(dbName, table);
+        let primaryKeyType = primaryKey.columnType;
+        let primaryKeyName = primaryKey.columnName;
+        let primaryKeyValue = rowData[primaryKeyName];
+        const dialect = this.getDialect();
+        for (let k of Object.keys(columnValue)) {
+            const v = columnValue[k];
+            // 更新字段列信息
+            const updateColumn = await this.loadTableColumn(dbName, table, k);
+            sql += ` ${this.wrapName(k)} = ${DbInst.wrapColumnValue(updateColumn.columnType, v, dialect)},`;
+        }
+
+        sql = sql.substring(0, sql.length - 1);
+        return (sql += ` WHERE ${this.wrapName(primaryKeyName)} = ${DbInst.wrapColumnValue(primaryKeyType, primaryKeyValue)} ;`);
     }
 
     /**
@@ -297,7 +337,7 @@ export class DbInst {
             sql,
             dbId: this.id,
             db,
-            dbType: getDbDialect(this.type).getInfo().formatSqlDialect,
+            dbType: this.getDialect().getInfo().formatSqlDialect,
             runSuccessCallback: successFunc,
             cancelCallback: cancelFunc,
         });
@@ -310,7 +350,7 @@ export class DbInst {
      * @returns
      */
     wrapName = (name: string) => {
-        return getDbDialect(this.type).quoteIdentifier(name);
+        return this.getDialect().quoteIdentifier(name);
     };
 
     /**

@@ -71,7 +71,7 @@
                                 <el-descriptions-item label-align="right">
                                     <template #label>
                                         <div>
-                                            <SvgIcon :name="getDbDialect(nowDbInst.type).getInfo().icon" :size="18" />
+                                            <SvgIcon :name="nowDbInst.getDialect().getInfo().icon" :size="18" />
                                             实例
                                         </div>
                                     </template>

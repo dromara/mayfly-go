@@ -137,13 +137,25 @@
             <el-input v-model="state.genTxtDialog.txt" type="textarea" rows="20" />
         </el-dialog>
 
+        <DbTableDataForm
+            v-if="state.tableDataFormDialog.visible"
+            :db-inst="getNowDbInst()"
+            :db-name="db"
+            :columns="columns!"
+            :title="state.tableDataFormDialog.title"
+            :table-name="table"
+            v-model:visible="state.tableDataFormDialog.visible"
+            v-model="state.tableDataFormDialog.data"
+            @submit-success="emits('changeUpdatedField')"
+        />
+
         <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
     </div>
 </template>
 
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue';
-import { ElInput } from 'element-plus';
+import { ElInput, ElMessage } from 'element-plus';
 import { copyToClipboard } from '@/common/utils/string';
 import { DbInst } from '@/views/ops/db/db';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
@@ -153,6 +165,7 @@ import { dateStrFormat } from '@/common/utils/date';
 import { useIntervalFn, useStorage } from '@vueuse/core';
 import { ColumnTypeSubscript, compatibleMysql, DataType, DbDialect, getDbDialect } from '../../dialect/index';
 import ColumnFormItem from './ColumnFormItem.vue';
+import DbTableDataForm from './DbTableDataForm.vue';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
@@ -246,6 +259,13 @@ const cmDataDel = new ContextmenuItem('deleteData', '删除')
         return state.table == '';
     });
 
+const cmDataEdit = new ContextmenuItem('editData', '编辑行')
+    .withIcon('edit')
+    .withOnClick(() => onEditRowData())
+    .withHideFunc(() => {
+        return state.table == '';
+    });
+
 const cmDataGenInsertSql = new ContextmenuItem('genInsertSql', 'Insert SQL')
     .withIcon('tickets')
     .withOnClick(() => onGenerateInsertSql())
@@ -332,7 +352,11 @@ const state = reactive({
         },
         items: [] as ContextmenuItem[],
     },
-
+    tableDataFormDialog: {
+        data: {},
+        title: '',
+        visible: false,
+    },
     genTxtDialog: {
         title: 'SQL',
         visible: false,
@@ -443,7 +467,7 @@ const formatDataValues = (datas: any) => {
 };
 
 const setTableData = (datas: any) => {
-    tableRef.value.scrollTo({ scrollLeft: 0, scrollTop: 0 });
+    tableRef.value?.scrollTo({ scrollLeft: 0, scrollTop: 0 });
     selectionRowsMap.clear();
     cellUpdateMap.clear();
     formatDataValues(datas);
@@ -575,7 +599,7 @@ const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: a
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmDataGenInsertSql, cmDataGenJson, cmDataExportCsv, cmDataExportSql];
+    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmDataEdit, cmDataGenInsertSql, cmDataGenJson, cmDataExportCsv, cmDataExportSql];
     contextmenuRef.value.openContextmenu({ column, rowData: data });
 };
 
@@ -598,6 +622,18 @@ const onDeleteData = async () => {
     dbInst.promptExeSql(db, await dbInst.genDeleteByPrimaryKeysSql(db, state.table, deleteDatas as any), null, () => {
         emits('dataDelete', deleteDatas);
     });
+};
+
+const onEditRowData = () => {
+    const selectionDatas = Array.from(selectionRowsMap.values());
+    if (selectionDatas.length > 1) {
+        ElMessage.warning('只能编辑一行数据');
+        return;
+    }
+    const data = selectionDatas[0];
+    state.tableDataFormDialog.data = data;
+    state.tableDataFormDialog.title = `编辑表'${props.table}'数据`;
+    state.tableDataFormDialog.visible = true;
 };
 
 const onGenerateInsertSql = async () => {
@@ -713,40 +749,21 @@ const submitUpdateFields = async () => {
 
     const db = state.db;
     let res = '';
-    const dbDialect = getDbDialect(dbInst.type);
-    let schema = '';
-    let dbArr = db.split('/');
-    if (dbArr.length == 2) {
-        schema = dbInst.wrapName(dbArr[1]) + '.';
-    }
+
     for (let updateRow of cellUpdateMap.values()) {
-        let sql = `UPDATE ${schema}${dbInst.wrapName(state.table)} SET `;
-        const rowData = updateRow.rowData;
-        // 主键列信息
-        const primaryKey = await dbInst.loadTableColumn(db, state.table);
-        let primaryKeyType = primaryKey.columnType;
-        let primaryKeyName = primaryKey.columnName;
-        let primaryKeyValue = rowData[primaryKeyName];
+        const rowData = { ...updateRow.rowData };
+        let updateColumnValue = {};
 
         for (let k of updateRow.columnsMap.keys()) {
             const v = updateRow.columnsMap.get(k);
             if (!v) {
                 continue;
             }
-            // 更新字段列信息
-            const updateColumn = await dbInst.loadTableColumn(db, state.table, k);
-
-            sql += ` ${dbInst.wrapName(k)} = ${DbInst.wrapColumnValue(updateColumn.columnType, rowData[k], dbDialect)},`;
-
-            // 如果修改的字段是主键
-            if (k === primaryKeyName) {
-                primaryKeyValue = v.oldValue;
-            }
+            updateColumnValue[k] = rowData[k];
+            // 将更新的字段对应的原始数据还原（主要应对可能更新修改了主键等）
+            rowData[k] = v.oldValue;
         }
-
-        sql = sql.substring(0, sql.length - 1);
-        sql += ` WHERE ${dbInst.wrapName(primaryKeyName)} = ${DbInst.wrapColumnValue(primaryKeyType, primaryKeyValue)} ;`;
-        res += sql;
+        res += await dbInst.genUpdateSql(db, state.table, updateColumnValue, rowData);
     }
 
     dbInst.promptExeSql(

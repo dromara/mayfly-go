@@ -431,7 +431,7 @@ class PostgresqlDialect implements DbDialect {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
-    wrapStrValue(value: string, type: string): string {
+    wrapStrValue(columnType: string, value: string): string {
         return `'${value}'`;
     }
 }
