@@ -9,12 +9,9 @@
                 :required="column.nullable != 'YES' && !column.isPrimaryKey && !column.isIdentity"
             >
                 <template #label>
-                    {{ column.columnName }}
-                    <el-tooltip :content="`${column.columnType} | ${column.columnComment}`" placement="top">
-                        <el-icon>
-                            <question-filled />
-                        </el-icon>
-                    </el-tooltip>
+                    <span class="pointer" :title="`${column.columnType} | ${column.columnComment}`">
+                        {{ column.columnName }}
+                    </span>
                 </template>
 
                 <ColumnFormItem
@@ -36,7 +33,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import ColumnFormItem from './ColumnFormItem.vue';
 import { DbInst } from '../../db';
 import { ElMessage } from 'element-plus';
@@ -65,12 +62,22 @@ const dataForm: any = ref(null);
 
 let oldValue = null as any;
 
+onMounted(() => {
+    setOldValue();
+});
+
 watch(visible, (newValue) => {
-    // 空对象则为insert操作，无需记录旧值
-    if (newValue && Object.keys(modelValue.value).length > 0) {
-        oldValue = Object.assign({}, modelValue.value);
+    if (newValue) {
+        setOldValue();
     }
 });
+
+const setOldValue = () => {
+    // 空对象则为insert操作，否则为update
+    if (Object.keys(modelValue.value).length > 0) {
+        oldValue = Object.assign({}, modelValue.value);
+    }
+};
 
 const closeDialog = () => {
     visible.value = false;
