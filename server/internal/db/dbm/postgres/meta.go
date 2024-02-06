@@ -15,7 +15,10 @@ import (
 )
 
 func init() {
-	dbi.Register(dbi.DbTypePostgres, new(PostgresMeta))
+	meta := new(PostgresMeta)
+	dbi.Register(dbi.DbTypePostgres, meta)
+	dbi.Register(dbi.DbTypeKingbaseEs, meta)
+	dbi.Register(dbi.DbTypeVastbase, meta)
 
 	gauss := new(PostgresMeta)
 	gauss.Param = "dbtype=gauss"
@@ -40,16 +43,17 @@ func (md *PostgresMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 
 	db := d.Database
 	var dbParam string
-	exsitSchema := false
-	if db != "" {
-		// postgres database可以使用db/schema表示，方便连接指定schema, 若不存在schema则使用默认schema
-		ss := strings.Split(db, "/")
-		if len(ss) > 1 {
-			exsitSchema = true
-			dbParam = fmt.Sprintf("dbname=%s search_path=%s", ss[0], ss[len(ss)-1])
-		} else {
-			dbParam = "dbname=" + db
-		}
+	existSchema := false
+	if db == "" {
+		db = d.Type.MetaDbName()
+	}
+	// postgres database可以使用db/schema表示，方便连接指定schema, 若不存在schema则使用默认schema
+	ss := strings.Split(db, "/")
+	if len(ss) > 1 {
+		existSchema = true
+		dbParam = fmt.Sprintf("dbname=%s search_path=%s", ss[0], ss[len(ss)-1])
+	} else {
+		dbParam = "dbname=" + db
 	}
 
 	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s %s sslmode=disable connect_timeout=8", d.Host, d.Port, d.Username, d.Password, dbParam)
@@ -62,7 +66,7 @@ func (md *PostgresMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 				if strings.HasPrefix(param, "dbname=") {
 					return true
 				}
-				if exsitSchema && strings.HasPrefix(param, "search_path") {
+				if existSchema && strings.HasPrefix(param, "search_path") {
 					return true
 				}
 				return false

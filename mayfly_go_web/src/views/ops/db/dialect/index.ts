@@ -6,6 +6,8 @@ import { MariadbDialect } from '@/views/ops/db/dialect/mariadb_dialect';
 import { SqliteDialect } from '@/views/ops/db/dialect/sqlite_dialect';
 import { MssqlDialect } from '@/views/ops/db/dialect/mssql_dialect';
 import { GaussDialect } from '@/views/ops/db/dialect/gauss_dialect';
+import { KingbaseEsDialect } from '@/views/ops/db/dialect/kingbaseES_dialect';
+import { VastbaseDialect } from '@/views/ops/db/dialect/vastbase_dialect';
 
 export interface sqlColumnType {
     udtName: string;
@@ -122,13 +124,15 @@ export const DbType = {
     oracle: 'oracle',
     sqlite: 'sqlite',
     mssql: 'mssql', // ms sqlserver
+    kingbaseEs: 'kingbaseEs', // 人大金仓 pgsql模式 https://help.kingbase.com.cn/v8/index.html
+    vastbase: 'vastbase', // https://docs.vastdata.com.cn/zh/docs/VastbaseG100Ver2.2.5/doc/%E5%BC%80%E5%8F%91%E8%80%85%E6%8C%87%E5%8D%97/SQL%E5%8F%82%E8%80%83/SQL%E5%8F%82%E8%80%83.html
 };
 
 // mysql兼容的数据库
 export const noSchemaTypes = [DbType.mysql, DbType.mariadb, DbType.sqlite];
 
 // 有schema层的数据库
-export const schemaDbTypes = [DbType.postgresql, DbType.gauss, DbType.dm, DbType.oracle, DbType.mssql];
+export const schemaDbTypes = [DbType.postgresql, DbType.gauss, DbType.dm, DbType.oracle, DbType.mssql, DbType.kingbaseEs, DbType.vastbase];
 
 export const editDbTypes = [...noSchemaTypes, ...schemaDbTypes];
 
@@ -218,8 +222,8 @@ export const getDbDialectMap = () => {
     return dbType2DialectMap;
 };
 
-export const getDbDialect = (dbType: string): DbDialect => {
-    return dbType2DialectMap.get(dbType) || mysqlDialect;
+export const getDbDialect = (dbType?: string): DbDialect => {
+    return dbType2DialectMap.get(dbType!) || mysqlDialect;
 };
 
 (function () {
@@ -232,4 +236,6 @@ export const getDbDialect = (dbType: string): DbDialect => {
     registerDbDialect(DbType.oracle, new OracleDialect());
     registerDbDialect(DbType.sqlite, new SqliteDialect());
     registerDbDialect(DbType.mssql, new MssqlDialect());
+    registerDbDialect(DbType.kingbaseEs, new KingbaseEsDialect());
+    registerDbDialect(DbType.vastbase, new VastbaseDialect());
 })();

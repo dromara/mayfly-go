@@ -88,6 +88,20 @@
       "font_class": "gauss",
       "unicode": "e683",
       "unicode_decimal": 59011
+    },
+    {
+      "icon_id": "34836637",
+      "name": "kingbase",
+      "font_class": "kingbase",
+      "unicode": "e882",
+      "unicode_decimal": 59522
+    },
+    {
+      "icon_id": "33047500",
+      "name": "vastbase",
+      "font_class": "vastbase",
+      "unicode": "e62b",
+      "unicode_decimal": 58923
     }
   ]
 }

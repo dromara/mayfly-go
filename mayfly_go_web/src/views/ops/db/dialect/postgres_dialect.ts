@@ -303,11 +303,15 @@ class PostgresqlDialect implements DbDialect {
         // CREATE UNIQUE INDEX idx_column_name ON your_table (column1, column2);
         // COMMENT ON INDEX idx_column_name IS 'Your index comment here';
         // 创建索引
+        let schema = tableData.db.split('/')[1];
+        let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.tableName)}`;
         let sql: string[] = [];
         tableData.indexs.res.forEach((a: any) => {
-            sql.push(` create ${a.unique ? 'UNIQUE' : ''} index ${a.indexName} ("${a.columnNames.join('","')})"`);
+            // 字段名用双引号包裹
+            let colArr = a.columnNames.map((a: string) => `${this.quoteIdentifier(a)}`);
+            sql.push(`CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${this.quoteIdentifier(a.indexName)} on ${dbTable} (${colArr.join(',')})`);
             if (a.indexComment) {
-                sql.push(`COMMENT ON INDEX ${a.indexName} IS '${a.indexComment}'`);
+                sql.push(`COMMENT ON INDEX ${schema}.${this.quoteIdentifier(a.indexName)} IS '${a.indexComment}'`);
             }
         });
         return sql.join(';');
@@ -367,6 +371,9 @@ class PostgresqlDialect implements DbDialect {
     }
 
     getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+        let schema = tableData.db.split('/')[1];
+        let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableName)}`;
+
         // 不能直接修改索引名或字段、需要先删后加
         let dropIndexNames: string[] = [];
         let addIndexs: any[] = [];
@@ -400,9 +407,11 @@ class PostgresqlDialect implements DbDialect {
 
             if (addIndexs.length > 0) {
                 addIndexs.forEach((a) => {
-                    sql.push(`CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')})`);
+                    // 字段名用双引号包裹
+                    let colArr = a.columnNames.map((a: string) => `${this.quoteIdentifier(a)}`);
+                    sql.push(`CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${this.quoteIdentifier(a.indexName)} on ${dbTable} (${colArr.join(',')})`);
                     if (a.indexComment) {
-                        sql.push(`COMMENT ON INDEX ${a.indexName} IS '${a.indexComment}'`);
+                        sql.push(`COMMENT ON INDEX ${schema}.${this.quoteIdentifier(a.indexName)} IS '${a.indexComment}'`);
                     }
                 });
             }

@@ -26,7 +26,7 @@ type PgsqlDialect struct {
 }
 
 func (md *PgsqlDialect) GetDbServer() (*dbi.DbServer, error) {
-	_, res, err := md.dc.Query("SHOW server_version")
+	_, res, err := md.dc.Query("SELECT version() as server_version")
 	if err != nil {
 		return nil, err
 	}

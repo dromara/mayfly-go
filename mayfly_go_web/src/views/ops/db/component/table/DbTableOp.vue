@@ -272,6 +272,18 @@ watch(props, async (newValue) => {
     dbDialect = getDbDialect(newValue.dbType);
 });
 
+// 切换到索引tab时，刷新索引字段下拉选项
+watch(
+    () => state.activeName,
+    (newValue) => {
+        if (newValue === '2') {
+            state.tableData.indexs.columns = state.tableData.fields.res.map((a) => {
+                return { name: a.name, remark: a.remark };
+            });
+        }
+    }
+);
+
 const cancel = () => {
     emit('update:visible', false);
     reset();
@@ -391,22 +403,22 @@ const genSql = () => {
     let data = state.tableData;
     // 创建表
     if (!props.data?.edit) {
-        if (state.activeName === '1') {
-            return dbDialect.getCreateTableSql(data);
-        } else if (state.activeName === '2' && data.indexs.res.length > 0) {
-            return dbDialect.getCreateIndexSql(data);
+        let createTable = dbDialect.getCreateTableSql(data);
+        let createIndex = '';
+        if (data.indexs.res.length > 0) {
+            createIndex = dbDialect.getCreateIndexSql(data);
         }
+        return createTable + ';' + createIndex;
     } else {
-        // 修改
-        if (state.activeName === '1') {
-            // 修改列
-            let changeData = filterChangedData(state.tableData.fields.oldFields, state.tableData.fields.res, 'name');
-            return dbDialect.getModifyColumnSql(data, data.tableName, changeData);
-        } else if (state.activeName === '2') {
-            // 修改索引
-            let changeData = filterChangedData(state.tableData.indexs.oldIndexs, state.tableData.indexs.res, 'indexName');
-            return dbDialect.getModifyIndexSql(data, data.tableName, changeData);
-        }
+        // 修改列
+        let changeColData = filterChangedData(state.tableData.fields.oldFields, state.tableData.fields.res, 'name');
+        let colSql = dbDialect.getModifyColumnSql(data, data.tableName, changeColData);
+        // 修改索引
+        let changeIdxData = filterChangedData(state.tableData.indexs.oldIndexs, state.tableData.indexs.res, 'indexName');
+        let idxSql = dbDialect.getModifyIndexSql(data, data.tableName, changeIdxData);
+        // 修改表名
+
+        return colSql + ';' + idxSql;
     }
 };
 
