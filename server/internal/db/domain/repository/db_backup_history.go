@@ -12,12 +12,13 @@ type DbBackupHistory interface {
 	// GetPageList 分页获取数据备份历史
 	GetPageList(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	GetLatestHistory(instanceId uint64, dbName string, bi *entity.BinlogInfo) (*entity.DbBackupHistory, error)
+	GetLatestHistoryForBinlog(instanceId uint64, dbName string, bi *entity.BinlogInfo) (*entity.DbBackupHistory, error)
 
-	GetEarliestHistory(instanceId uint64) (*entity.DbBackupHistory, bool, error)
+	GetEarliestHistoryForBinlog(instanceId uint64) (*entity.DbBackupHistory, bool, error)
 
 	GetHistories(backupHistoryIds []uint64, toEntity any) error
 
 	UpdateDeleting(deleting bool, backupHistoryId ...uint64) (bool, error)
 	UpdateRestoring(restoring bool, backupHistoryId ...uint64) (bool, error)
+	ZeroBinlogInfo(backupHistoryId uint64) error
 }

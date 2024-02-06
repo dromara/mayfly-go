@@ -180,8 +180,8 @@ func (sd *SqliteDialect) GetSchemas() ([]string, error) {
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (sd *SqliteDialect) GetDbProgram() dbi.DbProgram {
-	panic("implement me")
+func (sd *SqliteDialect) GetDbProgram() (dbi.DbProgram, error) {
+	return nil, fmt.Errorf("该数据库类型不支持数据库备份与恢复: %v", sd.dc.Info.Type)
 }
 
 func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {

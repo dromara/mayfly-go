@@ -6,13 +6,22 @@ import (
 	"errors"
 	"fmt"
 	"gorm.io/gorm"
+	"math"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/timex"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
+)
+
+const maxBackupHistoryDays = 30
+
+var (
+	errRestoringBackupHistory = errors.New("正在从备份历史中恢复数据库")
 )
 
 type DbBackupApp struct {
@@ -22,6 +31,10 @@ type DbBackupApp struct {
 	restoreRepo       repository.DbRestore       `inject:"DbRestoreRepo"`
 	dbApp             Db                         `inject:"DbApp"`
 	mutex             sync.Mutex
+	closed            chan struct{}
+	wg                sync.WaitGroup
+	ctx               context.Context
+	cancel            context.CancelFunc
 }
 
 func (app *DbBackupApp) Init() error {
@@ -32,11 +45,68 @@ func (app *DbBackupApp) Init() error {
 	if err := app.scheduler.AddJob(context.Background(), jobs); err != nil {
 		return err
 	}
+	app.ctx, app.cancel = context.WithCancel(context.Background())
+	app.wg.Add(1)
+	go func() {
+		defer app.wg.Done()
+		for app.ctx.Err() == nil {
+			if err := app.prune(app.ctx); err != nil {
+				logx.Errorf("清理数据库备份历史失败: %s", err.Error())
+				timex.SleepWithContext(app.ctx, time.Minute*15)
+				continue
+			}
+			timex.SleepWithContext(app.ctx, time.Hour*24)
+		}
+	}()
+	return nil
+}
+
+func (app *DbBackupApp) prune(ctx context.Context) error {
+	var jobs []*entity.DbBackup
+	if err := app.backupRepo.ListByCond(map[string]any{}, &jobs); err != nil {
+		return err
+	}
+	for _, job := range jobs {
+		if ctx.Err() != nil {
+			return nil
+		}
+		var histories []*entity.DbBackupHistory
+		historyCond := map[string]any{
+			"db_backup_id": job.Id,
+		}
+		if err := app.backupHistoryRepo.ListByCondOrder(historyCond, &histories, "id"); err != nil {
+			return err
+		}
+		expiringTime := time.Now().Add(-math.MaxInt64)
+		if job.MaxSaveDays > 0 {
+			expiringTime = time.Now().Add(-time.Hour * 24 * time.Duration(job.MaxSaveDays+1))
+		}
+		for _, history := range histories {
+			if ctx.Err() != nil {
+				return nil
+			}
+			if history.CreateTime.After(expiringTime) {
+				break
+			}
+			err := app.DeleteHistory(ctx, history.Id)
+			if errors.Is(err, errRestoringBackupHistory) {
+				break
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
 func (app *DbBackupApp) Close() {
 	app.scheduler.Close()
+	if app.cancel != nil {
+		app.cancel()
+		app.cancel = nil
+	}
+	app.wg.Wait()
 }
 
 func (app *DbBackupApp) Create(ctx context.Context, jobs []*entity.DbBackup) error {
@@ -61,7 +131,6 @@ func (app *DbBackupApp) Update(ctx context.Context, job *entity.DbBackup) error 
 }
 
 func (app *DbBackupApp) Delete(ctx context.Context, jobId uint64) error {
-	// todo: 删除数据库备份历史文件
 	app.mutex.Lock()
 	defer app.mutex.Unlock()
 
@@ -76,7 +145,7 @@ func (app *DbBackupApp) Delete(ctx context.Context, jobId uint64) error {
 	default:
 		return err
 	case err == nil:
-		return fmt.Errorf("数据库备份存在历史记录【%s】，无法删除该任务", history.Name)
+		return fmt.Errorf("请先删除关联的数据库备份历史【%s】", history.Name)
 	case errors.Is(err, gorm.ErrRecordNotFound):
 	}
 	if err := app.backupRepo.DeleteById(ctx, jobId); err != nil {
@@ -184,27 +253,18 @@ func NewIncUUID() (uuid.UUID, error) {
 }
 
 func (app *DbBackupApp) DeleteHistory(ctx context.Context, historyId uint64) (retErr error) {
-	// todo: 删除数据库备份历史文件
 	app.mutex.Lock()
 	defer app.mutex.Unlock()
 
+	if _, err := app.backupHistoryRepo.UpdateDeleting(false, historyId); err != nil {
+		return err
+	}
 	ok, err := app.backupHistoryRepo.UpdateDeleting(true, historyId)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_, err = app.backupHistoryRepo.UpdateDeleting(false, historyId)
-		if err == nil {
-			return
-		}
-		if retErr == nil {
-			retErr = err
-			return
-		}
-		retErr = fmt.Errorf("%w, %w", retErr, err)
-	}()
 	if !ok {
-		return errors.New("正在从备份历史中恢复数据库")
+		return errRestoringBackupHistory
 	}
 	job := &entity.DbBackupHistory{}
 	if err := app.backupHistoryRepo.GetById(job, historyId); err != nil {
@@ -214,7 +274,10 @@ func (app *DbBackupApp) DeleteHistory(ctx context.Context, historyId uint64) (re
 	if err != nil {
 		return err
 	}
-	dbProgram := conn.GetDialect().GetDbProgram()
+	dbProgram, err := conn.GetDialect().GetDbProgram()
+	if err != nil {
+		return err
+	}
 	if err := dbProgram.RemoveBackupHistory(ctx, job.DbBackupId, job.Uuid); err != nil {
 		return err
 	}

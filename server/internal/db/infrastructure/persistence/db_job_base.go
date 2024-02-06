@@ -12,18 +12,10 @@ import (
 	"reflect"
 )
 
-var _ repository.DbJobBase = (*dbJobBaseImpl[entity.DbJob])(nil)
+var _ repository.DbJobBase[entity.DbJob] = (*dbJobBaseImpl[entity.DbJob])(nil)
 
 type dbJobBaseImpl[T entity.DbJob] struct {
 	base.RepoImpl[T]
-}
-
-func (d *dbJobBaseImpl[T]) GetById(e entity.DbJob, id uint64, cols ...string) error {
-	return d.RepoImpl.GetById(e.(T), id, cols...)
-}
-
-func (d *dbJobBaseImpl[T]) UpdateById(ctx context.Context, e entity.DbJob, columns ...string) error {
-	return d.RepoImpl.UpdateById(ctx, e.(T), columns...)
 }
 
 func (d *dbJobBaseImpl[T]) UpdateLastStatus(ctx context.Context, job entity.DbJob) error {

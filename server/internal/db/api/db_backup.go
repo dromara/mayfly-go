@@ -81,6 +81,7 @@ func (d *DbBackup) Update(rc *req.Ctx) {
 	job.Name = backupForm.Name
 	job.StartTime = backupForm.StartTime
 	job.Interval = backupForm.Interval
+	job.MaxSaveDays = backupForm.MaxSaveDays
 	biz.ErrIsNilAppendErr(d.backupApp.Update(rc.MetaCtx, job), "保存数据库备份任务失败: %v")
 }
 
@@ -178,7 +179,7 @@ func (d *DbBackup) GetHistoryPageList(rc *req.Ctx) {
 	rc.ResData = res
 }
 
-// RestoreHistories 删除数据库备份历史
+// RestoreHistories 从数据库备份历史中恢复数据库
 // @router /api/dbs/:dbId/backup-histories/:backupHistoryId/restore [POST]
 func (d *DbBackup) RestoreHistories(rc *req.Ctx) {
 	pm := ginx.PathParam(rc.GinCtx, "backupHistoryId")

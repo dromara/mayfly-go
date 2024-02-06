@@ -19,4 +19,6 @@ type DbBinlogHistory interface {
 	InsertWithBinlogFiles(ctx context.Context, instanceId uint64, binlogFiles []*entity.BinlogFile) error
 
 	Upsert(ctx context.Context, history *entity.DbBinlogHistory) error
+
+	GetHistoriesBeforeSequence(ctx context.Context, instanceId uint64, binlogSeq int64, histories *[]*entity.DbBinlogHistory) error
 }

@@ -18,6 +18,7 @@ type DbBackup struct {
 	EnabledDesc  string        // 启用状态描述
 	StartTime    time.Time     // 开始时间
 	Interval     time.Duration // 间隔时间
+	MaxSaveDays  int           // 数据库备份历史保留天数，过期将自动删除
 	Repeated     bool          // 是否重复执行
 }
 
@@ -79,10 +80,6 @@ func (b *DbBackup) Update(job runner.Job) {
 
 func (b *DbBackup) GetInterval() time.Duration {
 	return b.Interval
-}
-
-func (b *DbBackup) SetLastStatus(status DbJobStatus, err error) {
-	b.setLastStatus(b.GetJobType(), status, err)
 }
 
 func (b *DbBackup) GetKey() DbJobKey {

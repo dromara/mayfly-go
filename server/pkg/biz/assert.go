@@ -24,6 +24,12 @@ func ErrIsNil(err error, msgAndParams ...any) {
 	}
 }
 
+func ErrNotNil(err error, msg string, params ...any) {
+	if err == nil {
+		panic(errorx.NewBiz(fmt.Sprintf(msg, params...)))
+	}
+}
+
 func ErrIsNilAppendErr(err error, msg string) {
 	if err != nil {
 		panic(errorx.NewBiz(fmt.Sprintf(msg, err.Error())))

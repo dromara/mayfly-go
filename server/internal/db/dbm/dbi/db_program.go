@@ -13,7 +13,7 @@ type DbProgram interface {
 
 	Backup(ctx context.Context, backupHistory *entity.DbBackupHistory) (*entity.BinlogInfo, error)
 
-	FetchBinlogs(ctx context.Context, downloadLatestBinlogFile bool, earliestBackupSequence, latestBinlogSequence int64) ([]*entity.BinlogFile, error)
+	FetchBinlogs(ctx context.Context, downloadLatestBinlogFile bool, earliestBackupSequence int64, latestBinlogHistory *entity.DbBinlogHistory) ([]*entity.BinlogFile, error)
 
 	ReplayBinlog(ctx context.Context, originalDatabase, targetDatabase string, restoreInfo *RestoreInfo) error
 
@@ -22,6 +22,8 @@ type DbProgram interface {
 	RemoveBackupHistory(ctx context.Context, dbBackupId uint64, dbBackupHistoryUuid string) error
 
 	GetBinlogEventPositionAtOrAfterTime(ctx context.Context, binlogName string, targetTime time.Time) (position int64, parseErr error)
+
+	PruneBinlog(history *entity.DbBinlogHistory) error
 }
 
 type RestoreInfo struct {

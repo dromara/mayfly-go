@@ -6,7 +6,7 @@ import (
 )
 
 type DbRestore interface {
-	DbJob
+	DbJob[*entity.DbRestore]
 
 	ListToDo(jobs any) error
 	GetDbNamesWithoutRestore(instanceId uint64, dbNames []string) ([]string, error)

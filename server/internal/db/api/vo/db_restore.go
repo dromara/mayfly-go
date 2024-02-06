@@ -30,9 +30,9 @@ func (restore *DbRestore) MarshalJSON() ([]byte, error) {
 	restore.IntervalDay = uint64(restore.Interval / time.Hour / 24)
 	if len(restore.EnabledDesc) == 0 {
 		if restore.Enabled {
-			restore.EnabledDesc = "任务已启用"
+			restore.EnabledDesc = "已启用"
 		} else {
-			restore.EnabledDesc = "任务已禁用"
+			restore.EnabledDesc = "已禁用"
 		}
 	}
 	return json.Marshal((*dbBackup)(restore))

@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/gormx"
 	"time"
 )
@@ -82,7 +83,7 @@ func (repo *dbBinlogHistoryRepoImpl) Upsert(_ context.Context, history *entity.D
 			First(old).Error
 		switch {
 		case err == nil:
-			return db.Model(old).Select("create_time", "file_size", "first_event_time").Updates(history).Error
+			return db.Model(old).Select("create_time", "file_size", "first_event_time", "last_event_time").Updates(history).Error
 		case errors.Is(err, gorm.ErrRecordNotFound):
 			return db.Create(history).Error
 		default:
@@ -103,9 +104,10 @@ func (repo *dbBinlogHistoryRepoImpl) InsertWithBinlogFiles(ctx context.Context, 
 		history := &entity.DbBinlogHistory{
 			CreateTime:     time.Now(),
 			FileName:       fileOnServer.Name,
-			FileSize:       fileOnServer.Size,
+			FileSize:       fileOnServer.RemoteSize,
 			Sequence:       fileOnServer.Sequence,
 			FirstEventTime: fileOnServer.FirstEventTime,
+			LastEventTime:  fileOnServer.LastEventTime,
 			DbInstanceId:   instanceId,
 		}
 		histories = append(histories, history)
@@ -121,4 +123,14 @@ func (repo *dbBinlogHistoryRepoImpl) InsertWithBinlogFiles(ctx context.Context, 
 		}
 	}
 	return nil
+}
+
+func (repo *dbBinlogHistoryRepoImpl) GetHistoriesBeforeSequence(ctx context.Context, instanceId uint64, binlogSeq int64, histories *[]*entity.DbBinlogHistory) error {
+	return global.Db.Model(repo.GetModel()).
+		Where("db_instance_id = ?", instanceId).
+		Where("sequence < ?", binlogSeq).
+		Scopes(gormx.UndeleteScope).
+		Order("id").
+		Find(histories).
+		Error
 }

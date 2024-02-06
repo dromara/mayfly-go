@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"bufio"
+	"compress/gzip"
 	"context"
 	"database/sql"
 	"fmt"
@@ -130,22 +131,46 @@ func (svc *DbProgramMysql) Backup(ctx context.Context, backupHistory *entity.DbB
 	if binlogEnabled && rowFormatEnabled {
 		binlogInfo, err = readBinlogInfoFromBackup(reader)
 	}
-	_ = reader.Close()
 	if err != nil {
+		_ = reader.Close()
 		return nil, errors.Wrapf(err, "从备份文件中读取 binlog 信息失败")
 	}
-	fileName := filepath.Join(dir, fmt.Sprintf("%s.sql", backupHistory.Uuid))
-	if err := os.Rename(tmpFile, fileName); err != nil {
-		return nil, errors.Wrap(err, "备份文件改名失败")
-	}
 
+	if _, err := reader.Seek(0, io.SeekStart); err != nil {
+		_ = reader.Close()
+		return nil, errors.Wrapf(err, "跳转到备份文件开始处失败")
+	}
+	gzipTmpFile := tmpFile + ".gz"
+	writer, err := os.Create(gzipTmpFile)
+	if err != nil {
+		_ = reader.Close()
+		return nil, errors.Wrapf(err, "创建备份压缩文件失败")
+	}
+	defer func() {
+		_ = os.Remove(gzipTmpFile)
+	}()
+	gzipWriter := gzip.NewWriter(writer)
+	gzipWriter.Name = backupHistory.Uuid + ".sql"
+	_, err = io.Copy(gzipWriter, reader)
+	_ = gzipWriter.Close()
+	_ = writer.Close()
+	_ = reader.Close()
+	if err != nil {
+		return nil, errors.Wrapf(err, "压缩备份文件失败")
+	}
+	destPath := filepath.Join(dir, backupHistory.Uuid+".sql")
+	if err := os.Rename(gzipTmpFile, destPath+".gz"); err != nil {
+		return nil, errors.Wrap(err, "备份文件更名失败")
+	}
 	return binlogInfo, nil
 }
 
 func (svc *DbProgramMysql) RemoveBackupHistory(_ context.Context, dbBackupId uint64, dbBackupHistoryUuid string) error {
 	fileName := filepath.Join(svc.getDbBackupDir(svc.dbInfo().InstanceId, dbBackupId),
 		fmt.Sprintf("%v.sql", dbBackupHistoryUuid))
-	return os.Remove(fileName)
+	_ = os.Remove(fileName)
+	_ = os.Remove(fileName + ".gz")
+	return nil
 }
 
 func (svc *DbProgramMysql) RestoreBackupHistory(ctx context.Context, dbName string, dbBackupId uint64, dbBackupHistoryUuid string) error {
@@ -158,18 +183,33 @@ func (svc *DbProgramMysql) RestoreBackupHistory(ctx context.Context, dbName stri
 		"--password=" + dbInfo.Password,
 	}
 
+	compressed := false
 	fileName := filepath.Join(svc.getDbBackupDir(svc.dbInfo().InstanceId, dbBackupId),
 		fmt.Sprintf("%v.sql", dbBackupHistoryUuid))
+	_, err := os.Stat(fileName)
+	if err != nil {
+		compressed = true
+		fileName += ".gz"
+	}
 	file, err := os.Open(fileName)
 	if err != nil {
 		return errors.Wrap(err, "打开备份文件失败")
 	}
-	defer func() {
-		_ = file.Close()
-	}()
+	defer func() { _ = file.Close() }()
+
+	var reader io.ReadCloser
+	if compressed {
+		reader, err = gzip.NewReader(file)
+		if err != nil {
+			return errors.Wrap(err, "解压缩备份文件失败")
+		}
+		defer func() { _ = reader.Close() }()
+	} else {
+		reader = file
+	}
 
 	cmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqlPath, args...)
-	cmd.Stdin = file
+	cmd.Stdin = reader
 	logx.Debug("恢复数据库: ", cmd.String())
 	if err := runCmd(cmd); err != nil {
 		logx.Errorf("运行 mysql 程序失败: %v", err)
@@ -205,13 +245,17 @@ func (svc *DbProgramMysql) downloadBinlogFilesOnServer(ctx context.Context, binl
 }
 
 // Parse the first binlog eventTs of a local binlog file.
-func (svc *DbProgramMysql) parseLocalBinlogLastEventTime(ctx context.Context, filePath string) (eventTime time.Time, parseErr error) {
-	// todo: implement me
-	return time.Now(), nil
+func (svc *DbProgramMysql) parseLocalBinlogLastEventTime(ctx context.Context, filePath string, lastEventTime time.Time) (eventTime time.Time, parseErr error) {
+	return svc.parseLocalBinlogEventTime(ctx, filePath, false, lastEventTime)
 }
 
 // Parse the first binlog eventTs of a local binlog file.
 func (svc *DbProgramMysql) parseLocalBinlogFirstEventTime(ctx context.Context, filePath string) (eventTime time.Time, parseErr error) {
+	return svc.parseLocalBinlogEventTime(ctx, filePath, true, time.Time{})
+}
+
+// Parse the first binlog eventTs of a local binlog file.
+func (svc *DbProgramMysql) parseLocalBinlogEventTime(ctx context.Context, filePath string, firstOrLast bool, startTime time.Time) (eventTime time.Time, parseErr error) {
 	args := []string{
 		// Local binlog file path.
 		filePath,
@@ -219,6 +263,9 @@ func (svc *DbProgramMysql) parseLocalBinlogFirstEventTime(ctx context.Context, f
 		"--verify-binlog-checksum",
 		// Tell mysqlbinlog to suppress the BINLOG statements for row events, which reduces the unneeded output.
 		"--base64-output=DECODE-ROWS",
+	}
+	if !startTime.IsZero() {
+		args = append(args, "--start-datetime", startTime.Local().Format(time.DateTime))
 	}
 	cmd := exec.CommandContext(ctx, svc.getMysqlBin().MysqlbinlogPath, args...)
 	var stderr strings.Builder
@@ -237,22 +284,30 @@ func (svc *DbProgramMysql) parseLocalBinlogFirstEventTime(ctx context.Context, f
 			parseErr = errors.Wrap(parseErr, stderr.String())
 		}
 	}()
-
+	lastEventTime := time.Time{}
 	for s := bufio.NewScanner(pr); s.Scan(); {
 		line := s.Text()
 		eventTimeParsed, found, err := parseBinlogEventTimeInLine(line)
 		if err != nil {
 			return time.Time{}, errors.Wrap(err, "解析 binlog 文件失败")
 		}
-		if found {
-			return eventTimeParsed, nil
+		if !found {
+			continue
 		}
+		if !firstOrLast {
+			lastEventTime = eventTimeParsed
+			continue
+		}
+		return eventTimeParsed, nil
 	}
-	return time.Time{}, errors.New("解析 binlog 文件失败")
+	if lastEventTime.IsZero() {
+		return time.Time{}, errors.New("解析 binlog 文件失败")
+	}
+	return lastEventTime, nil
 }
 
 // FetchBinlogs downloads binlog files from startingFileName on server to `binlogDir`.
-func (svc *DbProgramMysql) FetchBinlogs(ctx context.Context, downloadLatestBinlogFile bool, earliestBackupSequence, latestBinlogSequence int64) ([]*entity.BinlogFile, error) {
+func (svc *DbProgramMysql) FetchBinlogs(ctx context.Context, downloadLatestBinlogFile bool, earliestBackupSequence int64, latestBinlogHistory *entity.DbBinlogHistory) ([]*entity.BinlogFile, error) {
 	// Read binlog files list on server.
 	binlogFilesOnServerSorted, err := svc.GetSortedBinlogFilesOnServer(ctx)
 	if err != nil {
@@ -264,8 +319,11 @@ func (svc *DbProgramMysql) FetchBinlogs(ctx context.Context, downloadLatestBinlo
 	}
 	indexHistory := -1
 	for i, file := range binlogFilesOnServerSorted {
-		if latestBinlogSequence == file.Sequence {
+		if latestBinlogHistory.Sequence == file.Sequence {
 			indexHistory = i + 1
+			file.FirstEventTime = latestBinlogHistory.FirstEventTime
+			file.LastEventTime = latestBinlogHistory.LastEventTime
+			file.LocalSize = latestBinlogHistory.FileSize
 			break
 		}
 		if earliestBackupSequence == file.Sequence {
@@ -274,10 +332,15 @@ func (svc *DbProgramMysql) FetchBinlogs(ctx context.Context, downloadLatestBinlo
 		}
 	}
 	if indexHistory < 0 {
-		return nil, errors.New(fmt.Sprintf("在数据库服务器上未找到 binlog 文件: %d, %d", earliestBackupSequence, latestBinlogSequence))
+		// todo: 数据库服务器上的 binlog 序列已被删除, 导致 binlog 同步失败，如何处理？
+		return nil, errors.New(fmt.Sprintf("数据库服务器上的 binlog 序列已被删除: %d, %d", earliestBackupSequence, latestBinlogHistory.Sequence))
 	}
-	if indexHistory > len(binlogFilesOnServerSorted)-1 {
+	if indexHistory >= len(binlogFilesOnServerSorted)-1 {
 		indexHistory = len(binlogFilesOnServerSorted) - 1
+		if binlogFilesOnServerSorted[indexHistory].LocalSize == binlogFilesOnServerSorted[indexHistory].RemoteSize {
+			// 没有新的事件，不需要重新下载
+			return nil, nil
+		}
 	}
 	binlogFilesOnServerSorted = binlogFilesOnServerSorted[indexHistory:]
 
@@ -331,13 +394,14 @@ func (svc *DbProgramMysql) downloadBinlogFile(ctx context.Context, binlogFileToD
 		logx.Error("未找到 binlog 文件", logx.String("path", binlogFilePathTemp), logx.String("error", err.Error()))
 		return errors.Wrapf(err, "未找到 binlog 文件: %q", binlogFilePathTemp)
 	}
-	if !isLast && binlogFileTempInfo.Size() != binlogFileToDownload.Size {
+
+	if (isLast && binlogFileTempInfo.Size() < binlogFileToDownload.RemoteSize) || (!isLast && binlogFileTempInfo.Size() != binlogFileToDownload.RemoteSize) {
 		logx.Error("Downloaded archived binlog file size is not equal to size queried on the MySQL server earlier.",
 			logx.String("binlog", binlogFileToDownload.Name),
-			logx.Int64("sizeInfo", binlogFileToDownload.Size),
+			logx.Int64("sizeInfo", binlogFileToDownload.RemoteSize),
 			logx.Int64("downloadedSize", binlogFileTempInfo.Size()),
 		)
-		return errors.Errorf("下载的 binlog 文件 %q 与服务上的文件大小不一致 %d != %d", binlogFilePathTemp, binlogFileTempInfo.Size(), binlogFileToDownload.Size)
+		return errors.Errorf("下载的 binlog 文件 %q 与服务上的文件大小不一致 %d != %d", binlogFilePathTemp, binlogFileTempInfo.Size(), binlogFileToDownload.RemoteSize)
 	}
 
 	binlogFilePath := svc.GetBinlogFilePath(binlogFileToDownload.Name)
@@ -348,7 +412,7 @@ func (svc *DbProgramMysql) downloadBinlogFile(ctx context.Context, binlogFileToD
 	if err != nil {
 		return err
 	}
-	lastEventTime, err := svc.parseLocalBinlogLastEventTime(ctx, binlogFilePath)
+	lastEventTime, err := svc.parseLocalBinlogLastEventTime(ctx, binlogFilePath, binlogFileToDownload.LastEventTime)
 	if err != nil {
 		return err
 	}
@@ -394,9 +458,9 @@ func (svc *DbProgramMysql) GetSortedBinlogFilesOnServer(_ context.Context) ([]*e
 			return nil, errors.Wrapf(err, "SQL 语句 %q 执行结果解析失败", query)
 		}
 		binlogFile := &entity.BinlogFile{
-			Name:     name,
-			Size:     int64(size),
-			Sequence: seq,
+			Name:       name,
+			RemoteSize: int64(size),
+			Sequence:   seq,
 		}
 		binlogFiles = append(binlogFiles, binlogFile)
 	}
@@ -780,4 +844,10 @@ func (svc *DbProgramMysql) getDbBackupDir(instanceId, backupId uint64) string {
 		svc.getBackupPath(),
 		fmt.Sprintf("instance-%d", instanceId),
 		fmt.Sprintf("backup-%d", backupId))
+}
+
+func (svc *DbProgramMysql) PruneBinlog(history *entity.DbBinlogHistory) error {
+	binlogFilePath := filepath.Join(svc.getBinlogDir(history.DbInstanceId), history.FileName)
+	_ = os.Remove(binlogFilePath)
+	return nil
 }

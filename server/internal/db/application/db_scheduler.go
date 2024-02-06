@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"golang.org/x/sync/singleflight"
 	"gorm.io/gorm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/runner"
 	"reflect"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -28,6 +30,7 @@ type dbScheduler struct {
 	restoreHistoryRepo repository.DbRestoreHistory `inject:"DbRestoreHistoryRepo"`
 	binlogRepo         repository.DbBinlog         `inject:"DbBinlogRepo"`
 	binlogHistoryRepo  repository.DbBinlogHistory  `inject:"DbBinlogHistoryRepo"`
+	sfGroup            singleflight.Group
 }
 
 func newDbScheduler() *dbScheduler {
@@ -76,7 +79,6 @@ func (s *dbScheduler) AddJob(ctx context.Context, jobs any) error {
 }
 
 func (s *dbScheduler) RemoveJob(ctx context.Context, jobType entity.DbJobType, jobId uint64) error {
-	// todo: 删除数据库备份历史文件
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -110,12 +112,11 @@ func (s *dbScheduler) StartJobNow(ctx context.Context, job entity.DbJob) error {
 	return nil
 }
 
-func (s *dbScheduler) backup(ctx context.Context, dbProgram dbi.DbProgram, job entity.DbJob) error {
+func (s *dbScheduler) backup(ctx context.Context, dbProgram dbi.DbProgram, backup *entity.DbBackup) error {
 	id, err := NewIncUUID()
 	if err != nil {
 		return err
 	}
-	backup := job.(*entity.DbBackup)
 	history := &entity.DbBackupHistory{
 		Uuid:         id.String(),
 		DbBackupId:   backup.Id,
@@ -143,45 +144,29 @@ func (s *dbScheduler) backup(ctx context.Context, dbProgram dbi.DbProgram, job e
 	return nil
 }
 
-func (s *dbScheduler) restore(ctx context.Context, dbProgram dbi.DbProgram, job entity.DbJob) error {
-	restore := job.(*entity.DbRestore)
+func (s *dbScheduler) singleFlightFetchBinlog(ctx context.Context, dbProgram dbi.DbProgram, instanceId uint64, targetTime time.Time) error {
+	key := strconv.FormatUint(instanceId, 10)
+	for ctx.Err() == nil {
+		c := s.sfGroup.DoChan(key, func() (interface{}, error) {
+			if err := s.fetchBinlog(ctx, dbProgram, instanceId, true, targetTime); err != nil {
+				return targetTime, err
+			}
+			return targetTime, nil
+		})
+		select {
+		case res := <-c:
+			if targetTime.Compare(res.Val.(time.Time)) <= 0 {
+				return res.Err
+			}
+		case <-ctx.Done():
+		}
+	}
+	return ctx.Err()
+}
+
+func (s *dbScheduler) restore(ctx context.Context, dbProgram dbi.DbProgram, restore *entity.DbRestore) error {
 	if restore.PointInTime.Valid {
-		//if enabled, err := dbProgram.CheckBinlogEnabled(ctx); err != nil {
-		//	return err
-		//} else if !enabled {
-		//	return errors.New("数据库未启用 BINLOG")
-		//}
-		//if enabled, err := dbProgram.CheckBinlogRowFormat(ctx); err != nil {
-		//	return err
-		//} else if !enabled {
-		//	return errors.New("数据库未启用 BINLOG 行模式")
-		//}
-		//
-		//latestBinlogSequence, earliestBackupSequence := int64(-1), int64(-1)
-		//binlogHistory, ok, err := s.binlogHistoryRepo.GetLatestHistory(restore.DbInstanceId)
-		//if err != nil {
-		//	return err
-		//}
-		//if ok {
-		//	latestBinlogSequence = binlogHistory.Sequence
-		//} else {
-		//	backupHistory, ok, err := s.backupHistoryRepo.GetEarliestHistory(restore.DbInstanceId)
-		//	if err != nil {
-		//		return err
-		//	}
-		//	if !ok {
-		//		return nil
-		//	}
-		//	earliestBackupSequence = backupHistory.BinlogSequence
-		//}
-		//binlogFiles, err := dbProgram.FetchBinlogs(ctx, true, earliestBackupSequence, latestBinlogSequence)
-		//if err != nil {
-		//	return err
-		//}
-		//if err := s.binlogHistoryRepo.InsertWithBinlogFiles(ctx, restore.DbInstanceId, binlogFiles); err != nil {
-		//	return err
-		//}
-		if err := s.fetchBinlog(ctx, dbProgram, job.GetInstanceId(), true); err != nil {
+		if err := s.fetchBinlog(ctx, dbProgram, restore.DbInstanceId, true, restore.PointInTime.Time); err != nil {
 			return err
 		}
 		if err := s.restorePointInTime(ctx, dbProgram, restore); err != nil {
@@ -210,100 +195,66 @@ func (s *dbScheduler) restore(ctx context.Context, dbProgram dbi.DbProgram, job 
 	return nil
 }
 
-//func (s *dbScheduler) updateLastStatus(ctx context.Context, job entity.DbJob) error {
-//	switch typ := job.GetJobType(); typ {
-//	case entity.DbJobTypeBackup:
-//		return s.backupRepo.UpdateLastStatus(ctx, job)
-//	case entity.DbJobTypeRestore:
-//		return s.restoreRepo.UpdateLastStatus(ctx, job)
-//	case entity.DbJobTypeBinlog:
-//		return s.binlogRepo.UpdateLastStatus(ctx, job)
-//	default:
-//		panic(fmt.Errorf("无效的数据库任务类型: %v", typ))
-//	}
-//}
-
 func (s *dbScheduler) updateJob(ctx context.Context, job entity.DbJob) error {
-	switch typ := job.GetJobType(); typ {
-	case entity.DbJobTypeBackup:
-		return s.backupRepo.UpdateById(ctx, job)
-	case entity.DbJobTypeRestore:
-		return s.restoreRepo.UpdateById(ctx, job)
-	case entity.DbJobTypeBinlog:
-		return s.binlogRepo.UpdateById(ctx, job)
+	switch t := job.(type) {
+	case *entity.DbBackup:
+		return s.backupRepo.UpdateById(ctx, t)
+	case *entity.DbRestore:
+		return s.restoreRepo.UpdateById(ctx, t)
+	case *entity.DbBinlog:
+		return s.binlogRepo.UpdateById(ctx, t)
 	default:
-		return fmt.Errorf("无效的数据库任务类型: %v", typ)
+		return fmt.Errorf("无效的数据库任务类型: %T", t)
 	}
 }
 
 func (s *dbScheduler) runJob(ctx context.Context, job entity.DbJob) error {
-	//job.SetLastStatus(entity.DbJobRunning, nil)
-	//if err := s.updateLastStatus(ctx, job); err != nil {
-	//	logx.Errorf("failed to update job status: %v", err)
-	//	return
-	//}
-
-	//var errRun error
 	conn, err := s.dbApp.GetDbConnByInstanceId(job.GetInstanceId())
 	if err != nil {
 		return err
 	}
-	dbProgram := conn.GetDialect().GetDbProgram()
-	switch typ := job.GetJobType(); typ {
-	case entity.DbJobTypeBackup:
-		return s.backup(ctx, dbProgram, job)
-	case entity.DbJobTypeRestore:
-		return s.restore(ctx, dbProgram, job)
-	case entity.DbJobTypeBinlog:
-		return s.fetchBinlog(ctx, dbProgram, job.GetInstanceId(), false)
-	default:
-		return fmt.Errorf("无效的数据库任务类型: %v", typ)
+	dbProgram, err := conn.GetDialect().GetDbProgram()
+	if err != nil {
+		return err
 	}
-	//status := entity.DbJobSuccess
-	//if errRun != nil {
-	//	status = entity.DbJobFailed
-	//}
-	//job.SetLastStatus(status, errRun)
-	//if err := s.updateLastStatus(ctx, job); err != nil {
-	//	logx.Errorf("failed to update job status: %v", err)
-	//	return
-	//}
+	switch t := job.(type) {
+	case *entity.DbBackup:
+		return s.backup(ctx, dbProgram, t)
+	case *entity.DbRestore:
+		return s.restore(ctx, dbProgram, t)
+	case *entity.DbBinlog:
+		return s.fetchBinlog(ctx, dbProgram, t.DbInstanceId, false, time.Now())
+	default:
+		return fmt.Errorf("无效的数据库任务类型: %T", t)
+	}
 }
 
-func (s *dbScheduler) runnableJob(job entity.DbJob, next runner.NextJobFunc[entity.DbJob]) (bool, error) {
+func (s *dbScheduler) runnableJob(job entity.DbJob, nextRunning runner.NextJobFunc[entity.DbJob]) (bool, error) {
 	if job.IsExpired() {
 		return false, runner.ErrJobExpired
 	}
 	const maxCountByInstanceId = 4
 	const maxCountByDbName = 1
 	var countByInstanceId, countByDbName int
-	for item, ok := next(); ok; item, ok = next() {
+	for item, ok := nextRunning(); ok; item, ok = nextRunning() {
 		if job.GetInstanceId() == item.GetInstanceId() {
 			countByInstanceId++
 			if countByInstanceId >= maxCountByInstanceId {
 				return false, nil
 			}
-
-			if relatedToBinlog(job.GetJobType()) {
-				// todo: 恢复数据库前触发 BINLOG 同步，BINLOG 同步完成后才能恢复数据库
-				if relatedToBinlog(item.GetJobType()) {
-					return false, nil
-				}
-			}
-
 			if job.GetDbName() == item.GetDbName() {
 				countByDbName++
 				if countByDbName >= maxCountByDbName {
 					return false, nil
 				}
 			}
+			if (job.GetJobType() == entity.DbJobTypeBinlog && item.GetJobType() == entity.DbJobTypeRestore) ||
+				(job.GetJobType() == entity.DbJobTypeRestore && item.GetJobType() == entity.DbJobTypeBinlog) {
+				return false, nil
+			}
 		}
 	}
 	return true, nil
-}
-
-func relatedToBinlog(typ entity.DbJobType) bool {
-	return typ == entity.DbJobTypeRestore || typ == entity.DbJobTypeBinlog
 }
 
 func (s *dbScheduler) restorePointInTime(ctx context.Context, dbProgram dbi.DbProgram, job *entity.DbRestore) error {
@@ -320,7 +271,7 @@ func (s *dbScheduler) restorePointInTime(ctx context.Context, dbProgram dbi.DbPr
 		Sequence: binlogHistory.Sequence,
 		Position: position,
 	}
-	backupHistory, err := s.backupHistoryRepo.GetLatestHistory(job.DbInstanceId, job.DbName, target)
+	backupHistory, err := s.backupHistoryRepo.GetLatestHistoryForBinlog(job.DbInstanceId, job.DbName, target)
 	if err != nil {
 		return err
 	}
@@ -364,6 +315,9 @@ func (s *dbScheduler) restorePointInTime(ctx context.Context, dbProgram dbi.DbPr
 }
 
 func (s *dbScheduler) restoreBackupHistory(ctx context.Context, program dbi.DbProgram, backupHistory *entity.DbBackupHistory) (retErr error) {
+	if _, err := s.backupHistoryRepo.UpdateRestoring(false, backupHistory.Id); err != nil {
+		return err
+	}
 	ok, err := s.backupHistoryRepo.UpdateRestoring(true, backupHistory.Id)
 	if err != nil {
 		return err
@@ -385,7 +339,7 @@ func (s *dbScheduler) restoreBackupHistory(ctx context.Context, program dbi.DbPr
 	return program.RestoreBackupHistory(ctx, backupHistory.DbName, backupHistory.DbBackupId, backupHistory.Uuid)
 }
 
-func (s *dbScheduler) fetchBinlog(ctx context.Context, dbProgram dbi.DbProgram, instanceId uint64, downloadLatestBinlogFile bool) error {
+func (s *dbScheduler) fetchBinlog(ctx context.Context, dbProgram dbi.DbProgram, instanceId uint64, downloadLatestBinlogFile bool, targetTime time.Time) error {
 	if enabled, err := dbProgram.CheckBinlogEnabled(ctx); err != nil {
 		return err
 	} else if !enabled {
@@ -397,15 +351,17 @@ func (s *dbScheduler) fetchBinlog(ctx context.Context, dbProgram dbi.DbProgram, 
 		return errors.New("数据库未启用 BINLOG 行模式")
 	}
 
-	latestBinlogSequence, earliestBackupSequence := int64(-1), int64(-1)
+	earliestBackupSequence := int64(-1)
 	binlogHistory, ok, err := s.binlogHistoryRepo.GetLatestHistory(instanceId)
 	if err != nil {
 		return err
 	}
-	if ok {
-		latestBinlogSequence = binlogHistory.Sequence
-	} else {
-		backupHistory, ok, err := s.backupHistoryRepo.GetEarliestHistory(instanceId)
+	if downloadLatestBinlogFile && targetTime.Before(binlogHistory.LastEventTime) {
+		return nil
+	}
+
+	if !ok {
+		backupHistory, ok, err := s.backupHistoryRepo.GetEarliestHistoryForBinlog(instanceId)
 		if err != nil {
 			return err
 		}
@@ -414,7 +370,9 @@ func (s *dbScheduler) fetchBinlog(ctx context.Context, dbProgram dbi.DbProgram, 
 		}
 		earliestBackupSequence = backupHistory.BinlogSequence
 	}
-	binlogFiles, err := dbProgram.FetchBinlogs(ctx, downloadLatestBinlogFile, earliestBackupSequence, latestBinlogSequence)
+
+	// todo: 将循环从 dbProgram.FetchBinlogs 中提取出来，实现 BINLOG 同步成功后逐一保存 binlogHistory
+	binlogFiles, err := dbProgram.FetchBinlogs(ctx, downloadLatestBinlogFile, earliestBackupSequence, binlogHistory)
 	if err != nil {
 		return err
 	}

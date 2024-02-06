@@ -12,7 +12,7 @@ type instanceRepoImpl struct {
 	base.RepoImpl[*entity.DbInstance]
 }
 
-func newInstanceRepo() repository.Instance {
+func NewInstanceRepo() repository.Instance {
 	return &instanceRepoImpl{base.RepoImpl[*entity.DbInstance]{M: new(entity.DbInstance)}}
 }
 

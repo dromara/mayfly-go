@@ -79,10 +79,6 @@ func (r *DbRestore) GetJobType() DbJobType {
 	return DbJobTypeRestore
 }
 
-func (r *DbRestore) SetLastStatus(status DbJobStatus, err error) {
-	r.setLastStatus(r.GetJobType(), status, err)
-}
-
 func (r *DbRestore) GetKey() DbJobKey {
 	return r.getKey(r.GetJobType())
 }

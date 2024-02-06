@@ -188,8 +188,8 @@ func (md *PgsqlDialect) GetSchemas() ([]string, error) {
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (md *PgsqlDialect) GetDbProgram() dbi.DbProgram {
-	panic("implement me")
+func (md *PgsqlDialect) GetDbProgram() (dbi.DbProgram, error) {
+	return nil, fmt.Errorf("该数据库类型不支持数据库备份与恢复: %v", md.dc.Info.Type)
 }
 
 func (md *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {

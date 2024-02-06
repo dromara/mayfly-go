@@ -87,16 +87,10 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 
 	for _, v := range ids {
 		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
+		biz.ErrIsNilAppendErr(err, "删除数据库实例失败: %s")
 		instanceId := uint64(value)
-		if d.DbApp.Count(&entity.DbQuery{InstanceId: instanceId}) != 0 {
-			instance, err := d.InstanceApp.GetById(new(entity.DbInstance), instanceId, "name")
-			biz.ErrIsNil(err, "获取数据库实例错误，数据库实例ID为: %d", instance.Id)
-			biz.IsTrue(false, "不能删除数据库实例【%s】，请先删除其关联的数据库资源。", instance.Name)
-		}
-		// todo check if backup task has been disabled and backup histories have been deleted
-
-		d.InstanceApp.Delete(rc.MetaCtx, instanceId)
+		err = d.InstanceApp.Delete(rc.MetaCtx, instanceId)
+		biz.ErrIsNilAppendErr(err, "删除数据库实例失败: %s")
 	}
 }
 

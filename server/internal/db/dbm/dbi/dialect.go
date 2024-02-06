@@ -108,7 +108,7 @@ type Dialect interface {
 	GetSchemas() ([]string, error)
 
 	// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-	GetDbProgram() DbProgram
+	GetDbProgram() (DbProgram, error)
 
 	// 批量保存数据
 	BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error)

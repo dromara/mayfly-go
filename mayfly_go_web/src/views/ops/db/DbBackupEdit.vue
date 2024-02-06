@@ -28,8 +28,11 @@
                 <el-form-item prop="startTime" label="开始时间">
                     <el-date-picker v-model="state.form.startTime" type="datetime" placeholder="开始时间" />
                 </el-form-item>
-                <el-form-item prop="intervalDay" label="备份周期">
-                    <el-input v-model.number="state.form.intervalDay" type="number" placeholder="备份周期（单位：天）"></el-input>
+                <el-form-item prop="intervalDay" label="备份周期（天）">
+                    <el-input v-model.number="state.form.intervalDay" type="number" placeholder="单位：天"></el-input>
+                </el-form-item>
+                <el-form-item prop="maxSaveDays" label="备份历史保留天数">
+                    <el-input v-model.number="state.form.maxSaveDays" type="number" placeholder="0: 永久保留"></el-input>
                 </el-form-item>
             </el-form>
 
@@ -92,6 +95,14 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
+    maxSaveDays: [
+        {
+            required: true,
+            pattern: /^[0-9]\d*$/,
+            message: '请输入非负整数',
+            trigger: ['change', 'blur'],
+        },
+    ],
 };
 
 const backupForm: any = ref(null);
@@ -102,9 +113,10 @@ const state = reactive({
         dbId: 0,
         dbNames: '',
         name: '',
-        intervalDay: null,
+        intervalDay: 1,
         startTime: null as any,
-        repeated: null as any,
+        repeated: true,
+        maxSaveDays: 0,
     },
     btnLoading: false,
     dbNamesSelected: [] as any,
@@ -137,12 +149,14 @@ const init = (data: any) => {
         state.form.name = data.name;
         state.form.intervalDay = data.intervalDay;
         state.form.startTime = data.startTime;
+        state.form.maxSaveDays = data.maxSaveDays;
     } else {
         state.editOrCreate = false;
         state.form.name = '';
-        state.form.intervalDay = null;
+        state.form.intervalDay = 1;
         const now = new Date();
         state.form.startTime = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        state.form.maxSaveDays = 0;
         getDbNamesWithoutBackup();
     }
 };

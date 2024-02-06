@@ -108,6 +108,7 @@ CREATE TABLE `t_db_backup` (
     `db_name` varchar(64) NOT NULL COMMENT '数据库名称',
     `repeated` tinyint(1) DEFAULT NULL COMMENT '是否重复执行',
     `interval` bigint(20) DEFAULT NULL COMMENT '备份周期',
+    `max_save_days` int(8) NOT NULL DEFAULT '0' COMMENT '最大保留天数',
     `start_time` datetime DEFAULT NULL COMMENT '首次备份时间',
     `enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
     `enabled_desc` varchar(64) NULL COMMENT '任务启用描述',
@@ -144,8 +145,8 @@ CREATE TABLE `t_db_backup_history` (
     `create_time` datetime DEFAULT NULL COMMENT '历史备份创建时间',
     `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
     `delete_time` datetime DEFAULT NULL,
-    `restoring` int(1) NOT NULL DEFAULT '0' COMMENT '备份历史恢复标识',
-    `deleting` int(1) NOT NULL DEFAULT '0' COMMENT '备份历史删除标识',
+    `restoring` tinyint(1) NOT NULL DEFAULT '0' COMMENT '备份历史恢复标识',
+    `deleting` tinyint(1) NOT NULL DEFAULT '0' COMMENT '备份历史删除标识',
     PRIMARY KEY (`id`),
     KEY `idx_db_backup_id` (`db_backup_id`) USING BTREE,
     KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE,
@@ -232,6 +233,7 @@ CREATE TABLE `t_db_binlog_history` (
     `file_size` bigint(20) DEFAULT NULL COMMENT 'BINLOG文件大小',
     `sequence` bigint(20) DEFAULT NULL COMMENT 'BINLOG序列号',
     `first_event_time` datetime DEFAULT NULL COMMENT '首次事件时间',
+    `last_event_time` datetime DEFAULT NULL COMMENT '最新事件时间',
     `create_time` datetime DEFAULT NULL,
     `is_deleted` tinyint(4) NOT NULL DEFAULT 0,
     `delete_time` datetime DEFAULT NULL,
@@ -792,8 +794,8 @@ INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(152, 150, 'Jra0n7De/zvAMo2vk/', 2, 1, '编辑', 'db:sync:save', 1703641320, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:42:00', '2023-12-27 09:42:12', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(151, 150, 'Jra0n7De/uAnHZxEV/', 2, 1, '基本权限', 'db:sync', 1703641202, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:40:02', '2023-12-27 09:40:02', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(150, 36, 'Jra0n7De/', 1, 1, '数据同步', 'sync', 1693040707, '{"component":"ops/db/SyncTaskList","icon":"Coin","isKeepAlive":true,"routeName":"SyncTaskList"}', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-22 09:51:34', '2023-12-27 10:16:57', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(161, 49, 'dbms23ax/xleaiec2/3NUXQFIO/', 2, 1, '数据库备份', 'db:backup', 1705973876, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:37:56', '2024-01-23 09:37:56', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(160, 49, 'dbms23ax/xleaiec2/ghErkTdb/', 2, 1, '数据库恢复', 'db:restore', 1705973909, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:38:29', '2024-01-23 09:38:29', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(160, 49, 'dbms23ax/xleaiec2/3NUXQFIO/', 2, 1, '数据库备份', 'db:backup', 1705973876, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:37:56', '2024-01-23 09:37:56', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(161, 49, 'dbms23ax/xleaiec2/ghErkTdb/', 2, 1, '数据库恢复', 'db:restore', 1705973909, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:38:29', '2024-01-23 09:38:29', 0, NULL);
 COMMIT;
 
 -- ----------------------------

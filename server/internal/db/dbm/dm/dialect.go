@@ -248,8 +248,8 @@ func (dd *DMDialect) GetSchemas() ([]string, error) {
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (dd *DMDialect) GetDbProgram() dbi.DbProgram {
-	panic("implement me")
+func (dd *DMDialect) GetDbProgram() (dbi.DbProgram, error) {
+	return nil, fmt.Errorf("该数据库类型不支持数据库备份与恢复: %v", dd.dc.Info.Type)
 }
 
 var (

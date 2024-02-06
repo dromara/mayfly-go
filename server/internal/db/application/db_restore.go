@@ -55,7 +55,6 @@ func (app *DbRestoreApp) Update(ctx context.Context, job *entity.DbRestore) erro
 }
 
 func (app *DbRestoreApp) Delete(ctx context.Context, jobId uint64) error {
-	// todo: 删除数据库恢复历史文件
 	app.mutex.Lock()
 	defer app.mutex.Unlock()
 

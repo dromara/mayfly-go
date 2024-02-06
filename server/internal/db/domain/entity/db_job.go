@@ -45,7 +45,6 @@ var _ runner.Job = (DbJob)(nil)
 
 type DbJobBase interface {
 	model.ModelI
-	GetLastStatus() DbJobStatus
 }
 
 type DbJob interface {
@@ -62,7 +61,6 @@ type DbJob interface {
 	SetEnabled(enabled bool, desc string)
 	Update(job runner.Job)
 	GetInterval() time.Duration
-	SetLastStatus(status DbJobStatus, err error)
 }
 
 var _ DbJobBase = (*DbJobBaseImpl)(nil)
@@ -82,10 +80,6 @@ func (d *DbJobBaseImpl) getJobType() DbJobType {
 		return DbJobUnknown
 	}
 	return job.GetJobType()
-}
-
-func (d *DbJobBaseImpl) GetLastStatus() DbJobStatus {
-	return d.LastStatus
 }
 
 func (d *DbJobBaseImpl) setLastStatus(jobType DbJobType, status DbJobStatus, err error) {

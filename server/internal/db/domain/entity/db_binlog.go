@@ -11,14 +11,16 @@ const (
 
 // BinlogFile is the metadata of the MySQL binlog file.
 type BinlogFile struct {
-	Name string
-	Size int64
+	Name       string
+	RemoteSize int64
+	LocalSize  int64
 
 	// Sequence is parsed from Name and is for the sorting purpose.
 	Sequence       int64
 	FirstEventTime time.Time
 	LastEventTime  time.Time
-	Downloaded     bool
+
+	Downloaded bool
 }
 
 var _ DbJob = (*DbBinlog)(nil)
@@ -74,10 +76,6 @@ func (b *DbBinlog) GetInterval() time.Duration {
 
 func (b *DbBinlog) GetJobType() DbJobType {
 	return DbJobTypeBinlog
-}
-
-func (b *DbBinlog) SetLastStatus(status DbJobStatus, err error) {
-	b.setLastStatus(b.GetJobType(), status, err)
 }
 
 func (b *DbBinlog) GetKey() DbJobKey {
