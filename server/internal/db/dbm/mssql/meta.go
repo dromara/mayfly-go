@@ -38,8 +38,17 @@ func (md *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 			query.Add("database", d.Database)
 		}
 	}
+	params := query.Encode()
+	if d.Params != "" {
+		if !strings.HasPrefix(d.Params, "&") {
+			params = params + "&" + d.Params
+		} else {
+			params = params + d.Params
+		}
+	}
+
 	const driverName = "mssql"
-	dsn := fmt.Sprintf("sqlserver://%s:%s@%s:%d?%s", url.PathEscape(d.Username), url.PathEscape(d.Password), d.Host, d.Port, query.Encode())
+	dsn := fmt.Sprintf("sqlserver://%s:%s@%s:%d?%s", url.PathEscape(d.Username), url.PathEscape(d.Password), d.Host, d.Port, params)
 	return sql.Open(driverName, dsn)
 }
 

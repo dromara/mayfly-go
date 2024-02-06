@@ -89,6 +89,8 @@ export class NodeType {
 
     contextMenuItems: ContextmenuItem[];
 
+    hasLoadNodesFunc: boolean;
+
     loadNodesFunc: (parentNode: TagTreeNode) => Promise<TagTreeNode[]>;
 
     nodeClickFunc: (node: TagTreeNode) => void;
@@ -104,6 +106,7 @@ export class NodeType {
      */
     withLoadNodesFunc(func: (parentNode: TagTreeNode) => Promise<TagTreeNode[]>) {
         this.loadNodesFunc = func;
+        this.hasLoadNodesFunc = true;
         return this;
     }
 

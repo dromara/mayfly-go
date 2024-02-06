@@ -242,7 +242,7 @@ func (od *OracleDialect) GetSchemas() ([]string, error) {
 	}
 	schemaNames := make([]string, 0)
 	for _, re := range res {
-		schemaNames = append(schemaNames, anyx.ConvString(re["SCHEMA_NAME"]))
+		schemaNames = append(schemaNames, anyx.ConvString(re["USERNAME"]))
 	}
 	return schemaNames, nil
 }

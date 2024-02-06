@@ -6,6 +6,9 @@
         :resource-type="TagResourceTypeEnum.Db.value"
         :tag-path-node-type="NodeTypeTagPath"
     >
+        <template #iconPrefix>
+            <SvgIcon v-if="dbType && getDbDialect(dbType)" :name="getDbDialect(dbType).getInfo().icon" :size="18" />
+        </template>
         <template #prefix="{ data }">
             <SvgIcon v-if="data.type.value == SqlExecNodeType.DbInst" :name="getDbDialect(data.params.type).getInfo().icon" :size="18" />
             <SvgIcon v-if="data.icon" :name="data.icon.name" :color="data.icon.color" />
@@ -27,6 +30,9 @@ const props = defineProps({
     dbId: {
         type: Number,
     },
+    instName: {
+        type: String,
+    },
     dbName: {
         type: String,
     },
@@ -38,7 +44,7 @@ const props = defineProps({
     },
 });
 
-const emits = defineEmits(['update:dbName', 'update:tagPath', 'update:dbId', 'update:dbType', 'selectDb']);
+const emits = defineEmits(['update:dbName', 'update:tagPath', 'update:instName', 'update:dbId', 'update:dbType', 'selectDb']);
 
 /**
  * 树节点类型
@@ -56,7 +62,7 @@ class SqlExecNodeType {
 
 const selectNode = computed({
     get: () => {
-        return props.dbName ? `${props.tagPath} - ${props.dbId} - ${props.dbName}` : '';
+        return props.dbName ? `${props.tagPath} > ${props.instName} > ${props.dbName}` : '';
     },
     set: () => {
         //
@@ -151,6 +157,7 @@ const changeNode = (nodeData: TagTreeNode) => {
     const params = nodeData.params;
     // postgres
     emits('update:dbName', params.db);
+    emits('update:instName', params.name);
     emits('update:dbId', params.id);
     emits('update:tagPath', params.tagPath);
     emits('update:dbType', params.type);

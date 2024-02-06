@@ -45,6 +45,7 @@
                             <db-select-tree
                                 placeholder="请选择源数据库"
                                 v-model:db-id="form.srcDbId"
+                                v-model:inst-name="form.srcInstName"
                                 v-model:db-name="form.srcDbName"
                                 v-model:tag-path="form.srcTagPath"
                                 v-model:db-type="form.srcDbType"
@@ -56,8 +57,10 @@
                             <db-select-tree
                                 placeholder="请选择目标数据库"
                                 v-model:db-id="form.targetDbId"
+                                v-model:inst-name="form.targetInstName"
                                 v-model:db-name="form.targetDbName"
                                 v-model:tag-path="form.targetTagPath"
+                                v-model:db-type="form.targetDbType"
                                 @select-db="onSelectTargetDb"
                             />
                         </el-form-item>
@@ -182,7 +185,7 @@ import { ElMessage } from 'element-plus';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { DbInst, registerDbCompletionItemProvider } from '@/views/ops/db/db';
-import {DbType, getDbDialect} from '@/views/ops/db/dialect'
+import { DbType, getDbDialect } from '@/views/ops/db/dialect';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 
 const props = defineProps({
@@ -227,13 +230,16 @@ type FormData = {
     taskName?: string;
     taskCron: string;
     srcDbId?: number;
+    srcInstName?: string;
     srcDbName?: string;
     srcDbType?: string;
     srcTagPath?: string;
     targetDbId?: number;
+    targetInstName?: string;
     targetDbName?: string;
     targetTagPath?: string;
     targetTableName?: string;
+    targetDbType?: string;
     dataSql?: string;
     pageSize?: number;
     updField?: string;
@@ -304,7 +310,8 @@ watch(dialogVisible, async (newValue: boolean) => {
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
         state.srcDbInst = DbInst.getOrNewInst(db);
-        state.form.srcDbType = state.srcDbInst.type
+        state.form.srcDbType = state.srcDbInst.type;
+        state.form.srcInstName = db.instanceName;
     }
 
     //  初始化target数据源
@@ -315,6 +322,8 @@ watch(dialogVisible, async (newValue: boolean) => {
         // 初始化实例
         db.databases = db.database?.split(' ').sort() || [];
         state.targetDbInst = DbInst.getOrNewInst(db);
+        state.form.targetDbType = state.targetDbInst.type;
+        state.form.targetInstName = db.instanceName;
     }
 
     if (targetDbId && state.form.targetDbName) {
@@ -414,15 +423,15 @@ const handleGetSrcFields = async () => {
 
     // 执行sql
     // oracle的分页关键字不一样
-    let limit = ' limit 1'
-    if(state.form.srcDbType === DbType.oracle){
-      limit = ' where rownum <= 1'
+    let limit = ' limit 1';
+    if (state.form.srcDbType === DbType.oracle) {
+        limit = ' where rownum <= 1';
     }
-    
+
     const res = await dbApi.sqlExec.request({
         id: state.form.srcDbId,
         db: state.form.srcDbName,
-        sql: `select * from (${state.form.dataSql}) t ${limit}`
+        sql: `select * from (${state.form.dataSql}) t ${limit}`,
     });
 
     if (!res.columns) {

@@ -189,7 +189,7 @@ const emit = defineEmits(['update:queryForm', 'update:selectionData', 'pageChang
 
 export interface PageTableProps {
     size?: string;
-    pageApi: Api; // 请求表格数据的 api
+    pageApi?: Api; // 请求表格数据的 api
     columns: TableColumn[]; // 列配置项  ==> 必传
     showSelection?: boolean;
     selectable?: (row: any) => boolean; // 是否可选
@@ -257,7 +257,7 @@ const changeSimpleFormItem = (searchItem: SearchItem) => {
     nowSearchItem.value = searchItem;
 };
 
-const { tableData, total, loading, search, reset, getTableData, handlePageNumChange, handlePageSizeChange } = usePageTable(
+let { tableData, total, loading, search, reset, getTableData, handlePageNumChange, handlePageSizeChange } = usePageTable(
     props.pageable,
     props.pageApi,
     queryForm,
@@ -287,6 +287,13 @@ watch(tableData, (newValue: any) => {
 watch(isShowSearch, () => {
     calcuTableHeight();
 });
+
+watch(
+    () => props.data,
+    (newValue: any) => {
+        tableData = newValue;
+    }
+);
 
 onMounted(async () => {
     calcuTableHeight();

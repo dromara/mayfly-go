@@ -1,8 +1,6 @@
 --MSSQL_DBS 数据库名信息
 SELECT name AS dbname
 FROM sys.databases
-WHERE owner_sid = SUSER_SID()
-  and name not in ('master', 'tempdb', 'model', 'msdb')
 ---------------------------------------
 --MSSQL_TABLE_DETAIL 查询表名和表注释
 SELECT t.name   AS tableName,

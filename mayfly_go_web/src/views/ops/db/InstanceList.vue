@@ -17,7 +17,7 @@
             </template>
 
             <template #type="{ data }">
-                <el-tooltip :content="data.type" placement="top">
+                <el-tooltip :content="getDbDialect(data.type).getInfo().name" placement="top">
                     <SvgIcon :name="getDbDialect(data.type).getInfo().icon" :size="20" />
                 </el-tooltip>
             </template>

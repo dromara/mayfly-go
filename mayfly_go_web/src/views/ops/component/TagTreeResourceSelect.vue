@@ -14,6 +14,9 @@
         v-model="modelValue"
         @change="changeNode"
     >
+        <template #prefix="{ node, data }">
+            <slot name="iconPrefix" :node="node" :data="data" />
+        </template>
         <template #default="{ node, data }">
             <span>
                 <span v-if="data.type.value == TagTreeNode.TagPath">
@@ -33,7 +36,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref, watch, toRefs } from 'vue';
+import { onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { NodeType, TagTreeNode } from './tag';
 import TagInfo from './TagInfo.vue';
 import { tagApi } from '../tag/api';
