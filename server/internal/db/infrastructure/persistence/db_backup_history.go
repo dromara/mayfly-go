@@ -34,12 +34,13 @@ func (repo *dbBackupHistoryRepoImpl) GetPageList(condition *entity.DbBackupHisto
 func (repo *dbBackupHistoryRepoImpl) GetHistories(backupHistoryIds []uint64, toEntity any) error {
 	return global.Db.Model(repo.GetModel()).
 		Where("id in ?", backupHistoryIds).
+		Where("deleting = false").
 		Scopes(gormx.UndeleteScope).
 		Find(toEntity).
 		Error
 }
 
-func (repo *dbBackupHistoryRepoImpl) GetLatestHistory(instanceId uint64, dbName string, bi *entity.BinlogInfo) (*entity.DbBackupHistory, error) {
+func (repo *dbBackupHistoryRepoImpl) GetLatestHistoryForBinlog(instanceId uint64, dbName string, bi *entity.BinlogInfo) (*entity.DbBackupHistory, error) {
 	history := &entity.DbBackupHistory{}
 	db := global.Db
 	err := db.Model(repo.GetModel()).
@@ -48,6 +49,8 @@ func (repo *dbBackupHistoryRepoImpl) GetLatestHistory(instanceId uint64, dbName 
 		Where(db.Where("binlog_sequence < ?", bi.Sequence).
 			Or(db.Where("binlog_sequence = ?", bi.Sequence).
 				Where("binlog_position <= ?", bi.Position))).
+		Where("binlog_sequence > 0").
+		Where("deleting = false").
 		Scopes(gormx.UndeleteScope).
 		Order("binlog_sequence desc, binlog_position desc").
 		First(history).Error
@@ -57,10 +60,12 @@ func (repo *dbBackupHistoryRepoImpl) GetLatestHistory(instanceId uint64, dbName 
 	return history, err
 }
 
-func (repo *dbBackupHistoryRepoImpl) GetEarliestHistory(instanceId uint64) (*entity.DbBackupHistory, bool, error) {
+func (repo *dbBackupHistoryRepoImpl) GetEarliestHistoryForBinlog(instanceId uint64) (*entity.DbBackupHistory, bool, error) {
 	history := &entity.DbBackupHistory{}
 	db := global.Db.Model(repo.GetModel())
 	err := db.Where("db_instance_id = ?", instanceId).
+		Where("binlog_sequence > 0").
+		Where("deleting = false").
 		Scopes(gormx.UndeleteScope).
 		Order("binlog_sequence").
 		First(history).Error
@@ -79,7 +84,7 @@ func (repo *dbBackupHistoryRepoImpl) UpdateDeleting(deleting bool, backupHistory
 		Where("id in ?", backupHistoryId).
 		Where("restoring = false").
 		Scopes(gormx.UndeleteScope).
-		Update("restoring", deleting)
+		Update("deleting", deleting)
 	if db.Error != nil {
 		return false, db.Error
 	}
@@ -102,4 +107,16 @@ func (repo *dbBackupHistoryRepoImpl) UpdateRestoring(restoring bool, backupHisto
 		return false, nil
 	}
 	return true, nil
+}
+
+func (repo *dbBackupHistoryRepoImpl) ZeroBinlogInfo(backupHistoryId uint64) error {
+	return global.Db.Model(repo.GetModel()).
+		Where("id = ?", backupHistoryId).
+		Where("restoring = false").
+		Scopes(gormx.UndeleteScope).
+		Updates(&map[string]any{
+			"binlog_file_name": "",
+			"binlog_sequence":  0,
+			"binlog_position":  0,
+		}).Error
 }

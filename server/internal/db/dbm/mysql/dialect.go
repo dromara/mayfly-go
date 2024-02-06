@@ -169,8 +169,8 @@ func (md *MysqlDialect) GetSchemas() ([]string, error) {
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (md *MysqlDialect) GetDbProgram() dbi.DbProgram {
-	return NewDbProgramMysql(md.dc)
+func (md *MysqlDialect) GetDbProgram() (dbi.DbProgram, error) {
+	return NewDbProgramMysql(md.dc), nil
 }
 
 func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {

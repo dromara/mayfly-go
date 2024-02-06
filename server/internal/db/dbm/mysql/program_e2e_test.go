@@ -47,11 +47,11 @@ func (s *DbInstanceSuite) SetupSuite() {
 		Username: "test",
 		Password: "test",
 	}
-	dbConn, err := dbInfo.Conn(GetMeta())
+	dbConn, err := dbInfo.Conn(dbi.GetMeta(dbi.DbTypeMysql))
 	s.Require().NoError(err)
 	s.dbConn = dbConn
 	s.repositories = &repository.Repositories{
-		Instance:       persistence.GetInstanceRepo(),
+		Instance:       persistence.NewInstanceRepo(),
 		Backup:         persistence.NewDbBackupRepo(),
 		BackupHistory:  persistence.NewDbBackupHistoryRepo(),
 		Restore:        persistence.NewDbRestoreRepo(),
@@ -111,7 +111,7 @@ func (s *DbInstanceSuite) testBackup(backupHistory *entity.DbBackupHistory) {
 	binlogInfo, err := s.instanceSvc.Backup(context.Background(), backupHistory)
 	require.NoError(err)
 
-	fileName := filepath.Join(s.instanceSvc.getDbBackupDir(s.dbConn.Info.InstanceId, backupHistory.Id), dbNameBackupTest+".sql")
+	fileName := filepath.Join(s.instanceSvc.getDbBackupDir(s.dbConn.Info.InstanceId, backupHistory.Id), dbNameBackupTest+".sql.gz")
 	_, err = os.Stat(fileName)
 	require.NoError(err)
 

@@ -2,11 +2,14 @@ package application
 
 import (
 	"context"
+	"errors"
+	"gorm.io/gorm"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 )
@@ -32,6 +35,10 @@ type Instance interface {
 
 type instanceAppImpl struct {
 	base.AppImpl[*entity.DbInstance, repository.Instance]
+
+	dbApp      Db            `inject:"DbApp"`
+	backupApp  *DbBackupApp  `inject:"DbBackupApp"`
+	restoreApp *DbRestoreApp `inject:"DbRestoreApp"`
 }
 
 // 注入DbInstanceRepo
@@ -96,8 +103,50 @@ func (app *instanceAppImpl) Save(ctx context.Context, instanceEntity *entity.DbI
 	return app.UpdateById(ctx, instanceEntity)
 }
 
-func (app *instanceAppImpl) Delete(ctx context.Context, id uint64) error {
-	return app.DeleteById(ctx, id)
+func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error {
+	instance, err := app.GetById(new(entity.DbInstance), instanceId, "name")
+	biz.ErrIsNil(err, "获取数据库实例错误，数据库实例ID为: %d", instance.Id)
+
+	restore := &entity.DbRestore{
+		DbInstanceId: instanceId,
+	}
+	err = app.restoreApp.restoreRepo.GetBy(restore)
+	switch {
+	case err == nil:
+		biz.ErrNotNil(err, "不能删除数据库实例【%s】，请先删除关联的数据库恢复任务。", instance.Name)
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		break
+	default:
+		biz.ErrIsNil(err, "删除数据库实例失败: %v", err)
+	}
+
+	backup := &entity.DbBackup{
+		DbInstanceId: instanceId,
+	}
+	err = app.backupApp.backupRepo.GetBy(backup)
+	switch {
+	case err == nil:
+		biz.ErrNotNil(err, "不能删除数据库实例【%s】，请先删除关联的数据库备份任务。", instance.Name)
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		break
+	default:
+		biz.ErrIsNil(err, "删除数据库实例失败: %v", err)
+	}
+
+	db := &entity.Db{
+		InstanceId: instanceId,
+	}
+	err = app.dbApp.GetBy(db)
+	switch {
+	case err == nil:
+		biz.ErrNotNil(err, "不能删除数据库实例【%s】，请先删除关联的数据库资源。", instance.Name)
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		break
+	default:
+		biz.ErrIsNil(err, "删除数据库实例失败: %v", err)
+	}
+
+	return app.DeleteById(ctx, instanceId)
 }
 
 func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance) ([]string, error) {

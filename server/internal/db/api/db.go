@@ -78,8 +78,6 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 		d.DbApp.Delete(ctx, dbId)
 		// 删除该库的sql执行记录
 		d.DbSqlExecApp.DeleteBy(ctx, &entity.DbSqlExec{DbId: dbId})
-
-		// todo delete restore task and histories
 	}
 }
 

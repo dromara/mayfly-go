@@ -25,6 +25,7 @@
             <template #action="{ data }">
                 <el-button @click="showInfo(data)" link>详情</el-button>
                 <el-button v-if="actionBtns[perms.saveInstance]" @click="editInstance(data)" type="primary" link>编辑</el-button>
+                <el-button v-if="actionBtns[perms.delInstance]" @click="deleteInstance(data)" type="primary" link>删除</el-button>
             </template>
         </page-table>
 
@@ -91,7 +92,7 @@ const columns = ref([
 ]);
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns = hasPerms([perms.saveInstance]);
+const actionBtns = hasPerms(Object.values(perms));
 const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(110).fixedRight().alignCenter();
 const pageTableRef: Ref<any> = ref(null);
 
@@ -150,14 +151,26 @@ const editInstance = async (data: any) => {
     state.instanceEditDialog.visible = true;
 };
 
-const deleteInstance = async () => {
+const deleteInstance = async (data: any) => {
     try {
-        await ElMessageBox.confirm(`确定删除数据库实例【${state.selectionData.map((x: any) => x.name).join(', ')}】?`, '提示', {
+        let instanceName: string;
+        if (data) {
+            instanceName = data.name;
+        } else {
+            instanceName = state.selectionData.map((x: any) => x.name).join(', ');
+        }
+        await ElMessageBox.confirm(`确定删除数据库实例【${instanceName}】?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        await dbApi.deleteInstance.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
+        let instanceId: string;
+        if (data) {
+            instanceId = data.id;
+        } else {
+            instanceId = state.selectionData.map((x: any) => x.id).join(',');
+        }
+        await dbApi.deleteInstance.request({ id: instanceId });
         ElMessage.success('删除成功');
         search();
     } catch (err) {

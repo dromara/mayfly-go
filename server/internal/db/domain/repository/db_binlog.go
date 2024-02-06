@@ -6,7 +6,7 @@ import (
 )
 
 type DbBinlog interface {
-	DbJob
+	DbJob[*entity.DbBinlog]
 
 	AddJobIfNotExists(ctx context.Context, job *entity.DbBinlog) error
 }

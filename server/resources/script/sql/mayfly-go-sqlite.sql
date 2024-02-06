@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS "t_db_backup" (
   "db_name" text(64) NOT NULL,
   "repeated" integer(1),
   "interval" integer(20),
+  "max_save_days" integer(8) NOT NULL DEFAULT '0',
   "start_time"  datetime,
   "enabled" integer(1),
   "enabled_desc" text(64),
@@ -81,8 +82,8 @@ CREATE TABLE IF NOT EXISTS "t_db_backup_history" (
   "create_time"  datetime,
   "is_deleted" integer(1) NOT NULL,
   "delete_time"  datetime,
-  "restoring" integer(1),
-  "deleting" integer(1),
+  "restoring" integer(1) NOT NULL DEFAULT '0',
+  "deleting" integer(1) NOT NULL DEFAULT '0',
   PRIMARY KEY ("id")
 );
 
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS "t_db_binlog_history" (
   "file_size" integer(20),
   "sequence" integer(20),
   "first_event_time"  datetime,
+  "last_event_time"  datetime,
   "create_time"  datetime,
   "is_deleted" integer(4) NOT NULL,
   "delete_time"  datetime,
@@ -830,8 +832,8 @@ INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, 
 INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (153, 150, 'Jra0n7De/pLOA2UYz/', 2, 1, '删除', 'db:sync:del', 1703641342, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:42:22', '2023-12-27 09:42:22', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (154, 150, 'Jra0n7De/VBt68CDx/', 2, 1, '启停', 'db:sync:status', 1703641364, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:42:45', '2023-12-27 09:42:45', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (155, 150, 'Jra0n7De/PigmSGVg/', 2, 1, '日志', 'db:sync:log', 1704266866, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-01-03 15:27:47', '2024-01-03 15:27:47', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (161, 49, 'dbms23ax/xleaiec2/3NUXQFIO/', 2, 1, '数据库备份', 'db:backup', 1705973876, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:37:56', '2024-01-23 09:37:56', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (160, 49, 'dbms23ax/xleaiec2/ghErkTdb/', 2, 1, '数据库恢复', 'db:restore', 1705973909, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:38:29', '2024-01-23 09:38:29', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (160, 49, 'dbms23ax/xleaiec2/3NUXQFIO/', 2, 1, '数据库备份', 'db:backup', 1705973876, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:37:56', '2024-01-23 09:37:56', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (161, 49, 'dbms23ax/xleaiec2/ghErkTdb/', 2, 1, '数据库恢复', 'db:restore', 1705973909, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:38:29', '2024-01-23 09:38:29', 0, NULL);
 
 -- Table: t_sys_role
 CREATE TABLE IF NOT EXISTS "t_sys_role" (

@@ -6,7 +6,7 @@ import (
 )
 
 type DbBackup interface {
-	DbJob
+	DbJob[*entity.DbBackup]
 
 	ListToDo(jobs any) error
 	ListDbInstances(enabled bool, repeated bool, instanceIds *[]uint64) error
@@ -14,4 +14,6 @@ type DbBackup interface {
 
 	// GetPageList 分页获取数据库任务列表
 	GetPageList(condition *entity.DbBackupQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+
+	ListByCond(cond any, listModels any, cols ...string) error
 }

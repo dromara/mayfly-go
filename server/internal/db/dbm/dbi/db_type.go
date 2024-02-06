@@ -141,3 +141,12 @@ func (dbType DbType) StmtUseDatabase(dbName string) string {
 		return ""
 	}
 }
+
+func (dbType DbType) SupportingBackup() bool {
+	switch dbType {
+	case DbTypeMysql, DbTypeMariadb:
+		return true
+	default:
+		return false
+	}
+}

@@ -14,6 +14,7 @@ type DbBinlogHistory struct {
 	FileSize       int64
 	Sequence       int64
 	FirstEventTime time.Time
+	LastEventTime  time.Time
 	DbInstanceId   uint64 `json:"dbInstanceId"`
 }
 

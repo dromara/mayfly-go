@@ -22,7 +22,7 @@ var (
 type JobKey = string
 type RunJobFunc[T Job] func(ctx context.Context, job T) error
 type NextJobFunc[T Job] func() (T, bool)
-type RunnableJobFunc[T Job] func(job T, next NextJobFunc[T]) (bool, error)
+type RunnableJobFunc[T Job] func(job T, nextRunning NextJobFunc[T]) (bool, error)
 type ScheduleJobFunc[T Job] func(job T) (deadline time.Time, err error)
 type UpdateJobFunc[T Job] func(ctx context.Context, job T) error
 

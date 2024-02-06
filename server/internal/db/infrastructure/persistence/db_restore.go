@@ -84,9 +84,9 @@ func (d *dbRestoreRepoImpl) UpdateEnabled(_ context.Context, jobId uint64, enabl
 	cond := map[string]any{
 		"id": jobId,
 	}
-	desc := "任务已禁用"
+	desc := "已禁用"
 	if enabled {
-		desc = "任务已启用"
+		desc = "已启用"
 	}
 	return d.Updates(cond, map[string]any{
 		"enabled":      enabled,

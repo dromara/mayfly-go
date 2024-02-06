@@ -5,7 +5,7 @@ import (
 )
 
 func Init() {
-	ioc.Register(newInstanceRepo(), ioc.WithComponentName("DbInstanceRepo"))
+	ioc.Register(NewInstanceRepo(), ioc.WithComponentName("DbInstanceRepo"))
 	ioc.Register(newDbRepo(), ioc.WithComponentName("DbRepo"))
 	ioc.Register(newDbSqlRepo(), ioc.WithComponentName("DbSqlRepo"))
 	ioc.Register(newDbSqlExecRepo(), ioc.WithComponentName("DbSqlExecRepo"))
