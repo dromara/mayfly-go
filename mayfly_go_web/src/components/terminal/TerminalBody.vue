@@ -8,7 +8,7 @@
 
 <script lang="ts" setup>
 import 'xterm/css/xterm.css';
-import { Terminal } from 'xterm';
+import { ITheme, Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { SearchAddon } from 'xterm-addon-search';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -92,12 +92,13 @@ function init() {
         cursorBlink: true,
         disableStdin: false,
         allowProposedApi: true,
+        fastScrollModifier: 'ctrl',
         theme: {
             foreground: themeConfig.value.terminalForeground || '#7e9192', //字体
             background: themeConfig.value.terminalBackground || '#002833', //背景色
             cursor: themeConfig.value.terminalCursor || '#268F81', //设置光标
             // cursorAccent: "red",  // 光标停止颜色
-        } as any,
+        } as ITheme,
     });
     term.open(terminalRef.value);
 
@@ -105,7 +106,7 @@ function init() {
     const fitAddon = new FitAddon();
     state.addon.fit = fitAddon;
     term.loadAddon(fitAddon);
-    fitTerminal();
+    resize();
 
     // 注册搜索组件
     const searchAddon = new SearchAddon();
@@ -146,7 +147,7 @@ const onConnected = () => {
     state.status = TerminalStatus.Connected;
 
     // 注册窗口大小监听器
-    useEventListener('resize', debounce(fitTerminal, 400));
+    useEventListener('resize', debounce(resize, 400));
 
     focus();
 
@@ -158,13 +159,7 @@ const onConnected = () => {
 
 // 自适应终端
 const fitTerminal = () => {
-    const dimensions = state.addon.fit && state.addon.fit.proposeDimensions();
-    if (!dimensions) {
-        return;
-    }
-    if (dimensions?.cols && dimensions?.rows) {
-        term.resize(dimensions.cols, dimensions.rows);
-    }
+    resize();
 };
 
 const focus = () => {
@@ -265,7 +260,13 @@ const getStatus = (): TerminalStatus => {
     return state.status;
 };
 
-defineExpose({ init, fitTerminal, focus, clear, close, getStatus });
+const resize = () => {
+    nextTick(() => {
+        state.addon.fit.fit();
+    });
+};
+
+defineExpose({ init, fitTerminal, focus, clear, close, getStatus, sendResize, resize });
 </script>
 <style lang="scss">
 #terminal-body {

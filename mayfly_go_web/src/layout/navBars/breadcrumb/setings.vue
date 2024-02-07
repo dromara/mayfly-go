@@ -615,6 +615,9 @@ const setLocalThemeConfigStyle = () => {
 };
 // 一键复制配置
 const onCopyConfigClick = (target: any) => {
+    if (!target) {
+        return;
+    }
     let copyThemeConfig = getLocal('themeConfig');
     copyThemeConfig.isDrawer = false;
     const clipboard = new ClipboardJS(target, {

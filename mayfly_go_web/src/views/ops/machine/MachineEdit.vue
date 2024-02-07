@@ -13,6 +13,7 @@
                                         tagSelectRef.validate();
                                     }
                                 "
+                                :tag-path="form.tagPath"
                                 :resource-code="form.code"
                                 :resource-type="TagResourceTypeEnum.Machine.value"
                                 style="width: 100%"
@@ -153,6 +154,7 @@ const state = reactive({
     form: {
         id: null,
         code: '',
+        tagPath: '',
         ip: null,
         port: 22,
         name: null,

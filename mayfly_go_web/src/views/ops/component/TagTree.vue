@@ -104,11 +104,7 @@ const loadTags = async () => {
     const tags = await tagApi.getResourceTagPaths.request({ resourceType: props.resourceType });
     const tagNodes = [];
     for (let tagPath of tags) {
-        let isLeaf = false;
-        if (!props.tagPathNodeType?.hasLoadNodesFunc) {
-            isLeaf = true;
-        }
-        tagNodes.push(new TagTreeNode(tagPath, tagPath, props.tagPathNodeType).withIsLeaf(isLeaf));
+        tagNodes.push(new TagTreeNode(tagPath, tagPath, props.tagPathNodeType));
     }
     return tagNodes;
 };
