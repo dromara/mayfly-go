@@ -104,8 +104,16 @@ func (c *Cli) Close() {
 		c.sftpClient.Close()
 		c.sftpClient = nil
 	}
+
+	var sshTunnelMachineId uint64
 	if c.Info.SshTunnelMachine != nil {
-		logx.Infof("关闭机器的隧道信息: machineId=%d, sshTunnelMachineId=%d", c.Info.Id, c.Info.SshTunnelMachine.Id)
+		sshTunnelMachineId = c.Info.SshTunnelMachine.Id
+	}
+	if c.Info.TempSshMachineId != 0 {
+		sshTunnelMachineId = c.Info.TempSshMachineId
+	}
+	if sshTunnelMachineId != 0 {
+		logx.Infof("关闭机器的隧道信息: machineId=%d, sshTunnelMachineId=%d", c.Info.Id, sshTunnelMachineId)
 		CloseSshTunnelMachine(int(c.Info.SshTunnelMachine.Id), c.Info.GetTunnelId())
 	}
 }

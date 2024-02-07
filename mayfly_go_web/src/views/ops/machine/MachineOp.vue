@@ -8,11 +8,22 @@
                     ref="tagTreeRef"
                     :resource-type="TagResourceTypeEnum.Machine.value"
                     :tag-path-node-type="NodeTypeTagPath"
-                />
+                >
+                    <template #prefix="{ data }">
+                        <SvgIcon v-if="data.icon && data.params.status == 1" :name="data.icon.name" :color="data.icon.color" />
+                        <SvgIcon v-if="data.icon && data.params.status == -1" :name="data.icon.name" color="var(--el-color-danger)" />
+                    </template>
+
+                    <template #suffix="{ data }">
+                        <span style="color: #c4c9c4; font-size: 9px" v-if="data.type.value == MachineNodeType.Machine">{{
+                            ` ${data.params.username}@${data.params.ip}:${data.params.port}`
+                        }}</span>
+                    </template>
+                </tag-tree>
             </Pane>
 
             <Pane>
-                <div class="card pd5">
+                <div class="machine-terminal-tabs card pd5">
                     <el-tabs
                         v-if="state.tabs.size > 0"
                         type="card"
@@ -20,18 +31,18 @@
                         @tab-change="onTabChange"
                         style="width: 100%"
                         v-model="state.activeTermName"
-                        class="h100 machine-terminal-tabs"
+                        class="h100"
                     >
                         <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                             <template #label>
                                 <el-popconfirm @confirm="handleReconnect(dt.key)" title="确认重新连接?">
                                     <template #reference>
-                                        <el-icon class="mr2" :color="dt.status == 1 ? '#67c23a' : '#f56c6c'" :title="dt.status == 1 ? '' : '点击重连'"
+                                        <el-icon class="mr5" :color="dt.status == 1 ? '#67c23a' : '#f56c6c'" :title="dt.status == 1 ? '' : '点击重连'"
                                             ><Connection />
                                         </el-icon>
                                     </template>
                                 </el-popconfirm>
-                                <el-popover placement="bottom-start" trigger="hover" :width="250">
+                                <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
                                     <template #reference>
                                         <div>
                                             <span class="machine-terminal-tab-label">{{ dt.label }}</span>
@@ -41,6 +52,8 @@
                                         <el-descriptions :column="1" size="small">
                                             <el-descriptions-item label="机器名"> {{ dt.params?.name }} </el-descriptions-item>
                                             <el-descriptions-item label="host"> {{ dt.params?.ip }} : {{ dt.params?.port }} </el-descriptions-item>
+                                            <el-descriptions-item label="username"> {{ dt.params?.username }} </el-descriptions-item>
+                                            <el-descriptions-item label="remark"> {{ dt.params?.remark }} </el-descriptions-item>
                                         </el-descriptions>
                                     </template>
                                 </el-popover>
@@ -50,7 +63,7 @@
                                 <TerminalBody
                                     @status-change="terminalStatusChange(dt.key, $event)"
                                     :ref="(el) => setTerminalRef(el, dt.key)"
-                                    :socket-url="dt.terminalInfo.socketUrl"
+                                    :socket-url="dt.socketUrl"
                                 />
                             </div>
                         </el-tab-pane>
@@ -84,16 +97,6 @@
                         </el-descriptions>
                     </el-dialog>
 
-                    <terminal-dialog ref="terminalDialogRef" :visibleMinimize="true">
-                        <template #headerTitle="{ terminalInfo }">
-                            {{ `${(terminalInfo.terminalId + '').slice(-2)}` }}
-                            <el-divider direction="vertical" />
-                            {{ `${terminalInfo.meta.username}@${terminalInfo.meta.ip}:${terminalInfo.meta.port}` }}
-                            <el-divider direction="vertical" />
-                            {{ terminalInfo.meta.name }}
-                        </template>
-                    </terminal-dialog>
-
                     <process-list v-model:visible="processDialog.visible" v-model:machineId="processDialog.machineId" />
 
                     <script-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible" v-model:machineId="serviceDialog.machineId" />
@@ -121,7 +124,6 @@ import TagTree from '../component/TagTree.vue';
 import { Splitpanes, Pane } from 'splitpanes';
 import { ContextmenuItem } from '@/components/contextmenu/index';
 // 组件
-const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
 const FileConfList = defineAsyncComponent(() => import('./file/FileConfList.vue'));
 const MachineStats = defineAsyncComponent(() => import('./MachineStats.vue'));
@@ -131,7 +133,6 @@ import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import { TerminalStatus } from '@/components/terminal/common';
 
 const router = useRouter();
-const terminalDialogRef: any = ref(null);
 
 const perms = {
     addMachine: 'machine:add',
@@ -156,13 +157,10 @@ const state = reactive({
         name: null,
         tagPath: '',
     },
-    pageData: [] as any[],
     infoDialog: {
         visible: false,
         data: null as any,
     },
-    // 当前选中数据
-    selectionData: [],
     serviceDialog: {
         visible: false,
         machineId: 0,
@@ -189,7 +187,7 @@ const state = reactive({
         title: '',
     },
     activeTermName: '',
-    tabs: new Map(),
+    tabs: new Map<string, any>(),
 });
 
 const { infoDialog, serviceDialog, processDialog, fileDialog, machineStatsDialog, machineRecDialog } = toRefs(state);
@@ -204,17 +202,24 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
     const res = await search();
     // 把list 根据name字段排序
     res.list = res.list.sort((a: any, b: any) => a.name.localeCompare(b.name));
-    state.pageData = res.list;
-    return res.list.map((x: any) => new TagTreeNode(x.id, x.name, NodeTypeMachine(x)).withParams(x).withIsLeaf(true));
+    return res.list.map((x: any) =>
+        new TagTreeNode(x.id, x.name, NodeTypeMachine(x))
+            .withParams(x)
+            .withDisabled(x.status == -1)
+            .withIcon({
+                name: 'Monitor',
+                color: '#409eff',
+            })
+            .withIsLeaf(true)
+    );
 });
 
-let termIndex = 0;
 let openIds = {};
 
 const NodeTypeMachine = (machine: any) => {
     let contextMenuItems = [];
-    contextMenuItems.push(new ContextmenuItem('term', '打开终端').withIcon('Monitor').withOnClick(() => showTerminal(machine)));
-    contextMenuItems.push(new ContextmenuItem('term-ex', '打开终端(新窗口)').withIcon('Monitor').withOnClick(() => showTerminal(machine, true)));
+    contextMenuItems.push(new ContextmenuItem('term', '打开终端').withIcon('Monitor').withOnClick(() => openTerminal(machine)));
+    contextMenuItems.push(new ContextmenuItem('term-ex', '打开终端(新窗口)').withIcon('Monitor').withOnClick(() => openTerminal(machine, true)));
     contextMenuItems.push(new ContextmenuItem('detail', '详情').withIcon('More').withOnClick(() => showInfo(machine)));
     contextMenuItems.push(new ContextmenuItem('status', '状态').withIcon('Compass').withOnClick(() => showMachineStats(machine)));
     contextMenuItems.push(new ContextmenuItem('process', '进程').withIcon('DataLine').withOnClick(() => showProcess(machine)));
@@ -225,15 +230,22 @@ const NodeTypeMachine = (machine: any) => {
 
     contextMenuItems.push(new ContextmenuItem('files', '文件管理').withIcon('FolderOpened').withOnClick(() => showFileManage(machine)));
     contextMenuItems.push(new ContextmenuItem('scripts', '脚本管理').withIcon('Files').withOnClick(() => serviceManager(machine)));
-    return new NodeType(MachineNodeType.Machine).withContextMenuItems(contextMenuItems).withNodeClickFunc(() => {
-        state.pageData = [machine];
+    return new NodeType(MachineNodeType.Machine).withContextMenuItems(contextMenuItems).withNodeDblclickFunc(() => {
+        // for (let k of state.tabs.keys()) {
+        //     // 存在该机器相关的终端tab，则直接激活该tab
+        //     if (k.startsWith(`${machine.id}_${machine.username}_`)) {
+        //         state.activeTermName = k;
+        //         onTabChange();
+        //         return;
+        //     }
+        // }
 
-        showTerminal(machine);
+        openTerminal(machine);
     });
 };
 
-const showTerminal = (machine: any, ex?: boolean) => {
-    // 按住ctrl点击，则新建标签页打开, metaKey对应mac command键
+const openTerminal = (machine: any, ex?: boolean) => {
+    // 新窗口打开
     if (ex) {
         const { href } = router.resolve({
             path: `/machine/terminal`,
@@ -246,29 +258,21 @@ const showTerminal = (machine: any, ex?: boolean) => {
         return;
     }
 
-    let { name, id, username, ip, port } = machine;
+    let { name, id, username } = machine;
 
     // 同一个机器的终端打开多次，key后添加下划线和数字区分
     openIds[id] = openIds[id] ? ++openIds[id] : 1;
     let sameIndex = openIds[id];
 
-    const terminalId = Date.now();
-    let key = name + '_' + id + '_' + sameIndex + '_' + terminalId;
+    let key = `${id}_${username}_${sameIndex}`;
     // 只保留name的10个字，超出部分只保留前后4个字符，中间用省略号代替
     let label = name.length > 10 ? name.slice(0, 4) + '...' + name.slice(-4) : name;
 
     state.tabs.set(key, {
         key,
-        label: `${++termIndex}.${label}${sameIndex === 1 ? '' : ':' + sameIndex}`, // label组成为:总打开term次数+name+同一个机器打开的次数
+        label: `${label}${sameIndex === 1 ? '' : ':' + sameIndex}`, // label组成为:总打开term次数+name+同一个机器打开的次数
         params: machine,
-        terminalInfo: {
-            terminalId: terminalId,
-            status: TerminalStatus.NoConnected,
-            socketUrl: getMachineTerminalSocketUrl(id),
-            minTitle: `${name} [${(terminalId + '').slice(-2)}]`, // 截取terminalId最后两位区分多个terminal
-            minDesc: `${username}@${ip}:${port} (${name})`,
-            meta: machine,
-        },
+        socketUrl: getMachineTerminalSocketUrl(id),
     });
     state.activeTermName = key;
     fitTerminal();
@@ -291,7 +295,6 @@ const showMachineStats = async (machine: any) => {
 
 const search = async () => {
     const res = await machineApi.list.request(state.params);
-    state.pageData = res.list;
     return res;
 };
 
@@ -299,18 +302,6 @@ const showFileManage = (selectionData: any) => {
     state.fileDialog.visible = true;
     state.fileDialog.machineId = selectionData.id;
     state.fileDialog.title = `${selectionData.name} => ${selectionData.ip}`;
-};
-
-const getStatsFontClass = (available: number, total: number) => {
-    const p = available / total;
-    if (p < 0.1) {
-        return 'color-danger';
-    }
-    if (p < 0.2) {
-        return 'color-warning';
-    }
-
-    return 'color-success';
 };
 
 const showInfo = (info: any) => {
@@ -343,8 +334,11 @@ const onRemoveTab = (targetName: string) => {
         } else {
             activeTermName = '';
         }
-        // 关闭连接
-        machineApi.closeCli.request({ id: state.tabs.get(targetName).params.id });
+
+        let info = state.tabs.get(targetName);
+        if (info) {
+            terminalRefs[info.key]?.close();
+        }
 
         state.tabs.delete(targetName);
         state.activeTermName = activeTermName;
@@ -355,6 +349,7 @@ const onRemoveTab = (targetName: string) => {
 const terminalStatusChange = (key: string, status: TerminalStatus) => {
     state.tabs.get(key).status = status;
 };
+
 const terminalRefs: any = {};
 const setTerminalRef = (el: any, key: any) => {
     if (key) {
@@ -362,7 +357,7 @@ const setTerminalRef = (el: any, key: any) => {
     }
 };
 
-const onResizeTagTree = (a) => {
+const onResizeTagTree = () => {
     fitTerminal();
 };
 
@@ -375,8 +370,9 @@ const fitTerminal = () => {
         let info = state.tabs.get(state.activeTermName);
         if (info) {
             terminalRefs[info.key]?.resize();
+            terminalRefs[info.key]?.focus();
         }
-    }, 500);
+    }, 100);
 };
 
 const handleReconnect = (key: string) => {
@@ -386,7 +382,13 @@ const handleReconnect = (key: string) => {
 
 <style lang="scss">
 .machine-terminal-tabs {
+    height: calc(100vh - 108px);
     --el-tabs-header-height: 30px;
+
+    .el-tabs {
+        --el-tabs-header-height: 30px;
+    }
+
     .machine-terminal-tab-label {
         font-size: 12px;
     }
@@ -394,13 +396,7 @@ const handleReconnect = (key: string) => {
         margin-bottom: 5px;
     }
     .el-tabs__item {
-        padding: 0 5px !important;
-    }
-}
-
-.machine-terminal-tree {
-    .el-tree-node__content {
-        font-size: 12px;
+        padding: 0 8px !important;
     }
 }
 </style>

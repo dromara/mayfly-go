@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="machine-list">
         <page-table
             ref="pageTableRef"
             :page-api="machineApi.list"
@@ -25,7 +25,7 @@
                 <span v-if="!data.stat">-</span>
                 <div v-else>
                     <el-row>
-                        <el-text size="small" style="font-size: 10px">
+                        <el-text size="small" class="font11">
                             内存(可用/总):
                             <span :class="getStatsFontClass(data.stat.memAvailable, data.stat.memTotal)"
                                 >{{ formatByteSize(data.stat.memAvailable, 1) }}/{{ formatByteSize(data.stat.memTotal, 1) }}
@@ -33,7 +33,7 @@
                         </el-text>
                     </el-row>
                     <el-row>
-                        <el-text style="font-size: 10px" size="small">
+                        <el-text class="font11" size="small">
                             CPU(空闲): <span :class="getStatsFontClass(data.stat.cpuIdle, 100)">{{ data.stat.cpuIdle.toFixed(0) }}%</span>
                         </el-text>
                     </el-row>
@@ -44,7 +44,7 @@
                 <span v-if="!data.stat?.fsInfos">-</span>
                 <div v-else>
                     <el-row v-for="(i, idx) in data.stat.fsInfos.slice(0, 2)" :key="i.mountPoint">
-                        <el-text style="font-size: 10px" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
+                        <el-text class="font11" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
                             {{ i.mountPoint }} => {{ formatByteSize(i.free, 0) }}/{{ formatByteSize(i.used + i.free, 0) }}
                         </el-text>
 
@@ -55,7 +55,7 @@
                             </template>
 
                             <el-row v-for="i in data.stat.fsInfos.slice(2)" :key="i.mountPoint">
-                                <el-text style="font-size: 10px" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
+                                <el-text class="font11" size="small" :class="getStatsFontClass(i.free, i.used + i.free)">
                                     {{ i.mountPoint }} => {{ formatByteSize(i.free, 0) }}/{{ formatByteSize(i.used + i.free, 0) }}
                                 </el-text>
                             </el-row>
@@ -464,7 +464,7 @@ const showRec = (row: any) => {
 </script>
 
 <style>
-.el-dialog__body {
+.machine-list .el-dialog {
     padding: 2px 2px;
 }
 

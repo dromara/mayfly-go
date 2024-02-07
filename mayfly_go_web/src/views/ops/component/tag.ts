@@ -29,6 +29,11 @@ export class TagTreeNode {
     isLeaf: boolean = false;
 
     /**
+     * 是否禁用状态
+     */
+    disabled: boolean = false;
+
+    /**
      * 额外需要传递的参数
      */
     params: any;
@@ -50,6 +55,11 @@ export class TagTreeNode {
 
     withIsLeaf(isLeaf: boolean) {
         this.isLeaf = isLeaf;
+        return this;
+    }
+
+    withDisabled(disabled: boolean) {
+        this.disabled = disabled;
         return this;
     }
 
@@ -91,7 +101,13 @@ export class NodeType {
 
     loadNodesFunc: (parentNode: TagTreeNode) => Promise<TagTreeNode[]>;
 
+    /**
+     * 节点点击事件
+     */
     nodeClickFunc: (node: TagTreeNode) => void;
+
+    // 节点双击事件
+    nodeDblclickFunc: (node: TagTreeNode) => void;
 
     constructor(value: number) {
         this.value = value;
@@ -114,6 +130,16 @@ export class NodeType {
      */
     withNodeClickFunc(func: (node: TagTreeNode) => void) {
         this.nodeClickFunc = func;
+        return this;
+    }
+
+    /**
+     * 赋值节点双击事件回调函数
+     * @param func 节点双击事件回调函数
+     * @returns this
+     */
+    withNodeDblclickFunc(func: (node: TagTreeNode) => void) {
+        this.nodeDblclickFunc = func;
         return this;
     }
 

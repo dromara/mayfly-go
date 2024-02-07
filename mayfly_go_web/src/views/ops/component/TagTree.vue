@@ -17,7 +17,7 @@
                 @node-contextmenu="nodeContextmenu"
             >
                 <template #default="{ node, data }">
-                    <span>
+                    <span @dblclick="treeNodeDblclick(data)">
                         <span v-if="data.type.value == TagTreeNode.TagPath">
                             <tag-info :tag-path="data.label" />
                         </span>
@@ -25,7 +25,13 @@
                         <slot v-else :node="node" :data="data" name="prefix"></slot>
 
                         <span class="ml3" :title="data.labelRemark">
-                            <slot name="label" :data="data"> {{ data.label }}</slot>
+                            <slot name="label" :data="data" v-if="!data.disabled"> {{ data.label }}</slot>
+                            <!-- 禁用状态 -->
+                            <slot name="disabledLabel" :data="data" v-else>
+                                <el-link type="danger" disabled :underline="false">
+                                    {{ `${data.label}` }}
+                                </el-link>
+                            </slot>
                         </span>
 
                         <slot :node="node" :data="data" name="suffix"></slot>
@@ -135,8 +141,18 @@ const loadNode = async (node: any, resolve: any) => {
 
 const treeNodeClick = (data: any) => {
     emit('nodeClick', data);
-    if (data.type.nodeClickFunc) {
+    if (!data.disabled && !data.type.nodeDblclickFunc && data.type.nodeClickFunc) {
         data.type.nodeClickFunc(data);
+    }
+    // 关闭可能存在的右击菜单
+    contextmenuRef.value.closeContextmenu();
+};
+
+// 树节点双击事件
+const treeNodeDblclick = (data: any) => {
+    // emit('nodeDblick', data);
+    if (!data.disabled && data.type.nodeDblclickFunc) {
+        data.type.nodeDblclickFunc(data);
     }
     // 关闭可能存在的右击菜单
     contextmenuRef.value.closeContextmenu();
@@ -144,6 +160,10 @@ const treeNodeClick = (data: any) => {
 
 // 树节点右击事件
 const nodeContextmenu = (event: any, data: any) => {
+    if (data.disabled) {
+        return;
+    }
+
     // 加载当前节点是否需要显示右击菜单
     let items = data.type.contextMenuItems;
     if (!items || items.length == 0) {

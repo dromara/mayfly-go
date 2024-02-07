@@ -163,7 +163,7 @@ const fitTerminal = () => {
 };
 
 const focus = () => {
-    setTimeout(() => term.focus(), 400);
+    setTimeout(() => term.focus(), 100);
 };
 
 const clear = () => {

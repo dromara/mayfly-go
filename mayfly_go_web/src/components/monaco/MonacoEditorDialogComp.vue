@@ -119,8 +119,8 @@ const open = (optionProps: MonacoEditorDialogProps) => {
     }
 
     setTimeout(() => {
-        editorRef.value?.format();
         editorRef.value?.focus();
+        editorRef.value?.format();
     }, 300);
 
     state.dialogVisible = true;
