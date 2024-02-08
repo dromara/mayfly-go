@@ -231,8 +231,8 @@ const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Machine.value), Se
 const columns = [
     TableColumn.new('name', '名称'),
     TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
-    TableColumn.new('stat', '运行状态').isSlot().setAddWidth(50),
-    TableColumn.new('fs', '磁盘(挂载点=>可用/总)').isSlot().setAddWidth(20),
+    TableColumn.new('stat', '运行状态').isSlot().setAddWidth(55),
+    TableColumn.new('fs', '磁盘(挂载点=>可用/总)').isSlot().setAddWidth(25),
     TableColumn.new('username', '用户名'),
     TableColumn.new('status', '状态').isSlot().setMinWidth(85),
     TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
@@ -464,10 +464,6 @@ const showRec = (row: any) => {
 </script>
 
 <style>
-.machine-list .el-dialog {
-    padding: 2px 2px;
-}
-
 .el-dropdown-link-machine-list {
     cursor: pointer;
     color: var(--el-color-primary);

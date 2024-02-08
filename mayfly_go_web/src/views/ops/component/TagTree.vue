@@ -17,7 +17,7 @@
                 @node-contextmenu="nodeContextmenu"
             >
                 <template #default="{ node, data }">
-                    <span @dblclick="treeNodeDblclick(data)">
+                    <span @dblclick="treeNodeDblclick(data)" :class="data.type.nodeDblclickFunc ? 'none-select' : ''">
                         <span v-if="data.type.value == TagTreeNode.TagPath">
                             <tag-info :tag-path="data.label" />
                         </span>

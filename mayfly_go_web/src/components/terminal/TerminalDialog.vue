@@ -259,6 +259,10 @@ defineExpose({
         padding: 10px;
     }
 
+    .el-dialog {
+        padding: 1px 1px;
+    }
+
     // 取消body最大高度，否则全屏有问题
     .el-dialog__body {
         max-height: 100% !important;
