@@ -106,7 +106,6 @@ function init() {
     const fitAddon = new FitAddon();
     state.addon.fit = fitAddon;
     term.loadAddon(fitAddon);
-    resize();
 
     // 注册搜索组件
     const searchAddon = new SearchAddon();
@@ -118,6 +117,7 @@ function init() {
     state.addon.weblinks = weblinks;
     term.loadAddon(weblinks);
 
+    fitTerminal();
     // 初始化websocket
     initSocket();
 }
@@ -159,7 +159,15 @@ const onConnected = () => {
 
 // 自适应终端
 const fitTerminal = () => {
-    resize();
+    // 获取建议的宽度和高度
+    const dimensions = state.addon.fit?.proposeDimensions();
+    if (!dimensions) {
+        return;
+    }
+    if (dimensions?.cols && dimensions?.rows) {
+        // 调整终端的列数和行数
+        term.resize(dimensions.cols, dimensions.rows);
+    }
 };
 
 const focus = () => {

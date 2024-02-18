@@ -30,14 +30,14 @@ require (
 	github.com/sijms/go-ora/v2 v2.8.7
 	github.com/stretchr/testify v1.8.4
 	go.mongodb.org/mongo-driver v1.13.1 // mongo
-	golang.org/x/crypto v0.18.0 // ssh
+	golang.org/x/crypto v0.19.0 // ssh
 	golang.org/x/oauth2 v0.15.0
 	golang.org/x/sync v0.6.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
-	gorm.io/driver/mysql v1.5.2
-	gorm.io/gorm v1.25.6
+	gorm.io/driver/mysql v1.5.4
+	gorm.io/gorm v1.25.7
 )
 
 require (
@@ -87,7 +87,7 @@ require (
 	golang.org/x/exp v0.0.0-20230519143937-03e91628a987 // indirect
 	golang.org/x/image v0.13.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230131230820-1c016267d619 // indirect
