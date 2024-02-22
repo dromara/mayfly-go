@@ -25,7 +25,6 @@
             <template #action="{ data }">
                 <el-button @click="showInfo(data)" link>详情</el-button>
                 <el-button v-if="actionBtns[perms.saveInstance]" @click="editInstance(data)" type="primary" link>编辑</el-button>
-                <el-button v-if="actionBtns[perms.delInstance]" @click="deleteInstance(data)" type="primary" link>删除</el-button>
             </template>
         </page-table>
 
@@ -151,26 +150,14 @@ const editInstance = async (data: any) => {
     state.instanceEditDialog.visible = true;
 };
 
-const deleteInstance = async (data: any) => {
+const deleteInstance = async () => {
     try {
-        let instanceName: string;
-        if (data) {
-            instanceName = data.name;
-        } else {
-            instanceName = state.selectionData.map((x: any) => x.name).join(', ');
-        }
-        await ElMessageBox.confirm(`确定删除数据库实例【${instanceName}】?`, '提示', {
+        await ElMessageBox.confirm(`确定删除数据库实例【${state.selectionData.map((x: any) => x.name).join(', ')}】?`, '提示', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
             type: 'warning',
         });
-        let instanceId: string;
-        if (data) {
-            instanceId = data.id;
-        } else {
-            instanceId = state.selectionData.map((x: any) => x.id).join(',');
-        }
-        await dbApi.deleteInstance.request({ id: instanceId });
+        await dbApi.deleteInstance.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
         ElMessage.success('删除成功');
         search();
     } catch (err) {

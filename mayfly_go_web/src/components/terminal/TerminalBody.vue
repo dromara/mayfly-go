@@ -117,9 +117,11 @@ function init() {
     state.addon.weblinks = weblinks;
     term.loadAddon(weblinks);
 
-    fitTerminal();
-    // 初始化websocket
-    initSocket();
+    setTimeout(() => {
+        fitTerminal();
+        // 初始化websocket
+        initSocket();
+    }, 100);
 }
 
 /**

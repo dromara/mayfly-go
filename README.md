@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/docker/pulls/mayflygo/mayfly-go.svg?label=docker%20pulls&color=fac858" alt="docker pulls"/>
   </a>
   <a href="https://github.com/golang/go" target="_blank">
-    <img src="https://img.shields.io/badge/Golang-1.21%2B-yellow.svg" alt="golang"/>
+    <img src="https://img.shields.io/badge/Golang-1.22%2B-yellow.svg" alt="golang"/>
   </a>
   <a href="https://cn.vuejs.org" target="_blank">
     <img src="https://img.shields.io/badge/Vue-3.x-green.svg" alt="vue">
