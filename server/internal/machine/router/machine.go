@@ -39,8 +39,6 @@ func InitMachineRouter(router *gin.RouterGroup) {
 
 			req.NewDelete(":machineId", m.DeleteMachine).Log(req.NewLogSave("删除机器")),
 
-			req.NewDelete(":machineId/close-cli", m.CloseCli).Log(req.NewLogSave("关闭机器客户端")).RequiredPermissionCode("machine:close-cli"),
-
 			// 获取机器终端回放记录列表,目前具有保存机器信息的权限标识才有权限查看终端回放
 			req.NewGet(":machineId/term-recs", m.MachineTermOpRecords).RequiredPermission(saveMachineP),
 

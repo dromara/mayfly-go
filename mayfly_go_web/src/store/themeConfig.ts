@@ -114,6 +114,7 @@ export const useThemeConfig = defineStore('themeConfig', {
             // 默认布局，可选 1、默认 defaults 2、经典 classic 3、横向 transverse 4、分栏 columns
             layout: 'classic',
 
+            terminalTheme: 'solarizedLight',
             // ssh终端字体颜色
             terminalForeground: '#C5C8C6',
             // ssh终端背景色
@@ -191,6 +192,24 @@ export const useThemeConfig = defineStore('themeConfig', {
         // 设置水印时间为当前时间
         setWatermarkNowTime() {
             this.themeConfig.watermarkText[1] = dateFormat2('yyyy-MM-dd HH:mm:ss', new Date());
+        },
+        // 切换暗黑模式
+        switchDark(isDark: boolean) {
+            this.themeConfig.isDark = isDark;
+            // 切换编辑器主题
+            if (isDark) {
+                this.themeConfig.editorTheme = 'vs-dark';
+            } else {
+                this.themeConfig.editorTheme = 'vs';
+            }
+            // 如果终端主题不是自定义主题，则切换主题
+            if (this.themeConfig.terminalTheme != 'custom') {
+                if (isDark) {
+                    this.themeConfig.terminalTheme = 'dark';
+                } else {
+                    this.themeConfig.terminalTheme = 'solarizedLight';
+                }
+            }
         },
     },
 });

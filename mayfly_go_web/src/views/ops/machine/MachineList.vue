@@ -118,14 +118,6 @@
                             <el-dropdown-item :command="{ type: 'terminalRec', data }" v-if="actionBtns[perms.updateMachine] && data.enableRecorder == 1">
                                 终端回放
                             </el-dropdown-item>
-
-                            <el-dropdown-item
-                                :command="{ type: 'closeCli', data }"
-                                v-if="actionBtns[perms.closeCli]"
-                                :disabled="!data.hasCli || data.status == -1"
-                            >
-                                关闭连接
-                            </el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
                 </el-dropdown>
@@ -223,7 +215,6 @@ const perms = {
     updateMachine: 'machine:update',
     delMachine: 'machine:del',
     terminal: 'machine:terminal',
-    closeCli: 'machine:close-cli',
 };
 
 const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Machine.value), SearchItem.input('ip', 'IP'), SearchItem.input('name', '名称')];
@@ -241,7 +232,7 @@ const columns = [
 ];
 
 // 该用户拥有的的操作列按钮权限，使用v-if进行判断，v-auth对el-dropdown-item无效
-const actionBtns = hasPerms([perms.updateMachine, perms.closeCli]);
+const actionBtns = hasPerms([perms.updateMachine]);
 
 const state = reactive({
     params: {
@@ -320,10 +311,6 @@ const handleCommand = (commond: any) => {
             showRec(data);
             return;
         }
-        case 'closeCli': {
-            closeCli(data);
-            return;
-        }
     }
 };
 
@@ -349,17 +336,6 @@ const showTerminal = (row: any, event: PointerEvent) => {
         minDesc: `${row.username}@${row.ip}:${row.port} (${row.name})`,
         meta: row,
     });
-};
-
-const closeCli = async (row: any) => {
-    await ElMessageBox.confirm(`确定关闭该机器客户端连接?`, '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-    });
-    await machineApi.closeCli.request({ id: row.id });
-    ElMessage.success('关闭成功');
-    search();
 };
 
 const openFormDialog = async (machine: any) => {

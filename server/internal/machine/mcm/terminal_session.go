@@ -2,9 +2,11 @@ package mcm
 
 import (
 	"context"
-	"encoding/json"
 	"io"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/conv"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -15,6 +17,8 @@ const (
 	Resize = 1
 	Data   = 2
 	Ping   = 3
+
+	MsgSplit = "|"
 )
 
 type TerminalSession struct {
@@ -58,6 +62,9 @@ func NewTerminalSession(sessionId string, ws *websocket.Conn, cli *Cli, rows, co
 		dataChan: make(chan rune),
 		tick:     tick,
 	}
+
+	// 清除终端内容
+	WriteMessage(ws, "\033[2J\033[3J\033[1;1H")
 	return ts, nil
 }
 
@@ -155,10 +162,13 @@ func (ts *TerminalSession) receiveWsMsg() {
 				return
 			}
 			// 解析消息
-			msgObj := WsMsg{}
-			if err := json.Unmarshal(wsData, &msgObj); err != nil {
+			msgObj, err := parseMsg(wsData)
+			if err != nil {
+				WriteMessage(wsConn, "\r\n\033[1;31m提示: 消息内容解析失败...\033[0m")
 				logx.Error("机器ssh终端消息解析失败: ", err)
+				return
 			}
+
 			switch msgObj.Type {
 			case Resize:
 				if msgObj.Cols > 0 && msgObj.Rows > 0 {
@@ -184,4 +194,28 @@ func (ts *TerminalSession) receiveWsMsg() {
 
 func WriteMessage(ws *websocket.Conn, msg string) error {
 	return ws.WriteMessage(websocket.TextMessage, []byte(msg))
+}
+
+// 解析消息
+func parseMsg(msg []byte) (*WsMsg, error) {
+	// 消息格式为 msgType|msgContent， 如果msgType为resize则为msgType|rows|cols
+	msgStr := string(msg)
+	// 查找第一个 "|" 的位置
+	index := strings.Index(msgStr, MsgSplit)
+	if index == -1 {
+		return nil, errorx.NewBiz("消息内容不符合指定规则")
+	}
+
+	// 获取消息类型, 提取第一个 "|" 之前的内容
+	msgType := conv.Str2Int(msgStr[:index], Ping)
+	// 其余内容则为消息内容
+	msgContent := msgStr[index+1:]
+
+	wsMsg := &WsMsg{Type: msgType, Msg: msgContent}
+	if msgType == Resize {
+		rowsAndCols := strings.Split(msgContent, MsgSplit)
+		wsMsg.Rows = conv.Str2Int(rowsAndCols[0], 80)
+		wsMsg.Cols = conv.Str2Int(rowsAndCols[1], 80)
+	}
+	return wsMsg, nil
 }

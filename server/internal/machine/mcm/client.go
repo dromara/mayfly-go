@@ -1,7 +1,6 @@
 package mcm
 
 import (
-	"fmt"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"strings"
@@ -44,10 +43,8 @@ func (c *Cli) GetSession() (*ssh.Session, error) {
 	}
 	session, err := c.sshClient.NewSession()
 	if err != nil {
-		// 获取session失败，则关闭cli，重试
-		DeleteCli(c.Info.Id)
 		logx.Errorf("获取机器客户端session失败: %s", err.Error())
-		return nil, errorx.NewBiz("获取会话失败, 请重试...")
+		return nil, errorx.NewBiz("获取会话失败, 请稍后重试...")
 	}
 	return session, nil
 }
@@ -95,7 +92,7 @@ func (c *Cli) GetAllStats() *Stats {
 // 关闭client并从缓存中移除，如果使用隧道则也关闭
 func (c *Cli) Close() {
 	m := c.Info
-	logx.Info(fmt.Sprintf("关闭机器客户端连接-> id: %d, name: %s, ip: %s", m.Id, m.Name, m.Ip))
+	logx.Debugf("close machine cli -> id=%d, name=%s, ip=%s", m.Id, m.Name, m.Ip)
 	if c.sshClient != nil {
 		c.sshClient.Close()
 		c.sshClient = nil
@@ -106,14 +103,14 @@ func (c *Cli) Close() {
 	}
 
 	var sshTunnelMachineId uint64
-	if c.Info.SshTunnelMachine != nil {
-		sshTunnelMachineId = c.Info.SshTunnelMachine.Id
+	if m.SshTunnelMachine != nil {
+		sshTunnelMachineId = m.SshTunnelMachine.Id
 	}
-	if c.Info.TempSshMachineId != 0 {
-		sshTunnelMachineId = c.Info.TempSshMachineId
+	if m.TempSshMachineId != 0 {
+		sshTunnelMachineId = m.TempSshMachineId
 	}
 	if sshTunnelMachineId != 0 {
-		logx.Infof("关闭机器的隧道信息: machineId=%d, sshTunnelMachineId=%d", c.Info.Id, sshTunnelMachineId)
-		CloseSshTunnelMachine(int(c.Info.SshTunnelMachine.Id), c.Info.GetTunnelId())
+		logx.Debugf("close machine ssh tunnel -> machineId=%d, sshTunnelMachineId=%d", m.Id, sshTunnelMachineId)
+		CloseSshTunnelMachine(int(sshTunnelMachineId), m.GetTunnelId())
 	}
 }

@@ -103,8 +103,8 @@ const playRec = async (rec: any) => {
                 idleTimeLimit: 2,
                 // fit: false,
                 // terminalFontSize: 'small',
-                // cols: 100,
-                // rows: 33,
+                cols: 144,
+                rows: 32,
             });
         });
     } finally {

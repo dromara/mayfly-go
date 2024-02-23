@@ -174,12 +174,7 @@ watch(preDark, (newValue) => {
 });
 
 const switchDark = () => {
-    themeConfig.value.isDark = isDark.value;
-    if (isDark.value) {
-        themeConfig.value.editorTheme = 'vs-dark';
-    } else {
-        themeConfig.value.editorTheme = 'vs';
-    }
+    themeConfigStore.switchDark(isDark.value);
     saveThemeConfig(themeConfig.value);
 };
 

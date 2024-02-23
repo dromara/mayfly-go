@@ -52,6 +52,7 @@ declare interface ThemeConfigState {
         logoIcon: string;
         globalI18n: string;
         globalComponentSize: string;
+        terminalTheme: string;
         terminalForeground: string;
         terminalBackground: string;
         terminalCursor: string;

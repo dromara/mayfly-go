@@ -220,16 +220,15 @@ const NodeTypeMachine = (machine: any) => {
     let contextMenuItems = [];
     contextMenuItems.push(new ContextmenuItem('term', '打开终端').withIcon('Monitor').withOnClick(() => openTerminal(machine)));
     contextMenuItems.push(new ContextmenuItem('term-ex', '打开终端(新窗口)').withIcon('Monitor').withOnClick(() => openTerminal(machine, true)));
+    contextMenuItems.push(new ContextmenuItem('files', '文件管理').withIcon('FolderOpened').withOnClick(() => showFileManage(machine)));
+    contextMenuItems.push(new ContextmenuItem('scripts', '脚本管理').withIcon('Files').withOnClick(() => serviceManager(machine)));
     contextMenuItems.push(new ContextmenuItem('detail', '详情').withIcon('More').withOnClick(() => showInfo(machine)));
     contextMenuItems.push(new ContextmenuItem('status', '状态').withIcon('Compass').withOnClick(() => showMachineStats(machine)));
     contextMenuItems.push(new ContextmenuItem('process', '进程').withIcon('DataLine').withOnClick(() => showProcess(machine)));
-
     if (actionBtns[perms.updateMachine] && machine.enableRecorder == 1) {
         contextMenuItems.push(new ContextmenuItem('edit', '终端回放').withIcon('Compass').withOnClick(() => showRec(machine)));
     }
 
-    contextMenuItems.push(new ContextmenuItem('files', '文件管理').withIcon('FolderOpened').withOnClick(() => showFileManage(machine)));
-    contextMenuItems.push(new ContextmenuItem('scripts', '脚本管理').withIcon('Files').withOnClick(() => serviceManager(machine)));
     return new NodeType(MachineNodeType.Machine).withContextMenuItems(contextMenuItems).withNodeDblclickFunc(() => {
         // for (let k of state.tabs.keys()) {
         //     // 存在该机器相关的终端tab，则直接激活该tab
@@ -369,7 +368,7 @@ const fitTerminal = () => {
     setTimeout(() => {
         let info = state.tabs.get(state.activeTermName);
         if (info) {
-            terminalRefs[info.key]?.resize();
+            terminalRefs[info.key]?.fitTerminal();
             terminalRefs[info.key]?.focus();
         }
     }, 100);

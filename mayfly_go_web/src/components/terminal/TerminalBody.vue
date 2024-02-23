@@ -8,7 +8,7 @@
 
 <script lang="ts" setup>
 import 'xterm/css/xterm.css';
-import { ITheme, Terminal } from 'xterm';
+import { Terminal, ITheme } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { SearchAddon } from 'xterm-addon-search';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -20,6 +20,7 @@ import TerminalSearch from './TerminalSearch.vue';
 import { debounce } from 'lodash';
 import { TerminalStatus } from './common';
 import { useEventListener } from '@vueuse/core';
+import themes from './themes';
 
 const props = defineProps({
     /**
@@ -76,6 +77,14 @@ watch(
     }
 );
 
+// 监听 themeConfig terminalTheme配置的变化
+watch(
+    () => themeConfig.value.terminalTheme,
+    () => {
+        term.options.theme = getTerminalTheme();
+    }
+);
+
 onBeforeUnmount(() => {
     close();
 });
@@ -93,43 +102,10 @@ function init() {
         disableStdin: false,
         allowProposedApi: true,
         fastScrollModifier: 'ctrl',
-        theme: {
-            foreground: themeConfig.value.terminalForeground || '#7e9192', //字体
-            background: themeConfig.value.terminalBackground || '#002833', //背景色
-            cursor: themeConfig.value.terminalCursor || '#268F81', //设置光标
-            // cursorAccent: "red",  // 光标停止颜色
-        } as ITheme,
+        theme: getTerminalTheme(),
     });
+
     term.open(terminalRef.value);
-
-    // 注册自适应组件
-    const fitAddon = new FitAddon();
-    state.addon.fit = fitAddon;
-    term.loadAddon(fitAddon);
-
-    // 注册搜索组件
-    const searchAddon = new SearchAddon();
-    state.addon.search = searchAddon;
-    term.loadAddon(searchAddon);
-
-    // 注册 url link组件
-    const weblinks = new WebLinksAddon();
-    state.addon.weblinks = weblinks;
-    term.loadAddon(weblinks);
-
-    setTimeout(() => {
-        fitTerminal();
-        // 初始化websocket
-        initSocket();
-    }, 100);
-}
-
-/**
- * 连接成功
- */
-const onConnected = () => {
-    // 注册心跳
-    pingInterval = setInterval(sendPing, 15000);
 
     // 注册 terminal 事件
     term.onResize((event) => sendResize(event.cols, event.rows));
@@ -146,51 +122,45 @@ const onConnected = () => {
         return true;
     });
 
-    state.status = TerminalStatus.Connected;
+    // 注册自适应组件
+    const fitAddon = new FitAddon();
+    state.addon.fit = fitAddon;
+    term.loadAddon(fitAddon);
 
-    // 注册窗口大小监听器
-    useEventListener('resize', debounce(resize, 400));
+    // 注册搜索组件
+    const searchAddon = new SearchAddon();
+    state.addon.search = searchAddon;
+    term.loadAddon(searchAddon);
 
-    focus();
+    // 注册 url link组件
+    const weblinks = new WebLinksAddon();
+    state.addon.weblinks = weblinks;
+    term.loadAddon(weblinks);
 
-    // 如果有初始要执行的命令，则发送执行命令
-    if (props.cmd) {
-        sendCmd(props.cmd + ' \r');
-    }
-};
-
-// 自适应终端
-const fitTerminal = () => {
-    // 获取建议的宽度和高度
-    const dimensions = state.addon.fit?.proposeDimensions();
-    if (!dimensions) {
-        return;
-    }
-    if (dimensions?.cols && dimensions?.rows) {
-        // 调整终端的列数和行数
-        term.resize(dimensions.cols, dimensions.rows);
-    }
-};
-
-const focus = () => {
-    setTimeout(() => term.focus(), 100);
-};
-
-const clear = () => {
-    term.clear();
-    term.clearSelection();
-    term.focus();
-};
+    initSocket();
+}
 
 function initSocket() {
     if (props.socketUrl) {
-        let socketUrl = `${props.socketUrl}&rows=${term?.rows}&cols=${term?.cols}`;
-        socket = new WebSocket(socketUrl);
+        socket = new WebSocket(`${props.socketUrl}`);
     }
 
     // 监听socket连接
     socket.onopen = () => {
-        onConnected();
+        // 注册心跳
+        pingInterval = setInterval(sendPing, 15000);
+        state.status = TerminalStatus.Connected;
+
+        // // 注册窗口大小监听器
+        useEventListener('resize', debounce(fitTerminal, 400));
+        focus();
+        fitTerminal();
+        sendResize(term.cols, term.rows);
+
+        // 如果有初始要执行的命令，则发送执行命令
+        if (props.cmd) {
+            sendCmd(props.cmd + ' \r');
+        }
     };
 
     // 监听socket错误信息
@@ -202,19 +172,46 @@ function initSocket() {
 
     socket.onclose = (e: CloseEvent) => {
         console.log('terminal socket close...', e.reason);
-        // 清除 ping
-        pingInterval && clearInterval(pingInterval);
         state.status = TerminalStatus.Disconnected;
     };
 
     // 监听socket消息
-    socket.onmessage = getMessage;
+    socket.onmessage = (msg: any) => {
+        // msg.data是真正后端返回的数据
+        term.write(msg.data);
+    };
 }
 
-function getMessage(msg: any) {
-    // msg.data是真正后端返回的数据
-    term.write(msg.data);
-}
+const getTerminalTheme = () => {
+    const terminalTheme = themeConfig.value.terminalTheme;
+    // 如果不是自定义主题，则返回内置主题
+    if (terminalTheme != 'custom') {
+        return themes[terminalTheme];
+    }
+
+    // 自定义主题
+    return {
+        foreground: themeConfig.value.terminalForeground || '#7e9192', //字体
+        background: themeConfig.value.terminalBackground || '#002833', //背景色
+        cursor: themeConfig.value.terminalCursor || '#268F81', //设置光标
+        // cursorAccent: "red",  // 光标停止颜色
+    } as ITheme;
+};
+
+// 自适应终端
+const fitTerminal = () => {
+    state.addon.fit.fit();
+};
+
+const focus = () => {
+    setTimeout(() => term.focus(), 300);
+};
+
+const clear = () => {
+    term.clear();
+    term.clearSelection();
+    term.focus();
+};
 
 enum MsgType {
     Resize = 1,
@@ -223,29 +220,19 @@ enum MsgType {
 }
 
 const send = (msg: any) => {
-    state.status == TerminalStatus.Connected && socket.send(JSON.stringify(msg));
+    state.status == TerminalStatus.Connected && socket.send(msg);
 };
 
 const sendResize = (cols: number, rows: number) => {
-    send({
-        type: MsgType.Resize,
-        Cols: cols,
-        Rows: rows,
-    });
+    send(`${MsgType.Resize}|${rows}|${cols}`);
 };
 
 const sendPing = () => {
-    send({
-        type: MsgType.Ping,
-        msg: 'ping',
-    });
+    send(`${MsgType.Ping}|ping`);
 };
 
 function sendCmd(key: any) {
-    send({
-        type: MsgType.Data,
-        msg: key,
-    });
+    send(`${MsgType.Data}|${key}`);
 }
 
 function closeSocket() {
@@ -270,13 +257,7 @@ const getStatus = (): TerminalStatus => {
     return state.status;
 };
 
-const resize = () => {
-    nextTick(() => {
-        state.addon.fit.fit();
-    });
-};
-
-defineExpose({ init, fitTerminal, focus, clear, close, getStatus, sendResize, resize });
+defineExpose({ init, fitTerminal, focus, clear, close, getStatus, sendResize });
 </script>
 <style lang="scss">
 #terminal-body {

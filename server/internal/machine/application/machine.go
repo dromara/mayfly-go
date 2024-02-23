@@ -36,7 +36,10 @@ type Machine interface {
 	// 分页获取机器信息列表
 	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]*vo.MachineVO, orderBy ...string) (*model.PageResult[*[]*vo.MachineVO], error)
 
-	// 获取机器连接
+	// 新建机器客户端连接（需手动调用Close）
+	NewCli(id uint64) (*mcm.Cli, error)
+
+	// 获取已缓存的机器连接，若不存在则新建客户端连接并缓存，主要用于定时获取状态等（避免频繁创建连接）
 	GetCli(id uint64) (*mcm.Cli, error)
 
 	// 获取ssh隧道机器连接
@@ -156,6 +159,14 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 			var tagIds []uint64
 			return m.tagApp.RelateResource(ctx, machine.Code, consts.TagResourceTypeMachine, tagIds)
 		})
+}
+
+func (m *machineAppImpl) NewCli(machineId uint64) (*mcm.Cli, error) {
+	if mi, err := m.toMachineInfoById(machineId); err != nil {
+		return nil, err
+	} else {
+		return mi.Conn()
+	}
 }
 
 func (m *machineAppImpl) GetCli(machineId uint64) (*mcm.Cli, error) {

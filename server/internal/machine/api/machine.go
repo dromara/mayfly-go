@@ -9,7 +9,6 @@ import (
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
-	"mayfly-go/internal/machine/mcm"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
@@ -53,7 +52,6 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	}
 
 	for _, mv := range *res.List {
-		mv.HasCli = mcm.HasCli(mv.Id)
 		if machineStats, err := m.MachineApp.GetMachineStats(mv.Id); err == nil {
 			mv.Stat = collx.M{
 				"cpuIdle":      machineStats.CPU.Idle,
@@ -109,11 +107,6 @@ func (m *Machine) DeleteMachine(rc *req.Ctx) {
 	}
 }
 
-// 关闭机器客户端
-func (m *Machine) CloseCli(rc *req.Ctx) {
-	mcm.DeleteCli(GetMachineId(rc.GinCtx))
-}
-
 // 获取进程列表信息
 func (m *Machine) GetProcess(rc *req.Ctx) {
 	g := rc.GinCtx
@@ -165,20 +158,22 @@ func (m *Machine) WsSSH(g *gin.Context) {
 			wsConn.Close()
 		}
 	}()
-
 	biz.ErrIsNilAppendErr(err, "升级websocket失败: %s")
+	wsConn.WriteMessage(websocket.TextMessage, []byte("Connecting to host..."))
+
 	// 权限校验
 	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
 	if err = req.PermissionHandler(rc); err != nil {
 		panic(errorx.NewBiz("\033[1;31m您没有权限操作该机器终端,请重新登录后再试~\033[0m"))
 	}
 
-	cli, err := m.MachineApp.GetCli(GetMachineId(g))
+	cli, err := m.MachineApp.NewCli(GetMachineId(g))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
+	defer cli.Close()
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), "%s")
 
 	cols := ginx.QueryInt(g, "cols", 80)
-	rows := ginx.QueryInt(g, "rows", 40)
+	rows := ginx.QueryInt(g, "rows", 32)
 
 	// 记录系统操作日志
 	rc.WithLog(req.NewLogSave("机器-终端操作"))

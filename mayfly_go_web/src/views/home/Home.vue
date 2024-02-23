@@ -109,7 +109,7 @@ const toPage = (item: any) => {
             break;
         }
         case 'machineNum': {
-            router.push('/machine/machines');
+            router.push('/machine/machines-op');
             break;
         }
         case 'dbNum': {

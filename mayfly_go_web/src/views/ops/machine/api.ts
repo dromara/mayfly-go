@@ -12,7 +12,6 @@ export const machineApi = {
     process: Api.newGet('/machines/{id}/process'),
     // 终止进程
     killProcess: Api.newDelete('/machines/{id}/process'),
-    closeCli: Api.newDelete('/machines/{id}/close-cli'),
     testConn: Api.newPost('/machines/test-conn'),
     // 保存按钮
     saveMachine: Api.newPost('/machines'),

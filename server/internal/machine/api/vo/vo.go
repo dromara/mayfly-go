@@ -32,8 +32,7 @@ type MachineVO struct {
 	// TagId              uint64     `json:"tagId"`
 	// TagPath            string     `json:"tagPath"`
 
-	HasCli bool           `json:"hasCli" gorm:"-"`
-	Stat   map[string]any `json:"stat" gorm:"-"`
+	Stat map[string]any `json:"stat" gorm:"-"`
 }
 
 type MachineScriptVO struct {
