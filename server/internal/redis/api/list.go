@@ -4,7 +4,6 @@ import (
 	"context"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 )
@@ -17,9 +16,8 @@ func (r *Redis) GetListValue(rc *req.Ctx) {
 	len, err := cmdable.LLen(ctx, key).Result()
 	biz.ErrIsNilAppendErr(err, "获取list长度失败: %s")
 
-	g := rc.GinCtx
-	start := ginx.QueryInt(g, "start", 0)
-	stop := ginx.QueryInt(g, "stop", 10)
+	start := rc.F.QueryIntDefault("start", 0)
+	stop := rc.F.QueryIntDefault("stop", 10)
 	res, err := cmdable.LRange(ctx, key, int64(start), int64(stop)).Result()
 	biz.ErrIsNilAppendErr(err, "获取list值失败: %s")
 
@@ -30,9 +28,7 @@ func (r *Redis) GetListValue(rc *req.Ctx) {
 }
 
 func (r *Redis) Lrem(rc *req.Ctx) {
-	g := rc.GinCtx
-	option := new(form.LRemOption)
-	ginx.BindJsonAndValid(g, option)
+	option := req.BindJsonAndValid(rc, new(form.LRemOption))
 
 	cmd := r.getRedisConn(rc).GetCmdable()
 	res, err := cmd.LRem(context.TODO(), option.Key, int64(option.Count), option.Member).Result()
@@ -41,9 +37,7 @@ func (r *Redis) Lrem(rc *req.Ctx) {
 }
 
 func (r *Redis) SaveListValue(rc *req.Ctx) {
-	g := rc.GinCtx
-	listValue := new(form.ListValue)
-	ginx.BindJsonAndValid(g, listValue)
+	listValue := req.BindJsonAndValid(rc, new(form.ListValue))
 
 	cmd := r.getRedisConn(rc).GetCmdable()
 
@@ -55,9 +49,7 @@ func (r *Redis) SaveListValue(rc *req.Ctx) {
 }
 
 func (r *Redis) Lset(rc *req.Ctx) {
-	g := rc.GinCtx
-	listSetValue := new(form.ListSetValue)
-	ginx.BindJsonAndValid(g, listSetValue)
+	listSetValue := req.BindJsonAndValid(rc, new(form.ListSetValue))
 
 	ri := r.getRedisConn(rc)
 

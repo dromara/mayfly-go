@@ -7,15 +7,12 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
 	"strconv"
 	"strings"
-
-	"github.com/gin-gonic/gin"
 )
 
 type MachineScript struct {
@@ -25,23 +22,22 @@ type MachineScript struct {
 }
 
 func (m *MachineScript) MachineScripts(rc *req.Ctx) {
-	g := rc.GinCtx
-	condition := &entity.MachineScript{MachineId: GetMachineId(g)}
-	res, err := m.MachineScriptApp.GetPageList(condition, ginx.GetPageParam(g), new([]vo.MachineScriptVO))
+	condition := &entity.MachineScript{MachineId: GetMachineId(rc)}
+	res, err := m.MachineScriptApp.GetPageList(condition, rc.F.GetPageParam(), new([]vo.MachineScriptVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {
 	form := new(form.MachineScriptForm)
-	machineScript := ginx.BindJsonAndCopyTo(rc.GinCtx, form, new(entity.MachineScript))
+	machineScript := req.BindJsonAndCopyTo(rc, form, new(entity.MachineScript))
 
 	rc.ReqParam = form
 	biz.ErrIsNil(m.MachineScriptApp.Save(rc.MetaCtx, machineScript))
 }
 
 func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
-	idsStr := ginx.PathParam(rc.GinCtx, "scriptId")
+	idsStr := rc.F.PathParam("scriptId")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -53,17 +49,15 @@ func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
 }
 
 func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
-	g := rc.GinCtx
-
-	scriptId := GetMachineScriptId(g)
-	machineId := GetMachineId(g)
+	scriptId := GetMachineScriptId(rc)
+	machineId := GetMachineId(rc)
 	ms, err := m.MachineScriptApp.GetById(new(entity.MachineScript), scriptId, "MachineId", "Name", "Script")
 	biz.ErrIsNil(err, "该脚本不存在")
 	biz.IsTrue(ms.MachineId == application.Common_Script_Machine_Id || ms.MachineId == machineId, "该脚本不属于该机器")
 
 	script := ms.Script
 	// 如果有脚本参数，则用脚本参数替换脚本中的模板占位符参数
-	if params := g.Query("params"); params != "" {
+	if params := rc.F.Query("params"); params != "" {
 		script, err = stringx.TemplateParse(ms.Script, jsonx.ToMap(params))
 		biz.ErrIsNilAppendErr(err, "脚本模板参数解析失败: %s")
 	}
@@ -80,8 +74,8 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	rc.ResData = res
 }
 
-func GetMachineScriptId(g *gin.Context) uint64 {
-	scriptId, _ := strconv.Atoi(g.Param("scriptId"))
+func GetMachineScriptId(rc *req.Ctx) uint64 {
+	scriptId := rc.F.PathParamInt("scriptId")
 	biz.IsTrue(scriptId > 0, "scriptId错误")
 	return uint64(scriptId)
 }

@@ -63,6 +63,9 @@ func checkClientAvailability(interval time.Duration) {
 		// 遍历所有机器连接实例，若存在机器连接实例使用该ssh隧道机器，则返回true，表示还在使用中...
 		items := cliCache.Items()
 		for _, v := range items {
+			if v == nil {
+				continue
+			}
 			cli := v.Value.(*Cli)
 			if _, _, err := cli.sshClient.Conn.SendRequest("ping", true, nil); err != nil {
 				logx.Errorf("machine[%s] cache client is not available: %s", cli.Info.Name, err.Error())

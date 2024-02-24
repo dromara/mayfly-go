@@ -12,7 +12,6 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
@@ -34,7 +33,7 @@ type Machine struct {
 }
 
 func (m *Machine) Machines(rc *req.Ctx) {
-	condition, pageParam := ginx.BindQueryAndPage(rc.GinCtx, new(entity.MachineQuery))
+	condition, pageParam := req.BindQueryAndPage(rc, new(entity.MachineQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
 	codes := m.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeMachine, condition.TagPath)
@@ -65,7 +64,7 @@ func (m *Machine) Machines(rc *req.Ctx) {
 }
 
 func (m *Machine) MachineStats(rc *req.Ctx) {
-	cli, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
+	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
 	rc.ResData = cli.GetAllStats()
 }
@@ -73,7 +72,7 @@ func (m *Machine) MachineStats(rc *req.Ctx) {
 // 保存机器信息
 func (m *Machine) SaveMachine(rc *req.Ctx) {
 	machineForm := new(form.MachineForm)
-	me := ginx.BindJsonAndCopyTo(rc.GinCtx, machineForm, new(entity.Machine))
+	me := req.BindJsonAndCopyTo(rc, machineForm, new(entity.Machine))
 
 	machineForm.Password = "******"
 	rc.ReqParam = machineForm
@@ -82,21 +81,20 @@ func (m *Machine) SaveMachine(rc *req.Ctx) {
 }
 
 func (m *Machine) TestConn(rc *req.Ctx) {
-	me := ginx.BindJsonAndCopyTo(rc.GinCtx, new(form.MachineForm), new(entity.Machine))
+	me := req.BindJsonAndCopyTo(rc, new(form.MachineForm), new(entity.Machine))
 	// 测试连接
 	biz.ErrIsNilAppendErr(m.MachineApp.TestConn(me), "该机器无法连接: %s")
 }
 
 func (m *Machine) ChangeStatus(rc *req.Ctx) {
-	g := rc.GinCtx
-	id := uint64(ginx.PathParamInt(g, "machineId"))
-	status := int8(ginx.PathParamInt(g, "status"))
+	id := uint64(rc.F.PathParamInt("machineId"))
+	status := int8(rc.F.PathParamInt("status"))
 	rc.ReqParam = collx.Kvs("id", id, "status", status)
 	biz.ErrIsNil(m.MachineApp.ChangeStatus(rc.MetaCtx, id, status))
 }
 
 func (m *Machine) DeleteMachine(rc *req.Ctx) {
-	idsStr := ginx.PathParam(rc.GinCtx, "machineId")
+	idsStr := rc.F.PathParam("machineId")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -109,24 +107,23 @@ func (m *Machine) DeleteMachine(rc *req.Ctx) {
 
 // 获取进程列表信息
 func (m *Machine) GetProcess(rc *req.Ctx) {
-	g := rc.GinCtx
 	cmd := "ps -aux "
-	sortType := g.Query("sortType")
+	sortType := rc.F.Query("sortType")
 	if sortType == "2" {
 		cmd += "--sort -pmem "
 	} else {
 		cmd += "--sort -pcpu "
 	}
 
-	pname := g.Query("name")
+	pname := rc.F.Query("name")
 	if pname != "" {
 		cmd += fmt.Sprintf("| grep %s ", pname)
 	}
 
-	count := ginx.QueryInt(g, "count", 10)
+	count := rc.F.QueryIntDefault("count", 10)
 	cmd += "| head -n " + fmt.Sprintf("%d", count)
 
-	cli, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
+	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), "%s")
 
@@ -137,10 +134,10 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 
 // 终止进程
 func (m *Machine) KillProcess(rc *req.Ctx) {
-	pid := rc.GinCtx.Query("pid")
+	pid := rc.F.Query("pid")
 	biz.NotEmpty(pid, "进程id不能为空")
 
-	cli, err := m.MachineApp.GetCli(GetMachineId(rc.GinCtx))
+	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), "%s")
 
@@ -167,13 +164,13 @@ func (m *Machine) WsSSH(g *gin.Context) {
 		panic(errorx.NewBiz("\033[1;31m您没有权限操作该机器终端,请重新登录后再试~\033[0m"))
 	}
 
-	cli, err := m.MachineApp.NewCli(GetMachineId(g))
+	cli, err := m.MachineApp.NewCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
 	defer cli.Close()
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), "%s")
 
-	cols := ginx.QueryInt(g, "cols", 80)
-	rows := ginx.QueryInt(g, "rows", 32)
+	cols := rc.F.QueryIntDefault("cols", 80)
+	rows := rc.F.QueryIntDefault("rows", 32)
 
 	// 记录系统操作日志
 	rc.WithLog(req.NewLogSave("机器-终端操作"))
@@ -185,15 +182,14 @@ func (m *Machine) WsSSH(g *gin.Context) {
 }
 
 func (m *Machine) MachineTermOpRecords(rc *req.Ctx) {
-	mid := GetMachineId(rc.GinCtx)
-	res, err := m.MachineTermOpApp.GetPageList(&entity.MachineTermOp{MachineId: mid}, ginx.GetPageParam(rc.GinCtx), new([]entity.MachineTermOp))
+	mid := GetMachineId(rc)
+	res, err := m.MachineTermOpApp.GetPageList(&entity.MachineTermOp{MachineId: mid}, rc.F.GetPageParam(), new([]entity.MachineTermOp))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func (m *Machine) MachineTermOpRecord(rc *req.Ctx) {
-	recId, _ := strconv.Atoi(rc.GinCtx.Param("recId"))
-	termOp, err := m.MachineTermOpApp.GetById(new(entity.MachineTermOp), uint64(recId))
+	termOp, err := m.MachineTermOpApp.GetById(new(entity.MachineTermOp), uint64(rc.F.PathParamInt("recId")))
 	biz.ErrIsNil(err)
 
 	bytes, err := os.ReadFile(path.Join(config.GetMachine().TerminalRecPath, termOp.RecordFilePath))
@@ -201,8 +197,8 @@ func (m *Machine) MachineTermOpRecord(rc *req.Ctx) {
 	rc.ResData = base64.StdEncoding.EncodeToString(bytes)
 }
 
-func GetMachineId(g *gin.Context) uint64 {
-	machineId, _ := strconv.Atoi(g.Param("machineId"))
+func GetMachineId(rc *req.Ctx) uint64 {
+	machineId, _ := strconv.Atoi(rc.F.PathParam("machineId"))
 	biz.IsTrue(machineId != 0, "machineId错误")
 	return uint64(machineId)
 }

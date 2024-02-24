@@ -14,7 +14,6 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/captcha"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/otp"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -33,7 +32,7 @@ type AccountLogin struct {
 
 // @router /auth/accounts/login [post]
 func (a *AccountLogin) Login(rc *req.Ctx) {
-	loginForm := ginx.BindJsonAndValid(rc.GinCtx, new(form.LoginForm))
+	loginForm := req.BindJsonAndValid(rc, new(form.LoginForm))
 
 	accountLoginSecurity := config.GetAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验
@@ -81,7 +80,7 @@ type OtpVerifyInfo struct {
 // OTP双因素校验
 func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 	otpVerify := new(form.OtpVerfiy)
-	ginx.BindJsonAndValid(rc.GinCtx, otpVerify)
+	req.BindJsonAndValid(rc, otpVerify)
 
 	tokenKey := fmt.Sprintf("otp:token:%s", otpVerify.OtpToken)
 	otpInfoJson := cache.GetStr(tokenKey)

@@ -14,7 +14,6 @@ import (
 	msgdto "mayfly-go/internal/msg/application/dto"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
@@ -23,11 +22,8 @@ import (
 	"mime/multipart"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/gin-gonic/gin"
 )
 
 type MachineFile struct {
@@ -43,32 +39,30 @@ const (
 )
 
 func (m *MachineFile) MachineFiles(rc *req.Ctx) {
-	g := rc.GinCtx
-	condition := &entity.MachineFile{MachineId: GetMachineId(g)}
-	res, err := m.MachineFileApp.GetPageList(condition, ginx.GetPageParam(g), new([]vo.MachineFileVO))
+	condition := &entity.MachineFile{MachineId: GetMachineId(rc)}
+	res, err := m.MachineFileApp.GetPageList(condition, rc.F.GetPageParam(), new([]vo.MachineFileVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func (m *MachineFile) SaveMachineFiles(rc *req.Ctx) {
 	fileForm := new(form.MachineFileForm)
-	entity := ginx.BindJsonAndCopyTo[*entity.MachineFile](rc.GinCtx, fileForm, new(entity.MachineFile))
+	entity := req.BindJsonAndCopyTo[*entity.MachineFile](rc, fileForm, new(entity.MachineFile))
 
 	rc.ReqParam = fileForm
 	biz.ErrIsNil(m.MachineFileApp.Save(rc.MetaCtx, entity))
 }
 
 func (m *MachineFile) DeleteFile(rc *req.Ctx) {
-	biz.ErrIsNil(m.MachineFileApp.DeleteById(rc.MetaCtx, GetMachineFileId(rc.GinCtx)))
+	biz.ErrIsNil(m.MachineFileApp.DeleteById(rc.MetaCtx, GetMachineFileId(rc)))
 }
 
 /***      sftp相关操作      */
 
 func (m *MachineFile) CreateFile(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
+	fid := GetMachineFileId(rc)
 
-	form := ginx.BindJsonAndValid(g, new(form.MachineCreateFileForm))
+	form := req.BindJsonAndValid(rc, new(form.MachineCreateFileForm))
 	path := form.Path
 
 	attrs := collx.Kvs("path", path)
@@ -87,9 +81,8 @@ func (m *MachineFile) CreateFile(rc *req.Ctx) {
 }
 
 func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
-	readPath := g.Query("path")
+	fid := GetMachineFileId(rc)
+	readPath := rc.F.Query("path")
 
 	sftpFile, mi, err := m.MachineFileApp.ReadFile(fid, readPath)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
@@ -107,9 +100,8 @@ func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 }
 
 func (m *MachineFile) DownloadFile(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
-	readPath := g.Query("path")
+	fid := GetMachineFileId(rc)
+	readPath := rc.F.Query("path")
 
 	sftpFile, mi, err := m.MachineFileApp.ReadFile(fid, readPath)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
@@ -118,13 +110,12 @@ func (m *MachineFile) DownloadFile(rc *req.Ctx) {
 
 	// 截取文件名，如/usr/local/test.java -》 test.java
 	path := strings.Split(readPath, "/")
-	rc.Download(sftpFile, path[len(path)-1])
+	rc.F.Download(sftpFile, path[len(path)-1])
 }
 
 func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
-	readPath := g.Query("path")
+	fid := GetMachineFileId(rc)
+	readPath := rc.F.Query("path")
 	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
 
 	if !strings.HasSuffix(readPath, "/") {
@@ -150,9 +141,8 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 }
 
 func (m *MachineFile) GetDirSize(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
-	readPath := g.Query("path")
+	fid := GetMachineFileId(rc)
+	readPath := rc.F.Query("path")
 
 	size, err := m.MachineFileApp.GetDirSize(fid, readPath)
 	biz.ErrIsNil(err)
@@ -160,9 +150,8 @@ func (m *MachineFile) GetDirSize(rc *req.Ctx) {
 }
 
 func (m *MachineFile) GetFileStat(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
-	readPath := g.Query("path")
+	fid := GetMachineFileId(rc)
+	readPath := rc.F.Query("path")
 
 	res, err := m.MachineFileApp.FileStat(fid, readPath)
 	biz.ErrIsNil(err, res)
@@ -170,11 +159,9 @@ func (m *MachineFile) GetFileStat(rc *req.Ctx) {
 }
 
 func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
+	fid := GetMachineFileId(rc)
 
-	form := new(form.MachineFileUpdateForm)
-	ginx.BindJsonAndValid(g, form)
+	form := req.BindJsonAndValid(rc, new(form.MachineFileUpdateForm))
 	path := form.Path
 
 	mi, err := m.MachineFileApp.WriteFileContent(fid, path, []byte(form.Content))
@@ -183,11 +170,10 @@ func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
 }
 
 func (m *MachineFile) UploadFile(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
-	path := g.PostForm("path")
+	fid := GetMachineFileId(rc)
+	path := rc.F.PostForm("path")
 
-	fileheader, err := g.FormFile("file")
+	fileheader, err := rc.F.FormFile("file")
 	biz.ErrIsNilAppendErr(err, "读取文件失败: %s")
 
 	maxUploadFileSize := config.GetMachine().UploadMaxFileSize
@@ -217,10 +203,9 @@ type FolderFile struct {
 }
 
 func (m *MachineFile) UploadFolder(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
+	fid := GetMachineFileId(rc)
 
-	mf, err := g.MultipartForm()
+	mf, err := rc.F.MultipartForm()
 	biz.ErrIsNilAppendErr(err, "获取表单信息失败: %s")
 	basePath := mf.Value["basePath"][0]
 	biz.NotEmpty(basePath, "基础路径不能为空")
@@ -311,11 +296,8 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 }
 
 func (m *MachineFile) RemoveFile(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
-
-	rmForm := new(form.MachineFileOpForm)
-	ginx.BindJsonAndValid(g, rmForm)
+	fid := GetMachineFileId(rc)
+	rmForm := req.BindJsonAndValid(rc, new(form.MachineFileOpForm))
 
 	mi, err := m.MachineFileApp.RemoveFile(fid, rmForm.Path...)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", rmForm.Path)
@@ -323,33 +305,27 @@ func (m *MachineFile) RemoveFile(rc *req.Ctx) {
 }
 
 func (m *MachineFile) CopyFile(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
+	fid := GetMachineFileId(rc)
+	cpForm := req.BindJsonAndValid(rc, new(form.MachineFileOpForm))
 
-	cpForm := new(form.MachineFileOpForm)
-	ginx.BindJsonAndValid(g, cpForm)
 	mi, err := m.MachineFileApp.Copy(fid, cpForm.ToPath, cpForm.Path...)
 	biz.ErrIsNilAppendErr(err, "文件拷贝失败: %s")
 	rc.ReqParam = collx.Kvs("machine", mi, "cp", cpForm)
 }
 
 func (m *MachineFile) MvFile(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
+	fid := GetMachineFileId(rc)
+	cpForm := req.BindJsonAndValid(rc, new(form.MachineFileOpForm))
 
-	cpForm := new(form.MachineFileOpForm)
-	ginx.BindJsonAndValid(g, cpForm)
 	mi, err := m.MachineFileApp.Mv(fid, cpForm.ToPath, cpForm.Path...)
 	rc.ReqParam = collx.Kvs("machine", mi, "mv", cpForm)
 	biz.ErrIsNilAppendErr(err, "文件移动失败: %s")
 }
 
 func (m *MachineFile) Rename(rc *req.Ctx) {
-	g := rc.GinCtx
-	fid := GetMachineFileId(g)
+	fid := GetMachineFileId(rc)
+	rename := req.BindJsonAndValid(rc, new(form.MachineFileRename))
 
-	rename := new(form.MachineFileRename)
-	ginx.BindJsonAndValid(g, rename)
 	mi, err := m.MachineFileApp.Rename(fid, rename.Oldname, rename.Newname)
 	rc.ReqParam = collx.Kvs("machine", mi, "rename", rename)
 	biz.ErrIsNilAppendErr(err, "文件重命名失败: %s")
@@ -365,8 +341,8 @@ func getFileType(fm fs.FileMode) string {
 	return dir
 }
 
-func GetMachineFileId(g *gin.Context) uint64 {
-	fileId, _ := strconv.Atoi(g.Param("fileId"))
+func GetMachineFileId(rc *req.Ctx) uint64 {
+	fileId := rc.F.PathParamInt("fileId")
 	biz.IsTrue(fileId != 0, "fileId错误")
 	return uint64(fileId)
 }

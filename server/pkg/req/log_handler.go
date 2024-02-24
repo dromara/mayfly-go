@@ -52,7 +52,7 @@ func LogHandler(rc *Ctx) error {
 
 	attrMap := make(map[string]any, 0)
 
-	req := rc.GinCtx.Request
+	req := rc.F.GetRequest()
 	attrMap[req.Method] = req.URL.Path
 
 	if la := contextx.GetLoginAccount(rc.MetaCtx); la != nil {
@@ -66,6 +66,7 @@ func LogHandler(rc *Ctx) error {
 	}
 
 	logMsg := li.Description
+	rcErr := rc.Error
 
 	if logx.GetConfig().IsJsonType() {
 		// json格式日志处理
@@ -75,9 +76,9 @@ func LogHandler(rc *Ctx) error {
 		}
 		attrMap["exeTime"] = rc.timed
 
-		if rc.Err != nil {
+		if rcErr != nil {
 			nFrames := DefaultLogFrames
-			if _, ok := rc.Err.(errorx.BizError); ok {
+			if _, ok := rc.Error.(errorx.BizError); ok {
 				nFrames = nFrames / 2
 			}
 			attrMap["error"] = rc.Err
@@ -86,14 +87,14 @@ func LogHandler(rc *Ctx) error {
 		}
 	} else {
 		// 处理文本格式日志信息
-		if err := rc.Err; err != nil {
-			logMsg = getErrMsg(rc, err)
+		if rcErr != nil {
+			logMsg = getErrMsg(rc, rcErr)
 		} else {
 			logMsg = getLogMsg(rc)
 		}
 	}
 
-	if err := rc.Err; err != nil {
+	if rcErr != nil {
 		logx.ErrorWithFields(rc.MetaCtx, logMsg, attrMap)
 		return nil
 	}

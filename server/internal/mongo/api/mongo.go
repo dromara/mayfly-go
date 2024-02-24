@@ -8,7 +8,6 @@ import (
 	"mayfly-go/internal/mongo/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -16,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -28,7 +26,7 @@ type Mongo struct {
 }
 
 func (m *Mongo) Mongos(rc *req.Ctx) {
-	queryCond, page := ginx.BindQueryAndPage[*entity.MongoQuery](rc.GinCtx, new(entity.MongoQuery))
+	queryCond, page := req.BindQueryAndPage[*entity.MongoQuery](rc, new(entity.MongoQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
 	codes := m.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeMongo, queryCond.TagPath)
@@ -45,13 +43,13 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 
 func (m *Mongo) TestConn(rc *req.Ctx) {
 	form := &form.Mongo{}
-	mongo := ginx.BindJsonAndCopyTo[*entity.Mongo](rc.GinCtx, form, new(entity.Mongo))
+	mongo := req.BindJsonAndCopyTo[*entity.Mongo](rc, form, new(entity.Mongo))
 	biz.ErrIsNilAppendErr(m.MongoApp.TestConn(mongo), "连接失败: %s")
 }
 
 func (m *Mongo) Save(rc *req.Ctx) {
 	form := &form.Mongo{}
-	mongo := ginx.BindJsonAndCopyTo[*entity.Mongo](rc.GinCtx, form, new(entity.Mongo))
+	mongo := req.BindJsonAndCopyTo[*entity.Mongo](rc, form, new(entity.Mongo))
 
 	// 密码脱敏记录日志
 	form.Uri = func(str string) string {
@@ -64,7 +62,7 @@ func (m *Mongo) Save(rc *req.Ctx) {
 }
 
 func (m *Mongo) DeleteMongo(rc *req.Ctx) {
-	idsStr := ginx.PathParam(rc.GinCtx, "id")
+	idsStr := rc.F.PathParam("id")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -76,7 +74,7 @@ func (m *Mongo) DeleteMongo(rc *req.Ctx) {
 }
 
 func (m *Mongo) Databases(rc *req.Ctx) {
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc.GinCtx))
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	res, err := conn.Cli.ListDatabases(context.TODO(), bson.D{})
 	biz.ErrIsNilAppendErr(err, "获取mongo所有库信息失败: %s")
@@ -84,9 +82,9 @@ func (m *Mongo) Databases(rc *req.Ctx) {
 }
 
 func (m *Mongo) Collections(rc *req.Ctx) {
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc.GinCtx))
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
-	db := rc.GinCtx.Query("database")
+	db := rc.F.Query("database")
 	biz.NotEmpty(db, "database不能为空")
 	ctx := context.TODO()
 	res, err := conn.Cli.Database(db).ListCollectionNames(ctx, bson.D{})
@@ -96,9 +94,9 @@ func (m *Mongo) Collections(rc *req.Ctx) {
 
 func (m *Mongo) RunCommand(rc *req.Ctx) {
 	commandForm := new(form.MongoRunCommand)
-	ginx.BindJsonAndValid(rc.GinCtx, commandForm)
+	req.BindJsonAndValid(rc, commandForm)
 
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc.GinCtx))
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
@@ -125,11 +123,9 @@ func (m *Mongo) RunCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) FindCommand(rc *req.Ctx) {
-	g := rc.GinCtx
-	commandForm := new(form.MongoFindCommand)
-	ginx.BindJsonAndValid(g, commandForm)
+	commandForm := req.BindJsonAndValid(rc, new(form.MongoFindCommand))
 
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(g))
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	cli := conn.Cli
 
@@ -161,11 +157,9 @@ func (m *Mongo) FindCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
-	g := rc.GinCtx
-	commandForm := new(form.MongoUpdateByIdCommand)
-	ginx.BindJsonAndValid(g, commandForm)
+	commandForm := req.BindJsonAndValid(rc, new(form.MongoUpdateByIdCommand))
 
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(g))
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
@@ -186,11 +180,9 @@ func (m *Mongo) UpdateByIdCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
-	g := rc.GinCtx
-	commandForm := new(form.MongoUpdateByIdCommand)
-	ginx.BindJsonAndValid(g, commandForm)
+	commandForm := req.BindJsonAndValid(rc, new(form.MongoUpdateByIdCommand))
 
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(g))
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
@@ -210,11 +202,9 @@ func (m *Mongo) DeleteByIdCommand(rc *req.Ctx) {
 }
 
 func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
-	g := rc.GinCtx
-	commandForm := new(form.MongoInsertCommand)
-	ginx.BindJsonAndValid(g, commandForm)
+	commandForm := req.BindJsonAndValid(rc, new(form.MongoInsertCommand))
 
-	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(g))
+	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 	rc.ReqParam = collx.Kvs("mongo", conn.Info, "cmd", commandForm)
 
@@ -224,8 +214,8 @@ func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
 }
 
 // 获取请求路径上的mongo id
-func (m *Mongo) GetMongoId(g *gin.Context) uint64 {
-	dbId, _ := strconv.Atoi(g.Param("id"))
+func (m *Mongo) GetMongoId(rc *req.Ctx) uint64 {
+	dbId := rc.F.PathParamInt("id")
 	biz.IsTrue(dbId > 0, "mongoId错误")
 	return uint64(dbId)
 }

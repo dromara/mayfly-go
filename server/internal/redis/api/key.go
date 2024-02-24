@@ -6,7 +6,6 @@ import (
 	"mayfly-go/internal/redis/api/vo"
 	"mayfly-go/internal/redis/rdm"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
@@ -20,8 +19,7 @@ import (
 func (r *Redis) ScanKeys(rc *req.Ctx) {
 	ri := r.getRedisConn(rc)
 
-	form := &form.RedisScanForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
+	form := req.BindJsonAndValid(rc, new(form.RedisScanForm))
 
 	cmd := ri.GetCmdable()
 	ctx := context.Background()
@@ -143,8 +141,7 @@ func (r *Redis) DeleteKey(rc *req.Ctx) {
 }
 
 func (r *Redis) RenameKey(rc *req.Ctx) {
-	form := &form.Rename{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
+	form := req.BindJsonAndValid(rc, new(form.Rename))
 
 	ri := r.getRedisConn(rc)
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "rename", form)
@@ -152,8 +149,7 @@ func (r *Redis) RenameKey(rc *req.Ctx) {
 }
 
 func (r *Redis) ExpireKey(rc *req.Ctx) {
-	form := &form.Expire{}
-	ginx.BindJsonAndValid(rc.GinCtx, form)
+	form := req.BindJsonAndValid(rc, new(form.Expire))
 
 	ri := r.getRedisConn(rc)
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "expire", form)

@@ -10,7 +10,6 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/contextx"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -60,8 +59,7 @@ func (a *Account) GetPermissions(rc *req.Ctx) {
 }
 
 func (a *Account) ChangePassword(rc *req.Ctx) {
-	form := new(form.AccountChangePasswordForm)
-	ginx.BindJsonAndValid(rc.GinCtx, form)
+	form := req.BindJsonAndValid(rc, new(form.AccountChangePasswordForm))
 
 	originOldPwd, err := cryptox.DefaultRsaDecrypt(form.OldPassword, true)
 	biz.ErrIsNilAppendErr(err, "解密旧密码错误: %s")
@@ -98,7 +96,7 @@ func (a *Account) AccountInfo(rc *req.Ctx) {
 
 // 更新个人账号信息
 func (a *Account) UpdateAccount(rc *req.Ctx) {
-	updateAccount := ginx.BindJsonAndCopyTo[*entity.Account](rc.GinCtx, new(form.AccountUpdateForm), new(entity.Account))
+	updateAccount := req.BindJsonAndCopyTo[*entity.Account](rc, new(form.AccountUpdateForm), new(entity.Account))
 	// 账号id为登录者账号
 	updateAccount.Id = rc.GetLoginAccount().Id
 
@@ -122,8 +120,8 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 // @router /accounts [get]
 func (a *Account) Accounts(rc *req.Ctx) {
 	condition := &entity.Account{}
-	condition.Username = rc.GinCtx.Query("username")
-	res, err := a.AccountApp.GetPageList(condition, ginx.GetPageParam(rc.GinCtx), new([]vo.AccountManageVO))
+	condition.Username = rc.F.Query("username")
+	res, err := a.AccountApp.GetPageList(condition, rc.F.GetPageParam(), new([]vo.AccountManageVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -131,7 +129,7 @@ func (a *Account) Accounts(rc *req.Ctx) {
 // @router /accounts
 func (a *Account) SaveAccount(rc *req.Ctx) {
 	form := &form.AccountCreateForm{}
-	account := ginx.BindJsonAndCopyTo(rc.GinCtx, form, new(entity.Account))
+	account := req.BindJsonAndCopyTo(rc, form, new(entity.Account))
 
 	form.Password = "*****"
 	rc.ReqParam = form
@@ -150,12 +148,10 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 }
 
 func (a *Account) ChangeStatus(rc *req.Ctx) {
-	g := rc.GinCtx
-
 	account := &entity.Account{}
-	account.Id = uint64(ginx.PathParamInt(g, "id"))
+	account.Id = uint64(rc.F.PathParamInt("id"))
 
-	status := entity.AccountStatus(int8(ginx.PathParamInt(g, "status")))
+	status := entity.AccountStatus(int8(rc.F.PathParamInt("status")))
 	biz.ErrIsNil(entity.AccountStatusEnum.Valid(status))
 	account.Status = status
 
@@ -164,7 +160,7 @@ func (a *Account) ChangeStatus(rc *req.Ctx) {
 }
 
 func (a *Account) DeleteAccount(rc *req.Ctx) {
-	idsStr := ginx.PathParam(rc.GinCtx, "id")
+	idsStr := rc.F.PathParam("id")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -177,7 +173,7 @@ func (a *Account) DeleteAccount(rc *req.Ctx) {
 
 // 获取账号角色信息列表
 func (a *Account) AccountRoles(rc *req.Ctx) {
-	rc.ResData = a.getAccountRoles(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	rc.ResData = a.getAccountRoles(uint64(rc.F.PathParamInt("id")))
 }
 
 func (a *Account) getAccountRoles(accountId uint64) []*vo.AccountRoleVO {
@@ -221,23 +217,21 @@ func (a *Account) getAccountRoles(accountId uint64) []*vo.AccountRoleVO {
 func (a *Account) AccountResources(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
 	// 获取账号菜单资源
-	biz.ErrIsNil(a.ResourceApp.GetAccountResources(uint64(ginx.PathParamInt(rc.GinCtx, "id")), &resources))
+	biz.ErrIsNil(a.ResourceApp.GetAccountResources(uint64(rc.F.PathParamInt("id")), &resources))
 	rc.ResData = resources.ToTrees(0)
 }
 
 // 关联账号角色
 func (a *Account) RelateRole(rc *req.Ctx) {
-	var form form.AccountRoleForm
-	ginx.BindJsonAndValid(rc.GinCtx, &form)
+	form := req.BindJsonAndValid(rc, new(form.AccountRoleForm))
 	rc.ReqParam = form
-
 	biz.ErrIsNil(a.RoleApp.RelateAccountRole(rc.MetaCtx, form.Id, form.RoleId, consts.AccountRoleRelateType(form.RelateType)))
 }
 
 // 重置otp秘钥
 func (a *Account) ResetOtpSecret(rc *req.Ctx) {
 	account := &entity.Account{OtpSecret: "-"}
-	accountId := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
+	accountId := uint64(rc.F.PathParamInt("id"))
 	account.Id = accountId
 	rc.ReqParam = collx.Kvs("accountId", accountId)
 	biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, account))

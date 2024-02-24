@@ -4,7 +4,6 @@ import (
 	"context"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 
@@ -20,12 +19,11 @@ func (r *Redis) ZCard(rc *req.Ctx) {
 }
 
 func (r *Redis) ZScan(rc *req.Ctx) {
-	g := rc.GinCtx
 	ri, key := r.checkKeyAndGetRedisConn(rc)
 
-	cursor := uint64(ginx.QueryInt(g, "cursor", 0))
-	match := ginx.Query(g, "match", "*")
-	count := ginx.QueryInt(g, "count", 50)
+	cursor := uint64(rc.F.QueryIntDefault("cursor", 0))
+	match := rc.F.QueryDefault("match", "*")
+	count := rc.F.QueryIntDefault("count", 50)
 
 	keys, cursor, err := ri.GetCmdable().ZScan(context.TODO(), key, cursor, match, int64(count)).Result()
 	biz.ErrIsNilAppendErr(err, "sscan失败: %s")
@@ -36,10 +34,9 @@ func (r *Redis) ZScan(rc *req.Ctx) {
 }
 
 func (r *Redis) ZRevRange(rc *req.Ctx) {
-	g := rc.GinCtx
 	ri, key := r.checkKeyAndGetRedisConn(rc)
-	start := ginx.QueryInt(g, "start", 0)
-	stop := ginx.QueryInt(g, "stop", 50)
+	start := rc.F.QueryIntDefault("start", 0)
+	stop := rc.F.QueryIntDefault("stop", 50)
 
 	res, err := ri.GetCmdable().ZRevRangeWithScores(context.TODO(), key, int64(start), int64(stop)).Result()
 	biz.ErrIsNilAppendErr(err, "ZRevRange失败: %s")
@@ -47,9 +44,7 @@ func (r *Redis) ZRevRange(rc *req.Ctx) {
 }
 
 func (r *Redis) ZRem(rc *req.Ctx) {
-	g := rc.GinCtx
-	option := new(form.SmemberOption)
-	ginx.BindJsonAndValid(g, option)
+	option := req.BindJsonAndValid(rc, new(form.SmemberOption))
 
 	cmd := r.getRedisConn(rc).GetCmdable()
 	res, err := cmd.ZRem(context.TODO(), option.Key, option.Member).Result()
@@ -58,9 +53,7 @@ func (r *Redis) ZRem(rc *req.Ctx) {
 }
 
 func (r *Redis) ZAdd(rc *req.Ctx) {
-	g := rc.GinCtx
-	option := new(form.ZAddOption)
-	ginx.BindJsonAndValid(g, option)
+	option := req.BindJsonAndValid(rc, new(form.ZAddOption))
 
 	cmd := r.getRedisConn(rc).GetCmdable()
 	zm := redis.Z{

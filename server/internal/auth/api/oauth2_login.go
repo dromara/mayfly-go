@@ -37,7 +37,7 @@ func (a *Oauth2Login) OAuth2Login(rc *req.Ctx) {
 	client, _ := a.getOAuthClient()
 	state := stringx.Rand(32)
 	cache.SetStr("oauth2:state:"+state, "login", 5*time.Minute)
-	rc.GinCtx.Redirect(http.StatusFound, client.AuthCodeURL(state))
+	rc.F.Redirect(http.StatusFound, client.AuthCodeURL(state))
 }
 
 func (a *Oauth2Login) OAuth2Bind(rc *req.Ctx) {
@@ -45,26 +45,26 @@ func (a *Oauth2Login) OAuth2Bind(rc *req.Ctx) {
 	state := stringx.Rand(32)
 	cache.SetStr("oauth2:state:"+state, "bind:"+strconv.FormatUint(rc.GetLoginAccount().Id, 10),
 		5*time.Minute)
-	rc.GinCtx.Redirect(http.StatusFound, client.AuthCodeURL(state))
+	rc.F.Redirect(http.StatusFound, client.AuthCodeURL(state))
 }
 
 func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 	client, oauth := a.getOAuthClient()
 
-	code := rc.GinCtx.Query("code")
+	code := rc.F.Query("code")
 	biz.NotEmpty(code, "code不能为空")
 
-	state := rc.GinCtx.Query("state")
+	state := rc.F.Query("state")
 	biz.NotEmpty(state, "state不能为空")
 
 	stateAction := cache.GetStr("oauth2:state:" + state)
 	biz.NotEmpty(stateAction, "state已过期, 请重新登录")
 
-	token, err := client.Exchange(rc.GinCtx, code)
+	token, err := client.Exchange(rc, code)
 	biz.ErrIsNilAppendErr(err, "获取OAuth2 accessToken失败: %s")
 
 	// 获取用户信息
-	httpCli := client.Client(rc.GinCtx.Request.Context(), token)
+	httpCli := client.Client(rc.F.GetRequest().Context(), token)
 	resp, err := httpCli.Get(oauth.ResourceURL)
 	biz.ErrIsNilAppendErr(err, "获取用户信息失败: %s")
 	defer resp.Body.Close()

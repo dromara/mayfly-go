@@ -7,7 +7,6 @@ import (
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/timex"
 	"strconv"
@@ -26,12 +25,12 @@ type DbBackup struct {
 // GetPageList 获取数据库备份任务
 // @router /api/dbs/:dbId/backups [GET]
 func (d *DbBackup) GetPageList(rc *req.Ctx) {
-	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
+	dbId := uint64(rc.F.PathParamInt("dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
 	db, err := d.dbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
-	queryCond, page := ginx.BindQueryAndPage[*entity.DbBackupQuery](rc.GinCtx, new(entity.DbBackupQuery))
+	queryCond, page := req.BindQueryAndPage[*entity.DbBackupQuery](rc, new(entity.DbBackupQuery))
 	queryCond.DbInstanceId = db.InstanceId
 	queryCond.InDbNames = strings.Fields(db.Database)
 	res, err := d.backupApp.GetPageList(queryCond, page, new([]vo.DbBackup))
@@ -42,14 +41,13 @@ func (d *DbBackup) GetPageList(rc *req.Ctx) {
 // Create 保存数据库备份任务
 // @router /api/dbs/:dbId/backups [POST]
 func (d *DbBackup) Create(rc *req.Ctx) {
-	backupForm := &form.DbBackupForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, backupForm)
+	backupForm := req.BindJsonAndValid(rc, &form.DbBackupForm{})
 	rc.ReqParam = backupForm
 
 	dbNames := strings.Fields(backupForm.DbNames)
 	biz.IsTrue(len(dbNames) > 0, "解析数据库备份任务失败：数据库名称未定义")
 
-	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
+	dbId := uint64(rc.F.PathParamInt("dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
 	db, err := d.dbApp.GetById(new(entity.Db), dbId, "instanceId")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
@@ -73,7 +71,7 @@ func (d *DbBackup) Create(rc *req.Ctx) {
 // @router /api/dbs/:dbId/backups/:backupId [PUT]
 func (d *DbBackup) Update(rc *req.Ctx) {
 	backupForm := &form.DbBackupForm{}
-	ginx.BindJsonAndValid(rc.GinCtx, backupForm)
+	req.BindJsonAndValid(rc, backupForm)
 	rc.ReqParam = backupForm
 
 	job := &entity.DbBackup{}
@@ -86,7 +84,7 @@ func (d *DbBackup) Update(rc *req.Ctx) {
 }
 
 func (d *DbBackup) walk(rc *req.Ctx, paramName string, fn func(ctx context.Context, id uint64) error) error {
-	idsStr := ginx.PathParam(rc.GinCtx, paramName)
+	idsStr := rc.F.PathParam(paramName)
 	biz.NotEmpty(idsStr, paramName+" 为空")
 	rc.ReqParam = idsStr
 	ids := strings.Fields(idsStr)
@@ -135,7 +133,7 @@ func (d *DbBackup) Start(rc *req.Ctx) {
 // GetDbNamesWithoutBackup 获取未配置定时备份的数据库名称
 // @router /api/dbs/:dbId/db-names-without-backup [GET]
 func (d *DbBackup) GetDbNamesWithoutBackup(rc *req.Ctx) {
-	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
+	dbId := uint64(rc.F.PathParamInt("dbId"))
 	db, err := d.dbApp.GetById(new(entity.Db), dbId, "instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 	dbNames := strings.Fields(db.Database)
@@ -147,12 +145,12 @@ func (d *DbBackup) GetDbNamesWithoutBackup(rc *req.Ctx) {
 // GetHistoryPageList 获取数据库备份历史
 // @router /api/dbs/:dbId/backups/:backupId/histories [GET]
 func (d *DbBackup) GetHistoryPageList(rc *req.Ctx) {
-	dbId := uint64(ginx.PathParamInt(rc.GinCtx, "dbId"))
+	dbId := uint64(rc.F.PathParamInt("dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
 	db, err := d.dbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
-	backupHistoryCond, page := ginx.BindQueryAndPage[*entity.DbBackupHistoryQuery](rc.GinCtx, new(entity.DbBackupHistoryQuery))
+	backupHistoryCond, page := req.BindQueryAndPage[*entity.DbBackupHistoryQuery](rc, new(entity.DbBackupHistoryQuery))
 	backupHistoryCond.DbInstanceId = db.InstanceId
 	backupHistoryCond.InDbNames = strings.Fields(db.Database)
 	backupHistories := make([]*vo.DbBackupHistory, 0, page.PageSize)
@@ -182,7 +180,7 @@ func (d *DbBackup) GetHistoryPageList(rc *req.Ctx) {
 // RestoreHistories 从数据库备份历史中恢复数据库
 // @router /api/dbs/:dbId/backup-histories/:backupHistoryId/restore [POST]
 func (d *DbBackup) RestoreHistories(rc *req.Ctx) {
-	pm := ginx.PathParam(rc.GinCtx, "backupHistoryId")
+	pm := rc.F.PathParam("backupHistoryId")
 	biz.NotEmpty(pm, "backupHistoryId 为空")
 	idsStr := strings.Fields(pm)
 	ids := make([]uint64, 0, len(idsStr))

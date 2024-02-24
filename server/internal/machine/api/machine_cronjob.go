@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/scheduler"
 )
@@ -19,7 +18,7 @@ type MachineCronJob struct {
 }
 
 func (m *MachineCronJob) MachineCronJobs(rc *req.Ctx) {
-	cond, pageParam := ginx.BindQueryAndPage(rc.GinCtx, new(entity.MachineCronJob))
+	cond, pageParam := req.BindQueryAndPage(rc, new(entity.MachineCronJob))
 
 	vos := new([]*vo.MachineCronJobVO)
 	pageRes, err := m.MachineCronJobApp.GetPageList(cond, pageParam, vos)
@@ -33,7 +32,7 @@ func (m *MachineCronJob) MachineCronJobs(rc *req.Ctx) {
 
 func (m *MachineCronJob) Save(rc *req.Ctx) {
 	jobForm := new(form.MachineCronJobForm)
-	mcj := ginx.BindJsonAndCopyTo[*entity.MachineCronJob](rc.GinCtx, jobForm, new(entity.MachineCronJob))
+	mcj := req.BindJsonAndCopyTo[*entity.MachineCronJob](rc, jobForm, new(entity.MachineCronJob))
 	rc.ReqParam = jobForm
 
 	cronJobId, err := m.MachineCronJobApp.SaveMachineCronJob(rc.MetaCtx, mcj)
@@ -44,7 +43,7 @@ func (m *MachineCronJob) Save(rc *req.Ctx) {
 }
 
 func (m *MachineCronJob) Delete(rc *req.Ctx) {
-	idsStr := ginx.PathParam(rc.GinCtx, "ids")
+	idsStr := rc.F.PathParam("ids")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -56,21 +55,21 @@ func (m *MachineCronJob) Delete(rc *req.Ctx) {
 }
 
 func (m *MachineCronJob) GetRelateMachineIds(rc *req.Ctx) {
-	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(ginx.QueryInt(rc.GinCtx, "cronJobId", -1)))
+	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(rc.F.QueryIntDefault("cronJobId", -1)))
 }
 
 func (m *MachineCronJob) GetRelateCronJobIds(rc *req.Ctx) {
-	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(ginx.QueryInt(rc.GinCtx, "machineId", -1)))
+	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(rc.F.QueryIntDefault("machineId", -1)))
 }
 
 func (m *MachineCronJob) RunCronJob(rc *req.Ctx) {
-	cronJobKey := ginx.PathParam(rc.GinCtx, "key")
+	cronJobKey := rc.F.PathParam("key")
 	biz.NotEmpty(cronJobKey, "cronJob key不能为空")
 	m.MachineCronJobApp.RunCronJob(cronJobKey)
 }
 
 func (m *MachineCronJob) CronJobExecs(rc *req.Ctx) {
-	cond, pageParam := ginx.BindQueryAndPage[*entity.MachineCronJobExec](rc.GinCtx, new(entity.MachineCronJobExec))
+	cond, pageParam := req.BindQueryAndPage[*entity.MachineCronJobExec](rc, new(entity.MachineCronJobExec))
 	res, err := m.MachineCronJobApp.GetExecPageList(cond, pageParam, new([]entity.MachineCronJobExec))
 	biz.ErrIsNil(err)
 	rc.ResData = res

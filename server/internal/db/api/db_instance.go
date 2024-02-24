@@ -6,13 +6,10 @@ import (
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/cryptox"
 	"strconv"
 	"strings"
-
-	"github.com/gin-gonic/gin"
 )
 
 type Instance struct {
@@ -23,7 +20,7 @@ type Instance struct {
 // Instances 获取数据库实例信息
 // @router /api/instances [get]
 func (d *Instance) Instances(rc *req.Ctx) {
-	queryCond, page := ginx.BindQueryAndPage[*entity.InstanceQuery](rc.GinCtx, new(entity.InstanceQuery))
+	queryCond, page := req.BindQueryAndPage[*entity.InstanceQuery](rc, new(entity.InstanceQuery))
 	res, err := d.InstanceApp.GetPageList(queryCond, page, new([]vo.InstanceListVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
@@ -31,7 +28,7 @@ func (d *Instance) Instances(rc *req.Ctx) {
 
 func (d *Instance) TestConn(rc *req.Ctx) {
 	form := &form.InstanceForm{}
-	instance := ginx.BindJsonAndCopyTo[*entity.DbInstance](rc.GinCtx, form, new(entity.DbInstance))
+	instance := req.BindJsonAndCopyTo[*entity.DbInstance](rc, form, new(entity.DbInstance))
 
 	// 密码解密，并使用解密后的赋值
 	originPwd, err := cryptox.DefaultRsaDecrypt(form.Password, true)
@@ -45,7 +42,7 @@ func (d *Instance) TestConn(rc *req.Ctx) {
 // @router /api/instances [post]
 func (d *Instance) SaveInstance(rc *req.Ctx) {
 	form := &form.InstanceForm{}
-	instance := ginx.BindJsonAndCopyTo[*entity.DbInstance](rc.GinCtx, form, new(entity.DbInstance))
+	instance := req.BindJsonAndCopyTo[*entity.DbInstance](rc, form, new(entity.DbInstance))
 
 	// 密码解密，并使用解密后的赋值
 	originPwd, err := cryptox.DefaultRsaDecrypt(form.Password, true)
@@ -61,7 +58,7 @@ func (d *Instance) SaveInstance(rc *req.Ctx) {
 // GetInstance 获取数据库实例密码，由于数据库是加密存储，故提供该接口展示原文密码
 // @router /api/instances/:instance [GET]
 func (d *Instance) GetInstance(rc *req.Ctx) {
-	dbId := getInstanceId(rc.GinCtx)
+	dbId := getInstanceId(rc)
 	dbEntity, err := d.InstanceApp.GetById(new(entity.DbInstance), dbId)
 	biz.ErrIsNil(err, "获取数据库实例错误")
 	dbEntity.Password = ""
@@ -71,7 +68,7 @@ func (d *Instance) GetInstance(rc *req.Ctx) {
 // GetInstancePwd 获取数据库实例密码，由于数据库是加密存储，故提供该接口展示原文密码
 // @router /api/instances/:instance/pwd [GET]
 func (d *Instance) GetInstancePwd(rc *req.Ctx) {
-	instanceId := getInstanceId(rc.GinCtx)
+	instanceId := getInstanceId(rc)
 	instanceEntity, err := d.InstanceApp.GetById(new(entity.DbInstance), instanceId, "Password")
 	biz.ErrIsNil(err, "获取数据库实例错误")
 	biz.ErrIsNil(instanceEntity.PwdDecrypt())
@@ -81,7 +78,7 @@ func (d *Instance) GetInstancePwd(rc *req.Ctx) {
 // DeleteInstance 删除数据库实例信息
 // @router /api/instances/:instance [DELETE]
 func (d *Instance) DeleteInstance(rc *req.Ctx) {
-	idsStr := ginx.PathParam(rc.GinCtx, "instanceId")
+	idsStr := rc.F.PathParam("instanceId")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -96,7 +93,7 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 
 // 获取数据库实例的所有数据库名
 func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
-	instanceId := getInstanceId(rc.GinCtx)
+	instanceId := getInstanceId(rc)
 	instance, err := d.InstanceApp.GetById(new(entity.DbInstance), instanceId, "Password")
 	biz.ErrIsNil(err, "获取数据库实例错误")
 	biz.ErrIsNil(instance.PwdDecrypt())
@@ -107,7 +104,7 @@ func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
 
 // 获取数据库实例server信息
 func (d *Instance) GetDbServer(rc *req.Ctx) {
-	instanceId := getInstanceId(rc.GinCtx)
+	instanceId := getInstanceId(rc)
 	conn, err := d.DbApp.GetDbConnByInstanceId(instanceId)
 	biz.ErrIsNil(err)
 	res, err := conn.GetDialect().GetDbServer()
@@ -115,8 +112,8 @@ func (d *Instance) GetDbServer(rc *req.Ctx) {
 	rc.ResData = res
 }
 
-func getInstanceId(g *gin.Context) uint64 {
-	instanceId, _ := strconv.Atoi(g.Param("instanceId"))
+func getInstanceId(rc *req.Ctx) uint64 {
+	instanceId := rc.F.PathParamInt("instanceId")
 	biz.IsTrue(instanceId > 0, "instanceId 错误")
 	return uint64(instanceId)
 }

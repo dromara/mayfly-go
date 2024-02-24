@@ -10,7 +10,7 @@ RUN yarn config set registry 'https://registry.npmmirror.com' && \
     yarn build
 
 # 构建后端资源
-FROM golang:1.21.5 as be-builder
+FROM golang:1.22 as be-builder
 
 ENV GOPROXY https://goproxy.cn
 WORKDIR /mayfly

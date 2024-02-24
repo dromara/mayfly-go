@@ -4,7 +4,6 @@ import (
 	"context"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"time"
@@ -18,9 +17,7 @@ func (r *Redis) GetSetValue(rc *req.Ctx) {
 }
 
 func (r *Redis) SaveSetValue(rc *req.Ctx) {
-	g := rc.GinCtx
-	keyvalue := new(form.SetValue)
-	ginx.BindJsonAndValid(g, keyvalue)
+	keyvalue := req.BindJsonAndValid(rc, new(form.SetValue))
 
 	cmd := r.getRedisConn(rc).GetCmdable()
 
@@ -43,9 +40,7 @@ func (r *Redis) Scard(rc *req.Ctx) {
 }
 
 func (r *Redis) Sscan(rc *req.Ctx) {
-	g := rc.GinCtx
-	scan := new(form.ScanForm)
-	ginx.BindJsonAndValid(g, scan)
+	scan := req.BindJsonAndValid(rc, new(form.ScanForm))
 
 	cmd := r.getRedisConn(rc).GetCmdable()
 	keys, cursor, err := cmd.SScan(context.TODO(), scan.Key, scan.Cursor, scan.Match, scan.Count).Result()
@@ -57,9 +52,8 @@ func (r *Redis) Sscan(rc *req.Ctx) {
 }
 
 func (r *Redis) Sadd(rc *req.Ctx) {
-	g := rc.GinCtx
-	option := new(form.SmemberOption)
-	ginx.BindJsonAndValid(g, option)
+	option := req.BindJsonAndValid(rc, new(form.SmemberOption))
+
 	cmd := r.getRedisConn(rc).GetCmdable()
 
 	res, err := cmd.SAdd(context.TODO(), option.Key, option.Member).Result()
@@ -68,9 +62,7 @@ func (r *Redis) Sadd(rc *req.Ctx) {
 }
 
 func (r *Redis) Srem(rc *req.Ctx) {
-	g := rc.GinCtx
-	option := new(form.SmemberOption)
-	ginx.BindJsonAndValid(g, option)
+	option := req.BindJsonAndValid(rc, new(form.SmemberOption))
 
 	cmd := r.getRedisConn(rc).GetCmdable()
 	res, err := cmd.SRem(context.TODO(), option.Key, option.Member).Result()

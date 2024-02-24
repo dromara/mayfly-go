@@ -44,12 +44,12 @@ func PermissionHandler(rc *Ctx) error {
 	if permission != nil && !permission.NeedToken {
 		return nil
 	}
-	tokenStr := rc.GinCtx.Request.Header.Get("Authorization")
+	tokenStr := rc.F.GetHeader("Authorization")
 	// 删除前缀 Bearer, 以支持 Bearer Token
 	tokenStr, _ = strings.CutPrefix(tokenStr, "Bearer ")
 	// header不存在则从查询参数token中获取
 	if tokenStr == "" {
-		tokenStr = rc.GinCtx.Query("token")
+		tokenStr = rc.F.Query("token")
 	}
 	if tokenStr == "" {
 		return errorx.PermissionErr

@@ -83,7 +83,7 @@
             </template>
         </page-table>
 
-        <el-dialog width="720px" :title="`${db} 数据库导出`" v-model="exportDialog.visible">
+        <el-dialog width="750px" :title="`${db} 数据库导出`" v-model="exportDialog.visible">
             <el-row justify="space-between">
                 <el-col :span="9">
                     <el-form-item label="导出内容: ">

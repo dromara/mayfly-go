@@ -15,7 +15,6 @@ import (
 	msgdto "mayfly-go/internal/msg/application/dto"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -27,7 +26,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 )
 
@@ -41,7 +39,7 @@ type Db struct {
 
 // @router /api/dbs [get]
 func (d *Db) Dbs(rc *req.Ctx) {
-	queryCond, page := ginx.BindQueryAndPage[*entity.DbQuery](rc.GinCtx, new(entity.DbQuery))
+	queryCond, page := req.BindQueryAndPage[*entity.DbQuery](rc, new(entity.DbQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
 	codes := d.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeDb, queryCond.TagPath)
@@ -58,7 +56,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 
 func (d *Db) Save(rc *req.Ctx) {
 	form := &form.DbForm{}
-	db := ginx.BindJsonAndCopyTo[*entity.Db](rc.GinCtx, form, new(entity.Db))
+	db := req.BindJsonAndCopyTo[*entity.Db](rc, form, new(entity.Db))
 
 	rc.ReqParam = form
 
@@ -66,7 +64,7 @@ func (d *Db) Save(rc *req.Ctx) {
 }
 
 func (d *Db) DeleteDb(rc *req.Ctx) {
-	idsStr := ginx.PathParam(rc.GinCtx, "dbId")
+	idsStr := rc.F.PathParam("dbId")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -84,11 +82,9 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 /**  数据库操作相关、执行sql等   ***/
 
 func (d *Db) ExecSql(rc *req.Ctx) {
-	g := rc.GinCtx
-	form := &form.DbSqlExecForm{}
-	ginx.BindJsonAndValid(g, form)
+	form := req.BindJsonAndValid(rc, new(form.DbSqlExecForm))
 
-	dbId := getDbId(g)
+	dbId := getDbId(rc)
 	dbConn, err := d.DbApp.GetDbConn(dbId, form.Db)
 	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath...), "%s")
@@ -154,16 +150,15 @@ type progressMsg struct {
 
 // 执行sql文件
 func (d *Db) ExecSqlFile(rc *req.Ctx) {
-	g := rc.GinCtx
-	multipart, err := g.Request.MultipartReader()
+	multipart, err := rc.F.GetRequest().MultipartReader()
 	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
 	file, err := multipart.NextPart()
 	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
 	defer file.Close()
 	filename := file.FileName()
-	dbId := getDbId(g)
-	dbName := getDbName(g)
-	clientId := g.Query("clientId")
+	dbId := getDbId(rc)
+	dbName := getDbName(rc)
+	clientId := rc.F.Query("clientId")
 
 	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
 	biz.ErrIsNil(err)
@@ -254,12 +249,11 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 
 // 数据库dump
 func (d *Db) DumpSql(rc *req.Ctx) {
-	g := rc.GinCtx
-	dbId := getDbId(g)
-	dbNamesStr := g.Query("db")
-	dumpType := g.Query("type")
-	tablesStr := g.Query("tables")
-	extName := g.Query("extName")
+	dbId := getDbId(rc)
+	dbNamesStr := rc.F.Query("db")
+	dumpType := rc.F.Query("type")
+	tablesStr := rc.F.Query("tables")
+	extName := rc.F.Query("extName")
 	switch extName {
 	case ".gz", ".gzip", "gz", "gzip":
 		extName = ".gz"
@@ -279,10 +273,10 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 
 	now := time.Now()
 	filename := fmt.Sprintf("%s.%s.sql%s", db.Name, now.Format("20060102150405"), extName)
-	g.Header("Content-Type", "application/octet-stream")
-	g.Header("Content-Disposition", "attachment; filename="+filename)
+	rc.F.Header("Content-Type", "application/octet-stream")
+	rc.F.Header("Content-Disposition", "attachment; filename="+filename)
 	if extName != ".gz" {
-		g.Header("Content-Encoding", "gzip")
+		rc.F.Header("Content-Encoding", "gzip")
 	}
 
 	var dbNames, tables []string
@@ -293,7 +287,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		tables = strings.Split(tablesStr, ",")
 	}
 
-	writer := newGzipWriter(g.Writer)
+	writer := newGzipWriter(rc.F.GetWriter())
 	defer func() {
 		msg := anyx.ToString(recover())
 		if len(msg) > 0 {
@@ -305,13 +299,13 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	}()
 
 	for _, dbName := range dbNames {
-		d.dumpDb(writer, dbId, dbName, tables, needStruct, needData)
+		d.dumpDb(rc.MetaCtx, writer, dbId, dbName, tables, needStruct, needData)
 	}
 
 	rc.ReqParam = collx.Kvs("db", db, "databases", dbNamesStr, "tables", tablesStr, "dumpType", dumpType)
 }
 
-func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool) {
+func (d *Db) dumpDb(ctx context.Context, writer *gzipWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool) {
 	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
 	biz.ErrIsNil(err)
 	writer.WriteString("\n-- ----------------------------")
@@ -353,7 +347,7 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 			writer.WriteString("BEGIN;\n")
 		}
 		insertSql := "INSERT INTO %s VALUES (%s);\n"
-		dbConn.WalkTableRows(context.TODO(), table, func(record map[string]any, columns []*dbi.QueryColumn) error {
+		dbConn.WalkTableRows(ctx, table, func(record map[string]any, columns []*dbi.QueryColumn) error {
 			var values []string
 			writer.TryFlush()
 			for _, column := range columns {
@@ -379,26 +373,25 @@ func (d *Db) dumpDb(writer *gzipWriter, dbId uint64, dbName string, tables []str
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
-	res, err := d.getDbConn(rc.GinCtx).GetDialect().GetTables()
+	res, err := d.getDbConn(rc).GetDialect().GetTables()
 	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
 	rc.ResData = res
 }
 
 func (d *Db) TableIndex(rc *req.Ctx) {
-	tn := rc.GinCtx.Query("tableName")
+	tn := rc.F.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc.GinCtx).GetDialect().GetTableIndex(tn)
+	res, err := d.getDbConn(rc).GetDialect().GetTableIndex(tn)
 	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
 	rc.ResData = res
 }
 
 // @router /api/db/:dbId/c-metadata [get]
 func (d *Db) ColumnMA(rc *req.Ctx) {
-	g := rc.GinCtx
-	tn := g.Query("tableName")
+	tn := rc.F.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
 
-	dbi := d.getDbConn(rc.GinCtx)
+	dbi := d.getDbConn(rc)
 	res, err := dbi.GetDialect().GetColumns(tn)
 	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
 	rc.ResData = res
@@ -406,7 +399,7 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 
 // @router /api/db/:dbId/hint-tables [get]
 func (d *Db) HintTables(rc *req.Ctx) {
-	dbi := d.getDbConn(rc.GinCtx)
+	dbi := d.getDbConn(rc)
 
 	dm := dbi.GetDialect()
 	// 获取所有表
@@ -447,22 +440,22 @@ func (d *Db) HintTables(rc *req.Ctx) {
 }
 
 func (d *Db) GetTableDDL(rc *req.Ctx) {
-	tn := rc.GinCtx.Query("tableName")
+	tn := rc.F.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc.GinCtx).GetDialect().GetTableDDL(tn)
+	res, err := d.getDbConn(rc).GetDialect().GetTableDDL(tn)
 	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
 	rc.ResData = res
 }
 
 func (d *Db) GetSchemas(rc *req.Ctx) {
-	res, err := d.getDbConn(rc.GinCtx).GetDialect().GetSchemas()
+	res, err := d.getDbConn(rc).GetDialect().GetSchemas()
 	biz.ErrIsNilAppendErr(err, "获取schemas失败: %s")
 	rc.ResData = res
 }
 
 func (d *Db) CopyTable(rc *req.Ctx) {
 	form := &form.DbCopyTableForm{}
-	copy := ginx.BindJsonAndCopyTo[*dbi.DbCopyTable](rc.GinCtx, form, new(dbi.DbCopyTable))
+	copy := req.BindJsonAndCopyTo[*dbi.DbCopyTable](rc, form, new(dbi.DbCopyTable))
 
 	conn, err := d.DbApp.GetDbConn(form.Id, form.Db)
 	biz.ErrIsNilAppendErr(err, "拷贝表失败: %s")
@@ -474,41 +467,20 @@ func (d *Db) CopyTable(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "拷贝表失败: %s")
 }
 
-func getDbId(g *gin.Context) uint64 {
-	dbId, _ := strconv.Atoi(g.Param("dbId"))
+func getDbId(rc *req.Ctx) uint64 {
+	dbId := rc.F.PathParamInt("dbId")
 	biz.IsTrue(dbId > 0, "dbId错误")
 	return uint64(dbId)
 }
 
-func getDbName(g *gin.Context) string {
-	db := g.Query("db")
+func getDbName(rc *req.Ctx) string {
+	db := rc.F.Query("db")
 	biz.NotEmpty(db, "db不能为空")
 	return db
 }
 
-func (d *Db) getDbConn(g *gin.Context) *dbi.DbConn {
-	dc, err := d.DbApp.GetDbConn(getDbId(g), getDbName(g))
+func (d *Db) getDbConn(rc *req.Ctx) *dbi.DbConn {
+	dc, err := d.DbApp.GetDbConn(getDbId(rc), getDbName(rc))
 	biz.ErrIsNil(err)
 	return dc
-}
-
-// GetRestoreTask 获取数据库备份任务
-// @router /api/instances/:instance/restore-task [GET]
-func (d *Db) GetRestoreTask(rc *req.Ctx) {
-	// todo get restore task
-	panic("implement me")
-}
-
-// SaveRestoreTask 设置数据库备份任务
-// @router /api/instances/:instance/restore-task [POST]
-func (d *Db) SaveRestoreTask(rc *req.Ctx) {
-	// todo set restore task
-	panic("implement me")
-}
-
-// GetRestoreHistories 获取数据库备份历史
-// @router /api/instances/:instance/restore-histories [GET]
-func (d *Db) GetRestoreHistories(rc *req.Ctx) {
-	// todo get restore histories
-	panic("implement me")
 }

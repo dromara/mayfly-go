@@ -97,7 +97,7 @@ func useOtp(account *sysentity.Account, otpIssuer, accessToken string) (*OtpVeri
 
 // 获取ip与归属地信息
 func getIpAndRegion(rc *req.Ctx) string {
-	clientIp := rc.GinCtx.ClientIP()
+	clientIp := rc.F.ClientIP()
 	return fmt.Sprintf("%s %s", clientIp, netx.Ip2Region(clientIp))
 }
 

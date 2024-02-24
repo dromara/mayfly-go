@@ -13,7 +13,6 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/captcha"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -40,7 +39,7 @@ func (a *LdapLogin) GetLdapEnabled(rc *req.Ctx) {
 
 // @router /auth/ldap/login [post]
 func (a *LdapLogin) Login(rc *req.Ctx) {
-	loginForm := ginx.BindJsonAndValid(rc.GinCtx, new(form.LoginForm))
+	loginForm := req.BindJsonAndValid(rc, new(form.LoginForm))
 
 	accountLoginSecurity := config.GetAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验

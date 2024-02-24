@@ -4,7 +4,6 @@ import (
 	"context"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"time"
@@ -12,10 +11,9 @@ import (
 
 func (r *Redis) Hscan(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisConn(rc)
-	g := rc.GinCtx
-	count := ginx.QueryInt(g, "count", 10)
-	match := g.Query("match")
-	cursor := ginx.QueryInt(g, "cursor", 0)
+	count := rc.F.QueryIntDefault("count", 10)
+	match := rc.F.Query("match")
+	cursor := rc.F.QueryIntDefault("cursor", 0)
 	contextTodo := context.TODO()
 
 	cmdable := ri.GetCmdable()
@@ -33,7 +31,7 @@ func (r *Redis) Hscan(rc *req.Ctx) {
 
 func (r *Redis) Hdel(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisConn(rc)
-	field := rc.GinCtx.Query("field")
+	field := rc.F.Query("field")
 
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "key", key, "field", field)
 	delRes, err := ri.GetCmdable().HDel(context.TODO(), key, field).Result()
@@ -43,7 +41,7 @@ func (r *Redis) Hdel(rc *req.Ctx) {
 
 func (r *Redis) Hget(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisConn(rc)
-	field := rc.GinCtx.Query("field")
+	field := rc.F.Query("field")
 
 	res, err := ri.GetCmdable().HGet(context.TODO(), key, field).Result()
 	biz.ErrIsNilAppendErr(err, "hget err: %s")
@@ -51,9 +49,7 @@ func (r *Redis) Hget(rc *req.Ctx) {
 }
 
 func (r *Redis) Hset(rc *req.Ctx) {
-	g := rc.GinCtx
-	hashValue := new(form.HashValue)
-	ginx.BindJsonAndValid(g, hashValue)
+	hashValue := req.BindJsonAndValid(rc, new(form.HashValue))
 
 	hv := hashValue.Value[0]
 	ri := r.getRedisConn(rc)
@@ -65,9 +61,7 @@ func (r *Redis) Hset(rc *req.Ctx) {
 }
 
 func (r *Redis) SaveHashValue(rc *req.Ctx) {
-	g := rc.GinCtx
-	hashValue := new(form.HashValue)
-	ginx.BindJsonAndValid(g, hashValue)
+	hashValue := req.BindJsonAndValid(rc, new(form.HashValue))
 
 	ri := r.getRedisConn(rc)
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "hash", hashValue)

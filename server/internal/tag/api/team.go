@@ -9,7 +9,6 @@ import (
 	"mayfly-go/internal/tag/application"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"strconv"
@@ -23,7 +22,7 @@ type Team struct {
 }
 
 func (p *Team) GetTeams(rc *req.Ctx) {
-	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.TeamQuery))
+	queryCond, page := req.BindQueryAndPage(rc, new(entity.TeamQuery))
 	teams := &[]entity.Team{}
 	res, err := p.TeamApp.GetPageList(queryCond, page, teams)
 	biz.ErrIsNil(err)
@@ -31,8 +30,7 @@ func (p *Team) GetTeams(rc *req.Ctx) {
 }
 
 func (p *Team) SaveTeam(rc *req.Ctx) {
-	team := &entity.Team{}
-	ginx.BindJsonAndValid(rc.GinCtx, team)
+	team := req.BindJsonAndValid(rc, new(entity.Team))
 	rc.ReqParam = team
 	isAdd := team.Id == 0
 
@@ -51,7 +49,7 @@ func (p *Team) SaveTeam(rc *req.Ctx) {
 }
 
 func (p *Team) DelTeam(rc *req.Ctx) {
-	idsStr := ginx.PathParam(rc.GinCtx, "id")
+	idsStr := rc.F.PathParam("id")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -64,18 +62,17 @@ func (p *Team) DelTeam(rc *req.Ctx) {
 
 // 获取团队的成员信息
 func (p *Team) GetTeamMembers(rc *req.Ctx) {
-	condition := &entity.TeamMember{TeamId: uint64(ginx.PathParamInt(rc.GinCtx, "id"))}
-	condition.Username = rc.GinCtx.Query("username")
+	condition := &entity.TeamMember{TeamId: uint64(rc.F.PathParamInt("id"))}
+	condition.Username = rc.F.Query("username")
 
-	res, err := p.TeamApp.GetMemberPage(condition, ginx.GetPageParam(rc.GinCtx), &[]vo.TeamMember{})
+	res, err := p.TeamApp.GetMemberPage(condition, rc.F.GetPageParam(), &[]vo.TeamMember{})
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 // 保存团队信息
 func (p *Team) SaveTeamMember(rc *req.Ctx) {
-	teamMems := &form.TeamMember{}
-	ginx.BindJsonAndValid(rc.GinCtx, teamMems)
+	teamMems := req.BindJsonAndValid(rc, new(form.TeamMember))
 
 	teamId := teamMems.TeamId
 
@@ -101,9 +98,8 @@ func (p *Team) SaveTeamMember(rc *req.Ctx) {
 
 // 删除团队成员
 func (p *Team) DelTeamMember(rc *req.Ctx) {
-	g := rc.GinCtx
-	tid := ginx.PathParamInt(g, "id")
-	aid := ginx.PathParamInt(g, "accountId")
+	tid := rc.F.PathParamInt("id")
+	aid := rc.F.PathParamInt("accountId")
 	rc.ReqParam = fmt.Sprintf("teamId: %d, accountId: %d", tid, aid)
 
 	p.TeamApp.DeleteMember(rc.MetaCtx, uint64(tid), uint64(aid))
@@ -111,21 +107,16 @@ func (p *Team) DelTeamMember(rc *req.Ctx) {
 
 // 获取团队关联的标签id
 func (p *Team) GetTagIds(rc *req.Ctx) {
-	rc.ResData = p.TeamApp.ListTagIds(uint64(ginx.PathParamInt(rc.GinCtx, "id")))
+	rc.ResData = p.TeamApp.ListTagIds(uint64(rc.F.PathParamInt("id")))
 }
 
 // 保存团队关联标签信息
 func (p *Team) SaveTags(rc *req.Ctx) {
-	g := rc.GinCtx
-
-	var form form.TagTreeTeam
-	ginx.BindJsonAndValid(g, &form)
-
+	form := req.BindJsonAndValid(rc, new(form.TagTreeTeam))
 	teamId := form.TeamId
 
 	// 将[]uint64转为[]any
 	oIds := p.TeamApp.ListTagIds(teamId)
-
 	// 比较新旧两合集
 	addIds, delIds, _ := collx.ArrayCompare(form.TagIds, oIds)
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"time"
@@ -18,9 +17,7 @@ func (r *Redis) GetStringValue(rc *req.Ctx) {
 }
 
 func (r *Redis) SaveStringValue(rc *req.Ctx) {
-	g := rc.GinCtx
-	keyValue := new(form.StringValue)
-	ginx.BindJsonAndValid(g, keyValue)
+	keyValue := req.BindJsonAndValid(rc, new(form.StringValue))
 
 	ri := r.getRedisConn(rc)
 	cmd := ri.GetCmdable()

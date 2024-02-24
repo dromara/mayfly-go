@@ -7,7 +7,6 @@ import (
 	"mayfly-go/internal/tag/application"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"sort"
@@ -61,7 +60,7 @@ func (p *TagTree) GetTagTree(rc *req.Ctx) {
 
 func (p *TagTree) ListByQuery(rc *req.Ctx) {
 	cond := new(entity.TagTreeQuery)
-	tagPaths := rc.GinCtx.Query("tagPaths")
+	tagPaths := rc.F.Query("tagPaths")
 	cond.CodePaths = strings.Split(tagPaths, ",")
 	var tagTrees vo.TagTreeVOS
 	p.TagTreeApp.ListByQuery(cond, &tagTrees)
@@ -70,7 +69,7 @@ func (p *TagTree) ListByQuery(rc *req.Ctx) {
 
 func (p *TagTree) SaveTagTree(rc *req.Ctx) {
 	tagTree := &entity.TagTree{}
-	ginx.BindJsonAndValid(rc.GinCtx, tagTree)
+	req.BindJsonAndValid(rc, tagTree)
 
 	rc.ReqParam = fmt.Sprintf("tagTreeId: %d, tagName: %s, code: %s", tagTree.Id, tagTree.Name, tagTree.Code)
 
@@ -78,12 +77,12 @@ func (p *TagTree) SaveTagTree(rc *req.Ctx) {
 }
 
 func (p *TagTree) DelTagTree(rc *req.Ctx) {
-	biz.ErrIsNil(p.TagTreeApp.Delete(rc.MetaCtx, uint64(ginx.PathParamInt(rc.GinCtx, "id"))))
+	biz.ErrIsNil(p.TagTreeApp.Delete(rc.MetaCtx, uint64(rc.F.PathParamInt("id"))))
 }
 
 // 获取用户可操作的资源标签路径
 func (p *TagTree) TagResources(rc *req.Ctx) {
-	resourceType := int8(ginx.PathParamInt(rc.GinCtx, "rtype"))
+	resourceType := int8(rc.F.PathParamInt("rtype"))
 	tagResources := p.TagTreeApp.GetAccountTagResources(rc.GetLoginAccount().Id, resourceType, "")
 	tagPath2Resource := collx.ArrayToMap[entity.TagResource, string](tagResources, func(tagResource entity.TagResource) string {
 		return tagResource.TagPath
@@ -97,6 +96,6 @@ func (p *TagTree) TagResources(rc *req.Ctx) {
 // 资源标签关联信息查询
 func (p *TagTree) QueryTagResources(rc *req.Ctx) {
 	var trs []*entity.TagResource
-	p.TagResourceApp.ListByQuery(ginx.BindQuery(rc.GinCtx, new(entity.TagResourceQuery)), &trs)
+	p.TagResourceApp.ListByQuery(req.BindQuery(rc, new(entity.TagResourceQuery)), &trs)
 	rc.ResData = trs
 }

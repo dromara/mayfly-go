@@ -6,7 +6,6 @@ import (
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 	"strconv"
 	"strings"
@@ -17,14 +16,14 @@ type AuthCert struct {
 }
 
 func (ac *AuthCert) BaseAuthCerts(rc *req.Ctx) {
-	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.AuthCertQuery))
+	queryCond, page := req.BindQueryAndPage(rc, new(entity.AuthCertQuery))
 	res, err := ac.AuthCertApp.GetPageList(queryCond, page, new([]vo.AuthCertBaseVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func (ac *AuthCert) AuthCerts(rc *req.Ctx) {
-	queryCond, page := ginx.BindQueryAndPage(rc.GinCtx, new(entity.AuthCertQuery))
+	queryCond, page := req.BindQueryAndPage(rc, new(entity.AuthCertQuery))
 
 	res := new([]*entity.AuthCert)
 	pageRes, err := ac.AuthCertApp.GetPageList(queryCond, page, res)
@@ -37,7 +36,7 @@ func (ac *AuthCert) AuthCerts(rc *req.Ctx) {
 
 func (c *AuthCert) SaveAuthCert(rc *req.Ctx) {
 	acForm := &form.AuthCertForm{}
-	ac := ginx.BindJsonAndCopyTo(rc.GinCtx, acForm, new(entity.AuthCert))
+	ac := req.BindJsonAndCopyTo(rc, acForm, new(entity.AuthCert))
 
 	// 脱敏记录日志
 	acForm.Passphrase = "***"
@@ -48,7 +47,7 @@ func (c *AuthCert) SaveAuthCert(rc *req.Ctx) {
 }
 
 func (c *AuthCert) Delete(rc *req.Ctx) {
-	idsStr := ginx.PathParam(rc.GinCtx, "id")
+	idsStr := rc.F.PathParam("id")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 

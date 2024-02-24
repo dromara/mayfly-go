@@ -56,7 +56,7 @@ func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 		}
 	}
 
-	if err := req.Err; err != nil {
+	if err := req.Error; err != nil {
 		syslog.Type = entity.SyslogTypeError
 		var errMsg string
 		switch t := err.(type) {
