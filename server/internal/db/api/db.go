@@ -64,7 +64,7 @@ func (d *Db) Save(rc *req.Ctx) {
 }
 
 func (d *Db) DeleteDb(rc *req.Ctx) {
-	idsStr := rc.F.PathParam("dbId")
+	idsStr := rc.PathParam("dbId")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -150,7 +150,7 @@ type progressMsg struct {
 
 // 执行sql文件
 func (d *Db) ExecSqlFile(rc *req.Ctx) {
-	multipart, err := rc.F.GetRequest().MultipartReader()
+	multipart, err := rc.GetRequest().MultipartReader()
 	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
 	file, err := multipart.NextPart()
 	biz.ErrIsNilAppendErr(err, "读取sql文件失败: %s")
@@ -158,7 +158,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	filename := file.FileName()
 	dbId := getDbId(rc)
 	dbName := getDbName(rc)
-	clientId := rc.F.Query("clientId")
+	clientId := rc.Query("clientId")
 
 	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
 	biz.ErrIsNil(err)
@@ -250,10 +250,10 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 // 数据库dump
 func (d *Db) DumpSql(rc *req.Ctx) {
 	dbId := getDbId(rc)
-	dbNamesStr := rc.F.Query("db")
-	dumpType := rc.F.Query("type")
-	tablesStr := rc.F.Query("tables")
-	extName := rc.F.Query("extName")
+	dbNamesStr := rc.Query("db")
+	dumpType := rc.Query("type")
+	tablesStr := rc.Query("tables")
+	extName := rc.Query("extName")
 	switch extName {
 	case ".gz", ".gzip", "gz", "gzip":
 		extName = ".gz"
@@ -273,10 +273,10 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 
 	now := time.Now()
 	filename := fmt.Sprintf("%s.%s.sql%s", db.Name, now.Format("20060102150405"), extName)
-	rc.F.Header("Content-Type", "application/octet-stream")
-	rc.F.Header("Content-Disposition", "attachment; filename="+filename)
+	rc.Header("Content-Type", "application/octet-stream")
+	rc.Header("Content-Disposition", "attachment; filename="+filename)
 	if extName != ".gz" {
-		rc.F.Header("Content-Encoding", "gzip")
+		rc.Header("Content-Encoding", "gzip")
 	}
 
 	var dbNames, tables []string
@@ -287,7 +287,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		tables = strings.Split(tablesStr, ",")
 	}
 
-	writer := newGzipWriter(rc.F.GetWriter())
+	writer := newGzipWriter(rc.GetWriter())
 	defer func() {
 		msg := anyx.ToString(recover())
 		if len(msg) > 0 {
@@ -379,7 +379,7 @@ func (d *Db) TableInfos(rc *req.Ctx) {
 }
 
 func (d *Db) TableIndex(rc *req.Ctx) {
-	tn := rc.F.Query("tableName")
+	tn := rc.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
 	res, err := d.getDbConn(rc).GetDialect().GetTableIndex(tn)
 	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
@@ -388,7 +388,7 @@ func (d *Db) TableIndex(rc *req.Ctx) {
 
 // @router /api/db/:dbId/c-metadata [get]
 func (d *Db) ColumnMA(rc *req.Ctx) {
-	tn := rc.F.Query("tableName")
+	tn := rc.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
 
 	dbi := d.getDbConn(rc)
@@ -440,7 +440,7 @@ func (d *Db) HintTables(rc *req.Ctx) {
 }
 
 func (d *Db) GetTableDDL(rc *req.Ctx) {
-	tn := rc.F.Query("tableName")
+	tn := rc.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
 	res, err := d.getDbConn(rc).GetDialect().GetTableDDL(tn)
 	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
@@ -468,13 +468,13 @@ func (d *Db) CopyTable(rc *req.Ctx) {
 }
 
 func getDbId(rc *req.Ctx) uint64 {
-	dbId := rc.F.PathParamInt("dbId")
+	dbId := rc.PathParamInt("dbId")
 	biz.IsTrue(dbId > 0, "dbId错误")
 	return uint64(dbId)
 }
 
 func getDbName(rc *req.Ctx) string {
-	db := rc.F.Query("db")
+	db := rc.Query("db")
 	biz.NotEmpty(db, "db不能为空")
 	return db
 }

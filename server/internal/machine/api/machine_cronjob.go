@@ -43,7 +43,7 @@ func (m *MachineCronJob) Save(rc *req.Ctx) {
 }
 
 func (m *MachineCronJob) Delete(rc *req.Ctx) {
-	idsStr := rc.F.PathParam("ids")
+	idsStr := rc.PathParam("ids")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -55,15 +55,15 @@ func (m *MachineCronJob) Delete(rc *req.Ctx) {
 }
 
 func (m *MachineCronJob) GetRelateMachineIds(rc *req.Ctx) {
-	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(rc.F.QueryIntDefault("cronJobId", -1)))
+	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(rc.QueryIntDefault("cronJobId", -1)))
 }
 
 func (m *MachineCronJob) GetRelateCronJobIds(rc *req.Ctx) {
-	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(rc.F.QueryIntDefault("machineId", -1)))
+	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(rc.QueryIntDefault("machineId", -1)))
 }
 
 func (m *MachineCronJob) RunCronJob(rc *req.Ctx) {
-	cronJobKey := rc.F.PathParam("key")
+	cronJobKey := rc.PathParam("key")
 	biz.NotEmpty(cronJobKey, "cronJob key不能为空")
 	m.MachineCronJobApp.RunCronJob(cronJobKey)
 }

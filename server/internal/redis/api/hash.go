@@ -11,9 +11,9 @@ import (
 
 func (r *Redis) Hscan(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisConn(rc)
-	count := rc.F.QueryIntDefault("count", 10)
-	match := rc.F.Query("match")
-	cursor := rc.F.QueryIntDefault("cursor", 0)
+	count := rc.QueryIntDefault("count", 10)
+	match := rc.Query("match")
+	cursor := rc.QueryIntDefault("cursor", 0)
 	contextTodo := context.TODO()
 
 	cmdable := ri.GetCmdable()
@@ -31,7 +31,7 @@ func (r *Redis) Hscan(rc *req.Ctx) {
 
 func (r *Redis) Hdel(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisConn(rc)
-	field := rc.F.Query("field")
+	field := rc.Query("field")
 
 	rc.ReqParam = collx.Kvs("redis", ri.Info, "key", key, "field", field)
 	delRes, err := ri.GetCmdable().HDel(context.TODO(), key, field).Result()
@@ -41,7 +41,7 @@ func (r *Redis) Hdel(rc *req.Ctx) {
 
 func (r *Redis) Hget(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisConn(rc)
-	field := rc.F.Query("field")
+	field := rc.Query("field")
 
 	res, err := ri.GetCmdable().HGet(context.TODO(), key, field).Result()
 	biz.ErrIsNilAppendErr(err, "hget err: %s")

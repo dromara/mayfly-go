@@ -20,7 +20,7 @@ type DbRestore struct {
 // GetPageList 获取数据库恢复任务
 // @router /api/dbs/:dbId/restores [GET]
 func (d *DbRestore) GetPageList(rc *req.Ctx) {
-	dbId := uint64(rc.F.PathParamInt("dbId"))
+	dbId := uint64(rc.PathParamInt("dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
 	db, err := d.dbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
@@ -41,7 +41,7 @@ func (d *DbRestore) Create(rc *req.Ctx) {
 	req.BindJsonAndValid(rc, restoreForm)
 	rc.ReqParam = restoreForm
 
-	dbId := uint64(rc.F.PathParamInt("dbId"))
+	dbId := uint64(rc.PathParamInt("dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
 	db, err := d.dbApp.GetById(new(entity.Db), dbId, "instanceId")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
@@ -80,7 +80,7 @@ func (d *DbRestore) Update(rc *req.Ctx) {
 }
 
 func (d *DbRestore) walk(rc *req.Ctx, fn func(ctx context.Context, restoreId uint64) error) error {
-	idsStr := rc.F.PathParam("restoreId")
+	idsStr := rc.PathParam("restoreId")
 	biz.NotEmpty(idsStr, "restoreId 为空")
 	rc.ReqParam = idsStr
 	ids := strings.Fields(idsStr)
@@ -122,7 +122,7 @@ func (d *DbRestore) Disable(rc *req.Ctx) {
 // GetDbNamesWithoutRestore 获取未配置定时恢复的数据库名称
 // @router /api/dbs/:dbId/db-names-without-backup [GET]
 func (d *DbRestore) GetDbNamesWithoutRestore(rc *req.Ctx) {
-	dbId := uint64(rc.F.PathParamInt("dbId"))
+	dbId := uint64(rc.PathParamInt("dbId"))
 	db, err := d.dbApp.GetById(new(entity.Db), dbId, "instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 	dbNames := strings.Fields(db.Database)
@@ -135,9 +135,9 @@ func (d *DbRestore) GetDbNamesWithoutRestore(rc *req.Ctx) {
 // @router /api/dbs/:dbId/restores/:restoreId/histories [GET]
 func (d *DbRestore) GetHistoryPageList(rc *req.Ctx) {
 	queryCond := &entity.DbRestoreHistoryQuery{
-		DbRestoreId: uint64(rc.F.PathParamInt("restoreId")),
+		DbRestoreId: uint64(rc.PathParamInt("restoreId")),
 	}
-	res, err := d.restoreApp.GetHistoryPageList(queryCond, rc.F.GetPageParam(), new([]vo.DbRestoreHistory))
+	res, err := d.restoreApp.GetHistoryPageList(queryCond, rc.GetPageParam(), new([]vo.DbRestoreHistory))
 	biz.ErrIsNilAppendErr(err, "获取数据库备份历史失败: %v")
 	rc.ResData = res
 }

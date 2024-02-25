@@ -47,7 +47,7 @@ func (c *AuthCert) SaveAuthCert(rc *req.Ctx) {
 }
 
 func (c *AuthCert) Delete(rc *req.Ctx) {
-	idsStr := rc.F.PathParam("id")
+	idsStr := rc.PathParam("id")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 

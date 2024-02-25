@@ -40,7 +40,7 @@ const (
 
 func (m *MachineFile) MachineFiles(rc *req.Ctx) {
 	condition := &entity.MachineFile{MachineId: GetMachineId(rc)}
-	res, err := m.MachineFileApp.GetPageList(condition, rc.F.GetPageParam(), new([]vo.MachineFileVO))
+	res, err := m.MachineFileApp.GetPageList(condition, rc.GetPageParam(), new([]vo.MachineFileVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -82,7 +82,7 @@ func (m *MachineFile) CreateFile(rc *req.Ctx) {
 
 func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 	fid := GetMachineFileId(rc)
-	readPath := rc.F.Query("path")
+	readPath := rc.Query("path")
 
 	sftpFile, mi, err := m.MachineFileApp.ReadFile(fid, readPath)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
@@ -101,7 +101,7 @@ func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 
 func (m *MachineFile) DownloadFile(rc *req.Ctx) {
 	fid := GetMachineFileId(rc)
-	readPath := rc.F.Query("path")
+	readPath := rc.Query("path")
 
 	sftpFile, mi, err := m.MachineFileApp.ReadFile(fid, readPath)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
@@ -110,12 +110,12 @@ func (m *MachineFile) DownloadFile(rc *req.Ctx) {
 
 	// 截取文件名，如/usr/local/test.java -》 test.java
 	path := strings.Split(readPath, "/")
-	rc.F.Download(sftpFile, path[len(path)-1])
+	rc.Download(sftpFile, path[len(path)-1])
 }
 
 func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 	fid := GetMachineFileId(rc)
-	readPath := rc.F.Query("path")
+	readPath := rc.Query("path")
 	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
 
 	if !strings.HasSuffix(readPath, "/") {
@@ -142,7 +142,7 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 
 func (m *MachineFile) GetDirSize(rc *req.Ctx) {
 	fid := GetMachineFileId(rc)
-	readPath := rc.F.Query("path")
+	readPath := rc.Query("path")
 
 	size, err := m.MachineFileApp.GetDirSize(fid, readPath)
 	biz.ErrIsNil(err)
@@ -151,7 +151,7 @@ func (m *MachineFile) GetDirSize(rc *req.Ctx) {
 
 func (m *MachineFile) GetFileStat(rc *req.Ctx) {
 	fid := GetMachineFileId(rc)
-	readPath := rc.F.Query("path")
+	readPath := rc.Query("path")
 
 	res, err := m.MachineFileApp.FileStat(fid, readPath)
 	biz.ErrIsNil(err, res)
@@ -171,9 +171,9 @@ func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
 
 func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	fid := GetMachineFileId(rc)
-	path := rc.F.PostForm("path")
+	path := rc.PostForm("path")
 
-	fileheader, err := rc.F.FormFile("file")
+	fileheader, err := rc.FormFile("file")
 	biz.ErrIsNilAppendErr(err, "读取文件失败: %s")
 
 	maxUploadFileSize := config.GetMachine().UploadMaxFileSize
@@ -205,7 +205,7 @@ type FolderFile struct {
 func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	fid := GetMachineFileId(rc)
 
-	mf, err := rc.F.MultipartForm()
+	mf, err := rc.MultipartForm()
 	biz.ErrIsNilAppendErr(err, "获取表单信息失败: %s")
 	basePath := mf.Value["basePath"][0]
 	biz.NotEmpty(basePath, "基础路径不能为空")
@@ -342,7 +342,7 @@ func getFileType(fm fs.FileMode) string {
 }
 
 func GetMachineFileId(rc *req.Ctx) uint64 {
-	fileId := rc.F.PathParamInt("fileId")
+	fileId := rc.PathParamInt("fileId")
 	biz.IsTrue(fileId != 0, "fileId错误")
 	return uint64(fileId)
 }

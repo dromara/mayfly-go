@@ -47,7 +47,7 @@ func (d *DataSyncTask) SaveTask(rc *req.Ctx) {
 }
 
 func (d *DataSyncTask) DeleteTask(rc *req.Ctx) {
-	taskId := rc.F.PathParam("taskId")
+	taskId := rc.PathParam("taskId")
 	rc.ReqParam = taskId
 	ids := strings.Split(taskId, ",")
 
@@ -97,7 +97,7 @@ func (d *DataSyncTask) GetTask(rc *req.Ctx) {
 }
 
 func getTaskId(rc *req.Ctx) uint64 {
-	instanceId := rc.F.PathParamInt("taskId")
+	instanceId := rc.PathParamInt("taskId")
 	biz.IsTrue(instanceId > 0, "instanceId 错误")
 	return uint64(instanceId)
 }

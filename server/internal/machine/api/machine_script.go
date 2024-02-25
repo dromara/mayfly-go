@@ -23,7 +23,7 @@ type MachineScript struct {
 
 func (m *MachineScript) MachineScripts(rc *req.Ctx) {
 	condition := &entity.MachineScript{MachineId: GetMachineId(rc)}
-	res, err := m.MachineScriptApp.GetPageList(condition, rc.F.GetPageParam(), new([]vo.MachineScriptVO))
+	res, err := m.MachineScriptApp.GetPageList(condition, rc.GetPageParam(), new([]vo.MachineScriptVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -37,7 +37,7 @@ func (m *MachineScript) SaveMachineScript(rc *req.Ctx) {
 }
 
 func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
-	idsStr := rc.F.PathParam("scriptId")
+	idsStr := rc.PathParam("scriptId")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -57,7 +57,7 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 
 	script := ms.Script
 	// 如果有脚本参数，则用脚本参数替换脚本中的模板占位符参数
-	if params := rc.F.Query("params"); params != "" {
+	if params := rc.Query("params"); params != "" {
 		script, err = stringx.TemplateParse(ms.Script, jsonx.ToMap(params))
 		biz.ErrIsNilAppendErr(err, "脚本模板参数解析失败: %s")
 	}
@@ -75,7 +75,7 @@ func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 }
 
 func GetMachineScriptId(rc *req.Ctx) uint64 {
-	scriptId := rc.F.PathParamInt("scriptId")
+	scriptId := rc.PathParamInt("scriptId")
 	biz.IsTrue(scriptId > 0, "scriptId错误")
 	return uint64(scriptId)
 }

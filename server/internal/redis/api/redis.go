@@ -72,7 +72,7 @@ func (r *Redis) Save(rc *req.Ctx) {
 
 // 获取redis实例密码，由于数据库是加密存储，故提供该接口展示原文密码
 func (r *Redis) GetRedisPwd(rc *req.Ctx) {
-	rid := uint64(rc.F.PathParamInt("id"))
+	rid := uint64(rc.PathParamInt("id"))
 	re, err := r.RedisApp.GetById(new(entity.Redis), rid, "Password")
 	biz.ErrIsNil(err, "redis信息不存在")
 	if err := re.PwdDecrypt(); err != nil {
@@ -82,7 +82,7 @@ func (r *Redis) GetRedisPwd(rc *req.Ctx) {
 }
 
 func (r *Redis) DeleteRedis(rc *req.Ctx) {
-	idsStr := rc.F.PathParam("id")
+	idsStr := rc.PathParam("id")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -94,10 +94,10 @@ func (r *Redis) DeleteRedis(rc *req.Ctx) {
 }
 
 func (r *Redis) RedisInfo(rc *req.Ctx) {
-	ri, err := r.RedisApp.GetRedisConn(uint64(rc.F.PathParamInt("id")), 0)
+	ri, err := r.RedisApp.GetRedisConn(uint64(rc.PathParamInt("id")), 0)
 	biz.ErrIsNil(err)
 
-	section := rc.F.Query("section")
+	section := rc.Query("section")
 	mode := ri.Info.Mode
 	ctx := context.Background()
 	var redisCli *redis.Client
@@ -105,7 +105,7 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 	if mode == "" || mode == rdm.StandaloneMode || mode == rdm.SentinelMode {
 		redisCli = ri.Cli
 	} else if mode == rdm.ClusterMode {
-		host := rc.F.Query("host")
+		host := rc.Query("host")
 		biz.NotEmpty(host, "集群模式host信息不能为空")
 		clusterClient := ri.ClusterCli
 		// 遍历集群的master节点找到该redis client
@@ -171,7 +171,7 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 }
 
 func (r *Redis) ClusterInfo(rc *req.Ctx) {
-	ri, err := r.RedisApp.GetRedisConn(uint64(rc.F.PathParamInt("id")), 0)
+	ri, err := r.RedisApp.GetRedisConn(uint64(rc.PathParamInt("id")), 0)
 	biz.ErrIsNil(err)
 	biz.IsEquals(ri.Info.Mode, rdm.ClusterMode, "非集群模式")
 	info, _ := ri.ClusterCli.ClusterInfo(context.Background()).Result()
@@ -216,7 +216,7 @@ func (r *Redis) ClusterInfo(rc *req.Ctx) {
 
 // 校验查询参数中的key为必填项，并返回redis实例
 func (r *Redis) checkKeyAndGetRedisConn(rc *req.Ctx) (*rdm.RedisConn, string) {
-	key := rc.F.Query("key")
+	key := rc.Query("key")
 	biz.NotEmpty(key, "key不能为空")
 	return r.getRedisConn(rc), key
 }
@@ -230,5 +230,5 @@ func (r *Redis) getRedisConn(rc *req.Ctx) *rdm.RedisConn {
 
 // 获取redis id与要操作的库号（统一路径）
 func getIdAndDbNum(rc *req.Ctx) (uint64, int) {
-	return uint64(rc.F.PathParamInt("id")), rc.F.PathParamInt("db")
+	return uint64(rc.PathParamInt("id")), rc.PathParamInt("db")
 }

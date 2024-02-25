@@ -16,7 +16,7 @@ func (m *Msg) GetMsgs(rc *req.Ctx) {
 	condition := &entity.Msg{
 		RecipientId: int64(rc.GetLoginAccount().Id),
 	}
-	res, err := m.MsgApp.GetPageList(condition, rc.F.GetPageParam(), new([]entity.Msg))
+	res, err := m.MsgApp.GetPageList(condition, rc.GetPageParam(), new([]entity.Msg))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

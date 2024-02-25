@@ -52,7 +52,7 @@ func LogHandler(rc *Ctx) error {
 
 	attrMap := make(map[string]any, 0)
 
-	req := rc.F.GetRequest()
+	req := rc.GetRequest()
 	attrMap[req.Method] = req.URL.Path
 
 	if la := contextx.GetLoginAccount(rc.MetaCtx); la != nil {

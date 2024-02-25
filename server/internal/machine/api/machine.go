@@ -87,14 +87,14 @@ func (m *Machine) TestConn(rc *req.Ctx) {
 }
 
 func (m *Machine) ChangeStatus(rc *req.Ctx) {
-	id := uint64(rc.F.PathParamInt("machineId"))
-	status := int8(rc.F.PathParamInt("status"))
+	id := uint64(rc.PathParamInt("machineId"))
+	status := int8(rc.PathParamInt("status"))
 	rc.ReqParam = collx.Kvs("id", id, "status", status)
 	biz.ErrIsNil(m.MachineApp.ChangeStatus(rc.MetaCtx, id, status))
 }
 
 func (m *Machine) DeleteMachine(rc *req.Ctx) {
-	idsStr := rc.F.PathParam("machineId")
+	idsStr := rc.PathParam("machineId")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -108,19 +108,19 @@ func (m *Machine) DeleteMachine(rc *req.Ctx) {
 // 获取进程列表信息
 func (m *Machine) GetProcess(rc *req.Ctx) {
 	cmd := "ps -aux "
-	sortType := rc.F.Query("sortType")
+	sortType := rc.Query("sortType")
 	if sortType == "2" {
 		cmd += "--sort -pmem "
 	} else {
 		cmd += "--sort -pcpu "
 	}
 
-	pname := rc.F.Query("name")
+	pname := rc.Query("name")
 	if pname != "" {
 		cmd += fmt.Sprintf("| grep %s ", pname)
 	}
 
-	count := rc.F.QueryIntDefault("count", 10)
+	count := rc.QueryIntDefault("count", 10)
 	cmd += "| head -n " + fmt.Sprintf("%d", count)
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
@@ -134,7 +134,7 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 
 // 终止进程
 func (m *Machine) KillProcess(rc *req.Ctx) {
-	pid := rc.F.Query("pid")
+	pid := rc.Query("pid")
 	biz.NotEmpty(pid, "进程id不能为空")
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
@@ -169,8 +169,8 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	defer cli.Close()
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), "%s")
 
-	cols := rc.F.QueryIntDefault("cols", 80)
-	rows := rc.F.QueryIntDefault("rows", 32)
+	cols := rc.QueryIntDefault("cols", 80)
+	rows := rc.QueryIntDefault("rows", 32)
 
 	// 记录系统操作日志
 	rc.WithLog(req.NewLogSave("机器-终端操作"))
@@ -183,13 +183,13 @@ func (m *Machine) WsSSH(g *gin.Context) {
 
 func (m *Machine) MachineTermOpRecords(rc *req.Ctx) {
 	mid := GetMachineId(rc)
-	res, err := m.MachineTermOpApp.GetPageList(&entity.MachineTermOp{MachineId: mid}, rc.F.GetPageParam(), new([]entity.MachineTermOp))
+	res, err := m.MachineTermOpApp.GetPageList(&entity.MachineTermOp{MachineId: mid}, rc.GetPageParam(), new([]entity.MachineTermOp))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func (m *Machine) MachineTermOpRecord(rc *req.Ctx) {
-	termOp, err := m.MachineTermOpApp.GetById(new(entity.MachineTermOp), uint64(rc.F.PathParamInt("recId")))
+	termOp, err := m.MachineTermOpApp.GetById(new(entity.MachineTermOp), uint64(rc.PathParamInt("recId")))
 	biz.ErrIsNil(err)
 
 	bytes, err := os.ReadFile(path.Join(config.GetMachine().TerminalRecPath, termOp.RecordFilePath))
@@ -198,7 +198,7 @@ func (m *Machine) MachineTermOpRecord(rc *req.Ctx) {
 }
 
 func GetMachineId(rc *req.Ctx) uint64 {
-	machineId, _ := strconv.Atoi(rc.F.PathParam("machineId"))
+	machineId, _ := strconv.Atoi(rc.PathParam("machineId"))
 	biz.IsTrue(machineId != 0, "machineId错误")
 	return uint64(machineId)
 }

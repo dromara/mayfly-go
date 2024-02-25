@@ -60,7 +60,7 @@ func (p *TagTree) GetTagTree(rc *req.Ctx) {
 
 func (p *TagTree) ListByQuery(rc *req.Ctx) {
 	cond := new(entity.TagTreeQuery)
-	tagPaths := rc.F.Query("tagPaths")
+	tagPaths := rc.Query("tagPaths")
 	cond.CodePaths = strings.Split(tagPaths, ",")
 	var tagTrees vo.TagTreeVOS
 	p.TagTreeApp.ListByQuery(cond, &tagTrees)
@@ -77,12 +77,12 @@ func (p *TagTree) SaveTagTree(rc *req.Ctx) {
 }
 
 func (p *TagTree) DelTagTree(rc *req.Ctx) {
-	biz.ErrIsNil(p.TagTreeApp.Delete(rc.MetaCtx, uint64(rc.F.PathParamInt("id"))))
+	biz.ErrIsNil(p.TagTreeApp.Delete(rc.MetaCtx, uint64(rc.PathParamInt("id"))))
 }
 
 // 获取用户可操作的资源标签路径
 func (p *TagTree) TagResources(rc *req.Ctx) {
-	resourceType := int8(rc.F.PathParamInt("rtype"))
+	resourceType := int8(rc.PathParamInt("rtype"))
 	tagResources := p.TagTreeApp.GetAccountTagResources(rc.GetLoginAccount().Id, resourceType, "")
 	tagPath2Resource := collx.ArrayToMap[entity.TagResource, string](tagResources, func(tagResource entity.TagResource) string {
 		return tagResource.TagPath

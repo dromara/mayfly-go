@@ -22,7 +22,7 @@ func (r *Resource) GetAllResourceTree(rc *req.Ctx) {
 }
 
 func (r *Resource) GetById(rc *req.Ctx) {
-	res, err := r.ResourceApp.GetById(new(entity.Resource), uint64(rc.F.PathParamInt("id")))
+	res, err := r.ResourceApp.GetById(new(entity.Resource), uint64(rc.PathParamInt("id")))
 	biz.ErrIsNil(err, "该资源不存在")
 	rc.ResData = res
 }
@@ -41,19 +41,19 @@ func (r *Resource) SaveResource(rc *req.Ctx) {
 }
 
 func (r *Resource) DelResource(rc *req.Ctx) {
-	biz.ErrIsNil(r.ResourceApp.Delete(rc.MetaCtx, uint64(rc.F.PathParamInt("id"))))
+	biz.ErrIsNil(r.ResourceApp.Delete(rc.MetaCtx, uint64(rc.PathParamInt("id"))))
 }
 
 func (r *Resource) ChangeStatus(rc *req.Ctx) {
-	rid := uint64(rc.F.PathParamInt("id"))
-	status := int8(rc.F.PathParamInt("status"))
+	rid := uint64(rc.PathParamInt("id"))
+	status := int8(rc.PathParamInt("status"))
 	rc.ReqParam = collx.Kvs("id", rid, "status", status)
 	biz.ErrIsNil(r.ResourceApp.ChangeStatus(rc.MetaCtx, rid, status))
 }
 
 func (r *Resource) Sort(rc *req.Ctx) {
 	var rs []form.ResourceForm
-	rc.F.BindJSON(&rs)
+	rc.BindJSON(&rs)
 	rc.ReqParam = rs
 
 	for _, v := range rs {

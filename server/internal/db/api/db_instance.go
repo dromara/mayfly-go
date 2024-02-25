@@ -78,7 +78,7 @@ func (d *Instance) GetInstancePwd(rc *req.Ctx) {
 // DeleteInstance 删除数据库实例信息
 // @router /api/instances/:instance [DELETE]
 func (d *Instance) DeleteInstance(rc *req.Ctx) {
-	idsStr := rc.F.PathParam("instanceId")
+	idsStr := rc.PathParam("instanceId")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -113,7 +113,7 @@ func (d *Instance) GetDbServer(rc *req.Ctx) {
 }
 
 func getInstanceId(rc *req.Ctx) uint64 {
-	instanceId := rc.F.PathParamInt("instanceId")
+	instanceId := rc.PathParamInt("instanceId")
 	biz.IsTrue(instanceId > 0, "instanceId 错误")
 	return uint64(instanceId)
 }

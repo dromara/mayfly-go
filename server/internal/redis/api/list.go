@@ -16,8 +16,8 @@ func (r *Redis) GetListValue(rc *req.Ctx) {
 	len, err := cmdable.LLen(ctx, key).Result()
 	biz.ErrIsNilAppendErr(err, "获取list长度失败: %s")
 
-	start := rc.F.QueryIntDefault("start", 0)
-	stop := rc.F.QueryIntDefault("stop", 10)
+	start := rc.QueryIntDefault("start", 0)
+	stop := rc.QueryIntDefault("stop", 10)
 	res, err := cmdable.LRange(ctx, key, int64(start), int64(stop)).Result()
 	biz.ErrIsNilAppendErr(err, "获取list值失败: %s")
 

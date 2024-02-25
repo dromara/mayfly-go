@@ -49,7 +49,7 @@ func (p *Team) SaveTeam(rc *req.Ctx) {
 }
 
 func (p *Team) DelTeam(rc *req.Ctx) {
-	idsStr := rc.F.PathParam("id")
+	idsStr := rc.PathParam("id")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -62,10 +62,10 @@ func (p *Team) DelTeam(rc *req.Ctx) {
 
 // 获取团队的成员信息
 func (p *Team) GetTeamMembers(rc *req.Ctx) {
-	condition := &entity.TeamMember{TeamId: uint64(rc.F.PathParamInt("id"))}
-	condition.Username = rc.F.Query("username")
+	condition := &entity.TeamMember{TeamId: uint64(rc.PathParamInt("id"))}
+	condition.Username = rc.Query("username")
 
-	res, err := p.TeamApp.GetMemberPage(condition, rc.F.GetPageParam(), &[]vo.TeamMember{})
+	res, err := p.TeamApp.GetMemberPage(condition, rc.GetPageParam(), &[]vo.TeamMember{})
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -98,8 +98,8 @@ func (p *Team) SaveTeamMember(rc *req.Ctx) {
 
 // 删除团队成员
 func (p *Team) DelTeamMember(rc *req.Ctx) {
-	tid := rc.F.PathParamInt("id")
-	aid := rc.F.PathParamInt("accountId")
+	tid := rc.PathParamInt("id")
+	aid := rc.PathParamInt("accountId")
 	rc.ReqParam = fmt.Sprintf("teamId: %d, accountId: %d", tid, aid)
 
 	p.TeamApp.DeleteMember(rc.MetaCtx, uint64(tid), uint64(aid))
@@ -107,7 +107,7 @@ func (p *Team) DelTeamMember(rc *req.Ctx) {
 
 // 获取团队关联的标签id
 func (p *Team) GetTagIds(rc *req.Ctx) {
-	rc.ResData = p.TeamApp.ListTagIds(uint64(rc.F.PathParamInt("id")))
+	rc.ResData = p.TeamApp.ListTagIds(uint64(rc.PathParamInt("id")))
 }
 
 // 保存团队关联标签信息

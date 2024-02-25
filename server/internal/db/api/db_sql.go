@@ -52,8 +52,8 @@ func (d *DbSql) GetSqlNames(rc *req.Ctx) {
 func (d *DbSql) DeleteSql(rc *req.Ctx) {
 	dbSql := &entity.DbSql{Type: 1, DbId: getDbId(rc)}
 	dbSql.CreatorId = rc.GetLoginAccount().Id
-	dbSql.Name = rc.F.Query("name")
-	dbSql.Db = rc.F.Query("db")
+	dbSql.Name = rc.Query("name")
+	dbSql.Db = rc.Query("db")
 
 	biz.ErrIsNil(d.DbSqlApp.DeleteByCond(rc.MetaCtx, dbSql))
 }
@@ -65,7 +65,7 @@ func (d *DbSql) GetSql(rc *req.Ctx) {
 	// 根据创建者id， 数据库id，以及sql模板名称查询保存的sql信息
 	dbSql := &entity.DbSql{Type: 1, DbId: dbId, Db: dbName}
 	dbSql.CreatorId = rc.GetLoginAccount().Id
-	dbSql.Name = rc.F.Query("name")
+	dbSql.Name = rc.Query("name")
 
 	e := d.DbSqlApp.GetBy(dbSql)
 	if e != nil {

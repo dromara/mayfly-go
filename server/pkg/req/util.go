@@ -2,18 +2,16 @@ package req
 
 import (
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/structx"
 	"mayfly-go/pkg/validatorx"
-	"net/http"
 
 	"github.com/go-playground/validator/v10"
 )
 
 // 绑定并校验请求结构体参数
 func BindJsonAndValid[T any](rc *Ctx, data T) T {
-	if err := rc.F.BindJSON(data); err != nil {
+	if err := rc.BindJSON(data); err != nil {
 		panic(ConvBindValidationError(data, err))
 	} else {
 		return data
@@ -29,7 +27,7 @@ func BindJsonAndCopyTo[T any](rc *Ctx, form any, toStruct T) T {
 
 // 绑定查询字符串到指定结构体
 func BindQuery[T any](rc *Ctx, data T) T {
-	if err := rc.F.BindQuery(data); err != nil {
+	if err := rc.BindQuery(data); err != nil {
 		panic(ConvBindValidationError(data, err))
 	} else {
 		return data
@@ -38,21 +36,10 @@ func BindQuery[T any](rc *Ctx, data T) T {
 
 // 绑定查询字符串到指定结构体，并将分页信息也返回
 func BindQueryAndPage[T any](rc *Ctx, data T) (T, *model.PageParam) {
-	if err := rc.F.BindQuery(data); err != nil {
+	if err := rc.BindQuery(data); err != nil {
 		panic(ConvBindValidationError(data, err))
 	} else {
-		return data, rc.F.GetPageParam()
-	}
-}
-
-// 返回失败结果集
-func ErrorRes(rc *Ctx, err any) {
-	switch t := err.(type) {
-	case errorx.BizError:
-		rc.F.JSONRes(http.StatusOK, model.Error(t))
-	default:
-		logx.ErrorTrace("服务器错误", t)
-		rc.F.JSONRes(http.StatusOK, model.ServerError())
+		return data, rc.GetPageParam()
 	}
 }
 

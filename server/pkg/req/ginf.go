@@ -1,7 +1,6 @@
 package req
 
 import (
-	"mayfly-go/pkg/contextx"
 	"mime/multipart"
 	"net/http"
 
@@ -9,7 +8,7 @@ import (
 )
 
 func NewCtxWithGin(g *gin.Context) *Ctx {
-	return &Ctx{F: NewWrapperF(&GinF{ginCtx: g}), MetaCtx: contextx.WithTraceId(g.Request.Context())}
+	return NewCtx(&GinF{ginCtx: g})
 }
 
 type GinF struct {
@@ -61,5 +60,5 @@ func (gf *GinF) MultipartForm() (*multipart.Form, error) {
 }
 
 func (gf *GinF) JSONRes(code int, data any) {
-	gf.ginCtx.JSON(200, data)
+	gf.ginCtx.JSON(code, data)
 }

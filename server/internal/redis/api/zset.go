@@ -21,9 +21,9 @@ func (r *Redis) ZCard(rc *req.Ctx) {
 func (r *Redis) ZScan(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisConn(rc)
 
-	cursor := uint64(rc.F.QueryIntDefault("cursor", 0))
-	match := rc.F.QueryDefault("match", "*")
-	count := rc.F.QueryIntDefault("count", 50)
+	cursor := uint64(rc.QueryIntDefault("cursor", 0))
+	match := rc.QueryDefault("match", "*")
+	count := rc.QueryIntDefault("count", 50)
 
 	keys, cursor, err := ri.GetCmdable().ZScan(context.TODO(), key, cursor, match, int64(count)).Result()
 	biz.ErrIsNilAppendErr(err, "sscan失败: %s")
@@ -35,8 +35,8 @@ func (r *Redis) ZScan(rc *req.Ctx) {
 
 func (r *Redis) ZRevRange(rc *req.Ctx) {
 	ri, key := r.checkKeyAndGetRedisConn(rc)
-	start := rc.F.QueryIntDefault("start", 0)
-	stop := rc.F.QueryIntDefault("stop", 50)
+	start := rc.QueryIntDefault("start", 0)
+	stop := rc.QueryIntDefault("stop", 50)
 
 	res, err := ri.GetCmdable().ZRevRangeWithScores(context.TODO(), key, int64(start), int64(stop)).Result()
 	biz.ErrIsNilAppendErr(err, "ZRevRange失败: %s")

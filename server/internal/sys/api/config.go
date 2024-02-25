@@ -13,15 +13,15 @@ type Config struct {
 }
 
 func (c *Config) Configs(rc *req.Ctx) {
-	condition := &entity.Config{Key: rc.F.Query("key")}
+	condition := &entity.Config{Key: rc.Query("key")}
 	condition.Permission = rc.GetLoginAccount().Username
-	res, err := c.ConfigApp.GetPageList(condition, rc.F.GetPageParam(), new([]entity.Config))
+	res, err := c.ConfigApp.GetPageList(condition, rc.GetPageParam(), new([]entity.Config))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func (c *Config) GetConfigValueByKey(rc *req.Ctx) {
-	key := rc.F.Query("key")
+	key := rc.Query("key")
 	biz.NotEmpty(key, "key不能为空")
 
 	config := c.ConfigApp.GetConfig(key)

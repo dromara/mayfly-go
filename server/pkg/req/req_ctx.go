@@ -4,6 +4,8 @@ import (
 	"context"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/contextx"
+	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/assert"
 	"net/http"
@@ -14,8 +16,8 @@ import (
 type HandlerFunc func(*Ctx)
 
 type Ctx struct {
-	Conf *Conf     // 请求配置
-	F    *WrapperF // http framework处理接口
+	*wrapperF       // http framework处理接口
+	Conf      *Conf // 请求配置
 
 	ReqParam any   // 请求参数，主要用于记录日志
 	ResData  any   // 响应结果
@@ -25,18 +27,26 @@ type Ctx struct {
 	MetaCtx context.Context // 元数据上下文信息，如登录账号(只有校验token后才会有值)，traceId等
 }
 
+func NewCtx(f F) *Ctx {
+	ctx := &Ctx{MetaCtx: contextx.WithTraceId(f.GetRequest().Context())}
+	ctx.wrapperF = NewWrapperF(f)
+	return ctx
+}
+
+// 执行指定handler func，并输出响应结果
 func (rc *Ctx) Handle(handler HandlerFunc) {
 	begin := time.Now()
 	defer func() {
 		rc.timed = time.Since(begin).Milliseconds()
 		if err := recover(); err != nil {
 			rc.Error = err
-			ErrorRes(rc, err)
 		}
 		// 应用所有请求后置处理器
 		ApplyHandlerInterceptor(afterHandlers, rc)
+		// 输出响应结果
+		rc.res()
 	}()
-	assert.IsTrue(rc.F != nil, "F == nil")
+	assert.IsTrue(rc.wrapperF != nil, "F == nil")
 
 	// 默认为不记录请求参数，可在handler回调函数中覆盖赋值
 	rc.ReqParam = nil
@@ -50,9 +60,6 @@ func (rc *Ctx) Handle(handler HandlerFunc) {
 	}
 
 	handler(rc)
-	if rc.Conf == nil || !rc.Conf.noRes {
-		rc.F.JSONRes(http.StatusOK, model.Success(rc.ResData))
-	}
 }
 
 // 获取当前登录账号信息，不存在则会报错。
@@ -91,13 +98,31 @@ func (rc *Ctx) GetLogInfo() *LogInfo {
 	return rc.Conf.logInfo
 }
 
+// 输出响应结果
+func (rc *Ctx) res() {
+	if err := rc.Error; err != nil {
+		switch t := err.(type) {
+		case errorx.BizError:
+			rc.JSONRes(http.StatusOK, model.Error(t))
+		default:
+			logx.ErrorTrace("服务器错误", t)
+			rc.JSONRes(http.StatusOK, model.ServerError())
+		}
+		return
+	}
+
+	if rc.Conf == nil || !rc.Conf.noRes {
+		rc.JSONRes(http.StatusOK, model.Success(rc.ResData))
+	}
+}
+
 /************************************/
 /***** GOLANG.ORG/X/NET/CONTEXT -> copy gin.Context *****/
 /************************************/
 
 // hasRequestContext returns whether c.Request has Context and fallback.
 func (c *Ctx) hasRequestContext() bool {
-	request := c.F.GetRequest()
+	request := c.GetRequest()
 	return request != nil && request.Context() != nil
 }
 
@@ -106,7 +131,7 @@ func (c *Ctx) Deadline() (deadline time.Time, ok bool) {
 	if !c.hasRequestContext() {
 		return
 	}
-	return c.F.GetRequest().Context().Deadline()
+	return c.GetRequest().Context().Deadline()
 }
 
 // Done returns nil (chan which will wait forever) when c.Request has no Context.
@@ -114,7 +139,7 @@ func (c *Ctx) Done() <-chan struct{} {
 	if !c.hasRequestContext() {
 		return nil
 	}
-	return c.F.GetRequest().Context().Done()
+	return c.GetRequest().Context().Done()
 }
 
 // Err returns nil when c.Request has no Context.
@@ -122,7 +147,7 @@ func (c *Ctx) Err() error {
 	if !c.hasRequestContext() {
 		return nil
 	}
-	return c.F.GetRequest().Context().Err()
+	return c.GetRequest().Context().Err()
 }
 
 // Value returns the value associated with this context for key, or nil
@@ -130,12 +155,12 @@ func (c *Ctx) Err() error {
 // the same key returns the same result.
 func (c *Ctx) Value(key any) any {
 	if key == 0 {
-		return c.F.GetRequest()
+		return c.GetRequest()
 	}
 	if !c.hasRequestContext() {
 		return nil
 	}
-	return c.F.GetRequest().Context().Value(key)
+	return c.GetRequest().Context().Value(key)
 }
 
 // 处理器拦截器函数

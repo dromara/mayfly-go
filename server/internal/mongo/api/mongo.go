@@ -62,7 +62,7 @@ func (m *Mongo) Save(rc *req.Ctx) {
 }
 
 func (m *Mongo) DeleteMongo(rc *req.Ctx) {
-	idsStr := rc.F.PathParam("id")
+	idsStr := rc.PathParam("id")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -84,7 +84,7 @@ func (m *Mongo) Databases(rc *req.Ctx) {
 func (m *Mongo) Collections(rc *req.Ctx) {
 	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
-	db := rc.F.Query("database")
+	db := rc.Query("database")
 	biz.NotEmpty(db, "database不能为空")
 	ctx := context.TODO()
 	res, err := conn.Cli.Database(db).ListCollectionNames(ctx, bson.D{})
@@ -215,7 +215,7 @@ func (m *Mongo) InsertOneCommand(rc *req.Ctx) {
 
 // 获取请求路径上的mongo id
 func (m *Mongo) GetMongoId(rc *req.Ctx) uint64 {
-	dbId := rc.F.PathParamInt("id")
+	dbId := rc.PathParamInt("id")
 	biz.IsTrue(dbId > 0, "mongoId错误")
 	return uint64(dbId)
 }

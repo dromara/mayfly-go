@@ -120,8 +120,8 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 // @router /accounts [get]
 func (a *Account) Accounts(rc *req.Ctx) {
 	condition := &entity.Account{}
-	condition.Username = rc.F.Query("username")
-	res, err := a.AccountApp.GetPageList(condition, rc.F.GetPageParam(), new([]vo.AccountManageVO))
+	condition.Username = rc.Query("username")
+	res, err := a.AccountApp.GetPageList(condition, rc.GetPageParam(), new([]vo.AccountManageVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
@@ -149,9 +149,9 @@ func (a *Account) SaveAccount(rc *req.Ctx) {
 
 func (a *Account) ChangeStatus(rc *req.Ctx) {
 	account := &entity.Account{}
-	account.Id = uint64(rc.F.PathParamInt("id"))
+	account.Id = uint64(rc.PathParamInt("id"))
 
-	status := entity.AccountStatus(int8(rc.F.PathParamInt("status")))
+	status := entity.AccountStatus(int8(rc.PathParamInt("status")))
 	biz.ErrIsNil(entity.AccountStatusEnum.Valid(status))
 	account.Status = status
 
@@ -160,7 +160,7 @@ func (a *Account) ChangeStatus(rc *req.Ctx) {
 }
 
 func (a *Account) DeleteAccount(rc *req.Ctx) {
-	idsStr := rc.F.PathParam("id")
+	idsStr := rc.PathParam("id")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -173,7 +173,7 @@ func (a *Account) DeleteAccount(rc *req.Ctx) {
 
 // 获取账号角色信息列表
 func (a *Account) AccountRoles(rc *req.Ctx) {
-	rc.ResData = a.getAccountRoles(uint64(rc.F.PathParamInt("id")))
+	rc.ResData = a.getAccountRoles(uint64(rc.PathParamInt("id")))
 }
 
 func (a *Account) getAccountRoles(accountId uint64) []*vo.AccountRoleVO {
@@ -217,7 +217,7 @@ func (a *Account) getAccountRoles(accountId uint64) []*vo.AccountRoleVO {
 func (a *Account) AccountResources(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
 	// 获取账号菜单资源
-	biz.ErrIsNil(a.ResourceApp.GetAccountResources(uint64(rc.F.PathParamInt("id")), &resources))
+	biz.ErrIsNil(a.ResourceApp.GetAccountResources(uint64(rc.PathParamInt("id")), &resources))
 	rc.ResData = resources.ToTrees(0)
 }
 
@@ -231,7 +231,7 @@ func (a *Account) RelateRole(rc *req.Ctx) {
 // 重置otp秘钥
 func (a *Account) ResetOtpSecret(rc *req.Ctx) {
 	account := &entity.Account{OtpSecret: "-"}
-	accountId := uint64(rc.F.PathParamInt("id"))
+	accountId := uint64(rc.PathParamInt("id"))
 	account.Id = accountId
 	rc.ReqParam = collx.Kvs("accountId", accountId)
 	biz.ErrIsNil(a.AccountApp.Update(rc.MetaCtx, account))
