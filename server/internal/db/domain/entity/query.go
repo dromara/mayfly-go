@@ -31,12 +31,14 @@ type DbQuery struct {
 }
 
 type DbSqlExecQuery struct {
-	Id    uint64 `json:"id" form:"id"`
-	DbId  uint64 `json:"dbId" form:"dbId"`
-	Db    string `json:"db" form:"db"`
-	Table string `json:"table" form:"table"`
-	Type  int8   `json:"type" form:"type"` // 类型
+	Id         uint64 `json:"id" form:"id"`
+	DbId       uint64 `json:"dbId" form:"dbId"`
+	Db         string `json:"db" form:"db"`
+	Table      string `json:"table" form:"table"`
+	Type       int8   `json:"type" form:"type"` // 类型
+	FlowBizKey string `json:"flowBizKey" form:"flowBizKey"`
 
+	Status    []int8
 	CreatorId uint64
 }
 

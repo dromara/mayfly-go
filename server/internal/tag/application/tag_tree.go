@@ -47,6 +47,9 @@ type TagTree interface {
 
 	// 账号是否有权限访问该标签关联的资源信息
 	CanAccess(accountId uint64, tagPath ...string) error
+
+	// 填充资源的标签信息
+	FillTagInfo(resources ...entity.ITagResource)
 }
 
 type tagTreeAppImpl struct {
@@ -229,6 +232,26 @@ func (p *tagTreeAppImpl) CanAccess(accountId uint64, tagPath ...string) error {
 	}
 
 	return errorx.NewBiz("您无权操作该资源")
+}
+
+func (p *tagTreeAppImpl) FillTagInfo(resources ...entity.ITagResource) {
+	if len(resources) == 0 {
+		return
+	}
+
+	// 资源编号 -> 资源
+	resourceCode2Resouce := collx.ArrayToMap(resources, func(rt entity.ITagResource) string {
+		return rt.GetCode()
+	})
+
+	// 获取所有资源code关联的标签列表信息
+	var tagResources []*entity.TagResource
+	p.tagResourceApp.ListByQuery(&entity.TagResourceQuery{ResourceCodes: collx.MapKeys(resourceCode2Resouce)}, &tagResources)
+
+	for _, tr := range tagResources {
+		// 赋值标签信息
+		resourceCode2Resouce[tr.ResourceCode].SetTagInfo(entity.ResourceTag{TagId: tr.TagId, TagPath: tr.TagPath})
+	}
 }
 
 func (p *tagTreeAppImpl) Delete(ctx context.Context, id uint64) error {

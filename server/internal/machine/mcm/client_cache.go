@@ -67,6 +67,9 @@ func checkClientAvailability(interval time.Duration) {
 				continue
 			}
 			cli := v.Value.(*Cli)
+			if cli.Info == nil {
+				continue
+			}
 			if _, _, err := cli.sshClient.Conn.SendRequest("ping", true, nil); err != nil {
 				logx.Errorf("machine[%s] cache client is not available: %s", cli.Info.Name, err.Error())
 				DeleteCli(cli.Info.Id)

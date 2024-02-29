@@ -16,7 +16,7 @@ import (
 type Account interface {
 	base.App[*entity.Account]
 
-	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.AccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	Create(ctx context.Context, account *entity.Account) error
 
@@ -34,7 +34,7 @@ func (a *accountAppImpl) InjectAccountRepo(repo repository.Account) {
 	a.Repo = repo
 }
 
-func (a *accountAppImpl) GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (a *accountAppImpl) GetPageList(condition *entity.AccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return a.GetRepo().GetPageList(condition, pageParam, toEntity)
 }
 

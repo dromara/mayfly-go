@@ -30,7 +30,7 @@ require (
 	github.com/sijms/go-ora/v2 v2.8.9
 	github.com/stretchr/testify v1.8.4
 	go.mongodb.org/mongo-driver v1.14.0 // mongo
-	golang.org/x/crypto v0.19.0 // ssh
+	golang.org/x/crypto v0.20.0 // ssh
 	golang.org/x/oauth2 v0.17.0
 	golang.org/x/sync v0.6.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1

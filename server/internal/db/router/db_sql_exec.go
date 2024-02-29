@@ -10,7 +10,7 @@ import (
 )
 
 func InitDbSqlExecRouter(router *gin.RouterGroup) {
-	db := router.Group("/dbs/:dbId/sql-execs")
+	db := router.Group("/dbs/sql-execs")
 
 	d := new(api.DbSqlExec)
 	biz.ErrIsNil(ioc.Inject(d))

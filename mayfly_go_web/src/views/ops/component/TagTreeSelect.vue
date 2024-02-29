@@ -2,13 +2,13 @@
     <div>
         <el-tree-select
             v-bind="$attrs"
-            v-model="selectTags"
+            v-model="state.selectTags"
             @change="changeTag"
             style="width: 100%"
             :data="tags"
             placeholder="请选择关联标签"
             :render-after-expand="true"
-            :default-expanded-keys="[selectTags]"
+            :default-expanded-keys="[state.selectTags]"
             show-checkbox
             node-key="id"
             :props="{
@@ -40,32 +40,22 @@ import { tagApi } from '../tag/api';
 const emit = defineEmits(['update:modelValue', 'changeTag', 'input']);
 
 const props = defineProps({
-    resourceCode: {
-        type: [String],
-        required: true,
-    },
-    resourceType: {
-        type: [Number],
-        required: true,
+    selectTags: {
+        type: [Array<any>],
     },
 });
 
 const state = reactive({
     tags: [],
     // 单选则为id，多选为id数组
-    selectTags: [],
+    selectTags: [] as any,
 });
 
-const { tags, selectTags } = toRefs(state);
+const { tags } = toRefs(state);
 
 onMounted(async () => {
-    if (props.resourceCode) {
-        const resourceTags = await tagApi.getTagResources.request({
-            resourceCode: props.resourceCode,
-            resourceType: props.resourceType,
-        });
-        state.selectTags = resourceTags.map((x: any) => x.tagId);
-        changeTag();
+    if (props.selectTags) {
+        state.selectTags = props.selectTags;
     }
 
     state.tags = await tagApi.getTagTrees.request(null);

@@ -1,6 +1,7 @@
 package vo
 
 import (
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"time"
 )
 
@@ -12,6 +13,8 @@ type AuthCertBaseVO struct {
 }
 
 type MachineVO struct {
+	tagentity.ResourceTags
+
 	Id                 uint64     `json:"id"`
 	Code               string     `json:"code"`
 	Name               string     `json:"name"`
@@ -33,6 +36,10 @@ type MachineVO struct {
 	// TagPath            string     `json:"tagPath"`
 
 	Stat map[string]any `json:"stat" gorm:"-"`
+}
+
+func (m *MachineVO) GetCode() string {
+	return m.Code
 }
 
 type MachineScriptVO struct {

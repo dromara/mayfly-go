@@ -39,7 +39,7 @@
             </template>
 
             <template #tagPath="{ data }">
-                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Db.value" />
+                <ResourceTags :tags="data.tags" />
             </template>
 
             <template #action="{ data }">
@@ -164,23 +164,30 @@
             <db-restore-list :dbId="dbRestoreDialog.dbId" :dbNames="dbRestoreDialog.dbs" />
         </el-dialog>
 
-        <el-dialog v-model="infoDialog.visible" :before-close="onBeforeCloseInfoDialog" :close-on-click-modal="false">
+        <el-dialog v-if="infoDialog.visible" v-model="infoDialog.visible" :before-close="onBeforeCloseInfoDialog">
             <el-descriptions title="详情" :column="3" border>
-                <!-- <el-descriptions-item :span="3" label="标签路径">{{ infoDialog.data?.tagPath }}</el-descriptions-item> -->
                 <el-descriptions-item :span="2" label="名称">{{ infoDialog.data?.name }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="id">{{ infoDialog.data?.id }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="数据库">{{ infoDialog.data?.database }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="备注">{{ infoDialog.data?.remark }}</el-descriptions-item>
-                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data?.createTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data?.creator }}</el-descriptions-item>
-                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(infoDialog.data?.updateTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data?.modifier }}</el-descriptions-item>
 
+                <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="infoDialog.data.tags" /></el-descriptions-item>
                 <el-descriptions-item :span="3" label="数据库实例名称">{{ infoDialog.instance?.name }}</el-descriptions-item>
+
                 <el-descriptions-item :span="2" label="主机">{{ infoDialog.instance?.host }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="端口">{{ infoDialog.instance?.port }}</el-descriptions-item>
+
                 <el-descriptions-item :span="2" label="用户名">{{ infoDialog.instance?.username }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="类型">{{ infoDialog.instance?.type }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="类型">
+                    <SvgIcon :name="getDbDialect(infoDialog.instance?.type).getInfo().icon" :size="20" />{{ infoDialog.instance?.type }}
+                </el-descriptions-item>
+
+                <el-descriptions-item :span="3" label="数据库">{{ infoDialog.data?.database }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="备注">{{ infoDialog.data?.remark }}</el-descriptions-item>
+
+                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data?.createTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data?.creator }}</el-descriptions-item>
+
+                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(infoDialog.data?.updateTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data?.modifier }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
 
@@ -196,7 +203,6 @@ import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
 import { dateFormat } from '@/common/utils/date';
-import ResourceTag from '../component/ResourceTag.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
@@ -210,6 +216,7 @@ import { SearchItem } from '@/components/SearchForm';
 import DbBackupList from './DbBackupList.vue';
 import DbBackupHistoryList from './DbBackupHistoryList.vue';
 import DbRestoreList from './DbRestoreList.vue';
+import ResourceTags from '../component/ResourceTags.vue';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
@@ -224,12 +231,13 @@ const perms = {
 const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Db.value), SearchItem.slot('instanceId', '实例', 'instanceSelect')];
 
 const columns = ref([
+    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
     TableColumn.new('instanceName', '实例名'),
     TableColumn.new('host', 'ip:port').isSlot().setAddWidth(40),
     TableColumn.new('username', 'username'),
-    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
+    TableColumn.new('flowProcdefKey', '关联流程'),
     TableColumn.new('remark', '备注'),
 ]);
 

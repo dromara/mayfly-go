@@ -15,6 +15,12 @@ type AccountManageVO struct {
 	OtpSecret     string               `json:"otpSecret"`
 }
 
+type SimpleAccountVO struct {
+	Id       uint64 `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+}
+
 // 账号角色信息
 type AccountRoleVO struct {
 	RoleId        uint64               `json:"roleId"`

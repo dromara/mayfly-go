@@ -23,6 +23,7 @@ type DbInfo struct {
 	Params   string
 	Database string
 
+	FlowProcdefKey     string // 流程定义key
 	TagPath            []string
 	SshTunnelMachineId int
 

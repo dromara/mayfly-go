@@ -41,6 +41,11 @@ export class DbInst {
     type: string;
 
     /**
+     * 流程定义key，若存在则需要审批执行
+     */
+    flowProcdefKey: string;
+
+    /**
      * dbName -> db
      */
     dbs: Map<string, Db> = new Map();
@@ -340,6 +345,7 @@ export class DbInst {
             dbType: this.getDialect().getInfo().formatSqlDialect,
             runSuccessCallback: successFunc,
             cancelCallback: cancelFunc,
+            flowProcdefKey: this.flowProcdefKey,
         });
     };
 
@@ -374,6 +380,7 @@ export class DbInst {
         dbInst.name = inst.name;
         dbInst.type = inst.type;
         dbInst.databases = inst.databases;
+        dbInst.flowProcdefKey = inst.flowProcdefKey;
 
         dbInstCache.set(dbInst.id, dbInst);
         return dbInst;

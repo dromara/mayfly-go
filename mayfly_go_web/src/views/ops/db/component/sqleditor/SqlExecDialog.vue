@@ -3,6 +3,12 @@
         <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px" @close="cancel">
             <monaco-editor height="300px" class="codesql" language="sql" v-model="sqlValue" />
             <el-input @keyup.enter="runSql" ref="remarkInputRef" v-model="remark" placeholder="请输入执行备注" class="mt5" />
+
+            <div v-if="state.flowProcdefKey">
+                <el-divider content-position="left">审批节点</el-divider>
+                <procdef-tasks :procdef-key="state.flowProcdefKey" />
+            </div>
+
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="cancel">取 消</el-button>
@@ -16,12 +22,13 @@
 <script lang="ts" setup>
 import { toRefs, ref, nextTick, reactive } from 'vue';
 import { dbApi } from '@/views/ops/db/api';
-import { ElDialog, ElButton, ElInput, ElMessage, InputInstance } from 'element-plus';
+import { ElDialog, ElButton, ElInput, ElMessage, InputInstance, ElDivider } from 'element-plus';
 // import base style
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { format as sqlFormatter } from 'sql-formatter';
 
 import { SqlExecProps } from './SqlExecBox';
+import ProcdefTasks from '@/views/flow/components/ProcdefTasks.vue';
 
 const props = defineProps({
     visible: {
@@ -44,6 +51,7 @@ const state = reactive({
     sqlValue: '',
     dbId: 0,
     db: '',
+    flowProcdefKey: '' as any,
     remark: '',
     btnLoading: false,
 });
@@ -73,6 +81,13 @@ const runSql = async () => {
             sql: state.sqlValue.trim(),
         });
 
+        // 存在流程审批
+        if (state.flowProcdefKey) {
+            runSuccess = false;
+            ElMessage.success('工单提交成功');
+            return;
+        }
+
         for (let re of res.res) {
             if (re.result !== 'success') {
                 ElMessage.error(`${re.sql} \n执行失败: ${re.result}`);
@@ -84,14 +99,16 @@ const runSql = async () => {
         ElMessage.success('执行成功');
     } catch (e) {
         runSuccess = false;
-    }
-    if (runSuccess) {
-        if (runSuccessCallback) {
-            runSuccessCallback();
+    } finally {
+        if (runSuccess) {
+            if (runSuccessCallback) {
+                runSuccessCallback();
+            }
+            // cancel();
         }
+        state.btnLoading = false;
         cancel();
     }
-    state.btnLoading = false;
 };
 
 const cancel = () => {
@@ -117,6 +134,7 @@ const open = (props: SqlExecProps) => {
     state.sqlValue = sqlFormatter(props.sql, { language: props.dbType });
     state.dbId = props.dbId;
     state.db = props.db;
+    state.flowProcdefKey = props.flowProcdefKey;
     state.dialogVisible = true;
     nextTick(() => {
         setTimeout(() => {

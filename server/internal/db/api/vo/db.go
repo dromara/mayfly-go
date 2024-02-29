@@ -1,8 +1,13 @@
 package vo
 
-import "time"
+import (
+	tagentity "mayfly-go/internal/tag/domain/entity"
+	"time"
+)
 
 type DbListVO struct {
+	tagentity.ResourceTags
+
 	Id       *int64  `json:"id"`
 	Code     string  `json:"code"`
 	Name     *string `json:"name"`
@@ -16,10 +21,16 @@ type DbListVO struct {
 	Port         int     `json:"port"`
 	Username     string  `json:"username"`
 
+	FlowProcdefKey string `json:"flowProcdefKey"`
+
 	CreateTime *time.Time `json:"createTime"`
 	Creator    *string    `json:"creator"`
 	CreatorId  *int64     `json:"creatorId"`
 	UpdateTime *time.Time `json:"updateTime"`
 	Modifier   *string    `json:"modifier"`
 	ModifierId *int64     `json:"modifierId"`
+}
+
+func (d DbListVO) GetCode() string {
+	return d.Code
 }

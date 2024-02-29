@@ -115,18 +115,18 @@
                         >
                             <!-- 插槽：预留功能 -->
                             <template #default="scope" v-if="item.slot">
-                                <slot :name="item.prop" :data="scope.row"></slot>
+                                <slot :name="item.slotName ? item.slotName : item.prop" :data="scope.row"></slot>
                             </template>
 
                             <!-- 枚举类型使用tab展示 -->
                             <template #default="scope" v-else-if="item.type == 'tag'">
-                                <enum-tag :size="props.size" :enums="item.typeParam" :value="scope.row[item.prop]"></enum-tag>
+                                <enum-tag :size="props.size" :enums="item.typeParam" :value="item.getValueByData(scope.row)"></enum-tag>
                             </template>
 
                             <template #default="scope" v-else>
                                 <!-- 配置了美化文本按钮以及文本内容大于指定长度，则显示美化按钮 -->
                                 <el-popover
-                                    v-if="item.isBeautify && scope.row[item.prop]?.length > 35"
+                                    v-if="item.isBeautify && item.getValueByData(scope.row)?.length > 35"
                                     effect="light"
                                     trigger="click"
                                     placement="top"
@@ -137,7 +137,7 @@
                                     </template>
                                     <template #reference>
                                         <el-link
-                                            @click="formatText(scope.row[item.prop])"
+                                            @click="formatText(item.getValueByData(scope.row))"
                                             :underline="false"
                                             type="success"
                                             icon="MagicStick"

@@ -9,5 +9,5 @@ import (
 type Account interface {
 	base.Repo[*entity.Account]
 
-	GetPageList(condition *entity.Account, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+	GetPageList(condition *entity.AccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }

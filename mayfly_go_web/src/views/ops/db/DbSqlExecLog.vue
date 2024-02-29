@@ -17,7 +17,10 @@
 
             <template #action="{ data }">
                 <el-link
-                    v-if="data.type == DbSqlExecTypeEnum.Update.value || data.type == DbSqlExecTypeEnum.Delete.value"
+                    v-if="
+                        data.status == DbSqlExecStatusEnum.Success.value &&
+                        (data.type == DbSqlExecTypeEnum.Update.value || data.type == DbSqlExecTypeEnum.Delete.value)
+                    "
                     type="primary"
                     plain
                     size="small"
@@ -38,7 +41,7 @@
 <script lang="ts" setup>
 import { onMounted, reactive, Ref, ref, toRefs, watch } from 'vue';
 import { dbApi } from './api';
-import { DbSqlExecTypeEnum } from './enums';
+import { DbSqlExecTypeEnum, DbSqlExecStatusEnum } from './enums';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { SearchItem } from '@/components/SearchForm';
@@ -66,9 +69,11 @@ const columns = ref([
     TableColumn.new('type', '类型').typeTag(DbSqlExecTypeEnum).setAddWidth(10),
     TableColumn.new('creator', '执行人'),
     TableColumn.new('sql', 'SQL').canBeautify(),
-    TableColumn.new('oldValue', '原值').canBeautify(),
-    TableColumn.new('createTime', '执行时间').isTime(),
     TableColumn.new('remark', '备注'),
+    TableColumn.new('status', '执行状态').typeTag(DbSqlExecStatusEnum),
+    TableColumn.new('res', '执行结果'),
+    TableColumn.new('createTime', '执行时间').isTime(),
+    TableColumn.new('oldValue', '原值').canBeautify(),
     TableColumn.new('action', '操作').isSlot().setMinWidth(90).fixedRight().alignCenter(),
 ]);
 
@@ -80,6 +85,7 @@ const state = reactive({
         dbId: 0,
         db: '',
         table: '',
+        status: [DbSqlExecStatusEnum.Success.value, DbSqlExecStatusEnum.Fail.value].join(','),
         type: null,
         pageNum: 1,
         pageSize: 10,

@@ -34,7 +34,12 @@ func Init() {
 			panic(fmt.Sprintf("初始化 DbBinlogApp 失败: %v", err))
 		}
 		GetDataSyncTaskApp().InitCronJob()
+		InitDbFlowHandler()
 	})()
+}
+
+func GetDbSqlExecApp() DbSqlExec {
+	return ioc.Get[DbSqlExec]("DbSqlExecApp")
 }
 
 func GetDbBackupApp() *DbBackupApp {

@@ -24,6 +24,7 @@ export const roleApi = {
 
 export const accountApi = {
     list: Api.newGet('/sys/accounts'),
+    querySimple: Api.newGet('/sys/accounts/simple'),
     save: Api.newPost('/sys/accounts'),
     update: Api.newPut('/sys/accounts/{id}'),
     del: Api.newDelete('/sys/accounts/{id}'),

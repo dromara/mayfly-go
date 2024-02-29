@@ -13,6 +13,7 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/conv"
 	"mayfly-go/pkg/utils/cryptox"
 	"strconv"
 	"strings"
@@ -119,9 +120,25 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 
 // @router /accounts [get]
 func (a *Account) Accounts(rc *req.Ctx) {
-	condition := &entity.Account{}
+	condition := &entity.AccountQuery{}
 	condition.Username = rc.Query("username")
+	condition.Name = rc.Query("name")
 	res, err := a.AccountApp.GetPageList(condition, rc.GetPageParam(), new([]vo.AccountManageVO))
+	biz.ErrIsNil(err)
+	rc.ResData = res
+}
+
+func (a *Account) SimpleAccounts(rc *req.Ctx) {
+	condition := &entity.AccountQuery{}
+	condition.Username = rc.Query("username")
+	condition.Name = rc.Query("name")
+	idsStr := rc.Query("ids")
+	if idsStr != "" {
+		condition.Ids = collx.ArrayMap[string, uint64](strings.Split(idsStr, ","), func(val string) uint64 {
+			return uint64(conv.Str2Int(val, 0))
+		})
+	}
+	res, err := a.AccountApp.GetPageList(condition, rc.GetPageParam(), new([]vo.SimpleAccountVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

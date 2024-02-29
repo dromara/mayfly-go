@@ -6,6 +6,7 @@ export type SqlExecProps = {
     dbId: number;
     db: string;
     dbType?: string;
+    flowProcdefKey?: string;
     runSuccessCallback?: Function;
     cancelCallback?: Function;
 };

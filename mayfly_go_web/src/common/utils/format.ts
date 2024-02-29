@@ -46,60 +46,6 @@ export function convertToBytes(sizeStr: string) {
     return bytes;
 }
 
-/**
- * 格式化json字符串
- * @param txt  json字符串
- * @param compress 是否压缩
- * @returns 格式化后的字符串
- */
-export function formatJsonString(txt: string, compress: boolean) {
-    var indentChar = '    ';
-    if (/^\s*$/.test(txt)) {
-        console.log('数据为空,无法格式化! ');
-        return txt;
-    }
-    try {
-        var data = JSON.parse(txt);
-    } catch (e: any) {
-        console.log('数据源语法错误,格式化失败! 错误信息: ' + e.description, 'err');
-        return txt;
-    }
-    var draw: any = [],
-        line = compress ? '' : '\n',
-        // eslint-disable-next-line no-unused-vars
-        nodeCount: number = 0,
-        // eslint-disable-next-line no-unused-vars
-        maxDepth: number = 0;
-
-    var notify = function (name: any, value: any, isLast: any, indent: any, formObj: any) {
-        nodeCount++; /*节点计数*/
-        for (var i = 0, tab = ''; i < indent; i++) tab += indentChar; /* 缩进HTML */
-        tab = compress ? '' : tab; /*压缩模式忽略缩进*/
-        maxDepth = ++indent; /*缩进递增并记录*/
-        if (value && value.constructor == Array) {
-            /*处理数组*/
-            draw.push(tab + (formObj ? '"' + name + '": ' : '') + '[' + line); /*缩进'[' 然后换行*/
-            for (var i = 0; i < value.length; i++) notify(i, value[i], i == value.length - 1, indent, false);
-            draw.push(tab + ']' + (isLast ? line : ',' + line)); /*缩进']'换行,若非尾元素则添加逗号*/
-        } else if (value && typeof value == 'object') {
-            /*处理对象*/
-            draw.push(tab + (formObj ? '"' + name + '": ' : '') + '{' + line); /*缩进'{' 然后换行*/
-            var len = 0,
-                i = 0;
-            for (var key in value) len++;
-            for (var key in value) notify(key, value[key], ++i == len, indent, true);
-            draw.push(tab + '}' + (isLast ? line : ',' + line)); /*缩进'}'换行,若非尾元素则添加逗号*/
-        } else {
-            if (typeof value == 'string') value = '"' + value + '"';
-            draw.push(tab + (formObj ? '"' + name + '": ' : '') + value + (isLast ? '' : ',') + line);
-        }
-    };
-    var isLast = true,
-        indent = 0;
-    notify('', data, isLast, indent, false);
-    return draw.join('');
-}
-
 /*
  * 年(Y) 可用1-4个占位符
  * 月(m)、日(d)、小时(H)、分(M)、秒(S) 可用1-2个占位符
@@ -202,6 +148,45 @@ export function formatPast(param: any, format: string = 'YYYY-mm-dd') {
         let date = typeof param === 'string' || 'object' ? new Date(param) : param;
         return formatDate(date, format);
     }
+}
+
+/**
+ * 格式化指定时间数为人性化可阅读的内容(默认time为秒单位)
+ *
+ * @param time 时间数
+ * @param unit time对应的单位
+ * @returns
+ */
+export function formatTime(time: number, unit: string = 's') {
+    const units = {
+        y: 31536000,
+        M: 2592000,
+        d: 86400,
+        h: 3600,
+        m: 60,
+        s: 1,
+    };
+
+    if (!units[unit]) {
+        return 'Invalid unit';
+    }
+
+    let seconds = time * units[unit];
+    let result = '';
+
+    const timeUnits = Object.entries(units).map(([unit, duration]) => {
+        const value = Math.floor(seconds / duration);
+        seconds %= duration;
+        return { value, unit };
+    });
+
+    timeUnits.forEach(({ value, unit }) => {
+        if (value > 0) {
+            result += `${value}${unit} `;
+        }
+    });
+
+    return result;
 }
 
 /**

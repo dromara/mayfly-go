@@ -80,7 +80,7 @@
             </template>
 
             <template #tagPath="{ data }">
-                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Machine.value" />
+                <ResourceTags :tags="data.tags" />
             </template>
 
             <template #action="{ data }">
@@ -124,12 +124,12 @@
             </template>
         </page-table>
 
-        <el-dialog v-model="infoDialog.visible">
+        <el-dialog v-if="infoDialog.visible" v-model="infoDialog.visible">
             <el-descriptions title="详情" :column="3" border>
                 <el-descriptions-item :span="1.5" label="机器id">{{ infoDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="1.5" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="标签路径">{{ infoDialog.data.tagPath }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="infoDialog.data.tags" /></el-descriptions-item>
 
                 <el-descriptions-item :span="2" label="IP">{{ infoDialog.data.ip }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
@@ -187,7 +187,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi, getMachineTerminalSocketUrl } from './api';
 import { dateFormat } from '@/common/utils/date';
-import ResourceTag from '../component/ResourceTag.vue';
+import ResourceTags from '../component/ResourceTags.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
@@ -220,13 +220,13 @@ const perms = {
 const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Machine.value), SearchItem.input('ip', 'IP'), SearchItem.input('name', '名称')];
 
 const columns = [
+    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
     TableColumn.new('stat', '运行状态').isSlot().setAddWidth(55),
     TableColumn.new('fs', '磁盘(挂载点=>可用/总)').isSlot().setAddWidth(25),
     TableColumn.new('username', '用户名'),
     TableColumn.new('status', '状态').isSlot().setMinWidth(85),
-    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
     TableColumn.new('remark', '备注'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(238).fixedRight().alignCenter(),
 ];

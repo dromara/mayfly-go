@@ -46,6 +46,7 @@
 import { reactive, watch, toRefs, onMounted } from 'vue';
 import { redisApi } from './api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { formatTime } from '@/common/utils/format';
 
 const props = defineProps({
     redisId: {
@@ -174,33 +175,7 @@ const ttlConveter = (ttl: any) => {
     if (!ttl) {
         ttl = 0;
     }
-    let second = parseInt(ttl); // 秒
-    let min = 0; // 分
-    let hour = 0; // 小时
-    let day = 0;
-    if (second > 60) {
-        min = parseInt(second / 60 + '');
-        second = second % 60;
-        if (min > 60) {
-            hour = parseInt(min / 60 + '');
-            min = min % 60;
-            if (hour > 24) {
-                day = parseInt(hour / 24 + '');
-                hour = hour % 24;
-            }
-        }
-    }
-    let result = '' + second + 's';
-    if (min > 0) {
-        result = '' + min + 'm:' + result;
-    }
-    if (hour > 0) {
-        result = '' + hour + 'h:' + result;
-    }
-    if (day > 0) {
-        result = '' + day + 'd:' + result;
-    }
-    return result;
+    return formatTime(ttl);
 };
 </script>
 <style lang="scss">

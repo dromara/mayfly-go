@@ -766,16 +766,11 @@ const submitUpdateFields = async () => {
         res += await dbInst.genUpdateSql(db, state.table, updateColumnValue, rowData);
     }
 
-    dbInst.promptExeSql(
-        db,
-        res,
-        () => {},
-        () => {
-            triggerRefresh();
-            cellUpdateMap.clear();
-            changeUpdatedField();
-        }
-    );
+    dbInst.promptExeSql(db, res, cancelUpdateFields, () => {
+        triggerRefresh();
+        cellUpdateMap.clear();
+        changeUpdatedField();
+    });
 };
 
 const cancelUpdateFields = () => {

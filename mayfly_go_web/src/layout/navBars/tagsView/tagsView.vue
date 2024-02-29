@@ -284,7 +284,9 @@ const onTagsClick = (v: any, k: number) => {
     state.tagsRefsIndex = k;
     try {
         router.push(v);
-    } catch (e) {}
+    } catch (e) {
+        // skip
+    }
 };
 // 更新滚动条显示
 const updateScrollbar = () => {

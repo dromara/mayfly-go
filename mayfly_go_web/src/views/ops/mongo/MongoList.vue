@@ -16,7 +16,7 @@
             </template>
 
             <template #tagPath="{ data }">
-                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Mongo.value" />
+                <resource-tags :tags="data.tags" />
             </template>
 
             <template #action="{ data }">
@@ -45,7 +45,7 @@
 import { mongoApi } from './api';
 import { defineAsyncComponent, ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import ResourceTag from '../component/ResourceTag.vue';
+import ResourceTags from '../component/ResourceTags.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
@@ -62,9 +62,9 @@ const pageTableRef: Ref<any> = ref(null);
 const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Mongo.value)];
 
 const columns = [
+    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('uri', '连接uri'),
-    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(20).alignCenter(),
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('creator', '创建人'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(170).fixedRight().alignCenter(),

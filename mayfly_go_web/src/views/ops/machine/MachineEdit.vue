@@ -14,8 +14,7 @@
                                     }
                                 "
                                 :tag-path="form.tagPath"
-                                :resource-code="form.code"
-                                :resource-type="TagResourceTypeEnum.Machine.value"
+                                :select-tags="form.tagId"
                                 style="width: 100%"
                             />
                         </el-form-item>
@@ -86,7 +85,6 @@ import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import AuthCertSelect from './authcert/AuthCertSelect.vue';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
@@ -183,7 +181,7 @@ watch(props, async (newValue: any) => {
     state.tabActiveName = 'basic';
     if (newValue.machine) {
         state.form = { ...newValue.machine };
-
+        state.form.tagId = newValue.machine.tags.map((t: any) => t.tagId);
         // 如果凭证类型为公共的，则表示使用授权凭证认证
         const authCertId = (state.form as any).authCertId;
         if (authCertId > 0) {

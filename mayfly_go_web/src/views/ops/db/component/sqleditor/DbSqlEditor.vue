@@ -297,13 +297,16 @@ const onRunSql = async (newTab = false) => {
     sql = sql.replace(/(^\s*)/g, '');
     let execRemark = '';
     let canRun = true;
+
+    // 简单截取前十个字符
+    const sqlPrefix = sql.slice(0, 10).toLowerCase();
     if (
-        sql.startsWith('update') ||
-        sql.startsWith('UPDATE') ||
-        sql.startsWith('INSERT') ||
-        sql.startsWith('insert') ||
-        sql.startsWith('DELETE') ||
-        sql.startsWith('delete')
+        sqlPrefix.startsWith('update') ||
+        sqlPrefix.startsWith('insert') ||
+        sqlPrefix.startsWith('delete') ||
+        sqlPrefix.startsWith('alert') ||
+        sqlPrefix.startsWith('drop') ||
+        sqlPrefix.startsWith('create')
     ) {
         const res: any = await ElMessageBox.prompt('请输入备注', 'Tip', {
             confirmButtonText: '确定',
@@ -318,6 +321,18 @@ const onRunSql = async (newTab = false) => {
     }
     if (!canRun) {
         return;
+    }
+
+    // 启用工单审批
+    if (execRemark && getNowDbInst().flowProcdefKey) {
+        try {
+            await getNowDbInst().runSql(props.dbName, sql, execRemark);
+            ElMessage.success('工单提交成功');
+            return;
+        } catch (e) {
+            ElMessage.success('工单提交失败');
+            return;
+        }
     }
 
     let execRes: ExecResTab;

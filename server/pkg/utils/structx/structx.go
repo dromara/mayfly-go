@@ -635,3 +635,26 @@ func Case2Camel(name string) string {
 	name = strings.Title(name)
 	return strings.Replace(name, " ", "", -1)
 }
+
+// 结构体转为map
+func ToMap(input any) map[string]any {
+	result := make(map[string]any)
+	v := Indirect(reflect.ValueOf(input))
+	if v.Kind() != reflect.Struct {
+		return result
+	}
+
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		zeroValue := reflect.Zero(field.Type()).Interface()
+		fieldValue := field.Interface()
+
+		if !reflect.DeepEqual(fieldValue, zeroValue) {
+			result[v.Type().Field(i).Name] = fieldValue
+		} else {
+			result[v.Type().Field(i).Name] = zeroValue
+		}
+	}
+
+	return result
+}

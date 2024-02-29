@@ -10,17 +10,17 @@ import (
 type DbInstance struct {
 	model.Model
 
-	Name               string `json:"name"`
-	Type               string `json:"type"` // 类型，mysql oracle等
-	Host               string `json:"host"`
-	Port               int    `json:"port"`
-	Network            string `json:"network"`
-	Sid                string `json:"sid"`
-	Username           string `json:"username"`
-	Password           string `json:"-"`
-	Params             string `json:"params"`
-	Remark             string `json:"remark"`
-	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id
+	Name               string  `json:"name"`
+	Type               string  `json:"type"` // 类型，mysql oracle等
+	Host               string  `json:"host"`
+	Port               int     `json:"port"`
+	Network            string  `json:"network"`
+	Sid                string  `json:"sid"`
+	Username           string  `json:"username"`
+	Password           string  `json:"-"`
+	Params             *string `json:"params"`
+	Remark             string  `json:"remark"`
+	SshTunnelMachineId int     `json:"sshTunnelMachineId"` // ssh隧道机器id
 }
 
 func (d *DbInstance) TableName() string {

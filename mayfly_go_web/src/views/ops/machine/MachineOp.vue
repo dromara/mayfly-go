@@ -59,8 +59,9 @@
                                 </el-popover>
                             </template>
 
-                            <div class="terminal-wrapper" :style="{ height: `calc(100vh - 155px)` }">
+                            <div class="terminal-wrapper" style="height: calc(100vh - 155px)">
                                 <TerminalBody
+                                    :mount-init="false"
                                     @status-change="terminalStatusChange(dt.key, $event)"
                                     :ref="(el) => setTerminalRef(el, dt.key)"
                                     :socket-url="dt.socketUrl"
@@ -113,7 +114,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, defineAsyncComponent } from 'vue';
+import { ref, toRefs, reactive, defineAsyncComponent, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { machineApi, getMachineTerminalSocketUrl } from './api';
 import { dateFormat } from '@/common/utils/date';
@@ -274,7 +275,10 @@ const openTerminal = (machine: any, ex?: boolean) => {
         socketUrl: getMachineTerminalSocketUrl(id),
     });
     state.activeTermName = key;
-    fitTerminal();
+
+    nextTick(() => {
+        handleReconnect(key);
+    });
 };
 
 const serviceManager = (row: any) => {

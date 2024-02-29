@@ -1,5 +1,5 @@
 <template>
-    <el-form-item label="账号">
+    <el-form-item :label="label">
         <el-select
             style="width: 100%"
             remote
@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { accountApi } from '../../api';
 
 const props = defineProps({
@@ -25,6 +25,19 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    label: {
+        type: String,
+        default: '账号',
+    },
+});
+
+onMounted(() => {
+    // 如果初始化时有accountId，则需要获取对应用户信息，用于回显用户名等信息
+    if (accountId.value) {
+        accountApi.querySimple.request({ ids: accountId.value }).then((res) => {
+            accounts.value = res.list;
+        });
+    }
 });
 
 const accountId = defineModel('modelValue');
@@ -33,7 +46,7 @@ const accounts: any = ref([]);
 
 const getAccount = (username: any) => {
     if (username) {
-        accountApi.list.request({ username }).then((res) => {
+        accountApi.querySimple.request({ username }).then((res) => {
             accounts.value = res.list;
         });
     } else {

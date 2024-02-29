@@ -151,6 +151,9 @@ const props = defineProps({
     dbType: {
         type: String,
     },
+    flowProcdefKey: {
+        type: String,
+    },
 });
 
 //定义事件
@@ -330,6 +333,7 @@ const submit = async () => {
         dbId: props.dbId as any,
         db: props.db as any,
         dbType: dbDialect.getInfo().formatSqlDialect,
+        flowProcdefKey: props.flowProcdefKey,
         runSuccessCallback: () => {
             emit('submit-sql', { tableName: state.tableData.tableName });
             // cancel();

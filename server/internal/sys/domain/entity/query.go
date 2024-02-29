@@ -1,5 +1,11 @@
 package entity
 
+type AccountQuery struct {
+	Ids      []uint64 `json:"ids"`
+	Name     string   `json:"name" form:"name"`
+	Username string   `json:"code" form:"code"`
+}
+
 type SysLogQuery struct {
 	CreatorId   uint64 `json:"creatorId" form:"creatorId"`
 	Type        int8   `json:"type" form:"type"`

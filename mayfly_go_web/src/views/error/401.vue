@@ -98,4 +98,3 @@ export default {
     }
 }
 </style>
-@/router/staticRouter

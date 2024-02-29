@@ -13,8 +13,7 @@
                                     }
                                 "
                                 multiple
-                                :resource-code="form.code"
-                                :resource-type="TagResourceTypeEnum.Redis.value"
+                                :select-tags="form.tagId"
                                 style="width: 100%"
                             />
                         </el-form-item>
@@ -100,7 +99,6 @@ import { ElMessage } from 'element-plus';
 import { RsaEncrypt } from '@/common/rsa';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
@@ -191,6 +189,7 @@ watch(props, async (newValue: any) => {
     state.tabActiveName = 'basic';
     if (newValue.redis) {
         state.form = { ...newValue.redis };
+        state.form.tagId = newValue.redis.tags.map((t: any) => t.tagId);
         convertDb(state.form.db);
     } else {
         state.form = { db: '0' } as any;

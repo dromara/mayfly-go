@@ -19,8 +19,7 @@
                             }
                         "
                         multiple
-                        :resource-code="form.code"
-                        :resource-type="TagResourceTypeEnum.Db.value"
+                        :select-tags="form.tagId"
                         style="width: 100%"
                     />
                 </el-form-item>
@@ -75,6 +74,8 @@
                 <el-form-item prop="remark" label="备注">
                     <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
                 </el-form-item>
+
+                <procdef-select-form-item v-model="form.flowProcdefKey" />
             </el-form>
 
             <template #footer>
@@ -92,8 +93,8 @@ import { toRefs, reactive, watch, ref } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
 import type { CheckboxValueType } from 'element-plus';
+import ProcdefSelectFormItem from '@/views/flow/components/ProcdefSelectFormItem.vue';
 
 const props = defineProps({
     visible: {
@@ -163,6 +164,7 @@ const state = reactive({
         database: '',
         remark: '',
         instanceId: null as any,
+        flowProcdefKey: '',
     },
     instances: [] as any,
 });
@@ -178,7 +180,7 @@ watch(props, async (newValue: any) => {
     }
     if (newValue.db) {
         state.form = { ...newValue.db };
-
+        state.form.tagId = newValue.db.tags.map((t: any) => t.tagId);
         // 将数据库名使用空格切割，获取所有数据库列表
         state.dbNamesSelected = newValue.db.database.split(' ');
     } else {

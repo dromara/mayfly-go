@@ -1,5 +1,5 @@
 <template>
-    <div id="terminal-body" :style="{ height, background: themeConfig.terminalBackground }">
+    <div id="terminal-body" :style="{ height }">
         <div ref="terminalRef" class="terminal" />
 
         <TerminalSearch ref="terminalSearchRef" :search-addon="state.addon.search" @close="focus" />
@@ -23,6 +23,11 @@ import { useEventListener } from '@vueuse/core';
 import themes from './themes';
 
 const props = defineProps({
+    // mounted时，是否执行init方法
+    mountInit: {
+        type: Boolean,
+        default: true,
+    },
     /**
      * 初始化执行命令
      */
@@ -65,9 +70,9 @@ const state = reactive({
 });
 
 onMounted(() => {
-    nextTick(() => {
+    if (props.mountInit) {
         init();
-    });
+    }
 });
 
 watch(
@@ -94,6 +99,13 @@ function init() {
         console.log('重新连接...');
         close();
     }
+    nextTick(() => {
+        initTerm();
+        initSocket();
+    });
+}
+
+function initTerm() {
     term = new Terminal({
         fontSize: themeConfig.value.terminalFontSize || 15,
         fontWeight: themeConfig.value.terminalFontWeight || 'normal',
@@ -107,25 +119,11 @@ function init() {
 
     term.open(terminalRef.value);
 
-    // 注册 terminal 事件
-    term.onResize((event) => sendResize(event.cols, event.rows));
-    term.onData((event) => sendCmd(event));
-
-    // 注册自定义快捷键
-    term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
-        // 注册搜索键 ctrl + f
-        if (event.key === 'f' && (event.ctrlKey || event.metaKey) && event.type === 'keydown') {
-            event.preventDefault();
-            terminalSearchRef.value.open();
-        }
-
-        return true;
-    });
-
     // 注册自适应组件
     const fitAddon = new FitAddon();
     state.addon.fit = fitAddon;
     term.loadAddon(fitAddon);
+    fitTerminal();
 
     // 注册搜索组件
     const searchAddon = new SearchAddon();
@@ -137,12 +135,21 @@ function init() {
     state.addon.weblinks = weblinks;
     term.loadAddon(weblinks);
 
-    initSocket();
+    // 注册自定义快捷键
+    term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+        // 注册搜索键 ctrl + f
+        if (event.key === 'f' && (event.ctrlKey || event.metaKey) && event.type === 'keydown') {
+            event.preventDefault();
+            terminalSearchRef.value.open();
+        }
+
+        return true;
+    });
 }
 
 function initSocket() {
     if (props.socketUrl) {
-        socket = new WebSocket(`${props.socketUrl}`);
+        socket = new WebSocket(`${props.socketUrl}&rows=${term?.rows}&cols=${term?.cols}`);
     }
 
     // 监听socket连接
@@ -151,11 +158,13 @@ function initSocket() {
         pingInterval = setInterval(sendPing, 15000);
         state.status = TerminalStatus.Connected;
 
+        // 注册 terminal 事件
+        term.onResize((event) => sendResize(event.cols, event.rows));
+        term.onData((event) => sendCmd(event));
+
         // // 注册窗口大小监听器
         useEventListener('resize', debounce(fitTerminal, 400));
         focus();
-        fitTerminal();
-        sendResize(term.cols, term.rows);
 
         // 如果有初始要执行的命令，则发送执行命令
         if (props.cmd) {
@@ -261,7 +270,6 @@ defineExpose({ init, fitTerminal, focus, clear, close, getStatus, sendResize });
 </script>
 <style lang="scss">
 #terminal-body {
-    background: #212529;
     width: 100%;
 
     .terminal {

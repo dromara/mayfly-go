@@ -108,6 +108,7 @@
             :dbId="dbId"
             :db="db"
             :dbType="dbType"
+            :flow-procdef-key="props.flowProcdefKey"
             :data="tableCreateDialog.data"
             v-model:visible="tableCreateDialog.visible"
             @submit-sql="onSubmitSql"
@@ -125,7 +126,7 @@ import SqlExecBox from '../sqleditor/SqlExecBox';
 import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
-import { compatibleMysql, DbType, editDbTypes } from '../../dialect/index';
+import { compatibleMysql, editDbTypes } from '../../dialect/index';
 
 const DbTableOp = defineAsyncComponent(() => import('./DbTableOp.vue'));
 
@@ -145,6 +146,9 @@ const props = defineProps({
     dbType: {
         type: [String],
         required: true,
+    },
+    flowProcdefKey: {
+        type: [String],
     },
 });
 
@@ -317,6 +321,7 @@ const dropTable = async (row: any) => {
             sql: `DROP TABLE ${tableName}`,
             dbId: props.dbId as any,
             db: props.db as any,
+            flowProcdefKey: props.flowProcdefKey,
             runSuccessCallback: async () => {
                 await getTables();
             },

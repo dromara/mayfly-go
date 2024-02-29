@@ -58,7 +58,7 @@
                         </div>
                     </div>
                 </template>
-                <div class="terminal-wrapper" :style="{ height: `calc(100vh - ${openTerminal.fullscreen ? '49px' : '200px'})` }">
+                <div :style="{ height: `calc(100vh - ${openTerminal.fullscreen ? '49px' : '200px'})` }">
                     <TerminalBody
                         @status-change="terminalStatusChange(openTerminal.terminalId, $event)"
                         :ref="(el) => setTerminalRef(el, openTerminal.terminalId)"

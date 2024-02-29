@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/rdm"
 	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -37,8 +38,15 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 	}
 	queryCond.Codes = codes
 
-	res, err := r.RedisApp.GetPageList(queryCond, page, new([]vo.Redis))
+	var redisvos []*vo.Redis
+	res, err := r.RedisApp.GetPageList(queryCond, page, &redisvos)
 	biz.ErrIsNil(err)
+
+	// 填充标签信息
+	r.TagApp.FillTagInfo(collx.ArrayMap(redisvos, func(rvo *vo.Redis) tagentity.ITagResource {
+		return rvo
+	})...)
+
 	rc.ResData = res
 }
 

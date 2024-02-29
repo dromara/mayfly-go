@@ -168,7 +168,12 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 		if err := instance.PwdDecrypt(); err != nil {
 			return nil, errorx.NewBiz(err.Error())
 		}
-		return toDbInfo(instance, dbId, dbName, d.tagApp.ListTagPathByResource(consts.TagResourceTypeDb, db.Code)...), nil
+		di := toDbInfo(instance, dbId, dbName, d.tagApp.ListTagPathByResource(consts.TagResourceTypeDb, db.Code)...)
+		if db.FlowProcdefKey != nil {
+			di.FlowProcdefKey = *db.FlowProcdefKey
+		}
+
+		return di, nil
 	})
 }
 

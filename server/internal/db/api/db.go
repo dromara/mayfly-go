@@ -14,6 +14,7 @@ import (
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
 	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
@@ -49,8 +50,15 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	}
 	queryCond.Codes = codes
 
-	res, err := d.DbApp.GetPageList(queryCond, page, new([]vo.DbListVO))
+	var dbvos []*vo.DbListVO
+	res, err := d.DbApp.GetPageList(queryCond, page, &dbvos)
 	biz.ErrIsNil(err)
+
+	// 填充标签信息
+	d.TagApp.FillTagInfo(collx.ArrayMap(dbvos, func(dbvo *vo.DbListVO) tagentity.ITagResource {
+		return dbvo
+	})...)
+
 	rc.ResData = res
 }
 
@@ -117,7 +125,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 		s = stringx.TrimSpaceAndBr(s)
 		// 多条执行，暂不支持查询语句
 		if isMulti {
-			biz.IsTrue(!strings.HasPrefix(strings.ToLower(s), "select"), "多条语句执行暂不不支持select语句")
+			biz.IsTrue(!strings.HasPrefix(strings.ToLower(s[:10]), "select"), "多条语句执行暂不不支持select语句")
 		}
 
 		execReq.Sql = s
@@ -132,8 +140,10 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	}
 
 	colAndRes := make(map[string]any)
-	colAndRes["columns"] = execResAll.Columns
-	colAndRes["res"] = execResAll.Res
+	if execResAll != nil {
+		colAndRes["columns"] = execResAll.Columns
+		colAndRes["res"] = execResAll.Res
+	}
 	rc.ResData = colAndRes
 }
 
@@ -161,6 +171,8 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	clientId := rc.Query("clientId")
 
 	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
+	// 开启流程审批时，执行文件暂时还未处理
+	biz.IsTrue(dbConn.Info.FlowProcdefKey == "", "该库已开启流程审批，暂不支持该操作")
 	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath...), "%s")
 	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())

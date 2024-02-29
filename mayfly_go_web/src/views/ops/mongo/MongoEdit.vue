@@ -13,8 +13,7 @@
                                     }
                                 "
                                 multiple
-                                :resource-code="form.code"
-                                :resource-type="TagResourceTypeEnum.Mongo.value"
+                                :select-tags="form.tagId"
                                 style="width: 100%"
                             />
                         </el-form-item>
@@ -58,7 +57,6 @@ import { mongoApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
@@ -129,6 +127,7 @@ watch(props, async (newValue: any) => {
     state.tabActiveName = 'basic';
     if (newValue.mongo) {
         state.form = { ...newValue.mongo };
+        state.form.tagId = newValue.mongo.tags.map((t: any) => t.tagId);
     } else {
         state.form = { db: 0 } as any;
     }

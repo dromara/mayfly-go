@@ -1,5 +1,6 @@
 import EnumValue from '@/common/Enum';
 import { dateFormat } from '@/common/utils/date';
+import { getValueByPath } from '@/common/utils/object';
 import { getTextWidth } from '@/common/utils/string';
 
 export class TableColumn {
@@ -29,9 +30,14 @@ export class TableColumn {
     minWidth: number | string;
 
     /**
-     * 是否插槽，是的话插槽名则为prop属性名
+     * 是否为插槽，若slotName为空则插槽名为prop属性名
      */
     slot: boolean = false;
+
+    /**
+     * 插槽名，
+     */
+    slotName: string = '';
 
     showOverflowTooltip: boolean = true;
 
@@ -87,7 +93,7 @@ export class TableColumn {
         if (this.formatFunc) {
             return this.formatFunc(rowData, this.prop);
         }
-        return rowData[this.prop];
+        return getValueByPath(rowData, this.prop);
     }
 
     static new(prop: string, label: string): TableColumn {
@@ -144,8 +150,9 @@ export class TableColumn {
      * 标识该列为插槽
      * @returns this
      */
-    isSlot(): TableColumn {
+    isSlot(slotName: string = ''): TableColumn {
         this.slot = true;
+        this.slotName = slotName;
         return this;
     }
 
@@ -165,7 +172,7 @@ export class TableColumn {
      */
     isTime(): TableColumn {
         this.setFormatFunc((data: any, prop: string) => {
-            return dateFormat(data[prop]);
+            return dateFormat(getValueByPath(data, prop));
         });
         return this;
     }
@@ -176,7 +183,7 @@ export class TableColumn {
      */
     isEnum(enums: any): TableColumn {
         this.setFormatFunc((data: any, prop: string) => {
-            return EnumValue.getLabelByValue(enums, data[prop]);
+            return EnumValue.getLabelByValue(enums, getValueByPath(data, prop));
         });
         return this;
     }
@@ -218,7 +225,7 @@ export class TableColumn {
         // 获取该列中最长的数据(内容)
         for (let i = 0; i < tableData.length; i++) {
             let nowData = tableData[i];
-            let nowValue = nowData[prop];
+            let nowValue = getValueByPath(nowData, prop);
             if (!nowValue) {
                 continue;
             }

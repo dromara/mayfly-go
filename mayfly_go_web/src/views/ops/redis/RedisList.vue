@@ -16,7 +16,7 @@
             </template>
 
             <template #tagPath="{ data }">
-                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Redis.value" />
+                <resource-tags :tags="data.tags" />
             </template>
 
             <template #action="{ data }">
@@ -116,12 +116,12 @@
             </el-table>
         </el-dialog>
 
-        <el-dialog v-model="detailDialog.visible">
+        <el-dialog v-if="detailDialog.visible" v-model="detailDialog.visible">
             <el-descriptions title="详情" :column="3" border>
                 <el-descriptions-item :span="1.5" label="id">{{ detailDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="1.5" label="名称">{{ detailDialog.data.name }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="标签路径">{{ detailDialog.data.tagPath }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="detailDialog.data.tags" /></el-descriptions-item>
 
                 <el-descriptions-item :span="3" label="主机">{{ detailDialog.data.host }}</el-descriptions-item>
 
@@ -154,7 +154,7 @@ import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
-import ResourceTag from '../component/ResourceTag.vue';
+import ResourceTags from '../component/ResourceTags.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
@@ -167,10 +167,10 @@ const pageTableRef: Ref<any> = ref(null);
 const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Redis.value)];
 
 const columns = ref([
+    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('host', 'host:port'),
     TableColumn.new('mode', 'mode'),
-    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
     TableColumn.new('remark', '备注'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(200).fixedRight().alignCenter(),
 ]);

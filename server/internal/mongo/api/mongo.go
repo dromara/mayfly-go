@@ -4,9 +4,11 @@ import (
 	"context"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/mongo/api/form"
+	"mayfly-go/internal/mongo/api/vo"
 	"mayfly-go/internal/mongo/application"
 	"mayfly-go/internal/mongo/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -36,8 +38,15 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	}
 	queryCond.Codes = codes
 
-	res, err := m.MongoApp.GetPageList(queryCond, page, new([]entity.Mongo))
+	var mongovos []*vo.Mongo
+	res, err := m.MongoApp.GetPageList(queryCond, page, &mongovos)
 	biz.ErrIsNil(err)
+
+	// 填充标签信息
+	m.TagApp.FillTagInfo(collx.ArrayMap(mongovos, func(mvo *vo.Mongo) tagentity.ITagResource {
+		return mvo
+	})...)
+
 	rc.ResData = res
 }
 

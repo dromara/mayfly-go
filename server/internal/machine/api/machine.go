@@ -10,6 +10,7 @@ import (
 	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
@@ -43,14 +44,20 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	}
 	condition.Codes = codes
 
-	res, err := m.MachineApp.GetMachineList(condition, pageParam, new([]*vo.MachineVO))
+	var machinevos []*vo.MachineVO
+	res, err := m.MachineApp.GetMachineList(condition, pageParam, &machinevos)
 	biz.ErrIsNil(err)
 	if res.Total == 0 {
 		rc.ResData = res
 		return
 	}
 
-	for _, mv := range *res.List {
+	// 填充标签信息
+	m.TagApp.FillTagInfo(collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.ITagResource {
+		return mvo
+	})...)
+
+	for _, mv := range machinevos {
 		if machineStats, err := m.MachineApp.GetMachineStats(mv.Id); err == nil {
 			mv.Stat = collx.M{
 				"cpuIdle":      machineStats.CPU.Idle,

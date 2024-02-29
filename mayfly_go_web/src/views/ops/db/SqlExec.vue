@@ -143,6 +143,7 @@
                                     :db-id="dt.params.id"
                                     :db="dt.params.db"
                                     :db-type="dt.params.type"
+                                    :flow-procdef-key="dt.params.flowProcdefKey"
                                     :height="state.tablesOpHeight"
                                 />
                             </el-tab-pane>
@@ -157,6 +158,7 @@
             :dbId="tableCreateDialog.dbId"
             :db="tableCreateDialog.db"
             :dbType="tableCreateDialog.dbType"
+            :flow-procdef-key="tableCreateDialog.flowProcdefKey"
             :data="tableCreateDialog.data"
             v-model:visible="tableCreateDialog.visible"
             @submit-sql="onSubmitEditTableSql"
@@ -225,7 +227,18 @@ const SqlIcon = {
 const nodeClickChangeDb = (nodeData: TagTreeNode) => {
     const params = nodeData.params;
     if (params.db) {
-        changeDb({ id: params.id, host: `${params.host}`, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.dbs }, params.db);
+        changeDb(
+            {
+                id: params.id,
+                host: `${params.host}`,
+                name: params.name,
+                type: params.type,
+                tagPath: params.tagPath,
+                databases: params.dbs,
+                flowProcdefKey: params.flowProcdefKey,
+            },
+            params.db
+        );
     }
 };
 
@@ -263,6 +276,7 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
                 host: `${params.host}:${params.port}`,
                 dbs: dbs,
                 db: x,
+                flowProcdefKey: params.flowProcdefKey,
             })
             .withIcon(DbIcon);
     });
@@ -322,7 +336,7 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
     ])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
-        let { id, db, type } = params;
+        let { id, db, type, flowProcdefKey } = params;
         // 获取当前库的所有表信息
         let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
         state.reloadStatus = false;
@@ -337,6 +351,7 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
                     id,
                     db,
                     type,
+                    flowProcdefKey: flowProcdefKey,
                     key: key,
                     parentKey: parentNode.key,
                     tableName: x.tableName,
@@ -417,6 +432,7 @@ const state = reactive({
         dbId: 0,
         db: '',
         dbType: '',
+        flowProcdefKey: '',
         data: {},
         parentKey: '',
     },
@@ -639,7 +655,7 @@ const reloadNode = (nodeKey: string) => {
 };
 
 const onEditTable = async (data: any) => {
-    let { db, id, tableName, tableComment, type, parentKey, key } = data.params;
+    let { db, id, tableName, tableComment, type, parentKey, key, flowProcdefKey } = data.params;
     // data.label就是表名
     if (tableName) {
         state.tableCreateDialog.title = '修改表';
@@ -654,15 +670,16 @@ const onEditTable = async (data: any) => {
         state.tableCreateDialog.parentKey = key;
     }
 
-    state.tableCreateDialog.visible = true;
     state.tableCreateDialog.activeName = '1';
     state.tableCreateDialog.dbId = id;
     state.tableCreateDialog.db = db;
     state.tableCreateDialog.dbType = type;
+    state.tableCreateDialog.flowProcdefKey = flowProcdefKey;
+    state.tableCreateDialog.visible = true;
 };
 
 const onDeleteTable = async (data: any) => {
-    let { db, id, tableName, parentKey } = data.params;
+    let { db, id, tableName, parentKey, flowProcdefKey } = data.params;
     await ElMessageBox.confirm(`此操作是永久性且无法撤销，确定删除【${tableName}】? `, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -670,6 +687,10 @@ const onDeleteTable = async (data: any) => {
     });
     // 执行sql
     dbApi.sqlExec.request({ id, db, sql: `drop table ${tableName}` }).then(() => {
+        if (flowProcdefKey) {
+            ElMessage.success('工单提交成功');
+            return;
+        }
         ElMessage.success('删除成功');
         setTimeout(() => {
             parentKey && reloadNode(parentKey);
@@ -728,6 +749,7 @@ const getNowDbInfo = () => {
         name: di.name,
         type: di.type,
         host: di.host,
+        flowProcdefKey: di.flowProcdefKey,
         dbName: state.db,
     };
 };

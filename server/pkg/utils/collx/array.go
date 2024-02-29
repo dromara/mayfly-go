@@ -128,3 +128,18 @@ func ArrayRemoveFunc[T any](arr []T, isDeleteFunc func(T) bool) []T {
 	}
 	return newArr
 }
+
+// 数组元素去重
+func ArrayDeduplicate[T comparable](arr []T) []T {
+	encountered := map[T]bool{}
+	result := []T{}
+
+	for v := range arr {
+		if !encountered[arr[v]] {
+			encountered[arr[v]] = true
+			result = append(result, arr[v])
+		}
+	}
+
+	return result
+}

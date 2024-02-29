@@ -23,6 +23,8 @@ func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExecQuery, pagePa
 		Eq("`table`", condition.Table).
 		Eq("type", condition.Type).
 		Eq("creator_id", condition.CreatorId).
+		Eq("flow_biz_key", condition.FlowBizKey).
+		In("status", condition.Status).
 		RLike("db", condition.Db).WithOrderBy(orderBy...)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }

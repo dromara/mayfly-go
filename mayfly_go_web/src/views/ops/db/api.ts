@@ -35,7 +35,7 @@ export const dbApi = {
     getSqlNames: Api.newGet('/dbs/{id}/sql-names'),
     deleteDbSql: Api.newDelete('/dbs/{id}/sql'),
     // 获取数据库sql执行记录
-    getSqlExecs: Api.newGet('/dbs/{dbId}/sql-execs'),
+    getSqlExecs: Api.newGet('/dbs/sql-execs'),
 
     instances: Api.newGet('/instances'),
     getInstance: Api.newGet('/instances/{instanceId}'),
@@ -83,4 +83,9 @@ export const dbApi = {
     runDatasyncTask: Api.newPost('/datasync/tasks/{taskId}/run'),
     stopDatasyncTask: Api.newPost('/datasync/tasks/{taskId}/stop'),
     datasyncLogs: Api.newGet('/datasync/tasks/{taskId}/logs'),
+};
+
+export const dbSqlExecApi = {
+    // 根据业务key获取sql执行信息
+    getSqlExecByBizKey: Api.newGet('/dbs/sql-execs'),
 };

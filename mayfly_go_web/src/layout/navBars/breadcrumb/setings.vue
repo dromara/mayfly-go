@@ -707,6 +707,25 @@ defineExpose({ openDrawer });
 </script>
 
 <style scoped lang="scss">
+::v-deep(.el-drawer) {
+    --el-drawer-padding-primary: unset !important;
+
+    .el-drawer__header {
+        padding: 0 15px !important;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        margin-bottom: 0 !important;
+        border-bottom: 1px solid var(--el-border-color);
+    }
+
+    .el-drawer__body {
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+    }
+}
+
 .layout-breadcrumb-seting-bar {
     height: calc(100vh - 50px);
     padding: 0 15px;

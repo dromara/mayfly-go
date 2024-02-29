@@ -9,6 +9,11 @@ export const DbSqlExecTypeEnum = {
     Other: EnumValue.of(-1, 'OTHER').setTagColor('#F9E2AE'),
 };
 
+export const DbSqlExecStatusEnum = {
+    Success: EnumValue.of(2, '成功').setTagType('success'),
+    Fail: EnumValue.of(-2, '失败').setTagType('danger'),
+};
+
 export const DbDataSyncRecentStateEnum = {
     Success: EnumValue.of(1, '成功').setTagType('success'),
     Fail: EnumValue.of(-1, '失败').setTagType('danger'),
