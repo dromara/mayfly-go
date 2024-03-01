@@ -1,5 +1,15 @@
 import { DbInst } from '../db';
-import { commonCustomKeywords, DataType, DbDialect, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, RowDefinition } from './index';
+import {
+    commonCustomKeywords,
+    DataType,
+    DbDialect,
+    DialectInfo,
+    DuplicateStrategy,
+    EditorCompletion,
+    EditorCompletionItem,
+    IndexDefinition,
+    RowDefinition,
+} from './index';
 import { language as sqlLanguage } from 'monaco-editor/esm/vs/basic-languages/sql/sql.js';
 
 export { MSSQL_TYPE_LIST, MssqlDialect };
@@ -134,7 +144,7 @@ class MssqlDialect implements DbDialect {
             { name: 'creator_id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '创建人id' },
             {
                 name: 'creator',
-                type: 'varchar',
+                type: 'nvarchar',
                 length: '100',
                 numScale: '',
                 value: '',
@@ -157,7 +167,7 @@ class MssqlDialect implements DbDialect {
             { name: 'updator_id', type: 'bigint', length: '20', numScale: '', value: '', notNull: true, pri: false, auto_increment: false, remark: '修改人id' },
             {
                 name: 'updator',
-                type: 'varchar',
+                type: 'nvarchar',
                 length: '100',
                 numScale: '',
                 value: '',
@@ -263,7 +273,10 @@ class MssqlDialect implements DbDialect {
             }
         });
 
-        return sql.join(';') + ';' + indexComment.join(';');
+        let arr = [];
+        sql.length > 0 && arr.push(sql.join(';'));
+        indexComment.length > 0 && arr.push(indexComment.join(';'));
+        return arr.join(';');
     }
 
     getModifyColumnSql(tableData: any, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
@@ -326,14 +339,15 @@ ELSE
             });
         }
 
-        return (
-            delSql +
-            (addArr.length > 0 ? addArr.join(';') + ';' : '') +
-            (renameArr.length > 0 ? renameArr.join(';') + ';' : '') +
-            (updArr.length > 0 ? updArr.join(';') + ';' : '') +
-            (changeCommentArr.length > 0 ? changeCommentArr.join(';') + ';' : '') +
-            (addCommentArr.length > 0 ? addCommentArr.join(';') + ';' : '')
-        );
+        let arr = [];
+        delSql && arr.push(delSql);
+        addArr.length > 0 && arr.push(addArr.join(';'));
+        renameArr.length > 0 && arr.push(renameArr.join(';'));
+        updArr.length > 0 && arr.push(updArr.join(';'));
+        changeCommentArr.length > 0 && arr.push(changeCommentArr.join(';'));
+        addCommentArr.length > 0 && arr.push(addCommentArr.join(';'));
+
+        return arr.join(';');
     }
 
     getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
@@ -377,7 +391,12 @@ ELSE
         let dropSql = dropArr.join(';');
         let addSql = addArr.join(';');
         let commentSql = commentArr.join(';');
-        return dropSql + ';' + addSql + ';' + commentSql + ';';
+
+        let arr = [];
+        dropSql && arr.push(dropSql);
+        addSql && arr.push(addSql);
+        commentSql && arr.push(commentSql);
+        return arr.join(';');
     }
 
     getDataType(columnType: string): DataType {
@@ -398,8 +417,46 @@ ELSE
         }
         return DataType.String;
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
-    wrapStrValue(columnType: string, value: string): string {
+
+    wrapValue(columnType: string, value: any): any {
+        if (value == null) {
+            return 'NULL';
+        }
+        if (this.getDataType(columnType) == DataType.Number) {
+            return value;
+        }
+        if (this.getDataType(columnType) == DataType.String) {
+            return `N'${value}'`;
+        }
         return `'${value}'`;
+    }
+
+    getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: DuplicateStrategy): string {
+        let placeholder = '?'.repeat(fieldArr.length).split('').join(',');
+        let baseSql = `INSERT INTO ${tableName} (${fieldArr.join(',')}) VALUES (${placeholder});`;
+        if (duplicateStrategy === DuplicateStrategy.IGNORE) {
+            let on = `ALTER TABLE ${tableName} ADD CONSTRAINT uniqueRows UNIQUE (id) WITH (IGNORE_DUP_KEY = ON);`;
+            return on + '\n' + baseSql;
+        }
+
+        if (duplicateStrategy === DuplicateStrategy.REPLACE) {
+            // 字段数组生成占位符sql
+            let phs = [];
+            let values = [];
+            for (let i = 0; i < fieldArr.length; i++) {
+                phs.push(`? ${fieldArr[i]}`);
+                values.push(`T2.${fieldArr[i]}`);
+            }
+            let placeholder = phs.join(',');
+            let sql = `MERGE INTO ${tableName} T1 USING 
+        (
+         SELECT ${placeholder}
+        ) T2 ON (T1.id = T2.id) 
+        WHEN NOT MATCHED THEN INSERT(${fieldArr.join(',')}) VALUES (${values.join(',')})
+        WHEN MATCHED THEN UPDATE SET ${fieldArr.map((a) => `T1.${a} = T2.${a}`).join(',')}`;
+            return sql;
+        }
+
+        return baseSql;
     }
 }

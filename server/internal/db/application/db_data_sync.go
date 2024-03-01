@@ -53,6 +53,7 @@ type dataSyncAppImpl struct {
 
 var (
 	dateTimeReg = regexp.MustCompile(`^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$`)
+	whereReg    = regexp.MustCompile(`(?i)where`)
 )
 
 func (app *dataSyncAppImpl) InjectDbDataSyncTaskRepo(repo repository.DataSyncTask) {
@@ -143,11 +144,15 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
 		updSql := ""
 		orderSql := ""
 		if task.UpdFieldVal != "0" && task.UpdFieldVal != "" && task.UpdField != "" {
-			srcConn, _ := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
+			srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
+			if err != nil {
+				logx.Errorf("数据源连接不可用, %s", err.Error())
+				return
+			}
 
 			task.UpdFieldVal = strings.Trim(task.UpdFieldVal, " ")
 			// 把UpdFieldVal尝试转为int，如果可以转为int，则不添加引号，否则添加引号
-			if _, err := strconv.Atoi(task.UpdFieldVal); err != nil {
+			if _, err = strconv.Atoi(task.UpdFieldVal); err != nil {
 				updSql = fmt.Sprintf("and %s > '%s'", task.UpdField, task.UpdFieldVal)
 			} else {
 				updSql = fmt.Sprintf("and %s > %s", task.UpdField, task.UpdFieldVal)
@@ -162,8 +167,14 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
 			}
 			orderSql = "order by " + task.UpdField + " asc "
 		}
+		// 正则判断DataSql是否以where .*结尾，如果是则不添加where 1 = 1
+		var where = "where 1=1"
+		if whereReg.MatchString(task.DataSql) {
+			where = ""
+		}
+
 		// 组装查询sql
-		sql := fmt.Sprintf("select * from (%s) t where 1 = 1 %s %s", task.DataSql, updSql, orderSql)
+		sql := fmt.Sprintf("%s %s %s %s", task.DataSql, where, updSql, orderSql)
 
 		log, err := app.doDataSync(sql, task)
 		if err != nil {
@@ -223,6 +234,12 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 	result := make([]map[string]any, 0)
 	var queryColumns []*dbi.QueryColumn
 
+	// 如果有数据库别名，则从UpdField中去掉数据库别名, 如：a.id => id，用于获取字段具体名称
+	updFieldName := task.UpdField
+	if task.UpdField != "" && strings.Contains(task.UpdField, ".") {
+		updFieldName = strings.Split(task.UpdField, ".")[1]
+	}
+
 	err = srcConn.WalkQueryRows(context.Background(), sql, func(row map[string]any, columns []*dbi.QueryColumn) error {
 		if len(queryColumns) == 0 {
 			queryColumns = columns
@@ -230,7 +247,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 			// 遍历columns 取task.UpdField的字段类型
 			updFieldType = dbi.DataTypeString
 			for _, column := range columns {
-				if strings.EqualFold(strings.ToLower(column.Name), strings.ToLower(task.UpdField)) {
+				if strings.EqualFold(column.Name, updFieldName) {
 					updFieldType = srcDialect.GetDataConverter().GetDataType(column.Type)
 					break
 				}
@@ -240,7 +257,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 		total++
 		result = append(result, row)
 		if total%batchSize == 0 {
-			if err := app.srcData2TargetDb(result, fieldMap, columns, updFieldType, task, srcDialect, targetConn, targetDbTx); err != nil {
+			if err := app.srcData2TargetDb(result, fieldMap, columns, updFieldType, updFieldName, task, srcDialect, targetConn, targetDbTx); err != nil {
 				return err
 			}
 
@@ -262,15 +279,19 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 
 	// 处理剩余的数据
 	if len(result) > 0 {
-		if err := app.srcData2TargetDb(result, fieldMap, queryColumns, updFieldType, task, srcDialect, targetConn, targetDbTx); err != nil {
+		if err := app.srcData2TargetDb(result, fieldMap, queryColumns, updFieldType, updFieldName, task, srcDialect, targetConn, targetDbTx); err != nil {
 			targetDbTx.Rollback()
 			return syncLog, err
 		}
 	}
 
+	// 如果是mssql，暂不手动提交事务，否则报错 mssql: The COMMIT TRANSACTION request has no corresponding BEGIN TRANSACTION.
 	if err := targetDbTx.Commit(); err != nil {
-		return syncLog, errorx.NewBiz("数据同步-目标数据库事务提交失败: %s", err.Error())
+		if targetConn.Info.Type != dbi.DbTypeMssql {
+			return syncLog, errorx.NewBiz("数据同步-目标数据库事务提交失败: %s", err.Error())
+		}
 	}
+
 	logx.Infof("同步任务：[%s]，执行完毕，保存记录成功：[%d]条", task.TaskName, total)
 
 	// 保存执行成功日志
@@ -282,7 +303,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 	return syncLog, nil
 }
 
-func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, columns []*dbi.QueryColumn, updFieldType dbi.DataType, task *entity.DataSyncTask, srcDialect dbi.Dialect, targetDbConn *dbi.DbConn, targetDbTx *sql.Tx) error {
+func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap []map[string]string, columns []*dbi.QueryColumn, updFieldType dbi.DataType, updFieldName string, task *entity.DataSyncTask, srcDialect dbi.Dialect, targetDbConn *dbi.DbConn, targetDbTx *sql.Tx) error {
 
 	// 遍历src字段列表，取出字段对应的类型
 	var srcColumnTypes = make(map[string]string)
@@ -305,9 +326,9 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 		data = append(data, rowData)
 	}
 	// 解决字段大小写问题
-	updFieldVal := srcRes[len(srcRes)-1][strings.ToUpper(task.UpdField)]
+	updFieldVal := srcRes[len(srcRes)-1][strings.ToUpper(updFieldName)]
 	if updFieldVal == "" || updFieldVal == nil {
-		updFieldVal = srcRes[len(srcRes)-1][strings.ToLower(task.UpdField)]
+		updFieldVal = srcRes[len(srcRes)-1][strings.ToLower(updFieldName)]
 	}
 
 	task.UpdFieldVal = srcDialect.GetDataConverter().FormatData(updFieldVal, updFieldType)
@@ -338,7 +359,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	}
 
 	// 目标数据库执行sql批量插入
-	_, err := targetDbConn.GetDialect().BatchInsert(targetDbTx, task.TargetTableName, targetWrapColumns, values)
+	_, err := targetDbConn.GetDialect().BatchInsert(targetDbTx, task.TargetTableName, targetWrapColumns, values, task.DuplicateStrategy)
 	if err != nil {
 		return err
 	}

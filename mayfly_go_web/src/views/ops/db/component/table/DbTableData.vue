@@ -742,6 +742,7 @@ const onExitEditMode = (rowData: any, column: any, rowIndex = 0) => {
 };
 
 const submitUpdateFields = async () => {
+    debugger;
     const dbInst = getNowDbInst();
     if (cellUpdateMap.size == 0) {
         return;

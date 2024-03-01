@@ -30,7 +30,7 @@
 
                                     <el-select v-else-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type">
                                         <el-option
-                                            v-for="pgsqlType in state.columnTypeList"
+                                            v-for="pgsqlType in getDbDialect(dbType).getInfo().columnTypes"
                                             :key="pgsqlType.dataType"
                                             :value="pgsqlType.udtName"
                                             :label="pgsqlType.dataType"
@@ -172,7 +172,6 @@ const state = reactive({
     dialogVisible: false,
     btnloading: false,
     activeName: '1',
-    columnTypeList: dbDialect.getInfo().columnTypes,
     tableData: {
         fields: {
             colNames: [
@@ -347,22 +346,25 @@ const submit = async () => {
  * @param nowArr 修改后的对象数组
  * @param key 标志对象唯一属性
  */
-const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { del: any[]; add: any[]; upd: any[] } => {
+const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { del: any[]; add: any[]; upd: any[]; changed: boolean } => {
     let data = {
         del: [] as object[], // 删除的数据
         add: [] as object[], // 新增的数据
         upd: [] as object[], // 修改的数据
+        changed: false,
     };
 
     // 旧数据为空
     if (oldArr && Array.isArray(oldArr) && oldArr.length === 0 && nowArr && Array.isArray(nowArr) && nowArr.length > 0) {
         data.add = nowArr;
+        data.changed = true;
         return data;
     }
 
     // 新数据为空
     if (nowArr && Array.isArray(nowArr) && nowArr.length === 0 && oldArr && Array.isArray(oldArr) && oldArr.length > 0) {
         data.del = oldArr;
+        data.changed = true;
         return data;
     }
 
@@ -378,6 +380,7 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
         oldName && (newMap[oldName] = a);
         if (!oldMap.hasOwnProperty(k) && (!oldName || (oldName && !oldMap.hasOwnProperty(oldName)))) {
             // 新增
+            data.changed = true;
             data.add.push(a);
         }
     });
@@ -387,6 +390,7 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
         let newData = newMap[k];
         if (!newData) {
             // 删除
+            data.changed = true;
             data.del.push(a);
         } else {
             // 判断每个字段是否相等，否则为修改
@@ -394,6 +398,7 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
                 let oldV = a[f];
                 let newV = newData[f];
                 if (oldV?.toString() !== newV?.toString()) {
+                    data.changed = true;
                     data.upd.push(newData);
                     break;
                 }
@@ -416,13 +421,17 @@ const genSql = () => {
     } else {
         // 修改列
         let changeColData = filterChangedData(state.tableData.fields.oldFields, state.tableData.fields.res, 'name');
-        let colSql = dbDialect.getModifyColumnSql(data, data.tableName, changeColData);
+        let colSql = changeColData.changed ? dbDialect.getModifyColumnSql(data, data.tableName, changeColData) : '';
         // 修改索引
         let changeIdxData = filterChangedData(state.tableData.indexs.oldIndexs, state.tableData.indexs.res, 'indexName');
-        let idxSql = dbDialect.getModifyIndexSql(data, data.tableName, changeIdxData);
+        let idxSql = changeColData.changed ? dbDialect.getModifyIndexSql(data, data.tableName, changeIdxData) : '';
         // 修改表名
 
-        return colSql + ';' + idxSql;
+        let sqlArr = [];
+        colSql && sqlArr.push(colSql);
+        idxSql && sqlArr.push(idxSql);
+
+        return sqlArr.join(';');
     }
 };
 
@@ -432,7 +441,9 @@ const reset = () => {
     state.tableData.tableName = '';
     state.tableData.tableComment = '';
     state.tableData.fields.res = [];
+    state.tableData.fields.oldFields = [];
     state.tableData.indexs.res = [];
+    state.tableData.indexs.oldIndexs = [];
 };
 
 const indexChanges = (row: any) => {

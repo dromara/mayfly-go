@@ -50,7 +50,7 @@ func (md *OraMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 			}
 		}
 	}
-	urlOptions["TIMEOUT"] = "10"
+	urlOptions["TIMEOUT"] = "1000"
 	connStr := go_ora.BuildUrl(d.Host, d.Port, d.Sid, d.Username, d.Password, urlOptions)
 	conn, err := sql.Open(driverName, connStr)
 	if err != nil {

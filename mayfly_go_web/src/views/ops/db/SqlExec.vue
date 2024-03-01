@@ -685,8 +685,9 @@ const onDeleteTable = async (data: any) => {
         cancelButtonText: '取消',
         type: 'warning',
     });
+
     // 执行sql
-    dbApi.sqlExec.request({ id, db, sql: `drop table ${tableName}` }).then(() => {
+    dbApi.sqlExec.request({ id, db, sql: `drop table ${getDbDialect(state.nowDbInst.type).quoteIdentifier(tableName)}` }).then(() => {
         if (flowProcdefKey) {
             ElMessage.success('工单提交成功');
             return;

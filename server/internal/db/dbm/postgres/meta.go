@@ -20,8 +20,9 @@ func init() {
 	dbi.Register(dbi.DbTypeKingbaseEs, meta)
 	dbi.Register(dbi.DbTypeVastbase, meta)
 
-	gauss := new(PostgresMeta)
-	gauss.Param = "dbtype=gauss"
+	gauss := &PostgresMeta{
+		Param: "dbtype=gauss",
+	}
 	dbi.Register(dbi.DbTypeGauss, gauss)
 }
 

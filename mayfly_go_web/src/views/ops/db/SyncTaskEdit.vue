@@ -16,7 +16,7 @@
                             <el-row>
                                 <el-col :span="11">
                                     <el-form-item prop="taskName" label="任务名" required>
-                                        <el-input v-model.trim="form.taskName" placeholder="请输入数据库别名" auto-complete="off" />
+                                        <el-input v-model.trim="form.taskName" placeholder="请输入同步任务名" auto-complete="off" />
                                     </el-form-item>
                                 </el-col>
 
@@ -89,9 +89,11 @@
                                 </el-col>
 
                                 <el-col :span="8">
-                                    <el-form-item prop="updField" label="更新字段" required>
-                                        <el-input v-model.trim="form.updField" placeholder="查询数据源的时候会带上这个字段当前最大值" auto-complete="off" />
-                                    </el-form-item>
+                                    <el-tooltip content="查询数据源的时候会带上这个字段当前最大值，支持带别名，如：t.create_time" placement="top">
+                                        <el-form-item prop="updField" label="更新字段" required>
+                                            <el-input v-model.trim="form.updField" placeholder="查询数据源的时候会带上这个字段当前最大值" auto-complete="off" />
+                                        </el-form-item>
+                                    </el-tooltip>
                                 </el-col>
 
                                 <el-col :span="8">
@@ -125,10 +127,17 @@
 
                     <el-tab-pane label="sql预览" :name="sqlPreviewTab" :disabled="!baseFieldCompleted">
                         <el-form-item prop="fieldMap" label="查询sql">
-                            <el-input type="textarea" v-model="state.previewDataSql" readonly :input-style="{ height: '190px' }" />
+                            <el-input type="textarea" v-model="state.previewDataSql" readonly :input-style="{ height: '170px' }" />
                         </el-form-item>
                         <el-form-item prop="fieldMap" label="插入sql">
-                            <el-input type="textarea" v-model="state.previewInsertSql" readonly :input-style="{ height: '190px' }" />
+                            <el-input type="textarea" v-model="state.previewInsertSql" readonly :input-style="{ height: '170px' }" />
+                        </el-form-item>
+                        <el-form-item prop="isReplace" v-if="compatibleDuplicateStrategy(form.targetDbType!)" label="键冲突策略">
+                            <el-select v-model="form.duplicateStrategy" @change="handleDuplicateStrategy" style="width: 100px">
+                                <el-option label="无" :value="DuplicateStrategy.NONE" />
+                                <el-option label="忽略" :value="DuplicateStrategy.IGNORE" />
+                                <el-option label="替换" :value="DuplicateStrategy.REPLACE" />
+                            </el-select>
                         </el-form-item>
                     </el-tab-pane>
                 </el-tabs>
@@ -185,7 +194,7 @@ import { ElMessage } from 'element-plus';
 import DbSelectTree from '@/views/ops/db/component/DbSelectTree.vue';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { DbInst, registerDbCompletionItemProvider } from '@/views/ops/db/db';
-import { DbType, getDbDialect } from '@/views/ops/db/dialect';
+import { compatibleDuplicateStrategy, DbType, DuplicateStrategy, getDbDialect } from '@/views/ops/db/dialect';
 import CrontabInput from '@/components/crontab/CrontabInput.vue';
 
 const props = defineProps({
@@ -246,6 +255,7 @@ type FormData = {
     updFieldVal?: string;
     fieldMap?: { src: string; target: string }[];
     status?: 1 | 2;
+    duplicateStrategy?: -1 | 1 | 2;
 };
 
 const basicFormData = {
@@ -257,6 +267,7 @@ const basicFormData = {
     updFieldVal: '0',
     fieldMap: [{ src: 'a', target: 'b' }],
     status: 1,
+    duplicateStrategy: -1,
 } as FormData;
 
 const state = reactive({
@@ -271,6 +282,7 @@ const state = reactive({
     previewRes: {} as any,
     previewDataSql: '',
     previewInsertSql: '',
+    previewFieldArr: [] as string[],
 });
 
 const { tabActiveName, form, submitForm } = toRefs(state);
@@ -295,6 +307,9 @@ watch(dialogVisible, async (newValue: boolean) => {
 
     let data = await dbApi.getDatasyncTask.request({ taskId: propsData?.id });
     state.form = data;
+    if (!state.form.duplicateStrategy) {
+        state.form.duplicateStrategy = -1;
+    }
     try {
         state.form.fieldMap = JSON.parse(data.fieldMap);
     } catch (e) {
@@ -343,13 +358,12 @@ watch(tabActiveName, async (newValue: string) => {
             await handleGetTargetFields();
             break;
         case sqlPreviewTab:
-            let srcDbDialect = getDbDialect(state.srcDbInst.type);
             let targetDbDialect = getDbDialect(state.targetDbInst.type);
+            let updField = state.form.updField!;
 
-            let updField = srcDbDialect.quoteIdentifier(state.form.updField!);
-            state.previewDataSql = `SELECT * FROM (\n ${state.form.dataSql?.trim() || '请输入数据sql'} \n ) t \n where ${updField} > '${
-                state.form.updFieldVal || ''
-            }'`;
+            // 判断sql是否以where .*结尾
+            let hasCondition = /where/i.test(state.form.dataSql!);
+            state.previewDataSql = `${state.form.dataSql?.trim() || '请输入数据sql'} \n ${hasCondition ? 'and' : 'where'} ${updField} > '${state.form.updFieldVal || ''}'`;
 
             // 检查字段映射中是否存在重复的目标字段
             let fields = new Set();
@@ -365,16 +379,18 @@ watch(tabActiveName, async (newValue: string) => {
             }
 
             let fieldArr = state.form.fieldMap?.map((a: any) => targetDbDialect.quoteIdentifier(a.target)) || [];
-            let placeholder = '?'.repeat(fieldArr.length).split('').join(',');
-
-            state.previewInsertSql = ` insert into ${targetDbDialect.quoteIdentifier(state.form.targetTableName!)}(${fieldArr.join(
-                ','
-            )}) values (${placeholder});`;
+            state.previewFieldArr = fieldArr;
+            refreshPreviewInsertSql();
             break;
         default:
             break;
     }
 });
+
+const refreshPreviewInsertSql = () => {
+    let targetDbDialect = getDbDialect(state.targetDbInst.type);
+    state.previewInsertSql = targetDbDialect.getBatchInsertPreviewSql(state.form.targetTableName!, state.previewFieldArr, state.form.duplicateStrategy!);
+};
 
 const onSelectSrcDb = async (params: any) => {
     //  初始化数据源
@@ -422,16 +438,24 @@ const handleGetSrcFields = async () => {
     }
 
     // 执行sql
-    // oracle的分页关键字不一样
-    let limit = ' limit 1';
-    if (state.form.srcDbType === DbType.oracle) {
-        limit = ' where rownum <= 1';
+    let sql: string;
+
+    if (state.form.srcDbType === DbType.mssql) {
+        // mssql的分页语法不一样
+        let top1 = `select top 1`;
+        sql = `${top1} * from (${state.form.dataSql}) a`;
+    } else if (state.form.srcDbType === DbType.oracle) {
+        // oracle的分页关键字不一样
+        let hasCondition = /where/i.test(state.form.dataSql!);
+        sql = `${state.form.dataSql} ${hasCondition ? 'and' : 'where'} rownum <= 1`;
+    } else {
+        sql = `${state.form.dataSql} limit 1`;
     }
 
     const res = await dbApi.sqlExec.request({
         id: state.form.srcDbId,
         db: state.form.srcDbName,
-        sql: `select * from (${state.form.dataSql}) t ${limit}`,
+        sql,
     });
 
     if (!res.columns) {
@@ -505,6 +529,11 @@ const btnOk = async () => {
 const cancel = () => {
     dialogVisible.value = false;
     emit('cancel');
+    state.form = basicFormData;
+};
+
+const handleDuplicateStrategy = () => {
+    refreshPreviewInsertSql();
 };
 </script>
 <style lang="scss">

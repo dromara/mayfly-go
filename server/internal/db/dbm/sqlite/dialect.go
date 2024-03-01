@@ -184,7 +184,7 @@ func (sd *SqliteDialect) GetDbProgram() (dbi.DbProgram, error) {
 	return nil, fmt.Errorf("该数据库类型不支持数据库备份与恢复: %v", sd.dc.Info.Type)
 }
 
-func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
+func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error) {
 	// 执行批量insert sql，跟mysql一样 支持批量insert语法
 	// 生成占位符字符串：如：(?,?)
 	// 重复字符串并用逗号连接
@@ -197,7 +197,14 @@ func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []str
 	// 去除最后一个逗号
 	placeholder = strings.TrimSuffix(repeated, ",")
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", sd.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
+	prefix := "insert into"
+	if duplicateStrategy == 1 {
+		prefix = "insert or ignore into"
+	} else if duplicateStrategy == 2 {
+		prefix = "insert or replace into"
+	}
+
+	sqlStr := fmt.Sprintf("%s %s (%s) values %s", prefix, sd.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
 
 	// 把二维数组转为一维数组
 	var args []any
@@ -210,7 +217,7 @@ func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []str
 }
 
 func (sd *SqliteDialect) GetDataConverter() dbi.DataConverter {
-	return new(DataConverter)
+	return converter
 }
 
 var (
@@ -218,6 +225,8 @@ var (
 	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit|real`)
 	// 日期时间类型
 	datetimeRegexp = regexp.MustCompile(`(?i)datetime`)
+
+	converter = new(DataConverter)
 )
 
 type DataConverter struct {

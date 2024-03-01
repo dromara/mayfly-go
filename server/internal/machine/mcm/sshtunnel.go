@@ -7,7 +7,6 @@ import (
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/netx"
 	"net"
-	"os"
 	"sync"
 
 	"golang.org/x/crypto/ssh"
@@ -86,14 +85,12 @@ func (stm *SshTunnelMachine) OpenSshTunnel(id string, ip string, port int) (expo
 		return "", 0, err
 	}
 
-	hostname, err := os.Hostname()
 	if err != nil {
 		return "", 0, err
 	}
-	// debug
-	//hostname = "0.0.0.0"
 
-	localAddr := fmt.Sprintf("%s:%d", hostname, localPort)
+	localHost := "127.0.0.1"
+	localAddr := fmt.Sprintf("%s:%d", localHost, localPort)
 	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {
 		return "", 0, err
@@ -102,7 +99,7 @@ func (stm *SshTunnelMachine) OpenSshTunnel(id string, ip string, port int) (expo
 	tunnel = &Tunnel{
 		id:         id,
 		machineId:  stm.machineId,
-		localHost:  hostname,
+		localHost:  localHost,
 		localPort:  localPort,
 		remoteHost: ip,
 		remotePort: port,

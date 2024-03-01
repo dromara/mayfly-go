@@ -25,8 +25,8 @@ type PgsqlDialect struct {
 	dc *dbi.DbConn
 }
 
-func (md *PgsqlDialect) GetDbServer() (*dbi.DbServer, error) {
-	_, res, err := md.dc.Query("SELECT version() as server_version")
+func (pd *PgsqlDialect) GetDbServer() (*dbi.DbServer, error) {
+	_, res, err := pd.dc.Query("SELECT version() as server_version")
 	if err != nil {
 		return nil, err
 	}
@@ -36,8 +36,8 @@ func (md *PgsqlDialect) GetDbServer() (*dbi.DbServer, error) {
 	return ds, nil
 }
 
-func (md *PgsqlDialect) GetDbNames() ([]string, error) {
-	_, res, err := md.dc.Query("SELECT datname AS dbname FROM pg_database WHERE datistemplate = false AND has_database_privilege(datname, 'CONNECT')")
+func (pd *PgsqlDialect) GetDbNames() ([]string, error) {
+	_, res, err := pd.dc.Query("SELECT datname AS dbname FROM pg_database WHERE datistemplate = false AND has_database_privilege(datname, 'CONNECT')")
 	if err != nil {
 		return nil, err
 	}
@@ -51,8 +51,8 @@ func (md *PgsqlDialect) GetDbNames() ([]string, error) {
 }
 
 // 获取表基础元信息, 如表名等
-func (md *PgsqlDialect) GetTables() ([]dbi.Table, error) {
-	_, res, err := md.dc.Query(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
+func (pd *PgsqlDialect) GetTables() ([]dbi.Table, error) {
+	_, res, err := pd.dc.Query(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
 	if err != nil {
 		return nil, err
 	}
@@ -72,13 +72,13 @@ func (md *PgsqlDialect) GetTables() ([]dbi.Table, error) {
 }
 
 // 获取列元信息, 如列名等
-func (md *PgsqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
-	dbType := md.dc.Info.Type
+func (pd *PgsqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
+	dbType := pd.dc.Info.Type
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
 		return fmt.Sprintf("'%s'", dbType.RemoveQuote(val))
 	}), ",")
 
-	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
+	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -100,8 +100,8 @@ func (md *PgsqlDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	return columns, nil
 }
 
-func (md *PgsqlDialect) GetPrimaryKey(tablename string) (string, error) {
-	columns, err := md.GetColumns(tablename)
+func (pd *PgsqlDialect) GetPrimaryKey(tablename string) (string, error) {
+	columns, err := pd.GetColumns(tablename)
 	if err != nil {
 		return "", err
 	}
@@ -118,8 +118,8 @@ func (md *PgsqlDialect) GetPrimaryKey(tablename string) (string, error) {
 }
 
 // 获取表索引信息
-func (md *PgsqlDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
-	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
+func (pd *PgsqlDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
+	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_INDEX_INFO_KEY), tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -155,17 +155,14 @@ func (md *PgsqlDialect) GetTableIndex(tableName string) ([]dbi.Index, error) {
 }
 
 // 获取建表ddl
-func (md *PgsqlDialect) GetTableDDL(tableName string) (string, error) {
-	_, err := md.dc.Exec(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
+func (pd *PgsqlDialect) GetTableDDL(tableName string) (string, error) {
+	_, err := pd.dc.Exec(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_DDL_KEY))
 	if err != nil {
 		return "", err
 	}
 
-	_, schemaRes, _ := md.dc.Query("select current_schema() as schema")
-	schemaName := schemaRes[0]["schema"].(string)
-
-	ddlSql := fmt.Sprintf("select showcreatetable('%s','%s') as sql", schemaName, tableName)
-	_, res, err := md.dc.Query(ddlSql)
+	ddlSql := fmt.Sprintf("select showcreatetable('%s','%s') as sql", pd.currentSchema(), tableName)
+	_, res, err := pd.dc.Query(ddlSql)
 	if err != nil {
 		return "", err
 	}
@@ -174,9 +171,9 @@ func (md *PgsqlDialect) GetTableDDL(tableName string) (string, error) {
 }
 
 // 获取pgsql当前连接的库可访问的schemaNames
-func (md *PgsqlDialect) GetSchemas() ([]string, error) {
+func (pd *PgsqlDialect) GetSchemas() ([]string, error) {
 	sql := dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_DB_SCHEMAS)
-	_, res, err := md.dc.Query(sql)
+	_, res, err := pd.dc.Query(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -188,11 +185,11 @@ func (md *PgsqlDialect) GetSchemas() ([]string, error) {
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (md *PgsqlDialect) GetDbProgram() (dbi.DbProgram, error) {
-	return nil, fmt.Errorf("该数据库类型不支持数据库备份与恢复: %v", md.dc.Info.Type)
+func (pd *PgsqlDialect) GetDbProgram() (dbi.DbProgram, error) {
+	return nil, fmt.Errorf("该数据库类型不支持数据库备份与恢复: %v", pd.dc.Info.Type)
 }
 
-func (md *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
+func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error) {
 	// 执行批量insert sql，跟mysql一样  pg或高斯支持批量insert语法
 	// insert into table_name (column1, column2, ...) values (value1, value2, ...), (value1, value2, ...), ...
 
@@ -212,14 +209,99 @@ func (md *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 		placeholders = append(placeholders, "("+strings.Join(placeholder, ", ")+")")
 	}
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", md.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "))
+	// 根据冲突策略生成后缀
+	suffix := ""
+	if pd.dc.Info.Type == dbi.DbTypeGauss {
+		// 高斯db使用ON DUPLICATE KEY UPDATE 语法参考 https://support.huaweicloud.com/distributed-devg-v3-gaussdb/gaussdb-12-0607.html#ZH-CN_TOPIC_0000001633948138
+		suffix = pd.gaussOnDuplicateStrategySql(duplicateStrategy, tableName, columns)
+	} else {
+		// pgsql 默认使用 on conflict 语法参考 http://www.postgres.cn/docs/12/sql-insert.html
+		// vastbase语法参考 https://docs.vastdata.com.cn/zh/docs/VastbaseE100Ver3.0.0/doc/SQL%E8%AF%AD%E6%B3%95/INSERT.html
+		// kingbase语法参考 https://help.kingbase.com.cn/v8/development/sql-plsql/sql/SQL_Statements_9.html#insert
+		suffix = pd.pgsqlOnDuplicateStrategySql(duplicateStrategy, tableName, columns)
+	}
+
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s %s", pd.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "), suffix)
 	// 执行批量insert sql
 
-	return md.dc.TxExec(tx, sqlStr, args...)
+	return pd.dc.TxExec(tx, sqlStr, args...)
 }
 
-func (md *PgsqlDialect) GetDataConverter() dbi.DataConverter {
-	return new(DataConverter)
+// pgsql默认唯一键冲突策略
+func (pd PgsqlDialect) pgsqlOnDuplicateStrategySql(duplicateStrategy int, tableName string, columns []string) string {
+	suffix := ""
+	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
+		suffix = " \n on conflict do nothing"
+	} else if duplicateStrategy == dbi.DuplicateStrategyUpdate {
+		// 生成 on conflict () do update set column1 = excluded.column1, column2 = excluded.column2, ...
+		var updateColumns []string
+		for _, col := range columns {
+			updateColumns = append(updateColumns, fmt.Sprintf("%s = excluded.%s", col, col))
+		}
+		// 查询唯一键名,拼接冲突sql
+		_, keyRes, _ := pd.dc.Query("SELECT constraint_name FROM information_schema.table_constraints WHERE constraint_schema = $1 AND table_name = $2 AND constraint_type in ('PRIMARY KEY', 'UNIQUE') ", pd.currentSchema(), tableName)
+		if len(keyRes) > 0 {
+			for _, re := range keyRes {
+				key := anyx.ToString(re["constraint_name"])
+				if key != "" {
+					suffix += fmt.Sprintf(" \n on conflict on constraint %s do update set %s \n", key, strings.Join(updateColumns, ", "))
+				}
+			}
+		}
+	}
+	return suffix
+}
+
+// 高斯db唯一键冲突策略,使用ON DUPLICATE KEY UPDATE 参考：https://support.huaweicloud.com/distributed-devg-v3-gaussdb/gaussdb-12-0607.html#ZH-CN_TOPIC_0000001633948138
+func (pd PgsqlDialect) gaussOnDuplicateStrategySql(duplicateStrategy int, tableName string, columns []string) string {
+	suffix := ""
+	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
+		suffix = " \n ON DUPLICATE KEY UPDATE NOTHING"
+	} else if duplicateStrategy == dbi.DuplicateStrategyUpdate {
+
+		// 查出表里的唯一键涉及的字段
+		var uniqueColumns []string
+		indexs, err := pd.GetTableIndex(tableName)
+		if err == nil {
+			for _, index := range indexs {
+				if index.IsUnique {
+					cols := strings.Split(index.ColumnName, ",")
+					for _, col := range cols {
+						if !collx.ArrayContains(uniqueColumns, strings.ToLower(col)) {
+							uniqueColumns = append(uniqueColumns, strings.ToLower(col))
+						}
+					}
+				}
+			}
+		}
+
+		suffix = " \n ON DUPLICATE KEY UPDATE "
+		for i, col := range columns {
+			// ON DUPLICATE KEY UPDATE语句不支持更新唯一键字段，所以得去掉
+			if !collx.ArrayContains(uniqueColumns, pd.dc.Info.Type.RemoveQuote(strings.ToLower(col))) {
+				suffix += fmt.Sprintf("%s = excluded.%s", col, col)
+				if i < len(columns)-1 {
+					suffix += ", "
+				}
+			}
+		}
+	}
+	return suffix
+}
+
+// 从连接信息中获取数据库和schema信息
+func (pd *PgsqlDialect) currentSchema() string {
+	dbName := pd.dc.Info.Database
+	schema := ""
+	arr := strings.Split(dbName, "/")
+	if len(arr) == 2 {
+		schema = arr[1]
+	}
+	return schema
+}
+
+func (pd *PgsqlDialect) GetDataConverter() dbi.DataConverter {
+	return converter
 }
 
 var (
@@ -231,6 +313,8 @@ var (
 	dateRegexp = regexp.MustCompile(`(?i)date`)
 	// 时间类型
 	timeRegexp = regexp.MustCompile(`(?i)time`)
+
+	converter = new(DataConverter)
 )
 
 type DataConverter struct {
@@ -272,19 +356,33 @@ func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) st
 }
 
 func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
+	// 如果dataType是datetime而dbColumnValue是string类型，则需要转换为time.Time类型
+	_, ok := dbColumnValue.(string)
+	if dataType == dbi.DataTypeDateTime && ok {
+		res, _ := time.Parse(time.RFC3339, anyx.ToString(dbColumnValue))
+		return res
+	}
+	if dataType == dbi.DataTypeDate && ok {
+		res, _ := time.Parse(time.DateOnly, anyx.ToString(dbColumnValue))
+		return res
+	}
+	if dataType == dbi.DataTypeTime && ok {
+		res, _ := time.Parse(time.TimeOnly, anyx.ToString(dbColumnValue))
+		return res
+	}
 	return dbColumnValue
 }
 
-func (md *PgsqlDialect) IsGauss() bool {
-	return strings.Contains(md.dc.Info.Params, "gauss")
+func (pd *PgsqlDialect) IsGauss() bool {
+	return strings.Contains(pd.dc.Info.Params, "gauss")
 }
 
-func (md *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
+func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	tableName := copy.TableName
 	// 生成新表名,为老表明+_copy_时间戳
 	newTableName := tableName + "_copy_" + time.Now().Format("20060102150405")
 	// 执行根据旧表创建新表
-	_, err := md.dc.Exec(fmt.Sprintf("create table %s (like %s)", newTableName, tableName))
+	_, err := pd.dc.Exec(fmt.Sprintf("create table %s (like %s)", newTableName, tableName))
 	if err != nil {
 		return err
 	}
@@ -292,12 +390,12 @@ func (md *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	// 复制数据
 	if copy.CopyData {
 		go func() {
-			_, _ = md.dc.Exec(fmt.Sprintf("insert into %s select * from %s", newTableName, tableName))
+			_, _ = pd.dc.Exec(fmt.Sprintf("insert into %s select * from %s", newTableName, tableName))
 		}()
 	}
 
 	// 查询旧表的自增字段名 重新设置新表的序列序列器
-	_, res, err := md.dc.Query(fmt.Sprintf("select column_name from information_schema.columns where table_name = '%s' and column_default like 'nextval%%'", tableName))
+	_, res, err := pd.dc.Query(fmt.Sprintf("select column_name from information_schema.columns where table_name = '%s' and column_default like 'nextval%%'", tableName))
 	if err != nil {
 		return err
 	}
@@ -307,7 +405,7 @@ func (md *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 		if colName != "" {
 
 			// 查询自增列当前最大值
-			_, maxRes, err := md.dc.Query(fmt.Sprintf("select max(%s) max_val from %s", colName, tableName))
+			_, maxRes, err := pd.dc.Query(fmt.Sprintf("select max(%s) max_val from %s", colName, tableName))
 			if err != nil {
 				return err
 			}
@@ -323,12 +421,12 @@ func (md *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 			newSeqName := fmt.Sprintf("%s_%s_copy_seq", newTableName, colName)
 
 			// 创建自增序列，当前最大值为旧表最大值
-			_, err = md.dc.Exec(fmt.Sprintf("CREATE SEQUENCE %s START %d INCREMENT 1", newSeqName, maxVal))
+			_, err = pd.dc.Exec(fmt.Sprintf("CREATE SEQUENCE %s START %d INCREMENT 1", newSeqName, maxVal))
 			if err != nil {
 				return err
 			}
 			// 将新表的自增主键序列与主键列相关联
-			_, err = md.dc.Exec(fmt.Sprintf("alter table %s alter column %s set default nextval('%s')", newTableName, colName, newSeqName))
+			_, err = pd.dc.Exec(fmt.Sprintf("alter table %s alter column %s set default nextval('%s')", newTableName, colName, newSeqName))
 			if err != nil {
 				return err
 			}

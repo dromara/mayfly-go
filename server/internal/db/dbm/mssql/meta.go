@@ -10,14 +10,14 @@ import (
 )
 
 func init() {
-	meta := new(Meta)
+	meta := new(MssqlMeta)
 	dbi.Register(dbi.DbTypeMssql, meta)
 }
 
-type Meta struct {
+type MssqlMeta struct {
 }
 
-func (md *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
+func (md *MssqlMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	err := d.IfUseSshTunnelChangeIpPort()
 	if err != nil {
 		return nil, err
@@ -52,6 +52,6 @@ func (md *Meta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	return sql.Open(driverName, dsn)
 }
 
-func (md *Meta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
+func (md *MssqlMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
 	return &MssqlDialect{conn}
 }

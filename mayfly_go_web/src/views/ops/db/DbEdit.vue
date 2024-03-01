@@ -95,6 +95,7 @@ import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import type { CheckboxValueType } from 'element-plus';
 import ProcdefSelectFormItem from '@/views/flow/components/ProcdefSelectFormItem.vue';
+import { DbType } from '@/views/ops/db/dialect';
 
 const props = defineProps({
     visible: {
@@ -196,7 +197,14 @@ const changeInstance = () => {
 
 const getAllDatabase = async () => {
     if (state.form.instanceId > 0) {
-        state.allDatabases = await dbApi.getAllDatabase.request({ instanceId: state.form.instanceId });
+        let dbs = await dbApi.getAllDatabase.request({ instanceId: state.form.instanceId });
+        state.allDatabases = dbs;
+
+        // 如果是oracle，且没查出数据库列表，则取实例sid
+        let instance = state.instances.find((item: any) => item.id === state.form.instanceId);
+        if (instance && instance.type === DbType.oracle && dbs.length === 0) {
+            state.allDatabases = [instance.sid];
+        }
     }
 };
 

@@ -3,6 +3,7 @@ import {
     DataType,
     DbDialect,
     DialectInfo,
+    DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
     IndexDefinition,
@@ -331,8 +332,25 @@ class SqliteDialect implements DbDialect {
         }
         return DataType.String;
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
-    wrapStrValue(columnType: string, value: string): string {
+
+    wrapValue(columnType: string, value: any): any {
+        if (value == null) {
+            return 'NULL';
+        }
+        if (DbInst.isNumber(columnType)) {
+            return value;
+        }
         return `'${value}'`;
+    }
+
+    getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: DuplicateStrategy): string {
+        let placeholder = '?'.repeat(fieldArr.length).split('').join(',');
+        let prefix = 'insert into';
+        if (duplicateStrategy === DuplicateStrategy.IGNORE) {
+            prefix = 'insert or ignore into';
+        } else if (duplicateStrategy === DuplicateStrategy.REPLACE) {
+            prefix = 'insert or replace into';
+        }
+        return `${prefix} ${this.quoteIdentifier(tableName)}(${fieldArr.join(',')}) values (${placeholder});`;
     }
 }

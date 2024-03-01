@@ -282,6 +282,7 @@ CREATE TABLE `t_db_data_sync_task`
     `recent_state`      tinyint(1) NOT NULL DEFAULT '0' COMMENT '最近一次状态 0未执行 1成功 2失败',
     `task_key`          varchar(100)          DEFAULT NULL COMMENT '定时任务唯一uuid key',
     `running_state`     tinyint(1) DEFAULT '2' COMMENT '运行时状态 1运行中、2待运行、3已停止',
+    `duplicate_strategy`tinyint(1) DEFAULT '-1' COMMENT '唯一键冲突策略 -1：无，1：忽略，2：覆盖',
     PRIMARY KEY (`id`)
 ) COMMENT='数据同步';
 

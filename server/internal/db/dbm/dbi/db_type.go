@@ -61,6 +61,8 @@ func (dbType DbType) RemoveQuote(name string) string {
 		return removeQuote(name, "`")
 	case DbTypePostgres, DbTypeGauss, DbTypeKingbaseEs, DbTypeVastbase:
 		return removeQuote(name, `"`)
+	case DbTypeMssql:
+		return strings.Trim(name, "[]")
 	default:
 		return removeQuote(name, `"`)
 	}

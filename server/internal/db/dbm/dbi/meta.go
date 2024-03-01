@@ -3,7 +3,7 @@ package dbi
 import "database/sql"
 
 var (
-	metas map[DbType]Meta = make(map[DbType]Meta)
+	metas = make(map[DbType]Meta)
 )
 
 // 注册数据库类型与dbmeta

@@ -4,6 +4,7 @@ import {
     DataType,
     DbDialect,
     DialectInfo,
+    DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
     IndexDefinition,
@@ -682,8 +683,54 @@ class DMDialect implements DbDialect {
         return DataType.String;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
-    wrapStrValue(columnType: string, value: string): string {
+    wrapValue(columnType: string, value: any): any {
+        if (value == null) {
+            return 'NULL';
+        }
+        if (DbInst.isNumber(columnType)) {
+            return value;
+        }
         return `'${value}'`;
+    }
+
+    getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: DuplicateStrategy): string {
+        // 替换
+        //  MERGE INTO t_person T1
+        //   USING (
+        //   <foreach collection="list" item="item" index="index" separator="UNION ALL">
+        //   SELECT
+        //   #{item.id} id,
+        //   #{item.mc} mc,
+        //   #{item.sex} sex,
+        //   #{item.age} age
+        //   FROM dual
+        //   </foreach>
+        // ) T2 ON (T1.id = T2.id )
+        //   WHEN NOT MATCHED THEN INSERT(id, mc, sex,
+        //   age) VALUES
+        //   (T2.id, T2.mc, T2.sex, T2.age)
+        //   WHEN MATCHED THEN UPDATE
+        //   SET T1.mc = T2.mc,T1.sex = T2.sex,T1.age = T2.age
+
+        if (duplicateStrategy == DuplicateStrategy.REPLACE || duplicateStrategy == DuplicateStrategy.IGNORE) {
+            // 字段数组生成占位符sql
+            let phs = [];
+            let values = [];
+            for (let i = 0; i < fieldArr.length; i++) {
+                phs.push(`? ${fieldArr[i]}`);
+                values.push(`T2.${fieldArr[i]}`);
+            }
+            let placeholder = phs.join(',');
+            let sql = `MERGE INTO ${tableName} T1 USING 
+        (
+         SELECT ${placeholder} FROM dual
+        ) T2 ON (T1.id = T2.id) 
+        WHEN NOT MATCHED THEN INSERT(${fieldArr.join(',')}) VALUES (${values.join(',')})
+        WHEN MATCHED THEN UPDATE SET ${fieldArr.map((a) => `T1.${a} = T2.${a}`).join(',')}`;
+            return sql;
+        } else {
+            let placeholder = '?'.repeat(fieldArr.length).split('').join(',');
+            return `INSERT INTO ${tableName} (${fieldArr.join(',')}) VALUES (${placeholder}), (${placeholder});`;
+        }
     }
 }

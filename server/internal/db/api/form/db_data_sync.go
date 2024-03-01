@@ -15,11 +15,12 @@ type DataSyncTaskForm struct {
 	UpdField    string `binding:"required" json:"updField"`
 	UpdFieldVal string `binding:"required" json:"updFieldVal"`
 
-	TargetDbId      int64  `binding:"required" json:"targetDbId"`
-	TargetDbName    string `binding:"required" json:"targetDbName"`
-	TargetTagPath   string `binding:"required" json:"targetTagPath"`
-	TargetTableName string `binding:"required" json:"targetTableName"`
-	FieldMap        string `binding:"required" json:"fieldMap"`
+	TargetDbId        int64  `binding:"required" json:"targetDbId"`
+	TargetDbName      string `binding:"required" json:"targetDbName"`
+	TargetTagPath     string `binding:"required" json:"targetTagPath"`
+	TargetTableName   string `binding:"required" json:"targetTableName"`
+	FieldMap          string `binding:"required" json:"fieldMap"`
+	DuplicateStrategy int    `json:"duplicateStrategy"`
 }
 
 type DataSyncTaskStatusForm struct {

@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS "t_db" (
   "modifier" text(32),
   "is_deleted" integer(8) NOT NULL,
   "delete_time"  datetime,
+  "flow_procdef_key" text(64),
   PRIMARY KEY ("id")
 );
 
@@ -164,6 +165,7 @@ CREATE TABLE IF NOT EXISTS "t_db_data_sync_task" (
   "recent_state" integer(1) NOT NULL,
   "task_key" text(100),
   "running_state" integer(1),
+  "duplicate_strategy" integer(1),
   PRIMARY KEY ("id")
 );
 
@@ -267,6 +269,9 @@ CREATE TABLE IF NOT EXISTS "t_db_sql_exec" (
   "modifier_id" integer(20) NOT NULL,
   "is_deleted" integer(8) NOT NULL,
   "delete_time"  datetime,
+  "status" integer(8),
+  "flow_biz_key" text(128),
+  "res" text(1000),
   PRIMARY KEY ("id")
 );
 
@@ -842,6 +847,12 @@ INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, 
 INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1709045735, 1708910975, '6egfEVYr/3r3hHEub/', 1, 1, '我的任务', 'procinst-tasks', 1708911263, '{"component":"flow/ProcinstTaskList","icon":"Tickets","isKeepAlive":true,"routeName":"ProcinstTaskList"}', 1, 'admin', 1, 'admin', '2024-02-27 22:55:35', '2024-02-27 22:56:35', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1708911264, 1708910975, '6egfEVYr/fw0Hhvye/', 1, 1, '流程定义', 'procdefs', 1708911264, '{"component":"flow/ProcdefList","icon":"List","isKeepAlive":true,"routeName":"ProcdefList"}', 1, 'admin', 1, 'admin', '2024-02-26 09:34:24', '2024-02-27 22:54:32', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1708910975, 0, '6egfEVYr/', 1, 1, '工单流程', '/flow', 60000000, '{"icon":"List","isKeepAlive":true,"routeName":"flow"}', 1, 'admin', 1, 'admin', '2024-02-26 09:29:36', '2024-02-26 15:37:52', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1709208354, 1708911264, '6egfEVYr/fw0Hhvye/b4cNf3iq/', 2, 1, '删除流程', 'flow:procdef:del', 1709208354, 'null', 1, 'admin', 1, 'admin', '2024-02-29 20:05:54', '2024-02-29 20:05:54', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1709208339, 1708911264, '6egfEVYr/fw0Hhvye/r9ZMTHqC/', 2, 1, '保存流程', 'flow:procdef:save', 1709208339, 'null', 1, 'admin', 1, 'admin', '2024-02-29 20:05:40', '2024-02-29 20:05:40', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1709103180, 1708910975, '6egfEVYr/oNCIbynR/', 1, 1, '我的流程', 'procinsts', 1708911263, '{"component":"flow/ProcinstList","icon":"Tickets","isKeepAlive":true,"routeName":"ProcinstList"}', 1, 'admin', 1, 'admin', '2024-02-28 14:53:00', '2024-02-29 20:36:07', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1709045735, 1708910975, '6egfEVYr/3r3hHEub/', 1, 1, '我的任务', 'procinst-tasks', 1708911263, '{"component":"flow/ProcinstTaskList","icon":"Tickets","isKeepAlive":true,"routeName":"ProcinstTaskList"}', 1, 'admin', 1, 'admin', '2024-02-27 22:55:35', '2024-02-27 22:56:35', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1708911264, 1708910975, '6egfEVYr/fw0Hhvye/', 1, 1, '流程定义', 'procdefs', 1708911264, '{"component":"flow/ProcdefList","icon":"List","isKeepAlive":true,"routeName":"ProcdefList"}', 1, 'admin', 1, 'admin', '2024-02-26 09:34:24', '2024-02-27 22:54:32', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1708910975, 0, '6egfEVYr/', 1, 1, '工单流程', '/flow', 60000000, '{"icon":"List","isKeepAlive":true,"routeName":"flow"}', 1, 'admin', 1, 'admin', '2024-02-26 09:29:36', '2024-02-26 15:37:52', 0, NULL);
 
 
 -- Table: t_sys_role
@@ -988,6 +999,66 @@ CREATE TABLE IF NOT EXISTS "t_team_member" (
 );
 INSERT INTO t_team_member (id, team_id, account_id, username, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES (7, 3, 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', 0, NULL);
 
+CREATE TABLE "t_flow_procdef" (
+  "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  "def_key" text(100)  NOT NULL ,
+  "name" text(200)  DEFAULT NULL ,
+  "status" tinyint DEFAULT NULL ,
+  "tasks" text(3000) NOT NULL ,
+  "remark" text(191)  DEFAULT NULL,
+  "create_time" datetime NOT NULL,
+  "creator" text(191)  DEFAULT NULL,
+  "creator_id" integer(20) NOT NULL,
+  "update_time" datetime NOT NULL,
+  "modifier" text(191)  DEFAULT NULL,
+  "modifier_id" integer(20) NOT NULL,
+  "is_deleted" tinyint DEFAULT '0',
+  "delete_time" datetime DEFAULT NULL
+) ;
+
+CREATE TABLE "t_flow_procinst" (
+  "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+  "procdef_id" integer(20) NOT NULL ,
+  "procdef_name" text(64)  NOT NULL ,
+  "task_key" text(100)  DEFAULT NULL ,
+  "status" tinyint DEFAULT NULL ,
+  "biz_type" text(64) NOT NULL ,
+  "biz_key" text(64)  NOT NULL ,
+  "biz_status" tinyint DEFAULT NULL ,
+  "biz_handle_res" text(100) DEFAULT NULL ,
+  "remark" text(191)  DEFAULT NULL,
+  "end_time" datetime DEFAULT NULL ,
+  "duration" integer(20) DEFAULT NULL ,
+  "create_time" datetime NOT NULL ,
+  "creator" text(191)  DEFAULT NULL ,
+  "creator_id" integer(20) NOT NULL,
+  "update_time" datetime NOT NULL,
+  "modifier" text(191)  DEFAULT NULL,
+  "modifier_id" integer(20) NOT NULL,
+  "is_deleted" tinyint DEFAULT '0',
+  "delete_time" datetime DEFAULT NULL
+) ;
+
+CREATE TABLE "t_flow_procinst_task" (
+   "id" integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+   "procinst_id" integer(20) NOT NULL ,
+   "task_key" text(64)  NOT NULL ,
+   "task_name" text(64)  DEFAULT NULL ,
+   "assignee" text(64)  DEFAULT NULL ,
+   "status" tinyint DEFAULT NULL ,
+   "remark" text(191)  DEFAULT NULL,
+   "end_time" datetime DEFAULT NULL ,
+   "duration" integer(20) DEFAULT NULL ,
+   "create_time" datetime NOT NULL ,
+   "creator" text(191)  DEFAULT NULL,
+   "creator_id" integer(20) NOT NULL,
+   "update_time" datetime NOT NULL,
+   "modifier" text(191)  DEFAULT NULL,
+   "modifier_id" integer(20) NOT NULL,
+   "is_deleted" tinyint DEFAULT '0',
+   "delete_time" datetime DEFAULT NULL
+)
+
 -- Index: idx_db_backup_id
 CREATE INDEX IF NOT EXISTS "idx_db_backup_id"
 ON "t_db_backup_history" (
@@ -1005,6 +1076,18 @@ CREATE INDEX IF NOT EXISTS "idx_db_name"
 ON "t_db_backup" (
   "db_name" ASC
 );
+
+-- Index: idx_procdef_id
+CREATE INDEX IF NOT EXISTS "idx_procdef_id"
+ON "t_flow_procinst" (
+"procdef_id" ASC
+);
+-- Index: idx_procinst_id
+CREATE INDEX IF NOT EXISTS "idx_procinst_id"
+ON "t_flow_procinst_task" (
+"procinst_id" ASC
+);
+
 
 COMMIT TRANSACTION;
 PRAGMA foreign_keys = on;

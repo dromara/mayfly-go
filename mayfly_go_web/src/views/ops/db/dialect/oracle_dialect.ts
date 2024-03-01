@@ -4,6 +4,7 @@ import {
     DataType,
     DbDialect,
     DialectInfo,
+    DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
     IndexDefinition,
@@ -84,7 +85,7 @@ const replaceFunctions: EditorCompletionItem[] = [
     { label: 'CURRENT_TIMESTAMP', insertText: 'TIMESTAMP', description: '获取当前时间' },
     // 转换函数
     { label: 'TO_CHAR', insertText: 'TO_CHAR(d|n[,fmt])', description: '把日期和数字转换为制定格式的字符串' },
-    { label: 'TO_DATE', insertText: 'TO_DATE(X,[,fmt])', description: '把一个字符串以fmt格式转换成一个日期类型' },
+    { label: 'TO_DATE', insertText: `TO_DATE(X, 'yyyy-MM-dd HH24:mi:ss')`, description: '把一个字符串以fmt格式转换成一个日期类型' },
     { label: 'TO_NUMBER', insertText: 'TO_NUMBER(X,[,fmt])', description: '把一个字符串以fmt格式转换为一个数字' },
     { label: 'TO_TIMESTAMP', insertText: 'TO_TIMESTAMP(X,[,fmt])', description: '把一个字符串以fmt格式转换为日期类型' },
     // 其他
@@ -310,6 +311,7 @@ class OracleDialect implements DbDialect {
         let createSql = '';
         let tableCommentSql = '';
         let columCommentSql = '';
+        let pris = [] as string[];
 
         // 创建表结构
         let fields: string[] = [];
@@ -319,9 +321,18 @@ class OracleDialect implements DbDialect {
             if (item.remark) {
                 columCommentSql += ` COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(item.name)} is '${item.remark}'; `;
             }
+            // 主键
+            if (item.pri) {
+                pris.push(this.quoteIdentifier(item.name));
+            }
         });
+        // 主键语句
+        let prisql = '';
+        if (pris.length > 0) {
+            prisql = ` CONSTRAINT "PK_${data.tableName}" PRIMARY KEY (${pris.join(',')});`;
+        }
         // 建表
-        createSql = `CREATE TABLE ${dbTable} ( ${fields.join(',')} );`;
+        createSql = `CREATE TABLE ${dbTable} ( ${fields.join(',')} ) ${prisql ? ',' + prisql : ''};`;
         // 表注释
         if (data.tableComment) {
             tableCommentSql = ` COMMENT ON TABLE ${dbTable} is '${data.tableComment}'; `;
@@ -376,7 +387,7 @@ class OracleDialect implements DbDialect {
                 }
                 modifyArr.push(` MODIFY (${this.genColumnBasicSql(a, false)})`);
                 if (a.pri) {
-                    priArr.add(`${this.quoteIdentifier(a.name)}"`);
+                    priArr.add(`${this.quoteIdentifier(a.name)}`);
                 }
             });
         }
@@ -412,8 +423,8 @@ class OracleDialect implements DbDialect {
             }
         }
 
-        let modifySql = baseSql + modifyArr.join(' ') + ';';
-        let dropSql = baseSql + ` DROP (${dropArr.join(',')}) ;`;
+        let modifySql = modifyArr.length > 0 ? baseSql + modifyArr.join(' ') + ';' : '';
+        let dropSql = dropArr.length > 0 ? baseSql + ` DROP (${dropArr.join(',')}) ;` : '';
         let renameSql = renameArr.join('');
         let addPkSql = priArr.size > 0 ? `ALTER TABLE ${dbTable} ADD CONSTRAINT "PK_${tableName}" PRIMARY KEY (${Array.from(priArr).join(',')});` : '';
         let commentSql = commentArr.join(';');
@@ -473,11 +484,51 @@ class OracleDialect implements DbDialect {
         }
         return DataType.String;
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
-    wrapStrValue(columnType: string, value: string): string {
+
+    wrapValue(columnType: string, value: any): any {
+        if (value == null) {
+            return 'NULL';
+        }
+        if (DbInst.isNumber(columnType)) {
+            return value;
+        }
         if (value && this.getDataType(columnType) === DataType.DateTime) {
             return `to_timestamp('${value}', 'yyyy-mm-dd hh24:mi:ss')`;
         }
         return `'${value}'`;
+    }
+
+    getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: DuplicateStrategy): string {
+        if (duplicateStrategy == DuplicateStrategy.REPLACE) {
+            // 字段数组生成占位符sql
+            let phs = [];
+            let values = [];
+            let insertFields = [];
+            for (let i = 0; i < fieldArr.length; i++) {
+                phs.push(`:${i + 1} ${fieldArr[i]}`);
+                values.push(`T2.${fieldArr[i]}`);
+                insertFields.push(`T1.${fieldArr[i]}`);
+            }
+            let placeholder = phs.join(',');
+            let sql = `MERGE INTO ${this.quoteIdentifier(tableName)} T1 USING 
+        (
+         SELECT ${placeholder} FROM dual
+        ) T2 ON (T1.id = T2.id) 
+        WHEN NOT MATCHED THEN INSERT (${insertFields.join(',')}) VALUES (${values.join(',')})
+        WHEN MATCHED THEN UPDATE SET ${fieldArr.map((a) => `T1.${a} = T2.${a}`).join(',')}`;
+            return sql;
+        } else {
+            // 字段数组生成占位符sql
+            let phs = [];
+            for (let i = 0; i < fieldArr.length; i++) {
+                phs.push(`:${i + 1} ${fieldArr[i]}`);
+            }
+            let ignore = '';
+            if (duplicateStrategy == DuplicateStrategy.IGNORE) {
+                ignore = `/*+ IGNORE_ROW_ON_DUPKEY_INDEX(${tableName}(id)) */`;
+            }
+            let placeholder = phs.join(',');
+            return `INSERT ${ignore} INTO ${tableName} (${fieldArr.join(',')}) VALUES (${placeholder});`;
+        }
     }
 }

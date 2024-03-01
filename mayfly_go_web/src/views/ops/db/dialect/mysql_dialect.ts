@@ -1,5 +1,15 @@
 import { DbInst } from '../db';
-import { commonCustomKeywords, DataType, DbDialect, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, RowDefinition } from './index';
+import {
+    commonCustomKeywords,
+    DataType,
+    DbDialect,
+    DialectInfo,
+    DuplicateStrategy,
+    EditorCompletion,
+    EditorCompletionItem,
+    IndexDefinition,
+    RowDefinition,
+} from './index';
 import { language as mysqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
 
 export { MYSQL_TYPE_LIST, MysqlDialect };
@@ -227,7 +237,6 @@ class MysqlDialect implements DbDialect {
     }
 
     getModifyColumnSql(tableData: any, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
-        let sql = `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableName)}`;
         let arr = [] as string[];
         if (changeData.del.length > 0) {
             changeData.del.forEach((a) => {
@@ -250,7 +259,12 @@ class MysqlDialect implements DbDialect {
             });
         }
 
-        return sql + arr.join(',') + ';';
+        if (arr.length > 0) {
+            let sql = `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableName)}`;
+            return sql + arr.join(',') + ';';
+        }
+
+        return '';
     }
 
     getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
@@ -327,8 +341,27 @@ class MysqlDialect implements DbDialect {
         }
         return DataType.String;
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
-    wrapStrValue(columnType: string, value: string): string {
+
+    wrapValue(columnType: string, value: any): any {
+        if (value == null) {
+            return 'NULL';
+        }
+        if (DbInst.isNumber(columnType)) {
+            return value;
+        }
+        // 转义所有的换行符
+        value = value.replace(/[\r\n]/g, '\\n');
         return `'${value}'`;
+    }
+
+    getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: number): string {
+        let placeholder = '?'.repeat(fieldArr.length).split('').join(',');
+        let prefix = 'insert into';
+        if (duplicateStrategy === DuplicateStrategy.IGNORE) {
+            prefix = 'insert ignore into';
+        } else if (duplicateStrategy === DuplicateStrategy.REPLACE) {
+            prefix = 'replace into';
+        }
+        return `${prefix} ${this.quoteIdentifier(tableName)}(${fieldArr.join(',')}) values (${placeholder});`;
     }
 }

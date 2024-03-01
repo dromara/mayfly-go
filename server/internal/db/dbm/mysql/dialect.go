@@ -45,7 +45,6 @@ func (md *MysqlDialect) GetDbNames() ([]string, error) {
 	for _, re := range res {
 		databases = append(databases, anyx.ConvString(re["dbname"]))
 	}
-
 	return databases, nil
 }
 
@@ -173,7 +172,7 @@ func (md *MysqlDialect) GetDbProgram() (dbi.DbProgram, error) {
 	return NewDbProgramMysql(md.dc), nil
 }
 
-func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
+func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error) {
 	// 生成占位符字符串：如：(?,?)
 	// 重复字符串并用逗号连接
 	repeated := strings.Repeat("?,", len(columns))
@@ -188,7 +187,14 @@ func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 	// 去除最后一个逗号
 	placeholder = strings.TrimSuffix(repeated, ",")
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", md.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
+	prefix := "insert into"
+	if duplicateStrategy == 1 {
+		prefix = "insert ignore into"
+	} else if duplicateStrategy == 2 {
+		prefix = "replace into"
+	}
+
+	sqlStr := fmt.Sprintf("%s %s (%s) values %s", prefix, md.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
 	// 执行批量insert sql
 	// 把二维数组转为一维数组
 	var args []any
@@ -199,7 +205,7 @@ func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 }
 
 func (md *MysqlDialect) GetDataConverter() dbi.DataConverter {
-	return new(DataConverter)
+	return converter
 }
 
 var (
@@ -211,6 +217,8 @@ var (
 	dateRegexp = regexp.MustCompile(`(?i)date`)
 	// 时间类型
 	timeRegexp = regexp.MustCompile(`(?i)time`)
+
+	converter = new(DataConverter)
 )
 
 type DataConverter struct {
@@ -240,6 +248,22 @@ func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) st
 }
 
 func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
+	// 如果dataType是datetime而dbColumnValue是string类型，则需要转换为time.Time类型
+	_, ok := dbColumnValue.(string)
+	if ok {
+		if dataType == dbi.DataTypeDateTime {
+			res, _ := time.Parse(time.DateTime, anyx.ToString(dbColumnValue))
+			return res
+		}
+		if dataType == dbi.DataTypeDate {
+			res, _ := time.Parse(time.DateOnly, anyx.ToString(dbColumnValue))
+			return res
+		}
+		if dataType == dbi.DataTypeTime {
+			res, _ := time.Parse(time.TimeOnly, anyx.ToString(dbColumnValue))
+			return res
+		}
+	}
 	return dbColumnValue
 }
 

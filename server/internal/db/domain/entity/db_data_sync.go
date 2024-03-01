@@ -26,11 +26,12 @@ type DataSyncTask struct {
 	UpdFieldVal string `orm:"column(upd_field_val)" json:"updFieldVal"` // 更新字段当前值
 
 	// 目标数据库信息
-	TargetDbId      int64  `orm:"column(target_db_id)" json:"targetDbId"`
-	TargetDbName    string `orm:"column(target_db_name)" json:"targetDbName"`
-	TargetTagPath   string `orm:"column(target_tag_path)" json:"targetTagPath"`
-	TargetTableName string `orm:"column(target_table_name)" json:"targetTableName"`
-	FieldMap        string `orm:"column(field_map)" json:"fieldMap"` // 字段映射json
+	TargetDbId        int64  `orm:"column(target_db_id)" json:"targetDbId"`
+	TargetDbName      string `orm:"column(target_db_name)" json:"targetDbName"`
+	TargetTagPath     string `orm:"column(target_tag_path)" json:"targetTagPath"`
+	TargetTableName   string `orm:"column(target_table_name)" json:"targetTableName"`
+	FieldMap          string `orm:"column(field_map)" json:"fieldMap"`                   // 字段映射json
+	DuplicateStrategy int    `orm:"column(duplicate_strategy)" json:"duplicateStrategy"` // 冲突策略 -1：无，1：忽略，2：覆盖
 }
 
 func (d *DataSyncTask) TableName() string {

@@ -146,6 +146,25 @@ export const compatibleMysql = (dbType: string): boolean => {
     }
 };
 
+// 哪些数据库支持键冲突策略
+export const compatibleDuplicateStrategy = (dbType: string): boolean => {
+    switch (dbType) {
+        case DbType.mysql:
+        case DbType.mariadb:
+        case DbType.postgresql:
+        case DbType.gauss:
+        case DbType.kingbaseEs:
+        case DbType.vastbase:
+        case DbType.dm:
+        case DbType.oracle:
+        case DbType.sqlite:
+        case DbType.mssql:
+            return true;
+        default:
+            return false;
+    }
+};
+
 export interface DbDialect {
     /**
      * 获取一些数据库默认信息
@@ -206,8 +225,22 @@ export interface DbDialect {
     /** 通过数据库字段类型，返回基本数据类型 */
     getDataType(columnType: string): DataType;
 
-    /** 包装字符串数据， 如：oracle需要把date类型改为 to_date(str, 'yyyy-mm-dd hh24:mi:ss') */
-    wrapStrValue(columnType: string, value: string): string;
+    /** 包装字符串数据， 如：oracle需要把date类型改为 to_date(str, 'yyyy-mm-dd hh24:mi:ss') mssql需要把中文字符串数据包装为 N'中文字符串' */
+    wrapValue(columnType: string, value: any): any;
+
+    /**
+     * 生成插入数据预览sql
+     * @param tableName 表名
+     * @param columns 列名
+     * @param duplicateStrategy 重复策略
+     */
+    getBatchInsertPreviewSql(tableName: string, columns: string[], duplicateStrategy: DuplicateStrategy): string;
+}
+
+export enum DuplicateStrategy {
+    NONE = -1, // 无
+    IGNORE = 1, // 忽略
+    REPLACE = 2, // 覆盖
 }
 
 let mysqlDialect = new MysqlDialect();

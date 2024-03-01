@@ -20,6 +20,15 @@ const (
 	DataTypeDateTime DataType = "datetime"
 )
 
+const (
+	// -1. 无操作
+	DuplicateStrategyNone = -1
+	// 1. 忽略
+	DuplicateStrategyIgnore = 1
+	// 2. 更新
+	DuplicateStrategyUpdate = 2
+)
+
 // 数据库服务实例信息
 type DbServer struct {
 	Version string  `json:"version"` // 版本信息
@@ -111,7 +120,7 @@ type Dialect interface {
 	GetDbProgram() (DbProgram, error)
 
 	// 批量保存数据
-	BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error)
+	BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error)
 
 	// 获取数据转换器用于解析格式化列数据等
 	GetDataConverter() DataConverter

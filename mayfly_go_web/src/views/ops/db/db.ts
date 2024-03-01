@@ -166,7 +166,7 @@ export class DbInst {
         const db = this.getDb(dbName);
         // 优先从 table map中获取
         let columns = db.getColumns(table);
-        if (columns) {
+        if (columns && columns.length > 0) {
             return columns;
         }
         console.log(`load columns -> dbName: ${dbName}, table: ${table}`);
@@ -258,7 +258,7 @@ export class DbInst {
 
     // 获取指定表的默认查询sql
     getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number = DbInst.DefaultLimit) {
-        return getDbDialect(this.type).getDefaultSelectSql(db, table, condition, orderBy, pageNum, limit);
+        return this.getDialect().getDefaultSelectSql(db, table, condition, orderBy, pageNum, limit);
     }
 
     /**
@@ -266,12 +266,22 @@ export class DbInst {
      * @param dbName 数据库名
      * @param table 表名
      * @param datas 要生成的数据
+     * @param dbDialect db方言
+     * @param skipNull 是否跳过空字段
      */
     async genInsertSql(dbName: string, table: string, datas: any[], skipNull = false) {
         if (!datas) {
             return '';
         }
+        let schema = '';
+        let arr = dbName.split('/');
+        if (arr.length == 1) {
+            schema = this.wrapName(dbName) + '.';
+        } else if (arr.length == 2) {
+            schema = this.wrapName(arr[1]) + '.';
+        }
 
+        let dbDialect = this.getDialect();
         const columns = await this.loadColumns(dbName, table);
         const sqls = [];
         for (let data of datas) {
@@ -283,9 +293,9 @@ export class DbInst {
                     continue;
                 }
                 colNames.push(this.wrapName(colName));
-                values.push(DbInst.wrapValueByType(data[colName]));
+                values.push(dbDialect.wrapValue(column.dataType, data[colName]));
             }
-            sqls.push(`INSERT INTO ${this.wrapName(table)} (${colNames.join(', ')}) VALUES(${values.join(', ')})`);
+            sqls.push(`INSERT INTO ${schema}${this.wrapName(table)} (${colNames.join(', ')}) VALUES(${values.join(', ')})`);
         }
         return sqls.join(';\n') + ';';
     }
@@ -315,22 +325,23 @@ export class DbInst {
             const v = columnValue[k];
             // 更新字段列信息
             const updateColumn = await this.loadTableColumn(dbName, table, k);
-            sql += ` ${this.wrapName(k)} = ${DbInst.wrapColumnValue(updateColumn.columnType, v, dialect)},`;
+            sql += ` ${this.wrapName(k)} = ${dialect.wrapValue(updateColumn.columnType, v)},`;
         }
-
         sql = sql.substring(0, sql.length - 1);
-        return (sql += ` WHERE ${this.wrapName(primaryKeyName)} = ${DbInst.wrapColumnValue(primaryKeyType, primaryKeyValue)} ;`);
+
+        return sql + ` WHERE ${this.wrapName(primaryKeyName)} = ${this.getDialect().wrapValue(primaryKeyType, primaryKeyValue)} ;`;
     }
 
     /**
      * 生成根据主键删除的sql语句
+     * @param db 数据库名
      * @param table 表名
      * @param datas 要删除的记录
      */
     async genDeleteByPrimaryKeysSql(db: string, table: string, datas: any[]) {
         const primaryKey = await this.loadTableColumn(db, table);
         const primaryKeyColumnName = primaryKey.columnName;
-        const ids = datas.map((d: any) => `${DbInst.wrapColumnValue(primaryKey.columnType, d[primaryKeyColumnName])}`).join(',');
+        const ids = datas.map((d: any) => `${this.getDialect().wrapValue(primaryKey.columnType, d[primaryKeyColumnName])}`).join(',');
         return `DELETE FROM ${this.wrapName(table)} WHERE ${this.wrapName(primaryKeyColumnName)} IN (${ids})`;
     }
 
@@ -351,9 +362,8 @@ export class DbInst {
 
     /**
      * 包裹数据库表名、字段名等，避免使用关键字为字段名或表名时报错
-     * @param table
-     * @param condition
-     * @returns
+     * @param name 表名、字段名、schema名
+     * @returns 包裹后的字符串
      */
     wrapName = (name: string) => {
         return this.getDialect().quoteIdentifier(name);
@@ -408,34 +418,6 @@ export class DbInst {
      */
     static clearAll() {
         dbInstCache.clear();
-    }
-
-    /**
-     * 根据返回值包装值，若值为字符串类型则添加''
-     * @param val 值
-     * @returns 包装后的值
-     */
-    static wrapValueByType = (val: any) => {
-        if (val == null) {
-            return 'NULL';
-        }
-        if (typeof val == 'number') {
-            return val;
-        }
-        return `'${val}'`;
-    };
-
-    /**
-     * 根据字段类型包装字段值，如为字符串等则添加‘’，数字类型则直接返回即可
-     */
-    static wrapColumnValue(columnType: string, value: any, dbDialect?: DbDialect) {
-        if (this.isNumber(columnType)) {
-            return value;
-        }
-        if (!dbDialect) {
-            return `'${value}'`;
-        }
-        return dbDialect.wrapStrValue(columnType, value);
     }
 
     /**

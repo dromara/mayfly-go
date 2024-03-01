@@ -524,7 +524,7 @@ const onConfirmCondition = () => {
     }
     const row = conditionDialog.columnRow as any;
     condition += `${row.columnName} ${conditionDialog.condition} `;
-    state.condition = condition + DbInst.wrapColumnValue(row.columnType, conditionDialog.value);
+    state.condition = condition + state.dbDialect.wrapValue(row.columnType, conditionDialog.value!);
     onCancelCondition();
     condInputRef.value.focus();
 };

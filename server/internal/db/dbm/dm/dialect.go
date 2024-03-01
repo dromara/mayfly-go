@@ -261,35 +261,114 @@ var (
 	dateRegexp = regexp.MustCompile(`(?i)date`)
 	// 时间类型
 	timeRegexp = regexp.MustCompile(`(?i)time`)
+
+	converter = new(DataConverter)
 )
 
-func (dd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
+func (dd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error) {
 	// 执行批量insert sql
 	// insert into "table_name" ("column1", "column2", ...) values (value1, value2, ...)
 
+	dbType := dd.dc.Info.Type
+
+	// 无需处理重复数据，直接执行批量insert
+	if duplicateStrategy == dbi.DuplicateStrategyNone || duplicateStrategy == 0 {
+		return dd.batchInsertSimple(dbType, tx, tableName, columns, values)
+	} else { // 执行MERGE INTO语句
+		return dd.batchInsertMerge(dbType, tx, tableName, columns, values)
+	}
+}
+
+func (dd *DMDialect) batchInsertSimple(dbType dbi.DbType, tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
 	// 生成占位符字符串：如：(?,?)
 	// 重复字符串并用逗号连接
 	repeated := strings.Repeat("?,", len(columns))
 	// 去除最后一个逗号，占位符由括号包裹
 	placeholder := fmt.Sprintf("(%s)", strings.TrimSuffix(repeated, ","))
 
-	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", dd.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
+	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", dbType.QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
 	effRows := 0
 	for _, value := range values {
 		// 达梦数据库只能一条条的执行insert
-		er, err := dd.dc.TxExec(tx, sqlTemp, value...)
+		res, err := dd.dc.TxExec(tx, sqlTemp, value...)
 		if err != nil {
-			logx.Errorf("执行sql失败：%s", err.Error())
-			return int64(effRows), err
+			logx.Errorf("执行sql失败：%s, sql: [ %s ]", err.Error(), sqlTemp)
 		}
-		effRows += int(er)
+		effRows += int(res)
 	}
 	// 执行批量insert sql
 	return int64(effRows), nil
 }
 
+func (dd *DMDialect) batchInsertMerge(dbType dbi.DbType, tx *sql.Tx, tableName string, columns []string, values [][]any) (int64, error) {
+	// 查询主键字段
+	uniqueCols := make([]string, 0)
+	caseSqls := make([]string, 0)
+	tableCols, _ := dd.GetColumns(tableName)
+	identityCols := make([]string, 0)
+	for _, col := range tableCols {
+		if col.IsPrimaryKey {
+			uniqueCols = append(uniqueCols, col.ColumnName)
+			caseSqls = append(caseSqls, fmt.Sprintf("( T1.%s = T2.%s )", dbType.QuoteIdentifier(col.ColumnName), dbType.QuoteIdentifier(col.ColumnName)))
+		}
+		if col.IsIdentity {
+			// 自增字段不放入insert内，即使是设置了identity_insert on也不起作用
+			identityCols = append(identityCols, dbType.QuoteIdentifier(col.ColumnName))
+		}
+	}
+	// 查询唯一索引涉及到的字段，并组装到match条件内
+	indexs, _ := dd.GetTableIndex(tableName)
+	if indexs != nil {
+		for _, index := range indexs {
+			if index.IsUnique {
+				cols := strings.Split(index.ColumnName, ",")
+				tmp := make([]string, 0)
+				for _, col := range cols {
+					uniqueCols = append(uniqueCols, col)
+					tmp = append(tmp, fmt.Sprintf(" T1.%s = T2.%s ", dbType.QuoteIdentifier(col), dbType.QuoteIdentifier(col)))
+				}
+				caseSqls = append(caseSqls, fmt.Sprintf("( %s )", strings.Join(tmp, " AND ")))
+			}
+		}
+	}
+
+	// 重复数据处理策略
+	phs := make([]string, 0)
+	insertVals := make([]string, 0)
+	upds := make([]string, 0)
+	insertCols := make([]string, 0)
+	for _, column := range columns {
+		phs = append(phs, fmt.Sprintf("? %s", column))
+		if !collx.ArrayContains(uniqueCols, dbType.RemoveQuote(column)) {
+			upds = append(upds, fmt.Sprintf("T1.%s = T2.%s", column, column))
+		}
+		if !collx.ArrayContains(identityCols, column) {
+			insertCols = append(insertCols, fmt.Sprintf("%s", column))
+			insertVals = append(insertVals, fmt.Sprintf("T2.%s", column))
+		}
+
+	}
+	t2s := make([]string, 0)
+	for i := 0; i < len(values); i++ {
+		t2s = append(t2s, fmt.Sprintf("SELECT %s FROM dual", strings.Join(phs, ",")))
+	}
+	t2 := strings.Join(t2s, " UNION ALL ")
+
+	sqlTemp := "MERGE INTO " + dbType.QuoteIdentifier(tableName) + " T1 USING (" + t2 + ") T2 ON " + strings.Join(caseSqls, " OR ")
+	sqlTemp += "WHEN NOT MATCHED THEN INSERT (" + strings.Join(insertCols, ",") + ") VALUES (" + strings.Join(insertVals, ",") + ")"
+	sqlTemp += "WHEN MATCHED THEN UPDATE SET " + strings.Join(upds, ",")
+
+	// 把二维数组转为一维数组
+	var args []any
+	for _, v := range values {
+		args = append(args, v...)
+	}
+
+	return dd.dc.TxExec(tx, sqlTemp, args...)
+}
+
 func (dd *DMDialect) GetDataConverter() dbi.DataConverter {
-	return new(DataConverter)
+	return converter
 }
 
 type DataConverter struct {
@@ -328,6 +407,22 @@ func (dd *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) st
 }
 
 func (dd *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
+	// 如果dataType是datetime而dbColumnValue是string类型，则需要转换为time.Time类型
+	_, ok := dbColumnValue.(string)
+	if ok {
+		if dataType == dbi.DataTypeDateTime {
+			res, _ := time.Parse(time.RFC3339, anyx.ToString(dbColumnValue))
+			return res
+		}
+		if dataType == dbi.DataTypeDate {
+			res, _ := time.Parse(time.DateOnly, anyx.ToString(dbColumnValue))
+			return res
+		}
+		if dataType == dbi.DataTypeTime {
+			res, _ := time.Parse(time.TimeOnly, anyx.ToString(dbColumnValue))
+			return res
+		}
+	}
 	return dbColumnValue
 }
 

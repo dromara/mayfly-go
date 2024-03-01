@@ -4,6 +4,7 @@ import {
     DataType,
     DbDialect,
     DialectInfo,
+    DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
     IndexDefinition,
@@ -439,8 +440,26 @@ class PostgresqlDialect implements DbDialect {
         return DataType.String;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars,no-unused-vars
-    wrapStrValue(columnType: string, value: string): string {
+    wrapValue(columnType: string, value: any): any {
+        if (value == null) {
+            return 'NULL';
+        }
+        if (DbInst.isNumber(columnType)) {
+            return value;
+        }
         return `'${value}'`;
+    }
+
+    getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: DuplicateStrategy): string {
+        // 构建占位符字符串 "($1, $2, $3 ...)"
+        let placeholder = fieldArr.map((_, i) => `$${i + 1}`).join(',');
+        let suffix = '';
+        if (duplicateStrategy === DuplicateStrategy.IGNORE) {
+            suffix = ' ON CONFLICT DO NOTHING';
+        } else if (duplicateStrategy === DuplicateStrategy.REPLACE) {
+            suffix = ' ON CONFLICT ON CONSTRAINT {your_constraint_name1} DO UPDATE SET ' + fieldArr.map((a) => `${a}=excluded.${a}`).join(',');
+        }
+
+        return `INSERT INTO ${tableName} (${fieldArr.join(',')}) VALUES (${placeholder}) \n ${suffix};`;
     }
 }
