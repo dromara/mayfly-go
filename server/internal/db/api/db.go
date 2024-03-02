@@ -124,7 +124,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	for _, s := range sqls {
 		s = stringx.TrimSpaceAndBr(s)
 		// 多条执行，暂不支持查询语句
-		if isMulti {
+		if isMulti && len(s) > 10 {
 			biz.IsTrue(!strings.HasPrefix(strings.ToLower(s[:10]), "select"), "多条语句执行暂不不支持select语句")
 		}
 

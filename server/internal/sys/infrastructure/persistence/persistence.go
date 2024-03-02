@@ -4,7 +4,7 @@ import (
 	"mayfly-go/pkg/ioc"
 )
 
-func Init() {
+func InitIoc() {
 	ioc.Register(newAccountRepo(), ioc.WithComponentName("AccountRepo"))
 	ioc.Register(newRoleRepo(), ioc.WithComponentName("RoleRepo"))
 	ioc.Register(newAccountRoleRepo(), ioc.WithComponentName("AccountRoleRepo"))

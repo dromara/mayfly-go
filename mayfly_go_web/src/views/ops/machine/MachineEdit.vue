@@ -57,7 +57,7 @@
 
                     <el-tab-pane label="其他配置" name="other">
                         <el-form-item prop="enableRecorder" label="终端回放">
-                            <el-checkbox v-model="form.enableRecorder" :true-label="1" :false-label="-1"></el-checkbox>
+                            <el-checkbox v-model="form.enableRecorder" :true-value="1" :false-value="-1"></el-checkbox>
                         </el-form-item>
 
                         <el-form-item prop="sshTunnelMachineId" label="SSH隧道">

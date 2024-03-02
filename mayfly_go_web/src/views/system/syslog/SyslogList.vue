@@ -1,6 +1,10 @@
 <template>
     <div>
-        <page-table :page-api="logApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns"> </page-table>
+        <page-table :page-api="logApi.list" :search-items="searchItems" v-model:query-form="query" :columns="columns">
+            <template #creator="{ data }">
+                <account-info :account-id="data.creatorId" :username="data.creator" />
+            </template>
+        </page-table>
     </div>
 </template>
 
@@ -11,6 +15,7 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { LogTypeEnum } from '../enums';
 import { OptionsApi, SearchItem } from '@/components/SearchForm';
+import AccountInfo from '../account/components/AccountInfo.vue';
 
 const searchItems = [
     SearchItem.select('creatorId', '操作人')
@@ -33,7 +38,7 @@ const searchItems = [
 ];
 
 const columns = [
-    TableColumn.new('creator', '操作人'),
+    TableColumn.new('creator', '操作人').isSlot().noShowOverflowTooltip(),
     TableColumn.new('createTime', '操作时间').isTime(),
     TableColumn.new('type', '结果').typeTag(LogTypeEnum),
     TableColumn.new('description', '描述'),

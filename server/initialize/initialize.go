@@ -16,7 +16,7 @@ var (
 	initFuncs    = make([]InitFunc, 0)
 )
 
-// 添加初始化ioc函数，由各个默认自行添加
+// 添加初始化ioc函数，由各个默认自行添加(直接init方法中ioc.Register注册不会打印ioc相关日志)
 func AddInitIocFunc(initIocFunc InitIocFunc) {
 	initIocFuncs = append(initIocFuncs, initIocFunc)
 }
@@ -37,7 +37,7 @@ func InitOther() {
 	// 为所有注册的实例注入其依赖的其他组件实例
 	biz.ErrIsNil(ioc.InjectComponents())
 
-	// 调用各个默认的初始化函数
+	// 调用各个模块的初始化函数
 	for _, initFunc := range initFuncs {
 		go initFunc()
 	}

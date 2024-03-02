@@ -141,7 +141,7 @@
                 <div class="key-detail card pd5">
                     <el-tabs @tab-remove="removeDataTab" v-model="state.activeName">
                         <el-tab-pane closable v-for="dt in state.dataTabs" :key="dt.key" :label="dt.label" :name="dt.key">
-                            <key-detail :redisId="scanParam.id" :db="scanParam.db" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />
+                            <key-detail :redis="redisInst" :key-info="dt.keyInfo" @change-key="searchKey()" @del-key="delKey" />
                         </el-tab-pane>
                     </el-tabs>
                 </div>
@@ -178,7 +178,7 @@
 
 <script lang="ts" setup>
 import { redisApi } from './api';
-import { ref, defineAsyncComponent, toRefs, reactive, onMounted, nextTick } from 'vue';
+import { ref, defineAsyncComponent, toRefs, reactive, onMounted, nextTick, Ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { isTrue, notBlank, notNull } from '@/common/assert';
 import { copyToClipboard } from '@/common/utils/string';
@@ -189,6 +189,7 @@ import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Splitpanes, Pane } from 'splitpanes';
+import { RedisInst } from './redis';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
@@ -240,6 +241,7 @@ const NodeTypeRedis = new NodeType(RedisNodeType.Redis).withLoadNodesFunc(async 
         return new TagTreeNode(x, `db${x}`, NodeTypeDb).withIsLeaf(true).withParams({
             id: redisInfo.id,
             db: x,
+            flowProcdefKey: redisInfo.flowProcdefKey,
             name: `db${x}`,
             keys: 0,
         });
@@ -269,6 +271,11 @@ const NodeTypeDb = new NodeType(RedisNodeType.Db).withNodeClickFunc((nodeData: T
     resetScanParam();
     state.scanParam.id = nodeData.params.id;
     state.scanParam.db = nodeData.params.db;
+
+    redisInst.value.id = nodeData.params.id;
+    redisInst.value.db = Number.parseInt(nodeData.params.db);
+    redisInst.value.flowProcdefKey = nodeData.params.flowProcdefKey;
+
     scan();
 });
 
@@ -281,6 +288,7 @@ const treeProps = {
 const defaultCount = 250;
 
 const keyTreeRef: any = ref(null);
+const redisInst: Ref<RedisInst> = ref(new RedisInst());
 
 const state = reactive({
     tags: [],
@@ -506,15 +514,11 @@ const flushDb = () => {
         type: 'warning',
     })
         .then(() => {
-            redisApi.flushDb
-                .request({
-                    id: state.scanParam.id,
-                    db: state.scanParam.db,
-                })
-                .then(() => {
-                    ElMessage.success('清除成功！');
-                    searchKey();
-                });
+            // FLUSHDB [ASYNC | SYNC]
+            redisInst.value.runCmd(['FLUSHDB']).then(() => {
+                ElMessage.success('清除成功！');
+                searchKey();
+            });
         })
         .catch(() => {});
 };
@@ -526,18 +530,8 @@ const cancelNewKey = () => {
 
 const newKey = async () => {
     const keyInfo = state.newKeyDialog.keyInfo;
-    const keyType = keyInfo.type;
     const key = keyInfo.key;
     notBlank(key, '键名不能为空');
-
-    if (keyType == 'string') {
-        await redisApi.setString.request({
-            id: state.scanParam.id,
-            db: state.scanParam.db,
-            key: key,
-            value: '',
-        });
-    }
 
     showKeyDetail(
         {
@@ -565,11 +559,8 @@ const delKey = (key: string) => {
         type: 'warning',
     })
         .then(async () => {
-            await redisApi.delKey.request({
-                key,
-                id: state.scanParam.id,
-                db: state.scanParam.db,
-            });
+            // DEL key [key ...]
+            await redisInst.value.runCmd(['DEL', key]);
             ElMessage.success('删除成功！');
             searchKey();
 

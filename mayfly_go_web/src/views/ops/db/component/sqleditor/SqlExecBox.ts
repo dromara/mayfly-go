@@ -1,4 +1,4 @@
-import { h, render, VNode } from 'vue';
+import { h, render } from 'vue';
 import SqlExecDialog from './SqlExecDialog.vue';
 
 export type SqlExecProps = {
@@ -11,27 +11,21 @@ export type SqlExecProps = {
     cancelCallback?: Function;
 };
 
-const boxId = 'sql-exec-dialog-id';
-
-let boxInstance: VNode;
-
 const SqlExecBox = (props: SqlExecProps): void => {
-    if (!boxInstance) {
-        const container = document.createElement('div');
-        container.id = boxId;
-        // 创建 虚拟dom
-        boxInstance = h(SqlExecDialog);
-        // 将虚拟dom渲染到 container dom 上
-        render(boxInstance, container);
-        // 最后将 container 追加到 body 上
-        document.body.appendChild(container);
-    }
-
-    const boxVue = boxInstance.component;
-    if (boxVue) {
-        // 调用open方法显示弹框，注意不能使用boxVue.ctx来调用组件函数（build打包后ctx会获取不到）
-        boxVue.exposed?.open(props);
-    }
+    const propsCancelFn = props.cancelCallback;
+    //  包装取消回调函数，新增销毁组件代码
+    props.cancelCallback = () => {
+        propsCancelFn && propsCancelFn();
+        setTimeout(() => {
+            // 销毁组件
+            render(null, document.body);
+        }, 500);
+    };
+    const vnode = h(SqlExecDialog, {
+        ...props,
+        visible: true,
+    });
+    render(vnode, document.body);
 };
 
 export default SqlExecBox;

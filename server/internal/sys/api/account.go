@@ -15,6 +15,7 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/conv"
 	"mayfly-go/pkg/utils/cryptox"
+	"mayfly-go/pkg/utils/structx"
 	"strconv"
 	"strings"
 	"time"
@@ -141,6 +142,18 @@ func (a *Account) SimpleAccounts(rc *req.Ctx) {
 	res, err := a.AccountApp.GetPageList(condition, rc.GetPageParam(), new([]vo.SimpleAccountVO))
 	biz.ErrIsNil(err)
 	rc.ResData = res
+}
+
+// 获取账号详情
+func (a *Account) AccountDetail(rc *req.Ctx) {
+	accountId := uint64(rc.PathParamInt("id"))
+	account, err := a.AccountApp.GetById(new(entity.Account), accountId)
+	biz.ErrIsNil(err, "账号不存在")
+	accountvo := new(vo.SimpleAccountVO)
+	structx.Copy(accountvo, account)
+
+	accountvo.Roles = a.getAccountRoles(accountId)
+	rc.ResData = accountvo
 }
 
 // @router /accounts

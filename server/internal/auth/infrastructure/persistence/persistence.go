@@ -4,6 +4,6 @@ import (
 	"mayfly-go/pkg/ioc"
 )
 
-func Init() {
+func InitIoc() {
 	ioc.Register(newAuthAccountRepo(), ioc.WithComponentName("Oauth2AccountRepo"))
 }

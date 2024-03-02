@@ -4,7 +4,7 @@ import (
 	"mayfly-go/pkg/ioc"
 )
 
-func Init() {
+func InitIoc() {
 	ioc.Register(newTagTreeRepo(), ioc.WithComponentName("TagTreeRepo"))
 	ioc.Register(newTagTreeTeamRepo(), ioc.WithComponentName("TagTreeTeamRepo"))
 	ioc.Register(newTagResourceRepo(), ioc.WithComponentName("TagResourceRepo"))

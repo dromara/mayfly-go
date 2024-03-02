@@ -13,7 +13,10 @@
                         <enum-tag :enums="FlowBizType" :value="procinst.bizType"></enum-tag>
                     </el-descriptions-item>
 
-                    <el-descriptions-item label="发起人">{{ procinst.creator }}</el-descriptions-item>
+                    <el-descriptions-item label="发起人">
+                        <AccountInfo :account-id="procinst.creatorId" :username="procinst.creator" />
+                        <!-- {{ procinst.creator }} -->
+                    </el-descriptions-item>
                     <el-descriptions-item label="发起时间">{{ dateFormat(procinst.createTime) }}</el-descriptions-item>
 
                     <div v-if="procinst.duration">
@@ -41,7 +44,14 @@
 
             <div>
                 <el-divider content-position="left">业务信息</el-divider>
-                <component v-if="procinst.bizType" ref="keyValueRef" :is="bizComponents[procinst.bizType]" :biz-key="procinst.bizKey"> </component>
+                <component
+                    v-if="procinst.bizType"
+                    ref="keyValueRef"
+                    :is="bizComponents[procinst.bizType]"
+                    :biz-key="procinst.bizKey"
+                    :biz-form="procinst.bizForm"
+                >
+                </component>
             </div>
 
             <div v-if="props.instTaskId">
@@ -80,8 +90,10 @@ import { dateFormat } from '@/common/utils/date';
 import ProcdefTasks from './components/ProcdefTasks.vue';
 import { formatTime } from '@/common/utils/format';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
+import AccountInfo from '@/views/system/account/components/AccountInfo.vue';
 
 const DbSqlExecBiz = defineAsyncComponent(() => import('./flowbiz/DbSqlExecBiz.vue'));
+const RedisRunWriteCmdBiz = defineAsyncComponent(() => import('./flowbiz/RedisRunWriteCmdBiz.vue'));
 
 const props = defineProps({
     procinstId: {
@@ -104,6 +116,7 @@ const emit = defineEmits(['cancel', 'val-change']);
 // 业务组件
 const bizComponents = shallowReactive({
     db_sql_exec_flow: DbSqlExecBiz,
+    redis_run_write_cmd_flow: RedisRunWriteCmdBiz,
 });
 
 const state = reactive({

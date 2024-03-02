@@ -4,7 +4,7 @@ import (
 	"mayfly-go/pkg/ioc"
 )
 
-func Init() {
+func InitIoc() {
 	ioc.Register(newMachineRepo(), ioc.WithComponentName("MachineRepo"))
 	ioc.Register(newMachineFileRepo(), ioc.WithComponentName("MachineFileRepo"))
 	ioc.Register(newMachineScriptRepo(), ioc.WithComponentName("MachineScriptRepo"))

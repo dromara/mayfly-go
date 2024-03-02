@@ -15,6 +15,7 @@ type Procinst struct {
 
 	BizType      string            `json:"bizType"`      // 业务类型
 	BizKey       string            `json:"bizKey"`       // 业务key
+	BizForm      string            `json:"bizForm"`      // 业务表单
 	BizStatus    ProcinstBizStatus `json:"bizStatus"`    // 业务状态
 	BizHandleRes string            `json:"bizHandleRes"` // 业务处理结果
 	TaskKey      string            `json:"taskKey"`      // 当前任务key
@@ -38,19 +39,19 @@ func (a *Procinst) SetEnd() {
 type ProcinstStatus int8
 
 const (
-	ProcinstActive     ProcinstStatus = 1  // 流程实例正在执行中，当前有活动任务等待执行或者正在运行的流程节点
-	ProcinstCompleted  ProcinstStatus = 2  // 流程实例已经成功执行完成，没有剩余任务或者等待事件
-	ProcinstSuspended  ProcinstStatus = -1 // 流程实例被挂起，暂停执行，可能被驳回等待修改重新提交
-	ProcinstTerminated ProcinstStatus = -2 // 流程实例被终止，可能是由于某种原因如被拒绝等导致流程无法正常执行
-	ProcinstCancelled  ProcinstStatus = -3 // 流程实例被取消，通常是用户手动操作取消了流程的执行
+	ProcinstStatusActive     ProcinstStatus = 1  // 流程实例正在执行中，当前有活动任务等待执行或者正在运行的流程节点
+	ProcinstStatusCompleted  ProcinstStatus = 2  // 流程实例已经成功执行完成，没有剩余任务或者等待事件
+	ProcinstStatusSuspended  ProcinstStatus = -1 // 流程实例被挂起，暂停执行，可能被驳回等待修改重新提交
+	ProcinstStatusTerminated ProcinstStatus = -2 // 流程实例被终止，可能是由于某种原因如被拒绝等导致流程无法正常执行
+	ProcinstStatusCancelled  ProcinstStatus = -3 // 流程实例被取消，通常是用户手动操作取消了流程的执行
 )
 
 var ProcinstStatusEnum = enumx.NewEnum[ProcinstStatus]("流程状态").
-	Add(ProcinstActive, "执行中").
-	Add(ProcinstCompleted, "完成").
-	Add(ProcinstSuspended, "挂起").
-	Add(ProcinstTerminated, "终止").
-	Add(ProcinstCancelled, "取消")
+	Add(ProcinstStatusActive, "执行中").
+	Add(ProcinstStatusCompleted, "完成").
+	Add(ProcinstStatusSuspended, "挂起").
+	Add(ProcinstStatusTerminated, "终止").
+	Add(ProcinstStatusCancelled, "取消")
 
 type ProcinstBizStatus int8
 

@@ -12,6 +12,7 @@ type ProcinstVO struct {
 
 	BizType      string     `json:"bizType"`      // 业务类型
 	BizKey       string     `json:"bizKey"`       // 业务key
+	BizForm      string     `json:"bizForm"`      // 业务form
 	BizStatus    int8       `json:"bizStatus"`    // 业务状态
 	BizHandleRes string     `json:"bizHandleRes"` // 业务处理结果
 	TaskKey      string     `json:"taskKey"`      // 当前任务key
@@ -21,6 +22,7 @@ type ProcinstVO struct {
 	Duration     int64      `json:"duration"` // 持续时间（开始到结束）
 
 	Creator    string     `json:"creator"`
+	CreatorId  uint64     `json:"creatorId"`
 	CreateTime *time.Time `json:"createTime"`
 	UpdateTime *time.Time `json:"updateTime"`
 

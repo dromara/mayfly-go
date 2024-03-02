@@ -183,6 +183,8 @@
                 <el-descriptions-item :span="3" label="数据库">{{ infoDialog.data?.database }}</el-descriptions-item>
                 <el-descriptions-item :span="3" label="备注">{{ infoDialog.data?.remark }}</el-descriptions-item>
 
+                <el-descriptions-item :span="3" label="工单流程key">{{ infoDialog.data?.flowProcdefKey }}</el-descriptions-item>
+
                 <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data?.createTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data?.creator }}</el-descriptions-item>
 

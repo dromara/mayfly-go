@@ -48,14 +48,15 @@ export function useApiFetch<T>(api: Api, params: any = null, reqOptions: Request
             }
 
             let paramsValue = unref(params);
-            if (api.beforeHandler) {
-                paramsValue = api.beforeHandler(paramsValue);
-            }
 
             let apiUrl = url;
             // 简单判断该url是否是restful风格
             if (apiUrl.indexOf('{') != -1) {
                 apiUrl = templateResolve(apiUrl, paramsValue);
+            }
+
+            if (api.beforeHandler) {
+                paramsValue = api.beforeHandler(paramsValue);
             }
 
             if (paramsValue) {

@@ -17,8 +17,8 @@
                             <el-checkbox
                                 v-model="item.show"
                                 :label="`${!item.columnComment ? item.columnName : item.columnName + ' [' + item.columnComment + ']'}`"
-                                :true-label="true"
-                                :false-label="false"
+                                :true-value="true"
+                                :false-value="false"
                                 size="small"
                             />
                         </div>
@@ -55,7 +55,7 @@
                         title="展示配置"
                         trigger="click"
                     >
-                        <el-checkbox v-model="dbConfig.showColumnComment" label="显示字段备注" :true-label="true" :false-label="false" size="small" />
+                        <el-checkbox v-model="dbConfig.showColumnComment" label="显示字段备注" :true-value="true" :false-value="false" size="small" />
                         <template #reference>
                             <el-link type="primary" icon="setting" :underline="false"></el-link>
                         </template>

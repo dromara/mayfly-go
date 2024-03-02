@@ -97,7 +97,6 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 			// 如果配置为0，则不校验分页参数
 			maxCount := config.GetDbQueryMaxCount()
 			if maxCount != 0 {
-
 				if !strings.Contains(lowerSql, "limit") &&
 					// 兼容oracle rownum分页
 					!strings.Contains(lowerSql, "rownum") &&
@@ -118,10 +117,11 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 		} else {
 			execRes, execErr = d.doExec(ctx, execSqlReq, dbSqlExecRecord)
 		}
+
+		d.saveSqlExecLog(isSelect, dbSqlExecRecord)
 		if execErr != nil {
 			return nil, execErr
 		}
-		d.saveSqlExecLog(isSelect, dbSqlExecRecord)
 		return execRes, nil
 	}
 
@@ -152,10 +152,13 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 	return execRes, nil
 }
 
-func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, procinstStatus flowentity.ProcinstStatus, bizKey string) error {
+func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowapp.BizHandleParam) error {
+	bizKey := bizHandleParam.BizKey
+	procinstStatus := bizHandleParam.ProcinstStatus
+
 	logx.Debugf("DbSqlExec FlowBizHandle -> bizKey: %s, procinstStatus: %s", bizKey, flowentity.ProcinstStatusEnum.GetDesc(procinstStatus))
 	// 流程挂起不处理
-	if procinstStatus == flowentity.ProcinstSuspended {
+	if procinstStatus == flowentity.ProcinstStatusSuspended {
 		return nil
 	}
 	dbSqlExec := &entity.DbSqlExec{FlowBizKey: bizKey}
@@ -164,7 +167,7 @@ func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, procinstStatus flo
 		return nil
 	}
 
-	if procinstStatus != flowentity.ProcinstCompleted {
+	if procinstStatus != flowentity.ProcinstStatusCompleted {
 		dbSqlExec.Status = entity.DbSqlExecStatusNo
 		dbSqlExec.Res = fmt.Sprintf("流程%s", flowentity.ProcinstStatusEnum.GetDesc(procinstStatus))
 		return d.dbSqlExecRepo.UpdateById(ctx, dbSqlExec)
@@ -364,7 +367,7 @@ func (d *dbSqlExecAppImpl) doExec(ctx context.Context, execSqlReq *DbSqlExecReq,
 	if err != nil {
 		execRes = err.Error()
 		dbSqlExecRecord.Status = entity.DbSqlExecStatusFail
-		dbSqlExecRecord.Res = err.Error()
+		dbSqlExecRecord.Res = execRes
 	} else {
 		dbSqlExecRecord.Res = fmt.Sprintf("执行成功,影响条数: %d", rowsAffected)
 	}

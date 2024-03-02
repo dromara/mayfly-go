@@ -52,21 +52,15 @@
 </template>
 <script lang="ts" setup>
 import { ref, onMounted, reactive, toRefs } from 'vue';
-import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import { notBlank } from '@/common/assert';
 import FormatViewer from './FormatViewer.vue';
+import { RedisInst } from './redis';
 
 const props = defineProps({
-    redisId: {
-        type: [Number],
-        require: true,
-        default: 0,
-    },
-    db: {
-        type: [Number],
-        require: true,
-        default: 0,
+    redis: {
+        type: RedisInst,
+        required: true,
     },
     keyInfo: {
         type: [Object],
@@ -76,8 +70,6 @@ const props = defineProps({
 const formatViewerRef = ref(null) as any;
 
 const state = reactive({
-    redisId: 0,
-    db: 0,
     key: '',
     scanParam: {
         cursor: 0,
@@ -98,8 +90,6 @@ const state = reactive({
 const { hashValues, total, loadMoreDisable, editDialog } = toRefs(state);
 
 onMounted(() => {
-    state.redisId = props.redisId;
-    state.db = props.db;
     state.key = props.keyInfo?.key;
     initData();
 });
@@ -118,16 +108,15 @@ const hscan = async (resetTableData = false, resetCursor = false) => {
         state.scanParam.cursor = 0;
     }
 
-    const scanRes = await redisApi.hscan.request({
-        ...getBaseReqParam(),
-        match: getScanMatch(),
-        ...state.scanParam,
-    });
-    state.scanParam.cursor = scanRes.cursor;
-    state.loadMoreDisable = scanRes.cursor == 0;
-    state.total = scanRes.keySize;
+    props.redis.runCmd(['HLEN', state.key]).then((res) => (state.total = res));
 
-    const keys = scanRes.keys;
+    // HSCAN key cursor [MATCH pattern] [COUNT count]
+    // 返回值 [coursor, keys:[]]
+    let scanRes = await props.redis.runCmd(['HSCAN', state.key, state.scanParam.cursor, 'MATCH', getScanMatch(), 'COUNT', state.scanParam.count]);
+    state.scanParam.cursor = scanRes[0];
+    state.loadMoreDisable = state.scanParam.cursor == 0;
+    const keys = scanRes[1];
+
     const hashValue = [];
     const fieldCount = keys.length / 2;
     let nextFieldIndex = 0;
@@ -143,10 +132,7 @@ const hscan = async (resetTableData = false, resetCursor = false) => {
 };
 
 const hdel = async (field: any, index: any) => {
-    await redisApi.hdel.request({
-        ...getBaseReqParam(),
-        field,
-    });
+    await props.redis.runCmd(['HDEL', state.key, field]);
 
     ElMessage.success('删除成功');
     state.hashValues.splice(index, 1);
@@ -161,55 +147,23 @@ const showEditDialog = (row: any) => {
 };
 
 const confirmEditData = async () => {
-    const param = getBaseReqParam();
-
     const field = state.editDialog.field;
     notBlank(field, 'field不能为空');
 
-    // 存在数据行，则说明为修改，则要先删除旧数据后新增
-    const dataRow = state.editDialog.dataRow;
-    if (dataRow) {
-        await redisApi.hdel.request({
-            ...param,
-            field: dataRow.field,
-        });
-    }
-
     // 获取hash value内容并新增
     const value = formatViewerRef.value.getContent();
-    const res = await redisApi.hset.request({
-        ...param,
-        value: [
-            {
-                field,
-                value: value,
-            },
-        ],
-    });
 
+    const res = await props.redis.runCmd(['HSET', state.key, field, value]);
     ElMessage.success('保存成功');
-    if (dataRow) {
-        state.editDialog.dataRow.value = value;
-        state.editDialog.dataRow.field = field;
+    // 响应0则为被覆盖，则重新scan
+    if (res == 0) {
+        hscan(true, true);
     } else {
-        // 响应0则为被覆盖，则重新scan
-        if (res == 0) {
-            hscan(true, true);
-        } else {
-            state.hashValues.unshift({ value, field });
-            state.total++;
-        }
+        state.hashValues.unshift({ value, field });
+        state.total++;
     }
     state.editDialog.visible = false;
     state.editDialog.dataRow = null;
-};
-
-const getBaseReqParam = () => {
-    return {
-        id: state.redisId,
-        db: state.db,
-        key: state.key,
-    };
 };
 
 defineExpose({ initData });

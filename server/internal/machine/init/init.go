@@ -6,13 +6,17 @@ import (
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/domain/entity"
+	"mayfly-go/internal/machine/infrastructure/persistence"
 	"mayfly-go/internal/machine/router"
 	"mayfly-go/pkg/eventbus"
 	"mayfly-go/pkg/global"
 )
 
 func init() {
-	initialize.AddInitIocFunc(application.InitIoc)
+	initialize.AddInitIocFunc(func() {
+		persistence.InitIoc()
+		application.InitIoc()
+	})
 	initialize.AddInitRouterFunc(router.Init)
 	initialize.AddInitFunc(Init)
 }

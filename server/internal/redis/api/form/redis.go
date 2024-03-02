@@ -11,48 +11,12 @@ type Redis struct {
 	SshTunnelMachineId int      `json:"sshTunnelMachineId"` // ssh隧道机器id
 	TagId              []uint64 `binding:"required" json:"tagId"`
 	Remark             string   `json:"remark"`
-}
-
-type Rename struct {
-	Key    string `binding:"required" json:"key"`
-	NewKey string `binding:"required" json:"newKey"`
-}
-
-type Expire struct {
-	Key     string `binding:"required" json:"key"`
-	Seconds int64  `binding:"required" json:"seconds"`
+	FlowProcdefKey     string   `json:"flowProcdefKey"` // 审批流-流程定义key（有值则说明关键操作需要进行审批执行）,使用指针为了方便更新空字符串(取消流程审批)
 }
 
 type KeyInfo struct {
 	Key   string `binding:"required" json:"key"`
 	Timed int64  `json:"timed"`
-}
-
-type StringValue struct {
-	KeyInfo
-	Value any `binding:"required" json:"value"`
-}
-
-type HashValue struct {
-	KeyInfo
-	Value []map[string]any `binding:"required" json:"value"`
-}
-
-type SetValue struct {
-	KeyInfo
-	Value []any `binding:"required" json:"value"`
-}
-
-type ListValue struct {
-	KeyInfo
-	Value []any `binding:"required" json:"value"`
-}
-
-// list lset命令参数入参
-type ListSetValue struct {
-	Key   string `binding:"required" json:"key"`
-	Index int64  `json:"index"`
-	Value any    `binding:"required" json:"value"`
 }
 
 type RedisScanForm struct {
@@ -68,19 +32,9 @@ type ScanForm struct {
 	Count  int64  `json:"count"`
 }
 
-type SmemberOption struct {
-	Key    string `json:"key"`
-	Member any    `json:"member"`
-}
-
-type LRemOption struct {
-	Key    string `json:"key"`
-	Count  int64  `json:"count"`
-	Member any    `json:"member"`
-}
-
-type ZAddOption struct {
-	Key    string  `json:"key"`
-	Score  float64 `json:"score"`
-	Member any     `json:"member"`
+type RunCmdForm struct {
+	Id     uint64 `json:"id"`
+	Db     int    `json:"db"`
+	Cmd    []any  `json:"cmd"`
+	Remark string `json:"remark"`
 }

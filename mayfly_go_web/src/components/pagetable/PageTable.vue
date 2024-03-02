@@ -74,7 +74,7 @@
                                         trigger="click"
                                     >
                                         <div v-for="(item, index) in tableColumns" :key="index">
-                                            <el-checkbox v-model="item.show" :label="item.label" :true-label="true" :false-label="false" />
+                                            <el-checkbox v-model="item.show" :label="item.label" :true-value="true" :false-value="false" />
                                         </div>
                                         <template #reference>
                                             <el-button icon="Operation" circle :size="props.size"></el-button>

@@ -47,13 +47,12 @@ import { reactive, watch, toRefs, onMounted } from 'vue';
 import { redisApi } from './api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { formatTime } from '@/common/utils/format';
+import { RedisInst } from './redis';
 
 const props = defineProps({
-    redisId: {
-        type: Number,
-    },
-    db: {
-        type: Number,
+    redis: {
+        type: RedisInst,
+        required: true,
     },
     keyInfo: {
         type: [Object],
@@ -63,7 +62,6 @@ const props = defineProps({
 const emit = defineEmits(['refreshContent', 'delKey', 'changeKey']);
 
 const state = reactive({
-    redisId: 0,
     keyInfo: {
         key: '',
         type: '',
@@ -85,8 +83,8 @@ onMounted(() => {
 
 const refreshKey = async () => {
     const ttl = await redisApi.keyTtl.request({
-        id: props.redisId,
-        db: props.db,
+        id: props.redis.id,
+        db: props.redis.db,
         key: state.oldKey,
     });
     state.keyInfo.timed = ttl;
@@ -101,12 +99,8 @@ const renameKey = async () => {
     if (!state.oldKey || state.ki.key == state.oldKey) {
         return;
     }
-    await redisApi.renameKey.request({
-        id: props.redisId,
-        db: props.db,
-        newKey: state.ki.key,
-        key: state.oldKey,
-    });
+    // RENAME key newkey
+    await props.redis.runCmd(['RENAME', state.oldKey, state.ki.key]);
     ElMessage.success('设置成功');
     emit('changeKey');
 };
@@ -131,22 +125,15 @@ const ttlKey = async () => {
         return;
     }
 
-    await redisApi.expireKey.request({
-        id: props.redisId,
-        db: props.db,
-        key: state.ki.key,
-        seconds: state.ki.timed,
-    });
+    // EXPIRE key seconds [NX | XX | GT | LT]
+    await props.redis.runCmd(['EXPIRE', state.ki.key, state.ki.timed]);
     ElMessage.success('设置成功');
     emit('changeKey');
 };
 
 const persistKey = async () => {
-    await redisApi.persistKey.request({
-        id: props.redisId,
-        db: props.db,
-        key: state.keyInfo.key,
-    });
+    // PERSIST key
+    await props.redis.runCmd(['PERSIST', state.keyInfo.key]);
     ElMessage.success('设置成功');
     emit('changeKey');
 };

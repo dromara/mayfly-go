@@ -27,7 +27,7 @@ export function keysToTree(keys: any, separator: string = ':', openStatus: any =
     return formatTreeData(tree, '', separator, openStatus, forceCut);
 }
 
-export function keysToList(keys: any, separator: string = ':', openStatus: any = null, forceCut = 20000) {
+export function keysToList(keys: any) {
     return keys.map((x: string) => {
         return {
             key: x,

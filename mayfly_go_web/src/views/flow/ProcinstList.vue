@@ -52,10 +52,10 @@ import { formatTime } from '@/common/utils/format';
 
 const searchItems = [SearchItem.select('status', '流程状态').withEnum(ProcinstStatus), SearchItem.select('bizType', '业务类型').withEnum(FlowBizType)];
 const columns = [
-    TableColumn.new('procdefName', '流程名'),
     TableColumn.new('bizType', '业务').typeTag(FlowBizType),
     TableColumn.new('remark', '备注'),
     TableColumn.new('creator', '发起人'),
+    TableColumn.new('procdefName', '流程名'),
     TableColumn.new('status', '流程状态').typeTag(ProcinstStatus),
     TableColumn.new('bizStatus', '业务状态').typeTag(ProcinstBizStatus),
     TableColumn.new('createTime', '发起时间').isTime(),

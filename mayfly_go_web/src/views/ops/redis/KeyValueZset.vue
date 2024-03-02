@@ -52,20 +52,14 @@
 </template>
 <script lang="ts" setup>
 import { ref, reactive, toRefs, onMounted } from 'vue';
-import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import FormatViewer from './FormatViewer.vue';
+import { RedisInst } from './redis';
 
 const props = defineProps({
-    redisId: {
-        type: [Number],
-        require: true,
-        default: 0,
-    },
-    db: {
-        type: [Number],
-        require: true,
-        default: 0,
+    redis: {
+        type: RedisInst,
+        required: true,
     },
     keyInfo: {
         type: [Object],
@@ -75,8 +69,6 @@ const props = defineProps({
 const formatViewerRef = ref(null) as any;
 
 const state = reactive({
-    redisId: 0,
-    db: 0,
     key: '',
     filterValue: '',
     scanCursor: 0,
@@ -96,8 +88,6 @@ const state = reactive({
 const { total, values, loadMoreDisable, editDialog } = toRefs(state);
 
 onMounted(() => {
-    state.redisId = props.redisId;
-    state.db = props.db;
     state.key = props.keyInfo?.key;
     initData();
 });
@@ -105,7 +95,7 @@ onMounted(() => {
 const initData = async () => {
     state.pageNum = 1;
     state.filterValue = '';
-    await getTotal();
+    getTotal();
     await zrevrange(true);
 };
 
@@ -120,17 +110,14 @@ const loadDatas = (resetTableData = false) => {
 const zrevrange = async (resetTableData = false) => {
     const pageNum = state.pageNum;
     const pageSize = state.pageSize;
-    const res = await redisApi.zrevrange.request({
-        ...getBaseReqParam(),
-        start: (pageNum - 1) * pageSize,
-        stop: pageNum * pageSize - 1,
-    });
+    // ZREVRANGE key start stop [WITHSCORES]
+    const res = await props.redis.runCmd(['ZREVRANGE', state.key, (pageNum - 1) * pageSize, pageNum * pageSize - 1, 'WITHSCORES']);
 
     const vs = [];
     for (let member of res) {
         vs.push({
-            score: member.Score,
-            value: member.Member,
+            value: member[0],
+            score: member[1],
         });
     }
     if (resetTableData) {
@@ -150,14 +137,11 @@ const zscanData = async (resetTableData = true, resetCursor = false) => {
     if (resetCursor) {
         state.scanCursor = 0;
     }
-    const res = await redisApi.zscan.request({
-        ...getBaseReqParam(),
-        match: getScanMatch(),
-        cursor: state.scanCursor,
-        count: state.pageSize,
-    });
+    // ZSCAN key cursor [MATCH pattern] [COUNT count]
+    // 响应[coursor, vals[]]
+    const res = await props.redis.runCmd(['ZSCAN', state.key, state.scanCursor, 'MATCH', getScanMatch(), 'COUNT', state.pageSize]);
 
-    const keys = res.keys;
+    const keys = res[1];
     const vs = [];
     const memCount = keys.length / 2;
     let nextMemndex = 0;
@@ -171,20 +155,15 @@ const zscanData = async (resetTableData = true, resetCursor = false) => {
         state.values.push(...vs);
     }
 
-    state.scanCursor = res.cursor;
-    state.loadMoreDisable = res.cursor == 0;
+    state.scanCursor = res[0];
+    state.loadMoreDisable = state.scanCursor == 0;
 };
 
 const getTotal = () => {
-    redisApi.zcard
-        .request({
-            id: state.redisId,
-            db: state.db,
-            key: state.key,
-        })
-        .then((res) => {
-            state.total = res;
-        });
+    // ZCARD key
+    props.redis.runCmd(['ZCARD', state.key]).then((res) => {
+        state.total = res;
+    });
 };
 
 const showEditDialog = (row: any) => {
@@ -195,25 +174,18 @@ const showEditDialog = (row: any) => {
 };
 
 const confirmEditData = async () => {
-    const param = getBaseReqParam();
-
     // 存在数据行，则说明为修改，则要先删除旧数据后新增
     const dataRow = state.editDialog.dataRow;
     if (dataRow) {
-        await redisApi.zrem.request({
-            member: state.editDialog.dataRow.value,
-            ...param,
-        });
+        // ZREM key member [member ...]
+        await props.redis.runCmd(['ZREM', state.key, state.editDialog.dataRow.value]);
     }
 
     const score = state.editDialog.score;
     // 获取zset member内容并新增
     const member = formatViewerRef.value.getContent();
-    await redisApi.zadd.request({
-        score,
-        member,
-        ...param,
-    });
+    // ZADD key [NX | XX] [GT | LT] [CH] [INCR] score member [score member...]
+    await props.redis.runCmd(['ZADD', state.key, score, member]);
 
     ElMessage.success('保存成功');
     if (dataRow) {
@@ -228,21 +200,10 @@ const confirmEditData = async () => {
 };
 
 const zrem = async (row: any, index: any) => {
-    await redisApi.zrem.request({
-        ...getBaseReqParam(),
-        member: row.value,
-    });
+    await props.redis.runCmd(['ZREM', state.key, row.value]);
     ElMessage.success('删除成功');
     state.values.splice(index, 1);
     state.total--;
-};
-
-const getBaseReqParam = () => {
-    return {
-        id: state.redisId,
-        db: state.db,
-        key: state.key,
-    };
 };
 
 defineExpose({ initData });

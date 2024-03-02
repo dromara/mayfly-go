@@ -3,20 +3,34 @@ package application
 import (
 	"context"
 	"mayfly-go/internal/common/consts"
+	flowapp "mayfly-go/internal/flow/application"
+	flowentity "mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/domain/repository"
 	"mayfly-go/internal/redis/rdm"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
 	"strconv"
 	"strings"
+
+	"github.com/redis/go-redis/v9"
 )
+
+type RunCmdParam struct {
+	Id     uint64 `json:"id"`
+	Db     int    `json:"db"`
+	Cmd    []any  `json:"cmd"`
+	Remark string
+}
 
 type Redis interface {
 	base.App[*entity.Redis]
+	flowapp.FlowBizHandler
 
 	// 分页获取机器脚本信息列表
 	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
@@ -33,12 +47,16 @@ type Redis interface {
 	// id: 数据库实例id
 	// db: 库号
 	GetRedisConn(id uint64, db int) (*rdm.RedisConn, error)
+
+	// 执行redis命令
+	RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmdParam *RunCmdParam) (any, error)
 }
 
 type redisAppImpl struct {
 	base.AppImpl[*entity.Redis, repository.Redis]
 
-	tagApp tagapp.TagTree `inject:"TagTreeApp"`
+	tagApp      tagapp.TagTree   `inject:"TagTreeApp"`
+	procinstApp flowapp.Procinst `inject:"ProcinstApp"`
 }
 
 // 注入RedisRepo
@@ -96,7 +114,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds .
 		return errorx.NewBiz("该实例已存在")
 	}
 	// 如果修改了redis实例的库信息，则关闭旧库的连接
-	if oldRedis.Db != re.Db || oldRedis.SshTunnelMachineId != re.SshTunnelMachineId {
+	if oldRedis.Db != re.Db || oldRedis.SshTunnelMachineId != re.SshTunnelMachineId || oldRedis.FlowProcdefKey != re.FlowProcdefKey {
 		for _, dbStr := range strings.Split(oldRedis.Db, ",") {
 			db, _ := strconv.Atoi(dbStr)
 			rdm.CloseConn(re.Id, db)
@@ -150,4 +168,55 @@ func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
 		}
 		return re.ToRedisInfo(db, r.tagApp.ListTagPathByResource(consts.TagResourceTypeRedis, re.Code)...), nil
 	})
+}
+
+func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmdParam *RunCmdParam) (any, error) {
+	if redisConn == nil {
+		return nil, errorx.NewBiz("redis连接不存在")
+	}
+
+	// 开启工单流程，并且为写入命令，则开启对应审批流程
+	if procdefKey := redisConn.Info.FlowProcdefKey; procdefKey != "" && rdm.IsWriteCmd(cmdParam.Cmd[0]) {
+		_, err := r.procinstApp.StartProc(ctx, procdefKey, &flowapp.StarProcParam{
+			BizType: RedisRunWriteCmdFlowBizType,
+			BizKey:  stringx.Rand(24),
+			BizForm: jsonx.ToStr(cmdParam),
+			Remark:  cmdParam.Remark,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
+	res, err := redisConn.RunCmd(ctx, cmdParam.Cmd...)
+	// 获取的key不存在，不报错
+	if err == redis.Nil {
+		return nil, nil
+	}
+	return res, err
+}
+
+func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowapp.BizHandleParam) error {
+	bizKey := bizHandleParam.BizKey
+	procinstStatus := bizHandleParam.ProcinstStatus
+
+	logx.Debugf("RedisRunWriteCmd FlowBizHandle -> bizKey: %s, procinstStatus: %s", bizKey, flowentity.ProcinstStatusEnum.GetDesc(procinstStatus))
+	// 流程非完成状态，不处理
+	if procinstStatus != flowentity.ProcinstStatusCompleted {
+		return nil
+	}
+
+	runCmdParam, err := jsonx.To(bizHandleParam.BizForm, new(RunCmdParam))
+	if err != nil {
+		return errorx.NewBiz("业务表单信息解析失败: %s", err.Error())
+	}
+
+	redisConn, err := r.GetRedisConn(runCmdParam.Id, runCmdParam.Db)
+	if err != nil {
+		return err
+	}
+
+	_, err = redisConn.RunCmd(ctx, runCmdParam.Cmd...)
+	return err
 }

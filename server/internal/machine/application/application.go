@@ -1,13 +1,10 @@
 package application
 
 import (
-	"mayfly-go/internal/machine/infrastructure/persistence"
 	"mayfly-go/pkg/ioc"
 )
 
 func InitIoc() {
-	persistence.Init()
-
 	ioc.Register(new(machineAppImpl), ioc.WithComponentName("MachineApp"))
 	ioc.Register(new(machineFileAppImpl), ioc.WithComponentName("MachineFileApp"))
 	ioc.Register(new(machineScriptAppImpl), ioc.WithComponentName("MachineScriptApp"))

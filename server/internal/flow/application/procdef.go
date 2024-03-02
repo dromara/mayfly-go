@@ -65,10 +65,10 @@ func (p *procdefAppImpl) DeleteProcdef(ctx context.Context, defId uint64) error 
 
 // 判断该流程实例是否可以执行修改操作
 func (p *procdefAppImpl) canModify(prodefId uint64) error {
-	if activeInstCount := p.procinstApp.CountByCond(&entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstActive}); activeInstCount > 0 {
+	if activeInstCount := p.procinstApp.CountByCond(&entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstStatusActive}); activeInstCount > 0 {
 		return errorx.NewBiz("存在运行中的流程实例，无法操作")
 	}
-	if suspInstCount := p.procinstApp.CountByCond(&entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstSuspended}); suspInstCount > 0 {
+	if suspInstCount := p.procinstApp.CountByCond(&entity.Procinst{ProcdefId: prodefId, Status: entity.ProcinstStatusSuspended}); suspInstCount > 0 {
 		return errorx.NewBiz("存在挂起中的流程实例，无法操作")
 	}
 	return nil

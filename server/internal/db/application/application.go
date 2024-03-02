@@ -2,14 +2,11 @@ package application
 
 import (
 	"fmt"
-	"mayfly-go/internal/db/infrastructure/persistence"
 	"mayfly-go/pkg/ioc"
 	"sync"
 )
 
 func InitIoc() {
-	persistence.Init()
-
 	ioc.Register(new(instanceAppImpl), ioc.WithComponentName("DbInstanceApp"))
 	ioc.Register(new(dbAppImpl), ioc.WithComponentName("DbApp"))
 	ioc.Register(new(dbSqlExecAppImpl), ioc.WithComponentName("DbSqlExecApp"))

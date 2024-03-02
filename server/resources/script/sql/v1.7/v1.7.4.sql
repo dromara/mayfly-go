@@ -35,8 +35,9 @@ CREATE TABLE `t_flow_procinst` (
   `status` tinyint DEFAULT NULL COMMENT '状态',
   `biz_type` varchar(64) COLLATE utf8mb4_bin NOT NULL COMMENT '关联业务类型',
   `biz_key` varchar(64)  NOT NULL COMMENT '关联业务key',
+  `biz_form` text  DEFAULT NULL COMMENT '业务form',
   `biz_status` tinyint DEFAULT NULL COMMENT '业务状态',
-  `biz_handle_res` varchar(100) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '关联的业务处理结果',
+  `biz_handle_res` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '关联的业务处理结果',
   `remark` varchar(191)  DEFAULT NULL,
   `end_time` datetime DEFAULT NULL COMMENT '结束时间',
   `duration` bigint DEFAULT NULL COMMENT '流程持续时间（开始到结束）',
@@ -80,6 +81,7 @@ ALTER TABLE t_db_sql_exec ADD flow_biz_key varchar(64) NULL COMMENT '工单流�
 ALTER TABLE t_db_sql_exec ADD res varchar(1000) NULL COMMENT '执行结果';
 
 ALTER TABLE t_db ADD flow_procdef_key varchar(64) NULL COMMENT '审批流-流程定义key（有值则说明关键操作需要进行审批执行）';
+ALTER TABLE t_redis ADD flow_procdef_key varchar(64) NULL COMMENT '审批流-流程定义key（有值则说明关键操作需要进行审批执行）';
 
 -- 历史执行记录调整为成功状态
 UPDATE t_db_sql_exec SET status = 2;

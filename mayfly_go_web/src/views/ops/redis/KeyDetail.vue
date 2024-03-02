@@ -4,8 +4,7 @@
             <!-- key info -->
             <key-header
                 ref="keyHeader"
-                :redis-id="redisId"
-                :db="db"
+                :redis="props.redis"
                 :key-info="state.keyInfo"
                 @refresh-content="refreshContent"
                 @del-key="delKey"
@@ -15,7 +14,7 @@
             </key-header>
 
             <!-- key content -->
-            <component ref="keyValueRef" :is="components[componentName]" :redis-id="redisId" :db="db" :key-info="keyInfo"> </component>
+            <component ref="keyValueRef" :is="components[componentName]" :redis="props.redis" :key-info="keyInfo"> </component>
         </el-container>
     </div>
 </template>
@@ -23,6 +22,7 @@
 import { defineAsyncComponent, watch, ref, shallowReactive, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import KeyHeader from './KeyHeader.vue';
+import { RedisInst } from './redis';
 
 const KeyValueString = defineAsyncComponent(() => import('./KeyValueString.vue'));
 const KeyValueHash = defineAsyncComponent(() => import('./KeyValueHash.vue'));
@@ -41,11 +41,9 @@ const components = shallowReactive({
 const keyValueRef = ref(null) as any;
 
 const props = defineProps({
-    redisId: {
-        type: Number,
-    },
-    db: {
-        type: Number,
+    redis: {
+        type: RedisInst,
+        required: true,
     },
     keyInfo: {
         type: [Object],
@@ -55,7 +53,6 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'changeKey', 'delKey']);
 
 const state = reactive({
-    redisId: 0,
     keyInfo: {} as any,
 });
 

@@ -19,6 +19,8 @@ type SimpleAccountVO struct {
 	Id       uint64 `json:"id"`
 	Name     string `json:"name"`
 	Username string `json:"username"`
+
+	Roles []*AccountRoleVO `json:"roles" gorm:"-"`
 }
 
 // 账号角色信息

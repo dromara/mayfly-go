@@ -4,6 +4,6 @@ import (
 	"mayfly-go/pkg/ioc"
 )
 
-func Init() {
+func InitIoc() {
 	ioc.Register(newMongoRepo(), ioc.WithComponentName("MongoRepo"))
 }

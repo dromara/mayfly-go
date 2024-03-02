@@ -30,4 +30,5 @@ export const ProcinstTaskStatus = {
 
 export const FlowBizType = {
     DbSqlExec: EnumValue.of('db_sql_exec_flow', 'DBMS-执行SQL'),
+    RedisRunWriteCmd: EnumValue.of('redis_run_write_cmd_flow', 'Redis-执行write命令'),
 };

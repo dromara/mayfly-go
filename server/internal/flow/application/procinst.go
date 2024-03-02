@@ -68,11 +68,12 @@ func (p *procinstAppImpl) StartProc(ctx context.Context, procdefKey string, reqP
 	procinst := &entity.Procinst{
 		BizType:     reqParam.BizType,
 		BizKey:      reqParam.BizKey,
+		BizForm:     reqParam.BizForm,
 		BizStatus:   entity.ProcinstBizStatusWait,
 		ProcdefId:   procdef.Id,
 		ProcdefName: procdef.Name,
 		Remark:      reqParam.Remark,
-		Status:      entity.ProcinstActive,
+		Status:      entity.ProcinstStatusActive,
 	}
 
 	task := p.getNextTask(procdef, "")
@@ -97,7 +98,7 @@ func (p *procinstAppImpl) CancelProc(ctx context.Context, procinstId uint64) err
 	if procinst.CreatorId != la.Id {
 		return errorx.NewBiz("只能取消自己创建的流程")
 	}
-	procinst.Status = entity.ProcinstCancelled
+	procinst.Status = entity.ProcinstStatusCancelled
 	procinst.BizStatus = entity.ProcinstBizStatusNo
 	procinst.SetEnd()
 
@@ -130,7 +131,7 @@ func (p *procinstAppImpl) CompleteTask(ctx context.Context, instTaskId uint64, r
 	// 获取下一实例审批任务
 	task := p.getNextTask(procdef, instTask.TaskKey)
 	if task == nil {
-		procinst.Status = entity.ProcinstCompleted
+		procinst.Status = entity.ProcinstStatusCompleted
 		procinst.SetEnd()
 	} else {
 		procinst.TaskKey = task.TaskKey
@@ -165,7 +166,7 @@ func (p *procinstAppImpl) RejectTask(ctx context.Context, instTaskId uint64, rem
 	procinst := new(entity.Procinst)
 	p.GetById(procinst, instTask.ProcinstId)
 	// 更新流程实例为终止状态，无法重新提交
-	procinst.Status = entity.ProcinstTerminated
+	procinst.Status = entity.ProcinstStatusTerminated
 	procinst.BizStatus = entity.ProcinstBizStatusNo
 	procinst.SetEnd()
 
@@ -192,7 +193,7 @@ func (p *procinstAppImpl) BackTask(ctx context.Context, instTaskId uint64, remar
 	p.GetById(procinst, instTask.ProcinstId)
 
 	// 更新流程实例为挂起状态，等待重新提交
-	procinst.Status = entity.ProcinstSuspended
+	procinst.Status = entity.ProcinstStatusSuspended
 
 	return p.Tx(ctx, func(ctx context.Context) error {
 		return p.UpdateById(ctx, procinst)
@@ -219,11 +220,17 @@ func (p *procinstAppImpl) cancelInstTasks(ctx context.Context, procinstId uint64
 
 // 触发流程实例状态改变事件
 func (p *procinstAppImpl) triggerProcinstStatusChangeEvent(ctx context.Context, procinst *entity.Procinst) error {
-	err := FlowBizHandle(ctx, procinst.BizType, procinst.BizKey, procinst.Status)
+	err := FlowBizHandle(ctx, &BizHandleParam{
+		BizType:        procinst.BizType,
+		BizKey:         procinst.BizKey,
+		BizForm:        procinst.BizForm,
+		ProcinstStatus: procinst.Status,
+	})
+
 	if err != nil {
 		// 业务处理错误，非完成状态则终止流程
-		if procinst.Status != entity.ProcinstCompleted {
-			procinst.Status = entity.ProcinstTerminated
+		if procinst.Status != entity.ProcinstStatusCompleted {
+			procinst.Status = entity.ProcinstStatusTerminated
 			procinst.SetEnd()
 			p.cancelInstTasks(ctx, procinst.Id, "业务处理失败")
 		}
@@ -233,7 +240,7 @@ func (p *procinstAppImpl) triggerProcinstStatusChangeEvent(ctx context.Context, 
 	}
 
 	// 处理成功，并且状态为完成，则更新业务状态为成功
-	if procinst.Status == entity.ProcinstCompleted {
+	if procinst.Status == entity.ProcinstStatusCompleted {
 		procinst.BizStatus = entity.ProcinstBizStatusSuccess
 		procinst.BizHandleRes = "success"
 		return p.UpdateById(ctx, procinst)

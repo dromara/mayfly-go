@@ -4,7 +4,7 @@ import (
 	"mayfly-go/pkg/ioc"
 )
 
-func Init() {
+func InitIoc() {
 	ioc.Register(NewInstanceRepo(), ioc.WithComponentName("DbInstanceRepo"))
 	ioc.Register(newDbRepo(), ioc.WithComponentName("DbRepo"))
 	ioc.Register(newDbSqlRepo(), ioc.WithComponentName("DbSqlRepo"))

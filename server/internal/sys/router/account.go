@@ -37,6 +37,9 @@ func InitAccountRouter(router *gin.RouterGroup) {
 		// 获取用户列表信息（只包含最基础信息）
 		req.NewGet("/simple", a.SimpleAccounts),
 
+		// 根据账号id获取账号基础信息
+		req.NewGet("/:id", a.AccountDetail),
+
 		req.NewPost("", a.SaveAccount).Log(req.NewLogSave("保存账号信息")).RequiredPermission(addAccountPermission),
 
 		req.NewPut("change-status/:id/:status", a.ChangeStatus).Log(req.NewLogSave("修改账号状态")).RequiredPermission(addAccountPermission),
