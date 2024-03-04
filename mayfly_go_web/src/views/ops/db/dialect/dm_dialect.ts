@@ -663,6 +663,22 @@ class DMDialect implements DbDialect {
         }
         return '';
     }
+    getModifyTableInfoSql(tableData: any): string {
+        let schemaArr = tableData.db.split('/');
+        let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
+
+        let sql = '';
+
+        if (tableData.oldTableName !== tableData.tableName) {
+            let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
+            sql += `ALTER TABLE ${baseTable} RENAME TO ${this.quoteIdentifier(tableData.tableName)};`;
+        }
+        if (tableData.oldTableComment !== tableData.tableComment) {
+            let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.tableName)}`;
+            sql += `COMMENT ON TABLE ${baseTable} IS '${tableData.tableComment}';`;
+        }
+        return sql;
+    }
 
     getDataType(columnType: string): DataType {
         if (DbInst.isNumber(columnType)) {

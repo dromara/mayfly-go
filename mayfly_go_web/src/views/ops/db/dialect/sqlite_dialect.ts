@@ -314,6 +314,19 @@ class SqliteDialect implements DbDialect {
         return sql.join(';');
     }
 
+    getModifyTableInfoSql(tableData: any): string {
+        let schemaArr = tableData.db.split('/');
+        let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
+
+        // sqlite没有表注释
+        let sql = '';
+        if (tableData.tableName != tableData.oldTableName) {
+            let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
+            sql += `ALTER TABLE ${dbTable} RENAME TO ${this.quoteIdentifier(tableData.tableName)}`;
+        }
+        return sql;
+    }
+
     getDataType(columnType: string): DataType {
         if (DbInst.isNumber(columnType)) {
             return DataType.Number;

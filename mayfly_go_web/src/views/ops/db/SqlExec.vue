@@ -168,7 +168,7 @@
 
 <script lang="ts" setup>
 import { defineAsyncComponent, h, onBeforeUnmount, onMounted, reactive, ref, toRefs } from 'vue';
-import { ElCheckbox, ElMessage, ElMessageBox } from 'element-plus';
+import { ElCheckbox, ElInput, ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { DbInst, registerDbCompletionItemProvider, TabInfo, TabType } from './db';
 import { NodeType, TagTreeNode } from '../component/tag';
@@ -182,6 +182,7 @@ import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Pane, Splitpanes } from 'splitpanes';
 import { useEventListener } from '@vueuse/core';
+import SqlExecBox from '@/views/ops/db/component/sqleditor/SqlExecBox';
 
 const DbTableOp = defineAsyncComponent(() => import('./component/table/DbTableOp.vue'));
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
@@ -389,6 +390,7 @@ const NodeTypeSqlMenu = new NodeType(SqlExecNodeType.SqlMenu)
 const NodeTypeTable = new NodeType(SqlExecNodeType.Table)
     .withContextMenuItems([
         new ContextmenuItem('copyTable', '复制表').withIcon('copyDocument').withOnClick((data: any) => onCopyTable(data)),
+        new ContextmenuItem('renameTable', '重命名').withIcon('edit').withOnClick((data: any) => onRenameTable(data)),
         new ContextmenuItem('editTable', '编辑表').withIcon('edit').withOnClick((data: any) => onEditTable(data)),
         new ContextmenuItem('delTable', '删除表').withIcon('Delete').withOnClick((data: any) => onDeleteTable(data)),
     ])
@@ -696,6 +698,48 @@ const onDeleteTable = async (data: any) => {
         setTimeout(() => {
             parentKey && reloadNode(parentKey);
         }, 1000);
+    });
+};
+
+const onRenameTable = async (data: any) => {
+    let { db, id, tableName, parentKey, flowProcdefKey } = data.params;
+    let tableData = { db, oldTableName: tableName, tableName };
+
+    let value = ref(tableName);
+    // 弹出确认框，并选择是否复制数据
+    await ElMessageBox({
+        title: `重命名表【${db}.${tableName}】`,
+        type: 'warning',
+        message: () =>
+            h(ElInput, {
+                modelValue: value.value,
+                'onUpdate:modelValue': (val: string) => {
+                    value.value = val;
+                },
+            }),
+        callback: (action: string) => {
+            if (action === 'confirm') {
+                tableData.tableName = value.value;
+                let sql = nowDbInst.value.getDialect().getModifyTableInfoSql(tableData);
+                if (sql) {
+                    SqlExecBox({
+                        sql: sql,
+                        dbId: id as any,
+                        db: db as any,
+                        dbType: nowDbInst.value.getDialect().getInfo().formatSqlDialect,
+                        flowProcdefKey: flowProcdefKey,
+                        runSuccessCallback: () => {
+                            setTimeout(() => {
+                                parentKey && reloadNode(parentKey);
+                            }, 1000);
+                        },
+                    });
+                } else {
+                    ElMessage.error('无更改');
+                    return;
+                }
+            }
+        },
     });
 };
 

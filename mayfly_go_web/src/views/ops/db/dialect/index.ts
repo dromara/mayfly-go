@@ -222,6 +222,9 @@ export interface DbDialect {
      */
     getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string;
 
+    /** 生成编辑表信息sql */
+    getModifyTableInfoSql(tableData: any): string;
+
     /** 通过数据库字段类型，返回基本数据类型 */
     getDataType(columnType: string): DataType;
 

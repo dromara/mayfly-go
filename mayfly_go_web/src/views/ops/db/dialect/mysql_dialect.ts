@@ -323,6 +323,18 @@ class MysqlDialect implements DbDialect {
         return '';
     }
 
+    getModifyTableInfoSql(tableData: any): string {
+        let sql = '';
+        if (tableData.tableComment !== tableData.oldTableComment) {
+            sql += `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableData.oldTableName)} COMMENT '${tableData.tableComment}';`;
+        }
+
+        if (tableData.tableName !== tableData.oldTableName) {
+            sql += `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableData.oldTableName)} RENAME TO ${this.quoteIdentifier(tableData.tableName)};`;
+        }
+        return sql;
+    }
+
     getDataType(columnType: string): DataType {
         if (DbInst.isNumber(columnType)) {
             return DataType.Number;

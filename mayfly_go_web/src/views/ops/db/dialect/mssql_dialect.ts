@@ -399,6 +399,37 @@ ELSE
         return arr.join(';');
     }
 
+    getModifyTableInfoSql(tableData: any): string {
+        let schemaArr = tableData.db.split('/');
+        let schema = schemaArr.length > 1 ? schemaArr[schemaArr.length - 1] : schemaArr[0];
+
+        let sql = '';
+
+        if (tableData.oldTableName !== tableData.tableName) {
+            let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
+            // 查找是否存在注释，存在则修改，不存在则添加
+            sql += `EXEC sp_rename '${baseTable}', '${tableData.tableName}';`;
+        }
+
+        if (tableData.oldTableComment !== tableData.tableComment) {
+            // 转义注释中的单引号和换行符
+            let tableComment = tableData.tableComment.replaceAll(/'/g, '').replaceAll(/[\r\n]/g, ' ');
+            sql += `IF ((SELECT COUNT(*) FROM fn_listextendedproperty('MS_Description',
+'SCHEMA', N'${schema}',
+'TABLE', N'${tableData.tableName}', NULL, NULL)) > 0)
+  EXEC sp_updateextendedproperty
+'MS_Description', N'${tableComment}',
+'SCHEMA', N'${schema}',
+'TABLE', N'${tableData.tableName}'
+ELSE
+  EXEC sp_addextendedproperty
+'MS_Description', N'${tableComment}',
+'SCHEMA', N'${schema}',
+'TABLE', N'${tableData.tableName}'`;
+        }
+        return sql;
+    }
+
     getDataType(columnType: string): DataType {
         if (DbInst.isNumber(columnType)) {
             return DataType.Number;

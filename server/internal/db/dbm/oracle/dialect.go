@@ -86,6 +86,24 @@ func (od *OracleDialect) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 		return fmt.Sprintf("'%s'", dbType.RemoveQuote(val))
 	}), ",")
 
+	// 如果表数量超过了1000，需要分批查询
+	if len(tableNames) > 1000 {
+		columns := make([]dbi.Column, 0)
+		for i := 0; i < len(tableNames); i += 1000 {
+			end := i + 1000
+			if end > len(tableNames) {
+				end = len(tableNames)
+			}
+			tables := tableNames[i:end]
+			cols, err := od.GetColumns(tables...)
+			if err != nil {
+				return nil, err
+			}
+			columns = append(columns, cols...)
+		}
+		return columns, nil
+	}
+
 	_, res, err := od.dc.Query(fmt.Sprintf(dbi.GetLocalSql(ORACLE_META_FILE, ORACLE_COLUMN_MA_KEY), tableName))
 	if err != nil {
 		return nil, err

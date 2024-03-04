@@ -262,6 +262,8 @@ const state = reactive({
         },
         tableName: '',
         tableComment: '',
+        oldTableName: '',
+        oldTableComment: '',
         height: 450,
         db: '',
     },
@@ -410,6 +412,7 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
 
 const genSql = () => {
     let data = state.tableData;
+    console.log(data);
     // 创建表
     if (!props.data?.edit) {
         let createTable = dbDialect.getCreateTableSql(data);
@@ -424,12 +427,14 @@ const genSql = () => {
         let colSql = changeColData.changed ? dbDialect.getModifyColumnSql(data, data.tableName, changeColData) : '';
         // 修改索引
         let changeIdxData = filterChangedData(state.tableData.indexs.oldIndexs, state.tableData.indexs.res, 'indexName');
-        let idxSql = changeColData.changed ? dbDialect.getModifyIndexSql(data, data.tableName, changeIdxData) : '';
-        // 修改表名
+        let idxSql = changeIdxData.changed ? dbDialect.getModifyIndexSql(data, data.tableName, changeIdxData) : '';
+        // 修改表名,表注释
+        let tableInfoSql = data.tableName !== data.oldTableName || data.tableComment !== data.oldTableComment ? dbDialect.getModifyTableInfoSql(data) : '';
 
         let sqlArr = [];
         colSql && sqlArr.push(colSql);
         idxSql && sqlArr.push(idxSql);
+        tableInfoSql && sqlArr.push(tableInfoSql);
 
         return sqlArr.join(';');
     }
@@ -486,13 +491,18 @@ watch(
         // 回显表名表注释
         state.tableData.tableName = row.tableName;
         state.tableData.tableComment = row.tableComment;
+        state.tableData.oldTableName = row.tableName;
+        state.tableData.oldTableComment = row.tableComment;
         state.tableData.db = props.db!;
+
+        state.tableData.fields.oldFields = [];
+        state.tableData.fields.res = [];
+        state.tableData.indexs.oldIndexs = [];
+        state.tableData.indexs.res = [];
+        // 索引列下拉选
+        state.tableData.indexs.columns = [];
         // 回显列
         if (columns && Array.isArray(columns) && columns.length > 0) {
-            state.tableData.fields.oldFields = [];
-            state.tableData.fields.res = [];
-            // 索引列下拉选
-            state.tableData.indexs.columns = [];
             columns.forEach((a) => {
                 let typeObj = a.columnType.replace(')', '').split('(');
                 let type = typeObj[0];
@@ -521,10 +531,9 @@ watch(
                 state.tableData.indexs.columns.push({ name: a.columnName, remark: a.columnComment });
             });
         }
+
         // 回显索引
         if (indexs && Array.isArray(indexs) && indexs.length > 0) {
-            state.tableData.indexs.oldIndexs = [];
-            state.tableData.indexs.res = [];
             // 索引过滤掉主键
             indexs
                 .filter((a) => a.indexName !== 'PRIMARY')
