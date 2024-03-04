@@ -168,7 +168,7 @@
 
 <script lang="ts" setup>
 import { defineAsyncComponent, h, onBeforeUnmount, onMounted, reactive, ref, toRefs } from 'vue';
-import { ElCheckbox, ElInput, ElMessage, ElMessageBox } from 'element-plus';
+import { ElCheckbox, ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { DbInst, registerDbCompletionItemProvider, TabInfo, TabType } from './db';
 import { NodeType, TagTreeNode } from '../component/tag';
@@ -706,39 +706,30 @@ const onRenameTable = async (data: any) => {
     let tableData = { db, oldTableName: tableName, tableName };
 
     let value = ref(tableName);
-    // 弹出确认框，并选择是否复制数据
-    await ElMessageBox({
-        title: `重命名表【${db}.${tableName}】`,
-        type: 'warning',
-        message: () =>
-            h(ElInput, {
-                modelValue: value.value,
-                'onUpdate:modelValue': (val: string) => {
-                    value.value = val;
-                },
-            }),
-        callback: (action: string) => {
-            if (action === 'confirm') {
-                tableData.tableName = value.value;
-                let sql = nowDbInst.value.getDialect().getModifyTableInfoSql(tableData);
-                if (sql) {
-                    SqlExecBox({
-                        sql: sql,
-                        dbId: id as any,
-                        db: db as any,
-                        dbType: nowDbInst.value.getDialect().getInfo().formatSqlDialect,
-                        flowProcdefKey: flowProcdefKey,
-                        runSuccessCallback: () => {
-                            setTimeout(() => {
-                                parentKey && reloadNode(parentKey);
-                            }, 1000);
-                        },
-                    });
-                } else {
-                    ElMessage.error('无更改');
-                    return;
-                }
-            }
+    // 弹出确认框
+    const promptValue = await ElMessageBox.prompt('', `重命名表【${db}.${tableName}】`, {
+        inputValue: value.value,
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+    });
+
+    tableData.tableName = promptValue.value;
+    let sql = nowDbInst.value.getDialect().getModifyTableInfoSql(tableData);
+    if (!sql) {
+        ElMessage.warning('无更改');
+        return;
+    }
+
+    SqlExecBox({
+        sql: sql,
+        dbId: id as any,
+        db: db as any,
+        dbType: nowDbInst.value.getDialect().getInfo().formatSqlDialect,
+        flowProcdefKey: flowProcdefKey,
+        runSuccessCallback: () => {
+            setTimeout(() => {
+                parentKey && reloadNode(parentKey);
+            }, 1000);
         },
     });
 };

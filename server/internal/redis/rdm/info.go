@@ -27,7 +27,7 @@ type RedisInfo struct {
 
 	Host     string    `json:"host"`
 	Db       int       `json:"db"` // 库号
-	Mode     RedisMode `json:"-"`
+	Mode     RedisMode `json:"mode"`
 	Username string    `json:"-"`
 	Password string    `json:"-"`
 
@@ -35,7 +35,7 @@ type RedisInfo struct {
 	TagPath            []string `json:"tagPath"`
 	SshTunnelMachineId int      `json:"-"`
 
-	FlowProcdefKey string // 工单流程定义key
+	FlowProcdefKey string `json:"flowProcdefKey"` // 工单流程定义key
 }
 
 func (r *RedisInfo) Conn() (*RedisConn, error) {
