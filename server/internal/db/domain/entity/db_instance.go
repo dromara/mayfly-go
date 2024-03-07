@@ -15,7 +15,7 @@ type DbInstance struct {
 	Host               string  `json:"host"`
 	Port               int     `json:"port"`
 	Network            string  `json:"network"`
-	Sid                string  `json:"sid"`
+	Extra              *string `json:"extra"` // 连接需要的其他额外参数（json格式）, 如oracle需要sid等
 	Username           string  `json:"username"`
 	Password           string  `json:"-"`
 	Params             *string `json:"params"`

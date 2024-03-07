@@ -171,6 +171,7 @@ const columns = ref([
     TableColumn.new('name', '名称'),
     TableColumn.new('host', 'host:port'),
     TableColumn.new('mode', 'mode'),
+    TableColumn.new('flowProcdefKey', '关联流程'),
     TableColumn.new('remark', '备注'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(200).fixedRight().alignCenter(),
 ]);

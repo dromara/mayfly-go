@@ -15,12 +15,12 @@ require (
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.14.0
 	github.com/go-sql-driver/mysql v1.7.1
-	github.com/golang-jwt/jwt/v5 v5.2.0
-	github.com/google/uuid v1.3.1
+	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/kanzihuang/vitess/go/vt/sqlparser v0.0.0-20231018071450-ac8d9f0167e9
 	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20230712084735-068dc2aee82d
-	github.com/microsoft/go-mssqldb v1.6.0
+	github.com/microsoft/go-mssqldb v1.7.0
 	github.com/mojocn/base64Captcha v1.3.6 // 验证码
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.13.6
@@ -30,7 +30,7 @@ require (
 	github.com/sijms/go-ora/v2 v2.8.9
 	github.com/stretchr/testify v1.8.4
 	go.mongodb.org/mongo-driver v1.14.0 // mongo
-	golang.org/x/crypto v0.20.0 // ssh
+	golang.org/x/crypto v0.21.0 // ssh
 	golang.org/x/oauth2 v0.17.0
 	golang.org/x/sync v0.6.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -87,7 +87,7 @@ require (
 	golang.org/x/exp v0.0.0-20230519143937-03e91628a987 // indirect
 	golang.org/x/image v0.13.0 // indirect
 	golang.org/x/net v0.21.0 // indirect
-	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230131230820-1c016267d619 // indirect

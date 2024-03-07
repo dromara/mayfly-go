@@ -6,5 +6,5 @@
 服务启动&重启：./startup.sh
 服务关闭：./shutdown.sh
 
-直接通过 host:ip即可访问项目
+直接通过 host:config.yml里配置的端口 即可访问项目
 初始账号 admin/admin123.

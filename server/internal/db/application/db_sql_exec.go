@@ -95,7 +95,7 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 		isSelect := strings.HasPrefix(lowerSql, "select")
 		if isSelect {
 			// 如果配置为0，则不校验分页参数
-			maxCount := config.GetDbQueryMaxCount()
+			maxCount := config.GetDbms().MaxResultSet
 			if maxCount != 0 {
 				if !strings.Contains(lowerSql, "limit") &&
 					// 兼容oracle rownum分页
@@ -207,7 +207,8 @@ func (d *dbSqlExecAppImpl) saveSqlExecLog(isQuery bool, dbSqlExecRecord *entity.
 		d.dbSqlExecRepo.Insert(context.TODO(), dbSqlExecRecord)
 		return
 	}
-	if config.GetDbSaveQuerySql() {
+
+	if config.GetDbms().QuerySqlSave {
 		dbSqlExecRecord.Table = "-"
 		dbSqlExecRecord.OldValue = "-"
 		dbSqlExecRecord.Type = entity.DbSqlExecTypeQuery
@@ -220,7 +221,7 @@ func (d *dbSqlExecAppImpl) doSelect(ctx context.Context, selectStmt *sqlparser.S
 	if selectExprsStr == "*" || strings.Contains(selectExprsStr, ".*") ||
 		len(strings.Split(selectExprsStr, ",")) > 1 {
 		// 如果配置为0，则不校验分页参数
-		maxCount := config.GetDbQueryMaxCount()
+		maxCount := config.GetDbms().MaxResultSet
 		// 哪些数据库跳过校验
 		skipped := dbi.DbTypeOracle == execSqlReq.DbConn.Info.Type || dbi.DbTypeMssql == execSqlReq.DbConn.Info.Type
 		if maxCount != 0 && !skipped {

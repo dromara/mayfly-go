@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
+	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	msgapp "mayfly-go/internal/msg/application"
@@ -113,7 +114,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	}
 
 	// 比前端超时时间稍微快一点，可以提示到前端
-	ctx, cancel := context.WithTimeout(rc.MetaCtx, 58*time.Second)
+	ctx, cancel := context.WithTimeout(rc.MetaCtx, time.Duration(config.GetDbms().SqlExecTl)*time.Second)
 	defer cancel()
 
 	sqls, err := sqlparser.SplitStatementToPieces(sql, sqlparser.WithDialect(dbConn.Info.Type.Dialect()))

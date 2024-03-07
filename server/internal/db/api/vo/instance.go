@@ -8,8 +8,8 @@ type InstanceListVO struct {
 	Host       *string    `json:"host"`
 	Port       *int       `json:"port"`
 	Type       *string    `json:"type"`
-	Params     *string    `json:"params"`
-	Sid        *string    `json:"sid"`
+	Params     string     `json:"params"`
+	Extra      string     `json:"extra"`
 	Username   *string    `json:"username"`
 	Remark     *string    `json:"remark"`
 	CreateTime *time.Time `json:"createTime"`

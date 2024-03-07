@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
+	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/jsonx"
 	"strings"
 
 	go_ora "github.com/sijms/go-ora/v2"
@@ -17,12 +19,11 @@ type OraMeta struct {
 }
 
 func (md *OraMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
-	driverName := "oracle"
-
 	err := d.IfUseSshTunnelChangeIpPort()
 	if err != nil {
 		return nil, err
 	}
+
 	// 参数参考 https://github.com/sijms/go-ora?tab=readme-ov-file#other-connection-options
 	urlOptions := make(map[string]string)
 
@@ -50,9 +51,20 @@ func (md *OraMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 			}
 		}
 	}
+
+	// 从extra获取sid或serviceName
+	serviceName := ""
+	if d.Extra != "" {
+		extraMap := jsonx.ToMap(d.Extra)
+		serviceName = anyx.ConvString(extraMap["serviceName"])
+		if sid := anyx.ConvString(extraMap["sid"]); sid != "" {
+			urlOptions["SID"] = sid
+		}
+	}
+
 	urlOptions["TIMEOUT"] = "1000"
-	connStr := go_ora.BuildUrl(d.Host, d.Port, d.Sid, d.Username, d.Password, urlOptions)
-	conn, err := sql.Open(driverName, connStr)
+	connStr := go_ora.BuildUrl(d.Host, d.Port, serviceName, d.Username, d.Password, urlOptions)
+	conn, err := sql.Open("oracle", connStr)
 	if err != nil {
 		return nil, err
 	}

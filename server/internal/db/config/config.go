@@ -2,26 +2,33 @@ package config
 
 import (
 	sysapp "mayfly-go/internal/sys/application"
+	"mayfly-go/pkg/utils/conv"
 	"path/filepath"
 	"runtime"
 )
 
 const (
-	ConfigKeyDbSaveQuerySQL  string = "DbSaveQuerySQL"  // 数据库是否记录查询相关sql
-	ConfigKeyDbQueryMaxCount string = "DbQueryMaxCount" // 数据库查询的最大数量
+	ConfigKeyDbms            string = "DbmsConfig"      // dbms相关配置信息
 	ConfigKeyDbBackupRestore string = "DbBackupRestore" // 数据库备份
 	ConfigKeyDbMysqlBin      string = "MysqlBin"        // mysql可执行文件配置
 	ConfigKeyDbMariadbBin    string = "MariadbBin"      // mariadb可执行文件配置
 )
 
-// 获取数据库最大查询数量配置
-func GetDbQueryMaxCount() int {
-	return sysapp.GetConfigApp().GetConfig(ConfigKeyDbQueryMaxCount).IntValue(200)
+type Dbms struct {
+	QuerySqlSave bool // 是否记录查询类sql
+	MaxResultSet int  // 允许sql查询的最大结果集数。注: 0=不限制
+	SqlExecTl    int  // sql执行时间限制，超过该时间（单位：秒），执行将被取消
 }
 
-// 获取数据库是否记录查询相关sql配置
-func GetDbSaveQuerySql() bool {
-	return sysapp.GetConfigApp().GetConfig(ConfigKeyDbSaveQuerySQL).BoolValue(false)
+func GetDbms() *Dbms {
+	c := sysapp.GetConfigApp().GetConfig(ConfigKeyDbms)
+	jm := c.GetJsonMap()
+
+	dbmsConf := new(Dbms)
+	dbmsConf.QuerySqlSave = c.ConvBool(jm["querySqlSave"], false)
+	dbmsConf.MaxResultSet = conv.Str2Int(jm["maxResultSet"], 0)
+	dbmsConf.SqlExecTl = conv.Str2Int(jm["sqlExecTl"], 60)
+	return dbmsConf
 }
 
 type DbBackupRestore struct {

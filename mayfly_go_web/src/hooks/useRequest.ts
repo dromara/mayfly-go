@@ -16,7 +16,7 @@ const useCustomFetch = createFetch({
     combination: 'chain',
     options: {
         immediate: false,
-        timeout: 60000,
+        timeout: 600000,
         // beforeFetch in pre-configured instance will only run when the newly spawned instance do not pass beforeFetch
         async beforeFetch({ options }) {
             const token = getToken();

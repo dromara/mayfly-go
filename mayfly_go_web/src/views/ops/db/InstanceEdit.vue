@@ -7,6 +7,7 @@
                         <el-form-item prop="name" label="别名" required>
                             <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
                         </el-form-item>
+
                         <el-form-item prop="type" label="类型" required>
                             <el-select @change="changeDbType" style="width: 100%" v-model="form.type" placeholder="请选择数据库类型">
                                 <el-option
@@ -24,6 +25,7 @@
                                 </template>
                             </el-select>
                         </el-form-item>
+
                         <el-form-item v-if="form.type !== DbType.sqlite" prop="host" label="host" required>
                             <el-col :span="18">
                                 <el-input :disabled="form.id !== undefined" v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
@@ -38,9 +40,29 @@
                             <el-input v-model.trim="form.host" placeholder="请输入sqlite文件在服务器的绝对地址"></el-input>
                         </el-form-item>
 
-                        <el-form-item v-if="form.type === DbType.oracle" prop="sid" label="SID">
-                            <el-input v-model.trim="form.sid" placeholder="请输入服务id"></el-input>
+                        <el-form-item v-if="form.type === DbType.oracle" label="SID|服务名">
+                            <el-col :span="5">
+                                <el-select
+                                    @change="
+                                        () => {
+                                            state.extra.serviceName = '';
+                                            state.extra.sid = '';
+                                        }
+                                    "
+                                    v-model="state.extra.stype"
+                                    placeholder="请选择"
+                                >
+                                    <el-option label="服务名" :value="1" />
+                                    <el-option label="SID" :value="2" />
+                                </el-select>
+                            </el-col>
+                            <el-col style="text-align: center" :span="1">:</el-col>
+                            <el-col :span="18">
+                                <el-input v-if="state.extra.stype == 1" v-model="state.extra.serviceName" placeholder="请输入服务名"> </el-input>
+                                <el-input v-else v-model="state.extra.sid" placeholder="请输入SID"> </el-input>
+                            </el-col>
                         </el-form-item>
+
                         <el-form-item v-if="form.type !== DbType.sqlite" prop="username" label="用户名" required>
                             <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
                         </el-form-item>
@@ -165,6 +187,7 @@ const dbForm: any = ref(null);
 const state = reactive({
     dialogVisible: false,
     tabActiveName: 'basic',
+    extra: {} as any, // 连接需要的额外参数（json）
     form: {
         id: null,
         type: '',
@@ -172,7 +195,7 @@ const state = reactive({
         host: '',
         port: null,
         username: null,
-        sid: null, // oracle类项目需要服务id
+        extra: '', // 连接需要的额外参数（json字符串）
         password: null,
         params: null,
         remark: '',
@@ -199,6 +222,7 @@ watch(props, (newValue: any) => {
     if (newValue.data) {
         state.form = { ...newValue.data };
         state.oldUserName = state.form.username;
+        state.extra = JSON.parse(state.form.extra);
     } else {
         state.form = { port: null, type: DbType.mysql } as any;
         state.oldUserName = null;
@@ -209,6 +233,7 @@ const changeDbType = (val: string) => {
     if (!state.form.id) {
         state.form.port = getDbDialect(val).getInfo().defaultPort as any;
     }
+    state.extra = {};
 };
 
 const getDbPwd = async () => {
@@ -220,6 +245,9 @@ const getReqForm = async () => {
     reqForm.password = await RsaEncrypt(reqForm.password);
     if (!state.form.sshTunnelMachineId) {
         reqForm.sshTunnelMachineId = -1;
+    }
+    if (Object.keys(state.extra).length > 0) {
+        reqForm.extra = JSON.stringify(state.extra);
     }
     return reqForm;
 };
@@ -263,6 +291,7 @@ const btnOk = async () => {
 const cancel = () => {
     emit('update:visible', false);
     emit('cancel');
+    state.extra = {};
 };
 </script>
 <style lang="scss"></style>

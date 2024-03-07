@@ -185,7 +185,7 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import { usePageTable } from '@/hooks/usePageTable';
 import { ElTable } from 'element-plus';
 
-const emit = defineEmits(['update:queryForm', 'update:selectionData', 'pageChange']);
+const emit = defineEmits(['update:selectionData', 'pageChange']);
 
 export interface PageTableProps {
     size?: string;
