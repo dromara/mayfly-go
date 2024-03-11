@@ -278,7 +278,7 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, update *sqlparser.Updat
 	}
 
 	// 获取表主键列名,排除使用别名
-	primaryKey, err := dbConn.GetDialect().GetPrimaryKey(tableName)
+	primaryKey, err := dbConn.GetDialect().GetMetaData().GetPrimaryKey(tableName)
 	if err != nil {
 		return nil, errorx.NewBiz("获取表主键信息失败")
 	}

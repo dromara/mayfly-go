@@ -332,7 +332,7 @@ func (d *Db) dumpDb(ctx context.Context, writer *gzipWriter, dbId uint64, dbName
 
 	dbMeta := dbConn.GetDialect()
 	if len(tables) == 0 {
-		ti, err := dbMeta.GetTables()
+		ti, err := dbMeta.GetMetaData().GetTables()
 		biz.ErrIsNil(err)
 		tables = make([]string, len(ti))
 		for i, table := range ti {
@@ -346,7 +346,7 @@ func (d *Db) dumpDb(ctx context.Context, writer *gzipWriter, dbId uint64, dbName
 		if needStruct {
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
 			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS %s;\n", quotedTable))
-			ddl, err := dbMeta.GetTableDDL(table)
+			ddl, err := dbMeta.GetMetaData().GetTableDDL(table)
 			biz.ErrIsNil(err)
 			writer.WriteString(ddl + "\n")
 		}
@@ -386,7 +386,7 @@ func (d *Db) dumpDb(ctx context.Context, writer *gzipWriter, dbId uint64, dbName
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {
-	res, err := d.getDbConn(rc).GetDialect().GetTables()
+	res, err := d.getDbConn(rc).GetDialect().GetMetaData().GetTables()
 	biz.ErrIsNilAppendErr(err, "获取表信息失败: %s")
 	rc.ResData = res
 }
@@ -394,7 +394,7 @@ func (d *Db) TableInfos(rc *req.Ctx) {
 func (d *Db) TableIndex(rc *req.Ctx) {
 	tn := rc.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc).GetDialect().GetTableIndex(tn)
+	res, err := d.getDbConn(rc).GetDialect().GetMetaData().GetTableIndex(tn)
 	biz.ErrIsNilAppendErr(err, "获取表索引信息失败: %s")
 	rc.ResData = res
 }
@@ -405,7 +405,7 @@ func (d *Db) ColumnMA(rc *req.Ctx) {
 	biz.NotEmpty(tn, "tableName不能为空")
 
 	dbi := d.getDbConn(rc)
-	res, err := dbi.GetDialect().GetColumns(tn)
+	res, err := dbi.GetDialect().GetMetaData().GetColumns(tn)
 	biz.ErrIsNilAppendErr(err, "获取数据库列信息失败: %s")
 	rc.ResData = res
 }
@@ -416,7 +416,7 @@ func (d *Db) HintTables(rc *req.Ctx) {
 
 	dm := dbi.GetDialect()
 	// 获取所有表
-	tables, err := dm.GetTables()
+	tables, err := dm.GetMetaData().GetTables()
 	biz.ErrIsNil(err)
 	tableNames := make([]string, 0)
 	for _, v := range tables {
@@ -432,7 +432,7 @@ func (d *Db) HintTables(rc *req.Ctx) {
 	}
 
 	// 获取所有表下的所有列信息
-	columnMds, err := dm.GetColumns(tableNames...)
+	columnMds, err := dm.GetMetaData().GetColumns(tableNames...)
 	biz.ErrIsNil(err)
 	for _, v := range columnMds {
 		tName := v.TableName
@@ -455,13 +455,13 @@ func (d *Db) HintTables(rc *req.Ctx) {
 func (d *Db) GetTableDDL(rc *req.Ctx) {
 	tn := rc.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc).GetDialect().GetTableDDL(tn)
+	res, err := d.getDbConn(rc).GetDialect().GetMetaData().GetTableDDL(tn)
 	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
 	rc.ResData = res
 }
 
 func (d *Db) GetSchemas(rc *req.Ctx) {
-	res, err := d.getDbConn(rc).GetDialect().GetSchemas()
+	res, err := d.getDbConn(rc).GetDialect().GetMetaData().GetSchemas()
 	biz.ErrIsNilAppendErr(err, "获取schemas失败: %s")
 	rc.ResData = res
 }

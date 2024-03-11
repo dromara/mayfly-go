@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/machine/mcm"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+	"strings"
 )
 
 type DbInfo struct {
@@ -87,6 +88,17 @@ func (di *DbInfo) IfUseSshTunnelChangeIpPort() error {
 		di.Port = exposedPort
 	}
 	return nil
+}
+
+// 获取当前库的schema
+func (di *DbInfo) CurrentSchema() string {
+	dbName := di.Database
+	schema := ""
+	arr := strings.Split(dbName, "/")
+	if len(arr) == 2 {
+		schema = arr[1]
+	}
+	return schema
 }
 
 // 根据ssh tunnel机器id返回ssh tunnel

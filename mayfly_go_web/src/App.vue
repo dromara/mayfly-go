@@ -4,7 +4,7 @@
             :zIndex="10000000"
             :width="210"
             v-if="themeConfig.isWatermark"
-            :font="{ color: 'rgba(180, 180, 180, 0.5)' }"
+            :font="{ color: 'rgba(180, 180, 180, 0.3)' }"
             :content="themeConfig.watermarkText"
             class="h100"
         >

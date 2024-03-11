@@ -46,6 +46,7 @@ const columns = [
     TableColumn.new('procinst.creator', '发起人'),
     TableColumn.new('procinst.status', '流程状态').typeTag(ProcinstStatus),
     TableColumn.new('status', '任务状态').typeTag(ProcinstTaskStatus),
+    TableColumn.new('procinst.bizKey', '业务key'),
     TableColumn.new('procinst.procdefName', '流程名'),
     TableColumn.new('taskName', '当前节点'),
     TableColumn.new('procinst.createTime', '发起时间').isTime(),

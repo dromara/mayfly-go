@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"errors"
-	"gorm.io/gorm"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
@@ -12,6 +11,8 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
+
+	"gorm.io/gorm"
 )
 
 type Instance interface {
@@ -159,5 +160,5 @@ func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance) ([]string, error
 	}
 	defer dbConn.Close()
 
-	return dbConn.GetDialect().GetDbNames()
+	return dbConn.GetDialect().GetMetaData().GetDbNames()
 }
