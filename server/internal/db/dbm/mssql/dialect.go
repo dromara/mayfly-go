@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
 	"time"
@@ -12,6 +13,17 @@ import (
 
 type MssqlDialect struct {
 	dc *dbi.DbConn
+}
+
+// 从连接信息中获取数据库和schema信息
+func (md *MssqlDialect) currentSchema() string {
+	dbName := md.dc.Info.Database
+	schema := ""
+	arr := strings.Split(dbName, "/")
+	if len(arr) == 2 {
+		schema = arr[1]
+	}
+	return schema
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
@@ -29,6 +41,43 @@ func (md *MssqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 }
 
 func (md *MssqlDialect) batchInsertSimple(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error) {
+	// 把二维数组转为一维数组
+	var args []any
+	var singleSize int // 一条数据的参数个数
+	for i, v := range values {
+		if i == 0 {
+			singleSize = len(v)
+		}
+		args = append(args, v...)
+	}
+
+	// 判断如果参数超过2000，则分批次执行，mssql允许最大参数为2100，保险起见，这里限制到2000
+	if len(args) > 2000 {
+
+		rows := 2000 / singleSize // 每批次最大数据条数
+		mp := make(map[any][][]any)
+
+		// 把values拆成多份，每份不能超过rows条
+		length := len(values)
+		for i := 0; i < length; i += rows {
+			if i+rows <= length {
+				mp[i] = values[i : i+rows]
+			} else {
+				mp[i] = values[i:length]
+			}
+		}
+
+		var count int64
+		for _, v := range mp {
+			res, err := md.batchInsertSimple(tx, tableName, columns, v, duplicateStrategy)
+			if err != nil {
+				return count, err
+			}
+			count += res
+		}
+		return count, nil
+	}
+
 	msMetadata := md.dc.GetMetaData()
 	schema := md.dc.Info.CurrentSchema()
 	ignoreDupSql := ""
@@ -69,11 +118,6 @@ func (md *MssqlDialect) batchInsertSimple(tx *sql.Tx, tableName string, columns 
 
 	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", baseTable, strings.Join(columns, ","), placeholder)
 	// 执行批量insert sql
-	// 把二维数组转为一维数组
-	var args []any
-	for _, v := range values {
-		args = append(args, v...)
-	}
 
 	// 设置允许填充自增列之后，显示指定列名可以插入自增列
 	identityInsertOn := fmt.Sprintf("SET IDENTITY_INSERT [%s].[%s] ON", schema, tableName)
@@ -205,4 +249,205 @@ func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	}
 
 	return err
+}
+
+func (md *MssqlDialect) TransColumns(columns []dbi.Column) []dbi.Column {
+	var commonColumns []dbi.Column
+	for _, column := range columns {
+		// 取出当前数据库类型
+		arr := strings.Split(column.ColumnType, "(")
+		ctype := arr[0]
+		// 翻译为通用数据库类型
+		t1 := commonColumnTypeMap[ctype]
+		if t1 == "" {
+			ctype = "nvarchar(2000)"
+		} else {
+			// 回写到列信息
+			if len(arr) > 1 {
+				ctype = t1 + "(" + arr[1]
+			} else {
+				ctype = t1
+			}
+		}
+		column.ColumnType = ctype
+		commonColumns = append(commonColumns, column)
+	}
+	return commonColumns
+}
+
+func (md *MssqlDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
+	meta := md.dc.GetMetaData()
+	replacer := strings.NewReplacer(";", "", "'", "")
+	if dropOldTable {
+		_, _ = md.dc.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", meta.QuoteIdentifier(tableInfo.TableName)))
+	}
+	// 组装建表语句
+	createSql := fmt.Sprintf("CREATE TABLE %s (\n", meta.QuoteIdentifier(tableInfo.TableName))
+	fields := make([]string, 0)
+	pks := make([]string, 0)
+	columnComments := make([]string, 0)
+	// 把通用类型转换为达梦类型
+	for _, column := range commonColumns {
+		// 取出当前数据库类型
+		arr := strings.Split(column.ColumnType, "(")
+		ctype := arr[0]
+		// 翻译为通用数据库类型
+		t1 := mssqlColumnTypeMap[ctype]
+		if t1 == "" {
+			ctype = "nvarchar(2000)"
+		} else {
+			// 回写到列信息
+			if len(arr) > 1 {
+				// 如果是int类型不需要指定长度
+				if strings.Contains(strings.ToLower(t1), "int") {
+					ctype = t1
+				} else if collx.ArrayAnyMatches([]string{"float", "number", "decimal"}, strings.ToLower(t1)) {
+					// 如果是float，最大长度为38
+					match := bracketsRegexp.FindStringSubmatch(column.ColumnType)
+					if len(match) > 1 {
+						// size翻倍， 防止数据超长报错
+						size := anyx.ConvInt(match[1])
+						if size >= 38 { // 如果长度超过38
+							ctype = t1 + "(38)"
+						} else {
+							ctype = fmt.Sprintf("%s(%d)", t1, size)
+						}
+					} else {
+						ctype = t1 + "(38)"
+					}
+				} else if strings.Contains(strings.ToLower(t1), "char") {
+					// 如果是字符串类型，长度最大4000，否则修改字段类型为text
+					match := bracketsRegexp.FindStringSubmatch(column.ColumnType)
+					if len(match) > 1 {
+						// size翻倍， 防止数据超长报错
+						size := anyx.ConvInt(match[1]) * 2
+
+						if size >= 4000 { // 如果长度超过4000，则替换为text类型
+							ctype = "text"
+						} else {
+							ctype = fmt.Sprintf("%s(%d)", t1, size)
+						}
+					} else {
+						ctype = t1 + "(1000)"
+					}
+				} else {
+					ctype = t1 + "(" + arr[1]
+				}
+			} else {
+				ctype = t1
+			}
+		}
+		column.ColumnType = ctype
+
+		if column.IsPrimaryKey {
+			pks = append(pks, meta.QuoteIdentifier(column.ColumnName))
+		}
+		fields = append(fields, md.genColumnBasicSql(column))
+		commentTmp := "EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'COLUMN', N'%s'"
+
+		// 防止注释内含有特殊字符串导致sql出错
+		comment := replacer.Replace(column.ColumnComment)
+		columnComments = append(columnComments, fmt.Sprintf(commentTmp, comment, md.currentSchema(), column.TableName, column.ColumnName))
+	}
+	createSql += strings.Join(fields, ",")
+	if len(pks) > 0 {
+		createSql += fmt.Sprintf(", PRIMARY KEY CLUSTERED (%s)", strings.Join(pks, ","))
+	}
+	createSql += ")"
+	tableCommentSql := ""
+	if tableInfo.TableComment != "" {
+		commentTmp := "EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s'"
+		tableCommentSql = fmt.Sprintf(commentTmp, replacer.Replace(tableInfo.TableComment), md.currentSchema(), tableInfo.TableName)
+	}
+
+	columnCommentSql := strings.Join(columnComments, ";")
+
+	sqls := make([]string, 0)
+
+	if createSql != "" {
+		sqls = append(sqls, createSql)
+	}
+	if tableCommentSql != "" {
+		sqls = append(sqls, tableCommentSql)
+	}
+	if columnCommentSql != "" {
+		sqls = append(sqls, columnCommentSql)
+	}
+
+	_, err := md.dc.Exec(strings.Join(sqls, ";"))
+
+	return 1, err
+}
+
+func (md *MssqlDialect) genColumnBasicSql(column dbi.Column) string {
+	meta := md.dc.GetMetaData()
+	colName := meta.QuoteIdentifier(column.ColumnName)
+
+	incr := ""
+	if column.IsIdentity {
+		incr = " IDENTITY(1,1)"
+	}
+
+	nullAble := ""
+	if column.Nullable == "NO" {
+		nullAble = " NOT NULL"
+	}
+
+	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
+	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
+		// 哪些字段类型默认值需要加引号
+		mark := false
+		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(column.ColumnType)) {
+			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
+			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(column.ColumnType)) &&
+				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
+				mark = false
+			} else {
+				mark = true
+			}
+		}
+
+		if mark {
+			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
+		} else {
+			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
+		}
+	}
+
+	columnSql := fmt.Sprintf(" %s %s %s %s %s", colName, column.ColumnType, incr, nullAble, defVal)
+	return columnSql
+}
+
+func (md *MssqlDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) error {
+	sqls := make([]string, 0)
+	comments := make([]string, 0)
+	for _, index := range indexs {
+		// 通过字段、表名拼接索引名
+		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
+		columnName = strings.ReplaceAll(columnName, "_", "")
+		colName := strings.ReplaceAll(columnName, ",", "_")
+
+		keyType := "normal"
+		unique := ""
+		if index.IsUnique {
+			keyType = "unique"
+			unique = "unique"
+		}
+		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
+
+		sqls = append(sqls, fmt.Sprintf("create %s NONCLUSTERED index %s on %s.%s(%s)", unique, indexName, md.currentSchema(), tableInfo.TableName, index.ColumnName))
+		if index.IndexComment != "" {
+			comments = append(comments, fmt.Sprintf("EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'INDEX', N'%s'", index.IndexComment, md.currentSchema(), tableInfo.TableName, indexName))
+		}
+	}
+	_, err := md.dc.Exec(strings.Join(sqls, ";"))
+	// 添加注释
+	if len(comments) > 0 {
+		_, err = md.dc.Exec(strings.Join(comments, ";"))
+	}
+	return err
+}
+
+func (md *MssqlDialect) UpdateSequence(tableName string, columns []dbi.Column) {
+
 }

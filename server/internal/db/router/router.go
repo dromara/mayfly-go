@@ -10,4 +10,5 @@ func Init(router *gin.RouterGroup) {
 	InitDbBackupRouter(router)
 	InitDbRestoreRouter(router)
 	InitDbDataSyncRouter(router)
+	InitDbTransferRouter(router)
 }

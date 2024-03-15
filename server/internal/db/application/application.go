@@ -12,6 +12,7 @@ func InitIoc() {
 	ioc.Register(new(dbSqlExecAppImpl), ioc.WithComponentName("DbSqlExecApp"))
 	ioc.Register(new(dbSqlAppImpl), ioc.WithComponentName("DbSqlApp"))
 	ioc.Register(new(dataSyncAppImpl), ioc.WithComponentName("DbDataSyncTaskApp"))
+	ioc.Register(new(dbTransferAppImpl), ioc.WithComponentName("DbTransferTaskApp"))
 
 	ioc.Register(newDbScheduler(), ioc.WithComponentName("DbScheduler"))
 	ioc.Register(new(DbBackupApp), ioc.WithComponentName("DbBackupApp"))
@@ -31,6 +32,7 @@ func Init() {
 			panic(fmt.Sprintf("初始化 DbBinlogApp 失败: %v", err))
 		}
 		GetDataSyncTaskApp().InitCronJob()
+		GetDbTransferTaskApp().InitJob()
 		InitDbFlowHandler()
 	})()
 }
@@ -53,4 +55,7 @@ func GetDbBinlogApp() *DbBinlogApp {
 
 func GetDataSyncTaskApp() DataSyncTask {
 	return ioc.Get[DataSyncTask]("DbDataSyncTaskApp")
+}
+func GetDbTransferTaskApp() DbTransferTask {
+	return ioc.Get[DbTransferTask]("DbTransferTaskApp")
 }

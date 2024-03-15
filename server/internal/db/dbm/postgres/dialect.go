@@ -58,7 +58,7 @@ func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 }
 
 // pgsql默认唯一键冲突策略
-func (pd PgsqlDialect) pgsqlOnDuplicateStrategySql(duplicateStrategy int, tableName string, columns []string) string {
+func (pd *PgsqlDialect) pgsqlOnDuplicateStrategySql(duplicateStrategy int, tableName string, columns []string) string {
 	suffix := ""
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
 		suffix = " \n on conflict do nothing"
@@ -83,7 +83,7 @@ func (pd PgsqlDialect) pgsqlOnDuplicateStrategySql(duplicateStrategy int, tableN
 }
 
 // 高斯db唯一键冲突策略,使用ON DUPLICATE KEY UPDATE 参考：https://support.huaweicloud.com/distributed-devg-v3-gaussdb/gaussdb-12-0607.html#ZH-CN_TOPIC_0000001633948138
-func (pd PgsqlDialect) gaussOnDuplicateStrategySql(duplicateStrategy int, tableName string, columns []string) string {
+func (pd *PgsqlDialect) gaussOnDuplicateStrategySql(duplicateStrategy int, tableName string, columns []string) string {
 	suffix := ""
 	metadata := pd.dc.GetMetaData()
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
@@ -122,17 +122,7 @@ func (pd PgsqlDialect) gaussOnDuplicateStrategySql(duplicateStrategy int, tableN
 
 // 从连接信息中获取数据库和schema信息
 func (pd *PgsqlDialect) currentSchema() string {
-	dbName := pd.dc.Info.Database
-	schema := ""
-	arr := strings.Split(dbName, "/")
-	if len(arr) == 2 {
-		schema = arr[1]
-	}
-	return schema
-}
-
-func (pd *PgsqlDialect) IsGauss() bool {
-	return strings.Contains(pd.dc.Info.Params, "gauss")
+	return pd.dc.Info.CurrentSchema()
 }
 
 func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
@@ -191,4 +181,222 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 		}
 	}
 	return err
+}
+
+func (pd *PgsqlDialect) TransColumns(columns []dbi.Column) []dbi.Column {
+	var commonColumns []dbi.Column
+	for _, column := range columns {
+		// 取出当前数据库类型
+		arr := strings.Split(column.ColumnType, "(")
+		ctype := arr[0]
+		// 翻译为通用数据库类型
+		t1 := commonColumnTypeMap[ctype]
+		if t1 == "" {
+			ctype = "varchar(2000)"
+		} else {
+			// 回写到列信息
+			if len(arr) > 1 {
+				ctype = t1 + "(" + arr[1]
+			} else {
+				ctype = t1
+			}
+		}
+		column.ColumnType = ctype
+		commonColumns = append(commonColumns, column)
+	}
+	return commonColumns
+}
+
+func (pd *PgsqlDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
+	meta := pd.dc.GetMetaData()
+	replacer := strings.NewReplacer(";", "", "'", "")
+	if dropOldTable {
+		_, _ = pd.dc.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableInfo.TableName))
+	}
+	// 组装建表语句
+	createSql := fmt.Sprintf("CREATE TABLE %s (\n", meta.QuoteIdentifier(tableInfo.TableName))
+	fields := make([]string, 0)
+	pks := make([]string, 0)
+	columnComments := make([]string, 0)
+	// 把通用类型转换为达梦类型
+	for _, column := range commonColumns {
+		// 取出当前数据库类型
+		arr := strings.Split(column.ColumnType, "(")
+		ctype := arr[0]
+		// 翻译为通用数据库类型
+		t1 := pgsqlColumnTypeMap[ctype]
+		if t1 == "" {
+			ctype = "varchar(2000)"
+		} else {
+			// 回写到列信息
+			if len(arr) > 1 {
+				if strings.Contains(strings.ToLower(t1), "int") {
+					// 如果是数字，类型后不需要带长度
+					ctype = t1
+				} else if strings.Contains(strings.ToLower(t1), "char") {
+					// 如果是字符串，长度翻倍
+					match := bracketsRegexp.FindStringSubmatch(column.ColumnType)
+					if len(match) > 1 {
+						ctype = fmt.Sprintf("%s(%d)", t1, anyx.ConvInt(match[1])*2)
+					} else {
+						ctype = t1 + "(1000)"
+					}
+				} else {
+					ctype = t1 + "(" + arr[1]
+				}
+			} else {
+				ctype = t1
+			}
+		}
+		column.ColumnType = ctype
+
+		if column.IsPrimaryKey {
+			pks = append(pks, meta.QuoteIdentifier(column.ColumnName))
+		}
+		fields = append(fields, pd.genColumnBasicSql(column))
+		commentTmp := "comment on column %s.%s is '%s'"
+		// 防止注释内含有特殊字符串导致sql出错
+		comment := replacer.Replace(column.ColumnComment)
+		columnComments = append(columnComments, fmt.Sprintf(commentTmp, column.TableName, column.ColumnName, comment))
+	}
+	createSql += strings.Join(fields, ",")
+	if len(pks) > 0 {
+		createSql += fmt.Sprintf(", PRIMARY KEY (%s)", strings.Join(pks, ","))
+	}
+	createSql += ")"
+	tableCommentSql := ""
+	if tableInfo.TableComment != "" {
+		commentTmp := "comment on table %s is '%s'"
+		tableCommentSql = fmt.Sprintf(commentTmp, tableInfo.TableName, replacer.Replace(tableInfo.TableComment))
+	}
+
+	columnCommentSql := strings.Join(columnComments, ";")
+
+	sqls := make([]string, 0)
+
+	if createSql != "" {
+		sqls = append(sqls, createSql)
+	}
+	if tableCommentSql != "" {
+		sqls = append(sqls, tableCommentSql)
+	}
+	if columnCommentSql != "" {
+		sqls = append(sqls, columnCommentSql)
+	}
+
+	_, err := pd.dc.Exec(strings.Join(sqls, ";"))
+
+	return 1, err
+}
+
+func (pd *PgsqlDialect) genColumnBasicSql(column dbi.Column) string {
+	meta := pd.dc.GetMetaData()
+	colName := meta.QuoteIdentifier(column.ColumnName)
+
+	// 如果是自增类型，需要转换为serial
+	if column.IsIdentity {
+		if column.ColumnType == "int4" {
+			column.ColumnType = "serial"
+		} else if column.ColumnType == "int2" {
+			column.ColumnType = "smallserial"
+		} else if column.ColumnType == "int8" {
+			column.ColumnType = "bigserial"
+		} else {
+			column.ColumnType = "bigserial"
+		}
+
+		return fmt.Sprintf(" %s %s NOT NULL", colName, column.ColumnType)
+	}
+
+	nullAble := ""
+	if column.Nullable == "NO" {
+		nullAble = " NOT NULL"
+		// 如果字段不能为空，则设置默认值
+		if column.ColumnDefault == "" {
+			if collx.ArrayAnyMatches([]string{"char", "text", "lob"}, strings.ToLower(column.ColumnType)) {
+				// 文本默认值为空字符串
+				column.ColumnDefault = " "
+			} else if collx.ArrayAnyMatches([]string{"int", "num"}, strings.ToLower(column.ColumnType)) {
+				// 数字默认值为0
+				column.ColumnDefault = "0"
+			}
+		}
+	}
+
+	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
+	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
+		// 哪些字段类型默认值需要加引号
+		mark := false
+		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(column.ColumnType)) {
+			// 如果是文本类型，则默认值不能带括号
+			if collx.ArrayAnyMatches([]string{"char", "text", "lob"}, strings.ToLower(column.ColumnType)) {
+				column.ColumnDefault = ""
+			}
+
+			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
+			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(column.ColumnType)) &&
+				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
+				mark = false
+			} else {
+				mark = true
+			}
+		}
+		// 如果数据类型是日期时间，则写死默认值函数
+		if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(column.ColumnType)) {
+			column.ColumnDefault = "CURRENT_TIMESTAMP"
+		}
+
+		if column.ColumnDefault != "" {
+			if mark {
+				defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
+			} else {
+				defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
+			}
+		}
+	}
+
+	columnSql := fmt.Sprintf(" %s %s %s %s ", colName, column.ColumnType, nullAble, defVal)
+	return columnSql
+}
+
+func (pd *PgsqlDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) error {
+	sqls := make([]string, 0)
+	comments := make([]string, 0)
+	for _, index := range indexs {
+		// 通过字段、表名拼接索引名
+		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
+		columnName = strings.ReplaceAll(columnName, "_", "")
+		colName := strings.ReplaceAll(columnName, ",", "_")
+
+		keyType := "normal"
+		unique := ""
+		if index.IsUnique {
+			keyType = "unique"
+			unique = "unique"
+		}
+		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
+
+		// 如果索引名存在，先删除索引
+		sqls = append(sqls, fmt.Sprintf("drop index if exists %s.%s", pd.currentSchema(), indexName))
+
+		// 创建索引
+		sqls = append(sqls, fmt.Sprintf("CREATE %s INDEX %s on %s.%s(%s)", unique, indexName, pd.currentSchema(), tableInfo.TableName, index.ColumnName))
+		if index.IndexComment != "" {
+			comments = append(comments, fmt.Sprintf("COMMENT ON INDEX %s.%s IS '%s'", pd.currentSchema(), indexName, index.IndexComment))
+		}
+	}
+	_, err := pd.dc.Exec(strings.Join(sqls, ";"))
+	// 添加注释
+	if len(comments) > 0 {
+		_, err = pd.dc.Exec(strings.Join(comments, ";"))
+	}
+	return err
+}
+
+func (pd *PgsqlDialect) UpdateSequence(tableName string, columns []dbi.Column) {
+	for _, column := range columns {
+		if column.IsIdentity {
+			_, _ = pd.dc.Exec(fmt.Sprintf("select setval('%s_%s_seq', (SELECT max(%s) from %s))", tableName, column.ColumnName, column.ColumnName, tableName))
+		}
+	}
 }

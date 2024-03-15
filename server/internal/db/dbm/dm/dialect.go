@@ -43,13 +43,17 @@ func (dd *DMDialect) batchInsertSimple(tx *sql.Tx, tableName string, columns []s
 	// 去除最后一个逗号，占位符由括号包裹
 	placeholder := fmt.Sprintf("(%s)", strings.TrimSuffix(repeated, ","))
 
-	sqlTemp := fmt.Sprintf("insert into %s (%s) values %s", dd.dc.GetMetaData().QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
+	identityInsert := fmt.Sprintf("set identity_insert \"%s\" on;", tableName)
+
+	sqlTemp := fmt.Sprintf("%s insert into %s (%s) values %s", identityInsert, dd.dc.GetMetaData().QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
 	effRows := 0
+	// 设置允许填充自增列之后，显示指定列名可以插入自增列
 	for _, value := range values {
 		// 达梦数据库只能一条条的执行insert
 		res, err := dd.dc.TxExec(tx, sqlTemp, value...)
 		if err != nil {
 			logx.Errorf("执行sql失败：%s, sql: [ %s ]", err.Error(), sqlTemp)
+			return 0, err
 		}
 		effRows += int(res)
 	}
@@ -147,8 +151,8 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	// 复制数据
 	if copy.CopyData {
 		go func() {
-			// 设置允许填充自增列之后，显示指定列名可以插入自增列
-			_, _ = dd.dc.Exec(fmt.Sprintf("set identity_insert \"%s\" on", newTableName))
+			// 设置允许填充自增列之后，显示指定列名可以插入自增列\
+			identityInsert := fmt.Sprintf("set identity_insert \"%s\" on", newTableName)
 			// 获取列名
 			columns, _ := metadata.GetColumns(tableName)
 			columnArr := make([]string, 0)
@@ -157,12 +161,168 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 			}
 			columnStr := strings.Join(columnArr, ",")
 			// 插入新数据并显示指定列
-			_, _ = dd.dc.Exec(fmt.Sprintf("insert into \"%s\" (%s) select %s from \"%s\"", newTableName, columnStr, columnStr, tableName))
+			_, _ = dd.dc.Exec(fmt.Sprintf("%s insert into \"%s\" (%s) select %s from \"%s\"", identityInsert, newTableName, columnStr, columnStr, tableName))
 
-			// 执行完成后关闭允许填充自增列
-			_, _ = dd.dc.Exec(fmt.Sprintf("set identity_insert \"%s\" off", newTableName))
 		}()
 	}
-
 	return err
+}
+
+func (dd *DMDialect) TransColumns(columns []dbi.Column) []dbi.Column {
+	var commonColumns []dbi.Column
+	for _, column := range columns {
+		// 取出当前数据库类型
+		arr := strings.Split(column.ColumnType, "(")
+		ctype := arr[0]
+
+		// 翻译为通用数据库类型
+		t1 := commonColumnMap[ctype]
+		if t1 == "" {
+			ctype = "VARCHAR(2000)"
+		} else {
+			// 回写到列信息
+			if len(arr) > 1 {
+				ctype = t1 + "(" + arr[1]
+			}
+		}
+		column.ColumnType = ctype
+		commonColumns = append(commonColumns, column)
+	}
+	return commonColumns
+}
+
+func (dd *DMDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
+	meta := dd.dc.GetMetaData()
+	replacer := strings.NewReplacer(";", "", "'", "")
+	tbName := meta.QuoteIdentifier(tableInfo.TableName)
+
+	if dropOldTable {
+		_, _ = dd.dc.Exec(fmt.Sprintf("drop table if exists %s", tbName))
+	}
+	// 组装建表语句
+	createSql := fmt.Sprintf("create table %s (", tbName)
+	fields := make([]string, 0)
+	pks := make([]string, 0)
+	columnComments := make([]string, 0)
+	// 把通用类型转换为达梦类型
+	for _, column := range commonColumns {
+		// 取出当前数据库类型
+		arr := strings.Split(column.ColumnType, "(")
+		ctype := arr[0]
+		// 翻译为通用数据库类型
+		t1 := dmColumnMap[ctype]
+		if t1 == "" {
+			ctype = "VARCHAR(2000)"
+		} else {
+			// 回写到列信息
+			if len(arr) > 1 {
+				ctype = t1 + "(" + arr[1]
+			} else {
+				ctype = t1
+			}
+		}
+		column.ColumnType = ctype
+
+		if column.IsPrimaryKey {
+			pks = append(pks, meta.QuoteIdentifier(column.ColumnName))
+		}
+		fields = append(fields, dd.genColumnBasicSql(column))
+		// 防止注释内含有特殊字符串导致sql出错
+		comment := replacer.Replace(column.ColumnComment)
+		columnComments = append(columnComments, fmt.Sprintf("comment on column %s.%s is '%s'", tbName, meta.QuoteIdentifier(column.ColumnName), comment))
+	}
+	createSql += strings.Join(fields, ",")
+	if len(pks) > 0 {
+		createSql += fmt.Sprintf(", PRIMARY KEY (%s)", strings.Join(pks, ","))
+	}
+	createSql += ")"
+
+	tableCommentSql := ""
+	if tableInfo.TableComment != "" {
+		// 防止注释内含有特殊字符串导致sql出错
+		comment := replacer.Replace(tableInfo.TableComment)
+		tableCommentSql = fmt.Sprintf(" comment on table %s is '%s'", tbName, comment)
+	}
+
+	// 达梦需要分开执行sql
+	var err error
+	if createSql != "" {
+		_, err = dd.dc.Exec(createSql)
+	}
+	if tableCommentSql != "" {
+		_, err = dd.dc.Exec(tableCommentSql)
+	}
+	if len(columnComments) > 0 {
+		for _, commentSql := range columnComments {
+			_, err = dd.dc.Exec(commentSql)
+		}
+	}
+
+	return 1, err
+}
+
+func (dd *DMDialect) genColumnBasicSql(column dbi.Column) string {
+	meta := dd.dc.GetMetaData()
+	colName := meta.QuoteIdentifier(column.ColumnName)
+
+	incr := ""
+	if column.IsIdentity {
+		incr = " IDENTITY"
+	}
+
+	nullAble := ""
+	if column.Nullable == "NO" {
+		nullAble = " NOT NULL"
+	}
+
+	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
+	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
+		// 哪些字段类型默认值需要加引号
+		mark := false
+		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(column.ColumnType)) {
+			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
+			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(column.ColumnType)) &&
+				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
+				mark = false
+			} else {
+				mark = true
+			}
+		}
+		if mark {
+			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
+		} else {
+			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
+		}
+	}
+
+	columnSql := fmt.Sprintf(" %s %s %s %s %s", colName, column.ColumnType, incr, nullAble, defVal)
+	return columnSql
+
+}
+
+func (dd *DMDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) error {
+	meta := dd.dc.GetMetaData()
+	sqls := make([]string, 0)
+	for _, index := range indexs {
+		// 通过字段、表名拼接索引名
+		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
+		columnName = strings.ReplaceAll(columnName, "_", "")
+		colName := strings.ReplaceAll(columnName, ",", "_")
+
+		keyType := "normal"
+		unique := ""
+		if index.IsUnique {
+			keyType = "unique"
+			unique = "unique"
+		}
+		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
+
+		sqls = append(sqls, fmt.Sprintf("create %s index %s on %s(%s)", unique, indexName, meta.QuoteIdentifier(tableInfo.TableName), index.ColumnName))
+	}
+	_, err := dd.dc.Exec(strings.Join(sqls, ";"))
+	return err
+}
+
+func (dd *DMDialect) UpdateSequence(tableName string, columns []dbi.Column) {
+
 }

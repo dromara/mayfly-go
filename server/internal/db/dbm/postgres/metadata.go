@@ -12,12 +12,13 @@ import (
 )
 
 const (
-	PGSQL_META_FILE      = "metasql/pgsql_meta.sql"
-	PGSQL_DB_SCHEMAS     = "PGSQL_DB_SCHEMAS"
-	PGSQL_TABLE_INFO_KEY = "PGSQL_TABLE_INFO"
-	PGSQL_INDEX_INFO_KEY = "PGSQL_INDEX_INFO"
-	PGSQL_COLUMN_MA_KEY  = "PGSQL_COLUMN_MA"
-	PGSQL_TABLE_DDL_KEY  = "PGSQL_TABLE_DDL_FUNC"
+	PGSQL_META_FILE               = "metasql/pgsql_meta.sql"
+	PGSQL_DB_SCHEMAS              = "PGSQL_DB_SCHEMAS"
+	PGSQL_TABLE_INFO_KEY          = "PGSQL_TABLE_INFO"
+	PGSQL_INDEX_INFO_KEY          = "PGSQL_INDEX_INFO"
+	PGSQL_COLUMN_MA_KEY           = "PGSQL_COLUMN_MA"
+	PGSQL_TABLE_DDL_KEY           = "PGSQL_TABLE_DDL_FUNC"
+	PGSQL_TABLE_INFO_BY_NAMES_KEY = "PGSQL_TABLE_INFO_BY_NAMES"
 )
 
 type PgsqlMetaData struct {
@@ -51,13 +52,23 @@ func (pd *PgsqlMetaData) GetDbNames() ([]string, error) {
 	return databases, nil
 }
 
-// 获取表基础元信息, 如表名等
-func (pd *PgsqlMetaData) GetTables() ([]dbi.Table, error) {
-	_, res, err := pd.dc.Query(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
+func (pd *PgsqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
+	meta := pd.dc.GetMetaData()
+	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
+		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
+	}), ",")
+
+	var res []map[string]any
+	var err error
+
+	if tableNames != nil || len(tableNames) > 0 {
+		_, res, err = pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_BY_NAMES_KEY), names))
+	} else {
+		_, res, err = pd.dc.Query(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
+	}
 	if err != nil {
 		return nil, err
 	}
-
 	tables := make([]dbi.Table, 0)
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
@@ -74,8 +85,9 @@ func (pd *PgsqlMetaData) GetTables() ([]dbi.Table, error) {
 
 // 获取列元信息, 如列名等
 func (pd *PgsqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
+	meta := pd.dc.GetMetaData()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dbi.RemoveQuote(pd, val))
+		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
 	}), ",")
 
 	_, res, err := pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_COLUMN_MA_KEY), tableName))
@@ -210,8 +222,58 @@ var (
 	dateRegexp = regexp.MustCompile(`(?i)date`)
 	// 时间类型
 	timeRegexp = regexp.MustCompile(`(?i)time`)
+	// 定义正则表达式，匹配括号内的数字
+	bracketsRegexp = regexp.MustCompile(`\((\d+)\)`)
 
 	converter = new(DataConverter)
+
+	// pgsql数据类型 映射 公共数据类型
+	commonColumnTypeMap = map[string]string{
+		"int2":        dbi.CommonTypeSmallint,
+		"int4":        dbi.CommonTypeInt,
+		"int8":        dbi.CommonTypeBigint,
+		"numeric":     dbi.CommonTypeNumber,
+		"decimal":     dbi.CommonTypeNumber,
+		"smallserial": dbi.CommonTypeSmallint,
+		"serial":      dbi.CommonTypeInt,
+		"bigserial":   dbi.CommonTypeBigint,
+		"largeserial": dbi.CommonTypeBigint,
+		"money":       dbi.CommonTypeNumber,
+		"bool":        dbi.CommonTypeTinyint,
+		"char":        dbi.CommonTypeChar,
+		"character":   dbi.CommonTypeChar,
+		"nchar":       dbi.CommonTypeChar,
+		"varchar":     dbi.CommonTypeVarchar,
+		"text":        dbi.CommonTypeText,
+		"bytea":       dbi.CommonTypeBinary,
+		"date":        dbi.CommonTypeDate,
+		"time":        dbi.CommonTypeTime,
+		"timestamp":   dbi.CommonTypeTimestamp,
+	}
+	// 公共数据类型 映射 pgsql数据类型
+	pgsqlColumnTypeMap = map[string]string{
+		dbi.CommonTypeVarchar:    "varchar",
+		dbi.CommonTypeChar:       "char",
+		dbi.CommonTypeText:       "text",
+		dbi.CommonTypeBlob:       "text",
+		dbi.CommonTypeLongblob:   "text",
+		dbi.CommonTypeLongtext:   "text",
+		dbi.CommonTypeBinary:     "bytea",
+		dbi.CommonTypeMediumblob: "text",
+		dbi.CommonTypeMediumtext: "text",
+		dbi.CommonTypeVarbinary:  "bytea",
+		dbi.CommonTypeInt:        "int4",
+		dbi.CommonTypeSmallint:   "int2",
+		dbi.CommonTypeTinyint:    "int2",
+		dbi.CommonTypeNumber:     "numeric",
+		dbi.CommonTypeBigint:     "int8",
+		dbi.CommonTypeDatetime:   "timestamp",
+		dbi.CommonTypeDate:       "date",
+		dbi.CommonTypeTime:       "time",
+		dbi.CommonTypeTimestamp:  "timestamp",
+		dbi.CommonTypeEnum:       "varchar(2000)",
+		dbi.CommonTypeJSON:       "varchar(2000)",
+	}
 )
 
 type DataConverter struct {

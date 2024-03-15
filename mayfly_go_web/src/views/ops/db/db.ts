@@ -426,7 +426,7 @@ export class DbInst {
      * @returns
      */
     static isNumber(columnType: string) {
-        return columnType.match(/int|double|float|number|decimal|byte|bit/gi);
+        return columnType && columnType.match(/int|double|float|number|decimal|byte|bit/gi);
     }
 
     /**

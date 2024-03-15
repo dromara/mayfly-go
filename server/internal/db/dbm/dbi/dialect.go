@@ -5,6 +5,33 @@ import (
 )
 
 const (
+	CommonTypeVarchar    string = "varchar"
+	CommonTypeChar       string = "char"
+	CommonTypeText       string = "text"
+	CommonTypeBlob       string = "blob"
+	CommonTypeLongblob   string = "longblob"
+	CommonTypeLongtext   string = "longtext"
+	CommonTypeBinary     string = "binary"
+	CommonTypeMediumblob string = "mediumblob"
+	CommonTypeMediumtext string = "mediumtext"
+	CommonTypeVarbinary  string = "varbinary"
+
+	CommonTypeInt      string = "int"
+	CommonTypeSmallint string = "smallint"
+	CommonTypeTinyint  string = "tinyint"
+	CommonTypeNumber   string = "number"
+	CommonTypeBigint   string = "bigint"
+
+	CommonTypeDatetime  string = "datetime"
+	CommonTypeDate      string = "date"
+	CommonTypeTime      string = "time"
+	CommonTypeTimestamp string = "timestamp"
+
+	CommonTypeEnum string = "enum"
+	CommonTypeJSON string = "json"
+)
+
+const (
 	// -1. 无操作
 	DuplicateStrategyNone = -1
 	// 1. 忽略
@@ -32,4 +59,14 @@ type Dialect interface {
 
 	// 拷贝表
 	CopyTable(copy *DbCopyTable) error
+
+	CreateTable(commonColumns []Column, tableInfo Table, dropOldTable bool) (int, error)
+
+	CreateIndex(tableInfo Table, indexs []Index) error
+
+	// 把方言类型转换为通用类型
+	TransColumns(columns []Column) []Column
+
+	// 有些数据库迁移完数据之后，需要更新表自增序列为当前表最大值
+	UpdateSequence(tableName string, columns []Column)
 }

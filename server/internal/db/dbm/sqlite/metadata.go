@@ -6,15 +6,17 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/collx"
 	"regexp"
 	"strings"
 	"time"
 )
 
 const (
-	SQLITE_META_FILE      = "metasql/sqlite_meta.sql"
-	SQLITE_TABLE_INFO_KEY = "SQLITE_TABLE_INFO"
-	SQLITE_INDEX_INFO_KEY = "SQLITE_INDEX_INFO"
+	SQLITE_META_FILE               = "metasql/sqlite_meta.sql"
+	SQLITE_TABLE_INFO_KEY          = "SQLITE_TABLE_INFO"
+	SQLITE_INDEX_INFO_KEY          = "SQLITE_INDEX_INFO"
+	SQLITE_TABLE_INFO_BY_NAMES_KEY = "SQLITE_TABLE_INFO_BY_NAMES"
 )
 
 type SqliteMetaData struct {
@@ -48,13 +50,22 @@ func (sd *SqliteMetaData) GetDbNames() ([]string, error) {
 }
 
 // 获取表基础元信息, 如表名等
-func (sd *SqliteMetaData) GetTables() ([]dbi.Table, error) {
-	_, res, err := sd.dc.Query(dbi.GetLocalSql(SQLITE_META_FILE, SQLITE_TABLE_INFO_KEY))
-	//cols, res, err := sd.dc.Query("SELECT datetime(1092941466, 'unixepoch')")
+func (sd *SqliteMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
+	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
+		return fmt.Sprintf("'%s'", dbi.RemoveQuote(sd, val))
+	}), ",")
+
+	var res []map[string]any
+	var err error
+
+	if tableNames != nil || len(tableNames) > 0 {
+		_, res, err = sd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(SQLITE_META_FILE, SQLITE_TABLE_INFO_BY_NAMES_KEY), names))
+	} else {
+		_, res, err = sd.dc.Query(dbi.GetLocalSql(SQLITE_META_FILE, SQLITE_TABLE_INFO_KEY))
+	}
 	if err != nil {
 		return nil, err
 	}
-
 	tables := make([]dbi.Table, 0)
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
@@ -191,6 +202,61 @@ var (
 	datetimeRegexp = regexp.MustCompile(`(?i)datetime`)
 
 	converter = new(DataConverter)
+
+	//  sqlite数据类型 映射 公共数据类型
+	commonColumnTypeMap = map[string]string{
+		"int":               dbi.CommonTypeInt,
+		"integer":           dbi.CommonTypeInt,
+		"tinyint":           dbi.CommonTypeTinyint,
+		"smallint":          dbi.CommonTypeSmallint,
+		"mediumint":         dbi.CommonTypeSmallint,
+		"bigint":            dbi.CommonTypeBigint,
+		"int2":              dbi.CommonTypeInt,
+		"int8":              dbi.CommonTypeInt,
+		"character":         dbi.CommonTypeChar,
+		"varchar":           dbi.CommonTypeVarchar,
+		"varying character": dbi.CommonTypeVarchar,
+		"nchar":             dbi.CommonTypeChar,
+		"native character":  dbi.CommonTypeVarchar,
+		"nvarchar":          dbi.CommonTypeVarchar,
+		"text":              dbi.CommonTypeText,
+		"clob":              dbi.CommonTypeBlob,
+		"blob":              dbi.CommonTypeBlob,
+		"real":              dbi.CommonTypeNumber,
+		"double":            dbi.CommonTypeNumber,
+		"double precision":  dbi.CommonTypeNumber,
+		"float":             dbi.CommonTypeNumber,
+		"numeric":           dbi.CommonTypeNumber,
+		"decimal":           dbi.CommonTypeNumber,
+		"boolean":           dbi.CommonTypeTinyint,
+		"date":              dbi.CommonTypeDate,
+		"datetime":          dbi.CommonTypeDatetime,
+	}
+
+	//  公共数据类型 映射 sqlite数据类型
+	sqliteColumnTypeMap = map[string]string{
+		dbi.CommonTypeVarchar:    "nvarchar",
+		dbi.CommonTypeChar:       "nchar",
+		dbi.CommonTypeText:       "text",
+		dbi.CommonTypeBlob:       "blob",
+		dbi.CommonTypeLongblob:   "blob",
+		dbi.CommonTypeLongtext:   "text",
+		dbi.CommonTypeBinary:     "text",
+		dbi.CommonTypeMediumblob: "blob",
+		dbi.CommonTypeMediumtext: "text",
+		dbi.CommonTypeVarbinary:  "text",
+		dbi.CommonTypeInt:        "int",
+		dbi.CommonTypeSmallint:   "smallint",
+		dbi.CommonTypeTinyint:    "tinyint",
+		dbi.CommonTypeNumber:     "number",
+		dbi.CommonTypeBigint:     "bigint",
+		dbi.CommonTypeDatetime:   "datetime",
+		dbi.CommonTypeDate:       "date",
+		dbi.CommonTypeTime:       "datetime",
+		dbi.CommonTypeTimestamp:  "datetime",
+		dbi.CommonTypeEnum:       "nvarchar(2000)",
+		dbi.CommonTypeJSON:       "nvarchar(2000)",
+	}
 )
 
 type DataConverter struct {

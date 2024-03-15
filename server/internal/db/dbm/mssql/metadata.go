@@ -12,14 +12,15 @@ import (
 )
 
 const (
-	MSSQL_META_FILE           = "metasql/mssql_meta.sql"
-	MSSQL_DBS_KEY             = "MSSQL_DBS"
-	MSSQL_DB_SCHEMAS_KEY      = "MSSQL_DB_SCHEMAS"
-	MSSQL_TABLE_INFO_KEY      = "MSSQL_TABLE_INFO"
-	MSSQL_INDEX_INFO_KEY      = "MSSQL_INDEX_INFO"
-	MSSQL_COLUMN_MA_KEY       = "MSSQL_COLUMN_MA"
-	MSSQL_TABLE_DETAIL_KEY    = "MSSQL_TABLE_DETAIL"
-	MSSQL_TABLE_INDEX_DDL_KEY = "MSSQL_TABLE_INDEX_DDL"
+	MSSQL_META_FILE               = "metasql/mssql_meta.sql"
+	MSSQL_DBS_KEY                 = "MSSQL_DBS"
+	MSSQL_DB_SCHEMAS_KEY          = "MSSQL_DB_SCHEMAS"
+	MSSQL_TABLE_INFO_KEY          = "MSSQL_TABLE_INFO"
+	MSSQL_TABLE_INFO_BY_NAMES_KEY = "MSSQL_TABLE_INFO_BY_NAMES"
+	MSSQL_INDEX_INFO_KEY          = "MSSQL_INDEX_INFO"
+	MSSQL_COLUMN_MA_KEY           = "MSSQL_COLUMN_MA"
+	MSSQL_TABLE_DETAIL_KEY        = "MSSQL_TABLE_DETAIL"
+	MSSQL_TABLE_INDEX_DDL_KEY     = "MSSQL_TABLE_INDEX_DDL"
 )
 
 type MssqlMetaData struct {
@@ -54,8 +55,21 @@ func (md *MssqlMetaData) GetDbNames() ([]string, error) {
 }
 
 // 获取表基础元信息, 如表名等
-func (md *MssqlMetaData) GetTables() ([]dbi.Table, error) {
-	_, res, err := md.dc.Query(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_TABLE_INFO_KEY), md.dc.Info.CurrentSchema())
+func (md *MssqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
+	meta := md.dc.GetMetaData()
+	schema := md.dc.Info.CurrentSchema()
+	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
+		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
+	}), ",")
+
+	var res []map[string]any
+	var err error
+
+	if tableNames != nil || len(tableNames) > 0 {
+		_, res, err = md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_TABLE_INFO_BY_NAMES_KEY), names), schema)
+	} else {
+		_, res, err = md.dc.Query(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_TABLE_INFO_KEY), schema)
+	}
 
 	if err != nil {
 		return nil, err
@@ -77,8 +91,9 @@ func (md *MssqlMetaData) GetTables() ([]dbi.Table, error) {
 
 // 获取列元信息, 如列名等
 func (md *MssqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
+	meta := md.dc.GetMetaData()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dbi.RemoveQuote(md, val))
+		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
 	}), ",")
 
 	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_COLUMN_MA_KEY), tableName), md.dc.Info.CurrentSchema())
@@ -176,6 +191,8 @@ func (md *MssqlMetaData) CopyTableDDL(tableName string, newTableName string) (st
 		newTableName = tableName
 	}
 
+	meta := md.dc.GetMetaData()
+
 	// 根据列信息生成建表语句
 	var builder strings.Builder
 	var commentBuilder strings.Builder
@@ -195,7 +212,7 @@ func (md *MssqlMetaData) CopyTableDDL(tableName string, newTableName string) (st
 		}
 	}
 
-	baseTable := fmt.Sprintf("%s.%s", dbi.QuoteIdentifier(md, md.dc.Info.CurrentSchema()), dbi.QuoteIdentifier(md, newTableName))
+	baseTable := fmt.Sprintf("%s.%s", meta.QuoteIdentifier(md.dc.Info.CurrentSchema()), meta.QuoteIdentifier(newTableName))
 
 	// 查询列信息
 	columns, err := md.GetColumns(tableName)
@@ -294,6 +311,71 @@ var (
 	timeRegexp = regexp.MustCompile(`(?i)time`)
 
 	converter = new(DataConverter)
+	// 定义正则表达式，匹配括号内的数字
+	bracketsRegexp = regexp.MustCompile(`\((\d+)\)`)
+	// mssql数据类型 对应 公共数据类型
+	commonColumnTypeMap = map[string]string{
+		"bigint":           dbi.CommonTypeBigint,
+		"numeric":          dbi.CommonTypeNumber,
+		"bit":              dbi.CommonTypeInt,
+		"smallint":         dbi.CommonTypeSmallint,
+		"decimal":          dbi.CommonTypeNumber,
+		"smallmoney":       dbi.CommonTypeNumber,
+		"int":              dbi.CommonTypeInt,
+		"tinyint":          dbi.CommonTypeSmallint, // mssql tinyint不支持负数
+		"money":            dbi.CommonTypeNumber,
+		"float":            dbi.CommonTypeNumber, // 近似数字
+		"real":             dbi.CommonTypeVarchar,
+		"date":             dbi.CommonTypeDate, // 日期和时间
+		"datetimeoffset":   dbi.CommonTypeDatetime,
+		"datetime2":        dbi.CommonTypeDatetime,
+		"smalldatetime":    dbi.CommonTypeDatetime,
+		"datetime":         dbi.CommonTypeDatetime,
+		"time":             dbi.CommonTypeTime,
+		"char":             dbi.CommonTypeChar, // 字符串
+		"varchar":          dbi.CommonTypeVarchar,
+		"text":             dbi.CommonTypeText,
+		"nchar":            dbi.CommonTypeChar,
+		"nvarchar":         dbi.CommonTypeVarchar,
+		"ntext":            dbi.CommonTypeText,
+		"binary":           dbi.CommonTypeBinary,
+		"varbinary":        dbi.CommonTypeBinary,
+		"cursor":           dbi.CommonTypeVarchar, // 其他
+		"rowversion":       dbi.CommonTypeVarchar,
+		"hierarchyid":      dbi.CommonTypeVarchar,
+		"uniqueidentifier": dbi.CommonTypeVarchar,
+		"sql_variant":      dbi.CommonTypeVarchar,
+		"xml":              dbi.CommonTypeText,
+		"table":            dbi.CommonTypeText,
+		"geometry":         dbi.CommonTypeText, // 空间几何类型
+		"geography":        dbi.CommonTypeText, // 空间地理类型
+	}
+
+	// 公共数据类型 对应 mssql数据类型
+
+	mssqlColumnTypeMap = map[string]string{
+		dbi.CommonTypeVarchar:    "nvarchar",
+		dbi.CommonTypeChar:       "nchar",
+		dbi.CommonTypeText:       "ntext",
+		dbi.CommonTypeBlob:       "ntext",
+		dbi.CommonTypeLongblob:   "ntext",
+		dbi.CommonTypeLongtext:   "ntext",
+		dbi.CommonTypeBinary:     "varbinary",
+		dbi.CommonTypeMediumblob: "ntext",
+		dbi.CommonTypeMediumtext: "ntext",
+		dbi.CommonTypeVarbinary:  "varbinary",
+		dbi.CommonTypeInt:        "int",
+		dbi.CommonTypeSmallint:   "smallint",
+		dbi.CommonTypeTinyint:    "smallint",
+		dbi.CommonTypeNumber:     "decimal",
+		dbi.CommonTypeBigint:     "bigint",
+		dbi.CommonTypeDatetime:   "datetime2",
+		dbi.CommonTypeDate:       "date",
+		dbi.CommonTypeTime:       "time",
+		dbi.CommonTypeTimestamp:  "timestamp",
+		dbi.CommonTypeEnum:       "nvarchar",
+		dbi.CommonTypeJSON:       "nvarchar",
+	}
 )
 
 type DataConverter struct {

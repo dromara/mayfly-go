@@ -12,11 +12,12 @@ import (
 )
 
 const (
-	DM_META_FILE      = "metasql/dm_meta.sql"
-	DM_DB_SCHEMAS     = "DM_DB_SCHEMAS"
-	DM_TABLE_INFO_KEY = "DM_TABLE_INFO"
-	DM_INDEX_INFO_KEY = "DM_INDEX_INFO"
-	DM_COLUMN_MA_KEY  = "DM_COLUMN_MA"
+	DM_META_FILE               = "metasql/dm_meta.sql"
+	DM_DB_SCHEMAS              = "DM_DB_SCHEMAS"
+	DM_TABLE_INFO_KEY          = "DM_TABLE_INFO"
+	DM_INDEX_INFO_KEY          = "DM_INDEX_INFO"
+	DM_COLUMN_MA_KEY           = "DM_COLUMN_MA"
+	DM_TABLE_INFO_BY_NAMES_KEY = "DM_TABLE_INFO_BY_NAMES"
 )
 
 type DMMetaData struct {
@@ -50,14 +51,19 @@ func (dd *DMMetaData) GetDbNames() ([]string, error) {
 	return databases, nil
 }
 
-// 获取表基础元信息, 如表名等
-func (dd *DMMetaData) GetTables() ([]dbi.Table, error) {
+func (dd *DMMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
+	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
+		return fmt.Sprintf("'%s'", dbi.RemoveQuote(dd, val))
+	}), ",")
 
-	// 首先执行更新统计信息sql 这个统计信息在数据量比较大的时候就比较耗时，所以最好定时执行
-	// _, _, err := pd.dc.Query("dbms_stats.GATHER_SCHEMA_stats(SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))")
+	var res []map[string]any
+	var err error
 
-	// 查询表信息
-	_, res, err := dd.dc.Query(dbi.GetLocalSql(DM_META_FILE, DM_TABLE_INFO_KEY))
+	if tableNames != nil && len(tableNames) > 0 {
+		_, res, err = dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_TABLE_INFO_BY_NAMES_KEY), names))
+	} else {
+		_, res, err = dd.dc.Query(dbi.GetLocalSql(DM_META_FILE, DM_TABLE_INFO_KEY))
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -254,8 +260,64 @@ var (
 	dateRegexp = regexp.MustCompile(`(?i)date`)
 	// 时间类型
 	timeRegexp = regexp.MustCompile(`(?i)time`)
+	// 定义正则表达式，匹配括号内的数字
+	bracketsRegexp = regexp.MustCompile(`\((\d+)\)`)
 
 	converter = new(DataConverter)
+
+	// 达梦数据类型 对应 公共数据类型
+	commonColumnMap = map[string]string{
+
+		"CHAR":          dbi.CommonTypeChar, // 字符数据类型
+		"VARCHAR":       dbi.CommonTypeVarchar,
+		"TEXT":          dbi.CommonTypeText,
+		"LONG":          dbi.CommonTypeText,
+		"LONGVARCHAR":   dbi.CommonTypeLongtext,
+		"IMAGE":         dbi.CommonTypeLongtext,
+		"LONGVARBINARY": dbi.CommonTypeLongtext,
+		"BLOB":          dbi.CommonTypeBlob,
+		"CLOB":          dbi.CommonTypeText,
+		"NUMERIC":       dbi.CommonTypeNumber, // 精确数值数据类型
+		"DECIMAL":       dbi.CommonTypeNumber,
+		"NUMBER":        dbi.CommonTypeNumber,
+		"INTEGER":       dbi.CommonTypeInt,
+		"INT":           dbi.CommonTypeInt,
+		"BIGINT":        dbi.CommonTypeBigint,
+		"TINYINT":       dbi.CommonTypeTinyint,
+		"BYTE":          dbi.CommonTypeTinyint,
+		"SMALLINT":      dbi.CommonTypeSmallint,
+		"BIT":           dbi.CommonTypeTinyint,
+		"DOUBLE":        dbi.CommonTypeNumber, // 近似数值类型
+		"FLOAT":         dbi.CommonTypeNumber,
+		"DATE":          dbi.CommonTypeDate, // 一般日期时间数据类型
+		"TIME":          dbi.CommonTypeTime,
+		"TIMESTAMP":     dbi.CommonTypeTimestamp,
+	}
+
+	// 公共数据类型 对应 达梦数据类型
+	dmColumnMap = map[string]string{
+		dbi.CommonTypeVarchar:    "VARCHAR",
+		dbi.CommonTypeChar:       "CHAR",
+		dbi.CommonTypeText:       "TEXT",
+		dbi.CommonTypeBlob:       "BLOB",
+		dbi.CommonTypeLongblob:   "TEXT",
+		dbi.CommonTypeLongtext:   "TEXT",
+		dbi.CommonTypeBinary:     "TEXT",
+		dbi.CommonTypeMediumblob: "TEXT",
+		dbi.CommonTypeMediumtext: "TEXT",
+		dbi.CommonTypeVarbinary:  "TEXT",
+		dbi.CommonTypeInt:        "INT",
+		dbi.CommonTypeSmallint:   "SMALLINT",
+		dbi.CommonTypeTinyint:    "TINYINT",
+		dbi.CommonTypeNumber:     "NUMBER",
+		dbi.CommonTypeBigint:     "BIGINT",
+		dbi.CommonTypeDatetime:   "TIMESTAMP",
+		dbi.CommonTypeDate:       "DATE",
+		dbi.CommonTypeTime:       "DATE",
+		dbi.CommonTypeTimestamp:  "TIMESTAMP",
+		dbi.CommonTypeEnum:       "TEXT",
+		dbi.CommonTypeJSON:       "TEXT",
+	}
 )
 
 type DataConverter struct {

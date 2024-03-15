@@ -19,7 +19,7 @@ type MetaData interface {
 	GetDbNames() ([]string, error)
 
 	// 获取表信息
-	GetTables() ([]Table, error)
+	GetTables(tableNames ...string) ([]Table, error)
 
 	// 获取指定表名的所有列元信息
 	GetColumns(tableNames ...string) ([]Column, error)

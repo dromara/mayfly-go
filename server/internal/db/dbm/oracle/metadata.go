@@ -13,11 +13,12 @@ import (
 
 // ---------------------------------- DM元数据 -----------------------------------
 const (
-	ORACLE_META_FILE      = "metasql/oracle_meta.sql"
-	ORACLE_DB_SCHEMAS     = "ORACLE_DB_SCHEMAS"
-	ORACLE_TABLE_INFO_KEY = "ORACLE_TABLE_INFO"
-	ORACLE_INDEX_INFO_KEY = "ORACLE_INDEX_INFO"
-	ORACLE_COLUMN_MA_KEY  = "ORACLE_COLUMN_MA"
+	ORACLE_META_FILE               = "metasql/oracle_meta.sql"
+	ORACLE_DB_SCHEMAS              = "ORACLE_DB_SCHEMAS"
+	ORACLE_TABLE_INFO_KEY          = "ORACLE_TABLE_INFO"
+	ORACLE_TABLE_INFO_BY_NAMES_KEY = "ORACLE_TABLE_INFO_BY_NAMES"
+	ORACLE_INDEX_INFO_KEY          = "ORACLE_INDEX_INFO"
+	ORACLE_COLUMN_MA_KEY           = "ORACLE_COLUMN_MA"
 )
 
 type OracleMetaData struct {
@@ -51,14 +52,20 @@ func (od *OracleMetaData) GetDbNames() ([]string, error) {
 	return databases, nil
 }
 
-// 获取表基础元信息, 如表名等
-func (od *OracleMetaData) GetTables() ([]dbi.Table, error) {
+func (od *OracleMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
+	meta := od.dc.GetMetaData()
+	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
+		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
+	}), ",")
 
-	// 首先执行更新统计信息sql 这个统计信息在数据量比较大的时候就比较耗时，所以最好定时执行
-	// _, _, err := pd.dc.Query("dbms_stats.GATHER_SCHEMA_stats(SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))")
+	var res []map[string]any
+	var err error
 
-	// 查询表信息
-	_, res, err := od.dc.Query(dbi.GetLocalSql(ORACLE_META_FILE, ORACLE_TABLE_INFO_KEY))
+	if tableNames != nil || len(tableNames) > 0 {
+		_, res, err = od.dc.Query(fmt.Sprintf(dbi.GetLocalSql(ORACLE_META_FILE, ORACLE_TABLE_INFO_BY_NAMES_KEY), names))
+	} else {
+		_, res, err = od.dc.Query(dbi.GetLocalSql(ORACLE_META_FILE, ORACLE_TABLE_INFO_KEY))
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -79,8 +86,9 @@ func (od *OracleMetaData) GetTables() ([]dbi.Table, error) {
 
 // 获取列元信息, 如列名等
 func (od *OracleMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
+	meta := od.dc.GetMetaData()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dbi.RemoveQuote(od, val))
+		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
 	}), ",")
 
 	// 如果表数量超过了1000，需要分批查询
@@ -273,7 +281,57 @@ var (
 	// 日期时间类型
 	datetimeTypeRegexp = regexp.MustCompile(`(?i)date|timestamp`)
 
+	bracketsRegexp = regexp.MustCompile(`\((\d+)\)`)
+
 	converter = new(DataConverter)
+
+	// oracle数据类型 映射 公共数据类型
+	commonColumnTypeMap = map[string]string{
+		"CHAR":          dbi.CommonTypeChar,
+		"NCHAR":         dbi.CommonTypeChar,
+		"VARCHAR2":      dbi.CommonTypeVarchar,
+		"NVARCHAR2":     dbi.CommonTypeVarchar,
+		"NUMBER":        dbi.CommonTypeNumber,
+		"INTEGER":       dbi.CommonTypeInt,
+		"INT":           dbi.CommonTypeInt,
+		"DECIMAL":       dbi.CommonTypeNumber,
+		"FLOAT":         dbi.CommonTypeNumber,
+		"REAL":          dbi.CommonTypeNumber,
+		"BINARY_FLOAT":  dbi.CommonTypeNumber,
+		"BINARY_DOUBLE": dbi.CommonTypeNumber,
+		"DATE":          dbi.CommonTypeDate,
+		"TIMESTAMP":     dbi.CommonTypeDatetime,
+		"LONG":          dbi.CommonTypeLongtext,
+		"BLOB":          dbi.CommonTypeLongtext,
+		"CLOB":          dbi.CommonTypeLongtext,
+		"NCLOB":         dbi.CommonTypeLongtext,
+		"BFILE":         dbi.CommonTypeBinary,
+	}
+
+	// 公共数据类型 映射 oracle数据类型
+	oracleColumnTypeMap = map[string]string{
+		dbi.CommonTypeVarchar:    "NVARCHAR2",
+		dbi.CommonTypeChar:       "NCHAR",
+		dbi.CommonTypeText:       "CLOB",
+		dbi.CommonTypeBlob:       "CLOB",
+		dbi.CommonTypeLongblob:   "CLOB",
+		dbi.CommonTypeLongtext:   "CLOB",
+		dbi.CommonTypeBinary:     "BFILE",
+		dbi.CommonTypeMediumblob: "CLOB",
+		dbi.CommonTypeMediumtext: "CLOB",
+		dbi.CommonTypeVarbinary:  "BFILE",
+		dbi.CommonTypeInt:        "INT",
+		dbi.CommonTypeSmallint:   "INT",
+		dbi.CommonTypeTinyint:    "INT",
+		dbi.CommonTypeNumber:     "NUMBER",
+		dbi.CommonTypeBigint:     "NUMBER",
+		dbi.CommonTypeDatetime:   "DATE",
+		dbi.CommonTypeDate:       "DATE",
+		dbi.CommonTypeTime:       "DATE",
+		dbi.CommonTypeTimestamp:  "TIMESTAMP",
+		dbi.CommonTypeEnum:       "CLOB",
+		dbi.CommonTypeJSON:       "CLOB",
+	}
 )
 
 type DataConverter struct {

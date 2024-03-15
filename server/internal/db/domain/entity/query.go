@@ -15,6 +15,13 @@ type DataSyncLogQuery struct {
 	TaskId uint64 `json:"task_id" form:"taskId"`
 }
 
+type DbTransferTaskQuery struct {
+}
+
+type DbTransferLogQuery struct {
+	TaskId uint64 `json:"task_id" form:"taskId"`
+}
+
 // 数据库查询实体，不与数据库表字段一一对应
 type DbQuery struct {
 	Id uint64 `form:"id"`

@@ -1,5 +1,7 @@
 package collx
 
+import "strings"
+
 // 数组比较
 // 依次返回，新增值，删除值，以及不变值
 func ArrayCompare[T comparable](newArr []T, oldArr []T) ([]T, []T, []T) {
@@ -142,4 +144,14 @@ func ArrayDeduplicate[T comparable](arr []T) []T {
 	}
 
 	return result
+}
+
+// ArrayAnyMatches 给定字符串是否包含指定数组中的任意字符串， 如：["time", "date"] , substr : timestamp，返回true
+func ArrayAnyMatches(arr []string, subStr string) bool {
+	for _, itm := range arr {
+		if strings.Contains(subStr, itm) {
+			return true
+		}
+	}
+	return false
 }

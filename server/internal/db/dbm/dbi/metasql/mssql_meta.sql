@@ -34,6 +34,21 @@ FROM sys.tables t
 where ss.name = ?
 ORDER BY t.name DESC;
 ---------------------------------------
+--MSSQL_TABLE_INFO_BY_NAMES 表详细信息
+SELECT t.name        AS tableName,
+       ss.name AS tableSchema,
+       c.value       AS tableComment,
+       p.rows        AS tableRows,
+       0             AS dataLength,
+       0             AS indexLength,
+       t.create_date AS createTime
+FROM sys.tables t
+         left OUTER JOIN sys.schemas ss on t.schema_id = ss.schema_id
+         left OUTER JOIN sys.partitions p ON t.object_id = p.object_id AND p.index_id = 1
+         left OUTER JOIN sys.extended_properties c ON t.object_id = c.major_id AND c.minor_id = 0 AND c.class = 1
+where ss.name = ? and t.name in (%s)
+ORDER BY t.name DESC;
+---------------------------------------
 --MSSQL_INDEX_INFO 索引信息
 SELECT ind.name                          AS indexName,
        col.name                          AS columnName,

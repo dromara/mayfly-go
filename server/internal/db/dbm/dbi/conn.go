@@ -200,7 +200,7 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 			rowData[cols[i].Name] = valueConvert(v, colTypes[i])
 		}
 		if err = walkFn(rowData, cols); err != nil {
-			logx.Error("游标遍历查询结果集出错,退出遍历: %s", err.Error())
+			logx.Errorf("游标遍历查询结果集出错,退出遍历: %s", err.Error())
 			return err
 		}
 	}

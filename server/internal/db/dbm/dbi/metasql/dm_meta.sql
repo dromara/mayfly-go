@@ -19,17 +19,42 @@ SELECT a.object_name                                      as TABLE_NAME,
                        WHERE OWNER = 'wxb'
                          AND TABLE_NAME = a.object_name)) as INDEX_LENGTH,
        c.num_rows                                         as TABLE_ROWS
-
 FROM all_objects a
          LEFT JOIN ALL_TAB_COMMENTS b ON b.TABLE_TYPE = 'TABLE'
     AND a.object_name = b.TABLE_NAME
     AND b.owner = a.owner
          LEFT JOIN (SELECT a.owner, a.table_name, a.num_rows FROM all_tables a) c
                    ON c.owner = a.owner AND c.table_name = a.object_name
-
 WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
   AND a.object_type = 'TABLE'
   AND a.status = 'VALID'
+ORDER BY a.object_name
+---------------------------------------
+--DM_TABLE_INFO_BY_NAMES 表详细信息
+SELECT a.object_name                                      as TABLE_NAME,
+       b.comments                                         as TABLE_COMMENT,
+       a.created                                          as CREATE_TIME,
+       TABLE_USED_SPACE(
+               (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)),
+               a.object_name
+       ) * page()                                         as DATA_LENGTH,
+       (SELECT sum(INDEX_USED_PAGES(id))* page()
+        FROM SYSOBJECTS
+        WHERE NAME IN (SELECT INDEX_NAME
+                       FROM ALL_INDEXES
+                       WHERE OWNER = 'wxb'
+                         AND TABLE_NAME = a.object_name)) as INDEX_LENGTH,
+       c.num_rows                                         as TABLE_ROWS
+FROM all_objects a
+         LEFT JOIN ALL_TAB_COMMENTS b ON b.TABLE_TYPE = 'TABLE'
+    AND a.object_name = b.TABLE_NAME
+    AND b.owner = a.owner
+         LEFT JOIN (SELECT a.owner, a.table_name, a.num_rows FROM all_tables a) c
+                   ON c.owner = a.owner AND c.table_name = a.object_name
+WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
+  AND a.object_type = 'TABLE'
+  AND a.status = 'VALID'
+  AND a.object_name in (%s)
 ORDER BY a.object_name
 ---------------------------------------
 --DM_INDEX_INFO 表索引信息

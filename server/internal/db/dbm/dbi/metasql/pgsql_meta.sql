@@ -31,6 +31,26 @@ where
 	and c.reltype > 0
 order by c.relname
 ---------------------------------------
+--PGSQL_TABLE_INFO_BY_NAMES 表详细信息
+select
+	c.relname as "tableName",
+	obj_description (c.oid) as "tableComment",
+	pg_table_size ('"' || n.nspname || '"."' || c.relname || '"') as "dataLength",
+	pg_indexes_size ('"' || n.nspname || '"."' || c.relname || '"') as "indexLength",
+	psut.n_live_tup as "tableRows"
+from
+	pg_class c
+join pg_namespace n on
+	c.relnamespace = n.oid
+join pg_stat_user_tables psut on
+	psut.relid = c.oid
+where
+    has_table_privilege(CAST(c.oid AS regclass), 'SELECT')
+	and n.nspname = current_schema()
+	and c.reltype > 0
+    and c.relname in (%s)
+order by c.relname
+---------------------------------------
 --PGSQL_INDEX_INFO 表索引信息
 SELECT
     indexname AS "indexName",

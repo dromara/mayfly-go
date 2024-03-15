@@ -301,7 +301,9 @@ watch(dialogVisible, async (newValue: boolean) => {
     state.tabActiveName = 'basic';
     const propsData = props.data as any;
     if (!propsData?.id) {
-        state.form = basicFormData;
+        let d = {} as FormData;
+        Object.assign(d, basicFormData);
+        state.form = d;
         return;
     }
 

@@ -35,7 +35,6 @@ const DM_TYPE_LIST: sqlColumnType[] = [
     // 位串数据类型 BIT 用于存储整数数据 1、0 或 NULL，只有 0 才转换为假，其他非空、非 0 值都会自动转换为真
     { udtName: 'BIT', dataType: 'BIT', desc: '用于存储整数数据 1、0 或 NULL', space: '1', range: '1' },
     // 一般日期时间数据类型 DATE TIME TIMESTAMP 默认精度 6
-    // 多媒体数据类型 TEXT/LONG/LONGVARCHAR 类型：变长字符串类型  IMAGE/LONGVARBINARY 类型  BLOB CLOB BFILE  100G-1
     { udtName: 'DATE', dataType: 'DATE', desc: '年、月、日', space: '', range: '' },
     { udtName: 'TIME', dataType: 'TIME', desc: '时、分、秒', space: '', range: '' },
     {
@@ -45,6 +44,7 @@ const DM_TYPE_LIST: sqlColumnType[] = [
         space: '',
         range: '-4712-01-01 00:00:00.000000000 ~ 9999-12-31 23:59:59.999999999',
     },
+    // 多媒体数据类型 TEXT/LONG/LONGVARCHAR 类型：变长字符串类型  IMAGE/LONGVARBINARY 类型  BLOB CLOB BFILE  100G-1
     { udtName: 'TEXT', dataType: 'TEXT', desc: '变长字符串', space: '', range: '100G-1' },
     { udtName: 'LONG', dataType: 'LONG', desc: '同TEXT', space: '', range: '100G-1' },
     { udtName: 'LONGVARCHAR', dataType: 'LONGVARCHAR', desc: '同TEXT', space: '', range: '100G-1' },

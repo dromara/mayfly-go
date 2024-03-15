@@ -20,7 +20,13 @@ func (md *SqliteMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	if _, err := os.Stat(d.Host); err != nil {
 		return nil, errors.New("数据库文件不存在")
 	}
-	return sql.Open("sqlite", d.Host)
+
+	db, err := sql.Open("sqlite", d.Host)
+	if err != nil {
+		return nil, err
+	}
+	_, err = db.Exec("PRAGMA busy_timeout = 50000;")
+	return db, err
 }
 
 func (sm *SqliteMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {

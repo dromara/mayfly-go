@@ -15,11 +15,12 @@ import (
 )
 
 const (
-	MYSQL_META_FILE      = "metasql/mysql_meta.sql"
-	MYSQL_DBS            = "MYSQL_DBS"
-	MYSQL_TABLE_INFO_KEY = "MYSQL_TABLE_INFO"
-	MYSQL_INDEX_INFO_KEY = "MYSQL_INDEX_INFO"
-	MYSQL_COLUMN_MA_KEY  = "MYSQL_COLUMN_MA"
+	MYSQL_META_FILE               = "metasql/mysql_meta.sql"
+	MYSQL_DBS                     = "MYSQL_DBS"
+	MYSQL_TABLE_INFO_KEY          = "MYSQL_TABLE_INFO"
+	MYSQL_TABLE_INFO_BY_NAMES_KEY = "MYSQL_TABLE_INFO_BY_NAMES"
+	MYSQL_INDEX_INFO_KEY          = "MYSQL_INDEX_INFO"
+	MYSQL_COLUMN_MA_KEY           = "MYSQL_COLUMN_MA"
 )
 
 type MysqlMetaData struct {
@@ -52,9 +53,21 @@ func (md *MysqlMetaData) GetDbNames() ([]string, error) {
 	return databases, nil
 }
 
-// 获取表基础元信息, 如表名等
-func (md *MysqlMetaData) GetTables() ([]dbi.Table, error) {
-	_, res, err := md.dc.Query(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_KEY))
+func (md *MysqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
+	meta := md.dc.GetMetaData()
+	names := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
+		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
+	}), ",")
+
+	var res []map[string]any
+	var err error
+
+	if tableNames != nil || len(tableNames) > 0 {
+		_, res, err = md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_BY_NAMES_KEY), names))
+	} else {
+		_, res, err = md.dc.Query(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_KEY))
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -75,8 +88,9 @@ func (md *MysqlMetaData) GetTables() ([]dbi.Table, error) {
 
 // 获取列元信息, 如列名等
 func (md *MysqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
+	meta := md.dc.GetMetaData()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dbi.RemoveQuote(md, val))
+		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
 	}), ",")
 
 	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_COLUMN_MA_KEY), tableName))
@@ -89,7 +103,7 @@ func (md *MysqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 		columns = append(columns, dbi.Column{
 			TableName:     anyx.ConvString(re["tableName"]),
 			ColumnName:    anyx.ConvString(re["columnName"]),
-			ColumnType:    anyx.ConvString(re["columnType"]),
+			ColumnType:    strings.Replace(anyx.ConvString(re["columnType"]), " unsigned", "", 1),
 			ColumnComment: anyx.ConvString(re["columnComment"]),
 			Nullable:      anyx.ConvString(re["nullable"]),
 			IsPrimaryKey:  anyx.ConvInt(re["isPrimaryKey"]) == 1,
@@ -199,6 +213,59 @@ var (
 	timeRegexp = regexp.MustCompile(`(?i)time`)
 
 	converter = new(DataConverter)
+
+	//  mysql数据类型 映射 公共数据类型
+	commonColumnTypeMap = map[string]string{
+		"bigint":     dbi.CommonTypeBigint,
+		"binary":     dbi.CommonTypeBinary,
+		"blob":       dbi.CommonTypeBlob,
+		"char":       dbi.CommonTypeChar,
+		"datetime":   dbi.CommonTypeDatetime,
+		"date":       dbi.CommonTypeDate,
+		"decimal":    dbi.CommonTypeNumber,
+		"double":     dbi.CommonTypeNumber,
+		"enum":       dbi.CommonTypeEnum,
+		"float":      dbi.CommonTypeNumber,
+		"int":        dbi.CommonTypeInt,
+		"json":       dbi.CommonTypeJSON,
+		"longblob":   dbi.CommonTypeLongblob,
+		"longtext":   dbi.CommonTypeLongtext,
+		"mediumblob": dbi.CommonTypeBlob,
+		"mediumtext": dbi.CommonTypeText,
+		"set":        dbi.CommonTypeVarchar,
+		"smallint":   dbi.CommonTypeSmallint,
+		"text":       dbi.CommonTypeText,
+		"time":       dbi.CommonTypeTime,
+		"timestamp":  dbi.CommonTypeTimestamp,
+		"tinyint":    dbi.CommonTypeTinyint,
+		"varbinary":  dbi.CommonTypeVarbinary,
+		"varchar":    dbi.CommonTypeVarchar,
+	}
+
+	// 公共数据类型 映射 mysql数据类型
+	mysqlColumnTypeMap = map[string]string{
+		dbi.CommonTypeVarchar:    "varchar",
+		dbi.CommonTypeChar:       "char",
+		dbi.CommonTypeText:       "text",
+		dbi.CommonTypeBlob:       "blob",
+		dbi.CommonTypeLongblob:   "longblob",
+		dbi.CommonTypeLongtext:   "longtext",
+		dbi.CommonTypeBinary:     "binary",
+		dbi.CommonTypeMediumblob: "blob",
+		dbi.CommonTypeMediumtext: "text",
+		dbi.CommonTypeVarbinary:  "varbinary",
+		dbi.CommonTypeInt:        "int",
+		dbi.CommonTypeSmallint:   "smallint",
+		dbi.CommonTypeTinyint:    "tinyint",
+		dbi.CommonTypeNumber:     "decimal",
+		dbi.CommonTypeBigint:     "bigint",
+		dbi.CommonTypeDatetime:   "datetime",
+		dbi.CommonTypeDate:       "date",
+		dbi.CommonTypeTime:       "time",
+		dbi.CommonTypeTimestamp:  "timestamp",
+		dbi.CommonTypeEnum:       "enum",
+		dbi.CommonTypeJSON:       "json",
+	}
 )
 
 type DataConverter struct {

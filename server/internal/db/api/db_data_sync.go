@@ -75,13 +75,13 @@ func (d *DataSyncTask) ChangeStatus(rc *req.Ctx) {
 }
 
 func (d *DataSyncTask) Run(rc *req.Ctx) {
-	taskId := getTaskId(rc)
+	taskId := d.getTaskId(rc)
 	rc.ReqParam = taskId
 	_ = d.DataSyncTaskApp.RunCronJob(taskId)
 }
 
 func (d *DataSyncTask) Stop(rc *req.Ctx) {
-	taskId := getTaskId(rc)
+	taskId := d.getTaskId(rc)
 	rc.ReqParam = taskId
 
 	task := new(entity.DataSyncTask)
@@ -91,12 +91,12 @@ func (d *DataSyncTask) Stop(rc *req.Ctx) {
 }
 
 func (d *DataSyncTask) GetTask(rc *req.Ctx) {
-	taskId := getTaskId(rc)
+	taskId := d.getTaskId(rc)
 	dbEntity, _ := d.DataSyncTaskApp.GetById(new(entity.DataSyncTask), taskId)
 	rc.ResData = dbEntity
 }
 
-func getTaskId(rc *req.Ctx) uint64 {
+func (d *DataSyncTask) getTaskId(rc *req.Ctx) uint64 {
 	instanceId := rc.PathParamInt("taskId")
 	biz.IsTrue(instanceId > 0, "instanceId 错误")
 	return uint64(instanceId)

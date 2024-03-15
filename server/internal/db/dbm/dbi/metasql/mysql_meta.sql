@@ -25,6 +25,25 @@ WHERE
   )
 ORDER BY table_name
 ---------------------------------------
+--MYSQL_TABLE_INFO_BY_NAMES 表详细信息
+SELECT
+  table_name tableName,
+  table_comment tableComment,
+  table_rows tableRows,
+  data_length dataLength,
+  index_length indexLength,
+  create_time createTime
+FROM
+  information_schema.tables
+WHERE
+  table_type = 'BASE TABLE'
+  AND table_name IN (%s)
+  AND table_schema = (
+    SELECT
+      database ()
+  )
+ORDER BY table_name
+---------------------------------------
 --MYSQL_INDEX_INFO 索引信息
 SELECT
   index_name indexName,

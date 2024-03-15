@@ -83,6 +83,14 @@ export const dbApi = {
     runDatasyncTask: Api.newPost('/datasync/tasks/{taskId}/run'),
     stopDatasyncTask: Api.newPost('/datasync/tasks/{taskId}/stop'),
     datasyncLogs: Api.newGet('/datasync/tasks/{taskId}/logs'),
+
+    // 数据库迁移相关
+    dbTransferTasks: Api.newGet('/dbTransfer'),
+    saveDbTransferTask: Api.newPost('/dbTransfer/save'),
+    deleteDbTransferTask: Api.newDelete('/dbTransfer/{taskId}/del'),
+    runDbTransferTask: Api.newPost('/dbTransfer/{taskId}/run'),
+    stopDbTransferTask: Api.newPost('/dbTransfer/{taskId}/stop'),
+    dbTransferTaskLogs: Api.newGet('/dbTransfer/{taskId}/logs'),
 };
 
 export const dbSqlExecApi = {
