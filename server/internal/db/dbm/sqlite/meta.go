@@ -23,6 +23,10 @@ func (md *SqliteMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	return sql.Open("sqlite", d.Host)
 }
 
-func (md *SqliteMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
-	return &SqliteDialect{conn}
+func (sm *SqliteMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
+	return &SqliteDialect{dc: conn}
+}
+
+func (sm *SqliteMeta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
+	return dbi.NewMetaDataX(&SqliteMetaData{dc: conn})
 }

@@ -9,6 +9,29 @@ import (
 	"strings"
 )
 
+type DbType string
+
+const (
+	DbTypeMysql      DbType = "mysql"
+	DbTypeMariadb    DbType = "mariadb"
+	DbTypePostgres   DbType = "postgres"
+	DbTypeGauss      DbType = "gauss"
+	DbTypeDM         DbType = "dm"
+	DbTypeOracle     DbType = "oracle"
+	DbTypeSqlite     DbType = "sqlite"
+	DbTypeMssql      DbType = "mssql"
+	DbTypeKingbaseEs DbType = "kingbaseEs"
+	DbTypeVastbase   DbType = "vastbase"
+)
+
+func ToDbType(dbType string) DbType {
+	return DbType(dbType)
+}
+
+func (dbType DbType) Equal(typ string) bool {
+	return ToDbType(typ) == dbType
+}
+
 type DbInfo struct {
 	InstanceId uint64 // 实例id
 	Id         uint64 // dbId
@@ -17,12 +40,12 @@ type DbInfo struct {
 	Type     DbType // 类型，mysql postgres等
 	Host     string
 	Port     int
-	Extra    string // 连接需要的其他额外参数（json字符串），如oracle数据库需要指定sid
+	Extra    string // 连接需要的其他额外参数（json字符串），如oracle数据库需要指定sid等
 	Network  string
 	Username string
 	Password string
 	Params   string
-	Database string
+	Database string // 若有schema的库则为'database/scheam'格式
 
 	FlowProcdefKey     string // 流程定义key
 	TagPath            []string
@@ -45,6 +68,11 @@ func (dbInfo *DbInfo) Conn(meta Meta) (*DbConn, error) {
 	// 赋值Meta，方便后续获取dialect等
 	dbInfo.Meta = meta
 	database := dbInfo.Database
+	// 如果数据库为空，则使用默认数据库进行连接
+	if database == "" {
+		database = meta.GetMetaData(&DbConn{Info: dbInfo}).DefaultDb()
+		dbInfo.Database = database
+	}
 
 	conn, err := meta.GetSqlDb(dbInfo)
 	if err != nil {
@@ -90,7 +118,7 @@ func (di *DbInfo) IfUseSshTunnelChangeIpPort() error {
 	return nil
 }
 
-// 获取当前库的schema
+// 获取当前库的schema（兼容 database/schema模式）
 func (di *DbInfo) CurrentSchema() string {
 	dbName := di.Database
 	schema := ""
@@ -99,6 +127,16 @@ func (di *DbInfo) CurrentSchema() string {
 		schema = arr[1]
 	}
 	return schema
+}
+
+// 获取当前数据库（兼容 database/schema模式）
+func (di *DbInfo) GetDatabase() string {
+	dbName := di.Database
+	ss := strings.Split(dbName, "/")
+	if len(ss) > 1 {
+		return ss[0]
+	}
+	return dbName
 }
 
 // 根据ssh tunnel机器id返回ssh tunnel

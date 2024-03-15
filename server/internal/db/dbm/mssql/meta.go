@@ -3,10 +3,11 @@ package mssql
 import (
 	"database/sql"
 	"fmt"
-	_ "github.com/microsoft/go-mssqldb"
 	"mayfly-go/internal/db/dbm/dbi"
 	"net/url"
 	"strings"
+
+	_ "github.com/microsoft/go-mssqldb"
 )
 
 func init() {
@@ -53,5 +54,9 @@ func (md *MssqlMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 }
 
 func (md *MssqlMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
-	return &MssqlDialect{conn}
+	return &MssqlDialect{dc: conn}
+}
+
+func (md *MssqlMeta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
+	return dbi.NewMetaDataX(&MssqlMetaData{dc: conn})
 }

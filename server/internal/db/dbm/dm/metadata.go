@@ -6,7 +6,9 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"regexp"
 	"strings"
+	"time"
 )
 
 const (
@@ -18,6 +20,8 @@ const (
 )
 
 type DMMetaData struct {
+	dbi.DefaultMetaData
+
 	dc *dbi.DbConn
 }
 
@@ -74,9 +78,8 @@ func (dd *DMMetaData) GetTables() ([]dbi.Table, error) {
 
 // 获取列元信息, 如列名等
 func (dd *DMMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
-	dbType := dd.dc.Info.Type
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dbType.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dbi.RemoveQuote(dd, val))
 	}), ",")
 
 	_, res, err := dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_COLUMN_MA_KEY), tableName))
@@ -236,4 +239,76 @@ func (dd *DMMetaData) GetSchemas() ([]string, error) {
 		schemaNames = append(schemaNames, anyx.ConvString(re["SCHEMA_NAME"]))
 	}
 	return schemaNames, nil
+}
+
+func (dd *DMMetaData) GetDataConverter() dbi.DataConverter {
+	return converter
+}
+
+var (
+	// 数字类型
+	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
+	// 日期时间类型
+	datetimeRegexp = regexp.MustCompile(`(?i)datetime|timestamp`)
+	// 日期类型
+	dateRegexp = regexp.MustCompile(`(?i)date`)
+	// 时间类型
+	timeRegexp = regexp.MustCompile(`(?i)time`)
+
+	converter = new(DataConverter)
+)
+
+type DataConverter struct {
+}
+
+func (dd *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
+	if numberRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeNumber
+	}
+	if datetimeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDateTime
+	}
+	if dateRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDate
+	}
+	if timeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeTime
+	}
+	return dbi.DataTypeString
+}
+
+func (dd *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
+	str := anyx.ToString(dbColumnValue)
+	switch dataType {
+	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
+		res, _ := time.Parse(time.RFC3339, str)
+		return res.Format(time.DateTime)
+	case dbi.DataTypeDate: // "2024-01-02T00:00:00+08:00"
+		res, _ := time.Parse(time.RFC3339, str)
+		return res.Format(time.DateOnly)
+	case dbi.DataTypeTime: // "0000-01-01T22:08:22.275688+08:00"
+		res, _ := time.Parse(time.RFC3339, str)
+		return res.Format(time.TimeOnly)
+	}
+	return str
+}
+
+func (dd *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
+	// 如果dataType是datetime而dbColumnValue是string类型，则需要转换为time.Time类型
+	_, ok := dbColumnValue.(string)
+	if ok {
+		if dataType == dbi.DataTypeDateTime {
+			res, _ := time.Parse(time.RFC3339, anyx.ToString(dbColumnValue))
+			return res
+		}
+		if dataType == dbi.DataTypeDate {
+			res, _ := time.Parse(time.DateOnly, anyx.ToString(dbColumnValue))
+			return res
+		}
+		if dataType == dbi.DataTypeTime {
+			res, _ := time.Parse(time.TimeOnly, anyx.ToString(dbColumnValue))
+			return res
+		}
+	}
+	return dbColumnValue
 }

@@ -6,7 +6,9 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"regexp"
 	"strings"
+	"time"
 )
 
 const (
@@ -21,6 +23,8 @@ const (
 )
 
 type MssqlMetaData struct {
+	dbi.DefaultMetaData
+
 	dc *dbi.DbConn
 }
 
@@ -73,9 +77,8 @@ func (md *MssqlMetaData) GetTables() ([]dbi.Table, error) {
 
 // 获取列元信息, 如列名等
 func (md *MssqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
-	dbType := md.dc.Info.Type
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dbType.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dbi.RemoveQuote(md, val))
 	}), ",")
 
 	_, res, err := md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_COLUMN_MA_KEY), tableName), md.dc.Info.CurrentSchema())
@@ -168,7 +171,7 @@ func (md *MssqlMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	return result, nil
 }
 
-func (md MssqlMetaData) CopyTableDDL(tableName string, newTableName string) (string, error) {
+func (md *MssqlMetaData) CopyTableDDL(tableName string, newTableName string) (string, error) {
 	if newTableName == "" {
 		newTableName = tableName
 	}
@@ -192,7 +195,7 @@ func (md MssqlMetaData) CopyTableDDL(tableName string, newTableName string) (str
 		}
 	}
 
-	baseTable := fmt.Sprintf("%s.%s", md.dc.Info.Type.QuoteIdentifier(md.dc.Info.CurrentSchema()), md.dc.Info.Type.QuoteIdentifier(newTableName))
+	baseTable := fmt.Sprintf("%s.%s", dbi.QuoteIdentifier(md, md.dc.Info.CurrentSchema()), dbi.QuoteIdentifier(md, newTableName))
 
 	// 查询列信息
 	columns, err := md.GetColumns(tableName)
@@ -270,4 +273,69 @@ func (md *MssqlMetaData) GetSchemas() ([]string, error) {
 		schemas = append(schemas, anyx.ConvString(re["SCHEMA_NAME"]))
 	}
 	return schemas, nil
+}
+
+func (md *MssqlMetaData) GetIdentifierQuoteString() string {
+	return "["
+}
+
+func (md *MssqlMetaData) GetDataConverter() dbi.DataConverter {
+	return converter
+}
+
+var (
+	// 数字类型
+	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
+	// 日期时间类型
+	datetimeRegexp = regexp.MustCompile(`(?i)datetime|timestamp`)
+	// 日期类型
+	dateRegexp = regexp.MustCompile(`(?i)date`)
+	// 时间类型
+	timeRegexp = regexp.MustCompile(`(?i)time`)
+
+	converter = new(DataConverter)
+)
+
+type DataConverter struct {
+}
+
+func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
+	if numberRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeNumber
+	}
+	// 日期时间类型
+	if datetimeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDateTime
+	}
+	// 日期类型
+	if dateRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDate
+	}
+	// 时间类型
+	if timeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeTime
+	}
+	return dbi.DataTypeString
+}
+
+func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
+	return anyx.ToString(dbColumnValue)
+}
+
+func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
+	// 如果dataType是datetime而dbColumnValue是string类型，则需要转换为time.Time类型
+	_, ok := dbColumnValue.(string)
+	if dataType == dbi.DataTypeDateTime && ok {
+		res, _ := time.Parse(time.RFC3339, anyx.ToString(dbColumnValue))
+		return res
+	}
+	if dataType == dbi.DataTypeDate && ok {
+		res, _ := time.Parse(time.DateOnly, anyx.ToString(dbColumnValue))
+		return res
+	}
+	if dataType == dbi.DataTypeTime && ok {
+		res, _ := time.Parse(time.TimeOnly, anyx.ToString(dbColumnValue))
+		return res
+	}
+	return dbColumnValue
 }

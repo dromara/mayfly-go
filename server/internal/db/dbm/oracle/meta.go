@@ -78,6 +78,10 @@ func (md *OraMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	return conn, err
 }
 
-func (md *OraMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
-	return &OracleDialect{conn}
+func (om *OraMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
+	return &OracleDialect{dc: conn}
+}
+
+func (om *OraMeta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
+	return dbi.NewMetaDataX(&OracleMetaData{dc: conn})
 }

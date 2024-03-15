@@ -4,18 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/pkg/utils/anyx"
-	"regexp"
 	"strings"
 	"time"
 )
 
 type SqliteDialect struct {
 	dc *dbi.DbConn
-}
-
-func (sd *SqliteDialect) GetMetaData() dbi.MetaData {
-	return &SqliteMetaData{dc: sd.dc}
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
@@ -43,7 +37,7 @@ func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []str
 		prefix = "insert or replace into"
 	}
 
-	sqlStr := fmt.Sprintf("%s %s (%s) values %s", prefix, sd.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
+	sqlStr := fmt.Sprintf("%s %s (%s) values %s", prefix, sd.dc.GetMetaData().QuoteIdentifier(tableName), strings.Join(columns, ","), placeholder)
 
 	// 把二维数组转为一维数组
 	var args []any
@@ -55,58 +49,12 @@ func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []str
 	return sd.dc.TxExec(tx, sqlStr, args...)
 }
 
-func (sd *SqliteDialect) GetDataConverter() dbi.DataConverter {
-	return converter
-}
-
-var (
-	// 数字类型
-	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit|real`)
-	// 日期时间类型
-	datetimeRegexp = regexp.MustCompile(`(?i)datetime`)
-
-	converter = new(DataConverter)
-)
-
-type DataConverter struct {
-}
-
-func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
-	if numberRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeNumber
-	}
-	if datetimeRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeDateTime
-	}
-	return dbi.DataTypeString
-}
-
-func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
-	str := anyx.ToString(dbColumnValue)
-	switch dataType {
-	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
-		res, _ := time.Parse(time.RFC3339, str)
-		return res.Format(time.DateTime)
-	case dbi.DataTypeDate: // "2024-01-02T00:00:00+08:00"
-		res, _ := time.Parse(time.RFC3339, str)
-		return res.Format(time.DateOnly)
-	case dbi.DataTypeTime: // "0000-01-01T22:08:22.275688+08:00"
-		res, _ := time.Parse(time.RFC3339, str)
-		return res.Format(time.TimeOnly)
-	}
-	return str
-}
-
-func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
-	return dbColumnValue
-}
-
 func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	tableName := copy.TableName
 
 	// 生成新表名,为老表明+_copy_时间戳
 	newTableName := tableName + "_copy_" + time.Now().Format("20060102150405")
-	ddl, err := sd.GetMetaData().GetTableDDL(tableName)
+	ddl, err := sd.dc.GetMetaData().GetTableDDL(tableName)
 	if err != nil {
 		return err
 	}

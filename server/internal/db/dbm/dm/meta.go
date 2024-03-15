@@ -41,5 +41,11 @@ func (md *DmMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 }
 
 func (md *DmMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
-	return &DMDialect{conn}
+	return &DMDialect{dc: conn}
+}
+
+func (md *DmMeta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
+	return dbi.NewMetaDataX(&DMMetaData{
+		dc: conn,
+	})
 }

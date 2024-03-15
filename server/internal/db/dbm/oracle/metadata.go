@@ -6,7 +6,9 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"regexp"
 	"strings"
+	"time"
 )
 
 // ---------------------------------- DM元数据 -----------------------------------
@@ -19,6 +21,8 @@ const (
 )
 
 type OracleMetaData struct {
+	dbi.DefaultMetaData
+
 	dc *dbi.DbConn
 }
 
@@ -75,9 +79,8 @@ func (od *OracleMetaData) GetTables() ([]dbi.Table, error) {
 
 // 获取列元信息, 如列名等
 func (od *OracleMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
-	dbType := od.dc.Info.Type
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
-		return fmt.Sprintf("'%s'", dbType.RemoveQuote(val))
+		return fmt.Sprintf("'%s'", dbi.RemoveQuote(od, val))
 	}), ",")
 
 	// 如果表数量超过了1000，需要分批查询
@@ -258,4 +261,51 @@ func (od *OracleMetaData) GetSchemas() ([]string, error) {
 		schemaNames = append(schemaNames, anyx.ConvString(re["USERNAME"]))
 	}
 	return schemaNames, nil
+}
+
+func (od *OracleMetaData) GetDataConverter() dbi.DataConverter {
+	return converter
+}
+
+var (
+	// 数字类型
+	numberTypeRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
+	// 日期时间类型
+	datetimeTypeRegexp = regexp.MustCompile(`(?i)date|timestamp`)
+
+	converter = new(DataConverter)
+)
+
+type DataConverter struct {
+}
+
+func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
+	if numberTypeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeNumber
+	}
+	// 日期时间类型
+	if datetimeTypeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDateTime
+	}
+	return dbi.DataTypeString
+}
+
+func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
+	str := anyx.ToString(dbColumnValue)
+	switch dataType {
+	// oracle把日期类型数据格式化输出
+	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
+		res, _ := time.Parse(time.RFC3339, str)
+		return res.Format(time.DateTime)
+	}
+	return str
+}
+
+func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
+	// oracle把日期类型的数据转化为time类型
+	if dataType == dbi.DataTypeDateTime {
+		res, _ := time.Parse(time.RFC3339, anyx.ConvString(dbColumnValue))
+		return res
+	}
+	return dbColumnValue
 }

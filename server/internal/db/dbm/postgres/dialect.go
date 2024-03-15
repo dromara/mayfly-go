@@ -6,17 +6,12 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
-	"regexp"
 	"strings"
 	"time"
 )
 
 type PgsqlDialect struct {
 	dc *dbi.DbConn
-}
-
-func (pd *PgsqlDialect) GetMetaData() dbi.MetaData {
-	return &PgsqlMetaData{dc: pd.dc}
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
@@ -56,7 +51,7 @@ func (pd *PgsqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 		suffix = pd.pgsqlOnDuplicateStrategySql(duplicateStrategy, tableName, columns)
 	}
 
-	sqlStr := fmt.Sprintf("insert into %s (%s) values %s %s", pd.dc.Info.Type.QuoteIdentifier(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "), suffix)
+	sqlStr := fmt.Sprintf("insert into %s (%s) values %s %s", pd.dc.GetMetaData().QuoteIdentifier(tableName), strings.Join(columns, ","), strings.Join(placeholders, ", "), suffix)
 	// 执行批量insert sql
 
 	return pd.dc.TxExec(tx, sqlStr, args...)
@@ -90,13 +85,14 @@ func (pd PgsqlDialect) pgsqlOnDuplicateStrategySql(duplicateStrategy int, tableN
 // 高斯db唯一键冲突策略,使用ON DUPLICATE KEY UPDATE 参考：https://support.huaweicloud.com/distributed-devg-v3-gaussdb/gaussdb-12-0607.html#ZH-CN_TOPIC_0000001633948138
 func (pd PgsqlDialect) gaussOnDuplicateStrategySql(duplicateStrategy int, tableName string, columns []string) string {
 	suffix := ""
+	metadata := pd.dc.GetMetaData()
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
 		suffix = " \n ON DUPLICATE KEY UPDATE NOTHING"
 	} else if duplicateStrategy == dbi.DuplicateStrategyUpdate {
 
 		// 查出表里的唯一键涉及的字段
 		var uniqueColumns []string
-		indexs, err := pd.GetMetaData().GetTableIndex(tableName)
+		indexs, err := metadata.GetTableIndex(tableName)
 		if err == nil {
 			for _, index := range indexs {
 				if index.IsUnique {
@@ -113,7 +109,7 @@ func (pd PgsqlDialect) gaussOnDuplicateStrategySql(duplicateStrategy int, tableN
 		suffix = " \n ON DUPLICATE KEY UPDATE "
 		for i, col := range columns {
 			// ON DUPLICATE KEY UPDATE语句不支持更新唯一键字段，所以得去掉
-			if !collx.ArrayContains(uniqueColumns, pd.dc.Info.Type.RemoveQuote(strings.ToLower(col))) {
+			if !collx.ArrayContains(uniqueColumns, metadata.RemoveQuote(strings.ToLower(col))) {
 				suffix += fmt.Sprintf("%s = excluded.%s", col, col)
 				if i < len(columns)-1 {
 					suffix += ", "
@@ -133,79 +129,6 @@ func (pd *PgsqlDialect) currentSchema() string {
 		schema = arr[1]
 	}
 	return schema
-}
-
-func (pd *PgsqlDialect) GetDataConverter() dbi.DataConverter {
-	return converter
-}
-
-var (
-	// 数字类型
-	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
-	// 日期时间类型
-	datetimeRegexp = regexp.MustCompile(`(?i)datetime|timestamp`)
-	// 日期类型
-	dateRegexp = regexp.MustCompile(`(?i)date`)
-	// 时间类型
-	timeRegexp = regexp.MustCompile(`(?i)time`)
-
-	converter = new(DataConverter)
-)
-
-type DataConverter struct {
-}
-
-func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
-	if numberRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeNumber
-	}
-	// 日期时间类型
-	if datetimeRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeDateTime
-	}
-	// 日期类型
-	if dateRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeDate
-	}
-	// 时间类型
-	if timeRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeTime
-	}
-	return dbi.DataTypeString
-}
-
-func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
-	str := fmt.Sprintf("%v", dbColumnValue)
-	switch dataType {
-	case dbi.DataTypeDateTime: // "2024-01-02T22:16:28.545377+08:00"
-		res, _ := time.Parse(time.RFC3339, str)
-		return res.Format(time.DateTime)
-	case dbi.DataTypeDate: //  "2024-01-02T00:00:00Z"
-		res, _ := time.Parse(time.RFC3339, str)
-		return res.Format(time.DateOnly)
-	case dbi.DataTypeTime: // "0000-01-01T22:16:28.545075+08:00"
-		res, _ := time.Parse(time.RFC3339, str)
-		return res.Format(time.TimeOnly)
-	}
-	return anyx.ConvString(dbColumnValue)
-}
-
-func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
-	// 如果dataType是datetime而dbColumnValue是string类型，则需要转换为time.Time类型
-	_, ok := dbColumnValue.(string)
-	if dataType == dbi.DataTypeDateTime && ok {
-		res, _ := time.Parse(time.RFC3339, anyx.ToString(dbColumnValue))
-		return res
-	}
-	if dataType == dbi.DataTypeDate && ok {
-		res, _ := time.Parse(time.DateOnly, anyx.ToString(dbColumnValue))
-		return res
-	}
-	if dataType == dbi.DataTypeTime && ok {
-		res, _ := time.Parse(time.TimeOnly, anyx.ToString(dbColumnValue))
-		return res
-	}
-	return dbColumnValue
 }
 
 func (pd *PgsqlDialect) IsGauss() bool {

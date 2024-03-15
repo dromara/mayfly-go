@@ -8,6 +8,7 @@ import (
 	"mayfly-go/pkg/utils/anyx"
 	"regexp"
 	"strings"
+	"time"
 )
 
 const (
@@ -17,6 +18,8 @@ const (
 )
 
 type SqliteMetaData struct {
+	dbi.DefaultMetaData
+
 	dc *dbi.DbConn
 }
 
@@ -175,4 +178,50 @@ func (sd *SqliteMetaData) GetTableDDL(tableName string) (string, error) {
 
 func (sd *SqliteMetaData) GetSchemas() ([]string, error) {
 	return nil, nil
+}
+
+func (sd *SqliteMetaData) GetDataConverter() dbi.DataConverter {
+	return converter
+}
+
+var (
+	// 数字类型
+	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit|real`)
+	// 日期时间类型
+	datetimeRegexp = regexp.MustCompile(`(?i)datetime`)
+
+	converter = new(DataConverter)
+)
+
+type DataConverter struct {
+}
+
+func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
+	if numberRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeNumber
+	}
+	if datetimeRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeDateTime
+	}
+	return dbi.DataTypeString
+}
+
+func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
+	str := anyx.ToString(dbColumnValue)
+	switch dataType {
+	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
+		res, _ := time.Parse(time.RFC3339, str)
+		return res.Format(time.DateTime)
+	case dbi.DataTypeDate: // "2024-01-02T00:00:00+08:00"
+		res, _ := time.Parse(time.RFC3339, str)
+		return res.Format(time.DateOnly)
+	case dbi.DataTypeTime: // "0000-01-01T22:08:22.275688+08:00"
+		res, _ := time.Parse(time.RFC3339, str)
+		return res.Format(time.TimeOnly)
+	}
+	return str
+}
+
+func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
+	return dbColumnValue
 }

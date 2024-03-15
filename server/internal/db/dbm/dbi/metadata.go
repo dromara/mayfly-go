@@ -10,6 +10,8 @@ import (
 
 // 元数据接口（表、列、等元信息）
 type MetaData interface {
+	BaseMetaData
+
 	// 获取数据库服务实例信息
 	GetDbServer() (*DbServer, error)
 
@@ -32,6 +34,9 @@ type MetaData interface {
 	GetTableDDL(tableName string) (string, error)
 
 	GetSchemas() ([]string, error)
+
+	// 获取数据转换器用于解析格式化列数据等
+	GetDataConverter() DataConverter
 }
 
 // 数据库服务实例信息
@@ -72,6 +77,29 @@ type Index struct {
 	IndexComment string `json:"indexComment"` // 备注
 	SeqInIndex   int    `json:"seqInIndex"`
 	IsUnique     bool   `json:"isUnique"`
+}
+
+type DataType string
+
+const (
+	DataTypeString   DataType = "string"
+	DataTypeNumber   DataType = "number"
+	DataTypeDate     DataType = "date"
+	DataTypeTime     DataType = "time"
+	DataTypeDateTime DataType = "datetime"
+)
+
+// 数据转换器
+type DataConverter interface {
+	// 获取数据对应的类型
+	// @param dbColumnType 数据库原始列类型，如varchar等
+	GetDataType(dbColumnType string) DataType
+
+	// 根据数据类型格式化指定数据
+	FormatData(dbColumnValue any, dataType DataType) string
+
+	// 根据数据类型解析数据为符合要求的指定类型等
+	ParseData(dbColumnValue any, dataType DataType) any
 }
 
 // ------------------------- 元数据sql操作 -------------------------

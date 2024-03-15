@@ -152,18 +152,6 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 			return nil, errorx.NewBiz("数据库实例不存在")
 		}
 
-		checkDb := dbName
-		// 兼容pgsql/dm db/schema模式
-		if dbi.DbTypePostgres.Equal(instance.Type) || dbi.DbTypeGauss.Equal(instance.Type) || dbi.DbTypeDM.Equal(instance.Type) || dbi.DbTypeOracle.Equal(instance.Type) || dbi.DbTypeMssql.Equal(instance.Type) || dbi.DbTypeKingbaseEs.Equal(instance.Type) || dbi.DbTypeVastbase.Equal(instance.Type) {
-			ss := strings.Split(dbName, "/")
-			if len(ss) > 1 {
-				checkDb = ss[0]
-			}
-		}
-		if !strings.Contains(" "+db.Database+" ", " "+checkDb+" ") {
-			return nil, errorx.NewBiz("未配置数据库【%s】的操作权限", dbName)
-		}
-
 		// 密码解密
 		if err := instance.PwdDecrypt(); err != nil {
 			return nil, errorx.NewBiz(err.Error())
@@ -171,6 +159,11 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 		di := toDbInfo(instance, dbId, dbName, d.tagApp.ListTagPathByResource(consts.TagResourceTypeDb, db.Code)...)
 		if db.FlowProcdefKey != nil {
 			di.FlowProcdefKey = *db.FlowProcdefKey
+		}
+
+		checkDb := di.GetDatabase()
+		if !strings.Contains(" "+db.Database+" ", " "+checkDb+" ") {
+			return nil, errorx.NewBiz("未配置数据库【%s】的操作权限", dbName)
 		}
 
 		return di, nil
@@ -188,7 +181,7 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 		return nil, errorx.NewBiz("获取数据库列表失败")
 	}
 	if len(dbs) == 0 {
-		return nil, errorx.NewBiz("该实例未配置数据库, 请先进行配置")
+		return nil, errorx.NewBiz("实例[%d]未配置数据库, 请先进行配置", instanceId)
 	}
 
 	// 使用该实例关联的已配置数据库中的第一个库进行连接并返回

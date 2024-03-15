@@ -23,4 +23,8 @@ type Meta interface {
 
 	// 获取数据库方言
 	GetDialect(*DbConn) Dialect
+
+	// 获取元数据信息接口
+	// @param *DbConn 数据库连接， 若一些元数据接口（如 GetIdentifierQuoteString）不需要DbConn，则可以传nil
+	GetMetaData(*DbConn) *MetaDataX
 }

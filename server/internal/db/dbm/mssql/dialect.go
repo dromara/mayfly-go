@@ -5,19 +5,13 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
-	"regexp"
 	"strings"
 	"time"
 )
 
 type MssqlDialect struct {
 	dc *dbi.DbConn
-}
-
-func (md *MssqlDialect) GetMetaData() dbi.MetaData {
-	return &MssqlMetaData{dc: md.dc}
 }
 
 // GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
@@ -35,12 +29,12 @@ func (md *MssqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 }
 
 func (md *MssqlDialect) batchInsertSimple(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error) {
-	msMetadata := md.GetMetaData().(*MssqlMetaData)
+	msMetadata := md.dc.GetMetaData()
 	schema := md.dc.Info.CurrentSchema()
 	ignoreDupSql := ""
 	if duplicateStrategy == dbi.DuplicateStrategyIgnore {
 		// ALTER TABLE dbo.TEST ADD CONSTRAINT uniqueRows UNIQUE (ColA, ColB, ColC, ColD) WITH (IGNORE_DUP_KEY = ON)
-		indexs, _ := msMetadata.getTableIndexWithPK(tableName)
+		indexs, _ := msMetadata.MetaData.(*MssqlMetaData).getTableIndexWithPK(tableName)
 		// 收集唯一索引涉及到的字段
 		uniqueColumns := make([]string, 0)
 		for _, index := range indexs {
@@ -71,7 +65,7 @@ func (md *MssqlDialect) batchInsertSimple(tx *sql.Tx, tableName string, columns 
 	// 去除最后一个逗号
 	placeholder = strings.TrimSuffix(repeated, ",")
 
-	baseTable := fmt.Sprintf("%s.%s", md.dc.Info.Type.QuoteIdentifier(schema), md.dc.Info.Type.QuoteIdentifier(tableName))
+	baseTable := fmt.Sprintf("%s.%s", msMetadata.QuoteIdentifier(schema), msMetadata.QuoteIdentifier(tableName))
 
 	sqlStr := fmt.Sprintf("insert into %s (%s) values %s", baseTable, strings.Join(columns, ","), placeholder)
 	// 执行批量insert sql
@@ -94,9 +88,8 @@ func (md *MssqlDialect) batchInsertSimple(tx *sql.Tx, tableName string, columns 
 }
 
 func (md *MssqlDialect) batchInsertMerge(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error) {
-	msMetadata := md.GetMetaData().(*MssqlMetaData)
+	msMetadata := md.dc.GetMetaData()
 	schema := md.dc.Info.CurrentSchema()
-	dbType := md.dc.Info.Type
 
 	// 收集MERGE 语句的 ON 子句条件
 	caseSqls := make([]string, 0)
@@ -111,7 +104,7 @@ func (md *MssqlDialect) batchInsertMerge(tx *sql.Tx, tableName string, columns [
 		}
 		if col.IsPrimaryKey {
 			pkCols = append(pkCols, col.ColumnName)
-			name := dbType.QuoteIdentifier(col.ColumnName)
+			name := msMetadata.QuoteIdentifier(col.ColumnName)
 			caseSqls = append(caseSqls, fmt.Sprintf(" T1.%s = T2.%s ", name, name))
 		}
 	}
@@ -125,7 +118,7 @@ func (md *MssqlDialect) batchInsertMerge(tx *sql.Tx, tableName string, columns [
 	// 源数据占位sql
 	phs := make([]string, 0)
 	for _, column := range columns {
-		if !collx.ArrayContains(identityCols, dbType.RemoveQuote(column)) {
+		if !collx.ArrayContains(identityCols, msMetadata.RemoveQuote(column)) {
 			upds = append(upds, fmt.Sprintf("T1.%s = T2.%s", column, column))
 		}
 		insertCols = append(insertCols, fmt.Sprintf("%s", column))
@@ -143,7 +136,7 @@ func (md *MssqlDialect) batchInsertMerge(tx *sql.Tx, tableName string, columns [
 	}
 	t2 := strings.Join(t2s, " UNION ALL ")
 
-	sqlTemp := "MERGE INTO " + dbType.QuoteIdentifier(schema) + "." + dbType.QuoteIdentifier(tableName) + " T1 USING (" + t2 + ") T2 ON " + strings.Join(caseSqls, " AND ")
+	sqlTemp := "MERGE INTO " + msMetadata.QuoteIdentifier(schema) + "." + msMetadata.QuoteIdentifier(tableName) + " T1 USING (" + t2 + ") T2 ON " + strings.Join(caseSqls, " AND ")
 	sqlTemp += "WHEN NOT MATCHED THEN INSERT (" + strings.Join(insertCols, ",") + ") VALUES (" + strings.Join(insertVals, ",") + ") "
 	sqlTemp += "WHEN MATCHED THEN UPDATE SET " + strings.Join(upds, ",")
 
@@ -159,69 +152,8 @@ func (md *MssqlDialect) batchInsertMerge(tx *sql.Tx, tableName string, columns [
 	return res, err
 }
 
-func (md *MssqlDialect) GetDataConverter() dbi.DataConverter {
-	return converter
-}
-
-var (
-	// 数字类型
-	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
-	// 日期时间类型
-	datetimeRegexp = regexp.MustCompile(`(?i)datetime|timestamp`)
-	// 日期类型
-	dateRegexp = regexp.MustCompile(`(?i)date`)
-	// 时间类型
-	timeRegexp = regexp.MustCompile(`(?i)time`)
-
-	converter = new(DataConverter)
-)
-
-type DataConverter struct {
-}
-
-func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
-	if numberRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeNumber
-	}
-	// 日期时间类型
-	if datetimeRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeDateTime
-	}
-	// 日期类型
-	if dateRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeDate
-	}
-	// 时间类型
-	if timeRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeTime
-	}
-	return dbi.DataTypeString
-}
-
-func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
-	return anyx.ToString(dbColumnValue)
-}
-
-func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
-	// 如果dataType是datetime而dbColumnValue是string类型，则需要转换为time.Time类型
-	_, ok := dbColumnValue.(string)
-	if dataType == dbi.DataTypeDateTime && ok {
-		res, _ := time.Parse(time.RFC3339, anyx.ToString(dbColumnValue))
-		return res
-	}
-	if dataType == dbi.DataTypeDate && ok {
-		res, _ := time.Parse(time.DateOnly, anyx.ToString(dbColumnValue))
-		return res
-	}
-	if dataType == dbi.DataTypeTime && ok {
-		res, _ := time.Parse(time.TimeOnly, anyx.ToString(dbColumnValue))
-		return res
-	}
-	return dbColumnValue
-}
-
 func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
-	msMetadata := md.GetMetaData().(*MssqlMetaData)
+	msMetadata := md.dc.GetMetaData().MetaData.(*MssqlMetaData)
 	schema := md.dc.Info.CurrentSchema()
 
 	// 生成新表名,为老表明+_copy_时间戳

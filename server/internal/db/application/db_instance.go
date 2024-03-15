@@ -152,13 +152,12 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 
 func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance) ([]string, error) {
 	ed.Network = ed.GetNetwork()
-	metaDb := dbi.ToDbType(ed.Type).MetaDbName()
 
-	dbConn, err := dbm.Conn(toDbInfo(ed, 0, metaDb, ""))
+	dbConn, err := dbm.Conn(toDbInfo(ed, 0, "", ""))
 	if err != nil {
 		return nil, err
 	}
 	defer dbConn.Close()
 
-	return dbConn.GetDialect().GetMetaData().GetDbNames()
+	return dbConn.GetMetaData().GetDbNames()
 }

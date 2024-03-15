@@ -45,9 +45,6 @@ func (md *PostgresMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	db := d.Database
 	var dbParam string
 	existSchema := false
-	if db == "" {
-		db = d.Type.MetaDbName()
-	}
 	// postgres database可以使用db/schema表示，方便连接指定schema, 若不存在schema则使用默认schema
 	ss := strings.Split(db, "/")
 	if len(ss) > 1 {
@@ -84,8 +81,12 @@ func (md *PostgresMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	return sql.Open(driverName, dsn)
 }
 
-func (md *PostgresMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
-	return &PgsqlDialect{conn}
+func (pm *PostgresMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
+	return &PgsqlDialect{dc: conn}
+}
+
+func (pm *PostgresMeta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
+	return dbi.NewMetaDataX(&PgsqlMetaData{dc: conn})
 }
 
 // pgsql dialer

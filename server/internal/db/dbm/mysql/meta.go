@@ -40,5 +40,9 @@ func (md *MysqlMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 }
 
 func (md *MysqlMeta) GetDialect(conn *dbi.DbConn) dbi.Dialect {
-	return &MysqlDialect{conn}
+	return &MysqlDialect{dc: conn}
+}
+
+func (md *MysqlMeta) GetMetaData(conn *dbi.DbConn) *dbi.MetaDataX {
+	return dbi.NewMetaDataX(&MysqlMetaData{dc: conn})
 }

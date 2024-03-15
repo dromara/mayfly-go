@@ -127,6 +127,11 @@ func (d *DbConn) GetDialect() Dialect {
 	return d.Info.Meta.GetDialect(d)
 }
 
+// 获取数据库MetaData
+func (d *DbConn) GetMetaData() *MetaDataX {
+	return d.Info.Meta.GetMetaData(d)
+}
+
 // 返回数据库连接状态
 func (d *DbConn) Stats(ctx context.Context, execSql string, args ...any) sql.DBStats {
 	return d.db.Stats()
