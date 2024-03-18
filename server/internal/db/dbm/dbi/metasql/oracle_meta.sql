@@ -15,6 +15,9 @@ from ALL_TABLES a
          left join ALL_OBJECTS c on c.OBJECT_TYPE = 'TABLE' AND c.OWNER = a.OWNER AND c.OBJECT_NAME = a.TABLE_NAME
          left join dba_segments d on d.SEGMENT_TYPE = 'TABLE' AND d.OWNER = a.OWNER AND d.SEGMENT_NAME = a.TABLE_NAME
 where a.owner = (SELECT sys_context('USERENV', 'CURRENT_SCHEMA') FROM dual)
+{{if .tableNames}}
+    and a.TABLE_NAME in ({{.tableNames}})
+{{end}}
 ORDER BY a.TABLE_NAME
 ---------------------------------------
 --ORACLE_INDEX_INFO 表索引信息

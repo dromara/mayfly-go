@@ -6,6 +6,7 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"regexp"
 	"strings"
 	"time"
@@ -13,12 +14,11 @@ import (
 
 // ---------------------------------- DM元数据 -----------------------------------
 const (
-	ORACLE_META_FILE               = "metasql/oracle_meta.sql"
-	ORACLE_DB_SCHEMAS              = "ORACLE_DB_SCHEMAS"
-	ORACLE_TABLE_INFO_KEY          = "ORACLE_TABLE_INFO"
-	ORACLE_TABLE_INFO_BY_NAMES_KEY = "ORACLE_TABLE_INFO_BY_NAMES"
-	ORACLE_INDEX_INFO_KEY          = "ORACLE_INDEX_INFO"
-	ORACLE_COLUMN_MA_KEY           = "ORACLE_COLUMN_MA"
+	ORACLE_META_FILE      = "metasql/oracle_meta.sql"
+	ORACLE_DB_SCHEMAS     = "ORACLE_DB_SCHEMAS"
+	ORACLE_TABLE_INFO_KEY = "ORACLE_TABLE_INFO"
+	ORACLE_INDEX_INFO_KEY = "ORACLE_INDEX_INFO"
+	ORACLE_COLUMN_MA_KEY  = "ORACLE_COLUMN_MA"
 )
 
 type OracleMetaData struct {
@@ -61,11 +61,12 @@ func (od *OracleMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	if tableNames != nil || len(tableNames) > 0 {
-		_, res, err = od.dc.Query(fmt.Sprintf(dbi.GetLocalSql(ORACLE_META_FILE, ORACLE_TABLE_INFO_BY_NAMES_KEY), names))
-	} else {
-		_, res, err = od.dc.Query(dbi.GetLocalSql(ORACLE_META_FILE, ORACLE_TABLE_INFO_KEY))
+	sql, err := stringx.TemplateParse(dbi.GetLocalSql(ORACLE_META_FILE, ORACLE_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	if err != nil {
+		return nil, err
 	}
+
+	_, res, err = od.dc.Query(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +131,7 @@ func (od *OracleMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 			IsPrimaryKey:  anyx.ConvInt(re["IS_PRIMARY_KEY"]) == 1,
 			IsIdentity:    anyx.ConvInt(re["IS_IDENTITY"]) == 1,
 			ColumnDefault: defaultVal,
-			NumScale:      anyx.ConvString(re["NUM_SCALE"]),
+			NumScale:      anyx.ConvInt(re["NUM_SCALE"]),
 		})
 	}
 	return columns, nil
@@ -286,7 +287,7 @@ var (
 	converter = new(DataConverter)
 
 	// oracle数据类型 映射 公共数据类型
-	commonColumnTypeMap = map[string]string{
+	commonColumnTypeMap = map[string]dbi.ColumnDataType{
 		"CHAR":          dbi.CommonTypeChar,
 		"NCHAR":         dbi.CommonTypeChar,
 		"VARCHAR2":      dbi.CommonTypeVarchar,
@@ -309,7 +310,7 @@ var (
 	}
 
 	// 公共数据类型 映射 oracle数据类型
-	oracleColumnTypeMap = map[string]string{
+	oracleColumnTypeMap = map[dbi.ColumnDataType]string{
 		dbi.CommonTypeVarchar:    "NVARCHAR2",
 		dbi.CommonTypeChar:       "NCHAR",
 		dbi.CommonTypeText:       "CLOB",

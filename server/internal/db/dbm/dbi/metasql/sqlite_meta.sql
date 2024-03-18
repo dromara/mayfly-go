@@ -8,19 +8,9 @@ select tbl_name as tableName,
 FROM sqlite_master
 WHERE type = 'table'
   and name not like 'sqlite_%'
-ORDER BY tbl_name
----------------------------------------
---SQLITE_TABLE_INFO_BY_NAMES 表详细信息
-select tbl_name as tableName,
-       ''       as tableComment,
-       ''       as createTime,
-       0        as dataLength,
-       0        as indexLength,
-       0        as tableRows
-FROM sqlite_master
-WHERE type = 'table'
-  and name not like 'sqlite_%'
-  and tbl_name in (%s)
+    {{if .tableNames}}
+        and tbl_name in ({{.tableNames}})
+    {{end}}
 ORDER BY tbl_name
 ---------------------------------------
 --SQLITE_INDEX_INFO 表索引信息

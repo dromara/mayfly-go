@@ -19,25 +19,9 @@ FROM
   information_schema.tables
 WHERE
   table_type = 'BASE TABLE'
-  AND table_schema = (
-    SELECT
-      database ()
-  )
-ORDER BY table_name
----------------------------------------
---MYSQL_TABLE_INFO_BY_NAMES 表详细信息
-SELECT
-  table_name tableName,
-  table_comment tableComment,
-  table_rows tableRows,
-  data_length dataLength,
-  index_length indexLength,
-  create_time createTime
-FROM
-  information_schema.tables
-WHERE
-  table_type = 'BASE TABLE'
-  AND table_name IN (%s)
+    {{if .tableNames}}
+        AND table_name IN ({{.tableNames}})
+    {{end}}
   AND table_schema = (
     SELECT
       database ()
@@ -68,6 +52,7 @@ ORDER BY
 SELECT table_name     tableName,
        column_name    columnName,
        column_type    columnType,
+       data_type      dataType,
        column_default columnDefault,
        column_comment columnComment,
        CASE
@@ -81,7 +66,9 @@ SELECT table_name     tableName,
            ELSE 0
            END AS     isIdentity,
        is_nullable    nullable,
-       NUMERIC_SCALE  numScale
+       CHARACTER_MAXIMUM_LENGTH charMaxLength,
+       NUMERIC_SCALE  numScale,
+       NUMERIC_PRECISION numPrecision
 FROM information_schema.COLUMNS
 WHERE table_schema = (SELECT DATABASE())
   AND table_name IN (%s)

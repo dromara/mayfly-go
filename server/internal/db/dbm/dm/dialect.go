@@ -16,12 +16,9 @@ import (
 )
 
 type DMDialect struct {
-	dc *dbi.DbConn
-}
+	dbi.DefaultDialect
 
-// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (dd *DMDialect) GetDbProgram() (dbi.DbProgram, error) {
-	return nil, fmt.Errorf("该数据库类型不支持数据库备份与恢复: %v", dd.dc.Info.Type)
+	dc *dbi.DbConn
 }
 
 func (dd *DMDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error) {
@@ -168,28 +165,28 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-func (dd *DMDialect) TransColumns(columns []dbi.Column) []dbi.Column {
-	var commonColumns []dbi.Column
-	for _, column := range columns {
-		// 取出当前数据库类型
-		arr := strings.Split(column.ColumnType, "(")
-		ctype := arr[0]
+// func (dd *DMDialect) TransColumns(columns []dbi.Column) []dbi.Column {
+// 	var commonColumns []dbi.Column
+// 	for _, column := range columns {
+// 		// 取出当前数据库类型
+// 		arr := strings.Split(column.ColumnType, "(")
+// 		ctype := arr[0]
 
-		// 翻译为通用数据库类型
-		t1 := commonColumnMap[ctype]
-		if t1 == "" {
-			ctype = "VARCHAR(2000)"
-		} else {
-			// 回写到列信息
-			if len(arr) > 1 {
-				ctype = t1 + "(" + arr[1]
-			}
-		}
-		column.ColumnType = ctype
-		commonColumns = append(commonColumns, column)
-	}
-	return commonColumns
-}
+// 		// 翻译为通用数据库类型
+// 		t1 := commonColumnMap[ctype]
+// 		if t1 == "" {
+// 			ctype = "VARCHAR(2000)"
+// 		} else {
+// 			// 回写到列信息
+// 			if len(arr) > 1 {
+// 				ctype = t1 + "(" + arr[1]
+// 			}
+// 		}
+// 		column.ColumnType = ctype
+// 		commonColumns = append(commonColumns, column)
+// 	}
+// 	return commonColumns
+// }
 
 func (dd *DMDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
 	meta := dd.dc.GetMetaData()
@@ -210,7 +207,7 @@ func (dd *DMDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table
 		arr := strings.Split(column.ColumnType, "(")
 		ctype := arr[0]
 		// 翻译为通用数据库类型
-		t1 := dmColumnMap[ctype]
+		t1 := dmColumnMap[dbi.ColumnDataType(ctype)]
 		if t1 == "" {
 			ctype = "VARCHAR(2000)"
 		} else {

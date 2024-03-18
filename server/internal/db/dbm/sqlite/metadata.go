@@ -7,16 +7,16 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"regexp"
 	"strings"
 	"time"
 )
 
 const (
-	SQLITE_META_FILE               = "metasql/sqlite_meta.sql"
-	SQLITE_TABLE_INFO_KEY          = "SQLITE_TABLE_INFO"
-	SQLITE_INDEX_INFO_KEY          = "SQLITE_INDEX_INFO"
-	SQLITE_TABLE_INFO_BY_NAMES_KEY = "SQLITE_TABLE_INFO_BY_NAMES"
+	SQLITE_META_FILE      = "metasql/sqlite_meta.sql"
+	SQLITE_TABLE_INFO_KEY = "SQLITE_TABLE_INFO"
+	SQLITE_INDEX_INFO_KEY = "SQLITE_INDEX_INFO"
 )
 
 type SqliteMetaData struct {
@@ -58,14 +58,16 @@ func (sd *SqliteMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	if tableNames != nil || len(tableNames) > 0 {
-		_, res, err = sd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(SQLITE_META_FILE, SQLITE_TABLE_INFO_BY_NAMES_KEY), names))
-	} else {
-		_, res, err = sd.dc.Query(dbi.GetLocalSql(SQLITE_META_FILE, SQLITE_TABLE_INFO_KEY))
-	}
+	sql, err := stringx.TemplateParse(dbi.GetLocalSql(SQLITE_META_FILE, SQLITE_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
+
+	_, res, err = sd.dc.Query(sql)
+	if err != nil {
+		return nil, err
+	}
+
 	tables := make([]dbi.Table, 0)
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
@@ -111,7 +113,7 @@ func (sd *SqliteMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 				IsPrimaryKey:  anyx.ConvInt(re["pk"]) == 1,
 				IsIdentity:    anyx.ConvInt(re["pk"]) == 1,
 				ColumnDefault: defaultValue,
-				NumScale:      "0",
+				NumScale:      0,
 			})
 		}
 	}
@@ -204,7 +206,7 @@ var (
 	converter = new(DataConverter)
 
 	//  sqlite数据类型 映射 公共数据类型
-	commonColumnTypeMap = map[string]string{
+	commonColumnTypeMap = map[string]dbi.ColumnDataType{
 		"int":               dbi.CommonTypeInt,
 		"integer":           dbi.CommonTypeInt,
 		"tinyint":           dbi.CommonTypeTinyint,
@@ -234,7 +236,7 @@ var (
 	}
 
 	//  公共数据类型 映射 sqlite数据类型
-	sqliteColumnTypeMap = map[string]string{
+	sqliteColumnTypeMap = map[dbi.ColumnDataType]string{
 		dbi.CommonTypeVarchar:    "nvarchar",
 		dbi.CommonTypeChar:       "nchar",
 		dbi.CommonTypeText:       "text",

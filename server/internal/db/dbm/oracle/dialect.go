@@ -14,12 +14,9 @@ import (
 )
 
 type OracleDialect struct {
-	dc *dbi.DbConn
-}
+	dbi.DefaultDialect
 
-// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (od *OracleDialect) GetDbProgram() (dbi.DbProgram, error) {
-	return nil, fmt.Errorf("该数据库类型不支持数据库备份与恢复: %v", od.dc.Info.Type)
+	dc *dbi.DbConn
 }
 
 func (od *OracleDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error) {
@@ -159,37 +156,37 @@ func (od *OracleDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-func (od *OracleDialect) TransColumns(columns []dbi.Column) []dbi.Column {
-	var commonColumns []dbi.Column
-	for _, column := range columns {
-		// 取出当前数据库类型
-		arr := strings.Split(column.ColumnType, "(")
-		ctype := arr[0]
+// func (od *OracleDialect) TransColumns(columns []dbi.Column) []dbi.Column {
+// 	var commonColumns []dbi.Column
+// 	for _, column := range columns {
+// 		// 取出当前数据库类型
+// 		arr := strings.Split(column.ColumnType, "(")
+// 		ctype := arr[0]
 
-		// 翻译为通用数据库类型
-		t1 := commonColumnTypeMap[ctype]
-		if t1 == "" {
-			ctype = "NVARCHAR2(2000)"
-		} else {
-			// 回写到列信息
-			if t1 == "NUMBER" {
-				// 如果是转number类型，需要根据公共类型加上长度, 如 bigint 需要转换为number(19,0)
-				if column.ColumnType == dbi.CommonTypeBigint {
-					ctype = t1 + "(19, 0)"
-				} else {
-					ctype = t1
-				}
-			} else if t1 != "NUMBER" && len(arr) > 1 {
-				ctype = t1 + "(" + arr[1]
-			} else {
-				ctype = t1
-			}
-		}
-		column.ColumnType = ctype
-		commonColumns = append(commonColumns, column)
-	}
-	return commonColumns
-}
+// 		// 翻译为通用数据库类型
+// 		t1 := commonColumnTypeMap[ctype]
+// 		if t1 == "" {
+// 			ctype = "NVARCHAR2(2000)"
+// 		} else {
+// 			// 回写到列信息
+// 			if t1 == "NUMBER" {
+// 				// 如果是转number类型，需要根据公共类型加上长度, 如 bigint 需要转换为number(19,0)
+// 				if column.ColumnType == dbi.CommonTypeBigint {
+// 					ctype = t1 + "(19, 0)"
+// 				} else {
+// 					ctype = t1
+// 				}
+// 			} else if t1 != "NUMBER" && len(arr) > 1 {
+// 				ctype = t1 + "(" + arr[1]
+// 			} else {
+// 				ctype = t1
+// 			}
+// 		}
+// 		column.ColumnType = ctype
+// 		commonColumns = append(commonColumns, column)
+// 	}
+// 	return commonColumns
+// }
 
 func (od *OracleDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
 	meta := od.dc.GetMetaData()
@@ -220,7 +217,7 @@ end;
 		arr := strings.Split(column.ColumnType, "(")
 		ctype := arr[0]
 		// 翻译为通用数据库类型
-		t1 := oracleColumnTypeMap[ctype]
+		t1 := oracleColumnTypeMap[dbi.ColumnDataType(ctype)]
 		if t1 == "" {
 			ctype = "NVARCHAR2(2000)"
 		} else {

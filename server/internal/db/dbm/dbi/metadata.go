@@ -2,6 +2,7 @@ package dbi
 
 import (
 	"embed"
+	"fmt"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
@@ -57,16 +58,30 @@ type Table struct {
 
 // 表的列信息
 type Column struct {
-	TableName     string  `json:"tableName"`     // 表名
-	ColumnName    string  `json:"columnName"`    // 列名
-	ColumnType    string  `json:"columnType"`    // 列类型
-	ColumnComment string  `json:"columnComment"` // 列备注
-	IsPrimaryKey  bool    `json:"isPrimaryKey"`  // 是否为主键
-	IsIdentity    bool    `json:"isIdentity"`    // 是否自增
-	ColumnDefault string  `json:"columnDefault"` // 默认值
-	Nullable      string  `json:"nullable"`      // 是否可为null
-	NumScale      string  `json:"numScale"`      // 小数点
-	Extra         collx.M `json:"extra"`         // 其他额外信息
+	TableName     string         `json:"tableName"`     // 表名
+	ColumnName    string         `json:"columnName"`    // 列名
+	ColumnType    string         `json:"columnType"`    // 列类型,包含类型等描述（后续移除）
+	DataType      ColumnDataType `json:"dataType"`      // 数据类型
+	ColumnComment string         `json:"columnComment"` // 列备注
+	IsPrimaryKey  bool           `json:"isPrimaryKey"`  // 是否为主键
+	IsIdentity    bool           `json:"isIdentity"`    // 是否自增
+	ColumnDefault string         `json:"columnDefault"` // 默认值
+	Nullable      string         `json:"nullable"`      // 是否可为null
+	CharMaxLength int            `json:"charMaxLength"` // 字符最大长度
+	NumPrecision  int            `json:"numPrecision"`  // 精度(总数字位数)
+	NumScale      int            `json:"numScale"`      // 小数点位数
+	Extra         collx.M        `json:"extra"`         // 其他额外信息
+}
+
+// 获取列类型，拼接数据类型与长度等。如varchar(2000)，decimal(20,2)
+func (c *Column) GetColumnType() string {
+	if c.CharMaxLength > 0 {
+		return fmt.Sprintf("%s(%d)", c.DataType, c.CharMaxLength)
+	}
+	if c.NumPrecision > 0 {
+		return fmt.Sprintf("%s(%d,%d)", c.DataType, c.NumPrecision, c.NumScale)
+	}
+	return string(c.DataType)
 }
 
 // 表索引信息
@@ -78,6 +93,35 @@ type Index struct {
 	SeqInIndex   int    `json:"seqInIndex"`
 	IsUnique     bool   `json:"isUnique"`
 }
+
+type ColumnDataType string
+
+const (
+	CommonTypeVarchar    ColumnDataType = "varchar"
+	CommonTypeChar       ColumnDataType = "char"
+	CommonTypeText       ColumnDataType = "text"
+	CommonTypeBlob       ColumnDataType = "blob"
+	CommonTypeLongblob   ColumnDataType = "longblob"
+	CommonTypeLongtext   ColumnDataType = "longtext"
+	CommonTypeBinary     ColumnDataType = "binary"
+	CommonTypeMediumblob ColumnDataType = "mediumblob"
+	CommonTypeMediumtext ColumnDataType = "mediumtext"
+	CommonTypeVarbinary  ColumnDataType = "varbinary"
+
+	CommonTypeInt      ColumnDataType = "int"
+	CommonTypeSmallint ColumnDataType = "smallint"
+	CommonTypeTinyint  ColumnDataType = "tinyint"
+	CommonTypeNumber   ColumnDataType = "number"
+	CommonTypeBigint   ColumnDataType = "bigint"
+
+	CommonTypeDatetime  ColumnDataType = "datetime"
+	CommonTypeDate      ColumnDataType = "date"
+	CommonTypeTime      ColumnDataType = "time"
+	CommonTypeTimestamp ColumnDataType = "timestamp"
+
+	CommonTypeEnum ColumnDataType = "enum"
+	CommonTypeJSON ColumnDataType = "json"
+)
 
 type DataType string
 

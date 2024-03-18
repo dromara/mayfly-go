@@ -2,33 +2,7 @@ package dbi
 
 import (
 	"database/sql"
-)
-
-const (
-	CommonTypeVarchar    string = "varchar"
-	CommonTypeChar       string = "char"
-	CommonTypeText       string = "text"
-	CommonTypeBlob       string = "blob"
-	CommonTypeLongblob   string = "longblob"
-	CommonTypeLongtext   string = "longtext"
-	CommonTypeBinary     string = "binary"
-	CommonTypeMediumblob string = "mediumblob"
-	CommonTypeMediumtext string = "mediumtext"
-	CommonTypeVarbinary  string = "varbinary"
-
-	CommonTypeInt      string = "int"
-	CommonTypeSmallint string = "smallint"
-	CommonTypeTinyint  string = "tinyint"
-	CommonTypeNumber   string = "number"
-	CommonTypeBigint   string = "bigint"
-
-	CommonTypeDatetime  string = "datetime"
-	CommonTypeDate      string = "date"
-	CommonTypeTime      string = "time"
-	CommonTypeTimestamp string = "timestamp"
-
-	CommonTypeEnum string = "enum"
-	CommonTypeJSON string = "json"
+	"errors"
 )
 
 const (
@@ -60,13 +34,36 @@ type Dialect interface {
 	// 拷贝表
 	CopyTable(copy *DbCopyTable) error
 
-	CreateTable(commonColumns []Column, tableInfo Table, dropOldTable bool) (int, error)
+	CreateTable(columns []Column, tableInfo Table, dropOldTable bool) (int, error)
 
 	CreateIndex(tableInfo Table, indexs []Index) error
 
-	// 把方言类型转换为通用类型
-	TransColumns(columns []Column) []Column
-
 	// 有些数据库迁移完数据之后，需要更新表自增序列为当前表最大值
 	UpdateSequence(tableName string, columns []Column)
+
+	// 数据库方言自带的列转换为公共列
+	ToCommonColumn(dialectColumn *Column)
+
+	// 公共列转为各个数据库方言自带的列
+	ToColumn(commonColumn *Column)
+}
+
+type DefaultDialect struct {
+}
+
+// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
+func (dd *DefaultDialect) GetDbProgram() (DbProgram, error) {
+	return nil, errors.New("not support db program")
+}
+
+func (dd *DefaultDialect) ToCommonColumn(dialectColumn *Column) {
+
+}
+
+func (dd *DefaultDialect) ToColumn(commonColumn *Column) {
+
+}
+
+func (dd *DefaultDialect) UpdateSequence(tableName string, columns []Column) {
+
 }

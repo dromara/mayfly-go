@@ -6,21 +6,21 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"regexp"
 	"strings"
 	"time"
 )
 
 const (
-	MSSQL_META_FILE               = "metasql/mssql_meta.sql"
-	MSSQL_DBS_KEY                 = "MSSQL_DBS"
-	MSSQL_DB_SCHEMAS_KEY          = "MSSQL_DB_SCHEMAS"
-	MSSQL_TABLE_INFO_KEY          = "MSSQL_TABLE_INFO"
-	MSSQL_TABLE_INFO_BY_NAMES_KEY = "MSSQL_TABLE_INFO_BY_NAMES"
-	MSSQL_INDEX_INFO_KEY          = "MSSQL_INDEX_INFO"
-	MSSQL_COLUMN_MA_KEY           = "MSSQL_COLUMN_MA"
-	MSSQL_TABLE_DETAIL_KEY        = "MSSQL_TABLE_DETAIL"
-	MSSQL_TABLE_INDEX_DDL_KEY     = "MSSQL_TABLE_INDEX_DDL"
+	MSSQL_META_FILE           = "metasql/mssql_meta.sql"
+	MSSQL_DBS_KEY             = "MSSQL_DBS"
+	MSSQL_DB_SCHEMAS_KEY      = "MSSQL_DB_SCHEMAS"
+	MSSQL_TABLE_INFO_KEY      = "MSSQL_TABLE_INFO"
+	MSSQL_INDEX_INFO_KEY      = "MSSQL_INDEX_INFO"
+	MSSQL_COLUMN_MA_KEY       = "MSSQL_COLUMN_MA"
+	MSSQL_TABLE_DETAIL_KEY    = "MSSQL_TABLE_DETAIL"
+	MSSQL_TABLE_INDEX_DDL_KEY = "MSSQL_TABLE_INDEX_DDL"
 )
 
 type MssqlMetaData struct {
@@ -64,13 +64,16 @@ func (md *MssqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 
 	var res []map[string]any
 	var err error
-
-	if tableNames != nil || len(tableNames) > 0 {
-		_, res, err = md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_TABLE_INFO_BY_NAMES_KEY), names), schema)
-	} else {
-		_, res, err = md.dc.Query(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_TABLE_INFO_KEY), schema)
+	if err != nil {
+		return nil, err
 	}
 
+	sql, err := stringx.TemplateParse(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	if err != nil {
+		return nil, err
+	}
+
+	_, res, err = md.dc.Query(sql, schema)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +115,7 @@ func (md *MssqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			IsPrimaryKey:  anyx.ConvInt(re["IS_PRIMARY_KEY"]) == 1,
 			IsIdentity:    anyx.ConvInt(re["IS_IDENTITY"]) == 1,
 			ColumnDefault: anyx.ToString(re["COLUMN_DEFAULT"]),
-			NumScale:      anyx.ToString(re["NUM_SCALE"]),
+			NumScale:      anyx.ConvInt(re["NUM_SCALE"]),
 		})
 	}
 	return columns, nil
@@ -314,7 +317,7 @@ var (
 	// 定义正则表达式，匹配括号内的数字
 	bracketsRegexp = regexp.MustCompile(`\((\d+)\)`)
 	// mssql数据类型 对应 公共数据类型
-	commonColumnTypeMap = map[string]string{
+	commonColumnTypeMap = map[string]dbi.ColumnDataType{
 		"bigint":           dbi.CommonTypeBigint,
 		"numeric":          dbi.CommonTypeNumber,
 		"bit":              dbi.CommonTypeInt,
@@ -353,7 +356,7 @@ var (
 
 	// 公共数据类型 对应 mssql数据类型
 
-	mssqlColumnTypeMap = map[string]string{
+	mssqlColumnTypeMap = map[dbi.ColumnDataType]string{
 		dbi.CommonTypeVarchar:    "nvarchar",
 		dbi.CommonTypeChar:       "nchar",
 		dbi.CommonTypeText:       "ntext",

@@ -7,6 +7,7 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"regexp"
 	"strings"
 	"time"
@@ -15,12 +16,11 @@ import (
 )
 
 const (
-	MYSQL_META_FILE               = "metasql/mysql_meta.sql"
-	MYSQL_DBS                     = "MYSQL_DBS"
-	MYSQL_TABLE_INFO_KEY          = "MYSQL_TABLE_INFO"
-	MYSQL_TABLE_INFO_BY_NAMES_KEY = "MYSQL_TABLE_INFO_BY_NAMES"
-	MYSQL_INDEX_INFO_KEY          = "MYSQL_INDEX_INFO"
-	MYSQL_COLUMN_MA_KEY           = "MYSQL_COLUMN_MA"
+	MYSQL_META_FILE      = "metasql/mysql_meta.sql"
+	MYSQL_DBS            = "MYSQL_DBS"
+	MYSQL_TABLE_INFO_KEY = "MYSQL_TABLE_INFO"
+	MYSQL_INDEX_INFO_KEY = "MYSQL_INDEX_INFO"
+	MYSQL_COLUMN_MA_KEY  = "MYSQL_COLUMN_MA"
 )
 
 type MysqlMetaData struct {
@@ -62,12 +62,12 @@ func (md *MysqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	if tableNames != nil || len(tableNames) > 0 {
-		_, res, err = md.dc.Query(fmt.Sprintf(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_BY_NAMES_KEY), names))
-	} else {
-		_, res, err = md.dc.Query(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_KEY))
+	sql, err := stringx.TemplateParse(dbi.GetLocalSql(MYSQL_META_FILE, MYSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	if err != nil {
+		return nil, err
 	}
 
+	_, res, err = md.dc.Query(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -104,12 +104,15 @@ func (md *MysqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			TableName:     anyx.ConvString(re["tableName"]),
 			ColumnName:    anyx.ConvString(re["columnName"]),
 			ColumnType:    strings.Replace(anyx.ConvString(re["columnType"]), " unsigned", "", 1),
+			DataType:      dbi.ColumnDataType(anyx.ConvString(re["dataType"])),
 			ColumnComment: anyx.ConvString(re["columnComment"]),
 			Nullable:      anyx.ConvString(re["nullable"]),
 			IsPrimaryKey:  anyx.ConvInt(re["isPrimaryKey"]) == 1,
 			IsIdentity:    anyx.ConvInt(re["isIdentity"]) == 1,
 			ColumnDefault: anyx.ConvString(re["columnDefault"]),
-			NumScale:      anyx.ConvString(re["numScale"]),
+			CharMaxLength: anyx.ConvInt(re["charMaxLength"]),
+			NumPrecision:  anyx.ConvInt(re["numPrecision"]),
+			NumScale:      anyx.ConvInt(re["numScale"]),
 		})
 	}
 	return columns, nil
@@ -215,7 +218,7 @@ var (
 	converter = new(DataConverter)
 
 	//  mysql数据类型 映射 公共数据类型
-	commonColumnTypeMap = map[string]string{
+	commonColumnTypeMap = map[string]dbi.ColumnDataType{
 		"bigint":     dbi.CommonTypeBigint,
 		"binary":     dbi.CommonTypeBinary,
 		"blob":       dbi.CommonTypeBlob,
@@ -243,7 +246,7 @@ var (
 	}
 
 	// 公共数据类型 映射 mysql数据类型
-	mysqlColumnTypeMap = map[string]string{
+	mysqlColumnTypeMap = map[dbi.ColumnDataType]string{
 		dbi.CommonTypeVarchar:    "varchar",
 		dbi.CommonTypeChar:       "char",
 		dbi.CommonTypeText:       "text",

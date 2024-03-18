@@ -11,12 +11,9 @@ import (
 )
 
 type SqliteDialect struct {
-	dc *dbi.DbConn
-}
+	dbi.DefaultDialect
 
-// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (sd *SqliteDialect) GetDbProgram() (dbi.DbProgram, error) {
-	return nil, fmt.Errorf("该数据库类型不支持数据库备份与恢复: %v", sd.dc.Info.Type)
+	dc *dbi.DbConn
 }
 
 func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error) {
@@ -91,29 +88,29 @@ func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-func (sd *SqliteDialect) TransColumns(columns []dbi.Column) []dbi.Column {
-	var commonColumns []dbi.Column
-	for _, column := range columns {
-		// 取出当前数据库类型
-		arr := strings.Split(column.ColumnType, "(")
-		ctype := arr[0]
-		// 翻译为通用数据库类型
-		t1 := commonColumnTypeMap[ctype]
-		if t1 == "" {
-			ctype = "varchar(2000)"
-		} else {
-			// 回写到列信息
-			if len(arr) > 1 {
-				ctype = t1 + "(" + arr[1]
-			} else {
-				ctype = t1
-			}
-		}
-		column.ColumnType = ctype
-		commonColumns = append(commonColumns, column)
-	}
-	return commonColumns
-}
+// func (sd *SqliteDialect) TransColumns(columns []dbi.Column) []dbi.Column {
+// 	var commonColumns []dbi.Column
+// 	for _, column := range columns {
+// 		// 取出当前数据库类型
+// 		arr := strings.Split(column.ColumnType, "(")
+// 		ctype := arr[0]
+// 		// 翻译为通用数据库类型
+// 		t1 := commonColumnTypeMap[ctype]
+// 		if t1 == "" {
+// 			ctype = "varchar(2000)"
+// 		} else {
+// 			// 回写到列信息
+// 			if len(arr) > 1 {
+// 				ctype = t1 + "(" + arr[1]
+// 			} else {
+// 				ctype = t1
+// 			}
+// 		}
+// 		column.ColumnType = ctype
+// 		commonColumns = append(commonColumns, column)
+// 	}
+// 	return commonColumns
+// }
 
 func (sd *SqliteDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
 	tbName := sd.dc.GetMetaData().QuoteIdentifier(tableInfo.TableName)
@@ -133,7 +130,7 @@ func (sd *SqliteDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.T
 		arr := strings.Split(column.ColumnType, "(")
 		ctype := arr[0]
 		// 翻译为通用数据库类型
-		t1 := sqliteColumnTypeMap[ctype]
+		t1 := sqliteColumnTypeMap[dbi.ColumnDataType(ctype)]
 		if t1 == "" {
 			ctype = "nvarchar(2000)"
 		} else {

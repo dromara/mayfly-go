@@ -162,12 +162,19 @@ func (app *dbTransferAppImpl) transferTables(task *entity.DbTransferTask, srcCon
 	ctx := context.Background()
 
 	for tbName, cols := range columnMap {
-		// 在目标库建表
-		// 把源列信息转化成公共列信息
-		commonColumns := srcDialect.TransColumns(cols)
+		targetCols := make([]dbi.Column, 0)
+		for _, col := range cols {
+			colPtr := &col
+			// 源库列转为公共列
+			srcDialect.ToCommonColumn(colPtr)
+			// 公共列转为目标库列
+			targetDialect.ToColumn(colPtr)
+			targetCols = append(targetCols, *colPtr)
+		}
+
 		// 通过公共列信息生成目标库的建表语句，并执行目标库建表
 		logx.Infof("开始创建目标表: 表名：%s", tbName)
-		_, err := targetDialect.CreateTable(commonColumns, tableMap[tbName], true)
+		_, err := targetDialect.CreateTable(targetCols, tableMap[tbName], true)
 		if err != nil {
 			end(fmt.Sprintf("创建目标表失败: 表名：%s, error: %s", tbName, err.Error()), err)
 			return
@@ -184,7 +191,7 @@ func (app *dbTransferAppImpl) transferTables(task *entity.DbTransferTask, srcCon
 		logx.Infof("迁移数据成功: 表名：%s, 数据：%d 条", tbName, total)
 
 		// 有些数据库迁移完数据之后，需要更新表自增序列为当前表最大值
-		targetDialect.UpdateSequence(tbName, commonColumns)
+		targetDialect.UpdateSequence(tbName, targetCols)
 
 		// 迁移索引信息
 		logx.Infof("开始迁移索引: 表名：%s", tbName)

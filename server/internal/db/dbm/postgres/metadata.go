@@ -6,19 +6,19 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"regexp"
 	"strings"
 	"time"
 )
 
 const (
-	PGSQL_META_FILE               = "metasql/pgsql_meta.sql"
-	PGSQL_DB_SCHEMAS              = "PGSQL_DB_SCHEMAS"
-	PGSQL_TABLE_INFO_KEY          = "PGSQL_TABLE_INFO"
-	PGSQL_INDEX_INFO_KEY          = "PGSQL_INDEX_INFO"
-	PGSQL_COLUMN_MA_KEY           = "PGSQL_COLUMN_MA"
-	PGSQL_TABLE_DDL_KEY           = "PGSQL_TABLE_DDL_FUNC"
-	PGSQL_TABLE_INFO_BY_NAMES_KEY = "PGSQL_TABLE_INFO_BY_NAMES"
+	PGSQL_META_FILE      = "metasql/pgsql_meta.sql"
+	PGSQL_DB_SCHEMAS     = "PGSQL_DB_SCHEMAS"
+	PGSQL_TABLE_INFO_KEY = "PGSQL_TABLE_INFO"
+	PGSQL_INDEX_INFO_KEY = "PGSQL_INDEX_INFO"
+	PGSQL_COLUMN_MA_KEY  = "PGSQL_COLUMN_MA"
+	PGSQL_TABLE_DDL_KEY  = "PGSQL_TABLE_DDL_FUNC"
 )
 
 type PgsqlMetaData struct {
@@ -61,14 +61,16 @@ func (pd *PgsqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	if tableNames != nil || len(tableNames) > 0 {
-		_, res, err = pd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_BY_NAMES_KEY), names))
-	} else {
-		_, res, err = pd.dc.Query(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY))
-	}
+	sql, err := stringx.TemplateParse(dbi.GetLocalSql(PGSQL_META_FILE, PGSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
 		return nil, err
 	}
+
+	_, res, err = pd.dc.Query(sql)
+	if err != nil {
+		return nil, err
+	}
+
 	tables := make([]dbi.Table, 0)
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
@@ -106,7 +108,7 @@ func (pd *PgsqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			IsPrimaryKey:  anyx.ConvInt(re["isPrimaryKey"]) == 1,
 			IsIdentity:    anyx.ConvInt(re["isIdentity"]) == 1,
 			ColumnDefault: anyx.ConvString(re["columnDefault"]),
-			NumScale:      anyx.ConvString(re["numScale"]),
+			NumScale:      anyx.ConvInt(re["numScale"]),
 		})
 	}
 	return columns, nil
@@ -228,7 +230,7 @@ var (
 	converter = new(DataConverter)
 
 	// pgsql数据类型 映射 公共数据类型
-	commonColumnTypeMap = map[string]string{
+	commonColumnTypeMap = map[string]dbi.ColumnDataType{
 		"int2":        dbi.CommonTypeSmallint,
 		"int4":        dbi.CommonTypeInt,
 		"int8":        dbi.CommonTypeBigint,
@@ -251,7 +253,7 @@ var (
 		"timestamp":   dbi.CommonTypeTimestamp,
 	}
 	// 公共数据类型 映射 pgsql数据类型
-	pgsqlColumnTypeMap = map[string]string{
+	pgsqlColumnTypeMap = map[dbi.ColumnDataType]string{
 		dbi.CommonTypeVarchar:    "varchar",
 		dbi.CommonTypeChar:       "char",
 		dbi.CommonTypeText:       "text",

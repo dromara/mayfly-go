@@ -12,6 +12,8 @@ import (
 )
 
 type MssqlDialect struct {
+	dbi.DefaultDialect
+
 	dc *dbi.DbConn
 }
 
@@ -251,29 +253,29 @@ func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-func (md *MssqlDialect) TransColumns(columns []dbi.Column) []dbi.Column {
-	var commonColumns []dbi.Column
-	for _, column := range columns {
-		// 取出当前数据库类型
-		arr := strings.Split(column.ColumnType, "(")
-		ctype := arr[0]
-		// 翻译为通用数据库类型
-		t1 := commonColumnTypeMap[ctype]
-		if t1 == "" {
-			ctype = "nvarchar(2000)"
-		} else {
-			// 回写到列信息
-			if len(arr) > 1 {
-				ctype = t1 + "(" + arr[1]
-			} else {
-				ctype = t1
-			}
-		}
-		column.ColumnType = ctype
-		commonColumns = append(commonColumns, column)
-	}
-	return commonColumns
-}
+// func (md *MssqlDialect) TransColumns(columns []dbi.Column) []dbi.Column {
+// 	var commonColumns []dbi.Column
+// 	for _, column := range columns {
+// 		// 取出当前数据库类型
+// 		arr := strings.Split(column.ColumnType, "(")
+// 		ctype := arr[0]
+// 		// 翻译为通用数据库类型
+// 		t1 := commonColumnTypeMap[ctype]
+// 		if t1 == "" {
+// 			ctype = "nvarchar(2000)"
+// 		} else {
+// 			// 回写到列信息
+// 			if len(arr) > 1 {
+// 				ctype = t1 + "(" + arr[1]
+// 			} else {
+// 				ctype = t1
+// 			}
+// 		}
+// 		column.ColumnType = ctype
+// 		commonColumns = append(commonColumns, column)
+// 	}
+// 	return commonColumns
+// }
 
 func (md *MssqlDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
 	meta := md.dc.GetMetaData()
@@ -292,7 +294,7 @@ func (md *MssqlDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Ta
 		arr := strings.Split(column.ColumnType, "(")
 		ctype := arr[0]
 		// 翻译为通用数据库类型
-		t1 := mssqlColumnTypeMap[ctype]
+		t1 := mssqlColumnTypeMap[dbi.ColumnDataType(ctype)]
 		if t1 == "" {
 			ctype = "nvarchar(2000)"
 		} else {

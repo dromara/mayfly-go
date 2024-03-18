@@ -6,18 +6,18 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/utils/stringx"
 	"regexp"
 	"strings"
 	"time"
 )
 
 const (
-	DM_META_FILE               = "metasql/dm_meta.sql"
-	DM_DB_SCHEMAS              = "DM_DB_SCHEMAS"
-	DM_TABLE_INFO_KEY          = "DM_TABLE_INFO"
-	DM_INDEX_INFO_KEY          = "DM_INDEX_INFO"
-	DM_COLUMN_MA_KEY           = "DM_COLUMN_MA"
-	DM_TABLE_INFO_BY_NAMES_KEY = "DM_TABLE_INFO_BY_NAMES"
+	DM_META_FILE      = "metasql/dm_meta.sql"
+	DM_DB_SCHEMAS     = "DM_DB_SCHEMAS"
+	DM_TABLE_INFO_KEY = "DM_TABLE_INFO"
+	DM_INDEX_INFO_KEY = "DM_INDEX_INFO"
+	DM_COLUMN_MA_KEY  = "DM_COLUMN_MA"
 )
 
 type DMMetaData struct {
@@ -59,11 +59,12 @@ func (dd *DMMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	var res []map[string]any
 	var err error
 
-	if tableNames != nil && len(tableNames) > 0 {
-		_, res, err = dd.dc.Query(fmt.Sprintf(dbi.GetLocalSql(DM_META_FILE, DM_TABLE_INFO_BY_NAMES_KEY), names))
-	} else {
-		_, res, err = dd.dc.Query(dbi.GetLocalSql(DM_META_FILE, DM_TABLE_INFO_KEY))
+	sql, err := stringx.TemplateParse(dbi.GetLocalSql(DM_META_FILE, DM_TABLE_INFO_KEY), collx.M{"tableNames": names})
+	if err != nil {
+		return nil, err
 	}
+
+	_, res, err = dd.dc.Query(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +105,7 @@ func (dd *DMMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 			IsPrimaryKey:  anyx.ConvInt(re["IS_PRIMARY_KEY"]) == 1,
 			IsIdentity:    anyx.ConvInt(re["IS_IDENTITY"]) == 1,
 			ColumnDefault: anyx.ConvString(re["COLUMN_DEFAULT"]),
-			NumScale:      anyx.ConvString(re["NUM_SCALE"]),
+			NumScale:      anyx.ConvInt(re["NUM_SCALE"]),
 		})
 	}
 	return columns, nil
@@ -266,7 +267,7 @@ var (
 	converter = new(DataConverter)
 
 	// 达梦数据类型 对应 公共数据类型
-	commonColumnMap = map[string]string{
+	commonColumnMap = map[string]dbi.ColumnDataType{
 
 		"CHAR":          dbi.CommonTypeChar, // 字符数据类型
 		"VARCHAR":       dbi.CommonTypeVarchar,
@@ -295,7 +296,7 @@ var (
 	}
 
 	// 公共数据类型 对应 达梦数据类型
-	dmColumnMap = map[string]string{
+	dmColumnMap = map[dbi.ColumnDataType]string{
 		dbi.CommonTypeVarchar:    "VARCHAR",
 		dbi.CommonTypeChar:       "CHAR",
 		dbi.CommonTypeText:       "TEXT",

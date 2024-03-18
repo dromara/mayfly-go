@@ -10,6 +10,8 @@ import (
 )
 
 type MysqlDialect struct {
+	dbi.DefaultDialect
+
 	dc *dbi.DbConn
 }
 
@@ -76,31 +78,30 @@ func (md *MysqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-func (md *MysqlDialect) TransColumns(columns []dbi.Column) []dbi.Column {
-	var commonColumns []dbi.Column
-	for _, column := range columns {
-		// 取出当前数据库类型
-		arr := strings.Split(column.ColumnType, "(")
-		ctype := arr[0]
-		// 翻译为通用数据库类型
-		t1 := commonColumnTypeMap[ctype]
-		if t1 == "" {
-			ctype = "varchar(2000)"
-		} else {
-			// 回写到列信息
-			if len(arr) > 1 {
-				ctype = t1 + "(" + arr[1]
-			} else {
-				ctype = t1
-			}
-		}
-		column.ColumnType = ctype
-		commonColumns = append(commonColumns, column)
+func (md *MysqlDialect) ToCommonColumn(column *dbi.Column) {
+	dataType := column.DataType
+
+	t1 := commonColumnTypeMap[string(dataType)]
+	commonColumnType := dbi.CommonTypeVarchar
+
+	if t1 != "" {
+		commonColumnType = t1
 	}
-	return commonColumns
+
+	column.DataType = commonColumnType
 }
 
-func (md *MysqlDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
+func (md *MysqlDialect) ToColumn(column *dbi.Column) {
+	ctype := mysqlColumnTypeMap[column.DataType]
+	if ctype == "" {
+		column.DataType = "varchar"
+		column.CharMaxLength = 1000
+	} else {
+		column.DataType = dbi.ColumnDataType(ctype)
+	}
+}
+
+func (md *MysqlDialect) CreateTable(columns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
 	if dropOldTable {
 		_, _ = md.dc.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableInfo.TableName))
 	}
@@ -109,22 +110,7 @@ func (md *MysqlDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Ta
 	fields := make([]string, 0)
 	pks := make([]string, 0)
 	// 把通用类型转换为达梦类型
-	for _, column := range commonColumns {
-		// 取出当前数据库类型
-		arr := strings.Split(column.ColumnType, "(")
-		ctype := arr[0]
-		// 翻译为通用数据库类型
-		t1 := mysqlColumnTypeMap[ctype]
-		if t1 == "" {
-			ctype = "varchar(2000)"
-		} else {
-			// 回写到列信息
-			if len(arr) > 1 {
-				ctype = t1 + "(" + arr[1]
-			}
-		}
-		column.ColumnType = ctype
-
+	for _, column := range columns {
 		if column.IsPrimaryKey {
 			pks = append(pks, column.ColumnName)
 		}
@@ -134,7 +120,7 @@ func (md *MysqlDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Ta
 	if len(pks) > 0 {
 		createSql += fmt.Sprintf(", PRIMARY KEY (%s)", strings.Join(pks, ","))
 	}
-	createSql += fmt.Sprintf(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ")
+	createSql += ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 "
 	if tableInfo.TableComment != "" {
 		replacer := strings.NewReplacer(";", "", "'", "")
 		createSql += fmt.Sprintf(" COMMENT '%s'", replacer.Replace(tableInfo.TableComment))
@@ -183,7 +169,7 @@ func (md *MysqlDialect) genColumnBasicSql(column dbi.Column) string {
 		comment = fmt.Sprintf(" COMMENT '%s'", commentStr)
 	}
 
-	columnSql := fmt.Sprintf(" %s %s %s %s %s %s", md.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.ColumnType, nullAble, incr, defVal, comment)
+	columnSql := fmt.Sprintf(" %s %s %s %s %s %s", md.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.GetColumnType(), nullAble, incr, defVal, comment)
 	return columnSql
 }
 
@@ -210,8 +196,4 @@ func (md *MysqlDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) err
 		}
 	}
 	return nil
-}
-
-func (md *MysqlDialect) UpdateSequence(tableName string, columns []dbi.Column) {
-
 }
