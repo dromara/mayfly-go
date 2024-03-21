@@ -435,7 +435,7 @@ func (d *Db) HintTables(rc *req.Ctx) {
 			res[tName] = make([]string, 0)
 		}
 
-		columnName := fmt.Sprintf("%s  [%s]", v.ColumnName, v.ColumnType)
+		columnName := fmt.Sprintf("%s  [%s]", v.ColumnName, v.ShowDataType)
 		comment := v.ColumnComment
 		// 如果字段备注不为空，则加上备注信息
 		if comment != "" {

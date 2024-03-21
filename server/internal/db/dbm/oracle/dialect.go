@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
 	"time"
@@ -156,213 +155,60 @@ func (od *OracleDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-// func (od *OracleDialect) TransColumns(columns []dbi.Column) []dbi.Column {
-// 	var commonColumns []dbi.Column
-// 	for _, column := range columns {
-// 		// 取出当前数据库类型
-// 		arr := strings.Split(column.ColumnType, "(")
-// 		ctype := arr[0]
+func (od *OracleDialect) ToCommonColumn(dialectColumn *dbi.Column) {
+	// 翻译为通用数据库类型
+	dataType := dialectColumn.DataType
+	t1 := commonColumnTypeMap[string(dataType)]
+	if t1 == "" {
+		dialectColumn.DataType = dbi.CommonTypeVarchar
+		dialectColumn.CharMaxLength = 2000
+	} else {
+		dialectColumn.DataType = t1
+		// 如果是number类型，需要根据公共类型加上长度, 如 bigint 需要转换为number(19,0)
+		if strings.Contains(string(t1), "NUMBER") {
+			dialectColumn.CharMaxLength = 19
+		}
+	}
+}
 
-// 		// 翻译为通用数据库类型
-// 		t1 := commonColumnTypeMap[ctype]
-// 		if t1 == "" {
-// 			ctype = "NVARCHAR2(2000)"
-// 		} else {
-// 			// 回写到列信息
-// 			if t1 == "NUMBER" {
-// 				// 如果是转number类型，需要根据公共类型加上长度, 如 bigint 需要转换为number(19,0)
-// 				if column.ColumnType == dbi.CommonTypeBigint {
-// 					ctype = t1 + "(19, 0)"
-// 				} else {
-// 					ctype = t1
-// 				}
-// 			} else if t1 != "NUMBER" && len(arr) > 1 {
-// 				ctype = t1 + "(" + arr[1]
-// 			} else {
-// 				ctype = t1
-// 			}
-// 		}
-// 		column.ColumnType = ctype
-// 		commonColumns = append(commonColumns, column)
-// 	}
-// 	return commonColumns
-// }
+func (od *OracleDialect) ToColumn(commonColumn *dbi.Column) {
+	ctype := oracleColumnTypeMap[commonColumn.DataType]
+	if ctype == "" {
+		commonColumn.DataType = "NVARCHAR2"
+		commonColumn.CharMaxLength = 2000
+	} else {
+		commonColumn.DataType = dbi.ColumnDataType(ctype)
+		// 如果类型是数字，类型后不需要带长度
+		if strings.Contains(strings.ToLower(ctype), "int") {
+			commonColumn.CharMaxLength = 0
+			commonColumn.NumPrecision = 0
+		} else if strings.Contains(strings.ToLower(ctype), "char") {
+			// 如果是字符串类型，长度最大4000，否则修改字段类型为clob
+			if commonColumn.CharMaxLength > 4000 {
+				commonColumn.DataType = "CLOB"
+				commonColumn.CharMaxLength = 0
+			}
+		}
+	}
+}
 
 func (od *OracleDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
 	meta := od.dc.GetMetaData()
-	replacer := strings.NewReplacer(";", "", "'", "")
-	quoteTableName := meta.QuoteIdentifier(tableInfo.TableName)
-	if dropOldTable {
-		// 如果表存在，先删除表
-		dropSqlTmp := `
-declare
-      num number;
-begin
-    select count(1) into num from user_tables where table_name = '%s' and owner = (SELECT sys_context('USERENV', 'CURRENT_SCHEMA') FROM dual) ;
-    if num > 0 then
-        execute immediate 'drop table "%s"' ;
-    end if;
-end;
-`
-		_, _ = od.dc.Exec(fmt.Sprintf(dropSqlTmp, tableInfo.TableName, tableInfo.TableName))
-	}
-	// 组装建表语句
-	createSql := fmt.Sprintf("CREATE TABLE %s (", quoteTableName)
-	fields := make([]string, 0)
-	pks := make([]string, 0)
-	columnComments := make([]string, 0)
-	// 把通用类型转换为达梦类型
-	for _, column := range commonColumns {
-		// 取出当前数据库类型
-		arr := strings.Split(column.ColumnType, "(")
-		ctype := arr[0]
-		// 翻译为通用数据库类型
-		t1 := oracleColumnTypeMap[dbi.ColumnDataType(ctype)]
-		if t1 == "" {
-			ctype = "NVARCHAR2(2000)"
-		} else {
-			// 回写到列信息
-			if len(arr) > 1 {
-				// 如果是字符串类型，长度最大4000，否则修改字段类型为clob
-				if strings.Contains(strings.ToLower(t1), "char") {
-					match := bracketsRegexp.FindStringSubmatch(column.ColumnType)
-					if len(match) > 1 {
-						size := anyx.ConvInt(match[1])
-						if size >= 4000 { // 如果长度超过4000，则替换为text类型
-							ctype = "CLOB"
-						} else {
-							ctype = fmt.Sprintf("%s(%d)", t1, size)
-						}
-					} else {
-						ctype = t1 + "(2000)"
-					}
-				} else {
-					ctype = t1 + "(" + arr[1]
-				}
-			} else {
-				ctype = t1
-			}
-		}
-		column.ColumnType = ctype
-
-		if column.IsPrimaryKey {
-			pks = append(pks, meta.QuoteIdentifier(column.ColumnName))
-		}
-		fields = append(fields, od.genColumnBasicSql(column))
-		// 防止注释内含有特殊字符串导致sql出错
-		comment := replacer.Replace(column.ColumnComment)
-		if comment != "" {
-			columnComments = append(columnComments, fmt.Sprintf("COMMENT ON COLUMN %s.%s IS '%s'", quoteTableName, meta.QuoteIdentifier(column.ColumnName), comment))
-		}
-	}
-	createSql += strings.Join(fields, ",")
-	if len(pks) > 0 {
-		createSql += fmt.Sprintf(", PRIMARY KEY (%s)", strings.Join(pks, ","))
-	}
-	createSql += ")"
-
-	tableCommentSql := ""
-	if tableInfo.TableComment != "" {
-		tableCommentSql = fmt.Sprintf(" COMMENT ON TABLE %s is '%s'", meta.QuoteIdentifier(tableInfo.TableName), replacer.Replace(tableInfo.TableComment))
-	}
-
+	sqlArr := meta.GenerateTableDDL(commonColumns, tableInfo, dropOldTable)
 	// 需要分开执行sql
-	var err error
-	if createSql != "" {
-		_, err = od.dc.Exec(createSql)
-	}
-	if tableCommentSql != "" {
-		_, err = od.dc.Exec(tableCommentSql)
-	}
-	if len(columnComments) > 0 {
-		for _, commentSql := range columnComments {
-			_, err = od.dc.Exec(commentSql)
+	for _, sqlStr := range sqlArr {
+		_, err := od.dc.Exec(sqlStr)
+		if err != nil {
+			return 0, err
 		}
 	}
-
-	return 1, err
-}
-
-func (od *OracleDialect) genColumnBasicSql(column dbi.Column) string {
-	meta := od.dc.GetMetaData()
-	colName := meta.QuoteIdentifier(column.ColumnName)
-
-	if column.IsIdentity {
-		// 如果是自增，不需要设置默认值和空值，自增列数据类型必须是number
-		return fmt.Sprintf(" %s NUMBER generated by default as IDENTITY", colName)
-	}
-
-	nullAble := ""
-	if column.Nullable == "NO" {
-		nullAble = " NOT NULL"
-	}
-
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的
-	if column.ColumnDefault != "" {
-		mark := false
-		// 哪些字段类型默认值需要加引号
-		if collx.ArrayAnyMatches([]string{"CHAR", "LONG", "DATE", "TIME", "CLOB", "BLOB", "BFILE"}, column.ColumnType) {
-			// 默认值是时间日期函数的必须要加引号
-			val := strings.ToUpper(column.ColumnDefault)
-			if collx.ArrayAnyMatches([]string{"DATE", "TIMESTAMP"}, column.ColumnType) && val == "CURRENT_DATE" || val == "CURRENT_TIMESTAMP" {
-				mark = false
-			} else {
-				mark = true
-			}
-			if mark {
-				defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
-			} else {
-				defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
-			}
-		} else {
-			// 如果是数字，默认值提取数字
-			if collx.ArrayAnyMatches([]string{"NUM", "INT"}, column.ColumnType) {
-				match := bracketsRegexp.FindStringSubmatch(column.ColumnType)
-				if len(match) > 1 {
-					length := anyx.ConvInt(match[1])
-					defVal = fmt.Sprintf(" DEFAULT %d", length)
-				} else {
-					defVal = fmt.Sprintf(" DEFAULT 0")
-				}
-			}
-
-			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
-		}
-	}
-
-	columnSql := fmt.Sprintf(" %s %s %s %s", colName, column.ColumnType, defVal, nullAble)
-	return columnSql
+	return len(sqlArr), nil
 }
 
 func (od *OracleDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) error {
 	meta := od.dc.GetMetaData()
-	sqls := make([]string, 0)
-	comments := make([]string, 0)
-	for _, index := range indexs {
-		// 通过字段、表名拼接索引名
-		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
-		columnName = strings.ReplaceAll(columnName, "_", "")
-		colName := strings.ReplaceAll(columnName, ",", "_")
-
-		keyType := "normal"
-		unique := ""
-		if index.IsUnique {
-			keyType = "unique"
-			unique = "unique"
-		}
-		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
-
-		sqls = append(sqls, fmt.Sprintf("CREATE %s INDEX %s ON %s(%s)", unique, indexName, meta.QuoteIdentifier(tableInfo.TableName), index.ColumnName))
-		if index.IndexComment != "" {
-			comments = append(comments, fmt.Sprintf("COMMENT ON INDEX %s IS '%s'", indexName, index.IndexComment))
-		}
-	}
-	_, err := od.dc.Exec(strings.Join(sqls, ";"))
-
-	// 添加注释
-	if len(comments) > 0 {
-		_, err = od.dc.Exec(strings.Join(comments, ";"))
-	}
+	sqlArr := meta.GenerateIndexDDL(indexs, tableInfo)
+	_, err := od.dc.Exec(strings.Join(sqlArr, ";"))
 	return err
 }
 

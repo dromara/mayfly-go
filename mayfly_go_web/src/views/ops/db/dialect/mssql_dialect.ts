@@ -303,7 +303,7 @@ class MssqlDialect implements DbDialect {
         }
         if (changeData.add.length > 0) {
             changeData.add.forEach((a) => {
-                addArr.push(` ALTER TABLE ${baseTable} ADD COLUMN ${this.genColumnBasicSql(a)}`);
+                addArr.push(` ALTER TABLE ${baseTable} ADD ${this.genColumnBasicSql(a)}`);
                 if (a.remark) {
                     addCommentArr.push(
                         `EXECUTE sp_addextendedproperty N'MS_Description', N'${a.remark}', N'SCHEMA', N'${schema}', N'TABLE', N'${tableName}', N'COLUMN', N'${a.name}'`

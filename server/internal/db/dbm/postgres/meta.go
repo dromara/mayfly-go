@@ -30,7 +30,7 @@ type PostgresMeta struct {
 	Param string
 }
 
-func (md *PostgresMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
+func (pm *PostgresMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	driverName := "postgres"
 	// SSH Conect
 	if d.SshTunnelMachineId > 0 {
@@ -74,8 +74,8 @@ func (md *PostgresMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 		dsn = fmt.Sprintf("%s %s", dsn, strings.Join(strings.Split(d.Params, "&"), " "))
 	}
 
-	if md.Param != "" && !strings.Contains(dsn, "dbtype") {
-		dsn = fmt.Sprintf("%s %s", dsn, md.Param)
+	if pm.Param != "" && !strings.Contains(dsn, "dbtype") {
+		dsn = fmt.Sprintf("%s %s", dsn, pm.Param)
 	}
 
 	return sql.Open(driverName, dsn)
@@ -94,8 +94,8 @@ type PqSqlDialer struct {
 	sshTunnelMachineId int
 }
 
-func (d *PqSqlDialer) Open(name string) (driver.Conn, error) {
-	return pq.DialOpen(d, name)
+func (pd *PqSqlDialer) Open(name string) (driver.Conn, error) {
+	return pq.DialOpen(pd, name)
 }
 
 func (pd *PqSqlDialer) Dial(network, address string) (net.Conn, error) {

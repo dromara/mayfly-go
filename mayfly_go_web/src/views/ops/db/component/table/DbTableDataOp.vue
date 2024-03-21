@@ -98,7 +98,7 @@
                         <el-divider direction="vertical" />
 
                         <span style="color: var(--el-color-info-light-3)">
-                            {{ item.columnType }}
+                            {{ item.showDataType }}
 
                             <template v-if="item.columnComment">
                                 <el-divider direction="vertical" />
@@ -463,7 +463,7 @@ const handlerColumnSelect = (column: any) => {
     // 默认拼接上 columnName =
     let value = column.columnName + ' = ';
     // 不是数字类型默认拼接上''
-    if (!DbInst.isNumber(column.columnType)) {
+    if (!DbInst.isNumber(column.dataType)) {
         value = `${value} ''`;
     }
 
@@ -507,7 +507,7 @@ const filterCondColumns = computed(() => {
 const onConditionRowClick = (event: any) => {
     const row = event[0];
     state.conditionDialog.title = `请输入 [${row.columnName}] 的值`;
-    state.conditionDialog.placeholder = `${row.columnType}  ${row.columnComment}`;
+    state.conditionDialog.placeholder = `${row.showDataType}  ${row.columnComment}`;
     state.conditionDialog.columnRow = row;
     state.conditionDialog.visible = true;
     setTimeout(() => {
@@ -524,7 +524,7 @@ const onConfirmCondition = () => {
     }
     const row = conditionDialog.columnRow as any;
     condition += `${row.columnName} ${conditionDialog.condition} `;
-    state.condition = condition + state.dbDialect.wrapValue(row.columnType, conditionDialog.value!);
+    state.condition = condition + state.dbDialect.wrapValue(row.dataType, conditionDialog.value!);
     onCancelCondition();
     condInputRef.value.focus();
 };

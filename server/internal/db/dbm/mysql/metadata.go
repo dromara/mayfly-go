@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
@@ -100,10 +101,10 @@ func (md *MysqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
-		columns = append(columns, dbi.Column{
+
+		column := dbi.Column{
 			TableName:     anyx.ConvString(re["tableName"]),
 			ColumnName:    anyx.ConvString(re["columnName"]),
-			ColumnType:    strings.Replace(anyx.ConvString(re["columnType"]), " unsigned", "", 1),
 			DataType:      dbi.ColumnDataType(anyx.ConvString(re["dataType"])),
 			ColumnComment: anyx.ConvString(re["columnComment"]),
 			Nullable:      anyx.ConvString(re["nullable"]),
@@ -113,7 +114,11 @@ func (md *MysqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			CharMaxLength: anyx.ConvInt(re["charMaxLength"]),
 			NumPrecision:  anyx.ConvInt(re["numPrecision"]),
 			NumScale:      anyx.ConvInt(re["numScale"]),
-		})
+		}
+
+		// 初始化列展示的长度，精度
+		column.InitShowNum()
+		columns = append(columns, column)
 	}
 	return columns, nil
 }
@@ -174,13 +179,141 @@ func (md *MysqlMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	return result, nil
 }
 
+// 获取建索引ddl
+func (md *MysqlMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) []string {
+	meta := md.dc.GetMetaData()
+	sqlArr := make([]string, 0)
+	for _, index := range indexs {
+		// 通过字段、表名拼接索引名
+		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
+		columnName = strings.ReplaceAll(columnName, "_", "")
+		colName := strings.ReplaceAll(columnName, ",", "_")
+
+		keyType := "normal"
+		unique := ""
+		if index.IsUnique {
+			keyType = "unique"
+			unique = "unique"
+		}
+		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
+		sqlTmp := "ALTER TABLE %s ADD %s INDEX %s(%s) USING BTREE COMMENT '%s'"
+		replacer := strings.NewReplacer(";", "", "'", "")
+		sqlArr = append(sqlArr, fmt.Sprintf(sqlTmp, meta.QuoteIdentifier(tableInfo.TableName), unique, indexName, index.ColumnName, replacer.Replace(index.IndexComment)))
+	}
+	return sqlArr
+}
+
+func (md *MysqlMetaData) genColumnBasicSql(column dbi.Column) string {
+	replacer := strings.NewReplacer(";", "", "'", "")
+	dataType := string(column.DataType)
+
+	incr := ""
+	if column.IsIdentity {
+		incr = " AUTO_INCREMENT"
+	}
+
+	nullAble := ""
+	if column.Nullable == "NO" {
+		nullAble = " NOT NULL"
+	}
+
+	defVal := "" // 默认值需要判断引号，如函数是不需要引号的  // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
+	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
+		// 哪些字段类型默认值需要加引号
+		mark := false
+		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(dataType)) {
+			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
+			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(dataType)) &&
+				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
+				mark = false
+			} else {
+				mark = true
+			}
+		}
+		if mark {
+			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
+		} else {
+			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
+		}
+	}
+	comment := ""
+	if column.ColumnComment != "" {
+		// 防止注释内含有特殊字符串导致sql出错
+		commentStr := replacer.Replace(column.ColumnComment)
+		comment = fmt.Sprintf(" COMMENT '%s'", commentStr)
+	}
+
+	columnSql := fmt.Sprintf(" %s %s %s %s %s %s", md.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.ShowDataType, nullAble, incr, defVal, comment)
+	return columnSql
+}
+
+// 获取建表ddl
+func (md *MysqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
+	meta := md.dc.GetMetaData()
+	sqlArr := make([]string, 0)
+
+	if dropBeforeCreate {
+		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s;", meta.QuoteIdentifier(tableInfo.TableName)))
+	}
+
+	// 组装建表语句
+	createSql := fmt.Sprintf("CREATE TABLE %s (\n", meta.QuoteIdentifier(tableInfo.TableName))
+	fields := make([]string, 0)
+	pks := make([]string, 0)
+	// 把通用类型转换为达梦类型
+	for _, column := range columns {
+		if column.IsPrimaryKey {
+			pks = append(pks, column.ColumnName)
+		}
+		fields = append(fields, md.genColumnBasicSql(column))
+	}
+
+	// 建表ddl
+	createSql += strings.Join(fields, ",\n")
+	if len(pks) > 0 {
+		createSql += fmt.Sprintf(", \nPRIMARY KEY (%s)", strings.Join(pks, ","))
+	}
+	createSql += fmt.Sprintf(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ")
+
+	// 表注释
+	if tableInfo.TableComment != "" {
+		replacer := strings.NewReplacer(";", "", "'", "")
+		createSql += fmt.Sprintf(" COMMENT '%s'", replacer.Replace(tableInfo.TableComment))
+	}
+
+	sqlArr = append(sqlArr, createSql)
+
+	return sqlArr
+}
+
 // 获取建表ddl
 func (md *MysqlMetaData) GetTableDDL(tableName string) (string, error) {
-	_, res, err := md.dc.Query(fmt.Sprintf("show create table `%s` ", tableName))
-	if err != nil {
+	// 1.获取表信息
+	tbs, err := md.GetTables(tableName)
+	tableInfo := &dbi.Table{}
+	if err != nil && len(tbs) > 0 {
+		logx.Errorf("获取表信息失败, %s", tableName)
 		return "", err
 	}
-	return anyx.ConvString(res[0]["Create Table"]) + ";", nil
+	tableInfo.TableName = tbs[0].TableName
+	tableInfo.TableComment = tbs[0].TableComment
+
+	// 2.获取列信息
+	columns, err := md.GetColumns(tableName)
+	if err != nil {
+		logx.Errorf("获取列信息失败, %s", tableName)
+		return "", err
+	}
+	tableDDLArr := md.GenerateTableDDL(columns, *tableInfo, false)
+	// 3.获取索引信息
+	indexs, err := md.GetTableIndex(tableName)
+	if err != nil {
+		logx.Errorf("获取索引信息失败, %s", tableName)
+		return "", err
+	}
+	// 组装返回
+	tableDDLArr = append(tableDDLArr, md.GenerateIndexDDL(indexs, *tableInfo)...)
+	return strings.Join(tableDDLArr, ";\n"), nil
 }
 
 func (md *MysqlMetaData) GetSchemas() ([]string, error) {

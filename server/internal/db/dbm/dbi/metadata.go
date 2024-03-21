@@ -34,6 +34,10 @@ type MetaData interface {
 	// 获取建表ddl
 	GetTableDDL(tableName string) (string, error)
 
+	GenerateTableDDL(columns []Column, tableInfo Table, dropBeforeCreate bool) []string
+
+	GenerateIndexDDL(indexs []Index, tableInfo Table) []string
+
 	GetSchemas() ([]string, error)
 
 	// 获取数据转换器用于解析格式化列数据等
@@ -49,6 +53,7 @@ type DbServer struct {
 // 表信息
 type Table struct {
 	TableName    string `json:"tableName"`    // 表名
+	TableNewName string `json:"tableNewName"` // 新表名，复制表生成ddl时，需要传入新表名
 	TableComment string `json:"tableComment"` // 表备注
 	CreateTime   string `json:"createTime"`   // 创建时间
 	TableRows    int    `json:"tableRows"`
@@ -60,7 +65,6 @@ type Table struct {
 type Column struct {
 	TableName     string         `json:"tableName"`     // 表名
 	ColumnName    string         `json:"columnName"`    // 列名
-	ColumnType    string         `json:"columnType"`    // 列类型,包含类型等描述（后续移除）
 	DataType      ColumnDataType `json:"dataType"`      // 数据类型
 	ColumnComment string         `json:"columnComment"` // 列备注
 	IsPrimaryKey  bool           `json:"isPrimaryKey"`  // 是否为主键
@@ -71,17 +75,38 @@ type Column struct {
 	NumPrecision  int            `json:"numPrecision"`  // 精度(总数字位数)
 	NumScale      int            `json:"numScale"`      // 小数点位数
 	Extra         collx.M        `json:"extra"`         // 其他额外信息
+
+	ShowLength   int    `json:"showLength"`
+	ShowScale    int    `json:"showScale"`
+	ShowDataType string `json:"showDataType"` // 显示数据类型
 }
 
-// 获取列类型，拼接数据类型与长度等。如varchar(2000)，decimal(20,2)
-func (c *Column) GetColumnType() string {
+// 初始化列显示类型，拼接数据类型与长度等。如varchar(2000)，decimal(20,2)
+func (c *Column) InitShowNum() string {
 	if c.CharMaxLength > 0 {
-		return fmt.Sprintf("%s(%d)", c.DataType, c.CharMaxLength)
+		c.ShowDataType = fmt.Sprintf("%s(%d)", c.DataType, c.CharMaxLength)
+		c.ShowLength = c.CharMaxLength
+		c.ShowScale = 0
+		return c.ShowDataType
 	}
 	if c.NumPrecision > 0 {
-		return fmt.Sprintf("%s(%d,%d)", c.DataType, c.NumPrecision, c.NumScale)
+		if c.NumScale > 0 {
+			c.ShowDataType = fmt.Sprintf("%s(%d,%d)", c.DataType, c.NumPrecision, c.NumScale)
+			c.ShowScale = c.NumScale
+		} else {
+			c.ShowDataType = fmt.Sprintf("%s(%d)", c.DataType, c.NumPrecision)
+			c.ShowScale = 0
+		}
+		c.ShowLength = c.NumPrecision
+
+		return c.ShowDataType
 	}
-	return string(c.DataType)
+
+	c.ShowDataType = string(c.DataType)
+	c.ShowLength = 0
+	c.ShowScale = 0
+
+	return c.ShowDataType
 }
 
 // 表索引信息

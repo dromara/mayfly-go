@@ -192,7 +192,7 @@ const state = reactive({
                 },
                 {
                     prop: 'numScale',
-                    label: '小数点',
+                    label: '小数精度',
                     width: 120,
                 },
                 {
@@ -412,7 +412,6 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
 
 const genSql = () => {
     let data = state.tableData;
-    console.log(data);
     // 创建表
     if (!props.data?.edit) {
         let createTable = dbDialect.getCreateTableSql(data);
@@ -504,9 +503,6 @@ watch(
         // 回显列
         if (columns && Array.isArray(columns) && columns.length > 0) {
             columns.forEach((a) => {
-                let typeObj = a.columnType.replace(')', '').split('(');
-                let type = typeObj[0];
-                let length = (typeObj.length > 1 && typeObj[1]) || '';
                 let defaultValue = '';
                 if (a.columnDefault) {
                     defaultValue = a.columnDefault.trim().replace(/^'|'$/g, '');
@@ -516,10 +512,10 @@ watch(
                 let data = {
                     name: a.columnName,
                     oldName: a.columnName,
-                    type,
+                    type: a.dataType,
                     value: defaultValue,
-                    length,
-                    numScale: a.numScale,
+                    length: a.showLength,
+                    numScale: a.showScale,
                     notNull: a.nullable !== 'YES',
                     pri: a.isPrimaryKey,
                     auto_increment: a.isIdentity /*a.extra?.indexOf('auto_increment') > -1*/,

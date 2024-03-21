@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/pkg/utils/collx"
 	"strings"
 	"time"
 )
@@ -98,99 +97,35 @@ func (md *MysqlDialect) ToColumn(column *dbi.Column) {
 		column.CharMaxLength = 1000
 	} else {
 		column.DataType = dbi.ColumnDataType(ctype)
+		// 如果是int整型，删除精度
+		if strings.Contains(strings.ToLower(ctype), "int") {
+			column.NumScale = 0
+			column.CharMaxLength = 0
+		} else
+		// 如果是text，删除长度
+		if strings.Contains(strings.ToLower(ctype), "text") {
+			column.CharMaxLength = 0
+			column.NumPrecision = 0
+		}
 	}
 }
 
 func (md *MysqlDialect) CreateTable(columns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
-	if dropOldTable {
-		_, _ = md.dc.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tableInfo.TableName))
-	}
-	// 组装建表语句
-	createSql := fmt.Sprintf("CREATE TABLE %s (\n", tableInfo.TableName)
-	fields := make([]string, 0)
-	pks := make([]string, 0)
-	// 把通用类型转换为达梦类型
-	for _, column := range columns {
-		if column.IsPrimaryKey {
-			pks = append(pks, column.ColumnName)
-		}
-		fields = append(fields, md.genColumnBasicSql(column))
-	}
-	createSql += strings.Join(fields, ",")
-	if len(pks) > 0 {
-		createSql += fmt.Sprintf(", PRIMARY KEY (%s)", strings.Join(pks, ","))
-	}
-	createSql += ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 "
-	if tableInfo.TableComment != "" {
-		replacer := strings.NewReplacer(";", "", "'", "")
-		createSql += fmt.Sprintf(" COMMENT '%s'", replacer.Replace(tableInfo.TableComment))
-	}
-	_, err := md.dc.Exec(createSql)
-
-	return 1, err
-}
-
-func (md *MysqlDialect) genColumnBasicSql(column dbi.Column) string {
-
-	incr := ""
-	if column.IsIdentity {
-		incr = " AUTO_INCREMENT"
-	}
-
-	nullAble := ""
-	if column.Nullable == "NO" {
-		nullAble = " NOT NULL"
-	}
-
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的  // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
-	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
-		// 哪些字段类型默认值需要加引号
-		mark := false
-		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(column.ColumnType)) {
-			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
-			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(column.ColumnType)) &&
-				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
-				mark = false
-			} else {
-				mark = true
-			}
-		}
-		if mark {
-			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
-		} else {
-			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
+	sqlArr := md.dc.GetMetaData().GenerateTableDDL(columns, tableInfo, dropOldTable)
+	for _, sqlStr := range sqlArr {
+		_, err := md.dc.Exec(sqlStr)
+		if err != nil {
+			return 0, err
 		}
 	}
-	comment := ""
-	if column.ColumnComment != "" {
-		// 防止注释内含有特殊字符串导致sql出错
-		replacer := strings.NewReplacer(";", "", "'", "")
-		commentStr := replacer.Replace(column.ColumnComment)
-		comment = fmt.Sprintf(" COMMENT '%s'", commentStr)
-	}
-
-	columnSql := fmt.Sprintf(" %s %s %s %s %s %s", md.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.GetColumnType(), nullAble, incr, defVal, comment)
-	return columnSql
+	return len(sqlArr), nil
 }
 
 func (md *MysqlDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) error {
 	meta := md.dc.GetMetaData()
-	for _, index := range indexs {
-		// 通过字段、表名拼接索引名
-		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
-		columnName = strings.ReplaceAll(columnName, "_", "")
-		colName := strings.ReplaceAll(columnName, ",", "_")
-
-		keyType := "normal"
-		unique := ""
-		if index.IsUnique {
-			keyType = "unique"
-			unique = "unique"
-		}
-		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
-		sqlTmp := "ALTER TABLE %s ADD %s INDEX %s(%s) USING BTREE COMMENT '%s'"
-		replacer := strings.NewReplacer(";", "", "'", "")
-		_, err := md.dc.Exec(fmt.Sprintf(sqlTmp, meta.QuoteIdentifier(tableInfo.TableName), unique, indexName, index.ColumnName, replacer.Replace(index.IndexComment)))
+	sqlArr := meta.GenerateIndexDDL(indexs, tableInfo)
+	for _, sqlStr := range sqlArr {
+		_, err := md.dc.Exec(sqlStr)
 		if err != nil {
 			return err
 		}

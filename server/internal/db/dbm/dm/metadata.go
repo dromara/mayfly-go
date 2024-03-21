@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
@@ -96,17 +97,23 @@ func (dd *DMMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
-		columns = append(columns, dbi.Column{
+		column := dbi.Column{
 			TableName:     anyx.ConvString(re["TABLE_NAME"]),
 			ColumnName:    anyx.ConvString(re["COLUMN_NAME"]),
-			ColumnType:    anyx.ConvString(re["COLUMN_TYPE"]),
+			DataType:      dbi.ColumnDataType(anyx.ToString(re["DATA_TYPE"])),
+			CharMaxLength: anyx.ConvInt(re["CHAR_MAX_LENGTH"]),
 			ColumnComment: anyx.ConvString(re["COLUMN_COMMENT"]),
 			Nullable:      anyx.ConvString(re["NULLABLE"]),
 			IsPrimaryKey:  anyx.ConvInt(re["IS_PRIMARY_KEY"]) == 1,
 			IsIdentity:    anyx.ConvInt(re["IS_IDENTITY"]) == 1,
 			ColumnDefault: anyx.ConvString(re["COLUMN_DEFAULT"]),
+			NumPrecision:  anyx.ConvInt(re["NUM_PRECISION"]),
 			NumScale:      anyx.ConvInt(re["NUM_SCALE"]),
-		})
+		}
+
+		// 初始化列展示的长度，精度
+		column.InitShowNum()
+		columns = append(columns, column)
 	}
 	return columns, nil
 }
@@ -165,73 +172,151 @@ func (dd *DMMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	return result, nil
 }
 
+func (dd *DMMetaData) genColumnBasicSql(column dbi.Column) string {
+	meta := dd.dc.GetMetaData()
+	colName := meta.QuoteIdentifier(column.ColumnName)
+	dataType := string(column.DataType)
+
+	incr := ""
+	if column.IsIdentity {
+		incr = " IDENTITY"
+	}
+
+	nullAble := ""
+	if column.Nullable == "NO" {
+		nullAble = " NOT NULL"
+	}
+
+	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
+	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
+		// 哪些字段类型默认值需要加引号
+		mark := false
+		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(dataType)) {
+			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
+			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(dataType)) &&
+				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
+				mark = false
+			} else {
+				mark = true
+			}
+		}
+		if mark {
+			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
+		} else {
+			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
+		}
+	}
+
+	columnSql := fmt.Sprintf(" %s %s %s %s %s", colName, column.ShowDataType, incr, nullAble, defVal)
+	return columnSql
+
+}
+
+func (dd *DMMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) []string {
+	meta := dd.dc.GetMetaData()
+	sqls := make([]string, 0)
+	for _, index := range indexs {
+		// 通过字段、表名拼接索引名
+		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
+		columnName = strings.ReplaceAll(columnName, "_", "")
+		colName := strings.ReplaceAll(columnName, ",", "_")
+
+		keyType := "normal"
+		unique := ""
+		if index.IsUnique {
+			keyType = "unique"
+			unique = "unique"
+		}
+		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
+
+		sqls = append(sqls, fmt.Sprintf("create %s index %s on %s(%s)", unique, indexName, meta.QuoteIdentifier(tableInfo.TableName), index.ColumnName))
+	}
+	return sqls
+}
+
+func (dd *DMMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
+	meta := dd.dc.GetMetaData()
+	replacer := strings.NewReplacer(";", "", "'", "")
+	tbName := meta.QuoteIdentifier(tableInfo.TableName)
+	sqlArr := make([]string, 0)
+
+	if dropBeforeCreate {
+		sqlArr = append(sqlArr, fmt.Sprintf("drop table if exists %s", tbName))
+	}
+	// 组装建表语句
+	createSql := fmt.Sprintf("create table %s (", tbName)
+	fields := make([]string, 0)
+	pks := make([]string, 0)
+	columnComments := make([]string, 0)
+
+	for _, column := range columns {
+		if column.IsPrimaryKey {
+			pks = append(pks, meta.QuoteIdentifier(column.ColumnName))
+		}
+		fields = append(fields, dd.genColumnBasicSql(column))
+		// 防止注释内含有特殊字符串导致sql出错
+		if column.ColumnComment != "" {
+			comment := replacer.Replace(column.ColumnComment)
+			columnComments = append(columnComments, fmt.Sprintf("comment on column %s.%s is '%s'", tbName, meta.QuoteIdentifier(column.ColumnName), comment))
+		}
+	}
+	createSql += strings.Join(fields, ",")
+	if len(pks) > 0 {
+		createSql += fmt.Sprintf(", PRIMARY KEY (%s)", strings.Join(pks, ","))
+	}
+	createSql += ")"
+
+	tableCommentSql := ""
+	if tableInfo.TableComment != "" {
+		// 防止注释内含有特殊字符串导致sql出错
+		comment := replacer.Replace(tableInfo.TableComment)
+		if comment != "" {
+			tableCommentSql = fmt.Sprintf(" comment on table %s is '%s'", tbName, comment)
+		}
+	}
+
+	sqlArr = append(sqlArr, createSql)
+	if tableCommentSql != "" {
+		sqlArr = append(sqlArr, tableCommentSql)
+	}
+
+	if len(columnComments) > 0 {
+		sqlArr = append(sqlArr, columnComments...)
+	}
+
+	return sqlArr
+}
+
 // 获取建表ddl
 func (dd *DMMetaData) GetTableDDL(tableName string) (string, error) {
-	ddlSql := fmt.Sprintf("CALL SP_TABLEDEF((SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID)), '%s')", tableName)
-	_, res, err := dd.dc.Query(ddlSql)
-	if err != nil {
+
+	// 1.获取表信息
+	tbs, err := dd.GetTables(tableName)
+	tableInfo := &dbi.Table{}
+	if err != nil && len(tbs) > 0 {
+
+		logx.Errorf("获取表信息失败, %s", tableName)
 		return "", err
 	}
-	// 建表ddl
-	var builder strings.Builder
-	for _, re := range res {
-		builder.WriteString(re["COLUMN_VALUE"].(string))
-	}
+	tableInfo.TableName = tbs[0].TableName
+	tableInfo.TableComment = tbs[0].TableComment
 
-	// 表注释
-	_, res, err = dd.dc.Query(fmt.Sprintf(`
-			select OWNER, COMMENTS from ALL_TAB_COMMENTS where TABLE_TYPE='TABLE' and TABLE_NAME = '%s'
-		    and owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
-			                                      `, tableName))
+	// 2.获取列信息
+	columns, err := dd.GetColumns(tableName)
 	if err != nil {
+		logx.Errorf("获取列信息失败, %s", tableName)
 		return "", err
 	}
-	for _, re := range res {
-		// COMMENT ON TABLE "SYS_MENU" IS '菜单表';
-		if re["COMMENTS"] != nil {
-			tableComment := fmt.Sprintf("\n\nCOMMENT ON TABLE \"%s\".\"%s\" IS '%s';", re["OWNER"].(string), tableName, re["COMMENTS"].(string))
-			builder.WriteString(tableComment)
-		}
-	}
-
-	// 字段注释
-	fieldSql := fmt.Sprintf(`
-		SELECT OWNER, COLUMN_NAME, COMMENTS
-		FROM USER_COL_COMMENTS
-		WHERE OWNER = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
-		  AND TABLE_NAME = '%s'
-		`, tableName)
-	_, res, err = dd.dc.Query(fieldSql)
+	tableDDLArr := dd.GenerateTableDDL(columns, *tableInfo, false)
+	// 3.获取索引信息
+	indexs, err := dd.GetTableIndex(tableName)
 	if err != nil {
+		logx.Errorf("获取索引信息失败, %s", tableName)
 		return "", err
 	}
-
-	builder.WriteString("\n")
-	for _, re := range res {
-		// COMMENT ON COLUMN "SYS_MENU"."BIZ_CODE" IS '业务编码，应用编码1';
-		if re["COMMENTS"] != nil {
-			fieldComment := fmt.Sprintf("\nCOMMENT ON COLUMN \"%s\".\"%s\".\"%s\" IS '%s';", re["OWNER"].(string), tableName, re["COLUMN_NAME"].(string), re["COMMENTS"].(string))
-			builder.WriteString(fieldComment)
-		}
-	}
-
-	// 索引信息
-	indexSql := fmt.Sprintf(`
-		select indexdef(b.object_id,1) as INDEX_DEF from ALL_INDEXES a
-		join ALL_objects b on a.owner = b.owner and b.object_name = a.index_name and b.object_type = 'INDEX'
-		where a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
-		and a.table_name = '%s' 
-		and indexdef(b.object_id,1) != '禁止查看系统定义的索引信息'
-	`, tableName)
-	_, res, err = dd.dc.Query(indexSql)
-	if err != nil {
-		return "", err
-	}
-	for _, re := range res {
-		builder.WriteString("\n\n" + re["INDEX_DEF"].(string))
-	}
-
-	return builder.String(), nil
+	// 组装返回
+	tableDDLArr = append(tableDDLArr, dd.GenerateIndexDDL(indexs, *tableInfo)...)
+	return strings.Join(tableDDLArr, ";"), nil
 }
 
 // 获取DM当前连接的库可访问的schemaNames
@@ -267,7 +352,7 @@ var (
 	converter = new(DataConverter)
 
 	// 达梦数据类型 对应 公共数据类型
-	commonColumnMap = map[string]dbi.ColumnDataType{
+	commonColumnTypeMap = map[string]dbi.ColumnDataType{
 
 		"CHAR":          dbi.CommonTypeChar, // 字符数据类型
 		"VARCHAR":       dbi.CommonTypeVarchar,
@@ -296,7 +381,7 @@ var (
 	}
 
 	// 公共数据类型 对应 达梦数据类型
-	dmColumnMap = map[dbi.ColumnDataType]string{
+	dmColumnTypeMap = map[dbi.ColumnDataType]string{
 		dbi.CommonTypeVarchar:    "VARCHAR",
 		dbi.CommonTypeChar:       "CHAR",
 		dbi.CommonTypeText:       "TEXT",

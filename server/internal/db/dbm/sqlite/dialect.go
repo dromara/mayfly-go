@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/utils/collx"
 	"strings"
 	"time"
 )
@@ -88,127 +86,46 @@ func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-// func (sd *SqliteDialect) TransColumns(columns []dbi.Column) []dbi.Column {
-// 	var commonColumns []dbi.Column
-// 	for _, column := range columns {
-// 		// 取出当前数据库类型
-// 		arr := strings.Split(column.ColumnType, "(")
-// 		ctype := arr[0]
-// 		// 翻译为通用数据库类型
-// 		t1 := commonColumnTypeMap[ctype]
-// 		if t1 == "" {
-// 			ctype = "varchar(2000)"
-// 		} else {
-// 			// 回写到列信息
-// 			if len(arr) > 1 {
-// 				ctype = t1 + "(" + arr[1]
-// 			} else {
-// 				ctype = t1
-// 			}
-// 		}
-// 		column.ColumnType = ctype
-// 		commonColumns = append(commonColumns, column)
-// 	}
-// 	return commonColumns
-// }
+func (sd *SqliteDialect) ToCommonColumn(dialectColumn *dbi.Column) {
+	// 翻译为通用数据库类型
+	dataType := dialectColumn.DataType
+	t1 := commonColumnTypeMap[string(dataType)]
+	if t1 == "" {
+		dialectColumn.DataType = dbi.CommonTypeVarchar
+		dialectColumn.CharMaxLength = 2000
+	} else {
+		dialectColumn.DataType = t1
+	}
+}
 
-func (sd *SqliteDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
-	tbName := sd.dc.GetMetaData().QuoteIdentifier(tableInfo.TableName)
-	if dropOldTable {
-		_, err := sd.dc.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", tbName))
+func (sd *SqliteDialect) ToColumn(commonColumn *dbi.Column) {
+	ctype := sqliteColumnTypeMap[commonColumn.DataType]
+	if ctype == "" {
+		commonColumn.DataType = "nvarchar"
+		commonColumn.CharMaxLength = 2000
+	}
+}
+
+func (sd *SqliteDialect) CreateTable(columns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
+	sqlArr := sd.dc.GetMetaData().GenerateTableDDL(columns, tableInfo, dropOldTable)
+	for _, sqlStr := range sqlArr {
+		_, err := sd.dc.Exec(sqlStr)
 		if err != nil {
-			logx.Error("删除表失败", err)
+			return 0, err
 		}
 	}
-
-	// 组装建表语句
-	createSql := fmt.Sprintf("CREATE TABLE %s (\n", tbName)
-	fields := make([]string, 0)
-	// 把通用类型转换为达梦类型
-	for _, column := range commonColumns {
-		// 取出当前数据库类型
-		arr := strings.Split(column.ColumnType, "(")
-		ctype := arr[0]
-		// 翻译为通用数据库类型
-		t1 := sqliteColumnTypeMap[dbi.ColumnDataType(ctype)]
-		if t1 == "" {
-			ctype = "nvarchar(2000)"
-		} else {
-			// 回写到列信息
-			if len(arr) > 1 {
-				ctype = t1 + "(" + arr[1]
-			}
-		}
-		column.ColumnType = ctype
-		fields = append(fields, sd.genColumnBasicSql(column))
-	}
-	createSql += strings.Join(fields, ",")
-	createSql += fmt.Sprintf(") ")
-	_, err := sd.dc.Exec(createSql)
-
-	return 1, err
+	return len(sqlArr), nil
 }
 
 func (sd *SqliteDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) error {
-	sqls := make([]string, 0)
-	for _, index := range indexs {
-		// 通过字段、表名拼接索引名
-		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
-		columnName = strings.ReplaceAll(columnName, "_", "")
-		colName := strings.ReplaceAll(columnName, ",", "_")
-
-		keyType := "normal"
-		unique := ""
-		if index.IsUnique {
-			keyType = "unique"
-			unique = "unique"
-		}
-		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
-		sqlTmp := "CREATE %s INDEX %s ON \"%s\" (%s) "
-		sqls = append(sqls, fmt.Sprintf(sqlTmp, unique, indexName, tableInfo.TableName, index.ColumnName))
-	}
-	_, err := sd.dc.Exec(strings.Join(sqls, ";"))
-	return err
-}
-
-func (sd *SqliteDialect) genColumnBasicSql(column dbi.Column) string {
-
-	incr := ""
-	if column.IsIdentity {
-		incr = " AUTOINCREMENT"
-	}
-
-	nullAble := ""
-	if column.Nullable == "NO" {
-		nullAble = " NOT NULL"
-	}
-
-	// 如果是主键，则直接返回，不判断默认值
-	if column.IsPrimaryKey {
-		return fmt.Sprintf(" %s integer PRIMARY KEY %s %s", column.ColumnName, incr, nullAble)
-	}
-
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
-	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
-		// 哪些字段类型默认值需要加引号
-		mark := false
-		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(column.ColumnType)) {
-			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
-			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(column.ColumnType)) &&
-				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
-				mark = false
-			} else {
-				mark = true
-			}
-		}
-		if mark {
-			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
-		} else {
-			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
+	sqlArr := sd.dc.GetMetaData().GenerateIndexDDL(indexs, tableInfo)
+	for _, sqlStr := range sqlArr {
+		_, err := sd.dc.Exec(sqlStr)
+		if err != nil {
+			return err
 		}
 	}
-
-	return fmt.Sprintf(" %s %s %s %s", sd.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.ColumnType, nullAble, defVal)
+	return nil
 }
 
 func (sd *SqliteDialect) UpdateSequence(tableName string, columns []dbi.Column) {

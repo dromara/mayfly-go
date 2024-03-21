@@ -61,28 +61,16 @@ WHERE ss.name = ?
   and t.name = ?
 ---------------------------------------
 --MSSQL_COLUMN_MA 列信息元数据
-SELECT t.name   AS TABLE_NAME,
-       c.name   AS COLUMN_NAME,
-       CASE
-           WHEN c.is_nullable = 1 THEN 'YES'
-           ELSE 'NO'
-           END  AS NULLABLE,
-       tp.name +
-       CASE
-           WHEN tp.name IN ('char', 'varchar', 'nchar', 'nvarchar') THEN '(' + CASE
-                                                                                   WHEN c.max_length = -1 THEN 'max'
-                                                                                   ELSE CAST(c.max_length AS NVARCHAR(255)) END +
-                                                                         ')'
-           WHEN tp.name IN ('numeric', 'decimal') THEN '(' + CAST(c.precision AS NVARCHAR(255)) + ',' +
-                                                       CAST(c.scale AS NVARCHAR(255)) + ')'
-           ELSE ''
-           END  AS COLUMN_TYPE,
-       ep.value AS COLUMN_COMMENT,
-       COLUMN_DEFAULT = CASE
-                            WHEN c.default_object_id IS NOT NULL THEN object_definition(c.default_object_id)
-                            ELSE ''
-           END,
-       c.scale  AS NUM_SCALE,
+SELECT t.name                                               AS TABLE_NAME,
+       c.name                                               AS COLUMN_NAME,
+       CASE WHEN c.is_nullable = 1 THEN 'YES' ELSE 'NO' END AS NULLABLE,
+       tp.name                                              AS DATA_TYPE,
+       c.max_length                                         AS CHAR_MAX_LENGTH,
+       c.precision                                          AS NUM_PRECISION,
+       c.scale                                              AS NUM_SCALE,
+       ep.value                                             AS COLUMN_COMMENT,
+       COLUMN_DEFAULT =
+       CASE WHEN c.default_object_id IS NOT NULL THEN object_definition(c.default_object_id) ELSE '' END,
        IS_IDENTITY = COLUMNPROPERTY(c.object_id, c.name, 'IsIdentity'),
        IS_PRIMARY_KEY = CASE
                             WHEN (SELECT COUNT(*)
@@ -105,106 +93,3 @@ FROM sys.tables t
 WHERE ss.name = ?
   and t.name in (%s)
 ORDER BY t.name, c.column_id
----------------------------------------
---MSSQL_TABLE_DDL 建表ddl
-declare
-@tabname varchar(50)
-set @tabname= ? --表名
-if ( object_id('tempdb.dbo.#t') is not null)
-begin
-DROP TABLE #t
-end
-select 'create table [' + so.name + '] (' + o.list + ')'
-           + CASE
-                 WHEN tc.Constraint_Name IS NULL THEN ''
-                 ELSE 'ALTER TABLE ' + so.Name + ' ADD CONSTRAINT ' + tc.Constraint_Name + ' PRIMARY KEY ' +
-                      ' (' + LEFT(j.List, Len(j.List)-1) + ')' END
-    TABLE_DDL
-into #t
-from sysobjects so
-    cross apply
-    (SELECT
-    ' \n ['+ column_name +'] ' +
-    data_type + case data_type
-    when 'sql_variant' then ''
-    when 'text' then ''
-    when 'ntext' then ''
-    when 'xml' then ''
-    when 'decimal' then '(' + cast (numeric_precision as varchar) + ', ' + cast (numeric_scale as varchar) + ')'
-    else coalesce ('('+ case when character_maximum_length = -1 then 'MAX' else cast (character_maximum_length as varchar) end +')', '') end + ' ' +
-    case when exists (
-    select id from syscolumns
-    where object_name(id)=so.name
-    and name = column_name
-    and columnproperty(id, name, 'IsIdentity') = 1
-    ) then
-    'IDENTITY(' +
-    cast (ident_seed(so.name) as varchar) + ',' +
-    cast (ident_incr(so.name) as varchar) + ')'
-    else ''
-    end + ' ' +
-    (case when IS_NULLABLE = 'No' then 'NOT ' else '' end ) + 'NULL ' +
-    case when information_schema.columns.COLUMN_DEFAULT IS NOT NULL THEN 'DEFAULT '+ information_schema.columns.COLUMN_DEFAULT ELSE '' END + ', '
-    from information_schema.columns where table_name = so.name
-    order by ordinal_position
-    FOR XML PATH ('')) o (list)
-    left join
-    information_schema.table_constraints tc
-on tc.Table_name = so.Name
-    AND tc.Constraint_Type = 'PRIMARY KEY'
-    cross apply
-    (select '[' + Column_Name + '], '
-    FROM information_schema.key_column_usage kcu
-    WHERE kcu.Constraint_Name = tc.Constraint_Name
-    ORDER BY
-    ORDINAL_POSITION
-    FOR XML PATH ('')) j (list)
-where xtype = 'U'
-  AND name =@tabname
-
-select (
-           case
-               when (select count(a.constraint_type)
-                     from information_schema.table_constraints a
-                              inner join information_schema.constraint_column_usage b
-                                         on a.constraint_name = b.constraint_name
-                     where a.constraint_type = 'PRIMARY KEY'--主键
-                       and a.table_name = @tabname) = 1 then replace(table_ddl
-                   , ', )ALTER TABLE'
-                   , ')' + CHAR (13)+'ALTER TABLE')
-               else SUBSTRING(table_ddl
-                        , 1
-                        , len(table_ddl) - 3) + ')' end
-           ) as TableDDL
-from #t
-
-drop table #t
----------------------------------------
---MSSQL_TABLE_INDEX_DDL 建索引ddl
-DECLARE
-@TableName NVARCHAR(255)
-SET @TableName = ?;
-
-SELECT 'CREATE ' +
-       CASE
-           WHEN i.is_primary_key = 1 THEN 'CLUSTERED '
-           WHEN i.type_desc = 'HEAP' THEN ''
-           ELSE 'NONCLUSTERED '
-           END +
-       'INDEX ' + i.name + ' ON ' + t.name + ' (' +
-       STUFF((SELECT ',' + c.name +
-                     CASE
-                         WHEN ic.is_descending_key = 1 THEN ' DESC'
-                         ELSE ' ASC'
-                         END
-              FROM sys.index_columns ic
-                       INNER JOIN
-                   sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-              WHERE ic.object_id = i.object_id
-                AND ic.index_id = i.index_id
-              ORDER BY ic.key_ordinal
-                 FOR XML PATH (''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 1, '') + ');' AS IndexDDL
-FROM sys.tables t
-         INNER JOIN
-     sys.indexes i ON t.object_id = i.object_id
-WHERE t.name = @TableName;

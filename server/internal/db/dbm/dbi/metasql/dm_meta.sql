@@ -34,39 +34,35 @@ WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
 ORDER BY a.object_name
 ---------------------------------------
 --DM_INDEX_INFO 表索引信息
-select
-    a.index_name as INDEX_NAME,
-    a.index_type as INDEX_TYPE,
-    case when a.uniqueness = 'UNIQUE' then 1 else 0 end as IS_UNIQUE,
-    indexdef(b.object_id,1) as INDEX_DEF,
-    c.column_name as COLUMN_NAME,
-    c.column_position as SEQ_IN_INDEX,
-    '无' as INDEX_COMMENT
+select a.index_name                                        as INDEX_NAME,
+       a.index_type                                        as INDEX_TYPE,
+       case when a.uniqueness = 'UNIQUE' then 1 else 0 end as IS_UNIQUE,
+       indexdef(b.object_id, 1)                            as INDEX_DEF,
+       c.column_name                                       as COLUMN_NAME,
+       c.column_position                                   as SEQ_IN_INDEX,
+       '无'                                                as INDEX_COMMENT
 FROM ALL_INDEXES a
          LEFT JOIN all_objects b on a.owner = b.owner and b.object_name = a.index_name and b.object_type = 'INDEX'
          LEFT JOIN ALL_IND_COLUMNS c
                    on a.owner = c.table_owner and a.index_name = c.index_name and a.TABLE_NAME = c.table_name
 
 WHERE a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
-  and  a.TABLE_NAME = '%s'
-  and indexdef(b.object_id,1) != '禁止查看系统定义的索引信息'
-order by  a.TABLE_NAME, a.index_name, c.column_position asc
+  and a.TABLE_NAME = '%s'
+  and indexdef(b.object_id, 1) != '禁止查看系统定义的索引信息'
+order by a.TABLE_NAME, a.index_name, c.column_position asc
 ---------------------------------------
 --DM_COLUMN_MA 表列信息
 select a.table_name                                                                        as TABLE_NAME,
        a.column_name                                                                       as COLUMN_NAME,
        case when a.NULLABLE = 'Y' then 'YES' when a.NULLABLE = 'N' then 'NO' else 'NO' end as NULLABLE,
-       case
-           when a.char_col_decl_length > 0 then concat(a.data_type, '(', a.char_col_decl_length, ')')
-           when a.data_precision > 0 and a.data_scale > 0
-               then concat(a.data_type, '(', a.data_precision, ',', a.data_scale, ')')
-           else a.data_type end
-                                                                                           as COLUMN_TYPE,
+       a.data_type                                                                         as DATA_TYPE,
+       a.char_col_decl_length                                                              as CHAR_MAX_LENGTH,
+       a.data_precision                                                                    as NUM_PRECISION,
+       a.data_scale                                                                        as NUM_SCALE,
        b.comments                                                                          as COLUMN_COMMENT,
        a.data_default                                                                      as COLUMN_DEFAULT,
-       a.data_scale                                                                        as NUM_SCALE,
-       case when t.COL_NAME = a.column_name then 1 else 0 end as IS_IDENTITY,
-       case when t2.constraint_type = 'P' then 1 else 0 end   as IS_PRIMARY_KEY
+       case when t.COL_NAME = a.column_name then 1 else 0 end                              as IS_IDENTITY,
+       case when t2.constraint_type = 'P' then 1 else 0 end                                as IS_PRIMARY_KEY
 from all_tab_columns a
          left join user_col_comments b
                    on b.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))

@@ -82,6 +82,18 @@ func (sd *SqliteMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	return tables, nil
 }
 
+// GetDataTypes 正则提取字段类型中的关键字，
+// 如 decimal(10,2)  提取decimal, 10 ,2
+// 如:text 提取text,null,null
+// 如:varchar(100)  提取varchar, 100
+func (sd *SqliteMetaData) getDataTypes(dataType string) (string, string, string) {
+	matches := dataTypeRegexp.FindStringSubmatch(dataType)
+	if len(matches) == 0 {
+		return "", "", ""
+	}
+	return matches[1], matches[2], matches[3]
+}
+
 // 获取列元信息, 如列名等
 func (sd *SqliteMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 
@@ -104,17 +116,33 @@ func (sd *SqliteMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 			if strings.Contains(defaultValue, "'") {
 				defaultValue = strings.ReplaceAll(defaultValue, "'", "")
 			}
-			columns = append(columns, dbi.Column{
+
+			column := dbi.Column{
 				TableName:     tableName,
 				ColumnName:    anyx.ConvString(re["name"]),
-				ColumnType:    strings.ToLower(anyx.ConvString(re["type"])),
 				ColumnComment: "",
 				Nullable:      nullable,
 				IsPrimaryKey:  anyx.ConvInt(re["pk"]) == 1,
 				IsIdentity:    anyx.ConvInt(re["pk"]) == 1,
 				ColumnDefault: defaultValue,
 				NumScale:      0,
-			})
+			}
+
+			// 切割类型和长度，如果长度内有逗号，则说明是decimal类型
+			columnType := anyx.ConvString(re["type"])
+			dataType, length, scale := sd.getDataTypes(columnType)
+			if scale != "0" && scale != "" {
+				column.NumPrecision = anyx.ConvInt(length)
+				column.NumScale = anyx.ConvInt(scale)
+				column.CharMaxLength = 0
+			} else {
+				column.CharMaxLength = anyx.ConvInt(length)
+			}
+			column.DataType = dbi.ColumnDataType(dataType)
+
+			// 初始化列展示的长度，精度
+			column.InitShowNum()
+			columns = append(columns, column)
 		}
 	}
 	return columns, nil
@@ -175,6 +203,91 @@ func (sd *SqliteMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	return indexs, nil
 }
 
+// 获取建索引ddl
+func (sd *SqliteMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) []string {
+	sqls := make([]string, 0)
+	for _, index := range indexs {
+		// 通过字段、表名拼接索引名
+		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
+		columnName = strings.ReplaceAll(columnName, "_", "")
+		colName := strings.ReplaceAll(columnName, ",", "_")
+
+		keyType := "normal"
+		unique := ""
+		if index.IsUnique {
+			keyType = "unique"
+			unique = "unique"
+		}
+		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
+		sqlTmp := "CREATE %s INDEX %s ON \"%s\" (%s) "
+		sqls = append(sqls, fmt.Sprintf(sqlTmp, unique, indexName, tableInfo.TableName, index.ColumnName))
+	}
+	return sqls
+}
+
+func (sd *SqliteMetaData) genColumnBasicSql(column dbi.Column) string {
+
+	incr := ""
+	if column.IsIdentity {
+		incr = " AUTOINCREMENT"
+	}
+
+	nullAble := ""
+	if column.Nullable == "NO" {
+		nullAble = " NOT NULL"
+	}
+
+	// 如果是主键，则直接返回，不判断默认值
+	if column.IsPrimaryKey {
+		return fmt.Sprintf(" %s integer PRIMARY KEY %s %s", column.ColumnName, incr, nullAble)
+	}
+
+	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
+	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
+		// 哪些字段类型默认值需要加引号
+		mark := false
+		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(string(column.DataType))) {
+			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
+			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(string(column.DataType))) &&
+				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
+				mark = false
+			} else {
+				mark = true
+			}
+		}
+		if mark {
+			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
+		} else {
+			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
+		}
+	}
+
+	return fmt.Sprintf(" %s %s %s %s", sd.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.ShowDataType, nullAble, defVal)
+}
+
+// 获取建表ddl
+func (sd *SqliteMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
+	sqlArr := make([]string, 0)
+	tbName := sd.dc.GetMetaData().QuoteIdentifier(tableInfo.TableName)
+	if dropBeforeCreate {
+		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s", tbName))
+	}
+	// 组装建表语句
+	createSql := fmt.Sprintf("CREATE TABLE %s (\n", tbName)
+	fields := make([]string, 0)
+
+	// 把通用类型转换为达梦类型
+	for _, column := range columns {
+		fields = append(fields, sd.genColumnBasicSql(column))
+	}
+	createSql += strings.Join(fields, ",")
+	createSql += fmt.Sprintf(") ")
+
+	sqlArr = append(sqlArr, createSql)
+
+	return sqlArr
+}
+
 // 获取建表ddl
 func (sd *SqliteMetaData) GetTableDDL(tableName string) (string, error) {
 	_, res, err := sd.dc.Query("select sql from sqlite_master WHERE tbl_name=? order by type desc", tableName)
@@ -202,6 +315,8 @@ var (
 	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit|real`)
 	// 日期时间类型
 	datetimeRegexp = regexp.MustCompile(`(?i)datetime`)
+
+	dataTypeRegexp = regexp.MustCompile(`(\w+)\((\d*),?(\d*)\)`)
 
 	converter = new(DataConverter)
 

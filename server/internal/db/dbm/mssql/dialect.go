@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
 	"time"
@@ -253,200 +252,61 @@ func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-// func (md *MssqlDialect) TransColumns(columns []dbi.Column) []dbi.Column {
-// 	var commonColumns []dbi.Column
-// 	for _, column := range columns {
-// 		// 取出当前数据库类型
-// 		arr := strings.Split(column.ColumnType, "(")
-// 		ctype := arr[0]
-// 		// 翻译为通用数据库类型
-// 		t1 := commonColumnTypeMap[ctype]
-// 		if t1 == "" {
-// 			ctype = "nvarchar(2000)"
-// 		} else {
-// 			// 回写到列信息
-// 			if len(arr) > 1 {
-// 				ctype = t1 + "(" + arr[1]
-// 			} else {
-// 				ctype = t1
-// 			}
-// 		}
-// 		column.ColumnType = ctype
-// 		commonColumns = append(commonColumns, column)
-// 	}
-// 	return commonColumns
-// }
-
-func (md *MssqlDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
-	meta := md.dc.GetMetaData()
-	replacer := strings.NewReplacer(";", "", "'", "")
-	if dropOldTable {
-		_, _ = md.dc.Exec(fmt.Sprintf("DROP TABLE IF EXISTS %s", meta.QuoteIdentifier(tableInfo.TableName)))
+func (md *MssqlDialect) ToCommonColumn(dialectColumn *dbi.Column) {
+	// 翻译为通用数据库类型
+	dataType := dialectColumn.DataType
+	t1 := commonColumnTypeMap[string(dataType)]
+	if t1 == "" {
+		dialectColumn.DataType = dbi.CommonTypeVarchar
+		dialectColumn.CharMaxLength = 2000
+	} else {
+		dialectColumn.DataType = t1
 	}
-	// 组装建表语句
-	createSql := fmt.Sprintf("CREATE TABLE %s (\n", meta.QuoteIdentifier(tableInfo.TableName))
-	fields := make([]string, 0)
-	pks := make([]string, 0)
-	columnComments := make([]string, 0)
-	// 把通用类型转换为达梦类型
-	for _, column := range commonColumns {
-		// 取出当前数据库类型
-		arr := strings.Split(column.ColumnType, "(")
-		ctype := arr[0]
-		// 翻译为通用数据库类型
-		t1 := mssqlColumnTypeMap[dbi.ColumnDataType(ctype)]
-		if t1 == "" {
-			ctype = "nvarchar(2000)"
-		} else {
-			// 回写到列信息
-			if len(arr) > 1 {
-				// 如果是int类型不需要指定长度
-				if strings.Contains(strings.ToLower(t1), "int") {
-					ctype = t1
-				} else if collx.ArrayAnyMatches([]string{"float", "number", "decimal"}, strings.ToLower(t1)) {
-					// 如果是float，最大长度为38
-					match := bracketsRegexp.FindStringSubmatch(column.ColumnType)
-					if len(match) > 1 {
-						// size翻倍， 防止数据超长报错
-						size := anyx.ConvInt(match[1])
-						if size >= 38 { // 如果长度超过38
-							ctype = t1 + "(38)"
-						} else {
-							ctype = fmt.Sprintf("%s(%d)", t1, size)
-						}
-					} else {
-						ctype = t1 + "(38)"
-					}
-				} else if strings.Contains(strings.ToLower(t1), "char") {
-					// 如果是字符串类型，长度最大4000，否则修改字段类型为text
-					match := bracketsRegexp.FindStringSubmatch(column.ColumnType)
-					if len(match) > 1 {
-						// size翻倍， 防止数据超长报错
-						size := anyx.ConvInt(match[1]) * 2
-
-						if size >= 4000 { // 如果长度超过4000，则替换为text类型
-							ctype = "text"
-						} else {
-							ctype = fmt.Sprintf("%s(%d)", t1, size)
-						}
-					} else {
-						ctype = t1 + "(1000)"
-					}
-				} else {
-					ctype = t1 + "(" + arr[1]
-				}
-			} else {
-				ctype = t1
-			}
-		}
-		column.ColumnType = ctype
-
-		if column.IsPrimaryKey {
-			pks = append(pks, meta.QuoteIdentifier(column.ColumnName))
-		}
-		fields = append(fields, md.genColumnBasicSql(column))
-		commentTmp := "EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'COLUMN', N'%s'"
-
-		// 防止注释内含有特殊字符串导致sql出错
-		comment := replacer.Replace(column.ColumnComment)
-		columnComments = append(columnComments, fmt.Sprintf(commentTmp, comment, md.currentSchema(), column.TableName, column.ColumnName))
-	}
-	createSql += strings.Join(fields, ",")
-	if len(pks) > 0 {
-		createSql += fmt.Sprintf(", PRIMARY KEY CLUSTERED (%s)", strings.Join(pks, ","))
-	}
-	createSql += ")"
-	tableCommentSql := ""
-	if tableInfo.TableComment != "" {
-		commentTmp := "EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s'"
-		tableCommentSql = fmt.Sprintf(commentTmp, replacer.Replace(tableInfo.TableComment), md.currentSchema(), tableInfo.TableName)
-	}
-
-	columnCommentSql := strings.Join(columnComments, ";")
-
-	sqls := make([]string, 0)
-
-	if createSql != "" {
-		sqls = append(sqls, createSql)
-	}
-	if tableCommentSql != "" {
-		sqls = append(sqls, tableCommentSql)
-	}
-	if columnCommentSql != "" {
-		sqls = append(sqls, columnCommentSql)
-	}
-
-	_, err := md.dc.Exec(strings.Join(sqls, ";"))
-
-	return 1, err
 }
 
-func (md *MssqlDialect) genColumnBasicSql(column dbi.Column) string {
-	meta := md.dc.GetMetaData()
-	colName := meta.QuoteIdentifier(column.ColumnName)
+func (md *MssqlDialect) ToColumn(commonColumn *dbi.Column) {
+	ctype := mssqlColumnTypeMap[commonColumn.DataType]
 
-	incr := ""
-	if column.IsIdentity {
-		incr = " IDENTITY(1,1)"
-	}
+	if ctype == "" {
+		commonColumn.DataType = "varchar"
+		commonColumn.CharMaxLength = 2000
+	} else {
+		commonColumn.DataType = dbi.ColumnDataType(ctype)
 
-	nullAble := ""
-	if column.Nullable == "NO" {
-		nullAble = " NOT NULL"
-	}
-
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
-	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
-		// 哪些字段类型默认值需要加引号
-		mark := false
-		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(column.ColumnType)) {
-			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
-			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(column.ColumnType)) &&
-				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
-				mark = false
-			} else {
-				mark = true
+		if strings.Contains(strings.ToLower(ctype), "int") {
+			// 如果类型是数字，类型后不需要带长度
+			commonColumn.CharMaxLength = 0
+			commonColumn.NumPrecision = 0
+		} else if collx.ArrayAnyMatches([]string{"float", "number", "decimal"}, strings.ToLower(ctype)) {
+			// 如果是float，最大长度为38
+			if commonColumn.CharMaxLength > 38 {
+				commonColumn.CharMaxLength = 38
 			}
-		}
-
-		if mark {
-			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
-		} else {
-			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
+			if commonColumn.NumPrecision > 38 {
+				commonColumn.NumPrecision = 38
+			}
+		} else if strings.Contains(strings.ToLower(ctype), "char") {
+			// 如果是字符串类型，长度最大4000，否则修改字段类型为text
+			if commonColumn.CharMaxLength > 4000 {
+				commonColumn.DataType = "text"
+				commonColumn.CharMaxLength = 0
+			}
+		} else if strings.Contains(strings.ToLower(ctype), "text") {
+			// 如果是text，取消长度
+			commonColumn.CharMaxLength = 0
 		}
 	}
+}
 
-	columnSql := fmt.Sprintf(" %s %s %s %s %s", colName, column.ColumnType, incr, nullAble, defVal)
-	return columnSql
+func (md *MssqlDialect) CreateTable(columns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
+	sqlArr := md.dc.GetMetaData().GenerateTableDDL(columns, tableInfo, dropOldTable)
+	_, err := md.dc.Exec(strings.Join(sqlArr, ";"))
+	return len(sqlArr), err
 }
 
 func (md *MssqlDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) error {
-	sqls := make([]string, 0)
-	comments := make([]string, 0)
-	for _, index := range indexs {
-		// 通过字段、表名拼接索引名
-		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
-		columnName = strings.ReplaceAll(columnName, "_", "")
-		colName := strings.ReplaceAll(columnName, ",", "_")
-
-		keyType := "normal"
-		unique := ""
-		if index.IsUnique {
-			keyType = "unique"
-			unique = "unique"
-		}
-		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
-
-		sqls = append(sqls, fmt.Sprintf("create %s NONCLUSTERED index %s on %s.%s(%s)", unique, indexName, md.currentSchema(), tableInfo.TableName, index.ColumnName))
-		if index.IndexComment != "" {
-			comments = append(comments, fmt.Sprintf("EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'INDEX', N'%s'", index.IndexComment, md.currentSchema(), tableInfo.TableName, indexName))
-		}
-	}
-	_, err := md.dc.Exec(strings.Join(sqls, ";"))
-	// 添加注释
-	if len(comments) > 0 {
-		_, err = md.dc.Exec(strings.Join(comments, ";"))
-	}
+	sqlArr := md.dc.GetMetaData().GenerateIndexDDL(indexs, tableInfo)
+	_, err := md.dc.Exec(strings.Join(sqlArr, ";"))
 	return err
 }
 

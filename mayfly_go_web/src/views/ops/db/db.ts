@@ -317,7 +317,7 @@ export class DbInst {
         let sql = `UPDATE ${schema}${this.wrapName(table)} SET `;
         // 主键列信息
         const primaryKey = await this.loadTableColumn(dbName, table);
-        let primaryKeyType = primaryKey.columnType;
+        let primaryKeyType = primaryKey.dataType;
         let primaryKeyName = primaryKey.columnName;
         let primaryKeyValue = rowData[primaryKeyName];
         const dialect = this.getDialect();
@@ -325,7 +325,7 @@ export class DbInst {
             const v = columnValue[k];
             // 更新字段列信息
             const updateColumn = await this.loadTableColumn(dbName, table, k);
-            sql += ` ${this.wrapName(k)} = ${dialect.wrapValue(updateColumn.columnType, v)},`;
+            sql += ` ${this.wrapName(k)} = ${dialect.wrapValue(updateColumn.dataType, v)},`;
         }
         sql = sql.substring(0, sql.length - 1);
 
@@ -341,7 +341,7 @@ export class DbInst {
     async genDeleteByPrimaryKeysSql(db: string, table: string, datas: any[]) {
         const primaryKey = await this.loadTableColumn(db, table);
         const primaryKeyColumnName = primaryKey.columnName;
-        const ids = datas.map((d: any) => `${this.getDialect().wrapValue(primaryKey.columnType, d[primaryKeyColumnName])}`).join(',');
+        const ids = datas.map((d: any) => `${this.getDialect().wrapValue(primaryKey.dataType, d[primaryKeyColumnName])}`).join(',');
         return `DELETE FROM ${this.wrapName(table)} WHERE ${this.wrapName(primaryKeyColumnName)} IN (${ids})`;
     }
 

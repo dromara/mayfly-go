@@ -169,6 +169,8 @@ func (app *dbTransferAppImpl) transferTables(task *entity.DbTransferTask, srcCon
 			srcDialect.ToCommonColumn(colPtr)
 			// 公共列转为目标库列
 			targetDialect.ToColumn(colPtr)
+			// 初始化列显示类型
+			colPtr.InitShowNum()
 			targetCols = append(targetCols, *colPtr)
 		}
 
@@ -222,6 +224,8 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, tableName string
 	batchSize := 1000 // 每次查询并迁移1000条数据
 	var queryColumns []*dbi.QueryColumn
 	var err error
+	srcMeta := srcConn.GetMetaData()
+	srcConverter := srcMeta.GetDataConverter()
 
 	// 游标查询源表数据，并批量插入目标表
 	err = srcConn.WalkTableRows(ctx, tableName, func(row map[string]any, columns []*dbi.QueryColumn) error {
@@ -236,7 +240,13 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, tableName string
 
 		}
 		total++
-		result = append(result, row)
+		rawValue := map[string]any{}
+		for _, column := range columns {
+			// 某些情况，如oracle，需要转换时间类型的字符串为time类型
+			res := srcConverter.ParseData(row[column.Name], srcConverter.GetDataType(column.Type))
+			rawValue[column.Name] = res
+		}
+		result = append(result, rawValue)
 		if total%batchSize == 0 {
 			err = app.transfer2Target(targetConn, queryColumns, result, targetDialect, tableName)
 			if err != nil {

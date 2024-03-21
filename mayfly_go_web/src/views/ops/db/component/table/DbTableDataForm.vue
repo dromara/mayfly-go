@@ -9,15 +9,15 @@
                 :required="column.nullable != 'YES' && !column.isPrimaryKey && !column.isIdentity"
             >
                 <template #label>
-                    <span class="pointer" :title="`${column.columnType} | ${column.columnComment}`">
+                    <span class="pointer" :title="`${column.showDataType} | ${column.columnComment}`">
                         {{ column.columnName }}
                     </span>
                 </template>
 
                 <ColumnFormItem
                     v-model="modelValue[`${column.columnName}`]"
-                    :data-type="dbInst.getDialect().getDataType(column.columnType)"
-                    :placeholder="`${column.columnType}  ${column.columnComment}`"
+                    :data-type="dbInst.getDialect().getDataType(column.dataType)"
+                    :placeholder="`${column.showDataType}  ${column.columnComment}`"
                     :column-name="column.columnName"
                     :disabled="column.isIdentity"
                 />

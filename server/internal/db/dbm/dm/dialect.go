@@ -165,157 +165,56 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-// func (dd *DMDialect) TransColumns(columns []dbi.Column) []dbi.Column {
-// 	var commonColumns []dbi.Column
-// 	for _, column := range columns {
-// 		// 取出当前数据库类型
-// 		arr := strings.Split(column.ColumnType, "(")
-// 		ctype := arr[0]
-
-// 		// 翻译为通用数据库类型
-// 		t1 := commonColumnMap[ctype]
-// 		if t1 == "" {
-// 			ctype = "VARCHAR(2000)"
-// 		} else {
-// 			// 回写到列信息
-// 			if len(arr) > 1 {
-// 				ctype = t1 + "(" + arr[1]
-// 			}
-// 		}
-// 		column.ColumnType = ctype
-// 		commonColumns = append(commonColumns, column)
-// 	}
-// 	return commonColumns
-// }
-
-func (dd *DMDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
-	meta := dd.dc.GetMetaData()
-	replacer := strings.NewReplacer(";", "", "'", "")
-	tbName := meta.QuoteIdentifier(tableInfo.TableName)
-
-	if dropOldTable {
-		_, _ = dd.dc.Exec(fmt.Sprintf("drop table if exists %s", tbName))
+func (dd *DMDialect) ToCommonColumn(dialectColumn *dbi.Column) {
+	// 翻译为通用数据库类型
+	dataType := dialectColumn.DataType
+	t1 := commonColumnTypeMap[string(dataType)]
+	if t1 == "" {
+		dialectColumn.DataType = dbi.CommonTypeVarchar
+		dialectColumn.CharMaxLength = 2000
+	} else {
+		dialectColumn.DataType = t1
 	}
-	// 组装建表语句
-	createSql := fmt.Sprintf("create table %s (", tbName)
-	fields := make([]string, 0)
-	pks := make([]string, 0)
-	columnComments := make([]string, 0)
-	// 把通用类型转换为达梦类型
-	for _, column := range commonColumns {
-		// 取出当前数据库类型
-		arr := strings.Split(column.ColumnType, "(")
-		ctype := arr[0]
-		// 翻译为通用数据库类型
-		t1 := dmColumnMap[dbi.ColumnDataType(ctype)]
-		if t1 == "" {
-			ctype = "VARCHAR(2000)"
-		} else {
-			// 回写到列信息
-			if len(arr) > 1 {
-				ctype = t1 + "(" + arr[1]
-			} else {
-				ctype = t1
-			}
-		}
-		column.ColumnType = ctype
-
-		if column.IsPrimaryKey {
-			pks = append(pks, meta.QuoteIdentifier(column.ColumnName))
-		}
-		fields = append(fields, dd.genColumnBasicSql(column))
-		// 防止注释内含有特殊字符串导致sql出错
-		comment := replacer.Replace(column.ColumnComment)
-		columnComments = append(columnComments, fmt.Sprintf("comment on column %s.%s is '%s'", tbName, meta.QuoteIdentifier(column.ColumnName), comment))
-	}
-	createSql += strings.Join(fields, ",")
-	if len(pks) > 0 {
-		createSql += fmt.Sprintf(", PRIMARY KEY (%s)", strings.Join(pks, ","))
-	}
-	createSql += ")"
-
-	tableCommentSql := ""
-	if tableInfo.TableComment != "" {
-		// 防止注释内含有特殊字符串导致sql出错
-		comment := replacer.Replace(tableInfo.TableComment)
-		tableCommentSql = fmt.Sprintf(" comment on table %s is '%s'", tbName, comment)
-	}
-
-	// 达梦需要分开执行sql
-	var err error
-	if createSql != "" {
-		_, err = dd.dc.Exec(createSql)
-	}
-	if tableCommentSql != "" {
-		_, err = dd.dc.Exec(tableCommentSql)
-	}
-	if len(columnComments) > 0 {
-		for _, commentSql := range columnComments {
-			_, err = dd.dc.Exec(commentSql)
-		}
-	}
-
-	return 1, err
 }
 
-func (dd *DMDialect) genColumnBasicSql(column dbi.Column) string {
-	meta := dd.dc.GetMetaData()
-	colName := meta.QuoteIdentifier(column.ColumnName)
+func (dd *DMDialect) ToColumn(commonColumn *dbi.Column) {
+	ctype := dmColumnTypeMap[commonColumn.DataType]
 
-	incr := ""
-	if column.IsIdentity {
-		incr = " IDENTITY"
+	if ctype == "" {
+		commonColumn.DataType = "VARCHAR"
+		commonColumn.CharMaxLength = 2000
+	} else {
+		commonColumn.DataType = dbi.ColumnDataType(ctype)
+		// 如果是date，不设长度
+		if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(ctype)) {
+			commonColumn.CharMaxLength = 0
+			commonColumn.NumPrecision = 0
+		} else
+		// 如果是char且长度未设置，则默认长度2000
+		if collx.ArrayAnyMatches([]string{"char"}, strings.ToLower(ctype)) && commonColumn.CharMaxLength == 0 {
+			commonColumn.CharMaxLength = 2000
+		}
 	}
+}
 
-	nullAble := ""
-	if column.Nullable == "NO" {
-		nullAble = " NOT NULL"
-	}
+func (dd *DMDialect) CreateTable(columns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
 
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
-	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
-		// 哪些字段类型默认值需要加引号
-		mark := false
-		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, strings.ToLower(column.ColumnType)) {
-			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
-			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(column.ColumnType)) &&
-				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
-				mark = false
-			} else {
-				mark = true
+	sqlArr := dd.dc.GetMetaData().GenerateTableDDL(columns, tableInfo, dropOldTable)
+	// 达梦需要分开执行sql
+	if len(sqlArr) > 0 {
+		for _, sqlStr := range sqlArr {
+			_, err := dd.dc.Exec(sqlStr)
+			if err != nil {
+				return 0, err
 			}
 		}
-		if mark {
-			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
-		} else {
-			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
-		}
 	}
 
-	columnSql := fmt.Sprintf(" %s %s %s %s %s", colName, column.ColumnType, incr, nullAble, defVal)
-	return columnSql
-
+	return len(sqlArr), nil
 }
 
 func (dd *DMDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) error {
-	meta := dd.dc.GetMetaData()
-	sqls := make([]string, 0)
-	for _, index := range indexs {
-		// 通过字段、表名拼接索引名
-		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
-		columnName = strings.ReplaceAll(columnName, "_", "")
-		colName := strings.ReplaceAll(columnName, ",", "_")
-
-		keyType := "normal"
-		unique := ""
-		if index.IsUnique {
-			keyType = "unique"
-			unique = "unique"
-		}
-		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
-
-		sqls = append(sqls, fmt.Sprintf("create %s index %s on %s(%s)", unique, indexName, meta.QuoteIdentifier(tableInfo.TableName), index.ColumnName))
-	}
+	sqls := dd.dc.GetMetaData().GenerateIndexDDL(indexs, tableInfo)
 	_, err := dd.dc.Exec(strings.Join(sqls, ";"))
 	return err
 }
