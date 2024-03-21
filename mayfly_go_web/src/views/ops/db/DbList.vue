@@ -97,8 +97,8 @@
                 <el-col :span="9">
                     <el-form-item label="扩展名: ">
                         <el-radio-group v-model="exportDialog.extName">
-                            <el-radio label="sql" />
-                            <el-radio label="gzip" />
+                            <el-radio label="sql" value="sql" />
+                            <el-radio label="gzip" value="gzip" />
                         </el-radio-group>
                     </el-form-item>
                 </el-col>

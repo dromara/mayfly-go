@@ -69,7 +69,7 @@ type Column struct {
 	IsPrimaryKey  bool           `json:"isPrimaryKey"`  // 是否为主键
 	IsIdentity    bool           `json:"isIdentity"`    // 是否自增
 	ColumnDefault string         `json:"columnDefault"` // 默认值
-	Nullable      string         `json:"nullable"`      // 是否可为null
+	Nullable      bool           `json:"nullable"`      // 是否可为null
 	CharMaxLength int            `json:"charMaxLength"` // 字符最大长度
 	NumPrecision  int            `json:"numPrecision"`  // 精度(总数字位数)
 	NumScale      int            `json:"numScale"`      // 小数点位数

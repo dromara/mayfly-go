@@ -130,7 +130,7 @@ func (od *OracleMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 			ColumnName:    cast.ToString(re["COLUMN_NAME"]),
 			DataType:      dbi.ColumnDataType(cast.ToString(re["DATA_TYPE"])),
 			ColumnComment: cast.ToString(re["COLUMN_COMMENT"]),
-			Nullable:      cast.ToString(re["NULLABLE"]),
+			Nullable:      cast.ToString(re["NULLABLE"]) == "YES",
 			IsPrimaryKey:  cast.ToInt(re["IS_PRIMARY_KEY"]) == 1,
 			IsIdentity:    cast.ToInt(re["IS_IDENTITY"]) == 1,
 			ColumnDefault: defaultVal,
@@ -245,7 +245,7 @@ func (od *OracleMetaData) genColumnBasicSql(column dbi.Column) string {
 	}
 
 	nullAble := ""
-	if column.Nullable == "NO" {
+	if !column.Nullable {
 		nullAble = " NOT NULL"
 	}
 

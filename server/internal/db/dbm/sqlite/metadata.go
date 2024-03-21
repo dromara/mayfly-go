@@ -109,10 +109,6 @@ func (sd *SqliteMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 			continue
 		}
 		for _, re := range res {
-			nullable := "YES"
-			if cast.ToInt(re["notnull"]) == 1 {
-				nullable = "NO"
-			}
 			// 去掉默认值的引号
 			defaultValue := cast.ToString(re["dflt_value"])
 			if strings.Contains(defaultValue, "'") {
@@ -123,7 +119,7 @@ func (sd *SqliteMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 				TableName:     tableName,
 				ColumnName:    cast.ToString(re["name"]),
 				ColumnComment: "",
-				Nullable:      nullable,
+				Nullable:      cast.ToInt(re["notnull"]) != 1,
 				IsPrimaryKey:  cast.ToInt(re["pk"]) == 1,
 				IsIdentity:    cast.ToInt(re["pk"]) == 1,
 				ColumnDefault: defaultValue,
@@ -226,14 +222,13 @@ func (sd *SqliteMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tab
 }
 
 func (sd *SqliteMetaData) genColumnBasicSql(column dbi.Column) string {
-
 	incr := ""
 	if column.IsIdentity {
 		incr = " AUTOINCREMENT"
 	}
 
 	nullAble := ""
-	if column.Nullable == "NO" {
+	if !column.Nullable {
 		nullAble = " NOT NULL"
 	}
 
@@ -281,7 +276,7 @@ func (sd *SqliteMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.T
 		fields = append(fields, sd.genColumnBasicSql(column))
 	}
 	createSql += strings.Join(fields, ",")
-	createSql += fmt.Sprintf(") ")
+	createSql += ") "
 
 	sqlArr = append(sqlArr, createSql)
 

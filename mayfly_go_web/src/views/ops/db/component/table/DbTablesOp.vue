@@ -7,9 +7,9 @@
                 </template>
                 <el-form-item label="导出内容: ">
                     <el-radio-group v-model="dumpInfo.type">
-                        <el-radio :label="1" size="small">结构</el-radio>
-                        <el-radio :label="2" size="small">数据</el-radio>
-                        <el-radio :label="3" size="small">结构＋数据</el-radio>
+                        <el-radio :value="1" size="small">结构</el-radio>
+                        <el-radio :value="2" size="small">数据</el-radio>
+                        <el-radio :value="3" size="small">结构＋数据</el-radio>
                     </el-radio-group>
                 </el-form-item>
 
@@ -82,7 +82,7 @@
         <el-dialog width="40%" :title="`${chooseTableName} 字段信息`" v-model="columnDialog.visible">
             <el-table border stripe :data="columnDialog.columns" size="small">
                 <el-table-column prop="columnName" label="名称" show-overflow-tooltip> </el-table-column>
-                <el-table-column width="120" prop="columnType" label="类型" show-overflow-tooltip> </el-table-column>
+                <el-table-column width="120" prop="showDataType" label="类型" show-overflow-tooltip> </el-table-column>
                 <el-table-column width="80" prop="nullable" label="是否可为空" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
             </el-table>
@@ -98,8 +98,8 @@
             </el-table>
         </el-dialog>
 
-        <el-dialog width="55%" :title="`${chooseTableName} Create-DDL`" v-model="ddlDialog.visible">
-            <el-input disabled type="textarea" :autosize="{ minRows: 15, maxRows: 30 }" v-model="ddlDialog.ddl" size="small"> </el-input>
+        <el-dialog width="55%" :title="`'${chooseTableName}' DDL`" v-model="ddlDialog.visible">
+            <monaco-editor height="400px" language="sql" v-model="ddlDialog.ddl" :options="{ readOnly: true }" />
         </el-dialog>
 
         <db-table-op
@@ -126,7 +126,10 @@ import SqlExecBox from '../sqleditor/SqlExecBox';
 import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
-import { compatibleMysql, editDbTypes } from '../../dialect/index';
+import { compatibleMysql, editDbTypes, getDbDialect } from '../../dialect/index';
+import { DbInst } from '../../db';
+import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import { format as sqlFormatter } from 'sql-formatter';
 
 const DbTableOp = defineAsyncComponent(() => import('./DbTableOp.vue'));
 
@@ -275,11 +278,13 @@ const dump = (db: string) => {
 
 const showColumns = async (row: any) => {
     state.chooseTableName = row.tableName;
-    state.columnDialog.columns = await dbApi.columnMetadata.request({
+    const columns = await dbApi.columnMetadata.request({
         id: props.dbId,
         db: props.db,
         tableName: row.tableName,
     });
+    DbInst.initColumns(columns);
+    state.columnDialog.columns = columns;
 
     state.columnDialog.visible = true;
 };
@@ -302,7 +307,8 @@ const showCreateDdl = async (row: any) => {
         db: props.db,
         tableName: row.tableName,
     });
-    state.ddlDialog.ddl = res;
+
+    state.ddlDialog.ddl = sqlFormatter(res, { language: getDbDialect(props.dbType).getInfo().formatSqlDialect });
     state.ddlDialog.visible = true;
 };
 

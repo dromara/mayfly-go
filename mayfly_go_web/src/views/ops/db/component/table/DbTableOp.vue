@@ -518,7 +518,7 @@ watch(
                     value: defaultValue,
                     length: a.showLength,
                     numScale: a.showScale,
-                    notNull: a.nullable !== 'YES',
+                    notNull: !a.nullable,
                     pri: a.isPrimaryKey,
                     auto_increment: a.isIdentity /*a.extra?.indexOf('auto_increment') > -1*/,
                     remark: a.columnComment,

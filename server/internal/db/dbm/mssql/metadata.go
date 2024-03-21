@@ -111,7 +111,7 @@ func (md *MssqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			DataType:      dbi.ColumnDataType(anyx.ToString(re["DATA_TYPE"])),
 			CharMaxLength: cast.ToInt(re["CHAR_MAX_LENGTH"]),
 			ColumnComment: anyx.ToString(re["COLUMN_COMMENT"]),
-			Nullable:      anyx.ToString(re["NULLABLE"]),
+			Nullable:      anyx.ToString(re["NULLABLE"]) == "YES",
 			IsPrimaryKey:  cast.ToInt(re["IS_PRIMARY_KEY"]) == 1,
 			IsIdentity:    cast.ToInt(re["IS_IDENTITY"]) == 1,
 			ColumnDefault: cast.ToString(re["COLUMN_DEFAULT"]),
@@ -287,7 +287,7 @@ func (md *MssqlMetaData) genColumnBasicSql(column dbi.Column) string {
 	}
 
 	nullAble := ""
-	if column.Nullable == "NO" {
+	if !column.Nullable {
 		nullAble = " NOT NULL"
 	}
 

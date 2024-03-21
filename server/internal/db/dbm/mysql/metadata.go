@@ -108,7 +108,7 @@ func (md *MysqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			ColumnName:    cast.ToString(re["columnName"]),
 			DataType:      dbi.ColumnDataType(cast.ToString(re["dataType"])),
 			ColumnComment: cast.ToString(re["columnComment"]),
-			Nullable:      cast.ToString(re["nullable"]),
+			Nullable:      cast.ToString(re["nullable"]) == "YES",
 			IsPrimaryKey:  cast.ToInt(re["isPrimaryKey"]) == 1,
 			IsIdentity:    cast.ToInt(re["isIdentity"]) == 1,
 			ColumnDefault: cast.ToString(re["columnDefault"]),
@@ -212,7 +212,7 @@ func (md *MysqlMetaData) genColumnBasicSql(column dbi.Column) string {
 	}
 
 	nullAble := ""
-	if column.Nullable == "NO" {
+	if !column.Nullable {
 		nullAble = " NOT NULL"
 	}
 

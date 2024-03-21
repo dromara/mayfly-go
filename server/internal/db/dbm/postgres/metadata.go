@@ -107,7 +107,7 @@ func (pd *PgsqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			DataType:      dbi.ColumnDataType(cast.ToString(re["dataType"])),
 			CharMaxLength: cast.ToInt(re["charMaxLength"]),
 			ColumnComment: cast.ToString(re["columnComment"]),
-			Nullable:      cast.ToString(re["nullable"]),
+			Nullable:      cast.ToString(re["nullable"]) == "YES",
 			IsPrimaryKey:  cast.ToInt(re["isPrimaryKey"]) == 1,
 			IsIdentity:    cast.ToInt(re["isIdentity"]) == 1,
 			ColumnDefault: cast.ToString(re["columnDefault"]),
@@ -238,7 +238,7 @@ func (pd *PgsqlMetaData) genColumnBasicSql(column dbi.Column) string {
 	}
 
 	nullAble := ""
-	if column.Nullable == "NO" {
+	if !column.Nullable {
 		nullAble = " NOT NULL"
 		// 如果字段不能为空，则设置默认值
 		if column.ColumnDefault == "" {

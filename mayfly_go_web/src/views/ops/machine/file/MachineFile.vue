@@ -251,8 +251,8 @@
                 </el-form-item>
                 <el-form-item prop="type" label="类型">
                     <el-radio-group v-model="createFileDialog.type">
-                        <el-radio label="d">文件夹</el-radio>
-                        <el-radio label="-">文件</el-radio>
+                        <el-radio value="d" label="d">文件夹</el-radio>
+                        <el-radio value="-" label="-">文件</el-radio>
                     </el-radio-group>
                 </el-form-item>
             </div>
