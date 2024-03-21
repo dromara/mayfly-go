@@ -127,7 +127,7 @@ func (p *tagTreeAppImpl) GetAccountTagResources(accountId uint64, resourceType i
 		}
 	}
 
-	tagResourceQuery.TagPath = tagPath
+	tagResourceQuery.TagPathLike = tagPath
 	tagResourceQuery.TagPathLikes = accountTagPaths
 	p.tagResourceApp.ListByQuery(tagResourceQuery, &tagResources)
 	return tagResources

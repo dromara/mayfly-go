@@ -3,7 +3,8 @@ package entity
 import (
 	"encoding/json"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils/conv"
+
+	"github.com/may-fly/cast"
 )
 
 const (
@@ -49,7 +50,7 @@ func (c *Config) IntValue(defaultValue int) int {
 	if c.Id == 0 {
 		return defaultValue
 	}
-	return conv.Str2Int(c.Value, defaultValue)
+	return cast.ToIntD(c.Value, defaultValue)
 }
 
 // 转换配置中的值为bool类型（默认"1"或"true"为true，其他为false）

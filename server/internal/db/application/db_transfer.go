@@ -169,8 +169,6 @@ func (app *dbTransferAppImpl) transferTables(task *entity.DbTransferTask, srcCon
 			srcDialect.ToCommonColumn(colPtr)
 			// 公共列转为目标库列
 			targetDialect.ToColumn(colPtr)
-			// 初始化列显示类型
-			colPtr.InitShowNum()
 			targetCols = append(targetCols, *colPtr)
 		}
 
@@ -197,7 +195,7 @@ func (app *dbTransferAppImpl) transferTables(task *entity.DbTransferTask, srcCon
 
 		// 迁移索引信息
 		logx.Infof("开始迁移索引: 表名：%s", tbName)
-		err = app.transferIndex(ctx, tableMap[tbName], srcConn, srcDialect, targetConn, targetDialect)
+		err = app.transferIndex(ctx, tableMap[tbName], srcConn, targetDialect)
 		if err != nil {
 			end(fmt.Sprintf("迁移索引失败: 表名：%s, error: %s", tbName, err.Error()), err)
 			return
@@ -302,7 +300,7 @@ func (app *dbTransferAppImpl) transfer2Target(targetConn *dbi.DbConn, cols []*db
 	return err
 }
 
-func (app *dbTransferAppImpl) transferIndex(ctx context.Context, tableInfo dbi.Table, srcConn *dbi.DbConn, srcDialect dbi.Dialect, targetConn *dbi.DbConn, targetDialect dbi.Dialect) error {
+func (app *dbTransferAppImpl) transferIndex(_ context.Context, tableInfo dbi.Table, srcConn *dbi.DbConn, targetDialect dbi.Dialect) error {
 
 	// 查询源表索引信息
 	indexs, err := srcConn.GetMetaData().GetTableIndex(tableInfo.TableName)

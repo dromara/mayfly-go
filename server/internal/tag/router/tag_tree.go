@@ -28,6 +28,8 @@ func InitTagTreeRouter(router *gin.RouterGroup) {
 
 			req.NewGet("/resources/:rtype/tag-paths", m.TagResources),
 
+			req.NewGet("/resources/count", m.CountTagResource),
+
 			req.NewGet("/resources", m.QueryTagResources),
 		}
 

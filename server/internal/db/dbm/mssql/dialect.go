@@ -16,22 +16,6 @@ type MssqlDialect struct {
 	dc *dbi.DbConn
 }
 
-// 从连接信息中获取数据库和schema信息
-func (md *MssqlDialect) currentSchema() string {
-	dbName := md.dc.Info.Database
-	schema := ""
-	arr := strings.Split(dbName, "/")
-	if len(arr) == 2 {
-		schema = arr[1]
-	}
-	return schema
-}
-
-// GetDbProgram 获取数据库程序模块，用于数据库备份与恢复
-func (md *MssqlDialect) GetDbProgram() (dbi.DbProgram, error) {
-	return nil, fmt.Errorf("该数据库类型不支持数据库备份与恢复: %v", md.dc.Info.Type)
-}
-
 func (md *MssqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []string, values [][]any, duplicateStrategy int) (int64, error) {
 
 	if duplicateStrategy == dbi.DuplicateStrategyUpdate {
@@ -143,6 +127,9 @@ func (md *MssqlDialect) batchInsertMerge(tx *sql.Tx, tableName string, columns [
 	// 查询取出自增列字段, merge update不能修改自增列
 	identityCols := make([]string, 0)
 	cols, err := msMetadata.GetColumns(tableName)
+	if err != nil {
+		return 0, err
+	}
 	for _, col := range cols {
 		if col.IsIdentity {
 			identityCols = append(identityCols, col.ColumnName)
@@ -166,7 +153,7 @@ func (md *MssqlDialect) batchInsertMerge(tx *sql.Tx, tableName string, columns [
 		if !collx.ArrayContains(identityCols, msMetadata.RemoveQuote(column)) {
 			upds = append(upds, fmt.Sprintf("T1.%s = T2.%s", column, column))
 		}
-		insertCols = append(insertCols, fmt.Sprintf("%s", column))
+		insertCols = append(insertCols, column)
 		insertVals = append(insertVals, fmt.Sprintf("T2.%s", column))
 		phs = append(phs, fmt.Sprintf("? %s", column))
 	}
@@ -308,8 +295,4 @@ func (md *MssqlDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) err
 	sqlArr := md.dc.GetMetaData().GenerateIndexDDL(indexs, tableInfo)
 	_, err := md.dc.Exec(strings.Join(sqlArr, ";"))
 	return err
-}
-
-func (md *MssqlDialect) UpdateSequence(tableName string, columns []dbi.Column) {
-
 }

@@ -127,7 +127,3 @@ func (sd *SqliteDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) er
 	}
 	return nil
 }
-
-func (sd *SqliteDialect) UpdateSequence(tableName string, columns []dbi.Column) {
-
-}

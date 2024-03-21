@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"fmt"
 	"mayfly-go/internal/db/dbm/dbi"
-	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/jsonx"
 	"strings"
 
+	"github.com/may-fly/cast"
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
@@ -56,8 +56,8 @@ func (md *OraMeta) GetSqlDb(d *dbi.DbInfo) (*sql.DB, error) {
 	serviceName := ""
 	if d.Extra != "" {
 		extraMap := jsonx.ToMap(d.Extra)
-		serviceName = anyx.ConvString(extraMap["serviceName"])
-		if sid := anyx.ConvString(extraMap["sid"]); sid != "" {
+		serviceName = cast.ToString(extraMap["serviceName"])
+		if sid := cast.ToString(extraMap["sid"]); sid != "" {
 			urlOptions["SID"] = sid
 		}
 	}

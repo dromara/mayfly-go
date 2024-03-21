@@ -13,12 +13,13 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/conv"
 	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/structx"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/may-fly/cast"
 )
 
 const (
@@ -136,7 +137,7 @@ func (a *Account) SimpleAccounts(rc *req.Ctx) {
 	idsStr := rc.Query("ids")
 	if idsStr != "" {
 		condition.Ids = collx.ArrayMap[string, uint64](strings.Split(idsStr, ","), func(val string) uint64 {
-			return uint64(conv.Str2Int(val, 0))
+			return cast.ToUint64(val)
 		})
 	}
 	res, err := a.AccountApp.GetPageList(condition, rc.GetPageParam(), new([]vo.SimpleAccountVO))

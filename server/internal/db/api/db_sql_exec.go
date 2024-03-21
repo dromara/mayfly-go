@@ -6,7 +6,9 @@ import (
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/conv"
+
+	"github.com/may-fly/cast"
+
 	"strings"
 )
 
@@ -19,7 +21,7 @@ func (d *DbSqlExec) DbSqlExecs(rc *req.Ctx) {
 
 	if statusStr := rc.Query("status"); statusStr != "" {
 		queryCond.Status = collx.ArrayMap[string, int8](strings.Split(statusStr, ","), func(val string) int8 {
-			return int8(conv.Str2Int(val, 0))
+			return cast.ToInt8(val)
 		})
 	}
 	res, err := d.DbSqlExecApp.GetPageList(queryCond, page, new([]entity.DbSqlExec))

@@ -8,8 +8,9 @@ import (
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
-	"strconv"
 	"strings"
+
+	"github.com/may-fly/cast"
 )
 
 type machineRepoImpl struct {
@@ -31,8 +32,7 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 	if condition.Ids != "" {
 		// ,分割id转为id数组
 		qd.In("id", collx.ArrayMap[string, uint64](strings.Split(condition.Ids, ","), func(val string) uint64 {
-			id, _ := strconv.Atoi(val)
-			return uint64(id)
+			return cast.ToUint64(val)
 		}))
 	}
 

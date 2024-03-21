@@ -2,9 +2,10 @@ package config
 
 import (
 	sysapp "mayfly-go/internal/sys/application"
-	"mayfly-go/pkg/utils/conv"
 	"path/filepath"
 	"runtime"
+
+	"github.com/may-fly/cast"
 )
 
 const (
@@ -26,8 +27,8 @@ func GetDbms() *Dbms {
 
 	dbmsConf := new(Dbms)
 	dbmsConf.QuerySqlSave = c.ConvBool(jm["querySqlSave"], false)
-	dbmsConf.MaxResultSet = conv.Str2Int(jm["maxResultSet"], 0)
-	dbmsConf.SqlExecTl = conv.Str2Int(jm["sqlExecTl"], 60)
+	dbmsConf.MaxResultSet = cast.ToInt(jm["maxResultSet"])
+	dbmsConf.SqlExecTl = cast.ToIntD(jm["sqlExecTl"], 60)
 	return dbmsConf
 }
 

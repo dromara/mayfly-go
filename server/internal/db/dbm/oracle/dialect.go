@@ -211,7 +211,3 @@ func (od *OracleDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) er
 	_, err := od.dc.Exec(strings.Join(sqlArr, ";"))
 	return err
 }
-
-func (od *OracleDialect) UpdateSequence(tableName string, columns []dbi.Column) {
-
-}

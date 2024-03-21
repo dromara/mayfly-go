@@ -175,6 +175,9 @@ export class DbInst {
             db: dbName,
             tableName: table,
         });
+
+        DbInst.initColumns(columns);
+
         db.columnsMap.set(table, columns);
         return columns;
     }
@@ -466,6 +469,32 @@ export class DbInst {
         const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
         return flexWidth > 500 ? 500 : flexWidth;
     };
+
+    // 初始化所有列信息，完善需要显示的列类型，包含长度等，如varchar(20)
+    static initColumns(columns: any[]) {
+        for (let col of columns) {
+            if (col.charMaxLength > 0) {
+                col.showDataType = `${col.dataType}(${col.charMaxLength})`;
+                col.showLength = col.charMaxLength;
+                col.showScale = null;
+                continue;
+            }
+            if (col.numPrecision > 0) {
+                if (col.numScale > 0) {
+                    col.showDataType = `${col.dataType}(${col.numPrecision},${col.numScale})`;
+                    col.showScale = col.numScale;
+                } else {
+                    col.showDataType = `${col.dataType}(${col.numPrecision})`;
+                    col.showScale = null;
+                }
+
+                col.showLength = col.numPrecision;
+                continue;
+            }
+
+            col.showDataType = col.dataType;
+        }
+    }
 }
 
 /**

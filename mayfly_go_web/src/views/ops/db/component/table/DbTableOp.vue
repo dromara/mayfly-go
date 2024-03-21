@@ -131,6 +131,7 @@ import { reactive, ref, toRefs, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from '../sqleditor/SqlExecBox';
 import { DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
+import { DbInst } from '../../db';
 
 const props = defineProps({
     visible: {
@@ -500,6 +501,7 @@ watch(
         state.tableData.indexs.res = [];
         // 索引列下拉选
         state.tableData.indexs.columns = [];
+        DbInst.initColumns(columns);
         // 回显列
         if (columns && Array.isArray(columns) && columns.length > 0) {
             columns.forEach((a) => {

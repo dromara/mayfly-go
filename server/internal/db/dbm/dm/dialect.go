@@ -77,17 +77,15 @@ func (dd *DMDialect) batchInsertMerge(tx *sql.Tx, tableName string, columns []st
 	}
 	// 查询唯一索引涉及到的字段，并组装到match条件内
 	indexs, _ := metadata.GetTableIndex(tableName)
-	if indexs != nil {
-		for _, index := range indexs {
-			if index.IsUnique {
-				cols := strings.Split(index.ColumnName, ",")
-				tmp := make([]string, 0)
-				for _, col := range cols {
-					uniqueCols = append(uniqueCols, col)
-					tmp = append(tmp, fmt.Sprintf(" T1.%s = T2.%s ", metadata.QuoteIdentifier(col), metadata.QuoteIdentifier(col)))
-				}
-				caseSqls = append(caseSqls, fmt.Sprintf("( %s )", strings.Join(tmp, " AND ")))
+	for _, index := range indexs {
+		if index.IsUnique {
+			cols := strings.Split(index.ColumnName, ",")
+			tmp := make([]string, 0)
+			for _, col := range cols {
+				uniqueCols = append(uniqueCols, col)
+				tmp = append(tmp, fmt.Sprintf(" T1.%s = T2.%s ", metadata.QuoteIdentifier(col), metadata.QuoteIdentifier(col)))
 			}
+			caseSqls = append(caseSqls, fmt.Sprintf("( %s )", strings.Join(tmp, " AND ")))
 		}
 	}
 
@@ -102,7 +100,7 @@ func (dd *DMDialect) batchInsertMerge(tx *sql.Tx, tableName string, columns []st
 			upds = append(upds, fmt.Sprintf("T1.%s = T2.%s", column, column))
 		}
 		if !collx.ArrayContains(identityCols, column) {
-			insertCols = append(insertCols, fmt.Sprintf("%s", column))
+			insertCols = append(insertCols, column)
 			insertVals = append(insertVals, fmt.Sprintf("T2.%s", column))
 		}
 
@@ -217,8 +215,4 @@ func (dd *DMDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) error 
 	sqls := dd.dc.GetMetaData().GenerateIndexDDL(indexs, tableInfo)
 	_, err := dd.dc.Exec(strings.Join(sqls, ";"))
 	return err
-}
-
-func (dd *DMDialect) UpdateSequence(tableName string, columns []dbi.Column) {
-
 }

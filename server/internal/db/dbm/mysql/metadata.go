@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/kanzihuang/vitess/go/vt/sqlparser"
+	"github.com/may-fly/cast"
 )
 
 const (
@@ -36,7 +37,7 @@ func (md *MysqlMetaData) GetDbServer() (*dbi.DbServer, error) {
 		return nil, err
 	}
 	ds := &dbi.DbServer{
-		Version: anyx.ConvString(res[0]["version"]),
+		Version: cast.ToString(res[0]["version"]),
 	}
 	return ds, nil
 }
@@ -49,7 +50,7 @@ func (md *MysqlMetaData) GetDbNames() ([]string, error) {
 
 	databases := make([]string, 0)
 	for _, re := range res {
-		databases = append(databases, anyx.ConvString(re["dbname"]))
+		databases = append(databases, cast.ToString(re["dbname"]))
 	}
 	return databases, nil
 }
@@ -76,12 +77,12 @@ func (md *MysqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	tables := make([]dbi.Table, 0)
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
-			TableName:    anyx.ConvString(re["tableName"]),
-			TableComment: anyx.ConvString(re["tableComment"]),
-			CreateTime:   anyx.ConvString(re["createTime"]),
-			TableRows:    anyx.ConvInt(re["tableRows"]),
-			DataLength:   anyx.ConvInt64(re["dataLength"]),
-			IndexLength:  anyx.ConvInt64(re["indexLength"]),
+			TableName:    cast.ToString(re["tableName"]),
+			TableComment: cast.ToString(re["tableComment"]),
+			CreateTime:   cast.ToString(re["createTime"]),
+			TableRows:    cast.ToInt(re["tableRows"]),
+			DataLength:   cast.ToInt64(re["dataLength"]),
+			IndexLength:  cast.ToInt64(re["indexLength"]),
 		})
 	}
 	return tables, nil
@@ -103,21 +104,19 @@ func (md *MysqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 	for _, re := range res {
 
 		column := dbi.Column{
-			TableName:     anyx.ConvString(re["tableName"]),
-			ColumnName:    anyx.ConvString(re["columnName"]),
-			DataType:      dbi.ColumnDataType(anyx.ConvString(re["dataType"])),
-			ColumnComment: anyx.ConvString(re["columnComment"]),
-			Nullable:      anyx.ConvString(re["nullable"]),
-			IsPrimaryKey:  anyx.ConvInt(re["isPrimaryKey"]) == 1,
-			IsIdentity:    anyx.ConvInt(re["isIdentity"]) == 1,
-			ColumnDefault: anyx.ConvString(re["columnDefault"]),
-			CharMaxLength: anyx.ConvInt(re["charMaxLength"]),
-			NumPrecision:  anyx.ConvInt(re["numPrecision"]),
-			NumScale:      anyx.ConvInt(re["numScale"]),
+			TableName:     cast.ToString(re["tableName"]),
+			ColumnName:    cast.ToString(re["columnName"]),
+			DataType:      dbi.ColumnDataType(cast.ToString(re["dataType"])),
+			ColumnComment: cast.ToString(re["columnComment"]),
+			Nullable:      cast.ToString(re["nullable"]),
+			IsPrimaryKey:  cast.ToInt(re["isPrimaryKey"]) == 1,
+			IsIdentity:    cast.ToInt(re["isIdentity"]) == 1,
+			ColumnDefault: cast.ToString(re["columnDefault"]),
+			CharMaxLength: cast.ToInt(re["charMaxLength"]),
+			NumPrecision:  cast.ToInt(re["numPrecision"]),
+			NumScale:      cast.ToInt(re["numScale"]),
 		}
 
-		// 初始化列展示的长度，精度
-		column.InitShowNum()
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -152,12 +151,12 @@ func (md *MysqlMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
 		indexs = append(indexs, dbi.Index{
-			IndexName:    anyx.ConvString(re["indexName"]),
-			ColumnName:   anyx.ConvString(re["columnName"]),
-			IndexType:    anyx.ConvString(re["indexType"]),
-			IndexComment: anyx.ConvString(re["indexComment"]),
-			IsUnique:     anyx.ConvInt(re["isUnique"]) == 1,
-			SeqInIndex:   anyx.ConvInt(re["seqInIndex"]),
+			IndexName:    cast.ToString(re["indexName"]),
+			ColumnName:   cast.ToString(re["columnName"]),
+			IndexType:    cast.ToString(re["indexType"]),
+			IndexComment: cast.ToString(re["indexComment"]),
+			IsUnique:     cast.ToInt(re["isUnique"]) == 1,
+			SeqInIndex:   cast.ToInt(re["seqInIndex"]),
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
@@ -243,7 +242,7 @@ func (md *MysqlMetaData) genColumnBasicSql(column dbi.Column) string {
 		comment = fmt.Sprintf(" COMMENT '%s'", commentStr)
 	}
 
-	columnSql := fmt.Sprintf(" %s %s %s %s %s %s", md.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.ShowDataType, nullAble, incr, defVal, comment)
+	columnSql := fmt.Sprintf(" %s %s %s %s %s %s", md.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.GetColumnType(), nullAble, incr, defVal, comment)
 	return columnSql
 }
 
@@ -260,7 +259,7 @@ func (md *MysqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Ta
 	createSql := fmt.Sprintf("CREATE TABLE %s (\n", meta.QuoteIdentifier(tableInfo.TableName))
 	fields := make([]string, 0)
 	pks := make([]string, 0)
-	// 把通用类型转换为达梦类型
+
 	for _, column := range columns {
 		if column.IsPrimaryKey {
 			pks = append(pks, column.ColumnName)

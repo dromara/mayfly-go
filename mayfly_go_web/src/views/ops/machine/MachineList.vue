@@ -9,6 +9,7 @@
             :show-selection="true"
             v-model:selection-data="state.selectionData"
             :columns="columns"
+            :lazy="true"
         >
             <template #tableHeader>
                 <el-button v-auth="perms.addMachine" type="primary" icon="plus" @click="openFormDialog(false)" plain>添加 </el-button>
@@ -205,6 +206,13 @@ const MachineStats = defineAsyncComponent(() => import('./MachineStats.vue'));
 const MachineRec = defineAsyncComponent(() => import('./MachineRec.vue'));
 const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
 
+const props = defineProps({
+    lazy: {
+        type: [Boolean],
+        default: false,
+    },
+});
+
 const router = useRouter();
 const route = useRoute();
 const terminalDialogRef: any = ref(null);
@@ -282,7 +290,11 @@ const state = reactive({
 
 const { params, infoDialog, selectionData, serviceDialog, processDialog, fileDialog, machineStatsDialog, machineEditDialog, machineRecDialog } = toRefs(state);
 
-onMounted(async () => {});
+onMounted(async () => {
+    if (!props.lazy) {
+        search();
+    }
+});
 
 const checkRouteTagPath = (query: any) => {
     if (route.query.tagPath) {
@@ -396,7 +408,10 @@ const showMachineStats = async (machine: any) => {
     state.machineStatsDialog.visible = true;
 };
 
-const search = async () => {
+const search = async (tagPath: string = '') => {
+    if (tagPath) {
+        state.params.tagPath = tagPath;
+    }
     pageTableRef.value.search();
 };
 
@@ -437,6 +452,8 @@ const showRec = (row: any) => {
     state.machineRecDialog.machineId = row.id;
     state.machineRecDialog.visible = true;
 };
+
+defineExpose({ search });
 </script>
 
 <style>

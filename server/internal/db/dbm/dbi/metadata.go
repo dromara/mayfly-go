@@ -53,7 +53,6 @@ type DbServer struct {
 // 表信息
 type Table struct {
 	TableName    string `json:"tableName"`    // 表名
-	TableNewName string `json:"tableNewName"` // 新表名，复制表生成ddl时，需要传入新表名
 	TableComment string `json:"tableComment"` // 表备注
 	CreateTime   string `json:"createTime"`   // 创建时间
 	TableRows    int    `json:"tableRows"`
@@ -75,38 +74,22 @@ type Column struct {
 	NumPrecision  int            `json:"numPrecision"`  // 精度(总数字位数)
 	NumScale      int            `json:"numScale"`      // 小数点位数
 	Extra         collx.M        `json:"extra"`         // 其他额外信息
-
-	ShowLength   int    `json:"showLength"`
-	ShowScale    int    `json:"showScale"`
-	ShowDataType string `json:"showDataType"` // 显示数据类型
 }
 
-// 初始化列显示类型，拼接数据类型与长度等。如varchar(2000)，decimal(20,2)
-func (c *Column) InitShowNum() string {
+// 拼接数据类型与长度等。如varchar(2000)，decimal(20,2)
+func (c *Column) GetColumnType() string {
 	if c.CharMaxLength > 0 {
-		c.ShowDataType = fmt.Sprintf("%s(%d)", c.DataType, c.CharMaxLength)
-		c.ShowLength = c.CharMaxLength
-		c.ShowScale = 0
-		return c.ShowDataType
+		return fmt.Sprintf("%s(%d)", c.DataType, c.CharMaxLength)
 	}
 	if c.NumPrecision > 0 {
 		if c.NumScale > 0 {
-			c.ShowDataType = fmt.Sprintf("%s(%d,%d)", c.DataType, c.NumPrecision, c.NumScale)
-			c.ShowScale = c.NumScale
+			return fmt.Sprintf("%s(%d,%d)", c.DataType, c.NumPrecision, c.NumScale)
 		} else {
-			c.ShowDataType = fmt.Sprintf("%s(%d)", c.DataType, c.NumPrecision)
-			c.ShowScale = 0
+			return fmt.Sprintf("%s(%d)", c.DataType, c.NumPrecision)
 		}
-		c.ShowLength = c.NumPrecision
-
-		return c.ShowDataType
 	}
 
-	c.ShowDataType = string(c.DataType)
-	c.ShowLength = 0
-	c.ShowScale = 0
-
-	return c.ShowDataType
+	return string(c.DataType)
 }
 
 // 表索引信息

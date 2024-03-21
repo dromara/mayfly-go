@@ -5,7 +5,9 @@ import (
 	"io"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/utils/conv"
+
+	"github.com/may-fly/cast"
+
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -69,7 +71,7 @@ func NewTerminalSession(sessionId string, ws *websocket.Conn, cli *Cli, rows, co
 }
 
 func (r TerminalSession) Start() {
-	go r.readFormTerminal()
+	go r.readFromTerminal()
 	go r.writeToWebsocket()
 	r.receiveWsMsg()
 }
@@ -87,7 +89,7 @@ func (r TerminalSession) Stop() {
 	}
 }
 
-func (ts TerminalSession) readFormTerminal() {
+func (ts TerminalSession) readFromTerminal() {
 	for {
 		select {
 		case <-ts.ctx.Done():
@@ -207,15 +209,15 @@ func parseMsg(msg []byte) (*WsMsg, error) {
 	}
 
 	// 获取消息类型, 提取第一个 "|" 之前的内容
-	msgType := conv.Str2Int(msgStr[:index], Ping)
+	msgType := cast.ToIntD(msgStr[:index], Ping)
 	// 其余内容则为消息内容
 	msgContent := msgStr[index+1:]
 
 	wsMsg := &WsMsg{Type: msgType, Msg: msgContent}
 	if msgType == Resize {
 		rowsAndCols := strings.Split(msgContent, MsgSplit)
-		wsMsg.Rows = conv.Str2Int(rowsAndCols[0], 80)
-		wsMsg.Cols = conv.Str2Int(rowsAndCols[1], 80)
+		wsMsg.Rows = cast.ToIntD(rowsAndCols[0], 80)
+		wsMsg.Cols = cast.ToIntD(rowsAndCols[1], 80)
 	}
 	return wsMsg, nil
 }

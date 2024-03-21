@@ -7,10 +7,11 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"strconv"
 	"strings"
+
+	"github.com/may-fly/cast"
 )
 
 type Role struct {
@@ -24,7 +25,7 @@ func (r *Role) Roles(rc *req.Ctx) {
 	notIdsStr := rc.Query("notIds")
 	if notIdsStr != "" {
 		cond.NotIds = collx.ArrayMap[string, uint64](strings.Split(notIdsStr, ","), func(val string) uint64 {
-			return uint64(anyx.ConvInt(val))
+			return cast.ToUint64(val)
 		})
 	}
 

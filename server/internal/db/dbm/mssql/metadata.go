@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/may-fly/cast"
 )
 
 const (
@@ -34,7 +36,7 @@ func (md *MssqlMetaData) GetDbServer() (*dbi.DbServer, error) {
 		return nil, err
 	}
 	ds := &dbi.DbServer{
-		Version: anyx.ConvString(res[0]["version"]),
+		Version: cast.ToString(res[0]["version"]),
 	}
 	return ds, nil
 }
@@ -47,7 +49,7 @@ func (md *MssqlMetaData) GetDbNames() ([]string, error) {
 
 	databases := make([]string, 0)
 	for _, re := range res {
-		databases = append(databases, anyx.ConvString(re["dbname"]))
+		databases = append(databases, cast.ToString(re["dbname"]))
 	}
 
 	return databases, nil
@@ -63,9 +65,6 @@ func (md *MssqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 
 	var res []map[string]any
 	var err error
-	if err != nil {
-		return nil, err
-	}
 
 	sql, err := stringx.TemplateParse(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_TABLE_INFO_KEY), collx.M{"tableNames": names})
 	if err != nil {
@@ -80,12 +79,12 @@ func (md *MssqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	tables := make([]dbi.Table, 0)
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
-			TableName:    anyx.ConvString(re["tableName"]),
-			TableComment: anyx.ConvString(re["tableComment"]),
-			CreateTime:   anyx.ConvString(re["createTime"]),
-			TableRows:    anyx.ConvInt(re["tableRows"]),
-			DataLength:   anyx.ConvInt64(re["dataLength"]),
-			IndexLength:  anyx.ConvInt64(re["indexLength"]),
+			TableName:    cast.ToString(re["tableName"]),
+			TableComment: cast.ToString(re["tableComment"]),
+			CreateTime:   cast.ToString(re["createTime"]),
+			TableRows:    cast.ToInt(re["tableRows"]),
+			DataLength:   cast.ToInt64(re["dataLength"]),
+			IndexLength:  cast.ToInt64(re["indexLength"]),
 		})
 	}
 	return tables, nil
@@ -110,14 +109,14 @@ func (md *MssqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			TableName:     anyx.ToString(re["TABLE_NAME"]),
 			ColumnName:    anyx.ToString(re["COLUMN_NAME"]),
 			DataType:      dbi.ColumnDataType(anyx.ToString(re["DATA_TYPE"])),
-			CharMaxLength: anyx.ConvInt(re["CHAR_MAX_LENGTH"]),
+			CharMaxLength: cast.ToInt(re["CHAR_MAX_LENGTH"]),
 			ColumnComment: anyx.ToString(re["COLUMN_COMMENT"]),
 			Nullable:      anyx.ToString(re["NULLABLE"]),
-			IsPrimaryKey:  anyx.ConvInt(re["IS_PRIMARY_KEY"]) == 1,
-			IsIdentity:    anyx.ConvInt(re["IS_IDENTITY"]) == 1,
-			ColumnDefault: anyx.ConvString(re["COLUMN_DEFAULT"]),
-			NumPrecision:  anyx.ConvInt(re["NUM_PRECISION"]),
-			NumScale:      anyx.ConvInt(re["NUM_SCALE"]),
+			IsPrimaryKey:  cast.ToInt(re["IS_PRIMARY_KEY"]) == 1,
+			IsIdentity:    cast.ToInt(re["IS_IDENTITY"]) == 1,
+			ColumnDefault: cast.ToString(re["COLUMN_DEFAULT"]),
+			NumPrecision:  cast.ToInt(re["NUM_PRECISION"]),
+			NumScale:      cast.ToInt(re["NUM_SCALE"]),
 		}
 
 		dataType := strings.ToLower(string(column.DataType))
@@ -137,8 +136,6 @@ func (md *MssqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			column.CharMaxLength = column.CharMaxLength / 2
 		}
 
-		// 初始化列展示的长度，精度
-		column.InitShowNum()
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -171,12 +168,12 @@ func (md *MssqlMetaData) getTableIndexWithPK(tableName string) ([]dbi.Index, err
 	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
 		indexs = append(indexs, dbi.Index{
-			IndexName:    anyx.ConvString(re["indexName"]),
-			ColumnName:   anyx.ConvString(re["columnName"]),
-			IndexType:    anyx.ConvString(re["indexType"]),
-			IndexComment: anyx.ConvString(re["indexComment"]),
-			IsUnique:     anyx.ConvInt(re["isUnique"]) == 1,
-			SeqInIndex:   anyx.ConvInt(re["seqInIndex"]),
+			IndexName:    cast.ToString(re["indexName"]),
+			ColumnName:   cast.ToString(re["columnName"]),
+			IndexType:    cast.ToString(re["indexType"]),
+			IndexComment: cast.ToString(re["indexComment"]),
+			IsUnique:     cast.ToInt(re["isUnique"]) == 1,
+			SeqInIndex:   cast.ToInt(re["seqInIndex"]),
 		})
 	}
 	// 把查询结果以索引名分组，多个索引字段以逗号连接
@@ -208,6 +205,7 @@ func (md *MssqlMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 		if strings.HasPrefix(in, "PK__") {
 			continue
 		}
+		result = append(result, v)
 	}
 	return result, nil
 }
@@ -224,9 +222,8 @@ func (md *MssqlMetaData) CopyTableDDL(tableName string, newTableName string) (st
 		return "", err
 	}
 	tabInfo := &dbi.Table{
-		TableName:    tableName,
+		TableName:    newTableName,
 		TableComment: tbs[0].TableComment,
-		TableNewName: newTableName,
 	}
 
 	// 查询列信息
@@ -250,12 +247,7 @@ func (md *MssqlMetaData) CopyTableDDL(tableName string, newTableName string) (st
 // 获取建索引ddl
 
 func (md *MssqlMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) []string {
-
 	tbName := tableInfo.TableName
-	if tableInfo.TableNewName != "" {
-		tbName = tableInfo.TableNewName
-	}
-
 	sqls := make([]string, 0)
 	comments := make([]string, 0)
 	for _, index := range indexs {
@@ -277,6 +269,10 @@ func (md *MssqlMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tabl
 			comments = append(comments, fmt.Sprintf("EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'INDEX', N'%s'", index.IndexComment, md.dc.Info.CurrentSchema(), tbName, indexName))
 		}
 	}
+	if len(comments) > 0 {
+		sqls = append(sqls, comments...)
+	}
+
 	return sqls
 }
 
@@ -316,18 +312,13 @@ func (md *MssqlMetaData) genColumnBasicSql(column dbi.Column) string {
 		}
 	}
 
-	columnSql := fmt.Sprintf(" %s %s %s %s %s", colName, column.ShowDataType, incr, nullAble, defVal)
+	columnSql := fmt.Sprintf(" %s %s %s %s %s", colName, column.GetColumnType(), incr, nullAble, defVal)
 	return columnSql
 }
 
 // 获取建表ddl
 func (md *MssqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
-
 	tbName := tableInfo.TableName
-	if tableInfo.TableNewName != "" {
-		tbName = tableInfo.TableNewName
-	}
-
 	meta := md.dc.GetMetaData()
 	replacer := strings.NewReplacer(";", "", "'", "")
 
@@ -424,7 +415,7 @@ func (md *MssqlMetaData) GetSchemas() ([]string, error) {
 
 	schemas := make([]string, 0)
 	for _, re := range res {
-		schemas = append(schemas, anyx.ConvString(re["SCHEMA_NAME"]))
+		schemas = append(schemas, cast.ToString(re["SCHEMA_NAME"]))
 	}
 	return schemas, nil
 }
@@ -448,8 +439,7 @@ var (
 	timeRegexp = regexp.MustCompile(`(?i)time`)
 
 	converter = new(DataConverter)
-	// 定义正则表达式，匹配括号内的数字
-	bracketsRegexp = regexp.MustCompile(`\((\d+)\)`)
+
 	// mssql数据类型 对应 公共数据类型
 	commonColumnTypeMap = map[string]dbi.ColumnDataType{
 		"bigint":           dbi.CommonTypeBigint,

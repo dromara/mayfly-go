@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/may-fly/cast"
 )
 
 const (
@@ -33,7 +35,7 @@ func (pd *PgsqlMetaData) GetDbServer() (*dbi.DbServer, error) {
 		return nil, err
 	}
 	ds := &dbi.DbServer{
-		Version: anyx.ConvString(res[0]["server_version"]),
+		Version: cast.ToString(res[0]["server_version"]),
 	}
 	return ds, nil
 }
@@ -46,7 +48,7 @@ func (pd *PgsqlMetaData) GetDbNames() ([]string, error) {
 
 	databases := make([]string, 0)
 	for _, re := range res {
-		databases = append(databases, anyx.ConvString(re["dbname"]))
+		databases = append(databases, cast.ToString(re["dbname"]))
 	}
 
 	return databases, nil
@@ -75,11 +77,11 @@ func (pd *PgsqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
 			TableName:    re["tableName"].(string),
-			TableComment: anyx.ConvString(re["tableComment"]),
-			CreateTime:   anyx.ConvString(re["createTime"]),
-			TableRows:    anyx.ConvInt(re["tableRows"]),
-			DataLength:   anyx.ConvInt64(re["dataLength"]),
-			IndexLength:  anyx.ConvInt64(re["indexLength"]),
+			TableComment: cast.ToString(re["tableComment"]),
+			CreateTime:   cast.ToString(re["createTime"]),
+			TableRows:    cast.ToInt(re["tableRows"]),
+			DataLength:   cast.ToInt64(re["dataLength"]),
+			IndexLength:  cast.ToInt64(re["indexLength"]),
 		})
 	}
 	return tables, nil
@@ -100,21 +102,19 @@ func (pd *PgsqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
 		column := dbi.Column{
-			TableName:     anyx.ConvString(re["tableName"]),
-			ColumnName:    anyx.ConvString(re["columnName"]),
-			DataType:      dbi.ColumnDataType(anyx.ConvString(re["dataType"])),
-			CharMaxLength: anyx.ConvInt(re["charMaxLength"]),
-			ColumnComment: anyx.ConvString(re["columnComment"]),
-			Nullable:      anyx.ConvString(re["nullable"]),
-			IsPrimaryKey:  anyx.ConvInt(re["isPrimaryKey"]) == 1,
-			IsIdentity:    anyx.ConvInt(re["isIdentity"]) == 1,
-			ColumnDefault: anyx.ConvString(re["columnDefault"]),
-			NumPrecision:  anyx.ConvInt(re["numPrecision"]),
-			NumScale:      anyx.ConvInt(re["numScale"]),
+			TableName:     cast.ToString(re["tableName"]),
+			ColumnName:    cast.ToString(re["columnName"]),
+			DataType:      dbi.ColumnDataType(cast.ToString(re["dataType"])),
+			CharMaxLength: cast.ToInt(re["charMaxLength"]),
+			ColumnComment: cast.ToString(re["columnComment"]),
+			Nullable:      cast.ToString(re["nullable"]),
+			IsPrimaryKey:  cast.ToInt(re["isPrimaryKey"]) == 1,
+			IsIdentity:    cast.ToInt(re["isIdentity"]) == 1,
+			ColumnDefault: cast.ToString(re["columnDefault"]),
+			NumPrecision:  cast.ToInt(re["numPrecision"]),
+			NumScale:      cast.ToInt(re["numScale"]),
 		}
 
-		// 初始化列展示的长度，精度
-		column.InitShowNum()
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -147,12 +147,12 @@ func (pd *PgsqlMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
 		indexs = append(indexs, dbi.Index{
-			IndexName:    anyx.ConvString(re["indexName"]),
-			ColumnName:   anyx.ConvString(re["columnName"]),
-			IndexType:    anyx.ConvString(re["IndexType"]),
-			IndexComment: anyx.ConvString(re["indexComment"]),
-			IsUnique:     anyx.ConvInt(re["isUnique"]) == 1,
-			SeqInIndex:   anyx.ConvInt(re["seqInIndex"]),
+			IndexName:    cast.ToString(re["indexName"]),
+			ColumnName:   cast.ToString(re["columnName"]),
+			IndexType:    cast.ToString(re["IndexType"]),
+			IndexComment: cast.ToString(re["indexComment"]),
+			IsUnique:     cast.ToInt(re["isUnique"]) == 1,
+			SeqInIndex:   cast.ToInt(re["seqInIndex"]),
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
@@ -234,7 +234,7 @@ func (pd *PgsqlMetaData) genColumnBasicSql(column dbi.Column) string {
 			column.DataType = "bigserial"
 		}
 
-		return fmt.Sprintf(" %s %s NOT NULL", colName, column.ShowDataType)
+		return fmt.Sprintf(" %s %s NOT NULL", colName, column.GetColumnType())
 	}
 
 	nullAble := ""
@@ -284,7 +284,7 @@ func (pd *PgsqlMetaData) genColumnBasicSql(column dbi.Column) string {
 		}
 	}
 
-	columnSql := fmt.Sprintf(" %s %s %s %s ", colName, column.ShowDataType, nullAble, defVal)
+	columnSql := fmt.Sprintf(" %s %s %s %s ", colName, column.GetColumnType(), nullAble, defVal)
 	return columnSql
 }
 
@@ -386,7 +386,7 @@ func (pd *PgsqlMetaData) GetSchemas() ([]string, error) {
 	}
 	schemaNames := make([]string, 0)
 	for _, re := range res {
-		schemaNames = append(schemaNames, anyx.ConvString(re["schemaName"]))
+		schemaNames = append(schemaNames, cast.ToString(re["schemaName"]))
 	}
 	return schemaNames, nil
 }
@@ -506,7 +506,7 @@ func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) st
 		res, _ := time.Parse(time.RFC3339, str)
 		return res.Format(time.TimeOnly)
 	}
-	return anyx.ConvString(dbColumnValue)
+	return cast.ToString(dbColumnValue)
 }
 
 func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {

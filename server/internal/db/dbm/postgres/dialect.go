@@ -8,6 +8,8 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"strings"
 	"time"
+
+	"github.com/may-fly/cast"
 )
 
 type PgsqlDialect struct {
@@ -141,7 +143,7 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	}
 
 	for _, re := range res {
-		colName := anyx.ConvString(re["column_name"])
+		colName := cast.ToString(re["column_name"])
 		if colName != "" {
 
 			// 查询自增列当前最大值
@@ -149,7 +151,7 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 			if err != nil {
 				return err
 			}
-			maxVal := anyx.ConvInt(maxRes[0]["max_val"])
+			maxVal := cast.ToInt(maxRes[0]["max_val"])
 			// 序列起始值为1或当前最大值+1
 			if maxVal <= 0 {
 				maxVal = 1

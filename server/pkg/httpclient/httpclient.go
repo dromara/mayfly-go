@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/may-fly/cast"
 )
 
 // 默认超时
@@ -131,7 +133,7 @@ func (r *RequestWrapper) PostMulipart(files []MultipartFile, reqParams collx.M) 
 	}
 	// 如果有其他参数，则写入body
 	for k, v := range reqParams {
-		if err := writer.WriteField(k, anyx.ConvString(v)); err != nil {
+		if err := writer.WriteField(k, cast.ToString(v)); err != nil {
 			return &ResponseWrapper{err: err}
 		}
 	}

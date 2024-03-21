@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/may-fly/cast"
 )
 
 const (
@@ -31,7 +33,7 @@ func (sd *SqliteMetaData) GetDbServer() (*dbi.DbServer, error) {
 		return nil, err
 	}
 	ds := &dbi.DbServer{
-		Version: anyx.ConvString(res[0]["version"]),
+		Version: cast.ToString(res[0]["version"]),
 	}
 	return ds, nil
 }
@@ -43,7 +45,7 @@ func (sd *SqliteMetaData) GetDbNames() ([]string, error) {
 		return nil, err
 	}
 	for _, re := range res {
-		databases = append(databases, anyx.ConvString(re["name"]))
+		databases = append(databases, cast.ToString(re["name"]))
 	}
 
 	return databases, nil
@@ -71,12 +73,12 @@ func (sd *SqliteMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	tables := make([]dbi.Table, 0)
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
-			TableName:    anyx.ConvString(re["tableName"]),
-			TableComment: anyx.ConvString(re["tableComment"]),
-			CreateTime:   anyx.ConvString(re["createTime"]),
-			TableRows:    anyx.ConvInt(re["tableRows"]),
-			DataLength:   anyx.ConvInt64(re["dataLength"]),
-			IndexLength:  anyx.ConvInt64(re["indexLength"]),
+			TableName:    cast.ToString(re["tableName"]),
+			TableComment: cast.ToString(re["tableComment"]),
+			CreateTime:   cast.ToString(re["createTime"]),
+			TableRows:    cast.ToInt(re["tableRows"]),
+			DataLength:   cast.ToInt64(re["dataLength"]),
+			IndexLength:  cast.ToInt64(re["indexLength"]),
 		})
 	}
 	return tables, nil
@@ -108,40 +110,38 @@ func (sd *SqliteMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 		}
 		for _, re := range res {
 			nullable := "YES"
-			if anyx.ConvInt(re["notnull"]) == 1 {
+			if cast.ToInt(re["notnull"]) == 1 {
 				nullable = "NO"
 			}
 			// 去掉默认值的引号
-			defaultValue := anyx.ConvString(re["dflt_value"])
+			defaultValue := cast.ToString(re["dflt_value"])
 			if strings.Contains(defaultValue, "'") {
 				defaultValue = strings.ReplaceAll(defaultValue, "'", "")
 			}
 
 			column := dbi.Column{
 				TableName:     tableName,
-				ColumnName:    anyx.ConvString(re["name"]),
+				ColumnName:    cast.ToString(re["name"]),
 				ColumnComment: "",
 				Nullable:      nullable,
-				IsPrimaryKey:  anyx.ConvInt(re["pk"]) == 1,
-				IsIdentity:    anyx.ConvInt(re["pk"]) == 1,
+				IsPrimaryKey:  cast.ToInt(re["pk"]) == 1,
+				IsIdentity:    cast.ToInt(re["pk"]) == 1,
 				ColumnDefault: defaultValue,
 				NumScale:      0,
 			}
 
 			// 切割类型和长度，如果长度内有逗号，则说明是decimal类型
-			columnType := anyx.ConvString(re["type"])
+			columnType := cast.ToString(re["type"])
 			dataType, length, scale := sd.getDataTypes(columnType)
 			if scale != "0" && scale != "" {
-				column.NumPrecision = anyx.ConvInt(length)
-				column.NumScale = anyx.ConvInt(scale)
+				column.NumPrecision = cast.ToInt(length)
+				column.NumScale = cast.ToInt(scale)
 				column.CharMaxLength = 0
 			} else {
-				column.CharMaxLength = anyx.ConvInt(length)
+				column.CharMaxLength = cast.ToInt(length)
 			}
 			column.DataType = dbi.ColumnDataType(dataType)
 
-			// 初始化列展示的长度，精度
-			column.InitShowNum()
 			columns = append(columns, column)
 		}
 	}
@@ -154,8 +154,8 @@ func (sd *SqliteMetaData) GetPrimaryKey(tableName string) (string, error) {
 		return "", err
 	}
 	for _, re := range res {
-		if anyx.ConvInt(re["pk"]) == 1 {
-			return anyx.ConvString(re["name"]), nil
+		if cast.ToInt(re["pk"]) == 1 {
+			return cast.ToString(re["name"]), nil
 		}
 	}
 
@@ -187,14 +187,14 @@ func (sd *SqliteMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 
 	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
-		indexSql := anyx.ConvString(re["indexSql"])
+		indexSql := cast.ToString(re["indexSql"])
 		isUnique := strings.Contains(indexSql, "CREATE UNIQUE INDEX")
 
 		indexs = append(indexs, dbi.Index{
-			IndexName:    anyx.ConvString(re["indexName"]),
+			IndexName:    cast.ToString(re["indexName"]),
 			ColumnName:   extractIndexFields(indexSql),
-			IndexType:    anyx.ConvString(re["indexType"]),
-			IndexComment: anyx.ConvString(re["indexComment"]),
+			IndexType:    cast.ToString(re["indexType"]),
+			IndexComment: cast.ToString(re["indexComment"]),
 			IsUnique:     isUnique,
 			SeqInIndex:   1,
 		})
@@ -262,7 +262,7 @@ func (sd *SqliteMetaData) genColumnBasicSql(column dbi.Column) string {
 		}
 	}
 
-	return fmt.Sprintf(" %s %s %s %s", sd.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.ShowDataType, nullAble, defVal)
+	return fmt.Sprintf(" %s %s %s %s", sd.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.GetColumnType(), nullAble, defVal)
 }
 
 // 获取建表ddl
@@ -296,7 +296,7 @@ func (sd *SqliteMetaData) GetTableDDL(tableName string) (string, error) {
 	}
 	var builder strings.Builder
 	for _, re := range res {
-		builder.WriteString(anyx.ConvString(re["sql"]) + "; \n\n")
+		builder.WriteString(cast.ToString(re["sql"]) + "; \n\n")
 	}
 
 	return builder.String(), nil

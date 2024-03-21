@@ -9,6 +9,7 @@
             :show-selection="true"
             v-model:selection-data="selectionData"
             :columns="columns"
+            lazy
         >
             <template #tableHeader>
                 <el-button type="primary" icon="plus" @click="editMongo(true)" plain>添加</el-button>
@@ -56,6 +57,13 @@ const MongoEdit = defineAsyncComponent(() => import('./MongoEdit.vue'));
 const MongoDbs = defineAsyncComponent(() => import('./MongoDbs.vue'));
 const MongoRunCommand = defineAsyncComponent(() => import('./MongoRunCommand.vue'));
 
+const props = defineProps({
+    lazy: {
+        type: [Boolean],
+        default: false,
+    },
+});
+
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
@@ -92,7 +100,11 @@ const state = reactive({
 
 const { selectionData, query, mongoEditDialog, dbsVisible, usersVisible } = toRefs(state);
 
-onMounted(async () => {});
+onMounted(() => {
+    if (!props.lazy) {
+        search();
+    }
+});
 
 const checkRouteTagPath = (query: any) => {
     if (route.query.tagPath) {
@@ -126,7 +138,10 @@ const deleteMongo = async () => {
     }
 };
 
-const search = async () => {
+const search = async (tagPath: string = '') => {
+    if (tagPath) {
+        state.query.tagPath = tagPath;
+    }
     pageTableRef.value.search();
 };
 
@@ -140,6 +155,8 @@ const editMongo = async (data: any) => {
     }
     state.mongoEditDialog.visible = true;
 };
+
+defineExpose({ search });
 </script>
 
 <style></style>

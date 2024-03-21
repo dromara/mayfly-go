@@ -9,6 +9,7 @@
             :show-selection="true"
             v-model:selection-data="state.selectionData"
             :columns="columns"
+            lazy
         >
             <template #instanceSelect>
                 <el-select remote :remote-method="getInstances" v-model="query.instanceId" placeholder="输入并选择实例" filterable clearable>
@@ -222,6 +223,13 @@ import ResourceTags from '../component/ResourceTags.vue';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
+const props = defineProps({
+    lazy: {
+        type: [Boolean],
+        default: false,
+    },
+});
+
 const perms = {
     base: 'db',
     saveDb: 'db:save',
@@ -336,6 +344,9 @@ onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
+    if (!props.lazy) {
+        search();
+    }
 });
 
 const checkRouteTagPath = (query: any) => {
@@ -345,7 +356,10 @@ const checkRouteTagPath = (query: any) => {
     return query;
 };
 
-const search = async () => {
+const search = async (tagPath: string = '') => {
+    if (tagPath) {
+        state.query.tagPath = tagPath;
+    }
     pageTableRef.value.search();
 };
 
@@ -515,6 +529,8 @@ const supportAction = (action: string, dbType: string): boolean => {
     }
     return actions.includes(action);
 };
+
+defineExpose({ search });
 </script>
 <style lang="scss">
 .db-list {

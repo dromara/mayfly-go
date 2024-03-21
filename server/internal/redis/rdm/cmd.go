@@ -1,8 +1,6 @@
 package rdm
 
-import (
-	"mayfly-go/pkg/utils/anyx"
-)
+import "github.com/may-fly/cast"
 
 // write cmd
 var writeCmd = map[string]string{
@@ -95,6 +93,6 @@ var writeCmd = map[string]string{
 
 // 判断命令是否写命令
 func IsWriteCmd(cmd any) bool {
-	_, ok := writeCmd[anyx.ConvString(cmd)]
+	_, ok := writeCmd[cast.ToString(cmd)]
 	return ok
 }

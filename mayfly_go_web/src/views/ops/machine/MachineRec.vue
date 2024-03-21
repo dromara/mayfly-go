@@ -127,6 +127,12 @@ const handleClose = () => {
 </script>
 <style lang="scss">
 #terminalRecDialog {
+    overflow: hidden;
+
+    #rc-player {
+        overflow: hidden;
+    }
+
     .el-overlay .el-overlay-dialog .el-dialog .el-dialog__body {
         padding: 0px !important;
     }

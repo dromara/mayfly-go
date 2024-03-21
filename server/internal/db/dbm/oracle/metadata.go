@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/may-fly/cast"
 )
 
 // ---------------------------------- DM元数据 -----------------------------------
@@ -34,7 +36,7 @@ func (od *OracleMetaData) GetDbServer() (*dbi.DbServer, error) {
 		return nil, err
 	}
 	ds := &dbi.DbServer{
-		Version: anyx.ConvString(res[0]["VERSION"]),
+		Version: cast.ToString(res[0]["VERSION"]),
 	}
 	return ds, nil
 }
@@ -47,7 +49,7 @@ func (od *OracleMetaData) GetDbNames() ([]string, error) {
 
 	databases := make([]string, 0)
 	for _, re := range res {
-		databases = append(databases, anyx.ConvString(re["DBNAME"]))
+		databases = append(databases, cast.ToString(re["DBNAME"]))
 	}
 
 	return databases, nil
@@ -75,12 +77,12 @@ func (od *OracleMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 	tables := make([]dbi.Table, 0)
 	for _, re := range res {
 		tables = append(tables, dbi.Table{
-			TableName:    anyx.ConvString(re["TABLE_NAME"]),
-			TableComment: anyx.ConvString(re["TABLE_COMMENT"]),
-			CreateTime:   anyx.ConvString(re["CREATE_TIME"]),
-			TableRows:    anyx.ConvInt(re["TABLE_ROWS"]),
-			DataLength:   anyx.ConvInt64(re["DATA_LENGTH"]),
-			IndexLength:  anyx.ConvInt64(re["INDEX_LENGTH"]),
+			TableName:    cast.ToString(re["TABLE_NAME"]),
+			TableComment: cast.ToString(re["TABLE_COMMENT"]),
+			CreateTime:   cast.ToString(re["CREATE_TIME"]),
+			TableRows:    cast.ToInt(re["TABLE_ROWS"]),
+			DataLength:   cast.ToInt64(re["DATA_LENGTH"]),
+			IndexLength:  cast.ToInt64(re["INDEX_LENGTH"]),
 		})
 	}
 	return tables, nil
@@ -118,25 +120,23 @@ func (od *OracleMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
-		defaultVal := anyx.ConvString(re["COLUMN_DEFAULT"])
+		defaultVal := cast.ToString(re["COLUMN_DEFAULT"])
 		// 如果默认值包含.nextval，说明是序列，默认值为null
 		if strings.Contains(defaultVal, ".nextval") {
 			defaultVal = ""
 		}
 		column := dbi.Column{
-			TableName:     anyx.ConvString(re["TABLE_NAME"]),
-			ColumnName:    anyx.ConvString(re["COLUMN_NAME"]),
-			DataType:      dbi.ColumnDataType(anyx.ConvString(re["DATA_TYPE"])),
-			ColumnComment: anyx.ConvString(re["COLUMN_COMMENT"]),
-			Nullable:      anyx.ConvString(re["NULLABLE"]),
-			IsPrimaryKey:  anyx.ConvInt(re["IS_PRIMARY_KEY"]) == 1,
-			IsIdentity:    anyx.ConvInt(re["IS_IDENTITY"]) == 1,
+			TableName:     cast.ToString(re["TABLE_NAME"]),
+			ColumnName:    cast.ToString(re["COLUMN_NAME"]),
+			DataType:      dbi.ColumnDataType(cast.ToString(re["DATA_TYPE"])),
+			ColumnComment: cast.ToString(re["COLUMN_COMMENT"]),
+			Nullable:      cast.ToString(re["NULLABLE"]),
+			IsPrimaryKey:  cast.ToInt(re["IS_PRIMARY_KEY"]) == 1,
+			IsIdentity:    cast.ToInt(re["IS_IDENTITY"]) == 1,
 			ColumnDefault: defaultVal,
-			NumScale:      anyx.ConvInt(re["NUM_SCALE"]),
+			NumScale:      cast.ToInt(re["NUM_SCALE"]),
 		}
 
-		// 初始化列展示的长度，精度
-		column.InitShowNum()
 		columns = append(columns, column)
 	}
 	return columns, nil
@@ -169,12 +169,12 @@ func (od *OracleMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	indexs := make([]dbi.Index, 0)
 	for _, re := range res {
 		indexs = append(indexs, dbi.Index{
-			IndexName:    anyx.ConvString(re["INDEX_NAME"]),
-			ColumnName:   anyx.ConvString(re["COLUMN_NAME"]),
-			IndexType:    anyx.ConvString(re["INDEX_TYPE"]),
-			IndexComment: anyx.ConvString(re["INDEX_COMMENT"]),
-			IsUnique:     anyx.ConvInt(re["IS_UNIQUE"]) == 1,
-			SeqInIndex:   anyx.ConvInt(re["SEQ_IN_INDEX"]),
+			IndexName:    cast.ToString(re["INDEX_NAME"]),
+			ColumnName:   cast.ToString(re["COLUMN_NAME"]),
+			IndexType:    cast.ToString(re["INDEX_TYPE"]),
+			IndexComment: cast.ToString(re["INDEX_COMMENT"]),
+			IsUnique:     cast.ToInt(re["IS_UNIQUE"]) == 1,
+			SeqInIndex:   cast.ToInt(re["SEQ_IN_INDEX"]),
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
@@ -271,7 +271,7 @@ func (od *OracleMetaData) genColumnBasicSql(column dbi.Column) string {
 			if collx.ArrayAnyMatches([]string{"NUM", "INT"}, dataType) {
 				match := bracketsRegexp.FindStringSubmatch(dataType)
 				if len(match) > 1 {
-					length := anyx.ConvInt(match[1])
+					length := cast.ToInt(match[1])
 					defVal = fmt.Sprintf(" DEFAULT %d", length)
 				} else {
 					defVal = fmt.Sprintf(" DEFAULT 0")
@@ -282,7 +282,7 @@ func (od *OracleMetaData) genColumnBasicSql(column dbi.Column) string {
 		}
 	}
 
-	columnSql := fmt.Sprintf(" %s %s %s %s", colName, column.ShowDataType, defVal, nullAble)
+	columnSql := fmt.Sprintf(" %s %s %s %s", colName, column.GetColumnType(), defVal, nullAble)
 	return columnSql
 }
 
@@ -389,7 +389,7 @@ func (od *OracleMetaData) GetSchemas() ([]string, error) {
 	}
 	schemaNames := make([]string, 0)
 	for _, re := range res {
-		schemaNames = append(schemaNames, anyx.ConvString(re["USERNAME"]))
+		schemaNames = append(schemaNames, cast.ToString(re["USERNAME"]))
 	}
 	return schemaNames, nil
 }
@@ -485,7 +485,7 @@ func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) st
 func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
 	// oracle把日期类型的数据转化为time类型
 	if dataType == dbi.DataTypeDateTime {
-		res, _ := time.Parse(time.RFC3339, anyx.ConvString(dbColumnValue))
+		res, _ := time.Parse(time.RFC3339, cast.ToString(dbColumnValue))
 		return res
 	}
 	return dbColumnValue

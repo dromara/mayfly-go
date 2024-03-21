@@ -9,6 +9,7 @@
             :show-selection="true"
             v-model:selection-data="selectionData"
             :columns="columns"
+            lazy
         >
             <template #tableHeader>
                 <el-button type="primary" icon="plus" @click="editRedis(false)" plain>添加</el-button>
@@ -161,6 +162,13 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
 import { getTagPathSearchItem } from '../component/tag';
 
+const props = defineProps({
+    lazy: {
+        type: [Boolean],
+        default: false,
+    },
+});
+
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
@@ -213,7 +221,11 @@ const state = reactive({
 
 const { selectionData, query, detailDialog, clusterInfoDialog, infoDialog, redisEditDialog } = toRefs(state);
 
-onMounted(async () => {});
+onMounted(() => {
+    if (!props.lazy) {
+        search();
+    }
+});
 
 const checkRouteTagPath = (query: any) => {
     if (route.query.tagPath) {
@@ -261,7 +273,10 @@ const onShowClusterInfo = async (redis: any) => {
     state.clusterInfoDialog.visible = true;
 };
 
-const search = () => {
+const search = async (tagPath: string = '') => {
+    if (tagPath) {
+        state.query.tagPath = tagPath;
+    }
     pageTableRef.value.search();
 };
 
@@ -275,6 +290,8 @@ const editRedis = async (data: any) => {
     }
     state.redisEditDialog.visible = true;
 };
+
+defineExpose({ search });
 </script>
 
 <style></style>

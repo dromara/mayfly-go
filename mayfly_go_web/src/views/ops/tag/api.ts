@@ -8,6 +8,7 @@ export const tagApi = {
 
     getResourceTagPaths: Api.newGet('/tag-trees/resources/{resourceType}/tag-paths'),
     getTagResources: Api.newGet('/tag-trees/resources'),
+    countTagResource: Api.newGet('/tag-trees/resources/count'),
 
     getTeams: Api.newGet('/teams'),
     saveTeam: Api.newPost('/teams'),

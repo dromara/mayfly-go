@@ -4,7 +4,8 @@ import (
 	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/bytex"
-	"mayfly-go/pkg/utils/conv"
+
+	"github.com/may-fly/cast"
 )
 
 const (
@@ -41,6 +42,6 @@ func GetMachine() *Machine {
 		}
 	}
 	mc.UploadMaxFileSize = uploadMaxFileSize
-	mc.TermOpSaveDays = conv.Str2Int(jm["termOpSaveDays"], 30)
+	mc.TermOpSaveDays = cast.ToIntD(jm["termOpSaveDays"], 30)
 	return mc
 }

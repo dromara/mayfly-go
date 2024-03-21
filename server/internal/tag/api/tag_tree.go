@@ -93,6 +93,18 @@ func (p *TagTree) TagResources(rc *req.Ctx) {
 	rc.ResData = tagPaths
 }
 
+// 统计当前用户指定标签下关联的资源数量
+func (p *TagTree) CountTagResource(rc *req.Ctx) {
+	tagPath := rc.Query("tagPath")
+	accountId := rc.GetLoginAccount().Id
+	rc.ResData = collx.M{
+		"machine": len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeMachine, tagPath)),
+		"db":      len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeDb, tagPath)),
+		"redis":   len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeRedis, tagPath)),
+		"mongo":   len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeMongo, tagPath)),
+	}
+}
+
 // 资源标签关联信息查询
 func (p *TagTree) QueryTagResources(rc *req.Ctx) {
 	var trs []*entity.TagResource
