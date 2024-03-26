@@ -26,7 +26,7 @@ type MetaData interface {
 	GetColumns(tableNames ...string) ([]Column, error)
 
 	// 根据数据库类型修复字段长度、精度等
-	FixColumn(column *Column)
+	// FixColumn(column *Column)
 
 	// 获取表主键字段名，没有主键标识则默认第一个字段
 	GetPrimaryKey(tableName string) (string, error)
@@ -43,8 +43,8 @@ type MetaData interface {
 
 	GetSchemas() ([]string, error)
 
-	// 获取数据转换器用于解析格式化列数据等
-	GetDataConverter() DataConverter
+	// 获取数据处理助手 用于解析格式化列数据等
+	GetDataHelper() DataHelper
 }
 
 // GenerateSQLStepFunc 生成insert sql的step函数，用于生成insert sql时，每生成100条sql时调用
@@ -148,8 +148,8 @@ const (
 	DataTypeDateTime DataType = "datetime"
 )
 
-// 数据转换器
-type DataConverter interface {
+// 列数据处理帮助方法
+type DataHelper interface {
 	// 获取数据对应的类型
 	// @param dbColumnType 数据库原始列类型，如varchar等
 	GetDataType(dbColumnType string) DataType

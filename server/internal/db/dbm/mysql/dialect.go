@@ -51,10 +51,6 @@ func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 	return md.dc.TxExec(tx, sqlStr, args...)
 }
 
-func (md *MysqlDialect) GetDataConverter() dbi.DataConverter {
-	return converter
-}
-
 func (md *MysqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 
 	tableName := copy.TableName
@@ -75,30 +71,6 @@ func (md *MysqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 		}()
 	}
 	return err
-}
-
-func (md *MysqlDialect) ToCommonColumn(column *dbi.Column) {
-	dataType := column.DataType
-
-	t1 := commonColumnTypeMap[string(dataType)]
-	commonColumnType := dbi.CommonTypeVarchar
-
-	if t1 != "" {
-		commonColumnType = t1
-	}
-
-	column.DataType = commonColumnType
-}
-
-func (md *MysqlDialect) ToColumn(column *dbi.Column) {
-	ctype := mysqlColumnTypeMap[column.DataType]
-	if ctype == "" {
-		column.DataType = "varchar"
-		column.CharMaxLength = 1000
-	} else {
-		column.DataType = dbi.ColumnDataType(ctype)
-		md.dc.GetMetaData().FixColumn(column)
-	}
 }
 
 func (md *MysqlDialect) CreateTable(columns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {

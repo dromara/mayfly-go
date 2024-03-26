@@ -5,12 +5,9 @@ import (
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
-	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
-	"regexp"
 	"strings"
-	"time"
 
 	"github.com/may-fly/cast"
 )
@@ -118,6 +115,7 @@ func (od *OracleMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 		return nil, err
 	}
 
+	columnHelper := meta.GetColumnHelper()
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
 		column := dbi.Column{
@@ -134,31 +132,10 @@ func (od *OracleMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 			NumScale:      cast.ToInt(re["NUM_SCALE"]),
 		}
 
-		od.FixColumn(&column)
+		columnHelper.FixColumn(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
-}
-
-func (od *OracleMetaData) FixColumn(column *dbi.Column) {
-	// 如果默认值包含.nextval，说明是序列，默认值为null
-	if strings.Contains(column.ColumnDefault, ".nextval") {
-		column.ColumnDefault = ""
-	}
-
-	// 统一处理一下数据类型的长度
-	if collx.ArrayAnyMatches([]string{"date", "time", "lob", "int"}, strings.ToLower(string(column.DataType))) {
-		// 如果是不需要设置长度的类型
-		column.CharMaxLength = 0
-		column.NumPrecision = 0
-	} else if strings.Contains(strings.ToLower(string(column.DataType)), "char") {
-		// 如果是字符串类型，长度最大4000，否则修改字段类型为clob
-		if column.CharMaxLength > 4000 {
-			column.DataType = "NCLOB"
-			column.CharMaxLength = 0
-			column.NumPrecision = 0
-		}
-	}
 }
 
 func (od *OracleMetaData) GetPrimaryKey(tablename string) (string, error) {
@@ -378,125 +355,10 @@ func (od *OracleMetaData) GetSchemas() ([]string, error) {
 	return schemaNames, nil
 }
 
-func (od *OracleMetaData) GetDataConverter() dbi.DataConverter {
-	return converter
+func (od *OracleMetaData) GetDataHelper() dbi.DataHelper {
+	return new(DataHelper)
 }
 
-var (
-	// 数字类型
-	numberTypeRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
-	// 日期时间类型
-	datetimeTypeRegexp = regexp.MustCompile(`(?i)date|timestamp`)
-
-	bracketsRegexp = regexp.MustCompile(`\((\d+)\)`)
-
-	converter = new(DataConverter)
-
-	// oracle数据类型 映射 公共数据类型
-	commonColumnTypeMap = map[string]dbi.ColumnDataType{
-		"CHAR":          dbi.CommonTypeChar,
-		"NCHAR":         dbi.CommonTypeChar,
-		"VARCHAR2":      dbi.CommonTypeVarchar,
-		"NVARCHAR2":     dbi.CommonTypeVarchar,
-		"NUMBER":        dbi.CommonTypeNumber,
-		"INTEGER":       dbi.CommonTypeInt,
-		"INT":           dbi.CommonTypeInt,
-		"DECIMAL":       dbi.CommonTypeNumber,
-		"FLOAT":         dbi.CommonTypeNumber,
-		"REAL":          dbi.CommonTypeNumber,
-		"BINARY_FLOAT":  dbi.CommonTypeNumber,
-		"BINARY_DOUBLE": dbi.CommonTypeNumber,
-		"DATE":          dbi.CommonTypeDate,
-		"TIMESTAMP":     dbi.CommonTypeDatetime,
-		"LONG":          dbi.CommonTypeLongtext,
-		"BLOB":          dbi.CommonTypeLongtext,
-		"CLOB":          dbi.CommonTypeLongtext,
-		"NCLOB":         dbi.CommonTypeLongtext,
-		"BFILE":         dbi.CommonTypeBinary,
-	}
-
-	// 公共数据类型 映射 oracle数据类型
-	oracleColumnTypeMap = map[dbi.ColumnDataType]string{
-		dbi.CommonTypeVarchar:    "NVARCHAR2",
-		dbi.CommonTypeChar:       "NCHAR",
-		dbi.CommonTypeText:       "CLOB",
-		dbi.CommonTypeBlob:       "CLOB",
-		dbi.CommonTypeLongblob:   "CLOB",
-		dbi.CommonTypeLongtext:   "CLOB",
-		dbi.CommonTypeBinary:     "BFILE",
-		dbi.CommonTypeMediumblob: "CLOB",
-		dbi.CommonTypeMediumtext: "CLOB",
-		dbi.CommonTypeVarbinary:  "BFILE",
-		dbi.CommonTypeInt:        "INT",
-		dbi.CommonTypeSmallint:   "INT",
-		dbi.CommonTypeTinyint:    "INT",
-		dbi.CommonTypeNumber:     "NUMBER",
-		dbi.CommonTypeBigint:     "NUMBER",
-		dbi.CommonTypeDatetime:   "DATE",
-		dbi.CommonTypeDate:       "DATE",
-		dbi.CommonTypeTime:       "DATE",
-		dbi.CommonTypeTimestamp:  "TIMESTAMP",
-		dbi.CommonTypeEnum:       "CLOB",
-		dbi.CommonTypeJSON:       "CLOB",
-	}
-)
-
-type DataConverter struct {
-}
-
-func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
-	if numberTypeRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeNumber
-	}
-	// 日期时间类型
-	if datetimeTypeRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeDateTime
-	}
-	return dbi.DataTypeString
-}
-
-func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
-	str := anyx.ToString(dbColumnValue)
-	switch dataType {
-	// oracle把日期类型数据格式化输出
-	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
-		// 尝试用时间格式解析
-		res, err := time.Parse(time.DateTime, str)
-		if err == nil {
-			return str
-		}
-		res, _ = time.Parse(time.RFC3339, str)
-		return res.Format(time.DateTime)
-	}
-	return str
-}
-
-func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
-	// oracle把日期类型的数据转化为time类型
-	if dataType == dbi.DataTypeDateTime {
-		res, _ := time.Parse(time.RFC3339, cast.ToString(dbColumnValue))
-		return res
-	}
-	return dbColumnValue
-}
-
-func (dc *DataConverter) WrapValue(dbColumnValue any, dataType dbi.DataType) string {
-	if dbColumnValue == nil {
-		return "NULL"
-	}
-	switch dataType {
-	case dbi.DataTypeNumber:
-		return fmt.Sprintf("%v", dbColumnValue)
-	case dbi.DataTypeString:
-		val := fmt.Sprintf("%v", dbColumnValue)
-		// 转义单引号
-		val = strings.Replace(val, `'`, `''`, -1)
-		val = strings.Replace(val, `\''`, `\'`, -1)
-		// 转义换行符
-		val = strings.Replace(val, "\n", "\\n", -1)
-		return fmt.Sprintf("'%s'", val)
-	case dbi.DataTypeDate, dbi.DataTypeDateTime, dbi.DataTypeTime:
-		return fmt.Sprintf("to_timestamp('%s', 'yyyy-mm-dd hh24:mi:ss')", dc.FormatData(dbColumnValue, dataType))
-	}
-	return fmt.Sprintf("'%s'", dbColumnValue)
+func (od *OracleMetaData) GetColumnHelper() dbi.ColumnHelper {
+	return new(ColumnHelper)
 }

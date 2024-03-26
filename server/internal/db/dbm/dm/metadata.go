@@ -2,16 +2,13 @@ package dm
 
 import (
 	"fmt"
-	"io"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
-	"regexp"
 	"strings"
-	"time"
 
 	"github.com/may-fly/cast"
 )
@@ -98,6 +95,7 @@ func (dd *DMMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 		return nil, err
 	}
 
+	columnHelper := dd.dc.GetMetaData().GetColumnHelper()
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
 		column := dbi.Column{
@@ -113,22 +111,10 @@ func (dd *DMMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 			NumPrecision:  cast.ToInt(re["NUM_PRECISION"]),
 			NumScale:      cast.ToInt(re["NUM_SCALE"]),
 		}
-		dd.FixColumn(&column)
+		columnHelper.FixColumn(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
-}
-
-func (dd *DMMetaData) FixColumn(column *dbi.Column) {
-	// 如果是date，不设长度
-	if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(string(column.DataType))) {
-		column.CharMaxLength = 0
-		column.NumPrecision = 0
-	} else
-	// 如果是char且长度未设置，则默认长度2000
-	if collx.ArrayAnyMatches([]string{"char"}, strings.ToLower(string(column.DataType))) && column.CharMaxLength == 0 {
-		column.CharMaxLength = 2000
-	}
 }
 
 func (dd *DMMetaData) GetPrimaryKey(tablename string) (string, error) {
@@ -340,176 +326,14 @@ func (dd *DMMetaData) GetSchemas() ([]string, error) {
 	return schemaNames, nil
 }
 
-func (dd *DMMetaData) BeforeDumpInsert(writer io.Writer, tableName string) {
-
+func (dd *DMMetaData) GetDataHelper() dbi.DataHelper {
+	return new(DataHelper)
 }
 
-func (dd *DMMetaData) BeforeDumpInsertSql(quoteSchema string, tableName string) string {
-	return fmt.Sprintf("set identity_insert %s on;", tableName)
+func (dd *DMMetaData) GetColumnHelper() dbi.ColumnHelper {
+	return new(ColumnHelper)
 }
 
-func (dd *DMMetaData) AfterDumpInsert(writer io.Writer, tableName string, columns []dbi.Column) {
-	writer.Write([]byte("COMMIT;\n"))
-}
-
-func (dd *DMMetaData) GetDataConverter() dbi.DataConverter {
-	return converter
-}
-
-var (
-	// 数字类型
-	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
-	// 日期时间类型
-	datetimeRegexp = regexp.MustCompile(`(?i)datetime|timestamp`)
-	// 日期类型
-	dateRegexp = regexp.MustCompile(`(?i)date`)
-	// 时间类型
-	timeRegexp = regexp.MustCompile(`(?i)time`)
-
-	converter = new(DataConverter)
-
-	// 达梦数据类型 对应 公共数据类型
-	commonColumnTypeMap = map[string]dbi.ColumnDataType{
-
-		"CHAR":          dbi.CommonTypeChar, // 字符数据类型
-		"VARCHAR":       dbi.CommonTypeVarchar,
-		"TEXT":          dbi.CommonTypeText,
-		"LONG":          dbi.CommonTypeText,
-		"LONGVARCHAR":   dbi.CommonTypeLongtext,
-		"IMAGE":         dbi.CommonTypeLongtext,
-		"LONGVARBINARY": dbi.CommonTypeLongtext,
-		"BLOB":          dbi.CommonTypeBlob,
-		"CLOB":          dbi.CommonTypeText,
-		"NUMERIC":       dbi.CommonTypeNumber, // 精确数值数据类型
-		"DECIMAL":       dbi.CommonTypeNumber,
-		"NUMBER":        dbi.CommonTypeNumber,
-		"INTEGER":       dbi.CommonTypeInt,
-		"INT":           dbi.CommonTypeInt,
-		"BIGINT":        dbi.CommonTypeBigint,
-		"TINYINT":       dbi.CommonTypeTinyint,
-		"BYTE":          dbi.CommonTypeTinyint,
-		"SMALLINT":      dbi.CommonTypeSmallint,
-		"BIT":           dbi.CommonTypeTinyint,
-		"DOUBLE":        dbi.CommonTypeNumber, // 近似数值类型
-		"FLOAT":         dbi.CommonTypeNumber,
-		"DATE":          dbi.CommonTypeDate, // 一般日期时间数据类型
-		"TIME":          dbi.CommonTypeTime,
-		"TIMESTAMP":     dbi.CommonTypeTimestamp,
-	}
-
-	// 公共数据类型 对应 达梦数据类型
-	dmColumnTypeMap = map[dbi.ColumnDataType]string{
-		dbi.CommonTypeVarchar:    "VARCHAR",
-		dbi.CommonTypeChar:       "CHAR",
-		dbi.CommonTypeText:       "TEXT",
-		dbi.CommonTypeBlob:       "BLOB",
-		dbi.CommonTypeLongblob:   "TEXT",
-		dbi.CommonTypeLongtext:   "TEXT",
-		dbi.CommonTypeBinary:     "TEXT",
-		dbi.CommonTypeMediumblob: "TEXT",
-		dbi.CommonTypeMediumtext: "TEXT",
-		dbi.CommonTypeVarbinary:  "TEXT",
-		dbi.CommonTypeInt:        "INT",
-		dbi.CommonTypeSmallint:   "SMALLINT",
-		dbi.CommonTypeTinyint:    "TINYINT",
-		dbi.CommonTypeNumber:     "NUMBER",
-		dbi.CommonTypeBigint:     "BIGINT",
-		dbi.CommonTypeDatetime:   "TIMESTAMP",
-		dbi.CommonTypeDate:       "DATE",
-		dbi.CommonTypeTime:       "DATE",
-		dbi.CommonTypeTimestamp:  "TIMESTAMP",
-		dbi.CommonTypeEnum:       "TEXT",
-		dbi.CommonTypeJSON:       "TEXT",
-	}
-)
-
-type DataConverter struct {
-}
-
-func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
-	if numberRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeNumber
-	}
-	if datetimeRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeDateTime
-	}
-	if dateRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeDate
-	}
-	if timeRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeTime
-	}
-	return dbi.DataTypeString
-}
-
-func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
-	str := anyx.ToString(dbColumnValue)
-	switch dataType {
-	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
-		// 尝试用时间格式解析
-		res, err := time.Parse(time.DateTime, str)
-		if err == nil {
-			return str
-		}
-		res, _ = time.Parse(time.RFC3339, str)
-		return res.Format(time.DateTime)
-	case dbi.DataTypeDate: // "2024-01-02T00:00:00+08:00"
-		// 尝试用时间格式解析
-		res, err := time.Parse(time.DateOnly, str)
-		if err == nil {
-			return str
-		}
-		res, _ = time.Parse(time.RFC3339, str)
-		return res.Format(time.DateOnly)
-	case dbi.DataTypeTime: // "0000-01-01T22:08:22.275688+08:00"
-		// 尝试用时间格式解析
-		res, err := time.Parse(time.TimeOnly, str)
-		if err == nil {
-			return str
-		}
-		res, _ = time.Parse(time.RFC3339, str)
-		return res.Format(time.TimeOnly)
-	}
-	return str
-}
-
-func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
-	// 如果dataType是datetime而dbColumnValue是string类型，则需要转换为time.Time类型
-	_, ok := dbColumnValue.(string)
-	if ok {
-		if dataType == dbi.DataTypeDateTime {
-			res, _ := time.Parse(time.RFC3339, anyx.ToString(dbColumnValue))
-			return res
-		}
-		if dataType == dbi.DataTypeDate {
-			res, _ := time.Parse(time.DateOnly, anyx.ToString(dbColumnValue))
-			return res
-		}
-		if dataType == dbi.DataTypeTime {
-			res, _ := time.Parse(time.TimeOnly, anyx.ToString(dbColumnValue))
-			return res
-		}
-	}
-	return dbColumnValue
-}
-
-func (dc *DataConverter) WrapValue(dbColumnValue any, dataType dbi.DataType) string {
-	if dbColumnValue == nil {
-		return "NULL"
-	}
-	switch dataType {
-	case dbi.DataTypeNumber:
-		return fmt.Sprintf("%v", dbColumnValue)
-	case dbi.DataTypeString:
-		val := fmt.Sprintf("%v", dbColumnValue)
-		// 转义单引号
-		val = strings.Replace(val, `'`, `''`, -1)
-		val = strings.Replace(val, `\''`, `\'`, -1)
-		// 转义换行符
-		val = strings.Replace(val, "\n", "\\n", -1)
-		return fmt.Sprintf("'%s'", val)
-	case dbi.DataTypeDate, dbi.DataTypeDateTime, dbi.DataTypeTime:
-		return fmt.Sprintf("'%s'", dc.FormatData(dbColumnValue, dataType))
-	}
-	return fmt.Sprintf("'%s'", dbColumnValue)
+func (dd *DMMetaData) GetDumpHelper() dbi.DumpHelper {
+	return new(DumpHelper)
 }

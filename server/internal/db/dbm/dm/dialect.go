@@ -138,7 +138,7 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	ddl = strings.ReplaceAll(ddl, fmt.Sprintf("\"%s\"", strings.ToUpper(tableName)), fmt.Sprintf("\"%s\"", strings.ToUpper(newTableName)))
 	// 去除空格换行
 	ddl = stringx.TrimSpaceAndBr(ddl)
-	sqls, err := sqlparser.SplitStatementToPieces(ddl, sqlparser.WithDialect(dd.dc.GetMetaData().SqlParserDialect()))
+	sqls, err := sqlparser.SplitStatementToPieces(ddl, sqlparser.WithDialect(dd.dc.GetMetaData().GetSqlParserDialect()))
 	for _, sql := range sqls {
 		_, _ = dd.dc.Exec(sql)
 	}
@@ -161,31 +161,6 @@ func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 		}()
 	}
 	return err
-}
-
-func (dd *DMDialect) ToCommonColumn(dialectColumn *dbi.Column) {
-	// 翻译为通用数据库类型
-	dataType := dialectColumn.DataType
-	t1 := commonColumnTypeMap[string(dataType)]
-	if t1 == "" {
-		dialectColumn.DataType = dbi.CommonTypeVarchar
-		dialectColumn.CharMaxLength = 2000
-	} else {
-		dialectColumn.DataType = t1
-	}
-}
-
-func (dd *DMDialect) ToColumn(commonColumn *dbi.Column) {
-	ctype := dmColumnTypeMap[commonColumn.DataType]
-	meta := dd.dc.GetMetaData()
-
-	if ctype == "" {
-		commonColumn.DataType = "VARCHAR"
-		commonColumn.CharMaxLength = 2000
-	} else {
-		commonColumn.DataType = dbi.ColumnDataType(ctype)
-		meta.FixColumn(commonColumn)
-	}
 }
 
 func (dd *DMDialect) CreateTable(columns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {

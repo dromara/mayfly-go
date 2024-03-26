@@ -89,8 +89,8 @@
                 <el-col :span="9">
                     <el-form-item label="导出内容: ">
                         <el-checkbox-group v-model="exportDialog.contents" :min="1">
-                            <el-checkbox label="结构" />
-                            <el-checkbox label="数据" />
+                            <el-checkbox label="结构" value="结构" />
+                            <el-checkbox label="数据" value="数据" />
                         </el-checkbox-group>
                     </el-form-item>
                 </el-col>
@@ -220,6 +220,7 @@ import DbBackupList from './DbBackupList.vue';
 import DbBackupHistoryList from './DbBackupHistoryList.vue';
 import DbRestoreList from './DbRestoreList.vue';
 import ResourceTags from '../component/ResourceTags.vue';
+import { sleep } from '@/common/utils/loading';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
@@ -499,9 +500,8 @@ const onDumpDbs = async (row: any) => {
 /**
  * 数据库信息导出
  */
-const dumpDbs = () => {
+const dumpDbs = async () => {
     isTrue(state.exportDialog.value.length > 0, '请添加要导出的数据库');
-    const a = document.createElement('a');
     let type = 0;
     for (let c of state.exportDialog.contents) {
         if (c == '结构') {
@@ -510,13 +510,15 @@ const dumpDbs = () => {
             type += 2;
         }
     }
-    a.setAttribute(
-        'href',
-        `${config.baseApiUrl}/dbs/${state.exportDialog.dbId}/dump?db=${state.exportDialog.value.join(',')}&type=${type}&extName=${
-            state.exportDialog.extName
-        }&${joinClientParams()}`
-    );
-    a.click();
+    for (let db of state.exportDialog.value) {
+        const a = document.createElement('a');
+        a.setAttribute(
+            'href',
+            `${config.baseApiUrl}/dbs/${state.exportDialog.dbId}/dump?db=${db}&type=${type}&extName=${state.exportDialog.extName}&${joinClientParams()}`
+        );
+        a.click();
+        await sleep(500);
+    }
     state.exportDialog.visible = false;
 };
 

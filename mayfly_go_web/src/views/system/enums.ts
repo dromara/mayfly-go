@@ -1,7 +1,7 @@
 import { EnumValue } from '@/common/Enum';
 
 export const ResourceTypeEnum = {
-    Menu: EnumValue.of(1, '菜单'),
+    Menu: EnumValue.of(1, '菜单').tagTypeSuccess(),
     Permission: EnumValue.of(2, '权限'),
 };
 

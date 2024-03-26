@@ -10,7 +10,7 @@
                 :props="treeProps"
                 lazy
                 node-key="key"
-                :expand-on-click-node="true"
+                :expand-on-click-node="false"
                 :filter-node-method="filterNode"
                 @node-click="treeNodeClick"
                 @node-expand="treeNodeClick"
@@ -140,8 +140,8 @@ const loadNode = async (node: any, resolve: any) => {
 };
 
 const treeNodeClick = (data: any) => {
-    emit('nodeClick', data);
     if (!data.disabled && !data.type.nodeDblclickFunc && data.type.nodeClickFunc) {
+        emit('nodeClick', data);
         data.type.nodeClickFunc(data);
     }
     // 关闭可能存在的右击菜单

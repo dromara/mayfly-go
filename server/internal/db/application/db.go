@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
@@ -9,12 +10,15 @@ import (
 	"mayfly-go/internal/db/domain/repository"
 	tagapp "mayfly-go/internal/tag/application"
 	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/structx"
+	"sort"
 	"strings"
+	"time"
 )
 
 type Db interface {
@@ -38,6 +42,9 @@ type Db interface {
 
 	// 根据数据库实例id获取连接，随机返回该instanceId下已连接的conn，若不存在则是使用该instanceId关联的db进行连接并返回。
 	GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error)
+
+	// DumpDb dumpDb
+	DumpDb(ctx context.Context, reqParam *DumpDbReq) error
 }
 
 type dbAppImpl struct {
@@ -187,6 +194,126 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 	// 使用该实例关联的已配置数据库中的第一个库进行连接并返回
 	firstDb := dbs[0]
 	return d.GetDbConn(firstDb.Id, strings.Split(firstDb.Database, " ")[0])
+}
+
+func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *DumpDbReq) error {
+	writer := newGzipWriter(reqParam.Writer)
+	defer writer.Close()
+	dbId := reqParam.DbId
+	dbName := reqParam.DbName
+	tables := reqParam.Tables
+
+	dbConn, err := d.GetDbConn(dbId, dbName)
+	if err != nil {
+		return err
+	}
+	writer.WriteString("\n-- ----------------------------")
+	writer.WriteString("\n-- 导出平台: mayfly-go")
+	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
+	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", dbName))
+	writer.WriteString("\n-- ----------------------------\n\n")
+
+	dbMeta := dbConn.GetMetaData()
+	if len(tables) == 0 {
+		ti, err := dbMeta.GetTables()
+		biz.ErrIsNil(err)
+		tables = make([]string, len(ti))
+		for i, table := range ti {
+			tables[i] = table.TableName
+		}
+	}
+
+	// 查询列信息，后面生成建表ddl和insert都需要列信息
+	columns, err := dbMeta.GetColumns(tables...)
+	biz.ErrIsNil(err)
+
+	// 以表名分组，存放每个表的列信息
+	columnMap := make(map[string][]dbi.Column)
+	for _, column := range columns {
+		columnMap[column.TableName] = append(columnMap[column.TableName], column)
+	}
+
+	// 按表名排序
+	sort.Strings(tables)
+
+	quoteSchema := dbMeta.QuoteIdentifier(dbConn.Info.CurrentSchema())
+	dumpHelper := dbMeta.GetDumpHelper()
+	dataHelper := dbMeta.GetDataHelper()
+
+	// 遍历获取每个表的信息
+	for _, tableName := range tables {
+		quoteTableName := dbMeta.QuoteIdentifier(tableName)
+
+		writer.TryFlush()
+		// 查询表信息，主要是为了查询表注释
+		tbs, err := dbMeta.GetTables(tableName)
+		biz.ErrIsNil(err)
+		if err != nil || tbs == nil || len(tbs) <= 0 {
+			panic(errorx.NewBiz(fmt.Sprintf("获取表信息失败：%s", tableName)))
+		}
+		tabInfo := dbi.Table{
+			TableName:    tableName,
+			TableComment: tbs[0].TableComment,
+		}
+
+		// 生成表结构信息
+		if reqParam.DumpDDL {
+			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", tableName))
+			tbDdlArr := dbMeta.GenerateTableDDL(columnMap[tableName], tabInfo, true)
+			for _, ddl := range tbDdlArr {
+				writer.WriteString(ddl + ";\n")
+			}
+		}
+
+		// 生成insert sql，数据在索引前，加速insert
+		if reqParam.DumpData {
+			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", tableName))
+
+			dumpHelper.BeforeInsert(writer, quoteTableName)
+			// 获取列信息
+			quoteColNames := make([]string, 0)
+			for _, col := range columnMap[tableName] {
+				quoteColNames = append(quoteColNames, dbMeta.QuoteIdentifier(col.ColumnName))
+			}
+
+			_ = dbConn.WalkTableRows(ctx, quoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
+				rowValues := make([]string, len(columnMap[tableName]))
+				for i, col := range columnMap[tableName] {
+					rowValues[i] = dataHelper.WrapValue(row[col.ColumnName], dataHelper.GetDataType(string(col.DataType)))
+				}
+
+				beforeInsert := dumpHelper.BeforeInsertSql(quoteSchema, quoteTableName)
+				insertSQL := fmt.Sprintf("%s INSERT INTO %s (%s) values(%s)", beforeInsert, quoteTableName, strings.Join(quoteColNames, ", "), strings.Join(rowValues, ", "))
+				writer.WriteString(insertSQL + ";\n")
+				return nil
+			})
+
+			dumpHelper.AfterInsert(writer, tableName, columnMap[tableName])
+		}
+
+		indexs, err := dbMeta.GetTableIndex(tableName)
+		biz.ErrIsNil(err)
+
+		// 过滤主键索引
+		idxs := make([]dbi.Index, 0)
+		for _, idx := range indexs {
+			if !idx.IsPrimaryKey {
+				idxs = append(idxs, idx)
+			}
+		}
+
+		if len(idxs) > 0 {
+			// 最后添加索引
+			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表索引: %s \n-- ----------------------------\n", tableName))
+			sqlArr := dbMeta.GenerateIndexDDL(idxs, tabInfo)
+			for _, sqlStr := range sqlArr {
+				writer.WriteString(sqlStr + ";\n")
+			}
+		}
+
+	}
+
+	return nil
 }
 
 func toDbInfo(instance *entity.DbInstance, dbId uint64, database string, tagPath ...string) *dbi.DbInfo {

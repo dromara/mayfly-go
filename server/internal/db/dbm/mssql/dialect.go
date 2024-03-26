@@ -239,31 +239,6 @@ func (md *MssqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-func (md *MssqlDialect) ToCommonColumn(dialectColumn *dbi.Column) {
-	// 翻译为通用数据库类型
-	dataType := dialectColumn.DataType
-	t1 := commonColumnTypeMap[string(dataType)]
-	if t1 == "" {
-		dialectColumn.DataType = dbi.CommonTypeVarchar
-		dialectColumn.CharMaxLength = 2000
-	} else {
-		dialectColumn.DataType = t1
-	}
-}
-
-func (md *MssqlDialect) ToColumn(commonColumn *dbi.Column) {
-	ctype := mssqlColumnTypeMap[commonColumn.DataType]
-	meta := md.dc.GetMetaData()
-
-	if ctype == "" {
-		commonColumn.DataType = "varchar"
-		commonColumn.CharMaxLength = 2000
-	} else {
-		commonColumn.DataType = dbi.ColumnDataType(ctype)
-		meta.FixColumn(commonColumn)
-	}
-}
-
 func (md *MssqlDialect) CreateTable(columns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
 	sqlArr := md.dc.GetMetaData().GenerateTableDDL(columns, tableInfo, dropOldTable)
 	_, err := md.dc.Exec(strings.Join(sqlArr, ";"))

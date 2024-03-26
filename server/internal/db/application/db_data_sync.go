@@ -163,7 +163,7 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
 			} else {
 				updFieldValType = dbi.DataTypeNumber
 			}
-			wrapUpdFieldVal := srcConn.GetMetaData().GetDataConverter().WrapValue(task.UpdFieldVal, updFieldValType)
+			wrapUpdFieldVal := srcConn.GetMetaData().GetDataHelper().WrapValue(task.UpdFieldVal, updFieldValType)
 			updSql = fmt.Sprintf("and %s > %s", task.UpdField, wrapUpdFieldVal)
 
 			orderSql = "order by " + task.UpdField + " asc "
@@ -249,7 +249,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 			updFieldType = dbi.DataTypeString
 			for _, column := range columns {
 				if strings.EqualFold(column.Name, updFieldName) {
-					updFieldType = srcMetaData.GetDataConverter().GetDataType(column.Type)
+					updFieldType = srcMetaData.GetDataHelper().GetDataType(column.Type)
 					break
 				}
 			}
@@ -332,7 +332,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 		updFieldVal = srcRes[len(srcRes)-1][strings.ToLower(updFieldName)]
 	}
 
-	task.UpdFieldVal = srcMetaData.GetDataConverter().FormatData(updFieldVal, updFieldType)
+	task.UpdFieldVal = srcMetaData.GetDataHelper().FormatData(updFieldVal, updFieldType)
 
 	// 获取目标库字段数组
 	targetWrapColumns := make([]string, 0)
@@ -343,7 +343,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	for _, item := range fieldMap {
 		targetField := item["target"]
 		srcField := item["target"]
-		srcFieldTypes[srcField] = srcMetaData.GetDataConverter().GetDataType(srcColumnTypes[item["src"]])
+		srcFieldTypes[srcField] = srcMetaData.GetDataHelper().GetDataType(srcColumnTypes[item["src"]])
 		targetWrapColumns = append(targetWrapColumns, targetMetaData.QuoteIdentifier(targetField))
 		srcColumns = append(srcColumns, srcField)
 	}
@@ -354,7 +354,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 		rawValue := make([]any, 0)
 		for _, column := range srcColumns {
 			// 某些情况，如oracle，需要转换时间类型的字符串为time类型
-			res := srcMetaData.GetDataConverter().ParseData(record[column], srcFieldTypes[column])
+			res := srcMetaData.GetDataHelper().ParseData(record[column], srcFieldTypes[column])
 			rawValue = append(rawValue, res)
 		}
 		values = append(values, rawValue)

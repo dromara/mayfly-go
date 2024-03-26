@@ -145,7 +145,6 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	for _, re := range res {
 		colName := cast.ToString(re["column_name"])
 		if colName != "" {
-
 			// 查询自增列当前最大值
 			_, maxRes, err := pd.dc.Query(fmt.Sprintf("select max(%s) max_val from %s", colName, tableName))
 			if err != nil {
@@ -175,31 +174,6 @@ func (pd *PgsqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
 		}
 	}
 	return err
-}
-
-func (pd *PgsqlDialect) ToCommonColumn(column *dbi.Column) {
-	// 翻译为通用数据库类型
-	dataType := column.DataType
-	t1 := commonColumnTypeMap[string(dataType)]
-	if t1 == "" {
-		column.DataType = dbi.CommonTypeVarchar
-		column.CharMaxLength = 2000
-	} else {
-		column.DataType = t1
-	}
-}
-
-func (pd *PgsqlDialect) ToColumn(commonColumn *dbi.Column) {
-	ctype := pgsqlColumnTypeMap[commonColumn.DataType]
-
-	if ctype == "" {
-		commonColumn.DataType = "varchar"
-		commonColumn.CharMaxLength = 2000
-	} else {
-		commonColumn.DataType = dbi.ColumnDataType(ctype)
-
-	}
-
 }
 
 func (pd *PgsqlDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {

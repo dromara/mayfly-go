@@ -366,7 +366,10 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
         parentNode.params.dbTableSize = dbTableSize == 0 ? '' : formatByteSize(dbTableSize);
         return tablesNode;
     })
-    .withNodeClickFunc(nodeClickChangeDb);
+    .withNodeDblclickFunc((node: TagTreeNode) => {
+        const params = node.params;
+        addTablesOpTab({ id: params.id, db: params.db, type: params.type, nodeKey: node.key });
+    });
 
 // 数据库sql模板菜单节点
 const NodeTypeSqlMenu = new NodeType(SqlExecNodeType.SqlMenu)

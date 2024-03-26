@@ -40,12 +40,6 @@ type Dialect interface {
 
 	// 有些数据库迁移完数据之后，需要更新表自增序列为当前表最大值
 	UpdateSequence(tableName string, columns []Column)
-
-	// 数据库方言自带的列转换为公共列
-	ToCommonColumn(dialectColumn *Column)
-
-	// 公共列转为各个数据库方言自带的列
-	ToColumn(commonColumn *Column)
 }
 
 type DefaultDialect struct {
@@ -56,14 +50,4 @@ func (dd *DefaultDialect) GetDbProgram() (DbProgram, error) {
 	return nil, errors.New("not support db program")
 }
 
-func (dd *DefaultDialect) ToCommonColumn(dialectColumn *Column) {
-
-}
-
-func (dd *DefaultDialect) ToColumn(commonColumn *Column) {
-
-}
-
-func (dd *DefaultDialect) UpdateSequence(tableName string, columns []Column) {
-
-}
+func (dd *DefaultDialect) UpdateSequence(tableName string, columns []Column) {}

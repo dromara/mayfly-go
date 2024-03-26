@@ -30,7 +30,7 @@
                         ref="tagTreeRef"
                         class="none-select"
                         node-key="id"
-                        :highlight-current="true"
+                        highlight-current
                         :props="props"
                         :data="data"
                         @node-expand="handleNodeExpand"
@@ -193,7 +193,7 @@ const state = reactive({
         },
         items: [contextmenuEdit, contextmenuAdd, contextmenuDel],
     },
-    activeTabName: 'tagDetail',
+    activeTabName: TagDetail,
     currentTag: null as any,
     resourceCount: {} as any,
 });

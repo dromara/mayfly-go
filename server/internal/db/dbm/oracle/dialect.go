@@ -155,33 +155,6 @@ func (od *OracleDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	return err
 }
 
-func (od *OracleDialect) ToCommonColumn(dialectColumn *dbi.Column) {
-	// 翻译为通用数据库类型
-	dataType := dialectColumn.DataType
-	t1 := commonColumnTypeMap[string(dataType)]
-	if t1 == "" {
-		dialectColumn.DataType = dbi.CommonTypeVarchar
-		dialectColumn.CharMaxLength = 2000
-	} else {
-		dialectColumn.DataType = t1
-		// 如果是number类型，需要根据公共类型加上长度, 如 bigint 需要转换为number(19,0)
-		if strings.Contains(string(t1), "NUMBER") {
-			dialectColumn.CharMaxLength = 19
-		}
-	}
-}
-
-func (od *OracleDialect) ToColumn(commonColumn *dbi.Column) {
-	ctype := oracleColumnTypeMap[commonColumn.DataType]
-	if ctype == "" {
-		commonColumn.DataType = "NVARCHAR2"
-		commonColumn.CharMaxLength = 2000
-	} else {
-		commonColumn.DataType = dbi.ColumnDataType(ctype)
-		od.dc.GetMetaData().FixColumn(commonColumn)
-	}
-}
-
 func (od *OracleDialect) CreateTable(commonColumns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {
 	meta := od.dc.GetMetaData()
 	sqlArr := meta.GenerateTableDDL(commonColumns, tableInfo, dropOldTable)

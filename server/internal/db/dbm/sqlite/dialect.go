@@ -50,10 +50,6 @@ func (sd *SqliteDialect) BatchInsert(tx *sql.Tx, tableName string, columns []str
 	return exec, err
 }
 
-func (sd *SqliteDialect) GetDataConverter() dbi.DataConverter {
-	return converter
-}
-
 func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	tableName := copy.TableName
 
@@ -84,28 +80,6 @@ func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	}
 
 	return err
-}
-
-func (sd *SqliteDialect) ToCommonColumn(dialectColumn *dbi.Column) {
-	// 翻译为通用数据库类型
-	dataType := dialectColumn.DataType
-	t1 := commonColumnTypeMap[string(dataType)]
-	if t1 == "" {
-		dialectColumn.DataType = dbi.CommonTypeVarchar
-		dialectColumn.CharMaxLength = 2000
-	} else {
-		dialectColumn.DataType = t1
-	}
-}
-
-func (sd *SqliteDialect) ToColumn(commonColumn *dbi.Column) {
-	ctype := sqliteColumnTypeMap[commonColumn.DataType]
-	if ctype == "" {
-		commonColumn.DataType = "nvarchar"
-		commonColumn.CharMaxLength = 2000
-	} else {
-		sd.dc.GetMetaData().FixColumn(commonColumn)
-	}
 }
 
 func (sd *SqliteDialect) CreateTable(columns []dbi.Column, tableInfo dbi.Table, dropOldTable bool) (int, error) {

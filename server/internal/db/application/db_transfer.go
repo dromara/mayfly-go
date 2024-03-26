@@ -148,9 +148,9 @@ func (app *dbTransferAppImpl) transferTables(task *entity.DbTransferTask, srcCon
 		end("没有需要迁移的表", nil)
 		return
 	}
-
+	srcMeta := srcConn.GetMetaData()
 	// 查询源表列信息
-	columns, err := srcConn.GetMetaData().GetColumns(tableNames...)
+	columns, err := srcMeta.GetColumns(tableNames...)
 	if err != nil {
 		end("获取源表列信息失败", err)
 		return
@@ -168,15 +168,17 @@ func (app *dbTransferAppImpl) transferTables(task *entity.DbTransferTask, srcCon
 
 	ctx := context.Background()
 
+	srcColumnHelper := srcMeta.GetColumnHelper()
+	targetColumnHelper := targetConn.GetMetaData().GetColumnHelper()
 	for _, tbName := range sortTableNames {
 		cols := columnMap[tbName]
 		targetCols := make([]dbi.Column, 0)
 		for _, col := range cols {
 			colPtr := &col
 			// 源库列转为公共列
-			srcDialect.ToCommonColumn(colPtr)
+			srcColumnHelper.ToCommonColumn(colPtr)
 			// 公共列转为目标库列
-			targetDialect.ToColumn(colPtr)
+			targetColumnHelper.ToColumn(colPtr)
 			targetCols = append(targetCols, *colPtr)
 		}
 
@@ -230,7 +232,7 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, tableName string
 	batchSize := 1000 // 每次查询并迁移1000条数据
 	var err error
 	srcMeta := srcConn.GetMetaData()
-	srcConverter := srcMeta.GetDataConverter()
+	srcConverter := srcMeta.GetDataHelper()
 
 	// 游标查询源表数据，并批量插入目标表
 	err = srcConn.WalkTableRows(ctx, tableName, func(row map[string]any, columns []*dbi.QueryColumn) error {

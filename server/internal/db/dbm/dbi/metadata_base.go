@@ -1,10 +1,11 @@
 package dbi
 
 import (
-	pq "gitee.com/liuzongyang/libpq"
-	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 	"io"
 	"strings"
+
+	pq "gitee.com/liuzongyang/libpq"
+	"github.com/kanzihuang/vitess/go/vt/sqlparser"
 )
 
 type BaseMetaData interface {
@@ -29,13 +30,13 @@ type BaseMetaData interface {
 	// replaced by two backslashes (i.e. "\\") and the C-style escape identifier
 	QuoteLiteral(literal string) string
 
-	SqlParserDialect() sqlparser.Dialect
+	GetSqlParserDialect() sqlparser.Dialect
 
-	BeforeDumpInsert(writer io.Writer, tableName string)
+	// GetColumnHelper
+	GetColumnHelper() ColumnHelper
 
-	BeforeDumpInsertSql(quoteSchema string, quoteTableName string) string
-
-	AfterDumpInsert(writer io.Writer, tableName string, columns []Column)
+	// GetDumpHeler
+	GetDumpHelper() DumpHelper
 }
 
 // 默认实现，若需要覆盖，则由各个数据库MetaData实现去覆盖重写
@@ -58,16 +59,59 @@ func (dd *DefaultMetaData) QuoteLiteral(literal string) string {
 	return pq.QuoteLiteral(literal)
 }
 
-func (dd *DefaultMetaData) SqlParserDialect() sqlparser.Dialect {
+func (dd *DefaultMetaData) GetSqlParserDialect() sqlparser.Dialect {
 	return sqlparser.PostgresDialect{}
 }
 
-func (dd *DefaultMetaData) BeforeDumpInsert(writer io.Writer, tableName string) {
+func (dd *DefaultMetaData) GetDumpHelper() DumpHelper {
+	return new(DefaultDumpHelper)
+}
+
+func (dd *DefaultMetaData) GetColumnHelper() ColumnHelper {
+	return new(DefaultColumnHelper)
+}
+
+// ColumnHelper 数据库迁移辅助方法
+type ColumnHelper interface {
+	// ToCommonColumn 数据库方言自带的列转换为公共列
+	ToCommonColumn(dialectColumn *Column)
+
+	// ToColumn 公共列转为各个数据库方言自带的列
+	ToColumn(commonColumn *Column)
+
+	// FixColumn 根据数据库类型修复字段长度、精度等
+	FixColumn(column *Column)
+}
+
+type DefaultColumnHelper struct {
+}
+
+func (dd *DefaultColumnHelper) ToCommonColumn(dialectColumn *Column) {}
+
+func (dd *DefaultColumnHelper) ToColumn(commonColumn *Column) {}
+
+func (dd *DefaultColumnHelper) FixColumn(column *Column) {}
+
+// DumpHelper 导出辅助方法
+type DumpHelper interface {
+	BeforeInsert(writer io.Writer, tableName string)
+
+	BeforeInsertSql(quoteSchema string, quoteTableName string) string
+
+	AfterInsert(writer io.Writer, tableName string, columns []Column)
+}
+
+type DefaultDumpHelper struct {
+}
+
+func (dd *DefaultDumpHelper) BeforeInsert(writer io.Writer, tableName string) {
 	writer.Write([]byte("BEGIN;\n"))
 }
-func (dd *DefaultMetaData) BeforeDumpInsertSql(quoteSchema string, tableName string) string {
+
+func (dd *DefaultDumpHelper) BeforeInsertSql(quoteSchema string, quoteTableName string) string {
 	return ""
 }
-func (dd *DefaultMetaData) AfterDumpInsert(writer io.Writer, tableName string, columns []Column) {
+
+func (dd *DefaultDumpHelper) AfterInsert(writer io.Writer, tableName string, columns []Column) {
 	writer.Write([]byte("COMMIT;\n"))
 }

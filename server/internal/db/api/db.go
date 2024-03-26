@@ -17,7 +17,6 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -25,12 +24,11 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/ws"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/kanzihuang/vitess/go/vt/sqlparser"
+	"github.com/may-fly/cast"
 )
 
 type Db struct {
@@ -81,9 +79,8 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 
 	ctx := rc.MetaCtx
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		dbId := uint64(value)
+		dbId := cast.ToUint64(v)
+		biz.NotBlank(dbId, "存在错误dbId")
 		d.DbApp.Delete(ctx, dbId)
 		// 删除该库的sql执行记录
 		d.DbSqlExecApp.DeleteBy(ctx, &entity.DbSqlExec{DbId: dbId})
@@ -118,7 +115,7 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	ctx, cancel := context.WithTimeout(rc.MetaCtx, time.Duration(config.GetDbms().SqlExecTl)*time.Second)
 	defer cancel()
 
-	sqls, err := sqlparser.SplitStatementToPieces(sql, sqlparser.WithDialect(dbConn.GetMetaData().SqlParserDialect()))
+	sqls, err := sqlparser.SplitStatementToPieces(sql, sqlparser.WithDialect(dbConn.GetMetaData().GetSqlParserDialect()))
 	biz.ErrIsNil(err, "SQL解析错误,请检查您的执行SQL")
 	isMulti := len(sqls) > 1
 	var execResAll *application.DbSqlExecRes
@@ -199,7 +196,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	var sql string
 
 	tokenizer := sqlparser.NewReaderTokenizer(file,
-		sqlparser.WithCacheInBuffer(), sqlparser.WithDialect(dbConn.GetMetaData().SqlParserDialect()))
+		sqlparser.WithCacheInBuffer(), sqlparser.WithDialect(dbConn.GetMetaData().GetSqlParserDialect()))
 
 	executedStatements := 0
 	progressId := stringx.Rand(32)
@@ -264,7 +261,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 // 数据库dump
 func (d *Db) DumpSql(rc *req.Ctx) {
 	dbId := getDbId(rc)
-	dbNamesStr := rc.Query("db")
+	dbName := rc.Query("db")
 	dumpType := rc.Query("type")
 	tablesStr := rc.Query("tables")
 	extName := rc.Query("extName")
@@ -286,146 +283,37 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(la.Id, d.TagApp.ListTagPathByResource(consts.TagResourceTypeDb, db.Code)...), "%s")
 
 	now := time.Now()
-	filename := fmt.Sprintf("%s.%s.sql%s", db.Name, now.Format("20060102150405"), extName)
+	filename := fmt.Sprintf("%s-%s.%s.sql%s", db.Name, dbName, now.Format("20060102150405"), extName)
 	rc.Header("Content-Type", "application/octet-stream")
 	rc.Header("Content-Disposition", "attachment; filename="+filename)
 	if extName != ".gz" {
 		rc.Header("Content-Encoding", "gzip")
 	}
 
-	var dbNames, tables []string
-	if len(dbNamesStr) > 0 {
-		dbNames = strings.Split(dbNamesStr, ",")
-	}
-	if len(dbNames) == 1 && len(tablesStr) > 0 {
+	var tables []string
+	if len(tablesStr) > 0 {
 		tables = strings.Split(tablesStr, ",")
 	}
 
-	writer := newGzipWriter(rc.GetWriter())
 	defer func() {
 		msg := anyx.ToString(recover())
 		if len(msg) > 0 {
 			msg = "数据库导出失败: " + msg
-			writer.WriteString(msg)
+			rc.GetWriter().Write([]byte(msg))
 			d.MsgApp.CreateAndSend(la, msgdto.ErrSysMsg("数据库导出失败", msg))
 		}
-		writer.Close()
 	}()
 
-	for _, dbName := range dbNames {
-		d.dumpDb(rc.MetaCtx, writer, dbId, dbName, tables, needStruct, needData)
-	}
+	biz.ErrIsNil(d.DbApp.DumpDb(rc.MetaCtx, &application.DumpDbReq{
+		DbId:     dbId,
+		DbName:   dbName,
+		Tables:   tables,
+		DumpDDL:  needStruct,
+		DumpData: needData,
+		Writer:   rc.GetWriter(),
+	}))
 
-	rc.ReqParam = collx.Kvs("db", db, "databases", dbNamesStr, "tables", tablesStr, "dumpType", dumpType)
-}
-
-func (d *Db) dumpDb(ctx context.Context, writer *gzipWriter, dbId uint64, dbName string, tables []string, needStruct bool, needData bool) {
-	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
-	biz.ErrIsNil(err)
-	writer.WriteString("\n-- ----------------------------")
-	writer.WriteString("\n-- 导出平台: mayfly-go")
-	writer.WriteString(fmt.Sprintf("\n-- 导出时间: %s ", time.Now().Format("2006-01-02 15:04:05")))
-	writer.WriteString(fmt.Sprintf("\n-- 导出数据库: %s ", dbName))
-	writer.WriteString("\n-- ----------------------------\n\n")
-
-	dbMeta := dbConn.GetMetaData()
-	if len(tables) == 0 {
-		ti, err := dbMeta.GetTables()
-		biz.ErrIsNil(err)
-		tables = make([]string, len(ti))
-		for i, table := range ti {
-			tables[i] = table.TableName
-		}
-	}
-
-	// 查询列信息，后面生成建表ddl和insert都需要列信息
-	columns, err := dbMeta.GetColumns(tables...)
-
-	// 以表名分组，存放每个表的列信息
-	columnMap := make(map[string][]dbi.Column)
-	for _, column := range columns {
-		columnMap[column.TableName] = append(columnMap[column.TableName], column)
-	}
-
-	// 按表名排序
-	sort.Strings(tables)
-
-	quoteSchema := dbMeta.QuoteIdentifier(dbConn.Info.CurrentSchema())
-
-	// 遍历获取每个表的信息
-	for _, tableName := range tables {
-		quoteTableName := dbMeta.QuoteIdentifier(tableName)
-
-		writer.TryFlush()
-		// 查询表信息，主要是为了查询表注释
-		tbs, err := dbMeta.GetTables(tableName)
-		biz.ErrIsNil(err)
-		if err != nil || tbs == nil || len(tbs) <= 0 {
-			panic(errorx.NewBiz(fmt.Sprintf("获取表信息失败：%s", tableName)))
-		}
-		tabInfo := dbi.Table{
-			TableName:    tableName,
-			TableComment: tbs[0].TableComment,
-		}
-
-		// 生成表结构信息
-		if needStruct {
-			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", tableName))
-			tbDdlArr := dbMeta.GenerateTableDDL(columnMap[tableName], tabInfo, true)
-			for _, ddl := range tbDdlArr {
-				writer.WriteString(ddl + ";\n")
-			}
-		}
-
-		// 生成insert sql，数据在索引前，加速insert
-		if needData {
-			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", tableName))
-
-			dbMeta.BeforeDumpInsert(writer, quoteTableName)
-
-			// 获取列信息
-			quoteColNames := make([]string, 0)
-			for _, col := range columnMap[tableName] {
-				quoteColNames = append(quoteColNames, dbMeta.QuoteIdentifier(col.ColumnName))
-			}
-
-			converter := dbMeta.GetDataConverter()
-			_ = dbConn.WalkTableRows(context.Background(), quoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
-				rowValues := make([]string, len(columnMap[tableName]))
-				for i, col := range columnMap[tableName] {
-					rowValues[i] = converter.WrapValue(row[col.ColumnName], converter.GetDataType(string(col.DataType)))
-				}
-
-				beforeInsert := dbMeta.BeforeDumpInsertSql(quoteSchema, quoteTableName)
-				insertSQL := fmt.Sprintf("%s INSERT INTO %s (%s) values(%s)", beforeInsert, quoteTableName, strings.Join(quoteColNames, ", "), strings.Join(rowValues, ", "))
-				writer.WriteString(insertSQL + ";\n")
-				return nil
-			})
-
-			dbMeta.AfterDumpInsert(writer, tableName, columnMap[tableName])
-		}
-
-		indexs, err := dbMeta.GetTableIndex(tableName)
-		biz.ErrIsNil(err)
-
-		// 过滤主键索引
-		idxs := make([]dbi.Index, 0)
-		for _, idx := range indexs {
-			if !idx.IsPrimaryKey {
-				idxs = append(idxs, idx)
-			}
-		}
-
-		if len(idxs) > 0 {
-			// 最后添加索引
-			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表索引: %s \n-- ----------------------------\n", tableName))
-			sqlArr := dbMeta.GenerateIndexDDL(idxs, tabInfo)
-			for _, sqlStr := range sqlArr {
-				writer.WriteString(sqlStr + ";\n")
-			}
-		}
-
-	}
+	rc.ReqParam = collx.Kvs("db", db, "database", dbName, "tables", tablesStr, "dumpType", dumpType)
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {

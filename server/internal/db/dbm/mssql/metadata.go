@@ -8,9 +8,7 @@ import (
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
-	"regexp"
 	"strings"
-	"time"
 
 	"github.com/may-fly/cast"
 )
@@ -93,6 +91,7 @@ func (md *MssqlMetaData) GetTables(tableNames ...string) ([]dbi.Table, error) {
 // 获取列元信息, 如列名等
 func (md *MssqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) {
 	meta := md.dc.GetMetaData()
+	columnHelper := meta.GetColumnHelper()
 	tableName := strings.Join(collx.ArrayMap[string, string](tableNames, func(val string) string {
 		return fmt.Sprintf("'%s'", meta.RemoveQuote(val))
 	}), ",")
@@ -119,30 +118,11 @@ func (md *MssqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			NumScale:      cast.ToInt(re["NUM_SCALE"]),
 		}
 
-		md.FixColumn(&column)
+		columnHelper.FixColumn(&column)
 
 		columns = append(columns, column)
 	}
 	return columns, nil
-}
-
-func (md *MssqlMetaData) FixColumn(column *dbi.Column) {
-	dataType := strings.ToLower(string(column.DataType))
-
-	if collx.ArrayAnyMatches([]string{"date", "time"}, dataType) {
-		// 如果是datetime，精度取NumScale字段
-		column.CharMaxLength = column.NumScale
-	} else if collx.ArrayAnyMatches([]string{"int", "bit", "real", "text", "xml"}, dataType) {
-		// 不显示长度的类型
-		column.NumPrecision = 0
-		column.CharMaxLength = 0
-	} else if collx.ArrayAnyMatches([]string{"numeric", "decimal", "float"}, dataType) {
-		// 如果是num，长度取精度和小数位数
-		column.CharMaxLength = 0
-	} else if collx.ArrayAnyMatches([]string{"nvarchar", "nchar"}, dataType) {
-		// 如果是nvarchar，可视长度减半
-		column.CharMaxLength = column.CharMaxLength / 2
-	}
 }
 
 // 获取表主键字段名，不存在主键标识则默认第一个字段
@@ -427,172 +407,14 @@ func (md *MssqlMetaData) GetIdentifierQuoteString() string {
 	return "["
 }
 
-func (md *MssqlMetaData) BeforeDumpInsertSql(quoteSchema string, tableName string) string {
-	return fmt.Sprintf("set identity_insert %s.%s on ", quoteSchema, tableName)
+func (md *MssqlMetaData) GetDataHelper() dbi.DataHelper {
+	return new(DataHelper)
 }
 
-func (md *MssqlMetaData) GetDataConverter() dbi.DataConverter {
-	return converter
+func (md *MssqlMetaData) GetColumnHelper() dbi.ColumnHelper {
+	return new(ColumnHelper)
 }
 
-var (
-	// 数字类型
-	numberRegexp = regexp.MustCompile(`(?i)int|double|float|number|decimal|byte|bit`)
-	// 日期时间类型
-	datetimeRegexp = regexp.MustCompile(`(?i)datetime|timestamp`)
-	// 日期类型
-	dateRegexp = regexp.MustCompile(`(?i)date`)
-	// 时间类型
-	timeRegexp = regexp.MustCompile(`(?i)time`)
-
-	converter = new(DataConverter)
-
-	// mssql数据类型 对应 公共数据类型
-	commonColumnTypeMap = map[string]dbi.ColumnDataType{
-		"bigint":           dbi.CommonTypeBigint,
-		"numeric":          dbi.CommonTypeNumber,
-		"bit":              dbi.CommonTypeInt,
-		"smallint":         dbi.CommonTypeSmallint,
-		"decimal":          dbi.CommonTypeNumber,
-		"smallmoney":       dbi.CommonTypeNumber,
-		"int":              dbi.CommonTypeInt,
-		"tinyint":          dbi.CommonTypeSmallint, // mssql tinyint不支持负数
-		"money":            dbi.CommonTypeNumber,
-		"float":            dbi.CommonTypeNumber, // 近似数字
-		"real":             dbi.CommonTypeVarchar,
-		"date":             dbi.CommonTypeDate, // 日期和时间
-		"datetimeoffset":   dbi.CommonTypeDatetime,
-		"datetime2":        dbi.CommonTypeDatetime,
-		"smalldatetime":    dbi.CommonTypeDatetime,
-		"datetime":         dbi.CommonTypeDatetime,
-		"time":             dbi.CommonTypeTime,
-		"char":             dbi.CommonTypeChar, // 字符串
-		"varchar":          dbi.CommonTypeVarchar,
-		"text":             dbi.CommonTypeText,
-		"nchar":            dbi.CommonTypeChar,
-		"nvarchar":         dbi.CommonTypeVarchar,
-		"ntext":            dbi.CommonTypeText,
-		"binary":           dbi.CommonTypeBinary,
-		"varbinary":        dbi.CommonTypeBinary,
-		"cursor":           dbi.CommonTypeVarchar, // 其他
-		"rowversion":       dbi.CommonTypeVarchar,
-		"hierarchyid":      dbi.CommonTypeVarchar,
-		"uniqueidentifier": dbi.CommonTypeVarchar,
-		"sql_variant":      dbi.CommonTypeVarchar,
-		"xml":              dbi.CommonTypeText,
-		"table":            dbi.CommonTypeText,
-		"geometry":         dbi.CommonTypeText, // 空间几何类型
-		"geography":        dbi.CommonTypeText, // 空间地理类型
-	}
-
-	// 公共数据类型 对应 mssql数据类型
-
-	mssqlColumnTypeMap = map[dbi.ColumnDataType]string{
-		dbi.CommonTypeVarchar:    "nvarchar",
-		dbi.CommonTypeChar:       "nchar",
-		dbi.CommonTypeText:       "ntext",
-		dbi.CommonTypeBlob:       "ntext",
-		dbi.CommonTypeLongblob:   "ntext",
-		dbi.CommonTypeLongtext:   "ntext",
-		dbi.CommonTypeBinary:     "varbinary",
-		dbi.CommonTypeMediumblob: "ntext",
-		dbi.CommonTypeMediumtext: "ntext",
-		dbi.CommonTypeVarbinary:  "varbinary",
-		dbi.CommonTypeInt:        "int",
-		dbi.CommonTypeSmallint:   "smallint",
-		dbi.CommonTypeTinyint:    "smallint",
-		dbi.CommonTypeNumber:     "decimal",
-		dbi.CommonTypeBigint:     "bigint",
-		dbi.CommonTypeDatetime:   "datetime2",
-		dbi.CommonTypeDate:       "date",
-		dbi.CommonTypeTime:       "time",
-		dbi.CommonTypeTimestamp:  "timestamp",
-		dbi.CommonTypeEnum:       "nvarchar",
-		dbi.CommonTypeJSON:       "nvarchar",
-	}
-)
-
-type DataConverter struct {
-}
-
-func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
-	if numberRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeNumber
-	}
-	// 日期时间类型
-	if datetimeRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeDateTime
-	}
-	// 日期类型
-	if dateRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeDate
-	}
-	// 时间类型
-	if timeRegexp.MatchString(dbColumnType) {
-		return dbi.DataTypeTime
-	}
-	return dbi.DataTypeString
-}
-
-func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
-	// 如果dataType是datetime而dbColumnValue是string类型，则需要根据类型格式化
-	str, ok := dbColumnValue.(string)
-	if dataType == dbi.DataTypeDateTime && ok {
-		// 尝试用时间格式解析
-		res, err := time.Parse(time.DateTime, str)
-		if err == nil {
-			return str
-		}
-		res, _ = time.Parse(time.RFC3339, str)
-		return res.Format(time.DateTime)
-	}
-	if dataType == dbi.DataTypeDate && ok {
-		// 尝试用时间格式解析
-		res, _ := time.Parse(time.DateOnly, str)
-		return res.Format(time.DateOnly)
-	}
-	if dataType == dbi.DataTypeTime && ok {
-		res, _ := time.Parse(time.TimeOnly, str)
-		return res.Format(time.TimeOnly)
-	}
-	return anyx.ToString(dbColumnValue)
-}
-
-func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any {
-	// 如果dataType是datetime而dbColumnValue是string类型，则需要转换为time.Time类型
-	_, ok := dbColumnValue.(string)
-	if dataType == dbi.DataTypeDateTime && ok {
-		res, _ := time.Parse(time.RFC3339, anyx.ToString(dbColumnValue))
-		return res
-	}
-	if dataType == dbi.DataTypeDate && ok {
-		res, _ := time.Parse(time.DateOnly, anyx.ToString(dbColumnValue))
-		return res
-	}
-	if dataType == dbi.DataTypeTime && ok {
-		res, _ := time.Parse(time.TimeOnly, anyx.ToString(dbColumnValue))
-		return res
-	}
-	return dbColumnValue
-}
-
-func (dc *DataConverter) WrapValue(dbColumnValue any, dataType dbi.DataType) string {
-	if dbColumnValue == nil {
-		return "NULL"
-	}
-	switch dataType {
-	case dbi.DataTypeNumber:
-		return fmt.Sprintf("%v", dbColumnValue)
-	case dbi.DataTypeString:
-		val := fmt.Sprintf("%v", dbColumnValue)
-		// 转义单引号
-		val = strings.Replace(val, `'`, `''`, -1)
-		val = strings.Replace(val, `\''`, `\'`, -1)
-		// 转义换行符
-		val = strings.Replace(val, "\n", "\\n", -1)
-		return fmt.Sprintf("'%s'", val)
-	case dbi.DataTypeDate, dbi.DataTypeDateTime, dbi.DataTypeTime:
-		return fmt.Sprintf("'%s'", dc.FormatData(dbColumnValue, dataType))
-	}
-	return fmt.Sprintf("'%s'", dbColumnValue)
+func (md *MssqlMetaData) GetDumpHelper() dbi.DumpHelper {
+	return new(DumpHelper)
 }
