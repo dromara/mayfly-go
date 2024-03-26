@@ -253,35 +253,14 @@ func (md *MssqlDialect) ToCommonColumn(dialectColumn *dbi.Column) {
 
 func (md *MssqlDialect) ToColumn(commonColumn *dbi.Column) {
 	ctype := mssqlColumnTypeMap[commonColumn.DataType]
+	meta := md.dc.GetMetaData()
 
 	if ctype == "" {
 		commonColumn.DataType = "varchar"
 		commonColumn.CharMaxLength = 2000
 	} else {
 		commonColumn.DataType = dbi.ColumnDataType(ctype)
-
-		if strings.Contains(strings.ToLower(ctype), "int") {
-			// 如果类型是数字，类型后不需要带长度
-			commonColumn.CharMaxLength = 0
-			commonColumn.NumPrecision = 0
-		} else if collx.ArrayAnyMatches([]string{"float", "number", "decimal"}, strings.ToLower(ctype)) {
-			// 如果是float，最大长度为38
-			if commonColumn.CharMaxLength > 38 {
-				commonColumn.CharMaxLength = 38
-			}
-			if commonColumn.NumPrecision > 38 {
-				commonColumn.NumPrecision = 38
-			}
-		} else if strings.Contains(strings.ToLower(ctype), "char") {
-			// 如果是字符串类型，长度最大4000，否则修改字段类型为text
-			if commonColumn.CharMaxLength > 4000 {
-				commonColumn.DataType = "text"
-				commonColumn.CharMaxLength = 0
-			}
-		} else if strings.Contains(strings.ToLower(ctype), "text") {
-			// 如果是text，取消长度
-			commonColumn.CharMaxLength = 0
-		}
+		meta.FixColumn(commonColumn)
 	}
 }
 

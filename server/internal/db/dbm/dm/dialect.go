@@ -127,7 +127,7 @@ func (dd *DMDialect) batchInsertMerge(tx *sql.Tx, tableName string, columns []st
 func (dd *DMDialect) CopyTable(copy *dbi.DbCopyTable) error {
 	tableName := copy.TableName
 	metadata := dd.dc.GetMetaData()
-	ddl, err := metadata.GetTableDDL(tableName)
+	ddl, err := metadata.GetTableDDL(tableName, false)
 	if err != nil {
 		return err
 	}
@@ -177,21 +177,14 @@ func (dd *DMDialect) ToCommonColumn(dialectColumn *dbi.Column) {
 
 func (dd *DMDialect) ToColumn(commonColumn *dbi.Column) {
 	ctype := dmColumnTypeMap[commonColumn.DataType]
+	meta := dd.dc.GetMetaData()
 
 	if ctype == "" {
 		commonColumn.DataType = "VARCHAR"
 		commonColumn.CharMaxLength = 2000
 	} else {
 		commonColumn.DataType = dbi.ColumnDataType(ctype)
-		// 如果是date，不设长度
-		if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(ctype)) {
-			commonColumn.CharMaxLength = 0
-			commonColumn.NumPrecision = 0
-		} else
-		// 如果是char且长度未设置，则默认长度2000
-		if collx.ArrayAnyMatches([]string{"char"}, strings.ToLower(ctype)) && commonColumn.CharMaxLength == 0 {
-			commonColumn.CharMaxLength = 2000
-		}
+		meta.FixColumn(commonColumn)
 	}
 }
 
@@ -212,7 +205,15 @@ func (dd *DMDialect) CreateTable(columns []dbi.Column, tableInfo dbi.Table, drop
 }
 
 func (dd *DMDialect) CreateIndex(tableInfo dbi.Table, indexs []dbi.Index) error {
-	sqls := dd.dc.GetMetaData().GenerateIndexDDL(indexs, tableInfo)
-	_, err := dd.dc.Exec(strings.Join(sqls, ";"))
-	return err
+	sqlArr := dd.dc.GetMetaData().GenerateIndexDDL(indexs, tableInfo)
+	// 达梦需要分开执行sql
+	if len(sqlArr) > 0 {
+		for _, sqlStr := range sqlArr {
+			_, err := dd.dc.Exec(sqlStr)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

@@ -35,7 +35,7 @@ where ss.name = ?
 {{if .tableNames}}
     and t.name in ({{.tableNames}})
 {{end}}
-ORDER BY t.name DESC;
+ORDER BY t.name ASC;
 ---------------------------------------
 --MSSQL_INDEX_INFO 索引信息
 SELECT ind.name                          AS indexName,
@@ -46,7 +46,11 @@ SELECT ind.name                          AS indexName,
            END                           AS indexType,
        IIF(ind.is_unique = 'true', 1, 0) AS isUnique,
        ic.key_ordinal                    AS seqInIndex,
-       idx.value                         AS indexComment
+       idx.value                         AS indexComment,
+       CASE
+           WHEN LEFT(ind.name, 3) = 'PK_' THEN 1
+           ELSE 0
+           END                           AS isPrimaryKey
 FROM sys.indexes ind
          LEFT JOIN sys.tables t on t.object_id = ind.object_id
          LEFT JOIN sys.schemas ss on t.schema_id = ss.schema_id

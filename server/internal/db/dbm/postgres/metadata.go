@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"fmt"
+	"io"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
@@ -114,10 +115,29 @@ func (pd *PgsqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			NumPrecision:  cast.ToInt(re["numPrecision"]),
 			NumScale:      cast.ToInt(re["numScale"]),
 		}
-
+		pd.FixColumn(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
+}
+
+func (pd *PgsqlMetaData) FixColumn(column *dbi.Column) {
+	dataType := strings.ToLower(string(column.DataType))
+	// 哪些字段可以指定长度
+	if !collx.ArrayAnyMatches([]string{"char", "time", "bit", "num", "decimal"}, dataType) {
+		column.CharMaxLength = 0
+		column.NumPrecision = 0
+	} else if strings.Contains(dataType, "char") {
+		// 如果类型是文本，长度翻倍
+		column.CharMaxLength = column.CharMaxLength * 2
+	}
+	// 如果默认值带冒号，如：'id'::varchar
+	if column.ColumnDefault != "" && strings.Contains(column.ColumnDefault, "::") && !strings.HasPrefix(column.ColumnDefault, "nextval") {
+		match := defaultValueRegexp.FindStringSubmatch(column.ColumnDefault)
+		if len(match) > 1 {
+			column.ColumnDefault = match[1]
+		}
+	}
 }
 
 func (pd *PgsqlMetaData) GetPrimaryKey(tablename string) (string, error) {
@@ -153,6 +173,7 @@ func (pd *PgsqlMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 			IndexComment: cast.ToString(re["indexComment"]),
 			IsUnique:     cast.ToInt(re["isUnique"]) == 1,
 			SeqInIndex:   cast.ToInt(re["seqInIndex"]),
+			IsPrimaryKey: cast.ToInt(re["isPrimaryKey"]) == 1,
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
@@ -175,30 +196,30 @@ func (pd *PgsqlMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 }
 
 func (pd *PgsqlMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) []string {
+	meta := pd.dc.GetMetaData()
 	creates := make([]string, 0)
 	drops := make([]string, 0)
 	comments := make([]string, 0)
 	for _, index := range indexs {
-		// 通过字段、表名拼接索引名
-		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
-		columnName = strings.ReplaceAll(columnName, "_", "")
-		colName := strings.ReplaceAll(columnName, ",", "_")
-
-		keyType := "normal"
 		unique := ""
 		if index.IsUnique {
-			keyType = "unique"
 			unique = "unique"
 		}
-		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
 
 		// 如果索引名存在，先删除索引
-		drops = append(drops, fmt.Sprintf("drop index if exists %s.%s", pd.dc.Info.CurrentSchema(), indexName))
+		drops = append(drops, fmt.Sprintf("drop index if exists %s.%s", pd.dc.Info.CurrentSchema(), index.IndexName))
 
+		// 取出列名，添加引号
+		cols := strings.Split(index.ColumnName, ",")
+		colNames := make([]string, len(cols))
+		for i, name := range cols {
+			colNames[i] = meta.QuoteIdentifier(name)
+		}
 		// 创建索引
-		creates = append(creates, fmt.Sprintf("CREATE %s INDEX %s on %s.%s(%s)", unique, indexName, pd.dc.Info.CurrentSchema(), tableInfo.TableName, index.ColumnName))
+		creates = append(creates, fmt.Sprintf("CREATE %s INDEX %s on %s.%s(%s)", unique, index.IndexName, pd.dc.Info.CurrentSchema(), tableInfo.TableName, strings.Join(colNames, ",")))
 		if index.IndexComment != "" {
-			comments = append(comments, fmt.Sprintf("COMMENT ON INDEX %s.%s IS '%s'", pd.dc.Info.CurrentSchema(), indexName, index.IndexComment))
+			comment := meta.QuoteEscape(index.IndexComment)
+			comments = append(comments, fmt.Sprintf("COMMENT ON INDEX %s.%s IS '%s'", pd.dc.Info.CurrentSchema(), index.IndexName, comment))
 		}
 	}
 
@@ -222,6 +243,12 @@ func (pd *PgsqlMetaData) genColumnBasicSql(column dbi.Column) string {
 	colName := meta.QuoteIdentifier(column.ColumnName)
 	dataType := string(column.DataType)
 
+	// 如果数据类型是数字，则去掉长度
+	if collx.ArrayAnyMatches([]string{"int"}, strings.ToLower(dataType)) {
+		column.NumPrecision = 0
+		column.CharMaxLength = 0
+	}
+
 	// 如果是自增类型，需要转换为serial
 	if column.IsIdentity {
 		if dataType == "int4" {
@@ -240,31 +267,16 @@ func (pd *PgsqlMetaData) genColumnBasicSql(column dbi.Column) string {
 	nullAble := ""
 	if !column.Nullable {
 		nullAble = " NOT NULL"
-		// 如果字段不能为空，则设置默认值
-		if column.ColumnDefault == "" {
-			if collx.ArrayAnyMatches([]string{"char", "text", "lob"}, strings.ToLower(dataType)) {
-				// 文本默认值为空字符串
-				column.ColumnDefault = " "
-			} else if collx.ArrayAnyMatches([]string{"int", "num"}, strings.ToLower(dataType)) {
-				// 数字默认值为0
-				column.ColumnDefault = "0"
-			}
-		}
 	}
 
 	defVal := "" // 默认值需要判断引号，如函数是不需要引号的 // 为了防止跨源函数不支持 当默认值是函数时，不需要设置默认值
 	if column.ColumnDefault != "" && !strings.Contains(column.ColumnDefault, "(") {
-		// 哪些字段类型默认值需要加引号
 		mark := false
+		// 哪些字段类型默认值需要加引号
 		if collx.ArrayAnyMatches([]string{"char", "text", "date", "time", "lob"}, dataType) {
-			// 如果是文本类型，则默认值不能带括号
-			if collx.ArrayAnyMatches([]string{"char", "text", "lob"}, dataType) {
-				column.ColumnDefault = ""
-			}
-
 			// 当数据类型是日期时间，默认值是日期时间函数时，默认值不需要引号
 			if collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(dataType)) &&
-				collx.ArrayAnyMatches([]string{"DATE", "TIME"}, strings.ToUpper(column.ColumnDefault)) {
+				collx.ArrayAnyMatches([]string{"date", "time"}, strings.ToLower(column.ColumnDefault)) {
 				mark = false
 			} else {
 				mark = true
@@ -275,30 +287,31 @@ func (pd *PgsqlMetaData) genColumnBasicSql(column dbi.Column) string {
 			column.ColumnDefault = "CURRENT_TIMESTAMP"
 		}
 
-		if column.ColumnDefault != "" {
-			if mark {
-				defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
-			} else {
-				defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
-			}
+		if mark {
+			defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
+		} else {
+			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
 		}
 	}
 
-	columnSql := fmt.Sprintf(" %s %s %s %s ", colName, column.GetColumnType(), nullAble, defVal)
+	// 如果是varchar，长度翻倍，防止报错
+	if collx.ArrayAnyMatches([]string{"char"}, strings.ToLower(dataType)) {
+		column.CharMaxLength = column.CharMaxLength * 2
+	}
+	columnSql := fmt.Sprintf(" %s %s%s%s", colName, column.GetColumnType(), nullAble, defVal)
 	return columnSql
 }
 
 func (pd *PgsqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
-
 	meta := pd.dc.GetMetaData()
-	replacer := strings.NewReplacer(";", "", "'", "")
+	quoteTableName := meta.QuoteIdentifier(tableInfo.TableName)
 
 	sqlArr := make([]string, 0)
 	if dropBeforeCreate {
-		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s", meta.QuoteIdentifier(tableInfo.TableName)))
+		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s", quoteTableName))
 	}
 	// 组装建表语句
-	createSql := fmt.Sprintf("CREATE TABLE %s (\n", meta.QuoteIdentifier(tableInfo.TableName))
+	createSql := fmt.Sprintf("CREATE TABLE %s (\n", quoteTableName)
 	fields := make([]string, 0)
 	pks := make([]string, 0)
 	columnComments := make([]string, 0)
@@ -313,8 +326,8 @@ func (pd *PgsqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Ta
 
 		// 防止注释内含有特殊字符串导致sql出错
 		if column.ColumnComment != "" {
-			comment := replacer.Replace(column.ColumnComment)
-			columnComments = append(columnComments, fmt.Sprintf(commentTmp, column.TableName, column.ColumnName, comment))
+			comment := meta.QuoteEscape(column.ColumnComment)
+			columnComments = append(columnComments, fmt.Sprintf(commentTmp, quoteTableName, meta.QuoteIdentifier(column.ColumnName), comment))
 		}
 	}
 
@@ -322,12 +335,12 @@ func (pd *PgsqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Ta
 	if len(pks) > 0 {
 		createSql += fmt.Sprintf(", \nPRIMARY KEY (%s)", strings.Join(pks, ","))
 	}
-	createSql += ")"
+	createSql += "\n)"
 
 	tableCommentSql := ""
 	if tableInfo.TableComment != "" {
 		commentTmp := "comment on table %s is '%s'"
-		tableCommentSql = fmt.Sprintf(commentTmp, tableInfo.TableName, replacer.Replace(tableInfo.TableComment))
+		tableCommentSql = fmt.Sprintf(commentTmp, quoteTableName, meta.QuoteEscape(tableInfo.TableComment))
 	}
 
 	// create
@@ -346,13 +359,12 @@ func (pd *PgsqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Ta
 }
 
 // 获取建表ddl
-func (pd *PgsqlMetaData) GetTableDDL(tableName string) (string, error) {
+func (pd *PgsqlMetaData) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
 
 	// 1.获取表信息
 	tbs, err := pd.GetTables(tableName)
 	tableInfo := &dbi.Table{}
-	if err != nil && len(tbs) > 0 {
-
+	if err != nil || tbs == nil || len(tbs) <= 0 {
 		logx.Errorf("获取表信息失败, %s", tableName)
 		return "", err
 	}
@@ -365,7 +377,7 @@ func (pd *PgsqlMetaData) GetTableDDL(tableName string) (string, error) {
 		logx.Errorf("获取列信息失败, %s", tableName)
 		return "", err
 	}
-	tableDDLArr := pd.GenerateTableDDL(columns, *tableInfo, false)
+	tableDDLArr := pd.GenerateTableDDL(columns, *tableInfo, dropBeforeCreate)
 	// 3.获取索引信息
 	indexs, err := pd.GetTableIndex(tableName)
 	if err != nil {
@@ -404,6 +416,19 @@ func (pd *PgsqlMetaData) DefaultDb() string {
 	}
 }
 
+func (pd *PgsqlMetaData) AfterDumpInsert(writer io.Writer, tableName string, columns []dbi.Column) {
+
+	// 设置自增序列当前值
+	for _, column := range columns {
+		if column.IsIdentity {
+			seq := fmt.Sprintf("SELECT setval('%s_%s_seq', (SELECT max(%s) FROM %s));\n", tableName, column.ColumnName, column.ColumnName, tableName)
+			writer.Write([]byte(seq))
+		}
+	}
+
+	writer.Write([]byte("COMMIT;\n"))
+}
+
 func (pd *PgsqlMetaData) GetDataConverter() dbi.DataConverter {
 	return converter
 }
@@ -417,8 +442,9 @@ var (
 	dateRegexp = regexp.MustCompile(`(?i)date`)
 	// 时间类型
 	timeRegexp = regexp.MustCompile(`(?i)time`)
-	// 定义正则表达式，匹配括号内的数字
-	bracketsRegexp = regexp.MustCompile(`\((\d+)\)`)
+
+	// 提取pg默认值， 如：'id'::varchar  提取id  ；  '-1'::integer  提取-1
+	defaultValueRegexp = regexp.MustCompile(`'([^']*)'`)
 
 	converter = new(DataConverter)
 
@@ -497,13 +523,28 @@ func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) st
 	str := fmt.Sprintf("%v", dbColumnValue)
 	switch dataType {
 	case dbi.DataTypeDateTime: // "2024-01-02T22:16:28.545377+08:00"
-		res, _ := time.Parse(time.RFC3339, str)
+		// 尝试用时间格式解析
+		res, err := time.Parse(time.DateTime, str)
+		if err == nil {
+			return str
+		}
+		res, err = time.Parse(time.RFC3339, str)
 		return res.Format(time.DateTime)
 	case dbi.DataTypeDate: //  "2024-01-02T00:00:00Z"
-		res, _ := time.Parse(time.RFC3339, str)
+		// 尝试用时间格式解析
+		res, err := time.Parse(time.DateOnly, str)
+		if err == nil {
+			return str
+		}
+		res, _ = time.Parse(time.RFC3339, str)
 		return res.Format(time.DateOnly)
 	case dbi.DataTypeTime: // "0000-01-01T22:16:28.545075+08:00"
-		res, _ := time.Parse(time.RFC3339, str)
+		// 尝试用时间格式解析
+		res, err := time.Parse(time.TimeOnly, str)
+		if err == nil {
+			return str
+		}
+		res, _ = time.Parse(time.RFC3339, str)
 		return res.Format(time.TimeOnly)
 	}
 	return cast.ToString(dbColumnValue)
@@ -525,4 +566,24 @@ func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any
 		return res
 	}
 	return dbColumnValue
+}
+
+func (dc *DataConverter) WrapValue(dbColumnValue any, dataType dbi.DataType) string {
+	if dbColumnValue == nil {
+		return "NULL"
+	}
+	switch dataType {
+	case dbi.DataTypeNumber:
+		return fmt.Sprintf("%v", dbColumnValue)
+	case dbi.DataTypeString:
+		val := fmt.Sprintf("%v", dbColumnValue)
+		// 转义单引号
+		val = strings.Replace(val, `'`, `''`, -1)
+		// 转义换行符
+		val = strings.Replace(val, "\n", "\\n", -1)
+		return fmt.Sprintf("'%s'", val)
+	case dbi.DataTypeDate, dbi.DataTypeDateTime, dbi.DataTypeTime:
+		return fmt.Sprintf("'%s'", dc.FormatData(dbColumnValue, dataType))
+	}
+	return fmt.Sprintf("'%s'", dbColumnValue)
 }

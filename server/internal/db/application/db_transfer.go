@@ -10,6 +10,8 @@ import (
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
+	"sort"
 	"strings"
 )
 
@@ -153,15 +155,21 @@ func (app *dbTransferAppImpl) transferTables(task *entity.DbTransferTask, srcCon
 		end("获取源表列信息失败", err)
 		return
 	}
+
 	// 以表名分组，存放每个表的列信息
 	columnMap := make(map[string][]dbi.Column)
 	for _, column := range columns {
 		columnMap[column.TableName] = append(columnMap[column.TableName], column)
 	}
 
+	// 以表名排序
+	sortTableNames := collx.MapKeys(columnMap)
+	sort.Strings(sortTableNames)
+
 	ctx := context.Background()
 
-	for tbName, cols := range columnMap {
+	for _, tbName := range sortTableNames {
+		cols := columnMap[tbName]
 		targetCols := make([]dbi.Column, 0)
 		for _, col := range cols {
 			colPtr := &col
@@ -183,7 +191,7 @@ func (app *dbTransferAppImpl) transferTables(task *entity.DbTransferTask, srcCon
 
 		// 迁移数据
 		logx.Infof("开始迁移数据: 表名：%s", tbName)
-		total, err := app.transferData(ctx, tbName, srcConn, srcDialect, targetConn, targetDialect)
+		total, err := app.transferData(ctx, tbName, targetCols, srcConn, srcDialect, targetConn, targetDialect)
 		if err != nil {
 			end(fmt.Sprintf("迁移数据失败: 表名：%s, error: %s", tbName, err.Error()), err)
 			return
@@ -216,27 +224,16 @@ func (app *dbTransferAppImpl) transferTables(task *entity.DbTransferTask, srcCon
 	}
 }
 
-func (app *dbTransferAppImpl) transferData(ctx context.Context, tableName string, srcConn *dbi.DbConn, srcDialect dbi.Dialect, targetConn *dbi.DbConn, targetDialect dbi.Dialect) (int, error) {
+func (app *dbTransferAppImpl) transferData(ctx context.Context, tableName string, targetColumns []dbi.Column, srcConn *dbi.DbConn, srcDialect dbi.Dialect, targetConn *dbi.DbConn, targetDialect dbi.Dialect) (int, error) {
 	result := make([]map[string]any, 0)
 	total := 0        // 总条数
 	batchSize := 1000 // 每次查询并迁移1000条数据
-	var queryColumns []*dbi.QueryColumn
 	var err error
 	srcMeta := srcConn.GetMetaData()
 	srcConverter := srcMeta.GetDataConverter()
 
 	// 游标查询源表数据，并批量插入目标表
 	err = srcConn.WalkTableRows(ctx, tableName, func(row map[string]any, columns []*dbi.QueryColumn) error {
-		if len(queryColumns) == 0 {
-
-			for _, col := range columns {
-				queryColumns = append(queryColumns, &dbi.QueryColumn{
-					Name: targetConn.GetMetaData().QuoteIdentifier(col.Name),
-					Type: col.Type,
-				})
-			}
-
-		}
 		total++
 		rawValue := map[string]any{}
 		for _, column := range columns {
@@ -246,7 +243,7 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, tableName string
 		}
 		result = append(result, rawValue)
 		if total%batchSize == 0 {
-			err = app.transfer2Target(targetConn, queryColumns, result, targetDialect, tableName)
+			err = app.transfer2Target(targetConn, targetColumns, result, targetDialect, tableName)
 			if err != nil {
 				logx.Error("批量插入目标表数据失败", err)
 				return err
@@ -257,7 +254,7 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, tableName string
 	})
 	// 处理剩余的数据
 	if len(result) > 0 {
-		err = app.transfer2Target(targetConn, queryColumns, result, targetDialect, tableName)
+		err = app.transfer2Target(targetConn, targetColumns, result, targetDialect, tableName)
 		if err != nil {
 			logx.Error(fmt.Sprintf("批量插入目标表数据失败，表名：%s", tableName), err)
 			return 0, err
@@ -266,23 +263,36 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, tableName string
 	return total, err
 }
 
-func (app *dbTransferAppImpl) transfer2Target(targetConn *dbi.DbConn, cols []*dbi.QueryColumn, result []map[string]any, targetDialect dbi.Dialect, tbName string) error {
+func (app *dbTransferAppImpl) transfer2Target(targetConn *dbi.DbConn, targetColumns []dbi.Column, result []map[string]any, targetDialect dbi.Dialect, tbName string) error {
 	tx, err := targetConn.Begin()
 	if err != nil {
 		return err
 	}
+	targetMeta := targetConn.GetMetaData()
+
 	// 收集字段名
 	var columnNames []string
-	for _, col := range cols {
-		columnNames = append(columnNames, col.Name)
+	for _, col := range targetColumns {
+		columnNames = append(columnNames, targetMeta.QuoteIdentifier(col.ColumnName))
 	}
 
 	// 从目标库数据中取出源库字段对应的值
 	values := make([][]any, 0)
 	for _, record := range result {
 		rawValue := make([]any, 0)
-		for _, cn := range columnNames {
-			rawValue = append(rawValue, record[targetConn.GetMetaData().RemoveQuote(cn)])
+		for _, tc := range targetColumns {
+			columnName := tc.ColumnName
+			val := record[targetMeta.RemoveQuote(columnName)]
+			if !tc.Nullable {
+				// 如果val是文本，则设置为空格字符
+				switch val.(type) {
+				case string:
+					if val == "" {
+						val = " "
+					}
+				}
+			}
+			rawValue = append(rawValue, val)
 		}
 		values = append(values, rawValue)
 	}
@@ -312,6 +322,18 @@ func (app *dbTransferAppImpl) transferIndex(_ context.Context, tableInfo dbi.Tab
 		return nil
 	}
 
+	// 过滤主键索引
+	idxs := make([]dbi.Index, 0)
+	for _, idx := range indexs {
+		if !idx.IsPrimaryKey {
+			idxs = append(idxs, idx)
+		}
+	}
+
+	if len(idxs) == 0 {
+		return nil
+	}
+
 	// 通过表名、索引信息生成建索引语句，并执行到目标表
-	return targetDialect.CreateIndex(tableInfo, indexs)
+	return targetDialect.CreateIndex(tableInfo, idxs)
 }

@@ -197,14 +197,7 @@ func (pd *PgsqlDialect) ToColumn(commonColumn *dbi.Column) {
 		commonColumn.CharMaxLength = 2000
 	} else {
 		commonColumn.DataType = dbi.ColumnDataType(ctype)
-		// 哪些字段可以指定长度
-		if !collx.ArrayAnyMatches([]string{"char", "time", "bit", "num", "decimal"}, ctype) {
-			commonColumn.CharMaxLength = 0
-			commonColumn.NumPrecision = 0
-		} else if strings.Contains(strings.ToLower(ctype), "char") {
-			// 如果类型是文本，长度翻倍
-			commonColumn.CharMaxLength = commonColumn.CharMaxLength * 2
-		}
+
 	}
 
 }

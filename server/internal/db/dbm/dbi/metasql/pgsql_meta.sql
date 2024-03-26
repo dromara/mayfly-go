@@ -35,29 +35,28 @@ where
 order by c.relname
 ---------------------------------------
 --PGSQL_INDEX_INFO 表索引信息
-SELECT
-    indexname AS "indexName",
-    'BTREE' AS "IndexType",
-    case when indexdef like 'CREATE UNIQUE INDEX%%' then 1 else 0 end as "isUnique",
-    obj_description(b.oid, 'pg_class') AS "indexComment",
-    indexdef AS "indexDef",
-    c.attname AS "columnName",
-    c.attnum AS "seqInIndex"
+SELECT indexname                                                         AS "indexName",
+       'BTREE'                                                           AS "IndexType",
+       case when indexdef like 'CREATE UNIQUE INDEX%%' then 1 else 0 end as "isUnique",
+       obj_description(b.oid, 'pg_class')                                AS "indexComment",
+       indexdef                                                          AS "indexDef",
+       c.attname                                                         AS "columnName",
+       c.attnum                                                          AS "seqInIndex",
+       case when indexname like '%_pkey' then 1 else 0 end               as "isPrimaryKey"
 FROM pg_indexes a
-     join pg_class b on a.indexname = b.relname
-     join pg_attribute c on b.oid = c.attrelid
+         join pg_class b on a.indexname = b.relname
+         join pg_attribute c on b.oid = c.attrelid
 WHERE a.schemaname = (select current_schema())
   AND a.tablename = '%s';
 ---------------------------------------
 --PGSQL_COLUMN_MA 表列信息
-SELECT a.*,
-       a.table_name                                                                            AS "tableName",
+SELECT a.table_name                                                                            AS "tableName",
        a.column_name                                                                           AS "columnName",
        a.is_nullable                                                                           AS "nullable",
        a.udt_name                                                                              AS "dataType",
        a.character_maximum_length                                                              AS "charMaxLength",
        a.numeric_precision                                                                     AS "numPrecision",
-       a.column_default                                                                        AS "columnDefault",
+       case when a.column_default like 'nextval%%' then null else a.column_default end         AS "columnDefault",
        a.numeric_scale                                                                         AS "numScale",
        case when a.column_default like 'nextval%%' then 1 else 0 end                           AS "isIdentity",
        case when b.column_name is not null then 1 else 0 end                                   AS "isPrimaryKey",

@@ -7,6 +7,7 @@ import {
     DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
+    QuoteEscape,
     IndexDefinition,
     RowDefinition,
     sqlColumnType,
@@ -324,7 +325,7 @@ class OracleDialect implements DbDialect {
             item.name && fields.push(this.genColumnBasicSql(item, true));
             // 列注释
             if (item.remark) {
-                columCommentSql += ` COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(item.name)} is '${item.remark}'; `;
+                columCommentSql += ` COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(item.name)} is '${QuoteEscape(item.remark)}'; `;
             }
             // 主键
             if (item.pri) {
@@ -340,7 +341,7 @@ class OracleDialect implements DbDialect {
         createSql = `CREATE TABLE ${dbTable} ( ${fields.join(',')} ${prisql ? ',' + prisql : ''} ) ;`;
         // 表注释
         if (data.tableComment) {
-            tableCommentSql = ` COMMENT ON TABLE ${dbTable} is '${data.tableComment}'; `;
+            tableCommentSql = ` COMMENT ON TABLE ${dbTable} is '${QuoteEscape(data.tableComment)}'; `;
         }
 
         return createSql + tableCommentSql + columCommentSql;
@@ -379,7 +380,7 @@ class OracleDialect implements DbDialect {
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
-                let commentSql = `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${a.remark}'`;
+                let commentSql = `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.remark)}'`;
                 if (a.remark && a.oldName === a.name) {
                     commentArr.push(commentSql);
                 }
@@ -401,7 +402,7 @@ class OracleDialect implements DbDialect {
             changeData.add.forEach((a) => {
                 modifyArr.push(` ADD (${this.genColumnBasicSql(a, false)})`);
                 if (a.remark) {
-                    commentArr.push(`COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} is '${a.remark}'`);
+                    commentArr.push(`COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} is '${QuoteEscape(a.remark)}'`);
                 }
                 if (a.pri) {
                     priArr.add(`"${a.name}"`);
@@ -486,7 +487,7 @@ class OracleDialect implements DbDialect {
         let sql = '';
         if (tableData.tableComment != tableData.oldTableComment) {
             let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
-            sql = `COMMENT ON TABLE ${dbTable} is '${tableData.tableComment}';`;
+            sql = `COMMENT ON TABLE ${dbTable} is '${QuoteEscape(tableData.tableComment)}';`;
         }
         if (tableData.tableName != tableData.oldTableName) {
             let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;

@@ -17,6 +17,7 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -24,6 +25,7 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/ws"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -336,47 +338,93 @@ func (d *Db) dumpDb(ctx context.Context, writer *gzipWriter, dbId uint64, dbName
 		}
 	}
 
-	for _, table := range tables {
-		writer.TryFlush()
-		quotedTable := dbMeta.QuoteIdentifier(table)
-		if needStruct {
-			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", table))
-			writer.WriteString(fmt.Sprintf("DROP TABLE IF EXISTS %s;\n", quotedTable))
-			ddl, err := dbMeta.GetTableDDL(table)
-			biz.ErrIsNil(err)
-			writer.WriteString(ddl + "\n")
-		}
-		if !needData {
-			continue
-		}
-		writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", table))
+	// 查询列信息，后面生成建表ddl和insert都需要列信息
+	columns, err := dbMeta.GetColumns(tables...)
 
-		// 达梦不支持begin语句
-		if dbConn.Info.Type != dbi.DbTypeDM {
-			writer.WriteString("BEGIN;\n")
+	// 以表名分组，存放每个表的列信息
+	columnMap := make(map[string][]dbi.Column)
+	for _, column := range columns {
+		columnMap[column.TableName] = append(columnMap[column.TableName], column)
+	}
+
+	// 按表名排序
+	sort.Strings(tables)
+
+	quoteSchema := dbMeta.QuoteIdentifier(dbConn.Info.CurrentSchema())
+
+	// 遍历获取每个表的信息
+	for _, tableName := range tables {
+		quoteTableName := dbMeta.QuoteIdentifier(tableName)
+
+		writer.TryFlush()
+		// 查询表信息，主要是为了查询表注释
+		tbs, err := dbMeta.GetTables(tableName)
+		biz.ErrIsNil(err)
+		if err != nil || tbs == nil || len(tbs) <= 0 {
+			panic(errorx.NewBiz(fmt.Sprintf("获取表信息失败：%s", tableName)))
 		}
-		insertSql := "INSERT INTO %s VALUES (%s);\n"
-		dbConn.WalkTableRows(ctx, table, func(record map[string]any, columns []*dbi.QueryColumn) error {
-			var values []string
-			writer.TryFlush()
-			for _, column := range columns {
-				value := record[column.Name]
-				if value == nil {
-					values = append(values, "NULL")
-					continue
-				}
-				strValue, ok := value.(string)
-				if ok {
-					strValue = dbMeta.QuoteLiteral(strValue)
-					values = append(values, strValue)
-				} else {
-					values = append(values, anyx.ToString(value))
-				}
+		tabInfo := dbi.Table{
+			TableName:    tableName,
+			TableComment: tbs[0].TableComment,
+		}
+
+		// 生成表结构信息
+		if needStruct {
+			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表结构: %s \n-- ----------------------------\n", tableName))
+			tbDdlArr := dbMeta.GenerateTableDDL(columnMap[tableName], tabInfo, true)
+			for _, ddl := range tbDdlArr {
+				writer.WriteString(ddl + ";\n")
 			}
-			writer.WriteString(fmt.Sprintf(insertSql, quotedTable, strings.Join(values, ", ")))
-			return nil
-		})
-		writer.WriteString("COMMIT;\n")
+		}
+
+		// 生成insert sql，数据在索引前，加速insert
+		if needData {
+			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", tableName))
+
+			dbMeta.BeforeDumpInsert(writer, quoteTableName)
+
+			// 获取列信息
+			quoteColNames := make([]string, 0)
+			for _, col := range columnMap[tableName] {
+				quoteColNames = append(quoteColNames, dbMeta.QuoteIdentifier(col.ColumnName))
+			}
+
+			converter := dbMeta.GetDataConverter()
+			_ = dbConn.WalkTableRows(context.Background(), quoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
+				rowValues := make([]string, len(columnMap[tableName]))
+				for i, col := range columnMap[tableName] {
+					rowValues[i] = converter.WrapValue(row[col.ColumnName], converter.GetDataType(string(col.DataType)))
+				}
+
+				beforeInsert := dbMeta.BeforeDumpInsertSql(quoteSchema, quoteTableName)
+				insertSQL := fmt.Sprintf("%s INSERT INTO %s (%s) values(%s)", beforeInsert, quoteTableName, strings.Join(quoteColNames, ", "), strings.Join(rowValues, ", "))
+				writer.WriteString(insertSQL + ";\n")
+				return nil
+			})
+
+			dbMeta.AfterDumpInsert(writer, tableName, columnMap[tableName])
+		}
+
+		indexs, err := dbMeta.GetTableIndex(tableName)
+		biz.ErrIsNil(err)
+
+		// 过滤主键索引
+		idxs := make([]dbi.Index, 0)
+		for _, idx := range indexs {
+			if !idx.IsPrimaryKey {
+				idxs = append(idxs, idx)
+			}
+		}
+
+		if len(idxs) > 0 {
+			// 最后添加索引
+			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表索引: %s \n-- ----------------------------\n", tableName))
+			sqlArr := dbMeta.GenerateIndexDDL(idxs, tabInfo)
+			for _, sqlStr := range sqlArr {
+				writer.WriteString(sqlStr + ";\n")
+			}
+		}
+
 	}
 }
 
@@ -450,7 +498,7 @@ func (d *Db) HintTables(rc *req.Ctx) {
 func (d *Db) GetTableDDL(rc *req.Ctx) {
 	tn := rc.Query("tableName")
 	biz.NotEmpty(tn, "tableName不能为空")
-	res, err := d.getDbConn(rc).GetMetaData().GetTableDDL(tn)
+	res, err := d.getDbConn(rc).GetMetaData().GetTableDDL(tn, false)
 	biz.ErrIsNilAppendErr(err, "获取表ddl失败: %s")
 	rc.ResData = res
 }

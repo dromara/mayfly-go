@@ -12,6 +12,7 @@ import (
 	"mayfly-go/pkg/req"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DbTransferTask struct {
@@ -53,13 +54,14 @@ func (d *DbTransferTask) DeleteTask(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) Run(rc *req.Ctx) {
+	start := time.Now()
 	taskId := d.changeState(rc, entity.DbTransferTaskRunStateRunning)
 	go d.DbTransferTask.Run(taskId, func(msg string, err error) {
 		// 修改状态为停止
 		if err != nil {
 			logx.Error(msg, err)
 		} else {
-			logx.Info(fmt.Sprintf("执行迁移完成，%s", msg))
+			logx.Info(fmt.Sprintf("执行迁移完成，%s, 耗时：%v", msg, time.Since(start)))
 		}
 		// 修改任务状态
 		task := new(entity.DbTransferTask)

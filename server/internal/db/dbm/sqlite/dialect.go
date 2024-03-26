@@ -59,7 +59,7 @@ func (sd *SqliteDialect) CopyTable(copy *dbi.DbCopyTable) error {
 
 	// 生成新表名,为老表明+_copy_时间戳
 	newTableName := tableName + "_copy_" + time.Now().Format("20060102150405")
-	ddl, err := sd.dc.GetMetaData().GetTableDDL(tableName)
+	ddl, err := sd.dc.GetMetaData().GetTableDDL(tableName, false)
 	if err != nil {
 		return err
 	}
@@ -103,6 +103,8 @@ func (sd *SqliteDialect) ToColumn(commonColumn *dbi.Column) {
 	if ctype == "" {
 		commonColumn.DataType = "nvarchar"
 		commonColumn.CharMaxLength = 2000
+	} else {
+		sd.dc.GetMetaData().FixColumn(commonColumn)
 	}
 }
 

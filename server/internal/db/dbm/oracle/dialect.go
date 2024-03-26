@@ -178,17 +178,7 @@ func (od *OracleDialect) ToColumn(commonColumn *dbi.Column) {
 		commonColumn.CharMaxLength = 2000
 	} else {
 		commonColumn.DataType = dbi.ColumnDataType(ctype)
-		// 如果类型是数字，类型后不需要带长度
-		if strings.Contains(strings.ToLower(ctype), "int") {
-			commonColumn.CharMaxLength = 0
-			commonColumn.NumPrecision = 0
-		} else if strings.Contains(strings.ToLower(ctype), "char") {
-			// 如果是字符串类型，长度最大4000，否则修改字段类型为clob
-			if commonColumn.CharMaxLength > 4000 {
-				commonColumn.DataType = "CLOB"
-				commonColumn.CharMaxLength = 0
-			}
-		}
+		od.dc.GetMetaData().FixColumn(commonColumn)
 	}
 }
 

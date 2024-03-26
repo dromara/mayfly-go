@@ -7,6 +7,7 @@ import {
     DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
+    QuoteEscape,
     IndexDefinition,
     RowDefinition,
 } from './index';
@@ -208,7 +209,7 @@ class MysqlDialect implements DbDialect {
         let onUpdate = 'update_time' === cl.name ? ' ON UPDATE CURRENT_TIMESTAMP ' : '';
         return ` ${this.quoteIdentifier(cl.name)} ${cl.type}${length} ${cl.notNull ? 'NOT NULL' : 'NULL'} ${
             cl.auto_increment ? 'AUTO_INCREMENT' : ''
-        } ${defVal} ${onUpdate} comment '${cl.remark || ''}' `;
+        } ${defVal} ${onUpdate} comment '${QuoteEscape(cl.remark)}' `;
     }
     getCreateTableSql(data: any): string {
         // 创建表结构
@@ -224,14 +225,14 @@ class MysqlDialect implements DbDialect {
         return `CREATE TABLE ${data.tableName}
                   ( ${fields.join(',')}
                       ${pks ? `, PRIMARY KEY (${pks.join(',')})` : ''}
-                  ) COMMENT='${data.tableComment}';`;
+                  ) COMMENT='${QuoteEscape(data.tableComment)}';`;
     }
 
     getCreateIndexSql(data: any): string {
         // 创建索引
         let sql = `ALTER TABLE ${data.tableName}`;
         data.indexs.res.forEach((a: any) => {
-            sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${a.indexComment}',`;
+            sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${QuoteEscape(a.indexComment)}',`;
         });
         return sql.substring(0, sql.length - 1) + ';';
     }
@@ -312,9 +313,9 @@ class MysqlDialect implements DbDialect {
                     sql += ',';
                 }
                 addIndexs.forEach((a) => {
-                    sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${
+                    sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${QuoteEscape(
                         a.indexComment
-                    }',`;
+                    )}',`;
                 });
                 sql = sql.substring(0, sql.length - 1);
             }
@@ -326,7 +327,7 @@ class MysqlDialect implements DbDialect {
     getModifyTableInfoSql(tableData: any): string {
         let sql = '';
         if (tableData.tableComment !== tableData.oldTableComment) {
-            sql += `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableData.oldTableName)} COMMENT '${tableData.tableComment}';`;
+            sql += `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableData.oldTableName)} COMMENT '${QuoteEscape(tableData.tableComment)}';`;
         }
 
         if (tableData.tableName !== tableData.oldTableName) {

@@ -151,20 +151,21 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
 			}
 
 			task.UpdFieldVal = strings.Trim(task.UpdFieldVal, " ")
-			// 把UpdFieldVal尝试转为int，如果可以转为int，则不添加引号，否则添加引号
-			if _, err = strconv.Atoi(task.UpdFieldVal); err != nil {
-				updSql = fmt.Sprintf("and %s > '%s'", task.UpdField, task.UpdFieldVal)
-			} else {
-				updSql = fmt.Sprintf("and %s > %s", task.UpdField, task.UpdFieldVal)
-			}
 
-			// 如果是oracle且数据类型是时间类型，则需要加上to_date函数
-			if srcConn.Info.Type == dbi.DbTypeOracle {
-				// 用正则判断数据类型是时间
+			// 判断UpdFieldVal数据类型
+			var updFieldValType dbi.DataType
+			if _, err = strconv.Atoi(task.UpdFieldVal); err != nil {
 				if dateTimeReg.MatchString(task.UpdFieldVal) {
-					updSql = fmt.Sprintf("and %s > to_date('%s','yyyy-mm-dd hh24:mi:ss')", task.UpdField, task.UpdFieldVal)
+					updFieldValType = dbi.DataTypeDateTime
+				} else {
+					updFieldValType = dbi.DataTypeString
 				}
+			} else {
+				updFieldValType = dbi.DataTypeNumber
 			}
+			wrapUpdFieldVal := srcConn.GetMetaData().GetDataConverter().WrapValue(task.UpdFieldVal, updFieldValType)
+			updSql = fmt.Sprintf("and %s > %s", task.UpdField, wrapUpdFieldVal)
+
 			orderSql = "order by " + task.UpdField + " asc "
 		}
 		// 正则判断DataSql是否以where .*结尾，如果是则不添加where 1 = 1

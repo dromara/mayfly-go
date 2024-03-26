@@ -35,7 +35,8 @@ SELECT
   index_type indexType,
   IF(non_unique, 0, 1) isUnique,
   SEQ_IN_INDEX seqInIndex,
-  INDEX_COMMENT indexComment
+  INDEX_COMMENT indexComment,
+  index_name = 'PRIMARY' as isPrimaryKey
 FROM
   information_schema.STATISTICS
 WHERE

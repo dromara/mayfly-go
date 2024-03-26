@@ -26,6 +26,18 @@ func (g *gzipWriter) WriteString(data string) {
 	}
 }
 
+func (g *gzipWriter) Write(p []byte) (n int, err error) {
+	if g.aborted {
+		return
+	}
+
+	if _, err := g.writer.Write(p); err != nil {
+		g.aborted = true
+		biz.IsTrue(false, "数据库导出失败：%s", err)
+	}
+	return
+}
+
 func (g *gzipWriter) Close() {
 	g.writer.Close()
 }

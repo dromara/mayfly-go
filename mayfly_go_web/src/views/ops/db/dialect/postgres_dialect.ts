@@ -7,6 +7,7 @@ import {
     DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
+    QuoteEscape,
     IndexDefinition,
     RowDefinition,
     sqlColumnType,
@@ -283,7 +284,7 @@ class PostgresqlDialect implements DbDialect {
             }
             // 列注释
             if (item.remark) {
-                columCommentSql += ` comment on column ${data.tableName}.${item.name} is '${item.remark}'; `;
+                columCommentSql += ` comment on column ${data.tableName}.${item.name} is '${QuoteEscape(item.remark)}'; `;
             }
         });
         // 建表
@@ -294,7 +295,7 @@ class PostgresqlDialect implements DbDialect {
                      );`;
         // 表注释
         if (data.tableComment) {
-            tableCommentSql = ` comment on table ${data.tableName} is '${data.tableComment}'; `;
+            tableCommentSql = ` comment on table ${data.tableName} is '${QuoteEscape(data.tableComment)}'; `;
         }
 
         return createSql + tableCommentSql + columCommentSql;
@@ -312,7 +313,7 @@ class PostgresqlDialect implements DbDialect {
             let colArr = a.columnNames.map((a: string) => `${this.quoteIdentifier(a)}`);
             sql.push(`CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${this.quoteIdentifier(a.indexName)} on ${dbTable} (${colArr.join(',')})`);
             if (a.indexComment) {
-                sql.push(`COMMENT ON INDEX ${schema}.${this.quoteIdentifier(a.indexName)} IS '${a.indexComment}'`);
+                sql.push(`COMMENT ON INDEX ${schema}.${this.quoteIdentifier(a.indexName)} IS '${QuoteEscape(a.indexComment)}'`);
             }
         });
         return sql.join(';');
@@ -334,14 +335,14 @@ class PostgresqlDialect implements DbDialect {
             changeData.add.forEach((a) => {
                 modifySql += `alter table ${dbTable} add ${this.genColumnBasicSql(a)};`;
                 if (a.remark) {
-                    commentSql += `comment on column ${dbTable}.${this.quoteIdentifier(a.name)} is '${a.remark}';`;
+                    commentSql += `comment on column ${dbTable}.${this.quoteIdentifier(a.name)} is '${QuoteEscape(a.remark)}';`;
                 }
             });
         }
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
-                let cmtSql = `comment on column ${dbTable}.${this.quoteIdentifier(a.name)} is '${a.remark}';`;
+                let cmtSql = `comment on column ${dbTable}.${this.quoteIdentifier(a.name)} is '${QuoteEscape(a.remark)}';`;
                 if (a.remark && a.oldName === a.name) {
                     commentSql += cmtSql;
                 }
@@ -412,7 +413,7 @@ class PostgresqlDialect implements DbDialect {
                     let colArr = a.columnNames.map((a: string) => `${this.quoteIdentifier(a)}`);
                     sql.push(`CREATE ${a.unique ? 'UNIQUE' : ''} INDEX ${this.quoteIdentifier(a.indexName)} on ${dbTable} (${colArr.join(',')})`);
                     if (a.indexComment) {
-                        sql.push(`COMMENT ON INDEX ${schema}.${this.quoteIdentifier(a.indexName)} IS '${a.indexComment}'`);
+                        sql.push(`COMMENT ON INDEX ${schema}.${this.quoteIdentifier(a.indexName)} IS '${QuoteEscape(a.indexComment)}'`);
                     }
                 });
             }
@@ -428,7 +429,7 @@ class PostgresqlDialect implements DbDialect {
         let sql = '';
         if (tableData.tableComment != tableData.oldTableComment) {
             let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;
-            sql = `COMMENT ON TABLE ${dbTable} is '${tableData.tableComment}';`;
+            sql = `COMMENT ON TABLE ${dbTable} is '${QuoteEscape(tableData.tableComment)}';`;
         }
         if (tableData.tableName != tableData.oldTableName) {
             let dbTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.oldTableName)}`;

@@ -7,6 +7,7 @@ import {
     DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
+    QuoteEscape,
     IndexDefinition,
     RowDefinition,
     sqlColumnType,
@@ -523,7 +524,7 @@ class DMDialect implements DbDialect {
             }
             // 列注释
             if (item.remark) {
-                columCommentSql += ` comment on column "${data.tableName}"."${item.name}" is '${item.remark}'; `;
+                columCommentSql += ` comment on column "${data.tableName}"."${item.name}" is '${QuoteEscape(item.remark)}'; `;
             }
         });
         // 建表
@@ -534,7 +535,7 @@ class DMDialect implements DbDialect {
                      );`;
         // 表注释
         if (data.tableComment) {
-            tableCommentSql = ` comment on table "${data.tableName}" is '${data.tableComment}'; `;
+            tableCommentSql = ` comment on table "${data.tableName}" is '${QuoteEscape(data.tableComment)}'; `;
         }
 
         return createSql + tableCommentSql + columCommentSql;
@@ -569,7 +570,7 @@ class DMDialect implements DbDialect {
             changeData.add.forEach((a) => {
                 modifySql += `ALTER TABLE ${dbTable} add COLUMN ${this.genColumnBasicSql(a)};`;
                 if (a.remark) {
-                    commentSql += `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${a.remark}';`;
+                    commentSql += `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.remark)}';`;
                 }
                 if (a.pri) {
                     priArr.add(`"${a.name}"`);
@@ -579,7 +580,7 @@ class DMDialect implements DbDialect {
 
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
-                let cmtSql = `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${a.remark}';`;
+                let cmtSql = `COMMENT ON COLUMN ${dbTable}.${this.quoteIdentifier(a.name)} IS '${QuoteEscape(a.remark)}';`;
                 if (a.remark && a.oldName === a.name) {
                     commentSql += cmtSql;
                 }
@@ -675,7 +676,7 @@ class DMDialect implements DbDialect {
         }
         if (tableData.oldTableComment !== tableData.tableComment) {
             let baseTable = `${this.quoteIdentifier(schema)}.${this.quoteIdentifier(tableData.tableName)}`;
-            sql += `COMMENT ON TABLE ${baseTable} IS '${tableData.tableComment}';`;
+            sql += `COMMENT ON TABLE ${baseTable} IS '${QuoteEscape(tableData.tableComment)}';`;
         }
         return sql;
     }

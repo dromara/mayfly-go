@@ -25,6 +25,9 @@ type MetaData interface {
 	// 获取指定表名的所有列元信息
 	GetColumns(tableNames ...string) ([]Column, error)
 
+	// 根据数据库类型修复字段长度、精度等
+	FixColumn(column *Column)
+
 	// 获取表主键字段名，没有主键标识则默认第一个字段
 	GetPrimaryKey(tableName string) (string, error)
 
@@ -32,7 +35,7 @@ type MetaData interface {
 	GetTableIndex(tableName string) ([]Index, error)
 
 	// 获取建表ddl
-	GetTableDDL(tableName string) (string, error)
+	GetTableDDL(tableName string, dropBeforeCreate bool) (string, error)
 
 	GenerateTableDDL(columns []Column, tableInfo Table, dropBeforeCreate bool) []string
 
@@ -43,6 +46,9 @@ type MetaData interface {
 	// 获取数据转换器用于解析格式化列数据等
 	GetDataConverter() DataConverter
 }
+
+// GenerateSQLStepFunc 生成insert sql的step函数，用于生成insert sql时，每生成100条sql时调用
+type GenerateSQLStepFunc func(sqlArr []string)
 
 // 数据库服务实例信息
 type DbServer struct {
@@ -100,6 +106,7 @@ type Index struct {
 	IndexComment string `json:"indexComment"` // 备注
 	SeqInIndex   int    `json:"seqInIndex"`
 	IsUnique     bool   `json:"isUnique"`
+	IsPrimaryKey bool   `json:"isPrimaryKey"` // 是否是主键索引，某些情况需要判断并过滤掉主键索引
 }
 
 type ColumnDataType string
@@ -152,6 +159,13 @@ type DataConverter interface {
 
 	// 根据数据类型解析数据为符合要求的指定类型等
 	ParseData(dbColumnValue any, dataType DataType) any
+
+	// WrapValue 根据数据类型包装value，如：
+	// 1.数字型：不需要引号，
+	// 2.文本型：需要用引号包裹，单引号需要转义，换行符转义,
+	// 3.date型：需要格式化成对应的字符串，如：time：hh:mm:ss.SSS  date: yyyy-mm-dd  datetime:
+	// 4.特殊：oracle date型需要用函数包裹：to_timestamp('%s', 'yyyy-mm-dd hh24:mi:ss')
+	WrapValue(dbColumnValue any, dataType DataType) string
 }
 
 // ------------------------- 元数据sql操作 -------------------------

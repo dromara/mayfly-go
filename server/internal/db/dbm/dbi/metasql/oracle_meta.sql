@@ -38,7 +38,12 @@ SELECT ai.INDEX_NAME                          AS INDEX_NAME,
         WHERE aic.INDEX_OWNER = ai.OWNER
           AND aic.INDEX_NAME = ai.INDEX_NAME
           AND aic.TABLE_NAME = ai.TABLE_NAME
-          AND ROWNUM = 1)                     AS INDEX_COMMENT
+          AND ROWNUM = 1)                     AS INDEX_COMMENT,
+       CASE
+           WHEN ai.INDEX_NAME like 'PK_%%' THEN 1
+           WHEN ai.INDEX_NAME like 'SYS_%%' THEN 1
+           ELSE 0
+           END AS IS_PRIMARY
 FROM ALL_INDEXES ai
 WHERE ai.OWNER = (SELECT sys_context('USERENV', 'CURRENT_SCHEMA') FROM DUAL)
   AND ai.table_name = '%s'
@@ -50,14 +55,14 @@ SELECT a.TABLE_NAME                                              as TABLE_NAME,
            when a.NULLABLE = 'Y' then 'YES'
            when a.NULLABLE = 'N' then 'NO'
            else 'NO' end                                         as NULLABLE,
-       case
-           when a.DATA_PRECISION > 0 then a.DATA_TYPE
-           else (a.DATA_TYPE || '(' || a.DATA_LENGTH || ')') end as COLUMN_TYPE,
+       a.DATA_TYPE                                               as DATA_TYPE,
+       a.DATA_LENGTH                                             as CHAR_MAX_LENGTH,
+       a.DATA_PRECISION                                          as NUM_PRECISION,
+       a.DATA_SCALE                                              as NUM_SCALE,
        b.COMMENTS                                                as COLUMN_COMMENT,
        a.DATA_DEFAULT                                            as COLUMN_DEFAULT,
-       a.DATA_SCALE                                              as NUM_SCALE,
-       CASE WHEN d.pri IS NOT NULL THEN 1 ELSE 0 END         as IS_PRIMARY_KEY,
-       CASE WHEN a.IDENTITY_COLUMN = 'YES' THEN 1 ELSE 0 END as IS_IDENTITY
+       CASE WHEN d.pri IS NOT NULL THEN 1 ELSE 0 END             as IS_PRIMARY_KEY,
+       CASE WHEN a.IDENTITY_COLUMN = 'YES' THEN 1 ELSE 0 END     as IS_IDENTITY
 FROM ALL_TAB_COLUMNS a
          LEFT JOIN ALL_COL_COMMENTS b
                    on a.OWNER = b.OWNER AND a.TABLE_NAME = b.TABLE_NAME AND a.COLUMN_NAME = b.COLUMN_NAME

@@ -117,9 +117,23 @@ func (md *MysqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			NumScale:      cast.ToInt(re["numScale"]),
 		}
 
+		md.FixColumn(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
+}
+
+func (md *MysqlMetaData) FixColumn(column *dbi.Column) {
+	// 如果是int整型，删除精度
+	if strings.Contains(strings.ToLower(string(column.DataType)), "int") {
+		column.NumScale = 0
+		column.CharMaxLength = 0
+	} else
+	// 如果是text，删除长度
+	if strings.Contains(strings.ToLower(string(column.DataType)), "text") {
+		column.CharMaxLength = 0
+		column.NumPrecision = 0
+	}
 }
 
 // 获取表主键字段名，不存在主键标识则默认第一个字段
@@ -157,6 +171,7 @@ func (md *MysqlMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 			IndexComment: cast.ToString(re["indexComment"]),
 			IsUnique:     cast.ToInt(re["isUnique"]) == 1,
 			SeqInIndex:   cast.ToInt(re["seqInIndex"]),
+			IsPrimaryKey: cast.ToInt(re["isPrimaryKey"]) == 1,
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
@@ -183,27 +198,29 @@ func (md *MysqlMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tabl
 	meta := md.dc.GetMetaData()
 	sqlArr := make([]string, 0)
 	for _, index := range indexs {
-		// 通过字段、表名拼接索引名
-		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
-		columnName = strings.ReplaceAll(columnName, "_", "")
-		colName := strings.ReplaceAll(columnName, ",", "_")
-
-		keyType := "normal"
 		unique := ""
 		if index.IsUnique {
-			keyType = "unique"
 			unique = "unique"
 		}
-		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
-		sqlTmp := "ALTER TABLE %s ADD %s INDEX %s(%s) USING BTREE COMMENT '%s'"
-		replacer := strings.NewReplacer(";", "", "'", "")
-		sqlArr = append(sqlArr, fmt.Sprintf(sqlTmp, meta.QuoteIdentifier(tableInfo.TableName), unique, indexName, index.ColumnName, replacer.Replace(index.IndexComment)))
+		// 取出列名，添加引号
+		cols := strings.Split(index.ColumnName, ",")
+		colNames := make([]string, len(cols))
+		for i, name := range cols {
+			colNames[i] = meta.QuoteIdentifier(name)
+		}
+		sqlTmp := "ALTER TABLE %s ADD %s INDEX %s(%s) USING BTREE"
+		sqlStr := fmt.Sprintf(sqlTmp, meta.QuoteIdentifier(tableInfo.TableName), unique, index.IndexName, strings.Join(colNames, ","))
+		comment := meta.QuoteEscape(index.IndexComment)
+		if comment != "" {
+			sqlStr += fmt.Sprintf(" COMMENT '%s'", comment)
+		}
+		sqlArr = append(sqlArr, sqlStr)
 	}
 	return sqlArr
 }
 
 func (md *MysqlMetaData) genColumnBasicSql(column dbi.Column) string {
-	replacer := strings.NewReplacer(";", "", "'", "")
+	meta := md.dc.GetMetaData()
 	dataType := string(column.DataType)
 
 	incr := ""
@@ -238,11 +255,11 @@ func (md *MysqlMetaData) genColumnBasicSql(column dbi.Column) string {
 	comment := ""
 	if column.ColumnComment != "" {
 		// 防止注释内含有特殊字符串导致sql出错
-		commentStr := replacer.Replace(column.ColumnComment)
+		commentStr := meta.QuoteEscape(column.ColumnComment)
 		comment = fmt.Sprintf(" COMMENT '%s'", commentStr)
 	}
 
-	columnSql := fmt.Sprintf(" %s %s %s %s %s %s", md.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.GetColumnType(), nullAble, incr, defVal, comment)
+	columnSql := fmt.Sprintf(" %s %s%s%s%s%s", md.dc.GetMetaData().QuoteIdentifier(column.ColumnName), column.GetColumnType(), nullAble, incr, defVal, comment)
 	return columnSql
 }
 
@@ -272,12 +289,11 @@ func (md *MysqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Ta
 	if len(pks) > 0 {
 		createSql += fmt.Sprintf(", \nPRIMARY KEY (%s)", strings.Join(pks, ","))
 	}
-	createSql += fmt.Sprintf(") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ")
+	createSql += "\n)"
 
 	// 表注释
 	if tableInfo.TableComment != "" {
-		replacer := strings.NewReplacer(";", "", "'", "")
-		createSql += fmt.Sprintf(" COMMENT '%s'", replacer.Replace(tableInfo.TableComment))
+		createSql += fmt.Sprintf(" COMMENT '%s'", meta.QuoteEscape(tableInfo.TableComment))
 	}
 
 	sqlArr = append(sqlArr, createSql)
@@ -286,11 +302,11 @@ func (md *MysqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Ta
 }
 
 // 获取建表ddl
-func (md *MysqlMetaData) GetTableDDL(tableName string) (string, error) {
+func (md *MysqlMetaData) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
 	// 1.获取表信息
 	tbs, err := md.GetTables(tableName)
 	tableInfo := &dbi.Table{}
-	if err != nil && len(tbs) > 0 {
+	if err != nil || tbs == nil || len(tbs) <= 0 {
 		logx.Errorf("获取表信息失败, %s", tableName)
 		return "", err
 	}
@@ -303,7 +319,7 @@ func (md *MysqlMetaData) GetTableDDL(tableName string) (string, error) {
 		logx.Errorf("获取列信息失败, %s", tableName)
 		return "", err
 	}
-	tableDDLArr := md.GenerateTableDDL(columns, *tableInfo, false)
+	tableDDLArr := md.GenerateTableDDL(columns, *tableInfo, dropBeforeCreate)
 	// 3.获取索引信息
 	indexs, err := md.GetTableIndex(tableName)
 	if err != nil {
@@ -426,6 +442,25 @@ func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
 }
 
 func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
+	// 如果dataType是datetime而dbColumnValue是string类型，则需要根据类型格式化
+	str, ok := dbColumnValue.(string)
+	if dataType == dbi.DataTypeDateTime && ok {
+		// 尝试用时间格式解析
+		res, err := time.Parse(time.DateTime, str)
+		if err == nil {
+			return str
+		}
+		res, _ = time.Parse(time.RFC3339, str)
+		return res.Format(time.DateTime)
+	}
+	if dataType == dbi.DataTypeDate && ok {
+		res, _ := time.Parse(time.DateOnly, str)
+		return res.Format(time.DateOnly)
+	}
+	if dataType == dbi.DataTypeTime && ok {
+		res, _ := time.Parse(time.TimeOnly, str)
+		return res.Format(time.TimeOnly)
+	}
 	return anyx.ToString(dbColumnValue)
 }
 
@@ -447,4 +482,27 @@ func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any
 		}
 	}
 	return dbColumnValue
+}
+
+func (dc *DataConverter) WrapValue(dbColumnValue any, dataType dbi.DataType) string {
+
+	if dbColumnValue == nil {
+		return "NULL"
+	}
+	switch dataType {
+	case dbi.DataTypeNumber:
+		return fmt.Sprintf("%v", dbColumnValue)
+	case dbi.DataTypeString:
+		val := fmt.Sprintf("%v", dbColumnValue)
+		// 转义单引号
+		val = strings.Replace(val, `'`, `''`, -1)
+		val = strings.Replace(val, `\''`, `\'`, -1)
+		// 转义换行符
+		val = strings.Replace(val, "\n", "\\n", -1)
+		return fmt.Sprintf("'%s'", val)
+	case dbi.DataTypeDate, dbi.DataTypeDateTime, dbi.DataTypeTime:
+		// mysql时间类型无需格式化
+		return fmt.Sprintf("'%s'", dbColumnValue)
+	}
+	return fmt.Sprintf("'%s'", dbColumnValue)
 }

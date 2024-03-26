@@ -119,26 +119,30 @@ func (md *MssqlMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error) 
 			NumScale:      cast.ToInt(re["NUM_SCALE"]),
 		}
 
-		dataType := strings.ToLower(string(column.DataType))
-
-		if collx.ArrayAnyMatches([]string{"date", "time"}, dataType) {
-			// 如果是datetime，精度取NumScale字段
-			column.CharMaxLength = column.NumScale
-		} else if collx.ArrayAnyMatches([]string{"int", "bit", "real", "text", "xml"}, dataType) {
-			// 不显示长度的类型
-			column.NumPrecision = 0
-			column.CharMaxLength = 0
-		} else if collx.ArrayAnyMatches([]string{"numeric", "decimal", "float"}, dataType) {
-			// 如果是num，长度取精度和小数位数
-			column.CharMaxLength = 0
-		} else if collx.ArrayAnyMatches([]string{"nvarchar", "nchar"}, dataType) {
-			// 如果是nvarchar，可视长度减半
-			column.CharMaxLength = column.CharMaxLength / 2
-		}
+		md.FixColumn(&column)
 
 		columns = append(columns, column)
 	}
 	return columns, nil
+}
+
+func (md *MssqlMetaData) FixColumn(column *dbi.Column) {
+	dataType := strings.ToLower(string(column.DataType))
+
+	if collx.ArrayAnyMatches([]string{"date", "time"}, dataType) {
+		// 如果是datetime，精度取NumScale字段
+		column.CharMaxLength = column.NumScale
+	} else if collx.ArrayAnyMatches([]string{"int", "bit", "real", "text", "xml"}, dataType) {
+		// 不显示长度的类型
+		column.NumPrecision = 0
+		column.CharMaxLength = 0
+	} else if collx.ArrayAnyMatches([]string{"numeric", "decimal", "float"}, dataType) {
+		// 如果是num，长度取精度和小数位数
+		column.CharMaxLength = 0
+	} else if collx.ArrayAnyMatches([]string{"nvarchar", "nchar"}, dataType) {
+		// 如果是nvarchar，可视长度减半
+		column.CharMaxLength = column.CharMaxLength / 2
+	}
 }
 
 // 获取表主键字段名，不存在主键标识则默认第一个字段
@@ -174,6 +178,7 @@ func (md *MssqlMetaData) getTableIndexWithPK(tableName string) ([]dbi.Index, err
 			IndexComment: cast.ToString(re["indexComment"]),
 			IsUnique:     cast.ToInt(re["isUnique"]) == 1,
 			SeqInIndex:   cast.ToInt(re["seqInIndex"]),
+			IsPrimaryKey: cast.ToInt(re["isPrimaryKey"]) == 1,
 		})
 	}
 	// 把查询结果以索引名分组，多个索引字段以逗号连接
@@ -199,10 +204,9 @@ func (md *MssqlMetaData) getTableIndexWithPK(tableName string) ([]dbi.Index, err
 func (md *MssqlMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 	indexs, _ := md.getTableIndexWithPK(tableName)
 	result := make([]dbi.Index, 0)
-	// 过滤掉主键索引,主键索引名为PK__开头的
+	// 过滤掉主键索引
 	for _, v := range indexs {
-		in := v.IndexName
-		if strings.HasPrefix(in, "PK__") {
+		if v.IsPrimaryKey {
 			continue
 		}
 		result = append(result, v)
@@ -248,25 +252,25 @@ func (md *MssqlMetaData) CopyTableDDL(tableName string, newTableName string) (st
 
 func (md *MssqlMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) []string {
 	tbName := tableInfo.TableName
+	meta := md.dc.GetMetaData()
 	sqls := make([]string, 0)
 	comments := make([]string, 0)
 	for _, index := range indexs {
-		// 通过字段、表名拼接索引名
-		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
-		columnName = strings.ReplaceAll(columnName, "_", "")
-		colName := strings.ReplaceAll(columnName, ",", "_")
-
-		keyType := "normal"
 		unique := ""
 		if index.IsUnique {
-			keyType = "unique"
 			unique = "unique"
 		}
-		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tbName, colName)
+		// 取出列名，添加引号
+		cols := strings.Split(index.ColumnName, ",")
+		colNames := make([]string, len(cols))
+		for i, name := range cols {
+			colNames[i] = meta.QuoteIdentifier(name)
+		}
 
-		sqls = append(sqls, fmt.Sprintf("create %s NONCLUSTERED index %s on %s.%s(%s)", unique, indexName, md.dc.Info.CurrentSchema(), tbName, index.ColumnName))
+		sqls = append(sqls, fmt.Sprintf("create %s NONCLUSTERED index %s on %s.%s(%s)", unique, index.IndexName, md.dc.Info.CurrentSchema(), tbName, strings.Join(colNames, ",")))
 		if index.IndexComment != "" {
-			comments = append(comments, fmt.Sprintf("EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'INDEX', N'%s'", index.IndexComment, md.dc.Info.CurrentSchema(), tbName, indexName))
+			comment := meta.QuoteEscape(index.IndexComment)
+			comments = append(comments, fmt.Sprintf("EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'INDEX', N'%s'", comment, md.dc.Info.CurrentSchema(), tbName, index.IndexName))
 		}
 	}
 	if len(comments) > 0 {
@@ -312,7 +316,7 @@ func (md *MssqlMetaData) genColumnBasicSql(column dbi.Column) string {
 		}
 	}
 
-	columnSql := fmt.Sprintf(" %s %s %s %s %s", colName, column.GetColumnType(), incr, nullAble, defVal)
+	columnSql := fmt.Sprintf(" %s %s%s%s%s", colName, column.GetColumnType(), incr, nullAble, defVal)
 	return columnSql
 }
 
@@ -320,7 +324,6 @@ func (md *MssqlMetaData) genColumnBasicSql(column dbi.Column) string {
 func (md *MssqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
 	tbName := tableInfo.TableName
 	meta := md.dc.GetMetaData()
-	replacer := strings.NewReplacer(";", "", "'", "")
 
 	sqlArr := make([]string, 0)
 
@@ -344,7 +347,7 @@ func (md *MssqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Ta
 
 		// 防止注释内含有特殊字符串导致sql出错
 		if column.ColumnComment != "" {
-			comment := replacer.Replace(column.ColumnComment)
+			comment := meta.QuoteEscape(column.ColumnComment)
 			columnComments = append(columnComments, fmt.Sprintf(commentTmp, comment, md.dc.Info.CurrentSchema(), tbName, column.ColumnName))
 		}
 	}
@@ -360,7 +363,8 @@ func (md *MssqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Ta
 	tableCommentSql := ""
 	if tableInfo.TableComment != "" {
 		commentTmp := "EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s'"
-		tableCommentSql = fmt.Sprintf(commentTmp, replacer.Replace(tableInfo.TableComment), md.dc.Info.CurrentSchema(), tbName)
+
+		tableCommentSql = fmt.Sprintf(commentTmp, meta.QuoteEscape(tableInfo.TableComment), md.dc.Info.CurrentSchema(), tbName)
 	}
 
 	sqlArr = append(sqlArr, createSql)
@@ -376,13 +380,12 @@ func (md *MssqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Ta
 }
 
 // 获取建表ddl
-func (md *MssqlMetaData) GetTableDDL(tableName string) (string, error) {
+func (md *MssqlMetaData) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
 
 	// 1.获取表信息
 	tbs, err := md.GetTables(tableName)
 	tableInfo := &dbi.Table{}
-	if err != nil && len(tbs) > 0 {
-
+	if err != nil || tbs == nil || len(tbs) <= 0 {
 		logx.Errorf("获取表信息失败, %s", tableName)
 		return "", err
 	}
@@ -395,7 +398,7 @@ func (md *MssqlMetaData) GetTableDDL(tableName string) (string, error) {
 		logx.Errorf("获取列信息失败, %s", tableName)
 		return "", err
 	}
-	tableDDLArr := md.GenerateTableDDL(columns, *tableInfo, false)
+	tableDDLArr := md.GenerateTableDDL(columns, *tableInfo, dropBeforeCreate)
 	// 3.获取索引信息
 	indexs, err := md.GetTableIndex(tableName)
 	if err != nil {
@@ -422,6 +425,10 @@ func (md *MssqlMetaData) GetSchemas() ([]string, error) {
 
 func (md *MssqlMetaData) GetIdentifierQuoteString() string {
 	return "["
+}
+
+func (md *MssqlMetaData) BeforeDumpInsertSql(quoteSchema string, tableName string) string {
+	return fmt.Sprintf("set identity_insert %s.%s on ", quoteSchema, tableName)
 }
 
 func (md *MssqlMetaData) GetDataConverter() dbi.DataConverter {
@@ -528,6 +535,26 @@ func (dc *DataConverter) GetDataType(dbColumnType string) dbi.DataType {
 }
 
 func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) string {
+	// 如果dataType是datetime而dbColumnValue是string类型，则需要根据类型格式化
+	str, ok := dbColumnValue.(string)
+	if dataType == dbi.DataTypeDateTime && ok {
+		// 尝试用时间格式解析
+		res, err := time.Parse(time.DateTime, str)
+		if err == nil {
+			return str
+		}
+		res, _ = time.Parse(time.RFC3339, str)
+		return res.Format(time.DateTime)
+	}
+	if dataType == dbi.DataTypeDate && ok {
+		// 尝试用时间格式解析
+		res, _ := time.Parse(time.DateOnly, str)
+		return res.Format(time.DateOnly)
+	}
+	if dataType == dbi.DataTypeTime && ok {
+		res, _ := time.Parse(time.TimeOnly, str)
+		return res.Format(time.TimeOnly)
+	}
 	return anyx.ToString(dbColumnValue)
 }
 
@@ -547,4 +574,25 @@ func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any
 		return res
 	}
 	return dbColumnValue
+}
+
+func (dc *DataConverter) WrapValue(dbColumnValue any, dataType dbi.DataType) string {
+	if dbColumnValue == nil {
+		return "NULL"
+	}
+	switch dataType {
+	case dbi.DataTypeNumber:
+		return fmt.Sprintf("%v", dbColumnValue)
+	case dbi.DataTypeString:
+		val := fmt.Sprintf("%v", dbColumnValue)
+		// 转义单引号
+		val = strings.Replace(val, `'`, `''`, -1)
+		val = strings.Replace(val, `\''`, `\'`, -1)
+		// 转义换行符
+		val = strings.Replace(val, "\n", "\\n", -1)
+		return fmt.Sprintf("'%s'", val)
+	case dbi.DataTypeDate, dbi.DataTypeDateTime, dbi.DataTypeTime:
+		return fmt.Sprintf("'%s'", dc.FormatData(dbColumnValue, dataType))
+	}
+	return fmt.Sprintf("'%s'", dbColumnValue)
 }

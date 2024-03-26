@@ -472,6 +472,9 @@ export class DbInst {
 
     // 初始化所有列信息，完善需要显示的列类型，包含长度等，如varchar(20)
     static initColumns(columns: any[]) {
+        if (!columns) {
+            return;
+        }
         for (let col of columns) {
             if (col.charMaxLength > 0) {
                 col.showDataType = `${col.dataType}(${col.charMaxLength})`;

@@ -97,16 +97,7 @@ func (md *MysqlDialect) ToColumn(column *dbi.Column) {
 		column.CharMaxLength = 1000
 	} else {
 		column.DataType = dbi.ColumnDataType(ctype)
-		// 如果是int整型，删除精度
-		if strings.Contains(strings.ToLower(ctype), "int") {
-			column.NumScale = 0
-			column.CharMaxLength = 0
-		} else
-		// 如果是text，删除长度
-		if strings.Contains(strings.ToLower(ctype), "text") {
-			column.CharMaxLength = 0
-			column.NumPrecision = 0
-		}
+		md.dc.GetMetaData().FixColumn(column)
 	}
 }
 

@@ -7,6 +7,7 @@ import {
     DuplicateStrategy,
     EditorCompletion,
     EditorCompletionItem,
+    QuoteEscape,
     IndexDefinition,
     RowDefinition,
 } from './index';
@@ -225,7 +226,7 @@ class MssqlDialect implements DbDialect {
             item.name && fields.push(this.genColumnBasicSql(item));
             item.remark &&
                 fieldComments.push(
-                    `EXECUTE sp_addextendedproperty N'MS_Description', N'${item.remark}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}', N'COLUMN', N'${item.name}'`
+                    `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(item.remark)}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}', N'COLUMN', N'${item.name}'`
                 );
             if (item.pri) {
                 pks.push(`${this.quoteIdentifier(item.name)}`);
@@ -244,7 +245,7 @@ class MssqlDialect implements DbDialect {
 
         // 表注释
         if (data.tableComment) {
-            createTable += ` EXECUTE sp_addextendedproperty N'MS_Description', N'${data.tableComment}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}';`;
+            createTable += ` EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(data.tableComment)}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}';`;
         }
 
         return createTable + createIndexSql + fieldComments.join(';');
@@ -268,7 +269,7 @@ class MssqlDialect implements DbDialect {
             sql.push(` CREATE ${a.unique ? 'UNIQUE' : ''} NONCLUSTERED INDEX ${this.quoteIdentifier(a.indexName)} on ${baseTable} (${columnNames.join(',')})`);
             if (a.indexComment) {
                 indexComment.push(
-                    `EXECUTE sp_addextendedproperty N'MS_Description', N'${a.indexComment}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}', N'INDEX', N'${a.indexName}'`
+                    `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.indexComment)}', N'SCHEMA', N'${schema}', N'TABLE', N'${data.tableName}', N'INDEX', N'${a.indexName}'`
                 );
             }
         });
@@ -306,7 +307,7 @@ class MssqlDialect implements DbDialect {
                 addArr.push(` ALTER TABLE ${baseTable} ADD ${this.genColumnBasicSql(a)}`);
                 if (a.remark) {
                     addCommentArr.push(
-                        `EXECUTE sp_addextendedproperty N'MS_Description', N'${a.remark}', N'SCHEMA', N'${schema}', N'TABLE', N'${tableName}', N'COLUMN', N'${a.name}'`
+                        `EXECUTE sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.remark)}', N'SCHEMA', N'${schema}', N'TABLE', N'${tableName}', N'COLUMN', N'${a.name}'`
                     );
                 }
             });
@@ -315,7 +316,7 @@ class MssqlDialect implements DbDialect {
         if (changeData.upd.length > 0) {
             changeData.upd.forEach((a) => {
                 if (a.oldName && a.name !== a.oldName) {
-                    renameArr.push(` EXEC sp_rename '${baseTable}.${this.quoteIdentifier(a.oldName)}', '${a.name}', 'COLUMN' `);
+                    renameArr.push(` EXEC sp_rename '${baseTable}.${this.quoteIdentifier(a.oldName)}', '${QuoteEscape(a.name)}', 'COLUMN' `);
                 } else {
                     updArr.push(` ALTER TABLE ${baseTable} ALTER COLUMN ${this.genColumnBasicSql(a)} `);
                 }
@@ -325,13 +326,13 @@ class MssqlDialect implements DbDialect {
 'TABLE', N'${tableName}',
 'COLUMN', N'${a.name}')) > 0)
   EXEC sp_updateextendedproperty
-'MS_Description', N'${a.remark}',
+'MS_Description', N'${QuoteEscape(a.remark)}',
 'SCHEMA', N'${schema}',
 'TABLE', N'${tableName}',
 'COLUMN', N'${a.name}'
 ELSE
   EXEC sp_addextendedproperty
-'MS_Description', N'${a.remark}',
+'MS_Description', N'${QuoteEscape(a.remark)}',
 'SCHEMA', N'${schema}',
 'TABLE', N'${tableName}',
 'COLUMN',N'${a.name}'`);
@@ -367,7 +368,7 @@ ELSE
             );
             if (a.indexComment) {
                 commentArr.push(
-                    ` EXEC sp_addextendedproperty N'MS_Description', N'${a.indexComment}', N'SCHEMA', N'${schema}', N'TABLE', N'${tableName}', N'INDEX', N'${a.indexName}' `
+                    ` EXEC sp_addextendedproperty N'MS_Description', N'${QuoteEscape(a.indexComment)}', N'SCHEMA', N'${schema}', N'TABLE', N'${tableName}', N'INDEX', N'${a.indexName}' `
                 );
             }
         };
@@ -413,7 +414,7 @@ ELSE
 
         if (tableData.oldTableComment !== tableData.tableComment) {
             // 转义注释中的单引号和换行符
-            let tableComment = tableData.tableComment.replaceAll(/'/g, '').replaceAll(/[\r\n]/g, ' ');
+            let tableComment = tableData.tableComment.replaceAll(/'/g, "'").replaceAll(/[\r\n]/g, ' ');
             sql += `IF ((SELECT COUNT(*) FROM fn_listextendedproperty('MS_Description',
 'SCHEMA', N'${schema}',
 'TABLE', N'${tableData.tableName}', NULL, NULL)) > 0)

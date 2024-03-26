@@ -120,26 +120,45 @@ func (od *OracleMetaData) GetColumns(tableNames ...string) ([]dbi.Column, error)
 
 	columns := make([]dbi.Column, 0)
 	for _, re := range res {
-		defaultVal := cast.ToString(re["COLUMN_DEFAULT"])
-		// 如果默认值包含.nextval，说明是序列，默认值为null
-		if strings.Contains(defaultVal, ".nextval") {
-			defaultVal = ""
-		}
 		column := dbi.Column{
 			TableName:     cast.ToString(re["TABLE_NAME"]),
 			ColumnName:    cast.ToString(re["COLUMN_NAME"]),
 			DataType:      dbi.ColumnDataType(cast.ToString(re["DATA_TYPE"])),
+			CharMaxLength: cast.ToInt(re["CHAR_MAX_LENGTH"]),
 			ColumnComment: cast.ToString(re["COLUMN_COMMENT"]),
 			Nullable:      cast.ToString(re["NULLABLE"]) == "YES",
 			IsPrimaryKey:  cast.ToInt(re["IS_PRIMARY_KEY"]) == 1,
 			IsIdentity:    cast.ToInt(re["IS_IDENTITY"]) == 1,
-			ColumnDefault: defaultVal,
+			ColumnDefault: cast.ToString(re["COLUMN_DEFAULT"]),
+			NumPrecision:  cast.ToInt(re["NUM_PRECISION"]),
 			NumScale:      cast.ToInt(re["NUM_SCALE"]),
 		}
 
+		od.FixColumn(&column)
 		columns = append(columns, column)
 	}
 	return columns, nil
+}
+
+func (od *OracleMetaData) FixColumn(column *dbi.Column) {
+	// 如果默认值包含.nextval，说明是序列，默认值为null
+	if strings.Contains(column.ColumnDefault, ".nextval") {
+		column.ColumnDefault = ""
+	}
+
+	// 统一处理一下数据类型的长度
+	if collx.ArrayAnyMatches([]string{"date", "time", "lob", "int"}, strings.ToLower(string(column.DataType))) {
+		// 如果是不需要设置长度的类型
+		column.CharMaxLength = 0
+		column.NumPrecision = 0
+	} else if strings.Contains(strings.ToLower(string(column.DataType)), "char") {
+		// 如果是字符串类型，长度最大4000，否则修改字段类型为clob
+		if column.CharMaxLength > 4000 {
+			column.DataType = "NCLOB"
+			column.CharMaxLength = 0
+			column.NumPrecision = 0
+		}
+	}
 }
 
 func (od *OracleMetaData) GetPrimaryKey(tablename string) (string, error) {
@@ -175,6 +194,7 @@ func (od *OracleMetaData) GetTableIndex(tableName string) ([]dbi.Index, error) {
 			IndexComment: cast.ToString(re["INDEX_COMMENT"]),
 			IsUnique:     cast.ToInt(re["IS_UNIQUE"]) == 1,
 			SeqInIndex:   cast.ToInt(re["SEQ_IN_INDEX"]),
+			IsPrimaryKey: cast.ToInt(re["IS_PRIMARY"]) == 1,
 		})
 	}
 	// 把查询结果以索引名分组，索引字段以逗号连接
@@ -204,23 +224,19 @@ func (od *OracleMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tab
 	comments := make([]string, 0)
 
 	for _, index := range indexs {
-		// 通过字段、表名拼接索引名
-		columnName := strings.ReplaceAll(index.ColumnName, "-", "")
-		columnName = strings.ReplaceAll(columnName, "_", "")
-		colName := strings.ReplaceAll(columnName, ",", "_")
-
-		keyType := "normal"
 		unique := ""
 		if index.IsUnique {
-			keyType = "unique"
 			unique = "unique"
 		}
-		indexName := fmt.Sprintf("%s_key_%s_%s", keyType, tableInfo.TableName, colName)
 
-		sqls = append(sqls, fmt.Sprintf("CREATE %s INDEX %s ON %s(%s)", unique, indexName, meta.QuoteIdentifier(tableInfo.TableName), index.ColumnName))
-		if index.IndexComment != "" {
-			comments = append(comments, fmt.Sprintf("COMMENT ON INDEX %s IS '%s'", indexName, index.IndexComment))
+		// 取出列名，添加引号
+		cols := strings.Split(index.ColumnName, ",")
+		colNames := make([]string, len(cols))
+		for i, name := range cols {
+			colNames[i] = meta.QuoteIdentifier(name)
 		}
+
+		sqls = append(sqls, fmt.Sprintf("CREATE %s INDEX %s ON %s(%s)", unique, index.IndexName, meta.QuoteIdentifier(tableInfo.TableName), strings.Join(colNames, ",")))
 	}
 
 	sqlArr := make([]string, 0)
@@ -237,7 +253,6 @@ func (od *OracleMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tab
 func (od *OracleMetaData) genColumnBasicSql(column dbi.Column) string {
 	meta := od.dc.GetMetaData()
 	colName := meta.QuoteIdentifier(column.ColumnName)
-	dataType := string(column.DataType)
 
 	if column.IsIdentity {
 		// 如果是自增，不需要设置默认值和空值，自增列数据类型必须是number
@@ -249,47 +264,18 @@ func (od *OracleMetaData) genColumnBasicSql(column dbi.Column) string {
 		nullAble = " NOT NULL"
 	}
 
-	defVal := "" // 默认值需要判断引号，如函数是不需要引号的
+	defVal := ""
 	if column.ColumnDefault != "" {
-		mark := false
-		// 哪些字段类型默认值需要加引号
-		if collx.ArrayAnyMatches([]string{"CHAR", "LONG", "DATE", "TIME", "CLOB", "BLOB", "BFILE"}, dataType) {
-			// 默认值是时间日期函数的必须要加引号
-			val := strings.ToUpper(column.ColumnDefault)
-			if collx.ArrayAnyMatches([]string{"DATE", "TIMESTAMP"}, dataType) && val == "CURRENT_DATE" || val == "CURRENT_TIMESTAMP" {
-				mark = false
-			} else {
-				mark = true
-			}
-			if mark {
-				defVal = fmt.Sprintf(" DEFAULT '%s'", column.ColumnDefault)
-			} else {
-				defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
-			}
-		} else {
-			// 如果是数字，默认值提取数字
-			if collx.ArrayAnyMatches([]string{"NUM", "INT"}, dataType) {
-				match := bracketsRegexp.FindStringSubmatch(dataType)
-				if len(match) > 1 {
-					length := cast.ToInt(match[1])
-					defVal = fmt.Sprintf(" DEFAULT %d", length)
-				} else {
-					defVal = fmt.Sprintf(" DEFAULT 0")
-				}
-			}
-
-			defVal = fmt.Sprintf(" DEFAULT %s", column.ColumnDefault)
-		}
+		defVal = fmt.Sprintf(" DEFAULT %v", column.ColumnDefault)
 	}
 
-	columnSql := fmt.Sprintf(" %s %s %s %s", colName, column.GetColumnType(), defVal, nullAble)
+	columnSql := fmt.Sprintf(" %s %s%s%s", colName, column.GetColumnType(), defVal, nullAble)
 	return columnSql
 }
 
 // 获取建表ddl
 func (od *OracleMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
 	meta := od.dc.GetMetaData()
-	replacer := strings.NewReplacer(";", "", "'", "")
 	quoteTableName := meta.QuoteIdentifier(tableInfo.TableName)
 	sqlArr := make([]string, 0)
 
@@ -302,8 +288,7 @@ begin
     if num > 0 then
         execute immediate 'drop table "%s"' ;
     end if;
-end;
-`
+end`
 		sqlArr = append(sqlArr, fmt.Sprintf(dropSqlTmp, tableInfo.TableName, tableInfo.TableName))
 	}
 
@@ -320,7 +305,7 @@ end;
 		fields = append(fields, od.genColumnBasicSql(column))
 		// 防止注释内含有特殊字符串导致sql出错
 		if column.ColumnComment != "" {
-			comment := replacer.Replace(column.ColumnComment)
+			comment := meta.QuoteEscape(column.ColumnComment)
 			columnComments = append(columnComments, fmt.Sprintf("COMMENT ON COLUMN %s.%s IS '%s'", quoteTableName, meta.QuoteIdentifier(column.ColumnName), comment))
 		}
 	}
@@ -336,7 +321,7 @@ end;
 	// 表注释
 	tableCommentSql := ""
 	if tableInfo.TableComment != "" {
-		tableCommentSql = fmt.Sprintf("COMMENT ON TABLE %s is '%s'", meta.QuoteIdentifier(tableInfo.TableName), replacer.Replace(tableInfo.TableComment))
+		tableCommentSql = fmt.Sprintf("COMMENT ON TABLE %s is '%s'", meta.QuoteIdentifier(tableInfo.TableName), meta.QuoteEscape(tableInfo.TableComment))
 		sqlArr = append(sqlArr, tableCommentSql)
 	}
 
@@ -349,13 +334,12 @@ end;
 }
 
 // 获取建表ddl
-func (od *OracleMetaData) GetTableDDL(tableName string) (string, error) {
+func (od *OracleMetaData) GetTableDDL(tableName string, dropBeforeCreate bool) (string, error) {
 
 	// 1.获取表信息
 	tbs, err := od.GetTables(tableName)
 	tableInfo := &dbi.Table{}
-	if err != nil && len(tbs) > 0 {
-
+	if err != nil || tbs == nil || len(tbs) <= 0 {
 		logx.Errorf("获取表信息失败, %s", tableName)
 		return "", err
 	}
@@ -368,7 +352,7 @@ func (od *OracleMetaData) GetTableDDL(tableName string) (string, error) {
 		logx.Errorf("获取列信息失败, %s", tableName)
 		return "", err
 	}
-	tableDDLArr := od.GenerateTableDDL(columns, *tableInfo, false)
+	tableDDLArr := od.GenerateTableDDL(columns, *tableInfo, dropBeforeCreate)
 	// 3.获取索引信息
 	indexs, err := od.GetTableIndex(tableName)
 	if err != nil {
@@ -476,7 +460,12 @@ func (dc *DataConverter) FormatData(dbColumnValue any, dataType dbi.DataType) st
 	switch dataType {
 	// oracle把日期类型数据格式化输出
 	case dbi.DataTypeDateTime: // "2024-01-02T22:08:22.275697+08:00"
-		res, _ := time.Parse(time.RFC3339, str)
+		// 尝试用时间格式解析
+		res, err := time.Parse(time.DateTime, str)
+		if err == nil {
+			return str
+		}
+		res, _ = time.Parse(time.RFC3339, str)
 		return res.Format(time.DateTime)
 	}
 	return str
@@ -489,4 +478,25 @@ func (dc *DataConverter) ParseData(dbColumnValue any, dataType dbi.DataType) any
 		return res
 	}
 	return dbColumnValue
+}
+
+func (dc *DataConverter) WrapValue(dbColumnValue any, dataType dbi.DataType) string {
+	if dbColumnValue == nil {
+		return "NULL"
+	}
+	switch dataType {
+	case dbi.DataTypeNumber:
+		return fmt.Sprintf("%v", dbColumnValue)
+	case dbi.DataTypeString:
+		val := fmt.Sprintf("%v", dbColumnValue)
+		// 转义单引号
+		val = strings.Replace(val, `'`, `''`, -1)
+		val = strings.Replace(val, `\''`, `\'`, -1)
+		// 转义换行符
+		val = strings.Replace(val, "\n", "\\n", -1)
+		return fmt.Sprintf("'%s'", val)
+	case dbi.DataTypeDate, dbi.DataTypeDateTime, dbi.DataTypeTime:
+		return fmt.Sprintf("to_timestamp('%s', 'yyyy-mm-dd hh24:mi:ss')", dc.FormatData(dbColumnValue, dataType))
+	}
+	return fmt.Sprintf("'%s'", dbColumnValue)
 }

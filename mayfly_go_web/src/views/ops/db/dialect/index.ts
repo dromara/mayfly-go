@@ -262,6 +262,18 @@ export const getDbDialect = (dbType?: string): DbDialect => {
     return dbType2DialectMap.get(dbType!) || mysqlDialect;
 };
 
+/**
+ *  引号转义，多用于sql注释转义，防止拼接sql报错，如： comment xx is '注''释'   最终注释文本为:  注'释
+ * @author  liuzongyang
+ * @since   2024/3/22 08:23
+ */
+export const QuoteEscape = (str: string): string => {
+    if (!str) {
+        return '';
+    }
+    return str.replace(/'/g, "''");
+};
+
 (function () {
     console.log('init register db dialect');
     registerDbDialect(DbType.mysql, mysqlDialect);
