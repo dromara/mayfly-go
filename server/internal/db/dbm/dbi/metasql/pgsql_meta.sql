@@ -35,19 +35,20 @@ where
 order by c.relname
 ---------------------------------------
 --PGSQL_INDEX_INFO 表索引信息
-SELECT indexname                                                         AS "indexName",
+SELECT a.indexname                                                         AS "indexName",
        'BTREE'                                                           AS "IndexType",
-       case when indexdef like 'CREATE UNIQUE INDEX%%' then 1 else 0 end as "isUnique",
+       case when a.indexdef like 'CREATE UNIQUE INDEX%%' then 1 else 0 end as "isUnique",
        obj_description(b.oid, 'pg_class')                                AS "indexComment",
        indexdef                                                          AS "indexDef",
        c.attname                                                         AS "columnName",
        c.attnum                                                          AS "seqInIndex",
-       case when indexname like '%_pkey' then 1 else 0 end               as "isPrimaryKey"
+       case when a.indexname like '%_pkey' then 1 else 0 end             AS "isPrimaryKey"
 FROM pg_indexes a
          join pg_class b on a.indexname = b.relname
          join pg_attribute c on b.oid = c.attrelid
 WHERE a.schemaname = (select current_schema())
-  AND a.tablename = '%s';
+  AND a.tablename = '%s'
+  AND a.indexname not like '%_pkey'
 ---------------------------------------
 --PGSQL_COLUMN_MA 表列信息
 SELECT a.table_name                                                                            AS "tableName",

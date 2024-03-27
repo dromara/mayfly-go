@@ -294,18 +294,10 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *DumpDbReq) error {
 		indexs, err := dbMeta.GetTableIndex(tableName)
 		biz.ErrIsNil(err)
 
-		// 过滤主键索引
-		idxs := make([]dbi.Index, 0)
-		for _, idx := range indexs {
-			if !idx.IsPrimaryKey {
-				idxs = append(idxs, idx)
-			}
-		}
-
-		if len(idxs) > 0 {
+		if len(indexs) > 0 {
 			// 最后添加索引
 			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表索引: %s \n-- ----------------------------\n", tableName))
-			sqlArr := dbMeta.GenerateIndexDDL(idxs, tabInfo)
+			sqlArr := dbMeta.GenerateIndexDDL(indexs, tabInfo)
 			for _, sqlStr := range sqlArr {
 				writer.WriteString(sqlStr + ";\n")
 			}

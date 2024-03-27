@@ -144,6 +144,7 @@ func (md *MssqlMetaData) GetPrimaryKey(tablename string) (string, error) {
 	return columns[0].ColumnName, nil
 }
 
+// 需要收集唯一键涉及的字段，所以需要查询出带主键的索引
 func (md *MssqlMetaData) getTableIndexWithPK(tableName string) ([]dbi.Index, error) {
 	_, res, err := md.dc.Query(dbi.GetLocalSql(MSSQL_META_FILE, MSSQL_INDEX_INFO_KEY), md.dc.Info.CurrentSchema(), tableName)
 	if err != nil {
