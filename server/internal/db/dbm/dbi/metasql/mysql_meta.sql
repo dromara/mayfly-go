@@ -44,6 +44,7 @@ WHERE
     SELECT
       database ()
   )
+  AND index_name != 'PRIMARY'
   AND table_name = ?
 ORDER BY
   index_name asc,

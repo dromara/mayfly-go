@@ -39,14 +39,12 @@ SELECT ai.INDEX_NAME                          AS INDEX_NAME,
           AND aic.INDEX_NAME = ai.INDEX_NAME
           AND aic.TABLE_NAME = ai.TABLE_NAME
           AND ROWNUM = 1)                     AS INDEX_COMMENT,
-       CASE
-           WHEN ai.INDEX_NAME like 'PK_%%' THEN 1
-           WHEN ai.INDEX_NAME like 'SYS_%%' THEN 1
-           ELSE 0
-           END AS IS_PRIMARY
+       0 AS IS_PRIMARY
 FROM ALL_INDEXES ai
 WHERE ai.OWNER = (SELECT sys_context('USERENV', 'CURRENT_SCHEMA') FROM DUAL)
   AND ai.table_name = '%s'
+  AND ai.INDEX_NAME not like 'PK_%%'
+  AND ai.INDEX_NAME not like 'SYS_%%'
 ---------------------------------------
 --ORACLE_COLUMN_MA 表列信息
 SELECT a.TABLE_NAME                                              as TABLE_NAME,

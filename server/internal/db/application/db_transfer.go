@@ -324,18 +324,10 @@ func (app *dbTransferAppImpl) transferIndex(_ context.Context, tableInfo dbi.Tab
 		return nil
 	}
 
-	// 过滤主键索引
-	idxs := make([]dbi.Index, 0)
-	for _, idx := range indexs {
-		if !idx.IsPrimaryKey {
-			idxs = append(idxs, idx)
-		}
-	}
-
-	if len(idxs) == 0 {
+	if len(indexs) == 0 {
 		return nil
 	}
 
 	// 通过表名、索引信息生成建索引语句，并执行到目标表
-	return targetDialect.CreateIndex(tableInfo, idxs)
+	return targetDialect.CreateIndex(tableInfo, indexs)
 }
