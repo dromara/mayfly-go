@@ -30,3 +30,10 @@ export const DbDataSyncRunningStateEnum = {
     Wait: EnumValue.of(2, '待运行').setTagType('primary'),
     Fail: EnumValue.of(3, '已停止').setTagType('danger'),
 };
+
+export const DbTransferRunningStateEnum = {
+    Success: EnumValue.of(2, '成功').setTagType('success'),
+    Wait: EnumValue.of(1, '执行中').setTagType('primary'),
+    Fail: EnumValue.of(-1, '失败').setTagType('danger'),
+    Stop: EnumValue.of(-2, '手动终止').setTagType('warning'),
+};

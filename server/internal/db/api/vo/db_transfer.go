@@ -3,12 +3,14 @@ package vo
 import "time"
 
 type DbTransferTaskListVO struct {
-	Id *int64 `json:"id"`
-
+	Id         *int64     `json:"id"`
+	CreateTime *time.Time `json:"createTime"`
+	Creator    string     `json:"creator"`
 	UpdateTime *time.Time `json:"updateTime"`
 	Modifier   string     `json:"modifier"`
 
-	RunningState int `json:"runningState"`
+	RunningState int    `json:"runningState"`
+	LogId        uint64 `json:"logId"`
 
 	CheckedKeys string `json:"checkedKeys"` // 选中需要迁移的表
 	DeleteTable int    `json:"deleteTable"` // 创建表前是否删除表
@@ -26,12 +28,4 @@ type DbTransferTaskListVO struct {
 	TargetDbType   string `json:"targetDbType"`   // 目标库类型
 	TargetInstName string `json:"targetInstName"` // 目标库实例名
 	TargetTagPath  string `json:"targetTagPath"`  // 目标库tagPath
-}
-
-type DbTransferLogListVO struct {
-	CreateTime  *time.Time `json:"createTime"`
-	DataSqlFull string     `json:"dataSqlFull"`
-	ResNum      string     `json:"resNum"`
-	ErrText     string     `json:"errText"`
-	Status      *int       `json:"status"`
 }

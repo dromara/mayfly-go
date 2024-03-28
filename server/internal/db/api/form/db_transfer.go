@@ -17,8 +17,3 @@ type DbTransferTaskForm struct {
 	TargetInstName string `binding:"required" json:"targetInstName"` // 目标库实例名
 	TargetTagPath  string `binding:"required" json:"targetTagPath"`  // 目标库tagPath
 }
-
-type DbTransferTaskStatusForm struct {
-	Id           uint64 `binding:"required" json:"taskId"`
-	RunningState int    `json:"status"`
-}

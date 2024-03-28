@@ -34,15 +34,17 @@
             <template #action="{ data }">
                 <!-- 删除、启停用、编辑 -->
                 <el-button v-if="actionBtns[perms.save]" @click="edit(data)" type="primary" link>编辑</el-button>
-                <el-button v-if="actionBtns[perms.log]" type="primary" link @click="log(data)">日志</el-button>
+                <el-button :disabled="state.runBtnDisabled" v-if="actionBtns[perms.log]" type="primary" link @click="log(data)">日志</el-button>
                 <el-button v-if="data.runningState === 1" @click="stop(data.id)" type="danger" link>停止</el-button>
-                <el-button v-if="actionBtns[perms.run] && data.runningState !== 1" type="primary" link @click="reRun(data)">运行</el-button>
+                <el-button :disabled="state.runBtnDisabled" v-if="actionBtns[perms.run] && data.runningState !== 1" type="primary" link @click="reRun(data)"
+                    >运行</el-button
+                >
             </template>
         </page-table>
 
         <db-transfer-edit @val-change="search" :title="editDialog.title" v-model:visible="editDialog.visible" v-model:data="editDialog.data" />
 
-        <db-transfer-log v-model:visible="logsDialog.visible" v-model:taskId="logsDialog.taskId" :running="state.logsDialog.running" />
+        <TerminalLog v-model:log-id="logsDialog.logId" v-model:visible="logsDialog.visible" :title="logsDialog.title" />
     </div>
 </template>
 
@@ -55,9 +57,10 @@ import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { SearchItem } from '@/components/SearchForm';
 import { getDbDialect } from '@/views/ops/db/dialect';
+import { DbTransferRunningStateEnum } from './enums';
+import TerminalLog from '@/components/terminal/TerminalLog.vue';
 
 const DbTransferEdit = defineAsyncComponent(() => import('./DbTransferEdit.vue'));
-const DbTransferLog = defineAsyncComponent(() => import('./DbTransferLog.vue'));
 
 const perms = {
     save: 'db:transfer:save',
@@ -72,8 +75,11 @@ const searchItems = [SearchItem.input('name', '名称')];
 const columns = ref([
     TableColumn.new('srcDb', '源库').setMinWidth(250).isSlot(),
     TableColumn.new('targetDb', '目标库').setMinWidth(250).isSlot(),
-    TableColumn.new('modifier', '修改人').alignCenter(),
-    TableColumn.new('updateTime', '修改时间').alignCenter().isTime(),
+    TableColumn.new('runningState', '执行状态').typeTag(DbTransferRunningStateEnum),
+    TableColumn.new('creator', '创建人'),
+    TableColumn.new('createTime', '创建时间').isTime(),
+    TableColumn.new('modifier', '修改人'),
+    TableColumn.new('updateTime', '修改时间').isTime(),
 ]);
 
 // 该用户拥有的的操作列按钮权限
@@ -104,11 +110,13 @@ const state = reactive({
         title: '新增数据数据迁移任务',
     },
     logsDialog: {
-        taskId: 0,
+        logId: 0,
+        title: '数据库迁移日志',
         visible: false,
         data: null as any,
         running: false,
     },
+    runBtnDisabled: false,
 });
 
 const { selectionData, query, editDialog, logsDialog } = toRefs(state);
@@ -146,8 +154,9 @@ const stop = async (id: any) => {
 };
 
 const log = async (data: any) => {
-    state.logsDialog.taskId = data.id;
+    state.logsDialog.logId = data.logId;
     state.logsDialog.visible = true;
+    state.logsDialog.title = '数据库迁移日志';
     state.logsDialog.running = data.state === 1;
 };
 
@@ -157,9 +166,18 @@ const reRun = async (data: any) => {
         cancelButtonText: '取消',
         type: 'warning',
     });
-    await dbApi.runDbTransferTask.request({ taskId: data.id });
-    ElMessage.success('运行成功');
-    search();
+    try {
+        state.runBtnDisabled = true;
+        await dbApi.runDbTransferTask.request({ taskId: data.id });
+        ElMessage.success('运行成功');
+    } catch (e) {
+        state.runBtnDisabled = false;
+    }
+    // 延迟2秒执行，后端异步执行
+    setTimeout(() => {
+        search();
+        state.runBtnDisabled = false;
+    }, 2000);
 };
 
 const del = async () => {

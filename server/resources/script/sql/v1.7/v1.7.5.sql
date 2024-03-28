@@ -34,6 +34,7 @@ CREATE TABLE `t_db_transfer_task` (
   `target_tag_path` varchar(200) NOT NULL COMMENT '目标库类型',
   `target_db_type` varchar(200) NOT NULL COMMENT '目标库实例名',
   `target_inst_name` varchar(200) NOT NULL COMMENT '目标库tagPath',
+  `log_id` bigint(20) NOT NULL COMMENT '日志id',
   PRIMARY KEY (`id`)
 )  COMMENT='数据库迁移任务表';
 
@@ -44,6 +45,9 @@ INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `we
 INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709196723, 1709194669, 2, 1, '启停', 'db:transfer:status', 1709196723, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:52:04', '2024-02-29 16:52:04', 'SmLcpu6c/hGiLN1VT/', 0, NULL);
 INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709196737, 1709194669, 2, 1, '日志', 'db:transfer:log', 1709196737, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:52:17', '2024-02-29 16:52:17', 'SmLcpu6c/CZhNIbWg/', 0, NULL);
 INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709196755, 1709194669, 2, 1, '运行', 'db:transfer:run', 1709196755, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:52:36', '2024-02-29 16:52:36', 'SmLcpu6c/b6yHt6V2/', 0, NULL);
+
+ALTER TABLE t_sys_log ADD extra varchar(5000) NULL;
+ALTER TABLE t_sys_log MODIFY COLUMN resp text NULL;
 
 
 

@@ -18,4 +18,5 @@ export const RoleStatusEnum = {
 export const LogTypeEnum = {
     Success: EnumValue.of(1, '成功').tagTypeSuccess(),
     Error: EnumValue.of(2, '失败').tagTypeDanger(),
+    Running: EnumValue.of(-1, '执行中'),
 };

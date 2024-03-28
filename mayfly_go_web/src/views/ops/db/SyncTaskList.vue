@@ -71,11 +71,13 @@ const searchItems = [SearchItem.input('name', '名称')];
 // 任务名、修改人、修改时间、最近一次任务执行状态、状态(停用启用)、操作
 const columns = ref([
     TableColumn.new('taskName', '任务名'),
-    TableColumn.new('runningState', '运行状态').alignCenter().typeTag(DbDataSyncRunningStateEnum),
-    TableColumn.new('recentState', '最近任务状态').alignCenter().typeTag(DbDataSyncRecentStateEnum),
-    TableColumn.new('status', '状态').alignCenter().isSlot(),
-    TableColumn.new('modifier', '修改人').alignCenter(),
-    TableColumn.new('updateTime', '修改时间').alignCenter().isTime(),
+    TableColumn.new('runningState', '运行状态').typeTag(DbDataSyncRunningStateEnum),
+    TableColumn.new('recentState', '最近任务状态').typeTag(DbDataSyncRecentStateEnum),
+    TableColumn.new('status', '状态').isSlot(),
+    TableColumn.new('creator', '创建人'),
+    TableColumn.new('createTime', '创建时间').isTime(),
+    TableColumn.new('modifier', '修改人'),
+    TableColumn.new('updateTime', '修改时间').isTime(),
 ]);
 
 // 该用户拥有的的操作列按钮权限

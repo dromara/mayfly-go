@@ -12,10 +12,3 @@ type DbTransferTask interface {
 	// 分页获取数据库实例信息列表
 	GetTaskList(condition *entity.DbTransferTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
-
-type DbTransferLog interface {
-	base.Repo[*entity.DbTransferLog]
-
-	// 分页获取数据库实例信息列表
-	GetTaskLogList(condition *entity.DbTransferLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
-}

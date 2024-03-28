@@ -1,7 +1,7 @@
 <template>
-    <div class="tag-tree card pd5">
-        <el-scrollbar>
-            <el-input v-model="filterText" placeholder="输入关键字->搜索已展开节点信息" clearable size="small" class="mb5 w100" />
+    <div class="card pd5">
+        <el-input v-model="filterText" placeholder="输入关键字->搜索已展开节点信息" clearable size="small" class="mb5 w100" />
+        <el-scrollbar class="tag-tree">
             <el-tree
                 ref="treeRef"
                 :highlight-current="true"
@@ -206,7 +206,7 @@ defineExpose({
 
 <style lang="scss" scoped>
 .tag-tree {
-    height: calc(100vh - 108px);
+    height: calc(100vh - 148px);
 
     .el-tree {
         display: inline-block;

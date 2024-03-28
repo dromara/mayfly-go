@@ -44,6 +44,7 @@ export const configApi = {
 
 export const logApi = {
     list: Api.newGet('/syslogs'),
+    detail: Api.newGet('/syslogs/{id}'),
 };
 
 export const authApi = {

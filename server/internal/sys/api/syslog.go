@@ -17,3 +17,7 @@ func (r *Syslog) Syslogs(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
+
+func (r *Syslog) SyslogDetail(rc *req.Ctx) {
+	rc.ResData = r.SyslogApp.GetLogDetail(uint64(rc.PathParamInt("id")))
+}

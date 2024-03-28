@@ -14,7 +14,7 @@ require (
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
 	github.com/go-playground/validator/v10 v10.14.0
-	github.com/go-sql-driver/mysql v1.8.0
+	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
@@ -37,8 +37,8 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
-	gorm.io/driver/mysql v1.5.5
-	gorm.io/gorm v1.25.8
+	gorm.io/driver/mysql v1.5.6
+	gorm.io/gorm v1.25.9
 )
 
 require (

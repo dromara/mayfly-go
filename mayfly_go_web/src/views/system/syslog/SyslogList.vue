@@ -43,7 +43,7 @@ const columns = [
     TableColumn.new('type', '结果').typeTag(LogTypeEnum),
     TableColumn.new('description', '描述'),
     TableColumn.new('reqParam', '操作信息').canBeautify(),
-    TableColumn.new('resp', '响应信息'),
+    TableColumn.new('resp', '响应信息').canBeautify(),
 ];
 
 const state = reactive({

@@ -124,6 +124,8 @@ function initTerm() {
     state.addon.fit = fitAddon;
     term.loadAddon(fitAddon);
     fitTerminal();
+    // 注册窗口大小监听器
+    useEventListener('resize', debounce(fitTerminal, 400));
 
     // 注册搜索组件
     const searchAddon = new SearchAddon();
@@ -148,10 +150,11 @@ function initTerm() {
 }
 
 function initSocket() {
-    if (props.socketUrl) {
-        socket = new WebSocket(`${props.socketUrl}&rows=${term?.rows}&cols=${term?.cols}`);
+    if (!props.socketUrl) {
+        return;
     }
 
+    socket = new WebSocket(`${props.socketUrl}&rows=${term?.rows}&cols=${term?.cols}`);
     // 监听socket连接
     socket.onopen = () => {
         // 注册心跳
@@ -162,8 +165,6 @@ function initSocket() {
         term.onResize((event) => sendResize(event.cols, event.rows));
         term.onData((event) => sendCmd(event));
 
-        // // 注册窗口大小监听器
-        useEventListener('resize', debounce(fitTerminal, 400));
         focus();
 
         // 如果有初始要执行的命令，则发送执行命令
@@ -187,9 +188,18 @@ function initSocket() {
     // 监听socket消息
     socket.onmessage = (msg: any) => {
         // msg.data是真正后端返回的数据
-        term.write(msg.data);
+        write2Term(msg.data);
     };
 }
+
+// 写入内容至终端
+const write2Term = (data: any) => {
+    term.write(data);
+};
+
+const writeln2Term = (data: any) => {
+    term.writeln(data);
+};
 
 const getTerminalTheme = () => {
     const terminalTheme = themeConfig.value.terminalTheme;
@@ -229,7 +239,7 @@ enum MsgType {
 }
 
 const send = (msg: any) => {
-    state.status == TerminalStatus.Connected && socket.send(msg);
+    state.status == TerminalStatus.Connected && socket?.send(msg);
 };
 
 const sendResize = (cols: number, rows: number) => {
@@ -266,7 +276,7 @@ const getStatus = (): TerminalStatus => {
     return state.status;
 };
 
-defineExpose({ init, fitTerminal, focus, clear, close, getStatus, sendResize });
+defineExpose({ init, fitTerminal, focus, clear, close, getStatus, sendResize, write2Term, writeln2Term });
 </script>
 <style lang="scss">
 #terminal-body {
@@ -276,9 +286,9 @@ defineExpose({ init, fitTerminal, focus, clear, close, getStatus, sendResize });
         width: 100%;
         height: 100%;
 
-        .xterm .xterm-viewport {
-            overflow-y: hidden;
-        }
+        // .xterm .xterm-viewport {
+        //     overflow-y: hidden;
+        // }
     }
 }
 </style>

@@ -153,18 +153,16 @@ func (d *DbConn) Close() {
 
 // 游标方式遍历查询rows, walkFn error不为nil, 则跳出遍历
 func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn WalkQueryRowsFunc, args ...any) error {
-	rows, err := db.QueryContext(ctx, selectSql, args...)
+	cancelCtx, cancelFunc := context.WithCancel(ctx)
+	defer cancelFunc()
 
+	rows, err := db.QueryContext(cancelCtx, selectSql, args...)
 	if err != nil {
 		return err
 	}
 	// rows对象一定要close掉，如果出错，不关掉则会很迅速的达到设置最大连接数，
 	// 后面的链接过来直接报错或拒绝，实际上也没有起效果
-	defer func() {
-		if rows != nil {
-			rows.Close()
-		}
-	}()
+	defer rows.Close()
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
@@ -200,7 +198,8 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 			rowData[cols[i].Name] = valueConvert(v, colTypes[i])
 		}
 		if err = walkFn(rowData, cols); err != nil {
-			logx.Errorf("游标遍历查询结果集出错,退出遍历: %s", err.Error())
+			logx.ErrorfContext(ctx, "游标遍历查询结果集出错, 退出遍历: %s", err.Error())
+			cancelFunc()
 			return err
 		}
 	}

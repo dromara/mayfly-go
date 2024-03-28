@@ -15,4 +15,6 @@ func InitSyslogRouter(router *gin.RouterGroup) {
 	biz.ErrIsNil(ioc.Inject(s))
 
 	req.NewGet("", s.Syslogs).Group(sysG)
+
+	req.NewGet("/:id", s.SyslogDetail).Group(sysG)
 }

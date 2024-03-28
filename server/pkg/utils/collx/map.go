@@ -42,3 +42,16 @@ func MapValues[M ~map[K]V, K comparable, V any](m M) []V {
 	}
 	return r
 }
+
+// MapMerge maps merge, 若存在重复的key，则以最后的map值为准
+func MapMerge[M ~map[K]V, K comparable, V any](maps ...M) M {
+	mergedMap := make(M)
+
+	for _, m := range maps {
+		for k, v := range m {
+			mergedMap[k] = v
+		}
+	}
+
+	return mergedMap
+}

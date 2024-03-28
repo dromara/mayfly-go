@@ -3,14 +3,16 @@ package vo
 import "time"
 
 type DataSyncTaskListVO struct {
-	Id           *int64     `json:"id"`
-	TaskName     *string    `json:"taskName"`
+	Id           int64      `json:"id"`
+	TaskName     string     `json:"taskName"`
+	CreateTime   *time.Time `json:"createTime"`
+	Creator      string     `json:"creator"`
 	UpdateTime   *time.Time `json:"updateTime"`
 	ModifierId   uint64     `json:"modifierId"`
 	Modifier     string     `json:"modifier"`
-	RecentState  *int       `json:"recentState"`
-	RunningState *int       `json:"runningState"`
-	Status       *int       `json:"status"`
+	RecentState  int        `json:"recentState"`
+	RunningState int        `json:"runningState"`
+	Status       int        `json:"status"`
 }
 
 type DataSyncLogListVO struct {

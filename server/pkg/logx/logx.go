@@ -48,6 +48,10 @@ func DebugContext(ctx context.Context, msg string, args ...any) {
 	Log(ctx, slog.LevelDebug, msg, args...)
 }
 
+func DebugfContext(ctx context.Context, format string, args ...any) {
+	Log(ctx, slog.LevelDebug, fmt.Sprintf(format, args...))
+}
+
 func Debugf(format string, args ...any) {
 	Log(context.Background(), slog.LevelDebug, fmt.Sprintf(format, args...))
 }
@@ -69,6 +73,10 @@ func InfoContext(ctx context.Context, msg string, args ...any) {
 	Log(ctx, slog.LevelInfo, msg, args...)
 }
 
+func InfofContext(ctx context.Context, format string, args ...any) {
+	Log(ctx, slog.LevelInfo, fmt.Sprintf(format, args...))
+}
+
 func Infof(format string, args ...any) {
 	Log(context.Background(), slog.LevelInfo, fmt.Sprintf(format, args...))
 }
@@ -85,6 +93,10 @@ func WarnContext(ctx context.Context, msg string, args ...any) {
 	Log(ctx, slog.LevelWarn, msg, args...)
 }
 
+func WarnfContext(ctx context.Context, format string, args ...any) {
+	Log(ctx, slog.LevelWarn, fmt.Sprintf(format, args...))
+}
+
 func Warnf(format string, args ...any) {
 	Log(context.Background(), slog.LevelWarn, fmt.Sprintf(format, args...))
 }
@@ -99,6 +111,10 @@ func Error(msg string, args ...any) {
 
 func ErrorContext(ctx context.Context, msg string, args ...any) {
 	Log(ctx, slog.LevelError, msg, args...)
+}
+
+func ErrorfContext(ctx context.Context, format string, args ...any) {
+	Log(ctx, slog.LevelError, fmt.Sprintf(format, args...))
 }
 
 func Errorf(format string, args ...any) {
