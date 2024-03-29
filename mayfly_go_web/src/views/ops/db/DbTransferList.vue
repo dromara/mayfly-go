@@ -73,8 +73,8 @@ const perms = {
 const searchItems = [SearchItem.input('name', '名称')];
 
 const columns = ref([
-    TableColumn.new('srcDb', '源库').setMinWidth(250).isSlot(),
-    TableColumn.new('targetDb', '目标库').setMinWidth(250).isSlot(),
+    TableColumn.new('srcDb', '源库').setMinWidth(200).isSlot(),
+    TableColumn.new('targetDb', '目标库').setMinWidth(200).isSlot(),
     TableColumn.new('runningState', '执行状态').typeTag(DbTransferRunningStateEnum),
     TableColumn.new('creator', '创建人'),
     TableColumn.new('createTime', '创建时间').isTime(),

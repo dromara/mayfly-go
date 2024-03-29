@@ -2,7 +2,13 @@
     <div>
         <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px">
             <monaco-editor height="300px" class="codesql" language="sql" v-model="sqlValue" />
-            <el-input @keyup.enter="runSql" ref="remarkInputRef" v-model="remark" placeholder="请输入执行备注" class="mt5" />
+            <el-input
+                @keyup.enter="runSql"
+                ref="remarkInputRef"
+                v-model="remark"
+                :placeholder="props.flowProcdefKey ? '执行备注（必填）' : '执行备注（选填）'"
+                class="mt5"
+            />
 
             <div v-if="props.flowProcdefKey">
                 <el-divider content-position="left">审批节点</el-divider>
@@ -52,7 +58,8 @@ onMounted(() => {
  * 执行sql
  */
 const runSql = async () => {
-    if (!state.remark) {
+    // 存在流程审批，则备注为必填
+    if (!state.remark && props.flowProcdefKey) {
         ElMessage.error('请输入执行的备注信息');
         return;
     }

@@ -62,7 +62,7 @@
                     <template #dropdown>
                         <el-dropdown-menu>
                             <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
-                            <el-dropdown-item :command="{ type: 'dumpDb', data }" v-if="supportAction('dumpDb', data.type)"> 导出 </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'dumpDb', data }"> 导出 </el-dropdown-item>
                             <el-dropdown-item :command="{ type: 'backupDb', data }" v-if="actionBtns[perms.backupDb] && supportAction('backupDb', data.type)">
                                 备份任务
                             </el-dropdown-item>

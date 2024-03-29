@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
+	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
@@ -16,7 +17,6 @@ import (
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/structx"
 	"mayfly-go/pkg/utils/timex"
-	"sync"
 	"time"
 )
 
@@ -48,15 +48,15 @@ type Syslog interface {
 	// AppendLog 追加日志信息
 	AppendLog(logId uint64, appendLog *AppendLogReq)
 
-	// Flush 实时追加的日志到库里
-	Flush(logId uint64)
+	// SetExtra 设置指定日志的extra信息, val为空则移除该key
+	SetExtra(logId uint64, key string, val any)
+
+	// Flush 实时追加的日志到数据库里
+	Flush(logId uint64, clearExtra bool)
 }
 
 type syslogAppImpl struct {
 	SyslogRepo repository.Syslog `inject:""`
-
-	appendLogs map[uint64]*entity.SysLog
-	rwLock     sync.RWMutex
 }
 
 func (m *syslogAppImpl) GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
@@ -110,17 +110,14 @@ func (m *syslogAppImpl) SaveFromReq(req *req.Ctx) {
 }
 
 func (m *syslogAppImpl) GetLogDetail(logId uint64) *entity.SysLog {
-	syslog := new(entity.SysLog)
+	syslog := m.GetCacheLog(logId)
+	if syslog != nil {
+		return syslog
+	}
+	syslog = new(entity.SysLog)
 	if err := m.SyslogRepo.GetById(syslog, logId); err != nil {
 		return nil
 	}
-
-	if syslog.Type == entity.SyslogTypeRunning {
-		m.rwLock.RLock()
-		defer m.rwLock.RUnlock()
-		return m.appendLogs[logId]
-	}
-
 	return syslog
 }
 
@@ -128,7 +125,7 @@ func (m *syslogAppImpl) CreateLog(ctx context.Context, log *CreateLogReq) (uint6
 	syslog := new(entity.SysLog)
 	structx.Copy(syslog, log)
 	syslog.ReqParam = anyx.ToString(log.ReqParam)
-	if log.Extra != nil {
+	if len(log.Extra) > 0 {
 		syslog.Extra = jsonx.ToStr(log.Extra)
 	}
 	if err := m.SyslogRepo.Insert(ctx, syslog); err != nil {
@@ -138,34 +135,52 @@ func (m *syslogAppImpl) CreateLog(ctx context.Context, log *CreateLogReq) (uint6
 }
 
 func (m *syslogAppImpl) AppendLog(logId uint64, appendLog *AppendLogReq) {
-	m.rwLock.Lock()
-	defer m.rwLock.Unlock()
-
-	if m.appendLogs == nil {
-		m.appendLogs = make(map[uint64]*entity.SysLog)
-	}
-
-	syslog := m.appendLogs[logId]
+	syslog := m.GetCacheLog(logId)
 	if syslog == nil {
 		syslog = new(entity.SysLog)
 		if err := m.SyslogRepo.GetById(syslog, logId); err != nil {
 			logx.Warnf("追加日志不存在: %d", logId)
 			return
 		}
-		m.appendLogs[logId] = syslog
 	}
 
 	appendLogMsg := fmt.Sprintf("%s %s", timex.DefaultFormat(time.Now()), appendLog.AppendResp)
 	syslog.Resp = fmt.Sprintf("%s\n%s", syslog.Resp, appendLogMsg)
 	syslog.Type = appendLog.Type
-	if appendLog.Extra != nil {
+	if len(appendLog.Extra) > 0 {
 		existExtra := jsonx.ToMap(syslog.Extra)
 		syslog.Extra = jsonx.ToStr(collx.MapMerge(existExtra, appendLog.Extra))
 	}
+
+	m.SetCacheLog(logId, syslog)
 }
 
-func (m *syslogAppImpl) Flush(logId uint64) {
-	syslog := m.appendLogs[logId]
+func (m *syslogAppImpl) SetExtra(logId uint64, key string, val any) {
+	syslog := m.GetCacheLog(logId)
+	if syslog == nil {
+		syslog = new(entity.SysLog)
+		if err := m.SyslogRepo.GetById(syslog, logId); err != nil {
+			logx.Warnf("追加日志不存在: %d", logId)
+			return
+		}
+	}
+
+	extraMap := jsonx.ToMap(syslog.Extra)
+	if extraMap == nil {
+		extraMap = make(map[string]any)
+	}
+	if anyx.IsBlank(val) {
+		delete(extraMap, key)
+	} else {
+		extraMap[key] = val
+	}
+	syslog.Extra = jsonx.ToStr(extraMap)
+
+	m.SetCacheLog(logId, syslog)
+}
+
+func (m *syslogAppImpl) Flush(logId uint64, clearExtra bool) {
+	syslog := m.GetCacheLog(logId)
 	if syslog == nil {
 		return
 	}
@@ -175,6 +190,29 @@ func (m *syslogAppImpl) Flush(logId uint64) {
 		syslog.Type = entity.SyslogTypeSuccess
 	}
 
+	if clearExtra {
+		syslog.Extra = ""
+	}
 	m.SyslogRepo.UpdateById(context.Background(), syslog)
-	delete(m.appendLogs, logId)
+	m.DelCacheLog(logId)
+}
+
+func (m *syslogAppImpl) GetCacheLog(logId uint64) *entity.SysLog {
+	log := new(entity.SysLog)
+	if !cache.Get(getLogKey(logId), log) {
+		return nil
+	}
+	return log
+}
+
+func (m *syslogAppImpl) SetCacheLog(logId uint64, log *entity.SysLog) {
+	cache.Set(getLogKey(logId), log, time.Hour*1)
+}
+
+func (m *syslogAppImpl) DelCacheLog(logId uint64) {
+	cache.Del(getLogKey(logId))
+}
+
+func getLogKey(logId uint64) string {
+	return fmt.Sprintf("mayfly:syslog:%d", logId)
 }

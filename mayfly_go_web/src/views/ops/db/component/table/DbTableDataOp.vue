@@ -205,8 +205,8 @@
             </el-col>
         </el-row>
 
-        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
-            <el-row>
+        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="460px">
+            <el-row gutter="5">
                 <el-col :span="5">
                     <el-select v-model="conditionDialog.condition">
                         <el-option label="=" value="="> </el-option>

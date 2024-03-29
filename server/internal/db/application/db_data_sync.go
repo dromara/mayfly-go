@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/logx"
@@ -34,11 +35,11 @@ type DataSyncTask interface {
 
 	InitCronJob()
 
-	AddCronJob(taskEntity *entity.DataSyncTask)
+	AddCronJob(ctx context.Context, taskEntity *entity.DataSyncTask)
 
 	RemoveCronJobById(taskId uint64)
 
-	RunCronJob(id uint64) error
+	RunCronJob(ctx context.Context, id uint64) error
 
 	GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
@@ -82,7 +83,7 @@ func (app *dataSyncAppImpl) Save(ctx context.Context, taskEntity *entity.DataSyn
 	if err != nil {
 		return err
 	}
-	app.AddCronJob(task)
+	app.AddCronJob(ctx, task)
 	return nil
 }
 
@@ -94,7 +95,7 @@ func (app *dataSyncAppImpl) Delete(ctx context.Context, id uint64) error {
 	return nil
 }
 
-func (app *dataSyncAppImpl) AddCronJob(taskEntity *entity.DataSyncTask) {
+func (app *dataSyncAppImpl) AddCronJob(ctx context.Context, taskEntity *entity.DataSyncTask) {
 	key := taskEntity.TaskKey
 	// 先移除旧的任务
 	scheduler.RemoveByKey(key)
@@ -104,7 +105,7 @@ func (app *dataSyncAppImpl) AddCronJob(taskEntity *entity.DataSyncTask) {
 		taskId := taskEntity.Id
 		scheduler.AddFunByKey(key, taskEntity.TaskCron, func() {
 			logx.Infof("开始执行同步任务: %d", taskId)
-			if err := app.RunCronJob(taskId); err != nil {
+			if err := app.RunCronJob(ctx, taskId); err != nil {
 				logx.Errorf("定时执行数据同步任务失败: %s", err.Error())
 			}
 		})
@@ -125,7 +126,7 @@ func (app *dataSyncAppImpl) changeRunningState(id uint64, state int8) {
 	_ = app.UpdateById(context.Background(), task)
 }
 
-func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
+func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 	// 查询最新的任务信息
 	task, err := app.GetById(new(entity.DataSyncTask), id)
 	if err != nil {
@@ -137,7 +138,7 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
 	// 开始运行时，修改状态为运行中
 	app.changeRunningState(id, entity.DataSyncTaskRunStateRunning)
 
-	logx.Infof("开始执行数据同步任务：%s => %s", task.TaskName, task.TaskKey)
+	logx.InfofContext(ctx, "开始执行数据同步任务：%s => %s", task.TaskName, task.TaskKey)
 
 	go func() {
 		// 通过占位符格式化sql
@@ -146,7 +147,7 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
 		if task.UpdFieldVal != "0" && task.UpdFieldVal != "" && task.UpdField != "" {
 			srcConn, err := app.dbApp.GetDbConn(uint64(task.SrcDbId), task.SrcDbName)
 			if err != nil {
-				logx.Errorf("数据源连接不可用, %s", err.Error())
+				logx.ErrorfContext(ctx, "数据源连接不可用, %s", err.Error())
 				return
 			}
 
@@ -177,9 +178,10 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
 		// 组装查询sql
 		sql := fmt.Sprintf("%s %s %s %s", task.DataSql, where, updSql, orderSql)
 
-		log, err := app.doDataSync(sql, task)
+		log, err := app.doDataSync(ctx, sql, task)
 		if err != nil {
 			log.ErrText = fmt.Sprintf("执行失败: %s", err.Error())
+			logx.ErrorContext(ctx, log.ErrText)
 			log.Status = entity.DataSyncTaskStateFail
 			app.endRunning(task, log)
 		}
@@ -188,7 +190,7 @@ func (app *dataSyncAppImpl) RunCronJob(id uint64) error {
 	return nil
 }
 
-func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*entity.DataSyncLog, error) {
+func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *entity.DataSyncTask) (*entity.DataSyncLog, error) {
 	now := time.Now()
 	syncLog := &entity.DataSyncLog{
 		TaskId:      task.Id,
@@ -264,6 +266,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 
 			// 记录当前已同步的数据量
 			syncLog.ErrText = fmt.Sprintf("本次任务执行中，已同步：%d条", total)
+			logx.InfoContext(ctx, syncLog.ErrText)
 			syncLog.ResNum = total
 			app.saveLog(syncLog)
 
@@ -293,7 +296,7 @@ func (app *dataSyncAppImpl) doDataSync(sql string, task *entity.DataSyncTask) (*
 		}
 	}
 
-	logx.Infof("同步任务：[%s]，执行完毕，保存记录成功：[%d]条", task.TaskName, total)
+	logx.InfofContext(ctx, "同步任务：[%s]，执行完毕，保存记录成功：[%d]条", task.TaskName, total)
 
 	// 保存执行成功日志
 	syncLog.ErrText = fmt.Sprintf("本次任务执行成功，新数据：%d 条", total)
@@ -430,7 +433,7 @@ func (app *dataSyncAppImpl) InitCronJob() {
 
 	for {
 		for _, job := range *jobs {
-			app.AddCronJob(&job)
+			app.AddCronJob(contextx.NewTraceId(), &job)
 			add++
 		}
 		if add >= int(total) {

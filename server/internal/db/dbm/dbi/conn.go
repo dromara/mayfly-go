@@ -72,12 +72,12 @@ func (d *DbConn) Query2Struct(execSql string, dest any) error {
 	return scanAll(rows, dest, false)
 }
 
-// 游标方式遍历查询结果集, walkFn返回error不为nil, 则跳出遍历
+// WalkQueryRows 游标方式遍历查询结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
 func (d *DbConn) WalkQueryRows(ctx context.Context, querySql string, walkFn WalkQueryRowsFunc, args ...any) error {
 	return walkQueryRows(ctx, d.db, querySql, walkFn, args...)
 }
 
-// 游标方式遍历指定表的结果集, walkFn返回error不为nil, 则跳出遍历
+// WalkTableRows 游标方式遍历指定表的结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
 func (d *DbConn) WalkTableRows(ctx context.Context, tableName string, walkFn WalkQueryRowsFunc) error {
 	return d.WalkQueryRows(ctx, fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
 }
@@ -117,22 +117,22 @@ func (d *DbConn) TxExecContext(ctx context.Context, tx *sql.Tx, execSql string, 
 	return res.RowsAffected()
 }
 
-// 开启事务
+// Begin 开启事务
 func (d *DbConn) Begin() (*sql.Tx, error) {
 	return d.db.Begin()
 }
 
-// 获取数据库dialect实现接口
+// GetDialect 获取数据库dialect实现接口
 func (d *DbConn) GetDialect() Dialect {
 	return d.Info.Meta.GetDialect(d)
 }
 
-// 获取数据库MetaData
+// GetMetaData 获取数据库MetaData
 func (d *DbConn) GetMetaData() *MetaDataX {
 	return d.Info.Meta.GetMetaData(d)
 }
 
-// 返回数据库连接状态
+// Stats 返回数据库连接状态
 func (d *DbConn) Stats(ctx context.Context, execSql string, args ...any) sql.DBStats {
 	return d.db.Stats()
 }
@@ -198,7 +198,7 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 			rowData[cols[i].Name] = valueConvert(v, colTypes[i])
 		}
 		if err = walkFn(rowData, cols); err != nil {
-			logx.ErrorfContext(ctx, "游标遍历查询结果集出错, 退出遍历: %s", err.Error())
+			logx.ErrorfContext(ctx, "[%s]游标遍历查询结果集出错, 退出遍历: %s", selectSql, err.Error())
 			cancelFunc()
 			return err
 		}

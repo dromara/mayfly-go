@@ -1,8 +1,10 @@
 package cache
 
 import (
+	"encoding/json"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/rediscli"
+	"mayfly-go/pkg/utils/anyx"
 	"strconv"
 	"time"
 )
@@ -39,6 +41,19 @@ func GetInt(key string) int {
 	}
 }
 
+// Get 获取缓存值，并使用json反序列化。返回是否获取成功。若不存在或者解析失败，则返回false
+func Get[T any](key string, valPtr T) bool {
+	strVal := GetStr(key)
+	if strVal == "" {
+		return false
+	}
+	if err := json.Unmarshal([]byte(strVal), valPtr); err != nil {
+		logx.Errorf("json转换缓存中的值失败: %v", err)
+		return false
+	}
+	return true
+}
+
 // 如果系统有设置redis信息，则使用redis存，否则存于本机内存。duration == -1则为永久缓存
 func SetStr(key, value string, duration time.Duration) error {
 	if !UseRedisCache() {
@@ -46,6 +61,16 @@ func SetStr(key, value string, duration time.Duration) error {
 		return tm.Add(key, value, duration)
 	}
 	return rediscli.Set(key, value, duration)
+}
+
+// 如果系统有设置redis信息，则使用redis存，否则存于本机内存。duration == -1则为永久缓存
+func Set(key string, value any, duration time.Duration) error {
+	strVal := anyx.ToString(value)
+	if !UseRedisCache() {
+		checkCache()
+		return tm.Add(key, strVal, duration)
+	}
+	return rediscli.Set(key, strVal, duration)
 }
 
 // 删除指定key

@@ -9,13 +9,17 @@
                 </DrawerHeader>
             </template>
 
-            <TerminalBody ref="terminalRef" />
+            <el-descriptions class="mb10" :column="1" border v-if="extra">
+                <el-descriptions-item v-for="(value, key) in extra" :key="key" :span="1" :label="key">{{ value }}</el-descriptions-item>
+            </el-descriptions>
+
+            <TerminalBody class="mb10" ref="terminalRef" height="calc(100vh - 220px)" />
         </el-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import TerminalBody from './TerminalBody.vue';
 import { logApi } from '../../views/system/api';
@@ -36,6 +40,13 @@ const logId = defineModel<number>('logId', { default: 0 });
 const terminalRef: any = ref(null);
 const nowLine = ref(0);
 const log = ref({}) as any;
+
+const extra = computed(() => {
+    if (log.value?.extra) {
+        return JSON.parse(log.value.extra);
+    }
+    return null;
+});
 
 // 定时获取最新日志
 const { pause, resume } = useIntervalFn(() => {
@@ -82,9 +93,9 @@ const writeLog2Term = (log: any) => {
     const lines = log.resp.split('\n');
     for (let line of lines.slice(nowLine.value)) {
         nowLine.value += 1;
-        terminalRef.value.writeln2Term(line);
+        terminalRef.value?.writeln2Term(line);
     }
-    terminalRef.value.focus();
+    terminalRef.value?.focus();
 };
 
 const getLog = async () => {

@@ -222,6 +222,9 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *DumpDbReq) error {
 			tables[i] = table.TableName
 		}
 	}
+	if len(tables) == 0 {
+		return errorx.NewBiz("不存在可导出的表")
+	}
 
 	// 查询列信息，后面生成建表ddl和insert都需要列信息
 	columns, err := dbMeta.GetColumns(tables...)
