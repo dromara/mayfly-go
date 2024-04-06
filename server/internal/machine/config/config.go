@@ -48,7 +48,7 @@ func GetMachine() *Machine {
 	mc.UploadMaxFileSize = uploadMaxFileSize
 	mc.TermOpSaveDays = cast.ToIntD(jm["termOpSaveDays"], 30)
 	// guacd
-	mc.GuacdHost = cast.ToStringD(jm["guacdHost"], "127.0.0.1")
+	mc.GuacdHost = cast.ToString(jm["guacdHost"])
 	mc.GuacdPort = cast.ToIntD(jm["guacdPort"], 4822)
 	mc.GuacdFilePath = cast.ToStringD(jm["guacdFilePath"], "")
 	mc.GuacdRecPath = cast.ToStringD(jm["guacdRecPath"], "")

@@ -16,7 +16,6 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
-	"mayfly-go/pkg/utils/stringx"
 	"time"
 )
 
@@ -88,15 +87,21 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, me *entity.Machine, ta
 		if err == nil {
 			return errorx.NewBiz("该机器信息已存在")
 		}
-		resouceCode := stringx.Rand(16)
-		me.Code = resouceCode
+		if m.CountByCond(&entity.Machine{Code: me.Code}) > 0 {
+			return errorx.NewBiz("该编码已存在")
+		}
+
 		// 新增机器，默认启用状态
 		me.Status = entity.MachineStatusEnable
 
 		return m.Tx(ctx, func(ctx context.Context) error {
 			return m.Insert(ctx, me)
 		}, func(ctx context.Context) error {
-			return m.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeMachine, tagIds)
+			return m.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+				ResourceCode: me.Code,
+				ResourceType: consts.TagResourceTypeMachine,
+				TagIds:       tagIds,
+			})
 		})
 	}
 
@@ -111,10 +116,16 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, me *entity.Machine, ta
 
 	// 关闭连接
 	mcm.DeleteCli(me.Id)
+	// 防止误传修改
+	me.Code = ""
 	return m.Tx(ctx, func(ctx context.Context) error {
 		return m.UpdateById(ctx, me)
 	}, func(ctx context.Context) error {
-		return m.tagApp.RelateResource(ctx, oldMachine.Code, consts.TagResourceTypeMachine, tagIds)
+		return m.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+			ResourceCode: oldMachine.Code,
+			ResourceType: consts.TagResourceTypeMachine,
+			TagIds:       tagIds,
+		})
 	})
 }
 
@@ -158,8 +169,10 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 		func(ctx context.Context) error {
 			return m.DeleteById(ctx, id)
 		}, func(ctx context.Context) error {
-			var tagIds []uint64
-			return m.tagApp.RelateResource(ctx, machine.Code, consts.TagResourceTypeMachine, tagIds)
+			return m.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+				ResourceCode: machine.Code,
+				ResourceType: consts.TagResourceTypeMachine,
+			})
 		})
 }
 

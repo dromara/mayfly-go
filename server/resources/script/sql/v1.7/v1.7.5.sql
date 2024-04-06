@@ -50,7 +50,43 @@ ALTER TABLE t_sys_log ADD extra varchar(5000) NULL;
 ALTER TABLE t_sys_log MODIFY COLUMN resp text NULL;
 
 -- rdp相关
-ALTER TABLE `t_machine` ADD COLUMN `protocol` tinyint(2) NULL COMMENT '机器类型  1、SSH  2、RDP' AFTER `name`;
+ALTER TABLE `t_machine` ADD COLUMN `protocol` tinyint(2) NULL COMMENT '协议  1、SSH  2、RDP' AFTER `name`;
 update `t_machine` set `protocol` = 1 where `protocol`  is NULL;
 delete from `t_sys_config` where `key` = 'MachineConfig';
-INSERT INTO `t_sys_config` (`id`, `name`, `key`, `params`, `value`, `remark`, `permission`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`) VALUES (12, '机器相关配置', 'MachineConfig', '[{\"name\":\"终端回放存储路径\",\"model\":\"terminalRecPath\",\"placeholder\":\"终端回放存储路径\"},{\"name\":\"uploadMaxFileSize\",\"model\":\"uploadMaxFileSize\",\"placeholder\":\"允许上传的最大文件大小(1MB、2GB等)\"},{\"model\":\"termOpSaveDays\",\"name\":\"终端记录保存时间\",\"placeholder\":\"终端记录保存时间（单位天）\"},{\"model\":\"guacdHost\",\"name\":\"guacd服务ip\",\"placeholder\":\"guacd服务ip，默认 127.0.0.1\"},{\"name\":\"guacd服务端口\",\"model\":\"guacdPort\",\"placeholder\":\"guacd服务端口，默认 4822\"},{\"model\":\"guacdFilePath\",\"name\":\"guacd服务文件存储位置\",\"placeholder\":\"guacd服务文件存储位置，用于挂载RDP文件夹\"},{\"name\":\"guacd服务记录存储位置\",\"model\":\"guacdRecPath\",\"placeholder\":\"guacd服务记录存储位置，用于记录rdp操作记录\"}]', '{\"terminalRecPath\":\"./rec\",\"uploadMaxFileSize\":\"1000MB\",\"termOpSaveDays\":\"30\",\"guacdHost\":\"127.0.0.1\",\"guacdPort\":\"4822\",\"guacdFilePath\":\"/Users/leozy/Desktop/developer/service/guacd/rdp-file\",\"guacdRecPath\":\"/Users/leozy/Desktop/developer/service/guacd/rdp-rec\"}', '机器相关配置，如终端回放路径等', 'all', '2023-07-13 16:26:44', 1, 'admin', '2024-04-04 13:11:52', 12, 'liuzongyang', 0, NULL);
+INSERT INTO t_sys_config ( name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('机器相关配置', 'MachineConfig', '[{"name":"终端回放存储路径","model":"terminalRecPath","placeholder":"终端回放存储路径"},{"name":"uploadMaxFileSize","model":"uploadMaxFileSize","placeholder":"允许上传的最大文件大小(1MB、2GB等)"},{"model":"termOpSaveDays","name":"终端记录保存时间","placeholder":"终端记录保存时间（单位天）"},{"model":"guacdHost","name":"guacd服务ip","placeholder":"guacd服务ip，默认 127.0.0.1","required":false},{"name":"guacd服务端口","model":"guacdPort","placeholder":"guacd服务端口，默认 4822","required":false},{"model":"guacdFilePath","name":"guacd服务文件存储位置","placeholder":"guacd服务文件存储位置，用于挂载RDP文件夹"},{"name":"guacd服务记录存储位置","model":"guacdRecPath","placeholder":"guacd服务记录存储位置，用于记录rdp操作记录"}]', '{"terminalRecPath":"./rec","uploadMaxFileSize":"1000MB","termOpSaveDays":"30","guacdHost":"","guacdPort":"","guacdFilePath":"./guacd/rdp-file","guacdRecPath":"./guacd/rdp-rec"}', '机器相关配置，如终端回放路径等', 'all', '2023-07-13 16:26:44', 1, 'admin', '2024-04-06 12:25:03', 1, 'admin', 0, NULL);
+
+BEGIN;
+INSERT
+	INTO
+	t_tag_tree (pid,
+	code,
+	code_path,
+	type,
+    name,
+	create_time,
+	creator_id,
+	creator,
+	update_time,
+	modifier_id,
+	modifier,
+	is_deleted)
+select
+	tag_id,
+	resource_code,
+	CONCAT(tag_path , resource_code, '/'),
+	resource_type,
+    resource_code,
+	DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s'),
+	1,
+	'admin',
+	DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s'),
+	1,
+	'admin',
+    0
+from
+	t_tag_resource
+WHERE
+	is_deleted = 0;
+
+DROP TABLE t_tag_tree;
+COMMIT;

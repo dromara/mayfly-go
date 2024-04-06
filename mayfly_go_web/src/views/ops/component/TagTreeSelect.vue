@@ -58,7 +58,7 @@ onMounted(async () => {
         state.selectTags = props.selectTags;
     }
 
-    state.tags = await tagApi.getTagTrees.request(null);
+    state.tags = await tagApi.getTagTrees.request({ type: -1 });
 });
 
 const changeTag = () => {

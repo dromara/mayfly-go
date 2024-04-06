@@ -1,6 +1,10 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :close-on-click-modal="false" :destroy-on-close="true" :before-close="cancel" width="650px">
+        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false">
+            <template #header>
+                <DrawerHeader :header="title" :back="cancel" />
+            </template>
+
             <el-form :model="form" ref="machineForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
@@ -18,19 +22,25 @@
                                 style="width: 100%"
                             />
                         </el-form-item>
-                        <el-form-item prop="protocol" label="机器类型" required>
-                            <el-radio-group v-model="form.protocol" @change="handleChangeProtocol">
-                                <el-radio :value="1">SSH</el-radio>
-                                <el-radio :value="2">RDP</el-radio>
-                                <!-- <el-radio :value="3">VNC</el-radio> -->
-                            </el-radio-group>
+                        <el-form-item prop="code" label="编号" required>
+                            <el-input
+                                :disabled="form.id"
+                                v-model.trim="form.code"
+                                placeholder="请输入机器编号 (数字字母下划线), 不可修改"
+                                auto-complete="off"
+                            ></el-input>
                         </el-form-item>
                         <el-form-item prop="name" label="名称" required>
                             <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
                         </el-form-item>
-                        <el-form-item prop="ip" label="ip" req uired>
+                        <el-form-item prop="protocol" label="协议" required>
+                            <el-radio-group v-model="form.protocol" @change="handleChangeProtocol">
+                                <el-radio v-for="item in MachineProtocolEnum" :key="item.value" :label="item.label" :value="item.value"></el-radio>
+                            </el-radio-group>
+                        </el-form-item>
+                        <el-form-item prop="ip" label="ip" required>
                             <el-col :span="18">
-                                <el-input :disabled="form.id" v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"> </el-input>
+                                <el-input v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"> </el-input>
                             </el-col>
                             <el-col style="text-align: center" :span="1">:</el-col>
                             <el-col :span="5">
@@ -81,7 +91,7 @@
                     <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
             </template>
-        </el-dialog>
+        </el-drawer>
     </div>
 </template>
 
@@ -92,6 +102,9 @@ import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import AuthCertSelect from './authcert/AuthCertSelect.vue';
+import { MachineProtocolEnum } from './enums';
+import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { ResourceCodePattern } from '@/common/pattern';
 
 const props = defineProps({
     visible: {
@@ -116,6 +129,18 @@ const rules = {
             trigger: ['change'],
         },
     ],
+    code: [
+        {
+            required: true,
+            message: '请输入编码',
+            trigger: ['change', 'blur'],
+        },
+        {
+            pattern: ResourceCodePattern.pattern,
+            message: ResourceCodePattern.message,
+            trigger: ['blur'],
+        },
+    ],
     name: [
         {
             required: true,
@@ -134,7 +159,7 @@ const rules = {
         {
             required: true,
             message: '请输入主机ip和端口',
-            trigger: ['change', 'blur'],
+            trigger: ['blur'],
         },
     ],
     authCertId: [
@@ -263,11 +288,11 @@ const getReqForm = () => {
 };
 
 const handleChangeProtocol = (val: any) => {
-    if (val == 1) {
+    if (val == MachineProtocolEnum.Ssh.value) {
         state.form.port = 22;
-    } else if (val == 2) {
+    } else if (val == MachineProtocolEnum.Rdp.value) {
         state.form.port = 3389;
-    } else if (val == 3) {
+    } else {
         state.form.port = 5901;
     }
 };

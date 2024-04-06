@@ -14,15 +14,15 @@ import (
 )
 
 type TagTree struct {
-	TagTreeApp     application.TagTree     `inject:""`
-	TagResourceApp application.TagResource `inject:""`
+	TagTreeApp application.TagTree `inject:""`
 }
 
 func (p *TagTree) GetTagTree(rc *req.Ctx) {
+	tagType := rc.QueryInt("type")
 	// 超管返回所有标签树
 	if rc.GetLoginAccount().Id == consts.AdminId {
 		var tagTrees vo.TagTreeVOS
-		p.TagTreeApp.ListByQuery(new(entity.TagTreeQuery), &tagTrees)
+		p.TagTreeApp.ListByQuery(&entity.TagTreeQuery{Type: int8(tagType)}, &tagTrees)
 		rc.ResData = tagTrees.ToTrees(0)
 		return
 	}
@@ -36,11 +36,12 @@ func (p *TagTree) GetTagTree(rc *req.Ctx) {
 		tags := rootTag[root]
 		tags = append(tags, accountTagPath)
 		rootTag[root] = tags
-
 	}
 
 	// 获取所有以root标签开头的子标签
-	tags := p.TagTreeApp.ListTagByPath(collx.MapKeys(rootTag)...)
+	var tags []*entity.TagTree
+	p.TagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePathLikes: collx.MapKeys(rootTag), Type: int8(tagType)}, &tags)
+
 	tagTrees := make(vo.TagTreeVOS, 0)
 	for _, tag := range tags {
 		tagPath := tag.CodePath
@@ -84,8 +85,8 @@ func (p *TagTree) DelTagTree(rc *req.Ctx) {
 func (p *TagTree) TagResources(rc *req.Ctx) {
 	resourceType := int8(rc.PathParamInt("rtype"))
 	tagResources := p.TagTreeApp.GetAccountTagResources(rc.GetLoginAccount().Id, resourceType, "")
-	tagPath2Resource := collx.ArrayToMap[entity.TagResource, string](tagResources, func(tagResource entity.TagResource) string {
-		return tagResource.TagPath
+	tagPath2Resource := collx.ArrayToMap[entity.TagTree, string](tagResources, func(tagResource entity.TagTree) string {
+		return tagResource.GetParentPath()
 	})
 
 	tagPaths := collx.MapKeys(tagPath2Resource)
@@ -103,11 +104,4 @@ func (p *TagTree) CountTagResource(rc *req.Ctx) {
 		"redis":   len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeRedis, tagPath)),
 		"mongo":   len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeMongo, tagPath)),
 	}
-}
-
-// 资源标签关联信息查询
-func (p *TagTree) QueryTagResources(rc *req.Ctx) {
-	var trs []*entity.TagResource
-	p.TagResourceApp.ListByQuery(req.BindQuery(rc, new(entity.TagResourceQuery)), &trs)
-	rc.ResData = trs
 }

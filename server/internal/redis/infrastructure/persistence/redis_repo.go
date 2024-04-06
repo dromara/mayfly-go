@@ -16,11 +16,12 @@ func newRedisRepo() repository.Redis {
 	return &redisRepoImpl{base.RepoImpl[*entity.Redis]{M: new(entity.Redis)}}
 }
 
-// 分页获取机器信息列表
+// 分页获取redis信息列表
 func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := gormx.NewQuery(new(entity.Redis)).
 		Eq("id", condition.Id).
 		Like("host", condition.Host).
+		Eq("code", condition.Code).
 		In("code", condition.Codes)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }

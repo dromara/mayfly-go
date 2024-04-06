@@ -1,6 +1,8 @@
 package model
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"time"
 )
 
@@ -124,4 +126,15 @@ func GetIdByGenType(genType IdGenType) uint64 {
 		return uint64(time.Now().Unix())
 	}
 	return 0
+}
+
+type Map[K comparable, V any] map[K]V
+
+func (m *Map[K, V]) Scan(value any) error {
+	return json.Unmarshal(value.([]byte), m)
+
+}
+
+func (m Map[K, V]) Value() (driver.Value, error) {
+	return json.Marshal(m)
 }

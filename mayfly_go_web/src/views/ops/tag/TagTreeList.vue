@@ -43,7 +43,9 @@
                     >
                         <template #default="{ data }">
                             <span class="custom-tree-node">
-                                <span style="font-size: 13px">
+                                <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" />
+
+                                <span class="ml5">
                                     {{ data.code }}
                                     <span style="color: #3c8dbc">【</span>
                                     {{ data.name }}
@@ -61,6 +63,10 @@
                     <el-tabs @tab-change="tabChange" v-model="state.activeTabName" v-if="currentTag">
                         <el-tab-pane label="标签详情" :name="TagDetail">
                             <el-descriptions :column="2" border>
+                                <el-descriptions-item label="类型">
+                                    <EnumTag :enums="TagResourceTypeEnum" :value="currentTag.type" />
+                                </el-descriptions-item>
+
                                 <el-descriptions-item label="code">{{ currentTag.code }}</el-descriptions-item>
                                 <el-descriptions-item label="code路径">{{ currentTag.codePath }}</el-descriptions-item>
                                 <el-descriptions-item label="名称">{{ currentTag.name }}</el-descriptions-item>
@@ -73,19 +79,19 @@
                             </el-descriptions>
                         </el-tab-pane>
 
-                        <el-tab-pane :label="`机器 (${resourceCount.machine})`" :name="MachineTag">
+                        <el-tab-pane v-if="currentTag.type == TagResourceTypeEnum.Tag.value" :label="`机器 (${resourceCount.machine})`" :name="MachineTag">
                             <MachineList lazy ref="machineListRef" />
                         </el-tab-pane>
 
-                        <el-tab-pane :label="`数据库 (${resourceCount.db})`" :name="DbTag">
+                        <el-tab-pane v-if="currentTag.type == TagResourceTypeEnum.Tag.value" :label="`数据库 (${resourceCount.db})`" :name="DbTag">
                             <DbList lazy ref="dbListRef" />
                         </el-tab-pane>
 
-                        <el-tab-pane :label="`Redis (${resourceCount.redis})`" :name="RedisTag">
+                        <el-tab-pane v-if="currentTag.type == TagResourceTypeEnum.Tag.value" :label="`Redis (${resourceCount.redis})`" :name="RedisTag">
                             <RedisList lazy ref="redisListRef" />
                         </el-tab-pane>
 
-                        <el-tab-pane :label="`Mongo (${resourceCount.mongo})`" :name="MongoTag">
+                        <el-tab-pane v-if="currentTag.type == TagResourceTypeEnum.Tag.value" :label="`Mongo (${resourceCount.mongo})`" :name="MongoTag">
                             <MongoList lazy ref="mongoListRef" />
                         </el-tab-pane>
                     </el-tabs>
@@ -129,6 +135,9 @@ import MachineList from '../machine/MachineList.vue';
 import RedisList from '../redis/RedisList.vue';
 import MongoList from '../mongo/MongoList.vue';
 import DbList from '../db/DbList.vue';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import EnumTag from '@/components/enumtag/EnumTag.vue';
+import EnumValue from '@/common/Enum';
 
 interface Tree {
     id: number;
@@ -155,6 +164,10 @@ const MongoTag = 'mongoTag';
 const contextmenuAdd = new ContextmenuItem('addTag', '添加子标签')
     .withIcon('circle-plus')
     .withPermission('tag:save')
+    .withHideFunc((data: any) => {
+        // 非标签类型不可添加子标签
+        return data.type != -1;
+    })
     .withOnClick((data: any) => showSaveTagDialog(data));
 
 const contextmenuEdit = new ContextmenuItem('edit', '编辑')
@@ -167,7 +180,7 @@ const contextmenuDel = new ContextmenuItem('delete', '删除')
     .withPermission('tag:del')
     .withHideFunc((data: any) => {
         // 存在子标签，则不允许删除
-        return data.children;
+        return data.children || data.type != -1;
     })
     .withOnClick((data: any) => deleteTag(data));
 

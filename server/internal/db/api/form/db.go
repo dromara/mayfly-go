@@ -2,6 +2,7 @@ package form
 
 type DbForm struct {
 	Id             uint64   `json:"id"`
+	Code           string   `binding:"required" json:"code"`
 	Name           string   `binding:"required" json:"name"`
 	Database       string   `json:"database"`
 	Remark         string   `json:"remark"`

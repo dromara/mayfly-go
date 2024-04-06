@@ -251,10 +251,16 @@ const perms = {
     terminal: 'machine:terminal',
 };
 
-const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Machine.value), SearchItem.input('ip', 'IP'), SearchItem.input('name', '名称')];
+const searchItems = [
+    getTagPathSearchItem(TagResourceTypeEnum.Machine.value),
+    SearchItem.input('code', '编号'),
+    SearchItem.input('ip', 'IP'),
+    SearchItem.input('name', '名称'),
+];
 
 const columns = [
     TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
+    TableColumn.new('code', '编号'),
     TableColumn.new('name', '名称'),
     TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
     TableColumn.new('stat', '运行状态').isSlot().setAddWidth(55),

@@ -66,7 +66,9 @@
                     >
                         <template #default="{ data }">
                             <span class="custom-tree-node">
-                                <span style="font-size: 13px">
+                                <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" />
+
+                                <span class="font13 ml5">
                                     {{ data.code }}
                                     <span style="color: #3c8dbc">【</span>
                                     {{ data.name }}
@@ -128,6 +130,8 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { SearchItem } from '@/components/SearchForm';
 import AccountSelectFormItem from '@/views/system/account/components/AccountSelectFormItem.vue';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import EnumValue from '@/common/Enum';
 
 const teamForm: any = ref(null);
 const tagTreeRef: any = ref(null);

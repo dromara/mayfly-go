@@ -16,7 +16,7 @@ func newTagTreeRepo() repository.TagTree {
 }
 
 func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEntity any, orderBy ...string) {
-	sql := "SELECT DISTINCT(p.id), p.pid, p.code, p.code_path, p.name, p.remark, p.create_time, p.creator, p.update_time, p.modifier FROM t_tag_tree p WHERE p.is_deleted = 0 "
+	sql := "SELECT DISTINCT(p.id), p.pid, p.type, p.code, p.code_path, p.name, p.remark, p.create_time, p.creator, p.update_time, p.modifier FROM t_tag_tree p WHERE p.is_deleted = 0 "
 
 	params := make([]any, 0)
 	if condition.Name != "" {
@@ -26,6 +26,10 @@ func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEn
 	if condition.CodePath != "" {
 		sql = sql + " AND p.code_path = ?"
 		params = append(params, condition.CodePath)
+	}
+	if len(condition.Codes) > 0 {
+		sql = sql + " AND p.code IN (?)"
+		params = append(params, condition.Codes)
 	}
 	if len(condition.CodePaths) > 0 {
 		sql = sql + " AND p.code_path IN (?)"
@@ -39,6 +43,10 @@ func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEn
 		sql = sql + " AND p.pid = ?"
 		params = append(params, condition.Pid)
 	}
+	if condition.Type != 0 {
+		sql = sql + " AND p.type = ?"
+		params = append(params, condition.Type)
+	}
 	if len(condition.CodePathLikes) > 0 {
 		sql = sql + " AND ("
 		for i, v := range condition.CodePathLikes {
@@ -51,6 +59,6 @@ func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEn
 		}
 		sql = sql + ")"
 	}
-	sql = sql + " ORDER BY p.code_path"
+	sql = sql + " ORDER BY p.type, p.code_path"
 	gormx.GetListBySql2Model(sql, toEntity, params...)
 }

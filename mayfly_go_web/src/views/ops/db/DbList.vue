@@ -239,10 +239,15 @@ const perms = {
     restoreDb: 'db:restore',
 };
 
-const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Db.value), SearchItem.slot('instanceId', '实例', 'instanceSelect')];
+const searchItems = [
+    getTagPathSearchItem(TagResourceTypeEnum.Db.value),
+    SearchItem.slot('instanceId', '实例', 'instanceSelect'),
+    SearchItem.input('code', '编号'),
+];
 
 const columns = ref([
     TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
+    TableColumn.new('code', '编号'),
     TableColumn.new('name', '名称'),
     TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
     TableColumn.new('instanceName', '实例名'),

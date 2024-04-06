@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"io"
 	"mayfly-go/internal/machine/config"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"net"
 	"net/url"
 	"strconv"
+
+	"github.com/gorilla/websocket"
 )
 
 // creates the tunnel to the remote machine (via guacd)
@@ -62,7 +64,12 @@ func DoConnect(query url.Values, parameters map[string]string, machineId uint64)
 	conf.ImageMimetypes = []string{"image/jpeg", "image/png", "image/webp"}
 
 	logx.Debug("Connecting to guacd")
-	guacdAddr := fmt.Sprintf("%v:%v", config.GetMachine().GuacdHost, config.GetMachine().GuacdPort)
+
+	machineConfig := config.GetMachine()
+	if machineConfig.GuacdHost == "" {
+		return nil, errorx.NewBiz("请前往'系统配置-机器配置'中配置guacd相关信息")
+	}
+	guacdAddr := fmt.Sprintf("%v:%v", machineConfig.GuacdHost, machineConfig.GuacdPort)
 	addr, err := net.ResolveTCPAddr("tcp", guacdAddr)
 	if err != nil {
 		logx.Error("error resolving guacd address", err)

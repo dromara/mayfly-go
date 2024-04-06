@@ -2,6 +2,7 @@ package form
 
 type Redis struct {
 	Id                 uint64   `json:"id"`
+	Code               string   `json:"code" binding:"required"`
 	Name               string   `json:"name"`
 	Host               string   `json:"host" binding:"required"`
 	Username           string   `json:"username"`

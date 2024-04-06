@@ -1,5 +1,10 @@
 import { EnumValue } from '@/common/Enum';
 
+export const MachineProtocolEnum = {
+    Ssh: EnumValue.of(1, 'SSH'),
+    Rdp: EnumValue.of(2, 'RDP'),
+};
+
 // 脚本执行结果类型
 export const ScriptResultEnum = {
     Result: EnumValue.of(1, '有结果'),

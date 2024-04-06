@@ -95,17 +95,22 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds .
 		if err == nil {
 			return errorx.NewBiz("该实例已存在")
 		}
+		if r.CountByCond(&entity.Redis{Code: re.Code}) > 0 {
+			return errorx.NewBiz("该编码已存在")
+		}
+
 		if errEnc := re.PwdEncrypt(); errEnc != nil {
 			return errorx.NewBiz(errEnc.Error())
 		}
 
-		resouceCode := stringx.Rand(16)
-		re.Code = resouceCode
-
 		return r.Tx(ctx, func(ctx context.Context) error {
 			return r.Insert(ctx, re)
 		}, func(ctx context.Context) error {
-			return r.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeRedis, tagIds)
+			return r.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+				ResourceType: consts.TagResourceTypeRedis,
+				ResourceCode: re.Code,
+				TagIds:       tagIds,
+			})
 		})
 	}
 
@@ -128,10 +133,15 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds .
 	if errEnc := re.PwdEncrypt(); errEnc != nil {
 		return errorx.NewBiz(errEnc.Error())
 	}
+	re.Code = ""
 	return r.Tx(ctx, func(ctx context.Context) error {
 		return r.UpdateById(ctx, re)
 	}, func(ctx context.Context) error {
-		return r.tagApp.RelateResource(ctx, oldRedis.Code, consts.TagResourceTypeRedis, tagIds)
+		return r.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+			ResourceType: consts.TagResourceTypeRedis,
+			ResourceCode: oldRedis.Code,
+			TagIds:       tagIds,
+		})
 	})
 }
 
@@ -150,8 +160,10 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 	return r.Tx(ctx, func(ctx context.Context) error {
 		return r.DeleteById(ctx, id)
 	}, func(ctx context.Context) error {
-		var tagIds []uint64
-		return r.tagApp.RelateResource(ctx, re.Code, consts.TagResourceTypeRedis, tagIds)
+		return r.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+			ResourceType: consts.TagResourceTypeRedis,
+			ResourceCode: re.Code,
+		})
 	})
 }
 

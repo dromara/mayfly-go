@@ -14,7 +14,6 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/stringx"
 	"mayfly-go/pkg/utils/structx"
 	"sort"
 	"strings"
@@ -79,13 +78,18 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 			return errorx.NewBiz("该实例下数据库名已存在")
 		}
 
-		resouceCode := stringx.Rand(16)
-		dbEntity.Code = resouceCode
+		if d.CountByCond(&entity.Db{Code: dbEntity.Code}) > 0 {
+			return errorx.NewBiz("该编码已存在")
+		}
 
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, dbEntity)
 		}, func(ctx context.Context) error {
-			return d.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeDb, tagIds)
+			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+				ResourceCode: dbEntity.Code,
+				ResourceType: consts.TagResourceTypeDb,
+				TagIds:       tagIds,
+			})
 		})
 	}
 
@@ -116,10 +120,16 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 		d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: dbId, Db: v})
 	}
 
+	// 防止误传修改
+	dbEntity.Code = ""
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.UpdateById(ctx, dbEntity)
 	}, func(ctx context.Context) error {
-		return d.tagApp.RelateResource(ctx, old.Code, consts.TagResourceTypeDb, tagIds)
+		return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+			ResourceCode: old.Code,
+			ResourceType: consts.TagResourceTypeDb,
+			TagIds:       tagIds,
+		})
 	})
 }
 
@@ -142,8 +152,10 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 			// 删除该库下用户保存的所有sql信息
 			return d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: id})
 		}, func(ctx context.Context) error {
-			var tagIds []uint64
-			return d.tagApp.RelateResource(ctx, db.Code, consts.TagResourceTypeDb, tagIds)
+			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+				ResourceCode: db.Code,
+				ResourceType: consts.TagResourceTypeDb,
+			})
 		})
 }
 

@@ -161,6 +161,7 @@ import { TableColumn } from '@/components/pagetable';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
 import { getTagPathSearchItem } from '../component/tag';
+import { SearchItem } from '@/components/SearchForm';
 
 const props = defineProps({
     lazy: {
@@ -172,10 +173,11 @@ const props = defineProps({
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
-const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Redis.value)];
+const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Redis.value), SearchItem.input('code', '编号')];
 
 const columns = ref([
     TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
+    TableColumn.new('code', '编号'),
     TableColumn.new('name', '名称'),
     TableColumn.new('host', 'host:port'),
     TableColumn.new('mode', 'mode'),

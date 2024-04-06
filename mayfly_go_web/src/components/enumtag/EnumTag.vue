@@ -40,7 +40,7 @@ onMounted(() => {
 });
 
 const convert = (value: any) => {
-    const enumValue = EnumValue.getEnumByValue(Object.values(props.enums as any) as any, value) as any;
+    const enumValue = EnumValue.getEnumByValue(props.enums, value) as any;
     if (!enumValue) {
         state.enumLabel = '-';
         state.type = 'danger';

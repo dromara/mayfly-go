@@ -10,7 +10,6 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils/stringx"
 )
 
 type Mongo interface {
@@ -59,8 +58,10 @@ func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 			return d.DeleteById(ctx, id)
 		},
 		func(ctx context.Context) error {
-			var tagIds []uint64
-			return d.tagApp.RelateResource(ctx, mongoEntity.Code, consts.TagResourceTypeMongo, tagIds)
+			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+				ResourceType: consts.TagResourceTypeMongo,
+				ResourceCode: mongoEntity.Code,
+			})
 		})
 }
 
@@ -81,14 +82,18 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 		if err == nil {
 			return errorx.NewBiz("该名称已存在")
 		}
-
-		resouceCode := stringx.Rand(16)
-		m.Code = resouceCode
+		if d.CountByCond(&entity.Mongo{Code: m.Code}) > 0 {
+			return errorx.NewBiz("该编码已存在")
+		}
 
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, m)
 		}, func(ctx context.Context) error {
-			return d.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeMongo, tagIds)
+			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+				ResourceType: consts.TagResourceTypeMongo,
+				ResourceCode: m.Code,
+				TagIds:       tagIds,
+			})
 		})
 	}
 
@@ -103,10 +108,15 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 
 	// 先关闭连接
 	mgm.CloseConn(m.Id)
+	m.Code = ""
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.UpdateById(ctx, m)
 	}, func(ctx context.Context) error {
-		return d.tagApp.RelateResource(ctx, oldMongo.Code, consts.TagResourceTypeMongo, tagIds)
+		return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+			ResourceType: consts.TagResourceTypeMongo,
+			ResourceCode: oldMongo.Code,
+			TagIds:       tagIds,
+		})
 	})
 }
 

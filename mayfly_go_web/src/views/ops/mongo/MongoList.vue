@@ -52,6 +52,7 @@ import { TableColumn } from '@/components/pagetable';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
 import { getTagPathSearchItem } from '../component/tag';
+import { SearchItem } from '@/components/SearchForm';
 
 const MongoEdit = defineAsyncComponent(() => import('./MongoEdit.vue'));
 const MongoDbs = defineAsyncComponent(() => import('./MongoDbs.vue'));
@@ -67,10 +68,11 @@ const props = defineProps({
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
-const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Mongo.value)];
+const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Mongo.value), SearchItem.input('code', '编号')];
 
 const columns = [
     TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
+    TableColumn.new('code', '编号'),
     TableColumn.new('name', '名称'),
     TableColumn.new('uri', '连接uri'),
     TableColumn.new('createTime', '创建时间').isTime(),

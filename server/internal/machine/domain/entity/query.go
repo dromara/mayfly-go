@@ -4,6 +4,7 @@ import "time"
 
 type MachineQuery struct {
 	Ids     string `json:"ids" form:"ids"`
+	Code    string `json:"code" form:"code"`
 	Name    string `json:"name" form:"name"`
 	Status  int8   `json:"status" form:"status"`
 	Ip      string `json:"ip" form:"ip"` // IP地址

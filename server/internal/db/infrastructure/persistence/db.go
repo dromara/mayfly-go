@@ -24,6 +24,7 @@ func (d *dbRepoImpl) GetDbList(condition *entity.DbQuery, pageParam *model.PageP
 		Eq("db.instance_id", condition.InstanceId).
 		Eq("db.id", condition.Id).
 		Like("db.database", condition.Database).
+		Eq("db.code", condition.Code).
 		In("db.code", condition.Codes).
 		Eq0("db."+model.DeletedColumn, model.ModelUndeleted).
 		Eq0("inst."+model.DeletedColumn, model.ModelUndeleted)
@@ -38,6 +39,9 @@ func (d *dbRepoImpl) Count(condition *entity.DbQuery) int64 {
 	}
 	if condition.InstanceId > 0 {
 		where["instance_id"] = condition.InstanceId
+	}
+	if condition.Code != "" {
+		where["code"] = condition.Code
 	}
 	return d.CountByCond(where)
 }

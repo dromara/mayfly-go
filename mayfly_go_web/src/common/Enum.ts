@@ -22,6 +22,8 @@ export class EnumValue {
      */
     tag: EnumValueTag;
 
+    extra: any;
+
     constructor(value: any, label: string) {
         this.value = value;
         this.label = label;
@@ -53,6 +55,11 @@ export class EnumValue {
         return this;
     }
 
+    setExtra(extra: any): EnumValue {
+        this.extra = extra;
+        return this;
+    }
+
     public static of(value: any, label: string): EnumValue {
         return new EnumValue(value, label);
     }
@@ -60,11 +67,12 @@ export class EnumValue {
     /**
      * 根据枚举值获取指定枚举值对象
      *
-     * @param enumValues 所有枚举值
+     * @param enums 枚举对象
      * @param value 需要匹配的枚举值
      * @returns 枚举值对象
      */
-    static getEnumByValue(enumValues: EnumValue[], value: any): EnumValue | null {
+    static getEnumByValue(enums: any, value: any): EnumValue | null {
+        const enumValues = Object.values(enums) as any;
         for (let enumValue of enumValues) {
             if (enumValue.value == value) {
                 return enumValue;

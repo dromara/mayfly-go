@@ -20,6 +20,7 @@ func newMongoRepo() repository.Mongo {
 func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := gormx.NewQuery(new(entity.Mongo)).
 		Like("name", condition.Name).
+		Eq("code", condition.Code).
 		In("code", condition.Codes)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
