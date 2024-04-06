@@ -1,10 +1,11 @@
 package form
 
 type MachineForm struct {
-	Id   uint64 `json:"id"`
-	Name string `json:"name" binding:"required"`
-	Ip   string `json:"ip" binding:"required"`   // IP地址
-	Port int    `json:"port" binding:"required"` // 端口号
+	Id       uint64 `json:"id"`
+	Protocol int    `json:"protocol" binding:"required"`
+	Name     string `json:"name" binding:"required"`
+	Ip       string `json:"ip" binding:"required"`   // IP地址
+	Port     int    `json:"port" binding:"required"` // 端口号
 
 	// 资产授权凭证信息列表
 	AuthCertId int      `json:"authCertId"`
@@ -40,9 +41,14 @@ type MachineScriptForm struct {
 	Script      string `json:"script" binding:"required"`
 }
 
-type MachineCreateFileForm struct {
-	Path string `json:"path" binding:"required"`
-	Type string `json:"type" binding:"required"`
+type ServerFileOptionForm struct {
+	MachineId uint64 `form:"machineId"`
+	Protocol  int    `form:"protocol"`
+	Path      string `form:"path"`
+	Type      string `form:"type"`
+	Content   string `form:"content"`
+	Id        uint64 `form:"id"`
+	FileId    uint64 `form:"fileId"`
 }
 
 type MachineFileUpdateForm struct {
@@ -52,12 +58,19 @@ type MachineFileUpdateForm struct {
 }
 
 type MachineFileOpForm struct {
-	Path   []string `json:"path" binding:"required"`
-	ToPath string   `json:"toPath"`
+	Path      []string `json:"path" binding:"required"`
+	ToPath    string   `json:"toPath"`
+	MachineId uint64   `json:"machineId" binding:"required"`
+	Protocol  int      `json:"protocol" binding:"required"`
+	FileId    uint64   `json:"fileId" binding:"required"`
 }
 
 type MachineFileRename struct {
-	Oldname string `json:"oldname" binding:"required"`
+	MachineId uint64 `json:"machineId" binding:"required"`
+	Protocol  int    `json:"protocol" binding:"required"`
+	FileId    uint64 `json:"fileId" binding:"required"`
+
+	Oldname string `json:"oldname"  binding:"required"`
 	Newname string `json:"newname"  binding:"required"`
 }
 

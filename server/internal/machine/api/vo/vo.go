@@ -18,6 +18,7 @@ type MachineVO struct {
 	Id                 uint64     `json:"id"`
 	Code               string     `json:"code"`
 	Name               string     `json:"name"`
+	Protocol           int        `json:"protocol"`
 	Ip                 string     `json:"ip"`
 	Port               int        `json:"port"`
 	Username           string     `json:"username"`

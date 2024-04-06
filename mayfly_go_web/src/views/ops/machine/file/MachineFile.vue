@@ -265,26 +265,32 @@
             </template>
         </el-dialog>
 
-        <machine-file-content v-model:visible="fileContent.contentVisible" :machine-id="machineId" :file-id="fileId" :path="fileContent.path" />
+        <machine-file-content
+            v-model:visible="fileContent.contentVisible"
+            :machine-id="machineId"
+            :file-id="fileId"
+            :path="fileContent.path"
+            :protocol="protocol"
+        />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, computed } from 'vue';
-import { ElMessage, ElMessageBox, ElInput } from 'element-plus';
+import { computed, onMounted, reactive, ref, toRefs } from 'vue';
+import { ElInput, ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi } from '../api';
 
 import { joinClientParams } from '@/common/request';
 import config from '@/common/config';
-import { isTrue } from '@/common/assert';
+import { isTrue, notBlank } from '@/common/assert';
 import MachineFileContent from './MachineFileContent.vue';
-import { notBlank } from '@/common/assert';
 import { getToken } from '@/common/utils/storage';
-import { formatByteSize, convertToBytes } from '@/common/utils/format';
+import { convertToBytes, formatByteSize } from '@/common/utils/format';
 import { getMachineConfig } from '@/common/sysconfig';
 
 const props = defineProps({
     machineId: { type: Number },
+    protocol: { type: Number, default: 1 },
     fileId: { type: Number, default: 0 },
     path: { type: String, default: '' },
     isFolder: { type: Boolean, default: true },
@@ -415,6 +421,7 @@ const pasteFile = async () => {
             fileId: props.fileId,
             path: cmFile.paths,
             toPath: state.nowPath,
+            protocol: props.protocol,
         });
         ElMessage.success('粘贴成功');
         state.copyOrMvFile.paths = [];
@@ -454,15 +461,14 @@ const fileRename = async (row: any) => {
     notBlank(row.name, '新名称不能为空');
     try {
         await machineApi.renameFile.request({
-            machineId: props.machineId,
-            fileId: props.fileId,
+            machineId: parseInt(props.machineId + ''),
+            fileId: parseInt(props.fileId + ''),
             oldname: state.nowPath + pathSep + state.renameFile.oldname,
             newname: state.nowPath + pathSep + row.name,
+            protocol: props.protocol,
         });
         ElMessage.success('重命名成功');
-        // 修改路径上的文件名
-        row.path = state.nowPath + pathSep + row.name;
-        state.renameFile.oldname = '';
+        await refresh();
     } catch (e) {
         row.name = state.renameFile.oldname;
     }
@@ -502,6 +508,7 @@ const lsFile = async (path: string) => {
     const res = await machineApi.lsFile.request({
         fileId: props.fileId,
         machineId: props.machineId,
+        protocol: props.protocol,
         path,
     });
     for (const file of res) {
@@ -530,6 +537,7 @@ const getDirSize = async (data: any) => {
             machineId: props.machineId,
             fileId: props.fileId,
             path: data.path,
+            protocol: props.protocol,
         });
         data.dirSize = res;
     } finally {
@@ -547,6 +555,7 @@ const showFileStat = async (data: any) => {
             machineId: props.machineId,
             fileId: props.fileId,
             path: data.path,
+            protocol: props.protocol,
         });
         data.stat = res;
     } finally {
@@ -566,6 +575,7 @@ const createFile = async () => {
     await machineApi.createFile.request({
         machineId: props.machineId,
         id: props.fileId,
+        protocol: props.protocol,
         path,
         type,
     });
@@ -599,6 +609,7 @@ const deleteFile = async (files: any) => {
             fileId: props.fileId,
             path: files.map((x: any) => x.path),
             machineId: props.machineId,
+            protocol: props.protocol,
         });
         ElMessage.success('删除成功');
         refresh();
@@ -611,7 +622,10 @@ const deleteFile = async (files: any) => {
 
 const downloadFile = (data: any) => {
     const a = document.createElement('a');
-    a.setAttribute('href', `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/download?path=${data.path}&${joinClientParams()}`);
+    a.setAttribute(
+        'href',
+        `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/download?path=${data.path}&machineId=${props.machineId}&protocol=${props.protocol}&${joinClientParams()}`
+    );
     a.click();
 };
 
@@ -624,6 +638,9 @@ function uploadFolder(e: any) {
     // 把文件夹数据放到formData里面，下面的files和paths字段根据接口来定
     var form = new FormData();
     form.append('basePath', state.nowPath);
+    form.append('machineId', props.machineId as any);
+    form.append('protocol', props.protocol as any);
+    form.append('fileId', props.fileId as any);
 
     let totalFileSize = 0;
     for (let file of e.target.files) {
@@ -677,6 +694,7 @@ const uploadFile = (content: any) => {
     params.append('file', content.file);
     params.append('path', path);
     params.append('machineId', props.machineId as any);
+    params.append('protocol', props.protocol as any);
     params.append('fileId', props.fileId as any);
     params.append('token', token);
     machineApi.uploadFile

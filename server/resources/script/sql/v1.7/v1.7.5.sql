@@ -8,7 +8,7 @@ INSERT INTO `t_sys_config` (`name`, `key`, `params`, `value`, `remark`, `permiss
 ALTER TABLE t_db_instance CHANGE sid extra varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL COMMENT '连接需要的额外参数，如oracle数据库需要sid等';
 ALTER TABLE t_db_instance MODIFY COLUMN extra varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL COMMENT '连接需要的额外参数，如oracle数据库需要sid等';
 
-
+-- 数据迁移相关
 CREATE TABLE `t_db_transfer_task` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
   `creator_id` bigint(20) NOT NULL COMMENT '创建人id',
@@ -49,6 +49,8 @@ INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `we
 ALTER TABLE t_sys_log ADD extra varchar(5000) NULL;
 ALTER TABLE t_sys_log MODIFY COLUMN resp text NULL;
 
-
-
-
+-- rdp相关
+ALTER TABLE `t_machine` ADD COLUMN `protocol` tinyint(2) NULL COMMENT '机器类型  1、SSH  2、RDP' AFTER `name`;
+update `t_machine` set `protocol` = 1 where `protocol`  is NULL;
+delete from `t_sys_config` where `key` = 'MachineConfig';
+INSERT INTO `t_sys_config` (`id`, `name`, `key`, `params`, `value`, `remark`, `permission`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`) VALUES (12, '机器相关配置', 'MachineConfig', '[{\"name\":\"终端回放存储路径\",\"model\":\"terminalRecPath\",\"placeholder\":\"终端回放存储路径\"},{\"name\":\"uploadMaxFileSize\",\"model\":\"uploadMaxFileSize\",\"placeholder\":\"允许上传的最大文件大小(1MB、2GB等)\"},{\"model\":\"termOpSaveDays\",\"name\":\"终端记录保存时间\",\"placeholder\":\"终端记录保存时间（单位天）\"},{\"model\":\"guacdHost\",\"name\":\"guacd服务ip\",\"placeholder\":\"guacd服务ip，默认 127.0.0.1\"},{\"name\":\"guacd服务端口\",\"model\":\"guacdPort\",\"placeholder\":\"guacd服务端口，默认 4822\"},{\"model\":\"guacdFilePath\",\"name\":\"guacd服务文件存储位置\",\"placeholder\":\"guacd服务文件存储位置，用于挂载RDP文件夹\"},{\"name\":\"guacd服务记录存储位置\",\"model\":\"guacdRecPath\",\"placeholder\":\"guacd服务记录存储位置，用于记录rdp操作记录\"}]', '{\"terminalRecPath\":\"./rec\",\"uploadMaxFileSize\":\"1000MB\",\"termOpSaveDays\":\"30\",\"guacdHost\":\"127.0.0.1\",\"guacdPort\":\"4822\",\"guacdFilePath\":\"/Users/leozy/Desktop/developer/service/guacd/rdp-file\",\"guacdRecPath\":\"/Users/leozy/Desktop/developer/service/guacd/rdp-rec\"}', '机器相关配置，如终端回放路径等', 'all', '2023-07-13 16:26:44', 1, 'admin', '2024-04-04 13:11:52', 12, 'liuzongyang', 0, NULL);

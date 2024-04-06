@@ -13,8 +13,9 @@ import (
 
 // 机器信息
 type MachineInfo struct {
-	Id   uint64 `json:"id"`
-	Name string `json:"name"`
+	Id       uint64 `json:"id"`
+	Name     string `json:"name"`
+	Protocol int    `json:"protocol"`
 
 	Ip         string `json:"ip"` // IP地址
 	Port       int    `json:"-"`  // 端口号

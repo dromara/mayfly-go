@@ -92,7 +92,7 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // 终端不需要连接系统websocket消息
-    if (to.path != '/machine/terminal') {
+    if (to.path != '/machine/terminal' && to.path != '/machine/terminal-rdp') {
         syssocket.init();
     }
 

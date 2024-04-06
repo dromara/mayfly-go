@@ -10,8 +10,13 @@
                     :tag-path-node-type="NodeTypeTagPath"
                 >
                     <template #prefix="{ data }">
-                        <SvgIcon v-if="data.icon && data.params.status == 1" :name="data.icon.name" :color="data.icon.color" />
-                        <SvgIcon v-if="data.icon && data.params.status == -1" :name="data.icon.name" color="var(--el-color-danger)" />
+                        <SvgIcon v-if="data.icon && data.params.status == 1 && data.params.protocol == 1" :name="data.icon.name" :color="data.icon.color" />
+                        <SvgIcon
+                            v-if="data.icon && data.params.status == -1 && data.params.protocol == 1"
+                            :name="data.icon.name"
+                            color="var(--el-color-danger)"
+                        />
+                        <SvgIcon v-if="data.icon && data.params.protocol != 1" :name="data.icon.name" :color="data.icon.color" />
                     </template>
 
                     <template #suffix="{ data }">
@@ -35,7 +40,7 @@
                     >
                         <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                             <template #label>
-                                <el-popconfirm @confirm="handleReconnect(dt.key)" title="确认重新连接?">
+                                <el-popconfirm @confirm="handleReconnect(dt, true)" title="确认重新连接?">
                                     <template #reference>
                                         <el-icon class="mr5" :color="dt.status == 1 ? '#67c23a' : '#f56c6c'" :title="dt.status == 1 ? '' : '点击重连'"
                                             ><Connection />
@@ -59,12 +64,19 @@
                                 </el-popover>
                             </template>
 
-                            <div class="terminal-wrapper" style="height: calc(100vh - 155px)">
+                            <div :ref="(el: any) => setTerminalWrapperRef(el, dt.key)" class="terminal-wrapper" style="height: calc(100vh - 155px)">
                                 <TerminalBody
+                                    v-if="dt.params.protocol == 1"
                                     :mount-init="false"
                                     @status-change="terminalStatusChange(dt.key, $event)"
-                                    :ref="(el) => setTerminalRef(el, dt.key)"
+                                    :ref="(el: any) => setTerminalRef(el, dt.key)"
                                     :socket-url="dt.socketUrl"
+                                />
+                                <machine-rdp
+                                    v-if="dt.params.protocol != 1"
+                                    :machine-id="dt.params.id"
+                                    :ref="(el: any) => setTerminalRef(el, dt.key)"
+                                    @status-change="terminalStatusChange(dt.key, $event)"
                                 />
                             </div>
                         </el-tab-pane>
@@ -102,7 +114,27 @@
 
                     <script-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible" v-model:machineId="serviceDialog.machineId" />
 
-                    <file-conf-list :title="fileDialog.title" v-model:visible="fileDialog.visible" v-model:machineId="fileDialog.machineId" />
+                    <file-conf-list
+                        :title="fileDialog.title"
+                        v-model:visible="fileDialog.visible"
+                        v-model:machineId="fileDialog.machineId"
+                        :protocol="fileDialog.protocol"
+                    />
+
+                    <el-dialog
+                        destroy-on-close
+                        :title="state.filesystemDialog.title"
+                        v-model="state.filesystemDialog.visible"
+                        :close-on-click-modal="false"
+                        width="70%"
+                    >
+                        <machine-file
+                            :machine-id="state.filesystemDialog.machineId"
+                            :protocol="state.filesystemDialog.protocol"
+                            :file-id="state.filesystemDialog.fileId"
+                            :path="state.filesystemDialog.path"
+                        />
+                    </el-dialog>
 
                     <machine-stats v-model:visible="machineStatsDialog.visible" :machineId="machineStatsDialog.machineId" :title="machineStatsDialog.title" />
 
@@ -114,24 +146,26 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, defineAsyncComponent, nextTick } from 'vue';
+import { defineAsyncComponent, nextTick, reactive, ref, toRefs, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { machineApi, getMachineTerminalSocketUrl } from './api';
+import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { dateFormat } from '@/common/utils/date';
 import { hasPerms } from '@/components/auth/auth';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { NodeType, TagTreeNode } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
-import { Splitpanes, Pane } from 'splitpanes';
+import { Pane, Splitpanes } from 'splitpanes';
 import { ContextmenuItem } from '@/components/contextmenu/index';
+import TerminalBody from '@/components/terminal/TerminalBody.vue';
+import { TerminalStatus } from '@/components/terminal/common';
+import MachineRdp from '@/components/terminal-rdp/MachineRdp.vue';
+import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
 // 组件
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
 const FileConfList = defineAsyncComponent(() => import('./file/FileConfList.vue'));
 const MachineStats = defineAsyncComponent(() => import('./MachineStats.vue'));
 const MachineRec = defineAsyncComponent(() => import('./MachineRec.vue'));
 const ProcessList = defineAsyncComponent(() => import('./ProcessList.vue'));
-import TerminalBody from '@/components/terminal/TerminalBody.vue';
-import { TerminalStatus } from '@/components/terminal/common';
 
 const router = useRouter();
 
@@ -174,7 +208,16 @@ const state = reactive({
     fileDialog: {
         visible: false,
         machineId: 0,
+        protocol: 1,
         title: '',
+    },
+    filesystemDialog: {
+        visible: false,
+        machineId: 0,
+        protocol: 1,
+        title: '',
+        fileId: 0,
+        path: '',
     },
     machineStatsDialog: {
         visible: false,
@@ -206,7 +249,7 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
     return res.list.map((x: any) =>
         new TagTreeNode(x.id, x.name, NodeTypeMachine(x))
             .withParams(x)
-            .withDisabled(x.status == -1)
+            .withDisabled(x.status == -1 && x.protocol == 1)
             .withIcon({
                 name: 'Monitor',
                 color: '#409eff',
@@ -247,15 +290,27 @@ const NodeTypeMachine = (machine: any) => {
 const openTerminal = (machine: any, ex?: boolean) => {
     // 新窗口打开
     if (ex) {
-        const { href } = router.resolve({
-            path: `/machine/terminal`,
-            query: {
-                id: machine.id,
-                name: machine.name,
-            },
-        });
-        window.open(href, '_blank');
-        return;
+        if (machine.protocol == 1) {
+            const { href } = router.resolve({
+                path: `/machine/terminal`,
+                query: {
+                    id: machine.id,
+                    name: machine.name,
+                },
+            });
+            window.open(href, '_blank');
+            return;
+        } else if (machine.protocol == 2) {
+            const { href } = router.resolve({
+                path: `/machine/terminal-rdp`,
+                query: {
+                    id: machine.id,
+                    name: machine.name,
+                },
+            });
+            window.open(href, '_blank');
+            return;
+        }
     }
 
     let { name, id, username } = machine;
@@ -268,16 +323,18 @@ const openTerminal = (machine: any, ex?: boolean) => {
     // 只保留name的10个字，超出部分只保留前后4个字符，中间用省略号代替
     let label = name.length > 10 ? name.slice(0, 4) + '...' + name.slice(-4) : name;
 
-    state.tabs.set(key, {
+    let tab = {
         key,
         label: `${label}${sameIndex === 1 ? '' : ':' + sameIndex}`, // label组成为:总打开term次数+name+同一个机器打开的次数
         params: machine,
         socketUrl: getMachineTerminalSocketUrl(id),
-    });
+    };
+
+    state.tabs.set(key, tab);
     state.activeTermName = key;
 
     nextTick(() => {
-        handleReconnect(key);
+        handleReconnect(tab);
     });
 };
 
@@ -302,9 +359,21 @@ const search = async () => {
 };
 
 const showFileManage = (selectionData: any) => {
-    state.fileDialog.visible = true;
-    state.fileDialog.machineId = selectionData.id;
-    state.fileDialog.title = `${selectionData.name} => ${selectionData.ip}`;
+    if (selectionData.protocol == 1) {
+        state.fileDialog.visible = true;
+        state.fileDialog.protocol = selectionData.protocol;
+        state.fileDialog.machineId = selectionData.id;
+        state.fileDialog.title = `${selectionData.name} => ${selectionData.ip}`;
+    }
+
+    if (selectionData.protocol == 2) {
+        state.filesystemDialog.protocol = 2;
+        state.filesystemDialog.machineId = selectionData.id;
+        state.filesystemDialog.fileId = selectionData.id;
+        state.filesystemDialog.path = '/';
+        state.filesystemDialog.title = `远程桌面文件管理`;
+        state.filesystemDialog.visible = true;
+    }
 };
 
 const showInfo = (info: any) => {
@@ -337,7 +406,6 @@ const onRemoveTab = (targetName: string) => {
         } else {
             activeTermName = '';
         }
-
         let info = state.tabs.get(targetName);
         if (info) {
             terminalRefs[info.key]?.close();
@@ -349,6 +417,15 @@ const onRemoveTab = (targetName: string) => {
     }
 };
 
+watch(
+    () => state.activeTermName,
+    (newValue, oldValue) => {
+        console.log('oldValue', oldValue);
+        oldValue && terminalRefs[oldValue]?.blur && terminalRefs[oldValue]?.blur();
+        terminalRefs[newValue]?.focus && terminalRefs[newValue]?.focus();
+    }
+);
+
 const terminalStatusChange = (key: string, status: TerminalStatus) => {
     state.tabs.get(key).status = status;
 };
@@ -357,6 +434,13 @@ const terminalRefs: any = {};
 const setTerminalRef = (el: any, key: any) => {
     if (key) {
         terminalRefs[key] = el;
+    }
+};
+
+const terminalWrapperRefs: any = {};
+const setTerminalWrapperRef = (el: any, key: any) => {
+    if (key) {
+        terminalWrapperRefs[key] = el;
     }
 };
 
@@ -372,14 +456,16 @@ const fitTerminal = () => {
     setTimeout(() => {
         let info = state.tabs.get(state.activeTermName);
         if (info) {
-            terminalRefs[info.key]?.fitTerminal();
-            terminalRefs[info.key]?.focus();
+            terminalRefs[info.key]?.fitTerminal && terminalRefs[info.key]?.fitTerminal();
+            terminalRefs[info.key]?.focus && terminalRefs[info.key]?.focus();
         }
     }, 100);
 };
 
-const handleReconnect = (key: string) => {
-    terminalRefs[key].init();
+const handleReconnect = (tab: any, force = false) => {
+    let width = terminalWrapperRefs[tab.key].offsetWidth;
+    let height = terminalWrapperRefs[tab.key].offsetHeight;
+    terminalRefs[tab.key]?.init(width, height, force);
 };
 </script>
 

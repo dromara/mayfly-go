@@ -44,7 +44,7 @@
             </el-row>
 
             <el-dialog destroy-on-close :title="fileDialog.title" v-model="fileDialog.visible" :close-on-click-modal="false" width="70%">
-                <machine-file :title="fileDialog.title" :machine-id="machineId" :file-id="fileDialog.fileId" :path="fileDialog.path" />
+                <machine-file :title="fileDialog.title" :machine-id="machineId" :file-id="fileDialog.fileId" :path="fileDialog.path" :protocol="protocol" />
             </el-dialog>
 
             <machine-file-content
@@ -59,7 +59,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch } from 'vue';
+import { reactive, toRefs, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi } from '../api';
 import { FileTypeEnum } from '../enums';
@@ -68,6 +68,7 @@ import MachineFileContent from './MachineFileContent.vue';
 
 const props = defineProps({
     visible: { type: Boolean },
+    protocol: { type: Number, default: 1 },
     machineId: { type: Number },
     title: { type: String },
 });
@@ -96,6 +97,7 @@ const state = reactive({
     fileTable: [] as any,
     fileDialog: {
         visible: false,
+        protocol: 1,
         title: '',
         fileId: 0,
         path: '',

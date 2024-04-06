@@ -24,7 +24,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch } from 'vue';
+import { reactive, toRefs, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { machineApi } from '../api';
 
@@ -32,6 +32,7 @@ import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 
 const props = defineProps({
     visible: { type: Boolean, default: false },
+    protocol: { type: Number, default: 1 },
     title: { type: String, default: '' },
     machineId: { type: Number },
     fileId: { type: Number, default: 0 },
@@ -63,6 +64,7 @@ const getFileContent = async () => {
         fileId: props.fileId,
         path,
         machineId: props.machineId,
+        protocol: props.protocol,
     });
     state.fileType = getFileType(path);
     state.content = res;
@@ -79,6 +81,7 @@ const updateContent = async () => {
         id: props.fileId,
         path: props.path,
         machineId: props.machineId,
+        protocol: props.protocol,
     });
     ElMessage.success('修改成功');
     handleClose();

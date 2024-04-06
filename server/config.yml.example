@@ -9,6 +9,11 @@ server:
     enable: false
     key-file: ./default.key
     cert-file: ./default.pem
+machine:
+  # 如果需要添加rdp服务器，需要安装guacd服务，docker跑一个就行  docker run --name guacd -d -p 4822:4822 guacamole/guacd
+  # 如果连接频繁中断，重启一下guacd
+  guacd-host: 127.0.0.1
+  guacd-port: 4822
 jwt:
   # jwt key，不设置默认使用随机字符串
   key: 

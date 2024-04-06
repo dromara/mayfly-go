@@ -20,8 +20,10 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/timex"
 	"mime/multipart"
+	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -60,20 +62,19 @@ func (m *MachineFile) DeleteFile(rc *req.Ctx) {
 /***      sftp相关操作      */
 
 func (m *MachineFile) CreateFile(rc *req.Ctx) {
-	fid := GetMachineFileId(rc)
 
-	form := req.BindJsonAndValid(rc, new(form.MachineCreateFileForm))
-	path := form.Path
+	opForm := req.BindJsonAndValid(rc, new(form.ServerFileOptionForm))
+	path := opForm.Path
 
 	attrs := collx.Kvs("path", path)
 	var mi *mcm.MachineInfo
 	var err error
-	if form.Type == dir {
+	if opForm.Type == dir {
 		attrs["type"] = "目录"
-		mi, err = m.MachineFileApp.MkDir(fid, form.Path)
+		mi, err = m.MachineFileApp.MkDir(opForm.FileId, opForm.Path, opForm)
 	} else {
 		attrs["type"] = "文件"
-		mi, err = m.MachineFileApp.CreateFile(fid, form.Path)
+		mi, err = m.MachineFileApp.CreateFile(opForm.FileId, opForm.Path, opForm)
 	}
 	attrs["machine"] = mi
 	rc.ReqParam = attrs
@@ -81,10 +82,21 @@ func (m *MachineFile) CreateFile(rc *req.Ctx) {
 }
 
 func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
-	fid := GetMachineFileId(rc)
-	readPath := rc.Query("path")
+	opForm := req.BindQuery(rc, new(form.ServerFileOptionForm))
+	readPath := opForm.Path
+	// 特殊处理rdp文件
+	if opForm.Protocol == entity.MachineProtocolRdp {
+		path := m.MachineFileApp.GetRdpFilePath(opForm.MachineId, opForm.Path)
+		fi, err := os.Stat(path)
+		biz.ErrIsNilAppendErr(err, "读取文件内容失败: %s")
+		biz.IsTrue(fi.Size() < max_read_size, "文件超过1m，请使用下载查看")
+		datas, err := os.ReadFile(path)
+		biz.ErrIsNilAppendErr(err, "读取文件内容失败: %s")
+		rc.ResData = string(datas)
+		return
+	}
 
-	sftpFile, mi, err := m.MachineFileApp.ReadFile(fid, readPath)
+	sftpFile, mi, err := m.MachineFileApp.ReadFile(opForm.FileId, readPath)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
 	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
 	defer sftpFile.Close()
@@ -100,36 +112,56 @@ func (m *MachineFile) ReadFileContent(rc *req.Ctx) {
 }
 
 func (m *MachineFile) DownloadFile(rc *req.Ctx) {
-	fid := GetMachineFileId(rc)
-	readPath := rc.Query("path")
+	opForm := req.BindQuery(rc, new(form.ServerFileOptionForm))
 
-	sftpFile, mi, err := m.MachineFileApp.ReadFile(fid, readPath)
+	readPath := opForm.Path
+
+	// 截取文件名，如/usr/local/test.java -》 test.java
+	path := strings.Split(readPath, "/")
+	fileName := path[len(path)-1]
+
+	if opForm.Protocol == entity.MachineProtocolRdp {
+		path := m.MachineFileApp.GetRdpFilePath(opForm.MachineId, opForm.Path)
+		file, err := os.Open(path)
+		if err != nil {
+			return
+		}
+		defer file.Close()
+		rc.Download(file, fileName)
+		return
+	}
+
+	sftpFile, mi, err := m.MachineFileApp.ReadFile(opForm.FileId, readPath)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", readPath)
 	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
 	defer sftpFile.Close()
 
-	// 截取文件名，如/usr/local/test.java -》 test.java
-	path := strings.Split(readPath, "/")
-	rc.Download(sftpFile, path[len(path)-1])
+	rc.Download(sftpFile, fileName)
 }
 
 func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
-	fid := GetMachineFileId(rc)
-	readPath := rc.Query("path")
+	opForm := req.BindQuery(rc, new(form.ServerFileOptionForm))
+	readPath := opForm.Path
 	rc.ReqParam = fmt.Sprintf("path: %s", readPath)
 
-	if !strings.HasSuffix(readPath, "/") {
-		readPath = readPath + "/"
-	}
-	fis, err := m.MachineFileApp.ReadDir(fid, readPath)
+	fis, err := m.MachineFileApp.ReadDir(opForm.FileId, opForm)
 	biz.ErrIsNilAppendErr(err, "读取目录失败: %s")
 
 	fisVO := make([]vo.MachineFileInfo, 0)
 	for _, fi := range fis {
+		name := fi.Name()
+		if !strings.HasPrefix(name, "/") {
+			name = "/" + name
+		}
+		path := name
+		if readPath != "/" && readPath != "" {
+			path = readPath + name
+		}
+
 		fisVO = append(fisVO, vo.MachineFileInfo{
 			Name:    fi.Name(),
 			Size:    fi.Size(),
-			Path:    readPath + fi.Name(),
+			Path:    path,
 			Type:    getFileType(fi.Mode()),
 			Mode:    fi.Mode().String(),
 			ModTime: timex.DefaultFormat(fi.ModTime()),
@@ -141,30 +173,25 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 }
 
 func (m *MachineFile) GetDirSize(rc *req.Ctx) {
-	fid := GetMachineFileId(rc)
-	readPath := rc.Query("path")
+	opForm := req.BindQuery(rc, new(form.ServerFileOptionForm))
 
-	size, err := m.MachineFileApp.GetDirSize(fid, readPath)
+	size, err := m.MachineFileApp.GetDirSize(opForm.FileId, opForm)
 	biz.ErrIsNil(err)
 	rc.ResData = size
 }
 
 func (m *MachineFile) GetFileStat(rc *req.Ctx) {
-	fid := GetMachineFileId(rc)
-	readPath := rc.Query("path")
-
-	res, err := m.MachineFileApp.FileStat(fid, readPath)
+	opForm := req.BindQuery(rc, new(form.ServerFileOptionForm))
+	res, err := m.MachineFileApp.FileStat(opForm)
 	biz.ErrIsNil(err, res)
 	rc.ResData = res
 }
 
 func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
-	fid := GetMachineFileId(rc)
+	opForm := req.BindQuery(rc, new(form.ServerFileOptionForm))
+	path := opForm.Path
 
-	form := req.BindJsonAndValid(rc, new(form.MachineFileUpdateForm))
-	path := form.Path
-
-	mi, err := m.MachineFileApp.WriteFileContent(fid, path, []byte(form.Content))
+	mi, err := m.MachineFileApp.WriteFileContent(opForm.FileId, path, []byte(opForm.Content), opForm)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", path)
 	biz.ErrIsNilAppendErr(err, "打开文件失败: %s")
 }
@@ -172,6 +199,8 @@ func (m *MachineFile) WriteFileContent(rc *req.Ctx) {
 func (m *MachineFile) UploadFile(rc *req.Ctx) {
 	fid := GetMachineFileId(rc)
 	path := rc.PostForm("path")
+	protocol, err := strconv.Atoi(rc.PostForm("protocol"))
+	machineId, err := strconv.Atoi(rc.PostForm("machineId"))
 
 	fileheader, err := rc.FormFile("file")
 	biz.ErrIsNilAppendErr(err, "读取文件失败: %s")
@@ -190,7 +219,14 @@ func (m *MachineFile) UploadFile(rc *req.Ctx) {
 		}
 	}()
 
-	mi, err := m.MachineFileApp.UploadFile(fid, path, fileheader.Filename, file)
+	opForm := &form.ServerFileOptionForm{
+		FileId:    fid,
+		MachineId: uint64(machineId),
+		Protocol:  protocol,
+		Path:      path,
+	}
+
+	mi, err := m.MachineFileApp.UploadFile(fid, path, fileheader.Filename, file, opForm)
 	rc.ReqParam = collx.Kvs("machine", mi, "path", fmt.Sprintf("%s/%s", path, fileheader.Filename))
 	biz.ErrIsNilAppendErr(err, "创建文件失败: %s")
 	// 保存消息并发送文件上传成功通知
@@ -220,6 +256,18 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 	biz.IsTrue(allFileSize <= maxUploadFileSize, "文件夹总大小不能超过%d字节", maxUploadFileSize)
 
 	paths := mf.Value["paths"]
+
+	// protocol
+	protocol, err := strconv.Atoi(mf.Value["protocol"][0])
+	if protocol == entity.MachineProtocolRdp {
+		machineId, _ := strconv.Atoi(mf.Value["machineId"][0])
+		opForm := &form.ServerFileOptionForm{
+			MachineId: uint64(machineId),
+			Protocol:  protocol,
+		}
+		m.MachineFileApp.UploadFiles(basePath, fileheaders, paths, opForm)
+		return
+	}
 
 	folderName := filepath.Dir(paths[0])
 	mcli, err := m.MachineFileApp.GetMachineCli(fid, basePath+"/"+folderName)
@@ -296,38 +344,31 @@ func (m *MachineFile) UploadFolder(rc *req.Ctx) {
 }
 
 func (m *MachineFile) RemoveFile(rc *req.Ctx) {
-	fid := GetMachineFileId(rc)
-	rmForm := req.BindJsonAndValid(rc, new(form.MachineFileOpForm))
+	opForm := req.BindJsonAndValid(rc, new(form.MachineFileOpForm))
 
-	mi, err := m.MachineFileApp.RemoveFile(fid, rmForm.Path...)
-	rc.ReqParam = collx.Kvs("machine", mi, "path", rmForm.Path)
+	mi, err := m.MachineFileApp.RemoveFile(opForm)
+	rc.ReqParam = collx.Kvs("machine", mi, "path", opForm)
 	biz.ErrIsNilAppendErr(err, "删除文件失败: %s")
 }
 
 func (m *MachineFile) CopyFile(rc *req.Ctx) {
-	fid := GetMachineFileId(rc)
-	cpForm := req.BindJsonAndValid(rc, new(form.MachineFileOpForm))
-
-	mi, err := m.MachineFileApp.Copy(fid, cpForm.ToPath, cpForm.Path...)
+	opForm := req.BindJsonAndValid(rc, new(form.MachineFileOpForm))
+	mi, err := m.MachineFileApp.Copy(opForm)
 	biz.ErrIsNilAppendErr(err, "文件拷贝失败: %s")
-	rc.ReqParam = collx.Kvs("machine", mi, "cp", cpForm)
+	rc.ReqParam = collx.Kvs("machine", mi, "cp", opForm)
 }
 
 func (m *MachineFile) MvFile(rc *req.Ctx) {
-	fid := GetMachineFileId(rc)
-	cpForm := req.BindJsonAndValid(rc, new(form.MachineFileOpForm))
-
-	mi, err := m.MachineFileApp.Mv(fid, cpForm.ToPath, cpForm.Path...)
-	rc.ReqParam = collx.Kvs("machine", mi, "mv", cpForm)
+	opForm := req.BindJsonAndValid(rc, new(form.MachineFileOpForm))
+	mi, err := m.MachineFileApp.Mv(opForm)
+	rc.ReqParam = collx.Kvs("machine", mi, "mv", opForm)
 	biz.ErrIsNilAppendErr(err, "文件移动失败: %s")
 }
 
 func (m *MachineFile) Rename(rc *req.Ctx) {
-	fid := GetMachineFileId(rc)
-	rename := req.BindJsonAndValid(rc, new(form.MachineFileRename))
-
-	mi, err := m.MachineFileApp.Rename(fid, rename.Oldname, rename.Newname)
-	rc.ReqParam = collx.Kvs("machine", mi, "rename", rename)
+	renameForm := req.BindJsonAndValid(rc, new(form.MachineFileRename))
+	mi, err := m.MachineFileApp.Rename(renameForm)
+	rc.ReqParam = collx.Kvs("machine", mi, "rename", renameForm)
 	biz.ErrIsNilAppendErr(err, "文件重命名失败: %s")
 }
 

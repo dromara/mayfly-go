@@ -41,3 +41,16 @@ func ParseSize(sizeStr string) (int64, error) {
 
 	return bytes, nil
 }
+
+func FormatSize(size int64) string {
+	switch {
+	case size >= GB:
+		return fmt.Sprintf("%.2fGB", float64(size)/GB)
+	case size >= MB:
+		return fmt.Sprintf("%.2fMB", float64(size)/MB)
+	case size >= KB:
+		return fmt.Sprintf("%.2fKB", float64(size)/KB)
+	default:
+		return fmt.Sprintf("%d", size)
+	}
+}

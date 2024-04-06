@@ -50,6 +50,8 @@ type Machine interface {
 
 	// 获取机器运行时状态信息
 	GetMachineStats(machineId uint64) (*mcm.Stats, error)
+
+	ToMachineInfoById(machineId uint64) (*mcm.MachineInfo, error)
 }
 
 type machineAppImpl struct {
@@ -162,7 +164,7 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 }
 
 func (m *machineAppImpl) NewCli(machineId uint64) (*mcm.Cli, error) {
-	if mi, err := m.toMachineInfoById(machineId); err != nil {
+	if mi, err := m.ToMachineInfoById(machineId); err != nil {
 		return nil, err
 	} else {
 		return mi.Conn()
@@ -171,13 +173,13 @@ func (m *machineAppImpl) NewCli(machineId uint64) (*mcm.Cli, error) {
 
 func (m *machineAppImpl) GetCli(machineId uint64) (*mcm.Cli, error) {
 	return mcm.GetMachineCli(machineId, func(mid uint64) (*mcm.MachineInfo, error) {
-		return m.toMachineInfoById(mid)
+		return m.ToMachineInfoById(mid)
 	})
 }
 
 func (m *machineAppImpl) GetSshTunnelMachine(machineId int) (*mcm.SshTunnelMachine, error) {
 	return mcm.GetSshTunnelMachine(machineId, func(mid uint64) (*mcm.MachineInfo, error) {
-		return m.toMachineInfoById(mid)
+		return m.ToMachineInfoById(mid)
 	})
 }
 
@@ -185,7 +187,7 @@ func (m *machineAppImpl) TimerUpdateStats() {
 	logx.Debug("开始定时收集并缓存服务器状态信息...")
 	scheduler.AddFun("@every 2m", func() {
 		machineIds := new([]entity.Machine)
-		m.GetRepo().ListByCond(&entity.Machine{Status: entity.MachineStatusEnable}, machineIds, "id")
+		m.GetRepo().ListByCond(&entity.Machine{Status: entity.MachineStatusEnable, Protocol: entity.MachineProtocolSsh}, machineIds, "id")
 		for _, ma := range *machineIds {
 			go func(mid uint64) {
 				defer func() {
@@ -215,12 +217,12 @@ func (m *machineAppImpl) GetMachineStats(machineId uint64) (*mcm.Stats, error) {
 }
 
 // 生成机器信息，根据授权凭证id填充用户密码等
-func (m *machineAppImpl) toMachineInfoById(machineId uint64) (*mcm.MachineInfo, error) {
+func (m *machineAppImpl) ToMachineInfoById(machineId uint64) (*mcm.MachineInfo, error) {
 	me, err := m.GetById(new(entity.Machine), machineId)
 	if err != nil {
 		return nil, errorx.NewBiz("机器信息不存在")
 	}
-	if me.Status != entity.MachineStatusEnable {
+	if me.Status != entity.MachineStatusEnable && me.Protocol == 1 {
 		return nil, errorx.NewBiz("该机器已被停用")
 	}
 
@@ -240,6 +242,7 @@ func (m *machineAppImpl) toMachineInfo(me *entity.Machine) (*mcm.MachineInfo, er
 	mi.Username = me.Username
 	mi.TagPath = m.tagApp.ListTagPathByResource(consts.TagResourceTypeMachine, me.Code)
 	mi.EnableRecorder = me.EnableRecorder
+	mi.Protocol = me.Protocol
 
 	if me.UseAuthCert() {
 		ac, err := m.authCertApp.GetById(new(entity.AuthCert), uint64(me.AuthCertId))

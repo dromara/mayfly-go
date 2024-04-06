@@ -2,7 +2,7 @@
     <div>
         <div class="terminal-dialog-container" v-for="openTerminal of terminals" :key="openTerminal.terminalId">
             <el-dialog
-                title="终端"
+                title="SSH终端"
                 v-model="openTerminal.visible"
                 top="32px"
                 class="terminal-dialog"
@@ -92,7 +92,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive } from 'vue';
+import { reactive, toRefs } from 'vue';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { TerminalStatus } from './common';

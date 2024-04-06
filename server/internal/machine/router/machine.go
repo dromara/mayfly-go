@@ -50,5 +50,8 @@ func InitMachineRouter(router *gin.RouterGroup) {
 
 		// 终端连接
 		machines.GET(":machineId/terminal", m.WsSSH)
+
+		// 终端连接
+		machines.GET(":machineId/rdp", m.WsGuacamole)
 	}
 }

@@ -46,7 +46,7 @@ onMounted(async () => {
 
 const getSshTunnelMachines = async () => {
     if (state.sshTunnelMachineList.length == 0) {
-        const res = await machineApi.list.request({ pageNum: 1, pageSize: 100 });
+        const res = await machineApi.list.request({ pageNum: 1, pageSize: 100, ssh: 1 });
         state.sshTunnelMachineList = res.list;
     }
 };

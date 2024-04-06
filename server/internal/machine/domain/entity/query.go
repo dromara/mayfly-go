@@ -8,6 +8,7 @@ type MachineQuery struct {
 	Status  int8   `json:"status" form:"status"`
 	Ip      string `json:"ip" form:"ip"` // IP地址
 	TagPath string `json:"tagPath" form:"tagPath"`
+	Ssh     int8   `json:"ssh" form:"ssh"`
 
 	Codes []string
 }

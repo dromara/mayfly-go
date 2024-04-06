@@ -11,6 +11,7 @@ type Machine struct {
 
 	Code               string `json:"code"`
 	Name               string `json:"name"`
+	Protocol           int    `json:"protocol"`           // 连接协议 1.ssh  2.rdp
 	Ip                 string `json:"ip"`                 // IP地址
 	Port               int    `json:"port"`               // 端口号
 	Username           string `json:"username"`           // 用户名
@@ -25,6 +26,9 @@ type Machine struct {
 const (
 	MachineStatusEnable  int8 = 1  // 启用状态
 	MachineStatusDisable int8 = -1 // 禁用状态
+
+	MachineProtocolSsh = 1
+	MachineProtocolRdp = 2
 )
 
 func (m *Machine) PwdEncrypt() error {

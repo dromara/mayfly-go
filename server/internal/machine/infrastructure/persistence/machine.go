@@ -29,6 +29,11 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 		Like("name", condition.Name).
 		In("code", condition.Codes)
 
+	// 只查询ssh服务器
+	if condition.Ssh == entity.MachineProtocolSsh {
+		qd.Eq("protocol", entity.MachineProtocolSsh)
+	}
+
 	if condition.Ids != "" {
 		// ,分割id转为id数组
 		qd.In("id", collx.ArrayMap[string, uint64](strings.Split(condition.Ids, ","), func(val string) uint64 {

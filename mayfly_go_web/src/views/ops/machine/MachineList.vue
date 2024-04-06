@@ -86,9 +86,12 @@
 
             <template #action="{ data }">
                 <span v-auth="'machine:terminal'">
-                    <el-tooltip :show-after="500" content="按住ctrl则为新标签打开" placement="top">
-                        <el-button :disabled="data.status == -1" type="primary" @click="showTerminal(data, $event)" link>终端</el-button>
+                    <el-tooltip v-if="data.protocol == 1" :show-after="500" content="按住ctrl则为新标签打开" placement="top">
+                        <el-button :disabled="data.status == -1" type="primary" @click="showTerminal(data, $event)" link>SSH</el-button>
                     </el-tooltip>
+
+                    <el-button v-if="data.protocol == 2" type="primary" @click="showRDP(data)" link>RDP</el-button>
+                    <el-button v-if="data.protocol == 3" type="primary" @click="showRDP(data)" link>VNC</el-button>
 
                     <el-divider direction="vertical" border-style="dashed" />
                 </span>
@@ -111,6 +114,8 @@
                     <template #dropdown>
                         <el-dropdown-menu>
                             <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
+
+                            <el-dropdown-item :command="{ type: 'rdp-blank', data }" v-if="data.protocol == 2"> RDP(新窗口) </el-dropdown-item>
 
                             <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.updateMachine]"> 编辑 </el-dropdown-item>
 
@@ -179,14 +184,33 @@
         <machine-stats v-model:visible="machineStatsDialog.visible" :machineId="machineStatsDialog.machineId" :title="machineStatsDialog.title"></machine-stats>
 
         <machine-rec v-model:visible="machineRecDialog.visible" :machineId="machineRecDialog.machineId" :title="machineRecDialog.title"></machine-rec>
+
+        <MachineRdpDialog :title="machineRdpDialog.title" v-model:visible="machineRdpDialog.visible" v-model:machineId="machineRdpDialog.machineId">
+            <template #headerTitle="{ terminalInfo }">
+                {{ `${(terminalInfo.terminalId + '').slice(-2)}` }}
+                <el-divider direction="vertical" />
+                {{ `${terminalInfo.meta.username}@${terminalInfo.meta.ip}:${terminalInfo.meta.port}` }}
+                <el-divider direction="vertical" />
+                {{ terminalInfo.meta.name }}
+            </template>
+        </MachineRdpDialog>
+
+        <el-dialog destroy-on-close :title="filesystemDialog.title" v-model="filesystemDialog.visible" :close-on-click-modal="false" width="70%">
+            <machine-file
+                :machine-id="filesystemDialog.machineId"
+                :protocol="filesystemDialog.protocol"
+                :file-id="filesystemDialog.fileId"
+                :path="filesystemDialog.path"
+            />
+        </el-dialog>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent, Ref } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { machineApi, getMachineTerminalSocketUrl } from './api';
+import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { dateFormat } from '@/common/utils/date';
 import ResourceTags from '../component/ResourceTags.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -196,9 +220,11 @@ import { formatByteSize } from '@/common/utils/format';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { SearchItem } from '@/components/SearchForm';
 import { getTagPathSearchItem } from '../component/tag';
+import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
 
 // 组件
 const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
+const MachineRdpDialog = defineAsyncComponent(() => import('@/components/terminal-rdp/MachineRdpDialog.vue'));
 const MachineEdit = defineAsyncComponent(() => import('./MachineEdit.vue'));
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
 const FileConfList = defineAsyncComponent(() => import('./file/FileConfList.vue'));
@@ -270,6 +296,14 @@ const state = reactive({
         machineId: 0,
         title: '',
     },
+    filesystemDialog: {
+        visible: false,
+        machineId: 0,
+        protocol: 1,
+        title: '',
+        fileId: 0,
+        path: '',
+    },
     machineStatsDialog: {
         visible: false,
         stats: null,
@@ -286,9 +320,26 @@ const state = reactive({
         machineId: 0,
         title: '',
     },
+    machineRdpDialog: {
+        visible: false,
+        machineId: 0,
+        title: '',
+    },
 });
 
-const { params, infoDialog, selectionData, serviceDialog, processDialog, fileDialog, machineStatsDialog, machineEditDialog, machineRecDialog } = toRefs(state);
+const {
+    params,
+    infoDialog,
+    selectionData,
+    serviceDialog,
+    processDialog,
+    fileDialog,
+    machineStatsDialog,
+    machineEditDialog,
+    machineRecDialog,
+    machineRdpDialog,
+    filesystemDialog,
+} = toRefs(state);
 
 onMounted(async () => {
     if (!props.lazy) {
@@ -321,6 +372,14 @@ const handleCommand = (commond: any) => {
         }
         case 'terminalRec': {
             showRec(data);
+            return;
+        }
+        case 'rdp': {
+            showRDP(data);
+            return;
+        }
+        case 'rdp-blank': {
+            showRDP(data, true);
             return;
         }
     }
@@ -419,10 +478,21 @@ const submitSuccess = () => {
     search();
 };
 
-const showFileManage = (selectionData: any) => {
-    state.fileDialog.visible = true;
-    state.fileDialog.machineId = selectionData.id;
-    state.fileDialog.title = `${selectionData.name} => ${selectionData.ip}`;
+const showFileManage = (data: any) => {
+    if (data.protocol === 1) {
+        // ssh
+        state.fileDialog.visible = true;
+        state.fileDialog.machineId = data.id;
+        state.fileDialog.title = `${data.name} => ${data.ip}`;
+    } else if (data.protocol === 2) {
+        // rdp
+        state.filesystemDialog.protocol = 2;
+        state.filesystemDialog.machineId = data.id;
+        state.filesystemDialog.fileId = data.id;
+        state.filesystemDialog.path = '/';
+        state.filesystemDialog.title = `${data.name} => 远程桌面文件`;
+        state.filesystemDialog.visible = true;
+    }
 };
 
 const getStatsFontClass = (availavle: number, total: number) => {
@@ -451,6 +521,23 @@ const showRec = (row: any) => {
     state.machineRecDialog.title = `${row.name}[${row.ip}]-终端回放记录`;
     state.machineRecDialog.machineId = row.id;
     state.machineRecDialog.visible = true;
+};
+
+const showRDP = (row: any, blank = false) => {
+    if (blank) {
+        const { href } = router.resolve({
+            path: `/machine/terminal-rdp`,
+            query: {
+                id: row.id,
+                name: row.name,
+            },
+        });
+        window.open(href, '_blank');
+        return;
+    }
+    state.machineRdpDialog.title = `${row.name}[${row.ip}]-远程桌面`;
+    state.machineRdpDialog.machineId = row.id;
+    state.machineRdpDialog.visible = true;
 };
 
 defineExpose({ search });

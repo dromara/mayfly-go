@@ -42,7 +42,6 @@ export const machineApi = {
     addConf: Api.newPost('/machines/{machineId}/files'),
     // 删除配置的文件or目录
     delConf: Api.newDelete('/machines/{machineId}/files/{id}'),
-    terminal: Api.newGet('/api/machines/{id}/terminal'),
     // 机器终端操作记录列表
     termOpRecs: Api.newGet('/machines/{machineId}/term-recs'),
     // 机器终端操作记录详情
@@ -68,4 +67,8 @@ export const cronJobApi = {
 
 export function getMachineTerminalSocketUrl(machineId: any) {
     return `${config.baseWsUrl}/machines/${machineId}/terminal?${joinClientParams()}`;
+}
+
+export function getMachineRdpSocketUrl(machineId: any) {
+    return `${config.baseWsUrl}/machines/${machineId}/rdp`;
 }

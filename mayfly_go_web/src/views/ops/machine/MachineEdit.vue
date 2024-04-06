@@ -18,10 +18,17 @@
                                 style="width: 100%"
                             />
                         </el-form-item>
+                        <el-form-item prop="protocol" label="机器类型" required>
+                            <el-radio-group v-model="form.protocol" @change="handleChangeProtocol">
+                                <el-radio :value="1">SSH</el-radio>
+                                <el-radio :value="2">RDP</el-radio>
+                                <!-- <el-radio :value="3">VNC</el-radio> -->
+                            </el-radio-group>
+                        </el-form-item>
                         <el-form-item prop="name" label="名称" required>
                             <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
                         </el-form-item>
-                        <el-form-item prop="ip" label="ip" required>
+                        <el-form-item prop="ip" label="ip" req uired>
                             <el-col :span="18">
                                 <el-input :disabled="form.id" v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"> </el-input>
                             </el-col>
@@ -79,7 +86,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref } from 'vue';
+import { reactive, ref, toRefs, watch } from 'vue';
 import { machineApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
@@ -116,6 +123,13 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
+    protocol: [
+        {
+            required: true,
+            message: '请选择机器类型',
+            trigger: ['change', 'blur'],
+        },
+    ],
     ip: [
         {
             required: true,
@@ -143,27 +157,30 @@ const machineForm: any = ref(null);
 const authCertSelectRef: any = ref(null);
 const tagSelectRef: any = ref(null);
 
+const defaultForm = {
+    id: null,
+    code: '',
+    tagPath: '',
+    ip: null,
+    port: 22,
+    protocol: 1, // 1.ssh 2.rdp
+    name: null,
+    authCertId: null as any,
+    username: '',
+    password: '',
+    tagId: [],
+    remark: '',
+    sshTunnelMachineId: null as any,
+    enableRecorder: -1,
+};
+
 const state = reactive({
     dialogVisible: false,
     tabActiveName: 'basic',
     sshTunnelMachineList: [] as any,
     authCerts: [] as any,
     authType: 1,
-    form: {
-        id: null,
-        code: '',
-        tagPath: '',
-        ip: null,
-        port: 22,
-        name: null,
-        authCertId: null as any,
-        username: '',
-        password: '',
-        tagId: [],
-        remark: '',
-        sshTunnelMachineId: null as any,
-        enableRecorder: -1,
-    },
+    form: defaultForm,
     submitForm: {},
     pwd: '',
 });
@@ -176,6 +193,7 @@ const { isFetching: saveBtnLoading, execute: saveMachineExec } = machineApi.save
 watch(props, async (newValue: any) => {
     state.dialogVisible = newValue.visible;
     if (!state.dialogVisible) {
+        state.form = defaultForm;
         return;
     }
     state.tabActiveName = 'basic';
@@ -190,7 +208,6 @@ watch(props, async (newValue: any) => {
             state.authType = 1;
         }
     } else {
-        state.form = { port: 22, tagId: [] } as any;
         state.authType = 1;
     }
 });
@@ -243,6 +260,16 @@ const getReqForm = () => {
         reqForm.sshTunnelMachineId = -1;
     }
     return reqForm;
+};
+
+const handleChangeProtocol = (val: any) => {
+    if (val == 1) {
+        state.form.port = 22;
+    } else if (val == 2) {
+        state.form.port = 3389;
+    } else if (val == 3) {
+        state.form.port = 5901;
+    }
 };
 
 const cancel = () => {

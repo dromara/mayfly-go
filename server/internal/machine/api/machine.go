@@ -3,28 +3,32 @@ package api
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	"github.com/may-fly/cast"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
+	"mayfly-go/internal/machine/guac"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/ws"
+	"net/http"
 	"os"
 	"path"
 	"strconv"
 	"strings"
-
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
+	"time"
 )
 
 type Machine struct {
@@ -202,6 +206,105 @@ func (m *Machine) MachineTermOpRecord(rc *req.Ctx) {
 	bytes, err := os.ReadFile(path.Join(config.GetMachine().TerminalRecPath, termOp.RecordFilePath))
 	biz.ErrIsNilAppendErr(err, "读取终端操作记录失败: %s")
 	rc.ResData = base64.StdEncoding.EncodeToString(bytes)
+}
+
+const (
+	SocketTimeout            = 15 * time.Second
+	MaxGuacMessage           = 8192
+	websocketReadBufferSize  = MaxGuacMessage
+	websocketWriteBufferSize = MaxGuacMessage * 2
+)
+
+var (
+	sessions = guac.NewMemorySessionStore()
+)
+
+func (m *Machine) WsGuacamole(g *gin.Context) {
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  websocketReadBufferSize,
+		WriteBufferSize: websocketWriteBufferSize,
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+	wsConn, err := upgrader.Upgrade(g.Writer, g.Request, nil)
+	biz.ErrIsNil(err)
+
+	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
+	machineId := GetMachineId(rc)
+
+	mi, err := m.MachineApp.ToMachineInfoById(machineId)
+	if err != nil {
+		return
+	}
+
+	err = mi.IfUseSshTunnelChangeIpPort()
+	if err != nil {
+		return
+	}
+
+	params := make(map[string]string)
+	params["hostname"] = mi.Ip
+	params["port"] = strconv.Itoa(mi.Port)
+	params["username"] = mi.Username
+	params["password"] = mi.Password
+	params["ignore-cert"] = "true"
+
+	if mi.Protocol == 2 {
+		params["scheme"] = "rdp"
+	} else if mi.Protocol == 3 {
+		params["scheme"] = "vnc"
+	}
+
+	if mi.EnableRecorder == 1 {
+		// 操作记录 查看文档：https://guacamole.apache.org/doc/gug/configuring-guacamole.html#graphical-recording
+		params["recording-path"] = fmt.Sprintf("/rdp-rec/%d", machineId)
+		params["create-recording-path"] = "true"
+		params["recording-include-keys"] = "true"
+	}
+
+	defer func() {
+		if err = wsConn.Close(); err != nil {
+			logx.Warnf("Error closing websocket: %v", err)
+		}
+	}()
+
+	query := g.Request.URL.Query()
+	if query.Get("force") != "" {
+		// 判断是否强制连接，是的话，查询是否有正在连接的会话，有的话强制关闭
+		if cast.ToBool(query.Get("force")) {
+			tn := sessions.Get(machineId)
+			if tn != nil {
+				_ = tn.Close()
+			}
+		}
+	}
+
+	tunnel, err := guac.DoConnect(query, params, machineId)
+	if err != nil {
+		return
+	}
+	defer func() {
+		if err = tunnel.Close(); err != nil {
+			logx.Warnf("Error closing tunnel: %v", err)
+		}
+	}()
+
+	sessions.Add(machineId, wsConn, g.Request, tunnel)
+
+	defer sessions.Delete(machineId, wsConn, g.Request, tunnel)
+
+	writer := tunnel.AcquireWriter()
+	reader := tunnel.AcquireReader()
+
+	defer tunnel.ReleaseWriter()
+	defer tunnel.ReleaseReader()
+
+	go guac.WsToGuacd(wsConn, tunnel, writer)
+	guac.GuacdToWs(wsConn, tunnel, reader)
+
+	//OnConnect
+	//OnDisconnect
 }
 
 func GetMachineId(rc *req.Ctx) uint64 {
