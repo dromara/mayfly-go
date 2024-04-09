@@ -1,34 +1,35 @@
 package guac
 
 import (
-	"github.com/gorilla/websocket"
 	"net/http"
 	"sync"
+
+	"github.com/gorilla/websocket"
 )
 
 // MemorySessionStore is a simple in-memory store of connected sessions that is used by
 // the WebsocketServer to store active sessions.
 type MemorySessionStore struct {
 	sync.RWMutex
-	ConnIds map[uint64]Tunnel
+	ConnIds map[string]Tunnel
 }
 
 // NewMemorySessionStore creates a new store
 func NewMemorySessionStore() *MemorySessionStore {
 	return &MemorySessionStore{
-		ConnIds: map[uint64]Tunnel{},
+		ConnIds: map[string]Tunnel{},
 	}
 }
 
 // Get returns a connection by uuid
-func (s *MemorySessionStore) Get(id uint64) Tunnel {
+func (s *MemorySessionStore) Get(id string) Tunnel {
 	s.RLock()
 	defer s.RUnlock()
 	return s.ConnIds[id]
 }
 
 // Add inserts a new connection by uuid
-func (s *MemorySessionStore) Add(id uint64, conn *websocket.Conn, req *http.Request, tunnel Tunnel) {
+func (s *MemorySessionStore) Add(id string, conn *websocket.Conn, req *http.Request, tunnel Tunnel) {
 	s.Lock()
 	defer s.Unlock()
 	n, ok := s.ConnIds[id]
@@ -41,7 +42,7 @@ func (s *MemorySessionStore) Add(id uint64, conn *websocket.Conn, req *http.Requ
 }
 
 // Delete removes a connection by uuid
-func (s *MemorySessionStore) Delete(id uint64, conn *websocket.Conn, req *http.Request, tunnel Tunnel) {
+func (s *MemorySessionStore) Delete(id string, conn *websocket.Conn, req *http.Request, tunnel Tunnel) {
 	s.Lock()
 	defer s.Unlock()
 	n, ok := s.ConnIds[id]

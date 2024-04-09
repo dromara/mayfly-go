@@ -35,6 +35,7 @@ const props = defineProps({
     protocol: { type: Number, default: 1 },
     title: { type: String, default: '' },
     machineId: { type: Number },
+    authCertName: { type: String },
     fileId: { type: Number, default: 0 },
     path: { type: String, default: '' },
 });
@@ -64,6 +65,7 @@ const getFileContent = async () => {
         fileId: props.fileId,
         path,
         machineId: props.machineId,
+        authCertName: props.authCertName,
         protocol: props.protocol,
     });
     state.fileType = getFileType(path);
@@ -81,6 +83,7 @@ const updateContent = async () => {
         id: props.fileId,
         path: props.path,
         machineId: props.machineId,
+        authCertName: props.authCertName,
         protocol: props.protocol,
     });
     ElMessage.success('修改成功');

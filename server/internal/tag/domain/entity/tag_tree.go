@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/pkg/model"
 	"strings"
 )
@@ -9,17 +10,28 @@ import (
 type TagTree struct {
 	model.Model
 
-	Pid      uint64 `json:"pid"`
-	Type     int8   `json:"type"`     // 类型： -1.普通标签； 其他值则为对应的资源类型
-	Code     string `json:"code"`     // 标识编码, 若类型不为-1，则为对应资源编码
-	CodePath string `json:"codePath"` // 标识路径
-	Name     string `json:"name"`     // 名称
-	Remark   string `json:"remark"`   // 备注说明
+	Pid      uint64  `json:"pid"`
+	Type     TagType `json:"type"`     // 类型： -1.普通标签； 其他值则为对应的资源类型
+	Code     string  `json:"code"`     // 标识编码, 若类型不为-1，则为对应资源编码
+	CodePath string  `json:"codePath"` // 标识路径
+	Name     string  `json:"name"`     // 名称
+	Remark   string  `json:"remark"`   // 备注说明
 }
+
+type TagType int8
 
 const (
 	// 标识路径分隔符
 	CodePathSeparator = "/"
+
+	TagTypeTag     TagType = -1
+	TagTypeMachine TagType = TagType(consts.TagResourceTypeMachine)
+	TagTypeDb      TagType = TagType(consts.TagResourceTypeDb)
+	TagTypeRedis   TagType = TagType(consts.TagResourceTypeRedis)
+	TagTypeMongo   TagType = TagType(consts.TagResourceTypeMongo)
+
+	TagTypeMachineAuthCert TagType = 11 // 机器-授权凭证
+	TagTypeDbAuthCert      TagType = 21 // DB-授权凭证
 )
 
 // GetRootCode 获取根路径信息
@@ -27,19 +39,25 @@ func (pt *TagTree) GetRootCode() string {
 	return strings.Split(pt.CodePath, CodePathSeparator)[0]
 }
 
-// GetParentPath 获取父标签路径, 如CodePath = test/test1/test2/  -> test/test1/
-func (pt *TagTree) GetParentPath() string {
-	// 去掉末尾的分隔符
-	input := strings.TrimRight(pt.CodePath, CodePathSeparator)
+// GetParentPath 获取父标签路径, 如CodePath = test/test1/test2/  -> index = 0 => test/test1/  index = 1 => test/
+func (pt *TagTree) GetParentPath(index int) string {
+	// 去除末尾的斜杠
+	codePath := strings.TrimSuffix(pt.CodePath, "/")
 
-	// 查找倒数第二个连字符位置
-	lastHyphenIndex := strings.LastIndex(input, CodePathSeparator)
-	if lastHyphenIndex == -1 {
-		return ""
+	// 使用 Split 方法将路径按斜杠分割成切片
+	paths := strings.Split(codePath, "/")
+
+	// 确保索引在有效范围内
+	if index < 0 {
+		index = 0
+	} else if index > len(paths)-2 {
+		index = len(paths) - 2
 	}
 
-	// 截取字符串
-	return input[:lastHyphenIndex+1]
+	// 按索引拼接父标签路径
+	parentPath := strings.Join(paths[:len(paths)-index-1], "/")
+
+	return parentPath + "/"
 }
 
 // 标签接口资源，如果要实现资源结构体填充标签信息，则资源结构体需要实现该接口

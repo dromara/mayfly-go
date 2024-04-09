@@ -335,10 +335,6 @@ CREATE TABLE `t_machine` (
   `ip` varchar(50) NOT NULL,
   `port` int(12) NOT NULL,
   `protocol` tinyint(2) NULL COMMENT '协议  1、SSH  2、RDP',
-  `username` varchar(12) NOT NULL,
-  `auth_method` tinyint(2) DEFAULT NULL COMMENT '1.密码登录2.publickey登录',
-  `password` varchar(100) DEFAULT NULL,
-  `auth_cert_id` bigint(20) DEFAULT NULL COMMENT '授权凭证id',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
   `enable_recorder` tinyint(2) DEFAULT NULL COMMENT '是否启用终端回放记录',
   `status` tinyint(2) NOT NULL COMMENT '状态: 1:启用; -1:禁用',
@@ -893,6 +889,7 @@ DROP TABLE IF EXISTS `t_tag_tree`;
 CREATE TABLE `t_tag_tree` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `pid` bigint(20) NOT NULL DEFAULT '0',
+  `type` tinyint NOT NULL DEFAULT '-1' COMMENT '类型： -1.普通标签； 其他值则为对应的资源类型',
   `code` varchar(36) NOT NULL COMMENT '标识符',
   `code_path` varchar(255) NOT NULL COMMENT '标识符路径',
   `name` varchar(36) DEFAULT NULL COMMENT '名称',
@@ -996,6 +993,31 @@ CREATE TABLE `t_team_member` (
 BEGIN;
 INSERT INTO `t_team_member` VALUES (7, 3, 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', 0, NULL);
 COMMIT;
+
+DROP TABLE IF EXISTS `t_resource_auth_cert`;
+-- 资源授权凭证
+CREATE TABLE `t_resource_auth_cert` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '账号名称',
+  `resource_code` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '资源编码',
+  `resource_type` tinyint NOT NULL COMMENT '资源类型',
+  `type` tinyint DEFAULT NULL COMMENT '凭证类型',
+  `username` varchar(100) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '用户名',
+  `ciphertext` varchar(5000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '密文内容',
+  `ciphertext_type` tinyint NOT NULL COMMENT '密文类型（-1.公共授权凭证 1.密码 2.秘钥）',
+  `extra` varchar(200) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '账号需要的其他额外信息（如秘钥口令等）',
+  `remark` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注',
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint NOT NULL,
+  `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier_id` bigint NOT NULL,
+  `modifier` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `is_deleted` tinyint DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_resource_code` (`resource_code`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='资源授权凭证表';
 
 DROP TABLE IF EXISTS `t_flow_procdef`;
 -- 工单流程相关表

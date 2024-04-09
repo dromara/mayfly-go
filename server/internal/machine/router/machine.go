@@ -49,9 +49,9 @@ func InitMachineRouter(router *gin.RouterGroup) {
 		req.BatchSetGroup(machines, reqs[:])
 
 		// 终端连接
-		machines.GET(":machineId/terminal", m.WsSSH)
+		machines.GET("terminal/:ac", m.WsSSH)
 
 		// 终端连接
-		machines.GET(":machineId/rdp", m.WsGuacamole)
+		machines.GET("rdp/:ac", m.WsGuacamole)
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/anyx"
+	"mayfly-go/pkg/utils/collx"
 	"strings"
 	"time"
 
@@ -93,6 +95,19 @@ func ListByCond(model any, cond any, list any, cols ...string) error {
 	return global.Db.Model(model).Select(cols).Where(cond).Scopes(UndeleteScope).Order("id desc").Find(list).Error
 }
 
+// 获取满足cond中不为空的字段值条件的所有model表数据.
+//
+// @param wheres key -> "age > ?" value -> 10等
+func ListByWheres(model any, wheres collx.M, list any, cols ...string) error {
+	gdb := global.Db.Model(model).Select(cols)
+	for k, v := range wheres {
+		if !anyx.IsBlank(v) {
+			gdb.Where(k, v)
+		}
+	}
+	return gdb.Scopes(UndeleteScope).Order("id desc").Find(list).Error
+}
+
 // 获取满足model中不为空的字段值条件的所有数据.
 //
 // @param list为数组类型 如 var users *[]User，可指定为非model结构体
@@ -154,6 +169,24 @@ func UpdateByIdWithDb(db *gorm.DB, model any, columns ...string) error {
 	return db.Model(model).Select(columns).Updates(model).Error
 }
 
+// UpdateByWheres 更新满足wheres条件的数据(model的主键值需为空，否则会带上主键条件)
+// @param wheres key -> "age > ?" value -> 10等
+func UpdateByWheres(model_ any, wheres collx.M) error {
+	return UpdateByWheresWithDb(global.Db, model_, wheres)
+}
+
+// UpdateByWheresWithDb 使用指定gorm.DB更新满足wheres条件的数据(model的主键值需为空，否则会带上主键条件)
+// @param wheres key -> "age > ?" value -> 10等
+func UpdateByWheresWithDb(db *gorm.DB, model any, wheres collx.M, columns ...string) error {
+	gormDb := db.Model(model).Select(columns)
+	for k, v := range wheres {
+		if !anyx.IsBlank(v) {
+			gormDb.Where(k, v)
+		}
+	}
+	return gormDb.Updates(model).Error
+}
+
 // 根据实体条件，更新参数udpateFields指定字段
 func Updates(model any, condition any, updateFields map[string]any) error {
 	return global.Db.Model(model).Where(condition).Updates(updateFields).Error
@@ -188,6 +221,24 @@ func DeleteByCond(model_ any, cond any) error {
 // @param model  数据库映射实体模型
 func DeleteByWithDb(db *gorm.DB, model_ any) error {
 	return DeleteByCondWithDb(db, model_, model_)
+}
+
+// DeleteByWheres 使用指定wheres删除(model的主键值需为空，否则会带上主键条件)
+// @param wheres key -> "age > ?" value -> 10等
+func DeleteByWheres(model_ any, wheres collx.M) error {
+	return DeleteByWheresWithDb(global.Db, model_, wheres)
+}
+
+// DeleteByWheresWithDb 使用指定gorm.Db根据wheres条件进行删除(model的主键值需为空，否则会带上主键条件)
+// @param wheres key -> "age > ?" value -> 10等
+func DeleteByWheresWithDb(db *gorm.DB, model_ any, wheres collx.M) error {
+	gormDb := db.Model(model_)
+	for k, v := range wheres {
+		if !anyx.IsBlank(v) {
+			gormDb.Where(k, v)
+		}
+	}
+	return gormDb.Updates(getDeleteColumnValue()).Error
 }
 
 // 根据cond条件删除指定model表数据

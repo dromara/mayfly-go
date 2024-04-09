@@ -7,4 +7,5 @@ export const TagResourceTypeEnum = {
     Db: EnumValue.of(2, '数据库').setExtra({ icon: 'Coin' }),
     Redis: EnumValue.of(3, 'redis').setExtra({ icon: 'iconfont icon-redis' }),
     Mongo: EnumValue.of(4, 'mongo').setExtra({ icon: 'iconfont icon-mongo' }),
+    MachineAuthCert: EnumValue.of(11, '机器-授权凭证').setExtra({ icon: 'Ticket' }),
 };

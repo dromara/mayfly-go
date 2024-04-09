@@ -44,13 +44,21 @@
             </el-row>
 
             <el-dialog destroy-on-close :title="fileDialog.title" v-model="fileDialog.visible" :close-on-click-modal="false" width="70%">
-                <machine-file :title="fileDialog.title" :machine-id="machineId" :file-id="fileDialog.fileId" :path="fileDialog.path" :protocol="protocol" />
+                <machine-file
+                    :title="fileDialog.title"
+                    :machine-id="machineId"
+                    :auth-cert-name="props.authCertName"
+                    :file-id="fileDialog.fileId"
+                    :path="fileDialog.path"
+                    :protocol="protocol"
+                />
             </el-dialog>
 
             <machine-file-content
                 :title="fileContent.title"
                 v-model:visible="fileContent.contentVisible"
                 :machine-id="machineId"
+                :auth-cert-name="props.authCertName"
                 :file-id="fileContent.fileId"
                 :path="fileContent.path"
             />
@@ -70,6 +78,7 @@ const props = defineProps({
     visible: { type: Boolean },
     protocol: { type: Number, default: 1 },
     machineId: { type: Number },
+    authCertName: { type: String },
     title: { type: String },
 });
 

@@ -4,6 +4,7 @@
             ref="pageTableRef"
             :page-api="machineApi.list"
             :before-query-fn="checkRouteTagPath"
+            :data-handler-fn="handleData"
             :search-items="searchItems"
             v-model:query-form="params"
             :show-selection="true"
@@ -84,13 +85,17 @@
                 <ResourceTags :tags="data.tags" />
             </template>
 
+            <template #authCert="{ data }">
+                <ResourceAuthCert v-model:select-auth-cert="data.selectAuthCert" :auth-certs="data.authCerts" />
+            </template>
+
             <template #action="{ data }">
                 <span v-auth="'machine:terminal'">
-                    <el-tooltip v-if="data.protocol == 1" :show-after="500" content="按住ctrl则为新标签打开" placement="top">
+                    <el-tooltip v-if="data.protocol == MachineProtocolEnum.Ssh.value" :show-after="500" content="按住ctrl则为新标签打开" placement="top">
                         <el-button :disabled="data.status == -1" type="primary" @click="showTerminal(data, $event)" link>SSH</el-button>
                     </el-tooltip>
 
-                    <el-button v-if="data.protocol == 2" type="primary" @click="showRDP(data)" link>RDP</el-button>
+                    <el-button v-if="data.protocol == MachineProtocolEnum.Rdp.value" type="primary" @click="showRDP(data)" link>RDP</el-button>
                     <el-button v-if="data.protocol == 3" type="primary" @click="showRDP(data)" link>VNC</el-button>
 
                     <el-divider direction="vertical" border-style="dashed" />
@@ -140,11 +145,6 @@
                 <el-descriptions-item :span="2" label="IP">{{ infoDialog.data.ip }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="用户名">{{ infoDialog.data.username }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="认证方式">
-                    {{ infoDialog.data.authCertId > 1 ? '授权凭证' : '密码' }}
-                </el-descriptions-item>
-
                 <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
 
                 <el-descriptions-item :span="1.5" label="SSH隧道">{{ infoDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
@@ -162,7 +162,7 @@
             <template #headerTitle="{ terminalInfo }">
                 {{ `${(terminalInfo.terminalId + '').slice(-2)}` }}
                 <el-divider direction="vertical" />
-                {{ `${terminalInfo.meta.username}@${terminalInfo.meta.ip}:${terminalInfo.meta.port}` }}
+                {{ `${terminalInfo.meta.selectAuthCert.username}@${terminalInfo.meta.ip}:${terminalInfo.meta.port}` }}
                 <el-divider direction="vertical" />
                 {{ terminalInfo.meta.name }}
             </template>
@@ -179,7 +179,12 @@
 
         <script-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible" v-model:machineId="serviceDialog.machineId" />
 
-        <file-conf-list :title="fileDialog.title" v-model:visible="fileDialog.visible" v-model:machineId="fileDialog.machineId" />
+        <file-conf-list
+            :title="fileDialog.title"
+            v-model:visible="fileDialog.visible"
+            v-model:machineId="fileDialog.machineId"
+            :auth-cert-name="fileDialog.authCertName"
+        />
 
         <machine-stats v-model:visible="machineStatsDialog.visible" :machineId="machineStatsDialog.machineId" :title="machineStatsDialog.title"></machine-stats>
 
@@ -221,6 +226,8 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { SearchItem } from '@/components/SearchForm';
 import { getTagPathSearchItem } from '../component/tag';
 import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
+import ResourceAuthCert from '../component/ResourceAuthCert.vue';
+import { MachineProtocolEnum } from './enums';
 
 // 组件
 const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
@@ -265,7 +272,7 @@ const columns = [
     TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
     TableColumn.new('stat', '运行状态').isSlot().setAddWidth(55),
     TableColumn.new('fs', '磁盘(挂载点=>可用/总)').isSlot().setAddWidth(25),
-    TableColumn.new('username', '用户名'),
+    TableColumn.new('authCerts[0].username', '授权凭证').isSlot('authCert').setAddWidth(20),
     TableColumn.new('status', '状态').isSlot().setMinWidth(85),
     TableColumn.new('remark', '备注'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(238).fixedRight().alignCenter(),
@@ -300,6 +307,7 @@ const state = reactive({
     fileDialog: {
         visible: false,
         machineId: 0,
+        authCertName: '',
         title: '',
     },
     filesystemDialog: {
@@ -308,6 +316,7 @@ const state = reactive({
         protocol: 1,
         title: '',
         fileId: 0,
+        authCertName: '',
         path: '',
     },
     machineStatsDialog: {
@@ -360,6 +369,15 @@ const checkRouteTagPath = (query: any) => {
     return query;
 };
 
+const handleData = (res: any) => {
+    const dataList = res.list;
+    // 赋值授权凭证
+    for (let x of dataList) {
+        x.selectAuthCert = x.authCerts[0];
+    }
+    return res;
+};
+
 const handleCommand = (commond: any) => {
     const data = commond.data;
     const type = commond.type;
@@ -392,12 +410,13 @@ const handleCommand = (commond: any) => {
 };
 
 const showTerminal = (row: any, event: PointerEvent) => {
+    const ac = row.selectAuthCert.name;
     // 按住ctrl点击，则新建标签页打开, metaKey对应mac command键
     if (event.ctrlKey || event.metaKey) {
         const { href } = router.resolve({
             path: `/machine/terminal`,
             query: {
-                id: row.id,
+                ac,
                 name: row.name,
             },
         });
@@ -408,9 +427,9 @@ const showTerminal = (row: any, event: PointerEvent) => {
     const terminalId = Date.now();
     terminalDialogRef.value.open({
         terminalId,
-        socketUrl: getMachineTerminalSocketUrl(row.id),
+        socketUrl: getMachineTerminalSocketUrl(ac),
         minTitle: `${row.name} [${(terminalId + '').slice(-2)}]`, // 截取terminalId最后两位区分多个terminal
-        minDesc: `${row.username}@${row.ip}:${row.port} (${row.name})`,
+        minDesc: `${row.selectAuthCert.username}@${row.ip}:${row.port} (${row.name})`,
         meta: row,
     });
 };
@@ -485,18 +504,20 @@ const submitSuccess = () => {
 };
 
 const showFileManage = (data: any) => {
-    if (data.protocol === 1) {
+    if (data.protocol === MachineProtocolEnum.Ssh.value) {
         // ssh
         state.fileDialog.visible = true;
         state.fileDialog.machineId = data.id;
-        state.fileDialog.title = `${data.name} => ${data.ip}`;
-    } else if (data.protocol === 2) {
+        state.fileDialog.authCertName = data.selectAuthCert.name;
+        state.fileDialog.title = `${data.name} => ${data.selectAuthCert.username}@${data.ip}`;
+    } else if (data.protocol === MachineProtocolEnum.Rdp.value) {
         // rdp
         state.filesystemDialog.protocol = 2;
         state.filesystemDialog.machineId = data.id;
         state.filesystemDialog.fileId = data.id;
+        state.filesystemDialog.authCertName = data.selectAuthCert.name;
         state.filesystemDialog.path = '/';
-        state.filesystemDialog.title = `${data.name} => 远程桌面文件`;
+        state.filesystemDialog.title = `${data.name} => ${data.selectAuthCert.username}@远程桌面文件`;
         state.filesystemDialog.visible = true;
     }
 };
@@ -534,7 +555,7 @@ const showRDP = (row: any, blank = false) => {
         const { href } = router.resolve({
             path: `/machine/terminal-rdp`,
             query: {
-                id: row.id,
+                ac: row.selectAuthCert.name,
                 name: row.name,
             },
         });

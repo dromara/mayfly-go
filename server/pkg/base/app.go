@@ -6,6 +6,7 @@ import (
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
 
 	"gorm.io/gorm"
 )
@@ -31,11 +32,27 @@ type App[T model.ModelI] interface {
 	// 使用指定gorm db执行，主要用于事务执行
 	UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T) error
 
+	// UpdateByWheres 更新满足wheres条件的数据
+	// @param wheres key => "age > ?" value => 10等
+	UpdateByWheres(ctx context.Context, e T, wheres collx.M, columns ...string) error
+
+	// UpdateByWheresWithDb 使用指定gorm.Db更新满足wheres条件的数据
+	// @param wheres key => "age > ?" value => 10等
+	UpdateByWheresWithDb(ctx context.Context, db *gorm.DB, e T, wheres collx.M, columns ...string) error
+
 	// 根据实体主键删除实体
 	DeleteById(ctx context.Context, id uint64) error
 
 	// 使用指定gorm db执行，主要用于事务执行
 	DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error
+
+	// DeleteByWheres 根据wheres条件进行删除
+	// @param wheres key -> "age > ?" value -> 10等
+	DeleteByWheres(ctx context.Context, wheres collx.M) error
+
+	// DeleteByWheresWithDb 使用指定gorm.Db根据wheres条件进行删除
+	// @param wheres key -> "age > ?" value -> 10等
+	DeleteByWheresWithDb(ctx context.Context, db *gorm.DB, wheres collx.M) error
 
 	// 根据实体条件，更新参数udpateFields指定字段
 	Updates(ctx context.Context, cond any, udpateFields map[string]any) error
@@ -63,6 +80,9 @@ type App[T model.ModelI] interface {
 
 	// 根据条件查询数据映射至listModels
 	ListByCond(cond any, listModels any, cols ...string) error
+
+	// PageQuery 分页查询
+	PageQuery(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
 
 	// 获取满足model中不为空的字段值条件的所有数据.
 	//
@@ -117,6 +137,14 @@ func (ai *AppImpl[T, R]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T)
 	return ai.GetRepo().UpdateByIdWithDb(ctx, db, e)
 }
 
+func (ai *AppImpl[T, R]) UpdateByWheres(ctx context.Context, e T, wheres collx.M, columns ...string) error {
+	return ai.GetRepo().UpdateByWheres(ctx, e, wheres, columns...)
+}
+
+func (ai *AppImpl[T, R]) UpdateByWheresWithDb(ctx context.Context, db *gorm.DB, e T, wheres collx.M, columns ...string) error {
+	return ai.GetRepo().UpdateByWheresWithDb(ctx, db, e, wheres, columns...)
+}
+
 // 根据实体条件，更新参数udpateFields指定字段 (单纯更新，不做其他业务逻辑处理)
 func (ai *AppImpl[T, R]) Updates(ctx context.Context, cond any, udpateFields map[string]any) error {
 	return ai.GetRepo().Updates(cond, udpateFields)
@@ -152,6 +180,14 @@ func (ai *AppImpl[T, R]) DeleteByCondWithDb(ctx context.Context, db *gorm.DB, co
 	return ai.GetRepo().DeleteByCondWithDb(ctx, db, cond)
 }
 
+func (ai *AppImpl[T, R]) DeleteByWheres(ctx context.Context, wheres collx.M) error {
+	return ai.GetRepo().DeleteByWheres(ctx, wheres)
+}
+
+func (ai *AppImpl[T, R]) DeleteByWheresWithDb(ctx context.Context, db *gorm.DB, wheres collx.M) error {
+	return ai.GetRepo().DeleteByWheresWithDb(ctx, db, wheres)
+}
+
 // 根据实体id查询
 func (ai *AppImpl[T, R]) GetById(e T, id uint64, cols ...string) (T, error) {
 	if err := ai.GetRepo().GetById(e, id, cols...); err != nil {
@@ -172,6 +208,11 @@ func (ai *AppImpl[T, R]) GetBy(condModel T, cols ...string) error {
 // 根据条件查询数据映射至listModels
 func (ai *AppImpl[T, R]) ListByCond(cond any, listModels any, cols ...string) error {
 	return ai.GetRepo().ListByCond(cond, listModels, cols...)
+}
+
+// PageQuery 分页查询
+func (ai *AppImpl[T, R]) PageQuery(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error) {
+	return ai.GetRepo().PageQuery(cond, pageParam, toModels)
 }
 
 // 获取满足model中不为空的字段值条件的所有数据.

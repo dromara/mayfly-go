@@ -6,8 +6,8 @@ type TagTreeQuery struct {
 	model.Model
 
 	Pid           uint64
-	Type          int8   `json:"type"`
-	Code          string `json:"code"` // 标识
+	Type          TagType `json:"type"`
+	Code          string  `json:"code"` // 标识
 	Codes         []string
 	CodePath      string `json:"codePath"` // 标识路径
 	CodePaths     []string

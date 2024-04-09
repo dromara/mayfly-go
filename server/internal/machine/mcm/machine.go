@@ -2,7 +2,7 @@ package mcm
 
 import (
 	"fmt"
-	"mayfly-go/internal/machine/domain/entity"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"net"
@@ -13,16 +13,20 @@ import (
 
 // 机器信息
 type MachineInfo struct {
+	Key      string `json:"key"` // 缓存key
 	Id       uint64 `json:"id"`
 	Name     string `json:"name"`
 	Protocol int    `json:"protocol"`
 
-	Ip         string `json:"ip"` // IP地址
-	Port       int    `json:"-"`  // 端口号
-	AuthMethod int8   `json:"-"`  // 授权认证方式
-	Username   string `json:"-"`  // 用户名
-	Password   string `json:"-"`
-	Passphrase string `json:"-"` // 私钥口令
+	Ip   string `json:"ip"` // IP地址
+	Port int    `json:"-"`  // 端口号
+
+	AuthCertName string                 `json:"authCertName"`
+	AuthCertType tagentity.AuthCertType `json:"-"`
+	AuthMethod   int8                   `json:"-"` // 授权认证方式
+	Username     string                 `json:"-"` // 用户名
+	Password     string                 `json:"-"`
+	Passphrase   string                 `json:"-"` // 私钥口令
 
 	SshTunnelMachine *MachineInfo `json:"-"` // ssh隧道机器
 	TempSshMachineId uint64       `json:"-"` // ssh隧道机器id，用于记录隧道机器id，连接出错后关闭隧道
@@ -118,9 +122,9 @@ func GetSshClient(m *MachineInfo, jumpClient *ssh.Client) (*ssh.Client, error) {
 		},
 		Timeout: 5 * time.Second,
 	}
-	if m.AuthMethod == entity.AuthCertAuthMethodPassword {
+	if m.AuthMethod == int8(tagentity.AuthCertCiphertextTypePassword) {
 		config.Auth = []ssh.AuthMethod{ssh.Password(m.Password)}
-	} else if m.AuthMethod == entity.MachineAuthMethodPublicKey {
+	} else if m.AuthMethod == int8(tagentity.AuthCertCiphertextTypePrivateKey) {
 		var key ssh.Signer
 		var err error
 

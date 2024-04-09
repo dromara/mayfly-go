@@ -1,6 +1,9 @@
 package collx
 
-import "strings"
+import (
+	"mayfly-go/pkg/utils/anyx"
+	"strings"
+)
 
 // 数组比较
 // 依次返回，新增值，删除值，以及不变值
@@ -131,6 +134,13 @@ func ArrayRemoveFunc[T any](arr []T, isDeleteFunc func(T) bool) []T {
 	return newArr
 }
 
+// ArrayRemoveBlank 移除元素中的空元素
+func ArrayRemoveBlank[T any](arr []T) []T {
+	return ArrayRemoveFunc(arr, func(val T) bool {
+		return anyx.IsBlank(val)
+	})
+}
+
 // 数组元素去重
 func ArrayDeduplicate[T comparable](arr []T) []T {
 	encountered := map[T]bool{}
@@ -154,4 +164,15 @@ func ArrayAnyMatches(arr []string, subStr string) bool {
 		}
 	}
 	return false
+}
+
+// ArrayFilter 过滤函数，根据提供的条件函数将切片中的元素进行过滤
+func ArrayFilter[T any](array []T, fn func(T) bool) []T {
+	var filtered []T
+	for _, val := range array {
+		if fn(val) {
+			filtered = append(filtered, val)
+		}
+	}
+	return filtered
 }

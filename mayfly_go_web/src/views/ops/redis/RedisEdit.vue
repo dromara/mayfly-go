@@ -25,7 +25,7 @@
                             <el-input
                                 :disabled="form.id"
                                 v-model.trim="form.code"
-                                placeholder="请输入机器编号 (数字字母下划线), 不可修改"
+                                placeholder="请输入编号 (数字字母下划线), 不可修改"
                                 auto-complete="off"
                             ></el-input>
                         </el-form-item>

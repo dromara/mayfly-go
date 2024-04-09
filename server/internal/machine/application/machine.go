@@ -10,6 +10,7 @@ import (
 	"mayfly-go/internal/machine/infrastructure/cache"
 	"mayfly-go/internal/machine/mcm"
 	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/global"
@@ -17,15 +18,23 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
 	"time"
+
+	"github.com/may-fly/cast"
 )
+
+type SaveMachineParam struct {
+	Machine   *entity.Machine
+	TagIds    []uint64
+	AuthCerts []*tagentity.ResourceAuthCert
+}
 
 type Machine interface {
 	base.App[*entity.Machine]
 
-	SaveMachine(ctx context.Context, m *entity.Machine, tagIds ...uint64) error
+	SaveMachine(ctx context.Context, param *SaveMachineParam) error
 
 	// 测试机器连接
-	TestConn(me *entity.Machine) error
+	TestConn(me *entity.Machine, authCert *tagentity.ResourceAuthCert) error
 
 	// 调整机器状态
 	ChangeStatus(ctx context.Context, id uint64, status int8) error
@@ -36,10 +45,13 @@ type Machine interface {
 	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]*vo.MachineVO, orderBy ...string) (*model.PageResult[*[]*vo.MachineVO], error)
 
 	// 新建机器客户端连接（需手动调用Close）
-	NewCli(id uint64) (*mcm.Cli, error)
+	NewCli(authCertName string) (*mcm.Cli, error)
 
 	// 获取已缓存的机器连接，若不存在则新建客户端连接并缓存，主要用于定时获取状态等（避免频繁创建连接）
 	GetCli(id uint64) (*mcm.Cli, error)
+
+	// 根据授权凭证获取客户端连接
+	GetCliByAc(authCertName string) (*mcm.Cli, error)
 
 	// 获取ssh隧道机器连接
 	GetSshTunnelMachine(id int) (*mcm.SshTunnelMachine, error)
@@ -50,14 +62,15 @@ type Machine interface {
 	// 获取机器运行时状态信息
 	GetMachineStats(machineId uint64) (*mcm.Stats, error)
 
-	ToMachineInfoById(machineId uint64) (*mcm.MachineInfo, error)
+	ToMachineInfoByAc(ac string) (*mcm.MachineInfo, error)
 }
 
 type machineAppImpl struct {
 	base.AppImpl[*entity.Machine, repository.Machine]
 
-	authCertApp AuthCert       `inject:"AuthCertApp"`
-	tagApp      tagapp.TagTree `inject:"TagTreeApp"`
+	// authCertApp         AuthCert                `inject:"AuthCertApp"`
+	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
+	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 }
 
 // 注入MachineRepo
@@ -70,19 +83,21 @@ func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pagePara
 	return m.GetRepo().GetMachineList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (m *machineAppImpl) SaveMachine(ctx context.Context, me *entity.Machine, tagIds ...uint64) error {
+func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachineParam) error {
+	me := param.Machine
+	tagIds := param.TagIds
+	authCerts := param.AuthCerts
+	resourceType := tagentity.TagTypeMachine
+	authCertTagType := tagentity.TagTypeMachineAuthCert
+
 	oldMachine := &entity.Machine{
 		Ip:                 me.Ip,
 		Port:               me.Port,
-		Username:           me.Username,
 		SshTunnelMachineId: me.SshTunnelMachineId,
 	}
 
 	err := m.GetBy(oldMachine)
 
-	if errEnc := me.PwdEncrypt(); errEnc != nil {
-		return errorx.NewBiz(errEnc.Error())
-	}
 	if me.Id == 0 {
 		if err == nil {
 			return errorx.NewBiz("该机器信息已存在")
@@ -94,14 +109,23 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, me *entity.Machine, ta
 		// 新增机器，默认启用状态
 		me.Status = entity.MachineStatusEnable
 
-		return m.Tx(ctx, func(ctx context.Context) error {
+		if err := m.Tx(ctx, func(ctx context.Context) error {
 			return m.Insert(ctx, me)
 		}, func(ctx context.Context) error {
 			return m.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
 				ResourceCode: me.Code,
-				ResourceType: consts.TagResourceTypeMachine,
+				ResourceType: resourceType,
 				TagIds:       tagIds,
 			})
+		}); err != nil {
+			return err
+		}
+
+		return m.resourceAuthCertApp.SaveAuthCert(ctx, &tagapp.SaveAuthCertParam{
+			ResourceCode:    me.Code,
+			ResourceType:    resourceType,
+			AuthCertTagType: authCertTagType,
+			AuthCerts:       authCerts,
 		})
 	}
 
@@ -118,20 +142,29 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, me *entity.Machine, ta
 	mcm.DeleteCli(me.Id)
 	// 防止误传修改
 	me.Code = ""
-	return m.Tx(ctx, func(ctx context.Context) error {
+	if err := m.Tx(ctx, func(ctx context.Context) error {
 		return m.UpdateById(ctx, me)
 	}, func(ctx context.Context) error {
 		return m.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
 			ResourceCode: oldMachine.Code,
-			ResourceType: consts.TagResourceTypeMachine,
+			ResourceType: resourceType,
 			TagIds:       tagIds,
 		})
+	}); err != nil {
+		return err
+	}
+
+	return m.resourceAuthCertApp.SaveAuthCert(ctx, &tagapp.SaveAuthCertParam{
+		ResourceCode:    oldMachine.Code,
+		ResourceType:    resourceType,
+		AuthCertTagType: authCertTagType,
+		AuthCerts:       authCerts,
 	})
 }
 
-func (m *machineAppImpl) TestConn(me *entity.Machine) error {
+func (m *machineAppImpl) TestConn(me *entity.Machine, authCert *tagentity.ResourceAuthCert) error {
 	me.Id = 0
-	mi, err := m.toMachineInfo(me)
+	mi, err := m.toMi(me, authCert)
 	if err != nil {
 		return err
 	}
@@ -165,29 +198,49 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 
 	// 发布机器删除事件
 	global.EventBus.Publish(ctx, consts.DeleteMachineEventTopic, machine)
+
+	resourceType := tagentity.TagTypeMachine
 	return m.Tx(ctx,
 		func(ctx context.Context) error {
 			return m.DeleteById(ctx, id)
 		}, func(ctx context.Context) error {
 			return m.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
 				ResourceCode: machine.Code,
-				ResourceType: consts.TagResourceTypeMachine,
+				ResourceType: resourceType,
+			})
+		}, func(ctx context.Context) error {
+			return m.resourceAuthCertApp.SaveAuthCert(ctx, &tagapp.SaveAuthCertParam{
+				ResourceCode: machine.Code,
+				ResourceType: resourceType,
 			})
 		})
 }
 
-func (m *machineAppImpl) NewCli(machineId uint64) (*mcm.Cli, error) {
-	if mi, err := m.ToMachineInfoById(machineId); err != nil {
+func (m *machineAppImpl) NewCli(authCertName string) (*mcm.Cli, error) {
+	if mi, err := m.ToMachineInfoByAc(authCertName); err != nil {
 		return nil, err
 	} else {
 		return mi.Conn()
 	}
 }
 
-func (m *machineAppImpl) GetCli(machineId uint64) (*mcm.Cli, error) {
-	return mcm.GetMachineCli(machineId, func(mid uint64) (*mcm.MachineInfo, error) {
-		return m.ToMachineInfoById(mid)
+func (m *machineAppImpl) GetCliByAc(authCertName string) (*mcm.Cli, error) {
+	return mcm.GetMachineCli(authCertName, func(ac string) (*mcm.MachineInfo, error) {
+		return m.ToMachineInfoByAc(ac)
 	})
+}
+
+func (m *machineAppImpl) GetCli(machineId uint64) (*mcm.Cli, error) {
+	cli, err := mcm.GetMachineCliById(machineId)
+	if err == nil {
+		return cli, nil
+	}
+
+	_, authCert, err := m.getMachineAndAuthCert(machineId)
+	if err != nil {
+		return nil, err
+	}
+	return m.GetCliByAc(authCert.Name)
 }
 
 func (m *machineAppImpl) GetSshTunnelMachine(machineId int) (*mcm.SshTunnelMachine, error) {
@@ -229,62 +282,68 @@ func (m *machineAppImpl) GetMachineStats(machineId uint64) (*mcm.Stats, error) {
 	return cache.GetMachineStats(machineId)
 }
 
-// 生成机器信息，根据授权凭证id填充用户密码等
-func (m *machineAppImpl) ToMachineInfoById(machineId uint64) (*mcm.MachineInfo, error) {
-	me, err := m.GetById(new(entity.Machine), machineId)
+// 根据授权凭证,生成机器信息
+func (m *machineAppImpl) ToMachineInfoByAc(authCertName string) (*mcm.MachineInfo, error) {
+	authCert, err := m.resourceAuthCertApp.GetAuthCert(authCertName)
 	if err != nil {
-		return nil, errorx.NewBiz("机器信息不存在")
-	}
-	if me.Status != entity.MachineStatusEnable && me.Protocol == 1 {
-		return nil, errorx.NewBiz("该机器已被停用")
+		return nil, err
 	}
 
-	if mi, err := m.toMachineInfo(me); err != nil {
-		return nil, err
-	} else {
-		return mi, nil
+	machine := &entity.Machine{
+		Code: authCert.ResourceCode,
 	}
+	if err := m.GetBy(machine); err != nil {
+		return nil, errorx.NewBiz("该授权凭证关联的机器信息不存在")
+	}
+
+	return m.toMi(machine, authCert)
 }
 
-func (m *machineAppImpl) toMachineInfo(me *entity.Machine) (*mcm.MachineInfo, error) {
+// 生成机器信息，根据授权凭证id填充用户密码等
+func (m *machineAppImpl) ToMachineInfoById(machineId uint64) (*mcm.MachineInfo, error) {
+	me, authCert, err := m.getMachineAndAuthCert(machineId)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.toMi(me, authCert)
+}
+
+func (m *machineAppImpl) getMachineAndAuthCert(machineId uint64) (*entity.Machine, *tagentity.ResourceAuthCert, error) {
+	me, err := m.GetById(new(entity.Machine), machineId)
+	if err != nil {
+		return nil, nil, errorx.NewBiz("[%d]机器信息不存在", machineId)
+	}
+	if me.Status != entity.MachineStatusEnable && me.Protocol == 1 {
+		return nil, nil, errorx.NewBiz("[%s]该机器已被停用", me.Code)
+	}
+
+	authCert, err := m.resourceAuthCertApp.GetResourceAuthCert(tagentity.TagTypeMachine, me.Code)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return me, authCert, nil
+}
+
+func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAuthCert) (*mcm.MachineInfo, error) {
 	mi := new(mcm.MachineInfo)
 	mi.Id = me.Id
 	mi.Name = me.Name
 	mi.Ip = me.Ip
 	mi.Port = me.Port
-	mi.Username = me.Username
-	mi.TagPath = m.tagApp.ListTagPathByResource(consts.TagResourceTypeMachine, me.Code)
+	mi.TagPath = m.tagApp.ListTagPathByResource(int8(tagentity.TagTypeMachineAuthCert), authCert.Name)
 	mi.EnableRecorder = me.EnableRecorder
 	mi.Protocol = me.Protocol
 
-	if me.UseAuthCert() {
-		ac, err := m.authCertApp.GetById(new(entity.AuthCert), uint64(me.AuthCertId))
-		if err != nil {
-			return nil, errorx.NewBiz("授权凭证信息已不存在，请重新关联")
-		}
-		mi.AuthMethod = ac.AuthMethod
-		if err := ac.PwdDecrypt(); err != nil {
-			return nil, errorx.NewBiz(err.Error())
-		}
-		mi.Password = ac.Password
-		mi.Passphrase = ac.Passphrase
-	} else {
-		mi.AuthMethod = entity.AuthCertAuthMethodPassword
-		if me.Id != 0 {
-			if err := me.PwdDecrypt(); err != nil {
-				return nil, errorx.NewBiz(err.Error())
-			}
-		}
-		mi.Password = me.Password
-	}
+	mi.Username = authCert.Username
+	mi.Password = authCert.Ciphertext
+	mi.Passphrase = cast.ToString(authCert.Extra["passphrase"])
+	mi.AuthMethod = int8(authCert.CiphertextType)
 
 	// 使用了ssh隧道，则将隧道机器信息也附上
 	if me.SshTunnelMachineId > 0 {
-		sshTunnelMe, err := m.GetById(new(entity.Machine), uint64(me.SshTunnelMachineId))
-		if err != nil {
-			return nil, errorx.NewBiz("隧道机器信息不存在")
-		}
-		sshTunnelMi, err := m.toMachineInfo(sshTunnelMe)
+		sshTunnelMi, err := m.ToMachineInfoById(uint64(me.SshTunnelMachineId))
 		if err != nil {
 			return nil, err
 		}

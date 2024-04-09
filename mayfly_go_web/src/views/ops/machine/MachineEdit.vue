@@ -1,87 +1,65 @@
 <template>
     <div>
-        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false">
+        <el-drawer :title="title" v-model="dialogVisible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
             <template #header>
                 <DrawerHeader :header="title" :back="cancel" />
             </template>
 
             <el-form :model="form" ref="machineForm" :rules="rules" label-width="auto">
-                <el-tabs v-model="tabActiveName">
-                    <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item ref="tagSelectRef" prop="tagId" label="标签">
-                            <tag-tree-select
-                                multiple
-                                @change-tag="
-                                    (tagIds) => {
-                                        form.tagId = tagIds;
-                                        tagSelectRef.validate();
-                                    }
-                                "
-                                :tag-path="form.tagPath"
-                                :select-tags="form.tagId"
-                                style="width: 100%"
-                            />
-                        </el-form-item>
-                        <el-form-item prop="code" label="编号" required>
-                            <el-input
-                                :disabled="form.id"
-                                v-model.trim="form.code"
-                                placeholder="请输入机器编号 (数字字母下划线), 不可修改"
-                                auto-complete="off"
-                            ></el-input>
-                        </el-form-item>
-                        <el-form-item prop="name" label="名称" required>
-                            <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
-                        </el-form-item>
-                        <el-form-item prop="protocol" label="协议" required>
-                            <el-radio-group v-model="form.protocol" @change="handleChangeProtocol">
-                                <el-radio v-for="item in MachineProtocolEnum" :key="item.value" :label="item.label" :value="item.value"></el-radio>
-                            </el-radio-group>
-                        </el-form-item>
-                        <el-form-item prop="ip" label="ip" required>
-                            <el-col :span="18">
-                                <el-input v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"> </el-input>
-                            </el-col>
-                            <el-col style="text-align: center" :span="1">:</el-col>
-                            <el-col :span="5">
-                                <el-input type="number" v-model.number="form.port" placeholder="端口"></el-input>
-                            </el-col>
-                        </el-form-item>
+                <el-divider content-position="left">基本</el-divider>
+                <el-form-item ref="tagSelectRef" prop="tagId" label="标签">
+                    <tag-tree-select
+                        multiple
+                        @change-tag="
+                            (tagIds) => {
+                                form.tagId = tagIds;
+                                tagSelectRef.validate();
+                            }
+                        "
+                        :tag-path="form.tagPath"
+                        :select-tags="form.tagId"
+                        style="width: 100%"
+                    />
+                </el-form-item>
+                <el-form-item prop="code" label="编号" required>
+                    <el-input :disabled="form.id" v-model.trim="form.code" placeholder="请输入编号 (数字字母下划线), 不可修改" auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item prop="name" label="名称" required>
+                    <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
+                </el-form-item>
+                <el-form-item prop="protocol" label="协议" required>
+                    <el-radio-group v-model="form.protocol" @change="handleChangeProtocol">
+                        <el-radio v-for="item in MachineProtocolEnum" :key="item.value" :label="item.label" :value="item.value"></el-radio>
+                    </el-radio-group>
+                </el-form-item>
+                <el-form-item prop="ip" label="ip" required>
+                    <el-col :span="18">
+                        <el-input v-model.trim="form.ip" placeholder="主机ip" auto-complete="off"> </el-input>
+                    </el-col>
+                    <el-col style="text-align: center" :span="1">:</el-col>
+                    <el-col :span="5">
+                        <el-input type="number" v-model.number="form.port" placeholder="端口"></el-input>
+                    </el-col>
+                </el-form-item>
 
-                        <el-form-item prop="username" label="用户名">
-                            <el-input v-model.trim="form.username" placeholder="请输授权用户名" autocomplete="new-password"> </el-input>
-                        </el-form-item>
+                <el-form-item prop="remark" label="备注">
+                    <el-input type="textarea" v-model="form.remark"></el-input>
+                </el-form-item>
 
-                        <el-form-item label="认证方式" required>
-                            <el-select @change="changeAuthMethod" style="width: 100%" v-model="state.authType" placeholder="请选认证方式">
-                                <el-option key="1" label="密码" :value="1"> </el-option>
-                                <el-option key="2" label="授权凭证" :value="2"> </el-option>
-                            </el-select>
-                        </el-form-item>
-                        <el-form-item v-if="state.authType == 1" prop="password" label="密码">
-                            <el-input type="password" show-password v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password">
-                            </el-input>
-                        </el-form-item>
+                <el-divider content-position="left">账号</el-divider>
+                <div>
+                    <ResourceAuthCertEdit v-model="form.authCerts" :resource-code="form.code" :resource-type="TagResourceTypeEnum.Machine.value" />
+                </div>
 
-                        <el-form-item v-if="state.authType == 2" prop="authCertId" label="授权凭证" required>
-                            <auth-cert-select ref="authCertSelectRef" v-model="form.authCertId" />
-                        </el-form-item>
+                <!-- <el-tab-pane label="其他配置" name="other"> -->
+                <el-divider content-position="left">其他</el-divider>
+                <el-form-item prop="enableRecorder" label="终端回放">
+                    <el-checkbox v-model="form.enableRecorder" :true-value="1" :false-value="-1"></el-checkbox>
+                </el-form-item>
 
-                        <el-form-item prop="remark" label="备注">
-                            <el-input type="textarea" v-model="form.remark"></el-input>
-                        </el-form-item>
-                    </el-tab-pane>
-
-                    <el-tab-pane label="其他配置" name="other">
-                        <el-form-item prop="enableRecorder" label="终端回放">
-                            <el-checkbox v-model="form.enableRecorder" :true-value="1" :false-value="-1"></el-checkbox>
-                        </el-form-item>
-
-                        <el-form-item prop="sshTunnelMachineId" label="SSH隧道">
-                            <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
-                        </el-form-item>
-                    </el-tab-pane>
-                </el-tabs>
+                <el-form-item prop="sshTunnelMachineId" label="SSH隧道">
+                    <ssh-tunnel-select v-model="form.sshTunnelMachineId" />
+                </el-form-item>
             </el-form>
 
             <template #footer>
@@ -100,11 +78,12 @@ import { reactive, ref, toRefs, watch } from 'vue';
 import { machineApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
+import ResourceAuthCertEdit from '../component/ResourceAuthCertEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
-import AuthCertSelect from './authcert/AuthCertSelect.vue';
 import { MachineProtocolEnum } from './enums';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { ResourceCodePattern } from '@/common/pattern';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
@@ -162,24 +141,9 @@ const rules = {
             trigger: ['blur'],
         },
     ],
-    authCertId: [
-        {
-            required: true,
-            message: '请选择授权凭证',
-            trigger: ['change', 'blur'],
-        },
-    ],
-    username: [
-        {
-            required: true,
-            message: '请输入授权用户名',
-            trigger: ['change', 'blur'],
-        },
-    ],
 };
 
 const machineForm: any = ref(null);
-const authCertSelectRef: any = ref(null);
 const tagSelectRef: any = ref(null);
 
 const defaultForm = {
@@ -188,11 +152,9 @@ const defaultForm = {
     tagPath: '',
     ip: null,
     port: 22,
-    protocol: 1, // 1.ssh 2.rdp
+    protocol: MachineProtocolEnum.Ssh.value,
     name: null,
-    authCertId: null as any,
-    username: '',
-    password: '',
+    authCerts: [],
     tagId: [],
     remark: '',
     sshTunnelMachineId: null as any,
@@ -201,16 +163,13 @@ const defaultForm = {
 
 const state = reactive({
     dialogVisible: false,
-    tabActiveName: 'basic',
     sshTunnelMachineList: [] as any,
-    authCerts: [] as any,
-    authType: 1,
     form: defaultForm,
     submitForm: {},
     pwd: '',
 });
 
-const { dialogVisible, tabActiveName, form, submitForm } = toRefs(state);
+const { dialogVisible, form, submitForm } = toRefs(state);
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = machineApi.testConn.useApi(submitForm);
 const { isFetching: saveBtnLoading, execute: saveMachineExec } = machineApi.saveMachine.useApi(submitForm);
@@ -221,31 +180,12 @@ watch(props, async (newValue: any) => {
         state.form = defaultForm;
         return;
     }
-    state.tabActiveName = 'basic';
     if (newValue.machine) {
         state.form = { ...newValue.machine };
         state.form.tagId = newValue.machine.tags.map((t: any) => t.tagId);
-        // 如果凭证类型为公共的，则表示使用授权凭证认证
-        const authCertId = (state.form as any).authCertId;
-        if (authCertId > 0) {
-            state.authType = 2;
-        } else {
-            state.authType = 1;
-        }
-    } else {
-        state.authType = 1;
+        state.form.authCerts = newValue.machine.authCerts || [];
     }
 });
-
-const changeAuthMethod = (val: any) => {
-    if (state.form.id) {
-        if (val == 2) {
-            state.form.authCertId = null;
-        } else {
-            state.form.password = '';
-        }
-    }
-};
 
 const testConn = async () => {
     machineForm.value.validate(async (valid: boolean) => {
@@ -267,6 +207,11 @@ const btnOk = async () => {
             return false;
         }
 
+        if (state.form.authCerts.length == 0) {
+            ElMessage.error('请完善授权凭证账号信息');
+            return false;
+        }
+
         state.submitForm = getReqForm();
         await saveMachineExec();
         ElMessage.success('保存成功');
@@ -277,10 +222,6 @@ const btnOk = async () => {
 
 const getReqForm = () => {
     const reqForm: any = { ...state.form };
-    // 如果为密码认证，则置空授权凭证id
-    if (state.authType == 1) {
-        reqForm.authCertId = -1;
-    }
     if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }

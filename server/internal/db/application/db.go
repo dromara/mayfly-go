@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
@@ -87,7 +88,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 		}, func(ctx context.Context) error {
 			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
 				ResourceCode: dbEntity.Code,
-				ResourceType: consts.TagResourceTypeDb,
+				ResourceType: tagentity.TagTypeDb,
 				TagIds:       tagIds,
 			})
 		})
@@ -127,7 +128,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 	}, func(ctx context.Context) error {
 		return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
 			ResourceCode: old.Code,
-			ResourceType: consts.TagResourceTypeDb,
+			ResourceType: tagentity.TagTypeDb,
 			TagIds:       tagIds,
 		})
 	})
@@ -154,7 +155,7 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 		}, func(ctx context.Context) error {
 			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
 				ResourceCode: db.Code,
-				ResourceType: consts.TagResourceTypeDb,
+				ResourceType: tagentity.TagTypeDb,
 			})
 		})
 }

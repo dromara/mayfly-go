@@ -15,14 +15,16 @@ import (
 
 type TagTree struct {
 	TagTreeApp application.TagTree `inject:""`
+
+	ResourceAuthCertApp application.ResourceAuthCert `inject:""`
 }
 
 func (p *TagTree) GetTagTree(rc *req.Ctx) {
-	tagType := rc.QueryInt("type")
+	tagType := entity.TagType(rc.QueryInt("type"))
 	// 超管返回所有标签树
 	if rc.GetLoginAccount().Id == consts.AdminId {
 		var tagTrees vo.TagTreeVOS
-		p.TagTreeApp.ListByQuery(&entity.TagTreeQuery{Type: int8(tagType)}, &tagTrees)
+		p.TagTreeApp.ListByQuery(&entity.TagTreeQuery{Type: tagType}, &tagTrees)
 		rc.ResData = tagTrees.ToTrees(0)
 		return
 	}
@@ -40,7 +42,7 @@ func (p *TagTree) GetTagTree(rc *req.Ctx) {
 
 	// 获取所有以root标签开头的子标签
 	var tags []*entity.TagTree
-	p.TagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePathLikes: collx.MapKeys(rootTag), Type: int8(tagType)}, &tags)
+	p.TagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePathLikes: collx.MapKeys(rootTag), Type: tagType}, &tags)
 
 	tagTrees := make(vo.TagTreeVOS, 0)
 	for _, tag := range tags {
@@ -81,12 +83,14 @@ func (p *TagTree) DelTagTree(rc *req.Ctx) {
 	biz.ErrIsNil(p.TagTreeApp.Delete(rc.MetaCtx, uint64(rc.PathParamInt("id"))))
 }
 
-// 获取用户可操作的资源标签路径
+// 获取用户可操作的标签路径
 func (p *TagTree) TagResources(rc *req.Ctx) {
 	resourceType := int8(rc.PathParamInt("rtype"))
-	tagResources := p.TagTreeApp.GetAccountTagResources(rc.GetLoginAccount().Id, resourceType, "")
-	tagPath2Resource := collx.ArrayToMap[entity.TagTree, string](tagResources, func(tagResource entity.TagTree) string {
-		return tagResource.GetParentPath()
+	accountId := rc.GetLoginAccount().Id
+	tagResources := p.TagTreeApp.GetAccountTagResources(accountId, &entity.TagTreeQuery{Type: entity.TagType(resourceType)})
+
+	tagPath2Resource := collx.ArrayToMap[*entity.TagTree, string](tagResources, func(tagResource *entity.TagTree) string {
+		return tagResource.GetParentPath(1)
 	})
 
 	tagPaths := collx.MapKeys(tagPath2Resource)

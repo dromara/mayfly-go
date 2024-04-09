@@ -1,6 +1,6 @@
 <template>
     <div class="terminal-wrapper" ref="terminalWrapperRef">
-        <machine-rdp ref="rdpRef" :machine-id="route.query.id" />
+        <machine-rdp ref="rdpRef" :machine-id="route.query.ac" />
     </div>
 </template>
 
@@ -17,7 +17,6 @@ const terminalWrapperRef = ref({} as any);
 onMounted(() => {
     let width = terminalWrapperRef.value.clientWidth;
     let height = terminalWrapperRef.value.clientHeight;
-    console.log(width, height);
     rdpRef.value?.init(width, height, false);
 });
 </script>

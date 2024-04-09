@@ -16,7 +16,7 @@ import (
 )
 
 // creates the tunnel to the remote machine (via guacd)
-func DoConnect(query url.Values, parameters map[string]string, machineId uint64) (Tunnel, error) {
+func DoConnect(query url.Values, parameters map[string]string, ac string) (Tunnel, error) {
 	conf := NewGuacamoleConfiguration()
 
 	parameters["enable-wallpaper"] = "true" // 允许显示墙纸
@@ -33,7 +33,7 @@ func DoConnect(query url.Values, parameters map[string]string, machineId uint64)
 	parameters["enable-drive"] = "true"
 	parameters["drive-name"] = "Filesystem"
 	parameters["create-drive-path"] = "true"
-	parameters["drive-path"] = fmt.Sprintf("/rdp-file/%d", machineId)
+	parameters["drive-path"] = fmt.Sprintf("/rdp-file/%s", ac)
 
 	conf.Protocol = parameters["scheme"]
 	conf.Parameters = parameters

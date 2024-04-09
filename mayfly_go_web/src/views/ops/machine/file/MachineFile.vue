@@ -268,6 +268,7 @@
         <machine-file-content
             v-model:visible="fileContent.contentVisible"
             :machine-id="machineId"
+            :auth-cert-name="props.authCertName"
             :file-id="fileId"
             :path="fileContent.path"
             :protocol="protocol"
@@ -290,6 +291,7 @@ import { getMachineConfig } from '@/common/sysconfig';
 
 const props = defineProps({
     machineId: { type: Number },
+    authCertName: { type: String },
     protocol: { type: Number, default: 1 },
     fileId: { type: Number, default: 0 },
     path: { type: String, default: '' },
@@ -419,7 +421,8 @@ const pasteFile = async () => {
         await api.request({
             machineId: props.machineId,
             fileId: props.fileId,
-            path: cmFile.paths,
+            authCertName: props.authCertName,
+            paths: cmFile.paths,
             toPath: state.nowPath,
             protocol: props.protocol,
         });
@@ -462,8 +465,9 @@ const fileRename = async (row: any) => {
     try {
         await machineApi.renameFile.request({
             machineId: parseInt(props.machineId + ''),
+            authCertName: props.authCertName,
             fileId: parseInt(props.fileId + ''),
-            oldname: state.nowPath + pathSep + state.renameFile.oldname,
+            path: state.nowPath + pathSep + state.renameFile.oldname,
             newname: state.nowPath + pathSep + row.name,
             protocol: props.protocol,
         });
@@ -508,6 +512,7 @@ const lsFile = async (path: string) => {
     const res = await machineApi.lsFile.request({
         fileId: props.fileId,
         machineId: props.machineId,
+        authCertName: props.authCertName,
         protocol: props.protocol,
         path,
     });
@@ -574,6 +579,7 @@ const createFile = async () => {
     const path = state.nowPath + pathSep + name;
     await machineApi.createFile.request({
         machineId: props.machineId,
+        authCertName: props.authCertName,
         id: props.fileId,
         protocol: props.protocol,
         path,
@@ -607,8 +613,9 @@ const deleteFile = async (files: any) => {
         state.loading = true;
         await machineApi.rmFile.request({
             fileId: props.fileId,
-            path: files.map((x: any) => x.path),
+            paths: files.map((x: any) => x.path),
             machineId: props.machineId,
+            authCertName: props.authCertName,
             protocol: props.protocol,
         });
         ElMessage.success('删除成功');
@@ -624,7 +631,7 @@ const downloadFile = (data: any) => {
     const a = document.createElement('a');
     a.setAttribute(
         'href',
-        `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/download?path=${data.path}&machineId=${props.machineId}&protocol=${props.protocol}&${joinClientParams()}`
+        `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/download?path=${data.path}&machineId=${props.machineId}&authCertName=${props.authCertName}&protocol=${props.protocol}&${joinClientParams()}`
     );
     a.click();
 };
@@ -638,6 +645,7 @@ function uploadFolder(e: any) {
     // 把文件夹数据放到formData里面，下面的files和paths字段根据接口来定
     var form = new FormData();
     form.append('basePath', state.nowPath);
+    form.append('authCertName', props.authCertName as any);
     form.append('machineId', props.machineId as any);
     form.append('protocol', props.protocol as any);
     form.append('fileId', props.fileId as any);
@@ -693,6 +701,7 @@ const uploadFile = (content: any) => {
     const path = state.nowPath;
     params.append('file', content.file);
     params.append('path', path);
+    params.append('authCertName', props.authCertName as any);
     params.append('machineId', props.machineId as any);
     params.append('protocol', props.protocol as any);
     params.append('fileId', props.fileId as any);

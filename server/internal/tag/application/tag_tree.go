@@ -16,9 +16,19 @@ import (
 type SaveResourceTagParam struct {
 	ResourceCode string
 	ResourceName string
-	ResourceType int8
+	ResourceType entity.TagType
 
-	TagIds []uint64 // 关联标签，相当于父标签 pid
+	TagIds []uint64 // 关联标签，相当于父标签 pid，空数组则为删除该资源绑定的标签
+}
+
+type DelResourceTagParam struct {
+	ResourceCode string
+	ResourceType entity.TagType
+
+	Pid uint64 //父标签 pid
+
+	// 要删除的子节点类型，若存在值，则为删除资源标签下的指定类型的子标签
+	ChildType entity.TagType
 }
 
 type TagTree interface {
@@ -34,13 +44,16 @@ type TagTree interface {
 	// @param accountId 账号id
 	// @param resourceType 资源类型
 	// @param tagPath 访问指定的标签路径下关联的资源
-	GetAccountTagResources(accountId uint64, resourceType int8, tagPath string) []entity.TagTree
+	GetAccountTagResources(accountId uint64, query *entity.TagTreeQuery) []*entity.TagTree
 
 	// 获取指定账号有权限操作的资源codes
 	GetAccountResourceCodes(accountId uint64, resourceType int8, tagPath string) []string
 
 	// SaveResource 保存资源标签
 	SaveResource(ctx context.Context, req *SaveResourceTagParam) error
+
+	// DeleteResource 删除资源标签，会删除该资源下所有子节点信息
+	DeleteResource(ctx context.Context, param *DelResourceTagParam) error
 
 	// 根据资源信息获取对应的标签路径列表
 	ListTagPathByResource(resourceType int8, resourceCode string) []string
@@ -115,12 +128,12 @@ func (p *tagTreeAppImpl) ListByQuery(condition *entity.TagTreeQuery, toEntity an
 	p.GetRepo().SelectByCondition(condition, toEntity)
 }
 
-func (p *tagTreeAppImpl) GetAccountTagResources(accountId uint64, resourceType int8, tagPath string) []entity.TagTree {
+func (p *tagTreeAppImpl) GetAccountTagResources(accountId uint64, query *entity.TagTreeQuery) []*entity.TagTree {
 	tagResourceQuery := &entity.TagTreeQuery{
-		Type: resourceType,
+		Type: query.Type,
 	}
 
-	var tagResources []entity.TagTree
+	var tagResources []*entity.TagTree
 	var accountTagPaths []string
 
 	if accountId != consts.AdminId {
@@ -131,16 +144,37 @@ func (p *tagTreeAppImpl) GetAccountTagResources(accountId uint64, resourceType i
 		}
 	}
 
-	tagResourceQuery.CodePathLike = tagPath
+	// 去除空字符串标签
+	tagPaths := collx.ArrayRemoveBlank(query.CodePathLikes)
+	// 如果需要查询指定标签下的资源标签，则需要与用户拥有的权限进行过滤，避免越权
+	if len(tagPaths) > 0 {
+		// admin 则直接赋值需要获取的标签
+		if len(accountTagPaths) == 0 {
+			accountTagPaths = tagPaths
+		} else {
+			accountTagPaths = collx.ArrayFilter[string](tagPaths, func(s string) bool {
+				for _, v := range accountTagPaths {
+					// 要过滤的权限需要在用户拥有的子标签下, accountTagPath: test/  tagPath: test/test1/ -> true
+					if strings.HasPrefix(v, s) {
+						return true
+					}
+				}
+				return false
+			})
+		}
+	}
+
+	// tagResourceQuery.CodePathLike = tagPath
+	tagResourceQuery.Codes = query.Codes
 	tagResourceQuery.CodePathLikes = accountTagPaths
 	p.ListByQuery(tagResourceQuery, &tagResources)
 	return tagResources
 }
 
 func (p *tagTreeAppImpl) GetAccountResourceCodes(accountId uint64, resourceType int8, tagPath string) []string {
-	tagResources := p.GetAccountTagResources(accountId, resourceType, tagPath)
+	tagResources := p.GetAccountTagResources(accountId, &entity.TagTreeQuery{Type: entity.TagType(resourceType), CodePathLikes: []string{tagPath}})
 	// resouce code去重
-	code2Resource := collx.ArrayToMap[entity.TagTree, string](tagResources, func(val entity.TagTree) string {
+	code2Resource := collx.ArrayToMap[*entity.TagTree, string](tagResources, func(val *entity.TagTree) string {
 		return val.Code
 	})
 
@@ -149,7 +183,7 @@ func (p *tagTreeAppImpl) GetAccountResourceCodes(accountId uint64, resourceType 
 
 func (p *tagTreeAppImpl) SaveResource(ctx context.Context, req *SaveResourceTagParam) error {
 	resourceCode := req.ResourceCode
-	resourceType := req.ResourceType
+	resourceType := entity.TagType(req.ResourceType)
 	resourceName := req.ResourceName
 	tagIds := req.TagIds
 
@@ -162,7 +196,10 @@ func (p *tagTreeAppImpl) SaveResource(ctx context.Context, req *SaveResourceTagP
 
 	// 如果tagIds为空数组，则为删除该资源标签
 	if len(tagIds) == 0 {
-		return p.DeleteByCond(ctx, &entity.TagTree{Code: resourceCode, Type: resourceType})
+		return p.DeleteResource(ctx, &DelResourceTagParam{
+			ResourceType: resourceType,
+			ResourceCode: resourceCode,
+		})
 	}
 
 	if resourceName == "" {
@@ -205,10 +242,36 @@ func (p *tagTreeAppImpl) SaveResource(ctx context.Context, req *SaveResourceTagP
 
 	if len(delTagIds) > 0 {
 		for _, tagId := range delTagIds {
-			cond := &entity.TagTree{Code: resourceCode, Type: resourceType, Pid: tagId}
-			if err := p.DeleteByCond(ctx, cond); err != nil {
+			if err := p.DeleteResource(ctx, &DelResourceTagParam{
+				ResourceType: resourceType,
+				ResourceCode: resourceCode,
+				Pid:          tagId,
+			}); err != nil {
 				return err
 			}
+
+		}
+	}
+
+	return nil
+}
+
+func (p *tagTreeAppImpl) DeleteResource(ctx context.Context, param *DelResourceTagParam) error {
+	// 获取资源编号对应的资源标签信息
+	var resourceTags []*entity.TagTree
+	p.ListByCond(&entity.TagTree{Type: param.ResourceType, Code: param.ResourceCode, Pid: param.Pid}, &resourceTags)
+	if len(resourceTags) == 0 {
+		return nil
+	}
+
+	delTagType := param.ChildType
+	for _, resourceTag := range resourceTags {
+		// 删除所有code_path下的子标签
+		if err := p.DeleteByWheres(ctx, collx.M{
+			"code_path LIKE ?": resourceTag.CodePath + "%",
+			"type = ?":         delTagType,
+		}); err != nil {
+			return err
 		}
 	}
 
@@ -217,7 +280,7 @@ func (p *tagTreeAppImpl) SaveResource(ctx context.Context, req *SaveResourceTagP
 
 func (p *tagTreeAppImpl) ListTagPathByResource(resourceType int8, resourceCode string) []string {
 	var trs []*entity.TagTree
-	p.ListByCond(&entity.TagTree{Type: resourceType, Code: resourceCode}, &trs)
+	p.ListByCond(&entity.TagTree{Type: entity.TagType(resourceType), Code: resourceCode}, &trs)
 	return collx.ArrayMap(trs, func(tr *entity.TagTree) string {
 		return tr.CodePath
 	})
@@ -260,7 +323,7 @@ func (p *tagTreeAppImpl) FillTagInfo(resources ...entity.ITagResource) {
 
 	for _, tr := range tagResources {
 		// 赋值标签信息
-		resourceCode2Resouce[tr.Code].SetTagInfo(entity.ResourceTag{TagId: tr.Pid, TagPath: tr.GetParentPath()})
+		resourceCode2Resouce[tr.Code].SetTagInfo(entity.ResourceTag{TagId: tr.Pid, TagPath: tr.GetParentPath(0)})
 	}
 }
 

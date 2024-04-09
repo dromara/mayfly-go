@@ -55,6 +55,9 @@ update `t_machine` set `protocol` = 1 where `protocol`  is NULL;
 delete from `t_sys_config` where `key` = 'MachineConfig';
 INSERT INTO t_sys_config ( name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('机器相关配置', 'MachineConfig', '[{"name":"终端回放存储路径","model":"terminalRecPath","placeholder":"终端回放存储路径"},{"name":"uploadMaxFileSize","model":"uploadMaxFileSize","placeholder":"允许上传的最大文件大小(1MB、2GB等)"},{"model":"termOpSaveDays","name":"终端记录保存时间","placeholder":"终端记录保存时间（单位天）"},{"model":"guacdHost","name":"guacd服务ip","placeholder":"guacd服务ip，默认 127.0.0.1","required":false},{"name":"guacd服务端口","model":"guacdPort","placeholder":"guacd服务端口，默认 4822","required":false},{"model":"guacdFilePath","name":"guacd服务文件存储位置","placeholder":"guacd服务文件存储位置，用于挂载RDP文件夹"},{"name":"guacd服务记录存储位置","model":"guacdRecPath","placeholder":"guacd服务记录存储位置，用于记录rdp操作记录"}]', '{"terminalRecPath":"./rec","uploadMaxFileSize":"1000MB","termOpSaveDays":"30","guacdHost":"","guacdPort":"","guacdFilePath":"./guacd/rdp-file","guacdRecPath":"./guacd/rdp-rec"}', '机器相关配置，如终端回放路径等', 'all', '2023-07-13 16:26:44', 1, 'admin', '2024-04-06 12:25:03', 1, 'admin', 0, NULL);
 
+
+ALTER TABLE t_tag_tree ADD `type` tinyint NOT NULL DEFAULT '-1' COMMENT '类型： -1.普通标签； 其他值则为对应的资源类型';
+
 BEGIN;
 INSERT
 	INTO
@@ -88,5 +91,34 @@ from
 WHERE
 	is_deleted = 0;
 
-DROP TABLE t_tag_tree;
+DROP TABLE t_tag_resource;
 COMMIT;
+
+-- 资源授权凭证
+CREATE TABLE `t_resource_auth_cert` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '账号名称',
+  `resource_code` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '资源编码',
+  `resource_type` tinyint NOT NULL COMMENT '资源类型',
+  `type` tinyint DEFAULT NULL COMMENT '凭证类型',
+  `username` varchar(100) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '用户名',
+  `ciphertext` varchar(5000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '密文内容',
+  `ciphertext_type` tinyint NOT NULL COMMENT '密文类型（-1.公共授权凭证 1.密码 2.秘钥）',
+  `extra` varchar(200) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '账号需要的其他额外信息（如秘钥口令等）',
+  `remark` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注',
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint NOT NULL,
+  `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier_id` bigint NOT NULL,
+  `modifier` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `is_deleted` tinyint DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_resource_code` (`resource_code`) USING BTREE
+) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='资源授权凭证表';
+
+-- 删除机器表 账号相关字段
+ALTER TABLE t_machine DROP COLUMN username;
+ALTER TABLE t_machine DROP COLUMN password;
+ALTER TABLE t_machine DROP COLUMN auth_cert_id;

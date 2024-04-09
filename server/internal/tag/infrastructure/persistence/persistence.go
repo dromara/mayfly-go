@@ -9,4 +9,5 @@ func InitIoc() {
 	ioc.Register(newTagTreeTeamRepo(), ioc.WithComponentName("TagTreeTeamRepo"))
 	ioc.Register(newTeamRepo(), ioc.WithComponentName("TeamRepo"))
 	ioc.Register(newTeamMemberRepo(), ioc.WithComponentName("TeamMemberRepo"))
+	ioc.Register(newResourceAuthCertRepoImpl(), ioc.WithComponentName("ResourceAuthCertRepo"))
 }

@@ -20,3 +20,7 @@ export const tagApi = {
     getTeamTagIds: Api.newGet('/teams/{teamId}/tags'),
     saveTeamTags: Api.newPost('/teams/{teamId}/tags'),
 };
+
+export const resourceAuthCertApi = {
+    listByQuery: Api.newGet('/auth-certs'),
+};

@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/mongo/domain/repository"
 	"mayfly-go/internal/mongo/mgm"
 	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
@@ -59,7 +60,7 @@ func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 		},
 		func(ctx context.Context) error {
 			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-				ResourceType: consts.TagResourceTypeMongo,
+				ResourceType: tagentity.TagTypeMongo,
 				ResourceCode: mongoEntity.Code,
 			})
 		})
@@ -90,7 +91,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 			return d.Insert(ctx, m)
 		}, func(ctx context.Context) error {
 			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-				ResourceType: consts.TagResourceTypeMongo,
+				ResourceType: tagentity.TagTypeMongo,
 				ResourceCode: m.Code,
 				TagIds:       tagIds,
 			})
@@ -113,7 +114,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 		return d.UpdateById(ctx, m)
 	}, func(ctx context.Context) error {
 		return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-			ResourceType: consts.TagResourceTypeMongo,
+			ResourceType: tagentity.TagTypeMongo,
 			ResourceCode: oldMongo.Code,
 			TagIds:       tagIds,
 		})

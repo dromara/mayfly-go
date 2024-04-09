@@ -43,7 +43,7 @@ const clipboardRef = ref({} as any);
 
 const props = defineProps({
     machineId: {
-        type: Number,
+        type: [Number, String],
         required: true,
     },
     clipboardList: {

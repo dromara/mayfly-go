@@ -6,22 +6,26 @@
                 <tag-tree
                     class="machine-terminal-tree"
                     ref="tagTreeRef"
-                    :resource-type="TagResourceTypeEnum.Machine.value"
+                    :resource-type="TagResourceTypeEnum.MachineAuthCert.value"
                     :tag-path-node-type="NodeTypeTagPath"
                 >
                     <template #prefix="{ data }">
-                        <SvgIcon v-if="data.icon && data.params.status == 1 && data.params.protocol == 1" :name="data.icon.name" :color="data.icon.color" />
                         <SvgIcon
-                            v-if="data.icon && data.params.status == -1 && data.params.protocol == 1"
+                            v-if="data.icon && data.params.status == 1 && data.params.protocol == MachineProtocolEnum.Ssh.value"
+                            :name="data.icon.name"
+                            :color="data.icon.color"
+                        />
+                        <SvgIcon
+                            v-if="data.icon && data.params.status == -1 && data.params.protocol == MachineProtocolEnum.Ssh.value"
                             :name="data.icon.name"
                             color="var(--el-color-danger)"
                         />
-                        <SvgIcon v-if="data.icon && data.params.protocol != 1" :name="data.icon.name" :color="data.icon.color" />
+                        <SvgIcon v-if="data.icon && data.params.protocol != MachineProtocolEnum.Ssh.value" :name="data.icon.name" :color="data.icon.color" />
                     </template>
 
                     <template #suffix="{ data }">
-                        <span style="color: #c4c9c4; font-size: 9px" v-if="data.type.value == MachineNodeType.Machine">{{
-                            ` ${data.params.username}@${data.params.ip}:${data.params.port}`
+                        <span style="color: #c4c9c4; font-size: 9px" v-if="data.type.value == MachineNodeType.AuthCert">{{
+                            ` ${data.params.selectAuthCert.username}@${data.params.ip}:${data.params.port}`
                         }}</span>
                     </template>
                 </tag-tree>
@@ -66,14 +70,14 @@
 
                             <div :ref="(el: any) => setTerminalWrapperRef(el, dt.key)" class="terminal-wrapper" style="height: calc(100vh - 155px)">
                                 <TerminalBody
-                                    v-if="dt.params.protocol == 1"
+                                    v-if="dt.params.protocol == MachineProtocolEnum.Ssh.value"
                                     :mount-init="false"
                                     @status-change="terminalStatusChange(dt.key, $event)"
                                     :ref="(el: any) => setTerminalRef(el, dt.key)"
                                     :socket-url="dt.socketUrl"
                                 />
                                 <machine-rdp
-                                    v-if="dt.params.protocol != 1"
+                                    v-if="dt.params.protocol != MachineProtocolEnum.Ssh.value"
                                     :machine-id="dt.params.id"
                                     :ref="(el: any) => setTerminalRef(el, dt.key)"
                                     @status-change="terminalStatusChange(dt.key, $event)"
@@ -87,15 +91,10 @@
                             <el-descriptions-item :span="1.5" label="机器id">{{ infoDialog.data.id }}</el-descriptions-item>
                             <el-descriptions-item :span="1.5" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
 
-                            <el-descriptions-item :span="3" label="标签路径">{{ infoDialog.data.tagPath }}</el-descriptions-item>
+                            <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="infoDialog.data.tags" /></el-descriptions-item>
 
                             <el-descriptions-item :span="2" label="IP">{{ infoDialog.data.ip }}</el-descriptions-item>
                             <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
-
-                            <el-descriptions-item :span="2" label="用户名">{{ infoDialog.data.username }}</el-descriptions-item>
-                            <el-descriptions-item :span="1" label="认证方式">
-                                {{ infoDialog.data.authCertId > 1 ? '授权凭证' : '密码' }}
-                            </el-descriptions-item>
 
                             <el-descriptions-item :span="3" label="备注">{{ infoDialog.data.remark }}</el-descriptions-item>
 
@@ -160,6 +159,9 @@ import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import { TerminalStatus } from '@/components/terminal/common';
 import MachineRdp from '@/components/terminal-rdp/MachineRdp.vue';
 import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
+import ResourceTags from '../component/ResourceTags.vue';
+import { MachineProtocolEnum } from './enums';
+
 // 组件
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
 const FileConfList = defineAsyncComponent(() => import('./file/FileConfList.vue'));
@@ -182,6 +184,7 @@ const actionBtns = hasPerms([perms.updateMachine, perms.closeCli]);
 
 class MachineNodeType {
     static Machine = 1;
+    static AuthCert = 2;
 }
 
 const state = reactive({
@@ -238,7 +241,9 @@ const { infoDialog, serviceDialog, processDialog, fileDialog, machineStatsDialog
 
 const tagTreeRef: any = ref(null);
 
-const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (node: any) => {
+let openIds = {};
+
+const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (node: TagTreeNode) => {
     // 加载标签树下的机器列表
     state.params.tagPath = node.key;
     state.params.pageNum = 1;
@@ -247,60 +252,71 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
     // 把list 根据name字段排序
     res.list = res.list.sort((a: any, b: any) => a.name.localeCompare(b.name));
     return res.list.map((x: any) =>
-        new TagTreeNode(x.id, x.name, NodeTypeMachine(x))
+        new TagTreeNode(x.id, x.name, NodeTypeMachine)
             .withParams(x)
-            .withDisabled(x.status == -1 && x.protocol == 1)
+            .withDisabled(x.status == -1 && x.protocol == MachineProtocolEnum.Ssh.value)
             .withIcon({
                 name: 'Monitor',
                 color: '#409eff',
             })
-            .withIsLeaf(true)
     );
 });
 
-let openIds = {};
+const NodeTypeMachine = new NodeType(MachineNodeType.Machine)
+    .withLoadNodesFunc((node: TagTreeNode) => {
+        const machine = node.params;
+        // 获取授权凭证列表
+        const authCerts = machine.authCerts;
+        return authCerts.map((x: any) =>
+            new TagTreeNode(x.id, x.username, NodeTypeAuthCert)
+                .withParams({ ...machine, selectAuthCert: x })
+                .withDisabled(machine.status == -1 && machine.protocol == MachineProtocolEnum.Ssh.value)
+                .withIcon({
+                    name: 'Ticket',
+                    color: '#409eff',
+                })
+                .withIsLeaf(true)
+        );
+    })
+    .withContextMenuItems([
+        new ContextmenuItem('detail', '详情').withIcon('More').withOnClick((node: any) => showInfo(node.params)),
+        new ContextmenuItem('status', '状态').withIcon('Compass').withOnClick((node: any) => showMachineStats(node.params)),
+        new ContextmenuItem('process', '进程').withIcon('DataLine').withOnClick((node: any) => showProcess(node.params)),
+        new ContextmenuItem('edit', '终端回放')
+            .withIcon('Compass')
+            .withOnClick((node: any) => showRec(node.params))
+            .withHideFunc((node: any) => actionBtns[perms.updateMachine] && node.params.enableRecorder == 1),
+    ]);
 
-const NodeTypeMachine = (machine: any) => {
-    let contextMenuItems = [];
-    contextMenuItems.push(new ContextmenuItem('term', '打开终端').withIcon('Monitor').withOnClick(() => openTerminal(machine)));
-    contextMenuItems.push(new ContextmenuItem('term-ex', '打开终端(新窗口)').withIcon('Monitor').withOnClick(() => openTerminal(machine, true)));
-    contextMenuItems.push(new ContextmenuItem('files', '文件管理').withIcon('FolderOpened').withOnClick(() => showFileManage(machine)));
-    contextMenuItems.push(new ContextmenuItem('scripts', '脚本管理').withIcon('Files').withOnClick(() => serviceManager(machine)));
-    contextMenuItems.push(new ContextmenuItem('detail', '详情').withIcon('More').withOnClick(() => showInfo(machine)));
-    contextMenuItems.push(new ContextmenuItem('status', '状态').withIcon('Compass').withOnClick(() => showMachineStats(machine)));
-    contextMenuItems.push(new ContextmenuItem('process', '进程').withIcon('DataLine').withOnClick(() => showProcess(machine)));
-    if (actionBtns[perms.updateMachine] && machine.enableRecorder == 1) {
-        contextMenuItems.push(new ContextmenuItem('edit', '终端回放').withIcon('Compass').withOnClick(() => showRec(machine)));
-    }
-
-    return new NodeType(MachineNodeType.Machine).withContextMenuItems(contextMenuItems).withNodeDblclickFunc(() => {
-        // for (let k of state.tabs.keys()) {
-        //     // 存在该机器相关的终端tab，则直接激活该tab
-        //     if (k.startsWith(`${machine.id}_${machine.username}_`)) {
-        //         state.activeTermName = k;
-        //         onTabChange();
-        //         return;
-        //     }
-        // }
-
-        openTerminal(machine);
-    });
-};
+const NodeTypeAuthCert = new NodeType(MachineNodeType.AuthCert)
+    .withNodeDblclickFunc((node: TagTreeNode) => {
+        openTerminal(node.params);
+    })
+    .withContextMenuItems([
+        new ContextmenuItem('term', '打开终端').withIcon('Monitor').withOnClick((node: any) => openTerminal(node.params)),
+        new ContextmenuItem('term-ex', '打开终端(新窗口)').withIcon('Monitor').withOnClick((node: any) => openTerminal(node.params, true)),
+        new ContextmenuItem('files', '文件管理').withIcon('FolderOpened').withOnClick((node: any) => showFileManage(node.params)),
+        new ContextmenuItem('scripts', '脚本管理').withIcon('Files').withOnClick((node: any) => serviceManager(node.params)),
+    ]);
 
 const openTerminal = (machine: any, ex?: boolean) => {
+    // 授权凭证名
+    const ac = machine.selectAuthCert.name;
+
     // 新窗口打开
     if (ex) {
-        if (machine.protocol == 1) {
+        if (machine.protocol == MachineProtocolEnum.Ssh.value) {
             const { href } = router.resolve({
                 path: `/machine/terminal`,
                 query: {
-                    id: machine.id,
+                    ac,
                     name: machine.name,
                 },
             });
             window.open(href, '_blank');
             return;
-        } else if (machine.protocol == 2) {
+        }
+        if (machine.protocol == MachineProtocolEnum.Rdp.value) {
             const { href } = router.resolve({
                 path: `/machine/terminal-rdp`,
                 query: {
@@ -313,21 +329,22 @@ const openTerminal = (machine: any, ex?: boolean) => {
         }
     }
 
-    let { name, id, username } = machine;
+    let { name, username } = machine;
+    const labelName = `${machine.selectAuthCert.username}@${name}`;
 
     // 同一个机器的终端打开多次，key后添加下划线和数字区分
-    openIds[id] = openIds[id] ? ++openIds[id] : 1;
-    let sameIndex = openIds[id];
+    openIds[ac] = openIds[ac] ? ++openIds[ac] : 1;
+    let sameIndex = openIds[ac];
 
-    let key = `${id}_${username}_${sameIndex}`;
-    // 只保留name的10个字，超出部分只保留前后4个字符，中间用省略号代替
-    let label = name.length > 10 ? name.slice(0, 4) + '...' + name.slice(-4) : name;
+    let key = `${ac}_${username}_${sameIndex}`;
+    // 只保留name的15个字，超出部分只保留前后10个字符，中间用省略号代替
+    const label = labelName.length > 15 ? labelName.slice(0, 10) + '...' + labelName.slice(-10) : labelName;
 
     let tab = {
         key,
         label: `${label}${sameIndex === 1 ? '' : ':' + sameIndex}`, // label组成为:总打开term次数+name+同一个机器打开的次数
         params: machine,
-        socketUrl: getMachineTerminalSocketUrl(id),
+        socketUrl: getMachineTerminalSocketUrl(ac),
     };
 
     state.tabs.set(key, tab);

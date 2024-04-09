@@ -65,10 +65,10 @@ export const cronJobApi = {
     execList: Api.newGet('/machine-cronjobs/execs'),
 };
 
-export function getMachineTerminalSocketUrl(machineId: any) {
-    return `${config.baseWsUrl}/machines/${machineId}/terminal?${joinClientParams()}`;
+export function getMachineTerminalSocketUrl(authCertName: any) {
+    return `${config.baseWsUrl}/machines/terminal/${authCertName}?${joinClientParams()}`;
 }
 
-export function getMachineRdpSocketUrl(machineId: any) {
-    return `${config.baseWsUrl}/machines/${machineId}/rdp`;
+export function getMachineRdpSocketUrl(authCertName: any) {
+    return `${config.baseWsUrl}/machines/rdp/${authCertName}`;
 }

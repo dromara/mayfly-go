@@ -13,7 +13,8 @@ type AuthCertBaseVO struct {
 }
 
 type MachineVO struct {
-	tagentity.ResourceTags
+	tagentity.ResourceTags // 标签信息
+	tagentity.AuthCerts    // 授权凭证信息
 
 	Id                 uint64     `json:"id"`
 	Code               string     `json:"code"`
@@ -21,8 +22,6 @@ type MachineVO struct {
 	Protocol           int        `json:"protocol"`
 	Ip                 string     `json:"ip"`
 	Port               int        `json:"port"`
-	Username           string     `json:"username"`
-	AuthCertId         int        `json:"authCertId"`
 	Status             *int8      `json:"status"`
 	SshTunnelMachineId int        `json:"sshTunnelMachineId"` // ssh隧道机器id
 	CreateTime         *time.Time `json:"createTime"`
@@ -33,8 +32,6 @@ type MachineVO struct {
 	ModifierId         *int64     `json:"modifierId"`
 	Remark             *string    `json:"remark"`
 	EnableRecorder     int8       `json:"enableRecorder"`
-	// TagId              uint64     `json:"tagId"`
-	// TagPath            string     `json:"tagPath"`
 
 	Stat map[string]any `json:"stat" gorm:"-"`
 }

@@ -3,10 +3,6 @@ package api
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
-	"github.com/may-fly/cast"
-	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
@@ -29,24 +25,33 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	"github.com/may-fly/cast"
 )
 
 type Machine struct {
-	MachineApp       application.Machine       `inject:""`
-	MachineTermOpApp application.MachineTermOp `inject:""`
-	TagApp           tagapp.TagTree            `inject:"TagTreeApp"`
+	MachineApp          application.Machine       `inject:""`
+	MachineTermOpApp    application.MachineTermOp `inject:""`
+	TagApp              tagapp.TagTree            `inject:"TagTreeApp"`
+	ResourceAuthCertApp tagapp.ResourceAuthCert   `inject:""`
 }
 
 func (m *Machine) Machines(rc *req.Ctx) {
 	condition, pageParam := req.BindQueryAndPage(rc, new(entity.MachineQuery))
 
-	// 不存在可访问标签id，即没有可操作数据
-	codes := m.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeMachine, condition.TagPath)
-	if len(codes) == 0 {
+	authCerts := m.ResourceAuthCertApp.GetAccountAuthCert(rc.GetLoginAccount().Id, tagentity.TagTypeMachineAuthCert, condition.TagPath)
+	// 不存在可操作的授权凭证，即没有可操作数据
+	if len(authCerts) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
-	condition.Codes = codes
+
+	machineCodes := collx.ArrayMap(authCerts, func(ac *tagentity.ResourceAuthCert) string {
+		return ac.ResourceCode
+	})
+	condition.Codes = collx.ArrayDeduplicate(machineCodes)
 
 	var machinevos []*vo.MachineVO
 	res, err := m.MachineApp.GetMachineList(condition, pageParam, &machinevos)
@@ -58,6 +63,11 @@ func (m *Machine) Machines(rc *req.Ctx) {
 
 	// 填充标签信息
 	m.TagApp.FillTagInfo(collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.ITagResource {
+		return mvo
+	})...)
+
+	// 填充授权凭证信息
+	m.ResourceAuthCertApp.FillAuthCert(authCerts, collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.IAuthCert {
 		return mvo
 	})...)
 
@@ -85,16 +95,20 @@ func (m *Machine) SaveMachine(rc *req.Ctx) {
 	machineForm := new(form.MachineForm)
 	me := req.BindJsonAndCopyTo(rc, machineForm, new(entity.Machine))
 
-	machineForm.Password = "******"
 	rc.ReqParam = machineForm
 
-	biz.ErrIsNil(m.MachineApp.SaveMachine(rc.MetaCtx, me, machineForm.TagId...))
+	biz.ErrIsNil(m.MachineApp.SaveMachine(rc.MetaCtx, &application.SaveMachineParam{
+		Machine:   me,
+		TagIds:    machineForm.TagId,
+		AuthCerts: machineForm.AuthCerts,
+	}))
 }
 
 func (m *Machine) TestConn(rc *req.Ctx) {
-	me := req.BindJsonAndCopyTo(rc, new(form.MachineForm), new(entity.Machine))
+	machineForm := new(form.MachineForm)
+	me := req.BindJsonAndCopyTo(rc, machineForm, new(entity.Machine))
 	// 测试连接
-	biz.ErrIsNilAppendErr(m.MachineApp.TestConn(me), "该机器无法连接: %s")
+	biz.ErrIsNilAppendErr(m.MachineApp.TestConn(me, machineForm.AuthCerts[0]), "该机器无法连接: %s")
 }
 
 func (m *Machine) ChangeStatus(rc *req.Ctx) {
@@ -175,7 +189,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 		panic(errorx.NewBiz("\033[1;31m您没有权限操作该机器终端,请重新登录后再试~\033[0m"))
 	}
 
-	cli, err := m.MachineApp.NewCli(GetMachineId(rc))
+	cli, err := m.MachineApp.NewCli(GetMachineAc(rc))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
 	defer cli.Close()
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), "%s")
@@ -231,9 +245,9 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 	biz.ErrIsNil(err)
 
 	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
-	machineId := GetMachineId(rc)
+	ac := GetMachineAc(rc)
 
-	mi, err := m.MachineApp.ToMachineInfoById(machineId)
+	mi, err := m.MachineApp.ToMachineInfoByAc(ac)
 	if err != nil {
 		return
 	}
@@ -258,7 +272,7 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 
 	if mi.EnableRecorder == 1 {
 		// 操作记录 查看文档：https://guacamole.apache.org/doc/gug/configuring-guacamole.html#graphical-recording
-		params["recording-path"] = fmt.Sprintf("/rdp-rec/%d", machineId)
+		params["recording-path"] = fmt.Sprintf("/rdp-rec/%s", ac)
 		params["create-recording-path"] = "true"
 		params["recording-include-keys"] = "true"
 	}
@@ -273,14 +287,14 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 	if query.Get("force") != "" {
 		// 判断是否强制连接，是的话，查询是否有正在连接的会话，有的话强制关闭
 		if cast.ToBool(query.Get("force")) {
-			tn := sessions.Get(machineId)
+			tn := sessions.Get(ac)
 			if tn != nil {
 				_ = tn.Close()
 			}
 		}
 	}
 
-	tunnel, err := guac.DoConnect(query, params, machineId)
+	tunnel, err := guac.DoConnect(query, params, ac)
 	if err != nil {
 		return
 	}
@@ -290,9 +304,9 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 		}
 	}()
 
-	sessions.Add(machineId, wsConn, g.Request, tunnel)
+	sessions.Add(ac, wsConn, g.Request, tunnel)
 
-	defer sessions.Delete(machineId, wsConn, g.Request, tunnel)
+	defer sessions.Delete(ac, wsConn, g.Request, tunnel)
 
 	writer := tunnel.AcquireWriter()
 	reader := tunnel.AcquireReader()
@@ -311,4 +325,10 @@ func GetMachineId(rc *req.Ctx) uint64 {
 	machineId, _ := strconv.Atoi(rc.PathParam("machineId"))
 	biz.IsTrue(machineId != 0, "machineId错误")
 	return uint64(machineId)
+}
+
+func GetMachineAc(rc *req.Ctx) string {
+	ac := rc.PathParam("ac")
+	biz.IsTrue(ac != "", "authCertName错误")
+	return ac
 }

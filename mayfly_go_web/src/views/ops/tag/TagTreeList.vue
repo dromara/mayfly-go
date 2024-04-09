@@ -1,7 +1,7 @@
 <template>
     <div class="tag-tree-list card">
         <Splitpanes class="default-theme">
-            <Pane size="25" min-size="20" max-size="30">
+            <Pane size="30" min-size="25" max-size="35">
                 <div class="card pd5 mr5">
                     <el-input v-model="filterTag" clearable placeholder="关键字过滤(右击操作)" style="width: 200px; margin-right: 10px" />
                     <el-button
@@ -28,7 +28,6 @@
                 <el-scrollbar class="tag-tree-data">
                     <el-tree
                         ref="tagTreeRef"
-                        class="none-select"
                         node-key="id"
                         highlight-current
                         :props="props"
@@ -166,7 +165,7 @@ const contextmenuAdd = new ContextmenuItem('addTag', '添加子标签')
     .withPermission('tag:save')
     .withHideFunc((data: any) => {
         // 非标签类型不可添加子标签
-        return data.type != -1;
+        return data.type != TagResourceTypeEnum.Tag.value || (data.children && data.children?.[0].type != TagResourceTypeEnum.Tag.value);
     })
     .withOnClick((data: any) => showSaveTagDialog(data));
 
@@ -180,7 +179,7 @@ const contextmenuDel = new ContextmenuItem('delete', '删除')
     .withPermission('tag:del')
     .withHideFunc((data: any) => {
         // 存在子标签，则不允许删除
-        return data.children || data.type != -1;
+        return data.children || data.type != TagResourceTypeEnum.Tag.value;
     })
     .withOnClick((data: any) => deleteTag(data));
 
@@ -339,15 +338,6 @@ const deleteTag = (data: any) => {
     });
 };
 
-// const changeStatus = async (data: any, status: any) => {
-//     await resourceApi.changeStatus.request({
-//         id: data.id,
-//         status: status,
-//     });
-//     data.status = status;
-//     ElMessage.success((status === 1 ? '启用' : '禁用') + '成功！');
-// };
-
 // 节点被展开时触发的事件
 const handleNodeExpand = (data: any, node: any) => {
     const id: any = node.data.id;
@@ -392,15 +382,5 @@ const removeDeafultExpandId = (id: any) => {
         display: inline-block;
         min-width: 100%;
     }
-}
-
-.none-select {
-    moz-user-select: -moz-none;
-    -moz-user-select: none;
-    -o-user-select: none;
-    -khtml-user-select: none;
-    -webkit-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
 }
 </style>

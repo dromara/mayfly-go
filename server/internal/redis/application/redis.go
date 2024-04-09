@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/redis/domain/repository"
 	"mayfly-go/internal/redis/rdm"
 	tagapp "mayfly-go/internal/tag/application"
+	tagenttiy "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
@@ -107,7 +108,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds .
 			return r.Insert(ctx, re)
 		}, func(ctx context.Context) error {
 			return r.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-				ResourceType: consts.TagResourceTypeRedis,
+				ResourceType: tagenttiy.TagTypeRedis,
 				ResourceCode: re.Code,
 				TagIds:       tagIds,
 			})
@@ -138,7 +139,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds .
 		return r.UpdateById(ctx, re)
 	}, func(ctx context.Context) error {
 		return r.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-			ResourceType: consts.TagResourceTypeRedis,
+			ResourceType: tagenttiy.TagTypeRedis,
 			ResourceCode: oldRedis.Code,
 			TagIds:       tagIds,
 		})
@@ -161,7 +162,7 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 		return r.DeleteById(ctx, id)
 	}, func(ctx context.Context) error {
 		return r.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-			ResourceType: consts.TagResourceTypeRedis,
+			ResourceType: tagenttiy.TagTypeRedis,
 			ResourceCode: re.Code,
 		})
 	})

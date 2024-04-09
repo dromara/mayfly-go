@@ -22,11 +22,13 @@ const (
 
 // 实体接口
 type ModelI interface {
+	// SetId 设置id
+	SetId(id uint64)
 
-	// 是否为新建该实体模型, 默认 id == 0 为新建
+	// IsCreate 是否为新建该实体模型, 默认 id == 0 为新建
 	IsCreate() bool
 
-	// 使用当前登录账号信息赋值实体结构体的基础信息
+	// FillBaseInfo 使用当前登录账号信息赋值实体结构体的基础信息
 	//
 	// 如创建时间，修改时间，创建者，修改者信息等
 	FillBaseInfo(idGenType IdGenType, account *LoginAccount)
@@ -34,6 +36,10 @@ type ModelI interface {
 
 type IdModel struct {
 	Id uint64 `json:"id"`
+}
+
+func (m *IdModel) SetId(id uint64) {
+	m.Id = id
 }
 
 func (m *IdModel) IsCreate() bool {
@@ -45,7 +51,7 @@ func (m *IdModel) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
 	if !m.IsCreate() {
 		return
 	}
-	m.Id = GetIdByGenType(idGenType)
+	m.SetId(GetIdByGenType(idGenType))
 }
 
 // 含有删除字段模型

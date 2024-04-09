@@ -1,7 +1,9 @@
 package mcm
 
 import (
+	"errors"
 	"mayfly-go/internal/common/consts"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/logx"
 	"time"
@@ -29,29 +31,63 @@ func init() {
 	go checkClientAvailability(3 * time.Minute)
 }
 
-// 从缓存中获取客户端信息，不存在则回调获取机器信息函数，并新建
-func GetMachineCli(machineId uint64, getMachine func(uint64) (*MachineInfo, error)) (*Cli, error) {
-	if load, ok := cliCache.Get(machineId); ok {
+// 从缓存中获取客户端信息，不存在则回调获取机器信息函数，并新建。
+// @param 机器的授权凭证名
+func GetMachineCli(authCertName string, getMachine func(string) (*MachineInfo, error)) (*Cli, error) {
+	if load, ok := cliCache.Get(authCertName); ok {
 		return load.(*Cli), nil
 	}
 
-	me, err := getMachine(machineId)
+	mi, err := getMachine(authCertName)
+	if err != nil {
+		return nil, err
+	}
+	mi.Key = authCertName
+	c, err := mi.Conn()
 	if err != nil {
 		return nil, err
 	}
 
-	c, err := me.Conn()
-	if err != nil {
-		return nil, err
-	}
-
-	cliCache.Put(machineId, c)
+	cliCache.Put(authCertName, c)
 	return c, nil
+}
+
+// 根据机器id从已连接的机器客户端中获取特权账号连接, 若不存在特权账号，则随机返回一个
+func GetMachineCliById(machineId uint64) (*Cli, error) {
+	// 遍历所有机器连接实例，删除指定机器id关联的连接...
+	items := cliCache.Items()
+
+	var machineCli *Cli
+	for _, v := range items {
+		cli := v.Value.(*Cli)
+		mi := cli.Info
+		if mi.Id != machineId {
+			continue
+		}
+		machineCli = cli
+
+		// 如果是特权账号，则跳出
+		if mi.AuthCertType == tagentity.AuthCertTypePrivileged {
+			break
+		}
+	}
+
+	if machineCli != nil {
+		return machineCli, nil
+	}
+	return nil, errors.New("不存在该机器id的连接")
 }
 
 // 删除指定机器缓存客户端，并关闭客户端连接
 func DeleteCli(id uint64) {
-	cliCache.Delete(id)
+	// 遍历所有机器连接实例，删除指定机器id关联的连接...
+	items := cliCache.Items()
+	for _, v := range items {
+		mi := v.Value.(*Cli).Info
+		if mi.Id == id {
+			cliCache.Delete(mi.Key)
+		}
+	}
 }
 
 // 检查缓存中的客户端是否可用，不可用则关闭客户端连接
