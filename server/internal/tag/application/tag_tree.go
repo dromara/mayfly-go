@@ -152,19 +152,30 @@ func (p *tagTreeAppImpl) GetAccountTagResources(accountId uint64, query *entity.
 		if len(accountTagPaths) == 0 {
 			accountTagPaths = tagPaths
 		} else {
-			accountTagPaths = collx.ArrayFilter[string](tagPaths, func(s string) bool {
-				for _, v := range accountTagPaths {
-					// 要过滤的权限需要在用户拥有的子标签下, accountTagPath: test/  tagPath: test/test1/ -> true
-					if strings.HasPrefix(v, s) {
+			queryPaths := collx.ArrayFilter[string](tagPaths, func(tagPath string) bool {
+				for _, acPath := range accountTagPaths {
+					// 查询条件： a/b/  有权的：a/  查询结果应该是  a/b/
+					if strings.HasPrefix(tagPath, acPath) {
 						return true
 					}
 				}
 				return false
 			})
+
+			acPaths := collx.ArrayFilter[string](accountTagPaths, func(acPath string) bool {
+				for _, tagPath := range tagPaths {
+					// 查询条件： a/  有权的：a/b/  查询结果应该是  a/b/
+					if strings.HasPrefix(acPath, tagPath) {
+						return true
+					}
+				}
+				return false
+			})
+
+			accountTagPaths = append(queryPaths, acPaths...)
 		}
 	}
 
-	// tagResourceQuery.CodePathLike = tagPath
 	tagResourceQuery.Codes = query.Codes
 	tagResourceQuery.CodePathLikes = accountTagPaths
 	p.ListByQuery(tagResourceQuery, &tagResources)

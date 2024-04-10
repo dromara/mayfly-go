@@ -86,7 +86,6 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 	tagIds := param.TagIds
 	authCerts := param.AuthCerts
 	resourceType := tagentity.TagTypeMachine
-	authCertTagType := tagentity.TagTypeMachineAuthCert
 
 	oldMachine := &entity.Machine{
 		Ip:                 me.Ip,
@@ -119,11 +118,10 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 			return err
 		}
 
-		return m.resourceAuthCertApp.SaveAuthCert(ctx, &tagapp.SaveAuthCertParam{
-			ResourceCode:    me.Code,
-			ResourceType:    resourceType,
-			AuthCertTagType: authCertTagType,
-			AuthCerts:       authCerts,
+		return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+			ResourceCode: me.Code,
+			ResourceType: resourceType,
+			AuthCerts:    authCerts,
 		})
 	}
 
@@ -152,11 +150,10 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 		return err
 	}
 
-	return m.resourceAuthCertApp.SaveAuthCert(ctx, &tagapp.SaveAuthCertParam{
-		ResourceCode:    oldMachine.Code,
-		ResourceType:    resourceType,
-		AuthCertTagType: authCertTagType,
-		AuthCerts:       authCerts,
+	return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+		ResourceCode: oldMachine.Code,
+		ResourceType: resourceType,
+		AuthCerts:    authCerts,
 	})
 }
 
@@ -216,7 +213,7 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 				ResourceType: resourceType,
 			})
 		}, func(ctx context.Context) error {
-			return m.resourceAuthCertApp.SaveAuthCert(ctx, &tagapp.SaveAuthCertParam{
+			return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
 				ResourceCode: machine.Code,
 				ResourceType: resourceType,
 			})

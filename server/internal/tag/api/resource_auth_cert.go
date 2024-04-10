@@ -6,8 +6,6 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
-	"mayfly-go/pkg/utils/collx"
-	"strings"
 
 	"github.com/may-fly/cast"
 )
@@ -51,25 +49,11 @@ func (c *ResourceAuthCert) SaveAuthCert(rc *req.Ctx) {
 	acForm.Ciphertext = "***"
 	rc.ReqParam = acForm
 
-	biz.ErrIsNil(c.ResourceAuthCertApp.SavePulbicAuthCert(rc.MetaCtx, ac))
+	biz.ErrIsNil(c.ResourceAuthCertApp.SaveAuthCert(rc.MetaCtx, ac))
 }
 
 func (c *ResourceAuthCert) Delete(rc *req.Ctx) {
-	idsStr := rc.PathParam("id")
-	ids := strings.Split(idsStr, ",")
-
-	acIds := make([]uint64, 0)
-	acNames := make([]string, 0)
-	for _, v := range ids {
-		id := cast.ToUint64(v)
-		rac, err := c.ResourceAuthCertApp.GetById(new(entity.ResourceAuthCert), id)
-		biz.ErrIsNil(err, "存在错误授权凭证id")
-		biz.IsTrue(rac.Type == entity.AuthCertTypePublic, "只允许删除公共授权凭证")
-		biz.IsTrue(c.ResourceAuthCertApp.CountByCond(&entity.ResourceAuthCert{Ciphertext: rac.Name}) == 0, "[%s]该授权凭证已被关联", rac.Name)
-		acIds = append(acIds, id)
-		acNames = append(acNames, rac.Name)
-	}
-
-	rc.ReqParam = acNames
-	biz.ErrIsNil(c.ResourceAuthCertApp.DeleteByWheres(rc.MetaCtx, collx.M{"id in ?": acIds}))
+	id := rc.PathParamInt("id")
+	rc.ReqParam = id
+	biz.ErrIsNil(c.ResourceAuthCertApp.DeleteAuthCert(rc.MetaCtx, cast.ToUint64(id)))
 }

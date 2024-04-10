@@ -78,19 +78,31 @@
                             </el-descriptions>
                         </el-tab-pane>
 
-                        <el-tab-pane v-if="currentTag.type == TagResourceTypeEnum.Tag.value" :label="`机器 (${resourceCount.machine})`" :name="MachineTag">
+                        <el-tab-pane
+                            :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
+                            :label="`机器 (${resourceCount.machine || 0})`"
+                            :name="MachineTag"
+                        >
                             <MachineList lazy ref="machineListRef" />
                         </el-tab-pane>
 
-                        <el-tab-pane v-if="currentTag.type == TagResourceTypeEnum.Tag.value" :label="`数据库 (${resourceCount.db})`" :name="DbTag">
+                        <el-tab-pane :disabled="currentTag.type != TagResourceTypeEnum.Tag.value" :label="`数据库 (${resourceCount.db || 0})`" :name="DbTag">
                             <DbList lazy ref="dbListRef" />
                         </el-tab-pane>
 
-                        <el-tab-pane v-if="currentTag.type == TagResourceTypeEnum.Tag.value" :label="`Redis (${resourceCount.redis})`" :name="RedisTag">
+                        <el-tab-pane
+                            :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
+                            :label="`Redis (${resourceCount.redis || 0})`"
+                            :name="RedisTag"
+                        >
                             <RedisList lazy ref="redisListRef" />
                         </el-tab-pane>
 
-                        <el-tab-pane v-if="currentTag.type == TagResourceTypeEnum.Tag.value" :label="`Mongo (${resourceCount.mongo})`" :name="MongoTag">
+                        <el-tab-pane
+                            :disabled="currentTag.type != TagResourceTypeEnum.Tag.value"
+                            :label="`Mongo (${resourceCount.mongo || 0})`"
+                            :name="MongoTag"
+                        >
                             <MongoList lazy ref="mongoListRef" />
                         </el-tab-pane>
                     </el-tabs>
@@ -233,9 +245,12 @@ watch(filterTag, (val) => {
 watch(
     () => state.currentTag,
     (val: any) => {
-        tagApi.countTagResource.request({ tagPath: val.codePath }).then((res: any) => {
-            state.resourceCount = res;
-        });
+        if (val.type == TagResourceTypeEnum.Tag.value) {
+            tagApi.countTagResource.request({ tagPath: val.codePath }).then((res: any) => {
+                state.resourceCount = res;
+            });
+        }
+
         setNowTabData();
     }
 );

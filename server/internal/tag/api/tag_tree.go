@@ -102,8 +102,14 @@ func (p *TagTree) TagResources(rc *req.Ctx) {
 func (p *TagTree) CountTagResource(rc *req.Ctx) {
 	tagPath := rc.Query("tagPath")
 	accountId := rc.GetLoginAccount().Id
+
+	machienAuthCerts := p.ResourceAuthCertApp.GetAccountAuthCert(accountId, entity.TagTypeMachineAuthCert, tagPath)
+	machineCodes := collx.ArrayMap(machienAuthCerts, func(ac *entity.ResourceAuthCert) string {
+		return ac.ResourceCode
+	})
+
 	rc.ResData = collx.M{
-		"machine": len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeMachine, tagPath)),
+		"machine": len(collx.ArrayDeduplicate(machineCodes)),
 		"db":      len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeDb, tagPath)),
 		"redis":   len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeRedis, tagPath)),
 		"mongo":   len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeMongo, tagPath)),

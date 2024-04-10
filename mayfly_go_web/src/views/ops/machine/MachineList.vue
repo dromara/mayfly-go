@@ -274,7 +274,7 @@ const perms = {
 };
 
 const searchItems = [
-    getTagPathSearchItem(TagResourceTypeEnum.Machine.value),
+    getTagPathSearchItem(TagResourceTypeEnum.MachineAuthCert.value),
     SearchItem.input('code', '编号'),
     SearchItem.input('ip', 'IP'),
     SearchItem.input('name', '名称'),

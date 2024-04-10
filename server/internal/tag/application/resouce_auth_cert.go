@@ -10,13 +10,11 @@ import (
 	"mayfly-go/pkg/utils/collx"
 )
 
-type SaveAuthCertParam struct {
+type RelateAuthCertParam struct {
 	ResourceCode string
+
 	// 资源标签类型
 	ResourceType entity.TagType
-
-	// 授权凭证类型
-	AuthCertTagType entity.TagType
 
 	// 空数组则为删除该资源绑定的授权凭证
 	AuthCerts []*entity.ResourceAuthCert
@@ -25,11 +23,13 @@ type SaveAuthCertParam struct {
 type ResourceAuthCert interface {
 	base.App[*entity.ResourceAuthCert]
 
-	// SaveAuthCert 保存资源授权凭证信息，不可放于事务中
-	SaveAuthCert(ctx context.Context, param *SaveAuthCertParam) error
+	// RelateAuthCert 保存资源授权凭证信息，不可放于事务中
+	RelateAuthCert(ctx context.Context, param *RelateAuthCertParam) error
 
-	// SavePublicAuthCert 保存公共授权凭证信息
-	SavePulbicAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error
+	// SaveAuthCert 保存授权凭证信息
+	SaveAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error
+
+	DeleteAuthCert(ctx context.Context, id uint64) error
 
 	// GetAuthCert 根据授权凭证名称获取授权凭证
 	GetAuthCert(authCertName string) (*entity.ResourceAuthCert, error)
@@ -56,23 +56,25 @@ func (r *resourceAuthCertAppImpl) InjectResourceAuthCertRepo(resourceAuthCertRep
 	r.Repo = resourceAuthCertRepo
 }
 
-func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, params *SaveAuthCertParam) error {
+func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *RelateAuthCertParam) error {
 	resourceCode := params.ResourceCode
 	resourceType := int8(params.ResourceType)
 	resourceAuthCerts := params.AuthCerts
-	authCertTagType := params.AuthCertTagType
+	authCertTagType := getResourceAuthCertTagType(entity.TagType(resourceType))
 
 	if authCertTagType == 0 {
 		return errorx.NewBiz("资源授权凭证所属标签类型不能为空")
 	}
-
 	if resourceCode == "" {
 		return errorx.NewBiz("资源授权凭证的资源编号不能为空")
+	}
+	if resourceType == 0 {
+		return errorx.NewBiz("资源类型不能为空")
 	}
 
 	// 删除授权信息
 	if len(resourceAuthCerts) == 0 {
-		logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-删除所有关联的授权凭证信息", resourceType, resourceCode)
+		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-删除所有关联的授权凭证信息", resourceType, resourceCode)
 		if err := r.DeleteByCond(ctx, &entity.ResourceAuthCert{ResourceCode: resourceCode, ResourceType: resourceType}); err != nil {
 			return err
 		}
@@ -114,9 +116,10 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, params *Save
 	var oldAuthCert []*entity.ResourceAuthCert
 	r.ListByCond(&entity.ResourceAuthCert{ResourceCode: resourceCode, ResourceType: resourceType}, &oldAuthCert)
 
+	// 新增、删除以及不变的授权凭证名
 	var adds, dels, unmodifys []string
 	if len(oldAuthCert) == 0 {
-		logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-不存在已有的授权凭证信息, 为新增资源授权凭证", resourceType, resourceCode)
+		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-不存在已有的授权凭证信息, 为新增资源授权凭证", resourceType, resourceCode)
 		adds = collx.MapKeys(name2AuthCert)
 	} else {
 		oldNames := collx.ArrayMap(oldAuthCert, func(ac *entity.ResourceAuthCert) string {
@@ -134,7 +137,7 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, params *Save
 
 	// 处理新增的授权凭证
 	if len(addAuthCerts) > 0 {
-		logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-新增授权凭证-[%v]", resourceType, resourceCode, adds)
+		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-新增授权凭证-[%v]", resourceType, resourceCode, adds)
 		if err := r.BatchInsert(ctx, addAuthCerts); err != nil {
 			return err
 		}
@@ -150,7 +153,7 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, params *Save
 		if len(resourceTagIds) > 0 {
 			// 保存授权凭证类型的资源标签
 			for _, authCert := range addAuthCerts {
-				logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-授权凭证标签[%d-%s]关联至所属资源标签下[%v]", resourceType, resourceCode, authCertTagType, authCert.Name, resourceTagIds)
+				logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-授权凭证标签[%d-%s]关联至所属资源标签下[%v]", resourceType, resourceCode, authCertTagType, authCert.Name, resourceTagIds)
 				if err := r.tagTreeApp.SaveResource(ctx, &SaveResourceTagParam{
 					ResourceCode: authCert.Name,
 					ResourceType: authCertTagType,
@@ -164,7 +167,7 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, params *Save
 	}
 
 	for _, del := range dels {
-		logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-删除授权凭证-[%v]", resourceType, resourceCode, del)
+		logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-删除授权凭证-[%v]", resourceType, resourceCode, del)
 		if err := r.DeleteByCond(ctx, &entity.ResourceAuthCert{ResourceCode: resourceCode, ResourceType: resourceType, Name: del}); err != nil {
 			return err
 		}
@@ -177,39 +180,75 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, params *Save
 		}
 	}
 
-	for _, unmodify := range unmodifys {
-		unmodifyAc := name2AuthCert[unmodify]
-		if unmodifyAc.Id == 0 {
-			continue
-		}
-		logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-更新授权凭证-[%v]", resourceType, resourceCode, unmodify)
-		// 置空用户名，不允许修改（TagTree的name关联了该值，修改了会造成数据不一致，懒得处理该同步。要修改用户名可通过重新删除旧凭证后添加一个授权凭证或通过关联公共凭证（公共凭证可修改用户名））
-		if unmodifyAc.CiphertextType != entity.AuthCertCiphertextTypePublic {
-			unmodifyAc.Username = ""
-		}
+	if len(unmodifys) > 0 {
+		// 旧凭证名 -> 旧凭证
+		oldName2AuthCert := collx.ArrayToMap(oldAuthCert, func(ac *entity.ResourceAuthCert) string {
+			return ac.Name
+		})
+		for _, unmodify := range unmodifys {
+			unmodifyAc := name2AuthCert[unmodify]
+			if unmodifyAc.Id == 0 {
+				continue
+			}
 
-		if err := r.UpdateById(ctx, unmodifyAc); err != nil {
-			return err
+			oldAuthCert := oldName2AuthCert[unmodify]
+			if !unmodifyAc.HasChanged(oldAuthCert) {
+				logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-授权凭证[%s]未发生字段变更", resourceType, resourceCode, unmodify)
+				continue
+			}
+
+			logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-更新授权凭证-[%v]", resourceType, resourceCode, unmodify)
+			if oldAuthCert.Username != unmodifyAc.Username {
+				if err := r.updateAuthCertTagName(ctx, unmodify, authCertTagType, unmodifyAc.Username); err != nil {
+					logx.WarnfContext(ctx, "授权凭证[%s]修改了用户名-同步更新授权凭证标签名失败", unmodify)
+				}
+			}
+
+			if err := r.UpdateById(ctx, unmodifyAc); err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
 }
 
-func (r *resourceAuthCertAppImpl) SavePulbicAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error {
-	rac.Type = entity.AuthCertTypePublic
-	rac.CiphertextEncrypt()
-	rac.ResourceType = 0
-	rac.ResourceCode = "-"
+func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error {
 	if rac.Id == 0 {
-		if r.CountByCond(&entity.ResourceAuthCert{Name: rac.Name}) > 0 {
-			return errorx.NewBiz("授权凭证的名称不能重复[%s]", rac.Name)
-		}
-		return r.Insert(ctx, rac)
+		return r.addAuthCert(ctx, rac)
 	}
-	// 名称置空，防止被更新
-	rac.Name = ""
-	return r.UpdateById(ctx, rac)
+
+	return r.updateAuthCert(ctx, rac)
+}
+
+func (r *resourceAuthCertAppImpl) DeleteAuthCert(ctx context.Context, id uint64) error {
+	rac, err := r.GetById(new(entity.ResourceAuthCert), id)
+	if err != nil {
+		return errorx.NewBiz("授权凭证不存在")
+	}
+
+	if rac.Type == entity.AuthCertTypePublic {
+		if r.CountByCond(&entity.ResourceAuthCert{Ciphertext: rac.Name}) > 0 {
+			return errorx.NewBiz("该公共授权凭证[%s]已被关联", rac.Name)
+		}
+		// 公共授权凭证直接删除即可
+		return r.DeleteById(ctx, id)
+	}
+
+	if r.CountByCond(&entity.ResourceAuthCert{ResourceCode: rac.ResourceCode, ResourceType: rac.ResourceType}) <= 1 {
+		return errorx.NewBiz("资源至少需要绑定一个授权凭证，无法删除该凭证[%s]", rac.Name)
+	}
+
+	return r.Tx(ctx,
+		func(ctx context.Context) error {
+			// 删除对应授权凭证标签
+			return r.tagTreeApp.DeleteResource(ctx, &DelResourceTagParam{
+				ResourceCode: rac.Name,
+			})
+		},
+		func(ctx context.Context) error {
+			return r.DeleteById(ctx, id)
+		})
 }
 
 func (r *resourceAuthCertAppImpl) GetAuthCert(authCertName string) (*entity.ResourceAuthCert, error) {
@@ -288,6 +327,109 @@ func (r *resourceAuthCertAppImpl) FillAuthCert(authCerts []*entity.ResourceAuthC
 			CiphertextType: authCert.CiphertextType,
 		})
 	}
+}
+
+// addAuthCert 添加授权凭证
+func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error {
+	if r.CountByCond(&entity.ResourceAuthCert{Name: rac.Name}) > 0 {
+		return errorx.NewBiz("授权凭证的名称不能重复[%s]", rac.Name)
+	}
+	// 公共凭证
+	if rac.Type == entity.AuthCertTypePublic {
+		rac.ResourceCode = "-"
+		rac.CiphertextEncrypt()
+		rac.Type = -2
+		return r.Insert(ctx, rac)
+	}
+
+	resourceCode := rac.ResourceCode
+	resourceType := rac.ResourceType
+
+	// 获取资源编号对应的资源标签信息
+	var resourceTags []*entity.TagTree
+	r.tagTreeApp.ListByCond(&entity.TagTree{Type: entity.TagType(resourceType), Code: resourceCode}, &resourceTags)
+	// 资源标签id（相当于父tag id）
+	resourceTagIds := collx.ArrayMap(resourceTags, func(tag *entity.TagTree) uint64 {
+		return tag.Id
+	})
+	if len(resourceTagIds) == 0 {
+		return errorx.NewBiz("资源标签不存在[%s], 请检查资源编号是否正确", resourceCode)
+	}
+
+	authCertTagType := getResourceAuthCertTagType(entity.TagType(resourceType))
+	// 如果密文类型不为公共凭证，则进行加密。公共凭证密文内容存的是明文的公共凭证名
+	if rac.CiphertextType != entity.AuthCertCiphertextTypePublic {
+		rac.CiphertextEncrypt()
+	}
+
+	return r.Tx(ctx, func(ctx context.Context) error {
+		logx.DebugfContext(ctx, "[%d-%s]-授权凭证标签[%d-%s]关联至所属资源标签下[%v]", resourceType, resourceCode, authCertTagType, rac.Name, resourceTagIds)
+		return r.tagTreeApp.SaveResource(ctx, &SaveResourceTagParam{
+			ResourceCode: rac.Name,
+			ResourceType: authCertTagType,
+			ResourceName: rac.Username,
+			TagIds:       resourceTagIds,
+		})
+	}, func(ctx context.Context) error {
+		return r.Insert(ctx, rac)
+	})
+}
+
+// updateAuthCert 更新授权凭证
+func (r *resourceAuthCertAppImpl) updateAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error {
+	oldRac, err := r.GetById(new(entity.ResourceAuthCert), rac.Id)
+	if err != nil {
+		return errorx.NewBiz("该授权凭证不存在")
+	}
+
+	if !oldRac.HasChanged(rac) {
+		return nil
+	}
+
+	if oldRac.Type == entity.AuthCertTypePublic {
+		// 如果旧凭证为公共凭证，则不允许修改凭证类型
+		if rac.Type != entity.AuthCertTypePublic {
+			return errorx.NewBiz("公共授权凭证不允许修改凭证类型")
+		}
+
+		if rac.CiphertextType == entity.AuthCertCiphertextTypePublic {
+			return errorx.NewBiz("公共授权凭证不允许绑定其他公共授权凭证")
+		}
+	} else {
+		if rac.Type == entity.AuthCertTypePublic {
+			return errorx.NewBiz("非公共授权凭证不允许修改为公共凭证")
+		}
+
+		// 修改了用户名，则需要同步更新对应授权凭证标签里的名称
+		if rac.Username != oldRac.Username {
+			if err := r.updateAuthCertTagName(ctx, oldRac.Name, getResourceAuthCertTagType(entity.TagType(oldRac.ResourceType)), rac.Username); err != nil {
+				return errorx.NewBiz("同步更新授权凭证标签名称失败")
+			}
+		}
+	}
+
+	// 防止误更新
+	rac.Name = ""
+	rac.ResourceCode = ""
+	rac.ResourceType = 0
+	return r.UpdateById(ctx, rac)
+}
+
+// updateAuthCertTagName 同步更新授权凭证的标签名，防止标签展示不一致
+func (r *resourceAuthCertAppImpl) updateAuthCertTagName(ctx context.Context, authCertName string, autyCertTagType entity.TagType, newTagName string) error {
+	return r.tagTreeApp.UpdateByWheres(ctx, &entity.TagTree{Name: newTagName}, collx.M{"code = ?": authCertName, "type = ?": autyCertTagType})
+}
+
+// getResourceAuthCertTagType 根据资源类型，获取对应的授权凭证标签类型
+func getResourceAuthCertTagType(resourceType entity.TagType) entity.TagType {
+	if resourceType == entity.TagTypeMachine {
+		return entity.TagTypeMachineAuthCert
+	}
+	if resourceType == entity.TagTypeDb {
+		return entity.TagTypeDbAuthCert
+	}
+
+	return -2
 }
 
 // 解密授权凭证信息

@@ -6,7 +6,7 @@
                     <el-button v-auth="'authcert:save'" class="ml0" type="primary" circle size="small" icon="Plus" @click="edit(null)"> </el-button>
                 </template>
                 <template #default="scope">
-                    <el-button v-auth="'authcert:save'" @click="edit({ ...scope.row }, scope.$index)" type="primary" icon="edit" link></el-button>
+                    <el-button v-auth="'authcert:save'" @click="edit(scope.row, scope.$index)" type="primary" icon="edit" link></el-button>
                     <el-button class="ml1" v-auth="'authcert:del'" type="danger" @click="deleteRow(scope.$index)" icon="delete" link></el-button>
 
                     <el-button

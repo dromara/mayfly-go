@@ -2,26 +2,8 @@
     <div class="auth-cert-edit">
         <el-dialog title="凭证保存" v-model="dialogVisible" :show-close="false" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
             <el-form ref="acForm" :model="state.form" label-width="auto" :rules="rules">
-                <el-form-item prop="ciphertextType" label="密文类型" required>
-                    <el-select
-                        :disabled="form.id && props.resourceEdit"
-                        v-model="form.ciphertextType"
-                        placeholder="请选择密文类型"
-                        @change="changeCiphertextType"
-                    >
-                        <el-option
-                            v-for="item in AuthCertCiphertextTypeEnum"
-                            :key="item.value"
-                            :label="item.label"
-                            :value="item.value"
-                            v-show="!props.disableCiphertextType?.includes(item.value)"
-                        >
-                        </el-option>
-                    </el-select>
-                </el-form-item>
-
                 <el-form-item prop="type" label="凭证类型" required>
-                    <el-select style="width: 100%" v-model="form.type" placeholder="请选择凭证类型">
+                    <el-select @change="changeType" v-model="form.type" placeholder="请选择凭证类型">
                         <el-option
                             v-for="item in AuthCertTypeEnum"
                             :key="item.value"
@@ -33,13 +15,44 @@
                     </el-select>
                 </el-form-item>
 
+                <el-form-item prop="ciphertextType" label="密文类型" required>
+                    <el-select v-model="form.ciphertextType" placeholder="请选择密文类型" @change="changeCiphertextType">
+                        <el-option
+                            v-for="item in AuthCertCiphertextTypeEnum"
+                            :key="item.value"
+                            :label="item.label"
+                            :value="item.value"
+                            v-show="!props.disableCiphertextType?.includes(item.value)"
+                            :disabled="item.value == AuthCertCiphertextTypeEnum.Public.value && form.type == AuthCertTypeEnum.Public.value"
+                        >
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+
+                <template v-if="showResourceEdit">
+                    <el-form-item prop="type" label="资源类型" required>
+                        <el-select :disabled="form.id" v-model="form.resourceType" placeholder="请选择资源类型">
+                            <el-option
+                                :key="TagResourceTypeEnum.Machine.value"
+                                :label="TagResourceTypeEnum.Machine.label"
+                                :value="TagResourceTypeEnum.Machine.value"
+                            />
+
+                            <el-option :key="TagResourceTypeEnum.Db.value" :label="TagResourceTypeEnum.Db.label" :value="TagResourceTypeEnum.Db.value" />
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item prop="resourceCode" label="资源编号" required>
+                        <el-input :disabled="form.id" v-model="form.resourceCode" placeholder="请输入资源编号"></el-input>
+                    </el-form-item>
+                </template>
+
                 <el-form-item prop="name" label="名称" required>
-                    <el-input :disabled="form.id" v-model="form.name"></el-input>
+                    <el-input :disabled="form.id" v-model="form.name" placeholder="请输入凭证名 (全局唯一)"></el-input>
                 </el-form-item>
 
                 <template v-if="form.ciphertextType != AuthCertCiphertextTypeEnum.Public.value">
                     <el-form-item prop="username" label="用户名">
-                        <el-input :disabled="form.id && props.resourceEdit" v-model="form.username"></el-input>
+                        <el-input v-model="form.username"></el-input>
                     </el-form-item>
 
                     <el-form-item v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.Password.value" prop="ciphertext" label="密码">
@@ -97,11 +110,12 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, toRefs, onMounted, watch } from 'vue';
+import { reactive, ref, toRefs, onMounted, watch, computed } from 'vue';
 import { AuthCertTypeEnum, AuthCertCiphertextTypeEnum } from '../tag/enums';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { resourceAuthCertApi } from '../tag/api';
 import { ResourceCodePattern } from '@/common/pattern';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     authCert: {
@@ -113,7 +127,7 @@ const props = defineProps({
     disableType: {
         type: Array,
     },
-    // 是否为资源编辑该授权凭证
+    // 是否为资源编辑该授权凭证，即机器编辑等页面等
     resourceEdit: {
         type: Boolean,
         default: true,
@@ -126,6 +140,8 @@ const DefaultForm = {
     username: '',
     ciphertextType: AuthCertCiphertextTypeEnum.Password.value,
     type: AuthCertTypeEnum.Private.value,
+    resourceType: TagResourceTypeEnum.AuthCert.value,
+    resourceCode: '',
     ciphertext: '',
     extra: {} as any,
     remark: '',
@@ -158,6 +174,10 @@ const state = reactive({
     publicAuthCerts: [] as any,
 });
 
+const showResourceEdit = computed(() => {
+    return state.form.type != AuthCertTypeEnum.Public.value && !props.resourceEdit;
+});
+
 onMounted(() => {
     setForm(props.authCert);
 });
@@ -170,6 +190,7 @@ watch(
 );
 
 const setForm = (val: any) => {
+    val = { ...val };
     if (!val.extra) {
         val.extra = {};
     }
@@ -181,8 +202,16 @@ const setForm = (val: any) => {
 
 const { form, btnLoading } = toRefs(state);
 
+const changeType = (val: any) => {
+    // 如果选择了公共凭证，则需要保证密文类型不能为公共凭证
+    if (val == AuthCertTypeEnum.Public.value && state.form.ciphertextType == AuthCertCiphertextTypeEnum.Public.value) {
+        state.form.ciphertextType = AuthCertCiphertextTypeEnum.Password.value;
+    }
+};
+
 const changeCiphertextType = (val: any) => {
     if (val == AuthCertCiphertextTypeEnum.Public.value) {
+        state.form.type = AuthCertTypeEnum.Private.value;
         getPublicAuthCerts();
     }
 };
@@ -211,6 +240,7 @@ const cancelEdit = () => {
     dialogVisible.value = false;
     setTimeout(() => {
         state.form = { ...DefaultForm };
+        acForm.value?.resetFields();
     }, 300);
 };
 

@@ -30,6 +30,8 @@ const (
 	TagTypeRedis   TagType = TagType(consts.TagResourceTypeRedis)
 	TagTypeMongo   TagType = TagType(consts.TagResourceTypeMongo)
 
+	// ----- （单独声明各个资源的授权凭证类型而不统一使用一个授权凭证类型是为了获取登录账号的授权凭证标签(ResourceAuthCertApp.GetAccountAuthCert)时，避免查出所有资源的授权凭证）
+
 	TagTypeMachineAuthCert TagType = 11 // 机器-授权凭证
 	TagTypeDbAuthCert      TagType = 21 // DB-授权凭证
 )
