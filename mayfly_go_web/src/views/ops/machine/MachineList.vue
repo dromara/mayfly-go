@@ -106,7 +106,9 @@
                     <el-divider direction="vertical" border-style="dashed" />
                 </span>
 
-                <el-button :disabled="data.status == -1" type="warning" @click="serviceManager(data)" link>脚本</el-button>
+                <el-button v-if="data.protocol == MachineProtocolEnum.Ssh.value" :disabled="data.status == -1" type="warning" @click="serviceManager(data)" link
+                    >脚本</el-button
+                >
                 <el-divider direction="vertical" border-style="dashed" />
 
                 <el-dropdown @command="handleCommand">
@@ -120,11 +122,19 @@
                         <el-dropdown-menu>
                             <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
 
-                            <el-dropdown-item :command="{ type: 'rdp-blank', data }" v-if="data.protocol == 2"> RDP(新窗口) </el-dropdown-item>
+                            <el-dropdown-item :command="{ type: 'rdp-blank', data }" v-if="data.protocol == MachineProtocolEnum.Rdp.value">
+                                RDP(新窗口)
+                            </el-dropdown-item>
 
                             <el-dropdown-item :command="{ type: 'edit', data }" v-if="actionBtns[perms.updateMachine]"> 编辑 </el-dropdown-item>
 
-                            <el-dropdown-item :command="{ type: 'process', data }" :disabled="data.status == -1"> 进程 </el-dropdown-item>
+                            <el-dropdown-item
+                                v-if="data.protocol == MachineProtocolEnum.Ssh.value"
+                                :command="{ type: 'process', data }"
+                                :disabled="data.status == -1"
+                            >
+                                进程
+                            </el-dropdown-item>
 
                             <el-dropdown-item :command="{ type: 'terminalRec', data }" v-if="actionBtns[perms.updateMachine] && data.enableRecorder == 1">
                                 终端回放
@@ -177,7 +187,12 @@
 
         <process-list v-model:visible="processDialog.visible" v-model:machineId="processDialog.machineId" />
 
-        <script-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible" v-model:machineId="serviceDialog.machineId" />
+        <script-manage
+            :title="serviceDialog.title"
+            v-model:visible="serviceDialog.visible"
+            v-model:machineId="serviceDialog.machineId"
+            :auth-cert-name="serviceDialog.authCertName"
+        />
 
         <file-conf-list
             :title="fileDialog.title"
@@ -298,6 +313,7 @@ const state = reactive({
     serviceDialog: {
         visible: false,
         machineId: 0,
+        authCertName: '',
         title: '',
     },
     processDialog: {
@@ -468,9 +484,11 @@ const deleteMachine = async () => {
 };
 
 const serviceManager = (row: any) => {
+    const authCert = row.selectAuthCert;
     state.serviceDialog.machineId = row.id;
+    state.serviceDialog.authCertName = authCert.name;
     state.serviceDialog.visible = true;
-    state.serviceDialog.title = `${row.name} => ${row.ip}`;
+    state.serviceDialog.title = `${row.name} => ${authCert.username}@${row.ip}`;
 };
 
 /**

@@ -24,19 +24,58 @@
             <template #action="{ data }">
                 <el-button @click.prevent="showMembers(data)" link type="primary">成员</el-button>
 
-                <el-button @click.prevent="showTags(data)" link type="success">标签</el-button>
-
                 <el-button v-auth="'team:save'" @click.prevent="showSaveTeamDialog(data)" link type="warning">编辑</el-button>
             </template>
         </page-table>
 
-        <el-dialog width="400px" title="团队编辑" :before-close="cancelSaveTeam" v-model="addTeamDialog.visible">
+        <el-drawer title="团队编辑" v-model="addTeamDialog.visible" :before-close="cancelSaveTeam" :destroy-on-close="true" :close-on-click-modal="false">
+            <template #header>
+                <DrawerHeader header="团队编辑" :back="cancelSaveTeam" />
+            </template>
+
             <el-form ref="teamForm" :model="addTeamDialog.form" label-width="auto">
                 <el-form-item prop="name" label="团队名" required>
-                    <el-input v-model="addTeamDialog.form.name" auto-complete="off"></el-input>
+                    <el-input :disabled="addTeamDialog.form.id" v-model="addTeamDialog.form.name" auto-complete="off"></el-input>
                 </el-form-item>
                 <el-form-item label="备注">
                     <el-input v-model="addTeamDialog.form.remark" auto-complete="off"></el-input>
+                </el-form-item>
+
+                <el-form-item prop="tag" label="标签">
+                    <el-scrollbar style="height: calc(100vh - 300px); border: 1px solid var(--el-border-color)">
+                        <el-tree
+                            ref="tagTreeRef"
+                            style="width: 100%"
+                            :data="state.tags"
+                            :default-expanded-keys="state.addTeamDialog.form.tags"
+                            :default-checked-keys="state.addTeamDialog.form.tags"
+                            multiple
+                            :render-after-expand="true"
+                            show-checkbox
+                            check-strictly
+                            node-key="id"
+                            :props="{
+                                value: 'id',
+                                label: 'codePath',
+                                children: 'children',
+                            }"
+                            @check="tagTreeNodeCheck"
+                        >
+                            <template #default="{ data }">
+                                <span class="custom-tree-node">
+                                    <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" />
+
+                                    <span class="font13 ml5">
+                                        {{ data.code }}
+                                        <span style="color: #3c8dbc">【</span>
+                                        {{ data.name }}
+                                        <span style="color: #3c8dbc">】</span>
+                                        <el-tag v-if="data.children !== null" size="small">{{ data.children.length }} </el-tag>
+                                    </span>
+                                </span>
+                            </template>
+                        </el-tree>
+                    </el-scrollbar>
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -45,48 +84,7 @@
                     <el-button @click="saveTeam" type="primary">确 定</el-button>
                 </div>
             </template>
-        </el-dialog>
-
-        <el-dialog width="500px" :title="showTagDialog.title" :before-close="closeTagDialog" v-model="showTagDialog.visible">
-            <el-form label-width="auto">
-                <el-form-item prop="tag" label="标签">
-                    <el-tree-select
-                        ref="tagTreeRef"
-                        style="width: 100%"
-                        v-model="showTagDialog.tagTreeTeams"
-                        :data="showTagDialog.tags"
-                        :default-expanded-keys="showTagDialog.tagTreeTeams"
-                        multiple
-                        :render-after-expand="true"
-                        show-checkbox
-                        check-strictly
-                        node-key="id"
-                        :props="showTagDialog.props"
-                        @check="tagTreeNodeCheck"
-                    >
-                        <template #default="{ data }">
-                            <span class="custom-tree-node">
-                                <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" />
-
-                                <span class="font13 ml5">
-                                    {{ data.code }}
-                                    <span style="color: #3c8dbc">【</span>
-                                    {{ data.name }}
-                                    <span style="color: #3c8dbc">】</span>
-                                    <el-tag v-if="data.children !== null" size="small">{{ data.children.length }} </el-tag>
-                                </span>
-                            </span>
-                        </template>
-                    </el-tree-select>
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <div class="dialog-footer">
-                    <el-button @click="closeTagDialog()">取 消</el-button>
-                    <el-button v-auth="'team:tag:save'" @click="saveTags()" type="primary">确 定</el-button>
-                </div>
-            </template>
-        </el-dialog>
+        </el-drawer>
 
         <el-dialog @open="setMemebers" width="50%" :title="showMemDialog.title" v-model="showMemDialog.visible">
             <page-table
@@ -132,6 +130,7 @@ import { SearchItem } from '@/components/SearchForm';
 import AccountSelectFormItem from '@/views/system/account/components/AccountSelectFormItem.vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumValue from '@/common/Enum';
+import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 
 const teamForm: any = ref(null);
 const tagTreeRef: any = ref(null);
@@ -142,17 +141,20 @@ const searchItems = [SearchItem.input('name', '团队名称')];
 const columns = [
     TableColumn.new('name', '团队名称'),
     TableColumn.new('remark', '备注'),
+    TableColumn.new('creator', '创建者'),
     TableColumn.new('createTime', '创建时间').isTime(),
-    TableColumn.new('creator', '创建人'),
+    TableColumn.new('modifier', '修改者'),
+    TableColumn.new('updateTime', '修改时间').isTime(),
     TableColumn.new('action', '操作').isSlot().setMinWidth(120).fixedRight().alignCenter(),
 ];
 
 const state = reactive({
     currentEditPermissions: false,
+    tags: [],
     addTeamDialog: {
         title: '新增团队',
         visible: false,
-        form: { id: 0, name: '', remark: '' },
+        form: { id: 0, name: '', remark: '', tags: [] },
     },
     query: {
         pageNum: 1,
@@ -188,21 +190,9 @@ const state = reactive({
         },
         accounts: Array(),
     },
-    showTagDialog: {
-        title: '项目信息',
-        visible: false,
-        tags: [],
-        teamId: 0,
-        tagTreeTeams: [] as any,
-        props: {
-            value: 'id',
-            label: 'codePath',
-            children: 'children',
-        },
-    },
 });
 
-const { query, addTeamDialog, selectionData, showMemDialog, showTagDialog } = toRefs(state);
+const { query, addTeamDialog, selectionData, showMemDialog } = toRefs(state);
 
 onMounted(() => {});
 
@@ -210,13 +200,19 @@ const search = async () => {
     pageTableRef.value.search();
 };
 
-const showSaveTeamDialog = (data: any) => {
+const showSaveTeamDialog = async (data: any) => {
+    if (state.tags.length == 0) {
+        state.tags = await tagApi.getTagTrees.request(null);
+    }
+
     if (data) {
         state.addTeamDialog.form.id = data.id;
         state.addTeamDialog.form.name = data.name;
         state.addTeamDialog.form.remark = data.remark;
         state.addTeamDialog.title = `修改 [${data.codePath}] 信息`;
+        state.addTeamDialog.form.tags = await tagApi.getTeamTagIds.request({ teamId: data.id });
     }
+
     state.addTeamDialog.visible = true;
 };
 
@@ -224,6 +220,7 @@ const saveTeam = async () => {
     teamForm.value.validate(async (valid: any) => {
         if (valid) {
             const form = state.addTeamDialog.form;
+            form.tags = tagTreeRef.value.getCheckedKeys(false);
             await tagApi.saveTeam.request(form);
             ElMessage.success('保存成功');
             search();
@@ -292,32 +289,6 @@ const cancelAddMember = () => {
     state.showMemDialog.addVisible = false;
 };
 
-/********** 标签相关 ***********/
-
-const showTags = async (team: any) => {
-    state.showTagDialog.tags = await tagApi.getTagTrees.request(null);
-    state.showTagDialog.tagTreeTeams = await tagApi.getTeamTagIds.request({ teamId: team.id });
-    state.showTagDialog.title = `[${team.name}] 团队标签信息`;
-    state.showTagDialog.teamId = team.id;
-    state.showTagDialog.visible = true;
-};
-
-const closeTagDialog = () => {
-    state.showTagDialog.visible = false;
-    setTimeout(() => {
-        state.showTagDialog.tagTreeTeams = [];
-    }, 500);
-};
-
-const saveTags = async () => {
-    await tagApi.saveTeamTags.request({
-        teamId: state.showTagDialog.teamId,
-        tagIds: state.showTagDialog.tagTreeTeams,
-    });
-    ElMessage.success('保存成功');
-    closeTagDialog();
-};
-
 const tagTreeNodeCheck = () => {
     // const node = tagTreeRef.value.getNode(data.id);
     // console.log(node);
@@ -348,4 +319,4 @@ const tagTreeNodeCheck = () => {
 //     console.log(state.showTagDialog.tagTreeTeams);
 // }
 </script>
-<style lang="scss"></style>
+<style lang="scss" scoped></style>

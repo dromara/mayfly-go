@@ -2,6 +2,7 @@ import { EnumValue } from '@/common/Enum';
 
 // 授权凭证类型
 export const AuthCertTypeEnum = {
+    Public: EnumValue.of(2, '公共凭证').tagTypeSuccess(),
     Private: EnumValue.of(1, '普通账号').tagTypeSuccess(),
     Privileged: EnumValue.of(11, '特权账号').tagTypeSuccess(),
     PrivateDefault: EnumValue.of(12, '默认账号').tagTypeSuccess(),

@@ -33,17 +33,6 @@ type MachineScriptForm struct {
 	Script      string `json:"script" binding:"required"`
 }
 
-// 授权凭证
-type AuthCertForm struct {
-	Id         uint64 `json:"id"`
-	Name       string `json:"name" binding:"required"`
-	AuthMethod int8   `json:"authMethod" binding:"required"` // 1.密码 2.秘钥
-	Username   string `json:"username"`
-	Password   string `json:"password"`   // 密码or私钥
-	Passphrase string `json:"passphrase"` // 私钥口令
-	Remark     string `json:"remark"`
-}
-
 // 机器记录任务
 type MachineCronJobForm struct {
 	Id              uint64   `json:"id"`

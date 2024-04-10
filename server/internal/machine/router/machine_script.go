@@ -23,7 +23,7 @@ func InitMachineScriptRouter(router *gin.RouterGroup) {
 
 		req.NewDelete(":machineId/scripts/:scriptId", ms.DeleteMachineScript).Log(req.NewLogSave("机器-删除脚本")).RequiredPermissionCode("machine:script:del"),
 
-		req.NewGet(":machineId/scripts/:scriptId/run", ms.RunMachineScript).Log(req.NewLogSave("机器-执行脚本")).RequiredPermissionCode("machine:script:run"),
+		req.NewGet("scripts/:scriptId/:ac/run", ms.RunMachineScript).Log(req.NewLogSave("机器-执行脚本")).RequiredPermissionCode("machine:script:run"),
 	}
 
 	req.BatchSetGroup(machines, reqs[:])

@@ -5,13 +5,6 @@ import (
 	"time"
 )
 
-// 授权凭证基础信息
-type AuthCertBaseVO struct {
-	Id         int    `json:"id"`
-	Name       string `json:"name"`
-	AuthMethod int8   `json:"authMethod"`
-}
-
 type MachineVO struct {
 	tagentity.ResourceTags // 标签信息
 	tagentity.AuthCerts    // 授权凭证信息

@@ -8,6 +8,10 @@ import (
 	"github.com/may-fly/cast"
 )
 
+const (
+	ExtraKeyPassphrase = "passphrase"
+)
+
 // 资源授权凭证
 type ResourceAuthCert struct {
 	model.Model
@@ -16,14 +20,15 @@ type ResourceAuthCert struct {
 
 	ResourceCode   string                 `json:"resourceCode"`   // 资源编号
 	ResourceType   int8                   `json:"resourceType"`   // 资源类型
+	Type           AuthCertType           `json:"type"`           // 凭证类型
 	Username       string                 `json:"username"`       // 用户名
 	Ciphertext     string                 `json:"ciphertext"`     // 密文
 	CiphertextType AuthCertCiphertextType `json:"ciphertextType"` // 密文类型
 	Extra          model.Map[string, any] `json:"extra"`          // 账号需要的其他额外信息（如秘钥口令等）
-	Type           AuthCertType           `json:"type"`           // 凭证类型
 	Remark         string                 `json:"remark"`         // 备注
 }
 
+// CiphertextEncrypt 密文加密
 func (m *ResourceAuthCert) CiphertextEncrypt() error {
 	// 密码替换为加密后的密码
 	password, err := utils.PwdAesEncrypt(m.Ciphertext)
@@ -34,19 +39,20 @@ func (m *ResourceAuthCert) CiphertextEncrypt() error {
 
 	// 加密秘钥口令
 	if m.CiphertextType == AuthCertCiphertextTypePrivateKey {
-		passphrase := cast.ToString(m.Extra["passphrase"])
+		passphrase := m.GetExtraString(ExtraKeyPassphrase)
 		if passphrase != "" {
 			passphrase, err := utils.PwdAesEncrypt(passphrase)
 			if err != nil {
 				return errors.New("加密秘钥口令失败")
 			}
-			m.Extra["passphrase"] = passphrase
+			m.SetExtra(ExtraKeyPassphrase, passphrase)
 		}
 	}
 
 	return nil
 }
 
+// CiphertextDecrypt 密文解密
 func (m *ResourceAuthCert) CiphertextDecrypt() error {
 	// 密码替换为解密后的密码
 	password, err := utils.PwdAesDecrypt(m.Ciphertext)
@@ -57,16 +63,38 @@ func (m *ResourceAuthCert) CiphertextDecrypt() error {
 
 	// 加密秘钥口令
 	if m.CiphertextType == AuthCertCiphertextTypePrivateKey {
-		passphrase := cast.ToString(m.Extra["passphrase"])
+		passphrase := m.GetExtraString(ExtraKeyPassphrase)
 		if passphrase != "" {
 			passphrase, err := utils.PwdAesDecrypt(passphrase)
 			if err != nil {
 				return errors.New("解密秘钥口令失败")
 			}
-			m.Extra["passphrase"] = passphrase
+			m.SetExtra(ExtraKeyPassphrase, passphrase)
 		}
 	}
 	return nil
+}
+
+// CiphertextClear 密文清楚
+func (m *ResourceAuthCert) CiphertextClear() {
+	// 如果密文类型非公共授权凭证，则清空
+	if m.CiphertextType != AuthCertCiphertextTypePublic {
+		m.Ciphertext = ""
+	}
+	m.SetExtra(ExtraKeyPassphrase, "")
+}
+
+func (m *ResourceAuthCert) SetExtra(key string, val any) {
+	if m.Extra != nil {
+		m.Extra[key] = val
+	}
+}
+
+func (m *ResourceAuthCert) GetExtraString(key string) string {
+	if m.Extra == nil {
+		return ""
+	}
+	return cast.ToString(m.Extra[key])
 }
 
 // 密文类型
@@ -76,14 +104,14 @@ type AuthCertCiphertextType int8
 type AuthCertType int8
 
 const (
-	AuthCertCiphertextTypePublic     AuthCertCiphertextType = -1 // 公共授权凭证
+	AuthCertCiphertextTypePublic     AuthCertCiphertextType = -1 // 公共授权凭证密文
 	AuthCertCiphertextTypePassword   AuthCertCiphertextType = 1  // 密码
 	AuthCertCiphertextTypePrivateKey AuthCertCiphertextType = 2  // 私钥
 
-	AuthCertTypePublic         AuthCertType = 2  // 公共凭证（可多个资源共享该授权凭证）
 	AuthCertTypePrivate        AuthCertType = 1  // 普通私有凭证
 	AuthCertTypePrivileged     AuthCertType = 11 // 特权私有凭证
 	AuthCertTypePrivateDefault AuthCertType = 12 // 默认私有凭证
+	AuthCertTypePublic         AuthCertType = 2  // 公共凭证（可多个资源共享该授权凭证）
 )
 
 // 授权凭证接口，填充资源授权凭证信息

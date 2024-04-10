@@ -18,9 +18,6 @@ func T2022() *gormigrate.Migration {
 	return &gormigrate.Migration{
 		ID: "2022",
 		Migrate: func(tx *gorm.DB) error {
-			if err := tx.AutoMigrate(&entity.AuthCert{}); err != nil {
-				return err
-			}
 			if err := tx.AutoMigrate(&entity.Machine{}); err != nil {
 				return err
 			}

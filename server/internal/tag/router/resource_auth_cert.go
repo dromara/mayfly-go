@@ -17,6 +17,12 @@ func InitResourceAuthCertRouter(router *gin.RouterGroup) {
 	{
 		reqs := [...]*req.Conf{
 			req.NewGet("", m.ListByQuery),
+
+			req.NewGet("/detail", m.GetCompleteAuthCert).Log(req.NewLogSave("授权凭证-查看密文")).RequiredPermissionCode("authcert:showciphertext"),
+
+			req.NewPost("", m.SaveAuthCert).Log(req.NewLogSave("授权凭证-保存")).RequiredPermissionCode("authcert:save"),
+
+			req.NewDelete(":id", m.Delete).Log(req.NewLogSave("授权凭证-删除")).RequiredPermissionCode("authcert:del"),
 		}
 
 		req.BatchSetGroup(resourceAuthCert, reqs[:])

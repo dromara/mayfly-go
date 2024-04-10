@@ -32,8 +32,6 @@ func InitTeamRouter(router *gin.RouterGroup) {
 
 			// 获取团队关联的标签id列表
 			req.NewGet("/:id/tags", m.GetTagIds),
-
-			req.NewPost("/:id/tags", m.SaveTags).Log(req.NewLogSave("团队-保存标签关联信息")).RequiredPermissionCode("team:tag:save"),
 		}
 
 		req.BatchSetGroup(team, reqs[:])

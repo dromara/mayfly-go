@@ -118,7 +118,90 @@ CREATE TABLE `t_resource_auth_cert` (
   KEY `idx_resource_code` (`resource_code`) USING BTREE
 ) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='资源授权凭证表';
 
+
+Begin;
+-- 迁移机器表账号
+INSERT
+	INTO
+	t_resource_auth_cert (name,
+	resource_code,
+	resource_type,
+    type,
+	username,
+    ciphertext,
+	ciphertext_type,
+    create_time,
+	creator_id,
+	creator,
+	update_time,
+	modifier_id,
+	modifier,
+	is_deleted)
+select
+	CONCAT('machine_', code, '_' username),
+    code,
+	1,
+    1,
+	username,
+	password,
+    1,
+	DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s'),
+	1,
+	'admin',
+	DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s'),
+	1,
+	'admin',
+    0
+from
+	t_machine
+WHERE
+	is_deleted = 0;
+
+-- 关联机器账号到tag_tree
+INSERT
+	INTO
+	t_tag_tree (pid,
+	code,
+	code_path,
+	type,
+    name,
+	create_time,
+	creator_id,
+	creator,
+	update_time,
+	modifier_id,
+	modifier,
+	is_deleted)
+SELECT
+  tt.id,
+  rac.`name`,
+  CONCAT(tt.code_path, rac.`name`, '/'),
+  11,
+  rac.`username`,
+  DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s'),
+  1,
+  'admin',
+  DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s'),
+  1,
+  'admin',
+  0
+FROM
+  `t_tag_tree` tt
+  JOIN `t_resource_auth_cert` rac ON tt.`code` = rac.`resource_code`
+  AND tt.`type` = rac.`resource_type`
+WHERE
+  tt.`is_deleted` = 0
+
 -- 删除机器表 账号相关字段
 ALTER TABLE t_machine DROP COLUMN username;
 ALTER TABLE t_machine DROP COLUMN password;
 ALTER TABLE t_machine DROP COLUMN auth_cert_id;
+
+UPDATE t_sys_resource SET pid=93, ui_path='Tag3fhad/exahgl32/', weight=19999999, meta='{"component":"ops/tag/AuthCertList","icon":"Ticket","isKeepAlive":true,"routeName":"AuthCertList"}' WHERE id=103;
+UPDATE t_sys_resource SET ui_path='Tag3fhad/exahgl32/egxahg24/', weight=10000000 WHERE id=104;
+UPDATE t_sys_resource SET ui_path='Tag3fhad/exahgl32/yglxahg2/', weight=20000000 WHERE id=105;
+UPDATE t_sys_resource SET ui_path='Tag3fhad/exahgl32/Glxag234/', weight=30000000 WHERE id=106;
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1712717290, 0, 'tLb8TKLB/', 1, 1, '无页面权限', 'empty', 1712717290, '{"component":"empty","icon":"Menu","isHide":true,"isKeepAlive":true,"routeName":"empty"}', 1, 'admin', 1, 'admin', '2024-04-10 10:48:10', '2024-04-10 10:48:10', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1712717337, 1712717290, 'tLb8TKLB/m2abQkA8/', 2, 1, '授权凭证密文查看', 'authcert:showciphertext', 1712717337, 'null', 1, 'admin', 1, 'admin', '2024-04-10 10:48:58', '2024-04-10 10:48:58', 0, NULL);
+commit;
+

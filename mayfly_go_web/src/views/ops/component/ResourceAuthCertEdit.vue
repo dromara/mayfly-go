@@ -1,59 +1,87 @@
 <template>
-    <div class="auth-cert-manage">
-        <el-table :data="authCerts" max-height="180" stripe style="width: 100%" size="small">
-            <el-table-column min-wdith="120px">
-                <template #header>
-                    <el-button class="ml0" type="primary" circle size="small" icon="Plus" @click="edit(null)"> </el-button>
-                </template>
-                <template #default="scope">
-                    <el-link @click="edit(scope.row)" type="primary" icon="edit"></el-link>
-                    <el-link class="ml5" v-auth="'machine:file:del'" type="danger" @click="deleteRow(scope.$index)" icon="delete"></el-link>
-                </template>
-            </el-table-column>
-
-            <el-table-column prop="name" label="名称" min-width="100px"> </el-table-column>
-            <el-table-column prop="username" label="用户名" min-width="120px" show-overflow-tooltip> </el-table-column>
-            <el-table-column prop="ciphertextType" label="密文类型" width="100px">
-                <template #default="scope">
-                    <EnumTag :value="scope.row.ciphertextType" :enums="AuthCertCiphertextTypeEnum" />
-                </template>
-            </el-table-column>
-            <el-table-column prop="type" label="凭证类型" width="100px">
-                <template #default="scope">
-                    <EnumTag :value="scope.row.type" :enums="AuthCertTypeEnum" />
-                </template>
-            </el-table-column>
-        </el-table>
-
-        <el-dialog title="凭证保存" v-model="state.dvisible" :show-close="false" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
-            <el-form ref="acForm" :model="state.form" label-width="auto">
-                <el-form-item prop="type" label="凭证类型" required>
-                    <el-select style="width: 100%" v-model="form.type" placeholder="请选择凭证类型">
-                        <el-option v-for="item in AuthCertTypeEnum" :key="item.value" :label="item.label" :value="item.value"> </el-option>
+    <div class="auth-cert-edit">
+        <el-dialog title="凭证保存" v-model="dialogVisible" :show-close="false" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
+            <el-form ref="acForm" :model="state.form" label-width="auto" :rules="rules">
+                <el-form-item prop="ciphertextType" label="密文类型" required>
+                    <el-select
+                        :disabled="form.id && props.resourceEdit"
+                        v-model="form.ciphertextType"
+                        placeholder="请选择密文类型"
+                        @change="changeCiphertextType"
+                    >
+                        <el-option
+                            v-for="item in AuthCertCiphertextTypeEnum"
+                            :key="item.value"
+                            :label="item.label"
+                            :value="item.value"
+                            v-show="!props.disableCiphertextType?.includes(item.value)"
+                        >
+                        </el-option>
                     </el-select>
                 </el-form-item>
-                <el-form-item prop="ciphertextType" label="密文类型" required>
-                    <el-select style="width: 100%" v-model="form.ciphertextType" placeholder="请选择密文类型">
-                        <el-option v-for="item in AuthCertCiphertextTypeEnum" :key="item.value" :label="item.label" :value="item.value"> </el-option>
+
+                <el-form-item prop="type" label="凭证类型" required>
+                    <el-select style="width: 100%" v-model="form.type" placeholder="请选择凭证类型">
+                        <el-option
+                            v-for="item in AuthCertTypeEnum"
+                            :key="item.value"
+                            :label="item.label"
+                            :value="item.value"
+                            v-show="!props.disableType?.includes(item.value)"
+                        >
+                        </el-option>
                     </el-select>
                 </el-form-item>
 
                 <el-form-item prop="name" label="名称" required>
                     <el-input :disabled="form.id" v-model="form.name"></el-input>
                 </el-form-item>
-                <el-form-item prop="username" label="用户名">
-                    <el-input v-model="form.username"></el-input>
-                </el-form-item>
-                <el-form-item v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.Password.value" prop="ciphertext" label="密码">
-                    <el-input type="password" show-password clearable v-model.trim="form.ciphertext" placeholder="请输入密码" autocomplete="new-password">
-                    </el-input>
-                </el-form-item>
-                <el-form-item v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.PrivateKey.value" prop="ciphertext" label="秘钥">
-                    <el-input type="textarea" :rows="5" v-model="form.ciphertext" placeholder="请将私钥文件内容拷贝至此"> </el-input>
-                </el-form-item>
-                <el-form-item v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.PrivateKey.value" prop="passphrase" label="秘钥密码">
-                    <el-input type="password" v-model="form.extra.passphrase"> </el-input>
-                </el-form-item>
+
+                <template v-if="form.ciphertextType != AuthCertCiphertextTypeEnum.Public.value">
+                    <el-form-item prop="username" label="用户名">
+                        <el-input :disabled="form.id && props.resourceEdit" v-model="form.username"></el-input>
+                    </el-form-item>
+
+                    <el-form-item v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.Password.value" prop="ciphertext" label="密码">
+                        <el-input type="password" show-password clearable v-model.trim="form.ciphertext" placeholder="请输入密码" autocomplete="new-password">
+                            <template #suffix>
+                                <SvgIcon v-if="form.id" v-auth="'authcert:showciphertext'" @click="getCiphertext" name="search" />
+                            </template>
+                        </el-input>
+                    </el-form-item>
+
+                    <el-form-item v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.PrivateKey.value" prop="ciphertext" label="秘钥">
+                        <div class="w100" style="position: relative">
+                            <SvgIcon
+                                v-if="form.id"
+                                v-auth="'authcert:showciphertext'"
+                                @click="getCiphertext"
+                                name="search"
+                                style="position: absolute; top: 5px; right: 5px; cursor: pointer; z-index: 1"
+                            />
+                            <el-input type="textarea" :rows="5" v-model="form.ciphertext" placeholder="请将私钥文件内容拷贝至此"> </el-input>
+                        </div>
+                    </el-form-item>
+
+                    <el-form-item v-if="form.ciphertextType == AuthCertCiphertextTypeEnum.PrivateKey.value" prop="passphrase" label="秘钥密码">
+                        <el-input type="password" show-password v-model="form.extra.passphrase"> </el-input>
+                    </el-form-item>
+                </template>
+
+                <template v-else>
+                    <el-form-item label="公共凭证">
+                        <el-select default-first-option filterable v-model="form.ciphertext" @change="changePublicAuthCert">
+                            <el-option v-for="item in state.publicAuthCerts" :key="item.name" :label="item.name" :value="item.name">
+                                {{ item.name }}
+                                <el-divider direction="vertical" border-style="dashed" />
+                                {{ item.username }}
+                                <el-divider direction="vertical" border-style="dashed" />
+                                <EnumTag :value="item.ciphertextType" :enums="AuthCertCiphertextTypeEnum" />
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                </template>
+
                 <el-form-item label="备注">
                     <el-input v-model="form.remark" type="textarea" :rows="2"></el-input>
                 </el-form-item>
@@ -69,20 +97,28 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref, toRefs } from 'vue';
+import { reactive, ref, toRefs, onMounted, watch } from 'vue';
 import { AuthCertTypeEnum, AuthCertCiphertextTypeEnum } from '../tag/enums';
-import { resourceAuthCertApi } from '../tag/api';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
-import { ElMessage } from 'element-plus';
+import { resourceAuthCertApi } from '../tag/api';
+import { ResourceCodePattern } from '@/common/pattern';
 
 const props = defineProps({
-    resourceType: { type: Number },
-    resourceCode: { type: String },
+    authCert: {
+        type: Object,
+    },
+    disableCiphertextType: {
+        type: Array,
+    },
+    disableType: {
+        type: Array,
+    },
+    // 是否为资源编辑该授权凭证
+    resourceEdit: {
+        type: Boolean,
+        default: true,
+    },
 });
-
-const authCerts = defineModel<any>('modelValue', { required: true, default: [] });
-
-const acForm: any = ref(null);
 
 const DefaultForm = {
     id: null,
@@ -94,47 +130,85 @@ const DefaultForm = {
     extra: {} as any,
     remark: '',
 };
+
+const rules = {
+    name: [
+        {
+            required: true,
+            message: '请输入凭证名',
+            trigger: ['change', 'blur'],
+        },
+        {
+            pattern: ResourceCodePattern.pattern,
+            message: ResourceCodePattern.message,
+            trigger: ['blur'],
+        },
+    ],
+};
+
+const emit = defineEmits(['confirm']);
+
+const dialogVisible = defineModel<boolean>('visible', { default: false });
+
+const acForm: any = ref(null);
+
 const state = reactive({
-    dvisible: false,
-    params: [] as any,
     form: { ...DefaultForm },
     btnLoading: false,
-    edit: false,
+    publicAuthCerts: [] as any,
 });
+
+onMounted(() => {
+    setForm(props.authCert);
+});
+
+watch(
+    () => props.authCert,
+    (val: any) => {
+        setForm(val);
+    }
+);
+
+const setForm = (val: any) => {
+    if (!val.extra) {
+        val.extra = {};
+    }
+    state.form = val;
+    if (state.form.ciphertextType == AuthCertCiphertextTypeEnum.Public.value) {
+        getPublicAuthCerts();
+    }
+};
 
 const { form, btnLoading } = toRefs(state);
 
-onMounted(() => {
-    getAuthCerts();
-});
-
-const getAuthCerts = async () => {
-    if (!props.resourceCode || !props.resourceType) {
-        return;
+const changeCiphertextType = (val: any) => {
+    if (val == AuthCertCiphertextTypeEnum.Public.value) {
+        getPublicAuthCerts();
     }
+};
+
+const changePublicAuthCert = (val: string) => {
+    // 使用公共授权凭证名称赋值username
+    state.form.username = val;
+};
+
+const getPublicAuthCerts = async () => {
     const res = await resourceAuthCertApi.listByQuery.request({
-        resourceCode: props.resourceCode,
-        resourceType: props.resourceType,
+        type: AuthCertTypeEnum.Public.value,
         pageNum: 1,
         pageSize: 100,
     });
-    authCerts.value = res.list?.reverse() || [];
+    state.publicAuthCerts = res.list;
 };
 
-const edit = (form: any) => {
-    if (form) {
-        state.form = form;
-        state.edit = true;
-    }
-    state.dvisible = true;
-};
-
-const deleteRow = (idx: any) => {
-    authCerts.value.splice(idx, 1);
+const getCiphertext = async () => {
+    const res = await resourceAuthCertApi.detail.request({ name: state.form.name });
+    state.form.ciphertext = res.ciphertext;
+    state.form.extra.passphrase = res.extra?.passphrase;
 };
 
 const cancelEdit = () => {
-    state.dvisible = false;
+    dialogVisible.value = false;
     setTimeout(() => {
         state.form = { ...DefaultForm };
     }, 300);
@@ -143,28 +217,7 @@ const cancelEdit = () => {
 const btnOk = async () => {
     acForm.value.validate(async (valid: boolean) => {
         if (valid) {
-            const isEdit = state.form.id;
-            if (isEdit || state.edit) {
-                cancelEdit();
-                return;
-            }
-
-            if (authCerts.value?.filter((x: any) => x.username == state.form.username || x.name == state.form.name).length > 0) {
-                ElMessage.error('该名称或用户名已存在于该账号列表中');
-                return;
-            }
-            const res = await resourceAuthCertApi.listByQuery.request({
-                name: state.form.name,
-                pageNum: 1,
-                pageSize: 100,
-            });
-            if (res.total) {
-                ElMessage.error('该授权凭证名称已存在');
-                return;
-            }
-
-            authCerts.value.push(state.form);
-            cancelEdit();
+            emit('confirm', state.form);
         }
     });
 };

@@ -18,8 +18,6 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
 	"time"
-
-	"github.com/may-fly/cast"
 )
 
 type SaveMachineParam struct {
@@ -164,6 +162,15 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 
 func (m *machineAppImpl) TestConn(me *entity.Machine, authCert *tagentity.ResourceAuthCert) error {
 	me.Id = 0
+
+	if authCert.CiphertextType == tagentity.AuthCertCiphertextTypePublic {
+		publicAuthCert, err := m.resourceAuthCertApp.GetAuthCert(authCert.Ciphertext)
+		if err != nil {
+			return err
+		}
+		authCert = publicAuthCert
+	}
+
 	mi, err := m.toMi(me, authCert)
 	if err != nil {
 		return err
@@ -338,7 +345,7 @@ func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAu
 
 	mi.Username = authCert.Username
 	mi.Password = authCert.Ciphertext
-	mi.Passphrase = cast.ToString(authCert.Extra["passphrase"])
+	mi.Passphrase = authCert.GetExtraString(tagentity.ExtraKeyPassphrase)
 	mi.AuthMethod = int8(authCert.CiphertextType)
 
 	// 使用了ssh隧道，则将隧道机器信息也附上

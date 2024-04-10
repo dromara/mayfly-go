@@ -111,10 +111,16 @@
 
                     <process-list v-model:visible="processDialog.visible" v-model:machineId="processDialog.machineId" />
 
-                    <script-manage :title="serviceDialog.title" v-model:visible="serviceDialog.visible" v-model:machineId="serviceDialog.machineId" />
+                    <script-manage
+                        :title="serviceDialog.title"
+                        v-model:visible="serviceDialog.visible"
+                        v-model:machineId="serviceDialog.machineId"
+                        :auth-cert-name="serviceDialog.authCertName"
+                    />
 
                     <file-conf-list
                         :title="fileDialog.title"
+                        :auth-cert-name="fileDialog.authCertName"
                         v-model:visible="fileDialog.visible"
                         v-model:machineId="fileDialog.machineId"
                         :protocol="fileDialog.protocol"
@@ -129,6 +135,7 @@
                     >
                         <machine-file
                             :machine-id="state.filesystemDialog.machineId"
+                            :auth-cert-name="state.filesystemDialog.authCertName"
                             :protocol="state.filesystemDialog.protocol"
                             :file-id="state.filesystemDialog.fileId"
                             :path="state.filesystemDialog.path"
@@ -202,6 +209,7 @@ const state = reactive({
     serviceDialog: {
         visible: false,
         machineId: 0,
+        authCertName: '',
         title: '',
     },
     processDialog: {
@@ -213,10 +221,12 @@ const state = reactive({
         machineId: 0,
         protocol: 1,
         title: '',
+        authCertName: '',
     },
     filesystemDialog: {
         visible: false,
         machineId: 0,
+        authCertName: '',
         protocol: 1,
         title: '',
         fileId: 0,
@@ -280,8 +290,17 @@ const NodeTypeMachine = new NodeType(MachineNodeType.Machine)
     })
     .withContextMenuItems([
         new ContextmenuItem('detail', '详情').withIcon('More').withOnClick((node: any) => showInfo(node.params)),
-        new ContextmenuItem('status', '状态').withIcon('Compass').withOnClick((node: any) => showMachineStats(node.params)),
-        new ContextmenuItem('process', '进程').withIcon('DataLine').withOnClick((node: any) => showProcess(node.params)),
+
+        new ContextmenuItem('status', '状态')
+            .withIcon('Compass')
+            .withHideFunc((node: any) => node.params.protocol != MachineProtocolEnum.Ssh.value)
+            .withOnClick((node: any) => showMachineStats(node.params)),
+
+        new ContextmenuItem('process', '进程')
+            .withIcon('DataLine')
+            .withHideFunc((node: any) => node.params.protocol != MachineProtocolEnum.Ssh.value)
+            .withOnClick((node: any) => showProcess(node.params)),
+
         new ContextmenuItem('edit', '终端回放')
             .withIcon('Compass')
             .withOnClick((node: any) => showRec(node.params))
@@ -296,7 +315,11 @@ const NodeTypeAuthCert = new NodeType(MachineNodeType.AuthCert)
         new ContextmenuItem('term', '打开终端').withIcon('Monitor').withOnClick((node: any) => openTerminal(node.params)),
         new ContextmenuItem('term-ex', '打开终端(新窗口)').withIcon('Monitor').withOnClick((node: any) => openTerminal(node.params, true)),
         new ContextmenuItem('files', '文件管理').withIcon('FolderOpened').withOnClick((node: any) => showFileManage(node.params)),
-        new ContextmenuItem('scripts', '脚本管理').withIcon('Files').withOnClick((node: any) => serviceManager(node.params)),
+
+        new ContextmenuItem('scripts', '脚本管理')
+            .withIcon('Files')
+            .withHideFunc((node: any) => node.params.protocol != MachineProtocolEnum.Ssh.value)
+            .withOnClick((node: any) => serviceManager(node.params)),
     ]);
 
 const openTerminal = (machine: any, ex?: boolean) => {
@@ -356,9 +379,11 @@ const openTerminal = (machine: any, ex?: boolean) => {
 };
 
 const serviceManager = (row: any) => {
+    const authCert = row.selectAuthCert;
     state.serviceDialog.machineId = row.id;
     state.serviceDialog.visible = true;
-    state.serviceDialog.title = `${row.name} => ${row.ip}`;
+    state.serviceDialog.authCertName = authCert.name;
+    state.serviceDialog.title = `${row.name} => ${authCert.username}@${row.ip}`;
 };
 
 /**
@@ -376,16 +401,19 @@ const search = async () => {
 };
 
 const showFileManage = (selectionData: any) => {
+    const authCert = selectionData.selectAuthCert;
     if (selectionData.protocol == 1) {
         state.fileDialog.visible = true;
         state.fileDialog.protocol = selectionData.protocol;
         state.fileDialog.machineId = selectionData.id;
-        state.fileDialog.title = `${selectionData.name} => ${selectionData.ip}`;
+        state.fileDialog.authCertName = authCert.name;
+        state.fileDialog.title = `${selectionData.name} => ${authCert.username}@${selectionData.ip}`;
     }
 
     if (selectionData.protocol == 2) {
         state.filesystemDialog.protocol = 2;
         state.filesystemDialog.machineId = selectionData.id;
+        state.filesystemDialog.authCertName = authCert.name;
         state.filesystemDialog.fileId = selectionData.id;
         state.filesystemDialog.path = '/';
         state.filesystemDialog.title = `远程桌面文件管理`;

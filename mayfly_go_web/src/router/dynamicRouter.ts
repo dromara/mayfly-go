@@ -89,13 +89,21 @@ type RouterConvCallbackFunc = (router: any) => void;
  * @param meta.link ==> 外链地址
  * */
 export function backEndRouterConverter(routes: any, callbackFunc: RouterConvCallbackFunc = null as any, parentPath: string = '/') {
-    if (!routes) return [];
-    return routes.map((item: any) => {
+    if (!routes) {
+        return [];
+    }
+
+    const routeItems = [];
+    for (let item of routes) {
         if (!item.meta) {
             return item;
         }
         // 将json字符串的meta转为对象
         item.meta = JSON.parse(item.meta);
+        if (item.meta.isHide) {
+            continue;
+        }
+
         // 将meta.comoponet 解析为route.component
         if (item.meta.component) {
             item.component = dynamicImport(dynamicViewsModules, item.meta.component);
@@ -126,8 +134,10 @@ export function backEndRouterConverter(routes: any, callbackFunc: RouterConvCall
         // 存在回调，则执行回调
         callbackFunc && callbackFunc(item);
         item.children && backEndRouterConverter(item.children, callbackFunc, item.path);
-        return item;
-    });
+        routeItems.push(item);
+    }
+
+    return routeItems;
 }
 
 /**

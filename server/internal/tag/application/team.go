@@ -5,17 +5,30 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/contextx"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gormx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
 
 	"gorm.io/gorm"
 )
+
+type SaveTeamParam struct {
+	Id     uint64 `json:"id"`
+	Name   string `json:"name" binding:"required"` // 名称
+	Remark string `json:"remark"`                  // 备注说明
+
+	Tags []uint64 `json:"tags"` // 关联标签信息
+}
 
 type Team interface {
 	// 分页获取项目团队信息列表
 	GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Save(ctx context.Context, team *entity.Team) error
+	// Save 保存团队信息
+	Save(ctx context.Context, team *SaveTeamParam) error
 
 	Delete(ctx context.Context, id uint64) error
 
@@ -33,8 +46,6 @@ type Team interface {
 
 	ListTagIds(teamId uint64) []uint64
 
-	SaveTag(ctx context.Context, tagTeam *entity.TagTreeTeam) error
-
 	DeleteTag(tx context.Context, teamId, tagId uint64) error
 }
 
@@ -42,17 +53,78 @@ type teamAppImpl struct {
 	teamRepo        repository.Team        `inject:"TeamRepo"`
 	teamMemberRepo  repository.TeamMember  `inject:"TeamMemberRepo"`
 	tagTreeTeamRepo repository.TagTreeTeam `inject:"TagTreeTeamRepo"`
+	tagTreeApp      TagTree                `inject:"TagTreeApp"`
 }
 
 func (p *teamAppImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return p.teamRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (p *teamAppImpl) Save(ctx context.Context, team *entity.Team) error {
+func (p *teamAppImpl) Save(ctx context.Context, saveParam *SaveTeamParam) error {
+	team := &entity.Team{Name: saveParam.Name, Remark: saveParam.Remark}
+	team.Id = saveParam.Id
+
 	if team.Id == 0 {
-		return p.teamRepo.Insert(ctx, team)
+		if p.teamRepo.CountByCond(&entity.Team{Name: saveParam.Name}) > 0 {
+			return errorx.NewBiz("团队名[%s]已存在", saveParam.Name)
+		}
+
+		if err := p.teamRepo.Insert(ctx, team); err != nil {
+			return err
+		}
+
+		loginAccount := contextx.GetLoginAccount(ctx)
+		logx.DebugfContext(ctx, "将[%s]默认加入至[%s]团队", loginAccount.Username, team.Name)
+
+		teamMem := &entity.TeamMember{}
+		teamMem.AccountId = loginAccount.Id
+		teamMem.Username = loginAccount.Username
+		teamMem.TeamId = team.Id
+		p.SaveMember(ctx, teamMem)
+	} else {
+		// 置空名称，防止变更
+		team.Name = ""
+		if err := p.teamRepo.UpdateById(ctx, team); err != nil {
+			return err
+		}
 	}
-	return p.teamRepo.UpdateById(ctx, team)
+
+	// 保存团队关联的标签信息
+	teamId := team.Id
+	var addIds, delIds []uint64
+	if saveParam.Id == 0 {
+		addIds = saveParam.Tags
+	} else {
+		// 将[]uint64转为[]any
+		oIds := p.ListTagIds(team.Id)
+		// 比较新旧两合集
+		addIds, delIds, _ = collx.ArrayCompare(saveParam.Tags, oIds)
+	}
+
+	addTeamTags := make([]*entity.TagTreeTeam, 0)
+	for _, v := range addIds {
+		tagId := v
+		tag, err := p.tagTreeApp.GetById(new(entity.TagTree), tagId)
+		if err != nil {
+			return errorx.NewBiz("存在非法标签id")
+		}
+
+		ptt := &entity.TagTreeTeam{TeamId: teamId, TagId: tagId, TagPath: tag.CodePath}
+		addTeamTags = append(addTeamTags, ptt)
+	}
+	if len(addTeamTags) > 0 {
+		logx.DebugfContext(ctx, "团队[%s]新增关联的标签信息: [%v]", team.Name, addTeamTags)
+		p.tagTreeTeamRepo.BatchInsert(ctx, addTeamTags)
+	}
+
+	for _, v := range delIds {
+		p.DeleteTag(ctx, teamId, v)
+	}
+	if len(delIds) > 0 {
+		logx.DebugfContext(ctx, "团队[%s]删除关联的标签信息: [%v]", team.Name, delIds)
+	}
+
+	return nil
 }
 
 func (p *teamAppImpl) Delete(ctx context.Context, id uint64) error {
@@ -91,7 +163,7 @@ func (p *teamAppImpl) IsExistMember(teamId, accounId uint64) bool {
 	return p.teamMemberRepo.IsExist(teamId, accounId)
 }
 
-//--------------- 关联标签相关接口 ---------------
+//--------------- 标签相关接口 ---------------
 
 func (p *teamAppImpl) ListTagIds(teamId uint64) []uint64 {
 	tags := &[]entity.TagTreeTeam{}
@@ -101,12 +173,6 @@ func (p *teamAppImpl) ListTagIds(teamId uint64) []uint64 {
 		ids = append(ids, v.TagId)
 	}
 	return ids
-}
-
-// 保存关联项目信息
-func (p *teamAppImpl) SaveTag(ctx context.Context, tagTreeTeam *entity.TagTreeTeam) error {
-	tagTreeTeam.Id = 0
-	return p.tagTreeTeamRepo.Insert(ctx, tagTreeTeam)
 }
 
 // 删除关联项目信息

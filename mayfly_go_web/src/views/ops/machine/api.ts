@@ -20,7 +20,7 @@ export const machineApi = {
     // 删除机器
     del: Api.newDelete('/machines/{id}'),
     scripts: Api.newGet('/machines/{machineId}/scripts'),
-    runScript: Api.newGet('/machines/{machineId}/scripts/{scriptId}/run'),
+    runScript: Api.newGet('/machines/scripts/{scriptId}/{ac}/run'),
     saveScript: Api.newPost('/machines/{machineId}/scripts'),
     deleteScript: Api.newDelete('/machines/{machineId}/scripts/{scriptId}'),
     // 获取配置文件列表
@@ -46,13 +46,6 @@ export const machineApi = {
     termOpRecs: Api.newGet('/machines/{machineId}/term-recs'),
     // 机器终端操作记录详情
     termOpRec: Api.newGet('/machines/{id}/term-recs/{recId}'),
-};
-
-export const authCertApi = {
-    baseList: Api.newGet('/sys/authcerts/base'),
-    list: Api.newGet('/sys/authcerts'),
-    save: Api.newPost('/sys/authcerts'),
-    delete: Api.newDelete('/sys/authcerts/{id}'),
 };
 
 export const cronJobApi = {

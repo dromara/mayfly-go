@@ -18,9 +18,11 @@ export const tagApi = {
     delTeamMem: Api.newDelete('/teams/{teamId}/members/{accountId}'),
 
     getTeamTagIds: Api.newGet('/teams/{teamId}/tags'),
-    saveTeamTags: Api.newPost('/teams/{teamId}/tags'),
 };
 
 export const resourceAuthCertApi = {
+    detail: Api.newGet('/auth-certs/detail'),
     listByQuery: Api.newGet('/auth-certs'),
+    save: Api.newPost('/auth-certs'),
+    delete: Api.newDelete('/auth-certs/{id}'),
 };

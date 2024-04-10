@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/utils/collx"
 )
 
@@ -26,6 +27,9 @@ type ResourceAuthCert interface {
 
 	// SaveAuthCert 保存资源授权凭证信息，不可放于事务中
 	SaveAuthCert(ctx context.Context, param *SaveAuthCertParam) error
+
+	// SavePublicAuthCert 保存公共授权凭证信息
+	SavePulbicAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error
 
 	// GetAuthCert 根据授权凭证名称获取授权凭证
 	GetAuthCert(authCertName string) (*entity.ResourceAuthCert, error)
@@ -68,6 +72,7 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, params *Save
 
 	// 删除授权信息
 	if len(resourceAuthCerts) == 0 {
+		logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-删除所有关联的授权凭证信息", resourceType, resourceCode)
 		if err := r.DeleteByCond(ctx, &entity.ResourceAuthCert{ResourceCode: resourceCode, ResourceType: resourceType}); err != nil {
 			return err
 		}
@@ -111,6 +116,7 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, params *Save
 
 	var adds, dels, unmodifys []string
 	if len(oldAuthCert) == 0 {
+		logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-不存在已有的授权凭证信息, 为新增资源授权凭证", resourceType, resourceCode)
 		adds = collx.MapKeys(name2AuthCert)
 	} else {
 		oldNames := collx.ArrayMap(oldAuthCert, func(ac *entity.ResourceAuthCert) string {
@@ -128,6 +134,7 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, params *Save
 
 	// 处理新增的授权凭证
 	if len(addAuthCerts) > 0 {
+		logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-新增授权凭证-[%v]", resourceType, resourceCode, adds)
 		if err := r.BatchInsert(ctx, addAuthCerts); err != nil {
 			return err
 		}
@@ -140,20 +147,24 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, params *Save
 			return tag.Id
 		})
 
-		// 保存授权凭证类型的资源标签
-		for _, authCert := range addAuthCerts {
-			if err := r.tagTreeApp.SaveResource(ctx, &SaveResourceTagParam{
-				ResourceCode: authCert.Name,
-				ResourceType: authCertTagType,
-				ResourceName: authCert.Username,
-				TagIds:       resourceTagIds,
-			}); err != nil {
-				return err
+		if len(resourceTagIds) > 0 {
+			// 保存授权凭证类型的资源标签
+			for _, authCert := range addAuthCerts {
+				logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-授权凭证标签[%d-%s]关联至所属资源标签下[%v]", resourceType, resourceCode, authCertTagType, authCert.Name, resourceTagIds)
+				if err := r.tagTreeApp.SaveResource(ctx, &SaveResourceTagParam{
+					ResourceCode: authCert.Name,
+					ResourceType: authCertTagType,
+					ResourceName: authCert.Username,
+					TagIds:       resourceTagIds,
+				}); err != nil {
+					return err
+				}
 			}
 		}
 	}
 
 	for _, del := range dels {
+		logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-删除授权凭证-[%v]", resourceType, resourceCode, del)
 		if err := r.DeleteByCond(ctx, &entity.ResourceAuthCert{ResourceCode: resourceCode, ResourceType: resourceType, Name: del}); err != nil {
 			return err
 		}
@@ -171,12 +182,34 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, params *Save
 		if unmodifyAc.Id == 0 {
 			continue
 		}
+		logx.DebugfContext(ctx, "SaveAuthCert[%d-%s]-更新授权凭证-[%v]", resourceType, resourceCode, unmodify)
+		// 置空用户名，不允许修改（TagTree的name关联了该值，修改了会造成数据不一致，懒得处理该同步。要修改用户名可通过重新删除旧凭证后添加一个授权凭证或通过关联公共凭证（公共凭证可修改用户名））
+		if unmodifyAc.CiphertextType != entity.AuthCertCiphertextTypePublic {
+			unmodifyAc.Username = ""
+		}
+
 		if err := r.UpdateById(ctx, unmodifyAc); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (r *resourceAuthCertAppImpl) SavePulbicAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error {
+	rac.Type = entity.AuthCertTypePublic
+	rac.CiphertextEncrypt()
+	rac.ResourceType = 0
+	rac.ResourceCode = "-"
+	if rac.Id == 0 {
+		if r.CountByCond(&entity.ResourceAuthCert{Name: rac.Name}) > 0 {
+			return errorx.NewBiz("授权凭证的名称不能重复[%s]", rac.Name)
+		}
+		return r.Insert(ctx, rac)
+	}
+	// 名称置空，防止被更新
+	rac.Name = ""
+	return r.UpdateById(ctx, rac)
 }
 
 func (r *resourceAuthCertAppImpl) GetAuthCert(authCertName string) (*entity.ResourceAuthCert, error) {
@@ -232,17 +265,23 @@ func (r *resourceAuthCertAppImpl) GetAccountAuthCert(accountId uint64, authCertT
 }
 
 func (r *resourceAuthCertAppImpl) FillAuthCert(authCerts []*entity.ResourceAuthCert, resources ...entity.IAuthCert) {
-	if len(resources) == 0 {
+	if len(resources) == 0 || len(authCerts) == 0 {
 		return
 	}
 
 	// 资源编号 -> 资源
-	resourceCode2Resouce := collx.ArrayToMap(resources, func(ac entity.IAuthCert) string {
+	resourceCode2Resource := collx.ArrayToMap(resources, func(ac entity.IAuthCert) string {
 		return ac.GetCode()
 	})
 
 	for _, authCert := range authCerts {
-		resourceCode2Resouce[authCert.ResourceCode].SetAuthCert(entity.AuthCert{
+		resource := resourceCode2Resource[authCert.ResourceCode]
+		if resource == nil {
+			logx.Debugf("FillAuthCert-授权凭证[%s]未匹配到对应的资源[%s]", authCert.Name, authCert.ResourceCode)
+			continue
+		}
+
+		resource.SetAuthCert(entity.AuthCert{
 			Name:           authCert.Name,
 			Username:       authCert.Username,
 			Type:           authCert.Type,
@@ -254,11 +293,21 @@ func (r *resourceAuthCertAppImpl) FillAuthCert(authCerts []*entity.ResourceAuthC
 // 解密授权凭证信息
 func (r *resourceAuthCertAppImpl) decryptAuthCert(authCert *entity.ResourceAuthCert) (*entity.ResourceAuthCert, error) {
 	if authCert.CiphertextType == entity.AuthCertCiphertextTypePublic {
+		// 需要维持资源关联信息
+		resourceCode := authCert.ResourceCode
+		resourceType := authCert.ResourceType
+		authCertType := authCert.Type
+
 		// 如果是公共授权凭证，则密文为公共授权凭证名称，需要使用该名称再去获取对应的授权凭证
 		authCert = &entity.ResourceAuthCert{Name: authCert.Ciphertext}
 		if err := r.GetBy(authCert); err != nil {
 			return nil, errorx.NewBiz("该公共授权凭证[%s]不存在", authCert.Ciphertext)
 		}
+
+		// 使用资源关联的凭证类型
+		authCert.ResourceCode = resourceCode
+		authCert.ResourceType = resourceType
+		authCert.Type = authCertType
 	}
 
 	if err := authCert.CiphertextDecrypt(); err != nil {

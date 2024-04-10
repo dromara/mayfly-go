@@ -48,10 +48,15 @@
 
                 <el-divider content-position="left">账号</el-divider>
                 <div>
-                    <ResourceAuthCertEdit v-model="form.authCerts" :resource-code="form.code" :resource-type="TagResourceTypeEnum.Machine.value" />
+                    <ResourceAuthCertTableEdit
+                        v-model="form.authCerts"
+                        :resource-code="form.code"
+                        :resource-type="TagResourceTypeEnum.Machine.value"
+                        :test-conn-btn-loading="testConnBtnLoading"
+                        @test-conn="testConn"
+                    />
                 </div>
 
-                <!-- <el-tab-pane label="其他配置" name="other"> -->
                 <el-divider content-position="left">其他</el-divider>
                 <el-form-item prop="enableRecorder" label="终端回放">
                     <el-checkbox v-model="form.enableRecorder" :true-value="1" :false-value="-1"></el-checkbox>
@@ -64,7 +69,6 @@
 
             <template #footer>
                 <div>
-                    <el-button @click="testConn" :loading="testConnBtnLoading" type="success">测试连接</el-button>
                     <el-button @click="cancel()">取 消</el-button>
                     <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
                 </div>
@@ -78,7 +82,7 @@ import { reactive, ref, toRefs, watch } from 'vue';
 import { machineApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
-import ResourceAuthCertEdit from '../component/ResourceAuthCertEdit.vue';
+import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import { MachineProtocolEnum } from './enums';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
@@ -165,7 +169,7 @@ const state = reactive({
     dialogVisible: false,
     sshTunnelMachineList: [] as any,
     form: defaultForm,
-    submitForm: {},
+    submitForm: {} as any,
     pwd: '',
 });
 
@@ -187,7 +191,7 @@ watch(props, async (newValue: any) => {
     }
 });
 
-const testConn = async () => {
+const testConn = async (authCert: any) => {
     machineForm.value.validate(async (valid: boolean) => {
         if (!valid) {
             ElMessage.error('请正确填写信息');
@@ -195,6 +199,7 @@ const testConn = async () => {
         }
 
         state.submitForm = getReqForm();
+        state.submitForm.authCerts = [authCert];
         await testConnExec();
         ElMessage.success('连接成功');
     });

@@ -71,7 +71,7 @@
             draggable
             append-to-body
         >
-            <TerminalBody ref="terminal" :cmd="terminalDialog.cmd" :socket-url="getMachineTerminalSocketUrl(terminalDialog.machineId)" height="560px" />
+            <TerminalBody ref="terminal" :cmd="terminalDialog.cmd" :socket-url="getMachineTerminalSocketUrl(props.authCertName)" height="560px" />
         </el-dialog>
 
         <script-edit
@@ -100,6 +100,7 @@ import { SearchItem } from '@/components/SearchForm';
 const props = defineProps({
     visible: { type: Boolean },
     machineId: { type: Number },
+    authCertName: { type: String },
     title: { type: String },
 });
 
@@ -143,7 +144,6 @@ const state = reactive({
     terminalDialog: {
         visible: false,
         cmd: '',
-        machineId: 0,
     },
 });
 
@@ -195,6 +195,7 @@ const run = async (script: any) => {
     if (script.type == ScriptResultEnum.Result.value || noResult) {
         const res = await machineApi.runScript.request({
             machineId: props.machineId,
+            ac: props.authCertName,
             scriptId: script.id,
             params: JSON.stringify(state.scriptParamsDialog.params),
         });
@@ -215,7 +216,6 @@ const run = async (script: any) => {
         }
         state.terminalDialog.cmd = script;
         state.terminalDialog.visible = true;
-        state.terminalDialog.machineId = props.machineId as any;
         return;
     }
 };
@@ -236,7 +236,6 @@ function templateResolve(template: string, param: any) {
 
 const closeTermnial = () => {
     state.terminalDialog.visible = false;
-    state.terminalDialog.machineId = 0;
 };
 
 const editScript = (data: any) => {

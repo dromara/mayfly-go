@@ -20,3 +20,16 @@ type ResourceAuthCert struct {
 
 	CreateTime *time.Time `json:"createTime"`
 }
+
+// 授权凭证基础信息
+type AuthCertBaseVO struct {
+	Id   int    `json:"id"`
+	Name string `json:"name"` // 名称（全局唯一）
+
+	ResourceCode   string                        `json:"resourceCode"`   // 资源编号
+	ResourceType   int8                          `json:"resourceType"`   // 资源类型
+	Type           entity.AuthCertType           `json:"type"`           // 凭证类型
+	Username       string                        `json:"username"`       // 用户名
+	CiphertextType entity.AuthCertCiphertextType `json:"ciphertextType"` // 密文类型
+	Remark         string                        `json:"remark"`         // 备注
+}
