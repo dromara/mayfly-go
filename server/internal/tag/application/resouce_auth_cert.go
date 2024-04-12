@@ -272,7 +272,7 @@ func (r *resourceAuthCertAppImpl) GetAccountAuthCert(accountId uint64, authCertT
 	})
 
 	var authCerts []*entity.ResourceAuthCert
-	r.GetRepo().ListByWheres(collx.M{
+	r.ListByWheres(collx.M{
 		"name in ?": collx.ArrayDeduplicate(authCertNames),
 	}, &authCerts)
 
@@ -314,7 +314,7 @@ func (r *resourceAuthCertAppImpl) FillAuthCert(resourceType int8, resources ...e
 		return ac.GetCode()
 	})
 	var acs []*entity.ResourceAuthCert
-	r.Repo.ListByWheres(collx.M{"resource_code in ?": resourceCodes, "resource_type = ?": resourceType}, &acs)
+	r.ListByWheres(collx.M{"resource_code in ?": resourceCodes, "resource_type = ?": resourceType}, &acs)
 	r.FillAuthCertByAcs(acs, resources...)
 }
 

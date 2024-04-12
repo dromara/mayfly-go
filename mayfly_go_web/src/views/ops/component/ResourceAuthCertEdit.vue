@@ -90,6 +90,8 @@
                                 {{ item.username }}
                                 <el-divider direction="vertical" border-style="dashed" />
                                 <EnumTag :value="item.ciphertextType" :enums="AuthCertCiphertextTypeEnum" />
+                                <el-divider direction="vertical" border-style="dashed" />
+                                {{ item.remark }}
                             </el-option>
                         </el-select>
                     </el-form-item>

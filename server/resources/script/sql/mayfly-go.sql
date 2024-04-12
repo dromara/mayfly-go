@@ -885,7 +885,8 @@ CREATE TABLE `t_tag_tree` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_code_path` (`code_path`(100)) USING BTREE
+  KEY `idx_code_path` (`code_path`(200)) USING BTREE,
+  KEY `idx_code` (`code`(32)) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签树';
 
 -- ----------------------------

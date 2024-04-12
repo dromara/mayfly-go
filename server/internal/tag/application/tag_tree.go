@@ -394,7 +394,7 @@ func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *DelResourc
 	for _, resourceTag := range resourceTags {
 		// 获取所有关联的子标签
 		var childrenTag []*entity.TagTree
-		p.Repo.ListByWheres(collx.M{
+		p.ListByWheres(collx.M{
 			"code_path LIKE ?": resourceTag.CodePath + "%",
 			"type = ?":         delTagType,
 		}, &childrenTag)

@@ -81,6 +81,10 @@ type App[T model.ModelI] interface {
 	// 根据条件查询数据映射至listModels
 	ListByCond(cond any, listModels any, cols ...string) error
 
+	// 根据wheres条件进行过滤
+	// @param wheres key -> "age > ?" value -> 10等
+	ListByWheres(wheres collx.M, listModels any, cols ...string) error
+
 	// PageQuery 分页查询
 	PageQuery(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
 
@@ -208,6 +212,10 @@ func (ai *AppImpl[T, R]) GetBy(condModel T, cols ...string) error {
 // 根据条件查询数据映射至listModels
 func (ai *AppImpl[T, R]) ListByCond(cond any, listModels any, cols ...string) error {
 	return ai.GetRepo().ListByCond(cond, listModels, cols...)
+}
+
+func (ai *AppImpl[T, R]) ListByWheres(wheres collx.M, listModels any, cols ...string) error {
+	return ai.GetRepo().ListByWheres(wheres, listModels, cols...)
 }
 
 // PageQuery 分页查询

@@ -119,9 +119,16 @@ function initTerm() {
 
     term.open(terminalRef.value);
 
-    initSocket();
+    // 注册自适应组件
+    const fitAddon = new FitAddon();
+    state.addon.fit = fitAddon;
+    term.loadAddon(fitAddon);
+    fitTerminal();
+    // 注册窗口大小监听器
+    useEventListener('resize', debounce(fitTerminal, 400));
 
-    // 注册插件
+    initSocket();
+    // 注册其他插件
     loadAddon();
 
     // 注册自定义快捷键
@@ -169,14 +176,6 @@ function initSocket() {
 }
 
 function loadAddon() {
-    // 注册自适应组件
-    const fitAddon = new FitAddon();
-    state.addon.fit = fitAddon;
-    term.loadAddon(fitAddon);
-    fitTerminal();
-    // 注册窗口大小监听器
-    useEventListener('resize', debounce(fitTerminal, 400));
-
     // 注册搜索组件
     const searchAddon = new SearchAddon();
     state.addon.search = searchAddon;
@@ -218,7 +217,7 @@ function loadAddon() {
         trzsz
             .uploadFiles(event.dataTransfer.items)
             .then(() => console.log('upload success'))
-            .catch((err) => console.log(err));
+            .catch((err: any) => console.log(err));
     });
 }
 
