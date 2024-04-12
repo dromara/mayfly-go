@@ -327,7 +327,7 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 	if rac.Type == entity.AuthCertTypePublic {
 		rac.ResourceCode = "-"
 		rac.CiphertextEncrypt()
-		rac.Type = -2
+		rac.ResourceType = -2
 		return r.Insert(ctx, rac)
 	}
 
@@ -428,21 +428,17 @@ func (r *resourceAuthCertAppImpl) updateAuthCertTagName(ctx context.Context, aut
 // 解密授权凭证信息
 func (r *resourceAuthCertAppImpl) decryptAuthCert(authCert *entity.ResourceAuthCert) (*entity.ResourceAuthCert, error) {
 	if authCert.CiphertextType == entity.AuthCertCiphertextTypePublic {
-		// 需要维持资源关联信息
-		resourceCode := authCert.ResourceCode
-		resourceType := authCert.ResourceType
-		authCertType := authCert.Type
-
 		// 如果是公共授权凭证，则密文为公共授权凭证名称，需要使用该名称再去获取对应的授权凭证
-		authCert = &entity.ResourceAuthCert{Name: authCert.Ciphertext}
-		if err := r.GetBy(authCert); err != nil {
+		realAuthCert := &entity.ResourceAuthCert{Name: authCert.Ciphertext}
+		if err := r.GetBy(realAuthCert); err != nil {
 			return nil, errorx.NewBiz("该公共授权凭证[%s]不存在", authCert.Ciphertext)
 		}
 
-		// 使用资源关联的凭证类型
-		authCert.ResourceCode = resourceCode
-		authCert.ResourceType = resourceType
-		authCert.Type = authCertType
+		// 使用该凭证关联的公共凭证进行密文等内容覆盖
+		authCert.Username = realAuthCert.Username
+		authCert.Ciphertext = realAuthCert.Ciphertext
+		authCert.CiphertextType = realAuthCert.CiphertextType
+		authCert.Extra = realAuthCert.Extra
 	}
 
 	if err := authCert.CiphertextDecrypt(); err != nil {

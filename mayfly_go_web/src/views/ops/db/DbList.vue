@@ -252,7 +252,7 @@ const columns = ref([
     TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
     TableColumn.new('instanceName', '实例名'),
     TableColumn.new('host', 'ip:port').isSlot().setAddWidth(40),
-    TableColumn.new('username', 'username'),
+    TableColumn.new('authCertName', '授权凭证'),
     TableColumn.new('flowProcdefKey', '关联流程'),
     TableColumn.new('remark', '备注'),
 ]);

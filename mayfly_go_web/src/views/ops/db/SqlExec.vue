@@ -27,8 +27,8 @@
                                         <el-descriptions-item label="数据库版本">
                                             <span v-loading="loadingServerInfo"> {{ `${dbServerInfo?.version}` }}</span>
                                         </el-descriptions-item>
-                                        <el-descriptions-item label="user">
-                                            {{ data.params.username }}
+                                        <el-descriptions-item label="授权凭证">
+                                            {{ data.params.authCertName }}
                                         </el-descriptions-item>
                                         <el-descriptions-item label="备注">
                                             {{ data.params.remark }}

@@ -619,6 +619,7 @@ const getDirSize = async (data: any) => {
             fileId: props.fileId,
             path: data.path,
             protocol: props.protocol,
+            authCertName: props.authCertName,
         });
         data.dirSize = res;
     } finally {
