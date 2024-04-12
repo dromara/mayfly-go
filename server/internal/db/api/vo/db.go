@@ -15,11 +15,12 @@ type DbListVO struct {
 	Remark   *string `json:"remark"`
 
 	InstanceId   *int64  `json:"instanceId"`
+	AuthCertName string  `json:"authCertName"`
+	Username     string  `json:"username"`
 	InstanceName *string `json:"instanceName"`
 	InstanceType *string `json:"type"`
 	Host         string  `json:"host"`
 	Port         int     `json:"port"`
-	Username     string  `json:"username"`
 
 	FlowProcdefKey string `json:"flowProcdefKey"`
 

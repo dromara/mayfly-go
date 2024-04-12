@@ -44,7 +44,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.DbQuery](rc, new(entity.DbQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	codes := d.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeDb, queryCond.TagPath)
+	codes := d.TagApp.GetAccountTagCodes(rc.GetLoginAccount().Id, consts.ResourceTypeDb, queryCond.TagPath)
 	if len(codes) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
@@ -56,7 +56,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 
 	// 填充标签信息
-	d.TagApp.FillTagInfo(collx.ArrayMap(dbvos, func(dbvo *vo.DbListVO) tagentity.ITagResource {
+	d.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeDb), collx.ArrayMap(dbvos, func(dbvo *vo.DbListVO) tagentity.ITagResource {
 		return dbvo
 	})...)
 
@@ -280,7 +280,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	la := rc.GetLoginAccount()
 	db, err := d.DbApp.GetById(new(entity.Db), dbId)
 	biz.ErrIsNil(err, "该数据库不存在")
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(la.Id, d.TagApp.ListTagPathByResource(consts.TagResourceTypeDb, db.Code)...), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(la.Id, d.TagApp.ListTagPathByTypeAndCode(consts.ResourceTypeDb, db.Code)...), "%s")
 
 	now := time.Now()
 	filename := fmt.Sprintf("%s-%s.%s.sql%s", db.Name, dbName, now.Format("20060102150405"), extName)

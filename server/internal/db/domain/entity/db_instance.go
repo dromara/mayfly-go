@@ -1,24 +1,21 @@
 package entity
 
 import (
-	"errors"
 	"fmt"
-	"mayfly-go/internal/common/utils"
 	"mayfly-go/pkg/model"
 )
 
 type DbInstance struct {
 	model.Model
 
+	Code               string  `json:"code"`
 	Name               string  `json:"name"`
 	Type               string  `json:"type"` // 类型，mysql oracle等
 	Host               string  `json:"host"`
 	Port               int     `json:"port"`
 	Network            string  `json:"network"`
-	Extra              *string `json:"extra"` // 连接需要的其他额外参数（json格式）, 如oracle需要sid等
-	Username           string  `json:"username"`
-	Password           string  `json:"-"`
-	Params             *string `json:"params"`
+	Extra              *string `json:"extra"`  // 连接需要的其他额外参数（json格式）, 如oracle需要sid等
+	Params             *string `json:"params"` // 使用指针类型，可更新为零值（空字符串）
 	Remark             string  `json:"remark"`
 	SshTunnelMachineId int     `json:"sshTunnelMachineId"` // ssh隧道机器id
 }
@@ -38,24 +35,4 @@ func (d *DbInstance) GetNetwork() string {
 		}
 	}
 	return fmt.Sprintf("%s+ssh:%d", d.Type, d.SshTunnelMachineId)
-}
-
-func (d *DbInstance) PwdEncrypt() error {
-	// 密码替换为加密后的密码
-	password, err := utils.PwdAesEncrypt(d.Password)
-	if err != nil {
-		return errors.New("加密数据库密码失败")
-	}
-	d.Password = password
-	return nil
-}
-
-func (d *DbInstance) PwdDecrypt() error {
-	// 密码替换为解密后的密码
-	password, err := utils.PwdAesDecrypt(d.Password)
-	if err != nil {
-		return errors.New("解密数据库密码失败")
-	}
-	d.Password = password
-	return nil
 }

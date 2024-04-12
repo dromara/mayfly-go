@@ -13,7 +13,7 @@ type Dashbord struct {
 
 func (m *Dashbord) Dashbord(rc *req.Ctx) {
 	accountId := rc.GetLoginAccount().Id
-	redisNum := len(m.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeRedis, ""))
+	redisNum := len(m.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeRedis, ""))
 
 	rc.ResData = collx.M{
 		"redisNum": redisNum,

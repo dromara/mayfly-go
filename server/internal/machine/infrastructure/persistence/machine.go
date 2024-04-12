@@ -28,7 +28,7 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 		Like("ip", condition.Ip).
 		Like("name", condition.Name).
 		In("code", condition.Codes).
-		Eq("code", condition.Code)
+		Like("code", condition.Code)
 
 	// 只查询ssh服务器
 	if condition.Ssh == entity.MachineProtocolSsh {

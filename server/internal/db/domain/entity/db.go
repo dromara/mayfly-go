@@ -12,5 +12,6 @@ type Db struct {
 	Database       string `orm:"column(database)" json:"database"`
 	Remark         string `json:"remark"`
 	InstanceId     uint64
+	AuthCertName   string  `json:"authCertName"`
 	FlowProcdefKey *string `json:"flowProcdefKey"` // 审批流-流程定义key（有值则说明关键操作需要进行审批执行）,使用指针为了方便更新空字符串(取消流程审批)
 }

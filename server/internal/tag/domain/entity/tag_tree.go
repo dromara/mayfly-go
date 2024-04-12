@@ -23,17 +23,18 @@ type TagType int8
 const (
 	// 标识路径分隔符
 	CodePathSeparator = "/"
+	// 标签路径资源段分隔符
+	CodePathResourceSeparator = "|"
 
 	TagTypeTag     TagType = -1
-	TagTypeMachine TagType = TagType(consts.TagResourceTypeMachine)
-	TagTypeDb      TagType = TagType(consts.TagResourceTypeDb)
-	TagTypeRedis   TagType = TagType(consts.TagResourceTypeRedis)
-	TagTypeMongo   TagType = TagType(consts.TagResourceTypeMongo)
+	TagTypeMachine TagType = TagType(consts.ResourceTypeMachine)
+	TagTypeDb      TagType = TagType(consts.ResourceTypeDb)
+	TagTypeRedis   TagType = TagType(consts.ResourceTypeRedis)
+	TagTypeMongo   TagType = TagType(consts.ResourceTypeMongo)
 
 	// ----- （单独声明各个资源的授权凭证类型而不统一使用一个授权凭证类型是为了获取登录账号的授权凭证标签(ResourceAuthCertApp.GetAccountAuthCert)时，避免查出所有资源的授权凭证）
 
 	TagTypeMachineAuthCert TagType = 11 // 机器-授权凭证
-	TagTypeDbAuthCert      TagType = 21 // DB-授权凭证
 )
 
 // GetRootCode 获取根路径信息
@@ -60,6 +61,30 @@ func (pt *TagTree) GetParentPath(index int) string {
 	parentPath := strings.Join(paths[:len(paths)-index-1], "/")
 
 	return parentPath + "/"
+}
+
+// GetTagPath 获取标签段路径，不获取对应资源相关路径
+func (pt *TagTree) GetTagPath() string {
+	codePath := pt.CodePath
+
+	// 以 资源分隔符"|" 符号对字符串进行分割
+	parts := strings.Split(codePath, CodePathResourceSeparator)
+	if len(parts) < 2 {
+		return codePath
+	}
+
+	// 从分割后的第一个子串中提取所需部分
+	substringBeforeNumber := parts[0]
+
+	// 找到最后一个 "/" 的位置
+	lastSlashIndex := strings.LastIndex(substringBeforeNumber, CodePathSeparator)
+
+	// 如果找到最后一个 "/" 符号，则截取子串
+	if lastSlashIndex != -1 {
+		return substringBeforeNumber[:lastSlashIndex+1]
+	}
+
+	return codePath
 }
 
 // 标签接口资源，如果要实现资源结构体填充标签信息，则资源结构体需要实现该接口

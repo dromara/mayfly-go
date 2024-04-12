@@ -4,6 +4,7 @@ package entity
 type InstanceQuery struct {
 	Id   uint64 `json:"id" form:"id"`
 	Name string `json:"name" form:"name"`
+	Code string `json:"code" form:"code"`
 	Host string `json:"host" form:"host"`
 }
 

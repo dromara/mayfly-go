@@ -87,10 +87,10 @@ func (p *TagTree) DelTagTree(rc *req.Ctx) {
 func (p *TagTree) TagResources(rc *req.Ctx) {
 	resourceType := int8(rc.PathParamInt("rtype"))
 	accountId := rc.GetLoginAccount().Id
-	tagResources := p.TagTreeApp.GetAccountTagResources(accountId, &entity.TagTreeQuery{Type: entity.TagType(resourceType)})
+	tagResources := p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{Type: entity.TagType(resourceType)})
 
 	tagPath2Resource := collx.ArrayToMap[*entity.TagTree, string](tagResources, func(tagResource *entity.TagTree) string {
-		return tagResource.GetParentPath(1)
+		return tagResource.GetTagPath()
 	})
 
 	tagPaths := collx.MapKeys(tagPath2Resource)
@@ -110,8 +110,8 @@ func (p *TagTree) CountTagResource(rc *req.Ctx) {
 
 	rc.ResData = collx.M{
 		"machine": len(collx.ArrayDeduplicate(machineCodes)),
-		"db":      len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeDb, tagPath)),
-		"redis":   len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeRedis, tagPath)),
-		"mongo":   len(p.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeMongo, tagPath)),
+		"db":      len(p.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeDb, tagPath)),
+		"redis":   len(p.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeRedis, tagPath)),
+		"mongo":   len(p.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeMongo, tagPath)),
 	}
 }

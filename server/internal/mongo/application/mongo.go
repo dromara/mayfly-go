@@ -59,9 +59,9 @@ func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 			return d.DeleteById(ctx, id)
 		},
 		func(ctx context.Context) error {
-			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-				ResourceType: tagentity.TagTypeMongo,
-				ResourceCode: mongoEntity.Code,
+			return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+				Type: tagentity.TagTypeMongo,
+				Code: mongoEntity.Code,
 			})
 		})
 }
@@ -90,10 +90,10 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, m)
 		}, func(ctx context.Context) error {
-			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-				ResourceType: tagentity.TagTypeMongo,
-				ResourceCode: m.Code,
-				TagIds:       tagIds,
+			return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+				Type:         tagentity.TagTypeMongo,
+				Code:         m.Code,
+				ParentTagIds: tagIds,
 			})
 		})
 	}
@@ -113,10 +113,10 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.UpdateById(ctx, m)
 	}, func(ctx context.Context) error {
-		return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-			ResourceType: tagentity.TagTypeMongo,
-			ResourceCode: oldMongo.Code,
-			TagIds:       tagIds,
+		return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+			Type:         tagentity.TagTypeMongo,
+			Code:         oldMongo.Code,
+			ParentTagIds: tagIds,
 		})
 	})
 }
@@ -127,6 +127,6 @@ func (d *mongoAppImpl) GetMongoConn(id uint64) (*mgm.MongoConn, error) {
 		if err != nil {
 			return nil, errorx.NewBiz("mongo信息不存在")
 		}
-		return me.ToMongoInfo(d.tagApp.ListTagPathByResource(consts.TagResourceTypeMongo, me.Code)...), nil
+		return me.ToMongoInfo(d.tagApp.ListTagPathByTypeAndCode(consts.ResourceTypeMongo, me.Code)...), nil
 	})
 }

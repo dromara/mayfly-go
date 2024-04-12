@@ -287,7 +287,7 @@ const columns = [
     TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
     TableColumn.new('stat', '运行状态').isSlot().setAddWidth(55),
     TableColumn.new('fs', '磁盘(挂载点=>可用/总)').isSlot().setAddWidth(25),
-    TableColumn.new('authCerts[0].username', '授权凭证').isSlot('authCert').setAddWidth(20),
+    TableColumn.new('authCerts[0].username', '授权凭证').isSlot('authCert').setAddWidth(10),
     TableColumn.new('status', '状态').isSlot().setMinWidth(85),
     TableColumn.new('remark', '备注'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(238).fixedRight().alignCenter(),

@@ -31,7 +31,7 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.RedisQuery](rc, new(entity.RedisQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	codes := r.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeRedis, queryCond.TagPath)
+	codes := r.TagApp.GetAccountTagCodes(rc.GetLoginAccount().Id, consts.ResourceTypeRedis, queryCond.TagPath)
 	if len(codes) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
@@ -43,7 +43,7 @@ func (r *Redis) RedisList(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 
 	// 填充标签信息
-	r.TagApp.FillTagInfo(collx.ArrayMap(redisvos, func(rvo *vo.Redis) tagentity.ITagResource {
+	r.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeRedis), collx.ArrayMap(redisvos, func(rvo *vo.Redis) tagentity.ITagResource {
 		return rvo
 	})...)
 

@@ -65,9 +65,16 @@
                                 <el-descriptions-item label="类型">
                                     <EnumTag :enums="TagResourceTypeEnum" :value="currentTag.type" />
                                 </el-descriptions-item>
-
                                 <el-descriptions-item label="code">{{ currentTag.code }}</el-descriptions-item>
-                                <el-descriptions-item label="code路径">{{ currentTag.codePath }}</el-descriptions-item>
+
+                                <el-descriptions-item label="路径" :span="2">
+                                    <span v-for="item in parseTagPath(currentTag.codePath)" :key="item.code">
+                                        <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, item.type)?.extra.icon" class="mr2" />
+                                        <span> {{ item.code }}</span>
+                                        <SvgIcon v-if="!item.isEnd" class="mr5 ml5" name="arrow-right" />
+                                    </span>
+                                </el-descriptions-item>
+
                                 <el-descriptions-item label="名称">{{ currentTag.name }}</el-descriptions-item>
                                 <el-descriptions-item label="备注">{{ currentTag.remark }}</el-descriptions-item>
 
@@ -254,6 +261,38 @@ watch(
         setNowTabData();
     }
 );
+
+const parseTagPath = (tagPath: string) => {
+    if (!tagPath) {
+        return [];
+    }
+    const res = [] as any;
+    const codes = tagPath.split('/');
+    for (let code of codes) {
+        const typeAndCode = code.split('|');
+
+        if (typeAndCode.length == 1) {
+            const tagCode = typeAndCode[0];
+            if (!tagCode) {
+                continue;
+            }
+
+            res.push({
+                type: TagResourceTypeEnum.Tag.value,
+                code: typeAndCode[0],
+            });
+            continue;
+        }
+
+        res.push({
+            type: typeAndCode[0],
+            code: typeAndCode[1],
+        });
+    }
+
+    res[res.length - 1].isEnd = true;
+    return res;
+};
 
 const tabChange = () => {
     setNowTabData();

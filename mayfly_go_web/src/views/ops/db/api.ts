@@ -43,7 +43,6 @@ export const dbApi = {
     getInstanceServerInfo: Api.newGet('/instances/{instanceId}/server-info'),
     testConn: Api.newPost('/instances/test-conn'),
     saveInstance: Api.newPost('/instances'),
-    getInstancePwd: Api.newGet('/instances/{id}/pwd'),
     deleteInstance: Api.newDelete('/instances/{id}'),
 
     // 获取数据库备份列表

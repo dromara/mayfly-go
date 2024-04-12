@@ -17,7 +17,6 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
-	"time"
 )
 
 type SaveMachineParam struct {
@@ -66,7 +65,6 @@ type Machine interface {
 type machineAppImpl struct {
 	base.AppImpl[*entity.Machine, repository.Machine]
 
-	// authCertApp         AuthCert                `inject:"AuthCertApp"`
 	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 }
@@ -87,6 +85,10 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 	authCerts := param.AuthCerts
 	resourceType := tagentity.TagTypeMachine
 
+	if len(authCerts) == 0 {
+		return errorx.NewBiz("授权凭证信息不能为空")
+	}
+
 	oldMachine := &entity.Machine{
 		Ip:                 me.Ip,
 		Port:               me.Port,
@@ -94,7 +96,6 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 	}
 
 	err := m.GetBy(oldMachine)
-
 	if me.Id == 0 {
 		if err == nil {
 			return errorx.NewBiz("该机器信息已存在")
@@ -109,16 +110,23 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 		if err := m.Tx(ctx, func(ctx context.Context) error {
 			return m.Insert(ctx, me)
 		}, func(ctx context.Context) error {
-			return m.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+			return m.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+				Code:         me.Code,
+				Type:         resourceType,
+				ParentTagIds: tagIds,
+			})
+		}, func(ctx context.Context) error {
+			return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
 				ResourceCode: me.Code,
 				ResourceType: resourceType,
-				TagIds:       tagIds,
+				AuthCerts:    authCerts,
 			})
 		}); err != nil {
 			return err
 		}
 
-		return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+		// 事务问题，导致可能删除或新增的标签数据不可见，造成数据错误，故单独执行。若万一失败，可授权凭证管理处添加
+		return m.resourceAuthCertApp.RelateAuthCert2ResourceTag(ctx, &tagapp.RelateAuthCertParam{
 			ResourceCode: me.Code,
 			ResourceType: resourceType,
 			AuthCerts:    authCerts,
@@ -141,31 +149,44 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 	if err := m.Tx(ctx, func(ctx context.Context) error {
 		return m.UpdateById(ctx, me)
 	}, func(ctx context.Context) error {
-		return m.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-			ResourceCode: oldMachine.Code,
-			ResourceType: resourceType,
-			TagIds:       tagIds,
+		return m.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+			Code:         oldMachine.Code,
+			Type:         resourceType,
+			ParentTagIds: tagIds,
 		})
 	}); err != nil {
 		return err
 	}
 
-	return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
-		ResourceCode: oldMachine.Code,
-		ResourceType: resourceType,
-		AuthCerts:    authCerts,
+	return m.Tx(ctx, func(ctx context.Context) error {
+		return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+			ResourceCode: oldMachine.Code,
+			ResourceType: resourceType,
+			AuthCerts:    authCerts,
+		})
+	}, func(ctx context.Context) error {
+		return m.resourceAuthCertApp.RelateAuthCert2ResourceTag(ctx, &tagapp.RelateAuthCertParam{
+			ResourceCode: oldMachine.Code,
+			ResourceType: resourceType,
+			AuthCerts:    authCerts,
+		})
 	})
 }
 
 func (m *machineAppImpl) TestConn(me *entity.Machine, authCert *tagentity.ResourceAuthCert) error {
 	me.Id = 0
 
-	if authCert.CiphertextType == tagentity.AuthCertCiphertextTypePublic {
-		publicAuthCert, err := m.resourceAuthCertApp.GetAuthCert(authCert.Ciphertext)
-		if err != nil {
-			return err
+	if authCert.Id != 0 {
+		// 密文可能被清除，故需要重新获取
+		authCert, _ = m.resourceAuthCertApp.GetAuthCert(authCert.Name)
+	} else {
+		if authCert.CiphertextType == tagentity.AuthCertCiphertextTypePublic {
+			publicAuthCert, err := m.resourceAuthCertApp.GetAuthCert(authCert.Ciphertext)
+			if err != nil {
+				return err
+			}
+			authCert = publicAuthCert
 		}
-		authCert = publicAuthCert
 	}
 
 	mi, err := m.toMi(me, authCert)
@@ -208,12 +229,17 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 		func(ctx context.Context) error {
 			return m.DeleteById(ctx, id)
 		}, func(ctx context.Context) error {
-			return m.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
+			return m.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+				Code: machine.Code,
+				Type: resourceType,
+			})
+		}, func(ctx context.Context) error {
+			return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
 				ResourceCode: machine.Code,
 				ResourceType: resourceType,
 			})
 		}, func(ctx context.Context) error {
-			return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+			return m.resourceAuthCertApp.RelateAuthCert2ResourceTag(ctx, &tagapp.RelateAuthCertParam{
 				ResourceCode: machine.Code,
 				ResourceType: resourceType,
 			})
@@ -267,13 +293,9 @@ func (m *machineAppImpl) TimerUpdateStats() {
 				}()
 				logx.Debugf("定时获取机器[id=%d]状态信息开始", mid)
 				cli, err := m.GetCli(mid)
-				// ssh获取客户端失败，则更新机器状态为禁用
 				if err != nil {
-					updateMachine := &entity.Machine{Status: entity.MachineStatusDisable}
-					updateMachine.Id = mid
-					now := time.Now()
-					updateMachine.UpdateTime = &now
-					m.UpdateById(context.TODO(), updateMachine)
+					logx.Errorf("定时获取机器[id=%d]状态信息失败, 获取机器cli失败: %s", mid, err.Error())
+					return
 				}
 				cache.SaveMachineStats(mid, cli.GetAllStats())
 				logx.Debugf("定时获取机器[id=%d]状态信息结束", mid)
@@ -336,7 +358,7 @@ func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAu
 	mi.Name = me.Name
 	mi.Ip = me.Ip
 	mi.Port = me.Port
-	mi.TagPath = m.tagApp.ListTagPathByResource(int8(tagentity.TagTypeMachineAuthCert), authCert.Name)
+	mi.TagPath = m.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeMachineAuthCert), authCert.Name)
 	mi.EnableRecorder = me.EnableRecorder
 	mi.Protocol = me.Protocol
 

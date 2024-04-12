@@ -34,9 +34,17 @@
                     <EnumTag :value="scope.row.type" :enums="AuthCertTypeEnum" />
                 </template>
             </el-table-column>
+            <el-table-column prop="remark" label="备注" show-overflow-tooltip width="120px"> </el-table-column>
         </el-table>
 
-        <ResourceAuthCertEdit v-model:visible="state.dvisible" :auth-cert="state.form" @confirm="btnOk" :disable-type="[AuthCertTypeEnum.Public.value]" />
+        <ResourceAuthCertEdit
+            v-model:visible="state.dvisible"
+            :auth-cert="state.form"
+            @confirm="btnOk"
+            @cancel="cancelEdit"
+            :disable-type="[AuthCertTypeEnum.Public.value]"
+            :disable-ciphertext-type="props.disableCiphertextType"
+        />
     </div>
 </template>
 
@@ -51,6 +59,9 @@ import { ElMessage } from 'element-plus';
 const props = defineProps({
     resourceType: { type: Number },
     resourceCode: { type: String },
+    disableCiphertextType: {
+        type: Array,
+    },
     testConnBtnLoading: { type: Boolean },
 });
 
@@ -109,7 +120,19 @@ const cancelEdit = () => {
 
 const btnOk = async (authCert: any) => {
     const isEdit = authCert.id;
-    if (isEdit || state.idx > 0) {
+    if (!isEdit) {
+        const res = await resourceAuthCertApi.listByQuery.request({
+            name: authCert.name,
+            pageNum: 1,
+            pageSize: 100,
+        });
+        if (res.total) {
+            ElMessage.error('该授权凭证名称已存在');
+            return;
+        }
+    }
+
+    if (isEdit || state.idx >= 0) {
         authCerts.value[state.idx] = authCert;
         cancelEdit();
         return;
@@ -117,15 +140,6 @@ const btnOk = async (authCert: any) => {
 
     if (authCerts.value?.filter((x: any) => x.username == authCert.username || x.name == authCert.name).length > 0) {
         ElMessage.error('该名称或用户名已存在于该账号列表中');
-        return;
-    }
-    const res = await resourceAuthCertApi.listByQuery.request({
-        name: authCert.name,
-        pageNum: 1,
-        pageSize: 100,
-    });
-    if (res.total) {
-        ElMessage.error('该授权凭证名称已存在');
         return;
     }
 

@@ -873,7 +873,7 @@ CREATE TABLE `t_tag_tree` (
   `pid` bigint(20) NOT NULL DEFAULT '0',
   `type` tinyint NOT NULL DEFAULT '-1' COMMENT '类型： -1.普通标签； 其他值则为对应的资源类型',
   `code` varchar(36) NOT NULL COMMENT '标识符',
-  `code_path` varchar(255) NOT NULL COMMENT '标识符路径',
+  `code_path` varchar(555) NOT NULL COMMENT '标识符路径',
   `name` varchar(36) DEFAULT NULL COMMENT '名称',
   `remark` varchar(255) DEFAULT NULL,
   `create_time` datetime NOT NULL,

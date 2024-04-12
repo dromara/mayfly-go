@@ -1,6 +1,6 @@
 <template>
     <div class="auth-cert-edit">
-        <el-dialog title="凭证保存" v-model="dialogVisible" :show-close="false" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
+        <el-dialog :title="props.title" v-model="dialogVisible" :show-close="false" width="500px" :destroy-on-close="true" :close-on-click-modal="false">
             <el-form ref="acForm" :model="state.form" label-width="auto" :rules="rules">
                 <el-form-item prop="type" label="凭证类型" required>
                     <el-select @change="changeType" v-model="form.type" placeholder="请选择凭证类型">
@@ -118,6 +118,10 @@ import { ResourceCodePattern } from '@/common/pattern';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
+    title: {
+        type: String,
+        default: '凭证保存',
+    },
     authCert: {
         type: Object,
     },
@@ -162,7 +166,7 @@ const rules = {
     ],
 };
 
-const emit = defineEmits(['confirm']);
+const emit = defineEmits(['confirm', 'cancel']);
 
 const dialogVisible = defineModel<boolean>('visible', { default: false });
 
@@ -238,9 +242,10 @@ const getCiphertext = async () => {
 
 const cancelEdit = () => {
     dialogVisible.value = false;
+    emit('cancel');
     setTimeout(() => {
-        state.form = { ...DefaultForm };
         acForm.value?.resetFields();
+        state.form = { ...DefaultForm };
     }, 300);
 };
 

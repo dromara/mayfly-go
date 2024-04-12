@@ -19,9 +19,11 @@
         </page-table>
 
         <ResourceAuthCertEdit
+            :title="editor.title"
             v-model:visible="editor.visible"
             :auth-cert="editor.authcert"
             @confirm="confirmSave"
+            @cancel="editor.authcert = {}"
             :disable-type="state.disableAuthCertType"
             :disable-ciphertext-type="state.disableAuthCertCiphertextType"
             :resource-edit="false"
@@ -73,7 +75,7 @@ const state = reactive({
         paramsFormItem: [] as any,
     },
     editor: {
-        title: '授权凭证保存',
+        title: '添加授权凭证',
         visible: false,
         authcert: {},
     },
@@ -93,6 +95,7 @@ const edit = (data: any) => {
     state.disableAuthCertType = [];
     state.disableAuthCertCiphertextType = [];
     if (data) {
+        state.editor.title = `编辑授权凭证-[${data.name}]`;
         state.editor.authcert = data;
         //  如果数据为公共授权凭证，则不允许修改凭证类型
         if (data.type == AuthCertTypeEnum.Public.value) {
@@ -103,6 +106,7 @@ const edit = (data: any) => {
             state.disableAuthCertType = [AuthCertTypeEnum.Public.value];
         }
     } else {
+        state.editor.title = '添加授权凭证';
         state.editor.authcert = {
             type: AuthCertTypeEnum.Public.value,
             ciphertextType: AuthCertCiphertextTypeEnum.Password.value,

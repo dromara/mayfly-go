@@ -194,7 +194,7 @@
             </el-descriptions>
         </el-dialog>
 
-        <db-edit @val-change="search" :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible" v-model:db="dbEditDialog.data"></db-edit>
+        <db-edit @val-change="search()" :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible" v-model:db="dbEditDialog.data"></db-edit>
     </div>
 </template>
 

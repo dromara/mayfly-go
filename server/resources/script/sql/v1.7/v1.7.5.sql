@@ -76,7 +76,7 @@ INSERT
 select
 	tag_id,
 	resource_code,
-	CONCAT(tag_path , resource_code, '/'),
+	CONCAT(tag_path ,resource_type , '|', resource_code, '/'),
 	resource_type,
     resource_code,
 	DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s'),
@@ -175,7 +175,7 @@ INSERT
 SELECT
   tt.id,
   rac.`name`,
-  CONCAT(tt.code_path, rac.`name`, '/'),
+  CONCAT(tt.code_path, '11|' ,rac.`name`, '/'),
   11,
   rac.`username`,
   DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s'),
@@ -188,9 +188,9 @@ SELECT
 FROM
   `t_tag_tree` tt
   JOIN `t_resource_auth_cert` rac ON tt.`code` = rac.`resource_code`
-  AND tt.`type` = rac.`resource_type`
+  AND tt.`type` = rac.`resource_type` AND rac.type = 1
 WHERE
-  tt.`is_deleted` = 0
+  tt.`is_deleted` = 0;
 
 -- 删除机器表 账号相关字段
 ALTER TABLE t_machine DROP COLUMN username;
@@ -205,3 +205,65 @@ INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1712717337, 1712717290, 'tLb8TKLB/m2abQkA8/', 2, 1, '授权凭证密文查看', 'authcert:showciphertext', 1712717337, 'null', 1, 'admin', 1, 'admin', '2024-04-10 10:48:58', '2024-04-10 10:48:58', 0, NULL);
 commit;
 
+--  关联数据库账号至授权凭证表
+begin;
+ALTER TABLE t_db_instance ADD code varchar(36) NULL COMMENT '唯一编号';
+ALTER TABLE t_db_instance CHANGE code code varchar(36) NULL COMMENT '唯一编号' AFTER id;
+
+UPDATE t_db_instance SET code = CONCAT('db_code_', id);
+
+INSERT
+	INTO
+	t_resource_auth_cert (name,
+	resource_code,
+	resource_type,
+    type,
+	username,
+    ciphertext,
+	ciphertext_type,
+    create_time,
+	creator_id,
+	creator,
+	update_time,
+	modifier_id,
+	modifier,
+	is_deleted)
+select
+	CONCAT(code, '_', username),
+    code,
+	2,
+    1,
+	username,
+	password,
+    1,
+	DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s'),
+	1,
+	'admin',
+	DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s'),
+	1,
+	'admin',
+    0
+from
+	t_db_instance
+WHERE
+	is_deleted = 0;
+
+ALTER TABLE t_db ADD auth_cert_name varchar(36) NULL COMMENT '授权凭证名';
+ALTER TABLE t_db CHANGE auth_cert_name auth_cert_name varchar(36) NULL COMMENT '授权凭证名' AFTER instance_id;
+
+UPDATE
+	t_db d
+SET
+	d.auth_cert_name = (
+	SELECT
+		rac.name
+	FROM
+		t_resource_auth_cert rac
+	join t_db_instance di on
+		rac.resource_code = di.code
+		and rac.resource_type = 2
+	WHERE
+		di.id = d.instance_id);
+
+ALTER TABLE t_tag_tree MODIFY COLUMN code_path varchar(555) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '标识符路径';
+commit;

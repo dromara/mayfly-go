@@ -15,7 +15,6 @@ import (
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/structx"
 	"sort"
 	"strings"
 	"time"
@@ -86,10 +85,10 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, dbEntity)
 		}, func(ctx context.Context) error {
-			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-				ResourceCode: dbEntity.Code,
-				ResourceType: tagentity.TagTypeDb,
-				TagIds:       tagIds,
+			return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+				Code:         dbEntity.Code,
+				Type:         tagentity.TagTypeDb,
+				ParentTagIds: tagIds,
 			})
 		})
 	}
@@ -126,10 +125,10 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.UpdateById(ctx, dbEntity)
 	}, func(ctx context.Context) error {
-		return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-			ResourceCode: old.Code,
-			ResourceType: tagentity.TagTypeDb,
-			TagIds:       tagIds,
+		return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+			Code:         old.Code,
+			Type:         tagentity.TagTypeDb,
+			ParentTagIds: tagIds,
 		})
 	})
 }
@@ -153,9 +152,9 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 			// 删除该库下用户保存的所有sql信息
 			return d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: id})
 		}, func(ctx context.Context) error {
-			return d.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-				ResourceCode: db.Code,
-				ResourceType: tagentity.TagTypeDb,
+			return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+				Code: db.Code,
+				Type: tagentity.TagTypeDb,
 			})
 		})
 }
@@ -172,11 +171,13 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 			return nil, errorx.NewBiz("数据库实例不存在")
 		}
 
-		// 密码解密
-		if err := instance.PwdDecrypt(); err != nil {
-			return nil, errorx.NewBiz(err.Error())
+		di, err := d.dbInstanceApp.ToDbInfo(instance, db.AuthCertName, dbName)
+		if err != nil {
+			return nil, err
 		}
-		di := toDbInfo(instance, dbId, dbName, d.tagApp.ListTagPathByResource(consts.TagResourceTypeDb, db.Code)...)
+		di.TagPath = d.tagApp.ListTagPathByTypeAndCode(consts.ResourceTypeDb, db.Code)
+		di.Id = db.Id
+
 		if db.FlowProcdefKey != nil {
 			di.FlowProcdefKey = *db.FlowProcdefKey
 		}
@@ -322,15 +323,4 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *DumpDbReq) error {
 	}
 
 	return nil
-}
-
-func toDbInfo(instance *entity.DbInstance, dbId uint64, database string, tagPath ...string) *dbi.DbInfo {
-	di := new(dbi.DbInfo)
-	di.InstanceId = instance.Id
-	di.Id = dbId
-	di.Database = database
-	di.TagPath = tagPath
-
-	structx.Copy(di, instance)
-	return di
 }

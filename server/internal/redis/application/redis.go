@@ -107,10 +107,10 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds .
 		return r.Tx(ctx, func(ctx context.Context) error {
 			return r.Insert(ctx, re)
 		}, func(ctx context.Context) error {
-			return r.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-				ResourceType: tagenttiy.TagTypeRedis,
-				ResourceCode: re.Code,
-				TagIds:       tagIds,
+			return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+				Type:         tagenttiy.TagTypeRedis,
+				Code:         re.Code,
+				ParentTagIds: tagIds,
 			})
 		})
 	}
@@ -138,10 +138,10 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds .
 	return r.Tx(ctx, func(ctx context.Context) error {
 		return r.UpdateById(ctx, re)
 	}, func(ctx context.Context) error {
-		return r.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-			ResourceType: tagenttiy.TagTypeRedis,
-			ResourceCode: oldRedis.Code,
-			TagIds:       tagIds,
+		return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+			Type:         tagenttiy.TagTypeRedis,
+			Code:         oldRedis.Code,
+			ParentTagIds: tagIds,
 		})
 	})
 }
@@ -161,9 +161,9 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 	return r.Tx(ctx, func(ctx context.Context) error {
 		return r.DeleteById(ctx, id)
 	}, func(ctx context.Context) error {
-		return r.tagApp.SaveResource(ctx, &tagapp.SaveResourceTagParam{
-			ResourceType: tagenttiy.TagTypeRedis,
-			ResourceCode: re.Code,
+		return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+			Type: tagenttiy.TagTypeRedis,
+			Code: re.Code,
 		})
 	})
 }
@@ -179,7 +179,7 @@ func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
 		if err := re.PwdDecrypt(); err != nil {
 			return nil, errorx.NewBiz(err.Error())
 		}
-		return re.ToRedisInfo(db, r.tagApp.ListTagPathByResource(consts.TagResourceTypeRedis, re.Code)...), nil
+		return re.ToRedisInfo(db, r.tagApp.ListTagPathByTypeAndCode(consts.ResourceTypeRedis, re.Code)...), nil
 	})
 }
 

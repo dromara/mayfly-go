@@ -97,6 +97,16 @@ func (m *ResourceAuthCert) GetExtraString(key string) string {
 	return cast.ToString(m.Extra[key])
 }
 
+// IResourceTag接口 授权凭证名 -> 资源标签code
+func (m *ResourceAuthCert) GetCode() string {
+	return m.Name
+}
+
+// IResourceTag接口 授权凭证用户名 -> 资源标签名
+func (m *ResourceAuthCert) GetName() string {
+	return m.Username
+}
+
 // HasChanged 与指定授权凭证比较是否有变更
 func (m *ResourceAuthCert) HasChanged(rac *ResourceAuthCert) bool {
 	if rac == nil {

@@ -3,6 +3,7 @@
         <page-table
             ref="pageTableRef"
             :page-api="dbApi.instances"
+            :data-handler-fn="handleData"
             :searchItems="searchItems"
             v-model:query-form="query"
             :show-selection="true"
@@ -14,6 +15,10 @@
                 <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete"
                     >删除</el-button
                 >
+            </template>
+
+            <template #authCert="{ data }">
+                <ResourceAuthCert v-model:select-auth-cert="data.selectAuthCert" :auth-certs="data.authCerts" />
             </template>
 
             <template #type="{ data }">
@@ -35,7 +40,6 @@
                 <el-descriptions-item :span="2" label="主机">{{ infoDialog.data.host }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="用户名">{{ infoDialog.data.username }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="类型">{{ infoDialog.data.type }}</el-descriptions-item>
 
                 <el-descriptions-item :span="3" label="连接参数">{{ infoDialog.data.params }}</el-descriptions-item>
@@ -71,6 +75,7 @@ import { hasPerms } from '@/components/auth/auth';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { getDbDialect } from './dialect';
 import { SearchItem } from '@/components/SearchForm';
+import ResourceAuthCert from '../component/ResourceAuthCert.vue';
 
 const InstanceEdit = defineAsyncComponent(() => import('./InstanceEdit.vue'));
 
@@ -79,13 +84,14 @@ const perms = {
     delInstance: 'db:instance:del',
 };
 
-const searchItems = [SearchItem.input('name', '名称')];
+const searchItems = [SearchItem.input('code', '编号'), SearchItem.input('name', '名称')];
 
 const columns = ref([
+    TableColumn.new('code', '编号'),
     TableColumn.new('name', '名称'),
     TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
     TableColumn.new('host', 'host:port').setFormatFunc((data: any) => `${data.host}:${data.port}`),
-    TableColumn.new('username', '用户名'),
+    TableColumn.new('authCerts[0].username', '授权凭证').isSlot('authCert').setAddWidth(10),
     TableColumn.new('params', '连接参数'),
     TableColumn.new('remark', '备注'),
 ]);
@@ -132,6 +138,15 @@ onMounted(async () => {
 
 const search = () => {
     pageTableRef.value.search();
+};
+
+const handleData = (res: any) => {
+    const dataList = res.list;
+    // 赋值授权凭证
+    for (let x of dataList) {
+        x.selectAuthCert = x.authCerts[0];
+    }
+    return res;
 };
 
 const showInfo = (info: any) => {

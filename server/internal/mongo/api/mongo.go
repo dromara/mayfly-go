@@ -31,7 +31,7 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.MongoQuery](rc, new(entity.MongoQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	codes := m.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeMongo, queryCond.TagPath)
+	codes := m.TagApp.GetAccountTagCodes(rc.GetLoginAccount().Id, consts.ResourceTypeMongo, queryCond.TagPath)
 	if len(codes) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
@@ -43,7 +43,7 @@ func (m *Mongo) Mongos(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 
 	// 填充标签信息
-	m.TagApp.FillTagInfo(collx.ArrayMap(mongovos, func(mvo *vo.Mongo) tagentity.ITagResource {
+	m.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeMongo), collx.ArrayMap(mongovos, func(mvo *vo.Mongo) tagentity.ITagResource {
 		return mvo
 	})...)
 

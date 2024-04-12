@@ -21,6 +21,7 @@ func (d *instanceRepoImpl) GetInstanceList(condition *entity.InstanceQuery, page
 	qd := gormx.NewQuery(new(entity.DbInstance)).
 		Eq("id", condition.Id).
 		Eq("host", condition.Host).
-		Like("name", condition.Name)
+		Like("name", condition.Name).
+		Like("code", condition.Code)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }

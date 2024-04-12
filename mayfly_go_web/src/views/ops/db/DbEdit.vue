@@ -30,19 +30,37 @@
                         remote
                         :remote-method="getInstances"
                         @change="changeInstance"
-                        v-model="form.instanceId"
+                        v-model="state.selectInstalce"
+                        value-key="id"
                         placeholder="请输入实例名称搜索并选择实例"
                         filterable
                         clearable
                         class="w100"
                     >
-                        <el-option v-for="item in state.instances" :key="item.id" :label="`${item.name}`" :value="item.id">
+                        <el-option v-for="item in state.instances" :key="item.id" :label="`${item.name}`" :value="item">
                             {{ item.name }}
                             <el-divider direction="vertical" border-style="dashed" />
 
                             {{ item.type }} / {{ item.host }}:{{ item.port }}
                             <el-divider direction="vertical" border-style="dashed" />
                             {{ item.username }}
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+
+                <el-form-item prop="authCertName" label="授权凭证" required>
+                    <el-select @focus="getAuthCerts" @change="changeAuthCert" v-model="form.authCertName" placeholder="请选择授权凭证" filterable>
+                        <el-option v-for="item in state.authCerts" :key="item.id" :label="`${item.name}`" :value="item.name">
+                            {{ item.name }}
+
+                            <el-divider direction="vertical" border-style="dashed" />
+                            {{ item.username }}
+
+                            <el-divider direction="vertical" border-style="dashed" />
+                            <EnumTag :value="item.ciphertextType" :enums="AuthCertCiphertextTypeEnum" />
+
+                            <el-divider direction="vertical" border-style="dashed" />
+                            {{ item.remark }}
                         </el-option>
                     </el-select>
                 </el-form-item>
@@ -100,6 +118,10 @@ import type { CheckboxValueType } from 'element-plus';
 import ProcdefSelectFormItem from '@/views/flow/components/ProcdefSelectFormItem.vue';
 import { DbType } from '@/views/ops/db/dialect';
 import { ResourceCodePattern } from '@/common/pattern';
+import { resourceAuthCertApi } from '../tag/api';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import EnumTag from '@/components/enumtag/EnumTag.vue';
+import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 
 const props = defineProps({
     visible: {
@@ -172,6 +194,8 @@ const state = reactive({
     dbNamesSelected: [] as any,
     dbNamesFiltered: [] as any,
     filterString: '',
+    selectInstalce: {} as any,
+    authCerts: [] as any,
     form: {
         id: null,
         tagId: [],
@@ -180,6 +204,7 @@ const state = reactive({
         database: '',
         remark: '',
         instanceId: null as any,
+        authCertName: '',
         flowProcdefKey: '',
     },
     instances: [] as any,
@@ -205,14 +230,27 @@ watch(props, async (newValue: any) => {
     }
 });
 
-const changeInstance = () => {
+const changeInstance = async () => {
     state.dbNamesSelected = [];
-    getAllDatabase();
+    state.form.instanceId = state.selectInstalce.id;
 };
 
-const getAllDatabase = async () => {
+const getAuthCerts = async () => {
+    const res = await resourceAuthCertApi.listByQuery.request({
+        resourceCode: state.selectInstalce.code,
+        resourceType: TagResourceTypeEnum.Db.value,
+        pageSize: 100,
+    });
+    state.authCerts = res.list || [];
+};
+
+const changeAuthCert = (val: string) => {
+    getAllDatabase(val);
+};
+
+const getAllDatabase = async (authCertName: string) => {
     if (state.form.instanceId > 0) {
-        let dbs = await dbApi.getAllDatabase.request({ instanceId: state.form.instanceId });
+        let dbs = await dbApi.getAllDatabase.request({ instanceId: state.form.instanceId, authCertName });
         state.allDatabases = dbs;
 
         // 如果是oracle，且没查出数据库列表，则取实例sid
@@ -238,8 +276,9 @@ const open = async () => {
     if (state.form.instanceId) {
         // 根据id获取，因为需要回显实例名称
         await getInstances('', state.form.instanceId);
+        state.selectInstalce = state.instances[0];
+        await getAllDatabase(state.form.authCertName);
     }
-    await getAllDatabase();
 };
 
 const btnOk = async () => {

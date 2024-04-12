@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/base64"
 	"fmt"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
@@ -62,12 +63,12 @@ func (m *Machine) Machines(rc *req.Ctx) {
 	}
 
 	// 填充标签信息
-	m.TagApp.FillTagInfo(collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.ITagResource {
+	m.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeMachine), collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.ITagResource {
 		return mvo
 	})...)
 
 	// 填充授权凭证信息
-	m.ResourceAuthCertApp.FillAuthCert(authCerts, collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.IAuthCert {
+	m.ResourceAuthCertApp.FillAuthCertByAcs(authCerts, collx.ArrayMap(machinevos, func(mvo *vo.MachineVO) tagentity.IAuthCert {
 		return mvo
 	})...)
 

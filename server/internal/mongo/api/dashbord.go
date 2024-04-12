@@ -13,7 +13,7 @@ type Dashbord struct {
 
 func (m *Dashbord) Dashbord(rc *req.Ctx) {
 	accountId := rc.GetLoginAccount().Id
-	mongoNum := len(m.TagTreeApp.GetAccountResourceCodes(accountId, consts.TagResourceTypeMongo, ""))
+	mongoNum := len(m.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeMongo, ""))
 
 	rc.ResData = collx.M{
 		"mongoNum": mongoNum,

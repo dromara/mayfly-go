@@ -25,8 +25,6 @@ func InitInstanceRouter(router *gin.RouterGroup) {
 
 		req.NewGet(":instanceId", d.GetInstance),
 
-		req.NewGet(":instanceId/pwd", d.GetInstancePwd),
-
 		// 获取数据库实例的所有数据库名
 		req.NewGet(":instanceId/databases", d.GetDatabaseNames),
 

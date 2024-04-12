@@ -28,9 +28,15 @@
             </template>
         </page-table>
 
-        <el-drawer title="团队编辑" v-model="addTeamDialog.visible" :before-close="cancelSaveTeam" :destroy-on-close="true" :close-on-click-modal="false">
+        <el-drawer
+            :title="addTeamDialog.form.id ? '编辑团队' : '添加团队'"
+            v-model="addTeamDialog.visible"
+            :before-close="cancelSaveTeam"
+            :destroy-on-close="true"
+            :close-on-click-modal="false"
+        >
             <template #header>
-                <DrawerHeader header="团队编辑" :back="cancelSaveTeam" />
+                <DrawerHeader :header="addTeamDialog.form.id ? '编辑团队' : '添加团队'" :back="cancelSaveTeam" />
             </template>
 
             <el-form ref="teamForm" :model="addTeamDialog.form" label-width="auto">
@@ -58,6 +64,7 @@
                                 value: 'id',
                                 label: 'codePath',
                                 children: 'children',
+                                disabled: 'disabled',
                             }"
                             @check="tagTreeNodeCheck"
                         >
@@ -152,7 +159,6 @@ const state = reactive({
     currentEditPermissions: false,
     tags: [],
     addTeamDialog: {
-        title: '新增团队',
         visible: false,
         form: { id: 0, name: '', remark: '', tags: [] },
     },
@@ -201,16 +207,22 @@ const search = async () => {
 };
 
 const showSaveTeamDialog = async (data: any) => {
-    if (state.tags.length == 0) {
-        state.tags = await tagApi.getTagTrees.request(null);
-    }
+    state.tags = await tagApi.getTagTrees.request(null);
 
     if (data) {
         state.addTeamDialog.form.id = data.id;
         state.addTeamDialog.form.name = data.name;
         state.addTeamDialog.form.remark = data.remark;
-        state.addTeamDialog.title = `修改 [${data.codePath}] 信息`;
         state.addTeamDialog.form.tags = await tagApi.getTeamTagIds.request({ teamId: data.id });
+
+        setTimeout(() => {
+            const checkedNodes = tagTreeRef.value.getCheckedNodes();
+            console.log('check nodes: ', checkedNodes);
+            // 禁用选中节点的所有父节点，不可选中
+            for (let checkNodeData of checkedNodes) {
+                disableParentNodes(tagTreeRef.value.getNode(checkNodeData.id).parent);
+            }
+        }, 200);
     }
 
     state.addTeamDialog.visible = true;
@@ -231,8 +243,10 @@ const saveTeam = async () => {
 
 const cancelSaveTeam = () => {
     state.addTeamDialog.visible = false;
-    state.addTeamDialog.form = {} as any;
     teamForm.value.resetFields();
+    setTimeout(() => {
+        state.addTeamDialog.form = {} as any;
+    }, 500);
 };
 
 const deleteTeam = () => {
@@ -289,34 +303,47 @@ const cancelAddMember = () => {
     state.showMemDialog.addVisible = false;
 };
 
-const tagTreeNodeCheck = () => {
-    // const node = tagTreeRef.value.getNode(data.id);
-    // console.log(node);
-    // // state.showTagDialog.tagTreeTeams = [16]
-    // if (node.checked) {
-    //     if (node.parent) {
-    //         console.log(node.parent);
-    //         // removeCheckedTagId(node.parent.key);
-    //         tagTreeRef.value.setChecked(node.parent, false, false);
-    //     }
-    //     // // parentNode = node.parent
-    //     // for (let parentNode of node.parent) {
-    //     //     parentNode.setChecked(false);
-    //     // }
-    // }
-    // console.log(data);
-    // console.log(checkInfo);
+const tagTreeNodeCheck = (data: any) => {
+    const node = tagTreeRef.value.getNode(data.id);
+    console.log('check node: ', node);
+
+    if (node.checked) {
+        // 如果选中了子节点，则需要将父节点全部取消选中，并禁用父节点
+        unCheckParentNodes(node.parent);
+        disableParentNodes(node.parent);
+    } else {
+        // 如果取消了选中，则需要根据条件恢复父节点的选中状态
+        disableParentNodes(node.parent, false);
+    }
 };
 
-// function removeCheckedTagId(id: any) {
-//     console.log(state.showTagDialog.tagTreeTeams);
-//     for (let i = 0; i < state.showTagDialog.tagTreeTeams.length; i++) {
-//         if (state.showTagDialog.tagTreeTeams[i] == id) {
-//             console.log('has id', id);
-//             state.showTagDialog.tagTreeTeams.splice(i, 1);
-//         }
-//     }
-//     console.log(state.showTagDialog.tagTreeTeams);
-// }
+const unCheckParentNodes = (node: any) => {
+    if (!node) {
+        return;
+    }
+    tagTreeRef.value.setChecked(node, false, false);
+    unCheckParentNodes(node.parent);
+};
+
+/**
+ * 禁用该节点以及所有父节点
+ * @param node 节点
+ * @param disable 是否禁用
+ */
+const disableParentNodes = (node: any, disable = true) => {
+    if (!node) {
+        return;
+    }
+    if (!disable) {
+        // 恢复为非禁用状态时，若同层级存在一个选中状态或者禁用状态，则继续禁用 不恢复非禁用状态。
+        for (let oneLevelNodes of node.childNodes) {
+            if (oneLevelNodes.checked || oneLevelNodes.data.disabled) {
+                return;
+            }
+        }
+    }
+    node.data.disabled = disable;
+    disableParentNodes(node.parent, disable);
+};
 </script>
 <style lang="scss" scoped></style>
