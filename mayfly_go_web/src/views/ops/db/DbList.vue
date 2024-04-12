@@ -199,7 +199,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent, Ref } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dbApi } from './api';
 import config from '@/common/config';
@@ -247,7 +247,6 @@ const searchItems = [
 
 const columns = ref([
     TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
-    TableColumn.new('code', '编号'),
     TableColumn.new('name', '名称'),
     TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
     TableColumn.new('instanceName', '实例名'),
@@ -255,6 +254,7 @@ const columns = ref([
     TableColumn.new('authCertName', '授权凭证'),
     TableColumn.new('flowProcdefKey', '关联流程'),
     TableColumn.new('remark', '备注'),
+    TableColumn.new('code', '编号'),
 ]);
 
 // 该用户拥有的的操作列按钮权限

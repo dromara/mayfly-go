@@ -44,7 +44,7 @@
 
 <script lang="ts" setup>
 import { mongoApi } from './api';
-import { defineAsyncComponent, ref, toRefs, reactive, onMounted, Ref } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceTags from '../component/ResourceTags.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
@@ -72,11 +72,11 @@ const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Mongo.value), Sear
 
 const columns = [
     TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
-    TableColumn.new('code', '编号'),
     TableColumn.new('name', '名称'),
     TableColumn.new('uri', '连接uri'),
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('creator', '创建人'),
+    TableColumn.new('code', '编号'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(170).fixedRight().alignCenter(),
 ];
 

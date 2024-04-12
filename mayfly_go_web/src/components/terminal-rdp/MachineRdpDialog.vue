@@ -40,7 +40,7 @@
                 </div>
             </template>
 
-            <machine-rdp ref="rdpRef" :machine-id="machineId" @status-change="handleStatusChange" />
+            <machine-rdp ref="rdpRef" :machine-id="machineId" :auth-cert="authCert" @status-change="handleStatusChange" />
         </el-dialog>
     </div>
 </template>
@@ -56,7 +56,14 @@ const dialogRef = ref({} as any);
 
 const props = defineProps({
     visible: { type: Boolean },
-    machineId: { type: Number },
+    machineId: {
+        type: Number,
+        required: true,
+    },
+    authCert: {
+        type: String,
+        required: true,
+    },
     title: { type: String },
 });
 

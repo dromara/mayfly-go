@@ -1,29 +1,30 @@
 <template>
-    <div ref="viewportRef" class="viewport" :style="{ width: state.size.width + 'px', height: state.size.height + 'px' }">
-        <div ref="displayRef" class="display" tabindex="0" />
-        <div class="btn-box">
-            <SvgIcon name="DocumentCopy" @click="openPaste" :size="20" class="pointer-icon mr10" title="剪贴板" />
-            <SvgIcon name="FolderOpened" @click="openFilesystem" :size="20" class="pointer-icon mr10" title="文件管理" />
-            <SvgIcon name="FullScreen" @click="state.fullscreen ? closeFullScreen() : openFullScreen()" :size="20" class="pointer-icon mr10" title="全屏" />
+    <div>
+        <div ref="viewportRef" class="viewport" :style="{ width: state.size.width + 'px', height: state.size.height + 'px' }">
+            <div ref="displayRef" class="display" tabindex="0" />
+            <div class="btn-box">
+                <SvgIcon name="DocumentCopy" @click="openPaste" :size="20" class="pointer-icon mr10" title="剪贴板" />
+                <SvgIcon name="FolderOpened" @click="openFilesystem" :size="20" class="pointer-icon mr10" title="文件管理" />
+                <SvgIcon name="FullScreen" @click="state.fullscreen ? closeFullScreen() : openFullScreen()" :size="20" class="pointer-icon mr10" title="全屏" />
 
-            <el-dropdown>
-                <SvgIcon name="Monitor" :size="20" class="pointer-icon mr10" title="发送快捷键" style="color: #fff" />
-                <template #dropdown>
-                    <el-dropdown-menu>
-                        <el-dropdown-item @click="openSendKeyboard(['65507', '65513', '65535'])"> Ctrl + Alt + Delete </el-dropdown-item>
-                        <el-dropdown-item @click="openSendKeyboard(['65507', '65513', '65288'])"> Ctrl + Alt + Backspace </el-dropdown-item>
-                        <el-dropdown-item @click="openSendKeyboard(['65515', '100'])"> Windows + D </el-dropdown-item>
-                        <el-dropdown-item @click="openSendKeyboard(['65515', '101'])"> Windows + E </el-dropdown-item>
-                        <el-dropdown-item @click="openSendKeyboard(['65515', '114'])"> Windows + R </el-dropdown-item>
-                        <el-dropdown-item @click="openSendKeyboard(['65515'])"> Windows </el-dropdown-item>
-                    </el-dropdown-menu>
-                </template>
-            </el-dropdown>
+                <el-dropdown>
+                    <SvgIcon name="Monitor" :size="20" class="pointer-icon mr10" title="发送快捷键" style="color: #fff" />
+                    <template #dropdown>
+                        <el-dropdown-menu>
+                            <el-dropdown-item @click="openSendKeyboard(['65507', '65513', '65535'])"> Ctrl + Alt + Delete </el-dropdown-item>
+                            <el-dropdown-item @click="openSendKeyboard(['65507', '65513', '65288'])"> Ctrl + Alt + Backspace </el-dropdown-item>
+                            <el-dropdown-item @click="openSendKeyboard(['65515', '100'])"> Windows + D </el-dropdown-item>
+                            <el-dropdown-item @click="openSendKeyboard(['65515', '101'])"> Windows + E </el-dropdown-item>
+                            <el-dropdown-item @click="openSendKeyboard(['65515', '114'])"> Windows + R </el-dropdown-item>
+                            <el-dropdown-item @click="openSendKeyboard(['65515'])"> Windows </el-dropdown-item>
+                        </el-dropdown-menu>
+                    </template>
+                </el-dropdown>
 
-            <SvgIcon name="Refresh" @click="connect(0, 0)" :size="20" class="pointer-icon mr10" title="重新连接" />
+                <SvgIcon name="Refresh" @click="connect(0, 0)" :size="20" class="pointer-icon mr10" title="重新连接" />
+            </div>
+            <clipboard-dialog ref="clipboardRef" v-model:visible="state.clipboardDialog.visible" @close="closePaste" @submit="onsubmitClipboard" />
         </div>
-        <clipboard-dialog ref="clipboardRef" v-model:visible="state.clipboardDialog.visible" @close="closePaste" @submit="onsubmitClipboard" />
-
         <el-dialog destroy-on-close :title="state.filesystemDialog.title" v-model="state.filesystemDialog.visible" :close-on-click-modal="false" width="70%">
             <machine-file
                 :machine-id="state.filesystemDialog.machineId"

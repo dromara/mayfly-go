@@ -151,7 +151,7 @@
 <script lang="ts" setup>
 import Info from './Info.vue';
 import { redisApi } from './api';
-import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
+import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import RedisEdit from './RedisEdit.vue';
 import { dateFormat } from '@/common/utils/date';
@@ -177,12 +177,12 @@ const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Redis.value), Sear
 
 const columns = ref([
     TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
-    TableColumn.new('code', '编号'),
     TableColumn.new('name', '名称'),
     TableColumn.new('host', 'host:port'),
     TableColumn.new('mode', 'mode'),
     TableColumn.new('flowProcdefKey', '关联流程'),
     TableColumn.new('remark', '备注'),
+    TableColumn.new('code', '编号'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(200).fixedRight().alignCenter(),
 ]);
 

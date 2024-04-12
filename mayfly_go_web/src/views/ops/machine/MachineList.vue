@@ -205,7 +205,12 @@
 
         <machine-rec v-model:visible="machineRecDialog.visible" :machineId="machineRecDialog.machineId" :title="machineRecDialog.title"></machine-rec>
 
-        <MachineRdpDialog :title="machineRdpDialog.title" v-model:visible="machineRdpDialog.visible" v-model:machineId="machineRdpDialog.machineId">
+        <machine-rdp-dialog-comp
+            :title="machineRdpDialog.title"
+            v-model:visible="machineRdpDialog.visible"
+            v-model:machine-id="machineRdpDialog.machineId"
+            v-model:auth-cert="machineRdpDialog.authCert"
+        >
             <template #headerTitle="{ terminalInfo }">
                 {{ `${(terminalInfo.terminalId + '').slice(-2)}` }}
                 <el-divider direction="vertical" />
@@ -213,7 +218,7 @@
                 <el-divider direction="vertical" />
                 {{ terminalInfo.meta.name }}
             </template>
-        </MachineRdpDialog>
+        </machine-rdp-dialog-comp>
 
         <el-dialog destroy-on-close :title="filesystemDialog.title" v-model="filesystemDialog.visible" :close-on-click-modal="false" width="70%">
             <machine-file
@@ -243,10 +248,10 @@ import { getTagPathSearchItem } from '../component/tag';
 import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
 import ResourceAuthCert from '../component/ResourceAuthCert.vue';
 import { MachineProtocolEnum } from './enums';
+import MachineRdpDialogComp from '@/components/terminal-rdp/MachineRdpDialog.vue';
 
 // 组件
 const TerminalDialog = defineAsyncComponent(() => import('@/components/terminal/TerminalDialog.vue'));
-const MachineRdpDialog = defineAsyncComponent(() => import('@/components/terminal-rdp/MachineRdpDialog.vue'));
 const MachineEdit = defineAsyncComponent(() => import('./MachineEdit.vue'));
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
 const FileConfList = defineAsyncComponent(() => import('./file/FileConfList.vue'));
@@ -282,14 +287,14 @@ const searchItems = [
 
 const columns = [
     TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
-    TableColumn.new('code', '编号'),
     TableColumn.new('name', '名称'),
     TableColumn.new('ipPort', 'ip:port').isSlot().setAddWidth(50),
-    TableColumn.new('stat', '运行状态').isSlot().setAddWidth(55),
-    TableColumn.new('fs', '磁盘(挂载点=>可用/总)').isSlot().setAddWidth(25),
     TableColumn.new('authCerts[0].username', '授权凭证').isSlot('authCert').setAddWidth(10),
     TableColumn.new('status', '状态').isSlot().setMinWidth(85),
+    TableColumn.new('stat', '运行状态').isSlot().setAddWidth(55),
+    TableColumn.new('fs', '磁盘(挂载点=>可用/总)').isSlot().setAddWidth(25),
     TableColumn.new('remark', '备注'),
+    TableColumn.new('code', '编号'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(238).fixedRight().alignCenter(),
 ];
 
@@ -355,6 +360,7 @@ const state = reactive({
         visible: false,
         machineId: 0,
         title: '',
+        authCert: '',
     },
 });
 
@@ -582,6 +588,7 @@ const showRDP = (row: any, blank = false) => {
     }
     state.machineRdpDialog.title = `${row.name}[${row.ip}]-远程桌面`;
     state.machineRdpDialog.machineId = row.id;
+    state.machineRdpDialog.authCert = row.selectAuthCert.name;
     state.machineRdpDialog.visible = true;
 };
 

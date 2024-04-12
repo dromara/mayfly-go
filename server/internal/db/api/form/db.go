@@ -8,6 +8,7 @@ type DbForm struct {
 	Remark         string   `json:"remark"`
 	TagId          []uint64 `binding:"required" json:"tagId"`
 	InstanceId     uint64   `binding:"required" json:"instanceId"`
+	AuthCertName   string   `json: "authCertName`
 	FlowProcdefKey string   `json:"flowProcdefKey"`
 }
 

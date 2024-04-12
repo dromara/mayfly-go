@@ -87,13 +87,13 @@ const perms = {
 const searchItems = [SearchItem.input('code', '编号'), SearchItem.input('name', '名称')];
 
 const columns = ref([
-    TableColumn.new('code', '编号'),
     TableColumn.new('name', '名称'),
     TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
     TableColumn.new('host', 'host:port').setFormatFunc((data: any) => `${data.host}:${data.port}`),
     TableColumn.new('authCerts[0].username', '授权凭证').isSlot('authCert').setAddWidth(10),
     TableColumn.new('params', '连接参数'),
     TableColumn.new('remark', '备注'),
+    TableColumn.new('code', '编号'),
 ]);
 
 // 该用户拥有的的操作列按钮权限
