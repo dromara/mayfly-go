@@ -43,7 +43,10 @@ func (d *DbTransferTask) DeleteTask(rc *req.Ctx) {
 }
 
 func (d *DbTransferTask) Run(rc *req.Ctx) {
-	go d.DbTransferTask.Run(rc.MetaCtx, uint64(rc.PathParamInt("taskId")))
+	taskId := uint64(rc.PathParamInt("taskId"))
+	logId, _ := d.DbTransferTask.CreateLog(rc.MetaCtx, taskId)
+	go d.DbTransferTask.Run(rc.MetaCtx, taskId, logId)
+	rc.ResData = logId
 }
 
 func (d *DbTransferTask) Stop(rc *req.Ctx) {

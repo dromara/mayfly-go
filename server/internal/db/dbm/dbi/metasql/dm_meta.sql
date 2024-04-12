@@ -65,7 +65,7 @@ select a.owner,
        case when t.INFO2 & 0x01 = 0x01 then 1 else 0 end                                   as IS_IDENTITY,
        case when t2.constraint_type = 'P' then 1 else 0 end                                as IS_PRIMARY_KEY
 from all_tab_columns a
-         left join user_col_comments b
+         left join all_col_comments b
                    on b.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
                        and b.table_name = a.table_name
                        and a.column_name = b.column_name
@@ -74,8 +74,8 @@ from all_tab_columns a
                              join SYS.all_objects c2 on c1.id = c2.object_id and c2.object_type = 'TABLE') t
                    on t.object_name = a.table_name and t.owner = a.owner and t.NAME = a.column_name
          left join (select uc.OWNER, uic.column_name, uic.table_name, uc.constraint_type
-                    from user_ind_columns uic
-                             left join user_constraints uc on uic.index_name = uc.index_name) t2
+                    from all_ind_columns uic
+                             left join all_constraints uc on uic.index_name = uc.index_name) t2
                    on t2.table_name = t.object_name and a.column_name = t2.column_name and t2.OWNER = a.owner
 where a.owner = (SELECT SF_GET_SCHEMA_NAME_BY_ID(CURRENT_SCHID))
   and a.table_name in (%s)

@@ -86,7 +86,7 @@
                         />
                     </div>
                 </template>
-                <!-- 
+                <!--
                 <el-form-item v-if="form.type !== DbType.sqlite" prop="username" label="用户名" required>
                     <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
                 </el-form-item>
@@ -237,7 +237,11 @@ watch(props, (newValue: any) => {
     }
     if (newValue.data) {
         state.form = { ...newValue.data };
-        state.extra = JSON.parse(state.form.extra);
+        try {
+            state.extra = JSON.parse(state.form.extra);
+        } catch (e) {
+            state.extra = {};
+        }
     } else {
         state.form = { port: null, type: DbType.mysql } as any;
         state.form.authCerts = [];

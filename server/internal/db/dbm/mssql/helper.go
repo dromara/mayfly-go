@@ -2,6 +2,7 @@ package mssql
 
 import (
 	"fmt"
+	"io"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
@@ -194,6 +195,19 @@ func (ch *ColumnHelper) ToColumn(commonColumn *dbi.Column) {
 	} else {
 		commonColumn.DataType = dbi.ColumnDataType(ctype)
 		ch.FixColumn(commonColumn)
+		// 修复数据库迁移字段长度
+		dataType := string(commonColumn.DataType)
+		if collx.ArrayAnyMatches([]string{"nvarchar", "nchar"}, dataType) {
+			commonColumn.CharMaxLength = commonColumn.CharMaxLength * 2
+		}
+
+		if collx.ArrayAnyMatches([]string{"char"}, dataType) {
+			// char最大长度4000
+			if commonColumn.CharMaxLength >= 4000 {
+				commonColumn.DataType = "ntext"
+				commonColumn.CharMaxLength = 0
+			}
+		}
 	}
 }
 
@@ -214,10 +228,27 @@ func (ch *ColumnHelper) FixColumn(column *dbi.Column) {
 		// 如果是nvarchar，可视长度减半
 		column.CharMaxLength = column.CharMaxLength / 2
 	}
+
+	if collx.ArrayAnyMatches([]string{"char"}, dataType) {
+		// char最大长度4000
+		if column.CharMaxLength >= 4000 {
+			column.DataType = "ntext"
+			column.CharMaxLength = 0
+		}
+	}
+
 }
 
 type DumpHelper struct {
 	dbi.DefaultDumpHelper
+}
+
+// mssql 在insert语句前后不能识别begin和commit语句
+func (dh *DumpHelper) BeforeInsert(writer io.Writer, tableName string) {
+}
+
+// mssql 在insert语句前后不能识别begin和commit语句
+func (dh *DumpHelper) AfterInsert(writer io.Writer, tableName string, columns []dbi.Column) {
 }
 
 func (dh *DumpHelper) BeforeInsertSql(quoteSchema string, tableName string) string {

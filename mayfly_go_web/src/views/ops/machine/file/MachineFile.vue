@@ -154,7 +154,7 @@
                             <SvgIcon :size="15" name="folder" color="#007AFF" />
                         </span>
                         <span v-else>
-                            <SvgIcon :size="15" name="document" />
+                            <SvgIcon :size="15" :name="scope.row.icon" />
                         </span>
 
                         <span class="ml5" style="display: inline-block; width: 90%">
@@ -520,8 +520,84 @@ const lsFile = async (path: string) => {
         const type = file.type;
         if (type == folderType) {
             file.isFolder = true;
+            file.iocn = 'folder';
         } else {
             file.isFolder = false;
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+
+            switch (fileExtension) {
+                case 'doc':
+                case 'docx':
+                    file.icon = 'iconfont icon-word';
+                    break;
+                case 'xls':
+                case 'xlsx':
+                    file.icon = 'iconfont icon-excel';
+                    break;
+                case 'ppt':
+                case 'pptx':
+                    file.icon = 'iconfont icon-ppt';
+                    break;
+                case 'pdf':
+                    file.icon = 'iconfont icon-pdf';
+                    break;
+                case 'xml':
+                    file.icon = 'iconfont icon-xml';
+                    break;
+                case 'html':
+                    file.icon = 'iconfont icon-html';
+                    break;
+                case 'yaml':
+                case 'yml':
+                    file.icon = 'iconfont icon-yaml';
+                    break;
+                case 'css':
+                    file.icon = 'iconfont icon-file-css';
+                    break;
+                case 'js':
+                case 'ts':
+                    file.icon = 'iconfont icon-file-js';
+                    break;
+                case 'mp4':
+                case 'rmvb':
+                    file.icon = 'iconfont icon-file-video';
+                    break;
+                case 'mp3':
+                    file.icon = 'iconfont icon-file-audio';
+                    break;
+                case 'bmp':
+                case 'jpg':
+                case 'jpeg':
+                case 'png':
+                case 'tif':
+                case 'gif':
+                case 'pcx':
+                case 'tga':
+                case 'exif':
+                case 'svg':
+                case 'psd':
+                case 'ai':
+                case 'webp':
+                    file.icon = 'iconfont icon-file-image';
+                    break;
+                case 'md':
+                    file.icon = 'iconfont icon-md';
+                    break;
+                case 'txt':
+                    file.icon = 'iconfont icon-txt';
+                    break;
+                case 'zip':
+                case 'rar':
+                case '7z':
+                case 'gz':
+                case 'tar':
+                case 'tgz':
+                    file.icon = 'iconfont icon-file-zip';
+                    break;
+                default:
+                    file.icon = 'iconfont icon-file';
+                    break;
+            }
         }
     }
     return res;
@@ -631,8 +707,9 @@ const downloadFile = (data: any) => {
     const a = document.createElement('a');
     a.setAttribute(
         'href',
-        `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/download?path=${data.path}&machineId=${props.machineId}&authCertName=${props.authCertName}&protocol=${props.protocol}&${joinClientParams()}`
+        `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/download?path=${data.path}&machineId=${props.machineId}&authCertName=${props.authCertName}&fileId=${props.fileId}&protocol=${props.protocol}&${joinClientParams()}`
     );
+    a.setAttribute('target', '_blank');
     a.click();
 };
 

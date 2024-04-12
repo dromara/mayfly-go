@@ -51,15 +51,15 @@ const extra = computed(() => {
 // 定时获取最新日志
 const { pause, resume } = useIntervalFn(() => {
     writeLog();
-}, 2000);
+}, 500);
 
 watch(
     () => logId.value,
     (logId: number) => {
+        terminalRef.value?.clear();
         if (!logId) {
             return;
         }
-        terminalRef.value?.clear();
         writeLog();
     }
 );

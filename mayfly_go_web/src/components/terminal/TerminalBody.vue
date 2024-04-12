@@ -21,6 +21,7 @@ import { debounce } from 'lodash';
 import { TerminalStatus } from './common';
 import { useEventListener } from '@vueuse/core';
 import themes from './themes';
+import { TrzszFilter } from 'trzsz';
 
 const props = defineProps({
     // mounted时，是否执行init方法
@@ -101,7 +102,6 @@ function init() {
     }
     nextTick(() => {
         initTerm();
-        initSocket();
     });
 }
 
@@ -119,23 +119,10 @@ function initTerm() {
 
     term.open(terminalRef.value);
 
-    // 注册自适应组件
-    const fitAddon = new FitAddon();
-    state.addon.fit = fitAddon;
-    term.loadAddon(fitAddon);
-    fitTerminal();
-    // 注册窗口大小监听器
-    useEventListener('resize', debounce(fitTerminal, 400));
+    initSocket();
 
-    // 注册搜索组件
-    const searchAddon = new SearchAddon();
-    state.addon.search = searchAddon;
-    term.loadAddon(searchAddon);
-
-    // 注册 url link组件
-    const weblinks = new WebLinksAddon();
-    state.addon.weblinks = weblinks;
-    term.loadAddon(weblinks);
+    // 注册插件
+    loadAddon();
 
     // 注册自定义快捷键
     term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
@@ -153,17 +140,12 @@ function initSocket() {
     if (!props.socketUrl) {
         return;
     }
-
     socket = new WebSocket(`${props.socketUrl}&rows=${term?.rows}&cols=${term?.cols}`);
     // 监听socket连接
     socket.onopen = () => {
         // 注册心跳
         pingInterval = setInterval(sendPing, 15000);
         state.status = TerminalStatus.Connected;
-
-        // 注册 terminal 事件
-        term.onResize((event) => sendResize(event.cols, event.rows));
-        term.onData((event) => sendCmd(event));
 
         focus();
 
@@ -184,12 +166,60 @@ function initSocket() {
         console.log('terminal socket close...', e.reason);
         state.status = TerminalStatus.Disconnected;
     };
+}
 
-    // 监听socket消息
-    socket.onmessage = (msg: any) => {
-        // msg.data是真正后端返回的数据
-        write2Term(msg.data);
-    };
+function loadAddon() {
+    // 注册自适应组件
+    const fitAddon = new FitAddon();
+    state.addon.fit = fitAddon;
+    term.loadAddon(fitAddon);
+    fitTerminal();
+    // 注册窗口大小监听器
+    useEventListener('resize', debounce(fitTerminal, 400));
+
+    // 注册搜索组件
+    const searchAddon = new SearchAddon();
+    state.addon.search = searchAddon;
+    term.loadAddon(searchAddon);
+
+    // 注册 url link组件
+    const weblinks = new WebLinksAddon();
+    state.addon.weblinks = weblinks;
+    term.loadAddon(weblinks);
+
+    // 注册 trzsz
+    // initialize trzsz filter
+    const trzsz = new TrzszFilter({
+        // write the server output to the terminal
+        writeToTerminal: (data: any) => term.write(typeof data === 'string' ? data : new Uint8Array(data)),
+        // send the user input to the server
+        sendToServer: sendCmd,
+        // the terminal columns
+        terminalColumns: term.cols,
+        // there is a windows shell
+        isWindowsShell: false,
+    });
+
+    // let trzsz process the server output
+    socket?.addEventListener('message', (e) => trzsz.processServerOutput(e.data));
+    // let trzsz process the user input
+    term.onData((data) => trzsz.processTerminalInput(data));
+    term.onBinary((data) => trzsz.processBinaryInput(data));
+    term.onResize((size) => {
+        sendResize(size.cols, size.rows);
+        // tell trzsz the terminal columns has been changed
+        trzsz.setTerminalColumns(size.cols);
+    });
+    window.addEventListener('resize', () => state.addon.fit.fit());
+    // enable drag files or directories to upload
+    terminalRef.value.addEventListener('dragover', (event: Event) => event.preventDefault());
+    terminalRef.value.addEventListener('drop', (event: any) => {
+        event.preventDefault();
+        trzsz
+            .uploadFiles(event.dataTransfer.items)
+            .then(() => console.log('upload success'))
+            .catch((err) => console.log(err));
+    });
 }
 
 // 写入内容至终端

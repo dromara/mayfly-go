@@ -337,7 +337,7 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
     ])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
-        let { id, db, type, flowProcdefKey } = params;
+        let { id, db, type, flowProcdefKey, schema } = params;
         // 获取当前库的所有表信息
         let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
         state.reloadStatus = false;
@@ -352,6 +352,7 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
                     id,
                     db,
                     type,
+                    schema,
                     flowProcdefKey: flowProcdefKey,
                     key: key,
                     parentKey: parentNode.key,
@@ -684,7 +685,7 @@ const onEditTable = async (data: any) => {
 };
 
 const onDeleteTable = async (data: any) => {
-    let { db, id, tableName, parentKey, flowProcdefKey } = data.params;
+    let { db, id, tableName, parentKey, flowProcdefKey, schema } = data.params;
     await ElMessageBox.confirm(`此操作是永久性且无法撤销，确定删除【${tableName}】? `, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -692,7 +693,10 @@ const onDeleteTable = async (data: any) => {
     });
 
     // 执行sql
-    dbApi.sqlExec.request({ id, db, sql: `drop table ${getDbDialect(state.nowDbInst.type).quoteIdentifier(tableName)}` }).then(() => {
+    let dialect = getDbDialect(state.nowDbInst.type);
+    let schemaStr = schema ? `${dialect.quoteIdentifier(schema)}.` : '';
+
+    dbApi.sqlExec.request({ id, db, sql: `drop table ${schemaStr + dialect.quoteIdentifier(tableName)}` }).then(() => {
         if (flowProcdefKey) {
             ElMessage.success('工单提交成功');
             return;

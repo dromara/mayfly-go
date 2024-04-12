@@ -79,6 +79,7 @@
                                 <machine-rdp
                                     v-if="dt.params.protocol != MachineProtocolEnum.Ssh.value"
                                     :machine-id="dt.params.id"
+                                    :auth-cert="dt.authCert"
                                     :ref="(el: any) => setTerminalRef(el, dt.key)"
                                     @status-change="terminalStatusChange(dt.key, $event)"
                                 />
@@ -343,7 +344,8 @@ const openTerminal = (machine: any, ex?: boolean) => {
             const { href } = router.resolve({
                 path: `/machine/terminal-rdp`,
                 query: {
-                    id: machine.id,
+                    machineId: machine.id,
+                    ac: ac,
                     name: machine.name,
                 },
             });
@@ -367,6 +369,7 @@ const openTerminal = (machine: any, ex?: boolean) => {
         key,
         label: `${label}${sameIndex === 1 ? '' : ':' + sameIndex}`, // label组成为:总打开term次数+name+同一个机器打开的次数
         params: machine,
+        authCert: ac,
         socketUrl: getMachineTerminalSocketUrl(ac),
     };
 

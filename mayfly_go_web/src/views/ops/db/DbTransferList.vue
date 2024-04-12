@@ -34,11 +34,9 @@
             <template #action="{ data }">
                 <!-- 删除、启停用、编辑 -->
                 <el-button v-if="actionBtns[perms.save]" @click="edit(data)" type="primary" link>编辑</el-button>
-                <el-button :disabled="state.runBtnDisabled" v-if="actionBtns[perms.log]" type="primary" link @click="log(data)">日志</el-button>
+                <el-button v-if="actionBtns[perms.log]" type="primary" link @click="log(data)">日志</el-button>
                 <el-button v-if="data.runningState === 1" @click="stop(data.id)" type="danger" link>停止</el-button>
-                <el-button :disabled="state.runBtnDisabled" v-if="actionBtns[perms.run] && data.runningState !== 1" type="primary" link @click="reRun(data)"
-                    >运行</el-button
-                >
+                <el-button v-if="actionBtns[perms.run] && data.runningState !== 1" type="primary" link @click="reRun(data)">运行</el-button>
             </template>
         </page-table>
 
@@ -116,7 +114,6 @@ const state = reactive({
         data: null as any,
         running: false,
     },
-    runBtnDisabled: false,
 });
 
 const { selectionData, query, editDialog, logsDialog } = toRefs(state);
@@ -153,7 +150,7 @@ const stop = async (id: any) => {
     search();
 };
 
-const log = async (data: any) => {
+const log = (data: any) => {
     state.logsDialog.logId = data.logId;
     state.logsDialog.visible = true;
     state.logsDialog.title = '数据库迁移日志';
@@ -167,16 +164,17 @@ const reRun = async (data: any) => {
         type: 'warning',
     });
     try {
-        state.runBtnDisabled = true;
-        await dbApi.runDbTransferTask.request({ taskId: data.id });
+        let res = await dbApi.runDbTransferTask.request({ taskId: data.id });
+        console.log(res);
         ElMessage.success('运行成功');
+        // 拿到日志id之后，弹出日志弹窗
+        log({ logId: res, state: 1 });
     } catch (e) {
-        state.runBtnDisabled = false;
+        //
     }
     // 延迟2秒执行，后端异步执行
     setTimeout(() => {
         search();
-        state.runBtnDisabled = false;
     }, 2000);
 };
 

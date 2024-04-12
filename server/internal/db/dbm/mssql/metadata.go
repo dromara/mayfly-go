@@ -248,7 +248,7 @@ func (md *MssqlMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tabl
 			colNames[i] = meta.QuoteIdentifier(name)
 		}
 
-		sqls = append(sqls, fmt.Sprintf("create %s NONCLUSTERED index %s on %s.%s(%s)", unique, index.IndexName, md.dc.Info.CurrentSchema(), tbName, strings.Join(colNames, ",")))
+		sqls = append(sqls, fmt.Sprintf("create %s NONCLUSTERED index %s on %s.%s(%s)", unique, index.IndexName, meta.QuoteIdentifier(md.dc.Info.CurrentSchema()), meta.QuoteIdentifier(tbName), strings.Join(colNames, ",")))
 		if index.IndexComment != "" {
 			comment := meta.QuoteEscape(index.IndexComment)
 			comments = append(comments, fmt.Sprintf("EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'INDEX', N'%s'", comment, md.dc.Info.CurrentSchema(), tbName, index.IndexName))
@@ -304,17 +304,18 @@ func (md *MssqlMetaData) genColumnBasicSql(column dbi.Column) string {
 // 获取建表ddl
 func (md *MssqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Table, dropBeforeCreate bool) []string {
 	tbName := tableInfo.TableName
+	schemaName := md.dc.Info.CurrentSchema()
 	meta := md.dc.GetMetaData()
 
 	sqlArr := make([]string, 0)
 
 	// 删除表
 	if dropBeforeCreate {
-		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s", meta.QuoteIdentifier(tbName)))
+		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s.%s", meta.QuoteIdentifier(schemaName), meta.QuoteIdentifier(tbName)))
 	}
 
 	// 组装建表语句
-	createSql := fmt.Sprintf("CREATE TABLE %s (\n", meta.QuoteIdentifier(tbName))
+	createSql := fmt.Sprintf("CREATE TABLE %s.%s (\n", meta.QuoteIdentifier(schemaName), meta.QuoteIdentifier(tbName))
 	fields := make([]string, 0)
 	pks := make([]string, 0)
 	columnComments := make([]string, 0)

@@ -6,17 +6,28 @@
             <SvgIcon name="FolderOpened" @click="openFilesystem" :size="20" class="pointer-icon mr10" title="文件管理" />
             <SvgIcon name="FullScreen" @click="state.fullscreen ? closeFullScreen() : openFullScreen()" :size="20" class="pointer-icon mr10" title="全屏" />
 
-            <el-popconfirm @confirm="connect(0, 0)" title="确认重新连接?">
-                <template #reference>
-                    <SvgIcon name="Refresh" :size="20" class="pointer-icon mr10" title="重新连接" />
+            <el-dropdown>
+                <SvgIcon name="Monitor" :size="20" class="pointer-icon mr10" title="发送快捷键" style="color: #fff" />
+                <template #dropdown>
+                    <el-dropdown-menu>
+                        <el-dropdown-item @click="openSendKeyboard(['65507', '65513', '65535'])"> Ctrl + Alt + Delete </el-dropdown-item>
+                        <el-dropdown-item @click="openSendKeyboard(['65507', '65513', '65288'])"> Ctrl + Alt + Backspace </el-dropdown-item>
+                        <el-dropdown-item @click="openSendKeyboard(['65515', '100'])"> Windows + D </el-dropdown-item>
+                        <el-dropdown-item @click="openSendKeyboard(['65515', '101'])"> Windows + E </el-dropdown-item>
+                        <el-dropdown-item @click="openSendKeyboard(['65515', '114'])"> Windows + R </el-dropdown-item>
+                        <el-dropdown-item @click="openSendKeyboard(['65515'])"> Windows </el-dropdown-item>
+                    </el-dropdown-menu>
                 </template>
-            </el-popconfirm>
+            </el-dropdown>
+
+            <SvgIcon name="Refresh" @click="connect(0, 0)" :size="20" class="pointer-icon mr10" title="重新连接" />
         </div>
         <clipboard-dialog ref="clipboardRef" v-model:visible="state.clipboardDialog.visible" @close="closePaste" @submit="onsubmitClipboard" />
 
         <el-dialog destroy-on-close :title="state.filesystemDialog.title" v-model="state.filesystemDialog.visible" :close-on-click-modal="false" width="70%">
             <machine-file
                 :machine-id="state.filesystemDialog.machineId"
+                :auth-cert-name="state.filesystemDialog.authCertName"
                 :protocol="state.filesystemDialog.protocol"
                 :file-id="state.filesystemDialog.fileId"
                 :path="state.filesystemDialog.path"
@@ -36,6 +47,10 @@ import { TerminalExpose } from '@/components/terminal-rdp/index';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
 import { exitFullscreen, launchIntoFullscreen, unWatchFullscreenChange, watchFullscreenChange } from '@/components/terminal-rdp/guac/screen';
+import { useEventListener } from '@vueuse/core';
+import { debounce } from 'lodash';
+import { ClientState, TunnelState } from '@/components/terminal-rdp/guac/states';
+import { ElMessage } from 'element-plus';
 
 const viewportRef = ref({} as any);
 const displayRef = ref({} as any);
@@ -43,7 +58,11 @@ const clipboardRef = ref({} as any);
 
 const props = defineProps({
     machineId: {
-        type: [Number, String],
+        type: Number,
+        required: true,
+    },
+    authCert: {
+        type: String,
         required: true,
     },
     clipboardList: {
@@ -76,6 +95,7 @@ const state = reactive({
     },
     filesystemDialog: {
         visible: false,
+        authCertName: '',
         machineId: 0,
         protocol: 1,
         title: '',
@@ -142,6 +162,11 @@ const installClipboard = () => {
     state.client.onclipboard = clipboard.onClipboard;
 };
 
+const installResize = () => {
+    // 在resize事件结束后300毫秒执行
+    useEventListener('resize', debounce(resize, 300));
+};
+
 const installDisplay = () => {
     let { width, height, force } = state.size;
     state.display = state.client.getDisplay();
@@ -172,7 +197,7 @@ const installDisplay = () => {
 };
 
 const installClient = () => {
-    let tunnel = new Guacamole.WebSocketTunnel(getMachineRdpSocketUrl(props.machineId)) as any;
+    let tunnel = new Guacamole.WebSocketTunnel(getMachineRdpSocketUrl(props.authCert)) as any;
     if (state.client) {
         state.display?.scale(0);
         uninstallKeyboard();
@@ -191,15 +216,18 @@ const installClient = () => {
         console.log('statechange', st);
         state.status = st;
         switch (st) {
-            case 0: // 'CONNECTING'
+            case TunnelState.CONNECTING: // 'CONNECTING'
                 break;
-            case 1: // 'OPEN'
+            case TunnelState.OPEN: // 'OPEN'
+                state.status = TerminalStatus.Connected;
                 emit('statusChange', TerminalStatus.Connected);
                 break;
-            case 2: // 'CLOSED'
+            case TunnelState.CLOSED: // 'CLOSED'
+                state.status = TerminalStatus.Disconnected;
                 emit('statusChange', TerminalStatus.Disconnected);
                 break;
-            case 3: // 'UNSTABLE'
+            case TunnelState.UNSTABLE: // 'UNSTABLE'
+                state.status = TerminalStatus.Error;
                 emit('statusChange', TerminalStatus.Error);
                 break;
         }
@@ -207,25 +235,25 @@ const installClient = () => {
 
     state.client.onstatechange = (clientState: any) => {
         console.log('clientState', clientState);
-        return;
         switch (clientState) {
-            case 0:
-                //  states.IDLE;
+            case ClientState.IDLE:
+                console.log('连接空闲');
                 break;
-            case 1:
-                break;
-            case 2:
+            case ClientState.CONNECTING:
                 console.log('连接中...');
                 break;
-            case 3:
+            case ClientState.WAITING:
+                console.log('等待服务器响应...');
+                break;
+            case ClientState.CONNECTED:
                 console.log('连接成功...');
-                //  states.CONNECTED;
-                window.addEventListener('resize', resize);
-                viewportRef.value.addEventListener('mouseenter', resize);
-                clipboard.setRemoteClipboard(state.client);
+                break;
             // eslint-disable-next-line no-fallthrough
-            case 4:
-            case 5:
+            case ClientState.DISCONNECTING:
+                console.log('断开连接中...');
+                break;
+            case ClientState.DISCONNECTED:
+                console.log('已断开连接...');
                 break;
         }
     };
@@ -273,20 +301,25 @@ const resize = () => {
 
     let box = elm.parentElement;
 
-    let pixelDensity = window.devicePixelRatio || 1;
-    const width = box.clientWidth * pixelDensity;
-    const height = box.clientHeight * pixelDensity;
-    state.size.width = width;
-    state.size.height = height;
+    state.size.width = box.clientWidth;
+    state.size.height = box.clientHeight;
+
+    const width = parseInt(String(box.clientWidth));
+    const height = parseInt(String(box.clientHeight));
+
     if (state.display.getWidth() !== width || state.display.getHeight() !== height) {
-        state.client.sendSize(width, height);
+        if (state.status !== TerminalStatus.Connected) {
+            connect(width, height);
+        } else {
+            state.client.sendSize(width, height);
+        }
     }
     // setting timeout so display has time to get the correct size
-    setTimeout(() => {
-        const scale = Math.min(box.clientWidth / Math.max(state.display.getWidth(), 1), box.clientHeight / Math.max(state.display.getHeight(), 1));
-        state.display.scale(scale);
-        console.log(state.size);
-    }, 100);
+    // setTimeout(() => {
+    //     const scale = Math.min(box.clientWidth / Math.max(state.display.getWidth(), 1), box.clientHeight / Math.max(state.display.getHeight(), 1));
+    //     state.display.scale(scale);
+    //     console.log(state.size, scale);
+    // }, 100);
 };
 
 const handleMouseState = (mouseState: any, showCursor = false) => {
@@ -318,6 +351,7 @@ const connect = (width: number, height: number, force = false) => {
     installMouse();
     installTouchpad();
     installClipboard();
+    installResize();
 };
 
 const disconnect = () => {
@@ -348,6 +382,7 @@ const onsubmitClipboard = (val: string) => {
 const openFilesystem = async () => {
     state.filesystemDialog.protocol = 2;
     state.filesystemDialog.machineId = props.machineId;
+    state.filesystemDialog.authCertName = props.authCert;
     state.filesystemDialog.fileId = props.machineId;
     state.filesystemDialog.path = '/';
     state.filesystemDialog.title = `远程桌面文件管理`;
@@ -390,6 +425,19 @@ const closeFullScreen = function () {
 
     // 取消注册esc事件，退出全屏
     unWatchFullscreenChange(watchFullscreen);
+};
+
+const openSendKeyboard = (keys: string[]) => {
+    if (!state.client) {
+        return;
+    }
+    for (let i = 0; i < keys.length; i++) {
+        state.client.sendKeyEvent(1, keys[i]);
+    }
+    for (let j = 0; j < keys.length; j++) {
+        state.client.sendKeyEvent(0, keys[j]);
+    }
+    ElMessage.success('发送组合键成功');
 };
 
 const exposes = {

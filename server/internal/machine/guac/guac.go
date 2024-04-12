@@ -19,10 +19,11 @@ import (
 func DoConnect(query url.Values, parameters map[string]string, ac string) (Tunnel, error) {
 	conf := NewGuacamoleConfiguration()
 
-	parameters["enable-wallpaper"] = "true" // 允许显示墙纸
-	//parameters["resize-method"] = "reconnect"
+	parameters["client-name"] = "mayfly"
+	parameters["enable-wallpaper"] = "true"
+	parameters["resize-method"] = "display-update"
 	parameters["enable-font-smoothing"] = "true"
-	parameters["enable-desktop-composition"] = "true"
+	parameters["enable-desktop-composition"] = "false"
 	parameters["enable-menu-animations"] = "false"
 	parameters["disable-bitmap-caching"] = "true"
 	parameters["disable-offscreen-caching"] = "true"
@@ -60,7 +61,7 @@ func DoConnect(query url.Values, parameters map[string]string, ac string) (Tunne
 
 	//conf.ConnectionID = uuid.New().String()
 
-	conf.AudioMimetypes = []string{"audio/L8", "audio/L16"}
+	conf.AudioMimetypes = []string{"audio/L16", "rate=44100", "channels=2"}
 	conf.ImageMimetypes = []string{"image/jpeg", "image/png", "image/webp"}
 
 	logx.Debug("Connecting to guacd")

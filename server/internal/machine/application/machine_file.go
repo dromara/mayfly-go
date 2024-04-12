@@ -232,11 +232,6 @@ func (m *machineFileAppImpl) MkDir(opParam *MachineFileOpParam) (*mcm.MachineInf
 }
 
 func (m *machineFileAppImpl) CreateFile(opParam *MachineFileOpParam) (*mcm.MachineInfo, error) {
-	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
-	if err != nil {
-		return nil, err
-	}
-
 	path := opParam.Path
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		path = m.GetRdpFilePath(opParam.MachineId, path)
@@ -245,6 +240,10 @@ func (m *machineFileAppImpl) CreateFile(opParam *MachineFileOpParam) (*mcm.Machi
 		return nil, err
 	}
 
+	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
+	if err != nil {
+		return nil, err
+	}
 	file, err := sftpCli.Create(path)
 	if err != nil {
 		return nil, errorx.NewBiz("创建文件失败: %s", err.Error())

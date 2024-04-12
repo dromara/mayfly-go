@@ -32,6 +32,7 @@
     "sortablejs": "^1.15.2",
     "splitpanes": "^3.1.5",
     "sql-formatter": "^15.0.2",
+    "trzsz": "^1.1.5",
     "uuid": "^9.0.1",
     "vue": "^3.4.21",
     "vue-router": "^4.3.0",

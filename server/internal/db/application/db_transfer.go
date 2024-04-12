@@ -34,7 +34,9 @@ type DbTransferTask interface {
 
 	InitJob()
 
-	Run(ctx context.Context, taskId uint64)
+	CreateLog(ctx context.Context, taskId uint64) (uint64, error)
+
+	Run(ctx context.Context, taskId uint64, logId uint64)
 
 	Stop(ctx context.Context, taskId uint64) error
 }
@@ -81,19 +83,24 @@ func (app *dbTransferAppImpl) InitJob() {
 	_ = gormx.Updates(taskParam, taskParam, updateMap)
 }
 
-func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64) {
+func (app *dbTransferAppImpl) CreateLog(ctx context.Context, taskId uint64) (uint64, error) {
+	logId, err := app.logApp.CreateLog(ctx, &sysapp.CreateLogReq{
+		Description: "DBMS-执行数据迁移",
+		ReqParam:    collx.Kvs("taskId", taskId),
+		Type:        sysentity.SyslogTypeRunning,
+		Resp:        "开始执行数据迁移...",
+	})
+	return logId, err
+}
+
+func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint64) {
 	task, err := app.GetById(new(entity.DbTransferTask), taskId)
 	if err != nil {
 		return
 	}
 
 	start := time.Now()
-	logId, err := app.logApp.CreateLog(ctx, &sysapp.CreateLogReq{
-		Description: "DBMS-执行数据迁移",
-		ReqParam:    collx.Kvs("taskId", task.Id),
-		Type:        sysentity.SyslogTypeRunning,
-		Resp:        "开始执行数据迁移...",
-	})
+
 	if err != nil {
 		logx.Errorf("创建DBMS-执行数据迁移日志失败：%v", err)
 		return
