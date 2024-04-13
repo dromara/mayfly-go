@@ -71,10 +71,10 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *Re
 	resourceAuthCerts := params.AuthCerts
 
 	if resourceCode == "" {
-		return errorx.NewBiz("资源授权凭证的资源编号不能为空")
+		return errorx.NewBiz("授权凭证的资源编号不能为空")
 	}
 	if resourceType == 0 {
-		return errorx.NewBiz("资源类型不能为空")
+		return errorx.NewBiz("授权凭证的资源类型不能为空")
 	}
 
 	// 删除授权信息
@@ -411,6 +411,11 @@ func (r *resourceAuthCertAppImpl) updateAuthCert(ctx context.Context, rac *entit
 				}
 			}
 		}
+	}
+
+	// 密文存的不是公共授权凭证名，则进行密文加密处理
+	if rac.CiphertextType != entity.AuthCertCiphertextTypePublic {
+		rac.CiphertextEncrypt()
 	}
 
 	// 防止误更新

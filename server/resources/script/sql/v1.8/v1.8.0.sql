@@ -221,3 +221,27 @@ INSERT INTO `t_sys_resource` (`id`, `pid`, `ui_path`, `type`, `status`, `name`, 
 INSERT INTO `t_sys_resource` (`id`, `pid`, `ui_path`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `is_deleted`, `delete_time`) VALUES(1712717337, 1712717290, 'tLb8TKLB/m2abQkA8/', 2, 1, '授权凭证密文查看', 'authcert:showciphertext', 1712717337, 'null', 1, 'admin', 1, 'admin', '2024-04-10 10:48:58', '2024-04-10 10:48:58', 0, NULL);
 commit;
 
+begin;
+-- 迁移redis账号密码
+INSERT INTO t_resource_auth_cert ( NAME, resource_code, resource_type, type, ciphertext, ciphertext_type, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted )
+SELECT
+    CONCAT('redis_', CODE, '_pwd' ),
+    CODE,
+    3,
+    1,
+    PASSWORD,
+    1,
+    DATE_FORMAT( NOW(), '%Y-%m-%d %H:%i:%s' ),
+    1,
+    'admin',
+    DATE_FORMAT( NOW(), '%Y-%m-%d %H:%i:%s' ),
+    1,
+    'admin',
+    0
+FROM
+    t_redis
+WHERE
+    is_deleted = 0;
+
+ALTER TABLE t_redis DROP COLUMN password;
+commit;

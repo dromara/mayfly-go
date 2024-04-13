@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/api/vo"
@@ -14,7 +15,6 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/stringx"
 	"strconv"
 	"strings"
@@ -54,39 +54,40 @@ func (r *Redis) TestConn(rc *req.Ctx) {
 	form := &form.Redis{}
 	redis := req.BindJsonAndCopyTo[*entity.Redis](rc, form, new(entity.Redis))
 
-	// 密码解密，并使用解密后的赋值
-	originPwd, err := cryptox.DefaultRsaDecrypt(redis.Password, true)
-	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
-	redis.Password = originPwd
-
-	biz.ErrIsNil(r.RedisApp.TestConn(redis))
+	biz.ErrIsNil(r.RedisApp.TestConn(&application.SaveRedisParam{
+		Redis:  redis,
+		TagIds: form.TagId,
+		AuthCert: &tagentity.ResourceAuthCert{
+			Name:           fmt.Sprintf("redis_%s_ac", redis.Code),
+			Username:       form.Username,
+			Ciphertext:     form.Password,
+			CiphertextType: tagentity.AuthCertCiphertextTypePassword,
+			Type:           tagentity.AuthCertTypePrivate,
+		},
+	}))
 }
 
 func (r *Redis) Save(rc *req.Ctx) {
 	form := &form.Redis{}
 	redis := req.BindJsonAndCopyTo[*entity.Redis](rc, form, new(entity.Redis))
 
-	// 密码解密，并使用解密后的赋值
-	originPwd, err := cryptox.DefaultRsaDecrypt(redis.Password, true)
-	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
-	redis.Password = originPwd
-
 	// 密码脱敏记录日志
 	form.Password = "****"
 	rc.ReqParam = form
 
-	biz.ErrIsNil(r.RedisApp.SaveRedis(rc.MetaCtx, redis, form.TagId...))
-}
-
-// 获取redis实例密码，由于数据库是加密存储，故提供该接口展示原文密码
-func (r *Redis) GetRedisPwd(rc *req.Ctx) {
-	rid := uint64(rc.PathParamInt("id"))
-	re, err := r.RedisApp.GetById(new(entity.Redis), rid, "Password")
-	biz.ErrIsNil(err, "redis信息不存在")
-	if err := re.PwdDecrypt(); err != nil {
-		biz.ErrIsNil(err)
+	redisParam := &application.SaveRedisParam{
+		Redis:  redis,
+		TagIds: form.TagId,
+		AuthCert: &tagentity.ResourceAuthCert{
+			Name:           fmt.Sprintf("redis_%s_ac", redis.Code),
+			Username:       form.Username,
+			Ciphertext:     form.Password,
+			CiphertextType: tagentity.AuthCertCiphertextTypePassword,
+			Type:           tagentity.AuthCertTypePrivate,
+		},
 	}
-	rc.ResData = re.Password
+
+	biz.ErrIsNil(r.RedisApp.SaveRedis(rc.MetaCtx, redisParam))
 }
 
 func (r *Redis) DeleteRedis(rc *req.Ctx) {

@@ -100,9 +100,6 @@ export function backEndRouterConverter(routes: any, callbackFunc: RouterConvCall
         }
         // 将json字符串的meta转为对象
         item.meta = JSON.parse(item.meta);
-        if (item.meta.isHide) {
-            continue;
-        }
 
         // 将meta.comoponet 解析为route.component
         if (item.meta.component) {

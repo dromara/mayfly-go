@@ -9,7 +9,7 @@ import (
 	"mayfly-go/internal/redis/domain/repository"
 	"mayfly-go/internal/redis/rdm"
 	tagapp "mayfly-go/internal/tag/application"
-	tagenttiy "mayfly-go/internal/tag/domain/entity"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
@@ -19,8 +19,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/may-fly/cast"
 	"github.com/redis/go-redis/v9"
 )
+
+type SaveRedisParam struct {
+	Redis    *entity.Redis
+	AuthCert *tagentity.ResourceAuthCert
+	TagIds   []uint64
+}
 
 type RunCmdParam struct {
 	Id     uint64 `json:"id"`
@@ -37,9 +44,9 @@ type Redis interface {
 	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	// 测试连接
-	TestConn(re *entity.Redis) error
+	TestConn(re *SaveRedisParam) error
 
-	SaveRedis(ctx context.Context, re *entity.Redis, tagIds ...uint64) error
+	SaveRedis(ctx context.Context, param *SaveRedisParam) error
 
 	// 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
@@ -56,8 +63,9 @@ type Redis interface {
 type redisAppImpl struct {
 	base.AppImpl[*entity.Redis, repository.Redis]
 
-	tagApp      tagapp.TagTree   `inject:"TagTreeApp"`
-	procinstApp flowapp.Procinst `inject:"ProcinstApp"`
+	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
+	procinstApp         flowapp.Procinst        `inject:"ProcinstApp"`
+	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 }
 
 // 注入RedisRepo
@@ -70,13 +78,28 @@ func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *mode
 	return r.GetRepo().GetRedisList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (r *redisAppImpl) TestConn(re *entity.Redis) error {
+func (r *redisAppImpl) TestConn(param *SaveRedisParam) error {
 	db := 0
+	re := param.Redis
 	if re.Db != "" {
-		db, _ = strconv.Atoi(strings.Split(re.Db, ",")[0])
+		db = cast.ToInt(strings.Split(re.Db, ",")[0])
 	}
 
-	rc, err := re.ToRedisInfo(db).Conn()
+	authCert := param.AuthCert
+	if authCert.Id != 0 {
+		// 密文可能被清除，故需要重新获取
+		authCert, _ = r.resourceAuthCertApp.GetAuthCert(authCert.Name)
+	} else {
+		if authCert.CiphertextType == tagentity.AuthCertCiphertextTypePublic {
+			publicAuthCert, err := r.resourceAuthCertApp.GetAuthCert(authCert.Ciphertext)
+			if err != nil {
+				return err
+			}
+			authCert = publicAuthCert
+		}
+	}
+
+	rc, err := re.ToRedisInfo(db, authCert).Conn()
 	if err != nil {
 		return err
 	}
@@ -84,7 +107,9 @@ func (r *redisAppImpl) TestConn(re *entity.Redis) error {
 	return nil
 }
 
-func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds ...uint64) error {
+func (r *redisAppImpl) SaveRedis(ctx context.Context, param *SaveRedisParam) error {
+	re := param.Redis
+	tagIds := param.TagIds
 	// 查找是否存在该库
 	oldRedis := &entity.Redis{
 		Host:               re.Host,
@@ -100,17 +125,19 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds .
 			return errorx.NewBiz("该编码已存在")
 		}
 
-		if errEnc := re.PwdEncrypt(); errEnc != nil {
-			return errorx.NewBiz(errEnc.Error())
-		}
-
 		return r.Tx(ctx, func(ctx context.Context) error {
 			return r.Insert(ctx, re)
 		}, func(ctx context.Context) error {
 			return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-				Type:         tagenttiy.TagTypeRedis,
+				Type:         tagentity.TagTypeRedis,
 				Code:         re.Code,
 				ParentTagIds: tagIds,
+			})
+		}, func(ctx context.Context) error {
+			return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+				ResourceCode: re.Code,
+				ResourceType: tagentity.TagTypeRedis,
+				AuthCerts:    []*tagentity.ResourceAuthCert{param.AuthCert},
 			})
 		})
 	}
@@ -131,17 +158,20 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, re *entity.Redis, tagIds .
 		oldRedis, _ = r.GetById(new(entity.Redis), re.Id)
 	}
 
-	if errEnc := re.PwdEncrypt(); errEnc != nil {
-		return errorx.NewBiz(errEnc.Error())
-	}
 	re.Code = ""
 	return r.Tx(ctx, func(ctx context.Context) error {
 		return r.UpdateById(ctx, re)
 	}, func(ctx context.Context) error {
 		return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-			Type:         tagenttiy.TagTypeRedis,
+			Type:         tagentity.TagTypeRedis,
 			Code:         oldRedis.Code,
 			ParentTagIds: tagIds,
+		})
+	}, func(ctx context.Context) error {
+		return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+			ResourceCode: oldRedis.Code,
+			ResourceType: tagentity.TagTypeRedis,
+			AuthCerts:    []*tagentity.ResourceAuthCert{param.AuthCert},
 		})
 	})
 }
@@ -162,8 +192,13 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 		return r.DeleteById(ctx, id)
 	}, func(ctx context.Context) error {
 		return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-			Type: tagenttiy.TagTypeRedis,
+			Type: tagentity.TagTypeRedis,
 			Code: re.Code,
+		})
+	}, func(ctx context.Context) error {
+		return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+			ResourceCode: re.Code,
+			ResourceType: tagentity.TagTypeRedis,
 		})
 	})
 }
@@ -176,10 +211,11 @@ func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
 		if err != nil {
 			return nil, errorx.NewBiz("redis信息不存在")
 		}
-		if err := re.PwdDecrypt(); err != nil {
-			return nil, errorx.NewBiz(err.Error())
+		authCert, err := r.resourceAuthCertApp.GetResourceAuthCert(tagentity.TagTypeRedis, re.Code)
+		if err != nil {
+			return nil, err
 		}
-		return re.ToRedisInfo(db, r.tagApp.ListTagPathByTypeAndCode(consts.ResourceTypeRedis, re.Code)...), nil
+		return re.ToRedisInfo(db, authCert, r.tagApp.ListTagPathByTypeAndCode(consts.ResourceTypeRedis, re.Code)...), nil
 	})
 }
 

@@ -140,7 +140,7 @@
         </el-dialog>
 
         <redis-edit
-            @val-change="search"
+            @val-change="search()"
             :title="redisEditDialog.title"
             v-model:visible="redisEditDialog.visible"
             v-model:redis="redisEditDialog.data"

@@ -92,7 +92,7 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 		// 就算解析失败也执行sql，让数据库来判断错误。如果是查询sql则简单判断是否有limit分页参数信息（兼容pgsql）
 		// logx.Warnf("sqlparse解析sql[%s]失败: %s", sql, err.Error())
 		lowerSql := strings.ToLower(execSqlReq.Sql)
-		isSelect := strings.HasPrefix(lowerSql, "select")
+		isSelect := strings.HasPrefix(lowerSql, "select") || strings.HasPrefix(lowerSql, "explain")
 		if isSelect {
 			// 如果配置为0，则不校验分页参数
 			maxCount := config.GetDbms().MaxResultSet
@@ -129,6 +129,9 @@ func (d *dbSqlExecAppImpl) Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (
 	case *sqlparser.Select:
 		isSelect = true
 		execRes, err = d.doSelect(ctx, stmt, execSqlReq)
+	case *sqlparser.ExplainStmt:
+		isSelect = true
+		execRes, err = d.doRead(ctx, execSqlReq)
 	case *sqlparser.Show:
 		isSelect = true
 		execRes, err = d.doRead(ctx, execSqlReq)

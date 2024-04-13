@@ -73,34 +73,17 @@
                     <el-input v-model="form.remark" auto-complete="off" type="textarea"></el-input>
                 </el-form-item>
 
-                <template v-if="form.type !== DbType.sqlite">
-                    <el-divider content-position="left">账号</el-divider>
-                    <div>
-                        <ResourceAuthCertTableEdit
-                            v-model="form.authCerts"
-                            :resource-code="form.code"
-                            :resource-type="TagResourceTypeEnum.Db.value"
-                            :test-conn-btn-loading="testConnBtnLoading"
-                            @test-conn="testConn"
-                            :disable-ciphertext-type="[AuthCertCiphertextTypeEnum.PrivateKey.value]"
-                        />
-                    </div>
-                </template>
-                <!--
-                <el-form-item v-if="form.type !== DbType.sqlite" prop="username" label="用户名" required>
-                    <el-input v-model.trim="form.username" placeholder="请输入用户名"></el-input>
-                </el-form-item>
-                <el-form-item v-if="form.type !== DbType.sqlite" prop="password" label="密码">
-                    <el-input type="password" show-password v-model.trim="form.password" placeholder="请输入密码" autocomplete="new-password">
-                        <template v-if="form.id && form.id != 0" #suffix>
-                            <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click" :content="pwd">
-                                <template #reference>
-                                    <el-link v-auth="'db:instance:save'" @click="getDbPwd" :underline="false" type="primary" class="mr5">原密码 </el-link>
-                                </template>
-                            </el-popover>
-                        </template>
-                    </el-input>
-                </el-form-item> -->
+                <el-divider content-position="left">账号</el-divider>
+                <div>
+                    <ResourceAuthCertTableEdit
+                        v-model="form.authCerts"
+                        :resource-code="form.code"
+                        :resource-type="TagResourceTypeEnum.Db.value"
+                        :test-conn-btn-loading="testConnBtnLoading"
+                        @test-conn="testConn"
+                        :disable-ciphertext-type="[AuthCertCiphertextTypeEnum.PrivateKey.value]"
+                    />
+                </div>
 
                 <el-divider content-position="left">其他</el-divider>
                 <el-form-item prop="params" label="连接参数">

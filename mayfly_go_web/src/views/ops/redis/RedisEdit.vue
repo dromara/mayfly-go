@@ -57,14 +57,15 @@
                                 v-model.trim="form.password"
                                 placeholder="请输入密码, 修改操作可不填"
                                 autocomplete="new-password"
-                                ><template v-if="form.id && form.id != 0" #suffix>
+                            >
+                                <!-- <template v-if="form.id && form.id != 0" #suffix>
                                     <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click" :content="pwd">
                                         <template #reference>
                                             <el-link @click="getPwd" :underline="false" type="primary" class="mr5">原密码</el-link>
                                         </template>
                                     </el-popover>
-                                </template></el-input
-                            >
+                                </template> -->
+                            </el-input>
                         </el-form-item>
                         <el-form-item prop="db" label="库号" required>
                             <el-select
@@ -110,7 +111,6 @@
 import { toRefs, reactive, watch, ref } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
-import { RsaEncrypt } from '@/common/rsa';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import ProcdefSelectFormItem from '@/views/flow/components/ProcdefSelectFormItem.vue';
@@ -206,7 +206,7 @@ const state = reactive({
     pwd: '',
 });
 
-const { dialogVisible, tabActiveName, form, submitForm, dbList, pwd } = toRefs(state);
+const { dialogVisible, tabActiveName, form, submitForm, dbList } = toRefs(state);
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = redisApi.testConn.useApi(submitForm);
 const { isFetching: saveBtnLoading, execute: saveRedisExec } = redisApi.saveRedis.useApi(submitForm);
@@ -238,10 +238,6 @@ const changeDb = () => {
     state.form.db = state.dbList.length == 0 ? '' : state.dbList.join(',');
 };
 
-const getPwd = async () => {
-    state.pwd = await redisApi.getRedisPwd.request({ id: state.form.id });
-};
-
 const getReqForm = async () => {
     const reqForm = { ...state.form };
     if (reqForm.mode == 'sentinel' && reqForm.host.split('=').length != 2) {
@@ -251,7 +247,6 @@ const getReqForm = async () => {
     if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }
-    reqForm.password = await RsaEncrypt(reqForm.password);
     return reqForm;
 };
 
