@@ -10,7 +10,7 @@ type Redis struct {
 	Mode               string   `json:"mode"`
 	Db                 string   `json:"db"`
 	SshTunnelMachineId int      `json:"sshTunnelMachineId"` // ssh隧道机器id
-	TagId              []uint64 `binding:"required" json:"tagId"`
+	TagCodePaths       []string `binding:"required" json:"tagCodePaths"`
 	Remark             string   `json:"remark"`
 	FlowProcdefKey     string   `json:"flowProcdefKey"` // 审批流-流程定义key（有值则说明关键操作需要进行审批执行）,使用指针为了方便更新空字符串(取消流程审批)
 }

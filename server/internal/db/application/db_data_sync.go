@@ -243,7 +243,7 @@ func (app *dataSyncAppImpl) doDataSync(ctx context.Context, sql string, task *en
 		updFieldName = strings.Split(task.UpdField, ".")[1]
 	}
 
-	err = srcConn.WalkQueryRows(context.Background(), sql, func(row map[string]any, columns []*dbi.QueryColumn) error {
+	_, err = srcConn.WalkQueryRows(context.Background(), sql, func(row map[string]any, columns []*dbi.QueryColumn) error {
 		if len(queryColumns) == 0 {
 			queryColumns = columns
 

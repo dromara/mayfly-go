@@ -4,15 +4,14 @@
             v-bind="$attrs"
             v-model="state.selectTags"
             @change="changeTag"
-            style="width: 100%"
             :data="tags"
             placeholder="请选择关联标签"
             :render-after-expand="true"
             :default-expanded-keys="[state.selectTags]"
             show-checkbox
-            node-key="id"
+            node-key="codePath"
             :props="{
-                value: 'id',
+                value: 'codePath',
                 label: 'codePath',
                 children: 'children',
             }"
@@ -35,6 +34,7 @@
 <script lang="ts" setup>
 import { toRefs, reactive, onMounted } from 'vue';
 import { tagApi } from '../tag/api';
+import { getTagPath } from './tag';
 
 //定义事件
 const emit = defineEmits(['update:modelValue', 'changeTag', 'input']);
@@ -47,7 +47,7 @@ const props = defineProps({
 
 const state = reactive({
     tags: [],
-    // 单选则为id，多选为id数组
+    // 单选则为codePath，多选为codePath数组
     selectTags: [] as any,
 });
 
@@ -55,7 +55,7 @@ const { tags } = toRefs(state);
 
 onMounted(async () => {
     if (props.selectTags) {
-        state.selectTags = props.selectTags;
+        state.selectTags = props.selectTags.map((item: any) => getTagPath(item));
     }
 
     state.tags = await tagApi.getTagTrees.request({ type: -1 });

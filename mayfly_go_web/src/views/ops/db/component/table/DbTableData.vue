@@ -121,7 +121,7 @@
 
                     <template #empty>
                         <div style="text-align: center">
-                            <el-empty class="h100" :description="state.emptyText" :image-size="100" />
+                            <el-empty class="h100" :description="props.emptyText" :image-size="100" />
                         </div>
                     </template>
                 </el-table-v2>
@@ -342,8 +342,6 @@ const state = reactive({
     columns: [] as any,
     loading: false,
     tableHeight: '600px',
-    emptyText: '',
-
     execTime: 0,
     contextmenu: {
         dropdown: {
@@ -434,7 +432,6 @@ onMounted(async () => {
     console.log('in DbTable mounted');
     state.tableHeight = props.height;
     state.loading = props.loading;
-    state.emptyText = props.emptyText;
 
     state.dbId = props.dbId;
     state.dbType = getNowDbInst().type;

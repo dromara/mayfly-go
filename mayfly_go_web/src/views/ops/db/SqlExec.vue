@@ -2,7 +2,7 @@
     <div class="db-sql-exec">
         <Splitpanes class="default-theme">
             <Pane size="20" max-size="30">
-                <tag-tree :resource-type="TagResourceTypeEnum.Db.value" :tag-path-node-type="NodeTypeTagPath" ref="tagTreeRef">
+                <tag-tree :resource-type="TagResourceTypeEnum.DbName.value" :tag-path-node-type="NodeTypeTagPath" ref="tagTreeRef">
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == SqlExecNodeType.DbInst">
                             <el-popover

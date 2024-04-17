@@ -17,12 +17,13 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
+	"mayfly-go/pkg/utils/collx"
 )
 
 type SaveMachineParam struct {
-	Machine   *entity.Machine
-	TagIds    []uint64
-	AuthCerts []*tagentity.ResourceAuthCert
+	Machine      *entity.Machine
+	TagCodePaths []string
+	AuthCerts    []*tagentity.ResourceAuthCert
 }
 
 type Machine interface {
@@ -81,7 +82,7 @@ func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pagePara
 
 func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachineParam) error {
 	me := param.Machine
-	tagIds := param.TagIds
+	tagCodePaths := param.TagCodePaths
 	authCerts := param.AuthCerts
 	resourceType := tagentity.TagTypeMachine
 
@@ -107,29 +108,20 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 		// 新增机器，默认启用状态
 		me.Status = entity.MachineStatusEnable
 
-		if err := m.Tx(ctx, func(ctx context.Context) error {
+		return m.Tx(ctx, func(ctx context.Context) error {
 			return m.Insert(ctx, me)
-		}, func(ctx context.Context) error {
-			return m.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-				Code:         me.Code,
-				Type:         resourceType,
-				ParentTagIds: tagIds,
-			})
 		}, func(ctx context.Context) error {
 			return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
 				ResourceCode: me.Code,
 				ResourceType: resourceType,
 				AuthCerts:    authCerts,
 			})
-		}); err != nil {
-			return err
-		}
 
-		// 事务问题，导致可能删除或新增的标签数据不可见，造成数据错误，故单独执行。若万一失败，可授权凭证管理处添加
-		return m.resourceAuthCertApp.RelateAuthCert2ResourceTag(ctx, &tagapp.RelateAuthCertParam{
-			ResourceCode: me.Code,
-			ResourceType: resourceType,
-			AuthCerts:    authCerts,
+		}, func(ctx context.Context) error {
+			return m.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+				ResourceTag:        m.genMachineResourceTag(me, authCerts),
+				ParentTagCodePaths: tagCodePaths,
+			})
 		})
 	}
 
@@ -146,29 +138,23 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 	mcm.DeleteCli(me.Id)
 	// 防止误传修改
 	me.Code = ""
-	if err := m.Tx(ctx, func(ctx context.Context) error {
+	return m.Tx(ctx, func(ctx context.Context) error {
 		return m.UpdateById(ctx, me)
 	}, func(ctx context.Context) error {
-		return m.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-			Code:         oldMachine.Code,
-			Type:         resourceType,
-			ParentTagIds: tagIds,
-		})
-	}); err != nil {
-		return err
-	}
-
-	return m.Tx(ctx, func(ctx context.Context) error {
 		return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
 			ResourceCode: oldMachine.Code,
 			ResourceType: resourceType,
 			AuthCerts:    authCerts,
 		})
 	}, func(ctx context.Context) error {
-		return m.resourceAuthCertApp.RelateAuthCert2ResourceTag(ctx, &tagapp.RelateAuthCertParam{
-			ResourceCode: oldMachine.Code,
-			ResourceType: resourceType,
-			AuthCerts:    authCerts,
+		if oldMachine.Name != me.Name {
+			if err := m.tagApp.UpdateTagName(ctx, tagentity.TagTypeMachine, oldMachine.Code, me.Name); err != nil {
+				return err
+			}
+		}
+		return m.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+			ResourceTag:        m.genMachineResourceTag(oldMachine, authCerts),
+			ParentTagCodePaths: tagCodePaths,
 		})
 	})
 }
@@ -230,16 +216,13 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 			return m.DeleteById(ctx, id)
 		}, func(ctx context.Context) error {
 			return m.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-				Code: machine.Code,
-				Type: resourceType,
+				ResourceTag: &tagapp.ResourceTag{
+					Code: machine.Code,
+					Type: tagentity.TagTypeMachine,
+				},
 			})
 		}, func(ctx context.Context) error {
 			return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
-				ResourceCode: machine.Code,
-				ResourceType: resourceType,
-			})
-		}, func(ctx context.Context) error {
-			return m.resourceAuthCertApp.RelateAuthCert2ResourceTag(ctx, &tagapp.RelateAuthCertParam{
 				ResourceCode: machine.Code,
 				ResourceType: resourceType,
 			})
@@ -362,6 +345,7 @@ func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAu
 	mi.EnableRecorder = me.EnableRecorder
 	mi.Protocol = me.Protocol
 
+	mi.AuthCertName = authCert.Name
 	mi.Username = authCert.Username
 	mi.Password = authCert.Ciphertext
 	mi.Passphrase = authCert.GetExtraString(tagentity.ExtraKeyPassphrase)
@@ -376,4 +360,21 @@ func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAu
 		mi.SshTunnelMachine = sshTunnelMi
 	}
 	return mi, nil
+}
+
+func (m *machineAppImpl) genMachineResourceTag(me *entity.Machine, authCerts []*tagentity.ResourceAuthCert) *tagapp.ResourceTag {
+	authCertTags := collx.ArrayMap[*tagentity.ResourceAuthCert, *tagapp.ResourceTag](authCerts, func(val *tagentity.ResourceAuthCert) *tagapp.ResourceTag {
+		return &tagapp.ResourceTag{
+			Code: val.Name,
+			Name: val.Username,
+			Type: tagentity.TagTypeMachineAuthCert,
+		}
+	})
+
+	return &tagapp.ResourceTag{
+		Code:     me.Code,
+		Type:     tagentity.TagTypeMachine,
+		Name:     me.Name,
+		Children: authCertTags,
+	}
 }

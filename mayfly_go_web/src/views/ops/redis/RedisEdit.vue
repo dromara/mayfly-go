@@ -8,16 +8,16 @@
             <el-form :model="form" ref="redisForm" :rules="rules" label-width="auto">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item ref="tagSelectRef" prop="tagId" label="标签" required>
+                        <el-form-item ref="tagSelectRef" prop="tagCodePaths" label="标签" required>
                             <tag-tree-select
                                 @change-tag="
-                                    (tagIds) => {
-                                        form.tagId = tagIds;
+                                    (tagCodePaths) => {
+                                        form.tagCodePaths = tagCodePaths;
                                         tagSelectRef.validate();
                                     }
                                 "
                                 multiple
-                                :select-tags="form.tagId"
+                                :select-tags="form.tagCodePaths"
                                 style="width: 100%"
                             />
                         </el-form-item>
@@ -25,7 +25,7 @@
                             <el-input
                                 :disabled="form.id"
                                 v-model.trim="form.code"
-                                placeholder="请输入编号 (数字字母下划线), 不可修改"
+                                placeholder="请输入编号 (大小写字母、数字、_-.:), 不可修改"
                                 auto-complete="off"
                             ></el-input>
                         </el-form-item>
@@ -108,7 +108,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref } from 'vue';
+import { toRefs, reactive, ref, watchEffect } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
@@ -116,6 +116,7 @@ import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import ProcdefSelectFormItem from '@/views/flow/components/ProcdefSelectFormItem.vue';
 import { ResourceCodePattern } from '@/common/pattern';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import { getTagPath } from '../component/tag';
 
 const props = defineProps({
     visible: {
@@ -132,7 +133,7 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'val-change', 'cancel']);
 
 const rules = {
-    tagId: [
+    tagCodePaths: [
         {
             required: true,
             message: '请选择标签',
@@ -190,7 +191,7 @@ const state = reactive({
     form: {
         id: null,
         code: '',
-        tagId: [],
+        tagCodePaths: [],
         name: null,
         mode: 'standalone',
         host: '',
@@ -211,15 +212,16 @@ const { dialogVisible, tabActiveName, form, submitForm, dbList } = toRefs(state)
 const { isFetching: testConnBtnLoading, execute: testConnExec } = redisApi.testConn.useApi(submitForm);
 const { isFetching: saveBtnLoading, execute: saveRedisExec } = redisApi.saveRedis.useApi(submitForm);
 
-watch(props, async (newValue: any) => {
-    state.dialogVisible = newValue.visible;
+watchEffect(() => {
+    state.dialogVisible = props.visible;
     if (!state.dialogVisible) {
         return;
     }
     state.tabActiveName = 'basic';
-    if (newValue.redis) {
-        state.form = { ...newValue.redis };
-        state.form.tagId = newValue.redis.tags.map((t: any) => t.tagId);
+    const redis: any = props.redis;
+    if (redis) {
+        state.form = { ...redis };
+        state.form.tagCodePaths = redis.tags.map((t: any) => t.codePath);
         convertDb(state.form.db);
     } else {
         state.form = { db: '0' } as any;
@@ -247,6 +249,7 @@ const getReqForm = async () => {
     if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }
+    reqForm.tagCodePaths = state.form.tagCodePaths.map((t: any) => getTagPath(t)) as any;
     return reqForm;
 };
 

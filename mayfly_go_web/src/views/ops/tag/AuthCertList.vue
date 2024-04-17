@@ -39,7 +39,7 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { SearchItem } from '@/components/SearchForm';
 import { AuthCertCiphertextTypeEnum, AuthCertTypeEnum } from './enums';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { ResourceTypeEnum, TagResourceTypeEnum } from '@/common/commonEnum';
 import ResourceAuthCertEdit from '../component/ResourceAuthCertEdit.vue';
 
 const pageTableRef: Ref<any> = ref(null);
@@ -51,6 +51,7 @@ const state = reactive({
     },
     searchItems: [
         SearchItem.input('name', '凭证名称'),
+        SearchItem.select('resourceType', '资源类型').withEnum(ResourceTypeEnum),
         SearchItem.select('type', '凭证类型').withEnum(AuthCertTypeEnum),
         SearchItem.select('ciphertextType', '密文类型').withEnum(AuthCertCiphertextTypeEnum),
     ],

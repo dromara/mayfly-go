@@ -159,6 +159,6 @@ export function dynamicImport(dynamicViewsModules: Record<string, Function>, com
         return null;
     }
 
-    console.error(`未匹配到[${component}]组件名对应的组件文件`);
+    console.warn(`未匹配到[${component}]组件名对应的组件文件`);
     return null;
 }

@@ -22,6 +22,7 @@ func (d *instanceRepoImpl) GetInstanceList(condition *entity.InstanceQuery, page
 		Eq("id", condition.Id).
 		Eq("host", condition.Host).
 		Like("name", condition.Name).
-		Like("code", condition.Code)
+		Like("code", condition.Code).
+		In("code", condition.Codes)
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }

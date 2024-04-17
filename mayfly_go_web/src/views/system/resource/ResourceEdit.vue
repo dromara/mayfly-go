@@ -128,7 +128,7 @@
                     </el-col>
                 </el-row>
             </el-form>
-
+            e
             <template #footer>
                 <div>
                     <el-button @click="cancel()">取 消</el-button>
@@ -140,7 +140,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, watch } from 'vue';
+import { ref, toRefs, reactive, watchEffect } from 'vue';
 import { ElMessage } from 'element-plus';
 import { resourceApi } from '../api';
 import { ResourceTypeEnum } from '../enums';
@@ -229,10 +229,10 @@ const { dialogVisible, form, submitForm } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveResouceExec } = resourceApi.save.useApi(submitForm);
 
-watch(props, (newValue: any) => {
-    state.dialogVisible = newValue.visible;
-    if (newValue.data) {
-        state.form = { ...newValue.data };
+watchEffect(() => {
+    state.dialogVisible = props.visible;
+    if (props.data) {
+        state.form = { ...(props.data as any) };
     } else {
         state.form = {} as any;
     }

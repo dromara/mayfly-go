@@ -44,6 +44,7 @@ export const usePageTable = (
             }
 
             let res = await api.request(sp);
+            res.list = res.list || [];
             dataCallBack && (res = await dataCallBack(res));
 
             if (pageable) {

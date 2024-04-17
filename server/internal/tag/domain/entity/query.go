@@ -5,7 +5,6 @@ import "mayfly-go/pkg/model"
 type TagTreeQuery struct {
 	model.Model
 
-	Pid           uint64
 	Type          TagType `json:"type"`
 	Code          string  `json:"code"` // 标识
 	Codes         []string

@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/tag/api/form"
 	"mayfly-go/internal/tag/api/vo"
 	"mayfly-go/internal/tag/application"
 	"mayfly-go/internal/tag/domain/entity"
@@ -15,8 +16,6 @@ import (
 
 type TagTree struct {
 	TagTreeApp application.TagTree `inject:""`
-
-	ResourceAuthCertApp application.ResourceAuthCert `inject:""`
 }
 
 func (p *TagTree) GetTagTree(rc *req.Ctx) {
@@ -71,12 +70,12 @@ func (p *TagTree) ListByQuery(rc *req.Ctx) {
 }
 
 func (p *TagTree) SaveTagTree(rc *req.Ctx) {
-	tagTree := &entity.TagTree{}
-	req.BindJsonAndValid(rc, tagTree)
+	tagForm := &form.TagTree{}
+	tagTree := req.BindJsonAndCopyTo(rc, tagForm, new(entity.TagTree))
 
 	rc.ReqParam = fmt.Sprintf("tagTreeId: %d, tagName: %s, code: %s", tagTree.Id, tagTree.Name, tagTree.Code)
 
-	biz.ErrIsNil(p.TagTreeApp.Save(rc.MetaCtx, tagTree))
+	biz.ErrIsNil(p.TagTreeApp.SaveTag(rc.MetaCtx, tagForm.Pid, tagTree))
 }
 
 func (p *TagTree) DelTagTree(rc *req.Ctx) {
@@ -103,14 +102,12 @@ func (p *TagTree) CountTagResource(rc *req.Ctx) {
 	tagPath := rc.Query("tagPath")
 	accountId := rc.GetLoginAccount().Id
 
-	machienAuthCerts := p.ResourceAuthCertApp.GetAccountAuthCert(accountId, entity.TagTypeMachineAuthCert, tagPath)
-	machineCodes := collx.ArrayMap(machienAuthCerts, func(ac *entity.ResourceAuthCert) string {
-		return ac.ResourceCode
-	})
+	machineCodes := entity.GetCodeByPath(entity.TagTypeMachine, p.TagTreeApp.GetAccountTagCodePaths(accountId, entity.TagTypeMachineAuthCert, tagPath)...)
+	dbCodes := entity.GetCodeByPath(entity.TagTypeDb, p.TagTreeApp.GetAccountTagCodePaths(accountId, entity.TagTypeDbName, tagPath)...)
 
 	rc.ResData = collx.M{
-		"machine": len(collx.ArrayDeduplicate(machineCodes)),
-		"db":      len(p.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeDb, tagPath)),
+		"machine": len(machineCodes),
+		"db":      len(dbCodes),
 		"redis":   len(p.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeRedis, tagPath)),
 		"mongo":   len(p.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeMongo, tagPath)),
 	}

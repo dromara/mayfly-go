@@ -3,7 +3,7 @@
         <Splitpanes class="default-theme">
             <Pane size="30" min-size="25" max-size="35">
                 <div class="card pd5 mr5">
-                    <el-input v-model="filterTag" clearable placeholder="关键字过滤(右击操作)" style="width: 200px; margin-right: 10px" />
+                    <el-input v-model="filterTag" clearable placeholder="关键字过滤(右击节点操作)" style="width: 200px; margin-right: 10px" />
                     <el-button
                         v-if="useUserInfo().userInfo.username == 'admin'"
                         v-auth="'tag:save'"
@@ -42,7 +42,10 @@
                     >
                         <template #default="{ data }">
                             <span class="custom-tree-node">
-                                <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" />
+                                <SvgIcon
+                                    :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon"
+                                    :color="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.iconColor"
+                                />
 
                                 <span class="ml5">
                                     {{ data.code }}
@@ -94,7 +97,7 @@
                         </el-tab-pane>
 
                         <el-tab-pane :disabled="currentTag.type != TagResourceTypeEnum.Tag.value" :label="`数据库 (${resourceCount.db || 0})`" :name="DbTag">
-                            <DbList lazy ref="dbListRef" />
+                            <InstanceList lazy ref="dbInstanceListRef" />
                         </el-tab-pane>
 
                         <el-tab-pane
@@ -152,10 +155,10 @@ import { Splitpanes, Pane } from 'splitpanes';
 import MachineList from '../machine/MachineList.vue';
 import RedisList from '../redis/RedisList.vue';
 import MongoList from '../mongo/MongoList.vue';
-import DbList from '../db/DbList.vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import EnumValue from '@/common/Enum';
+import InstanceList from '../db/InstanceList.vue';
 
 interface Tree {
     id: number;
@@ -169,7 +172,7 @@ const tagTreeRef: any = ref(null);
 const filterTag = ref('');
 const contextmenuRef = ref();
 const machineListRef: Ref<any> = ref(null);
-const dbListRef: Ref<any> = ref(null);
+const dbInstanceListRef: Ref<any> = ref(null);
 const redisListRef: Ref<any> = ref(null);
 const mongoListRef: Ref<any> = ref(null);
 
@@ -305,7 +308,7 @@ const setNowTabData = () => {
             machineListRef.value.search(tagPath);
             break;
         case DbTag:
-            dbListRef.value.search(tagPath);
+            dbInstanceListRef.value.search(tagPath);
             break;
         case RedisTag:
             redisListRef.value.search(tagPath);
@@ -320,7 +323,7 @@ const setNowTabData = () => {
 
 const filterNode = (value: string, data: Tree) => {
     if (!value) return true;
-    return data.codePath.includes(value) || data.name.includes(value);
+    return data.codePath.toLowerCase().includes(value) || data.name.includes(value);
 };
 
 const search = async () => {

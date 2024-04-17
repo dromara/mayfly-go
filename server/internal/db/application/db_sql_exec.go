@@ -294,7 +294,7 @@ func (d *dbSqlExecAppImpl) doUpdate(ctx context.Context, update *sqlparser.Updat
 	maxRec := 200
 	nowRec := 0
 	res := make([]map[string]any, 0)
-	err = dbConn.WalkQueryRows(ctx, selectSql, func(row map[string]any, columns []*dbi.QueryColumn) error {
+	_, err = dbConn.WalkQueryRows(ctx, selectSql, func(row map[string]any, columns []*dbi.QueryColumn) error {
 		nowRec++
 		res = append(res, row)
 		if nowRec == maxRec {

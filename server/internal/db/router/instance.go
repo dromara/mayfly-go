@@ -26,7 +26,7 @@ func InitInstanceRouter(router *gin.RouterGroup) {
 		req.NewGet(":instanceId", d.GetInstance),
 
 		// 获取数据库实例的所有数据库名
-		req.NewGet(":instanceId/databases", d.GetDatabaseNames),
+		req.NewPost("/databases", d.GetDatabaseNames),
 
 		req.NewGet(":instanceId/server-info", d.GetDbServer),
 

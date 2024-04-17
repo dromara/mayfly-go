@@ -2,10 +2,12 @@ package entity
 
 // InstanceQuery 数据库实例查询
 type InstanceQuery struct {
-	Id   uint64 `json:"id" form:"id"`
-	Name string `json:"name" form:"name"`
-	Code string `json:"code" form:"code"`
-	Host string `json:"host" form:"host"`
+	Id      uint64 `json:"id" form:"id"`
+	Name    string `json:"name" form:"name"`
+	Code    string `json:"code" form:"code"`
+	Host    string `json:"host" form:"host"`
+	TagPath string `json:"host" form:"tagPath"`
+	Codes   []string
 }
 
 type DataSyncTaskQuery struct {

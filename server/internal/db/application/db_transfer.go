@@ -277,7 +277,7 @@ func (app *dbTransferAppImpl) transferData(ctx context.Context, logId uint64, ta
 	logExtraKey := fmt.Sprintf("`%s` 当前已迁移数据量: ", tableName)
 
 	// 游标查询源表数据，并批量插入目标表
-	err = srcConn.WalkTableRows(context.Background(), tableName, func(row map[string]any, columns []*dbi.QueryColumn) error {
+	_, err = srcConn.WalkTableRows(context.Background(), tableName, func(row map[string]any, columns []*dbi.QueryColumn) error {
 		total++
 		rawValue := map[string]any{}
 		for _, column := range columns {

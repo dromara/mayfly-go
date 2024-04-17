@@ -1,19 +1,22 @@
 package entity
 
 import (
+	"fmt"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
 	"strings"
+
+	"github.com/may-fly/cast"
 )
 
 // 标签树
 type TagTree struct {
 	model.Model
 
-	Pid      uint64  `json:"pid"`
 	Type     TagType `json:"type"`     // 类型： -1.普通标签； 其他值则为对应的资源类型
 	Code     string  `json:"code"`     // 标识编码, 若类型不为-1，则为对应资源编码
-	CodePath string  `json:"codePath"` // 标识路径
+	CodePath string  `json:"codePath"` // 标识路径，tag1/tag2/tagType1|tagCode/tagType2|yyycode/，非普通标签类型段含有标签类型
 	Name     string  `json:"name"`     // 名称
 	Remark   string  `json:"remark"`   // 备注说明
 }
@@ -28,18 +31,22 @@ const (
 
 	TagTypeTag     TagType = -1
 	TagTypeMachine TagType = TagType(consts.ResourceTypeMachine)
-	TagTypeDb      TagType = TagType(consts.ResourceTypeDb)
+	TagTypeDb      TagType = TagType(consts.ResourceTypeDb) // 数据库实例
 	TagTypeRedis   TagType = TagType(consts.ResourceTypeRedis)
 	TagTypeMongo   TagType = TagType(consts.ResourceTypeMongo)
 
 	// ----- （单独声明各个资源的授权凭证类型而不统一使用一个授权凭证类型是为了获取登录账号的授权凭证标签(ResourceAuthCertApp.GetAccountAuthCert)时，避免查出所有资源的授权凭证）
 
 	TagTypeMachineAuthCert TagType = 11 // 机器-授权凭证
+
+	TagTypeDbAuthCert TagType = 21 // 数据库-授权凭证
+	TagTypeDbName     TagType = 22 // 数据库名
 )
 
-// GetRootCode 获取根路径信息
-func (pt *TagTree) GetRootCode() string {
-	return strings.Split(pt.CodePath, CodePathSeparator)[0]
+func (pt *TagTree) IsRoot() bool {
+	// 去除路径两端可能存在的斜杠
+	path := strings.Trim(pt.CodePath, "/")
+	return len(strings.Split(path, "/")) == 1
 }
 
 // GetParentPath 获取父标签路径, 如CodePath = test/test1/test2/  -> index = 0 => test/test1/  index = 1 => test/
@@ -98,13 +105,11 @@ type ITagResource interface {
 
 // 资源关联的标签信息
 type ResourceTag struct {
-	TagId   uint64 `json:"tagId" gorm:"-"`
-	TagPath string `json:"tagPath" gorm:"-"` // 标签路径
+	CodePath string `json:"codePath" gorm:"-"` // 标签路径
 }
 
 func (r *ResourceTag) SetTagInfo(rt ResourceTag) {
-	r.TagId = rt.TagId
-	r.TagPath = rt.TagPath
+	r.CodePath = rt.CodePath
 }
 
 // 资源标签列表
@@ -117,4 +122,67 @@ func (r *ResourceTags) SetTagInfo(rt ResourceTag) {
 		r.Tags = make([]ResourceTag, 0)
 	}
 	r.Tags = append(r.Tags, rt)
+}
+
+// GetCodeByPath 从codePaths中提取指定标签类型的所有tagCode并去重
+// 如：codePaths = tag1/tag2/1|xxxcode/11|yyycode/,  tagType = 1 -> xxxcode,  tagType = 11 -> yyycode
+func GetCodeByPath(tagType TagType, codePaths ...string) []string {
+	var codes []string
+	for _, codePath := range codePaths {
+		// tag1/tag2/1|xxxcode/11|yyycode，根据 /tagType|resourceCode进行切割
+		splStrs := strings.Split(codePath, fmt.Sprintf("%s%d%s", CodePathSeparator, tagType, CodePathResourceSeparator))
+		if len(splStrs) < 2 {
+			continue
+		}
+
+		codes = append(codes, strings.Split(splStrs[1], CodePathSeparator)[0])
+	}
+
+	return collx.ArrayDeduplicate[string](codes)
+}
+
+// TagPathSection 标签路径段
+type TagPathSection struct {
+	Type TagType `json:"type"` // 类型： -1.普通标签； 其他值则为对应的资源类型
+	Code string  `json:"code"` // 标识编码, 若类型不为-1，则为对应资源编码
+}
+
+type TagPathSections []*TagPathSection // 标签段数组
+
+// 转为codePath
+func (tps TagPathSections) ToCodePath() string {
+	return strings.Join(collx.ArrayMap(tps, func(tp *TagPathSection) string {
+		if tp.Type == TagTypeTag {
+			return tp.Code
+		}
+		return fmt.Sprintf("%d%s%s", tp.Type, CodePathResourceSeparator, tp.Code)
+	}), CodePathSeparator) + CodePathSeparator
+}
+
+// GetTagPathSections 根据标签路径获取路径段落
+func GetTagPathSections(codePath string) TagPathSections {
+	codePath = strings.TrimSuffix(codePath, CodePathSeparator)
+	var sections TagPathSections
+
+	codes := strings.Split(codePath, CodePathSeparator)
+	for _, code := range codes {
+		typeAndCode := strings.Split(code, CodePathResourceSeparator)
+		var tagType TagType
+		var tagCode string
+
+		if len(typeAndCode) < 2 {
+			tagType = TagTypeTag
+			tagCode = typeAndCode[0]
+		} else {
+			tagType = TagType(cast.ToInt(typeAndCode[0]))
+			tagCode = typeAndCode[1]
+		}
+
+		sections = append(sections, &TagPathSection{
+			Type: tagType,
+			Code: tagCode,
+		})
+	}
+
+	return sections
 }

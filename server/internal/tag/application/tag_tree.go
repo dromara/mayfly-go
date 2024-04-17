@@ -14,38 +14,32 @@ import (
 	"strings"
 )
 
-// 标签接口，实现了该接口的结构体默认都可以当成标签树的一种标签
-type ITag interface {
-	// 资源标签code
-	GetCode() string
+// 保存资源标签参数
+type SaveResourceTagParam struct {
+	ParentTagCodePaths []string // 关联标签，空数组则为删除该资源绑定的标签
 
-	// 资源标签名
-	GetName() string
+	ResourceTag *ResourceTag // 资源标签信息
 }
 
-// 保存标签参数
-type SaveResourceTagParam struct {
+type ResourceTag struct {
 	Code string
-	Name string
 	Type entity.TagType
+	Name string
 
-	ParentTagIds []uint64 // 关联标签，空数组则为删除该资源绑定的标签
+	Children []*ResourceTag // 子资源标签
 }
 
 type RelateTagsByCodeAndTypeParam struct {
 	ParentTagCode string         // 父标签编号
 	ParentTagType entity.TagType // 父标签类型
 
-	TagType entity.TagType // 要关联的标签类型
-	Tags    []ITag         // 要关联的标签数组
+	Tags []*ResourceTag // 要关联的标签数组
 }
 
 type DelResourceTagParam struct {
 	Id           uint64
 	ResourceCode string
 	ResourceType entity.TagType
-
-	Pid uint64 //父标签 pid
 
 	// 要删除的子节点类型，若存在值，则为删除资源标签下的指定类型的子标签
 	ChildType entity.TagType
@@ -56,17 +50,20 @@ type TagTree interface {
 
 	ListByQuery(condition *entity.TagTreeQuery, toEntity any)
 
-	Save(ctx context.Context, tt *entity.TagTree) error
+	SaveTag(ctx context.Context, pid uint64, tt *entity.TagTree) error
 
 	Delete(ctx context.Context, id uint64) error
 
-	// 获取指定账号有权限操作的标签列表
+	// GetAccountTags 获取指定账号有权限操作的标签列表
 	// @param accountId 账号id
 	// @param query 查询条件
 	GetAccountTags(accountId uint64, query *entity.TagTreeQuery) []*entity.TagTree
 
-	// 获取指定账号有权限操作的标签codes
+	// GetAccountTagCodes 获取指定账号有权限操作的标签codes
 	GetAccountTagCodes(accountId uint64, resourceType int8, tagPath string) []string
+
+	// GetAccountTagCodePaths 获取指定账号有权限操作的codePaths
+	GetAccountTagCodePaths(accountId uint64, tagType entity.TagType, tagPath string) []string
 
 	// SaveResourceTag 保存资源类型标签
 	SaveResourceTag(ctx context.Context, param *SaveResourceTagParam) error
@@ -74,19 +71,25 @@ type TagTree interface {
 	// RelateTagsByCodeAndType 将指定标签数组关联至满足指定标签类型和标签code的标签下
 	RelateTagsByCodeAndType(ctx context.Context, param *RelateTagsByCodeAndTypeParam) error
 
+	// UpdateTagName 根据标签类型与code更新对应标签名
+	UpdateTagName(ctx context.Context, tagType entity.TagType, tagCode string, tagName string) error
+
+	// UpdateParentTagCode 更新指定类型标签的所有父标签编号
+	UpdateParentTagCode(ctx context.Context, tagType entity.TagType, tagCode string, newParentCode string, newParentName string) error
+
 	// DeleteTagByParam 删除标签，会删除该标签下所有子标签信息以及团队关联的标签信息
 	DeleteTagByParam(ctx context.Context, param *DelResourceTagParam) error
 
 	// 根据标签类型和标签code获取对应的标签路径列表
 	ListTagPathByTypeAndCode(resourceType int8, resourceCode string) []string
 
-	// 根据账号id获取其可访问标签信息
+	// ListTagByAccountId 根据账号id获取其可访问标签信息
 	ListTagByAccountId(accountId uint64) []string
 
-	// 账号是否有权限访问该标签关联的资源信息
+	// CanAccess 账号是否有权限访问该标签关联的资源信息
 	CanAccess(accountId uint64, tagPath ...string) error
 
-	// 填充资源的标签信息
+	// FillTagInfo 填充资源的标签信息
 	FillTagInfo(resourceTagType entity.TagType, resources ...entity.ITagResource)
 }
 
@@ -101,15 +104,15 @@ func (p *tagTreeAppImpl) InjectTagTreeRepo(tagTreeRepo repository.TagTree) {
 	p.Repo = tagTreeRepo
 }
 
-func (p *tagTreeAppImpl) Save(ctx context.Context, tag *entity.TagTree) error {
+func (p *tagTreeAppImpl) SaveTag(ctx context.Context, pid uint64, tag *entity.TagTree) error {
 	accountId := contextx.GetLoginAccount(ctx).Id
 	// 新建项目树节点信息
 	if tag.Id == 0 {
 		if strings.Contains(tag.Code, entity.CodePathSeparator) {
 			return errorx.NewBiz("标识符不能包含'/'")
 		}
-		if tag.Pid != 0 {
-			parentTag, err := p.GetById(new(entity.TagTree), tag.Pid)
+		if pid != 0 {
+			parentTag, err := p.GetById(new(entity.TagTree), pid)
 			if err != nil {
 				return errorx.NewBiz("父节点不存在")
 			}
@@ -214,129 +217,59 @@ func (p *tagTreeAppImpl) GetAccountTagCodes(accountId uint64, resourceType int8,
 	return collx.MapKeys(code2Resource)
 }
 
+func (p *tagTreeAppImpl) GetAccountTagCodePaths(accountId uint64, tagType entity.TagType, tagPath string) []string {
+	tagResources := p.GetAccountTags(accountId, &entity.TagTreeQuery{Type: tagType, CodePathLikes: []string{tagPath}})
+	// resouce code去重
+	code2Resource := collx.ArrayToMap[*entity.TagTree, string](tagResources, func(val *entity.TagTree) string {
+		return val.CodePath
+	})
+
+	return collx.MapKeys(code2Resource)
+}
+
 func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *SaveResourceTagParam) error {
-	code := param.Code
-	tagType := entity.TagType(param.Type)
-	name := param.Name
-	tagIds := param.ParentTagIds
+	code := param.ResourceTag.Code
+	tagType := param.ResourceTag.Type
+	parentTagCodePaths := param.ParentTagCodePaths
 
 	if code == "" {
-		return errorx.NewBiz("资源编号不能为空")
+		return errorx.NewBiz("保存资源标签失败: 资源编号不能为空")
 	}
 	if tagType == 0 {
-		return errorx.NewBiz("资源类型不能为空")
+		return errorx.NewBiz("保存资源标签失败:资源类型不能为空")
 	}
 
 	// 如果tagIds为空数组，则为删除该资源标签
-	if len(tagIds) == 0 {
+	if len(parentTagCodePaths) == 0 {
 		return p.DeleteTagByParam(ctx, &DelResourceTagParam{
 			ResourceType: tagType,
 			ResourceCode: code,
 		})
 	}
 
-	if name == "" {
-		name = code
+	// 获取所有关联的子标签
+	var parentTags []*entity.TagTree
+	p.ListByWheres(collx.M{
+		"code_path in ?": parentTagCodePaths,
+	}, &parentTags)
+	if len(parentTags) == 0 || len(parentTags) != len(parentTagCodePaths) {
+		return errorx.NewBiz("保存资源标签失败: 存在错误的关联标签")
 	}
+
+	newTags := p.toTags(parentTags, param.ResourceTag)
+
+	var oldParentTagTree []*entity.TagTree
+	p.ListByCond(&entity.TagTree{Type: tagType, Code: code}, &oldParentTagTree)
 
 	// 该资源对应的旧资源标签信息
-	var oldTagTree []*entity.TagTree
-	p.ListByCond(&entity.TagTree{Type: tagType, Code: code}, &oldTagTree)
-
-	var addTagIds, delTagIds []uint64
-	if len(oldTagTree) == 0 {
-		addTagIds = tagIds
-	} else {
-		oldTagIds := collx.ArrayMap(oldTagTree, func(tag *entity.TagTree) uint64 {
-			return tag.Pid
-		})
-		addTagIds, delTagIds, _ = collx.ArrayCompare[uint64](tagIds, oldTagIds)
-	}
-
-	if len(addTagIds) > 0 {
-		addTagResource := make([]*entity.TagTree, 0)
-		for _, tagId := range addTagIds {
-			tag, err := p.GetById(new(entity.TagTree), tagId)
-			if err != nil {
-				return errorx.NewBiz("存在错误标签id")
-			}
-			addTagResource = append(addTagResource, &entity.TagTree{
-				Pid:      tagId,
-				Code:     code,
-				Type:     tagType,
-				Name:     name,
-				CodePath: fmt.Sprintf("%s%d%s%s%s", tag.CodePath, tagType, entity.CodePathResourceSeparator, code, entity.CodePathSeparator), // tag1/tag2/1|resourceCode1/11|resourceCode2
-			})
-
-		}
-		if err := p.BatchInsert(ctx, addTagResource); err != nil {
-			return err
-		}
-	}
-
-	if len(delTagIds) > 0 {
-		for _, tagId := range delTagIds {
-			if err := p.DeleteTagByParam(ctx, &DelResourceTagParam{
-				ResourceType: tagType,
-				ResourceCode: code,
-				Pid:          tagId,
-			}); err != nil {
-				return err
-			}
-
-		}
-	}
-
-	return nil
-}
-
-func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *RelateTagsByCodeAndTypeParam) error {
-	parentTagCode := param.ParentTagCode
-	parentTagType := param.ParentTagType
-	tagType := param.TagType
-
-	// 如果资源为，则表示清楚关联
-	if len(param.Tags) == 0 {
-		// 删除该资源下的所有指定类型的资源
-		return p.DeleteTagByParam(ctx, &DelResourceTagParam{
-			ResourceCode: parentTagCode,
-			ResourceType: param.ParentTagType,
-			ChildType:    tagType,
-		})
-	}
-
-	// 获取满足指定编号与类型的所有标签信息
-	var parentTags []*entity.TagTree
-	p.ListByCond(&entity.TagTree{Type: parentTagType, Code: parentTagCode}, &parentTags)
-	// 标签id（相当于需要关联的标签数组的父tag id）
-	parentTagIds := collx.ArrayMap(parentTags, func(tag *entity.TagTree) uint64 {
-		return tag.Id
-	})
-
-	if len(parentTagIds) == 0 {
-		return errorx.NewBiz("不存在满足[type=%d, code=%s]的标签", parentTagType, parentTagCode)
-	}
-
 	var oldChildrenTags []*entity.TagTree
-	// 获取该资源的所有旧的该类型的子标签
-	p.ListByQuery(&entity.TagTreeQuery{
-		CodePathLikes: collx.ArrayMap[*entity.TagTree, string](parentTags, func(val *entity.TagTree) string { return val.CodePath }),
-		Type:          tagType,
-	}, &oldChildrenTags)
-
-	// 组合新的授权凭证资源标签
-	newTags := make([]*entity.TagTree, 0)
-	for _, resourceTag := range parentTags {
-		for _, resource := range param.Tags {
-			tagCode := resource.GetCode()
-			newTags = append(newTags, &entity.TagTree{
-				Pid:      resourceTag.Id,
-				Type:     tagType,
-				Code:     tagCode,
-				CodePath: fmt.Sprintf("%s%d%s%s%s", resourceTag.CodePath, tagType, entity.CodePathResourceSeparator, tagCode, entity.CodePathSeparator),
-				Name:     resource.GetName(),
-			})
-		}
+	if len(oldParentTagTree) > 0 {
+		// 获取所有旧的子标签
+		p.ListByQuery(&entity.TagTreeQuery{
+			CodePathLikes: collx.ArrayMap[*entity.TagTree, string](oldParentTagTree, func(val *entity.TagTree) string {
+				return val.CodePath
+			}),
+		}, &oldChildrenTags)
 	}
 
 	// 旧的codePath -> tag
@@ -348,8 +281,7 @@ func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *Rel
 	addCodePaths, delCodePaths, _ = collx.ArrayCompare(collx.MapKeys(newCodePath2Tag), collx.MapKeys(oldCodePath2Tag))
 
 	if len(addCodePaths) > 0 {
-		logx.DebugfContext(ctx, "RelateTags2CodeAndType[%d-%s]-新增标签[%v]", parentTagType, parentTagCode, addCodePaths)
-
+		logx.DebugfContext(ctx, "SaveResourceTag-新增标签[%v]", addCodePaths)
 		addTags := make([]*entity.TagTree, 0)
 		for _, addCodePath := range addCodePaths {
 			addTags = append(addTags, newCodePath2Tag[addCodePath])
@@ -360,19 +292,97 @@ func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *Rel
 	}
 
 	if len(delCodePaths) > 0 {
-		logx.DebugfContext(ctx, "RelateTags2CodeAndType[%d-%s]-删除标签[%v]", parentTagType, parentTagCode, delCodePaths)
+		logx.DebugfContext(ctx, "SaveResourceTag-删除标签[%v]", delCodePaths)
+		// 删除team关联的标签
+		if err := p.tagTreeTeamRepo.DeleteByWheres(ctx, collx.M{"tag_path in ?": delCodePaths}); err != nil {
+			return err
+		}
+		if err := p.DeleteByWheres(ctx, collx.M{"code_path in ?": delCodePaths}); err != nil {
+			return err
+		}
+	}
 
-		for _, delCodePath := range delCodePaths {
-			oldTag := oldCodePath2Tag[delCodePath]
-			if oldTag == nil {
-				continue
-			}
-			if err := p.DeleteTagByParam(ctx, &DelResourceTagParam{
-				Id: oldTag.Id,
-			}); err != nil {
-				return err
+	return nil
+}
+
+func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *RelateTagsByCodeAndTypeParam) error {
+	parentTagCode := param.ParentTagCode
+	parentTagType := param.ParentTagType
+
+	// 获取满足指定编号与类型的所有标签信息
+	var parentTags []*entity.TagTree
+	p.ListByCond(&entity.TagTree{Type: parentTagType, Code: parentTagCode}, &parentTags)
+	// 标签codePaths（相当于需要关联的标签数组的父tag）
+	parentTagCodePaths := collx.ArrayMap(parentTags, func(tag *entity.TagTree) string {
+		return tag.CodePath
+	})
+
+	if len(parentTagCodePaths) == 0 {
+		return errorx.NewBiz("不存在满足[type=%d, code=%s]的标签", parentTagType, parentTagCode)
+	}
+
+	for _, tag := range param.Tags {
+		if err := (p.SaveResourceTag(ctx, &SaveResourceTagParam{
+			ResourceTag:        tag,
+			ParentTagCodePaths: parentTagCodePaths,
+		})); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *tagTreeAppImpl) UpdateTagName(ctx context.Context, tagType entity.TagType, tagCode string, tagName string) error {
+	return p.UpdateByWheres(ctx, &entity.TagTree{Name: tagName}, collx.Kvs("code = ?", tagCode, "type = ?", tagType))
+}
+
+func (p *tagTreeAppImpl) UpdateParentTagCode(ctx context.Context, tagType entity.TagType, tagCode string, newParentCode string, newParentName string) error {
+	// 获取资源编号对应的资源标签信息
+	var resourceTags []*entity.TagTree
+	p.ListByCond(&entity.TagTree{Type: tagType, Code: tagCode}, &resourceTags)
+	if len(resourceTags) == 0 {
+		logx.WarnfContext(ctx, "UpdateParentTagCode-[%d-%s]标签信息不存在", tagType, tagCode)
+		return nil
+	}
+
+	// 获取该资源编号对应的所有父资源标签信息
+	var resourceParentTags []*entity.TagTree
+	p.ListByWheres(collx.Kvs("code_path in ?", collx.ArrayMap(resourceTags, func(tag *entity.TagTree) string {
+		return tag.GetParentPath(0)
+	})), &resourceParentTags)
+
+	// 获取该资源编号对应的所有子资源标签信息
+	var resourceChildrenTags []*entity.TagTree
+	p.ListByQuery(&entity.TagTreeQuery{CodePathLikes: collx.ArrayMap(resourceTags, func(tag *entity.TagTree) string {
+		return tag.CodePath
+	})}, &resourceChildrenTags)
+
+	// 更新父标签的codepath
+	for _, tag := range resourceChildrenTags {
+		pathSection := entity.GetTagPathSections(tag.CodePath)
+		for i, ps := range pathSection {
+			if ps.Type == tagType && ps.Code == tagCode {
+				// 将父标签编号修改为对应的新编号
+				pathSection[i-1].Code = newParentCode
 			}
 		}
+		tag.CodePath = pathSection.ToCodePath()
+		p.UpdateById(ctx, tag)
+	}
+
+	// 更新资源标签的code与codePath，貌似这段可以不用，先留着
+	for _, parentTag := range resourceParentTags {
+		pathSection := entity.GetTagPathSections(parentTag.CodePath)
+		pathSection[len(pathSection)-1].Code = newParentCode
+		newCodePath := pathSection.ToCodePath()
+		// 若新的父级标签路径已存在，则不更新该父标签，避免出现重复的标签路径
+		if p.CountByCond(&entity.TagTree{CodePath: newCodePath}) > 0 {
+			continue
+		}
+		parentTag.CodePath = newCodePath
+		parentTag.Code = newParentCode
+		parentTag.Name = newParentName
+		p.UpdateById(ctx, parentTag)
 	}
 
 	return nil
@@ -381,12 +391,12 @@ func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *Rel
 func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *DelResourceTagParam) error {
 	// 获取资源编号对应的资源标签信息
 	var resourceTags []*entity.TagTree
-	cond := &entity.TagTree{Type: param.ResourceType, Code: param.ResourceCode, Pid: param.Pid}
+	cond := &entity.TagTree{Type: param.ResourceType, Code: param.ResourceCode}
 	cond.Id = param.Id
 	p.ListByCond(cond, &resourceTags)
 
 	if len(resourceTags) == 0 {
-		logx.DebugfContext(ctx, "TagTreeApp.DeleteResource[%d-%s]不存在可删除的标签", param.ResourceType, param.ResourceCode)
+		logx.DebugfContext(ctx, "TagTreeApp.DeleteTagByParam[%d-%s]不存在可删除的标签", param.ResourceType, param.ResourceCode)
 		return nil
 	}
 
@@ -405,7 +415,7 @@ func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *DelResourc
 		childrenTagIds := collx.ArrayMap(childrenTag, func(item *entity.TagTree) uint64 {
 			return item.Id
 		})
-		// 删除所有code_path下的子标签
+		// 删除code_path下的所有子标签
 		if err := p.DeleteByWheres(ctx, collx.M{
 			"id in ?": childrenTagIds,
 		}); err != nil {
@@ -413,7 +423,9 @@ func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *DelResourc
 		}
 
 		// 删除team关联的标签
-		return p.tagTreeTeamRepo.DeleteByWheres(ctx, collx.M{"tag_id in ?": childrenTagIds})
+		if err := p.tagTreeTeamRepo.DeleteByWheres(ctx, collx.M{"tag_id in ?": childrenTagIds}); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -464,7 +476,7 @@ func (p *tagTreeAppImpl) FillTagInfo(resourceTagType entity.TagType, resources .
 
 	for _, tr := range tagResources {
 		// 赋值标签信息
-		resourceCode2Resouce[tr.Code].SetTagInfo(entity.ResourceTag{TagId: tr.Pid, TagPath: tr.GetTagPath()})
+		resourceCode2Resouce[tr.Code].SetTagInfo(entity.ResourceTag{CodePath: tr.CodePath})
 	}
 }
 
@@ -478,14 +490,52 @@ func (p *tagTreeAppImpl) Delete(ctx context.Context, id uint64) error {
 		return errorx.NewBiz("您无权删除该标签")
 	}
 
-	if p.CountByCond(&entity.TagTree{Pid: id}) > 0 {
-		return errorx.NewBiz("请先移除该标签关联的资源")
-	}
-
 	return p.Tx(ctx, func(ctx context.Context) error {
-		return p.DeleteById(ctx, id)
+		return p.DeleteTagByParam(ctx, &DelResourceTagParam{
+			Id: id,
+		})
 	}, func(ctx context.Context) error {
 		// 删除该标签关联的团队信息
 		return p.tagTreeTeamRepo.DeleteByCond(ctx, &entity.TagTreeTeam{TagId: id})
 	})
+}
+
+func (p *tagTreeAppImpl) toTags(parentTags []*entity.TagTree, param *ResourceTag) []*entity.TagTree {
+	tags := make([]*entity.TagTree, 0)
+
+	// 递归函数，将标签及其子标签展开为一个扁平数组
+	var flattenTags func(parentTag *entity.TagTree, tag *ResourceTag)
+	flattenTags = func(parentTag *entity.TagTree, resourceTagParam *ResourceTag) {
+		if resourceTagParam == nil {
+			return
+		}
+
+		tagType := resourceTagParam.Type
+		tagCode := resourceTagParam.Code
+		tagName := resourceTagParam.Name
+		if tagName == "" {
+			tagName = tagCode
+		}
+
+		tag := &entity.TagTree{
+			Code:     tagCode,
+			CodePath: fmt.Sprintf("%s%d%s%s%s", parentTag.CodePath, tagType, entity.CodePathResourceSeparator, tagCode, entity.CodePathSeparator), // tag1/tag2/1|resourceCode1/11|resourceCode2/
+			Type:     tagType,
+			Name:     tagName,
+		}
+		// 将当前标签加入数组
+		tags = append(tags, tag)
+
+		// 递归处理子标签
+		for _, child := range resourceTagParam.Children {
+			flattenTags(tag, child)
+		}
+	}
+
+	for _, parentTag := range parentTags {
+		// 开始展开标签
+		flattenTags(parentTag, param)
+	}
+
+	return tags
 }

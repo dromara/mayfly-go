@@ -1,9 +1,9 @@
 package api
 
 import (
-	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/application"
 	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 )
@@ -15,9 +15,10 @@ type Dashbord struct {
 
 func (m *Dashbord) Dashbord(rc *req.Ctx) {
 	accountId := rc.GetLoginAccount().Id
-	dbNum := len(m.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeDb, ""))
+
+	tagCodePaths := m.TagTreeApp.GetAccountTagCodePaths(accountId, tagentity.TagTypeDbName, "")
 
 	rc.ResData = collx.M{
-		"dbNum": dbNum,
+		"dbNum": len(tagCodePaths),
 	}
 }

@@ -10,46 +10,20 @@
             width="38%"
         >
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
-                <el-form-item ref="tagSelectRef" prop="tagId" label="标签" required>
-                    <tag-tree-select
-                        @change-tag="
-                            (tagIds) => {
-                                form.tagId = tagIds;
-                                tagSelectRef.validate();
-                            }
-                        "
-                        multiple
-                        :select-tags="form.tagId"
-                        style="width: 100%"
-                    />
+                <el-form-item prop="code" label="编号" required>
+                    <el-input
+                        :disabled="form.id"
+                        v-model.trim="form.code"
+                        placeholder="请输入编号 (大小写字母、数字、_-.:), 不可修改"
+                        auto-complete="off"
+                    ></el-input>
                 </el-form-item>
-
-                <el-form-item prop="instanceId" label="数据库实例" required>
-                    <el-select
-                        :disabled="form.id !== undefined"
-                        remote
-                        :remote-method="getInstances"
-                        @change="changeInstance"
-                        v-model="state.selectInstalce"
-                        value-key="id"
-                        placeholder="请输入实例名称搜索并选择实例"
-                        filterable
-                        clearable
-                        class="w100"
-                    >
-                        <el-option v-for="item in state.instances" :key="item.id" :label="`${item.name}`" :value="item">
-                            {{ item.name }}
-                            <el-divider direction="vertical" border-style="dashed" />
-
-                            {{ item.type }} / {{ item.host }}:{{ item.port }}
-                            <el-divider direction="vertical" border-style="dashed" />
-                            {{ item.username }}
-                        </el-option>
-                    </el-select>
+                <el-form-item prop="name" label="名称" required>
+                    <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
                 </el-form-item>
 
                 <el-form-item prop="authCertName" label="授权凭证" required>
-                    <el-select @focus="getAuthCerts" @change="changeAuthCert" v-model="form.authCertName" placeholder="请选择授权凭证" filterable>
+                    <el-select @change="changeAuthCert" v-model="form.authCertName" placeholder="请选择授权凭证" filterable>
                         <el-option v-for="item in state.authCerts" :key="item.id" :label="`${item.name}`" :value="item.name">
                             {{ item.name }}
 
@@ -63,13 +37,6 @@
                             {{ item.remark }}
                         </el-option>
                     </el-select>
-                </el-form-item>
-
-                <el-form-item prop="code" label="编号" required>
-                    <el-input :disabled="form.id" v-model.trim="form.code" placeholder="请输入编号 (数字字母下划线), 不可修改" auto-complete="off"></el-input>
-                </el-form-item>
-                <el-form-item prop="name" label="别名" required>
-                    <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
                 </el-form-item>
 
                 <el-form-item prop="database" label="数据库名">
@@ -102,7 +69,7 @@
             <template #footer>
                 <div class="dialog-footer">
                     <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
+                    <el-button type="primary" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -110,22 +77,26 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref } from 'vue';
+import { toRefs, reactive, watch, ref, watchEffect } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
-import TagTreeSelect from '../component/TagTreeSelect.vue';
+// import TagTreeSelect from '../component/TagTreeSelect.vue';
 import type { CheckboxValueType } from 'element-plus';
 import ProcdefSelectFormItem from '@/views/flow/components/ProcdefSelectFormItem.vue';
 import { DbType } from '@/views/ops/db/dialect';
 import { ResourceCodePattern } from '@/common/pattern';
-import { resourceAuthCertApi } from '../tag/api';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
+
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
+import { resourceAuthCertApi } from '../tag/api';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
         type: Boolean,
+    },
+    instance: {
+        type: [Boolean, Object],
     },
     db: {
         type: [Boolean, Object],
@@ -136,7 +107,7 @@ const props = defineProps({
 });
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'confirm']);
 
 const rules = {
     tagId: [
@@ -186,7 +157,7 @@ const checkAllDbNames = ref(false);
 const indeterminateDbNames = ref(false);
 
 const dbForm: any = ref(null);
-const tagSelectRef: any = ref(null);
+// const tagSelectRef: any = ref(null);
 
 const state = reactive({
     dialogVisible: false,
@@ -198,7 +169,7 @@ const state = reactive({
     authCerts: [] as any,
     form: {
         id: null,
-        tagId: [],
+        // tagId: [],
         name: null,
         code: '',
         database: '',
@@ -212,71 +183,53 @@ const state = reactive({
 
 const { dialogVisible, allDatabases, form, dbNamesSelected } = toRefs(state);
 
-const { isFetching: saveBtnLoading, execute: saveDbExec } = dbApi.saveDb.useApi(form);
-
-watch(props, async (newValue: any) => {
-    state.dialogVisible = newValue.visible;
+watchEffect(() => {
+    state.dialogVisible = props.visible;
     if (!state.dialogVisible) {
         return;
     }
-    if (newValue.db) {
-        state.form = { ...newValue.db };
-        state.form.tagId = newValue.db.tags.map((t: any) => t.tagId);
+    const db: any = props.db;
+    if (db.code) {
+        state.form = { ...db };
+        // state.form.tagId = newValue.db.tags.map((t: any) => t.tagId);
         // 将数据库名使用空格切割，获取所有数据库列表
-        state.dbNamesSelected = newValue.db.database.split(' ');
+        state.dbNamesSelected = db.database.split(' ');
     } else {
         state.form = {} as any;
         state.dbNamesSelected = [];
     }
 });
 
-const changeInstance = async () => {
-    state.dbNamesSelected = [];
-    state.form.instanceId = state.selectInstalce.id;
+const changeAuthCert = (val: string) => {
+    getAllDatabase(val);
 };
 
 const getAuthCerts = async () => {
+    const inst: any = props.instance;
     const res = await resourceAuthCertApi.listByQuery.request({
-        resourceCode: state.selectInstalce.code,
+        resourceCode: inst.code,
         resourceType: TagResourceTypeEnum.Db.value,
         pageSize: 100,
     });
     state.authCerts = res.list || [];
 };
 
-const changeAuthCert = (val: string) => {
-    getAllDatabase(val);
-};
-
 const getAllDatabase = async (authCertName: string) => {
-    if (state.form.instanceId > 0) {
-        let dbs = await dbApi.getAllDatabase.request({ instanceId: state.form.instanceId, authCertName });
-        state.allDatabases = dbs;
+    const req = { ...(props.instance as any) };
+    req.authCert = state.authCerts?.find((x: any) => x.name == authCertName);
+    let dbs = await dbApi.getAllDatabase.request(req);
+    state.allDatabases = dbs;
 
-        // 如果是oracle，且没查出数据库列表，则取实例sid
-        let instance = state.instances.find((item: any) => item.id === state.form.instanceId);
-        if (instance && instance.type === DbType.oracle && dbs.length === 0) {
-            state.allDatabases = [instance.sid];
-        }
-    }
-};
-
-const getInstances = async (instanceName: string = '', id = 0) => {
-    if (!id && !instanceName) {
-        state.instances = [];
-        return;
-    }
-    const data = await dbApi.instances.request({ id, name: instanceName });
-    if (data) {
-        state.instances = data.list;
+    // 如果是oracle，且没查出数据库列表，则取实例sid
+    let instance = state.instances.find((item: any) => item.id === state.form.instanceId);
+    if (instance && instance.type === DbType.oracle && dbs.length === 0) {
+        state.allDatabases = [instance.sid];
     }
 };
 
 const open = async () => {
-    if (state.form.instanceId) {
-        // 根据id获取，因为需要回显实例名称
-        await getInstances('', state.form.instanceId);
-        state.selectInstalce = state.instances[0];
+    await getAuthCerts();
+    if (state.form.authCertName) {
         await getAllDatabase(state.form.authCertName);
     }
 };
@@ -288,10 +241,11 @@ const btnOk = async () => {
             return false;
         }
 
-        await saveDbExec();
-        ElMessage.success('保存成功');
-        emit('val-change', state.form);
-        cancel();
+        emit('confirm', state.form);
+        // await saveDbExec();
+        // ElMessage.success('保存成功');
+        // emit('val-change', state.form);
+        // cancel();
     });
 };
 

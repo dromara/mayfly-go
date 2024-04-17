@@ -10,8 +10,8 @@ type MachineForm struct {
 	Ip       string `json:"ip" binding:"required"`   // IP地址
 	Port     int    `json:"port" binding:"required"` // 端口号
 
-	TagId     []uint64                      `json:"tagId" binding:"required"`
-	AuthCerts []*tagentity.ResourceAuthCert `json:"authCerts" binding:"required"` // 资产授权凭证信息列表
+	TagCodePaths []string                      `json:"tagCodePaths" binding:"required"`
+	AuthCerts    []*tagentity.ResourceAuthCert `json:"authCerts" binding:"required"` // 资产授权凭证信息列表
 
 	Remark             string `json:"remark"`
 	SshTunnelMachineId int    `json:"sshTunnelMachineId"` // ssh隧道机器id

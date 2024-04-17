@@ -13,15 +13,18 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/structx"
 
 	"gorm.io/gorm"
 )
 
 type SaveDbInstanceParam struct {
-	DbInstance *entity.DbInstance
-	AuthCerts  []*tagentity.ResourceAuthCert
+	DbInstance   *entity.DbInstance
+	AuthCerts    []*tagentity.ResourceAuthCert
+	TagCodePaths []string
 }
 
 type Instance interface {
@@ -34,13 +37,13 @@ type Instance interface {
 
 	TestConn(instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error
 
-	SaveDbInstance(ctx context.Context, instance *SaveDbInstanceParam) error
+	SaveDbInstance(ctx context.Context, instance *SaveDbInstanceParam) (uint64, error)
 
 	// Delete 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
 
 	// GetDatabases 获取数据库实例的所有数据库列表
-	GetDatabases(entity *entity.DbInstance, authCertName string) ([]string, error)
+	GetDatabases(entity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) ([]string, error)
 
 	// ToDbInfo 根据实例与授权凭证返回对应的DbInfo
 	ToDbInfo(instance *entity.DbInstance, authCertName string, database string) (*dbi.DbInfo, error)
@@ -49,6 +52,7 @@ type Instance interface {
 type instanceAppImpl struct {
 	base.AppImpl[*entity.DbInstance, repository.Instance]
 
+	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 	dbApp               Db                      `inject:"DbApp"`
 	backupApp           *DbBackupApp            `inject:"DbBackupApp"`
@@ -93,15 +97,16 @@ func (app *instanceAppImpl) TestConn(instanceEntity *entity.DbInstance, authCert
 	return nil
 }
 
-func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *SaveDbInstanceParam) error {
+func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *SaveDbInstanceParam) (uint64, error) {
 	instanceEntity := instance.DbInstance
 	// 默认tcp连接
 	instanceEntity.Network = instanceEntity.GetNetwork()
 	resourceType := consts.ResourceTypeDb
 	authCerts := instance.AuthCerts
+	tagCodePaths := instance.TagCodePaths
 
 	if len(authCerts) == 0 {
-		return errorx.NewBiz("授权凭证信息不能为空")
+		return 0, errorx.NewBiz("授权凭证信息不能为空")
 	}
 
 	// 查找是否存在该库
@@ -114,13 +119,13 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *SaveDb
 	err := app.GetBy(oldInstance)
 	if instanceEntity.Id == 0 {
 		if err == nil {
-			return errorx.NewBiz("该数据库实例已存在")
+			return 0, errorx.NewBiz("该数据库实例已存在")
 		}
 		if app.CountByCond(&entity.DbInstance{Code: instanceEntity.Code}) > 0 {
-			return errorx.NewBiz("该编码已存在")
+			return 0, errorx.NewBiz("该编码已存在")
 		}
 
-		return app.Tx(ctx, func(ctx context.Context) error {
+		return instanceEntity.Id, app.Tx(ctx, func(ctx context.Context) error {
 			return app.Insert(ctx, instanceEntity)
 		}, func(ctx context.Context) error {
 			return app.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
@@ -128,21 +133,35 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *SaveDb
 				ResourceType: tagentity.TagType(resourceType),
 				AuthCerts:    authCerts,
 			})
+		}, func(ctx context.Context) error {
+			return app.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+				ResourceTag:        app.genDbInstanceResourceTag(instanceEntity, authCerts),
+				ParentTagCodePaths: tagCodePaths,
+			})
 		})
-
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
 	if err == nil && oldInstance.Id != instanceEntity.Id {
-		return errorx.NewBiz("该数据库实例已存在")
+		return 0, errorx.NewBiz("该数据库实例已存在")
 	}
-	return app.Tx(ctx, func(ctx context.Context) error {
+	return oldInstance.Id, app.Tx(ctx, func(ctx context.Context) error {
 		return app.UpdateById(ctx, instanceEntity)
 	}, func(ctx context.Context) error {
 		return app.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
 			ResourceCode: oldInstance.Code,
 			ResourceType: tagentity.TagType(resourceType),
 			AuthCerts:    authCerts,
+		})
+	}, func(ctx context.Context) error {
+		if instanceEntity.Name != oldInstance.Name {
+			if err := app.tagApp.UpdateTagName(ctx, tagentity.TagTypeDb, oldInstance.Code, instanceEntity.Name); err != nil {
+				return err
+			}
+		}
+		return app.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+			ResourceTag:        app.genDbInstanceResourceTag(instanceEntity, authCerts),
+			ParentTagCodePaths: tagCodePaths,
 		})
 	})
 }
@@ -200,15 +219,30 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 			ResourceCode: instance.Code,
 			ResourceType: tagentity.TagType(consts.ResourceTypeDb),
 		})
+	}, func(ctx context.Context) error {
+		return app.tagApp.DeleteTagByParam(ctx, &tagapp.DelResourceTagParam{
+			ResourceCode: instance.Code,
+			ResourceType: tagentity.TagType(consts.ResourceTypeDb),
+		})
 	})
 }
 
-func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance, authCertName string) ([]string, error) {
-	ed.Network = ed.GetNetwork()
-	dbi, err := app.ToDbInfo(ed, authCertName, "")
-	if err != nil {
-		return nil, err
+func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance, authCert *tagentity.ResourceAuthCert) ([]string, error) {
+	if authCert.Id != 0 {
+		// 密文可能被清除，故需要重新获取
+		authCert, _ = app.resourceAuthCertApp.GetAuthCert(authCert.Name)
+	} else {
+		if authCert.CiphertextType == tagentity.AuthCertCiphertextTypePublic {
+			publicAuthCert, err := app.resourceAuthCertApp.GetAuthCert(authCert.Ciphertext)
+			if err != nil {
+				return nil, err
+			}
+			authCert = publicAuthCert
+		}
 	}
+
+	ed.Network = ed.GetNetwork()
+	dbi := app.toDbInfoByAc(ed, authCert, "")
 
 	dbConn, err := dbm.Conn(dbi)
 	if err != nil {
@@ -237,4 +271,42 @@ func (app *instanceAppImpl) toDbInfoByAc(instance *entity.DbInstance, ac *tagent
 	di.Username = ac.Username
 	di.Password = ac.Ciphertext
 	return di
+}
+
+func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCerts []*tagentity.ResourceAuthCert) *tagapp.ResourceTag {
+	authCertTags := collx.ArrayMap[*tagentity.ResourceAuthCert, *tagapp.ResourceTag](authCerts, func(val *tagentity.ResourceAuthCert) *tagapp.ResourceTag {
+		return &tagapp.ResourceTag{
+			Code: val.Name,
+			Name: val.Username,
+			Type: tagentity.TagTypeDbAuthCert,
+		}
+	})
+
+	var dbs []*entity.Db
+	if err := m.dbApp.ListByCond(&entity.Db{
+		InstanceId: me.Id,
+	}, &dbs); err != nil {
+		logx.Errorf("获取实例关联的数据库失败: %v", err)
+	}
+
+	authCertName2DbTags := make(map[string][]*tagapp.ResourceTag)
+	for _, db := range dbs {
+		authCertName2DbTags[db.AuthCertName] = append(authCertName2DbTags[db.AuthCertName], &tagapp.ResourceTag{
+			Code: db.Code,
+			Name: db.Name,
+			Type: tagentity.TagTypeDbName,
+		})
+	}
+
+	// 将数据库挂至授权凭证下
+	for _, ac := range authCertTags {
+		ac.Children = authCertName2DbTags[ac.Code]
+	}
+
+	return &tagapp.ResourceTag{
+		Code:     me.Code,
+		Type:     tagentity.TagTypeDb,
+		Name:     me.Name,
+		Children: authCertTags,
+	}
 }

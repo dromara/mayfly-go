@@ -21,7 +21,7 @@ type Mongo interface {
 
 	TestConn(entity *entity.Mongo) error
 
-	SaveMongo(ctx context.Context, entity *entity.Mongo, tagIds ...uint64) error
+	SaveMongo(ctx context.Context, entity *entity.Mongo, tagCodePaths ...string) error
 
 	// 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
@@ -59,10 +59,10 @@ func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 			return d.DeleteById(ctx, id)
 		},
 		func(ctx context.Context) error {
-			return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+			return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{ResourceTag: &tagapp.ResourceTag{
 				Type: tagentity.TagTypeMongo,
 				Code: mongoEntity.Code,
-			})
+			}})
 		})
 }
 
@@ -75,7 +75,7 @@ func (d *mongoAppImpl) TestConn(me *entity.Mongo) error {
 	return nil
 }
 
-func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ...uint64) error {
+func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePaths ...string) error {
 	oldMongo := &entity.Mongo{Name: m.Name, SshTunnelMachineId: m.SshTunnelMachineId}
 	err := d.GetBy(oldMongo)
 
@@ -91,9 +91,11 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 			return d.Insert(ctx, m)
 		}, func(ctx context.Context) error {
 			return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-				Type:         tagentity.TagTypeMongo,
-				Code:         m.Code,
-				ParentTagIds: tagIds,
+				ResourceTag: &tagapp.ResourceTag{
+					Type: tagentity.TagTypeMongo,
+					Code: m.Code,
+				},
+				ParentTagCodePaths: tagCodePaths,
 			})
 		})
 	}
@@ -113,10 +115,18 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagIds ..
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.UpdateById(ctx, m)
 	}, func(ctx context.Context) error {
+		if oldMongo.Name != m.Name {
+			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeMachine, oldMongo.Code, m.Name); err != nil {
+				return err
+			}
+		}
+
 		return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-			Type:         tagentity.TagTypeMongo,
-			Code:         oldMongo.Code,
-			ParentTagIds: tagIds,
+			ResourceTag: &tagapp.ResourceTag{
+				Type: tagentity.TagTypeMongo,
+				Code: oldMongo.Code,
+			},
+			ParentTagCodePaths: tagCodePaths,
 		})
 	})
 }

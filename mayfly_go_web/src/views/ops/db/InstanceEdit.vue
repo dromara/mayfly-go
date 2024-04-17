@@ -7,9 +7,30 @@
 
             <el-form :model="form" ref="dbForm" :rules="rules" label-width="auto">
                 <el-divider content-position="left">基本</el-divider>
-                <el-form-item prop="code" label="编号" required>
-                    <el-input :disabled="form.id" v-model.trim="form.code" placeholder="请输入编号 (数字字母下划线), 不可修改" auto-complete="off"></el-input>
+
+                <el-form-item ref="tagSelectRef" prop="tagCodePaths" label="标签">
+                    <tag-tree-select
+                        multiple
+                        @change-tag="
+                            (paths: any) => {
+                                form.tagCodePaths = paths;
+                                tagSelectRef.validate();
+                            }
+                        "
+                        :select-tags="form.tagCodePaths"
+                        style="width: 100%"
+                    />
                 </el-form-item>
+
+                <el-form-item prop="code" label="编号" required>
+                    <el-input
+                        :disabled="form.id"
+                        v-model.trim="form.code"
+                        placeholder="请输入编号 (大小写字母、数字、_-.:), 不可修改"
+                        auto-complete="off"
+                    ></el-input>
+                </el-form-item>
+
                 <el-form-item prop="name" label="名称" required>
                     <el-input v-model.trim="form.name" placeholder="请输入数据库别名" auto-complete="off"></el-input>
                 </el-form-item>
@@ -34,7 +55,7 @@
 
                 <el-form-item v-if="form.type !== DbType.sqlite" prop="host" label="host" required>
                     <el-col :span="18">
-                        <el-input :disabled="form.id !== undefined" v-model.trim="form.host" placeholder="请输入主机ip" auto-complete="off"></el-input>
+                        <el-input v-model.trim="form.host" placeholder="请输入ip" auto-complete="off"></el-input>
                     </el-col>
                     <el-col style="text-align: center" :span="1">:</el-col>
                     <el-col :span="5">
@@ -87,18 +108,7 @@
 
                 <el-divider content-position="left">其他</el-divider>
                 <el-form-item prop="params" label="连接参数">
-                    <el-input v-model.trim="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2">
-                        <!-- <template #suffix>
-                                    <el-link
-                                        target="_blank"
-                                        href="https://github.com/go-sql-driver/mysql#parameters"
-                                        :underline="false"
-                                        type="primary"
-                                        class="mr5"
-                                        >参数参考</el-link
-                                    >
-                                </template> -->
-                    </el-input>
+                    <el-input v-model.trim="form.params" placeholder="其他连接参数，形如: key1=value1&key2=value2"> </el-input>
                 </el-form-item>
 
                 <el-form-item prop="sshTunnelMachineId" label="SSH隧道">
@@ -107,17 +117,15 @@
             </el-form>
 
             <template #footer>
-                <div class="dialog-footer">
-                    <el-button @click="cancel()">取 消</el-button>
-                    <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
-                </div>
+                <el-button @click="cancel()">取 消</el-button>
+                <el-button type="primary" :loading="saveBtnLoading" @click="btnOk">确 定</el-button>
             </template>
         </el-drawer>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, toRefs, watch } from 'vue';
+import { reactive, ref, toRefs, watchEffect } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
@@ -128,6 +136,8 @@ import { ResourceCodePattern } from '@/common/pattern';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
+import TagTreeSelect from '../component/TagTreeSelect.vue';
+import { getTagPath } from '../component/tag';
 
 const props = defineProps({
     visible: {
@@ -145,6 +155,13 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const rules = {
+    tagCodePaths: [
+        {
+            required: true,
+            message: '请选择标签',
+            trigger: ['change'],
+        },
+    ],
     code: [
         {
             required: true,
@@ -188,61 +205,63 @@ const rules = {
 };
 
 const dbForm: any = ref(null);
+const tagSelectRef: any = ref(null);
+
+const DefaultForm = {
+    id: null,
+    type: DbType.mysql,
+    code: '',
+    name: null,
+    host: '',
+    port: null,
+    extra: '', // 连接需要的额外参数（json字符串）
+    params: null,
+    remark: '',
+    sshTunnelMachineId: null as any,
+    authCerts: [],
+    tagCodePaths: [],
+};
 
 const state = reactive({
     dialogVisible: false,
     extra: {} as any, // 连接需要的额外参数（json）
-    form: {
-        id: null,
-        type: '',
-        code: '',
-        name: null,
-        host: '',
-        port: null,
-        authCerts: [],
-        extra: '', // 连接需要的额外参数（json字符串）
-        params: null,
-        remark: '',
-        sshTunnelMachineId: null as any,
-    },
+    form: DefaultForm,
     submitForm: {} as any,
 });
 
 const { dialogVisible, form, submitForm } = toRefs(state);
 
-const { isFetching: saveBtnLoading, execute: saveInstanceExec } = dbApi.saveInstance.useApi(submitForm);
+const { isFetching: saveBtnLoading, execute: saveInstanceExec, data: saveInstanceRes } = dbApi.saveInstance.useApi(submitForm);
 const { isFetching: testConnBtnLoading, execute: testConnExec } = dbApi.testConn.useApi(submitForm);
 
-watch(props, (newValue: any) => {
-    state.dialogVisible = newValue.visible;
+watchEffect(() => {
+    state.dialogVisible = props.visible;
     if (!state.dialogVisible) {
         return;
     }
-    if (newValue.data) {
-        state.form = { ...newValue.data };
+    const dbInst: any = props.data;
+    if (dbInst) {
+        state.form = { ...dbInst };
+        state.form.tagCodePaths = dbInst.tags.map((t: any) => t.codePath) || [];
         try {
             state.extra = JSON.parse(state.form.extra);
         } catch (e) {
             state.extra = {};
         }
     } else {
-        state.form = { port: null, type: DbType.mysql } as any;
+        state.form = { ...DefaultForm };
         state.form.authCerts = [];
     }
 });
 
-const changeDbType = (val: string) => {
-    if (!state.form.id) {
-        state.form.port = getDbDialect(val).getInfo().defaultPort as any;
-    }
-    state.extra = {};
-};
-
 const getReqForm = async () => {
-    const reqForm = { ...state.form };
+    const reqForm: any = { ...state.form };
+    reqForm.selectAuthCert = null;
+    reqForm.tags = null;
     if (!state.form.sshTunnelMachineId) {
         reqForm.sshTunnelMachineId = -1;
     }
+    reqForm.tagCodePaths = state.form.tagCodePaths.map((t: any) => getTagPath(t)) as any;
     if (Object.keys(state.extra).length > 0) {
         reqForm.extra = JSON.stringify(state.extra);
     }
@@ -273,6 +292,7 @@ const btnOk = async () => {
         state.submitForm = await getReqForm();
         await saveInstanceExec();
         ElMessage.success('保存成功');
+        state.form.id = saveInstanceRes as any;
         emit('val-change', state.form);
         cancel();
     });
@@ -281,6 +301,13 @@ const btnOk = async () => {
 const cancel = () => {
     emit('update:visible', false);
     emit('cancel');
+    state.extra = {};
+};
+
+const changeDbType = (val: string) => {
+    if (!state.form.id) {
+        state.form.port = getDbDialect(val).getInfo().defaultPort as any;
+    }
     state.extra = {};
 };
 </script>

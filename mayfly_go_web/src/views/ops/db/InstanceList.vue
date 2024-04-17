@@ -9,12 +9,17 @@
             :show-selection="true"
             v-model:selection-data="state.selectionData"
             :columns="columns"
+            lazy
         >
             <template #tableHeader>
                 <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)">添加</el-button>
                 <el-button v-auth="perms.delInstance" :disabled="selectionData.length < 1" @click="deleteInstance()" type="danger" icon="delete"
                     >删除</el-button
                 >
+            </template>
+
+            <template #tagPath="{ data }">
+                <ResourceTags :tags="data.tags" />
             </template>
 
             <template #authCert="{ data }">
@@ -30,6 +35,7 @@
             <template #action="{ data }">
                 <el-button @click="showInfo(data)" link>详情</el-button>
                 <el-button v-if="actionBtns[perms.saveInstance]" @click="editInstance(data)" type="primary" link>编辑</el-button>
+                <el-button v-if="actionBtns[perms.saveDb]" @click="editDb(data)" type="primary" link>库配置</el-button>
             </template>
         </page-table>
 
@@ -56,11 +62,13 @@
         </el-dialog>
 
         <instance-edit
-            @val-change="search"
+            @val-change="search()"
             :title="instanceEditDialog.title"
             v-model:visible="instanceEditDialog.visible"
             v-model:data="instanceEditDialog.data"
         ></instance-edit>
+
+        <instance-db-conf :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible" :instance="dbEditDialog.instance" />
     </div>
 </template>
 
@@ -76,17 +84,30 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import { getDbDialect } from './dialect';
 import { SearchItem } from '@/components/SearchForm';
 import ResourceAuthCert from '../component/ResourceAuthCert.vue';
+import ResourceTags from '../component/ResourceTags.vue';
+import { getTagPathSearchItem } from '../component/tag';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const InstanceEdit = defineAsyncComponent(() => import('./InstanceEdit.vue'));
+const InstanceDbConf = defineAsyncComponent(() => import('./InstanceDbConf.vue'));
+
+const props = defineProps({
+    lazy: {
+        type: [Boolean],
+        default: false,
+    },
+});
 
 const perms = {
     saveInstance: 'db:instance:save',
     delInstance: 'db:instance:del',
+    saveDb: 'db:save',
 };
 
-const searchItems = [SearchItem.input('code', '编号'), SearchItem.input('name', '名称')];
+const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Db.value), SearchItem.input('code', '编号'), SearchItem.input('name', '名称')];
 
 const columns = ref([
+    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
     TableColumn.new('host', 'host:port').setFormatFunc((data: any) => `${data.host}:${data.port}`),
@@ -98,7 +119,7 @@ const columns = ref([
 
 // 该用户拥有的的操作列按钮权限
 const actionBtns = hasPerms(Object.values(perms));
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(110).fixedRight().alignCenter();
+const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight().alignCenter();
 const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({
@@ -114,6 +135,7 @@ const state = reactive({
      */
     query: {
         name: null,
+        tagPath: '',
         pageNum: 1,
         pageSize: 0,
     },
@@ -126,17 +148,28 @@ const state = reactive({
         data: null as any,
         title: '新增数据库实例',
     },
+    dbEditDialog: {
+        visible: false,
+        instance: null as any,
+        title: '新增数据库实例',
+    },
 });
 
-const { selectionData, query, infoDialog, instanceEditDialog } = toRefs(state);
+const { selectionData, query, infoDialog, instanceEditDialog, dbEditDialog } = toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
+    if (!props.lazy) {
+        search();
+    }
 });
 
-const search = () => {
+const search = (tagPath: string = '') => {
+    if (tagPath) {
+        state.query.tagPath = tagPath;
+    }
     pageTableRef.value.search();
 };
 
@@ -179,5 +212,13 @@ const deleteInstance = async () => {
         //
     }
 };
+
+const editDb = (data: any) => {
+    state.dbEditDialog.instance = data;
+    state.dbEditDialog.title = `配置 "${data.name}" 数据库`;
+    state.dbEditDialog.visible = true;
+};
+
+defineExpose({ search });
 </script>
 <style lang="scss"></style>

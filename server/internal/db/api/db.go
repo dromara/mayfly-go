@@ -44,7 +44,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.DbQuery](rc, new(entity.DbQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	codes := d.TagApp.GetAccountTagCodes(rc.GetLoginAccount().Id, consts.ResourceTypeDb, queryCond.TagPath)
+	codes := d.TagApp.GetAccountTagCodes(rc.GetLoginAccount().Id, int8(tagentity.TagTypeDbName), queryCond.TagPath)
 	if len(codes) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
@@ -56,7 +56,7 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 
 	// 填充标签信息
-	d.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeDb), collx.ArrayMap(dbvos, func(dbvo *vo.DbListVO) tagentity.ITagResource {
+	d.TagApp.FillTagInfo(tagentity.TagTypeDbName, collx.ArrayMap(dbvos, func(dbvo *vo.DbListVO) tagentity.ITagResource {
 		return dbvo
 	})...)
 
@@ -69,7 +69,7 @@ func (d *Db) Save(rc *req.Ctx) {
 
 	rc.ReqParam = form
 
-	biz.ErrIsNil(d.DbApp.SaveDb(rc.MetaCtx, db, form.TagId...))
+	biz.ErrIsNil(d.DbApp.SaveDb(rc.MetaCtx, db))
 }
 
 func (d *Db) DeleteDb(rc *req.Ctx) {
@@ -81,7 +81,7 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 	for _, v := range ids {
 		dbId := cast.ToUint64(v)
 		biz.NotBlank(dbId, "存在错误dbId")
-		d.DbApp.Delete(ctx, dbId)
+		biz.ErrIsNil(d.DbApp.Delete(ctx, dbId))
 		// 删除该库的sql执行记录
 		d.DbSqlExecApp.DeleteBy(ctx, &entity.DbSqlExec{DbId: dbId})
 	}

@@ -7,22 +7,26 @@
 
             <el-form :model="form" ref="machineForm" :rules="rules" label-width="auto">
                 <el-divider content-position="left">基本</el-divider>
-                <el-form-item ref="tagSelectRef" prop="tagId" label="标签">
+                <el-form-item ref="tagSelectRef" prop="tagCodePaths" label="标签">
                     <tag-tree-select
                         multiple
                         @change-tag="
-                            (tagIds) => {
-                                form.tagId = tagIds;
+                            (paths) => {
+                                form.tagCodePaths = paths;
                                 tagSelectRef.validate();
                             }
                         "
-                        :tag-path="form.tagPath"
-                        :select-tags="form.tagId"
+                        :select-tags="form.tagCodePaths"
                         style="width: 100%"
                     />
                 </el-form-item>
                 <el-form-item prop="code" label="编号" required>
-                    <el-input :disabled="form.id" v-model.trim="form.code" placeholder="请输入编号 (数字字母下划线), 不可修改" auto-complete="off"></el-input>
+                    <el-input
+                        :disabled="form.id"
+                        v-model.trim="form.code"
+                        placeholder="请输入编号 (大小写字母、数字、_-.:), 不可修改"
+                        auto-complete="off"
+                    ></el-input>
                 </el-form-item>
                 <el-form-item prop="name" label="名称" required>
                     <el-input v-model.trim="form.name" placeholder="请输入机器别名" auto-complete="off"></el-input>
@@ -78,7 +82,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, toRefs, watch } from 'vue';
+import { reactive, ref, toRefs, watchEffect } from 'vue';
 import { machineApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
@@ -88,6 +92,7 @@ import { MachineProtocolEnum } from './enums';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { ResourceCodePattern } from '@/common/pattern';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { getTagPath } from '../component/tag';
 
 const props = defineProps({
     visible: {
@@ -105,7 +110,7 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const rules = {
-    tagId: [
+    tagCodePaths: [
         {
             required: true,
             message: '请选择标签',
@@ -159,7 +164,7 @@ const defaultForm = {
     protocol: MachineProtocolEnum.Ssh.value,
     name: null,
     authCerts: [],
-    tagId: [],
+    tagCodePaths: [],
     remark: '',
     sshTunnelMachineId: null as any,
     enableRecorder: -1,
@@ -178,16 +183,17 @@ const { dialogVisible, form, submitForm } = toRefs(state);
 const { isFetching: testConnBtnLoading, execute: testConnExec } = machineApi.testConn.useApi(submitForm);
 const { isFetching: saveBtnLoading, execute: saveMachineExec } = machineApi.saveMachine.useApi(submitForm);
 
-watch(props, async (newValue: any) => {
-    state.dialogVisible = newValue.visible;
+watchEffect(() => {
+    state.dialogVisible = props.visible;
     if (!state.dialogVisible) {
         state.form = defaultForm;
         return;
     }
-    if (newValue.machine) {
-        state.form = { ...newValue.machine };
-        state.form.tagId = newValue.machine.tags.map((t: any) => t.tagId);
-        state.form.authCerts = newValue.machine.authCerts || [];
+    const machine: any = props.machine;
+    if (machine) {
+        state.form = { ...machine };
+        state.form.tagCodePaths = machine.tags.map((t: any) => t.codePath);
+        state.form.authCerts = machine.authCerts || [];
     }
 });
 
@@ -230,6 +236,7 @@ const getReqForm = () => {
     if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }
+    reqForm.tagCodePaths = state.form.tagCodePaths.map((t: any) => getTagPath(t)) as any;
     return reqForm;
 };
 

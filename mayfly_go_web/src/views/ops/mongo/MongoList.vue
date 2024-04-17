@@ -34,7 +34,7 @@
         <mongo-run-command v-model:visible="usersVisible" :id="state.dbOps.dbId" />
 
         <mongo-edit
-            @val-change="search"
+            @val-change="search()"
             :title="mongoEditDialog.title"
             v-model:visible="mongoEditDialog.visible"
             v-model:mongo="mongoEditDialog.data"

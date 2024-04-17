@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"fmt"
-	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
@@ -28,7 +27,7 @@ type Db interface {
 
 	Count(condition *entity.DbQuery) int64
 
-	SaveDb(ctx context.Context, entity *entity.Db, tagIds ...uint64) error
+	SaveDb(ctx context.Context, entity *entity.Db) error
 
 	// 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
@@ -49,9 +48,10 @@ type Db interface {
 type dbAppImpl struct {
 	base.AppImpl[*entity.Db, repository.Db]
 
-	dbSqlRepo     repository.DbSql `inject:"DbSqlRepo"`
-	dbInstanceApp Instance         `inject:"DbInstanceApp"`
-	tagApp        tagapp.TagTree   `inject:"TagTreeApp"`
+	dbSqlRepo           repository.DbSql        `inject:"DbSqlRepo"`
+	dbInstanceApp       Instance                `inject:"DbInstanceApp"`
+	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
+	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 }
 
 // 注入DbRepo
@@ -68,11 +68,16 @@ func (d *dbAppImpl) Count(condition *entity.DbQuery) int64 {
 	return d.GetRepo().Count(condition)
 }
 
-func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...uint64) error {
+func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 	// 查找是否存在
 	oldDb := &entity.Db{Name: dbEntity.Name, InstanceId: dbEntity.InstanceId}
-	err := d.GetBy(oldDb)
 
+	authCert, err := d.resourceAuthCertApp.GetAuthCert(dbEntity.AuthCertName)
+	if err != nil {
+		return errorx.NewBiz("授权凭证不存在")
+	}
+
+	err = d.GetBy(oldDb)
 	if dbEntity.Id == 0 {
 		if err == nil {
 			return errorx.NewBiz("该实例下数据库名已存在")
@@ -85,10 +90,15 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, dbEntity)
 		}, func(ctx context.Context) error {
-			return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-				Code:         dbEntity.Code,
-				Type:         tagentity.TagTypeDb,
-				ParentTagIds: tagIds,
+			// 将库关联至指定数据库授权凭证下
+			return d.tagApp.RelateTagsByCodeAndType(ctx, &tagapp.RelateTagsByCodeAndTypeParam{
+				Tags: []*tagapp.ResourceTag{{
+					Code: dbEntity.Code,
+					Type: tagentity.TagTypeDbName,
+					Name: dbEntity.Name,
+				}},
+				ParentTagCode: authCert.Name,
+				ParentTagType: tagentity.TagTypeDbAuthCert,
 			})
 		})
 	}
@@ -125,11 +135,15 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db, tagIds ...u
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.UpdateById(ctx, dbEntity)
 	}, func(ctx context.Context) error {
-		return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-			Code:         old.Code,
-			Type:         tagentity.TagTypeDb,
-			ParentTagIds: tagIds,
-		})
+		if old.Name != dbEntity.Name {
+			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeDbName, old.Code, dbEntity.Name); err != nil {
+				return err
+			}
+		}
+		if authCert.Name != old.AuthCertName {
+			return d.tagApp.UpdateParentTagCode(ctx, tagentity.TagTypeDbName, old.Code, authCert.Name, authCert.Username)
+		}
+		return nil
 	})
 }
 
@@ -152,9 +166,9 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 			// 删除该库下用户保存的所有sql信息
 			return d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: id})
 		}, func(ctx context.Context) error {
-			return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-				Code: db.Code,
-				Type: tagentity.TagTypeDb,
+			return d.tagApp.DeleteTagByParam(ctx, &tagapp.DelResourceTagParam{
+				ResourceCode: db.Code,
+				ResourceType: tagentity.TagTypeDbName,
 			})
 		})
 }
@@ -175,7 +189,7 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 		if err != nil {
 			return nil, err
 		}
-		di.TagPath = d.tagApp.ListTagPathByTypeAndCode(consts.ResourceTypeDb, db.Code)
+		di.TagPath = d.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeDbName), db.Code)
 		di.Id = db.Id
 
 		if db.FlowProcdefKey != nil {
@@ -264,9 +278,11 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *DumpDbReq) error {
 		writer.TryFlush()
 		// 查询表信息，主要是为了查询表注释
 		tbs, err := dbMeta.GetTables(tableName)
-		biz.ErrIsNil(err)
-		if err != nil || tbs == nil || len(tbs) <= 0 {
-			panic(errorx.NewBiz(fmt.Sprintf("获取表信息失败：%s", tableName)))
+		if err != nil {
+			return err
+		}
+		if len(tbs) <= 0 {
+			return errorx.NewBiz(fmt.Sprintf("获取表信息失败：%s", tableName))
 		}
 		tabInfo := dbi.Table{
 			TableName:    tableName,
@@ -293,7 +309,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *DumpDbReq) error {
 				quoteColNames = append(quoteColNames, dbMeta.QuoteIdentifier(col.ColumnName))
 			}
 
-			_ = dbConn.WalkTableRows(ctx, quoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
+			_, _ = dbConn.WalkTableRows(ctx, quoteTableName, func(row map[string]any, _ []*dbi.QueryColumn) error {
 				rowValues := make([]string, len(columnMap[tableName]))
 				for i, col := range columnMap[tableName] {
 					rowValues[i] = dataHelper.WrapValue(row[col.ColumnName], dataHelper.GetDataType(string(col.DataType)))
@@ -309,7 +325,9 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *DumpDbReq) error {
 		}
 
 		indexs, err := dbMeta.GetTableIndex(tableName)
-		biz.ErrIsNil(err)
+		if err != nil {
+			return err
+		}
 
 		if len(indexs) > 0 {
 			// 最后添加索引

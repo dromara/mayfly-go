@@ -7,6 +7,7 @@ import (
 
 type InstanceListVO struct {
 	tagentity.AuthCerts // 授权凭证信息
+	tagentity.ResourceTags
 
 	Id         *int64     `json:"id"`
 	Code       string     `json:"code"`

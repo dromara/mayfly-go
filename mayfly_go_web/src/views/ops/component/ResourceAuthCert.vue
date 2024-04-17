@@ -1,6 +1,6 @@
 <template>
     <div v-if="props.authCerts">
-        <el-select default-first-option value-key="name" style="width: 100%" v-model="selectAuthCert" size="small">
+        <el-select value-key="name" v-model="selectAuthCert" size="small">
             <el-option v-for="item in props.authCerts" :key="item.name" :label="item.username" :value="item">
                 {{ item.username }}
                 <el-divider direction="vertical" border-style="dashed" />

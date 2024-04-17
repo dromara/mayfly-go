@@ -39,12 +39,7 @@ func (d *DbConn) Query(querySql string, args ...any) ([]*QueryColumn, []map[stri
 // 依次返回 列信息数组(顺序)，结果map，错误
 func (d *DbConn) QueryContext(ctx context.Context, querySql string, args ...any) ([]*QueryColumn, []map[string]any, error) {
 	result := make([]map[string]any, 0, 16)
-	var queryColumns []*QueryColumn
-
-	err := d.WalkQueryRows(ctx, querySql, func(row map[string]any, columns []*QueryColumn) error {
-		if len(queryColumns) == 0 {
-			queryColumns = columns
-		}
+	cols, err := d.WalkQueryRows(ctx, querySql, func(row map[string]any, columns []*QueryColumn) error {
 		result = append(result, row)
 		return nil
 	}, args...)
@@ -53,7 +48,7 @@ func (d *DbConn) QueryContext(ctx context.Context, querySql string, args ...any)
 		return nil, nil, wrapSqlError(err)
 	}
 
-	return queryColumns, result, nil
+	return cols, result, nil
 }
 
 // 将查询结果映射至struct，可具体参考sqlx库
@@ -73,12 +68,12 @@ func (d *DbConn) Query2Struct(execSql string, dest any) error {
 }
 
 // WalkQueryRows 游标方式遍历查询结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
-func (d *DbConn) WalkQueryRows(ctx context.Context, querySql string, walkFn WalkQueryRowsFunc, args ...any) error {
+func (d *DbConn) WalkQueryRows(ctx context.Context, querySql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
 	return walkQueryRows(ctx, d.db, querySql, walkFn, args...)
 }
 
 // WalkTableRows 游标方式遍历指定表的结果集, walkFn返回error不为nil, 则跳出遍历并取消查询
-func (d *DbConn) WalkTableRows(ctx context.Context, tableName string, walkFn WalkQueryRowsFunc) error {
+func (d *DbConn) WalkTableRows(ctx context.Context, tableName string, walkFn WalkQueryRowsFunc) ([]*QueryColumn, error) {
 	return d.WalkQueryRows(ctx, fmt.Sprintf("SELECT * FROM %s", tableName), walkFn)
 }
 
@@ -152,13 +147,13 @@ func (d *DbConn) Close() {
 }
 
 // 游标方式遍历查询rows, walkFn error不为nil, 则跳出遍历
-func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn WalkQueryRowsFunc, args ...any) error {
+func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn WalkQueryRowsFunc, args ...any) ([]*QueryColumn, error) {
 	cancelCtx, cancelFunc := context.WithCancel(ctx)
 	defer cancelFunc()
 
 	rows, err := db.QueryContext(cancelCtx, selectSql, args...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// rows对象一定要close掉，如果出错，不关掉则会很迅速的达到设置最大连接数，
 	// 后面的链接过来直接报错或拒绝，实际上也没有起效果
@@ -166,7 +161,7 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 
 	colTypes, err := rows.ColumnTypes()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	lenCols := len(colTypes)
 	// 列名用于前端表头名称按照数据库与查询字段顺序显示
@@ -189,7 +184,7 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 	for rows.Next() {
 		// 不Scan也会导致等待，该链接实际处于未工作的状态，然后也会导致连接数迅速达到最大
 		if err := rows.Scan(scans...); err != nil {
-			return err
+			return cols, err
 		}
 		// 每行数据
 		rowData := make(map[string]any, lenCols)
@@ -200,11 +195,11 @@ func walkQueryRows(ctx context.Context, db *sql.DB, selectSql string, walkFn Wal
 		if err = walkFn(rowData, cols); err != nil {
 			logx.ErrorfContext(ctx, "[%s]游标遍历查询结果集出错, 退出遍历: %s", selectSql, err.Error())
 			cancelFunc()
-			return err
+			return cols, err
 		}
 	}
 
-	return nil
+	return cols, nil
 }
 
 // 将查询的值转为对应列类型的实际值，不全部转为字符串

@@ -48,41 +48,45 @@
                 </el-form-item>
 
                 <el-form-item prop="tag" label="标签">
-                    <el-scrollbar style="height: calc(100vh - 300px); border: 1px solid var(--el-border-color)">
-                        <el-tree
-                            ref="tagTreeRef"
-                            style="width: 100%"
-                            :data="state.tags"
-                            :default-expanded-keys="state.addTeamDialog.form.tags"
-                            :default-checked-keys="state.addTeamDialog.form.tags"
-                            multiple
-                            :render-after-expand="true"
-                            show-checkbox
-                            check-strictly
-                            node-key="id"
-                            :props="{
-                                value: 'id',
-                                label: 'codePath',
-                                children: 'children',
-                                disabled: 'disabled',
-                            }"
-                            @check="tagTreeNodeCheck"
-                        >
-                            <template #default="{ data }">
-                                <span class="custom-tree-node">
-                                    <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" />
+                    <div class="w100" style="border: 1px solid var(--el-border-color)">
+                        <el-input v-model="filterTag" clearable placeholder="输入关键字过滤" size="small" />
+                        <el-scrollbar style="height: calc(100vh - 330px)">
+                            <el-tree
+                                ref="tagTreeRef"
+                                style="width: 100%"
+                                :data="state.tags"
+                                :default-expanded-keys="state.addTeamDialog.form.tags"
+                                :default-checked-keys="state.addTeamDialog.form.tags"
+                                multiple
+                                :render-after-expand="true"
+                                show-checkbox
+                                check-strictly
+                                node-key="id"
+                                :props="{
+                                    value: 'id',
+                                    label: 'codePath',
+                                    children: 'children',
+                                    disabled: 'disabled',
+                                }"
+                                @check="tagTreeNodeCheck"
+                                :filter-node-method="filterNode"
+                            >
+                                <template #default="{ data }">
+                                    <span class="custom-tree-node">
+                                        <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" />
 
-                                    <span class="font13 ml5">
-                                        {{ data.code }}
-                                        <span style="color: #3c8dbc">【</span>
-                                        {{ data.name }}
-                                        <span style="color: #3c8dbc">】</span>
-                                        <el-tag v-if="data.children !== null" size="small">{{ data.children.length }} </el-tag>
+                                        <span class="font13 ml5">
+                                            {{ data.code }}
+                                            <span style="color: #3c8dbc">【</span>
+                                            {{ data.name }}
+                                            <span style="color: #3c8dbc">】</span>
+                                            <el-tag v-if="data.children !== null" size="small">{{ data.children.length }} </el-tag>
+                                        </span>
                                     </span>
-                                </span>
-                            </template>
-                        </el-tree>
-                    </el-scrollbar>
+                                </template>
+                            </el-tree>
+                        </el-scrollbar>
+                    </div>
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -127,7 +131,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
+import { ref, toRefs, reactive, onMounted, Ref, watch } from 'vue';
 import { tagApi } from './api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { notBlank } from '@/common/assert';
@@ -143,6 +147,7 @@ const teamForm: any = ref(null);
 const tagTreeRef: any = ref(null);
 const pageTableRef: Ref<any> = ref(null);
 const showMemPageTableRef: Ref<any> = ref(null);
+const filterTag = ref('');
 
 const searchItems = [SearchItem.input('name', '团队名称')];
 const columns = [
@@ -204,6 +209,17 @@ onMounted(() => {});
 
 const search = async () => {
     pageTableRef.value.search();
+};
+
+watch(filterTag, (val) => {
+    tagTreeRef.value!.filter(val);
+});
+
+const filterNode = (value: string, data: any) => {
+    if (!value) {
+        return true;
+    }
+    return data.codePath.toLowerCase().includes(value) || data.name.includes(value);
 };
 
 const showSaveTeamDialog = async (data: any) => {

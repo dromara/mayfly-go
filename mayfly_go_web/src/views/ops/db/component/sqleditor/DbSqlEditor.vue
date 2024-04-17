@@ -113,7 +113,7 @@
                                 :loading="dt.loading"
                                 :abort-fn="dt.abortFn"
                                 :height="tableDataHeight"
-                                empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
+                                :empty-text="state.tableDataEmptyText"
                                 @change-updated-field="changeUpdatedField($event, dt)"
                                 @data-delete="onDeleteData($event, dt)"
                             ></db-table-data>
@@ -221,6 +221,7 @@ const state = reactive({
     activeTab: 1,
     editorHeight: '500',
     tableDataHeight: '250px',
+    tableDataEmptyText: 'tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改',
 });
 
 const { tableDataHeight } = toRefs(state);
@@ -368,9 +369,8 @@ const onRunSql = async (newTab = false) => {
 
         await execute();
         const colAndData: any = data.value;
-        if (!colAndData.res || colAndData.res.length === 0) {
-            ElMessage.warning('未查询到结果集');
-            return;
+        if (colAndData.res.length == 0) {
+            state.tableDataEmptyText = '查无数据';
         }
 
         // 要实时响应，故需要用索引改变数据才生效
@@ -467,7 +467,7 @@ const formatSql = () => {
         return;
     }
 
-    const formatDialect = getNowDbInst().getDialect().getInfo().formatSqlDialect;
+    const formatDialect: any = getNowDbInst().getDialect().getInfo().formatSqlDialect;
 
     let sql = monacoEditor.getModel()?.getValueInRange(selection);
     // 有选中sql则格式化并替换选中sql, 否则格式化编辑器所有内容

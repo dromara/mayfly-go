@@ -1,15 +1,14 @@
 package form
 
 type DbForm struct {
-	Id             uint64   `json:"id"`
-	Code           string   `binding:"required" json:"code"`
-	Name           string   `binding:"required" json:"name"`
-	Database       string   `json:"database"`
-	Remark         string   `json:"remark"`
-	TagId          []uint64 `binding:"required" json:"tagId"`
-	InstanceId     uint64   `binding:"required" json:"instanceId"`
-	AuthCertName   string   `json: "authCertName"`
-	FlowProcdefKey string   `json:"flowProcdefKey"`
+	Id             uint64 `json:"id"`
+	Code           string `binding:"required" json:"code"`
+	Name           string `binding:"required" json:"name"`
+	Database       string `json:"database"`
+	Remark         string `json:"remark"`
+	InstanceId     uint64 `binding:"required" json:"instanceId"`
+	AuthCertName   string `json:"authCertName"`
+	FlowProcdefKey string `json:"flowProcdefKey"`
 }
 
 type DbSqlSaveForm struct {

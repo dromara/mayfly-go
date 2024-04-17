@@ -308,7 +308,7 @@ const showCreateDdl = async (row: any) => {
         tableName: row.tableName,
     });
 
-    state.ddlDialog.ddl = sqlFormatter(res, { language: getDbDialect(props.dbType).getInfo().formatSqlDialect });
+    state.ddlDialog.ddl = sqlFormatter(res, { language: getDbDialect(props.dbType).getInfo().formatSqlDialect as any });
     state.ddlDialog.visible = true;
 };
 

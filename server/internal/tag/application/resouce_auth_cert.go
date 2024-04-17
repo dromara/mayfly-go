@@ -26,9 +26,6 @@ type ResourceAuthCert interface {
 	// RelateAuthCert 关联资源授权凭证信息
 	RelateAuthCert(ctx context.Context, param *RelateAuthCertParam) error
 
-	// RelateAuthCert2ResourceTag 关联授权凭证标签至指定资源标签下
-	RelateAuthCert2ResourceTag(ctx context.Context, param *RelateAuthCertParam) error
-
 	// SaveAuthCert 保存授权凭证信息
 	SaveAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error
 
@@ -40,9 +37,6 @@ type ResourceAuthCert interface {
 	// GetResourceAuthCert 获取资源授权凭证，默认获取特权账号，若没有则返回第一个
 	GetResourceAuthCert(resourceType entity.TagType, resourceCode string) (*entity.ResourceAuthCert, error)
 
-	// GetAccountAuthCert 获取账号有权限操作的授权凭证信息
-	GetAccountAuthCert(accountId uint64, authCertTagType entity.TagType, tagPath ...string) []*entity.ResourceAuthCert
-
 	// FillAuthCertByAcs 根据授权凭证列表填充资源的授权凭证信息
 	// @param authCerts 授权凭证列表
 	// @param resources 实现了entity.IAuthCert接口的资源信息
@@ -52,6 +46,9 @@ type ResourceAuthCert interface {
 	// @param resourceType 资源类型
 	// @param resources 实现了entity.IAuthCert接口的资源信息
 	FillAuthCert(resourceType int8, resources ...entity.IAuthCert)
+
+	// FillAuthCertByAcNames 根据授权凭证名称填充资源对应的凭证信息
+	FillAuthCertByAcNames(authCertNames []string, resources ...entity.IAuthCert)
 }
 
 type resourceAuthCertAppImpl struct {
@@ -166,7 +163,7 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *Re
 
 			// 如果修改了用户名，且该凭证关联至标签，则需要更新对应的标签名（资源授权凭证类型的标签名为username）
 			if oldAuthCert.Username != unmodifyAc.Username && acTagType != 0 {
-				r.updateAuthCertTagName(ctx, unmodify, acTagType, unmodifyAc.Username)
+				r.tagTreeApp.UpdateTagName(ctx, acTagType, unmodify, unmodifyAc.Username)
 			}
 			logx.DebugfContext(ctx, "RelateAuthCert[%d-%s]-更新授权凭证-[%v]", resourceType, resourceCode, unmodify)
 			if err := r.UpdateById(ctx, unmodifyAc); err != nil {
@@ -176,17 +173,6 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *Re
 	}
 
 	return nil
-}
-
-func (r *resourceAuthCertAppImpl) RelateAuthCert2ResourceTag(ctx context.Context, param *RelateAuthCertParam) error {
-	return r.tagTreeApp.RelateTagsByCodeAndType(ctx, &RelateTagsByCodeAndTypeParam{
-		ParentTagCode: param.ResourceCode,
-		ParentTagType: param.ResourceType,
-		TagType:       GetResourceAuthCertTagType(param.ResourceType),
-		Tags: collx.ArrayMap(param.AuthCerts, func(rac *entity.ResourceAuthCert) ITag {
-			return rac
-		}),
-	})
 }
 
 func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error {
@@ -258,27 +244,6 @@ func (r *resourceAuthCertAppImpl) GetResourceAuthCert(resourceType entity.TagTyp
 	return r.decryptAuthCert(resourceAuthCerts[0])
 }
 
-func (r *resourceAuthCertAppImpl) GetAccountAuthCert(accountId uint64, authCertTagType entity.TagType, tagPath ...string) []*entity.ResourceAuthCert {
-	// 获取用户有权限操作的授权凭证资源标签
-	tagQuery := &entity.TagTreeQuery{
-		Type:          authCertTagType,
-		CodePathLikes: tagPath,
-	}
-	authCertTags := r.tagTreeApp.GetAccountTags(accountId, tagQuery)
-
-	// 获取所有授权凭证名称
-	authCertNames := collx.ArrayMap(authCertTags, func(tag *entity.TagTree) string {
-		return tag.Code
-	})
-
-	var authCerts []*entity.ResourceAuthCert
-	r.ListByWheres(collx.M{
-		"name in ?": collx.ArrayDeduplicate(authCertNames),
-	}, &authCerts)
-
-	return authCerts
-}
-
 func (r *resourceAuthCertAppImpl) FillAuthCertByAcs(authCerts []*entity.ResourceAuthCert, resources ...entity.IAuthCert) {
 	if len(resources) == 0 || len(authCerts) == 0 {
 		return
@@ -303,6 +268,12 @@ func (r *resourceAuthCertAppImpl) FillAuthCertByAcs(authCerts []*entity.Resource
 			CiphertextType: authCert.CiphertextType,
 		})
 	}
+}
+
+func (r *resourceAuthCertAppImpl) FillAuthCertByAcNames(authCertNames []string, resources ...entity.IAuthCert) {
+	var acs []*entity.ResourceAuthCert
+	r.ListByWheres(collx.M{"name in ?": authCertNames}, &acs)
+	r.FillAuthCertByAcs(acs, resources...)
 }
 
 func (r *resourceAuthCertAppImpl) FillAuthCert(resourceType int8, resources ...entity.IAuthCert) {
@@ -336,17 +307,17 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 	// 资源对应的授权凭证标签类型，若为0则说明该资源不需要关联至资源tagTree
 	authCertTagType := GetResourceAuthCertTagType(entity.TagType(resourceType))
 
-	var resourceTagIds []uint64
+	var resourceTagCodePaths []string
 	// 如果该资源存在对应的授权凭证标签类型，则说明需要关联至tagTree，否则直接从授权凭证库中验证资源编号是否正确即可（一个资源最少有一个授权凭证）
 	if authCertTagType != 0 {
 		// 获取资源编号对应的资源标签信息
 		var resourceTags []*entity.TagTree
 		r.tagTreeApp.ListByCond(&entity.TagTree{Type: entity.TagType(resourceType), Code: resourceCode}, &resourceTags)
-		// 资源标签id（相当于父tag id）
-		resourceTagIds = collx.ArrayMap(resourceTags, func(tag *entity.TagTree) uint64 {
-			return tag.Id
+		// 资源标签tagPath（相当于父tag）
+		resourceTagCodePaths = collx.ArrayMap(resourceTags, func(tag *entity.TagTree) string {
+			return tag.CodePath
 		})
-		if len(resourceTagIds) == 0 {
+		if len(resourceTagCodePaths) == 0 {
 			return errorx.NewBiz("资源标签不存在[%s], 请检查资源编号是否正确", resourceCode)
 		}
 	} else {
@@ -362,13 +333,15 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 
 	return r.Tx(ctx, func(ctx context.Context) error {
 		// 若存在需要关联到的资源标签，则关联到对应的资源标签下
-		if len(resourceTagIds) > 0 {
-			logx.DebugfContext(ctx, "[%d-%s]-授权凭证标签[%d-%s]关联至所属资源标签下[%v]", resourceType, resourceCode, authCertTagType, rac.Name, resourceTagIds)
+		if len(resourceTagCodePaths) > 0 {
+			logx.DebugfContext(ctx, "[%d-%s]-授权凭证标签[%d-%s]关联至所属资源标签下[%v]", resourceType, resourceCode, authCertTagType, rac.Name, resourceTagCodePaths)
 			return r.tagTreeApp.SaveResourceTag(ctx, &SaveResourceTagParam{
-				Code:         rac.Name,
-				Type:         GetResourceAuthCertTagType(entity.TagType(resourceType)),
-				Name:         rac.Username,
-				ParentTagIds: resourceTagIds,
+				ResourceTag: &ResourceTag{
+					Code: rac.Name,
+					Type: GetResourceAuthCertTagType(entity.TagType(resourceType)),
+					Name: rac.Username,
+				},
+				ParentTagCodePaths: resourceTagCodePaths,
 			})
 		}
 		return nil
@@ -406,7 +379,7 @@ func (r *resourceAuthCertAppImpl) updateAuthCert(ctx context.Context, rac *entit
 		if rac.Username != oldRac.Username && rac.ResourceType == int8(entity.TagTypeMachine) {
 			authCertTagType := GetResourceAuthCertTagType(entity.TagType(oldRac.ResourceType))
 			if authCertTagType != 0 {
-				if err := r.updateAuthCertTagName(ctx, oldRac.Name, authCertTagType, rac.Username); err != nil {
+				if err := r.tagTreeApp.UpdateTagName(ctx, authCertTagType, oldRac.Name, rac.Username); err != nil {
 					return errorx.NewBiz("同步更新授权凭证标签名称失败")
 				}
 			}
@@ -423,11 +396,6 @@ func (r *resourceAuthCertAppImpl) updateAuthCert(ctx context.Context, rac *entit
 	rac.ResourceCode = ""
 	rac.ResourceType = 0
 	return r.UpdateById(ctx, rac)
-}
-
-// updateAuthCertTagName 同步更新授权凭证的标签名，防止标签展示不一致
-func (r *resourceAuthCertAppImpl) updateAuthCertTagName(ctx context.Context, authCertName string, autyCertTagType entity.TagType, newTagName string) error {
-	return r.tagTreeApp.UpdateByWheres(ctx, &entity.TagTree{Name: newTagName}, collx.M{"code = ?": authCertName, "type = ?": autyCertTagType})
 }
 
 // 解密授权凭证信息
@@ -456,6 +424,10 @@ func (r *resourceAuthCertAppImpl) decryptAuthCert(authCert *entity.ResourceAuthC
 func GetResourceAuthCertTagType(resourceType entity.TagType) entity.TagType {
 	if resourceType == entity.TagTypeMachine {
 		return entity.TagTypeMachineAuthCert
+	}
+
+	if resourceType == entity.TagTypeDb {
+		return entity.TagTypeDbAuthCert
 	}
 
 	// 该资源不存在对应的授权凭证标签，即tag_tree不关联该资源的授权凭证

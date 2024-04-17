@@ -4,16 +4,16 @@
             <el-form :model="form" ref="mongoForm" :rules="rules" label-width="85px">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item ref="tagSelectRef" prop="tagId" label="标签" required>
+                        <el-form-item ref="tagSelectRef" prop="tagCodePaths" label="标签" required>
                             <tag-tree-select
                                 @change-tag="
-                                    (tagIds) => {
-                                        form.tagId = tagIds;
+                                    (tagCodePaths) => {
+                                        form.tagCodePaths = tagCodePaths;
                                         tagSelectRef.validate();
                                     }
                                 "
                                 multiple
-                                :select-tags="form.tagId"
+                                :select-tags="form.tagCodePaths"
                                 style="width: 100%"
                             />
                         </el-form-item>
@@ -21,7 +21,7 @@
                             <el-input
                                 :disabled="form.id"
                                 v-model.trim="form.code"
-                                placeholder="请输入编号 (数字字母下划线), 不可修改"
+                                placeholder="请输入编号 (大小写字母、数字、_-.:), 不可修改"
                                 auto-complete="off"
                             ></el-input>
                         </el-form-item>
@@ -59,12 +59,13 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref } from 'vue';
+import { toRefs, reactive, ref, watchEffect } from 'vue';
 import { mongoApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import { ResourceCodePattern } from '@/common/pattern';
+import { getTagPath } from '../component/tag';
 
 const props = defineProps({
     visible: {
@@ -82,7 +83,7 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const rules = {
-    tagId: [
+    tagCodePaths: [
         {
             required: true,
             message: '请选择标签',
@@ -129,7 +130,7 @@ const state = reactive({
         name: null,
         uri: null,
         sshTunnelMachineId: null as any,
-        tagId: [],
+        tagCodePaths: [],
     },
     submitForm: {},
 });
@@ -139,15 +140,16 @@ const { dialogVisible, tabActiveName, form, submitForm } = toRefs(state);
 const { isFetching: testConnBtnLoading, execute: testConnExec } = mongoApi.testConn.useApi(submitForm);
 const { isFetching: saveBtnLoading, execute: saveMongoExec } = mongoApi.saveMongo.useApi(submitForm);
 
-watch(props, async (newValue: any) => {
-    state.dialogVisible = newValue.visible;
+watchEffect(() => {
+    state.dialogVisible = props.visible;
     if (!state.dialogVisible) {
         return;
     }
     state.tabActiveName = 'basic';
-    if (newValue.mongo) {
-        state.form = { ...newValue.mongo };
-        state.form.tagId = newValue.mongo.tags.map((t: any) => t.tagId);
+    const mongo: any = props.mongo;
+    if (mongo) {
+        state.form = { ...mongo };
+        state.form.tagCodePaths = mongo.tags.map((t: any) => t.codePath);
     } else {
         state.form = { db: 0 } as any;
     }
@@ -158,6 +160,7 @@ const getReqForm = () => {
     if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }
+    reqForm.tagCodePaths = state.form.tagCodePaths.map((t: any) => getTagPath(t)) as any;
     return reqForm;
 };
 

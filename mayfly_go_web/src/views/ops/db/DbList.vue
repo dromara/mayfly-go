@@ -6,8 +6,6 @@
             :before-query-fn="checkRouteTagPath"
             :search-items="searchItems"
             v-model:query-form="query"
-            :show-selection="true"
-            v-model:selection-data="state.selectionData"
             :columns="columns"
             lazy
         >
@@ -24,11 +22,6 @@
                 </el-select>
             </template>
 
-            <template #tableHeader>
-                <el-button v-auth="perms.saveDb" type="primary" icon="plus" @click="editDb(false)">添加</el-button>
-                <el-button v-auth="perms.delDb" :disabled="selectionData.length < 1" @click="deleteDb()" type="danger" icon="delete">删除</el-button>
-            </template>
-
             <template #type="{ data }">
                 <el-tooltip :content="data.type" placement="top">
                     <SvgIcon :name="getDbDialect(data.type).getInfo().icon" :size="20" />
@@ -39,16 +32,26 @@
                 {{ `${data.host}:${data.port}` }}
             </template>
 
+            <template #database="{ data }">
+                <el-popover placement="bottom" :width="200" trigger="click">
+                    <template #reference>
+                        <el-button @click="state.currentDbs = data.database" type="primary" link>查看库</el-button>
+                    </template>
+                    <el-table :data="filterDbs" size="small">
+                        <el-table-column prop="dbName" label="数据库">
+                            <template #header>
+                                <el-input v-model="state.dbNameSearch" size="small" placeholder="库名: 输入可过滤" clearable />
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </el-popover>
+            </template>
+
             <template #tagPath="{ data }">
                 <ResourceTags :tags="data.tags" />
             </template>
 
             <template #action="{ data }">
-                <span v-if="actionBtns[perms.saveDb]">
-                    <el-button type="primary" @click="editDb(data)" link>编辑</el-button>
-                    <el-divider direction="vertical" border-style="dashed" />
-                </span>
-
                 <el-button type="primary" @click="onShowSqlExec(data)" link>SQL记录</el-button>
                 <el-divider direction="vertical" border-style="dashed" />
 
@@ -176,7 +179,7 @@
                 <el-descriptions-item :span="2" label="主机">{{ infoDialog.instance?.host }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="端口">{{ infoDialog.instance?.port }}</el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="用户名">{{ infoDialog.instance?.username }}</el-descriptions-item>
+                <el-descriptions-item :span="2" label="授权凭证">{{ infoDialog.instance.authCertName }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="类型">
                     <SvgIcon :name="getDbDialect(infoDialog.instance?.type).getInfo().icon" :size="20" />{{ infoDialog.instance?.type }}
                 </el-descriptions-item>
@@ -199,8 +202,7 @@
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { computed, defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
 import { dbApi } from './api';
 import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
@@ -224,23 +226,8 @@ import { sleep } from '@/common/utils/loading';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
-const props = defineProps({
-    lazy: {
-        type: [Boolean],
-        default: false,
-    },
-});
-
-const perms = {
-    base: 'db',
-    saveDb: 'db:save',
-    delDb: 'db:del',
-    backupDb: 'db:backup',
-    restoreDb: 'db:restore',
-};
-
 const searchItems = [
-    getTagPathSearchItem(TagResourceTypeEnum.Db.value),
+    getTagPathSearchItem(TagResourceTypeEnum.DbName.value),
     SearchItem.slot('instanceId', '实例', 'instanceSelect'),
     SearchItem.input('code', '编号'),
 ];
@@ -252,15 +239,21 @@ const columns = ref([
     TableColumn.new('instanceName', '实例名'),
     TableColumn.new('host', 'ip:port').isSlot().setAddWidth(40),
     TableColumn.new('authCertName', '授权凭证'),
+    TableColumn.new('database', '库').isSlot().setMinWidth(80),
     TableColumn.new('flowProcdefKey', '关联流程'),
     TableColumn.new('remark', '备注'),
     TableColumn.new('code', '编号'),
 ]);
 
+const perms = {
+    backupDb: 'db:backup',
+    restoreDb: 'db:restore',
+};
+
 // 该用户拥有的的操作列按钮权限
 // const actionBtns = hasPerms([perms.base, perms.saveDb]);
 const actionBtns = hasPerms(Object.values(perms));
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(220).fixedRight().alignCenter();
+const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight().alignCenter();
 
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
@@ -268,6 +261,8 @@ const state = reactive({
     row: {} as any,
     dbId: 0,
     db: '',
+    currentDbs: '',
+    dbNameSearch: '',
     instances: [] as any,
     /**
      * 选中的数据
@@ -343,16 +338,26 @@ const state = reactive({
     },
 });
 
-const { db, selectionData, query, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog, dbBackupDialog, dbBackupHistoryDialog, dbRestoreDialog } =
-    toRefs(state);
+const { db, query, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog, dbBackupDialog, dbBackupHistoryDialog, dbRestoreDialog } = toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
-    if (!props.lazy) {
-        search();
+    search();
+});
+
+const filterDbs = computed(() => {
+    const dbsStr = state.currentDbs;
+    if (!dbsStr) {
+        return [];
     }
+    const dbs = dbsStr.split(' ').map((db: any) => {
+        return { dbName: db };
+    });
+    return dbs.filter((db: any) => {
+        return db.dbName.includes(state.dbNameSearch);
+    });
 });
 
 const checkRouteTagPath = (query: any) => {
@@ -402,10 +407,6 @@ const handleMoreActionCommand = (commond: any) => {
             showInfo(data);
             return;
         }
-        case 'edit': {
-            editDb(data);
-            return;
-        }
         case 'dumpDb': {
             onDumpDbs(data);
             return;
@@ -422,32 +423,6 @@ const handleMoreActionCommand = (commond: any) => {
             onShowDbRestoreDialog(data);
             return;
         }
-    }
-};
-
-const editDb = async (data: any) => {
-    if (!data) {
-        state.dbEditDialog.data = null;
-        state.dbEditDialog.title = '新增数据库资源';
-    } else {
-        state.dbEditDialog.data = data;
-        state.dbEditDialog.title = '修改数据库资源';
-    }
-    state.dbEditDialog.visible = true;
-};
-
-const deleteDb = async () => {
-    try {
-        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】库?`, '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning',
-        });
-        await dbApi.deleteDb.request({ id: state.selectionData.map((x: any) => x.id).join(',') });
-        ElMessage.success('删除成功');
-        search();
-    } catch (err) {
-        //
     }
 };
 

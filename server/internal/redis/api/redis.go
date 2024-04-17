@@ -55,8 +55,7 @@ func (r *Redis) TestConn(rc *req.Ctx) {
 	redis := req.BindJsonAndCopyTo[*entity.Redis](rc, form, new(entity.Redis))
 
 	biz.ErrIsNil(r.RedisApp.TestConn(&application.SaveRedisParam{
-		Redis:  redis,
-		TagIds: form.TagId,
+		Redis: redis,
 		AuthCert: &tagentity.ResourceAuthCert{
 			Name:           fmt.Sprintf("redis_%s_ac", redis.Code),
 			Username:       form.Username,
@@ -76,8 +75,8 @@ func (r *Redis) Save(rc *req.Ctx) {
 	rc.ReqParam = form
 
 	redisParam := &application.SaveRedisParam{
-		Redis:  redis,
-		TagIds: form.TagId,
+		Redis:        redis,
+		TagCodePaths: form.TagCodePaths,
 		AuthCert: &tagentity.ResourceAuthCert{
 			Name:           fmt.Sprintf("redis_%s_ac", redis.Code),
 			Username:       form.Username,

@@ -24,9 +24,9 @@ import (
 )
 
 type SaveRedisParam struct {
-	Redis    *entity.Redis
-	AuthCert *tagentity.ResourceAuthCert
-	TagIds   []uint64
+	Redis        *entity.Redis
+	AuthCert     *tagentity.ResourceAuthCert
+	TagCodePaths []string
 }
 
 type RunCmdParam struct {
@@ -109,7 +109,7 @@ func (r *redisAppImpl) TestConn(param *SaveRedisParam) error {
 
 func (r *redisAppImpl) SaveRedis(ctx context.Context, param *SaveRedisParam) error {
 	re := param.Redis
-	tagIds := param.TagIds
+	tagCodePaths := param.TagCodePaths
 	// 查找是否存在该库
 	oldRedis := &entity.Redis{
 		Host:               re.Host,
@@ -129,9 +129,12 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *SaveRedisParam) err
 			return r.Insert(ctx, re)
 		}, func(ctx context.Context) error {
 			return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-				Type:         tagentity.TagTypeRedis,
-				Code:         re.Code,
-				ParentTagIds: tagIds,
+				ResourceTag: &tagapp.ResourceTag{
+					Type: tagentity.TagTypeRedis,
+					Code: re.Code,
+					Name: re.Name,
+				},
+				ParentTagCodePaths: tagCodePaths,
 			})
 		}, func(ctx context.Context) error {
 			return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
@@ -162,10 +165,18 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *SaveRedisParam) err
 	return r.Tx(ctx, func(ctx context.Context) error {
 		return r.UpdateById(ctx, re)
 	}, func(ctx context.Context) error {
+		if oldRedis.Name != re.Name {
+			if err := r.tagApp.UpdateTagName(ctx, tagentity.TagTypeMachine, oldRedis.Code, re.Name); err != nil {
+				return err
+			}
+		}
 		return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-			Type:         tagentity.TagTypeRedis,
-			Code:         oldRedis.Code,
-			ParentTagIds: tagIds,
+			ResourceTag: &tagapp.ResourceTag{
+				Type: tagentity.TagTypeRedis,
+				Code: oldRedis.Code,
+				Name: re.Name,
+			},
+			ParentTagCodePaths: tagCodePaths,
 		})
 	}, func(ctx context.Context) error {
 		return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
@@ -192,8 +203,10 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 		return r.DeleteById(ctx, id)
 	}, func(ctx context.Context) error {
 		return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-			Type: tagentity.TagTypeRedis,
-			Code: re.Code,
+			ResourceTag: &tagapp.ResourceTag{
+				Type: tagentity.TagTypeRedis,
+				Code: re.Code,
+			},
 		})
 	}, func(ctx context.Context) error {
 		return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{

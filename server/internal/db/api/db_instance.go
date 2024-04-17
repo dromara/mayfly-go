@@ -10,6 +10,7 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"strconv"
@@ -20,6 +21,7 @@ type Instance struct {
 	InstanceApp         application.Instance    `inject:"DbInstanceApp"`
 	DbApp               application.Db          `inject:""`
 	ResourceAuthCertApp tagapp.ResourceAuthCert `inject:""`
+	TagApp              tagapp.TagTree          `inject:"TagTreeApp"`
 }
 
 // Instances 获取数据库实例信息
@@ -27,13 +29,28 @@ type Instance struct {
 func (d *Instance) Instances(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage[*entity.InstanceQuery](rc, new(entity.InstanceQuery))
 
+	tagCodePaths := d.TagApp.GetAccountTagCodePaths(rc.GetLoginAccount().Id, tagentity.TagTypeDbAuthCert, queryCond.TagPath)
+	// 不存在可操作的数据库，即没有可操作数据
+	if len(tagCodePaths) == 0 {
+		rc.ResData = model.EmptyPageResult[any]()
+		return
+	}
+
+	dbInstCodes := tagentity.GetCodeByPath(tagentity.TagTypeDb, tagCodePaths...)
+	queryCond.Codes = dbInstCodes
+
 	var instvos []*vo.InstanceListVO
 	res, err := d.InstanceApp.GetPageList(queryCond, page, &instvos)
 	biz.ErrIsNil(err)
 
 	// 填充授权凭证信息
-	d.ResourceAuthCertApp.FillAuthCert(consts.ResourceTypeDb, collx.ArrayMap(instvos, func(vos *vo.InstanceListVO) tagentity.IAuthCert {
+	d.ResourceAuthCertApp.FillAuthCertByAcNames(tagentity.GetCodeByPath(tagentity.TagTypeDbAuthCert, tagCodePaths...), collx.ArrayMap(instvos, func(vos *vo.InstanceListVO) tagentity.IAuthCert {
 		return vos
+	})...)
+
+	// 填充标签信息
+	d.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeDb), collx.ArrayMap(instvos, func(insvo *vo.InstanceListVO) tagentity.ITagResource {
+		return insvo
 	})...)
 
 	rc.ResData = res
@@ -53,10 +70,13 @@ func (d *Instance) SaveInstance(rc *req.Ctx) {
 	instance := req.BindJsonAndCopyTo[*entity.DbInstance](rc, form, new(entity.DbInstance))
 
 	rc.ReqParam = form
-	biz.ErrIsNil(d.InstanceApp.SaveDbInstance(rc.MetaCtx, &application.SaveDbInstanceParam{
-		DbInstance: instance,
-		AuthCerts:  form.AuthCerts,
-	}))
+	id, err := d.InstanceApp.SaveDbInstance(rc.MetaCtx, &application.SaveDbInstanceParam{
+		DbInstance:   instance,
+		AuthCerts:    form.AuthCerts,
+		TagCodePaths: form.TagCodePaths,
+	})
+	biz.ErrIsNil(err)
+	rc.ResData = id
 }
 
 // GetInstance 获取数据库实例密码，由于数据库是加密存储，故提供该接口展示原文密码
@@ -86,14 +106,9 @@ func (d *Instance) DeleteInstance(rc *req.Ctx) {
 
 // 获取数据库实例的所有数据库名
 func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
-	instanceId := getInstanceId(rc)
-	authCertName := rc.Query("authCertName")
-	biz.NotEmpty(authCertName, "授权凭证名不能为空")
-
-	instance, err := d.InstanceApp.GetById(new(entity.DbInstance), instanceId)
-	biz.ErrIsNil(err, "获取数据库实例错误")
-
-	res, err := d.InstanceApp.GetDatabases(instance, authCertName)
+	form := &form.InstanceDbNamesForm{}
+	instance := req.BindJsonAndCopyTo[*entity.DbInstance](rc, form, new(entity.DbInstance))
+	res, err := d.InstanceApp.GetDatabases(instance, form.AuthCert)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

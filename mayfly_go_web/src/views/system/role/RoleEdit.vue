@@ -28,7 +28,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, watch } from 'vue';
+import { ref, toRefs, reactive, watchEffect } from 'vue';
 import { roleApi } from '../api';
 import { RoleStatusEnum } from '../enums';
 
@@ -63,10 +63,10 @@ const { dvisible, form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveRoleExec } = roleApi.save.useApi(form);
 
-watch(props, (newValue: any) => {
-    state.dvisible = newValue.visible;
-    if (newValue.data) {
-        state.form = { ...newValue.data };
+watchEffect(() => {
+    state.dvisible = props.visible;
+    if (props.data) {
+        state.form = { ...(props.data as any) };
     } else {
         state.form = {} as any;
     }

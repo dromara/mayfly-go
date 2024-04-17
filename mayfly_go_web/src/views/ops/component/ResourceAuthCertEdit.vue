@@ -112,7 +112,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, toRefs, onMounted, watch, computed } from 'vue';
+import { reactive, ref, toRefs, computed, watch } from 'vue';
 import { AuthCertTypeEnum, AuthCertCiphertextTypeEnum } from '../tag/enums';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { resourceAuthCertApi } from '../tag/api';
@@ -166,6 +166,13 @@ const rules = {
             trigger: ['blur'],
         },
     ],
+    resourceCode: [
+        {
+            required: true,
+            message: '请输入资源编号',
+            trigger: ['change', 'blur'],
+        },
+    ],
 };
 
 const emit = defineEmits(['confirm', 'cancel']);
@@ -182,10 +189,6 @@ const state = reactive({
 
 const showResourceEdit = computed(() => {
     return state.form.type != AuthCertTypeEnum.Public.value && !props.resourceEdit;
-});
-
-onMounted(() => {
-    setForm(props.authCert);
 });
 
 watch(
@@ -217,7 +220,6 @@ const changeType = (val: any) => {
 
 const changeCiphertextType = (val: any) => {
     if (val == AuthCertCiphertextTypeEnum.Public.value) {
-        state.form.type = AuthCertTypeEnum.Private.value;
         getPublicAuthCerts();
     }
 };

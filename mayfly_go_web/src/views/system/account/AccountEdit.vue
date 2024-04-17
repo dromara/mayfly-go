@@ -30,7 +30,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref } from 'vue';
+import { toRefs, reactive, watch, ref, watchEffect } from 'vue';
 import { accountApi } from '../api';
 import { ElMessage } from 'element-plus';
 import { AccountUsernamePattern } from '@/common/pattern';
@@ -99,6 +99,18 @@ watch(props, (newValue: any) => {
         state.form = {} as any;
     }
     state.dialogVisible = newValue.visible;
+});
+
+watchEffect(() => {
+    const account: any = props.account;
+    if (account) {
+        state.form = { ...account };
+        state.edit = true;
+    } else {
+        state.edit = false;
+        state.form = {} as any;
+    }
+    state.dialogVisible = props.visible;
 });
 
 const btnOk = async () => {

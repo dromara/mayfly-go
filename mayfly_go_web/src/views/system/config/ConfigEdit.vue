@@ -41,7 +41,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, watch } from 'vue';
+import { ref, toRefs, reactive, watch, watchEffect } from 'vue';
 import { configApi, accountApi } from '../api';
 import { DynamicFormEdit } from '@/components/dynamic-form';
 
@@ -82,14 +82,14 @@ const { dvisible, params, form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveConfigExec } = configApi.save.useApi(form);
 
-watch(props, (newValue: any) => {
-    state.dvisible = newValue.visible;
+watchEffect(() => {
+    state.dvisible = props.visible;
     if (!state.dvisible) {
         return;
     }
 
-    if (newValue.data) {
-        state.form = { ...newValue.data };
+    if (props.data) {
+        state.form = { ...(props.data as any) };
         if (state.form.params) {
             state.params = JSON.parse(state.form.params);
         } else {

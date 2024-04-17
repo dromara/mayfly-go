@@ -9,21 +9,17 @@ import (
 )
 
 type Dashbord struct {
-	ResourceAuthCertApp tagapp.ResourceAuthCert `inject:""`
-	MachineApp          application.Machine     `inject:""`
+	TagTreeApp tagapp.TagTree      `inject:""`
+	MachineApp application.Machine `inject:""`
 }
 
 func (m *Dashbord) Dashbord(rc *req.Ctx) {
 	accountId := rc.GetLoginAccount().Id
 
-	machienAuthCerts := m.ResourceAuthCertApp.GetAccountAuthCert(accountId, tagentity.TagTypeMachineAuthCert)
-	machineCodes := collx.ArrayMap(machienAuthCerts, func(ac *tagentity.ResourceAuthCert) string {
-		return ac.ResourceCode
-	})
-
-	machienNum := len(collx.ArrayDeduplicate(machineCodes))
+	tagCodePaths := m.TagTreeApp.GetAccountTagCodePaths(accountId, tagentity.TagTypeMachineAuthCert, "")
+	machineCodes := tagentity.GetCodeByPath(tagentity.TagTypeMachine, tagCodePaths...)
 
 	rc.ResData = collx.M{
-		"machineNum": machienNum,
+		"machineNum": len(machineCodes),
 	}
 }

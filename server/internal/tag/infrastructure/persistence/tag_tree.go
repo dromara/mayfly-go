@@ -16,7 +16,7 @@ func newTagTreeRepo() repository.TagTree {
 }
 
 func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEntity any, orderBy ...string) {
-	sql := "SELECT DISTINCT(p.id), p.pid, p.type, p.code, p.code_path, p.name, p.remark, p.create_time, p.creator, p.update_time, p.modifier FROM t_tag_tree p WHERE p.is_deleted = 0 "
+	sql := "SELECT DISTINCT(p.id), p.type, p.code, p.code_path, p.name, p.remark, p.create_time, p.creator, p.update_time, p.modifier FROM t_tag_tree p WHERE p.is_deleted = 0 "
 
 	params := make([]any, 0)
 	if condition.Name != "" {
@@ -38,10 +38,6 @@ func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEn
 	if condition.CodePathLike != "" {
 		sql = sql + " AND p.code_path LIKE ?"
 		params = append(params, condition.CodePathLike+"%")
-	}
-	if condition.Pid != 0 {
-		sql = sql + " AND p.pid = ?"
-		params = append(params, condition.Pid)
 	}
 	if condition.Type != 0 {
 		sql = sql + " AND p.type = ?"
