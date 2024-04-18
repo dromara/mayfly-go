@@ -6,7 +6,6 @@ import "mayfly-go/pkg/model"
 type TagTreeTeam struct {
 	model.Model
 
-	TagId   uint64 `json:"tagId"`
-	TagPath string `json:"tagPath"`
-	TeamId  uint64 `json:"teamId"`
+	TagId  uint64 `json:"tagId"`
+	TeamId uint64 `json:"teamId"`
 }

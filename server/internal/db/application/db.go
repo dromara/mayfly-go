@@ -25,8 +25,6 @@ type Db interface {
 	// 分页获取
 	GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Count(condition *entity.DbQuery) int64
-
 	SaveDb(ctx context.Context, entity *entity.Db) error
 
 	// 删除数据库信息
@@ -62,10 +60,6 @@ func (d *dbAppImpl) InjectDbRepo(repo repository.Db) {
 // 分页获取数据库信息列表
 func (d *dbAppImpl) GetPageList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return d.GetRepo().GetDbList(condition, pageParam, toEntity, orderBy...)
-}
-
-func (d *dbAppImpl) Count(condition *entity.DbQuery) int64 {
-	return d.GetRepo().Count(condition)
 }
 
 func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
@@ -141,7 +135,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 			}
 		}
 		if authCert.Name != old.AuthCertName {
-			return d.tagApp.UpdateParentTagCode(ctx, tagentity.TagTypeDbName, old.Code, authCert.Name, authCert.Username)
+			return d.tagApp.ChangeParentTag(ctx, tagentity.TagTypeDbName, old.Code, tagentity.TagTypeDbAuthCert, authCert.Name)
 		}
 		return nil
 	})

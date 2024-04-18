@@ -15,6 +15,7 @@
                 @node-click="treeNodeClick"
                 @node-expand="treeNodeClick"
                 @node-contextmenu="nodeContextmenu"
+                :default-expanded-keys="props.defaultExpandedKeys"
             >
                 <template #default="{ node, data }">
                     <span @dblclick="treeNodeDblclick(data)" :class="data.type.nodeDblclickFunc ? 'none-select' : ''">
@@ -55,6 +56,9 @@ const props = defineProps({
     resourceType: {
         type: [Number],
         required: true,
+    },
+    defaultExpandedKeys: {
+        type: [Array],
     },
     tagPathNodeType: {
         type: [NodeType],

@@ -53,7 +53,6 @@ type teamAppImpl struct {
 	teamRepo        repository.Team        `inject:"TeamRepo"`
 	teamMemberRepo  repository.TeamMember  `inject:"TeamMemberRepo"`
 	tagTreeTeamRepo repository.TagTreeTeam `inject:"TagTreeTeamRepo"`
-	tagTreeApp      TagTree                `inject:"TagTreeApp"`
 }
 
 func (p *teamAppImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
@@ -103,13 +102,7 @@ func (p *teamAppImpl) Save(ctx context.Context, saveParam *SaveTeamParam) error 
 
 	addTeamTags := make([]*entity.TagTreeTeam, 0)
 	for _, v := range addIds {
-		tagId := v
-		tag, err := p.tagTreeApp.GetById(new(entity.TagTree), tagId)
-		if err != nil {
-			return errorx.NewBiz("存在非法标签id")
-		}
-
-		ptt := &entity.TagTreeTeam{TeamId: teamId, TagId: tagId, TagPath: tag.CodePath}
+		ptt := &entity.TagTreeTeam{TeamId: teamId, TagId: v}
 		addTeamTags = append(addTeamTags, ptt)
 	}
 	if len(addTeamTags) > 0 {

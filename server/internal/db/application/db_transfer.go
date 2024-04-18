@@ -96,15 +96,12 @@ func (app *dbTransferAppImpl) CreateLog(ctx context.Context, taskId uint64) (uin
 func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint64) {
 	task, err := app.GetById(new(entity.DbTransferTask), taskId)
 	if err != nil {
+		logx.Errorf("创建DBMS-执行数据迁移日志失败：%v", err)
 		return
 	}
 
 	start := time.Now()
 
-	if err != nil {
-		logx.Errorf("创建DBMS-执行数据迁移日志失败：%v", err)
-		return
-	}
 	defer app.logApp.Flush(logId, true)
 
 	// 修改状态与关联日志id

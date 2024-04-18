@@ -70,10 +70,6 @@ func (r *Redis) Save(rc *req.Ctx) {
 	form := &form.Redis{}
 	redis := req.BindJsonAndCopyTo[*entity.Redis](rc, form, new(entity.Redis))
 
-	// 密码脱敏记录日志
-	form.Password = "****"
-	rc.ReqParam = form
-
 	redisParam := &application.SaveRedisParam{
 		Redis:        redis,
 		TagCodePaths: form.TagCodePaths,
@@ -85,6 +81,10 @@ func (r *Redis) Save(rc *req.Ctx) {
 			Type:           tagentity.AuthCertTypePrivate,
 		},
 	}
+
+	// 密码脱敏记录日志
+	form.Password = "****"
+	rc.ReqParam = form
 
 	biz.ErrIsNil(r.RedisApp.SaveRedis(rc.MetaCtx, redisParam))
 }

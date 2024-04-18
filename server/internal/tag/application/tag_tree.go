@@ -74,8 +74,8 @@ type TagTree interface {
 	// UpdateTagName 根据标签类型与code更新对应标签名
 	UpdateTagName(ctx context.Context, tagType entity.TagType, tagCode string, tagName string) error
 
-	// UpdateParentTagCode 更新指定类型标签的所有父标签编号
-	UpdateParentTagCode(ctx context.Context, tagType entity.TagType, tagCode string, newParentCode string, newParentName string) error
+	// ChangeParentTag 变更指定类型标签的父标签
+	ChangeParentTag(ctx context.Context, tagType entity.TagType, tagCode string, parentTagType entity.TagType, newParentCode string) error
 
 	// DeleteTagByParam 删除标签，会删除该标签下所有子标签信息以及团队关联的标签信息
 	DeleteTagByParam(ctx context.Context, param *DelResourceTagParam) error
@@ -247,11 +247,9 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *SaveResourc
 		})
 	}
 
-	// 获取所有关联的子标签
+	// 获取所有关联的父标签
 	var parentTags []*entity.TagTree
-	p.ListByWheres(collx.M{
-		"code_path in ?": parentTagCodePaths,
-	}, &parentTags)
+	p.ListByWheres(collx.M{"code_path in ?": parentTagCodePaths}, &parentTags)
 	if len(parentTags) == 0 || len(parentTags) != len(parentTagCodePaths) {
 		return errorx.NewBiz("保存资源标签失败: 存在错误的关联标签")
 	}
@@ -293,11 +291,20 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *SaveResourc
 
 	if len(delCodePaths) > 0 {
 		logx.DebugfContext(ctx, "SaveResourceTag-删除标签[%v]", delCodePaths)
+
+		var delTagIds []uint64
+		for _, delCodePath := range delCodePaths {
+			delTag := oldCodePath2Tag[delCodePath]
+			if delTag != nil && delTag.Id != 0 {
+				delTagIds = append(delTagIds, delTag.Id)
+			}
+		}
+
 		// 删除team关联的标签
-		if err := p.tagTreeTeamRepo.DeleteByWheres(ctx, collx.M{"tag_path in ?": delCodePaths}); err != nil {
+		if err := p.tagTreeTeamRepo.DeleteByWheres(ctx, collx.M{"tag_id in ?": delTagIds}); err != nil {
 			return err
 		}
-		if err := p.DeleteByWheres(ctx, collx.M{"code_path in ?": delCodePaths}); err != nil {
+		if err := p.DeleteByWheres(ctx, collx.M{"id in ?": delTagIds}); err != nil {
 			return err
 		}
 	}
@@ -336,20 +343,18 @@ func (p *tagTreeAppImpl) UpdateTagName(ctx context.Context, tagType entity.TagTy
 	return p.UpdateByWheres(ctx, &entity.TagTree{Name: tagName}, collx.Kvs("code = ?", tagCode, "type = ?", tagType))
 }
 
-func (p *tagTreeAppImpl) UpdateParentTagCode(ctx context.Context, tagType entity.TagType, tagCode string, newParentCode string, newParentName string) error {
+func (p *tagTreeAppImpl) ChangeParentTag(ctx context.Context, tagType entity.TagType, tagCode string, parentTagType entity.TagType, newParentCode string) error {
 	// 获取资源编号对应的资源标签信息
 	var resourceTags []*entity.TagTree
 	p.ListByCond(&entity.TagTree{Type: tagType, Code: tagCode}, &resourceTags)
 	if len(resourceTags) == 0 {
-		logx.WarnfContext(ctx, "UpdateParentTagCode-[%d-%s]标签信息不存在", tagType, tagCode)
+		logx.WarnfContext(ctx, "ChangeParentTag-[%d-%s]标签信息不存在", tagType, tagCode)
 		return nil
 	}
 
-	// 获取该资源编号对应的所有父资源标签信息
-	var resourceParentTags []*entity.TagTree
-	p.ListByWheres(collx.Kvs("code_path in ?", collx.ArrayMap(resourceTags, func(tag *entity.TagTree) string {
-		return tag.GetParentPath(0)
-	})), &resourceParentTags)
+	if p.CountByCond(&entity.TagTree{Type: parentTagType, Code: newParentCode}) == 0 {
+		return errorx.NewBiz("该父标签不存在")
+	}
 
 	// 获取该资源编号对应的所有子资源标签信息
 	var resourceChildrenTags []*entity.TagTree
@@ -362,27 +367,16 @@ func (p *tagTreeAppImpl) UpdateParentTagCode(ctx context.Context, tagType entity
 		pathSection := entity.GetTagPathSections(tag.CodePath)
 		for i, ps := range pathSection {
 			if ps.Type == tagType && ps.Code == tagCode {
-				// 将父标签编号修改为对应的新编号
+				// 将父标签编号修改为对应的新编号与类型
 				pathSection[i-1].Code = newParentCode
+				pathSection[i-1].Type = parentTagType
 			}
 		}
-		tag.CodePath = pathSection.ToCodePath()
-		p.UpdateById(ctx, tag)
-	}
 
-	// 更新资源标签的code与codePath，貌似这段可以不用，先留着
-	for _, parentTag := range resourceParentTags {
-		pathSection := entity.GetTagPathSections(parentTag.CodePath)
-		pathSection[len(pathSection)-1].Code = newParentCode
-		newCodePath := pathSection.ToCodePath()
-		// 若新的父级标签路径已存在，则不更新该父标签，避免出现重复的标签路径
-		if p.CountByCond(&entity.TagTree{CodePath: newCodePath}) > 0 {
-			continue
+		tag.CodePath = pathSection.ToCodePath()
+		if err := p.UpdateById(ctx, tag); err != nil {
+			return err
 		}
-		parentTag.CodePath = newCodePath
-		parentTag.Code = newParentCode
-		parentTag.Name = newParentName
-		p.UpdateById(ctx, parentTag)
 	}
 
 	return nil
@@ -476,7 +470,7 @@ func (p *tagTreeAppImpl) FillTagInfo(resourceTagType entity.TagType, resources .
 
 	for _, tr := range tagResources {
 		// 赋值标签信息
-		resourceCode2Resouce[tr.Code].SetTagInfo(entity.ResourceTag{CodePath: tr.CodePath})
+		resourceCode2Resouce[tr.Code].SetTagInfo(entity.ResourceTag{CodePath: tr.GetTagPath()})
 	}
 }
 

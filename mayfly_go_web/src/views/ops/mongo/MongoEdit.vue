@@ -65,7 +65,6 @@ import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
 import { ResourceCodePattern } from '@/common/pattern';
-import { getTagPath } from '../component/tag';
 
 const props = defineProps({
     visible: {
@@ -160,7 +159,6 @@ const getReqForm = () => {
     if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }
-    reqForm.tagCodePaths = state.form.tagCodePaths.map((t: any) => getTagPath(t)) as any;
     return reqForm;
 };
 

@@ -302,11 +302,12 @@ const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
                 return new TagTreeNode(`${params.id}.${params.db}.schema.${sn}`, sn, NodeTypePostgresSchema).withParams(nParams).withIcon(SchemaIcon);
             });
         }
-        return NodeTypeTables(params);
+
+        return getNodeTypeTables(params);
     })
     .withNodeClickFunc(nodeClickChangeDb);
 
-const NodeTypeTables = (params: any) => {
+const getNodeTypeTables = (params: any) => {
     let tableKey = `${params.id}.${params.db}.table-menu`;
     let sqlKey = getSqlMenuNodeKey(params.id, params.db);
     return [
@@ -321,7 +322,7 @@ const NodeTypePostgresSchema = new NodeType(SqlExecNodeType.PgSchema)
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
         params.parentKey = parentNode.key;
-        return NodeTypeTables(params);
+        return getNodeTypeTables(params);
     })
     .withNodeClickFunc(nodeClickChangeDb);
 

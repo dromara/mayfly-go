@@ -36,7 +36,7 @@ CREATE TABLE `t_db` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
   `name` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
-  `database` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
+  `database` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL,
   `remark` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
   `instance_id` bigint unsigned NOT NULL,
   `auth_cert_name` varchar(36) NULL COMMENT '授权凭证名',
@@ -887,10 +887,9 @@ COMMIT;
 DROP TABLE IF EXISTS `t_tag_tree`;
 CREATE TABLE `t_tag_tree` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `pid` bigint(20) NOT NULL DEFAULT '0',
   `type` tinyint NOT NULL DEFAULT '-1' COMMENT '类型： -1.普通标签； 1机器  2db 3redis 4mongo',
   `code` varchar(36) NOT NULL COMMENT '标识符',
-  `code_path` varchar(555) NOT NULL COMMENT '标识符路径',
+  `code_path` varchar(800) NOT NULL COMMENT '标识符路径',
   `name` varchar(36) DEFAULT NULL COMMENT '名称',
   `remark` varchar(255) DEFAULT NULL,
   `create_time` datetime NOT NULL,
@@ -910,7 +909,7 @@ CREATE TABLE `t_tag_tree` (
 -- Records of t_tag_tree
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_tag_tree` VALUES (1, 0, -1, 'default', 'default/', '默认', '默认标签', '2022-10-26 20:04:19', 1, 'admin', '2022-10-26 20:04:19', 1, 'admin', 0, NULL);
+INSERT INTO `t_tag_tree` VALUES (1, -1, 'default', 'default/', '默认', '默认标签', '2022-10-26 20:04:19', 1, 'admin', '2022-10-26 20:04:19', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -920,7 +919,6 @@ DROP TABLE IF EXISTS `t_tag_tree_team`;
 CREATE TABLE `t_tag_tree_team` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `tag_id` bigint(20) NOT NULL COMMENT '项目树id',
-  `tag_path` varchar(255) DEFAULT NULL,
   `team_id` bigint(20) NOT NULL COMMENT '团队id',
   `create_time` datetime NOT NULL,
   `creator_id` bigint(20) NOT NULL,
@@ -938,7 +936,7 @@ CREATE TABLE `t_tag_tree_team` (
 -- Records of t_tag_tree_team
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_tag_tree_team` VALUES (1, 1, 'default/', 1, '2022-10-26 20:04:45', 1, 'admin', '2022-10-26 20:04:45', 1, 'admin', 0, NULL);
+INSERT INTO `t_tag_tree_team` VALUES (1, 1, 1, '2022-10-26 20:04:45', 1, 'admin', '2022-10-26 20:04:45', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------

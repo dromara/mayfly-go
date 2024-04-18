@@ -137,7 +137,6 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import ResourceAuthCertTableEdit from '../component/ResourceAuthCertTableEdit.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
-import { getTagPath } from '../component/tag';
 
 const props = defineProps({
     visible: {
@@ -213,7 +212,7 @@ const DefaultForm = {
     code: '',
     name: null,
     host: '',
-    port: null,
+    port: getDbDialect(DbType.mysql).getInfo().defaultPort,
     extra: '', // 连接需要的额外参数（json字符串）
     params: null,
     remark: '',
@@ -261,7 +260,6 @@ const getReqForm = async () => {
     if (!state.form.sshTunnelMachineId) {
         reqForm.sshTunnelMachineId = -1;
     }
-    reqForm.tagCodePaths = state.form.tagCodePaths.map((t: any) => getTagPath(t)) as any;
     if (Object.keys(state.extra).length > 0) {
         reqForm.extra = JSON.stringify(state.extra);
     }

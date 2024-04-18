@@ -171,29 +171,3 @@ export function getTagPathSearchItem(resourceType: number) {
         })
     );
 }
-
-/**
- * 根据codepath获取对应的tagPath
- * @param codePath codePath tag1/tag2/1|testmachien1/
- * @returns tagPath tag1/tag2/
- */
-export function getTagPath(codePath: string) {
-    // 以资源分隔符 "|" 对字符串进行分割
-    let parts = codePath.split('|');
-    if (parts.length < 2) {
-        return codePath;
-    }
-
-    // 从分割后的第一个子串中提取所需部分
-    let substringBeforeNumber = parts[0];
-
-    // 找到最后一个 "/" 的位置
-    let lastSlashIndex = substringBeforeNumber.lastIndexOf('/');
-
-    // 如果找到最后一个 "/" 符号，则截取子串
-    if (lastSlashIndex !== -1) {
-        return substringBeforeNumber.slice(0, lastSlashIndex + 1);
-    }
-
-    return codePath;
-}

@@ -139,7 +139,8 @@ FROM
 		and ttt.type = 21
 		and td.is_deleted = 0) as t1;
 
-UPDATE t_tag_tree SET is_deleted = 0, delete_time = NOW() WHERE `type` = 2;
+UPDATE t_tag_tree SET is_deleted = 1, delete_time = NOW() WHERE `type` = 2;
 UPDATE t_tag_tree SET `type` = 2 WHERE `type` = 100;
 
 ALTER TABLE t_tag_tree DROP COLUMN pid;
+ALTER TABLE t_tag_tree_team DROP COLUMN tag_path;

@@ -92,7 +92,6 @@ import { MachineProtocolEnum } from './enums';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { ResourceCodePattern } from '@/common/pattern';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { getTagPath } from '../component/tag';
 
 const props = defineProps({
     visible: {
@@ -186,7 +185,8 @@ const { isFetching: saveBtnLoading, execute: saveMachineExec } = machineApi.save
 watchEffect(() => {
     state.dialogVisible = props.visible;
     if (!state.dialogVisible) {
-        state.form = defaultForm;
+        state.form = { ...defaultForm };
+        state.form.authCerts = [];
         return;
     }
     const machine: any = props.machine;
@@ -236,7 +236,6 @@ const getReqForm = () => {
     if (!state.form.sshTunnelMachineId || state.form.sshTunnelMachineId <= 0) {
         reqForm.sshTunnelMachineId = -1;
     }
-    reqForm.tagCodePaths = state.form.tagCodePaths.map((t: any) => getTagPath(t)) as any;
     return reqForm;
 };
 

@@ -34,6 +34,8 @@ func (r *ResourceAuthCert) ListByQuery(rc *req.Ctx) {
 func (r *ResourceAuthCert) GetCompleteAuthCert(rc *req.Ctx) {
 	acName := rc.Query("name")
 	biz.NotEmpty(acName, "授权凭证名不能为空")
+	rc.ReqParam = acName
+
 	res := &entity.ResourceAuthCert{Name: acName}
 	err := r.ResourceAuthCertApp.GetBy(res)
 	biz.ErrIsNil(err)

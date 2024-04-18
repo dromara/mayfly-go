@@ -34,7 +34,6 @@
 <script lang="ts" setup>
 import { toRefs, reactive, onMounted } from 'vue';
 import { tagApi } from '../tag/api';
-import { getTagPath } from './tag';
 
 //定义事件
 const emit = defineEmits(['update:modelValue', 'changeTag', 'input']);
@@ -54,10 +53,7 @@ const state = reactive({
 const { tags } = toRefs(state);
 
 onMounted(async () => {
-    if (props.selectTags) {
-        state.selectTags = props.selectTags.map((item: any) => getTagPath(item));
-    }
-
+    state.selectTags = props.selectTags;
     state.tags = await tagApi.getTagTrees.request({ type: -1 });
 });
 

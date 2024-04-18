@@ -33,8 +33,6 @@ type Instance interface {
 	// GetPageList 分页获取数据库实例
 	GetPageList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Count(condition *entity.InstanceQuery) int64
-
 	TestConn(instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error
 
 	SaveDbInstance(ctx context.Context, instance *SaveDbInstanceParam) (uint64, error)
@@ -67,10 +65,6 @@ func (app *instanceAppImpl) InjectDbInstanceRepo(repo repository.Instance) {
 // GetPageList 分页获取数据库实例
 func (app *instanceAppImpl) GetPageList(condition *entity.InstanceQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return app.GetRepo().GetInstanceList(condition, pageParam, toEntity, orderBy...)
-}
-
-func (app *instanceAppImpl) Count(condition *entity.InstanceQuery) int64 {
-	return app.CountByCond(condition)
 }
 
 func (app *instanceAppImpl) TestConn(instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error {
