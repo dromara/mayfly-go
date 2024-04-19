@@ -244,6 +244,10 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 	biz.ErrIsNil(err)
 
 	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
+	if err = req.PermissionHandler(rc); err != nil {
+		panic(errorx.NewBiz("\033[1;31m您没有权限操作该机器终端,请重新登录后再试~\033[0m"))
+	}
+
 	ac := GetMachineAc(rc)
 
 	mi, err := m.MachineApp.ToMachineInfoByAc(ac)
@@ -293,7 +297,7 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 		}
 	}
 
-	tunnel, err := guac.DoConnect(query, params, ac)
+	tunnel, err := guac.DoConnect(query, params, rc.GetLoginAccount().Username)
 	if err != nil {
 		return
 	}

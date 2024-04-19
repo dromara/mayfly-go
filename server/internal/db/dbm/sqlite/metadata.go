@@ -216,8 +216,8 @@ func (sd *SqliteMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tab
 		// 创建前尝试删除
 		sqls = append(sqls, fmt.Sprintf("DROP INDEX IF EXISTS \"%s\"", index.IndexName))
 
-		sqlTmp := "CREATE %s INDEX %s ON \"%s\" (%s) "
-		sqls = append(sqls, fmt.Sprintf(sqlTmp, unique, index.IndexName, tableInfo.TableName, strings.Join(colNames, ",")))
+		sqlTmp := "CREATE %s INDEX %s ON %s (%s) "
+		sqls = append(sqls, fmt.Sprintf(sqlTmp, unique, meta.QuoteIdentifier(index.IndexName), meta.QuoteIdentifier(tableInfo.TableName), strings.Join(colNames, ",")))
 	}
 	return sqls
 }

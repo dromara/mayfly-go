@@ -228,7 +228,7 @@ func (dd *DMMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Table) 
 			colNames[i] = meta.QuoteIdentifier(name)
 		}
 
-		sqls = append(sqls, fmt.Sprintf("create %s index %s on %s(%s)", unique, index.IndexName, meta.QuoteIdentifier(tableInfo.TableName), strings.Join(colNames, ",")))
+		sqls = append(sqls, fmt.Sprintf("create %s index %s on %s(%s)", unique, meta.QuoteIdentifier(index.IndexName), meta.QuoteIdentifier(tableInfo.TableName), strings.Join(colNames, ",")))
 	}
 	return sqls
 }

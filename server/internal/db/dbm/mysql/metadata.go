@@ -194,7 +194,7 @@ func (md *MysqlMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tabl
 			colNames[i] = meta.QuoteIdentifier(name)
 		}
 		sqlTmp := "ALTER TABLE %s ADD %s INDEX %s(%s) USING BTREE"
-		sqlStr := fmt.Sprintf(sqlTmp, meta.QuoteIdentifier(tableInfo.TableName), unique, index.IndexName, strings.Join(colNames, ","))
+		sqlStr := fmt.Sprintf(sqlTmp, meta.QuoteIdentifier(tableInfo.TableName), unique, meta.QuoteIdentifier(index.IndexName), strings.Join(colNames, ","))
 		comment := meta.QuoteEscape(index.IndexComment)
 		if comment != "" {
 			sqlStr += fmt.Sprintf(" COMMENT '%s'", comment)

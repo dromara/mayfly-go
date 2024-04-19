@@ -52,6 +52,7 @@ import { useEventListener } from '@vueuse/core';
 import { debounce } from 'lodash';
 import { ClientState, TunnelState } from '@/components/terminal-rdp/guac/states';
 import { ElMessage } from 'element-plus';
+import { joinClientParams } from '@/common/request';
 
 const viewportRef = ref({} as any);
 const displayRef = ref({} as any);
@@ -180,7 +181,7 @@ const installDisplay = () => {
         }
         e.returnValue = false;
     });
-    state.client.connect('width=' + width + '&height=' + height + '&force=' + force);
+    state.client.connect('width=' + width + '&height=' + height + '&force=' + force + '&' + joinClientParams());
     window.onunload = () => state.client.disconnect();
 
     // allows focusing on the display div so that keyboard doesn't always go to session

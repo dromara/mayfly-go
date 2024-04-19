@@ -195,7 +195,7 @@ func (pd *PgsqlMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tabl
 			colNames[i] = meta.QuoteIdentifier(name)
 		}
 		// 创建索引
-		creates = append(creates, fmt.Sprintf("CREATE %s INDEX %s on %s.%s(%s)", unique, index.IndexName, pd.dc.Info.CurrentSchema(), tableInfo.TableName, strings.Join(colNames, ",")))
+		creates = append(creates, fmt.Sprintf("CREATE %s INDEX %s on %s.%s(%s)", unique, meta.QuoteIdentifier(index.IndexName), meta.QuoteIdentifier(pd.dc.Info.CurrentSchema()), meta.QuoteIdentifier(tableInfo.TableName), strings.Join(colNames, ",")))
 		if index.IndexComment != "" {
 			comment := meta.QuoteEscape(index.IndexComment)
 			comments = append(comments, fmt.Sprintf("COMMENT ON INDEX %s.%s IS '%s'", pd.dc.Info.CurrentSchema(), index.IndexName, comment))

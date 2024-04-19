@@ -16,7 +16,7 @@ import (
 )
 
 // creates the tunnel to the remote machine (via guacd)
-func DoConnect(query url.Values, parameters map[string]string, ac string) (Tunnel, error) {
+func DoConnect(query url.Values, parameters map[string]string, username string) (Tunnel, error) {
 	conf := NewGuacamoleConfiguration()
 
 	parameters["client-name"] = "mayfly"
@@ -34,7 +34,7 @@ func DoConnect(query url.Values, parameters map[string]string, ac string) (Tunne
 	parameters["enable-drive"] = "true"
 	parameters["drive-name"] = "Filesystem"
 	parameters["create-drive-path"] = "true"
-	parameters["drive-path"] = fmt.Sprintf("/rdp-file/%s", ac)
+	parameters["drive-path"] = fmt.Sprintf("/rdp-file/%s", username)
 
 	conf.Protocol = parameters["scheme"]
 	conf.Parameters = parameters

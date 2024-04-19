@@ -248,7 +248,7 @@ func (md *MssqlMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tabl
 			colNames[i] = meta.QuoteIdentifier(name)
 		}
 
-		sqls = append(sqls, fmt.Sprintf("create %s NONCLUSTERED index %s on %s.%s(%s)", unique, index.IndexName, meta.QuoteIdentifier(md.dc.Info.CurrentSchema()), meta.QuoteIdentifier(tbName), strings.Join(colNames, ",")))
+		sqls = append(sqls, fmt.Sprintf("create %s NONCLUSTERED index %s on %s.%s(%s)", unique, meta.QuoteIdentifier(index.IndexName), meta.QuoteIdentifier(md.dc.Info.CurrentSchema()), meta.QuoteIdentifier(tbName), strings.Join(colNames, ",")))
 		if index.IndexComment != "" {
 			comment := meta.QuoteEscape(index.IndexComment)
 			comments = append(comments, fmt.Sprintf("EXECUTE sp_addextendedproperty N'MS_Description', N'%s', N'SCHEMA', N'%s', N'TABLE', N'%s', N'INDEX', N'%s'", comment, md.dc.Info.CurrentSchema(), tbName, index.IndexName))

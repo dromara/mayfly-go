@@ -213,7 +213,7 @@ func (od *OracleMetaData) GenerateIndexDDL(indexs []dbi.Index, tableInfo dbi.Tab
 			colNames[i] = meta.QuoteIdentifier(name)
 		}
 
-		sqls = append(sqls, fmt.Sprintf("CREATE %s INDEX %s ON %s(%s)", unique, index.IndexName, meta.QuoteIdentifier(tableInfo.TableName), strings.Join(colNames, ",")))
+		sqls = append(sqls, fmt.Sprintf("CREATE %s INDEX %s ON %s(%s)", unique, meta.QuoteIdentifier(index.IndexName), meta.QuoteIdentifier(tableInfo.TableName), strings.Join(colNames, ",")))
 	}
 
 	sqlArr := make([]string, 0)
