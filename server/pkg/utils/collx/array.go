@@ -93,9 +93,13 @@ func ArraySplit[T any](arr []T, numGroups int) [][]T {
 		numGroups = len(arr)
 	}
 
+	arrayLen := len(arr)
+	if arrayLen < 1 {
+		return [][]T{}
+	}
 	// 计算每个子数组的大小
-	size := len(arr) / numGroups
-	remainder := len(arr) % numGroups
+	size := arrayLen / numGroups
+	remainder := arrayLen % numGroups
 
 	// 创建一个存放子数组的切片
 	subArrays := make([][]T, numGroups)
