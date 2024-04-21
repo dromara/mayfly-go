@@ -20,44 +20,48 @@ type TagTree struct {
 
 func (p *TagTree) GetTagTree(rc *req.Ctx) {
 	tagType := entity.TagType(rc.QueryInt("type"))
-	// 超管返回所有标签树
-	if rc.GetLoginAccount().Id == consts.AdminId {
-		var tagTrees vo.TagTreeVOS
-		p.TagTreeApp.ListByQuery(&entity.TagTreeQuery{Type: tagType}, &tagTrees)
-		rc.ResData = tagTrees.ToTrees(0)
+	accountTags := p.TagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &entity.TagTreeQuery{Type: tagType})
+	if len(accountTags) == 0 {
+		rc.ResData = []any{}
 		return
 	}
 
-	// 获取用户可以操作访问的标签路径
-	tagPaths := p.TagTreeApp.ListTagByAccountId(rc.GetLoginAccount().Id)
-
-	rootTag := make(map[string][]string, 0)
-	for _, accountTagPath := range tagPaths {
-		root := strings.Split(accountTagPath, "/")[0] + entity.CodePathSeparator
-		tags := rootTag[root]
-		tags = append(tags, accountTagPath)
-		rootTag[root] = tags
-	}
-
-	// 获取所有以root标签开头的子标签
-	var tags []*entity.TagTree
-	p.TagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePathLikes: collx.MapKeys(rootTag), Type: tagType}, &tags)
-
+	allTags := p.complteTags(accountTags)
 	tagTrees := make(vo.TagTreeVOS, 0)
-	for _, tag := range tags {
-		tagPath := tag.CodePath
-		root := strings.Split(tagPath, "/")[0] + entity.CodePathSeparator
-		// 获取用户可操作的标签路径列表
-		accountTagPaths := rootTag[root]
-		for _, accountTagPath := range accountTagPaths {
-			if strings.HasPrefix(tagPath, accountTagPath) || strings.HasPrefix(accountTagPath, tagPath) {
-				tagTrees = append(tagTrees, tag)
-				break
-			}
+	for _, tag := range allTags {
+		tagTrees = append(tagTrees, tag)
+	}
+	rc.ResData = tagTrees.ToTrees(0)
+}
+
+// complteTags 补全标签信息，使其能构造为树结构
+func (p *TagTree) complteTags(resourceTags []*entity.TagTree) []*entity.TagTree {
+	codePath2Tag := collx.ArrayToMap(resourceTags, func(tag *entity.TagTree) string {
+		return tag.CodePath
+	})
+
+	// 如tagPath = tag1/tag2/tag3/ 需要转为该路径所关联的所有标签路径即 tag1/  tag1/tag2/  tag1/tag2/tag3/三个相关联标签，才可以构造成一棵树
+	allTagPaths := make([]string, 0)
+	for _, tagPath := range collx.MapKeys(codePath2Tag) {
+		allTagPaths = append(allTagPaths, entity.GetAllCodePath(tagPath)...)
+	}
+	allTagPaths = collx.ArrayDeduplicate(allTagPaths)
+
+	notExistCodePaths := make([]string, 0)
+	for _, tagPath := range allTagPaths {
+		if _, ok := codePath2Tag[tagPath]; !ok {
+			notExistCodePaths = append(notExistCodePaths, tagPath)
 		}
 	}
+	// 未存在需要补全的标签信息，则返回
+	if len(notExistCodePaths) == 0 {
+		return resourceTags
+	}
 
-	rc.ResData = tagTrees.ToTrees(0)
+	var tags []*entity.TagTree
+	p.TagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePaths: notExistCodePaths}, &tags)
+	// 完善需要补充的标签信息
+	return append(resourceTags, tags...)
 }
 
 func (p *TagTree) ListByQuery(rc *req.Ctx) {
@@ -80,6 +84,13 @@ func (p *TagTree) SaveTagTree(rc *req.Ctx) {
 
 func (p *TagTree) DelTagTree(rc *req.Ctx) {
 	biz.ErrIsNil(p.TagTreeApp.Delete(rc.MetaCtx, uint64(rc.PathParamInt("id"))))
+}
+
+func (p *TagTree) MovingTag(rc *req.Ctx) {
+	movingForm := &form.MovingTag{}
+	req.BindJsonAndValid(rc, movingForm)
+	rc.ReqParam = movingForm
+	biz.ErrIsNil(p.TagTreeApp.MovingTag(rc.MetaCtx, movingForm.FromPath, movingForm.ToPath))
 }
 
 // 获取用户可操作的标签路径

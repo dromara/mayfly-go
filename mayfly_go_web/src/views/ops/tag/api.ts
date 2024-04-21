@@ -5,6 +5,7 @@ export const tagApi = {
     getTagTrees: Api.newGet('/tag-trees'),
     saveTagTree: Api.newPost('/tag-trees'),
     delTagTree: Api.newDelete('/tag-trees/{id}'),
+    movingTag: Api.newPost('/tag-trees/moving'),
 
     getResourceTagPaths: Api.newGet('/tag-trees/resources/{resourceType}/tag-paths'),
     countTagResource: Api.newGet('/tag-trees/resources/count'),

@@ -7,3 +7,8 @@ type TagTree struct {
 
 	Pid uint64 `json:"pid"`
 }
+
+type MovingTag struct {
+	FromPath string `json:"fromPath" binding:"required"`
+	ToPath   string `json:"toPath" binding:"required"`
+}

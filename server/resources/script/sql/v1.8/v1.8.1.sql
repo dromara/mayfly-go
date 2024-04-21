@@ -144,3 +144,7 @@ UPDATE t_tag_tree SET `type` = 2 WHERE `type` = 100;
 
 ALTER TABLE t_tag_tree DROP COLUMN pid;
 ALTER TABLE t_tag_tree_team DROP COLUMN tag_path;
+
+-- 新增记录执行命令字段
+ALTER TABLE t_machine_term_op ADD exec_cmds TEXT NULL COMMENT '执行的命令记录';
+ALTER TABLE t_machine_term_op CHANGE exec_cmds exec_cmds TEXT NULL COMMENT '执行的命令记录' AFTER record_file_path;

@@ -77,6 +77,9 @@ type TagTree interface {
 	// ChangeParentTag 变更指定类型标签的父标签
 	ChangeParentTag(ctx context.Context, tagType entity.TagType, tagCode string, parentTagType entity.TagType, newParentCode string) error
 
+	// MovingTag 移动标签
+	MovingTag(ctx context.Context, fromTagPath string, toTagPath string) error
+
 	// DeleteTagByParam 删除标签，会删除该标签下所有子标签信息以及团队关联的标签信息
 	DeleteTagByParam(ctx context.Context, param *DelResourceTagParam) error
 
@@ -300,13 +303,7 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *SaveResourc
 			}
 		}
 
-		// 删除team关联的标签
-		if err := p.tagTreeTeamRepo.DeleteByWheres(ctx, collx.M{"tag_id in ?": delTagIds}); err != nil {
-			return err
-		}
-		if err := p.DeleteByWheres(ctx, collx.M{"id in ?": delTagIds}); err != nil {
-			return err
-		}
+		return p.deleteByIds(ctx, delTagIds)
 	}
 
 	return nil
@@ -382,6 +379,34 @@ func (p *tagTreeAppImpl) ChangeParentTag(ctx context.Context, tagType entity.Tag
 	return nil
 }
 
+func (p *tagTreeAppImpl) MovingTag(ctx context.Context, fromTagPath string, toTagPath string) error {
+	fromTag := &entity.TagTree{CodePath: fromTagPath}
+	if err := p.GetBy(fromTag); err != nil {
+		return errorx.NewBiz("移动标签不存在")
+	}
+
+	toTag := &entity.TagTree{CodePath: toTagPath}
+	if err := p.GetBy(toTag); err != nil {
+		return errorx.NewBiz("目标标签不存在")
+	}
+
+	// 获取要移动标签的所有子标签
+	var childrenTags []*entity.TagTree
+	p.ListByQuery(&entity.TagTreeQuery{CodePathLike: fromTagPath}, &childrenTags)
+
+	// 获取父路径, 若fromTagPath=tag1/tag2/1|xxx则返回 tag1/tag2/
+	fromParentPath := entity.GetParentPath(fromTagPath, 0)
+	for _, childTag := range childrenTags {
+		// 替换path，若childPath = tag1/tag2/1|xxx/11|yyy, toTagPath=tag3/tag4则替换为tag3/tag4/1|xxx/11|yyy/
+		childTag.CodePath = strings.Replace(childTag.CodePath, fromParentPath, toTagPath, 1)
+		if err := p.UpdateById(ctx, childTag); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *DelResourceTagParam) error {
 	// 获取资源编号对应的资源标签信息
 	var resourceTags []*entity.TagTree
@@ -410,16 +435,7 @@ func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *DelResourc
 			return item.Id
 		})
 		// 删除code_path下的所有子标签
-		if err := p.DeleteByWheres(ctx, collx.M{
-			"id in ?": childrenTagIds,
-		}); err != nil {
-			return err
-		}
-
-		// 删除team关联的标签
-		if err := p.tagTreeTeamRepo.DeleteByWheres(ctx, collx.M{"tag_id in ?": childrenTagIds}); err != nil {
-			return err
-		}
+		return p.deleteByIds(ctx, childrenTagIds)
 	}
 
 	return nil
@@ -484,13 +500,8 @@ func (p *tagTreeAppImpl) Delete(ctx context.Context, id uint64) error {
 		return errorx.NewBiz("您无权删除该标签")
 	}
 
-	return p.Tx(ctx, func(ctx context.Context) error {
-		return p.DeleteTagByParam(ctx, &DelResourceTagParam{
-			Id: id,
-		})
-	}, func(ctx context.Context) error {
-		// 删除该标签关联的团队信息
-		return p.tagTreeTeamRepo.DeleteByCond(ctx, &entity.TagTreeTeam{TagId: id})
+	return p.DeleteTagByParam(ctx, &DelResourceTagParam{
+		Id: id,
 	})
 }
 
@@ -532,4 +543,15 @@ func (p *tagTreeAppImpl) toTags(parentTags []*entity.TagTree, param *ResourceTag
 	}
 
 	return tags
+}
+
+func (p *tagTreeAppImpl) deleteByIds(ctx context.Context, tagIds []uint64) error {
+	if err := p.DeleteByWheres(ctx, collx.M{
+		"id in ?": tagIds,
+	}); err != nil {
+		return err
+	}
+
+	// 删除team关联的标签
+	return p.tagTreeTeamRepo.DeleteByWheres(ctx, collx.M{"tag_id in ?": tagIds})
 }

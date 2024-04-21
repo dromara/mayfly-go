@@ -6,12 +6,10 @@ type TagTreeQuery struct {
 	model.Model
 
 	Type          TagType `json:"type"`
-	Code          string  `json:"code"` // 标识
 	Codes         []string
-	CodePath      string `json:"codePath"` // 标识路径
-	CodePaths     []string
-	Name          string `json:"name"` // 名称
-	CodePathLike  string // 标识符路径模糊查询
+	CodePaths     []string // 标识路径
+	Name          string   `json:"name"` // 名称
+	CodePathLike  string   // 标识符路径模糊查询
 	CodePathLikes []string
 }
 

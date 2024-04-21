@@ -6,12 +6,13 @@
             :before-close="handleClose"
             :close-on-click-modal="false"
             :destroy-on-close="true"
-            width="800"
+            width="1000"
             @open="getTermOps()"
         >
             <page-table ref="pageTableRef" :page-api="machineApi.termOpRecs" :lazy="true" height="100%" v-model:query-form="query" :columns="columns">
                 <template #action="{ data }">
                     <el-button @click="playRec(data)" loading-icon="loading" :loading="data.playRecLoding" type="primary" link>回放</el-button>
+                    <el-button @click="showExecCmds(data)" type="primary" link>命令</el-button>
                 </template>
             </page-table>
         </el-dialog>
@@ -26,6 +27,17 @@
         >
             <div ref="playerRef" id="rc-player"></div>
         </el-dialog>
+
+        <el-dialog :title="title" v-model="execCmdsDialogVisible" :close-on-click-modal="false" :destroy-on-close="true" width="500">
+            <el-table :data="state.execCmds" max-height="480" stripe size="small">
+                <el-table-column prop="cmd" label="命令" show-overflow-tooltip min-width="150px"> </el-table-column>
+                <el-table-column prop="time" label="执行时间" min-width="80" show-overflow-tooltip>
+                    <template #default="scope">
+                        {{ dateFormat(new Date(scope.row.time * 1000).toString()) }}
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-dialog>
     </div>
 </template>
 
@@ -36,6 +48,7 @@ import * as AsciinemaPlayer from 'asciinema-player';
 import 'asciinema-player/dist/bundle/asciinema-player.css';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
+import { dateFormat } from '@/common/utils/date';
 
 const props = defineProps({
     visible: { type: Boolean },
@@ -50,7 +63,7 @@ const columns = [
     TableColumn.new('createTime', '开始时间').isTime().setMinWidth(150),
     TableColumn.new('endTime', '结束时间').isTime().setMinWidth(150),
     TableColumn.new('recordFilePath', '文件路径').setMinWidth(200),
-    TableColumn.new('action', '操作').isSlot().setMinWidth(60).fixedRight().alignCenter(),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(120).fixedRight().alignCenter(),
 ];
 
 const playerRef = ref(null);
@@ -63,11 +76,12 @@ const state = reactive({
         pageSize: 10,
         machineId: 0,
     },
-
     playerDialogVisible: false,
+    execCmdsDialogVisible: false,
+    execCmds: [],
 });
 
-const { dialogVisible, query, playerDialogVisible } = toRefs(state);
+const { dialogVisible, query, playerDialogVisible, execCmdsDialogVisible } = toRefs(state);
 
 watch(props, async (newValue: any) => {
     const visible = newValue.visible;
@@ -80,6 +94,11 @@ watch(props, async (newValue: any) => {
 
 const getTermOps = async () => {
     pageTableRef.value.search();
+};
+
+const showExecCmds = (data: any) => {
+    state.execCmds = JSON.parse(data.execCmds);
+    state.execCmdsDialogVisible = true;
 };
 
 let player: any = null;

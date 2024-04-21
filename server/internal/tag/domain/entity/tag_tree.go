@@ -51,23 +51,7 @@ func (pt *TagTree) IsRoot() bool {
 
 // GetParentPath 获取父标签路径, 如CodePath = test/test1/test2/  -> index = 0 => test/test1/  index = 1 => test/
 func (pt *TagTree) GetParentPath(index int) string {
-	// 去除末尾的斜杠
-	codePath := strings.TrimSuffix(pt.CodePath, "/")
-
-	// 使用 Split 方法将路径按斜杠分割成切片
-	paths := strings.Split(codePath, "/")
-
-	// 确保索引在有效范围内
-	if index < 0 {
-		index = 0
-	} else if index > len(paths)-2 {
-		index = len(paths) - 2
-	}
-
-	// 按索引拼接父标签路径
-	parentPath := strings.Join(paths[:len(paths)-index-1], "/")
-
-	return parentPath + "/"
+	return GetParentPath(pt.CodePath, index)
 }
 
 // GetTagPath 获取标签段路径，不获取对应资源相关路径
@@ -139,6 +123,45 @@ func GetCodeByPath(tagType TagType, codePaths ...string) []string {
 	}
 
 	return collx.ArrayDeduplicate[string](codes)
+}
+
+// GetParentPath 获取父标签路径, 如CodePath = test/test1/test2/  -> index = 0 => test/test1/  index = 1 => test/
+func GetParentPath(codePath string, index int) string {
+	// 去除末尾的斜杠
+	codePath = strings.TrimSuffix(codePath, CodePathSeparator)
+
+	// 使用 Split 方法将路径按斜杠分割成切片
+	paths := strings.Split(codePath, CodePathSeparator)
+
+	// 确保索引在有效范围内
+	if index < 0 {
+		index = 0
+	} else if index > len(paths)-2 {
+		index = len(paths) - 2
+	}
+
+	// 按索引拼接父标签路径
+	parentPath := strings.Join(paths[:len(paths)-index-1], CodePathSeparator)
+
+	return parentPath + CodePathSeparator
+}
+
+// GetAllCodePath 根据表情路径获取所有相关的标签codePath
+func GetAllCodePath(codePath string) []string {
+	// 去除末尾的斜杠
+	codePath = strings.TrimSuffix(codePath, CodePathSeparator)
+
+	// 使用 Split 方法将路径按斜杠分割成切片
+	paths := strings.Split(codePath, CodePathSeparator)
+
+	var result []string
+	var partialPath string
+	for _, path := range paths {
+		partialPath += path + CodePathSeparator
+		result = append(result, partialPath)
+	}
+
+	return result
 }
 
 // TagPathSection 标签路径段

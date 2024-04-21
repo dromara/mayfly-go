@@ -34,6 +34,7 @@
 <script lang="ts" setup>
 import { toRefs, reactive, onMounted } from 'vue';
 import { tagApi } from '../tag/api';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 //定义事件
 const emit = defineEmits(['update:modelValue', 'changeTag', 'input']);
@@ -41,6 +42,10 @@ const emit = defineEmits(['update:modelValue', 'changeTag', 'input']);
 const props = defineProps({
     selectTags: {
         type: [Array<any>],
+    },
+    tagType: {
+        type: Number,
+        default: TagResourceTypeEnum.Tag.value,
     },
 });
 
@@ -54,7 +59,7 @@ const { tags } = toRefs(state);
 
 onMounted(async () => {
     state.selectTags = props.selectTags;
-    state.tags = await tagApi.getTagTrees.request({ type: -1 });
+    state.tags = await tagApi.getTagTrees.request({ type: props.tagType });
 });
 
 const changeTag = () => {

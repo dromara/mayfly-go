@@ -37,6 +37,10 @@
                         @node-contextmenu="nodeContextmenu"
                         @node-click="treeNodeClick"
                         :default-expanded-keys="defaultExpandedKeys"
+                        draggable
+                        :allow-drop="allowDrop"
+                        :allow-drag="allowDrag"
+                        @node-drop="handleDrop"
                         :expand-on-click-node="false"
                         :filter-node-method="filterNode"
                     >
@@ -264,6 +268,82 @@ watch(
         setNowTabData();
     }
 );
+
+const allowDrop = (draggingNode: any, dropNode: any, type: any) => {
+    // 不允许同层级移动
+    if (type != 'inner') {
+        return false;
+    }
+
+    const dropNodeData = dropNode.data;
+    const draggingNodeData = draggingNode.data;
+    const dropTagType = dropNodeData.type;
+    const draggingTagType = draggingNodeData.type;
+
+    // 目标节点只允许为标签类型
+    if (dropTagType != TagResourceTypeEnum.Tag.value) {
+        return false;
+    }
+
+    // 目标节点下没有子节点
+    if (!dropNodeData.children) {
+        // 都为标签类型允许移动
+        if (dropTagType == draggingTagType && dropTagType == TagResourceTypeEnum.Tag.value) {
+            return true;
+        }
+
+        // 目标节点为标签，允许移动
+        if (dropTagType == TagResourceTypeEnum.Tag.value) {
+            return true;
+        }
+
+        return false;
+    }
+
+    for (let child of dropNodeData.children) {
+        // 当前移动节点若在目标节点下有相同code，则不允许移动
+        if (draggingNodeData.code == child.code) {
+            return false;
+        }
+
+        const childType = child.type;
+        // 移动节点非标签类型时（资源标签）,并且子节点存在标签类型，则不允许移动，因为资源只允许放在叶子标签类型下
+        if (draggingTagType != TagResourceTypeEnum.Tag.value && childType == TagResourceTypeEnum.Tag.value) {
+            return false;
+        }
+
+        // 移动节点为标签类型时（资源标签）,并且子节点存在资源类型，则不允许移动
+        if (draggingTagType == TagResourceTypeEnum.Tag.value && childType != TagResourceTypeEnum.Tag.value) {
+            return false;
+        }
+    }
+    return true;
+};
+
+const allowDrag = (node: any) => {
+    const tagType = node.data.type;
+    return (
+        tagType == TagResourceTypeEnum.Tag.value ||
+        tagType == TagResourceTypeEnum.Db.value ||
+        tagType == TagResourceTypeEnum.Redis.value ||
+        tagType == TagResourceTypeEnum.Machine.value ||
+        tagType == TagResourceTypeEnum.Mongo.value
+    );
+};
+
+const handleDrop = async (draggingNode: any, dropNode: any) => {
+    const draggingData = draggingNode.data;
+    const dropData = dropNode.data;
+
+    try {
+        await tagApi.movingTag.request({
+            fromPath: draggingData.codePath,
+            toPath: dropData.codePath,
+        });
+    } finally {
+        search();
+    }
+};
 
 const parseTagPath = (tagPath: string) => {
     if (!tagPath) {

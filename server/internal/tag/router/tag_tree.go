@@ -26,6 +26,8 @@ func InitTagTreeRouter(router *gin.RouterGroup) {
 
 			req.NewDelete(":id", m.DelTagTree).Log(req.NewLogSave("标签树-删除信息")).RequiredPermissionCode("tag:del"),
 
+			req.NewPost("/moving", m.MovingTag).Log(req.NewLogSave("标签树-移动标签")).RequiredPermissionCode("tag:save"),
+
 			req.NewGet("/resources/:rtype/tag-paths", m.TagResources),
 
 			req.NewGet("/resources/count", m.CountTagResource),

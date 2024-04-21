@@ -8,7 +8,8 @@ import (
 )
 
 type Terminal struct {
-	SshSession   *ssh.Session
+	SshSession *ssh.Session
+
 	StdinPipe    io.WriteCloser
 	StdoutReader *bufio.Reader
 }
@@ -44,7 +45,7 @@ func (t *Terminal) Write(p []byte) (int, error) {
 	return t.StdinPipe.Write(p)
 }
 
-func (t *Terminal) ReadRune() (r rune, size int, err error) {
+func (t *Terminal) ReadRune() (rune, int, error) {
 	return t.StdoutReader.ReadRune()
 }
 

@@ -13,6 +13,7 @@ import (
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
+	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
 	"os"
 	"path"
@@ -76,7 +77,24 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 		recorder = mcm.NewRecorder(f)
 	}
 
-	mts, err := mcm.NewTerminalSession(stringx.Rand(16), wsConn, cli, rows, cols, recorder)
+	createTsParam := &mcm.CreateTerminalSessionParam{
+		SessionId: stringx.Rand(16),
+		Cli:       cli,
+		WsConn:    wsConn,
+		Rows:      rows,
+		Cols:      cols,
+		Recorder:  recorder,
+		LogCmd:    cli.Info.EnableRecorder == 1,
+	}
+
+	// createTsParam.CmdFilterFuncs = []mcm.CmdFilterFunc{func(cmd string) error {
+	// 	if strings.HasPrefix(cmd, "rm") {
+	// 		return errorx.NewBiz("该命令已被禁用...")
+	// 	}
+	// 	return nil
+	// }}
+
+	mts, err := mcm.NewTerminalSession(createTsParam)
 	if err != nil {
 		return err
 	}
@@ -87,6 +105,7 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 	if termOpRecord != nil {
 		now := time.Now()
 		termOpRecord.EndTime = &now
+		termOpRecord.ExecCmds = jsonx.ToStr(mts.GetExecCmds())
 		return m.Insert(ctx, termOpRecord)
 	}
 	return nil
