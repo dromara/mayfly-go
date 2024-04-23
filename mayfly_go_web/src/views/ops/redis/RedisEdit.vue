@@ -223,7 +223,8 @@ watchEffect(() => {
         state.form.tagCodePaths = redis.tags.map((t: any) => t.codePath);
         convertDb(state.form.db);
     } else {
-        state.form = { db: '0' } as any;
+        state.form = { db: '0', tagCodePaths: [] } as any;
+
         state.dbList = [0];
     }
 });

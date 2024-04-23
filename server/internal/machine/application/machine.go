@@ -70,6 +70,8 @@ type machineAppImpl struct {
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 }
 
+var _ (Machine) = (*machineAppImpl)(nil)
+
 // 注入MachineRepo
 func (m *machineAppImpl) InjectMachineRepo(repo repository.Machine) {
 	m.Repo = repo

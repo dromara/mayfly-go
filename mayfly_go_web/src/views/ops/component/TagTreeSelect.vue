@@ -10,6 +10,7 @@
             :default-expanded-keys="[state.selectTags]"
             show-checkbox
             node-key="codePath"
+            :check-strictly="props.checkStrictly"
             :props="{
                 value: 'codePath',
                 label: 'codePath',
@@ -46,6 +47,10 @@ const props = defineProps({
     tagType: {
         type: Number,
         default: TagResourceTypeEnum.Tag.value,
+    },
+    checkStrictly: {
+        type: Boolean,
+        default: false,
     },
 });
 

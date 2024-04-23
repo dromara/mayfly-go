@@ -19,8 +19,8 @@
             </el-tree>
             <template #footer>
                 <div class="dialog-footer">
-                    <el-button @click="cancel">取 消</el-button>
-                    <el-button type="primary" @click="btnOk">确 定</el-button>
+                    <el-button :loading="state.submiting" @click="cancel">取 消</el-button>
+                    <el-button :loading="state.submiting" type="primary" @click="btnOk">确 定</el-button>
                 </div>
             </template>
         </el-dialog>
@@ -66,6 +66,7 @@ const menuTree: any = ref(null);
 const state = reactive({
     dialogVisible: false,
     roleInfo: null as any,
+    submiting: false,
 });
 
 const { dialogVisible, roleInfo } = toRefs(state);
@@ -82,12 +83,17 @@ const btnOk = async () => {
     let menuIds = menuTree.value.getCheckedKeys();
     let halfMenuIds = menuTree.value.getHalfCheckedKeys();
     let resources = [].concat(menuIds, halfMenuIds).join(',');
-    await roleApi.saveResources.request({
-        id: props.role!.id,
-        resourceIds: resources,
-    });
-    ElMessage.success('保存成功!');
-    emit('cancel');
+    try {
+        state.submiting = true;
+        await roleApi.saveResources.request({
+            id: props.role!.id,
+            resourceIds: resources,
+        });
+        ElMessage.success('保存成功!');
+        emit('cancel');
+    } finally {
+        state.submiting = false;
+    }
 };
 
 const cancel = () => {

@@ -10,6 +10,7 @@ import (
 	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/guac"
+	"mayfly-go/internal/machine/mcm"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
@@ -185,11 +186,11 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	// 权限校验
 	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
 	if err = req.PermissionHandler(rc); err != nil {
-		panic(errorx.NewBiz("\033[1;31m您没有权限操作该机器终端,请重新登录后再试~\033[0m"))
+		panic(errorx.NewBiz(mcm.GetErrorContentRn("您没有权限操作该机器终端,请重新登录后再试~")))
 	}
 
 	cli, err := m.MachineApp.NewCli(GetMachineAc(rc))
-	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
+	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("获取客户端连接失败: %s"))
 	defer cli.Close()
 	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), "%s")
 
@@ -202,7 +203,7 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	req.LogHandler(rc)
 
 	err = m.MachineTermOpApp.TermConn(rc.MetaCtx, cli, wsConn, rows, cols)
-	biz.ErrIsNilAppendErr(err, "\033[1;31m连接失败: %s\033[0m")
+	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("连接失败: %s"))
 }
 
 func (m *Machine) MachineTermOpRecords(rc *req.Ctx) {
@@ -245,7 +246,7 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 
 	rc := req.NewCtxWithGin(g).WithRequiredPermission(req.NewPermission("machine:terminal"))
 	if err = req.PermissionHandler(rc); err != nil {
-		panic(errorx.NewBiz("\033[1;31m您没有权限操作该机器终端,请重新登录后再试~\033[0m"))
+		panic(errorx.NewBiz(mcm.GetErrorContentRn("您没有权限操作该机器终端,请重新登录后再试~")))
 	}
 
 	ac := GetMachineAc(rc)

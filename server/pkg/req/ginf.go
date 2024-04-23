@@ -15,6 +15,8 @@ type GinF struct {
 	ginCtx *gin.Context
 }
 
+var _ (F) = (*GinF)(nil)
+
 func (gf *GinF) GetRequest() *http.Request {
 	return gf.ginCtx.Request
 }
@@ -36,7 +38,7 @@ func (gf *GinF) BindJSON(data any) error {
 }
 
 func (gf *GinF) BindQuery(data any) error {
-	return gf.ginCtx.BindQuery(data)
+	return gf.ginCtx.ShouldBindQuery(data)
 }
 
 func (gf *GinF) Query(qm string) string {

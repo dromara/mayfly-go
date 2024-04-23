@@ -136,9 +136,18 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *SaveDb
 	}
 
 	// 如果存在该库，则校验修改的库是否为该库
-	if err == nil && oldInstance.Id != instanceEntity.Id {
-		return 0, errorx.NewBiz("该数据库实例已存在")
+	if err == nil {
+		if oldInstance.Id != instanceEntity.Id {
+			return 0, errorx.NewBiz("该数据库实例已存在")
+		}
+	} else {
+		// 根据host等未查到旧数据，则需要根据id重新获取，因为后续需要使用到code
+		oldInstance, err = app.GetById(new(entity.DbInstance), instanceEntity.Id)
+		if err != nil {
+			return 0, errorx.NewBiz("该数据库实例不存在")
+		}
 	}
+
 	return oldInstance.Id, app.Tx(ctx, func(ctx context.Context) error {
 		return app.UpdateById(ctx, instanceEntity)
 	}, func(ctx context.Context) error {

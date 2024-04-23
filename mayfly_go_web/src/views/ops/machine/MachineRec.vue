@@ -28,7 +28,7 @@
             <div ref="playerRef" id="rc-player"></div>
         </el-dialog>
 
-        <el-dialog :title="title" v-model="execCmdsDialogVisible" :close-on-click-modal="false" :destroy-on-close="true" width="500">
+        <el-dialog title="执行命令记录" v-model="execCmdsDialogVisible" :destroy-on-close="true" width="500">
             <el-table :data="state.execCmds" max-height="480" stripe size="small">
                 <el-table-column prop="cmd" label="命令" show-overflow-tooltip min-width="150px"> </el-table-column>
                 <el-table-column prop="time" label="执行时间" min-width="80" show-overflow-tooltip>
