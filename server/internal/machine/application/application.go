@@ -10,6 +10,7 @@ func InitIoc() {
 	ioc.Register(new(machineScriptAppImpl), ioc.WithComponentName("MachineScriptApp"))
 	ioc.Register(new(machineCronJobAppImpl), ioc.WithComponentName("MachineCronJobApp"))
 	ioc.Register(new(machineTermOpAppImpl), ioc.WithComponentName("MachineTermOpApp"))
+	ioc.Register(new(machineCmdConfAppImpl), ioc.WithComponentName("MachineCmdConfApp"))
 }
 
 func GetMachineApp() Machine {

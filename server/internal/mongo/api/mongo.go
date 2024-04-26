@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/event"
 	"mayfly-go/internal/mongo/api/form"
 	"mayfly-go/internal/mongo/api/vo"
 	"mayfly-go/internal/mongo/application"
@@ -10,6 +11,7 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -93,6 +95,9 @@ func (m *Mongo) Databases(rc *req.Ctx) {
 func (m *Mongo) Collections(rc *req.Ctx) {
 	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
+
+	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, conn.Info.TagPath[0])
+
 	db := rc.Query("database")
 	biz.NotEmpty(db, "database不能为空")
 	ctx := context.TODO()

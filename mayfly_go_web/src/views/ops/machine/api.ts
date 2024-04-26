@@ -58,6 +58,12 @@ export const cronJobApi = {
     execList: Api.newGet('/machine-cronjobs/execs'),
 };
 
+export const cmdConfApi = {
+    list: Api.newGet('/machine/security/cmd-confs'),
+    save: Api.newPost('/machine/security/cmd-confs'),
+    delete: Api.newDelete('/machine/security/cmd-confs/{id}'),
+};
+
 export function getMachineTerminalSocketUrl(authCertName: any) {
     return `${config.baseWsUrl}/machines/terminal/${authCertName}?${joinClientParams()}`;
 }

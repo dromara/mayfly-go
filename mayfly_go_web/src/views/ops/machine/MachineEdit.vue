@@ -106,7 +106,9 @@ const props = defineProps({
 });
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
+
+const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const rules = {
     tagCodePaths: [
@@ -170,23 +172,19 @@ const defaultForm = {
 };
 
 const state = reactive({
-    dialogVisible: false,
     sshTunnelMachineList: [] as any,
     form: defaultForm,
     submitForm: {} as any,
     pwd: '',
 });
 
-const { dialogVisible, form, submitForm } = toRefs(state);
+const { form, submitForm } = toRefs(state);
 
 const { isFetching: testConnBtnLoading, execute: testConnExec } = machineApi.testConn.useApi(submitForm);
 const { isFetching: saveBtnLoading, execute: saveMachineExec } = machineApi.saveMachine.useApi(submitForm);
 
 watchEffect(() => {
-    state.dialogVisible = props.visible;
-    if (!state.dialogVisible) {
-        state.form = { ...defaultForm };
-        state.form.authCerts = [];
+    if (!dialogVisible.value) {
         return;
     }
     const machine: any = props.machine;
@@ -194,6 +192,9 @@ watchEffect(() => {
         state.form = { ...machine };
         state.form.tagCodePaths = machine.tags.map((t: any) => t.codePath);
         state.form.authCerts = machine.authCerts || [];
+    } else {
+        state.form = { ...defaultForm };
+        state.form.authCerts = [];
     }
 });
 
@@ -250,7 +251,7 @@ const handleChangeProtocol = (val: any) => {
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    dialogVisible.value = false;
     emit('cancel');
 };
 </script>

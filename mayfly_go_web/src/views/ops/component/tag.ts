@@ -171,3 +171,31 @@ export function getTagPathSearchItem(resourceType: number) {
         })
     );
 }
+
+/**
+ * 根据标签路径获取对应的类型与编号数组
+ * @param codePath 编号路径  tag1/tag2/1|xxx/11|yyy/
+ * @returns {1: ['xxx'], 11: ['yyy']}
+ */
+export function getTagTypeCodeByPath(codePath: string) {
+    const result = {};
+    const parts = codePath.split('/'); // 切分字符串并保留数字和对应的值部分
+
+    for (let part of parts) {
+        if (!part) {
+            continue;
+        }
+        let [key, value] = part.split('|'); // 分割数字和值部分
+        // 如果不存在第二个参数，则说明为标签类型
+        if (!value) {
+            value = key;
+            key = '-1';
+        }
+        if (!result[key]) {
+            result[key] = [];
+        }
+        result[key].push(value);
+    }
+
+    return result;
+}

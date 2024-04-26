@@ -28,7 +28,7 @@ require (
 	github.com/pquerna/otp v1.4.0
 	github.com/redis/go-redis/v9 v9.5.1
 	github.com/robfig/cron/v3 v3.0.1 // 定时任务
-	github.com/sijms/go-ora/v2 v2.8.12
+	github.com/sijms/go-ora/v2 v2.8.13
 	github.com/stretchr/testify v1.8.4
 	github.com/veops/go-ansiterm v0.0.5
 	go.mongodb.org/mongo-driver v1.15.0 // mongo
@@ -39,7 +39,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	// gorm
 	gorm.io/driver/mysql v1.5.6
-	gorm.io/gorm v1.25.9
+	gorm.io/gorm v1.25.10
 )
 
 require (

@@ -6,11 +6,9 @@
             @change="changeTag"
             :data="tags"
             placeholder="请选择关联标签"
-            :render-after-expand="true"
-            :default-expanded-keys="[state.selectTags]"
+            :default-expanded-keys="defaultExpandedKeys"
             show-checkbox
             node-key="codePath"
-            :check-strictly="props.checkStrictly"
             :props="{
                 value: 'codePath',
                 label: 'codePath',
@@ -19,6 +17,7 @@
         >
             <template #default="{ data }">
                 <span class="custom-tree-node">
+                    <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" class="mr2" />
                     <span style="font-size: 13px">
                         {{ data.code }}
                         <span style="color: #3c8dbc">【</span>
@@ -33,24 +32,21 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted } from 'vue';
+import { toRefs, reactive, onMounted, computed } from 'vue';
 import { tagApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
+import EnumValue from '@/common/Enum';
 
 //定义事件
 const emit = defineEmits(['update:modelValue', 'changeTag', 'input']);
 
 const props = defineProps({
     selectTags: {
-        type: [Array<any>],
+        type: [Array<any>, Object],
     },
     tagType: {
         type: Number,
         default: TagResourceTypeEnum.Tag.value,
-    },
-    checkStrictly: {
-        type: Boolean,
-        default: false,
     },
 });
 
@@ -61,6 +57,16 @@ const state = reactive({
 });
 
 const { tags } = toRefs(state);
+
+const defaultExpandedKeys = computed(() => {
+    if (Array.isArray(state.selectTags)) {
+        // 如果 state.selectTags 是数组，直接返回
+        return state.selectTags;
+    }
+
+    // 如果 state.selectTags 不是数组，转换为包含 state.selectTags 的数组
+    return [state.selectTags];
+});
 
 onMounted(async () => {
     state.selectTags = props.selectTags;

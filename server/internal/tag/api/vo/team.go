@@ -1,6 +1,22 @@
 package vo
 
-import "time"
+import (
+	"mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/pkg/model"
+	"time"
+)
+
+type Team struct {
+	model.Model
+	entity.RelateTags // 标签信息
+
+	Name   string `json:"name"`   // 名称
+	Remark string `json:"remark"` // 备注说明
+}
+
+func (t *Team) GetRelateId() uint64 {
+	return t.Id
+}
 
 // 团队成员信息
 type TeamMember struct {

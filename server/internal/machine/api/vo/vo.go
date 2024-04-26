@@ -2,6 +2,7 @@ package vo
 
 import (
 	tagentity "mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/pkg/model"
 	"time"
 )
 
@@ -84,4 +85,19 @@ func (s MachineFileInfos) Less(i, j int) bool {
 		return s[i].Type > s[j].Type
 	}
 	return s[i].Name < s[j].Name
+}
+
+type MachineCmdConfVO struct {
+	tagentity.RelateTags // 标签信息
+	model.Model
+
+	Name     string              `json:"name"`
+	Cmds     model.Slice[string] `json:"cmds"`     // 命令配置
+	Status   int8                `json:"execCmds"` // 状态
+	Stratege string              `json:"stratege"` // 策略，空禁用
+	Remark   string              `json:"remark"`   // 备注
+}
+
+func (mcc *MachineCmdConfVO) GetRelateId() uint64 {
+	return mcc.Id
 }

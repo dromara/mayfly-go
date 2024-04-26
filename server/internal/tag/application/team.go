@@ -10,7 +10,6 @@ import (
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils/collx"
 
 	"gorm.io/gorm"
 )
@@ -20,7 +19,7 @@ type SaveTeamParam struct {
 	Name   string `json:"name" binding:"required"` // 名称
 	Remark string `json:"remark"`                  // 备注说明
 
-	Tags []uint64 `json:"tags"` // 关联标签信息
+	CodePaths []string `json:"codePaths"` // 关联标签信息
 }
 
 type Team interface {
@@ -42,17 +41,14 @@ type Team interface {
 
 	IsExistMember(teamId, accounId uint64) bool
 
-	//--------------- 关联项目相关接口 ---------------
-
-	ListTagIds(teamId uint64) []uint64
-
 	DeleteTag(tx context.Context, teamId, tagId uint64) error
 }
 
 type teamAppImpl struct {
-	teamRepo        repository.Team        `inject:"TeamRepo"`
-	teamMemberRepo  repository.TeamMember  `inject:"TeamMemberRepo"`
-	tagTreeTeamRepo repository.TagTreeTeam `inject:"TagTreeTeamRepo"`
+	teamRepo       repository.Team       `inject:"TeamRepo"`
+	teamMemberRepo repository.TeamMember `inject:"TeamMemberRepo"`
+
+	tagTreeRelateApp TagTreeRelate `inject:"TagTreeRelateApp"`
 }
 
 func (p *teamAppImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
@@ -89,35 +85,7 @@ func (p *teamAppImpl) Save(ctx context.Context, saveParam *SaveTeamParam) error 
 	}
 
 	// 保存团队关联的标签信息
-	teamId := team.Id
-	var addIds, delIds []uint64
-	if saveParam.Id == 0 {
-		addIds = saveParam.Tags
-	} else {
-		// 将[]uint64转为[]any
-		oIds := p.ListTagIds(team.Id)
-		// 比较新旧两合集
-		addIds, delIds, _ = collx.ArrayCompare(saveParam.Tags, oIds)
-	}
-
-	addTeamTags := make([]*entity.TagTreeTeam, 0)
-	for _, v := range addIds {
-		ptt := &entity.TagTreeTeam{TeamId: teamId, TagId: v}
-		addTeamTags = append(addTeamTags, ptt)
-	}
-	if len(addTeamTags) > 0 {
-		logx.DebugfContext(ctx, "团队[%s]新增关联的标签信息: [%v]", team.Name, addTeamTags)
-		p.tagTreeTeamRepo.BatchInsert(ctx, addTeamTags)
-	}
-
-	for _, v := range delIds {
-		p.DeleteTag(ctx, teamId, v)
-	}
-	if len(delIds) > 0 {
-		logx.DebugfContext(ctx, "团队[%s]删除关联的标签信息: [%v]", team.Name, delIds)
-	}
-
-	return nil
+	return p.tagTreeRelateApp.RelateTag(ctx, entity.TagRelateTypeTeam, team.Id, saveParam.CodePaths...)
 }
 
 func (p *teamAppImpl) Delete(ctx context.Context, id uint64) error {
@@ -129,7 +97,7 @@ func (p *teamAppImpl) Delete(ctx context.Context, id uint64) error {
 			return p.teamMemberRepo.DeleteByCondWithDb(ctx, db, &entity.TeamMember{TeamId: id})
 		},
 		func(db *gorm.DB) error {
-			return p.tagTreeTeamRepo.DeleteByCondWithDb(ctx, db, &entity.TagTreeTeam{TeamId: id})
+			return p.tagTreeRelateApp.DeleteByCondWithDb(ctx, db, &entity.TagTreeRelate{RelateType: entity.TagRelateTypeTeam, RelateId: id})
 		},
 	)
 }
@@ -158,17 +126,7 @@ func (p *teamAppImpl) IsExistMember(teamId, accounId uint64) bool {
 
 //--------------- 标签相关接口 ---------------
 
-func (p *teamAppImpl) ListTagIds(teamId uint64) []uint64 {
-	tags := &[]entity.TagTreeTeam{}
-	p.tagTreeTeamRepo.ListByCondOrder(&entity.TagTreeTeam{TeamId: teamId}, tags)
-	ids := make([]uint64, 0)
-	for _, v := range *tags {
-		ids = append(ids, v.TagId)
-	}
-	return ids
-}
-
-// 删除关联项目信息
+// 删除关联标签信息
 func (p *teamAppImpl) DeleteTag(ctx context.Context, teamId, tagId uint64) error {
-	return p.tagTreeTeamRepo.DeleteByCond(ctx, &entity.TagTreeTeam{TeamId: teamId, TagId: tagId})
+	return p.tagTreeRelateApp.DeleteByCond(ctx, &entity.TagTreeRelate{RelateType: entity.TagRelateTypeTeam, RelateId: teamId, TagId: tagId})
 }

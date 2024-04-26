@@ -191,12 +191,13 @@ const showResourceEdit = computed(() => {
     return state.form.type != AuthCertTypeEnum.Public.value && !props.resourceEdit;
 });
 
-watch(
-    () => props.authCert,
-    (val: any) => {
-        setForm(val);
+watch(dialogVisible, (val: any) => {
+    if (val) {
+        setForm(props.authCert);
+    } else {
+        cancelEdit();
     }
-);
+});
 
 const setForm = (val: any) => {
     val = { ...val };
@@ -246,10 +247,11 @@ const getCiphertext = async () => {
 
 const cancelEdit = () => {
     dialogVisible.value = false;
-    emit('cancel');
+
     setTimeout(() => {
-        acForm.value?.resetFields();
         state.form = { ...DefaultForm };
+        acForm.value?.resetFields();
+        emit('cancel');
     }, 300);
 };
 

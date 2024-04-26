@@ -44,3 +44,14 @@ type MachineCronJobForm struct {
 	MachineIds      []uint64 `json:"machineIds"`
 	Remark          string   `json:"remark"`
 }
+
+type MachineCmdConfForm struct {
+	Id       uint64   `json:"id"`
+	Name     string   `json:"name"`
+	Cmds     []string `json:"cmds"`     // 命令配置
+	Status   int8     `json:"execCmds"` // 状态
+	Stratege string   `json:"stratege"` // 策略，空禁用
+	Remark   string   `json:"remark"`   // 备注
+
+	CodePaths []string `json:"codePaths"`
+}

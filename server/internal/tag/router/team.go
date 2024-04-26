@@ -29,9 +29,6 @@ func InitTeamRouter(router *gin.RouterGroup) {
 			req.NewPost("/:id/members", m.SaveTeamMember).Log(req.NewLogSave("团队-新增成员")).RequiredPermissionCode("team:member:save"),
 
 			req.NewDelete("/:id/members/:accountId", m.DelTeamMember).Log(req.NewLogSave("团队-删除成员")).RequiredPermissionCode("team:member:del"),
-
-			// 获取团队关联的标签id列表
-			req.NewGet("/:id/tags", m.GetTagIds),
 		}
 
 		req.BatchSetGroup(team, reqs[:])

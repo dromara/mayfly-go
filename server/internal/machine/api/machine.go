@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/event"
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
@@ -15,6 +16,7 @@ import (
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -192,7 +194,9 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	cli, err := m.MachineApp.NewCli(GetMachineAc(rc))
 	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("获取客户端连接失败: %s"))
 	defer cli.Close()
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), mcm.GetErrorContentRn("%s"))
+
+	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, cli.Info.TagPath[0])
 
 	cols := rc.QueryIntDefault("cols", 80)
 	rows := rc.QueryIntDefault("rows", 32)

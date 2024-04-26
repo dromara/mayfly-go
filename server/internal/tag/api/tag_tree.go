@@ -15,7 +15,8 @@ import (
 )
 
 type TagTree struct {
-	TagTreeApp application.TagTree `inject:""`
+	TagTreeApp       application.TagTree       `inject:""`
+	TagTreeRelateApp application.TagTreeRelate `inject:""`
 }
 
 func (p *TagTree) GetTagTree(rc *req.Ctx) {
@@ -122,4 +123,9 @@ func (p *TagTree) CountTagResource(rc *req.Ctx) {
 		"redis":   len(p.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeRedis, tagPath)),
 		"mongo":   len(p.TagTreeApp.GetAccountTagCodes(accountId, consts.ResourceTypeMongo, tagPath)),
 	}
+}
+
+// 获取关联的标签id
+func (p *TagTree) GetRelateTagIds(rc *req.Ctx) {
+	rc.ResData = p.TagTreeRelateApp.GetTagPathsByRelate(entity.TagRelateType(rc.PathParamInt("relateType")), uint64(rc.PathParamInt("relateId")))
 }

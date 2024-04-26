@@ -31,6 +31,9 @@ func InitTagTreeRouter(router *gin.RouterGroup) {
 			req.NewGet("/resources/:rtype/tag-paths", m.TagResources),
 
 			req.NewGet("/resources/count", m.CountTagResource),
+
+			// 获取关联的标签id列表
+			req.NewGet("/relate/:relateType/:relateId", m.GetRelateTagIds),
 		}
 
 		req.BatchSetGroup(tagTree, reqs[:])

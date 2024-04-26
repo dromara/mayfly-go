@@ -10,22 +10,29 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
+	"mayfly-go/pkg/utils/collx"
 	"strings"
 
 	"github.com/may-fly/cast"
 )
 
 type Team struct {
-	TeamApp    application.Team        `inject:""`
-	TagTreeApp application.TagTree     `inject:""`
-	AccountApp sys_applicaiton.Account `inject:""`
+	TeamApp          application.Team          `inject:""`
+	TagTreeApp       application.TagTree       `inject:""`
+	TagTreeRelateApp application.TagTreeRelate `inject:""`
+	AccountApp       sys_applicaiton.Account   `inject:""`
 }
 
 func (p *Team) GetTeams(rc *req.Ctx) {
 	queryCond, page := req.BindQueryAndPage(rc, new(entity.TeamQuery))
-	teams := &[]entity.Team{}
-	res, err := p.TeamApp.GetPageList(queryCond, page, teams)
+	var teams []*vo.Team
+	res, err := p.TeamApp.GetPageList(queryCond, page, &teams)
 	biz.ErrIsNil(err)
+
+	p.TagTreeRelateApp.FillTagInfo(entity.TagRelateTypeTeam, collx.ArrayMap(teams, func(mvo *vo.Team) entity.IRelateTag {
+		return mvo
+	})...)
+
 	rc.ResData = res
 }
 
@@ -88,9 +95,4 @@ func (p *Team) DelTeamMember(rc *req.Ctx) {
 	rc.ReqParam = fmt.Sprintf("teamId: %d, accountId: %d", tid, aid)
 
 	p.TeamApp.DeleteMember(rc.MetaCtx, uint64(tid), uint64(aid))
-}
-
-// 获取团队关联的标签id
-func (p *Team) GetTagIds(rc *req.Ctx) {
-	rc.ResData = p.TeamApp.ListTagIds(uint64(rc.PathParamInt("id")))
 }

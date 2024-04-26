@@ -1,9 +1,11 @@
 package api
 
 import (
+	"mayfly-go/internal/event"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/application"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 )
@@ -14,7 +16,10 @@ func (r *Redis) RunCmd(rc *req.Ctx) {
 	biz.IsTrue(len(cmdReq.Cmd) > 0, "redis命令不能为空")
 
 	redisConn := r.getRedisConn(rc)
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, redisConn.Info.TagPath...), "%s")
 	rc.ReqParam = collx.Kvs("redis", redisConn.Info, "cmd", cmdReq.Cmd)
+
+	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, redisConn.Info.TagPath[0])
 
 	res, err := r.RedisApp.RunCmd(rc.MetaCtx, redisConn, runCmdParam)
 	biz.ErrIsNil(err)

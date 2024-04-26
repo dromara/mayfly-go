@@ -12,11 +12,13 @@ import (
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
+	"mayfly-go/internal/event"
 	msgapp "mayfly-go/internal/msg/application"
 	msgdto "mayfly-go/internal/msg/application/dto"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
@@ -96,6 +98,8 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	dbConn, err := d.DbApp.GetDbConn(dbId, form.Db)
 	biz.ErrIsNil(err)
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath...), "%s")
+
+	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.TagPath[0])
 
 	sqlBytes, err := base64.StdEncoding.DecodeString(form.Sql)
 	biz.ErrIsNilAppendErr(err, "sql解码失败: %s")

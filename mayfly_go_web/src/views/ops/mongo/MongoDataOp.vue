@@ -2,7 +2,12 @@
     <div class="flex-all-center">
         <Splitpanes class="default-theme">
             <Pane size="20" max-size="30">
-                <tag-tree :resource-type="TagResourceTypeEnum.Mongo.value" :tag-path-node-type="NodeTypeTagPath">
+                <tag-tree
+                    ref="tagTreeRef"
+                    :default-expanded-keys="state.defaultExpendKey"
+                    :resource-type="TagResourceTypeEnum.Mongo.value"
+                    :tag-path-node-type="NodeTypeTagPath"
+                >
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == MongoNodeType.Mongo">
                             <el-popover :show-after="500" placement="right-start" title="mongo实例信息" trigger="hover" :width="250">
@@ -168,16 +173,18 @@
 
 <script lang="ts" setup>
 import { mongoApi } from './api';
-import { computed, defineAsyncComponent, reactive, ref, toRefs } from 'vue';
+import { computed, defineAsyncComponent, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 
 import { isTrue, notBlank } from '@/common/assert';
-import { TagTreeNode, NodeType } from '../component/tag';
+import { TagTreeNode, NodeType, getTagTypeCodeByPath } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { formatByteSize } from '@/common/utils/format';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { sleep } from '@/common/utils/loading';
 import { Splitpanes, Pane } from 'splitpanes';
+import { useAutoOpenResource } from '@/store/autoOpenResource';
+import { storeToRefs } from 'pinia';
 
 const MonacoEditor = defineAsyncComponent(() => import('@/components/monaco/MonacoEditor.vue'));
 
@@ -207,7 +214,7 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
     await sleep(100);
     return mongoInfos?.map((x: any) => {
         x.tagPath = parentNode.key;
-        return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeMongo).withParams(x);
+        return new TagTreeNode(`${x.code}`, x.name, NodeTypeMongo).withParams(x);
     });
 });
 
@@ -250,7 +257,10 @@ const NodeTypeColl = new NodeType(MongoNodeType.Coll).withNodeClickFunc((nodeDat
 });
 
 const findParamInputRef: any = ref(null);
+const tagTreeRef: any = ref(null);
+
 const state = reactive({
+    defaultExpendKey: [] as any,
     tags: [],
     mongoList: [] as any,
     activeName: '', // 当前操作的tab
@@ -282,9 +292,41 @@ const state = reactive({
 
 const { findDialog, docEditDialog } = toRefs(state);
 
+const autoOpenResourceStore = useAutoOpenResource();
+const { autoOpenResource } = storeToRefs(autoOpenResourceStore);
+
 const nowColl = computed(() => {
     return getNowDataTab();
 });
+
+watch(
+    () => autoOpenResource.value.mongoCodePath,
+    (codePath: any) => {
+        autoOpenMongo(codePath);
+    }
+);
+
+onMounted(() => {
+    autoOpenMongo(autoOpenResource.value.mongoCodePath);
+});
+
+const autoOpenMongo = (codePath: string) => {
+    if (!codePath) {
+        return;
+    }
+
+    const typeAndCodes = getTagTypeCodeByPath(codePath);
+    const tagPath = typeAndCodes[TagResourceTypeEnum.Tag.value].join('/') + '/';
+
+    const mongoCode = typeAndCodes[TagResourceTypeEnum.Mongo.value][0];
+    state.defaultExpendKey = [tagPath, mongoCode];
+
+    setTimeout(() => {
+        // 置空
+        autoOpenResourceStore.setMongoCodePath('');
+        tagTreeRef.value.setCurrentKey(mongoCode);
+    }, 600);
+};
 
 const changeCollection = async (id: any, schema: string, collection: string) => {
     const label = `${id}:\`${schema}\`.${collection}`;

@@ -99,7 +99,7 @@ type TagTree interface {
 type tagTreeAppImpl struct {
 	base.AppImpl[*entity.TagTree, repository.TagTree]
 
-	tagTreeTeamRepo repository.TagTreeTeam `inject:"TagTreeTeamRepo"`
+	tagTreeRelateApp TagTreeRelate `inject:"TagTreeRelateApp"`
 }
 
 // 注入TagTreeRepo
@@ -450,7 +450,7 @@ func (p *tagTreeAppImpl) ListTagPathByTypeAndCode(resourceType int8, resourceCod
 }
 
 func (p *tagTreeAppImpl) ListTagByAccountId(accountId uint64) []string {
-	return p.tagTreeTeamRepo.SelectTagPathsByAccountId(accountId)
+	return p.tagTreeRelateApp.GetTagPathsByAccountId(accountId)
 }
 
 func (p *tagTreeAppImpl) CanAccess(accountId uint64, tagPath ...string) error {
@@ -486,7 +486,7 @@ func (p *tagTreeAppImpl) FillTagInfo(resourceTagType entity.TagType, resources .
 
 	for _, tr := range tagResources {
 		// 赋值标签信息
-		resourceCode2Resouce[tr.Code].SetTagInfo(entity.ResourceTag{CodePath: tr.GetTagPath()})
+		resourceCode2Resouce[tr.Code].SetTagInfo(entity.ResourceTag{TagId: tr.Id, CodePath: tr.GetTagPath()})
 	}
 }
 
@@ -552,6 +552,8 @@ func (p *tagTreeAppImpl) deleteByIds(ctx context.Context, tagIds []uint64) error
 		return err
 	}
 
-	// 删除team关联的标签
-	return p.tagTreeTeamRepo.DeleteByWheres(ctx, collx.M{"tag_id in ?": tagIds})
+	// 删除与标签有关联信息的记录(如团队关联的标签等)
+	return p.tagTreeRelateApp.DeleteByWheres(ctx, collx.M{
+		"tag_id in ?": tagIds,
+	})
 }

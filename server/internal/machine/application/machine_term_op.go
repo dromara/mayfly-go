@@ -36,6 +36,8 @@ type MachineTermOp interface {
 
 type machineTermOpAppImpl struct {
 	base.AppImpl[*entity.MachineTermOp, repository.MachineTermOp]
+
+	machineCmdConfApp MachineCmdConf `inject:"MachineCmdConfApp"`
 }
 
 // 注入MachineTermOpRepo
@@ -87,12 +89,17 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 		LogCmd:    cli.Info.EnableRecorder == 1,
 	}
 
-	// createTsParam.CmdFilterFuncs = []mcm.CmdFilterFunc{func(cmd string) error {
-	// 	if strings.HasPrefix(cmd, "rm") {
-	// 		return errorx.NewBiz("该命令已被禁用...")
-	// 	}
-	// 	return nil
-	// }}
+	cmdConfs := m.machineCmdConfApp.GetCmdConfsByMachineTags(cli.Info.TagPath...)
+	if len(cmdConfs) > 0 {
+		createTsParam.CmdFilterFuncs = []mcm.CmdFilterFunc{func(cmd string) error {
+			for _, cmdConf := range cmdConfs {
+				if cmdConf.CmdRegexp.Match([]byte(cmd)) {
+					return errorx.NewBiz("该命令已被禁用...")
+				}
+			}
+			return nil
+		}}
+	}
 
 	mts, err := mcm.NewTerminalSession(createTsParam)
 	if err != nil {

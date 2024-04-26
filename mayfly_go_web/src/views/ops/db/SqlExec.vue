@@ -2,7 +2,12 @@
     <div class="db-sql-exec">
         <Splitpanes class="default-theme">
             <Pane size="20" max-size="30">
-                <tag-tree :resource-type="TagResourceTypeEnum.DbName.value" :tag-path-node-type="NodeTypeTagPath" ref="tagTreeRef">
+                <tag-tree
+                    :default-expanded-keys="state.defaultExpendKey"
+                    :resource-type="TagResourceTypeEnum.DbName.value"
+                    :tag-path-node-type="NodeTypeTagPath"
+                    ref="tagTreeRef"
+                >
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == SqlExecNodeType.DbInst">
                             <el-popover
@@ -167,11 +172,11 @@
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, h, onBeforeUnmount, onMounted, reactive, ref, toRefs } from 'vue';
+import { defineAsyncComponent, h, onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { ElCheckbox, ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { DbInst, registerDbCompletionItemProvider, TabInfo, TabType } from './db';
-import { NodeType, TagTreeNode } from '../component/tag';
+import { NodeType, TagTreeNode, getTagTypeCodeByPath } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
 import { dispposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
@@ -183,6 +188,8 @@ import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Pane, Splitpanes } from 'splitpanes';
 import { useEventListener } from '@vueuse/core';
 import SqlExecBox from '@/views/ops/db/component/sqleditor/SqlExecBox';
+import { useAutoOpenResource } from '@/store/autoOpenResource';
+import { storeToRefs } from 'pinia';
 
 const DbTableOp = defineAsyncComponent(() => import('./component/table/DbTableOp.vue'));
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
@@ -258,7 +265,7 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath)
         await sleep(100);
         return dbInfos?.map((x: any) => {
             x.tagPath = parentNode.key;
-            return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeDbInst).withParams(x);
+            return new TagTreeNode(`${x.code}`, x.name, NodeTypeDbInst).withParams(x);
         });
     })
     .withContextMenuItems([ContextmenuItemRefresh]);
@@ -267,6 +274,7 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath)
 const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((parentNode: TagTreeNode) => {
     const params = parentNode.params;
     const dbs = params.database.split(' ')?.sort();
+
     return dbs.map((x: any) => {
         return new TagTreeNode(`${parentNode.key}.${x}`, x, NodeTypeDb)
             .withParams({
@@ -418,6 +426,7 @@ const tagTreeRef: any = ref(null);
 
 const tabs: Map<string, TabInfo> = new Map();
 const state = reactive({
+    defaultExpendKey: [] as any,
     /**
      * 当前操作的数据库实例
      */
@@ -452,7 +461,11 @@ const serverInfoReqParam = ref({
 });
 const { execute: getDbServerInfo, isFetching: loadingServerInfo, data: dbServerInfo } = dbApi.getInstanceServerInfo.useApi<any>(serverInfoReqParam);
 
+const autoOpenResourceStore = useAutoOpenResource();
+const { autoOpenResource } = storeToRefs(autoOpenResourceStore);
+
 onMounted(() => {
+    autoOpenDb(autoOpenResource.value.dbCodePath);
     setHeight();
     // 监听浏览器窗口大小变化,更新对应组件高度
     useEventListener(window, 'resize', setHeight);
@@ -461,6 +474,31 @@ onMounted(() => {
 onBeforeUnmount(() => {
     dispposeCompletionItemProvider('sql');
 });
+
+watch(
+    () => autoOpenResource.value.dbCodePath,
+    (codePath: any) => {
+        autoOpenDb(codePath);
+    }
+);
+
+const autoOpenDb = (codePath: string) => {
+    if (!codePath) {
+        return;
+    }
+
+    const typeAndCodes = getTagTypeCodeByPath(codePath);
+    const tagPath = typeAndCodes[TagResourceTypeEnum.Tag.value].join('/') + '/';
+
+    const dbCode = typeAndCodes[TagResourceTypeEnum.DbName.value][0];
+    state.defaultExpendKey = [tagPath, dbCode];
+
+    setTimeout(() => {
+        // 置空
+        autoOpenResourceStore.setDbCodePath('');
+        tagTreeRef.value.setCurrentKey(dbCode);
+    }, 600);
+};
 
 /**
  * 设置editor高度和数据表高度
@@ -807,7 +845,7 @@ const getNowDbInfo = () => {
     }
 
     .db-op {
-        height: calc(100vh - 108px);
+        height: calc(100vh - 106px);
     }
 
     #data-exec {

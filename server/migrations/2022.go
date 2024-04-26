@@ -89,9 +89,6 @@ func T2022() *gormigrate.Migration {
 			if err := tx.AutoMigrate(&entity7.TagTree{}); err != nil {
 				return err
 			}
-			if err := tx.AutoMigrate(&entity7.TagTreeTeam{}); err != nil {
-				return err
-			}
 			if err := tx.AutoMigrate(&entity7.Team{}); err != nil {
 				return err
 			}

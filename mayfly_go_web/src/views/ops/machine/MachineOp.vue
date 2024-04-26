@@ -8,6 +8,7 @@
                     ref="tagTreeRef"
                     :resource-type="TagResourceTypeEnum.MachineAuthCert.value"
                     :tag-path-node-type="NodeTypeTagPath"
+                    :default-expanded-keys="state.defaultExpendKey"
                 >
                     <template #prefix="{ data }">
                         <SvgIcon
@@ -153,13 +154,13 @@
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, nextTick, reactive, ref, toRefs, watch } from 'vue';
+import { defineAsyncComponent, nextTick, onMounted, reactive, ref, toRefs, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { getMachineTerminalSocketUrl, machineApi } from './api';
 import { dateFormat } from '@/common/utils/date';
 import { hasPerms } from '@/components/auth/auth';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { NodeType, TagTreeNode } from '../component/tag';
+import { NodeType, TagTreeNode, getTagTypeCodeByPath } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { Pane, Splitpanes } from 'splitpanes';
 import { ContextmenuItem } from '@/components/contextmenu/index';
@@ -169,6 +170,8 @@ import MachineRdp from '@/components/terminal-rdp/MachineRdp.vue';
 import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
 import ResourceTags from '../component/ResourceTags.vue';
 import { MachineProtocolEnum } from './enums';
+import { useAutoOpenResource } from '@/store/autoOpenResource';
+import { storeToRefs } from 'pinia';
 
 // 组件
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
@@ -196,6 +199,7 @@ class MachineNodeType {
 }
 
 const state = reactive({
+    defaultExpendKey: [] as any,
     params: {
         pageNum: 1,
         pageSize: 0,
@@ -252,6 +256,9 @@ const { infoDialog, serviceDialog, processDialog, fileDialog, machineStatsDialog
 
 const tagTreeRef: any = ref(null);
 
+const autoOpenResourceStore = useAutoOpenResource();
+const { autoOpenResource } = storeToRefs(autoOpenResourceStore);
+
 let openIds = {};
 
 const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (node: TagTreeNode) => {
@@ -263,7 +270,7 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
     // 把list 根据name字段排序
     res.list = res.list.sort((a: any, b: any) => a.name.localeCompare(b.name));
     return res.list.map((x: any) =>
-        new TagTreeNode(x.id, x.name, NodeTypeMachine)
+        new TagTreeNode(x.code, x.name, NodeTypeMachine)
             .withParams(x)
             .withDisabled(x.status == -1 && x.protocol == MachineProtocolEnum.Ssh.value)
             .withIcon({
@@ -279,7 +286,7 @@ const NodeTypeMachine = new NodeType(MachineNodeType.Machine)
         // 获取授权凭证列表
         const authCerts = machine.authCerts;
         return authCerts.map((x: any) =>
-            new TagTreeNode(x.id, x.username, NodeTypeAuthCert)
+            new TagTreeNode(x.name, x.username, NodeTypeAuthCert)
                 .withParams({ ...machine, selectAuthCert: x })
                 .withDisabled(machine.status == -1 && machine.protocol == MachineProtocolEnum.Ssh.value)
                 .withIcon({
@@ -322,6 +329,47 @@ const NodeTypeAuthCert = new NodeType(MachineNodeType.AuthCert)
             .withHideFunc((node: any) => node.params.protocol != MachineProtocolEnum.Ssh.value)
             .withOnClick((node: any) => serviceManager(node.params)),
     ]);
+
+watch(
+    () => autoOpenResource.value.machineCodePath,
+    (codePath: any) => {
+        autoOpenTerminal(codePath);
+    }
+);
+
+watch(
+    () => state.activeTermName,
+    (newValue, oldValue) => {
+        oldValue && terminalRefs[oldValue]?.blur && terminalRefs[oldValue]?.blur();
+        terminalRefs[newValue]?.focus && terminalRefs[newValue]?.focus();
+    }
+);
+
+onMounted(() => {
+    autoOpenTerminal(autoOpenResource.value.machineCodePath);
+});
+
+const autoOpenTerminal = (codePath: string) => {
+    if (!codePath) {
+        return;
+    }
+
+    const typeAndCodes = getTagTypeCodeByPath(codePath);
+    const tagPath = typeAndCodes[TagResourceTypeEnum.Tag.value].join('/') + '/';
+
+    const machineCode = typeAndCodes[TagResourceTypeEnum.Machine.value][0];
+    state.defaultExpendKey = [tagPath, machineCode];
+
+    const authCertName = typeAndCodes[TagResourceTypeEnum.MachineAuthCert.value][0];
+    setTimeout(() => {
+        // 置空
+        autoOpenResourceStore.setMachineCodePath('');
+        tagTreeRef.value.setCurrentKey(authCertName);
+
+        const acNode = tagTreeRef.value.getNode(authCertName);
+        openTerminal(acNode.data.params);
+    }, 600);
+};
 
 const openTerminal = (machine: any, ex?: boolean) => {
     // 授权凭证名
@@ -464,15 +512,6 @@ const onRemoveTab = (targetName: string) => {
         onTabChange();
     }
 };
-
-watch(
-    () => state.activeTermName,
-    (newValue, oldValue) => {
-        console.log('oldValue', oldValue);
-        oldValue && terminalRefs[oldValue]?.blur && terminalRefs[oldValue]?.blur();
-        terminalRefs[newValue]?.focus && terminalRefs[newValue]?.focus();
-    }
-);
 
 const terminalStatusChange = (key: string, status: TerminalStatus) => {
     state.tabs.get(key).status = status;

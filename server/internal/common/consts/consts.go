@@ -20,7 +20,4 @@ const (
 	ResourceTypeDb      int8 = 2
 	ResourceTypeRedis   int8 = 3
 	ResourceTypeMongo   int8 = 4
-
-	// 删除机器的事件主题名
-	DeleteMachineEventTopic = "machine:delete"
 )

@@ -23,6 +23,7 @@ type InstanceDbNamesForm struct {
 	Host               string                      `binding:"required" json:"host"`
 	Port               int                         `json:"port"`
 	Params             string                      `json:"params"`
+	Extra              string                      `json:"extra"`
 	SshTunnelMachineId int                         `json:"sshTunnelMachineId"`
 	AuthCert           *tagentity.ResourceAuthCert `json:"authCert" binding:"required"` // 资产授权凭证信息
 }

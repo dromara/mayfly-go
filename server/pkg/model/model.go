@@ -138,9 +138,18 @@ type Map[K comparable, V any] map[K]V
 
 func (m *Map[K, V]) Scan(value any) error {
 	return json.Unmarshal(value.([]byte), m)
-
 }
 
 func (m Map[K, V]) Value() (driver.Value, error) {
 	return json.Marshal(m)
+}
+
+type Slice[T int | string | Map[string, any]] []T
+
+func (s *Slice[T]) Scan(value any) error {
+	return json.Unmarshal(value.([]byte), s)
+}
+
+func (s Slice[T]) Value() (driver.Value, error) {
+	return json.Marshal(s)
 }

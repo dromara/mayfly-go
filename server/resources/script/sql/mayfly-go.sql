@@ -503,6 +503,25 @@ CREATE TABLE `t_machine_term_op` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器终端操作记录表';
 
+DROP TABLE IF EXISTS `t_machine_cmd_conf`;
+CREATE TABLE `t_machine_cmd_conf` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) COLLATE utf8_bin DEFAULT NULL COMMENT '名称',
+  `cmds` varchar(500) COLLATE utf8_bin DEFAULT NULL COMMENT '命令配置',
+  `status` tinyint(4) DEFAULT NULL COMMENT '状态',
+  `stratege` varchar(100) COLLATE utf8_bin DEFAULT NULL COMMENT '策略',
+  `remark` varchar(50) COLLATE utf8_bin DEFAULT NULL COMMENT '备注',
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint(20) NOT NULL,
+  `creator` varchar(36) COLLATE utf8_bin NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier_id` bigint(20) NOT NULL,
+  `modifier` varchar(36) COLLATE utf8_bin NOT NULL,
+  `is_deleted` tinyint(4) DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 COMMENT='机器命令配置';
+
 -- ----------------------------
 -- Table structure for t_mongo
 -- ----------------------------
@@ -826,7 +845,9 @@ INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `we
 INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709196723, 1709194669, 2, 1, '启停', 'db:transfer:status', 1709196723, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:52:04', '2024-02-29 16:52:04', 'SmLcpu6c/hGiLN1VT/', 0, NULL);
 INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709196737, 1709194669, 2, 1, '日志', 'db:transfer:log', 1709196737, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:52:17', '2024-02-29 16:52:17', 'SmLcpu6c/CZhNIbWg/', 0, NULL);
 INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709196755, 1709194669, 2, 1, '运行', 'db:transfer:run', 1709196755, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:52:36', '2024-02-29 16:52:36', 'SmLcpu6c/b6yHt6V2/', 0, NULL);
-
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1714032002, 1713875842, '12sSjal1/UnWIUhW0/0tJwC3Gf/', 2, 1, '命令配置-删除', 'cmdconf:del', 1714032002, 'null', 1, 'admin', 1, 'admin', '2024-04-25 16:00:02', '2024-04-25 16:00:02', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1714031981, 1713875842, '12sSjal1/UnWIUhW0/tEzIKecl/', 2, 1, '命令配置-保存', 'cmdconf:save', 1714031981, 'null', 1, 'admin', 1, 'admin', '2024-04-25 15:59:41', '2024-04-25 15:59:41', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1713875842, 2, '12sSjal1/UnWIUhW0/', 1, 1, '安全配置', 'security', 1713875842, '{"component":"ops/machine/security/SecurityConfList","icon":"Setting","isKeepAlive":true,"routeName":"SecurityConfList"}', 1, 'admin', 1, 'admin', '2024-04-23 20:37:22', '2024-04-23 20:37:22', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -913,31 +934,29 @@ BEGIN;
 INSERT INTO `t_tag_tree` VALUES (1, -1, 'default', 'default/', '默认', '默认标签', '2022-10-26 20:04:19', 1, 'admin', '2022-10-26 20:04:19', 1, 'admin', 0, NULL);
 COMMIT;
 
--- ----------------------------
--- Table structure for t_tag_tree_team
--- ----------------------------
-DROP TABLE IF EXISTS `t_tag_tree_team`;
-CREATE TABLE `t_tag_tree_team` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `tag_id` bigint(20) NOT NULL COMMENT '项目树id',
-  `team_id` bigint(20) NOT NULL COMMENT '团队id',
+DROP TABLE IF EXISTS `t_tag_tree_relate`;
+CREATE TABLE `t_tag_tree_relate` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `tag_id` bigint NOT NULL COMMENT '标签树id',
+  `relate_id` bigint NOT NULL COMMENT '关联',
+  `relate_type` tinyint NOT NULL COMMENT '关联类型',
   `create_time` datetime NOT NULL,
-  `creator_id` bigint(20) NOT NULL,
-  `creator` varchar(36) NOT NULL,
+  `creator_id` bigint NOT NULL,
+  `creator` varchar(36) COLLATE utf8mb4_bin NOT NULL,
   `update_time` datetime NOT NULL,
-  `modifier_id` bigint(20) NOT NULL,
-  `modifier` varchar(36) NOT NULL,
-  `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
+  `modifier_id` bigint NOT NULL,
+  `modifier` varchar(36) COLLATE utf8mb4_bin NOT NULL,
+  `is_deleted` tinyint NOT NULL DEFAULT '0',
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_tag_id` (`tag_id`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签树团队关联信息';
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='与标签树有关联关系的表';
 
 -- ----------------------------
--- Records of t_tag_tree_team
+-- Records of t_tag_tree_relate
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_tag_tree_team` VALUES (1, 1, 1, '2022-10-26 20:04:45', 1, 'admin', '2022-10-26 20:04:45', 1, 'admin', 0, NULL);
+INSERT INTO `t_tag_tree_relate` VALUES (1, 1, 1, 1, '2022-10-26 20:04:45', 1, 'admin', '2022-10-26 20:04:45', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -1018,6 +1037,21 @@ CREATE TABLE `t_resource_auth_cert` (
     KEY `idx_resource_code` (`resource_code`) USING BTREE,
     KEY `idx_name` (`name`) USING BTREE
 ) COMMENT='资源授权凭证表';
+
+DROP TABLE IF EXISTS `t_resource_op_log`;
+CREATE TABLE `t_resource_op_log` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `code_path` varchar(600) NOT NULL COMMENT '资源标签路径',
+  `resource_code` varchar(32) NOT NULL COMMENT '资源编号',
+  `resource_type` tinyint NOT NULL COMMENT '资源类型',
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint NOT NULL,
+  `creator` varchar(36) NOT NULL,
+  `is_deleted` tinyint NOT NULL DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_resource_code` (`resource_code`) USING BTREE
+) ENGINE=InnoDB COMMENT='资源操作记录';
 
 DROP TABLE IF EXISTS `t_flow_procdef`;
 -- 工单流程相关表

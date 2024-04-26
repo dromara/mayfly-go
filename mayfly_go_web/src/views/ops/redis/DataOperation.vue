@@ -2,7 +2,12 @@
     <div class="redis-data-op flex-all-center">
         <Splitpanes class="default-theme">
             <Pane size="20" max-size="30">
-                <tag-tree :resource-type="TagResourceTypeEnum.Redis.value" :tag-path-node-type="NodeTypeTagPath">
+                <tag-tree
+                    ref="tagTreeRef"
+                    :default-expanded-keys="state.defaultExpendKey"
+                    :resource-type="TagResourceTypeEnum.Redis.value"
+                    :tag-path-node-type="NodeTypeTagPath"
+                >
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == RedisNodeType.Redis">
                             <el-popover :show-after="500" placement="right-start" title="redis实例信息" trigger="hover" :width="250">
@@ -178,11 +183,11 @@
 
 <script lang="ts" setup>
 import { redisApi } from './api';
-import { ref, defineAsyncComponent, toRefs, reactive, onMounted, nextTick, Ref } from 'vue';
+import { ref, defineAsyncComponent, toRefs, reactive, onMounted, nextTick, Ref, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { isTrue, notBlank, notNull } from '@/common/assert';
 import { copyToClipboard } from '@/common/utils/string';
-import { TagTreeNode, NodeType } from '../component/tag';
+import { TagTreeNode, NodeType, getTagTypeCodeByPath } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { keysToTree, sortByTreeNodes, keysToList } from './utils';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
@@ -190,6 +195,8 @@ import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Splitpanes, Pane } from 'splitpanes';
 import { RedisInst } from './redis';
+import { useAutoOpenResource } from '@/store/autoOpenResource';
+import { storeToRefs } from 'pinia';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
@@ -230,7 +237,7 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
     await sleep(100);
     return redisInfos.map((x: any) => {
         x.tagPath = parentNode.key;
-        return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeRedis).withParams(x);
+        return new TagTreeNode(`${x.code}`, x.name, NodeTypeRedis).withParams(x);
     });
 });
 
@@ -288,9 +295,11 @@ const treeProps = {
 const defaultCount = 250;
 
 const keyTreeRef: any = ref(null);
+const tagTreeRef: any = ref(null);
 const redisInst: Ref<RedisInst> = ref(new RedisInst());
 
 const state = reactive({
+    defaultExpendKey: [] as any,
     tags: [],
     redisList: [] as any,
     dbList: [],
@@ -331,7 +340,37 @@ const state = reactive({
 
 const { scanParam, keyTreeData, newKeyDialog } = toRefs(state);
 
-onMounted(async () => {});
+const autoOpenResourceStore = useAutoOpenResource();
+const { autoOpenResource } = storeToRefs(autoOpenResourceStore);
+
+onMounted(async () => {
+    autoOpenRedis(autoOpenResource.value.redisCodePath);
+});
+
+watch(
+    () => autoOpenResource.value.redisCodePath,
+    (codePath: any) => {
+        autoOpenRedis(codePath);
+    }
+);
+
+const autoOpenRedis = (codePath: string) => {
+    if (!codePath) {
+        return;
+    }
+
+    const typeAndCodes = getTagTypeCodeByPath(codePath);
+    const tagPath = typeAndCodes[TagResourceTypeEnum.Tag.value].join('/') + '/';
+
+    const redisCode = typeAndCodes[TagResourceTypeEnum.Redis.value][0];
+    state.defaultExpendKey = [tagPath, redisCode];
+
+    setTimeout(() => {
+        // 置空
+        autoOpenResourceStore.setRedisCodePath('');
+        tagTreeRef.value.setCurrentKey(redisCode);
+    }, 600);
+};
 
 const scan = async (appendKey = false) => {
     isTrue(state.scanParam.id != null, '请先选择redis');

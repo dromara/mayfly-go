@@ -14,3 +14,7 @@ export const AuthCertCiphertextTypeEnum = {
     PrivateKey: EnumValue.of(2, '秘钥').tagTypeSuccess(),
     Public: EnumValue.of(-1, '公共凭证').tagTypeSuccess(),
 };
+
+export const TagTreeRelateTypeEnum = {
+    Team: EnumValue.of(1, '团队'),
+};

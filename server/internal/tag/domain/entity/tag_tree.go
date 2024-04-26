@@ -89,11 +89,13 @@ type ITagResource interface {
 
 // 资源关联的标签信息
 type ResourceTag struct {
+	TagId    uint64 `json:"tagId" gorm:"-"`
 	CodePath string `json:"codePath" gorm:"-"` // 标签路径
 }
 
 func (r *ResourceTag) SetTagInfo(rt ResourceTag) {
 	r.CodePath = rt.CodePath
+	r.TagId = rt.TagId
 }
 
 // 资源标签列表

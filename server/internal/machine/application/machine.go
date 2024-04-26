@@ -3,7 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
-	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/event"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
@@ -210,7 +210,7 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 	mcm.DeleteCli(id)
 
 	// 发布机器删除事件
-	global.EventBus.Publish(ctx, consts.DeleteMachineEventTopic, machine)
+	global.EventBus.Publish(ctx, event.EventTopicDeleteMachine, machine)
 
 	resourceType := tagentity.TagTypeMachine
 	return m.Tx(ctx,

@@ -113,9 +113,6 @@ const deleteRow = (idx: any) => {
 
 const cancelEdit = () => {
     state.dvisible = false;
-    setTimeout(() => {
-        state.form = {};
-    }, 300);
 };
 
 const btnOk = async (authCert: any) => {

@@ -203,8 +203,14 @@ const getNode = (nodeKey: any) => {
     return node;
 };
 
+const setCurrentKey = (nodeKey: any) => {
+    treeRef.value.setCurrentKey(nodeKey);
+};
+
 defineExpose({
     reloadNode,
+    getNode,
+    setCurrentKey,
 });
 </script>
 
