@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 )
 
@@ -75,7 +76,7 @@ func (tr *tagTreeRelateAppImpl) RelateTag(ctx context.Context, relateType entity
 	}
 
 	if len(delTagIds) > 0 {
-		if err := tr.DeleteByWheres(ctx, collx.Kvs("relate_type=?", relateType, "relate_id=?", relateId, "tag_id in ?", delTagIds)); err != nil {
+		if err := tr.DeleteByCond(ctx, model.NewCond().Eq("relate_type", relateType).Eq("relate_id", relateId).In("tag_id", delTagIds)); err != nil {
 			return err
 		}
 	}
@@ -111,7 +112,7 @@ func (tr *tagTreeRelateAppImpl) FillTagInfo(relateType entity.TagRelateType, rel
 	})
 
 	var relateTags []*entity.TagTreeRelate
-	tr.ListByWheres(collx.Kvs("relate_type=?", relateType, "relate_id in ?", collx.MapKeys(relateIds2Relate)), &relateTags)
+	tr.ListByCond(model.NewCond().Eq("relate_type", relateType).In("relate_id", collx.MapKeys(relateIds2Relate)), &relateTags)
 
 	tagIds := collx.ArrayMap(relateTags, func(rt *entity.TagTreeRelate) uint64 {
 		return rt.TagId

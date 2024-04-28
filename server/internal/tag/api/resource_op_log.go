@@ -18,7 +18,7 @@ func (r *ResourceOpLog) PageAccountOpLog(rc *req.Ctx) {
 	cond.CreatorId = rc.GetLoginAccount().Id
 
 	var rols []*entity.ResourceOpLog
-	res, err := r.ResourceOpLogApp.PageQuery(cond, rc.GetPageParam(), &rols)
+	res, err := r.ResourceOpLogApp.PageByCond(cond, rc.GetPageParam(), &rols)
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }

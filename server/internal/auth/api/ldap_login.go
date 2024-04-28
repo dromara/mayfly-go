@@ -79,7 +79,7 @@ func (a *LdapLogin) Login(rc *req.Ctx) {
 
 func (a *LdapLogin) getUser(userName string, cols ...string) (*sysentity.Account, error) {
 	account := &sysentity.Account{Username: userName}
-	if err := a.AccountApp.GetBy(account, cols...); err != nil {
+	if err := a.AccountApp.GetByCond(model.NewModelCond(account).Columns(cols...)); err != nil {
 		return nil, err
 	}
 	return account, nil

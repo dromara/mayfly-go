@@ -67,21 +67,21 @@
             <el-col :sm="12">
                 <el-card shadow="hover">
                     <template #header>
-                        <div class="pointer-icon" @click="toPage('machine')">
-                            <div class="resource-num">
+                        <el-row justify="center">
+                            <div class="resource-num pointer-icon" @click="toPage('machine')">
                                 <SvgIcon
                                     class="mb5 mr5"
                                     :size="28"
                                     :name="TagResourceTypeEnum.Machine.extra.icon"
                                     :color="TagResourceTypeEnum.Machine.extra.iconColor"
                                 />
-                                <span>{{ state.machine.num }}</span>
+                                <span class="">{{ state.machine.num }}</span>
                             </div>
-                        </div>
+                        </el-row>
                     </template>
                     <el-row>
                         <el-col :sm="24">
-                            <el-table :data="state.machine.opLogs" :height="state.resourceOpTableHeight" stripe size="small">
+                            <el-table :data="state.machine.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
                                 <el-table-column prop="createTime" show-overflow-tooltip width="135">
                                     <template #default="scope">
                                         {{ dateFormat(scope.row.createTime) }}
@@ -106,16 +106,16 @@
             <el-col :sm="12">
                 <el-card shadow="hover">
                     <template #header>
-                        <div class="pointer-icon" @click="toPage('db')">
-                            <div class="resource-num">
+                        <el-row justify="center">
+                            <div class="resource-num pointer-icon" @click="toPage('db')">
                                 <SvgIcon class="mb5 mr5" :size="28" :name="TagResourceTypeEnum.Db.extra.icon" :color="TagResourceTypeEnum.Db.extra.iconColor" />
-                                <span>{{ state.db.num }}</span>
+                                <span class="">{{ state.db.num }}</span>
                             </div>
-                        </div>
+                        </el-row>
                     </template>
                     <el-row>
                         <el-col :sm="24">
-                            <el-table :data="state.db.opLogs" :height="state.resourceOpTableHeight" stripe size="small">
+                            <el-table :data="state.db.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
                                 <el-table-column prop="createTime" show-overflow-tooltip min-width="135">
                                     <template #default="scope">
                                         {{ dateFormat(scope.row.createTime) }}
@@ -142,21 +142,21 @@
             <el-col :sm="12">
                 <el-card shadow="hover">
                     <template #header>
-                        <div class="pointer-icon" @click="toPage('redis')">
-                            <div class="resource-num">
+                        <el-row justify="center">
+                            <div class="resource-num pointer-icon" @click="toPage('redis')">
                                 <SvgIcon
                                     class="mb5 mr5"
                                     :size="28"
                                     :name="TagResourceTypeEnum.Redis.extra.icon"
                                     :color="TagResourceTypeEnum.Redis.extra.iconColor"
                                 />
-                                <span>{{ state.redis.num }}</span>
+                                <span class="">{{ state.redis.num }}</span>
                             </div>
-                        </div>
+                        </el-row>
                     </template>
                     <el-row>
                         <el-col :sm="24">
-                            <el-table :data="state.redis.opLogs" :height="state.resourceOpTableHeight" stripe size="small">
+                            <el-table :data="state.redis.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
                                 <el-table-column prop="createTime" show-overflow-tooltip min-width="135">
                                     <template #default="scope">
                                         {{ dateFormat(scope.row.createTime) }}
@@ -181,21 +181,21 @@
             <el-col :sm="12">
                 <el-card shadow="hover">
                     <template #header>
-                        <div class="pointer-icon" @click="toPage('mongo')">
-                            <div class="resource-num">
+                        <el-row justify="center">
+                            <div class="resource-num pointer-icon" @click="toPage('mongo')">
                                 <SvgIcon
                                     class="mb5 mr5"
                                     :size="28"
                                     :name="TagResourceTypeEnum.Mongo.extra.icon"
                                     :color="TagResourceTypeEnum.Mongo.extra.iconColor"
                                 />
-                                <span>{{ state.mongo.num }}</span>
+                                <span class="">{{ state.mongo.num }}</span>
                             </div>
-                        </div>
+                        </el-row>
                     </template>
                     <el-row>
                         <el-col :sm="24">
-                            <el-table :data="state.mongo.opLogs" :height="state.resourceOpTableHeight" stripe size="small">
+                            <el-table :data="state.mongo.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
                                 <el-table-column prop="createTime" show-overflow-tooltip min-width="135">
                                     <template #default="scope">
                                         {{ dateFormat(scope.row.createTime) }}

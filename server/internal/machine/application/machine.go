@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"mayfly-go/internal/event"
-	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/internal/machine/infrastructure/cache"
@@ -40,7 +39,7 @@ type Machine interface {
 	Delete(ctx context.Context, id uint64) error
 
 	// 分页获取机器信息列表
-	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]*vo.MachineVO, orderBy ...string) (*model.PageResult[*[]*vo.MachineVO], error)
+	GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	// 新建机器客户端连接（需手动调用Close）
 	NewCli(authCertName string) (*mcm.Cli, error)
@@ -78,7 +77,7 @@ func (m *machineAppImpl) InjectMachineRepo(repo repository.Machine) {
 }
 
 // 分页获取机器信息列表
-func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity *[]*vo.MachineVO, orderBy ...string) (*model.PageResult[*[]*vo.MachineVO], error) {
+func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return m.GetRepo().GetMachineList(condition, pageParam, toEntity, orderBy...)
 }
 
@@ -98,7 +97,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 		SshTunnelMachineId: me.SshTunnelMachineId,
 	}
 
-	err := m.GetBy(oldMachine)
+	err := m.GetByCond(oldMachine)
 	if me.Id == 0 {
 		if err == nil {
 			return errorx.NewBiz("该机器信息已存在")
@@ -268,7 +267,7 @@ func (m *machineAppImpl) TimerUpdateStats() {
 	logx.Debug("开始定时收集并缓存服务器状态信息...")
 	scheduler.AddFun("@every 2m", func() {
 		machineIds := new([]entity.Machine)
-		m.GetRepo().ListByCond(&entity.Machine{Status: entity.MachineStatusEnable, Protocol: entity.MachineProtocolSsh}, machineIds, "id")
+		m.ListByCond(model.NewModelCond(&entity.Machine{Status: entity.MachineStatusEnable, Protocol: entity.MachineProtocolSsh}).Columns("id"), machineIds)
 		for _, ma := range *machineIds {
 			go func(mid uint64) {
 				defer func() {
@@ -303,7 +302,7 @@ func (m *machineAppImpl) ToMachineInfoByAc(authCertName string) (*mcm.MachineInf
 	machine := &entity.Machine{
 		Code: authCert.ResourceCode,
 	}
-	if err := m.GetBy(machine); err != nil {
+	if err := m.GetByCond(machine); err != nil {
 		return nil, errorx.NewBiz("该授权凭证关联的机器信息不存在")
 	}
 

@@ -6,7 +6,6 @@ import (
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils/collx"
 
 	"gorm.io/gorm"
 )
@@ -14,90 +13,50 @@ import (
 // 基础application接口
 type App[T model.ModelI] interface {
 
-	// 新增一个实体
+	// Insert 新增一个实体
 	Insert(ctx context.Context, e T) error
 
-	// 使用指定gorm db执行，主要用于事务执行
-	InsertWithDb(ctx context.Context, db *gorm.DB, e T) error
-
-	// 批量新增实体
+	// BatchInsert 批量新增实体
 	BatchInsert(ctx context.Context, models []T) error
 
-	// 使用指定gorm db执行，主要用于事务执行
-	BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []T) error
-
-	// 根据实体id更新实体信息
+	// UpdateById 根据实体id更新实体信息
 	UpdateById(ctx context.Context, e T) error
 
-	// 使用指定gorm db执行，主要用于事务执行
-	UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T) error
+	// UpdateByCond 更新满足条件的数据
+	// @param cond 可为*model.QueryCond也可以为普通查询model
+	UpdateByCond(ctx context.Context, e T, cond any) error
 
-	// UpdateByWheres 更新满足wheres条件的数据
-	// @param wheres key => "age > ?" value => 10等
-	UpdateByWheres(ctx context.Context, e T, wheres collx.M, columns ...string) error
-
-	// UpdateByWheresWithDb 使用指定gorm.Db更新满足wheres条件的数据
-	// @param wheres key => "age > ?" value => 10等
-	UpdateByWheresWithDb(ctx context.Context, db *gorm.DB, e T, wheres collx.M, columns ...string) error
-
-	// 根据实体主键删除实体
+	// DeleteById 根据实体主键删除实体
 	DeleteById(ctx context.Context, id uint64) error
 
-	// 使用指定gorm db执行，主要用于事务执行
-	DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error
-
-	// DeleteByWheres 根据wheres条件进行删除
-	// @param wheres key -> "age > ?" value -> 10等
-	DeleteByWheres(ctx context.Context, wheres collx.M) error
-
-	// DeleteByWheresWithDb 使用指定gorm.Db根据wheres条件进行删除
-	// @param wheres key -> "age > ?" value -> 10等
-	DeleteByWheresWithDb(ctx context.Context, db *gorm.DB, wheres collx.M) error
-
-	// 根据实体条件，更新参数udpateFields指定字段
-	Updates(ctx context.Context, cond any, udpateFields map[string]any) error
-
-	// 保存实体，实体IsCreate返回true则新增，否则更新
-	Save(ctx context.Context, e T) error
-
-	// 保存实体，实体IsCreate返回true则新增，否则更新。
-	// 使用指定gorm db执行，主要用于事务执行
-	SaveWithDb(ctx context.Context, db *gorm.DB, e T) error
-
-	// 根据实体条件删除实体
+	// DeleteByCond 根据条件进行删除
 	DeleteByCond(ctx context.Context, cond any) error
 
-	// 使用指定gorm db执行，主要用于事务执行
-	DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error
+	// Updates 根据实体条件，更新参数udpateFields指定字段
+	Updates(ctx context.Context, cond any, udpateFields map[string]any) error
 
-	// 根据实体id查询
+	// Save 保存实体，实体IsCreate返回true则新增，否则更新
+	Save(ctx context.Context, e T) error
+
+	// GetById 根据实体id查询
 	GetById(e T, id uint64, cols ...string) (T, error)
 
+	// GetByIdIn 根据实体id数组查询
 	GetByIdIn(list any, ids []uint64, orderBy ...string) error
 
-	// 根据实体条件查询实体信息
-	GetBy(condModel T, cols ...string) error
+	// GetByCond 根据实体条件查询实体信息(获取单个实体)
+	GetByCond(cond any) error
 
-	// 根据条件查询数据映射至listModels
-	ListByCond(cond any, listModels any, cols ...string) error
+	// ListByCond 根据条件查询数据映射至res
+	ListByCond(cond any, res any) error
 
-	// 根据wheres条件进行过滤
-	// @param wheres key -> "age > ?" value -> 10等
-	ListByWheres(wheres collx.M, listModels any, cols ...string) error
+	// PageByCond 分页查询
+	PageByCond(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
 
-	// PageQuery 分页查询
-	PageQuery(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
-
-	// 获取满足model中不为空的字段值条件的所有数据.
-	//
-	// @param list为数组类型 如 var users *[]User，可指定为非model结构体
-	// @param cond  条件
-	ListByCondOrder(cond any, list any, order ...string) error
-
-	// 根据指定条件统计model表的数量, cond为条件可以为map等
+	// CountByCond 根据指定条件统计model表的数量
 	CountByCond(cond any) int64
 
-	// 执行事务操作
+	// Tx 执行事务操作
 	Tx(ctx context.Context, funcs ...func(context.Context) error) (err error)
 }
 
@@ -116,19 +75,9 @@ func (ai *AppImpl[T, R]) Insert(ctx context.Context, e T) error {
 	return ai.GetRepo().Insert(ctx, e)
 }
 
-// 使用指定gorm db执行，主要用于事务执行
-func (ai *AppImpl[T, R]) InsertWithDb(ctx context.Context, db *gorm.DB, e T) error {
-	return ai.GetRepo().InsertWithDb(ctx, db, e)
-}
-
 // 批量新增实体 (单纯新增，不做其他业务逻辑处理)
 func (ai *AppImpl[T, R]) BatchInsert(ctx context.Context, es []T) error {
 	return ai.GetRepo().BatchInsert(ctx, es)
-}
-
-// 使用指定gorm db执行，主要用于事务执行
-func (ai *AppImpl[T, R]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, models []T) error {
-	return ai.GetRepo().BatchInsertWithDb(ctx, db, models)
 }
 
 // 根据实体id更新实体信息 (单纯更新，不做其他业务逻辑处理)
@@ -136,17 +85,8 @@ func (ai *AppImpl[T, R]) UpdateById(ctx context.Context, e T) error {
 	return ai.GetRepo().UpdateById(ctx, e)
 }
 
-// 使用指定gorm db执行，主要用于事务执行
-func (ai *AppImpl[T, R]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T) error {
-	return ai.GetRepo().UpdateByIdWithDb(ctx, db, e)
-}
-
-func (ai *AppImpl[T, R]) UpdateByWheres(ctx context.Context, e T, wheres collx.M, columns ...string) error {
-	return ai.GetRepo().UpdateByWheres(ctx, e, wheres, columns...)
-}
-
-func (ai *AppImpl[T, R]) UpdateByWheresWithDb(ctx context.Context, db *gorm.DB, e T, wheres collx.M, columns ...string) error {
-	return ai.GetRepo().UpdateByWheresWithDb(ctx, db, e, wheres, columns...)
+func (ai *AppImpl[T, R]) UpdateByCond(ctx context.Context, e T, cond any) error {
+	return ai.GetRepo().UpdateByCond(ctx, e, cond)
 }
 
 // 根据实体条件，更新参数udpateFields指定字段 (单纯更新，不做其他业务逻辑处理)
@@ -170,26 +110,9 @@ func (ai *AppImpl[T, R]) DeleteById(ctx context.Context, id uint64) error {
 	return ai.GetRepo().DeleteById(ctx, id)
 }
 
-func (ai *AppImpl[T, R]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error {
-	return ai.GetRepo().DeleteByCondWithDb(ctx, db, id)
-}
-
 // 根据指定条件删除实体 (单纯删除实体，不做其他业务逻辑处理)
 func (ai *AppImpl[T, R]) DeleteByCond(ctx context.Context, cond any) error {
 	return ai.GetRepo().DeleteByCond(ctx, cond)
-}
-
-// 使用指定gorm db执行，主要用于事务执行
-func (ai *AppImpl[T, R]) DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error {
-	return ai.GetRepo().DeleteByCondWithDb(ctx, db, cond)
-}
-
-func (ai *AppImpl[T, R]) DeleteByWheres(ctx context.Context, wheres collx.M) error {
-	return ai.GetRepo().DeleteByWheres(ctx, wheres)
-}
-
-func (ai *AppImpl[T, R]) DeleteByWheresWithDb(ctx context.Context, db *gorm.DB, wheres collx.M) error {
-	return ai.GetRepo().DeleteByWheresWithDb(ctx, db, wheres)
 }
 
 // 根据实体id查询
@@ -205,30 +128,17 @@ func (ai *AppImpl[T, R]) GetByIdIn(list any, ids []uint64, orderBy ...string) er
 }
 
 // 根据实体条件查询实体信息
-func (ai *AppImpl[T, R]) GetBy(condModel T, cols ...string) error {
-	return ai.GetRepo().GetBy(condModel, cols...)
+func (ai *AppImpl[T, R]) GetByCond(cond any) error {
+	return ai.GetRepo().GetByCond(cond)
 }
 
-// 根据条件查询数据映射至listModels
-func (ai *AppImpl[T, R]) ListByCond(cond any, listModels any, cols ...string) error {
-	return ai.GetRepo().ListByCond(cond, listModels, cols...)
+func (ai *AppImpl[T, R]) ListByCond(cond any, res any) error {
+	return ai.GetRepo().SelectByCond(cond, res)
 }
 
-func (ai *AppImpl[T, R]) ListByWheres(wheres collx.M, listModels any, cols ...string) error {
-	return ai.GetRepo().ListByWheres(wheres, listModels, cols...)
-}
-
-// PageQuery 分页查询
-func (ai *AppImpl[T, R]) PageQuery(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error) {
-	return ai.GetRepo().PageQuery(cond, pageParam, toModels)
-}
-
-// 获取满足model中不为空的字段值条件的所有数据.
-//
-// @param list为数组类型 如 var users *[]User，可指定为非model结构体
-// @param cond  条件
-func (ai *AppImpl[T, R]) ListByCondOrder(cond any, list any, order ...string) error {
-	return ai.GetRepo().ListByCondOrder(cond, list, order...)
+// PageByCond 分页查询
+func (ai *AppImpl[T, R]) PageByCond(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error) {
+	return ai.GetRepo().PageByCond(cond, pageParam, toModels)
 }
 
 // 根据指定条件统计model表的数量, cond为条件可以为map等

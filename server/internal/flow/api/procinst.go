@@ -51,7 +51,7 @@ func (p *Procinst) GetProcinstDetail(rc *req.Ctx) {
 
 	// 流程实例任务信息
 	instTasks := new([]*entity.ProcinstTask)
-	biz.ErrIsNil(p.ProcinstTaskRepo.ListByCond(&entity.ProcinstTask{ProcinstId: pi.Id}, instTasks))
+	biz.ErrIsNil(p.ProcinstTaskRepo.SelectByCond(&entity.ProcinstTask{ProcinstId: pi.Id}, instTasks))
 	pivo.ProcinstTasks = *instTasks
 
 	rc.ResData = pivo

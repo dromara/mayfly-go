@@ -8,6 +8,7 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/gormx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 	"time"
@@ -29,6 +30,8 @@ type Resource interface {
 
 type resourceAppImpl struct {
 	base.AppImpl[*entity.Resource, repository.Resource]
+
+	roleResourceRepo repository.RoleResource `inject:"RoleResourceRepo"`
 }
 
 // 注入ResourceRepo
@@ -149,7 +152,7 @@ func (r *resourceAppImpl) checkCode(code string) error {
 	if strings.Contains(code, ",") {
 		return errorx.NewBiz("code不能包含','")
 	}
-	if gormx.CountBy(&entity.Resource{Code: code}) != 0 {
+	if r.CountByCond(&entity.Resource{Code: code}) != 0 {
 		return errorx.NewBiz("该code已存在")
 	}
 	return nil
@@ -166,7 +169,7 @@ func (r *resourceAppImpl) Delete(ctx context.Context, id uint64) error {
 	for _, v := range children {
 		r.GetRepo().DeleteById(ctx, v.Id)
 		// 删除角色关联的资源信息
-		gormx.DeleteBy(&entity.RoleResource{ResourceId: v.Id})
+		return r.roleResourceRepo.DeleteByCond(ctx, &entity.RoleResource{ResourceId: v.Id})
 	}
 	return nil
 }
@@ -177,7 +180,7 @@ func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity any) er
 		cond := &entity.Resource{
 			Status: entity.ResourceStatusEnable,
 		}
-		return r.ListByCondOrder(cond, toEntity, "pid asc", "weight asc")
+		return r.ListByCond(model.NewModelCond(cond).OrderByAsc("pid").OrderByAsc("weight"), toEntity)
 	}
 
 	return r.GetRepo().GetAccountResources(accountId, toEntity)

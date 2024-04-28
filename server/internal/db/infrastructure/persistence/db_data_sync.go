@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -18,10 +17,10 @@ func newDataSyncTaskRepo() repository.DataSyncTask {
 
 // 分页获取数据库信息列表
 func (d *dataSyncTaskRepoImpl) GetTaskList(condition *entity.DataSyncTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(new(entity.DataSyncTask)).
+	qd := model.NewCond().
 		Like("task_name", condition.Name).
 		Eq("status", condition.Status)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	return d.PageByCond(qd, pageParam, toEntity)
 }
 
 type dataSyncLogRepoImpl struct {
@@ -30,9 +29,9 @@ type dataSyncLogRepoImpl struct {
 
 // 分页获取数据库信息列表
 func (d *dataSyncLogRepoImpl) GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(new(entity.DataSyncLog)).
+	qd := model.NewCond().
 		Eq("task_id", condition.TaskId)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	return d.PageByCond(qd, pageParam, toEntity)
 }
 
 func newDataSyncLogRepo() repository.DataSyncLog {

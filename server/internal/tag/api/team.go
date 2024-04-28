@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/tag/application"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
@@ -39,7 +40,7 @@ func (p *Team) GetTeams(rc *req.Ctx) {
 func (p *Team) SaveTeam(rc *req.Ctx) {
 	team := req.BindJsonAndValid(rc, new(application.SaveTeamParam))
 	rc.ReqParam = team
-	biz.ErrIsNil(p.TeamApp.Save(rc.MetaCtx, team))
+	biz.ErrIsNil(p.TeamApp.SaveTeam(rc.MetaCtx, team))
 }
 
 func (p *Team) DelTeam(rc *req.Ctx) {
@@ -76,7 +77,8 @@ func (p *Team) SaveTeamMember(rc *req.Ctx) {
 		// 校验账号，并赋值username
 		account := &sys_entity.Account{}
 		account.Id = accountId
-		biz.ErrIsNil(p.AccountApp.GetBy(account, "Id", "Username"), "账号不存在")
+
+		biz.ErrIsNil(p.AccountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Username")), "账号不存在")
 
 		teamMember := new(entity.TeamMember)
 		teamMember.TeamId = teamId

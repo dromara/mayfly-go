@@ -114,7 +114,7 @@ export const useThemeConfig = defineStore('themeConfig', {
             // 默认布局，可选 1、默认 defaults 2、经典 classic 3、横向 transverse 4、分栏 columns
             layout: 'classic',
 
-            terminalTheme: 'solarizedLight',
+            terminalTheme: 'light',
             // ssh终端字体颜色
             terminalForeground: '#C5C8C6',
             // ssh终端背景色
@@ -207,7 +207,7 @@ export const useThemeConfig = defineStore('themeConfig', {
                 if (isDark) {
                     this.themeConfig.terminalTheme = 'dark';
                 } else {
-                    this.themeConfig.terminalTheme = 'solarizedLight';
+                    this.themeConfig.terminalTheme = 'light';
                 }
             }
         },

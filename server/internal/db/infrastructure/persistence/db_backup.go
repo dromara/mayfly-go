@@ -64,13 +64,13 @@ func (d *dbBackupRepoImpl) ListToDo(jobs any) error {
 
 // GetPageList 分页获取数据库备份任务列表
 func (d *dbBackupRepoImpl) GetPageList(condition *entity.DbBackupQuery, pageParam *model.PageParam, toEntity any, _ ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(d.GetModel()).
+	qd := model.NewCond().
 		Eq("id", condition.Id).
 		Eq0("db_instance_id", condition.DbInstanceId).
 		Eq0("repeated", condition.Repeated).
 		In0("db_name", condition.InDbNames).
 		Like("db_name", condition.DbName)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	return d.PageByCond(qd, pageParam, toEntity)
 }
 
 // AddJob 添加数据库任务
@@ -93,5 +93,5 @@ func (d *dbBackupRepoImpl) UpdateEnabled(_ context.Context, jobId uint64, enable
 }
 
 func (d *dbBackupRepoImpl) ListByCond(cond any, listModels any, cols ...string) error {
-	return d.dbJobBaseImpl.ListByCond(cond, listModels, cols...)
+	return d.dbJobBaseImpl.SelectByCond(model.NewModelCond(cond).Columns(cols...), listModels)
 }

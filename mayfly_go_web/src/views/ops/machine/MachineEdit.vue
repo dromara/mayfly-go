@@ -199,37 +199,37 @@ watchEffect(() => {
 });
 
 const testConn = async (authCert: any) => {
-    machineForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
+    try {
+        await machineForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
 
-        state.submitForm = getReqForm();
-        state.submitForm.authCerts = [authCert];
-        await testConnExec();
-        ElMessage.success('连接成功');
-    });
+    state.submitForm = getReqForm();
+    state.submitForm.authCerts = [authCert];
+    await testConnExec();
+    ElMessage.success('连接成功');
 };
 
 const btnOk = async () => {
-    machineForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
+    try {
+        await machineForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
 
-        if (state.form.authCerts.length == 0) {
-            ElMessage.error('请完善授权凭证账号信息');
-            return false;
-        }
+    if (state.form.authCerts.length == 0) {
+        ElMessage.error('请完善授权凭证账号信息');
+        return false;
+    }
 
-        state.submitForm = getReqForm();
-        await saveMachineExec();
-        ElMessage.success('保存成功');
-        emit('val-change', submitForm);
-        cancel();
-    });
+    state.submitForm = getReqForm();
+    await saveMachineExec();
+    ElMessage.success('保存成功');
+    emit('val-change', submitForm);
+    cancel();
 };
 
 const getReqForm = () => {

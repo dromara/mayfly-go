@@ -193,7 +193,7 @@ func (m *machineCronJobAppImpl) RunCronJob(key string) {
 
 	cronJob := new(entity.MachineCronJob)
 	cronJob.Key = key
-	err := m.GetBy(cronJob)
+	err := m.GetByCond(cronJob)
 	// 不存在或禁用，则移除该任务
 	if err != nil || cronJob.Status == entity.MachineCronJobStatusDisable {
 		scheduler.RemoveByKey(key)

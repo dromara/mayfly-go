@@ -4,6 +4,7 @@ import (
 	"context"
 	"mayfly-go/internal/auth/domain/entity"
 	"mayfly-go/internal/auth/domain/repository"
+	"mayfly-go/pkg/model"
 )
 
 type Oauth2 interface {
@@ -19,7 +20,7 @@ type oauth2AppImpl struct {
 }
 
 func (a *oauth2AppImpl) GetOAuthAccount(condition *entity.Oauth2Account, cols ...string) error {
-	return a.Oauth2AccountRepo.GetBy(condition, cols...)
+	return a.Oauth2AccountRepo.GetByCond(model.NewModelCond(condition).Columns(cols...))
 }
 
 func (a *oauth2AppImpl) BindOAuthAccount(e *entity.Oauth2Account) error {

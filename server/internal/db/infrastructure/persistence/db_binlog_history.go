@@ -3,13 +3,15 @@ package persistence
 import (
 	"context"
 	"errors"
-	"gorm.io/gorm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/gormx"
+	"mayfly-go/pkg/model"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 var _ repository.DbBinlogHistory = (*dbBinlogHistoryRepoImpl)(nil)
@@ -23,47 +25,40 @@ func NewDbBinlogHistoryRepo() repository.DbBinlogHistory {
 }
 
 func (repo *dbBinlogHistoryRepoImpl) GetHistoryByTime(instanceId uint64, targetTime time.Time) (*entity.DbBinlogHistory, error) {
-	gdb := gormx.NewQuery(repo.GetModel()).
+	qc := model.NewCond().
 		Eq("db_instance_id", instanceId).
 		Le("first_event_time", targetTime).
-		Undeleted().
-		OrderByDesc("first_event_time").
-		GenGdb()
+		OrderByDesc("first_event_time")
 	history := &entity.DbBinlogHistory{}
-	err := gdb.First(history).Error
-	if err != nil {
+	if err := repo.GetByCond(qc.Dest(history)); err != nil {
 		return nil, err
 	}
-	return history, err
+	return history, nil
 }
 
 func (repo *dbBinlogHistoryRepoImpl) GetHistories(instanceId uint64, start, target *entity.BinlogInfo) ([]*entity.DbBinlogHistory, error) {
-	gdb := gormx.NewQuery(repo.GetModel()).
+	qc := model.NewCond().
 		Eq("db_instance_id", instanceId).
 		Ge("sequence", start.Sequence).
 		Le("sequence", target.Sequence).
-		Undeleted().
-		OrderByAsc("sequence").
-		GenGdb()
+		OrderByAsc("sequence")
 	var histories []*entity.DbBinlogHistory
-	err := gdb.Find(&histories).Error
-	if err != nil {
+	if err := repo.SelectByCond(qc, &histories); err != nil {
 		return nil, err
 	}
 	if len(histories) == 0 {
 		return nil, errors.New("未找到满足条件的 binlog 文件")
 	}
-	return histories, err
+	return histories, nil
 }
 
 func (repo *dbBinlogHistoryRepoImpl) GetLatestHistory(instanceId uint64) (*entity.DbBinlogHistory, bool, error) {
 	history := &entity.DbBinlogHistory{}
-	err := gormx.NewQuery(repo.GetModel()).
+	qc := model.NewCond().
 		Eq("db_instance_id", instanceId).
-		Undeleted().
 		OrderByDesc("sequence").
-		GenGdb().
-		First(history).Error
+		Dest(history)
+	err := repo.GetByCond(qc)
 	switch {
 	case err == nil:
 		return history, true, nil

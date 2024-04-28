@@ -26,7 +26,7 @@ func (p *Procdef) GetProcdef(rc *req.Ctx) {
 	biz.NotEmpty(defkey, "流程定义key不能为空")
 
 	procdef := &entity.Procdef{DefKey: defkey}
-	biz.ErrIsNil(p.ProcdefApp.GetBy(procdef), "该流程定义不存在")
+	biz.ErrIsNil(p.ProcdefApp.GetByCond(procdef), "该流程定义不存在")
 	rc.ResData = procdef
 }
 

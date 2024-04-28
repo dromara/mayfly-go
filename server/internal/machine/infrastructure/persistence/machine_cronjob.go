@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -18,6 +17,6 @@ func newMachineCronJobRepo() repository.MachineCronJob {
 
 // 分页获取机器信息列表
 func (m *machineCronJobRepoImpl) GetPageList(condition *entity.MachineCronJob, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(condition).Like("name", condition.Name).Eq("status", condition.Status).WithOrderBy(orderBy...)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	qd := model.NewCond().Like("name", condition.Name).Eq("status", condition.Status).OrderBy(orderBy...)
+	return m.PageByCond(qd, pageParam, toEntity)
 }

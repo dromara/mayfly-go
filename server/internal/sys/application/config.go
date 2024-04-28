@@ -66,7 +66,7 @@ func (a *configAppImpl) GetConfig(key string) *entity.Config {
 		return config
 	}
 
-	if err := a.GetBy(config, "Id", "Key", "Value", "Permission"); err != nil {
+	if err := a.GetByCond(model.NewModelCond(config).Columns("Id", "Key", "Value", "Permission")); err != nil {
 		logx.Warnf("不存在key = [%s] 的系统配置", key)
 	} else {
 		cache.SetStr(SysConfigKeyPrefix+key, jsonx.ToStr(config), -1)

@@ -105,7 +105,7 @@ func (m *machineFileAppImpl) GetPageList(condition *entity.MachineFile, pagePara
 
 // 根据条件获取
 func (m *machineFileAppImpl) GetMachineFile(condition *entity.MachineFile, cols ...string) error {
-	return m.GetBy(condition, cols...)
+	return m.GetByCond(model.NewModelCond(condition).Columns(cols...))
 }
 
 // 保存机器文件配置

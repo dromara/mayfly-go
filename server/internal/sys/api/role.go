@@ -76,11 +76,10 @@ func (r *Role) SaveResource(rc *req.Ctx) {
 
 	// 将,拼接的字符串进行切割并转换
 	newIds := collx.ArrayMap[string, uint64](strings.Split(form.ResourceIds, ","), func(val string) uint64 {
-		id, _ := strconv.Atoi(val)
-		return uint64(id)
+		return cast.ToUint64(val)
 	})
 
-	r.RoleApp.SaveRoleResource(rc.MetaCtx, form.Id, newIds)
+	biz.ErrIsNilAppendErr(r.RoleApp.SaveRoleResource(rc.MetaCtx, form.Id, newIds), "保存角色资源失败: %s")
 }
 
 // 查看角色关联的用户

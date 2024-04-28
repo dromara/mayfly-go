@@ -4,7 +4,7 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
+	"mayfly-go/pkg/model"
 )
 
 type machineCronJobRelateRepoImpl struct {
@@ -17,18 +17,18 @@ func newMachineCronJobRelateRepo() repository.MachineCronJobRelate {
 
 func (m *machineCronJobRelateRepoImpl) GetList(condition *entity.MachineCronJobRelate) []entity.MachineCronJobRelate {
 	list := new([]entity.MachineCronJobRelate)
-	m.ListByCond(condition, list)
+	m.SelectByCond(condition, list)
 	return *list
 }
 
 func (m *machineCronJobRelateRepoImpl) GetMachineIds(cronJobId uint64) []uint64 {
 	var machineIds []uint64
-	m.ListByCond(&entity.MachineCronJobRelate{CronJobId: cronJobId}, &machineIds, "machine_id")
+	m.SelectByCond(model.NewModelCond(&entity.MachineCronJobRelate{CronJobId: cronJobId}).Columns("machine_id"), &machineIds)
 	return machineIds
 }
 
 func (m *machineCronJobRelateRepoImpl) GetCronJobIds(machineId uint64) []uint64 {
 	var cronJobIds []uint64
-	gormx.ListBy(&entity.MachineCronJobRelate{MachineId: machineId}, &cronJobIds, "cron_job_id")
+	m.SelectByCond(model.NewModelCond(&entity.MachineCronJobRelate{MachineId: machineId}).Columns("cron_job_id"), &cronJobIds)
 	return cronJobIds
 }

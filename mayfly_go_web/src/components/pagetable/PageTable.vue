@@ -159,7 +159,7 @@
                     @current-change="handlePageNumChange"
                     @size-change="handlePageSizeChange"
                     style="text-align: right"
-                    layout="prev, pager, next, total, sizes, jumper"
+                    layout="prev, pager, next, total, sizes"
                     :total="total"
                     v-model:current-page="queryForm.pageNum"
                     v-model:page-size="queryForm.pageSize"

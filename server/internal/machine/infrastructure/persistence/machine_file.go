@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -18,6 +17,6 @@ func newMachineFileRepo() repository.MachineFile {
 
 // 分页获取机器文件信息列表
 func (m *machineFileRepoImpl) GetPageList(condition *entity.MachineFile, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	qd := model.NewModelCond(condition).OrderBy(orderBy...)
+	return m.PageByCond(qd, pageParam, toEntity)
 }

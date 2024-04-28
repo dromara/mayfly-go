@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 )
 
 type tagTreeRelateRepoImpl struct {
@@ -33,7 +32,7 @@ WHERE
 ORDER BY
 	t.code_path
 	`
-	if err := gormx.GetListBySql2Model(sql, &res, relateType, tagPaths); err != nil {
+	if err := tr.SelectBySql(sql, &res, relateType, tagPaths); err != nil {
 		return res, err
 	}
 	return res, nil
@@ -59,7 +58,7 @@ WHERE
 ORDER BY
 	t.code_path
 	`
-	gormx.GetListBySql2Model(sql, &res, entity.TagRelateTypeTeam, accountId)
+	tr.SelectBySql(sql, &res, entity.TagRelateTypeTeam, accountId)
 	return res
 }
 
@@ -81,6 +80,6 @@ WHERE
 ORDER BY
 	t.code_path
 	`
-	gormx.GetListBySql2Model(sql, &res, relateId, relateType)
+	tr.SelectBySql(sql, &res, relateId, relateType)
 	return res
 }

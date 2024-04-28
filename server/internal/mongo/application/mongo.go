@@ -77,7 +77,7 @@ func (d *mongoAppImpl) TestConn(me *entity.Mongo) error {
 
 func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePaths ...string) error {
 	oldMongo := &entity.Mongo{Name: m.Name, SshTunnelMachineId: m.SshTunnelMachineId}
-	err := d.GetBy(oldMongo)
+	err := d.GetByCond(oldMongo)
 
 	if m.Id == 0 {
 		if err == nil {

@@ -7,7 +7,7 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/utils/collx"
+	"mayfly-go/pkg/model"
 	"time"
 )
 
@@ -38,7 +38,8 @@ func (rol *resourceOpLogAppImpl) AddResourceOpLog(ctx context.Context, codePath 
 	}
 
 	var logs []*entity.ResourceOpLog
-	if err := rol.ListByWheres(collx.Kvs("create_time > ?", time.Now().Add(-5*time.Minute), "creator_id = ?", loginAccount.Id, "code_path = ?", codePath), &logs); err != nil {
+	qc := model.NewCond().Ge("create_time", time.Now().Add(-5*time.Minute)).Eq("creator_id", loginAccount.Id).Eq("code_path", codePath)
+	if err := rol.ListByCond(qc, &logs); err != nil {
 		return err
 	}
 	// 指定时间内多次操作则不记录
@@ -46,7 +47,7 @@ func (rol *resourceOpLogAppImpl) AddResourceOpLog(ctx context.Context, codePath 
 		return nil
 	}
 	tagTree := &entity.TagTree{CodePath: codePath}
-	if err := rol.tagTreeApp.GetBy(tagTree); err != nil {
+	if err := rol.tagTreeApp.GetByCond(tagTree); err != nil {
 		return errorx.NewBiz("资源不存在")
 	}
 

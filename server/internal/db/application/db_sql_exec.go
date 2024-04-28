@@ -165,7 +165,7 @@ func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *fl
 		return nil
 	}
 	dbSqlExec := &entity.DbSqlExec{FlowBizKey: bizKey}
-	if err := d.dbSqlExecRepo.GetBy(dbSqlExec); err != nil {
+	if err := d.dbSqlExecRepo.GetByCond(dbSqlExec); err != nil {
 		logx.Errorf("flow-[%s]关联的sql执行信息不存在", bizKey)
 		return nil
 	}

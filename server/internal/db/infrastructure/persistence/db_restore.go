@@ -55,13 +55,13 @@ func (d *dbRestoreRepoImpl) ListToDo(jobs any) error {
 
 // GetPageList 分页获取数据库备份任务列表
 func (d *dbRestoreRepoImpl) GetPageList(condition *entity.DbRestoreQuery, pageParam *model.PageParam, toEntity any, _ ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(d.GetModel()).
+	qd := model.NewCond().
 		Eq("id", condition.Id).
 		Eq0("db_instance_id", condition.DbInstanceId).
 		Eq0("repeated", condition.Repeated).
 		In0("db_name", condition.InDbNames).
 		Like("db_name", condition.DbName)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	return d.PageByCond(qd, pageParam, toEntity)
 }
 
 func (d *dbRestoreRepoImpl) GetEnabledRestores(toEntity any, backupHistoryId ...uint64) error {

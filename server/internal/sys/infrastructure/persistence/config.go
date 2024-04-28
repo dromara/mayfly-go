@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -17,9 +16,9 @@ func newConfigRepo() repository.Config {
 }
 
 func (m *configRepoImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(condition).
+	qd := model.NewCond().
 		Like("`key`", condition.Key).
 		And("permission = 'all' OR permission LIKE ?", "%"+condition.Permission+",%").
-		WithOrderBy(orderBy...)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+		OrderBy(orderBy...)
+	return m.PageByCond(qd, pageParam, toEntity)
 }

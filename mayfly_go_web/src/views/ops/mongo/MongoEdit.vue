@@ -163,30 +163,30 @@ const getReqForm = () => {
 };
 
 const testConn = async () => {
-    mongoForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
-
-        state.submitForm = getReqForm();
-        await testConnExec();
-        ElMessage.success('连接成功');
-    });
+    try {
+        await mongoForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
+    state.submitForm = getReqForm();
+    await testConnExec();
+    ElMessage.success('连接成功');
 };
 
 const btnOk = async () => {
-    mongoForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
-        state.submitForm = getReqForm();
-        await saveMongoExec();
-        ElMessage.success('保存成功');
-        emit('val-change', state.form);
-        cancel();
-    });
+    try {
+        await mongoForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
+
+    state.submitForm = getReqForm();
+    await saveMongoExec();
+    ElMessage.success('保存成功');
+    emit('val-change', state.form);
+    cancel();
 };
 
 const cancel = () => {

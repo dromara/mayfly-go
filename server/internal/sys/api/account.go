@@ -68,7 +68,7 @@ func (a *Account) ChangePassword(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "解密旧密码错误: %s")
 
 	account := &entity.Account{Username: form.Username}
-	err = a.AccountApp.GetBy(account, "Id", "Username", "Password", "Status")
+	err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Username", "Password", "Status"))
 	biz.ErrIsNil(err, "旧密码错误")
 	biz.IsTrue(cryptox.CheckPwdHash(originOldPwd, account.Password), "旧密码错误")
 	biz.IsTrue(account.IsEnable(), "该账号不可用")

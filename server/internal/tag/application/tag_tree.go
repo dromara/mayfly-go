@@ -10,6 +10,7 @@ import (
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 	"strings"
 )
@@ -252,7 +253,7 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *SaveResourc
 
 	// 获取所有关联的父标签
 	var parentTags []*entity.TagTree
-	p.ListByWheres(collx.M{"code_path in ?": parentTagCodePaths}, &parentTags)
+	p.ListByCond(model.NewCond().In("code_path", parentTagCodePaths), &parentTags)
 	if len(parentTags) == 0 || len(parentTags) != len(parentTagCodePaths) {
 		return errorx.NewBiz("保存资源标签失败: 存在错误的关联标签")
 	}
@@ -337,7 +338,7 @@ func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *Rel
 }
 
 func (p *tagTreeAppImpl) UpdateTagName(ctx context.Context, tagType entity.TagType, tagCode string, tagName string) error {
-	return p.UpdateByWheres(ctx, &entity.TagTree{Name: tagName}, collx.Kvs("code = ?", tagCode, "type = ?", tagType))
+	return p.UpdateByCond(ctx, &entity.TagTree{Name: tagName}, model.NewCond().Eq0("type", tagType).Eq0("code", tagCode))
 }
 
 func (p *tagTreeAppImpl) ChangeParentTag(ctx context.Context, tagType entity.TagType, tagCode string, parentTagType entity.TagType, newParentCode string) error {
@@ -381,12 +382,12 @@ func (p *tagTreeAppImpl) ChangeParentTag(ctx context.Context, tagType entity.Tag
 
 func (p *tagTreeAppImpl) MovingTag(ctx context.Context, fromTagPath string, toTagPath string) error {
 	fromTag := &entity.TagTree{CodePath: fromTagPath}
-	if err := p.GetBy(fromTag); err != nil {
+	if err := p.GetByCond(fromTag); err != nil {
 		return errorx.NewBiz("移动标签不存在")
 	}
 
 	toTag := &entity.TagTree{CodePath: toTagPath}
-	if err := p.GetBy(toTag); err != nil {
+	if err := p.GetByCond(toTag); err != nil {
 		return errorx.NewBiz("目标标签不存在")
 	}
 
@@ -423,10 +424,8 @@ func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *DelResourc
 	for _, resourceTag := range resourceTags {
 		// 获取所有关联的子标签
 		var childrenTag []*entity.TagTree
-		p.ListByWheres(collx.M{
-			"code_path LIKE ?": resourceTag.CodePath + "%",
-			"type = ?":         delTagType,
-		}, &childrenTag)
+
+		p.ListByCond(model.NewCond().RLike("code_path", resourceTag.CodePath).Eq0("type", delTagType), &childrenTag)
 		if len(childrenTag) == 0 {
 			continue
 		}
@@ -546,14 +545,10 @@ func (p *tagTreeAppImpl) toTags(parentTags []*entity.TagTree, param *ResourceTag
 }
 
 func (p *tagTreeAppImpl) deleteByIds(ctx context.Context, tagIds []uint64) error {
-	if err := p.DeleteByWheres(ctx, collx.M{
-		"id in ?": tagIds,
-	}); err != nil {
+	if err := p.DeleteByCond(ctx, model.NewCond().In("id", tagIds)); err != nil {
 		return err
 	}
 
 	// 删除与标签有关联信息的记录(如团队关联的标签等)
-	return p.tagTreeRelateApp.DeleteByWheres(ctx, collx.M{
-		"tag_id in ?": tagIds,
-	})
+	return p.tagTreeRelateApp.DeleteByCond(ctx, model.NewCond().In("tag_id", tagIds))
 }

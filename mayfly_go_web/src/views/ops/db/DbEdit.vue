@@ -144,6 +144,13 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
+    authCertName: [
+        {
+            required: true,
+            message: '请选择授权凭证',
+            trigger: ['change', 'blur'],
+        },
+    ],
     database: [
         {
             required: true,
@@ -235,18 +242,14 @@ const open = async () => {
 };
 
 const btnOk = async () => {
-    dbForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
+    try {
+        await dbForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
 
-        emit('confirm', state.form);
-        // await saveDbExec();
-        // ElMessage.success('保存成功');
-        // emit('val-change', state.form);
-        // cancel();
-    });
+    emit('confirm', state.form);
 };
 
 const resetInputDb = () => {

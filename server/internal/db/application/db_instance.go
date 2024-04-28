@@ -110,7 +110,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *SaveDb
 		SshTunnelMachineId: instanceEntity.SshTunnelMachineId,
 	}
 
-	err := app.GetBy(oldInstance)
+	err := app.GetByCond(oldInstance)
 	if instanceEntity.Id == 0 {
 		if err == nil {
 			return 0, errorx.NewBiz("该数据库实例已存在")
@@ -178,7 +178,7 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 	restore := &entity.DbRestore{
 		DbInstanceId: instanceId,
 	}
-	err = app.restoreApp.restoreRepo.GetBy(restore)
+	err = app.restoreApp.restoreRepo.GetByCond(restore)
 	switch {
 	case err == nil:
 		biz.ErrNotNil(err, "不能删除数据库实例【%s】，请先删除关联的数据库恢复任务。", instance.Name)
@@ -191,7 +191,7 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 	backup := &entity.DbBackup{
 		DbInstanceId: instanceId,
 	}
-	err = app.backupApp.backupRepo.GetBy(backup)
+	err = app.backupApp.backupRepo.GetByCond(backup)
 	switch {
 	case err == nil:
 		biz.ErrNotNil(err, "不能删除数据库实例【%s】，请先删除关联的数据库备份任务。", instance.Name)
@@ -204,7 +204,7 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 	db := &entity.Db{
 		InstanceId: instanceId,
 	}
-	err = app.dbApp.GetBy(db)
+	err = app.dbApp.GetByCond(db)
 	switch {
 	case err == nil:
 		biz.ErrNotNil(err, "不能删除数据库实例【%s】，请先删除关联的数据库资源。", instance.Name)

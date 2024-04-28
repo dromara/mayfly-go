@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/gormx"
 	"reflect"
+
+	"gorm.io/gorm"
 )
 
 var _ repository.DbJobBase[entity.DbJob] = (*dbJobBaseImpl[entity.DbJob])(nil)

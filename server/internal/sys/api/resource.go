@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 )
@@ -17,7 +18,7 @@ type Resource struct {
 
 func (r *Resource) GetAllResourceTree(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
-	r.ResourceApp.ListByCondOrder(new(entity.Resource), &resources, "weight asc")
+	r.ResourceApp.ListByCond(model.NewCond().OrderByAsc("weight"), &resources)
 	rc.ResData = resources.ToTrees(0)
 }
 

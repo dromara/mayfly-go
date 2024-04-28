@@ -23,7 +23,7 @@ func (r *ResourceAuthCert) ListByQuery(rc *req.Ctx) {
 	cond.Name = rc.Query("name")
 
 	var racs []*entity.ResourceAuthCert
-	res, err := r.ResourceAuthCertApp.PageQuery(cond, rc.GetPageParam(), &racs)
+	res, err := r.ResourceAuthCertApp.PageByCond(cond, rc.GetPageParam(), &racs)
 	biz.ErrIsNil(err)
 	for _, rac := range racs {
 		rac.CiphertextClear()
@@ -37,7 +37,7 @@ func (r *ResourceAuthCert) GetCompleteAuthCert(rc *req.Ctx) {
 	rc.ReqParam = acName
 
 	res := &entity.ResourceAuthCert{Name: acName}
-	err := r.ResourceAuthCertApp.GetBy(res)
+	err := r.ResourceAuthCertApp.GetByCond(res)
 	biz.ErrIsNil(err)
 	res.CiphertextDecrypt()
 	rc.ResData = res

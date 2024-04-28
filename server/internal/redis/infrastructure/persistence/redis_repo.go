@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -18,10 +17,10 @@ func newRedisRepo() repository.Redis {
 
 // 分页获取redis信息列表
 func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(new(entity.Redis)).
+	qd := model.NewCond().
 		Eq("id", condition.Id).
 		Like("host", condition.Host).
 		Eq("code", condition.Code).
 		In("code", condition.Codes)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	return r.PageByCond(qd, pageParam, toEntity)
 }

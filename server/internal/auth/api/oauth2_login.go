@@ -99,7 +99,7 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 
 		account := new(sysentity.Account)
 		account.Id = accountId
-		err = a.AccountApp.GetBy(account, "username")
+		err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("username"))
 		biz.ErrIsNilAppendErr(err, "该账号不存在")
 		rc.ReqParam = collx.Kvs("username", account.Username, "type", "bind")
 
@@ -145,9 +145,11 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 		now := time.Now()
 		account := &sysentity.Account{
 			Model: model.Model{
-				CreateTime: &now,
-				CreatorId:  0,
-				Creator:    "oauth2",
+				CreateModel: model.CreateModel{
+					CreateTime: &now,
+					CreatorId:  0,
+					Creator:    "oauth2",
+				},
 				UpdateTime: &now,
 			},
 			Name:     userId,

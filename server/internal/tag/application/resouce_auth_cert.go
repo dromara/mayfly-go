@@ -7,6 +7,7 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
 )
 
@@ -91,7 +92,7 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *Re
 		name2AuthCert[resourceAuthCert.Name] = resourceAuthCert
 
 		existNameAc := &entity.ResourceAuthCert{Name: resourceAuthCert.Name}
-		if resourceAuthCert.Id == 0 && r.GetBy(existNameAc) == nil && existNameAc.ResourceCode != resourceCode {
+		if resourceAuthCert.Id == 0 && r.GetByCond(existNameAc) == nil && existNameAc.ResourceCode != resourceCode {
 			return errorx.NewBiz("授权凭证的名称不能重复[%s]", resourceAuthCert.Name)
 		}
 
@@ -215,7 +216,7 @@ func (r *resourceAuthCertAppImpl) DeleteAuthCert(ctx context.Context, id uint64)
 
 func (r *resourceAuthCertAppImpl) GetAuthCert(authCertName string) (*entity.ResourceAuthCert, error) {
 	authCert := &entity.ResourceAuthCert{Name: authCertName}
-	if err := r.GetBy(authCert); err != nil {
+	if err := r.GetByCond(authCert); err != nil {
 		return nil, errorx.NewBiz("该授权凭证不存在")
 	}
 
@@ -272,7 +273,7 @@ func (r *resourceAuthCertAppImpl) FillAuthCertByAcs(authCerts []*entity.Resource
 
 func (r *resourceAuthCertAppImpl) FillAuthCertByAcNames(authCertNames []string, resources ...entity.IAuthCert) {
 	var acs []*entity.ResourceAuthCert
-	r.ListByWheres(collx.M{"name in ?": authCertNames}, &acs)
+	r.ListByCond(model.NewCond().In("name", authCertNames), &acs)
 	r.FillAuthCertByAcs(acs, resources...)
 }
 
@@ -285,7 +286,7 @@ func (r *resourceAuthCertAppImpl) FillAuthCert(resourceType int8, resources ...e
 		return ac.GetCode()
 	})
 	var acs []*entity.ResourceAuthCert
-	r.ListByWheres(collx.M{"resource_code in ?": resourceCodes, "resource_type = ?": resourceType}, &acs)
+	r.ListByCond(model.NewCond().In("ResoourceCode", resourceCodes).Eq0("ResourceType", resourceType), &acs)
 	r.FillAuthCertByAcs(acs, resources...)
 }
 
@@ -403,7 +404,7 @@ func (r *resourceAuthCertAppImpl) decryptAuthCert(authCert *entity.ResourceAuthC
 	if authCert.CiphertextType == entity.AuthCertCiphertextTypePublic {
 		// 如果是公共授权凭证，则密文为公共授权凭证名称，需要使用该名称再去获取对应的授权凭证
 		realAuthCert := &entity.ResourceAuthCert{Name: authCert.Ciphertext}
-		if err := r.GetBy(realAuthCert); err != nil {
+		if err := r.GetByCond(realAuthCert); err != nil {
 			return nil, errorx.NewBiz("该公共授权凭证[%s]不存在", authCert.Ciphertext)
 		}
 

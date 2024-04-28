@@ -14,6 +14,7 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/captcha"
 	"mayfly-go/pkg/errorx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/otp"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -50,7 +51,7 @@ func (a *AccountLogin) Login(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
 
 	account := &sysentity.Account{Username: username}
-	err = a.AccountApp.GetBy(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
+	err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret"))
 
 	failCountKey := fmt.Sprintf("account:login:failcount:%s", username)
 	nowFailCount := cache.GetInt(failCountKey)

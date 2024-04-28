@@ -71,7 +71,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 		return errorx.NewBiz("授权凭证不存在")
 	}
 
-	err = d.GetBy(oldDb)
+	err = d.GetByCond(oldDb)
 	if dbEntity.Id == 0 {
 		if err == nil {
 			return errorx.NewBiz("该实例下数据库名已存在")
@@ -206,7 +206,8 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 	}
 
 	var dbs []*entity.Db
-	if err := d.ListByCond(&entity.Db{InstanceId: instanceId}, &dbs, "id", "database"); err != nil {
+
+	if err := d.ListByCond(model.NewModelCond(&entity.Db{InstanceId: instanceId}).Columns("id", "database"), &dbs); err != nil {
 		return nil, errorx.NewBiz("获取数据库列表失败")
 	}
 	if len(dbs) == 0 {

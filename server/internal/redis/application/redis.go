@@ -115,7 +115,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *SaveRedisParam) err
 		Host:               re.Host,
 		SshTunnelMachineId: re.SshTunnelMachineId,
 	}
-	err := r.GetBy(oldRedis)
+	err := r.GetByCond(oldRedis)
 
 	if re.Id == 0 {
 		if err == nil {

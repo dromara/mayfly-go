@@ -20,7 +20,7 @@ func newResourceRepo() repository.Resource {
 func (r *resourceRepoImpl) GetChildren(uiPath string) []entity.Resource {
 	sql := "SELECT id, ui_path FROM t_sys_resource WHERE ui_path LIKE ? AND is_deleted = 0"
 	var rs []entity.Resource
-	gormx.GetListBySql2Model(sql, &rs, uiPath+"%")
+	r.SelectBySql(sql, &rs, uiPath+"%")
 	return rs
 }
 
@@ -63,5 +63,5 @@ func (r *resourceRepoImpl) GetAccountResources(accountId uint64, toEntity any) e
             ORDER BY
 	        m.pid ASC,
 	        m.weight ASC`
-	return gormx.GetListBySql2Model(sql, toEntity, accountId)
+	return r.SelectBySql(sql, toEntity, accountId)
 }

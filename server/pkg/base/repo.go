@@ -5,7 +5,6 @@ import (
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils/collx"
 
 	"gorm.io/gorm"
 )
@@ -34,13 +33,12 @@ type Repo[T model.ModelI] interface {
 	// 使用指定gorm db执行，主要用于事务执行
 	UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, columns ...string) error
 
-	// UpdateByWheres 更新满足wheres条件的数据
-	// @param wheres key => "age > ?" value => 10等
-	UpdateByWheres(ctx context.Context, e T, wheres collx.M, columns ...string) error
+	// UpdateByCond 更新满足条件的数据
+	// @param cond 条件
+	UpdateByCond(ctx context.Context, e T, cond any) error
 
-	// UpdateByWheresWithDb 使用指定gorm.Db更新满足wheres条件的数据
-	// @param wheres key => "age > ?" value => 10等
-	UpdateByWheresWithDb(ctx context.Context, db *gorm.DB, e T, wheres collx.M, columns ...string) error
+	// UpdateByCondWithDb 更新满足条件的数据
+	UpdateByCondWithDb(ctx context.Context, db *gorm.DB, e T, cond any) error
 
 	// 保存实体，实体IsCreate返回true则新增，否则更新
 	Save(ctx context.Context, e T) error
@@ -64,40 +62,25 @@ type Repo[T model.ModelI] interface {
 	// 使用指定gorm db执行，主要用于事务执行
 	DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error
 
-	// DeleteByWheres 根据wheres条件进行删除
-	// @param wheres key -> "age > ?" value -> 10等
-	DeleteByWheres(ctx context.Context, wheres collx.M) error
-
-	// DeleteByWheresWithDb 使用指定gorm.Db根据wheres条件进行删除
-	// @param wheres key -> "age > ?" value -> 10等
-	DeleteByWheresWithDb(ctx context.Context, db *gorm.DB, wheres collx.M) error
-
 	// 根据实体id查询
 	GetById(e T, id uint64, cols ...string) error
 
 	// 根据实体id数组查询对应实体列表，并将响应结果映射至list
 	GetByIdIn(list any, ids []uint64, orderBy ...string) error
 
-	// 根据实体条件查询实体信息
-	GetBy(cond T, cols ...string) error
+	// GetByCond 根据实体条件查询实体信息（单个结果集）
+	GetByCond(cond any) error
 
-	// 根据实体条件查询数据映射至listModels
-	ListByCond(cond any, listModels any, cols ...string) error
+	// SelectByCond 根据实体条件查询数据映射至res
+	SelectByCond(cond any, res any) error
 
-	// 根据wheres条件进行过滤
-	// @param wheres key -> "age > ?" value -> 10等
-	ListByWheres(wheres collx.M, listModels any, cols ...string) error
+	// PageByCond 根据查询条件分页查询
+	PageByCond(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
 
-	// PageQuery 分页查询
-	PageQuery(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
+	// SelectBySql 根据sql语句查询数据
+	SelectBySql(sql string, res any, params ...any) error
 
-	// 获取满足model中不为空的字段值条件的所有数据.
-	//
-	// @param list为数组类型 如 var users *[]User，可指定为非model结构体
-	// @param cond  条件
-	ListByCondOrder(cond any, list any, order ...string) error
-
-	// 根据指定条件统计model表的数量, cond为条件可以为map等
+	// 根据指定条件统计model表的数量
 	CountByCond(cond any) int64
 }
 
@@ -147,22 +130,22 @@ func (br *RepoImpl[T]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, c
 	return gormx.UpdateByIdWithDb(db, br.fillBaseInfo(ctx, e), columns...)
 }
 
-func (br *RepoImpl[T]) UpdateByWheres(ctx context.Context, e T, wheres collx.M, columns ...string) error {
+func (br *RepoImpl[T]) UpdateByCond(ctx context.Context, e T, cond any) error {
 	if db := contextx.GetDb(ctx); db != nil {
-		return br.UpdateByWheresWithDb(ctx, db, e, wheres, columns...)
+		return br.UpdateByCondWithDb(ctx, db, e, cond)
 	}
 
 	e = br.fillBaseInfo(ctx, e)
 	// model的主键值需为空，否则会带上主键条件
 	e.SetId(0)
-	return gormx.UpdateByWheres(e, wheres)
+	return gormx.UpdateByCond(e, toQueryCond(cond))
 }
 
-func (br *RepoImpl[T]) UpdateByWheresWithDb(ctx context.Context, db *gorm.DB, e T, wheres collx.M, columns ...string) error {
+func (br *RepoImpl[T]) UpdateByCondWithDb(ctx context.Context, db *gorm.DB, e T, cond any) error {
 	e = br.fillBaseInfo(ctx, e)
 	// model的主键值需为空，否则会带上主键条件
 	e.SetId(0)
-	return gormx.UpdateByWheresWithDb(db, br.fillBaseInfo(ctx, e), wheres, columns...)
+	return gormx.UpdateByCondWithDb(db, br.fillBaseInfo(ctx, e), toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) Updates(cond any, udpateFields map[string]any) error {
@@ -191,35 +174,18 @@ func (br *RepoImpl[T]) DeleteById(ctx context.Context, id uint64) error {
 }
 
 func (br *RepoImpl[T]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error {
-	return gormx.DeleteByCondWithDb(db, br.GetModel(), id)
+	return gormx.DeleteByIdWithDb(db, br.GetModel(), id)
 }
 
 func (br *RepoImpl[T]) DeleteByCond(ctx context.Context, cond any) error {
 	if db := contextx.GetDb(ctx); db != nil {
 		return br.DeleteByCondWithDb(ctx, db, cond)
 	}
-	return gormx.DeleteByCond(br.GetModel(), cond)
+	return gormx.DeleteByCond(br.GetModel(), toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error {
-	return gormx.DeleteByCondWithDb(db, br.GetModel(), cond)
-}
-
-func (br *RepoImpl[T]) DeleteByWheres(ctx context.Context, wheres collx.M) error {
-	if db := contextx.GetDb(ctx); db != nil {
-		return br.DeleteByWheresWithDb(ctx, db, wheres)
-	}
-	// model的主键值需为空，否则会带上主键条件
-	e := br.GetModel()
-	e.SetId(0)
-	return gormx.DeleteByWheres(e, wheres)
-}
-
-func (br *RepoImpl[T]) DeleteByWheresWithDb(ctx context.Context, db *gorm.DB, wheres collx.M) error {
-	// model的主键值需为空，否则会带上主键条件
-	e := br.GetModel()
-	e.SetId(0)
-	return gormx.DeleteByWheresWithDb(db, e, wheres)
+	return gormx.DeleteByCondWithDb(db, br.GetModel(), toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) GetById(e T, id uint64, cols ...string) error {
@@ -230,32 +196,27 @@ func (br *RepoImpl[T]) GetById(e T, id uint64, cols ...string) error {
 }
 
 func (br *RepoImpl[T]) GetByIdIn(list any, ids []uint64, orderBy ...string) error {
-	return gormx.GetByIdIn(br.GetModel(), list, ids, orderBy...)
+	return br.SelectByCond(model.NewCond().In(model.IdColumn, ids).OrderBy(orderBy...), list)
 }
 
-func (br *RepoImpl[T]) GetBy(cond T, cols ...string) error {
-	return gormx.GetBy(cond, cols...)
+func (br *RepoImpl[T]) GetByCond(cond any) error {
+	return gormx.GetByCond(br.GetModel(), toQueryCond(cond))
 }
 
-func (br *RepoImpl[T]) ListByCond(cond any, listModels any, cols ...string) error {
-	return gormx.ListByCond(br.GetModel(), cond, listModels, cols...)
+func (br *RepoImpl[T]) SelectByCond(cond any, res any) error {
+	return gormx.SelectByCond(br.GetModel(), toQueryCond(cond).Dest(res))
 }
 
-func (br *RepoImpl[T]) ListByWheres(wheres collx.M, listModels any, cols ...string) error {
-	return gormx.ListByWheres(br.GetModel(), wheres, listModels, cols...)
+func (br *RepoImpl[T]) PageByCond(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error) {
+	return gormx.PageByCond(br.GetModel(), toQueryCond(cond), pageParam, toModels)
 }
 
-func (br *RepoImpl[T]) PageQuery(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(br.GetModel()).WithCondModel(cond)
-	return gormx.PageQuery(qd, pageParam, toModels)
-}
-
-func (br *RepoImpl[T]) ListByCondOrder(cond any, list any, order ...string) error {
-	return gormx.ListByCondOrder(br.GetModel(), cond, list, order...)
+func (br *RepoImpl[T]) SelectBySql(sql string, res any, params ...any) error {
+	return gormx.SelectBySql(sql, res, params...)
 }
 
 func (br *RepoImpl[T]) CountByCond(cond any) int64 {
-	return gormx.CountByCond(br.GetModel(), cond)
+	return gormx.CountByCond(br.GetModel(), toQueryCond(cond))
 }
 
 // GetModel 获取表的模型实例
@@ -268,4 +229,11 @@ func (br *RepoImpl[T]) fillBaseInfo(ctx context.Context, e T) T {
 	// 默认使用数据库id策略, 若要改变则实体结构体自行覆盖FillBaseInfo方法。可参考 sys/entity.Resource
 	e.FillBaseInfo(model.IdGenTypeNone, contextx.GetLoginAccount(ctx))
 	return e
+}
+
+func toQueryCond(cond any) *model.QueryCond {
+	if qc, ok := cond.(*model.QueryCond); ok {
+		return qc
+	}
+	return model.NewModelCond(cond)
 }

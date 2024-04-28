@@ -4,14 +4,12 @@ import (
 	"context"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
+	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
-
-	"gorm.io/gorm"
 )
 
 type SaveTeamParam struct {
@@ -23,11 +21,13 @@ type SaveTeamParam struct {
 }
 
 type Team interface {
+	base.App[*entity.Team]
+
 	// 分页获取项目团队信息列表
 	GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	// Save 保存团队信息
-	Save(ctx context.Context, team *SaveTeamParam) error
+	// SaveTeam 保存团队信息
+	SaveTeam(ctx context.Context, team *SaveTeamParam) error
 
 	Delete(ctx context.Context, id uint64) error
 
@@ -45,26 +45,32 @@ type Team interface {
 }
 
 type teamAppImpl struct {
-	teamRepo       repository.Team       `inject:"TeamRepo"`
-	teamMemberRepo repository.TeamMember `inject:"TeamMemberRepo"`
+	base.AppImpl[*entity.Team, repository.Team]
 
-	tagTreeRelateApp TagTreeRelate `inject:"TagTreeRelateApp"`
+	teamMemberRepo   repository.TeamMember `inject:"TeamMemberRepo"`
+	tagTreeRelateApp TagTreeRelate         `inject:"TagTreeRelateApp"`
+}
+
+var _ (Team) = (*teamAppImpl)(nil)
+
+func (p *teamAppImpl) InjectTeamRepo(repo repository.Team) {
+	p.Repo = repo
 }
 
 func (p *teamAppImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return p.teamRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+	return p.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (p *teamAppImpl) Save(ctx context.Context, saveParam *SaveTeamParam) error {
+func (p *teamAppImpl) SaveTeam(ctx context.Context, saveParam *SaveTeamParam) error {
 	team := &entity.Team{Name: saveParam.Name, Remark: saveParam.Remark}
 	team.Id = saveParam.Id
 
 	if team.Id == 0 {
-		if p.teamRepo.CountByCond(&entity.Team{Name: saveParam.Name}) > 0 {
+		if p.CountByCond(&entity.Team{Name: saveParam.Name}) > 0 {
 			return errorx.NewBiz("团队名[%s]已存在", saveParam.Name)
 		}
 
-		if err := p.teamRepo.Insert(ctx, team); err != nil {
+		if err := p.Insert(ctx, team); err != nil {
 			return err
 		}
 
@@ -79,7 +85,7 @@ func (p *teamAppImpl) Save(ctx context.Context, saveParam *SaveTeamParam) error 
 	} else {
 		// 置空名称，防止变更
 		team.Name = ""
-		if err := p.teamRepo.UpdateById(ctx, team); err != nil {
+		if err := p.UpdateById(ctx, team); err != nil {
 			return err
 		}
 	}
@@ -89,17 +95,13 @@ func (p *teamAppImpl) Save(ctx context.Context, saveParam *SaveTeamParam) error 
 }
 
 func (p *teamAppImpl) Delete(ctx context.Context, id uint64) error {
-	return gormx.Tx(
-		func(db *gorm.DB) error {
-			return p.teamRepo.DeleteByIdWithDb(ctx, db, id)
-		},
-		func(db *gorm.DB) error {
-			return p.teamMemberRepo.DeleteByCondWithDb(ctx, db, &entity.TeamMember{TeamId: id})
-		},
-		func(db *gorm.DB) error {
-			return p.tagTreeRelateApp.DeleteByCondWithDb(ctx, db, &entity.TagTreeRelate{RelateType: entity.TagRelateTypeTeam, RelateId: id})
-		},
-	)
+	return p.Tx(ctx, func(ctx context.Context) error {
+		return p.DeleteById(ctx, id)
+	}, func(ctx context.Context) error {
+		return p.teamMemberRepo.DeleteByCond(ctx, &entity.TeamMember{TeamId: id})
+	}, func(ctx context.Context) error {
+		return p.tagTreeRelateApp.DeleteByCond(ctx, &entity.TagTreeRelate{RelateType: entity.TagRelateTypeTeam, RelateId: id})
+	})
 }
 
 // --------------- 团队成员相关接口 ---------------

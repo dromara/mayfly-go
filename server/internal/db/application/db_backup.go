@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"gorm.io/gorm"
 	"math"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
@@ -14,6 +13,8 @@ import (
 	"mayfly-go/pkg/utils/timex"
 	"sync"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/google/uuid"
 )
@@ -74,7 +75,7 @@ func (app *DbBackupApp) prune(ctx context.Context) error {
 		historyCond := map[string]any{
 			"db_backup_id": job.Id,
 		}
-		if err := app.backupHistoryRepo.ListByCondOrder(historyCond, &histories, "id"); err != nil {
+		if err := app.backupHistoryRepo.SelectByCond(historyCond, &histories); err != nil {
 			return err
 		}
 		expiringTime := time.Now().Add(-math.MaxInt64)
@@ -140,7 +141,7 @@ func (app *DbBackupApp) Delete(ctx context.Context, jobId uint64) error {
 	history := &entity.DbBackupHistory{
 		DbBackupId: jobId,
 	}
-	err := app.backupHistoryRepo.GetBy(history, "name")
+	err := app.backupHistoryRepo.GetByCond(history)
 	switch {
 	default:
 		return err

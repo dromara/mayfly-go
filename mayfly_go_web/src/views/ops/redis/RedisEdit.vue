@@ -253,30 +253,31 @@ const getReqForm = async () => {
 };
 
 const testConn = async () => {
-    redisForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
+    try {
+        await redisForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
 
-        state.submitForm = await getReqForm();
-        await testConnExec();
-        ElMessage.success('连接成功');
-    });
+    state.submitForm = await getReqForm();
+    await testConnExec();
+    ElMessage.success('连接成功');
 };
 
 const btnOk = async () => {
-    redisForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
-        state.submitForm = await getReqForm();
-        await saveRedisExec();
-        ElMessage.success('保存成功');
-        emit('val-change', state.form);
-        cancel();
-    });
+    try {
+        await redisForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
+
+    state.submitForm = await getReqForm();
+    await saveRedisExec();
+    ElMessage.success('保存成功');
+    emit('val-change', state.form);
+    cancel();
 };
 
 const cancel = () => {

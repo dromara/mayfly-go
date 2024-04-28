@@ -267,33 +267,33 @@ const getReqForm = async () => {
 };
 
 const testConn = async (authCert: any) => {
-    dbForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
+    try {
+        await dbForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
 
-        state.submitForm = await getReqForm();
-        state.submitForm.authCerts = [authCert];
-        await testConnExec();
-        ElMessage.success('连接成功');
-    });
+    state.submitForm = await getReqForm();
+    state.submitForm.authCerts = [authCert];
+    await testConnExec();
+    ElMessage.success('连接成功');
 };
 
 const btnOk = async () => {
-    dbForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
+    try {
+        await dbForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
 
-        state.submitForm = await getReqForm();
-        await saveInstanceExec();
-        ElMessage.success('保存成功');
-        state.form.id = saveInstanceRes as any;
-        emit('val-change', state.form);
-        cancel();
-    });
+    state.submitForm = await getReqForm();
+    await saveInstanceExec();
+    ElMessage.success('保存成功');
+    state.form.id = saveInstanceRes as any;
+    emit('val-change', state.form);
+    cancel();
 };
 
 const cancel = () => {

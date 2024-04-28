@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 )
 
 type tagTreeRepoImpl struct {
@@ -52,5 +51,5 @@ func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEn
 		sql = sql + ")"
 	}
 	sql = sql + " ORDER BY p.type, p.code_path"
-	gormx.GetListBySql2Model(sql, toEntity, params...)
+	p.SelectBySql(sql, toEntity, params...)
 }

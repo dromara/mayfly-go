@@ -2,13 +2,14 @@ package persistence
 
 import (
 	"errors"
-	"gorm.io/gorm"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
+
+	"gorm.io/gorm"
 )
 
 var _ repository.DbBackupHistory = (*dbBackupHistoryRepoImpl)(nil)
@@ -22,13 +23,13 @@ func NewDbBackupHistoryRepo() repository.DbBackupHistory {
 }
 
 func (repo *dbBackupHistoryRepoImpl) GetPageList(condition *entity.DbBackupHistoryQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(repo.GetModel()).
+	qd := model.NewCond().
 		Eq("id", condition.Id).
 		Eq0("db_instance_id", condition.DbInstanceId).
 		In0("db_name", condition.InDbNames).
 		Eq("db_backup_id", condition.DbBackupId).
 		Eq("db_name", condition.DbName)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	return repo.PageByCond(qd, pageParam, toEntity)
 }
 
 func (repo *dbBackupHistoryRepoImpl) GetHistories(backupHistoryIds []uint64, toEntity any) error {

@@ -41,7 +41,7 @@ func (p *procdefAppImpl) Save(ctx context.Context, def *entity.Procdef) error {
 		return err
 	}
 	if def.Id == 0 {
-		if p.GetBy(&entity.Procdef{DefKey: def.DefKey}) == nil {
+		if p.GetByCond(&entity.Procdef{DefKey: def.DefKey}) == nil {
 			return errorx.NewBiz("该流程实例key已存在")
 		}
 		return p.Insert(ctx, def)

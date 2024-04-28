@@ -258,7 +258,7 @@ const cancelEdit = () => {
 const btnOk = async () => {
     acForm.value.validate(async (valid: boolean) => {
         if (valid) {
-            emit('confirm', state.form);
+            emit('confirm', { ...state.form });
         }
     });
 };

@@ -48,7 +48,7 @@
     "@typescript-eslint/eslint-plugin": "^6.7.4",
     "@typescript-eslint/parser": "^6.7.4",
     "@vitejs/plugin-vue": "^5.0.4",
-    "@vue/compiler-sfc": "^3.4.23",
+    "@vue/compiler-sfc": "^3.4.25",
     "code-inspector-plugin": "^0.4.5",
     "dotenv": "^16.3.1",
     "eslint": "^8.35.0",

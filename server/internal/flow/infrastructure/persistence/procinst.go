@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -17,8 +16,8 @@ func newProcinstRepo() repository.Procinst {
 }
 
 func (p *procinstImpl) GetPageList(condition *entity.ProcinstQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(new(entity.Procinst)).WithCondModel(condition)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	qd := model.NewModelCond(condition)
+	return p.PageByCond(qd, pageParam, toEntity)
 }
 
 //-----------procinst task--------------
@@ -32,6 +31,6 @@ func newProcinstTaskRepo() repository.ProcinstTask {
 }
 
 func (p *procinstTaskImpl) GetPageList(condition *entity.ProcinstTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(new(entity.ProcinstTask)).WithCondModel(condition)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	qd := model.NewModelCond(condition)
+	return p.PageByCond(qd, pageParam, toEntity)
 }

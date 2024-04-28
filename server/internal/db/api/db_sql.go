@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/db/application"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 )
 
@@ -24,7 +25,7 @@ func (d *DbSql) SaveSql(rc *req.Ctx) {
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
 	dbSql := &entity.DbSql{Type: dbSqlForm.Type, DbId: dbId, Name: dbSqlForm.Name, Db: dbSqlForm.Db}
 	dbSql.CreatorId = account.Id
-	e := d.DbSqlApp.GetBy(dbSql)
+	e := d.DbSqlApp.GetByCond(dbSql)
 
 	// 更新sql信息
 	dbSql.Sql = dbSqlForm.Sql
@@ -43,7 +44,7 @@ func (d *DbSql) GetSqlNames(rc *req.Ctx) {
 	dbSql := &entity.DbSql{Type: 1, DbId: dbId, Db: dbName}
 	dbSql.CreatorId = rc.GetLoginAccount().Id
 	var sqls []entity.DbSql
-	d.DbSqlApp.ListByCond(dbSql, &sqls, "id", "name")
+	d.DbSqlApp.ListByCond(model.NewModelCond(dbSql).Columns("id", "name"), &sqls)
 
 	rc.ResData = sqls
 }
@@ -67,7 +68,7 @@ func (d *DbSql) GetSql(rc *req.Ctx) {
 	dbSql.CreatorId = rc.GetLoginAccount().Id
 	dbSql.Name = rc.Query("name")
 
-	e := d.DbSqlApp.GetBy(dbSql)
+	e := d.DbSqlApp.GetByCond(dbSql)
 	if e != nil {
 		return
 	}

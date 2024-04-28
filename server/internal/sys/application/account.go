@@ -6,11 +6,8 @@ import (
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/cryptox"
-
-	"gorm.io/gorm"
 )
 
 type Account interface {
@@ -27,6 +24,8 @@ type Account interface {
 
 type accountAppImpl struct {
 	base.AppImpl[*entity.Account, repository.Account]
+
+	accountRoleRepo repository.AccountRole `inject:"AccountRoleRepo"`
 }
 
 // 注入AccountRepo
@@ -39,7 +38,7 @@ func (a *accountAppImpl) GetPageList(condition *entity.AccountQuery, pageParam *
 }
 
 func (a *accountAppImpl) Create(ctx context.Context, account *entity.Account) error {
-	if a.GetBy(&entity.Account{Username: account.Username}) == nil {
+	if a.GetByCond(&entity.Account{Username: account.Username}) == nil {
 		return errorx.NewBiz("该账号用户名已存在")
 	}
 	// 默认密码为账号用户名
@@ -51,7 +50,7 @@ func (a *accountAppImpl) Create(ctx context.Context, account *entity.Account) er
 func (a *accountAppImpl) Update(ctx context.Context, account *entity.Account) error {
 	if account.Username != "" {
 		unAcc := &entity.Account{Username: account.Username}
-		err := a.GetBy(unAcc)
+		err := a.GetByCond(unAcc)
 		if err == nil && unAcc.Id != account.Id {
 			return errorx.NewBiz("该用户名已存在")
 		}
@@ -61,14 +60,9 @@ func (a *accountAppImpl) Update(ctx context.Context, account *entity.Account) er
 }
 
 func (a *accountAppImpl) Delete(ctx context.Context, id uint64) error {
-	return gormx.Tx(
-		func(db *gorm.DB) error {
-			// 删除account信息
-			return a.DeleteByIdWithDb(ctx, db, id)
-		},
-		func(db *gorm.DB) error {
-			// 删除账号关联的角色信息
-			return gormx.DeleteByWithDb(db, &entity.AccountRole{AccountId: id})
-		},
-	)
+	return a.Tx(ctx, func(ctx context.Context) error {
+		return a.DeleteById(ctx, id)
+	}, func(ctx context.Context) error {
+		return a.accountRoleRepo.DeleteByCond(ctx, &entity.AccountRole{AccountId: id})
+	})
 }

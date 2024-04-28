@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -17,9 +16,9 @@ func newAccountRepo() repository.Account {
 }
 
 func (m *AccountRepoImpl) GetPageList(condition *entity.AccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(new(entity.Account)).
+	qd := model.NewCond().
 		Like("name", condition.Name).
 		Like("username", condition.Username).
 		In("id", condition.Ids)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+	return m.PageByCond(qd, pageParam, toEntity)
 }

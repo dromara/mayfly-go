@@ -57,7 +57,7 @@ func (p *procinstAppImpl) GetProcinstTasks(condition *entity.ProcinstTaskQuery, 
 
 func (p *procinstAppImpl) StartProc(ctx context.Context, procdefKey string, reqParam *StarProcParam) (*entity.Procinst, error) {
 	procdef := &entity.Procdef{DefKey: procdefKey}
-	if err := p.procdefApp.GetBy(procdef); err != nil {
+	if err := p.procdefApp.GetByCond(procdef); err != nil {
 		return nil, errorx.NewBiz("流程实例[%s]不存在", procdefKey)
 	}
 
@@ -208,7 +208,7 @@ func (p *procinstAppImpl) BackTask(ctx context.Context, instTaskId uint64, remar
 func (p *procinstAppImpl) cancelInstTasks(ctx context.Context, procinstId uint64, cancelReason string) error {
 	// 流程实例任务信息
 	instTasks := new([]*entity.ProcinstTask)
-	p.procinstTaskRepo.ListByCond(&entity.ProcinstTask{ProcinstId: procinstId, Status: entity.ProcinstTaskStatusProcess}, instTasks)
+	p.procinstTaskRepo.SelectByCond(&entity.ProcinstTask{ProcinstId: procinstId, Status: entity.ProcinstTaskStatusProcess}, instTasks)
 	for _, instTask := range *instTasks {
 		instTask.Status = entity.ProcinstTaskStatusCanceled
 		instTask.Remark = cancelReason

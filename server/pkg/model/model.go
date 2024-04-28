@@ -92,11 +92,8 @@ func (m *CreateModel) FillBaseInfo(idGenType IdGenType, account *LoginAccount) {
 
 // 基础实体模型，数据表最基础字段，尽量每张表都包含这些字段
 type Model struct {
-	DeletedModel
+	CreateModel
 
-	CreateTime *time.Time `json:"createTime"`
-	CreatorId  uint64     `json:"creatorId"`
-	Creator    string     `json:"creator"`
 	UpdateTime *time.Time `json:"updateTime"`
 	ModifierId uint64     `json:"modifierId"`
 	Modifier   string     `json:"modifier"`
