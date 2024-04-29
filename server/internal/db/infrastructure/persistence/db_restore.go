@@ -80,7 +80,7 @@ func (d *dbRestoreRepoImpl) AddJob(ctx context.Context, jobs any) error {
 	return addJob[*entity.DbRestore](ctx, d.dbJobBaseImpl, jobs)
 }
 
-func (d *dbRestoreRepoImpl) UpdateEnabled(_ context.Context, jobId uint64, enabled bool) error {
+func (d *dbRestoreRepoImpl) UpdateEnabled(ctx context.Context, jobId uint64, enabled bool) error {
 	cond := map[string]any{
 		"id": jobId,
 	}
@@ -88,8 +88,8 @@ func (d *dbRestoreRepoImpl) UpdateEnabled(_ context.Context, jobId uint64, enabl
 	if enabled {
 		desc = "已启用"
 	}
-	return d.Updates(cond, map[string]any{
+	return d.UpdateByCond(ctx, map[string]any{
 		"enabled":      enabled,
 		"enabled_desc": desc,
-	})
+	}, cond)
 }

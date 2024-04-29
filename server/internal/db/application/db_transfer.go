@@ -11,7 +11,6 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
@@ -74,13 +73,7 @@ func (app *dbTransferAppImpl) Delete(ctx context.Context, id uint64) error {
 }
 
 func (app *dbTransferAppImpl) InitJob() {
-	// 修改执行状态为待执行
-	updateMap := map[string]interface{}{
-		"running_state": entity.DbTransferTaskRunStateStop,
-	}
-	taskParam := new(entity.DbTransferTask)
-	taskParam.RunningState = entity.DbTransferTaskRunStateRunning
-	_ = gormx.Updates(taskParam, taskParam, updateMap)
+	app.UpdateByCond(context.TODO(), &entity.DbTransferTask{RunningState: entity.DbTransferTaskRunStateStop}, &entity.DbTransferTask{RunningState: entity.DbTransferTaskRunStateRunning})
 }
 
 func (app *dbTransferAppImpl) CreateLog(ctx context.Context, taskId uint64) (uint64, error) {

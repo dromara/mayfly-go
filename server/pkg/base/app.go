@@ -23,17 +23,15 @@ type App[T model.ModelI] interface {
 	UpdateById(ctx context.Context, e T) error
 
 	// UpdateByCond 更新满足条件的数据
+	// @param values 需为模型结构体指针或map(更新零值等)
 	// @param cond 可为*model.QueryCond也可以为普通查询model
-	UpdateByCond(ctx context.Context, e T, cond any) error
+	UpdateByCond(ctx context.Context, values any, cond any) error
 
 	// DeleteById 根据实体主键删除实体
-	DeleteById(ctx context.Context, id uint64) error
+	DeleteById(ctx context.Context, id ...uint64) error
 
 	// DeleteByCond 根据条件进行删除
 	DeleteByCond(ctx context.Context, cond any) error
-
-	// Updates 根据实体条件，更新参数udpateFields指定字段
-	Updates(ctx context.Context, cond any, udpateFields map[string]any) error
 
 	// Save 保存实体，实体IsCreate返回true则新增，否则更新
 	Save(ctx context.Context, e T) error
@@ -41,8 +39,8 @@ type App[T model.ModelI] interface {
 	// GetById 根据实体id查询
 	GetById(e T, id uint64, cols ...string) (T, error)
 
-	// GetByIdIn 根据实体id数组查询
-	GetByIdIn(list any, ids []uint64, orderBy ...string) error
+	// GetByIds 根据实体id数组查询
+	GetByIds(list any, ids []uint64, orderBy ...string) error
 
 	// GetByCond 根据实体条件查询实体信息(获取单个实体)
 	GetByCond(cond any) error
@@ -85,13 +83,11 @@ func (ai *AppImpl[T, R]) UpdateById(ctx context.Context, e T) error {
 	return ai.GetRepo().UpdateById(ctx, e)
 }
 
-func (ai *AppImpl[T, R]) UpdateByCond(ctx context.Context, e T, cond any) error {
-	return ai.GetRepo().UpdateByCond(ctx, e, cond)
-}
-
-// 根据实体条件，更新参数udpateFields指定字段 (单纯更新，不做其他业务逻辑处理)
-func (ai *AppImpl[T, R]) Updates(ctx context.Context, cond any, udpateFields map[string]any) error {
-	return ai.GetRepo().Updates(cond, udpateFields)
+// UpdateByCond 更新满足条件的数据
+// @param values 需为模型结构体指针或map(更新零值等)
+// @param cond 可为*model.QueryCond也可以为普通查询model
+func (ai *AppImpl[T, R]) UpdateByCond(ctx context.Context, values any, cond any) error {
+	return ai.GetRepo().UpdateByCond(ctx, values, cond)
 }
 
 // 保存实体，实体IsCreate返回true则新增，否则更新
@@ -106,8 +102,8 @@ func (ai *AppImpl[T, R]) SaveWithDb(ctx context.Context, db *gorm.DB, e T) error
 }
 
 // 根据实体主键删除实体 (单纯删除实体，不做其他业务逻辑处理)
-func (ai *AppImpl[T, R]) DeleteById(ctx context.Context, id uint64) error {
-	return ai.GetRepo().DeleteById(ctx, id)
+func (ai *AppImpl[T, R]) DeleteById(ctx context.Context, id ...uint64) error {
+	return ai.GetRepo().DeleteById(ctx, id...)
 }
 
 // 根据指定条件删除实体 (单纯删除实体，不做其他业务逻辑处理)
@@ -123,8 +119,8 @@ func (ai *AppImpl[T, R]) GetById(e T, id uint64, cols ...string) (T, error) {
 	return e, nil
 }
 
-func (ai *AppImpl[T, R]) GetByIdIn(list any, ids []uint64, orderBy ...string) error {
-	return ai.GetRepo().GetByIdIn(list, ids, orderBy...)
+func (ai *AppImpl[T, R]) GetByIds(list any, ids []uint64, orderBy ...string) error {
+	return ai.GetRepo().GetByIds(list, ids, orderBy...)
 }
 
 // 根据实体条件查询实体信息

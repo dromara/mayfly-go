@@ -118,7 +118,7 @@ func (tr *tagTreeRelateAppImpl) FillTagInfo(relateType entity.TagRelateType, rel
 		return rt.TagId
 	})
 	var tags []*entity.TagTree
-	tr.tagTreeApp.GetByIdIn(&tags, tagIds)
+	tr.tagTreeApp.GetByIds(&tags, tagIds)
 
 	tagId2Tag := collx.ArrayToMap(tags, func(t *entity.TagTree) uint64 {
 		return t.Id

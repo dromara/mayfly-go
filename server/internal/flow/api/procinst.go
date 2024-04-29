@@ -70,7 +70,7 @@ func (p *Procinst) GetTasks(rc *req.Ctx) {
 
 	instIds := collx.ArrayMap[*vo.ProcinstTask, uint64](*taskVos, func(val *vo.ProcinstTask) uint64 { return val.ProcinstId })
 	insts := new([]*entity.Procinst)
-	p.ProcinstApp.GetByIdIn(insts, instIds)
+	p.ProcinstApp.GetByIds(insts, instIds)
 	instId2Inst := collx.ArrayToMap[*entity.Procinst, uint64](*insts, func(val *entity.Procinst) uint64 { return val.Id })
 
 	// 赋值任务对应的流程实例

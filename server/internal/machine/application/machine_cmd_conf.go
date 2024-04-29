@@ -83,7 +83,7 @@ func (m *machineCmdConfAppImpl) GetCmdConfsByMachineTags(tagPaths ...string) []*
 	}
 
 	var cmdConfs []*entity.MachineCmdConf
-	m.GetByIdIn(&cmdConfs, cmdConfIds)
+	m.GetByIds(&cmdConfs, cmdConfIds)
 
 	for _, cmdConf := range cmdConfs {
 		for _, cmd := range cmdConf.Cmds {

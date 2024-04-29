@@ -78,7 +78,7 @@ func (d *dbBackupRepoImpl) AddJob(ctx context.Context, jobs any) error {
 	return addJob[*entity.DbBackup](ctx, d.dbJobBaseImpl, jobs)
 }
 
-func (d *dbBackupRepoImpl) UpdateEnabled(_ context.Context, jobId uint64, enabled bool) error {
+func (d *dbBackupRepoImpl) UpdateEnabled(ctx context.Context, jobId uint64, enabled bool) error {
 	cond := map[string]any{
 		"id": jobId,
 	}
@@ -86,10 +86,10 @@ func (d *dbBackupRepoImpl) UpdateEnabled(_ context.Context, jobId uint64, enable
 	if enabled {
 		desc = "已启用"
 	}
-	return d.Updates(cond, map[string]any{
+	return d.UpdateByCond(ctx, map[string]any{
 		"enabled":      enabled,
 		"enabled_desc": desc,
-	})
+	}, cond)
 }
 
 func (d *dbBackupRepoImpl) ListByCond(cond any, listModels any, cols ...string) error {

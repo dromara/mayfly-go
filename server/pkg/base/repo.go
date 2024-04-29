@@ -5,6 +5,8 @@ import (
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -34,11 +36,13 @@ type Repo[T model.ModelI] interface {
 	UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, columns ...string) error
 
 	// UpdateByCond 更新满足条件的数据
+	// @param values 需要模型结构体或map
 	// @param cond 条件
-	UpdateByCond(ctx context.Context, e T, cond any) error
+	UpdateByCond(ctx context.Context, values any, cond any) error
 
 	// UpdateByCondWithDb 更新满足条件的数据
-	UpdateByCondWithDb(ctx context.Context, db *gorm.DB, e T, cond any) error
+	// @param values 需要模型结构体或map
+	UpdateByCondWithDb(ctx context.Context, db *gorm.DB, values any, cond any) error
 
 	// 保存实体，实体IsCreate返回true则新增，否则更新
 	Save(ctx context.Context, e T) error
@@ -48,13 +52,10 @@ type Repo[T model.ModelI] interface {
 	SaveWithDb(ctx context.Context, db *gorm.DB, e T) error
 
 	// 根据实体主键删除实体
-	DeleteById(ctx context.Context, id uint64) error
+	DeleteById(ctx context.Context, id ...uint64) error
 
 	// 使用指定gorm db执行，主要用于事务执行
-	DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error
-
-	// 根据实体条件，更新参数udpateFields指定字段
-	Updates(cond any, udpateFields map[string]any) error
+	DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id ...uint64) error
 
 	// 根据实体条件删除实体
 	DeleteByCond(ctx context.Context, cond any) error
@@ -62,11 +63,14 @@ type Repo[T model.ModelI] interface {
 	// 使用指定gorm db执行，主要用于事务执行
 	DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error
 
+	// ExecBySql 执行原生sql
+	ExecBySql(sql string, params ...any) error
+
 	// 根据实体id查询
 	GetById(e T, id uint64, cols ...string) error
 
 	// 根据实体id数组查询对应实体列表，并将响应结果映射至list
-	GetByIdIn(list any, ids []uint64, orderBy ...string) error
+	GetByIds(list any, ids []uint64, orderBy ...string) error
 
 	// GetByCond 根据实体条件查询实体信息（单个结果集）
 	GetByCond(cond any) error
@@ -119,37 +123,50 @@ func (br *RepoImpl[T]) BatchInsertWithDb(ctx context.Context, db *gorm.DB, es []
 }
 
 func (br *RepoImpl[T]) UpdateById(ctx context.Context, e T, columns ...string) error {
-	if db := contextx.GetDb(ctx); db != nil {
-		return br.UpdateByIdWithDb(ctx, db, e, columns...)
-	}
-
-	return gormx.UpdateById(br.fillBaseInfo(ctx, e), columns...)
+	return br.UpdateByIdWithDb(ctx, contextx.GetDb(ctx), e, columns...)
 }
 
 func (br *RepoImpl[T]) UpdateByIdWithDb(ctx context.Context, db *gorm.DB, e T, columns ...string) error {
+	if db == nil {
+		return gormx.UpdateById(br.fillBaseInfo(ctx, e), columns...)
+	}
 	return gormx.UpdateByIdWithDb(db, br.fillBaseInfo(ctx, e), columns...)
 }
 
-func (br *RepoImpl[T]) UpdateByCond(ctx context.Context, e T, cond any) error {
-	if db := contextx.GetDb(ctx); db != nil {
-		return br.UpdateByCondWithDb(ctx, db, e, cond)
+func (br *RepoImpl[T]) UpdateByCond(ctx context.Context, values any, cond any) error {
+	return br.UpdateByCondWithDb(ctx, contextx.GetDb(ctx), values, cond)
+}
+
+func (br *RepoImpl[T]) UpdateByCondWithDb(ctx context.Context, db *gorm.DB, values any, cond any) error {
+	if e, ok := values.(T); ok {
+		// 先随机设置一个id，让fillBaseInfo不填充create信息
+		e.SetId(1)
+		e = br.fillBaseInfo(ctx, e)
+		// model的主键值需为空，否则会带上主键条件
+		e.SetId(0)
+		values = e
+	} else {
+		var mapValues map[string]any
+		// 非model实体，则为map
+		if m, ok := values.(map[string]any); ok {
+			mapValues = m
+		} else if collxm, ok := values.(collx.M); ok {
+			mapValues = map[string]any(collxm)
+		}
+		if len(mapValues) > 0 {
+			mapValues[model.UpdateTimeColumn] = time.Now()
+			if la := contextx.GetLoginAccount(ctx); la != nil {
+				mapValues[model.ModifierColumn] = la.Username
+				mapValues[model.ModifierIdColumn] = la.Id
+			}
+			values = mapValues
+		}
 	}
 
-	e = br.fillBaseInfo(ctx, e)
-	// model的主键值需为空，否则会带上主键条件
-	e.SetId(0)
-	return gormx.UpdateByCond(e, toQueryCond(cond))
-}
-
-func (br *RepoImpl[T]) UpdateByCondWithDb(ctx context.Context, db *gorm.DB, e T, cond any) error {
-	e = br.fillBaseInfo(ctx, e)
-	// model的主键值需为空，否则会带上主键条件
-	e.SetId(0)
-	return gormx.UpdateByCondWithDb(db, br.fillBaseInfo(ctx, e), toQueryCond(cond))
-}
-
-func (br *RepoImpl[T]) Updates(cond any, udpateFields map[string]any) error {
-	return gormx.Updates(br.GetModel(), cond, udpateFields)
+	if db == nil {
+		return gormx.UpdateByCond(br.GetModel(), values, toQueryCond(cond))
+	}
+	return gormx.UpdateByCondWithDb(db, br.GetModel(), values, toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) Save(ctx context.Context, e T) error {
@@ -166,15 +183,15 @@ func (br *RepoImpl[T]) SaveWithDb(ctx context.Context, db *gorm.DB, e T) error {
 	return br.UpdateByIdWithDb(ctx, db, e)
 }
 
-func (br *RepoImpl[T]) DeleteById(ctx context.Context, id uint64) error {
+func (br *RepoImpl[T]) DeleteById(ctx context.Context, id ...uint64) error {
 	if db := contextx.GetDb(ctx); db != nil {
-		return br.DeleteByIdWithDb(ctx, db, id)
+		return br.DeleteByIdWithDb(ctx, db, id...)
 	}
-	return gormx.DeleteById(br.GetModel(), id)
+	return gormx.DeleteById(br.GetModel(), id...)
 }
 
-func (br *RepoImpl[T]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id uint64) error {
-	return gormx.DeleteByIdWithDb(db, br.GetModel(), id)
+func (br *RepoImpl[T]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id ...uint64) error {
+	return gormx.DeleteByIdWithDb(db, br.GetModel(), id...)
 }
 
 func (br *RepoImpl[T]) DeleteByCond(ctx context.Context, cond any) error {
@@ -188,6 +205,10 @@ func (br *RepoImpl[T]) DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond
 	return gormx.DeleteByCondWithDb(db, br.GetModel(), toQueryCond(cond))
 }
 
+func (br *RepoImpl[T]) ExecBySql(sql string, params ...any) error {
+	return gormx.ExecSql(sql, params...)
+}
+
 func (br *RepoImpl[T]) GetById(e T, id uint64, cols ...string) error {
 	if err := gormx.GetById(e, id, cols...); err != nil {
 		return err
@@ -195,7 +216,7 @@ func (br *RepoImpl[T]) GetById(e T, id uint64, cols ...string) error {
 	return nil
 }
 
-func (br *RepoImpl[T]) GetByIdIn(list any, ids []uint64, orderBy ...string) error {
+func (br *RepoImpl[T]) GetByIds(list any, ids []uint64, orderBy ...string) error {
 	return br.SelectByCond(model.NewCond().In(model.IdColumn, ids).OrderBy(orderBy...), list)
 }
 
@@ -231,6 +252,7 @@ func (br *RepoImpl[T]) fillBaseInfo(ctx context.Context, e T) T {
 	return e
 }
 
+// toQueryCond 统一转为*model.QueryCond
 func toQueryCond(cond any) *model.QueryCond {
 	if qc, ok := cond.(*model.QueryCond); ok {
 		return qc

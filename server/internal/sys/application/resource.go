@@ -7,8 +7,8 @@ import (
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 	"time"
@@ -138,14 +138,14 @@ func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resourc
 	}
 
 	// 更新零值使用map，因为pid=0表示根节点
-	updateMap := map[string]interface{}{
+	updateMap := collx.M{
 		"pid":     sortResource.Pid,
 		"weight":  sortResource.Weight,
 		"ui_path": newParentResourceUiPath + resourceUi,
 	}
 	condition := new(entity.Resource)
 	condition.Id = sortResource.Id
-	return gormx.Updates(condition, condition, updateMap)
+	return r.UpdateByCond(ctx, updateMap, condition)
 }
 
 func (r *resourceAppImpl) checkCode(code string) error {

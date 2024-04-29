@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 )
 
 type resourceRepoImpl struct {
@@ -26,7 +25,7 @@ func (r *resourceRepoImpl) GetChildren(uiPath string) []entity.Resource {
 
 func (r *resourceRepoImpl) UpdateByUiPathLike(resource *entity.Resource) error {
 	sql := "UPDATE t_sys_resource SET status=? WHERE (ui_path LIKE ?)"
-	return gormx.ExecSql(sql, resource.Status, resource.UiPath+"%")
+	return r.ExecBySql(sql, resource.Status, resource.UiPath+"%")
 }
 
 func (r *resourceRepoImpl) GetAccountResources(accountId uint64, toEntity any) error {

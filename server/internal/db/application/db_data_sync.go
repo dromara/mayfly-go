@@ -11,7 +11,6 @@ import (
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/scheduler"
@@ -410,13 +409,8 @@ func (app *dataSyncAppImpl) InitCronJob() {
 		}
 	}()
 
-	// 修改执行状态为待执行
-	updateMap := map[string]interface{}{
-		"running_state": entity.DataSyncTaskRunStateReady,
-	}
-	taskParam := new(entity.DataSyncTask)
-	taskParam.RunningState = 1
-	_ = gormx.Updates(taskParam, taskParam, updateMap)
+	// 修改执行中状态为待执行
+	_ = app.UpdateByCond(context.TODO(), &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateRunning}, &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateReady})
 
 	// 把所有正常任务添加到定时任务中
 	pageParam := &model.PageParam{

@@ -338,7 +338,7 @@ func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *Rel
 }
 
 func (p *tagTreeAppImpl) UpdateTagName(ctx context.Context, tagType entity.TagType, tagCode string, tagName string) error {
-	return p.UpdateByCond(ctx, &entity.TagTree{Name: tagName}, model.NewCond().Eq0("type", tagType).Eq0("code", tagCode))
+	return p.UpdateByCond(ctx, &entity.TagTree{Name: tagName}, &entity.TagTree{Type: tagType, Code: tagCode})
 }
 
 func (p *tagTreeAppImpl) ChangeParentTag(ctx context.Context, tagType entity.TagType, tagCode string, parentTagType entity.TagType, newParentCode string) error {
@@ -545,7 +545,7 @@ func (p *tagTreeAppImpl) toTags(parentTags []*entity.TagTree, param *ResourceTag
 }
 
 func (p *tagTreeAppImpl) deleteByIds(ctx context.Context, tagIds []uint64) error {
-	if err := p.DeleteByCond(ctx, model.NewCond().In("id", tagIds)); err != nil {
+	if err := p.DeleteById(ctx, tagIds...); err != nil {
 		return err
 	}
 

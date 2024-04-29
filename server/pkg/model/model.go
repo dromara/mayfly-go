@@ -12,6 +12,9 @@ const (
 	IdColumn         = "id"
 	DeletedColumn    = "is_deleted" // 删除字段
 	DeleteTimeColumn = "delete_time"
+	ModifierColumn   = "modifier"
+	ModifierIdColumn = "modifier_id"
+	UpdateTimeColumn = "update_time"
 
 	ModelDeleted   int8 = 1
 	ModelUndeleted int8 = 0
