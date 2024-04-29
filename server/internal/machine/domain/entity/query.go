@@ -3,13 +3,13 @@ package entity
 import "time"
 
 type MachineQuery struct {
-	Ids     string `json:"ids" form:"ids"`
-	Code    string `json:"code" form:"code"`
-	Name    string `json:"name" form:"name"`
-	Status  int8   `json:"status" form:"status"`
-	Ip      string `json:"ip" form:"ip"` // IP地址
-	TagPath string `json:"tagPath" form:"tagPath"`
-	Ssh     int8   `json:"ssh" form:"ssh"`
+	Ids      string `json:"ids" form:"ids"`
+	Code     string `json:"code" form:"code"`
+	Name     string `json:"name" form:"name"`
+	Status   int8   `json:"status" form:"status"`
+	Ip       string `json:"ip" form:"ip"` // IP地址
+	TagPath  string `json:"tagPath" form:"tagPath"`
+	Protocol int8   `json:"protocol" form:"protocol"`
 
 	Codes []string
 }

@@ -3,6 +3,7 @@ import { EnumValue } from '@/common/Enum';
 export const MachineProtocolEnum = {
     Ssh: EnumValue.of(1, 'SSH'),
     Rdp: EnumValue.of(2, 'RDP'),
+    Vnc: EnumValue.of(3, 'VNC'),
 };
 
 // 脚本执行结果类型

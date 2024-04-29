@@ -96,7 +96,7 @@
                     </el-tooltip>
 
                     <el-button v-if="data.protocol == MachineProtocolEnum.Rdp.value" type="primary" @click="showRDP(data)" link>RDP</el-button>
-                    <el-button v-if="data.protocol == 3" type="primary" @click="showRDP(data)" link>VNC</el-button>
+                    <el-button v-if="data.protocol == MachineProtocolEnum.Vnc.value" type="primary" @click="showRDP(data)" link>VNC</el-button>
 
                     <el-divider direction="vertical" border-style="dashed" />
                 </span>

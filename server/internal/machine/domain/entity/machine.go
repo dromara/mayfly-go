@@ -24,4 +24,5 @@ const (
 
 	MachineProtocolSsh = 1
 	MachineProtocolRdp = 2
+	MachineProtocolVnc = 3
 )
