@@ -17,7 +17,7 @@ type MachineQuery struct {
 type AuthCertQuery struct {
 	Id         uint64 `json:"id" form:"id"`
 	Name       string `json:"name" form:"name"`
-	AuthMethod string `json:"authMethod" form:"authMethod"` // IP地址
+	AuthMethod string `json:"authMethod" form:"authMethod"`
 }
 
 type MachineTermOpQuery struct {
