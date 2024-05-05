@@ -132,7 +132,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 	}
 	// 如果调整了ssh username等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
 	if oldMachine.Code == "" {
-		oldMachine, _ = m.GetById(new(entity.Machine), me.Id)
+		oldMachine, _ = m.GetById(me.Id)
 	}
 
 	// 关闭连接
@@ -201,7 +201,7 @@ func (m *machineAppImpl) ChangeStatus(ctx context.Context, id uint64, status int
 
 // 根据条件获取机器信息
 func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
-	machine, err := m.GetById(new(entity.Machine), id)
+	machine, err := m.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("机器信息不存在")
 	}
@@ -266,9 +266,8 @@ func (m *machineAppImpl) GetSshTunnelMachine(machineId int) (*mcm.SshTunnelMachi
 func (m *machineAppImpl) TimerUpdateStats() {
 	logx.Debug("开始定时收集并缓存服务器状态信息...")
 	scheduler.AddFun("@every 2m", func() {
-		machineIds := new([]entity.Machine)
-		m.ListByCond(model.NewModelCond(&entity.Machine{Status: entity.MachineStatusEnable, Protocol: entity.MachineProtocolSsh}).Columns("id"), machineIds)
-		for _, ma := range *machineIds {
+		machineIds, _ := m.ListByCond(model.NewModelCond(&entity.Machine{Status: entity.MachineStatusEnable, Protocol: entity.MachineProtocolSsh}).Columns("id"))
+		for _, ma := range machineIds {
 			go func(mid uint64) {
 				defer func() {
 					if err := recover(); err != nil {
@@ -320,7 +319,7 @@ func (m *machineAppImpl) ToMachineInfoById(machineId uint64) (*mcm.MachineInfo, 
 }
 
 func (m *machineAppImpl) getMachineAndAuthCert(machineId uint64) (*entity.Machine, *tagentity.ResourceAuthCert, error) {
-	me, err := m.GetById(new(entity.Machine), machineId)
+	me, err := m.GetById(machineId)
 	if err != nil {
 		return nil, nil, errorx.NewBiz("[%d]机器信息不存在", machineId)
 	}

@@ -48,6 +48,7 @@ type dbAppImpl struct {
 
 	dbSqlRepo           repository.DbSql        `inject:"DbSqlRepo"`
 	dbInstanceApp       Instance                `inject:"DbInstanceApp"`
+	dbSqlExecApp        DbSqlExec               `inject:"DbSqlExecApp"`
 	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 }
@@ -103,7 +104,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 	}
 
 	dbId := dbEntity.Id
-	old, err := d.GetById(new(entity.Db), dbId)
+	old, err := d.GetById(dbId)
 	if err != nil {
 		return errorx.NewBiz("该数据库不存在")
 	}
@@ -142,7 +143,7 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 }
 
 func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
-	db, err := d.GetById(new(entity.Db), id)
+	db, err := d.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("该数据库不存在")
 	}
@@ -160,6 +161,8 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 			// 删除该库下用户保存的所有sql信息
 			return d.dbSqlRepo.DeleteByCond(ctx, &entity.DbSql{DbId: id})
 		}, func(ctx context.Context) error {
+			return d.dbSqlExecApp.DeleteBy(ctx, &entity.DbSqlExec{DbId: id})
+		}, func(ctx context.Context) error {
 			return d.tagApp.DeleteTagByParam(ctx, &tagapp.DelResourceTagParam{
 				ResourceCode: db.Code,
 				ResourceType: tagentity.TagTypeDbName,
@@ -169,12 +172,12 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 
 func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 	return dbm.GetDbConn(dbId, dbName, func() (*dbi.DbInfo, error) {
-		db, err := d.GetById(new(entity.Db), dbId)
+		db, err := d.GetById(dbId)
 		if err != nil {
 			return nil, errorx.NewBiz("数据库信息不存在")
 		}
 
-		instance, err := d.dbInstanceApp.GetById(new(entity.DbInstance), db.InstanceId)
+		instance, err := d.dbInstanceApp.GetById(db.InstanceId)
 		if err != nil {
 			return nil, errorx.NewBiz("数据库实例不存在")
 		}
@@ -205,9 +208,8 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 		return conn, nil
 	}
 
-	var dbs []*entity.Db
-
-	if err := d.ListByCond(model.NewModelCond(&entity.Db{InstanceId: instanceId}).Columns("id", "database"), &dbs); err != nil {
+	dbs, err := d.ListByCond(&entity.Db{InstanceId: instanceId}, "id", "database")
+	if err != nil {
 		return nil, errorx.NewBiz("获取数据库列表失败")
 	}
 	if len(dbs) == 0 {

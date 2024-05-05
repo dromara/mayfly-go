@@ -56,7 +56,7 @@ func (m *machineCmdConfAppImpl) SaveCmdConf(ctx context.Context, cmdConfParam *S
 }
 
 func (m *machineCmdConfAppImpl) DeleteCmdConf(ctx context.Context, id uint64) error {
-	_, err := m.GetById(new(entity.MachineCmdConf), id)
+	_, err := m.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("该命令配置不存在")
 	}
@@ -82,9 +82,7 @@ func (m *machineCmdConfAppImpl) GetCmdConfsByMachineTags(tagPaths ...string) []*
 		return cmds
 	}
 
-	var cmdConfs []*entity.MachineCmdConf
-	m.GetByIds(&cmdConfs, cmdConfIds)
-
+	cmdConfs, _ := m.GetByIds(cmdConfIds)
 	for _, cmdConf := range cmdConfs {
 		for _, cmd := range cmdConf.Cmds {
 			if p, err := regexp.Compile(cmd); err != nil {

@@ -56,7 +56,7 @@ type DbSqlExec interface {
 	Exec(ctx context.Context, execSqlReq *DbSqlExecReq) (*DbSqlExecRes, error)
 
 	// 根据条件删除sql执行记录
-	DeleteBy(ctx context.Context, condition *entity.DbSqlExec)
+	DeleteBy(ctx context.Context, condition *entity.DbSqlExec) error
 
 	// 分页获取
 	GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
@@ -196,8 +196,8 @@ func (d *dbSqlExecAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *fl
 	return d.dbSqlExecRepo.UpdateById(ctx, dbSqlExec)
 }
 
-func (d *dbSqlExecAppImpl) DeleteBy(ctx context.Context, condition *entity.DbSqlExec) {
-	d.dbSqlExecRepo.DeleteByCond(ctx, condition)
+func (d *dbSqlExecAppImpl) DeleteBy(ctx context.Context, condition *entity.DbSqlExec) error {
+	return d.dbSqlExecRepo.DeleteByCond(ctx, condition)
 }
 
 func (d *dbSqlExecAppImpl) GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

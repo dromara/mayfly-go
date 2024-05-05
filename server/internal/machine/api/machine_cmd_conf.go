@@ -22,7 +22,7 @@ func (m *MachineCmdConf) MachineCmdConfs(rc *req.Ctx) {
 	cond := req.BindQuery(rc, new(entity.MachineCmdConf))
 
 	var vos []*vo.MachineCmdConfVO
-	err := m.MachineCmdConfApp.ListByCond(cond, &vos)
+	err := m.MachineCmdConfApp.ListByCondToAny(cond, &vos)
 	biz.ErrIsNil(err)
 
 	m.TagTreeRelateApp.FillTagInfo(tagentity.TagRelateTypeMachineCmd, collx.ArrayMap(vos, func(mvo *vo.MachineCmdConfVO) tagentity.IRelateTag {

@@ -17,7 +17,7 @@ func newTeamMemberRepo() repository.TeamMember {
 }
 
 func (p *teamMemberRepoImpl) ListMemeber(condition *entity.TeamMember, toEntity any, orderBy ...string) {
-	p.SelectByCond(model.NewModelCond(condition).OrderBy(orderBy...), toEntity)
+	p.SelectByCondToAny(model.NewModelCond(condition).OrderBy(orderBy...), toEntity)
 }
 
 func (p *teamMemberRepoImpl) GetPageList(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) (*model.PageResult[any], error) {

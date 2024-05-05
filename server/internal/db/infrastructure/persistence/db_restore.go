@@ -22,7 +22,7 @@ func NewDbRestoreRepo() repository.DbRestore {
 
 func (d *dbRestoreRepoImpl) GetDbNamesWithoutRestore(instanceId uint64, dbNames []string) ([]string, error) {
 	var dbNamesWithRestore []string
-	err := global.Db.Model(d.GetModel()).
+	err := global.Db.Model(d.NewModel()).
 		Where("db_instance_id = ?", instanceId).
 		Where("repeated = ?", true).
 		Scopes(gormx.UndeleteScope).
@@ -42,7 +42,7 @@ func (d *dbRestoreRepoImpl) GetDbNamesWithoutRestore(instanceId uint64, dbNames 
 }
 
 func (d *dbRestoreRepoImpl) ListToDo(jobs any) error {
-	db := global.Db.Model(d.GetModel())
+	db := global.Db.Model(d.NewModel())
 	err := db.Where("enabled = ?", true).
 		Where(db.Where("repeated = ?", true).Or("last_status <> ?", entity.DbJobSuccess)).
 		Scopes(gormx.UndeleteScope).
@@ -61,11 +61,11 @@ func (d *dbRestoreRepoImpl) GetPageList(condition *entity.DbRestoreQuery, pagePa
 		Eq0("repeated", condition.Repeated).
 		In0("db_name", condition.InDbNames).
 		Like("db_name", condition.DbName)
-	return d.PageByCond(qd, pageParam, toEntity)
+	return d.PageByCondToAny(qd, pageParam, toEntity)
 }
 
 func (d *dbRestoreRepoImpl) GetEnabledRestores(toEntity any, backupHistoryId ...uint64) error {
-	return global.Db.Model(d.GetModel()).
+	return global.Db.Model(d.NewModel()).
 		Select("id", "db_backup_history_id", "last_status", "last_result", "last_time").
 		Where("db_backup_history_id in ?", backupHistoryId).
 		Where("enabled = true").

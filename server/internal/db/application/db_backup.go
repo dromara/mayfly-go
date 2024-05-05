@@ -63,21 +63,18 @@ func (app *DbBackupApp) Init() error {
 }
 
 func (app *DbBackupApp) prune(ctx context.Context) error {
-	var jobs []*entity.DbBackup
-	if err := app.backupRepo.ListByCond(map[string]any{}, &jobs); err != nil {
+	jobs, err := app.backupRepo.SelectByCond(map[string]any{})
+	if err != nil {
 		return err
 	}
 	for _, job := range jobs {
 		if ctx.Err() != nil {
 			return nil
 		}
-		var histories []*entity.DbBackupHistory
 		historyCond := map[string]any{
 			"db_backup_id": job.Id,
 		}
-		if err := app.backupHistoryRepo.SelectByCond(historyCond, &histories); err != nil {
-			return err
-		}
+		histories, _ := app.backupHistoryRepo.SelectByCond(historyCond)
 		expiringTime := time.Now().Add(-math.MaxInt64)
 		if job.MaxSaveDays > 0 {
 			expiringTime = time.Now().Add(-time.Hour * 24 * time.Duration(job.MaxSaveDays+1))
@@ -160,8 +157,8 @@ func (app *DbBackupApp) Enable(ctx context.Context, jobId uint64) error {
 	defer app.mutex.Unlock()
 
 	repo := app.backupRepo
-	job := &entity.DbBackup{}
-	if err := repo.GetById(job, jobId); err != nil {
+	job, err := repo.GetById(jobId)
+	if err != nil {
 		return err
 	}
 	if job.IsEnabled() {
@@ -183,8 +180,8 @@ func (app *DbBackupApp) Disable(ctx context.Context, jobId uint64) error {
 	defer app.mutex.Unlock()
 
 	repo := app.backupRepo
-	job := &entity.DbBackup{}
-	if err := repo.GetById(job, jobId); err != nil {
+	job, err := repo.GetById(jobId)
+	if err != nil {
 		return err
 	}
 	if !job.IsEnabled() {
@@ -202,8 +199,8 @@ func (app *DbBackupApp) StartNow(ctx context.Context, jobId uint64) error {
 	app.mutex.Lock()
 	defer app.mutex.Unlock()
 
-	job := &entity.DbBackup{}
-	if err := app.backupRepo.GetById(job, jobId); err != nil {
+	job, err := app.backupRepo.GetById(jobId)
+	if err != nil {
 		return err
 	}
 	if !job.IsEnabled() {
@@ -267,8 +264,8 @@ func (app *DbBackupApp) DeleteHistory(ctx context.Context, historyId uint64) (re
 	if !ok {
 		return errRestoringBackupHistory
 	}
-	job := &entity.DbBackupHistory{}
-	if err := app.backupHistoryRepo.GetById(job, historyId); err != nil {
+	job, err := app.backupHistoryRepo.GetById(historyId)
+	if err != nil {
 		return err
 	}
 	conn, err := app.dbApp.GetDbConnByInstanceId(job.DbInstanceId)

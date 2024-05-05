@@ -23,5 +23,5 @@ func (d *instanceRepoImpl) GetInstanceList(condition *entity.InstanceQuery, page
 		Like("name", condition.Name).
 		Like("code", condition.Code).
 		In("code", condition.Codes)
-	return d.PageByCond(qd, pageParam, toEntity)
+	return d.PageByCondToAny(qd, pageParam, toEntity)
 }

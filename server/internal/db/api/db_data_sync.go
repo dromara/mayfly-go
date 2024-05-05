@@ -64,7 +64,7 @@ func (d *DataSyncTask) ChangeStatus(rc *req.Ctx) {
 	_ = d.DataSyncTaskApp.UpdateById(rc.MetaCtx, task)
 
 	if task.Status == entity.DataSyncTaskStatusEnable {
-		task, err := d.DataSyncTaskApp.GetById(new(entity.DataSyncTask), task.Id)
+		task, err := d.DataSyncTaskApp.GetById(task.Id)
 		biz.ErrIsNil(err, "该任务不存在")
 		d.DataSyncTaskApp.AddCronJob(rc.MetaCtx, task)
 	} else {
@@ -92,7 +92,7 @@ func (d *DataSyncTask) Stop(rc *req.Ctx) {
 
 func (d *DataSyncTask) GetTask(rc *req.Ctx) {
 	taskId := d.getTaskId(rc)
-	dbEntity, _ := d.DataSyncTaskApp.GetById(new(entity.DataSyncTask), taskId)
+	dbEntity, _ := d.DataSyncTaskApp.GetById(taskId)
 	rc.ResData = dbEntity
 }
 

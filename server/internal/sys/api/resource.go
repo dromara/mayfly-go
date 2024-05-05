@@ -18,12 +18,12 @@ type Resource struct {
 
 func (r *Resource) GetAllResourceTree(rc *req.Ctx) {
 	var resources vo.ResourceManageVOList
-	r.ResourceApp.ListByCond(model.NewCond().OrderByAsc("weight"), &resources)
+	r.ResourceApp.ListByCondToAny(model.NewCond().OrderByAsc("weight"), &resources)
 	rc.ResData = resources.ToTrees(0)
 }
 
 func (r *Resource) GetById(rc *req.Ctx) {
-	res, err := r.ResourceApp.GetById(new(entity.Resource), uint64(rc.PathParamInt("id")))
+	res, err := r.ResourceApp.GetById(uint64(rc.PathParamInt("id")))
 	biz.ErrIsNil(err, "该资源不存在")
 	rc.ResData = res
 }

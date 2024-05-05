@@ -20,5 +20,5 @@ func (d *dbTransferTaskRepoImpl) GetTaskList(condition *entity.DbTransferTaskQue
 	qd := model.NewCond()
 	//Like("task_name", condition.Name).
 	//Eq("status", condition.Status)
-	return d.PageByCond(qd, pageParam, toEntity)
+	return d.PageByCondToAny(qd, pageParam, toEntity)
 }

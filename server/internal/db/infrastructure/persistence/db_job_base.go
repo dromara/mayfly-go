@@ -58,7 +58,7 @@ func addJob[T entity.DbJob](ctx context.Context, repo dbJobBaseImpl[T], jobs any
 		}
 
 		var res []string
-		err := db.Model(repo.GetModel()).Select("db_name").
+		err := db.Model(repo.NewModel()).Select("db_name").
 			Where("db_instance_id = ?", instanceId).
 			Where("db_name in ?", dbNames).
 			Where("repeated = true").

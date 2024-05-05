@@ -142,7 +142,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *SaveDb
 		}
 	} else {
 		// 根据host等未查到旧数据，则需要根据id重新获取，因为后续需要使用到code
-		oldInstance, err = app.GetById(new(entity.DbInstance), instanceEntity.Id)
+		oldInstance, err = app.GetById(instanceEntity.Id)
 		if err != nil {
 			return 0, errorx.NewBiz("该数据库实例不存在")
 		}
@@ -170,7 +170,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *SaveDb
 }
 
 func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error {
-	instance, err := app.GetById(new(entity.DbInstance), instanceId, "name")
+	instance, err := app.GetById(instanceId, "name")
 	if err != nil {
 		return errorx.NewBiz("获取数据库实例错误，数据库实例ID为: %d", instance.Id)
 	}
@@ -201,18 +201,9 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 		biz.ErrIsNil(err, "删除数据库实例失败: %v", err)
 	}
 
-	db := &entity.Db{
+	dbs, _ := app.dbApp.ListByCond(&entity.Db{
 		InstanceId: instanceId,
-	}
-	err = app.dbApp.GetByCond(db)
-	switch {
-	case err == nil:
-		biz.ErrNotNil(err, "不能删除数据库实例【%s】，请先删除关联的数据库资源。", instance.Name)
-	case errors.Is(err, gorm.ErrRecordNotFound):
-		break
-	default:
-		biz.ErrIsNil(err, "删除数据库实例失败: %v", err)
-	}
+	})
 
 	return app.Tx(ctx, func(ctx context.Context) error {
 		return app.DeleteById(ctx, instanceId)
@@ -227,6 +218,14 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 			ResourceCode: instance.Code,
 			ResourceType: tagentity.TagType(consts.ResourceTypeDb),
 		})
+	}, func(ctx context.Context) error {
+		// 删除所有库配置
+		for _, db := range dbs {
+			if err := app.dbApp.Delete(ctx, db.Id); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 
@@ -285,10 +284,10 @@ func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCe
 		}
 	})
 
-	var dbs []*entity.Db
-	if err := m.dbApp.ListByCond(&entity.Db{
+	dbs, err := m.dbApp.ListByCond(&entity.Db{
 		InstanceId: me.Id,
-	}, &dbs); err != nil {
+	})
+	if err != nil {
 		logx.Errorf("获取实例关联的数据库失败: %v", err)
 	}
 

@@ -218,7 +218,7 @@ func (m *Machine) MachineTermOpRecords(rc *req.Ctx) {
 }
 
 func (m *Machine) MachineTermOpRecord(rc *req.Ctx) {
-	termOp, err := m.MachineTermOpApp.GetById(new(entity.MachineTermOp), uint64(rc.PathParamInt("recId")))
+	termOp, err := m.MachineTermOpApp.GetById(uint64(rc.PathParamInt("recId")))
 	biz.ErrIsNil(err)
 
 	bytes, err := os.ReadFile(path.Join(config.GetMachine().TerminalRecPath, termOp.RecordFilePath))

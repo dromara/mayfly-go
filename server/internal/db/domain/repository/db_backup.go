@@ -14,6 +14,4 @@ type DbBackup interface {
 
 	// GetPageList 分页获取数据库任务列表
 	GetPageList(condition *entity.DbBackupQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
-
-	ListByCond(cond any, listModels any, cols ...string) error
 }

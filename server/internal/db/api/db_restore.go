@@ -22,7 +22,7 @@ type DbRestore struct {
 func (d *DbRestore) GetPageList(rc *req.Ctx) {
 	dbId := uint64(rc.PathParamInt("dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
-	db, err := d.dbApp.GetById(new(entity.Db), dbId, "db_instance_id", "database")
+	db, err := d.dbApp.GetById(dbId, "db_instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	var restores []vo.DbRestore
@@ -43,7 +43,7 @@ func (d *DbRestore) Create(rc *req.Ctx) {
 
 	dbId := uint64(rc.PathParamInt("dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
-	db, err := d.dbApp.GetById(new(entity.Db), dbId, "instanceId")
+	db, err := d.dbApp.GetById(dbId, "instanceId")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	job := &entity.DbRestore{
@@ -123,7 +123,7 @@ func (d *DbRestore) Disable(rc *req.Ctx) {
 // @router /api/dbs/:dbId/db-names-without-backup [GET]
 func (d *DbRestore) GetDbNamesWithoutRestore(rc *req.Ctx) {
 	dbId := uint64(rc.PathParamInt("dbId"))
-	db, err := d.dbApp.GetById(new(entity.Db), dbId, "instance_id", "database")
+	db, err := d.dbApp.GetById(dbId, "instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 	dbNames := strings.Fields(db.Database)
 	dbNamesWithoutRestore, err := d.restoreApp.GetDbNamesWithoutRestore(db.InstanceId, dbNames)

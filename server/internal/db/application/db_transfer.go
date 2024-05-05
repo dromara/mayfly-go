@@ -87,7 +87,7 @@ func (app *dbTransferAppImpl) CreateLog(ctx context.Context, taskId uint64) (uin
 }
 
 func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint64) {
-	task, err := app.GetById(new(entity.DbTransferTask), taskId)
+	task, err := app.GetById(taskId)
 	if err != nil {
 		logx.Errorf("创建DBMS-执行数据迁移日志失败：%v", err)
 		return
@@ -150,7 +150,7 @@ func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint
 }
 
 func (app *dbTransferAppImpl) Stop(ctx context.Context, taskId uint64) error {
-	task, err := app.GetById(new(entity.DbTransferTask), taskId)
+	task, err := app.GetById(taskId)
 	if err != nil {
 		return errorx.NewBiz("任务不存在")
 	}

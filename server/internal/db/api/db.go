@@ -84,8 +84,6 @@ func (d *Db) DeleteDb(rc *req.Ctx) {
 		dbId := cast.ToUint64(v)
 		biz.NotBlank(dbId, "存在错误dbId")
 		biz.ErrIsNil(d.DbApp.Delete(ctx, dbId))
-		// 删除该库的sql执行记录
-		d.DbSqlExecApp.DeleteBy(ctx, &entity.DbSqlExec{DbId: dbId})
 	}
 }
 
@@ -282,7 +280,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	needData := dumpType == "2" || dumpType == "3"
 
 	la := rc.GetLoginAccount()
-	db, err := d.DbApp.GetById(new(entity.Db), dbId)
+	db, err := d.DbApp.GetById(dbId)
 	biz.ErrIsNil(err, "该数据库不存在")
 	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(la.Id, d.TagApp.ListTagPathByTypeAndCode(consts.ResourceTypeDb, db.Code)...), "%s")
 

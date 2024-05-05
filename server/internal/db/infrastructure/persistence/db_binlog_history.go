@@ -42,8 +42,8 @@ func (repo *dbBinlogHistoryRepoImpl) GetHistories(instanceId uint64, start, targ
 		Ge("sequence", start.Sequence).
 		Le("sequence", target.Sequence).
 		OrderByAsc("sequence")
-	var histories []*entity.DbBinlogHistory
-	if err := repo.SelectByCond(qc, &histories); err != nil {
+	histories, err := repo.SelectByCond(qc)
+	if err != nil {
 		return nil, err
 	}
 	if len(histories) == 0 {
@@ -121,7 +121,7 @@ func (repo *dbBinlogHistoryRepoImpl) InsertWithBinlogFiles(ctx context.Context, 
 }
 
 func (repo *dbBinlogHistoryRepoImpl) GetHistoriesBeforeSequence(ctx context.Context, instanceId uint64, binlogSeq int64, histories *[]*entity.DbBinlogHistory) error {
-	return global.Db.Model(repo.GetModel()).
+	return global.Db.Model(repo.NewModel()).
 		Where("db_instance_id = ?", instanceId).
 		Where("sequence < ?", binlogSeq).
 		Scopes(gormx.UndeleteScope).

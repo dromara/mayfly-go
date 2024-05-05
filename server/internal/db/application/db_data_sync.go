@@ -78,7 +78,7 @@ func (app *dataSyncAppImpl) Save(ctx context.Context, taskEntity *entity.DataSyn
 		return err
 	}
 
-	task, err := app.GetById(new(entity.DataSyncTask), taskEntity.Id)
+	task, err := app.GetById(taskEntity.Id)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func (app *dataSyncAppImpl) AddCronJob(ctx context.Context, taskEntity *entity.D
 }
 
 func (app *dataSyncAppImpl) RemoveCronJobById(taskId uint64) {
-	task, err := app.GetById(new(entity.DataSyncTask), taskId)
+	task, err := app.GetById(taskId)
 	if err == nil {
 		scheduler.RemoveByKey(task.TaskKey)
 	}
@@ -127,7 +127,7 @@ func (app *dataSyncAppImpl) changeRunningState(id uint64, state int8) {
 
 func (app *dataSyncAppImpl) RunCronJob(ctx context.Context, id uint64) error {
 	// 查询最新的任务信息
-	task, err := app.GetById(new(entity.DataSyncTask), id)
+	task, err := app.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("任务不存在")
 	}
@@ -369,7 +369,7 @@ func (app *dataSyncAppImpl) srcData2TargetDb(srcRes []map[string]any, fieldMap [
 	}
 
 	// 运行过程中，判断状态是否为已关闭，是则结束运行，否则继续运行
-	taskParam, _ := app.GetById(new(entity.DataSyncTask), task.Id)
+	taskParam, _ := app.GetById(task.Id)
 	if taskParam.RunningState == entity.DataSyncTaskRunStateStop {
 		return errorx.NewBiz("该任务已被手动终止")
 	}

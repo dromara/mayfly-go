@@ -19,5 +19,5 @@ func (p *procdefImpl) GetPageList(condition *entity.Procdef, pageParam *model.Pa
 	qd := model.NewCond().
 		Like("name", condition.Name).
 		Like("def_key", condition.DefKey)
-	return p.PageByCond(qd, pageParam, toEntity)
+	return p.PageByCondToAny(qd, pageParam, toEntity)
 }

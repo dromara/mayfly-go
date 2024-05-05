@@ -83,7 +83,7 @@ func (d *Instance) SaveInstance(rc *req.Ctx) {
 // @router /api/instances/:instance [GET]
 func (d *Instance) GetInstance(rc *req.Ctx) {
 	dbId := getInstanceId(rc)
-	dbEntity, err := d.InstanceApp.GetById(new(entity.DbInstance), dbId)
+	dbEntity, err := d.InstanceApp.GetById(dbId)
 	biz.ErrIsNil(err, "获取数据库实例错误")
 	rc.ResData = dbEntity
 }

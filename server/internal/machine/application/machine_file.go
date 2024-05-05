@@ -110,7 +110,7 @@ func (m *machineFileAppImpl) GetMachineFile(condition *entity.MachineFile, cols 
 
 // 保存机器文件配置
 func (m *machineFileAppImpl) Save(ctx context.Context, mf *entity.MachineFile) error {
-	_, err := m.machineApp.GetById(new(entity.Machine), mf.MachineId, "Name")
+	_, err := m.machineApp.GetById(mf.MachineId, "Name")
 	if err != nil {
 		return errorx.NewBiz("该机器不存在")
 	}

@@ -6,6 +6,7 @@ import (
 	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
+	"reflect"
 	"time"
 
 	"gorm.io/gorm"
@@ -13,9 +14,6 @@ import (
 
 // 基础repo接口
 type Repo[T model.ModelI] interface {
-
-	// GetModel 获取表的模型实例
-	GetModel() T
 
 	// 新增一个实体
 	Insert(ctx context.Context, e T) error
@@ -67,19 +65,25 @@ type Repo[T model.ModelI] interface {
 	ExecBySql(sql string, params ...any) error
 
 	// 根据实体id查询
-	GetById(e T, id uint64, cols ...string) error
+	GetById(id uint64, cols ...string) (T, error)
 
-	// 根据实体id数组查询对应实体列表，并将响应结果映射至list
-	GetByIds(list any, ids []uint64, orderBy ...string) error
+	GetByIds(ids []uint64, cols ...string) ([]T, error)
 
 	// GetByCond 根据实体条件查询实体信息（单个结果集）
+	// @param cond 支持普通结构体或*model.QueryCond。如果cond为model.QueryCond，则需要使用Dest方法绑定值的指针
 	GetByCond(cond any) error
 
-	// SelectByCond 根据实体条件查询数据映射至res
-	SelectByCond(cond any, res any) error
+	// SelectByCondToAny 根据条件查询数据映射至res
+	SelectByCondToAny(cond any, res any) error
+
+	// SelectByCond 根据条件查询模型实例数组
+	SelectByCond(cond any, cols ...string) ([]T, error)
+
+	// PageByCondToAny 根据查询条件分页查询，并绑定至指定res
+	PageByCondToAny(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
 
 	// PageByCond 根据查询条件分页查询
-	PageByCond(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
+	PageByCond(cond any, pageParam *model.PageParam, cols ...string) (*model.PageResult[[]T], error)
 
 	// SelectBySql 根据sql语句查询数据
 	SelectBySql(sql string, res any, params ...any) error
@@ -91,6 +95,8 @@ type Repo[T model.ModelI] interface {
 // 基础repo接口
 type RepoImpl[T model.ModelI] struct {
 	M T // 模型实例
+
+	modelType reflect.Type // 模型类型
 }
 
 func (br *RepoImpl[T]) Insert(ctx context.Context, e T) error {
@@ -164,9 +170,9 @@ func (br *RepoImpl[T]) UpdateByCondWithDb(ctx context.Context, db *gorm.DB, valu
 	}
 
 	if db == nil {
-		return gormx.UpdateByCond(br.GetModel(), values, toQueryCond(cond))
+		return gormx.UpdateByCond(br.getModel(), values, toQueryCond(cond))
 	}
-	return gormx.UpdateByCondWithDb(db, br.GetModel(), values, toQueryCond(cond))
+	return gormx.UpdateByCondWithDb(db, br.getModel(), values, toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) Save(ctx context.Context, e T) error {
@@ -187,49 +193,65 @@ func (br *RepoImpl[T]) DeleteById(ctx context.Context, id ...uint64) error {
 	if db := contextx.GetDb(ctx); db != nil {
 		return br.DeleteByIdWithDb(ctx, db, id...)
 	}
-	return gormx.DeleteById(br.GetModel(), id...)
+	return gormx.DeleteById(br.getModel(), id...)
 }
 
 func (br *RepoImpl[T]) DeleteByIdWithDb(ctx context.Context, db *gorm.DB, id ...uint64) error {
-	return gormx.DeleteByIdWithDb(db, br.GetModel(), id...)
+	return gormx.DeleteByIdWithDb(db, br.getModel(), id...)
 }
 
 func (br *RepoImpl[T]) DeleteByCond(ctx context.Context, cond any) error {
 	if db := contextx.GetDb(ctx); db != nil {
 		return br.DeleteByCondWithDb(ctx, db, cond)
 	}
-	return gormx.DeleteByCond(br.GetModel(), toQueryCond(cond))
+	return gormx.DeleteByCond(br.getModel(), toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) DeleteByCondWithDb(ctx context.Context, db *gorm.DB, cond any) error {
-	return gormx.DeleteByCondWithDb(db, br.GetModel(), toQueryCond(cond))
+	return gormx.DeleteByCondWithDb(db, br.getModel(), toQueryCond(cond))
 }
 
 func (br *RepoImpl[T]) ExecBySql(sql string, params ...any) error {
 	return gormx.ExecSql(sql, params...)
 }
 
-func (br *RepoImpl[T]) GetById(e T, id uint64, cols ...string) error {
-	if err := gormx.GetById(e, id, cols...); err != nil {
-		return err
-	}
-	return nil
+func (br *RepoImpl[T]) GetById(id uint64, cols ...string) (T, error) {
+	e := br.NewModel()
+	return e, gormx.GetById(e, id, cols...)
 }
 
-func (br *RepoImpl[T]) GetByIds(list any, ids []uint64, orderBy ...string) error {
-	return br.SelectByCond(model.NewCond().In(model.IdColumn, ids).OrderBy(orderBy...), list)
+func (br *RepoImpl[T]) GetByIds(ids []uint64, cols ...string) ([]T, error) {
+	var models []T
+	return models, br.SelectByCondToAny(model.NewCond().In(model.IdColumn, ids).Columns(cols...), &models)
 }
 
 func (br *RepoImpl[T]) GetByCond(cond any) error {
-	return gormx.GetByCond(br.GetModel(), toQueryCond(cond))
+	return gormx.GetByCond(br.getModel(), toQueryCond(cond))
 }
 
-func (br *RepoImpl[T]) SelectByCond(cond any, res any) error {
-	return gormx.SelectByCond(br.GetModel(), toQueryCond(cond).Dest(res))
+func (br *RepoImpl[T]) SelectByCondToAny(cond any, res any) error {
+	return gormx.SelectByCond(br.getModel(), toQueryCond(cond).Dest(res))
 }
 
-func (br *RepoImpl[T]) PageByCond(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error) {
-	return gormx.PageByCond(br.GetModel(), toQueryCond(cond), pageParam, toModels)
+func (br *RepoImpl[T]) SelectByCond(cond any, cols ...string) ([]T, error) {
+	var models []T
+	return models, br.SelectByCondToAny(toQueryCond(cond).Dest(models).Columns(cols...), &models)
+}
+
+func (br *RepoImpl[T]) PageByCondToAny(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error) {
+	return gormx.PageByCond(br.getModel(), toQueryCond(cond), pageParam, toModels)
+}
+
+func (br *RepoImpl[T]) PageByCond(cond any, pageParam *model.PageParam, cols ...string) (*model.PageResult[[]T], error) {
+	var models []T
+	res, err := br.PageByCondToAny(toQueryCond(cond).Columns(cols...), pageParam, &models)
+	if err != nil {
+		return nil, err
+	}
+	return &model.PageResult[[]T]{
+		List:  models,
+		Total: res.Total,
+	}, nil
 }
 
 func (br *RepoImpl[T]) SelectBySql(sql string, res any, params ...any) error {
@@ -237,12 +259,45 @@ func (br *RepoImpl[T]) SelectBySql(sql string, res any, params ...any) error {
 }
 
 func (br *RepoImpl[T]) CountByCond(cond any) int64 {
-	return gormx.CountByCond(br.GetModel(), toQueryCond(cond))
+	return gormx.CountByCond(br.getModel(), toQueryCond(cond))
 }
 
-// GetModel 获取表的模型实例
-func (br *RepoImpl[T]) GetModel() T {
+// NewModel 新建模型实例
+func (br *RepoImpl[T]) NewModel() T {
+	newModel := reflect.New(br.getModelType()).Interface()
+	return newModel.(T)
+}
+
+// func (br *RepoImpl[T]) NewModes() *[]T {
+// 	// 创建一个空的切片
+// 	slice := reflect.MakeSlice(reflect.SliceOf(reflect.PointerTo(br.getModelType())), 0, 0)
+// 	// 创建指向切片的指针
+// 	ptrToSlice := reflect.New(slice.Type())
+// 	// 设置指向切片的指针为创建的空切片
+// 	ptrToSlice.Elem().Set(slice)
+// 	// 转换指向切片的指针
+// 	return ptrToSlice.Interface().(*[]T)
+// }
+
+// getModel 获取表的模型实例
+func (br *RepoImpl[T]) getModel() T {
 	return br.M
+}
+
+// getModelType 获取模型类型(非指针模型)
+func (br *RepoImpl[T]) getModelType() reflect.Type {
+	if br.modelType != nil {
+		return br.modelType
+	}
+
+	modelType := reflect.TypeOf(br.M)
+	// 检查 model 是否为指针类型
+	if modelType.Kind() == reflect.Ptr {
+		// 获取指针指向的类型
+		modelType = modelType.Elem()
+	}
+	br.modelType = modelType
+	return modelType
 }
 
 // 从上下文获取登录账号信息，并赋值至实体

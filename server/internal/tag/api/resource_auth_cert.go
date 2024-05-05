@@ -22,10 +22,9 @@ func (r *ResourceAuthCert) ListByQuery(rc *req.Ctx) {
 	cond.CiphertextType = entity.AuthCertCiphertextType(rc.QueryInt("ciphertextType"))
 	cond.Name = rc.Query("name")
 
-	var racs []*entity.ResourceAuthCert
-	res, err := r.ResourceAuthCertApp.PageByCond(cond, rc.GetPageParam(), &racs)
+	res, err := r.ResourceAuthCertApp.PageByCond(cond, rc.GetPageParam())
 	biz.ErrIsNil(err)
-	for _, rac := range racs {
+	for _, rac := range res.List {
 		rac.CiphertextClear()
 	}
 	rc.ResData = res

@@ -51,7 +51,7 @@ func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
 func (m *MachineScript) RunMachineScript(rc *req.Ctx) {
 	scriptId := GetMachineScriptId(rc)
 	ac := GetMachineAc(rc)
-	ms, err := m.MachineScriptApp.GetById(new(entity.MachineScript), scriptId, "MachineId", "Name", "Script")
+	ms, err := m.MachineScriptApp.GetById(scriptId, "MachineId", "Name", "Script")
 	biz.ErrIsNil(err, "该脚本不存在")
 
 	script := ms.Script

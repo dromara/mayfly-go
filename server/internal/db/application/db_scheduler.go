@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/sync/singleflight"
-	"gorm.io/gorm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
@@ -14,6 +12,9 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/singleflight"
+	"gorm.io/gorm"
 )
 
 const (
@@ -173,8 +174,8 @@ func (s *dbScheduler) restore(ctx context.Context, dbProgram dbi.DbProgram, rest
 			return err
 		}
 	} else {
-		backupHistory := &entity.DbBackupHistory{}
-		if err := s.backupHistoryRepo.GetById(backupHistory, restore.DbBackupHistoryId); err != nil {
+		backupHistory, err := s.backupHistoryRepo.GetById(restore.DbBackupHistoryId)
+		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				err = errors.New("备份历史已删除")
 			}

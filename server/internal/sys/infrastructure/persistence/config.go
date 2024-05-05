@@ -20,5 +20,5 @@ func (m *configRepoImpl) GetPageList(condition *entity.Config, pageParam *model.
 		Like("`key`", condition.Key).
 		And("permission = 'all' OR permission LIKE ?", "%"+condition.Permission+",%").
 		OrderBy(orderBy...)
-	return m.PageByCond(qd, pageParam, toEntity)
+	return m.PageByCondToAny(qd, pageParam, toEntity)
 }

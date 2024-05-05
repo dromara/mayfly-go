@@ -18,5 +18,5 @@ func newSyslogRepo() repository.Syslog {
 func (m *syslogRepoImpl) GetPageList(condition *entity.SysLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := model.NewCond().Like("description", condition.Description).
 		Eq("creator_id", condition.CreatorId).Eq("type", condition.Type).OrderBy(orderBy...)
-	return m.PageByCond(qd, pageParam, toEntity)
+	return m.PageByCondToAny(qd, pageParam, toEntity)
 }

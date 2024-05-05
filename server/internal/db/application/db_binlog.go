@@ -75,8 +75,8 @@ func (app *DbBinlogApp) fetchBinlog(ctx context.Context) error {
 }
 
 func (app *DbBinlogApp) pruneBinlog(ctx context.Context) error {
-	var jobs []*entity.DbBinlog
-	if err := app.binlogRepo.SelectByCond(map[string]any{}, &jobs); err != nil {
+	jobs, err := app.binlogRepo.SelectByCond(map[string]any{})
+	if err != nil {
 		logx.Error("DbBinlogApp: 获取 BINLOG 同步任务失败: ", err.Error())
 		return err
 	}

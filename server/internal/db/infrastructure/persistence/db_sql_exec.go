@@ -25,5 +25,5 @@ func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExecQuery, pagePa
 		Eq("flow_biz_key", condition.FlowBizKey).
 		In("status", condition.Status).
 		RLike("db", condition.Db).OrderBy(orderBy...)
-	return d.PageByCond(qd, pageParam, toEntity)
+	return d.PageByCondToAny(qd, pageParam, toEntity)
 }

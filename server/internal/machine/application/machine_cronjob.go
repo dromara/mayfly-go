@@ -78,7 +78,7 @@ func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, mcj *ent
 	// 更新操作
 	if mcj.Id != 0 {
 		m.UpdateById(ctx, mcj)
-		cj, err := m.GetById(new(entity.MachineCronJob), mcj.Id)
+		cj, err := m.GetById(mcj.Id)
 		if err != nil {
 			return 0, errorx.NewBiz("该任务不存在")
 		}

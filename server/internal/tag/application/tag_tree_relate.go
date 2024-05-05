@@ -51,8 +51,7 @@ func (tr *tagTreeRelateAppImpl) RelateTag(ctx context.Context, relateType entity
 		return errorx.NewBiz("存在错误标签路径")
 	}
 
-	var oldRelates []*entity.TagTreeRelate
-	tr.ListByCond(&entity.TagTreeRelate{RelateType: relateType, RelateId: relateId}, &oldRelates)
+	oldRelates, _ := tr.ListByCond(&entity.TagTreeRelate{RelateType: relateType, RelateId: relateId})
 	oldTagIds := collx.ArrayMap[*entity.TagTreeRelate, uint64](oldRelates, func(val *entity.TagTreeRelate) uint64 {
 		return val.TagId
 	})
@@ -111,21 +110,22 @@ func (tr *tagTreeRelateAppImpl) FillTagInfo(relateType entity.TagRelateType, rel
 		return rt.GetRelateId()
 	})
 
-	var relateTags []*entity.TagTreeRelate
-	tr.ListByCond(model.NewCond().Eq("relate_type", relateType).In("relate_id", collx.MapKeys(relateIds2Relate)), &relateTags)
+	relateTags, _ := tr.ListByCond(model.NewCond().Eq("relate_type", relateType).In("relate_id", collx.MapKeys(relateIds2Relate)))
 
 	tagIds := collx.ArrayMap(relateTags, func(rt *entity.TagTreeRelate) uint64 {
 		return rt.TagId
 	})
-	var tags []*entity.TagTree
-	tr.tagTreeApp.GetByIds(&tags, tagIds)
+	tags, _ := tr.tagTreeApp.GetByIds(tagIds)
 
 	tagId2Tag := collx.ArrayToMap(tags, func(t *entity.TagTree) uint64 {
 		return t.Id
 	})
 	for _, rt := range relateTags {
-		// 赋值标签信息
+		relate := relateIds2Relate[rt.RelateId]
 		tag := tagId2Tag[rt.TagId]
-		relateIds2Relate[rt.RelateId].SetTagInfo(entity.ResourceTag{CodePath: tag.CodePath, TagId: tag.Id})
+		if relate != nil && tag != nil {
+			// 赋值标签信息
+			relate.SetTagInfo(entity.ResourceTag{CodePath: tag.CodePath, TagId: tag.Id})
+		}
 	}
 }

@@ -43,8 +43,7 @@ func (d *DbSql) GetSqlNames(rc *req.Ctx) {
 	// 获取用于是否有该dbsql的保存记录，有则更改，否则新增
 	dbSql := &entity.DbSql{Type: 1, DbId: dbId, Db: dbName}
 	dbSql.CreatorId = rc.GetLoginAccount().Id
-	var sqls []entity.DbSql
-	d.DbSqlApp.ListByCond(model.NewModelCond(dbSql).Columns("id", "name"), &sqls)
+	sqls, _ := d.DbSqlApp.ListByCond(model.NewModelCond(dbSql).Columns("id", "name"))
 
 	rc.ResData = sqls
 }

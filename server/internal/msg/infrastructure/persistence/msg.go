@@ -17,5 +17,5 @@ func newMsgRepo() repository.Msg {
 
 func (m *msgRepoImpl) GetPageList(condition *entity.Msg, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	pd := model.NewModelCond(condition).OrderBy(orderBy...)
-	return m.PageByCond(pd, pageParam, toEntity)
+	return m.PageByCondToAny(pd, pageParam, toEntity)
 }

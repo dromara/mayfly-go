@@ -22,7 +22,7 @@ func NewDbBackupRepo() repository.DbBackup {
 
 func (d *dbBackupRepoImpl) GetDbNamesWithoutBackup(instanceId uint64, dbNames []string) ([]string, error) {
 	var dbNamesWithBackup []string
-	err := global.Db.Model(d.GetModel()).
+	err := global.Db.Model(d.NewModel()).
 		Where("db_instance_id = ?", instanceId).
 		Where("repeated = ?", true).
 		Scopes(gormx.UndeleteScope).
@@ -41,7 +41,7 @@ func (d *dbBackupRepoImpl) GetDbNamesWithoutBackup(instanceId uint64, dbNames []
 }
 
 func (d *dbBackupRepoImpl) ListDbInstances(enabled bool, repeated bool, instanceIds *[]uint64) error {
-	return global.Db.Model(d.GetModel()).
+	return global.Db.Model(d.NewModel()).
 		Where("enabled = ?", enabled).
 		Where("repeated = ?", repeated).
 		Scopes(gormx.UndeleteScope).
@@ -51,7 +51,7 @@ func (d *dbBackupRepoImpl) ListDbInstances(enabled bool, repeated bool, instance
 }
 
 func (d *dbBackupRepoImpl) ListToDo(jobs any) error {
-	db := global.Db.Model(d.GetModel())
+	db := global.Db.Model(d.NewModel())
 	err := db.Where("enabled = ?", true).
 		Where(db.Where("repeated = ?", true).Or("last_status <> ?", entity.DbJobSuccess)).
 		Scopes(gormx.UndeleteScope).
@@ -70,7 +70,7 @@ func (d *dbBackupRepoImpl) GetPageList(condition *entity.DbBackupQuery, pagePara
 		Eq0("repeated", condition.Repeated).
 		In0("db_name", condition.InDbNames).
 		Like("db_name", condition.DbName)
-	return d.PageByCond(qd, pageParam, toEntity)
+	return d.PageByCondToAny(qd, pageParam, toEntity)
 }
 
 // AddJob 添加数据库任务
@@ -90,8 +90,4 @@ func (d *dbBackupRepoImpl) UpdateEnabled(ctx context.Context, jobId uint64, enab
 		"enabled":      enabled,
 		"enabled_desc": desc,
 	}, cond)
-}
-
-func (d *dbBackupRepoImpl) ListByCond(cond any, listModels any, cols ...string) error {
-	return d.dbJobBaseImpl.SelectByCond(model.NewModelCond(cond).Columns(cols...), listModels)
 }

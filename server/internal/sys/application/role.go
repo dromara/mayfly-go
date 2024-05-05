@@ -141,9 +141,7 @@ func (m *roleAppImpl) RelateAccountRole(ctx context.Context, accountId, roleId u
 }
 
 func (m *roleAppImpl) GetAccountRoles(accountId uint64) ([]*entity.AccountRole, error) {
-	var res []*entity.AccountRole
-	err := m.accountRoleRepo.SelectByCond(&entity.AccountRole{AccountId: accountId}, &res)
-	return res, err
+	return m.accountRoleRepo.SelectByCond(&entity.AccountRole{AccountId: accountId})
 }
 
 func (m *roleAppImpl) GetRoleAccountPage(condition *entity.RoleAccountQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {

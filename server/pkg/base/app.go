@@ -31,27 +31,40 @@ type App[T model.ModelI] interface {
 	DeleteById(ctx context.Context, id ...uint64) error
 
 	// DeleteByCond 根据条件进行删除
+	// @param cond 可为*model.QueryCond也可以为普通查询model
 	DeleteByCond(ctx context.Context, cond any) error
 
 	// Save 保存实体，实体IsCreate返回true则新增，否则更新
 	Save(ctx context.Context, e T) error
 
 	// GetById 根据实体id查询
-	GetById(e T, id uint64, cols ...string) (T, error)
+	GetById(id uint64, cols ...string) (T, error)
 
 	// GetByIds 根据实体id数组查询
-	GetByIds(list any, ids []uint64, orderBy ...string) error
+	GetByIds(ids []uint64, cols ...string) ([]T, error)
 
 	// GetByCond 根据实体条件查询实体信息(获取单个实体)
+	// @param cond 可为*model.QueryCond也可以为普通查询model
 	GetByCond(cond any) error
 
-	// ListByCond 根据条件查询数据映射至res
-	ListByCond(cond any, res any) error
+	// ListByCondToAny 根据条件查询数据映射至res
+	// @param cond 可为*model.QueryCond也可以为普通查询model
+	ListByCondToAny(cond any, res any) error
 
-	// PageByCond 分页查询
-	PageByCond(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
+	// ListByCond 根据条件查询
+	// @param cond 可为*model.QueryCond也可以为普通查询model
+	ListByCond(cond any, cols ...string) ([]T, error)
+
+	// PageByCondToAny 分页查询并绑定至指定toModels
+	// @param cond 可为*model.QueryCond也可以为普通查询model
+	PageByCondToAny(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error)
+
+	// PageByCond 根据指定条件分页查询
+	// @param cond 可为*model.QueryCond也可以为普通查询model
+	PageByCond(cond any, pageParam *model.PageParam, cols ...string) (*model.PageResult[[]T], error)
 
 	// CountByCond 根据指定条件统计model表的数量
+	// @param cond 可为*model.QueryCond也可以为普通查询model
 	CountByCond(cond any) int64
 
 	// Tx 执行事务操作
@@ -112,15 +125,12 @@ func (ai *AppImpl[T, R]) DeleteByCond(ctx context.Context, cond any) error {
 }
 
 // 根据实体id查询
-func (ai *AppImpl[T, R]) GetById(e T, id uint64, cols ...string) (T, error) {
-	if err := ai.GetRepo().GetById(e, id, cols...); err != nil {
-		return e, err
-	}
-	return e, nil
+func (ai *AppImpl[T, R]) GetById(id uint64, cols ...string) (T, error) {
+	return ai.GetRepo().GetById(id, cols...)
 }
 
-func (ai *AppImpl[T, R]) GetByIds(list any, ids []uint64, orderBy ...string) error {
-	return ai.GetRepo().GetByIds(list, ids, orderBy...)
+func (ai *AppImpl[T, R]) GetByIds(ids []uint64, cols ...string) ([]T, error) {
+	return ai.GetRepo().GetByIds(ids, cols...)
 }
 
 // 根据实体条件查询实体信息
@@ -128,13 +138,21 @@ func (ai *AppImpl[T, R]) GetByCond(cond any) error {
 	return ai.GetRepo().GetByCond(cond)
 }
 
-func (ai *AppImpl[T, R]) ListByCond(cond any, res any) error {
-	return ai.GetRepo().SelectByCond(cond, res)
+func (ai *AppImpl[T, R]) ListByCondToAny(cond any, res any) error {
+	return ai.GetRepo().SelectByCondToAny(cond, res)
 }
 
-// PageByCond 分页查询
-func (ai *AppImpl[T, R]) PageByCond(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error) {
-	return ai.GetRepo().PageByCond(cond, pageParam, toModels)
+func (ai *AppImpl[T, R]) ListByCond(cond any, cols ...string) ([]T, error) {
+	return ai.GetRepo().SelectByCond(cond, cols...)
+}
+
+// PageByCondToAny 分页查询
+func (ai *AppImpl[T, R]) PageByCondToAny(cond any, pageParam *model.PageParam, toModels any) (*model.PageResult[any], error) {
+	return ai.GetRepo().PageByCondToAny(cond, pageParam, toModels)
+}
+
+func (ai *AppImpl[T, R]) PageByCond(cond any, pageParam *model.PageParam, cols ...string) (*model.PageResult[[]T], error) {
+	return ai.GetRepo().PageByCond(cond, pageParam, cols...)
 }
 
 // 根据指定条件统计model表的数量, cond为条件可以为map等

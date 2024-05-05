@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/model"
 )
 
 type roleResourceRepoImpl struct {
@@ -17,10 +16,7 @@ func newRoleResourceRepo() repository.RoleResource {
 
 // 获取角色拥有的资源id数组
 func (m *roleResourceRepoImpl) GetRoleResourceIds(roleId uint64) []uint64 {
-	var rrs []entity.RoleResource
-
-	condtion := &entity.RoleResource{RoleId: roleId}
-	m.SelectByCond(model.NewModelCond(condtion).Columns("ResourceId"), &rrs)
+	rrs, _ := m.SelectByCond(&entity.RoleResource{RoleId: roleId}, "ResourceId")
 
 	var rids []uint64
 	for _, v := range rrs {

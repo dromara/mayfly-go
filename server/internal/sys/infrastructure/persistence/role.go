@@ -22,17 +22,15 @@ func (m *roleRepoImpl) GetPageList(condition *entity.RoleQuery, pageParam *model
 		In("id", condition.Ids).
 		NotIn("id", condition.NotIds).
 		OrderBy(orderBy...)
-	return m.PageByCond(qd, pageParam, toEntity)
+	return m.PageByCondToAny(qd, pageParam, toEntity)
 }
 
 func (m *roleRepoImpl) ListByQuery(condition *entity.RoleQuery) ([]*entity.Role, error) {
-	var res []*entity.Role
 	qd := model.NewCond().
 		Like("name", condition.Name).
 		Like("code", condition.Code).
 		In("id", condition.Ids).
 		NotIn("id", condition.NotIds).
 		OrderByDesc("id")
-	err := m.SelectByCond(qd, &res)
-	return res, err
+	return m.SelectByCond(qd)
 }

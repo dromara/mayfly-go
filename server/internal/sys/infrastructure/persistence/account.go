@@ -20,5 +20,5 @@ func (m *AccountRepoImpl) GetPageList(condition *entity.AccountQuery, pageParam 
 		Like("name", condition.Name).
 		Like("username", condition.Username).
 		In("id", condition.Ids)
-	return m.PageByCond(qd, pageParam, toEntity)
+	return m.PageByCondToAny(qd, pageParam, toEntity)
 }

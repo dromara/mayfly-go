@@ -21,6 +21,6 @@ func (d *dbRestoreHistoryRepoImpl) GetDbRestoreHistories(condition *entity.DbRes
 	qd := model.NewCond().
 		Eq("id", condition.Id).
 		Eq("db_backup_id", condition.DbRestoreId)
-	return d.PageByCond(qd, pageParam, toEntity)
+	return d.PageByCondToAny(qd, pageParam, toEntity)
 
 }

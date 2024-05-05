@@ -78,8 +78,8 @@ func (app *DbRestoreApp) Enable(ctx context.Context, jobId uint64) error {
 	defer app.mutex.Unlock()
 
 	repo := app.restoreRepo
-	job := &entity.DbRestore{}
-	if err := repo.GetById(job, jobId); err != nil {
+	job, err := repo.GetById(jobId)
+	if err != nil {
 		return err
 	}
 	if job.IsEnabled() {
@@ -101,8 +101,8 @@ func (app *DbRestoreApp) Disable(ctx context.Context, jobId uint64) error {
 	defer app.mutex.Unlock()
 
 	repo := app.restoreRepo
-	job := &entity.DbRestore{}
-	if err := repo.GetById(job, jobId); err != nil {
+	job, err := repo.GetById(jobId)
+	if err != nil {
 		return err
 	}
 	if !job.IsEnabled() {

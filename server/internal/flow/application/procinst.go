@@ -86,7 +86,7 @@ func (p *procinstAppImpl) StartProc(ctx context.Context, procdefKey string, reqP
 }
 
 func (p *procinstAppImpl) CancelProc(ctx context.Context, procinstId uint64) error {
-	procinst, err := p.GetById(new(entity.Procinst), procinstId)
+	procinst, err := p.GetById(procinstId)
 	if err != nil {
 		return errorx.NewBiz("流程不存在")
 	}
@@ -122,11 +122,8 @@ func (p *procinstAppImpl) CompleteTask(ctx context.Context, instTaskId uint64, r
 	instTask.Remark = remark
 	instTask.SetEnd()
 
-	procinst := new(entity.Procinst)
-	p.GetById(procinst, instTask.ProcinstId)
-
-	procdef := new(entity.Procdef)
-	p.procdefApp.GetById(procdef, procinst.ProcdefId)
+	procinst, _ := p.GetById(instTask.ProcinstId)
+	procdef, _ := p.procdefApp.GetById(procinst.ProcdefId)
 
 	// 获取下一实例审批任务
 	task := p.getNextTask(procdef, instTask.TaskKey)
@@ -163,8 +160,7 @@ func (p *procinstAppImpl) RejectTask(ctx context.Context, instTaskId uint64, rem
 	instTask.Remark = remark
 	instTask.SetEnd()
 
-	procinst := new(entity.Procinst)
-	p.GetById(procinst, instTask.ProcinstId)
+	procinst, _ := p.GetById(instTask.ProcinstId)
 	// 更新流程实例为终止状态，无法重新提交
 	procinst.Status = entity.ProcinstStatusTerminated
 	procinst.BizStatus = entity.ProcinstBizStatusNo
@@ -189,8 +185,7 @@ func (p *procinstAppImpl) BackTask(ctx context.Context, instTaskId uint64, remar
 	instTask.Status = entity.ProcinstTaskStatusBack
 	instTask.Remark = remark
 
-	procinst := new(entity.Procinst)
-	p.GetById(procinst, instTask.ProcinstId)
+	procinst, _ := p.GetById(instTask.ProcinstId)
 
 	// 更新流程实例为挂起状态，等待重新提交
 	procinst.Status = entity.ProcinstStatusSuspended
@@ -207,9 +202,8 @@ func (p *procinstAppImpl) BackTask(ctx context.Context, instTaskId uint64, remar
 // 取消处理中的流程实例任务
 func (p *procinstAppImpl) cancelInstTasks(ctx context.Context, procinstId uint64, cancelReason string) error {
 	// 流程实例任务信息
-	instTasks := new([]*entity.ProcinstTask)
-	p.procinstTaskRepo.SelectByCond(&entity.ProcinstTask{ProcinstId: procinstId, Status: entity.ProcinstTaskStatusProcess}, instTasks)
-	for _, instTask := range *instTasks {
+	instTasks, _ := p.procinstTaskRepo.SelectByCond(&entity.ProcinstTask{ProcinstId: procinstId, Status: entity.ProcinstTaskStatusProcess})
+	for _, instTask := range instTasks {
 		instTask.Status = entity.ProcinstTaskStatusCanceled
 		instTask.Remark = cancelReason
 		instTask.SetEnd()
@@ -250,8 +244,8 @@ func (p *procinstAppImpl) triggerProcinstStatusChangeEvent(ctx context.Context, 
 
 // 获取并校验实例任务
 func (p *procinstAppImpl) getAndValidInstTask(ctx context.Context, instTaskId uint64) (*entity.ProcinstTask, error) {
-	instTask := new(entity.ProcinstTask)
-	if err := p.procinstTaskRepo.GetById(instTask, instTaskId); err != nil {
+	instTask, err := p.procinstTaskRepo.GetById(instTaskId)
+	if err != nil {
 		return nil, errorx.NewBiz("流程实例任务不存在")
 	}
 

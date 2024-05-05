@@ -43,7 +43,7 @@ func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) e
 	// 更新操作
 	if resource.Id != 0 {
 		if resource.Code != "" {
-			oldRes, err := r.GetById(new(entity.Resource), resource.Id, "Code")
+			oldRes, err := r.GetById(resource.Id, "Code")
 			if err != nil {
 				return errorx.NewBiz("更新失败, 该资源不存在")
 			}
@@ -60,7 +60,7 @@ func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) e
 	// 生成随机八位唯一标识符
 	ui := stringx.Rand(8)
 	if pid := resource.Pid; pid != 0 {
-		pResource, err := r.GetById(new(entity.Resource), uint64(pid))
+		pResource, err := r.GetById(uint64(pid))
 		if err != nil {
 			return errorx.NewBiz("该父资源不存在")
 		}
@@ -80,7 +80,7 @@ func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) e
 }
 
 func (r *resourceAppImpl) ChangeStatus(ctx context.Context, resourceId uint64, status int8) error {
-	resource, err := r.GetById(new(entity.Resource), resourceId)
+	resource, err := r.GetById(resourceId)
 	if err != nil {
 		return errorx.NewBiz("资源不存在")
 	}
@@ -89,7 +89,7 @@ func (r *resourceAppImpl) ChangeStatus(ctx context.Context, resourceId uint64, s
 }
 
 func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resource) error {
-	resource, err := r.GetById(new(entity.Resource), sortResource.Id)
+	resource, err := r.GetById(sortResource.Id)
 	if err != nil {
 		return errorx.NewBiz("资源不存在")
 	}
@@ -115,7 +115,7 @@ func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resourc
 
 	newParentResourceUiPath := ""
 	if sortResource.Pid != 0 {
-		newParentResource, err := r.GetById(new(entity.Resource), uint64(sortResource.Pid))
+		newParentResource, err := r.GetById(uint64(sortResource.Pid))
 		if err != nil {
 			return errorx.NewBiz("父资源不存在")
 		}
@@ -159,7 +159,7 @@ func (r *resourceAppImpl) checkCode(code string) error {
 }
 
 func (r *resourceAppImpl) Delete(ctx context.Context, id uint64) error {
-	resource, err := r.GetById(new(entity.Resource), id)
+	resource, err := r.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("资源不存在")
 	}
@@ -180,7 +180,7 @@ func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity any) er
 		cond := &entity.Resource{
 			Status: entity.ResourceStatusEnable,
 		}
-		return r.ListByCond(model.NewModelCond(cond).OrderByAsc("pid").OrderByAsc("weight"), toEntity)
+		return r.ListByCondToAny(model.NewModelCond(cond).OrderByAsc("pid").OrderByAsc("weight"), toEntity)
 	}
 
 	return r.GetRepo().GetAccountResources(accountId, toEntity)

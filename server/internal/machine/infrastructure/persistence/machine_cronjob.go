@@ -18,5 +18,5 @@ func newMachineCronJobRepo() repository.MachineCronJob {
 // 分页获取机器信息列表
 func (m *machineCronJobRepoImpl) GetPageList(condition *entity.MachineCronJob, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := model.NewCond().Like("name", condition.Name).Eq("status", condition.Status).OrderBy(orderBy...)
-	return m.PageByCond(qd, pageParam, toEntity)
+	return m.PageByCondToAny(qd, pageParam, toEntity)
 }

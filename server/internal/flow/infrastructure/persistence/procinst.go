@@ -17,7 +17,7 @@ func newProcinstRepo() repository.Procinst {
 
 func (p *procinstImpl) GetPageList(condition *entity.ProcinstQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := model.NewModelCond(condition)
-	return p.PageByCond(qd, pageParam, toEntity)
+	return p.PageByCondToAny(qd, pageParam, toEntity)
 }
 
 //-----------procinst task--------------
@@ -32,5 +32,5 @@ func newProcinstTaskRepo() repository.ProcinstTask {
 
 func (p *procinstTaskImpl) GetPageList(condition *entity.ProcinstTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := model.NewModelCond(condition)
-	return p.PageByCond(qd, pageParam, toEntity)
+	return p.PageByCondToAny(qd, pageParam, toEntity)
 }

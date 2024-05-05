@@ -48,7 +48,7 @@ func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *mode
 }
 
 func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
-	mongoEntity, err := d.GetById(new(entity.Mongo), id)
+	mongoEntity, err := d.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("mongo信息不存在")
 	}
@@ -106,7 +106,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 	}
 	// 如果调整了ssh等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
 	if oldMongo.Code == "" {
-		oldMongo, _ = d.GetById(new(entity.Mongo), m.Id)
+		oldMongo, _ = d.GetById(m.Id)
 	}
 
 	// 先关闭连接
@@ -133,7 +133,7 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 
 func (d *mongoAppImpl) GetMongoConn(id uint64) (*mgm.MongoConn, error) {
 	return mgm.GetMongoConn(id, func() (*mgm.MongoInfo, error) {
-		me, err := d.GetById(new(entity.Mongo), id)
+		me, err := d.GetById(id)
 		if err != nil {
 			return nil, errorx.NewBiz("mongo信息不存在")
 		}

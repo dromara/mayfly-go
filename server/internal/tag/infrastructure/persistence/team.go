@@ -19,5 +19,5 @@ func (p *teamRepoImpl) GetPageList(condition *entity.TeamQuery, pageParam *model
 	qd := model.NewCond().
 		Like("name", condition.Name).
 		OrderBy(orderBy...)
-	return p.PageByCond(qd, pageParam, toEntity)
+	return p.PageByCondToAny(qd, pageParam, toEntity)
 }

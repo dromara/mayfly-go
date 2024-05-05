@@ -107,8 +107,7 @@ func (r *resourceAuthCertAppImpl) RelateAuthCert(ctx context.Context, params *Re
 		}
 	}
 
-	var oldAuthCert []*entity.ResourceAuthCert
-	r.ListByCond(&entity.ResourceAuthCert{ResourceCode: resourceCode, ResourceType: resourceType}, &oldAuthCert)
+	oldAuthCert, _ := r.ListByCond(&entity.ResourceAuthCert{ResourceCode: resourceCode, ResourceType: resourceType})
 
 	// 新增、删除以及不变的授权凭证名
 	var adds, dels, unmodifys []string
@@ -185,7 +184,7 @@ func (r *resourceAuthCertAppImpl) SaveAuthCert(ctx context.Context, rac *entity.
 }
 
 func (r *resourceAuthCertAppImpl) DeleteAuthCert(ctx context.Context, id uint64) error {
-	rac, err := r.GetById(new(entity.ResourceAuthCert), id)
+	rac, err := r.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("授权凭证不存在")
 	}
@@ -224,11 +223,11 @@ func (r *resourceAuthCertAppImpl) GetAuthCert(authCertName string) (*entity.Reso
 }
 
 func (r *resourceAuthCertAppImpl) GetResourceAuthCert(resourceType entity.TagType, resourceCode string) (*entity.ResourceAuthCert, error) {
-	var resourceAuthCerts []*entity.ResourceAuthCert
-	if err := r.ListByCond(&entity.ResourceAuthCert{
+	resourceAuthCerts, err := r.ListByCond(&entity.ResourceAuthCert{
 		ResourceType: int8(resourceType),
 		ResourceCode: resourceCode,
-	}, &resourceAuthCerts); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -272,8 +271,7 @@ func (r *resourceAuthCertAppImpl) FillAuthCertByAcs(authCerts []*entity.Resource
 }
 
 func (r *resourceAuthCertAppImpl) FillAuthCertByAcNames(authCertNames []string, resources ...entity.IAuthCert) {
-	var acs []*entity.ResourceAuthCert
-	r.ListByCond(model.NewCond().In("name", authCertNames), &acs)
+	acs, _ := r.ListByCond(model.NewCond().In("name", authCertNames))
 	r.FillAuthCertByAcs(acs, resources...)
 }
 
@@ -285,8 +283,7 @@ func (r *resourceAuthCertAppImpl) FillAuthCert(resourceType int8, resources ...e
 	resourceCodes := collx.ArrayMap(resources, func(ac entity.IAuthCert) string {
 		return ac.GetCode()
 	})
-	var acs []*entity.ResourceAuthCert
-	r.ListByCond(model.NewCond().In("ResoourceCode", resourceCodes).Eq0("ResourceType", resourceType), &acs)
+	acs, _ := r.ListByCond(model.NewCond().In("resource_code", resourceCodes).Eq("resource_type", resourceType))
 	r.FillAuthCertByAcs(acs, resources...)
 }
 
@@ -312,8 +309,7 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 	// 如果该资源存在对应的授权凭证标签类型，则说明需要关联至tagTree，否则直接从授权凭证库中验证资源编号是否正确即可（一个资源最少有一个授权凭证）
 	if authCertTagType != 0 {
 		// 获取资源编号对应的资源标签信息
-		var resourceTags []*entity.TagTree
-		r.tagTreeApp.ListByCond(&entity.TagTree{Type: entity.TagType(resourceType), Code: resourceCode}, &resourceTags)
+		resourceTags, _ := r.tagTreeApp.ListByCond(&entity.TagTree{Type: entity.TagType(resourceType), Code: resourceCode})
 		// 资源标签tagPath（相当于父tag）
 		resourceTagCodePaths = collx.ArrayMap(resourceTags, func(tag *entity.TagTree) string {
 			return tag.CodePath
@@ -353,7 +349,7 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 
 // updateAuthCert 更新授权凭证
 func (r *resourceAuthCertAppImpl) updateAuthCert(ctx context.Context, rac *entity.ResourceAuthCert) error {
-	oldRac, err := r.GetById(new(entity.ResourceAuthCert), rac.Id)
+	oldRac, err := r.GetById(rac.Id)
 	if err != nil {
 		return errorx.NewBiz("该授权凭证不存在")
 	}

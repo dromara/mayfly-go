@@ -20,7 +20,7 @@ func (d *dataSyncTaskRepoImpl) GetTaskList(condition *entity.DataSyncTaskQuery, 
 	qd := model.NewCond().
 		Like("task_name", condition.Name).
 		Eq("status", condition.Status)
-	return d.PageByCond(qd, pageParam, toEntity)
+	return d.PageByCondToAny(qd, pageParam, toEntity)
 }
 
 type dataSyncLogRepoImpl struct {
@@ -31,7 +31,7 @@ type dataSyncLogRepoImpl struct {
 func (d *dataSyncLogRepoImpl) GetTaskLogList(condition *entity.DataSyncLogQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := model.NewCond().
 		Eq("task_id", condition.TaskId)
-	return d.PageByCond(qd, pageParam, toEntity)
+	return d.PageByCondToAny(qd, pageParam, toEntity)
 }
 
 func newDataSyncLogRepo() repository.DataSyncLog {

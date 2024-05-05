@@ -108,7 +108,7 @@ func (a *Account) UpdateAccount(rc *req.Ctx) {
 		updateAccount.Password = cryptox.PwdHash(updateAccount.Password)
 	}
 
-	oldAcc, err := a.AccountApp.GetById(new(entity.Account), updateAccount.Id)
+	oldAcc, err := a.AccountApp.GetById(updateAccount.Id)
 	biz.ErrIsNil(err, "账号信息不存在")
 	// 账号创建十分钟内允许修改用户名（兼容oauth2首次登录修改用户名），否则不允许修改
 	if oldAcc.CreateTime.Add(10 * time.Minute).Before(time.Now()) {
@@ -148,7 +148,7 @@ func (a *Account) SimpleAccounts(rc *req.Ctx) {
 // 获取账号详情
 func (a *Account) AccountDetail(rc *req.Ctx) {
 	accountId := uint64(rc.PathParamInt("id"))
-	account, err := a.AccountApp.GetById(new(entity.Account), accountId)
+	account, err := a.AccountApp.GetById(accountId)
 	biz.ErrIsNil(err, "账号不存在")
 	accountvo := new(vo.SimpleAccountVO)
 	structx.Copy(accountvo, account)

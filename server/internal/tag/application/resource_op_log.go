@@ -39,7 +39,8 @@ func (rol *resourceOpLogAppImpl) AddResourceOpLog(ctx context.Context, codePath 
 
 	var logs []*entity.ResourceOpLog
 	qc := model.NewCond().Ge("create_time", time.Now().Add(-5*time.Minute)).Eq("creator_id", loginAccount.Id).Eq("code_path", codePath)
-	if err := rol.ListByCond(qc, &logs); err != nil {
+	logs, err := rol.ListByCond(qc)
+	if err != nil {
 		return err
 	}
 	// 指定时间内多次操作则不记录

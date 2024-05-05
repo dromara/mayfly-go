@@ -158,7 +158,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *SaveRedisParam) err
 	}
 	// 如果调整了ssh等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
 	if oldRedis.Code == "" {
-		oldRedis, _ = r.GetById(new(entity.Redis), re.Id)
+		oldRedis, _ = r.GetById(re.Id)
 	}
 
 	re.Code = ""
@@ -189,7 +189,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *SaveRedisParam) err
 
 // 删除Redis信息
 func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
-	re, err := r.GetById(new(entity.Redis), id)
+	re, err := r.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("该redis信息不存在")
 	}
@@ -220,7 +220,7 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
 	return rdm.GetRedisConn(id, db, func() (*rdm.RedisInfo, error) {
 		// 缓存不存在，则回调获取redis信息
-		re, err := r.GetById(new(entity.Redis), id)
+		re, err := r.GetById(id)
 		if err != nil {
 			return nil, errorx.NewBiz("redis信息不存在")
 		}

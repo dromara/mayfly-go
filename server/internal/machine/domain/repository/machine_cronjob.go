@@ -15,8 +15,6 @@ type MachineCronJob interface {
 type MachineCronJobRelate interface {
 	base.Repo[*entity.MachineCronJobRelate]
 
-	GetList(condition *entity.MachineCronJobRelate) []entity.MachineCronJobRelate
-
 	GetMachineIds(cronJobId uint64) []uint64
 
 	GetCronJobIds(machineId uint64) []uint64

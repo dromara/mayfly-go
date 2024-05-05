@@ -35,5 +35,5 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 		}))
 	}
 
-	return m.PageByCond(qd, pageParam, toEntity)
+	return m.PageByCondToAny(qd, pageParam, toEntity)
 }

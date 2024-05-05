@@ -40,19 +40,19 @@ func (p *Procinst) ProcinstCancel(rc *req.Ctx) {
 }
 
 func (p *Procinst) GetProcinstDetail(rc *req.Ctx) {
-	pi, err := p.ProcinstApp.GetById(new(entity.Procinst), uint64(rc.PathParamInt("id")))
+	pi, err := p.ProcinstApp.GetById(uint64(rc.PathParamInt("id")))
 	biz.ErrIsNil(err, "流程实例不存在")
 	pivo := new(vo.ProcinstVO)
 	structx.Copy(pivo, pi)
 
 	// 流程定义信息
-	procdef, _ := p.ProcdefApp.GetById(new(entity.Procdef), pi.ProcdefId)
+	procdef, _ := p.ProcdefApp.GetById(pi.ProcdefId)
 	pivo.Procdef = procdef
 
 	// 流程实例任务信息
-	instTasks := new([]*entity.ProcinstTask)
-	biz.ErrIsNil(p.ProcinstTaskRepo.SelectByCond(&entity.ProcinstTask{ProcinstId: pi.Id}, instTasks))
-	pivo.ProcinstTasks = *instTasks
+	instTasks, err := p.ProcinstTaskRepo.SelectByCond(&entity.ProcinstTask{ProcinstId: pi.Id})
+	biz.ErrIsNil(err)
+	pivo.ProcinstTasks = instTasks
 
 	rc.ResData = pivo
 }
@@ -69,9 +69,8 @@ func (p *Procinst) GetTasks(rc *req.Ctx) {
 	biz.ErrIsNil(err)
 
 	instIds := collx.ArrayMap[*vo.ProcinstTask, uint64](*taskVos, func(val *vo.ProcinstTask) uint64 { return val.ProcinstId })
-	insts := new([]*entity.Procinst)
-	p.ProcinstApp.GetByIds(insts, instIds)
-	instId2Inst := collx.ArrayToMap[*entity.Procinst, uint64](*insts, func(val *entity.Procinst) uint64 { return val.Id })
+	insts, _ := p.ProcinstApp.GetByIds(instIds)
+	instId2Inst := collx.ArrayToMap[*entity.Procinst, uint64](insts, func(val *entity.Procinst) uint64 { return val.Id })
 
 	// 赋值任务对应的流程实例
 	for _, task := range *taskVos {

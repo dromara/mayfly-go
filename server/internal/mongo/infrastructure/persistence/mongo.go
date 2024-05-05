@@ -21,5 +21,5 @@ func (d *mongoRepoImpl) GetList(condition *entity.MongoQuery, pageParam *model.P
 		Like("name", condition.Name).
 		Eq("code", condition.Code).
 		In("code", condition.Codes)
-	return d.PageByCond(qd, pageParam, toEntity)
+	return d.PageByCondToAny(qd, pageParam, toEntity)
 }

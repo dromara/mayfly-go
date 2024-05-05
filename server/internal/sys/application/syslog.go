@@ -114,8 +114,8 @@ func (m *syslogAppImpl) GetLogDetail(logId uint64) *entity.SysLog {
 	if syslog != nil {
 		return syslog
 	}
-	syslog = new(entity.SysLog)
-	if err := m.SyslogRepo.GetById(syslog, logId); err != nil {
+	syslog, err := m.SyslogRepo.GetById(logId)
+	if err != nil {
 		return nil
 	}
 	return syslog
@@ -137,11 +137,12 @@ func (m *syslogAppImpl) CreateLog(ctx context.Context, log *CreateLogReq) (uint6
 func (m *syslogAppImpl) AppendLog(logId uint64, appendLog *AppendLogReq) {
 	syslog := m.GetCacheLog(logId)
 	if syslog == nil {
-		syslog = new(entity.SysLog)
-		if err := m.SyslogRepo.GetById(syslog, logId); err != nil {
+		sl, err := m.SyslogRepo.GetById(logId)
+		if err != nil {
 			logx.Warnf("追加日志不存在: %d", logId)
 			return
 		}
+		syslog = sl
 	}
 
 	appendLogMsg := fmt.Sprintf("%s %s", timex.DefaultFormat(time.Now()), appendLog.AppendResp)
@@ -158,11 +159,12 @@ func (m *syslogAppImpl) AppendLog(logId uint64, appendLog *AppendLogReq) {
 func (m *syslogAppImpl) SetExtra(logId uint64, key string, val any) {
 	syslog := m.GetCacheLog(logId)
 	if syslog == nil {
-		syslog = new(entity.SysLog)
-		if err := m.SyslogRepo.GetById(syslog, logId); err != nil {
+		sl, err := m.SyslogRepo.GetById(logId)
+		if err != nil {
 			logx.Warnf("追加日志不存在: %d", logId)
 			return
 		}
+		syslog = sl
 	}
 
 	extraMap := jsonx.ToMap(syslog.Extra)

@@ -6,6 +6,7 @@ type TagTreeQuery struct {
 	model.Model
 
 	Type          TagType `json:"type"`
+	Types         []TagType
 	Codes         []string
 	CodePaths     []string // 标识路径
 	Name          string   `json:"name"` // 名称

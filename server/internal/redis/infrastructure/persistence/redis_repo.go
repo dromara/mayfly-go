@@ -22,5 +22,5 @@ func (r *redisRepoImpl) GetRedisList(condition *entity.RedisQuery, pageParam *mo
 		Like("host", condition.Host).
 		Eq("code", condition.Code).
 		In("code", condition.Codes)
-	return r.PageByCond(qd, pageParam, toEntity)
+	return r.PageByCondToAny(qd, pageParam, toEntity)
 }
