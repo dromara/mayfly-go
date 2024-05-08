@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	RedisRunWriteCmdFlowBizType = "redis_run_write_cmd_flow" // db sql exec flow biz type
+	RedisRunWriteCmdFlowBizType = "redis_run_write_cmd_flow"
 )
 
 func InitRedisFlowHandler() {

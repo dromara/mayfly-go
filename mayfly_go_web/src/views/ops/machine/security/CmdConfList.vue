@@ -9,7 +9,7 @@
                     </el-tag>
                 </template>
             </el-table-column>
-            <el-table-column prop="codePaths" label="关联机器" min-width="220px" show-overflow-tooltip>
+            <el-table-column prop="codePaths" label="关联机器" min-width="250px" show-overflow-tooltip>
                 <template #default="scope">
                     <TagCodePath :path="scope.row.tags.map((tag: any) => tag.codePath)" />
                 </template>

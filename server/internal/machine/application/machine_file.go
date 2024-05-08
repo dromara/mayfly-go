@@ -26,7 +26,6 @@ import (
 )
 
 type MachineFileOpParam struct {
-	Ua           *model.LoginAccount
 	MachineId    uint64 `json:"machineId" binding:"required" form:"machineId"`
 	Protocol     int    `json:"protocol" binding:"required" form:"protocol"`
 	AuthCertName string `json:"authCertName"  binding:"required" form:"authCertName"` // 授权凭证
@@ -221,7 +220,7 @@ func (m *machineFileAppImpl) MkDir(ctx context.Context, opParam *MachineFileOpPa
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		path = m.GetRdpFilePath(contextx.GetLoginAccount(ctx), path)
 		os.MkdirAll(path, os.ModePerm)
-		return nil, nil
+		return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, nil
 	}
 
 	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
@@ -238,8 +237,11 @@ func (m *machineFileAppImpl) CreateFile(ctx context.Context, opParam *MachineFil
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		path = m.GetRdpFilePath(contextx.GetLoginAccount(ctx), path)
 		file, err := os.Create(path)
+		if err != nil {
+			return nil, err
+		}
 		defer file.Close()
-		return nil, err
+		return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, err
 	}
 
 	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
@@ -271,12 +273,12 @@ func (m *machineFileAppImpl) WriteFileContent(ctx context.Context, opParam *Mach
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		path = m.GetRdpFilePath(contextx.GetLoginAccount(ctx), path)
 		file, err := os.Create(path)
-		defer file.Close()
 		if err != nil {
 			return nil, err
 		}
+		defer file.Close()
 		file.Write(content)
-		return nil, err
+		return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, err
 	}
 
 	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
@@ -303,12 +305,12 @@ func (m *machineFileAppImpl) UploadFile(ctx context.Context, opParam *MachineFil
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		path = m.GetRdpFilePath(contextx.GetLoginAccount(ctx), path)
 		file, err := os.Create(path + filename)
-		defer file.Close()
 		if err != nil {
 			return nil, err
 		}
+		defer file.Close()
 		io.Copy(file, reader)
-		return nil, nil
+		return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, nil
 	}
 
 	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
@@ -364,7 +366,7 @@ func (m *machineFileAppImpl) UploadFiles(ctx context.Context, opParam *MachineFi
 		}
 	}
 
-	return nil, nil
+	return &mcm.MachineInfo{Name: opParam.AuthCertName, Ip: opParam.AuthCertName}, nil
 }
 
 // 删除文件

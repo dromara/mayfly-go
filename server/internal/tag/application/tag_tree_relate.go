@@ -2,9 +2,11 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/base"
+	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/utils/collx"
@@ -17,7 +19,7 @@ type TagTreeRelate interface {
 	RelateTag(ctx context.Context, relateType entity.TagRelateType, relateId uint64, tagCodePaths ...string) error
 
 	// GetRelateIds 根据标签路径获取对应关联的id
-	GetRelateIds(relateType entity.TagRelateType, tagPaths ...string) ([]uint64, error)
+	GetRelateIds(ctx context.Context, relateType entity.TagRelateType, tagPaths ...string) ([]uint64, error)
 
 	// GetTagPathsByAccountId 根据账号id获取该账号可操作的标签code路径
 	GetTagPathsByAccountId(accountId uint64) []string
@@ -45,10 +47,16 @@ func (p *tagTreeRelateAppImpl) InjectTagTreeRelateRepo(tagTreeRelateRepo reposit
 }
 
 func (tr *tagTreeRelateAppImpl) RelateTag(ctx context.Context, relateType entity.TagRelateType, relateId uint64, tagCodePaths ...string) error {
+	if hasConflictPath(tagCodePaths) {
+		return errorx.NewBiz("存在冲突的编号路径")
+	}
+
 	var tags []*entity.TagTree
-	tr.tagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePaths: tagCodePaths}, &tags)
-	if len(tags) != len(tagCodePaths) {
-		return errorx.NewBiz("存在错误标签路径")
+	if len(tagCodePaths) > 0 {
+		tr.tagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePaths: tagCodePaths}, &tags)
+		if len(tags) != len(tagCodePaths) {
+			return errorx.NewBiz("存在错误标签路径")
+		}
 	}
 
 	oldRelates, _ := tr.ListByCond(&entity.TagTreeRelate{RelateType: relateType, RelateId: relateId})
@@ -83,9 +91,15 @@ func (tr *tagTreeRelateAppImpl) RelateTag(ctx context.Context, relateType entity
 	return nil
 }
 
-func (tr *tagTreeRelateAppImpl) GetRelateIds(relateType entity.TagRelateType, tagPaths ...string) ([]uint64, error) {
+func (tr *tagTreeRelateAppImpl) GetRelateIds(ctx context.Context, relateType entity.TagRelateType, tagPaths ...string) ([]uint64, error) {
+	la := contextx.GetLoginAccount(ctx)
+	canAccessTagPaths := tagPaths
+	if la != nil && la.Id != consts.AdminId {
+		canAccessTagPaths = filterCodePaths(tr.tagTreeApp.ListTagByAccountId(la.Id), tagPaths)
+	}
+
 	poisibleTagPaths := make([]string, 0)
-	for _, tagPath := range tagPaths {
+	for _, tagPath := range canAccessTagPaths {
 		// 追加可能关联的标签路径，如tagPath = tag1/tag2/1|xxx/，需要获取所有关联的自身及父标签（tag1/  tag1/tag2/ tag1/tag2/1|xxx）
 		poisibleTagPaths = append(poisibleTagPaths, entity.GetAllCodePath(tagPath)...)
 	}

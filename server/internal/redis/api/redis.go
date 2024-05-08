@@ -232,7 +232,7 @@ func (r *Redis) checkKeyAndGetRedisConn(rc *req.Ctx) (*rdm.RedisConn, string) {
 func (r *Redis) getRedisConn(rc *req.Ctx) *rdm.RedisConn {
 	ri, err := r.RedisApp.GetRedisConn(getIdAndDbNum(rc))
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, ri.Info.TagPath...), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, ri.Info.CodePath...), "%s")
 	return ri
 }
 

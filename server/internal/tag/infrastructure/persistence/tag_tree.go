@@ -39,7 +39,7 @@ func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEn
 		params = append(params, condition.Type)
 	}
 	if len(condition.Types) > 0 {
-		sql = sql + " AND p.type = IN (?)"
+		sql = sql + " AND p.type IN (?)"
 		params = append(params, condition.Types)
 	}
 	if len(condition.CodePathLikes) > 0 {

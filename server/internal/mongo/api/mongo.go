@@ -96,7 +96,7 @@ func (m *Mongo) Collections(rc *req.Ctx) {
 	conn, err := m.MongoApp.GetMongoConn(m.GetMongoId(rc))
 	biz.ErrIsNil(err)
 
-	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, conn.Info.TagPath[0])
+	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, conn.Info.CodePath[0])
 
 	db := rc.Query("database")
 	biz.NotEmpty(db, "database不能为空")

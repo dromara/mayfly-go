@@ -37,11 +37,4 @@ func Init() {
 		me := event.Val.(*entity.Machine)
 		return application.GetMachineScriptApp().DeleteByCond(ctx, &entity.MachineScript{MachineId: me.Id})
 	})
-
-	global.EventBus.Subscribe(event.EventTopicDeleteMachine, "machineCronJob", func(ctx context.Context, event *eventbus.Event) error {
-		me := event.Val.(*entity.Machine)
-		var jobIds []uint64
-		application.GetMachineCronJobApp().MachineRelateCronJobs(ctx, me.Id, jobIds)
-		return nil
-	})
 }

@@ -108,7 +108,7 @@
             :dbId="dbId"
             :db="db"
             :dbType="dbType"
-            :flow-procdef-key="props.flowProcdefKey"
+            :flow-procdef="props.flowProcdef"
             :data="tableCreateDialog.data"
             v-model:visible="tableCreateDialog.visible"
             @submit-sql="onSubmitSql"
@@ -150,8 +150,8 @@ const props = defineProps({
         type: [String],
         required: true,
     },
-    flowProcdefKey: {
-        type: [String],
+    flowProcdef: {
+        type: [Object],
     },
 });
 
@@ -327,7 +327,7 @@ const dropTable = async (row: any) => {
             sql: `DROP TABLE ${tableName}`,
             dbId: props.dbId as any,
             db: props.db as any,
-            flowProcdefKey: props.flowProcdefKey,
+            flowProcdef: props.flowProcdef,
             runSuccessCallback: async () => {
                 await getTables();
             },

@@ -15,7 +15,6 @@ import { toRefs, reactive, watch, onMounted } from 'vue';
 import { accountApi } from '../../system/api';
 import { ProcinstTaskStatus } from '../enums';
 import { dateFormat } from '@/common/utils/date';
-import { procdefApi } from '../api';
 import { ElSteps, ElStep } from 'element-plus';
 
 const props = defineProps({
@@ -23,8 +22,8 @@ const props = defineProps({
     tasks: {
         type: [String, Object],
     },
-    procdefKey: {
-        type: String,
+    procdef: {
+        type: [Object],
     },
     // 流程实例任务列表
     procinstTasks: {
@@ -54,7 +53,7 @@ watch(
 );
 
 watch(
-    () => props.procdefKey,
+    () => props.procdef,
     async (newValue: any) => {
         if (newValue) {
             parseTasksByKey(newValue);
@@ -63,15 +62,14 @@ watch(
 );
 
 onMounted(() => {
-    if (props.procdefKey) {
-        parseTasksByKey(props.procdefKey);
+    if (props.procdef) {
+        parseTasksByKey(props.procdef);
         return;
     }
     parseTasks(props.tasks);
 });
 
-const parseTasksByKey = async (key: string) => {
-    const procdef = await procdefApi.getByKey.request({ key });
+const parseTasksByKey = async (procdef: any) => {
     parseTasks(procdef.tasks);
 };
 

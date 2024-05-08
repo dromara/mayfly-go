@@ -19,14 +19,6 @@ type MachineCronJob struct {
 	SaveExecResType int        `json:"saveExecResType"` // 记录执行结果类型
 }
 
-// 计划任务与机器关联信息
-type MachineCronJobRelate struct {
-	model.CreateModel
-
-	CronJobId uint64
-	MachineId uint64
-}
-
 // 机器任务执行记录
 type MachineCronJobExec struct {
 	model.DeletedModel

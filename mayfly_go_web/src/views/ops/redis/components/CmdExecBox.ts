@@ -5,7 +5,7 @@ export type CmdExecProps = {
     id: number;
     db: number | string;
     cmd: any[];
-    flowProcdefKey?: string;
+    flowProcdef?: any;
     visible?: boolean;
     runSuccessFn?: Function;
     cancelFn?: Function;

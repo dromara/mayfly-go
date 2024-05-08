@@ -15,7 +15,6 @@ type Redis struct {
 	Mode               *string    `json:"mode"`
 	SshTunnelMachineId int        `json:"sshTunnelMachineId"` // ssh隧道机器id
 	Remark             *string    `json:"remark"`
-	FlowProcdefKey     string     `json:"flowProcdefKey"`
 	CreateTime         *time.Time `json:"createTime"`
 	Creator            *string    `json:"creator"`
 	CreatorId          *int64     `json:"creatorId"`

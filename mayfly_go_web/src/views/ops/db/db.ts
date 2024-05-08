@@ -41,9 +41,9 @@ export class DbInst {
     type: string;
 
     /**
-     * 流程定义key，若存在则需要审批执行
+     * 流程定义，若存在则需要审批执行
      */
-    flowProcdefKey: string;
+    flowProcdef: any;
 
     /**
      * dbName -> db
@@ -352,6 +352,7 @@ export class DbInst {
      * 弹框提示是否执行sql
      */
     promptExeSql = (db: string, sql: string, cancelFunc: any = null, successFunc: any = null) => {
+        console.log(this);
         SqlExecBox({
             sql,
             dbId: this.id,
@@ -359,7 +360,7 @@ export class DbInst {
             dbType: this.getDialect().getInfo().formatSqlDialect,
             runSuccessCallback: successFunc,
             cancelCallback: cancelFunc,
-            flowProcdefKey: this.flowProcdefKey,
+            flowProcdef: this.flowProcdef,
         });
     };
 
@@ -383,6 +384,11 @@ export class DbInst {
         }
         let dbInst = dbInstCache.get(inst.id);
         if (dbInst) {
+            // 更新可能更改的流程定义
+            if (inst.flowProcdef !== undefined) {
+                dbInst.flowProcdef = inst.flowProcdef;
+                dbInstCache.set(dbInst.id, dbInst);
+            }
             return dbInst;
         }
         console.info(`new dbInst: ${inst.id}, tagPath: ${inst.tagPath}`);
@@ -393,7 +399,7 @@ export class DbInst {
         dbInst.name = inst.name;
         dbInst.type = inst.type;
         dbInst.databases = inst.databases;
-        dbInst.flowProcdefKey = inst.flowProcdefKey;
+        dbInst.flowProcdef = inst.flowProcdef;
 
         dbInstCache.set(dbInst.id, dbInst);
         return dbInst;

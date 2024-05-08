@@ -36,7 +36,7 @@
                                     <!-- 字段列的数据类型 -->
                                     <div class="column-type">
                                         <span v-if="column.dataTypeSubscript === 'icon-clock'">
-                                            <SvgIcon :size="10" name="Clock" style="cursor: unset" />
+                                            <SvgIcon :size="9" name="Clock" style="cursor: unset" />
                                         </span>
                                         <span class="font8" v-else>{{ column.dataTypeSubscript }}</span>
                                     </div>
@@ -880,8 +880,8 @@ defineExpose({
         color: var(--el-color-info-light-3);
         font-weight: bold;
         position: absolute;
-        top: -5px;
-        padding: 2px;
+        top: -7px;
+        padding: 1px;
     }
 
     .column-right {

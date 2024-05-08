@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-drawer @open="initSort" :title="title" v-model="visible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false">
+        <el-drawer @open="initSort" :title="title" v-model="visible" :before-close="cancel" :destroy-on-close="true" :close-on-click-modal="false" size="40%">
             <template #header>
                 <DrawerHeader :header="title" :back="cancel" />
             </template>
@@ -19,6 +19,10 @@
                 </el-form-item>
                 <el-form-item prop="remark" label="备注">
                     <el-input v-model.trim="form.remark" placeholder="备注" auto-complete="off" clearable></el-input>
+                </el-form-item>
+
+                <el-form-item ref="tagSelectRef" prop="codePaths" label="关联资源">
+                    <tag-tree-check height="300px" v-model="form.codePaths" :tag-type="[TagResourceTypeEnum.DbName.value, TagResourceTypeEnum.Redis.value]" />
                 </el-form-item>
 
                 <el-divider content-position="left">审批节点</el-divider>
@@ -70,6 +74,8 @@ import AccountSelectFormItem from '@/views/system/account/components/AccountSele
 import Sortable from 'sortablejs';
 import { randomUuid } from '../../common/utils/string';
 import { ProcdefStatus } from './enums';
+import TagTreeCheck from '../ops/component/TagTreeCheck.vue';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     data: {
@@ -115,6 +121,7 @@ const state = reactive({
         remark: null,
         // 流程的审批节点任务
         tasks: '',
+        codePaths: [],
     },
     sortable: '' as any,
 });
@@ -126,6 +133,7 @@ const { isFetching: saveBtnLoading, execute: saveFlowDefExec } = procdefApi.save
 watch(props, (newValue: any) => {
     if (newValue.data) {
         state.form = { ...newValue.data };
+        state.form.codePaths = newValue.data.tags?.map((tag: any) => tag.codePath);
         const tasks = JSON.parse(state.form.tasks);
         tasks.forEach((t: any) => {
             t.userId = Number.parseInt(t.userId);
@@ -160,25 +168,26 @@ const deleteTask = (idx: any) => {
 };
 
 const btnOk = async () => {
-    formRef.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('表单填写有误');
-            return false;
-        }
-        const checkRes = checkTasks();
-        if (checkRes.err) {
-            ElMessage.error(checkRes.err);
-            return false;
-        }
+    try {
+        await formRef.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
 
-        state.form.tasks = JSON.stringify(checkRes.tasks);
-        await saveFlowDefExec();
-        ElMessage.success('操作成功');
-        emit('val-change', state.form);
-        //重置表单域
-        formRef.value.resetFields();
-        state.form = {} as any;
-    });
+    const checkRes = checkTasks();
+    if (checkRes.err) {
+        ElMessage.error(checkRes.err);
+        return false;
+    }
+
+    state.form.tasks = JSON.stringify(checkRes.tasks);
+    await saveFlowDefExec();
+    ElMessage.success('操作成功');
+    emit('val-change', state.form);
+    //重置表单域
+    formRef.value.resetFields();
+    state.form = {} as any;
 };
 
 const checkTasks = () => {

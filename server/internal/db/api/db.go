@@ -95,9 +95,9 @@ func (d *Db) ExecSql(rc *req.Ctx) {
 	dbId := getDbId(rc)
 	dbConn, err := d.DbApp.GetDbConn(dbId, form.Db)
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath...), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 
-	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.TagPath[0])
+	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, dbConn.Info.CodePath[0])
 
 	sqlBytes, err := base64.StdEncoding.DecodeString(form.Sql)
 	biz.ErrIsNilAppendErr(err, "sql解码失败: %s")
@@ -172,10 +172,8 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 	clientId := rc.Query("clientId")
 
 	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
-	// 开启流程审批时，执行文件暂时还未处理
-	biz.IsTrue(dbConn.Info.FlowProcdefKey == "", "该库已开启流程审批，暂不支持该操作")
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.TagPath...), "%s")
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(rc.GetLoginAccount().Id, dbConn.Info.CodePath...), "%s")
 	rc.ReqParam = fmt.Sprintf("filename: %s -> %s", filename, dbConn.Info.GetLogDesc())
 
 	defer func() {
@@ -243,7 +241,7 @@ func (d *Db) ExecSqlFile(rc *req.Ctx) {
 			}
 			dbConn, err = d.DbApp.GetDbConn(dbId, stmtUse.DBName.String())
 			biz.ErrIsNil(err)
-			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(laId, dbConn.Info.TagPath...), "%s")
+			biz.ErrIsNilAppendErr(d.TagApp.CanAccess(laId, dbConn.Info.CodePath...), "%s")
 			execReq.DbConn = dbConn
 		}
 		// 需要记录执行记录

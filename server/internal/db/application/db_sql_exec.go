@@ -67,6 +67,7 @@ type dbSqlExecAppImpl struct {
 	dbSqlExecRepo repository.DbSqlExec `inject:"DbSqlExecRepo"`
 
 	flowProcinstApp flowapp.Procinst `inject:"ProcinstApp"`
+	flowProcdefApp  flowapp.Procdef  `inject:"ProcdefApp"`
 }
 
 func createSqlExecRecord(ctx context.Context, execSqlReq *DbSqlExecReq) *entity.DbSqlExec {
@@ -348,11 +349,11 @@ func (d *dbSqlExecAppImpl) doInsert(ctx context.Context, insert *sqlparser.Inser
 
 func (d *dbSqlExecAppImpl) doExec(ctx context.Context, execSqlReq *DbSqlExecReq, dbSqlExecRecord *entity.DbSqlExec) (*DbSqlExecRes, error) {
 	dbConn := execSqlReq.DbConn
-	flowProcdefKey := dbConn.Info.FlowProcdefKey
-	if flowProcdefKey != "" {
+
+	if flowProcdefId := d.flowProcdefApp.GetProcdefIdByCodePath(ctx, dbConn.Info.CodePath...); flowProcdefId != 0 {
 		bizKey := stringx.Rand(24)
 		// 如果该库关联了审批流程，则启动流程实例即可
-		_, err := d.flowProcinstApp.StartProc(ctx, flowProcdefKey, &flowapp.StarProcParam{
+		_, err := d.flowProcinstApp.StartProc(ctx, flowProcdefId, &flowapp.StarProcParam{
 			BizType: DbSqlExecFlowBizType,
 			BizKey:  bizKey,
 			Remark:  dbSqlExecRecord.Remark,

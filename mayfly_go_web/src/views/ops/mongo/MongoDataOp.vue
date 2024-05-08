@@ -36,13 +36,8 @@
                         />
                     </template>
 
-                    <template #label="{ data }">
-                        <span v-if="data.type.value == MongoNodeType.Dbs">
-                            {{ data.params.database }}
-                            <span style="color: #8492a6; font-size: 13px"> [{{ formatByteSize(data.params.size) }}] </span>
-                        </span>
-
-                        <span v-else>{{ data.label }}</span>
+                    <template #suffix="{ data }">
+                        <span v-if="data.type.value == MongoNodeType.Dbs">{{ formatByteSize(data.params.size) }}</span>
                     </template>
                 </tag-tree>
             </Pane>

@@ -47,10 +47,8 @@
                     </template>
 
                     <template #suffix="{ data }">
-                        <span class="db-table-size" v-if="data.type.value == SqlExecNodeType.Table && data.params.size">{{ ` ${data.params.size}` }}</span>
-                        <span class="db-table-size" v-if="data.type.value == SqlExecNodeType.TableMenu && data.params.dbTableSize">{{
-                            ` ${data.params.dbTableSize}`
-                        }}</span>
+                        <span v-if="data.type.value == SqlExecNodeType.Table && data.params.size">{{ ` ${data.params.size}` }}</span>
+                        <span v-if="data.type.value == SqlExecNodeType.TableMenu && data.params.dbTableSize">{{ ` ${data.params.dbTableSize}` }}</span>
                     </template>
                 </tag-tree>
             </Pane>
@@ -148,7 +146,7 @@
                                     :db-id="dt.params.id"
                                     :db="dt.params.db"
                                     :db-type="dt.params.type"
-                                    :flow-procdef-key="dt.params.flowProcdefKey"
+                                    :flow-procdef="dt.params.flowProcdef"
                                     :height="state.tablesOpHeight"
                                 />
                             </el-tab-pane>
@@ -163,7 +161,7 @@
             :dbId="tableCreateDialog.dbId"
             :db="tableCreateDialog.db"
             :dbType="tableCreateDialog.dbType"
-            :flow-procdef-key="tableCreateDialog.flowProcdefKey"
+            :flow-procdef="tableCreateDialog.flowProcdef"
             :data="tableCreateDialog.data"
             v-model:visible="tableCreateDialog.visible"
             @submit-sql="onSubmitEditTableSql"
@@ -190,6 +188,7 @@ import { useEventListener } from '@vueuse/core';
 import SqlExecBox from '@/views/ops/db/component/sqleditor/SqlExecBox';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
+import { procdefApi } from '@/views/flow/api';
 
 const DbTableOp = defineAsyncComponent(() => import('./component/table/DbTableOp.vue'));
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
@@ -243,7 +242,7 @@ const nodeClickChangeDb = (nodeData: TagTreeNode) => {
                 type: params.type,
                 tagPath: params.tagPath,
                 databases: params.dbs,
-                flowProcdefKey: params.flowProcdefKey,
+                flowProcdef: params.flowProcdef,
             },
             params.db
         );
@@ -271,10 +270,11 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath)
     .withContextMenuItems([ContextmenuItemRefresh]);
 
 // 数据库实例节点类型
-const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((parentNode: TagTreeNode) => {
+const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const params = parentNode.params;
     const dbs = params.database.split(' ')?.sort();
 
+    const flowProcdef = await procdefApi.getByResource.request({ resourceType: TagResourceTypeEnum.DbName.value, resourceCode: params.code });
     return dbs.map((x: any) => {
         return new TagTreeNode(`${parentNode.key}.${x}`, x, NodeTypeDb)
             .withParams({
@@ -285,7 +285,7 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
                 host: `${params.host}:${params.port}`,
                 dbs: dbs,
                 db: x,
-                flowProcdefKey: params.flowProcdefKey,
+                flowProcdef: flowProcdef,
             })
             .withIcon(DbIcon);
     });
@@ -346,7 +346,7 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
     ])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
-        let { id, db, type, flowProcdefKey, schema } = params;
+        let { id, db, type, flowProcdef, schema } = params;
         // 获取当前库的所有表信息
         let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
         state.reloadStatus = false;
@@ -362,7 +362,7 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
                     db,
                     type,
                     schema,
-                    flowProcdefKey: flowProcdefKey,
+                    flowProcdef: flowProcdef,
                     key: key,
                     parentKey: parentNode.key,
                     tableName: x.tableName,
@@ -448,7 +448,7 @@ const state = reactive({
         dbId: 0,
         db: '',
         dbType: '',
-        flowProcdefKey: '',
+        flowProcdef: null as any,
         data: {},
         parentKey: '',
     },
@@ -497,7 +497,7 @@ const autoOpenDb = (codePath: string) => {
         // 置空
         autoOpenResourceStore.setDbCodePath('');
         tagTreeRef.value.setCurrentKey(dbCode);
-    }, 600);
+    }, 1000);
 };
 
 /**
@@ -669,6 +669,8 @@ const onTabChange = () => {
         // 注册sql提示
         registerDbCompletionItemProvider(nowTab.dbId, nowTab.db, nowTab.params.dbs, nowDbInst.value.type);
     }
+
+    tagTreeRef.value.setCurrentKey(nowTab?.treeNodeKey);
 };
 
 const reloadSqls = (dbId: number, db: string) => {
@@ -700,7 +702,7 @@ const reloadNode = (nodeKey: string) => {
 };
 
 const onEditTable = async (data: any) => {
-    let { db, id, tableName, tableComment, type, parentKey, key, flowProcdefKey } = data.params;
+    let { db, id, tableName, tableComment, type, parentKey, key, flowProcdef } = data.params;
     // data.label就是表名
     if (tableName) {
         state.tableCreateDialog.title = '修改表';
@@ -719,12 +721,12 @@ const onEditTable = async (data: any) => {
     state.tableCreateDialog.dbId = id;
     state.tableCreateDialog.db = db;
     state.tableCreateDialog.dbType = type;
-    state.tableCreateDialog.flowProcdefKey = flowProcdefKey;
+    state.tableCreateDialog.flowProcdef = flowProcdef;
     state.tableCreateDialog.visible = true;
 };
 
 const onDeleteTable = async (data: any) => {
-    let { db, id, tableName, parentKey, flowProcdefKey, schema } = data.params;
+    let { db, id, tableName, parentKey, flowProcdef, schema } = data.params;
     await ElMessageBox.confirm(`此操作是永久性且无法撤销，确定删除【${tableName}】? `, '提示', {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -736,7 +738,7 @@ const onDeleteTable = async (data: any) => {
     let schemaStr = schema ? `${dialect.quoteIdentifier(schema)}.` : '';
 
     dbApi.sqlExec.request({ id, db, sql: `drop table ${schemaStr + dialect.quoteIdentifier(tableName)}` }).then(() => {
-        if (flowProcdefKey) {
+        if (flowProcdef) {
             ElMessage.success('工单提交成功');
             return;
         }
@@ -748,7 +750,7 @@ const onDeleteTable = async (data: any) => {
 };
 
 const onRenameTable = async (data: any) => {
-    let { db, id, tableName, parentKey, flowProcdefKey } = data.params;
+    let { db, id, tableName, parentKey, flowProcdef } = data.params;
     let tableData = { db, oldTableName: tableName, tableName };
 
     let value = ref(tableName);
@@ -771,7 +773,7 @@ const onRenameTable = async (data: any) => {
         dbId: id as any,
         db: db as any,
         dbType: nowDbInst.value.getDialect().getInfo().formatSqlDialect,
-        flowProcdefKey: flowProcdefKey,
+        flowProcdef: flowProcdef,
         runSuccessCallback: () => {
             setTimeout(() => {
                 parentKey && reloadNode(parentKey);
@@ -831,7 +833,7 @@ const getNowDbInfo = () => {
         name: di.name,
         type: di.type,
         host: di.host,
-        flowProcdefKey: di.flowProcdefKey,
+        flowProcdef: di.flowProcdef,
         dbName: state.db,
     };
 };
@@ -839,11 +841,6 @@ const getNowDbInfo = () => {
 
 <style lang="scss">
 .db-sql-exec {
-    .db-table-size {
-        color: #c4c9c4;
-        font-size: 9px;
-    }
-
     .db-op {
         height: calc(100vh - 106px);
     }

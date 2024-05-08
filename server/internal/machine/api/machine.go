@@ -152,7 +152,7 @@ func (m *Machine) GetProcess(rc *req.Ctx) {
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
 	res, err := cli.Run(cmd)
 	biz.ErrIsNilAppendErr(err, "获取进程信息失败: %s")
@@ -166,7 +166,7 @@ func (m *Machine) KillProcess(rc *req.Ctx) {
 
 	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
 	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), "%s")
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), "%s")
 
 	res, err := cli.Run("sudo kill -9 " + pid)
 	biz.ErrIsNil(err, "终止进程失败: %s", res)
@@ -194,9 +194,9 @@ func (m *Machine) WsSSH(g *gin.Context) {
 	cli, err := m.MachineApp.NewCli(GetMachineAc(rc))
 	biz.ErrIsNilAppendErr(err, mcm.GetErrorContentRn("获取客户端连接失败: %s"))
 	defer cli.Close()
-	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.TagPath...), mcm.GetErrorContentRn("%s"))
+	biz.ErrIsNilAppendErr(m.TagApp.CanAccess(rc.GetLoginAccount().Id, cli.Info.CodePath...), mcm.GetErrorContentRn("%s"))
 
-	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, cli.Info.TagPath[0])
+	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, cli.Info.CodePath[0])
 
 	cols := rc.QueryIntDefault("cols", 80)
 	rows := rc.QueryIntDefault("rows", 32)

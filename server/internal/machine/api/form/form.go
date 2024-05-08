@@ -41,8 +41,8 @@ type MachineCronJobForm struct {
 	Script          string   `json:"script" binding:"required"`
 	Status          int      `json:"status" binding:"required"`
 	SaveExecResType int      `json:"saveExecResType" binding:"required"`
-	MachineIds      []uint64 `json:"machineIds"`
 	Remark          string   `json:"remark"`
+	CodePaths       []string `json:"codePaths"`
 }
 
 type MachineCmdConfForm struct {

@@ -16,10 +16,10 @@ func (r *Redis) RunCmd(rc *req.Ctx) {
 	biz.IsTrue(len(cmdReq.Cmd) > 0, "redis命令不能为空")
 
 	redisConn := r.getRedisConn(rc)
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, redisConn.Info.TagPath...), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, redisConn.Info.CodePath...), "%s")
 	rc.ReqParam = collx.Kvs("redis", redisConn.Info, "cmd", cmdReq.Cmd)
 
-	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, redisConn.Info.TagPath[0])
+	global.EventBus.Publish(rc.MetaCtx, event.EventTopicResourceOp, redisConn.Info.CodePath[0])
 
 	res, err := r.RedisApp.RunCmd(rc.MetaCtx, redisConn, runCmdParam)
 	biz.ErrIsNil(err)

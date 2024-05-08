@@ -19,10 +19,6 @@ func InitMachineCronJobRouter(router *gin.RouterGroup) {
 		// 获取机器任务列表
 		req.NewGet("", cj.MachineCronJobs),
 
-		req.NewGet("/machine-ids", cj.GetRelateMachineIds),
-
-		req.NewGet("/cronjob-ids", cj.GetRelateCronJobIds),
-
 		req.NewPost("", cj.Save).Log(req.NewLogSave("保存机器计划任务")),
 
 		req.NewDelete(":ids", cj.Delete).Log(req.NewLogSave("删除机器计划任务")),

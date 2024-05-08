@@ -47,8 +47,7 @@ type DbInfo struct {
 	Params   string
 	Database string // 若有schema的库则为'database/scheam'格式
 
-	FlowProcdefKey     string // 流程定义key
-	TagPath            []string
+	CodePath           []string
 	SshTunnelMachineId int
 
 	Meta Meta
@@ -56,7 +55,7 @@ type DbInfo struct {
 
 // 获取记录日志的描述
 func (d *DbInfo) GetLogDesc() string {
-	return fmt.Sprintf("DB[id=%d, tag=%s, name=%s, ip=%s:%d, database=%s]", d.Id, d.TagPath, d.Name, d.Host, d.Port, d.Database)
+	return fmt.Sprintf("DB[id=%d, tag=%s, name=%s, ip=%s:%d, database=%s]", d.Id, d.CodePath, d.Name, d.Host, d.Port, d.Database)
 }
 
 // 连接数据库

@@ -12,14 +12,6 @@ type MachineCronJob interface {
 	GetPageList(condition *entity.MachineCronJob, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 }
 
-type MachineCronJobRelate interface {
-	base.Repo[*entity.MachineCronJobRelate]
-
-	GetMachineIds(cronJobId uint64) []uint64
-
-	GetCronJobIds(machineId uint64) []uint64
-}
-
 type MachineCronJobExec interface {
 	base.Repo[*entity.MachineCronJobExec]
 

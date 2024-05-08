@@ -18,7 +18,7 @@ func InitProcdefouter(router *gin.RouterGroup) {
 		reqs := [...]*req.Conf{
 			req.NewGet("", p.GetProcdefPage),
 
-			req.NewGet("/:key", p.GetProcdef),
+			req.NewGet("/:resourceType/:resourceCode", p.GetProcdef),
 
 			req.NewPost("", p.Save).Log(req.NewLogSave("流程定义-保存")).RequiredPermissionCode("flow:procdef:save"),
 

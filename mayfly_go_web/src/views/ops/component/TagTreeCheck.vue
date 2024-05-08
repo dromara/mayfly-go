@@ -56,7 +56,7 @@ const props = defineProps({
         default: 'calc(100vh - 330px)',
     },
     tagType: {
-        type: Number,
+        type: [Number, Array<Number>],
         default: TagResourceTypeEnum.Tag.value,
     },
     nodeKey: {
@@ -81,7 +81,12 @@ onMounted(() => {
 });
 
 const search = async () => {
-    state.tags = await tagApi.getTagTrees.request({ type: props.tagType });
+    let tagType: any = props.tagType;
+    if (Array.isArray(props.tagType)) {
+        tagType = props.tagType.join(',');
+    }
+
+    state.tags = await tagApi.getTagTrees.request({ type: tagType });
 
     setTimeout(() => {
         const checkedNodes = tagTreeRef.value.getCheckedNodes();

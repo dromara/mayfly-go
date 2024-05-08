@@ -128,7 +128,6 @@
 
                 <el-descriptions-item :span="3" label="库">{{ detailDialog.data.db }}</el-descriptions-item>
                 <el-descriptions-item :span="3" label="备注">{{ detailDialog.data.remark }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="工单流程key">{{ detailDialog.data?.flowProcdefKey }}</el-descriptions-item>
                 <el-descriptions-item :span="3" label="SSH隧道">{{ detailDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
 
                 <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(detailDialog.data.createTime) }} </el-descriptions-item>
@@ -180,7 +179,6 @@ const columns = ref([
     TableColumn.new('name', '名称'),
     TableColumn.new('host', 'host:port'),
     TableColumn.new('mode', 'mode'),
-    TableColumn.new('flowProcdefKey', '关联流程'),
     TableColumn.new('remark', '备注'),
     TableColumn.new('code', '编号'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(200).fixedRight().alignCenter(),

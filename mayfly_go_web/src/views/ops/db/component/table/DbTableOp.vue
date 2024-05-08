@@ -152,8 +152,8 @@ const props = defineProps({
     dbType: {
         type: String,
     },
-    flowProcdefKey: {
-        type: String,
+    flowProcdef: {
+        type: Object,
     },
 });
 
@@ -335,7 +335,7 @@ const submit = async () => {
         dbId: props.dbId as any,
         db: props.db as any,
         dbType: dbDialect.getInfo().formatSqlDialect,
-        flowProcdefKey: props.flowProcdefKey,
+        flowProcdef: props.flowProcdef,
         runSuccessCallback: () => {
             emit('submit-sql', { tableName: state.tableData.tableName });
             // cancel();

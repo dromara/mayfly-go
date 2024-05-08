@@ -14,8 +14,10 @@ type TagTreeRelate struct {
 type TagRelateType int8
 
 const (
-	TagRelateTypeTeam       TagRelateType = 1 // 关联团队
-	TagRelateTypeMachineCmd TagRelateType = 2 // 关联机器命令配置
+	TagRelateTypeTeam           TagRelateType = 1 // 关联团队
+	TagRelateTypeMachineCmd     TagRelateType = 2 // 关联机器命令配置
+	TagRelateTypeMachineCronJob TagRelateType = 3 // 关联机器定时任务配置
+	TagRelateTypeFlowDef        TagRelateType = 4 // 关联流程定义
 )
 
 // 关联标签信息，如果要实现填充关联标签信息，则结构体需要实现该接口

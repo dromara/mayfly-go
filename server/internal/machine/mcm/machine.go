@@ -31,7 +31,7 @@ type MachineInfo struct {
 	SshTunnelMachine *MachineInfo `json:"-"` // ssh隧道机器
 	TempSshMachineId uint64       `json:"-"` // ssh隧道机器id，用于记录隧道机器id，连接出错后关闭隧道
 	EnableRecorder   int8         `json:"-"` // 是否启用终端回放记录
-	TagPath          []string     `json:"tagPath"`
+	CodePath         []string     `json:"codePath"`
 }
 
 func (m *MachineInfo) UseSshTunnel() bool {

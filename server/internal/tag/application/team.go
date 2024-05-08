@@ -4,6 +4,7 @@ import (
 	"context"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
+	"mayfly-go/internal/tag/infrastructure/cache"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/contextx"
@@ -88,6 +89,12 @@ func (p *teamAppImpl) SaveTeam(ctx context.Context, saveParam *SaveTeamParam) er
 		if err := p.UpdateById(ctx, team); err != nil {
 			return err
 		}
+	}
+
+	// 删除该团队关联账号的标签缓存
+	teamMembers, _ := p.teamMemberRepo.SelectByCond(&entity.TeamMember{TeamId: team.Id})
+	for _, tm := range teamMembers {
+		cache.DelAccountTagPaths(tm.AccountId)
 	}
 
 	// 保存团队关联的标签信息

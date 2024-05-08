@@ -12,6 +12,8 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"sort"
 	"strings"
+
+	"github.com/may-fly/cast"
 )
 
 type TagTree struct {
@@ -20,8 +22,15 @@ type TagTree struct {
 }
 
 func (p *TagTree) GetTagTree(rc *req.Ctx) {
-	tagType := entity.TagType(rc.QueryInt("type"))
-	accountTags := p.TagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &entity.TagTreeQuery{Type: tagType})
+	tagTypesStr := rc.Query("type")
+	var tagTypes []entity.TagType
+	if tagTypesStr != "" {
+		tagTypes = collx.ArrayMap[string, entity.TagType](strings.Split(tagTypesStr, ","), func(val string) entity.TagType {
+			return entity.TagType(cast.ToInt8(val))
+		})
+	}
+
+	accountTags := p.TagTreeApp.GetAccountTags(rc.GetLoginAccount().Id, &entity.TagTreeQuery{Types: tagTypes})
 	if len(accountTags) == 0 {
 		rc.ResData = []any{}
 		return

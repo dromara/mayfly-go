@@ -89,7 +89,7 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 		LogCmd:    cli.Info.EnableRecorder == 1,
 	}
 
-	cmdConfs := m.machineCmdConfApp.GetCmdConfsByMachineTags(cli.Info.TagPath...)
+	cmdConfs := m.machineCmdConfApp.GetCmdConfsByMachineTags(ctx, cli.Info.CodePath...)
 	if len(cmdConfs) > 0 {
 		createTsParam.CmdFilterFuncs = []mcm.CmdFilterFunc{func(cmd string) error {
 			for _, cmdConf := range cmdConfs {

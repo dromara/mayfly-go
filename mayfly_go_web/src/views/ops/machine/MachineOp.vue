@@ -25,7 +25,7 @@
                     </template>
 
                     <template #suffix="{ data }">
-                        <span style="color: #c4c9c4; font-size: 9px" v-if="data.type.value == MachineNodeType.AuthCert">{{
+                        <span v-if="data.type.value == MachineNodeType.AuthCert">{{
                             ` ${data.params.selectAuthCert.username}@${data.params.ip}:${data.params.port}`
                         }}</span>
                     </template>
@@ -368,7 +368,7 @@ const autoOpenTerminal = (codePath: string) => {
 
         const acNode = tagTreeRef.value.getNode(authCertName);
         openTerminal(acNode.data.params);
-    }, 600);
+    }, 1000);
 };
 
 const openTerminal = (machine: any, ex?: boolean) => {
@@ -402,14 +402,14 @@ const openTerminal = (machine: any, ex?: boolean) => {
         }
     }
 
-    let { name, username } = machine;
+    let { name } = machine;
     const labelName = `${machine.selectAuthCert.username}@${name}`;
 
     // 同一个机器的终端打开多次，key后添加下划线和数字区分
     openIds[ac] = openIds[ac] ? ++openIds[ac] : 1;
     let sameIndex = openIds[ac];
 
-    let key = `${ac}_${username}_${sameIndex}`;
+    let key = `${ac}_${sameIndex}`;
     // 只保留name的15个字，超出部分只保留前后10个字符，中间用省略号代替
     const label = labelName.length > 15 ? labelName.slice(0, 10) + '...' + labelName.slice(-10) : labelName;
 
@@ -537,6 +537,9 @@ const onResizeTagTree = () => {
 
 const onTabChange = () => {
     fitTerminal();
+
+    const nowTab = state.tabs.get(state.activeTermName);
+    tagTreeRef.value.setCurrentKey(nowTab?.authCert);
 };
 
 const fitTerminal = () => {

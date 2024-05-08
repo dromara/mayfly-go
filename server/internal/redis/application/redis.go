@@ -64,6 +64,7 @@ type redisAppImpl struct {
 	base.AppImpl[*entity.Redis, repository.Redis]
 
 	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
+	procdefApp          flowapp.Procdef         `inject:"ProcdefApp"`
 	procinstApp         flowapp.Procinst        `inject:"ProcinstApp"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 }
@@ -150,7 +151,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *SaveRedisParam) err
 		return errorx.NewBiz("该实例已存在")
 	}
 	// 如果修改了redis实例的库信息，则关闭旧库的连接
-	if oldRedis.Db != re.Db || oldRedis.SshTunnelMachineId != re.SshTunnelMachineId || oldRedis.FlowProcdefKey != re.FlowProcdefKey {
+	if oldRedis.Db != re.Db || oldRedis.SshTunnelMachineId != re.SshTunnelMachineId {
 		for _, dbStr := range strings.Split(oldRedis.Db, ",") {
 			db, _ := strconv.Atoi(dbStr)
 			rdm.CloseConn(re.Id, db)
@@ -238,8 +239,8 @@ func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmd
 	}
 
 	// 开启工单流程，并且为写入命令，则开启对应审批流程
-	if procdefKey := redisConn.Info.FlowProcdefKey; procdefKey != "" && rdm.IsWriteCmd(cmdParam.Cmd[0]) {
-		_, err := r.procinstApp.StartProc(ctx, procdefKey, &flowapp.StarProcParam{
+	if procdefId := r.procdefApp.GetProcdefIdByCodePath(ctx, redisConn.Info.CodePath...); procdefId != 0 && rdm.IsWriteCmd(cmdParam.Cmd[0]) {
+		_, err := r.procinstApp.StartProc(ctx, procdefId, &flowapp.StarProcParam{
 			BizType: RedisRunWriteCmdFlowBizType,
 			BizKey:  stringx.Rand(24),
 			BizForm: jsonx.ToStr(cmdParam),

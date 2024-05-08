@@ -35,7 +35,9 @@
                             </slot>
                         </span>
 
-                        <slot :node="node" :data="data" name="suffix"></slot>
+                        <span class="label-suffix">
+                            <slot :node="node" :data="data" name="suffix"></slot>
+                        </span>
                     </span>
                 </template>
             </el-tree>
@@ -221,6 +223,14 @@ defineExpose({
     .el-tree {
         display: inline-block;
         min-width: 100%;
+    }
+
+    .label-suffix {
+        position: absolute;
+        right: 10px;
+        color: #c4c9c4;
+        font-size: 10px;
+        margin-top: 2px;
     }
 }
 </style>

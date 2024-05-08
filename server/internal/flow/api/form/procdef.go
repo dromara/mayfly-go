@@ -9,4 +9,6 @@ type Procdef struct {
 	Tasks  string               `json:"tasks" binding:"required"` // 审批节点任务信息
 	Status entity.ProcdefStatus `json:"status" binding:"required"`
 	Remark string               `json:"remark"`
+
+	CodePaths []string `json:"codePaths"`
 }

@@ -5,27 +5,36 @@ import (
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
 	"mayfly-go/internal/machine/domain/entity"
+	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"strconv"
 	"strings"
 
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/scheduler"
+	"mayfly-go/pkg/utils/collx"
 )
 
 type MachineCronJob struct {
 	MachineCronJobApp application.MachineCronJob `inject:""`
+	TagTreeRelateApp  tagapp.TagTreeRelate       `inject:"TagTreeRelateApp"`
 }
 
 func (m *MachineCronJob) MachineCronJobs(rc *req.Ctx) {
 	cond, pageParam := req.BindQueryAndPage(rc, new(entity.MachineCronJob))
 
-	vos := new([]*vo.MachineCronJobVO)
-	pageRes, err := m.MachineCronJobApp.GetPageList(cond, pageParam, vos)
+	var vos []*vo.MachineCronJobVO
+	pageRes, err := m.MachineCronJobApp.GetPageList(cond, pageParam, &vos)
 	biz.ErrIsNil(err)
-	for _, mcj := range *vos {
+
+	for _, mcj := range vos {
 		mcj.Running = scheduler.ExistKey(mcj.Key)
 	}
+
+	m.TagTreeRelateApp.FillTagInfo(tagentity.TagRelateTypeMachineCronJob, collx.ArrayMap(vos, func(mvo *vo.MachineCronJobVO) tagentity.IRelateTag {
+		return mvo
+	})...)
 
 	rc.ResData = pageRes
 }
@@ -35,11 +44,11 @@ func (m *MachineCronJob) Save(rc *req.Ctx) {
 	mcj := req.BindJsonAndCopyTo[*entity.MachineCronJob](rc, jobForm, new(entity.MachineCronJob))
 	rc.ReqParam = jobForm
 
-	cronJobId, err := m.MachineCronJobApp.SaveMachineCronJob(rc.MetaCtx, mcj)
+	err := m.MachineCronJobApp.SaveMachineCronJob(rc.MetaCtx, &application.SaveMachineCronJobParam{
+		CronJob:   mcj,
+		CodePaths: jobForm.CodePaths,
+	})
 	biz.ErrIsNil(err)
-
-	// 关联机器
-	m.MachineCronJobApp.CronJobRelateMachines(rc.MetaCtx, cronJobId, jobForm.MachineIds)
 }
 
 func (m *MachineCronJob) Delete(rc *req.Ctx) {
@@ -52,14 +61,6 @@ func (m *MachineCronJob) Delete(rc *req.Ctx) {
 		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
 		m.MachineCronJobApp.Delete(rc.MetaCtx, uint64(value))
 	}
-}
-
-func (m *MachineCronJob) GetRelateMachineIds(rc *req.Ctx) {
-	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(rc.QueryIntDefault("cronJobId", -1)))
-}
-
-func (m *MachineCronJob) GetRelateCronJobIds(rc *req.Ctx) {
-	rc.ResData = m.MachineCronJobApp.GetRelateMachineIds(uint64(rc.QueryIntDefault("machineId", -1)))
 }
 
 func (m *MachineCronJob) RunCronJob(rc *req.Ctx) {

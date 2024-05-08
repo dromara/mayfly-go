@@ -1,18 +1,18 @@
 <template>
     <div>
-        <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px">
+        <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px" :close-on-click-modal="false">
             <monaco-editor height="300px" class="codesql" language="sql" v-model="sqlValue" />
             <el-input
                 @keyup.enter="runSql"
                 ref="remarkInputRef"
                 v-model="remark"
-                :placeholder="props.flowProcdefKey ? '执行备注（必填）' : '执行备注（选填）'"
+                :placeholder="props.flowProcdef ? '执行备注（必填）' : '执行备注（选填）'"
                 class="mt5"
             />
 
-            <div v-if="props.flowProcdefKey">
+            <div v-if="props.flowProcdef">
                 <el-divider content-position="left">审批节点</el-divider>
-                <procdef-tasks :procdef-key="props.flowProcdefKey" />
+                <procdef-tasks :procdef="props.flowProcdef" />
             </div>
 
             <template #footer>
@@ -59,7 +59,7 @@ onMounted(() => {
  */
 const runSql = async () => {
     // 存在流程审批，则备注为必填
-    if (!state.remark && props.flowProcdefKey) {
+    if (!state.remark && props.flowProcdef) {
         ElMessage.error('请输入执行的备注信息');
         return;
     }
@@ -74,7 +74,7 @@ const runSql = async () => {
         });
 
         // 存在流程审批
-        if (props.flowProcdefKey) {
+        if (props.flowProcdef) {
             runSuccess = false;
             ElMessage.success('工单提交成功');
             return;
@@ -113,7 +113,7 @@ const cancel = () => {
 };
 
 const open = () => {
-    state.sqlValue = sqlFormatter(props.sql, { language: props.dbType || 'mysql' });
+    state.sqlValue = sqlFormatter(props.sql, { language: (props.dbType || 'mysql') as any });
     state.dialogVisible = true;
     setTimeout(() => {
         remarkInputRef.value?.focus();

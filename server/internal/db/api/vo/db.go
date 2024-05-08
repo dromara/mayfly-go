@@ -21,8 +21,6 @@ type DbListVO struct {
 	Host         string  `json:"host"`
 	Port         int     `json:"port"`
 
-	FlowProcdefKey string `json:"flowProcdefKey"`
-
 	CreateTime *time.Time `json:"createTime"`
 	Creator    *string    `json:"creator"`
 	CreatorId  *int64     `json:"creatorId"`

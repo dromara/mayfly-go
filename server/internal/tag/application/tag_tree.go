@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
+	"mayfly-go/internal/tag/infrastructure/cache"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
@@ -102,6 +103,8 @@ type tagTreeAppImpl struct {
 
 	tagTreeRelateApp TagTreeRelate `inject:"TagTreeRelateApp"`
 }
+
+var _ (TagTree) = (*tagTreeAppImpl)(nil)
 
 // 注入TagTreeRepo
 func (p *tagTreeAppImpl) InjectTagTreeRepo(tagTreeRepo repository.TagTree) {
@@ -253,6 +256,7 @@ func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *Rel
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -361,7 +365,8 @@ func (p *tagTreeAppImpl) ListByQuery(condition *entity.TagTreeQuery, toEntity an
 
 func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQuery) []*entity.TagTree {
 	tagResourceQuery := &entity.TagTreeQuery{
-		Type: query.Type,
+		Type:  query.Type,
+		Types: query.Types,
 	}
 
 	var tagResources []*entity.TagTree
@@ -383,27 +388,7 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 		if len(accountTagPaths) == 0 {
 			accountTagPaths = tagPaths
 		} else {
-			queryPaths := collx.ArrayFilter[string](tagPaths, func(tagPath string) bool {
-				for _, acPath := range accountTagPaths {
-					// 查询条件： a/b/  有权的：a/  查询结果应该是  a/b/
-					if strings.HasPrefix(tagPath, acPath) {
-						return true
-					}
-				}
-				return false
-			})
-
-			acPaths := collx.ArrayFilter[string](accountTagPaths, func(acPath string) bool {
-				for _, tagPath := range tagPaths {
-					// 查询条件： a/  有权的：a/b/  查询结果应该是  a/b/
-					if strings.HasPrefix(acPath, tagPath) {
-						return true
-					}
-				}
-				return false
-			})
-
-			accountTagPaths = append(queryPaths, acPaths...)
+			accountTagPaths = filterCodePaths(accountTagPaths, tagPaths)
 		}
 	}
 
@@ -441,7 +426,12 @@ func (p *tagTreeAppImpl) ListTagPathByTypeAndCode(resourceType int8, resourceCod
 }
 
 func (p *tagTreeAppImpl) ListTagByAccountId(accountId uint64) []string {
-	return p.tagTreeRelateApp.GetTagPathsByAccountId(accountId)
+	tagPaths, err := cache.GetAccountTagPaths(accountId)
+	if err != nil {
+		tagPaths = p.tagTreeRelateApp.GetTagPathsByAccountId(accountId)
+		cache.SaveAccountTagPaths(accountId, tagPaths)
+	}
+	return tagPaths
 }
 
 func (p *tagTreeAppImpl) CanAccess(accountId uint64, tagPath ...string) error {
@@ -546,4 +536,51 @@ func (p *tagTreeAppImpl) deleteByIds(ctx context.Context, tagIds []uint64) error
 
 	// 删除与标签有关联信息的记录(如团队关联的标签等)
 	return p.tagTreeRelateApp.DeleteByCond(ctx, model.NewCond().In("tag_id", tagIds))
+}
+
+// filterCodePaths 根据账号拥有的标签路径以及指定的标签路径，过滤出符合查询条件的标签路径
+func filterCodePaths(accountTagPaths []string, tagPaths []string) []string {
+	var res []string
+	queryPaths := collx.ArrayFilter[string](tagPaths, func(tagPath string) bool {
+		for _, acPath := range accountTagPaths {
+			// 查询条件： a/b/  有权的：a/  查询结果应该是: a/b/
+			if strings.HasPrefix(tagPath, acPath) {
+				return true
+			}
+		}
+		return false
+	})
+
+	acPaths := collx.ArrayFilter[string](accountTagPaths, func(acPath string) bool {
+		for _, tagPath := range tagPaths {
+			// 查询条件： a/  有权的：a/b/  查询结果应该是: a/b/，如果以a/去查可能会查出无权的 a/c/相关联的数据
+			if strings.HasPrefix(acPath, tagPath) {
+				return true
+			}
+		}
+		return false
+	})
+
+	res = append(queryPaths, acPaths...)
+	return collx.ArrayDeduplicate(res)
+}
+
+// hasConflictPath 判断标签路径中是否存在冲突路径，如不能同时存在tag1/tag2/tag3  tag1/  tag1/tag2等，因为拥有父级标签则拥有所有子标签资源等信息
+func hasConflictPath(codePaths []string) bool {
+	if len(codePaths) == 0 {
+		return false
+	}
+	seen := make(map[string]bool)
+	for _, str := range codePaths {
+		parts := strings.Split(str, entity.CodePathSeparator)
+		var prefix string
+		for _, part := range parts {
+			prefix += part + entity.CodePathSeparator
+			if seen[prefix] {
+				return true
+			}
+		}
+		seen[str] = true
+	}
+	return false
 }

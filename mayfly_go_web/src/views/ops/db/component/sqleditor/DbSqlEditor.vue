@@ -325,7 +325,7 @@ const onRunSql = async (newTab = false) => {
     }
 
     // 启用工单审批
-    if (execRemark && getNowDbInst().flowProcdefKey) {
+    if (execRemark && getNowDbInst().flowProcdef) {
         try {
             await getNowDbInst().runSql(props.dbName, sql, execRemark);
             ElMessage.success('工单提交成功');

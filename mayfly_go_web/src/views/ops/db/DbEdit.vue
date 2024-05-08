@@ -62,8 +62,6 @@
                 <el-form-item prop="remark" label="备注">
                     <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
                 </el-form-item>
-
-                <procdef-select-form-item v-model="form.flowProcdefKey" />
             </el-form>
 
             <template #footer>
@@ -80,9 +78,7 @@
 import { toRefs, reactive, watch, ref, watchEffect } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
-// import TagTreeSelect from '../component/TagTreeSelect.vue';
 import type { CheckboxValueType } from 'element-plus';
-import ProcdefSelectFormItem from '@/views/flow/components/ProcdefSelectFormItem.vue';
 import { DbType } from '@/views/ops/db/dialect';
 import { ResourceCodePattern } from '@/common/pattern';
 
@@ -183,7 +179,6 @@ const state = reactive({
         remark: '',
         instanceId: null as any,
         authCertName: '',
-        flowProcdefKey: '',
     },
     instances: [] as any,
 });

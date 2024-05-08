@@ -186,12 +186,8 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 		if err != nil {
 			return nil, err
 		}
-		di.TagPath = d.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeDbName), db.Code)
+		di.CodePath = d.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeDbName), db.Code)
 		di.Id = db.Id
-
-		if db.FlowProcdefKey != nil {
-			di.FlowProcdefKey = *db.FlowProcdefKey
-		}
 
 		checkDb := di.GetDatabase()
 		if !strings.Contains(" "+db.Database+" ", " "+checkDb+" ") {

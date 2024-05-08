@@ -35,6 +35,10 @@
 
                         <SvgIcon v-if="data.type.value == RedisNodeType.Db" name="Coin" color="#67c23a" />
                     </template>
+
+                    <template #suffix="{ data }">
+                        <span v-if="data.type.value == RedisNodeType.Db">{{ data.params.keys }}</span>
+                    </template>
                 </tag-tree>
             </Pane>
 
@@ -197,6 +201,7 @@ import { Splitpanes, Pane } from 'splitpanes';
 import { RedisInst } from './redis';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
+import { procdefApi } from '@/views/flow/api';
 
 const KeyDetail = defineAsyncComponent(() => import('./KeyDetail.vue'));
 
@@ -244,11 +249,13 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(asyn
 // redis实例节点类型
 const NodeTypeRedis = new NodeType(RedisNodeType.Redis).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const redisInfo = parentNode.params;
+    const flowProcdef = await procdefApi.getByResource.request({ resourceType: TagResourceTypeEnum.Redis.value, resourceCode: redisInfo.code });
+
     let dbs: TagTreeNode[] = redisInfo.db.split(',').map((x: string) => {
         return new TagTreeNode(x, `db${x}`, NodeTypeDb).withIsLeaf(true).withParams({
             id: redisInfo.id,
             db: x,
-            flowProcdefKey: redisInfo.flowProcdefKey,
+            flowProcdef: flowProcdef,
             name: `db${x}`,
             keys: 0,
         });
@@ -268,7 +275,7 @@ const NodeTypeRedis = new NodeType(RedisNodeType.Redis).withLoadNodesFunc(async 
     }
     // 替换label
     dbs.forEach((e: any) => {
-        e.label = `${e.params.name} [${e.params.keys}]`;
+        e.label = `${e.params.name}`;
     });
     return dbs;
 });
@@ -281,7 +288,7 @@ const NodeTypeDb = new NodeType(RedisNodeType.Db).withNodeClickFunc((nodeData: T
 
     redisInst.value.id = nodeData.params.id;
     redisInst.value.db = Number.parseInt(nodeData.params.db);
-    redisInst.value.flowProcdefKey = nodeData.params.flowProcdefKey;
+    redisInst.value.flowProcdef = nodeData.params.flowProcdef;
 
     scan();
 });

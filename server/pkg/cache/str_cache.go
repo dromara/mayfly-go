@@ -6,7 +6,10 @@ import (
 	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/utils/anyx"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/may-fly/cast"
 )
 
 var tm *TimedCache
@@ -54,7 +57,7 @@ func Get[T any](key string, valPtr T) bool {
 	return true
 }
 
-// 如果系统有设置redis信息，则使用redis存，否则存于本机内存。duration == -1则为永久缓存
+// SetStr 如果系统有设置redis信息，则使用redis存，否则存于本机内存。duration == -1则为永久缓存
 func SetStr(key, value string, duration time.Duration) error {
 	if !UseRedisCache() {
 		checkCache()
@@ -63,7 +66,7 @@ func SetStr(key, value string, duration time.Duration) error {
 	return rediscli.Set(key, value, duration)
 }
 
-// 如果系统有设置redis信息，则使用redis存，否则存于本机内存。duration == -1则为永久缓存
+// Set 如果系统有设置redis信息，则使用redis存，否则存于本机内存。duration == -1则为永久缓存
 func Set(key string, value any, duration time.Duration) error {
 	strVal := anyx.ToString(value)
 	if !UseRedisCache() {
@@ -81,6 +84,20 @@ func Del(key string) {
 		return
 	}
 	rediscli.Del(key)
+}
+
+// DelByKeyPrefix 根据key前缀删除满足前缀的所有缓存
+func DelByKeyPrefix(keyPrefix string) error {
+	if !UseRedisCache() {
+		checkCache()
+		for key := range tm.Items() {
+			if strings.HasPrefix(cast.ToString(key), keyPrefix) {
+				tm.Delete(key)
+			}
+		}
+		return nil
+	}
+	return rediscli.DelByKeyPrefix(keyPrefix)
 }
 
 func UseRedisCache() bool {

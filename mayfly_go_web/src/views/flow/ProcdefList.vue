@@ -18,6 +18,10 @@
                 <el-link @click="showProcdefTasks(data)" icon="view" type="primary" :underline="false"> </el-link>
             </template>
 
+            <template #codePaths="{ data }">
+                <TagCodePath :path="data.tags?.map((tag: any) => tag.codePath)" />
+            </template>
+
             <template #action="{ data }">
                 <el-button link v-if="actionBtns[perms.save]" @click="editFlowDef(data)" type="primary">编辑</el-button>
             </template>
@@ -42,6 +46,7 @@ import { SearchItem } from '@/components/SearchForm';
 import ProcdefEdit from './ProcdefEdit.vue';
 import ProcdefTasks from './components/ProcdefTasks.vue';
 import { ProcdefStatus } from './enums';
+import TagCodePath from '../ops/component/TagCodePath.vue';
 
 const perms = {
     save: 'flow:procdef:save',
@@ -55,6 +60,7 @@ const columns = [
     TableColumn.new('status', '状态').typeTag(ProcdefStatus),
     TableColumn.new('remark', '备注'),
     TableColumn.new('tasks', '审批节点').isSlot().alignCenter().setMinWidth(60),
+    TableColumn.new('codePaths', '关联资源').isSlot().setMinWidth('250px'),
     TableColumn.new('creator', '创建账号'),
     TableColumn.new('createTime', '创建时间').isTime(),
 ];

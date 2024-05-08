@@ -26,7 +26,6 @@
                 </el-table-column>
 
                 <el-table-column prop="remark" label="备注" show-overflow-tooltip min-width="120"> </el-table-column>
-                <el-table-column prop="flowProcdefKey" label="关联流程" min-width="120" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="code" label="编号" show-overflow-tooltip min-width="120"> </el-table-column>
                 <el-table-column min-wdith="120px">
                     <template #header>

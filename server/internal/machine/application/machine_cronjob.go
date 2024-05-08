@@ -4,6 +4,8 @@ import (
 	"context"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
+	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
@@ -17,6 +19,11 @@ import (
 	"time"
 )
 
+type SaveMachineCronJobParam struct {
+	CronJob   *entity.MachineCronJob
+	CodePaths []string
+}
+
 type MachineCronJob interface {
 	base.App[*entity.MachineCronJob]
 
@@ -26,21 +33,9 @@ type MachineCronJob interface {
 	// 获取分页执行结果列表
 	GetExecPageList(condition *entity.MachineCronJobExec, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	SaveMachineCronJob(ctx context.Context, entity *entity.MachineCronJob) (uint64, error)
+	SaveMachineCronJob(ctx context.Context, param *SaveMachineCronJobParam) error
 
 	Delete(ctx context.Context, id uint64)
-
-	// 获取计划任务关联的机器列表id
-	GetRelateMachineIds(cronJobId uint64) []uint64
-
-	// 获取机器关联的计划任务列表
-	GetRelateCronJobIds(machineId uint64) []uint64
-
-	// 计划任务关联机器
-	CronJobRelateMachines(ctx context.Context, cronJobId uint64, machineIds []uint64)
-
-	// 机器关联计划任务
-	MachineRelateCronJobs(ctx context.Context, machineId uint64, cronJobs []uint64)
 
 	// 初始化计划任务
 	InitCronJob()
@@ -53,10 +48,14 @@ type MachineCronJob interface {
 type machineCronJobAppImpl struct {
 	base.AppImpl[*entity.MachineCronJob, repository.MachineCronJob]
 
-	machineCronJobRelateRepo repository.MachineCronJobRelate `inject:"MachineCronJobRelateRepo"`
-	machineCronJobExecRepo   repository.MachineCronJobExec   `inject:"MachineCronJobExecRepo"`
-	machineApp               Machine                         `inject:"MachineApp"`
+	machineCronJobExecRepo repository.MachineCronJobExec `inject:"MachineCronJobExecRepo"`
+	machineApp             Machine                       `inject:"MachineApp"`
+
+	tagTreeApp       tagapp.TagTree       `inject:"TagTreeApp"`
+	tagTreeRelateApp tagapp.TagTreeRelate `inject:"TagTreeRelateApp"`
 }
+
+var _ (MachineCronJob) = (*machineCronJobAppImpl)(nil)
 
 // 注入MachineCronJobRepo
 func (m *machineCronJobAppImpl) InjectMachineCronJobRepo(repo repository.MachineCronJob) {
@@ -74,79 +73,36 @@ func (m *machineCronJobAppImpl) GetExecPageList(condition *entity.MachineCronJob
 }
 
 // 保存机器任务信息
-func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, mcj *entity.MachineCronJob) (uint64, error) {
-	// 更新操作
-	if mcj.Id != 0 {
-		m.UpdateById(ctx, mcj)
-		cj, err := m.GetById(mcj.Id)
+func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, param *SaveMachineCronJobParam) error {
+	mcj := param.CronJob
+
+	// 赋值cron job key
+	if mcj.Id == 0 {
+		mcj.Key = stringx.Rand(16)
+	} else {
+		oldMcj, err := m.GetById(mcj.Id)
 		if err != nil {
-			return 0, errorx.NewBiz("该任务不存在")
+			return errorx.NewBiz("该计划任务不存在")
 		}
-		// 处理最新的计划任务
-		m.addCronJob(cj)
-		return mcj.Id, nil
+		mcj.Key = oldMcj.Key
+	}
+
+	err := m.Tx(ctx, func(ctx context.Context) error {
+		return m.Save(ctx, mcj)
+	}, func(ctx context.Context) error {
+		return m.tagTreeRelateApp.RelateTag(ctx, tagentity.TagRelateTypeMachineCronJob, mcj.Id, param.CodePaths...)
+	})
+	if err != nil {
+		return err
 	}
 
 	m.addCronJob(mcj)
-	if err := m.Insert(ctx, mcj); err != nil {
-		return 0, err
-	}
-	return mcj.Id, nil
+	return nil
 }
 
 func (m *machineCronJobAppImpl) Delete(ctx context.Context, id uint64) {
 	m.DeleteById(ctx, id)
 	m.machineCronJobExecRepo.DeleteByCond(ctx, &entity.MachineCronJobExec{CronJobId: id})
-	m.machineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: id})
-}
-
-func (m *machineCronJobAppImpl) GetRelateMachineIds(cronJobId uint64) []uint64 {
-	return m.machineCronJobRelateRepo.GetMachineIds(cronJobId)
-}
-
-func (m *machineCronJobAppImpl) GetRelateCronJobIds(machineId uint64) []uint64 {
-	return m.machineCronJobRelateRepo.GetCronJobIds(machineId)
-}
-
-func (m *machineCronJobAppImpl) CronJobRelateMachines(ctx context.Context, cronJobId uint64, machineIds []uint64) {
-	oldMachineIds := m.machineCronJobRelateRepo.GetMachineIds(cronJobId)
-	addIds, delIds, _ := collx.ArrayCompare[uint64](machineIds, oldMachineIds)
-	addVals := make([]*entity.MachineCronJobRelate, 0)
-
-	for _, addId := range addIds {
-		addVals = append(addVals, &entity.MachineCronJobRelate{
-			MachineId: addId,
-			CronJobId: cronJobId,
-		})
-	}
-	m.machineCronJobRelateRepo.BatchInsert(ctx, addVals)
-
-	for _, delId := range delIds {
-		m.machineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: cronJobId, MachineId: delId})
-	}
-}
-
-func (m *machineCronJobAppImpl) MachineRelateCronJobs(ctx context.Context, machineId uint64, cronJobs []uint64) {
-	if len(cronJobs) == 0 {
-		m.machineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{MachineId: machineId})
-		return
-	}
-
-	oldCronIds := m.machineCronJobRelateRepo.GetCronJobIds(machineId)
-	addIds, delIds, _ := collx.ArrayCompare[uint64](cronJobs, oldCronIds)
-	addVals := make([]*entity.MachineCronJobRelate, 0)
-
-	for _, addId := range addIds {
-		addVals = append(addVals, &entity.MachineCronJobRelate{
-			MachineId: machineId,
-			CronJobId: addId,
-		})
-	}
-	m.machineCronJobRelateRepo.BatchInsert(ctx, addVals)
-
-	for _, delId := range delIds {
-		m.machineCronJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: delId, MachineId: machineId})
-	}
 }
 
 func (m *machineCronJobAppImpl) InitCronJob() {
@@ -160,17 +116,16 @@ func (m *machineCronJobAppImpl) InitCronJob() {
 		PageSize: 100,
 		PageNum:  1,
 	}
-	cond := new(entity.MachineCronJob)
-	cond.Status = entity.MachineCronJobStatusEnable
-	mcjs := new([]entity.MachineCronJob)
 
-	pr, _ := m.GetPageList(cond, pageParam, mcjs)
+	var mcjs []*entity.MachineCronJob
+	cond := &entity.MachineCronJob{Status: entity.MachineCronJobStatusEnable}
+	pr, _ := m.GetPageList(cond, pageParam, &mcjs)
 	total := pr.Total
 	add := 0
 
 	for {
-		for _, mcj := range *mcjs {
-			m.addCronJob(&mcj)
+		for _, mcj := range mcjs {
+			m.addCronJob(mcj)
 			add++
 		}
 		if add >= int(total) {
@@ -197,26 +152,24 @@ func (m *machineCronJobAppImpl) RunCronJob(key string) {
 	// 不存在或禁用，则移除该任务
 	if err != nil || cronJob.Status == entity.MachineCronJobStatusDisable {
 		scheduler.RemoveByKey(key)
+		return
 	}
 
-	machienIds := m.machineCronJobRelateRepo.GetMachineIds(cronJob.Id)
-	for _, machineId := range machienIds {
-		go m.runCronJob0(machineId, cronJob)
+	relateCodePaths := m.tagTreeRelateApp.GetTagPathsByRelate(tagentity.TagRelateTypeMachineCronJob, cronJob.Id)
+	var machineTags []tagentity.TagTree
+	m.tagTreeApp.ListByQuery(&tagentity.TagTreeQuery{CodePathLikes: relateCodePaths, Type: tagentity.TagTypeMachine}, &machineTags)
+	machines, _ := m.machineApp.ListByCond(model.NewCond().In("code", collx.ArrayMap(machineTags, func(tag tagentity.TagTree) string {
+		return tag.Code
+	})), "id")
+
+	for _, machine := range machines {
+		go m.runCronJob0(machine.Id, cronJob)
 	}
 }
 
 func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
-	var key string
+	key := mcj.Key
 	isDisable := mcj.Status == entity.MachineCronJobStatusDisable
-	if mcj.Id == 0 {
-		key = stringx.Rand(16)
-		mcj.Key = key
-		if isDisable {
-			return
-		}
-	} else {
-		key = mcj.Key
-	}
 
 	if isDisable {
 		scheduler.RemoveByKey(key)
@@ -227,6 +180,7 @@ func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 		m.RunCronJob(key)
 	})
 }
+
 func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineCronJob) {
 	defer func() {
 		if err := recover(); err != nil {

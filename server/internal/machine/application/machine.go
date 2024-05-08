@@ -341,7 +341,7 @@ func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAu
 	mi.Name = me.Name
 	mi.Ip = me.Ip
 	mi.Port = me.Port
-	mi.TagPath = m.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeMachineAuthCert), authCert.Name)
+	mi.CodePath = m.tagApp.ListTagPathByTypeAndCode(int8(tagentity.TagTypeMachineAuthCert), authCert.Name)
 	mi.EnableRecorder = me.EnableRecorder
 	mi.Protocol = me.Protocol
 

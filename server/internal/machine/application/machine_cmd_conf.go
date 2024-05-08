@@ -29,7 +29,7 @@ type MachineCmdConf interface {
 
 	DeleteCmdConf(ctx context.Context, id uint64) error
 
-	GetCmdConfsByMachineTags(tagPaths ...string) []*MachineCmd
+	GetCmdConfsByMachineTags(ctx context.Context, tagPaths ...string) []*MachineCmd
 }
 
 type machineCmdConfAppImpl struct {
@@ -71,9 +71,9 @@ func (m *machineCmdConfAppImpl) DeleteCmdConf(ctx context.Context, id uint64) er
 	})
 }
 
-func (m *machineCmdConfAppImpl) GetCmdConfsByMachineTags(tagPaths ...string) []*MachineCmd {
+func (m *machineCmdConfAppImpl) GetCmdConfsByMachineTags(ctx context.Context, tagPaths ...string) []*MachineCmd {
 	var cmds []*MachineCmd
-	cmdConfIds, err := m.tagTreeRelateApp.GetRelateIds(tagentity.TagRelateTypeMachineCmd, tagPaths...)
+	cmdConfIds, err := m.tagTreeRelateApp.GetRelateIds(ctx, tagentity.TagRelateTypeMachineCmd, tagPaths...)
 	if err != nil {
 		logx.Errorf("获取命令配置信息失败: %s", err.Error())
 		return cmds

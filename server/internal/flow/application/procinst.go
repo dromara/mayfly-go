@@ -19,8 +19,8 @@ type Procinst interface {
 	// 获取流程实例审批节点任务
 	GetProcinstTasks(condition *entity.ProcinstTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	// 根据流程定义key启动一个流程实例
-	StartProc(ctx context.Context, procdefKey string, reqParam *StarProcParam) (*entity.Procinst, error)
+	// StartProc 根据流程定义启动一个流程实例
+	StartProc(ctx context.Context, procdefId uint64, reqParam *StarProcParam) (*entity.Procinst, error)
 
 	// 取消流程
 	CancelProc(ctx context.Context, procinstId uint64) error
@@ -42,6 +42,8 @@ type procinstAppImpl struct {
 	procdefApp       Procdef                 `inject:"ProcdefApp"`
 }
 
+var _ (Procinst) = (*procinstAppImpl)(nil)
+
 // 注入repo
 func (p *procinstAppImpl) InjectProcinstRepo(procinstRepo repository.Procinst) {
 	p.Repo = procinstRepo
@@ -55,10 +57,10 @@ func (p *procinstAppImpl) GetProcinstTasks(condition *entity.ProcinstTaskQuery, 
 	return p.procinstTaskRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (p *procinstAppImpl) StartProc(ctx context.Context, procdefKey string, reqParam *StarProcParam) (*entity.Procinst, error) {
-	procdef := &entity.Procdef{DefKey: procdefKey}
-	if err := p.procdefApp.GetByCond(procdef); err != nil {
-		return nil, errorx.NewBiz("流程实例[%s]不存在", procdefKey)
+func (p *procinstAppImpl) StartProc(ctx context.Context, procdefId uint64, reqParam *StarProcParam) (*entity.Procinst, error) {
+	procdef, err := p.procdefApp.GetById(procdefId)
+	if err != nil {
+		return nil, errorx.NewBiz("流程实例[%d]不存在", procdefId)
 	}
 
 	if procdef.Status != entity.ProcdefStatusEnable {

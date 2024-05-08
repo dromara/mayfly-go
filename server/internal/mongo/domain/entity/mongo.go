@@ -19,6 +19,6 @@ type Mongo struct {
 func (me *Mongo) ToMongoInfo(tagPath ...string) *mgm.MongoInfo {
 	mongoInfo := new(mgm.MongoInfo)
 	structx.Copy(mongoInfo, me)
-	mongoInfo.TagPath = tagPath
+	mongoInfo.CodePath = tagPath
 	return mongoInfo
 }

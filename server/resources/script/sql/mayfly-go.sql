@@ -40,7 +40,6 @@ CREATE TABLE `t_db` (
   `remark` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
   `instance_id` bigint unsigned NOT NULL,
   `auth_cert_name` varchar(36) NULL COMMENT '授权凭证名',
-  `flow_procdef_key` varchar(64) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '审批流-流程定义key（有值则说明关键操作需要进行审批执行）',
   `create_time` datetime DEFAULT NULL,
   `creator_id` bigint DEFAULT NULL,
   `creator` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
@@ -474,19 +473,6 @@ CREATE TABLE `t_machine_cron_job_exec` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务执行记录';
 
-DROP TABLE IF EXISTS `t_machine_cron_job_relate`;
-CREATE TABLE `t_machine_cron_job_relate` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `cron_job_id` bigint DEFAULT NULL,
-  `machine_id` bigint DEFAULT NULL,
-  `creator_id` bigint DEFAULT NULL,
-  `creator` varchar(32) DEFAULT NULL,
-  `create_time` datetime DEFAULT NULL,
-  `is_deleted` tinyint NOT NULL DEFAULT 0,
-  `delete_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务关联表';
-
 DROP TABLE IF EXISTS `t_machine_term_op`;
 CREATE TABLE `t_machine_term_op` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT COMMENT 'id',
@@ -556,7 +542,6 @@ CREATE TABLE `t_redis` (
   `mode` varchar(32) DEFAULT NULL,
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
   `remark` varchar(125) DEFAULT NULL,
-  `flow_procdef_key` varchar(100) DEFAULT NULL COMMENT '工单流程定义key',
   `creator` varchar(32) DEFAULT NULL,
   `creator_id` bigint(32) DEFAULT NULL,
   `create_time` datetime DEFAULT NULL,

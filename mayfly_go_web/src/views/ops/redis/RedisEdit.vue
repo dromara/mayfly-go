@@ -84,8 +84,6 @@
                         <el-form-item prop="remark" label="备注">
                             <el-input v-model.trim="form.remark" auto-complete="off" type="textarea"></el-input>
                         </el-form-item>
-
-                        <procdef-select-form-item v-model="form.flowProcdefKey" />
                     </el-tab-pane>
 
                     <el-tab-pane label="其他配置" name="other">
@@ -113,7 +111,6 @@ import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
-import ProcdefSelectFormItem from '@/views/flow/components/ProcdefSelectFormItem.vue';
 import { ResourceCodePattern } from '@/common/pattern';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 
@@ -199,7 +196,6 @@ const state = reactive({
         db: '',
         remark: '',
         sshTunnelMachineId: -1,
-        flowProcdefKey: '',
     },
     submitForm: {} as any,
     dbList: [0],

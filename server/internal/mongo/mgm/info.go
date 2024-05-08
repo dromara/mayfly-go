@@ -21,7 +21,7 @@ type MongoInfo struct {
 
 	Uri string `json:"-"`
 
-	TagPath            []string `json:"tagPath"`
+	CodePath           []string `json:"codePath"`
 	SshTunnelMachineId int      `json:"-"` // ssh隧道机器id
 }
 

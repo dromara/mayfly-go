@@ -27,7 +27,7 @@ type DbBackup struct {
 func (d *DbBackup) GetPageList(rc *req.Ctx) {
 	dbId := uint64(rc.PathParamInt("dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
-	db, err := d.dbApp.GetById(dbId, "db_instance_id", "database")
+	db, err := d.dbApp.GetById(dbId)
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	queryCond, page := req.BindQueryAndPage[*entity.DbBackupQuery](rc, new(entity.DbBackupQuery))
@@ -49,7 +49,7 @@ func (d *DbBackup) Create(rc *req.Ctx) {
 
 	dbId := uint64(rc.PathParamInt("dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
-	db, err := d.dbApp.GetById(dbId, "instanceId")
+	db, err := d.dbApp.GetById(dbId)
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 	jobs := make([]*entity.DbBackup, 0, len(dbNames))
 	for _, dbName := range dbNames {
@@ -147,7 +147,7 @@ func (d *DbBackup) GetDbNamesWithoutBackup(rc *req.Ctx) {
 func (d *DbBackup) GetHistoryPageList(rc *req.Ctx) {
 	dbId := uint64(rc.PathParamInt("dbId"))
 	biz.IsTrue(dbId > 0, "无效的 dbId: %v", dbId)
-	db, err := d.dbApp.GetById(dbId, "db_instance_id", "database")
+	db, err := d.dbApp.GetById(dbId, "instance_id", "database")
 	biz.ErrIsNilAppendErr(err, "获取数据库信息失败: %v")
 
 	backupHistoryCond, page := req.BindQueryAndPage[*entity.DbBackupHistoryQuery](rc, new(entity.DbBackupHistoryQuery))

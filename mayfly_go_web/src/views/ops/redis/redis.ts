@@ -13,9 +13,9 @@ export class RedisInst {
     db: number;
 
     /**
-     * 流程定义key，若存在则需要审批执行
+     * 流程定义，若存在则需要审批执行
      */
-    flowProcdefKey: string;
+    flowProcdef: any;
 
     /**
      * 执行命令
@@ -24,11 +24,11 @@ export class RedisInst {
      */
     async runCmd(cmd: any[]) {
         // 工单流程定义存在，并且为写入命令时，弹窗输入工单相关信息并提交
-        if (this.flowProcdefKey && writeCmd[cmd[0].toUpperCase()]) {
+        if (this.flowProcdef && writeCmd[cmd[0].toUpperCase()]) {
             showCmdExecBox({
                 id: this.id,
                 db: this.db,
-                flowProcdefKey: this.flowProcdefKey,
+                flowProcdef: this.flowProcdef,
                 cmd,
             });
             // 报错，阻止后续继续执行

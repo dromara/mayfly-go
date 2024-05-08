@@ -46,6 +46,8 @@ type MachineScriptVO struct {
 
 // 机器记录任务
 type MachineCronJobVO struct {
+	tagentity.RelateTags // 标签信息
+
 	Id              uint64 `json:"id"`
 	Key             string `json:"key"`
 	Name            string `json:"name"`
@@ -55,6 +57,10 @@ type MachineCronJobVO struct {
 	SaveExecResType int    `json:"saveExecResType"`
 	Remark          string `json:"remark"`
 	Running         bool   `json:"running" gorm:"-"` // 是否运行中
+}
+
+func (mcj *MachineCronJobVO) GetRelateId() uint64 {
+	return mcj.Id
 }
 
 type MachineFileVO struct {

@@ -37,7 +37,6 @@ import { ref, watch, onMounted } from 'vue';
 import ColumnFormItem from './ColumnFormItem.vue';
 import { DbInst } from '../../db';
 import { ElMessage } from 'element-plus';
-import { getDbDialect } from '@/views/ops/db/dialect';
 
 export interface ColumnFormItemProps {
     dbInst: DbInst;
