@@ -3,11 +3,13 @@ package application
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	tagapp "mayfly-go/internal/tag/application"
+	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/biz"
@@ -40,7 +42,7 @@ type Db interface {
 	GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error)
 
 	// DumpDb dumpDb
-	DumpDb(ctx context.Context, reqParam *DumpDbReq) error
+	DumpDb(ctx context.Context, reqParam *dto.DumpDb) error
 }
 
 type dbAppImpl struct {
@@ -52,6 +54,8 @@ type dbAppImpl struct {
 	tagApp              tagapp.TagTree          `inject:"TagTreeApp"`
 	resourceAuthCertApp tagapp.ResourceAuthCert `inject:"ResourceAuthCertApp"`
 }
+
+var _ (Db) = (*dbAppImpl)(nil)
 
 // 注入DbRepo
 func (d *dbAppImpl) InjectDbRepo(repo repository.Db) {
@@ -86,8 +90,8 @@ func (d *dbAppImpl) SaveDb(ctx context.Context, dbEntity *entity.Db) error {
 			return d.Insert(ctx, dbEntity)
 		}, func(ctx context.Context) error {
 			// 将库关联至指定数据库授权凭证下
-			return d.tagApp.RelateTagsByCodeAndType(ctx, &tagapp.RelateTagsByCodeAndTypeParam{
-				Tags: []*tagapp.ResourceTag{{
+			return d.tagApp.RelateTagsByCodeAndType(ctx, &tagdto.RelateTagsByCodeAndType{
+				Tags: []*tagdto.ResourceTag{{
 					Code: dbEntity.Code,
 					Type: tagentity.TagTypeDbName,
 					Name: dbEntity.Name,
@@ -163,7 +167,7 @@ func (d *dbAppImpl) Delete(ctx context.Context, id uint64) error {
 		}, func(ctx context.Context) error {
 			return d.dbSqlExecApp.DeleteBy(ctx, &entity.DbSqlExec{DbId: id})
 		}, func(ctx context.Context) error {
-			return d.tagApp.DeleteTagByParam(ctx, &tagapp.DelResourceTagParam{
+			return d.tagApp.DeleteTagByParam(ctx, &tagdto.DelResourceTag{
 				ResourceCode: db.Code,
 				ResourceType: tagentity.TagTypeDbName,
 			})
@@ -217,7 +221,7 @@ func (d *dbAppImpl) GetDbConnByInstanceId(instanceId uint64) (*dbi.DbConn, error
 	return d.GetDbConn(firstDb.Id, strings.Split(firstDb.Database, " ")[0])
 }
 
-func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *DumpDbReq) error {
+func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 	writer := newGzipWriter(reqParam.Writer)
 	defer writer.Close()
 	dbId := reqParam.DbId

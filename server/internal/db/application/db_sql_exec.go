@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	flowapp "mayfly-go/internal/flow/application"
+	flowdto "mayfly-go/internal/flow/application/dto"
 	flowentity "mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/pkg/contextx"
 	"mayfly-go/pkg/errorx"
@@ -353,7 +354,7 @@ func (d *dbSqlExecAppImpl) doExec(ctx context.Context, execSqlReq *DbSqlExecReq,
 	if flowProcdefId := d.flowProcdefApp.GetProcdefIdByCodePath(ctx, dbConn.Info.CodePath...); flowProcdefId != 0 {
 		bizKey := stringx.Rand(24)
 		// 如果该库关联了审批流程，则启动流程实例即可
-		_, err := d.flowProcinstApp.StartProc(ctx, flowProcdefId, &flowapp.StarProcParam{
+		_, err := d.flowProcinstApp.StartProc(ctx, flowProcdefId, &flowdto.StarProc{
 			BizType: DbSqlExecFlowBizType,
 			BizKey:  bizKey,
 			Remark:  dbSqlExecRecord.Remark,

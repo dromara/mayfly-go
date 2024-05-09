@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	tagapp "mayfly-go/internal/tag/application"
@@ -19,11 +20,6 @@ import (
 	"time"
 )
 
-type SaveMachineCronJobParam struct {
-	CronJob   *entity.MachineCronJob
-	CodePaths []string
-}
-
 type MachineCronJob interface {
 	base.App[*entity.MachineCronJob]
 
@@ -33,7 +29,7 @@ type MachineCronJob interface {
 	// 获取分页执行结果列表
 	GetExecPageList(condition *entity.MachineCronJobExec, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	SaveMachineCronJob(ctx context.Context, param *SaveMachineCronJobParam) error
+	SaveMachineCronJob(ctx context.Context, param *dto.SaveMachineCronJob) error
 
 	Delete(ctx context.Context, id uint64)
 
@@ -73,7 +69,7 @@ func (m *machineCronJobAppImpl) GetExecPageList(condition *entity.MachineCronJob
 }
 
 // 保存机器任务信息
-func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, param *SaveMachineCronJobParam) error {
+func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, param *dto.SaveMachineCronJob) error {
 	mcj := param.CronJob
 
 	// 赋值cron job key

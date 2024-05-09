@@ -13,14 +13,27 @@
                         title="表格字段配置"
                         trigger="click"
                     >
-                        <div v-for="(item, index) in columns" :key="index">
+                        <div><el-input v-model="checkedShowColumns.searchKey" size="small" placeholder="输入列名或备注过滤" /></div>
+                        <div>
                             <el-checkbox
-                                v-model="item.show"
-                                :label="`${!item.columnComment ? item.columnName : item.columnName + ' [' + item.columnComment + ']'}`"
-                                :true-value="true"
-                                :false-value="false"
+                                v-model="checkedShowColumns.checkedAllColumn"
+                                :indeterminate="checkedShowColumns.isIndeterminate"
+                                @change="handleCheckAllColumnChange"
                                 size="small"
-                            />
+                            >
+                                选择所有
+                            </el-checkbox>
+
+                            <el-checkbox-group v-model="checkedShowColumns.columnNames" @change="handleCheckedColumnChange">
+                                <div v-for="(item, index) in filterCheckedColumns" :key="index">
+                                    <el-checkbox
+                                        :key="index"
+                                        :label="`${!item.columnComment ? item.columnName : item.columnName + ' [' + item.columnComment + ']'}`"
+                                        :value="item.columnName"
+                                        size="small"
+                                    />
+                                </div>
+                            </el-checkbox-group>
                         </div>
                         <template #reference>
                             <el-link icon="Operation" size="small" :underline="false"></el-link>
@@ -329,9 +342,17 @@ const state = reactive({
     tableHeight: '600px',
     hasUpdatedFileds: false,
     dbDialect: {} as DbDialect,
+
+    checkedShowColumns: {
+        searchKey: '',
+        checkedAllColumn: true,
+        isIndeterminate: false,
+        columnNames: [] as any,
+    },
 });
 
-const { datas, condition, loading, columns, pageNum, pageSize, pageSizes, sql, hasUpdatedFileds, conditionDialog, addDataDialog } = toRefs(state);
+const { datas, condition, loading, columns, checkedShowColumns, pageNum, pageSize, pageSizes, sql, hasUpdatedFileds, conditionDialog, addDataDialog } =
+    toRefs(state);
 
 watch(
     () => props.tableHeight,
@@ -351,6 +372,8 @@ onMounted(async () => {
 
     state.dbDialect = getNowDbInst().getDialect();
     useEventListener('click', handlerWindowClick);
+
+    state.checkedShowColumns.columnNames = state.columns.map((item: any) => item.columnName);
 });
 
 const handlerWindowClick = () => {
@@ -414,6 +437,7 @@ const handleSetPageNum = async () => {
     state.pageNum = state.setPageNum;
     await selectData();
 };
+
 const handleCount = async () => {
     state.counting = true;
 
@@ -429,6 +453,26 @@ const handleCount = async () => {
     }
 
     state.counting = false;
+};
+
+const handleCheckAllColumnChange = (val: boolean) => {
+    state.checkedShowColumns.columnNames = val ? state.columns.map((x: any) => x.columnName) : [];
+    state.checkedShowColumns.isIndeterminate = false;
+    triggerCheckedColumns();
+};
+
+const handleCheckedColumnChange = (value: string[]) => {
+    const checkedCount = value.length;
+    state.checkedShowColumns.checkedAllColumn = checkedCount === state.columns.length;
+    state.checkedShowColumns.isIndeterminate = checkedCount > 0 && checkedCount < state.columns.length;
+    triggerCheckedColumns();
+};
+
+const triggerCheckedColumns = () => {
+    const checkedColumnNames = state.checkedShowColumns.columnNames;
+    for (let column of state.columns) {
+        column.show = checkedColumnNames.includes(column.columnName);
+    }
 };
 
 // 完整的条件,每次选中后会重置条件框内容，故需要这个变量在获取建议时将文本框内容保存
@@ -490,16 +534,23 @@ const chooseCondColumnName = () => {
  * 过滤条件列名
  */
 const filterCondColumns = computed(() => {
+    return filterColumns(state.columnNameSearch);
+});
+
+const filterCheckedColumns = computed(() => {
+    return filterColumns(state.checkedShowColumns.searchKey);
+});
+
+const filterColumns = (searchKey: string) => {
     const columns = state.columns;
-    let columnNameSearch = state.columnNameSearch;
-    if (!columnNameSearch) {
+    if (!searchKey) {
         return columns;
     }
-    columnNameSearch = columnNameSearch.toLowerCase();
+    searchKey = searchKey.toLowerCase();
     return columns.filter((data: any) => {
-        return data.columnName.toLowerCase().includes(columnNameSearch) || data.columnComment.toLowerCase().includes(columnNameSearch);
+        return data.columnName.toLowerCase().includes(searchKey) || data.columnComment.toLowerCase().includes(searchKey);
     });
-});
+};
 
 /**
  * 条件查询，点击列信息后显示输入对应的值

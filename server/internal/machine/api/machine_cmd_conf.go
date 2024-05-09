@@ -4,6 +4,7 @@ import (
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
+	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 
 	tagapp "mayfly-go/internal/tag/application"
@@ -37,7 +38,7 @@ func (m *MachineCmdConf) Save(rc *req.Ctx) {
 	mcj := req.BindJsonAndCopyTo[*entity.MachineCmdConf](rc, cmdForm, new(entity.MachineCmdConf))
 	rc.ReqParam = cmdForm
 
-	err := m.MachineCmdConfApp.SaveCmdConf(rc.MetaCtx, &application.SaveMachineCmdConfParam{
+	err := m.MachineCmdConfApp.SaveCmdConf(rc.MetaCtx, &dto.SaveMachineCmdConf{
 		CmdConf:   mcj,
 		CodePaths: cmdForm.CodePaths,
 	})

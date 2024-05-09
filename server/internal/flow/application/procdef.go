@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/flow/application/dto"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
 	tagapp "mayfly-go/internal/tag/application"
@@ -11,18 +12,13 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-type SaveProcdefParam struct {
-	Procdef   *entity.Procdef
-	CodePaths []string
-}
-
 type Procdef interface {
 	base.App[*entity.Procdef]
 
 	GetPageList(condition *entity.Procdef, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	// 保存流程实例信息
-	SaveProcdef(ctx context.Context, def *SaveProcdefParam) error
+	SaveProcdef(ctx context.Context, def *dto.SaveProcdef) error
 
 	// 删除流程实例信息
 	DeleteProcdef(ctx context.Context, defId uint64) error
@@ -54,7 +50,7 @@ func (p *procdefAppImpl) GetPageList(condition *entity.Procdef, pageParam *model
 	return p.Repo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (p *procdefAppImpl) SaveProcdef(ctx context.Context, defParam *SaveProcdefParam) error {
+func (p *procdefAppImpl) SaveProcdef(ctx context.Context, defParam *dto.SaveProcdef) error {
 	def := defParam.Procdef
 	if err := entity.ProcdefStatusEnum.Valid(def.Status); err != nil {
 		return err

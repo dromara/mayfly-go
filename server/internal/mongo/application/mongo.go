@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/mongo/domain/repository"
 	"mayfly-go/internal/mongo/mgm"
 	tagapp "mayfly-go/internal/tag/application"
+	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
@@ -59,7 +60,7 @@ func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 			return d.DeleteById(ctx, id)
 		},
 		func(ctx context.Context) error {
-			return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{ResourceTag: &tagapp.ResourceTag{
+			return d.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{ResourceTag: &tagdto.ResourceTag{
 				Type: tagentity.TagTypeMongo,
 				Code: mongoEntity.Code,
 			}})
@@ -90,8 +91,8 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, m)
 		}, func(ctx context.Context) error {
-			return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-				ResourceTag: &tagapp.ResourceTag{
+			return d.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
+				ResourceTag: &tagdto.ResourceTag{
 					Type: tagentity.TagTypeMongo,
 					Code: m.Code,
 				},
@@ -121,8 +122,8 @@ func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePa
 			}
 		}
 
-		return d.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-			ResourceTag: &tagapp.ResourceTag{
+		return d.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
+			ResourceTag: &tagdto.ResourceTag{
 				Type: tagentity.TagTypeMongo,
 				Code: oldMongo.Code,
 			},

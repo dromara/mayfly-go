@@ -1,51 +1,53 @@
 <template>
-    <div class="w100" style="border: 1px solid var(--el-border-color)">
-        <el-input v-model="filterTag" clearable placeholder="输入关键字过滤" size="small" />
-        <el-scrollbar :style="{ height: props.height }">
-            <el-tree
-                v-bind="$attrs"
-                ref="tagTreeRef"
-                style="width: 100%"
-                :data="state.tags"
-                :default-expanded-keys="checkedTags"
-                :default-checked-keys="checkedTags"
-                multiple
-                :render-after-expand="true"
-                show-checkbox
-                check-strictly
-                :node-key="$props.nodeKey"
-                :props="{
-                    value: $props.nodeKey,
-                    label: 'codePath',
-                    children: 'children',
-                    disabled: 'disabled',
-                }"
-                @check="tagTreeNodeCheck"
-                :filter-node-method="filterNode"
-            >
-                <template #default="{ data }">
-                    <span class="custom-tree-node">
-                        <SvgIcon
-                            :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon"
-                            :color="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.iconColor"
-                        />
+    <div class="w100">
+        <el-input v-model="filterTag" @input="onFilterValChanged" clearable placeholder="输入关键字过滤" size="small" />
+        <div class="mt3" style="border: 1px solid var(--el-border-color)">
+            <el-scrollbar :style="{ height: props.height }">
+                <el-tree
+                    v-bind="$attrs"
+                    ref="tagTreeRef"
+                    style="width: 100%"
+                    :data="state.tags"
+                    :default-expanded-keys="checkedTags"
+                    :default-checked-keys="checkedTags"
+                    multiple
+                    :render-after-expand="true"
+                    show-checkbox
+                    check-strictly
+                    :node-key="$props.nodeKey"
+                    :props="{
+                        value: $props.nodeKey,
+                        label: 'codePath',
+                        children: 'children',
+                        disabled: 'disabled',
+                    }"
+                    @check="tagTreeNodeCheck"
+                    :filter-node-method="filterNode"
+                >
+                    <template #default="{ data }">
+                        <span class="custom-tree-node">
+                            <SvgIcon
+                                :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon"
+                                :color="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.iconColor"
+                            />
 
-                        <span class="font13 ml5">
-                            {{ data.code }}
-                            <span style="color: #3c8dbc">【</span>
-                            {{ data.name }}
-                            <span style="color: #3c8dbc">】</span>
-                            <el-tag v-if="data.children !== null" size="small">{{ data.children.length }} </el-tag>
+                            <span class="font13 ml5">
+                                {{ data.code }}
+                                <span style="color: #3c8dbc">【</span>
+                                {{ data.name }}
+                                <span style="color: #3c8dbc">】</span>
+                                <el-tag v-if="data.children !== null" size="small">{{ data.children.length }} </el-tag>
+                            </span>
                         </span>
-                    </span>
-                </template>
-            </el-tree>
-        </el-scrollbar>
+                    </template>
+                </el-tree>
+            </el-scrollbar>
+        </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted, watch } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { tagApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumValue from '@/common/Enum';
@@ -98,15 +100,15 @@ const search = async () => {
     }, 200);
 };
 
-watch(filterTag, (val) => {
-    tagTreeRef.value!.filter(val);
-});
-
 const filterNode = (value: string, data: any) => {
     if (!value) {
         return true;
     }
     return data.codePath.toLowerCase().includes(value) || data.name.includes(value);
+};
+
+const onFilterValChanged = (val: string) => {
+    tagTreeRef.value!.filter(val);
 };
 
 const tagTreeNodeCheck = (data: any) => {

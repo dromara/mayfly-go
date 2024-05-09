@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
@@ -24,13 +25,6 @@ import (
 
 	"github.com/pkg/sftp"
 )
-
-type MachineFileOpParam struct {
-	MachineId    uint64 `json:"machineId" binding:"required" form:"machineId"`
-	Protocol     int    `json:"protocol" binding:"required" form:"protocol"`
-	AuthCertName string `json:"authCertName"  binding:"required" form:"authCertName"` // 授权凭证
-	Path         string `json:"path" form:"path"`                                     // 文件路径
-}
 
 type MachineFile interface {
 	base.App[*entity.MachineFile]
@@ -51,39 +45,39 @@ type MachineFile interface {
 	/**  sftp 相关操作 **/
 
 	// 创建目录
-	MkDir(ctx context.Context, opParam *MachineFileOpParam) (*mcm.MachineInfo, error)
+	MkDir(ctx context.Context, opParam *dto.MachineFileOp) (*mcm.MachineInfo, error)
 
 	// 创建文件
-	CreateFile(ctx context.Context, opParam *MachineFileOpParam) (*mcm.MachineInfo, error)
+	CreateFile(ctx context.Context, opParam *dto.MachineFileOp) (*mcm.MachineInfo, error)
 
 	// 读取目录
-	ReadDir(ctx context.Context, opParam *MachineFileOpParam) ([]fs.FileInfo, error)
+	ReadDir(ctx context.Context, opParam *dto.MachineFileOp) ([]fs.FileInfo, error)
 
 	// 获取指定目录内容大小
-	GetDirSize(ctx context.Context, opParam *MachineFileOpParam) (string, error)
+	GetDirSize(ctx context.Context, opParam *dto.MachineFileOp) (string, error)
 
 	// 获取文件stat
-	FileStat(ctx context.Context, opParam *MachineFileOpParam) (string, error)
+	FileStat(ctx context.Context, opParam *dto.MachineFileOp) (string, error)
 
 	// 读取文件内容
-	ReadFile(ctx context.Context, opParam *MachineFileOpParam) (*sftp.File, *mcm.MachineInfo, error)
+	ReadFile(ctx context.Context, opParam *dto.MachineFileOp) (*sftp.File, *mcm.MachineInfo, error)
 
 	// 写文件
-	WriteFileContent(ctx context.Context, opParam *MachineFileOpParam, content []byte) (*mcm.MachineInfo, error)
+	WriteFileContent(ctx context.Context, opParam *dto.MachineFileOp, content []byte) (*mcm.MachineInfo, error)
 
 	// 文件上传
-	UploadFile(ctx context.Context, opParam *MachineFileOpParam, filename string, reader io.Reader) (*mcm.MachineInfo, error)
+	UploadFile(ctx context.Context, opParam *dto.MachineFileOp, filename string, reader io.Reader) (*mcm.MachineInfo, error)
 
-	UploadFiles(ctx context.Context, opParam *MachineFileOpParam, basePath string, fileHeaders []*multipart.FileHeader, paths []string) (*mcm.MachineInfo, error)
+	UploadFiles(ctx context.Context, opParam *dto.MachineFileOp, basePath string, fileHeaders []*multipart.FileHeader, paths []string) (*mcm.MachineInfo, error)
 
 	// 移除文件
-	RemoveFile(ctx context.Context, opParam *MachineFileOpParam, path ...string) (*mcm.MachineInfo, error)
+	RemoveFile(ctx context.Context, opParam *dto.MachineFileOp, path ...string) (*mcm.MachineInfo, error)
 
-	Copy(ctx context.Context, opParam *MachineFileOpParam, toPath string, path ...string) (*mcm.MachineInfo, error)
+	Copy(ctx context.Context, opParam *dto.MachineFileOp, toPath string, path ...string) (*mcm.MachineInfo, error)
 
-	Mv(ctx context.Context, opParam *MachineFileOpParam, toPath string, path ...string) (*mcm.MachineInfo, error)
+	Mv(ctx context.Context, opParam *dto.MachineFileOp, toPath string, path ...string) (*mcm.MachineInfo, error)
 
-	Rename(ctx context.Context, opParam *MachineFileOpParam, newname string) (*mcm.MachineInfo, error)
+	Rename(ctx context.Context, opParam *dto.MachineFileOp, newname string) (*mcm.MachineInfo, error)
 }
 
 type machineFileAppImpl struct {
@@ -121,7 +115,7 @@ func (m *machineFileAppImpl) Save(ctx context.Context, mf *entity.MachineFile) e
 	return m.Insert(ctx, mf)
 }
 
-func (m *machineFileAppImpl) ReadDir(ctx context.Context, opParam *MachineFileOpParam) ([]fs.FileInfo, error) {
+func (m *machineFileAppImpl) ReadDir(ctx context.Context, opParam *dto.MachineFileOp) ([]fs.FileInfo, error) {
 	path := opParam.Path
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
@@ -147,7 +141,7 @@ func (m *machineFileAppImpl) ReadDir(ctx context.Context, opParam *MachineFileOp
 	return sftpCli.ReadDir(path)
 }
 
-func (m *machineFileAppImpl) GetDirSize(ctx context.Context, opParam *MachineFileOpParam) (string, error) {
+func (m *machineFileAppImpl) GetDirSize(ctx context.Context, opParam *dto.MachineFileOp) (string, error) {
 	path := opParam.Path
 
 	if opParam.Protocol == entity.MachineProtocolRdp {
@@ -196,7 +190,7 @@ func (m *machineFileAppImpl) GetDirSize(ctx context.Context, opParam *MachineFil
 	return strings.Split(res, "\t")[0], nil
 }
 
-func (m *machineFileAppImpl) FileStat(ctx context.Context, opParam *MachineFileOpParam) (string, error) {
+func (m *machineFileAppImpl) FileStat(ctx context.Context, opParam *dto.MachineFileOp) (string, error) {
 	path := opParam.Path
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		path = m.GetRdpFilePath(contextx.GetLoginAccount(ctx), path)
@@ -211,7 +205,7 @@ func (m *machineFileAppImpl) FileStat(ctx context.Context, opParam *MachineFileO
 	return mcli.Run(fmt.Sprintf("stat -L %s", path))
 }
 
-func (m *machineFileAppImpl) MkDir(ctx context.Context, opParam *MachineFileOpParam) (*mcm.MachineInfo, error) {
+func (m *machineFileAppImpl) MkDir(ctx context.Context, opParam *dto.MachineFileOp) (*mcm.MachineInfo, error) {
 	path := opParam.Path
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
@@ -232,7 +226,7 @@ func (m *machineFileAppImpl) MkDir(ctx context.Context, opParam *MachineFileOpPa
 	return mi, err
 }
 
-func (m *machineFileAppImpl) CreateFile(ctx context.Context, opParam *MachineFileOpParam) (*mcm.MachineInfo, error) {
+func (m *machineFileAppImpl) CreateFile(ctx context.Context, opParam *dto.MachineFileOp) (*mcm.MachineInfo, error) {
 	path := opParam.Path
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		path = m.GetRdpFilePath(contextx.GetLoginAccount(ctx), path)
@@ -256,7 +250,7 @@ func (m *machineFileAppImpl) CreateFile(ctx context.Context, opParam *MachineFil
 	return mi, err
 }
 
-func (m *machineFileAppImpl) ReadFile(ctx context.Context, opParam *MachineFileOpParam) (*sftp.File, *mcm.MachineInfo, error) {
+func (m *machineFileAppImpl) ReadFile(ctx context.Context, opParam *dto.MachineFileOp) (*sftp.File, *mcm.MachineInfo, error) {
 	mi, sftpCli, err := m.GetMachineSftpCli(opParam)
 	if err != nil {
 		return nil, nil, err
@@ -268,7 +262,7 @@ func (m *machineFileAppImpl) ReadFile(ctx context.Context, opParam *MachineFileO
 }
 
 // 写文件内容
-func (m *machineFileAppImpl) WriteFileContent(ctx context.Context, opParam *MachineFileOpParam, content []byte) (*mcm.MachineInfo, error) {
+func (m *machineFileAppImpl) WriteFileContent(ctx context.Context, opParam *dto.MachineFileOp, content []byte) (*mcm.MachineInfo, error) {
 	path := opParam.Path
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		path = m.GetRdpFilePath(contextx.GetLoginAccount(ctx), path)
@@ -296,7 +290,7 @@ func (m *machineFileAppImpl) WriteFileContent(ctx context.Context, opParam *Mach
 }
 
 // 上传文件
-func (m *machineFileAppImpl) UploadFile(ctx context.Context, opParam *MachineFileOpParam, filename string, reader io.Reader) (*mcm.MachineInfo, error) {
+func (m *machineFileAppImpl) UploadFile(ctx context.Context, opParam *dto.MachineFileOp, filename string, reader io.Reader) (*mcm.MachineInfo, error) {
 	path := opParam.Path
 	if !strings.HasSuffix(path, "/") {
 		path = path + "/"
@@ -327,7 +321,7 @@ func (m *machineFileAppImpl) UploadFile(ctx context.Context, opParam *MachineFil
 	return mi, err
 }
 
-func (m *machineFileAppImpl) UploadFiles(ctx context.Context, opParam *MachineFileOpParam, basePath string, fileHeaders []*multipart.FileHeader, paths []string) (*mcm.MachineInfo, error) {
+func (m *machineFileAppImpl) UploadFiles(ctx context.Context, opParam *dto.MachineFileOp, basePath string, fileHeaders []*multipart.FileHeader, paths []string) (*mcm.MachineInfo, error) {
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		baseFolder := m.GetRdpFilePath(contextx.GetLoginAccount(ctx), basePath)
 
@@ -344,7 +338,7 @@ func (m *machineFileAppImpl) UploadFiles(ctx context.Context, opParam *MachineFi
 				rdpBaseDir = rdpBaseDir + "/"
 			}
 			rdpDir := filepath.Dir(rdpBaseDir + paths[i])
-			m.MkDir(ctx, &MachineFileOpParam{
+			m.MkDir(ctx, &dto.MachineFileOp{
 				MachineId: opParam.MachineId,
 				Protocol:  opParam.Protocol,
 				Path:      rdpDir,
@@ -370,7 +364,7 @@ func (m *machineFileAppImpl) UploadFiles(ctx context.Context, opParam *MachineFi
 }
 
 // 删除文件
-func (m *machineFileAppImpl) RemoveFile(ctx context.Context, opParam *MachineFileOpParam, path ...string) (*mcm.MachineInfo, error) {
+func (m *machineFileAppImpl) RemoveFile(ctx context.Context, opParam *dto.MachineFileOp, path ...string) (*mcm.MachineInfo, error) {
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		for _, pt := range path {
 			pt = m.GetRdpFilePath(contextx.GetLoginAccount(ctx), pt)
@@ -406,7 +400,7 @@ func (m *machineFileAppImpl) RemoveFile(ctx context.Context, opParam *MachineFil
 	return minfo, err
 }
 
-func (m *machineFileAppImpl) Copy(ctx context.Context, opParam *MachineFileOpParam, toPath string, path ...string) (*mcm.MachineInfo, error) {
+func (m *machineFileAppImpl) Copy(ctx context.Context, opParam *dto.MachineFileOp, toPath string, path ...string) (*mcm.MachineInfo, error) {
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		for _, pt := range path {
 			srcPath := m.GetRdpFilePath(contextx.GetLoginAccount(ctx), pt)
@@ -442,7 +436,7 @@ func (m *machineFileAppImpl) Copy(ctx context.Context, opParam *MachineFileOpPar
 	return mi, err
 }
 
-func (m *machineFileAppImpl) Mv(ctx context.Context, opParam *MachineFileOpParam, toPath string, path ...string) (*mcm.MachineInfo, error) {
+func (m *machineFileAppImpl) Mv(ctx context.Context, opParam *dto.MachineFileOp, toPath string, path ...string) (*mcm.MachineInfo, error) {
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		for _, pt := range path {
 			// 获取文件名
@@ -471,7 +465,7 @@ func (m *machineFileAppImpl) Mv(ctx context.Context, opParam *MachineFileOpParam
 	return mi, err
 }
 
-func (m *machineFileAppImpl) Rename(ctx context.Context, opParam *MachineFileOpParam, newname string) (*mcm.MachineInfo, error) {
+func (m *machineFileAppImpl) Rename(ctx context.Context, opParam *dto.MachineFileOp, newname string) (*mcm.MachineInfo, error) {
 	oldname := opParam.Path
 	if opParam.Protocol == entity.MachineProtocolRdp {
 		oldname = m.GetRdpFilePath(contextx.GetLoginAccount(ctx), oldname)
@@ -492,7 +486,7 @@ func (m *machineFileAppImpl) GetMachineCli(authCertName string) (*mcm.Cli, error
 }
 
 // 获取文件机器 sftp cli
-func (m *machineFileAppImpl) GetMachineSftpCli(opParam *MachineFileOpParam) (*mcm.MachineInfo, *sftp.Client, error) {
+func (m *machineFileAppImpl) GetMachineSftpCli(opParam *dto.MachineFileOp) (*mcm.MachineInfo, *sftp.Client, error) {
 	mcli, err := m.GetMachineCli(opParam.AuthCertName)
 	if err != nil {
 		return nil, nil, err

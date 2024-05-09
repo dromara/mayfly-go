@@ -1,14 +1,14 @@
 package vo
 
 import (
-	"mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/pkg/utils/collx"
 )
 
-type TagTreeVOS []*entity.TagTree
+type TagTreeVOS []*dto.SimpleTagTree
 
 type TagTreeItem struct {
-	*entity.TagTree
+	*dto.SimpleTagTree
 	Children []*TagTreeItem `json:"children"`
 }
 
@@ -18,7 +18,7 @@ func (m *TagTreeVOS) ToTrees(pid uint64) []*TagTreeItem {
 		return ttis
 	}
 
-	ttis = collx.ArrayMap(*m, func(tr *entity.TagTree) *TagTreeItem { return &TagTreeItem{TagTree: tr} })
+	ttis = collx.ArrayMap(*m, func(tr *dto.SimpleTagTree) *TagTreeItem { return &TagTreeItem{SimpleTagTree: tr} })
 	tagMap := collx.ArrayToMap(ttis, func(item *TagTreeItem) string {
 		return item.CodePath
 	})

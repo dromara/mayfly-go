@@ -82,7 +82,7 @@ func setGdbWhere(gdb *gorm.DB, cond *model.QueryCond) *gorm.DB {
 	}
 
 	for i, v := range cond.GetWheres() {
-		gdb.Where(i, v)
+		gdb.Where(i, v...)
 	}
 	return gdb
 }

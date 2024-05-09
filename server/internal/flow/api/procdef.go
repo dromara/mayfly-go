@@ -4,6 +4,7 @@ import (
 	"mayfly-go/internal/flow/api/form"
 	"mayfly-go/internal/flow/api/vo"
 	"mayfly-go/internal/flow/application"
+	"mayfly-go/internal/flow/application/dto"
 	"mayfly-go/internal/flow/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
@@ -42,7 +43,7 @@ func (a *Procdef) Save(rc *req.Ctx) {
 	form := &form.Procdef{}
 	procdef := req.BindJsonAndCopyTo(rc, form, new(entity.Procdef))
 	rc.ReqParam = form
-	biz.ErrIsNil(a.ProcdefApp.SaveProcdef(rc.MetaCtx, &application.SaveProcdefParam{
+	biz.ErrIsNil(a.ProcdefApp.SaveProcdef(rc.MetaCtx, &dto.SaveProcdef{
 		Procdef:   procdef,
 		CodePaths: form.CodePaths,
 	}))

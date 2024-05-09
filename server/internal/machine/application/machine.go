@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"mayfly-go/internal/event"
+	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/internal/machine/infrastructure/cache"
 	"mayfly-go/internal/machine/mcm"
 	tagapp "mayfly-go/internal/tag/application"
+	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
@@ -19,16 +21,10 @@ import (
 	"mayfly-go/pkg/utils/collx"
 )
 
-type SaveMachineParam struct {
-	Machine      *entity.Machine
-	TagCodePaths []string
-	AuthCerts    []*tagentity.ResourceAuthCert
-}
-
 type Machine interface {
 	base.App[*entity.Machine]
 
-	SaveMachine(ctx context.Context, param *SaveMachineParam) error
+	SaveMachine(ctx context.Context, param *dto.SaveMachine) error
 
 	// 测试机器连接
 	TestConn(me *entity.Machine, authCert *tagentity.ResourceAuthCert) error
@@ -81,7 +77,7 @@ func (m *machineAppImpl) GetMachineList(condition *entity.MachineQuery, pagePara
 	return m.GetRepo().GetMachineList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachineParam) error {
+func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine) error {
 	me := param.Machine
 	tagCodePaths := param.TagCodePaths
 	authCerts := param.AuthCerts
@@ -119,7 +115,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 			})
 
 		}, func(ctx context.Context) error {
-			return m.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+			return m.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
 				ResourceTag:        m.genMachineResourceTag(me, authCerts),
 				ParentTagCodePaths: tagCodePaths,
 			})
@@ -153,7 +149,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *SaveMachinePara
 				return err
 			}
 		}
-		return m.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+		return m.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
 			ResourceTag:        m.genMachineResourceTag(oldMachine, authCerts),
 			ParentTagCodePaths: tagCodePaths,
 		})
@@ -216,8 +212,8 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 		func(ctx context.Context) error {
 			return m.DeleteById(ctx, id)
 		}, func(ctx context.Context) error {
-			return m.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-				ResourceTag: &tagapp.ResourceTag{
+			return m.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
+				ResourceTag: &tagdto.ResourceTag{
 					Code: machine.Code,
 					Type: tagentity.TagTypeMachine,
 				},
@@ -362,16 +358,16 @@ func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAu
 	return mi, nil
 }
 
-func (m *machineAppImpl) genMachineResourceTag(me *entity.Machine, authCerts []*tagentity.ResourceAuthCert) *tagapp.ResourceTag {
-	authCertTags := collx.ArrayMap[*tagentity.ResourceAuthCert, *tagapp.ResourceTag](authCerts, func(val *tagentity.ResourceAuthCert) *tagapp.ResourceTag {
-		return &tagapp.ResourceTag{
+func (m *machineAppImpl) genMachineResourceTag(me *entity.Machine, authCerts []*tagentity.ResourceAuthCert) *tagdto.ResourceTag {
+	authCertTags := collx.ArrayMap[*tagentity.ResourceAuthCert, *tagdto.ResourceTag](authCerts, func(val *tagentity.ResourceAuthCert) *tagdto.ResourceTag {
+		return &tagdto.ResourceTag{
 			Code: val.Name,
 			Name: val.Username,
 			Type: tagentity.TagTypeMachineAuthCert,
 		}
 	})
 
-	return &tagapp.ResourceTag{
+	return &tagdto.ResourceTag{
 		Code:     me.Code,
 		Type:     tagentity.TagTypeMachine,
 		Name:     me.Name,

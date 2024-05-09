@@ -1,6 +1,8 @@
 package form
 
-import "mayfly-go/internal/machine/application"
+import (
+	"mayfly-go/internal/machine/application/dto"
+)
 
 type MachineFileForm struct {
 	Id        uint64 `json:"id"`
@@ -17,32 +19,32 @@ type MachineFileUpdateForm struct {
 }
 
 type CreateFileForm struct {
-	*application.MachineFileOpParam
+	*dto.MachineFileOp
 
 	Type string `json:"type"`
 }
 
 type WriteFileContentForm struct {
-	*application.MachineFileOpParam
+	*dto.MachineFileOp
 
 	Content string `json:"content" binding:"required"`
 }
 
 type RemoveFileForm struct {
-	*application.MachineFileOpParam
+	*dto.MachineFileOp
 
 	Paths []string `json:"paths" binding:"required"`
 }
 
 type CopyFileForm struct {
-	*application.MachineFileOpParam
+	*dto.MachineFileOp
 
 	Paths  []string `json:"paths" binding:"required"`
 	ToPath string   `json:"toPath" binding:"required"`
 }
 
 type RenameForm struct {
-	*application.MachineFileOpParam
+	*dto.MachineFileOp
 
 	Newname string `json:"newname" binding:"required"`
 }

@@ -195,6 +195,9 @@ const contextmenuAdd = new ContextmenuItem('addTag', '添加子标签')
 const contextmenuEdit = new ContextmenuItem('edit', '编辑')
     .withIcon('edit')
     .withPermission('tag:save')
+    .withHideFunc((data: any) => {
+        return data.type != TagResourceTypeEnum.Tag.value;
+    })
     .withOnClick((data: any) => showEditTagDialog(data));
 
 const contextmenuDel = new ContextmenuItem('delete', '删除')
@@ -376,6 +379,11 @@ const search = async () => {
     state.data = res;
 };
 
+const getDetail = async (id: number) => {
+    const tags = await tagApi.listByQuery.request({ id });
+    return tags?.[0];
+};
+
 // 树节点右击事件
 const nodeContextmenu = (event: any, data: any) => {
     const { clientX, clientY } = event;
@@ -384,8 +392,8 @@ const nodeContextmenu = (event: any, data: any) => {
     contextmenuRef.value.openContextmenu(data);
 };
 
-const treeNodeClick = (data: any) => {
-    state.currentTag = data;
+const treeNodeClick = async (data: any) => {
+    state.currentTag = await getDetail(data.id);
     // 关闭可能存在的右击菜单
     contextmenuRef.value.closeContextmenu();
 };

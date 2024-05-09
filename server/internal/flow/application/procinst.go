@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"mayfly-go/internal/flow/application/dto"
 	"mayfly-go/internal/flow/domain/entity"
 	"mayfly-go/internal/flow/domain/repository"
 	"mayfly-go/pkg/base"
@@ -20,7 +21,7 @@ type Procinst interface {
 	GetProcinstTasks(condition *entity.ProcinstTaskQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	// StartProc 根据流程定义启动一个流程实例
-	StartProc(ctx context.Context, procdefId uint64, reqParam *StarProcParam) (*entity.Procinst, error)
+	StartProc(ctx context.Context, procdefId uint64, reqParam *dto.StarProc) (*entity.Procinst, error)
 
 	// 取消流程
 	CancelProc(ctx context.Context, procinstId uint64) error
@@ -57,7 +58,7 @@ func (p *procinstAppImpl) GetProcinstTasks(condition *entity.ProcinstTaskQuery, 
 	return p.procinstTaskRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (p *procinstAppImpl) StartProc(ctx context.Context, procdefId uint64, reqParam *StarProcParam) (*entity.Procinst, error) {
+func (p *procinstAppImpl) StartProc(ctx context.Context, procdefId uint64, reqParam *dto.StarProc) (*entity.Procinst, error) {
 	procdef, err := p.procdefApp.GetById(procdefId)
 	if err != nil {
 		return nil, errorx.NewBiz("流程实例[%d]不存在", procdefId)

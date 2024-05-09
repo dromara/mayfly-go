@@ -4,11 +4,14 @@ import (
 	"context"
 	"mayfly-go/internal/common/consts"
 	flowapp "mayfly-go/internal/flow/application"
+	flowdto "mayfly-go/internal/flow/application/dto"
 	flowentity "mayfly-go/internal/flow/domain/entity"
+	"mayfly-go/internal/redis/application/dto"
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/domain/repository"
 	"mayfly-go/internal/redis/rdm"
 	tagapp "mayfly-go/internal/tag/application"
+	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
@@ -23,19 +26,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type SaveRedisParam struct {
-	Redis        *entity.Redis
-	AuthCert     *tagentity.ResourceAuthCert
-	TagCodePaths []string
-}
-
-type RunCmdParam struct {
-	Id     uint64 `json:"id"`
-	Db     int    `json:"db"`
-	Cmd    []any  `json:"cmd"`
-	Remark string
-}
-
 type Redis interface {
 	base.App[*entity.Redis]
 	flowapp.FlowBizHandler
@@ -44,9 +34,9 @@ type Redis interface {
 	GetPageList(condition *entity.RedisQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	// 测试连接
-	TestConn(re *SaveRedisParam) error
+	TestConn(re *dto.SaveRedis) error
 
-	SaveRedis(ctx context.Context, param *SaveRedisParam) error
+	SaveRedis(ctx context.Context, param *dto.SaveRedis) error
 
 	// 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
@@ -57,7 +47,7 @@ type Redis interface {
 	GetRedisConn(id uint64, db int) (*rdm.RedisConn, error)
 
 	// 执行redis命令
-	RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmdParam *RunCmdParam) (any, error)
+	RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmdParam *dto.RunCmd) (any, error)
 }
 
 type redisAppImpl struct {
@@ -79,7 +69,7 @@ func (r *redisAppImpl) GetPageList(condition *entity.RedisQuery, pageParam *mode
 	return r.GetRepo().GetRedisList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (r *redisAppImpl) TestConn(param *SaveRedisParam) error {
+func (r *redisAppImpl) TestConn(param *dto.SaveRedis) error {
 	db := 0
 	re := param.Redis
 	if re.Db != "" {
@@ -108,7 +98,7 @@ func (r *redisAppImpl) TestConn(param *SaveRedisParam) error {
 	return nil
 }
 
-func (r *redisAppImpl) SaveRedis(ctx context.Context, param *SaveRedisParam) error {
+func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) error {
 	re := param.Redis
 	tagCodePaths := param.TagCodePaths
 	// 查找是否存在该库
@@ -129,8 +119,8 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *SaveRedisParam) err
 		return r.Tx(ctx, func(ctx context.Context) error {
 			return r.Insert(ctx, re)
 		}, func(ctx context.Context) error {
-			return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-				ResourceTag: &tagapp.ResourceTag{
+			return r.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
+				ResourceTag: &tagdto.ResourceTag{
 					Type: tagentity.TagTypeRedis,
 					Code: re.Code,
 					Name: re.Name,
@@ -171,8 +161,8 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *SaveRedisParam) err
 				return err
 			}
 		}
-		return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-			ResourceTag: &tagapp.ResourceTag{
+		return r.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
+			ResourceTag: &tagdto.ResourceTag{
 				Type: tagentity.TagTypeRedis,
 				Code: oldRedis.Code,
 				Name: re.Name,
@@ -203,8 +193,8 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 	return r.Tx(ctx, func(ctx context.Context) error {
 		return r.DeleteById(ctx, id)
 	}, func(ctx context.Context) error {
-		return r.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
-			ResourceTag: &tagapp.ResourceTag{
+		return r.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
+			ResourceTag: &tagdto.ResourceTag{
 				Type: tagentity.TagTypeRedis,
 				Code: re.Code,
 			},
@@ -233,14 +223,14 @@ func (r *redisAppImpl) GetRedisConn(id uint64, db int) (*rdm.RedisConn, error) {
 	})
 }
 
-func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmdParam *RunCmdParam) (any, error) {
+func (r *redisAppImpl) RunCmd(ctx context.Context, redisConn *rdm.RedisConn, cmdParam *dto.RunCmd) (any, error) {
 	if redisConn == nil {
 		return nil, errorx.NewBiz("redis连接不存在")
 	}
 
 	// 开启工单流程，并且为写入命令，则开启对应审批流程
 	if procdefId := r.procdefApp.GetProcdefIdByCodePath(ctx, redisConn.Info.CodePath...); procdefId != 0 && rdm.IsWriteCmd(cmdParam.Cmd[0]) {
-		_, err := r.procinstApp.StartProc(ctx, procdefId, &flowapp.StarProcParam{
+		_, err := r.procinstApp.StartProc(ctx, procdefId, &flowdto.StarProc{
 			BizType: RedisRunWriteCmdFlowBizType,
 			BizKey:  stringx.Rand(24),
 			BizForm: jsonx.ToStr(cmdParam),
@@ -270,7 +260,7 @@ func (r *redisAppImpl) FlowBizHandle(ctx context.Context, bizHandleParam *flowap
 		return nil
 	}
 
-	runCmdParam, err := jsonx.To(bizHandleParam.BizForm, new(RunCmdParam))
+	runCmdParam, err := jsonx.To(bizHandleParam.BizForm, new(dto.RunCmd))
 	if err != nil {
 		return errorx.NewBiz("业务表单信息解析失败: %s", err.Error())
 	}

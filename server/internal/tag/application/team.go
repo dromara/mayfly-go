@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/internal/tag/infrastructure/cache"
@@ -13,14 +14,6 @@ import (
 	"mayfly-go/pkg/model"
 )
 
-type SaveTeamParam struct {
-	Id     uint64 `json:"id"`
-	Name   string `json:"name" binding:"required"` // 名称
-	Remark string `json:"remark"`                  // 备注说明
-
-	CodePaths []string `json:"codePaths"` // 关联标签信息
-}
-
 type Team interface {
 	base.App[*entity.Team]
 
@@ -28,7 +21,7 @@ type Team interface {
 	GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
 	// SaveTeam 保存团队信息
-	SaveTeam(ctx context.Context, team *SaveTeamParam) error
+	SaveTeam(ctx context.Context, team *dto.SaveTeam) error
 
 	Delete(ctx context.Context, id uint64) error
 
@@ -62,7 +55,7 @@ func (p *teamAppImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.
 	return p.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
-func (p *teamAppImpl) SaveTeam(ctx context.Context, saveParam *SaveTeamParam) error {
+func (p *teamAppImpl) SaveTeam(ctx context.Context, saveParam *dto.SaveTeam) error {
 	team := &entity.Team{Name: saveParam.Name, Remark: saveParam.Remark}
 	team.Id = saveParam.Id
 

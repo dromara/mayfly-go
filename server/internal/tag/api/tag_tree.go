@@ -6,6 +6,7 @@ import (
 	"mayfly-go/internal/tag/api/form"
 	"mayfly-go/internal/tag/api/vo"
 	"mayfly-go/internal/tag/application"
+	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
@@ -45,8 +46,8 @@ func (p *TagTree) GetTagTree(rc *req.Ctx) {
 }
 
 // complteTags 补全标签信息，使其能构造为树结构
-func (p *TagTree) complteTags(resourceTags []*entity.TagTree) []*entity.TagTree {
-	codePath2Tag := collx.ArrayToMap(resourceTags, func(tag *entity.TagTree) string {
+func (p *TagTree) complteTags(resourceTags []*dto.SimpleTagTree) []*dto.SimpleTagTree {
+	codePath2Tag := collx.ArrayToMap(resourceTags, func(tag *dto.SimpleTagTree) string {
 		return tag.CodePath
 	})
 
@@ -68,7 +69,7 @@ func (p *TagTree) complteTags(resourceTags []*entity.TagTree) []*entity.TagTree 
 		return resourceTags
 	}
 
-	var tags []*entity.TagTree
+	var tags []*dto.SimpleTagTree
 	p.TagTreeApp.ListByQuery(&entity.TagTreeQuery{CodePaths: notExistCodePaths}, &tags)
 	// 完善需要补充的标签信息
 	return append(resourceTags, tags...)
@@ -77,8 +78,12 @@ func (p *TagTree) complteTags(resourceTags []*entity.TagTree) []*entity.TagTree 
 func (p *TagTree) ListByQuery(rc *req.Ctx) {
 	cond := new(entity.TagTreeQuery)
 	tagPaths := rc.Query("tagPaths")
-	cond.CodePaths = strings.Split(tagPaths, ",")
-	var tagTrees vo.TagTreeVOS
+	if tagPaths != "" {
+		cond.CodePaths = strings.Split(tagPaths, ",")
+	}
+	cond.Id = uint64(rc.QueryInt("id"))
+
+	var tagTrees []entity.TagTree
 	p.TagTreeApp.ListByQuery(cond, &tagTrees)
 	rc.ResData = tagTrees
 }
@@ -109,8 +114,8 @@ func (p *TagTree) TagResources(rc *req.Ctx) {
 	accountId := rc.GetLoginAccount().Id
 	tagResources := p.TagTreeApp.GetAccountTags(accountId, &entity.TagTreeQuery{Type: entity.TagType(resourceType)})
 
-	tagPath2Resource := collx.ArrayToMap[*entity.TagTree, string](tagResources, func(tagResource *entity.TagTree) string {
-		return tagResource.GetTagPath()
+	tagPath2Resource := collx.ArrayToMap[*dto.SimpleTagTree, string](tagResources, func(tagResource *dto.SimpleTagTree) string {
+		return entity.GetTagPath(tagResource.CodePath)
 	})
 
 	tagPaths := collx.MapKeys(tagPath2Resource)

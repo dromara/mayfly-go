@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/base"
@@ -204,7 +205,7 @@ func (r *resourceAuthCertAppImpl) DeleteAuthCert(ctx context.Context, id uint64)
 	return r.Tx(ctx,
 		func(ctx context.Context) error {
 			// 删除对应授权凭证标签
-			return r.tagTreeApp.DeleteTagByParam(ctx, &DelResourceTagParam{
+			return r.tagTreeApp.DeleteTagByParam(ctx, &dto.DelResourceTag{
 				ResourceCode: rac.Name,
 			})
 		},
@@ -332,8 +333,8 @@ func (r *resourceAuthCertAppImpl) addAuthCert(ctx context.Context, rac *entity.R
 		// 若存在需要关联到的资源标签，则关联到对应的资源标签下
 		if len(resourceTagCodePaths) > 0 {
 			logx.DebugfContext(ctx, "[%d-%s]-授权凭证标签[%d-%s]关联至所属资源标签下[%v]", resourceType, resourceCode, authCertTagType, rac.Name, resourceTagCodePaths)
-			return r.tagTreeApp.SaveResourceTag(ctx, &SaveResourceTagParam{
-				ResourceTag: &ResourceTag{
+			return r.tagTreeApp.SaveResourceTag(ctx, &dto.SaveResourceTag{
+				ResourceTag: &dto.ResourceTag{
 					Code: rac.Name,
 					Type: GetResourceAuthCertTagType(entity.TagType(resourceType)),
 					Name: rac.Username,

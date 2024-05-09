@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
 	tagapp "mayfly-go/internal/tag/application"
@@ -12,11 +13,6 @@ import (
 	"regexp"
 )
 
-type SaveMachineCmdConfParam struct {
-	CmdConf   *entity.MachineCmdConf
-	CodePaths []string
-}
-
 type MachineCmd struct {
 	CmdRegexp *regexp.Regexp // 命令正则表达式
 	Stratege  string         // 策略（拒绝或审批等）
@@ -25,7 +21,7 @@ type MachineCmd struct {
 type MachineCmdConf interface {
 	base.App[*entity.MachineCmdConf]
 
-	SaveCmdConf(ctx context.Context, cmdConf *SaveMachineCmdConfParam) error
+	SaveCmdConf(ctx context.Context, cmdConf *dto.SaveMachineCmdConf) error
 
 	DeleteCmdConf(ctx context.Context, id uint64) error
 
@@ -45,7 +41,7 @@ func (m *machineCmdConfAppImpl) InjectMachineCmdConfRepo(repo repository.Machine
 	m.Repo = repo
 }
 
-func (m *machineCmdConfAppImpl) SaveCmdConf(ctx context.Context, cmdConfParam *SaveMachineCmdConfParam) error {
+func (m *machineCmdConfAppImpl) SaveCmdConf(ctx context.Context, cmdConfParam *dto.SaveMachineCmdConf) error {
 	cmdConf := cmdConfParam.CmdConf
 
 	return m.Tx(ctx, func(ctx context.Context) error {

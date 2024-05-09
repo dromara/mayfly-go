@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/tag/api/form"
 	"mayfly-go/internal/tag/api/vo"
 	"mayfly-go/internal/tag/application"
+	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/model"
@@ -38,7 +39,7 @@ func (p *Team) GetTeams(rc *req.Ctx) {
 }
 
 func (p *Team) SaveTeam(rc *req.Ctx) {
-	team := req.BindJsonAndValid(rc, new(application.SaveTeamParam))
+	team := req.BindJsonAndValid(rc, new(dto.SaveTeam))
 	rc.ReqParam = team
 	biz.ErrIsNil(p.TeamApp.SaveTeam(rc.MetaCtx, team))
 }

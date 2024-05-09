@@ -199,3 +199,16 @@ export function getTagTypeCodeByPath(codePath: string) {
 
     return result;
 }
+
+export function expandCodePath(codePath: string) {
+    const parts = codePath.split('/');
+    const result = [];
+    let currentPath = '';
+
+    for (let i = 0; i < parts.length - 1; i++) {
+        currentPath += parts[i] + '/';
+        result.push(currentPath);
+    }
+
+    return result;
+}

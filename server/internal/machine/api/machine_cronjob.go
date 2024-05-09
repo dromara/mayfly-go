@@ -4,6 +4,7 @@ import (
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
+	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
@@ -44,7 +45,7 @@ func (m *MachineCronJob) Save(rc *req.Ctx) {
 	mcj := req.BindJsonAndCopyTo[*entity.MachineCronJob](rc, jobForm, new(entity.MachineCronJob))
 	rc.ReqParam = jobForm
 
-	err := m.MachineCronJobApp.SaveMachineCronJob(rc.MetaCtx, &application.SaveMachineCronJobParam{
+	err := m.MachineCronJobApp.SaveMachineCronJob(rc.MetaCtx, &dto.SaveMachineCronJob{
 		CronJob:   mcj,
 		CodePaths: jobForm.CodePaths,
 	})

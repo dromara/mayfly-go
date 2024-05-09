@@ -8,6 +8,7 @@ import (
 	"mayfly-go/internal/machine/api/form"
 	"mayfly-go/internal/machine/api/vo"
 	"mayfly-go/internal/machine/application"
+	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/config"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/guac"
@@ -99,7 +100,7 @@ func (m *Machine) SaveMachine(rc *req.Ctx) {
 
 	rc.ReqParam = machineForm
 
-	biz.ErrIsNil(m.MachineApp.SaveMachine(rc.MetaCtx, &application.SaveMachineParam{
+	biz.ErrIsNil(m.MachineApp.SaveMachine(rc.MetaCtx, &dto.SaveMachine{
 		Machine:      me,
 		TagCodePaths: machineForm.TagCodePaths,
 		AuthCerts:    machineForm.AuthCerts,

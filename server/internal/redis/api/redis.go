@@ -7,6 +7,7 @@ import (
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/api/vo"
 	"mayfly-go/internal/redis/application"
+	"mayfly-go/internal/redis/application/dto"
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/rdm"
 	tagapp "mayfly-go/internal/tag/application"
@@ -54,7 +55,7 @@ func (r *Redis) TestConn(rc *req.Ctx) {
 	form := &form.Redis{}
 	redis := req.BindJsonAndCopyTo[*entity.Redis](rc, form, new(entity.Redis))
 
-	biz.ErrIsNil(r.RedisApp.TestConn(&application.SaveRedisParam{
+	biz.ErrIsNil(r.RedisApp.TestConn(&dto.SaveRedis{
 		Redis: redis,
 		AuthCert: &tagentity.ResourceAuthCert{
 			Name:           fmt.Sprintf("redis_%s_ac", redis.Code),
@@ -70,7 +71,7 @@ func (r *Redis) Save(rc *req.Ctx) {
 	form := &form.Redis{}
 	redis := req.BindJsonAndCopyTo[*entity.Redis](rc, form, new(entity.Redis))
 
-	redisParam := &application.SaveRedisParam{
+	redisParam := &dto.SaveRedis{
 		Redis:        redis,
 		TagCodePaths: form.TagCodePaths,
 		AuthCert: &tagentity.ResourceAuthCert{

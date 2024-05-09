@@ -9,6 +9,7 @@ import (
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
+	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/config"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
@@ -304,7 +305,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		}
 	}()
 
-	biz.ErrIsNil(d.DbApp.DumpDb(rc.MetaCtx, &application.DumpDbReq{
+	biz.ErrIsNil(d.DbApp.DumpDb(rc.MetaCtx, &dto.DumpDb{
 		DbId:     dbId,
 		DbName:   dbName,
 		Tables:   tables,

@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"mayfly-go/pkg/consts"
 	"mayfly-go/pkg/utils/anyx"
-	"mayfly-go/pkg/utils/collx"
 )
 
 type QueryCond struct {
 	selectColumns []string // 查询的列信息
 	condModel     any      // 条件模型
 
-	wheres  collx.M
+	wheres  map[string][]any
 	orderBy []string
 
 	dest any // 结果集指针
@@ -121,9 +120,9 @@ func (q *QueryCond) Le(column string, val any) *QueryCond {
 }
 
 // And条件
-func (q *QueryCond) And(column string, val any) *QueryCond {
+func (q *QueryCond) And(column string, val ...any) *QueryCond {
 	if q.wheres == nil {
-		q.wheres = collx.M{}
+		q.wheres = make(map[string][]any)
 	}
 	q.wheres[column] = val
 	return q
@@ -137,7 +136,7 @@ func (q *QueryCond) Cond(cond, column string, val any, skipBlank bool) *QueryCon
 	return q.And(fmt.Sprintf("%s %s ?", column, cond), val)
 }
 
-func (q *QueryCond) GetWheres() collx.M {
+func (q *QueryCond) GetWheres() map[string][]any {
 	return q.wheres
 }
 

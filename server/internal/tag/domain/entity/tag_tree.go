@@ -43,39 +43,9 @@ const (
 	TagTypeDbName     TagType = 22 // 数据库名
 )
 
-func (pt *TagTree) IsRoot() bool {
-	// 去除路径两端可能存在的斜杠
-	path := strings.Trim(pt.CodePath, "/")
-	return len(strings.Split(path, "/")) == 1
-}
-
-// GetParentPath 获取父标签路径, 如CodePath = test/test1/test2/  -> index = 0 => test/test1/  index = 1 => test/
-func (pt *TagTree) GetParentPath(index int) string {
-	return GetParentPath(pt.CodePath, index)
-}
-
 // GetTagPath 获取标签段路径，不获取对应资源相关路径
 func (pt *TagTree) GetTagPath() string {
-	codePath := pt.CodePath
-
-	// 以 资源分隔符"|" 符号对字符串进行分割
-	parts := strings.Split(codePath, CodePathResourceSeparator)
-	if len(parts) < 2 {
-		return codePath
-	}
-
-	// 从分割后的第一个子串中提取所需部分
-	substringBeforeNumber := parts[0]
-
-	// 找到最后一个 "/" 的位置
-	lastSlashIndex := strings.LastIndex(substringBeforeNumber, CodePathSeparator)
-
-	// 如果找到最后一个 "/" 符号，则截取子串
-	if lastSlashIndex != -1 {
-		return substringBeforeNumber[:lastSlashIndex+1]
-	}
-
-	return codePath
+	return GetTagPath(pt.CodePath)
 }
 
 // 标签接口资源，如果要实现资源结构体填充标签信息，则资源结构体需要实现该接口
@@ -108,6 +78,28 @@ func (r *ResourceTags) SetTagInfo(rt ResourceTag) {
 		r.Tags = make([]ResourceTag, 0)
 	}
 	r.Tags = append(r.Tags, rt)
+}
+
+// GetTagPath 获取标签段路径，不获取对应资源相关路径
+func GetTagPath(codePath string) string {
+	// 以 资源分隔符"|" 符号对字符串进行分割
+	parts := strings.Split(codePath, CodePathResourceSeparator)
+	if len(parts) < 2 {
+		return codePath
+	}
+
+	// 从分割后的第一个子串中提取所需部分
+	substringBeforeNumber := parts[0]
+
+	// 找到最后一个 "/" 的位置
+	lastSlashIndex := strings.LastIndex(substringBeforeNumber, CodePathSeparator)
+
+	// 如果找到最后一个 "/" 符号，则截取子串
+	if lastSlashIndex != -1 {
+		return substringBeforeNumber[:lastSlashIndex+1]
+	}
+
+	return codePath
 }
 
 // GetCodeByPath 从codePaths中提取指定标签类型的所有tagCode并去重

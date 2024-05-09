@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/dbm"
 	"mayfly-go/internal/db/dbm/dbi"
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	tagapp "mayfly-go/internal/tag/application"
+	tagdto "mayfly-go/internal/tag/application/dto"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/biz"
@@ -21,12 +23,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type SaveDbInstanceParam struct {
-	DbInstance   *entity.DbInstance
-	AuthCerts    []*tagentity.ResourceAuthCert
-	TagCodePaths []string
-}
-
 type Instance interface {
 	base.App[*entity.DbInstance]
 
@@ -35,7 +31,7 @@ type Instance interface {
 
 	TestConn(instanceEntity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) error
 
-	SaveDbInstance(ctx context.Context, instance *SaveDbInstanceParam) (uint64, error)
+	SaveDbInstance(ctx context.Context, instance *dto.SaveDbInstance) (uint64, error)
 
 	// Delete 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
@@ -91,7 +87,7 @@ func (app *instanceAppImpl) TestConn(instanceEntity *entity.DbInstance, authCert
 	return nil
 }
 
-func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *SaveDbInstanceParam) (uint64, error) {
+func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.SaveDbInstance) (uint64, error) {
 	instanceEntity := instance.DbInstance
 	// 默认tcp连接
 	instanceEntity.Network = instanceEntity.GetNetwork()
@@ -128,7 +124,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *SaveDb
 				AuthCerts:    authCerts,
 			})
 		}, func(ctx context.Context) error {
-			return app.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+			return app.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
 				ResourceTag:        app.genDbInstanceResourceTag(instanceEntity, authCerts),
 				ParentTagCodePaths: tagCodePaths,
 			})
@@ -162,7 +158,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *SaveDb
 				return err
 			}
 		}
-		return app.tagApp.SaveResourceTag(ctx, &tagapp.SaveResourceTagParam{
+		return app.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
 			ResourceTag:        app.genDbInstanceResourceTag(instanceEntity, authCerts),
 			ParentTagCodePaths: tagCodePaths,
 		})
@@ -214,7 +210,7 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 			ResourceType: tagentity.TagType(consts.ResourceTypeDb),
 		})
 	}, func(ctx context.Context) error {
-		return app.tagApp.DeleteTagByParam(ctx, &tagapp.DelResourceTagParam{
+		return app.tagApp.DeleteTagByParam(ctx, &tagdto.DelResourceTag{
 			ResourceCode: instance.Code,
 			ResourceType: tagentity.TagType(consts.ResourceTypeDb),
 		})
@@ -275,9 +271,9 @@ func (app *instanceAppImpl) toDbInfoByAc(instance *entity.DbInstance, ac *tagent
 	return di
 }
 
-func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCerts []*tagentity.ResourceAuthCert) *tagapp.ResourceTag {
-	authCertTags := collx.ArrayMap[*tagentity.ResourceAuthCert, *tagapp.ResourceTag](authCerts, func(val *tagentity.ResourceAuthCert) *tagapp.ResourceTag {
-		return &tagapp.ResourceTag{
+func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCerts []*tagentity.ResourceAuthCert) *tagdto.ResourceTag {
+	authCertTags := collx.ArrayMap[*tagentity.ResourceAuthCert, *tagdto.ResourceTag](authCerts, func(val *tagentity.ResourceAuthCert) *tagdto.ResourceTag {
+		return &tagdto.ResourceTag{
 			Code: val.Name,
 			Name: val.Username,
 			Type: tagentity.TagTypeDbAuthCert,
@@ -291,9 +287,9 @@ func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCe
 		logx.Errorf("获取实例关联的数据库失败: %v", err)
 	}
 
-	authCertName2DbTags := make(map[string][]*tagapp.ResourceTag)
+	authCertName2DbTags := make(map[string][]*tagdto.ResourceTag)
 	for _, db := range dbs {
-		authCertName2DbTags[db.AuthCertName] = append(authCertName2DbTags[db.AuthCertName], &tagapp.ResourceTag{
+		authCertName2DbTags[db.AuthCertName] = append(authCertName2DbTags[db.AuthCertName], &tagdto.ResourceTag{
 			Code: db.Code,
 			Name: db.Name,
 			Type: tagentity.TagTypeDbName,
@@ -305,7 +301,7 @@ func (m *instanceAppImpl) genDbInstanceResourceTag(me *entity.DbInstance, authCe
 		ac.Children = authCertName2DbTags[ac.Code]
 	}
 
-	return &tagapp.ResourceTag{
+	return &tagdto.ResourceTag{
 		Code:     me.Code,
 		Type:     tagentity.TagTypeDb,
 		Name:     me.Name,

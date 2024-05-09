@@ -5,6 +5,7 @@ import (
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
+	"mayfly-go/internal/db/application/dto"
 	"mayfly-go/internal/db/domain/entity"
 
 	tagapp "mayfly-go/internal/tag/application"
@@ -70,7 +71,7 @@ func (d *Instance) SaveInstance(rc *req.Ctx) {
 	instance := req.BindJsonAndCopyTo[*entity.DbInstance](rc, form, new(entity.DbInstance))
 
 	rc.ReqParam = form
-	id, err := d.InstanceApp.SaveDbInstance(rc.MetaCtx, &application.SaveDbInstanceParam{
+	id, err := d.InstanceApp.SaveDbInstance(rc.MetaCtx, &dto.SaveDbInstance{
 		DbInstance:   instance,
 		AuthCerts:    form.AuthCerts,
 		TagCodePaths: form.TagCodePaths,

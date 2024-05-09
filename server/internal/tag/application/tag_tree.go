@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"mayfly-go/internal/common/consts"
+	"mayfly-go/internal/tag/application/dto"
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/internal/tag/infrastructure/cache"
@@ -16,37 +17,6 @@ import (
 	"strings"
 )
 
-// 保存资源标签参数
-type SaveResourceTagParam struct {
-	ParentTagCodePaths []string // 关联标签，空数组则为删除该资源绑定的标签
-
-	ResourceTag *ResourceTag // 资源标签信息
-}
-
-type ResourceTag struct {
-	Code string
-	Type entity.TagType
-	Name string
-
-	Children []*ResourceTag // 子资源标签
-}
-
-type RelateTagsByCodeAndTypeParam struct {
-	ParentTagCode string         // 父标签编号
-	ParentTagType entity.TagType // 父标签类型
-
-	Tags []*ResourceTag // 要关联的标签数组
-}
-
-type DelResourceTagParam struct {
-	Id           uint64
-	ResourceCode string
-	ResourceType entity.TagType
-
-	// 要删除的子节点类型，若存在值，则为删除资源标签下的指定类型的子标签
-	ChildType entity.TagType
-}
-
 type TagTree interface {
 	base.App[*entity.TagTree]
 
@@ -55,10 +25,10 @@ type TagTree interface {
 	SaveTag(ctx context.Context, pid uint64, tt *entity.TagTree) error
 
 	// SaveResourceTag 保存资源类型标签
-	SaveResourceTag(ctx context.Context, param *SaveResourceTagParam) error
+	SaveResourceTag(ctx context.Context, param *dto.SaveResourceTag) error
 
 	// RelateTagsByCodeAndType 将指定标签数组关联至满足指定标签类型和标签code的标签下
-	RelateTagsByCodeAndType(ctx context.Context, param *RelateTagsByCodeAndTypeParam) error
+	RelateTagsByCodeAndType(ctx context.Context, param *dto.RelateTagsByCodeAndType) error
 
 	// UpdateTagName 根据标签类型与code更新对应标签名
 	UpdateTagName(ctx context.Context, tagType entity.TagType, tagCode string, tagName string) error
@@ -70,14 +40,14 @@ type TagTree interface {
 	MovingTag(ctx context.Context, fromTagPath string, toTagPath string) error
 
 	// DeleteTagByParam 删除标签，会删除该标签下所有子标签信息以及团队关联的标签信息
-	DeleteTagByParam(ctx context.Context, param *DelResourceTagParam) error
+	DeleteTagByParam(ctx context.Context, param *dto.DelResourceTag) error
 
 	Delete(ctx context.Context, id uint64) error
 
 	// GetAccountTags 获取指定账号有权限操作的标签列表
 	// @param accountId 账号id
 	// @param query 查询条件
-	GetAccountTags(accountId uint64, query *entity.TagTreeQuery) []*entity.TagTree
+	GetAccountTags(accountId uint64, query *entity.TagTreeQuery) []*dto.SimpleTagTree
 
 	// GetAccountTagCodes 获取指定账号有权限操作的标签codes
 	GetAccountTagCodes(accountId uint64, resourceType int8, tagPath string) []string
@@ -156,7 +126,7 @@ func (p *tagTreeAppImpl) SaveTag(ctx context.Context, pid uint64, tag *entity.Ta
 	return p.UpdateById(ctx, tag)
 }
 
-func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *SaveResourceTagParam) error {
+func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *dto.SaveResourceTag) error {
 	code := param.ResourceTag.Code
 	tagType := param.ResourceTag.Type
 	parentTagCodePaths := param.ParentTagCodePaths
@@ -170,7 +140,7 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *SaveResourc
 
 	// 如果tagIds为空数组，则为删除该资源标签
 	if len(parentTagCodePaths) == 0 {
-		return p.DeleteTagByParam(ctx, &DelResourceTagParam{
+		return p.DeleteTagByParam(ctx, &dto.DelResourceTag{
 			ResourceType: tagType,
 			ResourceCode: code,
 		})
@@ -233,7 +203,7 @@ func (p *tagTreeAppImpl) SaveResourceTag(ctx context.Context, param *SaveResourc
 	return nil
 }
 
-func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *RelateTagsByCodeAndTypeParam) error {
+func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *dto.RelateTagsByCodeAndType) error {
 	parentTagCode := param.ParentTagCode
 	parentTagType := param.ParentTagType
 
@@ -249,7 +219,7 @@ func (p *tagTreeAppImpl) RelateTagsByCodeAndType(ctx context.Context, param *Rel
 	}
 
 	for _, tag := range param.Tags {
-		if err := (p.SaveResourceTag(ctx, &SaveResourceTagParam{
+		if err := (p.SaveResourceTag(ctx, &dto.SaveResourceTag{
 			ResourceTag:        tag,
 			ParentTagCodePaths: parentTagCodePaths,
 		})); err != nil {
@@ -330,7 +300,7 @@ func (p *tagTreeAppImpl) MovingTag(ctx context.Context, fromTagPath string, toTa
 	return nil
 }
 
-func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *DelResourceTagParam) error {
+func (p *tagTreeAppImpl) DeleteTagByParam(ctx context.Context, param *dto.DelResourceTag) error {
 	// 获取资源编号对应的资源标签信息
 	cond := &entity.TagTree{Type: param.ResourceType, Code: param.ResourceCode}
 	cond.Id = param.Id
@@ -363,13 +333,13 @@ func (p *tagTreeAppImpl) ListByQuery(condition *entity.TagTreeQuery, toEntity an
 	p.GetRepo().SelectByCondition(condition, toEntity)
 }
 
-func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQuery) []*entity.TagTree {
+func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQuery) []*dto.SimpleTagTree {
 	tagResourceQuery := &entity.TagTreeQuery{
 		Type:  query.Type,
 		Types: query.Types,
 	}
 
-	var tagResources []*entity.TagTree
+	var tagResources []*dto.SimpleTagTree
 	var accountTagPaths []string
 
 	if accountId != consts.AdminId {
@@ -401,7 +371,7 @@ func (p *tagTreeAppImpl) GetAccountTags(accountId uint64, query *entity.TagTreeQ
 func (p *tagTreeAppImpl) GetAccountTagCodes(accountId uint64, resourceType int8, tagPath string) []string {
 	tagResources := p.GetAccountTags(accountId, &entity.TagTreeQuery{Type: entity.TagType(resourceType), CodePathLikes: []string{tagPath}})
 	// resouce code去重
-	code2Resource := collx.ArrayToMap[*entity.TagTree, string](tagResources, func(val *entity.TagTree) string {
+	code2Resource := collx.ArrayToMap[*dto.SimpleTagTree, string](tagResources, func(val *dto.SimpleTagTree) string {
 		return val.Code
 	})
 
@@ -411,7 +381,7 @@ func (p *tagTreeAppImpl) GetAccountTagCodes(accountId uint64, resourceType int8,
 func (p *tagTreeAppImpl) GetAccountTagCodePaths(accountId uint64, tagType entity.TagType, tagPath string) []string {
 	tagResources := p.GetAccountTags(accountId, &entity.TagTreeQuery{Type: tagType, CodePathLikes: []string{tagPath}})
 	// resouce code去重
-	code2Resource := collx.ArrayToMap[*entity.TagTree, string](tagResources, func(val *entity.TagTree) string {
+	code2Resource := collx.ArrayToMap[*dto.SimpleTagTree, string](tagResources, func(val *dto.SimpleTagTree) string {
 		return val.CodePath
 	})
 
@@ -484,17 +454,17 @@ func (p *tagTreeAppImpl) Delete(ctx context.Context, id uint64) error {
 		return errorx.NewBiz("您无权删除该标签")
 	}
 
-	return p.DeleteTagByParam(ctx, &DelResourceTagParam{
+	return p.DeleteTagByParam(ctx, &dto.DelResourceTag{
 		Id: id,
 	})
 }
 
-func (p *tagTreeAppImpl) toTags(parentTags []*entity.TagTree, param *ResourceTag) []*entity.TagTree {
+func (p *tagTreeAppImpl) toTags(parentTags []*entity.TagTree, param *dto.ResourceTag) []*entity.TagTree {
 	tags := make([]*entity.TagTree, 0)
 
 	// 递归函数，将标签及其子标签展开为一个扁平数组
-	var flattenTags func(parentTag *entity.TagTree, tag *ResourceTag)
-	flattenTags = func(parentTag *entity.TagTree, resourceTagParam *ResourceTag) {
+	var flattenTags func(parentTag *entity.TagTree, tag *dto.ResourceTag)
+	flattenTags = func(parentTag *entity.TagTree, resourceTagParam *dto.ResourceTag) {
 		if resourceTagParam == nil {
 			return
 		}
