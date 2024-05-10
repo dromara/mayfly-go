@@ -44,6 +44,7 @@
 import { ref, toRefs, reactive, watch, watchEffect } from 'vue';
 import { configApi, accountApi } from '../api';
 import { DynamicFormEdit } from '@/components/dynamic-form';
+import { ElMessage } from 'element-plus';
 
 const props = defineProps({
     visible: {
@@ -125,22 +126,25 @@ const getAccount = (username: any) => {
 };
 
 const btnOk = async () => {
-    configForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            if (state.params) {
-                state.form.params = JSON.stringify(state.params);
-            }
-            if (state.permissionAccount.length > 0) {
-                state.form.permission = state.permissionAccount.join(',') + ',';
-            } else {
-                state.form.permission = 'all';
-            }
+    try {
+        await configForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
 
-            await saveConfigExec();
-            emit('val-change', state.form);
-            cancel();
-        }
-    });
+    if (state.params) {
+        state.form.params = JSON.stringify(state.params);
+    }
+    if (state.permissionAccount.length > 0) {
+        state.form.permission = state.permissionAccount.join(',') + ',';
+    } else {
+        state.form.permission = 'all';
+    }
+
+    await saveConfigExec();
+    emit('val-change', state.form);
+    cancel();
 };
 </script>
 <style lang="scss"></style>

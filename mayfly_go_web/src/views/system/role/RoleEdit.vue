@@ -80,13 +80,15 @@ const cancel = () => {
 };
 
 const btnOk = async () => {
-    roleForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            await saveRoleExec();
-            emit('val-change', state.form);
-            cancel();
-        }
-    });
+    try {
+        await roleForm.value.validate();
+    } catch (e: any) {
+        return false;
+    }
+
+    await saveRoleExec();
+    emit('val-change', state.form);
+    cancel();
 };
 </script>
 <style lang="scss"></style>

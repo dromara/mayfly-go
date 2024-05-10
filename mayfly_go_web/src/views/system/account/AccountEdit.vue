@@ -114,19 +114,19 @@ watchEffect(() => {
 });
 
 const btnOk = async () => {
-    accountForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('表单填写有误');
-            return false;
-        }
+    try {
+        await accountForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
 
-        await saveAccountExec();
-        ElMessage.success('操作成功');
-        emit('val-change', state.form);
-        //重置表单域
-        accountForm.value.resetFields();
-        state.form = {} as any;
-    });
+    await saveAccountExec();
+    ElMessage.success('操作成功');
+    emit('val-change', state.form);
+    //重置表单域
+    accountForm.value.resetFields();
+    state.form = {} as any;
 };
 
 const cancel = () => {

@@ -145,21 +145,22 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, ref, watch, reactive, onMounted, Ref } from 'vue';
+import { toRefs, ref, watch, reactive, onMounted, Ref, defineAsyncComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from './api';
 import { dateFormat } from '@/common/utils/date';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu/index';
 import { useUserInfo } from '@/store/userInfo';
 import { Splitpanes, Pane } from 'splitpanes';
-import MachineList from '../machine/MachineList.vue';
-import RedisList from '../redis/RedisList.vue';
-import MongoList from '../mongo/MongoList.vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import EnumValue from '@/common/Enum';
-import InstanceList from '../db/InstanceList.vue';
 import TagCodePath from '../component/TagCodePath.vue';
+
+const MachineList = defineAsyncComponent(() => import('../machine/MachineList.vue'));
+const InstanceList = defineAsyncComponent(() => import('../db/InstanceList.vue'));
+const RedisList = defineAsyncComponent(() => import('../redis/RedisList.vue'));
+const MongoList = defineAsyncComponent(() => import('../mongo/MongoList.vue'));
 
 interface Tree {
     id: number;

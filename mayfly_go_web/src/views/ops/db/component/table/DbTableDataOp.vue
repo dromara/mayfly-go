@@ -12,6 +12,7 @@
                         width="auto"
                         title="表格字段配置"
                         trigger="click"
+                        @hide="triggerCheckedColumns"
                     >
                         <div><el-input v-model="checkedShowColumns.searchKey" size="small" placeholder="输入列名或备注过滤" /></div>
                         <div>
@@ -111,7 +112,7 @@
                         <el-divider direction="vertical" />
 
                         <span style="color: var(--el-color-info-light-3)">
-                            {{ item.showDataType }}
+                            {{ item.columnType }}
 
                             <template v-if="item.columnComment">
                                 <el-divider direction="vertical" />
@@ -458,14 +459,12 @@ const handleCount = async () => {
 const handleCheckAllColumnChange = (val: boolean) => {
     state.checkedShowColumns.columnNames = val ? state.columns.map((x: any) => x.columnName) : [];
     state.checkedShowColumns.isIndeterminate = false;
-    triggerCheckedColumns();
 };
 
 const handleCheckedColumnChange = (value: string[]) => {
     const checkedCount = value.length;
     state.checkedShowColumns.checkedAllColumn = checkedCount === state.columns.length;
     state.checkedShowColumns.isIndeterminate = checkedCount > 0 && checkedCount < state.columns.length;
-    triggerCheckedColumns();
 };
 
 const triggerCheckedColumns = () => {
@@ -558,7 +557,7 @@ const filterColumns = (searchKey: string) => {
 const onConditionRowClick = (event: any) => {
     const row = event[0];
     state.conditionDialog.title = `请输入 [${row.columnName}] 的值`;
-    state.conditionDialog.placeholder = `${row.showDataType}  ${row.columnComment}`;
+    state.conditionDialog.placeholder = `${row.columnType}  ${row.columnComment}`;
     state.conditionDialog.columnRow = row;
     state.conditionDialog.visible = true;
     setTimeout(() => {

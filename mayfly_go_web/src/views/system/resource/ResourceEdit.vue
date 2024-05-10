@@ -254,7 +254,7 @@ const changeLinkType = () => {
     state.form.meta.component = '';
 };
 
-const btnOk = () => {
+const btnOk = async () => {
     const submitForm = { ...state.form };
     if (submitForm.type == 1) {
         // 如果是菜单，则解析meta，如果值为false或者''则去除该值
@@ -263,16 +263,19 @@ const btnOk = () => {
         submitForm.meta = null as any;
     }
 
-    menuForm.value.validate(async (valid: any) => {
-        if (valid) {
-            state.submitForm = submitForm;
-            await saveResouceExec();
+    try {
+        await menuForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
 
-            emit('val-change', submitForm);
-            ElMessage.success('保存成功');
-            cancel();
-        }
-    });
+    state.submitForm = submitForm;
+    await saveResouceExec();
+
+    emit('val-change', submitForm);
+    ElMessage.success('保存成功');
+    cancel();
 };
 
 const parseMenuMeta = (meta: any) => {

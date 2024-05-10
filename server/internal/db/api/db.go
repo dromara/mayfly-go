@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/db/api/form"
 	"mayfly-go/internal/db/api/vo"
 	"mayfly-go/internal/db/application"
@@ -279,12 +278,12 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 	needData := dumpType == "2" || dumpType == "3"
 
 	la := rc.GetLoginAccount()
-	db, err := d.DbApp.GetById(dbId)
-	biz.ErrIsNil(err, "该数据库不存在")
-	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(la.Id, d.TagApp.ListTagPathByTypeAndCode(consts.ResourceTypeDb, db.Code)...), "%s")
+	dbConn, err := d.DbApp.GetDbConn(dbId, dbName)
+	biz.ErrIsNil(err)
+	biz.ErrIsNilAppendErr(d.TagApp.CanAccess(la.Id, dbConn.Info.CodePath...), "%s")
 
 	now := time.Now()
-	filename := fmt.Sprintf("%s-%s.%s.sql%s", db.Name, dbName, now.Format("20060102150405"), extName)
+	filename := fmt.Sprintf("%s-%s.%s.sql%s", dbConn.Info.Name, dbName, now.Format("20060102150405"), extName)
 	rc.Header("Content-Type", "application/octet-stream")
 	rc.Header("Content-Disposition", "attachment; filename="+filename)
 	if extName != ".gz" {
@@ -314,7 +313,7 @@ func (d *Db) DumpSql(rc *req.Ctx) {
 		Writer:   rc.GetWriter(),
 	}))
 
-	rc.ReqParam = collx.Kvs("db", db, "database", dbName, "tables", tablesStr, "dumpType", dumpType)
+	rc.ReqParam = collx.Kvs("db", dbConn.Info, "database", dbName, "tables", tablesStr, "dumpType", dumpType)
 }
 
 func (d *Db) TableInfos(rc *req.Ctx) {

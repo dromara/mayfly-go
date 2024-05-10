@@ -1,7 +1,6 @@
 <template>
-    <div class="string-input-container w100" v-if="dataType == DataType.String">
+    <div class="string-input-container w100" v-if="dataType == DataType.String || dataType == DataType.Number">
         <el-input
-            v-if="dataType == DataType.String"
             :ref="(el: any) => focus && el?.focus()"
             :disabled="disabled"
             @blur="handleBlur"
@@ -12,18 +11,6 @@
         />
         <SvgIcon v-if="showEditorIcon" @mousedown="openEditor" class="string-input-container-icon" name="FullScreen" :size="10" />
     </div>
-
-    <el-input
-        v-else-if="dataType == DataType.Number"
-        :ref="(el: any) => focus && el?.focus()"
-        :disabled="disabled"
-        @blur="handleBlur"
-        class="w100 mb4"
-        size="small"
-        v-model.number="itemValue"
-        :placeholder="placeholder"
-        type="number"
-    />
 
     <el-date-picker
         v-else-if="dataType == DataType.Date"
@@ -75,7 +62,7 @@
 
 <script lang="ts" setup>
 import { computed, ref, Ref } from 'vue';
-import { ElInput } from 'element-plus';
+import { ElInput, ElMessage } from 'element-plus';
 import { DataType } from '../../dialect/index';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import MonacoEditorDialog from '@/components/monaco/MonacoEditorDialog';
@@ -128,6 +115,10 @@ const closeEditorDialog = () => {
 
 const handleBlur = () => {
     if (editorOpening.value) {
+        return;
+    }
+    if (props.dataType == DataType.Number && !/^-?\d*\.?\d+$/.test(itemValue.value)) {
+        ElMessage.error('输入内容与类型不匹配');
         return;
     }
     emit('update:modelValue', itemValue.value);

@@ -483,17 +483,17 @@ export class DbInst {
         }
         for (let col of columns) {
             if (col.charMaxLength > 0) {
-                col.showDataType = `${col.dataType}(${col.charMaxLength})`;
+                col.columnType = `${col.dataType}(${col.charMaxLength})`;
                 col.showLength = col.charMaxLength;
                 col.showScale = null;
                 continue;
             }
             if (col.numPrecision > 0) {
                 if (col.numScale > 0) {
-                    col.showDataType = `${col.dataType}(${col.numPrecision},${col.numScale})`;
+                    col.columnType = `${col.dataType}(${col.numPrecision},${col.numScale})`;
                     col.showScale = col.numScale;
                 } else {
-                    col.showDataType = `${col.dataType}(${col.numPrecision})`;
+                    col.columnType = `${col.dataType}(${col.numPrecision})`;
                     col.showScale = null;
                 }
 
@@ -501,7 +501,7 @@ export class DbInst {
                 continue;
             }
 
-            col.showDataType = col.dataType;
+            col.columnType = col.dataType;
         }
     }
 }

@@ -1,12 +1,11 @@
 <template>
-    <div class="w100">
+    <div class="w100 tag-tree-check">
         <el-input v-model="filterTag" @input="onFilterValChanged" clearable placeholder="输入关键字过滤" size="small" />
         <div class="mt3" style="border: 1px solid var(--el-border-color)">
             <el-scrollbar :style="{ height: props.height }">
                 <el-tree
                     v-bind="$attrs"
                     ref="tagTreeRef"
-                    style="width: 100%"
                     :data="state.tags"
                     :default-expanded-keys="checkedTags"
                     :default-checked-keys="checkedTags"
@@ -25,7 +24,7 @@
                     :filter-node-method="filterNode"
                 >
                     <template #default="{ data }">
-                        <span class="custom-tree-node">
+                        <span>
                             <SvgIcon
                                 :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon"
                                 :color="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.iconColor"
@@ -157,4 +156,12 @@ const disableParentNodes = (node: any, disable = true) => {
     disableParentNodes(node.parent, disable);
 };
 </script>
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.tag-tree-check {
+    .el-tree {
+        min-width: 100%;
+        // 横向滚动生效
+        display: inline-block;
+    }
+}
+</style>

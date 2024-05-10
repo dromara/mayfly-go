@@ -115,7 +115,7 @@
                                             <el-option
                                                 v-for="item in state.targetColumnList"
                                                 :key="item.columnName"
-                                                :label="item.columnName + ` ${item.showDataType}` + (item.columnComment && ' - ' + item.columnComment)"
+                                                :label="item.columnName + ` ${item.columnType}` + (item.columnComment && ' - ' + item.columnComment)"
                                                 :value="item.columnName"
                                             />
                                         </el-select>

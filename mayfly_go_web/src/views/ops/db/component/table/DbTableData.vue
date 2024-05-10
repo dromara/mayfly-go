@@ -476,9 +476,9 @@ const setTableColumns = (columns: any) => {
     state.columns = columns.map((x: any) => {
         const columnName = x.columnName;
         // 数据类型
-        x.dataType = dbDialect.getDataType(x.dataType);
+        x.dataType = dbDialect.getDataType(x.columnType);
         x.dataTypeSubscript = ColumnTypeSubscript[x.dataType];
-        x.remark = `${x.showDataType} ${x.columnComment ? ' |  ' + x.columnComment : ''}`;
+        x.remark = `${x.columnType} ${x.columnComment ? ' |  ' + x.columnComment : ''}`;
 
         return {
             ...x,

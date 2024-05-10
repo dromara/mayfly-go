@@ -52,7 +52,6 @@ func (md *MysqlDialect) BatchInsert(tx *sql.Tx, tableName string, columns []stri
 }
 
 func (md *MysqlDialect) CopyTable(copy *dbi.DbCopyTable) error {
-
 	tableName := copy.TableName
 
 	// 生成新表名,为老表明+_copy_时间戳

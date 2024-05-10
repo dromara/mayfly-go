@@ -82,7 +82,7 @@
         <el-dialog width="40%" :title="`${chooseTableName} 字段信息`" v-model="columnDialog.visible">
             <el-table border stripe :data="columnDialog.columns" size="small">
                 <el-table-column prop="columnName" label="名称" show-overflow-tooltip> </el-table-column>
-                <el-table-column width="120" prop="showDataType" label="类型" show-overflow-tooltip> </el-table-column>
+                <el-table-column width="120" prop="columnType" label="类型" show-overflow-tooltip> </el-table-column>
                 <el-table-column width="80" prop="nullable" label="是否可为空" show-overflow-tooltip> </el-table-column>
                 <el-table-column prop="columnComment" label="备注" show-overflow-tooltip> </el-table-column>
             </el-table>

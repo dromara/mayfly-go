@@ -254,7 +254,7 @@ func (md *MysqlMetaData) GenerateTableDDL(columns []dbi.Column, tableInfo dbi.Ta
 	sqlArr := make([]string, 0)
 
 	if dropBeforeCreate {
-		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s;", meta.QuoteIdentifier(tableInfo.TableName)))
+		sqlArr = append(sqlArr, fmt.Sprintf("DROP TABLE IF EXISTS %s", meta.QuoteIdentifier(tableInfo.TableName)))
 	}
 
 	// 组装建表语句
