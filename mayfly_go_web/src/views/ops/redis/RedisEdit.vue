@@ -58,13 +58,6 @@
                                 placeholder="请输入密码, 修改操作可不填"
                                 autocomplete="new-password"
                             >
-                                <!-- <template v-if="form.id && form.id != 0" #suffix>
-                                    <el-popover @hide="pwd = ''" placement="right" title="原密码" :width="200" trigger="click" :content="pwd">
-                                        <template #reference>
-                                            <el-link @click="getPwd" :underline="false" type="primary" class="mr5">原密码</el-link>
-                                        </template>
-                                    </el-popover>
-                                </template> -->
                             </el-input>
                         </el-form-item>
                         <el-form-item prop="db" label="库号" required>
@@ -106,7 +99,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, ref, watchEffect } from 'vue';
+import { toRefs, reactive, ref, watch } from 'vue';
 import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
@@ -207,23 +200,25 @@ const { dialogVisible, tabActiveName, form, submitForm, dbList } = toRefs(state)
 const { isFetching: testConnBtnLoading, execute: testConnExec } = redisApi.testConn.useApi(submitForm);
 const { isFetching: saveBtnLoading, execute: saveRedisExec } = redisApi.saveRedis.useApi(submitForm);
 
-watchEffect(() => {
-    state.dialogVisible = props.visible;
-    if (!state.dialogVisible) {
-        return;
+watch(
+    () => props.visible,
+    () => {
+        state.dialogVisible = props.visible;
+        if (!state.dialogVisible) {
+            return;
+        }
+        state.tabActiveName = 'basic';
+        const redis: any = props.redis;
+        if (redis) {
+            state.form = { ...redis };
+            state.form.tagCodePaths = redis.tags.map((t: any) => t.codePath);
+            convertDb(state.form.db);
+        } else {
+            state.form = { db: '0', tagCodePaths: [] } as any;
+            state.dbList = [0];
+        }
     }
-    state.tabActiveName = 'basic';
-    const redis: any = props.redis;
-    if (redis) {
-        state.form = { ...redis };
-        state.form.tagCodePaths = redis.tags.map((t: any) => t.codePath);
-        convertDb(state.form.db);
-    } else {
-        state.form = { db: '0', tagCodePaths: [] } as any;
-
-        state.dbList = [0];
-    }
-});
+);
 
 const convertDb = (db: string) => {
     state.dbList = db.split(',').map((x) => Number.parseInt(x));

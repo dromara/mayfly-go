@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="900px" :destroy-on-close="true">
-            <el-form ref="configForm" :model="form" label-width="auto">
+            <el-form ref="configForm" :model="form" :rules="rules" label-width="auto">
                 <el-form-item prop="name" label="配置项" required>
                     <el-input v-model="form.name"></el-input>
                 </el-form-item>
@@ -45,6 +45,23 @@ import { ref, toRefs, reactive, watch, watchEffect } from 'vue';
 import { configApi, accountApi } from '../api';
 import { DynamicFormEdit } from '@/components/dynamic-form';
 import { ElMessage } from 'element-plus';
+
+const rules = {
+    name: [
+        {
+            required: true,
+            message: '请输入配置项',
+            trigger: ['change', 'blur'],
+        },
+    ],
+    key: [
+        {
+            required: true,
+            message: '请输入配置key',
+            trigger: ['change', 'blur'],
+        },
+    ],
+};
 
 const props = defineProps({
     visible: {

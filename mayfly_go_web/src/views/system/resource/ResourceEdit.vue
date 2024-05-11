@@ -255,19 +255,19 @@ const changeLinkType = () => {
 };
 
 const btnOk = async () => {
+    try {
+        await menuForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
+
     const submitForm = { ...state.form };
     if (submitForm.type == 1) {
         // 如果是菜单，则解析meta，如果值为false或者''则去除该值
         submitForm.meta = parseMenuMeta(submitForm.meta);
     } else {
         submitForm.meta = null as any;
-    }
-
-    try {
-        await menuForm.value.validate();
-    } catch (e: any) {
-        ElMessage.error('请正确填写信息');
-        return false;
     }
 
     state.submitForm = submitForm;
@@ -317,10 +317,4 @@ const cancel = () => {
     emit('cancel');
 };
 </script>
-<style lang="scss">
-// 	.m-dialog {
-// 		.el-cascader {
-// 			width: 100%;
-// 		}
-// 	}
-</style>
+<style lang="scss"></style>

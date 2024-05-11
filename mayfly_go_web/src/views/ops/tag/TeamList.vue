@@ -36,7 +36,7 @@
                 <DrawerHeader :header="addTeamDialog.form.id ? '编辑团队' : '添加团队'" :back="cancelSaveTeam" />
             </template>
 
-            <el-form ref="teamForm" :model="addTeamDialog.form" label-width="auto">
+            <el-form ref="teamForm" :model="addTeamDialog.form" :rules="teamFormRules" label-width="auto">
                 <el-form-item prop="name" label="团队名" required>
                     <el-input :disabled="addTeamDialog.form.id" v-model="addTeamDialog.form.name" auto-complete="off"></el-input>
                 </el-form-item>
@@ -105,6 +105,16 @@ import TagCodePath from '../component/TagCodePath.vue';
 const teamForm: any = ref(null);
 const pageTableRef: Ref<any> = ref(null);
 const showMemPageTableRef: Ref<any> = ref(null);
+
+const teamFormRules = {
+    name: [
+        {
+            required: true,
+            message: '请输入团队名',
+            trigger: ['change', 'blur'],
+        },
+    ],
+};
 
 const searchItems = [SearchItem.input('name', '团队名称')];
 const columns = [

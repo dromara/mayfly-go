@@ -117,7 +117,7 @@ const handleBlur = () => {
     if (editorOpening.value) {
         return;
     }
-    if (props.dataType == DataType.Number && !/^-?\d*\.?\d+$/.test(itemValue.value)) {
+    if (props.dataType == DataType.Number && itemValue.value && !/^-?\d*\.?\d+$/.test(itemValue.value)) {
         ElMessage.error('输入内容与类型不匹配');
         return;
     }

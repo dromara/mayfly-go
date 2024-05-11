@@ -6,7 +6,7 @@
                 :key="column.columnName"
                 class="w100 mb5"
                 :prop="column.columnName"
-                :required="column.nullable != 'YES' && !column.isPrimaryKey && !column.isIdentity"
+                :required="!column.nullable && !column.isPrimaryKey && !column.isIdentity"
             >
                 <template #label>
                     <span class="pointer" :title="`${column.columnType} | ${column.columnComment}`">

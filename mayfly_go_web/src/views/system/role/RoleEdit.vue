@@ -1,7 +1,7 @@
 <template>
     <div class="role-dialog">
         <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="500px" :destroy-on-close="true">
-            <el-form ref="roleForm" :model="form" label-width="auto">
+            <el-form ref="roleForm" :model="form" :rules="rules" label-width="auto">
                 <el-form-item prop="name" label="角色名称" required>
                     <el-input v-model="form.name" auto-complete="off"></el-input>
                 </el-form-item>
@@ -31,6 +31,30 @@
 import { ref, toRefs, reactive, watchEffect } from 'vue';
 import { roleApi } from '../api';
 import { RoleStatusEnum } from '../enums';
+
+const rules = {
+    name: [
+        {
+            required: true,
+            message: '请输入角色名称',
+            trigger: ['change', 'blur'],
+        },
+    ],
+    code: [
+        {
+            required: true,
+            message: '请输入角色编号',
+            trigger: ['change', 'blur'],
+        },
+    ],
+    status: [
+        {
+            required: true,
+            message: '请选择状态',
+            trigger: ['change', 'blur'],
+        },
+    ],
+};
 
 const props = defineProps({
     visible: {
