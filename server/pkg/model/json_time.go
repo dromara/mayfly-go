@@ -31,7 +31,8 @@ func (j JsonTime) MarshalJSON() ([]byte, error) {
 
 func (j *JsonTime) UnmarshalJSON(b []byte) error {
 	s := strings.ReplaceAll(string(b), "\"", "")
-	t, err := time.Parse(timex.DefaultDateTimeFormat, s)
+	// t, err := time.Parse(timex.DefaultDateTimeFormat, s)
+	t, err := time.ParseInLocation(timex.DefaultDateTimeFormat, s, time.Local)
 	if err != nil {
 		return err
 	}

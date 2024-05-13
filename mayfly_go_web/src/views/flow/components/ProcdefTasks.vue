@@ -3,7 +3,7 @@
         <el-step v-for="task in tasksArr" :status="getStepStatus(task)" :title="task.name" :key="task.taskKey">
             <template #description>
                 <div>{{ `${task.accountUsername}(${task.accountName})` }}</div>
-                <div v-if="task.completeTime">{{ `${dateFormat(task.completeTime)}` }}</div>
+                <div v-if="task.completeTime">{{ `${formatDate(task.completeTime)}` }}</div>
                 <div v-if="task.remark">{{ task.remark }}</div>
             </template>
         </el-step>
@@ -14,7 +14,7 @@
 import { toRefs, reactive, watch, onMounted } from 'vue';
 import { accountApi } from '../../system/api';
 import { ProcinstTaskStatus } from '../enums';
-import { dateFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 import { ElSteps, ElStep } from 'element-plus';
 
 const props = defineProps({

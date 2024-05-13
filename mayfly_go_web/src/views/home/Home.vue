@@ -35,7 +35,7 @@
                                         </el-col>
                                         <el-col :xs="24" :sm="12" class="personal-item mb6">
                                             <div class="personal-item-label">上次登录时间：</div>
-                                            <div class="personal-item-value">{{ dateFormat(userInfo.lastLoginTime) }}</div>
+                                            <div class="personal-item-value">{{ formatDate(userInfo.lastLoginTime) }}</div>
                                         </el-col>
                                     </el-row>
                                 </el-col>
@@ -84,7 +84,7 @@
                             <el-table :data="state.machine.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
                                 <el-table-column prop="createTime" show-overflow-tooltip width="135">
                                     <template #default="scope">
-                                        {{ dateFormat(scope.row.createTime) }}
+                                        {{ formatDate(scope.row.createTime) }}
                                     </template>
                                 </el-table-column>
                                 <el-table-column prop="codePath" min-width="400" show-overflow-tooltip>
@@ -118,7 +118,7 @@
                             <el-table :data="state.db.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
                                 <el-table-column prop="createTime" show-overflow-tooltip min-width="135">
                                     <template #default="scope">
-                                        {{ dateFormat(scope.row.createTime) }}
+                                        {{ formatDate(scope.row.createTime) }}
                                     </template>
                                 </el-table-column>
                                 <el-table-column prop="codePath" min-width="380" show-overflow-tooltip>
@@ -159,7 +159,7 @@
                             <el-table :data="state.redis.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
                                 <el-table-column prop="createTime" show-overflow-tooltip min-width="135">
                                     <template #default="scope">
-                                        {{ dateFormat(scope.row.createTime) }}
+                                        {{ formatDate(scope.row.createTime) }}
                                     </template>
                                 </el-table-column>
                                 <el-table-column prop="codePath" min-width="380" show-overflow-tooltip>
@@ -198,7 +198,7 @@
                             <el-table :data="state.mongo.opLogs" :height="state.resourceOpTableHeight" stripe size="small" empty-text="暂无操作记录">
                                 <el-table-column prop="createTime" show-overflow-tooltip min-width="135">
                                     <template #default="scope">
-                                        {{ dateFormat(scope.row.createTime) }}
+                                        {{ formatDate(scope.row.createTime) }}
                                     </template>
                                 </el-table-column>
                                 <el-table-column prop="codePath" min-width="380" show-overflow-tooltip>
@@ -228,7 +228,7 @@
                 <el-table-column property="msg" label="消息"></el-table-column>
                 <el-table-column property="createTime" label="时间" width="150">
                     <template #default="scope">
-                        {{ dateFormat(scope.row.createTime) }}
+                        {{ formatDate(scope.row.createTime) }}
                     </template>
                 </el-table-column>
             </el-table>
@@ -257,7 +257,7 @@ import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useUserInfo } from '@/store/userInfo';
 import { personApi } from '../personal/api';
-import { dateFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { resourceOpLogApi } from '../ops/tag/api';

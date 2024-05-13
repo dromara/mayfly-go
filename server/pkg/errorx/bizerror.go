@@ -11,10 +11,11 @@ type BizError struct {
 }
 
 var (
-	Success       BizError = NewBizCode(200, "success")
-	BizErr        BizError = NewBizCode(400, "biz error")
-	ServerError   BizError = NewBizCode(500, "server error")
-	PermissionErr BizError = NewBizCode(501, "token error")
+	Success            BizError = NewBizCode(200, "success")
+	BizErr             BizError = NewBizCode(400, "biz error")
+	ServerError        BizError = NewBizCode(500, "server error")
+	PermissionErr      BizError = NewBizCode(501, "token error")
+	AccessTokenInvalid BizError = NewBizCode(502, "access token invalid")
 )
 
 // 错误消息

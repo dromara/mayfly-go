@@ -1,6 +1,7 @@
 import { randomUuid } from './string';
 
 const TokenKey = 'm-token';
+const RefreshTokenKey = 'm-refresh-token';
 const UserKey = 'm-user';
 const TagViewsKey = 'm-tagViews';
 const ClientIdKey = 'm-clientId';
@@ -13,6 +14,14 @@ export function getToken(): string {
 // 保存用户访问token
 export function saveToken(token: string) {
     setLocal(TokenKey, token);
+}
+
+export function getRefreshToken(): string {
+    return getLocal(RefreshTokenKey);
+}
+
+export function saveRefreshToken(refreshToken: string) {
+    return setLocal(RefreshTokenKey, refreshToken);
 }
 
 // 获取登录用户基础信息
@@ -39,6 +48,7 @@ export function getThemeConfig() {
 export function clearUser() {
     removeLocal(TokenKey);
     removeLocal(UserKey);
+    removeLocal(RefreshTokenKey);
 }
 
 export function getTagViews() {

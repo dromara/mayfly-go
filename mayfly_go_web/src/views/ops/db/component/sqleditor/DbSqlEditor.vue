@@ -296,44 +296,37 @@ const onRunSql = async (newTab = false) => {
     notBlank(sql && sql.trim(), '请选中需要执行的sql');
     // 去除字符串前的空格、换行等
     sql = sql.replace(/(^\s*)/g, '');
-    let execRemark = '';
-    let canRun = true;
 
     // 简单截取前十个字符
     const sqlPrefix = sql.slice(0, 10).toLowerCase();
-    if (
+    const nonQuery =
         sqlPrefix.startsWith('update') ||
         sqlPrefix.startsWith('insert') ||
         sqlPrefix.startsWith('delete') ||
         sqlPrefix.startsWith('alert') ||
         sqlPrefix.startsWith('drop') ||
-        sqlPrefix.startsWith('create')
-    ) {
-        const res: any = await ElMessageBox.prompt('请输入备注', 'Tip', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            inputPattern: /^[\s\S]*.*[^\s][\s\S]*$/,
-            inputErrorMessage: '请输入执行该sql的备注信息',
-        });
-        execRemark = res.value;
-        if (!execRemark) {
-            canRun = false;
+        sqlPrefix.startsWith('create');
+
+    // 启用工单审批
+    if (nonQuery && getNowDbInst().flowProcdef) {
+        try {
+            getNowDbInst().promptExeSql(props.dbName, sql, null, () => {
+                ElMessage.success('工单提交成功');
+            });
+        } catch (e) {
+            ElMessage.success('工单提交失败');
         }
-    }
-    if (!canRun) {
         return;
     }
 
-    // 启用工单审批
-    if (execRemark && getNowDbInst().flowProcdef) {
-        try {
-            await getNowDbInst().runSql(props.dbName, sql, execRemark);
-            ElMessage.success('工单提交成功');
-            return;
-        } catch (e) {
-            ElMessage.success('工单提交失败');
-            return;
-        }
+    let execRemark;
+    if (nonQuery) {
+        const res: any = await ElMessageBox.prompt('请输入备注', 'Tip', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            inputErrorMessage: '输入执行该sql的备注信息',
+        });
+        execRemark = res.value;
     }
 
     let execRes: ExecResTab;

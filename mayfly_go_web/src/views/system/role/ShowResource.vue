@@ -20,7 +20,7 @@
                                         {{ data.creator }}
                                     </el-descriptions-item>
                                     <el-descriptions-item label="分配时间">
-                                        {{ dateFormat(data.createTime) }}
+                                        {{ formatDate(data.createTime) }}
                                     </el-descriptions-item>
                                 </el-descriptions>
                             </template>
@@ -35,7 +35,7 @@
 <script lang="ts" setup>
 import { toRefs, reactive, watch } from 'vue';
 import { ResourceTypeEnum } from '../enums';
-import { dateFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 
 const props = defineProps({
     visible: {

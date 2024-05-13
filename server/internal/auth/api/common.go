@@ -41,18 +41,19 @@ func LastLoginCheck(account *sysentity.Account, accountLoginSecurity *config.Acc
 	// 默认为不校验otp
 	otpStatus := OtpStatusNone
 	// 访问系统使用的token
-	accessToken, err := req.CreateToken(account.Id, username)
+	accessToken, refreshToken, err := req.CreateToken(account.Id, username)
 	biz.ErrIsNilAppendErr(err, "token创建失败: %s")
 
 	// 若系统配置中设置开启otp双因素校验，则进行otp校验
 	if accountLoginSecurity.UseOtp {
-		otpInfo, otpurl, otpToken := useOtp(account, accountLoginSecurity.OtpIssuer, accessToken)
+		otpInfo, otpurl, otpToken := useOtp(account, accountLoginSecurity.OtpIssuer, accessToken, refreshToken)
 		otpStatus = otpInfo.OptStatus
 		if otpurl != "" {
 			res["otpUrl"] = otpurl
 		}
 		accessToken = otpToken
 	} else {
+		res["refresh_token"] = refreshToken
 		// 不进行otp二次校验则直接返回accessToken
 		// 保存登录消息
 		go saveLogin(account, loginIp)
@@ -64,7 +65,7 @@ func LastLoginCheck(account *sysentity.Account, accountLoginSecurity *config.Acc
 	return res
 }
 
-func useOtp(account *sysentity.Account, otpIssuer, accessToken string) (*OtpVerifyInfo, string, string) {
+func useOtp(account *sysentity.Account, otpIssuer, accessToken string, refreshToken string) (*OtpVerifyInfo, string, string) {
 	biz.ErrIsNil(account.OtpSecretDecrypt())
 	otpSecret := account.OtpSecret
 	// 修改状态为已注册
@@ -83,13 +84,14 @@ func useOtp(account *sysentity.Account, otpIssuer, accessToken string) (*OtpVeri
 		otpUrl = key.URL()
 		otpSecret = key.Secret()
 	}
-	// 缓存otpInfo, 只有双因素校验通过才可返回真正的accessToken
+	// 缓存otpInfo, 只有双因素校验通过才可返回真正的token
 	otpInfo := &OtpVerifyInfo{
-		AccountId:   account.Id,
-		Username:    account.Username,
-		OptStatus:   otpStatus,
-		OtpSecret:   otpSecret,
-		AccessToken: accessToken,
+		AccountId:    account.Id,
+		Username:     account.Username,
+		OptStatus:    otpStatus,
+		OtpSecret:    otpSecret,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}
 	cache.SetStr(fmt.Sprintf("otp:token:%s", token), jsonx.ToStr(otpInfo), time.Minute*time.Duration(3))
 	return otpInfo, otpUrl, token

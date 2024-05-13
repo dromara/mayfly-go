@@ -33,7 +33,7 @@
                 <el-table-column prop="cmd" label="命令" show-overflow-tooltip min-width="150px"> </el-table-column>
                 <el-table-column prop="time" label="执行时间" min-width="80" show-overflow-tooltip>
                     <template #default="scope">
-                        {{ dateFormat(new Date(scope.row.time * 1000).toString()) }}
+                        {{ formatDate(new Date(scope.row.time * 1000).toString()) }}
                     </template>
                 </el-table-column>
             </el-table>
@@ -48,7 +48,7 @@ import * as AsciinemaPlayer from 'asciinema-player';
 import 'asciinema-player/dist/bundle/asciinema-player.css';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
-import { dateFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 
 const props = defineProps({
     visible: { type: Boolean },
@@ -122,8 +122,8 @@ const playRec = async (rec: any) => {
                 idleTimeLimit: 2,
                 // fit: false,
                 // terminalFontSize: 'small',
-                cols: 144,
-                rows: 32,
+                // cols: 144,
+                // rows: 32,
             });
         });
     } finally {

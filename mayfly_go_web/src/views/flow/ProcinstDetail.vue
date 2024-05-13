@@ -17,11 +17,11 @@
                         <AccountInfo :account-id="procinst.creatorId" :username="procinst.creator" />
                         <!-- {{ procinst.creator }} -->
                     </el-descriptions-item>
-                    <el-descriptions-item label="发起时间">{{ dateFormat(procinst.createTime) }}</el-descriptions-item>
+                    <el-descriptions-item label="发起时间">{{ formatDate(procinst.createTime) }}</el-descriptions-item>
 
                     <div v-if="procinst.duration">
                         <el-descriptions-item label="持续时间">{{ formatTime(procinst.duration) }}</el-descriptions-item>
-                        <el-descriptions-item label="结束时间">{{ dateFormat(procinst.endTime) }}</el-descriptions-item>
+                        <el-descriptions-item label="结束时间">{{ formatDate(procinst.endTime) }}</el-descriptions-item>
                     </div>
 
                     <el-descriptions-item label="流程状态">
@@ -86,11 +86,11 @@ import { procinstApi } from './api';
 import { ElMessage } from 'element-plus';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import { FlowBizType, ProcinstBizStatus, ProcinstTaskStatus, ProcinstStatus } from './enums';
-import { dateFormat } from '@/common/utils/date';
 import ProcdefTasks from './components/ProcdefTasks.vue';
 import { formatTime } from '@/common/utils/format';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import AccountInfo from '@/views/system/account/components/AccountInfo.vue';
+import { formatDate } from '@/common/utils/format';
 
 const DbSqlExecBiz = defineAsyncComponent(() => import('./flowbiz/DbSqlExecBiz.vue'));
 const RedisRunWriteCmdBiz = defineAsyncComponent(() => import('./flowbiz/RedisRunWriteCmdBiz.vue'));

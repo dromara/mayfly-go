@@ -26,6 +26,8 @@ func Init(router *gin.RouterGroup) {
 		// 用户账号密码登录
 		req.NewPost("/accounts/login", accountLogin.Login).Log(req.NewLogSave("用户登录")).DontNeedToken(),
 
+		req.NewGet("/accounts/refreshToken", accountLogin.RefreshToken).DontNeedToken(),
+
 		// 用户退出登录
 		req.NewPost("/accounts/logout", accountLogin.Logout),
 

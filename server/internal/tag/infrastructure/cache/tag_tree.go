@@ -10,7 +10,7 @@ import (
 const AccountTagsKey = "mayfly:tag:account:%d"
 
 func SaveAccountTagPaths(accountId uint64, tags []string) error {
-	return global_cache.Set(fmt.Sprintf(AccountTagsKey, accountId), tags, 30*time.Minute)
+	return global_cache.Set(fmt.Sprintf(AccountTagsKey, accountId), tags, 2*time.Minute)
 }
 
 func GetAccountTagPaths(accountId uint64) ([]string, error) {

@@ -161,7 +161,7 @@ import { DbInst } from '@/views/ops/db/db';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
-import { dateStrFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 import { useIntervalFn, useStorage } from '@vueuse/core';
 import { ColumnTypeSubscript, compatibleMysql, DataType, DbDialect, getDbDialect } from '../../dialect/index';
 import ColumnFormItem from './ColumnFormItem.vue';
@@ -617,6 +617,10 @@ const onDeleteData = async () => {
     const db = state.db;
     const dbInst = getNowDbInst();
     dbInst.promptExeSql(db, await dbInst.genDeleteByPrimaryKeysSql(db, state.table, deleteDatas as any), null, () => {
+        // 存在流程则恢复原值，需工单流程审批完后自动执行
+        if (dbInst.flowProcdef) {
+            return;
+        }
         emits('dataDelete', deleteDatas);
     });
 };
@@ -628,7 +632,7 @@ const onEditRowData = () => {
         return;
     }
     const data = selectionDatas[0];
-    state.tableDataFormDialog.data = data;
+    state.tableDataFormDialog.data = { ...data };
     state.tableDataFormDialog.title = `编辑表'${props.table}'数据`;
     state.tableDataFormDialog.visible = true;
 };
@@ -674,13 +678,13 @@ const onExportCsv = () => {
             columnNames.push(column.columnName);
         }
     }
-    exportCsv(`数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, columnNames, dataList);
+    exportCsv(`数据导出-${state.table}-${formatDate(new Date(), 'yyyyMMddHHmm')}`, columnNames, dataList);
 };
 
 const onExportSql = async () => {
     const selectionDatas = state.datas;
     exportFile(
-        `数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}.sql`,
+        `数据导出-${state.table}-${formatDate(new Date(), 'yyyyMMddHHmm')}.sql`,
         await getNowDbInst().genInsertSql(state.db, state.table, selectionDatas)
     );
 };
@@ -763,7 +767,12 @@ const submitUpdateFields = async () => {
         res += await dbInst.genUpdateSql(db, state.table, updateColumnValue, rowData);
     }
 
-    dbInst.promptExeSql(db, res, cancelUpdateFields, () => {
+    dbInst.promptExeSql(db, res, null, () => {
+        // 存在流程则恢复原值，需工单流程审批完后自动执行
+        if (dbInst.flowProcdef) {
+            cancelUpdateFields();
+            return;
+        }
         triggerRefresh();
         cellUpdateMap.clear();
         changeUpdatedField();
@@ -810,11 +819,11 @@ const getFormatTimeValue = (dataType: DataType, originValue: string): string => 
 
     switch (dataType) {
         case DataType.Time:
-            return dateStrFormat('HH:mm:ss', originValue);
+            return formatDate(originValue, 'HH:mm:ss');
         case DataType.Date:
-            return dateStrFormat('yyyy-MM-dd', originValue);
+            return formatDate(originValue, 'YYYY-MM-DD');
         case DataType.DateTime:
-            return dateStrFormat('yyyy-MM-dd HH:mm:ss', originValue);
+            return formatDate(originValue, 'YYYY-MM-DD HH:mm:ss');
         default:
             return originValue;
     }

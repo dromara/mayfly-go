@@ -38,6 +38,7 @@ export enum ResultEnum {
     PARAM_ERROR = 405,
     SERVER_ERROR = 500,
     NO_PERMISSION = 501,
+    ACCESS_TOKEN_INVALID = 502, // accessToken失效
 }
 
 export const baseUrl: string = config.baseApiUrl;

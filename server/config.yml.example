@@ -11,9 +11,11 @@ server:
     cert-file: ./default.pem
 jwt:
   # jwt key，不设置默认使用随机字符串
-  key: 
-  # 过期时间单位分钟
-  expire-time: 1440
+  key: 333333000000
+  # accessToken过期时间单位分钟
+  expire-time: 720
+  # refreshToken过期时间单位分钟
+  refresh-token-expire-time: 4320
 # 资源密码aes加密key
 aes:
   key: 1111111111111111

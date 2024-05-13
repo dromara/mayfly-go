@@ -352,7 +352,6 @@ export class DbInst {
      * 弹框提示是否执行sql
      */
     promptExeSql = (db: string, sql: string, cancelFunc: any = null, successFunc: any = null) => {
-        console.log(this);
         SqlExecBox({
             sql,
             dbId: this.id,

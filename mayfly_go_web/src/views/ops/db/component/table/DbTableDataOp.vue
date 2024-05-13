@@ -50,17 +50,6 @@
                     </el-tooltip>
                     <el-divider direction="vertical" border-style="dashed" />
 
-                    <el-tooltip :show-after="500" class="box-item" effect="dark" content="commit" placement="top">
-                        <template #content>
-                            1. 右击数据/表头可显示操作菜单 <br />
-                            2. 按住Ctrl点击数据则为多选 <br />
-                            3. 双击单元格可编辑数据 <br />
-                            4. 鼠标悬停字段名或标签树的表名可提示相关备注
-                        </template>
-                        <el-link icon="QuestionFilled" :underline="false"> </el-link>
-                    </el-tooltip>
-                    <el-divider direction="vertical" border-style="dashed" />
-
                     <!-- 表数据展示配置 -->
                     <el-popover
                         popper-style="max-height: 550px; overflow: auto; max-width: 450px"

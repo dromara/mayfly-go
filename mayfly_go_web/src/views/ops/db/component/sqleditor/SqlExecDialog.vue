@@ -66,6 +66,8 @@ const runSql = async () => {
 
     try {
         state.btnLoading = true;
+        runSuccess = true;
+
         const res = await dbApi.sqlExec.request({
             id: props.dbId,
             db: props.db,
@@ -75,7 +77,6 @@ const runSql = async () => {
 
         // 存在流程审批
         if (props.flowProcdef) {
-            runSuccess = false;
             ElMessage.success('工单提交成功');
             return;
         }
@@ -87,7 +88,6 @@ const runSql = async () => {
             }
         }
 
-        runSuccess = true;
         ElMessage.success('执行成功');
     } catch (e) {
         runSuccess = false;
@@ -96,9 +96,9 @@ const runSql = async () => {
             if (props.runSuccessCallback) {
                 props.runSuccessCallback();
             }
+            cancel();
         }
         state.btnLoading = false;
-        cancel();
     }
 };
 

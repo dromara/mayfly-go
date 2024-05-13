@@ -85,35 +85,35 @@ const closeDialog = () => {
 };
 
 const confirm = async () => {
-    dataForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写数据信息');
-            return false;
-        }
+    try {
+        await dataForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写数据信息');
+        return false;
+    }
 
-        const dbInst = props.dbInst;
-        const data = modelValue.value;
-        const db = props.dbName;
-        const tableName = props.tableName;
+    const dbInst = props.dbInst;
+    const data = modelValue.value;
+    const db = props.dbName;
+    const tableName = props.tableName;
 
-        let sql = '';
-        if (oldValue) {
-            const updateColumnValue = {};
-            Object.keys(oldValue).forEach((key) => {
-                // 如果新旧值不相等，则为需要更新的字段
-                if (oldValue[key] !== modelValue.value[key]) {
-                    updateColumnValue[key] = modelValue.value[key];
-                }
-            });
-            sql = await dbInst.genUpdateSql(db, tableName, updateColumnValue, oldValue);
-        } else {
-            sql = await dbInst.genInsertSql(db, tableName, [data], true);
-        }
-
-        dbInst.promptExeSql(db, sql, null, () => {
-            closeDialog();
-            emit('submitSuccess');
+    let sql = '';
+    if (oldValue) {
+        const updateColumnValue = {};
+        Object.keys(oldValue).forEach((key) => {
+            // 如果新旧值不相等，则为需要更新的字段
+            if (oldValue[key] !== modelValue.value[key]) {
+                updateColumnValue[key] = modelValue.value[key];
+            }
         });
+        sql = await dbInst.genUpdateSql(db, tableName, updateColumnValue, oldValue);
+    } else {
+        sql = await dbInst.genInsertSql(db, tableName, [data], true);
+    }
+
+    dbInst.promptExeSql(db, sql, null, () => {
+        closeDialog();
+        emit('submitSuccess');
     });
 };
 </script>

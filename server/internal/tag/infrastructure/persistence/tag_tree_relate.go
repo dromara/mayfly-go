@@ -4,6 +4,7 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/base"
+	"time"
 )
 
 type tagTreeRelateRepoImpl struct {
@@ -43,12 +44,10 @@ func (tr *tagTreeRelateRepoImpl) SelectTagPathsByAccountId(accountId uint64) []s
 	sql := `
 SELECT
 	DISTINCT(t.code_path)
-FROM
-	t_tag_tree_relate t1
-JOIN t_team_member t2 ON
-	t1.relate_id = t2.team_id
-JOIN t_tag_tree t ON
-	t.id = t1.tag_id
+FROM t_tag_tree_relate t1
+JOIN t_team_member t2 ON t1.relate_id = t2.team_id
+JOIN t_team t3 ON t3.id = t2.team_id AND t3.validity_start_date < ? AND t3.validity_end_date > ?
+JOIN t_tag_tree t ON t.id = t1.tag_id
 WHERE
 	t1.relate_type = ?
 	AND t2.account_id = ?
@@ -58,7 +57,8 @@ WHERE
 ORDER BY
 	t.code_path
 	`
-	tr.SelectBySql(sql, &res, entity.TagRelateTypeTeam, accountId)
+	now := time.Now()
+	tr.SelectBySql(sql, &res, now, now, entity.TagRelateTypeTeam, accountId)
 	return res
 }
 

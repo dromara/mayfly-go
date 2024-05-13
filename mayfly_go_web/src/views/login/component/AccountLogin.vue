@@ -132,7 +132,7 @@ import { nextTick, onMounted, ref, toRefs, reactive, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { initRouter } from '@/router/index';
-import { saveToken, saveUser } from '@/common/utils/storage';
+import { getRefreshToken, saveRefreshToken, saveToken, saveUser } from '@/common/utils/storage';
 import { formatAxis } from '@/common/utils/format';
 import openApi from '@/common/openApi';
 import { RsaEncrypt } from '@/common/rsa';
@@ -279,19 +279,20 @@ const login = () => {
 };
 
 const otpVerify = async () => {
-    otpFormRef.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            return false;
-        }
-        try {
-            state.loading.otpConfirm = true;
-            const accessToken = await openApi.otpVerify(state.otpDialog.form);
-            await signInSuccess(accessToken);
-            state.otpDialog.visible = false;
-        } finally {
-            state.loading.otpConfirm = false;
-        }
-    });
+    try {
+        await otpFormRef.value.validate();
+    } catch (e: any) {
+        return false;
+    }
+
+    try {
+        state.loading.otpConfirm = true;
+        const res = await openApi.otpVerify(state.otpDialog.form);
+        await signInSuccess(res.token, res.refresh_token);
+        state.otpDialog.visible = false;
+    } finally {
+        state.loading.otpConfirm = false;
+    }
 };
 
 // 登录
@@ -327,22 +328,23 @@ const onSignIn = async () => {
 };
 
 const updateUserInfo = async () => {
-    baseInfoFormRef.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            return false;
-        }
-        try {
-            state.loading.updateUserConfirm = true;
-            const form = state.baseInfoDialog.form;
-            await personApi.updateAccount.request(state.baseInfoDialog.form);
-            state.baseInfoDialog.visible = false;
-            useUserInfo().userInfo.username = form.username;
-            useUserInfo().userInfo.name = form.name;
-            await toIndex();
-        } finally {
-            state.loading.updateUserConfirm = false;
-        }
-    });
+    try {
+        await baseInfoFormRef.value.validate();
+    } catch (e: any) {
+        return false;
+    }
+
+    try {
+        state.loading.updateUserConfirm = true;
+        const form = state.baseInfoDialog.form;
+        await personApi.updateAccount.request(state.baseInfoDialog.form);
+        state.baseInfoDialog.visible = false;
+        useUserInfo().userInfo.username = form.username;
+        useUserInfo().userInfo.name = form.name;
+        await toIndex();
+    } finally {
+        state.loading.updateUserConfirm = false;
+    }
 };
 
 const loginResDeal = (loginRes: any) => {
@@ -366,7 +368,7 @@ const loginResDeal = (loginRes: any) => {
     const token = loginRes.token;
     // 如果不需要    otp校验，则该token即为accessToken，否则为otp校验token
     if (loginRes.otp == -1) {
-        signInSuccess(token);
+        signInSuccess(token, loginRes.refresh_token);
         return;
     }
 
@@ -379,12 +381,16 @@ const loginResDeal = (loginRes: any) => {
 };
 
 // 登录成功后的跳转
-const signInSuccess = async (accessToken: string = '') => {
+const signInSuccess = async (accessToken: string = '', refreshToken = '') => {
     if (!accessToken) {
         accessToken = getToken();
     }
+    if (!refreshToken) {
+        refreshToken = getRefreshToken();
+    }
     // 存储 token 到浏览器缓存
     saveToken(accessToken);
+    saveRefreshToken(refreshToken);
 
     // 初始化路由
     await initRouter();
@@ -415,26 +421,27 @@ const toIndex = async () => {
     }, 300);
 };
 
-const changePwd = () => {
-    changePwdFormRef.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            return false;
-        }
-        try {
-            state.loading.changePwd = true;
-            const form = state.changePwdDialog.form;
-            const changePwdReq: any = { ...form };
-            changePwdReq.oldPassword = await RsaEncrypt(form.oldPassword);
-            changePwdReq.newPassword = await RsaEncrypt(form.newPassword);
-            await openApi.changePwd(changePwdReq);
-            ElMessage.success('密码修改成功, 新密码已填充至登录密码框');
-            state.loginForm.password = state.changePwdDialog.form.newPassword;
-            state.changePwdDialog.visible = false;
-            getCaptcha();
-        } finally {
-            state.loading.changePwd = false;
-        }
-    });
+const changePwd = async () => {
+    try {
+        await changePwdFormRef.value.validate();
+    } catch (e: any) {
+        return false;
+    }
+
+    try {
+        state.loading.changePwd = true;
+        const form = state.changePwdDialog.form;
+        const changePwdReq: any = { ...form };
+        changePwdReq.oldPassword = await RsaEncrypt(form.oldPassword);
+        changePwdReq.newPassword = await RsaEncrypt(form.newPassword);
+        await openApi.changePwd(changePwdReq);
+        ElMessage.success('密码修改成功, 新密码已填充至登录密码框');
+        state.loginForm.password = state.changePwdDialog.form.newPassword;
+        state.changePwdDialog.visible = false;
+        getCaptcha();
+    } finally {
+        state.loading.changePwd = false;
+    }
 };
 
 const cancelChangePwd = () => {

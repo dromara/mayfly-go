@@ -1,7 +1,7 @@
 <template>
     <div class="db-table">
         <el-row class="mb5">
-            <el-popover v-model:visible="showDumpInfo" :width="470" placement="right" trigger="click">
+            <el-popover v-model:visible="state.dumpInfo.visible" trigger="click" :width="470" placement="right">
                 <template #reference>
                     <el-button class="ml5" type="success" size="small">导出</el-button>
                 </template>
@@ -13,16 +13,15 @@
                     </el-radio-group>
                 </el-form-item>
 
-                <el-form-item label="导出表: ">
-                    <el-table @selection-change="handleDumpTableSelectionChange" max-height="300" size="small" :data="tables">
-                        <el-table-column type="selection" width="45" />
+                <el-form-item>
+                    <el-table :data="state.dumpInfo.tables" empty-text="请先选择要导出的表" max-height="300" size="small">
                         <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip> </el-table-column>
                         <el-table-column property="tableComment" label="备注" min-width="150" show-overflow-tooltip> </el-table-column>
                     </el-table>
                 </el-form-item>
 
                 <div style="text-align: right">
-                    <el-button @click="showDumpInfo = false" size="small">取消</el-button>
+                    <el-button @click="state.dumpInfo.visible = false" size="small">取消</el-button>
                     <el-button @click="dump(db)" type="success" size="small">确定</el-button>
                 </div>
             </el-popover>
@@ -30,7 +29,9 @@
             <el-button type="primary" size="small" @click="openEditTable(false)">创建表</el-button>
         </el-row>
 
-        <el-table v-loading="loading" border stripe :data="filterTableInfos" size="small" :height="height">
+        <el-table v-loading="loading" @selection-change="handleDumpTableSelectionChange" border stripe :data="filterTableInfos" size="small" :height="height">
+            <el-table-column type="selection" width="30" />
+
             <el-table-column property="tableName" label="表名" min-width="150" show-overflow-tooltip>
                 <template #header>
                     <el-input v-model="tableNameSearch" size="small" placeholder="表名: 输入可过滤" clearable />
@@ -161,8 +162,8 @@ const state = reactive({
     tables: [],
     tableNameSearch: '',
     tableCommentSearch: '',
-    showDumpInfo: false,
     dumpInfo: {
+        visible: false,
         id: 0,
         db: '',
         type: 3,
@@ -201,19 +202,7 @@ const state = reactive({
     },
 });
 
-const {
-    loading,
-    tables,
-    tableNameSearch,
-    tableCommentSearch,
-    showDumpInfo,
-    dumpInfo,
-    chooseTableName,
-    columnDialog,
-    indexDialog,
-    ddlDialog,
-    tableCreateDialog,
-} = toRefs(state);
+const { loading, tableNameSearch, tableCommentSearch, dumpInfo, chooseTableName, columnDialog, indexDialog, ddlDialog, tableCreateDialog } = toRefs(state);
 
 onMounted(async () => {
     getTables();
@@ -259,21 +248,22 @@ const getTables = async () => {
  * 选择导出数据库表
  */
 const handleDumpTableSelectionChange = (vals: any) => {
-    state.dumpInfo.tables = vals.map((x: any) => x.tableName);
+    state.dumpInfo.tables = vals;
 };
 
 /**
  * 数据库信息导出
  */
 const dump = (db: string) => {
-    isTrue(state.dumpInfo.tables.length > 0, '请选择要导出的表');
+    isTrue(state.dumpInfo.tables.length > 0, '请先选择要导出的表');
+    const tableNames = state.dumpInfo.tables.map((x: any) => x.tableName);
     const a = document.createElement('a');
     a.setAttribute(
         'href',
-        `${config.baseApiUrl}/dbs/${props.dbId}/dump?db=${db}&type=${state.dumpInfo.type}&tables=${state.dumpInfo.tables.join(',')}&${joinClientParams()}`
+        `${config.baseApiUrl}/dbs/${props.dbId}/dump?db=${db}&type=${state.dumpInfo.type}&tables=${tableNames.join(',')}&${joinClientParams()}`
     );
     a.click();
-    state.showDumpInfo = false;
+    state.dumpInfo.visible = false;
 };
 
 const showColumns = async (row: any) => {

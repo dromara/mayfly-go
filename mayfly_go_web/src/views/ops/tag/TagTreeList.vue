@@ -82,9 +82,9 @@
                                 <el-descriptions-item label="备注">{{ currentTag.remark }}</el-descriptions-item>
 
                                 <el-descriptions-item label="创建者">{{ currentTag.creator }}</el-descriptions-item>
-                                <el-descriptions-item label="创建时间">{{ dateFormat(currentTag.createTime) }}</el-descriptions-item>
+                                <el-descriptions-item label="创建时间">{{ formatDate(currentTag.createTime) }}</el-descriptions-item>
                                 <el-descriptions-item label="修改者">{{ currentTag.modifier }}</el-descriptions-item>
-                                <el-descriptions-item label="更新时间">{{ dateFormat(currentTag.updateTime) }}</el-descriptions-item>
+                                <el-descriptions-item label="更新时间">{{ formatDate(currentTag.updateTime) }}</el-descriptions-item>
                             </el-descriptions>
                         </el-tab-pane>
 
@@ -148,7 +148,7 @@
 import { toRefs, ref, watch, reactive, onMounted, Ref, defineAsyncComponent } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { tagApi } from './api';
-import { dateFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu/index';
 import { useUserInfo } from '@/store/userInfo';
 import { Splitpanes, Pane } from 'splitpanes';

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { dateFormat2 } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 import { useUserInfo } from '@/store/userInfo';
 import { getSysStyleConfig } from '@/common/sysconfig';
 import { getLocal, getThemeConfig } from '@/common/utils/storage';
@@ -191,7 +191,7 @@ export const useThemeConfig = defineStore('themeConfig', {
         },
         // 设置水印时间为当前时间
         setWatermarkNowTime() {
-            this.themeConfig.watermarkText[1] = dateFormat2('yyyy-MM-dd HH:mm:ss', new Date());
+            this.themeConfig.watermarkText[1] = formatDate(new Date());
         },
         // 切换暗黑模式
         switchDark(isDark: boolean) {

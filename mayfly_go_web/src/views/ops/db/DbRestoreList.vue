@@ -45,14 +45,14 @@
             <el-descriptions :column="1" border>
                 <el-descriptions-item :span="1" label="数据库名称">{{ infoDialog.data.dbName }}</el-descriptions-item>
                 <el-descriptions-item v-if="infoDialog.data.pointInTime" :span="1" label="恢复时间点">{{
-                    dateFormat(infoDialog.data.pointInTime)
+                    formatDate(infoDialog.data.pointInTime)
                 }}</el-descriptions-item>
                 <el-descriptions-item v-if="!infoDialog.data.pointInTime" :span="1" label="数据库备份">{{
                     infoDialog.data.dbBackupHistoryName
                 }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="开始时间">{{ dateFormat(infoDialog.data.startTime) }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="开始时间">{{ formatDate(infoDialog.data.startTime) }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="是否启用">{{ infoDialog.data.enabledDesc }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="执行时间">{{ dateFormat(infoDialog.data.lastTime) }}</el-descriptions-item>
+                <el-descriptions-item :span="1" label="执行时间">{{ formatDate(infoDialog.data.lastTime) }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="执行结果">{{ infoDialog.data.lastResult }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
@@ -66,7 +66,7 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { SearchItem } from '@/components/SearchForm';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { dateFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 const DbRestoreEdit = defineAsyncComponent(() => import('./DbRestoreEdit.vue'));
 const pageTableRef: Ref<any> = ref(null);
 

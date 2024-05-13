@@ -130,10 +130,10 @@
                 <el-descriptions-item :span="3" label="备注">{{ detailDialog.data.remark }}</el-descriptions-item>
                 <el-descriptions-item :span="3" label="SSH隧道">{{ detailDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(detailDialog.data.createTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="2" label="创建时间">{{ formatDate(detailDialog.data.createTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="创建者">{{ detailDialog.data.creator }}</el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(detailDialog.data.updateTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="2" label="更新时间">{{ formatDate(detailDialog.data.updateTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="修改者">{{ detailDialog.data.modifier }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
@@ -153,7 +153,7 @@ import { redisApi } from './api';
 import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import RedisEdit from './RedisEdit.vue';
-import { dateFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 import ResourceTags from '../component/ResourceTags.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';

@@ -56,7 +56,12 @@ func (p *teamAppImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.
 }
 
 func (p *teamAppImpl) SaveTeam(ctx context.Context, saveParam *dto.SaveTeam) error {
-	team := &entity.Team{Name: saveParam.Name, Remark: saveParam.Remark}
+	team := &entity.Team{
+		Name:              saveParam.Name,
+		ValidityStartDate: saveParam.ValidityStartDate,
+		ValidityEndDate:   saveParam.ValidityEndDate,
+		Remark:            saveParam.Remark,
+	}
 	team.Id = saveParam.Id
 
 	if team.Id == 0 {

@@ -7,8 +7,9 @@ import (
 )
 
 type Jwt struct {
-	Key        string `yaml:"key"`
-	ExpireTime uint64 `yaml:"expire-time"` // 过期时间，单位分钟
+	Key                    string `yaml:"key"`
+	ExpireTime             uint64 `yaml:"expire-time"`               // 过期时间，单位分钟
+	RefreshTokenExpireTime uint64 `yaml:"refresh-token-expire-time"` // 刷新token的过期时间，单位分钟
 }
 
 func (j *Jwt) Default() {
@@ -21,6 +22,10 @@ func (j *Jwt) Default() {
 	if j.ExpireTime == 0 {
 		j.ExpireTime = 1440
 		logx.Warnf("未配置jwt.expire-time, 默认值: %d", j.ExpireTime)
+	}
+	if j.RefreshTokenExpireTime == 0 {
+		j.RefreshTokenExpireTime = j.ExpireTime * 5
+		logx.Warnf("未配置jwt.refresh-token-expire-time, 默认值: %d", j.RefreshTokenExpireTime)
 	}
 }
 

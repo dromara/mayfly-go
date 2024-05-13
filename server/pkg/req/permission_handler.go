@@ -56,7 +56,7 @@ func PermissionHandler(rc *Ctx) error {
 	}
 	userId, userName, err := ParseToken(tokenStr)
 	if err != nil || userId == 0 {
-		return errorx.PermissionErr
+		return errorx.AccessTokenInvalid
 	}
 	// 权限不为nil，并且permission code不为空，则校验是否有权限code
 	if permission != nil && permission.Code != "" {

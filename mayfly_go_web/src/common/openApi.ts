@@ -2,6 +2,7 @@ import request from './request';
 
 export default {
     login: (param: any) => request.post('/auth/accounts/login', param),
+    refreshToken: (param: any) => request.get('/auth/accounts/refreshToken', param),
     otpVerify: (param: any) => request.post('/auth/accounts/otp-verify', param),
     getPublicKey: () => request.get('/common/public-key'),
     getConfigValue: (params: any) => request.get('/sys/configs/value', params),

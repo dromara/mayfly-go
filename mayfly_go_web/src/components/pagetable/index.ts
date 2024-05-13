@@ -1,5 +1,5 @@
 import EnumValue from '@/common/Enum';
-import { dateFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 import { getValueByPath } from '@/common/utils/object';
 import { getTextWidth } from '@/common/utils/string';
 
@@ -172,7 +172,7 @@ export class TableColumn {
      */
     isTime(): TableColumn {
         this.setFormatFunc((data: any, prop: string) => {
-            return dateFormat(getValueByPath(data, prop));
+            return formatDate(getValueByPath(data, prop));
         });
         return this;
     }

@@ -89,9 +89,9 @@
                                 </el-descriptions-item>
 
                                 <el-descriptions-item label="创建者">{{ currentResource.creator }}</el-descriptions-item>
-                                <el-descriptions-item label="创建时间">{{ dateFormat(currentResource.createTime) }} </el-descriptions-item>
+                                <el-descriptions-item label="创建时间">{{ formatDate(currentResource.createTime) }} </el-descriptions-item>
                                 <el-descriptions-item label="修改者">{{ currentResource.modifier }}</el-descriptions-item>
-                                <el-descriptions-item label="更新时间">{{ dateFormat(currentResource.updateTime) }} </el-descriptions-item>
+                                <el-descriptions-item label="更新时间">{{ formatDate(currentResource.updateTime) }} </el-descriptions-item>
                             </el-descriptions>
                         </el-tab-pane>
                     </el-tabs>
@@ -119,7 +119,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceEdit from './ResourceEdit.vue';
 import { ResourceTypeEnum } from '../enums';
 import { resourceApi } from '../api';
-import { dateFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import { Splitpanes, Pane } from 'splitpanes';

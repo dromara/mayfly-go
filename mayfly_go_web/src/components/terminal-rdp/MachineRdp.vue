@@ -24,8 +24,33 @@
                 <SvgIcon name="Refresh" @click="connect(0, 0)" :size="20" class="pointer-icon mr10" title="重新连接" />
             </div>
             <clipboard-dialog ref="clipboardRef" v-model:visible="state.clipboardDialog.visible" @close="closePaste" @submit="onsubmitClipboard" />
+
+            <el-dialog
+                v-if="!state.fullscreen"
+                destroy-on-close
+                :title="state.filesystemDialog.title"
+                v-model="state.filesystemDialog.visible"
+                :close-on-click-modal="false"
+                width="70%"
+            >
+                <machine-file
+                    :machine-id="state.filesystemDialog.machineId"
+                    :auth-cert-name="state.filesystemDialog.authCertName"
+                    :protocol="state.filesystemDialog.protocol"
+                    :file-id="state.filesystemDialog.fileId"
+                    :path="state.filesystemDialog.path"
+                />
+            </el-dialog>
         </div>
-        <el-dialog destroy-on-close :title="state.filesystemDialog.title" v-model="state.filesystemDialog.visible" :close-on-click-modal="false" width="70%">
+
+        <el-dialog
+            v-if="!state.fullscreen"
+            destroy-on-close
+            :title="state.filesystemDialog.title"
+            v-model="state.filesystemDialog.visible"
+            :close-on-click-modal="false"
+            width="70%"
+        >
             <machine-file
                 :machine-id="state.filesystemDialog.machineId"
                 :auth-cert-name="state.filesystemDialog.authCertName"

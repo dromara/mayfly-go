@@ -951,6 +951,8 @@ DROP TABLE IF EXISTS `t_team`;
 CREATE TABLE `t_team` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(36) NOT NULL COMMENT '名称',
+  `validity_start_date` datetime DEFAULT NULL COMMENT '生效开始时间',
+  `validity_end_date` datetime DEFAULT NULL COMMENT '生效结束时间',
   `remark` varchar(255) DEFAULT NULL COMMENT '备注',
   `create_time` datetime NOT NULL,
   `creator_id` bigint(20) NOT NULL,
@@ -967,7 +969,7 @@ CREATE TABLE `t_team` (
 -- Records of t_team
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_team` VALUES (1, 'default_team', '默认团队', '2022-10-26 20:04:36', 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', 0, NULL);
+INSERT INTO `t_team` VALUES (1, 'default_team', '2024-05-01 00:00:00', '2050-05-01 00:00:00', '默认团队', '2022-10-26 20:04:36', 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------
