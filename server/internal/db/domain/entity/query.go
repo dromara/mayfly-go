@@ -6,7 +6,7 @@ type InstanceQuery struct {
 	Name    string `json:"name" form:"name"`
 	Code    string `json:"code" form:"code"`
 	Host    string `json:"host" form:"host"`
-	TagPath string `json:"host" form:"tagPath"`
+	TagPath string `json:"tagPath" form:"tagPath"`
 	Codes   []string
 }
 

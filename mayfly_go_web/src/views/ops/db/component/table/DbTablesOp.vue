@@ -3,7 +3,7 @@
         <el-row class="mb5">
             <el-popover v-model:visible="state.dumpInfo.visible" trigger="click" :width="470" placement="right">
                 <template #reference>
-                    <el-button class="ml5" type="success" size="small">导出</el-button>
+                    <el-button :disabled="state.dumpInfo.tables?.length == 0" class="ml5" type="success" size="small">导出</el-button>
                 </template>
                 <el-form-item label="导出内容: ">
                     <el-radio-group v-model="dumpInfo.type">

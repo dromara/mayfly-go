@@ -8,13 +8,14 @@ import (
 	"mayfly-go/internal/machine/domain/entity"
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
-	"strconv"
 	"strings"
 
 	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/collx"
+
+	"github.com/may-fly/cast"
 )
 
 type MachineCronJob struct {
@@ -58,9 +59,7 @@ func (m *MachineCronJob) Delete(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		m.MachineCronJobApp.Delete(rc.MetaCtx, uint64(value))
+		m.MachineCronJobApp.Delete(rc.MetaCtx, cast.ToUint64(v))
 	}
 }
 

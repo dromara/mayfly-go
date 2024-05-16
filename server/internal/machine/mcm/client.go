@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-// 机器客户端
+// Cli 机器客户端
 type Cli struct {
 	Info *MachineInfo // 机器信息
 
@@ -17,7 +17,7 @@ type Cli struct {
 	sftpClient *sftp.Client // sftp客户端
 }
 
-// 获取sftp client
+// GetSftpCli 获取sftp client
 func (c *Cli) GetSftpCli() (*sftp.Client, error) {
 	if c.sshClient == nil {
 		return nil, errorx.NewBiz("请先进行机器客户端连接")
@@ -36,7 +36,7 @@ func (c *Cli) GetSftpCli() (*sftp.Client, error) {
 	return sftpclient, nil
 }
 
-// 获取session
+// GetSession 获取session
 func (c *Cli) GetSession() (*ssh.Session, error) {
 	if c.sshClient == nil {
 		return nil, errorx.NewBiz("请先进行机器客户端连接")
@@ -49,7 +49,7 @@ func (c *Cli) GetSession() (*ssh.Session, error) {
 	return session, nil
 }
 
-// 执行shell
+// Run 执行shell
 // @param shell shell脚本命令
 // @return 返回执行成功或错误的消息
 func (c *Cli) Run(shell string) (string, error) {
@@ -58,14 +58,15 @@ func (c *Cli) Run(shell string) (string, error) {
 		return "", err
 	}
 	defer session.Close()
-	buf, err := session.CombinedOutput(shell)
+	// 将可能存在的windows换行符替换为linux格式
+	buf, err := session.CombinedOutput(strings.ReplaceAll(shell, "\r\n", "\n"))
 	if err != nil {
 		return string(buf), err
 	}
 	return string(buf), nil
 }
 
-// 获取机器的所有状态信息
+// GetAllStats 获取机器的所有状态信息
 func (c *Cli) GetAllStats() *Stats {
 	stats := new(Stats)
 	res, err := c.Run(StatsShell)
@@ -89,7 +90,7 @@ func (c *Cli) GetAllStats() *Stats {
 	return stats
 }
 
-// 关闭client并从缓存中移除，如果使用隧道则也关闭
+// Close 关闭client并从缓存中移除，如果使用隧道则也关闭
 func (c *Cli) Close() {
 	m := c.Info
 	logx.Debugf("close machine cli -> id=%d, name=%s, ip=%s", m.Id, m.Name, m.Ip)

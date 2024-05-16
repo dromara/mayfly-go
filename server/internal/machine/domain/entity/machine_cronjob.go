@@ -23,11 +23,11 @@ type MachineCronJob struct {
 type MachineCronJobExec struct {
 	model.DeletedModel
 
-	CronJobId uint64    `json:"cronJobId" form:"cronJobId"`
-	MachineId uint64    `json:"machineId" form:"machineId"`
-	Status    int       `json:"status" form:"status"` // 执行状态
-	Res       string    `json:"res"`                  // 执行结果
-	ExecTime  time.Time `json:"execTime"`
+	CronJobId   uint64    `json:"cronJobId" form:"cronJobId"`
+	MachineCode string    `json:"machineCode" form:"machineCode"`
+	Status      int       `json:"status" form:"status"` // 执行状态
+	Res         string    `json:"res"`                  // 执行结果
+	ExecTime    time.Time `json:"execTime"`
 }
 
 const (

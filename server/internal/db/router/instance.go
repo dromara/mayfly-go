@@ -28,6 +28,9 @@ func InitInstanceRouter(router *gin.RouterGroup) {
 		// 获取数据库实例的所有数据库名
 		req.NewPost("/databases", d.GetDatabaseNames),
 
+		// 根据授权凭证名获取其所有库名
+		req.NewGet("/databases/:ac", d.GetDatabaseNamesByAc),
+
 		req.NewGet(":instanceId/server-info", d.GetDbServer),
 
 		req.NewDelete(":instanceId", d.DeleteInstance).Log(req.NewLogSave("db-删除数据库实例")),

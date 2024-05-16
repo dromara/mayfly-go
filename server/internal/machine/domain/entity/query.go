@@ -3,7 +3,7 @@ package entity
 import "time"
 
 type MachineQuery struct {
-	Ids      string `json:"ids" form:"ids"`
+	Id       uint64 `json:"id" form:"id"`
 	Code     string `json:"code" form:"code"`
 	Name     string `json:"name" form:"name"`
 	Status   int8   `json:"status" form:"status"`

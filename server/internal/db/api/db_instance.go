@@ -114,6 +114,12 @@ func (d *Instance) GetDatabaseNames(rc *req.Ctx) {
 	rc.ResData = res
 }
 
+func (d *Instance) GetDatabaseNamesByAc(rc *req.Ctx) {
+	res, err := d.InstanceApp.GetDatabasesByAc(rc.PathParam("ac"))
+	biz.ErrIsNil(err)
+	rc.ResData = res
+}
+
 // 获取数据库实例server信息
 func (d *Instance) GetDbServer(rc *req.Ctx) {
 	instanceId := getInstanceId(rc)

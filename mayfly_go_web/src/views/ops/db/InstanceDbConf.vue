@@ -8,13 +8,18 @@
             <el-table :data="state.dbs" stripe>
                 <el-table-column prop="name" label="名称" show-overflow-tooltip min-width="100"> </el-table-column>
                 <el-table-column prop="authCertName" label="授权凭证" min-width="120" show-overflow-tooltip> </el-table-column>
+                <el-table-column prop="getDatabaseMode" label="获库方式" min-width="80">
+                    <template #default="scope">
+                        <EnumTag :enums="DbGetDbNamesMode" :value="scope.row.getDatabaseMode" />
+                    </template>
+                </el-table-column>
                 <el-table-column prop="database" label="库" min-width="80">
                     <template #default="scope">
                         <el-popover placement="bottom" :width="200" trigger="click">
                             <template #reference>
-                                <el-button @click="state.currentDbs = scope.row.database" type="primary" link>查看库</el-button>
+                                <el-button @click="getDbNames(scope.row)" type="primary" link>查看库</el-button>
                             </template>
-                            <el-table :data="filterDbs" size="small">
+                            <el-table :data="filterDbs" size="small" v-loading="state.loadingDbNames">
                                 <el-table-column prop="dbName" label="数据库">
                                     <template #header>
                                         <el-input v-model="state.dbNameSearch" size="small" placeholder="库名: 输入可过滤" clearable />
@@ -57,6 +62,9 @@ import { dbApi } from './api';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 import DbEdit from './DbEdit.vue';
+import EnumTag from '@/components/enumtag/EnumTag.vue';
+import { DbGetDbNamesMode } from './enums';
+import { DbInst } from './db';
 
 const props = defineProps({
     visible: {
@@ -83,7 +91,8 @@ const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 const state = reactive({
     dialogVisible: false,
     dbs: [] as any,
-    currentDbs: '', // 当前数据库名，空格分割库名
+    loadingDbNames: false,
+    currentDbNames: [], // 当前数据库名
     dbNameSearch: '',
     dbEditDialog: {
         visible: false,
@@ -103,15 +112,26 @@ watchEffect(() => {
     getDbs();
 });
 
+const getDbNames = async (db: any) => {
+    try {
+        state.loadingDbNames = true;
+        state.currentDbNames = await DbInst.getDbNames(db);
+    } finally {
+        state.loadingDbNames = false;
+    }
+};
+
 const filterDbs = computed(() => {
-    const dbsStr = state.currentDbs;
-    if (!dbsStr) {
+    const dbNames = state.currentDbNames;
+    if (!dbNames) {
         return [];
     }
-    const dbs = dbsStr.split(' ').map((db: any) => {
-        return { dbName: db };
+    const dbNameObjs = dbNames.map((x) => {
+        return {
+            dbName: x,
+        };
     });
-    return dbs.filter((db: any) => {
+    return dbNameObjs.filter((db: any) => {
         return db.dbName.includes(state.dbNameSearch);
     });
 });

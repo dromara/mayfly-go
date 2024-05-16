@@ -410,7 +410,7 @@ func (app *dataSyncAppImpl) InitCronJob() {
 	}()
 
 	// 修改执行中状态为待执行
-	_ = app.UpdateByCond(context.TODO(), &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateRunning}, &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateReady})
+	_ = app.UpdateByCond(context.TODO(), &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateReady}, &entity.DataSyncTask{RunningState: entity.DataSyncTaskRunStateRunning})
 
 	// 把所有正常任务添加到定时任务中
 	pageParam := &model.PageParam{

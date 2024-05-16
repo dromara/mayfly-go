@@ -43,6 +43,7 @@ type SimpleTagTree struct {
 	CodePath string         `json:"codePath"` // 标识路径，tag1/tag2/tagType1|tagCode/tagType2|yyycode/，非普通标签类型段含有标签类型
 	Name     string         `json:"name"`     // 名称
 	Remark   string         `json:"remark"`
+	Root     bool           `json:"-" gorm:"-"`
 }
 
 func (pt *SimpleTagTree) IsRoot() bool {

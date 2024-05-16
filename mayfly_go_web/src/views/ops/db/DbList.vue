@@ -35,9 +35,9 @@
             <template #database="{ data }">
                 <el-popover placement="bottom" :width="200" trigger="click">
                     <template #reference>
-                        <el-button @click="state.currentDbs = data.database" type="primary" link>查看库</el-button>
+                        <el-button @click="getDbNames(data)" type="primary" link>查看库</el-button>
                     </template>
-                    <el-table :data="filterDbs" size="small">
+                    <el-table :data="filterDbs" v-loading="state.loadingDbNames" size="small">
                         <el-table-column prop="dbName" label="数据库">
                             <template #header>
                                 <el-input v-model="state.dbNameSearch" size="small" placeholder="库名: 输入可过滤" clearable />
@@ -221,6 +221,8 @@ import DbBackupHistoryList from './DbBackupHistoryList.vue';
 import DbRestoreList from './DbRestoreList.vue';
 import ResourceTags from '../component/ResourceTags.vue';
 import { sleep } from '@/common/utils/loading';
+import { DbGetDbNamesMode } from './enums';
+import { DbInst } from './db';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
@@ -237,6 +239,7 @@ const columns = ref([
     TableColumn.new('instanceName', '实例名'),
     TableColumn.new('host', 'ip:port').isSlot().setAddWidth(40),
     TableColumn.new('authCertName', '授权凭证'),
+    TableColumn.new('getDatabaseMode', '获库方式').typeTag(DbGetDbNamesMode),
     TableColumn.new('database', '库').isSlot().setMinWidth(80),
     TableColumn.new('remark', '备注'),
     TableColumn.new('code', '编号'),
@@ -258,7 +261,8 @@ const state = reactive({
     row: {} as any,
     dbId: 0,
     db: '',
-    currentDbs: '',
+    loadingDbNames: false,
+    currentDbNames: [],
     dbNameSearch: '',
     instances: [] as any,
     /**
@@ -344,15 +348,26 @@ onMounted(async () => {
     search();
 });
 
+const getDbNames = async (db: any) => {
+    try {
+        state.loadingDbNames = true;
+        state.currentDbNames = await DbInst.getDbNames(db);
+    } finally {
+        state.loadingDbNames = false;
+    }
+};
+
 const filterDbs = computed(() => {
-    const dbsStr = state.currentDbs;
-    if (!dbsStr) {
+    const dbNames = state.currentDbNames;
+    if (!dbNames) {
         return [];
     }
-    const dbs = dbsStr.split(' ').map((db: any) => {
-        return { dbName: db };
+    const dbNameObjs = dbNames.map((x) => {
+        return {
+            dbName: x,
+        };
     });
-    return dbs.filter((db: any) => {
+    return dbNameObjs.filter((db: any) => {
         return db.dbName.includes(state.dbNameSearch);
     });
 });

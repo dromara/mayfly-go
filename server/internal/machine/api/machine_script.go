@@ -11,8 +11,9 @@ import (
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/jsonx"
 	"mayfly-go/pkg/utils/stringx"
-	"strconv"
 	"strings"
+
+	"github.com/may-fly/cast"
 )
 
 type MachineScript struct {
@@ -42,9 +43,7 @@ func (m *MachineScript) DeleteMachineScript(rc *req.Ctx) {
 	ids := strings.Split(idsStr, ",")
 
 	for _, v := range ids {
-		value, err := strconv.Atoi(v)
-		biz.ErrIsNilAppendErr(err, "string类型转换为int异常: %s")
-		m.MachineScriptApp.Delete(rc.MetaCtx, uint64(value))
+		m.MachineScriptApp.Delete(rc.MetaCtx, cast.ToUint64(v))
 	}
 }
 

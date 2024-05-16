@@ -63,8 +63,8 @@ func (m *machineTermOpAppImpl) TermConn(ctx context.Context, cli *mcm.Cli, wsCon
 		termOpRecord.MachineId = cli.Info.Id
 		termOpRecord.Username = cli.Info.Username
 
-		// 回放文件路径为: 基础配置路径/操作日期(202301)/day/hour/randstr.cast
-		recRelPath := path.Join(now.Format("200601"), fmt.Sprintf("%d", now.Day()), fmt.Sprintf("%d", now.Hour()))
+		// 回放文件路径为: 基础配置路径/机器编号/操作日期(202301)/day/hour/randstr.cast
+		recRelPath := path.Join(cli.Info.Code, now.Format("200601"), fmt.Sprintf("%d", now.Day()), fmt.Sprintf("%d", now.Hour()))
 		// 文件绝对路径
 		recAbsPath := path.Join(config.GetMachine().TerminalRecPath, recRelPath)
 		os.MkdirAll(recAbsPath, 0766)

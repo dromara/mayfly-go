@@ -128,7 +128,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) erro
 				ParentTagCodePaths: tagCodePaths,
 			})
 		}, func(ctx context.Context) error {
-			return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+			return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 				ResourceCode: re.Code,
 				ResourceType: tagentity.TagTypeRedis,
 				AuthCerts:    []*tagentity.ResourceAuthCert{param.AuthCert},
@@ -170,7 +170,7 @@ func (r *redisAppImpl) SaveRedis(ctx context.Context, param *dto.SaveRedis) erro
 			ParentTagCodePaths: tagCodePaths,
 		})
 	}, func(ctx context.Context) error {
-		return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+		return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 			ResourceCode: oldRedis.Code,
 			ResourceType: tagentity.TagTypeRedis,
 			AuthCerts:    []*tagentity.ResourceAuthCert{param.AuthCert},
@@ -200,7 +200,7 @@ func (r *redisAppImpl) Delete(ctx context.Context, id uint64) error {
 			},
 		})
 	}, func(ctx context.Context) error {
-		return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+		return r.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 			ResourceCode: re.Code,
 			ResourceType: tagentity.TagTypeRedis,
 		})

@@ -8,13 +8,11 @@ import (
 	tagapp "mayfly-go/internal/tag/application"
 	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/scheduler"
-	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"time"
@@ -178,43 +176,35 @@ func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 }
 
 func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineCronJob) {
-	defer func() {
-		if err := recover(); err != nil {
-			res := anyx.ToString(err)
-			m.machineCronJobExecRepo.Insert(context.TODO(), &entity.MachineCronJobExec{
-				MachineId: mid,
-				CronJobId: cronJob.Id,
-				ExecTime:  time.Now(),
-				Status:    entity.MachineCronJobExecStatusError,
-				Res:       res,
-			})
-			logx.Errorf("机器:[%d]执行[%s]计划任务失败: %s", mid, cronJob.Name, res)
-		}
-	}()
+	execRes := &entity.MachineCronJobExec{
+		CronJobId: cronJob.Id,
+		ExecTime:  time.Now(),
+	}
 
 	machineCli, err := m.machineApp.GetCli(uint64(mid))
-	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	res, err := machineCli.Run(cronJob.Script)
+	res := ""
 	if err != nil {
-		if res == "" {
-			res = err.Error()
-		}
-		logx.Errorf("机器:[%d]执行[%s]计划任务失败: %s", mid, cronJob.Name, res)
+		machine, _ := m.machineApp.GetById(mid)
+		execRes.MachineCode = machine.Code
 	} else {
-		logx.Debugf("机器:[%d]执行[%s]计划任务成功, 执行结果: %s", mid, cronJob.Name, res)
+		execRes.MachineCode = machineCli.Info.Code
+		res, err = machineCli.Run(cronJob.Script)
+		if err != nil {
+			if res == "" {
+				res = err.Error()
+			}
+			logx.Errorf("机器:[%d]执行[%s]计划任务失败: %s", mid, cronJob.Name, res)
+		} else {
+			logx.Debugf("机器:[%d]执行[%s]计划任务成功, 执行结果: %s", mid, cronJob.Name, res)
+		}
 	}
+	execRes.Res = res
 
 	if cronJob.SaveExecResType == entity.SaveExecResTypeNo ||
 		(cronJob.SaveExecResType == entity.SaveExecResTypeOnError && err == nil) {
 		return
 	}
 
-	execRes := &entity.MachineCronJobExec{
-		MachineId: mid,
-		CronJobId: cronJob.Id,
-		ExecTime:  time.Now(),
-		Res:       res,
-	}
 	if err == nil {
 		execRes.Status = entity.MachineCronJobExecStatusSuccess
 	} else {

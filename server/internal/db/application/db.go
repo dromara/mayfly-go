@@ -194,7 +194,7 @@ func (d *dbAppImpl) GetDbConn(dbId uint64, dbName string) (*dbi.DbConn, error) {
 		di.Id = db.Id
 
 		checkDb := di.GetDatabase()
-		if !strings.Contains(" "+db.Database+" ", " "+checkDb+" ") {
+		if db.GetDatabaseMode == entity.DbGetDatabaseModeAssign && !strings.Contains(" "+db.Database+" ", " "+checkDb+" ") {
 			return nil, errorx.NewBiz("未配置数据库【%s】的操作权限", dbName)
 		}
 

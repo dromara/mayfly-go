@@ -39,6 +39,11 @@
                             />
 
                             <el-option :key="TagResourceTypeEnum.Db.value" :label="TagResourceTypeEnum.Db.label" :value="TagResourceTypeEnum.Db.value" />
+                            <el-option
+                                :key="TagResourceTypeEnum.Redis.value"
+                                :label="TagResourceTypeEnum.Redis.label"
+                                :value="TagResourceTypeEnum.Redis.value"
+                            />
                         </el-select>
                     </el-form-item>
                     <el-form-item prop="resourceCode" label="资源编号" required>

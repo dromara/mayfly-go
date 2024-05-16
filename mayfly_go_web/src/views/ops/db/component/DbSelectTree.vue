@@ -25,6 +25,7 @@ import SvgIcon from '@/components/svgIcon/index.vue';
 import { getDbDialect, noSchemaTypes } from '@/views/ops/db/dialect';
 import TagTreeResourceSelect from '../../component/TagTreeResourceSelect.vue';
 import { computed } from 'vue';
+import { DbInst } from '../db';
 
 const props = defineProps({
     dbId: {
@@ -101,9 +102,9 @@ const noSchemaType = (type: string) => {
 };
 
 // 数据库实例节点类型
-const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((parentNode: TagTreeNode) => {
+const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const params = parentNode.params;
-    const dbs = params.database.split(' ')?.sort();
+    const dbs = (await DbInst.getDbNames(params))?.sort();
     let fn: NodeType;
     if (noSchemaType(params.type)) {
         fn = MysqlNodeTypes;

@@ -23,7 +23,7 @@
                 </el-form-item>
 
                 <el-form-item prop="authCertName" label="授权凭证" required>
-                    <el-select @change="changeAuthCert" v-model="form.authCertName" placeholder="请选择授权凭证" filterable>
+                    <el-select v-model="form.authCertName" placeholder="请选择授权凭证" filterable>
                         <el-option v-for="item in state.authCerts" :key="item.id" :label="`${item.name}`" :value="item.name">
                             {{ item.name }}
 
@@ -39,8 +39,15 @@
                     </el-select>
                 </el-form-item>
 
+                <el-form-item prop="getDatabaseMode" label="获库方式" required>
+                    <el-select v-model="form.getDatabaseMode" @change="onChangeGetDatabaseMode" placeholder="请选择库名获取方式">
+                        <el-option v-for="item in DbGetDbNamesMode" :key="item.value" :label="item.label" :value="item.value"> </el-option>
+                    </el-select>
+                </el-form-item>
+
                 <el-form-item prop="database" label="数据库名">
                     <el-select
+                        :disabled="form.getDatabaseMode == DbGetDbNamesMode.Auto.value || !form.authCertName"
                         v-model="dbNamesSelected"
                         multiple
                         clearable
@@ -49,8 +56,9 @@
                         filterable
                         :filter-method="filterDbNames"
                         allow-create
-                        placeholder="请确保数据库实例信息填写完整后获取库名"
-                        style="width: 100%"
+                        placeholder="获库方式为‘指定库名’时，可选择"
+                        @focus="getAllDatabase(form.authCertName)"
+                        :loading="state.loadingDbNames"
                     >
                         <template #header>
                             <el-checkbox v-model="checkAllDbNames" :indeterminate="indeterminateDbNames" @change="handleCheckAll"> 全选 </el-checkbox>
@@ -75,7 +83,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref, watchEffect } from 'vue';
+import { toRefs, reactive, watch, ref } from 'vue';
 import { dbApi } from './api';
 import { ElMessage } from 'element-plus';
 import type { CheckboxValueType } from 'element-plus';
@@ -86,6 +94,7 @@ import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { AuthCertCiphertextTypeEnum } from '../tag/enums';
 import { resourceAuthCertApi } from '../tag/api';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { DbGetDbNamesMode } from './enums';
 
 const props = defineProps({
     visible: {
@@ -147,10 +156,10 @@ const rules = {
             trigger: ['change', 'blur'],
         },
     ],
-    database: [
+    getDatabaseMode: [
         {
             required: true,
-            message: '请添加数据库',
+            message: '请选择库名获取方式',
             trigger: ['change', 'blur'],
         },
     ],
@@ -172,38 +181,45 @@ const state = reactive({
     authCerts: [] as any,
     form: {
         id: null,
-        // tagId: [],
         name: null,
         code: '',
+        getDatabaseMode: DbGetDbNamesMode.Auto.value,
         database: '',
         remark: '',
         instanceId: null as any,
         authCertName: '',
     },
     instances: [] as any,
+    loadingDbNames: false,
 });
 
 const { dialogVisible, allDatabases, form, dbNamesSelected } = toRefs(state);
 
-watchEffect(() => {
-    state.dialogVisible = props.visible;
-    if (!state.dialogVisible) {
-        return;
+watch(
+    () => props.visible,
+    () => {
+        state.dialogVisible = props.visible;
+        if (!state.dialogVisible) {
+            return;
+        }
+        const db: any = props.db;
+        if (db.code) {
+            state.form = { ...db };
+            if (db.getDatabaseMode == DbGetDbNamesMode.Assign.value) {
+                // 将数据库名使用空格切割，获取所有数据库列表
+                state.dbNamesSelected = db.database.split(' ');
+            }
+        } else {
+            state.form = { getDatabaseMode: DbGetDbNamesMode.Auto.value } as any;
+            state.dbNamesSelected = [];
+        }
     }
-    const db: any = props.db;
-    if (db.code) {
-        state.form = { ...db };
-        // state.form.tagId = newValue.db.tags.map((t: any) => t.tagId);
-        // 将数据库名使用空格切割，获取所有数据库列表
-        state.dbNamesSelected = db.database.split(' ');
-    } else {
-        state.form = {} as any;
+);
+
+const onChangeGetDatabaseMode = (val: any) => {
+    if (val == DbGetDbNamesMode.Auto.value) {
         state.dbNamesSelected = [];
     }
-});
-
-const changeAuthCert = (val: string) => {
-    getAllDatabase(val);
 };
 
 const getAuthCerts = async () => {
@@ -217,15 +233,20 @@ const getAuthCerts = async () => {
 };
 
 const getAllDatabase = async (authCertName: string) => {
-    const req = { ...(props.instance as any) };
-    req.authCert = state.authCerts?.find((x: any) => x.name == authCertName);
-    let dbs = await dbApi.getAllDatabase.request(req);
-    state.allDatabases = dbs;
+    try {
+        state.loadingDbNames = true;
+        const req = { ...(props.instance as any) };
+        req.authCert = state.authCerts?.find((x: any) => x.name == authCertName);
+        let dbs = await dbApi.getAllDatabase.request(req);
+        state.allDatabases = dbs;
 
-    // 如果是oracle，且没查出数据库列表，则取实例sid
-    let instance = state.instances.find((item: any) => item.id === state.form.instanceId);
-    if (instance && instance.type === DbType.oracle && dbs.length === 0) {
-        state.allDatabases = [instance.sid];
+        // 如果是oracle，且没查出数据库列表，则取实例sid
+        let instance = state.instances.find((item: any) => item.id === state.form.instanceId);
+        if (instance && instance.type === DbType.oracle && dbs.length === 0) {
+            state.allDatabases = [instance.sid];
+        }
+    } finally {
+        state.loadingDbNames = false;
     }
 };
 

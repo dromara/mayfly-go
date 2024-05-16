@@ -1,5 +1,10 @@
 import { EnumValue } from '@/common/Enum';
 
+export const DbGetDbNamesMode = {
+    Auto: EnumValue.of(-1, '实时获取').setTagType('warning'),
+    Assign: EnumValue.of(1, '指定库名').setTagType('primary'),
+};
+
 // 数据库sql执行类型
 export const DbSqlExecTypeEnum = {
     Update: EnumValue.of(1, 'UPDATE').setTagColor('#E4F5EB'),

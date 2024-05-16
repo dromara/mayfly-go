@@ -123,9 +123,8 @@ func (a *AccountLogin) RefreshToken(rc *req.Ctx) {
 	biz.NotEmpty(refreshToken, "refresh_token不能为空")
 
 	accountId, username, err := req.ParseToken(refreshToken)
-	if err != nil {
-		panic(errorx.PermissionErr)
-	}
+	biz.IsTrueBy(err == nil, errorx.PermissionErr)
+
 	token, refreshToken, err := req.CreateToken(accountId, username)
 	biz.ErrIsNil(err)
 	rc.ResData = collx.Kvs("token", token, "refresh_token", refreshToken)

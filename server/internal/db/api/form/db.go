@@ -1,14 +1,16 @@
 package form
 
+import "mayfly-go/internal/db/domain/entity"
+
 type DbForm struct {
-	Id             uint64 `json:"id"`
-	Code           string `binding:"required" json:"code"`
-	Name           string `binding:"required" json:"name"`
-	Database       string `json:"database"`
-	Remark         string `json:"remark"`
-	InstanceId     uint64 `binding:"required" json:"instanceId"`
-	AuthCertName   string `json:"authCertName"`
-	FlowProcdefKey string `json:"flowProcdefKey"`
+	Id              uint64                   `json:"id"`
+	Code            string                   `binding:"required" json:"code"`
+	Name            string                   `binding:"required" json:"name"`
+	GetDatabaseMode entity.DbGetDatabaseMode `json:"getDatabaseMode"` // 获取数据库方式
+	Database        string                   `json:"database"`
+	Remark          string                   `json:"remark"`
+	InstanceId      uint64                   `binding:"required" json:"instanceId"`
+	AuthCertName    string                   `json:"authCertName"`
 }
 
 type DbSqlSaveForm struct {

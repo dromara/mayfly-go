@@ -8,6 +8,7 @@ import { editor, languages, Position } from 'monaco-editor';
 import { registerCompletionItemProvider } from '@/components/monaco/completionItemProvider';
 import { DbDialect, EditorCompletionItem, getDbDialect } from './dialect';
 import { type RemovableRef, useLocalStorage } from '@vueuse/core';
+import { DbGetDbNamesMode } from './enums';
 
 const hintsStorage: RemovableRef<Map<string, any>> = useLocalStorage('db-table-hints', new Map());
 const tableStorage: RemovableRef<Map<string, any>> = useLocalStorage('db-tables', new Map());
@@ -502,6 +503,19 @@ export class DbInst {
 
             col.columnType = col.dataType;
         }
+    }
+
+    /**
+     * 根据数据库配置信息获取对应的库名列表
+     * @param db db配置信息
+     * @returns 库名列表
+     */
+    static async getDbNames(db: any) {
+        if (db.getDatabaseMode == DbGetDbNamesMode.Assign.value) {
+            return db.database.split(' ');
+        }
+
+        return await dbApi.getDbNamesByAc.request({ authCertName: db.authCertName });
     }
 }
 

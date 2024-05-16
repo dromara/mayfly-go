@@ -272,7 +272,7 @@ const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath)
 // 数据库实例节点类型
 const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const params = parentNode.params;
-    const dbs = params.database.split(' ')?.sort();
+    const dbs = (await DbInst.getDbNames(params))?.sort();
 
     const flowProcdef = await procdefApi.getByResource.request({ resourceType: TagResourceTypeEnum.DbName.value, resourceCode: params.code });
     return dbs.map((x: any) => {

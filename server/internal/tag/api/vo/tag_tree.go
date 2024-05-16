@@ -2,7 +2,6 @@ package vo
 
 import (
 	"mayfly-go/internal/tag/application/dto"
-	"mayfly-go/pkg/utils/collx"
 )
 
 type TagTreeVOS []*dto.SimpleTagTree
@@ -18,14 +17,21 @@ func (m *TagTreeVOS) ToTrees(pid uint64) []*TagTreeItem {
 		return ttis
 	}
 
-	ttis = collx.ArrayMap(*m, func(tr *dto.SimpleTagTree) *TagTreeItem { return &TagTreeItem{SimpleTagTree: tr} })
-	tagMap := collx.ArrayToMap(ttis, func(item *TagTreeItem) string {
-		return item.CodePath
-	})
+	tagMap := make(map[string]*TagTreeItem)
+	var roots []*TagTreeItem
+	for _, tag := range *m {
+		tti := &TagTreeItem{SimpleTagTree: tag}
+		tagMap[tag.CodePath] = tti
+		ttis = append(ttis, tti)
+		if tti.IsRoot() {
+			roots = append(roots, tti)
+			tti.Root = true
+		}
+	}
 
 	for _, node := range ttis {
 		// 根节点
-		if node.IsRoot() {
+		if node.Root {
 			continue
 		}
 		parentCodePath := node.GetParentPath(0)
@@ -35,5 +41,5 @@ func (m *TagTreeVOS) ToTrees(pid uint64) []*TagTreeItem {
 		}
 	}
 
-	return collx.ArrayFilter(ttis, func(tti *TagTreeItem) bool { return tti.IsRoot() })
+	return roots
 }

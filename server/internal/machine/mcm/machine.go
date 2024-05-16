@@ -15,6 +15,7 @@ import (
 type MachineInfo struct {
 	Key      string `json:"key"` // 缓存key
 	Id       uint64 `json:"id"`
+	Code     string `json:"code"`
 	Name     string `json:"name"`
 	Protocol int    `json:"protocol"`
 

@@ -11,6 +11,14 @@
                 <el-button v-auth="'authcert:save'" type="primary" icon="plus" @click="edit(false)">添加</el-button>
             </template>
 
+            <template #resourceCode="{ data }">
+                <SvgIcon
+                    :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.resourceType)?.extra.icon"
+                    :color="EnumValue.getEnumByValue(TagResourceTypeEnum, data.resourceType)?.extra.iconColor"
+                />
+                {{ data.resourceCode }}
+            </template>
+
             <template #action="{ data }">
                 <el-button v-auth="'authcert:save'" @click="edit(data)" type="primary" link>编辑</el-button>
 
@@ -41,6 +49,7 @@ import { SearchItem } from '@/components/SearchForm';
 import { AuthCertCiphertextTypeEnum, AuthCertTypeEnum } from './enums';
 import { ResourceTypeEnum, TagResourceTypeEnum } from '@/common/commonEnum';
 import ResourceAuthCertEdit from '../component/ResourceAuthCertEdit.vue';
+import EnumValue from '@/common/Enum';
 
 const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
@@ -50,6 +59,7 @@ const state = reactive({
         name: null,
     },
     searchItems: [
+        SearchItem.input('resourceCode', '资源编号'),
         SearchItem.input('name', '凭证名称'),
         SearchItem.select('resourceType', '资源类型').withEnum(ResourceTypeEnum),
         SearchItem.select('type', '凭证类型').withEnum(AuthCertTypeEnum),
@@ -60,8 +70,7 @@ const state = reactive({
         TableColumn.new('type', '凭证类型').typeTag(AuthCertTypeEnum),
         TableColumn.new('username', '用户名'),
         TableColumn.new('ciphertextType', '密文类型').typeTag(AuthCertCiphertextTypeEnum),
-        TableColumn.new('resourceType', '资源类型').typeTag(TagResourceTypeEnum),
-        TableColumn.new('resourceCode', '资源编号'),
+        TableColumn.new('resourceCode', '资源编号').isSlot().setAddWidth(30),
         TableColumn.new('remark', '备注'),
         TableColumn.new('creator', '创建人'),
         TableColumn.new('createTime', '创建时间').isTime(),

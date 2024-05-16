@@ -39,6 +39,9 @@ type Instance interface {
 	// GetDatabases 获取数据库实例的所有数据库列表
 	GetDatabases(entity *entity.DbInstance, authCert *tagentity.ResourceAuthCert) ([]string, error)
 
+	// GetDatabasesByAc 根据授权凭证名获取所有数据库名称列表
+	GetDatabasesByAc(acName string) ([]string, error)
+
 	// ToDbInfo 根据实例与授权凭证返回对应的DbInfo
 	ToDbInfo(instance *entity.DbInstance, authCertName string, database string) (*dbi.DbInfo, error)
 }
@@ -52,6 +55,8 @@ type instanceAppImpl struct {
 	backupApp           *DbBackupApp            `inject:"DbBackupApp"`
 	restoreApp          *DbRestoreApp           `inject:"DbRestoreApp"`
 }
+
+var _ (Instance) = (*instanceAppImpl)(nil)
 
 // 注入DbInstanceRepo
 func (app *instanceAppImpl) InjectDbInstanceRepo(repo repository.Instance) {
@@ -118,7 +123,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 		return instanceEntity.Id, app.Tx(ctx, func(ctx context.Context) error {
 			return app.Insert(ctx, instanceEntity)
 		}, func(ctx context.Context) error {
-			return app.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+			return app.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 				ResourceCode: instanceEntity.Code,
 				ResourceType: tagentity.TagType(resourceType),
 				AuthCerts:    authCerts,
@@ -147,7 +152,7 @@ func (app *instanceAppImpl) SaveDbInstance(ctx context.Context, instance *dto.Sa
 	return oldInstance.Id, app.Tx(ctx, func(ctx context.Context) error {
 		return app.UpdateById(ctx, instanceEntity)
 	}, func(ctx context.Context) error {
-		return app.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+		return app.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 			ResourceCode: oldInstance.Code,
 			ResourceType: tagentity.TagType(resourceType),
 			AuthCerts:    authCerts,
@@ -205,7 +210,7 @@ func (app *instanceAppImpl) Delete(ctx context.Context, instanceId uint64) error
 		return app.DeleteById(ctx, instanceId)
 	}, func(ctx context.Context) error {
 		// 删除该实例关联的授权凭证信息
-		return app.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+		return app.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 			ResourceCode: instance.Code,
 			ResourceType: tagentity.TagType(consts.ResourceTypeDb),
 		})
@@ -239,16 +244,22 @@ func (app *instanceAppImpl) GetDatabases(ed *entity.DbInstance, authCert *tagent
 		}
 	}
 
-	ed.Network = ed.GetNetwork()
-	dbi := app.toDbInfoByAc(ed, authCert, "")
+	return app.getDatabases(ed, authCert)
+}
 
-	dbConn, err := dbm.Conn(dbi)
+func (app *instanceAppImpl) GetDatabasesByAc(acName string) ([]string, error) {
+	ac, err := app.resourceAuthCertApp.GetAuthCert(acName)
 	if err != nil {
-		return nil, err
+		return nil, errorx.NewBiz("该授权凭证不存在")
 	}
-	defer dbConn.Close()
 
-	return dbConn.GetMetaData().GetDbNames()
+	instance := &entity.DbInstance{Code: ac.ResourceCode}
+	err = app.GetByCond(instance)
+	if err != nil {
+		return nil, errorx.NewBiz("不存在该授权凭证对应的数据库实例信息")
+	}
+
+	return app.getDatabases(instance, ac)
 }
 
 func (app *instanceAppImpl) ToDbInfo(instance *entity.DbInstance, authCertName string, database string) (*dbi.DbInfo, error) {
@@ -258,6 +269,19 @@ func (app *instanceAppImpl) ToDbInfo(instance *entity.DbInstance, authCertName s
 	}
 
 	return app.toDbInfoByAc(instance, ac, database), nil
+}
+
+func (app *instanceAppImpl) getDatabases(instance *entity.DbInstance, ac *tagentity.ResourceAuthCert) ([]string, error) {
+	instance.Network = instance.GetNetwork()
+	dbi := app.toDbInfoByAc(instance, ac, "")
+
+	dbConn, err := dbm.Conn(dbi)
+	if err != nil {
+		return nil, err
+	}
+	defer dbConn.Close()
+
+	return dbConn.GetMetaData().GetDbNames()
 }
 
 func (app *instanceAppImpl) toDbInfoByAc(instance *entity.DbInstance, ac *tagentity.ResourceAuthCert, database string) *dbi.DbInfo {

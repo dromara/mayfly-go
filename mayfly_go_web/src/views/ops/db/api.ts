@@ -40,6 +40,7 @@ export const dbApi = {
     instances: Api.newGet('/instances'),
     getInstance: Api.newGet('/instances/{instanceId}'),
     getAllDatabase: Api.newPost('/instances/databases'),
+    getDbNamesByAc: Api.newGet('/instances/databases/{authCertName}'),
     getInstanceServerInfo: Api.newGet('/instances/{instanceId}/server-info'),
     testConn: Api.newPost('/instances/test-conn'),
     saveInstance: Api.newPost('/instances'),

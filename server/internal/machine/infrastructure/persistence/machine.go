@@ -5,10 +5,6 @@ import (
 	"mayfly-go/internal/machine/domain/repository"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils/collx"
-	"strings"
-
-	"github.com/may-fly/cast"
 )
 
 type machineRepoImpl struct {
@@ -22,18 +18,13 @@ func newMachineRepo() repository.Machine {
 // 分页获取机器信息列表
 func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	qd := model.NewCond().
+		Eq("id", condition.Id).
 		Eq("status", condition.Status).
 		Like("ip", condition.Ip).
 		Like("name", condition.Name).
 		In("code", condition.Codes).
 		Like("code", condition.Code).
 		Eq("protocol", condition.Protocol)
-
-	if condition.Ids != "" {
-		qd.In("id", collx.ArrayMap[string, uint64](strings.Split(condition.Ids, ","), func(val string) uint64 {
-			return cast.ToUint64(val)
-		}))
-	}
 
 	return m.PageByCondToAny(qd, pageParam, toEntity)
 }

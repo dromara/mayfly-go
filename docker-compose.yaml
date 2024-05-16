@@ -14,7 +14,7 @@ services:
     restart: always
 
   server:
-    image: ccr.ccs.tencentyun.com/mayfly/mayfly-go:v1.8.3
+    image: ccr.ccs.tencentyun.com/mayfly/mayfly-go:v1.8.5
     build:
       context: .
       dockerfile: Dockerfile

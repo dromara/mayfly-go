@@ -108,7 +108,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 		return m.Tx(ctx, func(ctx context.Context) error {
 			return m.Insert(ctx, me)
 		}, func(ctx context.Context) error {
-			return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+			return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 				ResourceCode: me.Code,
 				ResourceType: resourceType,
 				AuthCerts:    authCerts,
@@ -138,7 +138,7 @@ func (m *machineAppImpl) SaveMachine(ctx context.Context, param *dto.SaveMachine
 	return m.Tx(ctx, func(ctx context.Context) error {
 		return m.UpdateById(ctx, me)
 	}, func(ctx context.Context) error {
-		return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+		return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 			ResourceCode: oldMachine.Code,
 			ResourceType: resourceType,
 			AuthCerts:    authCerts,
@@ -219,7 +219,7 @@ func (m *machineAppImpl) Delete(ctx context.Context, id uint64) error {
 				},
 			})
 		}, func(ctx context.Context) error {
-			return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagapp.RelateAuthCertParam{
+			return m.resourceAuthCertApp.RelateAuthCert(ctx, &tagdto.RelateAuthCert{
 				ResourceCode: machine.Code,
 				ResourceType: resourceType,
 			})
@@ -334,6 +334,7 @@ func (m *machineAppImpl) getMachineAndAuthCert(machineId uint64) (*entity.Machin
 func (m *machineAppImpl) toMi(me *entity.Machine, authCert *tagentity.ResourceAuthCert) (*mcm.MachineInfo, error) {
 	mi := new(mcm.MachineInfo)
 	mi.Id = me.Id
+	mi.Code = me.Code
 	mi.Name = me.Name
 	mi.Ip = me.Ip
 	mi.Port = me.Port
