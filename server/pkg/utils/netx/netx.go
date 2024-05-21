@@ -3,6 +3,7 @@ package netx
 import (
 	"mayfly-go/pkg/logx"
 	"net"
+	"strings"
 
 	"github.com/lionsoul2014/ip2region/binding/golang/xdb"
 )
@@ -67,4 +68,14 @@ func Ip2Region(ip string) string {
 		return ""
 	}
 	return region
+}
+
+func GetOutBoundIP() string {
+	conn, err := net.Dial("udp", "8.8.8.8:53")
+	if err != nil {
+		return "0.0.0.0"
+	}
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	ip := strings.Split(localAddr.String(), ":")[0]
+	return ip
 }

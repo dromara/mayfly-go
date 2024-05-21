@@ -89,7 +89,7 @@ func (stm *SshTunnelMachine) OpenSshTunnel(id string, ip string, port int) (expo
 		return "", 0, err
 	}
 
-	localHost := "127.0.0.1"
+	localHost := "0.0.0.0"
 	localAddr := fmt.Sprintf("%s:%d", localHost, localPort)
 	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {

@@ -261,7 +261,7 @@ func (m *Machine) WsGuacamole(g *gin.Context) {
 		return
 	}
 
-	err = mi.IfUseSshTunnelChangeIpPort()
+	err = mi.IfUseSshTunnelChangeIpPort(true)
 	if err != nil {
 		return
 	}
