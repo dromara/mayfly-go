@@ -12,6 +12,8 @@ export const machineApi = {
     process: Api.newGet('/machines/{id}/process'),
     // 终止进程
     killProcess: Api.newDelete('/machines/{id}/process'),
+    users: Api.newGet('/machines/{id}/users'),
+    groups: Api.newGet('/machines/{id}/groups'),
     testConn: Api.newPost('/machines/test-conn'),
     // 保存按钮
     saveMachine: Api.newPost('/machines'),

@@ -35,7 +35,7 @@
             <template #action="{ data }">
                 <el-button @click="showInfo(data)" link>详情</el-button>
                 <el-button v-if="actionBtns[perms.saveInstance]" @click="editInstance(data)" type="primary" link>编辑</el-button>
-                <el-button v-if="actionBtns[perms.saveDb]" @click="editDb(data)" type="primary" link>库配置</el-button>
+                <el-button v-if="actionBtns[perms.saveDb]" @click="editDb(data)" type="primary" link>库管理</el-button>
             </template>
         </page-table>
 
@@ -68,7 +68,7 @@
             v-model:data="instanceEditDialog.data"
         ></instance-edit>
 
-        <instance-db-conf :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible" :instance="dbEditDialog.instance" />
+        <DbList :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible" :instance="dbEditDialog.instance" />
     </div>
 </template>
 
@@ -89,7 +89,7 @@ import { getTagPathSearchItem } from '../component/tag';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const InstanceEdit = defineAsyncComponent(() => import('./InstanceEdit.vue'));
-const InstanceDbConf = defineAsyncComponent(() => import('./InstanceDbConf.vue'));
+const DbList = defineAsyncComponent(() => import('./DbList.vue'));
 
 const props = defineProps({
     lazy: {
@@ -215,7 +215,7 @@ const deleteInstance = async () => {
 
 const editDb = (data: any) => {
     state.dbEditDialog.instance = data;
-    state.dbEditDialog.title = `配置 "${data.name}" 数据库`;
+    state.dbEditDialog.title = `管理 "${data.name}" 数据库`;
     state.dbEditDialog.visible = true;
 };
 

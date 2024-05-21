@@ -5,6 +5,7 @@ import (
 	"mayfly-go/pkg/logx"
 	"strings"
 
+	"github.com/may-fly/cast"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
@@ -66,30 +67,6 @@ func (c *Cli) Run(shell string) (string, error) {
 	return string(buf), nil
 }
 
-// GetAllStats 获取机器的所有状态信息
-func (c *Cli) GetAllStats() *Stats {
-	stats := new(Stats)
-	res, err := c.Run(StatsShell)
-	if err != nil {
-		logx.Errorf("执行机器[id=%d, name=%s]运行状态信息脚本失败: %s", c.Info.Id, c.Info.Name, err.Error())
-		return stats
-	}
-
-	infos := strings.Split(res, "-----")
-	if len(infos) < 8 {
-		return stats
-	}
-	getUptime(infos[0], stats)
-	getHostname(infos[1], stats)
-	getLoad(infos[2], stats)
-	getMemInfo(infos[3], stats)
-	getFSInfo(infos[4], stats)
-	getInterfaces(infos[5], stats)
-	getInterfaceInfo(infos[6], stats)
-	getCPU(infos[7], stats)
-	return stats
-}
-
 // Close 关闭client并从缓存中移除，如果使用隧道则也关闭
 func (c *Cli) Close() {
 	m := c.Info
@@ -114,4 +91,78 @@ func (c *Cli) Close() {
 		logx.Debugf("close machine ssh tunnel -> machineId=%d, sshTunnelMachineId=%d", m.Id, sshTunnelMachineId)
 		CloseSshTunnelMachine(int(sshTunnelMachineId), m.GetTunnelId())
 	}
+}
+
+// GetAllStats 获取机器的所有状态信息
+func (c *Cli) GetAllStats() *Stats {
+	stats := new(Stats)
+	res, err := c.Run(StatsShell)
+	if err != nil {
+		logx.Errorf("执行机器[id=%d, name=%s]运行状态信息脚本失败: %s", c.Info.Id, c.Info.Name, err.Error())
+		return stats
+	}
+
+	infos := strings.Split(res, "-----")
+	if len(infos) < 8 {
+		return stats
+	}
+	getUptime(infos[0], stats)
+	getHostname(infos[1], stats)
+	getLoad(infos[2], stats)
+	getMemInfo(infos[3], stats)
+	getFSInfo(infos[4], stats)
+	getInterfaces(infos[5], stats)
+	getInterfaceInfo(infos[6], stats)
+	getCPU(infos[7], stats)
+	return stats
+}
+
+// GetUsers 读取/etc/passwd，获取系统所有用户信息
+func (c *Cli) GetUsers() ([]*UserInfo, error) {
+	res, err := c.Run("cat /etc/passwd")
+	if err != nil {
+		return nil, err
+	}
+	var users []*UserInfo
+	userLines := strings.Split(res, "\n")
+	for _, userLine := range userLines {
+		if userLine == "" {
+			continue
+		}
+		fields := strings.Split(userLine, ":")
+		user := &UserInfo{
+			Username: fields[0],
+			UID:      cast.ToUint32(fields[2]),
+			GID:      cast.ToUint32(fields[3]),
+			HomeDir:  fields[5],
+			Shell:    fields[6],
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+// GetGroups 读取/etc/group，获取系统所有组信息
+func (c *Cli) GetGroups() ([]*GroupInfo, error) {
+	res, err := c.Run("cat /etc/group")
+	if err != nil {
+		return nil, err
+	}
+
+	var groups []*GroupInfo
+	groupLines := strings.Split(res, "\n")
+	for _, groupLine := range groupLines {
+		if groupLine == "" {
+			continue
+		}
+		fields := strings.Split(groupLine, ":")
+		group := &GroupInfo{
+			Groupname: fields[0],
+			GID:       cast.ToUint32(fields[2]),
+		}
+		groups = append(groups, group)
+	}
+
+	return groups, nil
 }

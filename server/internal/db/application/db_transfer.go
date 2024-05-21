@@ -87,16 +87,20 @@ func (app *dbTransferAppImpl) CreateLog(ctx context.Context, taskId uint64) (uin
 }
 
 func (app *dbTransferAppImpl) Run(ctx context.Context, taskId uint64, logId uint64) {
+	defer app.logApp.Flush(logId, true)
+
 	task, err := app.GetById(taskId)
 	if err != nil {
 		logx.Errorf("创建DBMS-执行数据迁移日志失败：%v", err)
 		return
 	}
 
+	if app.IsRunning(taskId) {
+		logx.Warnf("[%d]该任务正在运行中...", taskId)
+		return
+	}
+
 	start := time.Now()
-
-	defer app.logApp.Flush(logId, true)
-
 	// 修改状态与关联日志id
 	task.LogId = logId
 	task.RunningState = entity.DbTransferTaskRunStateRunning

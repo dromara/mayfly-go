@@ -11,7 +11,7 @@
             </el-table-column>
             <el-table-column prop="codePaths" label="关联机器" min-width="250px" show-overflow-tooltip>
                 <template #default="scope">
-                    <TagCodePath :path="scope.row.tags.map((tag: any) => tag.codePath)" />
+                    <TagCodePath :path="scope.row.tags?.map((tag: any) => tag.codePath)" />
                 </template>
             </el-table-column>
             <el-table-column prop="remark" label="备注" show-overflow-tooltip width="120px"> </el-table-column>
@@ -173,7 +173,7 @@ const openFormDialog = (data: any) => {
         state.form = { ...DefaultForm };
     } else {
         state.form = _.cloneDeep(data);
-        state.form.codePaths = data.tags.map((tag: any) => tag.codePath);
+        state.form.codePaths = data.tags?.map((tag: any) => tag.codePath);
     }
     state.dialogVisible = true;
 };

@@ -3,6 +3,7 @@
         <el-dialog
             :title="title"
             v-model="dialogVisible"
+            @open="search()"
             :close-on-click-modal="false"
             :before-close="cancel"
             :show-close="true"
@@ -27,7 +28,7 @@
 </template>
 
 <script lang="ts" setup>
-import { watch, ref, toRefs, reactive, Ref } from 'vue';
+import { ref, toRefs, reactive, Ref } from 'vue';
 import { cronJobApi } from '../api';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
@@ -47,8 +48,6 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['update:visible', 'update:data', 'cancel']);
-
 const searchItems = [SearchItem.input('machineCode', '机器编号'), SearchItem.select('status', '状态').withEnum(CronJobExecStatusEnum)];
 
 const columns = ref([
@@ -65,7 +64,7 @@ const state = reactive({
     tags: [] as any,
     params: {
         pageNum: 1,
-        pageSize: 10,
+        pageSize: 8,
         cronJobId: 0,
         status: null,
         machineCode: '',
@@ -78,24 +77,17 @@ const state = reactive({
     machines: [],
 });
 
-const { dialogVisible, params } = toRefs(state);
+const { params } = toRefs(state);
 
-watch(props, async (newValue: any) => {
-    state.dialogVisible = newValue.visible;
-    if (!newValue.visible) {
-        return;
-    }
-
-    state.params.cronJobId = props.data?.id;
-    setTimeout(() => search(), 300);
-});
+const dialogVisible = defineModel<boolean>('visible');
 
 const search = async () => {
+    state.params.cronJobId = props.data?.id;
     pageTableRef.value.search();
 };
 
 const cancel = () => {
-    emit('update:visible', false);
+    dialogVisible.value = false;
     setTimeout(() => {
         initData();
     }, 500);

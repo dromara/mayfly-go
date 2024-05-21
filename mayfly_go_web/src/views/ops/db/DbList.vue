@@ -1,93 +1,112 @@
 <template>
     <div class="db-list">
-        <page-table
-            ref="pageTableRef"
-            :page-api="dbApi.dbs"
-            :before-query-fn="checkRouteTagPath"
-            :search-items="searchItems"
-            v-model:query-form="query"
-            :columns="columns"
-            lazy
+        <el-drawer
+            :title="title"
+            v-model="dialogVisible"
+            @open="search"
+            :before-close="cancel"
+            :destroy-on-close="true"
+            :close-on-click-modal="true"
+            size="60%"
         >
-            <template #instanceSelect>
-                <el-select remote :remote-method="getInstances" v-model="query.instanceId" placeholder="输入并选择实例" filterable clearable>
-                    <el-option v-for="item in state.instances" :key="item.id" :label="`${item.name}`" :value="item.id">
-                        {{ item.name }}
-                        <el-divider direction="vertical" border-style="dashed" />
-
-                        {{ item.type }} / {{ item.host }}:{{ item.port }}
-                        <el-divider direction="vertical" border-style="dashed" />
-                        {{ item.username }}
-                    </el-option>
-                </el-select>
-            </template>
-
-            <template #type="{ data }">
-                <el-tooltip :content="data.type" placement="top">
-                    <SvgIcon :name="getDbDialect(data.type).getInfo().icon" :size="20" />
-                </el-tooltip>
-            </template>
-
-            <template #host="{ data }">
-                {{ `${data.host}:${data.port}` }}
-            </template>
-
-            <template #database="{ data }">
-                <el-popover placement="bottom" :width="200" trigger="click">
-                    <template #reference>
-                        <el-button @click="getDbNames(data)" type="primary" link>查看库</el-button>
+            <template #header>
+                <DrawerHeader :header="title" :back="cancel">
+                    <template #extra>
+                        <div class="mr20">
+                            <span>{{ $props.instance?.tags?.[0]?.codePath }}</span>
+                            <el-divider direction="vertical" border-style="dashed" />
+                            <SvgIcon :name="getDbDialect($props.instance?.type).getInfo()?.icon" :size="20" />
+                            <el-divider direction="vertical" border-style="dashed" />
+                            <span>{{ $props.instance?.host }}:{{ $props.instance?.port }}</span>
+                        </div>
                     </template>
-                    <el-table :data="filterDbs" v-loading="state.loadingDbNames" size="small">
-                        <el-table-column prop="dbName" label="数据库">
-                            <template #header>
-                                <el-input v-model="state.dbNameSearch" size="small" placeholder="库名: 输入可过滤" clearable />
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                </el-popover>
+                </DrawerHeader>
             </template>
 
-            <template #tagPath="{ data }">
-                <ResourceTags :tags="data.tags" />
-            </template>
+            <page-table
+                ref="pageTableRef"
+                :page-api="dbApi.dbs"
+                v-model:query-form="query"
+                :columns="columns"
+                lazy
+                show-selection
+                v-model:selection-data="state.selectionData"
+            >
+                <template #tableHeader>
+                    <el-button v-auth="perms.saveDb" type="primary" circle icon="Plus" @click="editDb(null)"> </el-button>
+                    <el-button v-auth="perms.delDb" :disabled="state.selectionData.length < 1" @click="deleteDb" type="danger" circle icon="delete"></el-button>
+                </template>
 
-            <template #action="{ data }">
-                <el-button type="primary" @click="onShowSqlExec(data)" link>SQL记录</el-button>
-                <el-divider direction="vertical" border-style="dashed" />
+                <template #type="{ data }">
+                    <el-tooltip :content="data.type" placement="top">
+                        <SvgIcon :name="getDbDialect(data.type).getInfo().icon" :size="20" />
+                    </el-tooltip>
+                </template>
 
-                <el-dropdown @command="handleMoreActionCommand">
-                    <span class="el-dropdown-link-more">
-                        更多
-                        <el-icon class="el-icon--right">
-                            <arrow-down />
-                        </el-icon>
-                    </span>
-                    <template #dropdown>
-                        <el-dropdown-menu>
-                            <el-dropdown-item :command="{ type: 'detail', data }"> 详情 </el-dropdown-item>
-                            <el-dropdown-item :command="{ type: 'dumpDb', data }"> 导出 </el-dropdown-item>
-                            <el-dropdown-item :command="{ type: 'backupDb', data }" v-if="actionBtns[perms.backupDb] && supportAction('backupDb', data.type)">
-                                备份任务
-                            </el-dropdown-item>
-                            <el-dropdown-item
-                                :command="{ type: 'backupHistory', data }"
-                                v-if="actionBtns[perms.backupDb] && supportAction('backupDb', data.type)"
-                            >
-                                备份历史
-                            </el-dropdown-item>
-                            <el-dropdown-item
-                                :command="{ type: 'restoreDb', data }"
-                                v-if="actionBtns[perms.restoreDb] && supportAction('restoreDb', data.type)"
-                            >
-                                恢复任务
-                            </el-dropdown-item>
-                        </el-dropdown-menu>
-                    </template>
-                </el-dropdown>
-            </template>
-        </page-table>
+                <template #database="{ data }">
+                    <el-popover placement="bottom" :width="200" trigger="click">
+                        <template #reference>
+                            <el-button @click="getDbNames(data)" type="primary" link>查看库</el-button>
+                        </template>
+                        <el-table :data="filterDbs" v-loading="state.loadingDbNames" size="small">
+                            <el-table-column prop="dbName" label="数据库">
+                                <template #header>
+                                    <el-input v-model="state.dbNameSearch" size="small" placeholder="库名: 输入可过滤" clearable />
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-popover>
+                </template>
 
-        <el-dialog width="750px" :title="`${db} 数据库导出`" v-model="exportDialog.visible">
+                <template #tagPath="{ data }">
+                    <ResourceTags :tags="data.tags" />
+                </template>
+
+                <template #action="{ data }">
+                    <el-button v-auth="perms.saveDb" @click="editDb(data)" type="primary" link>编辑</el-button>
+
+                    <el-divider direction="vertical" border-style="dashed" />
+
+                    <el-button type="primary" @click="onShowSqlExec(data)" link>SQL记录</el-button>
+
+                    <el-divider direction="vertical" border-style="dashed" />
+
+                    <el-dropdown @command="handleMoreActionCommand">
+                        <span class="el-dropdown-link-more">
+                            更多
+                            <el-icon class="el-icon--right">
+                                <arrow-down />
+                            </el-icon>
+                        </span>
+                        <template #dropdown>
+                            <el-dropdown-menu>
+                                <el-dropdown-item :command="{ type: 'dumpDb', data }"> 导出 </el-dropdown-item>
+                                <el-dropdown-item
+                                    :command="{ type: 'backupDb', data }"
+                                    v-if="actionBtns[perms.backupDb] && supportAction('backupDb', data.type)"
+                                >
+                                    备份任务
+                                </el-dropdown-item>
+                                <el-dropdown-item
+                                    :command="{ type: 'backupHistory', data }"
+                                    v-if="actionBtns[perms.backupDb] && supportAction('backupDb', data.type)"
+                                >
+                                    备份历史
+                                </el-dropdown-item>
+                                <el-dropdown-item
+                                    :command="{ type: 'restoreDb', data }"
+                                    v-if="actionBtns[perms.restoreDb] && supportAction('restoreDb', data.type)"
+                                >
+                                    恢复任务
+                                </el-dropdown-item>
+                            </el-dropdown-menu>
+                        </template>
+                    </el-dropdown>
+                </template>
+            </page-table>
+        </el-drawer>
+
+        <el-dialog width="750px" :title="`${exportDialog.db} 数据库导出`" v-model="exportDialog.visible">
             <el-row justify="space-between">
                 <el-col :span="9">
                     <el-form-item label="导出内容: ">
@@ -168,54 +187,29 @@
             <db-restore-list :dbId="dbRestoreDialog.dbId" :dbNames="dbRestoreDialog.dbs" />
         </el-dialog>
 
-        <el-dialog v-if="infoDialog.visible" v-model="infoDialog.visible" :before-close="onBeforeCloseInfoDialog">
-            <el-descriptions title="详情" :column="3" border>
-                <el-descriptions-item :span="2" label="名称">{{ infoDialog.data?.name }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="id">{{ infoDialog.data?.id }}</el-descriptions-item>
-
-                <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="infoDialog.data.tags" /></el-descriptions-item>
-                <el-descriptions-item :span="3" label="数据库实例名称">{{ infoDialog.instance?.name }}</el-descriptions-item>
-
-                <el-descriptions-item :span="2" label="主机">{{ infoDialog.instance?.host }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="端口">{{ infoDialog.instance?.port }}</el-descriptions-item>
-
-                <el-descriptions-item :span="2" label="授权凭证">{{ infoDialog.instance.authCertName }}</el-descriptions-item>
-                <el-descriptions-item :span="1" label="类型">
-                    <SvgIcon :name="getDbDialect(infoDialog.instance?.type).getInfo().icon" :size="20" />{{ infoDialog.instance?.type }}
-                </el-descriptions-item>
-
-                <el-descriptions-item :span="3" label="数据库">{{ infoDialog.data?.database }}</el-descriptions-item>
-                <el-descriptions-item :span="3" label="备注">{{ infoDialog.data?.remark }}</el-descriptions-item>
-
-                <el-descriptions-item :span="2" label="创建时间">{{ formatDate(infoDialog.data?.createTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data?.creator }}</el-descriptions-item>
-
-                <el-descriptions-item :span="2" label="更新时间">{{ formatDate(infoDialog.data?.updateTime) }} </el-descriptions-item>
-                <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data?.modifier }}</el-descriptions-item>
-            </el-descriptions>
-        </el-dialog>
-
-        <db-edit @val-change="search()" :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible" v-model:db="dbEditDialog.data"></db-edit>
+        <db-edit
+            @confirm="confirmEditDb"
+            @cancel="cancelEditDb"
+            :title="dbEditDialog.title"
+            v-model:visible="dbEditDialog.visible"
+            :instance="props.instance"
+            v-model:db="dbEditDialog.data"
+        ></db-edit>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref, Ref, toRefs } from 'vue';
 import { dbApi } from './api';
 import config from '@/common/config';
 import { joinClientParams } from '@/common/request';
 import { isTrue } from '@/common/assert';
-import { formatDate } from '@/common/utils/format';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import DbSqlExecLog from './DbSqlExecLog.vue';
 import { DbType } from './dialect';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
-import { useRoute } from 'vue-router';
 import { getDbDialect } from './dialect/index';
-import { getTagPathSearchItem } from '../component/tag';
-import { SearchItem } from '@/components/SearchForm';
 import DbBackupList from './DbBackupList.vue';
 import DbBackupHistoryList from './DbBackupHistoryList.vue';
 import DbRestoreList from './DbRestoreList.vue';
@@ -223,44 +217,47 @@ import ResourceTags from '../component/ResourceTags.vue';
 import { sleep } from '@/common/utils/loading';
 import { DbGetDbNamesMode } from './enums';
 import { DbInst } from './db';
+import { ElMessage, ElMessageBox } from 'element-plus';
+import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
 
 const DbEdit = defineAsyncComponent(() => import('./DbEdit.vue'));
 
-const searchItems = [
-    getTagPathSearchItem(TagResourceTypeEnum.DbName.value),
-    SearchItem.slot('instanceId', '实例', 'instanceSelect'),
-    SearchItem.input('code', '编号'),
-];
+const props = defineProps({
+    instance: {
+        type: [Object],
+        required: true,
+    },
+    title: {
+        type: String,
+    },
+});
+
+const dialogVisible = defineModel<boolean>('visible');
+
+const emit = defineEmits(['cancel']);
 
 const columns = ref([
-    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
     TableColumn.new('name', '名称'),
-    TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
-    TableColumn.new('instanceName', '实例名'),
-    TableColumn.new('host', 'ip:port').isSlot().setAddWidth(40),
     TableColumn.new('authCertName', '授权凭证'),
     TableColumn.new('getDatabaseMode', '获库方式').typeTag(DbGetDbNamesMode),
     TableColumn.new('database', '库').isSlot().setMinWidth(80),
     TableColumn.new('remark', '备注'),
     TableColumn.new('code', '编号'),
+    TableColumn.new('action', '操作').isSlot().setMinWidth(210).fixedRight().alignCenter(),
 ]);
 
 const perms = {
+    base: 'db',
+    saveDb: 'db:save',
+    delDb: 'db:del',
     backupDb: 'db:backup',
     restoreDb: 'db:restore',
 };
 
-// 该用户拥有的的操作列按钮权限
-// const actionBtns = hasPerms([perms.base, perms.saveDb]);
 const actionBtns = hasPerms(Object.values(perms));
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight().alignCenter();
 
-const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 const state = reactive({
-    row: {} as any,
-    dbId: 0,
-    db: '',
     loadingDbNames: false,
     currentDbNames: [],
     dbNameSearch: '',
@@ -268,29 +265,20 @@ const state = reactive({
     /**
      * 选中的数据
      */
-    selectionData: [],
+    selectionData: [] as any,
     /**
      * 查询条件
      */
     query: {
-        tagPath: '',
-        instanceId: null,
+        instanceId: 0,
         pageNum: 1,
         pageSize: 0,
-    },
-    infoDialog: {
-        visible: false,
-        data: null as any,
-        instance: null as any,
-        query: {
-            instanceId: 0,
-        },
     },
     // sql执行记录弹框
     sqlExecLogDialog: {
         title: '',
         visible: false,
-        dbs: [],
+        dbs: [] as any,
         dbId: 0,
     },
     // 数据库备份弹框
@@ -321,6 +309,7 @@ const state = reactive({
     exportDialog: {
         visible: false,
         dbId: 0,
+        db: '',
         type: 3,
         data: [] as any,
         value: [],
@@ -339,14 +328,12 @@ const state = reactive({
     },
 });
 
-const { db, query, infoDialog, sqlExecLogDialog, exportDialog, dbEditDialog, dbBackupDialog, dbBackupHistoryDialog, dbRestoreDialog } = toRefs(state);
+const { query, sqlExecLogDialog, exportDialog, dbEditDialog, dbBackupDialog, dbBackupHistoryDialog, dbRestoreDialog } = toRefs(state);
 
-onMounted(async () => {
-    if (Object.keys(actionBtns).length > 0) {
-        columns.value.push(actionColumn);
-    }
-    search();
-});
+const search = async () => {
+    state.query.instanceId = props.instance?.id;
+    pageTableRef.value.search();
+};
 
 const getDbNames = async (db: any) => {
     try {
@@ -372,42 +359,46 @@ const filterDbs = computed(() => {
     });
 });
 
-const checkRouteTagPath = (query: any) => {
-    if (route.query.tagPath) {
-        query.tagPath = route.query.tagPath as string;
-    }
-    return query;
-};
-
-const search = async (tagPath: string = '') => {
-    if (tagPath) {
-        state.query.tagPath = tagPath;
-    }
-    pageTableRef.value.search();
-};
-
-const showInfo = async (info: any) => {
-    state.infoDialog.data = info;
-    state.infoDialog.query.instanceId = info.instanceId;
-    const res = await dbApi.getInstance.request(state.infoDialog.query);
-    state.infoDialog.instance = res;
-    state.infoDialog.visible = true;
-};
-
-const onBeforeCloseInfoDialog = () => {
-    state.infoDialog.visible = false;
-    state.infoDialog.data = null;
-    state.infoDialog.instance = null;
-};
-
-const getInstances = async (instanceName = '') => {
-    if (!instanceName) {
-        state.instances = [];
-        return;
-    }
-    const data = await dbApi.instances.request({ name: instanceName });
+const editDb = (data: any) => {
     if (data) {
-        state.instances = data.list;
+        state.dbEditDialog.data = { ...data };
+    } else {
+        state.dbEditDialog.data = {
+            instanceId: props.instance.id,
+        };
+    }
+    state.dbEditDialog.title = data ? '编辑数据库' : '新增数据库';
+    state.dbEditDialog.visible = true;
+};
+
+const confirmEditDb = async (db: any) => {
+    db.instanceId = props.instance.id;
+    await dbApi.saveDb.request(db);
+    ElMessage.success('保存成功');
+    search();
+    cancelEditDb();
+};
+
+const cancelEditDb = () => {
+    state.dbEditDialog.visible = false;
+    state.dbEditDialog.data = {};
+};
+
+const deleteDb = async () => {
+    try {
+        await ElMessageBox.confirm(`确定删除【${state.selectionData.map((x: any) => x.name).join(', ')}】库?`, '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning',
+        });
+        for (let db of state.selectionData) {
+            await dbApi.deleteDb.request({ id: db.id });
+        }
+        ElMessage.success('删除成功');
+    } catch (err) {
+        //
+    } finally {
+        search();
     }
 };
 
@@ -415,10 +406,6 @@ const handleMoreActionCommand = (commond: any) => {
     const data = commond.data;
     const type = commond.type;
     switch (type) {
-        case 'detail': {
-            showInfo(data);
-            return;
-        }
         case 'dumpDb': {
             onDumpDbs(data);
             return;
@@ -441,7 +428,9 @@ const handleMoreActionCommand = (commond: any) => {
 const onShowSqlExec = async (row: any) => {
     state.sqlExecLogDialog.title = `${row.name}`;
     state.sqlExecLogDialog.dbId = row.id;
-    state.sqlExecLogDialog.dbs = row.database.split(' ');
+    DbInst.getDbNames(row).then((res) => {
+        state.sqlExecLogDialog.dbs = res;
+    });
     state.sqlExecLogDialog.visible = true;
 };
 
@@ -454,26 +443,32 @@ const onBeforeCloseSqlExecDialog = () => {
 const onShowDbBackupDialog = async (row: any) => {
     state.dbBackupDialog.title = `${row.name}`;
     state.dbBackupDialog.dbId = row.id;
-    state.dbBackupDialog.dbs = row.database.split(' ');
+    DbInst.getDbNames(row).then((res) => {
+        state.sqlExecLogDialog.dbs = res;
+    });
     state.dbBackupDialog.visible = true;
 };
 
 const onShowDbBackupHistoryDialog = async (row: any) => {
     state.dbBackupHistoryDialog.title = `${row.name}`;
     state.dbBackupHistoryDialog.dbId = row.id;
-    state.dbBackupHistoryDialog.dbs = row.database.split(' ');
+    DbInst.getDbNames(row).then((res) => {
+        state.sqlExecLogDialog.dbs = res;
+    });
     state.dbBackupHistoryDialog.visible = true;
 };
 
 const onShowDbRestoreDialog = async (row: any) => {
     state.dbRestoreDialog.title = `${row.name}`;
     state.dbRestoreDialog.dbId = row.id;
-    state.dbRestoreDialog.dbs = row.database.split(' ');
+    DbInst.getDbNames(row).then((res) => {
+        state.sqlExecLogDialog.dbs = res;
+    });
     state.dbRestoreDialog.visible = true;
 };
 
 const onDumpDbs = async (row: any) => {
-    const dbs = row.database.split(' ');
+    const dbs = await DbInst.getDbNames(row);
     const data = [];
     for (let name of dbs) {
         data.push({
@@ -481,6 +476,7 @@ const onDumpDbs = async (row: any) => {
             label: name,
         });
     }
+    state.exportDialog.db = row.name;
     state.exportDialog.value = [];
     state.exportDialog.data = data;
     state.exportDialog.dbId = row.id;
@@ -524,7 +520,10 @@ const supportAction = (action: string, dbType: string): boolean => {
     return actions.includes(action);
 };
 
-defineExpose({ search });
+const cancel = () => {
+    dialogVisible.value = false;
+    emit('cancel');
+};
 </script>
 <style lang="scss">
 .db-list {

@@ -287,3 +287,16 @@ func getCPU(cpuInfo string, stats *Stats) (err error) {
 
 	return nil
 }
+
+type UserInfo struct {
+	UID      uint32 `json:"uid"`
+	Username string `json:"uname"`
+	GID      uint32 `json:"gid"`
+	HomeDir  string `json:"homeDir"` // 用户登录后的起始工作目录
+	Shell    string `json:"shell"`   // 用户登录时使用的 shell 程序
+}
+
+type GroupInfo struct {
+	GID       uint32 `json:"gid"`
+	Groupname string `json:"gname"`
+}

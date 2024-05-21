@@ -23,7 +23,7 @@ func (m *machineRepoImpl) GetMachineList(condition *entity.MachineQuery, pagePar
 		Like("ip", condition.Ip).
 		Like("name", condition.Name).
 		In("code", condition.Codes).
-		Like("code", condition.Code).
+		Eq("code", condition.Code).
 		Eq("protocol", condition.Protocol)
 
 	return m.PageByCondToAny(qd, pageParam, toEntity)

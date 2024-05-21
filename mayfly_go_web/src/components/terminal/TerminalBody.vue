@@ -67,7 +67,7 @@ const state = reactive({
         search: null as any,
         weblinks: null as any,
     },
-    status: TerminalStatus.NoConnected,
+    status: -11,
 });
 
 onMounted(() => {
@@ -96,6 +96,7 @@ onBeforeUnmount(() => {
 });
 
 function init() {
+    state.status = TerminalStatus.NoConnected;
     if (term) {
         console.log('重新连接...');
         close();
@@ -105,7 +106,7 @@ function init() {
     });
 }
 
-function initTerm() {
+async function initTerm() {
     term = new Terminal({
         fontSize: themeConfig.value.terminalFontSize || 15,
         fontWeight: themeConfig.value.terminalFontWeight || 'normal',
@@ -155,6 +156,7 @@ function initSocket() {
         state.status = TerminalStatus.Connected;
 
         focus();
+        fitTerminal();
 
         // 如果有初始要执行的命令，则发送执行命令
         if (props.cmd) {
@@ -209,7 +211,6 @@ function loadAddon() {
         // tell trzsz the terminal columns has been changed
         trzsz.setTerminalColumns(size.cols);
     });
-    window.addEventListener('resize', () => state.addon.fit.fit());
     // enable drag files or directories to upload
     terminalRef.value.addEventListener('dragover', (event: Event) => event.preventDefault());
     terminalRef.value.addEventListener('drop', (event: any) => {

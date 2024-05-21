@@ -222,8 +222,7 @@ func (m *machineFileAppImpl) MkDir(ctx context.Context, opParam *dto.MachineFile
 		return nil, err
 	}
 
-	sftpCli.MkdirAll(path)
-	return mi, err
+	return mi, sftpCli.MkdirAll(path)
 }
 
 func (m *machineFileAppImpl) CreateFile(ctx context.Context, opParam *dto.MachineFileOp) (*mcm.MachineInfo, error) {

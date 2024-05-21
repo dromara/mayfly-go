@@ -100,31 +100,34 @@ const { dvisible, params, form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveConfigExec } = configApi.save.useApi(form);
 
-watchEffect(() => {
-    state.dvisible = props.visible;
-    if (!state.dvisible) {
-        return;
-    }
+watch(
+    () => props.visible,
+    () => {
+        state.dvisible = props.visible;
+        if (!state.dvisible) {
+            return;
+        }
 
-    if (props.data) {
-        state.form = { ...(props.data as any) };
-        if (state.form.params) {
-            state.params = JSON.parse(state.form.params);
+        if (props.data) {
+            state.form = { ...(props.data as any) };
+            if (state.form.params) {
+                state.params = JSON.parse(state.form.params);
+            } else {
+                state.params = [];
+            }
         } else {
+            state.form = { permission: 'all' } as any;
             state.params = [];
         }
-    } else {
-        state.form = { permission: 'all' } as any;
-        state.params = [];
-    }
 
-    if (state.form.permission != 'all') {
-        const accounts = state.form.permission.split(',');
-        state.permissionAccount = accounts.slice(0, accounts.length - 1);
-    } else {
-        state.permissionAccount = [];
+        if (state.form.permission != 'all') {
+            const accounts = state.form.permission.split(',');
+            state.permissionAccount = accounts.slice(0, accounts.length - 1);
+        } else {
+            state.permissionAccount = [];
+        }
     }
-});
+);
 
 const cancel = () => {
     // 更新父组件visible prop对应的值为false

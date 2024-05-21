@@ -18,12 +18,12 @@
                         </el-select>
                     </template>
                 </el-table-column>
-                <el-table-column prop="path" label="路径" min-width="150px" show-overflow-tooltip>
+                <el-table-column prop="path" label="路径" min-width="180" show-overflow-tooltip>
                     <template #default="scope">
                         <el-input v-model="scope.row.path" :disabled="scope.row.id != null" clearable> </el-input>
                     </template>
                 </el-table-column>
-                <el-table-column label="操作" min-wdith="120px">
+                <el-table-column label="操作" min-width="130">
                     <template #default="scope">
                         <el-button v-if="scope.row.id == null" @click="addFiles(scope.row)" type="success" icon="success-filled" plain></el-button>
                         <el-button v-if="scope.row.id != null" @click="getConf(scope.row)" type="primary" icon="tickets" plain></el-button>

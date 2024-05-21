@@ -29,6 +29,10 @@ func InitMachineRouter(router *gin.RouterGroup) {
 
 			req.NewGet(":machineId/process", m.GetProcess),
 
+			req.NewGet(":machineId/users", m.GetUsers),
+
+			req.NewGet(":machineId/groups", m.GetGroups),
+
 			req.NewDelete(":machineId/process", m.KillProcess).Log(req.NewLogSave("终止进程")).RequiredPermissionCode("machine:killprocess"),
 
 			req.NewPost("", m.SaveMachine).Log(req.NewLogSave("保存机器信息")).RequiredPermission(saveMachineP),

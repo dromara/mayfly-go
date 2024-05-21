@@ -34,20 +34,15 @@
 
             <Pane>
                 <div class="machine-terminal-tabs card pd5">
-                    <el-tabs
-                        v-if="state.tabs.size > 0"
-                        type="card"
-                        @tab-remove="onRemoveTab"
-                        @tab-change="onTabChange"
-                        style="width: 100%"
-                        v-model="state.activeTermName"
-                        class="h100"
-                    >
+                    <el-tabs v-if="state.tabs.size > 0" type="card" @tab-remove="onRemoveTab" style="width: 100%" v-model="state.activeTermName" class="h100">
                         <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                             <template #label>
                                 <el-popconfirm @confirm="handleReconnect(dt, true)" title="确认重新连接?">
                                     <template #reference>
-                                        <el-icon class="mr5" :color="dt.status == 1 ? '#67c23a' : '#f56c6c'" :title="dt.status == 1 ? '' : '点击重连'"
+                                        <el-icon
+                                            class="mr5"
+                                            :color="EnumValue.getEnumByValue(TerminalStatusEnum, dt.status)?.extra?.iconColor"
+                                            :title="dt.status == TerminalStatusEnum.Connected.value ? '' : '点击重连'"
                                             ><Connection />
                                         </el-icon>
                                     </template>
@@ -62,7 +57,7 @@
                                         <el-descriptions :column="1" size="small">
                                             <el-descriptions-item label="机器名"> {{ dt.params?.name }} </el-descriptions-item>
                                             <el-descriptions-item label="host"> {{ dt.params?.ip }} : {{ dt.params?.port }} </el-descriptions-item>
-                                            <el-descriptions-item label="username"> {{ dt.params?.username }} </el-descriptions-item>
+                                            <el-descriptions-item label="username"> {{ dt.params?.selectAuthCert.username }} </el-descriptions-item>
                                             <el-descriptions-item label="remark"> {{ dt.params?.remark }} </el-descriptions-item>
                                         </el-descriptions>
                                     </template>
@@ -165,13 +160,14 @@ import TagTree from '../component/TagTree.vue';
 import { Pane, Splitpanes } from 'splitpanes';
 import { ContextmenuItem } from '@/components/contextmenu/index';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
-import { TerminalStatus } from '@/components/terminal/common';
+import { TerminalStatus, TerminalStatusEnum } from '@/components/terminal/common';
 import MachineRdp from '@/components/terminal-rdp/MachineRdp.vue';
 import MachineFile from '@/views/ops/machine/file/MachineFile.vue';
 import ResourceTags from '../component/ResourceTags.vue';
 import { MachineProtocolEnum } from './enums';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
+import EnumValue from '@/common/Enum';
 
 // 组件
 const ScriptManage = defineAsyncComponent(() => import('./ScriptManage.vue'));
@@ -340,8 +336,13 @@ watch(
 watch(
     () => state.activeTermName,
     (newValue, oldValue) => {
+        fitTerminal();
+
         oldValue && terminalRefs[oldValue]?.blur && terminalRefs[oldValue]?.blur();
         terminalRefs[newValue]?.focus && terminalRefs[newValue]?.focus();
+
+        const nowTab = state.tabs.get(state.activeTermName);
+        tagTreeRef.value.setCurrentKey(nowTab?.authCert);
     }
 );
 
@@ -509,7 +510,7 @@ const onRemoveTab = (targetName: string) => {
 
         state.tabs.delete(targetName);
         state.activeTermName = activeTermName;
-        onTabChange();
+        // onTabChange();
     }
 };
 
@@ -535,21 +536,13 @@ const onResizeTagTree = () => {
     fitTerminal();
 };
 
-const onTabChange = () => {
-    fitTerminal();
-
-    const nowTab = state.tabs.get(state.activeTermName);
-    tagTreeRef.value.setCurrentKey(nowTab?.authCert);
-};
-
 const fitTerminal = () => {
     setTimeout(() => {
         let info = state.tabs.get(state.activeTermName);
         if (info) {
             terminalRefs[info.key]?.fitTerminal && terminalRefs[info.key]?.fitTerminal();
-            terminalRefs[info.key]?.focus && terminalRefs[info.key]?.focus();
         }
-    }, 100);
+    });
 };
 
 const handleReconnect = (tab: any, force = false) => {

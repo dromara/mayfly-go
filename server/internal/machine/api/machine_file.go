@@ -28,9 +28,11 @@ import (
 	"sync"
 
 	"github.com/may-fly/cast"
+	"github.com/pkg/sftp"
 )
 
 type MachineFile struct {
+	MachineApp     application.Machine     `inject:""`
 	MachineFileApp application.MachineFile `inject:""`
 	MsgApp         msgapp.Msg              `inject:""`
 }
@@ -159,15 +161,21 @@ func (m *MachineFile) GetDirEntry(rc *req.Ctx) {
 			path = readPath + name
 		}
 
-		fisVO = append(fisVO, vo.MachineFileInfo{
+		mfi := vo.MachineFileInfo{
 			Name:    fi.Name(),
 			Size:    fi.Size(),
 			Path:    path,
 			Type:    getFileType(fi.Mode()),
 			Mode:    fi.Mode().String(),
 			ModTime: timex.DefaultFormat(fi.ModTime()),
-		})
+		}
 
+		if sftpFs, ok := fi.Sys().(*sftp.FileStat); ok {
+			mfi.UID = sftpFs.UID
+			mfi.GID = sftpFs.GID
+		}
+
+		fisVO = append(fisVO, mfi)
 	}
 	sort.Sort(vo.MachineFileInfos(fisVO))
 	rc.ResData = fisVO

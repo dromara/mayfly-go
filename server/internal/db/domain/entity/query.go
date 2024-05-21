@@ -27,16 +27,10 @@ type DbTransferLogQuery struct {
 
 // 数据库查询实体，不与数据库表字段一一对应
 type DbQuery struct {
-	Id       uint64 `form:"id"`
-	Code     string `json:"code" form:"code"`
-	Name     string `orm:"column(name)" json:"name"`
-	Database string `orm:"column(database)" json:"database"`
-	Remark   string `json:"remark"`
-
-	Codes   []string
-	TagIds  []uint64 `orm:"column(tag_id)"`
-	TagPath string   `form:"tagPath"`
-
+	Id         uint64 `form:"id"`
+	TagPath    string `form:"tagPath"`
+	Code       string `json:"code" form:"code"`
+	Codes      []string
 	InstanceId uint64 `form:"instanceId"`
 }
 

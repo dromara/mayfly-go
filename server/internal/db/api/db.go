@@ -57,10 +57,20 @@ func (d *Db) Dbs(rc *req.Ctx) {
 	res, err := d.DbApp.GetPageList(queryCond, page, &dbvos)
 	biz.ErrIsNil(err)
 
-	// 填充标签信息
-	d.TagApp.FillTagInfo(tagentity.TagTypeDbName, collx.ArrayMap(dbvos, func(dbvo *vo.DbListVO) tagentity.ITagResource {
-		return dbvo
-	})...)
+	instances, _ := d.InstanceApp.GetByIds(collx.ArrayMap(dbvos, func(i *vo.DbListVO) uint64 {
+		return i.InstanceId
+	}))
+	instancesMap := collx.ArrayToMap(instances, func(i *entity.DbInstance) uint64 {
+		return i.Id
+	})
+	for _, dbvo := range dbvos {
+		di := instancesMap[dbvo.InstanceId]
+		if di != nil {
+			dbvo.InstanceType = di.Type
+			dbvo.Host = di.Host
+			dbvo.Port = di.Port
+		}
+	}
 
 	rc.ResData = res
 }

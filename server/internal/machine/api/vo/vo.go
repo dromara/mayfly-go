@@ -78,6 +78,9 @@ type MachineFileInfo struct {
 	Type    string `json:"type"`
 	Mode    string `json:"mode"`
 	ModTime string `json:"modTime"`
+
+	UID uint32 `json:"uid"`
+	GID uint32 `json:"gid"`
 }
 
 type MachineFileInfos []MachineFileInfo

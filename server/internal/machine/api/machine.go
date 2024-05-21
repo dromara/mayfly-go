@@ -173,6 +173,22 @@ func (m *Machine) KillProcess(rc *req.Ctx) {
 	biz.ErrIsNil(err, "终止进程失败: %s", res)
 }
 
+func (m *Machine) GetUsers(rc *req.Ctx) {
+	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
+	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
+	res, err := cli.GetUsers()
+	biz.ErrIsNil(err)
+	rc.ResData = res
+}
+
+func (m *Machine) GetGroups(rc *req.Ctx) {
+	cli, err := m.MachineApp.GetCli(GetMachineId(rc))
+	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
+	res, err := cli.GetGroups()
+	biz.ErrIsNil(err)
+	rc.ResData = res
+}
+
 func (m *Machine) WsSSH(g *gin.Context) {
 	wsConn, err := ws.Upgrader.Upgrade(g.Writer, g.Request, nil)
 	defer func() {

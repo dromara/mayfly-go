@@ -22,7 +22,7 @@
             >
                 <el-table-column type="selection" width="30" />
 
-                <el-table-column prop="name" label="名称">
+                <el-table-column prop="name" label="名称" min-width="380">
                     <template #header>
                         <div class="machine-file-table-header">
                             <div>
@@ -171,7 +171,7 @@
                     </template>
                 </el-table-column>
 
-                <el-table-column prop="size" label="大小" width="100" sortable>
+                <el-table-column prop="size" label="大小" min-width="90" sortable>
                     <template #default="scope">
                         <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == '-'"> {{ formatByteSize(scope.row.size) }} </span>
                         <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == 'd' && scope.row.dirSize"> {{ scope.row.dirSize }} </span>
@@ -182,7 +182,11 @@
                 </el-table-column>
 
                 <el-table-column prop="mode" label="属性" width="110"> </el-table-column>
-                <el-table-column prop="modTime" label="修改时间" width="165" sortable> </el-table-column>
+                <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" prop="username" label="用户" min-width="55" show-overflow-tooltip>
+                </el-table-column>
+                <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" prop="groupname" label="组" min-width="55" show-overflow-tooltip>
+                </el-table-column>
+                <el-table-column prop="modTime" label="修改时间" width="160" sortable> </el-table-column>
 
                 <el-table-column width="100">
                     <template #header>
@@ -288,6 +292,7 @@ import MachineFileContent from './MachineFileContent.vue';
 import { getToken } from '@/common/utils/storage';
 import { convertToBytes, formatByteSize } from '@/common/utils/format';
 import { getMachineConfig } from '@/common/sysconfig';
+import { MachineProtocolEnum } from '../enums';
 
 const props = defineProps({
     machineId: { type: Number },
@@ -302,6 +307,9 @@ const token = getToken();
 const folderUploadRef: any = ref();
 
 const folderType = 'd';
+
+const userMap = new Map<number, any>();
+const groupMap = new Map<number, any>();
 
 // 路径分隔符
 const pathSep = '/';
@@ -343,9 +351,49 @@ const { basePath, nowPath, loading, fileNameFilter, progressNum, uploadProgressS
 
 onMounted(async () => {
     state.basePath = props.path;
+    const machineId = props.machineId;
+
+    if (props.protocol == MachineProtocolEnum.Ssh.value) {
+        machineApi.users.request({ id: machineId }).then((res: any) => {
+            for (let user of res) {
+                userMap.set(user.uid, user);
+            }
+        });
+
+        machineApi.groups.request({ id: machineId }).then((res: any) => {
+            for (let group of res) {
+                groupMap.set(group.gid, group);
+            }
+        });
+    }
+
     setFiles(props.path);
     state.machineConfig = await getMachineConfig();
 });
+
+// watch(
+//     () => props.machineId,
+//     () => {
+//         if (props.protocol != MachineProtocolEnum.Ssh.value) {
+//             userMap.clear();
+//             groupMap.clear();
+//             return;
+//         }
+
+//         const machineId = props.machineId;
+//         machineApi.users.request({ machineId }).then((res: any) => {
+//             for (let user of res) {
+//                 userMap.set(user.uid, user);
+//             }
+//         });
+
+//         machineApi.groups.request({ machineId }).then((res: any) => {
+//             for (let group of res) {
+//                 groupMap.set(group.gid, group);
+//             }
+//         });
+//     }
+// );
 
 const filterFiles = computed(() =>
     state.files.filter((data: any) => !state.fileNameFilter || data.name.toLowerCase().includes(state.fileNameFilter.toLowerCase()))
@@ -517,6 +565,11 @@ const lsFile = async (path: string) => {
         path,
     });
     for (const file of res) {
+        if (props.protocol == MachineProtocolEnum.Ssh.value) {
+            file.username = userMap.get(file.uid)?.uname || file.uid;
+            file.groupname = groupMap.get(file.gid)?.gname || file.gid;
+        }
+
         const type = file.type;
         if (type == folderType) {
             file.isFolder = true;
