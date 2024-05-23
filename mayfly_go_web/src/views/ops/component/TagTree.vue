@@ -18,7 +18,7 @@
                 :default-expanded-keys="props.defaultExpandedKeys"
             >
                 <template #default="{ node, data }">
-                    <span @dblclick="treeNodeDblclick(data)" :class="data.type.nodeDblclickFunc ? 'none-select' : ''">
+                    <span :id="node.key" @dblclick="treeNodeDblclick(data)" :class="data.type.nodeDblclickFunc ? 'none-select' : ''">
                         <span v-if="data.type.value == TagTreeNode.TagPath">
                             <tag-info :tag-path="data.label" />
                         </span>
@@ -48,7 +48,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref, watch, toRefs } from 'vue';
+import { onMounted, reactive, ref, watch, toRefs, nextTick } from 'vue';
 import { NodeType, TagTreeNode } from './tag';
 import TagInfo from './TagInfo.vue';
 import { Contextmenu } from '@/components/contextmenu';
@@ -126,7 +126,7 @@ const loadTags = async () => {
  * @param { Object } node
  * @param { Object } resolve
  */
-const loadNode = async (node: any, resolve: any) => {
+const loadNode = async (node: any, resolve: (data: any) => void, reject: () => void) => {
     if (typeof resolve !== 'function') {
         return;
     }
@@ -141,6 +141,8 @@ const loadNode = async (node: any, resolve: any) => {
         }
     } catch (e: any) {
         console.error(e);
+        // 调用 reject 以保持节点状态，并允许远程加载继续。
+        return reject();
     }
     return resolve(nodes);
 };
@@ -207,6 +209,17 @@ const getNode = (nodeKey: any) => {
 
 const setCurrentKey = (nodeKey: any) => {
     treeRef.value.setCurrentKey(nodeKey);
+
+    // 通过Id获取到对应的dom元素
+    const node = document.getElementById(nodeKey);
+    if (node) {
+        setTimeout(() => {
+            nextTick(() => {
+                // 通过scrollIntoView方法将对应的dom元素定位到可见区域 【block: 'center'】这个属性是在垂直方向居中显示
+                node.scrollIntoView({ block: 'center' });
+            });
+        }, 100);
+    }
 };
 
 defineExpose({

@@ -121,7 +121,7 @@
 
                     <template #empty>
                         <div style="text-align: center">
-                            <el-empty class="h100" :description="props.emptyText" :image-size="100" />
+                            <el-empty :description="props.emptyText" :image-size="100" />
                         </div>
                     </template>
                 </el-table-v2>

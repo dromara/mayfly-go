@@ -42,13 +42,13 @@ SELECT a.indexname                                                         AS "i
        indexdef                                                          AS "indexDef",
        c.attname                                                         AS "columnName",
        c.attnum                                                          AS "seqInIndex",
-       case when a.indexname like '%_pkey' then 1 else 0 end             AS "isPrimaryKey"
+       case when a.indexname like '%%_pkey' then 1 else 0 end             AS "isPrimaryKey"
 FROM pg_indexes a
          join pg_class b on a.indexname = b.relname
          join pg_attribute c on b.oid = c.attrelid
 WHERE a.schemaname = (select current_schema())
   AND a.tablename = '%s'
-  AND a.indexname not like '%_pkey'
+  AND a.indexname not like '%%_pkey'
 ---------------------------------------
 --PGSQL_COLUMN_MA 表列信息
 SELECT a.table_name                                                                            AS "tableName",

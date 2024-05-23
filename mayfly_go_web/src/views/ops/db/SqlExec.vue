@@ -58,16 +58,61 @@
                     <el-row>
                         <el-col :span="24" v-if="state.db">
                             <el-descriptions :column="4" size="small" border>
-                                <el-descriptions-item label-align="right" label="操作"
-                                    ><el-button
+                                <el-descriptions-item label-align="right" label="操作">
+                                    <el-button
                                         :disabled="!state.db || !nowDbInst.id"
                                         type="primary"
                                         icon="Search"
-                                        @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases }, state.db)"
-                                        size="small"
-                                        >新建查询</el-button
-                                    ></el-descriptions-item
-                                >
+                                        link
+                                        @click="
+                                            addQueryTab(
+                                                { id: nowDbInst.id, dbs: nowDbInst.databases, nodeKey: getSqlMenuNodeKey(nowDbInst.id, state.db) },
+                                                state.db
+                                            )
+                                        "
+                                        title="新建查询"
+                                    >
+                                    </el-button>
+
+                                    <template v-if="!dbConfig.locationTreeNode">
+                                        <el-divider direction="vertical" border-style="dashed" />
+                                        <el-button @click="locationNowTreeNode(null)" title="定位至左侧树的指定位置" icon="Location" link></el-button>
+                                    </template>
+
+                                    <el-divider direction="vertical" border-style="dashed" />
+                                    <!-- 数据库展示配置 -->
+                                    <el-popover
+                                        popper-style="max-height: 550px; overflow: auto; max-width: 450px"
+                                        placement="bottom"
+                                        width="auto"
+                                        title="数据库展示配置"
+                                        trigger="click"
+                                    >
+                                        <el-row>
+                                            <el-checkbox
+                                                v-model="dbConfig.showColumnComment"
+                                                label="显示字段备注"
+                                                :true-value="1"
+                                                :false-value="0"
+                                                size="small"
+                                            />
+                                        </el-row>
+
+                                        <el-row>
+                                            <el-checkbox
+                                                v-model="dbConfig.locationTreeNode"
+                                                label="自动定位树节点"
+                                                :true-value="1"
+                                                :false-value="0"
+                                                size="small"
+                                            />
+                                        </el-row>
+
+                                        <template #reference>
+                                            <el-link type="primary" icon="setting" :underline="false"></el-link>
+                                        </template>
+                                    </el-popover>
+                                </el-descriptions-item>
 
                                 <el-descriptions-item label-align="right" label="tag">{{ nowDbInst.tagPath }}</el-descriptions-item>
 
@@ -103,7 +148,9 @@
                             <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                                 <template #label>
                                     <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
-                                        <template #reference> {{ dt.label }} </template>
+                                        <template #reference>
+                                            <span class="font12">{{ dt.label }}</span>
+                                        </template>
                                         <template #default>
                                             <el-descriptions :column="1" size="small">
                                                 <el-descriptions-item label="tagPath">
@@ -184,7 +231,7 @@ import { getDbDialect, schemaDbTypes } from './dialect/index';
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Pane, Splitpanes } from 'splitpanes';
-import { useEventListener } from '@vueuse/core';
+import { useEventListener, useStorage } from '@vueuse/core';
 import SqlExecBox from '@/views/ops/db/component/sqleditor/SqlExecBox';
 import { useAutoOpenResource } from '@/store/autoOpenResource';
 import { storeToRefs } from 'pinia';
@@ -456,6 +503,8 @@ const state = reactive({
 
 const { nowDbInst, tableCreateDialog } = toRefs(state);
 
+const dbConfig = useStorage('dbConfig', { showColumnComment: false, locationTreeNode: false });
+
 const serverInfoReqParam = ref({
     instanceId: 0,
 });
@@ -670,6 +719,18 @@ const onTabChange = () => {
         registerDbCompletionItemProvider(nowTab.dbId, nowTab.db, nowTab.params.dbs, nowDbInst.value.type);
     }
 
+    if (dbConfig.value.locationTreeNode) {
+        locationNowTreeNode(nowTab);
+    }
+};
+
+/**
+ * 定位至当前树节点
+ */
+const locationNowTreeNode = (nowTab: any = null) => {
+    if (!nowTab) {
+        nowTab = state.tabs.get(state.activeName);
+    }
     tagTreeRef.value.setCurrentKey(nowTab?.treeNodeKey);
 };
 
@@ -854,7 +915,7 @@ const getNowDbInfo = () => {
             margin: 0 0 5px;
 
             .el-tabs__item {
-                padding: 0 10px;
+                padding: 0 5px;
             }
         }
 
