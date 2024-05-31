@@ -5,25 +5,23 @@ import (
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 )
 
 type Config struct {
-	ConfigApp application.Config
+	ConfigApp application.Config `inject:""`
 }
 
 func (c *Config) Configs(rc *req.Ctx) {
-	g := rc.GinCtx
-	condition := &entity.Config{Key: g.Query("key")}
+	condition := &entity.Config{Key: rc.Query("key")}
 	condition.Permission = rc.GetLoginAccount().Username
-	res, err := c.ConfigApp.GetPageList(condition, ginx.GetPageParam(g), new([]entity.Config))
+	res, err := c.ConfigApp.GetPageList(condition, rc.GetPageParam(), new([]entity.Config))
 	biz.ErrIsNil(err)
 	rc.ResData = res
 }
 
 func (c *Config) GetConfigValueByKey(rc *req.Ctx) {
-	key := rc.GinCtx.Query("key")
+	key := rc.Query("key")
 	biz.NotEmpty(key, "key不能为空")
 
 	config := c.ConfigApp.GetConfig(key)
@@ -38,7 +36,7 @@ func (c *Config) GetConfigValueByKey(rc *req.Ctx) {
 
 func (c *Config) SaveConfig(rc *req.Ctx) {
 	form := &form.ConfigForm{}
-	config := ginx.BindJsonAndCopyTo(rc.GinCtx, form, new(entity.Config))
+	config := req.BindJsonAndCopyTo(rc, form, new(entity.Config))
 	rc.ReqParam = form
 	biz.ErrIsNil(c.ConfigApp.Save(rc.MetaCtx, config))
 }

@@ -29,6 +29,12 @@
                 </template>
             </el-table-column>
 
+            <el-table-column prop="required" label="必填" min-width="40px">
+                <template #default="scope">
+                    <el-checkbox v-model="scope.row['required']" />
+                </template>
+            </el-table-column>
+
             <el-table-column label="操作" wdith="20px">
                 <template #default="scope">
                     <el-button type="danger" @click="deleteItem(scope.$index)" icon="delete" plain></el-button>
@@ -39,15 +45,7 @@
 </template>
 
 <script lang="ts" setup>
-import { useVModel } from '@vueuse/core';
-
-const props = defineProps({
-    modelValue: { type: Array },
-});
-
-const emit = defineEmits(['update:modelValue']);
-
-const formItems: any = useVModel(props, 'modelValue', emit);
+const formItems: any = defineModel('modelValue');
 
 const addItem = () => {
     formItems.value.push({});

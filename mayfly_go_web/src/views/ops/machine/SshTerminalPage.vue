@@ -1,6 +1,6 @@
 <template>
     <div class="terminal-wrapper">
-        <TerminalBody :socket-url="getMachineTerminalSocketUrl(route.query.id)" />
+        <TerminalBody :socket-url="getMachineTerminalSocketUrl(route.query.ac)" />
     </div>
 </template>
 

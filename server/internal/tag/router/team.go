@@ -1,20 +1,17 @@
 package router
 
 import (
-	sysapp "mayfly-go/internal/sys/application"
 	"mayfly-go/internal/tag/api"
-	"mayfly-go/internal/tag/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
 
 func InitTeamRouter(router *gin.RouterGroup) {
-	m := &api.Team{
-		TeamApp:    application.GetTeamApp(),
-		TagApp:     application.GetTagTreeApp(),
-		AccountApp: sysapp.GetAccountApp(),
-	}
+	m := new(api.Team)
+	biz.ErrIsNil(ioc.Inject(m))
 
 	team := router.Group("/teams")
 	{
@@ -32,11 +29,6 @@ func InitTeamRouter(router *gin.RouterGroup) {
 			req.NewPost("/:id/members", m.SaveTeamMember).Log(req.NewLogSave("团队-新增成员")).RequiredPermissionCode("team:member:save"),
 
 			req.NewDelete("/:id/members/:accountId", m.DelTeamMember).Log(req.NewLogSave("团队-删除成员")).RequiredPermissionCode("team:member:del"),
-
-			// 获取团队关联的标签id列表
-			req.NewGet("/:id/tags", m.GetTagIds),
-
-			req.NewPost("/:id/tags", m.SaveTags).Log(req.NewLogSave("团队-保存标签关联信息")).RequiredPermissionCode("team:tag:save"),
 		}
 
 		req.BatchSetGroup(team, reqs[:])

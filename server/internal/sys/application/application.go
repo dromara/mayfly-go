@@ -1,33 +1,25 @@
 package application
 
 import (
-	"mayfly-go/internal/sys/infrastructure/persistence"
+	"mayfly-go/pkg/ioc"
 )
 
-var (
-	accountApp  = newAccountApp(persistence.GetAccountRepo())
-	configApp   = newConfigApp(persistence.GetConfigRepo())
-	resourceApp = newResourceApp(persistence.GetResourceRepo())
-	roleApp     = newRoleApp(persistence.GetRoleRepo(), persistence.GetAccountRoleRepo())
-	syslogApp   = newSyslogApp(persistence.GetSyslogRepo())
-)
+func InitIoc() {
+	ioc.Register(new(accountAppImpl), ioc.WithComponentName("AccountApp"))
+	ioc.Register(new(roleAppImpl), ioc.WithComponentName("RoleApp"))
+	ioc.Register(new(configAppImpl), ioc.WithComponentName("ConfigApp"))
+	ioc.Register(new(resourceAppImpl), ioc.WithComponentName("ResourceApp"))
+	ioc.Register(new(syslogAppImpl), ioc.WithComponentName("SyslogApp"))
+}
 
 func GetAccountApp() Account {
-	return accountApp
+	return ioc.Get[Account]("AccountApp")
 }
 
 func GetConfigApp() Config {
-	return configApp
-}
-
-func GetResourceApp() Resource {
-	return resourceApp
-}
-
-func GetRoleApp() Role {
-	return roleApp
+	return ioc.Get[Config]("ConfigApp")
 }
 
 func GetSyslogApp() Syslog {
-	return syslogApp
+	return ioc.Get[Syslog]("SyslogApp")
 }

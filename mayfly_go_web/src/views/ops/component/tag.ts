@@ -29,6 +29,11 @@ export class TagTreeNode {
     isLeaf: boolean = false;
 
     /**
+     * 是否禁用状态
+     */
+    disabled: boolean = false;
+
+    /**
      * 额外需要传递的参数
      */
     params: any;
@@ -50,6 +55,11 @@ export class TagTreeNode {
 
     withIsLeaf(isLeaf: boolean) {
         this.isLeaf = isLeaf;
+        return this;
+    }
+
+    withDisabled(disabled: boolean) {
+        this.disabled = disabled;
         return this;
     }
 
@@ -91,7 +101,13 @@ export class NodeType {
 
     loadNodesFunc: (parentNode: TagTreeNode) => Promise<TagTreeNode[]>;
 
+    /**
+     * 节点点击事件
+     */
     nodeClickFunc: (node: TagTreeNode) => void;
+
+    // 节点双击事件
+    nodeDblclickFunc: (node: TagTreeNode) => void;
 
     constructor(value: number) {
         this.value = value;
@@ -114,6 +130,16 @@ export class NodeType {
      */
     withNodeClickFunc(func: (node: TagTreeNode) => void) {
         this.nodeClickFunc = func;
+        return this;
+    }
+
+    /**
+     * 赋值节点双击事件回调函数
+     * @param func 节点双击事件回调函数
+     * @returns this
+     */
+    withNodeDblclickFunc(func: (node: TagTreeNode) => void) {
+        this.nodeDblclickFunc = func;
         return this;
     }
 
@@ -144,4 +170,45 @@ export function getTagPathSearchItem(resourceType: number) {
             });
         })
     );
+}
+
+/**
+ * 根据标签路径获取对应的类型与编号数组
+ * @param codePath 编号路径  tag1/tag2/1|xxx/11|yyy/
+ * @returns {1: ['xxx'], 11: ['yyy']}
+ */
+export function getTagTypeCodeByPath(codePath: string) {
+    const result = {};
+    const parts = codePath.split('/'); // 切分字符串并保留数字和对应的值部分
+
+    for (let part of parts) {
+        if (!part) {
+            continue;
+        }
+        let [key, value] = part.split('|'); // 分割数字和值部分
+        // 如果不存在第二个参数，则说明为标签类型
+        if (!value) {
+            value = key;
+            key = '-1';
+        }
+        if (!result[key]) {
+            result[key] = [];
+        }
+        result[key].push(value);
+    }
+
+    return result;
+}
+
+export function expandCodePath(codePath: string) {
+    const parts = codePath.split('/');
+    const result = [];
+    let currentPath = '';
+
+    for (let i = 0; i < parts.length - 1; i++) {
+        currentPath += parts[i] + '/';
+        result.push(currentPath);
+    }
+
+    return result;
 }

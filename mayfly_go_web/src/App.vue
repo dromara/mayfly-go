@@ -4,7 +4,7 @@
             :zIndex="10000000"
             :width="210"
             v-if="themeConfig.isWatermark"
-            :font="{ color: 'rgba(180, 180, 180, 0.5)' }"
+            :font="{ color: 'rgba(180, 180, 180, 0.3)' }"
             :content="themeConfig.watermarkText"
             class="h100"
         >
@@ -22,12 +22,9 @@ import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useThemeConfig } from '@/store/themeConfig';
-import { getLocal } from '@/common/utils/storage';
 import LockScreen from '@/layout/lockScreen/index.vue';
 import Setings from '@/layout/navBars/breadcrumb/setings.vue';
 import mittBus from '@/common/utils/mitt';
-import { getThemeConfig } from './common/utils/storage';
-import { useWatermark } from '@/common/sysconfig';
 import { useIntervalFn } from '@vueuse/core';
 
 const setingsRef = ref();
@@ -49,17 +46,8 @@ onMounted(() => {
             openSetingsDrawer();
         });
 
-        // 获取缓存中的布局配置
-        const tc = getThemeConfig();
-        if (tc) {
-            themeConfigStores.setThemeConfig({ themeConfig: tc });
-            document.documentElement.style.cssText = getLocal('themeConfigStyle');
-        }
-
-        // 是否开启水印
-        useWatermark().then((res) => {
-            themeConfigStores.setWatermarkConfig(res);
-        });
+        // 初始化系统主题
+        themeConfigStores.initThemeConfig();
     });
 });
 

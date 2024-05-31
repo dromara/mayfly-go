@@ -2,15 +2,17 @@ package router
 
 import (
 	"mayfly-go/internal/sys/api"
-	"mayfly-go/internal/sys/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
 
 func InitSysConfigRouter(router *gin.RouterGroup) {
-	r := &api.Config{ConfigApp: application.GetConfigApp()}
 	configG := router.Group("sys/configs")
+	r := new(api.Config)
+	biz.ErrIsNil(ioc.Inject(r))
 
 	baseP := req.NewPermission("config:base")
 

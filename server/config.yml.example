@@ -11,9 +11,11 @@ server:
     cert-file: ./default.pem
 jwt:
   # jwt key，不设置默认使用随机字符串
-  key: 
-  # 过期时间单位分钟
-  expire-time: 1440
+  key: 333333000000
+  # accessToken过期时间单位分钟
+  expire-time: 720
+  # refreshToken过期时间单位分钟
+  refresh-token-expire-time: 4320
 # 资源密码aes加密key
 aes:
   key: 1111111111111111
@@ -37,12 +39,19 @@ sqlite:
 #   password: 111049
 #   db: 0
 log:
-   # 日志等级, debug, info, warn, error
+  # 日志等级, debug, info, warn, error
   level: info
   # 日志格式类型, text/json
   type: text
   # 是否记录方法调用栈信息
   add-source: false
+  # 日志文件配置
   # file:
-  #   path: ./
+  #   path: ./log
   #   name: mayfly-go.log
+  #   # 日志文件的最大大小（以兆字节为单位）。当日志文件大小达到该值时，将触发切割操作
+  #   max-size: 500
+  #   # 根据文件名中的时间戳，设置保留旧日志文件的最大天数
+  #   max-age: 60
+  #   # 是否使用 gzip 压缩方式压缩轮转后的日志文件
+  #   compress: true

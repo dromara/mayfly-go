@@ -1,13 +1,13 @@
 package application
 
 import (
-	"mayfly-go/internal/msg/infrastructure/persistence"
+	"mayfly-go/pkg/ioc"
 )
 
-var (
-	msgApp = newMsgApp(persistence.GetMsgRepo())
-)
+func InitIoc() {
+	ioc.Register(new(msgAppImpl), ioc.WithComponentName("MsgApp"))
+}
 
 func GetMsgApp() Msg {
-	return msgApp
+	return ioc.Get[Msg]("MsgApp")
 }

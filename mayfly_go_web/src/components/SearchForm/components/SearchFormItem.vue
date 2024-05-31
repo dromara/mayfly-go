@@ -28,17 +28,13 @@
 <script setup lang="ts" name="SearchFormItem">
 import { computed } from 'vue';
 import { SearchItem } from '../index';
-import { useVModel } from '@vueuse/core';
 
 interface SearchFormItemProps {
-    modelValue: any;
     item: SearchItem;
 }
 const props = defineProps<SearchFormItemProps>();
 
-const emit = defineEmits(['update:modelValue']);
-
-const itemValue = useVModel(props, 'modelValue', emit);
+const itemValue = defineModel('modelValue');
 
 // 判断 fieldNames 设置 label && value && children 的 key 值
 const fieldNames = computed(() => {

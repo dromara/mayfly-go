@@ -28,16 +28,16 @@ import (
 )
 
 type Oauth2Login struct {
-	Oauth2App  application.Oauth2
-	AccountApp sysapp.Account
-	MsgApp     msgapp.Msg
+	Oauth2App  application.Oauth2 `inject:""`
+	AccountApp sysapp.Account     `inject:""`
+	MsgApp     msgapp.Msg         `inject:""`
 }
 
 func (a *Oauth2Login) OAuth2Login(rc *req.Ctx) {
 	client, _ := a.getOAuthClient()
 	state := stringx.Rand(32)
 	cache.SetStr("oauth2:state:"+state, "login", 5*time.Minute)
-	rc.GinCtx.Redirect(http.StatusFound, client.AuthCodeURL(state))
+	rc.Redirect(http.StatusFound, client.AuthCodeURL(state))
 }
 
 func (a *Oauth2Login) OAuth2Bind(rc *req.Ctx) {
@@ -45,26 +45,26 @@ func (a *Oauth2Login) OAuth2Bind(rc *req.Ctx) {
 	state := stringx.Rand(32)
 	cache.SetStr("oauth2:state:"+state, "bind:"+strconv.FormatUint(rc.GetLoginAccount().Id, 10),
 		5*time.Minute)
-	rc.GinCtx.Redirect(http.StatusFound, client.AuthCodeURL(state))
+	rc.Redirect(http.StatusFound, client.AuthCodeURL(state))
 }
 
 func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 	client, oauth := a.getOAuthClient()
 
-	code := rc.GinCtx.Query("code")
+	code := rc.Query("code")
 	biz.NotEmpty(code, "code不能为空")
 
-	state := rc.GinCtx.Query("state")
+	state := rc.Query("state")
 	biz.NotEmpty(state, "state不能为空")
 
 	stateAction := cache.GetStr("oauth2:state:" + state)
 	biz.NotEmpty(stateAction, "state已过期, 请重新登录")
 
-	token, err := client.Exchange(rc.GinCtx, code)
+	token, err := client.Exchange(rc, code)
 	biz.ErrIsNilAppendErr(err, "获取OAuth2 accessToken失败: %s")
 
 	// 获取用户信息
-	httpCli := client.Client(rc.GinCtx.Request.Context(), token)
+	httpCli := client.Client(rc.GetRequest().Context(), token)
 	resp, err := httpCli.Get(oauth.ResourceURL)
 	biz.ErrIsNilAppendErr(err, "获取用户信息失败: %s")
 	defer resp.Body.Close()
@@ -99,7 +99,7 @@ func (a *Oauth2Login) OAuth2Callback(rc *req.Ctx) {
 
 		account := new(sysentity.Account)
 		account.Id = accountId
-		err = a.AccountApp.GetBy(account, "username")
+		err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("username"))
 		biz.ErrIsNilAppendErr(err, "该账号不存在")
 		rc.ReqParam = collx.Kvs("username", account.Username, "type", "bind")
 
@@ -145,9 +145,11 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 		now := time.Now()
 		account := &sysentity.Account{
 			Model: model.Model{
-				CreateTime: &now,
-				CreatorId:  0,
-				Creator:    "oauth2",
+				CreateModel: model.CreateModel{
+					CreateTime: &now,
+					CreatorId:  0,
+					Creator:    "oauth2",
+				},
 				UpdateTime: &now,
 			},
 			Name:     userId,
@@ -169,10 +171,7 @@ func (a *Oauth2Login) doLoginAction(rc *req.Ctx, userId string, oauth *config.Oa
 	}
 
 	// 进行登录
-	account := &sysentity.Account{
-		Model: model.Model{DeletedModel: model.DeletedModel{Id: accountId}},
-	}
-	err = a.AccountApp.GetBy(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
+	account, err := a.AccountApp.GetById(accountId, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
 	biz.ErrIsNilAppendErr(err, "获取用户信息失败: %s")
 
 	clientIp := getIpAndRegion(rc)

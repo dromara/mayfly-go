@@ -2,23 +2,22 @@
     <div>
         <el-tree-select
             v-bind="$attrs"
-            v-model="selectTags"
+            v-model="state.selectTags"
             @change="changeTag"
-            style="width: 100%"
             :data="tags"
             placeholder="请选择关联标签"
-            :render-after-expand="true"
-            :default-expanded-keys="[selectTags]"
+            :default-expanded-keys="defaultExpandedKeys"
             show-checkbox
-            node-key="id"
+            node-key="codePath"
             :props="{
-                value: 'id',
+                value: 'codePath',
                 label: 'codePath',
                 children: 'children',
             }"
         >
             <template #default="{ data }">
                 <span class="custom-tree-node">
+                    <SvgIcon :name="EnumValue.getEnumByValue(TagResourceTypeEnum, data.type)?.extra.icon" class="mr2" />
                     <span style="font-size: 13px">
                         {{ data.code }}
                         <span style="color: #3c8dbc">【</span>
@@ -33,42 +32,45 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, onMounted } from 'vue';
+import { toRefs, reactive, onMounted, computed } from 'vue';
 import { tagApi } from '../tag/api';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
+import EnumValue from '@/common/Enum';
 
 //定义事件
 const emit = defineEmits(['update:modelValue', 'changeTag', 'input']);
 
 const props = defineProps({
-    resourceCode: {
-        type: [String],
-        required: true,
+    selectTags: {
+        type: [Array<any>, Object],
     },
-    resourceType: {
-        type: [Number],
-        required: true,
+    tagType: {
+        type: Number,
+        default: TagResourceTypeEnum.Tag.value,
     },
 });
 
 const state = reactive({
     tags: [],
-    // 单选则为id，多选为id数组
-    selectTags: [],
+    // 单选则为codePath，多选为codePath数组
+    selectTags: [] as any,
 });
 
-const { tags, selectTags } = toRefs(state);
+const { tags } = toRefs(state);
 
-onMounted(async () => {
-    if (props.resourceCode) {
-        const resourceTags = await tagApi.getTagResources.request({
-            resourceCode: props.resourceCode,
-            resourceType: props.resourceType,
-        });
-        state.selectTags = resourceTags.map((x: any) => x.tagId);
-        changeTag();
+const defaultExpandedKeys = computed(() => {
+    if (Array.isArray(state.selectTags)) {
+        // 如果 state.selectTags 是数组，直接返回
+        return state.selectTags;
     }
 
-    state.tags = await tagApi.getTagTrees.request(null);
+    // 如果 state.selectTags 不是数组，转换为包含 state.selectTags 的数组
+    return [state.selectTags];
+});
+
+onMounted(async () => {
+    state.selectTags = props.selectTags;
+    state.tags = await tagApi.getTagTrees.request({ type: props.tagType });
 });
 
 const changeTag = () => {

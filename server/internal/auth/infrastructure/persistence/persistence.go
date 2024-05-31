@@ -1,11 +1,9 @@
 package persistence
 
-import "mayfly-go/internal/auth/domain/repository"
-
-var (
-	authAccountRepo = newAuthAccountRepo()
+import (
+	"mayfly-go/pkg/ioc"
 )
 
-func GetOauthAccountRepo() repository.Oauth2Account {
-	return authAccountRepo
+func InitIoc() {
+	ioc.Register(newAuthAccountRepo(), ioc.WithComponentName("Oauth2AccountRepo"))
 }

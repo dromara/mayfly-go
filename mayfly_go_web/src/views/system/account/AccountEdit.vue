@@ -30,7 +30,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref } from 'vue';
+import { toRefs, reactive, watch, ref, watchEffect } from 'vue';
 import { accountApi } from '../api';
 import { ElMessage } from 'element-plus';
 import { AccountUsernamePattern } from '@/common/pattern';
@@ -101,20 +101,32 @@ watch(props, (newValue: any) => {
     state.dialogVisible = newValue.visible;
 });
 
-const btnOk = async () => {
-    accountForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('表单填写有误');
-            return false;
-        }
-
-        await saveAccountExec();
-        ElMessage.success('操作成功');
-        emit('val-change', state.form);
-        //重置表单域
-        accountForm.value.resetFields();
+watchEffect(() => {
+    const account: any = props.account;
+    if (account) {
+        state.form = { ...account };
+        state.edit = true;
+    } else {
+        state.edit = false;
         state.form = {} as any;
-    });
+    }
+    state.dialogVisible = props.visible;
+});
+
+const btnOk = async () => {
+    try {
+        await accountForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
+
+    await saveAccountExec();
+    ElMessage.success('操作成功');
+    emit('val-change', state.form);
+    //重置表单域
+    accountForm.value.resetFields();
+    state.form = {} as any;
 };
 
 const cancel = () => {

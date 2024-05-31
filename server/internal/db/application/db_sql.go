@@ -14,8 +14,7 @@ type dbSqlAppImpl struct {
 	base.AppImpl[*entity.DbSql, repository.DbSql]
 }
 
-func newDbSqlApp(dbSqlRepo repository.DbSql) DbSql {
-	app := new(dbSqlAppImpl)
-	app.Repo = dbSqlRepo
-	return app
+// 注入DbSqlRepo
+func (d *dbSqlAppImpl) InjectDbSqlRepo(repo repository.DbSql) {
+	d.Repo = repo
 }

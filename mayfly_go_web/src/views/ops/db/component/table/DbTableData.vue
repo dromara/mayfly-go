@@ -4,7 +4,7 @@
             <template #default="{ height, width }">
                 <el-table-v2
                     ref="tableRef"
-                    :header-height="30"
+                    :header-height="showColumnTip && dbConfig.showColumnComment ? 45 : 30"
                     :row-height="30"
                     :row-class="rowClass"
                     :row-key="null"
@@ -15,6 +15,7 @@
                     fixed
                     class="table"
                     :row-event-handlers="rowEventHandlers"
+                    @scroll="onTableScroll"
                 >
                     <template #header="{ columns }">
                         <div v-for="(column, i) in columns" :key="i">
@@ -22,13 +23,12 @@
                                 :style="{
                                     width: `${column.width}px`,
                                     height: '100%',
-                                    lineHeight: '30px',
                                     textAlign: 'center',
                                     borderRight: 'var(--el-table-border)',
                                 }"
                             >
                                 <!-- 行号列 -->
-                                <div v-if="column.key == rowNoColumn.key">
+                                <div v-if="column.key == rowNoColumn.key" class="header-column-title">
                                     <b class="el-text" tag="b"> {{ column.title }} </b>
                                 </div>
 
@@ -37,29 +37,37 @@
                                     <!-- 字段列的数据类型 -->
                                     <div class="column-type">
                                         <span v-if="column.dataTypeSubscript === 'icon-clock'">
-                                            <SvgIcon :size="10" name="Clock" style="cursor: unset" />
+                                            <SvgIcon :size="9" name="Clock" style="cursor: unset" />
                                         </span>
                                         <span class="font8" v-else>{{ column.dataTypeSubscript }}</span>
                                     </div>
 
                                     <div v-if="showColumnTip">
-                                        <b :title="column.remark" class="el-text" style="cursor: pointer">
-                                            {{ column.title }}
-                                        </b>
+                                        <div class="header-column-title">
+                                            <b :title="column.remark" class="el-text" style="cursor: pointer">
+                                                {{ column.title }}
+                                            </b>
+                                        </div>
 
-                                        <span>
-                                            <SvgIcon
-                                                color="var(--el-color-primary)"
-                                                v-if="column.title == nowSortColumn?.columnName"
-                                                :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"
-                                            ></SvgIcon>
+                                        <!-- 字段备注信息 -->
+                                        <span
+                                            v-if="dbConfig.showColumnComment"
+                                            style="color: var(--el-color-info-light-3)"
+                                            class="font10 el-text el-text--small is-truncated"
+                                        >
+                                            {{ column.columnComment }}
                                         </span>
                                     </div>
 
-                                    <div v-else>
-                                        <b class="el-text">
-                                            {{ column.title }}
-                                        </b>
+                                    <div v-else class="header-column-title">
+                                        <b class="el-text"> {{ column.title }} </b>
+                                    </div>
+
+                                    <!-- 字段列右部分内容 -->
+                                    <div class="column-right">
+                                        <span v-if="column.title == nowSortColumn?.columnName">
+                                            <SvgIcon color="var(--el-color-primary)" :name="nowSortColumn?.order == 'asc' ? 'top' : 'bottom'"></SvgIcon>
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -87,7 +95,7 @@
                                     />
                                 </div>
 
-                                <div v-else :class="isUpdated(rowIndex, column.dataKey) ? 'update_field_active' : ''">
+                                <div v-else :class="isUpdated(rowIndex, column.dataKey) ? 'update_field_active ml2 mr2' : 'ml2 mr2'">
                                     <span v-if="rowData[column.dataKey!] === null" style="color: var(--el-color-info-light-5)"> NULL </span>
 
                                     <span v-else :title="rowData[column.dataKey!]" class="el-text el-text--small is-truncated">
@@ -112,7 +120,7 @@
 
                     <template #empty>
                         <div style="text-align: center">
-                            <el-empty class="h100" :description="state.emptyText" :image-size="100" />
+                            <el-empty :description="props.emptyText" :image-size="100" />
                         </div>
                     </template>
                 </el-table-v2>
@@ -128,22 +136,35 @@
             <el-input v-model="state.genTxtDialog.txt" type="textarea" rows="20" />
         </el-dialog>
 
+        <DbTableDataForm
+            v-if="state.tableDataFormDialog.visible"
+            :db-inst="getNowDbInst()"
+            :db-name="db"
+            :columns="columns!"
+            :title="state.tableDataFormDialog.title"
+            :table-name="table"
+            v-model:visible="state.tableDataFormDialog.visible"
+            v-model="state.tableDataFormDialog.data"
+            @submit-success="emits('changeUpdatedField')"
+        />
+
         <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
     </div>
 </template>
 
 <script lang="ts" setup>
 import { onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue';
-import { ElInput } from 'element-plus';
+import { ElInput, ElMessage } from 'element-plus';
 import { copyToClipboard } from '@/common/utils/string';
 import { DbInst } from '@/views/ops/db/db';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { exportCsv, exportFile } from '@/common/utils/export';
-import { dateStrFormat } from '@/common/utils/date';
-import { useIntervalFn } from '@vueuse/core';
-import { ColumnTypeSubscript, DataType, DbDialect, DbType, getDbDialect } from '../../dialect/index';
+import { formatDate } from '@/common/utils/format';
+import { useIntervalFn, useStorage } from '@vueuse/core';
+import { ColumnTypeSubscript, compatibleMysql, DataType, DbDialect, getDbDialect } from '../../dialect/index';
 import ColumnFormItem from './ColumnFormItem.vue';
+import DbTableDataForm from './DbTableDataForm.vue';
 
 const emits = defineEmits(['dataDelete', 'sortChange', 'deleteData', 'selectionChange', 'changeUpdatedField']);
 
@@ -237,6 +258,13 @@ const cmDataDel = new ContextmenuItem('deleteData', '删除')
         return state.table == '';
     });
 
+const cmDataEdit = new ContextmenuItem('editData', '编辑行')
+    .withIcon('edit')
+    .withOnClick(() => onEditRowData())
+    .withHideFunc(() => {
+        return state.table == '';
+    });
+
 const cmDataGenInsertSql = new ContextmenuItem('genInsertSql', 'Insert SQL')
     .withIcon('tickets')
     .withOnClick(() => onGenerateInsertSql())
@@ -313,8 +341,6 @@ const state = reactive({
     columns: [] as any,
     loading: false,
     tableHeight: '600px',
-    emptyText: '',
-
     execTime: 0,
     contextmenu: {
         dropdown: {
@@ -323,7 +349,11 @@ const state = reactive({
         },
         items: [] as ContextmenuItem[],
     },
-
+    tableDataFormDialog: {
+        data: {},
+        title: '',
+        visible: false,
+    },
     genTxtDialog: {
         title: 'SQL',
         visible: false,
@@ -332,6 +362,8 @@ const state = reactive({
 });
 
 const { tableHeight, datas } = toRefs(state);
+
+const dbConfig = useStorage('dbConfig', { showColumnComment: false });
 
 /**
  * 行号字段列
@@ -399,7 +431,6 @@ onMounted(async () => {
     console.log('in DbTable mounted');
     state.tableHeight = props.height;
     state.loading = props.loading;
-    state.emptyText = props.emptyText;
 
     state.dbId = props.dbId;
     state.dbType = getNowDbInst().type;
@@ -420,19 +451,19 @@ onBeforeUnmount(() => {
 
 const formatDataValues = (datas: any) => {
     // mysql数据暂不做处理
-    if (DbType.mysql === getNowDbInst().type) {
+    if (compatibleMysql(getNowDbInst().type)) {
         return;
     }
 
     for (let data of datas) {
         for (let column of props.columns!) {
-            data[column.columnName] = getFormatTimeValue(dbDialect.getDataType(column.columnType), data[column.columnName]);
+            data[column.columnName] = getFormatTimeValue(dbDialect.getDataType(column.dataType), data[column.columnName]);
         }
     }
 };
 
 const setTableData = (datas: any) => {
-    tableRef.value.scrollTo({ scrollLeft: 0, scrollTop: 0 });
+    tableRef.value?.scrollTo({ scrollLeft: 0, scrollTop: 0 });
     selectionRowsMap.clear();
     cellUpdateMap.clear();
     formatDataValues(datas);
@@ -454,7 +485,7 @@ const setTableColumns = (columns: any) => {
             dataKey: columnName,
             width: DbInst.flexColumnWidth(columnName, state.datas),
             title: columnName,
-            align: 'center',
+            align: x.dataType == DataType.Number ? 'right' : 'left',
             headerClass: 'table-column',
             class: 'table-column',
             sortable: true,
@@ -564,7 +595,7 @@ const dataContextmenuClick = (event: any, rowIndex: number, column: any, data: a
     const { clientX, clientY } = event;
     state.contextmenu.dropdown.x = clientX;
     state.contextmenu.dropdown.y = clientY;
-    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmDataGenInsertSql, cmDataGenJson, cmDataExportCsv, cmDataExportSql];
+    state.contextmenu.items = [cmDataCopyCell, cmDataDel, cmDataEdit, cmDataGenInsertSql, cmDataGenJson, cmDataExportCsv, cmDataExportSql];
     contextmenuRef.value.openContextmenu({ column, rowData: data });
 };
 
@@ -585,8 +616,24 @@ const onDeleteData = async () => {
     const db = state.db;
     const dbInst = getNowDbInst();
     dbInst.promptExeSql(db, await dbInst.genDeleteByPrimaryKeysSql(db, state.table, deleteDatas as any), null, () => {
+        // 存在流程则恢复原值，需工单流程审批完后自动执行
+        if (dbInst.flowProcdef) {
+            return;
+        }
         emits('dataDelete', deleteDatas);
     });
+};
+
+const onEditRowData = () => {
+    const selectionDatas = Array.from(selectionRowsMap.values());
+    if (selectionDatas.length > 1) {
+        ElMessage.warning('只能编辑一行数据');
+        return;
+    }
+    const data = selectionDatas[0];
+    state.tableDataFormDialog.data = { ...data };
+    state.tableDataFormDialog.title = `编辑表'${props.table}'数据`;
+    state.tableDataFormDialog.visible = true;
 };
 
 const onGenerateInsertSql = async () => {
@@ -630,13 +677,13 @@ const onExportCsv = () => {
             columnNames.push(column.columnName);
         }
     }
-    exportCsv(`数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}`, columnNames, dataList);
+    exportCsv(`数据导出-${state.table}-${formatDate(new Date(), 'yyyyMMddHHmm')}`, columnNames, dataList);
 };
 
 const onExportSql = async () => {
     const selectionDatas = state.datas;
     exportFile(
-        `数据导出-${state.table}-${dateStrFormat('yyyyMMddHHmm', new Date().toString())}.sql`,
+        `数据导出-${state.table}-${formatDate(new Date(), 'yyyyMMddHHmm')}.sql`,
         await getNowDbInst().genInsertSql(state.db, state.table, selectionDatas)
     );
 };
@@ -704,44 +751,31 @@ const submitUpdateFields = async () => {
     let res = '';
 
     for (let updateRow of cellUpdateMap.values()) {
-        let sql = `UPDATE ${dbInst.wrapName(state.table)} SET `;
-        const rowData = updateRow.rowData;
-        // 主键列信息
-        const primaryKey = await dbInst.loadTableColumn(db, state.table);
-        let primaryKeyType = primaryKey.columnType;
-        let primaryKeyName = primaryKey.columnName;
-        let primaryKeyValue = rowData[primaryKeyName];
+        const rowData = { ...updateRow.rowData };
+        let updateColumnValue = {};
 
         for (let k of updateRow.columnsMap.keys()) {
             const v = updateRow.columnsMap.get(k);
             if (!v) {
                 continue;
             }
-            // 更新字段列信息
-            const updateColumn = await dbInst.loadTableColumn(db, state.table, k);
-            sql += ` ${dbInst.wrapName(k)} = ${DbInst.wrapColumnValue(updateColumn.columnType, rowData[k])},`;
-
-            // 如果修改的字段是主键
-            if (k === primaryKeyName) {
-                primaryKeyValue = v.oldValue;
-            }
+            updateColumnValue[k] = rowData[k];
+            // 将更新的字段对应的原始数据还原（主要应对可能更新修改了主键等）
+            rowData[k] = v.oldValue;
         }
-
-        sql = sql.substring(0, sql.length - 1);
-        sql += ` WHERE ${dbInst.wrapName(primaryKeyName)} = ${DbInst.wrapColumnValue(primaryKeyType, primaryKeyValue)} ;`;
-        res += sql;
+        res += await dbInst.genUpdateSql(db, state.table, updateColumnValue, rowData);
     }
 
-    dbInst.promptExeSql(
-        db,
-        res,
-        () => {},
-        () => {
-            triggerRefresh();
-            cellUpdateMap.clear();
-            changeUpdatedField();
+    dbInst.promptExeSql(db, res, null, () => {
+        // 存在流程则恢复原值，需工单流程审批完后自动执行
+        if (dbInst.flowProcdef) {
+            cancelUpdateFields();
+            return;
         }
-    );
+        triggerRefresh();
+        cellUpdateMap.clear();
+        changeUpdatedField();
+    });
 };
 
 const cancelUpdateFields = () => {
@@ -778,13 +812,17 @@ const getFormatTimeValue = (dataType: DataType, originValue: string): string => 
     if (!originValue || dataType === DataType.Number || dataType === DataType.String) {
         return originValue;
     }
+
+    // 把Z去掉
+    originValue = originValue.replace('Z', '');
+
     switch (dataType) {
         case DataType.Time:
-            return dateStrFormat('HH:mm:ss', originValue);
+            return formatDate(originValue, 'HH:mm:ss');
         case DataType.Date:
-            return dateStrFormat('yyyy-MM-dd', originValue);
+            return formatDate(originValue, 'YYYY-MM-DD');
         case DataType.DateTime:
-            return dateStrFormat('yyyy-MM-dd HH:mm:ss', originValue);
+            return formatDate(originValue, 'YYYY-MM-DD HH:mm:ss');
         default:
             return originValue;
     }
@@ -802,11 +840,23 @@ const triggerRefresh = () => {
     }
 };
 
+const scrollLeftValue = ref(0);
+const onTableScroll = (param: any) => {
+    scrollLeftValue.value = param.scrollLeft;
+};
+/**
+ * 激活表格，恢复滚动位置，否则会造成表头与数据单元格错位(暂不知为啥，先这样解决)
+ */
+const active = () => {
+    setTimeout(() => tableRef.value.scrollToLeft(scrollLeftValue.value));
+};
+
 const getNowDbInst = () => {
     return DbInst.getInst(state.dbId);
 };
 
 defineExpose({
+    active,
     submitUpdateFields,
     cancelUpdateFields,
 });
@@ -823,6 +873,12 @@ defineExpose({
         padding: 0 2px;
         font-size: 12px;
         border-right: var(--el-table-border);
+    }
+
+    .header-column-title {
+        height: 30px;
+        display: flex;
+        justify-content: center;
     }
 
     .table-data-cell {
@@ -844,9 +900,15 @@ defineExpose({
         color: var(--el-color-info-light-3);
         font-weight: bold;
         position: absolute;
-        top: -12px;
+        top: -7px;
+        padding: 1px;
+    }
+
+    .column-right {
+        position: absolute;
+        top: 2px;
+        right: 0;
         padding: 2px;
-        height: 12px;
     }
 }
 </style>

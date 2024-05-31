@@ -282,7 +282,11 @@ const onContextmenu = (v: any, e: any) => {
 const onTagsClick = (v: any, k: number) => {
     state.routePath = decodeURI(v.path);
     state.tagsRefsIndex = k;
-    router.push(v);
+    try {
+        router.push(v);
+    } catch (e) {
+        // skip
+    }
 };
 // 更新滚动条显示
 const updateScrollbar = () => {

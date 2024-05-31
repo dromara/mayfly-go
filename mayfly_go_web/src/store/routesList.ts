@@ -11,7 +11,7 @@ export const useRoutesList = defineStore('routesList', {
         routesList: [],
     }),
     actions: {
-        async setRoutesList(data: Array<string>) {
+        async setRoutesList(data: Array<any>) {
             this.routesList = data;
         },
     },

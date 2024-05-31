@@ -6,7 +6,12 @@ import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { editor, languages, Position } from 'monaco-editor';
 
 import { registerCompletionItemProvider } from '@/components/monaco/completionItemProvider';
-import { EditorCompletionItem, getDbDialect } from './dialect';
+import { DbDialect, EditorCompletionItem, getDbDialect } from './dialect';
+import { type RemovableRef, useLocalStorage } from '@vueuse/core';
+import { DbGetDbNamesMode } from './enums';
+
+const hintsStorage: RemovableRef<Map<string, any>> = useLocalStorage('db-table-hints', new Map());
+const tableStorage: RemovableRef<Map<string, any>> = useLocalStorage('db-tables', new Map());
 
 const dbInstCache: Map<number, DbInst> = new Map();
 
@@ -37,6 +42,11 @@ export class DbInst {
     type: string;
 
     /**
+     * 流程定义，若存在则需要审批执行
+     */
+    flowProcdef: any;
+
+    /**
      * dbName -> db
      */
     dbs: Map<string, Db> = new Map();
@@ -58,15 +68,21 @@ export class DbInst {
         if (!dbName) {
             throw new Error('dbName不能为空');
         }
-        let db = this.dbs.get(dbName);
+        let key = `${this.id}_${dbName}`;
+        let db = this.dbs.get(key);
         if (db) {
             return db;
         }
         console.info(`new db -> dbId: ${this.id}, dbName: ${dbName}`);
         db = new Db();
         db.name = dbName;
-        this.dbs.set(dbName, db);
+        this.dbs.set(key, db);
         return db;
+    }
+
+    // 获取数据库实例方言
+    getDialect(): DbDialect {
+        return getDbDialect(this.type);
     }
 
     /**
@@ -77,21 +93,26 @@ export class DbInst {
      */
     async loadTables(dbName: string, reload?: boolean) {
         const db = this.getDb(dbName);
-        // 优先从 table map中获取
-        let tables = db.tables;
+        let key = this.dbTablesKey(dbName);
+        let tables = tableStorage.value.get(key);
+        // 优先从 table 缓存中获取
         if (!reload && tables) {
+            db.tables = tables;
             return tables;
         }
         // 重置列信息缓存与表提示信息
         db.columnsMap?.clear();
-        db.tableHints = null;
         console.log(`load tables -> dbName: ${dbName}`);
         tables = await dbApi.tableInfos.request({ id: this.id, db: dbName });
+        tableStorage.value.set(key, tables);
         db.tables = tables;
+
+        // 异步加载表提示信息
+        this.loadDbHints(dbName, true).then(() => {});
         return tables;
     }
 
-    async loadTableSuggestions(dbName: string, range: any, reload?: boolean) {
+    async loadTableSuggestions(dbDialect: DbDialect, dbName: string, range: any, reload?: boolean) {
         const tables = await this.loadTables(dbName, reload);
         // 表名联想
         let suggestions: languages.CompletionItem[] = [];
@@ -104,7 +125,7 @@ export class DbInst {
                 },
                 kind: monaco.languages.CompletionItemKind.File,
                 detail: tableComment,
-                insertText: tableName + ' ',
+                insertText: dbDialect.quoteIdentifier(tableName) + ' ',
                 range,
                 sortText: 300 + index + '',
             });
@@ -113,7 +134,7 @@ export class DbInst {
     }
 
     /** 加载列信息提示 */
-    async loadTableColumnSuggestions(db: string, tableName: string, range: any) {
+    async loadTableColumnSuggestions(dbDialect: DbDialect, db: string, tableName: string, range: any) {
         let dbHits = await this.loadDbHints(db);
         let columns = dbHits[tableName];
         let suggestions: languages.CompletionItem[] = [];
@@ -128,7 +149,7 @@ export class DbInst {
                 },
                 kind: monaco.languages.CompletionItemKind.Property,
                 detail: '', // 不显示detail, 否则选中时备注等会被遮挡
-                insertText: fieldName, // create_time
+                insertText: dbDialect.quoteIdentifier(fieldName) + ' ', // create_time
                 range,
                 sortText: 100 + index + '', // 使用表字段声明顺序排序,排序需为字符串类型
             });
@@ -139,13 +160,14 @@ export class DbInst {
 
     /**
      * 获取表的所有列信息
+     * @param dbName 数据库名
      * @param table 表名
      */
     async loadColumns(dbName: string, table: string) {
         const db = this.getDb(dbName);
         // 优先从 table map中获取
         let columns = db.getColumns(table);
-        if (columns) {
+        if (columns && columns.length > 0) {
             return columns;
         }
         console.log(`load columns -> dbName: ${dbName}, table: ${table}`);
@@ -154,6 +176,9 @@ export class DbInst {
             db: dbName,
             tableName: table,
         });
+
+        DbInst.initColumns(columns);
+
         db.columnsMap.set(table, columns);
         return columns;
     }
@@ -168,18 +193,30 @@ export class DbInst {
         return this.getDb(dbName).getColumn(table, columnName);
     }
 
+    dbTableHintsKey(dbName: string) {
+        return `db-table-hints_${this.id}_${dbName}`;
+    }
+
+    dbTablesKey(dbName: string) {
+        return `db-tables_${this.id}_${dbName}`;
+    }
+
     /**
      * 获取库信息提示
      */
-    async loadDbHints(dbName: string) {
+    async loadDbHints(dbName: string, reload?: boolean) {
         const db = this.getDb(dbName);
-        if (db.tableHints) {
-            return db.tableHints;
+        let key = this.dbTableHintsKey(dbName);
+        let hints = hintsStorage.value.get(key);
+        if (!reload && hints) {
+            db.tableHints = hints;
+            return hints;
         }
         console.log(`load db-hits -> dbName: ${dbName}`);
-        const hits = await dbApi.hintTables.request({ id: this.id, db: db.name });
-        db.tableHints = hits;
-        return hits;
+        hints = await dbApi.hintTables.request({ id: this.id, db: db.name });
+        db.tableHints = hints;
+        hintsStorage.value.set(key, hints);
+        return hints;
     }
 
     /**
@@ -220,12 +257,12 @@ export class DbInst {
      * @returns count sql
      */
     getDefaultCountSql = (table: string, condition?: string) => {
-        return `SELECT COUNT(*) count FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} limit 1`;
+        return `SELECT COUNT(*) count FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''}`;
     };
 
     // 获取指定表的默认查询sql
-    getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number = DbInst.DefaultLimit) {
-        return getDbDialect(this.type).getDefaultSelectSql(table, condition, orderBy, pageNum, limit);
+    getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number = DbInst.DefaultLimit) {
+        return this.getDialect().getDefaultSelectSql(db, table, condition, orderBy, pageNum, limit);
     }
 
     /**
@@ -233,12 +270,22 @@ export class DbInst {
      * @param dbName 数据库名
      * @param table 表名
      * @param datas 要生成的数据
+     * @param dbDialect db方言
+     * @param skipNull 是否跳过空字段
      */
-    async genInsertSql(dbName: string, table: string, datas: any[]) {
+    async genInsertSql(dbName: string, table: string, datas: any[], skipNull = false) {
         if (!datas) {
             return '';
         }
+        let schema = '';
+        let arr = dbName.split('/');
+        if (arr.length == 1) {
+            schema = this.wrapName(dbName) + '.';
+        } else if (arr.length == 2) {
+            schema = this.wrapName(arr[1]) + '.';
+        }
 
+        let dbDialect = this.getDialect();
         const columns = await this.loadColumns(dbName, table);
         const sqls = [];
         for (let data of datas) {
@@ -246,23 +293,59 @@ export class DbInst {
             let values = [];
             for (let column of columns) {
                 const colName = column.columnName;
+                if (skipNull && data[colName] == null) {
+                    continue;
+                }
                 colNames.push(this.wrapName(colName));
-                values.push(DbInst.wrapValueByType(data[colName]));
+                values.push(dbDialect.wrapValue(column.dataType, data[colName]));
             }
-            sqls.push(`INSERT INTO ${this.wrapName(table)} (${colNames.join(', ')}) VALUES(${values.join(', ')})`);
+            sqls.push(`INSERT INTO ${schema}${this.wrapName(table)} (${colNames.join(', ')}) VALUES(${values.join(', ')})`);
         }
         return sqls.join(';\n') + ';';
     }
 
     /**
+     * 生成根据主键更新语句
+     * @param dbName 数据库名
+     * @param table 表名
+     * @param columnValue 要更新的列以及对应的值 field->columnName; value->columnValue
+     * @param rowData 表的一行完整数据（需要获取主键信息）
+     */
+    async genUpdateSql(dbName: string, table: string, columnValue: {}, rowData: {}) {
+        let schema = '';
+        let dbArr = dbName.split('/');
+        if (dbArr.length == 2) {
+            schema = this.wrapName(dbArr[1]) + '.';
+        }
+
+        let sql = `UPDATE ${schema}${this.wrapName(table)} SET `;
+        // 主键列信息
+        const primaryKey = await this.loadTableColumn(dbName, table);
+        let primaryKeyType = primaryKey.dataType;
+        let primaryKeyName = primaryKey.columnName;
+        let primaryKeyValue = rowData[primaryKeyName];
+        const dialect = this.getDialect();
+        for (let k of Object.keys(columnValue)) {
+            const v = columnValue[k];
+            // 更新字段列信息
+            const updateColumn = await this.loadTableColumn(dbName, table, k);
+            sql += ` ${this.wrapName(k)} = ${dialect.wrapValue(updateColumn.dataType, v)},`;
+        }
+        sql = sql.substring(0, sql.length - 1);
+
+        return sql + ` WHERE ${this.wrapName(primaryKeyName)} = ${this.getDialect().wrapValue(primaryKeyType, primaryKeyValue)} ;`;
+    }
+
+    /**
      * 生成根据主键删除的sql语句
+     * @param db 数据库名
      * @param table 表名
      * @param datas 要删除的记录
      */
     async genDeleteByPrimaryKeysSql(db: string, table: string, datas: any[]) {
         const primaryKey = await this.loadTableColumn(db, table);
         const primaryKeyColumnName = primaryKey.columnName;
-        const ids = datas.map((d: any) => `${DbInst.wrapColumnValue(primaryKey.columnType, d[primaryKeyColumnName])}`).join(',');
+        const ids = datas.map((d: any) => `${this.getDialect().wrapValue(primaryKey.dataType, d[primaryKeyColumnName])}`).join(',');
         return `DELETE FROM ${this.wrapName(table)} WHERE ${this.wrapName(primaryKeyColumnName)} IN (${ids})`;
     }
 
@@ -274,19 +357,20 @@ export class DbInst {
             sql,
             dbId: this.id,
             db,
+            dbType: this.getDialect().getInfo().formatSqlDialect,
             runSuccessCallback: successFunc,
             cancelCallback: cancelFunc,
+            flowProcdef: this.flowProcdef,
         });
     };
 
     /**
      * 包裹数据库表名、字段名等，避免使用关键字为字段名或表名时报错
-     * @param table
-     * @param condition
-     * @returns
+     * @param name 表名、字段名、schema名
+     * @returns 包裹后的字符串
      */
     wrapName = (name: string) => {
-        return getDbDialect(this.type).wrapName(name);
+        return this.getDialect().quoteIdentifier(name);
     };
 
     /**
@@ -300,6 +384,11 @@ export class DbInst {
         }
         let dbInst = dbInstCache.get(inst.id);
         if (dbInst) {
+            // 更新可能更改的流程定义
+            if (inst.flowProcdef !== undefined) {
+                dbInst.flowProcdef = inst.flowProcdef;
+                dbInstCache.set(dbInst.id, dbInst);
+            }
             return dbInst;
         }
         console.info(`new dbInst: ${inst.id}, tagPath: ${inst.tagPath}`);
@@ -310,6 +399,7 @@ export class DbInst {
         dbInst.name = inst.name;
         dbInst.type = inst.type;
         dbInst.databases = inst.databases;
+        dbInst.flowProcdef = inst.flowProcdef;
 
         dbInstCache.set(dbInst.id, dbInst);
         return dbInst;
@@ -340,37 +430,12 @@ export class DbInst {
     }
 
     /**
-     * 根据返回值包装值，若值为字符串类型则添加''
-     * @param val 值
-     * @returns 包装后的值
-     */
-    static wrapValueByType = (val: any) => {
-        if (val == null) {
-            return 'NULL';
-        }
-        if (typeof val == 'number') {
-            return val;
-        }
-        return `'${val}'`;
-    };
-
-    /**
-     * 根据字段类型包装字段值，如为字符串等则添加‘’，数字类型则直接返回即可
-     */
-    static wrapColumnValue(columnType: string, value: any) {
-        if (this.isNumber(columnType)) {
-            return value;
-        }
-        return `'${value}'`;
-    }
-
-    /**
      * 判断字段类型是否为数字类型
      * @param columnType 字段类型
      * @returns
      */
     static isNumber(columnType: string) {
-        return columnType.match(/int|double|float|nubmer|decimal|byte|bit/gi);
+        return columnType && columnType.match(/int|double|float|number|decimal|byte|bit/gi);
     }
 
     /**
@@ -385,8 +450,8 @@ export class DbInst {
             return;
         }
 
-        // 获取列名称的长度 加上排序图标长度、abc为字段类型简称占位符
-        const columnWidth: number = getTextWidth(prop + 'abc') + 23;
+        // 获取列名称的长度 加上排序图标长度、abc为字段类型简称占位符、排序图标等
+        const columnWidth: number = getTextWidth(prop + 'abc') + 10;
         // prop为该列的字段名(传字符串);tableData为该表格的数据源(传变量);
         if (!tableData || !tableData.length || tableData.length === 0 || tableData === undefined) {
             return columnWidth;
@@ -406,10 +471,52 @@ export class DbInst {
                 maxWidthText = nowText;
             }
         }
-        const contentWidth: number = getTextWidth(maxWidthText) + 15;
+        const contentWidth: number = getTextWidth(maxWidthText) + 3;
         const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
         return flexWidth > 500 ? 500 : flexWidth;
     };
+
+    // 初始化所有列信息，完善需要显示的列类型，包含长度等，如varchar(20)
+    static initColumns(columns: any[]) {
+        if (!columns) {
+            return;
+        }
+        for (let col of columns) {
+            if (col.charMaxLength > 0) {
+                col.columnType = `${col.dataType}(${col.charMaxLength})`;
+                col.showLength = col.charMaxLength;
+                col.showScale = null;
+                continue;
+            }
+            if (col.numPrecision > 0) {
+                if (col.numScale > 0) {
+                    col.columnType = `${col.dataType}(${col.numPrecision},${col.numScale})`;
+                    col.showScale = col.numScale;
+                } else {
+                    col.columnType = `${col.dataType}(${col.numPrecision})`;
+                    col.showScale = null;
+                }
+
+                col.showLength = col.numPrecision;
+                continue;
+            }
+
+            col.columnType = col.dataType;
+        }
+    }
+
+    /**
+     * 根据数据库配置信息获取对应的库名列表
+     * @param db db配置信息
+     * @returns 库名列表
+     */
+    static async getDbNames(db: any) {
+        if (db.getDatabaseMode == DbGetDbNamesMode.Assign.value) {
+            return db.database.split(' ');
+        }
+
+        return await dbApi.getDbNamesByAc.request({ authCertName: db.authCertName });
+    }
 }
 
 /**
@@ -437,7 +544,7 @@ class Db {
     getColumn(table: string, columnName: string = '') {
         const cols = this.getColumns(table);
         if (!columnName) {
-            const col = cols.find((c: any) => c.columnKey == 'PRI');
+            const col = cols.find((c: any) => c.isPrimaryKey);
             return col || cols[0];
         }
         return cols.find((c: any) => c.columnName == columnName);
@@ -493,6 +600,11 @@ export class TabInfo {
      * tab需要的其他信息
      */
     params: any;
+
+    /**
+     * 组件ref
+     */
+    componentRef: any;
 
     getNowDbInst() {
         return DbInst.getInst(this.dbId);
@@ -617,7 +729,7 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                             description: 'schema',
                         },
                         kind: monaco.languages.CompletionItemKind.Folder,
-                        insertText: a,
+                        insertText: dbDialect.quoteIdentifier(a),
                         range,
                     });
                 });
@@ -650,20 +762,20 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                     if (db.indexOf('/') > 0) {
                         dbName = db.substring(0, db.indexOf('/') + 1) + alias;
                     }
-                    return await dbInst.loadTableSuggestions(dbName, range);
+                    return await dbInst.loadTableSuggestions(dbDialect, dbName, range);
                 }
                 // 表下列名联想  .前的字符串是表名或表别名
                 const sqlInfo = getTableName4SqlCtx(sqlStatement, alias, db);
                 // 提出到表名，则将表对应的字段也添加进提示建议
                 if (sqlInfo) {
-                    return await dbInst.loadTableColumnSuggestions(sqlInfo.db, sqlInfo.tableName, range);
+                    return await dbInst.loadTableColumnSuggestions(dbDialect, sqlInfo.db, sqlInfo.tableName, range);
                 }
             }
 
             // 空格触发也会提示字段信息
             const sqlInfo = getTableName4SqlCtx(sqlStatement, alias, db);
             if (sqlInfo) {
-                const columnSuggestions = await dbInst.loadTableColumnSuggestions(sqlInfo.db, sqlInfo.tableName, range);
+                const columnSuggestions = await dbInst.loadTableColumnSuggestions(dbDialect, sqlInfo.db, sqlInfo.tableName, range);
                 suggestions.push(...columnSuggestions.suggestions);
             }
 
@@ -678,7 +790,7 @@ export function registerDbCompletionItemProvider(dbId: number, db: string, dbs: 
                     },
                     kind: monaco.languages.CompletionItemKind.File,
                     detail: tableComment,
-                    insertText: tableName + ' ',
+                    insertText: dbDialect.quoteIdentifier(tableName) + ' ',
                     range,
                     sortText: 300 + index + '',
                 });

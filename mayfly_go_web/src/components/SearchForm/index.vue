@@ -44,11 +44,9 @@ import Grid from '@/components/Grid/index.vue';
 import GridItem from '@/components/Grid/components/GridItem.vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { SearchItem } from './index';
-import { useVModel } from '@vueuse/core';
 
 interface ProTableProps {
     items: SearchItem[]; // 搜索配置项
-    modelValue?: { [key: string]: any }; // 搜索参数
     searchCol: number | Record<BreakPoint, number>;
     search: (params: any) => void; // 搜索方法
     reset: (params: any) => void; // 重置方法
@@ -60,9 +58,7 @@ const props = withDefaults(defineProps<ProTableProps>(), {
     modelValue: () => ({}),
 });
 
-const emit = defineEmits(['update:modelValue']);
-
-const searchParam = useVModel(props, 'modelValue', emit);
+const searchParam: any = defineModel('modelValue');
 
 // 获取响应式设置
 const getResponsive = (item: SearchItem) => {

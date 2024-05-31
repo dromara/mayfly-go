@@ -1,26 +1,22 @@
 package persistence
 
-import "mayfly-go/internal/db/domain/repository"
-
-var (
-	instanceRepo  repository.Instance  = newInstanceRepo()
-	dbRepo        repository.Db        = newDbRepo()
-	dbSqlRepo     repository.DbSql     = newDbSqlRepo()
-	dbSqlExecRepo repository.DbSqlExec = newDbSqlExecRepo()
+import (
+	"mayfly-go/pkg/ioc"
 )
 
-func GetInstanceRepo() repository.Instance {
-	return instanceRepo
-}
+func InitIoc() {
+	ioc.Register(NewInstanceRepo(), ioc.WithComponentName("DbInstanceRepo"))
+	ioc.Register(newDbRepo(), ioc.WithComponentName("DbRepo"))
+	ioc.Register(newDbSqlRepo(), ioc.WithComponentName("DbSqlRepo"))
+	ioc.Register(newDbSqlExecRepo(), ioc.WithComponentName("DbSqlExecRepo"))
+	ioc.Register(newDataSyncTaskRepo(), ioc.WithComponentName("DbDataSyncTaskRepo"))
+	ioc.Register(newDataSyncLogRepo(), ioc.WithComponentName("DbDataSyncLogRepo"))
+	ioc.Register(newDbTransferTaskRepo(), ioc.WithComponentName("DbTransferTaskRepo"))
 
-func GetDbRepo() repository.Db {
-	return dbRepo
-}
-
-func GetDbSqlRepo() repository.DbSql {
-	return dbSqlRepo
-}
-
-func GetDbSqlExecRepo() repository.DbSqlExec {
-	return dbSqlExecRepo
+	ioc.Register(NewDbBackupRepo(), ioc.WithComponentName("DbBackupRepo"))
+	ioc.Register(NewDbBackupHistoryRepo(), ioc.WithComponentName("DbBackupHistoryRepo"))
+	ioc.Register(NewDbRestoreRepo(), ioc.WithComponentName("DbRestoreRepo"))
+	ioc.Register(NewDbRestoreHistoryRepo(), ioc.WithComponentName("DbRestoreHistoryRepo"))
+	ioc.Register(NewDbBinlogRepo(), ioc.WithComponentName("DbBinlogRepo"))
+	ioc.Register(NewDbBinlogHistoryRepo(), ioc.WithComponentName("DbBinlogHistoryRepo"))
 }

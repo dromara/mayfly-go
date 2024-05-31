@@ -2,87 +2,96 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"mayfly-go/internal/common/consts"
 	"mayfly-go/internal/redis/api/form"
 	"mayfly-go/internal/redis/api/vo"
 	"mayfly-go/internal/redis/application"
+	"mayfly-go/internal/redis/application/dto"
 	"mayfly-go/internal/redis/domain/entity"
 	"mayfly-go/internal/redis/rdm"
 	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
-	"mayfly-go/pkg/utils/cryptox"
 	"mayfly-go/pkg/utils/stringx"
 	"strconv"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 )
 
 type Redis struct {
-	RedisApp application.Redis
-	TagApp   tagapp.TagTree
+	RedisApp application.Redis `inject:""`
+	TagApp   tagapp.TagTree    `inject:"TagTreeApp"`
 }
 
 func (r *Redis) RedisList(rc *req.Ctx) {
-	queryCond, page := ginx.BindQueryAndPage[*entity.RedisQuery](rc.GinCtx, new(entity.RedisQuery))
+	queryCond, page := req.BindQueryAndPage[*entity.RedisQuery](rc, new(entity.RedisQuery))
 
 	// 不存在可访问标签id，即没有可操作数据
-	codes := r.TagApp.GetAccountResourceCodes(rc.GetLoginAccount().Id, consts.TagResourceTypeRedis, queryCond.TagPath)
+	codes := r.TagApp.GetAccountTagCodes(rc.GetLoginAccount().Id, consts.ResourceTypeRedis, queryCond.TagPath)
 	if len(codes) == 0 {
 		rc.ResData = model.EmptyPageResult[any]()
 		return
 	}
 	queryCond.Codes = codes
 
-	res, err := r.RedisApp.GetPageList(queryCond, page, new([]vo.Redis))
+	var redisvos []*vo.Redis
+	res, err := r.RedisApp.GetPageList(queryCond, page, &redisvos)
 	biz.ErrIsNil(err)
+
+	// 填充标签信息
+	r.TagApp.FillTagInfo(tagentity.TagType(consts.ResourceTypeRedis), collx.ArrayMap(redisvos, func(rvo *vo.Redis) tagentity.ITagResource {
+		return rvo
+	})...)
+
 	rc.ResData = res
 }
 
 func (r *Redis) TestConn(rc *req.Ctx) {
 	form := &form.Redis{}
-	redis := ginx.BindJsonAndCopyTo[*entity.Redis](rc.GinCtx, form, new(entity.Redis))
+	redis := req.BindJsonAndCopyTo[*entity.Redis](rc, form, new(entity.Redis))
 
-	// 密码解密，并使用解密后的赋值
-	originPwd, err := cryptox.DefaultRsaDecrypt(redis.Password, true)
-	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
-	redis.Password = originPwd
-
-	biz.ErrIsNil(r.RedisApp.TestConn(redis))
+	biz.ErrIsNil(r.RedisApp.TestConn(&dto.SaveRedis{
+		Redis: redis,
+		AuthCert: &tagentity.ResourceAuthCert{
+			Name:           fmt.Sprintf("redis_%s_ac", redis.Code),
+			Username:       form.Username,
+			Ciphertext:     form.Password,
+			CiphertextType: tagentity.AuthCertCiphertextTypePassword,
+			Type:           tagentity.AuthCertTypePrivate,
+		},
+	}))
 }
 
 func (r *Redis) Save(rc *req.Ctx) {
 	form := &form.Redis{}
-	redis := ginx.BindJsonAndCopyTo[*entity.Redis](rc.GinCtx, form, new(entity.Redis))
+	redis := req.BindJsonAndCopyTo[*entity.Redis](rc, form, new(entity.Redis))
 
-	// 密码解密，并使用解密后的赋值
-	originPwd, err := cryptox.DefaultRsaDecrypt(redis.Password, true)
-	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
-	redis.Password = originPwd
+	redisParam := &dto.SaveRedis{
+		Redis:        redis,
+		TagCodePaths: form.TagCodePaths,
+		AuthCert: &tagentity.ResourceAuthCert{
+			Name:           fmt.Sprintf("redis_%s_ac", redis.Code),
+			Username:       form.Username,
+			Ciphertext:     form.Password,
+			CiphertextType: tagentity.AuthCertCiphertextTypePassword,
+			Type:           tagentity.AuthCertTypePrivate,
+		},
+	}
 
 	// 密码脱敏记录日志
 	form.Password = "****"
 	rc.ReqParam = form
 
-	biz.ErrIsNil(r.RedisApp.Save(rc.MetaCtx, redis, form.TagId...))
-}
-
-// 获取redis实例密码，由于数据库是加密存储，故提供该接口展示原文密码
-func (r *Redis) GetRedisPwd(rc *req.Ctx) {
-	rid := uint64(ginx.PathParamInt(rc.GinCtx, "id"))
-	re, err := r.RedisApp.GetById(new(entity.Redis), rid, "Password")
-	biz.ErrIsNil(err, "redis信息不存在")
-	re.PwdDecrypt()
-	rc.ResData = re.Password
+	biz.ErrIsNil(r.RedisApp.SaveRedis(rc.MetaCtx, redisParam))
 }
 
 func (r *Redis) DeleteRedis(rc *req.Ctx) {
-	idsStr := ginx.PathParam(rc.GinCtx, "id")
+	idsStr := rc.PathParam("id")
 	rc.ReqParam = idsStr
 	ids := strings.Split(idsStr, ",")
 
@@ -94,11 +103,10 @@ func (r *Redis) DeleteRedis(rc *req.Ctx) {
 }
 
 func (r *Redis) RedisInfo(rc *req.Ctx) {
-	g := rc.GinCtx
-	ri, err := r.RedisApp.GetRedisConn(uint64(ginx.PathParamInt(g, "id")), 0)
+	ri, err := r.RedisApp.GetRedisConn(uint64(rc.PathParamInt("id")), 0)
 	biz.ErrIsNil(err)
 
-	section := rc.GinCtx.Query("section")
+	section := rc.Query("section")
 	mode := ri.Info.Mode
 	ctx := context.Background()
 	var redisCli *redis.Client
@@ -106,7 +114,7 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 	if mode == "" || mode == rdm.StandaloneMode || mode == rdm.SentinelMode {
 		redisCli = ri.Cli
 	} else if mode == rdm.ClusterMode {
-		host := rc.GinCtx.Query("host")
+		host := rc.Query("host")
 		biz.NotEmpty(host, "集群模式host信息不能为空")
 		clusterClient := ri.ClusterCli
 		// 遍历集群的master节点找到该redis client
@@ -172,8 +180,7 @@ func (r *Redis) RedisInfo(rc *req.Ctx) {
 }
 
 func (r *Redis) ClusterInfo(rc *req.Ctx) {
-	g := rc.GinCtx
-	ri, err := r.RedisApp.GetRedisConn(uint64(ginx.PathParamInt(g, "id")), 0)
+	ri, err := r.RedisApp.GetRedisConn(uint64(rc.PathParamInt("id")), 0)
 	biz.ErrIsNil(err)
 	biz.IsEquals(ri.Info.Mode, rdm.ClusterMode, "非集群模式")
 	info, _ := ri.ClusterCli.ClusterInfo(context.Background()).Result()
@@ -218,19 +225,19 @@ func (r *Redis) ClusterInfo(rc *req.Ctx) {
 
 // 校验查询参数中的key为必填项，并返回redis实例
 func (r *Redis) checkKeyAndGetRedisConn(rc *req.Ctx) (*rdm.RedisConn, string) {
-	key := rc.GinCtx.Query("key")
+	key := rc.Query("key")
 	biz.NotEmpty(key, "key不能为空")
 	return r.getRedisConn(rc), key
 }
 
 func (r *Redis) getRedisConn(rc *req.Ctx) *rdm.RedisConn {
-	ri, err := r.RedisApp.GetRedisConn(getIdAndDbNum(rc.GinCtx))
+	ri, err := r.RedisApp.GetRedisConn(getIdAndDbNum(rc))
 	biz.ErrIsNil(err)
-	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, ri.Info.TagPath...), "%s")
+	biz.ErrIsNilAppendErr(r.TagApp.CanAccess(rc.GetLoginAccount().Id, ri.Info.CodePath...), "%s")
 	return ri
 }
 
 // 获取redis id与要操作的库号（统一路径）
-func getIdAndDbNum(g *gin.Context) (uint64, int) {
-	return uint64(ginx.PathParamInt(g, "id")), ginx.PathParamInt(g, "db")
+func getIdAndDbNum(rc *req.Ctx) (uint64, int) {
+	return uint64(rc.PathParamInt("id")), rc.PathParamInt("db")
 }

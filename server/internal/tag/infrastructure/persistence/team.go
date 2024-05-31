@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -13,10 +12,12 @@ type teamRepoImpl struct {
 }
 
 func newTeamRepo() repository.Team {
-	return &teamRepoImpl{base.RepoImpl[*entity.Team]{M: new(entity.Team)}}
+	return &teamRepoImpl{}
 }
 
-func (p *teamRepoImpl) GetPageList(condition *entity.Team, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(condition).WithCondModel(condition).WithOrderBy(orderBy...)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+func (p *teamRepoImpl) GetPageList(condition *entity.TeamQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	qd := model.NewCond().
+		Like("name", condition.Name).
+		OrderBy(orderBy...)
+	return p.PageByCondToAny(qd, pageParam, toEntity)
 }

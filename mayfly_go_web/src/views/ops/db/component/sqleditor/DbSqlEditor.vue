@@ -52,7 +52,7 @@
 
             <Pane :size="100 - state.editorSize">
                 <div class="mt5 sql-exec-res h100">
-                    <el-tabs class="h100 w100" v-if="state.execResTabs.length > 0" @tab-remove="onRemoveTab" v-model="state.activeTab">
+                    <el-tabs class="h100 w100" v-if="state.execResTabs.length > 0" @tab-remove="onRemoveTab" @tab-change="active" v-model="state.activeTab">
                         <el-tab-pane class="h100" closable v-for="dt in state.execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
                             <template #label>
                                 <el-popover :show-after="1000" placement="top-start" title="执行信息" trigger="hover" :width="300">
@@ -113,7 +113,7 @@
                                 :loading="dt.loading"
                                 :abort-fn="dt.abortFn"
                                 :height="tableDataHeight"
-                                empty-text="tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改"
+                                :empty-text="state.tableDataEmptyText"
                                 @change-updated-field="changeUpdatedField($event, dt)"
                                 @data-delete="onDeleteData($event, dt)"
                             ></db-table-data>
@@ -128,12 +128,12 @@
 </template>
 
 <script lang="ts" setup>
-import { h, nextTick, onMounted, reactive, toRefs, ref, unref } from 'vue';
+import { h, nextTick, onMounted, reactive, ref, toRefs, unref } from 'vue';
 import { getToken } from '@/common/utils/storage';
 import { notBlank } from '@/common/assert';
 import { format as sqlFormatter } from 'sql-formatter';
 import config from '@/common/config';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage, ElMessageBox, ElNotification } from 'element-plus';
 
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { editor } from 'monaco-editor';
@@ -146,11 +146,9 @@ import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { joinClientParams } from '@/common/request';
 import { buildProgressProps } from '@/components/progress-notify/progress-notify';
 import ProgressNotify from '@/components/progress-notify/progress-notify.vue';
-import { ElNotification } from 'element-plus';
 import syssocket from '@/common/syssocket';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import { getDbDialect } from '../../dialect';
-import { Splitpanes, Pane } from 'splitpanes';
+import { Pane, Splitpanes } from 'splitpanes';
 
 const emits = defineEmits(['saveSqlSuccess']);
 
@@ -223,6 +221,7 @@ const state = reactive({
     activeTab: 1,
     editorHeight: '500',
     tableDataHeight: '250px',
+    tableDataEmptyText: 'tips: select *开头的单表查询或点击表名默认查询的数据,可双击数据在线修改',
 });
 
 const { tableDataHeight } = toRefs(state);
@@ -297,29 +296,37 @@ const onRunSql = async (newTab = false) => {
     notBlank(sql && sql.trim(), '请选中需要执行的sql');
     // 去除字符串前的空格、换行等
     sql = sql.replace(/(^\s*)/g, '');
-    let execRemark = '';
-    let canRun = true;
-    if (
-        sql.startsWith('update') ||
-        sql.startsWith('UPDATE') ||
-        sql.startsWith('INSERT') ||
-        sql.startsWith('insert') ||
-        sql.startsWith('DELETE') ||
-        sql.startsWith('delete')
-    ) {
+
+    // 简单截取前十个字符
+    const sqlPrefix = sql.slice(0, 10).toLowerCase();
+    const nonQuery =
+        sqlPrefix.startsWith('update') ||
+        sqlPrefix.startsWith('insert') ||
+        sqlPrefix.startsWith('delete') ||
+        sqlPrefix.startsWith('alert') ||
+        sqlPrefix.startsWith('drop') ||
+        sqlPrefix.startsWith('create');
+
+    // 启用工单审批
+    if (nonQuery && getNowDbInst().flowProcdef) {
+        try {
+            getNowDbInst().promptExeSql(props.dbName, sql, null, () => {
+                ElMessage.success('工单提交成功');
+            });
+        } catch (e) {
+            ElMessage.success('工单提交失败');
+        }
+        return;
+    }
+
+    let execRemark;
+    if (nonQuery) {
         const res: any = await ElMessageBox.prompt('请输入备注', 'Tip', {
             confirmButtonText: '确定',
             cancelButtonText: '取消',
-            inputPattern: /^[\s\S]*.*[^\s][\s\S]*$/,
-            inputErrorMessage: '请输入执行该sql的备注信息',
+            inputErrorMessage: '输入执行该sql的备注信息',
         });
         execRemark = res.value;
-        if (!execRemark) {
-            canRun = false;
-        }
-    }
-    if (!canRun) {
-        return;
     }
 
     let execRes: ExecResTab;
@@ -355,8 +362,8 @@ const onRunSql = async (newTab = false) => {
 
         await execute();
         const colAndData: any = data.value;
-        if (!colAndData.res || colAndData.res.length === 0) {
-            ElMessage.warning('未查询到结果集');
+        if (colAndData.res.length == 0) {
+            state.tableDataEmptyText = '查无数据';
         }
 
         // 要实时响应，故需要用索引改变数据才生效
@@ -386,8 +393,8 @@ const onRunSql = async (newTab = false) => {
         const tableName = sql.split(/from/i)[1];
         if (tableName) {
             const tn = tableName.trim().split(' ')[0].split('\n')[0];
-            execRes.table = tn;
-            execRes.table = tn;
+            // 去除表名前后的字符`或者"
+            execRes.table = tn.replace(/`/g, '').replace(/"/g, '');
         } else {
             execRes.table = '';
         }
@@ -453,7 +460,7 @@ const formatSql = () => {
         return;
     }
 
-    const formatDialect = getDbDialect(getNowDbInst().type).getInfo().formatSqlDialect;
+    const formatDialect: any = getNowDbInst().getDialect().getInfo().formatSqlDialect;
 
     let sql = monacoEditor.getModel()?.getValueInRange(selection);
     // 有选中sql则格式化并替换选中sql, 否则格式化编辑器所有内容
@@ -693,6 +700,19 @@ const initMonacoEditor = () => {
         },
     });
 };
+
+const active = () => {
+    const resTab = state.execResTabs[state.activeTab - 1];
+    if (!resTab || !resTab.dbTableRef) {
+        return;
+    }
+
+    resTab.dbTableRef?.active();
+};
+
+defineExpose({
+    active,
+});
 </script>
 
 <style lang="scss">

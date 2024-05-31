@@ -1,33 +1,17 @@
 package application
 
 import (
-	"mayfly-go/internal/tag/infrastructure/persistence"
+	"mayfly-go/pkg/ioc"
 )
 
-var (
-	tagTreeApp TagTree = newTagTreeApp(
-		persistence.GetTagTreeRepo(),
-		GetTagResourceApp(),
-		persistence.GetTagTreeTeamRepo(),
-	)
-
-	teamApp Team = newTeamApp(
-		persistence.GetTeamRepo(),
-		persistence.GetTeamMemberRepo(),
-		persistence.GetTagTreeTeamRepo(),
-	)
-
-	tagResourceApp TagResource = newTagResourceApp(persistence.GetTagResourceRepo())
-)
-
-func GetTagTreeApp() TagTree {
-	return tagTreeApp
+func InitIoc() {
+	ioc.Register(new(tagTreeAppImpl), ioc.WithComponentName("TagTreeApp"))
+	ioc.Register(new(teamAppImpl), ioc.WithComponentName("TeamApp"))
+	ioc.Register(new(resourceAuthCertAppImpl), ioc.WithComponentName("ResourceAuthCertApp"))
+	ioc.Register(new(resourceOpLogAppImpl), ioc.WithComponentName("ResourceOpLogApp"))
+	ioc.Register(new(tagTreeRelateAppImpl), ioc.WithComponentName("TagTreeRelateApp"))
 }
 
-func GetTeamApp() Team {
-	return teamApp
-}
-
-func GetTagResourceApp() TagResource {
-	return tagResourceApp
+func GetResourceOpLogApp() ResourceOpLog {
+	return ioc.Get[ResourceOpLog]("ResourceOpLogApp")
 }

@@ -4,7 +4,7 @@ import (
 	"mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/internal/tag/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
+	"mayfly-go/pkg/model"
 )
 
 type tagTreeRepoImpl struct {
@@ -16,41 +16,30 @@ func newTagTreeRepo() repository.TagTree {
 }
 
 func (p *tagTreeRepoImpl) SelectByCondition(condition *entity.TagTreeQuery, toEntity any, orderBy ...string) {
-	sql := "SELECT DISTINCT(p.id), p.pid, p.code, p.code_path, p.name, p.remark, p.create_time, p.creator, p.update_time, p.modifier FROM t_tag_tree p WHERE p.is_deleted = 0 "
+	cond := model.NewCond().Like("name", condition.Name).
+		Eq("id", condition.Id).
+		In("code", condition.Codes).
+		In("code_path", condition.CodePaths).
+		RLike("code_path", condition.CodePathLike).
+		Eq("type", condition.Type).
+		In("type", condition.Types).
+		OrderByAsc("type").OrderByAsc("code_path")
 
-	params := make([]any, 0)
-	if condition.Name != "" {
-		sql = sql + " AND p.name LIKE ?"
-		params = append(params, "%"+condition.Name+"%")
-	}
-	if condition.CodePath != "" {
-		sql = sql + " AND p.code_path = ?"
-		params = append(params, condition.CodePath)
-	}
-	if len(condition.CodePaths) > 0 {
-		sql = sql + " AND p.code_path IN (?)"
-		params = append(params, condition.CodePaths)
-	}
-	if condition.CodePathLike != "" {
-		sql = sql + " AND p.code_path LIKE ?"
-		params = append(params, condition.CodePathLike+"%")
-	}
-	if condition.Pid != 0 {
-		sql = sql + " AND p.pid = ?"
-		params = append(params, condition.Pid)
-	}
 	if len(condition.CodePathLikes) > 0 {
-		sql = sql + " AND ("
+		codePathLikesAnd := ""
+		cocePathLikesParams := make([]any, 0)
+
 		for i, v := range condition.CodePathLikes {
 			if i == 0 {
-				sql = sql + "p.code_path LIKE ?"
+				codePathLikesAnd = codePathLikesAnd + "code_path LIKE ?"
 			} else {
-				sql = sql + " OR p.code_path LIKE ?"
+				codePathLikesAnd = codePathLikesAnd + " OR code_path LIKE ?"
 			}
-			params = append(params, v+"%")
+			cocePathLikesParams = append(cocePathLikesParams, v+"%")
 		}
-		sql = sql + ")"
+
+		cond.And(codePathLikesAnd, cocePathLikesParams...)
 	}
-	sql = sql + " ORDER BY p.code_path"
-	gormx.GetListBySql2Model(sql, toEntity, params...)
+
+	p.SelectByCondToAny(cond, toEntity)
 }

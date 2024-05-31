@@ -2,8 +2,8 @@ package router
 
 import (
 	"mayfly-go/internal/machine/api"
-	"mayfly-go/internal/machine/application"
-	msgapp "mayfly-go/internal/msg/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -12,10 +12,8 @@ import (
 func InitMachineFileRouter(router *gin.RouterGroup) {
 	machineFile := router.Group("machines")
 
-	mf := &api.MachineFile{
-		MachineFileApp: application.GetMachineFileApp(),
-		MsgApp:         msgapp.GetMsgApp(),
-	}
+	mf := new(api.MachineFile)
+	biz.ErrIsNil(ioc.Inject(mf))
 
 	reqs := [...]*req.Conf{
 		// 获取指定机器文件列表
@@ -25,7 +23,9 @@ func InitMachineFileRouter(router *gin.RouterGroup) {
 
 		req.NewDelete(":machineId/files/:fileId", mf.DeleteFile).Log(req.NewLogSave("机器-删除文件配置")).RequiredPermissionCode("machine:file:del"),
 
-		req.NewGet(":machineId/files/:fileId/read", mf.ReadFileContent).Log(req.NewLogSave("机器-获取文件内容")),
+		req.NewGet(":machineId/files/:fileId/read", mf.ReadFileContent).Log(req.NewLogSave("机器-读取文件内容")),
+
+		req.NewGet(":machineId/files/:fileId/download", mf.DownloadFile).NoRes().Log(req.NewLogSave("机器-文件下载")),
 
 		req.NewGet(":machineId/files/:fileId/read-dir", mf.GetDirEntry),
 

@@ -68,7 +68,7 @@ func GenerateRSAKey(bits int) (string, string, error) {
 		return publicKeyStr, privateKeyStr, err
 	}
 	//创建一个pem.Block结构体对象
-	publicBlock := pem.Block{Type: "RSA Public Key", Bytes: X509PublicKey}
+	publicBlock := pem.Block{Type: "PUBLIC KEY", Bytes: X509PublicKey}
 
 	publicBuf := new(bytes.Buffer)
 	pem.Encode(publicBuf, &publicBlock)
@@ -142,32 +142,48 @@ const (
 
 // 获取系统的RSA公钥
 func GetRsaPublicKey() (string, error) {
-	content, err := os.ReadFile(publicKeyFile)
-	if err != nil {
+	if cache.UseRedisCache() {
 		publicKey := cache.GetStr(publicKeyK)
 		if publicKey != "" {
 			return publicKey, nil
 		}
-		_, pubKey, err := GenerateAndSaveRSAKey()
-		return pubKey, err
+	} else {
+		content, err := os.ReadFile(publicKeyFile)
+		if err != nil {
+			publicKey := cache.GetStr(publicKeyK)
+			if publicKey != "" {
+				return publicKey, nil
+			}
+		} else {
+			return string(content), nil
+		}
 	}
 
-	return string(content), nil
+	_, pubKey, err := GenerateAndSaveRSAKey()
+	return pubKey, err
 }
 
 // 获取系统私钥
 func GetRsaPrivateKey() (string, error) {
-	content, err := os.ReadFile(privateKeyFile)
-	if err != nil {
-		privateKey := cache.GetStr(privateKeyK)
-		if privateKey != "" {
-			return privateKey, nil
+	if cache.UseRedisCache() {
+		priKey := cache.GetStr(privateKeyK)
+		if priKey != "" {
+			return priKey, nil
 		}
-		privateKey, _, err := GenerateAndSaveRSAKey()
-		return privateKey, err
+	} else {
+		content, err := os.ReadFile(privateKeyFile)
+		if err != nil {
+			priKey := cache.GetStr(privateKeyK)
+			if priKey != "" {
+				return priKey, nil
+			}
+		} else {
+			return string(content), nil
+		}
 	}
 
-	return string(content), nil
+	priKey, _, err := GenerateAndSaveRSAKey()
+	return priKey, err
 }
 
 // 生成并保存rsa key，优先保存于磁盘，若磁盘保存失败，则保存至缓存
@@ -177,6 +193,14 @@ func GenerateAndSaveRSAKey() (string, string, error) {
 	privateKey, publicKey, err := GenerateRSAKey(1024)
 	if err != nil {
 		return "", "", err
+	}
+
+	// 如果使用了redis缓存，则优先存入redis
+	if cache.UseRedisCache() {
+		logx.Debug("系统配置了redis, rsa存入redis")
+		cache.SetStr(privateKeyK, privateKey, -1)
+		cache.SetStr(publicKeyK, publicKey, -1)
+		return privateKey, publicKey, nil
 	}
 
 	err = os.WriteFile(privateKeyFile, []byte(privateKey), 0644)
@@ -272,5 +296,8 @@ func pkcs7UnPadding(data []byte) ([]byte, error) {
 	}
 	//获取填充的个数
 	unPadding := int(data[length-1])
+	if unPadding > length {
+		return nil, errors.New("解密字符串时去除填充个数超出字符串长度")
+	}
 	return data[:(length - unPadding)], nil
 }

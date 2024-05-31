@@ -2,7 +2,7 @@
     <div>
         <div class="terminal-dialog-container" v-for="openTerminal of terminals" :key="openTerminal.terminalId">
             <el-dialog
-                title="终端"
+                title="SSH终端"
                 v-model="openTerminal.visible"
                 top="32px"
                 class="terminal-dialog"
@@ -58,7 +58,7 @@
                         </div>
                     </div>
                 </template>
-                <div class="terminal-wrapper" :style="{ height: `calc(100vh - ${openTerminal.fullscreen ? '47px' : '200px'})` }">
+                <div :style="{ height: `calc(100vh - ${openTerminal.fullscreen ? '49px' : '200px'})` }">
                     <TerminalBody
                         @status-change="terminalStatusChange(openTerminal.terminalId, $event)"
                         :ref="(el) => setTerminalRef(el, openTerminal.terminalId)"
@@ -92,7 +92,7 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive } from 'vue';
+import { reactive, toRefs } from 'vue';
 import TerminalBody from '@/components/terminal/TerminalBody.vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { TerminalStatus } from './common';
@@ -257,6 +257,10 @@ defineExpose({
 .terminal-dialog-container {
     .el-dialog__header {
         padding: 10px;
+    }
+
+    .el-dialog {
+        padding: 1px 1px;
     }
 
     // 取消body最大高度，否则全屏有问题

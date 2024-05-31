@@ -10,6 +10,7 @@ import (
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/utils/anyx"
+	"strings"
 	"time"
 )
 
@@ -43,17 +44,19 @@ func PermissionHandler(rc *Ctx) error {
 	if permission != nil && !permission.NeedToken {
 		return nil
 	}
-	tokenStr := rc.GinCtx.Request.Header.Get("Authorization")
+	tokenStr := rc.GetHeader("Authorization")
+	// 删除前缀 Bearer, 以支持 Bearer Token
+	tokenStr, _ = strings.CutPrefix(tokenStr, "Bearer ")
 	// header不存在则从查询参数token中获取
 	if tokenStr == "" {
-		tokenStr = rc.GinCtx.Query("token")
+		tokenStr = rc.Query("token")
 	}
 	if tokenStr == "" {
 		return errorx.PermissionErr
 	}
 	userId, userName, err := ParseToken(tokenStr)
 	if err != nil || userId == 0 {
-		return errorx.PermissionErr
+		return errorx.AccessTokenInvalid
 	}
 	// 权限不为nil，并且permission code不为空，则校验是否有权限code
 	if permission != nil && permission.Code != "" {

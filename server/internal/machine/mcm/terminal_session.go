@@ -2,9 +2,14 @@ package mcm
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"io"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+
+	"github.com/may-fly/cast"
+
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -15,12 +20,15 @@ const (
 	Resize = 1
 	Data   = 2
 	Ping   = 3
+
+	MsgSplit = "|"
 )
 
 type TerminalSession struct {
 	ID       string
 	wsConn   *websocket.Conn
 	terminal *Terminal
+	handler  *TerminalHandler
 	recorder *Recorder
 	ctx      context.Context
 	cancel   context.CancelFunc
@@ -28,7 +36,21 @@ type TerminalSession struct {
 	tick     *time.Ticker
 }
 
-func NewTerminalSession(sessionId string, ws *websocket.Conn, cli *Cli, rows, cols int, recorder *Recorder) (*TerminalSession, error) {
+type CreateTerminalSessionParam struct {
+	SessionId      string
+	Cli            *Cli
+	WsConn         *websocket.Conn
+	Rows           int
+	Cols           int
+	Recorder       *Recorder
+	LogCmd         bool            // 是否记录命令
+	CmdFilterFuncs []CmdFilterFunc // 命令过滤器
+}
+
+func NewTerminalSession(param *CreateTerminalSessionParam) (*TerminalSession, error) {
+	sessionId, rows, cols := param.SessionId, param.Rows, param.Cols
+	cli, ws, recorder := param.Cli, param.WsConn, param.Recorder
+
 	terminal, err := NewTerminal(cli)
 	if err != nil {
 		return nil, err
@@ -46,23 +68,33 @@ func NewTerminalSession(sessionId string, ws *websocket.Conn, cli *Cli, rows, co
 		recorder.WriteHeader(rows-3, cols)
 	}
 
+	var handler *TerminalHandler
+	// 记录命令或者存在命令过滤器时，则创建对应的终端处理器
+	if param.LogCmd || param.CmdFilterFuncs != nil {
+		handler = &TerminalHandler{Parser: NewParser(120, 40), Filters: param.CmdFilterFuncs}
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	tick := time.NewTicker(time.Millisecond * time.Duration(60))
 	ts := &TerminalSession{
 		ID:       sessionId,
 		wsConn:   ws,
 		terminal: terminal,
+		handler:  handler,
 		recorder: recorder,
 		ctx:      ctx,
 		cancel:   cancel,
 		dataChan: make(chan rune),
 		tick:     tick,
 	}
+
+	// 清除终端内容
+	ts.WriteToWs("\033[2J\033[3J\033[1;1H")
 	return ts, nil
 }
 
 func (r TerminalSession) Start() {
-	go r.readFormTerminal()
+	go r.readFromTerminal()
 	go r.writeToWebsocket()
 	r.receiveWsMsg()
 }
@@ -80,7 +112,15 @@ func (r TerminalSession) Stop() {
 	}
 }
 
-func (ts TerminalSession) readFormTerminal() {
+// 获取终端会话执行的所有命令
+func (r TerminalSession) GetExecCmds() []*ExecutedCmd {
+	if r.handler != nil {
+		return r.handler.ExecutedCmds
+	}
+	return []*ExecutedCmd{}
+}
+
+func (ts TerminalSession) readFromTerminal() {
 	for {
 		select {
 		case <-ts.ctx.Done():
@@ -107,20 +147,27 @@ func (ts TerminalSession) writeToWebsocket() {
 		case <-ts.ctx.Done():
 			return
 		case <-ts.tick.C:
-			if len(buf) > 0 {
-				s := string(buf)
-				if err := WriteMessage(ts.wsConn, s); err != nil {
-					logx.Error("机器ssh终端发送消息至websocket失败: ", err)
-					return
-				}
-				// 如果记录器存在，则记录操作回放信息
-				if ts.recorder != nil {
-					ts.recorder.Lock()
-					ts.recorder.WriteData(OutPutType, s)
-					ts.recorder.Unlock()
-				}
-				buf = []byte{}
+			if len(buf) == 0 {
+				continue
 			}
+			if ts.handler != nil {
+				ts.handler.HandleRead(buf)
+			}
+
+			s := string(buf)
+			if err := ts.WriteToWs(s); err != nil {
+				logx.Error("机器ssh终端发送消息至websocket失败: ", err)
+				return
+			}
+
+			// 如果记录器存在，则记录操作回放信息
+			if ts.recorder != nil {
+				ts.recorder.Lock()
+				ts.recorder.WriteData(OutPutType, s)
+				ts.recorder.Unlock()
+			}
+
+			buf = []byte{}
 		case data := <-ts.dataChan:
 			if data != utf8.RuneError {
 				p := make([]byte, utf8.RuneLen(data))
@@ -140,25 +187,27 @@ type WsMsg struct {
 	Rows int    `json:"rows"`
 }
 
-// 接收客户端ws发送过来的消息，并写入终端会话中。
+// receiveWsMsg 接收客户端ws发送过来的消息，并写入终端会话中。
 func (ts *TerminalSession) receiveWsMsg() {
-	wsConn := ts.wsConn
 	for {
 		select {
 		case <-ts.ctx.Done():
 			return
 		default:
 			// read websocket msg
-			_, wsData, err := wsConn.ReadMessage()
+			_, wsData, err := ts.wsConn.ReadMessage()
 			if err != nil {
 				logx.Debugf("机器ssh终端读取websocket消息失败: %s", err.Error())
 				return
 			}
 			// 解析消息
-			msgObj := WsMsg{}
-			if err := json.Unmarshal(wsData, &msgObj); err != nil {
+			msgObj, err := parseMsg(wsData)
+			if err != nil {
+				ts.WriteToWs(GetErrorContentRn("消息内容解析失败..."))
 				logx.Error("机器ssh终端消息解析失败: ", err)
+				return
 			}
+
 			switch msgObj.Type {
 			case Resize:
 				if msgObj.Cols > 0 && msgObj.Rows > 0 {
@@ -167,14 +216,25 @@ func (ts *TerminalSession) receiveWsMsg() {
 					}
 				}
 			case Data:
+				data := []byte(msgObj.Msg)
+				if ts.handler != nil {
+					if err := ts.handler.PreWriteHandle(data); err != nil {
+						ts.WriteToWs(err.Error())
+						// 发送命令终止指令
+						ts.terminal.Write([]byte{EOT})
+						continue
+					}
+				}
+
 				_, err := ts.terminal.Write([]byte(msgObj.Msg))
 				if err != nil {
-					logx.Debugf("机器ssh终端写入消息失败: %s", err)
+					logx.Errorf("写入数据至ssh终端失败: %s", err)
+					ts.WriteToWs(GetErrorContentRn(fmt.Sprintf("写入数据至ssh终端失败: %s", err.Error())))
 				}
 			case Ping:
 				_, err := ts.terminal.SshSession.SendRequest("ping", true, nil)
 				if err != nil {
-					WriteMessage(wsConn, "\r\n\033[1;31m提示: 终端连接已断开...\033[0m")
+					ts.WriteToWs(GetErrorContentRn("终端连接已断开..."))
 					return
 				}
 			}
@@ -182,6 +242,31 @@ func (ts *TerminalSession) receiveWsMsg() {
 	}
 }
 
-func WriteMessage(ws *websocket.Conn, msg string) error {
-	return ws.WriteMessage(websocket.TextMessage, []byte(msg))
+// WriteToWs 将消息写入websocket连接
+func (ts *TerminalSession) WriteToWs(msg string) error {
+	return ts.wsConn.WriteMessage(websocket.TextMessage, []byte(msg))
+}
+
+// 解析消息
+func parseMsg(msg []byte) (*WsMsg, error) {
+	// 消息格式为 msgType|msgContent， 如果msgType为resize则为msgType|rows|cols
+	msgStr := string(msg)
+	// 查找第一个 "|" 的位置
+	index := strings.Index(msgStr, MsgSplit)
+	if index == -1 {
+		return nil, errorx.NewBiz("消息内容不符合指定规则")
+	}
+
+	// 获取消息类型, 提取第一个 "|" 之前的内容
+	msgType := cast.ToIntD(msgStr[:index], Ping)
+	// 其余内容则为消息内容
+	msgContent := msgStr[index+1:]
+
+	wsMsg := &WsMsg{Type: msgType, Msg: msgContent}
+	if msgType == Resize {
+		rowsAndCols := strings.Split(msgContent, MsgSplit)
+		wsMsg.Rows = cast.ToIntD(rowsAndCols[0], 80)
+		wsMsg.Cols = cast.ToIntD(rowsAndCols[1], 80)
+	}
+	return wsMsg, nil
 }

@@ -12,15 +12,29 @@
                         width="auto"
                         title="表格字段配置"
                         trigger="click"
+                        @hide="triggerCheckedColumns"
                     >
-                        <div v-for="(item, index) in columns" :key="index">
+                        <div><el-input v-model="checkedShowColumns.searchKey" size="small" placeholder="输入列名或备注过滤" /></div>
+                        <div>
                             <el-checkbox
-                                v-model="item.show"
-                                :label="`${!item.columnComment ? item.columnName : item.columnName + ' [' + item.columnComment + ']'}`"
-                                :true-label="true"
-                                :false-label="false"
+                                v-model="checkedShowColumns.checkedAllColumn"
+                                :indeterminate="checkedShowColumns.isIndeterminate"
+                                @change="handleCheckAllColumnChange"
                                 size="small"
-                            />
+                            >
+                                选择所有
+                            </el-checkbox>
+
+                            <el-checkbox-group v-model="checkedShowColumns.columnNames" @change="handleCheckedColumnChange">
+                                <div v-for="(item, index) in filterCheckedColumns" :key="index">
+                                    <el-checkbox
+                                        :key="index"
+                                        :label="`${!item.columnComment ? item.columnName : item.columnName + ' [' + item.columnComment + ']'}`"
+                                        :value="item.columnName"
+                                        size="small"
+                                    />
+                                </div>
+                            </el-checkbox-group>
                         </div>
                         <template #reference>
                             <el-link icon="Operation" size="small" :underline="false"></el-link>
@@ -36,15 +50,20 @@
                     </el-tooltip>
                     <el-divider direction="vertical" border-style="dashed" />
 
-                    <el-tooltip :show-after="500" class="box-item" effect="dark" content="commit" placement="top">
-                        <template #content>
-                            1. 右击数据/表头可显示操作菜单 <br />
-                            2. 按住Ctrl点击数据则为多选 <br />
-                            3. 双击单元格可编辑数据 <br />
-                            4. 鼠标悬停字段名或标签树的表名可提示相关备注
+                    <!-- 表数据展示配置 -->
+                    <el-popover
+                        popper-style="max-height: 550px; overflow: auto; max-width: 450px"
+                        placement="bottom"
+                        width="auto"
+                        title="展示配置"
+                        trigger="click"
+                    >
+                        <el-checkbox v-model="dbConfig.showColumnComment" label="显示字段备注" :true-value="true" :false-value="false" size="small" />
+                        <template #reference>
+                            <el-link type="primary" icon="setting" :underline="false"></el-link>
                         </template>
-                        <el-link icon="QuestionFilled" :underline="false"> </el-link>
-                    </el-tooltip>
+                    </el-popover>
+
                     <el-divider direction="vertical" border-style="dashed" />
 
                     <el-tooltip :show-after="500" v-if="hasUpdatedFileds" class="box-item" effect="dark" content="提交修改" placement="top">
@@ -142,24 +161,55 @@
             @data-delete="onRefresh"
         ></db-table-data>
 
-        <el-row type="flex" class="mt5" justify="center">
-            <el-pagination
-                small
-                :total="count"
-                @size-change="handleSizeChange"
-                @current-change="pageChange()"
-                layout="prev, pager, next, total, sizes, jumper"
-                v-model:current-page="pageNum"
-                v-model:page-size="pageSize"
-                :page-sizes="pageSizes"
-            ></el-pagination>
-        </el-row>
-        <div style="font-size: 12px; padding: 0 10px; color: #606266">
-            <span>{{ state.sql }}</span>
-        </div>
+        <el-row type="flex" class="mt5" :gutter="10" justify="space-between" style="user-select: none">
+            <el-col :span="12">
+                <el-text
+                    id="copyValue"
+                    style="color: var(--el-color-info-light-3)"
+                    class="is-truncated font12 mt5"
+                    @click="copyToClipboard(sql)"
+                    :title="sql"
+                    >{{ sql }}</el-text
+                >
+            </el-col>
+            <el-col :span="12">
+                <el-row :gutter="10" justify="left">
+                    <el-link class="op-page" :underline="false" @click="pageNum = 1" :disabled="pageNum == 1" icon="DArrowLeft" title="首页" />
+                    <el-link class="op-page" :underline="false" @click="pageNum = --pageNum || 1" :disabled="pageNum == 1" icon="Back" title="上一页" />
+                    <div class="op-page">
+                        <el-input-number
+                            style="width: 50px"
+                            :controls="false"
+                            :min="1"
+                            v-model="state.setPageNum"
+                            size="small"
+                            @blur="handleSetPageNum"
+                            @keydown.enter="handleSetPageNum"
+                        />
+                    </div>
+                    <el-link class="op-page" :underline="false" @click="++pageNum" :disabled="datas.length < pageSize" icon="Right" />
+                    <el-link class="op-page" :underline="false" @click="handleEndPage" :disabled="datas.length < pageSize" icon="DArrowRight" />
+                    <div style="width: 90px" class="op-page ml10">
+                        <el-select size="small" :default-first-option="true" v-model="pageSize" @change="handleSizeChange">
+                            <el-option
+                                style="font-size: 12px; height: 24px; line-height: 24px"
+                                v-for="(op, i) in pageSizes"
+                                :key="i"
+                                :label="op + '条/页'"
+                                :value="op"
+                            />
+                        </el-select>
+                    </div>
 
-        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="420px">
-            <el-row>
+                    <el-button @click="handleCount" :loading="state.counting" class="ml10" text bg size="small">
+                        {{ state.showTotal ? `${state.total} 条` : 'count' }}
+                    </el-button>
+                </el-row>
+            </el-col>
+        </el-row>
+
+        <el-dialog v-model="conditionDialog.visible" :title="conditionDialog.title" width="460px">
+            <el-row gutter="5">
                 <el-col :span="5">
                     <el-select v-model="conditionDialog.condition">
                         <el-option label="=" value="="> </el-option>
@@ -187,31 +237,16 @@
             </template>
         </el-dialog>
 
-        <el-dialog v-model="addDataDialog.visible" :title="addDataDialog.title" :destroy-on-close="true" width="600px">
-            <el-form ref="dataForm" :model="addDataDialog.data" label-width="auto" size="small">
-                <el-form-item
-                    v-for="column in columns"
-                    :key="column.columnName"
-                    class="w100"
-                    :prop="column.columnName"
-                    :label="column.columnName"
-                    :required="column.nullable != 'YES' && column.columnKey != 'PRI'"
-                >
-                    <ColumnFormItem
-                        v-model="addDataDialog.data[`${column.columnName}`]"
-                        :data-type="dbDialect.getDataType(column.columnType)"
-                        :placeholder="`${column.columnType}  ${column.columnComment}`"
-                        :column-name="column.columnName"
-                    />
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <span class="dialog-footer">
-                    <el-button @click="closeAddDataDialog">取消</el-button>
-                    <el-button type="primary" @click="addRow">确定</el-button>
-                </span>
-            </template>
-        </el-dialog>
+        <DbTableDataForm
+            :db-inst="getNowDbInst()"
+            :db-name="dbName"
+            :columns="columns"
+            :title="addDataDialog.title"
+            :table-name="tableName"
+            v-model:visible="addDataDialog.visible"
+            v-model="addDataDialog.data"
+            @submit-success="onRefresh"
+        />
     </div>
 </template>
 
@@ -221,10 +256,11 @@ import { ElMessage } from 'element-plus';
 
 import { DbInst } from '@/views/ops/db/db';
 import DbTableData from './DbTableData.vue';
-import { DbDialect, getDbDialect } from '@/views/ops/db/dialect';
+import { DbDialect } from '@/views/ops/db/dialect';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import ColumnFormItem from './ColumnFormItem.vue';
-import { useEventListener } from '@vueuse/core';
+import { useEventListener, useStorage } from '@vueuse/core';
+import { copyToClipboard } from '@/common/utils/string';
+import DbTableDataForm from './DbTableDataForm.vue';
 
 const props = defineProps({
     dbId: {
@@ -245,13 +281,14 @@ const props = defineProps({
     },
 });
 
-const dataForm: any = ref(null);
 const dbTableRef: Ref = ref(null);
 const condInputRef: Ref = ref(null);
 const columnNameSearchInputRef: Ref = ref(null);
 const condDialogInputRef: Ref = ref(null);
 
 const defaultPageSize = DbInst.DefaultLimit;
+
+const dbConfig = useStorage('dbConfig', { showColumnComment: false });
 
 const state = reactive({
     datas: [],
@@ -271,7 +308,10 @@ const state = reactive({
         defaultPageSize * 40,
         defaultPageSize * 80,
     ],
-    count: 0,
+    setPageNum: 0,
+    total: 0,
+    showTotal: false,
+    counting: false,
     selectionDatas: [] as any,
     condPopVisible: false,
     columnNameSearch: '',
@@ -287,15 +327,22 @@ const state = reactive({
     addDataDialog: {
         data: {},
         title: '',
-        placeholder: '',
         visible: false,
     },
     tableHeight: '600px',
     hasUpdatedFileds: false,
     dbDialect: {} as DbDialect,
+
+    checkedShowColumns: {
+        searchKey: '',
+        checkedAllColumn: true,
+        isIndeterminate: false,
+        columnNames: [] as any,
+    },
 });
 
-const { datas, condition, loading, columns, pageNum, pageSize, pageSizes, count, hasUpdatedFileds, conditionDialog, addDataDialog, dbDialect } = toRefs(state);
+const { datas, condition, loading, columns, checkedShowColumns, pageNum, pageSize, pageSizes, sql, hasUpdatedFileds, conditionDialog, addDataDialog } =
+    toRefs(state);
 
 watch(
     () => props.tableHeight,
@@ -311,15 +358,12 @@ const getNowDbInst = () => {
 onMounted(async () => {
     console.log('in table data mounted');
     state.tableHeight = props.tableHeight;
-    const columns = await getNowDbInst().loadColumns(props.dbName, props.tableName);
-    columns.forEach((x: any) => {
-        x.show = true;
-    });
-    state.columns = columns;
     await onRefresh();
 
-    state.dbDialect = getDbDialect(getNowDbInst().type);
+    state.dbDialect = getNowDbInst().getDialect();
     useEventListener('click', handlerWindowClick);
+
+    state.checkedShowColumns.columnNames = state.columns.map((item: any) => item.columnName);
 });
 
 const handlerWindowClick = () => {
@@ -333,32 +377,35 @@ const onRefresh = async () => {
     await selectData();
 };
 
-/**
- * 数据tab修改页数
- */
-const pageChange = async () => {
-    await selectData();
-};
+watch(
+    () => state.pageNum,
+    async () => {
+        await selectData();
+    }
+);
 
 /**
  * 单表数据信息查询数据
  */
 const selectData = async () => {
     state.loading = true;
+    state.setPageNum = state.pageNum;
     const dbInst = getNowDbInst();
     const db = props.dbName;
     const table = props.tableName;
     try {
-        const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
-        state.count = countRes.res[0].count || countRes.res[0].COUNT || 0;
-        let sql = dbInst.getDefaultSelectSql(table, state.condition, state.orderBy, state.pageNum, state.pageSize);
-        state.sql = sql;
-        if (state.count > 0) {
-            const colAndData: any = await dbInst.runSql(db, sql);
-            state.datas = colAndData.res;
-        } else {
-            state.datas = [];
+        if (state.columns.length == 0) {
+            const columns = await getNowDbInst().loadColumns(props.dbName, props.tableName);
+            columns.forEach((x: any) => {
+                x.show = true;
+            });
+            state.columns = columns;
         }
+
+        let sql = dbInst.getDefaultSelectSql(db, table, state.condition, state.orderBy, state.pageNum, state.pageSize);
+        state.sql = sql;
+        const colAndData: any = await dbInst.runSql(db, sql);
+        state.datas = colAndData.res;
     } finally {
         state.loading = false;
     }
@@ -368,6 +415,52 @@ const handleSizeChange = async (size: any) => {
     state.pageNum = 1;
     state.pageSize = size;
     await selectData();
+};
+
+const handleEndPage = async () => {
+    await handleCount();
+    state.pageNum = Math.ceil(state.total / state.pageSize);
+    await selectData();
+};
+
+const handleSetPageNum = async () => {
+    state.pageNum = state.setPageNum;
+    await selectData();
+};
+
+const handleCount = async () => {
+    state.counting = true;
+
+    try {
+        const db = props.dbName;
+        const table = props.tableName;
+        const dbInst = getNowDbInst();
+        const countRes = await dbInst.runSql(db, dbInst.getDefaultCountSql(table, state.condition));
+        state.total = parseInt(countRes.res[0].count || countRes.res[0].COUNT || 0);
+        state.showTotal = true;
+    } catch (e) {
+        /* empty */
+    }
+
+    state.counting = false;
+};
+
+const handleCheckAllColumnChange = (val: boolean) => {
+    state.checkedShowColumns.columnNames = val ? state.columns.map((x: any) => x.columnName) : [];
+    state.checkedShowColumns.isIndeterminate = false;
+};
+
+const handleCheckedColumnChange = (value: string[]) => {
+    const checkedCount = value.length;
+    state.checkedShowColumns.checkedAllColumn = checkedCount === state.columns.length;
+    state.checkedShowColumns.isIndeterminate = checkedCount > 0 && checkedCount < state.columns.length;
+};
+
+const triggerCheckedColumns = () => {
+    const checkedColumnNames = state.checkedShowColumns.columnNames;
+    for (let column of state.columns) {
+        column.show = checkedColumnNames.includes(column.columnName);
+    }
 };
 
 // 完整的条件,每次选中后会重置条件框内容，故需要这个变量在获取建议时将文本框内容保存
@@ -402,7 +495,7 @@ const handlerColumnSelect = (column: any) => {
     // 默认拼接上 columnName =
     let value = column.columnName + ' = ';
     // 不是数字类型默认拼接上''
-    if (!DbInst.isNumber(column.columnType)) {
+    if (!DbInst.isNumber(column.dataType)) {
         value = `${value} ''`;
     }
 
@@ -429,16 +522,23 @@ const chooseCondColumnName = () => {
  * 过滤条件列名
  */
 const filterCondColumns = computed(() => {
+    return filterColumns(state.columnNameSearch);
+});
+
+const filterCheckedColumns = computed(() => {
+    return filterColumns(state.checkedShowColumns.searchKey);
+});
+
+const filterColumns = (searchKey: string) => {
     const columns = state.columns;
-    let columnNameSearch = state.columnNameSearch;
-    if (!columnNameSearch) {
+    if (!searchKey) {
         return columns;
     }
-    columnNameSearch = columnNameSearch.toLowerCase();
+    searchKey = searchKey.toLowerCase();
     return columns.filter((data: any) => {
-        return data.columnName.toLowerCase().includes(columnNameSearch) || data.columnComment.toLowerCase().includes(columnNameSearch);
+        return data.columnName.toLowerCase().includes(searchKey) || data.columnComment.toLowerCase().includes(searchKey);
     });
-});
+};
 
 /**
  * 条件查询，点击列信息后显示输入对应的值
@@ -463,7 +563,7 @@ const onConfirmCondition = () => {
     }
     const row = conditionDialog.columnRow as any;
     condition += `${row.columnName} ${conditionDialog.condition} `;
-    state.condition = condition + DbInst.wrapColumnValue(row.columnType, conditionDialog.value);
+    state.condition = condition + state.dbDialect.wrapValue(row.dataType, conditionDialog.value!);
     onCancelCondition();
     condInputRef.value.focus();
 };
@@ -523,39 +623,13 @@ const onShowAddDataDialog = async () => {
     state.addDataDialog.visible = true;
 };
 
-const closeAddDataDialog = () => {
-    state.addDataDialog.visible = false;
-    state.addDataDialog.data = {};
-};
-
-// 添加新数据行
-const addRow = async () => {
-    dataForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            const dbInst = getNowDbInst();
-            const data = state.addDataDialog.data;
-            // key: 字段名，value: 字段名提示
-            let obj: any = {};
-            for (let item of state.columns) {
-                const value = data[item.columnName];
-                if (!value) {
-                    continue;
-                }
-                obj[`${dbInst.wrapName(item.columnName)}`] = DbInst.wrapValueByType(value);
-            }
-            let columnNames = Object.keys(obj).join(',');
-            let values = Object.values(obj).join(',');
-            let sql = `INSERT INTO ${dbInst.wrapName(props.tableName)} (${columnNames}) VALUES (${values});`;
-            dbInst.promptExeSql(props.dbName, sql, null, () => {
-                closeAddDataDialog();
-                onRefresh();
-            });
-        } else {
-            ElMessage.error('请正确填写数据信息');
-            return false;
-        }
-    });
-};
+defineExpose({
+    active: () => dbTableRef.value.active(),
+});
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+.op-page {
+    margin-left: 5px;
+}
+</style>

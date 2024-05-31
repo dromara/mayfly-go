@@ -19,6 +19,10 @@
                 <el-tag v-else type="danger" effect="plain">未运行</el-tag>
             </template>
 
+            <template #codePaths="{ data }">
+                <TagCodePath :path="data.tags?.map((tag: any) => tag.codePath)" />
+            </template>
+
             <template #action="{ data }">
                 <el-button :disabled="data.status == CronJobStatusEnum.Disable.value" v-auth="perms.saveCronJob" type="primary" @click="runCronJob(data)" link
                     >执行</el-button
@@ -41,6 +45,7 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { CronJobStatusEnum, CronJobSaveExecResTypeEnum } from '../enums';
 import { SearchItem } from '@/components/SearchForm';
+import TagCodePath from '../../component/TagCodePath.vue';
 
 const CronJobEdit = defineAsyncComponent(() => import('./CronJobEdit.vue'));
 const CronJobExecList = defineAsyncComponent(() => import('./CronJobExecList.vue'));
@@ -61,6 +66,7 @@ const columns = ref([
     TableColumn.new('running', '运行状态').isSlot(),
     TableColumn.new('saveExecResType', '记录类型').typeTag(CronJobSaveExecResTypeEnum),
     TableColumn.new('remark', '备注'),
+    TableColumn.new('codePaths', '关联机器').isSlot().setMinWidth('250px'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight().alignCenter(),
 ]);
 

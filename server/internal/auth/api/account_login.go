@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"mayfly-go/internal/auth/api/form"
 	"mayfly-go/internal/auth/config"
@@ -14,7 +13,7 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/captcha"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/otp"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
@@ -25,15 +24,15 @@ import (
 )
 
 type AccountLogin struct {
-	AccountApp sysapp.Account
-	MsgApp     msgapp.Msg
+	AccountApp sysapp.Account `inject:""`
+	MsgApp     msgapp.Msg     `inject:""`
 }
 
 /**   用户账号密码登录   **/
 
 // @router /auth/accounts/login [post]
 func (a *AccountLogin) Login(rc *req.Ctx) {
-	loginForm := ginx.BindJsonAndValid(rc.GinCtx, new(form.LoginForm))
+	loginForm := req.BindJsonAndValid(rc, new(form.LoginForm))
 
 	accountLoginSecurity := config.GetAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验
@@ -51,7 +50,7 @@ func (a *AccountLogin) Login(rc *req.Ctx) {
 	biz.ErrIsNilAppendErr(err, "解密密码错误: %s")
 
 	account := &sysentity.Account{Username: username}
-	err = a.AccountApp.GetBy(account, "Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret")
+	err = a.AccountApp.GetByCond(model.NewModelCond(account).Columns("Id", "Name", "Username", "Password", "Status", "LastLoginTime", "LastLoginIp", "OtpSecret"))
 
 	failCountKey := fmt.Sprintf("account:login:failcount:%s", username)
 	nowFailCount := cache.GetInt(failCountKey)
@@ -71,23 +70,23 @@ func (a *AccountLogin) Login(rc *req.Ctx) {
 }
 
 type OtpVerifyInfo struct {
-	AccountId   uint64
-	Username    string
-	OptStatus   int
-	AccessToken string
-	OtpSecret   string
+	AccountId    uint64
+	Username     string
+	OptStatus    int
+	AccessToken  string
+	RefreshToken string
+	OtpSecret    string
 }
 
 // OTP双因素校验
 func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 	otpVerify := new(form.OtpVerfiy)
-	ginx.BindJsonAndValid(rc.GinCtx, otpVerify)
+	req.BindJsonAndValid(rc, otpVerify)
 
 	tokenKey := fmt.Sprintf("otp:token:%s", otpVerify.OtpToken)
-	otpInfoJson := cache.GetStr(tokenKey)
-	biz.NotEmpty(otpInfoJson, "otpToken错误或失效, 请重新登陆获取")
 	otpInfo := new(OtpVerifyInfo)
-	json.Unmarshal([]byte(otpInfoJson), otpInfo)
+	ok := cache.Get(tokenKey, otpInfo)
+	biz.IsTrue(ok, "otpToken错误或失效, 请重新登陆获取")
 
 	failCountKey := fmt.Sprintf("account:otp:failcount:%d", otpInfo.AccountId)
 	failCount := cache.GetInt(failCountKey)
@@ -107,7 +106,7 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 	if otpStatus == OtpStatusNoReg {
 		update := &sysentity.Account{OtpSecret: otpSecret}
 		update.Id = accountId
-		update.OtpSecretEncrypt()
+		biz.ErrIsNil(update.OtpSecretEncrypt())
 		biz.ErrIsNil(a.AccountApp.Update(context.Background(), update))
 	}
 
@@ -116,7 +115,19 @@ func (a *AccountLogin) OtpVerify(rc *req.Ctx) {
 	go saveLogin(la, getIpAndRegion(rc))
 
 	cache.Del(tokenKey)
-	rc.ResData = accessToken
+	rc.ResData = collx.Kvs("token", accessToken, "refresh_token", otpInfo.RefreshToken)
+}
+
+func (a *AccountLogin) RefreshToken(rc *req.Ctx) {
+	refreshToken := rc.Query("refresh_token")
+	biz.NotEmpty(refreshToken, "refresh_token不能为空")
+
+	accountId, username, err := req.ParseToken(refreshToken)
+	biz.IsTrueBy(err == nil, errorx.PermissionErr)
+
+	token, refreshToken, err := req.CreateToken(accountId, username)
+	biz.ErrIsNil(err)
+	rc.ResData = collx.Kvs("token", token, "refresh_token", refreshToken)
 }
 
 func (a *AccountLogin) Logout(rc *req.Ctx) {

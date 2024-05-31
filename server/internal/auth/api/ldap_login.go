@@ -13,7 +13,7 @@ import (
 	"mayfly-go/pkg/cache"
 	"mayfly-go/pkg/captcha"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/ginx"
+	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/req"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/cryptox"
@@ -27,8 +27,8 @@ import (
 )
 
 type LdapLogin struct {
-	AccountApp sysapp.Account
-	MsgApp     msgapp.Msg
+	AccountApp sysapp.Account `inject:""`
+	MsgApp     msgapp.Msg     `inject:""`
 }
 
 // @router /auth/ldap/enabled [get]
@@ -39,7 +39,7 @@ func (a *LdapLogin) GetLdapEnabled(rc *req.Ctx) {
 
 // @router /auth/ldap/login [post]
 func (a *LdapLogin) Login(rc *req.Ctx) {
-	loginForm := ginx.BindJsonAndValid(rc.GinCtx, new(form.LoginForm))
+	loginForm := req.BindJsonAndValid(rc, new(form.LoginForm))
 
 	accountLoginSecurity := config.GetAccountLoginSecurity()
 	// 判断是否有开启登录验证码校验
@@ -79,7 +79,7 @@ func (a *LdapLogin) Login(rc *req.Ctx) {
 
 func (a *LdapLogin) getUser(userName string, cols ...string) (*sysentity.Account, error) {
 	account := &sysentity.Account{Username: userName}
-	if err := a.AccountApp.GetBy(account, cols...); err != nil {
+	if err := a.AccountApp.GetByCond(model.NewModelCond(account).Columns(cols...)); err != nil {
 		return nil, err
 	}
 	return account, nil
@@ -87,7 +87,7 @@ func (a *LdapLogin) getUser(userName string, cols ...string) (*sysentity.Account
 
 func (a *LdapLogin) createUser(userName, displayName string) {
 	account := &sysentity.Account{Username: userName}
-	account.SetBaseInfo(nil)
+	account.FillBaseInfo(model.IdGenTypeNone, nil)
 	account.Name = displayName
 	biz.ErrIsNil(a.AccountApp.Create(context.TODO(), account))
 	// 将 LADP 用户本地密码设置为空，不允许本地登录
@@ -102,7 +102,7 @@ func (a *LdapLogin) getOrCreateUserWithLdap(userName string, password string, co
 	}
 
 	account, err := a.getUser(userName, cols...)
-	if err == gorm.ErrRecordNotFound {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		a.createUser(userName, userInfo.DisplayName)
 		return a.getUser(userName, cols...)
 	} else if err != nil {

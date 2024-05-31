@@ -2,9 +2,10 @@ package mcm
 
 import (
 	"fmt"
-	"mayfly-go/internal/machine/domain/entity"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
+	"mayfly-go/pkg/utils/netx"
 	"net"
 	"time"
 
@@ -13,27 +14,34 @@ import (
 
 // 机器信息
 type MachineInfo struct {
-	Id   uint64 `json:"id"`
-	Name string `json:"name"`
+	Key      string `json:"key"` // 缓存key
+	Id       uint64 `json:"id"`
+	Name     string `json:"name"`
+	Code     string `json:"code"`
+	Protocol int    `json:"protocol"`
 
-	Ip         string `json:"ip"` // IP地址
-	Port       int    `json:"-"`  // 端口号
-	AuthMethod int8   `json:"-"`  // 授权认证方式
-	Username   string `json:"-"`  // 用户名
-	Password   string `json:"-"`
-	Passphrase string `json:"-"` // 私钥口令
+	Ip   string `json:"ip"` // IP地址
+	Port int    `json:"-"`  // 端口号
+
+	AuthCertName string                 `json:"authCertName"`
+	AuthCertType tagentity.AuthCertType `json:"-"`
+	AuthMethod   int8                   `json:"-"` // 授权认证方式
+	Username     string                 `json:"-"` // 用户名
+	Password     string                 `json:"-"`
+	Passphrase   string                 `json:"-"` // 私钥口令
 
 	SshTunnelMachine *MachineInfo `json:"-"` // ssh隧道机器
+	TempSshMachineId uint64       `json:"-"` // ssh隧道机器id，用于记录隧道机器id，连接出错后关闭隧道
 	EnableRecorder   int8         `json:"-"` // 是否启用终端回放记录
-	TagPath          []string     `json:"tagPath"`
+	CodePath         []string     `json:"codePath"`
 }
 
-func (m *MachineInfo) UseSshTunnel() bool {
-	return m.SshTunnelMachine != nil
+func (mi *MachineInfo) UseSshTunnel() bool {
+	return mi.SshTunnelMachine != nil
 }
 
-func (m *MachineInfo) GetTunnelId() string {
-	return fmt.Sprintf("machine:%d", m.Id)
+func (mi *MachineInfo) GetTunnelId() string {
+	return fmt.Sprintf("machine:%d", mi.Id)
 }
 
 // 连接
@@ -41,16 +49,16 @@ func (mi *MachineInfo) Conn() (*Cli, error) {
 	logx.Infof("[%s]机器连接：%s:%d", mi.Name, mi.Ip, mi.Port)
 
 	// 如果使用了ssh隧道，则修改机器ip port为暴露的ip port
-	err := mi.IfUseSshTunnelChangeIpPort()
+	err := mi.IfUseSshTunnelChangeIpPort(false)
 	if err != nil {
 		return nil, errorx.NewBiz("ssh隧道连接失败: %s", err.Error())
 	}
 
 	cli := &Cli{Info: mi}
-	sshClient, err := GetSshClient(mi)
+	sshClient, err := GetSshClient(mi, nil)
 	if err != nil {
 		if mi.UseSshTunnel() {
-			CloseSshTunnelMachine(int(mi.SshTunnelMachine.Id), mi.GetTunnelId())
+			CloseSshTunnelMachine(int(mi.TempSshMachineId), mi.GetTunnelId())
 		}
 		return nil, err
 	}
@@ -59,34 +67,62 @@ func (mi *MachineInfo) Conn() (*Cli, error) {
 }
 
 // 如果使用了ssh隧道，则修改机器ip port为暴露的ip port
-func (me *MachineInfo) IfUseSshTunnelChangeIpPort() error {
-	if !me.UseSshTunnel() {
+func (mi *MachineInfo) IfUseSshTunnelChangeIpPort(out bool) error {
+	if !mi.UseSshTunnel() {
 		return nil
 	}
 
-	originId := me.Id
+	originId := mi.Id
 	if originId == 0 {
 		// 随机设置一个id，如果使用了隧道则用于临时保存隧道
-		me.Id = uint64(time.Now().Nanosecond())
+		mi.Id = uint64(time.Now().Nanosecond())
 	}
 
-	sshTunnelMachine, err := GetSshTunnelMachine(int(me.SshTunnelMachine.Id), func(u uint64) (*MachineInfo, error) {
-		return me.SshTunnelMachine, nil
+	sshTunnelMachine, err := GetSshTunnelMachine(int(mi.SshTunnelMachine.Id), func(u uint64) (*MachineInfo, error) {
+		return mi.SshTunnelMachine, nil
 	})
 	if err != nil {
 		return err
 	}
-	exposeIp, exposePort, err := sshTunnelMachine.OpenSshTunnel(me.GetTunnelId(), me.Ip, me.Port)
+	exposeIp, exposePort, err := sshTunnelMachine.OpenSshTunnel(mi.GetTunnelId(), mi.Ip, mi.Port)
 	if err != nil {
 		return err
 	}
+
+	// 是否获取局域网的本地IP
+	if out {
+		exposeIp = netx.GetOutBoundIP()
+	}
+
 	// 修改机器ip地址
-	me.Ip = exposeIp
-	me.Port = exposePort
+	mi.Ip = exposeIp
+	mi.Port = exposePort
+	// 代理之后置空跳板机信息，防止重复跳
+	mi.TempSshMachineId = mi.SshTunnelMachine.Id
+	mi.SshTunnelMachine = nil
 	return nil
 }
 
-func GetSshClient(m *MachineInfo) (*ssh.Client, error) {
+func GetSshClient(m *MachineInfo, jumpClient *ssh.Client) (*ssh.Client, error) {
+	// 递归一直取到底层没有跳板机的机器信息
+	if m.SshTunnelMachine != nil {
+		jumpClient, err := GetSshClient(m.SshTunnelMachine, jumpClient)
+		if err != nil {
+			return nil, err
+		}
+		// 新建一个没有跳板机的机器信息
+		m1 := &MachineInfo{
+			Ip:         m.Ip,
+			Port:       m.Port,
+			AuthMethod: m.AuthMethod,
+			Username:   m.Username,
+			Password:   m.Password,
+			Passphrase: m.Passphrase,
+		}
+		// 使用跳板机连接目标机器
+		return GetSshClient(m1, jumpClient)
+	}
+	// 配置 SSH 客户端
 	config := &ssh.ClientConfig{
 		User: m.Username,
 		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
@@ -94,10 +130,9 @@ func GetSshClient(m *MachineInfo) (*ssh.Client, error) {
 		},
 		Timeout: 5 * time.Second,
 	}
-
-	if m.AuthMethod == entity.AuthCertAuthMethodPassword {
+	if m.AuthMethod == int8(tagentity.AuthCertCiphertextTypePassword) {
 		config.Auth = []ssh.AuthMethod{ssh.Password(m.Password)}
-	} else if m.AuthMethod == entity.MachineAuthMethodPublicKey {
+	} else if m.AuthMethod == int8(tagentity.AuthCertCiphertextTypePrivateKey) {
 		var key ssh.Signer
 		var err error
 
@@ -113,6 +148,19 @@ func GetSshClient(m *MachineInfo) (*ssh.Client, error) {
 	}
 
 	addr := fmt.Sprintf("%s:%d", m.Ip, m.Port)
+	if jumpClient != nil {
+		// 连接目标服务器
+		netConn, err := jumpClient.Dial("tcp", addr)
+		if err != nil {
+			return nil, err
+		}
+		conn, channel, reqs, err := ssh.NewClientConn(netConn, addr, config)
+		if err != nil {
+			return nil, err
+		}
+		// 创建目标服务器的 SSH 客户端
+		return ssh.NewClient(conn, channel, reqs), nil
+	}
 	sshClient, err := ssh.Dial("tcp", addr, config)
 	if err != nil {
 		return nil, err

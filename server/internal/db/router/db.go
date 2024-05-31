@@ -2,9 +2,8 @@ package router
 
 import (
 	"mayfly-go/internal/db/api"
-	"mayfly-go/internal/db/application"
-	msgapp "mayfly-go/internal/msg/application"
-	tagapp "mayfly-go/internal/tag/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
@@ -13,15 +12,15 @@ import (
 func InitDbRouter(router *gin.RouterGroup) {
 	db := router.Group("dbs")
 
-	d := &api.Db{
-		InstanceApp:  application.GetInstanceApp(),
-		DbApp:        application.GetDbApp(),
-		DbSqlExecApp: application.GetDbSqlExecApp(),
-		MsgApp:       msgapp.GetMsgApp(),
-		TagApp:       tagapp.GetTagTreeApp(),
-	}
+	d := new(api.Db)
+	biz.ErrIsNil(ioc.Inject(d))
+
+	dashbord := new(api.Dashbord)
+	biz.ErrIsNil(ioc.Inject(dashbord))
 
 	reqs := [...]*req.Conf{
+		req.NewGet("dashbord", dashbord.Dashbord),
+
 		// 获取数据库列表
 		req.NewGet("", d.Dbs),
 
@@ -46,6 +45,8 @@ func InitDbRouter(router *gin.RouterGroup) {
 		req.NewGet(":dbId/c-metadata", d.ColumnMA),
 
 		req.NewGet(":dbId/hint-tables", d.HintTables),
+
+		req.NewPost(":dbId/copy-table", d.CopyTable),
 	}
 
 	req.BatchSetGroup(db, reqs[:])

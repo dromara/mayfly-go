@@ -12,7 +12,8 @@ export const machineApi = {
     process: Api.newGet('/machines/{id}/process'),
     // 终止进程
     killProcess: Api.newDelete('/machines/{id}/process'),
-    closeCli: Api.newDelete('/machines/{id}/close-cli'),
+    users: Api.newGet('/machines/{id}/users'),
+    groups: Api.newGet('/machines/{id}/groups'),
     testConn: Api.newPost('/machines/test-conn'),
     // 保存按钮
     saveMachine: Api.newPost('/machines'),
@@ -21,7 +22,7 @@ export const machineApi = {
     // 删除机器
     del: Api.newDelete('/machines/{id}'),
     scripts: Api.newGet('/machines/{machineId}/scripts'),
-    runScript: Api.newGet('/machines/{machineId}/scripts/{scriptId}/run'),
+    runScript: Api.newGet('/machines/scripts/{scriptId}/{ac}/run'),
     saveScript: Api.newPost('/machines/{machineId}/scripts'),
     deleteScript: Api.newDelete('/machines/{machineId}/scripts/{scriptId}'),
     // 获取配置文件列表
@@ -35,6 +36,7 @@ export const machineApi = {
     mvFile: Api.newPost('/machines/{machineId}/files/{fileId}/mv'),
     uploadFile: Api.newPost('/machines/{machineId}/files/{fileId}/upload?' + joinClientParams()),
     fileContent: Api.newGet('/machines/{machineId}/files/{fileId}/read'),
+    downloadFile: Api.newGet('/machines/{machineId}/files/{fileId}/download'),
     createFile: Api.newPost('/machines/{machineId}/files/{id}/create-file'),
     // 修改文件内容
     updateFileContent: Api.newPost('/machines/{machineId}/files/{id}/write'),
@@ -42,18 +44,10 @@ export const machineApi = {
     addConf: Api.newPost('/machines/{machineId}/files'),
     // 删除配置的文件or目录
     delConf: Api.newDelete('/machines/{machineId}/files/{id}'),
-    terminal: Api.newGet('/api/machines/{id}/terminal'),
     // 机器终端操作记录列表
     termOpRecs: Api.newGet('/machines/{machineId}/term-recs'),
     // 机器终端操作记录详情
     termOpRec: Api.newGet('/machines/{id}/term-recs/{recId}'),
-};
-
-export const authCertApi = {
-    baseList: Api.newGet('/sys/authcerts/base'),
-    list: Api.newGet('/sys/authcerts'),
-    save: Api.newPost('/sys/authcerts'),
-    delete: Api.newDelete('/sys/authcerts/{id}'),
 };
 
 export const cronJobApi = {
@@ -66,6 +60,16 @@ export const cronJobApi = {
     execList: Api.newGet('/machine-cronjobs/execs'),
 };
 
-export function getMachineTerminalSocketUrl(machineId: any) {
-    return `${config.baseWsUrl}/machines/${machineId}/terminal?${joinClientParams()}`;
+export const cmdConfApi = {
+    list: Api.newGet('/machine/security/cmd-confs'),
+    save: Api.newPost('/machine/security/cmd-confs'),
+    delete: Api.newDelete('/machine/security/cmd-confs/{id}'),
+};
+
+export function getMachineTerminalSocketUrl(authCertName: any) {
+    return `${config.baseWsUrl}/machines/terminal/${authCertName}?${joinClientParams()}`;
+}
+
+export function getMachineRdpSocketUrl(authCertName: any) {
+    return `${config.baseWsUrl}/machines/rdp/${authCertName}`;
 }

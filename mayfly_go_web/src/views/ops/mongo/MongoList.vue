@@ -9,6 +9,7 @@
             :show-selection="true"
             v-model:selection-data="selectionData"
             :columns="columns"
+            lazy
         >
             <template #tableHeader>
                 <el-button type="primary" icon="plus" @click="editMongo(true)" plain>添加</el-button>
@@ -16,7 +17,7 @@
             </template>
 
             <template #tagPath="{ data }">
-                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Mongo.value" />
+                <resource-tags :tags="data.tags" />
             </template>
 
             <template #action="{ data }">
@@ -33,7 +34,7 @@
         <mongo-run-command v-model:visible="usersVisible" :id="state.dbOps.dbId" />
 
         <mongo-edit
-            @val-change="search"
+            @val-change="search()"
             :title="mongoEditDialog.title"
             v-model:visible="mongoEditDialog.visible"
             v-model:mongo="mongoEditDialog.data"
@@ -43,30 +44,39 @@
 
 <script lang="ts" setup>
 import { mongoApi } from './api';
-import { defineAsyncComponent, ref, toRefs, reactive, onMounted, Ref } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import ResourceTag from '../component/ResourceTag.vue';
+import ResourceTags from '../component/ResourceTags.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
 import { getTagPathSearchItem } from '../component/tag';
+import { SearchItem } from '@/components/SearchForm';
 
 const MongoEdit = defineAsyncComponent(() => import('./MongoEdit.vue'));
 const MongoDbs = defineAsyncComponent(() => import('./MongoDbs.vue'));
 const MongoRunCommand = defineAsyncComponent(() => import('./MongoRunCommand.vue'));
 
+const props = defineProps({
+    lazy: {
+        type: [Boolean],
+        default: false,
+    },
+});
+
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
-const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Mongo.value)];
+const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Mongo.value), SearchItem.input('code', '编号')];
 
 const columns = [
+    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('uri', '连接uri'),
-    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(20).alignCenter(),
     TableColumn.new('createTime', '创建时间').isTime(),
     TableColumn.new('creator', '创建人'),
+    TableColumn.new('code', '编号'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(170).fixedRight().alignCenter(),
 ];
 
@@ -92,7 +102,11 @@ const state = reactive({
 
 const { selectionData, query, mongoEditDialog, dbsVisible, usersVisible } = toRefs(state);
 
-onMounted(async () => {});
+onMounted(() => {
+    if (!props.lazy) {
+        search();
+    }
+});
 
 const checkRouteTagPath = (query: any) => {
     if (route.query.tagPath) {
@@ -126,7 +140,10 @@ const deleteMongo = async () => {
     }
 };
 
-const search = async () => {
+const search = async (tagPath: string = '') => {
+    if (tagPath) {
+        state.query.tagPath = tagPath;
+    }
     pageTableRef.value.search();
 };
 
@@ -140,6 +157,8 @@ const editMongo = async (data: any) => {
     }
     state.mongoEditDialog.visible = true;
 };
+
+defineExpose({ search });
 </script>
 
 <style></style>

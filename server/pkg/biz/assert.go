@@ -17,10 +17,16 @@ import (
 func ErrIsNil(err error, msgAndParams ...any) {
 	if err != nil {
 		if len(msgAndParams) == 0 {
-			panic(err)
+			panic(errorx.NewBiz(err.Error()))
 		}
 
 		panic(errorx.NewBiz(fmt.Sprintf(msgAndParams[0].(string), msgAndParams[1:]...)))
+	}
+}
+
+func ErrNotNil(err error, msg string, params ...any) {
+	if err == nil {
+		panic(errorx.NewBiz(fmt.Sprintf(msg, params...)))
 	}
 }
 

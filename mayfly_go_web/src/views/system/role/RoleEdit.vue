@@ -1,7 +1,7 @@
 <template>
     <div class="role-dialog">
         <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="500px" :destroy-on-close="true">
-            <el-form ref="roleForm" :model="form" label-width="auto">
+            <el-form ref="roleForm" :model="form" :rules="rules" label-width="auto">
                 <el-form-item prop="name" label="角色名称" required>
                     <el-input v-model="form.name" auto-complete="off"></el-input>
                 </el-form-item>
@@ -28,9 +28,33 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, watch } from 'vue';
+import { ref, toRefs, reactive, watchEffect } from 'vue';
 import { roleApi } from '../api';
 import { RoleStatusEnum } from '../enums';
+
+const rules = {
+    name: [
+        {
+            required: true,
+            message: '请输入角色名称',
+            trigger: ['change', 'blur'],
+        },
+    ],
+    code: [
+        {
+            required: true,
+            message: '请输入角色编号',
+            trigger: ['change', 'blur'],
+        },
+    ],
+    status: [
+        {
+            required: true,
+            message: '请选择状态',
+            trigger: ['change', 'blur'],
+        },
+    ],
+};
 
 const props = defineProps({
     visible: {
@@ -63,10 +87,10 @@ const { dvisible, form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveRoleExec } = roleApi.save.useApi(form);
 
-watch(props, (newValue: any) => {
-    state.dvisible = newValue.visible;
-    if (newValue.data) {
-        state.form = { ...newValue.data };
+watchEffect(() => {
+    state.dvisible = props.visible;
+    if (props.data) {
+        state.form = { ...(props.data as any) };
     } else {
         state.form = {} as any;
     }
@@ -80,13 +104,15 @@ const cancel = () => {
 };
 
 const btnOk = async () => {
-    roleForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            await saveRoleExec();
-            emit('val-change', state.form);
-            cancel();
-        }
-    });
+    try {
+        await roleForm.value.validate();
+    } catch (e: any) {
+        return false;
+    }
+
+    await saveRoleExec();
+    emit('val-change', state.form);
+    cancel();
 };
 </script>
 <style lang="scss"></style>

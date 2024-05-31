@@ -4,6 +4,7 @@ import (
 	"context"
 	"mayfly-go/internal/auth/domain/entity"
 	"mayfly-go/internal/auth/domain/repository"
+	"mayfly-go/pkg/model"
 )
 
 type Oauth2 interface {
@@ -14,27 +15,21 @@ type Oauth2 interface {
 	Unbind(accountId uint64)
 }
 
-func newAuthApp(oauthAccountRepo repository.Oauth2Account) Oauth2 {
-	return &oauth2AppImpl{
-		oauthAccountRepo: oauthAccountRepo,
-	}
-}
-
 type oauth2AppImpl struct {
-	oauthAccountRepo repository.Oauth2Account
+	Oauth2AccountRepo repository.Oauth2Account `inject:""`
 }
 
 func (a *oauth2AppImpl) GetOAuthAccount(condition *entity.Oauth2Account, cols ...string) error {
-	return a.oauthAccountRepo.GetBy(condition, cols...)
+	return a.Oauth2AccountRepo.GetByCond(model.NewModelCond(condition).Columns(cols...))
 }
 
 func (a *oauth2AppImpl) BindOAuthAccount(e *entity.Oauth2Account) error {
 	if e.Id == 0 {
-		return a.oauthAccountRepo.Insert(context.Background(), e)
+		return a.Oauth2AccountRepo.Insert(context.Background(), e)
 	}
-	return a.oauthAccountRepo.UpdateById(context.Background(), e)
+	return a.Oauth2AccountRepo.UpdateById(context.Background(), e)
 }
 
 func (a *oauth2AppImpl) Unbind(accountId uint64) {
-	a.oauthAccountRepo.DeleteByCond(context.Background(), &entity.Oauth2Account{AccountId: accountId})
+	a.Oauth2AccountRepo.DeleteByCond(context.Background(), &entity.Oauth2Account{AccountId: accountId})
 }

@@ -1,59 +1,34 @@
 package application
 
 import (
-	"mayfly-go/internal/machine/infrastructure/persistence"
-	tagapp "mayfly-go/internal/tag/application"
+	"mayfly-go/pkg/ioc"
 )
 
-var (
-	machineApp Machine = newMachineApp(
-		persistence.GetMachineRepo(),
-		GetAuthCertApp(),
-		tagapp.GetTagTreeApp(),
-	)
-
-	machineFileApp MachineFile = newMachineFileApp(
-		persistence.GetMachineFileRepo(),
-		GetMachineApp(),
-	)
-
-	machineScriptApp MachineScript = newMachineScriptApp(
-		persistence.GetMachineScriptRepo(),
-		GetMachineApp(),
-	)
-
-	authCertApp AuthCert = newAuthCertApp(persistence.GetAuthCertRepo())
-
-	machineCropJobApp MachineCronJob = newMachineCronJobApp(
-		persistence.GetMachineCronJobRepo(),
-		persistence.GetMachineCronJobRelateRepo(),
-		persistence.GetMachineCronJobExecRepo(),
-		GetMachineApp(),
-	)
-
-	machineTermOpApp MachineTermOp = newMachineTermOpApp(persistence.GetMachineTermOpRepo())
-)
+func InitIoc() {
+	ioc.Register(new(machineAppImpl), ioc.WithComponentName("MachineApp"))
+	ioc.Register(new(machineFileAppImpl), ioc.WithComponentName("MachineFileApp"))
+	ioc.Register(new(machineScriptAppImpl), ioc.WithComponentName("MachineScriptApp"))
+	ioc.Register(new(machineCronJobAppImpl), ioc.WithComponentName("MachineCronJobApp"))
+	ioc.Register(new(machineTermOpAppImpl), ioc.WithComponentName("MachineTermOpApp"))
+	ioc.Register(new(machineCmdConfAppImpl), ioc.WithComponentName("MachineCmdConfApp"))
+}
 
 func GetMachineApp() Machine {
-	return machineApp
+	return ioc.Get[Machine]("MachineApp")
 }
 
 func GetMachineFileApp() MachineFile {
-	return machineFileApp
+	return ioc.Get[MachineFile]("MachineFileApp")
 }
 
 func GetMachineScriptApp() MachineScript {
-	return machineScriptApp
-}
-
-func GetAuthCertApp() AuthCert {
-	return authCertApp
+	return ioc.Get[MachineScript]("MachineScriptApp")
 }
 
 func GetMachineCronJobApp() MachineCronJob {
-	return machineCropJobApp
+	return ioc.Get[MachineCronJob]("MachineCronJobApp")
 }
 
 func GetMachineTermOpApp() MachineTermOp {
-	return machineTermOpApp
+	return ioc.Get[MachineTermOp]("MachineTermOpApp")
 }

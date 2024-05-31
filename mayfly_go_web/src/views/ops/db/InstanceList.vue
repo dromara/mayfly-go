@@ -3,11 +3,13 @@
         <page-table
             ref="pageTableRef"
             :page-api="dbApi.instances"
+            :data-handler-fn="handleData"
             :searchItems="searchItems"
             v-model:query-form="query"
             :show-selection="true"
             v-model:selection-data="state.selectionData"
             :columns="columns"
+            lazy
         >
             <template #tableHeader>
                 <el-button v-auth="perms.saveInstance" type="primary" icon="plus" @click="editInstance(false)">添加</el-button>
@@ -16,8 +18,16 @@
                 >
             </template>
 
+            <template #tagPath="{ data }">
+                <ResourceTags :tags="data.tags" />
+            </template>
+
+            <template #authCert="{ data }">
+                <ResourceAuthCert v-model:select-auth-cert="data.selectAuthCert" :auth-certs="data.authCerts" />
+            </template>
+
             <template #type="{ data }">
-                <el-tooltip :content="data.type" placement="top">
+                <el-tooltip :content="getDbDialect(data.type).getInfo().name" placement="top">
                     <SvgIcon :name="getDbDialect(data.type).getInfo().icon" :size="20" />
                 </el-tooltip>
             </template>
@@ -25,17 +35,17 @@
             <template #action="{ data }">
                 <el-button @click="showInfo(data)" link>详情</el-button>
                 <el-button v-if="actionBtns[perms.saveInstance]" @click="editInstance(data)" type="primary" link>编辑</el-button>
+                <el-button v-if="actionBtns[perms.saveDb]" @click="editDb(data)" type="primary" link>库管理</el-button>
             </template>
         </page-table>
 
-        <el-dialog v-model="infoDialog.visible">
-            <el-descriptions title="详情" :column="3" border>
+        <el-dialog v-model="infoDialog.visible" title="详情">
+            <el-descriptions :column="3" border>
                 <el-descriptions-item :span="2" label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="id">{{ infoDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="2" label="主机">{{ infoDialog.data.host }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="端口">{{ infoDialog.data.port }}</el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="用户名">{{ infoDialog.data.username }}</el-descriptions-item>
                 <el-descriptions-item :span="1" label="类型">{{ infoDialog.data.type }}</el-descriptions-item>
 
                 <el-descriptions-item :span="3" label="连接参数">{{ infoDialog.data.params }}</el-descriptions-item>
@@ -43,56 +53,73 @@
 
                 <el-descriptions-item :span="3" label="SSH隧道">{{ infoDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(infoDialog.data.createTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="2" label="创建时间">{{ formatDate(infoDialog.data.createTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="创建者">{{ infoDialog.data.creator }}</el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="2" label="更新时间">{{ formatDate(infoDialog.data.updateTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="修改者">{{ infoDialog.data.modifier }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
 
         <instance-edit
-            @val-change="search"
+            @val-change="search()"
             :title="instanceEditDialog.title"
             v-model:visible="instanceEditDialog.visible"
             v-model:data="instanceEditDialog.data"
         ></instance-edit>
+
+        <DbList :title="dbEditDialog.title" v-model:visible="dbEditDialog.visible" :instance="dbEditDialog.instance" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, defineAsyncComponent, Ref } from 'vue';
+import { defineAsyncComponent, onMounted, reactive, ref, Ref, toRefs } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { dbApi } from './api';
-import { dateFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { getDbDialect } from './dialect';
 import { SearchItem } from '@/components/SearchForm';
+import ResourceAuthCert from '../component/ResourceAuthCert.vue';
+import ResourceTags from '../component/ResourceTags.vue';
+import { getTagPathSearchItem } from '../component/tag';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const InstanceEdit = defineAsyncComponent(() => import('./InstanceEdit.vue'));
+const DbList = defineAsyncComponent(() => import('./DbList.vue'));
+
+const props = defineProps({
+    lazy: {
+        type: [Boolean],
+        default: false,
+    },
+});
 
 const perms = {
     saveInstance: 'db:instance:save',
     delInstance: 'db:instance:del',
+    saveDb: 'db:save',
 };
 
-const searchItems = [SearchItem.input('name', '名称')];
+const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Db.value), SearchItem.input('code', '编号'), SearchItem.input('name', '名称')];
 
 const columns = ref([
+    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('type', '类型').isSlot().setAddWidth(-15).alignCenter(),
     TableColumn.new('host', 'host:port').setFormatFunc((data: any) => `${data.host}:${data.port}`),
-    TableColumn.new('username', '用户名'),
+    TableColumn.new('authCerts[0].username', '授权凭证').isSlot('authCert').setAddWidth(10),
     TableColumn.new('params', '连接参数'),
     TableColumn.new('remark', '备注'),
+    TableColumn.new('code', '编号'),
 ]);
 
 // 该用户拥有的的操作列按钮权限
-const actionBtns = hasPerms([perms.saveInstance]);
-const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(110).fixedRight().alignCenter();
+const actionBtns = hasPerms(Object.values(perms));
+const actionColumn = TableColumn.new('action', '操作').isSlot().setMinWidth(180).fixedRight().alignCenter();
 const pageTableRef: Ref<any> = ref(null);
 
 const state = reactive({
@@ -108,6 +135,7 @@ const state = reactive({
      */
     query: {
         name: null,
+        tagPath: '',
         pageNum: 1,
         pageSize: 0,
     },
@@ -120,18 +148,38 @@ const state = reactive({
         data: null as any,
         title: '新增数据库实例',
     },
+    dbEditDialog: {
+        visible: false,
+        instance: null as any,
+        title: '新增数据库实例',
+    },
 });
 
-const { selectionData, query, infoDialog, instanceEditDialog } = toRefs(state);
+const { selectionData, query, infoDialog, instanceEditDialog, dbEditDialog } = toRefs(state);
 
 onMounted(async () => {
     if (Object.keys(actionBtns).length > 0) {
         columns.value.push(actionColumn);
     }
+    if (!props.lazy) {
+        search();
+    }
 });
 
-const search = () => {
+const search = (tagPath: string = '') => {
+    if (tagPath) {
+        state.query.tagPath = tagPath;
+    }
     pageTableRef.value.search();
+};
+
+const handleData = (res: any) => {
+    const dataList = res.list;
+    // 赋值授权凭证
+    for (let x of dataList) {
+        x.selectAuthCert = x.authCerts[0];
+    }
+    return res;
 };
 
 const showInfo = (info: any) => {
@@ -164,5 +212,13 @@ const deleteInstance = async () => {
         //
     }
 };
+
+const editDb = (data: any) => {
+    state.dbEditDialog.instance = data;
+    state.dbEditDialog.title = `管理 "${data.name}" 数据库`;
+    state.dbEditDialog.visible = true;
+};
+
+defineExpose({ search });
 </script>
 <style lang="scss"></style>

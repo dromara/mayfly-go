@@ -66,6 +66,9 @@ func (c *Config) IfBlankDefaultValue() {
 		AddSource: c.Log.AddSource,
 		Filename:  c.Log.File.Name,
 		Filepath:  c.Log.File.Path,
+		MaxSize:   c.Log.File.MaxSize,
+		MaxAge:    c.Log.File.MaxAge,
+		Compress:  c.Log.File.Compress,
 	})
 
 	c.Server.Default()
@@ -80,7 +83,7 @@ func (c *Config) Valid() {
 	c.Aes.Valid()
 }
 
-// 替换系统环境变量，如果环境变量中存在该值，则优秀使用环境变量设定的值
+// 替换系统环境变量，如果环境变量中存在该值，则优先使用环境变量设定的值
 func (c *Config) ReplaceOsEnv() {
 	serverPort := os.Getenv("MAYFLY_SERVER_PORT")
 	if serverPort != "" {

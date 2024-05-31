@@ -48,20 +48,14 @@
 </template>
 <script lang="ts" setup>
 import { ref, reactive, toRefs, onMounted } from 'vue';
-import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import FormatViewer from './FormatViewer.vue';
+import { RedisInst } from './redis';
 
 const props = defineProps({
-    redisId: {
-        type: [Number],
-        require: true,
-        default: 0,
-    },
-    db: {
-        type: [Number],
-        require: true,
-        default: 0,
+    redis: {
+        type: RedisInst,
+        required: true,
     },
     keyInfo: {
         type: [Object],
@@ -71,8 +65,6 @@ const props = defineProps({
 const formatViewerRef = ref(null) as any;
 
 const state = reactive({
-    redisId: 0,
-    db: 0,
     key: '',
 
     filterValue: '',
@@ -94,8 +86,6 @@ const state = reactive({
 const { total, setDatas, loadMoreDisable, editDialog } = toRefs(state);
 
 onMounted(() => {
-    state.redisId = props.redisId;
-    state.db = props.db;
     state.key = props.keyInfo?.key;
     initData();
 });
@@ -114,26 +104,24 @@ const sscanData = async (resetDatas = true, resetCursor = false) => {
     if (resetCursor) {
         state.scanParam.cursor = 0;
     }
-    const res = await redisApi.sscan.request({
-        ...getBaseReqParam(),
-        match: getScanMatch(),
-        ...state.scanParam,
-    });
-
+    // SSCAN key cursor [MATCH pattern] [COUNT count]
+    // 响应[cursor, vals[]]
+    const res = await props.redis.runCmd(['SSCAN', state.key, state.scanParam.cursor, 'MATCH', getScanMatch(), 'COUNT', state.scanParam.count]);
     if (resetDatas) {
         state.setDatas = [];
     }
-    res.keys.forEach((x: any) => {
+    res[1].forEach((x: any) => {
         state.setDatas.push({
             value: x,
         });
     });
-    state.scanParam.cursor = res.cursor;
-    state.loadMoreDisable = res.cursor == 0;
+    state.scanParam.cursor = res[0];
+    state.loadMoreDisable = state.scanParam.cursor == 0;
 };
 
 const getTotal = () => {
-    redisApi.scard.request(getBaseReqParam()).then((res) => {
+    // SCARD key
+    props.redis.runCmd(['SCARD', state.key]).then((res) => {
         state.total = res;
     });
 };
@@ -145,23 +133,16 @@ const showEditDialog = (row: any) => {
 };
 
 const confirmEditData = async () => {
-    const param = getBaseReqParam();
-
     // 存在数据行，则说明为修改，则要先删除旧数据后新增
     const dataRow = state.editDialog.dataRow;
     if (dataRow) {
-        await redisApi.srem.request({
-            member: state.editDialog.dataRow.value,
-            ...param,
-        });
+        await props.redis.runCmd(['SREM', state.key, state.editDialog.dataRow.value]);
     }
 
     // 获取set member内容并新增
     const member = formatViewerRef.value.getContent();
-    await redisApi.sadd.request({
-        member,
-        ...param,
-    });
+    // SADD key member [member ...]
+    await props.redis.runCmd(['SADD', state.key, member]);
 
     ElMessage.success('保存成功');
     if (dataRow) {
@@ -175,21 +156,11 @@ const confirmEditData = async () => {
 };
 
 const srem = async (row: any, index: any) => {
-    await redisApi.srem.request({
-        ...getBaseReqParam(),
-        member: row.value,
-    });
+    // SREM key member [member ...]
+    await props.redis.runCmd(['SREM', state.key, row.value]);
     ElMessage.success('删除成功');
     state.setDatas.splice(index, 1);
     state.total--;
-};
-
-const getBaseReqParam = () => {
-    return {
-        id: state.redisId,
-        db: state.db,
-        key: state.key,
-    };
 };
 
 defineExpose({ initData });

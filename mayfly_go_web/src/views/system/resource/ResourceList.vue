@@ -1,52 +1,103 @@
 <template>
     <div class="card system-resouce-list">
-        <div class="card pd10 flex-justify-between">
-            <div>
-                <el-input v-model="filterResource" clearable placeholder="输入关键字过滤(右击进行操作)" style="width: 220px; margin-right: 10px" />
-                <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)">添加</el-button>
-            </div>
+        <Splitpanes class="default-theme">
+            <Pane size="25" min-size="20" max-size="30">
+                <div class="card pd5 mr5">
+                    <el-input v-model="filterResource" clearable placeholder="输入关键字过滤(右击操作)" style="width: 200px; margin-right: 10px" />
+                    <el-button v-auth="perms.addResource" type="primary" icon="plus" @click="addResource(false)"></el-button>
 
-            <div>
-                <span> <SvgIcon name="info-filled" />红色、橙色字体表示禁用状态 (右击资源进行操作) </span>
-            </div>
-        </div>
-        <el-scrollbar class="tree-data">
-            <el-tree
-                ref="resourceTreeRef"
-                class="none-select"
-                :indent="24"
-                node-key="id"
-                :props="props"
-                :data="data"
-                @node-expand="handleNodeExpand"
-                @node-collapse="handleNodeCollapse"
-                @node-contextmenu="nodeContextmenu"
-                @node-click="treeNodeClick"
-                :default-expanded-keys="defaultExpandedKeys"
-                :expand-on-click-node="true"
-                draggable
-                :allow-drop="allowDrop"
-                @node-drop="handleDrop"
-                :filter-node-method="filterNode"
-            >
-                <template #default="{ data }">
-                    <span class="custom-tree-node">
-                        <span style="font-size: 13px" v-if="data.type === menuTypeValue">
-                            <span style="color: #3c8dbc">【</span>
-                            <span v-if="data.status == 1">{{ data.name }}</span>
-                            <span v-if="data.status == -1" style="color: #e6a23c">{{ data.name }}</span>
-                            <span style="color: #3c8dbc">】</span>
-                            <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
-                        </span>
-                        <span style="font-size: 13px" v-if="data.type === permissionTypeValue">
-                            <span style="color: #3c8dbc">【</span>
-                            <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">{{ data.name }}</span>
-                            <span style="color: #3c8dbc">】</span>
-                        </span>
-                    </span>
-                </template>
-            </el-tree>
-        </el-scrollbar>
+                    <div class="fr">
+                        <el-tooltip placement="top">
+                            <template #content> 红色、橙色字体表示禁用状态 (右击资源进行操作) </template>
+                            <span> <SvgIcon name="question-filled" /> </span>
+                        </el-tooltip>
+                    </div>
+                </div>
+                <el-scrollbar class="tree-data">
+                    <el-tree
+                        ref="resourceTreeRef"
+                        class="none-select"
+                        :indent="24"
+                        node-key="id"
+                        :props="props"
+                        :data="data"
+                        highlight-current
+                        @node-expand="handleNodeExpand"
+                        @node-collapse="handleNodeCollapse"
+                        @node-contextmenu="nodeContextmenu"
+                        @node-click="treeNodeClick"
+                        :default-expanded-keys="defaultExpandedKeys"
+                        :expand-on-click-node="false"
+                        draggable
+                        :allow-drop="allowDrop"
+                        @node-drop="handleDrop"
+                        :filter-node-method="filterNode"
+                    >
+                        <template #default="{ data }">
+                            <span class="custom-tree-node">
+                                <span style="font-size: 13px" v-if="data.type === menuTypeValue">
+                                    <span style="color: #3c8dbc">【</span>
+                                    <span v-if="data.status == 1">{{ data.name }}</span>
+                                    <span v-if="data.status == -1" style="color: #e6a23c">{{ data.name }}</span>
+                                    <span style="color: #3c8dbc">】</span>
+                                    <el-tag v-if="data.children !== null" size="small">{{ data.children.length }}</el-tag>
+                                </span>
+                                <span style="font-size: 13px" v-if="data.type === permissionTypeValue">
+                                    <span style="color: #3c8dbc">【</span>
+                                    <span :style="data.status == 1 ? 'color: #67c23a;' : 'color: #f67c6c;'">{{ data.name }}</span>
+                                    <span style="color: #3c8dbc">】</span>
+                                </span>
+                            </span>
+                        </template>
+                    </el-tree>
+                </el-scrollbar>
+            </Pane>
+
+            <Pane min-size="40">
+                <div class="ml10">
+                    <el-tabs v-model="state.activeTabName" v-if="currentResource">
+                        <el-tab-pane label="菜单资源详情" :name="ResourceDetail">
+                            <el-descriptions title="资源信息" :column="2" border>
+                                <el-descriptions-item label="类型">
+                                    <enum-tag :enums="ResourceTypeEnum" :value="currentResource?.type" />
+                                </el-descriptions-item>
+                                <el-descriptions-item label="名称">{{ currentResource.name }}</el-descriptions-item>
+                                <el-descriptions-item label="code[菜单path]">{{ currentResource.code }}</el-descriptions-item>
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="图标">
+                                    <SvgIcon :name="currentResource.meta.icon" />
+                                </el-descriptions-item>
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="路由名">
+                                    {{ currentResource.meta.routeName }}
+                                </el-descriptions-item>
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="组件路径">
+                                    {{ currentResource.meta.component }}
+                                </el-descriptions-item>
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="是否缓存">
+                                    {{ currentResource.meta.isKeepAlive ? '是' : '否' }}
+                                </el-descriptions-item>
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="是否隐藏">
+                                    {{ currentResource.meta.isHide ? '是' : '否' }}
+                                </el-descriptions-item>
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="tag不可删除">
+                                    {{ currentResource.meta.isAffix ? '是' : '否' }}
+                                </el-descriptions-item>
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue" label="外链">
+                                    {{ currentResource.meta.linkType ? '是' : '否' }}
+                                </el-descriptions-item>
+                                <el-descriptions-item v-if="currentResource.type == menuTypeValue && currentResource.meta.linkType > 0" label="外链">
+                                    {{ currentResource.meta.link }}
+                                </el-descriptions-item>
+
+                                <el-descriptions-item label="创建者">{{ currentResource.creator }}</el-descriptions-item>
+                                <el-descriptions-item label="创建时间">{{ formatDate(currentResource.createTime) }} </el-descriptions-item>
+                                <el-descriptions-item label="修改者">{{ currentResource.modifier }}</el-descriptions-item>
+                                <el-descriptions-item label="更新时间">{{ formatDate(currentResource.updateTime) }} </el-descriptions-item>
+                            </el-descriptions>
+                        </el-tab-pane>
+                    </el-tabs>
+                </div>
+            </Pane>
+        </Splitpanes>
 
         <ResourceEdit
             :title="dialogForm.title"
@@ -58,45 +109,6 @@
             @val-change="valChange"
         />
 
-        <el-dialog v-model="infoDialog.visible">
-            <el-descriptions title="资源信息" :column="2" border>
-                <el-descriptions-item label="类型">
-                    <el-tag size="small">{{ EnumValue.getLabelByValue(ResourceTypeEnum, infoDialog.data.type) }}</el-tag>
-                </el-descriptions-item>
-                <el-descriptions-item label="名称">{{ infoDialog.data.name }}</el-descriptions-item>
-                <el-descriptions-item label="code[菜单path]">{{ infoDialog.data.code }}</el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="图标">
-                    <SvgIcon :name="infoDialog.data.meta.icon" />
-                </el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="路由名">
-                    {{ infoDialog.data.meta.routeName }}
-                </el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="组件路径">
-                    {{ infoDialog.data.meta.component }}
-                </el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="是否缓存">
-                    {{ infoDialog.data.meta.isKeepAlive ? '是' : '否' }}
-                </el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="是否隐藏">
-                    {{ infoDialog.data.meta.isHide ? '是' : '否' }}
-                </el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="tag不可删除">
-                    {{ infoDialog.data.meta.isAffix ? '是' : '否' }}
-                </el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue" label="外链">
-                    {{ infoDialog.data.meta.linkType ? '是' : '否' }}
-                </el-descriptions-item>
-                <el-descriptions-item v-if="infoDialog.data.type == menuTypeValue && infoDialog.data.meta.linkType > 0" label="外链">
-                    {{ infoDialog.data.meta.link }}
-                </el-descriptions-item>
-
-                <el-descriptions-item label="创建者">{{ infoDialog.data.creator }}</el-descriptions-item>
-                <el-descriptions-item label="创建时间">{{ dateFormat(infoDialog.data.createTime) }} </el-descriptions-item>
-                <el-descriptions-item label="修改者">{{ infoDialog.data.modifier }}</el-descriptions-item>
-                <el-descriptions-item label="更新时间">{{ dateFormat(infoDialog.data.updateTime) }} </el-descriptions-item>
-            </el-descriptions>
-        </el-dialog>
-
         <contextmenu :dropdown="state.contextmenu.dropdown" :items="state.contextmenu.items" ref="contextmenuRef" />
     </div>
 </template>
@@ -107,9 +119,10 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import ResourceEdit from './ResourceEdit.vue';
 import { ResourceTypeEnum } from '../enums';
 import { resourceApi } from '../api';
-import { dateFormat } from '@/common/utils/date';
-import EnumValue from '@/common/Enum';
+import { formatDate } from '@/common/utils/format';
+import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { Contextmenu, ContextmenuItem } from '@/components/contextmenu';
+import { Splitpanes, Pane } from 'splitpanes';
 
 const menuTypeValue = ResourceTypeEnum.Menu.value;
 const permissionTypeValue = ResourceTypeEnum.Permission.value;
@@ -130,7 +143,7 @@ const contextmenuRef = ref();
 const filterResource = ref();
 const resourceTreeRef = ref();
 
-const contextmenuInfo = new ContextmenuItem('info', '详情').withIcon('View').withOnClick((data: any) => info(data));
+const ResourceDetail = 'resourceDetail';
 
 const contextmenuAdd = new ContextmenuItem('add', '添加子资源')
     .withIcon('circle-plus')
@@ -166,7 +179,7 @@ const state = reactive({
             x: 0,
             y: 0,
         },
-        items: [contextmenuInfo, contextmenuAdd, contextmenuEdit, contextmenuEnable, contextmenuDisable, contextmenuDel],
+        items: [contextmenuAdd, contextmenuEdit, contextmenuEnable, contextmenuDisable, contextmenuDel],
     },
     //弹出框对象
     dialogForm: {
@@ -177,29 +190,15 @@ const state = reactive({
         // 资源类型选择是否选
         typeDisabled: true,
     },
-    //资源信息弹出框对象
-    infoDialog: {
-        title: '',
-        visible: false,
-        // 资源类型选择是否选
-        data: {
-            meta: {} as any,
-            name: '',
-            type: null,
-            creator: '',
-            modifier: '',
-            createTime: '',
-            updateTime: '',
-            code: '',
-        },
-    },
     data: [],
 
     // 展开的节点
     defaultExpandedKeys: [] as any[],
+    activeTabName: ResourceDetail,
+    currentResource: null as any,
 });
 
-const { dialogForm, infoDialog, data, defaultExpandedKeys } = toRefs(state);
+const { currentResource, dialogForm, data, defaultExpandedKeys } = toRefs(state);
 
 onMounted(() => {
     search();
@@ -229,9 +228,15 @@ const nodeContextmenu = (event: any, data: any) => {
     contextmenuRef.value.openContextmenu(data);
 };
 
-const treeNodeClick = () => {
+const treeNodeClick = async (data: any) => {
     // 关闭可能存在的右击菜单
     contextmenuRef.value.closeContextmenu();
+
+    let info = await resourceApi.detail.request({ id: data.id });
+    state.currentResource = info;
+    if (info.meta && info.meta != '') {
+        state.currentResource.meta = JSON.parse(info.meta);
+    }
 };
 
 const deleteMenu = (data: any) => {
@@ -390,15 +395,6 @@ const removeDeafultExpandId = (id: any) => {
         state.defaultExpandedKeys.splice(index, 1);
     }
 };
-
-const info = async (data: any) => {
-    let info = await resourceApi.detail.request({ id: data.id });
-    state.infoDialog.data = info;
-    if (info.meta && info.meta != '') {
-        state.infoDialog.data.meta = JSON.parse(info.meta);
-    }
-    state.infoDialog.visible = true;
-};
 </script>
 <style lang="scss">
 .system-resouce-list {
@@ -408,7 +404,12 @@ const info = async (data: any) => {
     }
 
     .tree-data {
-        height: calc(100vh - 200px);
+        height: calc(100vh - 202px);
+    }
+
+    .el-tree {
+        display: inline-block;
+        min-width: 100%;
     }
 }
 

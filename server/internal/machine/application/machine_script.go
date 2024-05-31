@@ -20,16 +20,15 @@ type MachineScript interface {
 	Delete(ctx context.Context, id uint64)
 }
 
-func newMachineScriptApp(machineScriptRepo repository.MachineScript, machineApp Machine) MachineScript {
-	app := &machineScriptAppImpl{machineApp: machineApp}
-	app.Repo = machineScriptRepo
-	return app
-}
-
 type machineScriptAppImpl struct {
 	base.AppImpl[*entity.MachineScript, repository.MachineScript]
 
-	machineApp Machine
+	machineApp Machine `inject:"MachineApp"`
+}
+
+// 注入MachineScriptRepo
+func (m *machineScriptAppImpl) InjectMachineScriptRepo(repo repository.MachineScript) {
+	m.Repo = repo
 }
 
 const Common_Script_Machine_Id = 9999999
@@ -43,7 +42,7 @@ func (m *machineScriptAppImpl) GetPageList(condition *entity.MachineScript, page
 func (m *machineScriptAppImpl) Save(ctx context.Context, ms *entity.MachineScript) error {
 	// 如果机器id不为公共脚本id，则校验机器是否存在
 	if machineId := ms.MachineId; machineId != Common_Script_Machine_Id {
-		_, err := m.machineApp.GetById(new(entity.Machine), machineId, "Name")
+		_, err := m.machineApp.GetById(machineId, "Name")
 		if err != nil {
 			return errorx.NewBiz("该机器不存在")
 		}

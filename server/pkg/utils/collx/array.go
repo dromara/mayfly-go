@@ -1,39 +1,47 @@
 package collx
 
+import (
+	"mayfly-go/pkg/utils/anyx"
+	"strings"
+)
+
 // 数组比较
 // 依次返回，新增值，删除值，以及不变值
-func ArrayCompare[T any](newArr []T, oldArr []T, compareFun func(T, T) bool) ([]T, []T, []T) {
-	var unmodifierValue []T
-	ni, oi := 0, 0
-	for {
-		if ni >= len(newArr) {
-			break
-		}
-		nv := newArr[ni]
-		for {
-			if oi >= len(oldArr) {
-				oi = 0
-				break
-			}
-			ov := oldArr[oi]
-			if compareFun(nv, ov) {
-				unmodifierValue = append(unmodifierValue, nv)
-				// 新数组移除该位置值
-				if len(newArr) > ni {
-					newArr = append(newArr[:ni], newArr[ni+1:]...)
-					ni = ni - 1
-				}
-				if len(oldArr) > oi {
-					oldArr = append(oldArr[:oi], oldArr[oi+1:]...)
-					oi = oi - 1
-				}
-			}
-			oi = oi + 1
-		}
-		ni = ni + 1
+func ArrayCompare[T comparable](newArr []T, oldArr []T) ([]T, []T, []T) {
+	newSet := make(map[T]bool)
+	oldSet := make(map[T]bool)
+
+	// 将新数组和旧数组的元素分别添加到对应的哈希集合中
+	for _, elem := range newArr {
+		newSet[elem] = true
+	}
+	for _, elem := range oldArr {
+		oldSet[elem] = true
 	}
 
-	return newArr, oldArr, unmodifierValue
+	var (
+		added      []T
+		deleted    []T
+		unmodified []T
+	)
+
+	// 遍历新数组，根据元素是否存在于旧数组进行分类
+	for _, elem := range newArr {
+		if oldSet[elem] {
+			unmodified = append(unmodified, elem)
+		} else {
+			added = append(added, elem)
+		}
+	}
+
+	// 遍历旧数组，找出被删除的元素
+	for _, elem := range oldArr {
+		if !newSet[elem] {
+			deleted = append(deleted, elem)
+		}
+	}
+
+	return added, deleted, unmodified
 }
 
 // 判断数组中是否含有指定元素
@@ -85,9 +93,13 @@ func ArraySplit[T any](arr []T, numGroups int) [][]T {
 		numGroups = len(arr)
 	}
 
+	arrayLen := len(arr)
+	if arrayLen < 1 {
+		return [][]T{}
+	}
 	// 计算每个子数组的大小
-	size := len(arr) / numGroups
-	remainder := len(arr) % numGroups
+	size := arrayLen / numGroups
+	remainder := arrayLen % numGroups
 
 	// 创建一个存放子数组的切片
 	subArrays := make([][]T, numGroups)
@@ -124,4 +136,47 @@ func ArrayRemoveFunc[T any](arr []T, isDeleteFunc func(T) bool) []T {
 		}
 	}
 	return newArr
+}
+
+// ArrayRemoveBlank 移除元素中的空元素
+func ArrayRemoveBlank[T any](arr []T) []T {
+	return ArrayRemoveFunc(arr, func(val T) bool {
+		return anyx.IsBlank(val)
+	})
+}
+
+// 数组元素去重
+func ArrayDeduplicate[T comparable](arr []T) []T {
+	encountered := map[T]bool{}
+	result := []T{}
+
+	for v := range arr {
+		if !encountered[arr[v]] {
+			encountered[arr[v]] = true
+			result = append(result, arr[v])
+		}
+	}
+
+	return result
+}
+
+// ArrayAnyMatches 给定字符串是否包含指定数组中的任意字符串， 如：["time", "date"] , substr : timestamp，返回true
+func ArrayAnyMatches(arr []string, subStr string) bool {
+	for _, itm := range arr {
+		if strings.Contains(subStr, itm) {
+			return true
+		}
+	}
+	return false
+}
+
+// ArrayFilter 过滤函数，根据提供的条件函数将切片中的元素进行过滤
+func ArrayFilter[T any](array []T, fn func(T) bool) []T {
+	var filtered []T
+	for _, val := range array {
+		if fn(val) {
+			filtered = append(filtered, val)
+		}
+	}
+	return filtered
 }

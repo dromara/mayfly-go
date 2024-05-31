@@ -2,24 +2,22 @@ package entity
 
 import (
 	"fmt"
-	"mayfly-go/internal/common/utils"
-	"mayfly-go/internal/db/dbm"
 	"mayfly-go/pkg/model"
 )
 
 type DbInstance struct {
 	model.Model
 
-	Name               string     `orm:"column(name)" json:"name"`
-	Type               dbm.DbType `orm:"column(type)" json:"type"` // 类型，mysql oracle等
-	Host               string     `orm:"column(host)" json:"host"`
-	Port               int        `orm:"column(port)" json:"port"`
-	Network            string     `orm:"column(network)" json:"network"`
-	Username           string     `orm:"column(username)" json:"username"`
-	Password           string     `orm:"column(password)" json:"-"`
-	Params             string     `orm:"column(params)" json:"params"`
-	Remark             string     `orm:"column(remark)" json:"remark"`
-	SshTunnelMachineId int        `orm:"column(ssh_tunnel_machine_id)" json:"sshTunnelMachineId"` // ssh隧道机器id
+	Code               string  `json:"code"`
+	Name               string  `json:"name"`
+	Type               string  `json:"type"` // 类型，mysql oracle等
+	Host               string  `json:"host"`
+	Port               int     `json:"port"`
+	Network            string  `json:"network"`
+	Extra              *string `json:"extra"`  // 连接需要的其他额外参数（json格式）, 如oracle需要sid等
+	Params             *string `json:"params"` // 使用指针类型，可更新为零值（空字符串）
+	Remark             string  `json:"remark"`
+	SshTunnelMachineId int     `json:"sshTunnelMachineId"` // ssh隧道机器id
 }
 
 func (d *DbInstance) TableName() string {
@@ -37,14 +35,4 @@ func (d *DbInstance) GetNetwork() string {
 		}
 	}
 	return fmt.Sprintf("%s+ssh:%d", d.Type, d.SshTunnelMachineId)
-}
-
-func (d *DbInstance) PwdEncrypt() {
-	// 密码替换为加密后的密码
-	d.Password = utils.PwdAesEncrypt(d.Password)
-}
-
-func (d *DbInstance) PwdDecrypt() {
-	// 密码替换为解密后的密码
-	d.Password = utils.PwdAesDecrypt(d.Password)
 }

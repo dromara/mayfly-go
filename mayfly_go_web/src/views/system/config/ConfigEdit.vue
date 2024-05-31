@@ -1,7 +1,7 @@
 <template>
     <div>
         <el-dialog :title="title" v-model="dvisible" :show-close="false" :before-close="cancel" width="900px" :destroy-on-close="true">
-            <el-form ref="configForm" :model="form" label-width="auto">
+            <el-form ref="configForm" :model="form" :rules="rules" label-width="auto">
                 <el-form-item prop="name" label="配置项" required>
                     <el-input v-model="form.name"></el-input>
                 </el-form-item>
@@ -41,9 +41,27 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, watch } from 'vue';
+import { ref, toRefs, reactive, watch, watchEffect } from 'vue';
 import { configApi, accountApi } from '../api';
 import { DynamicFormEdit } from '@/components/dynamic-form';
+import { ElMessage } from 'element-plus';
+
+const rules = {
+    name: [
+        {
+            required: true,
+            message: '请输入配置项',
+            trigger: ['change', 'blur'],
+        },
+    ],
+    key: [
+        {
+            required: true,
+            message: '请输入配置key',
+            trigger: ['change', 'blur'],
+        },
+    ],
+};
 
 const props = defineProps({
     visible: {
@@ -82,31 +100,34 @@ const { dvisible, params, form } = toRefs(state);
 
 const { isFetching: saveBtnLoading, execute: saveConfigExec } = configApi.save.useApi(form);
 
-watch(props, (newValue: any) => {
-    state.dvisible = newValue.visible;
-    if (!state.dvisible) {
-        return;
-    }
+watch(
+    () => props.visible,
+    () => {
+        state.dvisible = props.visible;
+        if (!state.dvisible) {
+            return;
+        }
 
-    if (newValue.data) {
-        state.form = { ...newValue.data };
-        if (state.form.params) {
-            state.params = JSON.parse(state.form.params);
+        if (props.data) {
+            state.form = { ...(props.data as any) };
+            if (state.form.params) {
+                state.params = JSON.parse(state.form.params);
+            } else {
+                state.params = [];
+            }
         } else {
+            state.form = { permission: 'all' } as any;
             state.params = [];
         }
-    } else {
-        state.form = { permission: 'all' } as any;
-        state.params = [];
-    }
 
-    if (state.form.permission != 'all') {
-        const accounts = state.form.permission.split(',');
-        state.permissionAccount = accounts.slice(0, accounts.length - 1);
-    } else {
-        state.permissionAccount = [];
+        if (state.form.permission != 'all') {
+            const accounts = state.form.permission.split(',');
+            state.permissionAccount = accounts.slice(0, accounts.length - 1);
+        } else {
+            state.permissionAccount = [];
+        }
     }
-});
+);
 
 const cancel = () => {
     // 更新父组件visible prop对应的值为false
@@ -125,22 +146,25 @@ const getAccount = (username: any) => {
 };
 
 const btnOk = async () => {
-    configForm.value.validate(async (valid: boolean) => {
-        if (valid) {
-            if (state.params) {
-                state.form.params = JSON.stringify(state.params);
-            }
-            if (state.permissionAccount.length > 0) {
-                state.form.permission = state.permissionAccount.join(',') + ',';
-            } else {
-                state.form.permission = 'all';
-            }
+    try {
+        await configForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
 
-            await saveConfigExec();
-            emit('val-change', state.form);
-            cancel();
-        }
-    });
+    if (state.params) {
+        state.form.params = JSON.stringify(state.params);
+    }
+    if (state.permissionAccount.length > 0) {
+        state.form.permission = state.permissionAccount.join(',') + ',';
+    } else {
+        state.form.permission = 'all';
+    }
+
+    await saveConfigExec();
+    emit('val-change', state.form);
+    cancel();
 };
 </script>
 <style lang="scss"></style>

@@ -1,0 +1,79 @@
+<template>
+    <div>
+        <el-descriptions :column="3" border>
+            <el-descriptions-item :span="2" label="名称">{{ db?.name }}</el-descriptions-item>
+            <el-descriptions-item :span="1" label="id">{{ db?.id }}</el-descriptions-item>
+
+            <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="db.tags" /></el-descriptions-item>
+
+            <el-descriptions-item :span="1" label="主机">{{ `${db?.host}:${db?.port}` }}</el-descriptions-item>
+            <el-descriptions-item :span="1" label="类型">
+                <SvgIcon :name="getDbDialect(db?.type).getInfo().icon" :size="20" />{{ db?.type }}
+            </el-descriptions-item>
+            <el-descriptions-item :span="1" label="用户名">{{ db?.username }}</el-descriptions-item>
+
+            <el-descriptions-item label="数据库">{{ sqlExec.db }}</el-descriptions-item>
+            <el-descriptions-item label="表">
+                {{ sqlExec.table }}
+            </el-descriptions-item>
+            <el-descriptions-item label="类型">
+                <el-tag size="small">{{ EnumValue.getLabelByValue(DbSqlExecTypeEnum, sqlExec.type) }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="执行SQL">
+                <monaco-editor height="300px" language="sql" v-model="sqlExec.sql" :options="{ readOnly: true }" />
+            </el-descriptions-item>
+        </el-descriptions>
+    </div>
+</template>
+
+<script lang="ts" setup>
+import { toRefs, reactive, watch, onMounted } from 'vue';
+import EnumValue from '@/common/Enum';
+import { dbApi } from '@/views/ops/db/api';
+import { DbSqlExecTypeEnum } from '@/views/ops/db/enums';
+import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import { getDbDialect } from '@/views/ops/db/dialect';
+import ResourceTags from '@/views/ops/component/ResourceTags.vue';
+
+const props = defineProps({
+    // 业务key
+    bizKey: {
+        type: [String],
+        default: '',
+    },
+});
+
+const state = reactive({
+    sqlExec: {
+        sql: '',
+    } as any,
+    db: {} as any,
+});
+
+const { sqlExec, db } = toRefs(state);
+
+onMounted(() => {
+    getDbSqlExec(props.bizKey);
+});
+
+watch(
+    () => props.bizKey,
+    (newValue: any) => {
+        getDbSqlExec(newValue);
+    }
+);
+
+const getDbSqlExec = async (bizKey: string) => {
+    if (!bizKey) {
+        return;
+    }
+    const res = await dbApi.getSqlExecs.request({ flowBizKey: bizKey });
+    if (!res.list) {
+        return;
+    }
+    state.sqlExec = res.list?.[0];
+    const dbRes = await dbApi.dbs.request({ id: state.sqlExec.dbId });
+    state.db = dbRes.list?.[0];
+};
+</script>
+<style lang="scss"></style>

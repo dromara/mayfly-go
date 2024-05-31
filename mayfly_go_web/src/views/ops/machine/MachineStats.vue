@@ -24,11 +24,11 @@
                 </el-col>
 
                 <el-col :lg="6" :md="6">
-                    <div class="card-item-chart" ref="memRef"></div>
+                    <ECharts height="200" :option="state.memOption" />
                 </el-col>
 
                 <el-col :lg="6" :md="6">
-                    <div class="card-item-chart" ref="cpuRef"></div>
+                    <ECharts height="200" :option="state.cpuOption" />
                 </el-col>
             </el-row>
 
@@ -74,11 +74,11 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref, nextTick } from 'vue';
-import useEcharts from '@/common/echarts/useEcharts';
-import tdTheme from '@/common/echarts/theme.json';
+import { toRefs, reactive, watch, nextTick } from 'vue';
 import { formatByteSize } from '@/common/utils/format';
 import { machineApi } from './api';
+import ECharts from '@/components/echarts/ECharts.vue';
+import { ECOption } from '@/components/echarts/config';
 
 const props = defineProps({
     visible: {
@@ -94,21 +94,15 @@ const props = defineProps({
 
 const emit = defineEmits(['update:visible', 'cancel', 'update:machineId']);
 
-const cpuRef: any = ref();
-const memRef: any = ref();
-
-let cpuChart: any = null;
-let memChart: any = null;
-
 const state = reactive({
     dialogVisible: false,
     stats: {} as any,
     netInter: [] as any,
+    memOption: {},
+    cpuOption: {},
 });
 
 const { dialogVisible, stats, netInter } = toRefs(state);
-
-let charts = [] as any;
 
 watch(props, async (newValue: any) => {
     const visible = newValue.visible;
@@ -139,15 +133,15 @@ const initMemStats = () => {
             value: mem.total - mem.available,
         },
     ];
-    const option = {
+
+    const option: ECOption = {
         title: {
             text: '内存',
-            x: 'left',
             textStyle: { fontSize: 15 },
         },
         tooltip: {
             trigger: 'item',
-            valueFormatter: formatByteSize,
+            valueFormatter: (val: any) => formatByteSize(val),
         },
         legend: {
             top: '15%',
@@ -180,13 +174,7 @@ const initMemStats = () => {
             },
         ],
     };
-    if (memChart) {
-        memChart.setOption(option, true);
-        return;
-    }
-    const chart: any = useEcharts(memRef.value, tdTheme, option);
-    memChart = chart;
-    charts.push(chart);
+    state.memOption = option;
 };
 
 const initCpuStats = () => {
@@ -206,10 +194,10 @@ const initCpuStats = () => {
             value: cpu.user,
         },
     ];
-    const option = {
+
+    const option: ECOption = {
         title: {
             text: 'CPU使用率',
-            x: 'left',
             textStyle: { fontSize: 15 },
         },
         tooltip: {
@@ -247,13 +235,7 @@ const initCpuStats = () => {
             },
         ],
     };
-    if (cpuChart) {
-        cpuChart.setOption(option, true);
-        return;
-    }
-    const chart: any = useEcharts(cpuRef.value, tdTheme, option);
-    cpuChart = chart;
-    charts.push(chart);
+    state.cpuOption = option;
 };
 
 const initCharts = () => {
@@ -262,21 +244,6 @@ const initCharts = () => {
         initCpuStats();
     });
     parseNetInter();
-    initEchartsResize();
-};
-
-const initEchartResizeFun = () => {
-    nextTick(() => {
-        for (let i = 0; i < charts.length; i++) {
-            setTimeout(() => {
-                charts[i].resize();
-            }, i * 1000);
-        }
-    });
-};
-
-const initEchartsResize = () => {
-    window.addEventListener('resize', initEchartResizeFun);
 };
 
 const parseNetInter = () => {
@@ -295,16 +262,6 @@ const parseNetInter = () => {
 const cancel = () => {
     emit('update:visible', false);
     emit('cancel');
-
-    setTimeout(() => {
-        cpuChart = null;
-        memChart = null;
-    }, 200);
 };
 </script>
-<style lang="scss">
-.card-item-chart {
-    height: 200px;
-    width: 100%;
-}
-</style>
+<style lang="scss"></style>

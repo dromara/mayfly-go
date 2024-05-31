@@ -1,36 +1,15 @@
 package persistence
 
-import "mayfly-go/internal/sys/domain/repository"
-
-var (
-	accountRepo     = newAccountRepo()
-	configRepo      = newConfigRepo()
-	resourceRepo    = newResourceRepo()
-	roleRepo        = newRoleRepo()
-	accountRoleRepo = newAccountRoleRepo()
-	syslogRepo      = newSyslogRepo()
+import (
+	"mayfly-go/pkg/ioc"
 )
 
-func GetAccountRepo() repository.Account {
-	return accountRepo
-}
-
-func GetConfigRepo() repository.Config {
-	return configRepo
-}
-
-func GetResourceRepo() repository.Resource {
-	return resourceRepo
-}
-
-func GetRoleRepo() repository.Role {
-	return roleRepo
-}
-
-func GetAccountRoleRepo() repository.AccountRole {
-	return accountRoleRepo
-}
-
-func GetSyslogRepo() repository.Syslog {
-	return syslogRepo
+func InitIoc() {
+	ioc.Register(newAccountRepo(), ioc.WithComponentName("AccountRepo"))
+	ioc.Register(newRoleRepo(), ioc.WithComponentName("RoleRepo"))
+	ioc.Register(newRoleResourceRepo(), ioc.WithComponentName("RoleResourceRepo"))
+	ioc.Register(newAccountRoleRepo(), ioc.WithComponentName("AccountRoleRepo"))
+	ioc.Register(newResourceRepo(), ioc.WithComponentName("ResourceRepo"))
+	ioc.Register(newConfigRepo(), ioc.WithComponentName("ConfigRepo"))
+	ioc.Register(newSyslogRepo(), ioc.WithComponentName("SyslogRepo"))
 }

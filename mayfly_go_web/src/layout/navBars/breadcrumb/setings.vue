@@ -5,26 +5,39 @@
                 <!-- ssh终端主题 -->
                 <el-divider content-position="left">终端主题</el-divider>
                 <div class="layout-breadcrumb-seting-bar-flex">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">字体颜色</div>
+                    <div class="layout-breadcrumb-seting-bar-flex-label">主题</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-color-picker v-model="themeConfig.terminalForeground" size="small" @change="onColorPickerChange('terminalForeground')">
-                        </el-color-picker>
+                        <el-select @change="setLocalThemeConfig" v-model="themeConfig.terminalTheme" size="small" style="width: 140px">
+                            <el-option v-for="(_, k) in themes" :key="k" :label="k" :value="k"> </el-option>
+                            <el-option label="自定义" value="custom"> </el-option>
+                        </el-select>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">背景颜色</div>
-                    <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-color-picker v-model="themeConfig.terminalBackground" size="small" @change="onColorPickerChange('terminalBackground')">
-                        </el-color-picker>
+                <template v-if="themeConfig.terminalTheme == 'custom'">
+                    <div class="layout-breadcrumb-seting-bar-flex mt10">
+                        <div class="layout-breadcrumb-seting-bar-flex-label">字体颜色</div>
+                        <div class="layout-breadcrumb-seting-bar-flex-value">
+                            <el-color-picker v-model="themeConfig.terminalForeground" size="small" @change="onColorPickerChange('terminalForeground')">
+                            </el-color-picker>
+                        </div>
                     </div>
-                </div>
-                <div class="layout-breadcrumb-seting-bar-flex">
-                    <div class="layout-breadcrumb-seting-bar-flex-label">cursor颜色</div>
-                    <div class="layout-breadcrumb-seting-bar-flex-value">
-                        <el-color-picker v-model="themeConfig.terminalCursor" size="small" @change="onColorPickerChange('terminalCursor')"> </el-color-picker>
+                    <div class="layout-breadcrumb-seting-bar-flex">
+                        <div class="layout-breadcrumb-seting-bar-flex-label">背景颜色</div>
+                        <div class="layout-breadcrumb-seting-bar-flex-value">
+                            <el-color-picker v-model="themeConfig.terminalBackground" size="small" @change="onColorPickerChange('terminalBackground')">
+                            </el-color-picker>
+                        </div>
                     </div>
-                </div>
-                <div class="layout-breadcrumb-seting-bar-flex mt15">
+                    <div class="layout-breadcrumb-seting-bar-flex">
+                        <div class="layout-breadcrumb-seting-bar-flex-label">cursor颜色</div>
+                        <div class="layout-breadcrumb-seting-bar-flex-value">
+                            <el-color-picker v-model="themeConfig.terminalCursor" size="small" @change="onColorPickerChange('terminalCursor')">
+                            </el-color-picker>
+                        </div>
+                    </div>
+                </template>
+
+                <div class="layout-breadcrumb-seting-bar-flex mt10">
                     <div class="layout-breadcrumb-seting-bar-flex-label">字体大小</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-input-number
@@ -39,7 +52,7 @@
                         </el-input-number>
                     </div>
                 </div>
-                <div class="layout-breadcrumb-seting-bar-flex mt15">
+                <div class="layout-breadcrumb-seting-bar-flex mt10">
                     <div class="layout-breadcrumb-seting-bar-flex-label">字体粗细</div>
                     <div class="layout-breadcrumb-seting-bar-flex-value">
                         <el-select @change="setLocalThemeConfig" v-model="themeConfig.terminalFontWeight" size="small" style="width: 90px">
@@ -418,6 +431,7 @@ import { useThemeConfig } from '@/store/themeConfig';
 import { getLightColor } from '@/common/utils/theme';
 import { setLocal, getLocal, removeLocal } from '@/common/utils/storage';
 import mittBus from '@/common/utils/mitt';
+import themes from '@/components/terminal/themes';
 
 const copyConfigBtnRef = ref();
 const { themeConfig } = storeToRefs(useThemeConfig());
@@ -596,7 +610,7 @@ const openDrawer = () => {
     themeConfig.value.isDrawer = true;
     nextTick(() => {
         // 初始化复制功能，防止点击两次才可以复制
-        onCopyConfigClick(copyConfigBtnRef.value.$el);
+        onCopyConfigClick(copyConfigBtnRef.value?.$el);
     });
 };
 // 触发 store 布局配置更新
@@ -615,6 +629,9 @@ const setLocalThemeConfigStyle = () => {
 };
 // 一键复制配置
 const onCopyConfigClick = (target: any) => {
+    if (!target) {
+        return;
+    }
     let copyThemeConfig = getLocal('themeConfig');
     copyThemeConfig.isDrawer = false;
     const clipboard = new ClipboardJS(target, {
@@ -690,6 +707,25 @@ defineExpose({ openDrawer });
 </script>
 
 <style scoped lang="scss">
+::v-deep(.el-drawer) {
+    --el-drawer-padding-primary: unset !important;
+
+    .el-drawer__header {
+        padding: 0 15px !important;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        margin-bottom: 0 !important;
+        border-bottom: 1px solid var(--el-border-color);
+    }
+
+    .el-drawer__body {
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+    }
+}
+
 .layout-breadcrumb-seting-bar {
     height: calc(100vh - 50px);
     padding: 0 15px;

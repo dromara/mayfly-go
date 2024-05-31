@@ -7,4 +7,8 @@ func Init(router *gin.RouterGroup) {
 	InitDbRouter(router)
 	InitDbSqlRouter(router)
 	InitDbSqlExecRouter(router)
+	InitDbBackupRouter(router)
+	InitDbRestoreRouter(router)
+	InitDbDataSyncRouter(router)
+	InitDbTransferRouter(router)
 }

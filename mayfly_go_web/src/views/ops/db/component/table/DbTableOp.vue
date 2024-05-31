@@ -1,6 +1,6 @@
 <template>
     <div>
-        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" width="90%" :close-on-press-escape="false" :close-on-click-modal="false">
+        <el-dialog :title="title" v-model="dialogVisible" :before-close="cancel" width="70%" :close-on-press-escape="false" :close-on-click-modal="false">
             <el-form label-position="left" ref="formRef" :model="tableData" label-width="80px">
                 <el-row>
                     <el-col :span="12">
@@ -26,11 +26,11 @@
                                 :width="item.width"
                             >
                                 <template #default="scope">
-                                    <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name"> </el-input>
+                                    <el-input v-if="item.prop === 'name'" size="small" v-model="scope.row.name" />
 
                                     <el-select v-else-if="item.prop === 'type'" filterable size="small" v-model="scope.row.type">
                                         <el-option
-                                            v-for="pgsqlType in state.columnTypeList"
+                                            v-for="pgsqlType in getDbDialect(dbType).getInfo().columnTypes"
                                             :key="pgsqlType.dataType"
                                             :value="pgsqlType.udtName"
                                             :label="pgsqlType.dataType"
@@ -42,35 +42,30 @@
                                         </el-option>
                                     </el-select>
 
-                                    <el-input v-else-if="item.prop === 'value'" size="small" v-model="scope.row.value"> </el-input>
+                                    <el-input v-else-if="item.prop === 'value'" size="small" v-model="scope.row.value" />
 
-                                    <el-input v-else-if="item.prop === 'length'" size="small" v-model="scope.row.length"> </el-input>
+                                    <el-input v-else-if="item.prop === 'length'" type="number" size="small" v-model.number="scope.row.length" />
 
-                                    <el-input v-else-if="item.prop === 'numScale'" size="small" v-model="scope.row.numScale"> </el-input>
+                                    <el-input v-else-if="item.prop === 'numScale'" type="number" size="small" v-model.number="scope.row.numScale" />
 
-                                    <el-checkbox v-else-if="item.prop === 'notNull'" size="small" v-model="scope.row.notNull"> </el-checkbox>
+                                    <el-checkbox v-else-if="item.prop === 'notNull'" size="small" v-model="scope.row.notNull" />
 
-                                    <el-checkbox v-else-if="item.prop === 'pri'" size="small" v-model="scope.row.pri"> </el-checkbox>
+                                    <el-checkbox v-else-if="item.prop === 'pri'" size="small" v-model="scope.row.pri" />
 
                                     <el-checkbox
                                         v-else-if="item.prop === 'auto_increment'"
                                         size="small"
                                         v-model="scope.row.auto_increment"
-                                        :disabled="dbType === DbType.postgresql"
-                                    >
-                                    </el-checkbox>
+                                        :disabled="disableEditIncr()"
+                                    />
 
-                                    <el-input v-else-if="item.prop === 'remark'" size="small" v-model="scope.row.remark"> </el-input>
+                                    <el-input v-else-if="item.prop === 'remark'" size="small" v-model="scope.row.remark" />
 
-                                    <el-link
-                                        v-else-if="item.prop === 'action'"
-                                        type="danger"
-                                        plain
-                                        size="small"
-                                        :underline="false"
-                                        @click.prevent="deleteRow(scope.$index)"
-                                        >删除</el-link
-                                    >
+                                    <el-popconfirm v-else-if="item.prop === 'action'" title="确定删除?" @confirm="deleteRow(scope.$index)">
+                                        <template #reference>
+                                            <el-link type="danger" plain size="small" :underline="false">删除</el-link>
+                                        </template>
+                                    </el-popconfirm>
                                 </template>
                             </el-table-column>
                         </el-table>
@@ -104,21 +99,15 @@
                                     <el-checkbox v-if="item.prop === 'unique'" size="small" v-model="scope.row.unique" @change="indexChanges(scope.row)">
                                     </el-checkbox>
 
-                                    <el-select v-if="item.prop === 'indexType'" disabled size="small" v-model="scope.row.indexType">
-                                        <el-option v-for="typeValue in indexTypeList" :key="typeValue" :value="typeValue">{{ typeValue }}</el-option>
-                                    </el-select>
+                                    <el-input v-if="item.prop === 'indexType'" disabled size="small" v-model="scope.row.indexType" />
 
                                     <el-input v-if="item.prop === 'indexComment'" size="small" v-model="scope.row.indexComment"> </el-input>
 
-                                    <el-link
-                                        v-if="item.prop === 'action'"
-                                        type="danger"
-                                        plain
-                                        size="small"
-                                        :underline="false"
-                                        @click.prevent="deleteIndex(scope.$index)"
-                                        >删除</el-link
-                                    >
+                                    <el-popconfirm v-else-if="item.prop === 'action'" title="确定删除?" @confirm="deleteIndex(scope.$index)">
+                                        <template #reference>
+                                            <el-link type="danger" plain size="small" :underline="false">删除</el-link>
+                                        </template>
+                                    </el-popconfirm>
                                 </template>
                             </el-table-column>
                         </el-table>
@@ -130,6 +119,7 @@
                 </el-tabs>
             </el-form>
             <template #footer>
+                <el-button @click="cancel()">取消</el-button>
                 <el-button :loading="btnloading" @click="submit()" type="primary">保存</el-button>
             </template>
         </el-dialog>
@@ -140,7 +130,8 @@
 import { reactive, ref, toRefs, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import SqlExecBox from '../sqleditor/SqlExecBox';
-import { getDbDialect, DbType, RowDefinition, IndexDefinition } from '../../dialect/index';
+import { DbType, getDbDialect, IndexDefinition, RowDefinition } from '../../dialect/index';
+import { DbInst } from '../../db';
 
 const props = defineProps({
     visible: {
@@ -161,12 +152,15 @@ const props = defineProps({
     dbType: {
         type: String,
     },
+    flowProcdef: {
+        type: Object,
+    },
 });
 
 //定义事件
 const emit = defineEmits(['update:visible', 'cancel', 'val-change', 'submit-sql']);
 
-const dbDialect = getDbDialect(props.dbType);
+let dbDialect = getDbDialect(props.dbType);
 
 type ColName = {
     prop: string;
@@ -179,30 +173,33 @@ const state = reactive({
     dialogVisible: false,
     btnloading: false,
     activeName: '1',
-    columnTypeList: dbDialect.getInfo().columnTypes,
-    indexTypeList: ['BTREE', 'NORMAL'], // mysql索引类型详解 http://c.biancheng.net/view/7897.html
     tableData: {
         fields: {
             colNames: [
                 {
                     prop: 'name',
                     label: '字段名称',
+                    width: 200,
                 },
                 {
                     prop: 'type',
                     label: '字段类型',
+                    width: 120,
                 },
                 {
                     prop: 'length',
                     label: '长度',
+                    width: 120,
                 },
                 {
                     prop: 'numScale',
-                    label: '小数点',
+                    label: '小数精度',
+                    width: 120,
                 },
                 {
                     prop: 'value',
                     label: '默认值',
+                    width: 120,
                 },
 
                 {
@@ -231,6 +228,7 @@ const state = reactive({
                 },
             ] as ColName[],
             res: [] as RowDefinition[],
+            oldFields: [] as RowDefinition[],
         },
         indexs: {
             colNames: [
@@ -261,18 +259,35 @@ const state = reactive({
             ],
             columns: [{ name: '', remark: '' }],
             res: [] as IndexDefinition[],
+            oldIndexs: [] as IndexDefinition[],
         },
         tableName: '',
         tableComment: '',
+        oldTableName: '',
+        oldTableComment: '',
         height: 450,
+        db: '',
     },
 });
 
-const { dialogVisible, btnloading, activeName, indexTypeList, tableData } = toRefs(state);
+const { dialogVisible, btnloading, activeName, tableData } = toRefs(state);
 
 watch(props, async (newValue) => {
     state.dialogVisible = newValue.visible;
+    dbDialect = getDbDialect(newValue.dbType);
 });
+
+// 切换到索引tab时，刷新索引字段下拉选项
+watch(
+    () => state.activeName,
+    (newValue) => {
+        if (newValue === '2') {
+            state.tableData.indexs.columns = state.tableData.fields.res.map((a) => {
+                return { name: a.name, remark: a.remark };
+            });
+        }
+    }
+);
 
 const cancel = () => {
     emit('update:visible', false);
@@ -320,6 +335,7 @@ const submit = async () => {
         dbId: props.dbId as any,
         db: props.db as any,
         dbType: dbDialect.getInfo().formatSqlDialect,
+        flowProcdef: props.flowProcdef,
         runSuccessCallback: () => {
             emit('submit-sql', { tableName: state.tableData.tableName });
             // cancel();
@@ -333,22 +349,25 @@ const submit = async () => {
  * @param nowArr 修改后的对象数组
  * @param key 标志对象唯一属性
  */
-const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { del: any[]; add: any[]; upd: any[] } => {
+const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { del: any[]; add: any[]; upd: any[]; changed: boolean } => {
     let data = {
         del: [] as object[], // 删除的数据
         add: [] as object[], // 新增的数据
         upd: [] as object[], // 修改的数据
+        changed: false,
     };
 
     // 旧数据为空
     if (oldArr && Array.isArray(oldArr) && oldArr.length === 0 && nowArr && Array.isArray(nowArr) && nowArr.length > 0) {
         data.add = nowArr;
+        data.changed = true;
         return data;
     }
 
     // 新数据为空
     if (nowArr && Array.isArray(nowArr) && nowArr.length === 0 && oldArr && Array.isArray(oldArr) && oldArr.length > 0) {
         data.del = oldArr;
+        data.changed = true;
         return data;
     }
 
@@ -359,8 +378,12 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
     nowArr.forEach((a) => {
         let k = a[key];
         newMap[k] = a;
-        if (!oldMap.hasOwnProperty(k)) {
+        // 取oldName，因为修改了name，但是oldName不会变
+        let oldName = a['oldName'];
+        oldName && (newMap[oldName] = a);
+        if (!oldMap.hasOwnProperty(k) && (!oldName || (oldName && !oldMap.hasOwnProperty(oldName)))) {
             // 新增
+            data.changed = true;
             data.add.push(a);
         }
     });
@@ -370,13 +393,15 @@ const filterChangedData = (oldArr: object[], nowArr: object[], key: string): { d
         let newData = newMap[k];
         if (!newData) {
             // 删除
+            data.changed = true;
             data.del.push(a);
         } else {
             // 判断每个字段是否相等，否则为修改
             for (let f in a) {
                 let oldV = a[f];
                 let newV = newData[f];
-                if (oldV.toString() !== newV.toString()) {
+                if (oldV?.toString() !== newV?.toString()) {
+                    data.changed = true;
                     data.upd.push(newData);
                     break;
                 }
@@ -390,22 +415,28 @@ const genSql = () => {
     let data = state.tableData;
     // 创建表
     if (!props.data?.edit) {
-        if (state.activeName === '1') {
-            return dbDialect.getCreateTableSql(data);
-        } else if (state.activeName === '2' && data.indexs.res.length > 0) {
-            return dbDialect.getCreateIndexSql(data);
+        let createTable = dbDialect.getCreateTableSql(data);
+        let createIndex = '';
+        if (data.indexs.res.length > 0) {
+            createIndex = dbDialect.getCreateIndexSql(data);
         }
+        return createTable + ';' + createIndex;
     } else {
-        // 修改
-        if (state.activeName === '1') {
-            // 修改列
-            let changeData = filterChangedData(oldData.fields, state.tableData.fields.res, 'name');
-            return dbDialect.getModifyColumnSql(data.tableName, changeData);
-        } else if (state.activeName === '2') {
-            // 修改索引
-            let changeData = filterChangedData(oldData.indexs, state.tableData.indexs.res, 'indexName');
-            return dbDialect.getModifyIndexSql(data.tableName, changeData);
-        }
+        // 修改列
+        let changeColData = filterChangedData(state.tableData.fields.oldFields, state.tableData.fields.res, 'name');
+        let colSql = changeColData.changed ? dbDialect.getModifyColumnSql(data, data.tableName, changeColData) : '';
+        // 修改索引
+        let changeIdxData = filterChangedData(state.tableData.indexs.oldIndexs, state.tableData.indexs.res, 'indexName');
+        let idxSql = changeIdxData.changed ? dbDialect.getModifyIndexSql(data, data.tableName, changeIdxData) : '';
+        // 修改表名,表注释
+        let tableInfoSql = data.tableName !== data.oldTableName || data.tableComment !== data.oldTableComment ? dbDialect.getModifyTableInfoSql(data) : '';
+
+        let sqlArr = [];
+        colSql && sqlArr.push(colSql);
+        idxSql && sqlArr.push(idxSql);
+        tableInfoSql && sqlArr.push(tableInfoSql);
+
+        return sqlArr.join(';');
     }
 };
 
@@ -414,28 +445,10 @@ const reset = () => {
     formRef.value.resetFields();
     state.tableData.tableName = '';
     state.tableData.tableComment = '';
-    state.tableData.fields.res = [
-        {
-            name: '',
-            type: '',
-            value: '',
-            length: '',
-            numScale: '',
-            notNull: false,
-            pri: false,
-            auto_increment: false,
-            remark: '',
-        },
-    ];
-    state.tableData.indexs.res = [
-        {
-            indexName: '',
-            columnNames: [],
-            unique: false,
-            indexType: 'BTREE',
-            indexComment: '',
-        },
-    ];
+    state.tableData.fields.res = [];
+    state.tableData.fields.oldFields = [];
+    state.tableData.indexs.res = [];
+    state.tableData.indexs.oldIndexs = [];
 };
 
 const indexChanges = (row: any) => {
@@ -456,7 +469,21 @@ const indexChanges = (row: any) => {
     row.indexComment = `${tableData.value.tableName}表(${name.replaceAll('_', ',')})${commentSuffix}`;
 };
 
-const oldData = { indexs: [] as any[], fields: [] as RowDefinition[] };
+const disableEditIncr = () => {
+    if (DbType.postgresql === props.dbType) {
+        return true;
+    }
+
+    // 如果是mssql则不能修改自增
+    if (props.data?.edit) {
+        if (DbType.mssql === props.dbType) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
 watch(
     () => props.data,
     (newValue: any) => {
@@ -464,37 +491,47 @@ watch(
         // 回显表名表注释
         state.tableData.tableName = row.tableName;
         state.tableData.tableComment = row.tableComment;
+        state.tableData.oldTableName = row.tableName;
+        state.tableData.oldTableComment = row.tableComment;
+        state.tableData.db = props.db!;
+
+        state.tableData.fields.oldFields = [];
+        state.tableData.fields.res = [];
+        state.tableData.indexs.oldIndexs = [];
+        state.tableData.indexs.res = [];
+        // 索引列下拉选
+        state.tableData.indexs.columns = [];
+        DbInst.initColumns(columns);
         // 回显列
         if (columns && Array.isArray(columns) && columns.length > 0) {
-            oldData.fields = [];
-            state.tableData.fields.res = [];
-            // 索引列下拉选
-            state.tableData.indexs.columns = [];
             columns.forEach((a) => {
-                let typeObj = a.columnType.replace(')', '').split('(');
-                let type = typeObj[0];
-                let length = (typeObj.length > 1 && typeObj[1]) || '';
+                let defaultValue = '';
+                if (a.columnDefault) {
+                    defaultValue = a.columnDefault.trim().replace(/^'|'$/g, '');
+                    // 解决高斯的默认值问题
+                    defaultValue = defaultValue.replace("'::character varying", '');
+                }
                 let data = {
                     name: a.columnName,
-                    type,
-                    value: a.columnDefault || '',
-                    length,
-                    numScale: a.numScale,
-                    notNull: a.nullable !== 'YES',
-                    pri: a.columnKey === 'PRI',
-                    auto_increment: a.columnKey === 'PRI' /*a.extra?.indexOf('auto_increment') > -1*/,
+                    oldName: a.columnName,
+                    type: a.dataType,
+                    value: defaultValue,
+                    length: a.showLength,
+                    numScale: a.showScale,
+                    notNull: !a.nullable,
+                    pri: a.isPrimaryKey,
+                    auto_increment: a.isIdentity /*a.extra?.indexOf('auto_increment') > -1*/,
                     remark: a.columnComment,
                 };
                 state.tableData.fields.res.push(data);
-                oldData.fields.push(JSON.parse(JSON.stringify(data)));
+                state.tableData.fields.oldFields.push(JSON.parse(JSON.stringify(data)));
                 // 索引字段下拉选项
                 state.tableData.indexs.columns.push({ name: a.columnName, remark: a.columnComment });
             });
         }
+
         // 回显索引
         if (indexs && Array.isArray(indexs) && indexs.length > 0) {
-            oldData.indexs = [];
-            state.tableData.indexs.res = [];
             // 索引过滤掉主键
             indexs
                 .filter((a) => a.indexName !== 'PRIMARY')
@@ -502,12 +539,12 @@ watch(
                     let data = {
                         indexName: a.indexName,
                         columnNames: a.columnName?.split(','),
-                        unique: a.nonUnique === 0 || false,
+                        unique: a.isUnique || false,
                         indexType: a.indexType,
                         indexComment: a.indexComment,
                     };
                     state.tableData.indexs.res.push(data);
-                    oldData.indexs.push(JSON.parse(JSON.stringify(data)));
+                    state.tableData.indexs.oldIndexs.push(JSON.parse(JSON.stringify(data)));
                 });
         }
     }

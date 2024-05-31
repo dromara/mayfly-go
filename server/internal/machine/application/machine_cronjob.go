@@ -2,16 +2,17 @@ package application
 
 import (
 	"context"
+	"mayfly-go/internal/machine/application/dto"
 	"mayfly-go/internal/machine/domain/entity"
 	"mayfly-go/internal/machine/domain/repository"
+	tagapp "mayfly-go/internal/tag/application"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/model"
 	"mayfly-go/pkg/rediscli"
 	"mayfly-go/pkg/scheduler"
-	"mayfly-go/pkg/utils/anyx"
 	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"time"
@@ -26,21 +27,9 @@ type MachineCronJob interface {
 	// 获取分页执行结果列表
 	GetExecPageList(condition *entity.MachineCronJobExec, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
 
-	Save(ctx context.Context, entity *entity.MachineCronJob) (uint64, error)
+	SaveMachineCronJob(ctx context.Context, param *dto.SaveMachineCronJob) error
 
 	Delete(ctx context.Context, id uint64)
-
-	// 获取计划任务关联的机器列表id
-	GetRelateMachineIds(cronJobId uint64) []uint64
-
-	// 获取机器关联的计划任务列表
-	GetRelateCronJobIds(machineId uint64) []uint64
-
-	// 计划任务关联机器
-	CronJobRelateMachines(ctx context.Context, cronJobId uint64, machineIds []uint64)
-
-	// 机器关联计划任务
-	MachineRelateCronJobs(ctx context.Context, machineId uint64, cronJobs []uint64)
 
 	// 初始化计划任务
 	InitCronJob()
@@ -50,116 +39,67 @@ type MachineCronJob interface {
 	RunCronJob(key string)
 }
 
-type machineCropJobAppImpl struct {
+type machineCronJobAppImpl struct {
 	base.AppImpl[*entity.MachineCronJob, repository.MachineCronJob]
 
-	machineCropJobRelateRepo repository.MachineCronJobRelate
-	machineCropJobExecRepo   repository.MachineCronJobExec
-	machineApp               Machine
+	machineCronJobExecRepo repository.MachineCronJobExec `inject:"MachineCronJobExecRepo"`
+	machineApp             Machine                       `inject:"MachineApp"`
+
+	tagTreeApp       tagapp.TagTree       `inject:"TagTreeApp"`
+	tagTreeRelateApp tagapp.TagTreeRelate `inject:"TagTreeRelateApp"`
 }
 
-func newMachineCronJobApp(
-	machineCropJobRepo repository.MachineCronJob,
-	machineCropJobRelateRepo repository.MachineCronJobRelate,
-	machineCropJobExecRepo repository.MachineCronJobExec,
-	machineApp Machine,
-) MachineCronJob {
-	app := &machineCropJobAppImpl{
-		machineCropJobRelateRepo: machineCropJobRelateRepo,
-		machineCropJobExecRepo:   machineCropJobExecRepo,
-		machineApp:               machineApp,
-	}
-	app.Repo = machineCropJobRepo
-	return app
+var _ (MachineCronJob) = (*machineCronJobAppImpl)(nil)
+
+// 注入MachineCronJobRepo
+func (m *machineCronJobAppImpl) InjectMachineCronJobRepo(repo repository.MachineCronJob) {
+	m.Repo = repo
 }
 
 // 分页获取机器脚本任务列表
-func (m *machineCropJobAppImpl) GetPageList(condition *entity.MachineCronJob, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+func (m *machineCronJobAppImpl) GetPageList(condition *entity.MachineCronJob, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
 	return m.GetRepo().GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 // 获取分页执行结果列表
-func (m *machineCropJobAppImpl) GetExecPageList(condition *entity.MachineCronJobExec, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	return m.machineCropJobExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
+func (m *machineCronJobAppImpl) GetExecPageList(condition *entity.MachineCronJobExec, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
+	return m.machineCronJobExecRepo.GetPageList(condition, pageParam, toEntity, orderBy...)
 }
 
 // 保存机器任务信息
-func (m *machineCropJobAppImpl) Save(ctx context.Context, mcj *entity.MachineCronJob) (uint64, error) {
-	// 更新操作
-	if mcj.Id != 0 {
-		m.UpdateById(ctx, mcj)
-		cj, err := m.GetById(new(entity.MachineCronJob), mcj.Id)
+func (m *machineCronJobAppImpl) SaveMachineCronJob(ctx context.Context, param *dto.SaveMachineCronJob) error {
+	mcj := param.CronJob
+
+	// 赋值cron job key
+	if mcj.Id == 0 {
+		mcj.Key = stringx.Rand(16)
+	} else {
+		oldMcj, err := m.GetById(mcj.Id)
 		if err != nil {
-			return 0, errorx.NewBiz("该任务不存在")
+			return errorx.NewBiz("该计划任务不存在")
 		}
-		// 处理最新的计划任务
-		m.addCronJob(cj)
-		return mcj.Id, nil
+		mcj.Key = oldMcj.Key
+	}
+
+	err := m.Tx(ctx, func(ctx context.Context) error {
+		return m.Save(ctx, mcj)
+	}, func(ctx context.Context) error {
+		return m.tagTreeRelateApp.RelateTag(ctx, tagentity.TagRelateTypeMachineCronJob, mcj.Id, param.CodePaths...)
+	})
+	if err != nil {
+		return err
 	}
 
 	m.addCronJob(mcj)
-	if err := m.Insert(ctx, mcj); err != nil {
-		return 0, err
-	}
-	return mcj.Id, nil
+	return nil
 }
 
-func (m *machineCropJobAppImpl) Delete(ctx context.Context, id uint64) {
+func (m *machineCronJobAppImpl) Delete(ctx context.Context, id uint64) {
 	m.DeleteById(ctx, id)
-	m.machineCropJobExecRepo.DeleteByCond(ctx, &entity.MachineCronJobExec{CronJobId: id})
-	m.machineCropJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: id})
+	m.machineCronJobExecRepo.DeleteByCond(ctx, &entity.MachineCronJobExec{CronJobId: id})
 }
 
-func (m *machineCropJobAppImpl) GetRelateMachineIds(cronJobId uint64) []uint64 {
-	return m.machineCropJobRelateRepo.GetMachineIds(cronJobId)
-}
-
-func (m *machineCropJobAppImpl) GetRelateCronJobIds(machineId uint64) []uint64 {
-	return m.machineCropJobRelateRepo.GetCronJobIds(machineId)
-}
-
-func (m *machineCropJobAppImpl) CronJobRelateMachines(ctx context.Context, cronJobId uint64, machineIds []uint64) {
-	oldMachineIds := m.machineCropJobRelateRepo.GetMachineIds(cronJobId)
-	addIds, delIds, _ := collx.ArrayCompare[uint64](machineIds, oldMachineIds, func(u1, u2 uint64) bool { return u1 == u2 })
-	addVals := make([]*entity.MachineCronJobRelate, 0)
-
-	for _, addId := range addIds {
-		addVals = append(addVals, &entity.MachineCronJobRelate{
-			MachineId: addId,
-			CronJobId: cronJobId,
-		})
-	}
-	m.machineCropJobRelateRepo.BatchInsert(ctx, addVals)
-
-	for _, delId := range delIds {
-		m.machineCropJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: cronJobId, MachineId: delId})
-	}
-}
-
-func (m *machineCropJobAppImpl) MachineRelateCronJobs(ctx context.Context, machineId uint64, cronJobs []uint64) {
-	if len(cronJobs) == 0 {
-		m.machineCropJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{MachineId: machineId})
-		return
-	}
-
-	oldCronIds := m.machineCropJobRelateRepo.GetCronJobIds(machineId)
-	addIds, delIds, _ := collx.ArrayCompare[uint64](cronJobs, oldCronIds, func(u1, u2 uint64) bool { return u1 == u2 })
-	addVals := make([]*entity.MachineCronJobRelate, 0)
-
-	for _, addId := range addIds {
-		addVals = append(addVals, &entity.MachineCronJobRelate{
-			MachineId: machineId,
-			CronJobId: addId,
-		})
-	}
-	m.machineCropJobRelateRepo.BatchInsert(ctx, addVals)
-
-	for _, delId := range delIds {
-		m.machineCropJobRelateRepo.DeleteByCond(ctx, &entity.MachineCronJobRelate{CronJobId: delId, MachineId: machineId})
-	}
-}
-
-func (m *machineCropJobAppImpl) InitCronJob() {
+func (m *machineCronJobAppImpl) InitCronJob() {
 	defer func() {
 		if err := recover(); err != nil {
 			logx.ErrorTrace("机器计划任务初始化失败: %s", err.(error))
@@ -170,17 +110,16 @@ func (m *machineCropJobAppImpl) InitCronJob() {
 		PageSize: 100,
 		PageNum:  1,
 	}
-	cond := new(entity.MachineCronJob)
-	cond.Status = entity.MachineCronJobStatusEnable
-	mcjs := new([]entity.MachineCronJob)
 
-	pr, _ := m.GetPageList(cond, pageParam, mcjs)
+	var mcjs []*entity.MachineCronJob
+	cond := &entity.MachineCronJob{Status: entity.MachineCronJobStatusEnable}
+	pr, _ := m.GetPageList(cond, pageParam, &mcjs)
 	total := pr.Total
 	add := 0
 
 	for {
-		for _, mcj := range *mcjs {
-			m.addCronJob(&mcj)
+		for _, mcj := range mcjs {
+			m.addCronJob(mcj)
 			add++
 		}
 		if add >= int(total) {
@@ -192,7 +131,7 @@ func (m *machineCropJobAppImpl) InitCronJob() {
 	}
 }
 
-func (m *machineCropJobAppImpl) RunCronJob(key string) {
+func (m *machineCronJobAppImpl) RunCronJob(key string) {
 	// 简单使用redis分布式锁防止多实例同一时刻重复执行
 	if lock := rediscli.NewLock(key, 30*time.Second); lock != nil {
 		if !lock.Lock() {
@@ -203,30 +142,28 @@ func (m *machineCropJobAppImpl) RunCronJob(key string) {
 
 	cronJob := new(entity.MachineCronJob)
 	cronJob.Key = key
-	err := m.GetBy(cronJob)
+	err := m.GetByCond(cronJob)
 	// 不存在或禁用，则移除该任务
 	if err != nil || cronJob.Status == entity.MachineCronJobStatusDisable {
 		scheduler.RemoveByKey(key)
+		return
 	}
 
-	machienIds := m.machineCropJobRelateRepo.GetMachineIds(cronJob.Id)
-	for _, machineId := range machienIds {
-		go m.runCronJob0(machineId, cronJob)
+	relateCodePaths := m.tagTreeRelateApp.GetTagPathsByRelate(tagentity.TagRelateTypeMachineCronJob, cronJob.Id)
+	var machineTags []tagentity.TagTree
+	m.tagTreeApp.ListByQuery(&tagentity.TagTreeQuery{CodePathLikes: relateCodePaths, Type: tagentity.TagTypeMachine}, &machineTags)
+	machines, _ := m.machineApp.ListByCond(model.NewCond().In("code", collx.ArrayMap(machineTags, func(tag tagentity.TagTree) string {
+		return tag.Code
+	})), "id")
+
+	for _, machine := range machines {
+		go m.runCronJob0(machine.Id, cronJob)
 	}
 }
 
-func (m *machineCropJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
-	var key string
+func (m *machineCronJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
+	key := mcj.Key
 	isDisable := mcj.Status == entity.MachineCronJobStatusDisable
-	if mcj.Id == 0 {
-		key = stringx.Rand(16)
-		mcj.Key = key
-		if isDisable {
-			return
-		}
-	} else {
-		key = mcj.Key
-	}
 
 	if isDisable {
 		scheduler.RemoveByKey(key)
@@ -234,52 +171,45 @@ func (m *machineCropJobAppImpl) addCronJob(mcj *entity.MachineCronJob) {
 	}
 
 	scheduler.AddFunByKey(key, mcj.Cron, func() {
-		go m.RunCronJob(key)
+		m.RunCronJob(key)
 	})
 }
-func (m *machineCropJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineCronJob) {
-	defer func() {
-		if err := recover(); err != nil {
-			res := anyx.ToString(err)
-			m.machineCropJobExecRepo.Insert(context.TODO(), &entity.MachineCronJobExec{
-				MachineId: mid,
-				CronJobId: cronJob.Id,
-				ExecTime:  time.Now(),
-				Status:    entity.MachineCronJobExecStatusError,
-				Res:       res,
-			})
-			logx.Errorf("机器:[%d]执行[%s]计划任务失败: %s", mid, cronJob.Name, res)
-		}
-	}()
+
+func (m *machineCronJobAppImpl) runCronJob0(mid uint64, cronJob *entity.MachineCronJob) {
+	execRes := &entity.MachineCronJobExec{
+		CronJobId: cronJob.Id,
+		ExecTime:  time.Now(),
+	}
 
 	machineCli, err := m.machineApp.GetCli(uint64(mid))
-	biz.ErrIsNilAppendErr(err, "获取客户端连接失败: %s")
-	res, err := machineCli.Run(cronJob.Script)
+	res := ""
 	if err != nil {
-		if res == "" {
-			res = err.Error()
-		}
-		logx.Errorf("机器:[%d]执行[%s]计划任务失败: %s", mid, cronJob.Name, res)
+		machine, _ := m.machineApp.GetById(mid)
+		execRes.MachineCode = machine.Code
 	} else {
-		logx.Debugf("机器:[%d]执行[%s]计划任务成功, 执行结果: %s", mid, cronJob.Name, res)
+		execRes.MachineCode = machineCli.Info.Code
+		res, err = machineCli.Run(cronJob.Script)
+		if err != nil {
+			if res == "" {
+				res = err.Error()
+			}
+			logx.Errorf("机器:[%d]执行[%s]计划任务失败: %s", mid, cronJob.Name, res)
+		} else {
+			logx.Debugf("机器:[%d]执行[%s]计划任务成功, 执行结果: %s", mid, cronJob.Name, res)
+		}
 	}
+	execRes.Res = res
 
 	if cronJob.SaveExecResType == entity.SaveExecResTypeNo ||
 		(cronJob.SaveExecResType == entity.SaveExecResTypeOnError && err == nil) {
 		return
 	}
 
-	execRes := &entity.MachineCronJobExec{
-		MachineId: mid,
-		CronJobId: cronJob.Id,
-		ExecTime:  time.Now(),
-		Res:       res,
-	}
 	if err == nil {
 		execRes.Status = entity.MachineCronJobExecStatusSuccess
 	} else {
 		execRes.Status = entity.MachineCronJobExecStatusError
 	}
 	// 保存执行记录
-	m.machineCropJobExecRepo.Insert(context.TODO(), execRes)
+	m.machineCronJobExecRepo.Insert(context.TODO(), execRes)
 }

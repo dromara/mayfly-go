@@ -2,18 +2,17 @@ package router
 
 import (
 	"mayfly-go/internal/sys/api"
-	"mayfly-go/internal/sys/application"
+	"mayfly-go/pkg/biz"
+	"mayfly-go/pkg/ioc"
 	"mayfly-go/pkg/req"
 
 	"github.com/gin-gonic/gin"
 )
 
 func InitRoleRouter(router *gin.RouterGroup) {
-	r := &api.Role{
-		RoleApp:     application.GetRoleApp(),
-		ResourceApp: application.GetResourceApp(),
-	}
 	rg := router.Group("sys/roles")
+	r := new(api.Role)
+	biz.ErrIsNil(ioc.Inject(r))
 
 	reqs := [...]*req.Conf{
 		req.NewGet("", r.Roles),

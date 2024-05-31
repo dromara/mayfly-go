@@ -48,6 +48,10 @@ func DebugContext(ctx context.Context, msg string, args ...any) {
 	Log(ctx, slog.LevelDebug, msg, args...)
 }
 
+func DebugfContext(ctx context.Context, format string, args ...any) {
+	Log(ctx, slog.LevelDebug, fmt.Sprintf(format, args...))
+}
+
 func Debugf(format string, args ...any) {
 	Log(context.Background(), slog.LevelDebug, fmt.Sprintf(format, args...))
 }
@@ -69,6 +73,10 @@ func InfoContext(ctx context.Context, msg string, args ...any) {
 	Log(ctx, slog.LevelInfo, msg, args...)
 }
 
+func InfofContext(ctx context.Context, format string, args ...any) {
+	Log(ctx, slog.LevelInfo, fmt.Sprintf(format, args...))
+}
+
 func Infof(format string, args ...any) {
 	Log(context.Background(), slog.LevelInfo, fmt.Sprintf(format, args...))
 }
@@ -83,6 +91,10 @@ func Warn(msg string, args ...any) {
 
 func WarnContext(ctx context.Context, msg string, args ...any) {
 	Log(ctx, slog.LevelWarn, msg, args...)
+}
+
+func WarnfContext(ctx context.Context, format string, args ...any) {
+	Log(ctx, slog.LevelWarn, fmt.Sprintf(format, args...))
 }
 
 func Warnf(format string, args ...any) {
@@ -101,6 +113,10 @@ func ErrorContext(ctx context.Context, msg string, args ...any) {
 	Log(ctx, slog.LevelError, msg, args...)
 }
 
+func ErrorfContext(ctx context.Context, format string, args ...any) {
+	Log(ctx, slog.LevelError, fmt.Sprintf(format, args...))
+}
+
 func Errorf(format string, args ...any) {
 	Log(context.Background(), slog.LevelError, fmt.Sprintf(format, args...))
 }
@@ -116,7 +132,7 @@ func ErrorTrace(msg string, err any) {
 	default:
 		errMsg = fmt.Sprintf("%v", t)
 	}
-	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+"\n%s\n%s", errMsg, runtimex.StatckStr(2, 10)))
+	Log(context.Background(), slog.LevelError, fmt.Sprintf(msg+"\n%s\n%s", errMsg, runtimex.StatckStr(2, 20)))
 }
 
 func ErrorWithFields(ctx context.Context, msg string, mapFields map[string]any) {
@@ -193,4 +209,22 @@ type Source struct {
 
 func (s Source) String() string {
 	return fmt.Sprintf("%s (%s)", s.Function, s.Fileline)
+}
+
+// An Attr is a key-value pair.
+type Attr = slog.Attr
+
+// String returns an Attr for a string value.
+func String(key, value string) Attr {
+	return slog.String(key, value)
+}
+
+// Int64 returns an Attr for an int64.
+func Int64(key string, value int64) Attr {
+	return slog.Int64(key, value)
+}
+
+// Bool returns an Attr for an bool.
+func Bool(key string, value bool) Attr {
+	return slog.Bool(key, value)
 }

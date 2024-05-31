@@ -42,7 +42,7 @@
                 <el-table-column property="creator" label="分配账号" width="125"></el-table-column>
                 <el-table-column property="createTime" label="分配时间">
                     <template #default="scope">
-                        {{ dateFormat(scope.row.createTime) }}
+                        {{ formatDate(scope.row.createTime) }}
                     </template>
                 </el-table-column>
             </el-table>
@@ -60,7 +60,7 @@ import AccountEdit from './AccountEdit.vue';
 import { AccountStatusEnum } from '../enums';
 import { accountApi } from '../api';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { dateFormat } from '@/common/utils/date';
+import { formatDate } from '@/common/utils/format';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
@@ -142,7 +142,7 @@ const search = async () => {
 
 const changeStatus = async (row: any) => {
     let id = row.id;
-    let status = row.status == -1 ? 1 : -1;
+    let status = row.status == AccountStatusEnum.Disable.value ? AccountStatusEnum.Enable.value : AccountStatusEnum.Disable.value;
     await accountApi.changeStatus.request({
         id,
         status,

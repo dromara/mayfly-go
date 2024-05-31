@@ -53,6 +53,55 @@
       "font_class": "redis",
       "unicode": "e619",
       "unicode_decimal": 58905
+    },
+    {
+      "icon_id": "25271976",
+      "name": "oracle",
+      "font_class": "oracle",
+      "unicode": "e507",
+      "unicode_decimal": 58631
+    },
+    {
+      "icon_id": "8105644",
+      "name": "mariadb",
+      "font_class": "mariadb",
+      "unicode": "e513",
+      "unicode_decimal": 58643
+    },
+    {
+      "icon_id": "13601813",
+      "name": "sqlite",
+      "font_class": "sqlite",
+      "unicode": "e546",
+      "unicode_decimal": 58694
+    },
+    {
+      "icon_id": "29340317",
+      "name": "temp-mssql",
+      "font_class": "MSSQLNATIVE",
+      "unicode": "e600",
+      "unicode_decimal": 58880
+    },
+    {
+      "icon_id": "7699332",
+      "name": "gaussdb",
+      "font_class": "gauss",
+      "unicode": "e683",
+      "unicode_decimal": 59011
+    },
+    {
+      "icon_id": "34836637",
+      "name": "kingbase",
+      "font_class": "kingbase",
+      "unicode": "e882",
+      "unicode_decimal": 59522
+    },
+    {
+      "icon_id": "33047500",
+      "name": "vastbase",
+      "font_class": "vastbase",
+      "unicode": "e62b",
+      "unicode_decimal": 58923
     }
   ]
 }

@@ -1,21 +1,25 @@
 <template>
     <div class="mock-data-dialog">
-        <el-dialog
+        <el-drawer
             :title="title"
             v-model="dialogVisible"
             :close-on-click-modal="false"
             :before-close="cancel"
             :show-close="true"
             :destroy-on-close="true"
-            width="900px"
+            size="40%"
         >
+            <template #header>
+                <DrawerHeader :header="title" :back="cancel" />
+            </template>
+
             <el-form :model="form" ref="formRef" :rules="rules" label-width="auto">
                 <el-form-item prop="name" label="名称">
                     <el-input v-model="form.name" placeholder="请输入名称"></el-input>
                 </el-form-item>
 
                 <el-form-item prop="cron" label="cron表达式">
-                    <el-input v-model="form.cron" placeholder="只支持5位表达式,不支持秒级.如 0/2 * * * * 表示每两分钟执行"></el-input>
+                    <CrontabInput v-model="form.cron" />
                 </el-form-item>
 
                 <el-form-item prop="status" label="状态">
@@ -34,19 +38,13 @@
                     <el-input v-model="form.remark" placeholder="请输入备注"></el-input>
                 </el-form-item>
 
-                <el-form-item prop="machineIds" label="关联机器">
-                    <el-select multiple v-model="form.machineIds" filterable placeholder="请选关联机器" style="width: 100%">
-                        <el-option v-for="ac in state.machines" :key="ac.id" :value="ac.id" :label="ac.ip">
-                            {{ ac.ip }}
-                            <el-divider direction="vertical" border-style="dashed" />
-                            {{ ac.tagPath }}{{ ac.name }}
-                        </el-option>
-                    </el-select>
-                </el-form-item>
-
                 <el-form-item prop="script" label="执行脚本" required>
-                    <monaco-editor style="width: 100%" v-model="form.script" language="shell" height="300px"
+                    <monaco-editor style="width: 100%" v-model="form.script" language="shell" height="200px"
                 /></el-form-item>
+
+                <el-form-item ref="tagSelectRef" prop="codePaths" label="关联机器">
+                    <tag-tree-check height="200px" :tag-type="TagResourceTypeEnum.Machine.value" v-model="form.codePaths" />
+                </el-form-item>
             </el-form>
 
             <template #footer>
@@ -55,7 +53,7 @@
                     <el-button v-auth="'machine:script:save'" type="primary" :loading="btnLoading" @click="btnOk" :disabled="submitDisabled">保 存</el-button>
                 </div>
             </template>
-        </el-dialog>
+        </el-drawer>
     </div>
 </template>
 
@@ -66,6 +64,10 @@ import { cronJobApi, machineApi } from '../api';
 import { CronJobStatusEnum, CronJobSaveExecResTypeEnum } from '../enums';
 import { notEmpty } from '@/common/assert';
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
+import CrontabInput from '@/components/crontab/CrontabInput.vue';
+import DrawerHeader from '@/components/drawer-header/DrawerHeader.vue';
+import TagTreeCheck from '../../component/TagTreeCheck.vue';
+import { TagResourceTypeEnum } from '@/common/commonEnum';
 
 const props = defineProps({
     visible: {
@@ -82,6 +84,7 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'submitSuccess']);
 
 const formRef: any = ref(null);
+
 const rules = {
     name: [
         {
@@ -128,11 +131,11 @@ const state = reactive({
         id: null,
         name: '',
         cron: '',
-        machineIds: [],
         remark: '',
         script: '',
         status: 1,
         saveExecResType: -1,
+        codePaths: [],
     },
     machines: [] as any,
     btnLoading: false,
@@ -152,7 +155,7 @@ watch(props, async (newValue: any) => {
     }
     if (newValue.data) {
         state.form = { ...newValue.data };
-        state.form.machineIds = await cronJobApi.relateMachineIds.request({ cronJobId: state.form.id });
+        state.form.codePaths = newValue.data.tags?.map((tag: any) => tag.codePath);
     } else {
         state.form = { script: '', status: 1 } as any;
         state.chooseMachines = [];

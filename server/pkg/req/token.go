@@ -9,21 +9,33 @@ import (
 )
 
 // 创建用户token
-func CreateToken(userId uint64, username string) (string, error) {
+func CreateToken(userId uint64, username string) (accessToken string, refreshToken string, err error) {
+	jwtConf := config.Conf.Jwt
+	now := time.Now()
+
 	// 带权限创建令牌
 	// 设置有效期，过期需要重新登录获取token
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	accessJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"id":       userId,
 		"username": username,
-		"exp":      time.Now().Add(time.Minute * time.Duration(config.Conf.Jwt.ExpireTime)).Unix(),
+		"exp":      now.Add(time.Minute * time.Duration(jwtConf.ExpireTime)).Unix(),
+	})
+
+	// refresh token
+	refreshJwt := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"id":       userId,
+		"username": username,
+		"exp":      now.Add(time.Minute * time.Duration(jwtConf.RefreshTokenExpireTime)).Unix(),
 	})
 
 	// 使用自定义字符串加密 and get the complete encoded token as a string
-	tokenString, err := token.SignedString([]byte(config.Conf.Jwt.Key))
+	accessToken, err = accessJwt.SignedString([]byte(jwtConf.Key))
 	if err != nil {
-		return "", err
+		return
 	}
-	return tokenString, nil
+
+	refreshToken, err = refreshJwt.SignedString([]byte(jwtConf.Key))
+	return
 }
 
 // 解析token，并返回登录者账号信息

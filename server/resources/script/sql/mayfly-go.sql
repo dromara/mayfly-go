@@ -7,11 +7,11 @@ SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS `t_db_instance`;
 CREATE TABLE `t_db_instance` (
     `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `code` varchar(36) NULL COMMENT '唯一编号',
     `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
     `host` varchar(100) COLLATE utf8mb4_bin NOT NULL,
-    `port` int(8) NOT NULL,
-    `username` varchar(255) COLLATE utf8mb4_bin NOT NULL,
-    `password` varchar(255) COLLATE utf8mb4_bin DEFAULT NULL,
+    `port` int(8) NULL,
+    `extra` varchar(255) NULL COMMENT '连接需要的额外参数，如oracle数据库需要sid等',
     `type` varchar(20) COLLATE utf8mb4_bin NOT NULL COMMENT '数据库实例类型(mysql...)',
     `params` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '其他连接参数',
     `network` varchar(20) COLLATE utf8mb4_bin DEFAULT NULL,
@@ -26,41 +26,62 @@ CREATE TABLE `t_db_instance` (
     `is_deleted` tinyint(8) NOT NULL DEFAULT '0',
     `delete_time` datetime DEFAULT NULL,
     PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库实例信息表';
-
--- ----------------------------
--- Records of t_db_instance
--- ----------------------------
-BEGIN;
-COMMIT;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库实例信息表';
 
 -- ----------------------------
 -- Table structure for t_db
 -- ----------------------------
 DROP TABLE IF EXISTS `t_db`;
 CREATE TABLE `t_db` (
-    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-    `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'code',
-    `name` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库实例名称',
-    `database` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '数据库,空格分割多个数据库',
-    `remark` varchar(125) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '备注，描述等',
-    `instance_id` bigint(20) NOT NULL COMMENT '数据库实例 ID',
-    `create_time` datetime DEFAULT NULL,
-    `creator_id` bigint(20) DEFAULT NULL,
-    `creator` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
-    `update_time` datetime DEFAULT NULL,
-    `modifier_id` bigint(20) DEFAULT NULL,
-    `modifier` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
-    `is_deleted` tinyint(8) NOT NULL DEFAULT '0',
-    `delete_time` datetime DEFAULT NULL,
-    PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库资源信息表';
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL,
+  `name` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
+  `get_database_mode` tinyint NULL COMMENT '库名获取方式（-1.实时获取、1.指定库名）',
+  `database` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL,
+  `remark` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
+  `instance_id` bigint unsigned NOT NULL,
+  `auth_cert_name` varchar(36) NULL COMMENT '授权凭证名',
+  `create_time` datetime DEFAULT NULL,
+  `creator_id` bigint DEFAULT NULL,
+  `creator` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
+  `update_time` datetime DEFAULT NULL,
+  `modifier_id` bigint DEFAULT NULL,
+  `modifier` varchar(191) COLLATE utf8mb4_bin DEFAULT NULL,
+  `is_deleted` tinyint DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_code` (`code`) USING BTREE
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库资源信息表';
 
--- ----------------------------
--- Records of t_db
--- ----------------------------
-BEGIN;
-COMMIT;
+DROP TABLE IF EXISTS `t_db_transfer_task`;
+CREATE TABLE `t_db_transfer_task` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `creator_id` bigint(20) NOT NULL COMMENT '创建人id',
+  `creator` varchar(100) NOT NULL COMMENT '创建人姓名',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `modifier_id` bigint(20) NOT NULL COMMENT '修改人id',
+  `modifier` varchar(100) NOT NULL COMMENT '修改人姓名',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
+  `is_deleted` tinyint(1) DEFAULT '0' COMMENT '是否删除',
+  `delete_time` datetime DEFAULT NULL COMMENT '删除时间',
+  `checked_keys` text NOT NULL COMMENT '选中需要迁移的表',
+  `delete_table` tinyint(4) NOT NULL COMMENT '创建表前是否删除表  1是  -1否',
+  `name_case` tinyint(4) NOT NULL COMMENT '表名、字段大小写转换  1无  2大写  3小写',
+  `strategy` tinyint(4) NOT NULL COMMENT '迁移策略  1全量  2增量',
+  `running_state` tinyint(1) DEFAULT '2' COMMENT '运行状态 1运行中  2待运行',
+  `src_db_id` bigint(20) NOT NULL COMMENT '源库id',
+  `src_db_name` varchar(200) NOT NULL COMMENT '源库名',
+  `src_tag_path` varchar(200) NOT NULL COMMENT '源库tagPath',
+  `src_db_type` varchar(200) NOT NULL COMMENT '源库类型',
+  `src_inst_name` varchar(200) NOT NULL COMMENT '源库实例名',
+  `target_db_id` bigint(20) NOT NULL COMMENT '目标库id',
+  `target_db_name` varchar(200) NOT NULL COMMENT '目标库名',
+  `target_tag_path` varchar(200) NOT NULL COMMENT '目标库类型',
+  `target_db_type` varchar(200) NOT NULL COMMENT '目标库实例名',
+  `target_inst_name` varchar(200) NOT NULL COMMENT '目标库tagPath',
+  `log_id` bigint(20) NOT NULL COMMENT '日志id',
+  PRIMARY KEY (`id`)
+)  COMMENT='数据库迁移任务表';
 
 -- ----------------------------
 -- Table structure for t_db_sql
@@ -82,13 +103,7 @@ CREATE TABLE `t_db_sql` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库sql信息';
-
--- ----------------------------
--- Records of t_db_sql
--- ----------------------------
-BEGIN;
-COMMIT;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库sql信息';
 
 -- ----------------------------
 -- Table structure for t_db_sql_exec
@@ -103,6 +118,9 @@ CREATE TABLE `t_db_sql_exec` (
   `sql` varchar(5000) NOT NULL COMMENT '执行sql',
   `old_value` varchar(5000) DEFAULT NULL COMMENT '操作前旧值',
   `remark` varchar(128) DEFAULT NULL COMMENT '备注',
+  `status` tinyint DEFAULT NULL COMMENT '执行状态',
+  `flow_biz_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '流程关联的业务key',
+  `res` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '执行结果',
   `create_time` datetime NOT NULL,
   `creator` varchar(36) NOT NULL,
   `creator_id` bigint(20) NOT NULL,
@@ -111,33 +129,210 @@ CREATE TABLE `t_db_sql_exec` (
   `modifier_id` bigint(20) NOT NULL,
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_flow_biz_key` (`flow_biz_key`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='数据库sql执行记录表';
 
 -- ----------------------------
--- Records of t_db_sql_exec
+-- Table structure for t_db_backup
 -- ----------------------------
-BEGIN;
-COMMIT;
+DROP TABLE IF EXISTS `t_db_backup`;
+CREATE TABLE `t_db_backup` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(32) NOT NULL COMMENT '备份名称',
+    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
+    `db_name` varchar(64) NOT NULL COMMENT '数据库名称',
+    `repeated` tinyint(1) DEFAULT NULL COMMENT '是否重复执行',
+    `interval` bigint(20) DEFAULT NULL COMMENT '备份周期',
+    `max_save_days` int(8) NOT NULL DEFAULT '0' COMMENT '最大保留天数',
+    `start_time` datetime DEFAULT NULL COMMENT '首次备份时间',
+    `enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
+    `enabled_desc` varchar(64) NULL COMMENT '任务启用描述',
+    `last_status` tinyint(4) DEFAULT NULL COMMENT '上次备份状态',
+    `last_result` varchar(256) DEFAULT NULL COMMENT '上次备份结果',
+    `last_time` datetime DEFAULT NULL COMMENT '上次备份时间',
+    `create_time` datetime DEFAULT NULL,
+    `creator_id` bigint(20) unsigned DEFAULT NULL,
+    `creator` varchar(32) DEFAULT NULL,
+    `update_time` datetime DEFAULT NULL,
+    `modifier_id` bigint(20) unsigned DEFAULT NULL,
+    `modifier` varchar(32) DEFAULT NULL,
+    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_db_name` (`db_name`) USING BTREE,
+    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-DROP TABLE IF EXISTS `t_auth_cert`;
-CREATE TABLE `t_auth_cert` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(32) DEFAULT NULL,
-  `auth_method` tinyint NOT NULL COMMENT '1.密码 2.秘钥',
-  `password` varchar(4200) DEFAULT NULL COMMENT '密码or私钥',
-  `passphrase` varchar(32) DEFAULT NULL COMMENT '私钥口令',
-  `remark` varchar(255) DEFAULT NULL,
-  `create_time` datetime NOT NULL,
-  `creator` varchar(16) NOT NULL,
-  `creator_id` bigint NOT NULL,
-  `update_time` datetime NOT NULL,
-  `modifier` varchar(12) NOT NULL,
-  `modifier_id` bigint NOT NULL,
-  `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
-  `delete_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='授权凭证';
+-- ----------------------------
+-- Table structure for t_db_backup_history
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_backup_history`;
+CREATE TABLE `t_db_backup_history` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(64) NOT NULL COMMENT '历史备份名称',
+    `db_backup_id` bigint(20) unsigned NOT NULL COMMENT '数据库备份ID',
+    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
+    `db_name` varchar(64) NOT NULL COMMENT '数据库名称',
+    `uuid` varchar(36) NOT NULL COMMENT '历史备份uuid',
+    `binlog_file_name` varchar(32) DEFAULT NULL COMMENT 'BINLOG文件名',
+    `binlog_sequence` bigint(20) DEFAULT NULL COMMENT 'BINLOG序列号',
+    `binlog_position` bigint(20) DEFAULT NULL COMMENT 'BINLOG位置',
+    `create_time` datetime DEFAULT NULL COMMENT '历史备份创建时间',
+    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    `restoring` tinyint(1) NOT NULL DEFAULT '0' COMMENT '备份历史恢复标识',
+    `deleting` tinyint(1) NOT NULL DEFAULT '0' COMMENT '备份历史删除标识',
+    PRIMARY KEY (`id`),
+    KEY `idx_db_backup_id` (`db_backup_id`) USING BTREE,
+    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE,
+    KEY `idx_db_name` (`db_name`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ----------------------------
+-- Table structure for t_db_restore
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_restore`;
+CREATE TABLE `t_db_restore` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
+    `db_name` varchar(64) NOT NULL COMMENT '数据库名称',
+    `repeated` tinyint(1) DEFAULT NULL COMMENT '是否重复执行',
+    `interval` bigint(20) DEFAULT NULL COMMENT '恢复周期',
+    `start_time` datetime DEFAULT NULL COMMENT '首次恢复时间',
+    `enabled` tinyint(1) DEFAULT NULL COMMENT '是否启用',
+    `enabled_desc` varchar(64) NULL COMMENT '任务启用描述',
+    `last_status` tinyint(4) DEFAULT NULL COMMENT '上次恢复状态',
+    `last_result` varchar(256) DEFAULT NULL COMMENT '上次恢复结果',
+    `last_time` datetime DEFAULT NULL COMMENT '上次恢复时间',
+    `point_in_time` datetime DEFAULT NULL COMMENT '恢复时间点',
+    `db_backup_id` bigint(20) unsigned DEFAULT NULL COMMENT '备份ID',
+    `db_backup_history_id` bigint(20) unsigned DEFAULT NULL COMMENT '历史备份ID',
+    `db_backup_history_name` varchar(64) DEFAULT NULL COMMENT '历史备份名称',
+    `create_time` datetime DEFAULT NULL,
+    `creator_id` bigint(20) unsigned DEFAULT NULL,
+    `creator` varchar(32) DEFAULT NULL,
+    `update_time` datetime DEFAULT NULL,
+    `modifier_id` bigint(20) unsigned DEFAULT NULL,
+    `modifier` varchar(32) DEFAULT NULL,
+    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_db_instane_id` (`db_instance_id`) USING BTREE,
+    KEY `idx_db_name` (`db_name`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ----------------------------
+-- Table structure for t_db_restore_history
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_restore_history`;
+CREATE TABLE `t_db_restore_history` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `db_restore_id` bigint(20) unsigned NOT NULL COMMENT '恢复ID',
+    `create_time` datetime DEFAULT NULL COMMENT '历史恢复创建时间',
+    `is_deleted` tinyint(4) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_db_restore_id` (`db_restore_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ----------------------------
+-- Table structure for t_db_binlog
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_binlog`;
+CREATE TABLE `t_db_binlog` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
+    `last_status` bigint(20) DEFAULT NULL COMMENT '上次下载状态',
+    `last_result` varchar(256) DEFAULT NULL COMMENT '上次下载结果',
+    `last_time` datetime DEFAULT NULL COMMENT '上次下载时间',
+    `create_time` datetime DEFAULT NULL,
+    `creator_id` bigint(20) unsigned DEFAULT NULL,
+    `creator` varchar(32) DEFAULT NULL,
+    `update_time` datetime DEFAULT NULL,
+    `modifier_id` bigint(20) unsigned DEFAULT NULL,
+    `modifier` varchar(32) DEFAULT NULL,
+    `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ----------------------------
+-- Table structure for t_db_binlog_history
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_binlog_history`;
+CREATE TABLE `t_db_binlog_history` (
+    `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+    `db_instance_id` bigint(20) unsigned NOT NULL COMMENT '数据库实例ID',
+    `file_name` varchar(32) DEFAULT NULL COMMENT 'BINLOG文件名称',
+    `file_size` bigint(20) DEFAULT NULL COMMENT 'BINLOG文件大小',
+    `sequence` bigint(20) DEFAULT NULL COMMENT 'BINLOG序列号',
+    `first_event_time` datetime DEFAULT NULL COMMENT '首次事件时间',
+    `last_event_time` datetime DEFAULT NULL COMMENT '最新事件时间',
+    `create_time` datetime DEFAULT NULL,
+    `is_deleted` tinyint(4) NOT NULL DEFAULT 0,
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_db_instance_id` (`db_instance_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- ----------------------------
+-- Table structure for t_db_data_sync_task
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_data_sync_task`;
+CREATE TABLE `t_db_data_sync_task`
+(
+    `id`                bigint(20) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    `creator_id`        bigint(20) NOT NULL COMMENT '创建人id',
+    `creator`           varchar(100) NOT NULL COMMENT '创建人姓名',
+    `create_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '修改时间',
+    `modifier`          varchar(100) NOT NULL COMMENT '修改人姓名',
+    `modifier_id`       bigint(20) NOT NULL COMMENT '修改人id',
+    `task_name`         varchar(500) NOT NULL COMMENT '任务名',
+    `task_cron`         varchar(50)  NOT NULL COMMENT '任务Cron表达式',
+    `src_db_id`         bigint(20) NOT NULL COMMENT '源数据库ID',
+    `src_db_name`       varchar(100)          DEFAULT NULL COMMENT '源数据库名',
+    `src_tag_path`      varchar(200)          DEFAULT NULL COMMENT '源数据库tag路径',
+    `target_db_id`      bigint(20) NOT NULL COMMENT '目标数据库ID',
+    `target_db_name`    varchar(100)          DEFAULT NULL COMMENT '目标数据库名',
+    `target_tag_path`   varchar(200)          DEFAULT NULL COMMENT '目标数据库tag路径',
+    `target_table_name` varchar(100)          DEFAULT NULL COMMENT '目标数据库表名',
+    `data_sql`          text         NOT NULL COMMENT '数据查询sql',
+    `page_size`         int(11) NOT NULL COMMENT '数据同步分页大小',
+    `upd_field`         varchar(100) NOT NULL DEFAULT 'id' COMMENT '更新字段，默认"id"',
+    `upd_field_val`     varchar(100)          DEFAULT NULL COMMENT '当前更新值',
+    `id_rule`           tinyint(2) NOT NULL DEFAULT '1' COMMENT 'id生成规则：1、MD5(时间戳+更新字段的值)。2、无(不自动生成id，选择无的时候需要指定主键ID字段是数据源哪个字段)',
+    `pk_field`          varchar(100)          DEFAULT 'id' COMMENT '主键id字段名，默认"id"',
+    `field_map`         text COMMENT '字段映射json',
+    `is_deleted`        tinyint(8) DEFAULT '0',
+    `delete_time`       datetime              DEFAULT NULL,
+    `status`            tinyint(1) NOT NULL DEFAULT '1' COMMENT '状态 1启用 2停用',
+    `recent_state`      tinyint(1) NOT NULL DEFAULT '0' COMMENT '最近一次状态 0未执行 1成功 2失败',
+    `task_key`          varchar(100)          DEFAULT NULL COMMENT '定时任务唯一uuid key',
+    `running_state`     tinyint(1) DEFAULT '2' COMMENT '运行时状态 1运行中、2待运行、3已停止',
+    `duplicate_strategy`tinyint(1) DEFAULT '-1' COMMENT '唯一键冲突策略 -1：无，1：忽略，2：覆盖',
+    PRIMARY KEY (`id`)
+) COMMENT='数据同步';
+
+-- ----------------------------
+-- Table structure for t_db_data_sync_log
+-- ----------------------------
+DROP TABLE IF EXISTS `t_db_data_sync_log`;
+CREATE TABLE `t_db_data_sync_log`
+(
+    `id`            bigint(20) NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+    `task_id`       bigint(20) NOT NULL COMMENT '同步任务表id',
+    `create_time`   datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `data_sql_full` text     NOT NULL COMMENT '执行的完整sql',
+    `res_num`       int(11) DEFAULT NULL COMMENT '收到数据条数',
+    `err_text`      text COMMENT '错误日志',
+    `status`        tinyint(4) NOT NULL DEFAULT '1' COMMENT '状态:1.成功  0.失败',
+    `is_deleted`    tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否删除 1是 0 否',
+    PRIMARY KEY (`id`),
+    KEY             `t_db_data_sync_log_taskid_idx` (`task_id`) USING BTREE COMMENT 't_db_data_sync_log表(taskid)普通索引'
+) COMMENT='数据同步日志';
 
 -- ----------------------------
 -- Table structure for t_machine
@@ -149,10 +344,7 @@ CREATE TABLE `t_machine` (
   `name` varchar(32) DEFAULT NULL,
   `ip` varchar(50) NOT NULL,
   `port` int(12) NOT NULL,
-  `username` varchar(12) NOT NULL,
-  `auth_method` tinyint(2) DEFAULT NULL COMMENT '1.密码登录2.publickey登录',
-  `password` varchar(100) DEFAULT NULL,
-  `auth_cert_id` bigint(20) DEFAULT NULL COMMENT '授权凭证id',
+  `protocol` tinyint(2) DEFAULT 1 COMMENT '协议  1、SSH  2、RDP',
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
   `enable_recorder` tinyint(2) DEFAULT NULL COMMENT '是否启用终端回放记录',
   `status` tinyint(2) NOT NULL COMMENT '状态: 1:启用; -1:禁用',
@@ -167,13 +359,7 @@ CREATE TABLE `t_machine` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器信息';
-
--- ----------------------------
--- Records of t_machine
--- ----------------------------
-BEGIN;
-COMMIT;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器信息';
 
 -- ----------------------------
 -- Table structure for t_machine_file
@@ -194,7 +380,7 @@ CREATE TABLE `t_machine_file` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=39 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器文件';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器文件';
 
 -- ----------------------------
 -- Records of t_machine_file
@@ -218,11 +404,6 @@ CREATE TABLE `t_machine_monitor` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
--- ----------------------------
--- Records of t_machine_monitor
--- ----------------------------
-BEGIN;
-COMMIT;
 
 -- ----------------------------
 -- Table structure for t_machine_script
@@ -245,7 +426,7 @@ CREATE TABLE `t_machine_script` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器脚本';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器脚本';
 
 -- ----------------------------
 -- Records of t_machine_script
@@ -255,7 +436,7 @@ INSERT INTO `t_machine_script` VALUES (1, 'sys_info', 9999999, '# 获取系统cp
 INSERT INTO `t_machine_script` VALUES (2, 'get_process_by_name', 9999999, '#! /bin/bash\n# Function: 根据输入的程序的名字过滤出所对应的PID，并显示出详细信息，如果有几个PID，则全部显示\nNAME={{.processName}}\nN=`ps -aux | grep $NAME | grep -v grep | wc -l`    ##统计进程总数\nif [ $N -le 0 ];then\n  echo \"无该进程！\"\nfi\ni=1\nwhile [ $N -gt 0 ]\ndo\n  echo \"进程PID: `ps -aux | grep $NAME | grep -v grep | awk \'NR==\'$i\'{print $0}\'| awk \'{print $2}\'`\"\n  echo \"进程命令：`ps -aux | grep $NAME | grep -v grep | awk \'NR==\'$i\'{print $0}\'| awk \'{print $11}\'`\"\n  echo \"进程所属用户: `ps -aux | grep $NAME | grep -v grep | awk \'NR==\'$i\'{print $0}\'| awk \'{print $1}\'`\"\n  echo \"CPU占用率：`ps -aux | grep $NAME | grep -v grep | awk \'NR==\'$i\'{print $0}\'| awk \'{print $3}\'`%\"\n  echo \"内存占用率：`ps -aux | grep $NAME | grep -v grep | awk \'NR==\'$i\'{print $0}\'| awk \'{print $4}\'`%\"\n  echo \"进程开始运行的时刻：`ps -aux | grep $NAME | grep -v grep | awk \'NR==\'$i\'{print $0}\'| awk \'{print $9}\'`\"\n  echo \"进程运行的时间：`  ps -aux | grep $NAME | grep -v grep | awk \'NR==\'$i\'{print $0}\'| awk \'{print $11}\'`\"\n  echo \"进程状态：`ps -aux | grep $NAME | grep -v grep | awk \'NR==\'$i\'{print $0}\'| awk \'{print $8}\'`\"\n  echo \"进程虚拟内存：`ps -aux | grep $NAME | grep -v grep | awk \'NR==\'$i\'{print $0}\'| awk \'{print $5}\'`\"\n  echo \"进程共享内存：`ps -aux | grep $NAME | grep -v grep | awk \'NR==\'$i\'{print $0}\'| awk \'{print $6}\'`\"\n  echo \"***************************************************************\"\n  let N-- i++\ndone', '[{\"name\": \"进程名\",\"model\": \"processName\", \"placeholder\": \"请输入进程名\"}]', '获取进程运行状态', 1, NULL, NULL, 1, 'admin', NULL, '2021-07-12 15:33:41', 0, NULL);
 INSERT INTO `t_machine_script` VALUES (3, 'sys_run_info', 9999999, '#!/bin/bash\n# 获取要监控的本地服务器IP地址\nIP=`ifconfig | grep inet | grep -vE \'inet6|127.0.0.1\' | awk \'{print $2}\'`\necho \"IP地址：\"$IP\n \n# 获取cpu总核数\ncpu_num=`grep -c \"model name\" /proc/cpuinfo`\necho \"cpu总核数：\"$cpu_num\n \n# 1、获取CPU利用率\n################################################\n#us 用户空间占用CPU百分比\n#sy 内核空间占用CPU百分比\n#ni 用户进程空间内改变过优先级的进程占用CPU百分比\n#id 空闲CPU百分比\n#wa 等待输入输出的CPU时间百分比\n#hi 硬件中断\n#si 软件中断\n#################################################\n# 获取用户空间占用CPU百分比\ncpu_user=`top -b -n 1 | grep Cpu | awk \'{print $2}\' | cut -f 1 -d \"%\"`\necho \"用户空间占用CPU百分比：\"$cpu_user\n \n# 获取内核空间占用CPU百分比\ncpu_system=`top -b -n 1 | grep Cpu | awk \'{print $4}\' | cut -f 1 -d \"%\"`\necho \"内核空间占用CPU百分比：\"$cpu_system\n \n# 获取空闲CPU百分比\ncpu_idle=`top -b -n 1 | grep Cpu | awk \'{print $8}\' | cut -f 1 -d \"%\"`\necho \"空闲CPU百分比：\"$cpu_idle\n \n# 获取等待输入输出占CPU百分比\ncpu_iowait=`top -b -n 1 | grep Cpu | awk \'{print $10}\' | cut -f 1 -d \"%\"`\necho \"等待输入输出占CPU百分比：\"$cpu_iowait\n \n#2、获取CPU上下文切换和中断次数\n# 获取CPU中断次数\ncpu_interrupt=`vmstat -n 1 1 | sed -n 3p | awk \'{print $11}\'`\necho \"CPU中断次数：\"$cpu_interrupt\n \n# 获取CPU上下文切换次数\ncpu_context_switch=`vmstat -n 1 1 | sed -n 3p | awk \'{print $12}\'`\necho \"CPU上下文切换次数：\"$cpu_context_switch\n \n#3、获取CPU负载信息\n# 获取CPU15分钟前到现在的负载平均值\ncpu_load_15min=`uptime | awk \'{print $11}\' | cut -f 1 -d \',\'`\necho \"CPU 15分钟前到现在的负载平均值：\"$cpu_load_15min\n \n# 获取CPU5分钟前到现在的负载平均值\ncpu_load_5min=`uptime | awk \'{print $10}\' | cut -f 1 -d \',\'`\necho \"CPU 5分钟前到现在的负载平均值：\"$cpu_load_5min\n \n# 获取CPU1分钟前到现在的负载平均值\ncpu_load_1min=`uptime | awk \'{print $9}\' | cut -f 1 -d \',\'`\necho \"CPU 1分钟前到现在的负载平均值：\"$cpu_load_1min\n \n# 获取任务队列(就绪状态等待的进程数)\ncpu_task_length=`vmstat -n 1 1 | sed -n 3p | awk \'{print $1}\'`\necho \"CPU任务队列长度：\"$cpu_task_length\n \n#4、获取内存信息\n# 获取物理内存总量\nmem_total=`free -h | grep Mem | awk \'{print $2}\'`\necho \"物理内存总量：\"$mem_total\n \n# 获取操作系统已使用内存总量\nmem_sys_used=`free -h | grep Mem | awk \'{print $3}\'`\necho \"已使用内存总量(操作系统)：\"$mem_sys_used\n \n# 获取操作系统未使用内存总量\nmem_sys_free=`free -h | grep Mem | awk \'{print $4}\'`\necho \"剩余内存总量(操作系统)：\"$mem_sys_free\n \n# 获取应用程序已使用的内存总量\nmem_user_used=`free | sed -n 3p | awk \'{print $3}\'`\necho \"已使用内存总量(应用程序)：\"$mem_user_used\n \n# 获取应用程序未使用内存总量\nmem_user_free=`free | sed -n 3p | awk \'{print $4}\'`\necho \"剩余内存总量(应用程序)：\"$mem_user_free\n \n# 获取交换分区总大小\nmem_swap_total=`free | grep Swap | awk \'{print $2}\'`\necho \"交换分区总大小：\"$mem_swap_total\n \n# 获取已使用交换分区大小\nmem_swap_used=`free | grep Swap | awk \'{print $3}\'`\necho \"已使用交换分区大小：\"$mem_swap_used\n \n# 获取剩余交换分区大小\nmem_swap_free=`free | grep Swap | awk \'{print $4}\'`\necho \"剩余交换分区大小：\"$mem_swap_free', NULL, '获取cpu、内存等系统运行状态', 1, NULL, NULL, NULL, NULL, NULL, '2021-04-25 15:07:16', 0, NULL);
 INSERT INTO `t_machine_script` VALUES (4, 'top', 9999999, 'top', NULL, '实时获取系统运行状态', 3, NULL, NULL, 1, 'admin', NULL, '2021-05-24 15:58:20', 0, NULL);
-INSERT INTO `t_machine_script` VALUES (18, 'disk-mem', 9999999, 'df -h', '', '磁盘空间查看', 1, 1, 'admin', 1, 'admin', '2021-07-16 10:49:53', '2021-07-16 10:49:53', 0, NULL);
+INSERT INTO `t_machine_script` VALUES (5, 'disk-mem', 9999999, 'df -h', '', '磁盘空间查看', 1, 1, 'admin', 1, 'admin', '2021-07-16 10:49:53', '2021-07-16 10:49:53', 0, NULL);
 COMMIT;
 
 DROP TABLE IF EXISTS `t_machine_cron_job`;
@@ -278,33 +459,20 @@ CREATE TABLE `t_machine_cron_job` (
   `is_deleted` tinyint NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务';
 
 DROP TABLE IF EXISTS `t_machine_cron_job_exec`;
 CREATE TABLE `t_machine_cron_job_exec` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `cron_job_id` bigint DEFAULT NULL,
-  `machine_id` bigint DEFAULT NULL,
+  `machine_code` varchar(36) DEFAULT NULL,
   `status` tinyint DEFAULT NULL COMMENT '状态',
-  `res` varchar(1000) DEFAULT NULL COMMENT '执行结果',
+  `res` varchar(4000) DEFAULT NULL COMMENT '执行结果',
   `exec_time` datetime DEFAULT NULL COMMENT '执行时间',
   `is_deleted` tinyint NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务执行记录';
-
-DROP TABLE IF EXISTS `t_machine_cron_job_relate`;
-CREATE TABLE `t_machine_cron_job_relate` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `cron_job_id` bigint DEFAULT NULL,
-  `machine_id` bigint DEFAULT NULL,
-  `creator_id` bigint DEFAULT NULL,
-  `creator` varchar(32) DEFAULT NULL,
-  `create_time` datetime DEFAULT NULL,
-  `is_deleted` tinyint NOT NULL DEFAULT 0,
-  `delete_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务关联表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器计划任务执行记录';
 
 DROP TABLE IF EXISTS `t_machine_term_op`;
 CREATE TABLE `t_machine_term_op` (
@@ -312,6 +480,7 @@ CREATE TABLE `t_machine_term_op` (
   `machine_id` bigint NOT NULL COMMENT '机器id',
   `username` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '登录用户名',
   `record_file_path` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '终端回放文件路径',
+  `exec_cmds` TEXT NULL COMMENT '执行的命令记录',
   `creator_id` bigint unsigned DEFAULT NULL,
   `creator` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   `create_time` datetime NOT NULL,
@@ -319,7 +488,26 @@ CREATE TABLE `t_machine_term_op` (
   `is_deleted` tinyint DEFAULT '0',
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器终端操作记录表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='机器终端操作记录表';
+
+DROP TABLE IF EXISTS `t_machine_cmd_conf`;
+CREATE TABLE `t_machine_cmd_conf` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) COLLATE utf8_bin DEFAULT NULL COMMENT '名称',
+  `cmds` varchar(500) COLLATE utf8_bin DEFAULT NULL COMMENT '命令配置',
+  `status` tinyint(4) DEFAULT NULL COMMENT '状态',
+  `stratege` varchar(100) COLLATE utf8_bin DEFAULT NULL COMMENT '策略',
+  `remark` varchar(50) COLLATE utf8_bin DEFAULT NULL COMMENT '备注',
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint(20) NOT NULL,
+  `creator` varchar(36) COLLATE utf8_bin NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier_id` bigint(20) NOT NULL,
+  `modifier` varchar(36) COLLATE utf8_bin NOT NULL,
+  `is_deleted` tinyint(4) DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 COMMENT='机器命令配置';
 
 -- ----------------------------
 -- Table structure for t_mongo
@@ -340,13 +528,7 @@ CREATE TABLE `t_mongo` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
-
--- ----------------------------
--- Records of t_mongo
--- ----------------------------
-BEGIN;
-COMMIT;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- ----------------------------
 -- Table structure for t_redis
@@ -357,8 +539,6 @@ CREATE TABLE `t_redis` (
   `code` varchar(32) COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'code',
   `name` varchar(255) DEFAULT NULL COMMENT '名称',
   `host` varchar(255) NOT NULL,
-  `username` varchar(32) DEFAULT NULL COMMENT '用户名',
-  `password` varchar(100) DEFAULT NULL,
   `db` varchar(64)  DEFAULT NULL COMMENT '库号: 多个库用,分割',
   `mode` varchar(32) DEFAULT NULL,
   `ssh_tunnel_machine_id` bigint(20) DEFAULT NULL COMMENT 'ssh隧道的机器id',
@@ -372,13 +552,8 @@ CREATE TABLE `t_redis` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='redis信息';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='redis信息';
 
--- ----------------------------
--- Records of t_redis
--- ----------------------------
-BEGIN;
-COMMIT;
 
 DROP TABLE IF EXISTS `t_oauth2_account`;
 CREATE TABLE `t_oauth2_account` (
@@ -390,7 +565,7 @@ CREATE TABLE `t_oauth2_account` (
   `is_deleted` tinyint DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='oauth2关联账号';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='oauth2关联账号';
 
 -- ----------------------------
 -- Table structure for t_sys_account
@@ -414,13 +589,13 @@ CREATE TABLE `t_sys_account` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='账号信息表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='账号信息表';
 
 -- ----------------------------
 -- Records of t_sys_account
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_sys_account` VALUES (1, "管理员", 'admin', '$2a$10$w3Wky2U.tinvR7c/s0aKPuwZsIu6pM1/DMJalwBDMbE6niHIxVrrm', 1, '', '2022-10-26 20:03:48', '::1', '2020-01-01 19:00:00', 1, 'admin', '2020-01-01 19:00:00', 1, 'admin', 0, NULL);
+INSERT INTO `t_sys_account` VALUES (1, '管理员', 'admin', '$2a$10$w3Wky2U.tinvR7c/s0aKPuwZsIu6pM1/DMJalwBDMbE6niHIxVrrm', 1, '', '2022-10-26 20:03:48', '::1', '2020-01-01 19:00:00', 1, 'admin', '2020-01-01 19:00:00', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -437,13 +612,7 @@ CREATE TABLE `t_sys_account_role` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=43 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='账号角色关联表';
-
--- ----------------------------
--- Records of t_sys_account_role
--- ----------------------------
-BEGIN;
-COMMIT;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='账号角色关联表';
 
 -- ----------------------------
 -- Table structure for t_sys_config
@@ -466,7 +635,7 @@ CREATE TABLE `t_sys_config` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
 
 -- ----------------------------
 -- Records of t_sys_config
@@ -475,10 +644,12 @@ BEGIN;
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier) VALUES('账号登录安全设置', 'AccountLoginSecurity', '[{"name":"登录验证码","model":"useCaptcha","placeholder":"是否启用登录验证码","options":"true,false"},{"name":"双因素校验(OTP)","model":"useOtp","placeholder":"是否启用双因素(OTP)校验","options":"true,false"},{"name":"OTP签发人","model":"otpIssuer","placeholder":"otp签发人"},{"name":"允许失败次数","model":"loginFailCount","placeholder":"登录失败n次后禁止登录"},{"name":"禁止登录时间","model":"loginFailMin","placeholder":"登录失败指定次数后禁止m分钟内再次登录"}]', '{"useCaptcha":"true","useOtp":"false","loginFailCount":"5","loginFailMin":"10","otpIssuer":"mayfly-go"}', '系统账号登录相关安全设置', '2023-06-17 11:02:11', 1, 'admin', '2023-06-17 14:18:07', 1, 'admin');
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('oauth2登录配置', 'Oauth2Login', '[{"name":"是否启用","model":"enable","placeholder":"是否启用oauth2登录","options":"true,false"},{"name":"名称","model":"name","placeholder":"oauth2名称"},{"name":"Client ID","model":"clientId","placeholder":"Client ID"},{"name":"Client Secret","model":"clientSecret","placeholder":"Client Secret"},{"name":"Authorization URL","model":"authorizationURL","placeholder":"Authorization URL"},{"name":"AccessToken URL","model":"accessTokenURL","placeholder":"AccessToken URL"},{"name":"Redirect URL","model":"redirectURL","placeholder":"本系统地址"},{"name":"Scopes","model":"scopes","placeholder":"Scopes"},{"name":"Resource URL","model":"resourceURL","placeholder":"获取用户信息资源地址"},{"name":"UserIdentifier","model":"userIdentifier","placeholder":"用户唯一标识字段;格式为type:fieldPath(string:username)"},{"name":"是否自动注册","model":"autoRegister","placeholder":"","options":"true,false"}]', '', 'oauth2登录相关配置信息', 'admin,', '2023-07-22 13:58:51', 1, 'admin', '2023-07-22 19:34:37', 1, 'admin', 0, NULL);
 INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('ldap登录配置', 'LdapLogin', '[{"name":"是否启用","model":"enable","placeholder":"是否启用","options":"true,false"},{"name":"host","model":"host","placeholder":"host"},{"name":"port","model":"port","placeholder":"port"},{"name":"bindDN","model":"bindDN","placeholder":"LDAP 服务的管理员账号，如: \\"cn=admin,dc=example,dc=com\\""},{"name":"bindPwd","model":"bindPwd","placeholder":"LDAP 服务的管理员密码"},{"name":"baseDN","model":"baseDN","placeholder":"用户所在的 base DN, 如: \\"ou=users,dc=example,dc=com\\""},{"name":"userFilter","model":"userFilter","placeholder":"过滤用户的方式, 如: \\"(uid=%s)、(&(objectClass=organizationalPerson)(uid=%s))\\""},{"name":"uidMap","model":"uidMap","placeholder":"用户id和 LDAP 字段名之间的映射关系,如: cn"},{"name":"udnMap","model":"udnMap","placeholder":"用户姓名(dispalyName)和 LDAP 字段名之间的映射关系,如: displayName"},{"name":"emailMap","model":"emailMap","placeholder":"用户email和 LDAP 字段名之间的映射关系"},{"name":"skipTLSVerify","model":"skipTLSVerify","placeholder":"客户端是否跳过 TLS 证书验证","options":"true,false"},{"name":"安全协议","model":"securityProtocol","placeholder":"安全协议（为Null不使用安全协议），如: StartTLS, LDAPS","options":"Null,StartTLS,LDAPS"}]', '', 'ldap登录相关配置', 'admin,', '2023-08-25 21:47:20', 1, 'admin', '2023-08-25 22:56:07', 1, 'admin', 0, NULL);
-INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('是否启用水印', 'UseWatermark', '[{"name":"是否启用","model":"isUse","placeholder":"是否启用水印","options":"true,false"},{"name":"自定义信息","model":"content","placeholder":"额外添加的水印内容，可添加公司名称等"}]', '', '水印信息配置', 'all', '2022-08-25 23:36:35', 1, 'admin', '2022-08-26 10:02:52', 1, 'admin', 0, NULL);
-INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier)VALUES ('数据库查询最大结果集', 'DbQueryMaxCount', '[]', '200', '允许sql查询的最大结果集数。注: 0=不限制', '2023-02-11 14:29:03', 1, 'admin', '2023-02-11 14:40:56', 1, 'admin');
-INSERT INTO `t_sys_config` (name, `key`, params, value, remark, create_time, creator_id, creator, update_time, modifier_id, modifier)VALUES ('数据库是否记录查询SQL', 'DbSaveQuerySQL', '[]', '0', '1: 记录、0:不记录', '2023-02-11 16:07:14', 1, 'admin', '2023-02-11 16:44:17', 1, 'admin');
-INSERT INTO `t_sys_config` (name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('机器相关配置', 'MachineConfig', '[{"name":"终端回放存储路径","model":"terminalRecPath","placeholder":"终端回放存储路径"},{"name":"uploadMaxFileSize","model":"uploadMaxFileSize","placeholder":"允许上传的最大文件大小(1MB\\\\2GB等)"}]', '{"terminalRecPath":"./rec","uploadMaxFileSize":"1GB"}', '机器相关配置，如终端回放路径等', 'admin,', '2023-07-13 16:26:44', 1, 'admin', '2023-11-09 22:01:31', 1, 'admin', 0, NULL);
+INSERT INTO `t_sys_config` (`name`, `key`, `params`, `value`, `remark`, `permission`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`) VALUES('系统全局样式设置', 'SysStyleConfig', '[{"model":"logoIcon","name":"logo图标","placeholder":"系统logo图标（base64编码, 建议svg格式，不超过10k）","required":false},{"model":"title","name":"菜单栏标题","placeholder":"系统菜单栏标题展示","required":false},{"model":"viceTitle","name":"登录页标题","placeholder":"登录页标题展示","required":false},{"model":"useWatermark","name":"是否启用水印","placeholder":"是否启用系统水印","options":"true,false","required":false},{"model":"watermarkContent","name":"水印补充信息","placeholder":"额外水印信息","required":false}]', '{"title":"mayfly-go","viceTitle":"mayfly-go","logoIcon":"","useWatermark":"true","watermarkContent":""}', '系统icon、标题、水印信息等配置', 'all', '2024-01-04 15:17:18', 1, 'admin', '2024-01-05 09:40:44', 1, 'admin', 0, NULL);
+INSERT INTO t_sys_config ( name, `key`, params, value, remark, permission, create_time, creator_id, creator, update_time, modifier_id, modifier, is_deleted, delete_time) VALUES('机器相关配置', 'MachineConfig', '[{"name":"终端回放存储路径","model":"terminalRecPath","placeholder":"终端回放存储路径"},{"name":"uploadMaxFileSize","model":"uploadMaxFileSize","placeholder":"允许上传的最大文件大小(1MB、2GB等)"},{"model":"termOpSaveDays","name":"终端记录保存时间","placeholder":"终端记录保存时间（单位天）"},{"model":"guacdHost","name":"guacd服务ip","placeholder":"guacd服务ip，默认 127.0.0.1","required":false},{"name":"guacd服务端口","model":"guacdPort","placeholder":"guacd服务端口，默认 4822","required":false},{"model":"guacdFilePath","name":"guacd服务文件存储位置","placeholder":"guacd服务文件存储位置，用于挂载RDP文件夹"},{"name":"guacd服务记录存储位置","model":"guacdRecPath","placeholder":"guacd服务记录存储位置，用于记录rdp操作记录"}]', '{"terminalRecPath":"./rec","uploadMaxFileSize":"1000MB","termOpSaveDays":"30","guacdHost":"","guacdPort":"","guacdFilePath":"./guacd/rdp-file","guacdRecPath":"./guacd/rdp-rec"}', '机器相关配置，如终端回放路径等', 'all', '2023-07-13 16:26:44', 1, 'admin', '2024-04-06 12:25:03', 1, 'admin', 0, NULL);
+INSERT INTO `t_sys_config` (`name`, `key`, `params`, `value`, `remark`, `permission`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`) VALUES('数据库备份恢复', 'DbBackupRestore', '[{"model":"backupPath","name":"备份路径","placeholder":"备份文件存储路径"}]', '{"backupPath":"./db/backup"}', '', 'admin,', '2023-12-29 09:55:26', 1, 'admin', '2023-12-29 15:45:24', 1, 'admin', 0, NULL);
+INSERT INTO `t_sys_config` (`name`, `key`, `params`, `value`, `remark`, `permission`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`) VALUES('Mysql可执行文件', 'MysqlBin', '[{"model":"path","name":"路径","placeholder":"可执行文件路径","required":true},{"model":"mysql","name":"mysql","placeholder":"mysql命令路径(空则为 路径/mysql)","required":false},{"model":"mysqldump","name":"mysqldump","placeholder":"mysqldump命令路径(空则为 路径/mysqldump)","required":false},{"model":"mysqlbinlog","name":"mysqlbinlog","placeholder":"mysqlbinlog命令路径(空则为 路径/mysqlbinlog)","required":false}]', '{"mysql":"","mysqldump":"","mysqlbinlog":"","path":"./db/mysql/bin"}', '', 'admin,', '2023-12-29 10:01:33', 1, 'admin', '2023-12-29 13:34:40', 1, 'admin', 0, NULL);
+INSERT INTO `t_sys_config` (`name`, `key`, `params`, `value`, `remark`, `permission`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`) VALUES('MariaDB可执行文件', 'MariadbBin', '[{"model":"path","name":"路径","placeholder":"可执行文件路径","required":true},{"model":"mysql","name":"mysql","placeholder":"mysql命令路径(空则为 路径/mysql)","required":false},{"model":"mysqldump","name":"mysqldump","placeholder":"mysqldump命令路径(空则为 路径/mysqldump)","required":false},{"model":"mysqlbinlog","name":"mysqlbinlog","placeholder":"mysqlbinlog命令路径(空则为 路径/mysqlbinlog)","required":false}]', '{"mysql":"","mysqldump":"","mysqlbinlog":"","path":"./db/mariadb/bin"}', '', 'admin,', '2023-12-29 10:01:33', 1, 'admin', '2023-12-29 13:34:40', 1, 'admin', 0, NULL);
+INSERT INTO `t_sys_config` (`name`, `key`, `params`, `value`, `remark`, `permission`, `create_time`, `creator_id`, `creator`, `update_time`, `modifier_id`, `modifier`, `is_deleted`, `delete_time`) VALUES('DBMS配置', 'DbmsConfig', '[{"model":"querySqlSave","name":"记录查询sql","placeholder":"是否记录查询类sql","options":"true,false"},{"model":"maxResultSet","name":"最大结果集","placeholder":"允许sql查询的最大结果集数。注: 0=不限制","options":""},{"model":"sqlExecTl","name":"sql执行时间限制","placeholder":"超过该时间（单位：秒），执行将被取消"}]', '{"querySqlSave":"false","maxResultSet":"0","sqlExecTl":"60"}', 'DBMS相关配置', 'admin,', '2024-03-06 13:30:51', 1, 'admin', '2024-03-06 14:07:16', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -490,21 +661,16 @@ CREATE TABLE `t_sys_log` (
   `type` tinyint(4) NOT NULL COMMENT '类型',
   `description` varchar(255) DEFAULT NULL COMMENT '描述',
   `req_param` varchar(2000) DEFAULT NULL COMMENT '请求信息',
-  `resp` varchar(1000) DEFAULT NULL COMMENT '响应信息',
+  `resp` text DEFAULT NULL COMMENT '响应信息',
   `creator` varchar(36) NOT NULL COMMENT '调用者',
   `creator_id` bigint(20) NOT NULL COMMENT '调用者id',
   `create_time` datetime NOT NULL COMMENT '操作时间',
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
+  `extra` text NULL,
   PRIMARY KEY (`id`),
   KEY `idx_creator_id` (`creator_id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=58 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统操作日志';
-
--- ----------------------------
--- Records of t_sys_log
--- ----------------------------
-BEGIN;
-COMMIT;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统操作日志';
 
 -- ----------------------------
 -- Table structure for t_sys_msg
@@ -521,13 +687,7 @@ CREATE TABLE `t_sys_msg` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=91 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统消息表';
-
--- ----------------------------
--- Records of t_sys_msg
--- ----------------------------
-BEGIN;
-COMMIT;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='系统消息表';
 
 -- ----------------------------
 -- Table structure for t_sys_resource
@@ -553,7 +713,7 @@ CREATE TABLE `t_sys_resource` (
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `t_sys_resource_ui_path_IDX` (`ui_path`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=128 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='资源表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='资源表';
 
 -- ----------------------------
 -- Records of t_sys_resource
@@ -562,6 +722,8 @@ BEGIN;
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1, 0, 'Aexqq77l/', 1, 1, '首页', '/home', 10000000, '{"component":"home/Home","icon":"HomeFilled","isAffix":true,"isKeepAlive":true,"routeName":"Home"}', 1, 'admin', 1, 'admin', '2021-05-25 16:44:41', '2023-03-14 14:27:07', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(2, 0, '12sSjal1/', 1, 1, '机器管理', '/machine', 49999998, '{"icon":"Monitor","isKeepAlive":true,"redirect":"machine/list","routeName":"Machine"}', 1, 'admin', 1, 'admin', '2021-05-25 16:48:16', '2022-10-06 14:58:49', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(3, 2, '12sSjal1/lskeiql1/', 1, 1, '机器列表', 'machines', 20000000, '{"component":"ops/machine/MachineList","icon":"Monitor","isKeepAlive":true,"routeName":"MachineList"}', 2, 'admin', 1, 'admin', '2021-05-25 16:50:04', '2023-03-15 17:14:44', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1707206386, 2, 1, 1, '机器操作', 'machines-op', 1, '{"component":"ops/machine/MachineOp","icon":"Monitor","isKeepAlive":true,"routeName":"MachineOp"}', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-06 15:59:46', '2024-02-06 16:24:21', 'PDPt6217/', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1707206421, 1707206386, 2, 1, '基本权限', 'machine-op', 1707206421, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-06 16:00:22', '2024-02-06 16:00:22', 'PDPt6217/kQXTYvuM/', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(4, 0, 'Xlqig32x/', 1, 1, '系统管理', '/sys', 60000001, '{"icon":"Setting","isKeepAlive":true,"redirect":"/sys/resources","routeName":"sys"}', 1, 'admin', 1, 'admin', '2021-05-26 15:20:20', '2022-10-06 14:59:53', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(5, 4, 'Xlqig32x/UGxla231/', 1, 1, '资源管理', 'resources', 9999999, '{"component":"system/resource/ResourceList","icon":"Menu","isKeepAlive":true,"routeName":"ResourceList"}', 1, 'admin', 1, 'admin', '2021-05-26 15:23:07', '2023-03-14 15:44:34', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(11, 4, 'Xlqig32x/lxqSiae1/', 1, 1, '角色管理', 'roles', 10000001, '{"component":"system/role/RoleList","icon":"Menu","isKeepAlive":true,"routeName":"RoleList"}', 1, 'admin', 1, 'admin', '2021-05-27 11:15:35', '2023-03-14 15:44:22', 0, NULL);
@@ -599,11 +761,10 @@ INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(45, 3, '12sSjal1/lskeiql1/Ljewisd3/', 2, 1, '脚本管理-保存脚本按钮', 'machine:script:save', 120000000, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:09:01', '2021-06-08 11:09:01', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(46, 3, '12sSjal1/lskeiql1/Ljeew43/', 2, 1, '脚本管理-删除按钮', 'machine:script:del', 130000000, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:09:27', '2021-06-08 11:09:27', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(47, 3, '12sSjal1/lskeiql1/ODewix43/', 2, 1, '脚本管理-执行按钮', 'machine:script:run', 140000000, 'null', 1, 'admin', 1, 'admin', '2021-06-08 11:09:50', '2021-06-08 11:09:50', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(49, 36, 'dbms23ax/xleaiec2/', 1, 1, '数据库管理', 'dbs', 20000000, '{"component":"ops/db/DbList","icon":"Coin","isKeepAlive":true,"routeName":"DbList"}', 1, 'admin', 1, 'admin', '2021-07-07 15:13:55', '2023-03-15 17:31:28', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(54, 49, 'dbms23ax/xleaiec2/leix3Axl/', 2, 1, '数据库保存', 'db:save', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:30:36', '2021-07-08 17:31:05', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(55, 49, 'dbms23ax/xleaiec2/ygjL3sxA/', 2, 1, '数据库删除', 'db:del', 20000000, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:30:48', '2021-07-08 17:30:48', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(54, 135, 'dbms23ax/X0f4BxT0/leix3Axl/', 2, 1, '数据库保存', 'db:save', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:30:36', '2021-07-08 17:31:05', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(55, 135, 'dbms23ax/X0f4BxT0/ygjL3sxA/', 2, 1, '数据库删除', 'db:del', 20000000, 'null', 1, 'admin', 1, 'admin', '2021-07-08 17:30:48', '2021-07-08 17:30:48', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(57, 3, '12sSjal1/lskeiql1/OJewex43/', 2, 1, '基本权限', 'machine', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-09 10:48:02', '2021-07-09 10:48:02', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(58, 49, 'dbms23ax/xleaiec2/AceXe321/', 2, 1, '基本权限', 'db', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-09 10:48:22', '2021-07-09 10:48:22', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(58, 135, 'dbms23ax/X0f4BxT0/AceXe321/', 2, 1, '数据库基本权限', 'db', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-09 10:48:22', '2021-07-09 10:48:22', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(59, 38, 'dbms23ax/exaeca2x/ealcia23/', 2, 1, '基本权限', 'db:exec', 10000000, 'null', 1, 'admin', 1, 'admin', '2021-07-09 10:50:13', '2021-07-09 10:50:13', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(60, 0, 'RedisXq4/', 1, 1, 'Redis', '/redis', 50000001, '{"icon":"iconfont icon-redis","isKeepAlive":true,"routeName":"RDS"}', 1, 'admin', 1, 'admin', '2021-07-19 20:15:41', '2023-03-15 16:44:59', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(61, 60, 'RedisXq4/Exitx4al/', 1, 1, '数据操作', 'data-operation', 10000000, '{"component":"ops/redis/DataOperation","icon":"iconfont icon-redis","isKeepAlive":true,"routeName":"DataOperation"}', 1, 'admin', 1, 'admin', '2021-07-19 20:17:29', '2023-03-15 16:37:50', 0, NULL);
@@ -631,22 +792,47 @@ INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(100, 95, 'Tag3fhad/Bjlag32x/Lgidsq32/', 2, 1, '新增团队成员', 'team:member:save', 30000000, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:27', '2022-10-26 13:59:27', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(101, 95, 'Tag3fhad/Bjlag32x/Lixaue3G/', 2, 1, '移除团队成员', 'team:member:del', 40000000, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:43', '2022-10-26 13:59:43', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(102, 95, 'Tag3fhad/Bjlag32x/Oygsq3xg/', 2, 1, '保存团队标签', 'team:tag:save', 50000000, 'null', 1, 'admin', 1, 'admin', '2022-10-26 13:59:57', '2022-10-26 13:59:57', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(103, 2, '12sSjal1/exahgl32/', 1, 1, '授权凭证', 'authcerts', 60000000, '{"component":"ops/machine/authcert/AuthCertList","icon":"Unlock","isKeepAlive":true,"routeName":"AuthCertList"}', 1, 'admin', 1, 'admin', '2023-02-23 11:36:26', '2023-03-14 14:33:28', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(104, 103, '12sSjal1/exahgl32/egxahg24/', 2, 1, '基本权限', 'authcert', 10000000, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:37:24', '2023-02-23 11:37:24', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(105, 103, '12sSjal1/exahgl32/yglxahg2/', 2, 1, '保存权限', 'authcert:save', 20000000, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:37:54', '2023-02-23 11:37:54', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(106, 103, '12sSjal1/exahgl32/Glxag234/', 2, 1, '删除权限', 'authcert:del', 30000000, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:38:09', '2023-02-23 11:38:09', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES (103, 93, 1, 1, '授权凭证', 'authcerts', 19999999, '{\"component\":\"ops/tag/AuthCertList\",\"icon\":\"Ticket\",\"isKeepAlive\":true,\"routeName\":\"AuthCertList\"}', 1, 'admin', 1, 'admin', '2023-02-23 11:36:26', '2023-03-14 14:33:28', 'Tag3fhad/exahgl32/', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES (104, 103, 2, 1, '基本权限', 'authcert', 10000000, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:37:24', '2023-02-23 11:37:24', 'Tag3fhad/exahgl32/egxahg24/', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES (105, 103, 2, 1, '保存权限', 'authcert:save', 20000000, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:37:54', '2023-02-23 11:37:54', 'Tag3fhad/exahgl32/yglxahg2/', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES (106, 103, 2, 1, '删除权限', 'authcert:del', 30000000, 'null', 1, 'admin', 1, 'admin', '2023-02-23 11:38:09', '2023-02-23 11:38:09', 'Tag3fhad/exahgl32/Glxag234/', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(108, 61, 'RedisXq4/Exitx4al/Gxlagheg/', 2, 1, '数据删除', 'redis:data:del', 30000000, 'null', 1, 'admin', 1, 'admin', '2023-03-14 17:20:00', '2023-03-14 17:20:00', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(109, 3, '12sSjal1/lskeiql1/KMdsix43/', 2, 1, '关闭连接', 'machine:close-cli', 60000000, 'null', 1, 'admin', 1, 'admin', '2023-03-16 16:11:04', '2023-03-16 16:11:04', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(128, 87, 'Xlqig32x/Ulxaee23/MoOWr2N0/', 2, 1, '配置保存', 'config:save', 1687315135, 'null', 1, 'admin', 1, 'admin', '2023-06-21 10:38:55', '2023-06-21 10:38:55', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(132, 130, '12sSjal1/W9XKiabq/zxXM23i0/', 2, 1, '删除计划任务', 'machine:cronjob:del', 1689860102, 'null', 1, 'admin', 1, 'admin', '2023-07-20 21:35:02', '2023-07-20 21:35:02', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(131, 130, '12sSjal1/W9XKiabq/gEOqr2pD/', 2, 1, '保存计划任务', 'machine:cronjob:save', 1689860087, 'null', 1, 'admin', 1, 'admin', '2023-07-20 21:34:47', '2023-07-20 21:34:47', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(130, 2, '12sSjal1/W9XKiabq/', 1, 1, '计划任务', '/machine/cron-job', 1689646396, '{"component":"ops/machine/cronjob/CronJobList","icon":"AlarmClock","isKeepAlive":true,"routeName":"CronJobList"}', 1, 'admin', 1, 'admin', '2023-07-18 10:13:16', '2023-07-18 10:14:06', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(134, 80, 'Mongo452/eggago31/3sblw1Wb/', 2, 1, '删除数据', 'mongo:data:del', 1692674964, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:24', '2023-08-22 11:29:24', 0, NULL);
-INSERT INTO t_sys_resource (id, pid, ui_path, type, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(133, 80, 'Mongo452/eggago31/xvpKk36u/', 2, 1, '保存数据', 'mongo:data:save', 1692674943, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:04', '2023-08-22 11:29:11', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(134, 80, 'Mongo452/eggago31/3sblw1Wb/', 2, 1, '删除数据', 'mongo:data:del', 1692674964, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:24', '2023-08-22 11:29:24', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(133, 80, 'Mongo452/eggago31/xvpKk36u/', 2, 1, '保存数据', 'mongo:data:save', 1692674943, 'null', 1, 'admin', 1, 'admin', '2023-08-22 11:29:04', '2023-08-22 11:29:11', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (135, 36, 'dbms23ax/X0f4BxT0/', 1, 1, '数据库实例', 'instances', 1693040706, '{\"component\":\"ops/db/InstanceList\",\"icon\":\"Coin\",\"isKeepAlive\":true,\"routeName\":\"InstanceList\"}', 1, 'admin', 1, 'admin', '2023-08-26 09:05:07', '2023-08-29 22:35:11', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (136, 135, 'dbms23ax/X0f4BxT0/D23fUiBr/', 2, 1, '实例保存', 'db:instance:save', 1693041001, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:10:02', '2023-08-26 09:10:02', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (137, 135, 'dbms23ax/X0f4BxT0/mJlBeTCs/', 2, 1, '基本权限', 'db:instance', 1693041055, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:10:55', '2023-08-26 09:10:55', 0, NULL);
 INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES (138, 135, 'dbms23ax/X0f4BxT0/Sgg8uPwz/', 2, 1, '实例删除', 'db:instance:del', 1693041084, 'null', 1, 'admin', 1, 'admin', '2023-08-26 09:11:24', '2023-08-26 09:11:24', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(155, 150, 'Jra0n7De/PigmSGVg/', 2, 1, '日志', 'db:sync:log', 1704266866, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-01-03 15:27:47', '2024-01-03 15:27:47', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(154, 150, 'Jra0n7De/VBt68CDx/', 2, 1, '启停', 'db:sync:status', 1703641364, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:42:45', '2023-12-27 09:42:45', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(153, 150, 'Jra0n7De/pLOA2UYz/', 2, 1, '删除', 'db:sync:del', 1703641342, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:42:22', '2023-12-27 09:42:22', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(152, 150, 'Jra0n7De/zvAMo2vk/', 2, 1, '编辑', 'db:sync:save', 1703641320, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:42:00', '2023-12-27 09:42:12', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(151, 150, 'Jra0n7De/uAnHZxEV/', 2, 1, '基本权限', 'db:sync', 1703641202, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-27 09:40:02', '2023-12-27 09:40:02', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(150, 36, 'Jra0n7De/', 1, 1, '数据同步', 'sync', 1693040707, '{"component":"ops/db/SyncTaskList","icon":"Coin","isKeepAlive":true,"routeName":"SyncTaskList"}', 12, 'liuzongyang', 12, 'liuzongyang', '2023-12-22 09:51:34', '2023-12-27 10:16:57', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(160, 135, 'dbms23ax/X0f4BxT0/3NUXQFIO/', 2, 1, '数据库备份', 'db:backup', 1705973876, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:37:56', '2024-01-23 09:37:56', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(161, 135, 'dbms23ax/X0f4BxT0/ghErkTdb/', 2, 1, '数据库恢复', 'db:restore', 1705973909, 'null', 1, 'admin', 1, 'admin', '2024-01-23 09:38:29', '2024-01-23 09:38:29', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1709208354, 1708911264, '6egfEVYr/fw0Hhvye/b4cNf3iq/', 2, 1, '删除流程', 'flow:procdef:del', 1709208354, 'null', 1, 'admin', 1, 'admin', '2024-02-29 20:05:54', '2024-02-29 20:05:54', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1709208339, 1708911264, '6egfEVYr/fw0Hhvye/r9ZMTHqC/', 2, 1, '保存流程', 'flow:procdef:save', 1709208339, 'null', 1, 'admin', 1, 'admin', '2024-02-29 20:05:40', '2024-02-29 20:05:40', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1709103180, 1708910975, '6egfEVYr/oNCIbynR/', 1, 1, '我的流程', 'procinsts', 1708911263, '{"component":"flow/ProcinstList","icon":"Tickets","isKeepAlive":true,"routeName":"ProcinstList"}', 1, 'admin', 1, 'admin', '2024-02-28 14:53:00', '2024-02-29 20:36:07', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1709045735, 1708910975, '6egfEVYr/3r3hHEub/', 1, 1, '我的任务', 'procinst-tasks', 1708911263, '{"component":"flow/ProcinstTaskList","icon":"Tickets","isKeepAlive":true,"routeName":"ProcinstTaskList"}', 1, 'admin', 1, 'admin', '2024-02-27 22:55:35', '2024-02-27 22:56:35', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1708911264, 1708910975, '6egfEVYr/fw0Hhvye/', 1, 1, '流程定义', 'procdefs', 1708911264, '{"component":"flow/ProcdefList","icon":"List","isKeepAlive":true,"routeName":"ProcdefList"}', 1, 'admin', 1, 'admin', '2024-02-26 09:34:24', '2024-02-27 22:54:32', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1708910975, 0, '6egfEVYr/', 1, 1, '工单流程', '/flow', 60000000, '{"icon":"List","isKeepAlive":true,"routeName":"flow"}', 1, 'admin', 1, 'admin', '2024-02-26 09:29:36', '2024-02-26 15:37:52', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1712717290, 0, 'tLb8TKLB/', 1, 1, '无页面权限', 'empty', 1712717290, '{"component":"empty","icon":"Menu","isHide":true,"isKeepAlive":true,"routeName":"empty"}', 1, 'admin', 1, 'admin', '2024-04-10 10:48:10', '2024-04-10 10:48:10', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1712717337, 1712717290, 'tLb8TKLB/m2abQkA8/', 2, 1, '授权凭证密文查看', 'authcert:showciphertext', 1712717337, 'null', 1, 'admin', 1, 'admin', '2024-04-10 10:48:58', '2024-04-10 10:48:58', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709194669, 36, 1, 1, '数据库迁移', 'transfer', 1709194669, '{"component":"ops/db/DbTransferList","icon":"Switch","isKeepAlive":true,"routeName":"DbTransferList"}', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:17:50', '2024-02-29 16:24:59', 'SmLcpu6c/', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709194694, 1709194669, 2, 1, '基本权限', 'db:transfer', 1709194694, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:18:14', '2024-02-29 16:18:14', 'SmLcpu6c/A9vAm4J8/', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709196697, 1709194669, 2, 1, '编辑', 'db:transfer:save', 1709196697, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:51:37', '2024-02-29 16:51:37', 'SmLcpu6c/5oJwPzNb/', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709196707, 1709194669, 2, 1, '删除', 'db:transfer:del', 1709196707, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:51:47', '2024-02-29 16:51:47', 'SmLcpu6c/L3ybnAEW/', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709196723, 1709194669, 2, 1, '启停', 'db:transfer:status', 1709196723, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:52:04', '2024-02-29 16:52:04', 'SmLcpu6c/hGiLN1VT/', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709196737, 1709194669, 2, 1, '日志', 'db:transfer:log', 1709196737, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:52:17', '2024-02-29 16:52:17', 'SmLcpu6c/CZhNIbWg/', 0, NULL);
+INSERT INTO `t_sys_resource` (`id`, `pid`, `type`, `status`, `name`, `code`, `weight`, `meta`, `creator_id`, `creator`, `modifier_id`, `modifier`, `create_time`, `update_time`, `ui_path`, `is_deleted`, `delete_time`) VALUES(1709196755, 1709194669, 2, 1, '运行', 'db:transfer:run', 1709196755, 'null', 12, 'liuzongyang', 12, 'liuzongyang', '2024-02-29 16:52:36', '2024-02-29 16:52:36', 'SmLcpu6c/b6yHt6V2/', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1714032002, 1713875842, '12sSjal1/UnWIUhW0/0tJwC3Gf/', 2, 1, '命令配置-删除', 'cmdconf:del', 1714032002, 'null', 1, 'admin', 1, 'admin', '2024-04-25 16:00:02', '2024-04-25 16:00:02', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1714031981, 1713875842, '12sSjal1/UnWIUhW0/tEzIKecl/', 2, 1, '命令配置-保存', 'cmdconf:save', 1714031981, 'null', 1, 'admin', 1, 'admin', '2024-04-25 15:59:41', '2024-04-25 15:59:41', 0, NULL);
+INSERT INTO t_sys_resource (id, pid, ui_path, `type`, status, name, code, weight, meta, creator_id, creator, modifier_id, modifier, create_time, update_time, is_deleted, delete_time) VALUES(1713875842, 2, '12sSjal1/UnWIUhW0/', 1, 1, '安全配置', 'security', 1713875842, '{"component":"ops/machine/security/SecurityConfList","icon":"Setting","isKeepAlive":true,"routeName":"SecurityConfList"}', 1, 'admin', 1, 'admin', '2024-04-23 20:37:22', '2024-04-23 20:37:22', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -669,14 +855,13 @@ CREATE TABLE `t_sys_role` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='角色表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='角色表';
 
 -- ----------------------------
 -- Records of t_sys_role
 -- ----------------------------
 BEGIN;
 INSERT INTO `t_sys_role` VALUES (7, '公共角色', 'COMMON', 1, '所有账号基础角色', 1, '2021-07-06 15:05:47', 1, 'admin', '2021-07-06 15:05:47', 1, 'admin', 0, NULL);
-INSERT INTO `t_sys_role` VALUES (8, '开发', 'DEV', 1, '研发人员', 0, '2021-07-09 10:46:10', 1, 'admin', '2021-07-09 10:46:10', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -693,32 +878,14 @@ CREATE TABLE `t_sys_role_resource` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=526 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='角色资源关联表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='角色资源关联表';
 
 -- ----------------------------
 -- Records of t_sys_role_resource
 -- ----------------------------
 BEGIN;
 INSERT INTO `t_sys_role_resource` (role_id,resource_id,creator_id,creator,create_time,is_deleted,delete_time) VALUES
-	 (7,1,1,'admin','2021-07-06 15:07:09', 0, NULL),
-	 (8,57,1,'admin','2021-07-09 10:49:46', 0, NULL),
-	 (8,12,1,'admin','2021-07-09 10:49:46', 0, NULL),
-	 (8,15,1,'admin','2021-07-09 10:49:46', 0, NULL),
-	 (8,38,1,'admin','2021-07-09 10:49:46', 0, NULL),
-	 (8,2,1,'admin','2021-07-09 10:49:46', 0, NULL),
-	 (8,3,1,'admin','2021-07-09 10:49:46', 0, NULL),
-	 (8,36,1,'admin','2021-07-09 10:49:46', 0, NULL),
-	 (8,59,1,'admin','2021-07-09 10:50:32', 0, NULL),
-	 (7,39,1,'admin','2021-09-09 10:10:30', 0, NULL),
-	 (8,42,1,'admin','2021-11-05 15:59:16', 0, NULL),
-	 (8,43,1,'admin','2021-11-05 15:59:16', 0, NULL),
-	 (8,47,1,'admin','2021-11-05 15:59:16', 0, NULL),
-	 (8,60,1,'admin','2021-11-05 15:59:16', 0, NULL),
-	 (8,61,1,'admin','2021-11-05 15:59:16', 0, NULL),
-	 (8,62,1,'admin','2021-11-05 15:59:16', 0, NULL),
-	 (8,80,1,'admin','2022-10-08 10:54:34', 0, NULL),
-	 (8,81,1,'admin','2022-10-08 10:54:34', 0, NULL),
-	 (8,79,1,'admin','2022-10-08 10:54:34', 0, NULL);
+	 (7,1,1,'admin','2021-07-06 15:07:09', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -727,9 +894,9 @@ COMMIT;
 DROP TABLE IF EXISTS `t_tag_tree`;
 CREATE TABLE `t_tag_tree` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `pid` bigint(20) NOT NULL DEFAULT '0',
+  `type` tinyint NOT NULL DEFAULT '-1' COMMENT '类型： -1.普通标签； 1机器  2db 3redis 4mongo',
   `code` varchar(36) NOT NULL COMMENT '标识符',
-  `code_path` varchar(255) NOT NULL COMMENT '标识符路径',
+  `code_path` varchar(800) NOT NULL COMMENT '标识符路径',
   `name` varchar(36) DEFAULT NULL COMMENT '名称',
   `remark` varchar(255) DEFAULT NULL,
   `create_time` datetime NOT NULL,
@@ -741,62 +908,40 @@ CREATE TABLE `t_tag_tree` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_code_path` (`code_path`(100)) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签树';
+  KEY `idx_code_path` (`code_path`(200)) USING BTREE,
+  KEY `idx_code` (`code`(32)) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签树';
 
 -- ----------------------------
 -- Records of t_tag_tree
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_tag_tree` VALUES (33, 0, 'default', 'default/', '默认', '默认标签', '2022-10-26 20:04:19', 1, 'admin', '2022-10-26 20:04:19', 1, 'admin', 0, NULL);
+INSERT INTO `t_tag_tree` VALUES (1, -1, 'default', 'default/', '默认', '默认标签', '2022-10-26 20:04:19', 1, 'admin', '2022-10-26 20:04:19', 1, 'admin', 0, NULL);
 COMMIT;
 
--- ----------------------------
--- Table structure for t_tag_tree_team
--- ----------------------------
-DROP TABLE IF EXISTS `t_tag_tree_team`;
-CREATE TABLE `t_tag_tree_team` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `tag_id` bigint(20) NOT NULL COMMENT '项目树id',
-  `tag_path` varchar(255) DEFAULT NULL,
-  `team_id` bigint(20) NOT NULL COMMENT '团队id',
+DROP TABLE IF EXISTS `t_tag_tree_relate`;
+CREATE TABLE `t_tag_tree_relate` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `tag_id` bigint NOT NULL COMMENT '标签树id',
+  `relate_id` bigint NOT NULL COMMENT '关联',
+  `relate_type` tinyint NOT NULL COMMENT '关联类型',
   `create_time` datetime NOT NULL,
-  `creator_id` bigint(20) NOT NULL,
-  `creator` varchar(36) NOT NULL,
+  `creator_id` bigint NOT NULL,
+  `creator` varchar(36) COLLATE utf8mb4_bin NOT NULL,
   `update_time` datetime NOT NULL,
-  `modifier_id` bigint(20) NOT NULL,
-  `modifier` varchar(36) NOT NULL,
-  `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
+  `modifier_id` bigint NOT NULL,
+  `modifier` varchar(36) COLLATE utf8mb4_bin NOT NULL,
+  `is_deleted` tinyint NOT NULL DEFAULT '0',
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_tag_id` (`tag_id`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=32 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签树团队关联信息';
-
-DROP TABLE IF EXISTS `t_tag_resource`;
-CREATE TABLE `t_tag_resource` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `tag_id` bigint NOT NULL,
-  `tag_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '标签路径',
-  `resource_code` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '资源编码',
-  `resource_type` tinyint NOT NULL COMMENT '资源类型',
-  `create_time` datetime NOT NULL,
-  `creator_id` bigint NOT NULL,
-  `creator` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-  `update_time` datetime NOT NULL,
-  `modifier_id` bigint NOT NULL,
-  `modifier` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-  `is_deleted` tinyint DEFAULT '0',
-  `delete_time` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_tag_path` (`tag_path`(100)) USING BTREE,
-  KEY `idx_resource_code` (`resource_code`) USING BTREE
-) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='标签资源关联表';
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='与标签树有关联关系的表';
 
 -- ----------------------------
--- Records of t_tag_tree_team
+-- Records of t_tag_tree_relate
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_tag_tree_team` VALUES (31, 33, 'default/', 3, '2022-10-26 20:04:45', 1, 'admin', '2022-10-26 20:04:45', 1, 'admin', 0, NULL);
+INSERT INTO `t_tag_tree_relate` VALUES (1, 1, 1, 1, '2022-10-26 20:04:45', 1, 'admin', '2022-10-26 20:04:45', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -806,6 +951,8 @@ DROP TABLE IF EXISTS `t_team`;
 CREATE TABLE `t_team` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(36) NOT NULL COMMENT '名称',
+  `validity_start_date` datetime DEFAULT NULL COMMENT '生效开始时间',
+  `validity_end_date` datetime DEFAULT NULL COMMENT '生效结束时间',
   `remark` varchar(255) DEFAULT NULL COMMENT '备注',
   `create_time` datetime NOT NULL,
   `creator_id` bigint(20) NOT NULL,
@@ -816,13 +963,13 @@ CREATE TABLE `t_team` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='团队信息';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='团队信息';
 
 -- ----------------------------
 -- Records of t_team
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_team` VALUES (3, '默认团队', '默认团队', '2022-10-26 20:04:36', 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', 0, NULL);
+INSERT INTO `t_team` VALUES (1, 'default_team', '2024-05-01 00:00:00', '2050-05-01 00:00:00', '默认团队', '2022-10-26 20:04:36', 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', 0, NULL);
 COMMIT;
 
 -- ----------------------------
@@ -843,13 +990,124 @@ CREATE TABLE `t_team_member` (
   `is_deleted` tinyint(8) NOT NULL DEFAULT 0,
   `delete_time` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='团队成员表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='团队成员表';
 
 -- ----------------------------
 -- Records of t_team_member
 -- ----------------------------
 BEGIN;
-INSERT INTO `t_team_member` VALUES (7, 3, 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', 0, NULL);
+INSERT INTO `t_team_member` VALUES (1, 1, 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', '2022-10-26 20:04:36', 1, 'admin', 0, NULL);
 COMMIT;
+
+DROP TABLE IF EXISTS `t_resource_auth_cert`;
+-- 资源授权凭证
+CREATE TABLE `t_resource_auth_cert` (
+    `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+    `name` varchar(100) DEFAULT NULL COMMENT '账号名称',
+    `resource_code` varchar(36) DEFAULT NULL COMMENT '资源编码',
+    `resource_type` tinyint NOT NULL COMMENT '资源类型',
+    `type` tinyint DEFAULT NULL COMMENT '凭证类型',
+    `username` varchar(100) DEFAULT NULL COMMENT '用户名',
+    `ciphertext` varchar(5000) DEFAULT NULL COMMENT '密文内容',
+    `ciphertext_type` tinyint NOT NULL COMMENT '密文类型（-1.公共授权凭证 1.密码 2.秘钥）',
+    `extra` varchar(200) DEFAULT NULL COMMENT '账号需要的其他额外信息（如秘钥口令等）',
+    `remark` varchar(50) DEFAULT NULL COMMENT '备注',
+    `create_time` datetime NOT NULL,
+    `creator_id` bigint NOT NULL,
+    `creator` varchar(36) NOT NULL,
+    `update_time` datetime NOT NULL,
+    `modifier_id` bigint NOT NULL,
+    `modifier` varchar(36) NOT NULL,
+    `is_deleted` tinyint DEFAULT '0',
+    `delete_time` datetime DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_resource_code` (`resource_code`) USING BTREE,
+    KEY `idx_name` (`name`) USING BTREE
+) COMMENT='资源授权凭证表';
+
+DROP TABLE IF EXISTS `t_resource_op_log`;
+CREATE TABLE `t_resource_op_log` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `code_path` varchar(600) NOT NULL COMMENT '资源标签路径',
+  `resource_code` varchar(32) NOT NULL COMMENT '资源编号',
+  `resource_type` tinyint NOT NULL COMMENT '资源类型',
+  `create_time` datetime NOT NULL,
+  `creator_id` bigint NOT NULL,
+  `creator` varchar(36) NOT NULL,
+  `is_deleted` tinyint NOT NULL DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_resource_code` (`resource_code`) USING BTREE
+) ENGINE=InnoDB COMMENT='资源操作记录';
+
+DROP TABLE IF EXISTS `t_flow_procdef`;
+-- 工单流程相关表
+CREATE TABLE `t_flow_procdef` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `def_key` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '流程定义key',
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '流程名称',
+  `status` tinyint DEFAULT NULL COMMENT '状态',
+  `tasks` varchar(3000) COLLATE utf8mb4_bin NOT NULL COMMENT '审批节点任务信息',
+  `remark` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `create_time` datetime NOT NULL,
+  `creator` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `creator_id` bigint NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `modifier_id` bigint NOT NULL,
+  `is_deleted` tinyint DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='流程-流程定义';
+
+DROP TABLE IF EXISTS `t_flow_procinst`;
+CREATE TABLE `t_flow_procinst` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `procdef_id` bigint NOT NULL COMMENT '流程定义id',
+  `procdef_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '流程定义名称',
+  `task_key` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '当前任务key',
+  `status` tinyint DEFAULT NULL COMMENT '状态',
+  `biz_type` varchar(64) COLLATE utf8mb4_bin NOT NULL COMMENT '关联业务类型',
+  `biz_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '关联业务key',
+  `biz_form` text  DEFAULT NULL COMMENT '业务form',
+  `biz_status` tinyint DEFAULT NULL COMMENT '业务状态',
+  `biz_handle_res` varchar(1000) COLLATE utf8mb4_bin DEFAULT NULL COMMENT '关联的业务处理结果',
+  `remark` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `end_time` datetime DEFAULT NULL COMMENT '结束时间',
+  `duration` bigint DEFAULT NULL COMMENT '流程持续时间（开始到结束）',
+  `create_time` datetime NOT NULL COMMENT '流程发起时间',
+  `creator` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '流程发起人',
+  `creator_id` bigint NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `modifier_id` bigint NOT NULL,
+  `is_deleted` tinyint DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_procdef_id` (`procdef_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='流程-流程实例(根据流程定义开启一个流程)';
+
+DROP TABLE IF EXISTS `t_flow_procinst_task`;
+CREATE TABLE `t_flow_procinst_task` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `procinst_id` bigint NOT NULL COMMENT '流程实例id',
+  `task_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '任务key',
+  `task_name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '任务名称',
+  `assignee` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '分配到该任务的用户',
+  `status` tinyint DEFAULT NULL COMMENT '状态',
+  `remark` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `end_time` datetime DEFAULT NULL COMMENT '结束时间',
+  `duration` bigint DEFAULT NULL COMMENT '任务持续时间（开始到结束）',
+  `create_time` datetime NOT NULL COMMENT '任务开始时间',
+  `creator` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `creator_id` bigint NOT NULL,
+  `update_time` datetime NOT NULL,
+  `modifier` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  `modifier_id` bigint NOT NULL,
+  `is_deleted` tinyint DEFAULT '0',
+  `delete_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_procinst_id` (`procinst_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='流程-流程实例任务';
 
 SET FOREIGN_KEY_CHECKS = 1;

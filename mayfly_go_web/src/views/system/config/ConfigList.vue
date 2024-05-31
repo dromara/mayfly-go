@@ -1,6 +1,6 @@
 <template>
     <div>
-        <page-table ref="pageTableRef" :page-api="configApi.list" v-model:selection-data="selectionData" :columns="columns">
+        <page-table ref="pageTableRef" :search-items="searchItems" :page-api="configApi.list" :columns="columns" v-model:query-form="query">
             <template #tableHeader>
                 <el-button v-auth="perms.saveConfig" type="primary" icon="plus" @click="editConfig(false)">添加</el-button>
             </template>
@@ -51,10 +51,14 @@ import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { hasPerms } from '@/components/auth/auth';
 import { DynamicForm } from '@/components/dynamic-form';
+import { SearchItem } from '@/components/SearchForm';
 
 const perms = {
     saveConfig: 'config:save',
 };
+
+const searchItems = [SearchItem.input('key', '配置key')];
+
 const columns = ref([
     TableColumn.new('name', '配置项'),
     TableColumn.new('key', '配置key'),
@@ -89,7 +93,7 @@ const state = reactive({
     },
 });
 
-const { selectionData, paramsDialog, configEdit } = toRefs(state);
+const { query, paramsDialog, configEdit } = toRefs(state);
 
 onMounted(() => {
     if (Object.keys(actionBtns).length > 0) {

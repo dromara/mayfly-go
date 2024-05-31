@@ -1,9 +1,21 @@
 import { DbInst } from '../db';
-import { commonCustomKeywords, DataType, DbDialect, DialectInfo, EditorCompletion, EditorCompletionItem, IndexDefinition, RowDefinition } from './index';
+import {
+    commonCustomKeywords,
+    DataType,
+    DbDialect,
+    DialectInfo,
+    DuplicateStrategy,
+    EditorCompletion,
+    EditorCompletionItem,
+    QuoteEscape,
+    IndexDefinition,
+    RowDefinition,
+} from './index';
 import { language as mysqlLanguage } from 'monaco-editor/esm/vs/basic-languages/mysql/mysql.js';
 
 export { MYSQL_TYPE_LIST, MysqlDialect };
 
+// 参考官方文档：https://dev.mysql.com/doc/refman/8.0/en/data-types.html
 const MYSQL_TYPE_LIST = [
     'bigint',
     'binary',
@@ -31,6 +43,7 @@ const MYSQL_TYPE_LIST = [
     'varchar',
 ];
 
+// 参考官方文档：https://dev.mysql.com/doc/refman/8.3/en/functions.html
 const replaceFunctions: EditorCompletionItem[] = [
     /**  字符串相关函数  */
     { label: 'CONCAT', insertText: 'CONCAT(str1,str2,...)', description: '多字符串合并' },
@@ -102,6 +115,7 @@ class MysqlDialect implements DbDialect {
         };
 
         mysqlDialectInfo = {
+            name: 'MySQL',
             icon: 'iconfont icon-op-mysql',
             defaultPort: 3306,
             formatSqlDialect: 'mysql',
@@ -111,10 +125,15 @@ class MysqlDialect implements DbDialect {
         return mysqlDialectInfo;
     }
 
-    getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
-        return `SELECT * FROM ${this.wrapName(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} LIMIT ${
-            (pageNum - 1) * limit
-        }, ${limit};`;
+    getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number) {
+        return `SELECT * FROM ${this.quoteIdentifier(table)} ${condition ? 'WHERE ' + condition : ''} ${orderBy ? orderBy : ''} ${this.getPageSql(
+            pageNum,
+            limit
+        )};`;
+    }
+
+    getPageSql(pageNum: number, limit: number) {
+        return ` LIMIT ${(pageNum - 1) * limit}, ${limit}`;
     }
 
     getDefaultRows(): RowDefinition[] {
@@ -179,7 +198,7 @@ class MysqlDialect implements DbDialect {
         };
     }
 
-    wrapName = (name: string) => {
+    quoteIdentifier = (name: string) => {
         return `\`${name}\``;
     };
 
@@ -188,9 +207,9 @@ class MysqlDialect implements DbDialect {
         let defVal = val ? `DEFAULT ${val}` : '';
         let length = cl.length ? `(${cl.length})` : '';
         let onUpdate = 'update_time' === cl.name ? ' ON UPDATE CURRENT_TIMESTAMP ' : '';
-        return ` ${cl.name} ${cl.type}${length} ${cl.notNull ? 'NOT NULL' : 'NULL'} ${
+        return ` ${this.quoteIdentifier(cl.name)} ${cl.type}${length} ${cl.notNull ? 'NOT NULL' : 'NULL'} ${
             cl.auto_increment ? 'AUTO_INCREMENT' : ''
-        } ${defVal} ${onUpdate} comment '${cl.remark || ''}' `;
+        } ${defVal} ${onUpdate} comment '${QuoteEscape(cl.remark)}' `;
     }
     getCreateTableSql(data: any): string {
         // 创建表结构
@@ -206,50 +225,50 @@ class MysqlDialect implements DbDialect {
         return `CREATE TABLE ${data.tableName}
                   ( ${fields.join(',')}
                       ${pks ? `, PRIMARY KEY (${pks.join(',')})` : ''}
-                  ) COMMENT='${data.tableComment}';`;
+                  ) COMMENT='${QuoteEscape(data.tableComment)}';`;
     }
 
     getCreateIndexSql(data: any): string {
         // 创建索引
         let sql = `ALTER TABLE ${data.tableName}`;
         data.indexs.res.forEach((a: any) => {
-            sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${a.indexComment}',`;
+            sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${QuoteEscape(a.indexComment)}',`;
         });
         return sql.substring(0, sql.length - 1) + ';';
     }
 
-    getModifyColumnSql(tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
-        let addSql = '',
-            updSql = '',
-            delSql = '';
-        if (changeData.add.length > 0) {
-            addSql = `ALTER TABLE ${tableName}`;
-            changeData.add.forEach((a) => {
-                addSql += ` ADD ${this.genColumnBasicSql(a)},`;
+    getModifyColumnSql(tableData: any, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string {
+        let arr = [] as string[];
+        if (changeData.del.length > 0) {
+            changeData.del.forEach((a) => {
+                arr.push(` DROP COLUMN  ${this.quoteIdentifier(a.name)} `);
             });
-            addSql = addSql.substring(0, addSql.length - 1);
-            addSql += ';';
+        }
+        if (changeData.add.length > 0) {
+            changeData.add.forEach((a) => {
+                arr.push(` ADD COLUMN ${this.genColumnBasicSql(a)} `);
+            });
         }
 
         if (changeData.upd.length > 0) {
-            updSql = `ALTER TABLE ${tableName}`;
-            let arr = [] as string[];
             changeData.upd.forEach((a) => {
-                arr.push(` MODIFY ${this.genColumnBasicSql(a)}`);
+                if (a.name === a.oldName) {
+                    arr.push(` MODIFY COLUMN ${this.genColumnBasicSql(a)} `);
+                } else {
+                    arr.push(` CHANGE COLUMN ${this.quoteIdentifier(a.oldName!)} ${this.genColumnBasicSql(a)} `);
+                }
             });
-            updSql += arr.join(',');
-            updSql += ';';
         }
 
-        if (changeData.del.length > 0) {
-            changeData.del.forEach((a) => {
-                delSql += ` ALTER TABLE ${tableName} DROP COLUMN ${a.name}; `;
-            });
+        if (arr.length > 0) {
+            let sql = `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableName)}`;
+            return sql + arr.join(',') + ';';
         }
-        return addSql + updSql + delSql;
+
+        return '';
     }
 
-    getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
+    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string {
         // 搜集修改和删除的索引，添加到drop index xx
         // 收集新增和修改的索引，添加到ADD xx
         // ALTER TABLE `test1`
@@ -294,15 +313,27 @@ class MysqlDialect implements DbDialect {
                     sql += ',';
                 }
                 addIndexs.forEach((a) => {
-                    sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${
+                    sql += ` ADD ${a.unique ? 'UNIQUE' : ''} INDEX ${a.indexName}(${a.columnNames.join(',')}) USING ${a.indexType} COMMENT '${QuoteEscape(
                         a.indexComment
-                    }',`;
+                    )}',`;
                 });
                 sql = sql.substring(0, sql.length - 1);
             }
             return sql;
         }
         return '';
+    }
+
+    getModifyTableInfoSql(tableData: any): string {
+        let sql = '';
+        if (tableData.tableComment !== tableData.oldTableComment) {
+            sql += `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableData.oldTableName)} COMMENT '${QuoteEscape(tableData.tableComment)}';`;
+        }
+
+        if (tableData.tableName !== tableData.oldTableName) {
+            sql += `ALTER TABLE ${this.quoteIdentifier(tableData.db)}.${this.quoteIdentifier(tableData.oldTableName)} RENAME TO ${this.quoteIdentifier(tableData.tableName)};`;
+        }
+        return sql;
     }
 
     getDataType(columnType: string): DataType {
@@ -322,5 +353,28 @@ class MysqlDialect implements DbDialect {
             return DataType.Time;
         }
         return DataType.String;
+    }
+
+    wrapValue(columnType: string, value: any): any {
+        if (value == null) {
+            return 'NULL';
+        }
+        if (DbInst.isNumber(columnType)) {
+            return value;
+        }
+        // 转义所有的换行符
+        value = value.replace(/[\r\n]/g, '\\n');
+        return `'${value}'`;
+    }
+
+    getBatchInsertPreviewSql(tableName: string, fieldArr: string[], duplicateStrategy: number): string {
+        let placeholder = '?'.repeat(fieldArr.length).split('').join(',');
+        let prefix = 'insert into';
+        if (duplicateStrategy === DuplicateStrategy.IGNORE) {
+            prefix = 'insert ignore into';
+        } else if (duplicateStrategy === DuplicateStrategy.REPLACE) {
+            prefix = 'replace into';
+        }
+        return `${prefix} ${this.quoteIdentifier(tableName)}(${fieldArr.join(',')}) values (${placeholder});`;
     }
 }

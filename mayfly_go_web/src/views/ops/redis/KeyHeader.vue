@@ -46,13 +46,13 @@
 import { reactive, watch, toRefs, onMounted } from 'vue';
 import { redisApi } from './api';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { formatTime } from '@/common/utils/format';
+import { RedisInst } from './redis';
 
 const props = defineProps({
-    redisId: {
-        type: Number,
-    },
-    db: {
-        type: Number,
+    redis: {
+        type: RedisInst,
+        required: true,
     },
     keyInfo: {
         type: [Object],
@@ -62,7 +62,6 @@ const props = defineProps({
 const emit = defineEmits(['refreshContent', 'delKey', 'changeKey']);
 
 const state = reactive({
-    redisId: 0,
     keyInfo: {
         key: '',
         type: '',
@@ -84,8 +83,8 @@ onMounted(() => {
 
 const refreshKey = async () => {
     const ttl = await redisApi.keyTtl.request({
-        id: props.redisId,
-        db: props.db,
+        id: props.redis.id,
+        db: props.redis.db,
         key: state.oldKey,
     });
     state.keyInfo.timed = ttl;
@@ -100,12 +99,8 @@ const renameKey = async () => {
     if (!state.oldKey || state.ki.key == state.oldKey) {
         return;
     }
-    await redisApi.renameKey.request({
-        id: props.redisId,
-        db: props.db,
-        newKey: state.ki.key,
-        key: state.oldKey,
-    });
+    // RENAME key newkey
+    await props.redis.runCmd(['RENAME', state.oldKey, state.ki.key]);
     ElMessage.success('设置成功');
     emit('changeKey');
 };
@@ -130,22 +125,15 @@ const ttlKey = async () => {
         return;
     }
 
-    await redisApi.expireKey.request({
-        id: props.redisId,
-        db: props.db,
-        key: state.ki.key,
-        seconds: state.ki.timed,
-    });
+    // EXPIRE key seconds [NX | XX | GT | LT]
+    await props.redis.runCmd(['EXPIRE', state.ki.key, state.ki.timed]);
     ElMessage.success('设置成功');
     emit('changeKey');
 };
 
 const persistKey = async () => {
-    await redisApi.persistKey.request({
-        id: props.redisId,
-        db: props.db,
-        key: state.keyInfo.key,
-    });
+    // PERSIST key
+    await props.redis.runCmd(['PERSIST', state.keyInfo.key]);
     ElMessage.success('设置成功');
     emit('changeKey');
 };
@@ -174,33 +162,7 @@ const ttlConveter = (ttl: any) => {
     if (!ttl) {
         ttl = 0;
     }
-    let second = parseInt(ttl); // 秒
-    let min = 0; // 分
-    let hour = 0; // 小时
-    let day = 0;
-    if (second > 60) {
-        min = parseInt(second / 60 + '');
-        second = second % 60;
-        if (min > 60) {
-            hour = parseInt(min / 60 + '');
-            min = min % 60;
-            if (hour > 24) {
-                day = parseInt(hour / 24 + '');
-                hour = hour % 24;
-            }
-        }
-    }
-    let result = '' + second + 's';
-    if (min > 0) {
-        result = '' + min + 'm:' + result;
-    }
-    if (hour > 0) {
-        result = '' + hour + 'h:' + result;
-    }
-    if (day > 0) {
-        result = '' + day + 'd:' + result;
-    }
-    return result;
+    return formatTime(ttl);
 };
 </script>
 <style lang="scss">

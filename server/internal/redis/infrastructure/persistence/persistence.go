@@ -1,11 +1,9 @@
 package persistence
 
-import "mayfly-go/internal/redis/domain/repository"
-
-var (
-	redisRepo repository.Redis = newRedisRepo()
+import (
+	"mayfly-go/pkg/ioc"
 )
 
-func GetRedisRepo() repository.Redis {
-	return redisRepo
+func InitIoc() {
+	ioc.Register(newRedisRepo(), ioc.WithComponentName("RedisRepo"))
 }

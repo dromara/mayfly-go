@@ -41,7 +41,14 @@ class SysSocket {
         const sysMsgUrl = `${Config.baseWsUrl}/sysmsg?${joinClientParams()}`;
         this.socket = SocketBuilder.builder(sysMsgUrl)
             .message((event: { data: string }) => {
-                const message = JSON.parse(event.data);
+                let message;
+                try {
+                    message = JSON.parse(event.data);
+                } catch (e) {
+                    console.error('解析ws消息失败', e);
+                    return;
+                }
+
                 // 存在消息类别对应的处理器，则进行处理，否则进行默认通知处理
                 const handler = this.categoryHandlers.get(message.category);
                 if (handler) {
@@ -66,9 +73,9 @@ class SysSocket {
     }
 
     destory() {
-        this.socket.close();
+        this.socket?.close();
         this.socket = null;
-        this.categoryHandlers.clear();
+        this.categoryHandlers?.clear();
     }
 
     /**

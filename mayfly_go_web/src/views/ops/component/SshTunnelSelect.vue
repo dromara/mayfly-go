@@ -17,6 +17,7 @@
 <script lang="ts" setup>
 import { toRefs, reactive, onMounted } from 'vue';
 import { machineApi } from '../machine/api';
+import { MachineProtocolEnum } from '../machine/enums';
 
 const props = defineProps({
     modelValue: {
@@ -46,7 +47,7 @@ onMounted(async () => {
 
 const getSshTunnelMachines = async () => {
     if (state.sshTunnelMachineList.length == 0) {
-        const res = await machineApi.list.request({ pageNum: 1, pageSize: 100 });
+        const res = await machineApi.list.request({ pageNum: 1, pageSize: 100, protocol: MachineProtocolEnum.Ssh.value });
         state.sshTunnelMachineList = res.list;
     }
 };

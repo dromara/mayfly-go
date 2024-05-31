@@ -2,7 +2,7 @@
     <div>
         <transition name="el-zoom-in-top">
             <!-- 查询表单 -->
-            <SearchForm v-if="isShowSearch" :items="tableSearchItems" v-model="queryForm_" :search="search" :reset="reset" :search-col="searchCol">
+            <SearchForm v-if="isShowSearch" :items="tableSearchItems" v-model="queryForm" :search="search" :reset="reset" :search-col="searchCol">
                 <!-- 遍历父组件传入的 solts 透传给子组件 -->
                 <template v-for="(_, key) in useSlots()" v-slot:[key]>
                     <slot :name="key"></slot>
@@ -47,7 +47,7 @@
                                             @keyup.enter.native="searchFormItemKeyUpEnter"
                                             v-if="!nowSearchItem.slot"
                                             :item="nowSearchItem"
-                                            v-model="queryForm_[nowSearchItem.prop]"
+                                            v-model="queryForm[nowSearchItem.prop]"
                                         />
 
                                         <slot @keyup.enter.native="searchFormItemKeyUpEnter" v-else :name="nowSearchItem.slot"></slot>
@@ -74,7 +74,7 @@
                                         trigger="click"
                                     >
                                         <div v-for="(item, index) in tableColumns" :key="index">
-                                            <el-checkbox v-model="item.show" :label="item.label" :true-label="true" :false-label="false" />
+                                            <el-checkbox v-model="item.show" :label="item.label" :true-value="true" :false-value="false" />
                                         </div>
                                         <template #reference>
                                             <el-button icon="Operation" circle :size="props.size"></el-button>
@@ -115,18 +115,18 @@
                         >
                             <!-- 插槽：预留功能 -->
                             <template #default="scope" v-if="item.slot">
-                                <slot :name="item.prop" :data="scope.row"></slot>
+                                <slot :name="item.slotName ? item.slotName : item.prop" :data="scope.row"></slot>
                             </template>
 
                             <!-- 枚举类型使用tab展示 -->
                             <template #default="scope" v-else-if="item.type == 'tag'">
-                                <enum-tag :size="props.size" :enums="item.typeParam" :value="scope.row[item.prop]"></enum-tag>
+                                <enum-tag :size="props.size" :enums="item.typeParam" :value="item.getValueByData(scope.row)"></enum-tag>
                             </template>
 
                             <template #default="scope" v-else>
                                 <!-- 配置了美化文本按钮以及文本内容大于指定长度，则显示美化按钮 -->
                                 <el-popover
-                                    v-if="item.isBeautify && scope.row[item.prop]?.length > 35"
+                                    v-if="item.isBeautify && item.getValueByData(scope.row)?.length > 35"
                                     effect="light"
                                     trigger="click"
                                     placement="top"
@@ -137,7 +137,7 @@
                                     </template>
                                     <template #reference>
                                         <el-link
-                                            @click="formatText(scope.row[item.prop])"
+                                            @click="formatText(item.getValueByData(scope.row))"
                                             :underline="false"
                                             type="success"
                                             icon="MagicStick"
@@ -159,10 +159,10 @@
                     @current-change="handlePageNumChange"
                     @size-change="handlePageSizeChange"
                     style="text-align: right"
-                    layout="prev, pager, next, total, sizes, jumper"
+                    layout="prev, pager, next, total, sizes"
                     :total="total"
-                    v-model:current-page="queryForm_.pageNum"
-                    v-model:page-size="queryForm_.pageSize"
+                    v-model:current-page="queryForm.pageNum"
+                    v-model:page-size="queryForm.pageSize"
                     :page-sizes="pageSizes"
                 />
             </el-row>
@@ -176,20 +176,20 @@ import { TableColumn } from './index';
 import EnumTag from '@/components/enumtag/EnumTag.vue';
 import { useThemeConfig } from '@/store/themeConfig';
 import { storeToRefs } from 'pinia';
-import { useVModel, useEventListener } from '@vueuse/core';
+import { useEventListener } from '@vueuse/core';
 import Api from '@/common/Api';
 import SearchForm from '@/components/SearchForm/index.vue';
 import { SearchItem } from '../SearchForm/index';
 import SearchFormItem from '../SearchForm/components/SearchFormItem.vue';
 import SvgIcon from '@/components/svgIcon/index.vue';
-import { usePageTable } from '../../hooks/usePageTable';
+import { usePageTable } from '@/hooks/usePageTable';
 import { ElTable } from 'element-plus';
 
-const emit = defineEmits(['update:queryForm', 'update:selectionData', 'pageChange']);
+const emit = defineEmits(['update:selectionData', 'pageChange']);
 
 export interface PageTableProps {
     size?: string;
-    pageApi: Api; // 请求表格数据的 api
+    pageApi?: Api; // 请求表格数据的 api
     columns: TableColumn[]; // 列配置项  ==> 必传
     showSelection?: boolean;
     selectable?: (row: any) => boolean; // 是否可选
@@ -200,7 +200,6 @@ export interface PageTableProps {
     beforeQueryFn?: (params: any) => any; // 执行查询时对查询参数进行处理，调整等
     dataHandlerFn?: (data: any) => any; // 数据处理回调函数，用于将请求回来的数据二次加工处理等
     searchItems?: SearchItem[];
-    queryForm?: any; // 查询表单参数 ==> 非必传（默认为{pageNum:1, pageSize: 10}）
     border?: boolean; // 是否带有纵向边框 ==> 非必传（默认为false）
     toolButton?: ('setting' | 'search')[] | boolean; // 是否显示表格功能按钮 ==> 非必传（默认为true）
     searchCol?: any; // 表格搜索项 每列占比配置 ==> 非必传 { xs: 1, sm: 2, md: 2, lg: 3, xl: 4 } | number 如 3
@@ -212,15 +211,19 @@ const props = withDefaults(defineProps<PageTableProps>(), {
     pageable: true,
     showSelection: false,
     lazy: false,
-    queryForm: {
-        pageNum: 1,
-        pageSize: 0,
-    },
     border: false,
     toolButton: true,
     showSearch: false,
     searchItems: () => [],
     searchCol: () => ({ xs: 1, sm: 3, md: 3, lg: 4, xl: 5 }),
+});
+
+// 查询表单参数 ==> 非必传（默认为{pageNum:1, pageSize: 10}）
+const queryForm: Ref<any> = defineModel('queryForm', {
+    default: {
+        pageNum: 1,
+        pageSize: 0,
+    },
 });
 
 // table 实例
@@ -250,16 +253,14 @@ const nowSearchItem: Ref<SearchItem> = ref(null) as any;
  */
 const changeSimpleFormItem = (searchItem: SearchItem) => {
     // 将之前的值置为空，避免因为只显示一个搜索项却搜索多个条件
-    queryForm_.value[nowSearchItem.value.prop] = null;
+    queryForm.value[nowSearchItem.value.prop] = null;
     nowSearchItem.value = searchItem;
 };
 
-const queryForm_: Ref<any> = useVModel(props, 'queryForm', emit);
-
-const { tableData, total, loading, search, reset, getTableData, handlePageNumChange, handlePageSizeChange } = usePageTable(
+let { tableData, total, loading, search, reset, getTableData, handlePageNumChange, handlePageSizeChange } = usePageTable(
     props.pageable,
     props.pageApi,
-    queryForm_,
+    queryForm,
     props.beforeQueryFn,
     props.dataHandlerFn
 );
@@ -287,6 +288,13 @@ watch(isShowSearch, () => {
     calcuTableHeight();
 });
 
+watch(
+    () => props.data,
+    (newValue: any) => {
+        tableData = newValue;
+    }
+);
+
 onMounted(async () => {
     calcuTableHeight();
     useEventListener(window, 'resize', calcuTableHeight);
@@ -295,7 +303,7 @@ onMounted(async () => {
         nowSearchItem.value = props.searchItems[0];
     }
 
-    let pageSize = queryForm_.value.pageSize;
+    let pageSize = queryForm.value.pageSize;
     // 如果pageSize设为0，则使用系统全局配置的pageSize
     if (!pageSize) {
         pageSize = themeConfig.value.defaultListPageSize;
@@ -305,8 +313,8 @@ onMounted(async () => {
         }
     }
 
-    queryForm_.value.pageNum = 1;
-    queryForm_.value.pageSize = pageSize;
+    queryForm.value.pageNum = 1;
+    queryForm.value.pageSize = pageSize;
     state.pageSizes = [pageSize, pageSize * 2, pageSize * 3, pageSize * 4, pageSize * 5];
 
     if (!props.lazy) {
@@ -315,7 +323,7 @@ onMounted(async () => {
 });
 
 const calcuTableHeight = () => {
-    const headerHeight = isShowSearch.value ? 325 : 245;
+    const headerHeight = isShowSearch.value ? 330 : 250;
     state.tableMaxHeight = window.innerHeight - headerHeight + 'px';
 };
 

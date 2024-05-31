@@ -2,7 +2,12 @@
     <div class="db-sql-exec">
         <Splitpanes class="default-theme">
             <Pane size="20" max-size="30">
-                <tag-tree :resource-type="TagResourceTypeEnum.Db.value" :tag-path-node-type="NodeTypeTagPath" ref="tagTreeRef">
+                <tag-tree
+                    :default-expanded-keys="state.defaultExpendKey"
+                    :resource-type="TagResourceTypeEnum.DbName.value"
+                    :tag-path-node-type="NodeTypeTagPath"
+                    ref="tagTreeRef"
+                >
                     <template #prefix="{ data }">
                         <span v-if="data.type.value == SqlExecNodeType.DbInst">
                             <el-popover
@@ -27,8 +32,8 @@
                                         <el-descriptions-item label="数据库版本">
                                             <span v-loading="loadingServerInfo"> {{ `${dbServerInfo?.version}` }}</span>
                                         </el-descriptions-item>
-                                        <el-descriptions-item label="user">
-                                            {{ data.params.username }}
+                                        <el-descriptions-item label="授权凭证">
+                                            {{ data.params.authCertName }}
                                         </el-descriptions-item>
                                         <el-descriptions-item label="备注">
                                             {{ data.params.remark }}
@@ -42,10 +47,8 @@
                     </template>
 
                     <template #suffix="{ data }">
-                        <span class="db-table-size" v-if="data.type.value == SqlExecNodeType.Table && data.params.size">{{ ` ${data.params.size}` }}</span>
-                        <span class="db-table-size" v-if="data.type.value == SqlExecNodeType.TableMenu && data.params.dbTableSize">{{
-                            ` ${data.params.dbTableSize}`
-                        }}</span>
+                        <span v-if="data.type.value == SqlExecNodeType.Table && data.params.size">{{ ` ${data.params.size}` }}</span>
+                        <span v-if="data.type.value == SqlExecNodeType.TableMenu && data.params.dbTableSize">{{ ` ${data.params.dbTableSize}` }}</span>
                     </template>
                 </tag-tree>
             </Pane>
@@ -55,23 +58,68 @@
                     <el-row>
                         <el-col :span="24" v-if="state.db">
                             <el-descriptions :column="4" size="small" border>
-                                <el-descriptions-item label-align="right" label="操作"
-                                    ><el-button
+                                <el-descriptions-item label-align="right" label="操作">
+                                    <el-button
                                         :disabled="!state.db || !nowDbInst.id"
                                         type="primary"
                                         icon="Search"
-                                        @click="addQueryTab({ id: nowDbInst.id, dbs: nowDbInst.databases }, state.db)"
-                                        size="small"
-                                        >新建查询</el-button
-                                    ></el-descriptions-item
-                                >
+                                        link
+                                        @click="
+                                            addQueryTab(
+                                                { id: nowDbInst.id, dbs: nowDbInst.databases, nodeKey: getSqlMenuNodeKey(nowDbInst.id, state.db) },
+                                                state.db
+                                            )
+                                        "
+                                        title="新建查询"
+                                    >
+                                    </el-button>
+
+                                    <template v-if="!dbConfig.locationTreeNode">
+                                        <el-divider direction="vertical" border-style="dashed" />
+                                        <el-button @click="locationNowTreeNode(null)" title="定位至左侧树的指定位置" icon="Location" link></el-button>
+                                    </template>
+
+                                    <el-divider direction="vertical" border-style="dashed" />
+                                    <!-- 数据库展示配置 -->
+                                    <el-popover
+                                        popper-style="max-height: 550px; overflow: auto; max-width: 450px"
+                                        placement="bottom"
+                                        width="auto"
+                                        title="数据库展示配置"
+                                        trigger="click"
+                                    >
+                                        <el-row>
+                                            <el-checkbox
+                                                v-model="dbConfig.showColumnComment"
+                                                label="显示字段备注"
+                                                :true-value="1"
+                                                :false-value="0"
+                                                size="small"
+                                            />
+                                        </el-row>
+
+                                        <el-row>
+                                            <el-checkbox
+                                                v-model="dbConfig.locationTreeNode"
+                                                label="自动定位树节点"
+                                                :true-value="1"
+                                                :false-value="0"
+                                                size="small"
+                                            />
+                                        </el-row>
+
+                                        <template #reference>
+                                            <el-link type="primary" icon="setting" :underline="false"></el-link>
+                                        </template>
+                                    </el-popover>
+                                </el-descriptions-item>
 
                                 <el-descriptions-item label-align="right" label="tag">{{ nowDbInst.tagPath }}</el-descriptions-item>
 
                                 <el-descriptions-item label-align="right">
                                     <template #label>
                                         <div>
-                                            <SvgIcon :name="getDbDialect(nowDbInst.type).getInfo().icon" :size="18" />
+                                            <SvgIcon :name="nowDbInst.getDialect().getInfo().icon" :size="18" />
                                             实例
                                         </div>
                                     </template>
@@ -100,7 +148,9 @@
                             <el-tab-pane class="h100" closable v-for="dt in state.tabs.values()" :label="dt.label" :name="dt.key" :key="dt.key">
                                 <template #label>
                                     <el-popover :show-after="1000" placement="bottom-start" trigger="hover" :width="250">
-                                        <template #reference> {{ dt.label }} </template>
+                                        <template #reference>
+                                            <span class="font12">{{ dt.label }}</span>
+                                        </template>
                                         <template #default>
                                             <el-descriptions :column="1" size="small">
                                                 <el-descriptions-item label="tagPath">
@@ -127,6 +177,7 @@
                                     :db-name="dt.db"
                                     :table-name="dt.params.table"
                                     :table-height="state.dataTabsTableHeight"
+                                    :ref="(el: any) => (dt.componentRef = el)"
                                 ></db-table-data-op>
 
                                 <db-sql-editor
@@ -135,6 +186,7 @@
                                     :db-name="dt.db"
                                     :sql-name="dt.params.sqlName"
                                     @save-sql-success="reloadSqls"
+                                    :ref="(el: any) => (dt.componentRef = el)"
                                 >
                                 </db-sql-editor>
 
@@ -143,6 +195,7 @@
                                     :db-id="dt.params.id"
                                     :db="dt.params.db"
                                     :db-type="dt.params.type"
+                                    :flow-procdef="dt.params.flowProcdef"
                                     :height="state.tablesOpHeight"
                                 />
                             </el-tab-pane>
@@ -151,26 +204,42 @@
                 </div>
             </Pane>
         </Splitpanes>
+        <db-table-op
+            :title="tableCreateDialog.title"
+            :active-name="tableCreateDialog.activeName"
+            :dbId="tableCreateDialog.dbId"
+            :db="tableCreateDialog.db"
+            :dbType="tableCreateDialog.dbType"
+            :flow-procdef="tableCreateDialog.flowProcdef"
+            :data="tableCreateDialog.data"
+            v-model:visible="tableCreateDialog.visible"
+            @submit-sql="onSubmitEditTableSql"
+        />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { defineAsyncComponent, onBeforeUnmount, onMounted, reactive, ref, toRefs } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { defineAsyncComponent, h, onBeforeUnmount, onMounted, reactive, ref, toRefs, watch } from 'vue';
+import { ElCheckbox, ElMessage, ElMessageBox } from 'element-plus';
 import { formatByteSize } from '@/common/utils/format';
 import { DbInst, registerDbCompletionItemProvider, TabInfo, TabType } from './db';
-import { NodeType, TagTreeNode } from '../component/tag';
+import { NodeType, TagTreeNode, getTagTypeCodeByPath } from '../component/tag';
 import TagTree from '../component/TagTree.vue';
 import { dbApi } from './api';
 import { dispposeCompletionItemProvider } from '@/components/monaco/completionItemProvider';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import { ContextmenuItem } from '@/components/contextmenu';
-import { getDbDialect } from './dialect/index';
+import { getDbDialect, schemaDbTypes } from './dialect/index';
 import { sleep } from '@/common/utils/loading';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { Pane, Splitpanes } from 'splitpanes';
-import { useEventListener } from '@vueuse/core';
+import { useEventListener, useStorage } from '@vueuse/core';
+import SqlExecBox from '@/views/ops/db/component/sqleditor/SqlExecBox';
+import { useAutoOpenResource } from '@/store/autoOpenResource';
+import { storeToRefs } from 'pinia';
+import { procdefApi } from '@/views/flow/api';
 
+const DbTableOp = defineAsyncComponent(() => import('./component/table/DbTableOp.vue'));
 const DbSqlEditor = defineAsyncComponent(() => import('./component/sqleditor/DbSqlEditor.vue'));
 const DbTableDataOp = defineAsyncComponent(() => import('./component/table/DbTableDataOp.vue'));
 const DbTablesOp = defineAsyncComponent(() => import('./component/table/DbTablesOp.vue'));
@@ -214,30 +283,47 @@ const SqlIcon = {
 const nodeClickChangeDb = (nodeData: TagTreeNode) => {
     const params = nodeData.params;
     if (params.db) {
-        changeDb({ id: params.id, host: `${params.host}`, name: params.name, type: params.type, tagPath: params.tagPath, databases: params.dbs }, params.db);
+        changeDb(
+            {
+                id: params.id,
+                host: `${params.host}`,
+                name: params.name,
+                type: params.type,
+                tagPath: params.tagPath,
+                databases: params.dbs,
+                flowProcdef: params.flowProcdef,
+            },
+            params.db
+        );
     }
 };
 
-// tagpath 节点类型
-const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
-    const dbInfoRes = await dbApi.dbs.request({ tagPath: parentNode.key });
-    const dbInfos = dbInfoRes.list;
-    if (!dbInfos) {
-        return [];
-    }
+const ContextmenuItemRefresh = new ContextmenuItem('refresh', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadNode(data.key));
 
-    // 防止过快加载会出现一闪而过，对眼睛不好
-    await sleep(100);
-    return dbInfos?.map((x: any) => {
-        x.tagPath = parentNode.key;
-        return new TagTreeNode(`${parentNode.key}.${x.id}`, x.name, NodeTypeDbInst).withParams(x);
-    });
-});
+// tagpath 节点类型
+const NodeTypeTagPath = new NodeType(TagTreeNode.TagPath)
+    .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
+        const dbInfoRes = await dbApi.dbs.request({ tagPath: parentNode.key });
+        const dbInfos = dbInfoRes.list;
+        if (!dbInfos) {
+            return [];
+        }
+
+        // 防止过快加载会出现一闪而过，对眼睛不好
+        await sleep(100);
+        return dbInfos?.map((x: any) => {
+            x.tagPath = parentNode.key;
+            return new TagTreeNode(`${x.code}`, x.name, NodeTypeDbInst).withParams(x);
+        });
+    })
+    .withContextMenuItems([ContextmenuItemRefresh]);
 
 // 数据库实例节点类型
-const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((parentNode: TagTreeNode) => {
+const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc(async (parentNode: TagTreeNode) => {
     const params = parentNode.params;
-    const dbs = params.database.split(' ')?.sort();
+    const dbs = (await DbInst.getDbNames(params))?.sort();
+
+    const flowProcdef = await procdefApi.getByResource.request({ resourceType: TagResourceTypeEnum.DbName.value, resourceCode: params.code });
     return dbs.map((x: any) => {
         return new TagTreeNode(`${parentNode.key}.${x}`, x, NodeTypeDb)
             .withParams({
@@ -248,6 +334,7 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
                 host: `${params.host}:${params.port}`,
                 dbs: dbs,
                 db: x,
+                flowProcdef: flowProcdef,
             })
             .withIcon(DbIcon);
     });
@@ -255,11 +342,12 @@ const NodeTypeDbInst = new NodeType(SqlExecNodeType.DbInst).withLoadNodesFunc((p
 
 // 数据库节点
 const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
+    .withContextMenuItems([ContextmenuItemRefresh])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
+        params.parentKey = parentNode.key;
         // pg类数据库会多一层schema
-        if (params.type == 'postgres' || params.type === 'dm') {
-            const params = parentNode.params;
+        if (schemaDbTypes.includes(params.type)) {
             const { id, db } = params;
             const schemaNames = await dbApi.pgSchemas.request({ id, db });
             return schemaNames.map((sn: any) => {
@@ -268,32 +356,38 @@ const NodeTypeDb = new NodeType(SqlExecNodeType.Db)
                 nParams.schema = sn;
                 nParams.db = nParams.db + '/' + sn;
                 nParams.dbs = schemaNames;
-                return new TagTreeNode(`${params.id}.${params.db}.schema.${sn}`, sn, NodeTypePostgresScheam).withParams(nParams).withIcon(SchemaIcon);
+                return new TagTreeNode(`${params.id}.${params.db}.schema.${sn}`, sn, NodeTypePostgresSchema).withParams(nParams).withIcon(SchemaIcon);
             });
         }
-        return [
-            new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams(params).withIcon(TableIcon),
-            new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeTypeSqlMenu).withParams(params).withIcon(SqlIcon),
-        ];
+
+        return getNodeTypeTables(params);
     })
     .withNodeClickFunc(nodeClickChangeDb);
 
+const getNodeTypeTables = (params: any) => {
+    let tableKey = `${params.id}.${params.db}.table-menu`;
+    let sqlKey = getSqlMenuNodeKey(params.id, params.db);
+    return [
+        new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams({ ...params, key: tableKey }).withIcon(TableIcon),
+        new TagTreeNode(sqlKey, 'SQL', NodeTypeSqlMenu).withParams({ ...params, key: sqlKey }).withIcon(SqlIcon),
+    ];
+};
+
 // postgres schema模式
-const NodeTypePostgresScheam = new NodeType(SqlExecNodeType.PgSchema)
+const NodeTypePostgresSchema = new NodeType(SqlExecNodeType.PgSchema)
+    .withContextMenuItems([ContextmenuItemRefresh])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
-        return [
-            new TagTreeNode(`${params.id}.${params.db}.table-menu`, '表', NodeTypeTableMenu).withParams(params).withIcon(TableIcon),
-            new TagTreeNode(getSqlMenuNodeKey(params.id, params.db), 'SQL', NodeTypeSqlMenu).withParams(params).withIcon(SqlIcon),
-        ];
+        params.parentKey = parentNode.key;
+        return getNodeTypeTables(params);
     })
     .withNodeClickFunc(nodeClickChangeDb);
 
 // 数据库表菜单节点
 const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
     .withContextMenuItems([
-        new ContextmenuItem('reloadTables', '刷新').withIcon('RefreshRight').withOnClick((data: any) => reloadTables(data.key)),
-
+        ContextmenuItemRefresh,
+        new ContextmenuItem('createTable', '创建表').withIcon('Plus').withOnClick((data: any) => onEditTable(data)),
         new ContextmenuItem('tablesOp', '表操作').withIcon('Setting').withOnClick((data: any) => {
             const params = data.params;
             addTablesOpTab({ id: params.id, db: params.db, type: params.type, nodeKey: data.key });
@@ -301,30 +395,40 @@ const NodeTypeTableMenu = new NodeType(SqlExecNodeType.TableMenu)
     ])
     .withLoadNodesFunc(async (parentNode: TagTreeNode) => {
         const params = parentNode.params;
-        let { id, db } = params;
+        let { id, db, type, flowProcdef, schema } = params;
         // 获取当前库的所有表信息
         let tables = await DbInst.getInst(id).loadTables(db, state.reloadStatus);
         state.reloadStatus = false;
         let dbTableSize = 0;
         const tablesNode = tables.map((x: any) => {
-            dbTableSize += x.dataLength + x.indexLength;
-            return new TagTreeNode(`${id}.${db}.${x.tableName}`, x.tableName, NodeTypeTable)
+            const tableSize = x.dataLength + x.indexLength;
+            dbTableSize += tableSize;
+            const key = `${id}.${db}.${x.tableName}`;
+            return new TagTreeNode(key, x.tableName, NodeTypeTable)
                 .withIsLeaf(true)
                 .withParams({
                     id,
                     db,
+                    type,
+                    schema,
+                    flowProcdef: flowProcdef,
+                    key: key,
+                    parentKey: parentNode.key,
                     tableName: x.tableName,
                     tableComment: x.tableComment,
-                    size: formatByteSize(x.dataLength + x.indexLength, 1),
+                    size: tableSize == 0 ? '' : formatByteSize(tableSize, 1),
                 })
                 .withIcon(TableIcon)
                 .withLabelRemark(`${x.tableName} ${x.tableComment ? '| ' + x.tableComment : ''}`);
         });
         // 设置父节点参数的表大小
-        parentNode.params.dbTableSize = formatByteSize(dbTableSize);
+        parentNode.params.dbTableSize = dbTableSize == 0 ? '' : formatByteSize(dbTableSize);
         return tablesNode;
     })
-    .withNodeClickFunc(nodeClickChangeDb);
+    .withNodeDblclickFunc((node: TagTreeNode) => {
+        const params = node.params;
+        addTablesOpTab({ id: params.id, db: params.db, type: params.type, nodeKey: node.key });
+    });
 
 // 数据库sql模板菜单节点
 const NodeTypeSqlMenu = new NodeType(SqlExecNodeType.SqlMenu)
@@ -338,22 +442,24 @@ const NodeTypeSqlMenu = new NodeType(SqlExecNodeType.SqlMenu)
         return sqls.map((x: any) => {
             return new TagTreeNode(`${id}.${db}.${x.name}`, x.name, NodeTypeSql)
                 .withIsLeaf(true)
-                .withParams({
-                    id,
-                    db,
-                    dbs,
-                    sqlName: x.name,
-                })
+                .withParams({ id, db, dbs, sqlName: x.name })
                 .withIcon(SqlIcon);
         });
     })
     .withNodeClickFunc(nodeClickChangeDb);
 
 // 表节点类型
-const NodeTypeTable = new NodeType(SqlExecNodeType.Table).withNodeClickFunc((nodeData: TagTreeNode) => {
-    const params = nodeData.params;
-    loadTableData({ id: params.id, nodeKey: nodeData.key }, params.db, params.tableName);
-});
+const NodeTypeTable = new NodeType(SqlExecNodeType.Table)
+    .withContextMenuItems([
+        new ContextmenuItem('copyTable', '复制表').withIcon('copyDocument').withOnClick((data: any) => onCopyTable(data)),
+        new ContextmenuItem('renameTable', '重命名').withIcon('edit').withOnClick((data: any) => onRenameTable(data)),
+        new ContextmenuItem('editTable', '编辑表').withIcon('edit').withOnClick((data: any) => onEditTable(data)),
+        new ContextmenuItem('delTable', '删除表').withIcon('Delete').withOnClick((data: any) => onDeleteTable(data)),
+    ])
+    .withNodeClickFunc((nodeData: TagTreeNode) => {
+        const params = nodeData.params;
+        loadTableData({ id: params.id, nodeKey: nodeData.key }, params.db, params.tableName);
+    });
 
 // sql模板节点类型
 const NodeTypeSql = new NodeType(SqlExecNodeType.Sql)
@@ -369,6 +475,7 @@ const tagTreeRef: any = ref(null);
 
 const tabs: Map<string, TabInfo> = new Map();
 const state = reactive({
+    defaultExpendKey: [] as any,
     /**
      * 当前操作的数据库实例
      */
@@ -383,16 +490,33 @@ const state = reactive({
         loading: true,
         version: '',
     },
+    tableCreateDialog: {
+        visible: false,
+        title: '',
+        activeName: '',
+        dbId: 0,
+        db: '',
+        dbType: '',
+        flowProcdef: null as any,
+        data: {},
+        parentKey: '',
+    },
 });
 
-const { nowDbInst } = toRefs(state);
+const { nowDbInst, tableCreateDialog } = toRefs(state);
+
+const dbConfig = useStorage('dbConfig', { showColumnComment: false, locationTreeNode: false });
 
 const serverInfoReqParam = ref({
     instanceId: 0,
 });
 const { execute: getDbServerInfo, isFetching: loadingServerInfo, data: dbServerInfo } = dbApi.getInstanceServerInfo.useApi<any>(serverInfoReqParam);
 
+const autoOpenResourceStore = useAutoOpenResource();
+const { autoOpenResource } = storeToRefs(autoOpenResourceStore);
+
 onMounted(() => {
+    autoOpenDb(autoOpenResource.value.dbCodePath);
     setHeight();
     // 监听浏览器窗口大小变化,更新对应组件高度
     useEventListener(window, 'resize', setHeight);
@@ -402,11 +526,36 @@ onBeforeUnmount(() => {
     dispposeCompletionItemProvider('sql');
 });
 
+watch(
+    () => autoOpenResource.value.dbCodePath,
+    (codePath: any) => {
+        autoOpenDb(codePath);
+    }
+);
+
+const autoOpenDb = (codePath: string) => {
+    if (!codePath) {
+        return;
+    }
+
+    const typeAndCodes = getTagTypeCodeByPath(codePath);
+    const tagPath = typeAndCodes[TagResourceTypeEnum.Tag.value].join('/') + '/';
+
+    const dbCode = typeAndCodes[TagResourceTypeEnum.DbName.value][0];
+    state.defaultExpendKey = [tagPath, dbCode];
+
+    setTimeout(() => {
+        // 置空
+        autoOpenResourceStore.setDbCodePath('');
+        tagTreeRef.value.setCurrentKey(dbCode);
+    }, 1000);
+};
+
 /**
  * 设置editor高度和数据表高度
  */
 const setHeight = () => {
-    state.dataTabsTableHeight = window.innerHeight - 270 + 'px';
+    state.dataTabsTableHeight = window.innerHeight - 253 + 'px';
     state.tablesOpHeight = window.innerHeight - 225 + 'px';
 };
 
@@ -432,7 +581,7 @@ const loadTableData = async (db: any, dbName: string, tableName: string) => {
     }
     changeDb(db, dbName);
 
-    const key = `${db.id}:\`${dbName}\`.${tableName}`;
+    const key = `tableData:${db.id}.${dbName}.${tableName}`;
     let tab = state.tabs.get(key);
     state.activeName = key;
     // 如果存在该表tab，则直接返回
@@ -467,7 +616,7 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
     // 存在sql模板名，则该模板名只允许一个tab
     if (sqlName) {
         label = `查询-${sqlName}`;
-        key = `查询:${dbId}:${dbName}.${sqlName}`;
+        key = `query:${dbId}.${dbName}.${sqlName}`;
     } else {
         let count = 1;
         state.tabs.forEach((v) => {
@@ -476,7 +625,7 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
             }
         });
         label = `新查询-${count}`;
-        key = `新查询${count}:${dbId}:${dbName}`;
+        key = `query:${count}.${dbId}.${dbName}`;
     }
     state.activeName = key;
     let tab = state.tabs.get(key);
@@ -513,7 +662,7 @@ const addTablesOpTab = async (db: any) => {
     changeDb(db, dbName);
 
     const dbId = db.id;
-    let key = `表操作:${dbId}:${dbName}.tablesOp`;
+    let key = `tablesOp:${dbId}.${dbName}`;
     state.activeName = key;
 
     let tab = state.tabs.get(key);
@@ -544,15 +693,22 @@ const onRemoveTab = (targetName: string) => {
         if (tabName !== targetName) {
             continue;
         }
+
+        state.tabs.delete(targetName);
+        if (activeName != targetName) {
+            break;
+        }
+
+        // 如果删除的tab是当前激活的tab，则切换到前一个或后一个tab
         const nextTab = tabNames[i + 1] || tabNames[i - 1];
         if (nextTab) {
             activeName = nextTab;
         } else {
             activeName = '';
         }
-        state.tabs.delete(targetName);
         state.activeName = activeName;
         onTabChange();
+        break;
     }
 };
 
@@ -571,6 +727,23 @@ const onTabChange = () => {
         // 注册sql提示
         registerDbCompletionItemProvider(nowTab.dbId, nowTab.db, nowTab.params.dbs, nowDbInst.value.type);
     }
+
+    // 激活当前tab（需要调用DbTableData组件的active，否则表头与数据会出现错位，暂不知为啥，先这样处理）
+    nowTab?.componentRef?.active();
+
+    if (dbConfig.value.locationTreeNode) {
+        locationNowTreeNode(nowTab);
+    }
+};
+
+/**
+ * 定位至当前树节点
+ */
+const locationNowTreeNode = (nowTab: any = null) => {
+    if (!nowTab) {
+        nowTab = state.tabs.get(state.activeName);
+    }
+    tagTreeRef.value.setCurrentKey(nowTab?.treeNodeKey);
 };
 
 const reloadSqls = (dbId: number, db: string) => {
@@ -596,9 +769,130 @@ const getSqlMenuNodeKey = (dbId: number, db: string) => {
     return `${dbId}.${db}.sql-menu`;
 };
 
-const reloadTables = (nodeKey: string) => {
+const reloadNode = (nodeKey: string) => {
     state.reloadStatus = true;
     tagTreeRef.value.reloadNode(nodeKey);
+};
+
+const onEditTable = async (data: any) => {
+    let { db, id, tableName, tableComment, type, parentKey, key, flowProcdef } = data.params;
+    // data.label就是表名
+    if (tableName) {
+        state.tableCreateDialog.title = '修改表';
+        let indexs = await dbApi.tableIndex.request({ id, db, tableName });
+        let columns = await dbApi.columnMetadata.request({ id, db, tableName });
+        let row = { tableName, tableComment };
+        state.tableCreateDialog.data = { edit: true, row, indexs, columns };
+        state.tableCreateDialog.parentKey = parentKey;
+    } else {
+        state.tableCreateDialog.title = '创建表';
+        state.tableCreateDialog.data = { edit: false, row: {} };
+        state.tableCreateDialog.parentKey = key;
+    }
+
+    state.tableCreateDialog.activeName = '1';
+    state.tableCreateDialog.dbId = id;
+    state.tableCreateDialog.db = db;
+    state.tableCreateDialog.dbType = type;
+    state.tableCreateDialog.flowProcdef = flowProcdef;
+    state.tableCreateDialog.visible = true;
+};
+
+const onDeleteTable = async (data: any) => {
+    let { db, id, tableName, parentKey, flowProcdef, schema } = data.params;
+    await ElMessageBox.confirm(`此操作是永久性且无法撤销，确定删除【${tableName}】? `, '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+    });
+
+    // 执行sql
+    let dialect = getDbDialect(state.nowDbInst.type);
+    let schemaStr = schema ? `${dialect.quoteIdentifier(schema)}.` : '';
+
+    dbApi.sqlExec.request({ id, db, sql: `drop table ${schemaStr + dialect.quoteIdentifier(tableName)}` }).then(() => {
+        if (flowProcdef) {
+            ElMessage.success('工单提交成功');
+            return;
+        }
+        ElMessage.success('删除成功');
+        setTimeout(() => {
+            parentKey && reloadNode(parentKey);
+        }, 1000);
+    });
+};
+
+const onRenameTable = async (data: any) => {
+    let { db, id, tableName, parentKey, flowProcdef } = data.params;
+    let tableData = { db, oldTableName: tableName, tableName };
+
+    let value = ref(tableName);
+    // 弹出确认框
+    const promptValue = await ElMessageBox.prompt('', `重命名表【${db}.${tableName}】`, {
+        inputValue: value.value,
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+    });
+
+    tableData.tableName = promptValue.value;
+    let sql = nowDbInst.value.getDialect().getModifyTableInfoSql(tableData);
+    if (!sql) {
+        ElMessage.warning('无更改');
+        return;
+    }
+
+    SqlExecBox({
+        sql: sql,
+        dbId: id as any,
+        db: db as any,
+        dbType: nowDbInst.value.getDialect().getInfo().formatSqlDialect,
+        flowProcdef: flowProcdef,
+        runSuccessCallback: () => {
+            setTimeout(() => {
+                parentKey && reloadNode(parentKey);
+            }, 1000);
+        },
+    });
+};
+
+const onCopyTable = async (data: any) => {
+    let { db, id, tableName, parentKey } = data.params;
+
+    let checked = ref(false);
+
+    // 弹出确认框，并选择是否复制数据
+    await ElMessageBox({
+        title: `复制表【${tableName}】`,
+        type: 'warning',
+        //  icon: markRaw(Delete),
+        message: () =>
+            h(ElCheckbox, {
+                label: '是否复制数据?',
+                modelValue: checked.value,
+                'onUpdate:modelValue': (val: boolean | string | number) => {
+                    if (typeof val === 'boolean') {
+                        checked.value = val;
+                    }
+                },
+            }),
+        callback: (action: string) => {
+            if (action === 'confirm') {
+                // 执行sql
+                dbApi.copyTable.request({ id, db, tableName, copyData: checked.value }).then(() => {
+                    ElMessage.success('复制成功');
+                    setTimeout(() => {
+                        parentKey && reloadNode(parentKey);
+                    }, 1000);
+                });
+            }
+        },
+    });
+};
+
+const onSubmitEditTableSql = () => {
+    state.tableCreateDialog.visible = false;
+    state.tableCreateDialog.data = { edit: false, row: {} };
+    reloadNode(state.tableCreateDialog.parentKey);
 };
 
 /**
@@ -612,6 +906,7 @@ const getNowDbInfo = () => {
         name: di.name,
         type: di.type,
         host: di.host,
+        flowProcdef: di.flowProcdef,
         dbName: state.db,
     };
 };
@@ -619,13 +914,8 @@ const getNowDbInfo = () => {
 
 <style lang="scss">
 .db-sql-exec {
-    .db-table-size {
-        color: #c4c9c4;
-        font-size: 9px;
-    }
-
     .db-op {
-        height: calc(100vh - 108px);
+        height: calc(100vh - 106px);
     }
 
     #data-exec {
@@ -637,7 +927,7 @@ const getNowDbInfo = () => {
             margin: 0 0 5px;
 
             .el-tabs__item {
-                padding: 0 10px;
+                padding: 0 5px;
             }
         }
 

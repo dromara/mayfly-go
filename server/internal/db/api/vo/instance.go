@@ -1,15 +1,22 @@
 package vo
 
-import "time"
+import (
+	tagentity "mayfly-go/internal/tag/domain/entity"
+	"time"
+)
 
 type InstanceListVO struct {
+	tagentity.AuthCerts // 授权凭证信息
+	tagentity.ResourceTags
+
 	Id         *int64     `json:"id"`
+	Code       string     `json:"code"`
 	Name       *string    `json:"name"`
 	Host       *string    `json:"host"`
 	Port       *int       `json:"port"`
 	Type       *string    `json:"type"`
-	Params     *string    `json:"params"`
-	Username   *string    `json:"username"`
+	Params     string     `json:"params"`
+	Extra      string     `json:"extra"`
 	Remark     *string    `json:"remark"`
 	CreateTime *time.Time `json:"createTime"`
 	Creator    *string    `json:"creator"`
@@ -20,4 +27,8 @@ type InstanceListVO struct {
 	ModifierId *int64     `json:"modifierId"`
 
 	SshTunnelMachineId int `json:"sshTunnelMachineId"`
+}
+
+func (i *InstanceListVO) GetCode() string {
+	return i.Code
 }

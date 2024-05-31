@@ -1,11 +1,10 @@
 <template>
-    <div class="string-input-container w100" v-if="dataType == DataType.String">
+    <div class="string-input-container w100" v-if="dataType == DataType.String || dataType == DataType.Number">
         <el-input
-            v-if="dataType == DataType.String"
             :ref="(el: any) => focus && el?.focus()"
+            :disabled="disabled"
             @blur="handleBlur"
             :class="`w100 mb4 ${showEditorIcon ? 'string-input-container-show-icon' : ''}`"
-            input-style="text-align: center; height: 26px;"
             size="small"
             v-model="itemValue"
             :placeholder="placeholder"
@@ -13,21 +12,10 @@
         <SvgIcon v-if="showEditorIcon" @mousedown="openEditor" class="string-input-container-icon" name="FullScreen" :size="10" />
     </div>
 
-    <el-input
-        v-else-if="dataType == DataType.Number"
-        :ref="(el: any) => focus && el?.focus()"
-        @blur="handleBlur"
-        class="w100 mb4"
-        input-style="text-align: center; height: 26px;"
-        size="small"
-        v-model.number="itemValue"
-        :placeholder="placeholder"
-        type="number"
-    />
-
     <el-date-picker
         v-else-if="dataType == DataType.Date"
         :ref="(el: any) => focus && el?.focus()"
+        :disabled="disabled"
         @change="emit('blur')"
         @blur="handleBlur"
         class="edit-time-picker mb4"
@@ -43,6 +31,7 @@
     <el-date-picker
         v-else-if="dataType == DataType.DateTime"
         :ref="(el: any) => focus && el?.focus()"
+        :disabled="disabled"
         @change="handleBlur"
         @blur="handleBlur"
         class="edit-time-picker mb4"
@@ -58,6 +47,7 @@
     <el-time-picker
         v-else-if="dataType == DataType.Time"
         :ref="(el: any) => focus && el?.focus()"
+        :disabled="disabled"
         @change="handleBlur"
         @blur="handleBlur"
         class="edit-time-picker mb4"
@@ -71,8 +61,8 @@
 </template>
 
 <script lang="ts" setup>
-import { Ref, ref, computed } from 'vue';
-import { ElInput } from 'element-plus';
+import { computed, ref, Ref } from 'vue';
+import { ElInput, ElMessage } from 'element-plus';
 import { DataType } from '../../dialect/index';
 import SvgIcon from '@/components/svgIcon/index.vue';
 import MonacoEditorDialog from '@/components/monaco/MonacoEditorDialog';
@@ -83,11 +73,13 @@ export interface ColumnFormItemProps {
     focus?: boolean; // 是否获取焦点
     placeholder?: string;
     columnName?: string;
+    disabled?: boolean;
 }
 
 const props = withDefaults(defineProps<ColumnFormItemProps>(), {
     focus: false,
     dataType: DataType.String,
+    disabled: false,
 });
 
 const emit = defineEmits(['update:modelValue', 'blur']);
@@ -125,6 +117,10 @@ const handleBlur = () => {
     if (editorOpening.value) {
         return;
     }
+    if (props.dataType == DataType.Number && itemValue.value && !/^-?\d*\.?\d+$/.test(itemValue.value)) {
+        ElMessage.error('输入内容与类型不匹配');
+        return;
+    }
     emit('update:modelValue', itemValue.value);
     emit('blur');
 };
@@ -156,6 +152,10 @@ const getEditorLangByValue = (value: any) => {
 <style lang="scss">
 .string-input-container {
     position: relative;
+
+    .el-input__wrapper {
+        padding: 1px 3px;
+    }
 }
 .string-input-container-show-icon {
     .el-input__inner {
@@ -178,8 +178,9 @@ const getEditorLangByValue = (value: any) => {
     .el-input__prefix {
         display: none;
     }
-    .el-input__inner {
-        text-align: center;
+
+    .el-input__wrapper {
+        padding: 1px 3px;
     }
 }
 

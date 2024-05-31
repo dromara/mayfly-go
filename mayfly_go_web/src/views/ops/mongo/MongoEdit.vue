@@ -4,21 +4,27 @@
             <el-form :model="form" ref="mongoForm" :rules="rules" label-width="85px">
                 <el-tabs v-model="tabActiveName">
                     <el-tab-pane label="基础信息" name="basic">
-                        <el-form-item ref="tagSelectRef" prop="tagId" label="标签" required>
+                        <el-form-item ref="tagSelectRef" prop="tagCodePaths" label="标签" required>
                             <tag-tree-select
                                 @change-tag="
-                                    (tagIds) => {
-                                        form.tagId = tagIds;
+                                    (tagCodePaths) => {
+                                        form.tagCodePaths = tagCodePaths;
                                         tagSelectRef.validate();
                                     }
                                 "
                                 multiple
-                                :resource-code="form.code"
-                                :resource-type="TagResourceTypeEnum.Mongo.value"
+                                :select-tags="form.tagCodePaths"
                                 style="width: 100%"
                             />
                         </el-form-item>
-
+                        <el-form-item prop="code" label="编号" required>
+                            <el-input
+                                :disabled="form.id"
+                                v-model.trim="form.code"
+                                placeholder="请输入编号 (大小写字母、数字、_-.:), 不可修改"
+                                auto-complete="off"
+                            ></el-input>
+                        </el-form-item>
                         <el-form-item prop="name" label="名称" required>
                             <el-input v-model.trim="form.name" placeholder="请输入名称" auto-complete="off"></el-input>
                         </el-form-item>
@@ -53,12 +59,12 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, reactive, watch, ref } from 'vue';
+import { toRefs, reactive, ref, watchEffect } from 'vue';
 import { mongoApi } from './api';
 import { ElMessage } from 'element-plus';
 import TagTreeSelect from '../component/TagTreeSelect.vue';
 import SshTunnelSelect from '../component/SshTunnelSelect.vue';
-import { TagResourceTypeEnum } from '@/common/commonEnum';
+import { ResourceCodePattern } from '@/common/pattern';
 
 const props = defineProps({
     visible: {
@@ -76,11 +82,23 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
 
 const rules = {
-    tagId: [
+    tagCodePaths: [
         {
             required: true,
             message: '请选择标签',
             trigger: ['change', 'blur'],
+        },
+    ],
+    code: [
+        {
+            required: true,
+            message: '请输入编码',
+            trigger: ['change', 'blur'],
+        },
+        {
+            pattern: ResourceCodePattern.pattern,
+            message: ResourceCodePattern.message,
+            trigger: ['blur'],
         },
     ],
     name: [
@@ -111,7 +129,7 @@ const state = reactive({
         name: null,
         uri: null,
         sshTunnelMachineId: null as any,
-        tagId: [],
+        tagCodePaths: [],
     },
     submitForm: {},
 });
@@ -121,14 +139,16 @@ const { dialogVisible, tabActiveName, form, submitForm } = toRefs(state);
 const { isFetching: testConnBtnLoading, execute: testConnExec } = mongoApi.testConn.useApi(submitForm);
 const { isFetching: saveBtnLoading, execute: saveMongoExec } = mongoApi.saveMongo.useApi(submitForm);
 
-watch(props, async (newValue: any) => {
-    state.dialogVisible = newValue.visible;
+watchEffect(() => {
+    state.dialogVisible = props.visible;
     if (!state.dialogVisible) {
         return;
     }
     state.tabActiveName = 'basic';
-    if (newValue.mongo) {
-        state.form = { ...newValue.mongo };
+    const mongo: any = props.mongo;
+    if (mongo) {
+        state.form = { ...mongo };
+        state.form.tagCodePaths = mongo.tags.map((t: any) => t.codePath);
     } else {
         state.form = { db: 0 } as any;
     }
@@ -143,30 +163,30 @@ const getReqForm = () => {
 };
 
 const testConn = async () => {
-    mongoForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
-
-        state.submitForm = getReqForm();
-        await testConnExec();
-        ElMessage.success('连接成功');
-    });
+    try {
+        await mongoForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
+    state.submitForm = getReqForm();
+    await testConnExec();
+    ElMessage.success('连接成功');
 };
 
 const btnOk = async () => {
-    mongoForm.value.validate(async (valid: boolean) => {
-        if (!valid) {
-            ElMessage.error('请正确填写信息');
-            return false;
-        }
-        state.submitForm = getReqForm();
-        await saveMongoExec();
-        ElMessage.success('保存成功');
-        emit('val-change', state.form);
-        cancel();
-    });
+    try {
+        await mongoForm.value.validate();
+    } catch (e: any) {
+        ElMessage.error('请正确填写信息');
+        return false;
+    }
+
+    state.submitForm = getReqForm();
+    await saveMongoExec();
+    ElMessage.success('保存成功');
+    emit('val-change', state.form);
+    cancel();
 };
 
 const cancel = () => {

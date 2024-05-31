@@ -6,55 +6,6 @@ import (
 	"strconv"
 )
 
-// any类型转换为string, 如果any为nil则返回空字符串
-func ConvString(val any) string {
-	if value, ok := val.(string); !ok {
-		return ""
-	} else {
-		return value
-	}
-}
-
-// any类型转换为int（可将字符串或int64转换）, 如果any为nil则返回0
-func ConvInt(val any) int {
-	switch value := val.(type) {
-	case int:
-		return value
-	case string:
-		if intV, err := strconv.Atoi(value); err == nil {
-			return intV
-		}
-	case int64:
-		return int(value)
-	case uint64:
-		return int(value)
-	case int32:
-		return int(value)
-	case uint32:
-		return int(value)
-	case int16:
-		return int(value)
-	case uint16:
-		return int(value)
-	case int8:
-		return int(value)
-	case uint8:
-		return int(value)
-	default:
-		return 0
-	}
-	return 0
-}
-
-// any类型转换为int64, 如果any为nil则返回0
-func ConvInt64(val any) int64 {
-	if value, ok := val.(int64); !ok {
-		return int64(ConvInt(val))
-	} else {
-		return value
-	}
-}
-
 func IsBlank(value any) bool {
 	if value == nil {
 		return true
@@ -119,4 +70,17 @@ func ToString(value any) string {
 		newValue, _ := json.Marshal(value)
 		return string(newValue)
 	}
+}
+
+// DeepZero 初始化对象
+// 如 T 为基本类型或结构体，则返回零值
+// 如 T 为指向基本类型或结构体的指针，则返回指向零值的指针
+func DeepZero[T any]() T {
+	var data T
+	typ := reflect.TypeOf(data)
+	kind := typ.Kind()
+	if kind == reflect.Pointer {
+		return reflect.New(typ.Elem()).Interface().(T)
+	}
+	return data
 }

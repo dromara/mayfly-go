@@ -24,6 +24,8 @@ export const roleApi = {
 
 export const accountApi = {
     list: Api.newGet('/sys/accounts'),
+    querySimple: Api.newGet('/sys/accounts/simple'),
+    getAccountDetail: Api.newGet('/sys/accounts/{id}'),
     save: Api.newPost('/sys/accounts'),
     update: Api.newPut('/sys/accounts/{id}'),
     del: Api.newDelete('/sys/accounts/{id}'),
@@ -42,6 +44,7 @@ export const configApi = {
 
 export const logApi = {
     list: Api.newGet('/syslogs'),
+    detail: Api.newGet('/syslogs/{id}'),
 };
 
 export const authApi = {

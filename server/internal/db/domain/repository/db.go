@@ -11,6 +11,4 @@ type Db interface {
 
 	// 分页获取数据信息列表
 	GetDbList(condition *entity.DbQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
-
-	Count(condition *entity.DbQuery) int64
 }

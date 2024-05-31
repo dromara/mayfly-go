@@ -18,9 +18,6 @@ func T2022() *gormigrate.Migration {
 	return &gormigrate.Migration{
 		ID: "2022",
 		Migrate: func(tx *gorm.DB) error {
-			if err := tx.AutoMigrate(&entity.AuthCert{}); err != nil {
-				return err
-			}
 			if err := tx.AutoMigrate(&entity.Machine{}); err != nil {
 				return err
 			}
@@ -37,9 +34,6 @@ func T2022() *gormigrate.Migration {
 				return err
 			}
 			if err := tx.AutoMigrate(&entity.MachineCronJobExec{}); err != nil {
-				return err
-			}
-			if err := tx.AutoMigrate(&entity.MachineCronJobRelate{}); err != nil {
 				return err
 			}
 
@@ -90,9 +84,6 @@ func T2022() *gormigrate.Migration {
 				return err
 			}
 			if err := tx.AutoMigrate(&entity7.TagTree{}); err != nil {
-				return err
-			}
-			if err := tx.AutoMigrate(&entity7.TagTreeTeam{}); err != nil {
 				return err
 			}
 			if err := tx.AutoMigrate(&entity7.Team{}); err != nil {

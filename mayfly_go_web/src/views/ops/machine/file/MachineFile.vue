@@ -22,7 +22,7 @@
             >
                 <el-table-column type="selection" width="30" />
 
-                <el-table-column prop="name" label="名称">
+                <el-table-column prop="name" label="名称" min-width="380">
                     <template #header>
                         <div class="machine-file-table-header">
                             <div>
@@ -154,7 +154,7 @@
                             <SvgIcon :size="15" name="folder" color="#007AFF" />
                         </span>
                         <span v-else>
-                            <SvgIcon :size="15" name="document" />
+                            <SvgIcon :size="15" :name="scope.row.icon" />
                         </span>
 
                         <span class="ml5" style="display: inline-block; width: 90%">
@@ -171,7 +171,7 @@
                     </template>
                 </el-table-column>
 
-                <el-table-column prop="size" label="大小" width="100" sortable>
+                <el-table-column prop="size" label="大小" min-width="90" sortable>
                     <template #default="scope">
                         <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == '-'"> {{ formatByteSize(scope.row.size) }} </span>
                         <span style="color: #67c23a; font-weight: bold" v-if="scope.row.type == 'd' && scope.row.dirSize"> {{ scope.row.dirSize }} </span>
@@ -182,7 +182,11 @@
                 </el-table-column>
 
                 <el-table-column prop="mode" label="属性" width="110"> </el-table-column>
-                <el-table-column prop="modTime" label="修改时间" width="165" sortable> </el-table-column>
+                <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" prop="username" label="用户" min-width="55" show-overflow-tooltip>
+                </el-table-column>
+                <el-table-column v-if="$props.protocol == MachineProtocolEnum.Ssh.value" prop="groupname" label="组" min-width="55" show-overflow-tooltip>
+                </el-table-column>
+                <el-table-column prop="modTime" label="修改时间" width="160" sortable> </el-table-column>
 
                 <el-table-column width="100">
                     <template #header>
@@ -251,8 +255,8 @@
                 </el-form-item>
                 <el-form-item prop="type" label="类型">
                     <el-radio-group v-model="createFileDialog.type">
-                        <el-radio label="d">文件夹</el-radio>
-                        <el-radio label="-">文件</el-radio>
+                        <el-radio value="d" label="d">文件夹</el-radio>
+                        <el-radio value="-" label="-">文件</el-radio>
                     </el-radio-group>
                 </el-form-item>
             </div>
@@ -265,26 +269,35 @@
             </template>
         </el-dialog>
 
-        <machine-file-content v-model:visible="fileContent.contentVisible" :machine-id="machineId" :file-id="fileId" :path="fileContent.path" />
+        <machine-file-content
+            v-model:visible="fileContent.contentVisible"
+            :machine-id="machineId"
+            :auth-cert-name="props.authCertName"
+            :file-id="fileId"
+            :path="fileContent.path"
+            :protocol="protocol"
+        />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, toRefs, reactive, onMounted, computed } from 'vue';
-import { ElMessage, ElMessageBox, ElInput } from 'element-plus';
+import { computed, onMounted, reactive, ref, toRefs } from 'vue';
+import { ElInput, ElMessage, ElMessageBox } from 'element-plus';
 import { machineApi } from '../api';
 
 import { joinClientParams } from '@/common/request';
 import config from '@/common/config';
-import { isTrue } from '@/common/assert';
+import { isTrue, notBlank } from '@/common/assert';
 import MachineFileContent from './MachineFileContent.vue';
-import { notBlank } from '@/common/assert';
 import { getToken } from '@/common/utils/storage';
-import { formatByteSize, convertToBytes } from '@/common/utils/format';
+import { convertToBytes, formatByteSize } from '@/common/utils/format';
 import { getMachineConfig } from '@/common/sysconfig';
+import { MachineProtocolEnum } from '../enums';
 
 const props = defineProps({
     machineId: { type: Number },
+    authCertName: { type: String },
+    protocol: { type: Number, default: 1 },
     fileId: { type: Number, default: 0 },
     path: { type: String, default: '' },
     isFolder: { type: Boolean, default: true },
@@ -294,6 +307,9 @@ const token = getToken();
 const folderUploadRef: any = ref();
 
 const folderType = 'd';
+
+const userMap = new Map<number, any>();
+const groupMap = new Map<number, any>();
 
 // 路径分隔符
 const pathSep = '/';
@@ -335,9 +351,49 @@ const { basePath, nowPath, loading, fileNameFilter, progressNum, uploadProgressS
 
 onMounted(async () => {
     state.basePath = props.path;
+    const machineId = props.machineId;
+
+    if (props.protocol == MachineProtocolEnum.Ssh.value) {
+        machineApi.users.request({ id: machineId }).then((res: any) => {
+            for (let user of res) {
+                userMap.set(user.uid, user);
+            }
+        });
+
+        machineApi.groups.request({ id: machineId }).then((res: any) => {
+            for (let group of res) {
+                groupMap.set(group.gid, group);
+            }
+        });
+    }
+
     setFiles(props.path);
     state.machineConfig = await getMachineConfig();
 });
+
+// watch(
+//     () => props.machineId,
+//     () => {
+//         if (props.protocol != MachineProtocolEnum.Ssh.value) {
+//             userMap.clear();
+//             groupMap.clear();
+//             return;
+//         }
+
+//         const machineId = props.machineId;
+//         machineApi.users.request({ machineId }).then((res: any) => {
+//             for (let user of res) {
+//                 userMap.set(user.uid, user);
+//             }
+//         });
+
+//         machineApi.groups.request({ machineId }).then((res: any) => {
+//             for (let group of res) {
+//                 groupMap.set(group.gid, group);
+//             }
+//         });
+//     }
+// );
 
 const filterFiles = computed(() =>
     state.files.filter((data: any) => !state.fileNameFilter || data.name.toLowerCase().includes(state.fileNameFilter.toLowerCase()))
@@ -413,8 +469,10 @@ const pasteFile = async () => {
         await api.request({
             machineId: props.machineId,
             fileId: props.fileId,
-            path: cmFile.paths,
+            authCertName: props.authCertName,
+            paths: cmFile.paths,
             toPath: state.nowPath,
+            protocol: props.protocol,
         });
         ElMessage.success('粘贴成功');
         state.copyOrMvFile.paths = [];
@@ -454,15 +512,15 @@ const fileRename = async (row: any) => {
     notBlank(row.name, '新名称不能为空');
     try {
         await machineApi.renameFile.request({
-            machineId: props.machineId,
-            fileId: props.fileId,
-            oldname: state.nowPath + pathSep + state.renameFile.oldname,
+            machineId: parseInt(props.machineId + ''),
+            authCertName: props.authCertName,
+            fileId: parseInt(props.fileId + ''),
+            path: state.nowPath + pathSep + state.renameFile.oldname,
             newname: state.nowPath + pathSep + row.name,
+            protocol: props.protocol,
         });
         ElMessage.success('重命名成功');
-        // 修改路径上的文件名
-        row.path = state.nowPath + pathSep + row.name;
-        state.renameFile.oldname = '';
+        await refresh();
     } catch (e) {
         row.name = state.renameFile.oldname;
     }
@@ -502,14 +560,97 @@ const lsFile = async (path: string) => {
     const res = await machineApi.lsFile.request({
         fileId: props.fileId,
         machineId: props.machineId,
+        authCertName: props.authCertName,
+        protocol: props.protocol,
         path,
     });
     for (const file of res) {
+        if (props.protocol == MachineProtocolEnum.Ssh.value) {
+            file.username = userMap.get(file.uid)?.uname || file.uid;
+            file.groupname = groupMap.get(file.gid)?.gname || file.gid;
+        }
+
         const type = file.type;
         if (type == folderType) {
             file.isFolder = true;
+            file.iocn = 'folder';
         } else {
             file.isFolder = false;
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+
+            switch (fileExtension) {
+                case 'doc':
+                case 'docx':
+                    file.icon = 'iconfont icon-word';
+                    break;
+                case 'xls':
+                case 'xlsx':
+                    file.icon = 'iconfont icon-excel';
+                    break;
+                case 'ppt':
+                case 'pptx':
+                    file.icon = 'iconfont icon-ppt';
+                    break;
+                case 'pdf':
+                    file.icon = 'iconfont icon-pdf';
+                    break;
+                case 'xml':
+                    file.icon = 'iconfont icon-xml';
+                    break;
+                case 'html':
+                    file.icon = 'iconfont icon-html';
+                    break;
+                case 'yaml':
+                case 'yml':
+                    file.icon = 'iconfont icon-yaml';
+                    break;
+                case 'css':
+                    file.icon = 'iconfont icon-file-css';
+                    break;
+                case 'js':
+                case 'ts':
+                    file.icon = 'iconfont icon-file-js';
+                    break;
+                case 'mp4':
+                case 'rmvb':
+                    file.icon = 'iconfont icon-file-video';
+                    break;
+                case 'mp3':
+                    file.icon = 'iconfont icon-file-audio';
+                    break;
+                case 'bmp':
+                case 'jpg':
+                case 'jpeg':
+                case 'png':
+                case 'tif':
+                case 'gif':
+                case 'pcx':
+                case 'tga':
+                case 'exif':
+                case 'svg':
+                case 'psd':
+                case 'ai':
+                case 'webp':
+                    file.icon = 'iconfont icon-file-image';
+                    break;
+                case 'md':
+                    file.icon = 'iconfont icon-md';
+                    break;
+                case 'txt':
+                    file.icon = 'iconfont icon-txt';
+                    break;
+                case 'zip':
+                case 'rar':
+                case '7z':
+                case 'gz':
+                case 'tar':
+                case 'tgz':
+                    file.icon = 'iconfont icon-file-zip';
+                    break;
+                default:
+                    file.icon = 'iconfont icon-file';
+                    break;
+            }
         }
     }
     return res;
@@ -530,6 +671,8 @@ const getDirSize = async (data: any) => {
             machineId: props.machineId,
             fileId: props.fileId,
             path: data.path,
+            protocol: props.protocol,
+            authCertName: props.authCertName,
         });
         data.dirSize = res;
     } finally {
@@ -547,6 +690,8 @@ const showFileStat = async (data: any) => {
             machineId: props.machineId,
             fileId: props.fileId,
             path: data.path,
+            protocol: props.protocol,
+            authCertName: props.authCertName,
         });
         data.stat = res;
     } finally {
@@ -565,7 +710,9 @@ const createFile = async () => {
     const path = state.nowPath + pathSep + name;
     await machineApi.createFile.request({
         machineId: props.machineId,
+        authCertName: props.authCertName,
         id: props.fileId,
+        protocol: props.protocol,
         path,
         type,
     });
@@ -597,8 +744,10 @@ const deleteFile = async (files: any) => {
         state.loading = true;
         await machineApi.rmFile.request({
             fileId: props.fileId,
-            path: files.map((x: any) => x.path),
+            paths: files.map((x: any) => x.path),
             machineId: props.machineId,
+            authCertName: props.authCertName,
+            protocol: props.protocol,
         });
         ElMessage.success('删除成功');
         refresh();
@@ -611,7 +760,11 @@ const deleteFile = async (files: any) => {
 
 const downloadFile = (data: any) => {
     const a = document.createElement('a');
-    a.setAttribute('href', `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/read?type=1&path=${data.path}&${joinClientParams()}`);
+    a.setAttribute(
+        'href',
+        `${config.baseApiUrl}/machines/${props.machineId}/files/${props.fileId}/download?path=${data.path}&machineId=${props.machineId}&authCertName=${props.authCertName}&fileId=${props.fileId}&protocol=${props.protocol}&${joinClientParams()}`
+    );
+    a.setAttribute('target', '_blank');
     a.click();
 };
 
@@ -624,6 +777,10 @@ function uploadFolder(e: any) {
     // 把文件夹数据放到formData里面，下面的files和paths字段根据接口来定
     var form = new FormData();
     form.append('basePath', state.nowPath);
+    form.append('authCertName', props.authCertName as any);
+    form.append('machineId', props.machineId as any);
+    form.append('protocol', props.protocol as any);
+    form.append('fileId', props.fileId as any);
 
     let totalFileSize = 0;
     for (let file of e.target.files) {
@@ -676,7 +833,9 @@ const uploadFile = (content: any) => {
     const path = state.nowPath;
     params.append('file', content.file);
     params.append('path', path);
+    params.append('authCertName', props.authCertName as any);
     params.append('machineId', props.machineId as any);
+    params.append('protocol', props.protocol as any);
     params.append('fileId', props.fileId as any);
     params.append('token', token);
     machineApi.uploadFile

@@ -1,24 +1,21 @@
 package vo
 
 import (
+	tagentity "mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/pkg/model"
 	"time"
 )
 
-// 授权凭证基础信息
-type AuthCertBaseVO struct {
-	Id         int    `json:"id"`
-	Name       string `json:"name"`
-	AuthMethod int8   `json:"authMethod"`
-}
-
 type MachineVO struct {
+	tagentity.ResourceTags // 标签信息
+	tagentity.AuthCerts    // 授权凭证信息
+
 	Id                 uint64     `json:"id"`
 	Code               string     `json:"code"`
 	Name               string     `json:"name"`
+	Protocol           int        `json:"protocol"`
 	Ip                 string     `json:"ip"`
 	Port               int        `json:"port"`
-	Username           string     `json:"username"`
-	AuthCertId         int        `json:"authCertId"`
 	Status             *int8      `json:"status"`
 	SshTunnelMachineId int        `json:"sshTunnelMachineId"` // ssh隧道机器id
 	CreateTime         *time.Time `json:"createTime"`
@@ -29,11 +26,12 @@ type MachineVO struct {
 	ModifierId         *int64     `json:"modifierId"`
 	Remark             *string    `json:"remark"`
 	EnableRecorder     int8       `json:"enableRecorder"`
-	// TagId              uint64     `json:"tagId"`
-	// TagPath            string     `json:"tagPath"`
 
-	HasCli bool           `json:"hasCli" gorm:"-"`
-	Stat   map[string]any `json:"stat" gorm:"-"`
+	Stat map[string]any `json:"stat" gorm:"-"`
+}
+
+func (m *MachineVO) GetCode() string {
+	return m.Code
 }
 
 type MachineScriptVO struct {
@@ -48,6 +46,8 @@ type MachineScriptVO struct {
 
 // 机器记录任务
 type MachineCronJobVO struct {
+	tagentity.RelateTags // 标签信息
+
 	Id              uint64 `json:"id"`
 	Key             string `json:"key"`
 	Name            string `json:"name"`
@@ -57,6 +57,10 @@ type MachineCronJobVO struct {
 	SaveExecResType int    `json:"saveExecResType"`
 	Remark          string `json:"remark"`
 	Running         bool   `json:"running" gorm:"-"` // 是否运行中
+}
+
+func (mcj *MachineCronJobVO) GetRelateId() uint64 {
+	return mcj.Id
 }
 
 type MachineFileVO struct {
@@ -74,6 +78,9 @@ type MachineFileInfo struct {
 	Type    string `json:"type"`
 	Mode    string `json:"mode"`
 	ModTime string `json:"modTime"`
+
+	UID uint32 `json:"uid"`
+	GID uint32 `json:"gid"`
 }
 
 type MachineFileInfos []MachineFileInfo
@@ -87,4 +94,19 @@ func (s MachineFileInfos) Less(i, j int) bool {
 		return s[i].Type > s[j].Type
 	}
 	return s[i].Name < s[j].Name
+}
+
+type MachineCmdConfVO struct {
+	tagentity.RelateTags // 标签信息
+	model.Model
+
+	Name     string              `json:"name"`
+	Cmds     model.Slice[string] `json:"cmds"`     // 命令配置
+	Status   int8                `json:"execCmds"` // 状态
+	Stratege string              `json:"stratege"` // 策略，空禁用
+	Remark   string              `json:"remark"`   // 备注
+}
+
+func (mcc *MachineCmdConfVO) GetRelateId() uint64 {
+	return mcc.Id
 }

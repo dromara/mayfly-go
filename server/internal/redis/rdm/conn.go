@@ -2,6 +2,7 @@ package rdm
 
 import (
 	"context"
+	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 
 	"github.com/redis/go-redis/v9"
@@ -30,6 +31,19 @@ func (r *RedisConn) GetCmdable() redis.Cmdable {
 
 func (r *RedisConn) Scan(cursor uint64, match string, count int64) ([]string, uint64, error) {
 	return r.GetCmdable().Scan(context.Background(), cursor, match, count).Result()
+}
+
+// 执行redis命令
+// 如: SET str value命令则args为['SET', 'str', 'val']
+func (r *RedisConn) RunCmd(ctx context.Context, args ...any) (any, error) {
+	redisMode := r.Info.Mode
+	if redisMode == "" || redisMode == StandaloneMode || r.Info.Mode == SentinelMode {
+		return r.Cli.Do(ctx, args...).Result()
+	}
+	if redisMode == ClusterMode {
+		return r.ClusterCli.Do(ctx, args...).Result()
+	}
+	return nil, errorx.NewBiz("redis mode error")
 }
 
 func (r *RedisConn) Close() {

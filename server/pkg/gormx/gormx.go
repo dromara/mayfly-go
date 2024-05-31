@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"mayfly-go/pkg/global"
 	"mayfly-go/pkg/model"
-	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,40 +17,29 @@ func UndeleteScope(db *gorm.DB) *gorm.DB {
 // 根据id获取实体对象。model需为指针类型（需要将查询出来的值赋值给model）
 //
 // 若error不为nil则为不存在该记录
-// @param model  数据库映射实体模型
-func GetById(model any, id uint64, cols ...string) error {
-	return NewQuery(model).Eq("id", id).Undeleted().GenGdb().First(model).Error
+// @param modelP  数据库映射实体模型
+func GetById(dbModel any, id uint64, cols ...string) error {
+	return NewQuery(dbModel, model.NewCond().Columns(cols...).Eq(model.IdColumn, id)).GenGdb().Scopes(UndeleteScope).First(dbModel).Error
 }
 
-// 根据id列表查询实体信息
-// @param model  数据库映射实体模型
-func GetByIdIn(model any, list any, ids []uint64, orderBy ...string) error {
-	return NewQuery(model).In("id", ids).Undeleted().GenGdb().Find(list).Error
-}
-
-// 获取满足model中不为空的字段值条件的单个对象。model需为指针类型（需要将查询出来的值赋值给model）
+// 根据model获取单个实体对象
 //
 // 若 error不为nil，则为不存在该记录
-// @param model  数据库映射实体模型
-func GetBy(model any, cols ...string) error {
-	return global.Db.Select(cols).Where(model).Scopes(UndeleteScope).First(model).Error
-}
-
-// 根据model指定条件统计数量
-func CountBy(model any) int64 {
-	return CountByCond(model, model)
+// @param cond  查询条件
+func GetByCond(dbModel any, cond *model.QueryCond) error {
+	return NewQuery(dbModel, cond).GenGdb().Scopes(UndeleteScope).First(cond.GetDest()).Error
 }
 
 // 根据条件cond获取指定model表统计数量
-func CountByCond(model any, cond any) int64 {
+func CountByCond(dbModel any, cond *model.QueryCond) int64 {
 	var count int64
-	NewQuery(model).WithCondModel(cond).Undeleted().GenGdb().Count(&count)
+	NewQuery(dbModel, cond).GenGdb().Scopes(UndeleteScope).Count(&count)
 	return count
 }
 
-// 根据查询条件分页查询数据
+// PageQuery 根据查询条件分页查询数据
 // 若未指定查询列，则查询列以toModels字段为准
-func PageQuery[T any](q *QueryCond, pageParam *model.PageParam, toModels T) (*model.PageResult[T], error) {
+func PageQuery[T any](q *Query, pageParam *model.PageParam, toModels T) (*model.PageResult[T], error) {
 	q.Undeleted()
 	gdb := q.GenGdb()
 	var count int64
@@ -72,51 +60,19 @@ func PageQuery[T any](q *QueryCond, pageParam *model.PageParam, toModels T) (*mo
 	return &model.PageResult[T]{Total: count, List: toModels}, nil
 }
 
-// 根据查询条件查询列表信息
-func ListByQueryCond(q *QueryCond, list any) error {
-	q.Undeleted()
-	gdb := q.GenGdb()
-	return gdb.Find(list).Error
+// PageByCond 根据指定查询条件分页查询数据
+func PageByCond[T any](dbModel any, cond *model.QueryCond, pageParam *model.PageParam, toModels T) (*model.PageResult[T], error) {
+	return PageQuery(NewQuery(dbModel, cond), pageParam, toModels)
 }
 
-// 获取满足model中不为空的字段值条件的所有数据.
-//
-// @param list为数组类型 如 var users *[]User，可指定为非model结构体，即只包含需要返回的字段结构体
-func ListBy(model any, list any, cols ...string) error {
-	return ListByCond(model, model, list, cols...)
+// SelectByCond 根据条件查询结果集
+func SelectByCond(dbModel any, cond *model.QueryCond) error {
+	return NewQuery(dbModel, cond).GenGdb().Scopes(UndeleteScope).Find(cond.GetDest()).Error
 }
 
-// 获取满足cond中不为空的字段值条件的所有model表数据.
-//
-// @param list为数组类型 如 var users *[]User，可指定为非model结构体，即只包含需要返回的字段结构体
-func ListByCond(model any, cond any, list any, cols ...string) error {
-	return global.Db.Model(model).Select(cols).Where(cond).Scopes(UndeleteScope).Order("id desc").Find(list).Error
-}
-
-// 获取满足model中不为空的字段值条件的所有数据.
-//
-// @param list为数组类型 如 var users *[]User，可指定为非model结构体
-// @param model  数据库映射实体模型
-func ListByOrder(model any, list any, order ...string) error {
-	return ListByCondOrder(model, model, list, order...)
-}
-
-// 获取满足cond中不为空的字段值条件的所有model表数据.
-//
-// @param list为数组类型 如 var users *[]User，可指定为非model结构体
-// @param model  数据库映射实体模型
-func ListByCondOrder(model any, cond any, list any, order ...string) error {
-	var orderByStr string
-	if order == nil {
-		orderByStr = "id desc"
-	} else {
-		orderByStr = strings.Join(order, ",")
-	}
-	return global.Db.Model(model).Where(cond).Scopes(UndeleteScope).Order(orderByStr).Find(list).Error
-}
-
-func GetListBySql2Model(sql string, toEntity any, params ...any) error {
-	return global.Db.Raw(sql, params...).Find(toEntity).Error
+// SelectBySql 根据sql查询数据
+func SelectBySql(sql string, toEntity any, params ...any) error {
+	return global.Db.Raw(sql, params...).Scan(toEntity).Error
 }
 
 func ExecSql(sql string, params ...any) error {
@@ -146,56 +102,52 @@ func BatchInsertWithDb[T any](db *gorm.DB, models []T) error {
 
 // 根据id更新model，更新字段为model中不为空的值，即int类型不为0，ptr类型不为nil这类字段值
 // @param model  数据库映射实体模型
-func UpdateById(model any) error {
-	return UpdateByIdWithDb(global.Db, model)
+func UpdateById(model any, columns ...string) error {
+	return UpdateByIdWithDb(global.Db, model, columns...)
 }
 
-func UpdateByIdWithDb(db *gorm.DB, model any) error {
-	return db.Model(model).Updates(model).Error
+func UpdateByIdWithDb(db *gorm.DB, model any, columns ...string) error {
+	return db.Model(model).Select(columns).Updates(model).Error
 }
 
-// 根据实体条件，更新参数udpateFields指定字段
-func Updates(condition any, udpateFields map[string]any) error {
-	return global.Db.Model(condition).Updates(udpateFields).Error
+// UpdateByCondWithDb 使用指定gorm.DB更新满足条件的数据(model的主键值需为空，否则会带上主键条件)
+func UpdateByCond(dbModel any, values any, cond *model.QueryCond) error {
+	return UpdateByCondWithDb(global.Db, dbModel, values, cond)
+}
+
+// UpdateByCondWithDb 使用指定gorm.DB更新满足条件的数据(model的主键值需为空，否则会带上主键条件)
+// @values values must be a struct or map.
+func UpdateByCondWithDb(db *gorm.DB, dbModel any, values any, cond *model.QueryCond) error {
+	gormDb := db.Model(dbModel).Select(cond.GetSelectColumns())
+	setGdbWhere(gormDb, cond)
+	return gormDb.Updates(values).Error
 }
 
 // 根据id删除model
 // @param model  数据库映射实体模型
-func DeleteById(model_ any, id uint64) error {
-	return DeleteByIdWithDb(global.Db, model_, id)
+func DeleteById(model_ any, id ...uint64) error {
+	return DeleteByIdWithDb(global.Db, model_, id...)
 }
 
 // 根据id使用指定gromDb删除
-func DeleteByIdWithDb(db *gorm.DB, model_ any, id uint64) error {
-	return db.Model(model_).Where("id = ?", id).Updates(getDeleteColumnValue()).Error
-}
-
-// 根据model条件删除
-// @param model  数据库映射实体模型
-func DeleteBy(model_ any) error {
-	return DeleteByCond(model_, model_)
+func DeleteByIdWithDb(db *gorm.DB, model_ any, id ...uint64) error {
+	return DeleteByCondWithDb(db, model_, model.NewCond().In(model.IdColumn, id))
 }
 
 // 根据cond条件删除指定model表数据
 //
-// @param model_  数据库映射实体模型
+// @param dbModel  数据库映射实体模型
 // @param cond  条件
-func DeleteByCond(model_ any, cond any) error {
-	return DeleteByCondWithDb(global.Db, model_, cond)
-}
-
-// 根据model条件删除
-// @param model  数据库映射实体模型
-func DeleteByWithDb(db *gorm.DB, model_ any) error {
-	return DeleteByCondWithDb(db, model_, model_)
+func DeleteByCond(dbModel any, cond *model.QueryCond) error {
+	return DeleteByCondWithDb(global.Db, dbModel, cond)
 }
 
 // 根据cond条件删除指定model表数据
 //
-// @param model  数据库映射实体模型
+// @param dbModel  数据库映射实体模型
 // @param cond 条件
-func DeleteByCondWithDb(db *gorm.DB, model_ any, cond any) error {
-	return db.Model(model_).Where(cond).Updates(getDeleteColumnValue()).Error
+func DeleteByCondWithDb(db *gorm.DB, dbModel any, cond *model.QueryCond) error {
+	return setGdbWhere(db.Model(dbModel), cond).Updates(getDeleteColumnValue()).Error
 }
 
 func getDeleteColumnValue() map[string]any {
@@ -210,7 +162,7 @@ func Tx(funcs ...func(db *gorm.DB) error) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			err = fmt.Errorf("%v", err)
+			err = fmt.Errorf("%v", r)
 		}
 	}()
 	for _, f := range funcs {

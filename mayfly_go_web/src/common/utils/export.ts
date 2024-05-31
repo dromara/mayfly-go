@@ -7,24 +7,22 @@ export function exportCsv(filename: string, columns: string[], datas: []) {
         for (let column of columns) {
             let val: any = data[column];
             if (val == null || val == undefined) {
-                dataValueArr.push('');
-                continue;
-            }
+                val = '';
+            } else if (val && typeof val == 'string') {
+                // 替换换行符
+                val = val.replace(/[\r\n]/g, '\\n');
 
-            if (typeof val == 'string' && val) {
                 // csv格式如果有逗号，整体用双引号括起来；如果里面还有双引号就替换成两个双引号，这样导出来的格式就不会有问题了
                 if (val.indexOf(',') != -1) {
                     // 如果还有双引号，先将双引号转义，避免两边加了双引号后转义错误
                     if (val.indexOf('"') != -1) {
-                        val = val.replace(/\"/g, '""');
+                        val = val.replace(/"/g, '""');
                     }
                     // 再将逗号转义
                     val = `"${val}"`;
                 }
-                dataValueArr.push(val + '\t');
-            } else {
-                dataValueArr.push(val + '\t');
             }
+            dataValueArr.push(String(val));
         }
         cvsData.push(dataValueArr);
     }

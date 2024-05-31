@@ -27,15 +27,12 @@ type Config interface {
 	GetConfig(key string) *entity.Config
 }
 
-func newConfigApp(configRepo repository.Config) Config {
-	configApp := new(configAppImpl)
-	configApp.Repo = configRepo
-	return configApp
-	// return &configAppImpl{base.AppImpl[*entity.Config, repository.Config]{Repo: configRepo}}
-}
-
 type configAppImpl struct {
 	base.AppImpl[*entity.Config, repository.Config]
+}
+
+func (a *configAppImpl) InjectConfigRepo(repo repository.Config) {
+	a.Repo = repo
 }
 
 func (a *configAppImpl) GetPageList(condition *entity.Config, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
@@ -69,7 +66,7 @@ func (a *configAppImpl) GetConfig(key string) *entity.Config {
 		return config
 	}
 
-	if err := a.GetBy(config, "Id", "Key", "Value", "Permission"); err != nil {
+	if err := a.GetByCond(model.NewModelCond(config).Columns("Id", "Key", "Value", "Permission")); err != nil {
 		logx.Warnf("不存在key = [%s] 的系统配置", key)
 	} else {
 		cache.SetStr(SysConfigKeyPrefix+key, jsonx.ToStr(config), -1)

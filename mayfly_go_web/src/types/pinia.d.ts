@@ -49,8 +49,10 @@ declare interface ThemeConfigState {
         isRequestRoutes: boolean;
         globalTitle: string;
         globalViceTitle: string;
+        logoIcon: string;
         globalI18n: string;
         globalComponentSize: string;
+        terminalTheme: string;
         terminalForeground: string;
         terminalBackground: string;
         terminalCursor: string;

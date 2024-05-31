@@ -1,31 +1,14 @@
 package persistence
 
-import "mayfly-go/internal/tag/domain/repository"
-
-var (
-	tagTreeRepo     repository.TagTree     = newTagTreeRepo()
-	tagTreeTeamRepo repository.TagTreeTeam = newTagTreeTeamRepo()
-	tagResourceRepo repository.TagResource = newTagResourceRepo()
-	teamRepo        repository.Team        = newTeamRepo()
-	teamMemberRepo  repository.TeamMember  = newTeamMemberRepo()
+import (
+	"mayfly-go/pkg/ioc"
 )
 
-func GetTagTreeRepo() repository.TagTree {
-	return tagTreeRepo
-}
-
-func GetTagTreeTeamRepo() repository.TagTreeTeam {
-	return tagTreeTeamRepo
-}
-
-func GetTagResourceRepo() repository.TagResource {
-	return tagResourceRepo
-}
-
-func GetTeamRepo() repository.Team {
-	return teamRepo
-}
-
-func GetTeamMemberRepo() repository.TeamMember {
-	return teamMemberRepo
+func InitIoc() {
+	ioc.Register(newTagTreeRepo(), ioc.WithComponentName("TagTreeRepo"))
+	ioc.Register(newTeamRepo(), ioc.WithComponentName("TeamRepo"))
+	ioc.Register(newTeamMemberRepo(), ioc.WithComponentName("TeamMemberRepo"))
+	ioc.Register(newResourceAuthCertRepoImpl(), ioc.WithComponentName("ResourceAuthCertRepo"))
+	ioc.Register(newResourceOpLogRepo(), ioc.WithComponentName("ResourceOpLogRepo"))
+	ioc.Register(newTagTreeRelateRepo(), ioc.WithComponentName("TagTreeRelateRepo"))
 }

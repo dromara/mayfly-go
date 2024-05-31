@@ -1,16 +1,16 @@
 package mcm
 
 import (
-	"fmt"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/logx"
 	"strings"
 
+	"github.com/may-fly/cast"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )
 
-// 机器客户端
+// Cli 机器客户端
 type Cli struct {
 	Info *MachineInfo // 机器信息
 
@@ -18,7 +18,7 @@ type Cli struct {
 	sftpClient *sftp.Client // sftp客户端
 }
 
-// 获取sftp client
+// GetSftpCli 获取sftp client
 func (c *Cli) GetSftpCli() (*sftp.Client, error) {
 	if c.sshClient == nil {
 		return nil, errorx.NewBiz("请先进行机器客户端连接")
@@ -37,22 +37,20 @@ func (c *Cli) GetSftpCli() (*sftp.Client, error) {
 	return sftpclient, nil
 }
 
-// 获取session
+// GetSession 获取session
 func (c *Cli) GetSession() (*ssh.Session, error) {
 	if c.sshClient == nil {
 		return nil, errorx.NewBiz("请先进行机器客户端连接")
 	}
 	session, err := c.sshClient.NewSession()
 	if err != nil {
-		// 获取session失败，则关闭cli，重试
-		DeleteCli(c.Info.Id)
 		logx.Errorf("获取机器客户端session失败: %s", err.Error())
-		return nil, errorx.NewBiz("获取会话失败, 请重试...")
+		return nil, errorx.NewBiz("获取会话失败, 请稍后重试...")
 	}
 	return session, nil
 }
 
-// 执行shell
+// Run 执行shell
 // @param shell shell脚本命令
 // @return 返回执行成功或错误的消息
 func (c *Cli) Run(shell string) (string, error) {
@@ -61,14 +59,41 @@ func (c *Cli) Run(shell string) (string, error) {
 		return "", err
 	}
 	defer session.Close()
-	buf, err := session.CombinedOutput(shell)
+	// 将可能存在的windows换行符替换为linux格式
+	buf, err := session.CombinedOutput(strings.ReplaceAll(shell, "\r\n", "\n"))
 	if err != nil {
 		return string(buf), err
 	}
 	return string(buf), nil
 }
 
-// 获取机器的所有状态信息
+// Close 关闭client并从缓存中移除，如果使用隧道则也关闭
+func (c *Cli) Close() {
+	m := c.Info
+	logx.Debugf("close machine cli -> id=%d, name=%s, ip=%s", m.Id, m.Name, m.Ip)
+	if c.sshClient != nil {
+		c.sshClient.Close()
+		c.sshClient = nil
+	}
+	if c.sftpClient != nil {
+		c.sftpClient.Close()
+		c.sftpClient = nil
+	}
+
+	var sshTunnelMachineId uint64
+	if m.SshTunnelMachine != nil {
+		sshTunnelMachineId = m.SshTunnelMachine.Id
+	}
+	if m.TempSshMachineId != 0 {
+		sshTunnelMachineId = m.TempSshMachineId
+	}
+	if sshTunnelMachineId != 0 {
+		logx.Debugf("close machine ssh tunnel -> machineId=%d, sshTunnelMachineId=%d", m.Id, sshTunnelMachineId)
+		CloseSshTunnelMachine(int(sshTunnelMachineId), m.GetTunnelId())
+	}
+}
+
+// GetAllStats 获取机器的所有状态信息
 func (c *Cli) GetAllStats() *Stats {
 	stats := new(Stats)
 	res, err := c.Run(StatsShell)
@@ -92,20 +117,52 @@ func (c *Cli) GetAllStats() *Stats {
 	return stats
 }
 
-// 关闭client并从缓存中移除，如果使用隧道则也关闭
-func (c *Cli) Close() {
-	m := c.Info
-	logx.Info(fmt.Sprintf("关闭机器客户端连接-> id: %d, name: %s, ip: %s", m.Id, m.Name, m.Ip))
-	if c.sshClient != nil {
-		c.sshClient.Close()
-		c.sshClient = nil
+// GetUsers 读取/etc/passwd，获取系统所有用户信息
+func (c *Cli) GetUsers() ([]*UserInfo, error) {
+	res, err := c.Run("cat /etc/passwd")
+	if err != nil {
+		return nil, err
 	}
-	if c.sftpClient != nil {
-		c.sftpClient.Close()
-		c.sftpClient = nil
+	var users []*UserInfo
+	userLines := strings.Split(res, "\n")
+	for _, userLine := range userLines {
+		if userLine == "" {
+			continue
+		}
+		fields := strings.Split(userLine, ":")
+		user := &UserInfo{
+			Username: fields[0],
+			UID:      cast.ToUint32(fields[2]),
+			GID:      cast.ToUint32(fields[3]),
+			HomeDir:  fields[5],
+			Shell:    fields[6],
+		}
+		users = append(users, user)
 	}
-	if c.Info.SshTunnelMachine != nil {
-		logx.Infof("关闭机器的隧道信息: machineId=%d, sshTunnelMachineId=%d", c.Info.Id, c.Info.SshTunnelMachine.Id)
-		CloseSshTunnelMachine(int(c.Info.SshTunnelMachine.Id), c.Info.GetTunnelId())
+
+	return users, nil
+}
+
+// GetGroups 读取/etc/group，获取系统所有组信息
+func (c *Cli) GetGroups() ([]*GroupInfo, error) {
+	res, err := c.Run("cat /etc/group")
+	if err != nil {
+		return nil, err
 	}
+
+	var groups []*GroupInfo
+	groupLines := strings.Split(res, "\n")
+	for _, groupLine := range groupLines {
+		if groupLine == "" {
+			continue
+		}
+		fields := strings.Split(groupLine, ":")
+		group := &GroupInfo{
+			Groupname: fields[0],
+			GID:       cast.ToUint32(fields[2]),
+		}
+		groups = append(groups, group)
+	}
+
+	return groups, nil
 }

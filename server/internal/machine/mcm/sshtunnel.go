@@ -7,7 +7,6 @@ import (
 	"mayfly-go/pkg/scheduler"
 	"mayfly-go/pkg/utils/netx"
 	"net"
-	"os"
 	"sync"
 
 	"golang.org/x/crypto/ssh"
@@ -75,28 +74,32 @@ func (stm *SshTunnelMachine) OpenSshTunnel(id string, ip string, port int) (expo
 	stm.mutex.Lock()
 	defer stm.mutex.Unlock()
 
+	tunnel := stm.tunnels[id]
+	// 已存在该id隧道，则直接返回
+	if tunnel != nil {
+		return tunnel.localHost, tunnel.localPort, nil
+	}
+
 	localPort, err := netx.GetAvailablePort()
 	if err != nil {
 		return "", 0, err
 	}
 
-	hostname, err := os.Hostname()
 	if err != nil {
 		return "", 0, err
 	}
-	// debug
-	//hostname = "0.0.0.0"
 
-	localAddr := fmt.Sprintf("%s:%d", hostname, localPort)
+	localHost := "0.0.0.0"
+	localAddr := fmt.Sprintf("%s:%d", localHost, localPort)
 	listener, err := net.Listen("tcp", localAddr)
 	if err != nil {
 		return "", 0, err
 	}
 
-	tunnel := &Tunnel{
+	tunnel = &Tunnel{
 		id:         id,
 		machineId:  stm.machineId,
-		localHost:  hostname,
+		localHost:  localHost,
 		localPort:  localPort,
 		remoteHost: ip,
 		remotePort: port,
@@ -150,7 +153,7 @@ func GetSshTunnelMachine(machineId int, getMachine func(uint64) (*MachineInfo, e
 		return nil, err
 	}
 
-	sshClient, err := GetSshClient(me)
+	sshClient, err := GetSshClient(me, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -17,22 +17,22 @@ func newTeamMemberRepo() repository.TeamMember {
 }
 
 func (p *teamMemberRepoImpl) ListMemeber(condition *entity.TeamMember, toEntity any, orderBy ...string) {
-	gormx.ListByOrder(condition, toEntity, orderBy...)
+	p.SelectByCondToAny(model.NewModelCond(condition).OrderBy(orderBy...), toEntity)
 }
 
 func (p *teamMemberRepoImpl) GetPageList(condition *entity.TeamMember, pageParam *model.PageParam, toEntity any) (*model.PageResult[any], error) {
 	qd := gormx.NewQueryWithTableName("t_team_member t").
-		Select("t.*, a.name").
 		Joins("JOIN t_sys_account a ON t.account_id = a.id AND a.status = 1").
-		Eq("a.account_id", condition.AccountId).
-		Eq0("a.is_deleted", model.ModelUndeleted).
-		Eq("t.team_id", condition.TeamId).
-		Eq0("t.is_deleted", model.ModelUndeleted).
-		Like("a.username", condition.Username).
-		OrderByDesc("t.id")
+		WithCond(model.NewCond().Columns("t.*, a.name").
+			Eq("a.account_id", condition.AccountId).
+			Eq0("a.is_deleted", model.ModelUndeleted).
+			Eq("t.team_id", condition.TeamId).
+			Eq0("t.is_deleted", model.ModelUndeleted).
+			Like("a.username", condition.Username).
+			OrderByDesc("t.id"))
 	return gormx.PageQuery(qd, pageParam, toEntity)
 }
 
 func (p *teamMemberRepoImpl) IsExist(teamId, accountId uint64) bool {
-	return gormx.CountBy(&entity.TeamMember{TeamId: teamId, AccountId: accountId}) > 0
+	return p.CountByCond(&entity.TeamMember{TeamId: teamId, AccountId: accountId}) > 0
 }

@@ -1,7 +1,13 @@
 import { MysqlDialect } from './mysql_dialect';
 import { PostgresqlDialect } from './postgres_dialect';
 import { DMDialect } from '@/views/ops/db/dialect/dm_dialect';
-import { SqlLanguage } from 'sql-formatter/lib/src/sqlFormatter';
+import { OracleDialect } from '@/views/ops/db/dialect/oracle_dialect';
+import { MariadbDialect } from '@/views/ops/db/dialect/mariadb_dialect';
+import { SqliteDialect } from '@/views/ops/db/dialect/sqlite_dialect';
+import { MssqlDialect } from '@/views/ops/db/dialect/mssql_dialect';
+import { GaussDialect } from '@/views/ops/db/dialect/gauss_dialect';
+import { KingbaseEsDialect } from '@/views/ops/db/dialect/kingbaseES_dialect';
+import { VastbaseDialect } from '@/views/ops/db/dialect/vastbase_dialect';
 
 export interface sqlColumnType {
     udtName: string;
@@ -13,6 +19,7 @@ export interface sqlColumnType {
 
 export interface RowDefinition {
     name: string;
+    oldName?: string;
     type: string;
     value: string;
     length: string;
@@ -64,9 +71,9 @@ export enum DataType {
 /** 列数据类型角标 */
 export const ColumnTypeSubscript = {
     /** 字符串 */
-    string: 'abc',
+    string: 'ab',
     /** 数字 */
-    number: '123',
+    number: '12',
     /** 日期 */
     date: 'icon-clock',
     /** 时间 */
@@ -77,6 +84,11 @@ export const ColumnTypeSubscript = {
 
 // 数据库基础信息
 export interface DialectInfo {
+    /**
+     * 数据库类型label
+     */
+    name: string;
+
     /**
      * 图标
      */
@@ -90,7 +102,7 @@ export interface DialectInfo {
     /**
      * 格式化sql的方言
      */
-    formatSqlDialect: SqlLanguage;
+    formatSqlDialect: string;
 
     /**
      * 列字段类型
@@ -105,8 +117,52 @@ export interface DialectInfo {
 
 export const DbType = {
     mysql: 'mysql',
+    mariadb: 'mariadb',
     postgresql: 'postgres',
+    gauss: 'gauss',
     dm: 'dm', // 达梦
+    oracle: 'oracle',
+    sqlite: 'sqlite',
+    mssql: 'mssql', // ms sqlserver
+    kingbaseEs: 'kingbaseEs', // 人大金仓 pgsql模式 https://help.kingbase.com.cn/v8/index.html
+    vastbase: 'vastbase', // https://docs.vastdata.com.cn/zh/docs/VastbaseG100Ver2.2.5/doc/%E5%BC%80%E5%8F%91%E8%80%85%E6%8C%87%E5%8D%97/SQL%E5%8F%82%E8%80%83/SQL%E5%8F%82%E8%80%83.html
+};
+
+// mysql兼容的数据库
+export const noSchemaTypes = [DbType.mysql, DbType.mariadb, DbType.sqlite];
+
+// 有schema层的数据库
+export const schemaDbTypes = [DbType.postgresql, DbType.gauss, DbType.dm, DbType.oracle, DbType.mssql, DbType.kingbaseEs, DbType.vastbase];
+
+export const editDbTypes = [...noSchemaTypes, ...schemaDbTypes];
+
+export const compatibleMysql = (dbType: string): boolean => {
+    switch (dbType) {
+        case DbType.mysql:
+        case DbType.mariadb:
+            return true;
+        default:
+            return false;
+    }
+};
+
+// 哪些数据库支持键冲突策略
+export const compatibleDuplicateStrategy = (dbType: string): boolean => {
+    switch (dbType) {
+        case DbType.mysql:
+        case DbType.mariadb:
+        case DbType.postgresql:
+        case DbType.gauss:
+        case DbType.kingbaseEs:
+        case DbType.vastbase:
+        case DbType.dm:
+        case DbType.oracle:
+        case DbType.sqlite:
+        case DbType.mssql:
+            return true;
+        default:
+            return false;
+    }
 };
 
 export interface DbDialect {
@@ -117,23 +173,26 @@ export interface DbDialect {
 
     /**
      * 获取默认查询sql
+     * @param db  数据库信息
      * @param table  表名
      * @param condition 条件
      * @param orderBy 排序
      * @param pageNum  页数
      * @param limit  条数
      */
-    getDefaultSelectSql(table: string, condition: string, orderBy: string, pageNum: number, limit: number): string;
+    getDefaultSelectSql(db: string, table: string, condition: string, orderBy: string, pageNum: number, limit: number): string;
+
+    getPageSql(pageNum: number, limit: number): string;
 
     getDefaultRows(): RowDefinition[];
 
     getDefaultIndex(): IndexDefinition;
 
     /**
-     * 包裹数据库表名、字段名等，避免使用关键字为字段名或表名时报错
+     * 引用标识符，包裹数据库表名、字段名等，避免使用关键字为字段名或表名时报错
      * @param name 名称
      */
-    wrapName(name: string): string;
+    quoteIdentifier(name: string): string;
 
     /**
      * 生成创建表sql
@@ -149,38 +208,82 @@ export interface DbDialect {
 
     /**
      * 生成编辑列sql
+     * @param tableData 表数据，包含表名、列数据、索引数据
      * @param tableName 表名
      * @param changeData 改变信息
      */
-    getModifyColumnSql(tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string;
+    getModifyColumnSql(tableData: any, tableName: string, changeData: { del: RowDefinition[]; add: RowDefinition[]; upd: RowDefinition[] }): string;
 
     /**
      * 生成编辑索引sql
+     * @param tableData 表数据，包含表名、列数据、索引数据
      * @param tableName   表名
      * @param changeData  改变数据
      */
-    getModifyIndexSql(tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string;
+    getModifyIndexSql(tableData: any, tableName: string, changeData: { del: any[]; add: any[]; upd: any[] }): string;
+
+    /** 生成编辑表信息sql */
+    getModifyTableInfoSql(tableData: any): string;
 
     /** 通过数据库字段类型，返回基本数据类型 */
-    getDataType: (columnType: string) => DataType;
+    getDataType(columnType: string): DataType;
+
+    /** 包装字符串数据， 如：oracle需要把date类型改为 to_date(str, 'yyyy-mm-dd hh24:mi:ss') mssql需要把中文字符串数据包装为 N'中文字符串' */
+    wrapValue(columnType: string, value: any): any;
+
+    /**
+     * 生成插入数据预览sql
+     * @param tableName 表名
+     * @param columns 列名
+     * @param duplicateStrategy 重复策略
+     */
+    getBatchInsertPreviewSql(tableName: string, columns: string[], duplicateStrategy: DuplicateStrategy): string;
+}
+
+export enum DuplicateStrategy {
+    NONE = -1, // 无
+    IGNORE = 1, // 忽略
+    REPLACE = 2, // 覆盖
 }
 
 let mysqlDialect = new MysqlDialect();
-let postgresDialect = new PostgresqlDialect();
-let dmDialect = new DMDialect();
 
-export const getDbDialect = (dbType: string | undefined): DbDialect => {
-    if (!dbType) {
-        return mysqlDialect;
-    }
-    if (dbType === DbType.mysql) {
-        return mysqlDialect;
-    }
-    if (dbType === DbType.postgresql) {
-        return postgresDialect;
-    }
-    if (dbType === DbType.dm) {
-        return dmDialect;
-    }
-    throw new Error('不支持的数据库');
+let dbType2DialectMap: Map<string, DbDialect> = new Map();
+
+export const registerDbDialect = (dbType: string, dd: DbDialect) => {
+    dbType2DialectMap.set(dbType, dd);
 };
+
+export const getDbDialectMap = () => {
+    return dbType2DialectMap;
+};
+
+export const getDbDialect = (dbType?: string): DbDialect => {
+    return dbType2DialectMap.get(dbType!) || mysqlDialect;
+};
+
+/**
+ *  引号转义，多用于sql注释转义，防止拼接sql报错，如： comment xx is '注''释'   最终注释文本为:  注'释
+ * @author  liuzongyang
+ * @since   2024/3/22 08:23
+ */
+export const QuoteEscape = (str: string): string => {
+    if (!str) {
+        return '';
+    }
+    return str.replace(/'/g, "''");
+};
+
+(function () {
+    console.log('init register db dialect');
+    registerDbDialect(DbType.mysql, mysqlDialect);
+    registerDbDialect(DbType.mariadb, new MariadbDialect());
+    registerDbDialect(DbType.postgresql, new PostgresqlDialect());
+    registerDbDialect(DbType.gauss, new GaussDialect());
+    registerDbDialect(DbType.dm, new DMDialect());
+    registerDbDialect(DbType.oracle, new OracleDialect());
+    registerDbDialect(DbType.sqlite, new SqliteDialect());
+    registerDbDialect(DbType.mssql, new MssqlDialect());
+    registerDbDialect(DbType.kingbaseEs, new KingbaseEsDialect());
+    registerDbDialect(DbType.vastbase, new VastbaseDialect());
+})();

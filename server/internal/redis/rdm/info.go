@@ -27,12 +27,12 @@ type RedisInfo struct {
 
 	Host     string    `json:"host"`
 	Db       int       `json:"db"` // 库号
-	Mode     RedisMode `json:"-"`
+	Mode     RedisMode `json:"mode"`
 	Username string    `json:"-"`
 	Password string    `json:"-"`
 
 	Name               string   `json:"-"`
-	TagPath            []string `json:"tagPath"`
+	CodePath           []string `json:"codePath"`
 	SshTunnelMachineId int      `json:"-"`
 }
 

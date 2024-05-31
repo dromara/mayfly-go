@@ -1,5 +1,5 @@
 <template>
-    <el-form-item label="账号">
+    <el-form-item :label="label">
         <el-select
             style="width: 100%"
             remote
@@ -8,7 +8,7 @@
             filterable
             placeholder="请输入账号模糊搜索并选择"
             v-bind="$attrs"
-            :ref="(el: any) => focus && el?.focus()"
+            :ref="(el: any) => props.focus && el?.focus()"
         >
             <el-option v-for="item in accounts" :key="item.id" :label="`${item.username} [${item.name}]`" :value="item.id"> </el-option>
         </el-select>
@@ -16,30 +16,37 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { accountApi } from '../../api';
-import { useVModel } from '@vueuse/core';
 
 const props = defineProps({
-    modelValue: {
-        type: Object,
-    },
     // 是否获取焦点
     focus: {
         type: Boolean,
         default: false,
     },
+    label: {
+        type: String,
+        default: '账号',
+    },
 });
 
-const emit = defineEmits(['update:modelValue']);
+onMounted(() => {
+    // 如果初始化时有accountId，则需要获取对应用户信息，用于回显用户名等信息
+    if (accountId.value) {
+        accountApi.querySimple.request({ ids: accountId.value }).then((res) => {
+            accounts.value = res.list;
+        });
+    }
+});
 
-const accountId = useVModel(props, 'modelValue', emit);
+const accountId = defineModel('modelValue');
 
 const accounts: any = ref([]);
 
 const getAccount = (username: any) => {
     if (username) {
-        accountApi.list.request({ username }).then((res) => {
+        accountApi.querySimple.request({ username }).then((res) => {
             accounts.value = res.list;
         });
     } else {

@@ -4,7 +4,6 @@ import (
 	"mayfly-go/internal/db/domain/entity"
 	"mayfly-go/internal/db/domain/repository"
 	"mayfly-go/pkg/base"
-	"mayfly-go/pkg/gormx"
 	"mayfly-go/pkg/model"
 )
 
@@ -18,11 +17,13 @@ func newDbSqlExecRepo() repository.DbSqlExec {
 
 // 分页获取
 func (d *dbSqlExecRepoImpl) GetPageList(condition *entity.DbSqlExecQuery, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error) {
-	qd := gormx.NewQuery(new(entity.DbSqlExec)).
+	qd := model.NewCond().
 		Eq("db_id", condition.DbId).
 		Eq("`table`", condition.Table).
 		Eq("type", condition.Type).
 		Eq("creator_id", condition.CreatorId).
-		RLike("db", condition.Db).WithOrderBy(orderBy...)
-	return gormx.PageQuery(qd, pageParam, toEntity)
+		Eq("flow_biz_key", condition.FlowBizKey).
+		In("status", condition.Status).
+		RLike("db", condition.Db).OrderBy(orderBy...)
+	return d.PageByCondToAny(qd, pageParam, toEntity)
 }

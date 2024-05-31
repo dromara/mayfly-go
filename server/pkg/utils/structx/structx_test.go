@@ -11,10 +11,10 @@ import (
 )
 
 type Src struct {
-	Id         *int64    `json:"id"`
+	Id         int64     `json:"id"`
 	Username   string    `json:"username"`
 	CreateTime time.Time `json:"time"`
-	UpdateTime time.Time
+	UpdateTime *time.Time
 	Inner      *SrcInner
 }
 
@@ -193,4 +193,13 @@ func TestTemplateResolve(t *testing.T) {
 	resolve := stringx.TemplateResolve("{{.Name}} is name, and {{.Age}} is age", d)
 	fmt.Println(resolve)
 
+}
+
+func TestToMap(t *testing.T) {
+	mapRes := ToMap(&Src{
+		Id:         0,
+		Username:   "哈哈哈",
+		CreateTime: time.Now(),
+	})
+	fmt.Println(mapRes)
 }

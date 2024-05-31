@@ -1,20 +1,23 @@
 package vo
 
-import "time"
+import (
+	"mayfly-go/internal/db/domain/entity"
+	"time"
+)
 
 type DbListVO struct {
-	Id       *int64  `json:"id"`
-	Code     string  `json:"code"`
-	Name     *string `json:"name"`
-	Database *string `json:"database"`
-	Remark   *string `json:"remark"`
+	Id              *int64                   `json:"id"`
+	Code            string                   `json:"code"`
+	Name            *string                  `json:"name"`
+	GetDatabaseMode entity.DbGetDatabaseMode `json:"getDatabaseMode"` // 获取数据库方式
+	Database        *string                  `json:"database"`
+	Remark          *string                  `json:"remark"`
+	InstanceId      uint64                   `json:"instanceId"`
+	AuthCertName    string                   `json:"authCertName"`
 
-	InstanceId   *int64  `json:"instanceId"`
-	InstanceName *string `json:"instanceName"`
-	InstanceType *string `json:"type"`
-	Host         string  `json:"host"`
-	Port         int     `json:"port"`
-	Username     string  `json:"username"`
+	InstanceType string `json:"type" gorm:"-"`
+	Host         string `json:"host" gorm:"-"`
+	Port         int    `json:"port" gorm:"-"`
 
 	CreateTime *time.Time `json:"createTime"`
 	Creator    *string    `json:"creator"`

@@ -1,8 +1,20 @@
 <template>
     <div>
-        <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px" @close="cancel">
+        <el-dialog title="待执行SQL" v-model="dialogVisible" :show-close="false" width="600px" :close-on-click-modal="false">
             <monaco-editor height="300px" class="codesql" language="sql" v-model="sqlValue" />
-            <el-input @keyup.enter="runSql" ref="remarkInputRef" v-model="remark" placeholder="请输入执行备注" class="mt5" />
+            <el-input
+                @keyup.enter="runSql"
+                ref="remarkInputRef"
+                v-model="remark"
+                :placeholder="props.flowProcdef ? '执行备注（必填）' : '执行备注（选填）'"
+                class="mt5"
+            />
+
+            <div v-if="props.flowProcdef">
+                <el-divider content-position="left">审批节点</el-divider>
+                <procdef-tasks :procdef="props.flowProcdef" />
+            </div>
+
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="cancel">取 消</el-button>
@@ -14,64 +26,60 @@
 </template>
 
 <script lang="ts" setup>
-import { toRefs, ref, nextTick, reactive } from 'vue';
+import { toRefs, ref, reactive, onMounted } from 'vue';
 import { dbApi } from '@/views/ops/db/api';
-import { ElDialog, ElButton, ElInput, ElMessage, InputInstance } from 'element-plus';
+import { ElDialog, ElButton, ElInput, ElMessage, InputInstance, ElDivider } from 'element-plus';
 // import base style
 import MonacoEditor from '@/components/monaco/MonacoEditor.vue';
 import { format as sqlFormatter } from 'sql-formatter';
 
 import { SqlExecProps } from './SqlExecBox';
+import ProcdefTasks from '@/views/flow/components/ProcdefTasks.vue';
 
-const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
-    dbId: {
-        type: [Number],
-    },
-    db: {
-        type: String,
-    },
-    sql: {
-        type: String,
-    },
-});
+const props = withDefaults(defineProps<SqlExecProps>(), {});
 
 const remarkInputRef = ref<InputInstance>();
 const state = reactive({
     dialogVisible: false,
     sqlValue: '',
-    dbId: 0,
-    db: '',
     remark: '',
     btnLoading: false,
 });
 
 const { dialogVisible, sqlValue, remark, btnLoading } = toRefs(state);
 
-state.sqlValue = props.sql as any;
-let runSuccessCallback: any;
-let cancelCallback: any;
 let runSuccess: boolean = false;
+
+onMounted(() => {
+    open();
+});
 
 /**
  * 执行sql
  */
 const runSql = async () => {
-    if (!state.remark) {
+    // 存在流程审批，则备注为必填
+    if (!state.remark && props.flowProcdef) {
         ElMessage.error('请输入执行的备注信息');
         return;
     }
 
     try {
         state.btnLoading = true;
+        runSuccess = true;
+
         const res = await dbApi.sqlExec.request({
-            id: state.dbId,
-            db: state.db,
+            id: props.dbId,
+            db: props.db,
             remark: state.remark,
             sql: state.sqlValue.trim(),
         });
+
+        // 存在流程审批
+        if (props.flowProcdef) {
+            ElMessage.success('工单提交成功');
+            return;
+        }
 
         for (let re of res.res) {
             if (re.result !== 'success') {
@@ -80,49 +88,36 @@ const runSql = async () => {
             }
         }
 
-        runSuccess = true;
         ElMessage.success('执行成功');
     } catch (e) {
         runSuccess = false;
-    }
-    if (runSuccess) {
-        if (runSuccessCallback) {
-            runSuccessCallback();
+    } finally {
+        if (runSuccess) {
+            if (props.runSuccessCallback) {
+                props.runSuccessCallback();
+            }
+            cancel();
         }
-        cancel();
+        state.btnLoading = false;
     }
-    state.btnLoading = false;
 };
 
 const cancel = () => {
     state.dialogVisible = false;
-    // 没有执行成功，并且取消回调函数存在，则执行
-    if (!runSuccess && cancelCallback) {
-        cancelCallback();
-    }
+    props.cancelCallback && props.cancelCallback();
     setTimeout(() => {
-        state.dbId = 0;
         state.sqlValue = '';
         state.remark = '';
-        runSuccessCallback = null;
-        cancelCallback = null;
         runSuccess = false;
     }, 200);
 };
 
-const open = (props: SqlExecProps) => {
-    runSuccessCallback = props.runSuccessCallback;
-    cancelCallback = props.cancelCallback;
-    props.dbType = props.dbType || 'mysql';
-    state.sqlValue = sqlFormatter(props.sql, { language: props.dbType });
-    state.dbId = props.dbId;
-    state.db = props.db;
+const open = () => {
+    state.sqlValue = sqlFormatter(props.sql, { language: (props.dbType || 'mysql') as any });
     state.dialogVisible = true;
-    nextTick(() => {
-        setTimeout(() => {
-            remarkInputRef.value?.focus();
-        });
-    });
+    setTimeout(() => {
+        remarkInputRef.value?.focus();
+    }, 200);
 };
 
 defineExpose({ open });

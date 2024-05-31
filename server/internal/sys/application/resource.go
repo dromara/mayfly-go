@@ -7,7 +7,8 @@ import (
 	"mayfly-go/internal/sys/domain/repository"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
-	"mayfly-go/pkg/gormx"
+	"mayfly-go/pkg/model"
+	"mayfly-go/pkg/utils/collx"
 	"mayfly-go/pkg/utils/stringx"
 	"strings"
 	"time"
@@ -27,21 +28,22 @@ type Resource interface {
 	GetAccountResources(accountId uint64, toEntity any) error
 }
 
-func newResourceApp(resourceRepo repository.Resource) Resource {
-	return &resourceAppImpl{
-		base.AppImpl[*entity.Resource, repository.Resource]{Repo: resourceRepo},
-	}
-}
-
 type resourceAppImpl struct {
 	base.AppImpl[*entity.Resource, repository.Resource]
+
+	roleResourceRepo repository.RoleResource `inject:"RoleResourceRepo"`
+}
+
+// 注入ResourceRepo
+func (r *resourceAppImpl) InjectResourceRepo(repo repository.Resource) {
+	r.Repo = repo
 }
 
 func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) error {
 	// 更新操作
 	if resource.Id != 0 {
 		if resource.Code != "" {
-			oldRes, err := r.GetById(new(entity.Resource), resource.Id, "Code")
+			oldRes, err := r.GetById(resource.Id, "Code")
 			if err != nil {
 				return errorx.NewBiz("更新失败, 该资源不存在")
 			}
@@ -58,7 +60,7 @@ func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) e
 	// 生成随机八位唯一标识符
 	ui := stringx.Rand(8)
 	if pid := resource.Pid; pid != 0 {
-		pResource, err := r.GetById(new(entity.Resource), uint64(pid))
+		pResource, err := r.GetById(uint64(pid))
 		if err != nil {
 			return errorx.NewBiz("该父资源不存在")
 		}
@@ -78,7 +80,7 @@ func (r *resourceAppImpl) Save(ctx context.Context, resource *entity.Resource) e
 }
 
 func (r *resourceAppImpl) ChangeStatus(ctx context.Context, resourceId uint64, status int8) error {
-	resource, err := r.GetById(new(entity.Resource), resourceId)
+	resource, err := r.GetById(resourceId)
 	if err != nil {
 		return errorx.NewBiz("资源不存在")
 	}
@@ -87,7 +89,7 @@ func (r *resourceAppImpl) ChangeStatus(ctx context.Context, resourceId uint64, s
 }
 
 func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resource) error {
-	resource, err := r.GetById(new(entity.Resource), sortResource.Id)
+	resource, err := r.GetById(sortResource.Id)
 	if err != nil {
 		return errorx.NewBiz("资源不存在")
 	}
@@ -113,7 +115,7 @@ func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resourc
 
 	newParentResourceUiPath := ""
 	if sortResource.Pid != 0 {
-		newParentResource, err := r.GetById(new(entity.Resource), uint64(sortResource.Pid))
+		newParentResource, err := r.GetById(uint64(sortResource.Pid))
 		if err != nil {
 			return errorx.NewBiz("父资源不存在")
 		}
@@ -136,28 +138,28 @@ func (r *resourceAppImpl) Sort(ctx context.Context, sortResource *entity.Resourc
 	}
 
 	// 更新零值使用map，因为pid=0表示根节点
-	updateMap := map[string]interface{}{
+	updateMap := collx.M{
 		"pid":     sortResource.Pid,
 		"weight":  sortResource.Weight,
 		"ui_path": newParentResourceUiPath + resourceUi,
 	}
 	condition := new(entity.Resource)
 	condition.Id = sortResource.Id
-	return gormx.Updates(condition, updateMap)
+	return r.UpdateByCond(ctx, updateMap, condition)
 }
 
 func (r *resourceAppImpl) checkCode(code string) error {
 	if strings.Contains(code, ",") {
 		return errorx.NewBiz("code不能包含','")
 	}
-	if gormx.CountBy(&entity.Resource{Code: code}) != 0 {
+	if r.CountByCond(&entity.Resource{Code: code}) != 0 {
 		return errorx.NewBiz("该code已存在")
 	}
 	return nil
 }
 
 func (r *resourceAppImpl) Delete(ctx context.Context, id uint64) error {
-	resource, err := r.GetById(new(entity.Resource), id)
+	resource, err := r.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("资源不存在")
 	}
@@ -167,7 +169,7 @@ func (r *resourceAppImpl) Delete(ctx context.Context, id uint64) error {
 	for _, v := range children {
 		r.GetRepo().DeleteById(ctx, v.Id)
 		// 删除角色关联的资源信息
-		gormx.DeleteBy(&entity.RoleResource{ResourceId: v.Id})
+		return r.roleResourceRepo.DeleteByCond(ctx, &entity.RoleResource{ResourceId: v.Id})
 	}
 	return nil
 }
@@ -178,7 +180,7 @@ func (r *resourceAppImpl) GetAccountResources(accountId uint64, toEntity any) er
 		cond := &entity.Resource{
 			Status: entity.ResourceStatusEnable,
 		}
-		return r.ListByCondOrder(cond, toEntity, "pid asc", "weight asc")
+		return r.ListByCondToAny(model.NewModelCond(cond).OrderByAsc("pid").OrderByAsc("weight"), toEntity)
 	}
 
 	return r.GetRepo().GetAccountResources(accountId, toEntity)

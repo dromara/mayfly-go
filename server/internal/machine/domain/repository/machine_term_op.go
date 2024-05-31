@@ -11,4 +11,7 @@ type MachineTermOp interface {
 
 	// 分页获取机器终端执行记录列表
 	GetPageList(condition *entity.MachineTermOp, pageParam *model.PageParam, toEntity any, orderBy ...string) (*model.PageResult[any], error)
+
+	// 根据条件获取记录列表
+	SelectByQuery(cond *entity.MachineTermOpQuery) ([]*entity.MachineTermOp, error)
 }

@@ -7,10 +7,11 @@ import (
 	"mayfly-go/internal/mongo/domain/repository"
 	"mayfly-go/internal/mongo/mgm"
 	tagapp "mayfly-go/internal/tag/application"
+	tagdto "mayfly-go/internal/tag/application/dto"
+	tagentity "mayfly-go/internal/tag/domain/entity"
 	"mayfly-go/pkg/base"
 	"mayfly-go/pkg/errorx"
 	"mayfly-go/pkg/model"
-	"mayfly-go/pkg/utils/stringx"
 )
 
 type Mongo interface {
@@ -21,7 +22,7 @@ type Mongo interface {
 
 	TestConn(entity *entity.Mongo) error
 
-	Save(ctx context.Context, entity *entity.Mongo, tagIds ...uint64) error
+	SaveMongo(ctx context.Context, entity *entity.Mongo, tagCodePaths ...string) error
 
 	// 删除数据库信息
 	Delete(ctx context.Context, id uint64) error
@@ -31,18 +32,15 @@ type Mongo interface {
 	GetMongoConn(id uint64) (*mgm.MongoConn, error)
 }
 
-func newMongoAppImpl(mongoRepo repository.Mongo, tagApp tagapp.TagTree) Mongo {
-	app := &mongoAppImpl{
-		tagApp: tagApp,
-	}
-	app.Repo = mongoRepo
-	return app
-}
-
 type mongoAppImpl struct {
 	base.AppImpl[*entity.Mongo, repository.Mongo]
 
-	tagApp tagapp.TagTree
+	tagApp tagapp.TagTree `inject:"TagTreeApp"`
+}
+
+// 注入MongoRepo
+func (d *mongoAppImpl) InjectMongoRepo(repo repository.Mongo) {
+	d.Repo = repo
 }
 
 // 分页获取数据库信息列表
@@ -51,7 +49,7 @@ func (d *mongoAppImpl) GetPageList(condition *entity.MongoQuery, pageParam *mode
 }
 
 func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
-	mongoEntity, err := d.GetById(new(entity.Mongo), id)
+	mongoEntity, err := d.GetById(id)
 	if err != nil {
 		return errorx.NewBiz("mongo信息不存在")
 	}
@@ -62,8 +60,10 @@ func (d *mongoAppImpl) Delete(ctx context.Context, id uint64) error {
 			return d.DeleteById(ctx, id)
 		},
 		func(ctx context.Context) error {
-			var tagIds []uint64
-			return d.tagApp.RelateResource(ctx, mongoEntity.Code, consts.TagResourceTypeMongo, tagIds)
+			return d.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{ResourceTag: &tagdto.ResourceTag{
+				Type: tagentity.TagTypeMongo,
+				Code: mongoEntity.Code,
+			}})
 		})
 }
 
@@ -76,22 +76,28 @@ func (d *mongoAppImpl) TestConn(me *entity.Mongo) error {
 	return nil
 }
 
-func (d *mongoAppImpl) Save(ctx context.Context, m *entity.Mongo, tagIds ...uint64) error {
+func (d *mongoAppImpl) SaveMongo(ctx context.Context, m *entity.Mongo, tagCodePaths ...string) error {
 	oldMongo := &entity.Mongo{Name: m.Name, SshTunnelMachineId: m.SshTunnelMachineId}
-	err := d.GetBy(oldMongo)
+	err := d.GetByCond(oldMongo)
 
 	if m.Id == 0 {
 		if err == nil {
 			return errorx.NewBiz("该名称已存在")
 		}
-
-		resouceCode := stringx.Rand(16)
-		m.Code = resouceCode
+		if d.CountByCond(&entity.Mongo{Code: m.Code}) > 0 {
+			return errorx.NewBiz("该编码已存在")
+		}
 
 		return d.Tx(ctx, func(ctx context.Context) error {
 			return d.Insert(ctx, m)
 		}, func(ctx context.Context) error {
-			return d.tagApp.RelateResource(ctx, resouceCode, consts.TagResourceTypeMongo, tagIds)
+			return d.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
+				ResourceTag: &tagdto.ResourceTag{
+					Type: tagentity.TagTypeMongo,
+					Code: m.Code,
+				},
+				ParentTagCodePaths: tagCodePaths,
+			})
 		})
 	}
 
@@ -101,24 +107,37 @@ func (d *mongoAppImpl) Save(ctx context.Context, m *entity.Mongo, tagIds ...uint
 	}
 	// 如果调整了ssh等会查不到旧数据，故需要根据id获取旧信息将code赋值给标签进行关联
 	if oldMongo.Code == "" {
-		oldMongo, _ = d.GetById(new(entity.Mongo), m.Id)
+		oldMongo, _ = d.GetById(m.Id)
 	}
 
 	// 先关闭连接
 	mgm.CloseConn(m.Id)
+	m.Code = ""
 	return d.Tx(ctx, func(ctx context.Context) error {
 		return d.UpdateById(ctx, m)
 	}, func(ctx context.Context) error {
-		return d.tagApp.RelateResource(ctx, oldMongo.Code, consts.TagResourceTypeMongo, tagIds)
+		if oldMongo.Name != m.Name {
+			if err := d.tagApp.UpdateTagName(ctx, tagentity.TagTypeMachine, oldMongo.Code, m.Name); err != nil {
+				return err
+			}
+		}
+
+		return d.tagApp.SaveResourceTag(ctx, &tagdto.SaveResourceTag{
+			ResourceTag: &tagdto.ResourceTag{
+				Type: tagentity.TagTypeMongo,
+				Code: oldMongo.Code,
+			},
+			ParentTagCodePaths: tagCodePaths,
+		})
 	})
 }
 
 func (d *mongoAppImpl) GetMongoConn(id uint64) (*mgm.MongoConn, error) {
 	return mgm.GetMongoConn(id, func() (*mgm.MongoInfo, error) {
-		me, err := d.GetById(new(entity.Mongo), id)
+		me, err := d.GetById(id)
 		if err != nil {
 			return nil, errorx.NewBiz("mongo信息不存在")
 		}
-		return me.ToMongoInfo(d.tagApp.ListTagPathByResource(consts.TagResourceTypeMongo, me.Code)...), nil
+		return me.ToMongoInfo(d.tagApp.ListTagPathByTypeAndCode(consts.ResourceTypeMongo, me.Code)...), nil
 	})
 }

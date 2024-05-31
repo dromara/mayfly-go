@@ -2,9 +2,9 @@
     <div class="login-container flex">
         <div class="login-left">
             <div class="login-left-logo">
-                <img :src="logoMini" />
+                <img :src="themeConfig.logoIcon" />
                 <div class="login-left-logo-text">
-                    <span>mayfly-go</span>
+                    <span>{{ themeConfig.globalViceTitle }}</span>
                     <!-- <span class="login-left-logo-text-msg">mayfly-go</span> -->
                 </div>
             </div>
@@ -18,7 +18,7 @@
                 <span class="login-right-warp-one"></span>
                 <span class="login-right-warp-two"></span>
                 <div class="login-right-warp-mian">
-                    <div class="login-right-warp-main-title">mayfly-go</div>
+                    <div class="login-right-warp-main-title">{{ themeConfig.globalViceTitle }}</div>
                     <div class="login-right-warp-main-form">
                         <div v-if="!state.isScan">
                             <el-tabs v-model="state.tabsActiveName">
@@ -47,11 +47,11 @@
 <script setup lang="ts" name="loginIndex">
 import { ref, defineAsyncComponent, onMounted, reactive } from 'vue';
 import { useThemeConfig } from '@/store/themeConfig';
-import logoMini from '@/assets/image/logo.svg';
 import loginBgImg from '@/assets/image/login-bg-main.svg';
 import loginBgSplitImg from '@/assets/image/login-bg-split.svg';
 import openApi from '@/common/openApi';
 import config from '@/common/config';
+import { storeToRefs } from 'pinia';
 
 // 引入组件
 const Account = defineAsyncComponent(() => import('./component/AccountLogin.vue'));
@@ -60,6 +60,7 @@ const loginForm = ref<{ loginResDeal: (data: any) => void } | null>(null);
 
 // 定义变量内容
 const storesThemeConfig = useThemeConfig();
+const { themeConfig } = storeToRefs(storesThemeConfig);
 
 const state = reactive({
     tabsActiveName: 'account',

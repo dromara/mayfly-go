@@ -30,8 +30,21 @@ func Set(key string, val string, expiration time.Duration) error {
 	return cli.Set(context.TODO(), key, val, expiration).Err()
 }
 
-func Del(key string) {
-	cli.Del(context.TODO(), key)
+// Del 删除key
+func Del(key string) (int64, error) {
+	return cli.Del(context.TODO(), key).Result()
+}
+
+// DelByKeyPrefix 根据key前缀删除key
+func DelByKeyPrefix(keyPrefix string) error {
+	res, err := cli.Keys(context.TODO(), keyPrefix+"*").Result()
+	if err != nil {
+		return err
+	}
+	for _, key := range res {
+		Del(key)
+	}
+	return nil
 }
 
 func HSet(key string, field string, val any) {

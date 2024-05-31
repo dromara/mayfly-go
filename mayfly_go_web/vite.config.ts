@@ -2,6 +2,7 @@ import vue from '@vitejs/plugin-vue';
 import { resolve } from 'path';
 import type { UserConfig } from 'vite';
 import { loadEnv } from './src/common/utils/viteBuild';
+import { CodeInspectorPlugin } from 'code-inspector-plugin';
 
 const pathResolve = (dir: string): any => {
     return resolve(__dirname, '.', dir);
@@ -14,7 +15,12 @@ const alias: Record<string, string> = {
 };
 
 const viteConfig: UserConfig = {
-    plugins: [vue()],
+    plugins: [
+        vue(),
+        CodeInspectorPlugin({
+            bundler: 'vite',
+        }),
+    ],
     root: process.cwd(),
     resolve: {
         alias,

@@ -1,16 +1,21 @@
 package starter
 
 import (
+	"context"
+	"errors"
 	"mayfly-go/initialize"
-	"mayfly-go/pkg/biz"
 	"mayfly-go/pkg/config"
 	"mayfly-go/pkg/logx"
 	"mayfly-go/pkg/req"
+	"net/http"
+	"time"
+
+	sysapp "mayfly-go/internal/sys/application"
 
 	"github.com/gin-gonic/gin"
 )
 
-func runWebServer() {
+func runWebServer(ctx context.Context) {
 	// 设置gin日志输出器
 	logOut := logx.GetConfig().GetLogOut()
 	gin.DefaultErrorWriter = logOut
@@ -21,20 +26,38 @@ func runWebServer() {
 	// 日志处理器
 	req.UseAfterHandlerInterceptor(req.LogHandler)
 	// 设置日志保存函数
-	req.SetSaveLogFunc(initialize.InitSaveLogFunc())
+	req.SetSaveLogFunc(sysapp.GetSyslogApp().SaveFromReq)
 
-	// 注册路由
-	web := initialize.InitRouter()
-
-	server := config.Conf.Server
-	port := server.GetPort()
-	logx.Infof("Listening and serving HTTP on %s", port+server.ContextPath)
-
-	var err error
-	if server.Tls != nil && server.Tls.Enable {
-		err = web.RunTLS(port, server.Tls.CertFile, server.Tls.KeyFile)
-	} else {
-		err = web.Run(port)
+	srv := http.Server{
+		Addr: config.Conf.Server.GetPort(),
+		// 注册路由
+		Handler: initialize.InitRouter(),
 	}
-	biz.ErrIsNilAppendErr(err, "服务启动失败: %s")
+
+	go func() {
+		<-ctx.Done()
+		logx.Info("Shutdown HTTP Server ...")
+		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err := srv.Shutdown(timeout)
+		if err != nil {
+			logx.Errorf("Failed to Shutdown HTTP Server: %v", err)
+		}
+
+		initialize.Terminate()
+	}()
+
+	confSrv := config.Conf.Server
+	logx.Infof("Listening and serving HTTP on %s", srv.Addr+confSrv.ContextPath)
+	var err error
+	if confSrv.Tls != nil && confSrv.Tls.Enable {
+		err = srv.ListenAndServeTLS(confSrv.Tls.CertFile, confSrv.Tls.KeyFile)
+	} else {
+		err = srv.ListenAndServe()
+	}
+	if errors.Is(err, http.ErrServerClosed) {
+		logx.Info("HTTP Server Shutdown")
+	} else if err != nil {
+		logx.Errorf("Failed to Start HTTP Server: %v", err)
+	}
 }

@@ -1,5 +1,5 @@
 <template>
-    <div id="terminal-body" :style="{ height, background: themeConfig.terminalBackground }">
+    <div id="terminal-body" :style="{ height }">
         <div ref="terminalRef" class="terminal" />
 
         <TerminalSearch ref="terminalSearchRef" :search-addon="state.addon.search" @close="focus" />
@@ -8,7 +8,7 @@
 
 <script lang="ts" setup>
 import 'xterm/css/xterm.css';
-import { Terminal } from 'xterm';
+import { Terminal, ITheme } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { SearchAddon } from 'xterm-addon-search';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -19,8 +19,16 @@ import { ref, nextTick, reactive, onMounted, onBeforeUnmount, watch } from 'vue'
 import TerminalSearch from './TerminalSearch.vue';
 import { debounce } from 'lodash';
 import { TerminalStatus } from './common';
+import { useEventListener } from '@vueuse/core';
+import themes from './themes';
+import { TrzszFilter } from 'trzsz';
 
 const props = defineProps({
+    // mounted时，是否执行init方法
+    mountInit: {
+        type: Boolean,
+        default: true,
+    },
     /**
      * 初始化执行命令
      */
@@ -59,13 +67,13 @@ const state = reactive({
         search: null as any,
         weblinks: null as any,
     },
-    status: TerminalStatus.NoConnected,
+    status: -11,
 });
 
 onMounted(() => {
-    nextTick(() => {
+    if (props.mountInit) {
         init();
-    });
+    }
 });
 
 watch(
@@ -75,15 +83,30 @@ watch(
     }
 );
 
+// 监听 themeConfig terminalTheme配置的变化
+watch(
+    () => themeConfig.value.terminalTheme,
+    () => {
+        term.options.theme = getTerminalTheme();
+    }
+);
+
 onBeforeUnmount(() => {
     close();
 });
 
 function init() {
+    state.status = TerminalStatus.NoConnected;
     if (term) {
         console.log('重新连接...');
         close();
     }
+    nextTick(() => {
+        initTerm();
+    });
+}
+
+async function initTerm() {
     term = new Terminal({
         fontSize: themeConfig.value.terminalFontSize || 15,
         fontWeight: themeConfig.value.terminalFontWeight || 'normal',
@@ -91,13 +114,10 @@ function init() {
         cursorBlink: true,
         disableStdin: false,
         allowProposedApi: true,
-        theme: {
-            foreground: themeConfig.value.terminalForeground || '#7e9192', //字体
-            background: themeConfig.value.terminalBackground || '#002833', //背景色
-            cursor: themeConfig.value.terminalCursor || '#268F81', //设置光标
-            // cursorAccent: "red",  // 光标停止颜色
-        } as any,
+        fastScrollModifier: 'ctrl',
+        theme: getTerminalTheme(),
     });
+
     term.open(terminalRef.value);
 
     // 注册自适应组件
@@ -105,31 +125,12 @@ function init() {
     state.addon.fit = fitAddon;
     term.loadAddon(fitAddon);
     fitTerminal();
+    // 注册窗口大小监听器
+    useEventListener('resize', debounce(fitTerminal, 400));
 
-    // 注册搜索组件
-    const searchAddon = new SearchAddon();
-    state.addon.search = searchAddon;
-    term.loadAddon(searchAddon);
-
-    // 注册 url link组件
-    const weblinks = new WebLinksAddon();
-    state.addon.weblinks = weblinks;
-    term.loadAddon(weblinks);
-
-    // 初始化websocket
     initSocket();
-}
-
-/**
- * 连接成功
- */
-const onConnected = () => {
-    // 注册心跳
-    pingInterval = setInterval(sendPing, 15000);
-
-    // 注册 terminal 事件
-    term.onResize((event) => sendResize(event.cols, event.rows));
-    term.onData((event) => sendCmd(event));
+    // 注册其他插件
+    loadAddon();
 
     // 注册自定义快捷键
     term.attachCustomKeyEventHandler((event: KeyboardEvent) => {
@@ -141,50 +142,26 @@ const onConnected = () => {
 
         return true;
     });
-
-    state.status = TerminalStatus.Connected;
-
-    // 注册窗口大小监听器
-    window.addEventListener('resize', debounce(fitTerminal, 400));
-
-    focus();
-
-    // 如果有初始要执行的命令，则发送执行命令
-    if (props.cmd) {
-        sendCmd(props.cmd + ' \r');
-    }
-};
-
-// 自适应终端
-const fitTerminal = () => {
-    const dimensions = state.addon.fit && state.addon.fit.proposeDimensions();
-    if (!dimensions) {
-        return;
-    }
-    if (dimensions?.cols && dimensions?.rows) {
-        term.resize(dimensions.cols, dimensions.rows);
-    }
-};
-
-const focus = () => {
-    setTimeout(() => term.focus(), 400);
-};
-
-const clear = () => {
-    term.clear();
-    term.clearSelection();
-    term.focus();
-};
+}
 
 function initSocket() {
-    if (props.socketUrl) {
-        let socketUrl = `${props.socketUrl}&rows=${term.rows}&cols=${term.cols}`;
-        socket = new WebSocket(socketUrl);
+    if (!props.socketUrl) {
+        return;
     }
-
+    socket = new WebSocket(`${props.socketUrl}&rows=${term?.rows}&cols=${term?.cols}`);
     // 监听socket连接
     socket.onopen = () => {
-        onConnected();
+        // 注册心跳
+        pingInterval = setInterval(sendPing, 15000);
+        state.status = TerminalStatus.Connected;
+
+        focus();
+        fitTerminal();
+
+        // 如果有初始要执行的命令，则发送执行命令
+        if (props.cmd) {
+            sendCmd(props.cmd + ' \r');
+        }
     };
 
     // 监听socket错误信息
@@ -196,21 +173,94 @@ function initSocket() {
 
     socket.onclose = (e: CloseEvent) => {
         console.log('terminal socket close...', e.reason);
-        // 关闭窗口大小监听器
-        window.removeEventListener('resize', debounce(fitTerminal, 100));
-        // 清除 ping
-        pingInterval && clearInterval(pingInterval);
         state.status = TerminalStatus.Disconnected;
     };
-
-    // 监听socket消息
-    socket.onmessage = getMessage;
 }
 
-function getMessage(msg: any) {
-    // msg.data是真正后端返回的数据
-    term.write(msg.data);
+function loadAddon() {
+    // 注册搜索组件
+    const searchAddon = new SearchAddon();
+    state.addon.search = searchAddon;
+    term.loadAddon(searchAddon);
+
+    // 注册 url link组件
+    const weblinks = new WebLinksAddon();
+    state.addon.weblinks = weblinks;
+    term.loadAddon(weblinks);
+
+    // 注册 trzsz
+    // initialize trzsz filter
+    const trzsz = new TrzszFilter({
+        // write the server output to the terminal
+        writeToTerminal: (data: any) => term.write(typeof data === 'string' ? data : new Uint8Array(data)),
+        // send the user input to the server
+        sendToServer: sendCmd,
+        // the terminal columns
+        terminalColumns: term.cols,
+        // there is a windows shell
+        isWindowsShell: false,
+    });
+
+    // let trzsz process the server output
+    socket?.addEventListener('message', (e) => trzsz.processServerOutput(e.data));
+    // let trzsz process the user input
+    term.onData((data) => trzsz.processTerminalInput(data));
+    term.onBinary((data) => trzsz.processBinaryInput(data));
+    term.onResize((size) => {
+        sendResize(size.cols, size.rows);
+        // tell trzsz the terminal columns has been changed
+        trzsz.setTerminalColumns(size.cols);
+    });
+    // enable drag files or directories to upload
+    terminalRef.value.addEventListener('dragover', (event: Event) => event.preventDefault());
+    terminalRef.value.addEventListener('drop', (event: any) => {
+        event.preventDefault();
+        trzsz
+            .uploadFiles(event.dataTransfer.items)
+            .then(() => console.log('upload success'))
+            .catch((err: any) => console.log(err));
+    });
 }
+
+// 写入内容至终端
+const write2Term = (data: any) => {
+    term.write(data);
+};
+
+const writeln2Term = (data: any) => {
+    term.writeln(data);
+};
+
+const getTerminalTheme = () => {
+    const terminalTheme = themeConfig.value.terminalTheme;
+    // 如果不是自定义主题，则返回内置主题
+    if (terminalTheme != 'custom') {
+        return themes[terminalTheme];
+    }
+
+    // 自定义主题
+    return {
+        foreground: themeConfig.value.terminalForeground || '#7e9192', //字体
+        background: themeConfig.value.terminalBackground || '#002833', //背景色
+        cursor: themeConfig.value.terminalCursor || '#268F81', //设置光标
+        // cursorAccent: "red",  // 光标停止颜色
+    } as ITheme;
+};
+
+// 自适应终端
+const fitTerminal = () => {
+    state.addon.fit.fit();
+};
+
+const focus = () => {
+    setTimeout(() => term.focus(), 300);
+};
+
+const clear = () => {
+    term.clear();
+    term.clearSelection();
+    term.focus();
+};
 
 enum MsgType {
     Resize = 1,
@@ -219,29 +269,19 @@ enum MsgType {
 }
 
 const send = (msg: any) => {
-    state.status == TerminalStatus.Connected && socket.send(JSON.stringify(msg));
+    state.status == TerminalStatus.Connected && socket?.send(msg);
 };
 
 const sendResize = (cols: number, rows: number) => {
-    send({
-        type: MsgType.Resize,
-        Cols: cols,
-        Rows: rows,
-    });
+    send(`${MsgType.Resize}|${rows}|${cols}`);
 };
 
 const sendPing = () => {
-    send({
-        type: MsgType.Ping,
-        msg: 'ping',
-    });
+    send(`${MsgType.Ping}|ping`);
 };
 
 function sendCmd(key: any) {
-    send({
-        type: MsgType.Data,
-        msg: key,
-    });
+    send(`${MsgType.Data}|${key}`);
 }
 
 function closeSocket() {
@@ -266,20 +306,19 @@ const getStatus = (): TerminalStatus => {
     return state.status;
 };
 
-defineExpose({ init, fitTerminal, focus, clear, close, getStatus });
+defineExpose({ init, fitTerminal, focus, clear, close, getStatus, sendResize, write2Term, writeln2Term });
 </script>
 <style lang="scss">
 #terminal-body {
-    background: #212529;
     width: 100%;
 
     .terminal {
         width: 100%;
         height: 100%;
 
-        .xterm .xterm-viewport {
-            overflow-y: hidden;
-        }
+        // .xterm .xterm-viewport {
+        //     overflow-y: hidden;
+        // }
     }
 }
 </style>

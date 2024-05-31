@@ -1,39 +1,45 @@
 package vo
 
 import (
-	"mayfly-go/internal/tag/domain/entity"
+	"mayfly-go/internal/tag/application/dto"
 )
 
-type TagTreeVOS []*entity.TagTree
+type TagTreeVOS []*dto.SimpleTagTree
 
 type TagTreeItem struct {
-	*entity.TagTree
-	Children []TagTreeItem `json:"children"`
+	*dto.SimpleTagTree
+	Children []*TagTreeItem `json:"children"`
 }
 
-func (m *TagTreeVOS) ToTrees(pid uint64) []TagTreeItem {
-	var resourceTree []TagTreeItem
-
-	list := m.findChildren(pid)
-	if len(list) == 0 {
-		return resourceTree
+func (m *TagTreeVOS) ToTrees(pid uint64) []*TagTreeItem {
+	var ttis []*TagTreeItem
+	if len(*m) == 0 {
+		return ttis
 	}
 
-	for _, v := range list {
-		Children := m.ToTrees(v.Id)
-		resourceTree = append(resourceTree, TagTreeItem{v, Children})
-	}
-
-	return resourceTree
-}
-
-func (m *TagTreeVOS) findChildren(pid uint64) []*entity.TagTree {
-	child := []*entity.TagTree{}
-
-	for _, v := range *m {
-		if v.Pid == pid {
-			child = append(child, v)
+	tagMap := make(map[string]*TagTreeItem)
+	var roots []*TagTreeItem
+	for _, tag := range *m {
+		tti := &TagTreeItem{SimpleTagTree: tag}
+		tagMap[tag.CodePath] = tti
+		ttis = append(ttis, tti)
+		if tti.IsRoot() {
+			roots = append(roots, tti)
+			tti.Root = true
 		}
 	}
-	return child
+
+	for _, node := range ttis {
+		// 根节点
+		if node.Root {
+			continue
+		}
+		parentCodePath := node.GetParentPath(0)
+		parentNode := tagMap[parentCodePath]
+		if parentNode != nil {
+			parentNode.Children = append(parentNode.Children, node)
+		}
+	}
+
+	return roots
 }

@@ -18,7 +18,7 @@ type Mysql struct {
 func (m *Mysql) Default() {
 	if m.Host == "" {
 		m.Host = "localhost:3306"
-		logx.Warnf("未配置mysql.host, 默认值: %s", m.Host)
+		logx.Warnf("[使用sqlite可忽略]未配置mysql.host, 默认值: %s", m.Host)
 	}
 	if m.Config == "" {
 		m.Config = "charset=utf8&loc=Local&parseTime=true"

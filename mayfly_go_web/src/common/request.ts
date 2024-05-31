@@ -4,7 +4,7 @@ import { getClientId, getToken } from './utils/storage';
 import { templateResolve } from './utils/string';
 import { ElMessage } from 'element-plus';
 import axios from 'axios';
-import { useApiFetch } from './useRequest';
+import { useApiFetch } from '../hooks/useRequest';
 import Api from './Api';
 
 export default {
@@ -38,6 +38,7 @@ export enum ResultEnum {
     PARAM_ERROR = 405,
     SERVER_ERROR = 500,
     NO_PERMISSION = 501,
+    ACCESS_TOKEN_INVALID = 502, // accessToken失效
 }
 
 export const baseUrl: string = config.baseApiUrl;

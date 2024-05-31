@@ -12,21 +12,15 @@
 </template>
 <script lang="ts" setup>
 import { ref, watch, reactive, toRefs, onMounted } from 'vue';
-import { redisApi } from './api';
 import { ElMessage } from 'element-plus';
 import { notEmpty } from '@/common/assert';
 import FormatViewer from './FormatViewer.vue';
+import { RedisInst } from './redis';
 
 const props = defineProps({
-    redisId: {
-        type: [Number],
-        require: true,
-        default: 0,
-    },
-    db: {
-        type: [Number],
-        require: true,
-        default: 0,
+    redis: {
+        type: RedisInst,
+        required: true,
     },
     keyInfo: {
         type: [Object],
@@ -36,8 +30,6 @@ const props = defineProps({
 const formatViewerRef = ref(null) as any;
 
 const state = reactive({
-    redisId: 0,
-    db: 0,
     key: '',
     keyInfo: {
         key: '',
@@ -61,8 +53,6 @@ watch(props, (newVal) => {
 });
 
 const setProps = (val: any) => {
-    state.redisId = val.redisId;
-    state.db = val.db;
     state.key = val.keyInfo?.key;
     initData();
 };
@@ -73,7 +63,7 @@ const initData = () => {
 
 const getStringValue = async () => {
     if (state.key) {
-        state.string.value = await redisApi.getString.request(getBaseReqParam());
+        state.string.value = await props.redis.runCmd(['GET', state.key]);
     }
 };
 
@@ -81,19 +71,8 @@ const saveValue = async () => {
     state.string.value = formatViewerRef.value.getContent();
     notEmpty(state.string.value, 'value不能为空');
 
-    await redisApi.setString.request({
-        ...getBaseReqParam(),
-        value: state.string.value,
-    });
+    await props.redis.runCmd(['SET', state.key, state.string.value]);
     ElMessage.success('数据保存成功');
-};
-
-const getBaseReqParam = () => {
-    return {
-        id: state.redisId,
-        db: state.db,
-        key: state.key,
-    };
 };
 
 defineExpose({ initData });

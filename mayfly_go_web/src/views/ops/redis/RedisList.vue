@@ -9,6 +9,7 @@
             :show-selection="true"
             v-model:selection-data="selectionData"
             :columns="columns"
+            lazy
         >
             <template #tableHeader>
                 <el-button type="primary" icon="plus" @click="editRedis(false)" plain>添加</el-button>
@@ -16,7 +17,7 @@
             </template>
 
             <template #tagPath="{ data }">
-                <resource-tag :resource-code="data.code" :resource-type="TagResourceTypeEnum.Redis.value" />
+                <resource-tags :tags="data.tags" />
             </template>
 
             <template #action="{ data }">
@@ -116,30 +117,29 @@
             </el-table>
         </el-dialog>
 
-        <el-dialog v-model="detailDialog.visible">
+        <el-dialog v-if="detailDialog.visible" v-model="detailDialog.visible">
             <el-descriptions title="详情" :column="3" border>
                 <el-descriptions-item :span="1.5" label="id">{{ detailDialog.data.id }}</el-descriptions-item>
                 <el-descriptions-item :span="1.5" label="名称">{{ detailDialog.data.name }}</el-descriptions-item>
 
-                <el-descriptions-item :span="3" label="标签路径">{{ detailDialog.data.tagPath }}</el-descriptions-item>
+                <el-descriptions-item :span="3" label="关联标签"><ResourceTags :tags="detailDialog.data.tags" /></el-descriptions-item>
 
                 <el-descriptions-item :span="3" label="主机">{{ detailDialog.data.host }}</el-descriptions-item>
 
                 <el-descriptions-item :span="3" label="库">{{ detailDialog.data.db }}</el-descriptions-item>
                 <el-descriptions-item :span="3" label="备注">{{ detailDialog.data.remark }}</el-descriptions-item>
-
                 <el-descriptions-item :span="3" label="SSH隧道">{{ detailDialog.data.sshTunnelMachineId > 0 ? '是' : '否' }} </el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="创建时间">{{ dateFormat(detailDialog.data.createTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="2" label="创建时间">{{ formatDate(detailDialog.data.createTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="创建者">{{ detailDialog.data.creator }}</el-descriptions-item>
 
-                <el-descriptions-item :span="2" label="更新时间">{{ dateFormat(detailDialog.data.updateTime) }} </el-descriptions-item>
+                <el-descriptions-item :span="2" label="更新时间">{{ formatDate(detailDialog.data.updateTime) }} </el-descriptions-item>
                 <el-descriptions-item :span="1" label="修改者">{{ detailDialog.data.modifier }}</el-descriptions-item>
             </el-descriptions>
         </el-dialog>
 
         <redis-edit
-            @val-change="search"
+            @val-change="search()"
             :title="redisEditDialog.title"
             v-model:visible="redisEditDialog.visible"
             v-model:redis="redisEditDialog.data"
@@ -150,28 +150,37 @@
 <script lang="ts" setup>
 import Info from './Info.vue';
 import { redisApi } from './api';
-import { ref, toRefs, reactive, onMounted, Ref } from 'vue';
+import { onMounted, reactive, ref, Ref, toRefs } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import RedisEdit from './RedisEdit.vue';
-import { dateFormat } from '@/common/utils/date';
-import ResourceTag from '../component/ResourceTag.vue';
+import { formatDate } from '@/common/utils/format';
+import ResourceTags from '../component/ResourceTags.vue';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { TagResourceTypeEnum } from '@/common/commonEnum';
 import { useRoute } from 'vue-router';
 import { getTagPathSearchItem } from '../component/tag';
+import { SearchItem } from '@/components/SearchForm';
+
+const props = defineProps({
+    lazy: {
+        type: [Boolean],
+        default: false,
+    },
+});
 
 const route = useRoute();
 const pageTableRef: Ref<any> = ref(null);
 
-const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Redis.value)];
+const searchItems = [getTagPathSearchItem(TagResourceTypeEnum.Redis.value), SearchItem.input('code', '编号')];
 
 const columns = ref([
+    TableColumn.new('tags[0].tagPath', '关联标签').isSlot('tagPath').setAddWidth(20),
     TableColumn.new('name', '名称'),
     TableColumn.new('host', 'host:port'),
     TableColumn.new('mode', 'mode'),
-    TableColumn.new('tagPath', '关联标签').isSlot().setAddWidth(10).alignCenter(),
     TableColumn.new('remark', '备注'),
+    TableColumn.new('code', '编号'),
     TableColumn.new('action', '操作').isSlot().setMinWidth(200).fixedRight().alignCenter(),
 ]);
 
@@ -212,7 +221,11 @@ const state = reactive({
 
 const { selectionData, query, detailDialog, clusterInfoDialog, infoDialog, redisEditDialog } = toRefs(state);
 
-onMounted(async () => {});
+onMounted(() => {
+    if (!props.lazy) {
+        search();
+    }
+});
 
 const checkRouteTagPath = (query: any) => {
     if (route.query.tagPath) {
@@ -260,7 +273,10 @@ const onShowClusterInfo = async (redis: any) => {
     state.clusterInfoDialog.visible = true;
 };
 
-const search = () => {
+const search = async (tagPath: string = '') => {
+    if (tagPath) {
+        state.query.tagPath = tagPath;
+    }
     pageTableRef.value.search();
 };
 
@@ -274,6 +290,8 @@ const editRedis = async (data: any) => {
     }
     state.redisEditDialog.visible = true;
 };
+
+defineExpose({ search });
 </script>
 
 <style></style>

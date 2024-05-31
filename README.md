@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/docker/pulls/mayflygo/mayfly-go.svg?label=docker%20pulls&color=fac858" alt="docker pulls"/>
   </a>
   <a href="https://github.com/golang/go" target="_blank">
-    <img src="https://img.shields.io/badge/Golang-1.21%2B-yellow.svg" alt="golang"/>
+    <img src="https://img.shields.io/badge/Golang-1.22%2B-yellow.svg" alt="golang"/>
   </a>
   <a href="https://cn.vuejs.org" target="_blank">
     <img src="https://img.shields.io/badge/Vue-3.x-green.svg" alt="vue">
@@ -22,7 +22,7 @@
 
 ### 介绍
 
-web 版 **linux(终端[终端回放] 文件 脚本 进程 计划任务)、数据库（mysql postgres 达梦）、redis(单机 哨兵 集群)、mongo 统一管理操作平台**
+web 版 **linux(终端[终端回放、命令过滤] 文件 脚本 进程 计划任务)、数据库（mysql postgres oracle sqlserver 达梦 高斯 sqlite）数据同步 数据迁移、redis(单机 哨兵 集群)、mongo 等集工单流程审批于一体的统一管理操作平台**
 
 ### 开发语言与主要框架
 
@@ -45,56 +45,61 @@ http://go.mayfly.run
 
 ### 系统核心功能截图
 
-##### 记录操作记录
+#### 首页
 
-![记录操作记录](https://objs.gitee.io/mayfly-go-docs/home/log.jpg "屏幕截图.png")
+![首页](https://foruda.gitee.com/images/1714378104294194769/149fd257_1240250.png "屏幕截图")
 
 #### 机器操作
 
 ##### 状态查看
 
-![状态查看](https://objs.gitee.io/mayfly-go-docs/home/machine-status.jpg "屏幕截图.png")
+![机器状态查看](https://foruda.gitee.com/images/1714378556642584686/93c46ec0_1240250.png "屏幕截图")
 
 ##### ssh 终端
 
-![ssh终端](https://objs.gitee.io/mayfly-go-docs/home/machine-ssh.jpg "屏幕截图.png")
+![终端操作](https://foruda.gitee.com/images/1714378353790214943/2864ba66_1240250.png "屏幕截图")
 
 ##### 文件操作
 
-![文件操作](https://objs.gitee.io/mayfly-go-docs/home/file-dir.jpg "屏幕截图.png")
-![文件操作](https://objs.gitee.io/mayfly-go-docs/home/file-content-update.jpg "屏幕截图.png")
+![文件操作](https://foruda.gitee.com/images/1714378417206086701/74a188d8_1240250.png "屏幕截图")
+
+![文件查看](https://foruda.gitee.com/images/1714378482611638688/7753faf6_1240250.png "屏幕截图")
 
 #### 数据库操作
 
 ##### sql 编辑器
 
-![sql编辑器](https://objs.gitee.io/mayfly-go-docs/home/dbms-sql-editor.jpg "屏幕截图.png")
+![sql编辑器](https://foruda.gitee.com/images/1714378747473077515/3c9387c0_1240250.png "屏幕截图")
 
 ##### 在线增删改查数据
 
-![选表查数据](https://objs.gitee.io/mayfly-go-docs/home/dbms-show-table-data.jpg "屏幕截图.png")
+![选表查数据](https://foruda.gitee.com/images/1714378625059063750/3951e5a8_1240250.png "屏幕截图")
 
 #### Redis 操作
 
-![数据](https://objs.gitee.io/mayfly-go-docs/home/redis-data-list.jpg "屏幕截图.png")
+![redis操作](https://foruda.gitee.com/images/1714378855845451114/4c3f0097_1240250.png "屏幕截图")
 
 #### Mongo 操作
 
-![数据](https://objs.gitee.io/mayfly-go-docs/home/mongo-op.jpg "屏幕截图.png")
+![mongo操作](https://foruda.gitee.com/images/1714378916425714642/77fc0ed9_1240250.png "屏幕截图")
 
-##### 系统管理
+#### 工单流程审批
+
+![流程审批](https://foruda.gitee.com/images/1714379057627690037/ad136862_1240250.png "屏幕截图")
+
+#### 系统管理
 
 ##### 账号管理
 
-![账号管理](https://images.gitee.com/uploads/images/2021/0607/173919_a8d7dc18_1240250.png "屏幕截图.png")
+![账号管理](https://foruda.gitee.com/images/1714379179491881231/c6d802ae_1240250.png "屏幕截图")
 
 ##### 角色管理
 
-![角色管理](https://images.gitee.com/uploads/images/2021/0607/174028_3654fb28_1240250.png "屏幕截图.png")
+![角色管理](https://foruda.gitee.com/images/1714379269408676381/6ac1e85c_1240250.png "屏幕截图")
 
-##### 资源管理
+##### 菜单资源管理
 
-![资源管理](https://images.gitee.com/uploads/images/2021/0607/174436_e9e1535c_1240250.png "屏幕截图.png")
+![菜单资源管理](https://foruda.gitee.com/images/1714379321338009940/a00d6a02_1240250.png "屏幕截图")
 
 **其他更多功能&操作指南可查看在线文档**: https://www.yuque.com/may-fly/mayfly-go
 

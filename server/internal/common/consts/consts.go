@@ -16,11 +16,8 @@ const (
 	// RedisConnExpireTime   = 2 * time.Minute
 	// MongoConnExpireTime   = 2 * time.Minute
 
-	TagResourceTypeMachine = 1
-	TagResourceTypeDb      = 2
-	TagResourceTypeRedis   = 3
-	TagResourceTypeMongo   = 4
-
-	// 删除机器的事件主题名
-	DeleteMachineEventTopic = "machine:delete"
+	ResourceTypeMachine int8 = 1
+	ResourceTypeDb      int8 = 2
+	ResourceTypeRedis   int8 = 3
+	ResourceTypeMongo   int8 = 4
 )

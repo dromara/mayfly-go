@@ -4,17 +4,20 @@ import (
 	"mayfly-go/internal/sys/application"
 	"mayfly-go/internal/sys/domain/entity"
 	"mayfly-go/pkg/biz"
-	"mayfly-go/pkg/ginx"
 	"mayfly-go/pkg/req"
 )
 
 type Syslog struct {
-	SyslogApp application.Syslog
+	SyslogApp application.Syslog `inject:""`
 }
 
 func (r *Syslog) Syslogs(rc *req.Ctx) {
-	queryCond, page := ginx.BindQueryAndPage[*entity.SysLogQuery](rc.GinCtx, new(entity.SysLogQuery))
+	queryCond, page := req.BindQueryAndPage[*entity.SysLogQuery](rc, new(entity.SysLogQuery))
 	res, err := r.SyslogApp.GetPageList(queryCond, page, new([]entity.SysLog), "create_time DESC")
 	biz.ErrIsNil(err)
 	rc.ResData = res
+}
+
+func (r *Syslog) SyslogDetail(rc *req.Ctx) {
+	rc.ResData = r.SyslogApp.GetLogDetail(uint64(rc.PathParamInt("id")))
 }

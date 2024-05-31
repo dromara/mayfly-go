@@ -19,33 +19,15 @@ type MachineCronJob struct {
 	SaveExecResType int        `json:"saveExecResType"` // 记录执行结果类型
 }
 
-// 计划任务与机器关联信息
-type MachineCronJobRelate struct {
-	model.DeletedModel
-
-	CronJobId  uint64
-	MachineId  uint64
-	Creator    string
-	CreatorId  uint64
-	CreateTime *time.Time
-}
-
-func (m *MachineCronJobRelate) SetBaseInfo(la *model.LoginAccount) {
-	now := time.Now()
-	m.CreateTime = &now
-	m.Creator = la.Username
-	m.CreatorId = la.Id
-}
-
 // 机器任务执行记录
 type MachineCronJobExec struct {
 	model.DeletedModel
 
-	CronJobId uint64    `json:"cronJobId" form:"cronJobId"`
-	MachineId uint64    `json:"machineId" form:"machineId"`
-	Status    int       `json:"status" form:"status"` // 执行状态
-	Res       string    `json:"res"`                  // 执行结果
-	ExecTime  time.Time `json:"execTime"`
+	CronJobId   uint64    `json:"cronJobId" form:"cronJobId"`
+	MachineCode string    `json:"machineCode" form:"machineCode"`
+	Status      int       `json:"status" form:"status"` // 执行状态
+	Res         string    `json:"res"`                  // 执行结果
+	ExecTime    time.Time `json:"execTime"`
 }
 
 const (

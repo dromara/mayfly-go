@@ -82,18 +82,14 @@ import { ElMessage } from 'element-plus';
 import PageTable from '@/components/pagetable/PageTable.vue';
 import { TableColumn } from '@/components/pagetable';
 import { SearchItem } from '@/components/SearchForm';
-import { useVModel } from '@vueuse/core';
 import { ResourceTypeEnum, RoleStatusEnum } from '../enums';
 
 const props = defineProps({
-    visible: {
-        type: Boolean,
-    },
     account: Object,
 });
 
 //定义事件
-const emit = defineEmits(['update:visible', 'cancel', 'val-change']);
+const emit = defineEmits(['cancel', 'val-change']);
 
 const relatedColumns = [
     TableColumn.new('roleName', '角色名'),
@@ -148,7 +144,7 @@ let relatedRoleIds: Number[] = []; // 用户已关联的角色ids
 
 const { releateQuery, unRelatedQuery, showResourceDialog } = toRefs(state);
 
-const dialogVisible = useVModel(props, 'visible', emit);
+const dialogVisible = defineModel<boolean>('visible', { default: false });
 
 const searchAccountRoles = async () => {
     state.releateQuery.id = props.account?.id;

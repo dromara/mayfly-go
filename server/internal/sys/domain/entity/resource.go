@@ -18,6 +18,11 @@ func (a *Resource) TableName() string {
 	return "t_sys_resource"
 }
 
+func (m *Resource) FillBaseInfo(idGenType model.IdGenType, la *model.LoginAccount) {
+	// id使用时间戳，减少id冲突概率
+	m.Model.FillBaseInfo(model.IdGenTypeTimestamp, la)
+}
+
 const (
 	ResourceStatusEnable  int8 = 1  // 启用状态
 	ResourceStatusDisable int8 = -1 // 禁用状态

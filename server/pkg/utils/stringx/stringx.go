@@ -6,6 +6,14 @@ import (
 	"text/template"
 )
 
+// 逻辑空字符串（由于gorm更新结构体只更新非零值，所以使用该值最为逻辑空字符串，方便更新结构体）
+const LogicEmptyStr = "-"
+
+// 是否为逻辑上空字符串
+func IsLogicEmpty(str string) bool {
+	return str == "" || str == LogicEmptyStr
+}
+
 // 可判断中文
 func Len(str string) int {
 	return len([]rune(str))
@@ -114,4 +122,18 @@ func ReverStrTemplate(temp, str string, res map[string]any) {
 	if nextContain != -1 {
 		ReverStrTemplate(next, Trim(SubString(str, UnicodeIndex(str, value)+Len(value), Len(str))), res)
 	}
+}
+
+func TruncateStr(s string, length int) string {
+	if length >= len(s) {
+		return s
+	}
+	var last int
+	for i := range s {
+		if i > length {
+			break
+		}
+		last = i
+	}
+	return s[:last]
 }
