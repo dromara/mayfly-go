@@ -214,6 +214,9 @@ func valueConvert(data []byte, colType *sql.ColumnType) any {
 	if strings.Contains(colDatabaseTypeName, "bit") {
 		return data[0]
 	}
+	if colDatabaseTypeName == "blob" {
+		return fmt.Sprintf("%x", data)
+	}
 
 	// 这里把[]byte数据转成string
 	stringV := string(data)
