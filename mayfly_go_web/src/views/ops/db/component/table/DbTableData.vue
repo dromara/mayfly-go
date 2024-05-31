@@ -15,6 +15,7 @@
                     fixed
                     class="table"
                     :row-event-handlers="rowEventHandlers"
+                    @scroll="onTableScroll"
                 >
                     <template #header="{ columns }">
                         <div v-for="(column, i) in columns" :key="i">
@@ -59,9 +60,7 @@
                                     </div>
 
                                     <div v-else class="header-column-title">
-                                        <b class="el-text">
-                                            {{ column.title }}
-                                        </b>
+                                        <b class="el-text"> {{ column.title }} </b>
                                     </div>
 
                                     <!-- 字段列右部分内容 -->
@@ -96,7 +95,7 @@
                                     />
                                 </div>
 
-                                <div v-else :class="isUpdated(rowIndex, column.dataKey) ? 'update_field_active' : ''">
+                                <div v-else :class="isUpdated(rowIndex, column.dataKey) ? 'update_field_active ml2 mr2' : 'ml2 mr2'">
                                     <span v-if="rowData[column.dataKey!] === null" style="color: var(--el-color-info-light-5)"> NULL </span>
 
                                     <span v-else :title="rowData[column.dataKey!]" class="el-text el-text--small is-truncated">
@@ -486,7 +485,7 @@ const setTableColumns = (columns: any) => {
             dataKey: columnName,
             width: DbInst.flexColumnWidth(columnName, state.datas),
             title: columnName,
-            align: 'center',
+            align: x.dataType == DataType.Number ? 'right' : 'left',
             headerClass: 'table-column',
             class: 'table-column',
             sortable: true,
@@ -841,11 +840,23 @@ const triggerRefresh = () => {
     }
 };
 
+const scrollLeftValue = ref(0);
+const onTableScroll = (param: any) => {
+    scrollLeftValue.value = param.scrollLeft;
+};
+/**
+ * 激活表格，恢复滚动位置，否则会造成表头与数据单元格错位(暂不知为啥，先这样解决)
+ */
+const active = () => {
+    setTimeout(() => tableRef.value.scrollToLeft(scrollLeftValue.value));
+};
+
 const getNowDbInst = () => {
     return DbInst.getInst(state.dbId);
 };
 
 defineExpose({
+    active,
     submitUpdateFields,
     cancelUpdateFields,
 });

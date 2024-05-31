@@ -297,7 +297,7 @@ func (d *dbAppImpl) DumpDb(ctx context.Context, reqParam *dto.DumpDb) error {
 
 		// 生成insert sql，数据在索引前，加速insert
 		if reqParam.DumpData {
-			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表记录: %s \n-- ----------------------------\n", tableName))
+			writer.WriteString(fmt.Sprintf("\n-- ----------------------------\n-- 表数据: %s \n-- ----------------------------\n", tableName))
 
 			dumpHelper.BeforeInsert(writer, quoteTableName)
 			// 获取列信息

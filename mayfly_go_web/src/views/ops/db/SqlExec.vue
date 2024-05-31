@@ -177,6 +177,7 @@
                                     :db-name="dt.db"
                                     :table-name="dt.params.table"
                                     :table-height="state.dataTabsTableHeight"
+                                    :ref="(el: any) => (dt.componentRef = el)"
                                 ></db-table-data-op>
 
                                 <db-sql-editor
@@ -185,6 +186,7 @@
                                     :db-name="dt.db"
                                     :sql-name="dt.params.sqlName"
                                     @save-sql-success="reloadSqls"
+                                    :ref="(el: any) => (dt.componentRef = el)"
                                 >
                                 </db-sql-editor>
 
@@ -579,7 +581,7 @@ const loadTableData = async (db: any, dbName: string, tableName: string) => {
     }
     changeDb(db, dbName);
 
-    const key = `${db.id}:\`${dbName}\`.${tableName}`;
+    const key = `tableData:${db.id}.${dbName}.${tableName}`;
     let tab = state.tabs.get(key);
     state.activeName = key;
     // 如果存在该表tab，则直接返回
@@ -614,7 +616,7 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
     // 存在sql模板名，则该模板名只允许一个tab
     if (sqlName) {
         label = `查询-${sqlName}`;
-        key = `查询:${dbId}:${dbName}.${sqlName}`;
+        key = `query:${dbId}.${dbName}.${sqlName}`;
     } else {
         let count = 1;
         state.tabs.forEach((v) => {
@@ -623,7 +625,7 @@ const addQueryTab = async (db: any, dbName: string, sqlName: string = '') => {
             }
         });
         label = `新查询-${count}`;
-        key = `新查询${count}:${dbId}:${dbName}`;
+        key = `query:${count}.${dbId}.${dbName}`;
     }
     state.activeName = key;
     let tab = state.tabs.get(key);
@@ -660,7 +662,7 @@ const addTablesOpTab = async (db: any) => {
     changeDb(db, dbName);
 
     const dbId = db.id;
-    let key = `表操作:${dbId}:${dbName}.tablesOp`;
+    let key = `tablesOp:${dbId}.${dbName}`;
     state.activeName = key;
 
     let tab = state.tabs.get(key);
@@ -691,15 +693,22 @@ const onRemoveTab = (targetName: string) => {
         if (tabName !== targetName) {
             continue;
         }
+
+        state.tabs.delete(targetName);
+        if (activeName != targetName) {
+            break;
+        }
+
+        // 如果删除的tab是当前激活的tab，则切换到前一个或后一个tab
         const nextTab = tabNames[i + 1] || tabNames[i - 1];
         if (nextTab) {
             activeName = nextTab;
         } else {
             activeName = '';
         }
-        state.tabs.delete(targetName);
         state.activeName = activeName;
         onTabChange();
+        break;
     }
 };
 
@@ -718,6 +727,9 @@ const onTabChange = () => {
         // 注册sql提示
         registerDbCompletionItemProvider(nowTab.dbId, nowTab.db, nowTab.params.dbs, nowDbInst.value.type);
     }
+
+    // 激活当前tab（需要调用DbTableData组件的active，否则表头与数据会出现错位，暂不知为啥，先这样处理）
+    nowTab?.componentRef?.active();
 
     if (dbConfig.value.locationTreeNode) {
         locationNowTreeNode(nowTab);

@@ -152,6 +152,10 @@ const getEditorLangByValue = (value: any) => {
 <style lang="scss">
 .string-input-container {
     position: relative;
+
+    .el-input__wrapper {
+        padding: 1px 3px;
+    }
 }
 .string-input-container-show-icon {
     .el-input__inner {
@@ -173,6 +177,10 @@ const getEditorLangByValue = (value: any) => {
     width: 100% !important;
     .el-input__prefix {
         display: none;
+    }
+
+    .el-input__wrapper {
+        padding: 1px 3px;
     }
 }
 

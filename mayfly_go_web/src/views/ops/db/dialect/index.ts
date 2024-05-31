@@ -71,9 +71,9 @@ export enum DataType {
 /** 列数据类型角标 */
 export const ColumnTypeSubscript = {
     /** 字符串 */
-    string: 'abc',
+    string: 'ab',
     /** 数字 */
-    number: '123',
+    number: '12',
     /** 日期 */
     date: 'icon-clock',
     /** 时间 */

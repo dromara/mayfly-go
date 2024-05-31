@@ -26,7 +26,7 @@ type ResourceAuthCert interface {
 	// GetAuthCert 根据授权凭证名称获取授权凭证
 	GetAuthCert(authCertName string) (*entity.ResourceAuthCert, error)
 
-	// GetResourceAuthCert 获取资源授权凭证，默认获取特权账号，若没有则返回第一个
+	// GetResourceAuthCert 获取资源授权凭证，优先获取默认账号，若不存在默认账号则返回特权账号，都不存在则返回第一个
 	GetResourceAuthCert(resourceType entity.TagType, resourceCode string) (*entity.ResourceAuthCert, error)
 
 	// FillAuthCertByAcs 根据授权凭证列表填充资源的授权凭证信息
@@ -222,6 +222,12 @@ func (r *resourceAuthCertAppImpl) GetResourceAuthCert(resourceType entity.TagTyp
 
 	if len(resourceAuthCerts) == 0 {
 		return nil, errorx.NewBiz("该资源不存在授权凭证账号")
+	}
+
+	for _, resourceAuthCert := range resourceAuthCerts {
+		if resourceAuthCert.Type == entity.AuthCertTypePrivateDefault {
+			return r.decryptAuthCert(resourceAuthCert)
+		}
 	}
 
 	for _, resourceAuthCert := range resourceAuthCerts {

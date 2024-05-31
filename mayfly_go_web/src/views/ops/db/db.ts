@@ -450,8 +450,8 @@ export class DbInst {
             return;
         }
 
-        // 获取列名称的长度 加上排序图标长度、abc为字段类型简称占位符
-        const columnWidth: number = getTextWidth(prop + 'abc') + 23;
+        // 获取列名称的长度 加上排序图标长度、abc为字段类型简称占位符、排序图标等
+        const columnWidth: number = getTextWidth(prop + 'abc') + 10;
         // prop为该列的字段名(传字符串);tableData为该表格的数据源(传变量);
         if (!tableData || !tableData.length || tableData.length === 0 || tableData === undefined) {
             return columnWidth;
@@ -471,7 +471,7 @@ export class DbInst {
                 maxWidthText = nowText;
             }
         }
-        const contentWidth: number = getTextWidth(maxWidthText) + 15;
+        const contentWidth: number = getTextWidth(maxWidthText) + 3;
         const flexWidth: number = contentWidth > columnWidth ? contentWidth : columnWidth;
         return flexWidth > 500 ? 500 : flexWidth;
     };
@@ -600,6 +600,11 @@ export class TabInfo {
      * tab需要的其他信息
      */
     params: any;
+
+    /**
+     * 组件ref
+     */
+    componentRef: any;
 
     getNowDbInst() {
         return DbInst.getInst(this.dbId);

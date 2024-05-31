@@ -52,7 +52,7 @@
 
             <Pane :size="100 - state.editorSize">
                 <div class="mt5 sql-exec-res h100">
-                    <el-tabs class="h100 w100" v-if="state.execResTabs.length > 0" @tab-remove="onRemoveTab" v-model="state.activeTab">
+                    <el-tabs class="h100 w100" v-if="state.execResTabs.length > 0" @tab-remove="onRemoveTab" @tab-change="active" v-model="state.activeTab">
                         <el-tab-pane class="h100" closable v-for="dt in state.execResTabs" :label="dt.id" :name="dt.id" :key="dt.id">
                             <template #label>
                                 <el-popover :show-after="1000" placement="top-start" title="执行信息" trigger="hover" :width="300">
@@ -700,6 +700,19 @@ const initMonacoEditor = () => {
         },
     });
 };
+
+const active = () => {
+    const resTab = state.execResTabs[state.activeTab - 1];
+    if (!resTab || !resTab.dbTableRef) {
+        return;
+    }
+
+    resTab.dbTableRef?.active();
+};
+
+defineExpose({
+    active,
+});
 </script>
 
 <style lang="scss">

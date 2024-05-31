@@ -497,20 +497,27 @@ const onRemoveTab = (targetName: string) => {
         if (tabName !== targetName) {
             continue;
         }
+
+        state.tabs.delete(targetName);
+        let info = state.tabs.get(targetName);
+        if (info) {
+            terminalRefs[info.key]?.close();
+        }
+
+        if (activeTermName != targetName) {
+            break;
+        }
+
+        // 如果删除的tab是当前激活的tab，则切换到前一个或后一个tab
         const nextTab = tabNames[i + 1] || tabNames[i - 1];
         if (nextTab) {
             activeTermName = nextTab;
         } else {
             activeTermName = '';
         }
-        let info = state.tabs.get(targetName);
-        if (info) {
-            terminalRefs[info.key]?.close();
-        }
 
-        state.tabs.delete(targetName);
         state.activeTermName = activeTermName;
-        // onTabChange();
+        break;
     }
 };
 

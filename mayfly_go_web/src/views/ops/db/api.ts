@@ -23,7 +23,10 @@ export const dbApi = {
             if (process.env.NODE_ENV === 'development') {
                 console.log(param.sql);
             }
-            param.sql = Base64.encode(param.sql);
+            // 非base64编码sql，则进行base64编码（refreshToken时，会重复调用该方法，故简单判断下）
+            if (!Base64.isValid(param.sql)) {
+                param.sql = Base64.encode(param.sql);
+            }
         }
         return param;
     }),
