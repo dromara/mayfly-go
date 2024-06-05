@@ -19,6 +19,8 @@ var (
 	// 时间类型
 	timeRegexp = regexp.MustCompile(`(?i)time`)
 
+	blobRegexp = regexp.MustCompile(`(?i)blob`)
+
 	//  mysql数据类型 映射 公共数据类型
 	commonColumnTypeMap = map[string]dbi.ColumnDataType{
 		"bigint":     dbi.CommonTypeBigint,
@@ -37,6 +39,7 @@ var (
 		"longtext":   dbi.CommonTypeLongtext,
 		"mediumblob": dbi.CommonTypeBlob,
 		"mediumtext": dbi.CommonTypeText,
+		"bit":        dbi.CommonTypeBit,
 		"set":        dbi.CommonTypeVarchar,
 		"smallint":   dbi.CommonTypeSmallint,
 		"text":       dbi.CommonTypeText,
@@ -60,6 +63,7 @@ var (
 		dbi.CommonTypeMediumtext: "text",
 		dbi.CommonTypeVarbinary:  "varbinary",
 		dbi.CommonTypeInt:        "int",
+		dbi.CommonTypeBit:        "bit",
 		dbi.CommonTypeSmallint:   "smallint",
 		dbi.CommonTypeTinyint:    "tinyint",
 		dbi.CommonTypeNumber:     "decimal",
@@ -91,6 +95,10 @@ func (dc *DataHelper) GetDataType(dbColumnType string) dbi.DataType {
 	// 时间类型
 	if timeRegexp.MatchString(dbColumnType) {
 		return dbi.DataTypeTime
+	}
+	// blob类型
+	if blobRegexp.MatchString(dbColumnType) {
+		return dbi.DataTypeBlob
 	}
 	return dbi.DataTypeString
 }
@@ -157,6 +165,8 @@ func (dc *DataHelper) WrapValue(dbColumnValue any, dataType dbi.DataType) string
 	case dbi.DataTypeDate, dbi.DataTypeDateTime, dbi.DataTypeTime:
 		// mysql时间类型无需格式化
 		return fmt.Sprintf("'%s'", dbColumnValue)
+	case dbi.DataTypeBlob:
+		return fmt.Sprintf("unhex('%s')", dbColumnValue)
 	}
 	return fmt.Sprintf("'%s'", dbColumnValue)
 }
